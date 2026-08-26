@@ -3,6 +3,7 @@
 
 import { clearProfileDeltaSnapshots } from './sync-delta-snapshot.js';
 import { markSyncProfileDirty } from './sync-dirty-state.js';
+import { clearProfileSyncDeleteState } from './profile-sync-policy.js';
 
 export const SYNC_BACKUP_RESTORE_PENDING_KEY = 'labcharts-sync-backup-restore-pending';
 
@@ -55,6 +56,10 @@ export function prepareRestoredProfilesForSync(backup) {
     const profileId = profile?.profileId;
     if (typeof profileId !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(profileId) || prepared.has(profileId)) continue;
     prepared.add(profileId);
+    // Restoring a backup is an explicit decision to revive this identity.
+    // A successful delete from before the restore must not keep the restored
+    // profile permanently blocked from its recovery push.
+    clearProfileSyncDeleteState(profileId);
     clearProfileDeltaSnapshots(profileId);
     // A restored blob may not have complete per-row history, so force the
     // first recovery push to include the full v3 payload as a safety net.

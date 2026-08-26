@@ -8,6 +8,7 @@ import { encryptedGetItem } from './crypto.js';
 import { parseSyncPayload } from './sync-payload.js';
 import { clearProfileStorage } from './profile-storage-cleanup.js';
 import { createUniqueId } from './unique-id.js';
+import { getSyncDirtyToken } from './sync-dirty-state.js';
 import {
   clearLocalProfileDeleteIntent, hasPendingProfileTombstone,
   isDemoProfileId, markLocalProfileDeleteIntent,
@@ -222,17 +223,21 @@ export async function applyRemoteTombstones() {
     .map(profile => profile.id);
   if (localToWipe.length === 0) return;
 
-  // Batched remote deletes are powerful enough to wipe many local profiles,
-  // so quarantine them for explicit user confirmation.
-  if (localToWipe.length >= TOMBSTONE_BATCH_THRESHOLD) {
+  // Batched remote deletes are powerful enough to wipe many local profiles.
+  // A single delete also needs confirmation when it collides with unsynced
+  // local edits; wiping it here would destroy the profile and its dirty token
+  // before the pending snapshot gets a chance to reach the relay.
+  const hasDirtyConflict = localToWipe.some(id => !!getSyncDirtyToken(id));
+  if (localToWipe.length >= TOMBSTONE_BATCH_THRESHOLD || hasDirtyConflict) {
     const pending = localToWipe.filter(id => !localStorage.getItem(TOMBSTONE_QUARANTINE_KEY(id)));
     for (const id of pending) {
       localStorage.setItem(TOMBSTONE_QUARANTINE_KEY(id), JSON.stringify({ at: Date.now(), source: 'remote' }));
     }
     dbg(`Quarantined ${pending.length} tombstone(s) - require user confirm before wipe:`, pending.join(','));
     if (pending.length > 0) {
+      const localChangeNotice = hasDirtyConflict ? ' with unsynced local changes' : '';
       _notify(
-        `${pending.length} profile${pending.length === 1 ? '' : 's'} deleted on another device. Open Settings → Data → Cross-Device Sync to choose Apply delete or Restore.`,
+        `${pending.length} profile${pending.length === 1 ? '' : 's'} deleted on another device${localChangeNotice}. Open Settings → Data → Cross-Device Sync to choose Apply delete or Restore.`,
         'info', 6000
       );
     }

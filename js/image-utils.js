@@ -184,8 +184,7 @@ export function formatImageBlock(base64, mediaType, _provider) {
  * @returns {Array} content array for the messages API
  */
 export function buildVisionContent(imageBlocks, text, _provider) {
-  const content = [];
+  const content = [...imageBlocks];
   if (text) content.push({ type: 'text', text });
-  content.push(...imageBlocks);
   return content;
 }

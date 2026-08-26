@@ -131,8 +131,12 @@ export async function pushAllProfiles(options = {}) {
 async function pushSelectedProfiles(profiles, options = {}) {
   const summary = { total: profiles.length, succeeded: 0, failed: 0, skipped: 0 };
   for (const p of profiles) {
-    if (getProfileSyncBlockReason(p?.id, profiles) && !options.allowTombstoneResurrection) {
-      discardSyncProfileDirty(p?.id);
+    const blockReason = getProfileSyncBlockReason(p?.id, profiles);
+    if (blockReason && !options.allowTombstoneResurrection) {
+      // A quarantined remote delete still needs the local dirty generation if
+      // the user chooses Restore. Demo and committed delete-intent profiles
+      // can never be pushed, so their markers remain safe to discard.
+      if (blockReason !== 'pending-delete') discardSyncProfileDirty(p?.id);
       summary.skipped++;
       continue;
     }
@@ -191,8 +195,9 @@ export async function pushDirtyProfiles(options = {}) {
   const profiles = _getProfiles();
   const dirtyProfiles = profiles.filter(profile => {
     if (!getSyncDirtyToken(profile?.id)) return false;
-    if (!getProfileSyncBlockReason(profile?.id, profiles)) return true;
-    discardSyncProfileDirty(profile?.id);
+    const blockReason = getProfileSyncBlockReason(profile?.id, profiles);
+    if (!blockReason) return true;
+    if (blockReason !== 'pending-delete') discardSyncProfileDirty(profile?.id);
     return false;
   });
   return pushSelectedProfiles(dirtyProfiles, options);

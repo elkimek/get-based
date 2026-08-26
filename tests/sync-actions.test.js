@@ -140,6 +140,29 @@ describe('sync action profile dependencies', () => {
     }
   });
 
+  it('retains a dirty generation while a remote delete awaits confirmation', async () => {
+    const profileId = 'pending-delete-profile';
+    const pushProfile = vi.fn().mockResolvedValue({ ok: true });
+    configureSyncActions({
+      pushProfile,
+      getProfiles: () => [{ id: profileId, tags: [] }],
+    });
+    markSyncProfileDirty(profileId);
+    localStorage.setItem(`labcharts-tombstone-pending-${profileId}`, JSON.stringify({ source: 'remote' }));
+
+    try {
+      await expect(pushDirtyProfiles({ force: true })).resolves.toEqual({
+        total: 0, succeeded: 0, failed: 0, skipped: 0,
+      });
+      expect(pushProfile).not.toHaveBeenCalled();
+      expect(getSyncDirtyToken(profileId)).not.toBeNull();
+    } finally {
+      localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);
+      localStorage.removeItem(`labcharts-tombstone-pending-${profileId}`);
+      configureSyncActions({ pushProfile: async () => {}, getProfiles: () => [] });
+    }
+  });
+
   it('publishes requested restore profiles and every dirty profile selectively', async () => {
     const previousProfile = state.currentProfile;
     const previousImportedData = state.importedData;

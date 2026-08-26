@@ -35,19 +35,23 @@ function localDay(date) {
   return `${year}-${month}-${day}`;
 }
 
-function sleepCandidateSources() {
-  const metrics = state.importedData?.wearableSummary?.metrics || {};
+function sleepCandidateSources(importedData = state.importedData) {
+  const metrics = importedData?.wearableSummary?.metrics || {};
   const preferred = metrics.sleep_total_min?.primarySource || metrics.sleep_score?.primarySource || '';
-  const connected = Object.keys(state.importedData?.wearableSummary?.sources || {});
+  const connected = Object.keys(importedData?.wearableSummary?.sources || {});
   return [...new Set([preferred, ...connected, 'oura'].filter(Boolean))];
 }
 
 /** @returns {Promise<Array<{source: string, sleepStart: string, sleepEnd: string}>>} */
-async function loadLocalSleepIntervals(profileId, { days = 100, now = new Date() } = {}) {
+async function loadLocalSleepIntervals(profileId, {
+  days = 100,
+  now = new Date(),
+  importedData = state.importedData,
+} = {}) {
   const end = new Date(now);
   const start = new Date(now);
   start.setDate(start.getDate() - Math.max(7, Number(days) || 100));
-  for (const source of sleepCandidateSources()) {
+  for (const source of sleepCandidateSources(importedData)) {
     const rows = await getDailyRange(profileId, source, localDay(start), localDay(end)).catch(() => []);
     /** @type {Array<{source: string, sleepStart: string, sleepEnd: string}>} */
     const intervals = rows.flatMap(row => row?.sleep_start_at && row?.sleep_end_at ? [{
@@ -493,10 +497,12 @@ function mealSnapshot(value) {
   try { return JSON.stringify(value); } catch { return ''; }
 }
 
-async function persistActiveNutritionProfileData(profileId) {
-  if (state.currentProfile !== profileId) return false;
-  const { saveImportedData } = await import('./data.js');
-  return saveImportedData();
+async function persistNutritionProfileData(profileId, importedData) {
+  const { saveImportedDataForProfile } = await import('./data.js');
+  // Meal writes can outlive the initiating profile view. Persist the captured
+  // profile snapshot explicitly so a mid-save switch cannot split the IDB
+  // cache from the canonical sync surface or write profile A into profile B.
+  return saveImportedDataForProfile(profileId, importedData, { forceProfileScope: true });
 }
 
 /**
@@ -530,7 +536,7 @@ export async function reconcileNutritionMealsFromProfileData(profileId = state.c
   const stateChanged = mealSnapshot(importedData.nutritionMeals) !== mealSnapshot(desiredMeals);
   if (stateChanged) {
     importedData.nutritionMeals = desiredMeals;
-    const saved = await persistActiveNutritionProfileData(profileId);
+    const saved = await persistNutritionProfileData(profileId, importedData);
     if (!saved) throw new Error('Meal data was cached locally but could not be prepared for cross-device sync.');
   }
 
@@ -552,10 +558,10 @@ export async function reconcileNutritionMealsFromProfileData(profileId = state.c
   return desiredMeals;
 }
 
-async function recomputeActiveSummary(profileId) {
+async function recomputeActiveSummary(profileId, importedData = state.importedData) {
   const meals = await listNutritionMeals(profileId, { limit: 10000 });
-  const sleepIntervals = await loadLocalSleepIntervals(profileId).catch(() => []);
-  const wearableRevision = Object.values(state.importedData?.wearableConnections || {}).reduce(
+  const sleepIntervals = await loadLocalSleepIntervals(profileId, { importedData }).catch(() => []);
+  const wearableRevision = Object.values(importedData?.wearableConnections || {}).reduce(
     (latest, connection) => Math.max(latest, Number(connection?.lastSyncAt || 0)),
     0,
   );
@@ -642,26 +648,63 @@ export async function cacheActiveProfileFood(food) {
 
 export async function saveActiveProfileMeal(meal) {
   const profileId = state.currentProfile;
+  const importedData = state.importedData || (state.importedData = /** @type {any} */ ({}));
+  const previousLocalMeal = meal?.id
+    ? await getNutritionMeal(profileId, String(meal.id))
+    : null;
   const saved = await putNutritionMeal(profileId, meal);
-  if (state.currentProfile === profileId) {
-    const importedData = state.importedData || (state.importedData = /** @type {any} */ ({}));
-    const byId = new Map(canonicalNutritionMeals(importedData.nutritionMeals).map(item => [item.id, item]));
-    byId.set(saved.id, sanitizeNutritionMeal(saved));
-    importedData.nutritionMeals = canonicalNutritionMeals([...byId.values()]);
-    clearTombstone(importedData, 'nutritionMeals', saved.id);
-    const persisted = await persistActiveNutritionProfileData(profileId);
-    if (!persisted) throw new Error('Meal was cached locally but could not be added to cross-device sync.');
-    await writeMeta(profileId, PROFILE_SYNC_INITIALIZED_META, true);
+
+  const previousMeals = importedData.nutritionMeals;
+  const tombstoneKeys = ['_deleted', '_deletedAt', '_deletedClearedAt'];
+  const previousTombstoneSurfaces = new Map(tombstoneKeys.map(key => [key, {
+    had: Object.hasOwn(importedData, key),
+    value: importedData[key],
+  }]));
+  for (const key of tombstoneKeys) {
+    const surface = importedData[key];
+    if (!surface || typeof surface !== 'object') continue;
+    importedData[key] = {
+      ...surface,
+      nutritionMeals: Array.isArray(surface.nutritionMeals)
+        ? [...surface.nutritionMeals]
+        : surface.nutritionMeals && typeof surface.nutritionMeals === 'object'
+          ? { ...surface.nutritionMeals }
+          : surface.nutritionMeals,
+    };
   }
+
+  const byId = new Map(canonicalNutritionMeals(importedData.nutritionMeals).map(item => [item.id, item]));
+  byId.set(saved.id, sanitizeNutritionMeal(saved));
+  importedData.nutritionMeals = canonicalNutritionMeals([...byId.values()]);
+  clearTombstone(importedData, 'nutritionMeals', saved.id);
+  let persisted = false;
+  try {
+    persisted = await persistNutritionProfileData(profileId, importedData);
+  } catch {}
+  if (!persisted) {
+    importedData.nutritionMeals = previousMeals;
+    for (const [key, previous] of previousTombstoneSurfaces) {
+      if (previous.had) importedData[key] = previous.value;
+      else delete importedData[key];
+    }
+    try {
+      if (previousLocalMeal) await putNutritionMeal(profileId, previousLocalMeal, { preserveUpdatedAt: true });
+      else await deleteNutritionMeal(profileId, saved.id);
+    } catch (rollbackError) {
+      console.warn('[nutrition] Could not roll back a failed canonical meal save:', rollbackError);
+    }
+    throw new Error('Meal could not be saved because its cross-device copy could not be persisted.');
+  }
+  await writeMeta(profileId, PROFILE_SYNC_INITIALIZED_META, true);
   await requestPersistentNutritionStorage();
-  await recomputeActiveSummary(profileId);
+  await recomputeActiveSummary(profileId, importedData);
   return saved;
 }
 
 export async function deleteActiveProfileMeal(id) {
   const profileId = state.currentProfile;
+  const importedData = state.importedData || (state.importedData = /** @type {any} */ ({}));
   if (state.currentProfile === profileId) {
-    const importedData = state.importedData || (state.importedData = /** @type {any} */ ({}));
     const previousMeals = importedData.nutritionMeals;
     const tombstoneKeys = ['_deleted', '_deletedAt', '_deletedClearedAt'];
     const previousTombstoneSurfaces = new Map(tombstoneKeys.map(key => [key, {
@@ -686,7 +729,7 @@ export async function deleteActiveProfileMeal(id) {
     recordTombstone(importedData, 'nutritionMeals', String(id || ''));
     importedData.nutritionMeals = canonicalNutritionMeals(importedData.nutritionMeals)
       .filter(meal => meal.id !== id);
-    const persisted = await persistActiveNutritionProfileData(profileId);
+    const persisted = await persistNutritionProfileData(profileId, importedData);
     if (!persisted) {
       importedData.nutritionMeals = previousMeals;
       for (const [key, previous] of previousTombstoneSurfaces) {
@@ -698,5 +741,5 @@ export async function deleteActiveProfileMeal(id) {
     await writeMeta(profileId, PROFILE_SYNC_INITIALIZED_META, true);
   }
   await deleteNutritionMeal(profileId, id);
-  await recomputeActiveSummary(profileId);
+  await recomputeActiveSummary(profileId, importedData);
 }
