@@ -718,10 +718,10 @@ async function saveProfileMeal(profileId, importedData, meal) {
   return saved;
 }
 
-export async function deleteActiveProfileMeal(id) {
+export function deleteActiveProfileMeal(id) {
   const profileId = state.currentProfile;
   const importedData = state.importedData || (state.importedData = /** @type {any} */ ({}));
-  if (state.currentProfile === profileId) {
+  return queueNutritionSave(async () => {
     const previousMeals = importedData.nutritionMeals;
     const previousTombstoneSurfaces = new Map(TOMBSTONE_KEYS.map(key => [key, {
       had: Object.hasOwn(importedData, key),
@@ -755,7 +755,7 @@ export async function deleteActiveProfileMeal(id) {
       throw new Error('Meal could not be deleted because its cross-device deletion could not be saved.');
     }
     await writeMeta(profileId, PROFILE_SYNC_INITIALIZED_META, true);
-  }
-  await deleteNutritionMeal(profileId, id);
-  await recomputeActiveSummary(profileId, importedData);
+    await deleteNutritionMeal(profileId, id);
+    await recomputeActiveSummary(profileId, importedData);
+  });
 }
