@@ -36,7 +36,7 @@ describe('nutrition save and hydration ordering', () => {
     await deleteNutritionDB(profileId);
   });
 
-  it('restores the local record when stale hydration deletes it during canonical persistence', async () => {
+  it('queues hydration behind a save and aligns a reloaded active profile before reconciling', async () => {
     state.currentProfile = profileId;
     state.importedData = { entries: [], nutritionMeals: [] };
     await hydrateNutritionSummary(profileId);
@@ -58,15 +58,29 @@ describe('nutrition save and hydration ordering', () => {
     state.currentProfile = 'other-profile';
     state.importedData = { entries: [] };
     state.currentProfile = profileId;
-    state.importedData = { entries: [], nutritionMeals: [] };
-    await hydrateNutritionSummary(profileId);
-    await expect(getNutritionMeal(profileId, 'meal-in-flight')).resolves.toBeNull();
+    state.importedData = {
+      entries: [],
+      nutritionMeals: [],
+      _deleted: { supplements: ['keep-this-delete'], nutritionMeals: ['meal-in-flight'] },
+    };
+    let hydrationSettled = false;
+    const pendingHydration = hydrateNutritionSummary(profileId).then(summary => {
+      hydrationSettled = true;
+      return summary;
+    });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(hydrationSettled).toBe(false);
 
     persistenceGate.release?.();
     await expect(pendingSave).resolves.toMatchObject({ id: 'meal-in-flight' });
+    await expect(pendingHydration).resolves.toMatchObject({ totalMeals: 1 });
     await expect(getNutritionMeal(profileId, 'meal-in-flight')).resolves.toMatchObject({
       name: 'In-flight lunch',
     });
+    expect(state.importedData.nutritionMeals).toEqual([
+      expect.objectContaining({ id: 'meal-in-flight', name: 'In-flight lunch' }),
+    ]);
+    expect(state.importedData._deleted).toEqual({ supplements: ['keep-this-delete'] });
   });
 
   it('serializes overlapping edits so an older save cannot reassert stale meal data', async () => {
@@ -148,5 +162,53 @@ describe('nutrition save and hydration ordering', () => {
     await expect(getNutritionMeal(profileId, 'deleted-meal')).resolves.toBeNull();
     expect(state.importedData.nutritionMeals).toEqual([]);
     expect(state.importedData._deleted?.nutritionMeals).toContain('deleted-meal');
+  });
+
+  it('queues hydration behind a delete and carries its tombstone into a reloaded active profile', async () => {
+    state.currentProfile = profileId;
+    state.importedData = { entries: [], nutritionMeals: [] };
+    await hydrateNutritionSummary(profileId);
+    await saveActiveProfileMeal({
+      id: 'delete-during-hydration',
+      name: 'Dinner to delete',
+      eatenAt: '2026-08-26T18:00:00.000Z',
+    });
+    const staleMeal = state.importedData.nutritionMeals[0];
+
+    let signalDeletePersistStarted;
+    const deletePersistStarted = new Promise(resolve => { signalDeletePersistStarted = resolve; });
+    persistenceGate.handler = async (ignoredProfileId, importedData) => {
+      if (importedData._deleted?.nutritionMeals?.includes('delete-during-hydration')) {
+        signalDeletePersistStarted();
+        await new Promise(resolve => { persistenceGate.release = resolve; });
+      }
+      return true;
+    };
+    const pendingDelete = deleteActiveProfileMeal('delete-during-hydration');
+    await deletePersistStarted;
+
+    state.currentProfile = 'other-profile';
+    state.importedData = { entries: [] };
+    state.currentProfile = profileId;
+    state.importedData = {
+      entries: [],
+      nutritionMeals: [staleMeal],
+      _deleted: { supplements: ['keep-this-delete'] },
+    };
+    let hydrationSettled = false;
+    const pendingHydration = hydrateNutritionSummary(profileId).then(summary => {
+      hydrationSettled = true;
+      return summary;
+    });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(hydrationSettled).toBe(false);
+
+    persistenceGate.release?.();
+    await expect(pendingDelete).resolves.toBeUndefined();
+    await expect(pendingHydration).resolves.toMatchObject({ totalMeals: 0 });
+    await expect(getNutritionMeal(profileId, 'delete-during-hydration')).resolves.toBeNull();
+    expect(state.importedData.nutritionMeals).toEqual([]);
+    expect(state.importedData._deleted?.nutritionMeals).toContain('delete-during-hydration');
+    expect(state.importedData._deleted?.supplements).toEqual(['keep-this-delete']);
   });
 });
