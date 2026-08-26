@@ -29,12 +29,12 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const dbPromises = new Map();
 /** @type {Promise<any>} */
-let nutritionSaveTail = Promise.resolve();
+let nutritionOperationTail = Promise.resolve();
 
 /** @template T @param {() => Promise<T>} operation @returns {Promise<T>} */
-function queueNutritionSave(operation) {
-  const result = nutritionSaveTail.then(operation);
-  nutritionSaveTail = result.catch(() => {});
+function queueNutritionOperation(operation) {
+  const result = nutritionOperationTail.then(operation);
+  nutritionOperationTail = result.catch(() => {});
   return result;
 }
 
@@ -503,6 +503,26 @@ function canonicalNutritionMeals(meals) {
     });
 }
 
+function alignActiveNutritionSurface(profileId, source) {
+  const target = state.importedData;
+  if (state.currentProfile !== profileId || !target || target === source) return;
+  target.nutritionMeals = canonicalNutritionMeals(source.nutritionMeals);
+  for (const key of TOMBSTONE_KEYS) {
+    const from = source[key];
+    const current = target[key];
+    const hasNutrition = from && typeof from === 'object' && Object.hasOwn(from, 'nutritionMeals');
+    if (hasNutrition) {
+      const value = from.nutritionMeals;
+      target[key] = { ...(current && typeof current === 'object' ? current : {}), nutritionMeals: Array.isArray(value) ? [...value] : value && typeof value === 'object' ? { ...value } : value };
+    } else if (current && typeof current === 'object' && Object.hasOwn(current, 'nutritionMeals')) {
+      const remaining = { ...current };
+      delete remaining.nutritionMeals;
+      if (Object.keys(remaining).length) target[key] = remaining;
+      else delete target[key];
+    }
+  }
+}
+
 function mealSnapshot(value) {
   try { return JSON.stringify(value); } catch { return ''; }
 }
@@ -601,7 +621,8 @@ function nutritionStorageRetryDelay() {
   return new Promise(resolve => setTimeout(resolve, 40));
 }
 
-export async function hydrateNutritionSummary(profileId = state.currentProfile) {
+async function hydrateNutritionSummaryOperation(profileId) {
+  if (!profileId || state.currentProfile !== profileId) return null;
   state.nutritionSummary = null;
   const wearableRevision = Object.values(state.importedData?.wearableConnections || {}).reduce(
     (latest, connection) => Math.max(latest, Number(connection?.lastSyncAt || 0)),
@@ -635,6 +656,10 @@ export async function hydrateNutritionSummary(profileId = state.currentProfile) 
   throw lastError || new Error('Saved nutrition data could not be loaded.');
 }
 
+export function hydrateNutritionSummary(profileId = state.currentProfile) {
+  return queueNutritionOperation(() => hydrateNutritionSummaryOperation(profileId));
+}
+
 export async function refreshNutritionSummaryFromWearables(profileId = state.currentProfile) {
   if (state.currentProfile !== profileId || !state.nutritionSummary?.totalMeals) return null;
   return (await recomputeActiveSummary(profileId)).summary;
@@ -659,7 +684,7 @@ export async function cacheActiveProfileFood(food) {
 export function saveActiveProfileMeal(meal) {
   const profileId = state.currentProfile;
   const importedData = state.importedData || (state.importedData = /** @type {any} */ ({}));
-  return queueNutritionSave(() => saveProfileMeal(profileId, importedData, meal));
+  return queueNutritionOperation(() => saveProfileMeal(profileId, importedData, meal));
 }
 
 async function saveProfileMeal(profileId, importedData, meal) {
@@ -708,6 +733,7 @@ async function saveProfileMeal(profileId, importedData, meal) {
     }
     throw new Error('Meal could not be saved because its cross-device copy could not be persisted.');
   }
+  alignActiveNutritionSurface(profileId, importedData);
   // Hydration may have reconciled an older profile snapshot while canonical
   // persistence was in flight. Re-assert the committed record so save success
   // always leaves the encrypted local cache aligned with canonical state.
@@ -721,7 +747,7 @@ async function saveProfileMeal(profileId, importedData, meal) {
 export function deleteActiveProfileMeal(id) {
   const profileId = state.currentProfile;
   const importedData = state.importedData || (state.importedData = /** @type {any} */ ({}));
-  return queueNutritionSave(async () => {
+  return queueNutritionOperation(async () => {
     const previousMeals = importedData.nutritionMeals;
     const previousTombstoneSurfaces = new Map(TOMBSTONE_KEYS.map(key => [key, {
       had: Object.hasOwn(importedData, key),
@@ -754,6 +780,7 @@ export function deleteActiveProfileMeal(id) {
       }
       throw new Error('Meal could not be deleted because its cross-device deletion could not be saved.');
     }
+    alignActiveNutritionSurface(profileId, importedData);
     await writeMeta(profileId, PROFILE_SYNC_INITIALIZED_META, true);
     await deleteNutritionMeal(profileId, id);
     await recomputeActiveSummary(profileId, importedData);
