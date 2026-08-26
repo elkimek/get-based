@@ -2,9 +2,43 @@
 // nutrition-summary.js — compact rolling aggregates suitable for sync/AI context.
 
 import { summarizeFuelOverlap, summarizeFuelResponses } from './nutrition-fuel-mix.js';
+import { mergeImportedData } from './data-merge.js';
 
 export const NUTRITION_SUMMARY_VERSION = 14;
 export const NUTRITION_CONTEXT_CHAR_LIMIT = 1800;
+const NUTRITION_TOMBSTONE_KEYS = ['_deleted', '_deletedAt', '_deletedClearedAt'];
+
+function nutritionSyncSurface(importedData) {
+  const surface = { nutritionMeals: importedData?.nutritionMeals };
+  for (const key of NUTRITION_TOMBSTONE_KEYS) {
+    const source = importedData?.[key];
+    if (source && typeof source === 'object' && Object.hasOwn(source, 'nutritionMeals')) {
+      surface[key] = { nutritionMeals: source.nutritionMeals };
+    }
+  }
+  return surface;
+}
+
+/** Timestamp-aware merge for the profile surface touched by meal operations. */
+export function mergeNutritionOperationSurface(active, committed, { mutate = false } = {}) {
+  const merged = mergeImportedData(nutritionSyncSurface(active), nutritionSyncSurface(committed));
+  const result = mutate ? active : { ...active };
+  result.nutritionMeals = merged.nutritionMeals;
+  for (const key of NUTRITION_TOMBSTONE_KEYS) {
+    const from = merged[key];
+    const current = result[key];
+    if (from && typeof from === 'object' && Object.hasOwn(from, 'nutritionMeals')) {
+      const value = from.nutritionMeals;
+      result[key] = { ...(current && typeof current === 'object' ? current : {}), nutritionMeals: Array.isArray(value) ? [...value] : value && typeof value === 'object' ? { ...value } : value };
+    } else if (current && typeof current === 'object' && Object.hasOwn(current, 'nutritionMeals')) {
+      const remaining = { ...current };
+      delete remaining.nutritionMeals;
+      if (Object.keys(remaining).length) result[key] = remaining;
+      else delete result[key];
+    }
+  }
+  return result;
+}
 
 export const NUTRITION_HISTORY_RANGES = Object.freeze([
   Object.freeze({ key: '3m', months: 3, label: '3M', description: 'last 3 months' }),

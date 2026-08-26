@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 691 |
-| Internal import edges | 2942 |
+| Modules | 690 |
+| Internal import edges | 2941 |
 | Dynamic internal edges | 86 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -800,7 +800,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>nutrition</code> family — 21 modules</summary>
+<details><summary><code>nutrition</code> family — 20 modules</summary>
 
 - [`js/nutrition-ai-settings.js`](js/nutrition-ai-settings.js) → [`js/api.js`](js/api.js), [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/local-ai-discovery.js`](js/local-ai-discovery.js), [`js/provider-local-ai-runtime.js`](js/provider-local-ai-runtime.js), [`js/schema.js`](js/schema.js), [`js/utils.js`](js/utils.js)
 - [`js/nutrition-analysis.js`](js/nutrition-analysis.js) → [`js/api.js`](js/api.js), [`js/image-utils.js`](js/image-utils.js), [`js/nutrition-ai-settings.js`](js/nutrition-ai-settings.js), [`js/nutrition-food-data.js`](js/nutrition-food-data.js), [`js/nutrition-summary.js`](js/nutrition-summary.js), [`js/schema.js`](js/schema.js)
@@ -815,11 +815,10 @@ Native browser modules shipped with the static application.
 - [`js/nutrition-fuel-mix.js`](js/nutrition-fuel-mix.js) → no in-scope imports
 - [`js/nutrition-history.js`](js/nutrition-history.js) → [`js/caught-error.js`](js/caught-error.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/nutrition-render.js`](js/nutrition-render.js), [`js/nutrition-store.js`](js/nutrition-store.js), [`js/nutrition-summary.js`](js/nutrition-summary.js)
 - [`js/nutrition-modal-controller.js`](js/nutrition-modal-controller.js) → [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/nutrition-comparison-ui.js`](js/nutrition-comparison-ui.js), [`js/nutrition-review-ui.js`](js/nutrition-review-ui.js), [`js/utils.js`](js/utils.js)
-- [`js/nutrition-operation-merge.js`](js/nutrition-operation-merge.js) → [`js/data-merge.js`](js/data-merge.js)
 - [`js/nutrition-render.js`](js/nutrition-render.js) → [`js/api.js`](js/api.js), [`js/nutrition-ai-settings.js`](js/nutrition-ai-settings.js), [`js/nutrition-analysis.js`](js/nutrition-analysis.js), [`js/nutrition-comparison.js`](js/nutrition-comparison.js), [`js/nutrition-fuel-mix.js`](js/nutrition-fuel-mix.js), [`js/nutrition-summary.js`](js/nutrition-summary.js), [`js/nutrition-targets.js`](js/nutrition-targets.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/nutrition-review-ui.js`](js/nutrition-review-ui.js) → [`js/caught-error.js`](js/caught-error.js), [`js/nutrition-analysis.js`](js/nutrition-analysis.js), [`js/nutrition-comparison-ui.js`](js/nutrition-comparison-ui.js), [`js/nutrition-food-composition-state.js`](js/nutrition-food-composition-state.js), [`js/nutrition-food-data.js`](js/nutrition-food-data.js), [`js/nutrition-fuel-mix.js`](js/nutrition-fuel-mix.js), [`js/nutrition-render.js`](js/nutrition-render.js), [`js/utils.js`](js/utils.js)
-- [`js/nutrition-store.js`](js/nutrition-store.js) → [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js) *(dynamic)*, [`js/nutrition-operation-merge.js`](js/nutrition-operation-merge.js), [`js/nutrition-summary.js`](js/nutrition-summary.js), [`js/nutrition-sync-sanitize.js`](js/nutrition-sync-sanitize.js), [`js/state.js`](js/state.js), [`js/wearables-store.js`](js/wearables-store.js)
-- [`js/nutrition-summary.js`](js/nutrition-summary.js) → [`js/nutrition-fuel-mix.js`](js/nutrition-fuel-mix.js)
+- [`js/nutrition-store.js`](js/nutrition-store.js) → [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js) *(dynamic)*, [`js/nutrition-summary.js`](js/nutrition-summary.js), [`js/nutrition-sync-sanitize.js`](js/nutrition-sync-sanitize.js), [`js/state.js`](js/state.js), [`js/wearables-store.js`](js/wearables-store.js)
+- [`js/nutrition-summary.js`](js/nutrition-summary.js) → [`js/data-merge.js`](js/data-merge.js), [`js/nutrition-fuel-mix.js`](js/nutrition-fuel-mix.js)
 - [`js/nutrition-sync-sanitize.js`](js/nutrition-sync-sanitize.js) → no in-scope imports
 - [`js/nutrition-targets.js`](js/nutrition-targets.js) → [`js/nutrition-summary.js`](js/nutrition-summary.js), [`js/state.js`](js/state.js), [`js/wearables-formatters.js`](js/wearables-formatters.js)
 - [`js/nutrition.js`](js/nutrition.js) → [`js/caught-error.js`](js/caught-error.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/nutrition-ai-settings.js`](js/nutrition-ai-settings.js), [`js/nutrition-analysis.js`](js/nutrition-analysis.js), [`js/nutrition-comparison-ui.js`](js/nutrition-comparison-ui.js), [`js/nutrition-entry-forms.js`](js/nutrition-entry-forms.js), [`js/nutrition-food-composition-state.js`](js/nutrition-food-composition-state.js), [`js/nutrition-food-data.js`](js/nutrition-food-data.js), [`js/nutrition-history.js`](js/nutrition-history.js), [`js/nutrition-modal-controller.js`](js/nutrition-modal-controller.js), [`js/nutrition-render.js`](js/nutrition-render.js), [`js/nutrition-review-ui.js`](js/nutrition-review-ui.js), [`js/nutrition-store.js`](js/nutrition-store.js), [`js/utils.js`](js/utils.js)

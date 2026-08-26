@@ -7,11 +7,10 @@
 // A non-extractable AES key encrypts every local cached meal payload.
 
 import { state } from './state.js';
-import { computeNutritionSummary, NUTRITION_SUMMARY_VERSION } from './nutrition-summary.js';
+import { computeNutritionSummary, mergeNutritionOperationSurface, NUTRITION_SUMMARY_VERSION } from './nutrition-summary.js';
 import { getDailyRange } from './wearables-store.js';
 import { clearTombstone, recordTombstone } from './data-merge.js';
 import { sanitizeNutritionMeal } from './nutrition-sync-sanitize.js';
-import { mergeNutritionOperationSurface } from './nutrition-operation-merge.js';
 
 export { sanitizeNutritionMeal } from './nutrition-sync-sanitize.js';
 
