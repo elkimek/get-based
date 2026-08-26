@@ -23,10 +23,20 @@ const DEVICE_KEY_META = 'meal-device-key:v1';
 const SUMMARY_META = 'nutrition-summary:v1';
 const COMPARISON_META = 'nutrition-comparison:v1';
 const PROFILE_SYNC_INITIALIZED_META = 'nutrition-profile-sync-initialized:v1';
+const TOMBSTONE_KEYS = ['_deleted', '_deletedAt', '_deletedClearedAt'];
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const dbPromises = new Map();
+/** @type {Promise<any>} */
+let nutritionSaveTail = Promise.resolve();
+
+/** @template T @param {() => Promise<T>} operation @returns {Promise<T>} */
+function queueNutritionSave(operation) {
+  const result = nutritionSaveTail.then(operation);
+  nutritionSaveTail = result.catch(() => {});
+  return result;
+}
 
 function localDay(date) {
   const year = date.getFullYear();
@@ -646,21 +656,24 @@ export async function cacheActiveProfileFood(food) {
   return putNutritionFood(state.currentProfile, food);
 }
 
-export async function saveActiveProfileMeal(meal) {
+export function saveActiveProfileMeal(meal) {
   const profileId = state.currentProfile;
   const importedData = state.importedData || (state.importedData = /** @type {any} */ ({}));
+  return queueNutritionSave(() => saveProfileMeal(profileId, importedData, meal));
+}
+
+async function saveProfileMeal(profileId, importedData, meal) {
   const previousLocalMeal = meal?.id
     ? await getNutritionMeal(profileId, String(meal.id))
     : null;
   const saved = await putNutritionMeal(profileId, meal);
 
   const previousMeals = importedData.nutritionMeals;
-  const tombstoneKeys = ['_deleted', '_deletedAt', '_deletedClearedAt'];
-  const previousTombstoneSurfaces = new Map(tombstoneKeys.map(key => [key, {
+  const previousTombstoneSurfaces = new Map(TOMBSTONE_KEYS.map(key => [key, {
     had: Object.hasOwn(importedData, key),
     value: importedData[key],
   }]));
-  for (const key of tombstoneKeys) {
+  for (const key of TOMBSTONE_KEYS) {
     const surface = importedData[key];
     if (!surface || typeof surface !== 'object') continue;
     importedData[key] = {
@@ -710,8 +723,7 @@ export async function deleteActiveProfileMeal(id) {
   const importedData = state.importedData || (state.importedData = /** @type {any} */ ({}));
   if (state.currentProfile === profileId) {
     const previousMeals = importedData.nutritionMeals;
-    const tombstoneKeys = ['_deleted', '_deletedAt', '_deletedClearedAt'];
-    const previousTombstoneSurfaces = new Map(tombstoneKeys.map(key => [key, {
+    const previousTombstoneSurfaces = new Map(TOMBSTONE_KEYS.map(key => [key, {
       had: Object.hasOwn(importedData, key),
       value: importedData[key],
     }]));

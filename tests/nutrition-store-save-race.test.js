@@ -3,18 +3,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const persistenceGate = vi.hoisted(() => ({
-  blocked: false,
+  handler: null,
   release: null,
-  started: null,
 }));
 
 vi.mock('../js/data.js', () => ({
-  saveImportedDataForProfile: vi.fn(async () => {
-    if (!persistenceGate.blocked) return true;
-    persistenceGate.started?.();
-    await new Promise(resolve => { persistenceGate.release = resolve; });
-    return true;
-  }),
+  saveImportedDataForProfile: vi.fn(async (profileId, importedData) => (
+    persistenceGate.handler?.(profileId, importedData) ?? true
+  )),
 }));
 
 import {
@@ -31,10 +27,9 @@ describe('nutrition save and hydration ordering', () => {
   const previousImportedData = state.importedData;
 
   afterEach(async () => {
-    persistenceGate.blocked = false;
     persistenceGate.release?.();
     persistenceGate.release = null;
-    persistenceGate.started = null;
+    persistenceGate.handler = null;
     state.currentProfile = previousProfile;
     state.importedData = previousImportedData;
     await deleteNutritionDB(profileId);
@@ -47,8 +42,11 @@ describe('nutrition save and hydration ordering', () => {
 
     let signalPersistStarted;
     const persistStarted = new Promise(resolve => { signalPersistStarted = resolve; });
-    persistenceGate.blocked = true;
-    persistenceGate.started = signalPersistStarted;
+    persistenceGate.handler = async () => {
+      signalPersistStarted();
+      await new Promise(resolve => { persistenceGate.release = resolve; });
+      return true;
+    };
     const pendingSave = saveActiveProfileMeal({
       id: 'meal-in-flight',
       name: 'In-flight lunch',
@@ -67,6 +65,49 @@ describe('nutrition save and hydration ordering', () => {
     await expect(pendingSave).resolves.toMatchObject({ id: 'meal-in-flight' });
     await expect(getNutritionMeal(profileId, 'meal-in-flight')).resolves.toMatchObject({
       name: 'In-flight lunch',
+    });
+  });
+
+  it('serializes overlapping edits so an older save cannot reassert stale meal data', async () => {
+    state.currentProfile = profileId;
+    state.importedData = { entries: [], nutritionMeals: [] };
+    await hydrateNutritionSummary(profileId);
+
+    let signalOlderPersistStarted;
+    const olderPersistStarted = new Promise(resolve => { signalOlderPersistStarted = resolve; });
+    persistenceGate.handler = async (ignoredProfileId, importedData) => {
+      const savedName = importedData.nutritionMeals?.find(meal => meal.id === 'same-meal')?.name;
+      if (savedName === 'Older edit') {
+        signalOlderPersistStarted();
+        await new Promise(resolve => { persistenceGate.release = resolve; });
+      }
+      return true;
+    };
+
+    const olderSave = saveActiveProfileMeal({
+      id: 'same-meal',
+      name: 'Older edit',
+      eatenAt: '2026-08-26T12:00:00.000Z',
+    });
+    await olderPersistStarted;
+
+    let newerSettled = false;
+    const newerSave = saveActiveProfileMeal({
+      id: 'same-meal',
+      name: 'Newer edit',
+      eatenAt: '2026-08-26T12:00:00.000Z',
+    }).then(saved => {
+      newerSettled = true;
+      return saved;
+    });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(newerSettled).toBe(false);
+
+    persistenceGate.release?.();
+    await expect(olderSave).resolves.toMatchObject({ name: 'Older edit' });
+    await expect(newerSave).resolves.toMatchObject({ name: 'Newer edit' });
+    await expect(getNutritionMeal(profileId, 'same-meal')).resolves.toMatchObject({
+      name: 'Newer edit',
     });
   });
 });
