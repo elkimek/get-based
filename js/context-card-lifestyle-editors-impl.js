@@ -74,6 +74,7 @@ import { saveImportedData } from './data.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { scanDietForContaminants } from './food-contaminants.js';
 import { getSleepContextMismatch } from './lab-context-wearables.js';
+import { doesNutritionContextOverrideTypicalMeals } from './nutrition-context.js';
 import { reopenSunSetup } from './sun-defaults.js';
 import {
   getEMFAssessments,
@@ -296,6 +297,7 @@ function initLifestyleContextDelegates() {
 initLifestyleContextDelegates();
 
 export function renderDietContaminantsBadge() {
+  if (doesNutritionContextOverrideTypicalMeals()) return '';
   const warnings = scanDietForContaminants(state.importedData.diet);
   if (warnings.length === 0) return '';
   const flagged = warnings.filter(w => w.type !== 'clean').length;
@@ -315,6 +317,10 @@ export function openDietEditor() { if (!isContextEditorStylesheetLoaded()) retur
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.diet || { type: null, restrictions: [], pattern: null, proteinIntake: null, hydration: null, alcohol: null, caffeine: null, caffeineTiming: null, recentChanges: [], breakfast: '', lunch: '', dinner: '', snacks: '', note: '', bowelFrequency: null, stoolConsistency: null, bloating: null, gas: null, acidReflux: null, burping: null, nausea: null, appetite: null, abdominalPain: null, foodSensitivities: [] };
+  const detailedNutritionOverridesMeals = doesNutritionContextOverrideTypicalMeals();
+  const typicalMealDisabledAttrs = detailedNutritionOverridesMeals
+    ? ' disabled aria-describedby="diet-meal-precedence"'
+    : '';
   renderContextEditorModal(modal, 'Diet & Digestion', 'Your usual eating pattern and digestive symptoms can help explain lab trends.', `
     ${renderSelectField('Diet type', 'diet-type', DIET_TYPES, current.type)}
     ${renderSelectField('Eating pattern', 'diet-pattern', DIET_PATTERNS, current.pattern)}
@@ -332,16 +338,16 @@ export function openDietEditor() { if (!isContextEditorStylesheetLoaded()) retur
       ${renderSelectField('Latest caffeine', 'diet-caffeine-timing', DIET_CAFFEINE_TIMING, current.caffeineTiming)}
       ${renderTagsField('Changes in the past 3 months', 'diet-recent-changes', DIET_RECENT_CHANGES, current.recentChanges)}
     `)}
-    ${renderContextEditorSection('Typical meals', summarizeSection([
+    ${renderContextEditorSection('Typical meals', detailedNutritionOverridesMeals ? 'Paused — detailed log active' : summarizeSection([
       current.breakfast && 'Breakfast',
       current.lunch && 'Lunch',
       current.dinner && 'Dinner',
       current.snacks && 'Snacks',
-    ], 'Optional meal timing and examples'), `<div class="ctx-field-group"><label class="ctx-field-label">Meals and times</label>
-      <div class="ctx-meal-row"><input type="text" class="ctx-meal-time" id="diet-breakfast-time" placeholder="${getTimePlaceholder()}" value="${escapeHTML(formatTime(current.breakfastTime || ''))}"><input class="ctx-note-input ctx-meal-input" id="diet-breakfast" placeholder="Breakfast — e.g. eggs, avocado, coffee" value="${escapeHTML(current.breakfast || '')}"></div>
-      <div class="ctx-meal-row"><input type="text" class="ctx-meal-time" id="diet-lunch-time" placeholder="${getTimePlaceholder()}" value="${escapeHTML(formatTime(current.lunchTime || ''))}"><input class="ctx-note-input ctx-meal-input" id="diet-lunch" placeholder="Lunch — e.g. salad with grilled chicken" value="${escapeHTML(current.lunch || '')}"></div>
-      <div class="ctx-meal-row"><input type="text" class="ctx-meal-time" id="diet-dinner-time" placeholder="${getTimePlaceholder()}" value="${escapeHTML(formatTime(current.dinnerTime || ''))}"><input class="ctx-note-input ctx-meal-input" id="diet-dinner" placeholder="Dinner — e.g. salmon, rice, vegetables" value="${escapeHTML(current.dinner || '')}"></div>
-      <div class="ctx-meal-row"><input type="text" class="ctx-meal-time" id="diet-snacks-time" placeholder="${getTimePlaceholder()}" value="${escapeHTML(formatTime(current.snacksTime || ''))}"><input class="ctx-note-input ctx-meal-input" id="diet-snacks" placeholder="Snacks — e.g. nuts, fruit, dark chocolate" value="${escapeHTML(current.snacks || '')}"></div>
+    ], 'Optional meal timing and examples'), `${detailedNutritionOverridesMeals ? '<div class="ctx-context-precedence" id="diet-meal-precedence" role="status"><strong>Detailed meal log has priority</strong><span>Saved examples stay here but are not sent to AI while Meals &amp; Nutrition context is active.</span><small>Logs may be partial; unlogged meals stay unknown.</small></div>' : ''}<div class="ctx-field-group${detailedNutritionOverridesMeals ? ' is-disabled' : ''}"><label class="ctx-field-label">Meals and times</label>
+      <div class="ctx-meal-row"><input type="text" class="ctx-meal-time" id="diet-breakfast-time" placeholder="${getTimePlaceholder()}" value="${escapeHTML(formatTime(current.breakfastTime || ''))}"${typicalMealDisabledAttrs}><input class="ctx-note-input ctx-meal-input" id="diet-breakfast" placeholder="Breakfast — e.g. eggs, avocado, coffee" value="${escapeHTML(current.breakfast || '')}"${typicalMealDisabledAttrs}></div>
+      <div class="ctx-meal-row"><input type="text" class="ctx-meal-time" id="diet-lunch-time" placeholder="${getTimePlaceholder()}" value="${escapeHTML(formatTime(current.lunchTime || ''))}"${typicalMealDisabledAttrs}><input class="ctx-note-input ctx-meal-input" id="diet-lunch" placeholder="Lunch — e.g. salad with grilled chicken" value="${escapeHTML(current.lunch || '')}"${typicalMealDisabledAttrs}></div>
+      <div class="ctx-meal-row"><input type="text" class="ctx-meal-time" id="diet-dinner-time" placeholder="${getTimePlaceholder()}" value="${escapeHTML(formatTime(current.dinnerTime || ''))}"${typicalMealDisabledAttrs}><input class="ctx-note-input ctx-meal-input" id="diet-dinner" placeholder="Dinner — e.g. salmon, rice, vegetables" value="${escapeHTML(current.dinner || '')}"${typicalMealDisabledAttrs}></div>
+      <div class="ctx-meal-row"><input type="text" class="ctx-meal-time" id="diet-snacks-time" placeholder="${getTimePlaceholder()}" value="${escapeHTML(formatTime(current.snacksTime || ''))}"${typicalMealDisabledAttrs}><input class="ctx-note-input ctx-meal-input" id="diet-snacks" placeholder="Snacks — e.g. nuts, fruit, dark chocolate" value="${escapeHTML(current.snacks || '')}"${typicalMealDisabledAttrs}></div>
     </div>`)}
     ${renderContextEditorSection('Digestion details', summarizeSection([
       current.bowelFrequency,

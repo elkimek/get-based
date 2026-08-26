@@ -3,7 +3,8 @@
 
 import { summarizeFuelOverlap, summarizeFuelResponses } from './nutrition-fuel-mix.js';
 
-export const NUTRITION_SUMMARY_VERSION = 12;
+export const NUTRITION_SUMMARY_VERSION = 14;
+export const NUTRITION_CONTEXT_CHAR_LIMIT = 1800;
 
 export const NUTRITION_KEYS = Object.freeze([
   'energyKcal', 'proteinG', 'carbohydrateG', 'fatG', 'fiberG', 'sugarG', 'addedSugarG',
@@ -22,7 +23,6 @@ const COMPACT_CONTEXT_NUTRIENTS = Object.freeze([
 
 const INTAKE_EVENT_KEYS = new Set(['fluidMl', 'plainWaterMl']);
 const PHOTO_CONTEXT_KEYS = new Set(['energyKcal', 'proteinG', 'carbohydrateG', 'fatG', 'fiberG', 'fluidMl', 'plainWaterMl']);
-
 function isVolumeOnlyDrink(meal) {
   return ['manual-water', 'manual-beverage'].includes(String(meal?.source?.kind || ''));
 }
@@ -203,8 +203,11 @@ export function sleepRelativeMealSummary(meals, sleepIntervals = []) {
 
 function timingSummary(meals, sleepIntervals = []) {
   const byDay = new Map();
+  const occasionCounts = {};
   let mealsWithTiming = 0;
   for (const meal of meals) {
+    const occasion = String(meal?.mealType || '').trim().toLowerCase();
+    if (/^(breakfast|brunch|lunch|dinner|snack|drink|other)$/.test(occasion)) occasionCounts[occasion] = (occasionCounts[occasion] || 0) + 1;
     const minutes = mealLocalMinutes(meal);
     const key = mealDayKey(meal);
     if (minutes === null || !key) continue;
@@ -232,6 +235,7 @@ function timingSummary(meals, sleepIntervals = []) {
     averageLastMealLocalTime,
     averageEatingWindowMinutes,
     eatingWindowDays: eatingWindows.length,
+    occasionCounts,
     sleepRelative,
   };
 }
@@ -297,7 +301,10 @@ function contextWindow(label, period, nutrientFields = COMPACT_CONTEXT_NUTRIENTS
   const foodMeals = Number.isFinite(Number(period.foodMeals)) ? Number(period.foodMeals) : Number(period.meals);
   const drinkEntries = Number(period.drinkEntries || 0);
   const entries = `${foodMeals} meals${drinkEntries ? ` and ${drinkEntries} volume-only drink logs` : ''}`;
-  return `${label}: ${entries} across ${period.loggedDays}/${period.days} days; ${Math.round((period.reviewRatio || 0) * 100)}% reviewed; complete logged-day averages: ${contextAverage(period.dailyAverages, period.nutrientCoverage, nutrientFields) || 'no nutrient totals'}`;
+  const occasions = Object.entries(period?.timing?.occasionCounts || {})
+    .map(([occasion, count]) => `${occasion} ${count}`)
+    .join(', ');
+  return `${label}: ${entries} across ${period.loggedDays}/${period.days} days${occasions ? `; occasions: ${occasions}` : ''}; ${Math.round((period.reviewRatio || 0) * 100)}% reviewed; logged averages: ${contextAverage(period.dailyAverages, period.nutrientCoverage, nutrientFields) || 'no nutrient totals'}`;
 }
 
 function contextTrend(summary) {
@@ -324,14 +331,20 @@ function contextFuelOverlap(period) {
 
 export function buildNutritionSummaryContext(summary) {
   if (!summary?.totalMeals) return '';
-  const lines = [
-    '\nMEALS & NUTRITION — REVIEWED LOGGED ESTIMATES:',
-    'Coverage-limited intake log, not a diagnosis: missing days/values are unknown, not zero; photo micronutrients count only when every material ingredient has compatible food-composition data.',
+  const required = [
+    '[section:nutrition]',
+    '## Meals & Nutrition — reviewed logged estimates',
+    'Coverage-limited, non-diagnostic log: missing days/values are unknown, not zero; photo micronutrients require compatible composition data for every material ingredient.',
+    'Partial logs leave full-day intake unknown. Never infer skipped meals, under-eating, or calorie/macro deficiency without user-confirmed complete days. Detailed logs replace, never supplement, Diet & Digestion Typical meals.',
     contextWindow('Last 7 days', summary.windows?.d7),
-    contextFuelOverlap(summary.windows?.d7),
-    contextTrend(summary),
   ];
-  return `${lines.join('\n')}\n`;
+  const optional = [contextFuelOverlap(summary.windows?.d7), contextTrend(summary)].filter(Boolean);
+  const lines = [...required];
+  for (const line of optional) {
+    const candidate = `${[...lines, line, '[/section:nutrition]'].join('\n')}\n\n`;
+    if (candidate.length <= NUTRITION_CONTEXT_CHAR_LIMIT) lines.push(line);
+  }
+  return `${[...lines, '[/section:nutrition]'].join('\n')}\n\n`;
 }
 
 /**

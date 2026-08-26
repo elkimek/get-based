@@ -106,22 +106,22 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
   let ctx;
   if (hasLabData) {
-    ctx = `Lab data for current profile (sex: ${sexLabel}${age !== null ? ', age: ' + age : ''}, unit system: ${unitLabel}, today: ${today}, dates: ${data.dates.join(', ')}):\n\n`;
+    ctx = includeInsightCards ? `[section:profile]\nLab data for current profile (sex: ${sexLabel}${age !== null ? ', age: ' + age : ''}, unit system: ${unitLabel}, today: ${today}, dates: ${data.dates.join(', ')}):\n[/section:profile]\n\n` : `Lab data (unit system: ${unitLabel}, today: ${today}, dates: ${data.dates.join(', ')}):\n\n`;
   } else {
     const missingDemo = [];
-    if (sexLabel === 'not specified') missingDemo.push('sex');
-    if (age === null) missingDemo.push('date of birth');
+    if (includeInsightCards && sexLabel === 'not specified') missingDemo.push('sex');
+    if (includeInsightCards && age === null) missingDemo.push('date of birth');
     const demoWarning = missingDemo.length > 0
       ? ` IMPORTANT: ${missingDemo.join(' and ')} not set — urge the user to set ${missingDemo.length > 1 ? 'these' : 'this'} in Settings first, as it directly affects which tests to recommend and how to interpret results.`
       : '';
-    ctx = `Profile context (sex: ${sexLabel}${age !== null ? ', age: ' + age : ''}, today: ${today}):\n\n`;
+    ctx = includeInsightCards ? `[section:profile]\nProfile context (sex: ${sexLabel}${age !== null ? ', age: ' + age : ''}, today: ${today}):\n` : '';
     if (hasImportedLabData && !includeLabMarkers) {
-      ctx += `Lab marker context is turned off by the user. Do not infer from imported blood-marker values unless the user explicitly provides them in the conversation.\n\n`;
+      ctx += `Lab marker context is turned off by the user. Do not infer from imported blood-marker values unless the user explicitly provides them in the conversation.\n${includeInsightCards ? '[/section:profile]\n\n' : '\n'}`;
     } else {
       const insightHint = includeInsightCards
         ? ' The more Insight Context Cards the user fills out, the more targeted your recommendations become — encourage filling them when relevant.'
         : ' Insight Context Cards are turned off by the user; do not infer from profile/lifestyle cards unless the user explicitly provides that context in the conversation.';
-      ctx += `No lab data has been imported yet.\nNOTE: The user has not imported any lab results. Use the enabled context below to recommend which blood panels and specific tests would be most valuable for them, and explain why each is relevant to their situation.${insightHint}${demoWarning}\n\n`;
+      ctx += `No lab data has been imported yet.\nNOTE: The user has not imported any lab results. Use the enabled context below to recommend which blood panels and specific tests would be most valuable for them, and explain why each is relevant to their situation.${insightHint}${demoWarning}\n${includeInsightCards ? '[/section:profile]\n\n' : '\n'}`;
     }
   }
 
@@ -569,9 +569,9 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     }
     ctx += `[/section:menstrualCycle]\n\n`;
   }
-
   // ── 9. Diet & Digestion ("what lifestyle context?") ──
   const diet = state.importedData.diet;
+  const detailedNutritionOverridesMeals = state.nutritionSummary?.totalMeals && (ignoreContextToggles || isNutritionContextEnabled());
   if (includeInsightCards && hasCardContent(diet)) {
     ctx += `[section:diet]\n## Diet & Digestion\n`;
     const parts = [];
@@ -585,10 +585,12 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     if (diet.caffeineTiming) parts.push(`Latest caffeine: ${diet.caffeineTiming}`);
     if (diet.recentChanges && diet.recentChanges.length) parts.push(`Recent changes: ${diet.recentChanges.join(', ')}`);
     if (parts.length) ctx += parts.join('. ') + '\n';
-    if (diet.breakfast) ctx += `Breakfast${diet.breakfastTime ? ' (' + formatTime(diet.breakfastTime) + ')' : ''}: ${diet.breakfast}\n`;
-    if (diet.lunch) ctx += `Lunch${diet.lunchTime ? ' (' + formatTime(diet.lunchTime) + ')' : ''}: ${diet.lunch}\n`;
-    if (diet.dinner) ctx += `Dinner${diet.dinnerTime ? ' (' + formatTime(diet.dinnerTime) + ')' : ''}: ${diet.dinner}\n`;
-    if (diet.snacks) ctx += `Snacks${diet.snacksTime ? ' (' + formatTime(diet.snacksTime) + ')' : ''}: ${diet.snacks}\n`;
+    if (!detailedNutritionOverridesMeals) {
+      if (diet.breakfast) ctx += `Breakfast${diet.breakfastTime ? ' (' + formatTime(diet.breakfastTime) + ')' : ''}: ${diet.breakfast}\n`;
+      if (diet.lunch) ctx += `Lunch${diet.lunchTime ? ' (' + formatTime(diet.lunchTime) + ')' : ''}: ${diet.lunch}\n`;
+      if (diet.dinner) ctx += `Dinner${diet.dinnerTime ? ' (' + formatTime(diet.dinnerTime) + ')' : ''}: ${diet.dinner}\n`;
+      if (diet.snacks) ctx += `Snacks${diet.snacksTime ? ' (' + formatTime(diet.snacksTime) + ')' : ''}: ${diet.snacks}\n`;
+    }
     const dParts = [];
     if (diet.bowelFrequency) dParts.push(`Bowel frequency: ${diet.bowelFrequency}`);
     if (diet.stoolConsistency) dParts.push(`Stool consistency: ${diet.stoolConsistency}`);
@@ -604,7 +606,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     if (dParts.length) ctx += dParts.join('. ') + '\n';
     if (diet.note) ctx += `Notes: ${diet.note}\n`;
     // Food contaminant scan (EWG + PlasticList)
-    const foodWarnings = scanDietForContaminants(diet);
+    const foodWarnings = detailedNutritionOverridesMeals ? [] : scanDietForContaminants(diet);
     const flagged = foodWarnings.filter(w => w.type !== 'clean');
     if (flagged.length > 0) {
       ctx += `\nFood contaminant signals:\n`;
@@ -613,9 +615,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     ctx += `[/section:diet]\n\n`;
   }
 
-  if ((ignoreContextToggles || isNutritionContextEnabled()) && state.nutritionSummary?.totalMeals) {
-    ctx += state.nutritionSummary.contextText || '';
-  }
+  if (detailedNutritionOverridesMeals) ctx += state.nutritionSummary.contextText || '';
   // ── 10. Exercise ──
   const ex = state.importedData.exercise;
   if (includeInsightCards && hasCardContent(ex)) {
@@ -744,7 +744,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   // ── 16. EMF Assessment (sub-section of Environment) ──
   const emf = state.importedData.emfAssessment;
   if (includeInsightCards && emf && emf.assessments && emf.assessments.length > 0) {
-    ctx += `### EMF Assessment (Baubiologie SBM-2015)\n`;
+    ctx += `[section:emfAssessment]\n### EMF Assessment (Baubiologie SBM-2015)\n`;
     const sorted = [...emf.assessments].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     const latest = sorted[0];
     ctx += `Assessment: ${fmtDate(latest.date)}${latest.label ? ' (' + latest.label + ')' : ''}${latest.consultant ? ' by ' + latest.consultant : ''}\n`;
@@ -765,7 +765,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     if (latest.interpretation && latest.interpretation.text) {
       ctx += `\nAI Interpretation (${latest.interpretation.date ? new Date(latest.interpretation.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'recent'}):\n${latest.interpretation.text}\n`;
     }
-    ctx += '\n';
+    ctx += '[/section:emfAssessment]\n\n';
   }
 
   // ── 17. Context Change Timeline ──
@@ -785,7 +785,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   // ── 19. Light & Sun lens — full standard tier when user has data ──
   // buildSunContext returns '' when there's nothing to show, so a
   // user without sessions pays zero tokens. Users with sessions get
-  // the 30-day session table + biomarker correlations on every turn,
+  // compact weekly/session aggregates + correlations on every turn,
   // matching the pattern the rest of this file uses for every other
   // section (include if-data-exists, no keyword gating).
   if ((ignoreContextToggles || isLightSunContextEnabled()) && typeof labContextDeps.buildSunContext === 'function') {

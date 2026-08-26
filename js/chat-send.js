@@ -300,8 +300,6 @@ export async function sendChatMessage() {
   setChatStreamStatus(`${getActivePersonality().name} is responding.`, { busy: true });
   let streamOutcome = 'complete';
 
-  // Snapshot context areas before sending
-  const contextSnapshot = getContextSummary();
   const _msgModelId = getActiveModelId(_msgProvider);
   const _msgModelDisplay = getActiveModelDisplay(_msgProvider);
   const _msgE2EE = (_msgProvider === 'venice' && isVeniceE2EEActive())
@@ -322,6 +320,9 @@ export async function sendChatMessage() {
         _lensResultForMsg = lensResult;
       }
     }
+    // The receipt must describe the exact final context sent to this response,
+    // including query-specific Lens retrieval and dynamically loaded modules.
+    const contextSnapshot = getContextSummary(labContext);
     const personality = getActivePersonality();
     const currentPersonaName = personality.name;
     const personalityPrompt = buildPersonalityPrompt(personality, getCustomPersonality());

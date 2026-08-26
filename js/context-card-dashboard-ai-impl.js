@@ -401,7 +401,7 @@ function renderContextSourceControls() {
     renderContextSourceToggle({
       key: 'insight-cards',
       title: 'Insight Context Cards',
-      description: 'Health goals, medical history, diet, exercise, sleep, stress, environment, notes, biometrics, and cycle context.',
+      description: 'Basic profile demographics, health goals, medical history, diet, exercise, sleep, stress, environment, notes, biometrics, and cycle context.',
       status: insightOn
         ? (hasInsight ? 'Profile and lifestyle cards are included.' : 'Enabled, but no Insight Context Cards are filled yet.')
         : 'Profile and lifestyle cards are ignored by AI context and score modifiers.',
@@ -485,7 +485,7 @@ function renderContextSourceControls() {
     renderContextSourceToggle({
       key: 'light-sun',
       title: 'Light & Sun context',
-      description: 'Logged sun, light devices, indoor light environment, and light-related score modifiers.',
+      description: 'Light & Circadian card, aggregate sun and device logs, indoor light environment and audits, trends, calibration, and correlations. Camera images and raw session tables stay out.',
       status: lightOn
         ? (hasLight ? 'Included when relevant.' : 'No light data logged yet; low-light reminders may still be inferred.')
         : 'Ignored by chat context and light-related Biology Score modifiers.',
@@ -507,7 +507,7 @@ function renderContextSourceControls() {
     renderContextSourceToggle({
       key: 'body-nutrition',
       title: 'Meals & Nutrition',
-      description: 'Local 7-day averages with a coverage-qualified comparison to the previous 23 days. Photos and individual meals are never added to AI context.',
+      description: 'Local 7-day aggregate averages with a coverage-qualified comparison to the previous 23 days. Photos, meal names, ingredients, notes, and individual entries are never added to AI context.',
       status: nutritionOn
         ? (hasNutrition ? 'Local rolling summaries are included when relevant.' : 'Enabled, but no meals are logged yet.')
         : 'Nutrition summaries are ignored by chat context.',

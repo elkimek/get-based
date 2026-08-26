@@ -1212,6 +1212,7 @@ test('the nutrition widget shows visual seven-day coverage and weight-aware pers
       carbohydrateG: 151,
       fatG: 67,
       fiberG: 25,
+      widgetNutrients: ['proteinG', 'fatG', 'fiberG', 'fluidMl', 'sugarG', 'sodiumMg'],
     };
     state.nutritionSummary = {
       totalMeals: 9,
@@ -1254,12 +1255,20 @@ test('the nutrition widget shows visual seven-day coverage and weight-aware pers
     const starterHost = document.createElement('div');
     starterHost.id = 'nutrition-starter-widget-test-host';
     starterHost.innerHTML = nutrition.renderNutritionWidget();
+    state.importedData.nutritionTargets = {
+      ...configuredTargets,
+      widgetNutrients: ['proteinG', 'carbohydrateG', 'fatG', 'fiberG'],
+    };
+    const macroHost = document.createElement('div');
+    macroHost.id = 'nutrition-macro-widget-test-host';
+    macroHost.innerHTML = nutrition.renderNutritionWidget();
     state.importedData.nutritionTargets = configuredTargets;
-    document.body.append(host, fuelHost, starterHost);
+    document.body.append(host, fuelHost, starterHost, macroHost);
   });
 
   const widget = page.locator('#nutrition-widget-test-host');
-  await expect(widget.locator('.nutrition-goal-list-head')).toHaveText('Daily averages');
+  await expect(widget.locator('.nutrition-goal-list-head strong')).toHaveText('Daily averages');
+  await expect(widget.locator('.nutrition-goal-list-head span')).toHaveText('6 shown');
   await expect(widget).not.toContainText('Daily nutrition dashboard');
   await expect(widget).toContainText('5 of 7 days');
   await expect(widget).toContainText('Protein');
@@ -1267,8 +1276,10 @@ test('the nutrition widget shows visual seven-day coverage and weight-aware pers
   await expect(widget).toContainText('1.6 g/kg × 80 kg from Fitbit');
   await expect(widget).toContainText('Logged drinks');
   await expect(widget).toContainText('1,400 / 2,000 mL');
-  await expect(widget).not.toContainText('Sugar guide');
-  await expect(widget).not.toContainText('Sodium guide');
+  await expect(widget).toContainText('Sugar guide');
+  await expect(widget).toContainText('Sodium guide');
+  await expect(widget.locator('.nutrition-goal-row')).toHaveCount(6);
+  await expect(widget.locator('.nutrition-goal-grid')).toHaveClass(/is-expanded/);
   await expect(widget.locator('.nutrition-target-ring')).toHaveCount(1);
   await expect(widget.locator('.nutrition-day.is-logged')).toHaveCount(5);
   await expect(widget.locator('.nutrition-fuel-card')).toHaveCount(0);
@@ -1309,6 +1320,17 @@ test('the nutrition widget shows visual seven-day coverage and weight-aware pers
   await expect(starterWidget).toContainText('Review and personalize');
   await expect(starterWidget).toContainText('starter guide');
   await expect(starterWidget).not.toContainText('personal target');
+
+  const macroWidget = page.locator('#nutrition-macro-widget-test-host');
+  await expect(macroWidget.locator('.nutrition-goal-row')).toHaveCount(4);
+  await expect(macroWidget.locator('.nutrition-goal-grid')).not.toHaveClass(/is-expanded/);
+  expect(await macroWidget.locator('.nutrition-goal-grid').evaluate(element =>
+    getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length
+  )).toBe(1);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await widget.locator('.nutrition-goal-grid').evaluate(element =>
+    getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length
+  )).toBe(1);
 });
 
 test('saved nutrition summary hydrates after a cache-bypassing hard reload on Dashboard and Body', async ({ page, context }) => {
@@ -1396,8 +1418,18 @@ test('personal nutrition targets persist with the profile and expose weight-awar
   await expect(page.locator('#detail-modal')).toContainText('Starter guides');
   await expect(page.locator('#detail-modal')).not.toContainText('Carb/fat plan');
   await expect(page.locator('#nutrition-photo-input')).toHaveCount(0);
-  await expect(page.locator('#nutrition-widget-metric-count')).toHaveText('4 of 4 selected');
+  await expect(page.locator('#nutrition-widget-metric-count')).toHaveText('4 selected');
   await expect(page.locator('[data-nutrition-widget-metric]:checked')).toHaveCount(4);
+  expect(await page.locator('[data-nutrition-widget-metric]:checked').evaluateAll(inputs =>
+    inputs.map(input => input instanceof HTMLInputElement ? input.value : '')
+  )).toEqual(['proteinG', 'carbohydrateG', 'fatG', 'fiberG']);
+  const widgetOptionValues = await page.locator('[data-nutrition-widget-metric]').evaluateAll(inputs =>
+    inputs.map(input => input instanceof HTMLInputElement ? input.value : '').filter(Boolean).sort()
+  );
+  const trackedNutrientValues = await page.evaluate(async () =>
+    (await import('/js/nutrition-summary.js')).NUTRITION_KEYS.filter(key => key !== 'energyKcal').sort()
+  );
+  expect(widgetOptionValues).toEqual(trackedNutrientValues);
   await page.locator('#nutrition-target-energy').fill('2400');
   await page.locator('#nutrition-target-carbohydrate').fill('225');
   await page.locator('#nutrition-target-fat').fill('100');
@@ -1407,8 +1439,12 @@ test('personal nutrition targets persist with the profile and expose weight-awar
   await page.locator('[data-nutrition-widget-metric][value="sugarG"]').check();
   await page.locator('[data-nutrition-widget-metric][value="magnesiumMg"]').check();
   await expect(page.locator('#nutrition-target-protein-preview')).toContainText('128 g/day');
-  await expect(page.locator('#nutrition-widget-metric-count')).toHaveText('4 of 4 selected');
-  await expect(page.locator('[data-nutrition-widget-metric][value="calciumMg"]')).toBeDisabled();
+  await expect(page.locator('#nutrition-widget-metric-count')).toHaveText('4 selected');
+  await expect(page.locator('[data-nutrition-widget-metric][value="calciumMg"]')).toBeEnabled();
+  await page.locator('[data-nutrition-widget-metric][value="calciumMg"]').check();
+  await page.locator('[data-nutrition-widget-metric][value="vitaminDMcg"]').check();
+  await expect(page.locator('#nutrition-widget-metric-count')).toHaveText('6 selected');
+  await expect(page.locator('[data-nutrition-widget-metric]:disabled')).toHaveCount(0);
   await page.locator('#nutrition-target-energy').fill('100');
   await page.locator('[data-nutrition-action="save-targets"]').click();
   await expect(page.locator('#nutrition-target-settings')).toBeVisible();
@@ -1423,12 +1459,12 @@ test('personal nutrition targets persist with the profile and expose weight-awar
     energyKcal: 2400,
     proteinBasis: 'active',
     proteinGPerKg: 1.6,
-    widgetNutrients: ['proteinG', 'fluidMl', 'sugarG', 'magnesiumMg'],
+    widgetNutrients: ['proteinG', 'carbohydrateG', 'sugarG', 'calciumMg', 'magnesiumMg', 'vitaminDMcg'],
   });
 
   await page.evaluate(async () => (await import('/js/nutrition.js')).openNutritionTargets());
-  await expect(page.locator('#nutrition-widget-metric-count')).toHaveText('4 of 4 selected');
-  await expect(page.locator('[data-nutrition-widget-metric]:checked')).toHaveCount(4);
+  await expect(page.locator('#nutrition-widget-metric-count')).toHaveText('6 selected');
+  await expect(page.locator('[data-nutrition-widget-metric]:checked')).toHaveCount(6);
   await page.evaluate(async () => (await import('/js/nutrition.js')).openNutritionEditor());
   await expect(page.locator('#nutrition-photo-input')).toBeVisible();
   await expect(page.locator('#nutrition-target-settings')).toHaveCount(0);
@@ -1436,7 +1472,20 @@ test('personal nutrition targets persist with the profile and expose weight-awar
 
 test('quick drink logging stores total beverage volume and plain water separately', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.evaluate(async () => (await import('/js/nutrition.js')).openFluidLog());
+  await page.evaluate(async () => {
+    const [{ state }, targets, data, nutrition] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/nutrition-targets.js'),
+      import('/js/data.js'),
+      import('/js/nutrition.js'),
+    ]);
+    state.importedData.nutritionTargets = {
+      ...targets.getNutritionTargets(),
+      widgetNutrients: [...targets.DEFAULT_NUTRITION_WIDGET_NUTRIENTS, 'fluidMl'],
+    };
+    data.saveImportedData();
+    await nutrition.openFluidLog();
+  });
 
   await expect(page.locator('#nutrition-fluid-amount')).toBeVisible();
   await expect(page.locator('#nutrition-photo-input')).toHaveCount(0);

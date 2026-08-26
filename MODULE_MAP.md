@@ -10,8 +10,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 689 |
-| Internal import edges | 2936 |
-| Dynamic internal edges | 85 |
+| Internal import edges | 2933 |
+| Dynamic internal edges | 86 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -60,12 +60,12 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
 | [`js/utils.js`](js/utils.js) | 275 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 78 |
-| [`js/state.js`](js/state.js) | 188 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
+| [`js/state.js`](js/state.js) | 187 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/caught-error.js`](js/caught-error.js) | 87 | [`js/chat-send.js`](js/chat-send.js) | 30 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 78 | [`js/settings.js`](js/settings.js) | 28 |
-| [`js/data.js`](js/data.js) | 77 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
+| [`js/data.js`](js/data.js) | 76 | [`js/sync-configure.js`](js/sync-configure.js) | 27 |
 | [`js/api.js`](js/api.js) | 69 | [`js/wearables-connect.js`](js/wearables-connect.js) | 27 |
-| [`js/profile.js`](js/profile.js) | 48 | [`js/pdf-import.js`](js/pdf-import.js) | 26 |
+| [`js/profile.js`](js/profile.js) | 47 | [`js/pdf-import.js`](js/pdf-import.js) | 26 |
 | [`js/schema.js`](js/schema.js) | 37 | [`js/lab-context.js`](js/lab-context.js) | 23 |
 | [`js/crypto.js`](js/crypto.js) | 33 | [`js/views.js`](js/views.js) | 22 |
 | [`js/data-merge.js`](js/data-merge.js) | 31 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
@@ -73,7 +73,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/constants.js`](js/constants.js) | 20 | [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | 20 |
 | [`js/proxy-runtime.js`](js/proxy-runtime.js) | 20 | [`js/marker-schema/index.js`](js/marker-schema/index.js) | 20 |
 | [`js/chat-runtime.js`](js/chat-runtime.js) | 19 | [`js/biology-scores.js`](js/biology-scores.js) | 19 |
-| [`js/marker-analysis.js`](js/marker-analysis.js) | 19 | [`js/chat-render.js`](js/chat-render.js) | 18 |
+| [`js/marker-placement.js`](js/marker-placement.js) | 19 | [`js/chat-render.js`](js/chat-render.js) | 18 |
 
 ## Existing cyclic components
 
@@ -380,13 +380,13 @@ Native browser modules shipped with the static application.
 - [`js/context-card-dashboard-ai.js`](js/context-card-dashboard-ai.js) → [`js/backup.js`](js/backup.js), [`js/context-card-dashboard-ai-actions.js`](js/context-card-dashboard-ai-actions.js), [`js/context-card-dashboard-ai-impl.js`](js/context-card-dashboard-ai-impl.js) *(dynamic)*, [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/crypto.js`](js/crypto.js), [`js/lens.js`](js/lens.js), [`js/settings-sync-panel.js`](js/settings-sync-panel.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
 - [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js) → [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/context-card-health-dots.js`](js/context-card-health-dots.js) → [`js/api.js`](js/api.js), [`js/context-card-summaries.js`](js/context-card-summaries.js), [`js/lab-context.js`](js/lab-context.js), [`js/local-ai-provider-shared.js`](js/local-ai-provider-shared.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
-- [`js/context-card-lifestyle-editors-impl.js`](js/context-card-lifestyle-editors-impl.js) → [`js/constants.js`](js/constants.js), [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js), [`js/context-card-lifestyle-runtime.js`](js/context-card-lifestyle-runtime.js), [`js/context-card-lifestyle-special-editors.js`](js/context-card-lifestyle-special-editors.js), [`js/context-card-summaries.js`](js/context-card-summaries.js), [`js/data.js`](js/data.js), [`js/food-contaminants.js`](js/food-contaminants.js), [`js/lab-context-wearables.js`](js/lab-context-wearables.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/sun-defaults.js`](js/sun-defaults.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
-- [`js/context-card-lifestyle-editors.js`](js/context-card-lifestyle-editors.js) → [`js/context-card-lifestyle-editors-impl.js`](js/context-card-lifestyle-editors-impl.js) *(dynamic)*, [`js/food-contaminants.js`](js/food-contaminants.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/context-card-lifestyle-editors-impl.js`](js/context-card-lifestyle-editors-impl.js) → [`js/constants.js`](js/constants.js), [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js), [`js/context-card-lifestyle-runtime.js`](js/context-card-lifestyle-runtime.js), [`js/context-card-lifestyle-special-editors.js`](js/context-card-lifestyle-special-editors.js), [`js/context-card-summaries.js`](js/context-card-summaries.js), [`js/data.js`](js/data.js), [`js/food-contaminants.js`](js/food-contaminants.js), [`js/lab-context-wearables.js`](js/lab-context-wearables.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/nutrition-context.js`](js/nutrition-context.js), [`js/state.js`](js/state.js), [`js/sun-defaults.js`](js/sun-defaults.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
+- [`js/context-card-lifestyle-editors.js`](js/context-card-lifestyle-editors.js) → [`js/context-card-lifestyle-editors-impl.js`](js/context-card-lifestyle-editors-impl.js) *(dynamic)*, [`js/food-contaminants.js`](js/food-contaminants.js), [`js/nutrition-context.js`](js/nutrition-context.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/context-card-lifestyle-runtime.js`](js/context-card-lifestyle-runtime.js) → [`js/chat-runtime.js`](js/chat-runtime.js), [`js/context-cards-runtime.js`](js/context-cards-runtime.js)
 - [`js/context-card-lifestyle-special-editors.js`](js/context-card-lifestyle-special-editors.js) → [`js/constants.js`](js/constants.js), [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js), [`js/context-card-lifestyle-runtime.js`](js/context-card-lifestyle-runtime.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/food-contaminants.js`](js/food-contaminants.js), [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sun-defaults.js`](js/sun-defaults.js), [`js/utils.js`](js/utils.js)
 - [`js/context-card-medical-history-editor-impl.js`](js/context-card-medical-history-editor-impl.js) → [`js/constants.js`](js/constants.js), [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/context-card-medical-history-editor.js`](js/context-card-medical-history-editor.js) → [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js), [`js/context-card-medical-history-editor-impl.js`](js/context-card-medical-history-editor-impl.js) *(dynamic)*, [`js/utils.js`](js/utils.js)
-- [`js/context-card-summaries.js`](js/context-card-summaries.js) → [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/context-card-summaries.js`](js/context-card-summaries.js) → [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/nutrition-context.js`](js/nutrition-context.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/context-cards-runtime.js`](js/context-cards-runtime.js) → [`js/data-merge.js`](js/data-merge.js), [`js/state.js`](js/state.js)
 - [`js/context-cards.js`](js/context-cards.js) → [`js/api.js`](js/api.js), [`js/context-card-dashboard-ai.js`](js/context-card-dashboard-ai.js), [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js), [`js/context-card-health-dots.js`](js/context-card-health-dots.js), [`js/context-card-lifestyle-editors.js`](js/context-card-lifestyle-editors.js), [`js/context-card-medical-history-editor.js`](js/context-card-medical-history-editor.js), [`js/context-card-summaries.js`](js/context-card-summaries.js), [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/data.js`](js/data.js), [`js/emf-runtime.js`](js/emf-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/nutrition-context.js`](js/nutrition-context.js), [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/context-source-registry.js`](js/context-source-registry.js) → [`js/state.js`](js/state.js)
@@ -592,7 +592,7 @@ Native browser modules shipped with the static application.
 
 - [`js/lab-context-change-timeline.js`](js/lab-context-change-timeline.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/lab-context-output.js`](js/lab-context-output.js)
 - [`js/lab-context-collection.js`](js/lab-context-collection.js) → [`js/lab-entry.js`](js/lab-entry.js)
-- [`js/lab-context-output.js`](js/lab-context-output.js) → [`js/data.js`](js/data.js), [`js/lab-context-settings.js`](js/lab-context-settings.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js)
+- [`js/lab-context-output.js`](js/lab-context-output.js) → no in-scope imports
 - [`js/lab-context-runtime.js`](js/lab-context-runtime.js) → no in-scope imports
 - [`js/lab-context-settings.js`](js/lab-context-settings.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/lab-context-wearables.js`](js/lab-context-wearables.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/lab-context-wearables.js`](js/lab-context-wearables.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-store.js`](js/wearables-store.js)
@@ -806,7 +806,7 @@ Native browser modules shipped with the static application.
 - [`js/nutrition-analysis.js`](js/nutrition-analysis.js) → [`js/api.js`](js/api.js), [`js/image-utils.js`](js/image-utils.js), [`js/nutrition-ai-settings.js`](js/nutrition-ai-settings.js), [`js/nutrition-food-data.js`](js/nutrition-food-data.js), [`js/nutrition-summary.js`](js/nutrition-summary.js), [`js/schema.js`](js/schema.js)
 - [`js/nutrition-comparison-ui.js`](js/nutrition-comparison-ui.js) → [`js/caught-error.js`](js/caught-error.js), [`js/nutrition-ai-settings.js`](js/nutrition-ai-settings.js), [`js/nutrition-analysis.js`](js/nutrition-analysis.js), [`js/nutrition-comparison.js`](js/nutrition-comparison.js), [`js/nutrition-food-composition-state.js`](js/nutrition-food-composition-state.js), [`js/nutrition-render.js`](js/nutrition-render.js), [`js/nutrition-store.js`](js/nutrition-store.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/nutrition-comparison.js`](js/nutrition-comparison.js) → no in-scope imports
-- [`js/nutrition-context.js`](js/nutrition-context.js) → [`js/lab-context-settings.js`](js/lab-context-settings.js), [`js/nutrition-store.js`](js/nutrition-store.js), [`js/nutrition-summary.js`](js/nutrition-summary.js), [`js/nutrition.js`](js/nutrition.js) *(dynamic)*, [`js/state.js`](js/state.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
+- [`js/nutrition-context.js`](js/nutrition-context.js) → [`js/lab-context-settings.js`](js/lab-context-settings.js), [`js/nutrition-store.js`](js/nutrition-store.js) *(dynamic)*, [`js/nutrition.js`](js/nutrition.js) *(dynamic)*, [`js/state.js`](js/state.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/nutrition-entry-forms.js`](js/nutrition-entry-forms.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/nutrition-render.js`](js/nutrition-render.js), [`js/nutrition-store.js`](js/nutrition-store.js), [`js/nutrition-targets.js`](js/nutrition-targets.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/nutrition-food-composition-metadata.js`](js/nutrition-food-composition-metadata.js) → no in-scope imports
 - [`js/nutrition-food-composition-state.js`](js/nutrition-food-composition-state.js) → [`js/nutrition-food-composition-metadata.js`](js/nutrition-food-composition-metadata.js), [`js/nutrition-food-composition.js`](js/nutrition-food-composition.js) *(dynamic)*
@@ -819,7 +819,7 @@ Native browser modules shipped with the static application.
 - [`js/nutrition-store.js`](js/nutrition-store.js) → [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js) *(dynamic)*, [`js/nutrition-summary.js`](js/nutrition-summary.js), [`js/nutrition-sync-sanitize.js`](js/nutrition-sync-sanitize.js), [`js/state.js`](js/state.js), [`js/wearables-store.js`](js/wearables-store.js)
 - [`js/nutrition-summary.js`](js/nutrition-summary.js) → [`js/nutrition-fuel-mix.js`](js/nutrition-fuel-mix.js)
 - [`js/nutrition-sync-sanitize.js`](js/nutrition-sync-sanitize.js) → no in-scope imports
-- [`js/nutrition-targets.js`](js/nutrition-targets.js) → [`js/state.js`](js/state.js), [`js/wearables-formatters.js`](js/wearables-formatters.js)
+- [`js/nutrition-targets.js`](js/nutrition-targets.js) → [`js/nutrition-summary.js`](js/nutrition-summary.js), [`js/state.js`](js/state.js), [`js/wearables-formatters.js`](js/wearables-formatters.js)
 - [`js/nutrition.js`](js/nutrition.js) → [`js/caught-error.js`](js/caught-error.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/nutrition-ai-settings.js`](js/nutrition-ai-settings.js), [`js/nutrition-analysis.js`](js/nutrition-analysis.js), [`js/nutrition-comparison-ui.js`](js/nutrition-comparison-ui.js), [`js/nutrition-entry-forms.js`](js/nutrition-entry-forms.js), [`js/nutrition-food-composition-state.js`](js/nutrition-food-composition-state.js), [`js/nutrition-food-data.js`](js/nutrition-food-data.js), [`js/nutrition-modal-controller.js`](js/nutrition-modal-controller.js), [`js/nutrition-render.js`](js/nutrition-render.js), [`js/nutrition-review-ui.js`](js/nutrition-review-ui.js), [`js/nutrition-store.js`](js/nutrition-store.js), [`js/utils.js`](js/utils.js)
 
 </details>

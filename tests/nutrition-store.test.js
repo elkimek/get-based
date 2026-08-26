@@ -18,6 +18,7 @@ import {
   setLocalNutritionSummary,
 } from '../js/nutrition-store.js';
 import { encryptedGetItem, encryptedRemoveItem } from '../js/crypto.js';
+import { buildNutritionSummaryContext, NUTRITION_SUMMARY_VERSION } from '../js/nutrition-summary.js';
 import { profileStorageKey } from '../js/profile-storage-key.js';
 import { state } from '../js/state.js';
 
@@ -175,7 +176,8 @@ describe('thumbnail-only nutrition storage', () => {
     const previousProfile = state.currentProfile;
     state.currentProfile = profileId;
     const saved = await putNutritionMeal(profileId, { name: 'Recoverable summary meal', eatenAt: '2026-08-23T12:30:00.000Z' });
-    const fallback = { version: 7, totalMeals: 1, windows: { d7: { meals: 1, dailyAverages: { energyKcal: 620 } } } };
+    const fallback = { version: NUTRITION_SUMMARY_VERSION, totalMeals: 1, windows: { d7: { meals: 1, dailyAverages: { energyKcal: 620 } } } };
+    fallback.contextText = buildNutritionSummaryContext(fallback);
     await setLocalNutritionSummary(profileId, fallback);
     const db = await openNutritionDB(profileId);
     const tx = db.transaction('meals', 'readwrite');

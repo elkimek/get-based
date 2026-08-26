@@ -7,7 +7,7 @@ import {
   getAIProvider, getActiveModelId, getActiveModelDisplay, supportsWebSearch,
   isPpqPrivateModeActive, isRoutstrPrivateModeActive, isVeniceE2EEActive,
 } from './api.js';
-import { buildLabContext, injectLensChunks } from './lab-context.js';
+import { buildLabContext, getContextSummary, injectLensChunks } from './lab-context.js';
 import { hasLens, queryLensMulti } from './lens.js';
 import { getActivePersonality, getCustomPersonality } from './chat-personalities.js';
 import {
@@ -55,6 +55,7 @@ export async function buildDiscussionRoundRequest({ msgText, roundHistory, signa
 
   return {
     apiMessages,
+    context: getContextSummary(labContext),
     e2ee,
     lensResult,
     modelDisplay,
@@ -73,6 +74,7 @@ export function buildDiscussionAssistantMessage({
     role: 'assistant',
     discussion: true,
     content: fullText,
+    context: request.context,
     personalityName: request.personality.name,
     personalityIcon: request.personality.icon,
     provider: request.provider,
