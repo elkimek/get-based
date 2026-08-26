@@ -559,15 +559,26 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/wearables-settings-groups.js',
   '/js/wearables-settings-panel.js',
   '/js/wearables-store.js',
-  '/js/nutrition-store.js', '/js/nutrition-sync-sanitize.js', '/js/nutrition-fuel-mix.js',
-  '/js/nutrition-summary.js', '/js/nutrition-history.js', '/js/nutrition-context.js',
-  '/js/nutrition-ai-settings.js', '/js/nutrition-analysis.js',
-  '/js/nutrition-comparison.js', '/js/nutrition-comparison-ui.js',
-  '/js/nutrition-review-ui.js', '/js/nutrition-render.js',
-  '/js/nutrition-food-data.js', '/js/nutrition-food-composition.js',
-  '/js/nutrition-food-composition-state.js', '/js/nutrition-food-composition-metadata.js',
-  '/js/nutrition-entry-forms.js', '/js/nutrition-modal-controller.js',
-  '/js/nutrition-targets.js', '/js/nutrition.js',
+  '/js/nutrition-store.js',
+  '/js/nutrition-sync-sanitize.js',
+  '/js/nutrition-fuel-mix.js',
+  '/js/nutrition-summary.js',
+  '/js/nutrition-history.js',
+  '/js/nutrition-context.js',
+  '/js/nutrition-ai-settings.js',
+  '/js/nutrition-analysis.js',
+  '/js/nutrition-comparison.js',
+  '/js/nutrition-comparison-ui.js',
+  '/js/nutrition-review-ui.js',
+  '/js/nutrition-render.js',
+  '/js/nutrition-food-data.js',
+  '/js/nutrition-food-composition.js',
+  '/js/nutrition-food-composition-state.js',
+  '/js/nutrition-food-composition-metadata.js',
+  '/js/nutrition-entry-forms.js',
+  '/js/nutrition-modal-controller.js',
+  '/js/nutrition-targets.js',
+  '/js/nutrition.js',
   '/js/wearables-summary.js',
   '/js/wearables-connect-runtime.js',
   '/js/wearables-connect-loader.js',
@@ -785,5 +796,4 @@ const NETWORK_ONLY_HOSTS = new Set(['openrouter.ai', 'api.venice.ai', 'nras.atte
 function isLocalOrPrivateHost(hostname) { return ['localhost', '127.0.0.1', '::1', '[::1]'].includes(hostname) || hostname.startsWith('192.168.') || hostname.startsWith('10.') || /^172\.(1[6-9]|2\d|3[01])\./.test(hostname); }
 function shouldUseNetworkOnly(url, sameOrigin) { const h = url.hostname; return NETWORK_ONLY_HOSTS.has(h) || (!sameOrigin && isLocalOrPrivateHost(h)); }
 /** @type {ServiceWorkerGlobalScope & typeof globalThis & { GetBasedServiceWorkerRuntime: { install: (config: ServiceWorkerRuntimeConfig) => void } }} */
-const serviceWorkerScope = /** @type {any} */ (self);
-serviceWorkerScope.GetBasedServiceWorkerRuntime.install({ scope: serviceWorkerScope, appShell: APP_SHELL, isProduction: IS_PROD, resolveCacheName, shouldUseNetworkOnly });
+const serviceWorkerScope = /** @type {any} */ (self); serviceWorkerScope.GetBasedServiceWorkerRuntime.install({ scope: serviceWorkerScope, appShell: APP_SHELL, isProduction: IS_PROD, resolveCacheName, shouldUseNetworkOnly });
