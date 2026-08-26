@@ -473,6 +473,9 @@ return (async function() {
   assert('Bundle import falls back to name match', exportImportSrc.includes('profiles.find(p => p.name === bp.name)'));
   assert('Bundle import clears stale sync deletion state before merging',
     /if \(existing\) \{[\s\S]{0,500}_reviveImportedProfileSyncIdentity\(existing\.id\)/.test(exportImportSrc));
+  assert('Bundle import republishes the complete post-write profile state',
+    exportImportSrc.includes('saveImportedDataForProfile(existing.id, current, {') &&
+    exportImportSrc.includes('forceProfileScope: true'));
   assert('Bundle import does date-keyed entry upsert',
     /const entries = ensureImportedArray\(current,\s*['"]entries['"]\)[\s\S]{0,260}entries\.findIndex\(ex => ex\.date === entry\.date\)[\s\S]{0,180}replaceImportedArrayItem\(current,\s*['"]entries['"],\s*idx,\s*entry\)/.test(exportImportSrc));
   assert('Bundle import deduplicates notes', exportImportSrc.includes('notes.some(x => x.date === n.date && x.text === n.text)'));
