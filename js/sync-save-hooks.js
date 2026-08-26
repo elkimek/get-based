@@ -34,9 +34,13 @@ let _aiSettingsPushTimer = null;
 let _eventsBound = false;
 
 function isProfileSyncBlocked(profileId) {
-  const blocked = !!getProfileSyncBlockReason(profileId, _getProfiles());
-  if (blocked) discardSyncProfileDirty(profileId);
-  return blocked;
+  const blockReason = getProfileSyncBlockReason(profileId, _getProfiles());
+  // A quarantined remote delete is still awaiting the user's Apply delete or
+  // Restore choice. Preserve its dirty generation so later pulls cannot treat
+  // the unresolved conflict as safe to erase. Demo and committed local-delete
+  // profiles can never be pushed, so their stale markers remain disposable.
+  if (blockReason && blockReason !== 'pending-delete') discardSyncProfileDirty(profileId);
+  return !!blockReason;
 }
 
 /** @param {{
