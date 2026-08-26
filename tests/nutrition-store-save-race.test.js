@@ -14,6 +14,7 @@ vi.mock('../js/data.js', () => ({
 }));
 
 import {
+  deleteActiveProfileMeal,
   deleteNutritionDB,
   getNutritionMeal,
   hydrateNutritionSummary,
@@ -109,5 +110,43 @@ describe('nutrition save and hydration ordering', () => {
     await expect(getNutritionMeal(profileId, 'same-meal')).resolves.toMatchObject({
       name: 'Newer edit',
     });
+  });
+
+  it('serializes delete after an in-flight save so the saved meal cannot be resurrected', async () => {
+    state.currentProfile = profileId;
+    state.importedData = { entries: [], nutritionMeals: [] };
+    await hydrateNutritionSummary(profileId);
+
+    let signalPersistStarted;
+    const persistStarted = new Promise(resolve => { signalPersistStarted = resolve; });
+    persistenceGate.handler = async (ignoredProfileId, importedData) => {
+      const savedName = importedData.nutritionMeals?.find(meal => meal.id === 'deleted-meal')?.name;
+      if (savedName === 'Delayed edit') {
+        signalPersistStarted();
+        await new Promise(resolve => { persistenceGate.release = resolve; });
+      }
+      return true;
+    };
+
+    const pendingSave = saveActiveProfileMeal({
+      id: 'deleted-meal',
+      name: 'Delayed edit',
+      eatenAt: '2026-08-26T12:00:00.000Z',
+    });
+    await persistStarted;
+
+    let deleteSettled = false;
+    const pendingDelete = deleteActiveProfileMeal('deleted-meal').then(() => {
+      deleteSettled = true;
+    });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(deleteSettled).toBe(false);
+
+    persistenceGate.release?.();
+    await expect(pendingSave).resolves.toMatchObject({ id: 'deleted-meal' });
+    await expect(pendingDelete).resolves.toBeUndefined();
+    await expect(getNutritionMeal(profileId, 'deleted-meal')).resolves.toBeNull();
+    expect(state.importedData.nutritionMeals).toEqual([]);
+    expect(state.importedData._deleted?.nutritionMeals).toContain('deleted-meal');
   });
 });
