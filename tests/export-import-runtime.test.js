@@ -152,6 +152,26 @@ describe('JSON restore runtime', () => {
     expect(runtime.refreshImportRuntimeShell).toHaveBeenCalledWith({ chat: true });
   });
 
+  it('revives an existing profile before merging a database bundle into it', async () => {
+    localStorage.setItem('labcharts-profile-delete-intent-profile-1', '{"at":1}');
+    localStorage.setItem('labcharts-tombstone-pending-profile-1', '{"at":2}');
+    const backup = {
+      type: 'database',
+      profiles: [{
+        id: 'profile-1',
+        name: 'Primary',
+        data: { diet: { type: 'whole-food' } },
+      }],
+    };
+
+    await importDataJSON(new File([JSON.stringify(backup)], 'database.json', { type: 'application/json' }));
+
+    expect(localStorage.getItem('labcharts-profile-delete-intent-profile-1')).toBeNull();
+    expect(localStorage.getItem('labcharts-tombstone-pending-profile-1')).toBeNull();
+    expect(JSON.parse(localStorage.getItem('profile-1:imported')))
+      .toMatchObject({ diet: { type: 'whole-food' } });
+  });
+
   it('merges a rich backup without duplicating same-date or stable-id data', async () => {
     localStorage.setItem('labcharts-profile-1-chat-threads', JSON.stringify([
       { id: 'thread-existing', title: 'Existing' },

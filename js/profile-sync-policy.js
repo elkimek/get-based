@@ -52,8 +52,9 @@ export function clearLocalProfileDeleteIntent(profileId) {
 }
 
 /**
- * An explicit backup restore revives the backed-up profile identity. Retire
- * both kinds of durable delete state so the recovery push can republish it.
+ * An explicit backup restore or portable import revives the selected profile
+ * identity. Retire both kinds of durable delete state so the recovery push can
+ * republish it.
  * @param {string | null | undefined} profileId
  */
 export function clearProfileSyncDeleteState(profileId) {
