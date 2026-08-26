@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 666,
-  "sinkCount": 527,
+  "scannedFiles": 667,
+  "sinkCount": 528,
   "files": {
     "js/backup.js": {
       "count": 1,
@@ -594,6 +594,13 @@
     "js/nutrition-entry-forms.js": {
       "count": 1,
       "digest": "aa0146a295f2eb94a0c975afdd24d786456017ee564d485c263d051f03e61ac2",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/nutrition-history.js": {
+      "count": 1,
+      "digest": "62567e268515ebf84feedaa5667042075ec9aa29331119b690874dbeb083737e",
       "kinds": {
         "innerHTML": 1
       }
