@@ -32,6 +32,12 @@ async function runStartupSequence() {
   runAppExtensionStartup();
 
   await restorePendingImportReviewDraft();
+
+  // `load` only means the static shell arrived. Profile and local nutrition
+  // hydration are asynchronous, so consumers that start changing state must
+  // wait for this explicit boundary or startup can overwrite their changes.
+  document.documentElement.dataset.appReady = 'true';
+  document.dispatchEvent(new CustomEvent('labcharts-app-ready'));
 }
 
 function handleStartupSequenceError(error) {

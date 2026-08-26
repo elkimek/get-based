@@ -32,6 +32,27 @@ async function seedCurrentLegalAcceptance(page) {
   }, { key: LEGAL_ACCEPTANCE_KEY, payload: TEST_LEGAL_ACCEPTANCE });
 }
 
+async function waitForAppReadiness(page) {
+  const current = new URL(page.url());
+  if (current.pathname === '/app') {
+    await page.locator('html[data-app-ready="true"]').waitFor({
+      state: 'attached',
+      timeout: 15_000,
+    });
+  }
+}
+
+function installAppReadinessAwareNavigation(page) {
+  for (const method of ['goto', 'reload', 'goBack', 'goForward']) {
+    const original = page[method].bind(page);
+    page[method] = async (...args) => {
+      const response = await original(...args);
+      await waitForAppReadiness(page);
+      return response;
+    };
+  }
+}
+
 function isCoverageEnabled() {
   return process.env.PLAYWRIGHT_SUITE_COVERAGE === '1' ||
     process.env.PLAYWRIGHT_SUITE_COVERAGE === 'true';
@@ -239,6 +260,7 @@ export const test = base.extend({
   seedLegalAcceptance: [true, { option: true }],
   page: async ({ page, seedLegalAcceptance }, use, testInfo) => {
     if (seedLegalAcceptance) await seedCurrentLegalAcceptance(page);
+    installAppReadinessAwareNavigation(page);
 
     if (!isCoverageEnabled()) {
       await use(page);

@@ -1501,7 +1501,7 @@ test('AI Settings can route meal photos to Opus without changing the Grok chat m
   await expect(selector).toBeVisible();
   await expect(page.locator('#nutrition-ai-model-settings')).toContainText('Meal photos and labels');
   await expect(page.locator('#nutrition-ai-model-settings')).toContainText('Only image-capable OpenRouter models are shown');
-  await expect(selector.locator('option').first()).toContainText('Main cannot analyze photos — GLM 5.3');
+  await expect(selector.locator('option').first()).toContainText('Main cannot analyze photos — Z.ai: GLM 5.3');
   await expect(selector.locator('option').first()).toBeDisabled();
   await expect(selector).toHaveValue('');
   await expect(selector).not.toContainText('Venice Vision');
