@@ -159,6 +159,14 @@ describe('sync tombstone profile dependencies', () => {
         'info',
         6000
       );
+
+      // The pending confirmation is itself a durable deletion gate. Even if
+      // a legacy path or another tab loses the auxiliary dirty marker, the
+      // next pull must not erase the profile behind the user's back.
+      localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);
+      await applyRemoteTombstones();
+      expect(saveProfiles).not.toHaveBeenCalled();
+      expect(localStorage.getItem(`labcharts-tombstone-pending-${profileId}`)).not.toBeNull();
     } finally {
       configureSyncTombstones(previous);
       configureProfileStorageCleanupDeps(cleanupPrevious);

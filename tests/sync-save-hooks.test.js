@@ -10,6 +10,7 @@ import {
   onProfileSaved,
   readProfileImportedData,
 } from '../js/sync-save-hooks.js';
+import { getSyncDirtyToken, markSyncProfileDirty } from '../js/sync-dirty-state.js';
 
 describe('sync save-hook profile data dependencies', () => {
   afterEach(() => {
@@ -131,6 +132,37 @@ describe('sync save-hook profile data dependencies', () => {
     } finally {
       configureSyncSaveHooks(previous);
       localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);
+      state.currentProfile = previousCurrentProfile;
+      state.importedData = previousImportedData;
+    }
+  });
+
+  it('keeps the dirty generation while a remote delete awaits confirmation', () => {
+    const previousCurrentProfile = state.currentProfile;
+    const previousImportedData = state.importedData;
+    const profileId = 'pending-delete-save-profile';
+    const pushProfile = vi.fn();
+    const previous = configureSyncSaveHooks({
+      pushProfile,
+      isSyncConfigured: () => true,
+      isSyncEnabled: () => true,
+      isEvoluReady: () => true,
+      getProfiles: () => [{ id: profileId, tags: [] }],
+    });
+    state.currentProfile = profileId;
+    state.importedData = { entries: [], notes: [{ id: 'newer-local-edit' }] };
+    markSyncProfileDirty(profileId);
+    const dirtyToken = getSyncDirtyToken(profileId);
+    localStorage.setItem(`labcharts-tombstone-pending-${profileId}`, JSON.stringify({ source: 'remote' }));
+
+    try {
+      onDataSaved({ immediate: true });
+      expect(getSyncDirtyToken(profileId)).toBe(dirtyToken);
+      expect(pushProfile).not.toHaveBeenCalled();
+    } finally {
+      configureSyncSaveHooks(previous);
+      localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);
+      localStorage.removeItem(`labcharts-tombstone-pending-${profileId}`);
       state.currentProfile = previousCurrentProfile;
       state.importedData = previousImportedData;
     }

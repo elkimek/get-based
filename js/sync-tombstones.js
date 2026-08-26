@@ -228,7 +228,11 @@ export async function applyRemoteTombstones() {
   // local edits; wiping it here would destroy the profile and its dirty token
   // before the pending snapshot gets a chance to reach the relay.
   const hasDirtyConflict = localToWipe.some(id => !!getSyncDirtyToken(id));
-  if (localToWipe.length >= TOMBSTONE_BATCH_THRESHOLD || hasDirtyConflict) {
+  // Once quarantined, confirmation itself is the durable gate. Do not make a
+  // later pull depend on an auxiliary dirty token that another path, tab, or
+  // older build may have cleared in the meantime.
+  const hasPendingConfirmation = localToWipe.some(id => hasPendingProfileTombstone(id));
+  if (localToWipe.length >= TOMBSTONE_BATCH_THRESHOLD || hasDirtyConflict || hasPendingConfirmation) {
     const pending = localToWipe.filter(id => !localStorage.getItem(TOMBSTONE_QUARANTINE_KEY(id)));
     for (const id of pending) {
       localStorage.setItem(TOMBSTONE_QUARANTINE_KEY(id), JSON.stringify({ at: Date.now(), source: 'remote' }));
