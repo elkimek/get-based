@@ -8,6 +8,7 @@ import {
   applyRemoteTombstones,
   deleteProfileFromRelay,
   listPendingTombstones,
+  rejectPendingTombstone,
 } from '../js/sync-tombstones.js';
 import { configureProfileStorageCleanupDeps } from '../js/profile-storage-cleanup.js';
 import { getSyncDirtyToken, markSyncProfileDirty } from '../js/sync-dirty-state.js';
@@ -16,7 +17,7 @@ import { state } from '../js/state.js';
 describe('sync tombstone profile dependencies', () => {
   afterEach(() => {
     localStorage.removeItem('labcharts-tombstone-pending-injected-profile');
-    for (const id of ['batch-a', 'batch-b', 'stale-profile', 'lastonly', 'dirty-local']) {
+    for (const id of ['batch-a', 'batch-b', 'stale-profile', 'lastonly', 'dirty-local', 'active-restore']) {
       localStorage.removeItem(`labcharts-tombstone-pending-${id}`);
       localStorage.removeItem(`labcharts-profile-delete-intent-${id}`);
       localStorage.removeItem(`labcharts-${id}-sync-dirty`);
@@ -195,6 +196,40 @@ describe('sync tombstone profile dependencies', () => {
       state.currentProfile = oldCurrent;
       configureSyncTombstones(previous);
       configureProfileStorageCleanupDeps(cleanupPrevious);
+    }
+  });
+
+  it('restores the active profile from newer in-memory edits', async () => {
+    const profileId = 'active-restore';
+    const oldCurrent = state.currentProfile;
+    const oldImportedData = state.importedData;
+    const currentData = { entries: [{ id: 'new-unsaved-edit' }] };
+    const pushProfile = vi.fn().mockResolvedValue({ ok: true });
+    state.currentProfile = profileId;
+    state.importedData = currentData;
+    localStorage.setItem(
+      `labcharts-tombstone-pending-${profileId}`,
+      JSON.stringify({ at: 123, source: 'remote' })
+    );
+    const previous = configureSyncTombstones({
+      getEvolu: () => ({}),
+      isSyncEnabled: () => true,
+      getProfiles: () => [{ id: profileId, name: 'Active' }],
+      pushProfile,
+    });
+
+    try {
+      await expect(rejectPendingTombstone(profileId)).resolves.toEqual({ ok: true });
+      expect(pushProfile).toHaveBeenCalledWith(
+        profileId,
+        currentData,
+        { allowTombstoneResurrection: true }
+      );
+      expect(localStorage.getItem(`labcharts-tombstone-pending-${profileId}`)).toBeNull();
+    } finally {
+      state.currentProfile = oldCurrent;
+      state.importedData = oldImportedData;
+      configureSyncTombstones(previous);
     }
   });
 });
