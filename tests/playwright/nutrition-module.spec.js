@@ -1268,7 +1268,7 @@ test('the nutrition widget shows visual seven-day coverage and weight-aware pers
 
   const widget = page.locator('#nutrition-widget-test-host');
   await expect(widget.locator('.nutrition-goal-list-head strong')).toHaveText('Daily averages');
-  await expect(widget.locator('.nutrition-goal-list-head span')).toHaveText('6 shown');
+  await expect(widget.locator('.nutrition-goal-list-head span')).toHaveText('Last 7 days · 6 shown');
   await expect(widget).not.toContainText('Daily nutrition dashboard');
   await expect(widget).toContainText('5 of 7 days');
   await expect(widget).toContainText('Protein');
@@ -1331,6 +1331,92 @@ test('the nutrition widget shows visual seven-day coverage and weight-aware pers
   expect(await widget.locator('.nutrition-goal-grid').evaluate(element =>
     getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length
   )).toBe(1);
+});
+
+test('nutrition history follows shared 3M, 6M, 1Y, and All ranges on desktop and mobile', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const nutrition = await import('/js/nutrition.js');
+    const store = await import('/js/nutrition-store.js');
+    const summary = await import('/js/nutrition-summary.js');
+    const { state } = await import('/js/state.js');
+    localStorage.removeItem('nutrition-history-range');
+    const historicMeal = (id, name, monthsAgo, energyKcal) => {
+      const local = new Date();
+      local.setHours(12, 0, 0, 0);
+      local.setMonth(local.getMonth() - monthsAgo);
+      const localDate = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, '0')}-${String(local.getDate()).padStart(2, '0')}`;
+      return {
+        id, name, localDate, localTimeMinutes: 720, eatenAt: local.toISOString(), mealType: 'lunch', reviewed: true,
+        nutrients: { energyKcal, proteinG: energyKcal / 20, carbohydrateG: energyKcal / 10, fatG: energyKcal / 40, fiberG: 10 },
+        source: { kind: 'manual' },
+      };
+    };
+    const meals = [
+      historicMeal('history-now', 'PRIVATE CURRENT MEAL', 0, 600),
+      historicMeal('history-4m', 'PRIVATE FOUR MONTH MEAL', 4, 700),
+      historicMeal('history-8m', 'PRIVATE EIGHT MONTH MEAL', 8, 800),
+      historicMeal('history-2y', 'PRIVATE TWO YEAR MEAL', 24, 900),
+    ];
+    for (const meal of meals) await store.putNutritionMeal(state.currentProfile, meal, { preserveUpdatedAt: true });
+    state.importedData.nutritionTargets = {
+      configured: true,
+      energyKcal: 2000,
+      proteinBasis: 'fixed',
+      proteinFixedG: 100,
+      carbohydrateG: 200,
+      fatG: 70,
+      fiberG: 25,
+      widgetNutrients: ['proteinG', 'carbohydrateG', 'fatG', 'fiberG'],
+    };
+    state.nutritionSummary = summary.computeNutritionSummary(meals);
+    const host = document.createElement('div');
+    host.id = 'nutrition-history-widget-host';
+    host.innerHTML = nutrition.renderNutritionWidget();
+    document.body.append(host);
+  });
+
+  const widget = page.locator('#nutrition-history-widget-host');
+  await expect(widget).toContainText('Last 7 days');
+  await widget.getByRole('button', { name: 'History' }).evaluate(button => button.click());
+  await expect(page.locator('.nutrition-history-modal')).toBeVisible();
+  await expect(page.locator('.nutrition-history-head h3')).toHaveText('Nutrition history');
+  await expect(page.locator('.nutrition-history-range .ctx-btn-option')).toHaveCount(4);
+  await expect(page.locator('[data-nutrition-action="set-history-range"][data-nutrition-range="3m"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.nutrition-history-stat-grid > div').filter({ hasText: 'Meals' }).locator('strong')).toHaveText('1');
+  await expect(page.locator('.nutrition-history-modal')).not.toContainText('PRIVATE CURRENT MEAL');
+
+  await page.getByRole('button', { name: '6M', exact: true }).click();
+  await expect(page.locator('.nutrition-history-stat-grid > div').filter({ hasText: 'Meals' }).locator('strong')).toHaveText('2');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('nutrition-history-range'))).toBe('6m');
+  await page.getByRole('button', { name: '1Y', exact: true }).click();
+  await expect(page.locator('.nutrition-history-stat-grid > div').filter({ hasText: 'Meals' }).locator('strong')).toHaveText('3');
+  await page.getByRole('button', { name: 'All', exact: true }).click();
+  await expect(page.locator('.nutrition-history-stat-grid > div').filter({ hasText: 'Meals' }).locator('strong')).toHaveText('4');
+  await expect(page.locator('.nutrition-history-coverage-chart')).toBeVisible();
+  await expect(page.locator('.nutrition-history-caveat')).toContainText('Unlogged days are unknown, not zero');
+
+  await page.addScriptTag({ path: axeScriptPath });
+  const accessibility = await page.evaluate(async () => {
+    const result = await window.axe.run(document.querySelector('.nutrition-history-modal'), {
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] },
+    });
+    return result.violations.filter(violation => ['critical', 'serious'].includes(violation.impact));
+  });
+  expect(accessibility).toEqual([]);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.locator('.nutrition-history-layout').evaluate(element =>
+    getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length
+  )).toBe(1);
+  const rangeFits = await page.locator('.nutrition-history-range').evaluate(element =>
+    element.scrollWidth <= element.clientWidth + 1
+  );
+  expect(rangeFits).toBe(true);
+
+  await page.locator('.nutrition-history-modal .modal-close').click();
+  await widget.getByRole('button', { name: 'History' }).evaluate(button => button.click());
+  await expect(page.locator('[data-nutrition-action="set-history-range"][data-nutrition-range="all"]')).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('saved nutrition summary hydrates after a cache-bypassing hard reload on Dashboard and Body', async ({ page, context }) => {

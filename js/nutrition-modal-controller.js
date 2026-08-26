@@ -14,7 +14,7 @@ export function configureNutritionModalController(deps = {}) {
 
 export function closeNutritionEditor() {
   modalDeps.resetEditorState();
-  document.getElementById('detail-modal')?.classList.remove('nutrition-modal', 'nutrition-targets-modal', 'nutrition-fluid-modal');
+  document.getElementById('detail-modal')?.classList.remove('nutrition-modal', 'nutrition-targets-modal', 'nutrition-fluid-modal', 'nutrition-history-modal');
   document.getElementById('modal-overlay')?.removeAttribute('data-modal-dismiss-protected');
   closeModalOverlay('modal-overlay');
 }
