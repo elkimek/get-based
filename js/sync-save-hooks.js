@@ -9,7 +9,7 @@ import { markChatDataLocal, markCustomPersonalityDataLocal } from './sync-chat-a
 import { pushContextToGateway } from './sync-messenger.js';
 import { addUtilsRuntimeListener } from './utils-runtime.js';
 import { discardSyncProfileDirty, markSyncProfileDirty } from './sync-dirty-state.js';
-import { getProfileSyncBlockReason } from './profile-sync-policy.js';
+import { getProfileSyncBlockReason, hasPendingProfileTombstone } from './profile-sync-policy.js';
 
 /** @type {(...args: any[]) => Promise<any>} */
 let _pushProfile = async () => {};
@@ -34,13 +34,13 @@ let _aiSettingsPushTimer = null;
 let _eventsBound = false;
 
 function isProfileSyncBlocked(profileId) {
-  const blockReason = getProfileSyncBlockReason(profileId, _getProfiles());
+  const blocked = !!getProfileSyncBlockReason(profileId, _getProfiles());
   // A quarantined remote delete is still awaiting the user's Apply delete or
   // Restore choice. Preserve its dirty generation so later pulls cannot treat
-  // the unresolved conflict as safe to erase. Demo and committed local-delete
-  // profiles can never be pushed, so their stale markers remain disposable.
-  if (blockReason && blockReason !== 'pending-delete') discardSyncProfileDirty(profileId);
-  return !!blockReason;
+  // the unresolved conflict as safe to erase. Other blocked profiles can never
+  // be pushed, so their stale markers remain disposable.
+  if (blocked && !hasPendingProfileTombstone(profileId)) discardSyncProfileDirty(profileId);
+  return blocked;
 }
 
 /** @param {{
