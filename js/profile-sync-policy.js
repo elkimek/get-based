@@ -52,6 +52,22 @@ export function clearLocalProfileDeleteIntent(profileId) {
 }
 
 /**
+ * An explicit backup restore revives the backed-up profile identity. Retire
+ * both kinds of durable delete state so the recovery push can republish it.
+ * @param {string | null | undefined} profileId
+ */
+export function clearProfileSyncDeleteState(profileId) {
+  if (!profileId) return false;
+  const intentCleared = clearLocalProfileDeleteIntent(profileId);
+  try {
+    localStorage.removeItem(`${TOMBSTONE_QUARANTINE_PREFIX}${profileId}`);
+    return true;
+  } catch {
+    return intentCleared;
+  }
+}
+
+/**
  * @param {string | null | undefined} profileId
  * @param {any[]} [profiles]
  * @returns {'demo'|'delete-intent'|'pending-delete'|''}

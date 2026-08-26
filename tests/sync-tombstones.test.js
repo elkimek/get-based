@@ -10,14 +10,16 @@ import {
   listPendingTombstones,
 } from '../js/sync-tombstones.js';
 import { configureProfileStorageCleanupDeps } from '../js/profile-storage-cleanup.js';
+import { getSyncDirtyToken, markSyncProfileDirty } from '../js/sync-dirty-state.js';
 import { state } from '../js/state.js';
 
 describe('sync tombstone profile dependencies', () => {
   afterEach(() => {
     localStorage.removeItem('labcharts-tombstone-pending-injected-profile');
-    for (const id of ['batch-a', 'batch-b', 'stale-profile', 'lastonly']) {
+    for (const id of ['batch-a', 'batch-b', 'stale-profile', 'lastonly', 'dirty-local']) {
       localStorage.removeItem(`labcharts-tombstone-pending-${id}`);
       localStorage.removeItem(`labcharts-profile-delete-intent-${id}`);
+      localStorage.removeItem(`labcharts-${id}-sync-dirty`);
     }
   });
 
@@ -116,6 +118,49 @@ describe('sync tombstone profile dependencies', () => {
       expect(saveProfiles).not.toHaveBeenCalled();
     } finally {
       configureSyncTombstones(previous);
+    }
+  });
+
+  it('quarantines a single tombstone instead of erasing unsynced local edits', async () => {
+    const profileId = 'dirty-local';
+    const notify = vi.fn();
+    const saveProfiles = vi.fn();
+    const cleanupPrevious = configureProfileStorageCleanupDeps({
+      encryptedRemoveItem: async () => {},
+      getBlobKeys: async () => [],
+      getDatabaseNames: async () => [],
+      deleteWearablesDB: async () => {},
+      deleteCycleDB: async () => {},
+      deleteNutritionDB: async () => {},
+    });
+    const previous = configureSyncTombstones({
+      getEvolu: () => ({
+        getQueryRows: query => query === 'tombstones'
+          ? [{ id: 'remote-delete', profileId, syncedAt: '2026-08-25T10:00:00.000Z' }]
+          : [],
+      }),
+      getProfileQuery: () => 'profiles',
+      getTombstoneQuery: () => 'tombstones',
+      getProfiles: () => [{ id: profileId, name: 'Locally edited', tags: [] }],
+      saveProfiles,
+      notify,
+    });
+    markSyncProfileDirty(profileId);
+
+    try {
+      await applyRemoteTombstones();
+      expect(saveProfiles).not.toHaveBeenCalled();
+      expect(getSyncDirtyToken(profileId)).not.toBeNull();
+      expect(localStorage.getItem(`labcharts-tombstone-pending-${profileId}`)).not.toBeNull();
+      expect(localStorage.getItem(`labcharts-profile-delete-intent-${profileId}`)).toBeNull();
+      expect(notify).toHaveBeenCalledWith(
+        '1 profile deleted on another device with unsynced local changes. Open Settings → Data → Cross-Device Sync to choose Apply delete or Restore.',
+        'info',
+        6000
+      );
+    } finally {
+      configureSyncTombstones(previous);
+      configureProfileStorageCleanupDeps(cleanupPrevious);
     }
   });
 

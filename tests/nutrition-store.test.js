@@ -13,9 +13,12 @@ import {
   putNutritionMeal,
   putNutritionFood,
   restoreNutritionArchive,
+  saveActiveProfileMeal,
   setLocalNutritionComparison,
   setLocalNutritionSummary,
 } from '../js/nutrition-store.js';
+import { encryptedGetItem, encryptedRemoveItem } from '../js/crypto.js';
+import { profileStorageKey } from '../js/profile-storage-key.js';
 import { state } from '../js/state.js';
 
 const profileIds = new Set();
@@ -81,6 +84,45 @@ describe('thumbnail-only nutrition storage', () => {
     await deleteNutritionMeal(a, newer.id);
     await expect(getNutritionMeal(a, newer.id)).resolves.toBeNull();
     await expect(listNutritionMeals(b)).resolves.toHaveLength(1);
+  });
+
+  it('finishes a meal save against its initiating profile after a profile switch', async () => {
+    const profileId = `nutrition-save-origin-${Date.now()}`;
+    const otherProfileId = `${profileId}-other`;
+    const storageKey = profileStorageKey(profileId, 'imported');
+    const previousProfile = state.currentProfile;
+    const previousImportedData = state.importedData;
+    const initiatingData = { entries: [], nutritionMeals: [] };
+    const otherData = { entries: [], contextNotes: 'other profile' };
+    profileIds.add(profileId);
+    await encryptedRemoveItem(storageKey);
+    state.currentProfile = profileId;
+    state.importedData = initiatingData;
+
+    try {
+      const pendingSave = saveActiveProfileMeal({
+        id: 'profile-scoped-meal',
+        name: 'Profile-scoped lunch',
+        eatenAt: '2026-08-25T12:00:00.000Z',
+      });
+      state.currentProfile = otherProfileId;
+      state.importedData = otherData;
+
+      await expect(pendingSave).resolves.toMatchObject({ id: 'profile-scoped-meal' });
+      await expect(getNutritionMeal(profileId, 'profile-scoped-meal')).resolves.toMatchObject({
+        name: 'Profile-scoped lunch',
+      });
+      const persisted = JSON.parse(await encryptedGetItem(storageKey));
+      expect(persisted.nutritionMeals).toMatchObject([{
+        id: 'profile-scoped-meal',
+        name: 'Profile-scoped lunch',
+      }]);
+      expect(otherData).toEqual({ entries: [], contextNotes: 'other profile' });
+    } finally {
+      await encryptedRemoveItem(storageKey);
+      state.currentProfile = previousProfile;
+      state.importedData = previousImportedData;
+    }
   });
 
   it('caches barcode food data under a hashed key with an encrypted payload', async () => {

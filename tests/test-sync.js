@@ -1543,8 +1543,8 @@ await import('../js/settings.js');
       && /_pushProfile\(p\.id,\s*dataJson,\s*options\)/.test(syncActionsSrc));
   assert('pushAllProfiles defaults only the active profile and skips unreadable inactive profiles',
     syncActionsSrc.includes('createDefaultProfileData()')
-      && /pushAllProfiles[\s\S]{0,800}readProfileImportedData\(p\.id\)/.test(syncActionsSrc)
-      && /pushAllProfiles[\s\S]{0,800}if \(!dataJson\)/.test(syncActionsSrc));
+      && /pushAllProfiles[\s\S]{0,1200}readProfileImportedData\(p\.id\)/.test(syncActionsSrc)
+      && /pushAllProfiles[\s\S]{0,1200}if \(!dataJson\)/.test(syncActionsSrc));
   assert('restore-as-source seeds the new owner before reload',
     /restoreFromMnemonic\(mnemonic,\s*options = \{\}\)/.test(syncIdentitySrc)
       && /options\?\.seedLocal[\s\S]{0,400}await _seedLocalProfiles\(\)/.test(syncIdentitySrc)

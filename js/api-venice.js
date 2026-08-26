@@ -144,7 +144,10 @@ export async function callVeniceAPI(opts) {
   if (regularModels.length || e2eeModels.length) syncVeniceModelSelection(regularModels, e2eeModels);
   const modelOverride = String(opts?.modelOverride || '').trim();
   let modelId = modelOverride || getVeniceModel();
-  let e2eeRequested = isE2EEModel(modelId) || (!modelOverride && getVeniceE2EE());
+  // A feature-specific model override must never downgrade the user's saved
+  // transport preference. In particular, meal-photo routing can select a
+  // regular vision model; fail closed below instead of sending it in clear.
+  let e2eeRequested = isE2EEModel(modelId) || getVeniceE2EE();
   if (!modelOverride && e2eeRequested && veniceModelsCacheStale()) {
     await fetchVeniceModels(key);
     modelId = getVeniceModel();

@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 646,
-  "sinkCount": 500,
+  "scannedFiles": 666,
+  "sinkCount": 527,
   "files": {
     "js/backup.js": {
       "count": 1,
@@ -167,7 +167,7 @@
     },
     "js/cloud-ai-consent.js": {
       "count": 1,
-      "digest": "19adc50c6f3a3c549f3e1f99499ff671701e874b3c736587eaa7ad4a02d7e9c4",
+      "digest": "b0155a1dd52349412193f260a5419fc5fc613bcc69bb30b3463479aee44a869a",
       "kinds": {
         "innerHTML": 1
       }
@@ -583,6 +583,43 @@
         "innerHTML": 1
       }
     },
+    "js/nutrition-comparison-ui.js": {
+      "count": 6,
+      "digest": "b4889526b0c45cccdb48c70e1ab02c60772cc1e92bcea148732e4c4c32162d51",
+      "kinds": {
+        "innerHTML": 5,
+        "outerHTML": 1
+      }
+    },
+    "js/nutrition-entry-forms.js": {
+      "count": 1,
+      "digest": "aa0146a295f2eb94a0c975afdd24d786456017ee564d485c263d051f03e61ac2",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/nutrition-render.js": {
+      "count": 1,
+      "digest": "3d063eff8c81f87545d0c8540edfed609aa95db6cb8ce7187639e713b134d2fc",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/nutrition-review-ui.js": {
+      "count": 10,
+      "digest": "9cf4979c92e704f81c1b231bca2c3b57753b6b0f7f2a49ef3558b408b9143d15",
+      "kinds": {
+        "innerHTML": 10
+      }
+    },
+    "js/nutrition.js": {
+      "count": 8,
+      "digest": "c775f85c7d98561454906d7e0c2e26b1c459493045723ac30466f5e44b00fce9",
+      "kinds": {
+        "innerHTML": 7,
+        "outerHTML": 1
+      }
+    },
     "js/pdf-import-file-handlers.js": {
       "count": 1,
       "digest": "3a9e68cc26d728fe2a93c2e8b3f58f153f4c7bb920f3ec934a6b00826e393573",
@@ -760,10 +797,10 @@
       }
     },
     "js/settings.js": {
-      "count": 2,
-      "digest": "7465a6daf364fcb01438725e51e648698f8bfa5bdd6154027f2869a475ce43af",
+      "count": 3,
+      "digest": "75310b7930897f1ca64ef88ec5fc69cfc22e5e17a26d2fa1fec27ab112edb3d4",
       "kinds": {
-        "innerHTML": 2
+        "innerHTML": 3
       }
     },
     "js/sun-active-session.js": {
@@ -851,7 +888,7 @@
     },
     "js/sync-ui.js": {
       "count": 3,
-      "digest": "5962705e3c6904b76ffc7dc72b58c5304f4ce70f80774c356f1131f639983339",
+      "digest": "ece2624909b55150e3bafbcc2ca2ffa7bbe1906fac6f1f35603f9125e74b687d",
       "kinds": {
         "innerHTML": 3
       }

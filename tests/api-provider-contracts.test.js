@@ -1416,6 +1416,22 @@ describe('AI provider request contracts', () => {
     expect(onStream).toHaveBeenNthCalledWith(2, 'Hello');
   });
 
+  it('does not let a Venice model override downgrade enabled E2EE', async () => {
+    setAIProvider('venice');
+    updateKeyCache('labcharts-venice-key', 'sk-venice-e2ee-override');
+    setVeniceE2EE(true);
+    setVeniceModel('e2ee-private-contract');
+    localStorage.setItem('labcharts-venice-models', JSON.stringify([{ id: 'regular-vision-model' }]));
+    localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-private-contract' }]));
+    localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+
+    await expect(callClaudeAPI(baseChatOptions({
+      modelOverride: 'regular-vision-model',
+    }))).rejects.toThrow('Venice E2EE is enabled');
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(veniceE2EEMocks.createSession).not.toHaveBeenCalled();
+  });
+
   it('retries transient Venice E2EE attestation gateway failures before sending the completion', async () => {
     vi.useFakeTimers();
     try {

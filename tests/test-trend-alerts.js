@@ -721,10 +721,12 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
       'recommendations',
       'profile-context',
       'wearables',
+      'nutrition',
       'bio-age',
       'biology-score-metabolicFlexibility',
       'cycle',
     ]) &&
+    !dashboardDefaultOrderBlock.includes("'nutrition-fuel-mix'") &&
     !dashboardDefaultOrderBlock.includes("'light-today'") &&
     !dashboardDefaultOrderBlock.includes("'alerts'") &&
     !dashboardDefaultOrderBlock.includes("'markers'") &&

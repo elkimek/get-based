@@ -234,10 +234,9 @@ export async function onSyncReceived() {
       clearBackupRestorePending();
     }
 
-    // Apply remote tombstones FIRST - when another device deleted a profile,
-    // wipe our local copy before processing live rows. Skipping this leaves
-    // orphan profiles in the local list that the active query no longer
-    // returns, and the user sees ghost entries that resync never explains.
+    // Resolve remote tombstones before processing live rows. The tombstone
+    // layer quarantines any delete that collides with a dirty local profile,
+    // so this cannot erase pending edits before the dirty-profile pass.
     await applyRemoteTombstones();
 
     // Paused devices keep dirty markers while offline. Effective tombstones
