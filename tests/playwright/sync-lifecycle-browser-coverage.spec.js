@@ -206,14 +206,14 @@ test('sync configure browser coverage wires module actions, UI, and relay quota 
       relayHealth.trackPushBytes(Math.ceil(relayHealth.RELAY_OWNER_QUOTA_BYTES * 0.81));
       outcomes.configureAmberQuotaNotification =
         localStorage.getItem(ownerWarnKey) === 'amber'
-        && notificationText().includes('Relay storage 81%')
-        && notificationText().includes('Cross-device sync');
+        && notificationText().includes('Relay storage is 81% full')
+        && notificationText().includes('Reduce storage');
 
       relayHealth.trackPushBytes(Math.ceil(relayHealth.RELAY_OWNER_QUOTA_BYTES * 0.15));
       const events = syncState.getRecentSyncEvents();
       outcomes.configureRedQuotaLogsAndNotifies =
         localStorage.getItem(ownerWarnKey) === 'red'
-        && notificationText().includes('Relay storage 96% full')
+        && notificationText().includes('Relay storage is 96% full')
         && events.some(event => event.kind === 'skip' && event.text.includes('Relay storage 96%'));
 
       document.getElementById('notification-container').innerHTML = '';

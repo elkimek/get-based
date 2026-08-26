@@ -14,8 +14,8 @@ test('Context hub opens from Personalize AI alias and dismisses', async ({ page 
   await expect(overlay).toHaveClass(/show/);
   await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe('hidden');
   await expect(overlay.locator('.ai-picker-card')).toHaveCount(2);
-  await expect(overlay.locator('.context-source-row')).toHaveCount(8);
-  await expect(overlay.locator('.context-source-desc')).toHaveCount(8);
+  await expect(overlay.locator('.context-source-row')).toHaveCount(9);
+  await expect(overlay.locator('.context-source-desc')).toHaveCount(9);
   await expect(overlay).toContainText('Health goals, medical history, diet, exercise, sleep, stress, environment, notes, biometrics, and cycle context.');
   await expect(overlay.locator('.context-grounding-panel + .context-source-panel')).toHaveCount(1);
   await expect(overlay).toContainText('Context');
@@ -52,7 +52,7 @@ test('Context hub opens from Personalize AI alias and dismisses', async ({ page 
     const labelIds = (input.getAttribute('aria-labelledby') || '').split(/\s+/).filter(Boolean);
     return labelIds.map(id => document.getElementById(id)?.textContent?.trim() || '').join(' ').trim();
   }));
-  expect(toggleNames).toHaveLength(8);
+  expect(toggleNames).toHaveLength(9);
   expect(toggleNames.every(Boolean)).toBe(true);
   const describedByCounts = await overlay.locator('[data-context-toggle]').evaluateAll(inputs =>
     inputs.map(input => (input.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean).length)
