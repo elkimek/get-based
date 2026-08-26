@@ -695,6 +695,10 @@ export async function saveActiveProfileMeal(meal) {
     }
     throw new Error('Meal could not be saved because its cross-device copy could not be persisted.');
   }
+  // Hydration may have reconciled an older profile snapshot while canonical
+  // persistence was in flight. Re-assert the committed record so save success
+  // always leaves the encrypted local cache aligned with canonical state.
+  await putNutritionMeal(profileId, saved, { preserveUpdatedAt: true });
   await writeMeta(profileId, PROFILE_SYNC_INITIALIZED_META, true);
   await requestPersistentNutritionStorage();
   await recomputeActiveSummary(profileId, importedData);
