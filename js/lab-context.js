@@ -615,7 +615,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     ctx += `[/section:diet]\n\n`;
   }
 
-  if (detailedNutritionOverridesMeals) ctx += state.nutritionSummary.contextText || '';
+  if (detailedNutritionOverridesMeals) ctx += state.nutritionSummary?.contextText || '';
   // ── 10. Exercise ──
   const ex = state.importedData.exercise;
   if (includeInsightCards && hasCardContent(ex)) {
