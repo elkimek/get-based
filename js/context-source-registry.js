@@ -12,6 +12,7 @@ export const CONTEXT_SOURCE_IDS = Object.freeze({
   GENOME_INVENTORY: 'genetics-inventory',
   LIGHT_SUN: 'light-sun',
   WEARABLES: 'wearables',
+  NUTRITION: 'meals-nutrition',
 });
 
 export const CONTEXT_SOURCE_SETTINGS_FIELD = 'contextSourceSettings';
@@ -83,6 +84,14 @@ export const CONTEXT_SOURCE_DEFINITIONS = Object.freeze({
     defaultEnabled: true,
     legacyKey: 'labcharts-ai-ctx-wearables',
     affects: Object.freeze(['Chat', 'Scores']),
+  }),
+  [CONTEXT_SOURCE_IDS.NUTRITION]: Object.freeze({
+    id: CONTEXT_SOURCE_IDS.NUTRITION,
+    slug: 'meals-nutrition',
+    label: 'Meals & Nutrition',
+    group: 'Body',
+    defaultEnabled: true,
+    affects: Object.freeze(['Chat']),
   }),
 });
 

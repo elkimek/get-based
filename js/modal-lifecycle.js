@@ -2,6 +2,8 @@
 // modal-lifecycle.js — shared modal backdrop, focus trap, and scroll lock.
 
 const DATA_PROTECTION_STYLESHEET_URL = new URL('../css/data-protection.css', import.meta.url).href;
+const FOCUSABLE_SELECTOR = 'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])';
+const VISIBLE_MODAL_SELECTOR = '.modal-overlay.show,.confirm-overlay.show,[data-modal-focus-trap]';
 
 /** @type {Promise<HTMLLinkElement> | null} */
 let dataProtectionStylesheetPromise = null;
@@ -105,12 +107,18 @@ export const _wireBackdropClose = wireBackdropClose;
  */
 export function openAppendedModalOverlay(overlay, closeFn, options = {}) {
   try { wireBackdropClose(overlay, closeFn); } catch (_) {}
+  // Appended overlays own resources and/or local workflow state often enough
+  // that removing their DOM node is not a safe substitute for their close
+  // callback. Mark them so the app-wide Escape handler leaves dismissal to
+  // this lifecycle owner.
+  overlay.setAttribute('data-modal-lifecycle-managed', '');
   document.body.appendChild(overlay);
   openModalOverlay(overlay, options);
   try {
     trapModalFocus(overlay, {
       ...(options.focusTrapOptions || {}),
       autoFocus: options.initialFocus ? false : options.focusTrapOptions?.autoFocus,
+      onEscape: typeof closeFn === 'function' ? closeFn : () => removeModalOverlay(overlay),
     });
   } catch (_) {}
 }
@@ -231,6 +239,20 @@ export function openModalOverlay(overlayOrId, options = {}) {
         try { target.focus(); } catch (_) {}
       }
     }, delay);
+  } else if (options.autoFocus !== false) {
+    // Static feature dialogs also need a predictable keyboard entry point.
+    // Defer so feature-specific synchronous focus wins when a workflow has a
+    // more meaningful target than its first control.
+    const delay = Number.isFinite(options.focusDelay) ? Math.max(0, options.focusDelay) : 30;
+    setTimeout(() => {
+      const currentOverlay = _resolveOverlay(overlayOrId);
+      if (!currentOverlay || !currentOverlay.classList.contains(showClass)) return;
+      if (currentOverlay.contains(document.activeElement)) return;
+      const target = /** @type {HTMLElement | null} */ (currentOverlay.querySelector(FOCUSABLE_SELECTOR));
+      if (target) {
+        try { target.focus(); } catch (_) {}
+      }
+    }, delay);
   }
 
   return overlay;
@@ -315,24 +337,49 @@ function _releaseOverlayScrollLock(overlay) {
 export function trapModalFocus(overlay, options = {}) {
   const previouslyFocused = document.activeElement;
   const closeOnEscape = options.closeOnEscape !== false;
+  const onEscape = typeof options.onEscape === 'function'
+    ? options.onEscape
+    : () => removeModalOverlay(overlay);
   _acquireModalScrollLock(overlay);
+  overlay.setAttribute?.('data-modal-focus-trap', '');
   let teardown = false;
   if (options.autoFocus !== false) {
     setTimeout(() => {
       if (!_isNodeConnected(overlay)
         || (typeof overlay.contains === 'function' && overlay.contains(document.activeElement))
         || typeof overlay.querySelectorAll !== 'function') return;
-      const focusables = overlay.querySelectorAll(
-        'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])'
-      );
+      const focusables = overlay.querySelectorAll(FOCUSABLE_SELECTOR);
       const firstFocusable = /** @type {HTMLElement | undefined} */ (focusables[0]);
       if (firstFocusable) try { firstFocusable.focus(); } catch (e) {}
     }, 30);
   }
   const onKeydown = (e) => {
-    if (closeOnEscape && e.key === 'Escape' && _isNodeConnected(overlay)) {
+    if (!_isNodeConnected(overlay) || !_isTopmostFocusTrapOverlay(overlay)) return;
+    if (e.key === 'Tab') {
+      const modal = overlay.querySelector?.('[role="dialog"]')
+        || overlay.querySelector?.('.modal')
+        || overlay.querySelector?.('.confirm-dialog')
+        || overlay;
+      const focusables = modal.querySelectorAll?.(FOCUSABLE_SELECTOR) || [];
+      if (focusables.length === 0) return;
+      const first = /** @type {HTMLElement} */ (focusables[0]);
+      const last = /** @type {HTMLElement} */ (focusables[focusables.length - 1]);
+      if (!modal.contains(document.activeElement)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      } else if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+      return;
+    }
+    if (closeOnEscape && e.key === 'Escape') {
       e.preventDefault();
-      try { overlay.remove(); } catch (_) {}
+      e.stopImmediatePropagation();
+      try { onEscape(); } catch (err) { console.error('Modal close callback failed', err); }
     }
   };
   document.addEventListener('keydown', onKeydown);
@@ -340,6 +387,7 @@ export function trapModalFocus(overlay, options = {}) {
     if (teardown) return;
     teardown = true;
     document.removeEventListener('keydown', onKeydown);
+    overlay.removeAttribute?.('data-modal-focus-trap');
     _releaseModalScrollLock(overlay);
     const previousFocusTarget = /** @type {HTMLElement | null} */ (previouslyFocused instanceof HTMLElement ? previouslyFocused : null);
     if (previousFocusTarget && _isNodeConnected(previousFocusTarget)) {
@@ -353,4 +401,10 @@ export function trapModalFocus(overlay, options = {}) {
     }
   });
   obs.observe(document.body, { childList: true, subtree: true });
+}
+
+function _isTopmostFocusTrapOverlay(overlay) {
+  if (typeof document === 'undefined') return true;
+  const overlays = Array.from(document.querySelectorAll(VISIBLE_MODAL_SELECTOR)).filter(candidate => _isNodeConnected(candidate));
+  return overlays.length === 0 || overlays[overlays.length - 1] === overlay;
 }

@@ -15,11 +15,12 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
   await page.waitForSelector('#chat-input');
 
   const results = await page.evaluate(async ({ labContextUrl, recentDates }) => {
-    const [labContext, stateModule, dataModule, storeModule] = await Promise.all([
+    const [labContext, stateModule, dataModule, storeModule, chatPromptContext] = await Promise.all([
       import(labContextUrl),
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/wearables-store.js'),
+      import('/js/chat-context-summary.js'),
     ]);
     const { state } = stateModule;
     const outcomes = {};
@@ -282,8 +283,8 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
         enrichedProfileContext.includes('controlled')
         && enrichedProfileContext.includes('Bariatric surgery in 2020')
         && enrichedProfileContext.includes('Low muscle mass / creatinine may be unreliable')
-        && enrichedProfileContext.includes('Protein intake: 1.2–1.6 g/kg/day')
-        && enrichedProfileContext.includes('Daily fluid intake: 2–3 L/day')
+        && enrichedProfileContext.includes('Usual self-reported protein intake: 1.2–1.6 g/kg/day')
+        && enrichedProfileContext.includes('Usual self-reported daily fluid intake: 2–3 L/day')
         && enrichedProfileContext.includes('Typical session: 60-90 min')
         && enrichedProfileContext.includes('physiotherapy / rehab')
         && enrichedProfileContext.includes('Sleep apnea: diagnosed')
@@ -419,7 +420,7 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
       const editedCollectionContextBlock = contextAfterFastingEdit.match(/\[section:labCollectionContext\]([\s\S]*?)\[\/section:labCollectionContext\]/)?.[1] || '';
       const contextHasHfeInventory = ['neutral finding', 'reference finding'].some(label =>
         context.includes(`HFE C282Y rs1800562: GG (${label}; evidence: Not graded; relevance: Relevance not graded; Iron)`));
-      const summary = labContext.getContextSummary();
+      const summary = chatPromptContext.getContextSummary(context);
       outcomes.groupWearableAndGeneticsTogglesAreApplied = groupDisabled && groupSettingSyncedOff && groupEnabled && groupDefaultsOnInOtherProfile && groupScopedToProfile && groupProfileSettingControls && labMarkersOff && labMarkersOn && wearableOff && wearableOn && bodyContextSynced && supplementsIndependentFromInsightCards && supplementsMedsToggleOff && lightContextOff && lightContextOn && geneticsInventoryOff && geneticsSummaryOff && geneticsPriorityOff && geneticsInventoryOn;
       outcomes.geneticsInventoryToggleControlsNormalSnpContext =
         !contextWithoutGeneticsInventory.includes('Imported SNP inventory for lookup')
@@ -447,8 +448,12 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
         && biologyContextCalls.some(call => call.ignoreContextToggles === true);
       outcomes.contextSummaryCoversLabMedicalAndNotes =
         summary.some(area => area.label === 'Lab values' && area.detail.includes('2 markers'))
-        && summary.some(area => area.label === 'Medical History' && area.detail.includes('condition'))
-        && summary.some(area => area.label === 'Context Notes');
+        && summary.some(area => area.label === 'Medical History / Diagnoses')
+        && summary.some(area => area.label === 'Context Notes')
+        && summary.some(area => area.label === 'Genome')
+        && summary.some(area => area.label === 'Wearables')
+        && summary.some(area => area.label === 'Light & Circadian')
+        && summary.some(area => area.label === 'Light & Sun');
     } finally {
       state.currentProfile = original.currentProfile;
       state.importedData = original.importedData;

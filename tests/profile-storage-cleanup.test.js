@@ -21,6 +21,7 @@ beforeEach(() => {
     getDatabaseNames: async () => [],
     deleteWearablesDB: async () => {},
     deleteCycleDB: async () => {},
+    deleteNutritionDB: async () => {},
   });
 });
 
@@ -46,10 +47,15 @@ describe('profile storage cleanup', () => {
       await Promise.resolve();
       events.push(`cycle:${profileId}`);
     });
+    const deleteNutritionDB = vi.fn(async profileId => {
+      await Promise.resolve();
+      events.push(`nutrition:${profileId}`);
+    });
     configureProfileStorageCleanupDeps({
       encryptedRemoveItem,
       deleteWearablesDB,
       deleteCycleDB,
+      deleteNutritionDB,
     });
 
     const profileId = 'target-profile';
@@ -80,12 +86,14 @@ describe('profile storage cleanup', () => {
 
     expect(deleteWearablesDB).toHaveBeenCalledWith(profileId);
     expect(deleteCycleDB).toHaveBeenCalledWith(profileId);
+    expect(deleteNutritionDB).toHaveBeenCalledWith(profileId);
     expect(encryptedRemoveItem.mock.calls.map(([key]) => key)).toEqual([
       `labcharts-${profileId}-imported`,
       `labcharts-${profileId}-imported-corrupt`,
     ]);
-    expect(events.slice(0, 2).sort()).toEqual([
+    expect(events.slice(0, 3).sort()).toEqual([
       `cycle:${profileId}`,
+      `nutrition:${profileId}`,
       `wearables:${profileId}`,
     ]);
     for (const key of targetKeys) expect(localStorage.getItem(key), key).toBeNull();
@@ -102,6 +110,7 @@ describe('profile storage cleanup', () => {
         throw new Error('blocked by another tab');
       },
       deleteCycleDB: async () => {},
+      deleteNutritionDB: async () => {},
     });
     localStorage.setItem('labcharts-blocked-imported', 'keep-until-retry');
     localStorage.setItem('labcharts-blocked-units', 'US');
@@ -139,6 +148,7 @@ describe('profile storage cleanup', () => {
       getDatabaseNames: async () => [
         'labcharts-wearables-wearable-orphan',
         'labcharts-cycle-cycle-orphan',
+        'getbased-nutrition-nutrition-orphan',
         'labcharts-backups',
         'third-party-database',
       ],
@@ -155,6 +165,7 @@ describe('profile storage cleanup', () => {
       'idb-regular',
       'wearable-orphan',
       'cycle-orphan',
+      'nutrition-orphan',
     ]);
   });
 

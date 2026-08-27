@@ -1,6 +1,5 @@
 importScripts('/version.js'); importScripts('/service-worker-runtime.js'); // Production uses semver; previews add the deployment SHA.
-const PROD_HOSTS = new Set(['app.getbased.health', 'getbased.health', 'www.getbased.health']); const IS_PROD = PROD_HOSTS.has(self.location.hostname);
-let _cacheNamePromise = null;
+const PROD_HOSTS = new Set(['app.getbased.health', 'getbased.health', 'www.getbased.health']); const IS_PROD = PROD_HOSTS.has(self.location.hostname); let _cacheNamePromise = null;
 async function resolveCacheName() {
   const base = `labcharts-v${self.APP_VERSION}`;
   if (IS_PROD) return base;
@@ -36,6 +35,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/css/recommendations.css',
   '/css/client-list.css',
   '/css/wearables.css',
+  '/css/nutrition.css',
   '/css/light-sun.css',
   '/css/light-channels.css',
   '/css/light-devices.css',
@@ -150,6 +150,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/profile-storage-cleanup.js',
   '/js/profile-list-store.js',
   '/js/profile.js',
+  '/js/profile-sync-policy.js',
   '/js/profile-runtime.js',
   '/js/profile-share.js',
   '/js/unique-id.js',
@@ -196,7 +197,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/context-cards-runtime.js',
   '/js/context-card-health-dots.js',
   '/js/context-source-registry.js',
-  '/js/context-card-summaries.js',
+  '/js/context-card-summaries.js', '/js/nutrition-context-card-extensions.js',
   '/js/context-card-editor-ui.js',
   '/js/context-card-dashboard-ai.js',
   '/js/context-card-dashboard-ai-impl.js',
@@ -286,7 +287,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/chat-stream-status.js',
   '/js/chat-history.js',
   '/js/chat-continuation.js',
-  '/js/chat-prompt-context.js',
+  '/js/chat-prompt-context.js', '/js/chat-context-summary.js',
   '/js/chat-system-prompt.js',
   '/js/chat-summaries.js',
   '/js/settings.js',
@@ -425,7 +426,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/backup-serialization.js',
   '/js/backup.js',
   '/js/backup-chat-storage.js',
-  '/js/lab-context.js',
+  '/js/lab-context.js', '/js/lab-context-cache.js',
   '/js/lab-context-collection.js',
   '/js/lab-context-runtime.js',
   '/js/lab-context-change-timeline.js',
@@ -557,6 +558,24 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/wearables-settings-groups.js',
   '/js/wearables-settings-panel.js',
   '/js/wearables-store.js',
+  '/js/nutrition-store.js',
+  '/js/nutrition-sync-sanitize.js',
+  '/js/demo-nutrition.js', '/js/nutrition-fuel-mix.js',
+  '/js/nutrition-summary.js',
+  '/js/nutrition-summary-context.js', '/js/nutrition-history.js',
+  '/js/nutrition-context.js',
+  '/js/nutrition-ai-settings.js',
+  '/js/nutrition-analysis.js',
+  '/js/nutrition-comparison.js',
+  '/js/nutrition-comparison-ui.js',
+  '/js/nutrition-review-ui.js',
+  '/js/nutrition-render.js',
+  '/js/nutrition-food-data.js',
+  '/js/nutrition-nutrient-registry.js', '/js/nutrition-photo-provenance.js',
+  '/js/nutrition-editor-navigation.js', '/js/nutrition-entry-forms.js',
+  '/js/nutrition-modal-controller.js',
+  '/js/nutrition-targets.js',
+  '/js/nutrition.js',
   '/js/wearables-summary.js',
   '/js/wearables-connect-runtime.js',
   '/js/wearables-connect-loader.js',
@@ -770,30 +789,8 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/data/import-benchmark-reference-us-v2.gold.json',
   '/data/emf-assessment-template.html',
 ];
-const NETWORK_ONLY_HOSTS = new Set([
-  'openrouter.ai', 'api.venice.ai',
-  'nras.attestation.nvidia.com', 'api.routstr.com',
-  'api.ppq.ai', 'api.github.com',
-  'umami-iota-olive.vercel.app', 'sync.getbased.health',
-  'free.evoluhq.com',
-]);
-function isLocalOrPrivateHost(hostname) {
-  return ['localhost', '127.0.0.1', '::1', '[::1]'].includes(hostname) || hostname.startsWith('192.168.')
-    || hostname.startsWith('10.')
-    || /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
-}
-function shouldUseNetworkOnly(url, sameOrigin) {
-  const h = url.hostname; return NETWORK_ONLY_HOSTS.has(h) || (!sameOrigin && isLocalOrPrivateHost(h));
-}
-/** @type {ServiceWorkerGlobalScope & typeof globalThis & {
- *   GetBasedServiceWorkerRuntime: { install: (config: ServiceWorkerRuntimeConfig) => void
- *   }
- * }} */
-const serviceWorkerScope = /** @type {any} */ (self);
-serviceWorkerScope.GetBasedServiceWorkerRuntime.install({
-  scope: serviceWorkerScope,
-  appShell: APP_SHELL,
-  isProduction: IS_PROD,
-  resolveCacheName,
-  shouldUseNetworkOnly,
-});
+const NETWORK_ONLY_HOSTS = new Set(['openrouter.ai', 'api.venice.ai', 'nras.attestation.nvidia.com', 'api.routstr.com', 'api.ppq.ai', 'api.github.com', 'umami-iota-olive.vercel.app', 'sync.getbased.health', 'free.evoluhq.com']);
+function isLocalOrPrivateHost(hostname) { return ['localhost', '127.0.0.1', '::1', '[::1]'].includes(hostname) || hostname.startsWith('192.168.') || hostname.startsWith('10.') || /^172\.(1[6-9]|2\d|3[01])\./.test(hostname); }
+function shouldUseNetworkOnly(url, sameOrigin) { const h = url.hostname; return NETWORK_ONLY_HOSTS.has(h) || (!sameOrigin && isLocalOrPrivateHost(h)); }
+/** @type {ServiceWorkerGlobalScope & typeof globalThis & { GetBasedServiceWorkerRuntime: { install: (config: ServiceWorkerRuntimeConfig) => void } }} */
+const serviceWorkerScope = /** @type {any} */ (self); serviceWorkerScope.GetBasedServiceWorkerRuntime.install({ scope: serviceWorkerScope, appShell: APP_SHELL, isProduction: IS_PROD, resolveCacheName, shouldUseNetworkOnly });

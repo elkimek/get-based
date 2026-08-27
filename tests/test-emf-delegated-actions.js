@@ -91,14 +91,16 @@ assert('EMF interpretation runtime hooks avoid counted direct window globals',
     !/\bwindow(?:\.|\s*\[)/.test(emfInterpretationSrc));
 assert('EMF editor X button uses saving close action',
   editorSrc.includes('class="modal-close" aria-label="Close" ${emfActionAttrs(\'close-editor\')}'));
-assert('EMF import preview close path does not persist editor state',
+assert('EMF import preview close path returns to the editor without persisting',
   closePreviewSrc.length > 0 &&
     !closePreviewSrc.includes('collectActiveAssessmentState') &&
     !closePreviewSrc.includes('saveImportedData') &&
+    closePreviewSrc.includes('renderEMFEditor(modal)') &&
     emfEditorSrc.includes("if (action === 'close-preview') { closeEMFPreviewModal(); return; }") &&
     emfEditorSrc.includes("${emfActionAttrs('close-preview')}>Cancel</button>"));
-assert('EMF import preview X button uses non-saving close action',
-  importPreviewSrc.includes('class="modal-close" aria-label="Close" ${emfActionAttrs(\'close-preview\')}'));
+assert('EMF import preview exposes back and X routes to the assessment editor',
+  importPreviewSrc.includes('class="context-back-btn" aria-label="Back to EMF assessments"') &&
+  importPreviewSrc.includes('class="modal-close" aria-label="Back to EMF assessments" ${emfActionAttrs(\'close-preview\')}'));
 assert('EMF editor delegates can be explicitly removed',
   emfEditorSrc.includes('function removeEMFEditorDelegates()') &&
     emfEditorSrc.includes("document.removeEventListener('click', handleEMFEditorClick)") &&

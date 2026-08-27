@@ -451,7 +451,7 @@ function renderLightEnvironmentAssessmentModal() {
     <p class="light-env-assessment-modal-copy">Map daylight, artificial light, screens, and optional room checks. This is a practical screening picture—not a measured biological dose. Save snapshots before and after changes to compare what moved.</p>
     ${renderEnvironmentSection({ embedded: true })}
   </div>`;
-  openModalOverlay(overlay, wasOpen ? {} : { initialFocus: '.modal-close', focusDelay: 50 });
+  if (!wasOpen) openModalOverlay(overlay, { initialFocus: '.modal-close', focusDelay: 50 });
 }
 
 export function openLightEnvironmentAssessment() {

@@ -177,6 +177,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         { id: 'anthropic/claude-sonnet-5', name: 'Claude Sonnet 5' },
         { id: 'anthropic/claude-sonnet-4.6', name: 'Claude Sonnet 4.6' },
         { id: 'x-ai/grok-4', name: 'Grok 4' },
+        { id: 'qwen/qwen3.8-27b', name: 'Qwen3.8 27B' },
       ]);
       const openRouterRecommendedGroup = document.querySelector('#openrouter-model-select optgroup[label="Recommended"]');
       const openRouterRecommended = !!openRouterRecommendedGroup?.querySelector('option[value="anthropic/claude-sonnet-5"]')
@@ -195,6 +196,9 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.2"]')
         && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.7-code"]')
         && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.6"]');
+      const openRouterQwenAvailable = !!document.querySelector(
+        '#openrouter-model-select optgroup[label="Other models"] option[value="qwen/qwen3.8-27b"]'
+      );
       const openRouterPricing = (document.getElementById('openrouter-model-pricing')?.textContent || '').includes('$3.00/M in');
 
       let fetchedPricing = false;
@@ -383,6 +387,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
 
       return {
         openRouterRecommended,
+        openRouterQwenAvailable,
         openRouterPricing,
         openRouterCustomApplied,
         openRouterCustomFailure,

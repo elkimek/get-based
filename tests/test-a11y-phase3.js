@@ -79,11 +79,11 @@ console.log('=== Phase 3 A11y Tests ===\n');
   // ─── 3. Modal close aria-labels ───
   for (const f of ['/js/views.js', '/js/feedback.js', '/js/changelog-impl.js', '/js/emf-editor.js', '/js/settings.js']) {
     const src = read(f);
-    const closeButtons = (src.match(/class="modal-close"/g) || []).length;
-    const labelled = (src.match(/class="modal-close" aria-label="Close"/g) || []).length;
+    const closeButtons = src.match(/<button\b[^>]*class="[^"]*\bmodal-close\b[^"]*"[^>]*>/g) || [];
+    const labelled = closeButtons.filter(button => /\baria-label="[^"]+"/.test(button)).length;
     assert(`${f}: every modal-close has aria-label`,
-      closeButtons === labelled,
-      `${labelled}/${closeButtons} labelled`);
+      closeButtons.length === labelled,
+      `${labelled}/${closeButtons.length} labelled`);
   }
   const feedbackSrc = read('/js/feedback.js');
   const changelogSrc = read('/js/changelog-impl.js');

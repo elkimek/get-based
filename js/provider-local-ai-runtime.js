@@ -26,6 +26,9 @@ export function cacheLocalAiModelDetails(modelDetails, isOllamaServer) {
   if (!runtime) return;
   runtime._lastOllamaModelDetails = modelDetails;
   runtime._lastIsOllamaServer = isOllamaServer;
+  if (typeof runtime.dispatchEvent === 'function' && typeof runtime.CustomEvent === 'function') {
+    runtime.dispatchEvent(new runtime.CustomEvent('labcharts-ai-settings-local-changed'));
+  }
 }
 
 export function getCachedLocalAiModelDetails() {

@@ -590,6 +590,8 @@ function installRoundRequestMocks({ lens = true, provider = 'venice', e2ee = tru
     supportsWebSearch: vi.fn(() => true),
     isVeniceE2EEActive: vi.fn(() => e2ee),
     buildLabContext: vi.fn(() => 'base lab context'),
+    buildChatLabContext: vi.fn(() => 'base lab context'),
+    getContextSummary: vi.fn(() => [{ label: 'Profile', detail: 'demographics' }]),
     injectLensChunks: vi.fn(() => 'lab context with lens'),
     hasLens: vi.fn(() => lens),
     queryLensMulti: vi.fn(async () => ({ chunks: [{ id: 'chunk-1' }] })),
@@ -615,6 +617,7 @@ function installRoundRequestMocks({ lens = true, provider = 'venice', e2ee = tru
   }));
   vi.doMock('../js/lab-context.js', () => ({
     buildLabContext: deps.buildLabContext,
+    getContextSummary: deps.getContextSummary,
     injectLensChunks: deps.injectLensChunks,
   }));
   vi.doMock('../js/lens.js', () => ({
@@ -627,12 +630,14 @@ function installRoundRequestMocks({ lens = true, provider = 'venice', e2ee = tru
   }));
   vi.doMock('../js/chat-prompt-context.js', () => ({
     attachLensSources: deps.attachLensSources,
+    buildChatLabContext: deps.buildChatLabContext,
     buildChatSystemPrompt: deps.buildChatSystemPrompt,
     buildMultiPersonaInstruction: deps.buildMultiPersonaInstruction,
     buildPersonalityPrompt: deps.buildPersonalityPrompt,
     buildTaggedChatMessages: deps.buildTaggedChatMessages,
     buildWebSearchHint: deps.buildWebSearchHint,
   }));
+  vi.doMock('../js/chat-context-summary.js', () => ({ getContextSummary: deps.getContextSummary }));
   vi.doMock('../js/chat-panel.js', () => ({ getChatWebSearchEnabled: deps.getChatWebSearchEnabled }));
   return deps;
 }
@@ -648,6 +653,7 @@ describe('chat discussion round request runtime behavior', () => {
 
     expect(deps.queryLensMulti).toHaveBeenCalledWith('compare markers', { signal });
     expect(deps.injectLensChunks).toHaveBeenCalledWith('base lab context', { chunks: [{ id: 'chunk-1' }] });
+    expect(deps.getContextSummary).toHaveBeenCalledWith('lab context with lens');
     expect(deps.buildWebSearchHint).toHaveBeenCalledWith({
       isE2EE: true,
       webSearchEnabled: true,
@@ -664,6 +670,7 @@ describe('chat discussion round request runtime behavior', () => {
     expect(deps.buildTaggedChatMessages).toHaveBeenCalledWith(roundHistory, 'Analyst');
     expect(request).toMatchObject({
       apiMessages: [{ role: 'user', content: 'tagged' }],
+      context: [{ label: 'Profile', detail: 'demographics' }],
       e2ee: true,
       modelDisplay: 'Model One',
       modelId: 'model-1',
@@ -681,6 +688,7 @@ describe('chat discussion round request runtime behavior', () => {
       fullText: 'analysis',
       request: {
         e2ee: true,
+        context: [{ label: 'Genome', detail: 'APOE' }],
         lensResult: { chunks: [{ id: 'chunk-1' }] },
         modelDisplay: 'Model One',
         modelId: 'model-1',
@@ -696,6 +704,7 @@ describe('chat discussion round request runtime behavior', () => {
     expect(message).toMatchObject({
       role: 'assistant',
       content: 'analysis',
+      context: [{ label: 'Genome', detail: 'APOE' }],
       personalityName: 'Analyst',
       personalityIcon: 'A',
       provider: 'venice',

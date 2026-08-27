@@ -43,6 +43,7 @@ console.log('=== Family History + Medical History Tests ===\n');
 
 const cards = await import('../js/context-cards.js');
 const constants = await import('../js/constants.js');
+const { getContextSummary } = await import('../js/chat-context-summary.js');
 
 // ═══════════════════════════════════════
 // 1. Expanded COMMON_CONDITIONS
@@ -156,7 +157,6 @@ console.log('6. AI context family history');
 
 const labCtxSrc = await fetch('js/lab-context.js').then(r => r.text());
 const labCtxTimelineSrc = await fetch('js/lab-context-change-timeline.js').then(r => r.text());
-const labCtxOutputSrc = await fetch('js/lab-context-output.js').then(r => r.text());
 assert('Family history block emitted within [section:diagnoses]',
   /\[section:diagnoses\][\s\S]{0,1500}### Family history \(heritable\/environmental risk signal\)/.test(labCtxSrc));
 assert('Family history block iterates diag.familyHistory',
@@ -165,13 +165,13 @@ assert('Family history line format includes relative, condition, optional onset 
   /\$\{rel\}: \$\{e\.condition \|\| ''\}\$\{age\}\$\{note\}/.test(labCtxSrc));
 
 // ═══════════════════════════════════════
-// 7. Areas list counts family entries
+// 7. Exact context receipt includes Medical History
 // ═══════════════════════════════════════
 console.log('7. Active areas list');
 
-assert('Active-areas list counts both conditions and family entries',
-  /label: 'Medical History', detail \}\)/.test(labCtxOutputSrc) &&
-  /family entr/.test(labCtxOutputSrc));
+const medicalReceipt = getContextSummary('[section:diagnoses]\n## Medical History / Diagnoses\n- Hypertension\n### Family history\n- mother: Type 2 Diabetes\n[/section:diagnoses]');
+assert('Active-areas list reflects the exact final Medical History section',
+  medicalReceipt.some(area => area.label === 'Medical History / Diagnoses'));
 
 // ═══════════════════════════════════════
 // 8. "Medical History" rename — verifying user-facing strings

@@ -291,8 +291,10 @@ export async function saveImportedDataForProfile(profileId, importedData, option
     migrateProfileData(importedData);
     const key = profileStorageKey(profileId, 'imported');
     const value = JSON.stringify(importedData);
-    if ((await encryptedGetItem(key)) === value) return true;
-    await encryptedSetItem(key, value);
+    // Scoped operations represent an explicit profile mutation or restore.
+    // Skip an identical storage write, but continue through the hooks so the
+    // complete persisted snapshot is marked dirty and republished.
+    if ((await encryptedGetItem(key)) !== value) await encryptedSetItem(key, value);
   } catch (e) {
     showNotification('Storage limit reached — clear old data or profiles to free space.', 'error');
     return false;

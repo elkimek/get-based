@@ -3,6 +3,7 @@
 
 import { state } from './state.js';
 import { scanDietForContaminants } from './food-contaminants.js';
+import { doesNutritionContextOverrideTypicalMeals } from './context-card-summaries.js';
 import { showNotification } from './utils.js';
 
 /** @typedef {typeof import('./context-card-lifestyle-editors-impl.js')} LifestyleContextEditorsModule */
@@ -79,6 +80,7 @@ function lifestyleActionAttrs(action, extra = '') {
 // The badge is part of the dashboard's cold render, so keep only its small
 // scanner/rendering path in the facade.
 export function renderDietContaminantsBadge() {
+  if (doesNutritionContextOverrideTypicalMeals()) return '';
   const warnings = scanDietForContaminants(state.importedData.diet);
   if (warnings.length === 0) return '';
   const flagged = warnings.filter(warning => warning.type !== 'clean').length;

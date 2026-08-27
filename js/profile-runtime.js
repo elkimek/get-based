@@ -13,6 +13,7 @@ const profileRefreshDeps = {
   buildSidebar: () => {},
   destroyAllCharts: () => {},
   getInitialView: () => 'dashboard',
+  hydrateNutritionSummary: async () => {},
   invalidateLabContextCache: () => {},
   migrateBiometricsToManual: async () => {},
   navigate: () => {},
@@ -35,6 +36,8 @@ export function invalidateProfileContextCache() {
 }
 
 export async function reloadProfileRuntimeShell(profileId) {
+  try { await profileRefreshDeps.hydrateNutritionSummary(profileId); } catch { state.nutritionSummary = null; }
+  if (state.currentProfile !== profileId) return;
   const chat = isChatModuleLoaded() ? await loadChatModule() : null;
 
   await chat?.loadCustomPersonalities?.();

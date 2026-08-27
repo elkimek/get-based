@@ -4,7 +4,7 @@
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { showNotification, isDebugMode } from './utils.js';
-import { saveImportedData } from './data.js';
+import { saveImportedData, saveImportedDataForProfile } from './data.js';
 import { getProfiles, profileStorageKey, createProfile, updateProfileMeta, loadProfile, migrateProfileData } from './profile.js';
 import { encryptedGetItem, encryptedSetItem, getEncryptionEnabled } from './crypto.js';
 import {
@@ -31,6 +31,21 @@ import {
   saveCustomPersonalitiesToStorage,
   saveCustomPersonalityTombstones,
 } from './chat-personality-storage.js';
+
+const MAX_PORTABLE_JSON_BYTES = 512 * 1024 * 1024;
+
+async function _importNutritionData(profileId, nutrition) {
+  if (!nutrition) return 0;
+  const { restoreNutritionArchive } = await import('./nutrition-store.js');
+  return restoreNutritionArchive(profileId, nutrition);
+}
+
+function _reviveImportedProfileSyncIdentity(profileId) {
+  try {
+    localStorage.removeItem(`labcharts-profile-delete-intent-${profileId}`);
+    localStorage.removeItem(`labcharts-tombstone-pending-${profileId}`);
+  } catch {}
+}
 
 async function _importChatData(profileId, chat) {
   const importedChat = normalizeChatBackup(chat);
@@ -78,6 +93,10 @@ async function _importChatData(profileId, chat) {
  * @returns {Promise<void>}
  */
 export function importDataJSON(file) {
+  if (Number(file?.size || 0) > MAX_PORTABLE_JSON_BYTES) {
+    showNotification('This backup is too large to import safely in the browser.', 'error');
+    return Promise.resolve();
+  }
   // Returns a Promise that resolves when the FileReader pipeline finishes
   // (success OR error). Existing fire-and-forget callers (`importDataJSON(file)`)
   // ignore the return value and behave identically; the demo loader awaits
@@ -102,7 +121,8 @@ export function importDataJSON(file) {
           await _importDatabaseBundle(json);
           return;
         }
-        if (!json.entries || !Array.isArray(json.entries)) {
+        const hasNutrition = json.nutrition?.version === 1 && Array.isArray(json.nutrition?.meals);
+        if ((!json.entries || !Array.isArray(json.entries)) && !hasNutrition) {
           showNotification('Invalid JSON format: missing entries array', 'error');
           return;
         }
@@ -118,7 +138,7 @@ export function importDataJSON(file) {
         }
         let count = 0;
         const importTs = Date.now();
-        for (const entry of json.entries) {
+        for (const entry of json.entries || []) {
           if (!entry.date || !entry.markers) continue;
           // Earlier draft did `filter(ex => ex.date !== entry.date)` — same-
           // date entries clobbered each other. The demos legitimately ship
@@ -146,7 +166,7 @@ export function importDataJSON(file) {
           if (entry.importHash && !existing.importHash) existing.importHash = entry.importHash;
           count++;
         }
-        if (count === 0 && (!json.notes || json.notes.length === 0) && !json.chat) {
+        if (count === 0 && (!json.notes || json.notes.length === 0) && !json.chat && !hasNutrition) {
           showNotification('No valid entries found in JSON', 'error');
           return;
         }
@@ -421,6 +441,12 @@ export function importDataJSON(file) {
         if (json.contextSourceSettings && typeof json.contextSourceSettings === 'object') {
           state.importedData.contextSourceSettings = json.contextSourceSettings;
         }
+        if ([7, 30, 90].includes(Number(json.nutritionContextDays))) {
+          state.importedData.nutritionContextDays = /** @type {7|30|90} */ (Number(json.nutritionContextDays));
+        }
+        if (json.nutritionTargets && typeof json.nutritionTargets === 'object' && !Array.isArray(json.nutritionTargets)) {
+          state.importedData.nutritionTargets = json.nutritionTargets;
+        }
         // Import change history (merge by field+date, imported snapshot wins on conflict)
         if (Array.isArray(json.changeHistory)) {
           const changeHistory = ensureImportedArray(state.importedData, 'changeHistory');
@@ -526,12 +552,14 @@ export function importDataJSON(file) {
         if (json.chat) {
           await _importChatData(state.currentProfile, json.chat);
         }
+        const mealCount = await _importNutritionData(state.currentProfile, json.nutrition);
         // Demo-load completion: clear the loading sentinel (dashboard
         // empty-state renderer keys off this flag while data is en route).
         clearDemoLoadingProfile(state.currentProfile);
         await refreshImportRuntimeShell({ chat: !!json.chat });
         const profileMsg = json.profile?.name ? ` into "${json.profile.name}"` : '';
-        showNotification(`Imported ${count} date entr${count === 1 ? 'y' : 'ies'}${profileMsg}`, 'success');
+        const mealMsg = mealCount ? ` and ${mealCount} meal${mealCount === 1 ? '' : 's'}` : '';
+        showNotification(`Imported ${count} date entr${count === 1 ? 'y' : 'ies'}${mealMsg}${profileMsg}`, 'success');
       } catch (err) {
         clearDemoLoadingProfile();
         showNotification('Error parsing JSON: ' + getErrorMessage(err), 'error');
@@ -553,6 +581,11 @@ async function _importDatabaseBundle(json) {
     if (!existing && bp.name) existing = profiles.find(p => p.name === bp.name);
     const importData = bp.data || {};
     if (existing) {
+      // A portable import that targets an existing identity is an explicit
+      // decision to keep that profile. Retire any durable delete intent before
+      // metadata updates queue sync, or the restored data remains blocked and
+      // the next pull can delete it again.
+      _reviveImportedProfileSyncIdentity(existing.id);
       // Merge into existing profile — update metadata from bundle
       if (!firstImportedId) firstImportedId = existing.id;
       const meta = {};
@@ -626,6 +659,12 @@ async function _importDatabaseBundle(json) {
       if (importData.contextSourceSettings && typeof importData.contextSourceSettings === 'object' && !Array.isArray(importData.contextSourceSettings)) {
         current.contextSourceSettings = importData.contextSourceSettings;
       }
+      if ([7, 30, 90].includes(Number(importData.nutritionContextDays))) {
+        current.nutritionContextDays = /** @type {7|30|90} */ (Number(importData.nutritionContextDays));
+      }
+      if (importData.nutritionTargets && typeof importData.nutritionTargets === 'object' && !Array.isArray(importData.nutritionTargets)) {
+        current.nutritionTargets = importData.nutritionTargets;
+      }
       if (importData.interpretiveLens) current.interpretiveLens = importData.interpretiveLens;
       if (importData.contextNotes) current.contextNotes = importData.contextNotes;
       // Change history: merge by field+date, imported snapshot wins on conflict
@@ -687,10 +726,12 @@ async function _importDatabaseBundle(json) {
         }
       }
       // Save
-      migrateProfileData(current);
-      const value = JSON.stringify(current);
-      await encryptedSetItem(storageKey, value);
+      const persisted = await saveImportedDataForProfile(existing.id, current, {
+        forceProfileScope: true,
+      });
+      if (!persisted) throw new Error('The imported profile could not be saved.');
       if (bp.chat) await _importChatData(existing.id, bp.chat);
+      await _importNutritionData(existing.id, bp.nutrition);
       merged++;
     } else {
       // Create new profile
@@ -704,11 +745,12 @@ async function _importDatabaseBundle(json) {
       if (!firstImportedId) firstImportedId = id;
       if (bp.pinned) await updateProfileMeta(id, { pinned: true });
       // Write data
-      const storageKey = profileStorageKey(id, 'imported');
-      migrateProfileData(importData);
-      const value = JSON.stringify(importData);
-      await encryptedSetItem(storageKey, value);
+      const persisted = await saveImportedDataForProfile(id, importData, {
+        forceProfileScope: true,
+      });
+      if (!persisted) throw new Error('The imported profile could not be saved.');
       if (bp.chat) await _importChatData(id, bp.chat);
+      await _importNutritionData(id, bp.nutrition);
       created++;
     }
   }

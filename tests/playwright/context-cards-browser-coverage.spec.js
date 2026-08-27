@@ -286,3 +286,41 @@ test('context cards browser coverage exercises notes save dots and tips', async 
 
   expectAll(results);
 });
+
+test('environment to EMF workflow returns to the originating editor', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-default-emptyTour', 'completed');
+    localStorage.setItem('labcharts-default-tour', 'completed');
+  });
+  await page.goto('/app', { waitUntil: 'load' });
+
+  await page.evaluate(async () => {
+    const [{ state }, contextCards] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/context-cards.js'),
+    ]);
+    state.importedData.environment = {
+      setting: 'urban',
+      emf: ['WiFi router nearby'],
+      emfMitigation: [],
+      note: 'Keep this editor context',
+    };
+    state.importedData.emfAssessment = { assessments: [] };
+    await contextCards.openEnvironmentEditor();
+  });
+
+  await expect(page.locator('#detail-modal')).toHaveAttribute('aria-label', 'Environment & Exposures');
+  await page.locator('#detail-modal details:has([data-context-card-action="open-emf-assessment"])').evaluate(details => {
+    details.open = true;
+  });
+  await page.locator('#detail-modal [data-context-card-action="open-emf-assessment"]').click();
+  await expect(page.locator('#detail-modal')).toContainText('Baubiologie EMF Assessment');
+  await expect(page.locator('#detail-modal [data-emf-action="return-to-origin"]')).toHaveAttribute(
+    'aria-label',
+    'Back to Environment & Exposures',
+  );
+
+  await page.locator('#detail-modal [data-emf-action="return-to-origin"]').click();
+  await expect(page.locator('#detail-modal')).toHaveAttribute('aria-label', 'Environment & Exposures');
+  await expect(page.locator('#detail-modal')).toContainText('Keep this editor context');
+});

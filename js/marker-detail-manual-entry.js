@@ -97,7 +97,7 @@ function renderManualEntryForm(id, prefillDate) {
         <div class="gb-modal-kicker">${escapeHTML(data.categories[categoryKey]?.label || categoryKey)}</div>
         <div class="gb-modal-title">Add Value Manually</div>
       </div>
-      <button class="modal-close" aria-label="Close" ${markerDetailActionAttrs('close-modal')}>&times;</button>
+      <button class="modal-close" aria-label="Back to marker details" ${markerDetailActionAttrs('show-detail-modal', { id })}>&times;</button>
     </div>
     <div class="gb-form-body">
     <div class="modal-unit"><strong>${escapeHTML(marker.name)}</strong> \u00b7 ${escapeHTML(marker.unit)}${refText ? ' \u00b7 ' + refText : ''}</div>

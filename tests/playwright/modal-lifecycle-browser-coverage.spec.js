@@ -93,6 +93,36 @@ test('modal lifecycle browser coverage handles backdrop focus trap and scroll lo
       classOverlay.remove();
       opener.remove();
 
+      const appendedOpener = document.createElement('button');
+      appendedOpener.id = 'appended-opener';
+      appendedOpener.textContent = 'Open appended modal';
+      document.body.append(appendedOpener);
+      appendedOpener.focus();
+      const appendedOverlay = document.createElement('div');
+      appendedOverlay.className = 'modal-overlay';
+      appendedOverlay.innerHTML = `<div class="modal" role="dialog">
+        <button id="appended-first">First</button>
+        <button id="appended-last">Last</button>
+      </div>`;
+      let appendedCloseCount = 0;
+      modalLifecycle.openAppendedModalOverlay(appendedOverlay, () => {
+        appendedCloseCount += 1;
+        modalLifecycle.removeModalOverlay(appendedOverlay);
+      });
+      await waitUntil(() => document.activeElement?.id === 'appended-first', 'appended modal focus');
+      document.getElementById('appended-last')?.focus();
+      const appendedTab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+      document.dispatchEvent(appendedTab);
+      const appendedTabWrapped = appendedTab.defaultPrevented && document.activeElement?.id === 'appended-first';
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      await waitUntil(() => !document.body.contains(appendedOverlay), 'appended modal callback close');
+      outcomes.appendedEscapeUsesOwnerCleanupAndTrapsTab =
+        appendedOverlay.hasAttribute('data-modal-lifecycle-managed')
+        && appendedTabWrapped
+        && appendedCloseCount === 1
+        && document.activeElement?.id === 'appended-opener';
+      appendedOpener.remove();
+
       const beforeModal = document.getElementById('before-modal');
       beforeModal.focus();
       const overlayA = document.createElement('div');

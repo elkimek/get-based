@@ -97,6 +97,8 @@ return (async function() {
   assert('Client export includes genetics', exportSrc.includes('genetics: data.genetics'));
   assert('Client export includes biometrics', exportSrc.includes('biometrics: data.biometrics'));
   assert('Client export includes contextSourceSettings', exportSrc.includes('contextSourceSettings: data.contextSourceSettings || {}'));
+  assert('Client export includes nutritionContextDays', exportSrc.includes('nutritionContextDays: [7, 30, 90].includes'));
+  assert('Client export includes nutritionTargets', exportSrc.includes('nutritionTargets: data.nutritionTargets'));
   assert('Client export includes markerNotes', exportSrc.includes('markerNotes: data.markerNotes'));
   assert('Client export includes changeHistory', exportSrc.includes('changeHistory: data.changeHistory'));
   assert('Client export includes chatSummaries', exportSrc.includes('chatSummaries: data.chatSummaries'));
@@ -104,6 +106,12 @@ return (async function() {
     exportImportSrc.includes('state.importedData.contextSourceSettings = json.contextSourceSettings'));
   assert('Database bundle merge restores contextSourceSettings for existing profiles',
     exportImportSrc.includes('current.contextSourceSettings = importData.contextSourceSettings'));
+  assert('JSON and database bundle imports restore nutritionContextDays',
+    /state\.importedData\.nutritionContextDays\s*=.*Number\(json\.nutritionContextDays\)/.test(exportImportSrc)
+      && /current\.nutritionContextDays\s*=.*Number\(importData\.nutritionContextDays\)/.test(exportImportSrc));
+  assert('JSON and database bundle imports restore nutritionTargets',
+    exportImportSrc.includes('state.importedData.nutritionTargets = json.nutritionTargets')
+      && exportImportSrc.includes('current.nutritionTargets = importData.nutritionTargets'));
   assert('Supplement import preserves safe sourceUrl', exportImportSrc.includes('entry.sourceUrl = sourceUrl.toString()'));
   // Light & Sun stack — earlier export schema dropped these silently;
   // import learned them in v1.6.x but export hadn't followed suit.
@@ -471,6 +479,11 @@ return (async function() {
   // _importDatabaseBundle merge logic
   assert('Bundle import matches by id first', exportImportSrc.includes('profiles.find(p => p.id === bp.id)'));
   assert('Bundle import falls back to name match', exportImportSrc.includes('profiles.find(p => p.name === bp.name)'));
+  assert('Bundle import clears stale sync deletion state before merging',
+    /if \(existing\) \{[\s\S]{0,500}_reviveImportedProfileSyncIdentity\(existing\.id\)/.test(exportImportSrc));
+  assert('Bundle import republishes the complete post-write profile state',
+    exportImportSrc.includes('saveImportedDataForProfile(existing.id, current, {') &&
+    exportImportSrc.includes('forceProfileScope: true'));
   assert('Bundle import does date-keyed entry upsert',
     /const entries = ensureImportedArray\(current,\s*['"]entries['"]\)[\s\S]{0,260}entries\.findIndex\(ex => ex\.date === entry\.date\)[\s\S]{0,180}replaceImportedArrayItem\(current,\s*['"]entries['"],\s*idx,\s*entry\)/.test(exportImportSrc));
   assert('Bundle import deduplicates notes', exportImportSrc.includes('notes.some(x => x.date === n.date && x.text === n.text)'));

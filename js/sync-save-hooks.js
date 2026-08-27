@@ -8,7 +8,8 @@ import { encryptedGetItem } from './crypto.js';
 import { markChatDataLocal, markCustomPersonalityDataLocal } from './sync-chat-apply.js';
 import { pushContextToGateway } from './sync-messenger.js';
 import { addUtilsRuntimeListener } from './utils-runtime.js';
-import { markSyncProfileDirty } from './sync-dirty-state.js';
+import { discardSyncProfileDirty, markSyncProfileDirty } from './sync-dirty-state.js';
+import { getProfileSyncBlockReason, hasPendingProfileTombstone } from './profile-sync-policy.js';
 
 /** @type {(...args: any[]) => Promise<any>} */
 let _pushProfile = async () => {};
@@ -19,6 +20,8 @@ let _isSyncing = () => false;
 let _createDefaultProfileData = () => ({ entries: [] });
 /** @type {(data: any) => any} */
 let _migrateProfileData = (data) => data;
+/** @type {() => any[]} */
+let _getProfiles = () => [];
 
 // Per-profile debounce timers. Switching profiles mid-debounce previously
 // dropped the pending push for the prior profile because the single shared
@@ -30,6 +33,16 @@ const _profileSyncTimers = new Map();
 let _aiSettingsPushTimer = null;
 let _eventsBound = false;
 
+function isProfileSyncBlocked(profileId) {
+  const blocked = !!getProfileSyncBlockReason(profileId, _getProfiles());
+  // A quarantined remote delete is still awaiting the user's Apply delete or
+  // Restore choice. Preserve its dirty generation so later pulls cannot treat
+  // the unresolved conflict as safe to erase. Other blocked profiles can never
+  // be pushed, so their stale markers remain disposable.
+  if (blocked && !hasPendingProfileTombstone(profileId)) discardSyncProfileDirty(profileId);
+  return blocked;
+}
+
 /** @param {{
  *   pushProfile?: (...args: any[]) => Promise<any>,
  *   isSyncEnabled?: () => boolean,
@@ -38,6 +51,7 @@ let _eventsBound = false;
  *   isSyncing?: () => boolean,
  *   createDefaultProfileData?: () => any,
  *   migrateProfileData?: (data: any) => any,
+ *   getProfiles?: () => any[],
  * }} [deps]
  */
 export function configureSyncSaveHooks({
@@ -48,6 +62,7 @@ export function configureSyncSaveHooks({
   isSyncing,
   createDefaultProfileData,
   migrateProfileData,
+  getProfiles,
 } = {}) {
   const previous = {
     pushProfile: _pushProfile,
@@ -57,6 +72,7 @@ export function configureSyncSaveHooks({
     isSyncing: _isSyncing,
     createDefaultProfileData: _createDefaultProfileData,
     migrateProfileData: _migrateProfileData,
+    getProfiles: _getProfiles,
   };
   if (typeof pushProfile === 'function') _pushProfile = pushProfile;
   if (typeof isSyncEnabled === 'function') _isSyncEnabled = isSyncEnabled;
@@ -65,6 +81,7 @@ export function configureSyncSaveHooks({
   if (typeof isSyncing === 'function') _isSyncing = isSyncing;
   if (typeof createDefaultProfileData === 'function') _createDefaultProfileData = createDefaultProfileData;
   if (typeof migrateProfileData === 'function') _migrateProfileData = migrateProfileData;
+  if (typeof getProfiles === 'function') _getProfiles = getProfiles;
   return previous;
 }
 
@@ -72,6 +89,7 @@ export function bindSyncSaveHookEvents() {
   if (_eventsBound) return;
   const bound = addUtilsRuntimeListener('labcharts-ai-settings-local-changed', () => {
     if (!_isSyncConfigured() || !state.currentProfile || !state.importedData) return;
+    if (isProfileSyncBlocked(state.currentProfile)) return;
     markSyncProfileDirty(state.currentProfile);
     if (!_isSyncEnabled()) return;
     scheduleAISettingsPush(state.currentProfile, state.importedData);
@@ -80,6 +98,7 @@ export function bindSyncSaveHookEvents() {
 }
 
 function scheduleAISettingsPush(profileId, importedData, attempt = 0) {
+  if (isProfileSyncBlocked(profileId)) return;
   if (_aiSettingsPushTimer) clearTimeout(_aiSettingsPushTimer);
   _aiSettingsPushTimer = setTimeout(async () => {
     _aiSettingsPushTimer = null;
@@ -141,6 +160,10 @@ export async function readProfileImportedData(profileId, fallback = null) {
  * @param {number} [attempt]
  */
 function scheduleProfilePush(profileId, data, attempt = 0) {
+  if (isProfileSyncBlocked(profileId)) {
+    _profileSyncTimers.delete(profileId);
+    return;
+  }
   // Fail closed when profile storage could not be read. Publishing null here
   // can turn a transient local read problem into permanent cross-device loss.
   if (!data || typeof data !== 'object') {
@@ -175,6 +198,7 @@ function scheduleProfilePush(profileId, data, attempt = 0) {
 export function onProfileSaved(profileId, importedData = null) {
   if (!profileId) return;
   if (!_isSyncConfigured()) return;
+  if (isProfileSyncBlocked(profileId)) return;
   markSyncProfileDirty(profileId);
   if (!_isSyncEnabled()) return;
   const prev = _profileSyncTimers.get(profileId);
@@ -190,6 +214,7 @@ export function onProfileSaved(profileId, importedData = null) {
 
 /** @param {{ immediate?: boolean, skipSync?: boolean }} [options] */
 export function onDataSaved(options = {}) {
+  if (state.currentProfile && isProfileSyncBlocked(state.currentProfile)) return;
   if (!options?.skipSync && _isSyncConfigured()) {
     const profileId = state.currentProfile;
     const data = state.importedData;
@@ -227,6 +252,7 @@ export function onChatSaved(options = {}) {
   const profileId = state.currentProfile;
   const data = state.importedData;
   if (!profileId) return;
+  if (isProfileSyncBlocked(profileId)) return;
   markSyncProfileDirty(profileId);
   if (!_isSyncEnabled()) return;
   if (!_isEvoluReady()) return;

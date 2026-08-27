@@ -5,6 +5,14 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import { getEMFSeverity } from './schema.js';
 import { sortHealthGoalsByPriority } from './health-goals-utils.js';
+import { getNutritionContextDays, isNutritionContextEnabled } from './lab-context-settings.js';
+
+/** @param {any} [summary] @param {any} [profileData] */
+export function doesNutritionContextOverrideTypicalMeals(summary = state.nutritionSummary, profileData = state.importedData) {
+  if (!summary?.totalMeals || !isNutritionContextEnabled()) return false;
+  const selectedWindow = summary?.windows?.[`d${getNutritionContextDays(profileData)}`];
+  return selectedWindow ? Number(selectedWindow.meals || 0) > 0 : Number(summary.totalMeals || 0) > 0;
+}
 
 export const CONTEXT_CARD_KEYS = [
   'healthGoals',
@@ -102,17 +110,19 @@ export function getDietSummary(d) {
   const parts = [];
   if (d.type) parts.push(d.type);
   if (d.pattern) parts.push(d.pattern);
-  if (d.proteinIntake) parts.push(`protein: ${d.proteinIntake}`);
-  if (d.hydration) parts.push(`fluids: ${d.hydration}`);
+  if (d.proteinIntake) parts.push(`usual self-report protein: ${d.proteinIntake}`);
+  if (d.hydration) parts.push(`usual self-report fluids: ${d.hydration}`);
   if (d.restrictions && d.restrictions.length) parts.push(d.restrictions.join(', '));
   if (d.alcohol) parts.push(`alcohol: ${d.alcohol}`);
   if (d.caffeine) parts.push(`caffeine: ${d.caffeine}`);
   if (d.caffeineTiming) parts.push(d.caffeineTiming);
   if (d.recentChanges && d.recentChanges.length) parts.push(d.recentChanges.join(', '));
-  if (d.breakfast) parts.push('B: ' + d.breakfast);
-  if (d.lunch) parts.push('L: ' + d.lunch);
-  if (d.dinner) parts.push('D: ' + d.dinner);
-  if (d.snacks) parts.push('S: ' + d.snacks);
+  if (!doesNutritionContextOverrideTypicalMeals()) {
+    if (d.breakfast) parts.push('B: ' + d.breakfast);
+    if (d.lunch) parts.push('L: ' + d.lunch);
+    if (d.dinner) parts.push('D: ' + d.dinner);
+    if (d.snacks) parts.push('S: ' + d.snacks);
+  }
   if (d.bowelFrequency) parts.push(d.bowelFrequency);
   if (d.stoolConsistency) parts.push(d.stoolConsistency);
   if (d.bloating && d.bloating !== 'none') parts.push('bloating: ' + d.bloating);

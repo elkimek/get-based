@@ -88,6 +88,7 @@ import { configureExportImportRuntimeDeps } from './export-runtime.js';
 import { closeFeedbackModal, openFeedbackModal } from './feedback.js';
 import { loadImportStylesheet } from './import-loader.js';
 import { configurePdfImportReviewRuntimeDeps } from './pdf-import-review-runtime.js';
+import { configureProfileStorageCleanupDeps } from './profile-storage-cleanup.js';
 import { configureLabContext, invalidateLabContextCache } from './lab-context.js';
 import { configureLensPageShell } from './lens-page-shell.js';
 import {
@@ -167,6 +168,7 @@ import {
 } from './shell-actions.js';
 import { switchAIProviderBridge } from './settings-provider-bridge.js';
 import { configureStartupUIDeps } from './startup-ui.js';
+import { configureStartupProfileDeps } from './startup-profile.js';
 import { configureStartupOAuthCallbackDeps } from './startup-oauth-callbacks.js';
 import { configureSyncPull } from './sync-pull.js';
 import { configureSyncPullActiveRefreshDeps } from './sync-pull-active-refresh-runtime.js';
@@ -191,6 +193,12 @@ function showInsufficientBalanceDialog() {
 configureApiRuntimeCallbacks({ showInsufficientBalanceDialog });
 configureApiProviderStorageRuntimeDeps({ encryptedSetItem: encryptedSetCredentialItem });
 configureStartupOAuthCallbackDeps({ showInsufficientBalanceDialog });
+configureStartupProfileDeps({
+  hydrateNutritionSummary: profileId => import('./nutrition-context.js').then(module => module.hydrateNutritionSummary(profileId)),
+});
+if (typeof document !== 'undefined') {
+  document.addEventListener('nutrition:open-ai-settings', () => openSettingsModal('ai'));
+}
 configureChatRuntimeCallbacks({
   onChatSaved,
   updateChatHeaderModel: updateChatHeaderModelIfLoaded,
@@ -224,10 +232,14 @@ configureProfileRuntimeDeps({
   refreshProfileWearables,
   reloadProfileRuntimeShell,
 });
+configureProfileStorageCleanupDeps({
+  deleteNutritionDB: profileId => import('./nutrition-store.js').then(module => module.deleteNutritionDB(profileId)),
+});
 configureProfileRefreshDeps({
   buildSidebar,
   destroyAllCharts,
   getInitialView,
+  hydrateNutritionSummary: profileId => import('./nutrition-context.js').then(module => module.hydrateNutritionSummary(profileId)),
   invalidateLabContextCache,
   migrateBiometricsToManual,
   navigate,

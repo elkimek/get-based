@@ -30,7 +30,6 @@ console.log('=== Chat Actions Tests ===\n');
 
 // State, chat actions, and context summaries stay on their module surfaces.
 const { state: S } = await import('../js/state.js');
-const labContext = await import('../js/lab-context.js');
 await import('../js/chat.js');
 const {
   buildActionBar, copyMessage, regenerateLastMessage, toggleContextDetails,
@@ -39,6 +38,7 @@ const { buildSummaryTranscript } = await import('../js/chat-summaries.js');
 const {
   attachLensSources, buildMultiPersonaInstruction, buildTaggedChatMessages, buildWebSearchHint,
 } = await import('../js/chat-prompt-context.js');
+const { getContextSummary } = await import('../js/chat-context-summary.js');
 const {
   clearCurrentDiscussionThreadState, reopenCurrentDiscussionThread,
 } = await import('../js/chat-discussion-state.js');
@@ -60,7 +60,7 @@ for (const [name, action] of Object.entries(moduleActions)) {
   assert(`chat-actions.${name} exists`, typeof action === 'function', typeof action);
   assert(`window.${name} stays module-only`, typeof window[name] === 'undefined', typeof window[name]);
 }
-assert('lab-context.getContextSummary exists', typeof labContext.getContextSummary === 'function');
+assert('chat-context-summary.getContextSummary exists', typeof getContextSummary === 'function');
 assert('window.getContextSummary stays module-only', !('getContextSummary' in window));
 assert('window.readAloud removed', typeof window.readAloud === 'undefined', typeof window.readAloud);
 
@@ -197,16 +197,34 @@ if (hasState) {
 
 // ─── Section 2: getContextSummary() ───
 console.log('Section 2: getContextSummary()');
-const summary = labContext.getContextSummary();
+const summary = getContextSummary(`[section:profile]
+Profile context
+[/section:profile]
+
+[section:genetics]
+APOE: ε3/ε4
+mtDNA Haplogroup: H1
+- MTHFR C677T (priority SNP finding)
+[/section:genetics]
+
+[section:nutrition]
+Last 7 days: 5 meals across 3/7 days; logged averages: protein g 80
+[/section:nutrition]
+
+[section:sun]
+- Outdoor sessions: 2 · device sessions: 1 · devices in library: 1
+### Indoor light environment
+### Weekly light trend (last 6w)
+[/section:sun]`);
 assert('getContextSummary returns array', Array.isArray(summary), typeof summary);
-if (summary.length > 0) {
-  assert('Summary items have label', typeof summary[0].label === 'string', summary[0].label);
-  assert('Summary items have detail', typeof summary[0].detail === 'string', summary[0].detail);
-} else {
-  assert('Summary is empty (no data loaded)', summary.length === 0, 'expected with no data');
-}
+assert('Summary items have label', typeof summary[0].label === 'string', summary[0].label);
+assert('Summary items have detail', typeof summary[0].detail === 'string', summary[0].detail);
 const allLabelsStr = summary.every(s => typeof s.label === 'string' && s.label.length > 0);
 assert('All summary labels are non-empty strings', allLabelsStr, summary.map(s => s.label).join(', '));
+assert('Summary is derived from exact Genome section', summary.some(s => s.label === 'Genome'), JSON.stringify(summary));
+assert('Summary exposes aggregate Meals & Nutrition', summary.some(s => s.label === 'Meals & Nutrition' && s.detail.includes('5 meals')), JSON.stringify(summary));
+assert('Summary exposes included Light module parts', summary.some(s => s.label === 'Light & Sun' && s.detail.includes('outdoor') && s.detail.includes('devices') && s.detail.includes('indoor') && s.detail.includes('trends')), JSON.stringify(summary));
+assert('Summary stays empty without assembled context', getContextSummary().length === 0, 'empty');
 
 // ─── Section 3: buildActionBar() ───
 console.log('Section 3: buildActionBar()');
@@ -254,6 +272,7 @@ if (hasState) {
       && bar1.includes('aria-expanded="false"'),
     'delegated context');
   assert('Context shows area count', bar1.includes('1 area'), 'shows 1 area');
+  assert('Context disclosure says provided, not used', bar1.includes('Context provided') && !bar1.includes('Context used'), 'accurate label');
   assert('Context details are hidden by default', bar1.includes('display:none'), 'hidden');
   assert('Context item has checkmark', bar1.includes('✓'), 'has checkmark');
 
@@ -361,6 +380,7 @@ const chatSummariesSrc = read('js/chat-summaries.js');
 const chatContinuationSrc = read('js/chat-continuation.js');
 const chatMarkerPromptsSrc = read('js/chat-marker-prompts.js');
 const chatPromptContextSrc = read('js/chat-prompt-context.js');
+const chatContextSummarySrc = read('js/chat-context-summary.js');
 const chatPersonalitiesSrc = read('js/chat-personalities.js');
 const chatHistorySrc = read('js/chat-history.js');
 const chatPanelSrc = read('js/chat-panel.js');
@@ -386,9 +406,10 @@ const appUiShellModulesSrc = read('js/app-ui-shell-modules.js');
 const chatRenderSrc = read('js/chat-render.js');
 const chatSendSrc = read('js/chat-send.js');
 const labCtxSrc = read('js/lab-context.js');
-const labCtxOutputSrc = read('js/lab-context-output.js');
-assert('lab-context.js exposes getContextSummary from its output owner',
-  labCtxSrc.includes('getContextSummary') && labCtxOutputSrc.includes('function getContextSummary'),
+assert('lazy chat context summary owns the exact-context receipt',
+  !labCtxSrc.includes('getContextSummary')
+    && !chatPromptContextSrc.includes('function getContextSummary')
+    && chatContextSummarySrc.includes('function getContextSummary'),
   'found');
 assert('chat.js loads window bindings entry', chatSrc.includes("import './chat-window-bindings.js'"), 'found');
 assert('chat.js imports action helpers', chatSrc.includes("from './chat-actions.js'"), 'found');
@@ -415,7 +436,7 @@ assert('chat message action attrs helper stays dependency-light',
 assert('chat-actions.js exports regenerateLastMessage', chatActionsSrc.includes('export function regenerateLastMessage'), 'found');
 assert('chat.js does NOT have readAloud', !chatSrc.includes('function readAloud'), 'removed');
 assert('chat-actions.js exports copyMessage', chatActionsSrc.includes('export function copyMessage'), 'found');
-assert('sendChatMessage snapshots context', chatSendSrc.includes('contextSnapshot'), 'found');
+assert('sendChatMessage snapshots exact final assembled context', chatSendSrc.includes('getContextSummary(labContext)') && chatSendSrc.indexOf('getContextSummary(labContext)') > chatSendSrc.indexOf('injectLensChunks(labContext'), 'found');
 assert('sendChatMessage snapshots provider for API call', chatSendSrc.includes('const _msgProvider = getAIProvider()') && chatSendSrc.includes('provider: _msgProvider'), 'found');
 assert('sendChatMessage awaits chat saves before repaint-sensitive work',
   (chatSendSrc.match(/await saveChatHistory\(\)/g) || []).length >= 2, 'found');

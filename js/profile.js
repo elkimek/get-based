@@ -18,6 +18,10 @@ import {
   mutateProfiles,
   saveProfiles as saveStoredProfiles,
 } from './profile-list-store.js';
+import {
+  clearLocalProfileDeleteIntent, isDemoProfileId, markLocalProfileDeleteIntent,
+  queueEligibleProfileSync,
+} from './profile-sync-policy.js';
 
 export { migrateProfileData, profileStorageKey };
 
@@ -247,6 +251,9 @@ export function createDefaultProfileData() {
     markerValueNotes: {},
     biologyScoreAI: {},
     contextSourceSettings: {},
+    nutritionContextDays: 30,
+    nutritionTargets: null,
+    nutritionMeals: [],
     changeHistory: [],
     importSnapshots: [],
     biometrics: null,
@@ -264,21 +271,10 @@ export function createDefaultProfileData() {
   };
 }
 
-/**
- * @param {string} profileId
- * @param {ProfileData | null} [importedData]
- * @returns {void}
- */
+/** @param {string} profileId @param {ProfileData | null} [importedData] */
 function queueProfileSync(profileId, importedData = null) {
-  if (!profileId) return;
-  try {
-    if (localStorage.getItem('labcharts-sync-enabled') !== 'true') return;
-  } catch {
-    return;
-  }
-  Promise.resolve(profileDeps.onProfileSaved(profileId, importedData)).catch(() => {});
+  queueEligibleProfileSync(profileId, getProfiles(), importedData, profileDeps);
 }
-
 
 /**
  * @param {string} profileId
@@ -452,9 +448,14 @@ export async function deleteProfile(profileId, onComplete) {
   if (profiles.length <= 1) { profileDeps.showNotification("Cannot delete the last profile", "error"); return; }
   if (await profileDeps.showConfirmDialog('Delete this profile and all its data? This cannot be undone.')) {
     const updated = profiles.filter(p => p.id !== profileId);
+    // Persist the user's decision before any async cleanup. If the relay is
+    // unavailable, the next pull will retry the tombstone instead of accepting
+    // an old live row and recreating the deleted profile.
+    markLocalProfileDeleteIntent(profileId, isDemoProfileId(profileId, profiles) ? 'local-demo' : 'local');
     try {
       await clearProfileStorage(profileId);
     } catch (error) {
+      clearLocalProfileDeleteIntent(profileId);
       console.warn('[profile] Profile cleanup failed:', error);
       profileDeps.showNotification('Could not delete all profile data. Close other Get Based tabs and try again.', 'error', 8000);
       return;
@@ -465,7 +466,7 @@ export async function deleteProfile(profileId, onComplete) {
     // the profile (the Evolu row's dataJson outlives our local wipe).
     // Soft-delete via Evolu's isDeleted column — the query filter drops
     // tombstoned rows; CRDT LWW handles cross-device conflict resolution.
-    Promise.resolve(profileDeps.deleteProfileFromRelay(profileId)).catch(() => {});
+    await Promise.resolve(profileDeps.deleteProfileFromRelay(profileId)).catch(() => {});
     if (state.currentProfile === profileId) {
       await loadProfile(updated[0].id);
     } else {
@@ -788,7 +789,6 @@ export function getLatitudeFromLocation(optCountry, optZip) {
     }
     return LATITUDE_BANDS[3];
   }
-
   const band = COUNTRY_LATITUDES[c];
   if (band !== undefined) return LATITUDE_BANDS[band];
   for (const [key, val] of Object.entries(COUNTRY_LATITUDES)) {

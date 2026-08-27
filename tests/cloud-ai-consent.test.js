@@ -58,6 +58,20 @@ describe('cloud AI explicit consent', () => {
     expect(stored.approvals.openrouter.acceptedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
+  it('uses a compact one-time prompt for the first meal-photo send', async () => {
+    const pending = requestCloudAIConsent('openrouter', { kind: 'meal-photo' });
+    const overlay = document.getElementById('cloud-ai-consent-overlay');
+    expect(overlay.textContent).toContain('Send these meal details?');
+    expect(overlay.textContent).toContain('selected photos and any Known details');
+    expect(overlay.querySelector('.legal-consent-points')).toBeNull();
+    consentControls().checkbox.click();
+    consentControls().approve.click();
+    await expect(pending).resolves.toBe(true);
+
+    await expect(requestCloudAIConsent('openrouter', { kind: 'meal-photo' })).resolves.toBe(true);
+    expect(document.getElementById('cloud-ai-consent-overlay')).toBeNull();
+  });
+
   it('keeps data on-device when refused and sends no cloud voice request', async () => {
     globalThis.fetch = vi.fn();
     const pending = directTranscription('elevenlabs', {
@@ -70,6 +84,16 @@ describe('cloud AI explicit consent', () => {
     await expect(pending).rejects.toThrow('No request was sent');
     expect(globalThis.fetch).not.toHaveBeenCalled();
     expect(hasCloudAIConsent('elevenlabs')).toBe(false);
+  });
+
+  it('restores focus after the cloud consent decision', async () => {
+    const trigger = document.createElement('button');
+    document.body.appendChild(trigger);
+    trigger.focus();
+    const pending = requestCloudAIConsent('openrouter', { kind: 'meal-photo' });
+    consentControls().cancel.click();
+    await expect(pending).resolves.toBe(false);
+    expect(document.activeElement).toBe(trigger);
   });
 
   it('makes withdrawal one action and requires approval again', async () => {

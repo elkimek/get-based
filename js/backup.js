@@ -1,6 +1,5 @@
 // @ts-check
 // backup.js — Backup/restore, auto-backup (IndexedDB), folder backup (File System Access API)
-
 import { getErrorMessage, getErrorName } from './caught-error.js';
 import { showNotification, showConfirmDialog, escapeAttr, escapeHTML } from './utils.js';
 import { profileStorageKey } from './profile-storage-key.js';
@@ -127,6 +126,7 @@ const GLOBAL_SETTINGS_KEYS = [
   'labcharts-venice-model', 'labcharts-openrouter-model', 'labcharts-routstr-model', 'labcharts-ppq-model',
   'labcharts-ollama', 'labcharts-ollama-model',
   'labcharts-ollama-pii-url', 'labcharts-ollama-pii-key', 'labcharts-ollama-pii-model',
+  'labcharts-nutrition-ai-route',
   ...VOICE_BACKUP_KEYS,
   'labcharts-routstr-node',
   'labcharts-time-format', 'labcharts-theme', 'labcharts-sunset-mode', 'labcharts-crt-effects', 'labcharts-debug',

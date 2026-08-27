@@ -54,7 +54,7 @@ try {
   const restoreWearablesRuntime = configureWearablesRuntime({
     closeModal: () => calls.push(['close-modal']),
     navigate: route => calls.push(['navigate', route]),
-    openEMFAssessmentEditor: () => calls.push(['emf-editor']),
+    openEMFAssessmentEditor: options => calls.push(['emf-editor', options]),
   });
   setRuntimeValue('setTimeout', (fn, delay) => {
     calls.push(['timeout', delay]);
@@ -69,6 +69,12 @@ try {
   closeWearablesModal();
   openWearablesSettings();
   openEMFAssessmentAfterWearablesModalClose(125);
+  const restoreDetailBridge = configureWearablesModuleBridge({
+    openWearableDetail: metricId => calls.push(['wearable-detail', metricId]),
+  });
+  openEMFAssessmentAfterWearablesModalClose(25, 'sleep_score');
+  const returnOptions = calls.find(call => call[0] === 'emf-editor' && call[1]?.onReturn)?.[1];
+  returnOptions?.onReturn();
   const viewport = getWearablesViewportSize();
 
   assert('navigateWearables delegates explicit route',
@@ -82,6 +88,9 @@ try {
   assert('openEMFAssessmentAfterWearablesModalClose closes then schedules EMF editor',
     calls.some(call => call[0] === 'timeout' && call[1] === 125)
       && calls.some(call => call[0] === 'emf-editor'));
+  assert('wearable to EMF handoff exposes a working return route',
+    returnOptions?.returnLabel === 'Back to wearable details'
+      && calls.some(call => call[0] === 'wearable-detail' && call[1] === 'sleep_score'));
   assert('getWearablesViewportSize reads browser viewport',
     viewport.width === 377 && viewport.height === 812);
 
@@ -112,6 +121,7 @@ try {
   configureWearablesModuleBridge(restoreWearablesBridge);
   assert('wearables module bridge snapshots remove newly added callbacks on restore',
     getWearablesModuleFunction('wearableProbe') === null);
+  configureWearablesModuleBridge(restoreDetailBridge);
 
   configureSettingsModuleBridge({ openSettingsModal: null });
   const beforeNoWindowCalls = calls.length;

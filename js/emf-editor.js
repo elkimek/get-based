@@ -63,6 +63,9 @@ export const emfEditorState = {
   compareMode: false,
 };
 
+/** @type {{ label: string, callback: (() => void) | null } | null} */
+let emfEditorReturnRoute = null;
+
 let emfEditorDelegatesInstalled = false;
 
 function emfAttrString(attrs) {
@@ -93,8 +96,13 @@ function removeEMFEditorDelegates() {
 }
 
 function closeEMFPreviewModal() {
-  removeEMFEditorDelegates();
-  emfEditorDeps.closeModal?.();
+  const modal = document.getElementById('detail-modal');
+  if (!modal) return;
+  renderEMFEditor(modal);
+  const focusTarget = /** @type {HTMLElement | null} */ (
+    modal.querySelector('[data-emf-action="trigger-pdf-import"], [data-emf-action="add-assessment"]')
+  );
+  requestAnimationFrame(() => focusTarget?.focus());
 }
 
 function closeEMFEditorModal() {
@@ -102,7 +110,19 @@ function closeEMFEditorModal() {
   saveImportedData();
   document.querySelectorAll('.emf-lightbox').forEach(element => removeModalOverlay(element));
   removeEMFEditorDelegates();
+  emfEditorReturnRoute = null;
   emfEditorDeps.closeModal?.();
+}
+
+function returnFromEMFEditor() {
+  const route = emfEditorReturnRoute;
+  emfEditorDeps.collectActiveAssessmentState?.();
+  saveImportedData();
+  document.querySelectorAll('.emf-lightbox').forEach(element => removeModalOverlay(element));
+  removeEMFEditorDelegates();
+  emfEditorReturnRoute = null;
+  emfEditorDeps.closeModal?.();
+  if (route?.callback) setTimeout(route.callback, 0);
 }
 
 function emfNumberAttr(element, name, fallback = 0) {
@@ -125,6 +145,7 @@ function handleEMFEditorClick(event) {
   if (actionElement.matches('button, a')) event.preventDefault();
 
   if (action === 'close-editor') { closeEMFEditorModal(); return; }
+  if (action === 'return-to-origin') { returnFromEMFEditor(); return; }
   if (action === 'close-preview') { closeEMFPreviewModal(); return; }
   if (action === 'add-assessment') { emfEditorDeps.addEMFAssessment?.(); return; }
   if (action === 'trigger-pdf-import') {
@@ -255,10 +276,13 @@ function installEMFEditorDelegates() {
   document.addEventListener('keydown', handleEMFEditorKeydown);
 }
 
-export function openEMFAssessmentEditor() {
+export function openEMFAssessmentEditor(options = {}) {
   installEMFEditorDelegates();
   const modal = document.getElementById('detail-modal');
   const overlay = document.getElementById('modal-overlay');
+  emfEditorReturnRoute = typeof options.onReturn === 'function'
+    ? { label: String(options.returnLabel || 'Back'), callback: options.onReturn }
+    : null;
   emfEditorState.editingAssessmentId = null;
   renderEMFEditor(modal);
   openModalOverlay(overlay);
@@ -317,7 +341,7 @@ export function renderEMFEditor(modal) {
   const assessments = ensureEMFAssessments();
   const sorted = [...assessments].sort((a, b) => b.date.localeCompare(a.date));
 
-  let html = `<button type="button" class="modal-close" aria-label="Close" ${emfActionAttrs('close-editor')}>&times;</button>
+  let html = `${emfEditorReturnRoute ? `<button type="button" class="context-back-btn" aria-label="${escapeAttr(emfEditorReturnRoute.label)}" title="${escapeAttr(emfEditorReturnRoute.label)}" ${emfActionAttrs('return-to-origin')}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg></button>` : ''}<button type="button" class="modal-close" aria-label="Close" ${emfActionAttrs('close-editor')}>&times;</button>
     <h3>Baubiologie EMF Assessment</h3>
     <div class="modal-unit">Room-by-room electromagnetic field measurements rated against SBM-2015 sleeping area standards.</div>
     <div class="emf-editor-actions">
@@ -502,6 +526,9 @@ export function showEMFImportPreview(parsed) {
   const modal = document.getElementById('detail-modal');
   const overlay = document.getElementById('modal-overlay');
   if (!modal || !overlay) return;
+  // The preview replaces the editor DOM. Capture any in-progress field edits
+  // first so Cancel/Back can reconstruct the exact assessment state.
+  emfEditorDeps.collectActiveAssessmentState?.();
   const formattedDate = parsed.date
     ? new Date(parsed.date + 'T00:00:00').toLocaleDateString('en-US', {
       month: 'short',
@@ -510,7 +537,7 @@ export function showEMFImportPreview(parsed) {
     })
     : 'Unknown date';
 
-  let html = `<button type="button" class="modal-close" aria-label="Close" ${emfActionAttrs('close-preview')}>&times;</button>
+  let html = `<button type="button" class="context-back-btn" aria-label="Back to EMF assessments" title="Back to EMF assessments" ${emfActionAttrs('close-preview')}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg></button><button type="button" class="modal-close" aria-label="Back to EMF assessments" ${emfActionAttrs('close-preview')}>&times;</button>
     <h3>EMF Report Preview</h3>
     <div class="modal-unit">${formattedDate}${parsed.consultant ? ' — by ' + escapeHTML(parsed.consultant) : ''}</div>`;
 

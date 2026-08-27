@@ -10,6 +10,10 @@ const runtime = vi.hoisted(() => ({
   getProfiles: vi.fn(() => [{ id: 'profile-1', name: 'Primary' }]),
   refreshImportRuntimeShell: vi.fn(async () => {}),
   saveImportedData: vi.fn(),
+  saveImportedDataForProfile: vi.fn(async (profileId, importedData) => {
+    await runtime.encryptedSetItem(`${profileId}:imported`, JSON.stringify(importedData));
+    return true;
+  }),
   setSelectedNodeUrl: vi.fn(),
   showNotification: vi.fn(),
   state: { currentProfile: 'profile-1', importedData: {} },
@@ -20,7 +24,10 @@ vi.mock('../js/utils.js', () => ({
   isDebugMode: () => false,
   showNotification: runtime.showNotification,
 }));
-vi.mock('../js/data.js', () => ({ saveImportedData: runtime.saveImportedData }));
+vi.mock('../js/data.js', () => ({
+  saveImportedData: runtime.saveImportedData,
+  saveImportedDataForProfile: runtime.saveImportedDataForProfile,
+}));
 vi.mock('../js/profile.js', () => ({
   createProfile: vi.fn(),
   getProfiles: runtime.getProfiles,
@@ -152,6 +159,37 @@ describe('JSON restore runtime', () => {
     expect(runtime.refreshImportRuntimeShell).toHaveBeenCalledWith({ chat: true });
   });
 
+  it('revives an existing profile before merging a database bundle into it', async () => {
+    localStorage.setItem('labcharts-profile-delete-intent-profile-1', '{"at":1}');
+    localStorage.setItem('labcharts-tombstone-pending-profile-1', '{"at":2}');
+    runtime.saveImportedDataForProfile.mockImplementationOnce(async (profileId, importedData) => {
+      expect(localStorage.getItem('labcharts-profile-delete-intent-profile-1')).toBeNull();
+      expect(localStorage.getItem('labcharts-tombstone-pending-profile-1')).toBeNull();
+      await runtime.encryptedSetItem(`${profileId}:imported`, JSON.stringify(importedData));
+      return true;
+    });
+    const backup = {
+      type: 'database',
+      profiles: [{
+        id: 'profile-1',
+        name: 'Primary',
+        data: { diet: { type: 'whole-food' } },
+      }],
+    };
+
+    await importDataJSON(new File([JSON.stringify(backup)], 'database.json', { type: 'application/json' }));
+
+    expect(localStorage.getItem('labcharts-profile-delete-intent-profile-1')).toBeNull();
+    expect(localStorage.getItem('labcharts-tombstone-pending-profile-1')).toBeNull();
+    expect(runtime.saveImportedDataForProfile).toHaveBeenCalledWith(
+      'profile-1',
+      expect.objectContaining({ diet: { type: 'whole-food' } }),
+      { forceProfileScope: true },
+    );
+    expect(JSON.parse(localStorage.getItem('profile-1:imported')))
+      .toMatchObject({ diet: { type: 'whole-food' } });
+  });
+
   it('merges a rich backup without duplicating same-date or stable-id data', async () => {
     localStorage.setItem('labcharts-profile-1-chat-threads', JSON.stringify([
       { id: 'thread-existing', title: 'Existing' },
@@ -249,6 +287,8 @@ describe('JSON restore runtime', () => {
       channelMixAI: { status: 'complete' },
       biologyScoreContextAI: { status: 'complete' },
       contextSourceSettings: { labs: true },
+      nutritionContextDays: 90,
+      nutritionTargets: { energyKcal: 2100, proteinG: 120 },
       changeHistory: [
         { field: 'diet', date: '2026-01-01', value: 'updated' },
         { field: 'exercise', date: '2026-01-02', value: 'new' },
@@ -347,6 +387,8 @@ describe('JSON restore runtime', () => {
     expect(imported.lightEnvironment.rooms).toHaveLength(2);
     expect(imported.lightDailyVerdicts['2026-01-01']).toEqual({ status: 'existing' });
     expect(imported.lightDailyVerdicts['2026-01-02']).toEqual({ status: 'new' });
+    expect(imported.nutritionContextDays).toBe(90);
+    expect(imported.nutritionTargets).toEqual({ energyKcal: 2100, proteinG: 120 });
     expect(imported.changeHistory).toEqual([
       { field: 'diet', date: '2026-01-01', value: 'updated' },
       { field: 'exercise', date: '2026-01-02', value: 'new' },

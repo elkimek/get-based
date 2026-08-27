@@ -81,6 +81,9 @@ describe('eraseAllLocalAppData', () => {
       'labcharts-backups',
       'labcharts-wearables-credential-vault',
       'labcharts-future-store',
+      'getbased-nutrition-default',
+      'getbased-nutrition-active-profile',
+      'getbased-nutrition-orphaned-profile',
       'getbased-cashu',
     ];
     await Promise.all([...appDatabases, 'third-party-database'].map(openDatabase));
@@ -123,6 +126,8 @@ describe('eraseAllLocalAppData', () => {
     const deletedNames = deleteDatabase.mock.calls.map(([name]) => name).sort();
     expect(deletedNames).toEqual([
       'getbased-cashu',
+      'getbased-nutrition-active-profile',
+      'getbased-nutrition-default',
       'labcharts-backups',
       'labcharts-blobs',
       'labcharts-cycle-active-profile',
@@ -169,6 +174,7 @@ describe('eraseAllLocalAppData', () => {
     expect(removedKeys).toEqual(['labcharts-first', 'labcharts-second']);
     expect(deleteDatabase).toHaveBeenCalledWith('labcharts-wearables-default');
     expect(deleteDatabase).toHaveBeenCalledWith('labcharts-cycle-default');
+    expect(deleteDatabase).toHaveBeenCalledWith('getbased-nutrition-default');
     expect(deleteDatabase).toHaveBeenCalledWith('labcharts-blobs');
     expect(deleteDatabase).toHaveBeenCalledWith('labcharts-wearables-credential-vault');
     expect(deleteDatabase).toHaveBeenCalledWith('getbased-cashu');

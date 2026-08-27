@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   configureSyncActions, prepareRelayCompaction, pushAllProfiles, pushDirtyProfiles,
-  pushProfilesById, rebuildOwnerRelayState, syncNow,
+  pushProfilesById, rebuildOwnerRelayState, syncNow, onDataSaved,
 } from '../js/sync-actions.js';
 import { encryptedRemoveItem, encryptedSetItem } from '../js/crypto.js';
 import { state } from '../js/state.js';
@@ -70,6 +70,96 @@ describe('sync action profile dependencies', () => {
         getProfiles: () => [],
         createDefaultProfileData: () => ({ entries: [] }),
       });
+    }
+  });
+
+  it('never seeds tagged demo profiles into cross-device sync', async () => {
+    const previousProfile = state.currentProfile;
+    const previousImportedData = state.importedData;
+    const pushProfile = vi.fn().mockResolvedValue({ ok: true });
+    state.currentProfile = 'normal-profile';
+    state.importedData = { entries: [], contextNotes: 'sync me' };
+    configureSyncActions({
+      pushProfile,
+      getProfiles: () => [
+        { id: 'normal-profile', tags: [] },
+        { id: 'demo-profile', tags: ['demo'] },
+      ],
+    });
+    markSyncProfileDirty('demo-profile');
+
+    try {
+      await expect(pushAllProfiles()).resolves.toEqual({
+        total: 2, succeeded: 1, failed: 0, skipped: 1,
+      });
+      expect(pushProfile).toHaveBeenCalledOnce();
+      expect(pushProfile).toHaveBeenCalledWith('normal-profile', state.importedData, {});
+      await expect(pushDirtyProfiles()).resolves.toEqual({
+        total: 0, succeeded: 0, failed: 0, skipped: 0,
+      });
+      expect(getSyncDirtyToken('demo-profile')).toBeNull();
+    } finally {
+      localStorage.removeItem('labcharts-demo-profile-sync-dirty');
+      state.currentProfile = previousProfile;
+      state.importedData = previousImportedData;
+      configureSyncActions({ pushProfile: async () => {}, getProfiles: () => [] });
+    }
+  });
+
+  it('never queues later saves from an already-created demo profile', () => {
+    const previousProfile = state.currentProfile;
+    const previousImportedData = state.importedData;
+    const profileId = 'saved-demo-profile';
+    const pushProfile = vi.fn().mockResolvedValue({ ok: true });
+    state.currentProfile = profileId;
+    state.importedData = { entries: [], contextNotes: 'local demo data' };
+    localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);
+    configureSyncActions({
+      pushProfile,
+      isSyncEnabled: () => true,
+      isEvoluReady: () => true,
+      isSyncing: () => false,
+      getProfiles: () => [{ id: profileId, tags: ['Demo'] }],
+    });
+
+    try {
+      onDataSaved({ immediate: true });
+      expect(getSyncDirtyToken(profileId)).toBeNull();
+      expect(pushProfile).not.toHaveBeenCalled();
+    } finally {
+      state.currentProfile = previousProfile;
+      state.importedData = previousImportedData;
+      localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);
+      configureSyncActions({
+        pushProfile: async () => {},
+        isSyncEnabled: () => false,
+        isEvoluReady: () => false,
+        isSyncing: () => false,
+        getProfiles: () => [],
+      });
+    }
+  });
+
+  it('retains a dirty generation while a remote delete awaits confirmation', async () => {
+    const profileId = 'pending-delete-profile';
+    const pushProfile = vi.fn().mockResolvedValue({ ok: true });
+    configureSyncActions({
+      pushProfile,
+      getProfiles: () => [{ id: profileId, tags: [] }],
+    });
+    markSyncProfileDirty(profileId);
+    localStorage.setItem(`labcharts-tombstone-pending-${profileId}`, JSON.stringify({ source: 'remote' }));
+
+    try {
+      await expect(pushDirtyProfiles({ force: true })).resolves.toEqual({
+        total: 0, succeeded: 0, failed: 0, skipped: 0,
+      });
+      expect(pushProfile).not.toHaveBeenCalled();
+      expect(getSyncDirtyToken(profileId)).not.toBeNull();
+    } finally {
+      localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);
+      localStorage.removeItem(`labcharts-tombstone-pending-${profileId}`);
+      configureSyncActions({ pushProfile: async () => {}, getProfiles: () => [] });
     }
   });
 

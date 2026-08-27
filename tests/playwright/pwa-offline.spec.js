@@ -48,6 +48,7 @@ test('installed PWA completes a cache-only cold offline relaunch', async ({ page
   expect(installed.cachedPaths).toContain('/js/legal-consent.js');
   expect(installed.cachedPaths).toContain('/js/profile-share.js');
   expect(installed.cachedPaths).toContain('/js/chat-onboarding-host-bindings.js');
+  expect(installed.cachedPaths).toContain('/js/demo-nutrition.js');
   expect(installed.cachedPaths).toContain('/vendor/fonts/inter-400-7.woff2');
 
   const client = await page.context().newCDPSession(page);

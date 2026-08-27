@@ -143,21 +143,36 @@ export function parseOpenAICompatibleModel(model, baseUrl) {
   const id = typeof model?.id === 'string' ? model.id : '';
   const parsed = parseNameMetadata(id);
   const reportedSize = Number(model?.size || model?.vram_required) || 0;
+  const capabilityList = Array.isArray(model?.capabilities) ? model.capabilities.map(value => String(value).toLowerCase()) : [];
+  const inputModalities = Array.isArray(model?.input_modalities)
+    ? model.input_modalities.map(value => String(value).toLowerCase())
+    : Array.isArray(model?.modalities) ? model.modalities.map(value => String(value).toLowerCase()) : [];
+  const explicitVision = typeof model?.capabilities?.vision === 'boolean'
+    ? model.capabilities.vision
+    : typeof model?.vision === 'boolean' ? model.vision
+      : String(model?.type || '').toLowerCase() === 'vlm' || capabilityList.includes('vision') || inputModalities.includes('image')
+        ? true
+        : inputModalities.length > 0 ? false : null;
+  const loaded = typeof model?.loaded === 'boolean' ? model.loaded : null;
+  const reportedQuantization = typeof model?.quantization === 'string'
+    ? model.quantization
+    : typeof model?.quantization?.name === 'string' ? model.quantization.name
+      : typeof model?.quant === 'string' ? model.quant : '';
   return {
     name: id,
     type: model?.type || 'llm',
     size: reportedSize || parsed.estimatedSize,
     sizeSource: reportedSize ? 'reported' : parsed.estimatedSize ? 'estimated' : 'unknown',
     paramSize: model?.parameter_size || (parsed.params > 0 ? `${parsed.params}B` : ''),
-    quantLevel: model?.quantization || parsed.quantLevel,
+    quantLevel: reportedQuantization || parsed.quantLevel,
     family: model?.owned_by || '',
     format: model?.format || '',
-    loaded: null,
-    runningStatusKnown: false,
+    loaded,
+    runningStatusKnown: loaded !== null,
     contextLength: Number(model?.context_length) || 0,
     maxContextLength: Number(model?.max_context_length || model?.context_length) || 0,
     vramAllocated: Number(model?.size_vram) || 0,
-    vision: null,
+    vision: explicitVision,
     reasoning: null,
     executionLocation: getLocalAiExecutionLocation(baseUrl, id),
     source: 'openai-compatible',

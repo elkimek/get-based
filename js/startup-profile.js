@@ -16,6 +16,18 @@ import { configureCryptoProfileDeps, encryptedGetItem, encryptedSetItem } from '
 import { ensureImportedArray } from './data-merge.js';
 import { normalizeUnitProfile } from './unit-profiles.js';
 
+const startupProfileDeps = {
+  hydrateNutritionSummary: /** @type {(profileId: string) => Promise<any> | any} */ (async () => {}),
+};
+
+export function configureStartupProfileDeps(deps = {}) {
+  const previous = { ...startupProfileDeps };
+  if (typeof deps.hydrateNutritionSummary === 'function') {
+    startupProfileDeps.hydrateNutritionSummary = deps.hydrateNutritionSummary;
+  }
+  return previous;
+}
+
 configureCryptoProfileDeps({ migrateProfileData });
 
 async function migrateLegacyProfileStorage() {
@@ -78,13 +90,19 @@ export async function initializeProfileData() {
   // storage key depends on state.currentProfile.
   state.currentProfile = getActiveProfileId();
   const savedImported = await encryptedGetItem(profileStorageKey(state.currentProfile, 'imported'));
-  if (!savedImported) return;
-
-  try {
-    state.importedData = JSON.parse(savedImported);
-    ensureImportedArray(state.importedData, 'notes');
-    migrateProfileData(state.importedData);
-  } catch (e) {}
+  if (savedImported) {
+    try {
+      state.importedData = JSON.parse(savedImported);
+      ensureImportedArray(state.importedData, 'notes');
+      migrateProfileData(state.importedData);
+    } catch (e) {}
+  }
+  // Profile switches already hydrate this local-only aggregate. Initial boot
+  // must do the same before Dashboard/Body render or a hard refresh makes
+  // saved meals appear to have vanished until the nutrition editor is opened.
+  try { await startupProfileDeps.hydrateNutritionSummary(state.currentProfile); } catch {
+    state.nutritionSummary = null;
+  }
 }
 
 export function applyProfileDisplayState() {

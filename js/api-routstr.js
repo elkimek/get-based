@@ -7,6 +7,7 @@ import {
   getRoutstrModel,
   isRoutstrPrivateModeActive,
   isRoutstrTinfoilModel,
+  notifyAIModelCatalogChanged,
   setRoutstrModel,
   syncRoutstrModelSelection,
 } from './api-provider-storage.js';
@@ -88,6 +89,7 @@ export async function fetchRoutstrModels() {
       const claude = findPreferredModel(models, ROUTSTR_DEFAULT_CANDIDATES);
       if (claude) setRoutstrModel(claude.id);
     }
+    notifyAIModelCatalogChanged();
     return isRoutstrPrivateModeActive() ? privateModels : models;
   } catch (e) {
     return [];
@@ -116,7 +118,7 @@ export async function callRoutstrAPI(opts) {
   const key = getRoutstrKey();
   if (!key) throw new Error('No Routstr key configured. Fund your wallet and connect to a node in Settings.');
   const nodeUrl = _requireNodeUrl();
-  const modelId = getRoutstrModel();
+  const modelId = String(opts?.modelOverride || getRoutstrModel());
   if (isRoutstrTinfoilModel(modelId)) {
     if (!globalThis.crypto?.subtle) throw new Error('Routstr Private TEE mode requires a secure context (HTTPS). Cannot encrypt on this page.');
     const { createTinfoilSecureFetch } = await import('./tinfoil-secure-fetch.js');

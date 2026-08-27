@@ -7,17 +7,17 @@ import {
   getAIProvider, getActiveModelId, getActiveModelDisplay, supportsWebSearch,
   isPpqPrivateModeActive, isRoutstrPrivateModeActive, isVeniceE2EEActive,
 } from './api.js';
-import { buildLabContext, injectLensChunks } from './lab-context.js';
+import { injectLensChunks } from './lab-context.js';
 import { hasLens, queryLensMulti } from './lens.js';
 import { getActivePersonality, getCustomPersonality } from './chat-personalities.js';
 import {
-  attachLensSources, buildChatSystemPrompt, buildMultiPersonaInstruction,
+  attachLensSources, buildChatLabContext, buildChatSystemPrompt, buildMultiPersonaInstruction,
   buildPersonalityPrompt, buildTaggedChatMessages, buildWebSearchHint,
 } from './chat-prompt-context.js';
 import { getChatWebSearchEnabled } from './chat-panel.js';
 
 export async function buildDiscussionRoundRequest({ msgText, roundHistory, signal }) {
-  let labContext = buildLabContext({ queryText: msgText });
+  let labContext = buildChatLabContext(msgText);
   let lensResult = null;
   if (hasLens()) {
     lensResult = await queryLensMulti(msgText, { signal });
@@ -53,8 +53,10 @@ export async function buildDiscussionRoundRequest({ msgText, roundHistory, signa
   });
   const apiMessages = buildTaggedChatMessages(roundHistory, personality.name);
 
+  const { getContextSummary } = await import('./chat-context-summary.js');
   return {
     apiMessages,
+    context: getContextSummary(labContext),
     e2ee,
     lensResult,
     modelDisplay,
@@ -73,6 +75,7 @@ export function buildDiscussionAssistantMessage({
     role: 'assistant',
     discussion: true,
     content: fullText,
+    context: request.context,
     personalityName: request.personality.name,
     personalityIcon: request.personality.icon,
     provider: request.provider,

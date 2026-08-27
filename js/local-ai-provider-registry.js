@@ -6,6 +6,17 @@ import { ollamaProviderAdapter } from './local-ai-provider-ollama.js';
 import { openAICompatibleProviderAdapter } from './local-ai-provider-openai-compatible.js';
 import { localAiDiscoveryError, unavailableLocalAiResult } from './local-ai-provider-shared.js';
 
+export const unslothProviderAdapter = Object.freeze({
+  ...openAICompatibleProviderAdapter,
+  id: 'unsloth',
+  label: 'Unsloth Studio',
+  capabilities: Object.freeze({
+    ...openAICompatibleProviderAdapter.capabilities,
+    providerIdentity: true,
+    loadedModelState: true,
+  }),
+});
+
 /**
  * @typedef {Object} LocalAiProviderAdapter
  * @property {string} id Stable detected backend identifier.
@@ -22,6 +33,7 @@ import { localAiDiscoveryError, unavailableLocalAiResult } from './local-ai-prov
 export const LOCAL_AI_PROVIDER_ADAPTERS = Object.freeze([
   lmStudioProviderAdapter,
   ollamaProviderAdapter,
+  unslothProviderAdapter,
   openAICompatibleProviderAdapter,
 ]);
 
@@ -58,7 +70,8 @@ export async function checkOpenAICompatibleProvider(baseUrl, apiKey = '') {
     const merged = lmStudioProviderAdapter.mergeDiscovery(lmStudio, openAI, baseUrl);
     return publicDiscoveryResult(merged, lmStudioProviderAdapter);
   }
-  return publicDiscoveryResult(openAI, openAICompatibleProviderAdapter);
+  const compatibleAdapter = openAI.provider === 'unsloth' ? unslothProviderAdapter : openAICompatibleProviderAdapter;
+  return publicDiscoveryResult(openAI, compatibleAdapter);
 }
 
 export async function checkOllamaProvider(baseUrl, apiKey = '') {
@@ -68,12 +81,13 @@ export async function checkOllamaProvider(baseUrl, apiKey = '') {
 
 export async function discoverLocalAiProviders(baseUrl, apiKey = '') {
   const openai = await checkOpenAICompatibleProvider(baseUrl, apiKey);
-  // Once the native LM Studio endpoint identifies the server, do not send it
-  // Ollama-only probes. LM Studio logs unknown /api/tags and /api/ps routes.
-  const ollama = openai.provider === 'lmstudio'
+  // Once a compatible endpoint identifies the server, do not send it
+  // Ollama-only probes. Other backends log unknown /api/tags and /api/ps routes.
+  const identifiedCompatibleServer = ['lmstudio', 'unsloth'].includes(openai.provider);
+  const ollama = identifiedCompatibleServer
     ? {
         ...unavailableLocalAiResult('ollama', localAiDiscoveryError('not-probed', {
-          message: 'LM Studio identified by native API',
+          message: `${getLocalAiProviderAdapter(openai.provider).label} identified by API`,
         })),
         capabilities: ollamaProviderAdapter.capabilities,
       }

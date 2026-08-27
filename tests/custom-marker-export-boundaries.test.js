@@ -84,6 +84,8 @@ describe('custom marker export boundaries', () => {
               categoryKey: 'biochemistry',
             },
           },
+          nutritionContextDays: 90,
+          nutritionTargets: { energyKcal: 2200, proteinG: 130 },
         });
       }
       return null;
@@ -104,6 +106,9 @@ describe('custom marker export boundaries', () => {
         categoryKey: 'biochemistry',
       },
     });
+    expect(exported.nutrition).toMatchObject({ version: 1, meals: [] });
+    expect(exported.nutritionContextDays).toBe(90);
+    expect(exported.nutritionTargets).toEqual({ energyKcal: 2200, proteinG: 130 });
   });
 
   it('includes the same ids in full database backups', async () => {

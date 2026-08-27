@@ -31,6 +31,22 @@
 }
 .ctx-data-mismatch strong { color: var(--text-primary); font-size: 13px; }
 .ctx-data-mismatch small { color: var(--text-muted); font-size: 11px; }
+.ctx-context-precedence {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 14px;
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg-card));
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.ctx-context-precedence strong { color: var(--text-primary); font-size: 13px; }
+.ctx-context-precedence small { color: var(--text-muted); font-size: 11px; }
+.ctx-field-group.is-disabled { opacity: .68; }
+.ctx-field-group.is-disabled input:disabled { cursor: not-allowed; }
 .ctx-editor-section {
   margin: 14px 0;
   border: 1px solid var(--border);

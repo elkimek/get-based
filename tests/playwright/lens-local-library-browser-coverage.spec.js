@@ -387,14 +387,14 @@ test('knowledge base modal covers local document ingest and library controls', a
       await waitFor(() => document.getElementById('confirm-dialog-overlay')?.classList.contains('show'));
       document.getElementById('confirm-ok')?.click();
       const deletedLibraryRendered = await waitFor(() => !document.getElementById('lens-library-select')?.textContent.includes('Renamed Beta'));
-      outcomes.libraryCreateActivateRenameDeleteFlows = createDismissedOnly
-        && recommended === 'bge-en'
-        && createdRendered
-        && renamedRendered
-        && deletedLibraryRendered
-        && calls.some(call => call.type === 'create_library' && call.name === 'Protocols' && call.model === 'bge-en')
-        && calls.some(call => call.type === 'activate_library' && call.libraryId === 'lib-beta')
-        && calls.some(call => call.type === 'rename_library' && call.name === 'Renamed Beta')
+      outcomes.libraryCreateEscapeDismissesOnlyChild = createDismissedOnly;
+      outcomes.libraryCreateRecommendsBalancedModel = recommended === 'bge-en';
+      outcomes.libraryCreateRendersAndReachesWorker = createdRendered
+        && calls.some(call => call.type === 'create_library' && call.name === 'Protocols' && call.model === 'bge-en');
+      outcomes.libraryActivateReachesWorker = calls.some(call => call.type === 'activate_library' && call.libraryId === 'lib-beta');
+      outcomes.libraryRenameRendersAndReachesWorker = renamedRendered
+        && calls.some(call => call.type === 'rename_library' && call.name === 'Renamed Beta');
+      outcomes.libraryDeleteRendersAndReachesWorker = deletedLibraryRendered
         && calls.some(call => call.type === 'delete_library' && call.libraryId === 'lib-beta');
     } finally {
       lens?.closeKnowledgeBaseModal?.();

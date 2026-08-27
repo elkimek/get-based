@@ -19,7 +19,7 @@ import {
   configureChatComposer, initChatComposer, resetChatComposer,
 } from './chat-composer.js';
 import { autoNameThread, createNewThread } from './chat-threads.js';
-import { buildLabContext, getContextSummary, injectLensChunks } from './lab-context.js';
+import { injectLensChunks } from './lab-context.js';
 import { hasLens, queryLensMulti } from './lens.js';
 import { renderMarkdown } from './markdown.js';
 import { setIconButtonContent } from './chat-icons.js';
@@ -29,7 +29,7 @@ import {
   isAIResponseTruncated, responseLimitNote,
 } from './chat-continuation.js';
 import {
-  attachLensSources, buildChatSystemPrompt, buildMultiPersonaInstruction,
+  attachLensSources, buildChatLabContext, buildChatSystemPrompt, buildMultiPersonaInstruction,
   buildPersonalityPrompt, buildTaggedChatMessages, buildWebSearchHint,
 } from './chat-prompt-context.js';
 import { e2eeLockFootnote } from './chat-attestation.js';
@@ -300,8 +300,6 @@ export async function sendChatMessage() {
   setChatStreamStatus(`${getActivePersonality().name} is responding.`, { busy: true });
   let streamOutcome = 'complete';
 
-  // Snapshot context areas before sending
-  const contextSnapshot = getContextSummary();
   const _msgModelId = getActiveModelId(_msgProvider);
   const _msgModelDisplay = getActiveModelDisplay(_msgProvider);
   const _msgE2EE = (_msgProvider === 'venice' && isVeniceE2EEActive())
@@ -313,7 +311,7 @@ export async function sendChatMessage() {
   let aiMsgEl = null;
 
   try {
-    let labContext = buildLabContext({ queryText: text });
+    let labContext = buildChatLabContext(text);
     let _lensResultForMsg = null;
     if (hasLens()) {
       const lensResult = await queryLensMulti(text, { signal: _chatAbortController ? _chatAbortController.signal : undefined });
@@ -322,6 +320,10 @@ export async function sendChatMessage() {
         _lensResultForMsg = lensResult;
       }
     }
+    // The receipt must describe the exact final context sent to this response,
+    // including query-specific Lens retrieval and dynamically loaded modules.
+    const { getContextSummary } = await import('./chat-context-summary.js');
+    const contextSnapshot = getContextSummary(labContext);
     const personality = getActivePersonality();
     const currentPersonaName = personality.name;
     const personalityPrompt = buildPersonalityPrompt(personality, getCustomPersonality());

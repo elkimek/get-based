@@ -114,6 +114,7 @@
 .context-info-icon,
 .context-card-explanation,
 .diet-contaminants { position: relative; z-index: 2; }
+.diet-nutrition-extension { position: relative; z-index: 2; }
 .context-card-body {
   font-size: 13px; color: color-mix(in srgb, var(--text-primary) 72%, var(--text-secondary)); line-height: 1.5;
   overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3;
@@ -546,6 +547,14 @@
 }
 .diet-contaminants svg { width: 14px; height: 14px; flex: 0 0 14px; stroke: currentColor; }
 .diet-contaminants:hover { text-decoration: underline; }
+.diet-nutrition-extension {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 7px;
+  width: 100%; margin-top: 7px; padding: 7px 8px; border: 1px solid var(--border); border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-card) 88%, var(--accent) 12%); color: var(--text-muted);
+  font: inherit; font-size: 10px; text-align: left; cursor: pointer;
+}
+.diet-nutrition-extension-title { color: var(--text-primary); font-weight: 700; }
+.diet-nutrition-extension:hover { border-color: var(--accent); }
 @media (pointer: coarse) {
   .diet-contaminants { min-height: 44px; display: flex; align-items: center; }
   .contaminant-detail-item a { min-height: 44px; display: inline-flex; align-items: center; padding: 0 8px; }
