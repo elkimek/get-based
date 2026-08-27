@@ -88,6 +88,8 @@ test('Routstr Private TEE support appears after discovery and toggles through th
         privateModels: JSON.parse(localStorage.getItem('labcharts-routstr-private-models') || '[]').map(model => model.id),
         regularModels: JSON.parse(localStorage.getItem('labcharts-routstr-models') || '[]').map(model => model.id),
         modelOptions: Array.from(document.querySelectorAll('#routstr-model-select option')).map(option => option.value),
+        recommendedOptions: Array.from(document.querySelectorAll('#routstr-model-select optgroup[label="Recommended"] option')).map(option => option.value),
+        otherOptions: Array.from(document.querySelectorAll('#routstr-model-select optgroup[label="Other models"] option')).map(option => option.value),
         indicatorText: document.getElementById('routstr-private-indicator')?.textContent || '',
         balanceText: document.getElementById('routstr-node-balance')?.textContent || '',
         nodeBadgeText: badgeHost.textContent || '',
@@ -116,7 +118,9 @@ test('Routstr Private TEE support appears after discovery and toggles through th
   expect(result.selectedModel).toBe('tinfoil-gemma4-31b');
   expect(result.privateModels).toEqual(['tinfoil-gemma4-31b', 'tinfoil-glm-5-2', 'tinfoil-kimi-k2-6']);
   expect(result.regularModels).toEqual(['claude-sonnet-4.6']);
-  expect(result.modelOptions).toEqual(['tinfoil-gemma4-31b', 'tinfoil-glm-5-2', 'tinfoil-kimi-k2-6']);
+  expect(result.modelOptions).toEqual(['tinfoil-gemma4-31b', 'tinfoil-kimi-k2-6', 'tinfoil-glm-5-2']);
+  expect(result.recommendedOptions).toEqual(['tinfoil-gemma4-31b', 'tinfoil-kimi-k2-6']);
+  expect(result.otherOptions).toEqual(['tinfoil-glm-5-2']);
   expect(result.indicatorText).toContain('decrypted only inside a verified Tinfoil TEE');
   expect(result.indicatorText).toContain('session, selected model, and billing metadata');
   expect(result.balanceText).toContain('104 sats');
