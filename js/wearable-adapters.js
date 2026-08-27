@@ -289,14 +289,14 @@ export const ADAPTERS = [
     },
     apiHost: 'api.prod.whoop.com',
     metrics: {
-      hrv_rmssd:       { endpoint: 'developer/v1/recovery', field: 'score.hrv_rmssd_milli' },
-      rhr:             { endpoint: 'developer/v1/recovery', field: 'score.resting_heart_rate' },
-      hr_day:          { endpoint: 'developer/v1/cycle',                    field: 'score.average_heart_rate' },
-      sleep_score:     { endpoint: 'developer/v1/activity/sleep',           field: 'score.sleep_performance_percentage' },
-      readiness_score: { endpoint: 'developer/v1/recovery',                 field: 'score.recovery_score' },
-      strain:          { endpoint: 'developer/v1/cycle',                    field: 'score.strain' },
+      hrv_rmssd:       { endpoint: 'developer/v2/recovery',        field: 'score.hrv_rmssd_milli' },
+      rhr:             { endpoint: 'developer/v2/recovery',        field: 'score.resting_heart_rate' },
+      hr_day:          { endpoint: 'developer/v2/cycle',           field: 'score.average_heart_rate' },
+      sleep_score:     { endpoint: 'developer/v2/activity/sleep',  field: 'score.sleep_performance_percentage' },
+      readiness_score: { endpoint: 'developer/v2/recovery',        field: 'score.recovery_score' },
+      strain:          { endpoint: 'developer/v2/cycle',           field: 'score.strain' },
     },
-    accountInfo: { endpoint: 'developer/v1/user/profile/basic', identityField: 'email' },
+    accountInfo: { endpoint: 'developer/v2/user/profile/basic', identityField: 'email' },
   },
 
   {

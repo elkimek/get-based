@@ -199,22 +199,27 @@ const polar      = await import('../js/wearables-polar.js');
   console.log('%c 2. WHOOP fetcher ', 'font-weight:bold;color:#f59e0b');
   try {
     installMocks([
-      { matcher: 'developer/v1/recovery', body: {
+      { matcher: 'developer/v2/recovery', body: {
         records: [
-          { created_at: '2026-04-23T08:00:00Z', cycle: { start: '2026-04-23T00:00:00Z' },
+          // v2 shape: flat cycle_id/sleep_id, no embedded cycle/sleep objects.
+          // IDs are synthetic. created_at is deliberately the NEXT morning —
+          // day attribution must resolve via the cycle join, not created_at.
+          { cycle_id: 1900000001, sleep_id: '00000000-0000-4000-8000-000000000001',
+            created_at: '2026-04-24T08:00:00Z',
             score: { hrv_rmssd_milli: 38, resting_heart_rate: 56, recovery_score: 75 } },
         ], next_token: null,
       }},
-      { matcher: 'developer/v1/cycle', body: {
-        records: [{ start: '2026-04-23T00:00:00Z', score: { strain: 14.5, average_heart_rate: 72 } }], next_token: null,
+      { matcher: 'developer/v2/cycle', body: {
+        records: [{ id: 1900000001, start: '2026-04-23T00:00:00Z', score: { strain: 14.5, average_heart_rate: 72 } }], next_token: null,
       }},
-      { matcher: 'developer/v1/activity/sleep', body: {
-        records: [{ start: '2026-04-23T22:00:00Z', score: { sleep_performance_percentage: 81 } }], next_token: null,
+      { matcher: 'developer/v2/activity/sleep', body: {
+        records: [{ id: '00000000-0000-4000-8000-000000000001', start: '2026-04-23T22:00:00Z', score: { sleep_performance_percentage: 81 } }], next_token: null,
       }},
     ]);
     const rows = await whoop.fetchWhoopDailyRange('test-token', '2026-04-23', '2026-04-23');
     const r = rows[0];
     assert('WHOOP row tagged source: whoop', r?.source === 'whoop');
+    assert('WHOOP recovery attributed to cycle.start day, not morning-after created_at', r?.date === '2026-04-23');
     assert('WHOOP hrv_rmssd from recovery.score.hrv_rmssd_milli', r?.hrv_rmssd === 38);
     assert('WHOOP rhr from recovery.score.resting_heart_rate', r?.rhr === 56);
     assert('WHOOP hr_day from cycle.score.average_heart_rate', r?.hr_day === 72);
@@ -222,6 +227,47 @@ const polar      = await import('../js/wearables-polar.js');
     assert('WHOOP strain from cycle.score.strain', r?.strain === 14.5);
     assert('WHOOP sleep_score from sleep.score.sleep_performance_percentage', r?.sleep_score === 81);
     assert('WHOOP hrv_day stays null (vendor exposes overnight only)', r?.hrv_day === null);
+  } finally { restoreFetch(); }
+
+  try {
+    // Sleep-only join fallback: recovery with no matching cycle row must
+    // attribute via its sleep_id instead of created_at. Same synthetic-ID
+    // discipline as above.
+    installMocks([
+      { matcher: 'developer/v2/recovery', body: {
+        records: [
+          { cycle_id: 1900000002, sleep_id: '00000000-0000-4000-8000-000000000002',
+            created_at: '2026-04-24T08:00:00Z',
+            score: { hrv_rmssd_milli: 40, resting_heart_rate: 55, recovery_score: 80 } },
+        ], next_token: null,
+      }},
+      { matcher: 'developer/v2/cycle', body: { records: [], next_token: null }},
+      { matcher: 'developer/v2/activity/sleep', body: {
+        records: [{ id: '00000000-0000-4000-8000-000000000002', start: '2026-04-23T23:10:00Z', score: { sleep_performance_percentage: 90 } }],
+        next_token: null,
+      }},
+    ]);
+    const rows = await whoop.fetchWhoopDailyRange('test-token', '2026-04-23', '2026-04-23');
+    assert('WHOOP recovery with missing cycle joins via sleep_id (no 1-day drift)', rows[0]?.date === '2026-04-23' && rows[0]?.readiness_score === 80);
+  } finally { restoreFetch(); }
+
+  try {
+    // Last resort: recovery with neither a cycle nor a sleep row falls back
+    // to created_at. Malformed/orphaned records should still land somewhere
+    // deterministic rather than being dropped.
+    installMocks([
+      { matcher: 'developer/v2/recovery', body: {
+        records: [
+          { cycle_id: 1900000003, sleep_id: '00000000-0000-4000-8000-000000000003',
+            created_at: '2026-04-23T08:00:00Z',
+            score: { hrv_rmssd_milli: 40, resting_heart_rate: 54, recovery_score: 70 } },
+        ], next_token: null,
+      }},
+      { matcher: 'developer/v2/cycle', body: { records: [], next_token: null }},
+      { matcher: 'developer/v2/activity/sleep', body: { records: [], next_token: null }},
+    ]);
+    const rows = await whoop.fetchWhoopDailyRange('test-token', '2026-04-23', '2026-04-23');
+    assert('WHOOP orphan recovery falls back to created_at day (deterministic landing)', rows[0]?.date === '2026-04-23' && rows[0]?.hrv_rmssd === 40);
   } finally { restoreFetch(); }
 
   // ═══════════════════════════════════════
@@ -530,9 +576,9 @@ const polar      = await import('../js/wearables-polar.js');
 
   try {
     installMocks([
-      { matcher: 'developer/v1/recovery', status: 429, body: { error: 'rate_limited' }},
-      { matcher: 'developer/v1/activity/sleep', status: 200, body: { records: [], next_token: null }},
-      { matcher: 'developer/v1/cycle', status: 200, body: { records: [], next_token: null }},
+      { matcher: 'developer/v2/recovery', status: 429, body: { error: 'rate_limited' }},
+      { matcher: 'developer/v2/activity/sleep', status: 200, body: { records: [], next_token: null }},
+      { matcher: 'developer/v2/cycle', status: 200, body: { records: [], next_token: null }},
     ]);
     let rows = null, err = null;
     try { rows = await whoop.fetchWhoopDailyRange('test-token', '2026-04-23', '2026-04-23'); }

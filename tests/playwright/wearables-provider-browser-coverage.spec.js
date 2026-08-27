@@ -411,17 +411,21 @@ test('Oura and WHOOP provider fetchers collect paginated rows and canonical metr
         if (path.endsWith('/cycle')) {
           if (url.searchParams.get('nextToken') === 'cycle-page-2') {
             return { body: { records: [
-              { start: '2026-06-02T05:00:00.000Z', score: { strain: 9, average_heart_rate: 70 } },
+              { id: 424243, start: '2026-06-02T05:00:00.000Z', score: { strain: 9, average_heart_rate: 70 } },
             ] } };
           }
           return { body: { records: [
-            { start: '2026-06-01T05:00:00.000Z', score: { strain: 12.3, average_heart_rate: 75 } },
+            { id: 424242, start: '2026-06-01T05:00:00.000Z', score: { strain: 12.3, average_heart_rate: 75 } },
           ], next_token: 'cycle-page-2' } };
         }
         if (path.endsWith('/recovery')) {
+          // v2 flat shape: recovery rows carry cycle_id/sleep_id references into
+          // the fetched cycle/sleep collections (IDs synthetic). created_at is
+          // deliberately the following morning — attribution must come from the
+          // cycle join, not the created_at fallback.
           return { body: { records: [
-            { cycle: { start: '2026-06-01T00:00:00.000Z' }, score: { hrv_rmssd_milli: 65, resting_heart_rate: 48, recovery_score: 77 } },
-            { sleep: { start: '2026-06-02T00:00:00.000Z' }, score: { hrv_rmssd_milli: 61, resting_heart_rate: 50, recovery_score: 73 } },
+            { cycle_id: 424242, sleep_id: null, created_at: '2026-06-02T06:30:00.000Z', score: { hrv_rmssd_milli: 65, resting_heart_rate: 48, recovery_score: 77 } },
+            { cycle_id: 424243, sleep_id: null, created_at: '2026-06-03T06:30:00.000Z', score: { hrv_rmssd_milli: 61, resting_heart_rate: 50, recovery_score: 73 } },
           ] } };
         }
         if (path.endsWith('/activity/sleep')) {
