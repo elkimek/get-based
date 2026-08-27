@@ -271,7 +271,7 @@ assert('light environment assessment uses shared overlay lifecycle before remova
   lightEnvSrc.includes("from './modal-lifecycle.js'") &&
     lightEnvSrc.includes("const wasOpen = overlay?.classList?.contains('show') === true;") &&
     lightEnvSrc.includes("overlay.className = 'modal-overlay light-env-assessment-overlay'") &&
-    lightEnvSrc.includes("openModalOverlay(overlay, wasOpen ? {} : { initialFocus: '.modal-close', focusDelay: 50 })") &&
+    lightEnvSrc.includes("if (!wasOpen) openModalOverlay(overlay, { initialFocus: '.modal-close', focusDelay: 50 })") &&
     lightEnvSrc.includes('closeModalOverlay(overlay)') &&
     lightEnvSrc.includes('overlay.remove()') &&
     !lightEnvSrc.includes("overlay.className = 'modal-overlay show light-env-assessment-overlay'") &&
