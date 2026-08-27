@@ -333,6 +333,18 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
         && typeof defaultGatewayContext.encryptedContext?.iv === 'string'
         && typeof defaultGatewayContext.encryptedContext?.ciphertext === 'string'
         && !defaultGatewayContext.encryptedContext.ciphertext.includes('2026-06-09');
+      outcomes.messengerEncryptedPayloadRespectsDisabledContextSources =
+        !decryptedAgentContext.includes('Medical-history agent sentinel')
+        && !decryptedAgentContext.includes('Light agent sentinel');
+
+      state.importedData.contextSourceSettings['insight-cards'] = true;
+      state.importedData.contextSourceSettings['light-sun'] = true;
+      labContext.invalidateLabContextCache();
+      messenger.pushContextToGateway();
+      await runPendingTimers();
+      const enabledGatewayBody = JSON.parse(fetches.at(-1)?.options?.body || '{}');
+      const enabledGatewayContext = JSON.parse(enabledGatewayBody.context || '{}');
+      const enabledDecryptedAgentContext = await decryptAgentContext(enabledGatewayContext.encryptedContext);
       const redesignedContextFragments = [
         '[section:healthGoals]',
         'Restore stable morning energy',
@@ -432,7 +444,7 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
         'Additional-context agent sentinel',
       ];
       outcomes.messengerEncryptedPayloadCarriesEveryRedesignedContextField =
-        redesignedContextFragments.every(fragment => decryptedAgentContext.includes(fragment));
+        redesignedContextFragments.every(fragment => enabledDecryptedAgentContext.includes(fragment));
 
       messenger.configureSyncMessenger({
         getSyncRelay: () => 'ws://relay.local',

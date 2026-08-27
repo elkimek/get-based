@@ -44,7 +44,7 @@
 .nutrition-goal-row small { color: var(--text-muted); font-size: 11px; text-align: right; }
 .nutrition-goal-row-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .nutrition-goal-row-foot small { text-align: left; }
-.nutrition-inline-log { flex: 0 0 auto; border: 0; border-radius: 999px; padding: 4px 8px; background: color-mix(in srgb, var(--accent) 10%, var(--bg-card)); color: var(--accent); font: inherit; font-size: 10px; font-weight: 750; cursor: pointer; }
+.nutrition-inline-log { flex: 0 0 auto; border: 0; border-radius: 999px; padding: 4px 8px; background: color-mix(in srgb, var(--accent) 10%, var(--bg-card)); color: var(--text); font: inherit; font-size: 10px; font-weight: 750; cursor: pointer; }
 .nutrition-inline-log:hover, .nutrition-inline-log:focus-visible { background: color-mix(in srgb, var(--accent) 17%, var(--bg-card)); outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent); outline-offset: 1px; }
 .nutrition-goal-row.is-observation { gap: 4px; padding: 8px 9px; border: 1px dashed var(--border); border-radius: 8px; background: color-mix(in srgb, var(--accent) 2%, var(--bg-card)); }
 .nutrition-goal-track { position: relative; height: 7px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--text-muted) 12%, transparent); }
