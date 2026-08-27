@@ -168,6 +168,8 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       controls.renderOpenRouterModelDropdown([
         { id: 'google/gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
         { id: 'google/gemini-3.1-pro', name: 'Gemini 3.1 Pro' },
+        { id: 'z-ai/glm-5.3-flash', name: 'GLM 5.3 Flash' },
+        { id: 'z-ai/glm-5.3', name: 'GLM 5.3' },
         { id: 'z-ai/glm-5.2', name: 'GLM 5.2' },
         { id: 'moonshotai/kimi-k3', name: 'Kimi K3' },
         { id: 'moonshotai/kimi-k2.7-code', name: 'Kimi K2.7 Code' },
@@ -179,14 +181,18 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       const openRouterRecommendedGroup = document.querySelector('#openrouter-model-select optgroup[label="Recommended"]');
       const openRouterRecommended = !!openRouterRecommendedGroup?.querySelector('option[value="anthropic/claude-sonnet-5"]')
         && !!openRouterRecommendedGroup?.querySelector('option[value="google/gemini-3.5-flash"]')
-        && !!openRouterRecommendedGroup?.querySelector('option[value="z-ai/glm-5.2"]')
+        && !!openRouterRecommendedGroup?.querySelector('option[value="z-ai/glm-5.3-flash"]')
         && !!openRouterRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k3"]')
         && !openRouterRecommendedGroup?.querySelector('option[value="anthropic/claude-sonnet-4.6"]')
         && !openRouterRecommendedGroup?.querySelector('option[value="google/gemini-3.1-pro"]')
+        && !openRouterRecommendedGroup?.querySelector('option[value="z-ai/glm-5.3"]')
+        && !openRouterRecommendedGroup?.querySelector('option[value="z-ai/glm-5.2"]')
         && !openRouterRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.7-code"]')
         && !openRouterRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.6"]')
         && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="anthropic/claude-sonnet-4.6"]')
         && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="google/gemini-3.1-pro"]')
+        && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.3"]')
+        && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.2"]')
         && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.7-code"]')
         && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.6"]');
       const openRouterPricing = (document.getElementById('openrouter-model-pricing')?.textContent || '').includes('$3.00/M in');
@@ -255,16 +261,24 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       controls.renderRoutstrModelDropdown([
         { id: 'grok-41-fast', name: 'Grok 4.1 Fast' },
         { id: 'x-ai/grok-4.3', name: 'Grok 4.3' },
+        { id: 'z-ai/glm-5.3-flash', name: 'GLM 5.3 Flash' },
+        { id: 'glm-5.3', name: 'GLM 5.3' },
+        { id: 'z-ai/glm-5.2', name: 'GLM 5.2' },
         { id: 'moonshotai/kimi-k3', name: 'Kimi K3' },
         { id: 'moonshotai/kimi-k2.7-code', name: 'Kimi K2.7 Code' },
       ]);
       const routstrRecommendedGroup = document.querySelector('#routstr-model-select optgroup[label="Recommended"]');
       const routstrLatestGrokRecommended = !!routstrRecommendedGroup?.querySelector('option[value="x-ai/grok-4.3"]')
+        && !!routstrRecommendedGroup?.querySelector('option[value="z-ai/glm-5.3-flash"]')
         && !!routstrRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k3"]')
         && !routstrRecommendedGroup?.querySelector('option[value="grok-41-fast"]')
         && !routstrRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.7-code"]')
+        && !routstrRecommendedGroup?.querySelector('option[value="glm-5.3"]')
+        && !routstrRecommendedGroup?.querySelector('option[value="z-ai/glm-5.2"]')
         && !!document.querySelector('#routstr-model-select optgroup[label="Other models"] option[value="grok-41-fast"]')
-        && !!document.querySelector('#routstr-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.7-code"]');
+        && !!document.querySelector('#routstr-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.7-code"]')
+        && !!document.querySelector('#routstr-model-select optgroup[label="Other models"] option[value="glm-5.3"]')
+        && !!document.querySelector('#routstr-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.2"]');
 
       localStorage.setItem('labcharts-ppq-model', 'ppq-b');
       localStorage.setItem('labcharts-ppq-pricing', JSON.stringify({ 'ppq-b': { input: 0.5, output: 1.5 } }));
@@ -273,6 +287,8 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         { id: 'ppq-b', name: 'PPQ B' },
         { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash Preview' },
         { id: 'google/gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
+        { id: 'glm-5.3-flash', name: 'GLM 5.3 Flash' },
+        { id: 'glm-5.3', name: 'GLM 5.3' },
         { id: 'z-ai/glm-5.2', name: 'GLM 5.2' },
         { id: 'moonshotai/kimi-k3', name: 'Kimi K3' },
         { id: 'moonshotai/kimi-k2.7-code', name: 'Kimi K2.7 Code' },
@@ -287,10 +303,14 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       const ppqLatestGeminiRecommended = !!ppqRecommendedGroup?.querySelector('option[value="google/gemini-3.5-flash"]')
         && !ppqRecommendedGroup?.querySelector('option[value="gemini-3-flash-preview"]')
         && !!document.querySelector('#ppq-model-select optgroup[label="Other models"] option[value="gemini-3-flash-preview"]');
-      const ppqLatestGlmKimiRecommended = !!ppqRecommendedGroup?.querySelector('option[value="z-ai/glm-5.2"]')
+      const ppqLatestGlmKimiRecommended = !!ppqRecommendedGroup?.querySelector('option[value="glm-5.3-flash"]')
         && !!ppqRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k3"]')
+        && !ppqRecommendedGroup?.querySelector('option[value="glm-5.3"]')
+        && !ppqRecommendedGroup?.querySelector('option[value="z-ai/glm-5.2"]')
         && !ppqRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.7-code"]')
         && !ppqRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.6"]')
+        && !!document.querySelector('#ppq-model-select optgroup[label="Other models"] option[value="glm-5.3"]')
+        && !!document.querySelector('#ppq-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.2"]')
         && !!document.querySelector('#ppq-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.7-code"]')
         && !!document.querySelector('#ppq-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.6"]');
       controls.updatePpqModelPricing('ppq-b');
@@ -300,16 +320,22 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       localStorage.setItem('labcharts-custom-model', 'outside-model');
       controls.renderCustomApiModelDropdown([
         { id: 'model-a', name: 'Model A' },
+        { id: 'z-ai/glm-5.3-flash', name: 'GLM 5.3 Flash' },
+        { id: 'z-ai/glm-5.3', name: 'GLM 5.3' },
         { id: 'z-ai/glm-5.2', name: 'GLM 5.2' },
         { id: 'moonshotai/kimi-k3', name: 'Kimi K3' },
         { id: 'moonshotai/kimi-k2.7-code', name: 'Kimi K2.7 Code' },
         { id: 'moonshotai/kimi-k2.6', name: 'Kimi K2.6' },
       ]);
       const customRecommendedGroup = document.querySelector('#custom-model-select optgroup[label="Recommended"]');
-      const customGlmKimiRecommended = !!customRecommendedGroup?.querySelector('option[value="z-ai/glm-5.2"]')
+      const customGlmKimiRecommended = !!customRecommendedGroup?.querySelector('option[value="z-ai/glm-5.3-flash"]')
         && !!customRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k3"]')
+        && !customRecommendedGroup?.querySelector('option[value="z-ai/glm-5.3"]')
+        && !customRecommendedGroup?.querySelector('option[value="z-ai/glm-5.2"]')
         && !customRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.7-code"]')
         && !customRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.6"]')
+        && !!document.querySelector('#custom-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.3"]')
+        && !!document.querySelector('#custom-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.2"]')
         && !!document.querySelector('#custom-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.7-code"]')
         && !!document.querySelector('#custom-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.6"]');
       const customModelRenders = document.getElementById('custom-model-select')?.value === '__custom'
