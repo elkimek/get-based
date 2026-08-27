@@ -63,7 +63,7 @@ function nudgeModal(overlay) {
 }
 
 function modalDismissProtected(overlay) {
-  return overlay?.hasAttribute?.('data-modal-dismiss-protected') === true;
+  return !!overlay?.hasAttribute('data-modal-dismiss-protected');
 }
 
 function topmostModalOverlay() {
@@ -72,13 +72,11 @@ function topmostModalOverlay() {
 }
 
 function clickTopmostModalClose(overlay) {
-  if (!overlay) return false;
-  const closeButton = /** @type {HTMLElement | null} */ (
-    overlay.querySelector('.modal-close:not([disabled])')
+  const closeButton = /** @type {HTMLElement | null | undefined} */ (
+    overlay?.querySelector('.modal-close:not([disabled])')
   );
-  if (!closeButton) return false;
-  closeButton.click();
-  return true;
+  closeButton?.click();
+  return !!closeButton;
 }
 
 function reportAppEventListenerError(label, err) {
@@ -208,7 +206,11 @@ function handleAppKeydown(e) {
     // Prefer the visible dialog's own close/back action. This keeps nested
     // workflows (preview -> editor, detail -> parent) on their intended route
     // and also covers feature overlays that are newer than this shell file.
-    if (topOverlay && clickTopmostModalClose(topOverlay)) return;
+    if (topOverlay && clickTopmostModalClose(topOverlay)) {
+      // Keep one Escape from closing both a child and its parent modal.
+      e.stopImmediatePropagation();
+      return;
+    }
     // A focus-trap owner may deliberately make Escape non-dismissable (for
     // example an in-progress privacy review), or may need to run teardown in
     // its own later key listener. Never fall through and close a dialog behind
