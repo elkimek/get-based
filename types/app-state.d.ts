@@ -39,6 +39,7 @@ export interface ProfileData {
   markerValueNotes: Record<string, any>;
   biologyScoreAI: Record<string, any>;
   contextSourceSettings: Record<string, boolean>;
+  nutritionContextDays?: 7 | 30 | 90;
   nutritionTargets?: Record<string, any> | null;
   nutritionMeals?: any[] | null;
   changeHistory: any[];

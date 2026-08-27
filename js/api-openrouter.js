@@ -53,8 +53,18 @@ export async function callOpenRouterAPI(opts) {
     model: modelId,
     request: opts,
   });
+  const extensionProviderRouting = extensionOptions.provider
+    && typeof extensionOptions.provider === 'object'
+    && !Array.isArray(extensionOptions.provider)
+    ? extensionOptions.provider
+    : {};
   const extraBody = {
     ...extensionOptions,
+    // OpenRouter aggregates parameter support across a model's providers.
+    // Structured requests must only use endpoints that can honor the schema.
+    ...(opts.jsonMode ? {
+      provider: { ...extensionProviderRouting, require_parameters: true },
+    } : {}),
     ...(opts.webSearch ? { plugins: [{ id: 'web' }] } : {}),
   };
   try {

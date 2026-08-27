@@ -590,6 +590,7 @@ function installRoundRequestMocks({ lens = true, provider = 'venice', e2ee = tru
     supportsWebSearch: vi.fn(() => true),
     isVeniceE2EEActive: vi.fn(() => e2ee),
     buildLabContext: vi.fn(() => 'base lab context'),
+    buildChatLabContext: vi.fn(() => 'base lab context'),
     getContextSummary: vi.fn(() => [{ label: 'Profile', detail: 'demographics' }]),
     injectLensChunks: vi.fn(() => 'lab context with lens'),
     hasLens: vi.fn(() => lens),
@@ -629,12 +630,14 @@ function installRoundRequestMocks({ lens = true, provider = 'venice', e2ee = tru
   }));
   vi.doMock('../js/chat-prompt-context.js', () => ({
     attachLensSources: deps.attachLensSources,
+    buildChatLabContext: deps.buildChatLabContext,
     buildChatSystemPrompt: deps.buildChatSystemPrompt,
     buildMultiPersonaInstruction: deps.buildMultiPersonaInstruction,
     buildPersonalityPrompt: deps.buildPersonalityPrompt,
     buildTaggedChatMessages: deps.buildTaggedChatMessages,
     buildWebSearchHint: deps.buildWebSearchHint,
   }));
+  vi.doMock('../js/chat-context-summary.js', () => ({ getContextSummary: deps.getContextSummary }));
   vi.doMock('../js/chat-panel.js', () => ({ getChatWebSearchEnabled: deps.getChatWebSearchEnabled }));
   return deps;
 }

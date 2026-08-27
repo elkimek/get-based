@@ -27,6 +27,7 @@ import { clearProfileStorage, listStoredProfileIds } from './profile-storage-cle
 import { findOrCreateLabEntry } from './lab-entry-mutations.js';
 import { setLabEntryMarker } from './lab-entry.js';
 import { getSelectedNodeUrl } from './nostr-discovery.js';
+import { addDemoNutrition } from './demo-nutrition.js';
 import {
   generateReportAISummary as generateReportAISummaryImpl,
 } from './export-report.js';
@@ -285,6 +286,8 @@ async function _exportChatData(profileId) {
  * @property {unknown} channelMixAI
  * @property {unknown} biologyScoreContextAI
  * @property {Object.<string, boolean>} contextSourceSettings
+ * @property {7|30|90} nutritionContextDays
+ * @property {unknown} nutritionTargets
  * @property {Array<unknown>} importSnapshots
  * @property {unknown} [chat]
  * @property {unknown} [nutrition]
@@ -366,6 +369,10 @@ export async function buildClientExportObject(profileId, includeChat = false, in
     channelMixAI: data.channelMixAI || null,
     biologyScoreContextAI: data.biologyScoreContextAI || null,
     contextSourceSettings: data.contextSourceSettings || {},
+    nutritionContextDays: [7, 30, 90].includes(Number(data.nutritionContextDays)) ? /** @type {7|30|90} */ (Number(data.nutritionContextDays)) : 30,
+    nutritionTargets: data.nutritionTargets && typeof data.nutritionTargets === 'object' && !Array.isArray(data.nutritionTargets)
+      ? data.nutritionTargets
+      : null,
     importSnapshots: data.importSnapshots || [],
     ...(nutrition ? { nutrition } : {}),
   };
@@ -548,7 +555,11 @@ export async function loadDemoData(sex = 'male') {
     // either localStorage cache).
     let demoJson = null;
     let demoImportFile = new File([blob], file, { type: 'application/json' });
-    try { demoJson = JSON.parse(await blob.text()); } catch (_) {}
+    try {
+      demoJson = JSON.parse(await blob.text());
+      addDemoNutrition(demoJson, sex);
+      demoImportFile = new File([JSON.stringify(demoJson)], file, { type: 'application/json' });
+    } catch (_) {}
     if (demoJson?.focusCard?.text) {
       // Focus card cache ships without a fingerprint — loadFocusCard
       // treats that as a hand-authored prefill and never auto-refreshes

@@ -14,12 +14,10 @@ The MVP deliberately separates three kinds of data:
 | Data | Location | Leaves the browser? |
 | --- | --- | --- |
 | Meal content, occasion, components, component nutrient profiles, label metadata, notes, timestamps, and up to four 240px thumbnails | Encrypted per-profile `getbased-nutrition-*` IndexedDB cache plus the encrypted `nutritionMeals` profile-sync surface | Only when the user has enabled encrypted cross-device sync; full-size photos are stripped at storage and sync boundaries |
-| Normalized barcode food records | Same encrypted per-profile database; barcode lookup keys are SHA-256 hashed before indexing. The hash is an index, not anonymization. | No after the initial lookup |
 | Compact rolling 7/30-day aggregates | Same encrypted local database; hydrated into runtime memory | Only as part of an AI request the user initiates, if the Meals & Nutrition context source is on |
 | Personal calorie, macro, fiber, sugar, and sodium comparison targets | Encrypted profile data, alongside other user settings | Can follow the user's existing encrypted profile-sync choice; never sent with a meal photo |
 | Oura sleep onset/wake timestamps used for timing joins | Existing device-local wearable database | No; aggregate timing is shown locally but excluded from the default nutrition AI context |
 | Original full-resolution photo submitted for analysis | In memory while the selected provider request runs | Yes, only after Analyze and the provider-scoped first-send approval; not for local AI. It is not persisted. A Debug-mode comparison sends the same original input only to the 2–4 providers/models explicitly selected for that run. |
-| Barcode submitted with **Find product** | Open Food Facts v3.6 product endpoint | Yes: barcode only after the explicit lookup; no photo, meal history, profile ID, or note |
 
 Reviewed meals and thumbnails follow the existing opt-in encrypted profile sync.
 Each meal travels as one dedicated delta row; meal rows are excluded from the
@@ -34,6 +32,31 @@ deletes its dedicated nutrition database and device key. Browser storage evictio
 remains possible; the module requests persistent storage after the first save.
 Encryption at rest reduces exposure from direct storage inspection, but does not
 protect against code already executing in the getbased origin.
+
+## Bundled demo coverage
+
+Loading Demo Alex or Demo Sarah generates seven completed days of explicitly
+synthetic meal history relative to the load date, so the examples do not age out
+or create future-dated meals. Alex receives 16 entries with a later
+Mediterranean/16:8-style pattern. Sarah receives 21 entries with an earlier,
+iron-focused dairy-free pattern. Both histories exercise reviewed photo-style AI
+estimates, a nutrition-label example, a water log, component portions, response
+check-ins, profile-specific targets, Trends, and the Meals & Nutrition context
+source. Food entries populate every current fats/sugars, mineral, and vitamin
+field in the nutrient registry with illustrative values.
+
+The records and nutrient values are original demo fixtures, not copied from an
+internet meal log or a real person's phone. They carry a visible synthetic-data
+note and intentionally contain no meal photos, avoiding copyright, provenance,
+and personal-data ambiguity. Original generated thumbnails can be added later as
+a separate visual asset set without changing the meal records.
+
+Demo meals enter through the same portable nutrition archive restore used by
+normal imports. The restore persists the canonical encrypted profile surface
+before reconciling the encrypted local cache, so History, Dashboard summaries,
+portable backups, and context hydration all see the same records. Demo profiles
+retain the existing demo tag and therefore remain excluded from cross-device
+sync. Loading either demo makes no model/provider request.
 
 ## Consent and data protection
 
@@ -108,19 +131,11 @@ Value as an absolute nutrient amount and records OCR uncertainty. Label scans ar
 expected to be more precise than visual food inference, but still require review
 for glare, crops, unit conversion, and dual-column labels.
 
-Nutrition-label mode also accepts an EAN/UPC. **Find product** sends only that
-code to the current Open Food Facts v3.6 product endpoint, normalizes printed
-per-100 g/ml values, and scales them in code to the reviewed serving, gram,
-milliliter, or package amount. The normalized record, upstream product schema
-version, source update time, and fetch time are cached in the encrypted profile
-database; its IndexedDB lookup key is a SHA-256 digest rather than the barcode.
-Subsequent lookups can run from that cache. The details screen retains source,
-barcode, schema version, and product update date so database values are traceable,
-not merely presented as “more confident AI.” A missing product falls back to
-label OCR instead of an invented match.
-
-- [Open Food Facts current API documentation](https://openfoodfacts.github.io/documentation/docs/Product-Opener/api/)
-- [Open Food Facts barcode product endpoint](https://openfoodfacts.github.io/documentation/docs/Product-Opener/v3/products/get-api-v3-product-code/)
+Nutrition-label mode uses the selected vision model rather than a product
+database. The model transcribes the printed serving basis and nutrients, after
+which the app scales those reviewed values to the amount eaten. New meal and
+label analyses never select or merge a food-composition database entry. Older
+saved meals keep their original provenance visible for historical accuracy.
 
 Every saved record also requires a meal occasion (breakfast, brunch, lunch,
 dinner, snack, drink, or other) and stores the original local clock time, local
@@ -263,23 +278,22 @@ clock time unhealthy or diagnose insulin resistance from timing.
 - [NHLBI chrononutrition workshop report](https://pmc.ncbi.nlm.nih.gov/articles/PMC12184280/)
 - [FDA serving-size guidance](https://www.fda.gov/food/nutrition-facts-label/serving-size-nutrition-facts-label)
 
-Meal-photo micronutrients use a deterministic pipeline:
+Meal-photo detailed nutrients use the selected model rather than a food database:
 
-1. Vision model identifies foods, preparation, hidden-ingredient assumptions,
-   and portions.
-2. A local FoodData Central/FNDDS pack maps candidates to food codes and gram
-   equivalents.
-3. Code multiplies per-100 g nutrients by reviewed portions and sums totals.
+1. The vision model identifies foods, preparation, hidden-ingredient assumptions,
+   and actual visible portions.
+2. The same response estimates the complete current nutrient registry for the
+   meal and each component. Every field is nullable; unknown is never converted
+   to zero.
+3. The browser validates and normalizes the structured result, records exactly
+   which fields the model estimated, and exposes every returned value for review.
 
-The release-pinned local pack contains 5,431 FNDDS 2021–2023 foods, stable FDC
-IDs and food codes, and only the nutrient fields supported by the app. It is
-fetched from the same origin only after meal analysis and enters the PWA runtime
-cache after first use; it is not stored in a profile or sent through Synth Relay.
-The matcher combines the model's database-searchable component name with its
-visual macro profile. Automatic enrichment is all-or-none so the app never
-silently mixes database totals for some foods with visual totals for the rest.
-Each ingredient shows the suggested match for review, and ambiguous or unmatched
-foods retain photo macros while micronutrients stay unknown.
+The registry is shared by the prompt schema, editor, saved detail, summaries,
+context, Debug comparison, and demo fixtures. Adding a future nutrient to it
+therefore exposes a new nullable slot throughout the feature instead of requiring
+a new food-pack schema or matcher. This does not make photo micronutrients
+measured facts: they remain model estimates derived from food identity, recipe,
+preparation, and portion assumptions.
 
 Editing grams rescales the selected per-100 g profile and sums only nutrient keys
 available for every remaining component. Removing a component subtracts its
@@ -291,14 +305,9 @@ nutrient split between foods. Per-100 g profiles retain extra internal precision
 explicit user nutrient edits are retained, and changing food identity still
 requires visual reanalysis.
 
-This mirrors the staged DietAI24 approach, where food recognition and portion
-selection precede database-backed nutrient calculation. FoodData Central exposes
-food search/details APIs and CC0 datasets, so a versioned local subset is viable
-without building a central user database:
-
-- [DietAI24, Communications Medicine](https://www.nature.com/articles/s43856-025-01159-0)
-- [USDA FoodData Central API](https://fdc.nal.usda.gov/api-guide/)
-- [USDA downloadable datasets](https://fdc.nal.usda.gov/download-datasets/)
+No new analysis selects, merges, or caches a food-composition database record.
+Older saved meals can retain a read-only historical source label so the app does
+not rewrite their provenance.
 
 ## Model policy and evaluation
 
@@ -442,8 +451,8 @@ and particularly weak salt/sodium inference from images.
 - No original/full-size photo sync or central photo database. Reviewed meal data
   and 240px thumbnails use the existing encrypted cross-device profile sync.
 - No promise that a photo can reveal hidden ingredients or accurate micronutrients.
-- Barcode records are community database entries and remain reviewable source
-  data; the app does not upgrade them into laboratory measurements.
+- Legacy database-derived records retain visible historical provenance, but new
+  photo and label flows do not perform barcode or food-database lookup.
 - No model leaderboard in the UI until the repository has a reproducible,
   versioned food-specific evaluation harness.
 
@@ -453,16 +462,16 @@ Implemented in this iteration:
 
 1. Editable component names and grams, deterministic linked-portion arithmetic,
    stale-total protection for unlinked portions, and explicit nutrient edits.
-2. EAN/UPC lookup, versioned source metadata, encrypted local food cache, and
-   label OCR fallback.
+2. Complete nullable model-estimated nutrient fields, versioned source metadata,
+   and nutrition-label transcription/scaling.
 3. Up to four meal/package views with duplicate-view instructions.
 4. Device-local Oura sleep-onset/wake joins and coverage-qualified logged meal
    gaps.
 5. Saved-meal editing, **Log again**, review completeness, and source/identity/
    portion/label uncertainty separated in the UI.
-6. A release-pinned, size-bounded USDA FNDDS 2021–2023 pack for generic foods,
-   reviewed ingredient matches, deterministic micronutrient arithmetic, coverage
-   status, and compact provenance that is safe for cross-device sync.
+6. One canonical nutrient registry across prompts, review, comparison, summaries,
+   context, and demo data, with compact provenance that is safe for encrypted
+   cross-device sync.
 
 Remaining work:
 

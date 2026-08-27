@@ -5,18 +5,20 @@ import { saveImportedData } from './data.js';
 import { getErrorMessage } from './caught-error.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { ensureNutritionStylesheet, renderMealDetail } from './nutrition-render.js';
+import { hasSuspendedNutritionEditor } from './nutrition-editor-navigation.js';
 import { getActiveProfileMeal, saveActiveProfileMeal } from './nutrition-store.js';
 import { normalizeNutritionTargets, resolveNutritionTargets } from './nutrition-targets.js';
 import { state } from './state.js';
 import { showNotification } from './utils.js';
 
 let entryDeps = { refreshWidget: () => {}, closeEditor: () => {}, resetEditorState: () => {} };
+let mealDetailReturnTo = 'meals';
 
 export function configureNutritionEntryForms(deps = {}) {
   entryDeps = { ...entryDeps, ...deps };
 }
 
-export async function openMealDetail(id) {
+export async function openMealDetail(id, { returnTo = mealDetailReturnTo } = {}) {
   await ensureNutritionStylesheet();
   const modal = document.getElementById('detail-modal');
   const overlay = document.getElementById('modal-overlay');
@@ -24,11 +26,14 @@ export async function openMealDetail(id) {
   try {
     const meal = await getActiveProfileMeal(id);
     if (!meal) throw new Error('That meal is no longer available on this device.');
-    entryDeps.resetEditorState();
-    modal.innerHTML = renderMealDetail(meal);
+    if (!hasSuspendedNutritionEditor()) entryDeps.resetEditorState();
+    mealDetailReturnTo = returnTo === 'editor' ? 'editor' : 'history';
+    modal.innerHTML = renderMealDetail(meal, { returnTo: mealDetailReturnTo });
     modal.scrollTop = 0;
+    modal.classList.remove('nutrition-targets-modal', 'nutrition-fluid-modal', 'nutrition-history-modal', 'nutrition-manual-mode');
     modal.classList.add('nutrition-modal');
-    overlay.removeAttribute('data-modal-dismiss-protected');
+    if (hasSuspendedNutritionEditor()) overlay.setAttribute('data-modal-dismiss-protected', '');
+    else overlay.removeAttribute('data-modal-dismiss-protected');
     openModalOverlay(overlay, { initialFocus: '[data-nutrition-action="back"]', focusDelay: 30 });
     return true;
   } catch (error) {
@@ -62,7 +67,7 @@ export async function saveMealResponse(id) {
       },
     });
     entryDeps.refreshWidget();
-    await openMealDetail(saved.id);
+    await openMealDetail(saved.id, { returnTo: mealDetailReturnTo });
     showNotification('After-meal check-in saved and queued for sync.', 'success');
   } catch (error) {
     showNotification(getErrorMessage(error, 'The after-meal check-in could not be saved.'), 'error');
@@ -76,7 +81,7 @@ export async function clearMealResponse(id) {
     const { responseCheckIn: _removed, ...withoutResponse } = meal;
     const saved = await saveActiveProfileMeal(withoutResponse);
     entryDeps.refreshWidget();
-    await openMealDetail(saved.id);
+    await openMealDetail(saved.id, { returnTo: mealDetailReturnTo });
     showNotification('After-meal check-in cleared and queued for sync.', 'info');
   } catch (error) {
     showNotification(getErrorMessage(error, 'The after-meal check-in could not be cleared.'), 'error');
@@ -206,8 +211,8 @@ export function updateNutritionTargetControls() {
   }
 }
 
-export async function saveNutritionTargets() {
-  if (!validateNutritionTargetsForm()) return;
+export async function saveNutritionTargets({ closeOnSave = true } = {}) {
+  if (!validateNutritionTargetsForm()) return false;
   const hadPrevious = Object.hasOwn(state.importedData, 'nutritionTargets');
   const previous = state.importedData.nutritionTargets;
   state.importedData.nutritionTargets = nutritionTargetsFromForm();
@@ -223,11 +228,12 @@ export async function saveNutritionTargets() {
     const message = 'Nutrition setup could not be saved; your previous settings are unchanged.';
     setNutritionTargetStatus(message, true);
     showNotification(message, 'error');
-    return;
+    return false;
   }
   entryDeps.refreshWidget();
-  entryDeps.closeEditor();
+  if (closeOnSave) entryDeps.closeEditor();
   showNotification('Nutrition setup saved.', 'success');
+  return true;
 }
 
 export async function saveFluidLog() {

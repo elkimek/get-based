@@ -29,6 +29,7 @@ test('sync delta helper browser coverage exercises registry ids config and row c
       && registry.DELTA_MAPS.includes('markerPlacements')
       && registry.DELTA_MAPS.includes('genetics.snps')
       && registry.DELTA_SCALARS.includes('lightEnvironment.burdenAI')
+      && registry.DELTA_SCALARS.includes('nutritionContextDays')
       && registry._djb2('same input') === registry._djb2('same input')
       && registry._djb2('same input') !== registry._djb2('other input')
       && registry._isAllowlistSafeId('abc.DEF_123-4') === true

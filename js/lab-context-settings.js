@@ -17,6 +17,26 @@ import {
 /** @type {{ fingerprint: string | null, context: string | null }} */
 let labContextCache = { fingerprint: null, context: null };
 
+export const NUTRITION_CONTEXT_DAY_OPTIONS = Object.freeze([7, 30, 90]);
+
+/** @param {unknown} days @returns {7|30|90} */
+export function normalizeNutritionContextDays(days) {
+  const value = Number(days);
+  return value === 7 || value === 30 || value === 90 ? value : 30;
+}
+
+export function getNutritionContextDays(data = state.importedData) {
+  return normalizeNutritionContextDays(data?.nutritionContextDays);
+}
+
+export function setNutritionContextDays(days) {
+  if (!state.importedData || typeof state.importedData !== 'object') return 30;
+  const value = normalizeNutritionContextDays(days);
+  state.importedData.nutritionContextDays = value;
+  invalidateLabContextCache();
+  return value;
+}
+
 function getActiveContextProfileId() {
   try { return localStorage.getItem('labcharts-active-profile') || state.currentProfile || 'default'; }
   catch { return state.currentProfile || 'default'; }
@@ -50,7 +70,7 @@ function getContextPreferencePart() {
       `${CONTEXT_SOURCE_IDS.GENOME_INVENTORY}:${isGeneticsInventoryInAIContext() ? 'on' : 'off'}`,
       `${CONTEXT_SOURCE_IDS.LIGHT_SUN}:${isLightSunContextEnabled() ? 'on' : 'off'}`,
       `${CONTEXT_SOURCE_IDS.WEARABLES}:${isWearableContextEnabled() ? 'on' : 'off'}`,
-      `${CONTEXT_SOURCE_IDS.NUTRITION}:${isNutritionContextEnabled() ? 'on' : 'off'}`,
+      `${CONTEXT_SOURCE_IDS.NUTRITION}:${isNutritionContextEnabled() ? 'on' : 'off'}:${getNutritionContextDays()}d`,
     ].join(',')}`,
     `stored:${getStoredContextPreferencePart(profileId)}`,
   ].join('|');
@@ -74,6 +94,7 @@ export function getLabContextFingerprint() {
     data.interpretiveLens || '', data.contextNotes || '',
     JSON.stringify(data.notes || []), JSON.stringify(data.markerNotes || {}),
     JSON.stringify(data.contextSourceSettings || {}),
+    JSON.stringify(data.nutritionContextDays || 30),
     JSON.stringify(data.biologyScoreContextSettings || {}),
     JSON.stringify(data.refOverrides || {}), JSON.stringify(data.categoryLabels || {}),
     JSON.stringify(data.markerLabels || {}),

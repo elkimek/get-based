@@ -15,7 +15,6 @@
     "marker-schema:check": "node scripts/build-marker-schema.mjs --check",
     "marker-terminology:build": "node scripts/build-marker-terminology.mjs --write",
     "marker-terminology:check": "node scripts/build-marker-terminology.mjs --check",
-    "nutrition-data:build": "node scripts/build-nutrition-food-pack.mjs",
     "performance:check": "playwright test tests/playwright/cold-load-budget.spec.js --workers=1",
     "production:build": "node scripts/build-production.mjs",
     "production:check": "node scripts/build-production.mjs --check",

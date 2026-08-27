@@ -441,6 +441,12 @@ export function importDataJSON(file) {
         if (json.contextSourceSettings && typeof json.contextSourceSettings === 'object') {
           state.importedData.contextSourceSettings = json.contextSourceSettings;
         }
+        if ([7, 30, 90].includes(Number(json.nutritionContextDays))) {
+          state.importedData.nutritionContextDays = /** @type {7|30|90} */ (Number(json.nutritionContextDays));
+        }
+        if (json.nutritionTargets && typeof json.nutritionTargets === 'object' && !Array.isArray(json.nutritionTargets)) {
+          state.importedData.nutritionTargets = json.nutritionTargets;
+        }
         // Import change history (merge by field+date, imported snapshot wins on conflict)
         if (Array.isArray(json.changeHistory)) {
           const changeHistory = ensureImportedArray(state.importedData, 'changeHistory');
@@ -652,6 +658,12 @@ async function _importDatabaseBundle(json) {
       }
       if (importData.contextSourceSettings && typeof importData.contextSourceSettings === 'object' && !Array.isArray(importData.contextSourceSettings)) {
         current.contextSourceSettings = importData.contextSourceSettings;
+      }
+      if ([7, 30, 90].includes(Number(importData.nutritionContextDays))) {
+        current.nutritionContextDays = /** @type {7|30|90} */ (Number(importData.nutritionContextDays));
+      }
+      if (importData.nutritionTargets && typeof importData.nutritionTargets === 'object' && !Array.isArray(importData.nutritionTargets)) {
+        current.nutritionTargets = importData.nutritionTargets;
       }
       if (importData.interpretiveLens) current.interpretiveLens = importData.interpretiveLens;
       if (importData.contextNotes) current.contextNotes = importData.contextNotes;

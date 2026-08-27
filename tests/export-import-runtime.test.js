@@ -287,6 +287,8 @@ describe('JSON restore runtime', () => {
       channelMixAI: { status: 'complete' },
       biologyScoreContextAI: { status: 'complete' },
       contextSourceSettings: { labs: true },
+      nutritionContextDays: 90,
+      nutritionTargets: { energyKcal: 2100, proteinG: 120 },
       changeHistory: [
         { field: 'diet', date: '2026-01-01', value: 'updated' },
         { field: 'exercise', date: '2026-01-02', value: 'new' },
@@ -385,6 +387,8 @@ describe('JSON restore runtime', () => {
     expect(imported.lightEnvironment.rooms).toHaveLength(2);
     expect(imported.lightDailyVerdicts['2026-01-01']).toEqual({ status: 'existing' });
     expect(imported.lightDailyVerdicts['2026-01-02']).toEqual({ status: 'new' });
+    expect(imported.nutritionContextDays).toBe(90);
+    expect(imported.nutritionTargets).toEqual({ energyKcal: 2100, proteinG: 120 });
     expect(imported.changeHistory).toEqual([
       { field: 'diet', date: '2026-01-01', value: 'updated' },
       { field: 'exercise', date: '2026-01-02', value: 'new' },

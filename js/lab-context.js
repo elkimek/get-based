@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { SBM_2015_THRESHOLDS, getEMFSeverity } from './schema.js';
-import { getStatus, hasCardContent, isDebugMode } from './utils.js';
+import { getStatus, hasCardContent } from './utils.js';
 import { formatTime } from './theme.js';
 import { getActiveData } from './data.js';
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
@@ -26,7 +26,7 @@ import {
   isWearableContextEnabled,
 } from './lab-context-wearables.js';
 import {
-  getCachedLabContext,
+  getNutritionContextDays,
   getLabContextFingerprint,
   isGeneticsInventoryInAIContext,
   isGeneticsPriorityInAIContext,
@@ -37,8 +37,8 @@ import {
   isLightSunContextEnabled,
   isNutritionContextEnabled,
   isSupplementsMedsContextEnabled,
-  setCachedLabContext,
 } from './lab-context-settings.js';
+import { getOrBuildLabContext } from './lab-context-cache.js';
 import { buildContextChangeTimeline } from './lab-context-change-timeline.js';
 import { resolveActiveMarkerPath } from './marker-placement.js';
 import { buildLabCollectionContextSection } from './lab-context-collection.js';
@@ -47,7 +47,7 @@ import { weightToKilograms } from './wearables-formatters.js';
 import { getUnitProfileLabel } from './unit-profiles.js';
 export { configureLabContext } from './lab-context-runtime.js';
 /**
- * @typedef {{ skipGroupFilter?: boolean, ignoreContextToggles?: boolean, queryText?: string, supplementContextMode?: 'compact'|'detail' }} LabContextOptions
+ * @typedef {{ skipGroupFilter?: boolean, ignoreContextToggles?: boolean, queryText?: string, nutritionHistoryLabel?: string, supplementContextMode?: 'compact'|'detail' }} LabContextOptions
  */
 function markerNameForStorageDotKey(data, dotKey) {
   const [categoryKey, markerKey] = String(dotKey || '').split('.');
@@ -62,36 +62,21 @@ export {
   invalidateLabContextCache, isGeneticsInventoryInAIContext, isGeneticsPriorityInAIContext,
   isGeneticsSummaryInAIContext, isGroupInAIContext, isInsightContextCardsEnabled,
   isLabMarkersContextEnabled, isLightSunContextEnabled, isSupplementsMedsContextEnabled,
+  getNutritionContextDays, NUTRITION_CONTEXT_DAY_OPTIONS, setNutritionContextDays,
   setGeneticsInventoryInAIContext, setGeneticsPriorityInAIContext,
   setGeneticsSummaryInAIContext, setGroupInAIContext, setInsightContextCardsEnabled,
   setLabMarkersContextEnabled, setLightSunContextEnabled, setSupplementsMedsContextEnabled,
   setWearableContextEnabled,
   isNutritionContextEnabled, setNutritionContextEnabled,
 } from './lab-context-settings.js';
-export { getContextSummary, injectLensChunks } from './lab-context-output.js';
-// ═══════════════════════════════════════════════
-// LAB CONTEXT
-// ═══════════════════════════════════════════════
-// Sun context follows the same rule as other context sources: include the
-// standard section whenever data exists, without brittle keyword detection.
-
-export function buildLabContext(/** @type {LabContextOptions} */ { skipGroupFilter, ignoreContextToggles, queryText } = {}) {
-  // skipGroupFilter: true → include all specialty groups regardless of AI toggle
-  // ignoreContextToggles: true → Agent Access permission already granted; assemble full context
+export { injectLensChunks } from './lab-context-output.js';
+export function buildLabContext(/** @type {LabContextOptions} */ { skipGroupFilter, ignoreContextToggles, queryText, nutritionHistoryLabel } = {}) {
   const supplementContextMode = resolveSupplementContextMode(queryText, state.importedData.supplements || []);
-  const fp = getLabContextFingerprint() + (skipGroupFilter ? ':all' : '') + (ignoreContextToggles ? ':ignore-context-toggles' : '') + `:supplements-${supplementContextMode}`;
-  const cached = getCachedLabContext(fp);
-  if (cached) {
-    if (isDebugMode()) console.log('[AI] Lab context cache hit');
-    return cached;
-  }
-  if (isDebugMode()) console.log('[AI] Lab context cache miss — rebuilding');
-  const ctx = _buildLabContextInner({ skipGroupFilter, ignoreContextToggles, supplementContextMode });
-  setCachedLabContext(fp, ctx);
-  return ctx;
+  const fp = getLabContextFingerprint() + (skipGroupFilter ? ':all' : '') + (ignoreContextToggles ? ':ignore-context-toggles' : '') + `:supplements-${supplementContextMode}:nutrition-history-${nutritionHistoryLabel || 'routine'}`;
+  return getOrBuildLabContext(fp, () => _buildLabContextInner({ skipGroupFilter, ignoreContextToggles, nutritionHistoryLabel, supplementContextMode }));
 }
 
-function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilter, ignoreContextToggles, supplementContextMode = 'compact' } = {}) {
+function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilter, ignoreContextToggles, nutritionHistoryLabel, supplementContextMode = 'compact' } = {}) {
   const data = getActiveData();
   const includeLabMarkers = ignoreContextToggles || isLabMarkersContextEnabled();
   const hasImportedLabData = data.dates.length > 0 || Object.values(data.categories).some(c => c.singleDate);
@@ -571,7 +556,12 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   }
   // ── 9. Diet & Digestion ("what lifestyle context?") ──
   const diet = state.importedData.diet;
-  const detailedNutritionOverridesMeals = state.nutritionSummary?.totalMeals && (ignoreContextToggles || isNutritionContextEnabled());
+  const nutritionSourceEnabled = ignoreContextToggles || isNutritionContextEnabled();
+  const nutritionDays = getNutritionContextDays(state.importedData);
+  const nutritionWindow = state.nutritionSummary?.windows?.[`d${nutritionDays}`];
+  const detailedNutritionOverridesMeals = !!state.nutritionSummary?.totalMeals
+    && nutritionSourceEnabled
+    && (ignoreContextToggles || !!nutritionHistoryLabel || Number(nutritionWindow?.meals || 0) > 0);
   if (includeInsightCards && hasCardContent(diet)) {
     ctx += `[section:diet]\n## Diet & Digestion\n`;
     const parts = [];
@@ -615,7 +605,9 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     ctx += `[/section:diet]\n\n`;
   }
 
-  if (detailedNutritionOverridesMeals) ctx += state.nutritionSummary?.contextText || '';
+  if (detailedNutritionOverridesMeals && !nutritionHistoryLabel) {
+    ctx += state.nutritionSummary?.contextByDays?.[`d${nutritionDays}`] || '';
+  }
   // ── 10. Exercise ──
   const ex = state.importedData.exercise;
   if (includeInsightCards && hasCardContent(ex)) {

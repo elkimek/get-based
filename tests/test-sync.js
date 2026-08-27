@@ -434,14 +434,15 @@ await import('../js/settings.js');
       && syncMessengerSrc.includes('owner: currentAppOwner()')
       && syncMessengerSrc.includes('ownerId: ownerProof.ownerId')
       && syncMessengerSrc.includes('signature: ownerProof.signature'));
-  assert('Agent Access context push ignores in-app Context source toggles',
+  assert('Agent Access context push respects Manage Context source toggles',
     syncConfigureSrc.includes("from './lab-context.js'")
       && syncConfigureSrc.includes('buildLabContext,')
       && syncConfigureSrc.includes('buildWearableSeriesSection,')
       && syncConfigureSrc.includes('getAgentWearableSeriesDays,')
       && !syncMessengerSrc.includes("import('./lab-context.js')")
-      && syncMessengerSrc.includes('buildLabContext({ skipGroupFilter: true, ignoreContextToggles: true })')
-      && syncMessengerSrc.includes('buildWearableSeriesSection(seriesDays, { ignoreContextToggles: true })'));
+      && syncMessengerSrc.includes('const baseContext = buildLabContext()')
+      && syncMessengerSrc.includes('buildWearableSeriesSection(seriesDays)')
+      && !syncMessengerSrc.includes('buildLabContext({ skipGroupFilter: true, ignoreContextToggles: true })'));
   assert('service worker precaches sync-messenger.js',
     serviceWorkerSrc.includes("'/js/sync-messenger.js'"));
   assert('service worker precaches settings-sync-panel.js',
@@ -3026,6 +3027,8 @@ await import('../js/settings.js');
     inList('DELTA_SCALARS', 'sunCorrelations'));
   assert('DELTA_SCALARS includes lifelightProfile (Lifelight integration metadata)',
     inList('DELTA_SCALARS', 'lifelightProfile'));
+  assert('DELTA_SCALARS includes nutritionContextDays (profile AI timeframe)',
+    inList('DELTA_SCALARS', 'nutritionContextDays'));
 
   // Negative checks — surfaces that intentionally do NOT ride any
   // DELTA_* list. These are guarded against accidental promotion.
@@ -3055,7 +3058,7 @@ await import('../js/settings.js');
     'menstrualCycle', 'emfAssessment', 'genetics', 'biometrics',
     'sunCorrelations', 'lifelightProfile', 'sunDefaults',
     'channelMixAI', 'lightEnvironment.burdenAI',
-    'wearableSummary', 'wearableCardOrder',
+    'wearableSummary', 'wearableCardOrder', 'nutritionContextDays',
   ];
   for (const surface of everySurface) {
     const inArrays = inList('DELTA_ARRAYS', surface);

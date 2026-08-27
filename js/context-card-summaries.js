@@ -5,7 +5,14 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import { getEMFSeverity } from './schema.js';
 import { sortHealthGoalsByPriority } from './health-goals-utils.js';
-import { doesNutritionContextOverrideTypicalMeals } from './nutrition-context.js';
+import { getNutritionContextDays, isNutritionContextEnabled } from './lab-context-settings.js';
+
+/** @param {any} [summary] @param {any} [profileData] */
+export function doesNutritionContextOverrideTypicalMeals(summary = state.nutritionSummary, profileData = state.importedData) {
+  if (!summary?.totalMeals || !isNutritionContextEnabled()) return false;
+  const selectedWindow = summary?.windows?.[`d${getNutritionContextDays(profileData)}`];
+  return selectedWindow ? Number(selectedWindow.meals || 0) > 0 : Number(summary.totalMeals || 0) > 0;
+}
 
 export const CONTEXT_CARD_KEYS = [
   'healthGoals',

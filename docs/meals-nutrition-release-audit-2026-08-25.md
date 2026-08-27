@@ -18,8 +18,7 @@ release gates under the repository test policy.
 | Find the feature in Body or add Daily Nutrition to the Dashboard | Ready | Independent Daily Nutrition and Fuel Mix widgets; hard-reload hydration covered in the nutrition browser spec |
 | Log a meal manually | Ready | Required meal type/time, editable nutrients and ingredients, reviewed save, and recent-meal display |
 | Analyze one or several meal photos | Ready | Explicit Analyze action, provider consent, bounded uploads, progress, structured-output fallback, correction-aware recalculation, and editable review |
-| Scan a nutrition label | Ready | Serving-basis extraction, deterministic consumed-amount scaling, source details, and editable review |
-| Look up a barcode | Ready | Barcode-only Open Food Facts request, deterministic scaling, source/version metadata, encrypted cache, timeout/size defenses, and label fallback |
+| Scan a nutrition label | Ready | AI serving-basis extraction, reviewed consumed-amount scaling, source details, and editable review; no product-database lookup |
 | Review uncertainty before saving | Ready | Assumptions, warnings, identity/portion evidence, source, request usage, and unknown values remain visible and editable |
 | Open, edit, log again, or delete a saved meal | Ready | Deterministic portion edits, check-in preservation rules, new IDs for reused meals, durable deletion tombstones, and reload verification |
 | Log a drink | Ready | Dedicated fast path; all beverage volume and plain water are stored separately and survive reload |
@@ -27,7 +26,7 @@ release gates under the repository test policy.
 | Read Daily Nutrition | Ready | Seven-day complete-day averages, explicit logging coverage, unknown days kept distinct from zero, starter/personal guide wording, and up to four selected nutrients |
 | Read Fuel Mix Context | Ready | Separate opt-in widget, carb/fat energy composition and amount, no overlap score, no universal optimum, and bounded personal check-in associations |
 | Route meal analysis to another model | Ready | Regular meal-specific model control and AI Settings routing do not change the chat model or discard a meal draft; Local AI vision capability is restored automatically after refresh; Ollama, LM Studio, Unsloth Studio, and generic OpenAI-compatible endpoints receive provider-specific connection guidance |
-| Compare models in Debug Mode | Ready | Same prepared photos, cross-provider defaults from configured connections, automatic discovery of a saved Local AI connection even when cloud AI is main, provider-specific credentials and endpoints, 2–4 model limit, sequential consent, partial retry, local reference scoring, token/cost display, encrypted device-local snapshot, and no claimed winner without a reference |
+| Compare models in Debug Mode | Ready | Searchable cross-provider picker, same prepared photos, detailed-nutrient comparison, automatic discovery of configured Local AI, provider-specific credentials and endpoints, 2–4 model limit, sequential consent, partial retry, optional local reference scoring, token/cost display, encrypted device-local snapshot, and no claimed winner without a reference |
 | Sync reviewed nutrition data | Ready | Meals use one deduplicated delta row per ID; targets use a small scalar; deletion tombstones prevent resurrection; compatibility blobs exclude repeated meal arrays |
 | Protect photos and AI context | Ready | Original photos stay in memory only for a user-started analysis; storage, export, and Sync accept only bounded thumbnails; compact AI context contains aggregates, never photos or individual meals |
 | Delete profiles or all local data | Ready | Dedicated nutrition databases and device keys participate in profile cleanup and full erasure; blocked cleanup keeps canonical data rather than pretending success |
@@ -57,12 +56,11 @@ release gates under the repository test policy.
    complete component profile, label components retain all supported nutrients,
    and hidden multipliers avoid cumulative rounding drift.
 8. Fresh meal-photo analysis exposed an empty **More nutrients** grid. The editor
-   now separates **Energy & macros** from grouped detailed nutrition and enriches
-   fully matched meals from a local, release-pinned USDA FNDDS pack. Ambiguous
-   ingredients expose reviewable candidates; unsupported values stay unknown.
-9. A partial FNDDS match still made the detailed nutrient tiles look empty.
-   Reviewed matches now show clearly labeled matched-food partials without
-   persisting them as unsupported whole-meal totals.
+   now separates **Energy & macros** from grouped detailed nutrition and asks the
+   selected model for every registered nutrient. Unsupported values stay unknown.
+9. New meal and nutrition-label analyses could still depend on selected database
+   records. Those lookup paths are removed; model results remain fully reviewable,
+   while historical records retain their saved provenance.
 10. Legacy demo rows, duplicate profile rows, and interrupted profile deletes
     could recreate or repeatedly announce local-only profiles. Demo admission is
     now blocked across every Sync path, duplicate relay rows are retired, remote
@@ -91,13 +89,23 @@ release gates under the repository test policy.
     refreshes the picker even when an earlier comparison is visible. It adds the
     Local vision models without changing the main provider or requiring an
     analysis first.
+17. Nested meal, history, setup, ingredient, EMF, and other modal workflows had
+    inconsistent Escape, backdrop, focus, and return behavior. Shared lifecycle
+    handling now preserves the owning workflow and returns users to the surface
+    they came from.
+18. Alex and Sarah demos had no meal history. Both now generate rolling,
+    synthetic seven-day logs with detailed nutrients, hydration, label examples,
+    provenance, check-ins, targets, and AI-context settings without provider calls.
+19. The rebased release candidate exceeded strict-null, source-size, startup, and
+    total-output gates. Types were narrowed, the exact-context receipt became a
+    lazy module, duplicate modal code was consolidated, and demo data was compacted;
+    every limit now passes without raising a budget.
 
 ## Deliberate v1 limits
 
-- Meal-photo identity and portions remain estimates that require review. Hidden
-  ingredients cannot be inferred reliably, and micronutrients are calculated
-  only when every material ingredient has compatible reviewed food-composition
-  data.
+- Meal identity, portions, and detailed nutrients remain model estimates that
+  require review. Hidden ingredients cannot be inferred reliably; every current
+  nutrient slot is requested, and unsupported values remain visibly unknown.
 - There is no duplicate-meal detector, named recipe builder, or user-confirmed
   complete-day marker in v1.
 - Fuel Mix is logged intake composition, not Randle-cycle activation, insulin
@@ -107,21 +115,16 @@ release gates under the repository test policy.
 
 ## Change-scoped verification
 
-- 188/188 focused unit tests passed across analysis, calculation, food data and
-  FNDDS enrichment, comparison, context, Fuel Mix, storage, summaries, Sync,
-  targets, model routing, Local AI transport, consent, erasure, profile cleanup,
-  demo exclusion, sync actions, and tombstones.
-- 1,102/1,102 directly related repository contract tests passed: Sync 854,
-  profile sharing 37, changelog 102, and changed wearable timing inputs 109.
-- 46/46 focused Chromium journeys passed: 25 nutrition paths, 20 Local AI/Sync/
-  dashboard/changelog paths, and one installed-PWA cache-only cold relaunch.
+- 152/152 focused Vitest assertions and 408/408 module/contract checks passed
+  across analysis, comparison, context receipts, storage, summaries, Sync,
+  export/import, model routing, modal events, demo data, and provenance.
+- 48/48 focused Chromium journeys passed across nutrition, demo, context,
+  modal-navigation, Sync, EMF, dashboard, and installed-PWA offline paths.
   These include automated WCAG A/AA checks and narrow-mobile layout assertions.
 - TypeScript, check-JS, server and service-worker types, the zero-diagnostic
   strict-null ratchet, supply-chain check, 17 quality guardrails, architecture
   checks, and `git diff --check` passed.
-- Architecture: 689 modules, zero dependency cycles. The nutrition orchestrator
-  is 788 lines, below the repository's near-cap threshold.
-- Production check: 2 startup JS files (1,142.2 KiB decoded), 156 lazy JS files
-  (4,782.8 KiB decoded), and 328 precached resources (15,163.0 KiB decoded). The
-  1,066,347-byte FNDDS pack is fetched and runtime-cached only after use; it is
-  not part of profile storage or Synth Relay.
+- Architecture: 695 modules, zero dependency cycles. The nutrition orchestrator
+  is 787 lines, below the repository's near-cap threshold.
+- Production check: 2 startup JS files (1,141.9 KiB decoded), 155 lazy JS files
+  (4,809.6 KiB total decoded), and 319 precached resources (14,947.1 KiB decoded).

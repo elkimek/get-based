@@ -88,5 +88,6 @@ export const DELTA_SCALARS = [
   'sunCorrelations', 'lifelightProfile', 'sunDefaults',
   'channelMixAI', 'biologyScoreContextAI',
   'wearableSummary', 'wearableCardOrder',
+  'nutritionContextDays',
   'nutritionTargets',
 ];

@@ -1,11 +1,18 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { buildNutritionContext, renderNutritionCircadianExtension, renderNutritionDietExtension, setNutritionContextEnabled } from '../js/nutrition-context.js';
+import { buildNutritionContext, buildNutritionHistoryReceiptContext, doesNutritionContextOverrideTypicalMeals, nutritionHistoryRequestFromQuery, setNutritionContextEnabled } from '../js/nutrition-context.js';
+import { renderNutritionCircadianExtension, renderNutritionDietExtension } from '../js/nutrition-context-card-extensions.js';
 import { buildNutritionSummaryContext } from '../js/nutrition-summary.js';
+import { getNutritionContextDays, setNutritionContextDays } from '../js/lab-context-settings.js';
 import { state } from '../js/state.js';
 
 const previousSummary = state.nutritionSummary;
 const previousImported = state.importedData;
+
+function attachContextWindows(summary) {
+  summary.contextByDays = Object.fromEntries([7, 30, 90].map(days => [`d${days}`, buildNutritionSummaryContext(summary, { days })]));
+  return summary;
+}
 
 afterEach(() => {
   state.nutritionSummary = previousSummary;
@@ -46,12 +53,13 @@ describe('nutrition AI context', () => {
         nutrientCoverage: { energyKcal: { completeDays: 5 }, proteinG: { completeDays: 5 } },
       },
     };
-    state.nutritionSummary.contextText = buildNutritionSummaryContext(state.nutritionSummary);
+    attachContextWindows(state.nutritionSummary);
 
     const context = buildNutritionContext();
     expect(context).toContain('[section:nutrition]');
     expect(context).toContain('[/section:nutrition]');
     expect(context).toContain('Last 7 days: 3 meals across 3/7 days');
+    expect(context).toContain('Last 30 days: 5 meals across 4/30 days');
     expect(context).toContain('occasions: breakfast 1, dinner 2');
     expect(context).toContain('missing days/values are unknown, not zero');
     expect(context).toContain('Never infer skipped meals, under-eating');
@@ -61,13 +69,39 @@ describe('nutrition AI context', () => {
     expect(context).not.toContain('average last logged meal 20:15');
     expect(context).not.toContain('data:image');
     expect(context).not.toContain('Lentil bowl');
-    expect(renderNutritionDietExtension(() => 'data-action="open"')).toContain('Detailed meal log active');
-    expect(renderNutritionDietExtension(() => 'data-action="open"')).toContain('Replaces Typical meals');
-    expect(renderNutritionCircadianExtension(() => 'data-action="open"')).toContain('first 08:30 · last 20:15');
+    const actionAttrs = (action, attrs = {}) => `data-action="${action}" data-surface="${attrs.surface || ''}"`;
+    expect(renderNutritionDietExtension(actionAttrs)).toContain('Detailed meal log active');
+    expect(renderNutritionDietExtension(actionAttrs)).toContain('Replaces Typical meals');
+    expect(renderNutritionDietExtension(actionAttrs)).toContain('data-surface="meals"');
+    expect(renderNutritionCircadianExtension(actionAttrs)).toContain('first 08:30 · last 20:15');
+    expect(renderNutritionCircadianExtension(actionAttrs)).toContain('data-surface="timing"');
+  });
+
+  it('uses the profile-scoped 7/30/90-day routine AI timeframe independently of History', () => {
+    state.importedData = { contextSourceSettings: {}, nutritionContextDays: 30 };
+    state.nutritionSummary = {
+      totalMeals: 12,
+      windows: {
+        d7: { days: 7, meals: 2, loggedDays: 2, reviewRatio: 1, dailyAverages: { proteinG: 90 }, nutrientCoverage: { proteinG: { completeDays: 2 } } },
+        d30: { days: 30, meals: 6, loggedDays: 6, reviewRatio: 1, dailyAverages: { proteinG: 80 }, nutrientCoverage: { proteinG: { completeDays: 6 } } },
+        d90: { days: 90, meals: 12, loggedDays: 12, reviewRatio: 1, dailyAverages: { proteinG: 75 }, nutrientCoverage: { proteinG: { completeDays: 12 } } },
+      },
+    };
+    attachContextWindows(state.nutritionSummary);
+
+    expect(getNutritionContextDays()).toBe(30);
+    expect(buildNutritionContext()).toContain('Last 30 days');
+    setNutritionContextDays(7);
+    expect(buildNutritionContext()).not.toContain('Last 30 days');
+    expect(buildNutritionContext()).not.toContain('Last 90 days');
+    setNutritionContextDays(90);
+    expect(getNutritionContextDays()).toBe(90);
+    expect(buildNutritionContext()).toContain('Last 90 days');
+    expect(state.importedData.nutritionContextDays).toBe(90);
   });
 
   it('qualifies nutrient-specific incomplete coverage in AI context', () => {
-    state.importedData = { contextSourceSettings: {} };
+    state.importedData = { contextSourceSettings: {}, nutritionContextDays: 7 };
     state.nutritionSummary = {
       totalMeals: 2,
       windows: {
@@ -83,9 +117,9 @@ describe('nutrition AI context', () => {
         },
       },
     };
-    state.nutritionSummary.contextText = buildNutritionSummaryContext(state.nutritionSummary);
+    attachContextWindows(state.nutritionSummary);
 
-    expect(buildNutritionContext()).not.toContain('magnesium mg');
+    expect(buildNutritionContext()).toContain('magnesium mg 100 [1/2 complete days]');
   });
 
   it('omits trend claims until both periods have enough complete logged days', () => {
@@ -105,7 +139,7 @@ describe('nutrition AI context', () => {
         nutrientCoverage: { proteinG: { completeDays: 4 } },
       },
     };
-    state.nutritionSummary.contextText = buildNutritionSummaryContext(state.nutritionSummary);
+    attachContextWindows(state.nutritionSummary);
 
     expect(buildNutritionContext()).not.toContain('compared with');
   });
@@ -113,11 +147,38 @@ describe('nutrition AI context', () => {
   it('honors the profile-scoped nutrition context toggle', () => {
     state.importedData = { contextSourceSettings: {} };
     state.nutritionSummary = { totalMeals: 1, windows: {} };
-    state.nutritionSummary.contextText = buildNutritionSummaryContext(state.nutritionSummary);
+    attachContextWindows(state.nutritionSummary);
     setNutritionContextEnabled(false);
     expect(buildNutritionContext()).toBe('');
     expect(buildNutritionContext(state, { ignoreContextToggles: true })).toContain('[section:nutrition]');
     expect(renderNutritionDietExtension(() => 'data-action="open"')).toContain('AI source off');
     expect(renderNutritionDietExtension(() => 'data-action="open"')).toContain('Typical meals active');
+  });
+
+  it('keeps Typical meals active when nutrition entries fall outside the selected automatic timeframe', () => {
+    state.importedData = { contextSourceSettings: {}, nutritionContextDays: 30 };
+    state.nutritionSummary = {
+      totalMeals: 4,
+      windows: {
+        d7: { days: 7, meals: 0, loggedDays: 0 },
+        d30: { days: 30, meals: 0, loggedDays: 0 },
+        d90: { days: 90, meals: 4, loggedDays: 4 },
+      },
+    };
+
+    expect(doesNutritionContextOverrideTypicalMeals()).toBe(false);
+    expect(renderNutritionDietExtension(() => 'data-action="open"')).toContain('No entries in the 30-day AI timeframe');
+    setNutritionContextDays(90);
+    expect(doesNutritionContextOverrideTypicalMeals()).toBe(true);
+  });
+
+  it('recognizes an explicit History prompt and builds a receipt without a second aggregate', () => {
+    const query = 'Review my Meals & Nutrition history.\nNutrition history range: 6M (the last 6 calendar months).\nSelected 6M: 20 meals.';
+    expect(nutritionHistoryRequestFromQuery(query)).toEqual({ label: '6M', description: 'the last 6 calendar months' });
+    const receipt = buildNutritionHistoryReceiptContext(query);
+    expect(receipt).toContain('[section:nutritionHistory]');
+    expect(receipt).toContain('6M one-off history');
+    expect(receipt).toContain('automatic nutrition summary is omitted');
+    expect(receipt).not.toContain('20 meals');
   });
 });

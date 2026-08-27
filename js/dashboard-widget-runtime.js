@@ -163,6 +163,12 @@ export function navigateDashboardRoute(route) {
   dashboardWidgetRuntimeDeps.navigate?.(route);
 }
 
+export function openDashboardChatPrompt(prompt) {
+  const openChatPanel = dashboardWidgetRuntimeDeps.openChatPanel;
+  if (!openChatPanel) return Promise.reject(new Error('Chat is not available.'));
+  return Promise.resolve(openChatPanel(prompt));
+}
+
 export function triggerDashboardDnaPicker() {
   triggerContextCardDNAFilePickerRuntime();
 }

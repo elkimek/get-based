@@ -107,7 +107,9 @@ test('Venice meal analysis supports a correction-aware recalculation with visibl
   });
 
   await expect(page.locator('.nutrition-modal-head h3')).toHaveText('Log a meal');
-  await expect(page.locator('.nutrition-modal-head p')).toHaveText('Use a photo or enter values.');
+  await expect(page.locator('.nutrition-modal-head p')).toHaveText('Use a photo, scan a label, or enter values manually.');
+  await expect(page.locator('.nutrition-capture-tabs [role="tab"]')).toHaveCount(3);
+  await expect(page.getByRole('tab', { name: 'Manual' })).toBeVisible();
   await expect(page.locator('.nutrition-review-heading')).toHaveText('Review meal');
   await expect(page.locator('#nutrition-privacy-line')).toContainText('originals are not saved');
   await expect(page.locator('#detail-modal')).not.toContainText('Editable review');
@@ -258,7 +260,7 @@ test('Venice meal analysis supports a correction-aware recalculation with visibl
   expect(savedMealLayout).toEqual({ galleryAboveOverview: true, contentBelowOverview: true });
 });
 
-test('fresh photo analysis adds traceable micronutrients from reviewed USDA food matches', async ({ page }) => {
+test('fresh photo analysis keeps complete nutrient profiles model-owned', async ({ page }) => {
   await page.route('https://api.venice.ai/api/v1/chat/completions', async route => {
     await route.fulfill({
       status: 200,
@@ -273,16 +275,16 @@ test('fresh photo analysis adds traceable micronutrients from reviewed USDA food
                   name: 'Chicken breast, grilled without sauce, skin not eaten',
                   quantityG: 150,
                   confidence: 0.9,
-                  nutrients: { energyKcal: 264, proteinG: 44.4, carbohydrateG: 0, fatG: 8.18, fiberG: 0 },
+                  nutrients: { energyKcal: 264, proteinG: 44.4, carbohydrateG: 0, fatG: 8.18, fiberG: 0, sodiumMg: 111, potassiumMg: 384, vitaminDMcg: 1 },
                 },
                 {
                   name: 'Rice, white, cooked, as ingredient',
                   quantityG: 180,
                   confidence: 0.86,
-                  nutrients: { energyKcal: 234, proteinG: 4.57, carbohydrateG: 52.2, fatG: 0.67, fiberG: 0 },
+                  nutrients: { energyKcal: 234, proteinG: 4.57, carbohydrateG: 52.2, fatG: 0.67, fiberG: 0, sodiumMg: 2, potassiumMg: 216, vitaminDMcg: 0 },
                 },
               ],
-              nutrients: { energyKcal: 498, proteinG: 48.97, carbohydrateG: 52.2, fatG: 8.85, fiberG: 0 },
+              nutrients: { energyKcal: 498, proteinG: 48.97, carbohydrateG: 52.2, fatG: 8.85, fiberG: 0, sodiumMg: 113, potassiumMg: 600, calciumMg: 30, ironMg: 2.9, magnesiumMg: 61.8, vitaminDMcg: 1, vitaminB12Mcg: 0.5 },
               confidence: 0.86,
               assumptions: [], warnings: [], label: null,
             }),
@@ -316,122 +318,52 @@ test('fresh photo analysis adds traceable micronutrients from reviewed USDA food
   await page.locator('[data-cloud-ai-consent-action="approve"]').click();
 
   await expect(page.locator('#nutrition-analysis-status')).toContainText('Estimate ready');
-  await expect(page.locator('#nutrition-review-evidence')).toContainText('2/2 matched to FNDDS 2021-2023');
-  await expect(page.locator('[data-nutrition-food-match="0"]')).toHaveValue('2705968');
-  await expect(page.locator('[data-nutrition-food-match="1"]')).toHaveValue('2710788');
-  await expect(page.locator('.nutrition-component-food-data').first()).toContainText('Suggested — review');
+  await expect(page.locator('#nutrition-review-evidence')).toContainText('model-estimated nutrients');
+  await expect(page.locator('[data-nutrition-food-match]')).toHaveCount(0);
+  await expect(page.locator('.nutrition-component-food-data')).toHaveCount(0);
 
   await page.locator('.nutrition-more-nutrients summary').click();
   await expect(page.locator('.nutrition-more-nutrients')).toContainText('Detailed nutrition');
-  await expect(page.locator('.nutrition-more-nutrients')).toContainText('Micronutrients');
-  await expect(page.locator('#nutrition-food-composition-summary')).toContainText('2/2 matched');
-  await expect(page.locator('#nutrition-sodiumMg')).toHaveValue('534.9');
-  await expect(page.locator('#nutrition-potassiumMg')).toHaveValue('578.4');
-  await expect(page.locator('#nutrition-calciumMg')).toHaveValue('17.7');
-  await expect(page.locator('#nutrition-ironMg')).toHaveValue('2.91');
+  await expect(page.locator('.nutrition-more-nutrients')).toContainText('Minerals');
+  await expect(page.locator('.nutrition-more-nutrients')).toContainText('Vitamins and related');
+  await expect(page.locator('#nutrition-zincMg')).toBeVisible();
+  await expect(page.locator('#nutrition-vitaminB12Mcg')).toBeVisible();
+  await expect(page.locator('#nutrition-phosphorusMg')).toBeVisible();
+  await expect(page.locator('#nutrition-caffeineMg')).toBeVisible();
+  await expect(page.locator('#nutrition-nutrient-estimate-summary')).toContainText('estimated by Claude Opus 4.8');
+  await expect(page.locator('#nutrition-sodiumMg')).toHaveValue('113');
+  await expect(page.locator('#nutrition-sodiumMg-source')).toContainText('AI estimate');
+  await expect(page.locator('#nutrition-potassiumMg')).toHaveValue('600');
+  await expect(page.locator('#nutrition-calciumMg')).toHaveValue('30');
+  await expect(page.locator('#nutrition-ironMg')).toHaveValue('2.9');
   await expect(page.locator('#nutrition-magnesiumMg')).toHaveValue('61.8');
 
-  await page.locator('[data-nutrition-food-match="0"]').selectOption('2705968');
-  await expect(page.locator('#nutrition-analysis-status')).toContainText('Food match confirmed');
-  await expect(page.locator('.nutrition-component-food-data').first()).toContainText('Confirmed');
   await page.locator('[data-nutrition-component-grams="0"]').fill('200');
   await page.locator('[data-nutrition-component-grams="0"]').blur();
   await expect(page.locator('#nutrition-energyKcal')).toHaveValue('586');
-  await expect(page.locator('#nutrition-sodiumMg')).toHaveValue('711.4');
-  await expect(page.locator('#nutrition-potassiumMg')).toHaveValue('754.4');
+  await expect(page.locator('#nutrition-sodiumMg')).toHaveValue('150');
+  await expect(page.locator('#nutrition-potassiumMg')).toHaveValue('728');
   await expect(page.locator('#nutrition-analysis-status')).toContainText('Linked nutrients recalculated');
 
   await page.locator('#nutrition-meal-type').selectOption('lunch');
   await page.locator('#nutrition-save-btn').click();
-  await expect(page.locator('#detail-modal')).toContainText('USDA FoodData Central · FNDDS 2021-2023');
-  await expect(page.locator('#detail-modal')).toContainText('2/2 ingredients matched');
+  await expect(page.locator('#detail-modal')).not.toContainText('FNDDS');
   const saved = await page.evaluate(async () => {
     const meals = await (await import('/js/nutrition-store.js')).listActiveProfileMeals();
     const meal = meals.find(item => item.name === 'Grilled chicken and rice');
     return {
       sodiumMg: meal?.nutrients?.sodiumMg,
       nutrientBasis: meal?.source?.nutrientBasis,
-      candidatesPersisted: meal?.components?.some(component => component.foodDataCandidates || component.visualNutrients),
-      reviewedMatches: meal?.components?.filter(component => component.foodData?.reviewed).length,
+      hasFoodComposition: !!meal?.source?.foodComposition,
+      hasDatabaseCandidates: meal?.components?.some(component => component.foodDataCandidates || component.foodData),
     };
   });
   expect(saved).toEqual({
-    sodiumMg: 711.4,
-    nutrientBasis: 'visual-identity-plus-food-composition',
-    candidatesPersisted: false,
-    reviewedMatches: 2,
+    sodiumMg: 150,
+    nutrientBasis: 'model-estimated-from-food-identity-and-portions',
+    hasFoodComposition: false,
+    hasDatabaseCandidates: false,
   });
-});
-
-test('manual FNDDS matches show partial nutrient tiles without saving them as whole-meal totals', async ({ page }) => {
-  await page.route('https://api.venice.ai/api/v1/chat/completions', async route => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        choices: [{
-          message: {
-            content: JSON.stringify({
-              mealName: 'Chicken rice bowl',
-              components: [
-                { name: 'Chicken breast', quantityG: 150, nutrients: { energyKcal: 250, proteinG: 45, carbohydrateG: 0, fatG: 7 } },
-                { name: 'Rice', quantityG: 180, nutrients: { energyKcal: 230, proteinG: 5, carbohydrateG: 50, fatG: 1 } },
-              ],
-              nutrients: { energyKcal: 480, proteinG: 50, carbohydrateG: 50, fatG: 8 },
-              confidence: 0.8,
-              assumptions: [], warnings: [], label: null,
-            }),
-          },
-          finish_reason: 'stop',
-        }],
-        usage: { prompt_tokens: 80, completion_tokens: 40 },
-      }),
-    });
-  });
-
-  await page.goto('/app', { waitUntil: 'load' });
-  await page.evaluate(async () => {
-    const api = await import('/js/api.js');
-    const keys = await import('/js/crypto-key-cache.js');
-    keys.updateKeyCache('labcharts-venice-key', 'test-venice-key');
-    localStorage.setItem('labcharts-venice-models', JSON.stringify([{ id: 'claude-opus-4.8', name: 'Claude Opus 4.8' }]));
-    localStorage.setItem('labcharts-venice-e2ee-models', '[]');
-    localStorage.setItem('labcharts-venice-vision-models', JSON.stringify(['claude-opus-4.8']));
-    api.setAIProvider('venice');
-    (await import('/js/nutrition-ai-settings.js')).setNutritionAIRoute({ provider: 'venice', model: 'claude-opus-4.8' });
-    await (await import('/js/nutrition.js')).openNutritionEditor();
-  });
-
-  await page.locator('#nutrition-photo-input').setInputFiles({
-    name: 'chicken-rice.png', mimeType: 'image/png', buffer: TINY_PNG,
-  });
-  await page.locator('#nutrition-analyze-btn').click();
-  await page.locator('#cloud-ai-consent-checkbox').check();
-  await page.locator('[data-cloud-ai-consent-action="approve"]').click();
-  await expect(page.locator('#nutrition-review-evidence')).not.toContainText('matched to FNDDS');
-  await page.locator('.nutrition-more-nutrients summary').click();
-  await expect(page.locator('#nutrition-sodiumMg')).toHaveValue('');
-
-  const firstFoodMatch = await page.locator('[data-nutrition-food-match="0"] option:not([value=""])').first().getAttribute('value');
-  expect(firstFoodMatch).toBeTruthy();
-  await page.locator('[data-nutrition-food-match="0"]').selectOption(firstFoodMatch);
-  await expect(page.locator('#nutrition-analysis-status')).toContainText('Partial values shown');
-  await expect(page.locator('#nutrition-food-composition-summary')).toContainText('Partial values show matched ingredients only');
-  await expect(page.locator('#nutrition-sodiumMg')).not.toHaveValue('');
-  await expect(page.locator('#nutrition-sodiumMg')).toHaveAttribute('data-nutrition-partial', 'true');
-  await expect(page.locator('#nutrition-sodiumMg-source')).toContainText('matched foods only');
-
-  await page.locator('#nutrition-meal-type').selectOption('lunch');
-  await page.locator('#nutrition-save-btn').click();
-  const saved = await page.evaluate(async () => {
-    const meals = await (await import('/js/nutrition-store.js')).listActiveProfileMeals();
-    const meal = meals.find(item => item.name === 'Chicken rice bowl');
-    return {
-      sodiumMg: meal?.nutrients?.sodiumMg ?? null,
-      matchedComponents: meal?.source?.foodComposition?.matchedComponents,
-    };
-  });
-  expect(saved).toEqual({ sodiumMg: null, matchedComponents: 1 });
 });
 
 test('Debug mode compares meal models against local reference data and can use the closest estimate', async ({ page }) => {
@@ -467,8 +399,16 @@ test('Debug mode compares meal models against local reference data and can use t
                 { name: 'Beer', quantityG: 500, confidence: 0.99 },
               ],
               nutrients: close
-                ? { energyKcal: 1100, proteinG: 40, carbohydrateG: 101, fatG: 60 }
-                : { energyKcal: 1690, proteinG: 62, carbohydrateG: 178, fatG: 78 },
+                ? {
+                    energyKcal: 1100, proteinG: 40, carbohydrateG: 101, fatG: 60,
+                    sugarG: 6, saturatedFatG: 18, sodiumMg: 1350,
+                    potassiumMg: 900, calciumMg: 750, vitaminCMg: 12,
+                  }
+                : {
+                    energyKcal: 1690, proteinG: 62, carbohydrateG: 178, fatG: 78,
+                    sugarG: 25, saturatedFatG: 12, sodiumMg: 2200,
+                    potassiumMg: 1400, calciumMg: 200, vitaminCMg: 4,
+                  },
               confidence: close ? 0.71 : 0.98,
               assumptions: [], warnings: [], label: null,
             }),
@@ -533,6 +473,24 @@ test('Debug mode compares meal models against local reference data and can use t
   await expect(page.locator('.nutrition-comparison-models')).not.toContainText('Text-only GLM');
   await expect(page.locator('.nutrition-comparison-models')).not.toContainText('Vision Sonnet');
   await expect(page.locator('.nutrition-comparison-models')).not.toContainText('Legacy Opus');
+  const modelSearch = page.locator('[data-nutrition-comparison-search]');
+  await expect(modelSearch).toHaveAttribute('placeholder', 'Provider, model name, or ID');
+  await modelSearch.fill('venice');
+  await expect(page.locator('.nutrition-comparison-model:visible')).toHaveCount(1);
+  await expect(page.locator('.nutrition-comparison-model:visible')).toContainText('Venice Vision');
+  await expect(page.locator('[data-nutrition-comparison-model]:checked')).toHaveCount(2);
+  await page.evaluate(async () => (await import('/js/nutrition-comparison-ui.js')).refreshComparisonModelPicker());
+  await expect(page.locator('[data-nutrition-comparison-search]')).toHaveValue('venice');
+  await expect(page.locator('.nutrition-comparison-model:visible')).toHaveCount(1);
+  await page.locator('[data-nutrition-comparison-search]').fill('openrouter anthropic/claude-opus-5');
+  await expect(page.locator('.nutrition-comparison-model:visible')).toHaveCount(1);
+  await expect(page.locator('.nutrition-comparison-model:visible')).toContainText('Meal Confident');
+  await page.locator('[data-nutrition-comparison-search]').fill('model-that-does-not-exist');
+  await expect(page.locator('.nutrition-comparison-model:visible')).toHaveCount(0);
+  await expect(page.locator('[data-nutrition-comparison-search-empty]')).toBeVisible();
+  await page.locator('[data-nutrition-comparison-search]').fill('');
+  await expect(page.locator('.nutrition-comparison-model:visible')).toHaveCount(6);
+  await expect(page.locator('[data-nutrition-comparison-search-status]')).toHaveText('6 available');
   const geminiChoice = page.locator('.nutrition-comparison-model').filter({ hasText: 'Vision Gemini 3.7' });
   const confidentChoice = page.locator('.nutrition-comparison-model').filter({ hasText: 'Meal Confident' });
   const veniceChoice = page.locator('.nutrition-comparison-model').filter({ hasText: 'Venice Vision' });
@@ -566,6 +524,14 @@ test('Debug mode compares meal models against local reference data and can use t
   await page.locator('[data-nutrition-reference="proteinG"]').fill('39');
   await page.locator('[data-nutrition-reference="carbohydrateG"]').fill('104');
   await page.locator('[data-nutrition-reference="fatG"]').fill('61');
+  const detailedReference = page.locator('.nutrition-comparison-reference-details');
+  await detailedReference.locator('summary').click();
+  await page.locator('[data-nutrition-reference="sugarG"]').fill('7');
+  await page.locator('[data-nutrition-reference="saturatedFatG"]').fill('19');
+  await page.locator('[data-nutrition-reference="sodiumMg"]').fill('1400');
+  await page.locator('[data-nutrition-reference="potassiumMg"]').fill('950');
+  await page.locator('[data-nutrition-reference="calciumMg"]').fill('800');
+  await page.locator('[data-nutrition-reference="vitaminCMg"]').fill('10');
   await page.locator('#nutrition-run-comparison').click();
   await expect(page.locator('#cloud-ai-consent-overlay')).toBeVisible();
   await page.locator('#cloud-ai-consent-checkbox').check();
@@ -584,10 +550,17 @@ test('Debug mode compares meal models against local reference data and can use t
   await expect(page.locator('#nutrition-comparison-progress')).toContainText('Comparison ready');
   expect(requestedModels).toEqual(['openai/gpt-5.6-sol', 'anthropic/claude-opus-5']);
 
+  const detailedComparison = page.locator('.nutrition-comparison-card').first().locator('.nutrition-comparison-detailed');
+  await expect(detailedComparison.locator('summary')).toContainText('6 returned · 6 compared');
+  await detailedComparison.locator('summary').click();
+  await expect(detailedComparison.locator('tbody tr')).toHaveCount(6);
+  await expect(detailedComparison.locator('tbody tr').filter({ hasText: 'Sodium' })).toContainText('1,350 mg');
+  await expect(detailedComparison.locator('tbody tr').filter({ hasText: 'Vitamin C' })).toContainText('+20%');
+
   const differenceDetails = page.locator('.nutrition-comparison-card').first().locator('.nutrition-comparison-errors');
   await differenceDetails.locator('summary').click();
   await expect(differenceDetails.getByRole('columnheader')).toHaveCount(4);
-  await expect(differenceDetails.locator('tbody tr')).toHaveCount(5);
+  await expect(differenceDetails.locator('tbody tr')).toHaveCount(11);
   const alignedReferenceColumns = await differenceDetails.locator('table').evaluate(table => {
     const rows = Array.from(table.rows);
     const expected = Array.from(rows[0].cells).map(cell => cell.getBoundingClientRect().left);
@@ -614,10 +587,14 @@ test('Debug mode compares meal models against local reference data and can use t
   await expect(closeCard).toContainText('Baseline');
   await expect(confidentCard).toContainText('+53.6%');
   await expect(confidentCard).toContainText('+55%');
+  const confidentDetailed = confidentCard.locator('.nutrition-comparison-detailed');
+  await confidentDetailed.locator('summary').click();
+  await expect(confidentDetailed.locator('tbody tr').filter({ hasText: 'Sodium' })).toContainText('+63%');
   await closeCard.getByRole('button', { name: 'Use this estimate' }).click();
   await expect(page.locator('#nutrition-model-comparison')).toBeHidden();
   await expect(page.locator('#nutrition-comparison-return')).toBeVisible();
   await expect(page.locator('#nutrition-meal-name')).toHaveValue('Fried Edam cheese with fries and tartar sauce');
+  await expect(page.locator('#nutrition-sodiumMg')).toHaveValue('1350');
   await expect(page.locator('#nutrition-save-requirement')).toHaveText('Choose a meal occasion to save.');
   await page.getByRole('button', { name: 'Back to comparison' }).click();
   await expect(page.locator('#nutrition-model-comparison')).toBeVisible();
@@ -985,6 +962,8 @@ test('nutrition label mode scales the scanned values to the amount eaten', async
 
   await page.locator('[data-nutrition-action="set-kind"][data-nutrition-kind="nutrition-label"]').click();
   await expect(page.locator('#nutrition-label-consumption')).toBeVisible();
+  await expect(page.locator('#nutrition-barcode')).toHaveCount(0);
+  await expect(page.locator('#nutrition-barcode-btn')).toHaveCount(0);
   await expect(page.locator('#nutrition-analyze-btn')).toHaveText('Scan label');
   await expect(page.locator('#nutrition-model-purpose')).toHaveText('Label model');
   await expect(page.locator('[data-nutrition-model-route] option:checked')).toContainText('Claude Opus 4.8');
@@ -1036,47 +1015,75 @@ test('nutrition label mode scales the scanned values to the amount eaten', async
   await expect(page.locator('#detail-modal')).toContainText('2 servings logged');
 });
 
-test('barcode lookup fills traceable product nutrients without uploading the selected photo', async ({ page }) => {
-  let barcodeRequests = 0;
-  await page.route('https://world.openfoodfacts.org/api/v3/product/**', async route => {
-    barcodeRequests += 1;
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        code: '3017620422003',
-        status: 'success',
-        result: { id: 'product_found' },
-        product: {
-          code: '3017620422003', product_name: 'Plain yogurt', brands: 'Example Dairy',
-          serving_size: '200 g', product_quantity: 400, product_quantity_unit: 'g',
-          nutrition_data_per: '100g', schema_version: 1004, last_modified_t: 1787000000,
-          nutriments: {
-            'energy-kcal_100g': 70, proteins_100g: 9, carbohydrates_100g: 4,
-            fat_100g: 2, sodium_100g: 0.05, calcium_100g: 0.12,
-          },
-        },
-      }),
+test('meal modal navigation round-trips through browse, details, setup, and edit without a dashboard restart', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const now = new Date();
+    await (await import('/js/nutrition-store.js')).saveActiveProfileMeal({
+      name: 'Navigation meal', mealType: 'lunch', eatenAt: now.toISOString(),
+      localDate: now.toISOString().slice(0, 10), localTimeMinutes: 720,
+      nutrients: { energyKcal: 520, proteinG: 28 },
+      components: [{ name: 'Navigation ingredient', quantityG: 240, nutrients: { energyKcal: 520, proteinG: 28 } }],
+      source: { kind: 'manual' }, reviewed: true,
     });
+    await (await import('/js/nutrition.js')).openNutritionEditor();
   });
 
-  await page.goto('/app', { waitUntil: 'load' });
-  await page.evaluate(async () => (await import('/js/nutrition.js')).openNutritionEditor());
-  await page.locator('[data-nutrition-action="set-kind"][data-nutrition-kind="nutrition-label"]').click();
-  await page.locator('#nutrition-photo-input').setInputFiles({ name: 'private-label.png', mimeType: 'image/png', buffer: TINY_PNG });
-  await page.locator('#nutrition-barcode').fill('3017620422003');
-  await page.locator('#nutrition-barcode-btn').click();
+  await page.getByRole('tab', { name: 'Manual' }).click();
+  await page.locator('#nutrition-meal-name').fill('Preserved draft meal');
+  await page.locator('#nutrition-note').fill('Keep this draft while browsing.');
+  await page.getByRole('button', { name: 'Browse meals' }).click();
+  await expect(page.getByRole('button', { name: 'Meal entry' })).toBeVisible();
+  await expect(page.locator('.nutrition-history-modal')).toBeVisible();
+  await page.locator('.nutrition-history-modal .modal-close').click();
+  await expect(page.locator('.confirm-overlay.show')).toBeVisible();
+  await page.locator('#confirm-cancel').click();
+  await expect(page.locator('.nutrition-history-modal')).toBeVisible();
 
-  await expect(page.locator('#nutrition-meal-name')).toHaveValue('Plain yogurt');
-  await expect(page.locator('#nutrition-energyKcal')).toHaveValue('140');
-  await expect(page.locator('#nutrition-proteinG')).toHaveValue('18');
-  await expect(page.locator('#nutrition-review-evidence')).toContainText('Database values');
-  await expect(page.locator('#nutrition-analysis-status')).toContainText('Open Food Facts');
-  expect(barcodeRequests).toBe(1);
+  await page.locator('[data-nutrition-action="detail"]').click();
+  await expect(page.locator('#detail-modal')).toContainText('Navigation meal');
+  await page.locator('[data-nutrition-action="back"]').click();
+  await expect(page.locator('.nutrition-history-modal')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Meal entry' })).toBeVisible();
 
-  await page.locator('#nutrition-meal-type').selectOption('snack');
-  await page.locator('#nutrition-save-btn').click();
-  await expect(page.locator('#detail-modal')).toContainText('Open Food Facts · barcode 3017620422003');
+  await page.getByRole('button', { name: 'Setup', exact: true }).click();
+  await expect(page.locator('#nutrition-target-settings')).toBeVisible();
+  await expect(page.locator('.nutrition-route-back')).toContainText('Meals & Nutrition');
+  await page.locator('.nutrition-route-back').click();
+  await expect(page.locator('.nutrition-history-modal')).toBeVisible();
+  await page.getByRole('button', { name: 'Setup', exact: true }).click();
+  await page.locator('[data-nutrition-action="save-targets"]').click();
+  await expect(page.locator('.nutrition-history-modal')).toBeVisible();
+  await page.getByRole('button', { name: 'Meal entry' }).click();
+  await expect(page.locator('.nutrition-modal-head h3')).toHaveText('Log a meal');
+  await expect(page.locator('#nutrition-meal-name')).toHaveValue('Preserved draft meal');
+  await expect(page.locator('#nutrition-note')).toHaveValue('Keep this draft while browsing.');
+  await expect(page.locator('#detail-modal')).toHaveClass(/nutrition-manual-mode/);
+
+  await page.getByRole('button', { name: 'Browse meals' }).click();
+  await page.getByRole('button', { name: 'New meal' }).click();
+  await expect(page.locator('.confirm-overlay.show')).toBeVisible();
+  await page.locator('#confirm-cancel').click();
+  await expect(page.locator('.nutrition-history-modal')).toBeVisible();
+  await page.getByRole('button', { name: 'Meal entry' }).click();
+  await expect(page.locator('#nutrition-meal-name')).toHaveValue('Preserved draft meal');
+
+  await page.locator('.modal-close').click();
+  await page.locator('#confirm-ok').click();
+  await page.evaluate(async () => (await import('/js/nutrition.js')).openNutritionHistory());
+  await page.getByRole('button', { name: 'Log meal' }).click();
+  await expect(page.locator('.nutrition-route-back')).toContainText('Meals & Nutrition');
+  await page.locator('.nutrition-route-back').click();
+  await expect(page.locator('.nutrition-history-modal')).toBeVisible();
+
+  await page.locator('[data-nutrition-action="detail"]').click();
+  await page.getByRole('button', { name: 'Edit meal' }).click();
+  await expect(page.locator('.nutrition-modal-head h3')).toHaveText('Edit meal');
+  await page.getByRole('button', { name: 'Meal details' }).click();
+  await expect(page.locator('.confirm-overlay.show')).toBeVisible();
+  await page.locator('#confirm-ok').click();
+  await expect(page.locator('#detail-modal')).toContainText('Navigation meal');
+  await expect(page.locator('[data-nutrition-action="back"]')).toBeVisible();
 });
 
 test('saved meals can be edited deterministically and logged again without another model call', async ({ page }) => {
@@ -1099,6 +1106,17 @@ test('saved meals can be edited deterministically and logged again without anoth
     await (await import('/js/nutrition.js')).openNutritionEditor();
   });
 
+  await page.getByRole('button', { name: 'Browse meals' }).click();
+  const deleteButton = page.locator('.nutrition-meal-delete').first();
+  await deleteButton.focus();
+  const deleteGeometry = await deleteButton.evaluate(element => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+    rowWidth: element.parentElement?.getBoundingClientRect().width || 0,
+  }));
+  expect(deleteGeometry.clientWidth).toBeGreaterThanOrEqual(52);
+  expect(deleteGeometry.scrollWidth).toBeLessThanOrEqual(deleteGeometry.clientWidth);
+  expect(deleteGeometry.rowWidth).toBeGreaterThan(deleteGeometry.clientWidth);
   await page.locator('[data-nutrition-action="detail"]').click();
   await page.locator('[data-nutrition-action="edit"]').click();
   await expect(page.locator('#detail-modal')).toContainText('Edit meal');
@@ -1148,6 +1166,7 @@ test('deleting a meal records a durable sync tombstone and stays deleted after r
     return saved.id;
   });
 
+  await page.getByRole('button', { name: 'Browse meals' }).click();
   await page.getByRole('button', { name: 'Delete Throwaway lunch' }).click();
   await expect(page.locator('#confirm-dialog-overlay')).toContainText('Delete this meal and its thumbnail from synced devices?');
   await page.locator('#confirm-ok').click();
@@ -1168,7 +1187,7 @@ test('deleting a meal records a durable sync tombstone and stays deleted after r
   expect(deleted.totalMeals).toBe(0);
 
   await page.reload({ waitUntil: 'load' });
-  await page.evaluate(async () => (await import('/js/nutrition.js')).openNutritionEditor());
+  await page.evaluate(async () => (await import('/js/nutrition.js')).openNutritionHistory());
   await expect(page.getByRole('button', { name: 'Delete Throwaway lunch' })).toHaveCount(0);
 });
 
@@ -1267,20 +1286,27 @@ test('the nutrition widget shows visual seven-day coverage and weight-aware pers
   });
 
   const widget = page.locator('#nutrition-widget-test-host');
-  await expect(widget.locator('.nutrition-goal-list-head strong')).toHaveText('Daily averages');
-  await expect(widget.locator('.nutrition-goal-list-head span')).toHaveText('Last 7 days · 6 shown');
+  await expect(widget.locator('.nutrition-goal-list-head strong')).toHaveText('Recorded daily averages');
+  await expect(widget.locator('.nutrition-goal-list-head span')).toHaveText('Last 7 days · 6 nutrient rows');
   await expect(widget).not.toContainText('Daily nutrition dashboard');
   await expect(widget).toContainText('5 of 7 days');
+  await expect(widget).toContainText('Recorded intake, not verified full days');
   await expect(widget).toContainText('Protein');
   await expect(widget).toContainText('128 g');
   await expect(widget).toContainText('1.6 g/kg × 80 kg from Fitbit');
   await expect(widget).toContainText('Logged drinks');
-  await expect(widget).toContainText('1,400 / 2,000 mL');
+  await expect(widget).toContainText('1,400 mL recorded · 2,000 guide');
   await expect(widget).toContainText('Sugar guide');
   await expect(widget).toContainText('Sodium guide');
   await expect(widget.locator('.nutrition-goal-row')).toHaveCount(6);
   await expect(widget.locator('.nutrition-goal-grid')).toHaveClass(/is-expanded/);
   await expect(widget.locator('.nutrition-target-ring')).toHaveCount(1);
+  await expect(widget.locator('.nutrition-target-ring-label')).toHaveText('Energy');
+  await expect(widget.locator('.nutrition-target-ring-guide')).toHaveText('Target 2,000');
+  await expect(widget.locator('.nutrition-target-ring')).not.toContainText('Energy · target');
+  expect(await widget.locator('.nutrition-target-ring > div').evaluate(element =>
+    element.scrollWidth <= element.clientWidth && element.scrollHeight <= element.clientHeight
+  )).toBe(true);
   await expect(widget.locator('.nutrition-day.is-logged')).toHaveCount(5);
   await expect(widget.locator('.nutrition-fuel-card')).toHaveCount(0);
   await expect(widget).not.toContainText('Fuel Mix Context');
@@ -1309,8 +1335,8 @@ test('the nutrition widget shows visual seven-day coverage and weight-aware pers
   await expect(fuelWidget).toContainText('About this estimate');
   await expect(fuelWidget).not.toContainText('/100');
   const fatGoal = widget.locator('.nutrition-goal-row').filter({ hasText: 'Fat' });
-  await expect(fatGoal).toHaveClass(/is-above-target/);
-  await expect(fatGoal).toContainText('above target range');
+  await expect(fatGoal).not.toHaveClass(/is-above-target/);
+  await expect(fatGoal).toContainText('partial-day logs may be below actual intake');
   await expect(fatGoal).not.toHaveClass(/is-on-target/);
   await expect(widget).not.toContainText('30 days');
   await expect(widget).not.toContainText('90 days');
@@ -1333,7 +1359,7 @@ test('the nutrition widget shows visual seven-day coverage and weight-aware pers
   )).toBe(1);
 });
 
-test('nutrition history follows shared 3M, 6M, 1Y, and All ranges on desktop and mobile', async ({ page }) => {
+test('nutrition history defaults to 30D and offers 3M, 6M, 1Y, and All on desktop and mobile', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(async () => {
     const nutrition = await import('/js/nutrition.js');
@@ -1341,6 +1367,7 @@ test('nutrition history follows shared 3M, 6M, 1Y, and All ranges on desktop and
     const summary = await import('/js/nutrition-summary.js');
     const { state } = await import('/js/state.js');
     localStorage.removeItem('nutrition-history-range');
+    localStorage.removeItem('nutrition-history-view');
     const historicMeal = (id, name, monthsAgo, energyKcal) => {
       const local = new Date();
       local.setHours(12, 0, 0, 0);
@@ -1369,6 +1396,7 @@ test('nutrition history follows shared 3M, 6M, 1Y, and All ranges on desktop and
       fiberG: 25,
       widgetNutrients: ['proteinG', 'carbohydrateG', 'fatG', 'fiberG'],
     };
+    state.importedData.contextSourceSettings = { ...(state.importedData.contextSourceSettings || {}), 'meals-nutrition': true };
     state.nutritionSummary = summary.computeNutritionSummary(meals);
     const host = document.createElement('div');
     host.id = 'nutrition-history-widget-host';
@@ -1380,12 +1408,20 @@ test('nutrition history follows shared 3M, 6M, 1Y, and All ranges on desktop and
   await expect(widget).toContainText('Last 7 days');
   await widget.getByRole('button', { name: 'History' }).evaluate(button => button.click());
   await expect(page.locator('.nutrition-history-modal')).toBeVisible();
-  await expect(page.locator('.nutrition-history-head h3')).toHaveText('Nutrition history');
-  await expect(page.locator('.nutrition-history-range .ctx-btn-option')).toHaveCount(4);
-  await expect(page.locator('[data-nutrition-action="set-history-range"][data-nutrition-range="3m"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.nutrition-history-head h3')).toHaveText('Meals & Nutrition');
+  await expect(page.getByRole('tab', { name: 'Meals' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('.nutrition-history-range .ctx-btn-option')).toHaveCount(5);
+  await expect(page.locator('[data-nutrition-action="set-history-range"][data-nutrition-range="30d"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.nutrition-meal-timeline')).toContainText('PRIVATE CURRENT MEAL');
+  await expect(page.locator('.nutrition-history-stat-grid')).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Trends' }).click();
   await expect(page.locator('.nutrition-history-stat-grid > div').filter({ hasText: 'Meals' }).locator('strong')).toHaveText('1');
   await expect(page.locator('.nutrition-history-modal')).not.toContainText('PRIVATE CURRENT MEAL');
+  await expect(page.locator('.nutrition-history-ai').getByRole('button', { name: 'Ask AI', exact: true })).toBeEnabled();
+  await expect(page.locator('.nutrition-history-ai')).toContainText('replaces the automatic nutrition summary for this message');
 
+  await page.getByRole('button', { name: '3M', exact: true }).click();
+  await expect(page.locator('.nutrition-history-stat-grid > div').filter({ hasText: 'Meals' }).locator('strong')).toHaveText('1');
   await page.getByRole('button', { name: '6M', exact: true }).click();
   await expect(page.locator('.nutrition-history-stat-grid > div').filter({ hasText: 'Meals' }).locator('strong')).toHaveText('2');
   await expect.poll(() => page.evaluate(() => localStorage.getItem('nutrition-history-range'))).toBe('6m');
@@ -1394,7 +1430,8 @@ test('nutrition history follows shared 3M, 6M, 1Y, and All ranges on desktop and
   await page.getByRole('button', { name: 'All', exact: true }).click();
   await expect(page.locator('.nutrition-history-stat-grid > div').filter({ hasText: 'Meals' }).locator('strong')).toHaveText('4');
   await expect(page.locator('.nutrition-history-coverage-chart')).toBeVisible();
-  await expect(page.locator('.nutrition-history-caveat')).toContainText('Unlogged days are unknown, not zero');
+  await expect(page.locator('.nutrition-history-caveat')).toContainText('A day with entries may still be partial');
+  await expect(page.locator('.nutrition-history-coverage-bar > span').first()).toContainText('/');
 
   await page.addScriptTag({ path: axeScriptPath });
   const accessibility = await page.evaluate(async () => {
@@ -1414,9 +1451,22 @@ test('nutrition history follows shared 3M, 6M, 1Y, and All ranges on desktop and
   );
   expect(rangeFits).toBe(true);
 
+  await page.getByRole('tab', { name: 'Meals' }).click();
+  await page.locator('.nutrition-history-modal .modal-close').click();
+  await page.evaluate(async () => {
+    await (await import('/js/nutrition-context.js')).openNutritionHistoryModule({ view: 'trends', focus: 'timing' });
+  });
+  await expect(page.getByRole('tab', { name: 'Trends' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('.nutrition-history-timing')).toBeVisible();
   await page.locator('.nutrition-history-modal .modal-close').click();
   await widget.getByRole('button', { name: 'History' }).evaluate(button => button.click());
   await expect(page.locator('[data-nutrition-action="set-history-range"][data-nutrition-range="all"]')).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('.nutrition-history-ai').getByRole('button', { name: 'Ask AI', exact: true }).click();
+  await expect(page.locator('#chat-panel')).toHaveClass(/open/);
+  await expect(page.locator('#chat-input')).toHaveValue(/Review my Meals & Nutrition history for the all recorded history/);
+  await expect(page.locator('#chat-input')).toHaveValue(/coverage-limited aggregate/);
+  expect(await page.locator('#chat-input').inputValue()).not.toContain('PRIVATE');
+  await expect(page.locator('.nutrition-history-modal')).not.toBeVisible();
 });
 
 test('saved nutrition summary hydrates after a cache-bypassing hard reload on Dashboard and Body', async ({ page, context }) => {
@@ -1444,12 +1494,12 @@ test('saved nutrition summary hydrates after a cache-bypassing hard reload on Da
   await expect.poll(() => page.evaluate(async () => (await import('/js/state.js')).state.nutritionSummary?.totalMeals)).toBe(1);
   const dashboardWidget = page.locator('.dashboard-widget[data-widget-id="nutrition"]');
   await expect(dashboardWidget).toBeVisible();
-  await expect(dashboardWidget).toContainText('Daily averages');
+  await expect(dashboardWidget).toContainText('Recorded daily averages');
   await expect(dashboardWidget).toContainText('38');
   await page.evaluate(async () => (await import('/js/views.js')).navigate('body'));
   const bodyWidget = page.locator('.lens-page-widgets[data-lens-route="body"] .dashboard-widget[data-widget-id="nutrition"]');
   await expect(bodyWidget).toBeVisible();
-  await expect(bodyWidget).toContainText('Daily averages');
+  await expect(bodyWidget).toContainText('Recorded daily averages');
   await expect(bodyWidget).toContainText('38');
 });
 
@@ -1466,6 +1516,7 @@ test('after-meal check-ins create personal evidence without entering AI summary 
     await (await import('/js/nutrition.js')).openNutritionEditor();
   });
 
+  await page.getByRole('button', { name: 'Browse meals' }).click();
   await page.locator('[data-nutrition-action="detail"]').click();
   const checkIn = page.locator('.nutrition-response-card');
   await expect(checkIn).toContainText('How did this meal feel 2–3 hours later?');
@@ -1480,7 +1531,7 @@ test('after-meal check-ins create personal evidence without entering AI summary 
     return {
       response: meals[0]?.responseCheckIn,
       syncedResponse: state.importedData.nutritionMeals?.[0]?.responseCheckIn,
-      contextText: state.nutritionSummary?.contextText || '',
+      contextText: state.nutritionSummary?.contextByDays?.d30 || '',
     };
   });
   expect(stored.response).toMatchObject({ satiety2h: 3, energy2h: 2 });
@@ -1552,7 +1603,10 @@ test('personal nutrition targets persist with the profile and expose weight-awar
   await expect(page.locator('#nutrition-widget-metric-count')).toHaveText('6 selected');
   await expect(page.locator('[data-nutrition-widget-metric]:checked')).toHaveCount(6);
   await page.evaluate(async () => (await import('/js/nutrition.js')).openNutritionEditor());
-  await expect(page.locator('#nutrition-photo-input')).toBeVisible();
+  await expect(page.locator('.nutrition-modal-head h3')).toHaveText('Log a meal');
+  await expect(page.getByRole('tab', { name: 'Manual' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#nutrition-meal-name')).toBeVisible();
+  await expect(page.locator('#nutrition-photo-input')).toHaveCount(1);
   await expect(page.locator('#nutrition-target-settings')).toHaveCount(0);
 });
 
@@ -1596,8 +1650,8 @@ test('quick drink logging stores total beverage volume and plain water separatel
   await page.reload({ waitUntil: 'load' });
   await expect.poll(() => page.evaluate(async () => (await import('/js/state.js')).state.nutritionSummary?.windows?.d7?.dailyAverages?.fluidMl)).toBe(500);
   const widget = page.locator('.dashboard-widget[data-widget-id="nutrition"]');
-  await expect(widget).toContainText('500 / 2,000 mL');
-  await expect(widget).toContainText('1 drink-logged day');
+  await expect(widget).toContainText('500 mL recorded · 2,000 guide');
+  await expect(widget).toContainText('1 day with values for logged drinks');
 });
 
 test('AI Settings can route meal photos to Opus without changing the Grok chat model', async ({ page }) => {
@@ -1782,6 +1836,7 @@ test('nutrition review, Debug comparison, targets, and drink logging fit a narro
       })
       .map(element => element.className || element.id || element.tagName);
     const touchTargets = [
+      document.querySelector('#detail-modal > .modal-close'),
       document.querySelector('.nutrition-comparison-head > .nutrition-icon-btn'),
       document.querySelector('#nutrition-run-comparison'),
       document.querySelector('.nutrition-comparison-model'),
@@ -1933,6 +1988,7 @@ test('a recent meal opens into its saved photo, nutrients, and uncertainty detai
     await (await import('/js/nutrition.js')).openNutritionEditor();
   });
 
+  await page.getByRole('button', { name: 'Browse meals' }).click();
   await page.locator('[data-nutrition-action="detail"]').click();
   await expect(page.locator('#detail-modal')).toContainText('Lentil bowl');
   await expect(page.locator('#detail-modal')).toContainText('610 kcal');
@@ -1941,16 +1997,22 @@ test('a recent meal opens into its saved photo, nutrients, and uncertainty detai
   await expect(page.locator('[data-nutrition-action="back"]')).toBeVisible();
 });
 
-test('recent meals show the newest three before an accessible mobile Show more control', async ({ page }) => {
+test('the logger links to a bounded chronological meal timeline on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(async () => {
     const store = await import('/js/nutrition-store.js');
-    const base = Date.now();
-    for (let index = 0; index < 5; index += 1) {
+    const base = new Date();
+    for (let index = 0; index < 50; index += 1) {
+      const eatenAt = new Date(base);
+      eatenAt.setDate(eatenAt.getDate() - Math.floor(index / 2));
+      eatenAt.setHours(index % 2 ? 12 : 18, 0, 0, 0);
+      const localDate = `${eatenAt.getFullYear()}-${String(eatenAt.getMonth() + 1).padStart(2, '0')}-${String(eatenAt.getDate()).padStart(2, '0')}`;
       await store.saveActiveProfileMeal({
         name: `Recent meal ${index + 1}`,
-        eatenAt: new Date(base - index * 60_000).toISOString(),
+        eatenAt: eatenAt.toISOString(),
+        localDate,
+        localTimeMinutes: index % 2 ? 720 : 1080,
         mealType: 'snack',
         nutrients: { energyKcal: 200 + index },
         components: [{ name: `Ingredient ${index + 1}`, quantityG: 100 }],
@@ -1961,20 +2023,29 @@ test('recent meals show the newest three before an accessible mobile Show more c
   });
 
   const recent = page.locator('.nutrition-recent');
-  const toggle = recent.locator('.nutrition-recent-toggle');
-  await expect(recent.locator('.nutrition-meal-row:visible')).toHaveCount(3);
-  await expect(recent.locator('.nutrition-recent-list').first().locator('.nutrition-meal-row').first()).toContainText('Recent meal 1');
-  await expect(recent.locator('.nutrition-recent-more')).toBeHidden();
-  await expect(toggle).toHaveText('Show 2 more meals');
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  expect(await toggle.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
-
-  await toggle.click();
-  await expect(recent.locator('.nutrition-meal-row:visible')).toHaveCount(5);
-  await expect(toggle).toHaveText('Show less');
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-
-  await toggle.click();
-  await expect(recent.locator('.nutrition-meal-row:visible')).toHaveCount(3);
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  const manualTab = page.getByRole('tab', { name: 'Manual' });
+  expect(await manualTab.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+  await manualTab.click();
+  await expect(page.locator('#detail-modal')).toHaveClass(/nutrition-manual-mode/);
+  await expect(page.locator('.nutrition-photo-picker')).toBeHidden();
+  await expect(page.locator('.nutrition-review-panel')).toBeVisible();
+  await expect(recent).toContainText('Browse every saved meal');
+  await expect(recent.locator('.nutrition-meal-row')).toHaveCount(0);
+  await recent.getByRole('button', { name: 'Browse meals' }).click();
+  const modal = page.locator('#detail-modal');
+  const timeline = page.locator('.nutrition-meal-timeline');
+  await expect(page.getByRole('tab', { name: 'Meals' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('.nutrition-history-meals-head')).toContainText('50 entries');
+  await expect(page.locator('.nutrition-history-meals-head')).toContainText('Showing newest 12 of 50');
+  await expect(timeline.locator('.nutrition-meal-row')).toHaveCount(12);
+  await expect(timeline.locator('.nutrition-meal-row').first()).toContainText('Recent meal 1');
+  expect(await timeline.locator('.nutrition-meal-delete').first().evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+  const showMore = page.getByRole('button', { name: /Show more meals/ });
+  await expect(showMore).toContainText('38 remaining');
+  expect(await showMore.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+  await modal.evaluate(element => { element.scrollTop = 240; });
+  await showMore.evaluate(element => element.click());
+  await expect(timeline.locator('.nutrition-meal-row')).toHaveCount(24);
+  await expect(page.getByRole('button', { name: /Show more meals/ })).toContainText('26 remaining');
+  await expect.poll(() => modal.evaluate(element => element.scrollTop)).toBeGreaterThanOrEqual(230);
 });

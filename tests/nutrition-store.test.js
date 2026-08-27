@@ -6,18 +6,19 @@ import {
   deleteNutritionMeal,
   getLocalNutritionComparison,
   getNutritionMeal,
-  getNutritionFood,
   hydrateNutritionSummary,
   listNutritionMeals,
   openNutritionDB,
   putNutritionMeal,
-  putNutritionFood,
+  resetNutritionDB,
   restoreNutritionArchive,
   saveActiveProfileMeal,
   setLocalNutritionComparison,
   setLocalNutritionSummary,
 } from '../js/nutrition-store.js';
 import { encryptedGetItem, encryptedRemoveItem } from '../js/crypto.js';
+import { buildFullBackupSnapshot, parseBackupSnapshot, serializeBackupSnapshot } from '../js/backup.js';
+import { setBlob } from '../js/blob-storage.js';
 import { buildNutritionSummaryContext, NUTRITION_SUMMARY_VERSION } from '../js/nutrition-summary.js';
 import { profileStorageKey } from '../js/profile-storage-key.js';
 import { state } from '../js/state.js';
@@ -30,6 +31,30 @@ afterEach(async () => {
 });
 
 describe('thumbnail-only nutrition storage', () => {
+  it('removes the retired barcode product cache during database upgrade', async () => {
+    const profileId = `nutrition-legacy-food-cache-${Date.now()}`;
+    profileIds.add(profileId);
+    const legacyDb = await new Promise((resolve, reject) => {
+      const request = indexedDB.open(`getbased-nutrition-${profileId}`, 2);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        const meals = db.createObjectStore('meals', { keyPath: 'id' });
+        meals.createIndex('by_eaten_at', 'eatenAt', { unique: false });
+        db.createObjectStore('meta', { keyPath: 'k' });
+        db.createObjectStore('food-cache', { keyPath: 'id' });
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    legacyDb.close();
+    resetNutritionDB(profileId);
+
+    const upgraded = await openNutritionDB(profileId);
+    expect([...upgraded.objectStoreNames]).toContain('meals');
+    expect([...upgraded.objectStoreNames]).toContain('meta');
+    expect([...upgraded.objectStoreNames]).not.toContain('food-cache');
+  });
+
   it('uses one device key when several first writes start concurrently', async () => {
     const profileId = `nutrition-concurrent-${Date.now()}`;
     profileIds.add(profileId);
@@ -126,26 +151,6 @@ describe('thumbnail-only nutrition storage', () => {
     }
   });
 
-  it('caches barcode food data under a hashed key with an encrypted payload', async () => {
-    const profileId = `nutrition-food-${Date.now()}`;
-    profileIds.add(profileId);
-    await putNutritionFood(profileId, { barcode: '3017620422003', name: 'Hazelnut spread', per100g: { energyKcal: 539 } });
-
-    await expect(getNutritionFood(profileId, '3017620422003')).resolves.toMatchObject({
-      barcode: '3017620422003',
-      name: 'Hazelnut spread',
-    });
-    const db = await openNutritionDB(profileId);
-    const raw = await new Promise((resolve, reject) => {
-      const request = db.transaction('food-cache', 'readonly').objectStore('food-cache').getAll();
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-    expect(raw).toHaveLength(1);
-    expect(JSON.stringify(raw)).not.toContain('3017620422003');
-    expect(JSON.stringify(raw)).not.toContain('Hazelnut spread');
-  });
-
   it('keeps the last model comparison encrypted and profile-scoped', async () => {
     const profileId = `nutrition-comparison-${Date.now()}`;
     profileIds.add(profileId);
@@ -177,7 +182,7 @@ describe('thumbnail-only nutrition storage', () => {
     state.currentProfile = profileId;
     const saved = await putNutritionMeal(profileId, { name: 'Recoverable summary meal', eatenAt: '2026-08-23T12:30:00.000Z' });
     const fallback = { version: NUTRITION_SUMMARY_VERSION, totalMeals: 1, windows: { d7: { meals: 1, dailyAverages: { energyKcal: 620 } } } };
-    fallback.contextText = buildNutritionSummaryContext(fallback);
+    fallback.contextByDays = { d30: buildNutritionSummaryContext(fallback) };
     await setLocalNutritionSummary(profileId, fallback);
     const db = await openNutritionDB(profileId);
     const tx = db.transaction('meals', 'readwrite');
@@ -236,7 +241,14 @@ describe('thumbnail-only nutrition storage', () => {
       name: 'Portable lunch',
       eatenAt: '2026-08-23T12:30:00.000Z',
       mealType: 'lunch',
-      nutrients: { energyKcal: 520, proteinG: 28 },
+      nutrients: { energyKcal: 520, proteinG: 28, sodiumMg: 840, vitaminCMg: 36 },
+      components: [{ name: 'Lentils', amount: 180, unit: 'g', nutrients: { ironMg: 5.4 } }],
+      responseCheckIn: { satiety2h: 3, energy2h: 2, recordedAt: '2026-08-23T14:30:00.000Z' },
+      source: {
+        kind: 'ai-photo-estimate',
+        aiNutritionEstimate: { nutrientKeys: ['energyKcal', 'proteinG', 'sodiumMg', 'vitaminCMg'] },
+        review: { editedNutrients: ['sodiumMg'] },
+      },
       images: [{ dataUrl: 'data:image/jpeg;base64,RlVMTA==', thumbnailUrl: 'data:image/jpeg;base64,VEhVTUI=' }],
     });
 
@@ -246,6 +258,13 @@ describe('thumbnail-only nutrition storage', () => {
     await expect(getNutritionMeal(target, 'portable-meal')).resolves.toMatchObject({
       name: 'Portable lunch',
       mealType: 'lunch',
+      nutrients: { energyKcal: 520, proteinG: 28, sodiumMg: 840, vitaminCMg: 36 },
+      components: [{ name: 'Lentils', amount: 180, unit: 'g', nutrients: { ironMg: 5.4 } }],
+      responseCheckIn: { satiety2h: 3, energy2h: 2, recordedAt: '2026-08-23T14:30:00.000Z' },
+      source: {
+        aiNutritionEstimate: { nutrientKeys: ['energyKcal', 'proteinG', 'sodiumMg', 'vitaminCMg'] },
+        review: { editedNutrients: ['sodiumMg'] },
+      },
       images: [{ thumbnailUrl: 'data:image/jpeg;base64,VEhVTUI=' }],
     });
     expect(JSON.stringify(await getNutritionMeal(target, 'portable-meal'))).not.toContain('RlVMTA==');
@@ -268,5 +287,118 @@ describe('thumbnail-only nutrition storage', () => {
       }],
     })).rejects.toThrow('must be an embedded');
     await expect(getNutritionMeal(target, 'remote-image')).resolves.toBeNull();
+  });
+
+  it('restores an archive into an active profile whose empty sync surface was already initialized', async () => {
+    const profileId = `nutrition-active-archive-${Date.now()}`;
+    const storageKey = profileStorageKey(profileId, 'imported');
+    const previousProfile = state.currentProfile;
+    const previousImportedData = state.importedData;
+    profileIds.add(profileId);
+    await encryptedRemoveItem(storageKey);
+    state.currentProfile = profileId;
+    state.importedData = { entries: [], nutritionMeals: [] };
+
+    try {
+      await hydrateNutritionSummary(profileId);
+      await expect(restoreNutritionArchive(profileId, {
+        version: 1,
+        meals: [{
+          id: 'active-restored-meal',
+          name: 'Restored active lunch',
+          eatenAt: new Date().toISOString(),
+          nutrients: { energyKcal: 610, proteinG: 34, ironMg: 7.2 },
+          images: [],
+        }],
+      })).resolves.toBe(1);
+
+      await expect(listNutritionMeals(profileId)).resolves.toMatchObject([{
+        id: 'active-restored-meal',
+        name: 'Restored active lunch',
+      }]);
+      expect(state.importedData.nutritionMeals).toMatchObject([{
+        id: 'active-restored-meal',
+        name: 'Restored active lunch',
+      }]);
+      expect(state.nutritionSummary.totalMeals).toBe(1);
+      const persisted = JSON.parse(await encryptedGetItem(storageKey));
+      expect(persisted.nutritionMeals).toMatchObject([{ id: 'active-restored-meal' }]);
+    } finally {
+      await encryptedRemoveItem(storageKey);
+      state.currentProfile = previousProfile;
+      state.importedData = previousImportedData;
+    }
+  });
+
+  it('keeps the canonical nutrition surface encrypted and restorable in full backups', async () => {
+    const profileId = `nutrition-backup-${Date.now()}`;
+    const storageKey = profileStorageKey(profileId, 'imported');
+    const previousProfile = state.currentProfile;
+    const previousImportedData = state.importedData;
+    const previousTestFlag = globalThis.__WEARABLES_TEST;
+    const cryptoModule = await import('../js/crypto.js');
+    profileIds.add(profileId);
+    globalThis.__WEARABLES_TEST = true;
+    localStorage.setItem('labcharts-encryption-enabled', 'true');
+
+    try {
+      const salt = await cryptoModule._setTestSessionKey('nutrition-backup-passphrase');
+      const saltText = btoa(String.fromCharCode(...salt));
+      localStorage.setItem('labcharts-encryption-salt', saltText);
+      await cryptoModule.encryptedSetItem('labcharts-profiles', JSON.stringify([{ id: profileId, name: 'Nutrition backup' }]));
+      await cryptoModule.encryptedSetItem(storageKey, JSON.stringify({
+        entries: [],
+        contextSourceSettings: { nutrition: true },
+        nutritionContextDays: 90,
+        nutritionTargets: { energyKcal: 2150, proteinG: 125 },
+        nutritionMeals: [{
+          id: 'private-backup-meal',
+          name: 'PRIVATE BACKUP MEAL',
+          eatenAt: '2026-08-23T12:30:00.000Z',
+          updatedAt: '2026-08-23T13:00:00.000Z',
+          nutrients: { energyKcal: 640, sodiumMg: 987, vitaminDMcg: 14 },
+          images: [{ thumbnailUrl: 'data:image/jpeg;base64,UFJJVkFURV9USFVNQg==' }],
+        }],
+      }));
+
+      const serialized = serializeBackupSnapshot(await buildFullBackupSnapshot());
+      expect(serialized).not.toContain('PRIVATE BACKUP MEAL');
+      expect(serialized).not.toContain('UFJJVkFURV9USFVNQg');
+      const restoredSnapshot = parseBackupSnapshot(serialized);
+      expect(restoredSnapshot).toMatchObject({ encrypted: true, encryptionSalt: saltText });
+      const rawImported = restoredSnapshot.profiles.find(profile => profile.profileId === profileId)?.keys?.imported;
+      expect(rawImported).toMatch(/^v1:/);
+
+      await encryptedRemoveItem(storageKey);
+      await setBlob(storageKey, rawImported);
+      const restoredData = JSON.parse(await encryptedGetItem(storageKey));
+      expect(restoredData).toMatchObject({
+        contextSourceSettings: { nutrition: true },
+        nutritionContextDays: 90,
+        nutritionTargets: { energyKcal: 2150, proteinG: 125 },
+        nutritionMeals: [{
+          id: 'private-backup-meal',
+          name: 'PRIVATE BACKUP MEAL',
+          nutrients: { energyKcal: 640, sodiumMg: 987, vitaminDMcg: 14 },
+        }],
+      });
+
+      state.currentProfile = profileId;
+      state.importedData = restoredData;
+      await hydrateNutritionSummary(profileId);
+      await expect(getNutritionMeal(profileId, 'private-backup-meal')).resolves.toMatchObject({
+        nutrients: { energyKcal: 640, sodiumMg: 987, vitaminDMcg: 14 },
+      });
+    } finally {
+      await encryptedRemoveItem(storageKey).catch(() => {});
+      await cryptoModule._setTestSessionKey(null).catch(() => {});
+      localStorage.removeItem('labcharts-encryption-enabled');
+      localStorage.removeItem('labcharts-encryption-salt');
+      localStorage.removeItem('labcharts-profiles');
+      state.currentProfile = previousProfile;
+      state.importedData = previousImportedData;
+      if (previousTestFlag === undefined) delete globalThis.__WEARABLES_TEST;
+      else globalThis.__WEARABLES_TEST = previousTestFlag;
+    }
   });
 });

@@ -511,6 +511,29 @@ describe('API provider runtime behavior', () => {
     });
     expect(requestBody).not.toHaveProperty('max_tokens');
 
+    fetch.mockResolvedValueOnce(jsonResponse({
+      choices: [{ message: { content: '{"mealName":"Salad"}' }, finish_reason: 'stop' }],
+      usage: { prompt_tokens: 7, completion_tokens: 4 },
+    }));
+    await expect(callOpenRouterAPI({
+      messages: [{ role: 'user', content: 'analyze meal image' }],
+      jsonMode: true,
+      jsonSchema: {
+        type: 'object',
+        properties: { mealName: { type: 'string' } },
+        required: ['mealName'],
+        additionalProperties: false,
+      },
+      forceNonStream: true,
+      requestTimeoutMs: 50,
+    })).resolves.toMatchObject({ text: '{"mealName":"Salad"}' });
+    const structuredBody = JSON.parse(fetch.mock.calls.at(-1)[1].body);
+    expect(structuredBody.provider).toEqual({ require_parameters: true });
+    expect(structuredBody.response_format).toMatchObject({
+      type: 'json_schema',
+      json_schema: { strict: true },
+    });
+
     const onStream = vi.fn();
     fetch.mockResolvedValueOnce(jsonResponse({
       choices: [{ message: { content: 'forced json' }, finish_reason: 'stop' }],

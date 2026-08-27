@@ -15,10 +15,10 @@ import { sanitizeNutritionMeal } from './nutrition-sync-sanitize.js';
 export { sanitizeNutritionMeal } from './nutrition-sync-sanitize.js';
 
 const DB_PREFIX = 'getbased-nutrition-';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_MEALS = 'meals';
 const STORE_META = 'meta';
-const STORE_FOODS = 'food-cache';
+const LEGACY_STORE_FOODS = 'food-cache';
 const DEVICE_KEY_META = 'meal-device-key:v1';
 const SUMMARY_META = 'nutrition-summary:v1';
 const COMPARISON_META = 'nutrition-comparison:v1';
@@ -116,8 +116,8 @@ export function openNutritionDB(profileId) {
       if (!db.objectStoreNames.contains(STORE_META)) {
         db.createObjectStore(STORE_META, { keyPath: 'k' });
       }
-      if (!db.objectStoreNames.contains(STORE_FOODS)) {
-        db.createObjectStore(STORE_FOODS, { keyPath: 'id' });
+      if (db.objectStoreNames.contains(LEGACY_STORE_FOODS)) {
+        db.deleteObjectStore(LEGACY_STORE_FOODS);
       }
     };
     request.onsuccess = () => {
@@ -315,39 +315,6 @@ export async function deleteNutritionMeal(profileId, id) {
   await transactionDone(tx);
 }
 
-async function foodCacheId(barcode) {
-  const normalized = String(barcode || '').replace(/\D/g, '');
-  if (!normalized || !globalThis.crypto?.subtle) throw new Error('Secure food cache is unavailable.');
-  const digest = await globalThis.crypto.subtle.digest('SHA-256', encoder.encode(normalized));
-  return [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, '0')).join('');
-}
-
-export async function putNutritionFood(profileId, food) {
-  const barcode = String(food?.barcode || '').replace(/\D/g, '');
-  if (!barcode) throw new Error('A barcode is required to cache this food.');
-  const id = await foodCacheId(barcode);
-  const encrypted = await encryptPayload(profileId, { ...food, barcode });
-  const db = /** @type {IDBDatabase} */ (await openNutritionDB(profileId));
-  const tx = db.transaction(STORE_FOODS, 'readwrite');
-  tx.objectStore(STORE_FOODS).put({ id, updatedAt: new Date().toISOString(), _devicePayload: encrypted });
-  await transactionDone(tx);
-  return { ...food, barcode };
-}
-
-export async function getNutritionFood(profileId, barcode) {
-  const id = await foodCacheId(barcode);
-  const db = /** @type {IDBDatabase} */ (await openNutritionDB(profileId));
-  const row = await new Promise((resolve, reject) => {
-    const request = db.transaction(STORE_FOODS, 'readonly').objectStore(STORE_FOODS).get(id);
-    request.onsuccess = () => resolve(request.result || null);
-    request.onerror = () => reject(request.error);
-  });
-  if (!row?._devicePayload) return null;
-  const food = await decryptPayload(profileId, row._devicePayload);
-  if (!food) throw new NutritionStorageIntegrityError('A cached food record could not be decrypted.');
-  return food;
-}
-
 export async function clearNutritionMeals(profileId) {
   const db = /** @type {IDBDatabase} */ (await openNutritionDB(profileId));
   const tx = db.transaction(STORE_MEALS, 'readwrite');
@@ -472,6 +439,30 @@ export async function restoreNutritionArchive(profileId, archive) {
     if (Array.isArray(meal.components) && meal.components.length > 100) throw new Error('A meal record contains too many ingredients.');
     return meal;
   });
+  // An active profile may already have completed its one-time IDB/sync
+  // reconciliation while it was still empty (demo loading is one example).
+  // Seed the canonical cross-device surface before reconciling; otherwise an
+  // initialized empty nutritionMeals array is authoritative and immediately
+  // deletes every archive row we just wrote to IDB.
+  if (state.currentProfile === profileId) {
+    const importedData = state.importedData || (state.importedData = /** @type {any} */ ({}));
+    const byId = new Map(canonicalNutritionMeals(importedData.nutritionMeals)
+      .map(meal => [meal.id, meal]));
+    for (const meal of canonicalNutritionMeals(validatedMeals)) {
+      const existing = byId.get(meal.id);
+      if (!existing || mealFreshness(meal) >= mealFreshness(existing)) byId.set(meal.id, meal);
+      // A deliberate archive restore revives a row that was previously
+      // deleted, while retaining the clear clock for later sync merges.
+      clearTombstone(importedData, 'nutritionMeals', meal.id);
+    }
+    importedData.nutritionMeals = canonicalNutritionMeals([...byId.values()]);
+    const persistedData = await persistAlignedNutritionProfileData(profileId, importedData);
+    if (!persistedData) throw new Error('The Meals & Nutrition archive could not be prepared for cross-device sync.');
+    await writeMeta(profileId, PROFILE_SYNC_INITIALIZED_META, true);
+    await reconcileNutritionMealsFromProfileData(profileId);
+    await recomputeActiveSummary(profileId, persistedData);
+    return validatedMeals.length;
+  }
   let restored = 0;
   for (const meal of validatedMeals) {
     await putNutritionMeal(profileId, meal, { preserveUpdatedAt: true });
@@ -670,14 +661,6 @@ export async function listActiveProfileMeals(options = {}) {
 
 export async function getActiveProfileMeal(id) {
   return getNutritionMeal(state.currentProfile, id);
-}
-
-export async function getActiveProfileFood(barcode) {
-  return getNutritionFood(state.currentProfile, barcode);
-}
-
-export async function cacheActiveProfileFood(food) {
-  return putNutritionFood(state.currentProfile, food);
 }
 
 export function saveActiveProfileMeal(meal) {

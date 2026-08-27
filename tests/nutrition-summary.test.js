@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeNutritionHistory, computeNutritionSummary, NUTRITION_CONTEXT_CHAR_LIMIT } from '../js/nutrition-summary.js';
+import { buildNutritionHistoryAnalysisPrompt, buildNutritionSummaryContext, computeNutritionHistory, computeNutritionSummary, NUTRITION_CONTEXT_CHAR_LIMIT, NUTRITION_SUMMARY_VERSION } from '../js/nutrition-summary.js';
 
 function meal(eatenAt, energyKcal, proteinG, reviewed = true) {
   return { eatenAt, reviewed, nutrients: { energyKcal, proteinG } };
 }
 
 describe('nutrition rolling summaries', () => {
-  it('separates missing days from zero intake and computes compact 7/30-day windows', () => {
+  it('separates missing days from zero intake and computes compact 7/30/90-day windows', () => {
     const now = new Date('2026-08-23T12:00:00.000Z');
     const summary = computeNutritionSummary([
       meal('2026-08-23T08:00:00.000Z', 600, 30),
@@ -23,10 +23,10 @@ describe('nutrition rolling summaries', () => {
     expect(summary.windows.d7.coverageRatio).toBeCloseTo(2 / 7, 3);
     expect(summary.windows.d7.dailyAverages).toMatchObject({ energyKcal: 1000, proteinG: 50 });
     expect(summary.windows.d30).toMatchObject({ meals: 4, loggedDays: 3 });
-    expect(summary.windows).not.toHaveProperty('d90');
+    expect(summary.windows.d90).toMatchObject({ meals: 5, loggedDays: 4 });
   });
 
-  it('builds honest calendar 3M, 6M, 1Y, and all-history views on demand', () => {
+  it('builds honest 30D, calendar 3M/6M/1Y, and all-history views on demand', () => {
     const now = new Date('2026-08-31T12:00:00.000Z');
     const meals = [
       { ...meal('2026-08-31T08:00:00.000Z', 600, 30), localDate: '2026-08-31' },
@@ -37,11 +37,14 @@ describe('nutrition rolling summaries', () => {
       { ...meal('2024-01-01T08:00:00.000Z', 1100, 55), localDate: '2024-01-01' },
     ];
 
+    const d30 = computeNutritionHistory(meals, { rangeKey: '30d', now });
     const d3m = computeNutritionHistory(meals, { rangeKey: '3m', now });
     const d6m = computeNutritionHistory(meals, { rangeKey: '6m', now });
     const y1 = computeNutritionHistory(meals, { rangeKey: '1y', now });
     const all = computeNutritionHistory(meals, { rangeKey: 'all', now });
 
+    expect(d30).toMatchObject({ rangeKey: '30d', startKey: '2026-08-02', endKey: '2026-08-31' });
+    expect(d30.period).toMatchObject({ meals: 1, loggedDays: 1, days: 30 });
     expect(d3m).toMatchObject({ rangeKey: '3m', startKey: '2026-05-31', endKey: '2026-08-31' });
     expect(d3m.period).toMatchObject({ meals: 2, loggedDays: 2 });
     expect(d3m.coverageBuckets).toHaveLength(4);
@@ -53,7 +56,7 @@ describe('nutrition rolling summaries', () => {
     expect(all.period).toMatchObject({ meals: 6, loggedDays: 6 });
     const emptyRecent = computeNutritionHistory(meals.slice(-1), { rangeKey: '3m', now });
     expect(emptyRecent.period).toMatchObject({ meals: 0, loggedDays: 0 });
-    expect(computeNutritionHistory(meals, { rangeKey: 'unsupported', now }).rangeKey).toBe('3m');
+    expect(computeNutritionHistory(meals, { rangeKey: 'unsupported', now }).rangeKey).toBe('30d');
   });
 
   it('summarizes local meal timing without retaining meal-level details', () => {
@@ -63,7 +66,7 @@ describe('nutrition rolling summaries', () => {
       { ...meal('2026-08-22T11:00:00.000Z', 600, 30), localDate: '2026-08-22', localTimeMinutes: 780, mealType: 'lunch', source: { kind: 'manual' } },
     ], { now: new Date('2026-08-23T12:00:00.000Z') });
 
-    expect(summary.version).toBe(14);
+    expect(summary.version).toBe(NUTRITION_SUMMARY_VERSION);
     expect(summary.windows.d7.timing).toMatchObject({
       mealsWithTiming: 3,
       daysWithTiming: 2,
@@ -77,8 +80,9 @@ describe('nutrition rolling summaries', () => {
     expect(summary.windows.d7.timing).not.toHaveProperty('meals');
     expect(summary.windows.d7.timing.occasionCounts).toEqual({ breakfast: 1, dinner: 1, lunch: 1 });
     expect(summary.windows.d7.timing).not.toHaveProperty('sourceCounts');
-    expect(summary.contextText).toContain('occasions: breakfast 1, dinner 1, lunch 1');
-    expect(summary.contextText).toContain('Never infer skipped meals, under-eating');
+    const contextText = buildNutritionSummaryContext(summary);
+    expect(contextText).toContain('occasions: breakfast 1, dinner 1, lunch 1');
+    expect(contextText).toContain('Never infer skipped meals, under-eating');
   });
 
   it('does not treat an unknown nutrient on another logged meal or day as zero', () => {
@@ -107,6 +111,57 @@ describe('nutrition rolling summaries', () => {
     expect(summary.windows.d7.dailyAverages.energyKcal).toBe(550);
     expect(summary.windows.d7.dailyAverages.vitaminDMcg).toBe(10);
     expect(summary.windows.d7.nutrientCoverage.vitaminDMcg).toMatchObject({ observedMeals: 1, totalMeals: 1 });
+  });
+
+  it('includes explicitly attributed AI composition estimates in nutrient summaries', () => {
+    const summary = computeNutritionSummary([
+      {
+        eatenAt: '2026-08-23T08:00:00.000Z',
+        localDate: '2026-08-23',
+        nutrients: { energyKcal: 500, vitaminDMcg: 12, potassiumMg: 780 },
+        source: {
+          kind: 'ai-photo-estimate',
+          aiNutritionEstimate: { nutrientKeys: ['energyKcal', 'vitaminDMcg', 'potassiumMg'] },
+        },
+      },
+    ], { now: new Date('2026-08-23T12:00:00.000Z') });
+
+    expect(summary.windows.d7.dailyAverages).toMatchObject({ vitaminDMcg: 12, potassiumMg: 780 });
+    expect(summary.windows.d7.nutrientCoverage.vitaminDMcg).toMatchObject({ observedMeals: 1, totalMeals: 1 });
+  });
+
+  it('sends observed detailed nutrients through routine and one-off aggregate context', () => {
+    const meals = [{
+      eatenAt: '2026-08-23T08:00:00.000Z',
+      localDate: '2026-08-23',
+      nutrients: {
+        energyKcal: 500,
+        sugarG: 18,
+        saturatedFatG: 6,
+        sodiumMg: 740,
+        potassiumMg: 920,
+        calciumMg: 280,
+        vitaminCMg: 42,
+      },
+    }];
+    const now = new Date('2026-08-23T12:00:00.000Z');
+    const summary = computeNutritionSummary(meals, { now });
+    const routine = buildNutritionSummaryContext(summary, { days: 30 });
+    const history = buildNutritionHistoryAnalysisPrompt(computeNutritionHistory(meals, { rangeKey: '30d', now }));
+
+    for (const expected of [
+      'sugar g 18',
+      'saturated fat g 6',
+      'sodium mg 740',
+      'potassium mg 920',
+      'calcium mg 280',
+      'vitamin c mg 42',
+    ]) {
+      expect(routine).toContain(expected);
+      expect(history).toContain(expected);
+    }
+    expect(routine).toContain('missing days/values are unknown, not zero');
+    expect(routine.length).toBeLessThanOrEqual(NUTRITION_CONTEXT_CHAR_LIMIT);
   });
 
   it('excludes partial days from a nutrient average when another meal lacks that nutrient', () => {
@@ -167,7 +222,43 @@ describe('nutrition rolling summaries', () => {
 
     expect(summary.windows.d7.dailyAverages).toMatchObject({ energyKcal: 600, proteinG: 30 });
     expect(summary.trendBaseline).toMatchObject({ days: 23, loggedDays: 5, dailyAverages: { energyKcal: 400, proteinG: 20 } });
-    expect(summary.contextText).toContain('7-day average compared with the previous 23-day period: kcal +50%; protein g +50%');
+    expect(buildNutritionSummaryContext(summary)).toContain('7-day average compared with the previous 23-day period: kcal +50%; protein g +50%');
+  });
+
+  it('builds range-aware routine context without making History selection implicit', () => {
+    const now = new Date('2026-08-23T12:00:00.000Z');
+    const meals = [];
+    const richMeal = (date, energyKcal, proteinG) => ({
+      ...meal(date, energyKcal, proteinG),
+      nutrients: {
+        energyKcal,
+        proteinG,
+        carbohydrateG: energyKcal / 10,
+        fatG: energyKcal / 30,
+        fiberG: energyKcal / 100,
+        fluidMl: energyKcal,
+        plainWaterMl: energyKcal / 2,
+      },
+    });
+    for (let offset = 0; offset < 21; offset += 1) {
+      meals.push(richMeal(new Date(now.getTime() - offset * 86400000), offset < 7 ? 600 : 400, offset < 7 ? 30 : 20));
+    }
+    for (let offset = 30; offset < 50; offset += 1) {
+      meals.push(richMeal(new Date(now.getTime() - offset * 86400000), 300, 15));
+    }
+    const summary = computeNutritionSummary(meals, { now });
+
+    const d7 = buildNutritionSummaryContext(summary, { days: 7 });
+    const d30 = buildNutritionSummaryContext(summary, { days: 30 });
+    const d90 = buildNutritionSummaryContext(summary, { days: 90 });
+    expect(d7).toContain('Last 7 days:');
+    expect(d7).not.toContain('Last 30 days:');
+    expect(d7).not.toContain('compared with');
+    expect(d30).toContain('Last 30 days:');
+    expect(d30).toContain('previous 23-day period');
+    expect(d90).toContain('Last 90 days:');
+    expect(d90).toContain('previous 83-day period');
+    expect(Math.max(d7.length, d30.length, d90.length)).toBeLessThanOrEqual(NUTRITION_CONTEXT_CHAR_LIMIT);
   });
 
   it('adds meal-level dietary fuel overlap without claiming measured metabolism', () => {
@@ -185,13 +276,14 @@ describe('nutrition rolling summaries', () => {
       fatEnergyPercent: 50,
       overlapScore: 33,
     });
-    expect(summary.contextText).toContain('logged carb-fat composition: 50% carbohydrate and 50% fat energy');
-    expect(summary.contextText).toContain('no preferred center or universal target');
-    expect(summary.contextText).toContain('absolute energy, carbohydrate amount, fiber, and fat quality');
-    expect(summary.contextText).not.toContain('overlap index');
-    expect(summary.contextText).toContain('not measured Randle-cycle activity');
+    const contextText = buildNutritionSummaryContext(summary);
+    expect(contextText).toContain('logged carb-fat composition: 50% carbohydrate and 50% fat energy');
+    expect(contextText).toContain('no preferred center or universal target');
+    expect(contextText).toContain('absolute energy, carbohydrate amount, fiber, and fat quality');
+    expect(contextText).not.toContain('overlap index');
+    expect(contextText).toContain('not measured Randle-cycle activity');
     expect(summary.windows.d7.fuelResponses).toMatchObject({ checkIns: 1, minimum: 6, remaining: 5, ready: false });
-    expect(summary.contextText).not.toContain('satiety');
+    expect(contextText).not.toContain('satiety');
   });
 
   it('keeps chat context bounded and aggregate-only even when meals contain private media and detail', () => {
@@ -208,10 +300,19 @@ describe('nutrition rolling summaries', () => {
     };
     const summary = computeNutritionSummary([privateMeal], { now: new Date('2026-08-23T13:00:00.000Z') });
 
-    expect(summary.contextText).toContain('[section:nutrition]');
-    expect(summary.contextText.length).toBeLessThanOrEqual(NUTRITION_CONTEXT_CHAR_LIMIT);
+    const contextText = buildNutritionSummaryContext(summary);
+    expect(contextText).toContain('[section:nutrition]');
+    expect(contextText.length).toBeLessThanOrEqual(NUTRITION_CONTEXT_CHAR_LIMIT);
     for (const privateValue of ['PRIVATE_MEAL_NAME', 'PRIVATE_MEAL_NOTE', 'PRIVATE_INGREDIENT', 'PRIVATE_IMAGE.jpg', 'PRIVATE_BYTES', 'PRIVATE_SOURCE_TEXT', 'data:image']) {
-      expect(summary.contextText).not.toContain(privateValue);
+      expect(contextText).not.toContain(privateValue);
+    }
+
+    const history = computeNutritionHistory([privateMeal], { rangeKey: 'all', now: new Date('2026-08-23T13:00:00.000Z') });
+    const prompt = buildNutritionHistoryAnalysisPrompt(history);
+    expect(prompt).toContain('all recorded history');
+    expect(prompt).toContain('coverage-limited aggregate');
+    for (const privateValue of ['PRIVATE_MEAL_NAME', 'PRIVATE_MEAL_NOTE', 'PRIVATE_INGREDIENT', 'PRIVATE_IMAGE.jpg', 'PRIVATE_BYTES', 'PRIVATE_SOURCE_TEXT', 'data:image']) {
+      expect(prompt).not.toContain(privateValue);
     }
   });
 

@@ -2,15 +2,13 @@
 // nutrition-review-ui.js — editor review state, validation, and progress UI.
 
 import { getMealAnalysisAvailability, nutritionUsageSummary } from './nutrition-analysis.js';
-import { reviewFoodCompositionCandidate } from './nutrition-food-composition-state.js';
-import { normalizeNutritionComponent, sumComponentNutrients } from './nutrition-food-data.js';
+import { normalizeNutritionComponent } from './nutrition-food-data.js';
 import { calculateFuelOverlap } from './nutrition-fuel-mix.js';
 import { isNutritionComparisonRunning } from './nutrition-comparison-ui.js';
 import {
   ALL_REVIEW_FIELDS, MEAL_TYPES, actionAttrs, formatNumber, hasFiniteNumber, renderFuelOverlapCard,
 } from './nutrition-render.js';
 import { escapeAttr, escapeHTML } from './utils.js';
-import { getErrorMessage } from './caught-error.js';
 
 let analysisProgressId = 0;
 /** @type {{id: number, phase: number, label: string, startedAt: number, timer: number | null, buttonLabel: string} | null} */
@@ -24,7 +22,6 @@ let reviewDeps = {
   getLastAnalyzedKind: () => 'meal-photo',
   getLastAnalyzedConsumption: () => '',
   getLastAnalyzedContext: () => '',
-  getExplicitNutrients: () => ({}),
   getAnalysisKind: () => 'meal-photo',
   setAnalysisKind: () => {},
   getEditingMealId: () => '',
@@ -242,7 +239,7 @@ export function updateCorrectionState() {
       ? `<strong>Estimate needs recalculation.</strong> ${reasons.join(' ')}`
       : '<strong>Wrong identification?</strong> Edit the meal name or food list, then recalculate.';
   }
-  if (recalculate) recalculate.textContent = currentSourceKind() === 'barcode-database' ? 'Update amount' : 'Recalculate estimate';
+  if (recalculate) recalculate.textContent = 'Recalculate estimate';
   if (recalculate) recalculate.disabled = running || !dirty || !name;
   if (analyze) analyze.disabled = running || dirty || !hasPhotos || !getMealAnalysisAvailability().available;
   if (save) save.disabled = running || dirty || !name || !validMealType;
@@ -292,10 +289,11 @@ export function clearAnalyzedFields() {
 export function setAnalysisKind(kind) {
   const analysisKind = kind === 'nutrition-label' ? 'nutrition-label' : 'meal-photo';
   reviewDeps.setAnalysisKind(analysisKind);
+  document.getElementById('detail-modal')?.classList.remove('nutrition-manual-mode');
   document.querySelectorAll('.nutrition-capture-tabs button').forEach(button => {
     const selected = button.getAttribute('data-nutrition-kind') === reviewDeps.getAnalysisKind();
     button.classList.toggle('is-active', selected);
-    button.setAttribute('aria-pressed', String(selected));
+    button.setAttribute('aria-selected', String(selected));
   });
   const consumption = document.getElementById('nutrition-label-consumption');
   if (consumption) consumption.hidden = analysisKind !== 'nutrition-label';
@@ -309,8 +307,8 @@ export function setAnalysisKind(kind) {
   if (modelSelect) modelSelect.setAttribute('aria-label', analysisKind === 'nutrition-label' ? 'Nutrition label analysis model' : 'Meal photo analysis model');
   const privacyLine = document.getElementById('nutrition-privacy-line');
   if (privacyLine) privacyLine.textContent = analysisKind === 'nutrition-label'
-    ? 'Sent only when you choose Scan label; originals are not saved. First cloud use asks for approval.'
-    : 'Sent only when you choose Analyze photo; originals are not saved. First cloud use asks for approval.';
+    ? 'Sent only when you choose Scan label. Full-size originals are not saved; resized copies stay with the meal. First cloud use asks for approval.'
+    : 'Sent only when you choose Analyze photo. Full-size originals are not saved; resized copies stay with the meal. First cloud use asks for approval.';
   const mealName = /** @type {HTMLInputElement | null} */ (document.getElementById('nutrition-meal-name'));
   if (mealName && !mealName.value) mealName.placeholder = analysisKind === 'nutrition-label' ? 'e.g. Greek yogurt' : 'e.g. Lentil bowl';
   if (reviewDeps.selectedPhotoCount()) setStatus(analysisKind === 'nutrition-label' ? 'Ready to scan label. Nothing has been sent.' : 'Ready to analyze. Nothing has been sent.');
@@ -330,21 +328,9 @@ function componentReviewRead(item) {
   return { identity, portion };
 }
 
-function foodCompositionControl(item, index) {
-  if (!item?.foodCompositionAttempted && !item?.foodData?.fdcId) return '';
-  const candidates = Array.isArray(item?.foodDataCandidates) ? item.foodDataCandidates : [];
-  const selectedId = Number(item?.foodData?.fdcId) || 0;
-  if (selectedId && !candidates.length) {
-    return `<div class="nutrition-component-food-data is-readonly"><span>Food composition</span><strong>${escapeHTML(item.foodData?.description || 'Saved USDA match')}</strong><small>Confirmed · ${escapeHTML(item.foodData?.dataset || 'FNDDS 2021-2023')}</small></div>`;
-  }
-  const choices = [...candidates];
-  if (selectedId && !choices.some(candidate => Number(candidate?.fdcId) === selectedId)) {
-    choices.unshift({ fdcId: selectedId, description: item.foodData?.description || 'Saved USDA match' });
-  }
-  const status = selectedId
-    ? `${item.foodData?.reviewed ? 'Confirmed' : 'Suggested — review'} · ${item.foodData?.dataset || 'FNDDS 2021-2023'}`
-    : choices.length ? 'Choose a match for micronutrients' : 'No local match · macros only';
-  return `<label class="nutrition-component-food-data"><span>Food composition</span><select data-nutrition-food-match="${index}" aria-label="Food-composition match for ${escapeAttr(item.name || `ingredient ${index + 1}`)}"><option value="">No database match</option>${choices.map(candidate => `<option value="${escapeAttr(String(candidate.fdcId || ''))}"${Number(candidate.fdcId) === selectedId ? ' selected' : ''}>${escapeHTML(candidate.description || 'USDA food')}</option>`).join('')}</select><small>${escapeHTML(status)}</small></label>`;
+function historicalFoodComposition(item) {
+  if (!item?.foodData?.fdcId) return '';
+  return `<div class="nutrition-component-food-data is-readonly"><span>Historical source</span><strong>${escapeHTML(item.foodData?.description || 'Saved food-composition record')}</strong><small>${escapeHTML(item.foodData?.dataset || 'Legacy database match')} · retained from the saved meal</small></div>`;
 }
 
 export function renderEditableComponents(components) {
@@ -353,67 +339,60 @@ export function renderEditableComponents(components) {
   const rows = (Array.isArray(components) ? components : []);
   area.innerHTML = `<div class="nutrition-components-head"><div><strong>Ingredients and portions</strong><span>Changing grams updates linked nutrients.</span></div><button type="button" class="nutrition-text-btn" ${actionAttrs('add-component')}>+ Add ingredient</button></div>${rows.length ? `<div class="nutrition-component-editor"><div class="nutrition-component-columns" aria-hidden="true"><span>Ingredient</span><span>Amount</span><span>Check</span><span></span></div>${rows.map((item, index) => {
     const review = componentReviewRead(item);
-    return `<div class="nutrition-component-row" data-component-index="${index}"><label class="nutrition-component-ingredient"><span class="sr-only">Ingredient ${index + 1}</span><input data-nutrition-component-name="${index}" value="${escapeAttr(item.name || '')}" maxlength="120" placeholder="Ingredient"></label><label class="nutrition-component-quantity"><span class="sr-only">Amount for ingredient ${index + 1}</span><span class="nutrition-component-amount"><input data-nutrition-component-grams="${index}" type="number" inputmode="decimal" min="0" step="1" value="${item.quantityG == null ? '' : escapeAttr(String(item.quantityG))}" aria-label="Amount in grams"><small>g</small></span></label><span class="nutrition-component-confidence"><strong>${escapeHTML(review.identity)}</strong><small>${escapeHTML(review.portion)}</small></span><button type="button" class="nutrition-icon-btn" aria-label="Remove ${escapeAttr(item.name || 'ingredient')}" ${actionAttrs('remove-component', { index })}>×</button>${foodCompositionControl(item, index)}</div>`;
+    return `<div class="nutrition-component-row" data-component-index="${index}"><label class="nutrition-component-ingredient"><span class="sr-only">Ingredient ${index + 1}</span><input data-nutrition-component-name="${index}" value="${escapeAttr(item.name || '')}" maxlength="120" placeholder="Ingredient"></label><label class="nutrition-component-quantity"><span class="sr-only">Amount for ingredient ${index + 1}</span><span class="nutrition-component-amount"><input data-nutrition-component-grams="${index}" type="number" inputmode="decimal" min="0" step="1" value="${item.quantityG == null ? '' : escapeAttr(String(item.quantityG))}" aria-label="Amount in grams"><small>g</small></span></label><span class="nutrition-component-confidence"><strong>${escapeHTML(review.identity)}</strong><small>${escapeHTML(review.portion)}</small></span><button type="button" class="nutrition-icon-btn" aria-label="Remove ${escapeAttr(item.name || 'ingredient')}" ${actionAttrs('remove-component', { index })}>×</button>${historicalFoodComposition(item)}</div>`;
   }).join('')}</div>` : '<div class="nutrition-empty nutrition-empty-inline">No ingredients yet. Add one or enter nutrient totals.</div>'}`;
 }
 
-function clearPartialNutrientValue(input, key, clearValue = true) {
-  if (input?.dataset?.nutritionPartial !== 'true') return;
-  if (clearValue) input.value = '';
-  delete input.dataset.nutritionPartial;
-  input.classList.remove('is-partial-food-value');
-  input.removeAttribute('title');
+function setNutrientSource(input, key, label = '', title = '') {
   const marker = document.getElementById(`nutrition-${key}-source`);
   if (marker) {
-    marker.textContent = '';
-    marker.hidden = true;
+    marker.textContent = label ? ` · ${label}` : '';
+    marker.hidden = !label;
   }
+  if (title) input.title = title;
+  else input.removeAttribute('title');
 }
 
-function renderPartialFoodCompositionValues(result) {
-  const components = Array.isArray(result?.analysis?.components) ? result.analysis.components : [];
-  const matched = components.filter(component => component?.foodData?.fdcId);
-  const partial = matched.length > 0 && matched.length < components.length
-    ? sumComponentNutrients(matched).nutrients
-    : {};
+function renderNutrientSources(result) {
+  const aiEstimated = new Set(Array.isArray(result?.source?.aiNutritionEstimate?.nutrientKeys)
+    ? result.source.aiNutritionEstimate.nutrientKeys : []);
+  const legacyDatabase = new Set(Array.isArray(result?.source?.foodComposition?.completeNutrientKeys)
+    ? result.source.foodComposition.completeNutrientKeys : []);
+  const userReviewed = new Set(Array.isArray(result?.source?.review?.editedNutrients)
+    ? result.source.review.editedNutrients : []);
   for (const [key] of ALL_REVIEW_FIELDS) {
     const input = /** @type {HTMLInputElement | null} */ (document.getElementById(`nutrition-${key}`));
     if (!input) continue;
-    const marker = document.getElementById(`nutrition-${key}-source`);
+    delete input.dataset.nutritionPartial;
+    input.classList.remove('is-partial-food-value');
     const hasWholeMealValue = hasFiniteNumber(result?.analysis?.nutrients?.[key]);
-    const hasPartialValue = !hasWholeMealValue && hasFiniteNumber(partial?.[key]);
-    if (!hasPartialValue) {
-      clearPartialNutrientValue(input, key, !hasWholeMealValue);
-      continue;
-    }
-    input.value = String(partial[key]);
-    input.dataset.nutritionPartial = 'true';
-    input.classList.add('is-partial-food-value');
-    input.title = 'Partial value from matched ingredients only; not saved as a whole-meal total.';
-    if (marker) {
-      marker.textContent = ' · matched foods only';
-      marker.hidden = false;
-    }
+    setNutrientSource(input, key,
+      hasWholeMealValue && userReviewed.has(key) ? 'user reviewed'
+        : hasWholeMealValue && aiEstimated.has(key) ? 'AI estimate'
+        : hasWholeMealValue && legacyDatabase.has(key) ? 'historical database' : '',
+      hasWholeMealValue && userReviewed.has(key)
+        ? 'Reviewed or changed by the user.'
+        : hasWholeMealValue && aiEstimated.has(key)
+          ? 'Estimated by the selected AI model from food identity, preparation, and portion.'
+          : hasWholeMealValue && legacyDatabase.has(key)
+            ? 'Retained from a database-enriched meal saved by an older version.' : '');
   }
 }
 
-export function renderFoodCompositionSummary(result) {
-  const area = document.getElementById('nutrition-food-composition-summary');
+export function renderNutrientEstimateSummary(result) {
+  const area = document.getElementById('nutrition-nutrient-estimate-summary');
   if (!area) return;
-  renderPartialFoodCompositionValues(result);
+  renderNutrientSources(result);
   const sourceKind = result?.source?.kind;
-  const composition = result?.source?.foodComposition;
-  if (sourceKind === 'ai-photo-estimate' && composition) {
-    const matched = Number(composition.matchedComponents || 0);
-    const total = Number(composition.totalComponents || 0);
-    const micronutrients = Array.isArray(composition.completeMicronutrientKeys) ? composition.completeMicronutrientKeys.length : 0;
-    area.textContent = matched
-      ? `${matched}/${total} matched to ${composition.dataset || 'FNDDS 2021-2023'}. ${micronutrients ? `${micronutrients} whole-meal micronutrients calculated.` : `Partial values show matched ingredients only; match ${Math.max(0, total - matched)} more for whole-meal totals.`}`
-      : 'No complete food-data match. Photo macros remain; unknown values stay blank.';
-    return;
-  }
   if (sourceKind === 'ai-photo-estimate') {
-    area.textContent = 'Food-composition data unavailable. Photo macros remain; unknown values stay blank.';
+    const estimated = Array.isArray(result?.source?.aiNutritionEstimate?.nutrientKeys)
+      ? result.source.aiNutritionEstimate.nutrientKeys.length : 0;
+    const model = result?.source?.modelDisplay || result?.source?.model || 'the selected model';
+    area.textContent = estimated
+      ? `${estimated} nutrient values estimated by ${model}. Review or clear uncertain values; unknown values stay blank.`
+      : Number(result?.source?.foodComposition?.matchedComponents || 0) > 0
+        ? 'This older saved meal retains historical database-derived values. New photo analyses use AI estimates only.'
+        : 'The selected model did not return detailed nutrient estimates; unknown values stay blank.';
     return;
   }
   if (sourceKind === 'ai-label-scan') {
@@ -425,33 +404,6 @@ export function renderFoodCompositionSummary(result) {
     return;
   }
   area.textContent = 'Unknown values stay blank. Enter only values you know or can verify.';
-}
-
-export async function updateFoodCompositionMatch(index, fdcId) {
-  const result = reviewDeps.getPendingAnalysis();
-  if (!result || result.source?.kind !== 'ai-photo-estimate') return;
-  try {
-    await reviewFoodCompositionCandidate(result, index, fdcId);
-    result.analysis.nutrients = { ...result.analysis.nutrients, ...reviewDeps.getExplicitNutrients() };
-    for (const [key] of ALL_REVIEW_FIELDS) {
-      const input = /** @type {HTMLInputElement | null} */ (document.getElementById(`nutrition-${key}`));
-      if (input) input.value = hasFiniteNumber(result.analysis.nutrients?.[key]) ? String(result.analysis.nutrients[key]) : '';
-    }
-    renderFuelOverlapPreview(result.analysis.nutrients);
-    renderEditableComponents(result.analysis.components);
-    renderReviewEvidence(result);
-    renderFoodCompositionSummary(result);
-    const composition = result.source?.foodComposition;
-    const remaining = Math.max(0, Number(composition?.totalComponents || 0) - Number(composition?.matchedComponents || 0));
-    setStatus(fdcId
-      ? remaining
-        ? `Food match confirmed. Partial values shown; match ${remaining} more ingredient${remaining === 1 ? '' : 's'} for whole-meal micronutrients.`
-        : 'Food match confirmed. Whole-meal nutrients recalculated.'
-      : 'Food match removed. Unsupported micronutrients are unknown.', 'success');
-    updateCorrectionState();
-  } catch (error) {
-    setStatus(getErrorMessage(error, 'The food-composition match could not be updated.'), 'error');
-  }
 }
 
 export function renderReviewEvidence(result) {
@@ -469,9 +421,12 @@ export function renderReviewEvidence(result) {
   if (linked) parts.push(`${linked}/${components.length} linked to component nutrients`);
   const composition = result?.source?.foodComposition;
   if (sourceKind === 'ai-photo-estimate' && composition?.matchedComponents) {
-    parts.push(`${composition.matchedComponents}/${composition.totalComponents || components.length} matched to ${composition.dataset || 'food composition data'}`);
+    parts.push(`historical database provenance retained for ${composition.matchedComponents}/${composition.totalComponents || components.length} ingredients`);
   }
   if (sourceKind === 'ai-photo-estimate') {
+    const aiNutrientCount = Array.isArray(result?.source?.aiNutritionEstimate?.nutrientKeys)
+      ? result.source.aiNutritionEstimate.nutrientKeys.length : 0;
+    if (aiNutrientCount) parts.push(`${aiNutrientCount} model-estimated nutrients`);
     parts.push('Uncalibrated identity self-check; verify foods');
   }
   const usage = nutritionUsageSummary(result?.source);
@@ -503,8 +458,7 @@ function renderReviewChecks(result) {
 export function applyAnalysis(result, { quiet = false } = {}) {
   result.analysis.components = (result.analysis.components || []).map(normalizeNutritionComponent);
   componentPortionBaseline = result.analysis.components.map(item => hasFiniteNumber(item?.quantityG) ? Number(item.quantityG) : null);
-  let analyzedKind = result.source?.analysisKind || (result.source?.kind === 'ai-label-scan' ? 'nutrition-label' : 'meal-photo');
-  if (result.source?.kind === 'barcode-database') analyzedKind = 'nutrition-label';
+  const analyzedKind = result.source?.analysisKind || (result.source?.kind === 'ai-label-scan' ? 'nutrition-label' : 'meal-photo');
   reviewDeps.applyResultState(result, {
     mealName: result.analysis.mealName,
     kind: analyzedKind,
@@ -521,7 +475,7 @@ export function applyAnalysis(result, { quiet = false } = {}) {
   renderFuelOverlapPreview(result.analysis.nutrients);
   renderEditableComponents(result.analysis.components);
   renderReviewEvidence(result);
-  renderFoodCompositionSummary(result);
+  renderNutrientEstimateSummary(result);
   renderReviewChecks(result);
   const labelDetails = document.getElementById('nutrition-label-details');
   if (labelDetails) {

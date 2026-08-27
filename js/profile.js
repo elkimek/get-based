@@ -251,6 +251,7 @@ export function createDefaultProfileData() {
     markerValueNotes: {},
     biologyScoreAI: {},
     contextSourceSettings: {},
+    nutritionContextDays: 30,
     nutritionTargets: null,
     nutritionMeals: [],
     changeHistory: [],
@@ -788,7 +789,6 @@ export function getLatitudeFromLocation(optCountry, optZip) {
     }
     return LATITUDE_BANDS[3];
   }
-
   const band = COUNTRY_LATITUDES[c];
   if (band !== undefined) return LATITUDE_BANDS[band];
   for (const [key, val] of Object.entries(COUNTRY_LATITUDES)) {

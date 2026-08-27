@@ -8,6 +8,7 @@ import { endTour } from './tour.js';
 
 let globalEventsBound = false;
 let mouseDownInsideModal = false;
+const APP_MODAL_OVERLAY_SELECTOR = '.modal-overlay.show,.confirm-overlay.show,.tweaks-overlay.show,[data-modal-focus-trap]';
 const appEventListenerDeps = {
   closeChangelog: () => {},
   closeChatPanel: () => {},
@@ -28,6 +29,21 @@ const appEventListenerDeps = {
   toggleChatPanel: () => {},
   updateChatNudge: () => {},
 };
+const ESCAPE_CLOSE_ACTIONS = [
+  ['sync-restore-overlay', 'closeRestoreMnemonicDialog'],
+  ['sync-setup-overlay', 'closeSyncSetup'],
+  ['summary-modal-overlay', 'closeSummaryModal'],
+  ['chat-panel', 'closeChatPanel'],
+  ['import-modal-overlay', 'closeImportModal'],
+  ['changelog-modal-overlay', 'closeChangelog'],
+  ['report-builder-overlay', 'closeReportBuilder'],
+  ['client-list-overlay', 'closeClientList'],
+  ['feedback-modal-overlay', 'closeFeedbackModal'],
+  ['settings-modal-overlay', 'closeSettingsModal'],
+  ['tweaks-panel-overlay', 'closeTweaksPanel'],
+  ['light-env-assessment-overlay', 'closeLightEnvironmentAssessment'],
+  ['modal-overlay', 'closeModal'],
+];
 
 export function configureAppEventListeners(deps = {}) {
   const previous = { ...appEventListenerDeps };
@@ -48,6 +64,21 @@ function nudgeModal(overlay) {
 
 function modalDismissProtected(overlay) {
   return overlay?.hasAttribute?.('data-modal-dismiss-protected') === true;
+}
+
+function topmostModalOverlay() {
+  const overlays = document.querySelectorAll(APP_MODAL_OVERLAY_SELECTOR);
+  return /** @type {HTMLElement | null} */ (overlays[overlays.length - 1] || null);
+}
+
+function clickTopmostModalClose(overlay) {
+  if (!overlay) return false;
+  const closeButton = /** @type {HTMLElement | null} */ (
+    overlay.querySelector('.modal-close:not([disabled])')
+  );
+  if (!closeButton) return false;
+  closeButton.click();
+  return true;
 }
 
 function reportAppEventListenerError(label, err) {
@@ -122,6 +153,18 @@ function handleDocumentClick(e) {
     else appEventListenerDeps.closeClientList();
     return;
   }
+  // Feature overlays that are not part of the original shell registry still
+  // get consistent backdrop behavior through their own visible close action.
+  const genericOverlay = e.target instanceof HTMLElement
+    && e.target.matches('.modal-overlay.show,.confirm-overlay.show,.tweaks-overlay.show')
+    ? e.target
+    : null;
+  if (genericOverlay && genericOverlay === topmostModalOverlay()) {
+    if (genericOverlay.hasAttribute('data-modal-lifecycle-managed')) return;
+    if (modalDismissProtected(genericOverlay)) nudgeModal(genericOverlay);
+    else clickTopmostModalClose(genericOverlay);
+    return;
+  }
   // Chat backdrop is pointer-events: none; clicks never reach it.
   const dd = document.getElementById("corr-options");
   const si = document.getElementById("corr-search");
@@ -148,6 +191,10 @@ function handleAppKeydown(e) {
     // Passphrase overlay should not be dismissible via Escape.
     const passphraseOverlay = document.getElementById("passphrase-overlay");
     if (passphraseOverlay && passphraseOverlay.style.display === 'flex') return;
+    const topOverlay = topmostModalOverlay();
+    // Appended workflows install their own Escape handler so their cleanup
+    // callback (camera tracks, live listeners, draft confirmation, etc.) runs.
+    if (topOverlay?.hasAttribute('data-modal-lifecycle-managed')) return;
     const cloudConsentOverlay = document.getElementById("cloud-ai-consent-overlay");
     if (cloudConsentOverlay && cloudConsentOverlay.classList.contains("show")) {
       const cancel = cloudConsentOverlay.querySelector('[data-cloud-ai-consent-action="cancel"]');
@@ -158,7 +205,19 @@ function handleAppKeydown(e) {
     if (tourOverlay) { endTour(); return; }
     const sidebarNav = document.getElementById("sidebar-nav");
     if (sidebarNav && sidebarNav.classList.contains("mobile-open")) { appEventListenerDeps.closeMobileSidebar(); return; }
-    const emfInterpOverlay = document.getElementById("emf-interp-overlay");
+    // Prefer the visible dialog's own close/back action. This keeps nested
+    // workflows (preview -> editor, detail -> parent) on their intended route
+    // and also covers feature overlays that are newer than this shell file.
+    if (topOverlay && clickTopmostModalClose(topOverlay)) return;
+    // A focus-trap owner may deliberately make Escape non-dismissable (for
+    // example an in-progress privacy review), or may need to run teardown in
+    // its own later key listener. Never fall through and close a dialog behind
+    // that topmost surface.
+    if (topOverlay?.hasAttribute('data-modal-focus-trap')) {
+      nudgeModal(topOverlay);
+      return;
+    }
+    const emfInterpOverlay = document.getElementById('emf-interp-overlay');
     if (emfInterpOverlay && emfInterpOverlay.classList.contains("show")) { appEventListenerDeps.closeEMFInterpretation(); return; }
     const confirmOverlay = document.getElementById("confirm-dialog-overlay");
     if (confirmOverlay && confirmOverlay.classList.contains("show")) {
@@ -166,77 +225,39 @@ function handleAppKeydown(e) {
       confirmOverlay.classList.remove("show");
       return;
     }
-    // Sync restore dialog — single-step "paste your 24 words" modal.
-    const syncRestoreOverlay = document.getElementById("sync-restore-overlay");
-    if (syncRestoreOverlay && syncRestoreOverlay.classList.contains("show")) {
-      runAppEventListener('closeRestoreMnemonicDialog', appEventListenerDeps.closeRestoreMnemonicDialog);
+    for (const [id, actionName] of ESCAPE_CLOSE_ACTIONS) {
+      const overlay = document.getElementById(id);
+      const openClass = id === 'chat-panel' ? 'open' : 'show';
+      if (!overlay?.classList.contains(openClass)) continue;
+      if (id === 'import-modal-overlay' && document.getElementById('import-modal')?.innerHTML.trim()) return;
+      const action = appEventListenerDeps[/** @type {keyof typeof appEventListenerDeps} */ (actionName)];
+      runAppEventListener(actionName, action);
       return;
     }
-    // Sync setup wizard — "New setup / Join existing" choice + generated seed.
-    const syncSetupOverlay = document.getElementById("sync-setup-overlay");
-    if (syncSetupOverlay && syncSetupOverlay.classList.contains("show")) {
-      runAppEventListener('closeSyncSetup', appEventListenerDeps.closeSyncSetup);
-      return;
-    }
-    const summaryOverlay = document.getElementById("summary-modal-overlay");
-    if (summaryOverlay && summaryOverlay.classList.contains("show")) { appEventListenerDeps.closeSummaryModal(); return; }
-    const chatPanel = document.getElementById("chat-panel");
-    if (chatPanel && chatPanel.classList.contains("open")) { appEventListenerDeps.closeChatPanel(); return; }
-    const importOverlay = document.getElementById("import-modal-overlay");
-    if (importOverlay && importOverlay.classList.contains("show")) {
-      if (!document.getElementById("import-modal")?.innerHTML.trim()) appEventListenerDeps.closeImportModal();
-      return;
-    }
-    const changelogOverlay = document.getElementById("changelog-modal-overlay");
-    if (changelogOverlay && changelogOverlay.classList.contains("show")) { appEventListenerDeps.closeChangelog(); return; }
-    const reportBuilderOverlay = document.getElementById("report-builder-overlay");
-    if (reportBuilderOverlay && reportBuilderOverlay.classList.contains("show")) { appEventListenerDeps.closeReportBuilder(); return; }
-    const clientListOverlay = document.getElementById("client-list-overlay");
-    if (clientListOverlay && clientListOverlay.classList.contains("show")) { appEventListenerDeps.closeClientList(); return; }
-    const feedbackOverlay = document.getElementById("feedback-modal-overlay");
-    if (feedbackOverlay && feedbackOverlay.classList.contains("show")) { appEventListenerDeps.closeFeedbackModal(); return; }
-    const settingsOverlay = document.getElementById("settings-modal-overlay");
-    if (settingsOverlay && settingsOverlay.classList.contains("show")) { appEventListenerDeps.closeSettingsModal(); return; }
-    const tweaksOverlay = document.getElementById("tweaks-panel-overlay");
-    if (tweaksOverlay && tweaksOverlay.classList.contains("show")) { appEventListenerDeps.closeTweaksPanel(); return; }
     const anonymousOverlays = document.querySelectorAll('.modal-overlay.show:not([id])');
     if (anonymousOverlays.length > 0) {
       anonymousOverlays[anonymousOverlays.length - 1].remove();
       return;
-    }
-    const lightEnvOverlay = document.getElementById("light-env-assessment-overlay");
-    if (lightEnvOverlay && lightEnvOverlay.classList.contains("show")) { appEventListenerDeps.closeLightEnvironmentAssessment(); return; }
-    const modalOverlay = document.getElementById("modal-overlay");
-    if (modalOverlay && modalOverlay.classList.contains("show")) {
-      appEventListenerDeps.closeModal();
-      return;
-    }
-    // Generic fallback: anonymous dynamically-injected overlays.
-    const dynamicOverlays = document.querySelectorAll('.modal-overlay.show');
-    if (dynamicOverlays.length > 0) {
-      const top = dynamicOverlays[dynamicOverlays.length - 1];
-      if (!top.id) { top.remove(); return; }
     }
     return;
   }
 
   // Focus trap for open modals. Sync overlays use `.confirm-overlay` too.
   if (e.key === "Tab") {
-    const overlayIds = ["cloud-ai-consent-overlay", "legal-consent-overlay", "client-list-overlay", "changelog-modal-overlay", "report-builder-overlay", "settings-modal-overlay", "tweaks-panel-overlay", "import-modal-overlay", "feedback-modal-overlay", "sync-restore-overlay", "sync-setup-overlay", "summary-modal-overlay", "light-env-assessment-overlay", "modal-overlay", "kb-modal-overlay", "ai-personalize-picker-overlay", "context-hub-overlay", "data-protection-picker-overlay"];
-    for (const oid of overlayIds) {
-      const ov = document.getElementById(oid);
-      if (ov && ov.classList.contains("show")) {
-        const openOverlays = Array.from(document.querySelectorAll('.modal-overlay.show, .confirm-overlay.show'));
-        if (openOverlays.length && openOverlays[openOverlays.length - 1] !== ov) continue;
+    const ov = topmostModalOverlay();
+    if (ov?.hasAttribute('data-modal-lifecycle-managed')) return;
+    if (ov) {
         const modal = ov.querySelector('[role="dialog"]') || ov.querySelector('.modal') || ov.querySelector('.confirm-dialog') || ov;
         const focusable = modal.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])');
         if (focusable.length === 0) return;
         const first = /** @type {HTMLElement} */ (focusable[0]);
         const last = /** @type {HTMLElement} */ (focusable[focusable.length - 1]);
-        if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
-        else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
+        if (!modal.contains(document.activeElement)) {
+          e.preventDefault();
+          (e.shiftKey ? last : first).focus();
+        } else if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
+        else if (document.activeElement === last) { e.preventDefault(); first.focus(); }
         return;
-      }
     }
   }
   // Skip shortcuts when typing in an input/textarea or when modifier keys are held.

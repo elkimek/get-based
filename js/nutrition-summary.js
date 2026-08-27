@@ -3,9 +3,13 @@
 
 import { summarizeFuelOverlap, summarizeFuelResponses } from './nutrition-fuel-mix.js';
 import { mergeImportedData } from './data-merge.js';
+import { buildNutritionSummaryContext } from './nutrition-summary-context.js';
+import { NUTRITION_KEYS } from './nutrition-nutrient-registry.js';
 
-export const NUTRITION_SUMMARY_VERSION = 14;
-export const NUTRITION_CONTEXT_CHAR_LIMIT = 1800;
+export { buildNutritionHistoryAnalysisPrompt, buildNutritionSummaryContext, NUTRITION_CONTEXT_CHAR_LIMIT } from './nutrition-summary-context.js';
+export { NUTRITION_KEYS };
+
+export const NUTRITION_SUMMARY_VERSION = 18;
 const NUTRITION_TOMBSTONE_KEYS = ['_deleted', '_deletedAt', '_deletedClearedAt'];
 
 function nutritionSyncSurface(importedData) {
@@ -41,25 +45,11 @@ export function mergeNutritionOperationSurface(active, committed, { mutate = fal
 }
 
 export const NUTRITION_HISTORY_RANGES = Object.freeze([
+  Object.freeze({ key: '30d', days: 30, months: null, label: '30D', description: 'last 30 days' }),
   Object.freeze({ key: '3m', months: 3, label: '3M', description: 'last 3 months' }),
   Object.freeze({ key: '6m', months: 6, label: '6M', description: 'last 6 months' }),
   Object.freeze({ key: '1y', months: 12, label: '1Y', description: 'last year' }),
   Object.freeze({ key: 'all', months: null, label: 'All', description: 'all recorded history' }),
-]);
-
-export const NUTRITION_KEYS = Object.freeze([
-  'energyKcal', 'proteinG', 'carbohydrateG', 'fatG', 'fiberG', 'sugarG', 'addedSugarG',
-  'saturatedFatG', 'transFatG', 'sodiumMg', 'potassiumMg', 'calciumMg', 'ironMg',
-  'magnesiumMg', 'zincMg', 'vitaminAMcgRae', 'vitaminCMg', 'vitaminDMcg',
-  'vitaminEMg', 'vitaminKMcg', 'thiaminMg', 'riboflavinMg', 'niacinMg',
-  'vitaminB6Mg', 'folateMcgDfe', 'vitaminB12Mcg', 'cholineMg',
-  'seleniumMcg', 'cholesterolMg', 'omega3G',
-  'phosphorusMg', 'copperMg', 'manganeseMg', 'waterG', 'fluidMl', 'plainWaterMl', 'caffeineMg', 'alcoholG',
-]);
-
-const COMPACT_CONTEXT_NUTRIENTS = Object.freeze([
-  ['energyKcal', 'kcal'], ['proteinG', 'protein g'], ['carbohydrateG', 'carbohydrate g'],
-  ['fatG', 'fat g'], ['fiberG', 'fiber g'], ['fluidMl', 'logged beverage mL'], ['plainWaterMl', 'logged plain water mL'],
 ]);
 
 const INTAKE_EVENT_KEYS = new Set(['fluidMl', 'plainWaterMl']);
@@ -74,6 +64,8 @@ function isPhotoEstimate(meal) {
 
 function nutrientHasReviewableProvenance(meal, nutrientKey) {
   if (!isPhotoEstimate(meal) || PHOTO_CONTEXT_KEYS.has(nutrientKey)) return true;
+  const estimated = meal?.source?.aiNutritionEstimate?.nutrientKeys;
+  if (Array.isArray(estimated) && estimated.includes(nutrientKey)) return true;
   const edited = meal?.source?.review?.editedNutrients;
   return Array.isArray(edited) && edited.includes(nutrientKey);
 }
@@ -307,6 +299,31 @@ function localDateFromKey(key) {
 
 function historyCoverageBuckets(start, end, loggedDayKeys) {
   const logged = new Set(loggedDayKeys || []);
+  const totalDays = Math.max(1, localCalendarDayNumber(end) - localCalendarDayNumber(start));
+  if (totalDays <= 90) {
+    const weekly = [];
+    let bucket = null;
+    let index = 0;
+    for (const date = new Date(start); date < end; date.setDate(date.getDate() + 1)) {
+      if (!bucket || index % 7 === 0) {
+        const key = dayKey(date);
+        bucket = {
+          key,
+          label: date.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+          days: 0,
+          loggedDays: 0,
+        };
+        weekly.push(bucket);
+      }
+      bucket.days += 1;
+      if (logged.has(dayKey(date))) bucket.loggedDays += 1;
+      index += 1;
+    }
+    return weekly.map(item => ({
+      ...item,
+      coverageRatio: item.days ? Math.round((item.loggedDays / item.days) * 1000) / 1000 : 0,
+    }));
+  }
   const monthly = new Map();
   for (const date = new Date(start); date < end; date.setDate(date.getDate() + 1)) {
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -387,7 +404,7 @@ function windowSummary(meals, days, now, sleepIntervals = [], offsetDays = 0) {
  * @param {Array<any>} meals
  * @param {{rangeKey?: string, now?: Date, sleepIntervals?: Array<any>}} [options]
  */
-export function computeNutritionHistory(meals, { rangeKey = '3m', now = new Date(), sleepIntervals = [] } = {}) {
+export function computeNutritionHistory(meals, { rangeKey = '30d', now = new Date(), sleepIntervals = [] } = {}) {
   const validMeals = (Array.isArray(meals) ? meals : []).filter(meal => mealDayKey(meal));
   const definition = NUTRITION_HISTORY_RANGES.find(range => range.key === rangeKey)
     || NUTRITION_HISTORY_RANGES[0];
@@ -396,83 +413,38 @@ export function computeNutritionHistory(meals, { rangeKey = '3m', now = new Date
   const end = new Date(today);
   end.setDate(end.getDate() + 1);
   const historicKeys = validMeals.map(mealDayKey).filter(key => key && key <= todayKey).sort();
-  const start = definition.months == null
-    ? (localDateFromKey(historicKeys[0]) || today)
-    : subtractLocalMonths(today, definition.months);
+  let start;
+  if ('days' in definition && Number.isFinite(Number(definition.days))) {
+    start = new Date(end);
+    start.setDate(start.getDate() - Number(definition.days));
+  } else if (definition.months != null) {
+    start = subtractLocalMonths(today, definition.months);
+  } else {
+    start = localDateFromKey(historicKeys[0]) || today;
+  }
   const days = Math.max(1, localCalendarDayNumber(end) - localCalendarDayNumber(start));
   const period = windowSummary(validMeals, days, now, sleepIntervals);
+  const startKey = dayKey(start);
+  const includedMeals = validMeals
+    .filter(meal => {
+      const key = mealDayKey(meal);
+      return key && key >= startKey && key <= todayKey;
+    })
+    .sort((a, b) => {
+      const dayOrder = mealDayKey(b).localeCompare(mealDayKey(a));
+      if (dayOrder) return dayOrder;
+      return Number(b?.localTimeMinutes ?? -1) - Number(a?.localTimeMinutes ?? -1);
+    });
   return {
     rangeKey: definition.key,
     rangeLabel: definition.label,
     rangeDescription: definition.description,
-    startKey: dayKey(start),
+    startKey,
     endKey: todayKey,
     period,
+    meals: includedMeals,
     coverageBuckets: historyCoverageBuckets(start, end, period.loggedDayKeys),
   };
-}
-
-function contextAverage(averages = {}, coverage = {}, nutrientFields = COMPACT_CONTEXT_NUTRIENTS) {
-  return nutrientFields.flatMap(([key, label]) => {
-    const value = averages?.[key];
-    if (value === null || value === undefined || value === '' || !Number.isFinite(Number(value))) return [];
-    const observed = coverage?.[key];
-    const coverageLabel = observed?.loggedDays && observed.completeDays < observed.loggedDays
-      ? ` [${observed.completeDays}/${observed.loggedDays} complete logged days]`
-      : '';
-    return [`${label} ${Number(value).toLocaleString('en-US', { maximumFractionDigits: 1 })}${coverageLabel}`];
-  }).join('; ');
-}
-
-function contextWindow(label, period, nutrientFields = COMPACT_CONTEXT_NUTRIENTS) {
-  if (!period?.meals) return `${label}: no logged meals`;
-  const foodMeals = Number.isFinite(Number(period.foodMeals)) ? Number(period.foodMeals) : Number(period.meals);
-  const drinkEntries = Number(period.drinkEntries || 0);
-  const entries = `${foodMeals} meals${drinkEntries ? ` and ${drinkEntries} volume-only drink logs` : ''}`;
-  const occasions = Object.entries(period?.timing?.occasionCounts || {})
-    .map(([occasion, count]) => `${occasion} ${count}`)
-    .join(', ');
-  return `${label}: ${entries} across ${period.loggedDays}/${period.days} days${occasions ? `; occasions: ${occasions}` : ''}; ${Math.round((period.reviewRatio || 0) * 100)}% reviewed; logged averages: ${contextAverage(period.dailyAverages, period.nutrientCoverage, nutrientFields) || 'no nutrient totals'}`;
-}
-
-function contextTrend(summary) {
-  const recent = summary?.windows?.d7?.dailyAverages || {};
-  const recentCoverage = summary?.windows?.d7?.nutrientCoverage || {};
-  const baseline = summary?.trendBaseline?.dailyAverages || {};
-  const baselineCoverage = summary?.trendBaseline?.nutrientCoverage || {};
-  const parts = COMPACT_CONTEXT_NUTRIENTS.flatMap(([key, label]) => {
-    const current = Number(recent[key]);
-    const previous = Number(baseline[key]);
-    if (Number(recentCoverage?.[key]?.completeDays || 0) < 3 || Number(baselineCoverage?.[key]?.completeDays || 0) < 5) return [];
-    if (!Number.isFinite(current) || !Number.isFinite(previous) || previous === 0) return [];
-    const change = Math.round(((current - previous) / Math.abs(previous)) * 100);
-    return Math.abs(change) >= 5 ? [`${label} ${change > 0 ? '+' : ''}${change}%`] : [];
-  });
-  return parts.length ? `7-day average compared with the previous 23-day period: ${parts.join('; ')}` : '';
-}
-
-function contextFuelOverlap(period) {
-  const fuel = period?.fuelOverlap;
-  if (!fuel?.available) return '';
-  return `7-day logged carb-fat composition: ${fuel.carbEnergyPercent}% carbohydrate and ${fuel.fatEnergyPercent}% fat energy (${fuel.ratioLabel}; ${fuel.completeMeals}/${fuel.totalMeals} logged meals had both macros). This descriptive split has no preferred center or universal target; interpret it with absolute energy, carbohydrate amount, fiber, and fat quality. It is not measured Randle-cycle activity, substrate oxidation, insulin sensitivity, or metabolic health.`;
-}
-
-export function buildNutritionSummaryContext(summary) {
-  if (!summary?.totalMeals) return '';
-  const required = [
-    '[section:nutrition]',
-    '## Meals & Nutrition — reviewed logged estimates',
-    'Coverage-limited, non-diagnostic log: missing days/values are unknown, not zero; photo micronutrients require compatible composition data for every material ingredient.',
-    'Partial logs leave full-day intake unknown. Never infer skipped meals, under-eating, or calorie/macro deficiency without user-confirmed complete days. Detailed logs replace, never supplement, Diet & Digestion Typical meals.',
-    contextWindow('Last 7 days', summary.windows?.d7),
-  ];
-  const optional = [contextFuelOverlap(summary.windows?.d7), contextTrend(summary)].filter(Boolean);
-  const lines = [...required];
-  for (const line of optional) {
-    const candidate = `${[...lines, line, '[/section:nutrition]'].join('\n')}\n\n`;
-    if (candidate.length <= NUTRITION_CONTEXT_CHAR_LIMIT) lines.push(line);
-  }
-  return `${[...lines, '[/section:nutrition]'].join('\n')}\n\n`;
 }
 
 /**
@@ -483,6 +455,7 @@ export function computeNutritionSummary(meals, { now = new Date(), sleepInterval
   const validMeals = (Array.isArray(meals) ? meals : []).filter(meal => mealDayKey(meal));
   const sorted = [...validMeals].sort((a, b) => new Date(b.eatenAt).getTime() - new Date(a.eatenAt).getTime());
   const previous23 = windowSummary(validMeals, 23, now, [], 7);
+  const previous83 = windowSummary(validMeals, 83, now, [], 7);
   const summary = {
     version: NUTRITION_SUMMARY_VERSION,
     updatedAt: now.toISOString(),
@@ -493,6 +466,7 @@ export function computeNutritionSummary(meals, { now = new Date(), sleepInterval
     windows: {
       d7: windowSummary(validMeals, 7, now, sleepIntervals),
       d30: windowSummary(validMeals, 30, now, sleepIntervals),
+      d90: windowSummary(validMeals, 90, now, sleepIntervals),
     },
     trendBaseline: {
       days: previous23.days,
@@ -500,7 +474,24 @@ export function computeNutritionSummary(meals, { now = new Date(), sleepInterval
       dailyAverages: previous23.dailyAverages,
       nutrientCoverage: previous23.nutrientCoverage,
     },
+    trendBaselines: {
+      d30: {
+        days: previous23.days,
+        loggedDays: previous23.loggedDays,
+        dailyAverages: previous23.dailyAverages,
+        nutrientCoverage: previous23.nutrientCoverage,
+      },
+      d90: {
+        days: previous83.days,
+        loggedDays: previous83.loggedDays,
+        dailyAverages: previous83.dailyAverages,
+        nutrientCoverage: previous83.nutrientCoverage,
+      },
+    },
   };
-  summary.contextText = buildNutritionSummaryContext(summary);
+  summary.contextByDays = Object.fromEntries([7, 30, 90].map(days => [
+    `d${days}`,
+    buildNutritionSummaryContext(summary, { days }),
+  ]));
   return summary;
 }

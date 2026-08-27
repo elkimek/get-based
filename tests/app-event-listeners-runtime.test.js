@@ -175,6 +175,16 @@ describe('app event listener runtime', () => {
     expect(actions.closeClientList).toHaveBeenCalled();
     clientOverlay.remove();
 
+    const featureOverlay = appendOverlay(
+      'new-feature-overlay',
+      '<div class="modal"><button class="modal-close">Close feature</button></div>',
+    );
+    const featureClose = vi.fn(() => featureOverlay.classList.remove('show'));
+    featureOverlay.querySelector('.modal-close').addEventListener('click', featureClose);
+    featureOverlay.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(featureClose).toHaveBeenCalledOnce();
+    featureOverlay.remove();
+
     document.body.insertAdjacentHTML('beforeend', `
       <div id="corr-options" class="show"><span id="inside-correlation"></span></div>
       <input id="corr-search">
@@ -249,6 +259,28 @@ describe('app event listener runtime', () => {
     document.body.appendChild(anonymousOverlay);
     press('Escape');
     expect(anonymousOverlay.isConnected).toBe(false);
+
+    const namedFeatureOverlay = appendOverlay(
+      'new-keyboard-feature-overlay',
+      '<div class="modal" role="dialog"><button class="modal-close">Close feature</button></div>',
+    );
+    const namedFeatureClose = vi.fn(() => namedFeatureOverlay.remove());
+    namedFeatureOverlay.querySelector('.modal-close').addEventListener('click', namedFeatureClose);
+    press('Escape');
+    expect(namedFeatureClose).toHaveBeenCalledOnce();
+
+    const backgroundOverlay = appendOverlay('modal-overlay');
+    const closeModalCallsBeforePrivacyReview = actions.closeModal.mock.calls.length;
+    const privacyReviewOverlay = document.createElement('div');
+    privacyReviewOverlay.className = 'pii-warning-overlay';
+    privacyReviewOverlay.setAttribute('data-modal-focus-trap', '');
+    privacyReviewOverlay.innerHTML = '<div class="modal" role="dialog"><button>Send</button></div>';
+    document.body.appendChild(privacyReviewOverlay);
+    press('Escape');
+    expect(actions.closeModal).toHaveBeenCalledTimes(closeModalCallsBeforePrivacyReview);
+    expect(privacyReviewOverlay.firstElementChild.classList.contains('modal-nudge')).toBe(true);
+    privacyReviewOverlay.remove();
+    backgroundOverlay.remove();
 
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     actions.closeRestoreMnemonicDialog.mockImplementationOnce(() => {

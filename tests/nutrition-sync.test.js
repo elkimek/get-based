@@ -6,9 +6,10 @@ import { DELTA_ARRAYS, DELTA_SCALARS } from '../js/sync-delta-surfaces.js';
 import { stripNutritionMealsFromBlob } from '../js/sync-payload.js';
 
 describe('meal cross-device sync surface', () => {
-  it('admits meal rows and targets to per-row sync while stripping full photos', () => {
+  it('admits meal rows, targets, and the AI timeframe to per-row sync while stripping full photos', () => {
     expect(DELTA_ARRAYS).toContain('nutritionMeals');
     expect(DELTA_SCALARS).toContain('nutritionTargets');
+    expect(DELTA_SCALARS).toContain('nutritionContextDays');
 
     const safe = sanitizeNutritionProfileData({
       nutritionMeals: [{

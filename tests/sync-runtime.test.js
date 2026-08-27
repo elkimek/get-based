@@ -1215,9 +1215,9 @@ describe('synced Agent Access state', () => {
     await vi.advanceTimersByTimeAsync(5000);
     await pushComplete;
 
-    expect(buildLabContext).toHaveBeenCalledWith({ skipGroupFilter: true, ignoreContextToggles: true });
+    expect(buildLabContext).toHaveBeenCalledWith();
     expect(getAgentWearableSeriesDays).toHaveBeenCalledOnce();
-    expect(buildWearableSeriesSection).toHaveBeenCalledWith(7, { ignoreContextToggles: true });
+    expect(buildWearableSeriesSection).toHaveBeenCalledWith(7);
     expect(fetchSpy).toHaveBeenCalledOnce();
   });
 

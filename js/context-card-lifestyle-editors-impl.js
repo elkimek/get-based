@@ -74,9 +74,9 @@ import { saveImportedData } from './data.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { scanDietForContaminants } from './food-contaminants.js';
 import { getSleepContextMismatch } from './lab-context-wearables.js';
-import { doesNutritionContextOverrideTypicalMeals } from './nutrition-context.js';
 import { reopenSunSetup } from './sun-defaults.js';
 import {
+  doesNutritionContextOverrideTypicalMeals,
   getEMFAssessments,
   renderEMFAssessmentLauncher,
 } from './context-card-summaries.js';

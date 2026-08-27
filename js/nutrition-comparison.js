@@ -1,12 +1,30 @@
 // @ts-check
 // nutrition-comparison.js — deterministic, device-local scoring for Debug mode meal tests.
 
+import { NUTRIENT_DEFINITIONS } from './nutrition-nutrient-registry.js';
+
+const CORE_COMPARISON_FLOORS = Object.freeze({
+  energyKcal: 50,
+  proteinG: 5,
+  carbohydrateG: 5,
+  fatG: 5,
+});
+
+function comparisonFloor(field) {
+  if (CORE_COMPARISON_FLOORS[field.key]) return CORE_COMPARISON_FLOORS[field.key];
+  const stepFloor = Math.max(0, Number(field.step) || 0) * 10;
+  if (field.unit === 'kcal') return Math.max(50, stepFloor);
+  if (field.unit === 'mL') return Math.max(20, stepFloor);
+  if (field.unit === 'g') return Math.max(1, stepFloor);
+  if (field.unit === 'mg') return Math.max(5, stepFloor);
+  return Math.max(1, stepFloor);
+}
+
 const SCORE_FIELDS = Object.freeze([
-  ['totalWeightG', 'Total amount', 'g', 20],
-  ['energyKcal', 'Energy', 'kcal', 50],
-  ['proteinG', 'Protein', 'g', 5],
-  ['carbohydrateG', 'Carbohydrate', 'g', 5],
-  ['fatG', 'Fat', 'g', 5],
+  Object.freeze(['totalWeightG', 'Total amount', 'g', 20, '1', 'amount']),
+  ...NUTRIENT_DEFINITIONS.map(field => Object.freeze([
+    field.key, field.label, field.unit, comparisonFloor(field), field.step, field.group,
+  ])),
 ]);
 
 const IDENTITY_STOP_WORDS = new Set([

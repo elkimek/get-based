@@ -15,11 +15,12 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
   await page.waitForSelector('#chat-input');
 
   const results = await page.evaluate(async ({ labContextUrl, recentDates }) => {
-    const [labContext, stateModule, dataModule, storeModule] = await Promise.all([
+    const [labContext, stateModule, dataModule, storeModule, chatPromptContext] = await Promise.all([
       import(labContextUrl),
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/wearables-store.js'),
+      import('/js/chat-context-summary.js'),
     ]);
     const { state } = stateModule;
     const outcomes = {};
@@ -419,7 +420,7 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
       const editedCollectionContextBlock = contextAfterFastingEdit.match(/\[section:labCollectionContext\]([\s\S]*?)\[\/section:labCollectionContext\]/)?.[1] || '';
       const contextHasHfeInventory = ['neutral finding', 'reference finding'].some(label =>
         context.includes(`HFE C282Y rs1800562: GG (${label}; evidence: Not graded; relevance: Relevance not graded; Iron)`));
-      const summary = labContext.getContextSummary(context);
+      const summary = chatPromptContext.getContextSummary(context);
       outcomes.groupWearableAndGeneticsTogglesAreApplied = groupDisabled && groupSettingSyncedOff && groupEnabled && groupDefaultsOnInOtherProfile && groupScopedToProfile && groupProfileSettingControls && labMarkersOff && labMarkersOn && wearableOff && wearableOn && bodyContextSynced && supplementsIndependentFromInsightCards && supplementsMedsToggleOff && lightContextOff && lightContextOn && geneticsInventoryOff && geneticsSummaryOff && geneticsPriorityOff && geneticsInventoryOn;
       outcomes.geneticsInventoryToggleControlsNormalSnpContext =
         !contextWithoutGeneticsInventory.includes('Imported SNP inventory for lookup')

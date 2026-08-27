@@ -250,6 +250,15 @@ test('EMF edge browser coverage imports PDFs photos rooms and streams interpreta
         && document.getElementById('detail-modal')?.textContent.includes('Edge Consultant') === true
         && document.getElementById('detail-modal')?.textContent.includes('WiFi router') === true;
 
+      document.querySelector('#detail-modal .modal-close')?.click();
+      await waitUntil(() => !!document.querySelector('#detail-modal .emf-editor-actions'), 'EMF editor restored from preview');
+      outcomes.pdfPreviewCancelReturnsToEditorAndPreservesWork =
+        document.getElementById('modal-overlay')?.classList.contains('show') === true
+        && assessments()[0].rooms.length === 2
+        && document.querySelector('[data-emf-action="trigger-pdf-import"]') != null;
+
+      await emf.handleEMFPDF(new File(['fake pdf bytes'], 'edge-emf-report.pdf', { type: 'application/pdf' }));
+      await waitUntil(() => !!document.getElementById('emf-confirm-btn'), 'reopened EMF import preview');
       document.getElementById('emf-confirm-btn').click();
       await waitUntil(() => assessments().some(a => a.consultant === 'Edge Consultant'), 'EMF import confirmed');
       const imported = assessments().find(a => a.consultant === 'Edge Consultant');

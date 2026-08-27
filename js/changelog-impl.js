@@ -13,8 +13,8 @@ const CHANGELOG = [
   {
     version: '1.18.0', date: '2026-08-25', title: 'Meals & Nutrition arrives',
     items: [
-      '<b>Log, review, and reuse meals.</b> Add a meal photo, scan a nutrition label or barcode, or enter values manually. Every estimate stays editable before saving, and saved meals can be corrected or logged again.',
-      '<b>Review macros and micronutrients with their source.</b> Recognized ingredients can use local USDA food-composition data, while unmatched values stay blank instead of being guessed from the photo.',
+      '<b>Log, review, and reuse meals.</b> Add a meal photo, scan a nutrition label with your selected AI model, or enter values manually. Every estimate stays editable before saving, and saved meals can be corrected or logged again.',
+      '<b>Review complete model-estimated nutrition.</b> The selected vision model estimates macros, vitamins, minerals, and other registered nutrients from identified foods and portions; uncertain values stay blank and every estimate remains editable.',
       '<b>Follow useful seven-day patterns.</b> Daily Nutrition brings intake averages, logging coverage, quick drink logging, and personal planning guides to Body and the Dashboard.',
       '<b>Explore carbohydrate and fat composition separately.</b> Fuel Mix Context shows the logged split and amount without turning it into a metabolic score or universal optimum.',
       '<b>Keep control of meal photos.</b> Full-size photos are sent only when you choose AI analysis and are not saved. Encrypted Sync can carry reviewed meal data and small thumbnails when enabled.',

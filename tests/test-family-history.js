@@ -43,7 +43,7 @@ console.log('=== Family History + Medical History Tests ===\n');
 
 const cards = await import('../js/context-cards.js');
 const constants = await import('../js/constants.js');
-const { getContextSummary } = await import('../js/lab-context-output.js');
+const { getContextSummary } = await import('../js/chat-context-summary.js');
 
 // ═══════════════════════════════════════
 // 1. Expanded COMMON_CONDITIONS

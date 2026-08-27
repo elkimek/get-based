@@ -5,17 +5,22 @@
 .nutrition-widget-starter-note span { color: var(--text-muted); font-size: 11px; }
 .nutrition-widget-starter-note button { border: 0; background: transparent; color: var(--accent); font: inherit; font-size: 11px; font-weight: 750; cursor: pointer; }
 .nutrition-widget-starter-note button:hover, .nutrition-widget-starter-note button:focus-visible { text-decoration: underline; outline: none; }
+.nutrition-recorded-notice { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 9px 11px; border-left: 3px solid var(--accent); border-radius: 8px; background: color-mix(in srgb, var(--accent) 5%, var(--bg-card)); }
+.nutrition-recorded-notice strong { font-size: 11px; }
+.nutrition-recorded-notice span { color: var(--text-muted); font-size: 10px; line-height: 1.45; text-align: right; }
 .nutrition-dashboard-grid { display: grid; grid-template-columns: minmax(250px, .82fr) minmax(340px, 1.18fr); gap: 14px; }
 .nutrition-dashboard-hero, .nutrition-goal-list { min-width: 0; display: grid; gap: 14px; padding: 15px; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in srgb, var(--accent) 2.5%, var(--bg-card)); }
 .nutrition-target-rings { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 12px; justify-items: center; }
-.nutrition-target-ring { --nutrition-ring: var(--accent); width: min(138px, 100%); aspect-ratio: 1; padding: 10px; border-radius: 50%; background: conic-gradient(var(--nutrition-ring) var(--nutrition-progress), color-mix(in srgb, var(--text-muted) 13%, transparent) 0); box-sizing: border-box; }
+.nutrition-target-ring { --nutrition-ring: var(--accent); width: min(148px, 100%); aspect-ratio: 1; padding: 9px; border-radius: 50%; background: conic-gradient(var(--nutrition-ring) var(--nutrition-progress), color-mix(in srgb, var(--text-muted) 13%, transparent) 0); box-sizing: border-box; }
 .nutrition-target-ring.is-secondary { --nutrition-ring: var(--success, #4cad7a); }
 .nutrition-target-ring.is-on-target { --nutrition-ring: var(--success, #4cad7a); }
 .nutrition-target-ring.is-above-target { --nutrition-ring: var(--warning, #d29a42); }
-.nutrition-target-ring > div { height: 100%; display: grid; place-content: center; justify-items: center; border-radius: 50%; background: var(--bg-card); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 75%, transparent); text-align: center; }
+.nutrition-target-ring > div { height: 100%; display: grid; place-content: center; justify-items: center; row-gap: 2px; box-sizing: border-box; padding: 12px; border-radius: 50%; background: var(--bg-card); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 75%, transparent); text-align: center; }
 .nutrition-target-ring strong { font-size: clamp(21px, 2vw, 28px); line-height: 1; font-variant-numeric: tabular-nums; }
 .nutrition-target-ring span, .nutrition-target-ring small { color: var(--text-muted); font-size: 11px; }
-.nutrition-target-ring small { margin-top: 4px; font-weight: 700; }
+.nutrition-target-ring .nutrition-target-ring-label { color: var(--text); font-size: 9px; font-weight: 800; letter-spacing: .08em; line-height: 1; text-transform: uppercase; }
+.nutrition-target-ring .nutrition-target-ring-unit { font-size: 10px; line-height: 1.2; white-space: nowrap; }
+.nutrition-target-ring .nutrition-target-ring-guide { margin-top: 3px; font-size: 10px; font-weight: 750; line-height: 1.2; white-space: nowrap; }
 .nutrition-protein-source { display: grid; gap: 3px; padding: 10px 11px; border-radius: 9px; background: color-mix(in srgb, var(--accent) 6%, var(--bg-card)); }
 .nutrition-protein-source strong { font-size: 12px; }
 .nutrition-protein-source span { color: var(--text-muted); font-size: 11px; line-height: 1.45; }
@@ -109,12 +114,23 @@
 .nutrition-modal.nutrition-targets-modal { width: min(860px, 96vw); max-width: 860px; }
 .nutrition-modal.nutrition-fluid-modal { width: min(640px, 96vw); max-width: 640px; }
 .nutrition-modal.nutrition-history-modal { width: min(960px, 96vw); max-width: 960px; }
+.nutrition-route-back { min-height: 34px; display: inline-flex; align-items: center; margin: 0 44px 10px 0; padding: 6px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text-muted); font: inherit; font-size: 11px; font-weight: 750; cursor: pointer; }
+.nutrition-route-back:hover, .nutrition-route-back:focus-visible { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); background: var(--bg-hover); color: var(--text); outline: none; }
 .nutrition-modal-head { padding-right: 40px; }
 .nutrition-modal-head h3 { margin-bottom: 2px; }
 .nutrition-modal-head p, .nutrition-model-line, .nutrition-privacy-line { color: var(--text-muted); font-size: 13px; margin: 0; }
 .nutrition-history-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .nutrition-history-head-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+.nutrition-history-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; margin-top: 18px; padding: 4px; border: 1px solid var(--border); border-radius: 10px; background: color-mix(in srgb, var(--text-muted) 5%, var(--bg-card)); }
+.nutrition-history-tabs button { min-height: 38px; border: 0; border-radius: 7px; background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; font-weight: 750; cursor: pointer; }
+.nutrition-history-tabs button:hover, .nutrition-history-tabs button:focus-visible { color: var(--text); outline: 2px solid color-mix(in srgb, var(--accent) 30%, transparent); outline-offset: -2px; }
+.nutrition-history-tabs button.active { background: var(--bg-card); color: var(--text); box-shadow: 0 1px 4px color-mix(in srgb, black 10%, transparent); }
 .nutrition-history-range { margin-top: 18px; }
+.nutrition-history-ai { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 10px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border)); border-radius: 10px; background: color-mix(in srgb, var(--accent) 5%, var(--bg-card)); }
+.nutrition-history-ai > div { display: grid; gap: 2px; min-width: 0; }
+.nutrition-history-ai strong { font-size: 12px; color: var(--text-primary); }
+.nutrition-history-ai span { color: var(--text-muted); font-size: 10px; line-height: 1.4; }
+.nutrition-history-ai .import-btn { flex: 0 0 auto; white-space: nowrap; }
 .nutrition-history-layout { display: grid; grid-template-columns: minmax(260px, .9fr) minmax(340px, 1.1fr); gap: 14px; margin-top: 16px; }
 .nutrition-history-overview, .nutrition-history-averages, .nutrition-history-timing, .nutrition-history-fuel { min-width: 0; padding: 15px; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in srgb, var(--accent) 2.5%, var(--bg-card)); }
 .nutrition-history-overview, .nutrition-history-averages { display: grid; gap: 14px; align-content: start; }
@@ -124,9 +140,10 @@
 .nutrition-history-stat-grid span { font-size: 11px; font-weight: 750; }
 .nutrition-history-stat-grid small { overflow: hidden; color: var(--text-muted); font-size: 9px; line-height: 1.35; text-overflow: ellipsis; }
 .nutrition-history-coverage-chart { min-height: 142px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(38px, 1fr); gap: 7px; overflow-x: auto; padding: 3px 2px 6px; scrollbar-width: thin; }
-.nutrition-history-coverage-bar { min-width: 0; display: grid; grid-template-rows: 110px auto; gap: 5px; align-items: end; text-align: center; }
+.nutrition-history-coverage-bar { min-width: 0; display: grid; grid-template-rows: 96px auto auto; gap: 4px; align-items: end; text-align: center; }
 .nutrition-history-coverage-bar i { height: 100%; display: flex; align-items: flex-end; overflow: hidden; border-radius: 6px; background: color-mix(in srgb, var(--text-muted) 10%, transparent); }
 .nutrition-history-coverage-bar i span { width: 100%; min-height: 0; border-radius: inherit; background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 68%, white), var(--accent)); }
+.nutrition-history-coverage-bar > span { color: var(--text); font-size: 9px; font-weight: 750; font-variant-numeric: tabular-nums; }
 .nutrition-history-coverage-bar small { overflow: hidden; color: var(--text-muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .nutrition-history-caveat { margin: 0; color: var(--text-muted); font-size: 10px; line-height: 1.5; }
 .nutrition-history-averages .nutrition-target-rings { margin-bottom: 2px; }
@@ -141,6 +158,18 @@
 .nutrition-history-empty strong { font-size: 13px; }
 .nutrition-history-empty p { margin: 3px 0 0; color: var(--text-muted); font-size: 11px; line-height: 1.45; }
 .nutrition-history-error { margin-top: 12px; padding: 10px 11px; border: 1px solid color-mix(in srgb, var(--danger, #c44) 35%, var(--border)); border-radius: 8px; color: var(--danger, #c44); font-size: 12px; }
+.nutrition-history-meals-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin-top: 16px; padding: 12px 13px; border: 1px solid var(--border); border-radius: 10px; background: color-mix(in srgb, var(--accent) 2.5%, var(--bg-card)); }
+.nutrition-history-meals-head > div { display: grid; gap: 3px; }
+.nutrition-history-meals-head strong { font-size: 13px; }
+.nutrition-history-meals-head span, .nutrition-history-meals-head small { color: var(--text-muted); font-size: 10px; line-height: 1.45; }
+.nutrition-history-meals-head small { max-width: 360px; text-align: right; }
+.nutrition-meal-timeline { display: grid; gap: 18px; margin-top: 18px; }
+.nutrition-timeline-day { display: grid; gap: 4px; }
+.nutrition-timeline-day-head { display: flex; justify-content: space-between; gap: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.nutrition-timeline-day-head strong { font-size: 12px; }
+.nutrition-timeline-day-head span { color: var(--text-muted); font-size: 10px; }
+.nutrition-history-more { width: 100%; min-height: 44px; margin-top: 16px; }
+.nutrition-history-more span { color: var(--text-muted); font-size: 10px; font-weight: 650; }
 .nutrition-model-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .nutrition-meal-model-control { display: grid; gap: 10px; min-width: 0; padding: 12px; border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border)); border-radius: 12px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, var(--bg-card)), var(--bg-card) 68%); box-shadow: inset 0 1px color-mix(in srgb, white 4%, transparent); }
 .nutrition-meal-model-status { flex: 0 0 auto; padding: 4px 8px; border-radius: 999px; background: color-mix(in srgb, var(--text-muted) 10%, var(--bg-card)); color: var(--text-muted); font-size: 10px; font-weight: 800; }
@@ -167,9 +196,12 @@
 .nutrition-review-section-title { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-top: 2px; }
 .nutrition-review-section-title strong { font-size: 14px; }
 .nutrition-review-section-title span { color: var(--text-muted); font-size: 11px; text-align: right; }
-.nutrition-capture-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 3px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-card); }
+.nutrition-capture-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 3px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-card); }
 .nutrition-capture-tabs button { border: 0; border-radius: 6px; padding: 9px 11px; background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; }
 .nutrition-capture-tabs button.is-active { background: var(--bg-hover); color: var(--text); font-weight: 700; }
+.nutrition-modal.nutrition-manual-mode .nutrition-entry-grid { grid-template-columns: 1fr; }
+.nutrition-modal.nutrition-manual-mode .nutrition-photo-panel > :not(.nutrition-capture-tabs) { display: none !important; }
+.nutrition-modal.nutrition-manual-mode .nutrition-review-panel { max-width: 760px; width: 100%; margin-inline: auto; }
 .nutrition-photo-picker { position: relative; display: block; cursor: pointer; }
 .nutrition-photo-picker input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .nutrition-photo-preview { min-height: 210px; border: 1px dashed var(--border); border-radius: 12px; background: var(--bg-card); display: grid; place-content: center; justify-items: center; gap: 5px; overflow: hidden; position: relative; }
@@ -183,8 +215,6 @@
 .nutrition-privacy-line { line-height: 1.45; }
 .nutrition-label-consumption { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .nutrition-label-consumption[hidden] { display: none; }
-.nutrition-barcode-row { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; align-items: end; padding-top: 3px; }
-.nutrition-barcode-row > small { grid-column: 1 / -1; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
 .nutrition-known-details textarea { resize: vertical; min-height: 62px; }
 .nutrition-analysis-status { min-height: 18px; font-size: 13px; line-height: 1.4; color: var(--text-muted); }
 .nutrition-analysis-status.is-error { color: var(--danger, #e76868); }
@@ -225,7 +255,7 @@
 .nutrition-more-nutrients { border: 1px solid var(--border); border-radius: 9px; padding: 0 10px; }
 .nutrition-more-nutrients summary { padding: 9px 0; cursor: pointer; color: var(--text-muted); font-size: 11px; font-weight: 700; }
 .nutrition-more-nutrients[open] { padding-bottom: 10px; }
-.nutrition-food-composition-summary { margin-bottom: 10px; color: var(--text-muted); font-size: 11px; line-height: 1.45; }
+.nutrition-nutrient-estimate-summary { margin-bottom: 10px; color: var(--text-muted); font-size: 11px; line-height: 1.45; }
 .nutrition-nutrient-groups { display: grid; gap: 12px; }
 .nutrition-nutrient-groups fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 .nutrition-nutrient-groups legend { margin-bottom: 7px; color: var(--text); font-size: 11px; font-weight: 750; }
@@ -287,7 +317,13 @@
 .nutrition-comparison-section-title strong { font-size: 13px; }
 .nutrition-comparison-section-title span { color: var(--text-muted); font-size: 11px; }
 .nutrition-comparison-section-title small { color: var(--text-muted); font-size: 11px; font-weight: 400; }
+.nutrition-comparison-model-search { display: grid; grid-template-columns: auto minmax(180px, 1fr) auto; gap: 9px; align-items: center; }
+.nutrition-comparison-model-search > span { color: var(--text); font-size: 11px; font-weight: 750; }
+.nutrition-comparison-model-search input { width: 100%; min-width: 0; box-sizing: border-box; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-input, var(--bg-card)); color: var(--text); font: inherit; font-size: 12px; }
+.nutrition-comparison-model-search input:focus { border-color: var(--accent); outline: 2px solid color-mix(in srgb, var(--accent) 24%, transparent); outline-offset: 1px; }
+.nutrition-comparison-model-search small { min-width: 82px; color: var(--text-muted); font-size: 10px; text-align: right; }
 .nutrition-comparison-models { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 8px; overflow: visible; }
+.nutrition-comparison-model[hidden] { display: none; }
 .nutrition-comparison-model { position: relative; display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 9px; align-items: start; min-height: 78px; box-sizing: border-box; padding: 11px; border: 1px solid var(--border); border-radius: 10px; background: color-mix(in srgb, var(--accent) 1.5%, var(--bg-card)); cursor: pointer; transition: border-color .16s ease, background-color .16s ease, transform .16s ease; }
 .nutrition-comparison-model:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); background: color-mix(in srgb, var(--accent) 5%, var(--bg-card)); transform: translateY(-1px); }
 .nutrition-comparison-model:focus-within { outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent); outline-offset: 2px; }
@@ -304,10 +340,18 @@
 .nutrition-comparison-model .nutrition-model-price { color: var(--text); font-size: 10px; }
 .nutrition-comparison-model em { color: var(--success, #4cad7a); font-size: 11px; font-style: normal; font-weight: 800; }
 .nutrition-comparison-empty { color: var(--text-muted); font-size: 11px; line-height: 1.45; }
+.nutrition-comparison-search-empty { padding: 12px; border: 1px dashed var(--border); border-radius: 9px; color: var(--text-muted); font-size: 11px; text-align: center; }
+.nutrition-comparison-search-empty[hidden] { display: none; }
 .nutrition-comparison-reference-editor { background: color-mix(in srgb, var(--accent) 2.5%, var(--bg-card)) !important; }
 .nutrition-comparison-reference-copy { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(280px, 1.2fr); gap: 8px; }
 .nutrition-comparison-reference-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .nutrition-comparison-reference-grid .nutrition-field:first-child { grid-column: span 1; }
+.nutrition-comparison-reference-details { margin-top: 2px; border-top: 1px solid var(--border); padding-top: 9px; }
+.nutrition-comparison-reference-details > summary { color: var(--text); font-size: 12px; font-weight: 750; cursor: pointer; }
+.nutrition-comparison-reference-details > summary small { color: var(--text-muted); font-size: 10px; font-weight: 500; }
+.nutrition-comparison-reference-groups { display: grid; gap: 11px; margin-top: 10px; }
+.nutrition-comparison-reference-groups fieldset { min-width: 0; margin: 0; padding: 10px; border: 1px solid var(--border); border-radius: 9px; }
+.nutrition-comparison-reference-groups legend { padding: 0 5px; color: var(--text-muted); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
 .nutrition-comparison-actions { display: flex; justify-content: flex-end; align-items: center; gap: 14px; }
 .nutrition-comparison-actions .import-btn { flex: 0 0 auto; }
 .nutrition-comparison-method { padding: 10px 12px; border-left: 3px solid var(--accent); border-radius: 8px; background: color-mix(in srgb, var(--accent) 6%, var(--bg-card)); }
@@ -370,21 +414,24 @@
 .nutrition-comparison-checks { font-size: 11px; }
 .nutrition-comparison-checks summary { color: var(--text-muted); cursor: pointer; font-weight: 700; }
 .nutrition-comparison-checks ul { margin: 7px 0 0; padding-left: 18px; color: var(--text-muted); line-height: 1.45; }
-.nutrition-comparison-errors { overflow: hidden; border: 1px solid var(--border); border-radius: 8px; font-size: 11px; }
-.nutrition-comparison-errors summary { padding: 9px 10px; background: color-mix(in srgb, var(--accent) 3%, var(--bg-card)); color: var(--text); cursor: pointer; font-weight: 700; }
-.nutrition-comparison-errors[open] summary { border-bottom: 1px solid var(--border); }
+.nutrition-comparison-errors, .nutrition-comparison-detailed { overflow: hidden; border: 1px solid var(--border); border-radius: 8px; font-size: 11px; }
+.nutrition-comparison-errors summary, .nutrition-comparison-detailed summary { padding: 9px 10px; background: color-mix(in srgb, var(--accent) 3%, var(--bg-card)); color: var(--text); cursor: pointer; font-weight: 700; }
+.nutrition-comparison-detailed summary { display: flex; justify-content: space-between; gap: 8px; }
+.nutrition-comparison-detailed summary span { color: var(--text-muted); font-size: 10px; font-weight: 500; }
+.nutrition-comparison-errors[open] summary, .nutrition-comparison-detailed[open] summary { border-bottom: 1px solid var(--border); }
 .nutrition-comparison-error-table-wrap { overflow-x: auto; }
-.nutrition-comparison-errors table { width: 100%; min-width: 420px; border-collapse: collapse; table-layout: fixed; font-variant-numeric: tabular-nums; }
-.nutrition-comparison-errors th, .nutrition-comparison-errors td { padding: 8px 9px; border-bottom: 1px solid var(--border); text-align: right; vertical-align: middle; white-space: nowrap; }
-.nutrition-comparison-errors thead th { background: color-mix(in srgb, var(--text-muted) 5%, var(--bg-card)); color: var(--text-muted); font-size: 11px; font-weight: 750; text-transform: uppercase; letter-spacing: .04em; }
-.nutrition-comparison-errors th:first-child, .nutrition-comparison-errors tbody th { width: 24%; text-align: left; }
-.nutrition-comparison-errors tbody th { color: var(--text); font-size: 11px; }
-.nutrition-comparison-errors tbody td { color: var(--text-muted); }
-.nutrition-comparison-errors tr:last-child > * { border-bottom: 0; }
+.nutrition-comparison-errors table, .nutrition-comparison-detailed table { width: 100%; min-width: 420px; border-collapse: collapse; table-layout: fixed; font-variant-numeric: tabular-nums; }
+.nutrition-comparison-errors th, .nutrition-comparison-errors td, .nutrition-comparison-detailed th, .nutrition-comparison-detailed td { padding: 8px 9px; border-bottom: 1px solid var(--border); text-align: right; vertical-align: middle; white-space: nowrap; }
+.nutrition-comparison-errors thead th, .nutrition-comparison-detailed thead th { background: color-mix(in srgb, var(--text-muted) 5%, var(--bg-card)); color: var(--text-muted); font-size: 11px; font-weight: 750; text-transform: uppercase; letter-spacing: .04em; }
+.nutrition-comparison-errors th:first-child, .nutrition-comparison-errors tbody th, .nutrition-comparison-detailed th:first-child, .nutrition-comparison-detailed tbody th { width: 24%; text-align: left; }
+.nutrition-comparison-errors tbody th, .nutrition-comparison-detailed tbody th { color: var(--text); font-size: 11px; }
+.nutrition-comparison-errors tbody td, .nutrition-comparison-detailed tbody td { color: var(--text-muted); }
+.nutrition-comparison-errors tr:last-child > *, .nutrition-comparison-detailed tr:last-child > * { border-bottom: 0; }
 .nutrition-comparison-difference { color: var(--text) !important; font-weight: 750; }
 .nutrition-comparison-difference.is-close { color: var(--success, #4cad7a) !important; }
 .nutrition-comparison-difference.is-far { color: var(--warning, #d29a42) !important; }
 .nutrition-comparison-difference.is-missing { color: var(--text-muted) !important; font-weight: 500; }
+.nutrition-comparison-difference.is-reference { color: var(--accent) !important; }
 .nutrition-comparison-card-actions { display: flex; align-items: center; justify-content: flex-end; gap: 9px; }
 .nutrition-comparison-card-actions > span { color: var(--accent); font-size: 11px; font-weight: 700; }
 .nutrition-comparison-card-actions > .import-btn { font-size: 12px; padding: 8px 11px; }
@@ -449,12 +496,13 @@
 .nutrition-target-actions p { margin: 0; color: var(--text-muted); font-size: 11px; line-height: 1.4; }
 .nutrition-target-actions p.is-error { color: var(--danger, #c44); }
 .nutrition-recent { border-top: 1px solid var(--border); margin-top: 22px; padding-top: 18px; }
+.nutrition-meal-records-copy { margin: 0 0 10px; color: var(--text-muted); font-size: 11px; line-height: 1.5; }
 .nutrition-recent-list { display: grid; }
 .nutrition-recent-more[hidden] { display: none; }
 .nutrition-recent-toggle { width: 100%; min-height: 40px; margin-top: 10px; padding: 8px 12px; border: 1px dashed var(--border); border-radius: 8px; background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; transition: color .15s, border-color .15s, background-color .15s; }
 .nutrition-recent-toggle:hover, .nutrition-recent-toggle:focus-visible { border-color: var(--accent); border-style: solid; background: color-mix(in srgb, var(--accent) 5%, var(--bg-card)); color: var(--accent); outline: none; }
 .nutrition-section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 8px; }
-.nutrition-meal-row { display: grid; grid-template-columns: minmax(0, 1fr) 32px; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.nutrition-meal-row { display: grid; grid-template-columns: minmax(0, 1fr) 52px; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .nutrition-meal-open { appearance: none; border: 0; background: transparent; color: inherit; font: inherit; padding: 0; min-width: 0; display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 10px; align-items: center; text-align: left; cursor: pointer; border-radius: 8px; }
 .nutrition-meal-open:hover, .nutrition-meal-open:focus-visible { background: var(--bg-hover); outline: none; }
 .nutrition-meal-row img, .nutrition-meal-placeholder { width: 48px; height: 48px; border-radius: 8px; object-fit: cover; background: var(--bg-card); display: grid; place-items: center; }
@@ -464,6 +512,8 @@
 .nutrition-meal-energy small { display: block; color: var(--text-muted); font-size: 10px; font-weight: 400; }
 .nutrition-icon-btn { width: 30px; height: 30px; border: 0; background: transparent; color: var(--text-muted); font-size: 20px; cursor: pointer; border-radius: 8px; }
 .nutrition-icon-btn:hover { background: var(--bg-hover); color: var(--text); }
+.nutrition-meal-delete { min-height: 32px; border: 0; border-radius: 7px; padding: 5px 7px; background: transparent; color: var(--text-muted); font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; }
+.nutrition-meal-delete:hover, .nutrition-meal-delete:focus-visible { background: color-mix(in srgb, var(--danger, #c44) 8%, var(--bg-card)); color: var(--danger, #c44); outline: 2px solid color-mix(in srgb, var(--danger, #c44) 22%, transparent); }
 .nutrition-empty { color: var(--text-muted); font-size: 13px; padding: 10px 0; }
 .nutrition-detail-layout { display: grid; gap: 16px; margin-top: 18px; }
 .nutrition-detail-gallery { display: grid; gap: 8px; padding: 8px; border: 1px solid var(--border); border-radius: 14px; background: color-mix(in srgb, var(--accent) 2.5%, var(--bg-card)); }
@@ -500,11 +550,14 @@
 }
 @media (max-width: 720px) {
   .nutrition-modal, .nutrition-modal.nutrition-targets-modal, .nutrition-modal.nutrition-fluid-modal { width: 100%; max-width: 100%; max-height: calc(100dvh - 24px); padding: 20px; scrollbar-gutter: auto; }
+  .nutrition-modal > .modal-close { min-width: 44px; min-height: 44px; display: grid; place-items: center; padding: 0; }
   .nutrition-modal .nutrition-field input, .nutrition-modal .nutrition-field textarea, .nutrition-modal .nutrition-field select, .nutrition-modal .nutrition-component-row input, .nutrition-modal .nutrition-component-food-data select, .nutrition-modal .nutrition-meal-model-select select { font-size: 16px; }
+  .nutrition-comparison-model-search input { font-size: 16px; }
   .nutrition-modal .nutrition-capture-tabs button, .nutrition-modal .nutrition-compare-launch, .nutrition-modal .nutrition-comparison-actions .import-btn, .nutrition-modal .nutrition-comparison-card-actions .import-btn, .nutrition-modal .nutrition-target-actions .import-btn, .nutrition-modal .nutrition-fluid-preset { min-height: 44px; }
   .nutrition-modal .nutrition-meal-model-settings, .nutrition-modal .nutrition-text-btn { min-height: 44px; display: inline-flex; align-items: center; }
   .nutrition-comparison-head > .nutrition-icon-btn { width: 44px; height: 44px; flex: 0 0 44px; }
-  .nutrition-comparison-errors summary, .nutrition-comparison-checks summary { min-height: 44px; box-sizing: border-box; display: flex; align-items: center; }
+  .nutrition-route-back { min-height: 44px; }
+  .nutrition-comparison-errors summary, .nutrition-comparison-detailed summary, .nutrition-comparison-reference-details > summary, .nutrition-comparison-checks summary { min-height: 44px; box-sizing: border-box; display: flex; align-items: center; }
   .nutrition-comparison-section-title { align-items: flex-start; flex-wrap: wrap; }
   .nutrition-widget-metric-option { min-height: 44px; box-sizing: border-box; padding: 7px 8px; border-radius: 7px; background: color-mix(in srgb, var(--accent) 2%, var(--bg-card)); }
   .nutrition-entry-grid, .nutrition-detail-layout, .nutrition-detail-content-grid { grid-template-columns: 1fr; }
@@ -515,9 +568,14 @@
   .nutrition-history-head { flex-direction: column; }
   .nutrition-history-head-actions { width: 100%; }
   .nutrition-history-head-actions .dashboard-action-btn { flex: 1; }
+  .nutrition-history-tabs button { min-height: 44px; }
   .nutrition-history-range { width: 100%; box-sizing: border-box; }
   .nutrition-history-range .ctx-btn-option { min-height: 44px; flex: 1; }
+  .nutrition-history-ai { align-items: stretch; flex-direction: column; }
+  .nutrition-history-ai .import-btn { width: 100%; min-height: 44px; }
   .nutrition-history-layout { grid-template-columns: 1fr; }
+  .nutrition-history-meals-head { align-items: flex-start; flex-direction: column; gap: 5px; }
+  .nutrition-history-meals-head small { max-width: none; text-align: left; }
   .nutrition-history-empty { align-items: flex-start; flex-wrap: wrap; }
   .nutrition-target-settings-head { flex-direction: column; }
   .nutrition-target-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -530,8 +588,9 @@
   .nutrition-component-columns { display: none; }
   .nutrition-component-row { grid-template-columns: minmax(0, 1fr) minmax(112px, .7fr) 44px; align-items: center; }
   .nutrition-component-row > .nutrition-icon-btn { width: 44px; height: 44px; }
-  .nutrition-meal-row { grid-template-columns: minmax(0, 1fr) 44px; }
+  .nutrition-meal-row { grid-template-columns: minmax(0, 1fr) auto; }
   .nutrition-meal-row > .nutrition-icon-btn { width: 44px; height: 44px; }
+  .nutrition-meal-delete { min-width: 58px; min-height: 44px; }
   .nutrition-recent-toggle { min-height: 44px; }
   .nutrition-component-ingredient { grid-column: 1 / 3; }
   .nutrition-component-row > .nutrition-icon-btn { grid-column: 3; grid-row: 1; }
@@ -546,18 +605,22 @@
   .nutrition-fuel-guidance strong { text-align: left; }
 }
 @media (max-width: 430px) {
+  .nutrition-recorded-notice { align-items: flex-start; flex-direction: column; gap: 3px; }
+  .nutrition-recorded-notice span { text-align: left; }
+  .nutrition-history-tabs { position: sticky; top: -20px; z-index: 2; background: var(--bg-card); }
   .nutrition-history-stat-grid, .nutrition-history-timing > div:nth-child(2) { grid-template-columns: 1fr; }
   .nutrition-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .nutrition-metric { border-bottom: 1px solid var(--border); }
   .nutrition-metric:nth-child(2) { border-right: 0; }
   .nutrition-metric:nth-last-child(-n + 2) { border-bottom: 0; }
   .nutrition-review-meta { grid-template-columns: 1fr; }
-  .nutrition-label-consumption, .nutrition-barcode-row { grid-template-columns: 1fr; }
-  .nutrition-barcode-row > small { grid-column: 1; }
+  .nutrition-label-consumption { grid-template-columns: 1fr; }
   .nutrition-model-row, .nutrition-review-actions, .nutrition-comparison-actions, .nutrition-comparison-reference-banner, .nutrition-comparison-return, .nutrition-comparison-history { align-items: stretch; flex-direction: column; }
   .nutrition-meal-model-foot { align-items: flex-start; flex-direction: column; }
   .nutrition-review-actions .import-btn, .nutrition-comparison-actions .import-btn { width: 100%; }
   .nutrition-model-comparison { margin-inline: -6px; padding: 12px; }
+  .nutrition-comparison-model-search { grid-template-columns: minmax(0, 1fr) auto; }
+  .nutrition-comparison-model-search > span { grid-column: 1 / -1; }
   .nutrition-comparison-reference-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .nutrition-comparison-card-head { align-items: stretch; flex-direction: column; }
   .nutrition-comparison-score { width: 100%; box-sizing: border-box; justify-items: start; }

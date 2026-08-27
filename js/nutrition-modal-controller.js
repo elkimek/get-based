@@ -2,6 +2,7 @@
 // nutrition-modal-controller.js — guarded modal dismissal and Settings handoff.
 
 import { isNutritionComparisonRunning, hasNutritionComparisonRuns } from './nutrition-comparison-ui.js';
+import { suspendedNutritionEditorHasDraft } from './nutrition-editor-navigation.js';
 import { isAnalysisProgressRunning } from './nutrition-review-ui.js';
 import { closeModalOverlay } from './modal-lifecycle.js';
 import { showConfirmDialog, showNotification } from './utils.js';
@@ -12,11 +13,15 @@ export function configureNutritionModalController(deps = {}) {
   modalDeps = { ...modalDeps, ...deps };
 }
 
-export function closeNutritionEditor() {
-  modalDeps.resetEditorState();
-  document.getElementById('detail-modal')?.classList.remove('nutrition-modal', 'nutrition-targets-modal', 'nutrition-fluid-modal', 'nutrition-history-modal');
+function finishClosingNutritionEditor() {
+  document.getElementById('detail-modal')?.classList.remove('nutrition-modal', 'nutrition-targets-modal', 'nutrition-fluid-modal', 'nutrition-history-modal', 'nutrition-manual-mode');
   document.getElementById('modal-overlay')?.removeAttribute('data-modal-dismiss-protected');
   closeModalOverlay('modal-overlay');
+}
+
+export function closeNutritionEditor() {
+  modalDeps.resetEditorState();
+  finishClosingNutritionEditor();
 }
 
 function nudgeNutritionEditor() {
@@ -29,10 +34,11 @@ function nudgeNutritionEditor() {
 }
 
 function editorHasUnsavedWork() {
+  if (suspendedNutritionEditorHasDraft()) return true;
   if (modalDeps.hasUnsavedState() || hasNutritionComparisonRuns()) return true;
   const selectors = [
     '#nutrition-meal-name', '#nutrition-meal-type', '#nutrition-note', '#nutrition-known-details',
-    '#nutrition-barcode', '#nutrition-consumed-amount', '[data-nutrition-nutrient]',
+    '#nutrition-consumed-amount', '[data-nutrition-nutrient]',
     '[data-nutrition-reference]', '[data-nutrition-component-name]', '[data-nutrition-component-grams]',
   ];
   return Array.from(document.querySelectorAll(selectors.join(','))).some(field => {
@@ -42,22 +48,36 @@ function editorHasUnsavedWork() {
   });
 }
 
+/**
+ * @param {(()=>unknown|Promise<unknown>)|null} navigate
+ * @param {{message?: string, confirmLabel?: string, ariaLabel?: string}} [options]
+ */
+export async function requestNutritionEditorNavigation(navigate, {
+  message = 'Discard this unsaved meal draft? The selected photos and any completed AI analysis will be removed from this review.',
+  confirmLabel = 'Discard draft',
+  ariaLabel = 'Discard meal draft',
+} = {}) {
+  if (isAnalysisProgressRunning() || isNutritionComparisonRunning()) {
+    nudgeNutritionEditor();
+    showNotification('Meal analysis is still running. Keep this window open so the result is not lost.', 'info');
+    return false;
+  }
+  if (editorHasUnsavedWork() && !await showConfirmDialog(
+    message,
+    { confirmLabel, cancelLabel: 'Keep editing', ariaLabel },
+  )) return false;
+  modalDeps.resetEditorState();
+  await navigate?.();
+  return true;
+}
+
 export async function requestCloseNutritionEditor() {
   const overlay = document.getElementById('modal-overlay');
   if (!overlay?.hasAttribute('data-modal-dismiss-protected')) {
     closeNutritionEditor();
     return;
   }
-  if (isAnalysisProgressRunning() || isNutritionComparisonRunning()) {
-    nudgeNutritionEditor();
-    showNotification('Meal analysis is still running. Keep this window open so the result is not lost.', 'info');
-    return;
-  }
-  if (editorHasUnsavedWork() && !await showConfirmDialog(
-    'Discard this unsaved meal draft? The selected photos and any completed AI analysis will be removed from this review.',
-    { confirmLabel: 'Discard draft', cancelLabel: 'Keep editing', ariaLabel: 'Discard meal draft' },
-  )) return;
-  closeNutritionEditor();
+  await requestNutritionEditorNavigation(finishClosingNutritionEditor);
 }
 
 function modalOverlayIsTopmost(overlay) {

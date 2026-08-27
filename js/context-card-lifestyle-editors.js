@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { scanDietForContaminants } from './food-contaminants.js';
-import { doesNutritionContextOverrideTypicalMeals } from './nutrition-context.js';
+import { doesNutritionContextOverrideTypicalMeals } from './context-card-summaries.js';
 import { showNotification } from './utils.js';
 
 /** @typedef {typeof import('./context-card-lifestyle-editors-impl.js')} LifestyleContextEditorsModule */

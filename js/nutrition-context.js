@@ -2,15 +2,29 @@
 // nutrition-context.js — compact summary-only context for chat and source controls.
 
 import { state } from './state.js';
-import { isNutritionContextEnabled } from './lab-context-settings.js';
-import { escapeHTML, showNotification } from './utils.js';
+import { showNotification } from './utils.js';
 import { addUtilsRuntimeListener } from './utils-runtime.js';
+import { getNutritionContextDays, isNutritionContextEnabled } from './lab-context-settings.js';
 
 export { isNutritionContextEnabled, setNutritionContextEnabled } from './lab-context-settings.js';
+export { doesNutritionContextOverrideTypicalMeals } from './context-card-summaries.js';
 
-/** @param {any} [summary] */
-export function doesNutritionContextOverrideTypicalMeals(summary = state.nutritionSummary) {
-  return summary?.totalMeals > 0 && isNutritionContextEnabled();
+export function buildNutritionContext(importedData = state, { ignoreContextToggles = false } = {}) {
+  if (!ignoreContextToggles && !isNutritionContextEnabled()) return '';
+  const summary = importedData?.nutritionSummary;
+  const profileData = importedData === state ? state.importedData : importedData?.importedData;
+  return summary?.contextByDays?.[`d${getNutritionContextDays(profileData || state.importedData)}`] || '';
+}
+
+export function nutritionHistoryRequestFromQuery(queryText = '') {
+  const match = String(queryText).match(/^Nutrition history range:\s*(30D|3M|6M|1Y|All)\s*\(([^\n)]+)\)\.\s*$/mi);
+  return match ? { label: match[1], description: match[2].trim() } : null;
+}
+
+export function buildNutritionHistoryReceiptContext(queryText = '') {
+  const request = nutritionHistoryRequestFromQuery(queryText);
+  if (!request) return '';
+  return `[section:nutritionHistory]\n## Meals & Nutrition — ${request.label} one-off history\nOne-off aggregate is in the editable user message; automatic nutrition summary is omitted. Individual meals, names, notes, ingredients, and photos are not included.\n[/section:nutritionHistory]\n\n`;
 }
 
 export async function hydrateNutritionSummary(...args) {
@@ -127,45 +141,16 @@ export async function openNutritionModule(navigate = null) {
   }
 }
 
-export function buildNutritionContext(importedData = state, { ignoreContextToggles = false } = {}) {
-  if (!ignoreContextToggles && !isNutritionContextEnabled()) return '';
-  const summary = importedData?.nutritionSummary;
-  return summary?.contextText || '';
-}
-
-export function renderNutritionDietExtension(actionAttributes) {
-  const summary = state.nutritionSummary;
-  const period = summary?.windows?.d7;
-  const logged = period?.loggedDays || 0;
-  const foodMeals = period?.foodMeals ?? period?.meals ?? 0;
-  const hasDetailedMeals = summary?.totalMeals > 0;
-  const overridesTypicalMeals = doesNutritionContextOverrideTypicalMeals(summary);
-  const title = overridesTypicalMeals ? 'Detailed meal log active' : 'Meals & Nutrition';
-  let detail = 'Add variable meals and photo estimates';
-  if (hasDetailedMeals && !overridesTypicalMeals) {
-    detail = 'AI source off · Typical meals active';
-  } else if (period?.meals) {
-    detail = `Replaces Typical meals · ${foodMeals} logged meal${foodMeals === 1 ? '' : 's'} · ${logged}/7 days`;
-  } else if (overridesTypicalMeals) {
-    detail = 'Replaces Typical meals · no entries in 7 days';
+/** @param {{view?: string, focus?: string}} [options] @param {((category: string) => void) | null} [navigate] */
+export async function openNutritionHistoryModule({ view = 'meals', focus = '' } = {}, navigate = null) {
+  try {
+    const module = await loadNutritionFeature();
+    if (typeof navigate === 'function') navigate('body');
+    setTimeout(() => { void module.openNutritionHistoryView?.(view, { focus }); }, 0);
+    return true;
+  } catch (error) {
+    console.error('Meals & Nutrition history could not be loaded', error);
+    showNotification('Meals & Nutrition history could not be loaded. Try again.', 'error');
+    return false;
   }
-  return `<button type="button" class="diet-nutrition-extension" ${actionAttributes('open-nutrition')}><span class="diet-nutrition-extension-title">${title}</span><span>${escapeHTML(detail)}</span><span aria-hidden="true">→</span></button>`;
-}
-
-export function renderNutritionCircadianExtension(actionAttributes) {
-  const period = state.nutritionSummary?.windows?.d7;
-  const timing = period?.timing;
-  if (!period?.meals || !timing?.mealsWithTiming) return '';
-  const first = timing.averageFirstMealLocalTime || '';
-  const last = timing.averageLastMealLocalTime || '';
-  const beforeSleep = timing.sleepRelative?.averageLastMealToSleepMinutes;
-  const afterWake = timing.sleepRelative?.averageWakeToFirstMealMinutes;
-  const duration = minutes => {
-    const value = Number(minutes);
-    if (!Number.isFinite(value)) return '';
-    return `${Math.floor(value / 60)}h ${Math.round(value % 60)}m`;
-  };
-  const detail = [first && `first ${first}`, last && `last ${last}`, beforeSleep !== null && beforeSleep !== undefined && Number.isFinite(Number(beforeSleep)) && `${duration(beforeSleep)} before sleep`, afterWake !== null && afterWake !== undefined && Number.isFinite(Number(afterWake)) && `${duration(afterWake)} after wake`].filter(Boolean).join(' · ');
-  if (!detail) return '';
-  return `<button type="button" class="diet-nutrition-extension" ${actionAttributes('open-nutrition')}><span class="diet-nutrition-extension-title">Logged meal timing</span><span>7-day average · ${escapeHTML(detail)}</span><span aria-hidden="true">→</span></button>`;
 }

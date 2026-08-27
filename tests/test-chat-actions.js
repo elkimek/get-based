@@ -30,7 +30,6 @@ console.log('=== Chat Actions Tests ===\n');
 
 // State, chat actions, and context summaries stay on their module surfaces.
 const { state: S } = await import('../js/state.js');
-const labContext = await import('../js/lab-context.js');
 await import('../js/chat.js');
 const {
   buildActionBar, copyMessage, regenerateLastMessage, toggleContextDetails,
@@ -39,6 +38,7 @@ const { buildSummaryTranscript } = await import('../js/chat-summaries.js');
 const {
   attachLensSources, buildMultiPersonaInstruction, buildTaggedChatMessages, buildWebSearchHint,
 } = await import('../js/chat-prompt-context.js');
+const { getContextSummary } = await import('../js/chat-context-summary.js');
 const {
   clearCurrentDiscussionThreadState, reopenCurrentDiscussionThread,
 } = await import('../js/chat-discussion-state.js');
@@ -60,7 +60,7 @@ for (const [name, action] of Object.entries(moduleActions)) {
   assert(`chat-actions.${name} exists`, typeof action === 'function', typeof action);
   assert(`window.${name} stays module-only`, typeof window[name] === 'undefined', typeof window[name]);
 }
-assert('lab-context.getContextSummary exists', typeof labContext.getContextSummary === 'function');
+assert('chat-context-summary.getContextSummary exists', typeof getContextSummary === 'function');
 assert('window.getContextSummary stays module-only', !('getContextSummary' in window));
 assert('window.readAloud removed', typeof window.readAloud === 'undefined', typeof window.readAloud);
 
@@ -197,7 +197,7 @@ if (hasState) {
 
 // ─── Section 2: getContextSummary() ───
 console.log('Section 2: getContextSummary()');
-const summary = labContext.getContextSummary(`[section:profile]
+const summary = getContextSummary(`[section:profile]
 Profile context
 [/section:profile]
 
@@ -224,7 +224,7 @@ assert('All summary labels are non-empty strings', allLabelsStr, summary.map(s =
 assert('Summary is derived from exact Genome section', summary.some(s => s.label === 'Genome'), JSON.stringify(summary));
 assert('Summary exposes aggregate Meals & Nutrition', summary.some(s => s.label === 'Meals & Nutrition' && s.detail.includes('5 meals')), JSON.stringify(summary));
 assert('Summary exposes included Light module parts', summary.some(s => s.label === 'Light & Sun' && s.detail.includes('outdoor') && s.detail.includes('devices') && s.detail.includes('indoor') && s.detail.includes('trends')), JSON.stringify(summary));
-assert('Summary stays empty without assembled context', labContext.getContextSummary().length === 0, 'empty');
+assert('Summary stays empty without assembled context', getContextSummary().length === 0, 'empty');
 
 // ─── Section 3: buildActionBar() ───
 console.log('Section 3: buildActionBar()');
@@ -380,6 +380,7 @@ const chatSummariesSrc = read('js/chat-summaries.js');
 const chatContinuationSrc = read('js/chat-continuation.js');
 const chatMarkerPromptsSrc = read('js/chat-marker-prompts.js');
 const chatPromptContextSrc = read('js/chat-prompt-context.js');
+const chatContextSummarySrc = read('js/chat-context-summary.js');
 const chatPersonalitiesSrc = read('js/chat-personalities.js');
 const chatHistorySrc = read('js/chat-history.js');
 const chatPanelSrc = read('js/chat-panel.js');
@@ -405,9 +406,10 @@ const appUiShellModulesSrc = read('js/app-ui-shell-modules.js');
 const chatRenderSrc = read('js/chat-render.js');
 const chatSendSrc = read('js/chat-send.js');
 const labCtxSrc = read('js/lab-context.js');
-const labCtxOutputSrc = read('js/lab-context-output.js');
-assert('lab-context.js exposes getContextSummary from its output owner',
-  labCtxSrc.includes('getContextSummary') && labCtxOutputSrc.includes('function getContextSummary'),
+assert('lazy chat context summary owns the exact-context receipt',
+  !labCtxSrc.includes('getContextSummary')
+    && !chatPromptContextSrc.includes('function getContextSummary')
+    && chatContextSummarySrc.includes('function getContextSummary'),
   'found');
 assert('chat.js loads window bindings entry', chatSrc.includes("import './chat-window-bindings.js'"), 'found');
 assert('chat.js imports action helpers', chatSrc.includes("from './chat-actions.js'"), 'found');

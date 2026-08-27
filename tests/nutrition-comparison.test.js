@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  MEAL_COMPARISON_REFERENCE_FIELDS,
   parseReferenceIngredients,
   rankMealComparisonRuns,
   scoreMealAnalysis,
 } from '../js/nutrition-comparison.js';
+import { NUTRIENT_DEFINITIONS } from '../js/nutrition-nutrient-registry.js';
 
 const friedCheeseReference = {
   mealName: 'Fried Edam cheese with fries and tartar sauce',
@@ -61,6 +63,34 @@ describe('meal model comparison scoring', () => {
       mealName: 'Lentil bowl', components: [], nutrients: { energyKcal: 600 }, confidence: 0.99,
     });
     expect(evaluation).toMatchObject({ score: null, hasReference: false });
+  });
+
+  it('scores every registered detailed nutrient supplied by the reference', () => {
+    const nutrients = Object.fromEntries(NUTRIENT_DEFINITIONS.map((field, index) => [field.key, index + 1]));
+    const reference = { totalWeightG: 500, ...nutrients };
+    const exact = scoreMealAnalysis({
+      components: [{ name: 'Meal', quantityG: 500 }],
+      nutrients,
+    }, reference);
+    const missingMicronutrients = scoreMealAnalysis({
+      components: [{ name: 'Meal', quantityG: 500 }],
+      nutrients: {
+        energyKcal: nutrients.energyKcal,
+        proteinG: nutrients.proteinG,
+        carbohydrateG: nutrients.carbohydrateG,
+        fatG: nutrients.fatG,
+      },
+    }, reference);
+
+    expect(MEAL_COMPARISON_REFERENCE_FIELDS.map(([key]) => key)).toEqual([
+      'totalWeightG',
+      ...NUTRIENT_DEFINITIONS.map(field => field.key),
+    ]);
+    expect(exact.metrics).toHaveLength(NUTRIENT_DEFINITIONS.length + 1);
+    expect(exact.metrics.map(metric => metric.key)).toContain('vitaminB12Mcg');
+    expect(exact.metrics.map(metric => metric.key)).toContain('potassiumMg');
+    expect(exact.numericScore).toBe(100);
+    expect(missingMicronutrients.numericScore).toBeLessThan(exact.numericScore);
   });
 
   it('excludes the model baseline from competitive ranking', () => {

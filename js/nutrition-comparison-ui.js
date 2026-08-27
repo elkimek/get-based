@@ -2,13 +2,13 @@
 // nutrition-comparison-ui.js — debug model comparison workflow and result UI.
 
 import { analyzeMealPhoto, mealImagesFromPreparedPhotos, nutritionUsageSummary, prepareMealPhotos } from './nutrition-analysis.js';
-import { enrichFreshPhotoAnalysis } from './nutrition-food-composition-state.js';
 import { hydrateNutritionLocalAICatalog, listNutritionVisionModels } from './nutrition-ai-settings.js';
 import { parseReferenceIngredients, rankMealComparisonRuns } from './nutrition-comparison.js';
 import { actionAttrs, formatNumber, hasFiniteNumber, renderComparisonModelPicker } from './nutrition-render.js';
 import { escapeHTML, isDebugMode, showNotification } from './utils.js';
 import { getErrorMessage } from './caught-error.js';
 import { getLocalNutritionComparison, setLocalNutritionComparison } from './nutrition-store.js';
+import { NUTRIENT_DEFINITIONS } from './nutrition-nutrient-registry.js';
 import { state } from './state.js';
 
 let comparisonRunning = false;
@@ -24,6 +24,7 @@ let comparisonPersistenceTimer = 0;
 let comparisonProfileId = '';
 let comparisonPersistenceDirty = false;
 let comparisonPersistenceRevision = 0;
+let comparisonModelQuery = '';
 /** @type {any} */
 let comparisonDeps = {
   analysisFiles: async () => [],
@@ -59,6 +60,7 @@ export function resetNutritionComparison() {
   comparisonProfileId = '';
   comparisonPersistenceDirty = false;
   comparisonPersistenceRevision = 0;
+  comparisonModelQuery = '';
 }
 
 export function isNutritionComparisonRunning() {
@@ -69,15 +71,45 @@ export function refreshComparisonModelPicker() {
   const current = document.querySelector('.nutrition-comparison-model-picker');
   if (!current || comparisonRunning) return;
   const wasCheckingLocal = current.textContent?.includes('checking Local AI') === true;
+  const search = current.querySelector('[data-nutrition-comparison-search]');
+  comparisonModelQuery = search instanceof HTMLInputElement ? search.value : comparisonModelQuery;
   const checkedValues = new Set(Array.from(current.querySelectorAll('[data-nutrition-comparison-model]:checked'))
     .map(input => /** @type {HTMLInputElement} */ (input).value));
-  current.outerHTML = renderComparisonModelPicker();
+  current.outerHTML = renderComparisonModelPicker(comparisonModelQuery);
   if (!wasCheckingLocal && checkedValues.size) {
     document.querySelectorAll('[data-nutrition-comparison-model]').forEach(input => {
       /** @type {HTMLInputElement} */ (input).checked = checkedValues.has(/** @type {HTMLInputElement} */ (input).value);
     });
   }
+  filterNutritionComparisonModels(comparisonModelQuery);
   updateComparisonControls();
+}
+
+function normalizedModelSearch(value) {
+  return String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase()
+    .trim();
+}
+
+export function filterNutritionComparisonModels(value) {
+  comparisonModelQuery = String(value || '').slice(0, 160);
+  const picker = document.querySelector('.nutrition-comparison-model-picker');
+  if (!picker) return;
+  const tokens = normalizedModelSearch(comparisonModelQuery).split(/\s+/).filter(Boolean);
+  const cards = Array.from(picker.querySelectorAll('.nutrition-comparison-model'));
+  let shown = 0;
+  cards.forEach(card => {
+    const searchable = normalizedModelSearch(card.getAttribute('data-nutrition-model-search'));
+    const matches = tokens.every(token => searchable.includes(token));
+    /** @type {HTMLElement} */ (card).hidden = !matches;
+    if (matches) shown += 1;
+  });
+  const status = picker.querySelector('[data-nutrition-comparison-search-status]');
+  if (status) status.textContent = tokens.length ? `${shown} of ${cards.length} shown` : `${cards.length} available`;
+  const empty = picker.querySelector('[data-nutrition-comparison-search-empty]');
+  if (empty instanceof HTMLElement) empty.hidden = !tokens.length || shown > 0;
 }
 
 export function hasNutritionComparisonRuns() {
@@ -264,15 +296,13 @@ export async function clearSavedNutritionComparison() {
 }
 
 function comparisonReferenceFromAnalysis(analysis) {
-  return {
+  const reference = {
     mealName: analysis?.mealName || '',
     ingredients: (analysis?.components || []).map(item => item?.name).filter(Boolean),
     totalWeightG: comparisonTotalWeight(analysis),
-    energyKcal: analysis?.nutrients?.energyKcal,
-    proteinG: analysis?.nutrients?.proteinG,
-    carbohydrateG: analysis?.nutrients?.carbohydrateG,
-    fatG: analysis?.nutrients?.fatG,
   };
+  for (const field of NUTRIENT_DEFINITIONS) reference[field.key] = analysis?.nutrients?.[field.key];
+  return reference;
 }
 
 function selectedComparisonReferenceRun() {
@@ -297,6 +327,47 @@ function relativeDifference(value, reference) {
   const numericReference = Number(reference);
   if (numericReference === 0) return numericValue === 0 ? 0 : null;
   return (numericValue - numericReference) / Math.abs(numericReference) * 100;
+}
+
+const PRIMARY_COMPARISON_NUTRIENTS = new Set(['energyKcal', 'proteinG', 'carbohydrateG', 'fatG']);
+const DETAILED_COMPARISON_FIELDS = NUTRIENT_DEFINITIONS.filter(field => !PRIMARY_COMPARISON_NUTRIENTS.has(field.key));
+const NUTRIENT_DEFINITION_BY_KEY = new Map(NUTRIENT_DEFINITIONS.map(field => [field.key, field]));
+
+function nutrientFractionDigits(step) {
+  const match = String(step || '').match(/\.(\d+)/);
+  return match ? Math.min(2, match[1].length) : 0;
+}
+
+function comparisonDifference(value, reference, isReference = false) {
+  if (isReference && hasFiniteNumber(value)) return { label: 'Reference', tone: ' is-reference' };
+  const difference = relativeDifference(value, reference);
+  if (difference === null) return { label: '—', tone: '' };
+  if (Math.abs(difference) < 0.05) return { label: 'Same', tone: ' is-close' };
+  return {
+    label: `${difference > 0 ? '+' : '−'}${formatNumber(Math.abs(difference), 1)}%`,
+    tone: Math.abs(difference) <= 10 ? ' is-close' : Math.abs(difference) >= 30 ? ' is-far' : '',
+  };
+}
+
+function nutrientValue(value, field) {
+  return hasFiniteNumber(value)
+    ? `${formatNumber(value, nutrientFractionDigits(field.step))} ${escapeHTML(field.unit)}`
+    : '—';
+}
+
+function renderDetailedNutrientComparison(analysis, reference, isReference, referenceRun) {
+  const rows = DETAILED_COMPARISON_FIELDS.flatMap(field => {
+    const predicted = analysis?.nutrients?.[field.key];
+    const expected = reference?.[field.key];
+    if (!hasFiniteNumber(predicted) && !hasFiniteNumber(expected)) return [];
+    const difference = comparisonDifference(predicted, expected, isReference);
+    return [`<tr><th scope="row">${escapeHTML(field.label)}</th><td>${nutrientValue(predicted, field)}</td><td>${nutrientValue(expected, field)}</td><td class="nutrition-comparison-difference${difference.tone}">${escapeHTML(difference.label)}</td></tr>`];
+  });
+  if (!rows.length) return '';
+  const returnedCount = DETAILED_COMPARISON_FIELDS.filter(field => hasFiniteNumber(analysis?.nutrients?.[field.key])).length;
+  const comparedCount = DETAILED_COMPARISON_FIELDS.filter(field => hasFiniteNumber(reference?.[field.key])).length;
+  const countLabel = `${returnedCount} returned${comparedCount ? ` · ${comparedCount} compared` : ''}`;
+  return `<details class="nutrition-comparison-detailed"><summary>Detailed nutrition <span>${escapeHTML(countLabel)}</span></summary><div class="nutrition-comparison-error-table-wrap" role="region" aria-label="Detailed nutrient comparison table" tabindex="0"><table><thead><tr><th scope="col">Nutrient</th><th scope="col">Estimate</th><th scope="col">${referenceRun ? 'Baseline' : 'Known value'}</th><th scope="col">Difference</th></tr></thead><tbody>${rows.join('')}</tbody></table></div></details>`;
 }
 
 function renderComparisonMetric(label, value, unit, digits = 0, reference = null, isReference = false) {
@@ -325,7 +396,9 @@ function renderReferenceDifference(metric) {
       : Math.abs(difference) >= 30
         ? ' is-far'
         : '';
-  return `<tr><th scope="row">${escapeHTML(metric.label)}</th><td>${metric.predicted == null ? 'Missing' : `${formatNumber(metric.predicted, 1)} ${escapeHTML(metric.unit)}`}</td><td>${formatNumber(metric.expected, 1)} ${escapeHTML(metric.unit)}</td><td class="nutrition-comparison-difference${differenceTone}">${escapeHTML(differenceLabel)}</td></tr>`;
+  const definition = NUTRIENT_DEFINITION_BY_KEY.get(metric.key);
+  const digits = definition ? nutrientFractionDigits(definition.step) : 0;
+  return `<tr><th scope="row">${escapeHTML(metric.label)}</th><td>${metric.predicted == null ? 'Missing' : `${formatNumber(metric.predicted, digits)} ${escapeHTML(metric.unit)}`}</td><td>${formatNumber(metric.expected, digits)} ${escapeHTML(metric.unit)}</td><td class="nutrition-comparison-difference${differenceTone}">${escapeHTML(differenceLabel)}</td></tr>`;
 }
 
 function renderComparisonResults() {
@@ -374,13 +447,16 @@ function renderComparisonResults() {
       carbohydrateG: reference.carbohydrateG,
       fatG: reference.fatG,
     };
-    const breakdown = score == null ? '' : `<details class="nutrition-comparison-breakdown"><summary>Score breakdown</summary><div><span>Nutrition + amount <strong>${formatNumber(run.evaluation?.numericScore, 1)}/100</strong></span><span>Ingredients <strong>${formatNumber(run.evaluation?.identityScore, 1)}/100</strong></span></div></details>`;
+    const scoredValueCount = run.evaluation?.metrics?.length || 0;
+    const breakdown = score == null ? '' : `<details class="nutrition-comparison-breakdown"><summary>Score breakdown</summary><div><span>Nutrition + amount <strong>${formatNumber(run.evaluation?.numericScore, 1)}/100</strong> · ${scoredValueCount} value${scoredValueCount === 1 ? '' : 's'}</span><span>Ingredients <strong>${formatNumber(run.evaluation?.identityScore, 1)}/100</strong></span></div></details>`;
     const modelChecks = [...new Set([...(analysis.warnings || []), ...(analysis.assumptions || [])])].slice(0, 8);
+    const detailedNutrition = renderDetailedNutrientComparison(analysis, reference, isReference, referenceRun);
     return `<article class="nutrition-comparison-card${run.rank === 1 && !isReference ? ' is-best' : ''}"><div class="nutrition-comparison-card-head"><div><span>${escapeHTML(run.providerLabel)} · ${formatNumber(run.durationMs / 1000, 1)}s</span><strong>${escapeHTML(run.modelLabel)}</strong></div>${ranking}</div>
       ${usageLine}
       <div class="nutrition-comparison-identity"><strong>${escapeHTML(analysis.mealName || 'Meal')}</strong></div>
       ${breakdown}
       <div class="nutrition-comparison-metrics">${renderComparisonMetric('Amount', comparisonTotalWeight(analysis), 'g', 0, referenceMetrics.totalWeightG, isReference)}${renderComparisonMetric('Energy', analysis.nutrients?.energyKcal, 'kcal', 0, referenceMetrics.energyKcal, isReference)}${renderComparisonMetric('Protein', analysis.nutrients?.proteinG, 'g', 1, referenceMetrics.proteinG, isReference)}${renderComparisonMetric('Carbs', analysis.nutrients?.carbohydrateG, 'g', 1, referenceMetrics.carbohydrateG, isReference)}${renderComparisonMetric('Fat', analysis.nutrients?.fatG, 'g', 1, referenceMetrics.fatG, isReference)}</div>
+      ${detailedNutrition}
       ${ingredients.length ? `<div class="nutrition-comparison-ingredients">${ingredients.map(item => `<span>${escapeHTML(item)}</span>`).join('')}</div>` : '<p>No ingredients returned.</p>'}
       ${modelChecks.length ? `<details class="nutrition-comparison-checks"><summary>Model checks and assumptions (${modelChecks.length})</summary><ul>${modelChecks.map(item => `<li>${escapeHTML(item)}</li>`).join('')}</ul></details>` : ''}
       ${run.evaluation?.metrics?.length ? `<details class="nutrition-comparison-errors"><summary>${referenceRun ? 'Baseline' : 'Known-value'} differences (${run.evaluation.metrics.length})</summary><div class="nutrition-comparison-error-table-wrap" role="region" aria-label="Comparison differences table" tabindex="0"><table><thead><tr><th scope="col">Metric</th><th scope="col">Estimate</th><th scope="col">${referenceRun ? 'Baseline' : 'Known value'}</th><th scope="col">Difference</th></tr></thead><tbody>${run.evaluation.metrics.map(renderReferenceDifference).join('')}</tbody></table></div></details>` : ''}
@@ -596,12 +672,11 @@ export async function retryComparisonRun(index) {
 export async function useComparisonEstimate(index) {
   const run = comparisonRuns[index];
   if (!run?.result?.analysis) return;
-  let result = {
+  const result = {
     ...run.result,
     image: comparisonSharedImages[0] || null,
     images: comparisonSharedImages,
   };
-  result = await enrichFreshPhotoAnalysis(result, result.source?.kind === 'ai-photo-estimate' ? 'meal-photo' : 'nutrition-label');
   comparisonDeps.applyAnalysis(result, { quiet: true });
   comparisonDeps.setStatus(`${run.modelLabel} estimate loaded. Review it and choose a meal occasion before saving.`, 'success');
   const returnBar = document.getElementById('nutrition-comparison-return');

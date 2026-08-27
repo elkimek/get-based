@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { MEAL_ANALYSIS_SCHEMA, MEAL_PHOTO_ANALYSIS_SCHEMA, PHOTO_NUTRIENT_KEYS, buildMealAnalysisPrompt, hasActionableMealAnalysis, mealAnalysisImageBlocks, mealImagesFromPreparedPhotos, modelSelfRating, normalizeMealAnalysis, normalizeNutritionAIUsage, nutritionUsageSummary, parseMealAnalysisText, prepareMealPhotos } from '../js/nutrition-analysis.js';
+import { MEAL_ANALYSIS_SCHEMA, MEAL_PHOTO_ANALYSIS_SCHEMA, PHOTO_ESTIMATED_NUTRIENT_KEYS, PHOTO_NUTRIENT_KEYS, buildMealAnalysisPrompt, hasActionableMealAnalysis, mealAnalysisImageBlocks, mealImagesFromPreparedPhotos, modelSelfRating, normalizeMealAnalysis, normalizeNutritionAIUsage, nutritionUsageSummary, parseMealAnalysisText, prepareMealPhotos } from '../js/nutrition-analysis.js';
 import { imageFileToBase64 } from '../js/image-utils.js';
 
 describe('meal-photo analysis normalization', () => {
@@ -18,11 +18,14 @@ describe('meal-photo analysis normalization', () => {
     ]);
   });
 
-  it('keeps visual estimates limited to reviewable core nutrients', () => {
-    expect(Object.keys(MEAL_PHOTO_ANALYSIS_SCHEMA.properties.nutrients.properties)).toEqual([...PHOTO_NUTRIENT_KEYS]);
-    expect(MEAL_PHOTO_ANALYSIS_SCHEMA.properties.nutrients.properties).not.toHaveProperty('vitaminDMcg');
-    expect(MEAL_PHOTO_ANALYSIS_SCHEMA.properties.nutrients.properties).not.toHaveProperty('sodiumMg');
-    expect(buildMealAnalysisPrompt()).toContain('Do not infer sugar, sodium, vitamins, minerals');
+  it('requests every registered nutrient for both meal and component estimates', () => {
+    expect(Object.keys(MEAL_PHOTO_ANALYSIS_SCHEMA.properties.nutrients.properties)).toEqual([...PHOTO_ESTIMATED_NUTRIENT_KEYS]);
+    expect(Object.keys(MEAL_PHOTO_ANALYSIS_SCHEMA.properties.components.items.properties.nutrients.properties)).toEqual([...PHOTO_ESTIMATED_NUTRIENT_KEYS]);
+    expect(PHOTO_NUTRIENT_KEYS).toBe(PHOTO_ESTIMATED_NUTRIENT_KEYS);
+    expect(MEAL_PHOTO_ANALYSIS_SCHEMA.properties.nutrients.properties).toHaveProperty('vitaminDMcg');
+    expect(MEAL_PHOTO_ANALYSIS_SCHEMA.properties.nutrients.properties).toHaveProperty('sodiumMg');
+    expect(buildMealAnalysisPrompt()).toContain('using food-composition knowledge');
+    expect(buildMealAnalysisPrompt()).toContain('Return null instead of forcing a value');
   });
 
   it('uses a reviewed dish identity without anchoring to the earlier estimate', () => {

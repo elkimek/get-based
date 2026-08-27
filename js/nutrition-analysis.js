@@ -13,15 +13,9 @@ import { calculateCost, formatCost, getModelPricing, trackUsage } from './schema
 
 const PARSE_DIAGNOSTIC = Symbol('nutrition-parse-diagnostic');
 
-// A meal photo can reasonably support food identity, portion estimates, core
-// macros, fiber, and visible drink volume. Micronutrients belong to labels,
-// databases, or explicit user edits; asking a vision model for them adds cost
-// and false precision without giving the reviewer useful evidence.
-export const PHOTO_NUTRIENT_KEYS = Object.freeze([
-  'energyKcal', 'proteinG', 'carbohydrateG', 'fatG', 'fiberG',
-  'fluidMl', 'plainWaterMl',
-]);
-const PHOTO_COMPONENT_NUTRIENT_KEYS = PHOTO_NUTRIENT_KEYS;
+export const PHOTO_ESTIMATED_NUTRIENT_KEYS = NUTRITION_KEYS;
+export const PHOTO_NUTRIENT_KEYS = PHOTO_ESTIMATED_NUTRIENT_KEYS;
+const PHOTO_COMPONENT_NUTRIENT_KEYS = PHOTO_ESTIMATED_NUTRIENT_KEYS;
 
 const NUTRITION_LABEL_SCHEMA = Object.freeze({
   type: 'object',
@@ -86,15 +80,16 @@ function mealAnalysisSchema(nutrientKeys, componentNutrientKeys) {
 }
 
 export const MEAL_ANALYSIS_SCHEMA = mealAnalysisSchema(NUTRITION_KEYS, NUTRITION_KEYS);
-export const MEAL_PHOTO_ANALYSIS_SCHEMA = mealAnalysisSchema(PHOTO_NUTRIENT_KEYS, PHOTO_COMPONENT_NUTRIENT_KEYS);
+export const MEAL_PHOTO_ANALYSIS_SCHEMA = mealAnalysisSchema(PHOTO_ESTIMATED_NUTRIENT_KEYS, PHOTO_COMPONENT_NUTRIENT_KEYS);
 
-const MEAL_PROMPT = `Analyze these views of one meal for user review. Return only JSON matching the schema. Nutrient keys are ${PHOTO_NUTRIENT_KEYS.join(', ')}.
+const MEAL_PROMPT = `Analyze these views of one meal for user review. Return only JSON matching the schema. Whole-meal nutrient keys are ${PHOTO_ESTIMATED_NUTRIENT_KEYS.join(', ')}. Component nutrient keys are ${PHOTO_COMPONENT_NUTRIENT_KEYS.join(', ')}.
 
 Rules:
 - Work weight-first: identify visible foods/drinks, estimate actual consumed grams from geometry and genuine scale cues, then calculate nutrients. Never substitute a standard serving or work backward from calories. Cross-check combined mass; without scale, use a conservative estimate and warn.
-- Use prepared-food density unless raw. Component values are totals for its grams; top totals equal component sums. Include material oils, sauces, toppings, and drinks; keep hidden amounts conservative and list assumptions.
-- Name each component as a database-searchable food, including visible preparation (raw, boiled, baked, grilled, fried), skin/fat state, and material sauce or breading when known. Do not include portion size in the name.
-- Estimate a numeric quantityG for every component even without a scale; a null component quantity makes the estimate unusable. Warn when uncertain. Use null for unknown nutrients, never zero. Do not infer sugar, sodium, vitamins, minerals, fatty-acid subtypes, cholesterol, caffeine, or alcohol; those require a label, database, or user entry.
+- Use prepared-food density unless raw. Every component contains the same complete nutrient field set so reviewed gram changes can scale its profile; top totals equal the sum of all non-null component values. Include material oils, sauces, toppings, and drinks; keep hidden amounts conservative and list assumptions.
+- Name each component as a specific food identity, including visible preparation (raw, boiled, baked, grilled, fried), skin/fat state, and material sauce or breading when known. Do not include portion size in the name.
+- Estimate a numeric quantityG for every component even without a scale; a null component quantity makes the estimate unusable. Warn when uncertain. Use null for unknown nutrients, never zero.
+- Estimate detailed whole-meal nutrients from the identified foods, preparation, and portion weights using food-composition knowledge. These are approximate composition estimates, not visually measured values. Return null instead of forcing a value when identity, fortification, recipe, or preparation makes a nutrient unreliable. Distinguish total sugar from added sugar and total fat from fatty-acid subtypes.
 - fluidMl is visible consumed drink volume, not hydration; plainWaterMl is identified plain water only.
 - Images are views of one meal: never double-count. Warn about ambiguity; do not state uncertain ingredients/allergens as facts.
 - confidence rates identity only: 0.90 distinct, 0.75 likely, 0.50 ambiguous, 0.25 contextual. Use no other values; top confidence is the lowest material component.
@@ -542,7 +537,7 @@ export async function analyzeMealPhoto(file, options = {}) {
   const content = buildVisionContent(imageBlocks, buildMealAnalysisPrompt({ correctedMealName, previousMealName, analysisKind, consumedAmount, consumedUnit, userContext: options.userContext }), availability.provider);
   const result = await callClaudeAPI({
     messages: [{ role: 'user', content }],
-    maxTokens: analysisKind === 'nutrition-label' ? 8192 : 4096,
+    maxTokens: 8192,
     forceNonStream: true,
     requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS,
     requestRetries: 0,
@@ -564,7 +559,7 @@ export async function analyzeMealPhoto(file, options = {}) {
   }
   const analysis = normalizeMealAnalysis(parseMealAnalysisText(result?.text), analysisKind === 'nutrition-label'
     ? undefined
-    : { nutrientKeys: PHOTO_NUTRIENT_KEYS, componentNutrientKeys: PHOTO_COMPONENT_NUTRIENT_KEYS });
+    : { nutrientKeys: PHOTO_ESTIMATED_NUTRIENT_KEYS, componentNutrientKeys: PHOTO_COMPONENT_NUTRIENT_KEYS });
   if (!hasActionableMealAnalysis(analysis)) {
     throw new Error('This model could not identify a usable meal estimate from the photo. Try a clearer photo, choose another meal-photo model in AI Settings, or enter the meal manually.');
   }
@@ -584,6 +579,9 @@ export async function analyzeMealPhoto(file, options = {}) {
   onProgress(4, 'Building editable review…');
   const analyzedAt = new Date().toISOString();
   const images = options.includeImages === false ? [] : mealImagesFromPreparedPhotos(prepared);
+  const aiEstimatedNutrientKeys = analysisKind === 'meal-photo'
+    ? Object.keys(analysis.nutrients || {}).filter(key => PHOTO_ESTIMATED_NUTRIENT_KEYS.includes(key))
+    : [];
   return {
     analysis,
     image: images[0] || null,
@@ -596,6 +594,12 @@ export async function analyzeMealPhoto(file, options = {}) {
       modelDisplay: availability.modelDisplay,
       ...(usage ? { usage } : {}),
       analyzedAt,
+      ...(analysisKind === 'meal-photo' ? {
+        aiNutritionEstimate: {
+          nutrientKeys: aiEstimatedNutrientKeys,
+          basis: 'model-estimated-from-food-identity-and-portions',
+        },
+      } : {}),
       ...(analysisKind === 'nutrition-label' ? { label: analysis.label } : {}),
       ...(correctedMealName ? {
         correction: {

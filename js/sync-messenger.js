@@ -77,11 +77,13 @@ function dbg(...args) {
 }
 
 function buildLabContext(options) {
-  return _buildLabContext(options);
+  return options === undefined ? _buildLabContext() : _buildLabContext(options);
 }
 
 function buildWearableSeriesSection(days, options) {
-  return _buildWearableSeriesSection(days, options);
+  return options === undefined
+    ? _buildWearableSeriesSection(days)
+    : _buildWearableSeriesSection(days, options);
 }
 
 function getAgentWearableSeriesDays() {
@@ -548,16 +550,20 @@ export function pushContextToGateway() {
         dbg(`Skipped stale Agent Access context push (profile: ${profileId})`);
         return;
       }
-      const baseContext = buildLabContext({ skipGroupFilter: true, ignoreContextToggles: true });
+      // Manage Context remains the source-level gate for both in-app chat and
+      // external Agent Access. Enabling Agent Access is transport consent; it
+      // does not silently re-enable profile sources the user turned off.
+      const baseContext = buildLabContext();
       // Optional wearable daily-series section - user picks 0 (off) / 7 /
-      // 30 / 90 days in Settings -> Agent Access. Reads L1 IDB on the
+      // 30 / 90 days in Settings -> Agent Access. It also respects the
+      // Wearables source toggle and reads L1 IDB on the
       // browser. Before anything touches the relay, encrypt the rendered
       // context locally with a dedicated Agent Context key. The Agent Access
       // token authorizes relay fetches; it is not AES key material.
       // Append AFTER the rest so the section parser treats it as a sibling.
       const seriesDays = getAgentWearableSeriesDays();
       const seriesBlock = seriesDays > 0
-        ? await buildWearableSeriesSection(seriesDays, { ignoreContextToggles: true }).catch(() => '')
+        ? await buildWearableSeriesSection(seriesDays).catch(() => '')
         : '';
       const context = seriesBlock ? `${baseContext}\n${seriesBlock}\n` : baseContext;
       const encryptedContext = await encryptAgentContextForRelay(context, contextKey, profileId);

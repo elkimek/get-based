@@ -237,6 +237,9 @@ export function migrateProfileData(data) {
   if (data.markerValueNotes === undefined) data.markerValueNotes = {};
   if (data.biologyScoreAI === undefined) data.biologyScoreAI = {};
   data.contextSourceSettings = normalizeContextSourceSettings(data.contextSourceSettings);
+  data.nutritionContextDays = [7, 30, 90].includes(Number(data.nutritionContextDays))
+    ? /** @type {7|30|90} */ (Number(data.nutritionContextDays))
+    : 30;
   if (!data.nutritionTargets || typeof data.nutritionTargets !== 'object'
       || Array.isArray(data.nutritionTargets)) data.nutritionTargets = null;
   // `null` is an upgrade sentinel. The nutrition store uses it once to merge

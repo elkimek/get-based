@@ -7,52 +7,35 @@ import { getMealAnalysisAvailability, nutritionUsageSummary } from './nutrition-
 import { getDefaultNutritionComparisonModelValues, getMealAISelection, isConfirmedMealVisionModel, isNutritionLocalAICatalogLoading, listNutritionVisionModels, nutritionModelPricing } from './nutrition-ai-settings.js';
 import { MEAL_COMPARISON_REFERENCE_FIELDS } from './nutrition-comparison.js';
 import { assessFuelStrategy, calculateFuelOverlap } from './nutrition-fuel-mix.js';
+import { NUTRIENT_DEFINITIONS, NUTRIENT_GROUPS, nutrientFieldsForGroup } from './nutrition-nutrient-registry.js';
 import { NUTRITION_HISTORY_RANGES } from './nutrition-summary.js';
+import { isNutritionContextEnabled } from './lab-context-settings.js';
 import { getNutritionTargets, resolveNutritionTargets } from './nutrition-targets.js';
 import { escapeAttr, escapeHTML, isDebugMode } from './utils.js';
 
 const ACTION_ATTR = 'data-nutrition-action';
 const NUTRITION_STYLESHEET_URL = new URL('../css/nutrition.css', import.meta.url).href;
 const RECENT_MEALS_DEFAULT_CAP = 3;
+export const HISTORY_MEAL_PAGE_SIZE = 12;
 let nutritionStylesheetPromise = null;
-const MACRO_REVIEW_FIELDS = Object.freeze([
-  ['energyKcal', 'Energy', 'kcal', '1'], ['proteinG', 'Protein', 'g', '0.1'],
-  ['carbohydrateG', 'Carbohydrate', 'g', '0.1'], ['fatG', 'Fat', 'g', '0.1'],
-  ['fiberG', 'Fiber', 'g', '0.1'],
-]);
-const DETAIL_REVIEW_FIELDS = Object.freeze([
-  ['sugarG', 'Sugar', 'g', '0.1'], ['addedSugarG', 'Added sugar', 'g', '0.1'],
-  ['saturatedFatG', 'Saturated fat', 'g', '0.1'], ['transFatG', 'Trans fat', 'g', '0.1'],
-]);
-const MICRONUTRIENT_REVIEW_FIELDS = Object.freeze([
-  ['sodiumMg', 'Sodium', 'mg', '1'],
-  ['potassiumMg', 'Potassium', 'mg', '1'], ['calciumMg', 'Calcium', 'mg', '1'],
-  ['ironMg', 'Iron', 'mg', '0.1'], ['magnesiumMg', 'Magnesium', 'mg', '0.1'],
-]);
-const HYDRATION_REVIEW_FIELDS = Object.freeze([
-  ['fluidMl', 'Beverage volume', 'mL', '1'], ['plainWaterMl', 'Plain water', 'mL', '1'],
-]);
-export const ALL_REVIEW_FIELDS = Object.freeze([
-  ...MACRO_REVIEW_FIELDS, ...DETAIL_REVIEW_FIELDS, ...MICRONUTRIENT_REVIEW_FIELDS, ...HYDRATION_REVIEW_FIELDS,
-]);
+const reviewFields = fields => Object.freeze(fields.map(field => Object.freeze([
+  field.key, field.label, field.unit, field.step,
+])));
+const MACRO_REVIEW_FIELDS = reviewFields(nutrientFieldsForGroup('core'));
+const DETAILED_REVIEW_GROUPS = Object.freeze(NUTRIENT_GROUPS
+  .filter(group => group.id !== 'core')
+  .map(group => Object.freeze({
+    ...group,
+    fields: reviewFields(nutrientFieldsForGroup(group.id)),
+  })));
+export const ALL_REVIEW_FIELDS = reviewFields(NUTRIENT_DEFINITIONS);
 export const MEAL_TYPES = Object.freeze([
   ['breakfast', 'Breakfast'], ['brunch', 'Brunch'], ['lunch', 'Lunch'],
   ['dinner', 'Dinner'], ['snack', 'Snack'], ['drink', 'Drink'], ['other', 'Other'],
 ]);
-const NUTRIENT_DETAILS = Object.freeze([
-  ['energyKcal', 'Energy', 'kcal'], ['proteinG', 'Protein', 'g'], ['carbohydrateG', 'Carbohydrate', 'g'],
-  ['fatG', 'Fat', 'g'], ['fiberG', 'Fiber', 'g'], ['sugarG', 'Sugar', 'g'], ['addedSugarG', 'Added sugar', 'g'],
-  ['saturatedFatG', 'Saturated fat', 'g'], ['transFatG', 'Trans fat', 'g'],
-  ['sodiumMg', 'Sodium', 'mg'], ['potassiumMg', 'Potassium', 'mg'], ['calciumMg', 'Calcium', 'mg'],
-  ['ironMg', 'Iron', 'mg'], ['magnesiumMg', 'Magnesium', 'mg'], ['zincMg', 'Zinc', 'mg'],
-  ['vitaminAMcgRae', 'Vitamin A', 'mcg RAE'], ['vitaminCMg', 'Vitamin C', 'mg'], ['vitaminDMcg', 'Vitamin D', 'mcg'],
-  ['vitaminEMg', 'Vitamin E', 'mg'], ['vitaminKMcg', 'Vitamin K', 'mcg'], ['thiaminMg', 'Thiamin (B1)', 'mg'],
-  ['riboflavinMg', 'Riboflavin (B2)', 'mg'], ['niacinMg', 'Niacin (B3)', 'mg'], ['vitaminB6Mg', 'Vitamin B6', 'mg'],
-  ['folateMcgDfe', 'Folate', 'mcg DFE'], ['vitaminB12Mcg', 'Vitamin B12', 'mcg'], ['cholineMg', 'Choline', 'mg'],
-  ['seleniumMcg', 'Selenium', 'mcg'], ['cholesterolMg', 'Cholesterol', 'mg'], ['omega3G', 'Omega-3', 'g'],
-  ['phosphorusMg', 'Phosphorus', 'mg'], ['copperMg', 'Copper', 'mg'], ['manganeseMg', 'Manganese', 'mg'],
-  ['waterG', 'Water content', 'g'], ['fluidMl', 'Beverage volume', 'mL'], ['plainWaterMl', 'Plain water', 'mL'], ['caffeineMg', 'Caffeine', 'mg'], ['alcoholG', 'Alcohol', 'g'],
-]);
+const NUTRIENT_DETAILS = Object.freeze(NUTRIENT_DEFINITIONS.map(field => Object.freeze([
+  field.key, field.label, field.unit,
+])));
 /** @type {Map<string, [string, string, string]>} */
 const WIDGET_TARGETS = new Map([
   ['proteinG', ['proteinG', 'goal', 'Protein']],
@@ -73,14 +56,11 @@ const DASHBOARD_GOAL_FIELDS = Object.freeze(NUTRIENT_DETAILS
     );
   }));
 const NUTRIENT_DETAIL_BY_KEY = new Map(NUTRIENT_DETAILS.map(field => [field[0], field]));
-/** @type {ReadonlyArray<[string, ReadonlyArray<string>]>} */
-const WIDGET_NUTRIENT_GROUPS = Object.freeze([
-  ['Core', ['proteinG', 'carbohydrateG', 'fatG', 'fiberG']],
-  ['Drinks', ['fluidMl', 'plainWaterMl', 'waterG', 'caffeineMg', 'alcoholG']],
-  ['Fats and sugars', ['sugarG', 'addedSugarG', 'saturatedFatG', 'transFatG', 'cholesterolMg', 'omega3G']],
-  ['Minerals', ['sodiumMg', 'potassiumMg', 'calciumMg', 'magnesiumMg', 'ironMg', 'zincMg', 'seleniumMcg', 'phosphorusMg', 'copperMg', 'manganeseMg']],
-  ['Vitamins and related', ['vitaminAMcgRae', 'vitaminCMg', 'vitaminDMcg', 'vitaminEMg', 'vitaminKMcg', 'thiaminMg', 'riboflavinMg', 'niacinMg', 'vitaminB6Mg', 'folateMcgDfe', 'vitaminB12Mcg', 'cholineMg']],
-]);
+/** @type {ReadonlyArray<readonly [string, ReadonlyArray<string>]>} */
+const WIDGET_NUTRIENT_GROUPS = Object.freeze(NUTRIENT_GROUPS.map(group => /** @type {const} */ ([
+  group.label,
+  nutrientFieldsForGroup(group.id).map(field => field.key).filter(key => key !== 'energyKcal'),
+])));
 
 export function actionAttrs(action, attrs = {}) {
   const rest = Object.entries(attrs).map(([key, value]) => ` data-nutrition-${escapeAttr(key)}="${escapeAttr(String(value))}"`).join('');
@@ -132,38 +112,27 @@ function widgetGoalRow(period, targets, [key, label, unit, targetKey, kind]) {
   const coverage = period?.nutrientCoverage?.[key];
   const observedDays = Number(coverage?.completeDays || 0);
   if (kind === 'observe') {
-    const observed = hasFiniteNumber(value) ? `${formatNumber(value, unit === 'mg' ? 0 : 1)} ${unit} avg` : 'No logged values';
-    return `<div class="nutrition-goal-row is-observation"><div class="nutrition-goal-row-head"><strong>${escapeHTML(label)}</strong><span>${escapeHTML(observed)}</span></div><small>${observedDays ? `${observedDays} observed logged day${observedDays === 1 ? '' : 's'}` : 'Optional display · no adequacy score'}</small></div>`;
+    const observed = hasFiniteNumber(value) ? `${formatNumber(value, unit === 'mg' ? 0 : 1)} ${unit} recorded avg` : 'No logged values';
+    return `<div class="nutrition-goal-row is-observation"><div class="nutrition-goal-row-head"><strong>${escapeHTML(label)}</strong><span>${escapeHTML(observed)}</span></div><small>${observedDays ? `${observedDays} day${observedDays === 1 ? '' : 's'} with recorded values` : 'Optional display · no adequacy score'}</small></div>`;
   }
   const percent = goalPercent(value, target);
   const comparison = hasFiniteNumber(value) && hasFiniteNumber(target)
-    ? `${formatNumber(value, unit === 'mg' ? 0 : 1)} / ${formatNumber(target, unit === 'mg' ? 0 : 1)} ${unit}`
-    : `— / ${hasFiniteNumber(target) ? `${formatNumber(target, unit === 'mg' ? 0 : 1)} ${unit}` : 'target'}`;
+    ? `${formatNumber(value, unit === 'mg' ? 0 : 1)} ${unit} recorded · ${formatNumber(target, unit === 'mg' ? 0 : 1)} guide`
+    : `— recorded · ${hasFiniteNumber(target) ? `${formatNumber(target, unit === 'mg' ? 0 : 1)} ${unit} guide` : 'no guide'}`;
   const coverageLabel = observedDays
-    ? `${observedDays} ${kind === 'fluid' ? 'drink-logged' : 'complete logged'} day${observedDays === 1 ? '' : 's'}`
-    : `No ${kind === 'fluid' ? 'drink entries' : 'complete logged days'}`;
-  const boundedGoal = kind === 'goal' || kind === 'fluid';
-  const aboveTarget = boundedGoal && percent > 105;
-  const stateClass = kind === 'limit' && percent > 100
-    ? ' is-over'
-    : aboveTarget
-      ? ' is-above-target'
-      : (boundedGoal && percent >= 85) || (kind === 'minimum' && percent >= 100)
-        ? ' is-on-target'
-        : '';
+    ? `${observedDays} day${observedDays === 1 ? '' : 's'} with values for logged ${kind === 'fluid' ? 'drinks' : 'entries'}`
+    : `No recorded ${kind === 'fluid' ? 'drinks' : 'values'}`;
+  const stateClass = kind === 'limit' && percent > 100 ? ' is-over' : '';
   const personal = targets?.configured === true;
   const goalLabel = personal ? 'personal target' : 'starter guide';
-  const minimumLabel = personal ? 'personal minimum' : 'starter minimum';
   const guideLabel = personal ? 'personal guide' : 'starter guide';
-  const aboveLabel = personal ? 'above target range' : 'above starter guide';
   const note = kind === 'limit'
-    ? `${guideLabel}, lower is not necessarily better`
-    : kind === 'minimum'
-      ? `${percent}% of ${minimumLabel}`
+    ? `${guideLabel}; recorded amounts above it are meaningful`
     : kind === 'fluid'
-      ? `${percent}% of ${personal ? 'personal fluid target' : 'starter fluid guide'}${aboveTarget ? ` · ${aboveLabel}` : ''} · beverage volume, not net hydration`
-      : `${percent}% of ${goalLabel}${aboveTarget ? ` · ${aboveLabel}` : ''}`;
-  return `<div class="nutrition-goal-row${stateClass}"><div class="nutrition-goal-row-head"><strong>${escapeHTML(label)}</strong><span>${escapeHTML(comparison)}</span></div><div class="nutrition-goal-track" role="progressbar" aria-label="${escapeAttr(label)}" aria-valuemin="0" aria-valuemax="${kind === 'limit' ? '100' : '150'}" aria-valuenow="${percent}"><span style="--nutrition-progress:${percent}%"></span><i></i></div><div class="nutrition-goal-row-foot"><small>${escapeHTML(coverageLabel)} · ${escapeHTML(note)}</small>${kind === 'fluid' ? `<button type="button" class="nutrition-inline-log" ${actionAttrs('open-fluid-log')}>+ Log drink</button>` : ''}</div></div>`;
+      ? `${personal ? 'Personal fluid guide' : 'Starter fluid guide'}; beverage volume, not net hydration`
+      : `${kind === 'minimum' ? guideLabel : goalLabel}; partial-day logs may be below actual intake`;
+  const proteinSource = key === 'proteinG' ? ` · ${proteinTargetSource(targets)}` : '';
+  return `<div class="nutrition-goal-row${stateClass}"><div class="nutrition-goal-row-head"><strong>${escapeHTML(label)}</strong><span>${escapeHTML(comparison)}</span></div><div class="nutrition-goal-track" role="img" aria-label="${escapeAttr(`${label}: ${comparison}. ${note}`)}"><span style="--nutrition-progress:${percent}%"></span><i></i></div><div class="nutrition-goal-row-foot"><small>${escapeHTML(coverageLabel)} · ${escapeHTML(note)}${escapeHTML(proteinSource)}</small>${kind === 'fluid' ? `<button type="button" class="nutrition-inline-log" ${actionAttrs('open-fluid-log')}>+ Log drink</button>` : ''}</div></div>`;
 }
 
 function localDayKey(date) {
@@ -179,7 +148,7 @@ function renderSevenDayCoverage(period, now = new Date()) {
     const active = logged.has(key);
     days.push(`<div class="nutrition-day${active ? ' is-logged' : ''}" title="${escapeAttr(`${date.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}: ${active ? 'intake logged' : 'not logged'}`)}"><span>${escapeHTML(date.toLocaleDateString([], { weekday: 'narrow' }))}</span><i></i></div>`);
   }
-  return `<div class="nutrition-day-coverage"><div><strong>Logging coverage</strong><span>${period?.loggedDays || 0} of 7 days</span></div><div class="nutrition-day-strip" aria-label="Intake logged on ${period?.loggedDays || 0} of the last 7 days">${days.join('')}</div><small>Unlogged days are unknown, not zero.</small></div>`;
+  return `<div class="nutrition-day-coverage"><div><strong>Days with entries</strong><span>${period?.loggedDays || 0} of 7 days</span></div><div class="nutrition-day-strip" aria-label="Entries logged on ${period?.loggedDays || 0} of the last 7 days">${days.join('')}</div><small>A day can still be partial when only some meals were entered.</small></div>`;
 }
 
 function proteinTargetSource(targets) {
@@ -192,10 +161,11 @@ function proteinTargetSource(targets) {
 
 function targetRing(label, value, target, unit, accent = false, personal = true) {
   const percent = goalPercent(value, target);
-  const stateClass = percent > 105 ? ' is-above-target' : percent >= 85 ? ' is-on-target' : '';
   const comparisonLabel = personal ? 'target' : 'starter guide';
-  const read = hasFiniteNumber(target) ? `${percent}% of ${comparisonLabel}${percent > 105 ? ` · above ${comparisonLabel}` : ''}` : 'no guide';
-  return `<div class="nutrition-target-ring${accent ? ' is-secondary' : ''}${stateClass}" style="--nutrition-progress:${Math.min(100, percent)}%" role="progressbar" aria-label="${escapeAttr(label)}" aria-valuemin="0" aria-valuemax="150" aria-valuenow="${percent}"><div><strong>${hasFiniteNumber(value) ? formatNumber(value, unit === 'kcal' ? 0 : 1) : '—'}</strong><span>${escapeHTML(unit)} avg</span><small>${escapeHTML(label)} · ${escapeHTML(read)}</small></div></div>`;
+  const read = hasFiniteNumber(target) ? `${comparisonLabel} ${formatNumber(target, unit === 'kcal' ? 0 : 1)} ${unit}` : 'no guide';
+  const recorded = hasFiniteNumber(value) ? `${formatNumber(value, unit === 'kcal' ? 0 : 1)} ${unit} recorded average` : `No recorded ${label.toLowerCase()} average`;
+  const guide = hasFiniteNumber(target) ? `${personal ? 'Target' : 'Guide'} ${formatNumber(target, unit === 'kcal' ? 0 : 1)}` : 'No guide';
+  return `<div class="nutrition-target-ring${accent ? ' is-secondary' : ''}" style="--nutrition-progress:${Math.min(100, percent)}%" role="img" aria-label="${escapeAttr(`${label}: ${recorded}; ${read}; days may be partial`)}"><div><small class="nutrition-target-ring-label">${escapeHTML(label)}</small><strong>${hasFiniteNumber(value) ? formatNumber(value, unit === 'kcal' ? 0 : 1) : '—'}</strong><span class="nutrition-target-ring-unit">${escapeHTML(unit)} recorded avg</span><small class="nutrition-target-ring-guide">${escapeHTML(guide)}</small></div></div>`;
 }
 
 function renderPersonalFuelPattern(responses = {}) {
@@ -295,7 +265,7 @@ export function renderNutritionWidget() {
   return `<div class="nutrition-widget">
     <div class="nutrition-widget-actions-row"><div class="nutrition-widget-actions">${hasMeals ? `<button type="button" class="dashboard-action-btn" ${actionAttrs('open-history')}>History</button>` : ''}<button type="button" class="dashboard-action-btn" ${actionAttrs('open-targets')}>Customize</button><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${actionAttrs('open')}>Log meal</button></div></div>
     ${hasMeals && !targets.configured ? `<div class="nutrition-widget-starter-note"><span>Using starter guides</span><button type="button" ${actionAttrs('open-targets')}>Review and personalize</button></div>` : ''}
-    ${hasMeals ? `<div class="nutrition-dashboard-grid"><section class="nutrition-dashboard-hero"><div class="nutrition-target-rings">${targetRing('Energy', calorieAverage, targets.energyKcal, 'kcal', false, targets.configured)}</div><div class="nutrition-protein-source"><strong>${escapeHTML(targets.proteinBasisLabel)} protein guide</strong><span>${escapeHTML(proteinTargetSource(targets))}</span></div>${renderSevenDayCoverage(period)}</section><section class="nutrition-goal-list"><div class="nutrition-goal-list-head"><strong>Daily averages</strong><span>Last 7 days · ${visibleGoalRows.length} shown</span></div>${visibleGoalRows.length ? `<div class="nutrition-goal-grid${visibleGoalRows.length > 4 ? ' is-expanded' : ''}">${visibleGoalRows.map(field => widgetGoalRow(period, targets, field)).join('')}</div>` : '<div class="nutrition-comparison-empty">Choose nutrients in Customize.</div>'}</section></div>` : '<div class="nutrition-widget-empty"><span aria-hidden="true">◎</span><div><strong>No intake logged yet</strong><p>Log a meal to start seven-day averages.</p></div></div>'}
+    ${hasMeals ? `<div class="nutrition-recorded-notice"><strong>Recorded intake, not verified full days</strong><span>Averages include what you entered; missing meals remain unknown.</span></div><div class="nutrition-dashboard-grid"><section class="nutrition-dashboard-hero"><div class="nutrition-target-rings">${targetRing('Energy', calorieAverage, targets.energyKcal, 'kcal', false, targets.configured)}</div>${renderSevenDayCoverage(period)}</section><section class="nutrition-goal-list"><div class="nutrition-goal-list-head"><strong>Recorded daily averages</strong><span>Last 7 days · ${visibleGoalRows.length} nutrient rows</span></div>${visibleGoalRows.length ? `<div class="nutrition-goal-grid${visibleGoalRows.length > 4 ? ' is-expanded' : ''}">${visibleGoalRows.map(field => widgetGoalRow(period, targets, field)).join('')}</div>` : '<div class="nutrition-comparison-empty">Choose nutrients in Customize.</div>'}</section></div>` : '<div class="nutrition-widget-empty"><span aria-hidden="true">◎</span><div><strong>No intake logged yet</strong><p>Log a meal to start seven-day recorded averages.</p></div></div>'}
   </div>`;
 }
 
@@ -305,7 +275,7 @@ function renderHistoryCoverageBuckets(buckets = []) {
     const percent = Math.round(Number(bucket.coverageRatio || 0) * 100);
     const height = bucket.loggedDays ? Math.max(4, percent) : 0;
     const title = `${bucket.label}: ${bucket.loggedDays} of ${bucket.days} days logged (${percent}%)`;
-    return `<div class="nutrition-history-coverage-bar" title="${escapeAttr(title)}"><i><span style="height:${height}%"></span></i><small>${escapeHTML(bucket.label)}</small></div>`;
+    return `<div class="nutrition-history-coverage-bar" title="${escapeAttr(title)}"><i><span style="height:${height}%"></span></i><span>${Number(bucket.loggedDays || 0)}/${Number(bucket.days || 0)}</span><small>${escapeHTML(bucket.label)}</small></div>`;
   }).join('');
   return `<div class="nutrition-history-coverage-chart" role="img" aria-label="Logging coverage over the selected timeframe">${bars}</div>`;
 }
@@ -319,7 +289,39 @@ function renderHistoryTiming(timing = {}) {
   return `<section class="nutrition-history-timing"><div class="nutrition-section-title">Logged meal timing</div><div>${values.map(([label, value]) => `<div><span>${escapeHTML(label)}</span><strong>${escapeHTML(value)}</strong></div>`).join('')}</div><small>Timing averages use logged meals only and do not imply that unlogged meals were skipped.</small></section>`;
 }
 
-export function renderNutritionHistoryModal(history, { storageError = '' } = {}) {
+function historyDayLabel(key) {
+  const [year, month, day] = String(key || '').split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  return Number.isFinite(date.getTime())
+    ? date.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+    : key;
+}
+
+function renderHistoryMealTimeline(history) {
+  const meals = Array.isArray(history?.meals) ? history.meals : [];
+  const visibleCount = Math.max(1, Number(history?.visibleMealCount || HISTORY_MEAL_PAGE_SIZE));
+  let visibleEnd = Math.min(visibleCount, meals.length);
+  const boundaryDay = String(meals[visibleEnd - 1]?.localDate || meals[visibleEnd - 1]?.eatenAt || '').slice(0, 10);
+  while (visibleEnd < meals.length
+      && boundaryDay
+      && String(meals[visibleEnd]?.localDate || meals[visibleEnd]?.eatenAt || '').slice(0, 10) === boundaryDay) {
+    visibleEnd += 1;
+  }
+  const visible = meals.slice(0, visibleEnd);
+  const groups = new Map();
+  for (const meal of visible) {
+    const key = String(meal?.localDate || meal?.eatenAt || '').slice(0, 10) || 'unknown';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(meal);
+  }
+  const rows = [...groups.entries()].map(([key, dayMeals]) => `<section class="nutrition-timeline-day"><div class="nutrition-timeline-day-head"><strong>${escapeHTML(historyDayLabel(key))}</strong><span>${dayMeals.length} entr${dayMeals.length === 1 ? 'y' : 'ies'}</span></div><div class="nutrition-recent-list">${dayMeals.map(meal => renderRecentMeal(meal, { origin: 'history' })).join('')}</div></section>`).join('');
+  const remaining = Math.max(0, meals.length - visible.length);
+  const shown = visible.length.toLocaleString();
+  const total = meals.length.toLocaleString();
+  return `<div class="nutrition-history-meals-head"><div><strong>${meals.length.toLocaleString()} entries</strong><span>${Number(history?.period?.loggedDays || 0).toLocaleString()} days with entries · ${escapeHTML(history?.rangeDescription || '')}</span></div><small>${remaining ? `Showing newest ${shown} of ${total}.` : `Showing all ${total}.`} Select a meal to review, edit, log it again, or delete it.</small></div><div class="nutrition-meal-timeline">${rows}</div>${remaining ? `<button type="button" class="import-btn import-btn-secondary nutrition-history-more" ${actionAttrs('show-history-more')}>Show more meals <span>· ${remaining.toLocaleString()} remaining</span></button>` : ''}`;
+}
+
+export function renderNutritionHistoryModal(history, { storageError = '', returnTo = '' } = {}) {
   const period = history?.period || {};
   const targets = resolveNutritionTargets();
   const selectedNutrients = new Set(targets.widgetNutrients || []);
@@ -328,20 +330,27 @@ export function renderNutritionHistoryModal(history, { storageError = '' } = {})
   const foodMeals = Number.isFinite(Number(period.foodMeals)) ? Number(period.foodMeals) : Number(period.meals || 0);
   const drinkEntries = Number(period.drinkEntries || 0);
   const reviewPercent = Math.round(Number(period.reviewRatio || 0) * 100);
+  const nutritionContextEnabled = isNutritionContextEnabled();
+  const historyView = history?.view === 'trends' ? 'trends' : 'meals';
   const rangeButtons = NUTRITION_HISTORY_RANGES.map(range => `<button type="button" class="ctx-btn-option${range.key === history?.rangeKey ? ' active' : ''}" aria-pressed="${range.key === history?.rangeKey}" ${actionAttrs('set-history-range', { range: range.key })}>${escapeHTML(range.label)}</button>`).join('');
   const emptyAction = history?.rangeKey !== 'all'
     ? `<button type="button" class="import-btn import-btn-secondary" ${actionAttrs('set-history-range', { range: 'all' })}>Show all history</button>`
-    : `<button type="button" class="import-btn import-btn-primary" ${actionAttrs('open')}>Log a meal</button>`;
+    : `<button type="button" class="import-btn import-btn-primary" ${actionAttrs('open', { return: 'history' })}>Log a meal</button>`;
+  const returnControl = returnTo === 'editor'
+    ? `<button type="button" class="nutrition-route-back" ${actionAttrs('return-editor')}>← Meal entry</button>`
+    : '';
   return `<button type="button" class="modal-close" aria-label="Close Nutrition history" ${actionAttrs('close')}>&times;</button>
-    <div class="nutrition-modal-head nutrition-history-head"><div><h3>Nutrition history</h3><p>Daily averages and logging coverage across your selected timeframe.</p></div><div class="nutrition-history-head-actions"><button type="button" class="dashboard-action-btn" ${actionAttrs('open-targets')}>Customize</button><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${actionAttrs('open')}>Log meal</button></div></div>
+    ${returnControl}
+    <div class="nutrition-modal-head nutrition-history-head"><div><h3>Meals &amp; Nutrition</h3><p>Browse individual entries or review recorded trends.</p></div><div class="nutrition-history-head-actions"><button type="button" class="dashboard-action-btn" ${actionAttrs('open-targets', { return: 'history' })}>Setup</button><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${actionAttrs('open', { return: 'history' })}>${returnTo === 'editor' ? 'New meal' : 'Log meal'}</button></div></div>
+    <div class="nutrition-history-tabs" role="tablist" aria-label="Meals & Nutrition history view"><button type="button" role="tab" aria-selected="${historyView === 'meals'}" class="${historyView === 'meals' ? 'active' : ''}" ${actionAttrs('set-history-view', { view: 'meals' })}>Meals</button><button type="button" role="tab" aria-selected="${historyView === 'trends'}" class="${historyView === 'trends' ? 'active' : ''}" ${actionAttrs('set-history-view', { view: 'trends' })}>Trends</button></div>
     <div class="ctx-btn-group nutrition-history-range" role="group" aria-label="Nutrition history range">${rangeButtons}</div>
     ${storageError ? `<div class="nutrition-history-error" role="status">${escapeHTML(storageError)}</div>` : ''}
-    ${hasMeals ? `<div class="nutrition-history-layout">
-      <section class="nutrition-history-overview"><div class="nutrition-history-stat-grid"><div><strong>${Number(period.loggedDays || 0).toLocaleString()}</strong><span>Logged days</span><small>${escapeHTML(history.rangeDescription || '')}</small></div><div><strong>${foodMeals.toLocaleString()}</strong><span>Meals</span><small>${drinkEntries ? `${drinkEntries.toLocaleString()} drink log${drinkEntries === 1 ? '' : 's'}` : 'Food entries'}</small></div><div><strong>${reviewPercent}%</strong><span>Reviewed</span><small>${Number(period.reviewedMeals || 0).toLocaleString()} of ${Number(period.meals || 0).toLocaleString()} entries</small></div></div>${renderHistoryCoverageBuckets(history.coverageBuckets)}<p class="nutrition-history-caveat">Unlogged days are unknown, not zero. Each nutrient average uses only days where every relevant logged meal had that value.</p></section>
-      <section class="nutrition-history-averages"><div class="nutrition-target-rings">${targetRing('Energy', period.dailyAverages?.energyKcal, targets.energyKcal, 'kcal', false, targets.configured)}</div><div class="nutrition-goal-list-head"><strong>Daily averages</strong><span>${escapeHTML(history.rangeLabel || '')} · ${visibleGoalRows.length} shown</span></div>${visibleGoalRows.length ? `<div class="nutrition-goal-grid${visibleGoalRows.length > 4 ? ' is-expanded' : ''}">${visibleGoalRows.map(field => widgetGoalRow(period, targets, field)).join('')}</div>` : '<div class="nutrition-comparison-empty">Choose nutrients in Customize.</div>'}</section>
+    ${hasMeals ? (historyView === 'meals' ? renderHistoryMealTimeline(history) : `<div class="nutrition-history-layout">
+      <section class="nutrition-history-overview"><div class="nutrition-history-stat-grid"><div><strong>${Number(period.loggedDays || 0).toLocaleString()}</strong><span>Days with entries</span><small>${escapeHTML(history.rangeDescription || '')}</small></div><div><strong>${foodMeals.toLocaleString()}</strong><span>Meals</span><small>${drinkEntries ? `${drinkEntries.toLocaleString()} drink log${drinkEntries === 1 ? '' : 's'}` : 'Food entries'}</small></div><div><strong>${reviewPercent}%</strong><span>Entries reviewed</span><small>${Number(period.reviewedMeals || 0).toLocaleString()} of ${Number(period.meals || 0).toLocaleString()}</small></div></div>${renderHistoryCoverageBuckets(history.coverageBuckets)}<p class="nutrition-history-caveat">A day with entries may still be partial. Recorded averages include only entered meals; missing meals and days remain unknown.</p></section>
+      <section class="nutrition-history-averages"><div class="nutrition-target-rings">${targetRing('Energy', period.dailyAverages?.energyKcal, targets.energyKcal, 'kcal', false, targets.configured)}</div><div class="nutrition-goal-list-head"><strong>Recorded daily averages</strong><span>${escapeHTML(history.rangeLabel || '')} · ${visibleGoalRows.length} nutrient rows</span></div>${visibleGoalRows.length ? `<div class="nutrition-goal-grid${visibleGoalRows.length > 4 ? ' is-expanded' : ''}">${visibleGoalRows.map(field => widgetGoalRow(period, targets, field)).join('')}</div>` : '<div class="nutrition-comparison-empty">Choose nutrients in Setup.</div>'}</section>
       ${renderHistoryTiming(period.timing)}
-      <section class="nutrition-history-fuel"><div class="nutrition-section-title">Fuel Mix Context</div>${renderFuelOverlapCard(period.fuelOverlap, { scope: 'window', fallbackTotalMeals: foodMeals, period, targets })}</section>
-    </div>` : `<div class="nutrition-history-empty"><span aria-hidden="true">◎</span><div><strong>No intake logged in ${escapeHTML(history?.rangeDescription || 'this timeframe')}</strong><p>The selected range stays empty rather than silently showing older data.</p></div>${emptyAction}</div>`}`;
+      <section class="nutrition-history-fuel"><div class="nutrition-section-title">Carbohydrate and fat mix</div>${renderFuelOverlapCard(period.fuelOverlap, { scope: 'window', fallbackTotalMeals: foodMeals, period, targets })}</section>
+    </div><div class="nutrition-history-ai"><div><strong>Ask AI about ${escapeHTML(history.rangeLabel || 'this range')}</strong><span>${nutritionContextEnabled ? 'Sends one compact aggregate for this range. It replaces the automatic nutrition summary for this message.' : 'Turn on Meals & Nutrition in Manage Context to share an aggregate with AI.'}</span></div><button type="button" class="import-btn import-btn-secondary" ${actionAttrs('ask-history', { range: history.rangeKey || '30d' })} ${nutritionContextEnabled ? '' : 'disabled'}>Ask AI</button></div>`) : `<div class="nutrition-history-empty"><span aria-hidden="true">◎</span><div><strong>No intake logged in ${escapeHTML(history?.rangeDescription || 'this timeframe')}</strong><p>The selected range stays empty rather than silently showing older data.</p></div>${emptyAction}</div>`}`;
 }
 
 export function renderNutritionFuelWidget() {
@@ -360,11 +369,15 @@ function renderWidgetNutrientOptions(targets) {
   }).join('')}</div></fieldset>`).join('');
 }
 
-export function renderNutritionCustomizeModal() {
+export function renderNutritionCustomizeModal({ returnTo = '' } = {}) {
   const targets = getNutritionTargets();
   const resolved = resolveNutritionTargets();
   const fixed = targets.proteinBasis === 'fixed';
+  const returnControl = returnTo === 'history'
+    ? `<button type="button" class="nutrition-route-back" ${actionAttrs('return-history')}>← Meals &amp; Nutrition</button>`
+    : '';
   return `<button type="button" class="modal-close" aria-label="Close nutrition customization" ${actionAttrs('close')}>&times;</button>
+    ${returnControl}
     <div class="nutrition-modal-head"><div><h3>Nutrition setup</h3><p>Set daily guides and choose the nutrients you want in your widget.</p></div></div>
     <section class="nutrition-target-settings nutrition-target-settings-standalone" id="nutrition-target-settings" tabindex="-1">
       <div class="nutrition-target-settings-head"><h4>Daily targets</h4><span class="nutrition-target-weight">${resolved.weight ? `${escapeHTML(formatNumber(resolved.weight.kg, 1))} kg · ${escapeHTML(resolved.weight.source)}` : 'No weight measurement yet'}</span></div>
@@ -383,7 +396,7 @@ export function renderNutritionCustomizeModal() {
       <details class="nutrition-target-optional"><summary>Optional sugar and sodium guides</summary><div class="nutrition-target-form nutrition-target-optional-form"><label class="nutrition-field"><span>Sugar <small>g</small></span><input id="nutrition-target-sugar" type="number" min="0" max="500" step="1" value="${escapeAttr(String(targets.sugarG))}" required></label><label class="nutrition-field"><span>Sodium <small>mg</small></span><input id="nutrition-target-sodium" type="number" min="0" max="10000" step="10" value="${escapeAttr(String(targets.sodiumMg))}" required></label><p>Optional references. Meal-photo estimates may not reliably separate total, added, and free sugar.</p></div></details>
       <details class="nutrition-target-about"><summary>About these guides</summary><p>Targets are planning guides, not medical recommendations. Meal-photo values are estimates. Logged drinks measure beverage volume, not net hydration or water from food.</p></details>
       <div class="nutrition-widget-metric-settings"><div class="nutrition-widget-metric-settings-head"><strong>Widget nutrients</strong><span id="nutrition-widget-metric-count" role="status" aria-live="polite">${targets.widgetNutrients.length} selected</span></div><div class="nutrition-widget-metric-groups">${renderWidgetNutrientOptions(targets)}</div></div>
-      <div class="nutrition-target-actions"><p id="nutrition-target-status" role="status" aria-live="polite"></p><button type="button" class="import-btn import-btn-primary" ${actionAttrs('save-targets')}>Save nutrition setup</button></div>
+      <div class="nutrition-target-actions"><p id="nutrition-target-status" role="status" aria-live="polite"></p><button type="button" class="import-btn import-btn-primary" ${actionAttrs('save-targets', { return: returnTo })}>Save nutrition setup</button></div>
     </section>`;
 }
 
@@ -435,11 +448,15 @@ function nutrientInputs(fields = MACRO_REVIEW_FIELDS) {
   return fields.map(([key, label, unit, step]) => `<label class="nutrition-field"><span>${escapeHTML(label)} <small>${escapeHTML(unit)}</small><small id="nutrition-${escapeAttr(key)}-source" class="nutrition-nutrient-source" hidden></small></span><input id="nutrition-${escapeAttr(key)}" data-nutrition-nutrient="${escapeAttr(key)}" inputmode="decimal" type="number" min="0" step="${escapeAttr(step)}"></label>`).join('');
 }
 
+function detailedNutrientInputs() {
+  return DETAILED_REVIEW_GROUPS.map(group => `<fieldset><legend>${escapeHTML(group.label)}</legend><div class="nutrition-nutrient-grid">${nutrientInputs(group.fields)}</div></fieldset>`).join('');
+}
+
 function mealTypeOptions() {
   return `<option value="">Select occasion…</option>${MEAL_TYPES.map(([value, label]) => `<option value="${escapeAttr(value)}">${escapeHTML(label)}</option>`).join('')}`;
 }
 
-function renderRecentMeal(meal) {
+function renderRecentMeal(meal, { origin = 'editor' } = {}) {
   const eaten = new Date(meal.eatenAt);
   const date = Number.isFinite(eaten.getTime()) ? eaten.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '';
   const components = (meal.components || []).slice(0, 3).map(item => item.name).filter(Boolean).join(' · ');
@@ -448,7 +465,7 @@ function renderRecentMeal(meal) {
   const fuelMix = calculateFuelOverlap(meal?.nutrients);
   const checkedIn = hasFiniteNumber(meal?.responseCheckIn?.satiety2h) || hasFiniteNumber(meal?.responseCheckIn?.energy2h);
   const detail = [components, fuelMix && `Carb/fat ${fuelMix.carbEnergyPercent}/${fuelMix.fatEnergyPercent}`, checkedIn && 'Response checked'].filter(Boolean).join(' · ');
-  return `<article class="nutrition-meal-row"><button type="button" class="nutrition-meal-open" ${actionAttrs('detail', { id: meal.id })} aria-label="Open ${escapeAttr(meal.name || 'meal')} details">${image?.thumbnailUrl || image?.dataUrl ? `<img src="${escapeAttr(image.thumbnailUrl || image.dataUrl)}" alt="">` : '<span class="nutrition-meal-placeholder" aria-hidden="true">🍽</span>'}<span class="nutrition-meal-copy"><strong>${escapeHTML(meal.name || 'Meal')}</strong><span>${mealType ? `${escapeHTML(mealType)} · ` : ''}${escapeHTML(date)}</span>${detail ? `<small>${escapeHTML(detail)}</small>` : ''}</span><span class="nutrition-meal-energy">${formatNumber(meal.nutrients?.energyKcal, 0)}<small>kcal</small></span></button><button type="button" class="nutrition-icon-btn" aria-label="Delete ${escapeAttr(meal.name || 'meal')}" ${actionAttrs('delete', { id: meal.id })}>×</button></article>`;
+  return `<article class="nutrition-meal-row"><button type="button" class="nutrition-meal-open" ${actionAttrs('detail', { id: meal.id, origin })} aria-label="Open ${escapeAttr(meal.name || 'meal')} details">${image?.thumbnailUrl || image?.dataUrl ? `<img src="${escapeAttr(image.thumbnailUrl || image.dataUrl)}" alt="">` : '<span class="nutrition-meal-placeholder" aria-hidden="true">🍽</span>'}<span class="nutrition-meal-copy"><strong>${escapeHTML(meal.name || 'Meal')}</strong><span>${mealType ? `${escapeHTML(mealType)} · ` : ''}${escapeHTML(date)}</span>${detail ? `<small>${escapeHTML(detail)}</small>` : ''}</span><span class="nutrition-meal-energy">${formatNumber(meal.nutrients?.energyKcal, 0)}<small>kcal</small></span></button><button type="button" class="nutrition-meal-delete" aria-label="Delete ${escapeAttr(meal.name || 'meal')}" ${actionAttrs('delete', { id: meal.id, origin })}>Delete</button></article>`;
 }
 
 function renderRecentMeals(meals, storageError) {
@@ -475,7 +492,7 @@ function renderFuelResponseCheckIn(meal) {
   return `<section class="nutrition-response-card"><div class="nutrition-response-head"><div><span class="nutrition-fuel-kicker">Personal evidence</span><strong>How did this meal feel 2–3 hours later?</strong><small>Repeated check-ins can compare meals with different carb/fat compositions. They do not measure metabolism or prove cause.</small></div>${saved ? '<span class="nutrition-fuel-badge">Checked in</span>' : '<span class="nutrition-fuel-badge">Optional</span>'}</div><div class="nutrition-response-fields"><fieldset><legend>Hunger</legend><div>${responseChoice('nutrition-response-satiety', 1, 'Hungry again', response.satiety2h)}${responseChoice('nutrition-response-satiety', 2, 'Neutral', response.satiety2h)}${responseChoice('nutrition-response-satiety', 3, 'Still satisfied', response.satiety2h)}</div></fieldset><fieldset><legend>Energy</legend><div>${responseChoice('nutrition-response-energy', 1, 'Slump', response.energy2h)}${responseChoice('nutrition-response-energy', 2, 'Steady', response.energy2h)}${responseChoice('nutrition-response-energy', 3, 'Energized', response.energy2h)}</div></fieldset></div><div class="nutrition-response-actions"><small>Saved and cross-synced with this meal. It is not added to the compact AI nutrition summary.</small><div>${saved ? `<button type="button" class="nutrition-text-btn" ${actionAttrs('clear-response', { id: meal.id })}>Clear</button>` : ''}<button type="button" class="import-btn import-btn-primary" ${actionAttrs('save-response', { id: meal.id })}>Save check-in</button></div></div></section>`;
 }
 
-export function renderMealDetail(meal) {
+export function renderMealDetail(meal, { returnTo = 'history' } = {}) {
   const eaten = new Date(meal.eatenAt);
   const date = Number.isFinite(eaten.getTime()) ? eaten.toLocaleString([], { dateStyle: 'long', timeStyle: 'short' }) : '';
   const nutrientRows = NUTRIENT_DETAILS.flatMap(([key, label, unit]) => hasFiniteNumber(meal.nutrients?.[key]) ? [`<div><span>${escapeHTML(label)}</span><strong>${formatNumber(meal.nutrients[key])} <small>${escapeHTML(unit)}</small></strong></div>`] : []).join('');
@@ -504,7 +521,7 @@ export function renderMealDetail(meal) {
   const foodDataDetails = foodData ? [foodData.schemaVersion != null && `Product schema ${foodData.schemaVersion}`, foodData.productUpdatedAt && `Product updated ${new Date(foodData.productUpdatedAt).toLocaleDateString([], { dateStyle: 'medium' })}`, foodData.cacheHit ? 'Loaded from encrypted local cache' : 'Fetched when logged', 'Community database values reviewed by user'].filter(Boolean).join(' · ') : '';
   const foodComposition = meal.source?.foodComposition;
   const foodCompositionDetails = foodComposition ? [
-    `${foodComposition.sourceName || 'USDA FoodData Central'} · ${foodComposition.dataset || 'FNDDS 2021-2023'}`,
+    `Historical source: ${foodComposition.sourceName || 'food-composition database'} · ${foodComposition.dataset || 'legacy dataset'}`,
     `${Number(foodComposition.matchedComponents || 0)}/${Number(foodComposition.totalComponents || 0)} ingredients matched`,
     Array.isArray(foodComposition.completeMicronutrientKeys) && foodComposition.completeMicronutrientKeys.length
       ? `${foodComposition.completeMicronutrientKeys.length} micronutrients calculated from reviewed portions`
@@ -533,18 +550,19 @@ export function renderMealDetail(meal) {
       </div>
       <div class="nutrition-detail-content-grid"><div class="nutrition-detail-column">${ingredientsSection}${reviewSections}</div><div class="nutrition-detail-column">${nutrientsSection}</div></div>
     </div>
-    <div class="nutrition-detail-actions"><button type="button" class="import-btn import-btn-secondary" ${actionAttrs('back')}>← Meal log</button><button type="button" class="import-btn import-btn-secondary" ${actionAttrs('reuse', { id: meal.id })}>Log again</button><button type="button" class="import-btn import-btn-primary" ${actionAttrs('edit', { id: meal.id })}>Edit meal</button><button type="button" class="import-btn import-btn-secondary" ${actionAttrs('delete', { id: meal.id })}>Delete meal</button></div>`;
+    <div class="nutrition-detail-actions"><button type="button" class="import-btn import-btn-secondary" ${actionAttrs('back', { origin: returnTo })}>← ${returnTo === 'history' ? 'Meals' : 'Meal entry'}</button><button type="button" class="import-btn import-btn-secondary" ${actionAttrs('reuse', { id: meal.id, origin: returnTo })}>Log again</button><button type="button" class="import-btn import-btn-primary" ${actionAttrs('edit', { id: meal.id, origin: returnTo })}>Edit meal</button><button type="button" class="import-btn import-btn-secondary" ${actionAttrs('delete', { id: meal.id, origin: returnTo })}>Delete meal</button></div>`;
 }
 
 function renderComparisonModelChoices(models, defaults) {
   if (models.length < 2) return '<div class="nutrition-comparison-empty">Connect or load two vision models in AI Settings.</div>';
-  return `<div class="nutrition-comparison-models">${models.map(model => {
+  return `<div id="nutrition-comparison-model-list" class="nutrition-comparison-models">${models.map(model => {
     const routeLabel = model.current ? ' · meal model' : model.providerCurrent ? ' · active model' : '';
-    return `<label class="nutrition-comparison-model${model.current ? ' is-current' : ''}"><input type="checkbox" data-nutrition-comparison-model value="${escapeAttr(model.value)}"${defaults.has(model.value) ? ' checked' : ''}><span class="nutrition-comparison-model-check" aria-hidden="true">✓</span><span class="nutrition-comparison-model-copy"><span class="nutrition-comparison-model-provider">${escapeHTML(model.providerDisplay)}${routeLabel}</span><strong>${escapeHTML(model.modelDisplay)}</strong><small class="nutrition-model-price">${escapeHTML(model.priceLabel)}</small><em data-nutrition-benchmarked hidden>Compared</em></span></label>`;
-  }).join('')}</div>`;
+    const searchText = `${model.providerDisplay} ${model.provider} ${model.modelDisplay} ${model.model}`;
+    return `<label class="nutrition-comparison-model${model.current ? ' is-current' : ''}" data-nutrition-model-search="${escapeAttr(searchText)}"><input type="checkbox" data-nutrition-comparison-model value="${escapeAttr(model.value)}"${defaults.has(model.value) ? ' checked' : ''}><span class="nutrition-comparison-model-check" aria-hidden="true">✓</span><span class="nutrition-comparison-model-copy"><span class="nutrition-comparison-model-provider">${escapeHTML(model.providerDisplay)}${routeLabel}</span><strong>${escapeHTML(model.modelDisplay)}</strong><small class="nutrition-model-price">${escapeHTML(model.priceLabel)}</small><em data-nutrition-benchmarked hidden>Compared</em></span></label>`;
+  }).join('')}</div><div class="nutrition-comparison-search-empty" data-nutrition-comparison-search-empty hidden>No models match this search.</div>`;
 }
 
-export function renderComparisonModelPicker() {
+export function renderComparisonModelPicker(query = '') {
   const models = listNutritionVisionModels();
   const defaults = new Set(getDefaultNutritionComparisonModelValues(models));
   const providerCount = new Set(models.map(model => model.provider)).size;
@@ -552,19 +570,33 @@ export function renderComparisonModelPicker() {
   let providerSummary = providerLabel;
   if (isNutritionLocalAICatalogLoading()) providerSummary = `${providerLabel} · checking Local AI…`;
   else if (providerCount > 1) providerSummary = `${providerLabel} · cross-provider pair selected`;
-  return `<section class="nutrition-comparison-model-picker"><div class="nutrition-comparison-section-title"><div><strong>Models</strong><small>${escapeHTML(providerSummary)}</small></div><span id="nutrition-comparison-model-limit">${defaults.size} of 4 selected</span></div>${renderComparisonModelChoices(models, defaults)}</section>`;
+  const search = models.length >= 2
+    ? `<label class="nutrition-comparison-model-search"><span>Search models</span><input type="search" data-nutrition-comparison-search value="${escapeAttr(query)}" maxlength="160" autocomplete="off" placeholder="Provider, model name, or ID" aria-controls="nutrition-comparison-model-list"><small data-nutrition-comparison-search-status aria-live="polite">${models.length} available</small></label>`
+    : '';
+  return `<section class="nutrition-comparison-model-picker"><div class="nutrition-comparison-section-title"><div><strong>Models</strong><small>${escapeHTML(providerSummary)}</small></div><span id="nutrition-comparison-model-limit">${defaults.size} of 4 selected</span></div>${search}${renderComparisonModelChoices(models, defaults)}</section>`;
 }
 
 function renderComparisonWorkspace() {
-  const fields = MEAL_COMPARISON_REFERENCE_FIELDS.map(([key, label, unit]) => `<label class="nutrition-field"><span>${escapeHTML(label)} <small>${escapeHTML(unit)}</small></span><input data-nutrition-reference="${escapeAttr(key)}" inputmode="decimal" type="number" min="0" step="0.1"></label>`).join('');
+  const renderReferenceField = ([key, label, unit, , step]) => `<label class="nutrition-field"><span>${escapeHTML(label)} <small>${escapeHTML(unit)}</small></span><input data-nutrition-reference="${escapeAttr(key)}" inputmode="decimal" type="number" min="0" step="${escapeAttr(step || '0.1')}"></label>`;
+  const primaryFields = MEAL_COMPARISON_REFERENCE_FIELDS
+    .filter(([, , , , , group]) => group === 'amount' || group === 'core')
+    .map(renderReferenceField)
+    .join('');
+  const detailedGroups = NUTRIENT_GROUPS.filter(group => group.id !== 'core').map(group => {
+    const fields = MEAL_COMPARISON_REFERENCE_FIELDS
+      .filter(([, , , , , fieldGroup]) => fieldGroup === group.id)
+      .map(renderReferenceField)
+      .join('');
+    return `<fieldset><legend>${escapeHTML(group.label)}</legend><div class="nutrition-comparison-reference-grid">${fields}</div></fieldset>`;
+  }).join('');
   return `<section id="nutrition-model-comparison" class="nutrition-model-comparison" hidden>
     <div class="nutrition-comparison-head"><div><h4>Model comparison</h4><p>Each model receives the same photos.</p></div><button type="button" class="nutrition-icon-btn" aria-label="Close model comparison" ${actionAttrs('toggle-comparison')}>×</button></div>
     <div id="nutrition-comparison-history" class="nutrition-comparison-history" hidden></div>
     <div class="nutrition-comparison-setup">
       ${renderComparisonModelPicker()}
-      <section class="nutrition-comparison-reference-editor"><div class="nutrition-comparison-section-title"><strong>Known values <small>optional</small></strong></div><div class="nutrition-comparison-reference-copy"><label class="nutrition-field nutrition-field-wide"><span>Meal</span><input data-nutrition-reference="mealName" maxlength="120"></label><label class="nutrition-field nutrition-field-wide"><span>Ingredients</span><textarea data-nutrition-reference="ingredients" rows="2" maxlength="600" placeholder="One per line"></textarea></label></div><div class="nutrition-comparison-reference-grid">${fields}</div></section>
+      <section class="nutrition-comparison-reference-editor"><div class="nutrition-comparison-section-title"><strong>Known values <small>optional</small></strong><span>Every supplied nutrient joins the score.</span></div><div class="nutrition-comparison-reference-copy"><label class="nutrition-field nutrition-field-wide"><span>Meal</span><input data-nutrition-reference="mealName" maxlength="120"></label><label class="nutrition-field nutrition-field-wide"><span>Ingredients</span><textarea data-nutrition-reference="ingredients" rows="2" maxlength="600" placeholder="One per line"></textarea></label></div><div class="nutrition-comparison-reference-grid">${primaryFields}</div><details class="nutrition-comparison-reference-details"><summary>Detailed nutrition <small>optional</small></summary><div class="nutrition-comparison-reference-groups">${detailedGroups}</div></details></section>
     </div>
-    <details class="nutrition-comparison-method"><summary>How ranking works</summary><p>Known-value agreement weights nutrition and amount 70%, ingredients 30%. It is not an accuracy score; model confidence and identity self-checks are excluded.</p></details>
+    <details class="nutrition-comparison-method"><summary>How ranking works</summary><p>Known-value agreement weights nutrition and amount 70%, ingredients 30%. Every supplied nutrient is weighted equally inside the nutrition score. It is not an accuracy score; model confidence and identity self-checks are excluded.</p></details>
     <div class="nutrition-comparison-actions"><button type="button" id="nutrition-run-comparison" class="import-btn import-btn-primary" ${actionAttrs('run-comparison')} disabled>Run comparison</button></div>
     <div id="nutrition-comparison-progress" class="nutrition-analysis-progress" aria-live="polite" hidden></div><div id="nutrition-comparison-results" class="nutrition-comparison-results" aria-live="polite"></div>
   </section>`;
@@ -594,8 +626,13 @@ function renderComparisonLauncher() {
   return `<button type="button" class="nutrition-compare-launch" aria-expanded="false" ${actionAttrs('toggle-comparison')}><span class="nutrition-compare-launch-icon" aria-hidden="true">⇄</span><span><strong>Compare models</strong><small>Debug mode · same photos, 2–4 models</small></span><span aria-hidden="true">→</span></button>`;
 }
 
-export function renderNutritionEditor(meals, { editingMealId = '', reusedMealId = '', storageError = '' } = {}) {
+export function renderNutritionEditor(meals, { editingMealId = '', reusedMealId = '', storageError = '', returnTo = '', returnMealId = '', returnMealOrigin = 'history' } = {}) {
   const title = editingMealId ? 'Edit meal' : reusedMealId ? 'Log this meal again' : 'Log a meal';
-  const subtitle = editingMealId ? 'Update the saved meal.' : reusedMealId ? 'Adjust the time or portions.' : 'Use a photo or enter values.';
-  return `<button type="button" class="modal-close" aria-label="Close Meals & Nutrition" ${actionAttrs('close')}>&times;</button><div class="nutrition-modal-head"><div><h3>${escapeHTML(title)}</h3><p>${escapeHTML(subtitle)}</p></div></div><div class="nutrition-entry-grid"><section class="nutrition-photo-panel"><div class="nutrition-capture-tabs" role="group" aria-label="Photo content"><button type="button" class="is-active" aria-pressed="true" ${actionAttrs('set-kind', { kind: 'meal-photo' })}>Meal photo</button><button type="button" aria-pressed="false" ${actionAttrs('set-kind', { kind: 'nutrition-label' })}>Nutrition label</button></div><label class="nutrition-photo-picker" for="nutrition-photo-input"><span class="nutrition-photo-preview" id="nutrition-photo-preview"><span aria-hidden="true">＋</span><strong id="nutrition-photo-prompt">Add meal photo</strong><small>Up to 4 photos · 20 MB each</small></span><input id="nutrition-photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" multiple ${actionAttrs('photo')}></label><div id="nutrition-label-consumption" class="nutrition-label-consumption" hidden><label class="nutrition-field"><span>Amount eaten</span><input id="nutrition-consumed-amount" inputmode="decimal" type="number" min="0.01" step="0.1" value="1"></label><label class="nutrition-field"><span>Unit</span><select id="nutrition-consumed-unit"><option value="servings">serving(s)</option><option value="g">grams</option><option value="ml">milliliters</option><option value="packages">package(s)</option></select></label><div class="nutrition-barcode-row"><label class="nutrition-field"><span>Barcode <small>optional</small></span><input id="nutrition-barcode" inputmode="numeric" autocomplete="off" maxlength="18" placeholder="EAN or UPC"></label><button type="button" id="nutrition-barcode-btn" class="import-btn import-btn-secondary" ${actionAttrs('barcode')}>Find product</button><small id="nutrition-barcode-hint">Sends only the barcode to Open Food Facts. Community data can be incomplete; review the serving and values.</small></div></div><label class="nutrition-field nutrition-field-wide nutrition-known-details"><span>Known details <small>optional, improves the estimate</small></span><textarea id="nutrition-known-details" rows="2" maxlength="500" placeholder="e.g. Fried Edam cheese, 150 g; tartar sauce; beer was not consumed"></textarea></label><button type="button" id="nutrition-analyze-btn" class="import-btn import-btn-primary" ${actionAttrs('analyze')} ${getMealAnalysisAvailability().available ? '' : 'disabled'}>Analyze photo</button>${renderMealModelControl()}${renderComparisonLauncher()}<div id="nutrition-privacy-line" class="nutrition-privacy-line">Sent only when you choose Analyze photo; originals are not saved. First cloud use asks for approval.</div><div id="nutrition-analysis-progress" class="nutrition-analysis-progress" aria-live="polite" hidden></div><div id="nutrition-analysis-status" class="nutrition-analysis-status" role="status" aria-live="polite"></div></section><section class="nutrition-review-panel"><div id="nutrition-comparison-return" class="nutrition-comparison-return" hidden><span id="nutrition-comparison-return-copy">Benchmark estimate loaded.</span><button type="button" class="nutrition-text-btn" ${actionAttrs('show-comparison')}>← Back to comparison</button></div><div class="nutrition-review-heading"><h4>Review meal</h4></div><div id="nutrition-review-evidence" class="nutrition-review-evidence" hidden></div><label class="nutrition-field nutrition-field-wide"><span>Meal name <small>required</small></span><input id="nutrition-meal-name" maxlength="120" placeholder="e.g. Lentil bowl"></label><div id="nutrition-correction-review" class="nutrition-correction-review" hidden><div id="nutrition-correction-copy"><strong>Wrong identification?</strong> Edit the meal name to recalculate the estimate.</div><button type="button" id="nutrition-recalculate-btn" class="import-btn import-btn-secondary" ${actionAttrs('reanalyze')} disabled>Recalculate estimate</button></div><div class="nutrition-review-meta"><label class="nutrition-field"><span>Meal occasion <small>required</small></span><select id="nutrition-meal-type">${mealTypeOptions()}</select></label><label class="nutrition-field"><span>When</span><input id="nutrition-eaten-at" type="datetime-local" value="${escapeAttr(localDateTimeValue())}"></label></div><div class="nutrition-review-section-title"><strong>Energy &amp; macros</strong><span>Unknown values stay blank.</span></div><div class="nutrition-nutrient-grid">${nutrientInputs()}</div><div id="nutrition-fuel-preview" class="nutrition-fuel-preview" aria-live="polite" hidden></div><details class="nutrition-more-nutrients"><summary>Detailed nutrition</summary><div id="nutrition-food-composition-summary" class="nutrition-food-composition-summary">Matched foods add database micronutrients.</div><div class="nutrition-nutrient-groups"><fieldset><legend>Sugars &amp; fats</legend><div class="nutrition-nutrient-grid">${nutrientInputs(DETAIL_REVIEW_FIELDS)}</div></fieldset><fieldset><legend>Micronutrients</legend><div class="nutrition-nutrient-grid">${nutrientInputs(MICRONUTRIENT_REVIEW_FIELDS)}</div></fieldset><fieldset><legend>Hydration</legend><div class="nutrition-nutrient-grid">${nutrientInputs(HYDRATION_REVIEW_FIELDS)}</div></fieldset></div></details><div id="nutrition-components" class="nutrition-components"></div><div id="nutrition-label-details" class="nutrition-label-summary" hidden></div><div id="nutrition-review-checks" class="nutrition-review-checks" hidden></div><label class="nutrition-field nutrition-field-wide"><span>Note <small>optional</small></span><textarea id="nutrition-note" rows="2" maxlength="500" placeholder="Anything you want to remember about this meal"></textarea></label><div class="nutrition-review-actions"><p id="nutrition-save-requirement" role="status"></p><button type="button" id="nutrition-save-btn" class="import-btn import-btn-primary" aria-describedby="nutrition-save-requirement" ${actionAttrs('save')}>${editingMealId ? 'Save changes' : 'Save meal'}</button></div></section></div>${isDebugMode() ? renderComparisonWorkspace() : ''}<section class="nutrition-recent"><div class="nutrition-section-title">Recent meals</div>${renderRecentMeals(meals, storageError)}</section>`;
+  const subtitle = editingMealId ? 'Update the saved meal.' : reusedMealId ? 'Adjust the time or portions.' : 'Use a photo, scan a label, or enter values manually.';
+  const returnControl = returnTo === 'history'
+    ? `<button type="button" class="nutrition-route-back" ${actionAttrs('return-history')}>← Meals &amp; Nutrition</button>`
+    : returnTo === 'detail' && returnMealId
+      ? `<button type="button" class="nutrition-route-back" ${actionAttrs('return-detail', { id: returnMealId, origin: returnMealOrigin })}>← Meal details</button>`
+      : '';
+  return `<button type="button" class="modal-close" aria-label="Close Meals & Nutrition" ${actionAttrs('close')}>&times;</button>${returnControl}<div class="nutrition-modal-head"><div><h3>${escapeHTML(title)}</h3><p>${escapeHTML(subtitle)}</p></div></div><div class="nutrition-entry-grid"><section class="nutrition-photo-panel"><div class="nutrition-capture-tabs" role="group" aria-label="Photo content"><button type="button" class="is-active" aria-pressed="true" ${actionAttrs('set-kind', { kind: 'meal-photo' })}>Meal photo</button><button type="button" aria-pressed="false" ${actionAttrs('set-kind', { kind: 'nutrition-label' })}>Nutrition label</button></div><label class="nutrition-photo-picker" for="nutrition-photo-input"><span class="nutrition-photo-preview" id="nutrition-photo-preview"><span aria-hidden="true">＋</span><strong id="nutrition-photo-prompt">Add meal photo</strong><small>Up to 4 photos · 20 MB each</small></span><input id="nutrition-photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" multiple ${actionAttrs('photo')}></label><div id="nutrition-label-consumption" class="nutrition-label-consumption" hidden><label class="nutrition-field"><span>Amount eaten</span><input id="nutrition-consumed-amount" inputmode="decimal" type="number" min="0.01" step="0.1" value="1"></label><label class="nutrition-field"><span>Unit</span><select id="nutrition-consumed-unit"><option value="servings">serving(s)</option><option value="g">grams</option><option value="ml">milliliters</option><option value="packages">package(s)</option></select></label></div><label class="nutrition-field nutrition-field-wide nutrition-known-details"><span>Known details <small>optional, improves the estimate</small></span><textarea id="nutrition-known-details" rows="2" maxlength="500" placeholder="e.g. Fried Edam cheese, 150 g; tartar sauce; beer was not consumed"></textarea></label><button type="button" id="nutrition-analyze-btn" class="import-btn import-btn-primary" ${actionAttrs('analyze')} ${getMealAnalysisAvailability().available ? '' : 'disabled'}>Analyze photo</button>${renderMealModelControl()}${renderComparisonLauncher()}<div id="nutrition-privacy-line" class="nutrition-privacy-line">Sent only when you choose Analyze photo; originals are not saved. First cloud use asks for approval.</div><div id="nutrition-analysis-progress" class="nutrition-analysis-progress" aria-live="polite" hidden></div><div id="nutrition-analysis-status" class="nutrition-analysis-status" role="status" aria-live="polite"></div></section><section class="nutrition-review-panel"><div id="nutrition-comparison-return" class="nutrition-comparison-return" hidden><span id="nutrition-comparison-return-copy">Benchmark estimate loaded.</span><button type="button" class="nutrition-text-btn" ${actionAttrs('show-comparison')}>← Back to comparison</button></div><div class="nutrition-review-heading"><h4>Review meal</h4></div><div id="nutrition-review-evidence" class="nutrition-review-evidence" hidden></div><label class="nutrition-field nutrition-field-wide"><span>Meal name <small>required</small></span><input id="nutrition-meal-name" maxlength="120" placeholder="e.g. Lentil bowl"></label><div id="nutrition-correction-review" class="nutrition-correction-review" hidden><div id="nutrition-correction-copy"><strong>Wrong identification?</strong> Edit the meal name to recalculate the estimate.</div><button type="button" id="nutrition-recalculate-btn" class="import-btn import-btn-secondary" ${actionAttrs('reanalyze')} disabled>Recalculate estimate</button></div><div class="nutrition-review-meta"><label class="nutrition-field"><span>Meal occasion <small>required</small></span><select id="nutrition-meal-type">${mealTypeOptions()}</select></label><label class="nutrition-field"><span>When</span><input id="nutrition-eaten-at" type="datetime-local" value="${escapeAttr(localDateTimeValue())}"></label></div><div class="nutrition-review-section-title"><strong>Energy &amp; macros</strong><span>Unknown values stay blank.</span></div><div class="nutrition-nutrient-grid">${nutrientInputs()}</div><div id="nutrition-fuel-preview" class="nutrition-fuel-preview" aria-live="polite" hidden></div><details class="nutrition-more-nutrients"><summary>Detailed nutrition</summary><div id="nutrition-nutrient-estimate-summary" class="nutrition-nutrient-estimate-summary">Detailed nutrient values come from the selected AI model.</div><div class="nutrition-nutrient-groups">${detailedNutrientInputs()}</div></details><div id="nutrition-components" class="nutrition-components"></div><div id="nutrition-label-details" class="nutrition-label-summary" hidden></div><div id="nutrition-review-checks" class="nutrition-review-checks" hidden></div><label class="nutrition-field nutrition-field-wide"><span>Note <small>optional</small></span><textarea id="nutrition-note" rows="2" maxlength="500" placeholder="Anything you want to remember about this meal"></textarea></label><div class="nutrition-review-actions"><p id="nutrition-save-requirement" role="status"></p><button type="button" id="nutrition-save-btn" class="import-btn import-btn-primary" aria-describedby="nutrition-save-requirement" ${actionAttrs('save')}>${editingMealId ? 'Save changes' : 'Save meal'}</button></div></section></div>${isDebugMode() ? renderComparisonWorkspace() : ''}<section class="nutrition-recent"><div class="nutrition-section-title">Recent meals</div>${renderRecentMeals(meals, storageError)}</section>`;
 }

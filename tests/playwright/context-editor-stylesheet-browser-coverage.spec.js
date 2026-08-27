@@ -186,13 +186,15 @@ test('detailed meal logs pause Typical meals without turning partial logs into f
   await page.goto('/app', { waitUntil: 'load' });
 
   const result = await page.evaluate(async () => {
-    const [{ state }, contextCards, summaries, nutritionContext, nutritionSummary, labContext] = await Promise.all([
+    const [{ state }, contextCards, summaries, nutritionContext, nutritionSummary, labContext, chatPromptContext, chatContextSummary] = await Promise.all([
       import('/js/state.js'),
       import('/js/context-cards.js'),
       import('/js/context-card-summaries.js'),
       import('/js/nutrition-context.js'),
       import('/js/nutrition-summary.js'),
       import('/js/lab-context.js'),
+      import('/js/chat-prompt-context.js'),
+      import('/js/chat-context-summary.js'),
     ]);
     state.importedData.diet = {
       type: 'mediterranean',
@@ -216,7 +218,8 @@ test('detailed meal logs pause Typical meals without turning partial logs into f
         nutrients: { energyKcal: 500, proteinG: 30 },
       };
     });
-    state.nutritionSummary = nutritionSummary.computeNutritionSummary(meals, { now });
+    const recentSummary = nutritionSummary.computeNutritionSummary(meals, { now });
+    state.nutritionSummary = recentSummary;
 
     nutritionContext.setNutritionContextEnabled(true);
     const context = labContext.buildLabContext({ skipGroupFilter: true });
@@ -228,8 +231,26 @@ test('detailed meal logs pause Typical meals without turning partial logs into f
     const fallbackSummary = summaries.getDietSummary(state.importedData.diet);
 
     nutritionContext.setNutritionContextEnabled(true);
+    const historyContext = chatPromptContext.buildChatLabContext(
+      'Review my history.\nNutrition history range: 6M (the last 6 calendar months).\nSelected 6M: compact aggregate.',
+      { skipGroupFilter: true },
+    );
+    const historyReceipt = chatContextSummary.getContextSummary(historyContext);
+    state.importedData.nutritionContextDays = 30;
+    const historicMeals = meals.map(meal => {
+      const eatenAt = new Date(meal.eatenAt);
+      eatenAt.setDate(eatenAt.getDate() - 60);
+      return { ...meal, eatenAt: eatenAt.toISOString(), localDate: eatenAt.toISOString().slice(0, 10) };
+    });
+    state.nutritionSummary = nutritionSummary.computeNutritionSummary(historicMeals, { now });
+    labContext.invalidateLabContextCache();
+    const expiredContext = labContext.buildLabContext({ skipGroupFilter: true });
+    const expiredDashboard = contextCards.renderProfileContextCards();
+
+    state.nutritionSummary = recentSummary;
+    labContext.invalidateLabContextCache();
     await contextCards.openDietEditor();
-    return { context, cardSummary, dashboard, fallbackContext, fallbackSummary };
+    return { context, cardSummary, dashboard, fallbackContext, fallbackSummary, historyContext, historyReceipt, expiredContext, expiredDashboard };
   });
 
   expect(result.context).toContain('occasions: lunch 5');
@@ -247,6 +268,15 @@ test('detailed meal logs pause Typical meals without turning partial logs into f
   expect(result.fallbackContext).toContain('Lunch (12:30): Chicken salad');
   expect(result.fallbackContext).not.toContain('Detailed logs replace, never supplement');
   expect(result.fallbackSummary).toContain('B: Oats and berries');
+  expect(result.historyContext).toContain('[section:nutritionHistory]');
+  expect(result.historyContext).not.toContain('[section:nutrition]');
+  expect(result.historyContext).not.toContain('Last 7 days:');
+  expect(result.historyContext).not.toContain('Oats and berries');
+  expect(result.historyReceipt).toContainEqual({ label: 'Meals & Nutrition', detail: '6M one-off history · aggregate only' });
+  expect(result.expiredContext).toContain('Breakfast (08:00): Oats and berries');
+  expect(result.expiredContext).not.toContain('[section:nutrition]');
+  expect(result.expiredDashboard).toContain('No entries in the 30-day AI timeframe');
+  expect(result.expiredDashboard).toContain('Typical meals active');
 
   const modal = page.locator('#detail-modal');
   const mealsSection = modal.locator('details.ctx-editor-section').filter({ hasText: 'Typical meals' });
