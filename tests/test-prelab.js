@@ -274,12 +274,9 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
     return returnCount === 0;
   })(), 'No early return between inner function start and section 1');
 
-  assert('buildLabContext ends with return ctx', (() => {
-    const fnStart = labCtxSrc.indexOf('function _buildLabContextInner');
-    const fnEnd = labCtxSrc.indexOf('\n// ═══', fnStart + 100);
-    const fnBody = labCtxSrc.substring(fnStart, fnEnd);
-    return fnBody.includes('return ctx;\n}');
-  })(), 'Should always return the built context string');
+  assert('buildLabContext inner builder ends with return ctx',
+    /function _buildLabContextInner[\s\S]*\n  return ctx;\n}/.test(labCtxSrc),
+    'Should always return the built context string before the cache wrapper stores it');
 
   // ═══════════════════════════════════════
   // 7. Chat setup guide (no AI provider)

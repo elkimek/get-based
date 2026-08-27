@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 667,
-  "sinkCount": 528,
+  "scannedFiles": 672,
+  "sinkCount": 529,
   "files": {
     "js/backup.js": {
       "count": 1,
@@ -187,11 +187,11 @@
       }
     },
     "js/context-card-dashboard-ai-impl.js": {
-      "count": 3,
-      "digest": "e799e10e329e293e28533c7f1ce861753690152d655e4ea400126f8260aaaa0f",
+      "count": 4,
+      "digest": "425bcf47c968cbfc6f72dd5aede7114077c11cd7e19600e6ea8c02fd744f0443",
       "kinds": {
         "innerHTML": 2,
-        "outerHTML": 1
+        "outerHTML": 2
       }
     },
     "js/context-card-editor-ui.js": {
@@ -541,7 +541,7 @@
     },
     "js/marker-detail-manual-entry.js": {
       "count": 1,
-      "digest": "d335cab8fa95f78ed34c763697643432c6aafdddf4a0b60cba35dc9661ecf10e",
+      "digest": "eb55a3c9c8c732be4c878c5ca08c735db027025d14253a00508f55b0ee33b073",
       "kinds": {
         "innerHTML": 1
       }
@@ -585,7 +585,7 @@
     },
     "js/nutrition-comparison-ui.js": {
       "count": 6,
-      "digest": "b4889526b0c45cccdb48c70e1ab02c60772cc1e92bcea148732e4c4c32162d51",
+      "digest": "59d4e2812f99b24197e1b84d0cbfe9e16be93abf979ce22361dfc53a70d880fa",
       "kinds": {
         "innerHTML": 5,
         "outerHTML": 1
@@ -593,14 +593,14 @@
     },
     "js/nutrition-entry-forms.js": {
       "count": 1,
-      "digest": "aa0146a295f2eb94a0c975afdd24d786456017ee564d485c263d051f03e61ac2",
+      "digest": "9cebc9e324252cd40ade39e881fb6667bdb807adde529c3ab9aa3189b3b5a721",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/nutrition-history.js": {
       "count": 1,
-      "digest": "62567e268515ebf84feedaa5667042075ec9aa29331119b690874dbeb083737e",
+      "digest": "d6db6fd3c185188f3b9546223bc83083b8889172426fd2e5191bb8a4ca16cf99",
       "kinds": {
         "innerHTML": 1
       }
@@ -614,14 +614,14 @@
     },
     "js/nutrition-review-ui.js": {
       "count": 10,
-      "digest": "9cf4979c92e704f81c1b231bca2c3b57753b6b0f7f2a49ef3558b408b9143d15",
+      "digest": "75a8d8de375965d735a423a223507c61503fb78a6b30ee01319237569c683126",
       "kinds": {
         "innerHTML": 10
       }
     },
     "js/nutrition.js": {
       "count": 8,
-      "digest": "c775f85c7d98561454906d7e0c2e26b1c459493045723ac30466f5e44b00fce9",
+      "digest": "4451e6b7556eef262918354ac97ac797bcb52194c0f889a0aac00f09642a031e",
       "kinds": {
         "innerHTML": 7,
         "outerHTML": 1

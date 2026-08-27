@@ -416,7 +416,8 @@ assert('App event listeners use configured shell deps instead of window globals'
 assert('Sync setup Escape close catches async cleanup failures',
   appEventsSrc.includes('function runAppEventListener(label, action)')
     && appEventsSrc.includes(".catch((err) => reportAppEventListenerError(label, err))")
-    && appEventsSrc.includes("runAppEventListener('closeSyncSetup', appEventListenerDeps.closeSyncSetup)"));
+    && appEventsSrc.includes("['sync-setup-overlay', 'closeSyncSetup']")
+    && appEventsSrc.includes('runAppEventListener(actionName, action)'));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) process.exit(1);

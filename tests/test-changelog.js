@@ -294,7 +294,9 @@ console.log('4. Startup UI Wiring');
 assert('startup-ui.js imports maybeShowChangelog', startupUiSrc.includes("import { maybeShowChangelog } from './changelog.js'"));
 assert('startup-ui.js calls maybeShowChangelog', startupUiSrc.includes('maybeShowChangelog()'));
 assert('app-event-listeners.js has changelog overlay click handler', appEventsSrc.includes('changelog-modal-overlay') && appEventsSrc.includes('closeChangelog'));
-assert('app-event-listeners.js has changelog Escape handler', appEventsSrc.includes('changelogOverlay'));
+assert('app-event-listeners.js has changelog Escape handler',
+  appEventsSrc.includes("['changelog-modal-overlay', 'closeChangelog']") &&
+  appEventsSrc.includes('runAppEventListener(actionName, action)'));
 assert('app-event-listeners.js focus trap includes changelog', appEventsSrc.includes('"changelog-modal-overlay"'));
 
 // ═══════════════════════════════════════

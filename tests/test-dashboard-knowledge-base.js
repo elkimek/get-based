@@ -227,8 +227,9 @@ try {
       && !chatContextStatusSrc.includes('labcharts-ai-ctx-genetics-inventory'));
 
     const appEventsSrc = fs.readFileSync('js/app-event-listeners.js', 'utf8');
-    assert('global modal focus trap includes Context hub overlay id',
-      appEventsSrc.includes('"context-hub-overlay"') && appEventsSrc.includes('"ai-personalize-picker-overlay"'));
+    assert('global modal focus trap covers Context hub and future lifecycle overlays',
+      appEventsSrc.includes("const APP_MODAL_OVERLAY_SELECTOR = '.modal-overlay.show,.confirm-overlay.show,.tweaks-overlay.show,[data-modal-focus-trap]'")
+      && appEventsSrc.includes('const ov = topmostModalOverlay()'));
     const lensSrc = fs.readFileSync('js/lens.js', 'utf8');
     assert('saveLensKey refreshes chat header after external KB key cache updates',
       /export\s+async\s+function\s+saveLensKey[\s\S]*updateKeyCache\(SECRET_KEY, key\)[\s\S]*updateChatHeaderModelRuntime\(\)/.test(lensSrc));
