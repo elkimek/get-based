@@ -61,7 +61,7 @@
 .nutrition-goal-row.is-good { --nutrition-goal-color: color-mix(in srgb, var(--success, #4cad7a) 72%, var(--warning, #d29a42)); }
 .nutrition-goal-row.is-strained { --nutrition-goal-color: var(--warning, #d29a42); }
 .nutrition-goal-row.is-poor { --nutrition-goal-color: var(--danger, #e76868); }
-.nutrition-goal-grade { display: inline-flex; align-items: center; margin-right: 6px; padding: 2px 6px; border: 1px solid color-mix(in srgb, var(--nutrition-goal-color, var(--accent)) 44%, var(--border)); border-radius: 999px; background: color-mix(in srgb, var(--nutrition-goal-color, var(--accent)) 13%, transparent); color: var(--text); font-size: 9px; font-weight: 850; letter-spacing: .02em; white-space: nowrap; }
+.nutrition-goal-grade { display: inline-flex; align-items: center; margin-right: 6px; padding: 2px 6px; border: 1px solid color-mix(in srgb, var(--nutrition-goal-color, var(--accent)) 44%, var(--border)); border-radius: 999px; background: color-mix(in srgb, var(--nutrition-goal-color, var(--accent)) 13%, var(--bg-card)); color: var(--text-primary); font-size: 9px; font-weight: 850; letter-spacing: .02em; white-space: nowrap; }
 .nutrition-widget-empty { display: flex; align-items: center; gap: 13px; padding: 18px; border: 1px dashed var(--border); border-radius: 12px; background: color-mix(in srgb, var(--accent) 3%, var(--bg-card)); }
 .nutrition-widget-empty > span { color: var(--accent); font-size: 28px; }
 .nutrition-widget-empty strong { font-size: 13px; }
