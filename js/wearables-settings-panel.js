@@ -232,7 +232,7 @@ export function renderWearablesSettingsSection() {
       <p>Connect a service to bring its readings into this profile. Connections and imported history stay on this device unless you turn on encrypted sync.</p></div>
     <details class="wearable-sources-privacy">
       <summary>How your data is protected</summary>
-      <p>Connection keys and Google Health imports are always encrypted on this device. Other imported history is encrypted when you protect the profile with a passphrase.</p>
+      <p>Connection keys plus WHOOP and Google Health imports are always encrypted on this device. Other imported history is encrypted when you protect the profile with a passphrase.</p>
       <p>On getbased.health, the secure getbased relay forwards supported service requests without intentionally storing their contents. Self-hosted connections use the deployment owner's server.</p>
       <p>Encrypted sync and cloud AI are separate choices with their own controls.</p></details>
   </div>
@@ -659,6 +659,9 @@ async function handleWearableConnect(adapterId) {
         ariaLabel: 'Google Health data access consent',
       });
       if (!consented) return;
+    } else if (adapterId === 'whoop') {
+      const { WHOOP_CONNECT_DISCLOSURE } = await import('./wearables-whoop-storage.js');
+      if (!await confirmWearableSettingsAction(WHOOP_CONNECT_DISCLOSURE, { confirmLabel: 'Continue to WHOOP', tone: 'primary', ariaLabel: 'WHOOP data access consent' })) return;
     } else if (requiresHostedWearableRelayConsent(adapterId)) {
       const consented = await requestHostedWearableRelayConsent(initiatingProfileId, adapterId, adapter.displayName);
       if (!consented) return;

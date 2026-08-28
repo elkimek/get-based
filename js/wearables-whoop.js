@@ -1,10 +1,11 @@
 // @ts-check
 // wearables-whoop.js — WHOOP data layer
 //
-// BETA. WHOOP's API is a clean REST JSON API with cursor pagination. All
-// endpoints live under api.prod.whoop.com/developer/v1. Response shapes
-// here match WHOOP's OpenAPI spec as of 2026-04; real-world drift will be
-// caught when the first beta tester connects.
+// BETA. WHOOP's API is a clean REST JSON API with cursor pagination. Data
+// endpoints live under api.prod.whoop.com/developer/v2 — WHOOP removed the
+// v1 recovery and activity/sleep routes (404 for API clients, verified
+// 2026-08-27 with a live member token; direct and via proxy behave the same).
+// Response shapes here match WHOOP's OpenAPI spec as of 2026-08.
 //
 // Pagination: nextToken via `?nextToken=...` until the server returns a
 // response without nextToken. Kept aligned with Oura's ouraCollect shape
@@ -55,7 +56,7 @@ async function whoopCollect(path, accessToken, params) {
 
 export async function fetchWhoopPersonalInfo(accessToken) {
   try {
-    const info = await whoopGET('developer/v1/user/profile/basic', accessToken);
+    const info = await whoopGET('developer/v2/user/profile/basic', accessToken);
     return { ok: true, account: { email: info?.email || null, firstName: info?.first_name || null, lastName: info?.last_name || null } };
   } catch (e) {
     return { ok: false, error: getErrorMessage(e), status: getErrorStatus(e) };
@@ -75,10 +76,25 @@ export async function fetchWhoopDailyRange(accessToken, startDate, endDate) {
   const params = { start: isoFloor(startDate), end: isoCeil(endDate), limit: 25 };
 
   const [cycles, recoveries, sleeps] = await Promise.all([
-    whoopCollect('developer/v1/cycle', accessToken, params).catch(e => { logDebug('cycle', e); return []; }),
-    whoopCollect('developer/v1/recovery', accessToken, params).catch(e => { logDebug('recovery', e); return []; }),
-    whoopCollect('developer/v1/activity/sleep', accessToken, params).catch(e => { logDebug('sleep', e); return []; }),
+    whoopCollect('developer/v2/cycle', accessToken, params).catch(e => { logDebug('cycle', e); return []; }),
+    whoopCollect('developer/v2/recovery', accessToken, params).catch(e => { logDebug('recovery', e); return []; }),
+    whoopCollect('developer/v2/activity/sleep', accessToken, params).catch(e => { logDebug('sleep', e); return []; }),
   ]);
+
+  // v2 flattens relationships to bare IDs: a recovery record carries
+  // `cycle_id`/`sleep_id` instead of the v1 embedded `cycle`/`sleep` objects.
+  // Join against the fetched collections to recover the onset timestamps
+  // used for day attribution below.
+  /** @type {Map<number|string, string>} */
+  const cycleStartById = new Map();
+  for (const c of cycles) {
+    if (c?.id != null && c?.start) cycleStartById.set(c.id, c.start);
+  }
+  /** @type {Map<number|string, string>} */
+  const sleepStartById = new Map();
+  for (const s of sleeps) {
+    if (s?.id != null && s?.start) sleepStartById.set(s.id, s.start);
+  }
 
   const byDate = new Map();
   function ensureRow(day) {
@@ -98,16 +114,15 @@ export async function fetchWhoopDailyRange(accessToken, startDate, endDate) {
   }
 
   for (const r of recoveries) {
-    // Attribute by the cycle the recovery describes, not by `created_at`.
-    // WHOOP's `created_at` is when their pipeline finished writing the
-    // score — typically the morning AFTER the sleep cycle ended. Cycles
-    // bracket sleep-to-sleep, not calendar days, so a recovery describing
-    // Tuesday's sleep can have created_at=Wednesday morning. Using
-    // created_at mis-attributes Tuesday's HRV/RHR to Wednesday's row.
-    // Prefer cycle.start (or sleep.start), fall back to created_at only
-    // as last resort for malformed records.
-    const day = dayFromIso(r?.cycle?.start)
-      || dayFromIso(r?.sleep?.start)
+    // Attribute by the cycle/sleep the recovery describes, not by
+    // `created_at`: created_at is when WHOOP's pipeline finished writing the
+    // score, typically the morning AFTER the sleep cycle ended, so using it
+    // mis-attributes the row by one day. v2 flattened the v1 embedded
+    // `cycle`/`sleep` objects into bare `cycle_id`/`sleep_id` IDs, so the
+    // onset timestamps come from the ID-keyed maps built above; created_at
+    // stays only as a last resort for malformed records.
+    const day = dayFromIso(cycleStartById.get(r?.cycle_id))
+      || dayFromIso(sleepStartById.get(r?.sleep_id))
       || dayFromIso(r?.created_at);
     if (!day) continue;
     const s = r?.score || {};

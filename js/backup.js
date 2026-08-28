@@ -161,11 +161,10 @@ async function collectWearableIDB(profileIds) {
       // rows on disk are AES-GCM-wrapped envelopes. getDailyRange would
       // decrypt them into plaintext for the snapshot — silently downgrading
       // the at-rest guarantee. getDailyRangeRaw returns rows as-stored.
-      // Google Health raw rows use an always-on device key that is
-      // intentionally never exported. Exclude those rows rather than create
-      // an undecryptable (or downgraded plaintext) backup; reconnecting can
-      // safely fetch them again from Google.
-      const KNOWN_SOURCES = ['oura', 'whoop', 'fitbit', 'withings', 'ultrahuman', 'polar', 'apple_health', 'manual'];
+      // WHOOP and Google Health raw rows use an always-on device key.
+      // These keys are non-exportable, so omit those rows rather than creating
+      // undecryptable or downgraded backups; reconnecting can fetch them again.
+      const KNOWN_SOURCES = ['oura', 'fitbit', 'withings', 'ultrahuman', 'polar', 'apple_health', 'manual'];
       const perProfile = {};
       for (const src of KNOWN_SOURCES) {
         try {
@@ -341,10 +340,11 @@ export async function buildFullBackupSnapshot() {
       }
     }
   }
-
   for (const p of snap.profiles || []) {
-    if (p.keys && p.keys.imported == null) {
+    if (p.keys) {
       const key = profileStorageKey(p.profileId, 'imported');
+      // Hydrate WHOOP's sidecar before copying the deliberately stripped canonical value.
+      try { await getBackupRuntimeDeps().encryptedGetItem(key); } catch {}
       const rawImported = await readRawStoredItem(key);
       if (rawImported != null) p.keys.imported = rawImported;
     }

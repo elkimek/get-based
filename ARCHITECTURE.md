@@ -70,7 +70,10 @@ Ultrahuman, and Google Health are self-host-only and use the deployment owner's
 OAuth application. Confidential token exchange and refresh use its same-origin
 proxy; WHOOP and Google Health resource requests also transit it, while
 Ultrahuman resource data is fetched browser-direct. No client path falls back
-to getbased infrastructure.
+to getbased infrastructure. WHOOP and Google Health raw rows are protected by
+non-exportable device keys and omitted from portable raw-data backups. WHOOP-
+specific profile metadata and derived values use the same device-only boundary
+independently of optional profile passphrase protection.
 
 The hosted CAMS operation is the only plaintext location route. The browser
 rounds to 0.1° and the compatibility relay repeats that rounding before an

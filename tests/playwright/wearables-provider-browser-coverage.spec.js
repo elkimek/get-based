@@ -411,17 +411,21 @@ test('Oura and WHOOP provider fetchers collect paginated rows and canonical metr
         if (path.endsWith('/cycle')) {
           if (url.searchParams.get('nextToken') === 'cycle-page-2') {
             return { body: { records: [
-              { start: '2026-06-02T05:00:00.000Z', score: { strain: 9, average_heart_rate: 70 } },
+              { id: 424243, start: '2026-06-02T05:00:00.000Z', score: { strain: 9, average_heart_rate: 70 } },
             ] } };
           }
           return { body: { records: [
-            { start: '2026-06-01T05:00:00.000Z', score: { strain: 12.3, average_heart_rate: 75 } },
+            { id: 424242, start: '2026-06-01T05:00:00.000Z', score: { strain: 12.3, average_heart_rate: 75 } },
           ], next_token: 'cycle-page-2' } };
         }
         if (path.endsWith('/recovery')) {
+          // v2 flat shape: recovery rows carry cycle_id/sleep_id references into
+          // the fetched cycle/sleep collections (IDs synthetic). created_at is
+          // deliberately the following morning — attribution must come from the
+          // cycle join, not the created_at fallback.
           return { body: { records: [
-            { cycle: { start: '2026-06-01T00:00:00.000Z' }, score: { hrv_rmssd_milli: 65, resting_heart_rate: 48, recovery_score: 77 } },
-            { sleep: { start: '2026-06-02T00:00:00.000Z' }, score: { hrv_rmssd_milli: 61, resting_heart_rate: 50, recovery_score: 73 } },
+            { cycle_id: 424242, sleep_id: null, created_at: '2026-06-02T06:30:00.000Z', score: { hrv_rmssd_milli: 65, resting_heart_rate: 48, recovery_score: 77 } },
+            { cycle_id: 424243, sleep_id: null, created_at: '2026-06-03T06:30:00.000Z', score: { hrv_rmssd_milli: 61, resting_heart_rate: 50, recovery_score: 73 } },
           ] } };
         }
         if (path.endsWith('/activity/sleep')) {
@@ -466,6 +470,209 @@ test('Oura and WHOOP provider fetchers collect paginated rows and canonical metr
   });
 
   for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('WHOOP consent and device-only storage protect rows and derived profile data', async ({ page }) => {
+  await page.route('**/whoop-storage-browser-coverage', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<!doctype html><html><body></body></html>',
+  }));
+  await page.route('**/api/proxy', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ overrides: { whoop: 'self-host-whoop-client' }, configured: { whoop: true } }),
+  }));
+  await page.goto('/whoop-storage-browser-coverage', { waitUntil: 'load' });
+
+  const result = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const { applyOAuthConfigured, applyOAuthOverrides } = await import('/js/wearable-adapters.js');
+    const {
+      renderWearablesSettingsSection,
+      wearableSettingsActionHandlers,
+    } = await import('/js/wearables-settings-panel.js');
+    const settingsRuntime = await import('/js/wearables-settings-runtime.js');
+    const { disconnectWearable } = await import('/js/wearables-connect.js');
+    const cryptoStorage = await import('/js/crypto.js');
+    const {
+      encryptedGetItem,
+      encryptedRemoveItem,
+      encryptedSetItem,
+    } = cryptoStorage;
+    const { getBlob } = await import('/js/blob-storage.js');
+    const { profileStorageKey } = await import('/js/profile-storage-key.js');
+    const {
+      WHOOP_CONNECT_DISCLOSURE,
+      WHOOP_PROFILE_DATA_META,
+    } = await import('/js/wearables-whoop-storage.js');
+    const {
+      deleteWearablesDB,
+      decryptWearableDeviceLocalValue,
+      getDailyRange,
+      getDailyRangeRaw,
+      getMeta,
+      openWearablesDB,
+      upsertDailyBatch,
+    } = await import('/js/wearables-store.js');
+
+    const profileId = `whoop-storage-${Date.now()}-${crypto.randomUUID()}`;
+    const storageKey = profileStorageKey(profileId, 'imported');
+    localStorage.removeItem('labcharts-encryption-enabled');
+    localStorage.setItem('labcharts-active-profile', profileId);
+    state.currentProfile = profileId;
+    state.importedData = { entries: [], wearableConnections: {} };
+    applyOAuthOverrides({ whoop: 'self-host-whoop-client' });
+    applyOAuthConfigured({ whoop: true });
+
+    const consentMessages = [];
+    const previousSettingsRuntime = settingsRuntime.configureWearableSettingsRuntimeDeps({
+      showConfirmDialog: async message => {
+        consentMessages.push(message);
+        return false;
+      },
+    });
+    await wearableSettingsActionHandlers.handleWearableConnect('whoop');
+    settingsRuntime.configureWearableSettingsRuntimeDeps(previousSettingsRuntime);
+
+    await upsertDailyBatch(profileId, [{
+      source: 'whoop',
+      date: '2026-08-27',
+      hrv_rmssd: 57,
+      readiness_score: 81,
+    }]);
+    const rawNewRows = await getDailyRangeRaw(profileId, 'whoop', '2026-08-27', '2026-08-27');
+
+    // Simulate a row written by the pre-protection release. Reading it must
+    // preserve its runtime value while upgrading the stored record in place.
+    const db = await openWearablesDB(profileId);
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('daily-metrics', 'readwrite');
+      tx.objectStore('daily-metrics').put({
+        source: 'whoop',
+        date: '2026-08-26',
+        importedAt: 1,
+        readiness_score: 74,
+      });
+      tx.objectStore('daily-metrics').put({
+        source: 'whoop',
+        date: '2025-01-01',
+        importedAt: 1,
+        readiness_score: 69,
+      });
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+    const readableNewRows = await getDailyRange(profileId, 'whoop', '2026-08-27', '2026-08-27');
+    const readableLegacyRows = await getDailyRange(profileId, 'whoop', '2026-08-26', '2026-08-26');
+    const rawMigratedRows = await getDailyRangeRaw(profileId, 'whoop', '2026-08-26', '2026-08-26');
+    const rawHistoricalRows = await getDailyRangeRaw(profileId, 'whoop', '2025-01-01', '2025-01-01');
+
+    const imported = {
+      entries: [{ date: '2026-08-01', markers: {} }],
+      wearableConnections: {
+        oura: { connectedAt: '2026-08-01T00:00:00.000Z' },
+        whoop: { connectedAt: '2026-08-02T00:00:00.000Z', account: { email: 'whoop-private@example.test' } },
+      },
+      wearableSummary: {
+        summaryUpdatedAt: '2026-08-28T00:00:00.000Z',
+        sources: { oura: { coverageDays: 2 }, whoop: { coverageDays: 7 } },
+        metrics: {
+          rhr: { primarySource: 'oura', latest: 50 },
+          readiness_score: { primarySource: 'whoop', latest: 81 },
+        },
+      },
+      wearablePrimaryOverride: { readiness_score: 'whoop' },
+      changeHistory: [
+        { ts: 1, type: 'wearable', source: 'oura', message: 'Oura event' },
+        { ts: 2, type: 'wearable', source: 'whoop', message: 'WHOOP readiness changed' },
+      ],
+    };
+    await encryptedSetItem(storageKey, JSON.stringify(imported));
+    const rawProfile = await getBlob(storageKey);
+    const protectedProfile = await getMeta(profileId, WHOOP_PROFILE_DATA_META);
+    const hydratedProfile = JSON.parse(await encryptedGetItem(storageKey));
+    const settingsHtml = renderWearablesSettingsSection();
+
+    window.__WEARABLES_TEST = true;
+    await cryptoStorage._setTestSessionKey('whoop-storage-passphrase');
+    localStorage.setItem('labcharts-encryption-enabled', 'true');
+    await cryptoStorage._migrateAllStorageForTest('encrypted');
+    const passphraseProtectedProfile = await getBlob(storageKey);
+    const sidecarAfterPassphraseEnable = await getMeta(profileId, WHOOP_PROFILE_DATA_META);
+    const hydratedWithPassphrase = JSON.parse(await encryptedGetItem(storageKey));
+
+    await cryptoStorage._migrateAllStorageForTest('plain');
+    localStorage.removeItem('labcharts-encryption-enabled');
+    const deviceProtectedProfileAgain = await getBlob(storageKey);
+    const sidecarAfterPassphraseDisable = await getMeta(profileId, WHOOP_PROFILE_DATA_META);
+    const decryptedSidecarAfterPassphraseDisable = await decryptWearableDeviceLocalValue(
+      profileId,
+      sidecarAfterPassphraseDisable,
+    );
+    const hydratedAfterPassphraseDisable = JSON.parse(await encryptedGetItem(storageKey));
+    await cryptoStorage._setTestSessionKey(null);
+
+    state.importedData = structuredClone(hydratedAfterPassphraseDisable);
+    await disconnectWearable('whoop', { deleteData: true });
+    const sidecarAfterDisconnect = await getMeta(profileId, WHOOP_PROFILE_DATA_META);
+    const rowsAfterDisconnect = await getDailyRangeRaw(profileId, 'whoop', '2026-08-01', '2026-08-31');
+    const profileAfterDisconnect = JSON.parse(await encryptedGetItem(storageKey));
+
+    await encryptedRemoveItem(storageKey);
+    await deleteWearablesDB(profileId);
+
+    return {
+      consentIsExplicit: consentMessages.length === 1
+        && consentMessages[0] === WHOOP_CONNECT_DISCLOSURE
+        && consentMessages[0].includes('authorize this deployment to access and store')
+        && consentMessages[0].includes('No write access is requested')
+        && !sessionStorage.getItem('whoop-oauth-pending'),
+      privacyCopyNamesWhoop: settingsHtml.includes('WHOOP and Google Health imports are always encrypted on this device'),
+      newRowEncrypted: rawNewRows[0]?._devicePayload?.version === 1
+        && rawNewRows[0]?.readiness_score == null
+        && rawNewRows[0]?.hrv_rmssd == null,
+      newRowReadable: readableNewRows[0]?.hrv_rmssd === 57
+        && readableNewRows[0]?.readiness_score === 81,
+      legacyRowMigrated: readableLegacyRows[0]?.readiness_score === 74
+        && rawMigratedRows[0]?._devicePayload?.version === 1
+        && rawMigratedRows[0]?.readiness_score == null
+        && rawHistoricalRows[0]?._devicePayload?.version === 1
+        && rawHistoricalRows[0]?.readiness_score == null,
+      profileBlobSanitized: typeof rawProfile === 'string'
+        && rawProfile.includes('_deviceProtectedWearableProfile')
+        && rawProfile.includes('"oura"')
+        && !rawProfile.includes('whoop-private@example.test')
+        && !rawProfile.includes('readiness_score')
+        && !rawProfile.includes('WHOOP readiness changed'),
+      profileEnvelopeEncrypted: protectedProfile?.version === 1
+        && !JSON.stringify(protectedProfile).includes('whoop-private@example.test')
+        && !JSON.stringify(protectedProfile).includes('readiness_score'),
+      profileHydratesForRuntime: hydratedProfile.wearableConnections?.whoop?.account?.email === 'whoop-private@example.test'
+        && hydratedProfile.wearableSummary?.sources?.whoop?.coverageDays === 7
+        && hydratedProfile.wearableSummary?.metrics?.readiness_score?.latest === 81
+        && hydratedProfile.wearablePrimaryOverride?.readiness_score === 'whoop'
+        && hydratedProfile.changeHistory?.some(event => event.source === 'whoop'),
+      passphraseBlobEncrypted: passphraseProtectedProfile?.startsWith('v1:'),
+      passphraseSidecarRetained: sidecarAfterPassphraseEnable?.version === 1,
+      passphraseProfileHydrates: hydratedWithPassphrase.wearableConnections?.whoop?.account?.email === 'whoop-private@example.test',
+      disabledProfileUsesMarker: deviceProtectedProfileAgain?.includes('_deviceProtectedWearableProfile')
+        && !deviceProtectedProfileAgain?.includes('whoop-private@example.test'),
+      disabledSidecarRetained: sidecarAfterPassphraseDisable?.version === 1,
+      disabledSidecarDecrypts: decryptedSidecarAfterPassphraseDisable?.connection?.account?.email === 'whoop-private@example.test',
+      disabledProfileHydrates: hydratedAfterPassphraseDisable.wearableConnections?.whoop?.account?.email === 'whoop-private@example.test',
+      disconnectPurgesProtectedData: sidecarAfterDisconnect == null
+        && rowsAfterDisconnect.length === 0
+        && profileAfterDisconnect.wearableConnections?.whoop == null
+        && profileAfterDisconnect.wearableSummary?.sources?.whoop == null
+        && profileAfterDisconnect.wearableSummary?.metrics?.readiness_score == null
+        && profileAfterDisconnect.wearablePrimaryOverride?.readiness_score == null
+        && !profileAfterDisconnect.changeHistory?.some(event => event.source === 'whoop'),
+    };
+  });
+
+  for (const [name, passed] of Object.entries(result)) {
     expect(passed, name).toBe(true);
   }
 });

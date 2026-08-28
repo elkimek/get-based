@@ -19,7 +19,7 @@ export function applyWearableDisconnectToProfile(importedData, adapterId, { dele
   delete importedData.wearableConnections[adapterId];
   if (!deleteData) return true;
 
-  if (adapterId === 'google_health') {
+  if (adapterId === 'google_health' || adapterId === 'whoop') {
     deleteImportedArrayItems(
       importedData, 'changeHistory',
       event => event?.type === 'wearable' && event?.source === adapterId,
@@ -33,6 +33,9 @@ export function applyWearableDisconnectToProfile(importedData, adapterId, { dele
       if (metric?.primarySource === adapterId) delete summary.metrics[metricId];
     }
     if (Object.keys(importedData.wearableConnections).length === 0) delete importedData.wearableSummary;
+  }
+  for (const [metricId, source] of Object.entries(importedData.wearablePrimaryOverride || {})) {
+    if (source === adapterId) delete importedData.wearablePrimaryOverride[metricId];
   }
   return true;
 }

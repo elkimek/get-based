@@ -62,6 +62,7 @@ const panelCallbacks = {
 };
 let chatThreadInputBlocked = false;
 let chatPanelReturnFocus = null;
+let chatPanelIntent = 0;
 
 function setChatBackgroundInert(inert) {
   document.querySelectorAll('.main, .sidebar, .app-footer, .mobile-dashboard').forEach(element => {
@@ -248,11 +249,13 @@ export function toggleChatFullscreen() {
 }
 
 export async function openChatPanel(prefillMessage) {
+  const openIntent = ++chatPanelIntent;
   const panel = document.getElementById('chat-panel');
   const backdrop = document.getElementById('chat-backdrop');
   if (!panel || !backdrop) return false;
   const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   if (!(await loadChatPresentationStylesheetsForAction())) return false;
+  if (openIntent !== chatPanelIntent) return false;
   chatPanelReturnFocus = returnFocus;
   panel.classList.add('open');
   updateChatPanelAccessibility(panel, true);
@@ -337,6 +340,7 @@ export function updateChatInputState() {
 }
 
 export function closeChatPanel() {
+  chatPanelIntent += 1;
   panelCallbacks.stopVoiceActivity?.();
   stopMobileChatViewportSync();
   const panel = document.getElementById('chat-panel');

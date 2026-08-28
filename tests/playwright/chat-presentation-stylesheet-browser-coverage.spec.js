@@ -53,14 +53,18 @@ test('Chat presentation stays cold until the panel opens and preserves cascade o
   await expect(page.locator('#chat-panel')).not.toHaveClass(/open/);
   await expect(page.locator('link[data-chat-presentation-stylesheet]')).toHaveCount(9);
 
+  await page.evaluate(async () => (await import('/js/chat-panel.js')).closeChatPanel());
   await stylesheetRoute.fulfill({
     status: 200,
     contentType: 'text/css',
     body: '.chat-panel { --coverage-chat-onboarding: ready; }',
   });
+  const cancelledOpen = await page.evaluate(async () => window.__chatOpenResult);
+  expect(cancelledOpen).toBe(false);
+  await expect(page.locator('#chat-panel')).not.toHaveClass(/open/);
 
   const outcome = await page.evaluate(async () => {
-    const opened = await window.__chatOpenResult;
+    const opened = await (await import('/js/chat-panel.js')).openChatPanel();
     // The send button declares `transition: all`; under a busy parallel run
     // its 40px → 44px stylesheet transition can still be in flight here.
     await new Promise(resolve => setTimeout(resolve, 250));
