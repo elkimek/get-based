@@ -400,6 +400,7 @@
     "js/wearables-ultrahuman-auth.js",
     "js/wearables-ultrahuman.js",
     "js/wearables-whoop-auth.js",
+    "js/wearables-whoop-storage.js",
     "js/wearables-whoop.js",
     "js/wearables-withings-auth.js",
     "js/wearables-withings.js",
