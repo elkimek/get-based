@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "maximums": {
     "startupJavaScriptFiles": 2,
-    "startupDecodedBytes": 1170000,
+    "startupDecodedBytes": 1171000,
     "outputJavaScriptFiles": 158,
     "outputDecodedBytes": 4975000
   },
@@ -33,7 +33,8 @@
     "mealsNutritionHistoryOutputDecodedBytes": 4907565,
     "mealsNutritionHydrationSerializationOutputDecodedBytes": 4908141,
     "mealsNutritionSyncRebaseOutputDecodedBytes": 4908949,
-    "nutritionReportReadinessOutputDecodedBytes": 4955086
+    "nutritionReportReadinessOutputDecodedBytes": 4955086,
+    "whoopDeviceProtectionStartupDecodedBytes": 1170666
   },
   "referenceCommit": "807732a8",
   "measuredAt": "2026-08-28"

@@ -11,6 +11,14 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.18.2', date: '2026-08-28', title: 'WHOOP sync is current and securely stored',
+    items: [
+      '<b>Self-hosted WHOOP connections work with the current WHOOP API.</b> Recovery, sleep, strain, heart rate, and related daily readings once again line up with the correct day.',
+      '<b>WHOOP data now has always-on device protection.</b> Imported rows and WHOOP-specific local profile values are AES-GCM encrypted even without an optional profile passphrase, and device-bound raw data stays out of portable backups.',
+      '<b>WHOOP access is explicit before sign-in.</b> The connection screen explains the requested read access, the self-hosted data path, optional encrypted sync and AI context, and how to disconnect or revoke access.',
+    ]
+  },
+  {
     version: '1.18.1', date: '2026-08-28', title: 'Nutrition planning stays clear and responsive',
     items: [
       '<b>Meal timing now shows the complete daily rhythm.</b> Trends includes the fasting window, and demo profiles carry enough history to make the 30-day view useful.',

@@ -622,7 +622,10 @@ async function disconnectWearableLocked(adapterId, { deleteData = true } = {}) {
       adapterId,
       deleteData ? {
         source: adapterId,
-        metaKeys: [`last-sync:${adapterId}`],
+        metaKeys: [
+          `last-sync:${adapterId}`,
+          ...(adapterId === 'whoop' ? ['whoop-profile-data:v1'] : []),
+        ],
         ...recoveryJournal,
       } : recoveryJournal,
     );

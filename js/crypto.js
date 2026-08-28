@@ -17,7 +17,12 @@ import {
 } from './cycle-store.js';
 import {
   configureWearablesStoreCrypto,
+  decryptWearableDeviceLocalValue,
+  deleteMeta,
+  encryptWearableDeviceLocalValue,
   getAllDailyRaw,
+  getMeta,
+  setMeta,
   upsertDailyBatchRaw,
 } from './wearables-store.js';
 import { isDataProtectionStylesheetLoaded, loadDataProtectionStylesheetForAction } from './modal-lifecycle.js';
@@ -127,6 +132,16 @@ export function isSensitiveKey(key) {
   return SENSITIVE_PATTERNS.some(p => p.test(key))
     || isAppExtensionSyncEncryptedStorageKey(key);
 }
+
+const whoopStorageDeps = {
+  decryptWearableDeviceLocalValue,
+  deleteMeta,
+  encryptWearableDeviceLocalValue,
+  getMeta,
+  setMeta,
+};
+const transformWhoopStorage = (key, value, mode, encrypted = false) => import('./wearables-whoop-storage.js')
+  .then(module => module.transformWhoopStorageValue(key, value, mode, encrypted, whoopStorageDeps));
 
 // ═══════════════════════════════════════════════
 // KEY LIFECYCLE
@@ -374,12 +389,15 @@ export async function encryptedSetCredentialItem(key, value) {
 
 export async function encryptedSetItem(key, value) {
   if (isCredentialKey(key)) return encryptedSetCredentialItem(key, value);
+  const valueForStorage = key.endsWith('-imported')
+    ? (await transformWhoopStorage(key, value, 'protect')).value
+    : value;
   let stored;
   if (isSensitiveKey(key) && getEncryptionEnabled() && _sessionKey) {
-    const { iv, ciphertext } = await encrypt(_sessionKey, value);
+    const { iv, ciphertext } = await encrypt(_sessionKey, valueForStorage);
     stored = formatEncryptedValue(iv, ciphertext);
   } else {
-    stored = value;
+    stored = valueForStorage;
   }
   // Big-blob keys (currently `*-imported`) go to IndexedDB to escape
   // the ~5 MB localStorage cap. Failed IDB writes propagate so callers
@@ -421,23 +439,29 @@ export async function encryptedGetItem(key) {
     raw = localStorage.getItem(key);
   }
   if (raw == null) return null;
+  let plaintext = raw;
   if (isDeviceCredentialValue(raw)) {
-    const plaintext = await decryptDeviceCredential(key, raw);
+    plaintext = await decryptDeviceCredential(key, raw);
     if (plaintext !== null && isCredentialKey(key)) updateKeyCache(key, plaintext);
-    return plaintext;
-  }
-  if (isEncryptedValue(raw) && _sessionKey) {
+  } else if (isEncryptedValue(raw) && _sessionKey) {
     const parsed = parseEncryptedValue(raw);
     if (!parsed) return raw;
     try {
-      const plaintext = await decrypt(_sessionKey, parsed.iv, parsed.ciphertext);
+      plaintext = await decrypt(_sessionKey, parsed.iv, parsed.ciphertext);
       if (isCredentialKey(key)) updateKeyCache(key, plaintext);
-      return plaintext;
     } catch {
       return null; // wrong key or corrupt
     }
   }
-  return raw;
+  if (plaintext === null) return null;
+
+  if (!key.endsWith('-imported')) return plaintext;
+  const hydrated = await transformWhoopStorage(key, plaintext, 'hydrate', isEncryptedValue(raw));
+  if (hydrated.migrated) {
+    if (shouldUseBlob(key)) await setBlob(key, hydrated.storedValue);
+    else localStorage.setItem(key, hydrated.storedValue);
+  }
+  return hydrated.value;
 }
 
 // Companion to encryptedSetItem/encryptedGetItem — ensures big-blob
@@ -545,7 +569,8 @@ async function decryptAllSensitiveKeys() {
     if (raw === null || !isEncryptedValue(raw)) continue;
     const parsed = parseEncryptedValue(raw);
     if (!parsed) throw new Error(`Encrypted value ${key} is malformed.`);
-    const plaintext = await decrypt(_sessionKey, parsed.iv, parsed.ciphertext);
+    let plaintext = await decrypt(_sessionKey, parsed.iv, parsed.ciphertext);
+    if (key.endsWith('-imported')) plaintext = (await transformWhoopStorage(key, plaintext, 'protect')).value;
     if (isCredentialKey(key)) {
       localStorage.setItem(key, await encryptDeviceCredential(key, plaintext));
       updateKeyCache(key, plaintext);
@@ -558,7 +583,9 @@ async function decryptAllSensitiveKeys() {
     if (typeof raw !== 'string' || !isEncryptedValue(raw)) continue;
     const parsed = parseEncryptedValue(raw);
     if (!parsed) throw new Error(`Encrypted value ${key} is malformed.`);
-    await setBlob(key, await decrypt(_sessionKey, parsed.iv, parsed.ciphertext));
+    let plaintext = await decrypt(_sessionKey, parsed.iv, parsed.ciphertext);
+    if (key.endsWith('-imported')) plaintext = (await transformWhoopStorage(key, plaintext, 'protect')).value;
+    await setBlob(key, plaintext);
   }
 }
 
