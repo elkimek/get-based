@@ -77,7 +77,10 @@ function renderAnalysisProgress(id, state = 'running') {
   const slowHint = state === 'running' && elapsedSeconds >= 15 ? ' · The provider is still working.' : '';
   area.hidden = false;
   area.className = `nutrition-analysis-progress is-${state}`;
-  area.innerHTML = `<div class="nutrition-analysis-progress-head"><strong>${escapeHTML(label)}</strong><span>${state === 'running' ? `Step ${Math.max(1, phase)} of 4 · ${analysisElapsed(startedAt)}${slowHint}` : state === 'success' ? 'Complete' : 'Stopped'}</span></div><div class="nutrition-analysis-progress-track" role="progressbar" aria-label="Meal photo analysis progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><span style="width:${percent}%"></span></div>`;
+  const cancel = state === 'running'
+    ? `<button type="button" class="nutrition-analysis-cancel" ${actionAttrs('cancel-analysis')}>Cancel analysis</button>`
+    : '';
+  area.innerHTML = `<div class="nutrition-analysis-progress-head"><strong>${escapeHTML(label)}</strong><span>${state === 'running' ? `Step ${Math.max(1, phase)} of 4 · ${analysisElapsed(startedAt)}${slowHint}` : state === 'success' ? 'Complete' : 'Stopped'}</span>${cancel}</div><div class="nutrition-analysis-progress-track" role="progressbar" aria-label="Meal photo analysis progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><span style="width:${percent}%"></span></div>`;
 }
 
 export function startAnalysisProgress(button, loadingLabel = 'Analyzing…') {

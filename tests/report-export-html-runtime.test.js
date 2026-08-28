@@ -156,6 +156,73 @@ describe('report HTML runtime coverage', () => {
     expect(report).toContain('Australia / New Zealand');
   });
 
+  it('uses each result date contextual range for table status ranges and totals', () => {
+    state.rangeMode = 'optimal';
+    const report = buildReportHTML(
+      'Context Range Profile',
+      'Female',
+      {
+        dates: ['2026-01-10', '2026-08-10'],
+        categories: {
+          chemistry: {
+            label: 'Chemistry',
+            markers: {
+              contextual: {
+                storageDotKey: 'chemistry.contextual',
+                name: 'Contextual marker',
+                unit: 'u',
+                refMin: 0,
+                refMax: 12,
+                optimalMin: 2,
+                optimalMax: 5,
+                contextOptimalRanges: [{ min: 2, max: 5 }, { min: 4, max: 8 }],
+                contextOptimalRangeLabels: ['Earlier guidance', 'Current guidance'],
+                values: [6, 6],
+              },
+            },
+          },
+        },
+      },
+      [],
+      [],
+      [],
+      [],
+      {
+        preset: 'full',
+        dateRange: 'all',
+        sections: ['summary', 'categories'],
+        reportData: {
+          labs: {
+            collectionContextByDate: {
+              '2026-08-10': { sampleTime: '14:30', fasting: false },
+            },
+            categories: [{
+              markers: [{
+                id: 'chemistry.contextual',
+                storageDotKey: 'chemistry.contextual',
+                note: 'Use assay-specific interpretation',
+                results: [
+                  { date: '2026-01-10', dateIndex: 0, note: null, source: { file: 'earlier.pdf' } },
+                  { date: '2026-08-10', dateIndex: 1, note: 'Afternoon retest', source: { file: 'current.pdf' } },
+                ],
+              }],
+            }],
+          },
+        },
+      },
+    );
+
+    expect(report).toContain('Jan 10, 2026: <span class="optimal">Earlier guidance: 2 \u2013 5</span>');
+    expect(report).toContain('Aug 10, 2026: <span class="optimal">Current guidance: 4 \u2013 8</span>');
+    expect(report).toContain('class="val-high">\u25B2 6</td>');
+    expect(report).toContain('class="val-normal">6<div class="report-value-note">Afternoon retest</div></td>');
+    expect(report).toContain('<strong>Within Optimal Range:</strong> 1 of 1 markers with data');
+    expect(report).toContain('<h2>Collection Context</h2>');
+    expect(report).toContain('Sample Time: 14:30 · Fasting: No · Source: current.pdf');
+    expect(report).toContain('Use assay-specific interpretation');
+    expect(report).toContain('Afternoon retest');
+  });
+
   it('renders sparse dense genetics supplement context and trend report branches', () => {
     state.importedData.genetics = {
       mtdna: {

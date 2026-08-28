@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { getStatus, formatValue, getTrend, showNotification } from './utils.js';
-import { getEffectiveRange } from './marker-analysis.js';
+import { resolveMarkerRangeContext } from './marker-analysis.js';
 import { getUnitProfileLabel } from './unit-profiles.js';
 import { effectiveTimesPerDay, formatSupplementTotal, ingredientDailyTotal } from './supplement-impact.js';
 import { getSupplementPeriods, getSupplementStatus } from './supplement-medication-domain.js';
@@ -33,7 +33,16 @@ function getReportSnpTableCache() {
 
 export function exportPDFReport(options = {}) {
   const payload = buildPreparedReportPayload(options);
-  const html = buildReportHTML(payload.profileName, payload.sexLabel, payload.data, payload.flags, payload.notes, payload.supps, payload.contextSections, payload.reportOptions);
+  const html = buildReportHTML(
+    payload.profileName,
+    payload.sexLabel,
+    payload.data,
+    payload.flags,
+    payload.notes,
+    payload.supps,
+    payload.contextSections,
+    { ...payload.reportOptions, reportData: payload.reportData },
+  );
   const win = openReportPreviewWindow();
   if (!win) { showNotification('Pop-up blocked - please allow pop-ups for this site', 'error'); return false; }
   win.document.write(html);
@@ -47,6 +56,7 @@ export function exportPDFReport(options = {}) {
 }
 
 export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps, contextSections, options = {}) {
+  const portableReport = options.reportData || null;
   const reportOptions = normalizeReportOptions(options);
   const now = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   const unitLabel = getUnitProfileLabel(state.unitSystem);
@@ -54,8 +64,18 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : 'date not set';
   const fullDateLabels = data.dates.map(d => fmtDate(d));
-  const dateRange = fullDateLabels.length > 0
-    ? `${fullDateLabels[0]} \u2013 ${fullDateLabels[fullDateLabels.length - 1]}`
+  const reportDates = new Set(data.dates || []);
+  for (const category of Object.values(data.categories || {})) {
+    for (const marker of Object.values(category.markers || {})) {
+      if ((marker.singlePoint || category.singlePoint) && marker.values?.some(value => value != null)) {
+        const date = marker.singleDate || category.singleDate;
+        if (date) reportDates.add(date);
+      }
+    }
+  }
+  const reportDateLabels = [...reportDates].sort().map(fmtDate);
+  const dateRange = reportDateLabels.length > 0
+    ? `${reportDateLabels[0]} \u2013 ${reportDateLabels[reportDateLabels.length - 1]}`
     : 'No lab dates in selected range';
   const hasReportValue = value => value !== null && value !== undefined;
   const trendItems = buildTrendItems();
@@ -68,6 +88,9 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   const headerProfile = getReportHeaderProfile(profileName);
   const headerFacts = buildReportHeaderFacts({ profile: headerProfile, reportOptions, dateRange, sexLabel, unitLabel });
   const headerMetaHTML = headerFacts.map(fact => `<div><dt>${esc(fact.label)}</dt><dd>${esc(fact.value)}</dd></div>`).join('');
+  const portableMarkers = new Map((portableReport?.labs?.categories || []).flatMap(category =>
+    category.markers.map(marker => [marker.storageDotKey, marker])
+  ));
 
   let body = '';
 
@@ -98,11 +121,11 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     <div class="report-stat">
       <span class="report-stat-label">Markers Reviewed</span>
       <strong class="report-stat-value">${reportStats.totalWithData}</strong>
-      <span class="report-stat-note">${reportStats.totalInRange} within ${rangeModeLabel} range</span>
+      <span class="report-stat-note">${reportStats.totalInRange} within ${rangeModeLabel} range${reportStats.totalUnrated ? ` · ${reportStats.totalUnrated} unrated` : ''}</span>
     </div>
     <div class="report-stat">
       <span class="report-stat-label">Lab Dates</span>
-      <strong class="report-stat-value">${data.dates.length}</strong>
+      <strong class="report-stat-value">${reportDates.size}</strong>
       <span class="report-stat-note">${esc(dateRange)}</span>
     </div>
     <div class="report-stat">
@@ -111,6 +134,8 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
       <span class="report-stat-note">with lab data</span>
     </div>
   </div>`;
+
+  body += renderCollectionContextSection();
 
   body += renderReportAISummarySection(reportOptions.aiSummary);
 
@@ -125,7 +150,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
       const cls = f.status === 'high' ? 'val-high' : 'val-low';
       const label = f.status === 'high' ? 'HIGH' : 'LOW';
       body += `<tr><td>${esc(f.name)}</td><td class="${cls}">${f.value} ${esc(f.unit)}</td>
-        <td>${formatValue(f.effectiveMin)} \u2013 ${formatValue(f.effectiveMax)}</td><td class="${cls}">${label}</td></tr>`;
+        <td>${esc(f.effectiveLabel || 'Range')} ${formatRangeBounds(f)}</td><td class="${cls}">${label}</td></tr>`;
     }
     body += `</tbody></table>`;
   }
@@ -136,8 +161,8 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
 
   // Category tables
   if (reportIncludes(reportOptions, 'categories')) {
-    for (const cat of Object.values(data.categories)) {
-      const markersWithData = Object.entries(cat.markers).filter(([_, m]) => m.values && m.values.some(hasReportValue));
+    for (const [catKey, cat] of Object.entries(data.categories)) {
+      const markersWithData = Object.entries(cat.markers).filter(([_, m]) => !m.hidden && m.values && m.values.some(hasReportValue));
       if (markersWithData.length === 0) continue;
       const dateColumns = cat.singleDate
         ? [{ label: cat.singleDateLabel || 'N/A', index: 0 }]
@@ -145,23 +170,36 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
             .map((label, index) => ({ label, index }))
             .filter(({ index }) => markersWithData.some(([, marker]) => hasReportValue(marker.values?.[index])));
       if (dateColumns.length === 0) continue;
-      body += `<h2>${esc(cat.label)}</h2><table><thead><tr><th>Biomarker</th><th>Unit</th><th>Reference</th>`;
+      body += `<h2>${esc(cat.label)}</h2><table><thead><tr><th>Biomarker</th><th>Unit</th><th>Range</th>`;
       for (const column of dateColumns) body += `<th>${esc(column.label)}</th>`;
       body += `<th>Trend</th></tr></thead><tbody>`;
-      for (const [, marker] of markersWithData) {
-        const r = getEffectiveRange(marker);
+      for (const [markerKey, marker] of markersWithData) {
+        const latestIndex = getLatestReportValueIndex(marker.values);
+        const r = resolveMarkerRangeContext(marker, latestIndex, state.rangeMode).judgingRange;
         const trendValues = marker.values.map(v => hasReportValue(v) ? v : null);
         const trend = getTrend(trendValues, r.min, r.max);
-        let rangeStr = r.min != null && r.max != null ? `${formatValue(r.min)} \u2013 ${formatValue(r.max)}` : '\u2014';
-        if (state.rangeMode === 'both' && marker.optimalMin != null) {
-          rangeStr = `${formatValue(marker.refMin)} \u2013 ${formatValue(marker.refMax)}<br><span class="optimal">opt: ${formatValue(marker.optimalMin)} \u2013 ${formatValue(marker.optimalMax)}</span>`;
-        }
-        body += `<tr><td>${esc(marker.name)}</td><td class="muted">${esc(marker.unit)}</td><td class="muted">${rangeStr}</td>`;
+        const rangeStr = renderMarkerRanges(marker, dateColumns);
+        const portableMarker = portableMarkers.get(marker.storageDotKey || `${catKey}.${markerKey}`)
+          || [...portableMarkers.values()].find(item => item.id === marker.markerId);
+        const markerNote = portableMarker?.note
+          ? `<div class="report-marker-note">${esc(portableMarker.note)}</div>`
+          : '';
+        body += `<tr><td>${esc(marker.name)}${markerNote}</td><td class="muted">${esc(marker.unit)}</td><td class="muted">${rangeStr}</td>`;
         for (const column of dateColumns) {
           const v = marker.values[column.index] ?? null;
-          const s = v !== null ? getStatus(v, r.min, r.max) : 'missing';
+          const resultRange = resolveMarkerRangeContext(marker, column.index, state.rangeMode).judgingRange;
+          const s = getReportStatus(v, resultRange);
           const sPrefix = s === 'high' ? '\u25B2 ' : s === 'low' ? '\u25BC ' : '';
-          body += `<td class="val-${s}">${v !== null ? sPrefix + formatValue(v) : '\u2014'}</td>`;
+          const resultDate = marker.singlePoint || cat.singlePoint
+            ? (marker.singleDate || cat.singleDate || null)
+            : (data.dates?.[column.index] || null);
+          const portableResult = portableMarker?.results?.find(result =>
+            result.date === resultDate || (!resultDate && result.dateIndex === column.index)
+          );
+          const resultNote = portableResult?.note
+            ? `<div class="report-value-note">${esc(portableResult.note)}</div>`
+            : '';
+          body += `<td class="val-${s}">${v !== null ? sPrefix + formatValue(v) : '\u2014'}${resultNote}</td>`;
         }
         body += `<td>${trend.arrow}</td></tr>`;
       }
@@ -267,6 +305,26 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     return `<dl class="context-facts">${rows}</dl>`;
   }
 
+  function renderCollectionContextSection() {
+    const labs = portableReport?.labs;
+    const entries = Object.entries(labs?.collectionContextByDate || {});
+    if (!labs || entries.length === 0) return '';
+    const markerResults = labs.categories.flatMap(category => category.markers.flatMap(marker => marker.results));
+    const rows = entries.map(([date, context]) => {
+      const details = Object.entries(context || {}).filter(([, value]) => value != null && value !== '').map(([key, value]) => {
+        const label = String(key).replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/_/g, ' ').replace(/^./, char => char.toUpperCase());
+        const formatted = value === true ? 'Yes' : value === false ? 'No' : typeof value === 'object' ? JSON.stringify(value) : String(value);
+        return `${label}: ${formatted}`;
+      });
+      const sourceFiles = [...new Set(markerResults
+        .filter(result => result.date === date && result.source?.file)
+        .map(result => result.source.file))];
+      if (sourceFiles.length > 0) details.push(`Source: ${sourceFiles.join(', ')}`);
+      return `<tr><td>${esc(fmtDate(date))}</td><td>${esc(details.join(' · '))}</td></tr>`;
+    }).join('');
+    return `<section class="report-collection-context"><h2>Collection Context</h2><table><thead><tr><th>Date</th><th>Reported draw context</th></tr></thead><tbody>${rows}</tbody></table></section>`;
+  }
+
   function getSupplementDosageParts(s) {
     const parts = [];
     if (s.dosage) parts.push(String(s.dosage));
@@ -316,7 +374,6 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
 
   function getRangeModeLabel() {
     if (state.rangeMode === 'reference') return 'reference';
-    if (state.rangeMode === 'both') return 'reference/optimal';
     return 'optimal';
   }
 
@@ -324,7 +381,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     if (reportStats.totalWithData === 0) {
       return 'No lab results are available for the selected report window; non-lab sections are included only when selected and available.';
     }
-    const labDateText = data.dates.length === 1 ? '1 lab date' : `${data.dates.length} lab dates`;
+    const labDateText = reportDates.size === 1 ? '1 lab date' : `${reportDates.size} lab dates`;
     const markerText = reportStats.totalWithData === 1 ? '1 marker' : `${reportStats.totalWithData} markers`;
     const groupText = reportStats.categoryCount === 1 ? '1 lab group' : `${reportStats.categoryCount} lab groups`;
     const flagText = flags.length === 0
@@ -360,8 +417,58 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     return -1;
   }
 
+  function getReportStatus(value, range) {
+    if (!hasReportValue(value)) return 'missing';
+    if (range?.min == null && range?.max == null) return 'unrated';
+    return getStatus(value, range.min, range.max);
+  }
+
+  function formatRangeBounds(range) {
+    const min = Object.prototype.hasOwnProperty.call(range || {}, 'min') ? range.min : range?.effectiveMin;
+    const max = Object.prototype.hasOwnProperty.call(range || {}, 'max') ? range.max : range?.effectiveMax;
+    if (min == null && max == null) return 'not set';
+    if (min == null) return `\u2264${formatValue(max)}`;
+    if (max == null) return `\u2265${formatValue(min)}`;
+    return `${formatValue(min)} \u2013 ${formatValue(max)}`;
+  }
+
+  function rangeSetIdentity(rangeContext) {
+    return rangeContext.displayedRanges
+      .map(range => [range.min ?? '', range.max ?? '', range.label || '', range.kind || '', range.source || ''].join('|'))
+      .join('||');
+  }
+
+  function renderRangeSet(rangeContext, includeLabels) {
+    return rangeContext.displayedRanges.map(range => {
+      const bounds = formatRangeBounds(range);
+      if (!includeLabels && rangeContext.displayedRanges.length === 1) return bounds;
+      const isOptimal = range.kind === 'optimal';
+      const prefix = isOptimal && range.label === 'Optimal'
+        ? 'opt: '
+        : `${esc(range.label || (isOptimal ? 'Optimal' : 'Range'))}: `;
+      const content = `${prefix}${bounds}`;
+      return isOptimal ? `<span class="optimal">${content}</span>` : content;
+    }).join('<br>');
+  }
+
+  function renderMarkerRanges(marker, dateColumns) {
+    const datedRanges = dateColumns
+      .filter(column => hasReportValue(marker.values?.[column.index]))
+      .map(column => ({
+        label: column.label,
+        context: resolveMarkerRangeContext(marker, column.index, state.rangeMode),
+      }));
+    if (datedRanges.length === 0) return '\u2014';
+    const firstIdentity = rangeSetIdentity(datedRanges[0].context);
+    const changesByDate = datedRanges.some(item => rangeSetIdentity(item.context) !== firstIdentity);
+    if (!changesByDate) {
+      return renderRangeSet(datedRanges[0].context, true);
+    }
+    return datedRanges.map(item => `${esc(item.label)}: ${renderRangeSet(item.context, true)}`).join('<br>');
+  }
+
   function buildReportStats() {
-    let totalWithData = 0, totalInRange = 0, categoryCount = 0;
+    let totalWithData = 0, totalInRange = 0, totalUnrated = 0, categoryCount = 0;
     for (const cat of Object.values(data.categories)) {
       let categoryHasData = false;
       for (const marker of Object.values(cat.markers)) {
@@ -369,19 +476,21 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
         if (li !== -1) {
           categoryHasData = true;
           totalWithData++;
-          const r = getEffectiveRange(marker);
-          if (getStatus(marker.values[li], r.min, r.max) === 'normal') totalInRange++;
+          const r = resolveMarkerRangeContext(marker, li, state.rangeMode).judgingRange;
+          const status = getReportStatus(marker.values[li], r);
+          if (status === 'normal') totalInRange++;
+          else if (status === 'unrated') totalUnrated++;
         }
       }
       if (categoryHasData) categoryCount++;
     }
-    return { totalWithData, totalInRange, categoryCount };
+    return { totalWithData, totalInRange, totalUnrated, categoryCount };
   }
 
   function renderSummarySection() {
     let summary = `<section class="report-summary" aria-labelledby="report-summary-heading">
       <h2 id="report-summary-heading">Summary for Healthcare Provider</h2>
-      <p class="report-intro">Generated from <strong>${data.dates.length}</strong> collection date${data.dates.length !== 1 ? 's' : ''}${fullDateLabels.length >= 2 ? ` spanning ${fullDateLabels[0]} \u2013 ${fullDateLabels[fullDateLabels.length - 1]}` : ''}.</p>`;
+      <p class="report-intro">Generated from <strong>${reportDates.size}</strong> collection date${reportDates.size !== 1 ? 's' : ''}${reportDateLabels.length >= 2 ? ` spanning ${reportDateLabels[0]} \u2013 ${reportDateLabels[reportDateLabels.length - 1]}` : ''}.</p>`;
 
     const summaryFlags = flags.slice(0, 10);
     if (summaryFlags.length > 0) {
@@ -390,7 +499,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
         const boundary = f.status === 'high' ? f.effectiveMax : f.effectiveMin;
         const diff = f.status === 'high' ? f.rawValue - boundary : boundary - f.rawValue;
         const pctBeyond = boundary !== 0 ? ((diff / boundary) * 100).toFixed(0) : '?';
-        summary += `<li><strong>${esc(f.name)}</strong>: ${f.value} ${esc(f.unit)} \u2014 <span class="val-${f.status}">${f.status.toUpperCase()}</span> (${pctBeyond}% beyond ${f.status === 'high' ? 'upper' : 'lower'} limit; ref: ${formatValue(f.refMin)}\u2013${formatValue(f.refMax)}${f.optimalMin != null ? ', optimal: ' + formatValue(f.optimalMin) + '\u2013' + formatValue(f.optimalMax) : ''})</li>`;
+        summary += `<li><strong>${esc(f.name)}</strong>: ${f.value} ${esc(f.unit)} \u2014 <span class="val-${f.status}">${f.status.toUpperCase()}</span> (${pctBeyond}% beyond ${f.status === 'high' ? 'upper' : 'lower'} limit; ${esc(f.effectiveLabel || 'range')}: ${formatRangeBounds(f)})</li>`;
       }
       summary += `</ul>`;
       if (flags.length > summaryFlags.length) {
@@ -408,7 +517,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
       }
     }
 
-    summary += `<p class="report-copy"><strong>Within ${rangeModeTitle} Range:</strong> ${reportStats.totalInRange} of ${reportStats.totalWithData} markers with data</p>`;
+    summary += `<p class="report-copy"><strong>Within ${rangeModeTitle} Range:</strong> ${reportStats.totalInRange} of ${reportStats.totalWithData} markers with data${reportStats.totalUnrated ? ` (${reportStats.totalUnrated} unrated because no applicable bounds were available)` : ''}</p>`;
 
     if (reportIncludes(reportOptions, 'supplements') && supps.length > 0) {
       const suppList = supps.map(s => formatSupplementSummary(s)).join(', ');
@@ -474,10 +583,13 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   .val-normal { color: #059669; font-weight: 600; }
   .val-high { color: #dc2626; font-weight: 600; }
   .val-low { color: #d97706; font-weight: 600; }
+  .val-unrated { color: #64748b; font-weight: 600; }
   .val-missing { color: #999; }
   .muted { color: #777; font-size: 11px; }
   .optimal { color: #059669; font-size: 10px; }
   .note-item { padding: 6px 0; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+  .report-marker-note, .report-value-note { color: #64748b; font-size: 9px; font-weight: 500; line-height: 1.35; margin-top: 3px; }
+  .report-collection-context { break-inside: avoid; page-break-inside: avoid; }
   .profile-context { margin-top: 28px; break-inside: avoid; page-break-inside: avoid; }
   .context-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .context-card { border: 1px solid #d8e0ea; background: #fbfcfe; padding: 12px 14px; break-inside: avoid; page-break-inside: avoid; }

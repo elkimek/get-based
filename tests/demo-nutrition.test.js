@@ -14,7 +14,7 @@ describe('Alex and Sarah demo meal histories', () => {
   it.each([
     ['male', 'alex'],
     ['female', 'sarah'],
-  ])('builds seven rolling days of reviewable nutrition for %s', (sex, profileId) => {
+  ])('builds 30 rolling completed days of reviewable nutrition for %s', (sex, profileId) => {
     const data = demo(sex);
     const meals = data.nutrition.meals;
     const dates = new Set(meals.map(meal => meal.localDate));
@@ -23,14 +23,15 @@ describe('Alex and Sarah demo meal histories', () => {
     const summary = computeNutritionSummary(meals, { now });
 
     expect(meals.length).toBeGreaterThanOrEqual(15);
-    expect(dates).toHaveLength(7);
+    expect(dates).toHaveLength(30);
     expect(ids).toHaveLength(meals.length);
     expect(meals.every(meal => meal.id.startsWith(`demo-${profileId}-`))).toBe(true);
     expect(meals.every(meal => meal.note === DEMO_NOTE && meal.reviewed === true)).toBe(true);
     expect(meals.every(meal => meal.images.length === 0)).toBe(true);
     expect(sources).toEqual(new Set(['ai-photo-estimate', 'ai-label-scan', 'manual-water']));
     expect(summary.windows.d7.loggedDays).toBe(6);
-    expect(summary.windows.d30).toMatchObject({ loggedDays: 7, meals: meals.length });
+    expect(summary.windows.d30.loggedDays).toBe(29);
+    expect(summary.windows.d30.meals).toBeLessThan(meals.length);
     expect(summary.windows.d7.dailyAverages.energyKcal).toBeGreaterThan(1200);
     expect(summary.windows.d7.dailyAverages.proteinG).toBeGreaterThan(70);
     expect(meals.every(meal => Date.parse(meal.eatenAt) <= now.getTime())).toBe(true);
@@ -67,6 +68,8 @@ describe('Alex and Sarah demo meal histories', () => {
 
     expect(alex.windows.d7.timing.averageFirstMealMinutes).toBeGreaterThanOrEqual(690);
     expect(sarah.windows.d7.timing.averageFirstMealMinutes).toBeLessThan(540);
+    expect(alex.windows.d7.timing.averageFastingWindowMinutes).toBe(990);
+    expect(sarah.windows.d7.timing.averageFastingWindowMinutes).toBe(790);
     expect([...new Set(demo('male').nutrition.meals.map(meal => meal.localDate))].sort().at(-1)).toBe('2026-08-26');
   });
 });

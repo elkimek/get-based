@@ -2,6 +2,7 @@
 // demo-nutrition.js — rolling, synthetic meal histories for Demo Alex/Sarah.
 
 const DEMO_NOTE = 'Synthetic demo meal. Illustrative AI estimates, not a real dietary record.';
+const DEMO_HISTORY_DAYS = 30;
 
 function nutrients(energyKcal, proteinG, carbohydrateG, fatG, fiberG, detailed = {}) {
   const scale = Math.max(0.35, energyKcal / 650);
@@ -76,7 +77,10 @@ function mealTemplates(sex) {
     });
   });
   templates.splice(sex === 'female' ? 3 : 2, 0, { day: 0, time: 930, type: 'drink', name: 'Still water', fluid: sex === 'female' ? 650 : 750 });
-  return templates;
+  return Array.from({ length: DEMO_HISTORY_DAYS }, (_, day) => templates
+    .filter(template => template.day === day % 7)
+    .map(template => ({ ...template, day })))
+    .flat();
 }
 
 function round(value, places = 2) {

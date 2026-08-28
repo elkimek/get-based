@@ -29,6 +29,8 @@ import { setLabEntryMarker } from './lab-entry.js';
 import { getSelectedNodeUrl } from './nostr-discovery.js';
 import { addDemoNutrition } from './demo-nutrition.js';
 import {
+  buildReportAgentContext as buildReportAgentContextImpl,
+  collectReportData as collectReportDataImpl,
   generateReportAISummary as generateReportAISummaryImpl,
 } from './export-report.js';
 import {
@@ -162,6 +164,14 @@ export function configureExportRuntimeDeps(deps = {}) {
 // ═══════════════════════════════════════════════
 export async function generateReportAISummary(options = {}) {
   return generateReportAISummaryImpl(options);
+}
+
+export function collectReportData(options = {}) {
+  return collectReportDataImpl(options);
+}
+
+export function buildReportAgentContext(options = {}) {
+  return buildReportAgentContextImpl(options);
 }
 
 export function exportPDFReport(options = {}) {
