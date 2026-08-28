@@ -352,6 +352,12 @@ function comparisonTotalWeight(analysis) {
   return quantities.length ? quantities.reduce((sum, value) => sum + value, 0) : null;
 }
 
+function comparisonIsForeign(profileId = comparisonProfileId) {
+  if (profileId && profileId === state.currentProfile) return false;
+  resetNutritionComparison();
+  showNotification('This benchmark belongs to another profile and was discarded.', 'info');
+  return true;
+}
 function renderComparisonResults() {
   renderNutritionComparisonResults({
     runs: comparisonRuns,
@@ -761,6 +767,8 @@ export function replaceComparisonRun(index) {
 }
 
 export async function useComparisonEstimate(index) {
+  const profileId = comparisonProfileId;
+  if (comparisonIsForeign(profileId)) return;
   const run = comparisonRuns[index];
   if (!run?.result?.analysis) return;
   const result = {
@@ -769,6 +777,7 @@ export async function useComparisonEstimate(index) {
     images: comparisonSharedImages,
   };
   await comparisonDeps.beforeApplyAnalysis();
+  if (comparisonIsForeign(profileId)) return;
   comparisonDeps.applyAnalysis(result, { quiet: true });
   comparisonDeps.setStatus(`${run.modelLabel} estimate loaded. Review it and choose a meal occasion before saving.`, 'success');
   const returnBar = document.getElementById('nutrition-comparison-return');

@@ -795,7 +795,7 @@ test('Debug mode compares meal models against local reference data and can use t
   expect(requestedModels).toHaveLength(6);
 });
 
-test('a running benchmark can close to the background and cancel only one model', async ({ page }) => {
+test('a running benchmark can close, cancel one model, and never cross profiles', async ({ page }) => {
   const releases = new Map();
   await page.route('https://openrouter.ai/api/v1/chat/completions', async route => {
     const body = route.request().postDataJSON();
@@ -872,6 +872,25 @@ test('a running benchmark can close to the background and cancel only one model'
   await expect(page.locator('.nutrition-comparison-card.is-cancelled')).toContainText('Canceled by user');
   await expect(page.locator('.nutrition-comparison-card:not(.is-cancelled)')).toContainText('Anthropic background meal');
   await expect(page.locator('#nutrition-comparison-progress')).toContainText('1 model needs retry');
+
+  await page.evaluate(async () => {
+    const lifecycle = await import('/js/nutrition-request-lifecycle.js');
+    const comparison = await import('/js/nutrition-comparison-ui.js');
+    const { closeModalOverlay } = await import('/js/modal-lifecycle.js');
+    const { state } = await import('/js/state.js');
+    lifecycle.beginNutritionBackgroundSession();
+    closeModalOverlay('modal-overlay');
+    state.currentProfile = `${state.currentProfile}-other`;
+    await comparison.useComparisonEstimate(1);
+    await (await import('/js/nutrition.js')).openNutritionEditor();
+  });
+  await expect(page.locator('#notification-container')).toContainText('benchmark belongs to another profile');
+  await expect(page.locator('#notification-container')).toContainText('active profile changed');
+  await expect(page.locator('#nutrition-background-workspace')).toHaveCount(0);
+  await expect(page.locator('#detail-modal')).toHaveClass(/nutrition-modal/);
+  await expect(page.locator('#detail-modal')).not.toHaveClass(/nutrition-benchmark-modal/);
+  await expect(page.locator('.nutrition-comparison-card')).toHaveCount(0);
+  await expect(page.locator('#nutrition-meal-name')).toHaveValue('');
 });
 
 test('model comparison preselects and routes models from separate configured providers', async ({ page }) => {

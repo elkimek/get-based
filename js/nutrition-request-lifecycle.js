@@ -4,11 +4,14 @@
 import { analyzeMealPhoto, mealAnalysisFiles } from './nutrition-analysis.js';
 import { getErrorMessage } from './caught-error.js';
 import { openModalOverlay } from './modal-lifecycle.js';
+import { state } from './state.js';
 import { showNotification } from './utils.js';
 
 let activeAnalysisController = null;
+let activeAnalysisProfileId = '';
 const activeComparisonControllers = new Set();
 let backgroundNutritionSession = false;
+let backgroundNutritionProfileId = '';
 /** @type {{host: HTMLElement, modalClassName: string, scrollTop: number}|null} */
 let backgroundNutritionWorkspace = null;
 /** @type {any} */
@@ -44,6 +47,7 @@ function updateBackgroundDismissalState() {
 function startNutritionAnalysisRequest() {
   activeAnalysisController?.abort(new DOMException('Replaced by a new meal request.', 'AbortError'));
   activeAnalysisController = new AbortController();
+  activeAnalysisProfileId = state.currentProfile;
   updateBackgroundDismissalState();
   return activeAnalysisController;
 }
@@ -93,6 +97,7 @@ function restoreBackgroundNutritionWorkspace(modal) {
 
 export function beginNutritionBackgroundSession() {
   backgroundNutritionSession = true;
+  backgroundNutritionProfileId = state.currentProfile;
   return parkNutritionWorkspace();
 }
 
@@ -101,8 +106,14 @@ export function isNutritionBackgroundSession() {
 }
 
 export function resumeNutritionBackgroundSession(modal, overlay) {
+  if (backgroundNutritionSession && backgroundNutritionProfileId !== state.currentProfile) {
+    resetNutritionRequestLifecycle();
+    showNotification('The background meal request was closed because the active profile changed.', 'info');
+    return false;
+  }
   if (!backgroundNutritionSession || !(restoreBackgroundNutritionWorkspace(modal) || modal.classList.contains('nutrition-modal'))) return false;
   backgroundNutritionSession = false;
+  backgroundNutritionProfileId = '';
   overlay.setAttribute('data-modal-dismiss-protected', '');
   if (requestDeps.isAnalysisRunning() || requestDeps.isComparisonRunning()) overlay.setAttribute('data-modal-background-dismissible', '');
   const initialFocus = document.querySelector('[data-nutrition-action="cancel-comparison-run"]')
@@ -119,9 +130,11 @@ export function resumeNutritionBackgroundSession(modal, overlay) {
 export function resetNutritionRequestLifecycle() {
   activeAnalysisController?.abort(new DOMException('Meal editor closed.', 'AbortError'));
   activeAnalysisController = null;
+  activeAnalysisProfileId = '';
   for (const controller of activeComparisonControllers) controller.abort(new DOMException('Meal editor closed.', 'AbortError'));
   activeComparisonControllers.clear();
   backgroundNutritionSession = false;
+  backgroundNutritionProfileId = '';
   backgroundNutritionWorkspace?.host.remove();
   backgroundNutritionWorkspace = null;
   document.getElementById('modal-overlay')?.removeAttribute('data-modal-background-dismissible');
@@ -154,7 +167,7 @@ export async function runNutritionMealAnalysis({ correctedMealName = '', previou
       userContext,
       signal: controller.signal,
     });
-    if (controller.signal.aborted || activeAnalysisController !== controller) return;
+    if (controller.signal.aborted || activeAnalysisController !== controller || activeAnalysisProfileId !== state.currentProfile) return;
     requestDeps.applyAnalysis(result);
     requestDeps.focusReview();
     completed = true;
@@ -165,6 +178,7 @@ export async function runNutritionMealAnalysis({ correctedMealName = '', previou
   } finally {
     if (activeAnalysisController === controller) {
       activeAnalysisController = null;
+      activeAnalysisProfileId = '';
       updateBackgroundDismissalState();
       requestDeps.finishProgress(progressId, completed, button);
     }
