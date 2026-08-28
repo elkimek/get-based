@@ -11,6 +11,15 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.18.1', date: '2026-08-28', title: 'Nutrition planning stays clear and responsive',
+    items: [
+      '<b>Meal timing now shows the complete daily rhythm.</b> Trends includes the fasting window, and demo profiles carry enough history to make the 30-day view useful.',
+      '<b>Meal Benchmarks now works as its own workspace.</b> Add a photo there, keep your selected models when navigating, and expand known values only when you need them.',
+      '<b>Long-running meal analysis no longer holds you in place.</b> Continue elsewhere while analysis runs, cancel it when needed, or stop individual benchmark models without losing the rest.',
+      '<b>Nutrition targets are easier to read at a glance.</b> Dashboard and History progress now use semantic grades that reflect progress toward each target.',
+    ]
+  },
+  {
     version: '1.18.0', date: '2026-08-25', title: 'Meals & Nutrition arrives',
     items: [
       '<b>Log, review, and reuse meals.</b> Add a meal photo, scan a nutrition label with your selected AI model, or enter values manually. Every estimate stays editable before saving, and saved meals can be corrected or logged again.',
