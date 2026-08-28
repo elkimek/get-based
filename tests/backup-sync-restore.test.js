@@ -30,6 +30,8 @@ describe('backup restore sync handoff', () => {
     localStorage.setItem(`labcharts-${profileId}-delta-supplements`, '{"s_old":"hash"}');
     localStorage.setItem(`labcharts-${profileId}-sync-cutover-v2`, '1');
     localStorage.setItem(`labcharts-${profileId}-sync-ts`, '123');
+    localStorage.setItem(`labcharts-profile-delete-intent-${profileId}`, '{"source":"local"}');
+    localStorage.setItem(`labcharts-tombstone-pending-${profileId}`, '{"source":"remote"}');
 
     const prepared = prepareRestoredProfilesForSync({
       profiles: [
@@ -43,6 +45,8 @@ describe('backup restore sync handoff', () => {
     expect(localStorage.getItem(`labcharts-${profileId}-delta-supplements`)).toBeNull();
     expect(localStorage.getItem(`labcharts-${profileId}-sync-cutover-v2`)).toBeNull();
     expect(localStorage.getItem(`labcharts-${profileId}-sync-ts`)).toBeNull();
+    expect(localStorage.getItem(`labcharts-profile-delete-intent-${profileId}`)).toBeNull();
+    expect(localStorage.getItem(`labcharts-tombstone-pending-${profileId}`)).toBeNull();
     expect(localStorage.getItem(`labcharts-${profileId}-sync-dirty`)).toMatch(/^\d+:\d+$/);
     expect(getPendingBackupRestoreProfileIds()).toEqual([profileId]);
     expect(localStorage.getItem('labcharts-../unsafe-sync-dirty')).toBeNull();

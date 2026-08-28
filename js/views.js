@@ -354,6 +354,7 @@ function dashboardRouteDataHasContent(data) {
   return Boolean(
     data?.dates?.length
     || Object.values(wearableMetrics).some(metric => metric?.latest != null)
+    || Number(state.nutritionSummary?.totalMeals || 0) > 0
     || Object.values(data?.categories || {}).some(category => category?.singlePoint && category?.singleDate),
   );
 }

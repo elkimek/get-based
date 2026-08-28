@@ -195,7 +195,8 @@ export function getAllFlaggedMarkers(data) {
       const i = getLatestValueIndex(m.values);
       if (i !== -1) {
         const v = m.values[i];
-        const r = getEffectiveRangeForDate(m, i);
+        const rangeContext = resolveMarkerRangeContext(m, i);
+        const r = rangeContext.judgingRange;
         const s = getStatus(v, r.min, r.max);
         if (s === 'high' || s === 'low') {
           flags.push({
@@ -206,12 +207,22 @@ export function getAllFlaggedMarkers(data) {
             value: formatValue(v),
             rawValue: v,
             unit: m.unit,
+            date: m.singlePoint || cat.singlePoint
+              ? (m.singleDate || cat.singleDate || null)
+              : (data.dates?.[i] || null),
+            dateIndex: i,
+            markerId: m.markerId || null,
+            storageDotKey: m.storageDotKey || `${ck}.${k}`,
             refMin: m.refMin,
             refMax: m.refMax,
             optimalMin: m.optimalMin,
             optimalMax: m.optimalMax,
             effectiveMin: r.min,
             effectiveMax: r.max,
+            effectiveLabel: r.label,
+            effectiveKind: r.kind,
+            effectiveSource: r.source,
+            displayedRanges: rangeContext.displayedRanges,
             status: s,
           });
         }

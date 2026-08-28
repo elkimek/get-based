@@ -398,9 +398,9 @@
     'sunscreenTransmission','SUN_CHANNELS'
   ];
 
-  // lab-context.js (30, module-only)
+  // lab-context.js (29, module-only)
   const labContextExports = [
-    'configureLabContext','buildLabContext','invalidateLabContextCache','getContextSummary',
+    'configureLabContext','buildLabContext','invalidateLabContextCache',
     'isGroupInAIContext','setGroupInAIContext',
     'isInsightContextCardsEnabled','setInsightContextCardsEnabled',
     'isSupplementsMedsContextEnabled','setSupplementsMedsContextEnabled',

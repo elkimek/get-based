@@ -7,7 +7,7 @@ const EMF_STYLESHEET_URL = new URL('../css/emf.css', import.meta.url).href;
 
 /** @typedef {{
  * configureEMFRuntimeDeps: (deps?: object) => unknown,
- * openEMFAssessmentEditor: () => unknown,
+ * openEMFAssessmentEditor: (options?: { returnLabel?: string, onReturn?: (() => void) | null }) => unknown,
  * closeEMFInterpretation: () => unknown,
  * }} EMFModule */
 
@@ -101,13 +101,13 @@ export async function loadEMFModule() {
   return await emfModulePromise;
 }
 
-export async function openEMFAssessmentEditor() {
+export async function openEMFAssessmentEditor(options = {}) {
   try {
     const [mod] = await Promise.all([
       loadEMFModule(),
       emfRuntimeDeps.loadStylesheet(),
     ]);
-    return mod.openEMFAssessmentEditor();
+    return mod.openEMFAssessmentEditor(options);
   } catch (err) {
     console.error('[emf] Could not load assessment UI:', err);
     showNotification('Could not open the EMF assessment. Reload the app to finish updating, then try again.', 'error');

@@ -27,7 +27,10 @@ import { clearProfileStorage, listStoredProfileIds } from './profile-storage-cle
 import { findOrCreateLabEntry } from './lab-entry-mutations.js';
 import { setLabEntryMarker } from './lab-entry.js';
 import { getSelectedNodeUrl } from './nostr-discovery.js';
+import { addDemoNutrition } from './demo-nutrition.js';
 import {
+  buildReportAgentContext as buildReportAgentContextImpl,
+  collectReportData as collectReportDataImpl,
   generateReportAISummary as generateReportAISummaryImpl,
 } from './export-report.js';
 import {
@@ -53,6 +56,11 @@ let reportBuilderModulePromise = null;
 /** @type {ReportBuilderModule | null} */
 let reportBuilderModule = null;
 let useReportBuilderRetryUrl = false;
+
+async function buildProfileNutritionArchive(profileId) {
+  const { buildNutritionArchive } = await import('./nutrition-store.js');
+  return buildNutritionArchive(profileId);
+}
 
 export function isExportImportModuleLoaded() {
   return exportImportModule !== null;
@@ -156,6 +164,14 @@ export function configureExportRuntimeDeps(deps = {}) {
 // ═══════════════════════════════════════════════
 export async function generateReportAISummary(options = {}) {
   return generateReportAISummaryImpl(options);
+}
+
+export function collectReportData(options = {}) {
+  return collectReportDataImpl(options);
+}
+
+export function buildReportAgentContext(options = {}) {
+  return buildReportAgentContextImpl(options);
 }
 
 export function exportPDFReport(options = {}) {
@@ -280,7 +296,11 @@ async function _exportChatData(profileId) {
  * @property {unknown} channelMixAI
  * @property {unknown} biologyScoreContextAI
  * @property {Object.<string, boolean>} contextSourceSettings
+ * @property {7|30|90} nutritionContextDays
+ * @property {unknown} nutritionTargets
+ * @property {Array<unknown>} importSnapshots
  * @property {unknown} [chat]
+ * @property {unknown} [nutrition]
  */
 
 /** @returns {void} */
@@ -290,23 +310,27 @@ export function exportDataJSON() {
 
 /**
  * Builds the JSON-safe client export object used by downloads and encrypted
- * profile shares. Token-bearing wearable connection records are deliberately
- * excluded from this shape.
+ * downloads and, with nutrition disabled, encrypted profile shares.
+ * Token-bearing wearable connection records are deliberately excluded.
  *
  * @param {string} profileId
  * @param {boolean} [includeChat]
+ * @param {boolean} [includeNutrition]
  * @returns {Promise<ClientExportObject>}
  */
-export async function buildClientExportObject(profileId, includeChat = false) {
+export async function buildClientExportObject(profileId, includeChat = false, includeNutrition = true) {
   const profiles = getProfiles();
   const profile = profiles.find(p => p.id === profileId);
   if (!profile) throw new Error('Profile not found');
   const raw = await encryptedGetItem(profileStorageKey(profileId, 'imported'));
+  const nutrition = includeNutrition ? await buildProfileNutritionArchive(profileId) : null;
   let data;
   try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
+  if (!data || typeof data !== 'object') data = {};
   migrateCustomMarkerIdentities(data?.customMarkers);
   if (data) migrateMarkerPlacements(data);
-  if (!data || !data.entries || data.entries.length === 0) throw new Error('No data to export for this client');
+  if ((!data || !data.entries || data.entries.length === 0) && !nutrition?.meals?.length) throw new Error('No data to export for this client');
+  /** @type {ClientExportObject} */
   const exportObj = {
     version: 2, exportedAt: new Date().toISOString(),
     profile: { name: profile.name, sex: profile.sex || null, dob: profile.dob || null, location: profile.location || null, tags: profile.tags || [], notes: profile.notes || '', status: profile.status || 'active', avatar: profile.avatar || null, pinned: profile.pinned || false, height: profile.height || null, heightUnit: profile.heightUnit || 'cm' },
@@ -355,7 +379,12 @@ export async function buildClientExportObject(profileId, includeChat = false) {
     channelMixAI: data.channelMixAI || null,
     biologyScoreContextAI: data.biologyScoreContextAI || null,
     contextSourceSettings: data.contextSourceSettings || {},
-    importSnapshots: data.importSnapshots || []
+    nutritionContextDays: [7, 30, 90].includes(Number(data.nutritionContextDays)) ? /** @type {7|30|90} */ (Number(data.nutritionContextDays)) : 30,
+    nutritionTargets: data.nutritionTargets && typeof data.nutritionTargets === 'object' && !Array.isArray(data.nutritionTargets)
+      ? data.nutritionTargets
+      : null,
+    importSnapshots: data.importSnapshots || [],
+    ...(nutrition ? { nutrition } : {}),
   };
   if (includeChat) {
     const chat = await _exportChatData(profileId);
@@ -410,12 +439,14 @@ export async function buildAllDataBundle() {
     migrateCustomMarkerIdentities(data?.customMarkers);
     migrateMarkerPlacements(data);
     const chat = await _exportChatData(p.id);
+    const nutrition = await buildProfileNutritionArchive(p.id);
     const entry = {
       id: p.id, name: p.name, sex: p.sex || null, dob: p.dob || null,
       location: p.location || null, tags: p.tags || [], notes: p.notes || '',
       status: p.status || 'active', avatar: p.avatar || null, pinned: p.pinned || false,
       height: p.height || null, heightUnit: p.heightUnit || 'cm',
-      data: data
+      data: data,
+      nutrition,
     };
     if (chat) entry.chat = chat;
     bundle.profiles.push(entry);
@@ -534,7 +565,11 @@ export async function loadDemoData(sex = 'male') {
     // either localStorage cache).
     let demoJson = null;
     let demoImportFile = new File([blob], file, { type: 'application/json' });
-    try { demoJson = JSON.parse(await blob.text()); } catch (_) {}
+    try {
+      demoJson = JSON.parse(await blob.text());
+      addDemoNutrition(demoJson, sex);
+      demoImportFile = new File([JSON.stringify(demoJson)], file, { type: 'application/json' });
+    } catch (_) {}
     if (demoJson?.focusCard?.text) {
       // Focus card cache ships without a fingerprint — loadFocusCard
       // treats that as a hand-authored prefill and never auto-refreshes

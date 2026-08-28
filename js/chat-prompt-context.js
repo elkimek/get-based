@@ -1,6 +1,21 @@
 // @ts-check
 // chat-prompt-context.js - chat API prompt and message-context helpers
 
+import { buildLabContext } from './lab-context.js';
+import { isNutritionContextEnabled } from './lab-context-settings.js';
+
+function nutritionHistoryRequestFromQuery(queryText = '') {
+  const match = String(queryText).match(/^Nutrition history range:\s*(30D|3M|6M|1Y|All)\s*\(([^\n)]+)\)\.\s*$/mi);
+  return match ? { label: match[1], description: match[2].trim() } : null;
+}
+
+export function buildChatLabContext(queryText = '', options = {}) {
+  const history = isNutritionContextEnabled() ? nutritionHistoryRequestFromQuery(queryText) : null;
+  const context = buildLabContext({ ...options, queryText, nutritionHistoryLabel: history?.label || '' });
+  if (!history) return context;
+  return context + `[section:nutritionHistory]\n## Meals & Nutrition — ${history.label} one-off history\nOne-off aggregate is in the editable user message; automatic nutrition summary is omitted. Individual meals, names, notes, ingredients, and photos are not included.\n[/section:nutritionHistory]\n\n`;
+}
+
 export function buildPersonalityPrompt(personality, customPersonality) {
   if (personality?.id && personality.id.startsWith('custom_')) {
     return customPersonality?.promptText ? `\n\nPersona: ${customPersonality.promptText}` : '';

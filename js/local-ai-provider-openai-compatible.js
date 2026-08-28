@@ -31,6 +31,40 @@ export const openAICompatibleProviderAdapter = Object.freeze({
   infer: inferWithOpenAICompatibleProvider,
 });
 
+async function unslothRuntimeStatus(baseUrl, apiKey, timeoutMs) {
+  try {
+    const response = await fetch(`${baseUrl}/api/inference/status`, {
+      headers: createLocalAiHeaders(apiKey),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    return response.ok ? await response.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+function enrichUnslothRuntime(modelDetails, status) {
+  if (!Array.isArray(modelDetails)) return modelDetails;
+  const unslothModels = modelDetails.map(model => ({ ...model, source: 'unsloth' }));
+  if (!status) return unslothModels;
+  const activeIds = new Set([
+    status.active_model,
+    status.model_identifier,
+    ...(Array.isArray(status.loaded) ? status.loaded : []),
+  ].map(value => String(value || '').trim().toLowerCase()).filter(Boolean));
+  const loadedRows = unslothModels.filter(model => model.loaded === true);
+  let active = unslothModels.find(model => activeIds.has(String(model.name || '').toLowerCase())) || null;
+  if (!active && loadedRows.length === 1) active = loadedRows[0];
+  if (!active && unslothModels.length === 1 && activeIds.size > 0) active = unslothModels[0];
+  return unslothModels.map(model => model === active ? {
+    ...model,
+    loaded: true,
+    runningStatusKnown: true,
+    contextLength: Number(status.context_length) || model.contextLength,
+    vision: typeof status.is_vision === 'boolean' ? status.is_vision : model.vision,
+  } : model);
+}
+
 export async function discoverOpenAICompatibleProvider({
   baseUrl,
   apiKey = '',
@@ -53,11 +87,16 @@ export async function discoverOpenAICompatibleProvider({
     }
     const data = await response.json();
     const rawModels = Array.isArray(data.data) ? data.data : [];
-    const modelDetails = rawModels
+    const isUnsloth = rawModels.some(model => String(model?.owned_by || '').toLowerCase() === 'unsloth-studio');
+    let modelDetails = rawModels
       .map(model => parseOpenAICompatibleModel(model, baseUrl))
       .filter(model => model.name && model.type !== 'embedding' && !isLikelyEmbeddingModel(model.name));
+    if (isUnsloth) {
+      modelDetails = enrichUnslothRuntime(modelDetails, await unslothRuntimeStatus(baseUrl, apiKey, timeoutMs));
+    }
+    const provider = isUnsloth ? 'unsloth' : 'openai-compatible';
     return {
-      ...localAiResult('openai-compatible', modelDetails),
+      ...localAiResult(provider, modelDetails, { runningStatusKnown: modelDetails.some(model => model.runningStatusKnown) }),
       rawModels,
     };
   } catch (error) {

@@ -212,6 +212,7 @@ get-based/
 ```
 
 User and developer documentation live at [docs.getbased.health](https://docs.getbased.health). The app repo keeps only code-adjacent notes and tests.
+The renderer-independent report snapshot contract is documented in [docs/report-data.md](docs/report-data.md).
 
 ## Related repos
 

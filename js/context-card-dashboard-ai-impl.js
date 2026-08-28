@@ -15,6 +15,9 @@ import {
   isLightSunContextEnabled,
   isSupplementsMedsContextEnabled,
   isWearableContextEnabled,
+  isNutritionContextEnabled,
+  getNutritionContextDays,
+  NUTRITION_CONTEXT_DAY_OPTIONS,
   setGeneticsPriorityInAIContext,
   setGeneticsSummaryInAIContext,
   setGeneticsInventoryInAIContext,
@@ -24,6 +27,8 @@ import {
   setLightSunContextEnabled,
   setSupplementsMedsContextEnabled,
   setWearableContextEnabled,
+  setNutritionContextEnabled,
+  setNutritionContextDays,
 } from './lab-context.js';
 import { getLensSummary, openKnowledgeBaseModal } from './lens.js';
 import { state } from './state.js';
@@ -226,6 +231,10 @@ function hasWearableContextData() {
   );
 }
 
+function hasNutritionContextData() {
+  return Number(state.nutritionSummary?.totalMeals || 0) > 0;
+}
+
 function hasMeaningfulContextValue(value) {
   if (value == null || value === false) return false;
   if (typeof value === 'string') return value.trim().length > 0;
@@ -273,9 +282,10 @@ function hasSupplementsMedsData() {
  *   attrs?: Record<string, unknown>,
  *   child?: boolean,
  *   affects?: string[],
+ *   controlHtml?: string,
  * }} options
  */
-function renderContextSourceToggle({ key, toggleKey = key, title, description, status, checked, disabled = false, attrs = {}, child = false, affects = [] }) {
+function renderContextSourceToggle({ key, toggleKey = key, title, description, status, checked, disabled = false, attrs = {}, child = false, affects = [], controlHtml = '' }) {
   const id = `context-source-${key}`;
   const titleId = `${id}-title`;
   const descriptionId = `${id}-description`;
@@ -293,6 +303,7 @@ function renderContextSourceToggle({ key, toggleKey = key, title, description, s
       <span class="context-source-desc" id="${escapeAttr(descriptionId)}">${escapeHTML(description)}</span>
       ${affectsHtml}
       <span class="context-source-status" id="${escapeAttr(statusId)}">${escapeHTML(status)}</span>
+      ${controlHtml}
     </div>
     <label class="toggle-switch" for="${escapeAttr(id)}">
       <input type="checkbox" id="${escapeAttr(id)}" data-context-toggle="${escapeAttr(toggleKey)}" aria-labelledby="${escapeAttr(titleId)}" aria-describedby="${escapeAttr(descriptionId)} ${escapeAttr(statusId)}" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
@@ -311,7 +322,7 @@ function renderContextSourceSection(key, title, subtitle, rows, { wide = false }
   </section>`;
 }
 
-function renderContextSourceSummary({ insightOn, hasInsight, supplementsOn, hasSupplements, labStats, labOn, genomeSummaryOn, genomePriorityOn, genomeOn, hasGenomeSummary, hasGenome, lightOn, bodyOn, hasBody }) {
+function renderContextSourceSummary({ insightOn, hasInsight, supplementsOn, hasSupplements, labStats, labOn, genomeSummaryOn, genomePriorityOn, genomeOn, hasGenomeSummary, hasGenome, lightOn, bodyOn, hasBody, nutritionOn, hasNutrition }) {
   /** @type {string[]} */
   const included = [];
   /** @type {string[]} */
@@ -355,6 +366,10 @@ function renderContextSourceSummary({ insightOn, hasInsight, supplementsOn, hasS
     if (bodyOn) included.push('Wearables');
     else excluded.push('Wearables');
   } else inactive.push('Wearables');
+  if (hasNutrition) {
+    if (nutritionOn) included.push('Meals & Nutrition');
+    else excluded.push('Meals & Nutrition');
+  } else inactive.push('Meals & Nutrition');
   const renderMetric = (tone, label, items, detail) => `<div class="context-summary-metric context-summary-${escapeAttr(tone)}" aria-label="${escapeAttr(`${label}: ${items.length ? items.join(', ') : 'none'}`)}">
     <span class="context-summary-count">${items.length}</span>
     <span class="context-summary-copy">
@@ -380,16 +395,19 @@ function renderContextSourceControls() {
   const hasGenomeSummary = hasGenomeSummaryData();
   const hasLight = hasLightSunData();
   const hasBody = hasWearableContextData();
+  const hasNutrition = hasNutritionContextData();
   const genomeSummaryOn = isGeneticsSummaryInAIContext();
   const genomePriorityOn = isGeneticsPriorityInAIContext();
   const genomeOn = isGeneticsInventoryInAIContext();
   const lightOn = isLightSunContextEnabled();
   const bodyOn = isWearableContextEnabled();
+  const nutritionOn = isNutritionContextEnabled();
+  const nutritionContextDays = getNutritionContextDays();
   const insightRows = [
     renderContextSourceToggle({
       key: 'insight-cards',
       title: 'Insight Context Cards',
-      description: 'Health goals, medical history, diet, exercise, sleep, stress, environment, notes, biometrics, and cycle context.',
+      description: 'Basic profile demographics, health goals, medical history, diet, exercise, sleep, stress, environment, notes, biometrics, and cycle context.',
       status: insightOn
         ? (hasInsight ? 'Profile and lifestyle cards are included.' : 'Enabled, but no Insight Context Cards are filled yet.')
         : 'Profile and lifestyle cards are ignored by AI context and score modifiers.',
@@ -473,7 +491,7 @@ function renderContextSourceControls() {
     renderContextSourceToggle({
       key: 'light-sun',
       title: 'Light & Sun context',
-      description: 'Logged sun, light devices, indoor light environment, and light-related score modifiers.',
+      description: 'Light & Circadian card, aggregate sun and device logs, indoor light environment and audits, trends, calibration, and correlations. Camera images and raw session tables stay out.',
       status: lightOn
         ? (hasLight ? 'Included when relevant.' : 'No light data logged yet; low-light reminders may still be inferred.')
         : 'Ignored by chat context and light-related Biology Score modifiers.',
@@ -492,13 +510,28 @@ function renderContextSourceControls() {
       checked: bodyOn,
       affects: ['Chat', 'Scores'],
     }),
+    renderContextSourceToggle({
+      key: 'body-nutrition',
+      title: 'Meals & Nutrition',
+      description: 'Share compact nutrition summaries with chat and Agent Access. Individual meals, names, notes, ingredients, and photos stay out.',
+      status: nutritionOn
+        ? (hasNutrition
+          ? (nutritionContextDays === 7
+            ? 'Automatically includes the latest 7-day aggregate.'
+            : `Automatically includes the latest 7 days and a ${nutritionContextDays}-day aggregate.`)
+          : `Enabled with a ${nutritionContextDays}-day window, but no meals are logged yet.`)
+        : 'Nutrition summaries are ignored by chat and external Agent Access.',
+      checked: nutritionOn,
+      affects: ['Chat', 'Agent'],
+      controlHtml: `<label class="context-source-timeframe" for="nutrition-context-days"><span>Automatic timeframe</span><select id="nutrition-context-days" data-context-range="nutrition" aria-label="Meals & Nutrition automatic timeframe" ${nutritionOn ? '' : 'disabled'}>${NUTRITION_CONTEXT_DAY_OPTIONS.map(days => `<option value="${days}"${nutritionContextDays === days ? ' selected' : ''}>Last ${days} days</option>`).join('')}</select></label>`,
+    }),
   ];
   return `<div class="context-source-panel">
     <div class="context-source-head">
       <span class="context-source-head-title">Data sources</span>
-      <span class="context-source-head-sub">Choose exactly which profile data can influence AI answers and score context.</span>
+      <span class="context-source-head-sub">Choose exactly which profile data can influence AI answers and score context. The same source choices apply to external Agent Access.</span>
     </div>
-    ${renderContextSourceSummary({ insightOn, hasInsight, supplementsOn, hasSupplements, labStats, labOn, genomeSummaryOn, genomePriorityOn, genomeOn, hasGenomeSummary, hasGenome, lightOn, bodyOn, hasBody })}
+    ${renderContextSourceSummary({ insightOn, hasInsight, supplementsOn, hasSupplements, labStats, labOn, genomeSummaryOn, genomePriorityOn, genomeOn, hasGenomeSummary, hasGenome, lightOn, bodyOn, hasBody, nutritionOn, hasNutrition })}
     <div class="context-source-sections">
       ${renderContextSourceSection('profile', 'Profile', 'Personal profile context, with meds and supplements controlled separately.', insightRows)}
       ${renderContextSourceSection('genome', 'Genome', 'Inherited context split by sensitivity and token cost.', genomeRows)}
@@ -608,6 +641,7 @@ function applyContextSourceToggle(input) {
   else if (key === 'genome-lookup') setGeneticsInventoryInAIContext(checked);
   else if (key === 'light-sun') setLightSunContextEnabled(checked);
   else if (key === 'body-wearables') setWearableContextEnabled(checked);
+  else if (key === 'body-nutrition') setNutritionContextEnabled(checked);
 }
 
 function bindContextSourceToggles(overlay) {
@@ -620,13 +654,37 @@ function bindContextSourceToggles(overlay) {
       const panel = overlay.querySelector('.context-source-panel');
       if (panel) {
         panel.outerHTML = renderContextSourceControls();
-        bindContextSourceToggles(overlay);
+        bindContextSourceInputs(overlay);
         const next = /** @type {HTMLInputElement | null} */ (document.getElementById(focusId));
         next?.focus();
       }
       notifyDashboardAIContextStatusChanged();
     };
   });
+}
+
+function bindContextSourceRanges(overlay) {
+  overlay.querySelectorAll('[data-context-range]').forEach(selectEl => {
+    const select = /** @type {HTMLSelectElement} */ (selectEl);
+    select.onchange = () => {
+      const focusId = select.id;
+      if (select.dataset.contextRange === 'nutrition') setNutritionContextDays(Number(select.value));
+      void saveImportedData({ reason: 'context-source-settings' });
+      const panel = overlay.querySelector('.context-source-panel');
+      if (panel) {
+        panel.outerHTML = renderContextSourceControls();
+        bindContextSourceInputs(overlay);
+        const next = /** @type {HTMLSelectElement | null} */ (document.getElementById(focusId));
+        next?.focus();
+      }
+      notifyDashboardAIContextStatusChanged();
+    };
+  });
+}
+
+function bindContextSourceInputs(overlay) {
+  bindContextSourceToggles(overlay);
+  bindContextSourceRanges(overlay);
 }
 
 export function openContextModal() {
@@ -693,7 +751,7 @@ export function openContextModal() {
       }
     };
   });
-  bindContextSourceToggles(overlay);
+  bindContextSourceInputs(overlay);
 }
 
 export function openPersonalizeAIPicker() {

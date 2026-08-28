@@ -272,15 +272,21 @@ export function openWearablesSettings() {
   getSettingsModuleFunction('openSettingsModal')?.('wearables');
 }
 
-/** @param {number} delayMs */
-export function openEMFAssessmentAfterWearablesModalClose(delayMs = 100) {
+/** @param {number} delayMs @param {string} returnMetricId */
+export function openEMFAssessmentAfterWearablesModalClose(delayMs = 100, returnMetricId = '') {
   closeWearablesModal();
   const runtime = getRuntimeWindow();
   if (!runtime) return;
   const schedule = runtime && typeof runtime.setTimeout === 'function'
     ? runtime.setTimeout.bind(runtime)
     : setTimeout;
-  schedule(() => { void wearablesRuntimeDeps.openEMFAssessmentEditor(); }, delayMs);
+  schedule(() => {
+    const options = returnMetricId ? {
+      returnLabel: 'Back to wearable details',
+      onReturn: () => getWearablesModuleFunction('openWearableDetail')?.(returnMetricId),
+    } : {};
+    void wearablesRuntimeDeps.openEMFAssessmentEditor(options);
+  }, delayMs);
 }
 
 export function getWearablesViewportSize() {

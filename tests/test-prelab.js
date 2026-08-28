@@ -50,9 +50,9 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
     'Should add IMPORTANT warning when sex/DOB missing');
   assert('Lab values section gated by hasLabData', labCtxSrc.includes('if (hasLabData) {') && labCtxSrc.includes("const rangeLabel"),
     'Lab values + flagged results should be wrapped in if (hasLabData)');
-  assert('Biology Scores context receives Agent Access context override',
+  assert('Biology Scores context receives an explicit trusted full-context override',
     labCtxSrc.includes('labContextDeps.buildBiologyScoresAIContext?.(data, { limit: 7, ignoreContextToggles })'),
-    'Agent Access should not lose Biology Score context flags when in-app Context sources are disabled');
+    'Trusted internal review should be able to include Biology Score context flags explicitly');
   assert('Flagged results inside hasLabData guard', labCtxSrc.includes("const allFlags = getAllFlaggedMarkers(data)") && labCtxSrc.includes("if (flags.length > 0)"),
     'Flagged results should be inside the hasLabData block');
   assert('Staleness uses hasLabData guard', labCtxSrc.includes('if (hasLabData && data.dates.length > 0)'),
@@ -274,12 +274,9 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
     return returnCount === 0;
   })(), 'No early return between inner function start and section 1');
 
-  assert('buildLabContext ends with return ctx', (() => {
-    const fnStart = labCtxSrc.indexOf('function _buildLabContextInner');
-    const fnEnd = labCtxSrc.indexOf('\n// ═══', fnStart + 100);
-    const fnBody = labCtxSrc.substring(fnStart, fnEnd);
-    return fnBody.includes('return ctx;\n}');
-  })(), 'Should always return the built context string');
+  assert('buildLabContext inner builder ends with return ctx',
+    /function _buildLabContextInner[\s\S]*\n  return ctx;\n}/.test(labCtxSrc),
+    'Should always return the built context string before the cache wrapper stores it');
 
   // ═══════════════════════════════════════
   // 7. Chat setup guide (no AI provider)

@@ -207,11 +207,11 @@ export function toggleSyncDetail() {
       <button class="ctx-btn-option" style="font-size:12px" ${syncUiActionAttrs('sync-now')}>Sync now</button>
       ${stuckPush ? `<button class="ctx-btn-option" style="font-size:12px;color:var(--red);border-color:var(--red)" ${syncUiActionAttrs('reload')} title="Reloads the page to re-init the sync worker.">Reload</button>` : ''}
       <button class="ctx-btn-option" style="font-size:12px" ${syncUiActionAttrs('open-settings')}>Settings</button>
+      <button class="ctx-btn-option" style="font-size:12px" ${syncUiActionAttrs('show-diagnose')}>Sync status</button>
       ${isDebugMode() ? `
         <button class="ctx-btn-option" style="font-size:12px${stuckPush ? ';color:var(--orange);border-color:var(--orange)' : ''}" ${syncUiActionAttrs('force-resend')} title="Bypasses the in-flight guard. Use when Sync now isn't reaching the relay (typically because a prior push got stuck and the worker still thinks it's running).">Force resend</button>
         <button class="ctx-btn-option" style="font-size:12px" ${syncUiActionAttrs('clean-storage')} title="Trim changeHistory to its 200-entry cap and clear cached AI model lists. Use when localStorage is full and pushes throw QuotaExceededError silently.">Clean storage</button>
         <button class="ctx-btn-option" style="font-size:12px" ${syncUiActionAttrs('test-relay')}>Test relay</button>
-        <button class="ctx-btn-option" style="font-size:12px" ${syncUiActionAttrs('show-diagnose')}>Sync status</button>
       ` : ''}
     </div>`;
   const parent = btn.parentElement;

@@ -172,6 +172,8 @@ assert('Single-profile export still excludes wearableConnections',
   !/wearableConnections:\s*data\.wearableConnections/.test(exportSrc));
 assert('Shared profile import uses existing importDataJSON path',
   profileShareSrc.includes("await importDataJSON(new File([json], 'getbased-shared-profile.json'"));
+assert('Relay-backed profile shares exclude local meal records and photos',
+  profileShareSrc.includes('buildClientExportObject(profileId, false, false)'));
 
 console.log('5. Vercel Blob API safeguards');
 assert('Edge API avoids importing the Node-only @vercel/blob client',

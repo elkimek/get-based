@@ -141,8 +141,8 @@ assert('chat summary modal uses shared overlay lifecycle helpers',
     !chatSummariesSrc.includes("overlay.classList.remove('show')"));
 
 assert('chat summary modal participates in global keyboard modal handling',
-  appEventsSrc.includes('"summary-modal-overlay"') &&
-    appEventsSrc.includes('appEventListenerDeps.closeSummaryModal()'));
+  appEventsSrc.includes("['summary-modal-overlay', 'closeSummaryModal']") &&
+    appEventsSrc.includes('runAppEventListener(actionName, action)'));
 
 assert('chat image lightbox uses shared overlay lifecycle helpers',
   chatImagesSrc.includes("import { openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
@@ -201,7 +201,8 @@ assert('sync setup and restore dialogs use shared lifecycle helpers',
     !`${settingsSyncPanelSrc}\n${settingsSyncRestoreUiSrc}`.includes("overlay.classList.remove('show')"));
 
 assert('global focus trap top-overlay check includes confirm overlays',
-  appEventsSrc.includes("'.modal-overlay.show, .confirm-overlay.show'"));
+  appEventsSrc.includes("const APP_MODAL_OVERLAY_SELECTOR = '.modal-overlay.show,.confirm-overlay.show,.tweaks-overlay.show,[data-modal-focus-trap]'") &&
+    appEventsSrc.includes('const ov = topmostModalOverlay()'));
 
 assert('knowledge base modal uses shared lifecycle helpers',
   lensKnowledgeBaseUiSrc.includes("from './modal-lifecycle.js'") &&
@@ -270,7 +271,7 @@ assert('light environment assessment uses shared overlay lifecycle before remova
   lightEnvSrc.includes("from './modal-lifecycle.js'") &&
     lightEnvSrc.includes("const wasOpen = overlay?.classList?.contains('show') === true;") &&
     lightEnvSrc.includes("overlay.className = 'modal-overlay light-env-assessment-overlay'") &&
-    lightEnvSrc.includes("openModalOverlay(overlay, wasOpen ? {} : { initialFocus: '.modal-close', focusDelay: 50 })") &&
+    lightEnvSrc.includes("if (!wasOpen) openModalOverlay(overlay, { initialFocus: '.modal-close', focusDelay: 50 })") &&
     lightEnvSrc.includes('closeModalOverlay(overlay)') &&
     lightEnvSrc.includes('overlay.remove()') &&
     !lightEnvSrc.includes("overlay.className = 'modal-overlay show light-env-assessment-overlay'") &&

@@ -7,6 +7,7 @@ import { saveImportedData, getActiveData } from './data.js';
 import { hasAIProvider } from './api.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
+import { renderNutritionCircadianExtension, renderNutritionDietExtension } from './nutrition-context-card-extensions.js';
 import { getRecommendationModuleFunction } from './recommendations-runtime.js';
 import {
   closeContextCardModalRuntime,
@@ -79,6 +80,16 @@ function navigateContextCardView(category) {
 function refreshCurrentContextCardView() {
   const activeNav = /** @type {HTMLElement | null} */ (document.querySelector('.nav-item.active'));
   navigateContextCardView(activeNav?.dataset.category || 'dashboard');
+}
+async function openNutritionModule(surface = '') {
+  const module = await import('./nutrition-context.js');
+  if (surface === 'timing') {
+    return module.openNutritionHistoryModule({ view: 'trends', focus: 'timing' }, navigateContextCardView);
+  }
+  if (surface === 'meals') {
+    return module.openNutritionHistoryModule({ view: 'meals' }, navigateContextCardView);
+  }
+  return module.openNutritionModule(navigateContextCardView);
 }
 const contextCardRuntimeDeps = {
   openEMFAssessmentEditor,
@@ -168,13 +179,21 @@ function handleContextCardClick(event) {
     actionEl.setAttribute('aria-expanded', expanded ? 'false' : 'true');
     explanation.hidden = expanded;
   } else if (action === 'open-emf-assessment') {
-    const openAssessment = () => { void contextCardRuntimeDeps.openEMFAssessmentEditor(); };
-    if (actionEl.dataset.contextCardCloseModal === 'true') {
+    const returnToEnvironment = actionEl.dataset.contextCardCloseModal === 'true';
+    const openAssessment = () => {
+      void contextCardRuntimeDeps.openEMFAssessmentEditor(returnToEnvironment ? {
+        returnLabel: 'Back to Environment & Exposures',
+        onReturn: openEnvironmentEditor,
+      } : {});
+    };
+    if (returnToEnvironment) {
       closeContextCardModal();
       setTimeout(openAssessment, 100);
     } else {
       openAssessment();
     }
+  } else if (action === 'open-nutrition') {
+    void openNutritionModule(actionEl.dataset.contextCardSurface || '');
   } else {
     return;
   }
@@ -349,6 +368,8 @@ export function renderProfileContextCards() {
         : `<div class="context-card-placeholder">${escapeHTML(c.placeholder)}</div>`}
       <div class="context-card-explanation" id="${explanationId}" hidden>${escapeHTML(c.tooltip)}</div>
       ${c.key === 'diet' ? renderDietContaminantsBadge() : ''}
+      ${c.key === 'diet' ? renderNutritionDietExtension(contextCardActionAttrs) : ''}
+      ${c.key === 'lightCircadian' ? renderNutritionCircadianExtension(contextCardActionAttrs) : ''}
       <div class="ctx-ai-summary-slot"><div class="ctx-ai-summary" id="ctx-ai-${c.key}"></div></div>
     </article>`;
   }

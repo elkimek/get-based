@@ -39,6 +39,9 @@ export interface ProfileData {
   markerValueNotes: Record<string, any>;
   biologyScoreAI: Record<string, any>;
   contextSourceSettings: Record<string, boolean>;
+  nutritionContextDays?: 7 | 30 | 90;
+  nutritionTargets?: Record<string, any> | null;
+  nutritionMeals?: any[] | null;
   changeHistory: any[];
   importSnapshots: any[];
   biometrics?: Record<string, any> | null;
@@ -78,6 +81,7 @@ export interface AppState {
   showAltUnits: boolean;
   selectedCorrelationMarkers: string[];
   currentProfile: string;
+  nutritionSummary: Record<string, any> | null;
   profiles: any[] | null;
   profileSex: string | null;
   profileDob: string | null;

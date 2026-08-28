@@ -265,7 +265,7 @@ export function buildActionBar(msgIndex) {
 
   if (msg.context && msg.context.length > 0) {
     html += `<button type="button" class="chat-context-toggle" aria-expanded="false" aria-controls="chat-ctx-details-${msgIndex}" ${chatMessageActionAttrs('toggle-context-details', { index: msgIndex })}>`;
-    html += `<span class="chat-toggle-arrow" id="chat-ctx-arrow-${msgIndex}">\u25B8</span> Context used (${msg.context.length} area${msg.context.length !== 1 ? 's' : ''})`;
+    html += `<span class="chat-toggle-arrow" id="chat-ctx-arrow-${msgIndex}">\u25B8</span> Context provided (${msg.context.length} area${msg.context.length !== 1 ? 's' : ''})`;
     html += '</button>';
     html += `<div class="chat-context-details" id="chat-ctx-details-${msgIndex}" style="display:none">`;
     for (const area of msg.context) {

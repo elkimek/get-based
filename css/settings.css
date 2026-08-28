@@ -947,6 +947,9 @@
   font-size: 11px;
   line-height: 1.45;
 }
+.settings-modal .nutrition-ai-model-details { margin-top: 8px; }
+.settings-modal .nutrition-ai-model-details summary { color: var(--text-muted); font-size: 11px; cursor: pointer; }
+.settings-modal .nutrition-ai-model-details a { color: var(--accent); }
 .settings-modal .settings-divider {
   margin-top: 18px;
   padding-top: 14px;

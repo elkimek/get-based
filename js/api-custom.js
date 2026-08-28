@@ -6,9 +6,10 @@ import {
   getCustomApiKey,
   getCustomApiModel,
   getCustomApiUrl,
+  notifyAIModelCatalogChanged,
   setCustomApiModel,
 } from './api-provider-storage.js';
-import { findPreferredModel } from './api-models.js';
+import { findPreferredModel, modelMetadataSupportsVision } from './api-models.js';
 import { callOpenAICompatibleAPI } from './api-openai-compatible.js';
 
 const CUSTOM_DEFAULT_CANDIDATES = ['openai/gpt-5.5', 'gpt-5.5', 'anthropic/claude-sonnet-5', 'claude-sonnet-5', 'anthropic/claude-sonnet-4.6', 'claude-sonnet-4.6'];
@@ -44,13 +45,23 @@ export async function fetchCustomApiModels(baseUrl, key) {
     if (!res.ok) return [];
     const json = await res.json();
     const models = (json.data || []).filter(function(m) { return m.id; }).map(function(m) {
-      return { id: m.id, name: m.name || m.id };
+      return {
+        id: m.id,
+        name: m.name || m.id,
+        ...(m.architecture ? { architecture: m.architecture } : {}),
+        ...(Array.isArray(m.input_modalities) ? { input_modalities: m.input_modalities } : {}),
+        ...(Array.isArray(m.input) ? { input: m.input } : {}),
+        ...(m.capabilities ? { capabilities: m.capabilities } : {}),
+      };
     }).sort(function(a, b) { return a.name.localeCompare(b.name); });
+    const visionIds = models.filter(modelMetadataSupportsVision).map(model => model.id);
+    localStorage.setItem('labcharts-custom-vision-models', JSON.stringify(visionIds));
     localStorage.setItem('labcharts-custom-models', JSON.stringify(models));
     if (!getCustomApiModel() && models.length) {
       const preferred = findPreferredModel(models, CUSTOM_DEFAULT_CANDIDATES);
       setCustomApiModel((preferred || models[0]).id);
     }
+    notifyAIModelCatalogChanged();
     return models;
   } catch (e) {
     return [];
@@ -98,7 +109,7 @@ export async function callCustomAPI(opts) {
     return await callOpenAICompatibleAPI(
       baseUrl + '/chat/completions',
       key,
-      getCustomApiModel(),
+      String(opts?.modelOverride || getCustomApiModel()),
       'Custom',
       opts,
       {},

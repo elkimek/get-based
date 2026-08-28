@@ -12,8 +12,12 @@ import {
 import { getDeltaCutoverReadiness } from './sync-delta.js';
 import { migrateProfileData } from './profile.js';
 import { applyCommittedDeltas, planProfileDeltas } from './sync-push-deltas.js';
-import { clearSyncProfileDirty, getSyncDirtyToken } from './sync-dirty-state.js';
+import {
+  clearSyncProfileDirty, discardSyncProfileDirty, getSyncDirtyToken,
+} from './sync-dirty-state.js';
 import { noteLocalSyncCommit } from './sync-origin-state.js';
+import { getProfileSyncBlockReason } from './profile-sync-policy.js';
+import { sanitizeNutritionProfileData } from './nutrition-sync-sanitize.js';
 
 /** @type {() => any} */
 let _getEvolu = () => null;
@@ -26,6 +30,8 @@ let _isPhase2CutoverEnabled = () => false;
 let _disablePhase2Cutover = () => {};
 /** @type {(...args: any[]) => any} */
 let _debug = () => {};
+/** @type {() => any[]} */
+let _getProfiles = () => [];
 
 // Tracks when _syncing was last set so a hung push (Evolu onComplete never
 // fires) can be detected and the flag cleared on the next push attempt
@@ -40,6 +46,7 @@ let _syncingSince = 0;
  *   isPhase2CutoverEnabled?: (profileId?: any) => boolean,
  *   disablePhase2Cutover?: (...args: any[]) => any,
  *   debug?: (...args: any[]) => any,
+ *   getProfiles?: () => any[],
  * }} [deps]
  */
 export function configureSyncPush({
@@ -49,6 +56,7 @@ export function configureSyncPush({
   isPhase2CutoverEnabled,
   disablePhase2Cutover,
   debug,
+  getProfiles,
 } = {}) {
   if (typeof getEvolu === 'function') _getEvolu = getEvolu;
   if (typeof getProfileQuery === 'function') _getProfileQuery = getProfileQuery;
@@ -56,6 +64,7 @@ export function configureSyncPush({
   if (typeof isPhase2CutoverEnabled === 'function') _isPhase2CutoverEnabled = isPhase2CutoverEnabled;
   if (typeof disablePhase2Cutover === 'function') _disablePhase2Cutover = disablePhase2Cutover;
   if (typeof debug === 'function') _debug = debug;
+  if (typeof getProfiles === 'function') _getProfiles = getProfiles;
 }
 
 export function isSyncPushInFlight() {
@@ -73,13 +82,10 @@ function normalizedImportedDataForPush(importedData) {
     normalized = { ...importedData };
   }
   migrateProfileData(normalized);
-  return normalized;
+  return sanitizeNutritionProfileData(normalized);
 }
 
 export async function pushProfile(profileId, importedData, opts = {}) {
-  const evolu = _getEvolu();
-  const profileQuery = _getProfileQuery();
-  if (!evolu || !_isSyncEnabled()) return;
   if (!profileId || typeof profileId !== 'string') return;
   // Never turn a failed profile-storage read into an authoritative empty
   // relay update. Callers that intentionally create an empty profile pass an
@@ -88,6 +94,14 @@ export async function pushProfile(profileId, importedData, opts = {}) {
     console.warn(`[sync] pushProfile skipped ${profileId.slice(0, 8)} — imported profile data is unavailable`);
     return { ok: false, skipped: true, reason: 'missing-profile-data' };
   }
+  const blockReason = getProfileSyncBlockReason(profileId, _getProfiles());
+  if (blockReason && !opts.allowTombstoneResurrection) {
+    discardSyncProfileDirty(profileId);
+    return { ok: true, skipped: true, reason: blockReason };
+  }
+  const evolu = _getEvolu();
+  const profileQuery = _getProfileQuery();
+  if (!evolu || !_isSyncEnabled()) return;
   // _syncing was a guard against concurrent pushes, but if a previous push
   // hangs (Evolu's onComplete never fires) _syncing stays true and every
   // subsequent push (including manual Sync now / Reload-and-retry) silently
@@ -135,7 +149,12 @@ export async function pushProfile(profileId, importedData, opts = {}) {
   try {
     const dataJson = await buildSyncPayload(profileId, outboundData);
     const rows = evolu.getQueryRows(profileQuery);
-    const existing = rows?.find(r => r.profileId === profileId);
+    // A tombstone/recreate race can leave more than one live row for an ID.
+    // Always update the newest row; updating an arbitrary older row lets a
+    // stale duplicate keep winning pulls and encourages another recreation.
+    const existing = (rows || [])
+      .filter(r => r?.profileId === profileId)
+      .sort((a, b) => Date.parse(b?.syncedAt || '') - Date.parse(a?.syncedAt || ''))[0];
 
     const sunCount = Array.isArray(outboundData?.sunSessions) ? outboundData.sunSessions.length : 0;
     const devCount = Array.isArray(outboundData?.lightDevices) ? outboundData.lightDevices.length : 0;

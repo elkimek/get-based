@@ -2,9 +2,9 @@
 // export-report.js — PDF report data preparation and HTML export
 
 import { state } from './state.js';
-import { getStatus, formatValue, showNotification, escapeHTML } from './utils.js';
+import { formatValue, showNotification, escapeHTML } from './utils.js';
 import { getActiveData } from './data.js';
-import { getAllFlaggedMarkers, getEffectiveRange } from './marker-analysis.js';
+import { getAllFlaggedMarkers } from './marker-analysis.js';
 import { getProfiles, getProfileHeight } from './profile.js';
 import { getBloodDrawPhases } from './cycle.js';
 import { callClaudeAPI, getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider, isAIPaused } from './api.js';
@@ -14,6 +14,8 @@ import {
   wearableDisplayValue,
   weightToKilograms,
 } from './wearables-formatters.js';
+import { buildReportDataSnapshot, formatReportDataForAgent } from './export-report-data.js';
+import { getSupplementsOverlappingRange } from './supplement-medication-domain.js';
 
 // ═══════════════════════════════════════════════
 // PDF REPORT EXPORT
@@ -21,10 +23,6 @@ import {
 export const REPORT_BUILDER_OVERLAY_ID = 'report-builder-overlay';
 export const DEFAULT_REPORT_PRESET = 'clinician';
 const REPORT_AI_SUMMARY_MAX_CHARS = 2800;
-const REPORT_AI_CONTEXT_MARKER_LIMIT = 32;
-const REPORT_AI_CONTEXT_FLAG_LIMIT = 16;
-const REPORT_AI_CONTEXT_TREND_LIMIT = 12;
-const REPORT_AI_CONTEXT_CONTEXT_LIMIT = 10;
 
 const REPORT_AI_SUMMARY_PROMPT = `You write practitioner-facing patient overviews from structured user-owned health data.
 
@@ -149,20 +147,6 @@ function normalizeReportAISummary(summary) {
 function formatReportDateLabel(dateStr) {
   if (!dateStr) return '';
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function getLatestReportValueIndex(values = []) {
-  for (let i = values.length - 1; i >= 0; i--) {
-    if (values[i] !== null && values[i] !== undefined) return i;
-  }
-  return -1;
-}
-
-function formatReportRange(min, max) {
-  if (min != null && max != null) return `${formatValue(min)}-${formatValue(max)}`;
-  if (min != null) return `>${formatValue(min)}`;
-  if (max != null) return `<${formatValue(max)}`;
-  return 'not specified';
 }
 
 function getReportAgeLabel(dob) {
@@ -361,6 +345,7 @@ export function buildReportHeaderFacts({ profile, reportOptions, dateRange, sexL
     { label: 'Blood pressure', value: latestBp ? formatReportValueWithDate(latestBp.value, latestBp.date) : '' },
     { label: 'Resting pulse', value: latestPulse ? formatReportValueWithDate(latestPulse.value, latestPulse.date) : '' },
     { label: 'Body fat', value: latestBodyFat ? formatReportValueWithDate(latestBodyFat.value, latestBodyFat.date) : '' },
+    { label: 'Range display', value: state.rangeMode === 'both' ? 'Reference + optimal' : state.rangeMode === 'reference' ? 'Reference' : 'Optimal' },
     { label: 'Units', value: unitLabel },
   ];
   return rows.filter(row => row.value != null && String(row.value).trim());
@@ -368,6 +353,13 @@ export function buildReportHeaderFacts({ profile, reportOptions, dateRange, sexL
 
 function filterDataByDateIndices(data, indices, cutoffStr) {
   const selectedDates = new Set(indices.map(i => data.dates[i]));
+  for (const category of Object.values(data.categories || {})) {
+    for (const marker of Object.values(category.markers || {})) {
+      if (!(marker.singlePoint || category.singlePoint) || !marker.values?.some(value => value != null)) continue;
+      const singleDate = marker.singleDate || category.singleDate;
+      if (singleDate && (!cutoffStr || singleDate >= cutoffStr)) selectedDates.add(singleDate);
+    }
+  }
   const filtered = {
     dates: indices.map(i => data.dates[i]),
     dateLabels: indices.map(i => data.dateLabels?.[i] || data.dates[i]),
@@ -417,9 +409,19 @@ function getReportCutoffDate(range) {
   const effectiveRange = range === 'current' ? state.dateRangeFilter : range;
   if (!effectiveRange || effectiveRange === 'all') return null;
   const months = effectiveRange === '3m' ? 3 : effectiveRange === '6m' ? 6 : 12;
-  const cutoff = new Date();
-  cutoff.setMonth(cutoff.getMonth() - months);
-  return cutoff.toISOString().slice(0, 10);
+  const today = new Date();
+  const day = today.getDate();
+  const cutoff = new Date(today.getFullYear(), today.getMonth() - months, 1, 12);
+  const finalDay = new Date(cutoff.getFullYear(), cutoff.getMonth() + 1, 0, 12).getDate();
+  cutoff.setDate(Math.min(day, finalDay));
+  return formatReportDateKey(cutoff);
+}
+
+function formatReportDateKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function filterDataByReportRange(rawData, range) {
@@ -434,13 +436,22 @@ function filterDataByReportRange(rawData, range) {
 }
 
 function filterReportCategories(data, categoryKeys) {
-  if (!Array.isArray(categoryKeys)) return data;
-  const allowed = new Set(categoryKeys);
+  const allowed = Array.isArray(categoryKeys) ? new Set(categoryKeys) : null;
   const categories = {};
   for (const [catKey, cat] of Object.entries(data.categories || {})) {
-    if (allowed.has(catKey)) categories[catKey] = cat;
+    if (allowed && !allowed.has(catKey)) continue;
+    categories[catKey] = {
+      ...cat,
+      markers: Object.fromEntries(Object.entries(cat.markers || {}).filter(([, marker]) => !marker.hidden)),
+    };
   }
-  return { ...data, categories };
+  const selectedData = { ...data, categories };
+  const indices = (data.dates || []).map((_, index) => index).filter(index =>
+    Object.values(categories).some(category =>
+      !category.singlePoint && Object.values(category.markers || {}).some(marker => marker.values?.[index] != null)
+    )
+  );
+  return filterDataByDateIndices(selectedData, indices, null);
 }
 
 function getReportNotes(options) {
@@ -448,6 +459,13 @@ function getReportNotes(options) {
   const cutoffStr = getReportCutoffDate(options.dateRange);
   if (!cutoffStr) return notes;
   return notes.filter(note => !note.date || note.date >= cutoffStr);
+}
+
+function getReportSupplements(options) {
+  const supplements = state.importedData.supplements || [];
+  const cutoffStr = getReportCutoffDate(options.dateRange);
+  if (!cutoffStr) return supplements;
+  return getSupplementsOverlappingRange(supplements, cutoffStr, formatReportDateKey(new Date()));
 }
 
 function buildReportContextSections(data) {
@@ -584,125 +602,36 @@ export function buildPreparedReportPayload(options = {}) {
   const sexLabel = state.profileSex === 'female' ? 'Female' : state.profileSex === 'male' ? 'Male' : 'Not specified';
   const flags = getAllFlaggedMarkers(data);
   const notes = getReportNotes(reportOptions);
-  const supps = state.importedData.supplements || [];
+  const supps = getReportSupplements(reportOptions);
   const contextSections = buildReportContextSections(data);
+  const reportData = buildReportDataSnapshot({
+    data,
+    profile,
+    importedData: { ...state.importedData, notes, supplements: supps },
+    reportOptions,
+    rangeMode: state.rangeMode,
+    unitSystem: state.unitSystem,
+    contextSections,
+  });
 
-  return { reportOptions, data, profile, profileName, sexLabel, flags, notes, supps, contextSections };
+  return { reportOptions, data, profile, profileName, sexLabel, flags, notes, supps, contextSections, reportData };
 }
 
-function buildReportAITrendLines(data, limit = REPORT_AI_CONTEXT_TREND_LIMIT) {
-  const items = [];
-  for (const cat of Object.values(data.categories || {})) {
-    for (const marker of Object.values(cat.markers || {})) {
-      const nonNull = (marker.values || []).map((v, i) => ({ v, i })).filter(x => x.v !== null && x.v !== undefined);
-      if (nonNull.length < 2) continue;
-      const first = nonNull[0];
-      const last = nonNull[nonNull.length - 1];
-      if (first.v === 0) continue;
-      const pctChange = ((last.v - first.v) / first.v) * 100;
-      if (Math.abs(pctChange) <= 10) continue;
-      const direction = pctChange > 0 ? 'increased' : 'decreased';
-      const firstDate = formatReportDateLabel(data.dates?.[first.i]) || data.dates?.[first.i] || 'first result';
-      const lastDate = formatReportDateLabel(data.dates?.[last.i]) || data.dates?.[last.i] || 'latest result';
-      items.push(`${marker.name} ${direction} ${Math.abs(pctChange).toFixed(0)}% (${formatValue(first.v)} to ${formatValue(last.v)} ${marker.unit || ''}, ${firstDate} to ${lastDate})`);
-    }
-  }
-  return items.slice(0, limit);
+/**
+ * Collect the active profile into the portable report-data schema without
+ * coupling consumers to PDF rendering or practitioner-summary prompting.
+ */
+export function collectReportData(options = {}) {
+  return buildPreparedReportPayload(options).reportData;
 }
 
-function buildReportAISummaryContext(payload) {
-  const { reportOptions, data, profile, profileName, sexLabel, flags, notes, supps, contextSections } = payload;
-  const sections = new Set(reportOptions.sections);
-  const includesLabData = reportOptions.sections.some(section => REPORT_LAB_SECTION_IDS.includes(section));
-  const dateLabels = (data.dates || []).map(formatReportDateLabel).filter(Boolean);
-  const dateRange = dateLabels.length
-    ? `${dateLabels[0]} to ${dateLabels[dateLabels.length - 1]}`
-    : 'No lab dates in selected range';
-  const markerLines = [];
-  let totalWithData = 0;
-  let totalInRange = 0;
-
-  for (const cat of Object.values(data.categories || {})) {
-    for (const marker of Object.values(cat.markers || {})) {
-      const idx = getLatestReportValueIndex(marker.values || []);
-      if (idx === -1) continue;
-      const value = marker.values[idx];
-      const range = getEffectiveRange(marker);
-      const status = getStatus(value, range.min, range.max);
-      totalWithData++;
-      if (status === 'normal') totalInRange++;
-      const date = formatReportDateLabel(data.dates?.[idx]) || data.dates?.[idx] || 'latest';
-      const category = cat.label || 'Labs';
-      markerLines.push({
-        priority: status === 'normal' ? 1 : 0,
-        text: `${category}: ${marker.name} ${formatValue(value)} ${marker.unit || ''} (${status}; range ${formatReportRange(range.min, range.max)}; ${date})`
-      });
-    }
-  }
-
-  markerLines.sort((a, b) => a.priority - b.priority || a.text.localeCompare(b.text));
-
-  const lines = [
-    `Profile: ${profileName}`,
-    `Sex: ${sexLabel}`,
-    `Age: ${getReportAgeLabel(profile?.dob) || 'not specified'}`,
-    `Profile status: ${profile?.status || 'not specified'}`,
-    `Report type: ${reportOptions.presetLabel}`,
-  ];
-  if (includesLabData) lines.push(`Selected report window: ${dateRange}`, `Range mode: ${state.rangeMode || 'optimal'}`, `Lab dates in report: ${data.dates?.length || 0}`, `Markers reviewed: ${totalWithData}`, `Markers within selected range: ${totalInRange}`, `Latest markers outside selected range: ${flags.length}`);
-  if (sections.has('context') && Array.isArray(profile?.tags) && profile.tags.length > 0) {
-    lines.push(`Profile tags: ${profile.tags.slice(0, 8).join(', ')}`);
-  }
-  if (sections.has('context') && profile?.notes) {
-    lines.push(`Profile notes: ${String(profile.notes).replace(/\s+/g, ' ').slice(0, 280)}`);
-  }
-
-  if ((sections.has('flagged') || sections.has('summary')) && flags.length > 0) {
-    lines.push('Latest out-of-range markers:');
-    for (const flag of flags.slice(0, REPORT_AI_CONTEXT_FLAG_LIMIT)) {
-      lines.push(`- ${flag.name}: ${flag.value} ${flag.unit || ''} ${flag.status} (range ${formatReportRange(flag.effectiveMin, flag.effectiveMax)})`);
-    }
-  }
-
-  if ((sections.has('categories') || sections.has('summary')) && markerLines.length > 0) {
-    lines.push('Representative latest lab results:');
-    for (const item of markerLines.slice(0, REPORT_AI_CONTEXT_MARKER_LIMIT)) {
-      lines.push(`- ${item.text}`);
-    }
-  }
-
-  const trendLines = buildReportAITrendLines(data);
-  if (sections.has('trends') && trendLines.length > 0) {
-    lines.push('Notable trends:');
-    for (const item of trendLines) lines.push(`- ${item}`);
-  }
-
-  if (sections.has('supplements') && Array.isArray(supps) && supps.length > 0) {
-    lines.push('Supplements and medications:');
-    for (const supp of supps.slice(0, 12)) {
-      const dosage = [supp.dosage, supp.dose, supp.amount, supp.frequency].filter(Boolean).join(', ');
-      lines.push(`- ${supp.name || 'Unnamed'}${dosage ? ` (${dosage})` : ''}`);
-    }
-  }
-
-  if (sections.has('notes') && notes.length > 0) {
-    lines.push('Recent report notes:');
-    for (const note of notes.slice(-5)) {
-      lines.push(`- ${note.date || 'undated'}: ${String(note.text || '').slice(0, 220)}`);
-    }
-  }
-
-  if (sections.has('context') && contextSections.length > 0) {
-    lines.push('Profile context:');
-    for (const section of contextSections.slice(0, REPORT_AI_CONTEXT_CONTEXT_LIMIT)) {
-      lines.push(`- ${section.title}: ${String(section.text || '').replace(/\s+/g, ' ').slice(0, 280)}`);
-    }
-  }
-
-  const genetics = state.importedData.genetics;
-  if (sections.has('genetics') && genetics?.apoe) lines.push(`Genetics: APOE ${genetics.apoe}`);
-
-  return lines.join('\n');
+/**
+ * Build bounded plain-text context from the same selected facts used by the
+ * report. This is suitable for an agent prompt; collectReportData() is the
+ * lossless structured interface.
+ */
+export function buildReportAgentContext(options = {}) {
+  return formatReportDataForAgent(collectReportData(options));
 }
 
 export async function generateReportAISummary(options = {}) {
@@ -725,7 +654,7 @@ export async function generateReportAISummary(options = {}) {
   const modelDisplay = getActiveModelDisplay(provider);
   const result = await callClaudeAPI({
     system: REPORT_AI_SUMMARY_PROMPT,
-    messages: [{ role: 'user', content: buildReportAISummaryContext(payload) }],
+    messages: [{ role: 'user', content: formatReportDataForAgent(payload.reportData) }],
     maxTokens: 900,
     forceNonStream: true,
   }, provider);

@@ -1,17 +1,5 @@
 // @ts-check
-// Lab-context summaries, change narration, and Lens prompt injection.
-
-import { state } from './state.js';
-import { getCurrentSupplements } from './supplement-medication-domain.js';
-import { getActiveData } from './data.js';
-import { getAllFlaggedMarkers } from './marker-analysis.js';
-import { getLatitudeFromLocation } from './profile.js';
-import {
-  isInsightContextCardsEnabled,
-  isLabMarkersContextEnabled,
-  isLightSunContextEnabled,
-  isSupplementsMedsContextEnabled,
-} from './lab-context-settings.js';
+// Exact context receipts, change narration, and Lens prompt injection.
 
 export function summarizeChange(prev, curr) {
   if (prev == null && curr == null) return null;
@@ -56,98 +44,6 @@ export function summarizeChange(prev, curr) {
   return changes.length > 0
     ? changes.slice(0, 5).join('; ') + (changes.length > 5 ? '; …' : '')
     : null;
-}
-
-export function getContextSummary() {
-  const areas = [];
-  const data = getActiveData();
-  const includeInsightCards = isInsightContextCardsEnabled();
-  const includeSupplementsMeds = isSupplementsMedsContextEnabled();
-  const markerCount = Object.values(data.categories).reduce((sum, category) =>
-    sum + Object.values(category.markers).filter(marker =>
-      marker.values.some(value => value !== null)).length, 0);
-  if (isLabMarkersContextEnabled() && markerCount > 0) {
-    areas.push({ label: 'Lab values', detail: `${markerCount} markers` });
-  }
-  const diagnoses = state.importedData.diagnoses;
-  if (includeInsightCards && diagnoses && (
-    (diagnoses.conditions && diagnoses.conditions.length)
-    || diagnoses.note
-    || (Array.isArray(diagnoses.familyHistory) && diagnoses.familyHistory.length)
-  )) {
-    const conditionCount = (diagnoses.conditions && diagnoses.conditions.length) || 0;
-    const familyCount = (Array.isArray(diagnoses.familyHistory) && diagnoses.familyHistory.length) || 0;
-    const detail = conditionCount && familyCount
-      ? `${conditionCount} condition${conditionCount !== 1 ? 's' : ''}, ${familyCount} family entr${familyCount !== 1 ? 'ies' : 'y'}`
-      : conditionCount
-        ? `${conditionCount} condition${conditionCount !== 1 ? 's' : ''}`
-        : familyCount
-          ? `${familyCount} family entr${familyCount !== 1 ? 'ies' : 'y'}`
-          : 'notes';
-    areas.push({ label: 'Medical History', detail });
-  }
-  if (includeInsightCards && state.importedData.diet) {
-    areas.push({ label: 'Diet & Digestion', detail: state.importedData.diet.type || 'filled' });
-  }
-  if (includeInsightCards && state.importedData.exercise) {
-    areas.push({ label: 'Exercise', detail: state.importedData.exercise.frequency || 'filled' });
-  }
-  if (includeInsightCards && state.importedData.sleepRest) {
-    areas.push({ label: 'Sleep & Rest', detail: state.importedData.sleepRest.duration || 'filled' });
-  }
-  const lightCircadian = state.importedData.lightCircadian;
-  const autoLatitude = getLatitudeFromLocation();
-  if (isLightSunContextEnabled() && (lightCircadian || autoLatitude)) {
-    areas.push({ label: 'Light & Circadian', detail: autoLatitude ? `lat ${autoLatitude}` : 'filled' });
-  }
-  if (includeInsightCards && state.importedData.stress) {
-    areas.push({ label: 'Stress', detail: state.importedData.stress.level || 'filled' });
-  }
-  if (includeInsightCards && state.importedData.loveLife) {
-    areas.push({ label: 'Love Life', detail: 'filled' });
-  }
-  if (includeInsightCards && state.importedData.environment) {
-    areas.push({ label: 'Environment', detail: state.importedData.environment.setting || 'filled' });
-  }
-  const emfData = state.importedData.emfAssessment;
-  const emfAssessments = emfData?.assessments;
-  if (includeInsightCards && emfAssessments && emfAssessments.length > 0) {
-    areas.push({
-      label: 'EMF Assessment',
-      detail: `${emfAssessments.length} assessment${emfAssessments.length !== 1 ? 's' : ''}`,
-    });
-  }
-  const goals = state.importedData.healthGoals || [];
-  if (includeInsightCards && goals.length > 0) {
-    areas.push({ label: 'Health Goals', detail: `${goals.length} goal${goals.length !== 1 ? 's' : ''}` });
-  }
-  const lens = state.importedData.interpretiveLens || '';
-  if (lens.trim()) areas.push({ label: 'Interpretive Lens', detail: 'set' });
-  const contextNotes = state.importedData.contextNotes || '';
-  if (includeInsightCards && contextNotes.trim()) {
-    areas.push({ label: 'Context Notes', detail: 'set' });
-  }
-  const cycle = state.importedData.menstrualCycle;
-  if (includeInsightCards && cycle && state.profileSex === 'female') {
-    areas.push({ label: 'Menstrual Cycle', detail: `${cycle.cycleLength || 28}-day` });
-  }
-  const supplements = state.importedData.supplements || [];
-  if (includeSupplementsMeds && supplements.length > 0) {
-    const currentCount = getCurrentSupplements(supplements).length;
-    areas.push({
-      label: 'Supplements',
-      detail: `${currentCount} current${supplements.length > currentCount ? ` · ${supplements.length - currentCount} history` : ''}`,
-    });
-  }
-  const notes = state.importedData.notes || [];
-  if (includeInsightCards && notes.length > 0) {
-    areas.push({ label: 'User Notes', detail: `${notes.length} note${notes.length !== 1 ? 's' : ''}` });
-  }
-  const flags = getAllFlaggedMarkers(data);
-  if (isLabMarkersContextEnabled() && flags.length > 0) {
-    areas.push({ label: 'Flagged Results', detail: `${flags.length} flagged` });
-  }
-  return areas;
 }
 
 const LENS_PROMPT_CHUNK_CHAR_LIMIT = 1800;

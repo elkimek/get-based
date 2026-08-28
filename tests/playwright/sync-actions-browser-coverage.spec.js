@@ -333,6 +333,18 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
         && typeof defaultGatewayContext.encryptedContext?.iv === 'string'
         && typeof defaultGatewayContext.encryptedContext?.ciphertext === 'string'
         && !defaultGatewayContext.encryptedContext.ciphertext.includes('2026-06-09');
+      outcomes.messengerEncryptedPayloadRespectsDisabledContextSources =
+        !decryptedAgentContext.includes('Medical-history agent sentinel')
+        && !decryptedAgentContext.includes('Light agent sentinel');
+
+      state.importedData.contextSourceSettings['insight-cards'] = true;
+      state.importedData.contextSourceSettings['light-sun'] = true;
+      labContext.invalidateLabContextCache();
+      messenger.pushContextToGateway();
+      await runPendingTimers();
+      const enabledGatewayBody = JSON.parse(fetches.at(-1)?.options?.body || '{}');
+      const enabledGatewayContext = JSON.parse(enabledGatewayBody.context || '{}');
+      const enabledDecryptedAgentContext = await decryptAgentContext(enabledGatewayContext.encryptedContext);
       const redesignedContextFragments = [
         '[section:healthGoals]',
         'Restore stable morning energy',
@@ -347,8 +359,8 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
         'Recent intense training near blood draw',
         'Acute illness / infection / injury near blood draw',
         'Medical-history agent sentinel',
-        'Protein intake: 1.2–1.6 g/kg/day',
-        'Daily fluid intake: 2–3 L/day',
+        'Usual self-reported protein intake: 1.2–1.6 g/kg/day',
+        'Usual self-reported daily fluid intake: 2–3 L/day',
         'Alcohol: none',
         'Caffeine: none',
         'Latest caffeine: morning only',
@@ -432,7 +444,7 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
         'Additional-context agent sentinel',
       ];
       outcomes.messengerEncryptedPayloadCarriesEveryRedesignedContextField =
-        redesignedContextFragments.every(fragment => decryptedAgentContext.includes(fragment));
+        redesignedContextFragments.every(fragment => enabledDecryptedAgentContext.includes(fragment));
 
       messenger.configureSyncMessenger({
         getSyncRelay: () => 'ws://relay.local',
@@ -657,7 +669,7 @@ test('sync indicator popover renders debug actions and copies activity', async (
     try {
       slot.id = 'sync-indicator-slot';
       if (!slot.parentNode) document.body.appendChild(slot);
-      localStorage.setItem('labcharts-debug', 'true');
+      localStorage.setItem('labcharts-debug', 'false');
       syncState.resetSyncStatus();
       syncUi.initSyncUIDelegates();
 
@@ -684,6 +696,15 @@ test('sync indicator popover renders debug actions and copies activity', async (
       syncState.updateSyncStatus({ relay: 'connected', push: 'confirmed', pushConfirmedAt: Date.now() - 2_000 });
       syncUi.renderSyncIndicator();
       outcomes.enabledRenderShowsSyncedDot = !!slot.querySelector('#sync-indicator-btn .sync-dot-synced');
+
+      syncUi.toggleSyncDetail();
+      const standardPopover = document.getElementById('sync-popover');
+      if (!standardPopover) throw new Error('standard sync popover did not render');
+      outcomes.standardPopoverShowsSyncStatus = !!standardPopover.querySelector('[data-sync-ui-action="show-diagnose"]')
+        && standardPopover.textContent.includes('Sync status')
+        && !standardPopover.querySelector('[data-sync-ui-action="force-resend"]');
+      standardPopover.remove();
+      localStorage.setItem('labcharts-debug', 'true');
 
       syncState.updateSyncStatus({ push: 'pending', pushStartedAt: Date.now() });
       syncUi.updateSyncIndicator();

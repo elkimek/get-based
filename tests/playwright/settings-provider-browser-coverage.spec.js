@@ -131,6 +131,9 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
       await controls.testOllamaConnection();
       const corsHelp = corsProbe
         && statusText.textContent.includes('Blocked by CORS')
+        && statusText.textContent.includes('Ollama')
+        && !statusText.textContent.includes('LM Studio')
+        && !statusText.textContent.includes('Unsloth')
         && dot.classList.contains('disconnected');
 
       window.fetch = async function(url, opts = {}) {

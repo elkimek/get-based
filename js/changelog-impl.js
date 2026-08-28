@@ -11,6 +11,26 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.18.1', date: '2026-08-28', title: 'Nutrition planning stays clear and responsive',
+    items: [
+      '<b>Meal timing now shows the complete daily rhythm.</b> Trends includes the fasting window, and demo profiles carry enough history to make the 30-day view useful.',
+      '<b>Meal Benchmarks now works as its own workspace.</b> Add a photo there, keep your selected models when navigating, and expand known values only when you need them.',
+      '<b>Long-running meal analysis no longer holds you in place.</b> Continue elsewhere while analysis runs, cancel it when needed, or stop individual benchmark models without losing the rest.',
+      '<b>Nutrition targets are easier to read at a glance.</b> Dashboard and History progress now use semantic grades that reflect progress toward each target.',
+    ]
+  },
+  {
+    version: '1.18.0', date: '2026-08-25', title: 'Meals & Nutrition arrives',
+    items: [
+      '<b>Log, review, and reuse meals.</b> Add a meal photo, scan a nutrition label with your selected AI model, or enter values manually. Every estimate stays editable before saving, and saved meals can be corrected or logged again.',
+      '<b>Review complete model-estimated nutrition.</b> The selected vision model estimates macros, vitamins, minerals, and other registered nutrients from identified foods and portions; uncertain values stay blank and every estimate remains editable.',
+      '<b>Follow useful seven-day patterns.</b> Daily Nutrition brings intake averages, logging coverage, quick drink logging, and personal planning guides to Body and the Dashboard.',
+      '<b>Explore carbohydrate and fat composition separately.</b> Fuel Mix Context shows the logged split and amount without turning it into a metabolic score or universal optimum.',
+      '<b>Keep control of meal photos.</b> Full-size photos are sent only when you choose AI analysis and are not saved. Encrypted Sync can carry reviewed meal data and small thumbnails when enabled.',
+      '<b>Unsloth Studio is now a first-class Local AI provider.</b> It joins Ollama and LM Studio with automatic model discovery, vision support when available, and connection help tailored to each server. Meal-photo comparisons can also use active models across configured local and cloud providers.',
+    ]
+  },
+  {
     version: '1.17.4', date: '2026-08-24', title: 'Lab units for Australia and New Zealand',
     items: [
       '<b>Lab results can now use common Australian and New Zealand units.</b> Choose Australia / NZ in Settings → Display to keep charts, tables, marker details, reports, and manual entry aligned with local pathology reports.',
@@ -93,7 +113,7 @@ const CHANGELOG = [
       '<b>Add products faster.</b> Choose common units, import from links and label photos, and review the result before saving.',
       '<b>See clearer product context.</b> Active ingredients, capsule materials, excipients, and laboratory results stay organized separately and reach AI only when useful.',
       '<b>Review better mitochondrial evidence.</b> Verified primary studies are grouped by compound with clear scope and limitations.',
-      '<b>Pause Sync without disconnecting.</b> Pausing this browser keeps its identity and local Sync history. Edits made while paused stay queued and publish before incoming changes when you resume; disconnect/reset remains available under Advanced.',
+      '<b>Pause Sync without disconnecting.</b> Pausing this browser keeps its identity and local Sync history. Edits made while paused stay queued and publish before incoming changes when you resume; disconnect/reset remains available under Relay &amp; device options.',
       '<b>Restore and rejoin safely.</b> Profiles restored from a full backup are published before older relay deletions can apply, so recovered supplement and medication history does not disappear during the first Sync.',
       '<b>Join Sync reliably on the hosted app.</b> Production builds now load the encrypted Sync database worker from its stable app location instead of waiting on a missing asset.',
       '<b>Large Local AI lab imports finish more reliably.</b> Progress now separates reading the report from writing results, long model-prefill waits no longer look like broken streams, and incomplete output is rejected instead of offering a partial marker list.',

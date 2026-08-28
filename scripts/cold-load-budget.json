@@ -3,17 +3,23 @@
   "route": "/app",
   "scenario": "Fresh mobile returning-user load with browser cache and service workers disabled",
   "maximums": {
-    "requests": 306,
+    "requests": 316,
     "transferBytes": 1193220,
-    "decodedBytes": 3115000
+    "decodedBytes": 3257000
   },
   "reference": {
     "requests": 276,
     "transferBytes": 1015573,
     "decodedBytes": 2733812,
     "unitProfilesRequests": 306,
-    "unitProfilesDecodedBytes": 3108034
+    "unitProfilesDecodedBytes": 3108034,
+    "mealsNutritionRequests": 312,
+    "mealsNutritionTransferBytes": 1148388,
+    "mealsNutritionDecodedBytes": 3210454,
+    "mealsNutritionReleaseRequests": 316,
+    "mealsNutritionReleaseTransferBytes": 1160753,
+    "mealsNutritionReleaseDecodedBytes": 3246793
   },
-  "referenceCommit": "4500c0c9",
-  "measuredAt": "2026-08-23"
+  "referenceCommit": "d32c67ae",
+  "measuredAt": "2026-08-27"
 }

@@ -88,7 +88,7 @@ function getSyncStatusSummary(d, healthVerdict, quota) {
     return { tone: 'warning', eyebrow: 'Local check incomplete', title: 'Some sync records could not be checked', detail: 'Your data is still available, but the local sync database reported a reading problem. Copy the diagnostic report below if this persists.' };
   }
   if (quota?.level === 'red') {
-    return { tone: 'danger', eyebrow: 'Storage nearly full', title: 'Sync works, but storage needs attention', detail: 'Reduce relay storage soon so there is room for future changes.' };
+    return { tone: 'danger', eyebrow: 'Storage nearly full', title: 'Sync works, but storage needs attention', detail: 'Choose Reduce storage soon so there is room for future changes.' };
   }
   if (quota?.level === 'amber') {
     return { tone: 'warning', eyebrow: 'Storage filling up', title: 'Sync is working', detail: 'Updates are reaching the relay. Storage is getting high, so plan a cleanup after every device is fully synced.' };
@@ -234,7 +234,7 @@ export function renderSyncDiagnoseModal({
   const rowCount = Array.isArray(d.rows) ? d.rows.length : 0;
   const compactInStorageCard = quota?.level === 'amber' || quota?.level === 'red';
   const maintenanceButtons = `
-    ${compactInStorageCard ? '' : `<button class="ctx-btn-option" ${syncDiagnoseActionAttrs('compact-relay')} title="Rebuilds the encrypted relay history from this device after confirmation.">Reduce relay storage…</button>`}
+    ${compactInStorageCard ? '' : `<button class="ctx-btn-option" ${syncDiagnoseActionAttrs('compact-relay')} title="Rebuilds the encrypted relay history from this device after confirmation.">Reduce storage…</button>`}
     ${healthVerdict?.verdict === 'wedged' ? `<button class="ctx-btn-option sync-diagnose-danger-action" ${syncDiagnoseActionAttrs('rotate-identity')} title="Creates a new recovery phrase and requires reconnecting every device.">Rotate sync identity…</button>` : ''}
     <button class="ctx-btn-option" ${syncDiagnoseActionAttrs('copy-snapshot')} title="Copy a privacy-safe technical report for troubleshooting.">Copy diagnostic report</button>`;
   const technicalReason = healthVerdict?.verdict === 'wedged' && healthVerdict?.reason

@@ -125,7 +125,7 @@ function handleWearableActionClick(event) {
   } else if (action === 'close-detail-manual-add') {
     closeManualAddFromDetail();
   } else if (action === 'open-emf-assessment') {
-    openEMFAssessmentAfterWearablesModalClose();
+    openEMFAssessmentAfterWearablesModalClose(100, metricId);
   } else {
     handled = false;
   }

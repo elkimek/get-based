@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 646,
-  "sinkCount": 500,
+  "scannedFiles": 676,
+  "sinkCount": 534,
   "files": {
     "js/backup.js": {
       "count": 1,
@@ -167,7 +167,7 @@
     },
     "js/cloud-ai-consent.js": {
       "count": 1,
-      "digest": "19adc50c6f3a3c549f3e1f99499ff671701e874b3c736587eaa7ad4a02d7e9c4",
+      "digest": "b0155a1dd52349412193f260a5419fc5fc613bcc69bb30b3463479aee44a869a",
       "kinds": {
         "innerHTML": 1
       }
@@ -187,11 +187,11 @@
       }
     },
     "js/context-card-dashboard-ai-impl.js": {
-      "count": 3,
-      "digest": "e799e10e329e293e28533c7f1ce861753690152d655e4ea400126f8260aaaa0f",
+      "count": 4,
+      "digest": "425bcf47c968cbfc6f72dd5aede7114077c11cd7e19600e6ea8c02fd744f0443",
       "kinds": {
         "innerHTML": 2,
-        "outerHTML": 1
+        "outerHTML": 2
       }
     },
     "js/context-card-editor-ui.js": {
@@ -541,7 +541,7 @@
     },
     "js/marker-detail-manual-entry.js": {
       "count": 1,
-      "digest": "d335cab8fa95f78ed34c763697643432c6aafdddf4a0b60cba35dc9661ecf10e",
+      "digest": "eb55a3c9c8c732be4c878c5ca08c735db027025d14253a00508f55b0ee33b073",
       "kinds": {
         "innerHTML": 1
       }
@@ -581,6 +581,64 @@
       "digest": "7ae26c5099a4f6756e93484514cbc4bfbbe93a268f7fd44f67dcc6a2b6b1c608",
       "kinds": {
         "innerHTML": 1
+      }
+    },
+    "js/nutrition-benchmark-workspace.js": {
+      "count": 3,
+      "digest": "eab777e84c48e3b72c0896d1be0e4ab5ec55bb15ecf0ed5a00fa3f3f4df48e89",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/nutrition-comparison-results.js": {
+      "count": 2,
+      "digest": "1c97a38d1a29fdfcfdb4b1788d4069eb286490f2798da74194eb647f3651cdf0",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/nutrition-comparison-ui.js": {
+      "count": 6,
+      "digest": "2227cd51151f6a8bfde40c6f482310ea9708ddb48d781e9be5744fb1c84840b2",
+      "kinds": {
+        "innerHTML": 5,
+        "outerHTML": 1
+      }
+    },
+    "js/nutrition-entry-forms.js": {
+      "count": 1,
+      "digest": "9cebc9e324252cd40ade39e881fb6667bdb807adde529c3ab9aa3189b3b5a721",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/nutrition-history.js": {
+      "count": 1,
+      "digest": "d6db6fd3c185188f3b9546223bc83083b8889172426fd2e5191bb8a4ca16cf99",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/nutrition-render.js": {
+      "count": 1,
+      "digest": "3d063eff8c81f87545d0c8540edfed609aa95db6cb8ce7187639e713b134d2fc",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/nutrition-review-ui.js": {
+      "count": 10,
+      "digest": "682d7a32954d08c122db26cb6563744aec4b29d31a7625003fb69940ac3336e1",
+      "kinds": {
+        "innerHTML": 10
+      }
+    },
+    "js/nutrition.js": {
+      "count": 8,
+      "digest": "4451e6b7556eef262918354ac97ac797bcb52194c0f889a0aac00f09642a031e",
+      "kinds": {
+        "innerHTML": 7,
+        "outerHTML": 1
       }
     },
     "js/pdf-import-file-handlers.js": {
@@ -760,10 +818,10 @@
       }
     },
     "js/settings.js": {
-      "count": 2,
-      "digest": "7465a6daf364fcb01438725e51e648698f8bfa5bdd6154027f2869a475ce43af",
+      "count": 3,
+      "digest": "75310b7930897f1ca64ef88ec5fc69cfc22e5e17a26d2fa1fec27ab112edb3d4",
       "kinds": {
-        "innerHTML": 2
+        "innerHTML": 3
       }
     },
     "js/sun-active-session.js": {
@@ -851,7 +909,7 @@
     },
     "js/sync-ui.js": {
       "count": 3,
-      "digest": "5962705e3c6904b76ffc7dc72b58c5304f4ce70f80774c356f1131f639983339",
+      "digest": "ece2624909b55150e3bafbcc2ca2ffa7bbe1906fac6f1f35603f9125e74b687d",
       "kinds": {
         "innerHTML": 3
       }

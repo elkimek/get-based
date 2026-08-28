@@ -14,9 +14,11 @@ test('Context hub opens from Personalize AI alias and dismisses', async ({ page 
   await expect(overlay).toHaveClass(/show/);
   await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe('hidden');
   await expect(overlay.locator('.ai-picker-card')).toHaveCount(2);
-  await expect(overlay.locator('.context-source-row')).toHaveCount(8);
-  await expect(overlay.locator('.context-source-desc')).toHaveCount(8);
-  await expect(overlay).toContainText('Health goals, medical history, diet, exercise, sleep, stress, environment, notes, biometrics, and cycle context.');
+  await expect(overlay.locator('.context-source-row')).toHaveCount(9);
+  await expect(overlay.locator('.context-source-desc')).toHaveCount(9);
+  await expect(overlay.locator('#nutrition-context-days')).toHaveValue('30');
+  await expect(overlay.locator('#nutrition-context-days option')).toHaveCount(3);
+  await expect(overlay).toContainText('Basic profile demographics, health goals, medical history, diet, exercise, sleep, stress, environment, notes, biometrics, and cycle context.');
   await expect(overlay.locator('.context-grounding-panel + .context-source-panel')).toHaveCount(1);
   await expect(overlay).toContainText('Context');
   await expect(overlay).toContainText('Data sources');
@@ -52,7 +54,7 @@ test('Context hub opens from Personalize AI alias and dismisses', async ({ page 
     const labelIds = (input.getAttribute('aria-labelledby') || '').split(/\s+/).filter(Boolean);
     return labelIds.map(id => document.getElementById(id)?.textContent?.trim() || '').join(' ').trim();
   }));
-  expect(toggleNames).toHaveLength(8);
+  expect(toggleNames).toHaveLength(9);
   expect(toggleNames.every(Boolean)).toBe(true);
   const describedByCounts = await overlay.locator('[data-context-toggle]').evaluateAll(inputs =>
     inputs.map(input => (input.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean).length)
@@ -130,6 +132,7 @@ test('Context hub data source toggles control prompt and score context', async (
       deviceSessions: [],
       lightMeasurements: [],
       wearableSummary: { metrics: { hrv_rmssd: { rolling: { d7: 22 }, baselineP25: 35 } } },
+      nutritionContextDays: 30,
       genetics: {
         source: 'Context source fixture',
         apoe: 'ε3/ε4',
@@ -139,6 +142,19 @@ test('Context hub data source toggles control prompt and score context', async (
         },
       },
     };
+    state.nutritionSummary = {
+      totalMeals: 2,
+      windows: {
+        d7: { days: 7, meals: 2, loggedDays: 2, reviewRatio: 1, dailyAverages: { energyKcal: 600, proteinG: 30 }, nutrientCoverage: { energyKcal: { completeDays: 2 }, proteinG: { completeDays: 2 } } },
+        d30: { days: 30, meals: 2, loggedDays: 2, reviewRatio: 1, dailyAverages: { energyKcal: 600, proteinG: 30 }, nutrientCoverage: { energyKcal: { completeDays: 2 }, proteinG: { completeDays: 2 } } },
+        d90: { days: 90, meals: 2, loggedDays: 2, reviewRatio: 1, dailyAverages: { energyKcal: 600, proteinG: 30 }, nutrientCoverage: { energyKcal: { completeDays: 2 }, proteinG: { completeDays: 2 } } },
+      },
+    };
+    const { buildNutritionSummaryContext } = await import('/js/nutrition-summary.js');
+    state.nutritionSummary.contextByDays = Object.fromEntries([7, 30, 90].map(days => [
+      `d${days}`,
+      buildNutritionSummaryContext(state.nutritionSummary, { days }),
+    ]));
     await (await import('/js/health-data-loader.js')).loadDnaModule();
     lab.configureLabContext({
       buildSunContext: () => '[section:sun]\nLight context fixture\n[/section:sun]\n\n',
@@ -150,6 +166,7 @@ test('Context hub data source toggles control prompt and score context', async (
     lab.setGeneticsPriorityInAIContext(true);
     lab.setLightSunContextEnabled(true);
     lab.setWearableContextEnabled(true);
+    lab.setNutritionContextEnabled(true);
     lab.setGeneticsInventoryInAIContext(false);
     data.invalidateActiveDataCache();
     lab.invalidateLabContextCache();
@@ -162,6 +179,16 @@ test('Context hub data source toggles control prompt and score context', async (
   await expect(overlay.locator('.context-source-row[data-context-group="Fatty Acids"] [data-context-toggle="lab-group"]')).toBeChecked();
   await expect(overlay.locator('.context-affect-chip').filter({ hasText: 'Scores' }).first()).toBeVisible();
   await expect(overlay.locator('[data-context-toggle="body-regions"]')).toHaveCount(0);
+  await expect(overlay.locator('#nutrition-context-days')).toHaveValue('30');
+  await overlay.locator('#nutrition-context-days').selectOption('90');
+  const nutritionRangeContext = await page.evaluate(async () => {
+    const lab = await import('/js/lab-context.js');
+    const { state } = await import('/js/state.js');
+    return { days: state.importedData.nutritionContextDays, context: lab.buildLabContext() };
+  });
+  expect(nutritionRangeContext.days).toBe(90);
+  expect(nutritionRangeContext.context).toContain('Last 90 days:');
+  expect(nutritionRangeContext.context).not.toContain('Last 30 days:');
 
   const configuredLightRollups = await page.evaluate(async () => {
     const { loadLightSunModules } = await import('/js/light-sun-loader.js');
@@ -201,11 +228,23 @@ test('Context hub data source toggles control prompt and score context', async (
     input.checked = false;
     input.dispatchEvent(new Event('change', { bubbles: true }));
   });
+  const labWithoutLight = await page.evaluate(async () => {
+    const lab = await import('/js/lab-context.js');
+    const { getContextSummary } = await import('/js/chat-context-summary.js');
+    const context = lab.buildLabContext();
+    return { context, receipt: getContextSummary(context) };
+  });
   await overlay.locator('[data-context-toggle="body-wearables"]').evaluate(el => {
     const input = /** @type {HTMLInputElement} */ (el);
     input.checked = false;
     input.dispatchEvent(new Event('change', { bubbles: true }));
   });
+  await overlay.locator('[data-context-toggle="body-nutrition"]').evaluate(el => {
+    const input = /** @type {HTMLInputElement} */ (el);
+    input.checked = false;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await expect(overlay.locator('#nutrition-context-days')).toBeDisabled();
   await overlay.locator('[data-context-toggle="genome-lookup"]').evaluate(el => {
     const input = /** @type {HTMLInputElement} */ (el);
     input.checked = true;
@@ -230,12 +269,14 @@ test('Context hub data source toggles control prompt and score context', async (
 
   const result = await page.evaluate(async () => {
     const lab = await import('/js/lab-context.js');
+    const { getContextSummary } = await import('/js/chat-context-summary.js');
     const { state } = await import('/js/state.js');
     const { getBiologyProfileContext } = await import('/js/profile-context.js');
     const profileContext = getBiologyProfileContext();
     return {
       lightOn: lab.isLightSunContextEnabled(),
       bodyOn: lab.isWearableContextEnabled(),
+      nutritionOn: lab.isNutritionContextEnabled(),
       insightOn: lab.isInsightContextCardsEnabled(),
       supplementsOn: lab.isSupplementsMedsContextEnabled(),
       labOn: lab.isLabMarkersContextEnabled(),
@@ -245,6 +286,7 @@ test('Context hub data source toggles control prompt and score context', async (
       fattyAcidGroupOn: lab.isGroupInAIContext('Fatty Acids'),
       fattyAcidSetting: state.importedData.contextSourceSettings?.['lab-group-Fatty Acids'],
       labContext: lab.buildLabContext(),
+      contextReceipt: getContextSummary(lab.buildLabContext()),
       lightIncluded: profileContext.light.includeLight,
       bodyIncluded: profileContext.body.includeBody,
       lowSunlightExposure: profileContext.lowSunlightExposure,
@@ -263,6 +305,7 @@ test('Context hub data source toggles control prompt and score context', async (
     localStorage.removeItem('labcharts-context-source-coverage-ai-ctx-genetics-inventory');
     localStorage.removeItem('labcharts-context-source-coverage-ai-ctx-light-sun');
     localStorage.removeItem('labcharts-context-source-coverage-ai-ctx-wearables');
+    localStorage.removeItem('labcharts-context-source-coverage-ai-ctx-meals-nutrition');
     localStorage.removeItem('labcharts-context-source-coverage-ai-ctx-lab-group-Fatty Acids');
   });
 
@@ -275,11 +318,13 @@ test('Context hub data source toggles control prompt and score context', async (
   expect(labWithoutFattyAcids).toContain('Context CRP');
   expect(labWithoutFattyAcids).not.toContain('Omega-3 Index');
   expect(insightOffSupplementsOn).not.toContain('Medical History / Diagnoses');
+  expect(insightOffSupplementsOn).not.toContain('[section:profile]');
   expect(insightOffSupplementsOn).not.toContain('Context diet');
   expect(insightOffSupplementsOn).not.toContain('Context notes fixture');
   expect(insightOffSupplementsOn).toContain('Context magnesium');
   expect(result.lightOn).toBe(false);
   expect(result.bodyOn).toBe(false);
+  expect(result.nutritionOn).toBe(false);
   expect(result.insightOn).toBe(false);
   expect(result.supplementsOn).toBe(false);
   expect(result.labOn).toBe(true);
@@ -289,6 +334,7 @@ test('Context hub data source toggles control prompt and score context', async (
   expect(result.genomePriorityOn).toBe(false);
   expect(result.genomeLookupOn).toBe(true);
   expect(result.labContext).not.toContain('Light context fixture');
+  expect(result.labContext).not.toContain('[section:nutrition]');
   expect(result.labContext).not.toContain('Medical History / Diagnoses');
   expect(result.labContext).not.toContain('Context diet');
   expect(result.labContext).not.toContain('Context notes fixture');
@@ -301,6 +347,13 @@ test('Context hub data source toggles control prompt and score context', async (
   expect(result.bodyIncluded).toBe(false);
   expect(result.lowSunlightExposure).toBe(false);
   expect(result.recentHardTraining).toBe(false);
+  expect(labWithoutLight.context).not.toContain('[section:lightCircadian]');
+  expect(labWithoutLight.context).not.toContain('[section:sun]');
+  expect(labWithoutLight.receipt.some(area => area.label.startsWith('Light'))).toBe(false);
+  expect(labWithoutLight.receipt.find(area => area.label === 'Meals & Nutrition')?.detail)
+    .toBe('90-day context · 2 meals · 2/90 days · aggregate only');
+  expect(result.contextReceipt.some(area => area.label === 'Meals & Nutrition')).toBe(false);
+  expect(result.contextReceipt.some(area => area.label === 'Profile')).toBe(false);
 });
 
 test('chat header shows clickable green AI Context status chip', async ({ page }) => {

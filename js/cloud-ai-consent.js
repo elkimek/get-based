@@ -118,6 +118,7 @@ export function withdrawCloudAIConsent() {
 }
 
 function purposeCopy(kind) {
+  if (kind === 'meal-photo') return 'analyzing the selected meal photos and any Known details you entered';
   if (kind === 'voice-input') return 'transcribing the audio you choose to record';
   if (kind === 'voice-output') return 'generating speech from the text you choose to play';
   return 'generating the AI response you requested';
@@ -127,11 +128,27 @@ function showConsentPrompt(details, kind) {
   if (typeof document === 'undefined' || !document.body) return Promise.resolve(false);
   const existing = document.getElementById('cloud-ai-consent-overlay');
   if (existing) existing.remove();
+  const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
   const overlay = document.createElement('div');
   overlay.id = 'cloud-ai-consent-overlay';
   overlay.className = 'modal-overlay legal-consent-overlay show';
-  overlay.innerHTML = `
+  const isMealPhoto = kind === 'meal-photo';
+  overlay.innerHTML = isMealPhoto ? `
+    <div class="legal-consent-modal cloud-ai-consent-compact" role="dialog" aria-modal="true" aria-labelledby="cloud-ai-consent-title" aria-describedby="cloud-ai-consent-desc">
+      <div class="legal-consent-kicker">First cloud analysis</div>
+      <h2 id="cloud-ai-consent-title">Send these meal details?</h2>
+      <p id="cloud-ai-consent-desc" class="legal-consent-copy"></p>
+      <label class="legal-consent-check">
+        <input type="checkbox" id="cloud-ai-consent-checkbox">
+        <span id="cloud-ai-consent-statement"></span>
+      </label>
+      <p class="cloud-ai-consent-links"><a href="https://getbased.health/privacy" target="_blank" rel="noopener">Privacy Policy</a> · You can withdraw this later in Settings → Privacy.</p>
+      <div class="legal-consent-actions">
+        <button type="button" class="cloud-ai-consent-cancel" data-cloud-ai-consent-action="cancel">Not now</button>
+        <button type="button" class="legal-consent-accept" data-cloud-ai-consent-action="approve" disabled>Approve &amp; analyze</button>
+      </div>
+    </div>` : `
     <div class="legal-consent-modal" role="dialog" aria-modal="true" aria-labelledby="cloud-ai-consent-title" aria-describedby="cloud-ai-consent-desc">
       <div class="legal-consent-kicker">Cloud AI privacy</div>
       <h2 id="cloud-ai-consent-title">Approve sensitive-data processing</h2>
@@ -155,11 +172,15 @@ function showConsentPrompt(details, kind) {
   const purpose = purposeCopy(kind);
   const description = overlay.querySelector('#cloud-ai-consent-desc');
   if (description) {
-    description.textContent = `getbased is ready to send data ${details.route} to ${details.label} for ${purpose}. This approval also covers later cloud AI requests you initiate with this provider, including prompts, recorded voice, and text sent for speech. Nothing will be sent until you approve.`;
+    description.textContent = isMealPhoto
+      ? `getbased will send the selected photos and any Known details ${details.route} to ${details.label} for ${purpose}. Saved meal content, photos, and thumbnails are encrypted at rest with a device-local key.`
+      : `getbased is ready to send data ${details.route} to ${details.label} for ${purpose}. This approval also covers later cloud AI requests you initiate with this provider, including prompts, recorded voice, and text sent for speech. Nothing will be sent until you approve.`;
   }
   const statement = overlay.querySelector('#cloud-ai-consent-statement');
   if (statement) {
-    statement.textContent = `I explicitly consent to getbased sending sensitive data I choose to submit to ${details.label} for cloud AI and voice features I initiate.`;
+    statement.textContent = isMealPhoto
+      ? `I agree to send data I choose to submit to ${details.label}. Remember this approval for later AI requests I initiate with this provider.`
+      : `I explicitly consent to getbased sending sensitive data I choose to submit to ${details.label} for cloud AI and voice features I initiate.`;
   }
 
   document.body.appendChild(overlay);
@@ -171,6 +192,7 @@ function showConsentPrompt(details, kind) {
     const finish = granted => {
       overlay.remove();
       document.body.classList.remove('cloud-ai-consent-visible');
+      if (previousFocus?.isConnected) previousFocus.focus();
       resolve(granted);
     };
     checkbox?.addEventListener('change', () => {

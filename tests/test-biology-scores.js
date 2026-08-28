@@ -368,7 +368,7 @@ const geneticScoresOverride = computeBiologyScores(geneticScoreData, { ignoreCon
 const geneticOverrideOneCarbon = geneticScoresOverride.find(score => score.id === 'oneCarbonCoherence');
 const geneticOverrideBone = geneticScoresOverride.find(score => score.id === 'boneMineralSignal');
 const geneticAiOverride = buildBiologyScoresAIContext(geneticScoreData, { limit: 50, ignoreContextToggles: true });
-assert('Agent Access Biology Scores context ignores Context source toggles',
+assert('Explicit trusted Biology Scores context can ignore source toggles',
   geneticOverrideOneCarbon.flags.some(flag => /methylation variants/i.test(flag))
   && geneticOverrideBone.flags.some(flag => /vitamin-D pathway/i.test(flag))
   && geneticAiOverride.includes('Genetic context considered.'),

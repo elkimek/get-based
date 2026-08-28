@@ -10,7 +10,8 @@ import {
   readProfileImportedData,
 } from './sync-save-hooks.js';
 import { prepareProfileForRelayRebuild } from './sync-cutover.js';
-import { getSyncDirtyToken } from './sync-dirty-state.js';
+import { discardSyncProfileDirty, getSyncDirtyToken } from './sync-dirty-state.js';
+import { getProfileSyncBlockReason } from './profile-sync-policy.js';
 
 export { cleanStorage } from './sync-storage-cleanup.js';
 export { onChatSaved, onDataSaved, onProfileSaved } from './sync-save-hooks.js';
@@ -58,7 +59,7 @@ export function configureSyncActions({
   }
   if (typeof getProfiles === 'function') _getProfiles = getProfiles;
   if (typeof createDefaultProfileData === 'function') _createDefaultProfileData = createDefaultProfileData;
-  configureSyncSaveHooks({ pushProfile, isSyncEnabled, isEvoluReady, isSyncing });
+  configureSyncSaveHooks({ pushProfile, isSyncEnabled, isEvoluReady, isSyncing, getProfiles });
 }
 
 export function bindSyncActionEvents() {
@@ -130,6 +131,15 @@ export async function pushAllProfiles(options = {}) {
 async function pushSelectedProfiles(profiles, options = {}) {
   const summary = { total: profiles.length, succeeded: 0, failed: 0, skipped: 0 };
   for (const p of profiles) {
+    const blockReason = getProfileSyncBlockReason(p?.id, profiles);
+    if (blockReason && !options.allowTombstoneResurrection) {
+      // A quarantined remote delete still needs the local dirty generation if
+      // the user chooses Restore. Demo and committed delete-intent profiles
+      // can never be pushed, so their markers remain safe to discard.
+      if (blockReason !== 'pending-delete') discardSyncProfileDirty(p?.id);
+      summary.skipped++;
+      continue;
+    }
     try {
       let dataJson;
       if (p.id === state.currentProfile) {
@@ -142,7 +152,8 @@ async function pushSelectedProfiles(profiles, options = {}) {
         continue;
       }
       const result = await _pushProfile(p.id, dataJson, options);
-      if (result?.ok === true) summary.succeeded++;
+      if (result?.skipped) summary.skipped++;
+      else if (result?.ok === true) summary.succeeded++;
       else summary.failed++;
     } catch (e) {
       summary.failed++;
@@ -181,7 +192,14 @@ export async function pushProfilesById(profileIds, options = {}) {
 
 /** @param {any} [options] */
 export async function pushDirtyProfiles(options = {}) {
-  const dirtyProfiles = _getProfiles().filter(profile => getSyncDirtyToken(profile?.id));
+  const profiles = _getProfiles();
+  const dirtyProfiles = profiles.filter(profile => {
+    if (!getSyncDirtyToken(profile?.id)) return false;
+    const blockReason = getProfileSyncBlockReason(profile?.id, profiles);
+    if (!blockReason) return true;
+    if (blockReason !== 'pending-delete') discardSyncProfileDirty(profile?.id);
+    return false;
+  });
   return pushSelectedProfiles(dirtyProfiles, options);
 }
 
@@ -190,6 +208,10 @@ async function flushDirtyProfilesForRelayCompaction(profiles) {
   for (const profile of profiles) {
     const profileId = profile?.id;
     if (!profileId) continue;
+    if (getProfileSyncBlockReason(profileId, profiles)) {
+      discardSyncProfileDirty(profileId);
+      continue;
+    }
     // Token-safe clearing in pushProfile leaves a newer generation dirty if
     // another tab saves while this push commits. Retry a bounded number of
     // generations and fail closed rather than compacting over live edits.
@@ -230,9 +252,10 @@ export async function prepareRelayCompaction() {
 
 export async function rebuildOwnerRelayState() {
   await _resetLocalSyncHistoryForRelayRebuild();
-  const profiles = _getProfiles();
+  const allProfiles = _getProfiles();
+  const profiles = allProfiles.filter(profile => !getProfileSyncBlockReason(profile?.id, allProfiles));
   for (const profile of profiles) prepareProfileForRelayRebuild(profile?.id);
-  const summary = await pushAllProfiles({ force: true });
+  const summary = await pushSelectedProfiles(profiles, { force: true });
   if (summary.failed > 0 || summary.succeeded === 0) {
     throw new Error(`Relay rebuild incomplete (${summary.succeeded}/${summary.total} profiles sent)`);
   }

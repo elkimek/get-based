@@ -95,6 +95,8 @@ test('dashboard widgets browser coverage exercises registry persistence and visi
         && femaleFixedIds.includes('cycle')
         && maleFixedIds.includes('focus')
         && maleFixedIds.includes('wearables')
+        && maleFixedIds.includes('nutrition')
+        && maleFixedIds.includes('nutrition-fuel-mix')
         && maleFixedIds.includes('light-live-session');
 
       const defaultPrefs = registry.getDashboardWidgetPrefs();
@@ -106,6 +108,8 @@ test('dashboard widgets browser coverage exercises registry persistence and visi
         && defaultPrefs.hidden.includes('insights')
         && defaultPrefs.hidden.includes('genome')
         && defaultPrefs.hidden.includes('light-live-session')
+        && defaultPrefs.hidden.includes('nutrition-fuel-mix')
+        && !defaultPrefs.hidden.includes('nutrition')
         && !defaultPrefs.hidden.includes('focus')
         && !defaultPrefs.hidden.includes('biology-score-biologicalCoherence');
 

@@ -18,6 +18,10 @@ test('changelog modal opens, closes, and marks the current version as seen', asy
   await expect(overlay).toHaveClass(SHOW_CLASS_TOKEN);
   await expect(modal.locator('.modal-close')).toHaveCount(1);
   await expect(modal).toContainText("What's New");
+  await expect(modal).toContainText('Meals & Nutrition arrives');
+  await expect(modal).toContainText('Log, review, and reuse meals.');
+  await expect(modal).toContainText('Keep control of meal photos.');
+  await expect(modal).toContainText('Unsloth Studio is now a first-class Local AI provider.');
   await expect(modal).toContainText('Safer sync and complete Agent Access');
   await expect(modal).toContainText('Your genome and other profile data are better protected.');
 
