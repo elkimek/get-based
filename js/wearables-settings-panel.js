@@ -661,12 +661,7 @@ async function handleWearableConnect(adapterId) {
       if (!consented) return;
     } else if (adapterId === 'whoop') {
       const { WHOOP_CONNECT_DISCLOSURE } = await import('./wearables-whoop-storage.js');
-      const consented = await confirmWearableSettingsAction(WHOOP_CONNECT_DISCLOSURE, {
-        confirmLabel: 'Continue to WHOOP',
-        tone: 'primary',
-        ariaLabel: 'WHOOP data access consent',
-      });
-      if (!consented) return;
+      if (!await confirmWearableSettingsAction(WHOOP_CONNECT_DISCLOSURE, { confirmLabel: 'Continue to WHOOP', tone: 'primary', ariaLabel: 'WHOOP data access consent' })) return;
     } else if (requiresHostedWearableRelayConsent(adapterId)) {
       const consented = await requestHostedWearableRelayConsent(initiatingProfileId, adapterId, adapter.displayName);
       if (!consented) return;
