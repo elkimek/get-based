@@ -644,7 +644,7 @@ test('Debug mode compares meal models against local reference data and can use t
   await expect(page.getByRole('button', { name: 'Open full-screen comparison' })).toBeVisible();
   await expect(page.locator('.nutrition-comparison-reference-banner')).toContainText('Known values active.');
   await expect(page.locator('#nutrition-comparison-progress')).toContainText('Comparison ready');
-  expect([...requestedModels].sort()).toEqual(['openai/gpt-5.6-sol', 'anthropic/claude-opus-5'].sort());
+  await expect.poll(() => [...requestedModels].sort()).toEqual(['openai/gpt-5.6-sol', 'anthropic/claude-opus-5'].sort());
   expect(peakConcurrentRequests).toBeGreaterThanOrEqual(2);
 
   const detailedComparison = page.locator('.nutrition-comparison-card').first().locator('.nutrition-comparison-detailed');
@@ -717,7 +717,7 @@ test('Debug mode compares meal models against local reference data and can use t
   const failedGemini = page.locator('.nutrition-comparison-card.is-error').filter({ hasText: 'Vision Gemini 3.7' });
   await expect(failedGemini).toContainText('Rate limited. Please wait a moment and try again.');
   await expect(failedGemini.getByRole('button', { name: 'Retry this model' })).toBeVisible();
-  expect([...requestedModels].sort()).toEqual([
+  await expect.poll(() => [...requestedModels].sort()).toEqual([
     'openai/gpt-5.6-sol', 'anthropic/claude-opus-5',
     'google/gemini-3.7-flash', 'moonshotai/kimi-k3',
   ].sort());
@@ -731,7 +731,7 @@ test('Debug mode compares meal models against local reference data and can use t
   await expect(page.locator('#nutrition-run-comparison')).toHaveText('Run replacement model');
   await page.locator('#nutrition-run-comparison').click();
   await expect(page.locator('.nutrition-comparison-card')).toHaveCount(3);
-  expect([...requestedModels].sort()).toEqual([
+  await expect.poll(() => [...requestedModels].sort()).toEqual([
     'openai/gpt-5.6-sol', 'anthropic/claude-opus-5',
     'google/gemini-3.7-flash', 'moonshotai/kimi-k3', 'anthropic/claude-opus-5',
   ].sort());
@@ -741,7 +741,7 @@ test('Debug mode compares meal models against local reference data and can use t
   await expect(page.locator('.nutrition-comparison-card')).toHaveCount(4);
   await expect(page.locator('#nutrition-comparison-progress')).toContainText('Comparison ready');
   await expect(page.locator('#nutrition-comparison-results')).toHaveAttribute('data-result-count', '4');
-  expect([...requestedModels].sort()).toEqual([
+  await expect.poll(() => [...requestedModels].sort()).toEqual([
     'openai/gpt-5.6-sol', 'anthropic/claude-opus-5',
     'google/gemini-3.7-flash', 'moonshotai/kimi-k3',
     'anthropic/claude-opus-5', 'google/gemini-3.7-flash',
@@ -1921,6 +1921,7 @@ test('quick drink logging stores total beverage volume and plain water separatel
 });
 
 test('AI Settings can route meal photos to Opus without changing the Grok chat model', async ({ page }) => {
+  await page.route('https://api.venice.ai/api/v1/models', route => route.abort());
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(async () => {
     const api = await import('/js/api.js');
