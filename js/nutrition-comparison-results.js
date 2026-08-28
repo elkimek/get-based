@@ -96,7 +96,9 @@ function renderRemoveComparisonButton(run) {
   return `<button type="button" class="nutrition-text-btn nutrition-comparison-remove-btn" aria-label="Remove ${escapeAttr(run.modelLabel)} result" ${actionAttrs('remove-comparison-run', { index: run.originalIndex })}>Remove</button>`;
 }
 
-export function renderNutritionComparisonResults({ runs = [], reference = /** @type {any} */ ({}), referenceRun = null, referenceRunIndex = null, isRestored = false } = {}) {
+/** @param {any} [options] */
+export function renderNutritionComparisonResults(options = {}) {
+  const { runs = [], reference = {}, referenceRun = null, referenceRunIndex = null, isRestored = false } = options;
   const area = document.getElementById('nutrition-comparison-results');
   if (!area) return;
   const presentationButton = /** @type {HTMLButtonElement | null} */ (document.querySelector('[data-nutrition-action="toggle-comparison-presentation"]'));
