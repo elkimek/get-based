@@ -4,7 +4,7 @@
     "startupJavaScriptFiles": 2,
     "startupDecodedBytes": 1170000,
     "outputJavaScriptFiles": 158,
-    "outputDecodedBytes": 4925000
+    "outputDecodedBytes": 4975000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -32,8 +32,9 @@
     "mealsNutritionFoodCompositionRuntimeDataBytes": 1066347,
     "mealsNutritionHistoryOutputDecodedBytes": 4907565,
     "mealsNutritionHydrationSerializationOutputDecodedBytes": 4908141,
-    "mealsNutritionSyncRebaseOutputDecodedBytes": 4908949
+    "mealsNutritionSyncRebaseOutputDecodedBytes": 4908949,
+    "nutritionReportReadinessOutputDecodedBytes": 4955086
   },
   "referenceCommit": "807732a8",
-  "measuredAt": "2026-08-26"
+  "measuredAt": "2026-08-28"
 }

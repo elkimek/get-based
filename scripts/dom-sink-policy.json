@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 672,
-  "sinkCount": 529,
+  "scannedFiles": 676,
+  "sinkCount": 534,
   "files": {
     "js/backup.js": {
       "count": 1,
@@ -583,9 +583,23 @@
         "innerHTML": 1
       }
     },
+    "js/nutrition-benchmark-workspace.js": {
+      "count": 3,
+      "digest": "eab777e84c48e3b72c0896d1be0e4ab5ec55bb15ecf0ed5a00fa3f3f4df48e89",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/nutrition-comparison-results.js": {
+      "count": 2,
+      "digest": "1c97a38d1a29fdfcfdb4b1788d4069eb286490f2798da74194eb647f3651cdf0",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
     "js/nutrition-comparison-ui.js": {
       "count": 6,
-      "digest": "59d4e2812f99b24197e1b84d0cbfe9e16be93abf979ce22361dfc53a70d880fa",
+      "digest": "2227cd51151f6a8bfde40c6f482310ea9708ddb48d781e9be5744fb1c84840b2",
       "kinds": {
         "innerHTML": 5,
         "outerHTML": 1
@@ -614,7 +628,7 @@
     },
     "js/nutrition-review-ui.js": {
       "count": 10,
-      "digest": "75a8d8de375965d735a423a223507c61503fb78a6b30ee01319237569c683126",
+      "digest": "682d7a32954d08c122db26cb6563744aec4b29d31a7625003fb69940ac3336e1",
       "kinds": {
         "innerHTML": 10
       }
