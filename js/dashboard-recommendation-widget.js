@@ -162,9 +162,9 @@ export function createDashboardRecommendationWidget({
     const readable = String(status || '').replace(/_/g, ' ');
     if (alert?.code) {
       const code = String(alert.code).replace(/_/g, ' ');
-      return `Shown because ${name} is ${readable}; the current trend signal is ${code}.`;
+      return `${name} is ${readable}; current trend signal is ${code}.`;
     }
-    return `Shown because ${name} is ${readable} versus its active reference range.`;
+    return `${name} is ${readable} versus the active reference range.`;
   }
 
   function getGlobalRecommendationCandidates(ctx, catalog, { includeDismissed = false } = {}) {
