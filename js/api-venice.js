@@ -158,8 +158,19 @@ export async function callVeniceAPI(opts) {
   }
 
   if (!isE2EEModel(modelId)) {
-    const extraBody = opts.webSearch ? { venice_parameters: { enable_web_search: 'on' } } : {};
-    return callOpenAICompatibleAPI('https://api.venice.ai/api/v1/chat/completions', key, modelId, 'Venice', opts, {}, { extraBody });
+    let requestOpts = opts;
+    const extraBody = {
+      ...(opts.webSearch ? { venice_parameters: { enable_web_search: 'on' } } : {}),
+      // Venice recommends its provider-level switch over effort "none".
+      // Models with built-in reasoning can then use their native behavior
+      // without rejecting an unsupported effort value.
+      ...(opts.reasoningEffort === 'none' ? { reasoning: { enabled: false } } : {}),
+    };
+    if (opts.reasoningEffort === 'none') {
+      requestOpts = { ...opts };
+      delete requestOpts.reasoningEffort;
+    }
+    return callOpenAICompatibleAPI('https://api.venice.ai/api/v1/chat/completions', key, modelId, 'Venice', requestOpts, {}, { extraBody });
   }
 
   if (!crypto?.subtle) throw new Error('E2EE requires a secure context (HTTPS). Cannot encrypt on this page.');

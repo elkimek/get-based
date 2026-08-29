@@ -4,6 +4,7 @@
 import {
   getOpenRouterKey,
   getOpenRouterModel,
+  readStoredArray,
 } from './api-provider-storage.js';
 import { getApiLocationOriginRuntime } from './api-runtime.js';
 import { callOpenAICompatibleAPI } from './api-openai-compatible.js';
@@ -36,22 +37,43 @@ export async function getOpenRouterBalance() {
   }
 }
 
+function openRouterMandatoryReasoningEffort(modelId) {
+  const model = readStoredArray('labcharts-openrouter-models')
+    .find(candidate => candidate?.id === modelId);
+  if (model?.reasoning?.mandatory !== true) return null;
+  const supported = Array.isArray(model.reasoning.supported_efforts)
+    ? model.reasoning.supported_efforts
+    : [];
+  const effort = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max']
+    .find(candidate => supported.includes(candidate));
+  return { effort };
+}
+
 export async function callOpenRouterAPI(opts) {
   const key = getOpenRouterKey();
   const modelId = String(opts?.modelOverride || getOpenRouterModel());
+  const mandatoryReasoning = opts?.reasoningEffort === 'none'
+    ? openRouterMandatoryReasoningEffort(modelId)
+    : null;
+  let requestOpts = opts;
+  if (mandatoryReasoning) {
+    requestOpts = { ...opts };
+    if (mandatoryReasoning.effort) requestOpts.reasoningEffort = mandatoryReasoning.effort;
+    else delete requestOpts.reasoningEffort;
+  }
   if (isAppExtensionAICredentialOwned('openrouter')) {
     const authorized = await authorizeAppExtensionAIRequest({
       provider: 'openrouter',
       model: modelId,
-      webSearch: opts.webSearch === true,
-      request: opts,
+      webSearch: requestOpts.webSearch === true,
+      request: requestOpts,
     });
     if (!authorized) throw new Error('This hosted AI request is not authorized. No data was sent.');
   }
   const extensionOptions = getAppExtensionAIRequestOptions({
     provider: 'openrouter',
     model: modelId,
-    request: opts,
+    request: requestOpts,
   });
   const extensionProviderRouting = extensionOptions.provider
     && typeof extensionOptions.provider === 'object'
@@ -62,17 +84,17 @@ export async function callOpenRouterAPI(opts) {
     ...extensionOptions,
     // OpenRouter aggregates parameter support across a model's providers.
     // Structured requests must only use endpoints that can honor the schema.
-    ...(opts.jsonMode ? {
+    ...(requestOpts.jsonMode ? {
       provider: { ...extensionProviderRouting, require_parameters: true },
     } : {}),
-    ...(opts.webSearch ? { plugins: [{ id: 'web' }] } : {}),
+    ...(requestOpts.webSearch ? { plugins: [{ id: 'web' }] } : {}),
   };
   try {
     const extensionCall = await callAppExtensionAIProvider({
       provider: 'openrouter',
       credential: key,
       model: modelId,
-      request: opts,
+      request: requestOpts,
     });
     if (extensionCall.handled) return extensionCall.result;
     if (!key) throw new Error('No OpenRouter API key configured. Add your key in Settings.');
@@ -81,7 +103,7 @@ export async function callOpenRouterAPI(opts) {
       key,
       modelId,
       'OpenRouter',
-      opts,
+      requestOpts,
       { 'HTTP-Referer': getApiLocationOriginRuntime(), 'X-Title': 'getbased' },
       { extraBody }
     );

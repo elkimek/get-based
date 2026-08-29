@@ -99,8 +99,9 @@ function structuredOutputRejected(res, errorText) {
     && /response[_ ]format|json[_ ]schema|structured output|output_config(?:\.format)?\.schema|schema[^\n]{0,120}(?:not supported|unsupported|invalid)|for ['"]?anyof|any[_ ]?of[^\n]{0,160}(?:alongside|only field)|(?:alongside|only field)[^\n]{0,160}any[_ ]?of/i.test(errorText);
 }
 
-function localAIReasoningControlRejected(res, errorText) {
-  return (res.status === 400 || res.status === 422) && /reasoning[_ .-]?(?:effort|control)|invalid.*reasoning/i.test(errorText);
+function reasoningControlRejected(res, errorText) {
+  return (res.status === 400 || res.status === 422)
+    && /reasoning[_ .-]?(?:effort|control)|invalid.*reasoning|reasoning[^\n]{0,120}(?:mandatory|required|cannot be disabled|can't be disabled|must (?:be|remain) enabled)/i.test(errorText);
 }
 
 function temperatureControlRejected(res, errorText) {
@@ -168,8 +169,9 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
       res = await fetchRequest(requestBody);
       if (res.ok) break;
       const errorText = await res.clone().text();
-      if (requestBody.reasoning_effort && localAIReasoningControlRejected(res, errorText)) {
+      if ((requestBody.reasoning_effort || requestBody.reasoning) && reasoningControlRejected(res, errorText)) {
         delete requestBody.reasoning_effort;
+        delete requestBody.reasoning;
         reasoningControlFallback = true;
         continue;
       }
