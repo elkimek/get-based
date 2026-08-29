@@ -268,10 +268,10 @@ export function createLensPageHandlers(deps) {
     let html = renderLensHeader('Insight', 'Dedicated synthesis workspace: AI focus, trend interpretation, context, and next-step surfaces.',
       `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lensPageActionAttrs('open-ai-chat')}>Open AI chat</button>
        <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('open-emf-assessment')}>EMF assessment</button>
-       <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('open-recommendations')}>Recommendations</button>`);
+       <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('open-recommendations')}>Tips</button>`);
     html += renderLensPageWidgets('insight', [
       { id: 'focus', title: 'Current Focus', description: 'One synthesized read on the latest data', body: renderFocusCard(), size: 'full', opts: { source: 'Insight' } },
-      { id: 'recommendations', title: 'Recommended Next Steps', description: 'Top data-linked actions across lenses', body: renderDashboardRecommendationsWidget(ctx), size: 'half', opts: { source: 'Insight' } },
+      { id: 'recommendations', title: 'Tips to Explore', description: 'General-information ideas connected to your data', body: renderDashboardRecommendationsWidget(ctx), size: 'half', opts: { source: 'Insight' } },
       { id: 'insights', title: 'AI Insights', description: 'Top trend and range reads', body: renderDashboardInsightsListWidget(ctx), size: 'half', opts: { source: 'Insight' } },
       { id: 'profile-context', title: 'Profile Context', description: 'Goals, history, lifestyle, and context cards', body: renderProfileContextCards(), size: 'full', opts: { source: 'Insight' } },
     ]);
@@ -296,18 +296,18 @@ export function createLensPageHandlers(deps) {
     }
     const widgets = [];
     if (top.length) {
-      widgets.push({ id: 'recommendations-top', title: 'Top Recommendations', description: 'Highest-priority data-linked next steps', body: `<div class="rec-next-list">${top.map(c => renderRecommendationCard(c)).join('')}</div>`, size: 'full', opts: { source: 'Insight', dashboardId: 'recommendations' } });
+      widgets.push({ id: 'recommendations-top', title: 'Tips to Explore', description: 'Ideas selected from the context currently available', body: `<div class="rec-next-list">${top.map(c => renderRecommendationCard(c)).join('')}</div>`, size: 'full', opts: { source: 'Insight', dashboardId: 'recommendations' } });
     }
     for (const source of ['Labs', 'Body', 'Light', 'Genome', 'Insight']) {
       const rows = (bySource.get(source) || []).filter(c => !top.includes(c));
       if (!rows.length) continue;
-      widgets.push({ id: `recommendations-${source.toLowerCase()}`, title: `${source}-Driven`, description: `Recommendations originating from ${source}`, body: `<div class="rec-next-list">${rows.map(c => renderRecommendationCard(c)).join('')}</div>`, size: 'full', opts: { source: 'Recommendations', dashboardId: '' } });
+      widgets.push({ id: `recommendations-${source.toLowerCase()}`, title: `${source} Context`, description: `General-information tips surfaced from ${source}`, body: `<div class="rec-next-list">${rows.map(c => renderRecommendationCard(c)).join('')}</div>`, size: 'full', opts: { source: 'Tips', dashboardId: '' } });
     }
     if (saved.length) {
-      widgets.push({ id: 'recommendations-bookmarks', title: 'Bookmarks', description: 'Recommendations bookmarked for later', body: `<div class="rec-next-list">${saved.map(c => renderRecommendationCard(c)).join('')}</div>`, size: 'full', opts: { source: 'Recommendations', dashboardId: '' } });
+      widgets.push({ id: 'recommendations-bookmarks', title: 'Bookmarks', description: 'Tips bookmarked for later review', body: `<div class="rec-next-list">${saved.map(c => renderRecommendationCard(c)).join('')}</div>`, size: 'full', opts: { source: 'Tips', dashboardId: '' } });
     }
     if (dismissed.length) {
-      widgets.push({ id: 'recommendations-dismissed', title: 'Dismissed', description: 'Currently dismissed recommendations from active data', body: `<div class="rec-next-list">${dismissed.map(c => renderRecommendationCard(c)).join('')}</div>`, size: 'full', opts: { source: 'Recommendations', dashboardId: '' } });
+      widgets.push({ id: 'recommendations-dismissed', title: 'Hidden', description: 'Tips you have hidden from the active view', body: `<div class="rec-next-list">${dismissed.map(c => renderRecommendationCard(c)).join('')}</div>`, size: 'full', opts: { source: 'Tips', dashboardId: '' } });
     }
     return renderLensPageWidgets('recommendations', widgets);
   }
@@ -325,9 +325,9 @@ export function createLensPageHandlers(deps) {
     const actions = `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lensPageActionAttrs(dashboardAction, { id: 'recommendations' })}>${dashboardLabel}</button>
       <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('open-privacy-settings')}>Disclosure & settings</button>`;
     let html = `<div id="recommendations-page">`;
-    html += renderLensHeader('Recommendations', 'A global action plan built from Labs, Body, Light, Genome, and Insight signals. Product links stay behind the existing disclosure.', actions);
+    html += renderLensHeader('Tips', 'Optional general-information ideas connected to the signals you choose to track. These are not instructions, a care plan, or medical advice. Product links stay behind the disclosure.', actions);
     if (!isRecommendationsProductRecsEnabled()) {
-      html += renderLensWidget('recommendations-disabled', 'Recommendations are off', 'Enable Tips & Recommendations to build this action surface', `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lensPageActionAttrs('open-privacy-settings')}>Open settings</button>`, 'full', { source: 'Recommendations', dashboardId: '' });
+      html += renderLensWidget('recommendations-disabled', 'Tips are off', 'Enable Tips to show optional general-information ideas', `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lensPageActionAttrs('open-privacy-settings')}>Open settings</button>`, 'full', { source: 'Tips', dashboardId: '' });
       html += `</div>`;
       main.innerHTML = html;
       return;
@@ -335,7 +335,7 @@ export function createLensPageHandlers(deps) {
     const catalog = getCachedRecommendationsCatalog();
     if (!catalog) {
       refreshRecommendationsWhenCatalogReady();
-      html += `<div class="dashboard-widget-empty">Loading recommendation catalog...</div></div>`;
+      html += `<div class="dashboard-widget-empty">Loading tips...</div></div>`;
       main.innerHTML = html;
       return;
     }

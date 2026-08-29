@@ -34,7 +34,7 @@ You can use it with no account. Most data lives in your browser by default. Heal
 | **Genome** | Raw DNA import, APOE, mtDNA, curated SNP context, and genetic factors that influence interpretation. |
 | **Body** | Wearables, manual biometrics, recovery, sleep, body composition, supplements, medications, cycle tracking. |
 | **Light** | Sun exposure, UV context, screens/devices, indoor light, room measurements, EMF, and circadian habits. |
-| **Insight** | AI chat, Current Focus, Biology Scores, recommendations, Knowledge Base, interpretive lenses, and synthesis. |
+| **Insight** | AI chat, Current Focus, Biology Scores, general-information tips, Knowledge Base, interpretive lenses, and synthesis. |
 
 ## Privacy model
 

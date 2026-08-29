@@ -716,7 +716,7 @@ function renderDetailModal(id, opts = {}) {
   // Async-fill recommendation section (unified: genetics + actionable tips)
   if (shouldRenderRecommendations) {
     const _markerStatus = latestStatus === 'unrated' ? 'missing' : latestStatus;
-    renderRecommendationSectionRuntime(dotKey, { label: 'What can help', maxProducts: 3, inlineSNPs: _inlineSNPs, markerStatus: _markerStatus })
+    renderRecommendationSectionRuntime(dotKey, { label: 'Ideas to explore', maxProducts: 3, inlineSNPs: _inlineSNPs, markerStatus: _markerStatus })
       .then(h => {
         const el = document.getElementById('rec-modal-' + id);
         if (h && el) {

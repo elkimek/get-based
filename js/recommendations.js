@@ -235,12 +235,12 @@ export function renderCardTipsModal(cardKey) {
     const label = escapeHTML(slot.label || sk.split('.').pop());
     let tips = '';
     if (slot.freeActions?.length) {
-      tips += `<div class="ctx-tip-tier"><div class="ctx-tip-tier-label">NATURE <span class="rec-tier-hint">best option</span></div>`;
+      tips += `<div class="ctx-tip-tier"><div class="ctx-tip-tier-label">LIFESTYLE IDEAS <span class="rec-tier-hint">general information</span></div>`;
       tips += slot.freeActions.map(a => `<div class="ctx-tip-item ctx-tip-free">${escapeHTML(a)}</div>`).join('');
       tips += `</div>`;
     }
     if (slot.forms?.length) {
-      tips += `<div class="ctx-tip-tier"><div class="ctx-tip-tier-label">TOOLS & SUPPLEMENTS <span class="rec-tier-hint">if needed</span></div>`;
+      tips += `<div class="ctx-tip-tier"><div class="ctx-tip-tier-label">TOOLS & SUPPLEMENTS <span class="rec-tier-hint">options to review</span></div>`;
       tips += `<div class="ctx-tip-item ctx-tip-form">${slot.forms.map(f => escapeHTML(f)).join(' · ')}</div>`;
       tips += `</div>`;
     }
@@ -251,7 +251,7 @@ export function renderCardTipsModal(cardKey) {
   return `<button type="button" class="modal-close" ${recActionAttrs('close-modal')} aria-label="Close">\u00D7</button>
     <div class="ctx-tips-modal-header">${cardInfo.emoji} ${escapeHTML(cardInfo.label)} \u2014 Tips</div>
     <div class="ctx-tips-modal-body">${items}</div>
-    <div class="rec-mini-disclaimer" style="margin-top:12px">For informational purposes only. Not medical advice. Consult your healthcare provider before starting any supplement.</div>`;
+    <div class="rec-mini-disclaimer" style="margin-top:12px">General information only — not individualized medical advice or a care plan. Do not start, stop, or change medication or supplements based only on these tips. Discuss relevant options with a qualified healthcare professional.</div>`;
 }
 
 // Quiet, contextual EMF assessment nudge for the Environment card.
@@ -387,38 +387,38 @@ function _renderRecSection(slotKey, opts = {}) {
     inner += `</div>`;
   }
 
-  // Tier 1: Nature — free, best option (full width, listed)
+  // Tier 1: lifestyle ideas (full width, listed)
   if (slot?.freeActions?.length) {
-    inner += `<div class="rec-section-label">NATURE <span class="rec-tier-hint">best option</span></div>`;
+    inner += `<div class="rec-section-label">LIFESTYLE IDEAS <span class="rec-tier-hint">general information</span></div>`;
     for (const action of slot.freeActions) {
       inner += `<div class="rec-item-free">${escapeHTML(action)}</div>`;
     }
   }
 
-  // Tier 2: Whole food — inline
+  // Tier 2: food examples — inline
   if (foodProducts.length) {
-    inner += `<div class="rec-section-label">WHOLE FOOD <span class="rec-tier-hint">from nature</span></div>`;
+    inner += `<div class="rec-section-label">FOOD EXAMPLES <span class="rec-tier-hint">options to review</span></div>`;
     for (const fp of foodProducts) inner += buildProductRow(fp, region, slotKey);
   } else if (slot?.foodForms?.length) {
-    inner += `<div class="rec-section-label">WHOLE FOOD <span class="rec-tier-hint">from nature</span></div>`;
+    inner += `<div class="rec-section-label">FOOD EXAMPLES <span class="rec-tier-hint">options to review</span></div>`;
     inner += `<div class="rec-item-food">${slot.foodForms.map(f => escapeHTML(f)).join(' · ')}</div>`;
   }
 
   // Tier 3: Tools
   if (toolProducts.length) {
-    inner += `<div class="rec-section-label">TOOLS <span class="rec-tier-hint">supports nature</span></div>`;
+    inner += `<div class="rec-section-label">TOOLS <span class="rec-tier-hint">product options</span></div>`;
     for (const tp of toolProducts) inner += buildProductRow(tp, region, slotKey);
   } else if (slot?.productForms?.length) {
-    inner += `<div class="rec-section-label">TOOLS <span class="rec-tier-hint">supports nature</span></div>`;
+    inner += `<div class="rec-section-label">TOOLS <span class="rec-tier-hint">product options</span></div>`;
     inner += `<div class="rec-item-form">${slot.productForms.map(t => escapeHTML(t)).join(' · ')}</div>`;
   }
 
-  // Tier 4: Supplements — inline
+  // Tier 4: supplements — inline
   if (suppProducts.length) {
-    inner += `<div class="rec-section-label">SUPPLEMENTS <span class="rec-tier-hint">last resort</span></div>`;
+    inner += `<div class="rec-section-label">SUPPLEMENTS <span class="rec-tier-hint">review safety first</span></div>`;
     for (const sp of suppProducts) inner += buildProductRow(sp, region, slotKey);
   } else if (slot?.forms?.length) {
-    inner += `<div class="rec-section-label">SUPPLEMENTS <span class="rec-tier-hint">last resort</span></div>`;
+    inner += `<div class="rec-section-label">SUPPLEMENTS <span class="rec-tier-hint">review safety first</span></div>`;
     const formRefs = slot.formRefs || {};
     inner += `<div class="rec-item-form">${slot.forms.map(f => {
       const ref = formRefs[f];
@@ -444,7 +444,7 @@ function _renderRecSection(slotKey, opts = {}) {
   const issueTitle = encodeURIComponent(`[Rec] ${slot?.label || slotKey}: better study / correction`);
   const issueBody = encodeURIComponent(`**Slot:** \`${slotKey}\`\n**Current forms:** ${(slot?.forms || []).join(', ')}\n\n**What's wrong or what's better:**\n\n`);
   const suggestLink = `<div class="rec-suggest"><a href="https://github.com/elkimek/get-based/issues/new?title=${issueTitle}&body=${issueBody}&labels=recommendations" target="_blank" rel="noopener">Suggest a better study</a></div>`;
-  const statusNote = isNormal ? `<div class="rec-in-range-note">Your value is in range. These tips are for general reference.</div>` : '';
+  const statusNote = isNormal ? `<div class="rec-in-range-note">Your value is in range. These tips are general information only.</div>` : '';
   // Coupon line: render when any rendered product references a vendor with a
   // resolvable coupon for the current region. Visible to supplement/lifestyle
   // recs the same way EMF gets it — every vendor that ships a coupon should

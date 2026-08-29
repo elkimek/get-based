@@ -136,7 +136,7 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
       productRecsEnabled = false;
       const disabledHtml = widget.renderDashboardRecommendationsWidget(activeCtx);
       outcomes.disabledStateLinksToPrivacySettings =
-        disabledHtml.includes('Recommendations are off')
+        disabledHtml.includes('Tips are off')
         && disabledHtml.includes('data-dashboard-rec-action="open-privacy-settings"');
 
       productRecsEnabled = true;
@@ -150,7 +150,7 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
       const loadingHtml = widget.renderDashboardRecommendationsWidget(activeCtx);
       widget.refreshRecommendationsWhenCatalogReady();
       outcomes.loadingStateStartsOnlyOneCatalogRequest =
-        loadingHtml.includes('Loading recommendations')
+        loadingHtml.includes('Loading tips')
         && loadCatalogCalls === 1;
       resolveCatalog(catalog);
       await Promise.resolve();
@@ -171,7 +171,7 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
         && ids.includes(dnaCandidateId)
         && lightCandidate?.label === 'morning Light'
         && lightCandidate?.primaryAction === 'Get outdoor light before 10am'
-        && labCandidate?.reason.includes('trend signal: past high')
+        && labCandidate?.reason.includes('current trend signal is past high')
         && state.markerRegistry.lipids_ldl === marker;
 
       widget.setRecommendationState('saved', labCandidateId, true);
@@ -252,7 +252,7 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
       const emptyHtml = widget.renderDashboardRecommendationsWidget(activeCtx);
       const customEmptyHtml = widget.renderRecommendationsEmpty('Nothing <ready>');
       outcomes.emptyStatesRenderSafeFallbackActions =
-        emptyHtml.includes('No data-linked recommendations yet.')
+        emptyHtml.includes('No data-linked tips yet.')
         && emptyHtml.includes('data-dashboard-rec-route="labs"')
         && customEmptyHtml.includes('Nothing &lt;ready&gt;')
         && customEmptyHtml.includes('Import labs');

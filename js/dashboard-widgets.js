@@ -56,7 +56,7 @@ export function createDashboardWidgetRegistry(renderers, opts = {}) {
     { id: 'bio-age', source: 'Labs', title: 'Biological Age', description: 'Age-derived biological readout', size: 'half', render: renderers.renderDashboardBioAgeWidget },
     ...biologyScoreWidgets,
     { id: 'focus', source: 'Insight', title: 'Current Focus', description: 'One synthesized read on the latest data', size: 'half', render: () => renderers.renderFocusCard() },
-    { id: 'recommendations', source: 'Insight', title: 'Recommended Next Steps', description: 'Top data-linked actions across lenses', size: 'half', render: renderers.renderDashboardRecommendationsWidget },
+    { id: 'recommendations', source: 'Insight', title: 'Tips to Explore', description: 'General-information ideas connected to your data', size: 'half', render: renderers.renderDashboardRecommendationsWidget },
     { id: 'spotlight', source: 'Labs', title: 'Current Priority', description: 'Highest-priority marker with the reason it was selected', size: 'half', render: renderers.renderDashboardSpotlightWidget },
     { id: 'wearables', source: 'Body', title: 'Biometrics Overview', description: 'User-selected body signal tiles', size: 'full', render: renderers.renderDashboardWearableTilesWidget },
     { id: 'nutrition', source: 'Body', title: 'Daily Nutrition', description: 'Seven-day intake coverage and nutrition guides', size: 'full', render: renderers.renderDashboardNutritionWidget },

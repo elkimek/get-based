@@ -458,13 +458,13 @@ const CHANGELOG = [
     ]
   },
   {
-    version: '1.8.0', date: '2026-05-18', title: 'Redesigned dashboard, guided onboarding, and recommendations',
+    version: '1.8.0', date: '2026-05-18', title: 'Redesigned dashboard, guided onboarding, and tips',
     items: [
-      '<b>A new dashboard built around what matters now.</b> The home screen is now a customizable overview instead of a long all-in-one page. Current Focus, Biological Age, Recommended Next Steps, Current Priority, Quick Markers, Biometrics Overview, Light Today, and Key Trends give you the short version first, with deeper work still one click away.',
-      '<b>Clearer navigation across the whole app.</b> getbased is now organized into focused spaces: Dashboard, Labs, Genome, Body, Light, Insight, and Recommendations, with Compare dates and Correlations kept as analysis tools. Desktop gets the full sidebar; mobile gets bottom tabs and a compact menu.',
+      '<b>A new dashboard built around what matters now.</b> The home screen is now a customizable overview instead of a long all-in-one page. Current Focus, Biological Age, Tips to Explore, Current Priority, Quick Markers, Biometrics Overview, Light Today, and Key Trends give you the short version first, with deeper work still one click away.',
+      '<b>Clearer navigation across the whole app.</b> getbased is now organized into focused spaces: Dashboard, Labs, Genome, Body, Light, Insight, and Tips, with Compare dates and Correlations kept as analysis tools. Desktop gets the full sidebar; mobile gets bottom tabs and a compact menu.',
       '<b>First visit is guided, not overwhelming.</b> Fresh profiles now start with a short empty-profile tour, then open guided chat. Chat is the main starting point for new users, while demo profiles and direct import stay available when you want to explore or add files yourself.',
       '<b>Two tours for two real situations.</b> New users get a tour designed for an empty app. Once a profile has data, the full app tour explains imports, lenses, dashboard widgets, display tweaks, settings, and AI chat.',
-      '<b>Recommendations have their own home.</b> The new Recommendations page turns Labs, Body, Light, Genome, and Insight signals into data-linked next steps. You can save useful items, dismiss ones that are not relevant, and keep product links behind the existing disclosure controls.',
+      '<b>Tips have their own home.</b> The Tips page surfaces general-information ideas connected to Labs, Body, Light, Genome, and Insight signals. You can bookmark useful items, hide ones that are not relevant, and keep product links behind the existing disclosure controls.',
       '<b>Better workspaces for every lens.</b> Labs owns biomarker charts and tables. Genome owns DNA, APOE, mtDNA, and SNP context. Body owns wearables, manual metrics, supplements, and cycle tracking. Light owns sun, devices, indoor light, and measurement tools. Insight owns Current Focus, AI insights, profile context, and synthesis.',
       '<b>Mobile and theme polish.</b> The redesigned app is easier to use on smaller screens, and browser chrome now follows the selected theme so Light, Dark, Synth Sunrise, Neuromancer, Glass, and Cypherpunk Terminal feel consistent on mobile.',
       '<b>Your data model stays the same.</b> Existing profiles, imports, notes, wearables, DNA, context cards, sync, backups, and encryption continue to work. The redesign changes how the app is organized and presented, not who owns your data.',
@@ -625,11 +625,11 @@ const CHANGELOG = [
     ]
   },
   {
-    version: '1.3.20', date: '2026-04-27', title: 'Region-aware recommendations + clearer privacy',
+    version: '1.3.20', date: '2026-04-27', title: 'Region-aware product tips + clearer privacy',
     items: [
-      '<b>Set your country in the profile editor</b> and recommendations now show products and URLs available in your market — Czech users land on Czech storefronts, US users on .com sites, etc. Each rec section\'s footer reads "Showing for {country} · change" so you always know what\'s being filtered.',
+      '<b>Set your country in the profile editor</b> and product tips now show products and URLs available in your market — Czech users land on Czech storefronts, US users on .com sites, etc. Each tips section\'s footer reads "Showing for {country} · change" so you always know what\'s being filtered.',
       '<b>Privacy is now its own Settings tab.</b> The analytics opt-out is right there, with a cookieless transparency banner on first launch — no health records or chat content, and raw IP is not stored. The PDF/image/chat obfuscation pipeline (now labeled "AI Privacy Protection") is in the same place.',
-      '<b>EMF assessment</b> now also surfaces recommended meters (empty state) and mitigation products (after interpretation), tied to the issues actually flagged. Toggle Settings → Display → "Show product recommendations" off if you don\'t want them. Affiliate disclosure is built in; brands cannot pay for placement.',
+      '<b>EMF assessment</b> now also surfaces meter and mitigation-product options tied to the issues actually flagged. Toggle Settings → Display → "Tips" off if you don\'t want them. Affiliate disclosure is built in; brands cannot pay for placement.',
     ]
   },
   {
