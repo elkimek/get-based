@@ -195,8 +195,13 @@ console.log('=== Phase 3 A11y Tests ===\n');
   assert('document root defaults to dark browser controls outside light theme',
     /html\s*\{[^}]*background:\s*var\(--bg-primary\)[^}]*color-scheme:\s*dark/.test(cssSrc) &&
     /\[data-theme="light"\]\s*\{[^}]*color-scheme:\s*light/.test(cssSrc));
-  assert('footer drops the heart emoji',
-    !indexSrc.includes('Built with ❤️') && indexSrc.includes('Built by'));
+  assert('footer carries current company, founder, and documentation details',
+    indexSrc.includes('&copy; 2026 getbased s.r.o.')
+      && indexSrc.includes('Founded and built with &#10084;&#65039; by')
+      && indexSrc.includes('href="https://docs.getbased.health"'));
+  assert('desktop footer clears the fixed sidebar and returns to full width below the sidebar breakpoint',
+    /\.app-footer \{[^}]*margin-left: 260px/.test(cssSrc)
+      && /@media \(max-width: 1024px\)[\s\S]*?\.app-footer \{ margin-left: 0; \}/.test(cssSrc));
   assert('header brand wordmark keeps theme gradient like footer',
     /\.brand-mark,[\s\S]*?\.header h1\.brand-mark[\s\S]*?background:\s*var\(--accent-gradient\)[\s\S]*?-webkit-text-fill-color:\s*transparent/.test(cssSrc));
   const themesSrc = read('/themes-extra.css');
