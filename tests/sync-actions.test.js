@@ -236,6 +236,28 @@ describe('sync action profile dependencies', () => {
     }
   });
 
+  it('waits and retries when a pull-side rebroadcast wins the manual-push race', async () => {
+    const pushProfile = vi.fn()
+      .mockResolvedValueOnce({ ok: false, skipped: true, reason: 'in-flight' })
+      .mockResolvedValueOnce({ ok: true });
+    configureSyncActions({
+      forcePull: async () => {},
+      pushProfile,
+      isSyncing: () => false,
+    });
+
+    try {
+      await expect(syncNow()).resolves.toEqual({ ok: true });
+      expect(pushProfile).toHaveBeenCalledTimes(2);
+    } finally {
+      configureSyncActions({
+        forcePull: async () => {},
+        pushProfile: async () => {},
+        isSyncing: () => false,
+      });
+    }
+  });
+
   it('flushes dirty local state before pulling, then publishes the merge', async () => {
     const previousProfile = state.currentProfile;
     const profileId = 'dirty-manual-sync';
@@ -380,7 +402,12 @@ describe('sync action profile dependencies', () => {
     const previousImportedData = state.importedData;
     const profileId = 'rebuild-profile';
     const pushProfile = vi.fn().mockResolvedValue({ ok: true });
-    const resetLocalSyncHistoryForRelayRebuild = vi.fn().mockResolvedValue(true);
+    const resetLocalSyncHistoryForRelayRebuild = vi.fn(async () => {
+      // Evolu reset callbacks may replace live state before rebuild pushing.
+      // The captured pre-reset snapshot must remain authoritative.
+      state.importedData = { entries: [], notes: [{ id: 'regressed-during-reset' }] };
+      return true;
+    });
     state.currentProfile = profileId;
     state.importedData = { entries: [], notes: [] };
     localStorage.setItem(`labcharts-${profileId}-sync-cutover-v2`, '1');
@@ -396,7 +423,11 @@ describe('sync action profile dependencies', () => {
       expect(result).toEqual({ total: 1, succeeded: 1, failed: 0, skipped: 0 });
       expect(localStorage.getItem(`labcharts-${profileId}-sync-cutover-v2`)).toBeNull();
       expect(localStorage.getItem(`labcharts-${profileId}-delta-entries`)).toBeNull();
-      expect(pushProfile).toHaveBeenCalledWith(profileId, state.importedData, { force: true });
+      expect(pushProfile).toHaveBeenCalledWith(
+        profileId,
+        { entries: [], notes: [] },
+        { force: true },
+      );
       expect(resetLocalSyncHistoryForRelayRebuild).toHaveBeenCalledOnce();
       expect(resetLocalSyncHistoryForRelayRebuild.mock.invocationCallOrder[0])
         .toBeLessThan(pushProfile.mock.invocationCallOrder[0]);

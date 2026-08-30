@@ -209,11 +209,11 @@ async function waitForStableRelayStorage(page, { minimumMessages = 1 } = {}) {
 }
 
 async function contextNotes(page) {
-  return page.evaluate(async () => (await import('/js/state.js')).state.importedData.contextNotes || '');
+  return page.evaluate(async () => (await import('/js/state.js')).state.importedData?.contextNotes || '');
 }
 
 async function noteTexts(page) {
-  return page.evaluate(async () => ((await import('/js/state.js')).state.importedData.notes || [])
+  return page.evaluate(async () => ((await import('/js/state.js')).state.importedData?.notes || [])
     .map(note => note.text).sort());
 }
 
@@ -289,10 +289,14 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
     await waitForNotes(deviceB.page, [
       'baseline-note', 'from-device-a', 'concurrent-a', 'concurrent-b',
     ]);
+    await waitForContext(deviceA.page, OFFLINE_CONTEXT);
+    await waitForContext(deviceB.page, OFFLINE_CONTEXT);
 
     await setSyntheticData(deviceA.page, 'delete-baseline');
     expect((await syncNow(deviceA.page))?.ok).toBe(true);
     await waitForNotes(deviceB.page, ['from-device-a', 'concurrent-a', 'concurrent-b']);
+    await waitForContext(deviceA.page, OFFLINE_CONTEXT);
+    await waitForContext(deviceB.page, OFFLINE_CONTEXT);
 
     // Keep a fully-synced paired device offline across compaction. Its local
     // Evolu log still contains every discarded relay message, which is the
@@ -311,6 +315,7 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
     expect(rebuilt.failed).toBe(0);
     const afterRebuild = await waitForStableRelayStorage(deviceA.page);
     expect(afterRebuild.messageCount).toBeGreaterThan(0);
+    await waitForContext(deviceA.page, OFFLINE_CONTEXT);
 
     const deviceC = await createDevice(browser, 'device C');
     devices.push(deviceC);

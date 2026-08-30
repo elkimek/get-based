@@ -368,7 +368,6 @@ export async function onSyncReceived() {
 
         maybeScheduleRebroadcast({
           profileId,
-          merged,
           needsRebroadcast,
           pushProfile: _pushProfile,
           debug: dbg,

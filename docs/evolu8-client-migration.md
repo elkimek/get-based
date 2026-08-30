@@ -36,14 +36,20 @@ pre-cached for every user, so the first evaluation must begin online.
 
 ## Promotion gates
 
-Do not make Evolu 8 the default until all of these are resolved:
+Do not make Evolu 8 the default unless all of these checks remain green:
 
-1. The focused real-relay scenario passes for both clients in CI, including
+1. The `Sync compatibility` CI workflow runs the focused real-relay scenario
+   against the pinned `getbased-relay` revision for both clients, including
    no-op storage stability, offline recovery, mnemonic join, relay compaction,
    and stale-device reconnect.
-2. The supported browser matrix passes with the v8 resource-management
-   polyfills and SharedWorker fallback.
+2. Its browser matrix starts and reloads v8 in Linux Chromium and Firefox plus
+   macOS WebKit, then repeats the run with resource-management globals and
+   native SharedWorker removed to exercise Evolu's one-tab fallback and
+   contention warning. WebKit runs on macOS with a persistent browser profile:
+   Playwright's Linux WPE port lacks the `navigator.storage` OPFS entry point,
+   and WebKit deliberately withholds OPFS from its default private context.
 
-The candidate still favors rollback and data preservation while the remaining
-relay and browser gates are open. Cleanup removes only superseded, unlocked v8
-generation databases and leaves the v7 rollback database intact.
+These automated gates make the next safe step a separate, reviewable default
+cutover rather than combining compatibility validation with rollout. Cleanup
+removes only superseded, unlocked v8 generation databases and leaves the v7
+rollback database intact.

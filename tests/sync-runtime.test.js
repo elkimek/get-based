@@ -995,6 +995,7 @@ describe('sync cleanup and rebroadcast runtime behavior', () => {
   it('schedules rebroadcasts only for active profiles with available budget and idle push state', async () => {
     vi.useFakeTimers();
     const previousProfile = state.currentProfile;
+    const previousImportedData = state.importedData;
     state.currentProfile = PROFILE_ID;
     try {
       resetSyncStatus();
@@ -1002,18 +1003,20 @@ describe('sync cleanup and rebroadcast runtime behavior', () => {
       const pushProfileSpy = vi.fn();
       const debug = vi.fn();
       const merged = { sunSessions: [{ id: 'sun-1' }] };
+      state.importedData = merged;
 
       expect(maybeScheduleRebroadcast({
         profileId: PROFILE_ID,
-        merged,
         needsRebroadcast: true,
         pushProfile: pushProfileSpy,
         debug,
       })).toBe(true);
       expect(pushProfileSpy).not.toHaveBeenCalled();
 
+      const latest = { sunSessions: [{ id: 'sun-1' }], contextNotes: 'newer local value' };
+      state.importedData = latest;
       await vi.advanceTimersByTimeAsync(100);
-      expect(pushProfileSpy).toHaveBeenCalledWith(PROFILE_ID, merged);
+      expect(pushProfileSpy).toHaveBeenCalledWith(PROFILE_ID, latest);
       expect(getRecentSyncEvents().at(-1)).toMatchObject({
         kind: 'rebroadcast',
         text: `Rebroadcast ${PROFILE_ID.slice(0, 8)}`,
@@ -1022,7 +1025,6 @@ describe('sync cleanup and rebroadcast runtime behavior', () => {
       updateSyncStatus({ push: 'pending' });
       expect(maybeScheduleRebroadcast({
         profileId: PROFILE_ID,
-        merged,
         needsRebroadcast: true,
         pushProfile: pushProfileSpy,
         debug,
@@ -1034,18 +1036,16 @@ describe('sync cleanup and rebroadcast runtime behavior', () => {
       state.currentProfile = 'other-profile';
       expect(maybeScheduleRebroadcast({
         profileId: PROFILE_ID,
-        merged,
         needsRebroadcast: true,
         pushProfile: pushProfileSpy,
         debug,
       })).toBe(false);
 
       state.currentProfile = PROFILE_ID;
-      maybeScheduleRebroadcast({ profileId: PROFILE_ID, merged, needsRebroadcast: true, pushProfile: pushProfileSpy });
-      maybeScheduleRebroadcast({ profileId: PROFILE_ID, merged, needsRebroadcast: true, pushProfile: pushProfileSpy });
+      maybeScheduleRebroadcast({ profileId: PROFILE_ID, needsRebroadcast: true, pushProfile: pushProfileSpy });
+      maybeScheduleRebroadcast({ profileId: PROFILE_ID, needsRebroadcast: true, pushProfile: pushProfileSpy });
       expect(maybeScheduleRebroadcast({
         profileId: PROFILE_ID,
-        merged,
         needsRebroadcast: true,
         pushProfile: pushProfileSpy,
         debug,
@@ -1056,6 +1056,7 @@ describe('sync cleanup and rebroadcast runtime behavior', () => {
       });
     } finally {
       state.currentProfile = previousProfile;
+      state.importedData = previousImportedData;
     }
   });
 });

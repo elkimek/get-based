@@ -76,6 +76,23 @@ export async function pushCurrentProfile() {
   return result;
 }
 
+async function pushCurrentProfileWhenIdle() {
+  const deadline = Date.now() + 30_000;
+  let result;
+  do {
+    while (_isSyncing() && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    result = await pushCurrentProfile();
+    if (result?.reason !== 'in-flight') return result;
+    // A pull can schedule a union rebroadcast just before it resolves. If
+    // that timer wins the race with this manual push, wait for it instead of
+    // reporting a false failure (or asking the user to press Sync again).
+    if (Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50));
+  } while (Date.now() < deadline);
+  return result;
+}
+
 // "Force resend" - bypasses the _syncing guard so a wedged in-flight flag
 // doesn't silently no-op the push.
 export async function forceResendCurrentProfile() {
@@ -94,11 +111,7 @@ export async function syncNow() {
   // durable local edit before it ever reaches Evolu. Flush dirty local state
   // first; clean devices still pull first so they cannot publish stale data.
   if (getSyncDirtyToken(state.currentProfile)) {
-    const deadline = Date.now() + 30_000;
-    while (_isSyncing() && Date.now() < deadline) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
-    const localResult = await pushCurrentProfile();
+    const localResult = await pushCurrentProfileWhenIdle();
     if (!localResult?.ok) return localResult;
     try {
       await _forcePull();
@@ -107,7 +120,7 @@ export async function syncNow() {
       logSyncEvent('skip', 'Manual pull failed — local changes were still committed');
       return localResult;
     }
-    return pushCurrentProfile();
+    return pushCurrentProfileWhenIdle();
   }
   // Apply any already-received remote state before publishing the local
   // snapshot. Pull-then-push matches first-enable behavior and avoids sending
@@ -118,7 +131,7 @@ export async function syncNow() {
     console.warn('[sync] Manual pull failed; continuing with local push:', error);
     logSyncEvent('skip', 'Manual pull failed — local push still attempted');
   }
-  return pushCurrentProfile();
+  return pushCurrentProfileWhenIdle();
 }
 
 // Push all profiles on first enable.
@@ -250,13 +263,44 @@ export async function prepareRelayCompaction() {
   await _forcePull();
 }
 
+function cloneRelayRebuildData(importedData) {
+  if (typeof structuredClone === 'function') return structuredClone(importedData);
+  return JSON.parse(JSON.stringify(importedData));
+}
+
 export async function rebuildOwnerRelayState() {
-  await _resetLocalSyncHistoryForRelayRebuild();
   const allProfiles = _getProfiles();
   const profiles = allProfiles.filter(profile => !getProfileSyncBlockReason(profile?.id, allProfiles));
+  // Capture every source profile before resetting Evolu. restoreAppOwner can
+  // synchronously fire empty/new-database subscriptions; reading
+  // state.importedData afterward lets those callbacks replace the canonical
+  // compaction source while the rebuild is in progress.
+  const snapshots = [];
+  for (const profile of profiles) {
+    const importedData = profile.id === state.currentProfile
+      ? (state.importedData || _createDefaultProfileData())
+      : await readProfileImportedData(profile.id);
+    if (!importedData) {
+      throw new Error(`Could not capture local data for profile ${String(profile?.id || '').slice(0, 8)}; relay rebuild stopped safely`);
+    }
+    snapshots.push({ profile, importedData: cloneRelayRebuildData(importedData) });
+  }
+
+  await _resetLocalSyncHistoryForRelayRebuild();
   for (const profile of profiles) prepareProfileForRelayRebuild(profile?.id);
-  const summary = await pushSelectedProfiles(profiles, { force: true });
-  if (summary.failed > 0 || summary.succeeded === 0) {
+  const summary = { total: snapshots.length, succeeded: 0, failed: 0, skipped: 0 };
+  for (const { profile, importedData } of snapshots) {
+    try {
+      const result = await _pushProfile(profile.id, importedData, { force: true });
+      if (result?.skipped) summary.skipped++;
+      else if (result?.ok === true) summary.succeeded++;
+      else summary.failed++;
+    } catch (error) {
+      summary.failed++;
+      console.error('[sync] Relay rebuild push failed for profile:', profile.id, error);
+    }
+  }
+  if (summary.failed > 0 || summary.skipped > 0 || summary.succeeded !== summary.total) {
     throw new Error(`Relay rebuild incomplete (${summary.succeeded}/${summary.total} profiles sent)`);
   }
   return summary;
