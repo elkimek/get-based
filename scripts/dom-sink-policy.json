@@ -72,7 +72,7 @@
     },
     "js/chat-empty-state.js": {
       "count": 11,
-      "digest": "8289590142702492563cfa2e445a486f34fa80b04968e232b31d8ede3a845556",
+      "digest": "781cdf0b1eb6f9e3cfe33762023b76935132a47ff3d60c655f5263ad9eb4455b",
       "kinds": {
         "innerHTML": 11
       }
@@ -742,7 +742,7 @@
     },
     "js/recommendation-actions.js": {
       "count": 3,
-      "digest": "42b25bd66a7e08b84b2917c7992d919f0dcd3d983503c7ce62a00360e1614031",
+      "digest": "0d601e12802393ac0b8c579db9b038eedee24ae5812defcea948b5e55f0c19c8",
       "kinds": {
         "innerHTML": 3
       }
