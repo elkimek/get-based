@@ -103,7 +103,7 @@ test('chart card recommendation browser coverage handles badges reorder clicks a
     await chartCardRecs.loadChartCardRecs();
     outcomes.badgesRenderForMatchingSlotsAndReorderWithinEachGrid =
       badgeTexts().join('|') === 'Tips|Tips|Tips'
-      && [...document.querySelectorAll('.ctx-tips-badge')].every(badge => badge.tagName === 'BUTTON' && badge.tabIndex === 0 && badge.getAttribute('aria-label')?.startsWith('Open actionable tips'))
+      && [...document.querySelectorAll('.ctx-tips-badge')].every(badge => badge.tagName === 'BUTTON' && badge.tabIndex === 0 && badge.getAttribute('aria-label')?.startsWith('Open general-information tips'))
       && document.querySelector('#chart-rec-missing_marker .ctx-tips-badge') == null
       && cardOrder('primary-grid').join('|') === 'card-apob|card-glucose|card-empty'
       && cardOrder('secondary-grid').join('|') === 'card-secondary-rec|card-secondary-empty';
@@ -111,7 +111,7 @@ test('chart card recommendation browser coverage handles badges reorder clicks a
       localStorage.getItem('labcharts-rec-nudge-seen') === '1'
       && window.__chartRecNotifications.length === 1
       && window.__chartRecNotifications[0].type === 'info'
-      && window.__chartRecNotifications[0].message.includes('3 markers have actionable tips');
+      && window.__chartRecNotifications[0].message.includes('3 markers have optional tips');
 
     document.querySelector('#chart-rec-lipids_apob .ctx-tips-badge').click();
     outcomes.badgeClickStopsPropagationAndOpensDetailModalWithScrollRequest =
