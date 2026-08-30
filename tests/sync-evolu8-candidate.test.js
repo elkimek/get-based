@@ -4,6 +4,7 @@ import {
   EVOLU8_GENERATION_KEY,
   cleanupSupersededEvolu8Databases,
   createEvolu8Candidate,
+  guardLegacyIdentityChanges,
   isEvolu8CandidateRequested,
   readEvolu8Generation,
 } from '../js/sync-evolu8-candidate.js';
@@ -108,6 +109,104 @@ function createHarness({ mnemonic = 'alpha words', ownerId = `owner:${mnemonic}`
 }
 
 describe('Evolu 8 compatibility candidate', () => {
+  it('invalidates the v8 vault before legacy restore and reset mutations', async () => {
+    const events = [];
+    const legacy = {
+      name: 'getbased4',
+      restoreAppOwner: vi.fn(async () => { events.push('legacy:restore'); }),
+      resetAppOwner: vi.fn(async () => { events.push('legacy:reset'); }),
+    };
+    const identityVault = {
+      invalidate: vi.fn(() => { events.push('vault:invalidate'); return Promise.resolve(); }),
+    };
+    const guarded = guardLegacyIdentityChanges(legacy, identityVault);
+
+    expect(guarded.name).toBe('getbased4');
+    await guarded.restoreAppOwner('words', { reload: false });
+    await guarded.resetAppOwner({ reload: false });
+
+    expect(events).toEqual([
+      'vault:invalidate', 'legacy:restore',
+      'vault:invalidate', 'legacy:reset',
+    ]);
+  });
+
+  it('boots from a durable v8 identity without opening the v7 bridge', async () => {
+    const harness = createHarness();
+    const getLegacyEvolu = vi.fn(async () => harness.legacyEvolu);
+    const identityVault = {
+      invalidate: vi.fn(async () => {}),
+      write: vi.fn(async () => {}),
+    };
+    const evolu = await createEvolu8Candidate({
+      getLegacyEvolu,
+      initialIdentity: { ownerId: 'owner:alpha words', mnemonic: 'alpha words' },
+      identityVault,
+      modern: harness.modern,
+      schema: { profileData: {} },
+      relay: 'wss://relay.example',
+      storage: createStorage(),
+    });
+
+    await expect(evolu.appOwner).resolves.toMatchObject({ id: 'owner:alpha words' });
+    expect(getLegacyEvolu).not.toHaveBeenCalled();
+    expect(identityVault.invalidate).not.toHaveBeenCalled();
+    expect(identityVault.write).not.toHaveBeenCalled();
+  });
+
+  it('persists the first verified v7 identity handoff', async () => {
+    const harness = createHarness();
+    const identityVault = {
+      invalidate: vi.fn(async () => {}),
+      write: vi.fn(async () => {}),
+    };
+    await createEvolu8Candidate({
+      legacyEvolu: harness.legacyEvolu,
+      identityVault,
+      modern: harness.modern,
+      schema: { profileData: {} },
+      relay: 'wss://relay.example',
+      storage: createStorage(),
+    });
+
+    expect(identityVault.invalidate).toHaveBeenCalledOnce();
+    expect(identityVault.write).toHaveBeenCalledWith({
+      ownerId: 'owner:alpha words',
+      mnemonic: 'alpha words',
+    });
+  });
+
+  it('loads v7 lazily to align restore and reset identity changes', async () => {
+    const harness = createHarness();
+    const getLegacyEvolu = vi.fn(async () => harness.legacyEvolu);
+    const identityVault = {
+      invalidate: vi.fn(async () => {}),
+      write: vi.fn(async () => {}),
+    };
+    const evolu = await createEvolu8Candidate({
+      getLegacyEvolu,
+      initialIdentity: { ownerId: 'owner:alpha words', mnemonic: 'alpha words' },
+      identityVault,
+      modern: harness.modern,
+      schema: { profileData: {} },
+      relay: 'wss://relay.example',
+      storage: createStorage(),
+    });
+
+    await evolu.restoreAppOwner('beta words', { reload: false });
+    await evolu.resetAppOwner({ reload: false });
+
+    expect(getLegacyEvolu).toHaveBeenCalledOnce();
+    expect(harness.legacyEvolu.restoreAppOwner)
+      .toHaveBeenCalledWith('beta words', { reload: false });
+    expect(harness.legacyEvolu.resetAppOwner).toHaveBeenCalledWith({ reload: false });
+    expect(identityVault.invalidate).toHaveBeenCalledTimes(2);
+    expect(identityVault.write).toHaveBeenCalledWith({
+      ownerId: 'owner:beta words',
+      mnemonic: 'beta words',
+    });
+  });
+
   it('reclaims only unlocked superseded v8 database generations', async () => {
     const active = 'getbased8g3-owner_current';
     const stale = 'getbased8g2';
