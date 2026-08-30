@@ -26,13 +26,13 @@ import {
 
 /** @type {() => Promise<any>} */
 let _reconcileLocalStorageWithEvolu = async () => {};
-/** @type {() => Promise<any>} */
-let _forcePull = async () => {};
+/** @type {() => Promise<any> | undefined} */
+let _forcePull = () => Promise.resolve();
 let _isSyncPulling = () => false;
 
 /** @param {{
  *   reconcileLocalStorageWithEvolu?: () => Promise<any>,
- *   forcePull?: () => Promise<any>,
+ *   forcePull?: () => Promise<any> | undefined,
  *   isSyncPulling?: () => boolean,
  * }} [deps] */
 export function configureSyncInit({
