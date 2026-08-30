@@ -53,7 +53,7 @@
     "rolldown": "1.2.4",
     "typescript": "^6.0.3",
     "venice-e2ee": "https://github.com/elkimek/venice-e2ee/archive/7da6228c0cef3ad516196129eea2f9d64760e6b3.tar.gz",
-    "vitest": "^4.1.10",
+    "vitest": "^4.1.11",
     "elliptic": "file:scripts/vendor-packages/elliptic-verify-only"
   },
   "dependencies": {
