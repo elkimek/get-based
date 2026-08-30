@@ -2,11 +2,12 @@
 // Experimental Evolu 8 compatibility adapter.
 //
 // Evolu 8 intentionally cannot open Evolu 7's local SQLite format and its
-// released web API does not yet implement deleteDatabase/resetAppOwner. Keep
-// the v7 database as the identity vault, then give every destructive reset a
-// fresh v8 database generation so pre-compaction history can never replay.
+// released web API does not yet implement deleteDatabase/resetAppOwner. A
+// durable browser vault avoids opening the v7 worker after the first identity
+// handoff; destructive identity changes load v7 lazily to preserve rollback.
 
 import { setSyncAppOwnerError } from './sync-runtime.js';
+import { createEvolu8IdentityVault } from './sync-evolu8-identity-vault.js';
 import { showNotification } from './utils.js';
 
 export const EVOLU8_CLIENT_QUERY_PARAM = 'evolu-client';
@@ -125,57 +126,102 @@ export async function createSyncEvoluClient({
   reloadUrl,
   enableLogging,
 }) {
-  const legacy = await import(EVOLU_BUNDLE_URL);
-  const legacySchema = createSyncSchema({
-    id: legacy.id,
-    nullOr: legacy.nullOr,
-    NonEmptyString: legacy.NonEmptyString,
-  });
+  const identityVault = createEvolu8IdentityVault();
   if (isEvolu8CandidateRequested()) {
     const evolu = await createEvolu8SyncClient({
-      legacy,
-      legacySchema,
       relay,
       reloadUrl,
       enableLogging,
       createSyncSchema,
+      identityVault,
     });
     console.warn('[sync] Running opt-in Evolu 8 compatibility candidate');
     return evolu;
   }
-  return legacy.createEvolu(legacy.evoluWebDeps)(legacySchema, {
-    name: legacy.SimpleName.orThrow('getbased4'),
+  const legacyEvolu = await createLegacyEvoluClient({
+    createSyncSchema,
     reloadUrl,
     enableLogging,
     transports: [{ type: 'WebSocket', url: relay }],
+  });
+  return guardLegacyIdentityChanges(legacyEvolu, identityVault);
+}
+
+/**
+ * @param {{
+ *   createSyncSchema: (types: any) => any,
+ *   reloadUrl: string,
+ *   enableLogging: boolean,
+ *   transports: Array<any>,
+ * }} options
+ */
+async function createLegacyEvoluClient({
+  createSyncSchema,
+  reloadUrl,
+  enableLogging,
+  transports,
+}) {
+  const legacy = await import(EVOLU_BUNDLE_URL);
+  const schema = createSyncSchema({
+    id: legacy.id,
+    nullOr: legacy.nullOr,
+    NonEmptyString: legacy.NonEmptyString,
+  });
+  return legacy.createEvolu(legacy.evoluWebDeps)(schema, {
+    name: legacy.SimpleName.orThrow('getbased4'),
+    reloadUrl,
+    enableLogging,
+    transports,
+  });
+}
+
+/**
+ * Invalidate the v8 identity commit before v7 changes its owner. Run the IDB
+ * deletion alongside the v7 mutation; token removal itself is synchronous.
+ * @param {any} legacyEvolu
+ * @param {{ invalidate: () => Promise<void> | void }} identityVault
+ */
+export function guardLegacyIdentityChanges(legacyEvolu, identityVault) {
+  const restoreAppOwner = (...args) => {
+    const invalidation = identityVault.invalidate();
+    return Promise.all([
+      Promise.resolve(invalidation),
+      Promise.resolve(legacyEvolu.restoreAppOwner(...args)),
+    ]).then(([, result]) => result);
+  };
+  const resetAppOwner = (...args) => {
+    const invalidation = identityVault.invalidate();
+    return Promise.all([
+      Promise.resolve(invalidation),
+      Promise.resolve(legacyEvolu.resetAppOwner(...args)),
+    ]).then(([, result]) => result);
+  };
+  return new Proxy(legacyEvolu, {
+    get(target, property, receiver) {
+      if (property === 'restoreAppOwner') return restoreAppOwner;
+      if (property === 'resetAppOwner') return resetAppOwner;
+      return Reflect.get(target, property, receiver);
+    },
   });
 }
 
 /**
  * Keep all candidate-only initialization out of the default startup bundle.
  * @param {{
- *   legacy: any,
- *   legacySchema: any,
  *   relay: string,
  *   reloadUrl: string,
  *   enableLogging: boolean,
  *   createSyncSchema: (types: any) => any,
+ *   identityVault?: { invalidate: () => Promise<void> | void, read: () => Promise<any>, write: (identity: any) => Promise<void> },
  * }} options
  */
 export async function createEvolu8SyncClient({
-  legacy,
-  legacySchema,
   relay,
   reloadUrl,
   enableLogging,
   createSyncSchema,
+  identityVault = createEvolu8IdentityVault(),
 }) {
-  const legacyEvolu = legacy.createEvolu(legacy.evoluWebDeps)(legacySchema, {
-    name: legacy.SimpleName.orThrow('getbased4'),
-    reloadUrl,
-    enableLogging,
-    transports: [],
-  });
   const modern = await import(EVOLU8_BUNDLE_URL);
   const modernSchema = createSyncSchema({
     id: modern.id,
@@ -184,8 +230,30 @@ export async function createEvolu8SyncClient({
     // type preserves the v7 wire schema without rejecting legacy values.
     NonEmptyString: modern.EvoluString,
   });
+  let initialIdentity = await identityVault.read();
+  if (initialIdentity) {
+    try {
+      const owner = createModernOwner(modern, initialIdentity.mnemonic);
+      if (owner.id !== initialIdentity.ownerId) throw new Error('owner mismatch');
+    } catch {
+      await identityVault.invalidate();
+      initialIdentity = null;
+    }
+  }
+  let legacyEvoluPromise = null;
+  const getLegacyEvolu = () => {
+    legacyEvoluPromise ??= createLegacyEvoluClient({
+      createSyncSchema,
+      reloadUrl,
+      enableLogging,
+      transports: [],
+    });
+    return legacyEvoluPromise;
+  };
   return createEvolu8Candidate({
-    legacyEvolu,
+    getLegacyEvolu,
+    initialIdentity,
+    identityVault,
     modern,
     schema: modernSchema,
     relay,
@@ -235,7 +303,10 @@ async function disposeResource(resource) {
 
 /**
  * @param {{
- *   legacyEvolu: any,
+ *   legacyEvolu?: any,
+ *   getLegacyEvolu?: () => Promise<any>,
+ *   initialIdentity?: { ownerId: string, mnemonic: string } | null,
+ *   identityVault?: { invalidate: () => Promise<void> | void, write: (identity: any) => Promise<void> },
  *   modern: any,
  *   schema: any,
  *   relay: string,
@@ -245,26 +316,52 @@ async function disposeResource(resource) {
  */
 export async function createEvolu8Candidate({
   legacyEvolu,
+  getLegacyEvolu,
+  initialIdentity = null,
+  identityVault = {
+    invalidate: () => Promise.resolve(),
+    write: async () => {},
+  },
   modern,
   schema,
   relay,
   storage = globalThis.localStorage,
   onSharedWorkerUnsupported,
 }) {
-  if (!legacyEvolu?.appOwner) throw new Error('Evolu 7 identity bridge is unavailable');
   modern.installPolyfills?.();
   const asyncDisposeSymbol = /** @type {any} */ (Symbol).asyncDispose;
-  let ownerTimeoutId;
-  const ownerTimeout = new Promise((_, reject) => {
-    ownerTimeoutId = setTimeout(() => reject(new Error('Evolu 7 identity bridge timed out')), 30_000);
-  });
-  let legacyOwner;
-  try {
-    legacyOwner = await Promise.race([legacyEvolu.appOwner, ownerTimeout]);
-  } finally {
-    clearTimeout(ownerTimeoutId);
+  let resolvedLegacyEvolu = legacyEvolu || null;
+  const resolveLegacyEvolu = async () => {
+    resolvedLegacyEvolu ??= await getLegacyEvolu?.();
+    if (!resolvedLegacyEvolu?.appOwner) throw new Error('Evolu 7 identity bridge is unavailable');
+    return resolvedLegacyEvolu;
+  };
+
+  if (!initialIdentity) {
+    const legacy = await resolveLegacyEvolu();
+    let ownerTimeoutId;
+    const ownerTimeout = new Promise((_, reject) => {
+      ownerTimeoutId = setTimeout(() => reject(new Error('Evolu 7 identity bridge timed out')), 30_000);
+    });
+    let legacyOwner;
+    try {
+      legacyOwner = await Promise.race([legacy.appOwner, ownerTimeout]);
+    } finally {
+      clearTimeout(ownerTimeoutId);
+    }
+    if (!legacyOwner?.mnemonic) throw new Error('Evolu 7 identity has no recovery mnemonic');
+    const modernOwner = createModernOwner(modern, legacyOwner.mnemonic);
+    if (legacyOwner.id && modernOwner.id !== legacyOwner.id) {
+      throw new Error('Evolu 8 derived a different owner ID from the Evolu 7 mnemonic');
+    }
+    initialIdentity = { ownerId: modernOwner.id, mnemonic: legacyOwner.mnemonic };
+    try {
+      await identityVault.invalidate();
+      await identityVault.write(initialIdentity);
+    } catch (error) {
+      console.warn('[sync] Evolu 8 identity handoff could not be persisted:', error);
+    }
   }
-  if (!legacyOwner?.mnemonic) throw new Error('Evolu 7 identity has no recovery mnemonic');
 
   const initialGeneration = readEvolu8Generation(storage);
   let current = null;
@@ -295,11 +392,9 @@ export async function createEvolu8Candidate({
     return nextGeneration;
   };
 
-  const startRuntime = async (mnemonic, nextGeneration) => {
-    const appOwner = createModernOwner(modern, mnemonic);
-    if (legacyOwner.id && appOwner.id !== legacyOwner.id && mnemonic === legacyOwner.mnemonic) {
-      throw new Error('Evolu 8 derived a different owner ID from the Evolu 7 mnemonic');
-    }
+  const startRuntime = async (identity, nextGeneration) => {
+    const appOwner = createModernOwner(modern, identity.mnemonic);
+    if (appOwner.id !== identity.ownerId) throw new Error('Evolu 8 identity vault owner mismatch');
     const deps = modern.createEvoluDeps({ onSharedWorkerUnsupported });
     const run = modern.createRun(deps);
     try {
@@ -336,7 +431,7 @@ export async function createEvolu8Candidate({
     }
   };
 
-  const replaceRuntime = async (mnemonic, nextGeneration) => {
+  const replaceRuntime = async (identity, nextGeneration) => {
     const previous = current;
     unbindSubscriptions();
     current = null;
@@ -345,7 +440,7 @@ export async function createEvolu8Candidate({
       await disposeResource(previous.run).catch(() => {});
       await disposeResource(previous.deps).catch(() => {});
     }
-    current = await startRuntime(mnemonic, nextGeneration);
+    current = await startRuntime(identity, nextGeneration);
     await bindSubscriptions();
     // Cleanup is best-effort and never delays owner/query readiness. A stale
     // database that is still open in another tab is protected by Evolu's lock
@@ -361,7 +456,7 @@ export async function createEvolu8Candidate({
     });
   };
 
-  await replaceRuntime(legacyOwner.mnemonic, initialGeneration);
+  await replaceRuntime(initialIdentity, initialGeneration);
   const createQuery = modern.createQueryBuilder(schema);
 
   const facade = {
@@ -401,15 +496,32 @@ export async function createEvolu8Candidate({
     },
     restoreAppOwner: async (mnemonic, _options = {}) => {
       const validatedMnemonic = modern.Mnemonic.orThrow(mnemonic);
+      const appOwner = createModernOwner(modern, validatedMnemonic);
+      const nextIdentity = { ownerId: appOwner.id, mnemonic: validatedMnemonic };
       const nextGeneration = consumeHistoryResetGeneration();
-      // v7 remains the durable identity vault during the compatibility phase.
-      // Always suppress its internal reload; GetBased owns reload sequencing.
-      await legacyEvolu.restoreAppOwner(validatedMnemonic, { reload: false });
-      await replaceRuntime(validatedMnemonic, nextGeneration);
+      // Keep the v7 rollback identity aligned, but load its worker only for an
+      // actual identity change. Token invalidation happens synchronously.
+      const invalidation = identityVault.invalidate();
+      const legacy = await resolveLegacyEvolu();
+      await Promise.all([
+        Promise.resolve(invalidation),
+        legacy.restoreAppOwner(validatedMnemonic, { reload: false }),
+      ]);
+      try {
+        await identityVault.write(nextIdentity);
+      } catch (error) {
+        console.warn('[sync] Evolu 8 restored identity could not be persisted:', error);
+      }
+      await replaceRuntime(nextIdentity, nextGeneration);
     },
     resetAppOwner: async (_options = {}) => {
       consumeHistoryResetGeneration();
-      await legacyEvolu.resetAppOwner({ reload: false });
+      const invalidation = identityVault.invalidate();
+      const legacy = await resolveLegacyEvolu();
+      await Promise.all([
+        Promise.resolve(invalidation),
+        legacy.resetAppOwner({ reload: false }),
+      ]);
       unbindSubscriptions();
       const previous = current;
       current = null;
