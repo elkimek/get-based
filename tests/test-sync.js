@@ -1450,7 +1450,9 @@ await import('../js/settings.js');
 
   assert('reloadUrl uses sync runtime path helper',
     syncInitSrc.includes('reloadUrl: getSyncReloadUrlRuntime()')
-      && syncRuntimeSrc.includes('export function getSyncReloadUrlRuntime'));
+      && syncRuntimeSrc.includes('export function getSyncReloadUrlRuntime')
+      && syncRuntimeSrc.includes("runtime?.location?.search")
+      && /return `\$\{pathname\}\$\{typeof search === 'string' \? search : ''\}`/.test(syncRuntimeSrc));
   assert('enableLogging gated on debug mode', syncInitSrc.includes('enableLogging: isDebugMode()'));
   assert('Default relay is wss://sync.getbased.health', syncEnvironmentSrc.includes("wss://sync.getbased.health"));
   assert('Transport uses plural "transports" array (not singular)', syncEvoluClientSrc.includes('transports: [{ type:') && !syncEvoluClientSrc.includes('transport: { type:'));

@@ -488,9 +488,11 @@ describe('sync apply runtime behavior', () => {
   it('routes sync reload path and delayed reload through runtime helpers', () => {
     vi.useFakeTimers();
     const reload = vi.fn();
-    vi.stubGlobal('window', { location: { pathname: '/sync-runtime-test', reload } });
+    vi.stubGlobal('window', {
+      location: { pathname: '/sync-runtime-test', search: '?evolu-client=v7', reload },
+    });
 
-    expect(getSyncReloadUrlRuntime()).toBe('/sync-runtime-test');
+    expect(getSyncReloadUrlRuntime()).toBe('/sync-runtime-test?evolu-client=v7');
     expect(scheduleSyncRuntimeReload(250)).toBe(true);
     expect(reload).not.toHaveBeenCalled();
 

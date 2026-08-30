@@ -247,7 +247,7 @@ test('sync init browser coverage creates Evolu runtime subscriptions and debug g
         trace.createdCount === 1
         && trace.schemaKeys.includes('profileData')
         && trace.schemaKeys.includes('itemRow')
-        && trace.options.reloadUrl === '/sync-init-success-browser-coverage'
+        && trace.options.reloadUrl === '/sync-init-success-browser-coverage?evolu-client=v7'
         && trace.options.enableLogging === true
         && trace.options.transports?.[0]?.url === 'wss://relay.example/ws';
 
