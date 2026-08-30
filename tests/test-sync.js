@@ -1281,7 +1281,9 @@ await import('../js/settings.js');
       && syncPullMergeSrc.includes('baselineImported: importedData')
       && syncPullMergeSrc.includes('baselineSyncedAt: remoteUpdated')
       && syncDeltaMergeSrc.includes('baselineItems: Array.isArray(baselineItems) ? baselineItems : []')
-      && syncDeltaArrayMergeSrc.includes('baselineItemIds.has(itemId) ? baselineSyncedAt : 0'));
+      && syncDeltaArrayMergeSrc.includes('baselineItemIds.has(itemId) ? baselineSyncedAt : 0')
+      && syncDeltaMergeSrc.includes('hasBaseline: baselineValue !== undefined')
+      && syncDeltaScalarMergeSrc.includes('baselineAt >= latestRowAt'));
   assert('_mergeItemRowsIntoImported drops tombstoned items from imported arrays',
     /mergeArrayRowsIntoImported[\s\S]{0,12000}let nextArr\s*=\s*curArr\.filter\(it\s*=>\s*!tombstoneWinsOverItem\(itemIdFn\(it\),\s*it\)\)/.test(syncDeltaMergeSearchSrc));
   // Resurrection-prevention seed: blob-side `_deleted[arrayName]` must

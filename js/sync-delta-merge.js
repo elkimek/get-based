@@ -49,7 +49,13 @@ export async function _mergeItemRowsIntoImported(profileId, imported, options = 
   const _DELTA_SCALARS_SET = new Set(DELTA_SCALARS);
   for (const [arrayName, arrRows] of byArray) {
     if (_DELTA_SCALARS_SET.has(arrayName)) {
-      await mergeScalarRowsIntoImported(imported, arrayName, arrRows);
+      const baselineValue = options.baselineImported
+        ? getAt(options.baselineImported, arrayName)
+        : undefined;
+      await mergeScalarRowsIntoImported(imported, arrayName, arrRows, {
+        hasBaseline: baselineValue !== undefined,
+        baselineSyncedAt: options.baselineSyncedAt,
+      });
       continue;
     }
     if (_DELTA_MAPS_SET.has(arrayName)) {

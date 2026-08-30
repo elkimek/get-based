@@ -217,7 +217,7 @@ async function noteTexts(page) {
     .map(note => note.text).sort());
 }
 
-async function noteSyncDiagnostics(page) {
+async function syncDiagnostics(page) {
   return page.evaluate(async () => {
     const [runtime, rowCodec, payloadCodec] = await Promise.all([
       import('/js/sync-runtime.js'),
@@ -227,36 +227,57 @@ async function noteSyncDiagnostics(page) {
     const evolu = runtime.getSyncEvolu();
     const itemRows = evolu?.getQueryRows(runtime.getSyncItemRowQuery()) || [];
     const profileRows = evolu?.getQueryRows(runtime.getSyncProfileQuery()) || [];
-    const notes = [];
-    for (const row of itemRows.filter(candidate => candidate?.arrayName === 'notes')) {
-      let text = null;
-      try { text = (await rowCodec.decodeRowPayload(row))?.text || null; } catch {}
-      notes.push({
+    const rows = [];
+    for (const row of itemRows.filter(candidate => (
+      candidate?.arrayName === 'notes' || candidate?.arrayName === 'contextNotes'
+    ))) {
+      let value = null;
+      try {
+        const parsed = await rowCodec.decodeRowPayload(row);
+        value = row.arrayName === 'notes' ? parsed?.text || null : parsed?.v ?? null;
+      } catch {}
+      rows.push({
         id: row.id,
+        arrayName: row.arrayName,
         itemId: row.itemId,
         isDeleted: row.isDeleted,
         syncedAt: row.syncedAt,
-        text,
+        value,
       });
     }
     const profiles = [];
     for (const row of profileRows) {
+      let contextNotes = null;
       let noteTexts = [];
       try {
         const payload = await payloadCodec.parseSyncPayload(row.dataJson);
+        contextNotes = payload?.importedData?.contextNotes ?? null;
         noteTexts = (payload?.importedData?.notes || []).map(note => note.text).sort();
       } catch {}
-      profiles.push({ id: row.id, syncedAt: row.syncedAt, noteTexts });
+      profiles.push({ id: row.id, syncedAt: row.syncedAt, contextNotes, noteTexts });
     }
-    return { notes, profiles };
+    const importedData = (await import('/js/state.js')).state.importedData;
+    return {
+      state: {
+        contextNotes: importedData?.contextNotes ?? null,
+        noteTexts: (importedData?.notes || []).map(note => note.text).sort(),
+      },
+      rows,
+      profiles,
+    };
   });
 }
 
 async function waitForContext(page, expected) {
-  await expect.poll(() => contextNotes(page), {
-    timeout: 30_000,
-    intervals: [100, 250, 500, 1000],
-  }).toBe(expected);
+  try {
+    await expect.poll(() => contextNotes(page), {
+      timeout: 30_000,
+      intervals: [100, 250, 500, 1000],
+    }).toBe(expected);
+  } catch (error) {
+    console.error('Context sync diagnostics:', JSON.stringify(await syncDiagnostics(page)));
+    throw error;
+  }
 }
 
 async function waitForNotes(page, expected) {
@@ -364,10 +385,10 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
     try {
       await waitForNotes(deviceB.page, ['from-device-a', 'concurrent-a', 'concurrent-b']);
       if (process.env.SYNC_TRANSPORT_DEBUG === '1') {
-        console.log('Stale-device note diagnostics:', JSON.stringify(await noteSyncDiagnostics(deviceB.page)));
+        console.log('Stale-device sync diagnostics:', JSON.stringify(await syncDiagnostics(deviceB.page)));
       }
     } catch (error) {
-      console.error('Stale-device note diagnostics:', JSON.stringify(await noteSyncDiagnostics(deviceB.page)));
+      console.error('Stale-device sync diagnostics:', JSON.stringify(await syncDiagnostics(deviceB.page)));
       throw error;
     }
     const afterOldDeviceReconnect = await waitForStableRelayStorage(deviceA.page);

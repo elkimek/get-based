@@ -42,6 +42,7 @@ const {
   pickFresherRecord,
 } = await import('../js/data-merge.js');
 const { mergeArrayRowsIntoImported } = await import('../js/sync-delta-array-merge.js');
+const { mergeScalarRowsIntoImported } = await import('../js/sync-delta-scalar-merge.js');
 const { DELTA_ARRAY_CONFIG } = await import('../js/sync-delta-surface-config.js');
 
   // ─── pickTimestamp precedence (v1.7.20) ───────────────────────────────
@@ -739,6 +740,40 @@ const { DELTA_ARRAY_CONFIG } = await import('../js/sync-delta-surface-config.js'
   );
   assert('explicit local delete still wins over a newer canonical rebuild blob',
     locallyDeletedRebuiltBlob.notes.length === 0);
+
+  const rebuiltScalarImported = { contextNotes: 'canonical-blob' };
+  const scalarBaselineOptions = {
+    hasBaseline: true,
+    baselineSyncedAt: Date.parse('2026-08-30T00:00:00.000Z'),
+  };
+  await mergeScalarRowsIntoImported(rebuiltScalarImported, 'contextNotes', [{
+    itemId: 'contextNotes',
+    syncedAt: '2026-08-29T00:00:00.000Z',
+    isDeleted: null,
+    payload: JSON.stringify({ v: 'stale-row' }),
+  }], scalarBaselineOptions);
+  assert('newer canonical blob scalar survives a stale per-row value',
+    rebuiltScalarImported.contextNotes === 'canonical-blob');
+  await mergeScalarRowsIntoImported(rebuiltScalarImported, 'contextNotes', [{
+    itemId: 'contextNotes',
+    syncedAt: '2026-08-31T00:00:00.000Z',
+    isDeleted: null,
+    payload: JSON.stringify({ v: 'newer-row' }),
+  }], scalarBaselineOptions);
+  assert('newer scalar row still wins over an older canonical blob',
+    rebuiltScalarImported.contextNotes === 'newer-row');
+  const rowOnlyScalarImported = { contextNotes: 'local-before-v4-pull' };
+  await mergeScalarRowsIntoImported(rowOnlyScalarImported, 'contextNotes', [{
+    itemId: 'contextNotes',
+    syncedAt: '2026-08-29T00:00:00.000Z',
+    isDeleted: null,
+    payload: JSON.stringify({ v: 'row-only-value' }),
+  }], {
+    hasBaseline: false,
+    baselineSyncedAt: scalarBaselineOptions.baselineSyncedAt,
+  });
+  assert('row-only v4 pull still applies scalar rows without a blob baseline',
+    rowOnlyScalarImported.contextNotes === 'row-only-value');
 
   // ─── 5. mergeImportedData with tombstones ─────────────────────────────
   console.log('%c 5. mergeImportedData tombstones ', 'font-weight:bold;color:#f59e0b');
