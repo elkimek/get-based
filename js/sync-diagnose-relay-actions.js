@@ -35,7 +35,7 @@ export async function confirmCompactRelay(btn) {
   const mb = q ? (q.bytes / 1024 / 1024).toFixed(1) : '?';
   const message = rebuildOnly
     ? 'Retry rebuilding the relay snapshot from this device? Keep this tab open until verification finishes.'
-    : `Reduce storage (currently ~${mb} MB)? This permanently replaces the relay message log with a fresh snapshot from this device. First make sure every device's latest changes have synced. Offline paired devices can reconnect later without restoring discarded history. Keep this tab open until the automatic rebuild finishes; local data is untouched.`;
+    : `Reduce storage (currently ~${mb} MB)? This replaces the relay log with a fresh snapshot from this device. Sync each device's latest changes first. Offline devices can reconnect safely later. Keep this tab open until the rebuild finishes; local data is untouched.`;
   // Never perform destructive relay maintenance if the confirmation adapter
   // is unavailable. A missing dialog must fail closed.
   const proceed = await confirmSyncDiagnoseActionRuntime(message, { fallback: false });
