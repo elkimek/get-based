@@ -36,13 +36,6 @@ function reconcileLocalStorageWithEvolu() {
 /** @param {...any} args */
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
 
-// Keep Evolu as a runtime-loaded vendor module. If the production bundler
-// absorbs it into a /js/bundle-*.js chunk, Evolu's import.meta-relative
-// Db.worker.js URL moves with the chunk and incorrectly becomes
-// /js/Db.worker.js. The worker and its SQLite assets intentionally live
-// together under /vendor/evolu in both source and production deployments.
-const EVOLU_BUNDLE_URL = new URL('../vendor/evolu/evolu-bundle.js', import.meta.url).href;
-
 export async function initSync() {
   primeSyncState();
   if (!isSyncConfigured()) return;
@@ -75,17 +68,13 @@ export async function initSync() {
   await new Promise(r => setTimeout(r, 0));
 
   try {
-    const { createEvolu, id, nullOr, SimpleName, NonEmptyString, evoluWebDeps } =
-      await import(EVOLU_BUNDLE_URL);
-
-    const Schema = createSyncSchema({ id, nullOr, NonEmptyString });
-
     const relay = getSyncRelay();
-    const evolu = createEvolu(evoluWebDeps)(Schema, {
-      name: SimpleName.orThrow("getbased4"),
+    const { createSyncEvoluClient } = await import('./sync-evolu8-candidate.js');
+    const evolu = await createSyncEvoluClient({
+      createSyncSchema,
+      relay,
       reloadUrl: getSyncReloadUrlRuntime(),
       enableLogging: isDebugMode(),
-      transports: [{ type: "WebSocket", url: relay }],
     });
     setSyncEvolu(evolu);
 
@@ -108,8 +97,15 @@ export async function initSync() {
     });
     setSyncQueryLoadedPromise(queryLoaded);
 
-    // Wait for owner (mnemonic) - signals DB is ready.
-    const readyPromise = evolu.appOwner.then(owner => {
+    // Wait for owner (mnemonic) - signals DB is ready. The v8 bridge receives
+    // its owner before the new database has answered its first queries, while
+    // v7 historically resolves those in the opposite order. Preserve the app
+    // contract: once the owner is visible, syncNow must not mistake an
+    // unloaded query cache for an empty database and insert duplicate rows.
+    const ownerReady = evolu.__evoluClientVersion === 8
+      ? queryLoaded.then(() => evolu.appOwner)
+      : evolu.appOwner;
+    const readyPromise = ownerReady.then(owner => {
       setSyncAppOwner(owner);
       setSyncAppOwnerError(null);
       const restoreNotice = consumeSyncRestoreNotice();

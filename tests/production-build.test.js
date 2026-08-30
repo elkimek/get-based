@@ -106,6 +106,7 @@ describe('production startup build', () => {
     const serviceWorker = await fs.readFile(path.join(outputRoot, 'service-worker.js'), 'utf8');
 
     expect(generatedSource).toContain('../vendor/evolu/evolu-bundle.js');
+    expect(generatedSource).toContain('../vendor/evolu8/evolu-bundle.js');
     expect(generatedSource).not.toContain('Db.worker.js');
     expect(serviceWorker).toContain("'/vendor/evolu/evolu-bundle.js',");
     expect(serviceWorker).toContain("'/vendor/evolu/Db.worker.js',");

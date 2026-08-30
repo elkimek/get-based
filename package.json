@@ -32,12 +32,16 @@
     "typecheck:strict-null": "node scripts/strict-null-ratchet.mjs",
     "vendor:build": "node scripts/build-browser-vendors.mjs",
     "vendor:check": "node scripts/build-browser-vendors.mjs --check",
+    "vendor:evolu8:build": "node scripts/build-evolu8-vendor.mjs",
+    "vendor:evolu8:check": "node scripts/build-evolu8-vendor.mjs --check",
     "test:watch": "vitest",
     "test:routstr-wallet": "PORT=${PORT:-8180} playwright test tests/playwright/routstr-wallet-dom.spec.js",
     "canary:routstr-real": "node scripts/routstr-real-funds-canary.mjs"
   },
   "devDependencies": {
     "@cashu/cashu-ts": "4.9.0",
+    "@evolu/common": "8.7.0",
+    "@evolu/web": "3.1.0",
     "@noble/curves": "2.2.0",
     "@phala/dcap-qvl": "0.6.1",
     "@playwright/test": "^1.62.1",

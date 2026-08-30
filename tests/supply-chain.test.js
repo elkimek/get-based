@@ -24,6 +24,9 @@ describe('supply-chain inventory', () => {
       'tinfoil',
       'ehbp',
       '@evolu/common',
+      '@evolu/common v8 candidate',
+      '@evolu/web v8 candidate',
+      '@evolu/sqlite-wasm v8 candidate',
     ]);
   });
 
@@ -87,7 +90,7 @@ describe('supply-chain inventory', () => {
     });
     const resolved = snapshot.manifests['vendor/components.json'].resolved;
 
-    expect(Object.keys(resolved)).toHaveLength(10);
+    expect(Object.keys(resolved)).toHaveLength(13);
     expect(resolved['@phala/dcap-qvl']).toEqual({
       package_url: 'pkg:npm/%40phala/dcap-qvl@0.6.1',
       relationship: 'direct',
@@ -98,6 +101,12 @@ describe('supply-chain inventory', () => {
       relationship: 'direct',
       scope: 'runtime',
     });
+    expect(resolved['@evolu/common v8 candidate']?.package_url)
+      .toBe('pkg:npm/%40evolu/common@8.7.0');
+    expect(resolved['@evolu/web v8 candidate']?.package_url)
+      .toBe('pkg:npm/%40evolu/web@3.1.0');
+    expect(resolved['@evolu/sqlite-wasm v8 candidate']?.package_url)
+      .toBe('pkg:npm/%40evolu/sqlite-wasm@2.2.4');
     expect(resolved.SQLite).toBeUndefined();
     expect(resolved.Inter).toBeUndefined();
   });
