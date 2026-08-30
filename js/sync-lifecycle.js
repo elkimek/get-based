@@ -97,22 +97,7 @@ export async function pauseSync() {
 
 export async function disableSync() {
   const evolu = getSyncEvolu();
-  if (evolu?.__evoluClientVersion === 8) {
-    try {
-      if (typeof evolu.prepareHistoryReset !== 'function') {
-        throw new Error('Evolu 8 history-reset preflight is unavailable');
-      }
-      // This synchronous reservation makes the next generation durable before
-      // the eventual reload. resetAppOwner consumes it without writing again.
-      evolu.prepareHistoryReset();
-    } catch {
-      showNotification(
-        'Sync was not disabled because this browser could not safely retire its local sync history. Free browser storage and try again.',
-        'error',
-      );
-      return false;
-    }
-  }
+  if (evolu?.prepareHistoryResetForDisable?.() === false) return false;
   // Flip the persisted flag FIRST, before any awaits. If anything below
   // hangs (Evolu worker stuck on OPFS or a Web Lock), a manual page
   // reload will still see sync as off.

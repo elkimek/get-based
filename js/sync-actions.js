@@ -23,7 +23,6 @@ let _forcePull = () => {};
 let _isSyncEnabled = () => false;
 let _isEvoluReady = () => false;
 let _isSyncing = () => false;
-let _prepareLocalSyncHistoryForRelayRebuild = async () => {};
 let _resetLocalSyncHistoryForRelayRebuild = async () => {};
 /** @type {() => any[]} */
 let _getProfiles = () => [];
@@ -35,7 +34,6 @@ let _createDefaultProfileData = () => ({ entries: [] });
  *   isSyncEnabled?: () => boolean,
  *   isEvoluReady?: () => boolean,
  *   isSyncing?: () => boolean,
- *   prepareLocalSyncHistoryForRelayRebuild?: () => Promise<any>,
  *   resetLocalSyncHistoryForRelayRebuild?: () => Promise<any>,
  *   getProfiles?: () => any[],
  *   createDefaultProfileData?: () => any,
@@ -47,7 +45,6 @@ export function configureSyncActions({
   isSyncEnabled,
   isEvoluReady,
   isSyncing,
-  prepareLocalSyncHistoryForRelayRebuild,
   resetLocalSyncHistoryForRelayRebuild,
   getProfiles,
   createDefaultProfileData,
@@ -57,9 +54,6 @@ export function configureSyncActions({
   if (typeof isSyncEnabled === 'function') _isSyncEnabled = isSyncEnabled;
   if (typeof isEvoluReady === 'function') _isEvoluReady = isEvoluReady;
   if (typeof isSyncing === 'function') _isSyncing = isSyncing;
-  if (typeof prepareLocalSyncHistoryForRelayRebuild === 'function') {
-    _prepareLocalSyncHistoryForRelayRebuild = prepareLocalSyncHistoryForRelayRebuild;
-  }
   if (typeof resetLocalSyncHistoryForRelayRebuild === 'function') {
     _resetLocalSyncHistoryForRelayRebuild = resetLocalSyncHistoryForRelayRebuild;
   }
@@ -254,9 +248,6 @@ export async function prepareRelayCompaction() {
   // profile switch, so stale relay scalars cannot overwrite the rebuild source.
   await flushDirtyProfilesForRelayCompaction(profiles);
   await _forcePull();
-  // Fail before POST /self/compact-owner unless the Evolu 8 generation
-  // boundary is already durable. Evolu 7 treats this as a no-op.
-  await _prepareLocalSyncHistoryForRelayRebuild();
 }
 
 export async function rebuildOwnerRelayState() {

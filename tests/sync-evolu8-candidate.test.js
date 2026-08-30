@@ -205,6 +205,7 @@ describe('Evolu 8 compatibility candidate', () => {
         storage,
       });
 
+      expect(evolu.prepareHistoryResetForDisable()).toBe(false);
       expect(() => evolu.prepareHistoryReset()).toThrow('could not safely persist');
       await expect(evolu.restoreAppOwner('beta words', { reload: false }))
         .rejects.toThrow('could not safely persist');

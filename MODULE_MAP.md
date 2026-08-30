@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 701 |
-| Internal import edges | 2990 |
+| Internal import edges | 2992 |
 | Dynamic internal edges | 92 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -59,7 +59,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 282 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 78 |
+| [`js/utils.js`](js/utils.js) | 283 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 78 |
 | [`js/state.js`](js/state.js) | 189 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/caught-error.js`](js/caught-error.js) | 88 | [`js/chat-send.js`](js/chat-send.js) | 31 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 81 | [`js/settings.js`](js/settings.js) | 28 |
@@ -1129,7 +1129,7 @@ Native browser modules shipped with the static application.
 - [`js/sync-diagnose-actions.js`](js/sync-diagnose-actions.js) → [`js/sync-diagnose-actions-context.js`](js/sync-diagnose-actions-context.js), [`js/sync-diagnose-cutover-actions.js`](js/sync-diagnose-cutover-actions.js), [`js/sync-diagnose-identity-actions.js`](js/sync-diagnose-identity-actions.js), [`js/sync-diagnose-relay-actions.js`](js/sync-diagnose-relay-actions.js)
 - [`js/sync-diagnose-cutover-actions.js`](js/sync-diagnose-cutover-actions.js) → [`js/caught-error.js`](js/caught-error.js), [`js/state.js`](js/state.js), [`js/sync-delta.js`](js/sync-delta.js), [`js/sync-diagnose-actions-context.js`](js/sync-diagnose-actions-context.js), [`js/sync-diagnose-runtime.js`](js/sync-diagnose-runtime.js), [`js/sync-state.js`](js/sync-state.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-diagnose-identity-actions.js`](js/sync-diagnose-identity-actions.js) → [`js/caught-error.js`](js/caught-error.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/sync-diagnose-actions-context.js`](js/sync-diagnose-actions-context.js), [`js/sync-diagnose-runtime.js`](js/sync-diagnose-runtime.js), [`js/sync-identity.js`](js/sync-identity.js), [`js/utils.js`](js/utils.js)
-- [`js/sync-diagnose-relay-actions.js`](js/sync-diagnose-relay-actions.js) → [`js/caught-error.js`](js/caught-error.js), [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-diagnose-actions-context.js`](js/sync-diagnose-actions-context.js), [`js/sync-diagnose-runtime.js`](js/sync-diagnose-runtime.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/sync-ui.js`](js/sync-ui.js), [`js/utils.js`](js/utils.js)
+- [`js/sync-diagnose-relay-actions.js`](js/sync-diagnose-relay-actions.js) → [`js/caught-error.js`](js/caught-error.js), [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-diagnose-actions-context.js`](js/sync-diagnose-actions-context.js), [`js/sync-diagnose-runtime.js`](js/sync-diagnose-runtime.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-ui.js`](js/sync-ui.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-diagnose-render.js`](js/sync-diagnose-render.js) → [`js/utils.js`](js/utils.js)
 - [`js/sync-diagnose-runtime.js`](js/sync-diagnose-runtime.js) → [`js/utils.js`](js/utils.js)
 - [`js/sync-diagnose-ui.js`](js/sync-diagnose-ui.js) → [`js/caught-error.js`](js/caught-error.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/sync-diagnose-actions.js`](js/sync-diagnose-actions.js), [`js/sync-diagnose-render.js`](js/sync-diagnose-render.js), [`js/sync-diagnostics.js`](js/sync-diagnostics.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/utils.js`](js/utils.js)
@@ -1140,7 +1140,7 @@ Native browser modules shipped with the static application.
 - [`js/sync-dirty-state.js`](js/sync-dirty-state.js) → no in-scope imports
 - [`js/sync-disable-cleanup.js`](js/sync-disable-cleanup.js) → no in-scope imports
 - [`js/sync-environment.js`](js/sync-environment.js) → [`js/utils-runtime.js`](js/utils-runtime.js)
-- [`js/sync-evolu8-candidate.js`](js/sync-evolu8-candidate.js) → [`js/sync-runtime.js`](js/sync-runtime.js)
+- [`js/sync-evolu8-candidate.js`](js/sync-evolu8-candidate.js) → [`js/sync-runtime.js`](js/sync-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-identity.js`](js/sync-identity.js) → [`js/sync-backup-restore-state.js`](js/sync-backup-restore-state.js), [`js/sync-disable-cleanup.js`](js/sync-disable-cleanup.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-init.js`](js/sync-init.js) → [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-evolu8-candidate.js`](js/sync-evolu8-candidate.js) *(dynamic)*, [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-recovery.js`](js/sync-recovery.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-schema.js`](js/sync-schema.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/sync-subscriptions.js`](js/sync-subscriptions.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-lifecycle.js`](js/sync-lifecycle.js) → [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-backup-restore-state.js`](js/sync-backup-restore-state.js), [`js/sync-disable-cleanup.js`](js/sync-disable-cleanup.js), [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-init.js`](js/sync-init.js), [`js/sync-pull.js`](js/sync-pull.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-subscriptions.js`](js/sync-subscriptions.js), [`js/sync-ui.js`](js/sync-ui.js), [`js/utils.js`](js/utils.js)

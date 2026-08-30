@@ -15,8 +15,7 @@ import { configureSyncMessenger } from './sync-messenger.js';
 import { buildLabContext, buildWearableSeriesSection, getAgentWearableSeriesDays } from './lab-context.js';
 import { checkRelayConnection, getSyncRelay } from './sync-environment.js';
 import {
-  configureSyncIdentity, prepareLocalSyncHistoryForRelayRebuild,
-  resetLocalSyncHistoryForRelayRebuild, restoreFromMnemonic,
+  configureSyncIdentity, resetLocalSyncHistoryForRelayRebuild, restoreFromMnemonic,
 } from './sync-identity.js';
 import { configureSyncDiagnostics } from './sync-diagnostics.js';
 import { bindSyncUIStatusUpdates, configureSyncUI, initSyncUIDelegates } from './sync-ui.js';
@@ -173,7 +172,6 @@ export function configureSyncModules({ enableSync } = {}) {
     isSyncEnabled,
     isEvoluReady: isSyncEvoluReady,
     isSyncing: isSyncPushInFlight,
-    prepareLocalSyncHistoryForRelayRebuild,
     resetLocalSyncHistoryForRelayRebuild,
     getProfiles,
     createDefaultProfileData,

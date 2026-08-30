@@ -10,6 +10,7 @@ import { toggleSyncDetail } from './sync-ui.js';
 import { showSyncDiagnoseForActions } from './sync-diagnose-actions-context.js';
 import { confirmSyncDiagnoseActionRuntime } from './sync-diagnose-runtime.js';
 import { prepareRelayCompaction, rebuildOwnerRelayState } from './sync-actions.js';
+import { getSyncEvolu } from './sync-runtime.js';
 
 async function waitForRelayRebuild() {
   const delays = [0, 500, 1500, 3000];
@@ -48,6 +49,7 @@ export async function confirmCompactRelay(btn) {
       // Includes the Evolu 8 generation-persistence preflight. Nothing may
       // delete the relay log until that local history boundary is durable.
       await prepareRelayCompaction();
+      getSyncEvolu()?.prepareHistoryReset?.();
       result = await compactOwnerSelfServe();
       compacted = true;
     }

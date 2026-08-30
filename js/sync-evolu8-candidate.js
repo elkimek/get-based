@@ -7,6 +7,7 @@
 // fresh v8 database generation so pre-compaction history can never replay.
 
 import { setSyncAppOwnerError } from './sync-runtime.js';
+import { showNotification } from './utils.js';
 
 export const EVOLU8_CLIENT_QUERY_PARAM = 'evolu-client';
 export const EVOLU8_GENERATION_KEY = 'labcharts-sync-evolu8-generation';
@@ -209,6 +210,16 @@ export async function createEvolu8Candidate({
     return preparedGeneration;
   };
 
+  const prepareHistoryResetForDisable = () => {
+    try {
+      prepareHistoryReset();
+      return true;
+    } catch {
+      showNotification('Free browser storage before disabling Sync, then try again.', 'error');
+      return false;
+    }
+  };
+
   const consumeHistoryResetGeneration = () => {
     const nextGeneration = preparedGeneration ?? advanceEvolu8Generation(storage);
     preparedGeneration = null;
@@ -277,6 +288,7 @@ export async function createEvolu8Candidate({
     // Relay compaction and disable call this before their irreversible step.
     // restore/reset then consume the reservation without another storage write.
     prepareHistoryReset,
+    prepareHistoryResetForDisable,
     get name() { return current?.evolu?.name; },
     get appOwner() { return Promise.resolve(current?.evolu?.appOwner); },
     createQuery,
