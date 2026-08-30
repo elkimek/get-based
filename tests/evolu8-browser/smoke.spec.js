@@ -102,7 +102,7 @@ test('starts v8 from its durable identity without the v7 worker', async ({
       return route.abort();
     });
 
-    await page.goto('/app?evolu-client=v8', { waitUntil: 'domcontentloaded' });
+    await page.goto('/app', { waitUntil: 'domcontentloaded' });
     await seedCandidateIdentity(page);
     await page.reload({ waitUntil: 'domcontentloaded' });
     const first = await waitForOwner(page);
@@ -117,6 +117,37 @@ test('starts v8 from its durable identity without the v7 worker', async ({
     expect(second.ownerId).toBe(first.ownerId);
     expect(second.clientVersion).toBe(8);
     expect(legacyRequests).toBe(0);
+    expect(pageErrors).toEqual([]);
+  } finally {
+    await browserPage.close();
+  }
+});
+
+test('keeps the explicit v7 rollback isolated from the v8 runtime', async ({
+  browserName, context: defaultContext, page: defaultPage, playwright,
+}, testInfo) => {
+  const browserPage = await getCompatibleBrowserPage({
+    browserName, context: defaultContext, page: defaultPage, playwright,
+  }, testInfo);
+  const { context, page } = browserPage;
+  try {
+    await configureCandidate(context);
+    await context.addInitScript(() => {
+      localStorage.setItem('labcharts-sync-enabled', 'true');
+    });
+    const pageErrors = [];
+    page.on('pageerror', error => pageErrors.push(error.message));
+    let modernRequests = 0;
+    await page.route('**/vendor/evolu8/**', route => {
+      modernRequests += 1;
+      return route.abort();
+    });
+
+    await page.goto('/app?evolu-client=v7', { waitUntil: 'domcontentloaded' });
+    const runtime = await waitForOwner(page);
+
+    expect(runtime.clientVersion).toBeNull();
+    expect(modernRequests).toBe(0);
     expect(pageErrors).toEqual([]);
   } finally {
     await browserPage.close();
@@ -140,7 +171,7 @@ test('polyfills resource management and enforces the one-tab worker fallback', a
       return route.abort();
     });
 
-    await page.goto('/app?evolu-client=v8', { waitUntil: 'domcontentloaded' });
+    await page.goto('/app', { waitUntil: 'domcontentloaded' });
     await seedCandidateIdentity(page);
     await page.reload({ waitUntil: 'domcontentloaded' });
     const first = await waitForOwner(page);
@@ -163,7 +194,7 @@ test('polyfills resource management and enforces the one-tab worker fallback', a
 
     const secondPage = await context.newPage();
     secondPage.on('pageerror', error => pageErrors.push(error.message));
-    await secondPage.goto('/app?evolu-client=v8', { waitUntil: 'domcontentloaded' });
+    await secondPage.goto('/app', { waitUntil: 'domcontentloaded' });
     await expect.poll(async () => (await readRuntime(secondPage)).error, {
       timeout: 30_000,
       intervals: [100, 250, 500, 1000],

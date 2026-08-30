@@ -1,5 +1,5 @@
 // @ts-check
-// Experimental Evolu 8 compatibility adapter.
+// Evolu 8 compatibility adapter with an explicit Evolu 7 rollback.
 //
 // Evolu 8 intentionally cannot open Evolu 7's local SQLite format and its
 // released web API does not yet implement deleteDatabase/resetAppOwner. A
@@ -13,20 +13,18 @@ import { showNotification } from './utils.js';
 export const EVOLU8_CLIENT_QUERY_PARAM = 'evolu-client';
 export const EVOLU8_GENERATION_KEY = 'labcharts-sync-evolu8-generation';
 const EVOLU_BUNDLE_URL = new URL('../vendor/evolu/evolu-bundle.js', import.meta.url).href;
-// Candidate assets are intentionally fetched on first explicit opt-in instead
-// of adding another 2.5 MB to every user's PWA app-shell download.
 const EVOLU8_VENDOR_DIRECTORY = '../vendor/evolu8/';
 const EVOLU8_BUNDLE_URL = new URL(`${EVOLU8_VENDOR_DIRECTORY}evolu-bundle.js`, import.meta.url).href;
 
 /** @param {Location | { href?: string, search?: string } | null | undefined} [locationLike] */
-export function isEvolu8CandidateRequested(locationLike = globalThis.location) {
+export function shouldUseEvolu8Client(locationLike = globalThis.location) {
   try {
     const search = typeof locationLike?.search === 'string'
       ? locationLike.search
       : new URL(String(locationLike?.href || ''), 'https://getbased.invalid/').search;
-    return new URLSearchParams(search).get(EVOLU8_CLIENT_QUERY_PARAM) === 'v8';
+    return new URLSearchParams(search).get(EVOLU8_CLIENT_QUERY_PARAM) !== 'v7';
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -110,9 +108,9 @@ export async function cleanupSupersededEvolu8Databases({
 }
 
 /**
- * Load the stable v7 client by default and the compatibility bridge only after
- * an explicit query opt-in. Keeping this loader lazy avoids adding candidate
- * code to the production startup bundle.
+ * Load Evolu 8 by default while keeping `?evolu-client=v7` as a deliberate
+ * operational rollback. Both implementations remain lazy so only the selected
+ * startup path executes or connects to the relay.
  * @param {{
  *   createSyncSchema: (types: any) => any,
  *   relay: string,
@@ -127,7 +125,7 @@ export async function createSyncEvoluClient({
   enableLogging,
 }) {
   const identityVault = createEvolu8IdentityVault();
-  if (isEvolu8CandidateRequested()) {
+  if (shouldUseEvolu8Client()) {
     const evolu = await createEvolu8SyncClient({
       relay,
       reloadUrl,
@@ -135,7 +133,6 @@ export async function createSyncEvoluClient({
       createSyncSchema,
       identityVault,
     });
-    console.warn('[sync] Running opt-in Evolu 8 compatibility candidate');
     return evolu;
   }
   const legacyEvolu = await createLegacyEvoluClient({

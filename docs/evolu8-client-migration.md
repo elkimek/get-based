@@ -1,15 +1,20 @@
 # Evolu 8 browser-client migration
 
-Status: compatibility candidate; Evolu 7 remains the default client.
+Status: Evolu 8 is the default client; Evolu 7 remains available as an explicit
+rollback.
 
-Enable the candidate explicitly with `?evolu-client=v8`. Removing the query
-parameter returns to the unchanged Evolu 7 database and client path.
-The additional 2.5 MB candidate runtime is fetched on first opt-in rather than
-pre-cached for every user, so the first evaluation must begin online.
+Normal app URLs use Evolu 8. Add `?evolu-client=v7` to use the unchanged Evolu 7
+database and client path during an operational rollback. `?evolu-client=v8`
+remains accepted for old test links but is no longer required.
+
+Both client runtimes are temporarily pre-cached. This lets an existing offline
+installation complete its first identity handoff to Evolu 8 and keeps the v7
+rollback available even without a network connection. After the handoff, Evolu
+8 starts from its dedicated identity vault without opening the v7 worker.
 
 ## Compatibility design
 
-- On the first Evolu 8 opt-in, the v7 owner is verified against Evolu 8's
+- On the first Evolu 8 startup, the v7 owner is verified against Evolu 8's
   deterministic owner derivation and copied to a dedicated IndexedDB identity
   vault. Subsequent v8 startups use that vault without opening the v7 worker.
 - The recovery mnemonic is never copied into `localStorage`. Local storage
@@ -18,8 +23,7 @@ pre-cached for every user, so the first evaluation must begin online.
 - Evolu 8 deterministically derives the same owner ID and keys from that
   mnemonic, so it connects to the existing relay identity.
 - The Evolu 7 bridge is loaded with no transports only for the first handoff or
-  an identity restore/reset. Only Evolu 8 connects to the relay while the
-  candidate is selected.
+  an identity restore/reset. Only the selected client connects to the relay.
 - Restore and reset invalidate the v8 vault before changing the durable v7
   owner. The default v7 path applies the same guard, preserving a safe rollback
   even after testing v8.
@@ -34,9 +38,9 @@ pre-cached for every user, so the first evaluation must begin online.
 - Query and error subscriptions are rebound when compaction replaces the
   active Evolu 8 database in the same page.
 
-## Promotion gates
+## Compatibility gates
 
-Do not make Evolu 8 the default unless all of these checks remain green:
+Keep Evolu 8 as the default only while all of these checks remain green:
 
 1. The `Sync compatibility` CI workflow runs the focused real-relay scenario
    against the pinned `getbased-relay` revision for both clients, including
@@ -49,7 +53,5 @@ Do not make Evolu 8 the default unless all of these checks remain green:
    Playwright's Linux WPE port lacks the `navigator.storage` OPFS entry point,
    and WebKit deliberately withholds OPFS from its default private context.
 
-These automated gates make the next safe step a separate, reviewable default
-cutover rather than combining compatibility validation with rollout. Cleanup
-removes only superseded, unlocked v8 generation databases and leaves the v7
-rollback database intact.
+Cleanup removes only superseded, unlocked v8 generation databases and leaves
+the v7 rollback database intact.

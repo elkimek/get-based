@@ -2,6 +2,11 @@ import { expect, test } from './coverage-fixture.js';
 
 test.use({ serviceWorkers: 'allow' });
 
+const TEST_IDENTITY = {
+  ownerId: 'BSf-8mxNjgk72yD-D7rr1A',
+  mnemonic: 'oven federal awkward resist alter sound social version apart misery differ power buyer cloud avocado amount lady wedding silent nest fragile blanket oval fame',
+};
+
 test('installed PWA completes a cache-only cold offline relaunch', async ({ page }, testInfo) => {
   testInfo.setTimeout(120_000);
   const failedStaticRequests = [];
@@ -50,6 +55,17 @@ test('installed PWA completes a cache-only cold offline relaunch', async ({ page
   expect(installed.cachedPaths).toContain('/js/chat-onboarding-host-bindings.js');
   expect(installed.cachedPaths).toContain('/js/demo-nutrition.js');
   expect(installed.cachedPaths).toContain('/vendor/fonts/inter-400-7.woff2');
+  expect(installed.cachedPaths).toContain('/vendor/evolu/evolu-bundle.js');
+  expect(installed.cachedPaths).toContain('/vendor/evolu/Db.worker.js');
+  expect(installed.cachedPaths).toContain('/vendor/evolu8/evolu-bundle.js');
+  expect(installed.cachedPaths).toContain('/vendor/evolu8/Db.worker.js');
+  expect(installed.cachedPaths).toContain('/vendor/evolu8/Shared.worker.js');
+
+  await page.evaluate(async identity => {
+    const { createEvolu8IdentityVault } = await import('/js/sync-evolu8-identity-vault.js');
+    await createEvolu8IdentityVault().write(identity);
+    localStorage.setItem('labcharts-sync-enabled', 'true');
+  }, TEST_IDENTITY);
 
   const client = await page.context().newCDPSession(page);
   await client.send('Network.enable');
@@ -59,6 +75,13 @@ test('installed PWA completes a cache-only cold offline relaunch', async ({ page
 
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.locator('#main-content')).toContainText('Welcome to getbased', { timeout: 20_000 });
+  await expect.poll(() => page.evaluate(async () => {
+    const runtime = await import('/js/sync-runtime.js');
+    return {
+      clientVersion: runtime.getSyncEvolu()?.__evoluClientVersion || null,
+      ownerId: runtime.getSyncAppOwner()?.id ? String(runtime.getSyncAppOwner().id) : null,
+    };
+  }), { timeout: 30_000 }).toEqual({ clientVersion: 8, ownerId: TEST_IDENTITY.ownerId });
   await page.waitForTimeout(500);
   expect(failedStaticRequests).toEqual([]);
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);

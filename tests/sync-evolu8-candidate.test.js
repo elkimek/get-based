@@ -5,8 +5,8 @@ import {
   cleanupSupersededEvolu8Databases,
   createEvolu8Candidate,
   guardLegacyIdentityChanges,
-  isEvolu8CandidateRequested,
   readEvolu8Generation,
+  shouldUseEvolu8Client,
 } from '../js/sync-evolu8-candidate.js';
 
 function createOpfsRoot(entries) {
@@ -264,11 +264,14 @@ describe('Evolu 8 compatibility candidate', () => {
     expect(lockManager.request).not.toHaveBeenCalled();
   });
 
-  it('requires an explicit v8 query opt-in', () => {
-    expect(isEvolu8CandidateRequested({ search: '?evolu-client=v8' })).toBe(true);
-    expect(isEvolu8CandidateRequested({ href: 'https://getbased.health/?evolu-client=v8' })).toBe(true);
-    expect(isEvolu8CandidateRequested({ search: '?evolu-client=v7' })).toBe(false);
-    expect(isEvolu8CandidateRequested({ search: '' })).toBe(false);
+  it('uses v8 by default and preserves an explicit v7 rollback', () => {
+    expect(shouldUseEvolu8Client({ search: '' })).toBe(true);
+    expect(shouldUseEvolu8Client({ search: '?evolu-client=v8' })).toBe(true);
+    expect(shouldUseEvolu8Client({ href: 'https://getbased.health/?evolu-client=v8' })).toBe(true);
+    expect(shouldUseEvolu8Client({ search: '?evolu-client=v7' })).toBe(false);
+    expect(shouldUseEvolu8Client({ href: 'https://getbased.health/app?evolu-client=v7' })).toBe(false);
+    expect(shouldUseEvolu8Client({ search: '?evolu-client=unknown' })).toBe(true);
+    expect(shouldUseEvolu8Client({ get search() { throw new Error('blocked'); } })).toBe(true);
   });
 
   it('normalizes corrupt generation state without writing it', () => {

@@ -1,7 +1,6 @@
 // @ts-check
 // changelog-impl.js — lazy What's New release-note archive and modal renderer
 // APP_VERSION comes from /version.js (loaded as classic script before modules)
-
 import { escapeHTML } from './utils.js';
 import { getAppVersionRuntime } from './utils-runtime.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
@@ -10,6 +9,8 @@ const CHANGELOG_ACTION_ATTR = 'data-changelog-action';
 const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
+  { version: '1.18.6', date: '2026-08-30', title: 'Cross-device sync moves to the newer engine', items: [
+    '<b>Encrypted Sync now uses Evolu 8 by default.</b> Existing recovery words and relay identities carry forward automatically, while compatibility checks continue to exercise the previous client as a rollback path.', '<b>Sync recovery has stronger storage safeguards.</b> The app avoids stale rebroadcasts and preserves a complete snapshot when rebuilding relay history, reducing duplicate growth without dropping newer device changes.' ] },
   {
     version: '1.18.2', date: '2026-08-28', title: 'WHOOP sync is current and securely stored',
     items: [
