@@ -3,6 +3,8 @@ import { expect, test } from '@playwright/test';
 const TRANSPORT_E2E_ENABLED = process.env.SYNC_TRANSPORT_E2E === '1';
 const RELAY_URL = process.env.SYNC_TRANSPORT_RELAY || 'ws://127.0.0.1:4000';
 const SELF_URL = process.env.SYNC_TRANSPORT_SELF_URL || 'http://127.0.0.1:4003';
+const EVOLU_CLIENT = process.env.SYNC_TRANSPORT_EVOLU_CLIENT || 'v7';
+const APP_URL = EVOLU_CLIENT === 'v8' ? '/app?evolu-client=v8' : '/app';
 const BASELINE_CONTEXT = 'transport-e2e-baseline';
 const UPDATED_CONTEXT = 'transport-e2e-updated';
 const OFFLINE_CONTEXT = 'transport-e2e-offline-recovery';
@@ -53,7 +55,7 @@ async function createDevice(browser, label) {
     });
   }
   page.setDefaultTimeout(20_000);
-  await page.goto('/app', { waitUntil: 'domcontentloaded', timeout: 30_000 });
+  await page.goto(APP_URL, { waitUntil: 'domcontentloaded', timeout: 30_000 });
   await page.waitForFunction(async () => {
     const { state } = await import('/js/state.js');
     return state.currentProfile === 'default' && !!state.importedData;

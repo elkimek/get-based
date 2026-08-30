@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "packages": {
+    "@evolu/common": {
+      "version": "8.7.0",
+      "integrity": "sha512-52bfvAJZaOmAAmiaOdkGn4MtYbIK1xf5sSb9fjzdRRAD6XbJtRT4yqlJ5MxBacsUHDtMXjUW02XgYlbUXyJ04A=="
+    },
+    "@evolu/web": {
+      "version": "3.1.0",
+      "integrity": "sha512-QldJ28/5TpZoOcgCOHckqWdn8ykJEp8a0dLWQ0NFPCQjfMZXDoCLOLAD3h+AFxgFF7mR/NSP86yCiMm/KLB+pA=="
+    },
+    "@evolu/sqlite-wasm": {
+      "version": "2.2.4",
+      "integrity": "sha512-/JOYGFN93QspD2C8HVxVgBUlFWqJ1IpaVuIhEB53u4+ZvE+D3LjpNHDYiwZgf0n7VaH2U85OY5eV3wUrWc3scg=="
+    },
+    "rolldown": {
+      "version": "1.2.4",
+      "integrity": "sha512-rSr7irW0K7QRWzjdJXqZowkcRdDtjRduh43rBltnVKd0VFq839l1lJoDvGJb6gl7+4rTTCrPWu+YfujUL8Ug7w=="
+    }
+  },
+  "bundles": [
+    {
+      "entry": "scripts/vendor-entries/evolu8.js",
+      "output": "vendor/evolu8/evolu-bundle.js",
+      "sha256": "3da7f2cdf30ee5d7016b9f7831c0c537970a358d13a50fdefa71ffda63fccabd"
+    },
+    {
+      "entry": "scripts/vendor-entries/evolu8-db-worker.js",
+      "output": "vendor/evolu8/Db.worker.js",
+      "sha256": "70e2972eeb74717c9524986f3a9c12721ef01fa26a0b4629d3d56fba5c2c7964"
+    },
+    {
+      "entry": "scripts/vendor-entries/evolu8-shared-worker.js",
+      "output": "vendor/evolu8/Shared.worker.js",
+      "sha256": "7bcfa3bf8e59849bc0105039943721a79415b95e554d3f62fc23ac3ea2fdc6f9"
+    }
+  ],
+  "assets": [
+    {
+      "source": "node_modules/@evolu/sqlite-wasm/sqlite-wasm/jswasm/sqlite3-bundler-friendly.mjs",
+      "output": "vendor/evolu8/sqlite3-bundler-friendly.mjs",
+      "sha256": "1d1cea8bbf10d173ab29d003e1197db2aca7f29a23a7a4320f5cfe77ce4e3243"
+    },
+    {
+      "source": "node_modules/@evolu/sqlite-wasm/sqlite-wasm/jswasm/sqlite3-opfs-async-proxy.js",
+      "output": "vendor/evolu8/sqlite3-opfs-async-proxy.js",
+      "sha256": "cf58af5a6384d81dc958fd7933be7517d6521e51918c629be2686b6713d656dd"
+    },
+    {
+      "source": "node_modules/@evolu/sqlite-wasm/sqlite-wasm/jswasm/sqlite3-worker1-bundler-friendly.mjs",
+      "output": "vendor/evolu8/sqlite3-worker1-bundler-friendly.mjs",
+      "sha256": "7b771d35011172c6e24cafad78dec56704fc36584715d633adab8d8af7bea259"
+    },
+    {
+      "source": "node_modules/@evolu/sqlite-wasm/sqlite-wasm/jswasm/sqlite3.wasm",
+      "output": "vendor/evolu8/sqlite3.wasm",
+      "sha256": "e0e94e4ac5221c19aefe7e59fe88ceab93bff56ec1d966c21c6cf39ac0f26735"
+    }
+  ]
+}

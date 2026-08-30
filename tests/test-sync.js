@@ -59,6 +59,7 @@ await import('../js/settings.js');
   const syncSettingsStateSrc = await fetchWithRetry('js/sync-settings-state.js');
   const syncRuntimeSrc = await fetchWithRetry('js/sync-runtime.js');
   const syncInitSrc = await fetchWithRetry('js/sync-init.js');
+  const syncEvoluClientSrc = await fetchWithRetry('js/sync-evolu8-candidate.js');
   const syncLifecycleSrc = await fetchWithRetry('js/sync-lifecycle.js');
   const syncDisableCleanupSrc = await fetchWithRetry('js/sync-disable-cleanup.js');
   const syncSchemaSrc = await fetchWithRetry('js/sync-schema.js');
@@ -237,7 +238,8 @@ await import('../js/settings.js');
   assert('sync-init.js owns Evolu startup orchestration',
     syncSrc.includes("from './sync-init.js'")
       && syncInitSrc.includes('export async function initSync')
-      && syncInitSrc.includes('createSyncSchema({')
+      && syncInitSrc.includes('createSyncEvoluClient({')
+      && syncEvoluClientSrc.includes('createSyncSchema({')
       && syncInitSrc.includes('createSyncQueries(evolu)')
       && syncInitSrc.includes('bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, itemRowQuery })')
       && syncInitSrc.includes('startRelayProbe();')
@@ -246,6 +248,8 @@ await import('../js/settings.js');
       && syncInitSrc.includes('setSyncQueries({ profileQuery, tombstoneQuery, itemRowQuery })'));
   assert('service worker precaches sync-init.js',
     serviceWorkerSrc.includes("'/js/sync-init.js'"));
+  assert('service worker precaches the lazy Evolu client selector',
+    serviceWorkerSrc.includes("'/js/sync-evolu8-candidate.js'"));
   assert('sync-lifecycle.js owns enable/pause/disable lifecycle actions',
     !syncSrc.includes("from './sync-lifecycle.js'")
       && startupOrchestratorSrc.includes("from './sync-lifecycle.js'")
@@ -281,7 +285,7 @@ await import('../js/settings.js');
     syncInitSrc.includes("from './sync-schema.js'")
       && syncSchemaSrc.includes('export function createSyncSchema')
       && syncSchemaSrc.includes('export function createSyncQueries')
-      && syncInitSrc.includes('createSyncSchema({')
+      && syncEvoluClientSrc.includes('createSyncSchema({')
       && syncInitSrc.includes('createSyncQueries(evolu)'));
   assert('service worker precaches sync-schema.js',
     serviceWorkerSrc.includes("'/js/sync-schema.js'"));
@@ -1449,7 +1453,7 @@ await import('../js/settings.js');
       && syncRuntimeSrc.includes('export function getSyncReloadUrlRuntime'));
   assert('enableLogging gated on debug mode', syncInitSrc.includes('enableLogging: isDebugMode()'));
   assert('Default relay is wss://sync.getbased.health', syncEnvironmentSrc.includes("wss://sync.getbased.health"));
-  assert('Transport uses plural "transports" array (not singular)', syncInitSrc.includes('transports: [{ type:') && !syncInitSrc.includes('transport: { type:'));
+  assert('Transport uses plural "transports" array (not singular)', syncEvoluClientSrc.includes('transports: [{ type:') && !syncEvoluClientSrc.includes('transport: { type:'));
   assert('COOP header in dev-server', await fetchWithRetry('dev-server.js').then(s => s.includes('Cross-Origin-Opener-Policy')));
   assert('initSync reuses an existing runtime instead of creating a duplicate',
     syncInitSrc.includes('const existingEvolu = getSyncEvolu()')
@@ -3540,7 +3544,15 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   console.log('15. Vendor Files');
 
-  const vendorFiles = ['vendor/evolu/evolu-bundle.js', 'vendor/evolu/Db.worker.js', 'vendor/evolu/sqlite3.wasm'];
+  const vendorFiles = [
+    'vendor/evolu/evolu-bundle.js',
+    'vendor/evolu/Db.worker.js',
+    'vendor/evolu/sqlite3.wasm',
+    'vendor/evolu8/evolu-bundle.js',
+    'vendor/evolu8/Db.worker.js',
+    'vendor/evolu8/Shared.worker.js',
+    'vendor/evolu8/sqlite3.wasm',
+  ];
   for (const f of vendorFiles) {
     // Node: existence check on disk. Browser would HTTP HEAD; same intent.
     const exists = fs.existsSync(path.join(ROOT, f));
