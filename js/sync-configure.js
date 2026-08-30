@@ -29,6 +29,7 @@ import { configureSyncPush, isSyncPushInFlight, pushProfile } from './sync-push.
 import { configureSyncPayload } from './sync-payload.js';
 import { configureSyncRecovery } from './sync-recovery.js';
 import { configureSyncInit } from './sync-init.js';
+import { isSyncRebroadcastSettling } from './sync-pull-rebroadcast.js';
 import { configureSyncReconcile, reconcileLocalStorageWithEvolu } from './sync-reconcile.js';
 import {
   disablePhase2Cutover, enablePhase2Cutover, isPhase2CutoverEnabled,
@@ -99,6 +100,7 @@ export function configureSyncModules({ enableSync } = {}) {
     isSyncing: isSyncPushInFlight,
     isPulling: isSyncPulling,
     isSyncEnabled,
+    isStartupSettling: isSyncRebroadcastSettling,
     onSyncReceived,
     checkRelayConnection,
     updateSyncStatus,

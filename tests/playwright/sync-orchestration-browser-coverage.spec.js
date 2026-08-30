@@ -691,7 +691,7 @@ test('sync subscriptions browser coverage exercises default dependency no-ops', 
       errorCallback?.({ type: 'IgnoredDefaultError' });
 
       outcomes.defaultCallbacksDoNotThrow =
-        subscriptions.getSyncSubscriptionFireCount() === 1
+        subscriptions.getSyncSubscriptionFireCount() === 3
         && callbacks.size === 3
         && intervals.some(timer => timer.ms === 30000 && !timer.cleared);
 

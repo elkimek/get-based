@@ -3457,11 +3457,22 @@ await import('../js/settings.js');
   // the pickTimestamp-aware helper instead of bare id-set comparison.
   assert('reconcileLocalStorageWithEvolu defined',
     /export async function reconcileLocalStorageWithEvolu\(\)/.test(syncReconcileSrc));
-  assert('Reconciliation runs on initSync after appOwner + queries are ready',
-    syncConfigureSrc.includes("from './sync-init.js'")
-      && syncConfigureSrc.includes('configureSyncInit({ reconcileLocalStorageWithEvolu });')
-      && !syncInitSrc.includes("from './sync-reconcile.js'")
-      && /Promise\.all\(\[readyPromise,\s*queryLoaded\]\)[\s\S]{0,300}reconcileLocalStorageWithEvolu/.test(syncInitSrc));
+  {
+    const readyAt = syncInitSrc.indexOf('Promise.all([readyPromise, queryLoaded])');
+    const settleAt = syncInitSrc.indexOf('await waitForInitialReplicaQuiet()', readyAt);
+    const forcePullAt = syncInitSrc.indexOf('await _forcePull()', settleAt);
+    const finishSettlingAt = syncInitSrc.indexOf('finishSyncRebroadcastSettling()', forcePullAt);
+    const reconcileAt = syncInitSrc.indexOf('await reconcileLocalStorageWithEvolu()', finishSettlingAt);
+    assert('Reconciliation runs on initSync after appOwner + queries are ready',
+      syncConfigureSrc.includes("from './sync-init.js'")
+        && /configureSyncInit\(\{[\s\S]{0,250}reconcileLocalStorageWithEvolu,/.test(syncConfigureSrc)
+        && !syncInitSrc.includes("from './sync-reconcile.js'")
+        && readyAt >= 0
+        && readyAt < settleAt
+        && settleAt < forcePullAt
+        && forcePullAt < finishSettlingAt
+        && finishSettlingAt < reconcileAt);
+  }
   assert('Reconciliation reads remote dataJson via parseSyncPayload',
     /reconcileLocalStorageWithEvolu[\s\S]{0,1600}parseSyncPayload\(existing\.dataJson\)/.test(syncReconcileSrc));
   assert('Reconciliation routes through localHasRowsRemoteLacks (catches same-id timestamp drift)',
