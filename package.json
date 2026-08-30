@@ -43,7 +43,7 @@
     "@evolu/common": "8.7.0",
     "@evolu/web": "3.1.0",
     "@noble/curves": "2.2.0",
-    "@phala/dcap-qvl": "0.6.1",
+    "@phala/dcap-qvl": "0.6.2",
     "@playwright/test": "^1.62.1",
     "@vitest/coverage-v8": "^4.1.10",
     "axe-core": "4.13.0",
