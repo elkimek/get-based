@@ -42,9 +42,11 @@ Do not make Evolu 8 the default unless all of these checks remain green:
    against the pinned `getbased-relay` revision for both clients, including
    no-op storage stability, offline recovery, mnemonic join, relay compaction,
    and stale-device reconnect.
-2. Its browser job starts and reloads v8 in Chromium, Firefox, and WebKit, then
-   repeats the run with resource-management globals and native SharedWorker
-   removed to exercise Evolu's one-tab fallback and contention warning.
+2. Its browser matrix starts and reloads v8 in Linux Chromium and Firefox plus
+   macOS WebKit, then repeats the run with resource-management globals and
+   native SharedWorker removed to exercise Evolu's one-tab fallback and
+   contention warning. WebKit runs on macOS because Playwright's Linux WPE port
+   does not expose the `navigator.storage` OPFS entry point shipped by Safari.
 
 These automated gates make the next safe step a separate, reviewable default
 cutover rather than combining compatibility validation with rollout. Cleanup

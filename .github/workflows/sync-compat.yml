@@ -109,9 +109,24 @@ jobs:
           retention-days: 7
 
   browsers:
-    name: Evolu 8 browser engines
-    runs-on: ubuntu-latest
+    name: Evolu 8 (${{ matrix.browser }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - browser: chromium
+            project: chromium-evolu8
+            os: ubuntu-latest
+          - browser: firefox
+            project: firefox-evolu8
+            os: ubuntu-latest
+          # Playwright's Linux WPE-WebKit port omits navigator.storage/OPFS.
+          # The macOS port exercises the storage path shipped by Safari.
+          - browser: webkit
+            project: webkit-evolu8
+            os: macos-latest
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -124,17 +139,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install browser engines
-        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Install browser engine and Linux dependencies
+        if: runner.os == 'Linux'
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Install browser engine
+        if: runner.os == 'macOS'
+        run: npx playwright install ${{ matrix.browser }}
 
       - name: Run Evolu 8 browser compatibility suite
-        run: npm run test:evolu8-browsers
+        run: npm run test:evolu8-browsers -- --project=${{ matrix.project }}
 
       - name: Upload browser logs on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: evolu8-browser-logs
+          name: evolu8-${{ matrix.browser }}-logs
           path: |
             /tmp/getbased-evolu8-browser-results
             /tmp/dev-server.log
