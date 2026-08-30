@@ -19,6 +19,9 @@ pre-cached for every user, so the first evaluation must begin online.
 - Evolu 8 uses a separate generation-namespaced local database. Mnemonic
   restore, disconnect, and relay compaction advance the generation before the
   old history can be reopened, preserving GetBased's stale-replay protection.
+- Superseded Evolu 8 generation databases are reclaimed directly from OPFS.
+  Cleanup takes Evolu's database leader lock first, so the active generation
+  and databases still open in another tab are never removed.
 - Query and error subscriptions are rebound when compaction replaces the
   active Evolu 8 database in the same page.
 
@@ -28,13 +31,12 @@ Do not make Evolu 8 the default until all of these are resolved:
 
 1. A durable v7-to-v8 identity migration no longer needs to open the v7 worker
    on every startup.
-2. Superseded generation databases can be deleted safely. Evolu 8.7.0 exposes
-   `deleteDatabase`, but the released implementation is still a TODO.
-3. The focused real-relay scenario passes for both clients in CI, including
+2. The focused real-relay scenario passes for both clients in CI, including
    no-op storage stability, offline recovery, mnemonic join, relay compaction,
    and stale-device reconnect.
-4. The supported browser matrix passes with the v8 resource-management
+3. The supported browser matrix passes with the v8 resource-management
    polyfills and SharedWorker fallback.
 
-The candidate deliberately favors rollback and data preservation over local
-disk reclamation. That is appropriate for evaluation, not for default rollout.
+The candidate still favors rollback and data preservation while the remaining
+identity and browser gates are open. Cleanup removes only superseded, unlocked
+v8 generation databases and leaves the v7 rollback database intact.
