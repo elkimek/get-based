@@ -110,13 +110,16 @@ function createHarness({ mnemonic = 'alpha words', ownerId = `owner:${mnemonic}`
 describe('Evolu 8 compatibility candidate', () => {
   it('reclaims only unlocked superseded v8 database generations', async () => {
     const active = 'getbased8g3-owner_current';
-    const stale = 'getbased8g2-owner_current';
-    const locked = 'getbased8g1-owner_previous';
+    const stale = 'getbased8g2';
+    const staleWithOwnerSuffix = 'getbased8g2-owner_previous';
+    const locked = 'getbased8g1';
     const root = createOpfsRoot([
       [`.${active}`],
       [`.${stale}`],
+      [`.${staleWithOwnerSuffix}`],
       [`.${locked}`],
       ['.getbased8g-bad'],
+      ['.getbased8g0'],
       ['.getbased4'],
       ['unrelated'],
       ['.getbased8g4-owner_file', 'file'],
@@ -133,10 +136,11 @@ describe('Evolu 8 compatibility candidate', () => {
       lockManager,
     });
 
-    expect(result).toEqual({ deleted: [stale], skipped: [locked] });
-    expect(root.removeEntry).toHaveBeenCalledOnce();
+    expect(result).toEqual({ deleted: [stale, staleWithOwnerSuffix], skipped: [locked] });
+    expect(root.removeEntry).toHaveBeenCalledTimes(2);
     expect(root.removeEntry).toHaveBeenCalledWith(`.${stale}`, { recursive: true });
-    expect(lockManager.request).toHaveBeenCalledTimes(2);
+    expect(root.removeEntry).toHaveBeenCalledWith(`.${staleWithOwnerSuffix}`, { recursive: true });
+    expect(lockManager.request).toHaveBeenCalledTimes(3);
     for (const [, options] of lockManager.request.mock.calls) {
       expect(options).toEqual({ ifAvailable: true, mode: 'exclusive' });
     }

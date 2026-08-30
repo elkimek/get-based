@@ -8,9 +8,11 @@ test('v8 cleanup removes only unlocked superseded OPFS generations', async ({ pa
       cleanupSupersededEvolu8Databases,
     } = await import('/js/sync-evolu8-candidate.js');
     const suffix = `${Date.now()}_${crypto.randomUUID().replaceAll('-', '_')}`;
-    const active = `getbased8g3-${suffix}`;
-    const stale = `getbased8g2-${suffix}`;
-    const locked = `getbased8g1-${suffix}`;
+    // Exercise the unsuffixed configured appName form. Unit coverage also
+    // exercises current Evolu's owner-suffixed tenant directory form.
+    const active = 'getbased8g3';
+    const stale = 'getbased8g2';
+    const locked = 'getbased8g1';
     const legacy = `.getbased4-${suffix}`;
     const root = await navigator.storage.getDirectory();
     const created = [`.${active}`, `.${stale}`, `.${locked}`, legacy];

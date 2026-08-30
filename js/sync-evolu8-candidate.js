@@ -41,7 +41,10 @@ export function readEvolu8Generation(storage = globalThis.localStorage) {
 
 /** @param {string} directoryName */
 function isEvolu8DatabaseDirectory(directoryName) {
-  return /^\.getbased8g[1-9]\d*-[A-Za-z0-9_-]+$/.test(directoryName);
+  // Current Evolu derives a tenant suffix from the owner ID. Accept the
+  // unsuffixed appName as well so cleanup remains correct if the web driver
+  // uses the configured name directly (or an earlier candidate already did).
+  return /^\.getbased8g[1-9]\d*(?:-[A-Za-z0-9_-]+)?$/.test(directoryName);
 }
 
 /**
