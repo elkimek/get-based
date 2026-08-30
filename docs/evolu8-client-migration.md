@@ -23,6 +23,8 @@ pre-cached for every user, so the first evaluation must begin online.
 - Restore and reset invalidate the v8 vault before changing the durable v7
   owner. The default v7 path applies the same guard, preserving a safe rollback
   even after testing v8.
+- Erasing all local application data deletes both the commit token and the
+  mnemonic-bearing IndexedDB vault.
 - Evolu 8 uses a separate generation-namespaced local database. Mnemonic
   restore, disconnect, and relay compaction advance the generation before the
   old history can be reopened, preserving GetBased's stale-replay protection.
