@@ -10,7 +10,7 @@ import { scheduleSyncRuntimeReload } from './sync-runtime.js';
 import { setSyncEnabled } from './sync-settings-state.js';
 
 /** @typedef {{ id?: unknown, mnemonic?: string }} SyncAppOwner */
-/** @typedef {{ restoreAppOwner: (mnemonic: string, options?: { reload?: boolean }) => unknown }} SyncEvolu */
+/** @typedef {{ restoreAppOwner: (mnemonic: string, options?: { reload?: boolean }) => unknown, prepareHistoryReset?: () => unknown }} SyncEvolu */
 
 let _bip39Load = null;
 let _qrCodeLoad = null;
@@ -173,6 +173,19 @@ export async function resetLocalSyncHistoryForRelayRebuild() {
   if (!evolu || !mnemonic) throw new Error('Sync identity is not ready on this device');
   await evolu.restoreAppOwner(mnemonic, { reload: false });
   clearSyncDisableStorage();
+  return true;
+}
+
+/**
+ * Reserve a fresh local history generation before the relay log is deleted.
+ * Evolu 7 performs its normal reset later; the Evolu 8 candidate uses this
+ * hook to prove the generation boundary is durable before compaction begins.
+ */
+export async function prepareLocalSyncHistoryForRelayRebuild() {
+  const evolu = currentEvolu();
+  const mnemonic = getMnemonic();
+  if (!evolu || !mnemonic) throw new Error('Sync identity is not ready on this device');
+  if (typeof evolu.prepareHistoryReset === 'function') evolu.prepareHistoryReset();
   return true;
 }
 

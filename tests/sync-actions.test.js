@@ -307,6 +307,7 @@ describe('sync action profile dependencies', () => {
     markSyncProfileDirty(inactiveId);
     configureSyncActions({
       forcePull: async () => { order.push('pull'); },
+      prepareLocalSyncHistoryForRelayRebuild: async () => { order.push('prepare-history-reset'); },
       pushProfile: async (profileId, importedData) => {
         order.push(`push:${profileId}:${importedData.contextNotes}`);
         clearSyncProfileDirty(profileId, getSyncDirtyToken(profileId));
@@ -324,6 +325,7 @@ describe('sync action profile dependencies', () => {
         `push:${activeId}:fresh active edit`,
         `push:${inactiveId}:fresh inactive edit`,
         'pull',
+        'prepare-history-reset',
       ]);
     } finally {
       await encryptedRemoveItem(inactiveKey);
@@ -337,6 +339,7 @@ describe('sync action profile dependencies', () => {
         isSyncEnabled: () => false,
         isEvoluReady: () => false,
         isSyncing: () => false,
+        prepareLocalSyncHistoryForRelayRebuild: async () => {},
         getProfiles: () => [],
       });
     }

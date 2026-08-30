@@ -199,8 +199,21 @@ export async function createEvolu8Candidate({
   const initialGeneration = readEvolu8Generation(storage);
   let current = null;
   let disposed = false;
+  let preparedGeneration = null;
   const querySubscriptions = new Set();
   const errorSubscriptions = new Set();
+
+  const prepareHistoryReset = () => {
+    if (preparedGeneration !== null) return preparedGeneration;
+    preparedGeneration = advanceEvolu8Generation(storage);
+    return preparedGeneration;
+  };
+
+  const consumeHistoryResetGeneration = () => {
+    const nextGeneration = preparedGeneration ?? advanceEvolu8Generation(storage);
+    preparedGeneration = null;
+    return nextGeneration;
+  };
 
   const startRuntime = async (mnemonic, nextGeneration) => {
     const appOwner = createModernOwner(modern, mnemonic);
@@ -261,6 +274,9 @@ export async function createEvolu8Candidate({
 
   const facade = {
     __evoluClientVersion: 8,
+    // Relay compaction and disable call this before their irreversible step.
+    // restore/reset then consume the reservation without another storage write.
+    prepareHistoryReset,
     get name() { return current?.evolu?.name; },
     get appOwner() { return Promise.resolve(current?.evolu?.appOwner); },
     createQuery,
@@ -292,14 +308,14 @@ export async function createEvolu8Candidate({
     },
     restoreAppOwner: async (mnemonic, _options = {}) => {
       const validatedMnemonic = modern.Mnemonic.orThrow(mnemonic);
-      const nextGeneration = advanceEvolu8Generation(storage);
+      const nextGeneration = consumeHistoryResetGeneration();
       // v7 remains the durable identity vault during the compatibility phase.
       // Always suppress its internal reload; GetBased owns reload sequencing.
       await legacyEvolu.restoreAppOwner(validatedMnemonic, { reload: false });
       await replaceRuntime(validatedMnemonic, nextGeneration);
     },
     resetAppOwner: async (_options = {}) => {
-      advanceEvolu8Generation(storage);
+      consumeHistoryResetGeneration();
       await legacyEvolu.resetAppOwner({ reload: false });
       unbindSubscriptions();
       const previous = current;

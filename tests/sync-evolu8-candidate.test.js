@@ -150,9 +150,12 @@ describe('Evolu 8 compatibility candidate', () => {
     evolu.subscribeQuery('profiles')(queryListener);
     evolu.subscribeError(errorListener);
 
+    expect(evolu.prepareHistoryReset()).toBe(5);
+    expect(evolu.prepareHistoryReset()).toBe(5);
     await evolu.restoreAppOwner('beta words', { reload: false });
 
     expect(harness.legacyEvolu.restoreAppOwner).toHaveBeenCalledWith('beta words', { reload: false });
+    expect(storage.setItem).toHaveBeenCalledOnce();
     expect(storage.setItem).toHaveBeenCalledWith(EVOLU8_GENERATION_KEY, '5');
     expect(harness.actives).toHaveLength(2);
     expect(harness.actives[1].config.appName).toBe('getbased8g5');
@@ -202,6 +205,7 @@ describe('Evolu 8 compatibility candidate', () => {
         storage,
       });
 
+      expect(() => evolu.prepareHistoryReset()).toThrow('could not safely persist');
       await expect(evolu.restoreAppOwner('beta words', { reload: false }))
         .rejects.toThrow('could not safely persist');
       await expect(evolu.resetAppOwner({ reload: false }))

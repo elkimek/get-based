@@ -45,6 +45,8 @@ export async function confirmCompactRelay(btn) {
   try {
     let result = null;
     if (!rebuildOnly) {
+      // Includes the Evolu 8 generation-persistence preflight. Nothing may
+      // delete the relay log until that local history boundary is durable.
       await prepareRelayCompaction();
       result = await compactOwnerSelfServe();
       compacted = true;
