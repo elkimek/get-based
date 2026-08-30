@@ -1276,6 +1276,12 @@ await import('../js/settings.js');
   // fresher local edits protected until their itemRow update lands.
   assert('onSyncReceived overlays per-row state AFTER blob merge',
     /merged\s*=\s*localBaselineForMerge[\s\S]{0,400}mergeImportedData[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncPullMergeSrc));
+  assert('canonical rebuilt blob freshness bounds stale per-row tombstones',
+    syncPullSrc.includes('remoteUpdated,')
+      && syncPullMergeSrc.includes('baselineImported: importedData')
+      && syncPullMergeSrc.includes('baselineSyncedAt: remoteUpdated')
+      && syncDeltaMergeSrc.includes('baselineItems: Array.isArray(baselineItems) ? baselineItems : []')
+      && syncDeltaArrayMergeSrc.includes('baselineItemIds.has(itemId) ? baselineSyncedAt : 0'));
   assert('_mergeItemRowsIntoImported drops tombstoned items from imported arrays',
     /mergeArrayRowsIntoImported[\s\S]{0,12000}let nextArr\s*=\s*curArr\.filter\(it\s*=>\s*!tombstoneWinsOverItem\(itemIdFn\(it\),\s*it\)\)/.test(syncDeltaMergeSearchSrc));
   // Resurrection-prevention seed: blob-side `_deleted[arrayName]` must
@@ -1286,7 +1292,7 @@ await import('../js/settings.js');
   assert('_mergeItemRowsIntoImported skips inserting items that match a blob-tombstoned itemId',
     /tombstoneWinsOverLiveRow\(itemId,\s*entry\)\)\s*continue/.test(syncDeltaMergeSearchSrc));
   assert('_mergeItemRowsIntoImported ignores stale remote tombstones when local item is newer',
-    /remoteTombs\.set\(row\.itemId[\s\S]{0,1200}tombAt\s*>=\s*pickTimestamp\(item\)/.test(syncDeltaArrayMergeSrc));
+    /remoteTombs\.set\(row\.itemId[\s\S]{0,1800}tombAt\s*>=\s*Math\.max\(pickTimestamp\(item\),\s*canonicalBlobAt\)/.test(syncDeltaArrayMergeSrc));
   assert('_mergeItemRowsIntoImported preserves fresher local non-lab items over stale per-row payloads',
     /compareRecordFreshness\(item,\s*nextArr\[idx\]\)\s*<=\s*0[\s\S]{0,120}continue/.test(syncDeltaArrayMergeSrc)
       && /nextArr\[idx\]\s*=\s*item/.test(syncDeltaArrayMergeSrc));

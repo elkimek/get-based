@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 702 |
-| Internal import edges | 2995 |
+| Internal import edges | 2996 |
 | Dynamic internal edges | 92 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -68,7 +68,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/profile.js`](js/profile.js) | 47 | [`js/pdf-import.js`](js/pdf-import.js) | 26 |
 | [`js/schema.js`](js/schema.js) | 37 | [`js/lab-context.js`](js/lab-context.js) | 24 |
 | [`js/crypto.js`](js/crypto.js) | 33 | [`js/views.js`](js/views.js) | 22 |
-| [`js/data-merge.js`](js/data-merge.js) | 32 | [`js/export.js`](js/export.js) | 21 |
+| [`js/data-merge.js`](js/data-merge.js) | 33 | [`js/export.js`](js/export.js) | 21 |
 | [`js/utils-runtime.js`](js/utils-runtime.js) | 21 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
 | [`js/constants.js`](js/constants.js) | 20 | [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | 20 |
 | [`js/proxy-runtime.js`](js/proxy-runtime.js) | 20 | [`js/marker-schema/index.js`](js/marker-schema/index.js) | 20 |
@@ -1109,7 +1109,7 @@ Native browser modules shipped with the static application.
 - [`js/sync-delta-map-merge.js`](js/sync-delta-map-merge.js) → [`js/data-merge.js`](js/data-merge.js), [`js/sync-delta-observability.js`](js/sync-delta-observability.js), [`js/sync-delta-registry.js`](js/sync-delta-registry.js), [`js/sync-delta-row-codec.js`](js/sync-delta-row-codec.js)
 - [`js/sync-delta-map-planner.js`](js/sync-delta-map-planner.js) → [`js/sync-delta-planner-context.js`](js/sync-delta-planner-context.js), [`js/sync-delta-registry.js`](js/sync-delta-registry.js), [`js/sync-delta-snapshot.js`](js/sync-delta-snapshot.js), [`js/sync-payload-codec.js`](js/sync-payload-codec.js)
 - [`js/sync-delta-merge-shapes.js`](js/sync-delta-merge-shapes.js) → [`js/sync-delta-array-merge.js`](js/sync-delta-array-merge.js), [`js/sync-delta-map-merge.js`](js/sync-delta-map-merge.js), [`js/sync-delta-scalar-merge.js`](js/sync-delta-scalar-merge.js)
-- [`js/sync-delta-merge.js`](js/sync-delta-merge.js) → [`js/sync-delta-merge-shapes.js`](js/sync-delta-merge-shapes.js), [`js/sync-delta-observability.js`](js/sync-delta-observability.js), [`js/sync-delta-registry.js`](js/sync-delta-registry.js)
+- [`js/sync-delta-merge.js`](js/sync-delta-merge.js) → [`js/data-merge.js`](js/data-merge.js), [`js/sync-delta-merge-shapes.js`](js/sync-delta-merge-shapes.js), [`js/sync-delta-observability.js`](js/sync-delta-observability.js), [`js/sync-delta-registry.js`](js/sync-delta-registry.js)
 - [`js/sync-delta-observability-context.js`](js/sync-delta-observability-context.js) → no in-scope imports
 - [`js/sync-delta-observability.js`](js/sync-delta-observability.js) → [`js/sync-delta-observability-context.js`](js/sync-delta-observability-context.js), [`js/sync-delta-pull-snapshot.js`](js/sync-delta-pull-snapshot.js), [`js/sync-delta-readiness.js`](js/sync-delta-readiness.js), [`js/sync-delta-telemetry.js`](js/sync-delta-telemetry.js)
 - [`js/sync-delta-planner-context.js`](js/sync-delta-planner-context.js) → no in-scope imports

@@ -181,9 +181,9 @@ function preserveLocalOnlyProfileData(merged, localImported) {
   }
 }
 
-/** @param {{ debug?: (...args: any[]) => any }} [options] */
+/** @param {{ debug?: (...args: any[]) => any, remoteUpdated?: number }} [options] */
 export async function mergePulledImportedData(profileId, importedData, options = {}) {
-  const { debug } = options;
+  const { debug, remoteUpdated = 0 } = options;
   const localKey = profileStorageKey(profileId, 'imported');
   const localImportedForMerge = profileId === state.currentProfile
     ? (state.importedData || null)
@@ -215,11 +215,13 @@ export async function mergePulledImportedData(profileId, importedData, options =
     ? (importedData ? mergeImportedData(localBaselineForMerge, importedData) : localBaselineForMerge)
     : (importedData || {});
 
-  // Phase 1 of CRDT-delta refactor: overlay per-row tables AFTER the blob
-  // merge. Per-row state is authoritative - a tombstone here drops the
-  // corresponding item even if the blob still carried it.
+  // Overlay rows after the blob. A newer canonical blob protects only items
+  // it contains; local delete intent and newer row tombstones still win.
   try {
-    merged = await _mergeItemRowsIntoImported(profileId, merged) || merged;
+    merged = await _mergeItemRowsIntoImported(profileId, merged, {
+      baselineImported: importedData,
+      baselineSyncedAt: remoteUpdated,
+    }) || merged;
   } catch (e) {
     console.warn('[sync] per-row overlay merge failed (blob still applied):', getErrorMessage(e, e));
   }

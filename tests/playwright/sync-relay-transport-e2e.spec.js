@@ -217,6 +217,41 @@ async function noteTexts(page) {
     .map(note => note.text).sort());
 }
 
+async function noteSyncDiagnostics(page) {
+  return page.evaluate(async () => {
+    const [runtime, rowCodec, payloadCodec] = await Promise.all([
+      import('/js/sync-runtime.js'),
+      import('/js/sync-delta-row-codec.js'),
+      import('/js/sync-payload-codec.js'),
+    ]);
+    const evolu = runtime.getSyncEvolu();
+    const itemRows = evolu?.getQueryRows(runtime.getSyncItemRowQuery()) || [];
+    const profileRows = evolu?.getQueryRows(runtime.getSyncProfileQuery()) || [];
+    const notes = [];
+    for (const row of itemRows.filter(candidate => candidate?.arrayName === 'notes')) {
+      let text = null;
+      try { text = (await rowCodec.decodeRowPayload(row))?.text || null; } catch {}
+      notes.push({
+        id: row.id,
+        itemId: row.itemId,
+        isDeleted: row.isDeleted,
+        syncedAt: row.syncedAt,
+        text,
+      });
+    }
+    const profiles = [];
+    for (const row of profileRows) {
+      let noteTexts = [];
+      try {
+        const payload = await payloadCodec.parseSyncPayload(row.dataJson);
+        noteTexts = (payload?.importedData?.notes || []).map(note => note.text).sort();
+      } catch {}
+      profiles.push({ id: row.id, syncedAt: row.syncedAt, noteTexts });
+    }
+    return { notes, profiles };
+  });
+}
+
 async function waitForContext(page, expected) {
   await expect.poll(() => contextNotes(page), {
     timeout: 30_000,
@@ -326,7 +361,15 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
     await deviceB.context.setOffline(false);
     await deviceB.page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 });
     await waitForOwner(deviceB.page, identity.ownerId);
-    await waitForNotes(deviceB.page, ['from-device-a', 'concurrent-a', 'concurrent-b']);
+    try {
+      await waitForNotes(deviceB.page, ['from-device-a', 'concurrent-a', 'concurrent-b']);
+      if (process.env.SYNC_TRANSPORT_DEBUG === '1') {
+        console.log('Stale-device note diagnostics:', JSON.stringify(await noteSyncDiagnostics(deviceB.page)));
+      }
+    } catch (error) {
+      console.error('Stale-device note diagnostics:', JSON.stringify(await noteSyncDiagnostics(deviceB.page)));
+      throw error;
+    }
     const afterOldDeviceReconnect = await waitForStableRelayStorage(deviceA.page);
     // Reconciliation may produce a small number of genuinely new messages on
     // the stale device. The discarded pre-compaction log itself must remain

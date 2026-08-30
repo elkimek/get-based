@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "maximums": {
     "startupJavaScriptFiles": 2,
-    "startupDecodedBytes": 1173000,
+    "startupDecodedBytes": 1174000,
     "outputJavaScriptFiles": 158,
     "outputDecodedBytes": 5000000
   },
@@ -37,7 +37,8 @@
     "whoopDeviceProtectionStartupDecodedBytes": 1170666,
     "evolu8IdentityVaultOutputDecodedBytes": 4979169,
     "evolu8IdentityVaultStartupDecodedBytes": 1170997,
-    "evolu8ReplicaSettleStartupDecodedBytes": 1172652
+    "evolu8ReplicaSettleStartupDecodedBytes": 1172652,
+    "evolu8CompactionMergeStartupDecodedBytes": 1173359
   },
   "referenceCommit": "807732a8",
   "measuredAt": "2026-08-30"

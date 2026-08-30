@@ -701,6 +701,45 @@ const { DELTA_ARRAY_CONFIG } = await import('../js/sync-delta-surface-config.js'
   assert('newer per-row entries tombstone still deletes older local import',
     !tombstoneImported.entries.some(e => e.date === '2026-05-01'));
 
+  const rebuiltBlobNote = {
+    id: 'note-after-compaction',
+    text: 'Canonical rebuilt note',
+    updatedAt: '2026-05-01T00:00:00.000Z',
+  };
+  const rebuiltBlobNoteId = DELTA_ARRAY_CONFIG.notes.itemIdFn(rebuiltBlobNote);
+  const rebuiltBlobImported = { notes: [rebuiltBlobNote] };
+  const staleRebuiltNoteTombstone = [{
+    itemId: rebuiltBlobNoteId,
+    syncedAt: '2026-08-29T00:00:00.000Z',
+    isDeleted: 1,
+    payload: '{}',
+  }];
+  const rebuiltBlobOptions = {
+    baselineItems: rebuiltBlobImported.notes.slice(),
+    baselineSyncedAt: Date.parse('2026-08-30T00:00:00.000Z'),
+  };
+  await mergeArrayRowsIntoImported(
+    rebuiltBlobImported,
+    'notes',
+    staleRebuiltNoteTombstone,
+    rebuiltBlobOptions,
+  );
+  assert('newer canonical rebuild blob survives a stale per-row tombstone',
+    rebuiltBlobImported.notes.some(note => note.id === rebuiltBlobNote.id));
+
+  const locallyDeletedRebuiltBlob = {
+    notes: rebuiltBlobOptions.baselineItems.slice(),
+    _deleted: { notes: [rebuiltBlobNoteId] },
+  };
+  await mergeArrayRowsIntoImported(
+    locallyDeletedRebuiltBlob,
+    'notes',
+    staleRebuiltNoteTombstone,
+    rebuiltBlobOptions,
+  );
+  assert('explicit local delete still wins over a newer canonical rebuild blob',
+    locallyDeletedRebuiltBlob.notes.length === 0);
+
   // ─── 5. mergeImportedData with tombstones ─────────────────────────────
   console.log('%c 5. mergeImportedData tombstones ', 'font-weight:bold;color:#f59e0b');
 
