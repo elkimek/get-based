@@ -13,7 +13,6 @@ function dbg(debug, ...args) {
 
 /** @param {{
  *   profileId?: string,
- *   merged?: any,
  *   needsRebroadcast?: boolean,
  *   pushProfile?: (...args: any[]) => any,
  *   debug?: (...args: any[]) => any,
@@ -21,7 +20,6 @@ function dbg(debug, ...args) {
  */
 export function maybeScheduleRebroadcast({
   profileId,
-  merged,
   needsRebroadcast,
   pushProfile,
   debug,
@@ -52,17 +50,21 @@ export function maybeScheduleRebroadcast({
   dbg(debug, `Row ${profileId.slice(0,8)}: rebroadcast — local had unsynced rows`);
   logSyncEvent('rebroadcast', `Rebroadcast ${profileId.slice(0,8)}`);
 
-  // Snapshot importedData at SCHEDULE time and re-verify the
-  // active profile when the timer fires. Without these, a profile
-  // switch in the 100ms gap would push the new active profile's
-  // state.importedData into the *original* profile's relay row.
-  const snapshotImported = merged;
+  // Re-verify the active profile when the timer fires, then publish its latest
+  // state. Capturing `merged` here is unsafe: another pull or local edit can
+  // replace state.importedData during the 100ms gap, and the delayed stale
+  // snapshot would then regress scalar fields on every device.
   setTimeout(() => {
     if (profileId !== state.currentProfile) {
       dbg(debug, `Rebroadcast aborted — active profile switched`);
       return;
     }
-    pushProfile(profileId, snapshotImported);
+    const latestImported = state.importedData;
+    if (!latestImported || typeof latestImported !== 'object') {
+      dbg(debug, `Rebroadcast aborted — active profile data unavailable`);
+      return;
+    }
+    pushProfile(profileId, latestImported);
   }, 100);
   return true;
 }

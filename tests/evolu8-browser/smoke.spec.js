@@ -53,15 +53,11 @@ async function getCompatibleBrowserPage({ browserName, context, page, playwright
       serviceWorkers: 'block',
     },
   );
-  await persistentContext.tracing.start({ screenshots: true, snapshots: true, sources: true });
   const persistentPage = persistentContext.pages()[0] || await persistentContext.newPage();
   return {
     context: persistentContext,
     page: persistentPage,
-    close: async () => {
-      await persistentContext.tracing.stop({ path: testInfo.outputPath('trace.zip') }).catch(() => {});
-      await persistentContext.close();
-    },
+    close: async () => persistentContext.close(),
   };
 }
 
