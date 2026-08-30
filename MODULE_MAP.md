@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 702 |
-| Internal import edges | 2993 |
+| Internal import edges | 2994 |
 | Dynamic internal edges | 92 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1143,7 +1143,7 @@ Native browser modules shipped with the static application.
 - [`js/sync-evolu8-candidate.js`](js/sync-evolu8-candidate.js) → [`js/sync-evolu8-identity-vault.js`](js/sync-evolu8-identity-vault.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-evolu8-identity-vault.js`](js/sync-evolu8-identity-vault.js) → no in-scope imports
 - [`js/sync-identity.js`](js/sync-identity.js) → [`js/sync-backup-restore-state.js`](js/sync-backup-restore-state.js), [`js/sync-disable-cleanup.js`](js/sync-disable-cleanup.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/utils.js`](js/utils.js)
-- [`js/sync-init.js`](js/sync-init.js) → [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-evolu8-candidate.js`](js/sync-evolu8-candidate.js) *(dynamic)*, [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-recovery.js`](js/sync-recovery.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-schema.js`](js/sync-schema.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/sync-subscriptions.js`](js/sync-subscriptions.js), [`js/utils.js`](js/utils.js)
+- [`js/sync-init.js`](js/sync-init.js) → [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-evolu8-candidate.js`](js/sync-evolu8-candidate.js) *(dynamic)*, [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-pull-rebroadcast.js`](js/sync-pull-rebroadcast.js), [`js/sync-recovery.js`](js/sync-recovery.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-schema.js`](js/sync-schema.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/sync-subscriptions.js`](js/sync-subscriptions.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-lifecycle.js`](js/sync-lifecycle.js) → [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-backup-restore-state.js`](js/sync-backup-restore-state.js), [`js/sync-disable-cleanup.js`](js/sync-disable-cleanup.js), [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-init.js`](js/sync-init.js), [`js/sync-pull.js`](js/sync-pull.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-subscriptions.js`](js/sync-subscriptions.js), [`js/sync-ui.js`](js/sync-ui.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-messenger.js`](js/sync-messenger.js) → [`js/profile-sync-policy.js`](js/profile-sync-policy.js), [`js/state.js`](js/state.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-origin-state.js`](js/sync-origin-state.js) → no in-scope imports

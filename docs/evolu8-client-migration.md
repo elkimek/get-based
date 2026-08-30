@@ -37,6 +37,10 @@ rollback available even without a network connection. After the handoff, Evolu
   and databases still open in another tab are never removed.
 - Query and error subscriptions are rebound when compaction replaces the
   active Evolu 8 database in the same page.
+- On ordinary v8 startup, inbound rows may merge immediately, but automatic
+  union rebroadcast waits for initial query activity to settle and one final
+  pull. A stale pre-compaction database therefore cannot publish an incomplete
+  row view over the relay's fresh canonical rebuild.
 
 ## Compatibility gates
 

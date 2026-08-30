@@ -210,5 +210,9 @@ export function configureSyncModules({ enableSync } = {}) {
     getProfiles,
   });
 
-  configureSyncInit({ reconcileLocalStorageWithEvolu });
+  configureSyncInit({
+    reconcileLocalStorageWithEvolu,
+    forcePull: _forcePull,
+    isSyncPulling,
+  });
 }

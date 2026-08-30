@@ -100,14 +100,15 @@ async function openSyncInitPage(page, path, bundleBody) {
       body: bundleBody,
     });
   });
-  await page.route(`**${path}`, async route => {
+  await page.route(`**${path}*`, async route => {
     await route.fulfill({
       status: 200,
       contentType: 'text/html',
       body: '<!doctype html><html><body><div id="notification-container"></div></body></html>',
     });
   });
-  await page.goto(path, { waitUntil: 'load' });
+  const separator = path.includes('?') ? '&' : '?';
+  await page.goto(`${path}${separator}evolu-client=v7`, { waitUntil: 'load' });
 }
 
 test('sync init browser coverage handles disabled blocker and import failure paths', async ({ page }) => {
