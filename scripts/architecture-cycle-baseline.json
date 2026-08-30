@@ -13,8 +13,12 @@
       "expression": "import(PDFJS_MODULE_URL)"
     },
     {
-      "file": "js/sync-init.js",
+      "file": "js/sync-evolu8-candidate.js",
       "expression": "import(EVOLU_BUNDLE_URL)"
+    },
+    {
+      "file": "js/sync-evolu8-candidate.js",
+      "expression": "import(EVOLU8_BUNDLE_URL)"
     }
   ]
 }
