@@ -2,10 +2,19 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   EVOLU8_GENERATION_KEY,
+  cleanupSupersededEvolu8Databases,
   createEvolu8Candidate,
   isEvolu8CandidateRequested,
   readEvolu8Generation,
 } from '../js/sync-evolu8-candidate.js';
+
+function createOpfsRoot(entries) {
+  const values = new Map(entries.map(([name, kind = 'directory']) => [name, { kind }]));
+  return {
+    entries: vi.fn(async function* () { yield* values.entries(); }),
+    removeEntry: vi.fn(async name => { values.delete(name); }),
+  };
+}
 
 function createStorage(initial = {}) {
   const values = new Map(Object.entries(initial));
@@ -99,6 +108,63 @@ function createHarness({ mnemonic = 'alpha words', ownerId = `owner:${mnemonic}`
 }
 
 describe('Evolu 8 compatibility candidate', () => {
+  it('reclaims only unlocked superseded v8 database generations', async () => {
+    const active = 'getbased8g3-owner_current';
+    const stale = 'getbased8g2';
+    const staleWithOwnerSuffix = 'getbased8g2-owner_previous';
+    const locked = 'getbased8g1';
+    const root = createOpfsRoot([
+      [`.${active}`],
+      [`.${stale}`],
+      [`.${staleWithOwnerSuffix}`],
+      [`.${locked}`],
+      ['.getbased8g-bad'],
+      ['.getbased8g0'],
+      ['.getbased4'],
+      ['unrelated'],
+      ['.getbased8g4-owner_file', 'file'],
+    ]);
+    const lockManager = {
+      request: vi.fn(async (name, options, callback) => callback(
+        name === `evolu-leaderlock-${locked}` ? null : { name, mode: options.mode },
+      )),
+    };
+
+    const result = await cleanupSupersededEvolu8Databases({
+      activeDatabaseName: active,
+      storageManager: { getDirectory: vi.fn(async () => root) },
+      lockManager,
+    });
+
+    expect(result).toEqual({ deleted: [stale, staleWithOwnerSuffix], skipped: [locked] });
+    expect(root.removeEntry).toHaveBeenCalledTimes(2);
+    expect(root.removeEntry).toHaveBeenCalledWith(`.${stale}`, { recursive: true });
+    expect(root.removeEntry).toHaveBeenCalledWith(`.${staleWithOwnerSuffix}`, { recursive: true });
+    expect(lockManager.request).toHaveBeenCalledTimes(3);
+    for (const [, options] of lockManager.request.mock.calls) {
+      expect(options).toEqual({ ifAvailable: true, mode: 'exclusive' });
+    }
+  });
+
+  it('makes OPFS cleanup a no-op when the active name or browser APIs are unavailable', async () => {
+    const root = createOpfsRoot([['.getbased8g1-owner']]);
+    const lockManager = { request: vi.fn() };
+
+    await expect(cleanupSupersededEvolu8Databases({
+      activeDatabaseName: 'getbased4',
+      storageManager: { getDirectory: vi.fn(async () => root) },
+      lockManager,
+    })).resolves.toEqual({ deleted: [], skipped: [] });
+    await expect(cleanupSupersededEvolu8Databases({
+      activeDatabaseName: 'getbased8g1-owner',
+      storageManager: null,
+      lockManager,
+    })).resolves.toEqual({ deleted: [], skipped: [] });
+
+    expect(root.entries).not.toHaveBeenCalled();
+    expect(lockManager.request).not.toHaveBeenCalled();
+  });
+
   it('requires an explicit v8 query opt-in', () => {
     expect(isEvolu8CandidateRequested({ search: '?evolu-client=v8' })).toBe(true);
     expect(isEvolu8CandidateRequested({ href: 'https://getbased.health/?evolu-client=v8' })).toBe(true);

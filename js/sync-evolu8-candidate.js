@@ -39,6 +39,75 @@ export function readEvolu8Generation(storage = globalThis.localStorage) {
   }
 }
 
+/** @param {string} directoryName */
+function isEvolu8DatabaseDirectory(directoryName) {
+  // Current Evolu derives a tenant suffix from the owner ID. Accept the
+  // unsuffixed appName as well so cleanup remains correct if the web driver
+  // uses the configured name directly (or an earlier candidate already did).
+  return /^\.getbased8g[1-9]\d*(?:-[A-Za-z0-9_-]+)?$/.test(directoryName);
+}
+
+/**
+ * Reclaim candidate databases from superseded generations without depending
+ * on Evolu 8's currently-unimplemented public deleteDatabase method.
+ *
+ * Evolu's web driver stores an encrypted database for instance `name` in the
+ * OPFS directory `.${name}` and holds `evolu-leaderlock-${name}` for as long
+ * as its worker has the database open. Taking that same lock with
+ * `ifAvailable` makes deletion safe across tabs and crashed/lingering workers:
+ * active databases are skipped and retried on a later startup.
+ *
+ * @param {{
+ *   activeDatabaseName: string,
+ *   storageManager?: { getDirectory?: Function } | null,
+ *   lockManager?: { request?: Function } | null,
+ * }} options
+ */
+export async function cleanupSupersededEvolu8Databases({
+  activeDatabaseName,
+  storageManager = globalThis.navigator?.storage,
+  lockManager = globalThis.navigator?.locks,
+}) {
+  const activeDirectoryName = `.${String(activeDatabaseName || '')}`;
+  if (!isEvolu8DatabaseDirectory(activeDirectoryName)
+      || typeof storageManager?.getDirectory !== 'function'
+      || typeof lockManager?.request !== 'function') {
+    return { deleted: [], skipped: [] };
+  }
+
+  const root = await storageManager.getDirectory();
+  if (!root || typeof root.entries !== 'function' || typeof root.removeEntry !== 'function') {
+    return { deleted: [], skipped: [] };
+  }
+
+  const deleted = [];
+  const skipped = [];
+  for await (const [directoryName, handle] of root.entries()) {
+    if (handle?.kind !== 'directory'
+        || directoryName === activeDirectoryName
+        || !isEvolu8DatabaseDirectory(directoryName)) continue;
+
+    const databaseName = directoryName.slice(1);
+    let didDelete = false;
+    try {
+      didDelete = await lockManager.request(
+        `evolu-leaderlock-${databaseName}`,
+        { ifAvailable: true, mode: 'exclusive' },
+        async lock => {
+          if (!lock) return false;
+          await root.removeEntry(directoryName, { recursive: true });
+          return true;
+        },
+      );
+    } catch (error) {
+      console.warn('[sync] Could not reclaim superseded Evolu 8 database:', error);
+    }
+    (didDelete ? deleted : skipped).push(databaseName);
+  }
+
+  return { deleted, skipped };
+}
+
 /**
  * Load the stable v7 client by default and the compatibility bridge only after
  * an explicit query opt-in. Keeping this loader lazy avoids adding candidate
@@ -278,6 +347,18 @@ export async function createEvolu8Candidate({
     }
     current = await startRuntime(mnemonic, nextGeneration);
     await bindSubscriptions();
+    // Cleanup is best-effort and never delays owner/query readiness. A stale
+    // database that is still open in another tab is protected by Evolu's lock
+    // and will be retried on a later startup.
+    void cleanupSupersededEvolu8Databases({
+      activeDatabaseName: current.evolu.name,
+    }).then(({ deleted }) => {
+      if (deleted.length > 0) {
+        console.info(`[sync] Reclaimed ${deleted.length} superseded Evolu 8 database(s)`);
+      }
+    }).catch(error => {
+      console.warn('[sync] Evolu 8 database cleanup failed:', error);
+    });
   };
 
   await replaceRuntime(legacyOwner.mnemonic, initialGeneration);
