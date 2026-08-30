@@ -426,7 +426,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     const firstRecButtons = Array.from(firstRec?.querySelectorAll('.dashboard-action-btn') || []);
     firstRecButtons.find(btn => btn.textContent?.trim() === 'Discuss')?.click();
     const discussPromptSent = calls.some(([kind, prompt]) =>
-      kind === 'chat' && String(prompt).includes('recommendation from getbased')
+      kind === 'chat' && String(prompt).includes('general-information tip from getbased')
     );
     firstRecButtons.find(btn => btn.textContent?.trim() === 'Bookmark')?.click();
     await delay(100);
@@ -437,7 +437,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       document.querySelectorAll('#recommendations-page .rec-next-card').length > 0
     );
     const dismissButton = Array.from(document.querySelectorAll('#recommendations-page .rec-next-card .dashboard-action-btn'))
-      .find(btn => btn.textContent?.trim() === 'Dismiss');
+      .find(btn => btn.textContent?.trim() === 'Hide');
     dismissButton?.click();
     await delay(100);
     const dismissStored = firstRecId && readJson(recDismissedKey).length > 0;

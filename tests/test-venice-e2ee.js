@@ -57,11 +57,16 @@ assert('Venice E2EE supports forced non-stream retry path',
   && /stream:\s*useStream/.test(apiVeniceSrc)
   && /if\s*\(!useStream\)/.test(apiVeniceSrc)
   && /decryptChunk\(session\.privateKey,\s*encryptedContent\)/.test(apiVeniceSrc));
+const e2eeGlmStart = apiVeniceSrc.indexOf('const isGlmE2EE');
+const e2eeGlmEnd = apiVeniceSrc.indexOf('let res;', e2eeGlmStart);
+const e2eeGlmRequestSrc = apiVeniceSrc.slice(e2eeGlmStart, e2eeGlmEnd);
 assert('Venice GLM E2EE handles hidden reasoning without a transport-chunk cutoff',
-  apiVeniceSrc.includes('disable_thinking: true')
-    && apiVeniceSrc.includes('isGlm52E2EE')
-    && apiVeniceSrc.includes('isGlmE2EE && !isGlm52E2EE')
-    && !apiVeniceSrc.includes('reasoning: { enabled: false }')
+  e2eeGlmStart >= 0
+    && e2eeGlmEnd > e2eeGlmStart
+    && e2eeGlmRequestSrc.includes('disable_thinking: true')
+    && e2eeGlmRequestSrc.includes('isGlm52E2EE')
+    && e2eeGlmRequestSrc.includes('isGlmE2EE && !isGlm52E2EE')
+    && !e2eeGlmRequestSrc.includes('reasoning: { enabled: false }')
     && !apiVeniceSrc.includes('MAX_HIDDEN_REASONING_CHUNKS'));
 
 // 2. api.js module exports
