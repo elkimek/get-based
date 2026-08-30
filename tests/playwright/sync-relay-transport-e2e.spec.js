@@ -292,6 +292,10 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
     expect((await syncNow(deviceA.page))?.ok).toBe(true);
     await waitForNotes(deviceB.page, ['from-device-a', 'concurrent-a', 'concurrent-b']);
 
+    // Keep a fully-synced paired device offline across compaction. Its local
+    // Evolu log still contains every discarded relay message, which is the
+    // production path that used to refill a 200 MB owner immediately.
+    await deviceB.context.setOffline(true);
     const beforeCompaction = await waitForStableRelayStorage(deviceA.page);
     const compacted = await deviceA.page.evaluate(async () => (
       (await import('/js/sync.js')).compactOwnerSelfServe()
@@ -312,12 +316,23 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
     await waitForContext(deviceC.page, OFFLINE_CONTEXT);
     await waitForNotes(deviceC.page, ['from-device-a', 'concurrent-a', 'concurrent-b']);
 
+    await deviceB.context.setOffline(false);
     await deviceB.page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 });
     await waitForOwner(deviceB.page, identity.ownerId);
     await waitForNotes(deviceB.page, ['from-device-a', 'concurrent-a', 'concurrent-b']);
     const afterOldDeviceReconnect = await waitForStableRelayStorage(deviceA.page);
-    expect(afterOldDeviceReconnect.messageCount).toBe(afterRebuild.messageCount);
-    expect(afterOldDeviceReconnect.storedBytes).toBe(afterRebuild.storedBytes);
+    // Reconciliation may produce a small number of genuinely new messages on
+    // the stale device. The discarded pre-compaction log itself must remain
+    // filtered, and subsequent reconnects must not grow storage again.
+    expect(afterOldDeviceReconnect.messageCount).toBeLessThan(compacted.deletedMessages);
+    expect(afterOldDeviceReconnect.storedBytes).toBeLessThan(beforeCompaction.storedBytes);
+
+    await deviceB.page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 });
+    await waitForOwner(deviceB.page, identity.ownerId);
+    await waitForNotes(deviceB.page, ['from-device-a', 'concurrent-a', 'concurrent-b']);
+    const afterRepeatedReconnect = await waitForStableRelayStorage(deviceA.page);
+    expect(afterRepeatedReconnect.messageCount).toBe(afterOldDeviceReconnect.messageCount);
+    expect(afterRepeatedReconnect.storedBytes).toBe(afterOldDeviceReconnect.storedBytes);
 
     for (const device of devices) expect(device.errors).toEqual([]);
   } finally {
