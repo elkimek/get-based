@@ -129,7 +129,18 @@ export async function createEvolu8SyncClient({
 function advanceEvolu8Generation(storage) {
   const current = readEvolu8Generation(storage);
   const next = current >= Number.MAX_SAFE_INTEGER ? 1 : current + 1;
-  try { storage?.setItem?.(EVOLU8_GENERATION_KEY, String(next)); } catch {}
+  const serializedNext = String(next);
+  try {
+    if (typeof storage?.setItem !== 'function' || typeof storage?.getItem !== 'function') {
+      throw new Error('browser storage is unavailable');
+    }
+    storage.setItem(EVOLU8_GENERATION_KEY, serializedNext);
+    if (storage.getItem(EVOLU8_GENERATION_KEY) !== serializedNext) {
+      throw new Error('browser storage did not retain the new generation');
+    }
+  } catch (error) {
+    throw new Error('Evolu 8 could not safely persist a new database generation', { cause: error });
+  }
   return next;
 }
 

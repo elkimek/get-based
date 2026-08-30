@@ -184,6 +184,37 @@ describe('Evolu 8 compatibility candidate', () => {
     expect(harness.actives[0][Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
+  it('fails closed before restore or reset when a new generation cannot be persisted', async () => {
+    for (const setItem of [
+      vi.fn(() => { throw new Error('quota denied'); }),
+      vi.fn(() => {}),
+    ]) {
+      const harness = createHarness();
+      const storage = {
+        getItem: vi.fn(() => null),
+        setItem,
+      };
+      const evolu = await createEvolu8Candidate({
+        legacyEvolu: harness.legacyEvolu,
+        modern: harness.modern,
+        schema: { profileData: {} },
+        relay: 'wss://relay.example',
+        storage,
+      });
+
+      await expect(evolu.restoreAppOwner('beta words', { reload: false }))
+        .rejects.toThrow('could not safely persist');
+      await expect(evolu.resetAppOwner({ reload: false }))
+        .rejects.toThrow('could not safely persist');
+
+      expect(harness.legacyEvolu.restoreAppOwner).not.toHaveBeenCalled();
+      expect(harness.legacyEvolu.resetAppOwner).not.toHaveBeenCalled();
+      expect(harness.actives).toHaveLength(1);
+      expect(harness.actives[0][Symbol.asyncDispose]).not.toHaveBeenCalled();
+      await expect(evolu.appOwner).resolves.toMatchObject({ id: 'owner:alpha words' });
+    }
+  });
+
   it('fails closed if the same mnemonic derives a different owner ID', async () => {
     const harness = createHarness({ ownerId: 'unexpected-owner' });
     await expect(createEvolu8Candidate({
