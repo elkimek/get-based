@@ -624,11 +624,22 @@ export function reconcileImportMarkerMappings(markers, options = {}) {
     const aliasKey = testType === 'blood'
       ? _resolveStandardBloodImportKey(marker, refLookup, differentialPercentSuggestedKey)
       : _resolveSpecialtyImportKey(marker, refLookup);
-    const resolvedKey = aliasKey || existingCustomKey;
+    const preferredSuggestedKey = options.preferSuggestedKeys
+      && typeof marker.suggestedKey === 'string'
+      && _SAFE_MARKER_KEY.test(marker.suggestedKey)
+      && !standardCats.has(marker.suggestedKey.split('.')[0]);
+    const resolvedKey = preferredSuggestedKey
+      ? (exactSuggestedKey || exactMappedKey)
+      : (aliasKey || existingCustomKey);
     if (resolvedKey) {
       marker.mappedKey = resolvedKey;
       marker.matched = true;
       marker.suggestedKey = null;
+    } else if (preferredSuggestedKey) {
+      // A product adapter intentionally created this new custom key. Keep it
+      // instead of name-aliasing the marker back to a generic OAT catalog key.
+      marker.mappedKey = null;
+      marker.matched = false;
     } else if (differentialPercentSuggestedKey) {
       marker.mappedKey = null;
       marker.matched = false;

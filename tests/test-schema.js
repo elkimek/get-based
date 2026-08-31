@@ -25,6 +25,7 @@ console.log('=== Specialty Marker Refactor Tests ===\n');
 
 const schemaSrc = read('js/schema.js');
 const adaptersSrc = read('js/adapters.js');
+const normalizationSrc = read('js/pdf-import-marker-normalization.js');
 const profileSrc = read('js/profile.js');
 const profileDataMigrationsSrc = read('js/profile-data-migrations.js');
 const dataSrc = read('js/data.js');
@@ -78,7 +79,7 @@ const pdfImportNormalizationSrc = read('js/pdf-import-marker-normalization.js');
 
   // Count entries in adapters.js (the single source of truth)
   const entryCount = (adaptersSrc.match(/"[a-zA-Z]+\.\w+": \{/g) || []).length;
-  assert('Adapter markers have 220 entries', entryCount === 220, `found ${entryCount}`);
+  assert('Adapter markers have 225 entries', entryCount === 225, `found ${entryCount}`);
 
   // Each entry has required fields
   assert('Entries have name field', adaptersSrc.includes('name:'));
@@ -102,7 +103,10 @@ const pdfImportNormalizationSrc = read('js/pdf-import-marker-normalization.js');
   assert('adapters.js exports normalizeWithAdapter', adaptersSrc.includes('export function normalizeWithAdapter'));
   assert('adapters.js has FA adapter with detect/normalize', adaptersSrc.includes("id: 'fattyAcids'") && adaptersSrc.includes('detect(') && adaptersSrc.includes('normalize('));
   assert('adapters.js has OAT adapter', adaptersSrc.includes("id: 'oat'"));
-  assert('adapters.js has Metabolomix+ adapter', adaptersSrc.includes("id: 'metabolomix'") && adaptersSrc.includes('_detectMetabolomix') && adaptersSrc.includes('_normalizeMetabolomix'));
+  assert('Metabolomix+ has detection and lazy product normalization',
+    adaptersSrc.includes("id: 'metabolomix'")
+    && adaptersSrc.includes('_detectMetabolomix')
+    && normalizationSrc.includes('_normalizeMetabolomixProduct'));
 
   // ═══════════════════════════════════════
   // 3. CORRELATION_PRESETS don't reference specialty keys

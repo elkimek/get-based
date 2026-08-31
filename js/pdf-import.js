@@ -270,6 +270,7 @@ ${IMPORT_COLLECTION_CONTEXT_PROMPT}
    - "GI" for stool tests (GI-MAP, Gut Zoomer)
    - "biostarks" for BioStarks laboratory panels (dried blood spot: amino acids, fatty acids, intracellular minerals, vitamins, hormones, metabolism). BioStarks is a HYBRID test — map standard blood markers (glucose, lipids, testosterone, creatinine, ferritin, vitamin D, B12, vitamin A, copper, HbA1c) to their normal standard keys. Map amino acids to biostarksAmino.* keys, BioStarks fatty acids to biostarksFA.* keys, intracellular minerals (µg/gHb) to biostarksMineral.* keys, cortisol/T:C ratio to biostarksHormone.* keys, and vitamin E to biostarksVitamin.* keys — all from the known markers list
    - Or a descriptive name for other specialty tests
+   Also return "labName" with the laboratory or exact product name when it is printed on the report (for example "Genova Diagnostics", "Mosaic Diagnostics", or "Mosaic MOAT"). Return null when it cannot be identified. This is required to keep different specialty products in separate histories.
 8. CRITICAL for specialty tests (testType ≠ "blood"): You MUST NOT set mappedKey to any standard blood work category key (biochemistry, hormones, electrolytes, lipids, iron, proteins, thyroid, vitamins, diabetes, tumorMarkers, coagulation, hematology, differential, boneMetabolism) or "fattyAcids". Even if a marker name matches (e.g., "Creatinine" in a urine OAT test is NOT "biochemistry.creatinine" which is serum). Even if "fattyAcids.*" keys exist in the known markers list, do NOT match to them — always create new product-specific keys. Always use test-type-prefixed keys from the reference list (oatMicrobial, oatMetabolic, etc.) or set mappedKey to null so it becomes a new custom marker. Different specimen types = different markers.
    EXCEPTION — BioStarks (testType "biostarks"): This is a hybrid test containing both standard blood markers AND specialty markers. DO map its standard blood markers (glucose, lipids, testosterone, creatinine, ferritin, vitamin D, B12, vitamin A, copper, HbA1c) to standard category keys. Only use biostarks-prefixed keys for amino acids, BioStarks fatty acids, intracellular minerals (µg/gHb), cortisol, T/C ratio, and vitamin E.
 9. For markers that do NOT match any known key (mappedKey is null), also return:
@@ -282,6 +283,7 @@ ${IMPORT_COLLECTION_CONTEXT_PROMPT}
 Return ONLY valid JSON in this exact format, no other text:
 {
   "testType": "blood",
+  "labName": "Example Laboratory",
   "date": "YYYY-MM-DD",
   "sampleTime": "08:30",
   "fasting": true,
@@ -348,6 +350,7 @@ Return ONLY valid JSON in this exact format, no other text:
     date: parsed.date || null,
     ...normalizeImportedCollectionContext(parsed),
     testType: parsed.testType || 'blood',
+    labName: parsed.labName || null,
     markers: Array.isArray(parsed.markers)
       ? parsed.markers.map(marker => ({ ...marker }))
       : [],
@@ -477,13 +480,14 @@ ${IMPORT_COLLECTION_CONTEXT_PROMPT}
    - refMax: the upper reference range bound EXACTLY as printed on the report (number or null). Do NOT copy from the known markers list above
 3. Match based on medical/biochemical equivalence, not just string similarity. "hs-CRP"/"hsCRP" → "proteins.hsCRP", plain "CRP" → "proteins.crp" (different assays). Strip specimen-type prefixes (S-, P-, B-, U-, fS-, USED-, F-, FW) when matching — keep in rawName. Do NOT map urine-prefixed rows to serum/plasma/blood markers; "U Celková bílkovina" is urine total protein, not serum Total Protein.
 4. Only map to a marker if you're confident it's the correct match
-5. Identify the type of lab test. Return as "testType" field: "blood", "OAT", "fattyAcids", "biostarks", "DUTCH", "HTMA", "GI", or a descriptive name. For fatty acid tests: put ALL markers into ONE product-specific category — spadiaFA (Spadia), zinzinoFA (ZinZino), omegaquantFA (OmegaQuant), or labNameFA. Use suggestedCategoryLabel = product name, suggestedGroup = "Fatty Acids". Do NOT split by fatty acid type (omega-3/omega-6/saturated/trans). For BioStarks: map standard blood markers to standard keys, amino acids to biostarksAmino.*, fatty acids to biostarksFA.*, intracellular minerals (µg/gHb) to biostarksMineral.*, cortisol/T:C ratio to biostarksHormone.*, vitamin E to biostarksVitamin.*
+5. Identify the type of lab test. Return as "testType" field: "blood", "OAT", "Metabolomix+", "fattyAcids", "biostarks", "DUTCH", "HTMA", "GI", or a descriptive name. Also return "labName" with the laboratory or exact product name printed on the report, or null when unknown. For fatty acid tests: put ALL markers into ONE product-specific category — spadiaFA (Spadia), zinzinoFA (ZinZino), omegaquantFA (OmegaQuant), or labNameFA. Use suggestedCategoryLabel = product name, suggestedGroup = "Fatty Acids". Do NOT split by fatty acid type (omega-3/omega-6/saturated/trans). For BioStarks: map standard blood markers to standard keys, amino acids to biostarksAmino.*, fatty acids to biostarksFA.*, intracellular minerals (µg/gHb) to biostarksMineral.*, cortisol/T:C ratio to biostarksHormone.*, vitamin E to biostarksVitamin.*
 6. CRITICAL for specialty tests (testType ≠ "blood"): Do NOT use standard blood work category keys. Use test-type-prefixed keys or set mappedKey to null. EXCEPTION: BioStarks (testType "biostarks") is hybrid — DO map its standard blood markers to standard keys
 7. EVERY numeric result MUST be included — never silently drop a marker. If it doesn't match a known key, set mappedKey to null and provide suggestedKey, suggestedName, suggestedCategoryLabel, suggestedGroup
 
 Return ONLY valid JSON in this exact format:
 {
   "testType": "blood",
+  "labName": "Example Laboratory",
   "date": "YYYY-MM-DD",
   "sampleTime": null,
   "fasting": null,

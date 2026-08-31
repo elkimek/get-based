@@ -376,9 +376,12 @@ const importCssSrc = read('css/import.css');
   assert('FA normalize checks standardCats', adapterSrc.includes('standardCats.has(catKey)'));
   assert('FA normalize skips standard markers', adapterSrc.includes('continue') && adapterSrc.includes('standard category'));
 
-  // Verify adapter normalization requires AI agreement — product detection alone + blood testType must NOT trigger
-  assert('Adapter normalization requires non-blood testType',
-    normalizationSrc.includes("testType !== 'blood'") && normalizationSrc.includes('detected') && normalizationSrc.includes('needsAdapterNormalize'));
+  // Broad/hybrid adapters still require AI agreement, while adapters with
+  // conservative product signatures can safely correct a mistaken blood type.
+  assert('Adapter normalization distinguishes product-scoped detection',
+    normalizationSrc.includes("testType !== 'blood'")
+    && normalizationSrc.includes('detectedProductScoped')
+    && normalizationSrc.includes('needsAdapterNormalize'));
 
   // Verify guard at line 367 only fires for non-blood tests
   assert('Guard checks testType !== blood',
