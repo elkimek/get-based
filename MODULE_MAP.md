@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 702 |
-| Internal import edges | 2996 |
-| Dynamic internal edges | 92 |
+| Modules | 703 |
+| Internal import edges | 3002 |
+| Dynamic internal edges | 93 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -67,8 +67,8 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/api.js`](js/api.js) | 69 | [`js/wearables-connect.js`](js/wearables-connect.js) | 27 |
 | [`js/profile.js`](js/profile.js) | 47 | [`js/pdf-import.js`](js/pdf-import.js) | 26 |
 | [`js/schema.js`](js/schema.js) | 37 | [`js/lab-context.js`](js/lab-context.js) | 24 |
-| [`js/crypto.js`](js/crypto.js) | 33 | [`js/views.js`](js/views.js) | 22 |
-| [`js/data-merge.js`](js/data-merge.js) | 33 | [`js/export.js`](js/export.js) | 21 |
+| [`js/crypto.js`](js/crypto.js) | 33 | [`js/export.js`](js/export.js) | 23 |
+| [`js/data-merge.js`](js/data-merge.js) | 33 | [`js/views.js`](js/views.js) | 22 |
 | [`js/utils-runtime.js`](js/utils-runtime.js) | 21 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
 | [`js/constants.js`](js/constants.js) | 20 | [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | 20 |
 | [`js/proxy-runtime.js`](js/proxy-runtime.js) | 20 | [`js/marker-schema/index.js`](js/marker-schema/index.js) | 20 |
@@ -335,6 +335,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>clear</code> family — 1 module</summary>
+
+- [`js/clear-all-profile-reset.js`](js/clear-all-profile-reset.js) → [`js/profile-sync-policy.js`](js/profile-sync-policy.js), [`js/unique-id.js`](js/unique-id.js)
+
+</details>
+
 <details><summary><code>client</code> family — 4 modules</summary>
 
 - [`js/client-list-form.js`](js/client-list-form.js) → [`js/client-list-runtime.js`](js/client-list-runtime.js), [`js/constants.js`](js/constants.js), [`js/nav.js`](js/nav.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
@@ -505,7 +511,7 @@ Native browser modules shipped with the static application.
 - [`js/export-report-html.js`](js/export-report-html.js) → [`js/export-report.js`](js/export-report.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/state.js`](js/state.js), [`js/supplement-impact.js`](js/supplement-impact.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/unit-profiles.js`](js/unit-profiles.js), [`js/utils.js`](js/utils.js)
 - [`js/export-report.js`](js/export-report.js) → [`js/api.js`](js/api.js), [`js/cycle.js`](js/cycle.js), [`js/data.js`](js/data.js), [`js/export-report-data.js`](js/export-report-data.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/utils.js`](js/utils.js), [`js/wearables-formatters.js`](js/wearables-formatters.js)
 - [`js/export-runtime.js`](js/export-runtime.js) → [`js/cashu-wallet.js`](js/cashu-wallet.js) *(dynamic)*, [`js/crypto.js`](js/crypto.js), [`js/state.js`](js/state.js)
-- [`js/export.js`](js/export.js) → [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js) *(dynamic)*, [`js/caught-error.js`](js/caught-error.js), [`js/context-cards.js`](js/context-cards.js) *(dynamic)*, [`js/crypto.js`](js/crypto.js), [`js/custom-marker-identity.js`](js/custom-marker-identity.js), [`js/data.js`](js/data.js), [`js/demo-nutrition.js`](js/demo-nutrition.js), [`js/export-import.js`](js/export-import.js) *(dynamic)*, [`js/export-report-builder.js`](js/export-report-builder.js) *(dynamic)*, [`js/export-report-html.js`](js/export-report-html.js), [`js/export-report.js`](js/export-report.js), [`js/export-runtime.js`](js/export-runtime.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/nostr-discovery.js`](js/nostr-discovery.js), [`js/nutrition-store.js`](js/nutrition-store.js) *(dynamic)*, [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/export.js`](js/export.js) → [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js) *(dynamic)*, [`js/caught-error.js`](js/caught-error.js), [`js/clear-all-profile-reset.js`](js/clear-all-profile-reset.js), [`js/context-cards.js`](js/context-cards.js) *(dynamic)*, [`js/crypto.js`](js/crypto.js), [`js/custom-marker-identity.js`](js/custom-marker-identity.js), [`js/data.js`](js/data.js), [`js/demo-nutrition.js`](js/demo-nutrition.js), [`js/export-import.js`](js/export-import.js) *(dynamic)*, [`js/export-report-builder.js`](js/export-report-builder.js) *(dynamic)*, [`js/export-report-html.js`](js/export-report-html.js), [`js/export-report.js`](js/export-report.js), [`js/export-runtime.js`](js/export-runtime.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/nostr-discovery.js`](js/nostr-discovery.js), [`js/nutrition-store.js`](js/nutrition-store.js) *(dynamic)*, [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js) *(dynamic)*, [`js/utils.js`](js/utils.js)
 
 </details>
 
@@ -1142,7 +1148,7 @@ Native browser modules shipped with the static application.
 - [`js/sync-environment.js`](js/sync-environment.js) → [`js/utils-runtime.js`](js/utils-runtime.js)
 - [`js/sync-evolu8-candidate.js`](js/sync-evolu8-candidate.js) → [`js/sync-evolu8-identity-vault.js`](js/sync-evolu8-identity-vault.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-evolu8-identity-vault.js`](js/sync-evolu8-identity-vault.js) → no in-scope imports
-- [`js/sync-identity.js`](js/sync-identity.js) → [`js/sync-backup-restore-state.js`](js/sync-backup-restore-state.js), [`js/sync-disable-cleanup.js`](js/sync-disable-cleanup.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/utils.js`](js/utils.js)
+- [`js/sync-identity.js`](js/sync-identity.js) → [`js/profile-sync-policy.js`](js/profile-sync-policy.js), [`js/sync-backup-restore-state.js`](js/sync-backup-restore-state.js), [`js/sync-disable-cleanup.js`](js/sync-disable-cleanup.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-init.js`](js/sync-init.js) → [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-evolu8-candidate.js`](js/sync-evolu8-candidate.js) *(dynamic)*, [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-pull-rebroadcast.js`](js/sync-pull-rebroadcast.js), [`js/sync-recovery.js`](js/sync-recovery.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-schema.js`](js/sync-schema.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/sync-subscriptions.js`](js/sync-subscriptions.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-lifecycle.js`](js/sync-lifecycle.js) → [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-backup-restore-state.js`](js/sync-backup-restore-state.js), [`js/sync-disable-cleanup.js`](js/sync-disable-cleanup.js), [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-init.js`](js/sync-init.js), [`js/sync-pull.js`](js/sync-pull.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-subscriptions.js`](js/sync-subscriptions.js), [`js/sync-ui.js`](js/sync-ui.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-messenger.js`](js/sync-messenger.js) → [`js/profile-sync-policy.js`](js/profile-sync-policy.js), [`js/state.js`](js/state.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
@@ -1169,7 +1175,7 @@ Native browser modules shipped with the static application.
 - [`js/sync-state.js`](js/sync-state.js) → no in-scope imports
 - [`js/sync-storage-cleanup.js`](js/sync-storage-cleanup.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data-merge.js`](js/data-merge.js), [`js/state.js`](js/state.js), [`js/sync-state.js`](js/sync-state.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-subscriptions.js`](js/sync-subscriptions.js) → no in-scope imports
-- [`js/sync-tombstones.js`](js/sync-tombstones.js) → [`js/crypto.js`](js/crypto.js), [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/profile-sync-policy.js`](js/profile-sync-policy.js), [`js/state.js`](js/state.js), [`js/sync-dirty-state.js`](js/sync-dirty-state.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/unique-id.js`](js/unique-id.js), [`js/utils.js`](js/utils.js)
+- [`js/sync-tombstones.js`](js/sync-tombstones.js) → [`js/crypto.js`](js/crypto.js), [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/profile-sync-policy.js`](js/profile-sync-policy.js), [`js/state.js`](js/state.js), [`js/sync-dirty-state.js`](js/sync-dirty-state.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-profile-fields.js`](js/sync-profile-fields.js), [`js/unique-id.js`](js/unique-id.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-ui.js`](js/sync-ui.js) → [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/sync-state.js`](js/sync-state.js), [`js/utils.js`](js/utils.js)
 - [`js/sync.js`](js/sync.js) → [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-cutover.js`](js/sync-cutover.js), [`js/sync-diagnose-ui.js`](js/sync-diagnose-ui.js), [`js/sync-diagnostics.js`](js/sync-diagnostics.js), [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-init.js`](js/sync-init.js), [`js/sync-messenger.js`](js/sync-messenger.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-storage-cleanup.js`](js/sync-storage-cleanup.js), [`js/sync-tombstones.js`](js/sync-tombstones.js), [`js/sync-ui.js`](js/sync-ui.js)
 
