@@ -82,8 +82,8 @@
     },
     {
       "name": "@phala/dcap-qvl",
-      "version": "0.6.1",
-      "purl": "pkg:npm/%40phala/dcap-qvl@0.6.1",
+      "version": "0.6.2",
+      "purl": "pkg:npm/%40phala/dcap-qvl@0.6.2",
       "license": "Apache-2.0",
       "source": "https://github.com/Phala-Network/dcap-qvl",
       "monitoring": "github-advisory",

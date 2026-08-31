@@ -33,13 +33,13 @@
     },
     {
       "package": "@phala/dcap-qvl",
-      "version": "0.6.1",
-      "integrity": "sha512-7PvdKq1CdOWKBSG5ha/343WUo2qcpsnv2/2QL+o3QxXtYA+qRAw7MbAmPZYsUM9f52lhsVKnoHXMCzBQhLBFHg==",
+      "version": "0.6.2",
+      "integrity": "sha512-bIDwpgTG8PemOBaqujaAUTFbxuYk+haZF0GrC0w272cDgGDEPqxKDILiWzipzBJx5uyfZkQHVjKKTDtgn5F7Cg==",
       "entry": "scripts/vendor-entries/venice-dcap.js",
       "output": "vendor/venice-dcap.js",
       "format": "es",
       "minified": true,
-      "sha256": "d7142051c252f063c57b4eb4903761a611137fb2e65032a22374b931800024b2"
+      "sha256": "2433eda462946265e19dd3b7d9b6764bb2ef8465b3556ac06a9ccdb30476c657"
     },
     {
       "package": "venice-e2ee",
