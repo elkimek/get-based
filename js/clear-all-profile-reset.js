@@ -29,12 +29,18 @@ export function createClearedProfileRecord(name = 'Profile 1', now = Date.now())
  * decision before yielding to any sync work so an incoming live row cannot
  * recreate one of the cleared profiles.
  * @param {Array<string | null | undefined>} profileIds
+ * @returns {string[]}
  */
 export function markClearedProfilesForSync(profileIds) {
+  /** @type {string[]} */
+  const validIds = [];
+  for (const profileId of profileIds) {
+    if (typeof profileId === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(profileId)) {
+      validIds.push(profileId);
+    }
+  }
+  /** @type {string[]} */
   const marked = [];
-  const validIds = profileIds.filter(profileId => (
-    typeof profileId === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(profileId)
-  ));
   for (const profileId of new Set(validIds)) {
     if (markLocalProfileDeleteIntent(profileId, 'clear-all')) marked.push(profileId);
   }
