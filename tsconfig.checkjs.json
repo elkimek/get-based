@@ -277,6 +277,7 @@
     "js/pdf-import-file-handlers.js",
     "js/pdf-import-file-utils.js",
     "js/pdf-import-marker-mapping.js",
+    "js/mosaic-oat-catalog.js",
     "js/pdf-import-ratio-units.js",
     "js/pdf-import-unit-conversions.js",
     "js/pdf-import-review-formatting.js",
