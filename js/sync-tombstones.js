@@ -298,7 +298,7 @@ export async function applyRemoteTombstones() {
   const survivors = profiles.filter(profile => !wipedIds.includes(profile.id));
   if (survivors.length === 0) {
     // Clear-all publishes a fresh profile id and tombstones the old ids in the
-    // same relay window. Adopt that already-live replacement immediately;
+    // same relay update. Adopt that already-live replacement immediately;
     // otherwise deleting the last local profile creates a second, browser-only
     // fallback just before the pull loop materializes the intended fresh row.
     const relayReplacement = await findRelayReplacementProfile(latestLiveRows, tombIds);
