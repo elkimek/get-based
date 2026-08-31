@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 703 |
-| Internal import edges | 3006 |
+| Modules | 704 |
+| Internal import edges | 3008 |
 | Dynamic internal edges | 96 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -853,14 +853,15 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>pdf</code> family — 16 modules</summary>
+<details><summary><code>pdf</code> family — 17 modules</summary>
 
 - [`js/pdf-import-ai-utils.js`](js/pdf-import-ai-utils.js) → [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/api.js`](js/api.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/utils.js`](js/utils.js)
 - [`js/pdf-import-commit.js`](js/pdf-import-commit.js) → [`js/adapters.js`](js/adapters.js), [`js/crypto.js`](js/crypto.js), [`js/custom-marker-identity.js`](js/custom-marker-identity.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/pdf-import-marker-mapping.js`](js/pdf-import-marker-mapping.js), [`js/pdf-import-persistence.js`](js/pdf-import-persistence.js), [`js/pdf-import-ratio-units.js`](js/pdf-import-ratio-units.js), [`js/pdf-import-review.js`](js/pdf-import-review.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/unique-id.js`](js/unique-id.js), [`js/utils.js`](js/utils.js)
 - [`js/pdf-import-file-handlers.js`](js/pdf-import-file-handlers.js) → [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import-ai-utils.js`](js/pdf-import-ai-utils.js), [`js/pdf-import-file-utils.js`](js/pdf-import-file-utils.js), [`js/pdf-import-preflight.js`](js/pdf-import-preflight.js), [`js/pdf-import-progress.js`](js/pdf-import-progress.js), [`js/pdf-import-review.js`](js/pdf-import-review.js), [`js/pdf-import-spreadsheet.js`](js/pdf-import-spreadsheet.js), [`js/pii.js`](js/pii.js), [`js/privacy-safe-diagnostics.js`](js/privacy-safe-diagnostics.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/pdf-import-file-utils.js`](js/pdf-import-file-utils.js) → [`js/pdf-import-spreadsheet.js`](js/pdf-import-spreadsheet.js), [`js/pdfjs-loader.js`](js/pdfjs-loader.js)
 - [`js/pdf-import-marker-mapping.js`](js/pdf-import-marker-mapping.js) → [`js/adapters.js`](js/adapters.js), [`js/pdf-import-ratio-units.js`](js/pdf-import-ratio-units.js), [`js/pdf-import-unit-conversions.js`](js/pdf-import-unit-conversions.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js)
-- [`js/pdf-import-marker-normalization.js`](js/pdf-import-marker-normalization.js) → [`js/adapters.js`](js/adapters.js), [`js/pdf-import-marker-mapping.js`](js/pdf-import-marker-mapping.js), [`js/schema.js`](js/schema.js), [`js/utils.js`](js/utils.js)
+- [`js/pdf-import-marker-normalization.js`](js/pdf-import-marker-normalization.js) → [`js/adapters.js`](js/adapters.js), [`js/pdf-import-marker-mapping.js`](js/pdf-import-marker-mapping.js), [`js/pdf-import-organic-acid-normalization.js`](js/pdf-import-organic-acid-normalization.js), [`js/schema.js`](js/schema.js), [`js/utils.js`](js/utils.js)
+- [`js/pdf-import-organic-acid-normalization.js`](js/pdf-import-organic-acid-normalization.js) → [`js/adapters.js`](js/adapters.js)
 - [`js/pdf-import-persistence.js`](js/pdf-import-persistence.js) → [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/pdf-import-review-runtime.js`](js/pdf-import-review-runtime.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/pdf-import-preflight.js`](js/pdf-import-preflight.js) → [`js/adapters.js`](js/adapters.js), [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import-ai-utils.js`](js/pdf-import-ai-utils.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/pdf-import-progress.js`](js/pdf-import-progress.js) → [`js/constants.js`](js/constants.js), [`js/pdf-import-review-runtime.js`](js/pdf-import-review-runtime.js), [`js/utils.js`](js/utils.js)
