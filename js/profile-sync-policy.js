@@ -1,8 +1,8 @@
 // @ts-check
 // profile-sync-policy.js — durable profile admission rules shared by sync paths.
 
-const TOMBSTONE_QUARANTINE_PREFIX = 'labcharts-tombstone-pending-';
-const PROFILE_DELETE_INTENT_PREFIX = 'labcharts-profile-delete-intent-';
+export const TOMBSTONE_QUARANTINE_PREFIX = 'labcharts-tombstone-pending-';
+export const PROFILE_DELETE_INTENT_PREFIX = 'labcharts-profile-delete-intent-';
 
 /** @param {any} profile */
 export function isDemoProfileRecord(profile) {

@@ -186,19 +186,15 @@ export async function restoreFromMnemonic(mnemonic, options = {}) {
     return false;
   }
   const normalizedMnemonic = normalizeMnemonic(mnemonic);
+  const previousMnemonic = normalizeMnemonic(currentAppOwner()?.mnemonic || '');
+  const identityChanged = !previousMnemonic || previousMnemonic !== normalizedMnemonic;
   setRestoreNotice(options?.seedLocal ? 'seed-local' : 'join');
   try {
-    if (options?.seedLocal) {
-      await evolu.restoreAppOwner(normalizedMnemonic);
-    } else {
-      // Evolu defaults restoreAppOwner to reload immediately from inside its
-      // worker. That navigation happens before the returned promise resolves,
-      // so none of the join-finalization below would run. In particular, a
-      // first-time join starts with persist:false and would reload with sync
-      // still disabled, leaving the restored owner unable to pull relay data.
-      // Keep the reset in this page long enough to commit our application
-      // state, then use the controlled reload at the end of this function.
-      await evolu.restoreAppOwner(normalizedMnemonic, { reload: false });
+    // Keep Evolu 7 from reloading before join/seed finalization. Evolu 8 also
+    // accepts this option; GetBased schedules the controlled reload below.
+    await evolu.restoreAppOwner(normalizedMnemonic, { reload: false });
+    if (identityChanged) {
+      (await import('./clear-all-profile-reset.js')).clearAllProfileSyncDeleteState();
     }
     // First-time joins initialize Evolu provisionally. Persist sync only once
     // the requested identity has actually been accepted.

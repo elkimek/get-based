@@ -43,6 +43,11 @@ import {
   markDemoLoadingProfile,
   refreshImportRuntimeShell,
 } from './export-runtime.js';
+import {
+  createClearedProfileRecord,
+  markClearedProfilesForSync,
+  propagateClearedProfilesToRelay,
+} from './clear-all-profile-reset.js';
 
 /** @typedef {typeof import('./export-import.js')} ExportImportModule */
 /** @type {Promise<ExportImportModule> | null} */
@@ -491,18 +496,43 @@ export async function clearAllData() {
       for (const id of profileIds) {
         await clearProfileStorage(id);
       }
+
+      // Do not reuse a cleared profile id. Evolu stores profile metadata and
+      // profile-scoped items independently, so publishing an empty snapshot
+      // under the old id can still merge with older item rows and reconstruct
+      // data that the user explicitly cleared.
+      const clearedProfileIds = markClearedProfilesForSync(profileIds);
+      const freshProfile = createClearedProfileRecord(profiles[0]?.name || 'Profile 1');
+      await saveProfiles([freshProfile]);
+      state.importedData = createDefaultProfileData();
+      state.currentProfile = freshProfile.id;
+      localStorage.setItem('labcharts-active-profile', freshProfile.id);
+      const saved = await saveImportedData({ immediate: true, reason: 'clear-all' });
+      if (!saved) throw new Error('Could not persist the cleared profile.');
+
+      // Tombstone every old relay profile after the fresh local identity is
+      // durable. If sync is paused or offline, the delete-intent keys above
+      // keep old live rows blocked and retry their deletion on a later pull.
+      try {
+        const sync = await import('./sync.js');
+        let replacementPublished = false;
+        if (sync.isSyncEnabled()) {
+          const publishResult = await sync.syncNow();
+          replacementPublished = publishResult?.ok === true;
+        }
+        if (replacementPublished) {
+          await propagateClearedProfilesToRelay(clearedProfileIds, sync.deleteProfileFromRelay);
+        } else if (sync.isSyncEnabled()) {
+          console.warn('[export] Clear-all relay deletes deferred until the fresh profile is published.');
+        }
+      } catch (syncError) {
+        console.warn('[export] Clear-all relay propagation deferred:', syncError);
+      }
     } catch (error) {
       console.warn('[export] Clear-all storage cleanup failed:', error);
       showNotification('Data clearing was incomplete. Close other Get Based tabs and try again.', 'error', 8000);
       return;
     }
-    // Reset to single default profile
-    const defaultId = profiles[0]?.id || 'default';
-    const defaultName = profiles[0]?.name || 'Profile 1';
-    await saveProfiles([{ id: defaultId, name: defaultName, sex: null, dob: null, location: { country: '', zip: '' }, tags: [], notes: '', status: 'active', avatar: null, height: null, heightUnit: 'cm', createdAt: Date.now(), lastUpdated: Date.now(), pinned: false }]);
-    state.importedData = createDefaultProfileData();
-    state.currentProfile = defaultId;
-    localStorage.setItem('labcharts-active-profile', defaultId);
     localStorage.removeItem('labcharts-cashu-wallet-mint');
     localStorage.removeItem('labcharts-cashu-wallet-mnemonic');
     localStorage.removeItem('labcharts-routstr-node');

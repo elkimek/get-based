@@ -125,6 +125,114 @@ async function joinIdentity(page, mnemonic, ownerId) {
   await waitForOwner(page, ownerId);
 }
 
+async function rotateIdentityWithLocalData(page) {
+  const previous = await waitForOwner(page);
+  const reloaded = page.waitForEvent('load', { timeout: 30_000 });
+  const rotated = await page.evaluate(async () => {
+    const { ensureBip39, restoreFromMnemonic } = await import('/js/sync-identity.js');
+    const bip39 = await ensureBip39();
+    const mnemonic = await bip39.generateMnemonic(256);
+    const ok = await restoreFromMnemonic(mnemonic, { seedLocal: true });
+    return { ok, mnemonic };
+  });
+  expect(rotated.ok).toBe(true);
+  await reloaded;
+  const next = await waitForOwner(page);
+  expect(next.ownerId).not.toBe(previous.ownerId);
+  expect(next.mnemonic).toBe(rotated.mnemonic);
+  return next;
+}
+
+async function profileIds(page) {
+  return page.evaluate(async () => (await import('/js/profile.js')).getProfiles().map(profile => profile.id));
+}
+
+async function profileDiagnostics(page) {
+  return page.evaluate(async () => {
+    const profiles = (await import('/js/profile.js')).getProfiles();
+    const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)).filter(Boolean);
+    return profiles.map(profile => ({
+      profile,
+      localKeys: keys.filter(key => key.includes(profile.id)),
+    }));
+  });
+}
+
+async function waitForProfilePresence(page, profileId, present) {
+  await expect.poll(async () => (await profileIds(page)).includes(profileId), {
+    timeout: 30_000,
+    intervals: [100, 250, 500, 1000],
+  }).toBe(present);
+}
+
+async function activateProfile(page, profileId) {
+  await page.evaluate(async id => (await import('/js/profile.js')).loadProfile(id), profileId);
+  await expect.poll(() => page.evaluate(async id => (
+    (await import('/js/state.js')).state.currentProfile === id
+  ), profileId), { timeout: 30_000 }).toBe(true);
+}
+
+async function captureProfileSnapshot(page, profileId) {
+  return page.evaluate(async id => {
+    const [{ state }, profileModule] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/profile.js'),
+    ]);
+    const profile = profileModule.getProfiles().find(candidate => candidate.id === id);
+    if (!profile || state.currentProfile !== id) throw new Error(`Profile ${id} is not active`);
+    return {
+      profile: JSON.parse(JSON.stringify(profile)),
+      importedData: JSON.parse(JSON.stringify(state.importedData)),
+    };
+  }, profileId);
+}
+
+async function restoreProfileSnapshot(page, snapshot) {
+  await page.evaluate(async restored => {
+    const [crypto, storageKeys, profileModule, restoreState] = await Promise.all([
+      import('/js/crypto.js'),
+      import('/js/profile-storage-key.js'),
+      import('/js/profile.js'),
+      import('/js/sync-backup-restore-state.js'),
+    ]);
+    const profileId = restored.profile.id;
+    await crypto.encryptedSetItem(
+      storageKeys.profileStorageKey(profileId, 'imported'),
+      JSON.stringify(restored.importedData),
+    );
+    await profileModule.saveProfiles([restored.profile]);
+    localStorage.setItem('labcharts-active-profile', profileId);
+    restoreState.prepareRestoredProfilesForSync({ profiles: [{ profileId }] });
+  }, snapshot);
+  await page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 });
+  await waitForOwner(page);
+  await waitForProfilePresence(page, snapshot.profile.id, true);
+  await expect.poll(async () => page.evaluate(async id => (
+    (await import('/js/state.js')).state.currentProfile === id
+  ), snapshot.profile.id), { timeout: 30_000 }).toBe(true);
+}
+
+async function clearAllProfileData(page, oldProfileId) {
+  const clearPromise = page.evaluate(async () => (
+    (await import('/js/export.js')).clearAllData()
+  ));
+  await page.locator('#confirm-ok').click();
+  await clearPromise;
+  return page.evaluate(async oldId => {
+    const [{ state }, profileModule] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/profile.js'),
+    ]);
+    return {
+      activeProfileId: state.currentProfile,
+      contextNotes: state.importedData?.contextNotes || '',
+      noteCount: state.importedData?.notes?.length || 0,
+      profileIds: profileModule.getProfiles().map(profile => profile.id),
+      oldDeleteIntent: localStorage.getItem(`labcharts-profile-delete-intent-${oldId}`),
+    };
+  }, oldProfileId);
+}
+
 async function setSyntheticData(page, action) {
   return page.evaluate(async requestedAction => {
     const [{ state }, dataModule, mergeModule] = await Promise.all([
@@ -415,5 +523,99 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
     for (const device of devices.reverse()) {
       await device.context.close().catch(() => {});
     }
+  }
+});
+
+test('restored profiles survive old tombstones and a new sync identity', async ({ browser }) => {
+  test.setTimeout(300_000);
+  const devices = [];
+  const profileId = 'default';
+
+  try {
+    const deviceA = await createDevice(browser, 'restore device A');
+    devices.push(deviceA);
+    await setSyntheticData(deviceA.page, 'seed');
+    const originalIdentity = await enableNewIdentity(deviceA.page);
+    const snapshot = await captureProfileSnapshot(deviceA.page, profileId);
+
+    const deviceB = await createDevice(browser, 'restore device B');
+    devices.push(deviceB);
+    await joinIdentity(deviceB.page, originalIdentity.mnemonic, originalIdentity.ownerId);
+    await waitForNotes(deviceB.page, ['baseline-note']);
+
+    const deleted = await deviceB.page.evaluate(async id => {
+      const [sync, policy] = await Promise.all([
+        import('/js/sync.js'),
+        import('/js/profile-sync-policy.js'),
+      ]);
+      policy.markLocalProfileDeleteIntent(id, 'local');
+      return sync.deleteProfileFromRelay(id);
+    }, profileId);
+    expect(deleted).toMatchObject({ ok: true });
+    await waitForProfilePresence(deviceA.page, profileId, false);
+    await waitForProfilePresence(deviceB.page, profileId, false);
+
+    await restoreProfileSnapshot(deviceA.page, snapshot);
+    expect((await syncNow(deviceA.page))?.ok).toBe(true);
+    await waitForProfilePresence(deviceB.page, profileId, true);
+    await activateProfile(deviceB.page, profileId);
+    await waitForNotes(deviceA.page, ['baseline-note']);
+    await waitForNotes(deviceB.page, ['baseline-note']);
+    await expect.poll(() => deviceB.page.evaluate(id => ({
+      intent: localStorage.getItem(`labcharts-profile-delete-intent-${id}`),
+      pending: localStorage.getItem(`labcharts-tombstone-pending-${id}`),
+    }), profileId), { timeout: 30_000 }).toEqual({ intent: null, pending: null });
+
+    const rotatedIdentity = await rotateIdentityWithLocalData(deviceA.page);
+    await deviceB.page.evaluate(id => {
+      localStorage.setItem(`labcharts-profile-delete-intent-${id}`, JSON.stringify({ at: Date.now(), source: 'old-owner' }));
+      localStorage.setItem(`labcharts-tombstone-pending-${id}`, JSON.stringify({ at: Date.now(), source: 'old-owner' }));
+    }, profileId);
+    await joinIdentity(deviceB.page, rotatedIdentity.mnemonic, rotatedIdentity.ownerId);
+    await waitForProfilePresence(deviceB.page, profileId, true);
+    await activateProfile(deviceB.page, profileId);
+    await waitForNotes(deviceA.page, ['baseline-note']);
+    await waitForNotes(deviceB.page, ['baseline-note']);
+    expect(await deviceB.page.evaluate(id => ({
+      intent: localStorage.getItem(`labcharts-profile-delete-intent-${id}`),
+      pending: localStorage.getItem(`labcharts-tombstone-pending-${id}`),
+    }), profileId)).toEqual({ intent: null, pending: null });
+
+    expect((await syncNow(deviceB.page))?.ok).toBe(true);
+    expect((await syncNow(deviceA.page))?.ok).toBe(true);
+    await waitForProfilePresence(deviceA.page, profileId, true);
+    await waitForProfilePresence(deviceB.page, profileId, true);
+    const newOwnerTombstones = await deviceA.page.evaluate(async id => {
+      const runtime = await import('/js/sync-runtime.js');
+      return runtime.getSyncEvolu()?.getQueryRows(runtime.getSyncTombstoneQuery())
+        ?.filter(row => row?.profileId === id).length || 0;
+    }, profileId);
+    expect(newOwnerTombstones).toBe(0);
+
+    // "Clear all data" must be a synchronized replacement, not an empty
+    // update under the old id. Reusing the id lets older per-item rows rebuild
+    // the profile; deleting without a replacement makes the peer invent an
+    // extra local fallback profile.
+    const cleared = await clearAllProfileData(deviceA.page, profileId);
+    expect(cleared.activeProfileId).not.toBe(profileId);
+    expect(cleared.profileIds).toEqual([cleared.activeProfileId]);
+    expect(cleared.contextNotes).toBe('');
+    expect(cleared.noteCount).toBe(0);
+    expect(JSON.parse(cleared.oldDeleteIntent)).toMatchObject({ source: 'clear-all' });
+    expect((await syncNow(deviceA.page))?.ok).toBe(true);
+
+    await waitForProfilePresence(deviceB.page, profileId, false);
+    await waitForProfilePresence(deviceB.page, cleared.activeProfileId, true);
+    await activateProfile(deviceB.page, cleared.activeProfileId);
+    await waitForContext(deviceB.page, '');
+    await waitForNotes(deviceB.page, []);
+    const finalProfileIds = await profileIds(deviceB.page);
+    if (finalProfileIds.length !== 1 || finalProfileIds[0] !== cleared.activeProfileId) {
+      console.error('Clear-all profile diagnostics:', JSON.stringify(await profileDiagnostics(deviceB.page)));
+    }
+    expect(finalProfileIds).toEqual([cleared.activeProfileId]);
+    for (const device of devices) expect(device.errors).toEqual([]);
+  } finally {
+    await Promise.all(devices.map(device => device.context.close().catch(() => {})));
   }
 });

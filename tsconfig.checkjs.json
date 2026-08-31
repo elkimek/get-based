@@ -167,6 +167,7 @@
     "js/export-import.js",
     "js/export-loader.js",
     "js/export.js",
+    "js/clear-all-profile-reset.js",
     "js/export-runtime.js",
     "js/import-drop-zone.js",
     "js/import-drop-zone-runtime.js",

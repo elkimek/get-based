@@ -7,7 +7,6 @@ import { profileStorageKey } from './profile-storage-key.js';
 import { encryptedGetItem } from './crypto.js';
 import { parseSyncPayload } from './sync-payload.js';
 import { clearProfileStorage } from './profile-storage-cleanup.js';
-import { createUniqueId } from './unique-id.js';
 import { getSyncDirtyToken } from './sync-dirty-state.js';
 import {
   clearLocalProfileDeleteIntent, hasPendingProfileTombstone,
@@ -34,6 +33,12 @@ let _saveProfiles = async () => {};
 let _loadProfile = () => {};
 /** @type {(...args: any[]) => any} */
 let _notify = showNotification;
+let profileResetModulePromise;
+
+function loadProfileResetModule() {
+  profileResetModulePromise ||= import('./clear-all-profile-reset.js');
+  return profileResetModulePromise;
+}
 
 /** @param {{
  *   getEvolu?: () => any,
@@ -135,29 +140,6 @@ async function latestRowsByProfileId(rows) {
   return latest;
 }
 
-function createFallbackProfile(existingProfiles) {
-  const ids = new Set((existingProfiles || []).map(profile => profile?.id).filter(Boolean));
-  let id;
-  do id = createUniqueId('p_'); while (ids.has(id));
-  const now = Date.now();
-  return {
-    id,
-    name: 'Profile 1',
-    sex: null,
-    dob: null,
-    location: { country: '', zip: '' },
-    tags: [],
-    notes: '',
-    status: 'active',
-    avatar: null,
-    height: null,
-    heightUnit: 'cm',
-    createdAt: now,
-    lastUpdated: now,
-    pinned: false,
-  };
-}
-
 // Soft-delete a profile's row on the relay so other devices stop seeing it.
 // Local wipe alone is insufficient: otherwise any peer that pulls the old
 // Evolu row can resurrect the deleted profile.
@@ -208,11 +190,14 @@ export async function applyRemoteTombstones() {
   const tombIds = new Set();
   for (const [profileId, tombstone] of latestTombstones) {
     const live = latestLiveRows.get(profileId);
-    // A newer live row is an explicit Restore/Keep. An older tombstone must
-    // not erase it again on every subscription callback.
+    // A newer live row explicitly revives the profile. Retire both delete
+    // layers or this browser would reject and tombstone that row again.
     if (!live || rowClock(tombstone) >= rowClock(live)) tombIds.add(profileId);
-    else if (hasPendingProfileTombstone(profileId)) {
-      localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
+    else {
+      if (hasPendingProfileTombstone(profileId)) {
+        localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
+      }
+      clearLocalProfileDeleteIntent(profileId);
     }
   }
 
@@ -260,7 +245,13 @@ export async function applyRemoteTombstones() {
   if (wipedIds.length === 0) return;
 
   const survivors = profiles.filter(profile => !wipedIds.includes(profile.id));
-  if (survivors.length === 0) survivors.push(createFallbackProfile(profiles));
+  if (survivors.length === 0) {
+    // Adopt a clear-all replacement already in this batch; otherwise create a
+    // temporary fallback for the inbound pull to replace.
+    const profileReset = await loadProfileResetModule();
+    const relayReplacement = await profileReset.findRelayReplacementProfile(latestLiveRows, tombIds);
+    survivors.push(relayReplacement || profileReset.createSyncFallbackProfile(profiles, wipedIds.join(',')));
+  }
   await _saveProfiles(survivors);
   for (const id of wipedIds) localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(id));
   dbg(`Applied ${wipedIds.length} remote tombstone(s):`, wipedIds.join(', '));
@@ -298,7 +289,9 @@ export async function applyPendingTombstone(profileId) {
     throw error;
   }
   const survivors = profiles.filter(p => p.id !== profileId);
-  if (survivors.length === 0) survivors.push(createFallbackProfile(profiles));
+  if (survivors.length === 0) {
+    survivors.push((await loadProfileResetModule()).createSyncFallbackProfile(profiles, profileId));
+  }
   await _saveProfiles(survivors);
   localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
   if (state.currentProfile === profileId) await _loadProfile(survivors[0].id);

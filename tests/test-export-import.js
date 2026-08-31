@@ -452,17 +452,25 @@ return (async function() {
     exportSrc.includes('await listStoredProfileIds(profiles.map(profile => profile.id))'));
   assert('Awaits centralized profile storage cleanup',
     /for \(const id of profileIds\)[\s\S]{0,200}await clearProfileStorage\(id\)/.test(exportSrc));
-  assert('Awaits the profile-list reset', exportSrc.includes('await saveProfiles([{ id: defaultId'));
+  assert('Awaits the fresh profile-list reset',
+    exportSrc.includes('const freshProfile = createClearedProfileRecord') &&
+    exportSrc.includes('await saveProfiles([freshProfile])'));
   assert('Resets state.importedData from the canonical factory',
     exportSrc.includes('state.importedData = createDefaultProfileData()'));
-  assert('Resets to single default profile via saveProfiles', exportSrc.includes('saveProfiles([{'));
+  assert('Clear-all never reuses a synchronized profile identity',
+    exportSrc.includes('markClearedProfilesForSync(profileIds)') &&
+    exportSrc.includes("saveImportedData({ immediate: true, reason: 'clear-all' })"));
+  assert('Clear-all tombstones old relay profiles after persisting the fresh profile',
+    exportSrc.includes('const publishResult = await sync.syncNow()') &&
+    exportSrc.includes('if (replacementPublished)') &&
+    exportSrc.includes('propagateClearedProfilesToRelay(clearedProfileIds, sync.deleteProfileFromRelay)'));
   assert('Clears Cashu wallet DB through export runtime',
     exportSrc.includes('destroyWalletRuntimeDB') &&
     exportRuntimeSrc.includes("import('./cashu-wallet.js')") &&
     exportRuntimeSrc.includes("import('./cashu-wallet.js?lazy-retry=1')") &&
     exportRuntimeSrc.includes('await wallet.destroyWalletDB()'));
   assert('Clear-all fails closed when wallet deletion fails',
-    /try \{\s*\/\/ Delete the wallet first[\s\S]{0,260}await destroyWalletRuntimeDB\(\)[\s\S]{0,500}catch \(error\)[\s\S]{0,300}return;/.test(exportSrc)
+    /try \{\s*\/\/ Delete the wallet first[\s\S]{0,260}await destroyWalletRuntimeDB\(\)[\s\S]{0,2000}catch \(error\)[\s\S]{0,300}return;/.test(exportSrc)
     && !/try \{\s*await destroyWalletRuntimeDB\(\);\s*\} catch \{\}/.test(exportSrc));
   assert('Clears Cashu wallet mint', exportSrc.includes("localStorage.removeItem('labcharts-cashu-wallet-mint')"));
   assert('Calls navigate(dashboard) after clear through export runtime',

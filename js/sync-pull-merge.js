@@ -3,7 +3,9 @@
 
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
-import { profileStorageKey, getProfiles, saveProfiles, migrateProfileData } from './profile.js';
+import {
+  getProfiles, loadProfile, migrateProfileData, profileStorageKey, saveProfiles,
+} from './profile.js';
 import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem } from './crypto.js';
 import { mergeImportedData, localHasRowsRemoteLacks, preserveFreshLocalLabEntries } from './data-merge.js';
 import { parseSyncPayload } from './sync-payload.js';
@@ -292,11 +294,18 @@ export async function mergePulledProfile(profileId, profile) {
     if (!changed) return false;
     local.lastUpdated = Date.now();
   } else {
+    const disposableFallbackId = await (await import('./clear-all-profile-reset.js'))
+      .removeUntouchedSyncFallback(profiles);
     const newProfile = /** @type {any} */ ({ id: profileId, lastUpdated: Date.now() });
     for (const field of SYNC_PROFILE_FIELDS) {
       if (field in profile) newProfile[field] = profile[field];
     }
     profiles.push(newProfile);
+    await saveProfiles(profiles);
+    if (disposableFallbackId && state.currentProfile === disposableFallbackId) {
+      await loadProfile(profileId);
+    }
+    return true;
   }
   await saveProfiles(profiles);
   return true;
