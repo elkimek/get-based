@@ -10,6 +10,7 @@ import { getEffectiveRange, getEffectiveRangeForDate, getEffectiveRangeLabelForD
 import { markerDetailActionAttrs } from './marker-detail-actions.js';
 
 const categoryRendererDelegateRoots = new WeakSet();
+const STACKED_SNAPSHOT_UNIT_LENGTH = 12;
 
 function handleTableScrollSync(event) {
   const target = event.target;
@@ -160,6 +161,10 @@ export function renderChartCard(id, marker, dateLabels, chartDates = []) {
   const latestDateLabel = latestIdx !== -1 ? (displayDateLabel(latestIdx, true) || 'Latest') : 'No value';
   const latestDisplay = latestVal !== null ? formatValue(latestVal) : '—';
   const latestUnit = marker.unit || '';
+  // Long ratio/sample qualifiers cannot share a narrow card row with the
+  // reference range. Stack only those summaries; ordinary units retain the
+  // compact two-column card.
+  const stackedSnapshot = Array.from(String(latestUnit).trim()).length > STACKED_SNAPSHOT_UNIT_LENGTH;
   const latestMeta = latestVal !== null
     ? latestDateLabel
     : 'Add a value to start the trend';
@@ -183,7 +188,7 @@ export function renderChartCard(id, marker, dateLabels, chartDates = []) {
       <div class="chart-card-state"><span class="chart-card-status status-${status}">${sIcon ? sIcon + ' ' : ''}${statusLabel}</span>${trendBadge}</div>
     </div>
     <div class="chart-card-main" role="button" tabindex="0" aria-label="${escapeAttr(cardLabel)}" ${detailAttrs}>
-    <div class="chart-card-snapshot">
+    <div class="chart-card-snapshot${stackedSnapshot ? ' chart-card-snapshot-stacked' : ''}">
       <div>
         <span class="chart-card-snapshot-label">Latest</span>
         <span class="chart-card-latest-measurement">

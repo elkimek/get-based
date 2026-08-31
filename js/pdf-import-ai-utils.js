@@ -22,6 +22,7 @@ export const IMPORT_JSON_SCHEMA = {
   additionalProperties: false,
   properties: {
     testType: { type: ['string', 'null'] },
+    labName: { type: ['string', 'null'] },
     date: { type: ['string', 'null'] },
     sampleTime: { type: ['string', 'null'] },
     fasting: { type: ['boolean', 'null'] },

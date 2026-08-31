@@ -238,6 +238,7 @@
     "js/pdf-import.js",
     "js/pdf-import-marker-mapping.js",
     "js/pdf-import-marker-normalization.js",
+    "js/pdf-import-organic-acid-normalization.js",
     "js/pdf-import-persistence.js",
     "js/pdf-import-preflight.js",
     "js/pdf-import-progress.js",

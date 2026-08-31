@@ -14,12 +14,15 @@ async function openBlankPage(page, path) {
 test('adapter browser coverage normalizes specialty lab markers through registry APIs', async ({ page }) => {
   await openBlankPage(page, '/adapter-browser-coverage');
 
-  const results = await page.evaluate(async ({ adaptersUrl }) => {
+  const results = await page.evaluate(async ({ adaptersUrl, catalogUrl, normalizationUrl }) => {
     const adapters = await import(adaptersUrl);
+    const catalog = await import(catalogUrl);
+    const normalization = await import(normalizationUrl);
     const outcomes = {};
 
     const fattyAcids = adapters.getAdapterByTestType('fattyAcids');
     const metabolomix = adapters.getAdapterByTestType('Metabolomix+');
+    const mosaicOat = adapters.getAdapterByTestType('Mosaic OAT');
     const oat = adapters.getAdapterByTestType('OAT');
     const biostarks = adapters.getAdapterByTestType('biostarks');
     const markers = adapters.getAllAdapterMarkers();
@@ -27,20 +30,35 @@ test('adapter browser coverage normalizes specialty lab markers through registry
     outcomes.registryFindsExpectedAdaptersAndMarkers =
       fattyAcids?.id === 'fattyAcids'
       && metabolomix?.id === 'metabolomix'
+      && mosaicOat?.id === 'mosaicOat'
       && oat?.id === 'oat'
       && biostarks?.id === 'biostarks'
       && markers['fattyAcids.omega3Index']?.group === 'Fatty Acids'
       && markers['biostarksMineral.magnesium']?.group === 'BioStarks'
+      && Object.keys(catalog.MOSAIC_OAT_MARKERS).length === 77
+      && Object.keys(catalog.MOSAIC_MOAT_MARKERS).length === 21
+      && catalog.MOSAIC_OAT_MARKERS['mosaicOatGlycolytic.pyruvic']?.group === 'Mosaic OAT'
+      && catalog.MOSAIC_MOAT_MARKERS['mosaicMoat.hmg']?.group === 'Mosaic MOAT'
       && adapters.getAdapterByTestType('unknown') === null;
 
     const detectedFA = adapters.detectProduct('spadia-fatty-acids.pdf', '');
     const detectedMetabolomix = adapters.detectProduct('plain.pdf', 'Genova Diagnostics 3200 Metabolomix FMV urine');
+    const detectedMosaic = adapters.detectProduct('plain.pdf', 'Mosaic Diagnostics Organic Acids Test - Nutritional and Metabolic Profile');
+    const detectedMoat = adapters.detectProduct('plain.pdf', 'MosaicDX Microbial Organic Acids Test (MOAT)');
+    const genericGenova = adapters.detectProduct('plain.pdf', 'Genova Diagnostics GI Effects Comprehensive');
+    const unrelated3200 = adapters.detectProduct('plain.pdf', 'Other Laboratory 3200 FMV urine panel');
     const detectedBiostarks = adapters.detectProduct('plain.pdf', 'Bio Starks dried blood spot report');
     outcomes.detectProductFindsAllSpecialtyAdapters =
       detectedFA?.adapter?.id === 'fattyAcids'
       && detectedFA.product.prefix === 'spadiaFA'
       && detectedMetabolomix?.adapter?.id === 'metabolomix'
       && detectedMetabolomix.product.prefix === 'metabolomix'
+      && detectedMosaic?.adapter?.id === 'mosaicOat'
+      && detectedMosaic.product.prefix === 'mosaicOat'
+      && detectedMoat?.adapter?.id === 'mosaicOat'
+      && detectedMoat.product.prefix === 'mosaicMoat'
+      && genericGenova === null
+      && unrelated3200 === null
       && detectedBiostarks?.adapter?.id === 'biostarks'
       && detectedBiostarks.product.prefix === 'biostarks';
 
@@ -71,15 +89,139 @@ test('adapter browser coverage normalizes specialty lab markers through registry
     const metabolomixMarkers = [
       { rawName: 'Omega-3 Index', mappedKey: 'fattyAcids.omega3Index' },
       { rawName: 'Citramalic Acid', mappedKey: 'oatMicrobial.citramalic' },
+      { rawName: 'Pyruvic Acid', mappedKey: 'oatMetabolic.pyruvic' },
+      { rawName: 'Methylmalonic Acid', mappedKey: 'oatNutritional.methylmalonic' },
+      { rawName: 'Pyroglutamic Acid', mappedKey: 'oatNutritional.pyroglutamic' },
+      { rawName: 'Arginine', mappedKey: 'urineAmino.arginine' },
+      { rawName: 'Lead', mappedKey: 'toxicElements.lead' },
       { rawName: 'Linoleic Acid', suggestedKey: 'custom.linoleicAcid' },
     ];
-    adapters.normalizeWithAdapter(metabolomix, metabolomixMarkers, 'metabolomix.pdf', '', detectedMetabolomix.product);
-    outcomes.metabolomixRoutesFattyAcidsThroughProductSpecificPrefix =
+    normalization.normalizeProductScopedAdapterMarkers(metabolomix, metabolomixMarkers, detectedMetabolomix.product, 'Genova Diagnostics');
+    outcomes.metabolomixScopesEveryPanelToOfficialProductSections =
       metabolomixMarkers[0].mappedKey === null
       && metabolomixMarkers[0].suggestedKey === 'metabolomixFA.omega3Index'
-      && metabolomixMarkers[0].suggestedCategoryLabel === 'Fatty Acids'
-      && metabolomixMarkers[1].mappedKey === 'oatMicrobial.citramalic'
-      && metabolomixMarkers[2].suggestedKey === 'metabolomixFA.linoleicAcid';
+      && metabolomixMarkers[0].suggestedCategoryLabel === 'Metabolomix+: Essential & Metabolic Fatty Acids'
+      && metabolomixMarkers[1].suggestedKey === 'metabolomixDysbiosis.citramalic'
+      && metabolomixMarkers[2].suggestedKey === 'metabolomixMitochondrial.pyruvic'
+      && metabolomixMarkers[3].suggestedKey === 'metabolomixVitamins.methylmalonic'
+      && metabolomixMarkers[4].suggestedKey === 'metabolomixDetox.pyroglutamic'
+      && metabolomixMarkers[5].suggestedKey === 'metabolomixAminoAcids.arginine'
+      && metabolomixMarkers[6].suggestedKey === 'metabolomixToxicElements.lead'
+      && metabolomixMarkers[7].suggestedKey === 'metabolomixFA.linoleicAcid'
+      && metabolomixMarkers.every(marker => marker.suggestedGroup === 'Metabolomix+');
+
+    const mosaicMarkers = [
+      { rawName: 'Citramalic Acid', mappedKey: 'oatMicrobial.citramalic' },
+      { rawName: 'Pyruvic Acid', mappedKey: 'oatMetabolic.pyruvic' },
+      { rawName: 'Homovanillic (HVA)' },
+      { rawName: 'Uracil', mappedKey: 'oatNeuro.uracil' },
+    ];
+    normalization.normalizeProductScopedAdapterMarkers(mosaicOat, mosaicMarkers, detectedMosaic.product, 'Mosaic Diagnostics');
+    const moatMarkers = [
+      { rawName: 'Citramalic Acid', mappedKey: 'oatMicrobial.citramalic' },
+      { rawName: '3-Hydroxy-3-methylglutaric', mappedKey: 'oatNutritional.hmg' },
+    ];
+    normalization.normalizeProductScopedAdapterMarkers(mosaicOat, moatMarkers, detectedMoat.product, 'Mosaic MOAT');
+    outcomes.mosaicOatAndMoatUseSeparateProductHistories =
+      mosaicMarkers[0].suggestedKey === 'mosaicOatYeastFungal.citramalic'
+      && mosaicMarkers[0].suggestedCategoryLabel === 'Mosaic OAT: Yeast and Fungal Markers'
+      && mosaicMarkers[1].suggestedKey === 'mosaicOatGlycolytic.pyruvic'
+      && mosaicMarkers[2].suggestedKey === 'mosaicOatNeurotransmitters.hva'
+      && mosaicMarkers[3].suggestedKey === 'mosaicOatPyrimidine.uracil'
+      && moatMarkers[0].suggestedKey === 'mosaicMoat.citramalic'
+      && moatMarkers[0].suggestedCategoryLabel === 'Mosaic MOAT: Yeast and Fungal Markers'
+      && moatMarkers[1].suggestedKey === 'mosaicMoat.hmg'
+      && moatMarkers[1].suggestedCategoryLabel === 'Mosaic MOAT: Additional Indicators'
+      && moatMarkers[0].suggestedGroup === 'Mosaic MOAT';
+
+    const acmeMarkers = [
+      { rawName: 'Pyruvic Acid', mappedKey: 'oatMetabolic.pyruvic' },
+      { rawName: '2-Hydroxy Example' },
+      { rawName: '3-Hydroxy Example' },
+    ];
+    normalization.normalizeProductScopedAdapterMarkers(oat, acmeMarkers, null, 'Acme Functional Lab');
+    outcomes.otherOatLabsReceiveStableLabScopedKeys =
+      acmeMarkers[0].suggestedKey === 'acmeFunctionalLabOatMitochondrial.pyruvic'
+      && acmeMarkers[0].suggestedGroup === 'Acme Functional Lab OAT'
+      && acmeMarkers[1].suggestedKey === 'acmeFunctionalLabOatOrganicAcids.n2HydroxyExample'
+      && acmeMarkers[2].suggestedKey === 'acmeFunctionalLabOatOrganicAcids.n3HydroxyExample';
+
+    const pipelineMetabolomix = normalization.normalizeParsedImportMarkers({
+      testType: 'OAT',
+      labName: 'Genova Diagnostics',
+      markers: [{ rawName: 'Pyruvic Acid', value: 7, mappedKey: 'oatMetabolic.pyruvic', unit: 'mmol/mol creatinine' }],
+    }, {
+      fileName: 'report.pdf',
+      sourceText: 'Genova Diagnostics 3200 Metabolomix+ - FMV Urine',
+      existingKeys: new Set(),
+    });
+    const pipelineMosaic = normalization.normalizeParsedImportMarkers({
+      testType: 'OAT',
+      labName: 'Mosaic Diagnostics',
+      markers: [{ rawName: 'Pyruvic Acid', value: 7, mappedKey: 'oatMetabolic.pyruvic', unit: 'mmol/mol creatinine' }],
+    }, {
+      fileName: 'report.pdf',
+      sourceText: 'Mosaic Diagnostics Organic Acids Test',
+      existingKeys: new Set(),
+    });
+    const pipelineOtherOat = normalization.normalizeParsedImportMarkers({
+      testType: 'OAT',
+      labName: 'Acme Functional Lab',
+      markers: [{ rawName: 'Pyruvic Acid', value: 7, mappedKey: 'oatMetabolic.pyruvic', unit: 'mmol/mol creatinine' }],
+    }, {
+      fileName: 'report.pdf',
+      sourceText: '',
+      existingKeys: new Set(),
+    });
+    const pipelineMetabolomixReimport = normalization.normalizeParsedImportMarkers({
+      testType: 'Metabolomix+',
+      labName: 'Genova Diagnostics',
+      markers: [{ rawName: 'Pyruvic Acid', value: 8, mappedKey: 'metabolomixMitochondrial.pyruvic', unit: 'mmol/mol creatinine' }],
+    }, {
+      fileName: 'metabolomix.pdf',
+      sourceText: '',
+      existingKeys: new Set(['metabolomixMitochondrial.pyruvic']),
+    });
+    const pipelineMosaicReimport = normalization.normalizeParsedImportMarkers({
+      testType: 'Mosaic OAT',
+      labName: 'Mosaic Diagnostics',
+      markers: [{ rawName: 'Pyruvic', value: 8, mappedKey: 'mosaicOatGlycolytic.pyruvic', unit: 'mmol/mol creatinine' }],
+    }, {
+      fileName: 'mosaic-oat.pdf',
+      sourceText: 'Mosaic Diagnostics Organic Acids Test',
+      existingKeys: new Set(['mosaicOatGlycolytic.pyruvic']),
+    });
+    const pipelineMoatByDeclaredType = normalization.normalizeParsedImportMarkers({
+      testType: 'MOAT',
+      labName: 'Mosaic Diagnostics',
+      markers: [{ rawName: '3-Hydroxy-3-methylglutaric', value: 2, mappedKey: 'oatNutritional.hmg', unit: 'mmol/mol creatinine' }],
+    }, {
+      fileName: 'report.pdf',
+      sourceText: '',
+      existingKeys: new Set(),
+    });
+    const pipelineBloodMisclassification = normalization.normalizeParsedImportMarkers({
+      testType: 'blood',
+      labName: 'Genova Diagnostics',
+      markers: [{ rawName: 'Pyruvic Acid', value: 9, mappedKey: 'biochemistry.pyruvate', unit: 'mmol/mol creatinine' }],
+    }, {
+      fileName: 'report.pdf',
+      sourceText: 'Genova Diagnostics 3200 Metabolomix+ - FMV Urine',
+      existingKeys: new Set(),
+    });
+    outcomes.fullPipelineDoesNotAliasProductKeysBackToGenericOat =
+      pipelineMetabolomix.markers[0].mappedKey === null
+      && pipelineMetabolomix.markers[0].suggestedKey === 'metabolomixMitochondrial.pyruvic'
+      && pipelineMosaic.markers[0].matched === true
+      && pipelineMosaic.markers[0].mappedKey === 'mosaicOatGlycolytic.pyruvic'
+      && pipelineOtherOat.markers[0].suggestedKey === 'acmeFunctionalLabOatMitochondrial.pyruvic'
+      && pipelineMetabolomixReimport.markers[0].matched === true
+      && pipelineMetabolomixReimport.markers[0].mappedKey === 'metabolomixMitochondrial.pyruvic'
+      && pipelineMosaicReimport.markers[0].matched === true
+      && pipelineMosaicReimport.markers[0].mappedKey === 'mosaicOatGlycolytic.pyruvic'
+      && pipelineMoatByDeclaredType.markers[0].mappedKey === 'mosaicMoat.hmg'
+      && pipelineBloodMisclassification.markers[0].suggestedKey === 'metabolomixMitochondrial.pyruvic'
+      && pipelineMetabolomix.markers[0].suggestedKey !== pipelineMosaic.markers[0].suggestedKey;
 
     const biostarksMarkers = [
       { rawName: 'DHA', mappedKey: 'biostarksFA.dha' },
@@ -106,6 +248,8 @@ test('adapter browser coverage normalizes specialty lab markers through registry
     return outcomes;
   }, {
     adaptersUrl: moduleUrl('/js/adapters.js'),
+    catalogUrl: moduleUrl('/js/mosaic-oat-catalog.js'),
+    normalizationUrl: moduleUrl('/js/pdf-import-marker-normalization.js'),
   });
 
   for (const [name, passed] of Object.entries(results)) {

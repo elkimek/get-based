@@ -5,6 +5,9 @@ import { MARKER_SCHEMA } from './schema.js';
 import { SPECIALTY_MARKER_DEFS, detectProduct, getAdapterByTestType, normalizeWithAdapter } from './adapters.js';
 import { isDebugMode } from './utils.js';
 import { _sanitizeAIMarker, reconcileImportMarkerMappings } from './pdf-import-marker-mapping.js';
+import { normalizeProductScopedAdapterMarkers } from './pdf-import-organic-acid-normalization.js';
+
+export { normalizeProductScopedAdapterMarkers };
 
 const _specialtyTypes = ['OAT', 'fattyAcids', 'Metabolomix+', 'DUTCH', 'HTMA', 'GI'];
 const standardCats = new Set(Object.keys(MARKER_SCHEMA));
@@ -17,7 +20,7 @@ function _fattyAcidMarkerPart(key) {
 }
 
 /**
- * @param {{ testType?: string, markers?: any[] }} parsed
+ * @param {{ testType?: string, labName?: string | null, markers?: any[] }} parsed
  * @param {{
  *   markerRef?: Record<string, any> | null,
  *   fileName?: string,
@@ -40,10 +43,19 @@ export function normalizeParsedImportMarkers(parsed, {
   const testType = parsed.testType || 'blood';
   const detected = detectProduct(fileName, sourceText);
   const adapterForTestType = !detected && testType !== 'blood' ? getAdapterByTestType(testType) : null;
-  const needsAdapterNormalize = testType === 'fattyAcids' || (!!detected && testType !== 'blood') || !!adapterForTestType;
+  const detectedProductScoped = !!detected?.adapter?.productScoped;
+  const needsAdapterNormalize = testType === 'fattyAcids'
+    || (!!detected && testType !== 'blood')
+    || detectedProductScoped
+    || !!adapterForTestType;
+  let adapter = null;
   if (needsAdapterNormalize && parsed.markers?.length) {
-    const adapter = detected?.adapter || adapterForTestType || getAdapterByTestType('fattyAcids');
-    normalizeWithAdapter(adapter, parsed.markers, fileName, sourceText, detected?.product);
+    adapter = detected?.adapter || adapterForTestType || getAdapterByTestType('fattyAcids');
+    if (adapter?.productScoped) {
+      normalizeProductScopedAdapterMarkers(adapter, parsed.markers, detected?.product, parsed.labName || null, testType);
+    } else {
+      normalizeWithAdapter(adapter, parsed.markers, fileName, sourceText, detected?.product);
+    }
     if (emitDebugLogs && isDebugMode()) {
       console.log(`[Import] Adapter ${adapter?.id || 'fattyAcids'} normalized ${parsed.markers.length} markers (testType=${testType})`);
     }
@@ -53,7 +65,11 @@ export function normalizeParsedImportMarkers(parsed, {
     .map(marker => normalizeParsedImportMarker(marker, { testType, detected, mode, emitDebugLogs }))
     .filter(marker => !isNaN(marker.value));
 
-  const reconcileOptions = /** @type {{ testType: string, refLookup?: Record<string, any> | null, existingKeys?: Set<string> | string[] | null }} */ ({ testType, refLookup: markerRef });
+  const reconcileOptions = /** @type {{ testType: string, refLookup?: Record<string, any> | null, existingKeys?: Set<string> | string[] | null, preferSuggestedKeys?: boolean }} */ ({
+    testType,
+    refLookup: markerRef,
+    preferSuggestedKeys: !!adapter?.productScoped,
+  });
   if (existingKeys) reconcileOptions.existingKeys = existingKeys;
   reconcileImportMarkerMappings(markers, reconcileOptions);
 

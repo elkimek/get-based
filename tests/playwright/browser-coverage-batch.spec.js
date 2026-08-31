@@ -568,8 +568,8 @@ test('import preflight and marker normalization cover browser decision paths', a
       outcomes.specialtyStandardMappingIsDemoted = oat.markers.length === 1
         && oat.markers[0].mappedKey === null
         && oat.markers[0].matched === false
-        && oat.markers[0].suggestedKey === 'oatBiochemistry.glucose'
-        && oat.markers[0].group === 'OAT';
+        && oat.markers[0].suggestedKey === 'organicAcids.glucose'
+        && oat.markers[0].group === 'Organic Acids';
 
       const image = normalization.normalizeParsedImportMarkers({
         testType: 'blood',

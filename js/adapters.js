@@ -10,6 +10,7 @@
 // Adapter interface:
 //   id:         unique string identifier
 //   testTypes:  array of testType values this adapter handles
+//   productScoped: true when the lazy import normalizer guarantees product-specific keys
 //   products:   optional array of { patterns, prefix, label } for product detection
 //   markers:    object of "category.markerKey" → { name, unit, refMin, refMax, categoryLabel, icon, group, singlePoint? }
 //   detect:     optional (fileName, text) → { prefix, label } | null
@@ -20,7 +21,9 @@ import { MARKER_SCHEMA } from './schema.js';
 import { isDebugMode } from './utils.js';
 
 // ═══════════════════════════════════════════════
-// OAT Adapter — Organic Acids Test (Mosaic/Great Plains/Genova)
+// Legacy organic-acid marker catalog. These keys remain available so existing
+// profiles keep working, but new imports are normalized to product-specific
+// categories below (Metabolomix+, Mosaic OAT/MOAT, or a lab-scoped OAT).
 // ═══════════════════════════════════════════════
 const OAT_MARKERS = {
   "oatMicrobial.citramalic": { name: "Citramalic Acid", unit: "mmol/mol creatinine", refMin: 0.11, refMax: 2, categoryLabel: "OAT: Microbial Overgrowth", icon: "\uD83E\uDDA0", group: "OAT" },
@@ -193,6 +196,7 @@ const OAT_MARKERS = {
 // ═══════════════════════════════════════════════
 // Fatty Acids Adapter — product-specific (Spadia, ZinZino, OmegaQuant)
 // ═══════════════════════════════════════════════
+const FA_SUMMARY_MARKER = { unit: "wt %", refMin: null, refMax: null, categoryLabel: "Fatty Acids", icon: "\uD83D\uDC1F", group: "Fatty Acids" };
 const FA_MARKERS = {
   "fattyAcids.palmiticC16": { name: "Palmitic Acid C16:0", unit: "%", refMin: 28.1, refMax: 30.1, categoryLabel: "Fatty Acids", icon: "\uD83D\uDC1F", group: "Fatty Acids" },
   "fattyAcids.stearicC18": { name: "Stearic Acid C18:0", unit: "%", refMin: 12.5, refMax: 13.8, categoryLabel: "Fatty Acids", icon: "\uD83D\uDC1F", group: "Fatty Acids" },
@@ -223,6 +227,13 @@ const FA_MARKERS = {
   "fattyAcids.eicosadienoicC20_2n6": { name: "Eicosadienoic Acid C20:2n6", unit: "%", refMin: null, refMax: 0.26, categoryLabel: "Fatty Acids", icon: "\uD83D\uDC1F", group: "Fatty Acids" },
   "fattyAcids.aaEpaRatio": { name: "AA/EPA Ratio", unit: "", refMin: 10, refMax: 86, categoryLabel: "Fatty Acids", icon: "\uD83D\uDC1F", group: "Fatty Acids" },
   "fattyAcids.linoleicDglaRatio": { name: "Linoleic/DGLA Ratio", unit: "", refMin: 12.6, refMax: 31.5, categoryLabel: "Fatty Acids", icon: "\uD83D\uDC1F", group: "Fatty Acids" },
+  // Genova Metabolomix+ reports these summary analytes separately. Keep their
+  // ranges null here because the importer must use the patient's printed range.
+  "fattyAcids.omega3Total": { ...FA_SUMMARY_MARKER, name: "Total Omega-3 Fatty Acids" },
+  "fattyAcids.omega6Total": { ...FA_SUMMARY_MARKER, name: "Total Omega-6 Fatty Acids" },
+  "fattyAcids.omega9Total": { ...FA_SUMMARY_MARKER, name: "Total Omega-9 Fatty Acids" },
+  "fattyAcids.saturatedFatTotal": { ...FA_SUMMARY_MARKER, name: "Total Saturated Fatty Acids" },
+  "fattyAcids.omega6ToOmega3Index": { ...FA_SUMMARY_MARKER, name: "Omega-6s / Omega-3 Index", unit: "" },
 };
 
 const FA_PRODUCTS = [
@@ -279,46 +290,26 @@ function _normalizeFAMarkers(markers, fileName, pdfText, detectedProduct) {
 // Metabolomix+ Adapter — Genova Diagnostics combined panel
 // OAT + amino acids + elements + optional FA bloodspot add-on
 // ═══════════════════════════════════════════════
-const METABOLOMIX_PATTERNS = ['metabolomix', 'genova diagnostics', '3200 metabolomix', 'fmv urine', 'genova\ndiagnostics'];
-
 function _detectMetabolomix(fileName, pdfText) {
-  const fnLower = (fileName || '').toLowerCase();
-  const textLower = (pdfText || '').slice(0, 5000).toLowerCase();
-  for (const pat of METABOLOMIX_PATTERNS) {
-    if (fnLower.includes(pat) || textLower.includes(pat)) {
-      return { prefix: 'metabolomix', label: 'Metabolomix+' };
-    }
-  }
-  return null;
+  const haystack = `${fileName || ''}\n${String(pdfText || '').slice(0, 6000)}`.toLowerCase();
+  const explicitProduct = /\bmetabolomix\s*\+?/i.test(haystack);
+  const officialCode = /\b3200\b/.test(haystack) && /genova/.test(haystack);
+  return explicitProduct || officialCode
+    ? { prefix: 'metabolomix', label: 'Metabolomix+', group: 'Metabolomix+' }
+    : null;
 }
 
-function _normalizeMetabolomix(markers, fileName, pdfText, _detectedProduct) {
-  // Metabolomix+ FA add-on (pages 11-12): bloodspot fatty acids appear alongside OAT markers.
-  // AI classifies the whole report as testType 'OAT', but FA markers need product-prefixing.
-  // Detect FA markers and route them through FA normalization with 'metabolomix' prefix.
-  const faMarkerKeys = new Set(Object.keys(FA_MARKERS).map(k => k.split('.').pop()));
-  const faPatterns = /omega|fatty|linole|palmit|stear|arachi|eicosa|docosa|oleic|nervonic|behenic|ligno|vaccenic|elaidic|epa|dha|dpa|dgla|gla|ala\b/i;
-
-  const faMarkers = [];
-  const oatMarkers = [];
-  for (const m of markers) {
-    const key = m.mappedKey || m.suggestedKey || '';
-    const markerPart = key.split('.').pop();
-    const name = (m.rawName || m.suggestedName || '').toLowerCase();
-    // Route to FA if: mapped to fattyAcids category, or marker key matches FA set, or name matches FA patterns
-    if (key.startsWith('fattyAcids.') || faMarkerKeys.has(markerPart) || faPatterns.test(name)) {
-      faMarkers.push(m);
-    } else {
-      oatMarkers.push(m);
-    }
+function _detectMosaicOAT(fileName, pdfText) {
+  const haystack = `${fileName || ''}\n${String(pdfText || '').slice(0, 6000)}`.toLowerCase();
+  const hasMosaicLab = /mosaic\s*(?:diagnostics|dx)|mosaicdx|great plains laborator|\bmdx[_ -]/i.test(haystack);
+  if (!hasMosaicLab) return null;
+  if (/microbial organic acids test|(?:^|[_ -])moat(?:[_ .-]|$)/im.test(haystack)) {
+    return { prefix: 'mosaicMoat', label: 'Mosaic MOAT', group: 'Mosaic MOAT', kind: 'moat' };
   }
-
-  // Normalize FA subset with Metabolomix+-specific prefix
-  if (faMarkers.length > 0) {
-    const metabolomixFA = { prefix: 'metabolomixFA', label: 'Fatty Acids' };
-    _normalizeFAMarkers(faMarkers, fileName, pdfText, metabolomixFA);
-    if (isDebugMode()) console.log(`[Metabolomix+] Routed ${faMarkers.length} FA markers to metabolomixFA prefix`);
+  if (/organic acids? test|(?:^|[_ -])oat(?:[_ .-]|$)/im.test(haystack)) {
+    return { prefix: 'mosaicOat', label: 'Mosaic OAT', group: 'Mosaic OAT', kind: 'oat' };
   }
+  return null;
 }
 
 // ═══════════════════════════════════════════════
@@ -481,13 +472,21 @@ const ADAPTERS = [
   {
     id: 'metabolomix',
     testTypes: ['metabolomix', 'Metabolomix+'],
+    productScoped: true,
     markers: {}, // Reuses OAT + FA markers (no unique markers)
     detect(fileName, pdfText) { return _detectMetabolomix(fileName, pdfText); },
-    normalize(markers, fileName, pdfText, detected) { _normalizeMetabolomix(markers, fileName, pdfText, detected); },
+  },
+  {
+    id: 'mosaicOat',
+    testTypes: ['Mosaic OAT', 'Mosaic MOAT', 'MOAT'],
+    productScoped: true,
+    markers: {}, // Product catalog is loaded with the importer, not at app startup
+    detect(fileName, pdfText) { return _detectMosaicOAT(fileName, pdfText); },
   },
   {
     id: 'oat',
     testTypes: ['OAT'],
+    productScoped: true,
     markers: OAT_MARKERS,
   },
   {
