@@ -1046,7 +1046,7 @@ await import('../js/settings.js');
       restoredPush > receiveStart && restoredPush < tombstoneApply && tombstoneApply < dirtyPush);
   }
   assert('applyRemoteTombstones creates a fresh fallback when every profile is deleted',
-    /survivors\.length\s*===\s*0[\s\S]{0,500}createFallbackProfile/.test(syncTombstonesSrc));
+    /survivors\.length\s*===\s*0[\s\S]{0,500}createSyncFallbackProfile/.test(syncTombstonesSrc));
 
   // ═══════════════════════════════════════
   // 2. SYNC PAYLOAD FORMAT
