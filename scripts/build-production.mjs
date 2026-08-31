@@ -119,8 +119,8 @@ function pruneSourceModuleAppShell(source) {
 async function validateBundlerLock() {
   const lock = JSON.parse(await fs.readFile(path.join(ROOT, 'package-lock.json'), 'utf8'));
   const bundler = lock.packages?.['node_modules/rolldown'];
-  if (bundler?.version !== '1.2.4' || !bundler?.integrity) {
-    throw new Error('rolldown must be directly locked to 1.2.4 with integrity metadata');
+  if (bundler?.version !== '1.2.5' || !bundler?.integrity) {
+    throw new Error('rolldown must be directly locked to 1.2.5 with integrity metadata');
   }
 }
 

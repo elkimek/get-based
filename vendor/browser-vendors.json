@@ -9,7 +9,7 @@
       "output": "vendor/cashu-ts.js",
       "format": "iife",
       "minified": true,
-      "sha256": "7ebefdf78c1121da1133f701d7958ca12cf9bd1d6c45420fbe83c7826e6966e0"
+      "sha256": "7871922eb2d8d21c8aba4f8c70ce69c47f4f50c1e1fd3786f56e7f4dcd833e1c"
     },
     {
       "package": "tinfoil",
@@ -64,7 +64,7 @@
   ],
   "bundler": {
     "package": "rolldown",
-    "version": "1.2.4",
-    "integrity": "sha512-rSr7irW0K7QRWzjdJXqZowkcRdDtjRduh43rBltnVKd0VFq839l1lJoDvGJb6gl7+4rTTCrPWu+YfujUL8Ug7w=="
+    "version": "1.2.5",
+    "integrity": "sha512-VD2IE5PUG4Oj8zz2VGykiYd5wbnjdIiSsNQb8Qu5B+noEp+A78mu2iVvpp27g8es14Tk9rofNs5Tku9iQCS4fA=="
   }
 }
