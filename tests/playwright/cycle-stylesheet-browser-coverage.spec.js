@@ -98,18 +98,25 @@ test('Cycle stylesheet failure is contained and retries with a fresh URL', async
 });
 
 test('Female Body route contains a Cycle stylesheet failure and retries', async ({ page }) => {
+  // This intentionally performs two lazy route preparations under full-suite
+  // coverage instrumentation; allow Playwright's slow-test budget on loaded CI.
+  test.slow();
   await page.route('**/css/cycle.css*', route => route.abort('failed'));
   await page.goto('/app', { waitUntil: 'load' });
   await expect(page.locator('#main-content')).not.toBeEmpty();
 
-  const firstOpened = await page.evaluate(async () => {
-    const [{ state }, views] = await Promise.all([
+  // The test targets stylesheet failure/retry. Preload the independent Body
+  // modules so a rejected Promise.all cannot leave their imports competing
+  // with the retry while hundreds of coverage workers are active.
+  await page.evaluate(async () => {
+    const [{ state }, healthData] = await Promise.all([
       import('/js/state.js'),
-      import('/js/views.js'),
+      import('/js/health-data-loader.js'),
     ]);
     state.profileSex = 'female';
-    return views.navigate('body');
+    await healthData.loadBodyHealthDataModules();
   });
+  const firstOpened = await page.evaluate(async () => (await import('/js/views.js')).navigate('body'));
   expect(firstOpened).toBe(false);
   await expect(page.locator('#main-content [role="alert"]')).toContainText('Body could not be loaded');
   await expect(page.locator('link[data-cycle-stylesheet]')).toHaveCount(0);

@@ -36,10 +36,10 @@ export function checkRelayConnection(timeout = 4000) {
  * when it isn't. Used to fail-fast with a clear message instead of letting
  * Evolu's worker hang for 30s on a missing primitive.
  *
- * Evolu uses dedicated Workers coordinated across tabs via BroadcastChannel
- * + navigator.locks (see createSharedWebWorker in evolu-bundle.js - the
- * "Shared" in the name refers to cross-tab sharing, not the SharedWorker
- * API). So the real requirements are locks + OPFS + WebCrypto.
+ * Evolu 7 uses dedicated Workers coordinated via BroadcastChannel and Web
+ * Locks. Evolu 8 uses SharedWorker when available and installs a Web Worker
+ * one-tab fallback when it is not. Both paths still require locks, OPFS, and
+ * WebCrypto, so SharedWorker itself is not a capability gate.
  */
 export function getSyncBlocker() {
   if (!navigator.locks?.request) return 'navigator.locks not available — browser missing Web Locks API';

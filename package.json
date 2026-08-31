@@ -23,6 +23,7 @@
     "supply-chain:check": "node scripts/supply-chain.mjs --check",
     "supply-chain:snapshot": "node scripts/supply-chain.mjs --snapshot",
     "test": "vitest run",
+    "test:evolu8-browsers": "playwright test --config=playwright.evolu8.config.js",
     "test:firefox": "playwright test --config=playwright.firefox.config.js",
     "test:playwright": "node scripts/local-full-suite-guard.mjs && playwright test",
     "typecheck": "tsc -p tsconfig.json",

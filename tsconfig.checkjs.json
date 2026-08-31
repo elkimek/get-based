@@ -489,6 +489,7 @@
     "js/sync-identity.js",
     "js/sync-origin-state.js",
     "js/sync-evolu8-candidate.js",
+    "js/sync-evolu8-identity-vault.js",
     "js/sync-init.js",
     "js/sync-lifecycle.js",
     "js/sync-runtime.js",
