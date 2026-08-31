@@ -466,6 +466,9 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
     // Evolu log still contains every discarded relay message, which is the
     // production path that used to refill a 200 MB owner immediately.
     await deviceB.context.setOffline(true);
+    await deviceA.page.evaluate(async () => (
+      (await import('/js/sync-actions.js')).prepareRelayCompaction()
+    ));
     const beforeCompaction = await waitForStableRelayStorage(deviceA.page);
     const compacted = await deviceA.page.evaluate(async () => (
       (await import('/js/sync.js')).compactOwnerSelfServe()
