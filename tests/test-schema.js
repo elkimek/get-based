@@ -25,7 +25,7 @@ console.log('=== Specialty Marker Refactor Tests ===\n');
 
 const schemaSrc = read('js/schema.js');
 const adaptersSrc = read('js/adapters.js');
-const normalizationSrc = read('js/pdf-import-marker-normalization.js');
+const organicNormalizationSrc = read('js/pdf-import-organic-acid-normalization.js');
 const profileSrc = read('js/profile.js');
 const profileDataMigrationsSrc = read('js/profile-data-migrations.js');
 const dataSrc = read('js/data.js');
@@ -106,7 +106,7 @@ const pdfImportNormalizationSrc = read('js/pdf-import-marker-normalization.js');
   assert('Metabolomix+ has detection and lazy product normalization',
     adaptersSrc.includes("id: 'metabolomix'")
     && adaptersSrc.includes('_detectMetabolomix')
-    && normalizationSrc.includes('_normalizeMetabolomixProduct'));
+    && organicNormalizationSrc.includes('normalizeMetabolomixProduct'));
 
   // ═══════════════════════════════════════
   // 3. CORRELATION_PRESETS don't reference specialty keys

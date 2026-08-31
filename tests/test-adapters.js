@@ -24,6 +24,7 @@ console.log('=== Adapter Registry Tests ===\n');
 const adaptersSrc = read('js/adapters.js');
 const schemaSrc = read('js/schema.js');
 const normalizationSrc = read('js/pdf-import-marker-normalization.js');
+const organicNormalizationSrc = read('js/pdf-import-organic-acid-normalization.js');
 
   // ═══════════════════════════════════════
   // 1. Registry Structure
@@ -166,12 +167,12 @@ const normalizationSrc = read('js/pdf-import-marker-normalization.js');
   assert('Metabolomix markers is empty object', adaptersSrc.includes("markers: {}, // Reuses OAT + FA"));
 
   // All Metabolomix panels receive official product-specific categories.
-  assert('_normalizeMetabolomixProduct function defined', normalizationSrc.includes('function _normalizeMetabolomixProduct('));
-  assert('Metabolomix category map includes dysbiosis', normalizationSrc.includes("metabolomixDysbiosis: 'Malabsorption & Dysbiosis'"));
-  assert('Metabolomix category map includes mitochondrial markers', normalizationSrc.includes("metabolomixMitochondrial: 'Cellular Energy & Mitochondrial'"));
-  assert('Metabolomix category map includes amino acids', normalizationSrc.includes("metabolomixAminoAcids: 'Amino Acids'"));
-  assert('Metabolomix category map includes fatty acids', normalizationSrc.includes("metabolomixFA: 'Essential & Metabolic Fatty Acids'"));
-  assert('Metabolomix scopes every marker', normalizationSrc.includes('_scopeImportMarker(marker, target'));
+  assert('normalizeMetabolomixProduct function defined', organicNormalizationSrc.includes('function normalizeMetabolomixProduct('));
+  assert('Metabolomix category map includes dysbiosis', organicNormalizationSrc.includes("metabolomixDysbiosis: 'Malabsorption & Dysbiosis'"));
+  assert('Metabolomix category map includes mitochondrial markers', organicNormalizationSrc.includes("metabolomixMitochondrial: 'Cellular Energy & Mitochondrial'"));
+  assert('Metabolomix category map includes amino acids', organicNormalizationSrc.includes("metabolomixAminoAcids: 'Amino Acids'"));
+  assert('Metabolomix category map includes fatty acids', organicNormalizationSrc.includes("metabolomixFA: 'Essential & Metabolic Fatty Acids'"));
+  assert('Metabolomix scopes every marker', organicNormalizationSrc.includes('scopeMarker(marker, target'));
 
   // _detectMetabolomix function
   assert('_detectMetabolomix function defined', adaptersSrc.includes('function _detectMetabolomix('));

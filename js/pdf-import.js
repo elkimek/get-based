@@ -269,8 +269,7 @@ ${IMPORT_COLLECTION_CONTEXT_PROMPT}
    - "HTMA" for Hair Tissue Mineral Analysis
    - "GI" for stool tests (GI-MAP, Gut Zoomer)
    - "biostarks" for BioStarks laboratory panels (dried blood spot: amino acids, fatty acids, intracellular minerals, vitamins, hormones, metabolism). BioStarks is a HYBRID test — map standard blood markers (glucose, lipids, testosterone, creatinine, ferritin, vitamin D, B12, vitamin A, copper, HbA1c) to their normal standard keys. Map amino acids to biostarksAmino.* keys, BioStarks fatty acids to biostarksFA.* keys, intracellular minerals (µg/gHb) to biostarksMineral.* keys, cortisol/T:C ratio to biostarksHormone.* keys, and vitamin E to biostarksVitamin.* keys — all from the known markers list
-   - Or a descriptive name for other specialty tests
-   Also return "labName" with the laboratory or exact product name when it is printed on the report (for example "Genova Diagnostics", "Mosaic Diagnostics", or "Mosaic MOAT"). Return null when it cannot be identified. This is required to keep different specialty products in separate histories.
+   - Or a descriptive name for other specialty tests. Also return "labName" with the laboratory or exact product name when it is printed on the report (for example "Genova Diagnostics", "Mosaic Diagnostics", or "Mosaic MOAT"). Return null when it cannot be identified. This is required to keep different specialty products in separate histories.
 8. CRITICAL for specialty tests (testType ≠ "blood"): You MUST NOT set mappedKey to any standard blood work category key (biochemistry, hormones, electrolytes, lipids, iron, proteins, thyroid, vitamins, diabetes, tumorMarkers, coagulation, hematology, differential, boneMetabolism) or "fattyAcids". Even if a marker name matches (e.g., "Creatinine" in a urine OAT test is NOT "biochemistry.creatinine" which is serum). Even if "fattyAcids.*" keys exist in the known markers list, do NOT match to them — always create new product-specific keys. Always use test-type-prefixed keys from the reference list (oatMicrobial, oatMetabolic, etc.) or set mappedKey to null so it becomes a new custom marker. Different specimen types = different markers.
    EXCEPTION — BioStarks (testType "biostarks"): This is a hybrid test containing both standard blood markers AND specialty markers. DO map its standard blood markers (glucose, lipids, testosterone, creatinine, ferritin, vitamin D, B12, vitamin A, copper, HbA1c) to standard category keys. Only use biostarks-prefixed keys for amino acids, BioStarks fatty acids, intracellular minerals (µg/gHb), cortisol, T/C ratio, and vitamin E.
 9. For markers that do NOT match any known key (mappedKey is null), also return:
@@ -283,7 +282,6 @@ ${IMPORT_COLLECTION_CONTEXT_PROMPT}
 Return ONLY valid JSON in this exact format, no other text:
 {
   "testType": "blood",
-  "labName": "Example Laboratory",
   "date": "YYYY-MM-DD",
   "sampleTime": "08:30",
   "fasting": true,
@@ -487,7 +485,6 @@ ${IMPORT_COLLECTION_CONTEXT_PROMPT}
 Return ONLY valid JSON in this exact format:
 {
   "testType": "blood",
-  "labName": "Example Laboratory",
   "date": "YYYY-MM-DD",
   "sampleTime": null,
   "fasting": null,
