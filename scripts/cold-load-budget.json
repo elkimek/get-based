@@ -5,7 +5,7 @@
   "maximums": {
     "requests": 316,
     "transferBytes": 1193220,
-    "decodedBytes": 3257000
+    "decodedBytes": 3262000
   },
   "reference": {
     "requests": 276,
@@ -18,8 +18,10 @@
     "mealsNutritionDecodedBytes": 3210454,
     "mealsNutritionReleaseRequests": 316,
     "mealsNutritionReleaseTransferBytes": 1160753,
-    "mealsNutritionReleaseDecodedBytes": 3246793
+    "mealsNutritionReleaseDecodedBytes": 3246793,
+    "evolu8DefaultDecodedBytes": 3259926,
+    "evolu8ScalarMergeDecodedBytes": 3260875
   },
   "referenceCommit": "d32c67ae",
-  "measuredAt": "2026-08-27"
+  "measuredAt": "2026-08-30"
 }

@@ -110,6 +110,9 @@ describe('production startup build', () => {
     expect(generatedSource).not.toContain('Db.worker.js');
     expect(serviceWorker).toContain("'/vendor/evolu/evolu-bundle.js',");
     expect(serviceWorker).toContain("'/vendor/evolu/Db.worker.js',");
+    expect(serviceWorker).toContain("'/vendor/evolu8/evolu-bundle.js',");
+    expect(serviceWorker).toContain("'/vendor/evolu8/Db.worker.js',");
+    expect(serviceWorker).toContain("'/vendor/evolu8/Shared.worker.js',");
   });
 
   it('keeps the cold Latin body font from repainting the mobile LCP text', async () => {

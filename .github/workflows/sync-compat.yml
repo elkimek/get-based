@@ -1,0 +1,162 @@
+name: Sync compatibility
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  transport:
+    name: Transport (${{ matrix.evolu-client }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        evolu-client: [v7, v8]
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Check out pinned disposable relay
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: elkimek/getbased-relay
+          ref: 256261261c9422d803623da219820d341fbc01f0
+          path: .ci/getbased-relay
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            .ci/getbased-relay/package-lock.json
+
+      - name: Install app and relay dependencies
+        run: |
+          npm ci
+          npm ci --prefix .ci/getbased-relay
+          npm run build --prefix .ci/getbased-relay
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run real-relay transport scenario
+        shell: bash
+        run: |
+          set -euo pipefail
+          client="${{ matrix.evolu-client }}"
+          relay_data_dir="${RUNNER_TEMP}/getbased-relay-${client}"
+          relay_log="${RUNNER_TEMP}/getbased-relay-${client}.log"
+          mkdir -p "${relay_data_dir}"
+          env \
+            DATA_DIR="${relay_data_dir}" \
+            RELAY_PORT=4000 \
+            ADMIN_PORT=4002 \
+            SELF_PORT=4003 \
+            SELF_BIND=127.0.0.1 \
+            SELF_ENABLED=true \
+            QUOTA_PER_OWNER_MB=10 \
+            QUOTA_GLOBAL_MB=100 \
+            LOG_LEVEL=info \
+            LOG_FORMAT=text \
+            node .ci/getbased-relay/dist/index.js >"${relay_log}" 2>&1 &
+          relay_pid=$!
+          cleanup_relay() {
+            kill "${relay_pid}" 2>/dev/null || true
+            wait "${relay_pid}" 2>/dev/null || true
+          }
+          trap cleanup_relay EXIT
+
+          relay_ready=0
+          for attempt in {1..40}; do
+            if curl --fail --silent http://127.0.0.1:4002/health >/dev/null; then
+              relay_ready=1
+              break
+            fi
+            if ! kill -0 "${relay_pid}" 2>/dev/null; then break; fi
+            sleep 0.25
+          done
+          if [[ "${relay_ready}" != "1" ]]; then
+            cat "${relay_log}"
+            exit 1
+          fi
+
+          env \
+            SYNC_TRANSPORT_E2E=1 \
+            SYNC_TRANSPORT_EVOLU_CLIENT="${client}" \
+            SYNC_TRANSPORT_RELAY=ws://127.0.0.1:4000 \
+            SYNC_TRANSPORT_SELF_URL=http://127.0.0.1:4003 \
+            npx playwright test tests/playwright/sync-relay-transport-e2e.spec.js --workers=1
+
+      - name: Upload transport logs on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: sync-transport-${{ matrix.evolu-client }}-logs
+          path: |
+            ${{ runner.temp }}/getbased-relay-${{ matrix.evolu-client }}.log
+            /tmp/getbased-playwright-results
+            /tmp/dev-server.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  browsers:
+    name: Evolu 8 (${{ matrix.browser }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - browser: chromium
+            project: chromium-evolu8
+            os: ubuntu-latest
+          - browser: firefox
+            project: firefox-evolu8
+            os: ubuntu-latest
+          # Playwright's Linux WPE-WebKit port omits navigator.storage/OPFS.
+          # The macOS port exercises the storage path shipped by Safari.
+          - browser: webkit
+            project: webkit-evolu8
+            os: macos-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install browser engine and Linux dependencies
+        if: runner.os == 'Linux'
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Install browser engine
+        if: runner.os == 'macOS'
+        run: npx playwright install ${{ matrix.browser }}
+
+      - name: Run Evolu 8 browser compatibility suite
+        run: npm run test:evolu8-browsers -- --project=${{ matrix.project }}
+
+      - name: Upload browser logs on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: evolu8-${{ matrix.browser }}-logs
+          path: |
+            /tmp/getbased-evolu8-browser-results
+            /tmp/dev-server.log
+          if-no-files-found: ignore
+          retention-days: 7

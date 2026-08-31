@@ -174,32 +174,38 @@ test('sync apply cutover cleanup and rebroadcast helpers cover guarded browser p
       const skippedNoNeed = rebroadcast.maybeScheduleRebroadcast({
         profileId,
         needsRebroadcast: false,
-        merged: { value: 1 },
         pushProfile: () => { pushed.push('unexpected'); },
       });
       syncState.updateSyncStatus({ push: 'pending' });
       const skippedPending = rebroadcast.maybeScheduleRebroadcast({
         profileId,
         needsRebroadcast: true,
-        merged: { value: 2 },
         pushProfile: () => { pushed.push('pending'); },
         debug: () => { throw new Error('debug should be swallowed'); },
       });
       syncState.resetSyncStatus();
+      state.importedData = { value: 3 };
+      rebroadcast.beginSyncRebroadcastSettling();
+      const skippedSettling = rebroadcast.maybeScheduleRebroadcast({
+        profileId,
+        needsRebroadcast: true,
+        pushProfile: () => { pushed.push('settling'); },
+        debug: (...args) => { debugCalls.push(args.join(' ')); },
+      });
+      rebroadcast.finishSyncRebroadcastSettling();
       const scheduled = rebroadcast.maybeScheduleRebroadcast({
         profileId,
         needsRebroadcast: true,
-        merged: { value: 3 },
         pushProfile: (id, data) => { pushed.push({ id, data: clone(data) }); },
         debug: (...args) => { debugCalls.push(args.join(' ')); },
       });
+      state.importedData = { value: 33 };
       await new Promise(resolve => setTimeout(resolve, 140));
       const abortedProfileId = `${profileId}-abort`;
       state.currentProfile = abortedProfileId;
       const scheduledAbort = rebroadcast.maybeScheduleRebroadcast({
         profileId: abortedProfileId,
         needsRebroadcast: true,
-        merged: { value: 4 },
         pushProfile: (id, data) => { pushed.push({ id, data: clone(data) }); },
         debug: (...args) => { debugCalls.push(args.join(' ')); },
       });
@@ -208,14 +214,17 @@ test('sync apply cutover cleanup and rebroadcast helpers cover guarded browser p
       outcomes.rebroadcastSkipsPendingSchedulesAndAbortsSafely =
         skippedNoNeed === false
         && skippedPending === false
+        && skippedSettling === false
         && scheduled === true
         && scheduledAbort === true
         && pushed.length === 1
         && pushed[0].id === profileId
-        && pushed[0].data.value === 3
+        && pushed[0].data.value === 33
+        && debugCalls.some(message => message.includes('initial replica still settling'))
         && debugCalls.some(message => message.includes('rebroadcast'))
         && debugCalls.some(message => message.includes('active profile switched'));
     } finally {
+      rebroadcast.finishSyncRebroadcastSettling();
       state.currentProfile = saved.state.currentProfile;
       state.importedData = saved.state.importedData;
       syncState.resetSyncStatus();

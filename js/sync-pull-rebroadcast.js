@@ -6,6 +6,26 @@ import {
   consumeRebroadcastBudget, getSyncStatus, logSyncEvent,
 } from './sync-state.js';
 
+// Evolu 8 opens its durable local database before relay replay necessarily
+// finishes. After owner compaction that local view can contain the old rows
+// while the relay's fresh canonical rebuild is still arriving. Publishing a
+// union from that transient view can turn an incomplete row overlay into new,
+// post-compaction mutations that win over the rebuild. initSync brackets this
+// short startup window and performs a final pull before releasing it.
+let _startupSettling = false;
+
+export function beginSyncRebroadcastSettling() {
+  _startupSettling = true;
+}
+
+export function finishSyncRebroadcastSettling() {
+  _startupSettling = false;
+}
+
+export function isSyncRebroadcastSettling() {
+  return _startupSettling;
+}
+
 /** @param {((...args: any[]) => any) | undefined} debug */
 function dbg(debug, ...args) {
   try { debug?.(...args); } catch {}
@@ -13,7 +33,6 @@ function dbg(debug, ...args) {
 
 /** @param {{
  *   profileId?: string,
- *   merged?: any,
  *   needsRebroadcast?: boolean,
  *   pushProfile?: (...args: any[]) => any,
  *   debug?: (...args: any[]) => any,
@@ -21,7 +40,6 @@ function dbg(debug, ...args) {
  */
 export function maybeScheduleRebroadcast({
   profileId,
-  merged,
   needsRebroadcast,
   pushProfile,
   debug,
@@ -32,6 +50,12 @@ export function maybeScheduleRebroadcast({
   // for non-active profiles - pushProfile uses state.importedData,
   // which is only valid for the current profile.
   if (!needsRebroadcast || profileId !== state.currentProfile || typeof pushProfile !== 'function') return false;
+
+  if (_startupSettling) {
+    dbg(debug, `Row ${profileId.slice(0,8)}: rebroadcast deferred — initial replica still settling`);
+    logSyncEvent('skip', 'Rebroadcast deferred — initial replica settling');
+    return false;
+  }
 
   // Don't pile rebroadcast pushes on top of an in-flight push - Evolu
   // serializes them and the relay can lag, producing the
@@ -52,17 +76,21 @@ export function maybeScheduleRebroadcast({
   dbg(debug, `Row ${profileId.slice(0,8)}: rebroadcast — local had unsynced rows`);
   logSyncEvent('rebroadcast', `Rebroadcast ${profileId.slice(0,8)}`);
 
-  // Snapshot importedData at SCHEDULE time and re-verify the
-  // active profile when the timer fires. Without these, a profile
-  // switch in the 100ms gap would push the new active profile's
-  // state.importedData into the *original* profile's relay row.
-  const snapshotImported = merged;
+  // Re-verify the active profile when the timer fires, then publish its latest
+  // state. Capturing `merged` here is unsafe: another pull or local edit can
+  // replace state.importedData during the 100ms gap, and the delayed stale
+  // snapshot would then regress scalar fields on every device.
   setTimeout(() => {
     if (profileId !== state.currentProfile) {
       dbg(debug, `Rebroadcast aborted — active profile switched`);
       return;
     }
-    pushProfile(profileId, snapshotImported);
+    const latestImported = state.importedData;
+    if (!latestImported || typeof latestImported !== 'object') {
+      dbg(debug, `Rebroadcast aborted — active profile data unavailable`);
+      return;
+    }
+    pushProfile(profileId, latestImported);
   }, 100);
   return true;
 }

@@ -3,8 +3,8 @@ import { expect, test } from '@playwright/test';
 const TRANSPORT_E2E_ENABLED = process.env.SYNC_TRANSPORT_E2E === '1';
 const RELAY_URL = process.env.SYNC_TRANSPORT_RELAY || 'ws://127.0.0.1:4000';
 const SELF_URL = process.env.SYNC_TRANSPORT_SELF_URL || 'http://127.0.0.1:4003';
-const EVOLU_CLIENT = process.env.SYNC_TRANSPORT_EVOLU_CLIENT || 'v7';
-const APP_URL = EVOLU_CLIENT === 'v8' ? '/app?evolu-client=v8' : '/app';
+const EVOLU_CLIENT = process.env.SYNC_TRANSPORT_EVOLU_CLIENT || 'v8';
+const APP_URL = EVOLU_CLIENT === 'v7' ? '/app?evolu-client=v7' : '/app';
 const BASELINE_CONTEXT = 'transport-e2e-baseline';
 const UPDATED_CONTEXT = 'transport-e2e-updated';
 const OFFLINE_CONTEXT = 'transport-e2e-offline-recovery';
@@ -209,19 +209,75 @@ async function waitForStableRelayStorage(page, { minimumMessages = 1 } = {}) {
 }
 
 async function contextNotes(page) {
-  return page.evaluate(async () => (await import('/js/state.js')).state.importedData.contextNotes || '');
+  return page.evaluate(async () => (await import('/js/state.js')).state.importedData?.contextNotes || '');
 }
 
 async function noteTexts(page) {
-  return page.evaluate(async () => ((await import('/js/state.js')).state.importedData.notes || [])
+  return page.evaluate(async () => ((await import('/js/state.js')).state.importedData?.notes || [])
     .map(note => note.text).sort());
 }
 
+async function syncDiagnostics(page) {
+  return page.evaluate(async () => {
+    const [runtime, rowCodec, payloadCodec] = await Promise.all([
+      import('/js/sync-runtime.js'),
+      import('/js/sync-delta-row-codec.js'),
+      import('/js/sync-payload-codec.js'),
+    ]);
+    const evolu = runtime.getSyncEvolu();
+    const itemRows = evolu?.getQueryRows(runtime.getSyncItemRowQuery()) || [];
+    const profileRows = evolu?.getQueryRows(runtime.getSyncProfileQuery()) || [];
+    const rows = [];
+    for (const row of itemRows.filter(candidate => (
+      candidate?.arrayName === 'notes' || candidate?.arrayName === 'contextNotes'
+    ))) {
+      let value = null;
+      try {
+        const parsed = await rowCodec.decodeRowPayload(row);
+        value = row.arrayName === 'notes' ? parsed?.text || null : parsed?.v ?? null;
+      } catch {}
+      rows.push({
+        id: row.id,
+        arrayName: row.arrayName,
+        itemId: row.itemId,
+        isDeleted: row.isDeleted,
+        syncedAt: row.syncedAt,
+        value,
+      });
+    }
+    const profiles = [];
+    for (const row of profileRows) {
+      let contextNotes = null;
+      let noteTexts = [];
+      try {
+        const payload = await payloadCodec.parseSyncPayload(row.dataJson);
+        contextNotes = payload?.importedData?.contextNotes ?? null;
+        noteTexts = (payload?.importedData?.notes || []).map(note => note.text).sort();
+      } catch {}
+      profiles.push({ id: row.id, syncedAt: row.syncedAt, contextNotes, noteTexts });
+    }
+    const importedData = (await import('/js/state.js')).state.importedData;
+    return {
+      state: {
+        contextNotes: importedData?.contextNotes ?? null,
+        noteTexts: (importedData?.notes || []).map(note => note.text).sort(),
+      },
+      rows,
+      profiles,
+    };
+  });
+}
+
 async function waitForContext(page, expected) {
-  await expect.poll(() => contextNotes(page), {
-    timeout: 30_000,
-    intervals: [100, 250, 500, 1000],
-  }).toBe(expected);
+  try {
+    await expect.poll(() => contextNotes(page), {
+      timeout: 30_000,
+      intervals: [100, 250, 500, 1000],
+    }).toBe(expected);
+  } catch (error) {
+    console.error('Context sync diagnostics:', JSON.stringify(await syncDiagnostics(page)));
+    throw error;
+  }
 }
 
 async function waitForNotes(page, expected) {
@@ -289,10 +345,14 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
     await waitForNotes(deviceB.page, [
       'baseline-note', 'from-device-a', 'concurrent-a', 'concurrent-b',
     ]);
+    await waitForContext(deviceA.page, OFFLINE_CONTEXT);
+    await waitForContext(deviceB.page, OFFLINE_CONTEXT);
 
     await setSyntheticData(deviceA.page, 'delete-baseline');
     expect((await syncNow(deviceA.page))?.ok).toBe(true);
     await waitForNotes(deviceB.page, ['from-device-a', 'concurrent-a', 'concurrent-b']);
+    await waitForContext(deviceA.page, OFFLINE_CONTEXT);
+    await waitForContext(deviceB.page, OFFLINE_CONTEXT);
 
     // Keep a fully-synced paired device offline across compaction. Its local
     // Evolu log still contains every discarded relay message, which is the
@@ -311,6 +371,7 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
     expect(rebuilt.failed).toBe(0);
     const afterRebuild = await waitForStableRelayStorage(deviceA.page);
     expect(afterRebuild.messageCount).toBeGreaterThan(0);
+    await waitForContext(deviceA.page, OFFLINE_CONTEXT);
 
     const deviceC = await createDevice(browser, 'device C');
     devices.push(deviceC);
@@ -321,7 +382,15 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
     await deviceB.context.setOffline(false);
     await deviceB.page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 });
     await waitForOwner(deviceB.page, identity.ownerId);
-    await waitForNotes(deviceB.page, ['from-device-a', 'concurrent-a', 'concurrent-b']);
+    try {
+      await waitForNotes(deviceB.page, ['from-device-a', 'concurrent-a', 'concurrent-b']);
+      if (process.env.SYNC_TRANSPORT_DEBUG === '1') {
+        console.log('Stale-device sync diagnostics:', JSON.stringify(await syncDiagnostics(deviceB.page)));
+      }
+    } catch (error) {
+      console.error('Stale-device sync diagnostics:', JSON.stringify(await syncDiagnostics(deviceB.page)));
+      throw error;
+    }
     const afterOldDeviceReconnect = await waitForStableRelayStorage(deviceA.page);
     // Reconciliation may produce a small number of genuinely new messages on
     // the stale device. The discarded pre-compaction log itself must remain

@@ -41,7 +41,13 @@ import {
 import { clearStaleSyncHashKeysOnce } from '../js/sync-pull-maintenance.js';
 import { buildSyncPayload, configureSyncPayload, parseSyncPayload } from '../js/sync-payload.js';
 import { collectAISettings } from '../js/sync-payload-collectors.js';
-import { maybeScheduleRebroadcast } from '../js/sync-pull-rebroadcast.js';
+import {
+  beginSyncRebroadcastSettling,
+  finishSyncRebroadcastSettling,
+  isSyncRebroadcastSettling,
+  maybeScheduleRebroadcast,
+} from '../js/sync-pull-rebroadcast.js';
+import { waitForInitialReplicaQuiet } from '../js/sync-init.js';
 import { applyCommittedDeltas, planProfileDeltas } from '../js/sync-push-deltas.js';
 import { configureSyncPush, isSyncPushInFlight, pushProfile } from '../js/sync-push.js';
 import {
@@ -482,9 +488,11 @@ describe('sync apply runtime behavior', () => {
   it('routes sync reload path and delayed reload through runtime helpers', () => {
     vi.useFakeTimers();
     const reload = vi.fn();
-    vi.stubGlobal('window', { location: { pathname: '/sync-runtime-test', reload } });
+    vi.stubGlobal('window', {
+      location: { pathname: '/sync-runtime-test', search: '?evolu-client=v7', reload },
+    });
 
-    expect(getSyncReloadUrlRuntime()).toBe('/sync-runtime-test');
+    expect(getSyncReloadUrlRuntime()).toBe('/sync-runtime-test?evolu-client=v7');
     expect(scheduleSyncRuntimeReload(250)).toBe(true);
     expect(reload).not.toHaveBeenCalled();
 
@@ -995,6 +1003,7 @@ describe('sync cleanup and rebroadcast runtime behavior', () => {
   it('schedules rebroadcasts only for active profiles with available budget and idle push state', async () => {
     vi.useFakeTimers();
     const previousProfile = state.currentProfile;
+    const previousImportedData = state.importedData;
     state.currentProfile = PROFILE_ID;
     try {
       resetSyncStatus();
@@ -1002,18 +1011,20 @@ describe('sync cleanup and rebroadcast runtime behavior', () => {
       const pushProfileSpy = vi.fn();
       const debug = vi.fn();
       const merged = { sunSessions: [{ id: 'sun-1' }] };
+      state.importedData = merged;
 
       expect(maybeScheduleRebroadcast({
         profileId: PROFILE_ID,
-        merged,
         needsRebroadcast: true,
         pushProfile: pushProfileSpy,
         debug,
       })).toBe(true);
       expect(pushProfileSpy).not.toHaveBeenCalled();
 
+      const latest = { sunSessions: [{ id: 'sun-1' }], contextNotes: 'newer local value' };
+      state.importedData = latest;
       await vi.advanceTimersByTimeAsync(100);
-      expect(pushProfileSpy).toHaveBeenCalledWith(PROFILE_ID, merged);
+      expect(pushProfileSpy).toHaveBeenCalledWith(PROFILE_ID, latest);
       expect(getRecentSyncEvents().at(-1)).toMatchObject({
         kind: 'rebroadcast',
         text: `Rebroadcast ${PROFILE_ID.slice(0, 8)}`,
@@ -1022,7 +1033,6 @@ describe('sync cleanup and rebroadcast runtime behavior', () => {
       updateSyncStatus({ push: 'pending' });
       expect(maybeScheduleRebroadcast({
         profileId: PROFILE_ID,
-        merged,
         needsRebroadcast: true,
         pushProfile: pushProfileSpy,
         debug,
@@ -1034,18 +1044,16 @@ describe('sync cleanup and rebroadcast runtime behavior', () => {
       state.currentProfile = 'other-profile';
       expect(maybeScheduleRebroadcast({
         profileId: PROFILE_ID,
-        merged,
         needsRebroadcast: true,
         pushProfile: pushProfileSpy,
         debug,
       })).toBe(false);
 
       state.currentProfile = PROFILE_ID;
-      maybeScheduleRebroadcast({ profileId: PROFILE_ID, merged, needsRebroadcast: true, pushProfile: pushProfileSpy });
-      maybeScheduleRebroadcast({ profileId: PROFILE_ID, merged, needsRebroadcast: true, pushProfile: pushProfileSpy });
+      maybeScheduleRebroadcast({ profileId: PROFILE_ID, needsRebroadcast: true, pushProfile: pushProfileSpy });
+      maybeScheduleRebroadcast({ profileId: PROFILE_ID, needsRebroadcast: true, pushProfile: pushProfileSpy });
       expect(maybeScheduleRebroadcast({
         profileId: PROFILE_ID,
-        merged,
         needsRebroadcast: true,
         pushProfile: pushProfileSpy,
         debug,
@@ -1056,7 +1064,55 @@ describe('sync cleanup and rebroadcast runtime behavior', () => {
       });
     } finally {
       state.currentProfile = previousProfile;
+      state.importedData = previousImportedData;
     }
+  });
+
+  it('holds automatic rebroadcast until the Evolu 8 startup replica is quiet', async () => {
+    const previousProfile = state.currentProfile;
+    const previousImportedData = state.importedData;
+    const pushProfileSpy = vi.fn();
+    const debug = vi.fn();
+    state.currentProfile = PROFILE_ID;
+    state.importedData = { notes: [{ text: 'durable-local' }] };
+    try {
+      beginSyncRebroadcastSettling();
+      expect(isSyncRebroadcastSettling()).toBe(true);
+      expect(maybeScheduleRebroadcast({
+        profileId: PROFILE_ID,
+        needsRebroadcast: true,
+        pushProfile: pushProfileSpy,
+        debug,
+      })).toBe(false);
+      expect(pushProfileSpy).not.toHaveBeenCalled();
+      expect(debug).toHaveBeenCalledWith(expect.stringContaining('initial replica still settling'));
+
+      finishSyncRebroadcastSettling();
+      expect(isSyncRebroadcastSettling()).toBe(false);
+    } finally {
+      finishSyncRebroadcastSettling();
+      state.currentProfile = previousProfile;
+      state.importedData = previousImportedData;
+    }
+  });
+
+  it('waits for subscription activity and pulls to remain quiet', async () => {
+    let now = 0;
+    let fireCount = 0;
+    let pulling = false;
+    const quiet = await waitForInitialReplicaQuiet({
+      getFireCount: () => fireCount,
+      isPulling: () => pulling,
+      now: () => now,
+      wait: async ms => {
+        now += ms;
+        if (now === 500) fireCount++;
+        if (now === 1000) pulling = true;
+        if (now === 1250) pulling = false;
+      },
+    });
+    expect(quiet).toBe(true);
+    expect(now).toBe(1750);
   });
 });
 

@@ -21,7 +21,8 @@ function parseRowSyncedAt(row) {
   return Number.isFinite(ts) ? ts : 0;
 }
 
-export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows) {
+/** @param {{ baselineItems?: any[], baselineSyncedAt?: number }} [options] */
+export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows, options = {}) {
   // Read/write the target array: flat top-level for most surfaces, dotted-path
   // walk via getAt/setAt for nested ones (e.g. `lightEnvironment.rooms`).
   const isNested = arrayName.includes('.');
@@ -34,6 +35,14 @@ export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows) {
   const cfg = DELTA_ARRAY_CONFIG[arrayName] || {};
   const rawItemIdFn = typeof cfg.itemIdFn === 'function' ? cfg.itemIdFn : (it => (it && typeof it.id === 'string' ? it.id : null));
   const itemIdFn = (it) => { const id = rawItemIdFn(it); return _isAllowlistSafeId(id) ? id : null; };
+  const baselineSyncedAt = Number.isFinite(options.baselineSyncedAt)
+    ? Number(options.baselineSyncedAt)
+    : 0;
+  const baselineItemIds = new Set(
+    (Array.isArray(options.baselineItems) ? options.baselineItems : [])
+      .map(itemIdFn)
+      .filter(Boolean),
+  );
   // Seed the tombstone set with the local blob's `_deleted[path]` list before
   // walking relay rows. Trust local user intent while Phase 1 dual-write can
   // still race peer pushes.
@@ -72,7 +81,8 @@ export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows) {
     if (localTombs.has(itemId)) return true;
     const tombAt = remoteTombs.get(itemId);
     if (tombAt == null) return false;
-    return tombAt >= pickTimestamp(item);
+    const canonicalBlobAt = baselineItemIds.has(itemId) ? baselineSyncedAt : 0;
+    return tombAt >= Math.max(pickTimestamp(item), canonicalBlobAt);
   };
   const tombstoneWinsOverLiveRow = (itemId, entry) => {
     if (!itemId) return false;
