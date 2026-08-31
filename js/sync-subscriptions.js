@@ -8,6 +8,7 @@ let _isSyncing = () => false;
 /** @type {() => boolean} */
 let _isPulling = () => false;
 let _isSyncEnabled = () => true;
+let _isStartupSettling = () => false;
 /** @type {() => any} */
 let _onSyncReceived = () => {};
 /** @type {() => Promise<boolean>} */
@@ -34,6 +35,7 @@ const RECEIVE_RETRY_MS = 500;
  *   isSyncing?: () => boolean,
  *   isPulling?: () => boolean,
  *   isSyncEnabled?: () => boolean,
+ *   isStartupSettling?: () => boolean,
  *   onSyncReceived?: () => any,
  *   checkRelayConnection?: () => Promise<boolean>,
  *   updateSyncStatus?: (partial: any) => void,
@@ -44,6 +46,7 @@ export function configureSyncSubscriptions({
   isSyncing,
   isPulling,
   isSyncEnabled,
+  isStartupSettling,
   onSyncReceived,
   checkRelayConnection,
   updateSyncStatus,
@@ -52,6 +55,7 @@ export function configureSyncSubscriptions({
   if (typeof isSyncing === 'function') _isSyncing = isSyncing;
   if (typeof isPulling === 'function') _isPulling = isPulling;
   if (typeof isSyncEnabled === 'function') _isSyncEnabled = isSyncEnabled;
+  if (typeof isStartupSettling === 'function') _isStartupSettling = isStartupSettling;
   if (typeof onSyncReceived === 'function') _onSyncReceived = onSyncReceived;
   if (typeof checkRelayConnection === 'function') _checkRelayConnection = checkRelayConnection;
   if (typeof updateSyncStatus === 'function') _updateSyncStatus = updateSyncStatus;
@@ -85,7 +89,12 @@ export function clearSyncSubscriptionTimers() {
 }
 
 function canReceiveSync() {
-  return _isSyncEnabled() && !_isSyncing() && !_isPulling();
+  // Evolu 8 can publish several partial query snapshots while it replays a
+  // compacted owner into an existing local database. initSync performs one
+  // controlled pull after that burst becomes quiet; applying an intermediate
+  // itemRow snapshot here could otherwise turn a temporary omission into a
+  // durable tombstone during startup reconciliation.
+  return _isSyncEnabled() && !_isSyncing() && !_isPulling() && !_isStartupSettling();
 }
 
 /** @param {string} [reason] */
@@ -99,7 +108,7 @@ function requestSyncReceive(reason = 'subscription') {
     return;
   }
   if (_pendingReceiveTimer) return;
-  _debug(`${reason}: receive deferred, syncing=${_isSyncing()}, pulling=${_isPulling()}`);
+  _debug(`${reason}: receive deferred, syncing=${_isSyncing()}, pulling=${_isPulling()}, startupSettling=${_isStartupSettling()}`);
   _pendingReceiveTimer = setTimeout(() => {
     _pendingReceiveTimer = null;
     requestSyncReceive('deferred receive');
@@ -114,6 +123,12 @@ function rowsSignature(rows) {
     .join('|');
 }
 
+/** @param {string} reason */
+function noteQuerySubscriptionActivity(reason) {
+  _subscriptionFireCount++;
+  _debug(`${reason} fired (#${_subscriptionFireCount}), syncing=${_isSyncing()}, pulling=${_isPulling()}`);
+}
+
 /** @param {{ evolu?: SyncEvoluLike | null, profileQuery?: any, tombstoneQuery?: any, itemRowQuery?: any }} [deps] */
 export function bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, itemRowQuery } = {}) {
   if (!evolu || !profileQuery || !tombstoneQuery || !itemRowQuery) return;
@@ -121,10 +136,7 @@ export function bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, ite
   clearSyncSubscriptionTimers();
 
   _unsubscribeCallbacks.push(evolu.subscribeQuery(profileQuery)(() => {
-    _subscriptionFireCount++;
-    const syncing = _isSyncing();
-    const pulling = _isPulling();
-    _debug(`subscription fired (#${_subscriptionFireCount}), syncing: ${syncing}, pulling: ${pulling}`);
+    noteQuerySubscriptionActivity('profile subscription');
     requestSyncReceive('profile subscription');
   }));
 
@@ -133,6 +145,7 @@ export function bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, ite
   // so this subscription is required for device B to see device A's
   // profile-delete tombstone without waiting for a full reload.
   _unsubscribeCallbacks.push(evolu.subscribeQuery(tombstoneQuery)(() => {
+    noteQuerySubscriptionActivity('tombstone subscription');
     requestSyncReceive('tombstone subscription');
   }));
 
@@ -142,6 +155,7 @@ export function bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, ite
   // debounce stretches out). Subscribing here gives near-real-time
   // delta propagation, which is half the point of Phase 1.
   _unsubscribeCallbacks.push(evolu.subscribeQuery(itemRowQuery)(() => {
+    noteQuerySubscriptionActivity('itemRow subscription');
     requestSyncReceive('itemRow subscription');
   }));
 

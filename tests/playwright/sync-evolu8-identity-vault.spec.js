@@ -40,7 +40,7 @@ test('v8 repeat startup skips v7 and v7 restore invalidates the handoff', async 
 
   blockLegacy = false;
   legacyRequests = 0;
-  await page.goto('/app', { waitUntil: 'domcontentloaded' });
+  await page.goto('/app?evolu-client=v7', { waitUntil: 'domcontentloaded' });
   await expect.poll(readOwner, { timeout: 30_000 }).not.toBeNull();
   expect((await readOwner())?.id).toBe(firstOwner?.id);
   expect(legacyRequests).toBeGreaterThan(0);

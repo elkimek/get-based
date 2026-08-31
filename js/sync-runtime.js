@@ -104,7 +104,12 @@ export function dispatchSyncOwnerChangedRuntime(ownerId) {
 export function getSyncReloadUrlRuntime(fallback = '/') {
   const runtime = getSyncRuntimeWindow();
   const pathname = runtime?.location?.pathname;
-  return typeof pathname === 'string' && pathname ? pathname : fallback;
+  if (typeof pathname !== 'string' || !pathname) return fallback;
+  // Evolu 7 uses this URL for its own identity-change reload. Preserve the
+  // explicit rollback selector (and any other active app query state), or a
+  // v7 identity rotation would silently restart under the default v8 client.
+  const search = runtime?.location?.search;
+  return `${pathname}${typeof search === 'string' ? search : ''}`;
 }
 
 /** @param {number} delayMs */

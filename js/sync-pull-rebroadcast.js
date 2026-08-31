@@ -6,6 +6,26 @@ import {
   consumeRebroadcastBudget, getSyncStatus, logSyncEvent,
 } from './sync-state.js';
 
+// Evolu 8 opens its durable local database before relay replay necessarily
+// finishes. After owner compaction that local view can contain the old rows
+// while the relay's fresh canonical rebuild is still arriving. Publishing a
+// union from that transient view can turn an incomplete row overlay into new,
+// post-compaction mutations that win over the rebuild. initSync brackets this
+// short startup window and performs a final pull before releasing it.
+let _startupSettling = false;
+
+export function beginSyncRebroadcastSettling() {
+  _startupSettling = true;
+}
+
+export function finishSyncRebroadcastSettling() {
+  _startupSettling = false;
+}
+
+export function isSyncRebroadcastSettling() {
+  return _startupSettling;
+}
+
 /** @param {((...args: any[]) => any) | undefined} debug */
 function dbg(debug, ...args) {
   try { debug?.(...args); } catch {}
@@ -30,6 +50,12 @@ export function maybeScheduleRebroadcast({
   // for non-active profiles - pushProfile uses state.importedData,
   // which is only valid for the current profile.
   if (!needsRebroadcast || profileId !== state.currentProfile || typeof pushProfile !== 'function') return false;
+
+  if (_startupSettling) {
+    dbg(debug, `Row ${profileId.slice(0,8)}: rebroadcast deferred — initial replica still settling`);
+    logSyncEvent('skip', 'Rebroadcast deferred — initial replica settling');
+    return false;
+  }
 
   // Don't pile rebroadcast pushes on top of an in-flight push - Evolu
   // serializes them and the relay can lag, producing the

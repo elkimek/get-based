@@ -330,7 +330,10 @@ export async function onSyncReceived() {
         const {
           localKey, merged, mergeMsg,
           needsRebroadcast, remoteBroughtNewRows, localDataChanged, restoreJoinApplied,
-        } = await mergePulledImportedData(profileId, importedData, { debug: dbg });
+        } = await mergePulledImportedData(profileId, importedData, {
+          debug: dbg,
+          remoteUpdated,
+        });
         dbg(mergeMsg);
         logSyncEvent('pull', mergeMsg);
 
