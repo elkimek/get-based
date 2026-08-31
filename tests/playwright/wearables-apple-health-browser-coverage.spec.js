@@ -38,36 +38,44 @@ test('Apple Health browser coverage parses streams and imports XML and ZIP files
     const importProgress = [];
     const zipProgress = [];
     const invalidErrors = [];
+    const isoDayOffset = offset => {
+      const date = new Date();
+      date.setUTCDate(date.getUTCDate() + offset);
+      return date.toISOString().slice(0, 10);
+    };
+    const dayOneDate = isoDayOffset(-2);
+    const dayTwoDate = isoDayOffset(-1);
+    const zipDate = isoDayOffset(0);
 
     const richXml = `<?xml version="1.0" encoding="UTF-8"?>
 <HealthData>
-  <Record type="HKQuantityTypeIdentifierHeartRateVariabilitySDNN" unit="ms" sourceName="Watch" startDate="2026-06-01 23:10:00 +0200" value="50"/>
-  <Record type="HKQuantityTypeIdentifierHeartRateVariabilitySDNN" unit="ms" sourceName="Watch" startDate="2026-06-01 01:10:00 +0200" value="70"/>
-  <Record type="HKQuantityTypeIdentifierHeartRateVariabilitySDNN" unit="ms" sourceName="Watch" startDate="2026-06-01 10:00:00 +0200" value="30"/>
-  <Record type="HKQuantityTypeIdentifierHeartRateVariabilitySDNN" unit="ms" sourceName="Watch" startDate="2026-06-02" value="40"/>
-  <Record type="HKQuantityTypeIdentifierHeartRateVariabilitySDNN" unit="ms" sourceName="Watch" startDate="2026-06-02" value="60"/>
-  <Record type="HKQuantityTypeIdentifierRestingHeartRate" unit="count/min" sourceName="Watch" startDate="2026-06-01 07:00:00 +0200" value="62"/>
-  <Record type="HKQuantityTypeIdentifierRestingHeartRate" unit="count/min" sourceName="ThirdParty" startDate="2026-06-01 08:00:00 +0200" value="58"/>
-  <Record type="HKQuantityTypeIdentifierHeartRate" unit="count/min" sourceName="Watch" startDate="2026-06-01 09:00:00 +0200" value="65"/>
-  <Record type="HKQuantityTypeIdentifierHeartRate" unit="count/min" sourceName="Watch" startDate="2026-06-01 14:00:00 +0200" value="85"/>
-  <Record type="HKQuantityTypeIdentifierHeartRate" unit="count/min" sourceName="Watch" startDate="2026-06-01 23:00:00 +0200" value="55"/>
-  <Record type="HKQuantityTypeIdentifierStepCount" unit="count" sourceName="Watch" startDate="2026-06-01 12:00:00 +0200" value="100"/>
-  <Record type="HKQuantityTypeIdentifierStepCount" unit="count" sourceName="Watch" startDate="2026-06-01 13:00:00 +0200" value="200"/>
-  <Record type="HKQuantityTypeIdentifierStepCount" unit="count" sourceName="Phone" startDate="2026-06-01 12:00:00 +0200" value="1000"/>
-  <Record type="HKQuantityTypeIdentifierOxygenSaturation" unit="1" sourceName="Watch" startDate="2026-06-01 06:00:00 +0200" value="0.97"/>
-  <Record type="HKQuantityTypeIdentifierVO2Max" unit="mL/kg/min" sourceName="Watch" startDate="2026-06-01 09:00:00 +0200" value="42"/>
-  <Record type="HKQuantityTypeIdentifierBodyMass" unit="lb" sourceName="Scale" startDate="2026-06-01 08:00:00 +0200" value="180"/>
-  <Record type="HKQuantityTypeIdentifierBodyFatPercentage" unit="1" sourceName="Scale" startDate="2026-06-01 08:00:00 +0200" value="0.2"/>
-  <Record type="HKQuantityTypeIdentifierLeanBodyMass" unit="kg" sourceName="Scale" startDate="2026-06-01 08:00:00 +0200" value="65"/>
-  <Record type="HKQuantityTypeIdentifierBloodPressureSystolic" unit="mmHg" sourceName="Cuff" startDate="2026-06-01 08:00:00 +0200" value="120"/>
-  <Record type="HKQuantityTypeIdentifierBloodPressureDiastolic" unit="mmHg" sourceName="Cuff" startDate="2026-06-01 08:00:00 +0200" value="80"/>
-  <Record type="HKQuantityTypeIdentifierBodyTemperature" unit="degC" sourceName="Thermometer" startDate="2026-06-01 08:00:00 +0200" value="37"/>
-  <Record type="HKQuantityTypeIdentifierStepCount" unit="furlongs" sourceName="Bad" startDate="2026-06-01 12:00:00 +0200" value="9999"/>
-  <Record type="HKQuantityTypeIdentifierBodyMass" unit="kg" sourceName="Bad" startDate="2026-06-01 08:00:00 +0200" value="not-number"/>
-  <Record type="HKCategoryTypeIdentifierSleepAnalysis" startDate="2026-06-01 00:00:00 +0200" value="HKCategoryValueSleepAnalysisAsleep"/>
+  <Record type="HKQuantityTypeIdentifierHeartRateVariabilitySDNN" unit="ms" sourceName="Watch" startDate="${dayOneDate} 23:10:00 +0200" value="50"/>
+  <Record type="HKQuantityTypeIdentifierHeartRateVariabilitySDNN" unit="ms" sourceName="Watch" startDate="${dayOneDate} 01:10:00 +0200" value="70"/>
+  <Record type="HKQuantityTypeIdentifierHeartRateVariabilitySDNN" unit="ms" sourceName="Watch" startDate="${dayOneDate} 10:00:00 +0200" value="30"/>
+  <Record type="HKQuantityTypeIdentifierHeartRateVariabilitySDNN" unit="ms" sourceName="Watch" startDate="${dayTwoDate}" value="40"/>
+  <Record type="HKQuantityTypeIdentifierHeartRateVariabilitySDNN" unit="ms" sourceName="Watch" startDate="${dayTwoDate}" value="60"/>
+  <Record type="HKQuantityTypeIdentifierRestingHeartRate" unit="count/min" sourceName="Watch" startDate="${dayOneDate} 07:00:00 +0200" value="62"/>
+  <Record type="HKQuantityTypeIdentifierRestingHeartRate" unit="count/min" sourceName="ThirdParty" startDate="${dayOneDate} 08:00:00 +0200" value="58"/>
+  <Record type="HKQuantityTypeIdentifierHeartRate" unit="count/min" sourceName="Watch" startDate="${dayOneDate} 09:00:00 +0200" value="65"/>
+  <Record type="HKQuantityTypeIdentifierHeartRate" unit="count/min" sourceName="Watch" startDate="${dayOneDate} 14:00:00 +0200" value="85"/>
+  <Record type="HKQuantityTypeIdentifierHeartRate" unit="count/min" sourceName="Watch" startDate="${dayOneDate} 23:00:00 +0200" value="55"/>
+  <Record type="HKQuantityTypeIdentifierStepCount" unit="count" sourceName="Watch" startDate="${dayOneDate} 12:00:00 +0200" value="100"/>
+  <Record type="HKQuantityTypeIdentifierStepCount" unit="count" sourceName="Watch" startDate="${dayOneDate} 13:00:00 +0200" value="200"/>
+  <Record type="HKQuantityTypeIdentifierStepCount" unit="count" sourceName="Phone" startDate="${dayOneDate} 12:00:00 +0200" value="1000"/>
+  <Record type="HKQuantityTypeIdentifierOxygenSaturation" unit="1" sourceName="Watch" startDate="${dayOneDate} 06:00:00 +0200" value="0.97"/>
+  <Record type="HKQuantityTypeIdentifierVO2Max" unit="mL/kg/min" sourceName="Watch" startDate="${dayOneDate} 09:00:00 +0200" value="42"/>
+  <Record type="HKQuantityTypeIdentifierBodyMass" unit="lb" sourceName="Scale" startDate="${dayOneDate} 08:00:00 +0200" value="180"/>
+  <Record type="HKQuantityTypeIdentifierBodyFatPercentage" unit="1" sourceName="Scale" startDate="${dayOneDate} 08:00:00 +0200" value="0.2"/>
+  <Record type="HKQuantityTypeIdentifierLeanBodyMass" unit="kg" sourceName="Scale" startDate="${dayOneDate} 08:00:00 +0200" value="65"/>
+  <Record type="HKQuantityTypeIdentifierBloodPressureSystolic" unit="mmHg" sourceName="Cuff" startDate="${dayOneDate} 08:00:00 +0200" value="120"/>
+  <Record type="HKQuantityTypeIdentifierBloodPressureDiastolic" unit="mmHg" sourceName="Cuff" startDate="${dayOneDate} 08:00:00 +0200" value="80"/>
+  <Record type="HKQuantityTypeIdentifierBodyTemperature" unit="degC" sourceName="Thermometer" startDate="${dayOneDate} 08:00:00 +0200" value="37"/>
+  <Record type="HKQuantityTypeIdentifierStepCount" unit="furlongs" sourceName="Bad" startDate="${dayOneDate} 12:00:00 +0200" value="9999"/>
+  <Record type="HKQuantityTypeIdentifierBodyMass" unit="kg" sourceName="Bad" startDate="${dayOneDate} 08:00:00 +0200" value="not-number"/>
+  <Record type="HKCategoryTypeIdentifierSleepAnalysis" startDate="${dayOneDate} 00:00:00 +0200" value="HKCategoryValueSleepAnalysisAsleep"/>
 </HealthData>`;
     const zipXml = `<?xml version="1.0"?><HealthData>
-  <Record type="HKQuantityTypeIdentifierStepCount" unit="count" sourceName="Watch" startDate="2026-06-03 12:00:00 +0200" value="333"/>
+  <Record type="HKQuantityTypeIdentifierStepCount" unit="count" sourceName="Watch" startDate="${zipDate} 12:00:00 +0200" value="333"/>
 </HealthData>`;
 
     try {
@@ -82,11 +90,11 @@ test('Apple Health browser coverage parses streams and imports XML and ZIP files
       };
 
       const parsedRows = apple.parseAppleHealthXml(richXml);
-      const dayOne = parsedRows.find(row => row.date === '2026-06-01');
-      const dayTwo = parsedRows.find(row => row.date === '2026-06-02');
+      const dayOne = parsedRows.find(row => row.date === dayOneDate);
+      const dayTwo = parsedRows.find(row => row.date === dayTwoDate);
       results.xmlParserReturnsTwoDays = parsedRows.length === 2
-        && parsedRows[0]?.date === '2026-06-01'
-        && parsedRows[1]?.date === '2026-06-02';
+        && parsedRows[0]?.date === dayOneDate
+        && parsedRows[1]?.date === dayTwoDate;
       results.xmlParserSplitsHrvWindows = dayOne?.hrv_sdnn === 60
         && dayOne?.hrv_day === 30;
       results.xmlParserAggregatesHeartRateSignals = dayOne?.rhr === 58
@@ -119,15 +127,15 @@ test('Apple Health browser coverage parses streams and imports XML and ZIP files
         new File([richXml], 'export.xml', { type: 'application/xml' }),
         evt => importProgress.push(evt)
       );
-      const importedRows = await store.getDailyRange(profileId, 'apple_health', '2026-06-01', '2026-06-02');
+      const importedRows = await store.getDailyRange(profileId, 'apple_health', dayOneDate, dayTwoDate);
       const importMeta = await store.getMeta(profileId, 'last-sync:apple_health');
       results.xmlImportReturnsDateRange = xmlResult.rows === 2
-        && xmlResult.startDate === '2026-06-01'
-        && xmlResult.endDate === '2026-06-02';
+        && xmlResult.startDate === dayOneDate
+        && xmlResult.endDate === dayTwoDate;
       results.xmlImportWritesIndexedDbRows = importedRows.length === 2;
       results.xmlImportWritesMeta = importMeta?.rows === 2
-        && importMeta?.startDate === '2026-06-01'
-        && importMeta?.endDate === '2026-06-02';
+        && importMeta?.startDate === dayOneDate
+        && importMeta?.endDate === dayTwoDate;
       results.xmlImportUpdatesConnection = state.importedData.wearableConnections.apple_health?.fileName === 'export.xml'
         && state.importedData.wearableConnections.apple_health?.coverageDays === 2;
       results.xmlImportUpdatesSummary = state.importedData.wearableSummary?.sources?.apple_health?.coverageDays === 2;
@@ -154,10 +162,10 @@ test('Apple Health browser coverage parses streams and imports XML and ZIP files
         new File(['fake zip bytes'], 'export.zip', { type: 'application/zip' }),
         evt => zipProgress.push(evt)
       );
-      const zipRow = await store.getDaily(profileId, 'apple_health', '2026-06-03');
+      const zipRow = await store.getDaily(profileId, 'apple_health', zipDate);
       results.zipImportUsesJSZipAndImportedXmlEntry = zipResult.rows === 1
-        && zipResult.startDate === '2026-06-03'
-        && zipResult.endDate === '2026-06-03'
+        && zipResult.startDate === zipDate
+        && zipResult.endDate === zipDate
         && zipRow?.steps === 333
         && state.importedData.wearableConnections.apple_health?.fileName === 'export.zip'
         && zipProgress.some(evt => evt.stage === 'unzipping');

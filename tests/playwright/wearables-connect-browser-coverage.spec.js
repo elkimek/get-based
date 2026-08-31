@@ -29,7 +29,7 @@ test('wearables connect browser coverage drives OAuth callback, backfill, refres
       status,
       headers: { 'Content-Type': 'application/json' },
     });
-    const sleepDay = '2026-06-01';
+    const sleepDay = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
     const { state } = await import('/js/state.js');
     const connect = await import(connectUrl);
