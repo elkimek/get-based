@@ -281,6 +281,7 @@
     "js/pdf-import-unit-conversions.js",
     "js/pdf-import-review-formatting.js",
     "js/pdf-import-marker-normalization.js",
+    "js/pdf-import-organic-acid-normalization.js",
     "js/pdf-import-persistence.js",
     "js/pdf-import-preflight.js",
     "js/pdf-import-progress.js",
