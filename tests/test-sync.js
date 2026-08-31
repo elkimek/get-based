@@ -1276,6 +1276,14 @@ await import('../js/settings.js');
   // fresher local edits protected until their itemRow update lands.
   assert('onSyncReceived overlays per-row state AFTER blob merge',
     /merged\s*=\s*localBaselineForMerge[\s\S]{0,400}mergeImportedData[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncPullMergeSrc));
+  assert('canonical rebuilt blob freshness bounds stale per-row tombstones',
+    syncPullSrc.includes('remoteUpdated,')
+      && syncPullMergeSrc.includes('baselineImported: importedData')
+      && syncPullMergeSrc.includes('baselineSyncedAt: remoteUpdated')
+      && syncDeltaMergeSrc.includes('baselineItems: Array.isArray(baselineItems) ? baselineItems : []')
+      && syncDeltaArrayMergeSrc.includes('baselineItemIds.has(itemId) ? baselineSyncedAt : 0')
+      && syncDeltaMergeSrc.includes('hasBaseline: baselineValue !== undefined')
+      && syncDeltaScalarMergeSrc.includes('baselineAt >= latestRowAt'));
   assert('_mergeItemRowsIntoImported drops tombstoned items from imported arrays',
     /mergeArrayRowsIntoImported[\s\S]{0,12000}let nextArr\s*=\s*curArr\.filter\(it\s*=>\s*!tombstoneWinsOverItem\(itemIdFn\(it\),\s*it\)\)/.test(syncDeltaMergeSearchSrc));
   // Resurrection-prevention seed: blob-side `_deleted[arrayName]` must
@@ -1286,7 +1294,7 @@ await import('../js/settings.js');
   assert('_mergeItemRowsIntoImported skips inserting items that match a blob-tombstoned itemId',
     /tombstoneWinsOverLiveRow\(itemId,\s*entry\)\)\s*continue/.test(syncDeltaMergeSearchSrc));
   assert('_mergeItemRowsIntoImported ignores stale remote tombstones when local item is newer',
-    /remoteTombs\.set\(row\.itemId[\s\S]{0,1200}tombAt\s*>=\s*pickTimestamp\(item\)/.test(syncDeltaArrayMergeSrc));
+    /remoteTombs\.set\(row\.itemId[\s\S]{0,1800}tombAt\s*>=\s*Math\.max\(pickTimestamp\(item\),\s*canonicalBlobAt\)/.test(syncDeltaArrayMergeSrc));
   assert('_mergeItemRowsIntoImported preserves fresher local non-lab items over stale per-row payloads',
     /compareRecordFreshness\(item,\s*nextArr\[idx\]\)\s*<=\s*0[\s\S]{0,120}continue/.test(syncDeltaArrayMergeSrc)
       && /nextArr\[idx\]\s*=\s*item/.test(syncDeltaArrayMergeSrc));
@@ -1450,7 +1458,9 @@ await import('../js/settings.js');
 
   assert('reloadUrl uses sync runtime path helper',
     syncInitSrc.includes('reloadUrl: getSyncReloadUrlRuntime()')
-      && syncRuntimeSrc.includes('export function getSyncReloadUrlRuntime'));
+      && syncRuntimeSrc.includes('export function getSyncReloadUrlRuntime')
+      && syncRuntimeSrc.includes("runtime?.location?.search")
+      && /return `\$\{pathname\}\$\{typeof search === 'string' \? search : ''\}`/.test(syncRuntimeSrc));
   assert('enableLogging gated on debug mode', syncInitSrc.includes('enableLogging: isDebugMode()'));
   assert('Default relay is wss://sync.getbased.health', syncEnvironmentSrc.includes("wss://sync.getbased.health"));
   assert('Transport uses plural "transports" array (not singular)', syncEvoluClientSrc.includes('transports: [{ type:') && !syncEvoluClientSrc.includes('transport: { type:'));
@@ -3457,11 +3467,22 @@ await import('../js/settings.js');
   // the pickTimestamp-aware helper instead of bare id-set comparison.
   assert('reconcileLocalStorageWithEvolu defined',
     /export async function reconcileLocalStorageWithEvolu\(\)/.test(syncReconcileSrc));
-  assert('Reconciliation runs on initSync after appOwner + queries are ready',
-    syncConfigureSrc.includes("from './sync-init.js'")
-      && syncConfigureSrc.includes('configureSyncInit({ reconcileLocalStorageWithEvolu });')
-      && !syncInitSrc.includes("from './sync-reconcile.js'")
-      && /Promise\.all\(\[readyPromise,\s*queryLoaded\]\)[\s\S]{0,300}reconcileLocalStorageWithEvolu/.test(syncInitSrc));
+  {
+    const readyAt = syncInitSrc.indexOf('Promise.all([readyPromise, queryLoaded])');
+    const settleAt = syncInitSrc.indexOf('await waitForInitialReplicaQuiet()', readyAt);
+    const forcePullAt = syncInitSrc.indexOf('await _forcePull()', settleAt);
+    const finishSettlingAt = syncInitSrc.indexOf('finishSyncRebroadcastSettling()', forcePullAt);
+    const reconcileAt = syncInitSrc.indexOf('await reconcileLocalStorageWithEvolu()', finishSettlingAt);
+    assert('Reconciliation runs on initSync after appOwner + queries are ready',
+      syncConfigureSrc.includes("from './sync-init.js'")
+        && /configureSyncInit\(\{[\s\S]{0,250}reconcileLocalStorageWithEvolu,/.test(syncConfigureSrc)
+        && !syncInitSrc.includes("from './sync-reconcile.js'")
+        && readyAt >= 0
+        && readyAt < settleAt
+        && settleAt < forcePullAt
+        && forcePullAt < finishSettlingAt
+        && finishSettlingAt < reconcileAt);
+  }
   assert('Reconciliation reads remote dataJson via parseSyncPayload',
     /reconcileLocalStorageWithEvolu[\s\S]{0,1600}parseSyncPayload\(existing\.dataJson\)/.test(syncReconcileSrc));
   assert('Reconciliation routes through localHasRowsRemoteLacks (catches same-id timestamp drift)',

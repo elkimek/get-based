@@ -2,10 +2,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   bindSyncSubscriptions, clearSyncSubscriptionTimers, configureSyncSubscriptions,
+  getSyncSubscriptionFireCount,
 } from '../js/sync-subscriptions.js';
 
 afterEach(() => {
   clearSyncSubscriptionTimers();
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -54,5 +56,41 @@ describe('paused sync subscriptions', () => {
     clearSyncSubscriptionTimers();
     expect(unsubscriptions).toHaveLength(4);
     expect(unsubscriptions.every(unsubscribe => unsubscribe.mock.calls.length === 1)).toBe(true);
+  });
+
+  it('counts every query notification and defers pulls while the startup replica settles', () => {
+    vi.useFakeTimers();
+    let settling = true;
+    const callbacks = [];
+    const onSyncReceived = vi.fn();
+    const evolu = {
+      subscribeQuery: () => callback => {
+        callbacks.push(callback);
+        return () => {};
+      },
+      subscribeError: () => () => {},
+      getQueryRows: () => [],
+    };
+    configureSyncSubscriptions({
+      isSyncEnabled: () => true,
+      isSyncing: () => false,
+      isPulling: () => false,
+      isStartupSettling: () => settling,
+      onSyncReceived,
+    });
+    bindSyncSubscriptions({
+      evolu,
+      profileQuery: { name: 'profile' },
+      tombstoneQuery: { name: 'tombstone' },
+      itemRowQuery: { name: 'item' },
+    });
+
+    callbacks.forEach(callback => callback());
+    expect(getSyncSubscriptionFireCount()).toBe(3);
+    expect(onSyncReceived).not.toHaveBeenCalled();
+
+    settling = false;
+    vi.advanceTimersByTime(500);
+    expect(onSyncReceived).toHaveBeenCalledOnce();
   });
 });

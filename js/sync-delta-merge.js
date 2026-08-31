@@ -3,6 +3,7 @@
 
 import { resetPullDeltaSnapshot } from './sync-delta-observability.js';
 import { DELTA_MAPS, DELTA_SCALARS } from './sync-delta-registry.js';
+import { getAt } from './data-merge.js';
 import {
   mergeArrayRowsIntoImported, mergeMapRowsIntoImported, mergeScalarRowsIntoImported,
 } from './sync-delta-merge-shapes.js';
@@ -26,13 +27,10 @@ function _currentItemRowQuery() {
   try { return _getItemRowQuery?.() || null; } catch { return null; }
 }
 
-// Pull-side: walk every itemRow for this profileId, group by arrayName,
-// apply tombstones (drop matching items from imported[arrayName]) and
-// upsert live payloads (replace by item.id, or push if unseen). Per-row
-// state is authoritative unless the blob merge already contains a newer
-// local edit by embedded timestamp; that case is rebroadcast instead of
-// being reverted by a stale relay row.
-export async function _mergeItemRowsIntoImported(profileId, imported) {
+// Pull-side row overlay. A newer canonical profile blob can bound stale
+// array tombstones left in an old replica after compaction.
+/** @param {{ baselineImported?: any, baselineSyncedAt?: number }} [options] */
+export async function _mergeItemRowsIntoImported(profileId, imported, options = {}) {
   const evolu = _currentEvolu();
   const itemRowQuery = _currentItemRowQuery();
   if (!evolu || !itemRowQuery) return imported;
@@ -51,14 +49,26 @@ export async function _mergeItemRowsIntoImported(profileId, imported) {
   const _DELTA_SCALARS_SET = new Set(DELTA_SCALARS);
   for (const [arrayName, arrRows] of byArray) {
     if (_DELTA_SCALARS_SET.has(arrayName)) {
-      await mergeScalarRowsIntoImported(imported, arrayName, arrRows);
+      const baselineValue = options.baselineImported
+        ? getAt(options.baselineImported, arrayName)
+        : undefined;
+      await mergeScalarRowsIntoImported(imported, arrayName, arrRows, {
+        hasBaseline: baselineValue !== undefined,
+        baselineSyncedAt: options.baselineSyncedAt,
+      });
       continue;
     }
     if (_DELTA_MAPS_SET.has(arrayName)) {
       await mergeMapRowsIntoImported(imported, arrayName, arrRows);
       continue;
     }
-    await mergeArrayRowsIntoImported(imported, arrayName, arrRows);
+    const baselineItems = options.baselineImported
+      ? getAt(options.baselineImported, arrayName)
+      : null;
+    await mergeArrayRowsIntoImported(imported, arrayName, arrRows, {
+      baselineItems: Array.isArray(baselineItems) ? baselineItems : [],
+      baselineSyncedAt: options.baselineSyncedAt,
+    });
   }
   return imported;
 }
