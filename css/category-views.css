@@ -235,6 +235,26 @@
   min-width: 0;
   text-align: right;
 }
+.chart-card-snapshot-stacked {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+.chart-card-snapshot-stacked .chart-card-latest-measurement {
+  flex-wrap: wrap;
+  row-gap: 3px;
+}
+.chart-card-snapshot-stacked .chart-card-latest-unit,
+.chart-card-snapshot-stacked .chart-card-range-row > strong {
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+}
+.chart-card-snapshot-stacked .chart-card-snapshot-side {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  text-align: left;
+}
 .chart-card-range-row + .chart-card-range-row { margin-top: 5px; }
 .chart-card-range-row > strong {
   display: block;

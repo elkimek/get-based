@@ -151,6 +151,41 @@ test('category view renderers browser coverage exercises chart table heatmap and
         })),
       };
 
+      fixture.style.width = '360px';
+      state.rangeMode = 'reference';
+      fixture.innerHTML = renderers.renderChartCard('custom_pyruvicAcid', {
+        name: 'Pyruvic Acid', unit: 'mmol/mol creatinine', values: [3], refMin: 7, refMax: 32,
+      }, ['May 2023'], ['2023-05-20']);
+      const longUnitSnapshot = fixture.querySelector('.chart-card-snapshot');
+      const longUnitMeasurement = fixture.querySelector('.chart-card-latest-measurement');
+      const longUnitRange = fixture.querySelector('.chart-card-snapshot-side');
+      const longUnitSnapshotRect = longUnitSnapshot?.getBoundingClientRect();
+      const longUnitMeasurementRect = longUnitMeasurement?.getBoundingClientRect();
+      const longUnitRangeRect = longUnitRange?.getBoundingClientRect();
+      const longUnitTextNodes = [
+        fixture.querySelector('.chart-card-latest-unit'),
+        fixture.querySelector('.chart-card-range-row > strong'),
+      ];
+      outcomes.chartCardStacksLongUnitsWithoutOverflowing =
+        longUnitSnapshot?.classList.contains('chart-card-snapshot-stacked')
+        && !!longUnitSnapshotRect
+        && !!longUnitMeasurementRect
+        && !!longUnitRangeRect
+        && longUnitMeasurementRect.bottom <= longUnitRangeRect.top + 0.5
+        && longUnitTextNodes.every(node => {
+          const rect = node?.getBoundingClientRect();
+          return !!node && !!rect
+            && rect.left >= longUnitSnapshotRect.left - 0.5
+            && rect.right <= longUnitSnapshotRect.right + 0.5
+            && node.scrollWidth <= node.clientWidth + 1;
+        });
+
+      fixture.innerHTML = renderers.renderChartCard('lipids_apob', apoBMarker, dateLabels, dates);
+      outcomes.chartCardKeepsNormalUnitsInCompactLayout =
+        !fixture.querySelector('.chart-card-snapshot')?.classList.contains('chart-card-snapshot-stacked')
+        && fixture.querySelector('.chart-card-latest-unit')?.textContent === 'mg/dL';
+      fixture.style.width = '';
+
       fixture.style.width = '240px';
       fixture.innerHTML = renderers.renderChartCard('calculatedRatios_crpHdlRatio', {
         name: 'hs-CRP/HDL-C Ratio', unit: '', values: [0.0001, 2], refMin: 0, refMax: 0.05,
@@ -333,6 +368,8 @@ test('category view renderers browser coverage exercises chart table heatmap and
     'chartCardStatusAndDisplayedRangeUseSamePhaseBounds',
     'chartCardLabelsContextualGuidanceWithoutCallingItALabReference',
     'chartCardShowsDatedOptimalGuidanceBesideReference',
+    'chartCardStacksLongUnitsWithoutOverflowing',
+    'chartCardKeepsNormalUnitsInCompactLayout',
     'chartCardContainsLargeTrendPercentageAtNarrowWidth',
     'chartCardDoesNotCallAValueNormalWithoutARange',
     'chartCardDisambiguatesMultipleResultsInTheSameMonth',
