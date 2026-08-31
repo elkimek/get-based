@@ -6,6 +6,7 @@ import {
   clearSyncDisableStorage,
 } from './sync-disable-cleanup.js';
 import { getPendingBackupRestoreProfileIds } from './sync-backup-restore-state.js';
+import { clearAllProfileSyncDeleteState } from './profile-sync-policy.js';
 import { scheduleSyncRuntimeReload } from './sync-runtime.js';
 import { setSyncEnabled } from './sync-settings-state.js';
 
@@ -186,20 +187,18 @@ export async function restoreFromMnemonic(mnemonic, options = {}) {
     return false;
   }
   const normalizedMnemonic = normalizeMnemonic(mnemonic);
+  const previousMnemonic = normalizeMnemonic(currentAppOwner()?.mnemonic || '');
+  const identityChanged = !previousMnemonic || previousMnemonic !== normalizedMnemonic;
   setRestoreNotice(options?.seedLocal ? 'seed-local' : 'join');
   try {
-    if (options?.seedLocal) {
-      await evolu.restoreAppOwner(normalizedMnemonic);
-    } else {
-      // Evolu defaults restoreAppOwner to reload immediately from inside its
-      // worker. That navigation happens before the returned promise resolves,
-      // so none of the join-finalization below would run. In particular, a
-      // first-time join starts with persist:false and would reload with sync
-      // still disabled, leaving the restored owner unable to pull relay data.
-      // Keep the reset in this page long enough to commit our application
-      // state, then use the controlled reload at the end of this function.
-      await evolu.restoreAppOwner(normalizedMnemonic, { reload: false });
-    }
+    // Evolu 7 defaults restoreAppOwner to reload immediately from inside its
+    // worker. That navigation happens before the returned promise resolves,
+    // so neither join finalization nor seedLocal's recovery push can finish.
+    // Evolu 8 already stays in-page, but accepts this compatibility option.
+    // Keep both clients in this page until GetBased schedules the controlled
+    // reload after committing all identity-transition state below.
+    await evolu.restoreAppOwner(normalizedMnemonic, { reload: false });
+    if (identityChanged) clearAllProfileSyncDeleteState();
     // First-time joins initialize Evolu provisionally. Persist sync only once
     // the requested identity has actually been accepted.
     setSyncEnabled(true);

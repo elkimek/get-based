@@ -65,6 +65,7 @@ test('sync identity browser coverage handles libraries getters pending restore a
       'pendingFlagReadsAndClears',
       'restoreJoinClearsSyncStorageAndMarksPending',
       'restoreSeedLocalClearsPendingAndSeeds',
+      'sameIdentityRestorePreservesPendingDelete',
       'restoreFailureNotifiesAndReturnsFalse',
       'restoreWithoutEvoluReturnsFalse',
     ];
@@ -178,9 +179,14 @@ test('sync identity browser coverage handles libraries getters pending restore a
         'labcharts-relay-quota-warned',
         identity.RESTORE_JOIN_PENDING_KEY,
       ];
+      const identityDeleteKeys = [
+        'labcharts-profile-delete-intent-old-owner-profile',
+        'labcharts-tombstone-pending-old-owner-profile',
+      ];
       const cleanupKeysClearedByJoinRestore = cleanupKeys
         .filter(key => key !== identity.RESTORE_JOIN_PENDING_KEY);
       for (const key of cleanupKeys) localStorage.setItem(key, 'remove-me');
+      for (const key of identityDeleteKeys) localStorage.setItem(key, 'remove-me');
       localStorage.setItem('coverage-keep-key', 'keep-me');
 
       scheduledDelays.length = 0;
@@ -203,6 +209,7 @@ test('sync identity browser coverage handles libraries getters pending restore a
         && seedCalls === 0
         && identity.isRestoreJoinPending() === true
         && cleanupKeysClearedByJoinRestore.every(key => localStorage.getItem(key) === null)
+        && identityDeleteKeys.every(key => localStorage.getItem(key) === null)
         && localStorage.getItem(identity.RESTORE_JOIN_PENDING_KEY) !== null
         && localStorage.getItem(identity.RESTORE_JOIN_PENDING_KEY) !== 'remove-me'
         && localStorage.getItem('coverage-keep-key') === 'keep-me'
@@ -212,15 +219,28 @@ test('sync identity browser coverage handles libraries getters pending restore a
 
       clearNotifications();
       scheduledDelays.length = 0;
+      for (const key of identityDeleteKeys) localStorage.setItem(key, 'remove-on-owner-change');
       const seededResult = await identity.restoreFromMnemonic('seed local mnemonic', { seedLocal: true });
       outcomes.restoreSeedLocalClearsPendingAndSeeds = seededResult === true
         && restoreCalls[1]?.mnemonic === 'seed local mnemonic'
-        && restoreCalls[1]?.options === undefined
+        && restoreCalls[1]?.options?.reload === false
         && seedCalls === 1
+        && identityDeleteKeys.every(key => localStorage.getItem(key) === null)
         && identity.isRestoreJoinPending() === false
         && scheduledDelays.includes(500)
         && notifications().includes('seeded this device')
         && identity.consumeSyncRestoreNotice()?.includes('data was republished') === true;
+
+      identity.configureSyncIdentity({
+        getAppOwner: () => ({ id: 'same-owner', mnemonic: 'same owner mnemonic' }),
+      });
+      for (const key of identityDeleteKeys) localStorage.setItem(key, 'preserve-on-same-owner');
+      const sameOwnerResult = await identity.restoreFromMnemonic(' same   owner\nmnemonic ', { seedLocal: true });
+      outcomes.sameIdentityRestorePreservesPendingDelete = sameOwnerResult === true
+        && restoreCalls[2]?.mnemonic === 'same owner mnemonic'
+        && restoreCalls[2]?.options?.reload === false
+        && identityDeleteKeys.every(key => localStorage.getItem(key) === 'preserve-on-same-owner');
+      for (const key of identityDeleteKeys) localStorage.removeItem(key);
 
       clearNotifications();
       identity.configureSyncIdentity({

@@ -33,8 +33,11 @@ test('sync pull merge browser coverage exercises row recovery merge persistence 
     });
     const profileId = `sync-pull-merge-${Date.now()}`;
     const storedProfileId = `${profileId}_stored`;
+    const fallbackProfileId = `${profileId}_fallback`;
+    const replacementProfileId = `${profileId}_replacement`;
     const localKey = profileStore.profileStorageKey(profileId, 'imported');
     const storedKey = profileStore.profileStorageKey(storedProfileId, 'imported');
+    const replacementKey = profileStore.profileStorageKey(replacementProfileId, 'imported');
     const saved = {
       state: {
         currentProfile: state.currentProfile,
@@ -42,6 +45,7 @@ test('sync pull merge browser coverage exercises row recovery merge persistence 
         profiles: clone(state.profiles),
       },
       encryptionEnabled: localStorage.getItem('labcharts-encryption-enabled'),
+      activeProfile: localStorage.getItem('labcharts-active-profile'),
       profilesRaw: localStorage.getItem('labcharts-profiles'),
       restoreJoinPending: localStorage.getItem('labcharts-sync-restore-join-pending'),
     };
@@ -54,6 +58,7 @@ test('sync pull merge browser coverage exercises row recovery merge persistence 
       localStorage.setItem('labcharts-encryption-enabled', 'false');
       await cryptoStore.encryptedRemoveItem(localKey);
       await cryptoStore.encryptedRemoveItem(storedKey);
+      await cryptoStore.encryptedRemoveItem(replacementKey);
       localStorage.removeItem(`labcharts-${profileId}-sync-ts`);
       localStorage.removeItem(`labcharts-${storedProfileId}-sync-ts`);
       syncDelta.configureSyncDelta({
@@ -225,19 +230,49 @@ test('sync pull merge browser coverage exercises row recovery merge persistence 
         && addedProfile.color === '#abcdef'
         && !Object.prototype.hasOwnProperty.call(addedProfile, 'notes');
 
+      const fallbackAt = Date.now();
+      state.profiles = [{
+        id: fallbackProfileId,
+        name: 'Profile 1',
+        createdAt: fallbackAt,
+        lastUpdated: fallbackAt,
+        _syncReplacementFallbackFor: profileId,
+        _syncReplacementFallbackAt: fallbackAt,
+      }];
+      state.currentProfile = fallbackProfileId;
+      state.importedData = profileStore.createDefaultProfileData();
+      localStorage.setItem('labcharts-active-profile', fallbackProfileId);
+      localStorage.setItem(`labcharts-${fallbackProfileId}-lastViewV1`, 'dashboard');
+      await cryptoStore.encryptedSetItem(replacementKey, JSON.stringify({
+        ...profileStore.createDefaultProfileData(),
+        contextNotes: 'fresh relay replacement',
+      }));
+      const mergedReplacement = await pullMerge.mergePulledProfile(replacementProfileId, {
+        name: 'Fresh replacement',
+      });
+      outcomes.lateRelayReplacementRemovesOnlyUntouchedSafetyFallback =
+        mergedReplacement === true
+        && state.currentProfile === replacementProfileId
+        && state.importedData.contextNotes === 'fresh relay replacement'
+        && profileStore.getProfiles().length === 1
+        && profileStore.getProfiles()[0].id === replacementProfileId;
+
       outcomes.allOutcomesReached = true;
     } finally {
       state.currentProfile = saved.state.currentProfile;
       state.importedData = saved.state.importedData;
       state.profiles = saved.state.profiles;
       restoreLocalValue('labcharts-encryption-enabled', saved.encryptionEnabled);
+      restoreLocalValue('labcharts-active-profile', saved.activeProfile);
       restoreLocalValue('labcharts-profiles', saved.profilesRaw);
       restoreLocalValue('labcharts-sync-restore-join-pending', saved.restoreJoinPending);
       localStorage.removeItem(`labcharts-${profileId}-sync-ts`);
       localStorage.removeItem(`labcharts-${storedProfileId}-sync-ts`);
+      localStorage.removeItem(`labcharts-${fallbackProfileId}-lastViewV1`);
       localStorage.removeItem(storedKey);
       await cryptoStore.encryptedRemoveItem(localKey);
       await cryptoStore.encryptedRemoveItem(storedKey);
+      await cryptoStore.encryptedRemoveItem(replacementKey);
     }
 
     return outcomes;

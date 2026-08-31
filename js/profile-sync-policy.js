@@ -69,6 +69,30 @@ export function clearProfileSyncDeleteState(profileId) {
 }
 
 /**
+ * Delete decisions belong to the Evolu owner under which they were made.
+ * When a browser joins or creates a different owner, retaining these keys
+ * lets an absent profile from the old owner immediately tombstone a matching
+ * profile ID in the new owner. Clear both durable delete layers atomically at
+ * the application boundary; Evolu's own rows remain isolated by owner.
+ */
+export function clearAllProfileSyncDeleteState() {
+  let cleared = 0;
+  try {
+    const keys = [];
+    for (let index = 0; index < localStorage.length; index++) {
+      const key = localStorage.key(index);
+      if (key && (key.startsWith(TOMBSTONE_QUARANTINE_PREFIX)
+        || key.startsWith(PROFILE_DELETE_INTENT_PREFIX))) keys.push(key);
+    }
+    for (const key of keys) {
+      localStorage.removeItem(key);
+      cleared++;
+    }
+  } catch {}
+  return cleared;
+}
+
+/**
  * @param {string | null | undefined} profileId
  * @param {any[]} [profiles]
  * @returns {'demo'|'delete-intent'|'pending-delete'|''}

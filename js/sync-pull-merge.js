@@ -3,7 +3,9 @@
 
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
-import { profileStorageKey, getProfiles, saveProfiles, migrateProfileData } from './profile.js';
+import {
+  getProfiles, loadProfile, migrateProfileData, profileStorageKey, saveProfiles,
+} from './profile.js';
 import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem } from './crypto.js';
 import { mergeImportedData, localHasRowsRemoteLacks, preserveFreshLocalLabEntries } from './data-merge.js';
 import { parseSyncPayload } from './sync-payload.js';
@@ -292,11 +294,44 @@ export async function mergePulledProfile(profileId, profile) {
     if (!changed) return false;
     local.lastUpdated = Date.now();
   } else {
+    let disposableFallbackId = '';
+    for (const candidate of profiles) {
+      if (!candidate?._syncReplacementFallbackFor) continue;
+      const fallbackAt = Number(candidate._syncReplacementFallbackAt || 0);
+      if (!fallbackAt || Date.now() - fallbackAt > 120_000
+          || candidate.createdAt !== fallbackAt || candidate.lastUpdated !== fallbackAt) continue;
+      try {
+        const stored = await encryptedGetItem(profileStorageKey(candidate.id, 'imported'));
+        let hasScopedLocalState = false;
+        const prefix = `labcharts-${candidate.id}-`;
+        for (let index = 0; index < localStorage.length; index++) {
+          const key = localStorage.key(index);
+          // Loading the safety profile writes its last-view route as part of
+          // ordinary shell startup. It is navigation state, not user content.
+          if (key?.startsWith(prefix) && key !== `${prefix}lastViewV1`) {
+            hasScopedLocalState = true;
+            break;
+          }
+        }
+        if (stored === null && !hasScopedLocalState) {
+          disposableFallbackId = candidate.id;
+          break;
+        }
+      } catch {}
+    }
+    if (disposableFallbackId) {
+      profiles.splice(profiles.findIndex(candidate => candidate.id === disposableFallbackId), 1);
+    }
     const newProfile = /** @type {any} */ ({ id: profileId, lastUpdated: Date.now() });
     for (const field of SYNC_PROFILE_FIELDS) {
       if (field in profile) newProfile[field] = profile[field];
     }
     profiles.push(newProfile);
+    await saveProfiles(profiles);
+    if (disposableFallbackId && state.currentProfile === disposableFallbackId) {
+      await loadProfile(profileId);
+    }
+    return true;
   }
   await saveProfiles(profiles);
   return true;

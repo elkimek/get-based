@@ -17,7 +17,7 @@ import { state } from '../js/state.js';
 describe('sync tombstone profile dependencies', () => {
   afterEach(() => {
     localStorage.removeItem('labcharts-tombstone-pending-injected-profile');
-    for (const id of ['batch-a', 'batch-b', 'stale-profile', 'lastonly', 'dirty-local', 'active-restore']) {
+    for (const id of ['batch-a', 'batch-b', 'stale-profile', 'lastonly', 'replaced-old', 'replacement-new', 'dirty-local', 'active-restore']) {
       localStorage.removeItem(`labcharts-tombstone-pending-${id}`);
       localStorage.removeItem(`labcharts-profile-delete-intent-${id}`);
       localStorage.removeItem(`labcharts-${id}-sync-dirty`);
@@ -98,8 +98,9 @@ describe('sync tombstone profile dependencies', () => {
     }
   });
 
-  it('treats a newer live row as Keep and clears its obsolete pending delete', async () => {
+  it('treats a newer live row as Keep and retires obsolete local delete state', async () => {
     localStorage.setItem('labcharts-tombstone-pending-stale-profile', JSON.stringify({ at: 1 }));
+    localStorage.setItem('labcharts-profile-delete-intent-stale-profile', JSON.stringify({ at: 1 }));
     const saveProfiles = vi.fn();
     const previous = configureSyncTombstones({
       getEvolu: () => ({
@@ -116,6 +117,7 @@ describe('sync tombstone profile dependencies', () => {
     try {
       await applyRemoteTombstones();
       expect(localStorage.getItem('labcharts-tombstone-pending-stale-profile')).toBeNull();
+      expect(localStorage.getItem('labcharts-profile-delete-intent-stale-profile')).toBeNull();
       expect(saveProfiles).not.toHaveBeenCalled();
     } finally {
       configureSyncTombstones(previous);
@@ -198,8 +200,63 @@ describe('sync tombstone profile dependencies', () => {
       const replacement = saveProfiles.mock.calls[0][0][0];
       expect(replacement.id).not.toBe('lastonly');
       expect(replacement.tags).toEqual([]);
+      expect(replacement._syncReplacementFallbackFor).toBe('lastonly');
+      expect(replacement._syncReplacementFallbackAt).toBe(replacement.createdAt);
       expect(loadProfile).toHaveBeenCalledWith(replacement.id);
       expect(localStorage.getItem('labcharts-profile-delete-intent-lastonly')).not.toBeNull();
+    } finally {
+      state.currentProfile = oldCurrent;
+      configureSyncTombstones(previous);
+      configureProfileStorageCleanupDeps(cleanupPrevious);
+    }
+  });
+
+  it('adopts a fresh relay profile when clear-all tombstones the last old id', async () => {
+    const oldCurrent = state.currentProfile;
+    state.currentProfile = 'replaced-old';
+    const saveProfiles = vi.fn().mockResolvedValue(undefined);
+    const loadProfile = vi.fn().mockResolvedValue(undefined);
+    const cleanupPrevious = configureProfileStorageCleanupDeps({
+      encryptedRemoveItem: async () => {},
+      getBlobKeys: async () => [],
+      getDatabaseNames: async () => [],
+      deleteWearablesDB: async () => {},
+      deleteCycleDB: async () => {},
+      deleteNutritionDB: async () => {},
+    });
+    const rows = {
+      tombstones: [{
+        id: 'old-tombstone',
+        profileId: 'replaced-old',
+        syncedAt: '2026-08-31T08:00:00.000Z',
+      }],
+      profiles: [{
+        id: 'fresh-row',
+        profileId: 'replacement-new',
+        syncedAt: '2026-08-31T08:00:01.000Z',
+        dataJson: JSON.stringify({
+          _v: 3,
+          importedData: { entries: [] },
+          profile: { id: 'replacement-new', name: 'Primary', pinned: true },
+        }),
+      }],
+    };
+    const previous = configureSyncTombstones({
+      getEvolu: () => ({ getQueryRows: query => rows[query] || [] }),
+      getProfileQuery: () => 'profiles',
+      getTombstoneQuery: () => 'tombstones',
+      getProfiles: () => [{ id: 'replaced-old', name: 'Primary', tags: [] }],
+      saveProfiles,
+      loadProfile,
+    });
+
+    try {
+      await applyRemoteTombstones();
+      expect(saveProfiles).toHaveBeenCalledWith([
+        expect.objectContaining({ id: 'replacement-new', name: 'Primary', pinned: true }),
+      ]);
+      expect(loadProfile).toHaveBeenCalledWith('replacement-new');
+      expect(localStorage.getItem('labcharts-profile-delete-intent-replaced-old')).not.toBeNull();
     } finally {
       state.currentProfile = oldCurrent;
       configureSyncTombstones(previous);
