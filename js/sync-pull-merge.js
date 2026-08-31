@@ -294,28 +294,8 @@ export async function mergePulledProfile(profileId, profile) {
     if (!changed) return false;
     local.lastUpdated = Date.now();
   } else {
-    let disposableFallbackId = '';
-    for (const candidate of profiles) {
-      if (!candidate?._syncFallback?.[0]) continue;
-      const fallbackAt = Number(candidate._syncFallback[1] || 0);
-      if (!fallbackAt || Date.now() - fallbackAt > 120_000
-          || candidate.createdAt !== fallbackAt || candidate.lastUpdated !== fallbackAt) continue;
-      try {
-        const stored = await encryptedGetItem(profileStorageKey(candidate.id, 'imported'));
-        const prefix = `labcharts-${candidate.id}-`;
-        // Loading the safety profile writes its last-view route as part of
-        // ordinary shell startup. It is navigation state, not user content.
-        const hasScopedLocalState = Object.keys(localStorage)
-          .some(key => key.startsWith(prefix) && key !== `${prefix}lastViewV1`);
-        if (stored === null && !hasScopedLocalState) {
-          disposableFallbackId = candidate.id;
-          break;
-        }
-      } catch {}
-    }
-    if (disposableFallbackId) {
-      profiles.splice(profiles.findIndex(candidate => candidate.id === disposableFallbackId), 1);
-    }
+    const disposableFallbackId = await (await import('./clear-all-profile-reset.js'))
+      .removeUntouchedSyncFallback(profiles);
     const newProfile = /** @type {any} */ ({ id: profileId, lastUpdated: Date.now() });
     for (const field of SYNC_PROFILE_FIELDS) {
       if (field in profile) newProfile[field] = profile[field];

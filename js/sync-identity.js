@@ -6,7 +6,6 @@ import {
   clearSyncDisableStorage,
 } from './sync-disable-cleanup.js';
 import { getPendingBackupRestoreProfileIds } from './sync-backup-restore-state.js';
-import { clearAllProfileSyncDeleteState } from './profile-sync-policy.js';
 import { scheduleSyncRuntimeReload } from './sync-runtime.js';
 import { setSyncEnabled } from './sync-settings-state.js';
 
@@ -191,14 +190,12 @@ export async function restoreFromMnemonic(mnemonic, options = {}) {
   const identityChanged = !previousMnemonic || previousMnemonic !== normalizedMnemonic;
   setRestoreNotice(options?.seedLocal ? 'seed-local' : 'join');
   try {
-    // Evolu 7 defaults restoreAppOwner to reload immediately from inside its
-    // worker. That navigation happens before the returned promise resolves,
-    // so neither join finalization nor seedLocal's recovery push can finish.
-    // Evolu 8 already stays in-page, but accepts this compatibility option.
-    // Keep both clients in this page until GetBased schedules the controlled
-    // reload after committing all identity-transition state below.
+    // Keep Evolu 7 from reloading before join/seed finalization. Evolu 8 also
+    // accepts this option; GetBased schedules the controlled reload below.
     await evolu.restoreAppOwner(normalizedMnemonic, { reload: false });
-    if (identityChanged) clearAllProfileSyncDeleteState();
+    if (identityChanged) {
+      (await import('./clear-all-profile-reset.js')).clearAllProfileSyncDeleteState();
+    }
     // First-time joins initialize Evolu provisionally. Persist sync only once
     // the requested identity has actually been accepted.
     setSyncEnabled(true);

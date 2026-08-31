@@ -1,8 +1,8 @@
 // @ts-check
 // profile-sync-policy.js — durable profile admission rules shared by sync paths.
 
-const TOMBSTONE_QUARANTINE_PREFIX = 'labcharts-tombstone-pending-';
-const PROFILE_DELETE_INTENT_PREFIX = 'labcharts-profile-delete-intent-';
+export const TOMBSTONE_QUARANTINE_PREFIX = 'labcharts-tombstone-pending-';
+export const PROFILE_DELETE_INTENT_PREFIX = 'labcharts-profile-delete-intent-';
 
 /** @param {any} profile */
 export function isDemoProfileRecord(profile) {
@@ -66,30 +66,6 @@ export function clearProfileSyncDeleteState(profileId) {
   } catch {
     return intentCleared;
   }
-}
-
-/**
- * Delete decisions belong to the Evolu owner under which they were made.
- * When a browser joins or creates a different owner, retaining these keys
- * lets an absent profile from the old owner immediately tombstone a matching
- * profile ID in the new owner. Clear both durable delete layers atomically at
- * the application boundary; Evolu's own rows remain isolated by owner.
- */
-export function clearAllProfileSyncDeleteState() {
-  let cleared = 0;
-  try {
-    const keys = [];
-    for (let index = 0; index < localStorage.length; index++) {
-      const key = localStorage.key(index);
-      if (key && (key.startsWith(TOMBSTONE_QUARANTINE_PREFIX)
-        || key.startsWith(PROFILE_DELETE_INTENT_PREFIX))) keys.push(key);
-    }
-    for (const key of keys) {
-      localStorage.removeItem(key);
-      cleared++;
-    }
-  } catch {}
-  return cleared;
 }
 
 /**

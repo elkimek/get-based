@@ -7,13 +7,11 @@ import { profileStorageKey } from './profile-storage-key.js';
 import { encryptedGetItem } from './crypto.js';
 import { parseSyncPayload } from './sync-payload.js';
 import { clearProfileStorage } from './profile-storage-cleanup.js';
-import { createUniqueId } from './unique-id.js';
 import { getSyncDirtyToken } from './sync-dirty-state.js';
 import {
   clearLocalProfileDeleteIntent, hasPendingProfileTombstone,
-  isDemoProfileId, isDemoProfileRecord, markLocalProfileDeleteIntent,
+  isDemoProfileId, markLocalProfileDeleteIntent,
 } from './profile-sync-policy.js';
-import { SYNC_PROFILE_FIELDS } from './sync-profile-fields.js';
 
 /** @type {() => any} */
 let _getEvolu = () => null;
@@ -35,6 +33,12 @@ let _saveProfiles = async () => {};
 let _loadProfile = () => {};
 /** @type {(...args: any[]) => any} */
 let _notify = showNotification;
+let profileResetModulePromise;
+
+function loadProfileResetModule() {
+  profileResetModulePromise ||= import('./clear-all-profile-reset.js');
+  return profileResetModulePromise;
+}
 
 /** @param {{
  *   getEvolu?: () => any,
@@ -136,59 +140,6 @@ async function latestRowsByProfileId(rows) {
   return latest;
 }
 
-function createFallbackProfile(existingProfiles, replacedProfileId = '') {
-  const ids = new Set((existingProfiles || []).map(profile => profile?.id).filter(Boolean));
-  let id;
-  do id = createUniqueId('p_'); while (ids.has(id));
-  const now = Date.now();
-  const profile = {
-    id,
-    name: 'Profile 1',
-    sex: null,
-    dob: null,
-    location: { country: '', zip: '' },
-    tags: [],
-    notes: '',
-    status: 'active',
-    avatar: null,
-    height: null,
-    heightUnit: 'cm',
-    createdAt: now,
-    lastUpdated: now,
-    pinned: false,
-  };
-  // This marker is local-only (not in SYNC_PROFILE_FIELDS). If the deleting
-  // device has also published a replacement profile but its row arrives a
-  // moment later, the pull merge can discard this untouched safety profile
-  // instead of leaving the peer with two empty profiles.
-  if (replacedProfileId) {
-    profile._syncFallback = [replacedProfileId, now];
-  }
-  return profile;
-}
-
-async function findRelayReplacementProfile(latestLiveRows, tombIds) {
-  for (const [profileId, row] of latestLiveRows) {
-    if (tombIds.has(profileId)) continue;
-    try {
-      const payload = await parseSyncPayload(row?.dataJson || '');
-      if (!payload?.profile || isDemoProfileRecord(payload.profile)) continue;
-      const now = Date.now();
-      const replacement = createFallbackProfile([{ id: profileId }]);
-      replacement.id = profileId;
-      replacement.createdAt = now;
-      replacement.lastUpdated = now;
-      for (const field of SYNC_PROFILE_FIELDS) {
-        if (Object.prototype.hasOwnProperty.call(payload.profile, field)) {
-          replacement[field] = payload.profile[field];
-        }
-      }
-      return replacement;
-    } catch {}
-  }
-  return null;
-}
-
 // Soft-delete a profile's row on the relay so other devices stop seeing it.
 // Local wipe alone is insufficient: otherwise any peer that pulls the old
 // Evolu row can resurrect the deleted profile.
@@ -239,10 +190,8 @@ export async function applyRemoteTombstones() {
   const tombIds = new Set();
   for (const [profileId, tombstone] of latestTombstones) {
     const live = latestLiveRows.get(profileId);
-    // A newer live row is an explicit Restore/Keep. An older tombstone must
-    // not erase it again on every subscription callback. Retire the deleting
-    // browser's durable intent too; otherwise its pull loop rejects the newer
-    // live row and writes a fresh tombstone, creating a permanent delete loop.
+    // A newer live row explicitly revives the profile. Retire both delete
+    // layers or this browser would reject and tombstone that row again.
     if (!live || rowClock(tombstone) >= rowClock(live)) tombIds.add(profileId);
     else {
       if (hasPendingProfileTombstone(profileId)) {
@@ -297,12 +246,11 @@ export async function applyRemoteTombstones() {
 
   const survivors = profiles.filter(profile => !wipedIds.includes(profile.id));
   if (survivors.length === 0) {
-    // Clear-all publishes a fresh profile id and tombstones the old ids in the
-    // same relay update. Adopt that already-live replacement immediately;
-    // otherwise deleting the last local profile creates a second, browser-only
-    // fallback just before the pull loop materializes the intended fresh row.
-    const relayReplacement = await findRelayReplacementProfile(latestLiveRows, tombIds);
-    survivors.push(relayReplacement || createFallbackProfile(profiles, wipedIds.join(',')));
+    // Adopt a clear-all replacement already in this batch; otherwise create a
+    // temporary fallback for the inbound pull to replace.
+    const profileReset = await loadProfileResetModule();
+    const relayReplacement = await profileReset.findRelayReplacementProfile(latestLiveRows, tombIds);
+    survivors.push(relayReplacement || profileReset.createSyncFallbackProfile(profiles, wipedIds.join(',')));
   }
   await _saveProfiles(survivors);
   for (const id of wipedIds) localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(id));
@@ -341,7 +289,9 @@ export async function applyPendingTombstone(profileId) {
     throw error;
   }
   const survivors = profiles.filter(p => p.id !== profileId);
-  if (survivors.length === 0) survivors.push(createFallbackProfile(profiles, profileId));
+  if (survivors.length === 0) {
+    survivors.push((await loadProfileResetModule()).createSyncFallbackProfile(profiles, profileId));
+  }
   await _saveProfiles(survivors);
   localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
   if (state.currentProfile === profileId) await _loadProfile(survivors[0].id);

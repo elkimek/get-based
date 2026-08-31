@@ -3,6 +3,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  clearAllProfileSyncDeleteState,
   createClearedProfileRecord,
   markClearedProfilesForSync,
   propagateClearedProfilesToRelay,
@@ -14,6 +15,17 @@ afterEach(() => {
 });
 
 describe('clear-all profile reset', () => {
+  it('drops delete state from the previous sync owner only', () => {
+    localStorage.setItem('labcharts-profile-delete-intent-old-profile', '{}');
+    localStorage.setItem('labcharts-tombstone-pending-old-profile', '{}');
+    localStorage.setItem('labcharts-unrelated-setting', 'keep');
+
+    expect(clearAllProfileSyncDeleteState()).toBe(2);
+    expect(localStorage.getItem('labcharts-profile-delete-intent-old-profile')).toBeNull();
+    expect(localStorage.getItem('labcharts-tombstone-pending-old-profile')).toBeNull();
+    expect(localStorage.getItem('labcharts-unrelated-setting')).toBe('keep');
+  });
+
   it('creates a fresh empty profile identity instead of reusing a cleared id', () => {
     const profile = createClearedProfileRecord('Primary', 1234);
 
