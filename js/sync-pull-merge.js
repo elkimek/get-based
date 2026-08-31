@@ -296,23 +296,17 @@ export async function mergePulledProfile(profileId, profile) {
   } else {
     let disposableFallbackId = '';
     for (const candidate of profiles) {
-      if (!candidate?._syncReplacementFallbackFor) continue;
-      const fallbackAt = Number(candidate._syncReplacementFallbackAt || 0);
+      if (!candidate?._syncFallback?.[0]) continue;
+      const fallbackAt = Number(candidate._syncFallback[1] || 0);
       if (!fallbackAt || Date.now() - fallbackAt > 120_000
           || candidate.createdAt !== fallbackAt || candidate.lastUpdated !== fallbackAt) continue;
       try {
         const stored = await encryptedGetItem(profileStorageKey(candidate.id, 'imported'));
-        let hasScopedLocalState = false;
         const prefix = `labcharts-${candidate.id}-`;
-        for (let index = 0; index < localStorage.length; index++) {
-          const key = localStorage.key(index);
-          // Loading the safety profile writes its last-view route as part of
-          // ordinary shell startup. It is navigation state, not user content.
-          if (key?.startsWith(prefix) && key !== `${prefix}lastViewV1`) {
-            hasScopedLocalState = true;
-            break;
-          }
-        }
+        // Loading the safety profile writes its last-view route as part of
+        // ordinary shell startup. It is navigation state, not user content.
+        const hasScopedLocalState = Object.keys(localStorage)
+          .some(key => key.startsWith(prefix) && key !== `${prefix}lastViewV1`);
         if (stored === null && !hasScopedLocalState) {
           disposableFallbackId = candidate.id;
           break;

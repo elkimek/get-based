@@ -200,8 +200,7 @@ describe('sync tombstone profile dependencies', () => {
       const replacement = saveProfiles.mock.calls[0][0][0];
       expect(replacement.id).not.toBe('lastonly');
       expect(replacement.tags).toEqual([]);
-      expect(replacement._syncReplacementFallbackFor).toBe('lastonly');
-      expect(replacement._syncReplacementFallbackAt).toBe(replacement.createdAt);
+      expect(replacement._syncFallback).toEqual(['lastonly', replacement.createdAt]);
       expect(loadProfile).toHaveBeenCalledWith(replacement.id);
       expect(localStorage.getItem('labcharts-profile-delete-intent-lastonly')).not.toBeNull();
     } finally {

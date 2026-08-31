@@ -162,8 +162,7 @@ function createFallbackProfile(existingProfiles, replacedProfileId = '') {
   // moment later, the pull merge can discard this untouched safety profile
   // instead of leaving the peer with two empty profiles.
   if (replacedProfileId) {
-    profile._syncReplacementFallbackFor = replacedProfileId;
-    profile._syncReplacementFallbackAt = now;
+    profile._syncFallback = [replacedProfileId, now];
   }
   return profile;
 }

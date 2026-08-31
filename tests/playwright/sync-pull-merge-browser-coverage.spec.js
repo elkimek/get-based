@@ -236,8 +236,7 @@ test('sync pull merge browser coverage exercises row recovery merge persistence 
         name: 'Profile 1',
         createdAt: fallbackAt,
         lastUpdated: fallbackAt,
-        _syncReplacementFallbackFor: profileId,
-        _syncReplacementFallbackAt: fallbackAt,
+        _syncFallback: [profileId, fallbackAt],
       }];
       state.currentProfile = fallbackProfileId;
       state.importedData = profileStore.createDefaultProfileData();
