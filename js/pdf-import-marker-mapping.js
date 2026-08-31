@@ -8,6 +8,7 @@ import {
   UNIT_CONVERSIONS,
 } from './schema.js';
 import { SPECIALTY_MARKER_DEFS } from './adapters.js';
+import { MOSAIC_MOAT_MARKERS, MOSAIC_OAT_MARKERS } from './mosaic-oat-catalog.js';
 import {
   annotateImportedRatioUnitConventions,
   IMPORTABLE_CALCULATED_MARKER_KEYS,
@@ -711,6 +712,9 @@ export function buildMarkerReference(options = {}) {
     if (!ref[key]) {
       ref[key] = { name: def.name, unit: def.unit, refMin: def.refMin, refMax: def.refMax };
     }
+  }
+  for (const [key, def] of Object.entries({ ...MOSAIC_OAT_MARKERS, ...MOSAIC_MOAT_MARKERS })) {
+    if (!ref[key]) ref[key] = { name: def.name, unit: def.unit, refMin: def.refMin, refMax: def.refMax };
   }
   return ref;
 }

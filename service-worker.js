@@ -231,7 +231,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/pdf-import-marker-mapping.js',
   '/js/pdf-import-ratio-units.js',
   '/js/pdf-import-unit-conversions.js',
-  '/js/pdf-import-marker-normalization.js', '/js/pdf-import-organic-acid-normalization.js',
+  '/js/pdf-import-marker-normalization.js', '/js/pdf-import-organic-acid-normalization.js', '/js/mosaic-oat-catalog.js',
   '/js/pdf-import-persistence.js',
   '/js/export.js', '/js/clear-all-profile-reset.js',
   '/js/export-loader.js',

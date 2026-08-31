@@ -2,6 +2,7 @@
 // Product-safe organic-acid normalization, loaded only with the PDF importer.
 
 import { SPECIALTY_MARKER_DEFS } from './adapters.js';
+import { findMosaicOatAnalyte, mosaicMoatSectionLabel, MOSAIC_OAT_SECTIONS } from './mosaic-oat-catalog.js';
 
 const SAFE_MARKER_PART_RE = /^[a-zA-Z][a-zA-Z0-9_]*$/;
 const OAT_SECTIONS = {
@@ -51,12 +52,12 @@ function catalogMarkerSource(marker, group) {
   return null;
 }
 
-function scopeMarker(marker, prefix, keyPart, label, group) {
+function scopeMarker(marker, prefix, keyPart, label, group, suggestedName) {
   if (!prefix || !keyPart) return;
   const originalDef = SPECIALTY_MARKER_DEFS[marker.mappedKey || marker.suggestedKey];
   marker.mappedKey = null;
   marker.suggestedKey = `${prefix}.${keyPart}`;
-  marker.suggestedName ||= originalDef?.name || marker.rawName;
+  marker.suggestedName ||= suggestedName || originalDef?.name || marker.rawName;
   marker.suggestedCategoryLabel = label;
   marker.suggestedGroup = group;
 }
@@ -90,13 +91,30 @@ function normalizeOatProduct(markers, detectedProduct, labName) {
   const product = detectedProduct || oatProductFromLabName(labName);
   for (const marker of markers) {
     let { category, markerPart } = markerSource(marker);
+    if (product.prefix === 'mosaicOat' || product.kind === 'moat') {
+      const analyte = findMosaicOatAnalyte(markerPart, marker.rawName, marker.suggestedName);
+      const isCreatinine = markerPart === 'urineCreatinine'
+        || /\bcreatinine\b/i.test(`${marker.rawName || ''} ${marker.suggestedName || ''}`);
+      if (product.kind === 'moat') {
+        const keyPart = analyte?.markerPart || (isCreatinine ? 'urineCreatinine' : markerPart);
+        const sectionLabel = mosaicMoatSectionLabel(keyPart);
+        scopeMarker(marker, 'mosaicMoat', keyPart, `Mosaic MOAT: ${sectionLabel}`, 'Mosaic MOAT', analyte?.name);
+        continue;
+      }
+      if (analyte) {
+        const section = MOSAIC_OAT_SECTIONS[analyte.section];
+        scopeMarker(marker, section.prefix, analyte.markerPart, `Mosaic OAT: ${section.label}`, 'Mosaic OAT', analyte.name);
+        continue;
+      }
+      if (isCreatinine) {
+        const section = MOSAIC_OAT_SECTIONS.fluidIntake;
+        scopeMarker(marker, section.prefix, 'urineCreatinine', `Mosaic OAT: ${section.label}`, 'Mosaic OAT', 'Creatinine (Urine)');
+        continue;
+      }
+    }
     if (!OAT_SECTIONS[category] && !category.startsWith(product.prefix)) {
       const catalogSource = catalogMarkerSource(marker, 'OAT');
       if (catalogSource) ({ category, markerPart } = catalogSource);
-    }
-    if (product.kind === 'moat') {
-      scopeMarker(marker, product.prefix, markerPart, `${product.label}: Microbial Overgrowth`, product.group);
-      continue;
     }
     let [suffix, sectionLabel] = OAT_SECTIONS[category] || [];
     if (!suffix && category.startsWith(product.prefix)) {
@@ -163,7 +181,15 @@ function normalizeMetabolomixProduct(markers) {
   }
 }
 
-export function normalizeProductScopedAdapterMarkers(adapter, markers, detectedProduct, labName) {
+export function normalizeProductScopedAdapterMarkers(adapter, markers, detectedProduct, labName, testType) {
   if (adapter?.id === 'metabolomix') normalizeMetabolomixProduct(markers);
-  else if (adapter?.id === 'mosaicOat' || adapter?.id === 'oat') normalizeOatProduct(markers, detectedProduct, labName);
+  else if (adapter?.id === 'mosaicOat' || adapter?.id === 'oat') {
+    let product = detectedProduct;
+    if (!product && adapter.id === 'mosaicOat') {
+      product = /(?:^|\s)moat$/i.test(String(testType || ''))
+        ? { prefix: 'mosaicMoat', label: 'Mosaic MOAT', group: 'Mosaic MOAT', kind: 'moat' }
+        : { prefix: 'mosaicOat', label: 'Mosaic OAT', group: 'Mosaic OAT', kind: 'oat' };
+    }
+    normalizeOatProduct(markers, product, labName);
+  }
 }

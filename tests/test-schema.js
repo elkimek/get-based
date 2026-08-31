@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as dataModule from '../js/data.js';
+import { SPECIALTY_MARKER_DEFS } from '../js/adapters.js';
 import { migrateProfileData } from '../js/profile.js';
 import { MARKER_SCHEMA } from '../js/schema.js';
 
@@ -77,9 +78,15 @@ const pdfImportNormalizationSrc = read('js/pdf-import-marker-normalization.js');
     adaptersSrc.includes('export { ADAPTER_MARKERS as SPECIALTY_MARKER_DEFS }'));
   assert('schema.js does not reverse-import adapters.js', !schemaSrc.includes("from './adapters.js'"));
 
-  // Count entries in adapters.js (the single source of truth)
+  // Count legacy inline entries and the complete runtime catalog.
   const entryCount = (adaptersSrc.match(/"[a-zA-Z]+\.\w+": \{/g) || []).length;
-  assert('Adapter markers have 225 entries', entryCount === 225, `found ${entryCount}`);
+  assert('Legacy inline adapter markers have 225 entries', entryCount === 225, `found ${entryCount}`);
+  assert('Always-loaded adapter markers remain within the 225-entry startup catalog',
+    Object.keys(SPECIALTY_MARKER_DEFS).length === 225, `found ${Object.keys(SPECIALTY_MARKER_DEFS).length}`);
+  assert('PDF import reference includes the lazy Mosaic catalogs',
+    pdfImportMappingSrc.includes("from './mosaic-oat-catalog.js'")
+    && pdfImportMappingSrc.includes('MOSAIC_OAT_MARKERS')
+    && pdfImportMappingSrc.includes('MOSAIC_MOAT_MARKERS'));
 
   // Each entry has required fields
   assert('Entries have name field', adaptersSrc.includes('name:'));
@@ -191,6 +198,10 @@ const pdfImportNormalizationSrc = read('js/pdf-import-marker-normalization.js');
   assert('pdf-import commit imports SPECIALTY_MARKER_DEFS', pdfImportCommitSrc.includes('SPECIALTY_MARKER_DEFS'));
   assert('buildMarkerReference includes specialty defs', pdfImportMappingSrc.includes('Object.entries(SPECIALTY_MARKER_DEFS)'));
   assert('confirmImport auto-creates custom markers for specialty keys', pdfImportCommitSrc.includes('SPECIALTY_MARKER_DEFS[m.mappedKey]'));
+  assert('confirmImport preserves first-class Mosaic marker metadata',
+    pdfImportCommitSrc.includes("from './mosaic-oat-catalog.js'")
+    && pdfImportCommitSrc.includes('MOSAIC_OAT_MARKERS[m.mappedKey]')
+    && pdfImportCommitSrc.includes('MOSAIC_MOAT_MARKERS[m.mappedKey]'));
   assert('Prompt asks for refMin/refMax on all markers', pdfImportSrc.includes('refMin: the lower reference range bound EXACTLY as printed on the PDF'));
   // Adapter integration
   assert('pdf-import normalization imports adapter functions', pdfImportNormalizationSrc.includes("from './adapters.js'"));

@@ -6,6 +6,7 @@ import { ensureCustomMarkerIdentity } from './custom-marker-identity.js';
 import { maybeShowEncryptionNudge } from './crypto.js';
 import { MARKER_SCHEMA } from './schema.js';
 import { SPECIALTY_MARKER_DEFS } from './adapters.js';
+import { MOSAIC_MOAT_MARKERS, MOSAIC_OAT_MARKERS } from './mosaic-oat-catalog.js';
 import { showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
 import { findOrCreateLabEntry } from './lab-entry-mutations.js';
@@ -325,7 +326,9 @@ export async function confirmImport() {
   for (const m of matched) {
     const [catKey, markerKey] = m.mappedKey.split('.');
     const schemaMarker = MARKER_SCHEMA[catKey]?.markers?.[markerKey];
-    const exactSpecialtyDef = SPECIALTY_MARKER_DEFS[m.mappedKey];
+    const exactSpecialtyDef = SPECIALTY_MARKER_DEFS[m.mappedKey]
+      || MOSAIC_OAT_MARKERS[m.mappedKey]
+      || MOSAIC_MOAT_MARKERS[m.mappedKey];
     const productBaseDef = catKey === 'spadiaFA'
       ? SPECIALTY_MARKER_DEFS[`fattyAcids.${markerKey}`]
       : null;

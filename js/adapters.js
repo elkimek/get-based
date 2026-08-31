@@ -480,7 +480,7 @@ const ADAPTERS = [
     id: 'mosaicOat',
     testTypes: ['Mosaic OAT', 'Mosaic MOAT', 'MOAT'],
     productScoped: true,
-    markers: {}, // Uses the legacy OAT catalog, then scopes keys to the Mosaic product
+    markers: {}, // Product catalog is loaded with the importer, not at app startup
     detect(fileName, pdfText) { return _detectMosaicOAT(fileName, pdfText); },
   },
   {

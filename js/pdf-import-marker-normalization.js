@@ -52,7 +52,7 @@ export function normalizeParsedImportMarkers(parsed, {
   if (needsAdapterNormalize && parsed.markers?.length) {
     adapter = detected?.adapter || adapterForTestType || getAdapterByTestType('fattyAcids');
     if (adapter?.productScoped) {
-      normalizeProductScopedAdapterMarkers(adapter, parsed.markers, detected?.product, parsed.labName || null);
+      normalizeProductScopedAdapterMarkers(adapter, parsed.markers, detected?.product, parsed.labName || null, testType);
     } else {
       normalizeWithAdapter(adapter, parsed.markers, fileName, sourceText, detected?.product);
     }
