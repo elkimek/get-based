@@ -20,13 +20,14 @@ describe('chat marker range interpretation contract', () => {
     expect(CHAT_SYSTEM_PROMPT).toContain('Never merge or replace them');
   });
 
-  it('does not turn a missed optional target into an automatic supplement recommendation', () => {
+  it('frames supplement information as educational rather than individualized advice', () => {
     expect(CHAT_SYSTEM_PROMPT).toContain(
-      "Name the specific form and why it fits the user's context and evidence",
+      'educational options to review rather than instructions or a personalized selection',
     );
     expect(CHAT_SYSTEM_PROMPT).not.toContain('D3 + K2');
     expect(CHAT_SYSTEM_PROMPT).toContain(
-      'Do not recommend one solely because an optional target is missed',
+      'do not select one solely because an optional target is missed',
     );
+    expect(CHAT_SYSTEM_PROMPT).toContain('Do not provide an individualized dose');
   });
 });

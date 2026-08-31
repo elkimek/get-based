@@ -35,10 +35,10 @@ protect against code already executing in the getbased origin.
 
 ## Bundled demo coverage
 
-Loading Demo Alex or Demo Sarah generates seven completed days of explicitly
+Loading Demo Alex or Demo Sarah generates 30 completed days of explicitly
 synthetic meal history relative to the load date, so the examples do not age out
-or create future-dated meals. Alex receives 16 entries with a later
-Mediterranean/16:8-style pattern. Sarah receives 21 entries with an earlier,
+or create future-dated meals. Alex receives 69 entries with a later
+Mediterranean/16:8-style pattern. Sarah receives 91 entries with an earlier,
 iron-focused dairy-free pattern. Both histories exercise reviewed photo-style AI
 estimates, a nutrition-label example, a water log, component portions, response
 check-ins, profile-specific targets, Trends, and the Meals & Nutrition context
@@ -121,7 +121,11 @@ call and present it as validation.
 The review UI shows four visible stages—photo preparation, provider wait, result
 validation, and editable-review construction—with elapsed time and a moving
 progress indicator. These stages communicate activity; they do not claim that a
-provider exposes byte-level inference progress.
+provider exposes byte-level inference progress. A running request has an explicit
+**Cancel analysis** action so a slow endpoint does not force a page refresh. Closing
+the modal is a separate action: the live editor is parked in the document and the
+request continues in the background, then **Log meal** restores the same workspace
+and completed result.
 
 The same capture surface now has two explicit modes. **Meal photo** estimates
 foods and portions. **Nutrition label** reads absolute printed amounts, serving
@@ -178,6 +182,11 @@ complete nutrient-days and the comparison period has at least five.
 Before the user saves this setup, the widget labels its built-in values as starter
 guides rather than personal targets. Invalid or blank values stay in the editor
 with a visible correction message instead of silently reverting to defaults.
+Once targets are personal, Dashboard and History use the same green/amber/red
+attainment vocabulary. Exact macro and energy targets grade distance from the
+target, fiber and fluid grade progress toward a minimum, and sugar/sodium limits
+remain favorable until their guide is crossed. Every colored bar also includes a
+text status; starter guides remain visually neutral.
 
 - [EFSA adult protein dietary reference value](https://www.efsa.europa.eu/en/press/news/120209)
 - [ISSN protein and exercise position stand](https://pubmed.ncbi.nlm.nih.gov/28642676/)
@@ -317,16 +326,23 @@ or silently switch to a more expensive one. Before recommending models in the UI
 run the same versioned evaluation set and prompt against each candidate.
 
 When Settings → Display → Debug Mode is enabled, the meal editor exposes a
-secondary **Compare models** workspace. It prepares the selected photo set once,
-then runs 2–4 connected vision models sequentially so provider consent prompts do
-not overlap. Each Run starts one clean, same-input batch for the selected models;
+separate **Meal benchmark** workspace. Its compact photo picker can use views
+copied from Log meal or accept its own views, so Log meal does not need an
+attachment first. Benchmark photos and model choices survive round trips back to
+the current meal draft, while each surface keeps its own photo input. The
+workspace prepares the selected photo set once, then runs 2–4 connected vision
+models in parallel after any required provider consent. Each Run starts one clean, same-input batch for the selected models;
 it never mixes incremental runs made under different conditions. Results use a two-column desktop grid and a single column on narrow
 screens. If one request fails, its card exposes **Retry this model**; retrying
 reuses the prepared photo and run context and does not rerun models that already
-succeeded. The user may enter a reference dish, ingredients, total grams,
+succeeded. Each running card also has **Cancel this model**; canceling one provider
+does not interrupt the other selected models. Closing the workspace parks it in
+the background, and reopening Log meal restores the in-flight or completed cards.
+The user may enter a reference dish, ingredients, total grams,
 energy, and macros. Manual reference mode activates as soon as any reference
 value is entered, and completed result scores update as the values are edited—no
-separate enable step is required. A deterministic browser-local score ranks
+separate enable step is required. The optional known-values editor is collapsed
+until needed to keep the default setup compact. A deterministic browser-local score ranks
 nutrient/weight error and ingredient-name overlap against that reference.
 The uncalibrated identity self-check is labeled separately and is never used as
 correctness or ranking. Without reference data the view remains a side-by-side comparison

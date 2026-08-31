@@ -326,6 +326,7 @@ test('report payload and HTML cover filtered context genetics and supplement bra
       return toDateString(date);
     };
     const recentDate = daysAgo(8);
+    const excludedCategoryDate = daysAgo(20);
     const midDate = daysAgo(45);
     const oldDate = daysAgo(170);
 
@@ -355,6 +356,12 @@ test('report payload and HTML cover filtered context genetics and supplement bra
             },
           },
           {
+            date: excludedCategoryDate,
+            markers: {
+              'hematology.hemoglobin': 121,
+            },
+          },
+          {
             date: recentDate,
             markers: {
               'biochemistry.glucose': 8.4,
@@ -367,16 +374,23 @@ test('report payload and HTML cover filtered context genetics and supplement bra
           { date: oldDate, text: 'Old note outside report window' },
           { date: recentDate, text: 'Recent report note <escaped>' },
         ],
-        supplements: [{
-          name: 'Magnesium Complex',
-          dosage: '2 caps',
-          type: 'supplement',
-          startDate: oldDate,
-          periods: [{ start: oldDate, end: '' }],
-          timesPerDay: 2,
-          ingredients: [{ name: 'Magnesium glycinate', amount: '100 mg' }],
-          note: 'Take with dinner <not raw>',
-        }],
+        supplements: [
+          {
+            name: 'Magnesium Complex',
+            dosage: '2 caps',
+            type: 'supplement',
+            startDate: oldDate,
+            periods: [{ start: oldDate, end: '' }],
+            timesPerDay: 2,
+            ingredients: [{ name: 'Magnesium glycinate', amount: '100 mg' }],
+            note: 'Take with dinner <not raw>',
+          },
+          {
+            name: 'Ended Before Window',
+            type: 'medication',
+            periods: [{ start: oldDate, end: daysAgo(150) }],
+          },
+        ],
         biometrics: {
           weight: [{ date: recentDate, value: 180, unit: 'lb' }],
           bp: [{ date: recentDate, sys: 116, dia: 74 }],
@@ -453,10 +467,14 @@ test('report payload and HTML cover filtered context genetics and supplement bra
         && payload.sexLabel === 'Female'
         && payload.data.dates.includes(recentDate)
         && payload.data.dates.includes(midDate)
+        && !payload.data.dates.includes(excludedCategoryDate)
         && !payload.data.dates.includes(oldDate)
         && Object.keys(payload.data.categories).join('|') === 'biochemistry|vitamins'
         && payload.notes.length === 1
         && payload.notes[0].text.includes('Recent report note')
+        && payload.supps.length === 1
+        && payload.supps[0].name === 'Magnesium Complex'
+        && payload.reportData.labs.dates.join('|') === `${midDate}|${recentDate}`
         && payload.flags.some(flag => flag.name === 'Glucose');
 
       const contextByTitle = Object.fromEntries(payload.contextSections.map(section => [section.title, section.text]));
@@ -537,7 +555,8 @@ test('report payload and HTML cover filtered context genetics and supplement bra
         && reportHtml.includes('Supplements & Medications')
         && reportHtml.includes('Notes')
         && reportHtml.includes('Genetics')
-        && reportHtml.includes('Profile Context');
+        && reportHtml.includes('Profile Context')
+        && !reportHtml.includes('Ended Before Window');
       outcomes.htmlEscapesAndFormatsSupplementContextAndGenetics = reportHtml.includes('Recent report note &lt;escaped&gt;')
         && reportHtml.includes('Take with dinner &lt;not raw&gt;')
         && reportHtml.includes('Magnesium glycinate 100 mg x 2/day -&gt; 200 mg/day')
@@ -1213,6 +1232,26 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
       outcomes.facadeAISummaryReturnsNullWhenProviderUnavailable = unavailable === null
         && Array.from(document.querySelectorAll('.notification-toast.error'))
           .some(toast => toast.textContent.includes('Connect an AI provider'));
+
+      dataModule.invalidateActiveDataCache?.();
+      const reportOptions = {
+        preset: 'full',
+        dateRange: 'all',
+        sections: ['summary', 'categories', 'supplements', 'notes', 'context'],
+        categoryKeys: ['biochemistry'],
+      };
+      const portableReport = exportFacade.collectReportData(reportOptions);
+      const agentReportContext = exportFacade.buildReportAgentContext(reportOptions);
+      outcomes.reportFacadeExposesPortableDataAndAgentProjection = portableReport.schemaVersion === 1
+        && portableReport.profile.name === 'Export Facade'
+        && portableReport.labs.categories[0].markers.some(marker => marker.name === 'Glucose')
+        && portableReport.notes[0].text === 'Export facade note'
+        && portableReport.supplements[0].name === 'Zinc'
+        && portableReport.context.raw.sunSessions[0].id === 'sun-export'
+        && JSON.parse(JSON.stringify(portableReport)).labs.summary.markerCount > 0
+        && agentReportContext.includes('Profile: Export Facade')
+        && agentReportContext.includes('Representative latest lab results:')
+        && agentReportContext.includes('Export facade note');
 
       exportFacade.exportDataJSON();
       await waitFor(() => downloadRecords.length >= 1, 'legacy client export download');

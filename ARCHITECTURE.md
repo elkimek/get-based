@@ -70,7 +70,10 @@ Ultrahuman, and Google Health are self-host-only and use the deployment owner's
 OAuth application. Confidential token exchange and refresh use its same-origin
 proxy; WHOOP and Google Health resource requests also transit it, while
 Ultrahuman resource data is fetched browser-direct. No client path falls back
-to getbased infrastructure.
+to getbased infrastructure. WHOOP and Google Health raw rows are protected by
+non-exportable device keys and omitted from portable raw-data backups. WHOOP-
+specific profile metadata and derived values use the same device-only boundary
+independently of optional profile passphrase protection.
 
 The hosted CAMS operation is the only plaintext location route. The browser
 rounds to 0.1° and the compatibility relay repeats that rounding before an
@@ -150,7 +153,7 @@ dependency.
 | Light and environment | `light-*`, `sun-*`, `emf*` | Light measurements, spectral/session models, environment and EMF context |
 | AI, voice, and knowledge | `api-*`, `provider-*`, `chat-*`, `voice-*`, `lens-*`, `pii.js` | Provider routing, prompt/context workflows, STT/TTS, RAG, transport, and PII controls |
 | Sync and Agent Access | `sync-*` | Encrypted CRDT payloads, deltas, relay health, configured/paused identity lifecycle, restore preflight, and agent context |
-| Import/export | `pdf-import*`, `import-*`, `export*`, `backup*` | File classification, review/commit, reports, backups, and restoration |
+| Import/export | `pdf-import*`, `import-*`, `export*`, `backup*` | File classification, review/commit, portable report-data snapshots, PDF/agent projections, backups, and restoration |
 | Presentation | `dashboard-*`, `context-card-*`, `settings*`, `modal-*` | Views, editing surfaces, settings, accessibility, and interaction lifecycle |
 | Hosted and local server runtime | `api/*`, `lib/*`, `dev-server.js` | Server-side validation, proxy transport, sharing, and repository operations |
 

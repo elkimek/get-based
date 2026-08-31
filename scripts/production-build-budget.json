@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "maximums": {
     "startupJavaScriptFiles": 2,
-    "startupDecodedBytes": 1170000,
+    "startupDecodedBytes": 1175000,
     "outputJavaScriptFiles": 158,
-    "outputDecodedBytes": 4925000
+    "outputDecodedBytes": 5000000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -32,8 +32,15 @@
     "mealsNutritionFoodCompositionRuntimeDataBytes": 1066347,
     "mealsNutritionHistoryOutputDecodedBytes": 4907565,
     "mealsNutritionHydrationSerializationOutputDecodedBytes": 4908141,
-    "mealsNutritionSyncRebaseOutputDecodedBytes": 4908949
+    "mealsNutritionSyncRebaseOutputDecodedBytes": 4908949,
+    "nutritionReportReadinessOutputDecodedBytes": 4955086,
+    "whoopDeviceProtectionStartupDecodedBytes": 1170666,
+    "evolu8IdentityVaultOutputDecodedBytes": 4979169,
+    "evolu8IdentityVaultStartupDecodedBytes": 1170997,
+    "evolu8ReplicaSettleStartupDecodedBytes": 1172652,
+    "evolu8CompactionMergeStartupDecodedBytes": 1173359,
+    "evolu8ScalarMergeStartupDecodedBytes": 1173660
   },
   "referenceCommit": "807732a8",
-  "measuredAt": "2026-08-26"
+  "measuredAt": "2026-08-30"
 }

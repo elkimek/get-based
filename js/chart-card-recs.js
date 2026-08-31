@@ -24,8 +24,8 @@ export async function loadChartCardRecs() {
     badge.type = 'button';
     badge.className = 'ctx-tips-badge';
     badge.textContent = 'Tips';
-    badge.title = 'What can help';
-    badge.setAttribute('aria-label', `Open actionable tips for ${id.replaceAll('_', ' ')}`);
+    badge.title = 'Context and options';
+    badge.setAttribute('aria-label', `Open general-information tips for ${id.replaceAll('_', ' ')}`);
     badge.onclick = e => {
       e.stopPropagation();
       showDetailModal(id, { scrollToRec: true });
@@ -46,6 +46,6 @@ export async function loadChartCardRecs() {
   const modalOpen = !!document.querySelector('.modal-overlay.show');
   if (recLinks.length > 0 && !modalOpen && !localStorage.getItem('labcharts-rec-nudge-seen')) {
     localStorage.setItem('labcharts-rec-nudge-seen', '1');
-    showNotification(`${recLinks.length} marker${recLinks.length > 1 ? 's have' : ' has'} actionable tips \u2014 look for the Tips badge on your chart cards`, 'info');
+    showNotification(`${recLinks.length} marker${recLinks.length > 1 ? 's have' : ' has'} optional tips \u2014 look for the Tips badge on your chart cards`, 'info');
   }
 }

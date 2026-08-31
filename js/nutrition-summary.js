@@ -9,7 +9,7 @@ import { NUTRITION_KEYS } from './nutrition-nutrient-registry.js';
 export { buildNutritionHistoryAnalysisPrompt, buildNutritionSummaryContext, NUTRITION_CONTEXT_CHAR_LIMIT } from './nutrition-summary-context.js';
 export { NUTRITION_KEYS };
 
-export const NUTRITION_SUMMARY_VERSION = 18;
+export const NUTRITION_SUMMARY_VERSION = 19;
 const NUTRITION_TOMBSTONE_KEYS = ['_deleted', '_deletedAt', '_deletedClearedAt'];
 
 function nutritionSyncSurface(importedData) {
@@ -245,17 +245,47 @@ function timingSummary(meals, sleepIntervals = []) {
     const key = mealDayKey(meal);
     if (minutes === null || !key) continue;
     mealsWithTiming += 1;
-    const day = byDay.get(key) || { first: minutes, last: minutes, meals: 0 };
-    day.first = Math.min(day.first, minutes);
-    day.last = Math.max(day.last, minutes);
+    const instant = new Date(meal?.eatenAt).getTime();
+    const validInstant = Number.isFinite(instant) ? instant : null;
+    const day = byDay.get(key) || {
+      first: minutes,
+      last: minutes,
+      firstInstant: validInstant,
+      lastInstant: validInstant,
+      meals: 0,
+    };
+    if (minutes < day.first) {
+      day.first = minutes;
+      day.firstInstant = validInstant;
+    }
+    if (minutes > day.last) {
+      day.last = minutes;
+      day.lastInstant = validInstant;
+    }
     day.meals += 1;
     byDay.set(key, day);
   }
-  const days = [...byDay.values()];
+  const dayEntries = [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b));
+  const days = dayEntries.map(([, day]) => day);
   const eatingWindows = days.filter(day => day.meals >= 2).map(day => day.last - day.first);
+  const fastingWindows = [];
+  for (let index = 0; index < dayEntries.length - 1; index += 1) {
+    const [currentKey, current] = dayEntries[index];
+    const [nextKey, next] = dayEntries[index + 1];
+    const currentDate = localDateFromKey(currentKey);
+    const nextDate = localDateFromKey(nextKey);
+    if (!currentDate || !nextDate || localCalendarDayNumber(nextDate) - localCalendarDayNumber(currentDate) !== 1) continue;
+    const instantGap = Number.isFinite(current.lastInstant) && Number.isFinite(next.firstInstant)
+      ? Math.round((next.firstInstant - current.lastInstant) / 60000)
+      : null;
+    const clockGap = 1440 - current.last + next.first;
+    const gap = instantGap !== null && instantGap > 0 ? instantGap : clockGap;
+    if (gap > 0 && gap <= 48 * 60) fastingWindows.push(gap);
+  }
   const averageFirstMealMinutes = averageRounded(days.map(day => day.first));
   const averageLastMealMinutes = averageRounded(days.map(day => day.last));
   const averageEatingWindowMinutes = averageRounded(eatingWindows);
+  const averageFastingWindowMinutes = averageRounded(fastingWindows);
   const averageFirstMealLocalTime = clockTime(averageFirstMealMinutes);
   const averageLastMealLocalTime = clockTime(averageLastMealMinutes);
   const sleepRelative = sleepRelativeMealSummary(meals, sleepIntervals);
@@ -268,6 +298,8 @@ function timingSummary(meals, sleepIntervals = []) {
     averageLastMealLocalTime,
     averageEatingWindowMinutes,
     eatingWindowDays: eatingWindows.length,
+    averageFastingWindowMinutes,
+    fastingWindowDays: fastingWindows.length,
     occasionCounts,
     sleepRelative,
   };

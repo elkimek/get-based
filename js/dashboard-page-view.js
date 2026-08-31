@@ -233,10 +233,10 @@ export function createDashboardPageView(deps) {
       const aiConnectionReminder = renderAIConnectionReminder();
       const primaryTitle = aiPaused ? 'Resume guided chat' : 'Start with guided chat';
       const primaryCopy = aiPaused
-        ? 'Chat will walk you through re-enabling AI before you add files, connect sources, or ask for recommendations.'
+        ? 'Chat will walk you through re-enabling AI before you add files, connect sources, or explore optional tips.'
         : (aiReady
           ? 'Chat will ask for context only when it helps, then route you to labs, DNA, wearables, light, or first-test planning.'
-          : 'Chat starts with the basics, then guides AI setup only when it is needed for import or recommendations.');
+          : 'Chat starts with the basics, then guides AI setup only when it is needed for import or optional tips.');
       const secondaryAction = aiPaused
         ? `<button type="button" class="welcome-action-btn" ${dashboardWelcomeActionAttrs('open-ai-settings')}>Re-enable AI</button>
            <button type="button" class="welcome-action-btn welcome-direct-import-btn" ${dashboardWelcomeActionAttrs('direct-import')}>Import file</button>`

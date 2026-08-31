@@ -8,7 +8,12 @@ import {
   isSyncConfigured, isSyncEnabled, primeSyncState, setSyncEnabled,
 } from './sync-settings-state.js';
 import { bindSyncRecoveryEvents } from './sync-recovery.js';
-import { bindSyncSubscriptions, startRelayProbe } from './sync-subscriptions.js';
+import {
+  bindSyncSubscriptions, getSyncSubscriptionFireCount, startRelayProbe,
+} from './sync-subscriptions.js';
+import {
+  beginSyncRebroadcastSettling, finishSyncRebroadcastSettling,
+} from './sync-pull-rebroadcast.js';
 import { scheduleOwnerStorageRefresh } from './sync-relay-health.js';
 import { consumeSyncRestoreNotice } from './sync-identity.js';
 import {
@@ -21,31 +26,64 @@ import {
 
 /** @type {() => Promise<any>} */
 let _reconcileLocalStorageWithEvolu = async () => {};
+/** @type {() => Promise<any> | undefined} */
+let _forcePull = () => Promise.resolve();
+let _isSyncPulling = () => false;
 
-/** @param {{ reconcileLocalStorageWithEvolu?: () => Promise<any> }} [deps] */
-export function configureSyncInit({ reconcileLocalStorageWithEvolu } = {}) {
+/** @param {{
+ *   reconcileLocalStorageWithEvolu?: () => Promise<any>,
+ *   forcePull?: () => Promise<any> | undefined,
+ *   isSyncPulling?: () => boolean,
+ * }} [deps] */
+export function configureSyncInit({
+  reconcileLocalStorageWithEvolu,
+  forcePull,
+  isSyncPulling,
+} = {}) {
   if (typeof reconcileLocalStorageWithEvolu === 'function') {
     _reconcileLocalStorageWithEvolu = reconcileLocalStorageWithEvolu;
   }
+  if (typeof forcePull === 'function') _forcePull = forcePull;
+  if (typeof isSyncPulling === 'function') _isSyncPulling = isSyncPulling;
 }
 
 function reconcileLocalStorageWithEvolu() {
   return _reconcileLocalStorageWithEvolu();
 }
 
+const INITIAL_REPLICA_MIN_SETTLE_MS = 1000;
+const INITIAL_REPLICA_QUIET_MS = 750;
+const INITIAL_REPLICA_MAX_SETTLE_MS = 10000;
+const INITIAL_REPLICA_POLL_MS = 250;
+
+export async function waitForInitialReplicaQuiet({
+  getFireCount = getSyncSubscriptionFireCount,
+  isPulling = _isSyncPulling,
+  now = Date.now,
+  wait = ms => new Promise(resolve => setTimeout(resolve, ms)),
+} = {}) {
+  const startedAt = now();
+  let quietSince = startedAt;
+  let lastFireCount = getFireCount();
+  while (now() - startedAt < INITIAL_REPLICA_MAX_SETTLE_MS) {
+    await wait(INITIAL_REPLICA_POLL_MS);
+    const currentFireCount = getFireCount();
+    if (currentFireCount !== lastFireCount || isPulling()) quietSince = now();
+    lastFireCount = currentFireCount;
+    if (now() - startedAt >= INITIAL_REPLICA_MIN_SETTLE_MS
+        && now() - quietSince >= INITIAL_REPLICA_QUIET_MS
+        && !isPulling()) return true;
+  }
+  return false;
+}
+
 /** @param {...any} args */
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
-
-// Keep Evolu as a runtime-loaded vendor module. If the production bundler
-// absorbs it into a /js/bundle-*.js chunk, Evolu's import.meta-relative
-// Db.worker.js URL moves with the chunk and incorrectly becomes
-// /js/Db.worker.js. The worker and its SQLite assets intentionally live
-// together under /vendor/evolu in both source and production deployments.
-const EVOLU_BUNDLE_URL = new URL('../vendor/evolu/evolu-bundle.js', import.meta.url).href;
 
 export async function initSync() {
   primeSyncState();
   if (!isSyncConfigured()) return;
+  let needsInitialReplicaBarrier = false;
 
   // Fail fast if the webview doesn't have what Evolu needs. Otherwise the
   // worker hangs forever on appOwner and the toggle/restore flow looks
@@ -75,19 +113,17 @@ export async function initSync() {
   await new Promise(r => setTimeout(r, 0));
 
   try {
-    const { createEvolu, id, nullOr, SimpleName, NonEmptyString, evoluWebDeps } =
-      await import(EVOLU_BUNDLE_URL);
-
-    const Schema = createSyncSchema({ id, nullOr, NonEmptyString });
-
     const relay = getSyncRelay();
-    const evolu = createEvolu(evoluWebDeps)(Schema, {
-      name: SimpleName.orThrow("getbased4"),
+    const { createSyncEvoluClient } = await import('./sync-evolu8-candidate.js');
+    const evolu = await createSyncEvoluClient({
+      createSyncSchema,
+      relay,
       reloadUrl: getSyncReloadUrlRuntime(),
       enableLogging: isDebugMode(),
-      transports: [{ type: "WebSocket", url: relay }],
     });
     setSyncEvolu(evolu);
+    needsInitialReplicaBarrier = evolu.__evoluClientVersion === 8 && isSyncEnabled();
+    if (needsInitialReplicaBarrier) beginSyncRebroadcastSettling();
 
     const { profileQuery, tombstoneQuery, itemRowQuery } = createSyncQueries(evolu);
     setSyncQueries({ profileQuery, tombstoneQuery, itemRowQuery });
@@ -108,8 +144,15 @@ export async function initSync() {
     });
     setSyncQueryLoadedPromise(queryLoaded);
 
-    // Wait for owner (mnemonic) - signals DB is ready.
-    const readyPromise = evolu.appOwner.then(owner => {
+    // Wait for owner (mnemonic) - signals DB is ready. The v8 bridge receives
+    // its owner before the new database has answered its first queries, while
+    // v7 historically resolves those in the opposite order. Preserve the app
+    // contract: once the owner is visible, syncNow must not mistake an
+    // unloaded query cache for an empty database and insert duplicate rows.
+    const ownerReady = evolu.__evoluClientVersion === 8
+      ? queryLoaded.then(() => evolu.appOwner)
+      : evolu.appOwner;
+    const readyPromise = ownerReady.then(owner => {
       setSyncAppOwner(owner);
       setSyncAppOwnerError(null);
       const restoreNotice = consumeSyncRestoreNotice();
@@ -156,12 +199,24 @@ export async function initSync() {
     // detect the divergence after init + force-push so the row catches
     // up. Defer until after appOwner + initial query both load - those
     // are async and the CRDT row doesn't exist until then.
-    Promise.all([readyPromise, queryLoaded]).then(() => {
-      reconcileLocalStorageWithEvolu().catch(e => {
-        console.warn('[sync] Startup reconciliation failed:', e);
-      });
+    Promise.all([readyPromise, queryLoaded]).then(async () => {
+      if (needsInitialReplicaBarrier) {
+        try {
+          await waitForInitialReplicaQuiet();
+          await _forcePull();
+        } catch (e) {
+          console.warn('[sync] Initial Evolu 8 replica settling failed:', e);
+        } finally {
+          finishSyncRebroadcastSettling();
+        }
+      }
+      await reconcileLocalStorageWithEvolu();
+    }).catch(e => {
+      if (needsInitialReplicaBarrier) finishSyncRebroadcastSettling();
+      console.warn('[sync] Startup reconciliation failed:', e);
     });
   } catch (e) {
+    if (needsInitialReplicaBarrier) finishSyncRebroadcastSettling();
     console.error('[sync] Failed to initialize Evolu:', e);
     setSyncEnabled(false, { persist: false });
   }

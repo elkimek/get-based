@@ -1677,21 +1677,28 @@ assert('Encryption envelope leaves source + date plaintext',
   /\{\s*source,\s*date,\s*_payload:\s*env\s*\}/.test(storeSrcV29));
 assert('Read-side returns null on decrypt failure (no nested-envelope re-write hazard)',
   /if \(!decrypted\) return null/.test(storeSrcV29));
-assert('Google Health rows use an always-on device-local encryption envelope',
-  /ALWAYS_DEVICE_ENCRYPTED_SOURCES\s*=\s*new Set\(\['google_health'\]\)/.test(storeSrcV29)
+assert('WHOOP and Google Health rows use an always-on device-local encryption envelope',
+  /ALWAYS_DEVICE_ENCRYPTED_SOURCES\s*=\s*new Set\(\['google_health',\s*'whoop'\]\)/.test(storeSrcV29)
   && /_devicePayload:\s*await encryptWearableDeviceLocalValue/.test(storeSrcV29)
   && /decryptWearableDeviceLocalValue\(profileId,\s*unwrapped\._devicePayload\)/.test(storeSrcV29));
-assert('Google Health raw rows are excluded from profile backups with their device key',
-  /Google Health raw rows use an always-on device key/.test(backupSrc31)
-  && !/const KNOWN_SOURCES = \[[^\]]*google_health/.test(backupSrc31));
+assert('WHOOP and Google Health raw rows are excluded from profile backups with their device key',
+  /WHOOP and Google Health raw rows use an always-on device key/.test(backupSrc31)
+  && !/const KNOWN_SOURCES = \[[^\]]*google_health/.test(backupSrc31)
+  && !/const KNOWN_SOURCES = \[[^\]]*whoop/.test(backupSrc31));
 const credentialVaultSrc = await fetch('/js/wearables-credential-vault.js').then(r => r.text());
 assert('Every OAuth wearable stores tokens in the device-local credential vault',
   /VAULTED_CREDENTIAL_ADAPTERS\s*=\s*new Set\(\[[\s\S]*?'oura'[\s\S]*?'whoop'[\s\S]*?'withings'[\s\S]*?'ultrahuman'[\s\S]*?'fitbit'[\s\S]*?'google_health'[\s\S]*?'polar'/.test(credentialVaultSrc));
 const wearableSettingsPanelSrc = await fetch('/js/wearables-settings-panel.js').then(r => r.text());
-assert('Wearable settings distinguish always-encrypted tokens from conditionally encrypted non-Google history',
-  wearableSettingsPanelSrc.includes('Connection keys and Google Health imports are always encrypted on this device.')
+const whoopStorageProtection = await import('../js/wearables-whoop-storage.js');
+assert('Wearable settings distinguish always-encrypted restricted imports from other history',
+  wearableSettingsPanelSrc.includes('Connection keys plus WHOOP and Google Health imports are always encrypted on this device.')
     && wearableSettingsPanelSrc.includes('Other imported history is encrypted when you protect the profile with a passphrase.')
     && !wearableSettingsPanelSrc.includes('Tokens and imported history are always encrypted'));
+assert('WHOOP connect asks for explicit storage consent before OAuth',
+  whoopStorageProtection.WHOOP_CONNECT_DISCLOSURE.includes('No write access is requested')
+    && whoopStorageProtection.WHOOP_CONNECT_DISCLOSURE.includes('authorize this deployment to access and store')
+    && whoopStorageProtection.WHOOP_CONNECT_DISCLOSURE.includes('end-to-end-encrypted relay')
+    && whoopStorageProtection.WHOOP_CONNECT_DISCLOSURE.includes('Disconnecting deletes'));
 
 // ═══════════════════════════════════════
 // 17v. Test isolation regression guard (v1.28.1)
@@ -1939,6 +1946,8 @@ console.log('17y. P1 Audit Fixes');
 const swSrc = await fetch('/service-worker.js').then(r => r.text());
 assert('Service-worker static cache lists wearables-manual.js',
   /\/js\/wearables-manual\.js/.test(swSrc));
+assert('Service-worker static cache lists WHOOP device-protected profile storage',
+  /\/js\/wearables-whoop-storage\.js/.test(swSrc));
 assert('Service-worker static cache lists extracted wearable detail modules',
   /\/js\/wearables-detail-modal\.js/.test(swSrc) &&
   /\/js\/wearables-detail-runtime\.js/.test(swSrc) &&

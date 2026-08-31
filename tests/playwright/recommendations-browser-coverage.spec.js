@@ -356,8 +356,8 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       });
       host.innerHTML = sectionHtml;
       outcomes.syncRenderBuildsAllTiers = sectionHtml.includes('Coverage recommendations')
-        && sectionHtml.includes('NATURE')
-        && sectionHtml.includes('WHOLE FOOD')
+        && sectionHtml.includes('LIFESTYLE IDEAS')
+        && sectionHtml.includes('FOOD EXAMPLES')
         && sectionHtml.includes('TOOLS')
         && sectionHtml.includes('SUPPLEMENTS')
         && sectionHtml.includes('PHARMACEUTICALS')

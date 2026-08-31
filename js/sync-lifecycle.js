@@ -96,6 +96,8 @@ export async function pauseSync() {
 }
 
 export async function disableSync() {
+  const evolu = getSyncEvolu();
+  if (evolu?.prepareHistoryResetForDisable?.() === false) return false;
   // Flip the persisted flag FIRST, before any awaits. If anything below
   // hangs (Evolu worker stuck on OPFS or a Web Lock), a manual page
   // reload will still see sync as off.
@@ -129,7 +131,6 @@ export async function disableSync() {
   // resolves and the user sees the toggle silently do nothing.
   // The page reload below kills the worker process anyway, so a
   // half-completed reset is harmless - the new tab boots clean.
-  const evolu = getSyncEvolu();
   if (evolu) {
     try {
       Promise.resolve(evolu.resetAppOwner({ reload: false }))
@@ -146,4 +147,5 @@ export async function disableSync() {
   // Reload regardless of whether Evolu cooperated. ~250ms gives the toast
   // time to render before the page swaps.
   scheduleSyncRuntimeReload(250);
+  return true;
 }

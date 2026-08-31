@@ -59,6 +59,7 @@ await import('../js/settings.js');
   const syncSettingsStateSrc = await fetchWithRetry('js/sync-settings-state.js');
   const syncRuntimeSrc = await fetchWithRetry('js/sync-runtime.js');
   const syncInitSrc = await fetchWithRetry('js/sync-init.js');
+  const syncEvoluClientSrc = await fetchWithRetry('js/sync-evolu8-candidate.js');
   const syncLifecycleSrc = await fetchWithRetry('js/sync-lifecycle.js');
   const syncDisableCleanupSrc = await fetchWithRetry('js/sync-disable-cleanup.js');
   const syncSchemaSrc = await fetchWithRetry('js/sync-schema.js');
@@ -237,7 +238,8 @@ await import('../js/settings.js');
   assert('sync-init.js owns Evolu startup orchestration',
     syncSrc.includes("from './sync-init.js'")
       && syncInitSrc.includes('export async function initSync')
-      && syncInitSrc.includes('createSyncSchema({')
+      && syncInitSrc.includes('createSyncEvoluClient({')
+      && syncEvoluClientSrc.includes('createSyncSchema({')
       && syncInitSrc.includes('createSyncQueries(evolu)')
       && syncInitSrc.includes('bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, itemRowQuery })')
       && syncInitSrc.includes('startRelayProbe();')
@@ -246,6 +248,8 @@ await import('../js/settings.js');
       && syncInitSrc.includes('setSyncQueries({ profileQuery, tombstoneQuery, itemRowQuery })'));
   assert('service worker precaches sync-init.js',
     serviceWorkerSrc.includes("'/js/sync-init.js'"));
+  assert('service worker precaches the lazy Evolu client selector',
+    serviceWorkerSrc.includes("'/js/sync-evolu8-candidate.js'"));
   assert('sync-lifecycle.js owns enable/pause/disable lifecycle actions',
     !syncSrc.includes("from './sync-lifecycle.js'")
       && startupOrchestratorSrc.includes("from './sync-lifecycle.js'")
@@ -281,7 +285,7 @@ await import('../js/settings.js');
     syncInitSrc.includes("from './sync-schema.js'")
       && syncSchemaSrc.includes('export function createSyncSchema')
       && syncSchemaSrc.includes('export function createSyncQueries')
-      && syncInitSrc.includes('createSyncSchema({')
+      && syncEvoluClientSrc.includes('createSyncSchema({')
       && syncInitSrc.includes('createSyncQueries(evolu)'));
   assert('service worker precaches sync-schema.js',
     serviceWorkerSrc.includes("'/js/sync-schema.js'"));
@@ -1272,6 +1276,14 @@ await import('../js/settings.js');
   // fresher local edits protected until their itemRow update lands.
   assert('onSyncReceived overlays per-row state AFTER blob merge',
     /merged\s*=\s*localBaselineForMerge[\s\S]{0,400}mergeImportedData[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncPullMergeSrc));
+  assert('canonical rebuilt blob freshness bounds stale per-row tombstones',
+    syncPullSrc.includes('remoteUpdated,')
+      && syncPullMergeSrc.includes('baselineImported: importedData')
+      && syncPullMergeSrc.includes('baselineSyncedAt: remoteUpdated')
+      && syncDeltaMergeSrc.includes('baselineItems: Array.isArray(baselineItems) ? baselineItems : []')
+      && syncDeltaArrayMergeSrc.includes('baselineItemIds.has(itemId) ? baselineSyncedAt : 0')
+      && syncDeltaMergeSrc.includes('hasBaseline: baselineValue !== undefined')
+      && syncDeltaScalarMergeSrc.includes('baselineAt >= latestRowAt'));
   assert('_mergeItemRowsIntoImported drops tombstoned items from imported arrays',
     /mergeArrayRowsIntoImported[\s\S]{0,12000}let nextArr\s*=\s*curArr\.filter\(it\s*=>\s*!tombstoneWinsOverItem\(itemIdFn\(it\),\s*it\)\)/.test(syncDeltaMergeSearchSrc));
   // Resurrection-prevention seed: blob-side `_deleted[arrayName]` must
@@ -1282,7 +1294,7 @@ await import('../js/settings.js');
   assert('_mergeItemRowsIntoImported skips inserting items that match a blob-tombstoned itemId',
     /tombstoneWinsOverLiveRow\(itemId,\s*entry\)\)\s*continue/.test(syncDeltaMergeSearchSrc));
   assert('_mergeItemRowsIntoImported ignores stale remote tombstones when local item is newer',
-    /remoteTombs\.set\(row\.itemId[\s\S]{0,1200}tombAt\s*>=\s*pickTimestamp\(item\)/.test(syncDeltaArrayMergeSrc));
+    /remoteTombs\.set\(row\.itemId[\s\S]{0,1800}tombAt\s*>=\s*Math\.max\(pickTimestamp\(item\),\s*canonicalBlobAt\)/.test(syncDeltaArrayMergeSrc));
   assert('_mergeItemRowsIntoImported preserves fresher local non-lab items over stale per-row payloads',
     /compareRecordFreshness\(item,\s*nextArr\[idx\]\)\s*<=\s*0[\s\S]{0,120}continue/.test(syncDeltaArrayMergeSrc)
       && /nextArr\[idx\]\s*=\s*item/.test(syncDeltaArrayMergeSrc));
@@ -1446,10 +1458,12 @@ await import('../js/settings.js');
 
   assert('reloadUrl uses sync runtime path helper',
     syncInitSrc.includes('reloadUrl: getSyncReloadUrlRuntime()')
-      && syncRuntimeSrc.includes('export function getSyncReloadUrlRuntime'));
+      && syncRuntimeSrc.includes('export function getSyncReloadUrlRuntime')
+      && syncRuntimeSrc.includes("runtime?.location?.search")
+      && /return `\$\{pathname\}\$\{typeof search === 'string' \? search : ''\}`/.test(syncRuntimeSrc));
   assert('enableLogging gated on debug mode', syncInitSrc.includes('enableLogging: isDebugMode()'));
   assert('Default relay is wss://sync.getbased.health', syncEnvironmentSrc.includes("wss://sync.getbased.health"));
-  assert('Transport uses plural "transports" array (not singular)', syncInitSrc.includes('transports: [{ type:') && !syncInitSrc.includes('transport: { type:'));
+  assert('Transport uses plural "transports" array (not singular)', syncEvoluClientSrc.includes('transports: [{ type:') && !syncEvoluClientSrc.includes('transport: { type:'));
   assert('COOP header in dev-server', await fetchWithRetry('dev-server.js').then(s => s.includes('Cross-Origin-Opener-Policy')));
   assert('initSync reuses an existing runtime instead of creating a duplicate',
     syncInitSrc.includes('const existingEvolu = getSyncEvolu()')
@@ -3453,11 +3467,22 @@ await import('../js/settings.js');
   // the pickTimestamp-aware helper instead of bare id-set comparison.
   assert('reconcileLocalStorageWithEvolu defined',
     /export async function reconcileLocalStorageWithEvolu\(\)/.test(syncReconcileSrc));
-  assert('Reconciliation runs on initSync after appOwner + queries are ready',
-    syncConfigureSrc.includes("from './sync-init.js'")
-      && syncConfigureSrc.includes('configureSyncInit({ reconcileLocalStorageWithEvolu });')
-      && !syncInitSrc.includes("from './sync-reconcile.js'")
-      && /Promise\.all\(\[readyPromise,\s*queryLoaded\]\)[\s\S]{0,300}reconcileLocalStorageWithEvolu/.test(syncInitSrc));
+  {
+    const readyAt = syncInitSrc.indexOf('Promise.all([readyPromise, queryLoaded])');
+    const settleAt = syncInitSrc.indexOf('await waitForInitialReplicaQuiet()', readyAt);
+    const forcePullAt = syncInitSrc.indexOf('await _forcePull()', settleAt);
+    const finishSettlingAt = syncInitSrc.indexOf('finishSyncRebroadcastSettling()', forcePullAt);
+    const reconcileAt = syncInitSrc.indexOf('await reconcileLocalStorageWithEvolu()', finishSettlingAt);
+    assert('Reconciliation runs on initSync after appOwner + queries are ready',
+      syncConfigureSrc.includes("from './sync-init.js'")
+        && /configureSyncInit\(\{[\s\S]{0,250}reconcileLocalStorageWithEvolu,/.test(syncConfigureSrc)
+        && !syncInitSrc.includes("from './sync-reconcile.js'")
+        && readyAt >= 0
+        && readyAt < settleAt
+        && settleAt < forcePullAt
+        && forcePullAt < finishSettlingAt
+        && finishSettlingAt < reconcileAt);
+  }
   assert('Reconciliation reads remote dataJson via parseSyncPayload',
     /reconcileLocalStorageWithEvolu[\s\S]{0,1600}parseSyncPayload\(existing\.dataJson\)/.test(syncReconcileSrc));
   assert('Reconciliation routes through localHasRowsRemoteLacks (catches same-id timestamp drift)',
@@ -3540,7 +3565,15 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   console.log('15. Vendor Files');
 
-  const vendorFiles = ['vendor/evolu/evolu-bundle.js', 'vendor/evolu/Db.worker.js', 'vendor/evolu/sqlite3.wasm'];
+  const vendorFiles = [
+    'vendor/evolu/evolu-bundle.js',
+    'vendor/evolu/Db.worker.js',
+    'vendor/evolu/sqlite3.wasm',
+    'vendor/evolu8/evolu-bundle.js',
+    'vendor/evolu8/Db.worker.js',
+    'vendor/evolu8/Shared.worker.js',
+    'vendor/evolu8/sqlite3.wasm',
+  ];
   for (const f of vendorFiles) {
     // Node: existence check on disk. Browser would HTTP HEAD; same intent.
     const exists = fs.existsSync(path.join(ROOT, f));

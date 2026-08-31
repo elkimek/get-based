@@ -3,15 +3,17 @@
   "scenario": "Production service-worker app-shell precache during PWA installation",
   "maximums": {
     "resources": 338,
-    "decodedBytes": 16250000
+    "decodedBytes": 18100000
   },
   "reference": {
     "resources": 277,
     "decodedBytes": 13558332,
     "mealsNutritionModelComparisonResources": 316,
     "mealsNutritionFinalResources": 328,
-    "mealsNutritionFinalDecodedBytes": 15526961
+    "mealsNutritionFinalDecodedBytes": 15526961,
+    "evolu8DefaultCutoverResources": 334,
+    "evolu8DefaultCutoverDecodedBytes": 18016786
   },
   "referenceCommit": "807732a8",
-  "measuredAt": "2026-08-25"
+  "measuredAt": "2026-08-30"
 }

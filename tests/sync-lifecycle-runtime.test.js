@@ -233,4 +233,27 @@ describe('sync lifecycle runtime behavior', () => {
     expect(deps.showNotification).toHaveBeenCalledWith('Sync disabled \u2014 reloading\u2026', 'success');
     expect(deps.scheduleSyncRuntimeReload).toHaveBeenCalledWith(250);
   });
+
+  it('aborts Evolu 8 disable before mutation or reload when history reset cannot be reserved', async () => {
+    const resetAppOwner = vi.fn(async () => {});
+    const prepareHistoryResetForDisable = vi.fn(() => false);
+    const deps = installLifecycleMocks({
+      getSyncEvolu: vi.fn(() => ({
+        __evoluClientVersion: 8,
+        prepareHistoryResetForDisable,
+        resetAppOwner,
+      })),
+    });
+    const { disableSync } = await loadLifecycle();
+
+    await expect(disableSync()).resolves.toBe(false);
+
+    expect(prepareHistoryResetForDisable).toHaveBeenCalledOnce();
+    expect(deps.setSyncEnabled).not.toHaveBeenCalled();
+    expect(deps.clearSyncSaveTimers).not.toHaveBeenCalled();
+    expect(deps.clearSyncDisableStorage).not.toHaveBeenCalled();
+    expect(resetAppOwner).not.toHaveBeenCalled();
+    expect(deps.clearSyncRuntimeState).not.toHaveBeenCalled();
+    expect(deps.scheduleSyncRuntimeReload).not.toHaveBeenCalled();
+  });
 });

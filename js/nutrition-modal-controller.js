@@ -1,20 +1,24 @@
 // @ts-check
 // nutrition-modal-controller.js — guarded modal dismissal and Settings handoff.
 
-import { isNutritionComparisonRunning, hasNutritionComparisonRuns } from './nutrition-comparison-ui.js';
+import { exitComparisonPresentation, isNutritionComparisonRunning, hasNutritionComparisonRuns } from './nutrition-comparison-ui.js';
 import { suspendedNutritionEditorHasDraft } from './nutrition-editor-navigation.js';
 import { isAnalysisProgressRunning } from './nutrition-review-ui.js';
 import { closeModalOverlay } from './modal-lifecycle.js';
 import { showConfirmDialog, showNotification } from './utils.js';
 
-let modalDeps = { resetEditorState: () => {}, hasUnsavedState: () => false };
+let modalDeps = {
+  resetEditorState: () => {},
+  hasUnsavedState: () => false,
+  onBackgroundClose: () => {},
+};
 
 export function configureNutritionModalController(deps = {}) {
   modalDeps = { ...modalDeps, ...deps };
 }
 
 function finishClosingNutritionEditor() {
-  document.getElementById('detail-modal')?.classList.remove('nutrition-modal', 'nutrition-targets-modal', 'nutrition-fluid-modal', 'nutrition-history-modal', 'nutrition-manual-mode');
+  document.getElementById('detail-modal')?.classList.remove('nutrition-modal', 'nutrition-targets-modal', 'nutrition-fluid-modal', 'nutrition-history-modal', 'nutrition-benchmark-modal', 'nutrition-manual-mode', 'nutrition-comparison-presentation');
   document.getElementById('modal-overlay')?.removeAttribute('data-modal-dismiss-protected');
   closeModalOverlay('modal-overlay');
 }
@@ -22,6 +26,16 @@ function finishClosingNutritionEditor() {
 export function closeNutritionEditor() {
   modalDeps.resetEditorState();
   finishClosingNutritionEditor();
+}
+
+function backgroundNutritionEditor() {
+  const comparison = isNutritionComparisonRunning();
+  exitComparisonPresentation();
+  modalDeps.onBackgroundClose();
+  closeModalOverlay('modal-overlay');
+  showNotification(comparison
+    ? 'Meal benchmark continues in the background. Open Log meal to return and cancel individual models if needed.'
+    : 'Meal analysis continues in the background. Open Log meal to return or cancel the analysis.', 'info');
 }
 
 function nudgeNutritionEditor() {
@@ -77,6 +91,10 @@ export async function requestCloseNutritionEditor() {
     closeNutritionEditor();
     return;
   }
+  if (isAnalysisProgressRunning() || isNutritionComparisonRunning()) {
+    backgroundNutritionEditor();
+    return;
+  }
   await requestNutritionEditorNavigation(finishClosingNutritionEditor);
 }
 
@@ -87,6 +105,11 @@ function modalOverlayIsTopmost(overlay) {
 
 export function handleNutritionEditorKeydown(event) {
   if (event.key !== 'Escape') return;
+  if (exitComparisonPresentation()) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    return;
+  }
   const overlay = document.getElementById('modal-overlay');
   if (!overlay?.classList.contains('show')
       || !overlay.hasAttribute('data-modal-dismiss-protected')

@@ -104,7 +104,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
       ctx += `Lab marker context is turned off by the user. Do not infer from imported blood-marker values unless the user explicitly provides them in the conversation.\n${includeInsightCards ? '[/section:profile]\n\n' : '\n'}`;
     } else {
       const insightHint = includeInsightCards
-        ? ' The more Insight Context Cards the user fills out, the more targeted your recommendations become — encourage filling them when relevant.'
+        ? ' The more Insight Context Cards the user fills out, the more context is available for general-information tips — mention relevant cards without presenting the tips as medical instructions.'
         : ' Insight Context Cards are turned off by the user; do not infer from profile/lifestyle cards unless the user explicitly provides that context in the conversation.';
       ctx += `No lab data has been imported yet.\nNOTE: The user has not imported any lab results. Use the enabled context below to recommend which blood panels and specific tests would be most valuable for them, and explain why each is relevant to their situation.${insightHint}${demoWarning}\n${includeInsightCards ? '[/section:profile]\n\n' : '\n'}`;
     }

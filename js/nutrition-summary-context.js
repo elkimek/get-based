@@ -63,6 +63,9 @@ function contextWindow(label, period, nutrientFields = COMPACT_CONTEXT_NUTRIENTS
     timing.averageEatingWindowMinutes !== null && timing.averageEatingWindowMinutes !== undefined
       && Number.isFinite(Number(timing.averageEatingWindowMinutes))
       && `observed eating window ${Math.round(Number(timing.averageEatingWindowMinutes) / 6) / 10} h`,
+    timing.averageFastingWindowMinutes !== null && timing.averageFastingWindowMinutes !== undefined
+      && Number.isFinite(Number(timing.averageFastingWindowMinutes))
+      && `observed fasting window ${Math.round(Number(timing.averageFastingWindowMinutes) / 6) / 10} h`,
   ].filter(Boolean) : [];
   return `${label}: ${entries} across ${period.loggedDays}/${period.days} days${occasions ? `; occasions: ${occasions}` : ''}${timingParts.length ? `; timing: ${timingParts.join(', ')}` : ''}; ${Math.round((period.reviewRatio || 0) * 100)}% of entries reviewed; recorded daily averages (days may be partial): ${contextAverage(period.dailyAverages, period.nutrientCoverage, nutrientFields) || 'no nutrient totals'}`;
 }
@@ -165,6 +168,9 @@ export function buildNutritionHistoryAnalysisPrompt(history) {
       timing.averageEatingWindowMinutes !== null && timing.averageEatingWindowMinutes !== undefined
         && Number.isFinite(Number(timing.averageEatingWindowMinutes))
         && `average observed eating window ${Math.round(Number(timing.averageEatingWindowMinutes) / 6) / 10} hours`,
+      timing.averageFastingWindowMinutes !== null && timing.averageFastingWindowMinutes !== undefined
+        && Number.isFinite(Number(timing.averageFastingWindowMinutes))
+        && `average observed fasting window ${Math.round(Number(timing.averageFastingWindowMinutes) / 6) / 10} hours`,
     ].filter(Boolean);
     if (timingParts.length) lines.push(`Logged timing: ${timingParts.join('; ')}.`);
   }

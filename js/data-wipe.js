@@ -137,7 +137,7 @@ export async function eraseAllLocalAppData() {
   removeStorageKeys(globalThis.localStorage, localKeys, 'local storage', errors);
   removeStorageKeys(globalThis.sessionStorage, sessionKeys, 'session storage', errors);
   await deleteIndexedDBDatabasesByPrefix(
-    ['labcharts-', 'getbased-nutrition-'],
+    ['labcharts-', 'getbased-nutrition-', 'getbased-evolu8-'],
     [
       ...profileIds.flatMap(id => [
         `labcharts-wearables-${id}`,
@@ -147,6 +147,7 @@ export async function eraseAllLocalAppData() {
       'labcharts-backups',
       'labcharts-blobs',
       'labcharts-wearables-credential-vault',
+      'getbased-evolu8-identity',
     ],
     errors,
   );

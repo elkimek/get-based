@@ -55,8 +55,8 @@ export function renderDisplaySettingsPanel(active) {
         <div class="settings-section">
           <div class="settings-action-row">
             <div class="settings-copy">
-              <label class="settings-label">Tips &amp; Recommendations</label>
-              <div class="settings-copy-desc">Supplement, food, and lifestyle guidance on markers</div>
+              <label class="settings-label">Tips</label>
+              <div class="settings-copy-desc">Optional general-information ideas about lifestyle, food, supplements, and products. Not a care plan.</div>
             </div>
             <label class="toggle-switch">
               <input type="checkbox" id="settings-product-recs" ${isProductRecsEnabled() ? 'checked' : ''} data-settings-action="set-product-recs">

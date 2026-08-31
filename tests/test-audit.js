@@ -1174,7 +1174,7 @@ const utilsSrc3 = read('js/utils.js');
 assert('hasCardContent exported from utils.js', utilsSrc3.includes('export function hasCardContent'));
 
 const chatSystemPromptSrc = read('js/chat-system-prompt.js');
-assert('System prompt has per-category staleness instruction', chatSystemPromptSrc.includes('stale data') && chatSystemPromptSrc.includes('recommend retesting'));
+assert('System prompt has per-category staleness instruction', chatSystemPromptSrc.includes('stale data') && chatSystemPromptSrc.includes('whether retesting is appropriate'));
 assert('System prompt has absent field instruction', chatSystemPromptSrc.includes('did not provide'));
 assert('System prompt has absent section instruction', chatSystemPromptSrc.includes('has not filled in'));
 assert('System prompt has Core Rules section', chatSystemPromptSrc.includes('## Core Rules'));

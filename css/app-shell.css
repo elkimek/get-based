@@ -454,8 +454,9 @@ body.analytics-consent-visible .version-update-banner { bottom: 78px; }
 
 .main { flex: 1; min-height: calc(100vh - 57px + 180px); padding: 24px 32px; margin-left: 260px; max-width: calc(100vw - 260px); }
 
-.app-footer { border-top: 1px solid var(--border); padding: 32px; }
-.app-footer-row { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+.app-footer { border-top: 1px solid var(--border); padding: 56px 32px 40px; margin-left: 260px; }
+.app-footer-row { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+.app-footer-row.app-footer-top { padding-bottom: 24px; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
 .app-footer-logo { font-family: var(--font-display); font-weight: 800; font-size: 18px; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
 .app-footer-socials { display: flex; gap: 16px; align-items: center; }
 .app-footer-socials a { color: var(--text-muted); transition: color 0.2s; display: inline-flex; }
@@ -464,20 +465,20 @@ body.analytics-consent-visible .version-update-banner { bottom: 78px; }
 .app-footer-version a { color: var(--text-muted); text-decoration: none; }
 .app-footer-version a:hover { color: var(--accent); text-decoration: underline; }
 .app-footer-fineprint {
-  max-width: 1200px; margin: 16px auto 0;
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  max-width: 1200px; margin: 0 auto;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
   text-align: center;
 }
 .app-footer-disclaimer {
-  font-size: 11px; color: var(--text-muted); line-height: 1.55; margin: 0;
+  font-size: 11.5px; color: var(--text-secondary); line-height: 1.55; margin: 0; letter-spacing: 0.01em;
 }
 .app-footer-trademarks {
   font-size: 10.5px; color: var(--text-muted);
   line-height: 1.55; margin: 0; max-width: 760px; letter-spacing: 0.01em;
 }
 .app-footer-legal {
-  font-size: 11px; color: var(--text-muted); margin: 0;
-  display: flex; flex-wrap: wrap; gap: 8px 12px;
+  font-size: 11.5px; color: var(--text-muted); margin: 0;
+  display: flex; flex-wrap: wrap; gap: 8px 14px;
   justify-content: center; align-items: center;
 }
 .app-footer-legal a { color: var(--text-muted); text-decoration: none; transition: color 0.15s; }
@@ -688,6 +689,7 @@ body.analytics-consent-visible .version-update-banner { bottom: 78px; }
      (chat 48px at bottom:16, import 40px at bottom:72) so the last
      content card isn't permanently overlapped by the FABs. */
   .main { max-width: 100%; padding: 20px; margin-left: 0; padding-bottom: calc(120px + env(safe-area-inset-bottom)); }
+  .app-footer { margin-left: 0; }
   .sidebar-search { width: calc(100% - 16px); margin: 4px 8px; }
   .sidebar-search-wrap .sidebar-search { width: 100%; margin: 0; }
 }
@@ -701,8 +703,8 @@ body.analytics-consent-visible .version-update-banner { bottom: 78px; }
   .header-data-group { display: none; }
   .feedback-btn { display: none !important; }
   .donate-btn { display: none !important; }
-  .app-footer { padding: 24px 16px; }
-  .app-footer-row { flex-direction: column; gap: 16px; text-align: center; }
+  .app-footer { padding: 32px 16px; }
+  .app-footer-row { flex-direction: column; gap: 20px; text-align: center; }
   .profile-compact-name, .profile-compact-arrow { display: none; }
   .profile-compact-btn { padding: 4px; border: none; background: none; }
   .profile-compact-dot { width: 28px; height: 28px; font-size: 13px; }

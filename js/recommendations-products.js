@@ -410,7 +410,7 @@ export function renderEMFMeterRecs(catalog, opts = {}) {
   const meters = getEMFMeters(catalog, opts.types);
   if (!meters.length) return '';
   const gated = !hasSeenDisclosure() ? ' rec-section-gated' : '';
-  const heading = escapeHTML(opts.heading || 'Need a meter? Recommended by getbased');
+  const heading = escapeHTML(opts.heading || 'Meter options to explore');
   const eventPrefix = opts.eventPrefix || 'meter-rec';
   const body = meters.map(m => _buildEMFProductRow(m, eventPrefix, getUserRegion(), catalog)).join('');
   const vendor = _resolveVendorForCoupon(catalog, meters);
@@ -433,7 +433,7 @@ export function renderEMFMitigationRecs(catalog, tags, opts = {}) {
   const products = getEMFProductsForMitigations(catalog, tags);
   if (!products.length) return '';
   const gated = !hasSeenDisclosure() ? ' rec-section-gated' : '';
-  const heading = escapeHTML(opts.heading || 'Recommended products for your mitigations');
+  const heading = escapeHTML(opts.heading || 'Product ideas related to this assessment');
   const eventPrefix = opts.eventPrefix || 'mitigation-rec';
   const body = products.map(p => _buildEMFProductRow(p, eventPrefix, getUserRegion(), catalog)).join('');
   const vendor = _resolveVendorForCoupon(catalog, products);
@@ -487,18 +487,18 @@ export function buildDisclosureFooter() {
   const label = regionLabel(r);
   // Link points to wherever the user can change their country. Click handler
   // delegates through the runtime adapter so this module stays decoupled.
-  const editLink = `<a href="#" class="rec-region-edit" ${recActionAttrs('edit-region')} aria-label="Change country for product recommendations">change</a>`;
+  const editLink = `<a href="#" class="rec-region-edit" ${recActionAttrs('edit-region')} aria-label="Change country for product tips">change</a>`;
   return `<div class="rec-disclosure">Affiliate links are marked. Brands cannot pay for placement. <span class="rec-region-tag">Showing for ${escapeHTML(label)} · ${editLink}</span></div>`;
 }
 
 export function _buildMiniDisclaimer() {
-  return `<div class="rec-mini-disclaimer">For informational purposes only. Not medical advice. Consult your healthcare provider before starting any supplement.</div>`;
+  return `<div class="rec-mini-disclaimer">General information only — not individualized medical advice or a care plan. Do not start, stop, or change medication or supplements based only on these tips. Discuss relevant options with a qualified healthcare professional.</div>`;
 }
 
 export function _buildDisclosureBanner() {
   if (hasSeenDisclosure()) return '';
   return `<div class="rec-disclosure-banner">
-    For informational purposes only. This is not a medical device and does not diagnose, treat, or prevent disease. Consult your healthcare provider before starting any supplement, especially if pregnant, nursing, or taking medications. Intended for adults. Affiliate links are marked — brands cannot pay for placement.
+    General information only. These tips are not instructions, individualized medical advice, or a care plan, and are not intended to diagnose, treat, or prevent disease. Do not start, stop, or change medication or supplements based only on these tips. Discuss relevant options with a qualified healthcare professional, especially if pregnant, nursing, or taking medications. Intended for adults. Affiliate links are marked — brands cannot pay for placement.
     <button class="rec-disclosure-btn" ${recActionAttrs('accept-disclosure')}>Got it</button>
   </div>`;
 }
@@ -566,8 +566,8 @@ export function renderChannelDeficitDeviceRecs(catalog, channelKey, presets, opt
     rows.push(`<a class="rec-product-link rec-light-deficit-link" href="${escapeHTML(url)}" target="_blank" rel="noopener sponsored" data-umami-event="${escapeHTML(evtName)}" aria-label="View ${name} on ${vendor}, opens in new tab"><strong>${name}</strong>${blurb ? ` — ${blurb}` : ''} <span class="rec-vendor">View on ${vendor} →</span></a>`);
   }
   if (!rows.length) return '';
-  return `<div class="rec-channel-deficit" role="region" aria-label="${humanLabel} channel device recommendations">
-    <div class="rec-channel-deficit-head">Fill the ${humanLabel} channel with a device</div>
+  return `<div class="rec-channel-deficit" role="region" aria-label="${humanLabel} channel device options">
+    <div class="rec-channel-deficit-head">Device options related to the ${humanLabel} channel</div>
     <div class="rec-channel-deficit-list">${rows.join('')}</div>
     <div class="rec-channel-deficit-foot">Affiliate links · <a href="#" ${recActionAttrs('open-privacy-settings')}>turn off</a></div>
   </div>`;

@@ -46,24 +46,24 @@ export function createRecommendationActions({
   getGlobalRecommendationCandidates,
   setRecommendationState,
 }) {
-  function openRecommendationDetail(slotKey, label = 'Recommendation', markerStatus = '') {
+  function openRecommendationDetail(slotKey, label = 'Tip', markerStatus = '') {
     const modal = setDetailModalShell('recommendation-detail-modal');
     const overlay = document.getElementById("modal-overlay");
     if (!modal || !overlay) return;
     modal.innerHTML = `<button type="button" class="modal-close" aria-label="Close" ${recommendationDetailActionAttrs('close')}>&times;</button>
-      <h3>${escapeHTML(label || 'Recommendation')}</h3>
+      <h3>${escapeHTML(label || 'Tip')}</h3>
       <div class="dashboard-widget-empty">Loading options...</div>`;
     openModalOverlay(overlay);
     Promise.resolve(renderRecommendationsDetailSection(slotKey, { label: 'Options', maxProducts: 4, markerStatus }))
       .then(html => {
         modal.innerHTML = `<button type="button" class="modal-close" aria-label="Close" ${recommendationDetailActionAttrs('close')}>&times;</button>
-          <h3>${escapeHTML(label || 'Recommendation')}</h3>
-          ${html || '<div class="dashboard-widget-empty">No recommendation details available for this slot.</div>'}`;
+          <h3>${escapeHTML(label || 'Tip')}</h3>
+          ${html || '<div class="dashboard-widget-empty">No tip details are available for this topic.</div>'}`;
       })
       .catch(() => {
         modal.innerHTML = `<button type="button" class="modal-close" aria-label="Close" ${recommendationDetailActionAttrs('close')}>&times;</button>
-          <h3>${escapeHTML(label || 'Recommendation')}</h3>
-          <div class="dashboard-widget-empty">Could not load recommendation details.</div>`;
+          <h3>${escapeHTML(label || 'Tip')}</h3>
+          <div class="dashboard-widget-empty">Could not load tip details.</div>`;
       });
   }
 
@@ -72,8 +72,8 @@ export function createRecommendationActions({
     const ctx = buildDashboardWidgetContext(getActiveData());
     const candidate = getGlobalRecommendationCandidates(ctx, catalog, { includeDismissed: true }).find(c => c.id === id);
     const prompt = candidate
-      ? `Help me evaluate this recommendation from getbased.\nSource: ${candidate.source}\nRecommendation: ${candidate.label}\nReason: ${candidate.reason}\nSuggested first action: ${candidate.primaryAction || 'none listed'}\nWhat are the pros, cons, and safer non-product alternatives?`
-      : 'Help me evaluate my current getbased recommendations. Which should I prioritize and why?';
+      ? `Help me understand this general-information tip from getbased.\nSource: ${candidate.source}\nTip topic: ${candidate.label}\nWhy it appeared: ${candidate.reason}\nExample shown: ${candidate.primaryAction || 'none listed'}\nExplain the evidence limits, relevant safety factors, questions to discuss with a qualified healthcare professional, and non-product alternatives. Do not turn this into a diagnosis or treatment plan.`
+      : 'Help me understand the general-information tips currently shown in getbased. Explain their evidence limits, safety factors, and useful questions for a qualified healthcare professional. Do not rank them as treatment priorities or turn them into a care plan.';
     openRecommendationsChatPanel(prompt);
   }
 

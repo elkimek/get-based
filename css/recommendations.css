@@ -103,6 +103,11 @@
   background: color-mix(in srgb, var(--green) 8%, transparent);
   border-radius: var(--radius-sm);
 }
+.rec-next-primary-label {
+  display: block; margin-bottom: 2px; color: var(--text-muted);
+  font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
 .rec-next-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .recommendation-detail-modal .rec-section { border-top: 0; margin-top: 10px; padding-top: 0; }
 

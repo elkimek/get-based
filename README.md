@@ -34,7 +34,7 @@ You can use it with no account. Most data lives in your browser by default. Heal
 | **Genome** | Raw DNA import, APOE, mtDNA, curated SNP context, and genetic factors that influence interpretation. |
 | **Body** | Wearables, manual biometrics, recovery, sleep, body composition, supplements, medications, cycle tracking. |
 | **Light** | Sun exposure, UV context, screens/devices, indoor light, room measurements, EMF, and circadian habits. |
-| **Insight** | AI chat, Current Focus, Biology Scores, recommendations, Knowledge Base, interpretive lenses, and synthesis. |
+| **Insight** | AI chat, Current Focus, Biology Scores, general-information tips, Knowledge Base, interpretive lenses, and synthesis. |
 
 ## Privacy model
 
@@ -49,7 +49,7 @@ getbased is private by default, not magic. The boundary depends on which feature
 - **Optional encrypted sync.** Cross-device sync uses Evolu CRDT storage and end-to-end encrypted profile payloads. Pausing one browser keeps its identity and queues local edits; disconnect/reset is a separate Advanced action.
 - **Optional sharing.** Profile sharing creates an encrypted, password-protected copy for someone else. On the official app, getbased's isolated Czech VPS service (hosted by SecurityNet.cz/Hukot) receives caller network metadata plus the opaque envelope and expiry/deletion/abuse metadata, but not the password or decrypted profile. Temporary share copies are not backed up and can be lost after a service failure; the source profile remains in the sender's browser.
 - **Optional Agent Access.** External agents receive only the context you enable, via an encrypted relay flow and a local decryption key.
-- **Optional wearable clouds.** Every connection is user-initiated. On the official app, fixed Oura, Withings, Polar, and legacy Fitbit OAuth/API calls transit a separate getbased compatibility relay without intentional payload logging or storage; the relay can nevertheless read those credentials and provider responses while forwarding them. The static Vercel app host does not receive these compatibility requests. WHOOP, Ultrahuman, and Google Health are code-enforced self-host-only integrations and use infrastructure controlled by that deployment. Confidential token exchange and refresh use its same-origin proxy; WHOOP and Google Health data also transit that proxy, while Ultrahuman data is fetched browser-direct because its resource API permits browser CORS. OAuth credentials are encrypted with a non-exportable device key; Google Health daily rows use the same device-only protection and are excluded from raw-data backups. Each browser must be connected separately; only the compact derived summary participates in optional profile backup/sync or user-enabled AI/agent context.
+- **Optional wearable clouds.** Every connection is user-initiated. On the official app, fixed Oura, Withings, Polar, and legacy Fitbit OAuth/API calls transit a separate getbased compatibility relay without intentional payload logging or storage; the relay can nevertheless read those credentials and provider responses while forwarding them. The static Vercel app host does not receive these compatibility requests. WHOOP, Ultrahuman, and Google Health are code-enforced self-host-only integrations and use infrastructure controlled by that deployment. Confidential token exchange and refresh use its same-origin proxy; WHOOP and Google Health data also transit that proxy, while Ultrahuman data is fetched browser-direct because its resource API permits browser CORS. OAuth credentials are encrypted with a non-exportable device key; WHOOP and Google Health daily rows use the same device-only protection and are excluded from raw-data backups. WHOOP-specific connection metadata and derived local values are likewise split into device-encrypted storage. Each browser must be connected separately; only the compact derived summary participates in optional end-to-end-encrypted sync or user-enabled AI/agent context.
 - **Minimised Sun/UV relay.** On the official app, CAMS requests are forced to a 0.1° grid in the browser and again in the separate compatibility relay, then sent by authenticated POST to a fixed Company-operated local-grid lookup. The route does not forward or cache individual coordinates at Copernicus or Open-Meteo. Missing weather fields fall back browser-direct to Open-Meteo with the same rounded location. This is limited plaintext processing, not end-to-end encryption.
 - **Hosted-app usage stats.** Cookieless pageview and outbound affiliate-click counts are enabled by default with a first-run transparency banner and can be disabled immediately or later in **Settings → Privacy**. Health data, viewed records, identity, and health context are not analytics payloads.
 
@@ -159,6 +159,7 @@ npm run sbom
 npm run quality
 npm test -- tests/<relevant-test>.test.js
 npx playwright test tests/playwright/<relevant-spec>.spec.js
+npm run test:evolu8-browsers
 npm run test:firefox
 npm run performance:check
 npm run production:check
@@ -167,6 +168,7 @@ npm run production:check
 Default to tests related to the current change. GitHub Actions runs the exhaustive browser and combined-coverage matrix so local development does not repeatedly create high volumes of temporary Chromium and V8 coverage data.
 `./run-tests.sh` runs both type checkers, verifies the architecture map, vendored browser assets and their supply-chain inventory, and the static module graph, starts an isolated local server, runs the Node/Vitest tests, checks the dev-server origin guard, and runs every Playwright browser assertion. It is blocked outside CI unless the high-write run is explicitly acknowledged with `GETBASED_ALLOW_HIGH_WRITE_TESTS=1`.
 `COVERAGE=1 ./run-tests.sh` also combines Vitest and Playwright V8 function coverage and enforces the committed ratchet in `scripts/coverage-baseline.json`; CI runs this mode on every change.
+`npm run test:evolu8-browsers` runs the focused Evolu 8 startup, durable-identity, resource-management-polyfill, and one-tab fallback checks in Chromium, Firefox, and WebKit.
 `npm run test:firefox` runs the focused Firefox critical-flow suite; install its browser binary once with `npx playwright install firefox`.
 `npm run performance:check` runs the focused cold mobile-load check and enforces the committed request-count, compressed-transfer, and decoded-byte ceilings.
 `npm run production:check` builds the deploy artifact in a temporary directory and enforces the production startup, lazy-chunk, and PWA app-shell precache resource/decoded-byte budgets without changing the worktree.
@@ -212,6 +214,7 @@ get-based/
 ```
 
 User and developer documentation live at [docs.getbased.health](https://docs.getbased.health). The app repo keeps only code-adjacent notes and tests.
+The renderer-independent report snapshot contract is documented in [docs/report-data.md](docs/report-data.md).
 
 ## Related repos
 

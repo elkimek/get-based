@@ -112,6 +112,12 @@ describe('API provider runtime behavior', () => {
           name: 'Gemini 3.5 Flash',
           pricing: { prompt: '0.0000007', completion: '0.00000375' },
           architecture: { input_modalities: ['text', 'image', 'file'], output_modalities: ['text'] },
+          reasoning: {
+            supported_efforts: ['high', 'medium', 'low', 'minimal'],
+            default_effort: 'medium',
+            default_enabled: true,
+            mandatory: true,
+          },
         },
         {
           id: 'z-ai/glm-5.3-flash',
@@ -180,6 +186,8 @@ describe('API provider runtime behavior', () => {
     expect(JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('z-ai/glm-5.3-flash');
     expect(JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('moonshotai/kimi-k3');
     expect(JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('qwen/qwen3.8-27b');
+    expect(JSON.parse(localStorage.getItem('labcharts-openrouter-models'))
+      .find(model => model.id === 'google/gemini-3.5-flash')?.reasoning).toMatchObject({ mandatory: true });
     expect(localStorage.getItem('labcharts-openrouter-model')).toBe('openai/gpt-5.6-sol');
     expect(catalogChanged).toHaveBeenCalled();
 
@@ -563,6 +571,51 @@ describe('API provider runtime behavior', () => {
       requestTimeoutMs: 50,
     })).rejects.toMatchObject({ _modalShown: true });
     expect(showInsufficientBalanceDialog).toHaveBeenCalledTimes(1);
+  });
+
+  it('respects mandatory OpenRouter reasoning metadata and stale-cache errors', async () => {
+    updateKeyCache('labcharts-openrouter-key', 'sk-or');
+    setOpenRouterModel('google/gemini-3.5-flash');
+    localStorage.setItem('labcharts-openrouter-models', JSON.stringify([{
+      id: 'google/gemini-3.5-flash',
+      reasoning: {
+        supported_efforts: ['high', 'medium', 'low', 'minimal'],
+        mandatory: true,
+      },
+    }]));
+    fetch.mockResolvedValueOnce(jsonResponse({
+      choices: [{ message: { content: 'mandatory answer' }, finish_reason: 'stop' }],
+    }));
+
+    await expect(callOpenRouterAPI({
+      messages: [{ role: 'user', content: 'focus' }],
+      maxTokens: 500,
+      reasoningEffort: 'none',
+      requestTimeoutMs: 50,
+    })).resolves.toMatchObject({ text: 'mandatory answer' });
+    expect(JSON.parse(fetch.mock.calls.at(-1)[1].body).reasoning_effort).toBe('minimal');
+
+    localStorage.removeItem('labcharts-openrouter-models');
+    fetch.mockResolvedValueOnce(jsonResponse({
+      error: { message: 'Reasoning is mandatory for this endpoint and cannot be disabled.' },
+    }, { status: 400 }));
+    fetch.mockResolvedValueOnce(jsonResponse({
+      choices: [{ message: { content: 'fallback answer' }, finish_reason: 'stop' }],
+    }));
+
+    await expect(callOpenRouterAPI({
+      messages: [{ role: 'user', content: 'focus again' }],
+      maxTokens: 500,
+      reasoningEffort: 'none',
+      requestTimeoutMs: 50,
+    })).resolves.toMatchObject({
+      text: 'fallback answer',
+      diagnostics: { reasoningControlFallback: true },
+    });
+    const staleCacheBodies = fetch.mock.calls.slice(-2)
+      .map(([, init]) => JSON.parse(init.body));
+    expect(staleCacheBodies[0].reasoning_effort).toBe('none');
+    expect(staleCacheBodies[1]).not.toHaveProperty('reasoning_effort');
   });
 
   it('reports model capabilities across providers', () => {

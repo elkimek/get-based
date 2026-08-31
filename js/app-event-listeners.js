@@ -133,7 +133,8 @@ function handleDocumentClick(e) {
   // Read-only modals close on backdrop click. Editors with unsaved or costly
   // work can opt out and provide their own explicit close flow.
   if (e.target.id === "modal-overlay") {
-    if (modalDismissProtected(e.target)) nudgeModal(e.target);
+    if (modalDismissProtected(e.target) && e.target.hasAttribute('data-modal-background-dismissible')) clickTopmostModalClose(e.target);
+    else if (modalDismissProtected(e.target)) nudgeModal(e.target);
     else appEventListenerDeps.closeModal();
     return;
   }

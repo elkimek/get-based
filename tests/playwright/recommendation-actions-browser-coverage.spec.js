@@ -107,7 +107,7 @@ test('recommendation actions browser coverage handles detail modal discussion an
       await waitForModalSettled();
       outcomes.openRecommendationDetailUsesEmptyFallbackWhenRendererReturnsBlank =
         shell.modal.innerHTML.includes('Missing section')
-        && shell.modal.innerHTML.includes('No recommendation details available for this slot.');
+        && shell.modal.innerHTML.includes('No tip details are available for this topic.');
 
       shell = renderShell();
       recommendationRuntime.configureRecommendationModuleBridge({
@@ -116,8 +116,8 @@ test('recommendation actions browser coverage handles detail modal discussion an
       actions.openRecommendationDetail('broken.slot', '');
       await waitForModalSettled();
       outcomes.openRecommendationDetailUsesErrorFallbackWhenRendererRejects =
-        shell.modal.innerHTML.includes('<h3>Recommendation</h3>')
-        && shell.modal.innerHTML.includes('Could not load recommendation details.');
+        shell.modal.innerHTML.includes('<h3>Tip</h3>')
+        && shell.modal.innerHTML.includes('Could not load tip details.');
 
       shell = renderShell();
       recommendationRuntime.configureRecommendationModuleBridge({ renderRecommendationSection: null });
@@ -125,17 +125,19 @@ test('recommendation actions browser coverage handles detail modal discussion an
       await waitForModalSettled();
       outcomes.openRecommendationDetailHandlesMissingRendererAsEmptyFallback =
         shell.modal.innerHTML.includes('Undefined renderer')
-        && shell.modal.innerHTML.includes('No recommendation details available for this slot.');
+        && shell.modal.innerHTML.includes('No tip details are available for this topic.');
 
       actions.discussRecommendation('rec-d');
       actions.discussRecommendation('missing-rec');
       outcomes.discussRecommendationBuildsCandidatePromptAndFallbackPrompt =
         chatPrompts.length === 2
         && chatPrompts[0].includes('Source: catalog')
-        && chatPrompts[0].includes('Recommendation: Vitamin D')
-        && chatPrompts[0].includes('Reason: 25(OH)D is low')
-        && chatPrompts[0].includes('Suggested first action: none listed')
-        && chatPrompts[1] === 'Help me evaluate my current getbased recommendations. Which should I prioritize and why?'
+        && chatPrompts[0].includes('Tip topic: Vitamin D')
+        && chatPrompts[0].includes('Why it appeared: 25(OH)D is low')
+        && chatPrompts[0].includes('Example shown: none listed')
+        && chatPrompts[0].includes('Do not turn this into a diagnosis or treatment plan.')
+        && chatPrompts[1].includes('general-information tips currently shown in getbased')
+        && chatPrompts[1].includes('Do not rank them as treatment priorities')
         && renderCalls.some(call => call.kind === 'candidateLookup'
           && call.ctx.data === activeData
           && call.cachedCatalog === catalog

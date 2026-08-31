@@ -409,7 +409,7 @@ function showInsightRoute(data) {
 function showRecommendationsRoute(data) {
   return showPreparedRoute(
     'recommendations',
-    'Recommendations',
+    'Tips',
     isRecommendationsHealthDataReady,
     loadRecommendationsHealthDataModules,
     showRecommendations,

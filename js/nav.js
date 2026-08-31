@@ -254,7 +254,7 @@ export function buildSidebar(data) {
     <span class="nav-item-label">Insight</span>
     <span class="nav-item-dot"></span></div>`;
   html += `<div class="nav-item" data-category="recommendations" tabindex="0" role="button" ${_navNavigateAttrs('recommendations')}>
-    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('recommendations')}</span><span class="nav-item-label">Recommendations</span><span class="nav-item-dot"></span></div>`;
+    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('recommendations')}</span><span class="nav-item-label">Tips</span><span class="nav-item-dot"></span></div>`;
 
   html += `<div class="nav-section">Analysis tools</div>`;
   html += `<div class="nav-item" data-category="compare" tabindex="0" role="button" ${_navNavigateAttrs('compare')}>

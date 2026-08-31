@@ -5,7 +5,8 @@ import { setAt } from './data-merge.js';
 import { recordPullDeltaSurface } from './sync-delta-observability.js';
 import { decodeRowPayload } from './sync-delta-row-codec.js';
 
-export async function mergeScalarRowsIntoImported(imported, arrayName, arrRows) {
+/** @param {{ hasBaseline?: boolean, baselineSyncedAt?: number }} [options] */
+export async function mergeScalarRowsIntoImported(imported, arrayName, arrRows, options = {}) {
   let live = 0, tombs = 0;
   let chosen = null;
   let chosenAt = '';
@@ -29,6 +30,20 @@ export async function mergeScalarRowsIntoImported(imported, arrayName, arrRows) 
       if (ts > chosenAt) { chosen = parsed; chosenAt = ts; }
       live++;
     } catch {}
+  }
+  // In dual-write mode the profile blob and scalar rows carry the same value,
+  // but an old replica can surface a stale row after a newer blob has won.
+  // Keep that explicit blob value; v4 row-only payloads have no baseline.
+  const baselineAt = options.hasBaseline && Number.isFinite(options.baselineSyncedAt)
+    ? Number(options.baselineSyncedAt)
+    : 0;
+  const latestRowAt = Math.max(
+    Date.parse(chosenAt || '') || 0,
+    Date.parse(tombstonedAt || '') || 0,
+  );
+  if (baselineAt >= latestRowAt && baselineAt > 0) {
+    recordPullDeltaSurface(arrayName, { live, tombstones: tombs });
+    return;
   }
   // Latest write wins between live + tombstone: tombstone only
   // overwrites when its syncedAt is at-or-newer than the chosen

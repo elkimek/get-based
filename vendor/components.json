@@ -126,6 +126,43 @@
       ]
     },
     {
+      "name": "@evolu/common v8 candidate",
+      "version": "8.7.0",
+      "purl": "pkg:npm/%40evolu/common@8.7.0",
+      "license": "MIT",
+      "source": "https://github.com/evoluhq/evolu",
+      "monitoring": "github-advisory",
+      "files": [
+        "vendor/evolu8/evolu-bundle.js"
+      ]
+    },
+    {
+      "name": "@evolu/web v8 candidate",
+      "version": "3.1.0",
+      "purl": "pkg:npm/%40evolu/web@3.1.0",
+      "license": "MIT",
+      "source": "https://github.com/evoluhq/evolu",
+      "monitoring": "github-advisory",
+      "files": [
+        "vendor/evolu8/Db.worker.js",
+        "vendor/evolu8/Shared.worker.js"
+      ]
+    },
+    {
+      "name": "@evolu/sqlite-wasm v8 candidate",
+      "version": "2.2.4",
+      "purl": "pkg:npm/%40evolu/sqlite-wasm@2.2.4",
+      "license": "Apache-2.0",
+      "source": "https://github.com/evoluhq/sqlite-wasm-cipher",
+      "monitoring": "github-advisory",
+      "files": [
+        "vendor/evolu8/sqlite3-bundler-friendly.mjs",
+        "vendor/evolu8/sqlite3-opfs-async-proxy.js",
+        "vendor/evolu8/sqlite3-worker1-bundler-friendly.mjs",
+        "vendor/evolu8/sqlite3.wasm"
+      ]
+    },
+    {
       "name": "SQLite",
       "version": "3.50.4",
       "purl": "pkg:generic/sqlite@3.50.4",
@@ -184,6 +221,7 @@
   "metadataFiles": [
     "vendor/browser-vendors.json",
     "vendor/components.json",
+    "vendor/evolu8/manifest.json",
     "vendor/fonts/fonts.css",
     "vendor/fonts/OFL.txt"
   ]

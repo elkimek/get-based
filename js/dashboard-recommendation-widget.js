@@ -70,7 +70,7 @@ function handleDashboardRecommendationClick(event) {
     callDashboardRecommendationRuntime(
       'openRecommendationDetail',
       actionEl.dataset.dashboardRecSlotKey || '',
-      actionEl.dataset.dashboardRecLabel || 'Recommendation',
+      actionEl.dataset.dashboardRecLabel || 'Tip',
       actionEl.dataset.dashboardRecMarkerStatus || '',
     );
   } else if (action === 'discuss') {
@@ -162,9 +162,9 @@ export function createDashboardRecommendationWidget({
     const readable = String(status || '').replace(/_/g, ' ');
     if (alert?.code) {
       const code = String(alert.code).replace(/_/g, ' ');
-      return `${name} is ${readable}; trend signal: ${code}.`;
+      return `${name} is ${readable}; current trend signal is ${code}.`;
     }
-    return `${name} is ${readable} versus its active reference range.`;
+    return `${name} is ${readable} versus the active reference range.`;
   }
 
   function getGlobalRecommendationCandidates(ctx, catalog, { includeDismissed = false } = {}) {
@@ -228,7 +228,7 @@ export function createDashboardRecommendationWidget({
         source: 'Biology Scores',
         slotKey: coreGap.path,
         score: 86 + Math.round((score.coherenceWeight || 1) * 4),
-        reason: `${coreGap.label} would improve ${score.title} confidence and baseline Biological Coherence coverage.`,
+        reason: `Shown because ${coreGap.label} is missing from the inputs used for ${score.title} context and Biological Coherence coverage.`,
         meta: `${Math.round((score.coverage || 0) * 100)}% ${score.title} coverage`,
       });
     }
@@ -240,7 +240,7 @@ export function createDashboardRecommendationWidget({
         source: 'Biology Scores',
         slotKey: weakestDrag.path,
         score: 74,
-        reason: `${weakestDrag.label} is one of the biggest drags in the weakest biology domain (${weakestBiology.title}).`,
+        reason: `Shown because ${weakestDrag.label} is among the lower-scoring available inputs in ${weakestBiology.title}.`,
         meta: `${weakestBiology.score}/100 · ${Math.round(weakestDrag.partial)}/100 marker fit`,
       });
     }
@@ -260,7 +260,7 @@ export function createDashboardRecommendationWidget({
         score: hasRecentLightSession ? 62 : 70,
         reason: hasRecentLightSession
           ? 'Recent light logs show little circadian-channel exposure over the last 7 days.'
-          : 'No recent sun or device sessions are logged, so morning light is the cleanest Light-lens next step.',
+          : 'Shown because no recent sun or device sessions are logged and the catalog contains morning-light context.',
         meta: 'Light & Sun',
       });
     }
@@ -300,12 +300,12 @@ export function createDashboardRecommendationWidget({
 
   function renderRecommendationCard(candidate, { compact = false } = {}) {
     const savedClass = candidate.saved ? ' is-saved' : '';
-    const primaryAction = candidate.primaryAction ? `<div class="rec-next-primary">${escapeHTML(candidate.primaryAction)}</div>` : '';
+    const primaryAction = candidate.primaryAction ? `<div class="rec-next-primary"><span class="rec-next-primary-label">Example to explore</span>${escapeHTML(candidate.primaryAction)}</div>` : '';
     const markerBtn = candidate.markerId
       ? `<button type="button" class="dashboard-action-btn" ${dashboardRecommendationActionAttrs('view-marker', { 'marker-id': candidate.markerId })}>View marker</button>`
       : '';
     const saveLabel = candidate.saved ? 'Bookmarked' : 'Bookmark';
-    const dismissLabel = candidate.dismissed ? 'Restore' : 'Dismiss';
+    const dismissLabel = candidate.dismissed ? 'Show' : 'Hide';
     return `<article class="rec-next-card${compact ? ' rec-next-card-compact' : ''}${savedClass}" data-rec-id="${escapeAttr(candidate.id)}">
       <div class="rec-next-head">
         <span class="rec-next-source">${escapeHTML(candidate.source)}</span>
@@ -324,30 +324,30 @@ export function createDashboardRecommendationWidget({
     </article>`;
   }
 
-  function renderRecommendationsEmpty(message = 'No data-linked recommendations yet.') {
+  function renderRecommendationsEmpty(message = 'No data-linked tips yet.') {
     return `<button type="button" class="db-correlation-empty" ${dashboardRecommendationActionAttrs('navigate', { route: 'labs' })}>
       <strong>${escapeHTML(message)}</strong>
-      <span>Import labs, connect body data, log light exposure, or add DNA to generate recommendation candidates.</span>
+      <span>Import labs, connect body data, log light exposure, or add DNA to surface optional general-information tips.</span>
     </button>`;
   }
 
   function renderDashboardRecommendationsWidget(ctx) {
     if (!getRecommendationModuleFunction('isProductRecsEnabled')?.()) {
       return `<button type="button" class="db-correlation-empty" ${dashboardRecommendationActionAttrs('open-privacy-settings')}>
-        <strong>Recommendations are off</strong>
-        <span>Enable Tips & Recommendations in settings to show data-linked next steps.</span>
+        <strong>Tips are off</strong>
+        <span>Enable Tips in settings to show optional general-information ideas linked to your data.</span>
       </button>`;
     }
     const catalog = getCachedRecommendationsCatalog();
     if (!catalog) {
       refreshRecommendationsWhenCatalogReady();
-      return `<div class="dashboard-widget-empty">Loading recommendations...</div>`;
+      return `<div class="dashboard-widget-empty">Loading tips...</div>`;
     }
     const candidates = getGlobalRecommendationCandidates(ctx, catalog).slice(0, 3);
     if (!candidates.length) return renderRecommendationsEmpty();
     return `<div class="rec-next-widget">
       ${candidates.map(c => renderRecommendationCard(c, { compact: true })).join('')}
-      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${dashboardRecommendationActionAttrs('navigate', { route: 'recommendations' })}>View all recommendations</button>
+      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${dashboardRecommendationActionAttrs('navigate', { route: 'recommendations' })}>View all tips</button>
     </div>`;
   }
 

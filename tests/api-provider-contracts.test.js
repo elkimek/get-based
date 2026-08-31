@@ -613,6 +613,45 @@ describe('AI provider request contracts', () => {
     expect(JSON.stringify(request.body)).not.toContain(contract.key);
   });
 
+  it.each(providerContracts.filter(contract => contract.name !== 'Local AI'))(
+    'keeps FocusCard reasoning controls compatible with $name',
+    async (contract) => {
+      contract.setup();
+      let postCount = 0;
+      globalThis.fetch = vi.fn(async (_url, init = {}) => {
+        if (init.method !== 'POST') return jsonResponse({}, { status: 404 });
+        postCount++;
+        if (postCount === 1) {
+          return jsonResponse({
+            error: { message: 'Reasoning is mandatory for this endpoint and cannot be disabled.' },
+          }, { status: 400 });
+        }
+        return chatCompletionResponse('focus answer');
+      });
+
+      await expect(callClaudeAPI(baseChatOptions({
+        ...contract.options,
+        reasoningEffort: 'none',
+      }))).resolves.toMatchObject({
+        text: 'focus answer',
+        diagnostics: { reasoningControlFallback: true },
+      });
+
+      const bodies = globalThis.fetch.mock.calls
+        .filter(([, init]) => init?.method === 'POST')
+        .map(([, init]) => JSON.parse(init.body));
+      expect(bodies).toHaveLength(2);
+      if (contract.name === 'Venice') {
+        expect(bodies[0].reasoning).toEqual({ enabled: false });
+        expect(bodies[0]).not.toHaveProperty('reasoning_effort');
+      } else {
+        expect(bodies[0].reasoning_effort).toBe('none');
+      }
+      expect(bodies[1]).not.toHaveProperty('reasoning');
+      expect(bodies[1]).not.toHaveProperty('reasoning_effort');
+    },
+  );
+
   it('retries Local AI JSON requests without structured output when the server rejects it', async () => {
     setAIProvider('ollama');
     setOllamaMainModel('llama3.2');
@@ -672,7 +711,9 @@ describe('AI provider request contracts', () => {
       }
       postCount++;
       if (postCount === 1) return jsonResponse({ error: { message: 'response_format json_schema unsupported' } }, { status: 400 });
-      if (postCount === 2) return jsonResponse({ error: { message: 'reasoning_effort is invalid' } }, { status: 422 });
+      if (postCount === 2) return jsonResponse({
+        error: { message: 'Reasoning is mandatory for this endpoint and cannot be disabled.' },
+      }, { status: 422 });
       return chatCompletionResponse('{"ok":true}');
     });
 

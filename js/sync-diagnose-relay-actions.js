@@ -10,6 +10,7 @@ import { toggleSyncDetail } from './sync-ui.js';
 import { showSyncDiagnoseForActions } from './sync-diagnose-actions-context.js';
 import { confirmSyncDiagnoseActionRuntime } from './sync-diagnose-runtime.js';
 import { prepareRelayCompaction, rebuildOwnerRelayState } from './sync-actions.js';
+import { getSyncEvolu } from './sync-runtime.js';
 
 async function waitForRelayRebuild() {
   const delays = [0, 500, 1500, 3000];
@@ -35,7 +36,7 @@ export async function confirmCompactRelay(btn) {
   const mb = q ? (q.bytes / 1024 / 1024).toFixed(1) : '?';
   const message = rebuildOnly
     ? 'Retry rebuilding the relay snapshot from this device? Keep this tab open until verification finishes.'
-    : `Reduce storage (currently ~${mb} MB)? This permanently replaces the relay message log with a fresh snapshot from this device. First make sure every device shows Synced. Keep this tab open until the automatic rebuild finishes; local data is untouched.`;
+    : `Reduce storage (currently ~${mb} MB)? This replaces the relay log with a fresh snapshot from this device. Sync each device's latest changes first. Offline devices can reconnect safely later. Keep this tab open until the rebuild finishes; local data is untouched.`;
   // Never perform destructive relay maintenance if the confirmation adapter
   // is unavailable. A missing dialog must fail closed.
   const proceed = await confirmSyncDiagnoseActionRuntime(message, { fallback: false });
@@ -45,7 +46,10 @@ export async function confirmCompactRelay(btn) {
   try {
     let result = null;
     if (!rebuildOnly) {
+      // Includes the Evolu 8 generation-persistence preflight. Nothing may
+      // delete the relay log until that local history boundary is durable.
       await prepareRelayCompaction();
+      getSyncEvolu()?.prepareHistoryReset?.();
       result = await compactOwnerSelfServe();
       compacted = true;
     }

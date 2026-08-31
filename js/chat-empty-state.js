@@ -362,7 +362,7 @@ function renderOptionalContextState(container, panel, { personality }) {
   container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${_renderOnboardCrumbs(3)}
-      <p>${hasAIProvider() ? 'Great, we are connected.' : 'Nice. We can collect useful context first and connect AI when recommendations or AI imports need it.'} These optional context pieces make later interpretation more useful. Add any that matter now, or continue to the context cards.</p>
+      <p>${hasAIProvider() ? 'Great, we are connected.' : 'Nice. We can collect useful context first and connect AI when optional tips or AI imports need it.'} These optional context pieces make later interpretation more useful. Add any that matter now, or continue to the context cards.</p>
       <div class="chat-onboard-task-grid">${cards}</div>
       ${renderAffiliateDnaKitLink(hasSnps)}
       <div class="chat-onboard-note">You can change all of this later from the dashboard, settings, or client profile.</div>
@@ -472,7 +472,7 @@ function renderFullContextNoDataState(container, panel, { personality, name }) {
   container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${renderOnboardingCompleteLabel('Context complete')}
-      <p>${escapeHTML(name)}, your context cards are complete. ${providerConnected ? 'Next, import labs or ask what to test when you are ready.' : 'Next, connect AI when you are ready to import labs or get recommendations.'}</p>
+      <p>${escapeHTML(name)}, your context cards are complete. ${providerConnected ? 'Next, import labs or ask what to test when you are ready.' : 'Next, connect AI when you are ready to import labs or explore optional tips.'}</p>
       <div class="chat-onboard-actions">
         ${providerConnected
           ? `<button type="button" class="chat-onboard-cta" data-chat-empty-action="start-lab-import">Import a lab file</button>
@@ -519,7 +519,7 @@ function renderContextImportHandoffState(container, panel, { personality, name }
       : `Context cards are saved for later, ${escapeHTML(name)}.`;
   const nextCopy = providerConnected
     ? 'Next, import labs or ask what to test when you are ready.'
-    : 'Next, connect AI when you are ready to import labs or get recommendations.';
+    : 'Next, connect AI when you are ready to import labs or explore optional tips.';
   container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${renderOnboardingCompleteLabel('Setup ready')}

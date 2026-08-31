@@ -76,6 +76,8 @@ describe('nutrition rolling summaries', () => {
       averageLastMealLocalTime: '16:45',
       averageEatingWindowMinutes: 720,
       eatingWindowDays: 1,
+      averageFastingWindowMinutes: 1170,
+      fastingWindowDays: 1,
     });
     expect(summary.windows.d7.timing).not.toHaveProperty('meals');
     expect(summary.windows.d7.timing.occasionCounts).toEqual({ breakfast: 1, dinner: 1, lunch: 1 });
@@ -209,6 +211,10 @@ describe('nutrition rolling summaries', () => {
       averageSleepSpanningMealGapMinutes: 780,
       sleepSpanningMealGapCount: 2,
       sourceCounts: { oura: 2 },
+    });
+    expect(summary.windows.d7.timing).toMatchObject({
+      averageFastingWindowMinutes: 780,
+      fastingWindowDays: 2,
     });
   });
 

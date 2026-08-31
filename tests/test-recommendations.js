@@ -170,7 +170,7 @@ const _realFetch = globalThis.fetch;
   }).openRecommendationDetail('missing.slot', 'Missing section');
   await Promise.resolve();
   assert('openRecommendationDetail handles missing renderRecommendationSection without stuck loading',
-    modalStub.innerHTML.includes('No recommendation details available for this slot.'));
+    modalStub.innerHTML.includes('No tip details are available for this topic.'));
   document.getElementById = originalGetElementById;
   configureRecommendationModuleBridge(previousRecommendationBridge);
   // Restore
@@ -280,9 +280,10 @@ const _realFetch = globalThis.fetch;
   ].every(name => !(name in window)));
   assert('nav.js exposes recommendations sidebar helper', navSrc.includes('openRecommendationsFromSidebar'));
   const recNavMarkup = navSrc.match(/data-category="recommendations"[\s\S]{0,500}/)?.[0] || '';
-  assert('Recommendations sidebar routes to dedicated page',
+  assert('Tips sidebar routes to dedicated page',
     recNavMarkup.includes("_navNavigateAttrs('recommendations')") &&
-    navSrc.includes("return _navActionAttrs('navigate', { route })"));
+    navSrc.includes("return _navActionAttrs('navigate', { route })") &&
+    recNavMarkup.includes('nav-item-label">Tips'));
   assert('Recommendations sidebar item does not open Settings', !recNavMarkup.includes('openSettingsModal'));
   assert('views.js exposes dedicated Recommendations page', viewsSrc.includes('export function showRecommendations') && viewsSrc.includes('openRecommendationDetail'));
   assert('views.js delegates recommendation actions to recommendation-actions.js',
@@ -301,8 +302,8 @@ const _realFetch = globalThis.fetch;
     !dashboardRecommendationWidgetSrc.includes("from './views-runtime-bridge.js'") &&
     !dashboardRecommendationWidgetSrc.includes("from './settings-runtime-bridge.js'") &&
     !dashboardRecommendationWidgetSrc.includes('globalThis'));
-  assert('dismissed recommendations render a Restore action',
-    dashboardRecommendationWidgetSrc.includes("candidate.dismissed ? 'Restore' : 'Dismiss'") &&
+  assert('hidden tips render a Show action',
+    dashboardRecommendationWidgetSrc.includes("candidate.dismissed ? 'Show' : 'Hide'") &&
     dashboardRecommendationWidgetSrc.includes("dashboardRecommendationActionAttrs('dismiss'") &&
     dashboardRecommendationWidgetSrc.includes("on: candidate.dismissed ? 'false' : 'true'"));
   assert('dismissRecommendation can restore a dismissed recommendation',
@@ -316,7 +317,7 @@ const _realFetch = globalThis.fetch;
   // ═══════════════════════════════════════
   console.log('%c 10. Settings Toggle ', 'font-weight:bold;color:#f59e0b');
 
-  assert('Settings has Tips & Recommendations toggle', settingsDisplaySrc.includes('Tips &amp; Recommendations'));
+  assert('Settings has Tips toggle', settingsDisplaySrc.includes('<label class="settings-label">Tips</label>'));
   assert('Settings has product-recs toggle', settingsDisplaySrc.includes('settings-product-recs'));
   assert('Settings calls setProductRecsEnabled', settingsSrc.includes('setProductRecsEnabled'));
 
@@ -325,9 +326,10 @@ const _realFetch = globalThis.fetch;
   // ═══════════════════════════════════════
   console.log('%c 11. System Prompt ', 'font-weight:bold;color:#f59e0b');
 
-  assert('System prompt has Supplement Recommendations section', chatSystemPromptSrc.includes('## Supplement Recommendations'));
-  assert('System prompt mentions food first', chatSystemPromptSrc.includes('free actions first'));
-  assert('System prompt mentions specific form', chatSystemPromptSrc.includes('specific form'));
+  assert('System prompt has Supplement Information section', chatSystemPromptSrc.includes('## Supplement Information'));
+  assert('System prompt puts lifestyle and food context first', chatSystemPromptSrc.includes('lifestyle and food context first'));
+  assert('System prompt frames supplements as educational options', chatSystemPromptSrc.includes('educational options to review'));
+  assert('System prompt prohibits individualized dosing', chatSystemPromptSrc.includes('Do not provide an individualized dose'));
   assert('System prompt mentions medication interactions', chatSystemPromptSrc.includes('medication interactions'));
 
   // ═══════════════════════════════════════

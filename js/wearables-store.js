@@ -19,7 +19,7 @@ const DB_VERSION = 1;
 const STORE_DAILY = 'daily-metrics';
 const STORE_META = 'meta';
 const DEVICE_LOCAL_KEY_META = 'credential-vault-key:v1';
-const ALWAYS_DEVICE_ENCRYPTED_SOURCES = new Set(['google_health']);
+const ALWAYS_DEVICE_ENCRYPTED_SOURCES = new Set(['google_health', 'whoop']);
 const deviceLocalEncoder = new TextEncoder();
 const deviceLocalDecoder = new TextDecoder();
 
@@ -84,8 +84,8 @@ async function getOrCreateDeviceLocalKey(profileId) {
   });
 }
 
-// Always-on, device-local encryption used for restricted Google Health data
-// and all wearable credentials. The non-extractable key remains in this profile's
+// Always-on, device-local encryption used for restricted provider data and all
+// wearable credentials. The non-extractable key remains in this profile's
 // wearable IndexedDB and is deliberately excluded from backup/sync paths.
 export async function encryptWearableDeviceLocalValue(profileId, value) {
   const key = await getOrCreateDeviceLocalKey(profileId);
@@ -217,7 +217,7 @@ async function _prepareRowForStorage(profileId, row) {
   }
   // When the user also enables passphrase encryption, it becomes an outer
   // envelope around the always-on device envelope. Disabling the passphrase
-  // therefore never downgrades Google Health rows to plaintext.
+  // therefore never downgrades restricted provider rows to plaintext.
   return _encryptRowIfEnabled(prepared);
 }
 
@@ -368,7 +368,15 @@ export async function getDaily(profileId, source, date) {
     req.onsuccess = () => resolve(req.result || null);
     req.onerror = () => reject(req.error);
   });
-  return raw ? _decryptRowIfWrapped(profileId, raw) : null;
+  if (!raw) return null;
+  if (ALWAYS_DEVICE_ENCRYPTED_SOURCES.has(source)) {
+    await (await import('./wearables-whoop-storage.js')).migrateRestrictedProviderRows(
+      profileId,
+      source,
+      { encryptWearableDeviceLocalValue, openWearablesDB },
+    );
+  }
+  return _decryptRowIfWrapped(profileId, raw);
 }
 
 // Raw range read — returns rows AS STORED in IDB without decrypt. Used by
@@ -403,8 +411,9 @@ export async function getAllDailyRaw(profileId) {
 }
 
 // Raw write — accepts rows AS-IS without re-encrypting. Used by the
-// backup-restore path so wrapped rows go back into IDB untouched. Google
-// Health is excluded because its device key never leaves the source device.
+// backup-restore path so wrapped rows go back into IDB untouched. Restricted
+// provider sources are excluded because their device key never leaves the
+// source device.
 export async function upsertDailyBatchRaw(profileId, rows) {
   if (!rows || rows.length === 0) return;
   const db = await openWearablesDB(profileId);
@@ -435,11 +444,19 @@ export async function getDailyRange(profileId, source, startDate, endDate) {
     };
     req.onerror = () => reject(req.error);
   });
-  // Decrypt-on-read. Plaintext rows pass through untouched; encrypted
-  // rows unwrap. Any single-row decrypt failure (session locked / corrupt)
+  // Upgrade legacy restricted-provider rows before returning their plaintext
+  // view. Plaintext rows from unrestricted sources pass through untouched;
+  // encrypted rows unwrap. Any single-row decrypt failure (session locked / corrupt)
   // returns null from _decryptRowIfWrapped — drop those rows from the
   // range rather than passing them through, since downstream consumers
   // can't render a wrapped row safely.
+  if (ALWAYS_DEVICE_ENCRYPTED_SOURCES.has(source)) {
+    await (await import('./wearables-whoop-storage.js')).migrateRestrictedProviderRows(
+      profileId,
+      source,
+      { encryptWearableDeviceLocalValue, openWearablesDB },
+    );
+  }
   const decrypted = await Promise.all(raws.map(r => _decryptRowIfWrapped(profileId, r)));
   return decrypted.filter(r => r !== null);
 }
@@ -538,7 +555,7 @@ export async function setMetaVersioned(profileId, key, value, versionKey, expect
 /**
  * Atomically revoke a versioned record and, when requested, purge all daily
  * rows and extra metadata owned by the same source. Sharing one transaction
- * with guarded Google Health writes means either the stale write lands first
+ * with guarded restricted-provider writes means either the stale write lands first
  * and is then deleted, or the version bump lands first and rejects it.
  *
  * @param {string} profileId
