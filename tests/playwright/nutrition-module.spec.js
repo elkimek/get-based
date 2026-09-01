@@ -18,6 +18,7 @@ test.beforeEach(async ({ page }) => {
       accepted: true,
       termsVersion: '2026-08-22',
       privacyVersion: '2026-08-22',
+      policyScope: 'self-hosted-notice',
       acceptedAt: '2026-08-23T00:00:00.000Z',
       appVersion: 'nutrition-module-test',
       location: 'nutrition-module-test',
@@ -926,6 +927,7 @@ test('model comparison preselects and routes models from separate configured pro
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(async () => {
     const api = await import('/js/api.js');
+    const consent = await import('/js/cloud-ai-consent.js');
     const keys = await import('/js/crypto-key-cache.js');
     keys.updateKeyCache('labcharts-openrouter-key', 'test-openrouter-key');
     keys.updateKeyCache('labcharts-venice-key', 'test-venice-key');
@@ -939,8 +941,8 @@ test('model comparison preselects and routes models from separate configured pro
     ]));
     localStorage.setItem('labcharts-venice-e2ee-models', '[]');
     localStorage.setItem('labcharts-venice-vision-models', JSON.stringify(['gemini-3-5-flash']));
-    localStorage.setItem('labcharts-cloud-ai-consent', JSON.stringify({
-      version: '2026-08-19',
+    localStorage.setItem(consent.CLOUD_AI_CONSENT_KEY, JSON.stringify({
+      version: consent.CLOUD_AI_CONSENT_VERSION,
       approvals: {
         openrouter: { accepted: true },
         venice: { accepted: true },
@@ -1925,6 +1927,7 @@ test('AI Settings can route meal photos to Opus without changing the Grok chat m
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(async () => {
     const api = await import('/js/api.js');
+    const consent = await import('/js/cloud-ai-consent.js');
     const keys = await import('/js/crypto-key-cache.js');
     keys.updateKeyCache('labcharts-openrouter-key', 'test-openrouter-key');
     keys.updateKeyCache('labcharts-venice-key', 'test-venice-key');
@@ -1946,6 +1949,13 @@ test('AI Settings can route meal photos to Opus without changing the Grok chat m
     ]));
     localStorage.setItem('labcharts-venice-e2ee-models', '[]');
     localStorage.setItem('labcharts-venice-vision-models', JSON.stringify(['gemini-3-5-flash']));
+    localStorage.setItem(consent.CLOUD_AI_CONSENT_KEY, JSON.stringify({
+      version: consent.CLOUD_AI_CONSENT_VERSION,
+      approvals: {
+        openrouter: { accepted: true },
+        venice: { accepted: true },
+      },
+    }));
     api.setAIProvider('openrouter');
     (await import('/js/nutrition-ai-settings.js')).setNutritionAIRoute({
       provider: 'venice', model: 'gemini-3-5-flash',

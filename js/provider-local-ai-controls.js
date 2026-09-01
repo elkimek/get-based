@@ -39,6 +39,8 @@ import {
 } from './provider-local-ai-runtime.js';
 
 let returnToChatIfOnboarding = function() {};
+/** @type {(provider: string, options?: { endpoint?: string, modelId?: string }) => Promise<boolean>} */
+let requestProviderActivation = async function() { return true; };
 const LOCAL_AI_NOT_CONNECTED_TEXT = 'Not connected \u2014 check URL and ensure your server is running';
 const LOCAL_AI_ACTION_ATTR = 'data-local-ai-action';
 const LOCAL_AI_COMMAND_ATTR = 'data-local-ai-command';
@@ -50,6 +52,9 @@ let discoveryEventInstalled = false;
 export function configureLocalAiControls(options = {}) {
   if (typeof options.returnToChatIfOnboarding === 'function') {
     returnToChatIfOnboarding = options.returnToChatIfOnboarding;
+  }
+  if (typeof options.requestProviderActivation === 'function') {
+    requestProviderActivation = options.requestProviderActivation;
   }
 }
 
@@ -124,6 +129,8 @@ export function initSettingsOllamaCheck() {
   if (!dot || !text) { updatePrivacyStatusCardFromRuntime(); return; }
   dot.className = 'local-ai-status-dot';
   text.textContent = 'Checking connection...';
+  // Settings discovery is passive: only an explicit Test/connect action may
+  // request activation. Opening Settings must never surface consent UI.
   discoverLocalAI(config.url, config.apiKey, { force: true }).then(result => {
     if (generation !== mainDiscoveryGeneration) return;
     applyMainDiscoveryResult(result);
@@ -504,10 +511,14 @@ export async function testOllamaConnection() {
       if (generation !== mainDiscoveryGeneration) return;
       dot.classList.add('connected');
       let currentModel = getOllamaMainModel();
-      if (!models.includes(currentModel)) {
-        currentModel = models[0];
-        setOllamaMainModel(currentModel);
+      const modelChanged = !models.includes(currentModel);
+      if (modelChanged) currentModel = models[0];
+      if (!await requestProviderActivation('ollama', { endpoint: url, modelId: currentModel })) {
+        dot.classList.add('connected');
+        text.textContent = 'Connection verified — AI not activated';
+        return;
       }
+      if (modelChanged) setOllamaMainModel(currentModel);
       await saveOllamaConfig({ ...config, url, model: currentModel, mode: result.provider, apiKey });
       applyMainDiscoveryResult(result);
     }

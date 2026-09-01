@@ -6,6 +6,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
   const results = await page.evaluate(async () => {
     const api = await import('/js/api.js');
     const cryptoStore = await import('/js/crypto.js');
+    const cloudConsent = await import('/js/cloud-ai-consent.js');
     const providerPanels = await import('/js/provider-panels.js');
     const settings = await import('/js/settings.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -207,10 +208,15 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       localStorage.setItem('labcharts-routstr-node', nodeUrl);
       localStorage.setItem('labcharts-routstr-key', 'sk-routstr-dom');
       cryptoStore.updateKeyCache('labcharts-routstr-key', 'sk-routstr-dom');
+      const routstrScope = cloudConsent.cloudAIConsentDetails('routstr', { endpoint: nodeUrl }).scope;
+      localStorage.setItem(cloudConsent.CLOUD_AI_CONSENT_KEY, JSON.stringify({
+        version: cloudConsent.CLOUD_AI_CONSENT_VERSION,
+        approvals: { [routstrScope]: { accepted: true } },
+      }));
 
       settings.openSettingsModal('ai');
       await wait(100);
-      providerPanels.switchAIProvider('routstr');
+      await providerPanels.switchAIProvider('routstr');
       await wait(150);
 
       const walletRenders = !!document.getElementById('routstr-wallet-balance');

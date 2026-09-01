@@ -67,6 +67,29 @@ describe('app event listener runtime', () => {
     appEvents.installGlobalEventListeners();
   });
 
+  it('lets a scrollable legal consent modal consume wheel input', () => {
+    const overlay = appendOverlay(
+      'cloud-ai-consent-overlay',
+      '<div class="legal-consent-modal"><label><input type="checkbox">Approve</label></div>',
+    );
+    const modal = overlay.querySelector('.legal-consent-modal');
+    Object.defineProperties(modal, {
+      clientHeight: { configurable: true, value: 400 },
+      scrollHeight: { configurable: true, value: 700 },
+      scrollTop: { configurable: true, writable: true, value: 0 },
+    });
+
+    const wheel = new WheelEvent('wheel', { deltaY: 100, bubbles: true, cancelable: true });
+    modal.querySelector('input').dispatchEvent(wheel);
+    expect(wheel.defaultPrevented).toBe(false);
+
+    modal.scrollTop = 300;
+    const edgeWheel = new WheelEvent('wheel', { deltaY: 100, bubbles: true, cancelable: true });
+    modal.querySelector('input').dispatchEvent(edgeWheel);
+    expect(edgeWheel.defaultPrevented).toBe(true);
+    overlay.remove();
+  });
+
   it('routes backdrops, keyboard actions, modal safety, and refresh through the composed shell', async () => {
     const scrollable = document.createElement('div');
     scrollable.className = 'modal';

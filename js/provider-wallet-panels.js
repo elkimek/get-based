@@ -29,9 +29,8 @@ export { configureRoutstrWalletRuntime, walletRuntime };
 export { buildRoutstrNodeActions, routstrWalletActionButtons };
 
 const walletCallbacks = {
-  renderAIProviderPanel: /** @type {((provider: string) => string) | null} */ (null),
-  renderRoutstrModelDropdown: /** @type {((models: any[]) => void) | null} */ (null),
-  initSettingsModelFetch: /** @type {(() => void) | null} */ (null),
+  renderAIProviderPanel: /** @type {((provider: string) => string) | null} */ (null), renderRoutstrModelDropdown: /** @type {((models: any[]) => void) | null} */ (null),
+  initSettingsModelFetch: /** @type {(() => void) | null} */ (null), requestProviderActivation: /** @type {((provider: string, options?: any) => Promise<boolean>) | null} */ (null),
   returnToChatIfOnboarding: /** @type {(() => void) | null} */ (null)
 };
 
@@ -454,6 +453,7 @@ export async function doRoutstrNodeDeposit(nodeUrl, amount) {
       }
     }
   } catch {}
+  if (typeof walletCallbacks.requestProviderActivation === 'function' && !await walletCallbacks.requestProviderActivation('routstr', { endpoint: nodeUrl })) { if (statusEl) statusEl.innerHTML = '<div style="font-size:11px;color:var(--text-muted)">Node verified — AI not activated</div>'; _rsConnecting = false; return; }
   try {
     const existingKey = getRoutstrKey();
     const result = await walletRuntime.cashuDepositToNode(nodeUrl, amount, existingKey);

@@ -21,6 +21,8 @@ import { renderPpqModelDropdown } from './provider-model-controls.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 
 let returnToChatIfOnboarding = function() {};
+/** @type {(provider: string, options?: { endpoint?: string, modelId?: string }) => Promise<boolean>} */
+let requestProviderActivation = async function() { return true; };
 let _ppqCreating = false;
 let _ppqTopupPollTimer = null;
 let _ppqCountdownTimer = null;
@@ -28,6 +30,9 @@ let _ppqCountdownTimer = null;
 export function configurePpqPanels(options = {}) {
   if (typeof options.returnToChatIfOnboarding === 'function') {
     returnToChatIfOnboarding = options.returnToChatIfOnboarding;
+  }
+  if (typeof options.requestProviderActivation === 'function') {
+    requestProviderActivation = options.requestProviderActivation;
   }
 }
 
@@ -137,6 +142,7 @@ export async function handleCreatePpqAccount() {
     await savePpqKey(result.api_key);
     savePpqCreditId(result.credit_id);
     await fetchPpqModels(result.api_key);
+    const activated = await requestProviderActivation('ppq');
     const panel = document.getElementById('ai-provider-panel');
     if (panel) {
       panel.innerHTML = `<div class="ai-provider-panel">
@@ -149,7 +155,7 @@ export async function handleCreatePpqAccount() {
           <div style="font-family:monospace;font-size:11px;word-break:break-all;background:var(--bg-primary);padding:8px;border-radius:6px;border:1px solid var(--border);color:var(--text-primary);user-select:all;cursor:text">${escapeHTML(result.credit_id)}</div>
           <div style="display:flex;gap:8px;margin-top:8px">
             <button class="import-btn import-btn-primary" style="font-size:12px" data-provider-panel-action="copy-ppq-key-reveal" data-clipboard-text="API Key: ${escapeAttr(result.api_key)}&#10;Credit ID: ${escapeAttr(result.credit_id)}" data-copied-text="\u2713 Copied (clears in 60s)">Copy Both</button>
-            <button class="import-btn import-btn-secondary" style="font-size:12px" data-provider-panel-action="dismiss-ppq-key-reveal">I\u2019ve saved it</button>
+            <button class="import-btn import-btn-secondary" style="font-size:12px" data-provider-panel-action="dismiss-ppq-key-reveal">${activated ? 'I\u2019ve saved it' : 'Finish without activation'}</button>
           </div>
         </div>
       </div>`;
@@ -184,6 +190,12 @@ export async function handleSavePpqKey() {
   btn.disabled = true; btn.textContent = 'Validating...';
   const result = await validatePpqKey(key);
   if (result.valid) {
+    status.innerHTML = '<span style="color:var(--text-muted)">Connection verified — waiting for activation…</span>';
+    if (!await requestProviderActivation('ppq')) {
+      status.innerHTML = '<span style="color:var(--text-muted)">Connection verified — AI not activated</span>';
+      btn.disabled = false; btn.textContent = 'Save & Validate';
+      return;
+    }
     await savePpqKey(key);
     status.innerHTML = '<span style="color:var(--green)">Connected \u2014 loading models\u2026</span>';
     const models = await fetchPpqModels(key);

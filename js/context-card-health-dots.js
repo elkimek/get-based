@@ -367,7 +367,12 @@ async function loadContextHealthDotsOnce() {
   const prompt = buildHealthDotsPrompt(staleKeys);
 
   try {
-    const result = await callClaudeAPI({ system: prompt, messages: [{ role: 'user', content: ctx }], maxTokens: 2048 });
+    const result = await callClaudeAPI({
+      system: prompt,
+      messages: [{ role: 'user', content: ctx }],
+      maxTokens: 2048,
+      consentKind: 'automatic-insight',
+    });
     const text = (result && typeof result === 'object')
       ? (result.text || '')
       : (typeof result === 'string' ? result : '');

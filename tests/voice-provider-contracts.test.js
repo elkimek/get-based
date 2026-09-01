@@ -14,6 +14,8 @@ import {
   directVoices,
 } from '../js/voice-provider-cloud-shared.js';
 import {
+  AI_TRANSPARENCY_KEY,
+  AI_TRANSPARENCY_VERSION,
   CLOUD_AI_CONSENT_KEY,
   CLOUD_AI_CONSENT_VERSION,
 } from '../js/cloud-ai-consent.js';
@@ -34,6 +36,10 @@ import {
 const realFetch = globalThis.fetch;
 
 beforeEach(() => {
+  localStorage.setItem(AI_TRANSPARENCY_KEY, JSON.stringify({
+    version: AI_TRANSPARENCY_VERSION,
+    acknowledged: true,
+  }));
   const approvals = Object.fromEntries(
     ['openrouter', 'ppq', 'venice', 'xai', 'elevenlabs'].map(provider => [provider, {
       accepted: true,

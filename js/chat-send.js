@@ -230,13 +230,11 @@ export async function sendChatMessage() {
   if (!text && !hasImages) return;
 
   // Ask before mutating the conversation or preparing any provider request.
-  // Consent is provider-scoped, so switching cloud providers requires a new
-  // express choice while Local AI remains available without this gate.
+  // The shared gate separates AI transparency from endpoint-specific route
+  // confirmation or remote sensitive-data approval.
   const _msgProvider = getAIProvider();
-  if (_msgProvider !== 'ollama') {
-    const { requestCloudAIConsent } = await import('./cloud-ai-consent.js');
-    if (!await requestCloudAIConsent(_msgProvider, { kind: 'text' })) return;
-  }
+  const { requestAIProcessingApproval } = await import('./cloud-ai-consent.js');
+  if (!await requestAIProcessingApproval(_msgProvider, { kind: 'text' })) return;
 
   // Capture attachments before clearing (they're ephemeral)
   const attachments = hasImages ? [...getPendingAttachments()] : [];

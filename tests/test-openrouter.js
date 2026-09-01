@@ -139,9 +139,11 @@ assert('settings calls provider bridge APIs directly',
   settingsSrc.includes('renderAIProviderPanelBridge()') &&
     settingsSrc.includes('initSettingsProviderPanels()'));
 assert('settings provider bridge has eager provider switch', settingsBridgeSrc.includes('function switchAIProviderBridge(provider)'));
-assert('eager provider bridge persists selection synchronously', settingsBridgeSrc.includes('setAIProvider(provider);'));
+assert('provider bridge defers persistence to the activation-aware provider module',
+  !settingsBridgeSrc.includes('setAIProvider(provider);')
+    && settingsBridgeSrc.includes('{ previousProvider }'));
 assert('settings provider bridge resolves module APIs without publishing globals',
-  settingsBridgeSrc.includes('providerPanels.switchAIProvider(provider)') &&
+  settingsBridgeSrc.includes('providerPanels.switchAIProvider(provider, { previousProvider })') &&
     settingsBridgeSrc.includes('providerPanels.renderAIProviderPanel(getAIProvider())') &&
     !settingsBridgeSrc.includes('settingsWindow') &&
     !settingsBridgeSrc.includes('PROVIDER_PANEL_BRIDGE_NAMES'));

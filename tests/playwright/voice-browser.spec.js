@@ -173,9 +173,10 @@ test('denied hosted dictation never requests microphone access', async ({ page }
   await page.goto('/app', { waitUntil: 'load' });
 
   const started = await page.evaluate(async () => {
-    const [{ configureAppExtension }, { updateKeyCache }, settings, controller] = await Promise.all([
+    const [{ configureAppExtension }, { updateKeyCache }, cloudConsent, settings, controller] = await Promise.all([
       import('/js/app-extension-runtime.js'),
       import('/js/crypto-key-cache.js'),
+      import('/js/cloud-ai-consent.js'),
       import('/js/voice-settings-storage.js'),
       import('/js/voice-controller.js'),
     ]);
@@ -187,6 +188,10 @@ test('denied hosted dictation never requests microphone access', async ({ page }
       },
     });
     localStorage.setItem('labcharts-ai-provider', 'openrouter');
+    localStorage.setItem(cloudConsent.CLOUD_AI_CONSENT_KEY, JSON.stringify({
+      version: cloudConsent.CLOUD_AI_CONSENT_VERSION,
+      approvals: { openrouter: { accepted: true } },
+    }));
     updateKeyCache('labcharts-openrouter-key', 'or-browser-privacy-test');
     settings.setVoiceSetting('inputProvider', 'openrouter');
     return controller.toggleVoiceRecording();
@@ -708,6 +713,16 @@ test('cloud connection controls preserve masked keys, labels, and provider error
     });
   });
   await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const cloudConsent = await import('/js/cloud-ai-consent.js');
+    localStorage.setItem(cloudConsent.CLOUD_AI_CONSENT_KEY, JSON.stringify({
+      version: cloudConsent.CLOUD_AI_CONSENT_VERSION,
+      approvals: {
+        xai: { accepted: true },
+        elevenlabs: { accepted: true },
+      },
+    }));
+  });
   await openVoiceSettingsFromUi(page);
 
   const xaiCard = page.locator('[data-voice-connection="xai"]');

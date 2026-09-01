@@ -5,8 +5,12 @@ import { getOllamaPIIApiKey, getOllamaPIIUrl, getOllamaPIIModel } from './api.js
 import { isOllamaPIIEnabled, setOllamaPIIEnabled, checkOllamaPII } from './pii.js';
 import {
   CLOUD_AI_CONSENT_VERSION,
+  AI_ROUTE_CONFIRMATION_VERSION,
   getCloudAIConsentRecord,
+  getAIRouteConfirmationRecord,
+  hasAcknowledgedAITransparency,
   withdrawCloudAIConsent,
+  withdrawAIRouteConfirmations,
 } from './cloud-ai-consent.js';
 import { escapeAttr, escapeHTML, isPIIReviewEnabled, isAnalyticsEnabled, showNotification } from './utils.js';
 import { isOfficialGetbasedHost } from './url-safety.js';
@@ -95,14 +99,38 @@ export function renderCloudAIConsentControls() {
   const recipients = approvals
     .map(approval => escapeHTML(String(approval.recipient || approval.provider || 'cloud provider')))
     .join(', ');
+  const routeRecord = getAIRouteConfirmationRecord();
+  const routeConfirmations = routeRecord?.version === AI_ROUTE_CONFIRMATION_VERSION
+    ? Object.values(routeRecord.confirmations || {}).filter(confirmation => confirmation?.confirmed === true)
+    : [];
+  const routeRecipients = routeConfirmations
+    .map(confirmation => escapeHTML(String(confirmation.endpointOrigin || confirmation.recipient || 'private-network endpoint')))
+    .join(', ');
   return `<div class="settings-action-row privacy-setting-row">
     <div class="settings-copy">
-      <div class="settings-copy-title">Cloud AI sensitive-data approval</div>
+      <div class="settings-copy-title">AI transparency</div>
+      <div class="settings-copy-desc">${hasAcknowledgedAITransparency()
+        ? 'Acknowledged on this browser. This remains a separate record even when first activation presents it together with destination approval.'
+        : 'Not yet acknowledged. The first AI activation will explain AI-generated content and automatic insight requests.'}</div>
+    </div>
+  </div>
+  <div class="settings-action-row privacy-setting-row">
+    <div class="settings-copy">
+      <div class="settings-copy-title">Remote AI sensitive-data approval</div>
       <div class="settings-copy-desc">${approvals.length
-        ? `Approved on this browser for: ${recipients}. Withdrawing stops future cloud AI and cloud voice requests until you explicitly approve again.`
-        : 'No current approval is stored. Before the first request to each cloud provider, getbased asks separately before sending health or other sensitive data.'}</div>
+        ? `Approved on this browser for: ${recipients}. Withdrawing stops future remote AI and remote voice requests until you explicitly approve again.`
+        : 'No current approval is stored. After a connection check succeeds, getbased asks once before activating each remote recipient for health or other sensitive data.'}</div>
     </div>
     <button type="button" class="import-btn import-btn-secondary" data-settings-action="withdraw-cloud-ai-consent" ${approvals.length ? '' : 'disabled'}>Withdraw</button>
+  </div>
+  <div class="settings-action-row privacy-setting-row">
+    <div class="settings-copy">
+      <div class="settings-copy-title">Private-network AI destinations</div>
+      <div class="settings-copy-desc">${routeConfirmations.length
+        ? `Confirmed on this browser for: ${routeRecipients}. Changing an endpoint origin requires confirmation again.`
+        : 'No private-network AI destination is currently confirmed.'}</div>
+    </div>
+    <button type="button" class="import-btn import-btn-secondary" data-settings-action="withdraw-ai-route-confirmations" ${routeConfirmations.length ? '' : 'disabled'}>Clear</button>
   </div>`;
 }
 
@@ -110,7 +138,14 @@ export function withdrawCloudAIConsentFromSettings() {
   withdrawCloudAIConsent();
   const controls = document.getElementById('cloud-ai-consent-controls');
   if (controls) controls.innerHTML = renderCloudAIConsentControls();
-  showNotification('Cloud AI consent withdrawn. No future cloud AI request will be sent until you approve again.', 'success', 5000);
+  showNotification('Remote AI approval withdrawn. No future remote AI request will be sent until you approve again.', 'success', 5000);
+}
+
+export function withdrawAIRouteConfirmationsFromSettings() {
+  withdrawAIRouteConfirmations();
+  const controls = document.getElementById('cloud-ai-consent-controls');
+  if (controls) controls.innerHTML = renderCloudAIConsentControls();
+  showNotification('Private-network AI destinations cleared. Each endpoint must be confirmed again before a request is sent.', 'success', 5000);
 }
 
 export function renderPrivacyAnalyticsSection() {

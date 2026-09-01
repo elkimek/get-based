@@ -8,6 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { state } from '../js/state.js';
 import { configureAppExtension } from '../js/app-extension-runtime.js';
 import {
+  AI_TRANSPARENCY_KEY,
+  AI_TRANSPARENCY_VERSION,
   CLOUD_AI_CONSENT_KEY,
   CLOUD_AI_CONSENT_VERSION,
 } from '../js/cloud-ai-consent.js';
@@ -32,6 +34,10 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const realFetch = globalThis.fetch;
 
 function approveCloudAIProvider(provider) {
+  localStorage.setItem(AI_TRANSPARENCY_KEY, JSON.stringify({
+    version: AI_TRANSPARENCY_VERSION,
+    acknowledged: true,
+  }));
   localStorage.setItem(CLOUD_AI_CONSENT_KEY, JSON.stringify({
     version: CLOUD_AI_CONSENT_VERSION,
     approvals: { [provider]: { accepted: true, provider } },
@@ -188,6 +194,10 @@ class ControlledVoiceWorker extends EventTarget {
 
 beforeEach(() => {
   localStorage.clear();
+  localStorage.setItem(AI_TRANSPARENCY_KEY, JSON.stringify({
+    version: AI_TRANSPARENCY_VERSION,
+    acknowledged: true,
+  }));
   document.body.innerHTML = '<div id="notification-container"></div>';
 });
 
@@ -617,6 +627,7 @@ describe('voice settings and chat controls', () => {
     ['connection test', 'test-provider'],
   ])('does not let a stale PPQ %s overwrite a newer language catalogue', async (_label, action) => {
     localStorage.setItem('labcharts-ai-provider', 'ppq');
+    if (action === 'test-provider') approveCloudAIProvider('ppq');
     updateKeyCache('labcharts-ppq-key', 'ppq-ai-key');
     const pending = [];
     globalThis.fetch = vi.fn((_url, options) => new Promise(resolve => {

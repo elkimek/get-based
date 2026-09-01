@@ -120,7 +120,7 @@ const PURGE_DELAY_MS = 1500;
 
 /**
  * @typedef {object} AIVerdictEngine
- * @property {(target: any, opts?: {force?: boolean}) => Promise<AIVerdictAnalysis|null>} analyze
+ * @property {(target: any, opts?: {force?: boolean, userInitiated?: boolean}) => Promise<AIVerdictAnalysis|null>} analyze
  * @property {(id: string) => Promise<AIVerdictAnalysis|null>} refresh
  * @property {(target: any) => void} maybeAfterFinish
  * @property {(id: string) => boolean} isAnalyzing
@@ -309,7 +309,7 @@ export function createAIVerdict(cfg) {
 
   /**
    * @param {any} target
-   * @param {{force?: boolean}} [opts]
+   * @param {{force?: boolean, userInitiated?: boolean}} [opts]
    * @returns {Promise<AIVerdictAnalysis|null>}
    */
   async function analyze(target, opts = {}) {
@@ -379,6 +379,7 @@ export function createAIVerdict(cfg) {
         messages: [{ role: 'user', content: ctx }],
         maxTokens,
         signal: aborter?.signal,
+        consentKind: opts.userInitiated ? 'text' : 'automatic-insight',
       });
       const result = await Promise.race([apiCall, watchdog]);
       const text = (result && typeof result === 'object') ? (result.text || '') : (typeof result === 'string' ? result : '');
@@ -454,7 +455,7 @@ export function createAIVerdict(cfg) {
   async function refresh(id) {
     const target = getTarget ? getTarget(id) : null;
     if (!target) return null;
-    return analyze(target, { force: true });
+    return analyze(target, { force: true, userInitiated: true });
   }
 
   // Auto-fire retry policy. We've observed that auto-fire after a save

@@ -11,6 +11,7 @@ test.beforeEach(async ({ page }) => {
       accepted: true,
       termsVersion: '2026-08-22',
       privacyVersion: '2026-08-22',
+      policyScope: 'self-hosted-notice',
       acceptedAt: '2026-08-08T00:00:00.000Z',
       appVersion: 'chat-composer-test',
       location: 'chat-composer-test',

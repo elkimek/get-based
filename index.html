@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex">
+  <!-- Self-host operators may set these three values. Empty values never fall back to getbased policies. -->
+  <meta name="getbased-operator-name" content="">
+  <meta name="getbased-operator-privacy-url" content="">
+  <meta name="getbased-operator-terms-url" content="">
   <title>getbased — personal health intelligence, under your control</title>
   <meta name="description" content="Open-source health dashboard for labs, DNA, wearables, light, lifestyle context, and optional AI analysis. Browser-first, private by default, no account required.">
   <meta property="og:title" content="getbased — personal health intelligence, under your control">
@@ -200,6 +204,7 @@
     class="modal-overlay legal-consent-overlay show"
     data-terms-version="2026-08-22"
     data-privacy-version="2026-08-22"
+    data-policy-scope=""
   >
     <div class="legal-consent-modal" role="dialog" aria-modal="true" aria-labelledby="legal-consent-title" aria-describedby="legal-consent-desc">
       <div class="legal-consent-kicker">getbased legal</div>
@@ -212,12 +217,12 @@
       <ul class="legal-consent-points">
         <li>getbased is a wellness, self-tracking, and educational tool — not medical advice or a medical device.</li>
         <li>Your health data is stored locally by default; optional network features are described in the Privacy Policy.</li>
-        <li>Cloud AI requires a separate, provider-specific approval before the first request sends sensitive data.</li>
+        <li>AI transparency is acknowledged separately from destination-specific sensitive-data approval.</li>
         <li>Cookieless product analytics may run on the hosted app and can be turned off in Settings → Privacy; the analytics service does not store the raw IP address, while ordinary hosting metadata is described in the Privacy Policy.</li>
       </ul>
       <label class="legal-consent-check">
         <input type="checkbox" id="legal-consent-checkbox">
-        <span>I have read and agree to the <a href="https://getbased.health/terms" data-legal-path="/terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="https://getbased.health/privacy" data-legal-path="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span>
+        <span>I have read and agree to the <a href="/terms" data-legal-kind="terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy" data-legal-kind="privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span>
       </label>
       <div class="legal-consent-actions">
         <button type="button" class="legal-consent-accept" data-legal-consent-action="accept" disabled>Accept &amp; continue</button>
@@ -314,10 +319,12 @@
         <span>Founded and built with &#10084;&#65039; by <a href="https://linktr.ee/elkimek" target="_blank" rel="noopener">Elkim</a></span>
         <span class="app-footer-sep">·</span>
         <a href="https://docs.getbased.health" target="_blank" rel="noopener">Docs</a>
-        <span class="app-footer-sep">·</span>
-        <a href="https://getbased.health/privacy" target="_blank" rel="noopener">Privacy</a>
-        <span class="app-footer-sep">·</span>
-        <a href="https://getbased.health/terms" target="_blank" rel="noopener">Terms</a>
+        <span data-deployment-policy-footer>
+          <span class="app-footer-sep">·</span>
+          <a href="/privacy" data-footer-policy-kind="privacy" target="_blank" rel="noopener">Privacy</a>
+          <span class="app-footer-sep">·</span>
+          <a href="/terms" data-footer-policy-kind="terms" target="_blank" rel="noopener">Terms</a>
+        </span>
       </p>
     </div>
   </footer>

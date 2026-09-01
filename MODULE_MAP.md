@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 705 |
-| Internal import edges | 3012 |
-| Dynamic internal edges | 96 |
+| Modules | 707 |
+| Internal import edges | 3022 |
+| Dynamic internal edges | 99 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -100,9 +100,10 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>ai</code> family — 3 modules</summary>
+<details><summary><code>ai</code> family — 4 modules</summary>
 
 - [`js/ai-action-delegates.js`](js/ai-action-delegates.js) → [`js/utils.js`](js/utils.js)
+- [`js/ai-provider-policy.js`](js/ai-provider-policy.js) → [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/local-ai-provider-shared.js`](js/local-ai-provider-shared.js)
 - [`js/ai-verdict-engine-runtime.js`](js/ai-verdict-engine-runtime.js) → no in-scope imports
 - [`js/ai-verdict-engine.js`](js/ai-verdict-engine.js) → [`js/ai-verdict-engine-runtime.js`](js/ai-verdict-engine-runtime.js), [`js/api.js`](js/api.js), [`js/data.js`](js/data.js), [`js/sync.js`](js/sync.js)
 
@@ -352,7 +353,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>cloud</code> family — 1 module</summary>
 
-- [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js) → [`js/api-provider-storage.js`](js/api-provider-storage.js)
+- [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js) → [`js/ai-provider-policy.js`](js/ai-provider-policy.js), [`js/deployment-policy.js`](js/deployment-policy.js)
 
 </details>
 
@@ -456,6 +457,12 @@ Native browser modules shipped with the static application.
 <details><summary><code>demo</code> family — 1 module</summary>
 
 - [`js/demo-nutrition.js`](js/demo-nutrition.js) → no in-scope imports
+
+</details>
+
+<details><summary><code>deployment</code> family — 1 module</summary>
+
+- [`js/deployment-policy.js`](js/deployment-policy.js) → [`js/url-safety.js`](js/url-safety.js)
 
 </details>
 
@@ -622,7 +629,7 @@ Native browser modules shipped with the static application.
 <details><summary><code>legal</code> family — 2 modules</summary>
 
 - [`js/legal-consent-bootstrap.js`](js/legal-consent-bootstrap.js) → no in-scope imports
-- [`js/legal-consent.js`](js/legal-consent.js) → [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
+- [`js/legal-consent.js`](js/legal-consent.js) → [`js/deployment-policy.js`](js/deployment-policy.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 
 </details>
 
@@ -933,7 +940,7 @@ Native browser modules shipped with the static application.
 - [`js/provider-panel-delegates.js`](js/provider-panel-delegates.js) → no in-scope imports
 - [`js/provider-panel-renderers-runtime.js`](js/provider-panel-renderers-runtime.js) → [`js/nostr-discovery.js`](js/nostr-discovery.js)
 - [`js/provider-panel-renderers.js`](js/provider-panel-renderers.js) → [`js/api.js`](js/api.js), [`js/local-ai-discovery.js`](js/local-ai-discovery.js), [`js/provider-panel-renderers-runtime.js`](js/provider-panel-renderers-runtime.js), [`js/provider-wallet-panels.js`](js/provider-wallet-panels.js), [`js/utils.js`](js/utils.js)
-- [`js/provider-panels.js`](js/provider-panels.js) → [`js/api.js`](js/api.js), [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/caught-error.js`](js/caught-error.js), [`js/chat-loader.js`](js/chat-loader.js), [`js/crypto.js`](js/crypto.js), [`js/focus-card.js`](js/focus-card.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/provider-local-ai-controls.js`](js/provider-local-ai-controls.js), [`js/provider-model-controls.js`](js/provider-model-controls.js), [`js/provider-panel-delegates.js`](js/provider-panel-delegates.js), [`js/provider-panel-renderers.js`](js/provider-panel-renderers.js), [`js/provider-ppq-panels.js`](js/provider-ppq-panels.js), [`js/provider-wallet-panels.js`](js/provider-wallet-panels.js), [`js/routstr-model-cache.js`](js/routstr-model-cache.js), [`js/utils.js`](js/utils.js)
+- [`js/provider-panels.js`](js/provider-panels.js) → [`js/api.js`](js/api.js), [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/caught-error.js`](js/caught-error.js), [`js/chat-loader.js`](js/chat-loader.js), [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js) *(dynamic)*, [`js/crypto.js`](js/crypto.js), [`js/focus-card.js`](js/focus-card.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/provider-local-ai-controls.js`](js/provider-local-ai-controls.js), [`js/provider-model-controls.js`](js/provider-model-controls.js), [`js/provider-panel-delegates.js`](js/provider-panel-delegates.js), [`js/provider-panel-renderers.js`](js/provider-panel-renderers.js), [`js/provider-ppq-panels.js`](js/provider-ppq-panels.js), [`js/provider-wallet-panels.js`](js/provider-wallet-panels.js), [`js/routstr-model-cache.js`](js/routstr-model-cache.js), [`js/utils.js`](js/utils.js)
 - [`js/provider-ppq-panels.js`](js/provider-ppq-panels.js) → [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/crypto.js`](js/crypto.js), [`js/provider-model-controls.js`](js/provider-model-controls.js), [`js/provider-panel-renderers.js`](js/provider-panel-renderers.js), [`js/provider-qr.js`](js/provider-qr.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/utils.js`](js/utils.js)
 - [`js/provider-qr.js`](js/provider-qr.js) → [`js/utils.js`](js/utils.js)
 - [`js/provider-wallet-delegates.js`](js/provider-wallet-delegates.js) → [`js/caught-error.js`](js/caught-error.js), [`js/provider-wallet-runtime.js`](js/provider-wallet-runtime.js), [`js/utils.js`](js/utils.js)
@@ -1011,7 +1018,7 @@ Native browser modules shipped with the static application.
 - [`js/settings-tweaks.js`](js/settings-tweaks.js) → [`js/charts.js`](js/charts.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/settings-event-target.js`](js/settings-event-target.js), [`js/settings-runtime.js`](js/settings-runtime.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-voice-hardware.js`](js/settings-voice-hardware.js) → [`js/voice-local-engine.js`](js/voice-local-engine.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js)
 - [`js/settings-voice-model-controller.js`](js/settings-voice-model-controller.js) → [`js/caught-error.js`](js/caught-error.js), [`js/settings-voice-hardware.js`](js/settings-voice-hardware.js), [`js/utils.js`](js/utils.js), [`js/voice-local-engine.js`](js/voice-local-engine.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js)
-- [`js/settings-voice-panel.js`](js/settings-voice-panel.js) → [`js/caught-error.js`](js/caught-error.js), [`js/settings-voice-hardware.js`](js/settings-voice-hardware.js), [`js/settings-voice-model-controller.js`](js/settings-voice-model-controller.js), [`js/settings-voice-view.js`](js/settings-voice-view.js), [`js/utils.js`](js/utils.js), [`js/voice-ai-provider.js`](js/voice-ai-provider.js), [`js/voice-catalog-storage.js`](js/voice-catalog-storage.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-openrouter-catalog.js`](js/voice-openrouter-catalog.js), [`js/voice-player.js`](js/voice-player.js), [`js/voice-provider-registry.js`](js/voice-provider-registry.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js)
+- [`js/settings-voice-panel.js`](js/settings-voice-panel.js) → [`js/caught-error.js`](js/caught-error.js), [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js) *(dynamic)*, [`js/settings-voice-hardware.js`](js/settings-voice-hardware.js), [`js/settings-voice-model-controller.js`](js/settings-voice-model-controller.js), [`js/settings-voice-view.js`](js/settings-voice-view.js), [`js/utils.js`](js/utils.js), [`js/voice-ai-provider.js`](js/voice-ai-provider.js), [`js/voice-catalog-storage.js`](js/voice-catalog-storage.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-openrouter-catalog.js`](js/voice-openrouter-catalog.js), [`js/voice-player.js`](js/voice-player.js), [`js/voice-provider-registry.js`](js/voice-provider-registry.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js)
 - [`js/settings-voice-view.js`](js/settings-voice-view.js) → [`js/settings-voice-hardware.js`](js/settings-voice-hardware.js), [`js/settings-voice-model-controller.js`](js/settings-voice-model-controller.js), [`js/utils.js`](js/utils.js), [`js/voice-ai-provider.js`](js/voice-ai-provider.js), [`js/voice-catalog-storage.js`](js/voice-catalog-storage.js), [`js/voice-local-engine.js`](js/voice-local-engine.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-openrouter-catalog.js`](js/voice-openrouter-catalog.js), [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js)
 - [`js/settings.js`](js/settings.js) → [`js/api.js`](js/api.js), [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/changelog.js`](js/changelog.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/crypto.js`](js/crypto.js), [`js/data.js`](js/data.js), [`js/import-loader.js`](js/import-loader.js), [`js/local-ai-discovery.js`](js/local-ai-discovery.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/nutrition-ai-settings.js`](js/nutrition-ai-settings.js), [`js/profile.js`](js/profile.js), [`js/recommendations.js`](js/recommendations.js), [`js/settings-data.js`](js/settings-data.js), [`js/settings-display-panel.js`](js/settings-display-panel.js), [`js/settings-event-target.js`](js/settings-event-target.js), [`js/settings-import-benchmark-controller.js`](js/settings-import-benchmark-controller.js), [`js/settings-privacy.js`](js/settings-privacy.js), [`js/settings-provider-bridge.js`](js/settings-provider-bridge.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/settings-runtime.js`](js/settings-runtime.js), [`js/settings-sync-panel.js`](js/settings-sync-panel.js), [`js/settings-tweaks.js`](js/settings-tweaks.js), [`js/settings-voice-panel.js`](js/settings-voice-panel.js), [`js/theme.js`](js/theme.js), [`js/tour.js`](js/tour.js), [`js/utils.js`](js/utils.js), [`js/wearables-runtime.js`](js/wearables-runtime.js), [`js/wearables-settings-panel.js`](js/wearables-settings-panel.js)
 
@@ -1034,7 +1041,7 @@ Native browser modules shipped with the static application.
 - [`js/startup-foundation.js`](js/startup-foundation.js) → [`js/crypto.js`](js/crypto.js), [`js/sun-uvdata.js`](js/sun-uvdata.js)
 - [`js/startup-maintenance-runtime.js`](js/startup-maintenance-runtime.js) → [`js/sun-sessions-store.js`](js/sun-sessions-store.js) *(dynamic)*
 - [`js/startup-maintenance.js`](js/startup-maintenance.js) → [`js/light-devices.js`](js/light-devices.js) *(dynamic)*, [`js/startup-maintenance-runtime.js`](js/startup-maintenance-runtime.js), [`js/state.js`](js/state.js), [`js/supplement-warnings.js`](js/supplement-warnings.js), [`js/wearables-connect-loader.js`](js/wearables-connect-loader.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-summary.js`](js/wearables-summary.js)
-- [`js/startup-oauth-callbacks.js`](js/startup-oauth-callbacks.js) → [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/utils.js`](js/utils.js), [`js/wearables-connect-loader.js`](js/wearables-connect-loader.js)
+- [`js/startup-oauth-callbacks.js`](js/startup-oauth-callbacks.js) → [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js) *(dynamic)*, [`js/utils.js`](js/utils.js), [`js/wearables-connect-loader.js`](js/wearables-connect-loader.js)
 - [`js/startup-orchestrator.js`](js/startup-orchestrator.js) → [`js/app-event-listeners.js`](js/app-event-listeners.js), [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/import-loader.js`](js/import-loader.js), [`js/startup-foundation.js`](js/startup-foundation.js), [`js/startup-maintenance.js`](js/startup-maintenance.js), [`js/startup-oauth-callbacks.js`](js/startup-oauth-callbacks.js), [`js/startup-profile.js`](js/startup-profile.js), [`js/startup-ui.js`](js/startup-ui.js), [`js/sync-configure.js`](js/sync-configure.js), [`js/sync-lifecycle.js`](js/sync-lifecycle.js), [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
 - [`js/startup-profile.js`](js/startup-profile.js) → [`js/crypto.js`](js/crypto.js), [`js/data-merge.js`](js/data-merge.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/unit-profiles.js`](js/unit-profiles.js)
 - [`js/startup-ui.js`](js/startup-ui.js) → [`js/changelog.js`](js/changelog.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/crypto.js`](js/crypto.js), [`js/data.js`](js/data.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/import-file-input.js`](js/import-file-input.js), [`js/legal-consent.js`](js/legal-consent.js), [`js/nav.js`](js/nav.js), [`js/startup-profile.js`](js/startup-profile.js), [`js/sync.js`](js/sync.js), [`js/theme.js`](js/theme.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
@@ -1292,10 +1299,10 @@ Native browser modules shipped with the static application.
 - [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js) → no in-scope imports
 - [`js/voice-provider-cloud-shared.js`](js/voice-provider-cloud-shared.js) → [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js), [`js/voice-response-utils.js`](js/voice-response-utils.js)
 - [`js/voice-provider-elevenlabs.js`](js/voice-provider-elevenlabs.js) → [`js/voice-provider-cloud-shared.js`](js/voice-provider-cloud-shared.js)
-- [`js/voice-provider-local-server.js`](js/voice-provider-local-server.js) → [`js/voice-response-utils.js`](js/voice-response-utils.js)
+- [`js/voice-provider-local-server.js`](js/voice-provider-local-server.js) → [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js), [`js/voice-response-utils.js`](js/voice-response-utils.js)
 - [`js/voice-provider-registry.js`](js/voice-provider-registry.js) → [`js/voice-provider-ai-cloud.js`](js/voice-provider-ai-cloud.js) *(dynamic)*, [`js/voice-provider-browser-local.js`](js/voice-provider-browser-local.js) *(dynamic)*, [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-provider-elevenlabs.js`](js/voice-provider-elevenlabs.js) *(dynamic)*, [`js/voice-provider-local-server.js`](js/voice-provider-local-server.js) *(dynamic)*
 - [`js/voice-response-utils.js`](js/voice-response-utils.js) → no in-scope imports
-- [`js/voice-service.js`](js/voice-service.js) → [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/voice-ai-provider.js`](js/voice-ai-provider.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-provider-registry.js`](js/voice-provider-registry.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js)
+- [`js/voice-service.js`](js/voice-service.js) → [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js), [`js/voice-ai-provider.js`](js/voice-ai-provider.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-provider-registry.js`](js/voice-provider-registry.js), [`js/voice-settings-storage.js`](js/voice-settings-storage.js)
 - [`js/voice-settings-schema.js`](js/voice-settings-schema.js) → no in-scope imports
 - [`js/voice-settings-storage.js`](js/voice-settings-storage.js) → [`js/api-provider-storage-runtime.js`](js/api-provider-storage-runtime.js), [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/voice-ai-provider.js`](js/voice-ai-provider.js), [`js/voice-model-catalog.js`](js/voice-model-catalog.js), [`js/voice-openrouter-catalog.js`](js/voice-openrouter-catalog.js), [`js/voice-provider-catalog.js`](js/voice-provider-catalog.js), [`js/voice-settings-schema.js`](js/voice-settings-schema.js)
 - [`js/voice-text.js`](js/voice-text.js) → no in-scope imports

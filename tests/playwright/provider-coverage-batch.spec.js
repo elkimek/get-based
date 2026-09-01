@@ -429,6 +429,7 @@ test('provider panels cover provider switching key saves balances custom API and
 
   const results = await page.evaluate(async ({ panelsUrl }) => {
     const panels = await import(panelsUrl);
+    const cloudConsent = await import('/js/cloud-ai-consent.js');
     const cryptoStore = await import('/js/crypto.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const jsonResponse = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), {
@@ -466,6 +467,7 @@ test('provider panels cover provider switching key saves balances custom API and
       'labcharts-custom-key',
       'labcharts-custom-model',
       'labcharts-custom-models',
+      cloudConsent.CLOUD_AI_CONSENT_KEY,
     ];
     const oldStorage = {};
     for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
@@ -497,6 +499,22 @@ test('provider panels cover provider switching key saves balances custom API and
       cryptoStore.updateKeyCache('labcharts-routstr-key', '');
       cryptoStore.updateKeyCache('labcharts-ppq-key', '');
       cryptoStore.updateKeyCache('labcharts-custom-key', '');
+      const routstrScope = cloudConsent.cloudAIConsentDetails('routstr', {
+        endpoint: 'https://routstr.example',
+      }).scope;
+      const customScope = cloudConsent.cloudAIConsentDetails('custom', {
+        endpoint: 'https://custom.example',
+      }).scope;
+      localStorage.setItem(cloudConsent.CLOUD_AI_CONSENT_KEY, JSON.stringify({
+        version: cloudConsent.CLOUD_AI_CONSENT_VERSION,
+        approvals: Object.fromEntries([
+          'openrouter',
+          'venice',
+          'ppq',
+          routstrScope,
+          customScope,
+        ].map(scope => [scope, { accepted: true }])),
+      }));
       window.fetch = async function(url, opts = {}) {
         const href = typeof url === 'string' ? url : url?.url || '';
         if (href === 'https://openrouter.ai/api/v1/models') {

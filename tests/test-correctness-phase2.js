@@ -326,10 +326,12 @@ assert('prerendered and module legal versions remain synchronized',
   && indexSrc.includes('data-privacy-version="2026-08-22"')
   && /const TERMS_VERSION = '2026-08-22';/.test(legalConsentSrc)
   && /const PRIVACY_VERSION = '2026-08-22';/.test(legalConsentSrc));
-assert('prerendered production legal links cannot fall into missing app-domain routes',
-  indexSrc.includes('href="https://getbased.health/terms" data-legal-path="/terms"')
-  && indexSrc.includes('href="https://getbased.health/privacy" data-legal-path="/privacy"')
-  && legalConsentBootstrapSrc.includes('link.href = localLinks ? path : `https://getbased.health${path}`'));
+assert('independent deployments never fall back to getbased legal links',
+  indexSrc.includes('<meta name="getbased-operator-name" content="">')
+  && indexSrc.includes('href="/terms" data-legal-kind="terms"')
+  && indexSrc.includes('href="/privacy" data-legal-kind="privacy"')
+  && legalConsentBootstrapSrc.includes("'self-hosted-notice'")
+  && !legalConsentBootstrapSrc.includes('localLinks ? path : `https://getbased.health${path}`'));
 assert('legal consent notifications use the module dependency instead of a global callback',
   legalConsentSrc.includes("import { showNotification } from './utils.js';")
   && legalConsentSrc.includes("showNotification('Terms and Privacy accepted.'")

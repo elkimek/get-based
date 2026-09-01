@@ -10,6 +10,7 @@ import {
 import { resolveLocalSttLanguage } from './voice-model-catalog.js';
 import { getVoiceProviderKey, getVoiceSettings } from './voice-settings-storage.js';
 import { authorizeAppExtensionVoiceRequest } from './app-extension-runtime.js';
+import { requireAIProcessingApproval } from './cloud-ai-consent.js';
 
 export function getVoiceProviderId(kind, settings = getVoiceSettings()) {
   const configured = kind === 'tts' ? settings.outputProvider : settings.inputProvider;
@@ -127,6 +128,11 @@ export async function ensureVoiceRequestPrivacy(kind, providerId, settings = get
   const requestOptions = kind === 'tts'
     ? synthesisOptions(providerId, settings, '', undefined)
     : transcriptionOptions(providerId, settings, null, undefined);
+  await requireAIProcessingApproval(providerId, {
+    kind: kind === 'tts' ? 'voice-output' : 'voice-input',
+    endpoint: providerId === 'local-server' ? settings.localServerUrl : '',
+    modelId: requestOptions.modelId,
+  });
   const authorized = await authorizeAppExtensionVoiceRequest({
     kind,
     providerId,

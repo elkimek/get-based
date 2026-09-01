@@ -239,6 +239,7 @@ export async function loadFocusCard(opts = {}) {
       system: focusSystem,
       messages: [{ role: 'user', content: ctx }],
       maxTokens: 500,
+      consentKind: opts.userInitiated ? 'text' : 'automatic-insight',
       // A thinking model spends this 500-token cap on reasoning and finishes
       // with `length` before writing any content, leaving the card empty.
       reasoningEffort: 'none',
@@ -282,5 +283,5 @@ export async function loadFocusCard(opts = {}) {
 export function refreshFocusCard() {
   const cacheKey = profileStorageKey(state.currentProfile, 'focusCard');
   localStorage.removeItem(cacheKey);
-  loadFocusCard();
+  loadFocusCard({ userInitiated: true });
 }

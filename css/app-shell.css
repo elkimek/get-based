@@ -186,6 +186,7 @@ body.analytics-consent-visible .version-update-banner { bottom: 78px; }
   max-height: 100%;
   overflow-y: auto;
   overscroll-behavior: contain;
+  touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
   background: var(--bg-secondary, #171a22);
   border: 1px solid var(--border, #2d3138);
@@ -290,8 +291,9 @@ body.analytics-consent-visible .version-update-banner { bottom: 78px; }
   .legal-consent-summary { grid-template-columns: 1fr; }
   .legal-consent-actions { justify-content: stretch; }
   .legal-consent-link { margin-right: 0; }
+  .cloud-ai-consent-links a { display: inline-flex; align-items: center; min-height: 32px; }
   .legal-consent-accept,
-  .cloud-ai-consent-cancel { width: 100%; }
+  .cloud-ai-consent-cancel { width: 100%; min-height: 44px; }
 }
 
 .layout { display: flex; min-height: calc(100vh - 57px); }

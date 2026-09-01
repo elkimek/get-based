@@ -6,6 +6,7 @@
   },
   "include": [
     "types/globals.d.ts",
+    "js/ai-provider-policy.js",
     "js/api.js",
     "js/api-openai-compatible.js",
     "js/api-local.js",
@@ -150,6 +151,7 @@
     "js/data.js",
     "js/data-calculated-markers.js",
     "js/data-view-controls.js",
+    "js/deployment-policy.js",
     "js/cycle-draw-phases.js",
     "js/dna.js",
     "js/dna-ui.js",

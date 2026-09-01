@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 682,
-  "sinkCount": 534,
+  "scannedFiles": 684,
+  "sinkCount": 545,
   "files": {
     "js/backup.js": {
       "count": 1,
@@ -167,7 +167,7 @@
     },
     "js/cloud-ai-consent.js": {
       "count": 1,
-      "digest": "b0155a1dd52349412193f260a5419fc5fc613bcc69bb30b3463479aee44a869a",
+      "digest": "99091c3093f2627242f106aef100196d798ff5874c6c059214a8944cf8aec0b5",
       "kinds": {
         "innerHTML": 1
       }
@@ -713,17 +713,17 @@
       }
     },
     "js/provider-panels.js": {
-      "count": 29,
-      "digest": "8260b6c2beba6cfe6e514fc85fd3850ae287aaec0d63ebc298de0c831f69b173",
+      "count": 36,
+      "digest": "9de2a2f8b1ee123ee0c3fbfcc311ef12a6ecfa3c60504a7557a7c7b81ba1b017",
       "kinds": {
-        "innerHTML": 29
+        "innerHTML": 36
       }
     },
     "js/provider-ppq-panels.js": {
-      "count": 20,
-      "digest": "70ac9b4df1dea2967fe4455ba448b26453afebcb87c7a1dbb9c11462744d2909",
+      "count": 22,
+      "digest": "1ee46c114d857bd8fe76e1b05ad7b81dd0075737837dd3d29f6c2be06377dadd",
       "kinds": {
-        "innerHTML": 20
+        "innerHTML": 22
       }
     },
     "js/provider-wallet-funding-recovery.js": {
@@ -734,10 +734,10 @@
       }
     },
     "js/provider-wallet-panels.js": {
-      "count": 60,
-      "digest": "262ba8963e91ad91a8f74a0c7914c4b4b066b875e1cdfbe25ad9ec50a909c70f",
+      "count": 61,
+      "digest": "4129fafd6e1c22ef66b37aa8002af521c69074aa0f2fb0a52e3c684d83c7dae5",
       "kinds": {
-        "innerHTML": 60
+        "innerHTML": 61
       }
     },
     "js/recommendation-actions.js": {
@@ -776,10 +776,10 @@
       }
     },
     "js/settings-privacy.js": {
-      "count": 6,
-      "digest": "320467974bf81f030da52ad22fe2df2db1e3b44f197949f1af709b58540649d1",
+      "count": 7,
+      "digest": "4d7ca23154bd7bd5821cbba802ede0006806e348389daef29a13e5294c6804ea",
       "kinds": {
-        "innerHTML": 6
+        "innerHTML": 7
       }
     },
     "js/settings-provider-bridge.js": {

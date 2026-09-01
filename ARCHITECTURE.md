@@ -300,10 +300,19 @@ key while omitting browser ambient credentials. As a result, getbased and its
 Vercel deployment do not receive provider keys, microphone audio, or speech
 text. Custom OpenAI-compatible endpoints use the same browser-direct boundary;
 there is no hosted compatibility fallback, and endpoints that do not allow
-browser inference fail with a user-facing configuration explanation. A
-provider-scoped explicit consent gate runs before the
-first cloud transcription, synthesis, or text inference request and can be
-withdrawn in Settings. Microphone blobs remain ephemeral; dictation only edits
+browser inference fail with a user-facing configuration explanation. The
+provider-neutral AI gate stores its first-activation transparency
+acknowledgement separately from destination approval while presenting both in
+one first-activation decision when a destination needs approval. User-triggered
+connection checks can run before activation and must contain no user content;
+custom APIs may receive a fixed synthetic compatibility probe. Same-device
+inference stops after the AI notice; private-network endpoints require an
+origin-scoped confirmation; remote inference requires provider/origin-scoped
+sensitive-data approval. The gate is checked before text, automatic insight,
+image, and voice requests. Unapproved automatic work fails without opening a
+surprise dialog, and remote approval can be withdrawn in Settings. Route classification
+uses the inference endpoint and cloud-model metadata, never the frontend host.
+Microphone blobs remain ephemeral; dictation only edits
 the composer, and chat panel/thread lifecycle callbacks stop tracks, synthesis,
 and playback. Portable Voice preferences and cloud keys follow the existing
 encrypted settings/sync path, but consent records remain browser-local.

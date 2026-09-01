@@ -52,6 +52,7 @@ import {
   togglePrivacyConfigure,
   updatePrivacyStatusCard,
   withdrawCloudAIConsentFromSettings,
+  withdrawAIRouteConfirmationsFromSettings,
 } from './settings-privacy.js';
 import { loadImportUI, loadPdfImport } from './import-loader.js';
 import { startGuidedTour } from './tour.js';
@@ -298,6 +299,9 @@ async function handleSettingsClick(event) {
   } else if (action === 'withdraw-cloud-ai-consent') {
     event.preventDefault();
     withdrawCloudAIConsentFromSettings();
+  } else if (action === 'withdraw-ai-route-confirmations') {
+    event.preventDefault();
+    withdrawAIRouteConfirmationsFromSettings();
   } else if (action === 'rename-imported-entry') {
     event.preventDefault();
     void renameImportedEntryDateFromSettings(actionEl.dataset.entryDate || '');

@@ -418,6 +418,16 @@ async function handleTestProvider(panel, button) {
     const result = await provider.testConnection(
       providerOptionsFor(providerId, settings),
     );
+    if (['local-server', 'xai', 'elevenlabs', 'openrouter', 'ppq', 'venice'].includes(providerId)) {
+      const { requestAIProviderActivation } = await import('./cloud-ai-consent.js');
+      const activated = await requestAIProviderActivation(providerId, {
+        endpoint: providerId === 'local-server' ? settings.localServerUrl : '',
+      });
+      if (!activated) {
+        setTestStatus(panel, providerId, 'Connection verified — AI voice not activated.');
+        return;
+      }
+    }
     if (
       Array.isArray(result.voices)
       && result.voices.length

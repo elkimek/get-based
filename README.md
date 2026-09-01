@@ -44,6 +44,7 @@ getbased is private by default, not magic. The boundary depends on which feature
 - **Browser-first storage.** Profile data is stored in localStorage and IndexedDB by default.
 - **Optional encryption at rest.** A passphrase-derived key can protect browser storage.
 - **Optional AI.** PDF import and chat need either an AI provider or a local OpenAI-compatible server. Non-AI tracking features still work without one.
+- **One activation decision, separate records.** The first remote AI activation presents the provider-neutral AI notice and destination-specific approval together, while storing them separately. It explains that enabled automatic insights may request updated analysis after relevant profile or data changes. Same-device inference needs only the AI notice. A private/LAN endpoint is confirmed by origin, while each remote provider or endpoint needs a browser-local sensitive-data approval before any data-bearing AI request can proceed. User-triggered connection checks may run first, but contain no profile, chat, image, or voice content; a custom endpoint may receive a fixed synthetic compatibility probe.
 - **Optional Voice.** On-device Whisper/Kokoro keep recordings and message text in the browser after model download. A selected local server receives them directly. A selected OpenRouter, PPQ, Venice, xAI, or ElevenLabs audio endpoint receives only the recording or reply text explicitly processed with that cloud provider; **Same as chat** falls back on-device when the active provider is unsupported or disconnected.
 - **PII review for text imports.** Deterministic patterns and an optional trusted self-hosted model can strip likely identifiers before lab text is sent to an AI provider. Automated detection can miss unusual layouts, so review is still recommended. Image imports cannot be scrubbed and always show a separate warning before upload.
 - **Optional encrypted sync.** Cross-device sync uses Evolu CRDT storage and end-to-end encrypted profile payloads. Pausing one browser keeps its identity and queues local edits; disconnect/reset is a separate Advanced action.
@@ -70,6 +71,27 @@ All normal tracking works without AI. AI features can use:
 
 Switch providers in Settings. Supported provider keys are wrapped locally with
 device-bound encryption, or with the backup passphrase when one is configured.
+The activation prompt identifies the selected recipient and links its Privacy
+and Terms documents when known; reviewing those links is not an acceptance of
+the provider's terms on its behalf. Custom endpoints are identified by their
+origin. Users connecting a personal or local endpoint are not asked to supply
+policy metadata.
+
+Independent deployment operators can identify themselves without inheriting
+getbased policies by setting these metadata values in `index.html`:
+
+```html
+<meta name="getbased-operator-name" content="Example Health Cooperative">
+<meta name="getbased-operator-privacy-url" content="https://example.org/privacy">
+<meta name="getbased-operator-terms-url" content="https://example.org/terms">
+```
+
+Empty values do not fall back to getbased Privacy or Terms. The official
+getbased host supplies its own links automatically, as supplementary links in
+AI destination prompts; the selected AI recipient's documents remain primary.
+An operator that needs provider metadata beyond the built-in catalog can also
+define `GETBASED_DEPLOYMENT_CONFIG.aiProviders[providerId]` with `label`,
+`privacyUrl`, and `termsUrl` before the main module loads.
 
 Venice encrypted mode fails closed unless both the Intel TDX quote and NVIDIA
 GPU evidence verify. NVIDIA does not allow browser POSTs to NRAS, so the fixed
