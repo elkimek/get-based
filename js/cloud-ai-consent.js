@@ -14,8 +14,18 @@ export const CLOUD_AI_CONSENT_KEY = 'labcharts-cloud-ai-consent';
 const sessionApprovals = new Set();
 const sessionRouteConfirmations = new Set();
 let sessionTransparencyAcknowledged = false;
-/** @type {Promise<boolean> | null} */
-let activePrompt = null;
+/** @type {Map<string, Promise<boolean>>} */
+const pendingPrompts = new Map();
+/** @type {Array<{
+ *   key: string,
+ *   show: () => Promise<boolean>,
+ *   isSatisfied: () => boolean,
+ *   promise: Promise<boolean>,
+ *   resolve: (value: boolean) => void,
+ *   reject: (reason?: any) => void,
+ * }>} */
+const promptQueue = [];
+let promptRunning = false;
 
 export class AITransparencyDeclinedError extends Error {
   constructor() {
@@ -346,22 +356,73 @@ function showPrompt({
   });
 }
 
-async function runPrompt(show, isSatisfied) {
-  if (isSatisfied()) return true;
-  if (activePrompt) {
-    await activePrompt;
-    if (isSatisfied()) return true;
+function drainPromptQueue() {
+  if (promptRunning) return;
+  const task = promptQueue.shift();
+  if (!task) return;
+  if (task.isSatisfied()) {
+    pendingPrompts.delete(task.key);
+    task.resolve(true);
+    drainPromptQueue();
+    return;
   }
-  activePrompt = show();
+  promptRunning = true;
+  /** @type {Promise<boolean>} */
+  let decision;
   try {
-    return await activePrompt;
-  } finally {
-    activePrompt = null;
+    decision = task.show();
+  } catch (error) {
+    pendingPrompts.delete(task.key);
+    promptRunning = false;
+    task.reject(error);
+    drainPromptQueue();
+    return;
   }
+  Promise.resolve(decision).then(
+    granted => {
+      if (pendingPrompts.get(task.key) === task.promise) pendingPrompts.delete(task.key);
+      promptRunning = false;
+      task.resolve(granted);
+      drainPromptQueue();
+    },
+    error => {
+      if (pendingPrompts.get(task.key) === task.promise) pendingPrompts.delete(task.key);
+      promptRunning = false;
+      task.reject(error);
+      drainPromptQueue();
+    },
+  );
 }
 
-export function requestAITransparencyAcknowledgement() {
-  return runPrompt(() => showPrompt({
+/**
+ * Serialize decision UI while sharing one result among callers that need the
+ * same approval scope.
+ *
+ * @param {string} key
+ * @param {() => Promise<boolean>} show
+ * @param {() => boolean} isSatisfied
+ */
+function runPrompt(key, show, isSatisfied) {
+  if (isSatisfied()) return Promise.resolve(true);
+  const pending = pendingPrompts.get(key);
+  if (pending) return pending;
+  /** @type {(value: boolean) => void} */
+  let resolve = () => {};
+  /** @type {(reason?: any) => void} */
+  let reject = () => {};
+  /** @type {Promise<boolean>} */
+  const promise = new Promise((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  pendingPrompts.set(key, promise);
+  promptQueue.push({ key, show, isSatisfied, promise, resolve, reject });
+  drainPromptQueue();
+  return promise;
+}
+
+function showAITransparencyPrompt() {
+  return showPrompt({
     id: 'ai-transparency-overlay',
     kicker: 'AI transparency',
     title: 'Turn on AI-generated features?',
@@ -375,14 +436,18 @@ export function requestAITransparencyAcknowledgement() {
     cancelLabel: 'Not now',
     approveLabel: 'Acknowledge & continue',
     onApprove: storeAITransparencyAcknowledgement,
-  }), hasAcknowledgedAITransparency);
+  });
+}
+
+export function requestAITransparencyAcknowledgement() {
+  return runPrompt('transparency', showAITransparencyPrompt, hasAcknowledgedAITransparency);
 }
 
 function requestCombinedDestinationActivation(details, kind) {
   const privateNetwork = details.boundary === 'private-network';
   const id = privateNetwork ? 'ai-route-confirmation-overlay' : 'cloud-ai-consent-overlay';
   const destination = details.origin || details.label;
-  return runPrompt(() => showPrompt({
+  return showPrompt({
     id,
     kicker: 'AI connection',
     title: `Activate ${details.label}?`,
@@ -410,16 +475,12 @@ function requestCombinedDestinationActivation(details, kind) {
       if (privateNetwork) storeRouteConfirmation(details);
       else storeRemoteApproval(details);
     },
-  }), () => hasAcknowledgedAITransparency() && (
-    privateNetwork
-      ? hasAIRouteConfirmation(details.provider, { endpoint: details.endpoint })
-      : hasCloudAIConsent(details.provider, { endpoint: details.endpoint, modelId: details.cloudModel ? 'cloud' : '' })
-  ));
+  });
 }
 
 function requestRouteConfirmation(details, kind) {
   const activating = kind === 'activation';
-  return runPrompt(() => showPrompt({
+  return showPrompt({
     id: 'ai-route-confirmation-overlay',
     kicker: activating ? 'AI connection' : 'Private-network AI destination',
     title: activating ? `Activate ${details.label}?` : 'Confirm this local-network endpoint',
@@ -435,12 +496,12 @@ function requestRouteConfirmation(details, kind) {
     cancelLabel: activating ? 'Not now' : 'Keep data on this device',
     approveLabel: activating ? 'Allow & activate' : 'Confirm destination',
     onApprove: () => storeRouteConfirmation(details),
-  }), () => hasAIRouteConfirmation(details.provider, { endpoint: details.endpoint }));
+  });
 }
 
 function requestRemoteSensitiveDataApproval(details, kind) {
   const activating = kind === 'activation';
-  return runPrompt(() => showPrompt({
+  return showPrompt({
     id: 'cloud-ai-consent-overlay',
     kicker: activating ? 'AI connection' : 'Remote AI privacy',
     title: activating ? `Activate ${details.label}?` : 'Approve sensitive-data processing',
@@ -457,26 +518,54 @@ function requestRemoteSensitiveDataApproval(details, kind) {
     approveLabel: activating ? 'Allow & activate' : 'Approve & send',
     links: container => appendPolicyLinks(container, details),
     onApprove: () => storeRemoteApproval(details),
-  }), () => hasCloudAIConsent(details.provider, { endpoint: details.endpoint, modelId: details.cloudModel ? 'cloud' : '' }));
+  });
+}
+
+/**
+ * @param {string} provider
+ * @param {{ endpoint?: string, modelId?: string }} options
+ */
+function processingApprovalSatisfied(provider, options) {
+  const details = cloudAIConsentDetails(provider, options);
+  if (!hasAcknowledgedAITransparency()) return false;
+  if (details.boundary === 'same-device') return true;
+  if (details.boundary === 'private-network') {
+    return hasAIRouteConfirmation(provider, { endpoint: details.endpoint });
+  }
+  return hasCloudAIConsent(provider, {
+    endpoint: details.endpoint,
+    modelId: details.cloudModel ? 'cloud' : '',
+  });
 }
 
 /**
  * Provider-neutral first-use gate. The transparency record is separate from
  * route confirmation and remote sensitive-data approval records.
  */
-export async function requestAIProcessingApproval(provider, { kind = 'text', endpoint = '', modelId = '' } = {}) {
-  const details = cloudAIConsentDetails(provider, { endpoint, modelId });
-  const needsTransparency = !hasAcknowledgedAITransparency();
-  const needsDestination = details.boundary === 'private-network'
-    ? !hasAIRouteConfirmation(provider, { endpoint: details.endpoint })
-    : details.boundary === 'remote'
-      ? !hasCloudAIConsent(provider, { endpoint: details.endpoint, modelId: details.cloudModel ? 'cloud' : '' })
-      : false;
-  if (needsTransparency && needsDestination) return requestCombinedDestinationActivation(details, kind);
-  if (needsTransparency && !await requestAITransparencyAcknowledgement()) return false;
-  if (details.boundary === 'same-device') return true;
-  if (details.boundary === 'private-network') return requestRouteConfirmation(details, kind);
-  return requestRemoteSensitiveDataApproval(details, kind);
+export function requestAIProcessingApproval(provider, { kind = 'text', endpoint = '', modelId = '' } = {}) {
+  const options = { endpoint, modelId };
+  const initialDetails = cloudAIConsentDetails(provider, options);
+  const promptKey = initialDetails.boundary === 'same-device'
+    ? 'transparency'
+    : `processing:${initialDetails.scope}`;
+  return runPrompt(promptKey, async () => {
+    const details = cloudAIConsentDetails(provider, options);
+    const needsTransparency = !hasAcknowledgedAITransparency();
+    const needsDestination = details.boundary === 'private-network'
+      ? !hasAIRouteConfirmation(provider, { endpoint: details.endpoint })
+      : details.boundary === 'remote'
+        ? !hasCloudAIConsent(provider, { endpoint: details.endpoint, modelId: details.cloudModel ? 'cloud' : '' })
+        : false;
+    if (needsTransparency && needsDestination) return requestCombinedDestinationActivation(details, kind);
+    if (needsTransparency && !await showAITransparencyPrompt()) return false;
+    if (details.boundary === 'same-device') return true;
+    if (details.boundary === 'private-network') {
+      if (!needsDestination) return true;
+      return requestRouteConfirmation(details, kind);
+    }
+    if (!needsDestination) return true;
+    return requestRemoteSensitiveDataApproval(details, kind);
+  }, () => processingApprovalSatisfied(provider, options));
 }
 
 export function requestAIProviderActivation(provider, options = {}) {

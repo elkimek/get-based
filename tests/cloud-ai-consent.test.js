@@ -351,6 +351,48 @@ describe('AI transparency and route-aware approval', () => {
     expect(document.getElementById('cloud-ai-consent-overlay')).toBeNull();
   });
 
+  it('serializes different approval scopes and shares one decision for concurrent matching requests', async () => {
+    const firstOpenRouter = requestAIProviderActivation('openrouter');
+    const ppq = requestAIProviderActivation('ppq');
+    const venice = requestAIProviderActivation('venice');
+    const secondOpenRouter = requestAIProviderActivation('openrouter');
+
+    let controls = decisionControls('cloud-ai-consent-overlay');
+    expect(controls.overlay.textContent).toContain('OpenRouter');
+    expect(document.querySelectorAll('.legal-consent-overlay')).toHaveLength(1);
+    approve('cloud-ai-consent-overlay');
+
+    await expect(Promise.all([firstOpenRouter, secondOpenRouter])).resolves.toEqual([true, true]);
+    controls = decisionControls('cloud-ai-consent-overlay');
+    expect(controls.overlay.textContent).toContain('PPQ');
+    expect(controls.overlay.textContent).not.toContain('AI-generated output may be incomplete');
+    expect(document.querySelectorAll('.legal-consent-overlay')).toHaveLength(1);
+    approve('cloud-ai-consent-overlay');
+
+    await expect(ppq).resolves.toBe(true);
+    controls = decisionControls('cloud-ai-consent-overlay');
+    expect(controls.overlay.textContent).toContain('Venice');
+    expect(controls.overlay.textContent).not.toContain('AI-generated output may be incomplete');
+    expect(document.querySelectorAll('.legal-consent-overlay')).toHaveLength(1);
+    approve('cloud-ai-consent-overlay');
+
+    await expect(venice).resolves.toBe(true);
+    expect(document.querySelectorAll('.legal-consent-overlay')).toHaveLength(0);
+    expect(hasCloudAIConsent('openrouter')).toBe(true);
+    expect(hasCloudAIConsent('ppq')).toBe(true);
+    expect(hasCloudAIConsent('venice')).toBe(true);
+  });
+
+  it('does not repeat a declined prompt for concurrent matching requests', async () => {
+    const first = requestAIProviderActivation('openrouter');
+    const second = requestAIProviderActivation('openrouter');
+    decisionControls('cloud-ai-consent-overlay').cancel.click();
+
+    await expect(Promise.all([first, second])).resolves.toEqual([false, false]);
+    expect(document.querySelectorAll('.legal-consent-overlay')).toHaveLength(0);
+    expect(hasCloudAIConsent('openrouter')).toBe(false);
+  });
+
   it('withdraws remote approval without erasing the transparency record', async () => {
     seedTransparency();
     const pending = requestAIProcessingApproval('venice');

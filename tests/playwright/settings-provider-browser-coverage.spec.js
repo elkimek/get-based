@@ -38,6 +38,7 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
     let chatReturns = 0;
     let corsProbe = false;
     let localFetchCount = 0;
+    let activationRequests = 0;
     const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
       updatePrivacyStatusCard: () => { privacyUpdates += 1; },
     });
@@ -109,7 +110,15 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
 
       controls.configureLocalAiControls({
         returnToChatIfOnboarding: () => { chatReturns += 1; },
+        requestProviderActivation: async () => { activationRequests += 1; return true; },
       });
+
+      controls.initSettingsOllamaCheck();
+      for (let i = 0; i < 30 && statusText.textContent.includes('Checking'); i += 1) {
+        await wait(10);
+      }
+      const backgroundDiscoveryDoesNotRequestActivation = statusText.textContent.includes('Connected')
+        && activationRequests === 0;
 
       urlInput.value = 'not a url';
       await controls.testOllamaConnection();
@@ -179,7 +188,8 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
         && document.getElementById('local-ai-advisor')?.textContent.includes('llama3.2')
         && localFetchCount >= 1
         && privacyUpdates >= 1
-        && chatReturns === 1;
+        && chatReturns === 1
+        && activationRequests === 1;
       const staleLocalModelReconciled = providerStorage.getOllamaMainModel() === 'llama3.2'
         && statusText.textContent.includes('llama3.2')
         && !statusText.textContent.includes('kimi-k2.5:cloud');
@@ -242,6 +252,7 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
 
       return {
         defaultReturnCallbackAllowsConnection,
+        backgroundDiscoveryDoesNotRequestActivation,
         invalidUrlBranch,
         corsHelp,
         localConnectSuccess,

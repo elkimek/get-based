@@ -129,21 +129,11 @@ export function initSettingsOllamaCheck() {
   if (!dot || !text) { updatePrivacyStatusCardFromRuntime(); return; }
   dot.className = 'local-ai-status-dot';
   text.textContent = 'Checking connection...';
-  discoverLocalAI(config.url, config.apiKey, { force: true }).then(async result => {
+  // Settings discovery is passive: only an explicit Test/connect action may
+  // request activation. Opening Settings must never surface consent UI.
+  discoverLocalAI(config.url, config.apiKey, { force: true }).then(result => {
     if (generation !== mainDiscoveryGeneration) return;
     applyMainDiscoveryResult(result);
-    if (result.available && result.models.length) {
-      const selectedModel = result.models.includes(getOllamaMainModel())
-        ? getOllamaMainModel()
-        : result.models[0];
-      if (!await requestProviderActivation('ollama', {
-        endpoint: config.url,
-        modelId: selectedModel,
-      }) && generation === mainDiscoveryGeneration) {
-        dot.classList.add('connected');
-        text.textContent = 'Connection verified — AI not activated';
-      }
-    }
     if (config.url === getOllamaPIIUrl()) updatePrivacyStatusCardFromRuntime(result.available && filterPIIEligibleModels(result.models).length > 0);
     else updatePrivacyStatusCardFromRuntime();
   }).catch(() => {
