@@ -18,18 +18,20 @@ import {
   buildActionBar,
   configureChatMessageActionDeps,
 } from '../js/chat-actions.js';
+import { closeChatPanel, configureChatPanel } from '../js/chat-panel.js';
 import {
   installVoiceSettingsPanel,
   renderVoiceSettingsPanel,
 } from '../js/settings-voice-panel.js';
 import { voiceProviderKeyStatus } from '../js/settings-voice-view.js';
 import { VoiceCaptureSession, preferredMimeType } from '../js/voice-capture.js';
+import { getVoiceSettings } from '../js/voice-settings-storage.js';
 import {
   configureVoiceLocalEngine,
   terminateLocalVoiceWorker,
   transcribeLocalAudio,
 } from '../js/voice-local-engine.js';
-import { VoicePlayer, trimPcmEdgeSilence } from '../js/voice-player.js';
+import { VoicePlayer, trimPcmEdgeSilence, voicePlayer } from '../js/voice-player.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const realFetch = globalThis.fetch;
@@ -177,6 +179,22 @@ class FakeAudioContext {
     this.source = new FakeBufferSource();
     this.sources.push(this.source);
     return this.source;
+  }
+}
+
+class ManualAudioContext extends FakeAudioContext {
+  constructor() {
+    super();
+    this.sources = [];
+  }
+
+  createBufferSource() {
+    const source = new FakeBufferSource();
+    source.start = () => {};
+    source.finish = () => source.onended?.();
+    this.source = source;
+    this.sources.push(source);
+    return source;
   }
 }
 
@@ -440,35 +458,59 @@ describe('voice capture and playback primitives', () => {
     expect(player.scheduledAudioSources.size).toBe(0);
   });
 
-  it('buffers a short Kokoro opening until the following sentence is ready', async () => {
+  it('starts Kokoro playback immediately after the first chunk', async () => {
     const context = new FakeAudioContext();
     const player = new VoicePlayer({
       audioContextFactory: () => context,
-      pcmInitialBufferSeconds: 6,
     });
     let streamController;
     const stream = new ReadableStream({
       start(controller) { streamController = controller; },
     });
-    const playback = player.playPcmStream(stream);
-    streamController.enqueue({
-      samples: new Float32Array(16_000).fill(0.1),
-      sampleRate: 8_000,
-    });
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(context.createdBuffers).toHaveLength(0);
 
+    const onPlaybackStart = vi.fn();
+    const playback = player.playPcmStream(stream, {
+      onPlaybackStart,
+    });
     streamController.enqueue({
-      samples: new Float32Array(32_000).fill(0.1),
+      samples: new Float32Array(8_000).fill(0.1),
       sampleRate: 8_000,
     });
+    await vi.waitFor(() => expect(context.createdBuffers).toHaveLength(1));
+    expect(onPlaybackStart).toHaveBeenCalledOnce();
     streamController.close();
-    await expect(playback).resolves.toBe(true);
 
-    expect(context.createdBuffers).toHaveLength(2);
-    expect(context.sources[0].startTime).toBeCloseTo(0.03);
-    expect(context.sources[1].startTime).toBeCloseTo(2.03);
+    await expect(playback).resolves.toBe(true);
+  });
+
+  it('reports when local playback underruns and when speech resumes', async () => {
+    const context = new ManualAudioContext();
+    const player = new VoicePlayer({ audioContextFactory: () => context });
+    let streamController;
+    const stream = new ReadableStream({
+      start(controller) { streamController = controller; },
+    });
+    const onPlaybackStart = vi.fn();
+    const onPlaybackWaiting = vi.fn();
+    const playback = player.playPcmStream(stream, {
+      onPlaybackStart,
+      onPlaybackWaiting,
+    });
+
+    streamController.enqueue({ samples: new Float32Array(8_000).fill(0.1), sampleRate: 8_000 });
+    await vi.waitFor(() => expect(context.sources).toHaveLength(1));
+    expect(onPlaybackStart).toHaveBeenCalledOnce();
+    context.sources[0].finish();
+    expect(onPlaybackWaiting).toHaveBeenCalledOnce();
+
+    streamController.enqueue({ samples: new Float32Array(8_000).fill(0.1), sampleRate: 8_000 });
+    await vi.waitFor(() => expect(context.sources).toHaveLength(2));
+    expect(onPlaybackStart).toHaveBeenCalledTimes(2);
+    streamController.close();
+    await Promise.resolve();
+    context.sources[1].finish();
+
+    await expect(playback).resolves.toBe(true);
   });
 
   it('aborts a stalled local transcription worker', async () => {
@@ -497,8 +539,8 @@ describe('voice capture and playback primitives', () => {
     const samples = new Float32Array(24_000);
     samples.fill(0.2, 8_000, 16_000);
     const trimmed = trimPcmEdgeSilence(samples, 24_000);
-    expect(trimmed.length).toBe(8_000 + (2 * 2_880));
-    expect(trimmed[2_880]).toBeCloseTo(0.2);
+    expect(trimmed.length).toBe(8_000 + (2 * 1_440));
+    expect(trimmed[1_440]).toBeCloseTo(0.2);
   });
 });
 
@@ -597,7 +639,8 @@ describe('voice settings and chat controls', () => {
       const { readAssistantMessage } = await import('../js/voice-controller.js');
       const pending = readAssistantMessage(0);
       const button = document.getElementById('chat-listen-btn-0');
-      await vi.waitFor(() => expect(button?.textContent).toContain('Cancel'));
+      await vi.waitFor(() => expect(button?.textContent).toContain('Preparing'));
+      expect(button?.getAttribute('aria-label')).toContain('Cancel');
       await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledOnce());
       expect(button?.disabled).toBe(false);
 
@@ -855,15 +898,24 @@ describe('voice settings and chat controls', () => {
     expect(localStorage.getItem('labcharts-voice-output-provider')).toBe('elevenlabs');
     expect(localStorage.getItem('labcharts-voice-providers-linked')).toBe('false');
     expect(panel.querySelector('[data-voice-visible="output:elevenlabs"]').hidden).toBe(false);
-    expect(panel.textContent).toContain('Use different services for dictation and listening');
+    expect(panel.textContent).toContain('Use separate STT and TTS services');
     expect(panel.querySelector(
       '[data-voice-action="install-model"][data-kind="stt"]',
     ).disabled).toBe(false);
     expect(panel.querySelector(
       '[data-voice-action="remove-model"][data-kind="stt"]',
     ).disabled).toBe(true);
-    expect(panel.querySelector('.voice-model-footnote').textContent.replace(/\s+/g, ' '))
-      .toContain('never start a model download automatically');
+    expect(panel.textContent).toContain('Speech-to-text');
+    expect(panel.textContent).toContain('Text-to-speech');
+    expect(panel.querySelector('.voice-advanced-connections').open).toBe(false);
+  });
+
+  it('keeps Kokoro playback immediate without exposing a buffering preference', () => {
+    document.body.innerHTML = `<main>${renderVoiceSettingsPanel(true)}</main>`;
+    installVoiceSettingsPanel(document);
+    expect(document.querySelector('[data-voice-setting="localTtsBuffering"]')).toBeNull();
+    expect(getVoiceSettings()).not.toHaveProperty('localTtsBuffering');
+    expect(document.body.textContent).not.toContain('Playback buffering');
   });
 
   it('requires the explicit Kokoro GPU weight download when processing changes', () => {
@@ -883,9 +935,30 @@ describe('voice settings and chat controls', () => {
     select.value = 'webgpu';
     select.dispatchEvent(new Event('change', { bubbles: true }));
     const row = document.querySelector('[data-voice-model-kind="tts"]');
-    expect(row.textContent).toContain('about 330 MB');
-    expect(row.textContent).toContain('Download needed for the selected processing mode');
+    expect(row.textContent).toContain('GPU weights · about 330 MB');
+    expect(row.textContent).toContain('separate from the 95 MB CPU weights');
+    expect(row.textContent).toContain('GPU weights need a separate download');
+    expect(row.textContent).toContain('CPU weights remain stored');
     expect(row.querySelector('[data-voice-action="install-model"]').disabled).toBe(false);
+  });
+
+  it('reuses one Whisper download when switching between CPU and GPU', () => {
+    const model = 'onnx-community/whisper-small';
+    localStorage.setItem('labcharts-voice-local-stt-backend', 'wasm');
+    localStorage.setItem(
+      `labcharts-voice-model-installed-stt-${encodeURIComponent(model)}`,
+      JSON.stringify({ version: '2', model, backend: 'wasm' }),
+    );
+    document.body.innerHTML = `<main>${renderVoiceSettingsPanel(true)}</main>`;
+    installVoiceSettingsPanel(document);
+    const select = document.querySelector('[data-voice-setting="localSttBackend"]');
+    select.value = 'webgpu';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const row = document.querySelector('[data-voice-model-kind="stt"]');
+    expect(row.textContent).toContain('One shared CPU/GPU file');
+    expect(row.querySelector('[data-voice-action="install-model"]').disabled).toBe(true);
+    expect(row.querySelector('[data-voice-action="install-model"]').textContent).toBe('Ready');
   });
 
   it('keeps model progress and completion attached to the selection that started them', async () => {
@@ -952,6 +1025,116 @@ describe('voice settings and chat controls', () => {
     } finally {
       configureChatMessageActionDeps(previousDeps);
       state.chatHistory = original;
+    }
+  });
+
+  it('preserves speech playback when the chat panel closes', () => {
+    const stopVoiceActivity = vi.fn();
+    const previous = configureChatPanel({ stopVoiceActivity });
+    document.body.innerHTML = `
+      <aside id="chat-panel" class="open"></aside>
+      <div id="chat-backdrop" class="open"></div>
+      <button id="chat-fab" class="hidden"></button>
+    `;
+    try {
+      closeChatPanel();
+      expect(stopVoiceActivity).toHaveBeenCalledWith({ preservePlayback: true });
+      expect(document.getElementById('chat-panel').classList.contains('open')).toBe(false);
+    } finally {
+      configureChatPanel(previous);
+    }
+  });
+
+  it('shows cancellable preparation until local Kokoro audio actually starts', async () => {
+    const originalHistory = state.chatHistory;
+    const originalThreadId = state.currentThreadId;
+    const worker = new ControlledVoiceWorker();
+    const previousEngine = configureVoiceLocalEngine({ workerFactory: () => worker });
+    const model = 'onnx-community/Kokoro-82M-v1.0-ONNX';
+    localStorage.setItem('labcharts-voice-output-provider', 'browser-local');
+    localStorage.setItem('labcharts-voice-local-tts-backend', 'wasm');
+    localStorage.setItem(
+      `labcharts-voice-model-installed-tts-${encodeURIComponent(model)}`,
+      JSON.stringify({
+        version: '2',
+        model,
+        backend: 'wasm',
+        availableBackends: ['wasm'],
+      }),
+    );
+    state.currentThreadId = 'kokoro-loading-state-test';
+    state.chatHistory = [{ role: 'assistant', content: 'Read this sentence.' }];
+    document.body.innerHTML = buildActionBar(0);
+    const audioContext = new ManualAudioContext();
+    const previousAudioContext = voicePlayer.audioContext;
+    voicePlayer.audioContext = audioContext;
+    let controller;
+
+    try {
+      controller = await import('../js/voice-controller.js');
+      const reading = controller.readAssistantMessage(0);
+      let button = document.getElementById('chat-listen-btn-0');
+      await vi.waitFor(() => expect(worker.request?.type).toBe('synthesize'));
+      expect(button.classList.contains('busy')).toBe(true);
+      expect(button.textContent).toContain('Preparing…');
+      expect(button.disabled).toBe(false);
+      expect(button.getAttribute('aria-label')).toBe('Cancel speech preparation');
+
+      const samples = new Float32Array(8_000).fill(0.1);
+      worker.respond({
+        type: 'audio-chunk',
+        id: worker.request.id,
+        sampleRate: 8_000,
+        samples: samples.buffer,
+      });
+      await vi.waitFor(() => expect(button.classList.contains('speaking')).toBe(true));
+      expect(button.textContent).toContain('Stop');
+
+      audioContext.sources[0].finish();
+      await vi.waitFor(() => expect(button.textContent).toContain('Still generating…'));
+      expect(button.classList.contains('busy')).toBe(true);
+      expect(button.getAttribute('aria-label')).toBe('Cancel speech generation');
+
+      expect(controller.stopVoiceActivity({ preservePlayback: true })).toBe(true);
+      expect(button.textContent).toContain('Still generating…');
+
+      document.body.innerHTML = buildActionBar(0);
+      button = document.getElementById('chat-listen-btn-0');
+      expect(button.textContent).toContain('Listen');
+      expect(controller.isVoicePlaybackActive()).toBe(true);
+      expect(controller.restoreVoicePlaybackUi()).toBe(true);
+      expect(button.textContent).toContain('Still generating…');
+      expect(button.getAttribute('aria-label')).toBe('Cancel speech generation');
+
+      const nextSamples = new Float32Array(8_000).fill(0.1);
+      worker.respond({
+        type: 'audio-chunk',
+        id: worker.request.id,
+        sampleRate: 8_000,
+        samples: nextSamples.buffer,
+      });
+      await vi.waitFor(() => expect(button.classList.contains('speaking')).toBe(true));
+      worker.respond({
+        type: 'audio-done',
+        id: worker.request.id,
+        model,
+        backend: 'wasm',
+        sampleRate: 8_000,
+        inferenceMs: 100,
+        audioSeconds: 1,
+      });
+      await vi.waitFor(() => expect(audioContext.sources).toHaveLength(2));
+      audioContext.sources[1].finish();
+
+      await expect(reading).resolves.toBe(true);
+      expect(button.textContent).toContain('Listen');
+    } finally {
+      controller?.stopVoiceActivity();
+      terminateLocalVoiceWorker('tts');
+      configureVoiceLocalEngine(previousEngine);
+      voicePlayer.audioContext = previousAudioContext;
+      state.chatHistory = originalHistory;
+      state.currentThreadId = originalThreadId;
     }
   });
 

@@ -89,44 +89,24 @@ async function prepareWebGpu() {
   if (!adapter) throw new Error('The browser could not access a graphics processor.');
 }
 
-async function validateWebGpuSpeech(tts) {
-  const audio = await tts.generate('This is a voice test.', { voice: 'af_heart' });
-  const raw = audio?.audio || audio?.data;
-  const samples = raw instanceof Float32Array ? raw : new Float32Array(raw || []);
-  let peak = 0;
-  let sumSquares = 0;
-  for (const sample of samples) {
-    if (!Number.isFinite(sample)) throw new Error('Graphics speech validation produced invalid audio.');
-    peak = Math.max(peak, Math.abs(sample));
-    sumSquares += sample * sample;
-  }
-  const rms = Math.sqrt(sumSquares / Math.max(1, samples.length));
-  if (samples.length < 12_000 || peak < 0.03 || peak > 0.95 || rms < 0.02) {
-    throw new Error('Graphics speech validation failed on this device. Use Automatic or Main processor.');
-  }
-}
-
 async function createSynthesizer(KokoroTTS, model, backend, id) {
   if (backend === 'webgpu') await prepareWebGpu();
-  const tts = await withoutUnknownLengthWarning(() => (
+  return withoutUnknownLengthWarning(() => (
     KokoroTTS.from_pretrained(model, {
       device: backend,
       dtype: backend === 'webgpu' ? 'fp32' : 'q8',
       progress_callback: progress => postProgress(id, progress),
     })
   ));
-  if (backend === 'webgpu') {
-    try {
-      await validateWebGpuSpeech(tts);
-    } catch (error) {
-      await tts?.model?.dispose?.().catch?.(() => {});
-      throw error;
-    }
-  }
-  return tts;
 }
 
-async function loadSynthesizer(model, id, backendPreference = 'auto', preferredBackend = 'wasm') {
+async function loadSynthesizer(
+  model,
+  id,
+  backendPreference = 'auto',
+  preferredBackend = 'wasm',
+  allowWebGpuFallback = true,
+) {
   const requestedModel = String(model || DEFAULT_MODEL);
   const requestedBackend = normalizeBackend(backendPreference);
   const autoPreference = ['webgpu', 'wasm'].includes(preferredBackend) ? preferredBackend : 'wasm';
@@ -142,6 +122,9 @@ async function loadSynthesizer(model, id, backendPreference = 'auto', preferredB
   }
   await synthesizer?.model?.dispose?.().catch?.(() => {});
   synthesizer = null;
+  activeModel = '';
+  activeBackend = '';
+  activeFallbackReason = '';
 
   if (isMockMode()) {
     activeModel = requestedModel;
@@ -152,7 +135,9 @@ async function loadSynthesizer(model, id, backendPreference = 'auto', preferredB
 
   const { KokoroTTS } = await ensureKokoro();
   const candidates = requestedBackend === 'auto'
-    ? [autoPreference, autoPreference === 'webgpu' ? 'wasm' : 'webgpu']
+    ? allowWebGpuFallback
+      ? [autoPreference, autoPreference === 'webgpu' ? 'wasm' : 'webgpu']
+      : ['wasm']
     : [requestedBackend];
   let fallbackReason = '';
   for (const backend of candidates) {
@@ -194,6 +179,7 @@ async function synthesize(message) {
     message.id,
     message.backend,
     message.preferredBackend,
+    message.allowWebGpuFallback,
   );
   if (isMockMode()) {
     const sampleRate = 24_000;
@@ -278,6 +264,7 @@ self.addEventListener('message', async event => {
         id,
         message.backend,
         message.preferredBackend,
+        message.allowWebGpuFallback,
       );
       self.postMessage({ type: 'ready', id, kind: 'tts', ...ready });
       return;
@@ -319,6 +306,7 @@ self.addEventListener('message', async event => {
       type: 'error',
       id,
       kind: 'tts',
+      backend: activeBackend || undefined,
       message: getErrorMessage(error, 'Local speech generation failed'),
     });
   }

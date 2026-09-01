@@ -75,6 +75,14 @@
   cursor: pointer;
   opacity: .72;
 }
+.chat-action-btn.busy > svg {
+  animation: chat-action-spin .8s linear infinite;
+  transform-origin: center;
+}
+@keyframes chat-action-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .chat-action-btn.busy > svg { animation: none; }
+}
 .chat-action-btn svg,
 .chat-action-more-popover svg {
   width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2;

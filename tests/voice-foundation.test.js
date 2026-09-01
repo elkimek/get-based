@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -31,13 +32,17 @@ import {
 import {
   initialLocalVoiceBackend,
   isLocalVoiceModelReady,
+  isAndroidDevice,
   isMobileVoiceDevice,
   preferredLocalVoiceBackend,
   removeLocalVoiceModel,
   resolveLocalBackend,
   verifyLocalVoiceModelReady,
 } from '../js/voice-local-engine.js';
-import { localModelStatusText } from '../js/settings-voice-hardware.js';
+import {
+  localModelStatusText,
+  renderSttHardwareRow,
+} from '../js/settings-voice-hardware.js';
 import { normalizeSpeechText, splitSpeechText } from '../js/voice-text.js';
 
 afterEach(() => {
@@ -154,6 +159,23 @@ describe('voice settings storage', () => {
     });
     expect(normalizeLocalVoiceServerUrl('javascript:alert(1)')).toBe('');
     expect(normalizeLocalVoiceServerUrl('not a url')).toBe('');
+  });
+
+  it('preserves explicit Android GPU choices while Automatic stays CPU-safe', () => {
+    vi.stubGlobal('navigator', {
+      userAgent: 'Mozilla/5.0 (Linux; Android 15; Pixel 8a) AppleWebKit/537.36',
+    });
+    localStorage.setItem(VOICE_STORAGE_KEYS.localSttBackend, 'webgpu');
+    localStorage.setItem(VOICE_STORAGE_KEYS.localTtsBackend, 'webgpu');
+
+    expect(getVoiceSettings()).toMatchObject({
+      localSttBackend: 'webgpu',
+      localTtsBackend: 'webgpu',
+    });
+    expect(renderSttHardwareRow(getVoiceSettings())).toContain(
+      'Graphics processor (GPU · experimental)',
+    );
+    expect(resolveLocalBackend('auto', {}, { android: true })).toBe('wasm');
   });
 
   it('routes provider credentials through encrypted storage and the memory cache', async () => {
@@ -322,7 +344,7 @@ describe('local transcription language', () => {
     expect(resolveLocalBackend('webgpu', { wasm: 1 })).toBe('webgpu');
   });
 
-  it('starts with WebGPU on capable mobile browsers and CPU elsewhere', () => {
+  it('starts with WebGPU on capable non-Android mobile browsers and CPU elsewhere', () => {
     const gpu = { requestAdapter: () => Promise.resolve({}) };
     const mobile = { userAgentData: { mobile: true }, gpu };
     const desktop = { userAgentData: { mobile: false }, gpu };
@@ -331,7 +353,7 @@ describe('local transcription language', () => {
     expect(isMobileVoiceDevice(mobile)).toBe(true);
     expect(isMobileVoiceDevice(android)).toBe(true);
     expect(initialLocalVoiceBackend(mobile)).toBe('webgpu');
-    expect(initialLocalVoiceBackend(android)).toBe('webgpu');
+    expect(initialLocalVoiceBackend(android)).toBe('wasm');
     expect(initialLocalVoiceBackend(desktop)).toBe('wasm');
     expect(initialLocalVoiceBackend({ userAgentData: { mobile: true } })).toBe('wasm');
     expect(resolveLocalBackend('auto', {}, 'webgpu')).toBe('webgpu');
@@ -352,6 +374,27 @@ describe('local transcription language', () => {
 
     expect(preferredLocalVoiceBackend('tts', model, 'auto')).toBe('wasm');
     expect(isLocalVoiceModelReady('tts', model, 'auto')).toBe(true);
+  });
+
+  it('keeps Automatic on CPU for Android even when an older GPU result was faster', () => {
+    const androidNavigator = {
+      userAgent: 'Mozilla/5.0 (Linux; Android 15; Pixel 8a) AppleWebKit/537.36',
+    };
+    expect(isAndroidDevice(androidNavigator)).toBe(true);
+    expect(resolveLocalBackend('auto', {
+      wasm: { realtimeFactor: 1.2 },
+      webgpu: { realtimeFactor: 0.4 },
+    }, { android: true })).toBe('wasm');
+    expect(resolveLocalBackend('webgpu', {}, { android: true })).toBe('webgpu');
+  });
+
+  it('does not synthesize a hidden Kokoro sentence while initializing WebGPU', () => {
+    const workerSource = readFileSync(
+      new URL('../js/voice-local-tts-worker.js', import.meta.url),
+      'utf8',
+    );
+    expect(workerSource).not.toContain('This is a voice test.');
+    expect(workerSource).toContain("requestAdapter({ powerPreference: 'high-performance' })");
   });
 
   it('requires an explicit Kokoro download for each weight variant', () => {

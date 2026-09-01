@@ -5,6 +5,7 @@ import { LOCAL_VOICE_BACKENDS } from './voice-model-catalog.js';
 import {
   getLocalVoiceModelStatus,
   initialLocalVoiceBackend,
+  isAndroidDevice,
   isMobileVoiceDevice,
   resolveLocalBackend,
 } from './voice-local-engine.js';
@@ -75,14 +76,18 @@ function renderHardwareRow(settings, kind) {
   return `
     <div class="settings-section voice-setting-row" data-voice-visible="${input ? 'input' : 'output'}:browser-local">
       <div class="settings-copy">
-        <div class="settings-copy-title">Processing</div>
+        <div class="settings-copy-title">Processor</div>
         <div class="settings-copy-desc" ${description}></div>
       </div>
       <label class="voice-control">
-        <span class="sr-only">${input ? 'Transcription' : 'Speech'} processing</span>
+        <span class="sr-only">${input ? 'STT' : 'TTS'} processor</span>
         <select class="api-key-input" data-voice-setting="${setting}">
           ${LOCAL_VOICE_BACKENDS.map(option => (
-            `<option value="${option.id}"${selected(settings[setting], option.id)}>${option.label}</option>`
+            `<option value="${option.id}"${selected(settings[setting], option.id)}>${
+              option.id === 'webgpu' && isAndroidDevice()
+                ? 'Graphics processor (GPU · experimental)'
+                : option.label
+            }</option>`
           )).join('')}
         </select>
       </label>
@@ -107,7 +112,15 @@ async function refreshHardwareDescription(panel, settings, kind) {
   const description = panel.querySelector(selector);
   if (!description) return;
   if (settings[setting] === 'wasm') {
-    description.textContent = 'Uses your computer’s main processor. This is often fastest on powerful CPUs.';
+    description.textContent = isAndroidDevice()
+      ? 'Uses your device’s main processor. This is the stable choice on Android.'
+      : 'Uses your computer’s main processor. This is often fastest on powerful CPUs.';
+    return;
+  }
+  if (isAndroidDevice()) {
+    description.textContent = settings[setting] === 'webgpu'
+      ? 'Experimental on Android. Mobile graphics processing may be slower or crash when browser memory is limited.'
+      : 'Automatic uses the main processor on Android for speed and stability.';
     return;
   }
   description.textContent = 'Checking graphics support…';

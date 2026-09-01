@@ -93,6 +93,8 @@ function refreshOutputLanguageControl(panel, settings) {
   const select = panel.querySelector('[data-voice-setting="outputLanguage"]');
   if (!(select instanceof HTMLSelectElement)) return;
   const local = resolveVoiceProviderId('tts', settings.outputProvider) === 'browser-local';
+  const row = panel.querySelector('[data-voice-output-language-row]');
+  if (row instanceof HTMLElement) row.hidden = local;
   select.disabled = local;
   select.value = local ? 'en' : settings.outputLanguage;
   const description = panel.querySelector('[data-voice-output-language-description]');

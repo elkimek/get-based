@@ -107,6 +107,20 @@ export function getLocalModel(kind, modelId) {
   return models.find(model => model.id === modelId) || models[0];
 }
 
+export function getLocalModelStorageCopy(kind, modelId, backend = 'auto') {
+  const model = getLocalModel(kind, modelId);
+  if (kind !== 'tts') {
+    return `One shared CPU/GPU file · about ${model.downloadMB} MB · ${model.license}`;
+  }
+  if (backend === 'webgpu') {
+    return `GPU weights · about ${model.gpuDownloadMB} MB · separate from the ${model.downloadMB} MB CPU weights`;
+  }
+  if (backend === 'wasm') {
+    return `CPU weights · about ${model.downloadMB} MB · separate from the ${model.gpuDownloadMB} MB GPU weights`;
+  }
+  return `Optimized weights · about ${model.downloadMB} MB on CPU or ${model.gpuDownloadMB} MB on GPU`;
+}
+
 export function resolveLocalSttLanguage(modelId, language = 'auto') {
   const model = getLocalModel('stt', modelId);
   return model.multilingual ? String(language || 'auto') : 'en';

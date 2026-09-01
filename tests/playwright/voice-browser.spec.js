@@ -163,9 +163,7 @@ test('browser-local voice routes first use to an explicit model download', async
   await expect(sttRow.locator('[data-voice-action="install-model"]')).toBeEnabled();
   await expect(sttRow.locator('[data-voice-action="install-model"]')).toBeFocused();
   await expect(sttRow.locator('[data-voice-action="remove-model"]')).toBeDisabled();
-  await expect(page.locator('.voice-model-footnote')).toContainText(
-    'never start a model download automatically',
-  );
+  await expect(sttRow).toContainText('One shared CPU/GPU file');
 });
 
 test('Automatic prefers WebGPU on a capable mobile browser without downloading a model', async ({ page }) => {
@@ -186,7 +184,7 @@ test('Automatic prefers WebGPU on a capable mobile browser without downloading a
     'Automatic will try the graphics processor first on this mobile device',
   );
   const ttsRow = page.locator('[data-voice-model-kind="tts"]');
-  await expect(ttsRow).toContainText('about 330 MB');
+  await expect(ttsRow).toContainText('about 95 MB on CPU or 330 MB on GPU');
   await expect(ttsRow.locator('[data-voice-action="install-model"]')).toHaveText('Download');
   await expect(ttsRow.locator('[data-voice-action="install-model"]')).toBeEnabled();
 });
@@ -403,11 +401,13 @@ test('Voice settings and chat STT/TTS controls work with a local compatible serv
 
   await openVoiceSettingsFromUi(page);
   await expect(page.locator('[data-tab-panel="voice"]')).toHaveClass(/\bactive\b/);
-  await expect(page.locator('[data-tab-panel="voice"]')).toContainText('Where voice is processed');
-  await expect(page.locator('[data-tab-panel="voice"]')).toContainText('Quality and speed');
-  await expect(page.locator('[data-tab-panel="voice"]')).toContainText('Processing');
+  await expect(page.locator('[data-tab-panel="voice"]')).toContainText('Default speech service');
+  await expect(page.locator('[data-tab-panel="voice"]')).toContainText('Speech-to-text');
+  await expect(page.locator('[data-tab-panel="voice"]')).toContainText('Text-to-speech');
+  await expect(page.locator('[data-tab-panel="voice"]')).toContainText('Whisper model');
+  await expect(page.locator('[data-tab-panel="voice"]')).toContainText('Processor');
   await expect(page.locator('[data-tab-panel="voice"]')).toContainText(
-    'Use different services for dictation and listening',
+    'Use separate STT and TTS services',
   );
   await expect(page.locator('[data-tab-panel="voice"]')).toContainText('Speaking speed');
   await expect(page.locator('[data-voice-shared-provider]')).toHaveValue('auto');
@@ -442,6 +442,7 @@ test('Voice settings and chat STT/TTS controls work with a local compatible serv
   await expect(page.locator('[data-voice-hardware-description]')).toContainText(
     'Automatic will use the main processor; it was about 4.0× faster in your tests.',
   );
+  await expect(outputLanguageSelect).toBeHidden();
   await expect(outputLanguageSelect).toBeDisabled();
   await expect(outputLanguageSelect).toHaveValue('en');
   await expect(speechHardwareSelect).toHaveValue('auto');
@@ -450,6 +451,7 @@ test('Voice settings and chat STT/TTS controls work with a local compatible serv
     'Automatic will use the graphics processor; it was about 2.0× faster in your tests.',
   );
   await page.locator('[data-voice-shared-provider]').selectOption('local-server');
+  await expect(outputLanguageSelect).toBeVisible();
   await expect(outputLanguageSelect).toBeEnabled();
   await page.locator('[data-voice-shared-provider]').selectOption('browser-local');
   await expect(sttModelSelect).toContainText('Recommended · Whisper Small');
@@ -760,6 +762,7 @@ test('cloud connection controls preserve masked keys, labels, and provider error
   });
   await openVoiceSettingsFromUi(page);
 
+  await page.locator('.voice-advanced-connections > summary').click();
   const xaiCard = page.locator('[data-voice-connection="xai"]');
   await xaiCard.locator('summary').click();
   const xaiKey = xaiCard.locator('[data-voice-key-input="xai"]');
@@ -820,8 +823,10 @@ test('Voice settings use standard responsive Settings rows without horizontal ov
   await page.goto('/app', { waitUntil: 'load' });
   await openVoiceSettingsFromUi(page);
 
-  await expect(page.locator('.voice-settings-list .settings-section')).toHaveCount(25);
-  await expect(page.locator('.voice-model-list .settings-section')).toHaveCount(2);
+  await expect(page.locator('.voice-task-card')).toHaveCount(2);
+  await expect(page.locator('.voice-model-row')).toHaveCount(2);
+  await expect(page.locator('[data-voice-setting="localTtsBuffering"]')).toHaveCount(0);
+  await expect(page.locator('.voice-advanced-connections')).not.toHaveAttribute('open', '');
   await expect(page.locator('[data-voice-setting="localVoice"] optgroup')).toHaveCount(2);
   await expect(page.locator('[data-voice-setting="localVoice"] optgroup').first())
     .toHaveAttribute('label', 'Female voices');
