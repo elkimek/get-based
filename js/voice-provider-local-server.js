@@ -2,6 +2,7 @@
 // voice-provider-local-server.js — direct OpenAI-compatible local voice adapter.
 
 import { expectVoiceResponseOk } from './voice-response-utils.js';
+import { requireAIProcessingApproval } from './cloud-ai-consent.js';
 
 function endpoint(baseUrl, path) {
   const base = String(baseUrl || '').replace(/\/+$/, '');
@@ -16,6 +17,7 @@ function authHeaders(apiKey, extra = {}) {
 export const localServerVoiceProvider = {
   id: 'local-server',
   async transcribe({ audio, baseUrl, apiKey, modelId = 'whisper-1', language = 'auto', signal }) {
+    await requireAIProcessingApproval('local-server', { kind: 'voice-input', endpoint: baseUrl, modelId });
     const form = new FormData();
     form.append('model', modelId);
     if (language && language !== 'auto') form.append('language', language);
@@ -39,6 +41,7 @@ export const localServerVoiceProvider = {
     rate = 1,
     signal,
   }) {
+    await requireAIProcessingApproval('local-server', { kind: 'voice-output', endpoint: baseUrl, modelId });
     const response = await fetch(endpoint(baseUrl, '/v1/audio/speech'), {
       method: 'POST',
       headers: authHeaders(apiKey, { 'Content-Type': 'application/json' }),

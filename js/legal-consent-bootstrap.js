@@ -1,6 +1,6 @@
 // @ts-check
-// legal-consent-bootstrap.js — make the first-launch legal gate interactive
-// before the main application bundle finishes loading.
+// legal-consent-bootstrap.js — make the first-launch deployment-policy gate
+// interactive before the main application bundle finishes loading.
 
 (() => {
   const overlay = document.getElementById('legal-consent-overlay');
@@ -9,8 +9,43 @@
   const acceptanceKey = 'labcharts-legal-acceptance';
   const termsVersion = overlay.dataset.termsVersion || '';
   const privacyVersion = overlay.dataset.privacyVersion || '';
-  let previous = null;
+  const hostname = String(location.hostname || '').toLowerCase().replace(/\.$/, '');
+  const officialHost = hostname === 'getbased.health'
+    || hostname.endsWith('.getbased.health')
+    || hostname === 'get-based.vercel.app'
+    || hostname === 'get-based-managed-subscription-v2.vercel.app';
+  const meta = name => String(document.querySelector(`meta[name="${name}"]`)?.getAttribute('content') || '').trim();
+  const cleanUrl = value => {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    try {
+      const url = new URL(raw, location.origin);
+      return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : '';
+    } catch {
+      return '';
+    }
+  };
+  const configured = {
+    name: meta('getbased-operator-name'),
+    privacyUrl: cleanUrl(meta('getbased-operator-privacy-url')),
+    termsUrl: cleanUrl(meta('getbased-operator-terms-url')),
+  };
+  const operator = configured.name || configured.privacyUrl || configured.termsUrl
+    ? configured
+    : officialHost
+      ? {
+          name: 'getbased',
+          privacyUrl: 'https://getbased.health/privacy',
+          termsUrl: 'https://getbased.health/terms',
+        }
+      : configured;
+  const hasPolicies = !!(operator.termsUrl || operator.privacyUrl);
+  const policyScope = operator.name || operator.termsUrl || operator.privacyUrl
+    ? [operator.name, operator.termsUrl, operator.privacyUrl].join('|')
+    : 'self-hosted-notice';
+  overlay.dataset.policyScope = policyScope;
 
+  let previous = null;
   try {
     const raw = localStorage.getItem(acceptanceKey);
     previous = raw ? JSON.parse(raw) : null;
@@ -20,33 +55,62 @@
 
   const acceptedCurrent = previous?.accepted === true
     && previous?.termsVersion === termsVersion
-    && previous?.privacyVersion === privacyVersion;
+    && previous?.privacyVersion === privacyVersion
+    && previous?.policyScope === policyScope;
   if (acceptedCurrent) {
     overlay.remove();
     return;
   }
 
-  if (previous && typeof previous === 'object') {
-    const title = document.getElementById('legal-consent-title');
-    const description = document.getElementById('legal-consent-desc');
-    if (title) title.textContent = 'Review updated Terms & Privacy';
-    if (description) {
-      description.textContent = 'The Terms or Privacy Policy changed since this browser last accepted them. Please review and accept the current versions before continuing.';
+  const kicker = overlay.querySelector('.legal-consent-kicker');
+  const title = document.getElementById('legal-consent-title');
+  const description = document.getElementById('legal-consent-desc');
+  const summary = overlay.querySelector('.legal-consent-summary');
+  const statement = overlay.querySelector('.legal-consent-check span');
+  const acceptButton = /** @type {HTMLButtonElement | null} */ (
+    overlay.querySelector('[data-legal-consent-action="accept"]')
+  );
+
+  if (!officialHost) summary?.remove();
+  if (kicker) kicker.textContent = hasPolicies ? `${operator.name || 'Deployment'} legal` : 'Self-hosted getbased';
+  if (title) title.textContent = previous
+    ? (hasPolicies ? 'Review updated Terms & Privacy' : 'Review updated app notice')
+    : (hasPolicies ? 'Accept Terms & Privacy' : 'Review self-hosted app notice');
+  if (description) {
+    description.textContent = previous
+      ? (hasPolicies
+        ? 'The deployment policy identity or links changed since this browser last accepted them. Please review the current documents before continuing.'
+        : 'The self-hosted app notice changed since this browser last acknowledged it. Please review it before continuing.')
+      : (hasPolicies
+        ? `Before using getbased, please review ${operator.name ? `${operator.name}'s` : 'the deployment operator\'s'} policies.`
+        : 'This independent self-hosted deployment has not configured operator Terms or Privacy links.');
+  }
+  if (statement) {
+    statement.replaceChildren();
+    if (!hasPolicies) {
+      statement.textContent = 'I acknowledge that this self-hosted getbased deployment is operated independently and that optional network features send data to the destinations disclosed at activation.';
+    } else {
+      statement.append(`I have read and agree to ${operator.name ? `${operator.name}'s ` : 'the deployment operator\'s '}`);
+      /** @type {Array<{ label: string, url: string }>} */
+      const documents = [];
+      if (operator.termsUrl) documents.push({ label: 'Terms of Service', url: operator.termsUrl });
+      if (operator.privacyUrl) documents.push({ label: 'Privacy Policy', url: operator.privacyUrl });
+      documents.forEach((policyDocument, index) => {
+        if (index) statement.append(' and ');
+        const link = document.createElement('a');
+        link.href = policyDocument.url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = policyDocument.label;
+        statement.appendChild(link);
+      });
+      statement.append('.');
     }
   }
-
-  const localLinks = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-  overlay.querySelectorAll('[data-legal-path]').forEach(link => {
-    if (!(link instanceof HTMLAnchorElement)) return;
-    const path = link.dataset.legalPath || '/';
-    link.href = localLinks ? path : `https://getbased.health${path}`;
-  });
+  if (acceptButton) acceptButton.textContent = hasPolicies ? 'Accept & continue' : 'Acknowledge & continue';
 
   const checkbox = /** @type {HTMLInputElement | null} */ (
     document.getElementById('legal-consent-checkbox')
-  );
-  const acceptButton = /** @type {HTMLButtonElement | null} */ (
-    overlay.querySelector('[data-legal-consent-action="accept"]')
   );
   if (!checkbox || !acceptButton) return;
 
@@ -61,6 +125,7 @@
         accepted: true,
         termsVersion,
         privacyVersion,
+        policyScope,
         acceptedAt: new Date().toISOString(),
         appVersion: globalThis.APP_VERSION || null,
         location: location.origin + location.pathname,

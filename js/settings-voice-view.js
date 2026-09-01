@@ -481,7 +481,7 @@ function renderConnectionCard(provider, title, description, settings) {
                 autocomplete="url" spellcheck="false">
               <small>Connects directly from this browser. The URL and optional key stay on this device.</small>
             </label>` : `
-            <p class="voice-cloud-disclosure">Voice requests use the Get Based relay only to reach ${escapeHTML(title)} without exposing cross-origin credentials. Your key is sent for that request and is never logged by the relay.</p>`}
+            <p class="voice-cloud-disclosure">Connects directly from this browser to ${escapeHTML(title)}. Your key is sent only to that provider for its requests.</p>`}
           <label class="voice-field">
             <span>${escapeHTML(keyLabel)}</span>
             <input type="password" class="api-key-input" data-voice-key-input="${provider}"
@@ -512,7 +512,7 @@ function renderConnections(settings) {
         <div class="settings-action-row">
           <div class="settings-copy">
             <div class="settings-copy-title">AI provider connections</div>
-            <div class="settings-copy-desc">PPQ, OpenRouter, and Venice reuse the encrypted connection from AI settings. Voice requests pass through the Get Based relay only to reach that provider; keys are never stored or logged there. Routstr voice is not live yet and falls back to this device.</div>
+            <div class="settings-copy-desc">PPQ, OpenRouter, and Venice reuse the encrypted connection from AI settings and receive compatible voice requests directly from this browser. Routstr voice is not live yet and falls back to this device.</div>
           </div>
           <button type="button" class="settings-link-btn" data-settings-tab="ai">Manage</button>
         </div>

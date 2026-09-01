@@ -64,7 +64,12 @@ import { inferWithLMStudioNativeProvider, loadLMStudioModelWithContext } from '.
 import { inferWithOllamaNativeProvider } from '../js/local-ai-provider-ollama.js';
 import { getLocalAiExecutionLocation, isLocalAiLoopbackUrl } from '../js/local-ai-provider-shared.js';
 import { getLocalAiCorsHelpText } from '../js/provider-local-ai-controls.js';
-import { CLOUD_AI_CONSENT_KEY, CLOUD_AI_CONSENT_VERSION } from '../js/cloud-ai-consent.js';
+import {
+  AI_TRANSPARENCY_KEY,
+  AI_TRANSPARENCY_VERSION,
+  CLOUD_AI_CONSENT_KEY,
+  CLOUD_AI_CONSENT_VERSION,
+} from '../js/cloud-ai-consent.js';
 import {
   clearLocalAiRuntimeUse,
   getLocalAiReleasePlan,
@@ -180,10 +185,24 @@ beforeEach(() => {
   configureAppExtension(null);
   localStorage.clear();
   sessionStorage.clear();
+  localStorage.setItem(AI_TRANSPARENCY_KEY, JSON.stringify({
+    version: AI_TRANSPARENCY_VERSION,
+    acknowledged: true,
+  }));
   localStorage.setItem(CLOUD_AI_CONSENT_KEY, JSON.stringify({
     version: CLOUD_AI_CONSENT_VERSION,
     approvals: Object.fromEntries(
-      ['openrouter', 'ppq', 'routstr', 'venice', 'custom:unconfigured', 'custom:https://custom.example']
+      [
+        'openrouter',
+        'ppq',
+        'routstr',
+        'routstr:https://node.example.com',
+        'routstr:https://private-node.example',
+        'routstr:https://catalog.example',
+        'venice',
+        'custom:unconfigured',
+        'custom:https://custom.example',
+      ]
         .map(scope => [scope, { accepted: true, acceptedAt: '2026-08-19T00:00:00.000Z' }]),
     ),
   }));

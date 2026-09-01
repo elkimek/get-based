@@ -107,7 +107,7 @@ function handleModalWheel(e) {
   // Let the nearest eligible surface that can move in this direction consume
   // the wheel. A non-scrolling child (or a child at its edge) must not trap the
   // wheel before a scrollable modal ancestor gets it.
-  const selector = ".chat-personality-custom-textarea, .light-setup-focus-body, .settings-content, .import-benchmarks-body, .dashboard-marker-widget-grid, .dashboard-biometric-widget-grid, .report-builder-scroll, .report-ai-summary-text, .nutrition-comparison-models, .modal, .chat-messages, .chat-thread-list, .cl-list, .cl-form-body, .cl-form, .pii-diff-left, .pii-diff-right, .dna-preview-body";
+  const selector = ".chat-personality-custom-textarea, .light-setup-focus-body, .settings-content, .import-benchmarks-body, .dashboard-marker-widget-grid, .dashboard-biometric-widget-grid, .report-builder-scroll, .report-ai-summary-text, .nutrition-comparison-models, .legal-consent-modal, .modal, .chat-messages, .chat-thread-list, .cl-list, .cl-form-body, .cl-form, .pii-diff-left, .pii-diff-right, .dna-preview-body";
   let scrollable = e.target.closest(selector);
   while (scrollable && overlay.contains(scrollable)) {
     const hasOverflow = scrollable.scrollHeight > scrollable.clientHeight + 1;
@@ -194,9 +194,15 @@ function handleAppKeydown(e) {
     // Appended workflows install their own Escape handler so their cleanup
     // callback (camera tracks, live listeners, draft confirmation, etc.) runs.
     if (topOverlay?.hasAttribute('data-modal-lifecycle-managed')) return;
-    const cloudConsentOverlay = document.getElementById("cloud-ai-consent-overlay");
-    if (cloudConsentOverlay && cloudConsentOverlay.classList.contains("show")) {
-      const cancel = cloudConsentOverlay.querySelector('[data-cloud-ai-consent-action="cancel"]');
+    const aiDecisionOverlay = [
+      'cloud-ai-consent-overlay',
+      'ai-route-confirmation-overlay',
+      'ai-transparency-overlay',
+    ].map(id => document.getElementById(id)).find(overlay => overlay?.classList.contains('show'));
+    if (aiDecisionOverlay) {
+      const cancel = aiDecisionOverlay.querySelector(
+        '[data-ai-processing-action="cancel"], [data-cloud-ai-consent-action="cancel"]',
+      );
       if (cancel instanceof HTMLElement) cancel.click();
       return;
     }

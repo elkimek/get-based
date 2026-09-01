@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "maximums": {
     "startupJavaScriptFiles": 2,
-    "startupDecodedBytes": 1175000,
+    "startupDecodedBytes": 1180000,
     "outputJavaScriptFiles": 158,
-    "outputDecodedBytes": 5000000
+    "outputDecodedBytes": 5015000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -39,7 +39,9 @@
     "evolu8IdentityVaultStartupDecodedBytes": 1170997,
     "evolu8ReplicaSettleStartupDecodedBytes": 1172652,
     "evolu8CompactionMergeStartupDecodedBytes": 1173359,
-    "evolu8ScalarMergeStartupDecodedBytes": 1173660
+    "evolu8ScalarMergeStartupDecodedBytes": 1173660,
+    "routeAwareAiConsentStartupDecodedBytes": 1177819,
+    "routeAwareAiConsentOutputDecodedBytes": 5009169
   },
   "referenceCommit": "807732a8",
   "measuredAt": "2026-08-30"

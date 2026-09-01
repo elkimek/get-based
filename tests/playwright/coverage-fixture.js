@@ -14,22 +14,64 @@ const TEST_LEGAL_ACCEPTANCE = {
   accepted: true,
   termsVersion: '2026-08-22',
   privacyVersion: '2026-08-22',
+  policyScope: 'self-hosted-notice',
   acceptedAt: '2026-06-23T00:00:00.000Z',
   appVersion: 'playwright-fixture',
   location: 'playwright-fixture',
 };
+const TEST_AI_TRANSPARENCY_KEY = 'labcharts-ai-transparency-acknowledgement';
+const TEST_AI_TRANSPARENCY = {
+  version: '2026-08-31',
+  acknowledged: true,
+  acknowledgedAt: '2026-08-31T00:00:00.000Z',
+};
+const TEST_CLOUD_AI_CONSENT_KEY = 'labcharts-cloud-ai-consent';
+const TEST_CLOUD_AI_CONSENT = {
+  version: '2026-08-31',
+  approvals: Object.fromEntries([
+    'openrouter',
+    'ppq',
+    'venice',
+    'xai',
+    'elevenlabs',
+    'routstr:https://routstr.example',
+    'custom:https://custom.example',
+  ].map(scope => [scope, { accepted: true, acceptedAt: '2026-08-31T00:00:00.000Z' }])),
+};
+const TEST_AI_ROUTE_CONFIRMATION_KEY = 'labcharts-ai-route-confirmations';
+const TEST_AI_ROUTE_CONFIRMATION = {
+  version: '2026-08-31',
+  confirmations: {
+    'ollama:http://10.222.88.195:11434': {
+      confirmed: true,
+      confirmedAt: '2026-08-31T00:00:00.000Z',
+    },
+  },
+};
 
 async function seedCurrentLegalAcceptance(page) {
-  await page.addInitScript(({ key, payload }) => {
+  await page.addInitScript(({ key, payload, aiKey, aiPayload, cloudKey, cloudPayload, routeKey, routePayload }) => {
     try {
       localStorage.setItem(key, JSON.stringify(payload));
+      localStorage.setItem(aiKey, JSON.stringify(aiPayload));
+      localStorage.setItem(cloudKey, JSON.stringify(cloudPayload));
+      localStorage.setItem(routeKey, JSON.stringify(routePayload));
     } catch {
       // Individual tests that deliberately exercise blocked storage can still
       // remove/override this after navigation. The default browser-suite
       // contract is an already-accepted returning user so feature tests are
       // not hidden behind the mandatory legal gate.
     }
-  }, { key: LEGAL_ACCEPTANCE_KEY, payload: TEST_LEGAL_ACCEPTANCE });
+  }, {
+    key: LEGAL_ACCEPTANCE_KEY,
+    payload: TEST_LEGAL_ACCEPTANCE,
+    aiKey: TEST_AI_TRANSPARENCY_KEY,
+    aiPayload: TEST_AI_TRANSPARENCY,
+    cloudKey: TEST_CLOUD_AI_CONSENT_KEY,
+    cloudPayload: TEST_CLOUD_AI_CONSENT,
+    routeKey: TEST_AI_ROUTE_CONFIRMATION_KEY,
+    routePayload: TEST_AI_ROUTE_CONFIRMATION,
+  });
 }
 
 async function waitForAppReadiness(page) {

@@ -94,6 +94,13 @@ async function handleOpenRouterOAuthCallback(oauthCode, oauthState) {
 
   try {
     const key = await exchangeOpenRouterCode(oauthCode, oauthState);
+    const { requestAIProviderActivation } = await import('./cloud-ai-consent.js');
+    if (!await requestAIProviderActivation('openrouter')) {
+      restoreOpenRouterOAuthPreviousProvider();
+      clearOpenRouterOAuthSession();
+      showNotification('OpenRouter connection verified, but AI was not activated.', 'info', 6000);
+      return;
+    }
     await saveOpenRouterKey(key);
     markOpenRouterOAuthSettingsLocal();
     setAIProvider('openrouter');

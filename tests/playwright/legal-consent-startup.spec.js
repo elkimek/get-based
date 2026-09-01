@@ -4,6 +4,7 @@ const CURRENT_ACCEPTANCE = {
   accepted: true,
   termsVersion: '2026-08-22',
   privacyVersion: '2026-08-22',
+  policyScope: 'self-hosted-notice',
   acceptedAt: '2026-07-26T00:00:00.000Z',
   appVersion: 'playwright',
   location: 'playwright',
@@ -33,9 +34,9 @@ test('fresh visitor can accept the prerendered legal gate before the main module
   const overlay = page.locator('#legal-consent-overlay');
   await expect(overlay).toBeVisible();
   await expect(overlay).toHaveAttribute('data-legal-consent-bootstrap-bound', 'true');
-  await expect(page.locator('#legal-consent-title')).toHaveText('Accept Terms & Privacy');
-  await expect(page.locator('[data-legal-path="/terms"]')).toHaveAttribute('href', '/terms');
-  await expect(page.locator('[data-legal-path="/privacy"]')).toHaveAttribute('href', '/privacy');
+  await expect(page.locator('#legal-consent-title')).toHaveText('Review self-hosted app notice');
+  await expect(page.locator('.legal-consent-check a')).toHaveCount(0);
+  await expect(page.locator('.legal-consent-check')).toContainText('operated independently');
 
   const mobileLayout = await page.locator('.legal-consent-modal').evaluate(modal => {
     const bounds = modal.getBoundingClientRect();
@@ -67,6 +68,7 @@ test('fresh visitor can accept the prerendered legal gate before the main module
     accepted: true,
     termsVersion: CURRENT_ACCEPTANCE.termsVersion,
     privacyVersion: CURRENT_ACCEPTANCE.privacyVersion,
+    policyScope: 'self-hosted-notice',
   });
 
   releaseMain();
@@ -106,9 +108,9 @@ test('stale acceptance shows the updated-document copy before the main module lo
   const navigation = page.goto('/app', { waitUntil: 'domcontentloaded' });
 
   await expect(page.locator('#legal-consent-overlay')).toBeVisible();
-  await expect(page.locator('#legal-consent-title')).toHaveText('Review updated Terms & Privacy');
-  await expect(page.locator('#legal-consent-desc')).toContainText('changed since this browser last accepted');
-  await expect(page.locator('.legal-consent-check a').first()).toHaveCSS('text-decoration-line', 'underline');
+  await expect(page.locator('#legal-consent-title')).toHaveText('Review updated app notice');
+  await expect(page.locator('#legal-consent-desc')).toContainText('app notice changed');
+  await expect(page.locator('.legal-consent-check a')).toHaveCount(0);
 
   releaseMain();
   await navigation;

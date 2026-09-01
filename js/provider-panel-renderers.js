@@ -318,7 +318,7 @@ function renderCustomProviderPanel() {
       ${connected ? '<button class="import-btn import-btn-secondary" data-provider-panel-action="remove-custom-api">Remove</button>' : ''}
     </div>
     ${modelHtml}
-    <div class="api-key-notice">Direct browser connection only. Your key and requests go to the endpoint you configure, never through getbased. The endpoint must allow browser-based inference; if it does not, connection validation will explain how to fix it.</div>
+    <div class="api-key-notice">Direct browser connection only. A connection check never includes your profile, chat, or voice content; some endpoints receive a fixed minimal compatibility probe. After it succeeds, getbased asks once before activating this endpoint for AI requests. Your key and requests go to the endpoint you configure, never through getbased.</div>
   </form>`;
 }
 

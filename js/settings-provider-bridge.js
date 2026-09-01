@@ -6,7 +6,6 @@ import {
   getAIProvider,
   getOpenRouterKey,
   rememberOpenRouterOAuthPreviousProvider,
-  setAIProvider,
 } from './api.js';
 
 let _providerPanelsLoad = null;
@@ -66,12 +65,14 @@ export function switchAIProviderBridge(provider) {
   } else if (provider !== 'openrouter') {
     clearOpenRouterOAuthSession();
   }
-  setAIProvider(provider);
   setProviderButtonState(provider);
-  settingsProviderBridgeDeps.refreshNutritionAISettings();
   const panel = document.getElementById('ai-provider-panel');
   if (panel) panel.innerHTML = '<div class="ai-provider-panel"><div class="ai-provider-desc">Loading provider settings...</div></div>';
-  loadProviderPanels().then(providerPanels => providerPanels.switchAIProvider(provider)).catch(() => {});
+  loadProviderPanels().then(async providerPanels => {
+    const changed = await providerPanels.switchAIProvider(provider, { previousProvider });
+    setProviderButtonState(changed ? provider : previousProvider);
+    settingsProviderBridgeDeps.refreshNutritionAISettings();
+  }).catch(() => {});
 }
 
 export function toggleAIPauseBridge(enabled) {

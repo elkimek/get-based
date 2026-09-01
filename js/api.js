@@ -256,9 +256,12 @@ export async function callCustomAPI(...args) {
 }
 
 export async function callClaudeAPI(opts, provider = getAIProvider()) {
+  const { requireAIProcessingApproval } = await import('./cloud-ai-consent.js');
+  await requireAIProcessingApproval(provider, {
+    kind: opts?.consentKind || 'text',
+    modelId: opts?.modelOverride || '',
+  });
   if (provider === 'ollama') return callOpenAICompatibleLocalAPI(opts);
-  const { requireCloudAIConsent } = await import('./cloud-ai-consent.js');
-  await requireCloudAIConsent(provider, { kind: opts?.consentKind || 'text' });
   if (provider === 'venice') return callVeniceAPI(opts);
   if (provider === 'openrouter') return callOpenRouterAPI(opts);
   if (provider === 'routstr') return callRoutstrAPI(opts);

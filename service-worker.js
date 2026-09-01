@@ -1,4 +1,4 @@
-importScripts('/version.js'); importScripts('/service-worker-runtime.js'); // Production uses semver; previews add the deployment SHA.
+importScripts('/version.js'); importScripts('/service-worker-runtime.js'); // Production uses semver; previews add the deployment SHA. AI activation UX revision: 2026-08-31a.
 const PROD_HOSTS = new Set(['app.getbased.health', 'getbased.health', 'www.getbased.health']); const IS_PROD = PROD_HOSTS.has(self.location.hostname); let _cacheNamePromise = null;
 async function resolveCacheName() {
   const base = `labcharts-v${self.APP_VERSION}`;
@@ -84,7 +84,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/context-card-dashboard-ai-runtime.js',
   '/js/startup-orchestrator.js',
   '/js/legal-consent.js',
-  '/js/cloud-ai-consent.js',
+  '/js/cloud-ai-consent.js', '/js/ai-provider-policy.js', '/js/deployment-policy.js',
   '/js/schema.js',
   '/js/marker-schema.js',
   '/js/custom-marker-identity.js',

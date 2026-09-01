@@ -180,6 +180,11 @@ export {
   doRoutstrWalletRestore
 } from './provider-wallet-panels.js';
 
+async function requestProviderActivation(provider, options = {}) {
+  const { requestAIProviderActivation } = await import('./cloud-ai-consent.js');
+  return requestAIProviderActivation(provider, options);
+}
+
 // ═══════════════════════════════════════════════
 // AI PAUSE / PROVIDER SWITCH
 // ═══════════════════════════════════════════════
@@ -190,8 +195,7 @@ export function toggleAIPause(enabled) {
   providerPanelDeps.loadFocusCard();
 }
 
-export function switchAIProvider(provider) {
-  const previousProvider = getAIProvider();
+export async function switchAIProvider(provider, { previousProvider = getAIProvider() } = {}) {
   if (provider === 'openrouter' && previousProvider !== 'openrouter' && !getOpenRouterKey()) {
     rememberOpenRouterOAuthPreviousProvider(previousProvider);
   } else if (provider !== 'openrouter') {
@@ -211,6 +215,21 @@ export function switchAIProvider(provider) {
   }
   initSettingsOllamaCheck();
   initSettingsModelFetch();
+  if (provider !== previousProvider && provider !== 'ollama' && hasAIProvider(provider)) {
+    const activated = await requestProviderActivation(provider);
+    if (!activated) {
+      setAIProvider(previousProvider);
+      const restoredPanel = document.getElementById('ai-provider-panel');
+      if (restoredPanel) restoredPanel.innerHTML = renderAIProviderPanel(previousProvider);
+      modal?.querySelectorAll('.ai-provider-btn').forEach(btn => {
+        const providerBtn = /** @type {HTMLElement} */ (btn);
+        providerBtn.classList.toggle('active', providerBtn.dataset.provider === previousProvider);
+      });
+      showNotification('Provider was not changed because AI activation was not approved.', 'info');
+      return false;
+    }
+  }
+  return true;
 }
 
 // ═══════════════════════════════════════════════
@@ -418,6 +437,12 @@ export async function handleSaveVeniceKey() {
   btn.disabled = true; btn.textContent = 'Validating...';
   const result = await validateVeniceKey(key);
   if (result.valid) {
+    status.innerHTML = '<span style="color:var(--text-muted)">Connection verified — waiting for activation…</span>';
+    if (!await requestProviderActivation('venice')) {
+      status.innerHTML = '<span style="color:var(--text-muted)">Connection verified — AI not activated</span>';
+      btn.disabled = false; btn.textContent = 'Save & Validate';
+      return;
+    }
     await saveVeniceKey(key);
     status.innerHTML = '<span style="color:var(--green)">Connected — loading models…</span>';
     await fetchVeniceModels(key);
@@ -467,6 +492,12 @@ export async function handleSaveOpenRouterKey() {
   btn.disabled = true; btn.textContent = 'Validating...';
   const result = await validateOpenRouterKey(key);
   if (result.valid) {
+    status.innerHTML = '<span style="color:var(--text-muted)">Connection verified — waiting for activation…</span>';
+    if (!await requestProviderActivation('openrouter')) {
+      status.innerHTML = '<span style="color:var(--text-muted)">Connection verified — AI not activated</span>';
+      btn.disabled = false; btn.textContent = 'Save & Validate';
+      return;
+    }
     await saveOpenRouterKey(key);
     clearOpenRouterOAuthSession();
     status.innerHTML = '<span style="color:var(--green)">Connected — loading models\u2026</span>';
@@ -574,6 +605,12 @@ export async function handleSaveRoutstrKey() {
   btn.disabled = true; btn.textContent = 'Validating...';
   const result = await validateRoutstrKey(key);
   if (result.valid) {
+    status.innerHTML = '<span style="color:var(--text-muted)">Connection verified — waiting for activation…</span>';
+    if (!await requestProviderActivation('routstr')) {
+      status.innerHTML = '<span style="color:var(--text-muted)">Connection verified — AI not activated</span>';
+      btn.disabled = false; btn.textContent = 'Save & Validate';
+      return;
+    }
     let finalKey = key;
     // Convert Cashu token to a session key so Lightning topup works
     if (key.startsWith('cashu')) {
@@ -644,6 +681,10 @@ export async function handleSaveCustomApi() {
   if (!key) { showNotification('Please enter an API key', 'error'); return; }
   const result = await validateCustomApiKey(url, key);
   if (!result.valid) { showNotification(result.error, 'error'); return; }
+  if (!await requestProviderActivation('custom', { endpoint: url })) {
+    showNotification('Connection verified; AI was not activated.', 'info');
+    return;
+  }
   setCustomApiUrl(url);
   await saveCustomApiKey(key);
   showNotification('Connected', 'success');
@@ -664,10 +705,12 @@ export function handleRemoveCustomApi() {
 }
 
 configureLocalAiControls({
+  requestProviderActivation,
   returnToChatIfOnboarding: _returnToChatIfOnboarding
 });
 
 configurePpqPanels({
+  requestProviderActivation,
   returnToChatIfOnboarding: _returnToChatIfOnboarding
 });
 
@@ -675,6 +718,7 @@ configureRoutstrWalletPanels({
   renderAIProviderPanel,
   renderRoutstrModelDropdown,
   initSettingsModelFetch,
+  requestProviderActivation,
   returnToChatIfOnboarding: _returnToChatIfOnboarding
 });
 
