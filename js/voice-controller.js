@@ -25,6 +25,7 @@ import { normalizeSpeechText, splitSpeechText } from './voice-text.js';
 import { getAppExtensionVoicePlaybackPolicy } from './app-extension-runtime.js';
 
 const MAX_RECORDING_MS = 5 * 60 * 1000;
+const LOCAL_STT_TIMEOUT_MS = 3 * 60 * 1000;
 // Kokoro's own TextSplitterStream emits sentence-sized audio progressively.
 // Keep the outer request large to avoid restarting playback between paragraphs.
 const BROWSER_LOCAL_SPEECH_CHUNK_CHARACTERS = 3500;
@@ -63,12 +64,23 @@ function setCaptureUi(stateName, text = '') {
   if (button) {
     const recording = stateName === 'recording';
     const busy = stateName === 'requesting' || stateName === 'transcribing';
+    const cancellable = stateName === 'transcribing';
     button.classList.toggle('recording', recording);
     button.classList.toggle('busy', busy);
     button.setAttribute('aria-pressed', String(recording));
-    button.setAttribute('aria-label', recording ? 'Stop recording' : busy ? 'Processing voice' : 'Speak message');
-    button.title = recording ? 'Stop and transcribe' : 'Speak message';
-    button.disabled = busy;
+    button.setAttribute('aria-label', recording
+      ? 'Stop recording'
+      : cancellable
+        ? 'Cancel transcription'
+        : busy
+          ? 'Processing voice'
+          : 'Speak message');
+    button.title = recording
+      ? 'Stop and transcribe'
+      : cancellable
+        ? 'Cancel transcription'
+        : 'Speak message';
+    button.disabled = stateName === 'requesting';
   }
   if (status) {
     status.textContent = text;
@@ -87,6 +99,18 @@ function startCaptureTicker() {
   captureTicker = setInterval(() => {
     if (captureState !== 'recording') return;
     setCaptureUi('recording', `Listening · ${formatElapsed(Date.now() - captureStartedAt)} · ${capturePrivacyText} · tap to finish`);
+  }, 1000);
+}
+
+function startTranscriptionTicker(local) {
+  clearCaptureTicker();
+  captureTicker = setInterval(() => {
+    if (captureState !== 'transcribing') return;
+    const elapsed = formatElapsed(Date.now() - captureStartedAt);
+    setCaptureUi(
+      'transcribing',
+      `${local ? 'Transcribing on this device' : 'Transcribing'} · ${elapsed} · tap to cancel`,
+    );
   }, 1000);
 }
 
@@ -138,14 +162,29 @@ async function finishVoiceRecording() {
   if (!session || captureState !== 'recording') return false;
   captureSession = null;
   clearCaptureTicker();
-  setCaptureUi('transcribing', 'Transcribing…');
+  setCaptureUi('transcribing', 'Preparing transcription… · tap to cancel');
   const controller = new AbortController();
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let timeoutId = null;
   speechAbortController?.abort();
   speechAbortController = controller;
   try {
     const audio = await session.stop();
     if (!audio.size) throw new Error('The recording was empty.');
     const settings = getVoiceSettings();
+    const local = getVoiceProviderId('stt', settings) === 'browser-local';
+    captureStartedAt = Date.now();
+    setCaptureUi(
+      'transcribing',
+      `${local ? 'Transcribing on this device' : 'Transcribing'} · 0:00 · tap to cancel`,
+    );
+    startTranscriptionTicker(local);
+    if (local) {
+      timeoutId = setTimeout(() => controller.abort(new DOMException(
+        'Local transcription took longer than 3 minutes. Try the graphics processor, a shorter recording, or a hosted service.',
+        'TimeoutError',
+      )), LOCAL_STT_TIMEOUT_MS);
+    }
     const result = await transcribeVoice(audio, {
       settings,
       signal: controller.signal,
@@ -175,6 +214,8 @@ async function finishVoiceRecording() {
     }, 5000);
     return false;
   } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+    clearCaptureTicker();
     if (speechAbortController === controller) speechAbortController = null;
   }
 }
@@ -250,7 +291,12 @@ async function startVoiceRecording() {
 
 export function toggleVoiceRecording() {
   if (captureState === 'recording') return finishVoiceRecording();
-  if (captureState === 'requesting' || captureState === 'transcribing') return Promise.resolve(false);
+  if (captureState === 'transcribing') {
+    speechAbortController?.abort(new DOMException('Voice transcription cancelled', 'AbortError'));
+    setCaptureUi('idle', '');
+    return Promise.resolve(false);
+  }
+  if (captureState === 'requesting') return Promise.resolve(false);
   return startVoiceRecording();
 }
 
@@ -266,13 +312,13 @@ function setSpeechButton(messageIndex, mode) {
   button.classList.toggle('speaking', mode === 'speaking');
   button.classList.toggle('busy', mode === 'busy');
   button.setAttribute('aria-pressed', String(mode === 'speaking'));
-  button.disabled = mode === 'busy';
+  button.disabled = false;
   if (mode === 'speaking') {
     setIconButtonContent(button, 'stop', 'Stop');
     button.title = 'Stop reading';
   } else if (mode === 'busy') {
-    setIconButtonContent(button, 'volume', 'Preparing…');
-    button.title = 'Preparing speech';
+    setIconButtonContent(button, 'stop', 'Cancel');
+    button.title = 'Cancel speech preparation';
   } else {
     setIconButtonContent(button, 'volume', 'Listen');
     button.title = 'Read message aloud';
@@ -367,9 +413,7 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
   if (!automatic) {
     autoReadActivationNoticeShown = false;
     voicePlayer.unlock();
-    const primed = streamsProgressiveAudio
-      && voicePlayer.primeStreamPlayback('audio/mpeg', 1);
-    if (!primed) voicePlayer.unlock();
+    if (streamsProgressiveAudio) voicePlayer.primeStreamPlayback('audio/mpeg', 1);
   }
   const controller = new AbortController();
   speechAbortController = controller;

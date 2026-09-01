@@ -8,6 +8,7 @@ import {
   getLocalVoiceModelStatus,
   installLocalVoiceModel,
   isLocalVoiceModelReady,
+  preferredLocalVoiceBackend,
   removeLocalVoiceModel,
   verifyLocalVoiceModelReady,
 } from './voice-local-engine.js';
@@ -115,7 +116,8 @@ export function refreshLocalModelDetails(panel, kind) {
   const description = row.querySelector('.settings-copy-desc');
   if (title) title.textContent = model.label;
   if (description) {
-    const gpu = kind === 'tts' && selectedBackend(kind) === 'webgpu';
+    const gpu = kind === 'tts'
+      && preferredLocalVoiceBackend(kind, model.id, selectedBackend(kind)) === 'webgpu';
     const downloadMB = gpu ? model.gpuDownloadMB : model.downloadMB;
     description.textContent = `${kind === 'tts' ? 'Speech' : 'Transcription'} · about ${downloadMB} MB · ${model.license}`;
   }

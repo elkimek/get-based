@@ -72,7 +72,28 @@ function rememberInstalled(
   } catch {}
 }
 
-export function resolveLocalBackend(backend = 'auto', performance = {}) {
+export function isMobileVoiceDevice(navigatorValue = globalThis.navigator) {
+  try {
+    const clientHints = /** @type {any} */ (navigatorValue)?.userAgentData;
+    if (typeof clientHints?.mobile === 'boolean') return clientHints.mobile;
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(String(navigatorValue?.userAgent || ''));
+  } catch {
+    return false;
+  }
+}
+
+export function initialLocalVoiceBackend(navigatorValue = globalThis.navigator) {
+  const gpu = /** @type {any} */ (navigatorValue)?.gpu;
+  return isMobileVoiceDevice(navigatorValue) && typeof gpu?.requestAdapter === 'function'
+    ? 'webgpu'
+    : 'wasm';
+}
+
+export function resolveLocalBackend(
+  backend = 'auto',
+  performance = {},
+  initialBackend = 'wasm',
+) {
   if (backend !== 'auto') return backend;
   const score = measurement => {
     if (measurement == null) return Number.NaN;
@@ -86,12 +107,21 @@ export function resolveLocalBackend(backend = 'auto', performance = {}) {
     return gpuScore < cpuScore ? 'webgpu' : 'wasm';
   }
   if (Number.isFinite(gpuScore)) return 'webgpu';
-  return 'wasm';
+  return initialBackend === 'webgpu' ? 'webgpu' : 'wasm';
 }
 
-function preferredLocalBackend(kind, model, backend) {
-  const performance = getLocalVoiceModelStatus(kind, model)?.performance || {};
-  return resolveLocalBackend(backend, performance);
+export function preferredLocalVoiceBackend(kind, model, backend) {
+  const status = getLocalVoiceModelStatus(kind, model);
+  const performance = status?.performance || {};
+  if (
+    backend === 'auto'
+    && !Object.keys(performance).length
+    && status?.fallbackReason
+    && ['wasm', 'webgpu'].includes(status.backend)
+  ) {
+    return status.backend;
+  }
+  return resolveLocalBackend(backend, performance, initialLocalVoiceBackend());
 }
 
 // Retained for compatibility with integrations that used the original
@@ -116,7 +146,7 @@ export function isLocalVoiceModelReady(kind, model, backend = 'auto') {
     ...(status.availableBackends || [status.backend]),
     ...Object.keys(status.performance || {}),
   ]);
-  const preferred = preferredLocalBackend(kind, model, backend);
+  const preferred = preferredLocalVoiceBackend(kind, model, backend);
   return available.has(preferred);
 }
 
@@ -251,7 +281,7 @@ export async function installLocalVoiceModel(kind, model, signal, backend = 'aut
   if (hasStaleInstallation(kind, model)) {
     await removeLocalVoiceModel(kind, model);
   }
-  const preferredBackend = preferredLocalBackend(kind, model, backend);
+  const preferredBackend = preferredLocalVoiceBackend(kind, model, backend);
   const result = await workerRequest(
     kind,
     { type: 'init', model, backend, preferredBackend },
@@ -274,7 +304,7 @@ export async function transcribeLocalAudio(samples, {
 } = {}) {
   const audio = samples instanceof Float32Array ? samples : new Float32Array(samples || []);
   const audioSeconds = audio.length / 16_000;
-  const preferredBackend = preferredLocalBackend('stt', model, backend);
+  const preferredBackend = preferredLocalVoiceBackend('stt', model, backend);
   const result = await workerRequest(
     'stt',
     {
@@ -316,7 +346,7 @@ export async function synthesizeLocalSpeech(text, {
   backend = 'auto',
   signal,
 } = {}) {
-  const preferredBackend = preferredLocalBackend('tts', model, backend);
+  const preferredBackend = preferredLocalVoiceBackend('tts', model, backend);
   const result = await workerRequest(
     'tts',
     { type: 'synthesize', model, voice, rate, backend, preferredBackend, text: String(text || '') },
@@ -365,7 +395,7 @@ export function streamLocalSpeech(text, {
           voice,
           rate,
           backend,
-          preferredBackend: preferredLocalBackend('tts', model, backend),
+          preferredBackend: preferredLocalVoiceBackend('tts', model, backend),
           text: String(text || ''),
         },
         [],

@@ -8,7 +8,10 @@ import {
 import { localModelUiStatus } from './settings-voice-model-controller.js';
 import { escapeAttr, escapeHTML } from './utils.js';
 import { readVoiceCatalog } from './voice-catalog-storage.js';
-import { isLocalVoiceModelReady } from './voice-local-engine.js';
+import {
+  isLocalVoiceModelReady,
+  preferredLocalVoiceBackend,
+} from './voice-local-engine.js';
 import {
   KOKORO_VOICES,
   LOCAL_STT_MODELS,
@@ -202,7 +205,7 @@ function renderInputSection(settings) {
       <div class="settings-section voice-setting-row" data-voice-visible="input:browser-local">
         <div class="settings-copy">
           <div class="settings-copy-title">Quality and speed</div>
-          <div class="settings-copy-desc">Whisper Small is faster and recommended for most people. Large may be more accurate, but needs more memory and time.</div>
+          <div class="settings-copy-desc">Whisper Small is fastest and recommended for most devices. Medium adds accuracy with a smaller download than Large v3 Turbo. Actual speed varies by hardware and processing mode.</div>
         </div>
         <label class="voice-control">
           <span class="sr-only">Transcription quality and speed</span>
@@ -420,7 +423,8 @@ function renderLocalModels(settings) {
   const renderModel = (kind, model, purpose) => {
     const backend = kind === 'tts' ? settings.localTtsBackend : settings.localSttBackend;
     const ready = isLocalVoiceModelReady(kind, model.id, backend);
-    const downloadMB = kind === 'tts' && backend === 'webgpu'
+    const downloadMB = kind === 'tts'
+      && preferredLocalVoiceBackend(kind, model.id, backend) === 'webgpu'
       ? model.gpuDownloadMB
       : model.downloadMB;
     return `

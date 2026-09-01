@@ -72,7 +72,7 @@
   background: var(--accent-fill);
 }
 .chat-action-btn.busy {
-  cursor: wait;
+  cursor: pointer;
   opacity: .72;
 }
 .chat-action-btn svg,

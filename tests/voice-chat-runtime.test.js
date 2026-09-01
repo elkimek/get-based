@@ -27,6 +27,7 @@ import { VoiceCaptureSession, preferredMimeType } from '../js/voice-capture.js';
 import {
   configureVoiceLocalEngine,
   terminateLocalVoiceWorker,
+  transcribeLocalAudio,
 } from '../js/voice-local-engine.js';
 import { VoicePlayer, trimPcmEdgeSilence } from '../js/voice-player.js';
 
@@ -139,12 +140,16 @@ class FakeBufferSource {
     this.playbackRate = { value: 1 };
     this.onended = null;
     this.connected = false;
+    this.startTime = null;
   }
 
   connect() { this.connected = true; }
   disconnect() { this.connected = false; }
   stop() {}
-  start() { queueMicrotask(() => this.onended?.()); }
+  start(time) {
+    this.startTime = time;
+    queueMicrotask(() => this.onended?.());
+  }
 }
 
 class FakeAudioContext {
@@ -152,6 +157,7 @@ class FakeAudioContext {
     this.state = 'suspended';
     this.destination = {};
     this.source = null;
+    this.sources = [];
     this.currentTime = 0;
     this.createdBuffers = [];
   }
@@ -169,6 +175,7 @@ class FakeAudioContext {
   }
   createBufferSource() {
     this.source = new FakeBufferSource();
+    this.sources.push(this.source);
     return this.source;
   }
 }
@@ -270,6 +277,23 @@ describe('voice capture and playback primitives', () => {
     expect(context.source.playbackRate.value).toBe(1.2);
     expect(context.source.connected).toBe(false);
     expect(player.isPlaying).toBe(false);
+  });
+
+  it('reports a useful error when the browser rejects audio activation', async () => {
+    const context = new FakeAudioContext();
+    context.resume = vi.fn().mockRejectedValue(new Error('NotAllowedError'));
+    const player = new VoicePlayer({
+      audioContextFactory: () => context,
+    });
+
+    expect(player.unlock()).toBe(true);
+    const stream = new ReadableStream({
+      start(controller) { controller.close(); },
+    });
+    await expect(player.playPcmStream(stream)).rejects.toThrow(
+      'Audio playback could not be enabled. Tap Listen again and check this site’s sound permission.',
+    );
+    expect(player.hasPlaybackActivation).toBe(false);
   });
 
   it('buffers a provider stream only when MediaSource playback is unavailable', async () => {
@@ -416,6 +440,59 @@ describe('voice capture and playback primitives', () => {
     expect(player.scheduledAudioSources.size).toBe(0);
   });
 
+  it('buffers a short Kokoro opening until the following sentence is ready', async () => {
+    const context = new FakeAudioContext();
+    const player = new VoicePlayer({
+      audioContextFactory: () => context,
+      pcmInitialBufferSeconds: 6,
+    });
+    let streamController;
+    const stream = new ReadableStream({
+      start(controller) { streamController = controller; },
+    });
+    const playback = player.playPcmStream(stream);
+    streamController.enqueue({
+      samples: new Float32Array(16_000).fill(0.1),
+      sampleRate: 8_000,
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(context.createdBuffers).toHaveLength(0);
+
+    streamController.enqueue({
+      samples: new Float32Array(32_000).fill(0.1),
+      sampleRate: 8_000,
+    });
+    streamController.close();
+    await expect(playback).resolves.toBe(true);
+
+    expect(context.createdBuffers).toHaveLength(2);
+    expect(context.sources[0].startTime).toBeCloseTo(0.03);
+    expect(context.sources[1].startTime).toBeCloseTo(2.03);
+  });
+
+  it('aborts a stalled local transcription worker', async () => {
+    const worker = new ControlledVoiceWorker();
+    const terminate = vi.spyOn(worker, 'terminate');
+    const previous = configureVoiceLocalEngine({ workerFactory: () => worker });
+    const controller = new AbortController();
+    try {
+      const pending = transcribeLocalAudio(new Float32Array(160), {
+        model: 'onnx-community/whisper-small',
+        backend: 'wasm',
+        signal: controller.signal,
+      });
+      await vi.waitFor(() => expect(worker.request?.type).toBe('transcribe'));
+      controller.abort(new DOMException('Cancelled in test', 'AbortError'));
+
+      await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+      expect(terminate).toHaveBeenCalledOnce();
+    } finally {
+      terminateLocalVoiceWorker('stt');
+      configureVoiceLocalEngine(previous);
+    }
+  });
+
   it('keeps a short natural pause while trimming excessive PCM edge silence', () => {
     const samples = new Float32Array(24_000);
     samples.fill(0.2, 8_000, 16_000);
@@ -493,6 +570,41 @@ describe('voice settings and chat controls', () => {
         contentType: 'audio/mpeg',
         progressive: true,
       }));
+    } finally {
+      state.chatHistory = originalHistory;
+      state.currentThreadId = originalThreadId;
+    }
+  });
+
+  it('keeps speech preparation cancellable while a provider is still responding', async () => {
+    const originalHistory = state.chatHistory;
+    const originalThreadId = state.currentThreadId;
+    localStorage.setItem('labcharts-ai-provider', 'openrouter');
+    approveCloudAIProvider('openrouter');
+    updateKeyCache('labcharts-openrouter-key', 'or-cancellable-voice-key');
+    state.currentThreadId = 'cancellable-voice-test';
+    state.chatHistory = [{ role: 'assistant', content: 'A reply that is still preparing.' }];
+    document.body.insertAdjacentHTML('beforeend', buildActionBar(0));
+    let requestSignal;
+    globalThis.fetch = vi.fn((_url, options) => new Promise((_resolve, reject) => {
+      requestSignal = options?.signal;
+      requestSignal?.addEventListener('abort', () => reject(
+        requestSignal.reason || new DOMException('Cancelled', 'AbortError'),
+      ), { once: true });
+    }));
+
+    try {
+      const { readAssistantMessage } = await import('../js/voice-controller.js');
+      const pending = readAssistantMessage(0);
+      const button = document.getElementById('chat-listen-btn-0');
+      await vi.waitFor(() => expect(button?.textContent).toContain('Cancel'));
+      await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledOnce());
+      expect(button?.disabled).toBe(false);
+
+      await expect(readAssistantMessage(0)).resolves.toBe(false);
+      await expect(pending).resolves.toBe(false);
+      expect(requestSignal?.aborted).toBe(true);
+      expect(button?.textContent).toContain('Listen');
     } finally {
       state.chatHistory = originalHistory;
       state.currentThreadId = originalThreadId;

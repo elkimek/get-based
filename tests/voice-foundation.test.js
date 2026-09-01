@@ -23,9 +23,16 @@ import {
   VOICE_SYNC_KEYS,
 } from '../js/voice-settings-schema.js';
 import { encodeWav, resampleAudio } from '../js/voice-audio.js';
-import { resolveLocalSttLanguage } from '../js/voice-model-catalog.js';
 import {
+  LOCAL_STT_MODELS,
+  getLocalModel,
+  resolveLocalSttLanguage,
+} from '../js/voice-model-catalog.js';
+import {
+  initialLocalVoiceBackend,
   isLocalVoiceModelReady,
+  isMobileVoiceDevice,
+  preferredLocalVoiceBackend,
   removeLocalVoiceModel,
   resolveLocalBackend,
   verifyLocalVoiceModelReady,
@@ -89,6 +96,12 @@ describe('voice settings storage', () => {
 
     setVoiceSetting('localSttModel', 'onnx-community/whisper-tiny');
     expect(getVoiceSettings().localSttModel).toBe('onnx-community/whisper-small');
+  });
+
+  it('preserves Whisper Medium as an explicit local model choice', () => {
+    setVoiceSetting('localSttModel', 'onnx-community/whisper-medium-ONNX');
+
+    expect(getVoiceSettings().localSttModel).toBe('onnx-community/whisper-medium-ONNX');
   });
 
   it('preserves existing split providers and can link them explicitly', () => {
@@ -255,9 +268,28 @@ Retesting is recommended.
 });
 
 describe('local transcription language', () => {
+  it('offers Small, Medium, and Large as ordered local quality tiers', () => {
+    expect(LOCAL_STT_MODELS.map(model => model.id)).toEqual([
+      'onnx-community/whisper-small',
+      'onnx-community/whisper-medium-ONNX',
+      'onnx-community/whisper-large-v3-turbo',
+    ]);
+    expect(LOCAL_STT_MODELS[0]).toMatchObject({
+      id: 'onnx-community/whisper-small',
+      optionLabel: 'Recommended · Whisper Small',
+    });
+    expect(getLocalModel('stt', 'onnx-community/whisper-medium-ONNX')).toMatchObject({
+      optionLabel: 'Balanced · Whisper Medium',
+      dtype: 'q4',
+      downloadMB: 690,
+      multilingual: true,
+    });
+  });
+
   it('passes explicit and automatic choices through to multilingual models', () => {
     expect(resolveLocalSttLanguage('onnx-community/whisper-small', 'cs')).toBe('cs');
     expect(resolveLocalSttLanguage('onnx-community/whisper-small', 'auto')).toBe('auto');
+    expect(resolveLocalSttLanguage('onnx-community/whisper-medium-ONNX', 'pl')).toBe('pl');
     expect(resolveLocalSttLanguage('onnx-community/whisper-large-v3-turbo', 'de')).toBe('de');
   });
 
@@ -288,6 +320,38 @@ describe('local transcription language', () => {
       webgpu: { realtimeFactor: 0.5 },
     })).toBe('webgpu');
     expect(resolveLocalBackend('webgpu', { wasm: 1 })).toBe('webgpu');
+  });
+
+  it('starts with WebGPU on capable mobile browsers and CPU elsewhere', () => {
+    const gpu = { requestAdapter: () => Promise.resolve({}) };
+    const mobile = { userAgentData: { mobile: true }, gpu };
+    const desktop = { userAgentData: { mobile: false }, gpu };
+    const android = { userAgent: 'Mozilla/5.0 (Linux; Android 15; Pixel 8a)', gpu };
+
+    expect(isMobileVoiceDevice(mobile)).toBe(true);
+    expect(isMobileVoiceDevice(android)).toBe(true);
+    expect(initialLocalVoiceBackend(mobile)).toBe('webgpu');
+    expect(initialLocalVoiceBackend(android)).toBe('webgpu');
+    expect(initialLocalVoiceBackend(desktop)).toBe('wasm');
+    expect(initialLocalVoiceBackend({ userAgentData: { mobile: true } })).toBe('wasm');
+    expect(resolveLocalBackend('auto', {}, 'webgpu')).toBe('webgpu');
+  });
+
+  it('keeps a successful CPU fallback for Automatic on a mobile device', () => {
+    const model = 'onnx-community/Kokoro-82M-v1.0-ONNX';
+    localStorage.setItem(
+      'labcharts-voice-model-installed-tts-onnx-community%2FKokoro-82M-v1.0-ONNX',
+      JSON.stringify({
+        version: '2',
+        model,
+        backend: 'wasm',
+        fallbackReason: 'No compatible graphics adapter',
+        availableBackends: ['wasm'],
+      }),
+    );
+
+    expect(preferredLocalVoiceBackend('tts', model, 'auto')).toBe('wasm');
+    expect(isLocalVoiceModelReady('tts', model, 'auto')).toBe(true);
   });
 
   it('requires an explicit Kokoro download for each weight variant', () => {
