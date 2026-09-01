@@ -121,9 +121,10 @@ test('chat discussion turns cover single-turn join and error cleanup paths', asy
       if (messages) messages.innerHTML = '';
       localStorage.setItem('labcharts-ai-provider', 'coverage-unknown');
       localStorage.setItem('labcharts-ai-paused', 'false');
+      const consentScope = cloudConsent.cloudAIConsentDetails('coverage-unknown').scope;
       localStorage.setItem(cloudConsent.CLOUD_AI_CONSENT_KEY, JSON.stringify({
         version: cloudConsent.CLOUD_AI_CONSENT_VERSION,
-        approvals: { 'coverage-unknown': { accepted: true } },
+        approvals: { [consentScope]: { accepted: true } },
       }));
 
       callbacks.configureChatDiscussion({

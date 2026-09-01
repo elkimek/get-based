@@ -132,6 +132,7 @@ test('empty-dashboard demo action loads the real export facade on demand', async
       accepted: true,
       termsVersion: '2026-08-22',
       privacyVersion: '2026-08-22',
+      policyScope: 'self-hosted-notice',
       acceptedAt: '2026-07-25T00:00:00.000Z',
       appVersion: 'export-loader-coverage',
       location: 'export-loader-coverage',

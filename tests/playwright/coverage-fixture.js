@@ -25,19 +25,6 @@ const TEST_AI_TRANSPARENCY = {
   acknowledged: true,
   acknowledgedAt: '2026-08-31T00:00:00.000Z',
 };
-const TEST_CLOUD_AI_CONSENT_KEY = 'labcharts-cloud-ai-consent';
-const TEST_CLOUD_AI_CONSENT = {
-  version: '2026-08-31',
-  approvals: Object.fromEntries([
-    'openrouter',
-    'ppq',
-    'venice',
-    'xai',
-    'elevenlabs',
-    'routstr:https://routstr.example',
-    'custom:https://custom.example',
-  ].map(scope => [scope, { accepted: true, acceptedAt: '2026-08-31T00:00:00.000Z' }])),
-};
 const TEST_AI_ROUTE_CONFIRMATION_KEY = 'labcharts-ai-route-confirmations';
 const TEST_AI_ROUTE_CONFIRMATION = {
   version: '2026-08-31',
@@ -50,11 +37,10 @@ const TEST_AI_ROUTE_CONFIRMATION = {
 };
 
 async function seedCurrentLegalAcceptance(page) {
-  await page.addInitScript(({ key, payload, aiKey, aiPayload, cloudKey, cloudPayload, routeKey, routePayload }) => {
+  await page.addInitScript(({ key, payload, aiKey, aiPayload, routeKey, routePayload }) => {
     try {
       localStorage.setItem(key, JSON.stringify(payload));
       localStorage.setItem(aiKey, JSON.stringify(aiPayload));
-      localStorage.setItem(cloudKey, JSON.stringify(cloudPayload));
       localStorage.setItem(routeKey, JSON.stringify(routePayload));
     } catch {
       // Individual tests that deliberately exercise blocked storage can still
@@ -67,8 +53,6 @@ async function seedCurrentLegalAcceptance(page) {
     payload: TEST_LEGAL_ACCEPTANCE,
     aiKey: TEST_AI_TRANSPARENCY_KEY,
     aiPayload: TEST_AI_TRANSPARENCY,
-    cloudKey: TEST_CLOUD_AI_CONSENT_KEY,
-    cloudPayload: TEST_CLOUD_AI_CONSENT,
     routeKey: TEST_AI_ROUTE_CONFIRMATION_KEY,
     routePayload: TEST_AI_ROUTE_CONFIRMATION,
   });

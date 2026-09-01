@@ -257,6 +257,7 @@ test('wearables connect browser coverage exercises runtime config, stale sync, P
       status,
       headers: { 'Content-Type': 'application/json' },
     });
+    const polarDay = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
     const { state } = await import('/js/state.js');
     const connect = await import(connectUrl);
@@ -301,19 +302,19 @@ test('wearables connect browser coverage exercises runtime config, stale sync, P
           return jsonResponse({});
         }
         if (path.endsWith('/nights/sleep')) {
-          return jsonResponse({ nights: [{ date: '2026-06-02', 'sleep-score': 86, 'heart-rate-samples': { min: 51 } }] });
+          return jsonResponse({ nights: [{ date: polarDay, 'sleep-score': 86, 'heart-rate-samples': { min: 51 } }] });
         }
         if (path.endsWith('/activity-transactions') && proxy.method === 'POST') {
           return jsonResponse({ 'transaction-id': 'act-1', 'activity-log': ['https://www.polaraccesslink.com/v3/users/polar-user-7/activity/1'] });
         }
         if (path.endsWith('/activity/1')) {
-          return jsonResponse({ date: '2026-06-02', 'active-steps': 3456, 'heart-rate': { average: 69 } });
+          return jsonResponse({ date: polarDay, 'active-steps': 3456, 'heart-rate': { average: 69 } });
         }
         if (path.endsWith('/exercise-transactions') && proxy.method === 'POST') {
           return jsonResponse({ 'transaction-id': 'ex-1', exercises: ['https://www.polaraccesslink.com/v3/users/polar-user-7/exercises/1'] });
         }
         if (path.endsWith('/exercises/1')) {
-          return jsonResponse({ 'start-time': '2026-06-02T12:00:00Z', 'heart-rate-variability-avg': 44, 'heart-rate': { average: 74 } });
+          return jsonResponse({ 'start-time': `${polarDay}T12:00:00Z`, 'heart-rate-variability-avg': 44, 'heart-rate': { average: 74 } });
         }
         if (/\/activity-transactions\/act-1$|\/exercise-transactions\/ex-1$/.test(path) && proxy.method === 'PUT') {
           polarCommitCalls += 1;
@@ -364,14 +365,22 @@ test('wearables connect browser coverage exercises runtime config, stale sync, P
       const handledPolar = await connect.handleOAuthCallbackOnLoad();
       await wait(250);
       const polarConn = connect.getConnection('polar');
-      const polarRows = await store.getDailyRange(profileId, 'polar', '2026-06-02', '2026-06-02');
+      const polarRows = await store.getDailyRange(profileId, 'polar', polarDay, polarDay);
       check('Polar callback stores user id, registers user, backfills rows, and commits transactions',
         handledPolar === true &&
         polarConn?.userId === 'polar-user-7' &&
         polarConn?.polarRegistered === true &&
         polarRegistrationCalls === 1 &&
         polarCommitCalls === 2 &&
-        polarRows.some(row => row.date === '2026-06-02' && row.sleep_score === 86 && row.steps === 3456 && row.hrv_day === 44));
+        polarRows.some(row => row.date === polarDay && row.sleep_score === 86 && row.steps === 3456 && row.hrv_day === 44),
+        JSON.stringify({
+          handledPolar,
+          userId: polarConn?.userId,
+          polarRegistered: polarConn?.polarRegistered,
+          polarRegistrationCalls,
+          polarCommitCalls,
+          polarRows,
+        }));
 
       const forcedStaleAt = Date.now() - (13 * 60 * 60 * 1000);
       state.importedData.wearableConnections.polar.lastSyncAt = forcedStaleAt;

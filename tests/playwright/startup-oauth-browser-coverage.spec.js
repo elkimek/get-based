@@ -19,6 +19,7 @@ test('startup OAuth browser coverage handles OpenRouter and wearable callback ro
     const startup = await import(startupUrl);
     const wearables = await import('/js/wearables-connect.js');
     const chatRuntime = await import('/js/chat-runtime.js');
+    const cloudConsent = await import('/js/cloud-ai-consent.js');
     const cryptoStore = await import('/js/crypto.js');
     const providerStorageRuntime = await import('/js/api-provider-storage-runtime.js');
     const outcomes = {};
@@ -66,6 +67,14 @@ test('startup OAuth browser coverage handles OpenRouter and wearable callback ro
 
     const resetCase = (query = '') => {
       localStorage.clear();
+      localStorage.setItem(cloudConsent.AI_TRANSPARENCY_KEY, JSON.stringify({
+        version: cloudConsent.AI_TRANSPARENCY_VERSION,
+        acknowledged: true,
+      }));
+      localStorage.setItem(cloudConsent.CLOUD_AI_CONSENT_KEY, JSON.stringify({
+        version: cloudConsent.CLOUD_AI_CONSENT_VERSION,
+        approvals: { openrouter: { accepted: true } },
+      }));
       cryptoStore.updateKeyCache('labcharts-openrouter-key', null);
       sessionStorage.clear();
       notifications = [];

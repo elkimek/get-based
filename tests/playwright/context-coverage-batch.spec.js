@@ -799,13 +799,13 @@ test('context health dots and focus card cover cache fallback and empty states',
         environment: { summary: Array(40).fill('reported').join(' '), dot: 'yellow', tip: 'environment reviewed' },
       });
       const aiCalls = [];
-      cryptoStore.updateKeyCache('labcharts-ollama', JSON.stringify({ url: 'http://ollama.test', model: 'context-test-model', mode: 'ollama', apiKey: '' }));
+      cryptoStore.updateKeyCache('labcharts-ollama', JSON.stringify({ url: 'http://127.0.0.1:11434', model: 'context-test-model', mode: 'ollama', apiKey: '' }));
       health.configureContextCardHealthDots({
         buildLabContext: () => summaries.CONTEXT_CARD_KEYS.map(key => `[section:${key}]\n${key} section\n[/section:${key}]`).join('\n'),
       });
       window.fetch = async (url, options = {}) => {
         const href = typeof url === 'string' ? url : url?.url || '';
-        if (href === 'http://ollama.test/v1/chat/completions') {
+        if (href === 'http://127.0.0.1:11434/v1/chat/completions') {
           const body = JSON.parse(options.body || '{}');
           aiCalls.push({ url: href, body });
           return new Response(JSON.stringify({
@@ -822,7 +822,7 @@ test('context health dots and focus card cover cache fallback and empty states',
       outcomes.concurrentHealthDotHydrationCoalescesToOneInference = firstHealthLoad === duplicateHealthLoad
         && aiCalls.length === 1;
       outcomes.healthDotsCallsLocalCompatibleEndpoint = aiCalls.length === 1
-        && aiCalls[0].url === 'http://ollama.test/v1/chat/completions'
+        && aiCalls[0].url === 'http://127.0.0.1:11434/v1/chat/completions'
         && aiCalls[0].body.model === 'context-test-model'
         && aiCalls[0].body.messages.some(msg => msg.role === 'system' && msg.content.includes('"healthGoals"'))
         && aiCalls[0].body.messages.some(msg => msg.role === 'system' && msg.content.includes('"summary"'))
@@ -901,7 +901,7 @@ test('context health dots and focus card cover cache fallback and empty states',
       let focusResponseMode = 'success';
       window.fetch = async (url, options = {}) => {
         const href = typeof url === 'string' ? url : url?.url || '';
-        if (href === 'http://ollama.test/v1/chat/completions') {
+        if (href === 'http://127.0.0.1:11434/v1/chat/completions') {
           const body = JSON.parse(options.body || '{}');
           focusAiCalls.push(body);
           if (focusResponseMode === 'failure') {

@@ -367,6 +367,7 @@ test('returning-user startup defers Light UI resources until the Light route ope
       accepted: true,
       termsVersion: '2026-08-22',
       privacyVersion: '2026-08-22',
+      policyScope: 'self-hosted-notice',
       acceptedAt: '2026-07-24T00:00:00.000Z',
       appVersion: 'light-ui-loader-coverage',
       location: 'light-ui-loader-coverage',
