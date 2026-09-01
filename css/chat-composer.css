@@ -159,7 +159,7 @@
   animation: chatVoicePulse 1.4s ease-in-out infinite;
 }
 .chat-voice-btn.busy {
-  cursor: wait;
+  cursor: pointer;
   opacity: .7;
 }
 .chat-voice-status {

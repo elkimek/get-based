@@ -168,6 +168,29 @@ test('browser-local voice routes first use to an explicit model download', async
   );
 });
 
+test('Automatic prefers WebGPU on a capable mobile browser without downloading a model', async ({ page }) => {
+  await installVoiceBrowserFakes(page);
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'userAgentData', {
+      configurable: true,
+      value: { mobile: true },
+    });
+  });
+  await page.goto('/app', { waitUntil: 'load' });
+  await openVoiceSettingsFromUi(page);
+
+  await expect(page.locator('[data-voice-hardware-description]')).toContainText(
+    'Automatic will try the graphics processor first on this mobile device',
+  );
+  await expect(page.locator('[data-voice-output-hardware-description]')).toContainText(
+    'Automatic will try the graphics processor first on this mobile device',
+  );
+  const ttsRow = page.locator('[data-voice-model-kind="tts"]');
+  await expect(ttsRow).toContainText('about 330 MB');
+  await expect(ttsRow.locator('[data-voice-action="install-model"]')).toHaveText('Download');
+  await expect(ttsRow.locator('[data-voice-action="install-model"]')).toBeEnabled();
+});
+
 test('denied hosted dictation never requests microphone access', async ({ page }) => {
   await installVoiceBrowserFakes(page);
   await page.goto('/app', { waitUntil: 'load' });
@@ -407,7 +430,7 @@ test('Voice settings and chat STT/TTS controls work with a local compatible serv
   const hardwareSelect = page.locator('[data-voice-setting="localSttBackend"]');
   const speechHardwareSelect = page.locator('[data-voice-setting="localTtsBackend"]');
   const outputLanguageSelect = page.locator('[data-voice-setting="outputLanguage"]');
-  await expect(sttModelSelect.locator('option')).toHaveCount(2);
+  await expect(sttModelSelect.locator('option')).toHaveCount(3);
   await expect(hardwareSelect).toHaveValue('auto');
   await expect(hardwareSelect.locator('option')).toHaveCount(3);
   await expect(hardwareSelect.locator('option').first()).toHaveText('Automatic (recommended)');
@@ -429,8 +452,20 @@ test('Voice settings and chat STT/TTS controls work with a local compatible serv
   await page.locator('[data-voice-shared-provider]').selectOption('local-server');
   await expect(outputLanguageSelect).toBeEnabled();
   await page.locator('[data-voice-shared-provider]').selectOption('browser-local');
+  await expect(sttModelSelect).toContainText('Recommended · Whisper Small');
+  await expect(sttModelSelect).toContainText('Balanced · Whisper Medium');
   await expect(sttModelSelect).toContainText('Higher accuracy · Whisper Large');
   await languageSelect.selectOption('cs');
+  await sttModelSelect.selectOption('onnx-community/whisper-medium-ONNX');
+  await expect(languageSelect).toBeEnabled();
+  await expect(languageSelect).toHaveValue('cs');
+  await expect(page.locator('[data-voice-model-kind="stt"]')).toContainText(
+    'Whisper Medium · Balanced',
+  );
+  await expect(page.locator('[data-voice-model-kind="stt"]')).toContainText('about 690 MB');
+  await expect(page.locator(
+    '[data-voice-action="install-model"][data-kind="stt"]',
+  )).toBeEnabled();
   await sttModelSelect.selectOption('onnx-community/whisper-large-v3-turbo');
   await expect(languageSelect).toBeEnabled();
   await expect(languageSelect).toHaveValue('cs');

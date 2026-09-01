@@ -2,7 +2,12 @@
 // settings-voice-hardware.js — shared hardware controls for local voice models.
 
 import { LOCAL_VOICE_BACKENDS } from './voice-model-catalog.js';
-import { getLocalVoiceModelStatus, resolveLocalBackend } from './voice-local-engine.js';
+import {
+  getLocalVoiceModelStatus,
+  initialLocalVoiceBackend,
+  isMobileVoiceDevice,
+  resolveLocalBackend,
+} from './voice-local-engine.js';
 
 let webGpuCapabilityPromise;
 
@@ -37,7 +42,7 @@ function performanceScore(value) {
   return Number.isFinite(realtimeFactor) ? realtimeFactor : Number(value);
 }
 
-function autoPerformanceText(kind, model) {
+function autoPerformanceText(kind, model, capability) {
   const performance = getLocalVoiceModelStatus(kind, model)?.performance || {};
   const cpu = performanceScore(performance.wasm);
   const gpu = performanceScore(performance.webgpu);
@@ -53,6 +58,11 @@ function autoPerformanceText(kind, model) {
   }
   if (hasGpu) return 'Automatic is using the graphics processor. Try the main processor once to compare.';
   if (hasCpu) return 'Automatic is using the main processor. Try the graphics processor once to compare.';
+  if (isMobileVoiceDevice()) {
+    return capability.available && initialLocalVoiceBackend() === 'webgpu'
+      ? 'Automatic will try the graphics processor first on this mobile device and fall back to the main processor if needed.'
+      : 'Graphics processing is unavailable here. Local voice may be very slow on this mobile device.';
+  }
   return 'Automatic starts with the main processor. Try the graphics processor once to compare.';
 }
 
@@ -110,8 +120,10 @@ async function refreshHardwareDescription(panel, settings, kind) {
       : 'Graphics processing is not available in this browser. Choose Automatic or Main processor.';
   } else {
     description.textContent = capability.available
-      ? autoPerformanceText(kind, model)
-      : 'Graphics processing is not available in this browser. Automatic will use the main processor.';
+      ? autoPerformanceText(kind, model, capability)
+      : isMobileVoiceDevice()
+        ? 'Graphics processing is unavailable here. Local voice may be very slow on this mobile device.'
+        : 'Graphics processing is not available in this browser. Automatic will use the main processor.';
   }
 }
 

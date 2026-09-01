@@ -11,6 +11,37 @@ function baseMimeType(value) {
   return String(value || 'audio/mpeg').split(';')[0].trim().toLowerCase();
 }
 
+function waitForPromise(promise, timeoutMs, message) {
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
+}
+
+function readStreamChunk(reader, signal, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      signal?.removeEventListener('abort', onAbort);
+    };
+    const finish = operation => value => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      operation(value);
+    };
+    const onAbort = () => finish(reject)(abortError(signal?.reason));
+    const timeoutId = setTimeout(() => finish(reject)(new Error(
+      'Local speech generation stopped responding. Try the graphics processor, a shorter reply, or a hosted voice.',
+    )), timeoutMs);
+    signal?.addEventListener('abort', onAbort, { once: true });
+    reader.read().then(finish(resolve), finish(reject));
+  });
+}
+
 export function trimPcmEdgeSilence(samples, sampleRate, {
   threshold = 0.0015,
   keepSeconds = 0.12,
@@ -93,6 +124,9 @@ export class VoicePlayer {
    *   isMediaSourceTypeSupported?: (mimeType: string) => boolean,
    *   createObjectURL?: (blob: Blob) => string,
    *   revokeObjectURL?: (url: string) => void,
+   *   audioUnlockTimeoutMs?: number,
+   *   pcmStallTimeoutMs?: number,
+   *   pcmInitialBufferSeconds?: number,
    * }} [options]
    */
   constructor(options = {}) {
@@ -109,6 +143,12 @@ export class VoicePlayer {
     ));
     this.createObjectURL = options.createObjectURL || (blob => URL.createObjectURL(blob));
     this.revokeObjectURL = options.revokeObjectURL || (url => URL.revokeObjectURL(url));
+    this.audioUnlockTimeoutMs = Math.max(1000, Number(options.audioUnlockTimeoutMs) || 5000);
+    this.pcmStallTimeoutMs = Math.max(1000, Number(options.pcmStallTimeoutMs) || 120_000);
+    this.pcmInitialBufferSeconds = Math.max(
+      0,
+      Number(options.pcmInitialBufferSeconds) || 6,
+    );
     /** @type {HTMLAudioElement | null} */
     this.audio = null;
     /** @type {AudioContext | null} */
@@ -127,12 +167,16 @@ export class VoicePlayer {
     this.preparedStream = null;
     this.objectUrl = '';
     this.playbackActivated = false;
+    /** @type {Promise<void> | null} */
+    this.audioUnlockPromise = null;
     /** @type {((reason: Error) => void) | null} */
     this.rejectCurrent = null;
   }
 
   get isPlaying() {
-    return !!this.audioSource || (!!this.audio && !this.audio.paused);
+    return !!this.audioSource
+      || this.scheduledAudioSources.size > 0
+      || (!!this.audio && !this.audio.paused);
   }
 
   get hasPlaybackActivation() {
@@ -150,16 +194,48 @@ export class VoicePlayer {
       if (!this.audioContext) return false;
       if (this.audioContext.state === 'suspended') {
         this.playbackActivated = true;
-        void this.audioContext.resume().catch(() => {
+        this.audioUnlockPromise = Promise.resolve(this.audioContext.resume()).then(() => {
+          if (this.audioContext?.state === 'suspended') {
+            throw new Error('The browser kept audio playback suspended.');
+          }
+        }).catch(error => {
           this.playbackActivated = false;
+          throw error;
         });
+        void this.audioUnlockPromise.catch(() => {});
       } else {
         this.playbackActivated = true;
+        this.audioUnlockPromise = Promise.resolve();
       }
       return true;
     } catch {
       this.playbackActivated = false;
       return false;
+    }
+  }
+
+  async ensureAudioContextReady() {
+    const context = this.audioContext;
+    if (!context) throw new Error('Web Audio is unavailable.');
+    if (!this.audioUnlockPromise && context.state === 'suspended') this.unlock();
+    if (this.audioUnlockPromise) {
+      try {
+        await waitForPromise(
+          this.audioUnlockPromise,
+          this.audioUnlockTimeoutMs,
+          'Audio playback could not be enabled. Tap Listen again and keep this tab in the foreground.',
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error || '');
+        if (message.startsWith('Audio playback could not be enabled.')) throw error;
+        throw new Error(
+          'Audio playback could not be enabled. Tap Listen again and check this site’s sound permission.',
+          { cause: error },
+        );
+      }
+    }
+    if (context.state === 'suspended') {
+      throw new Error('Audio playback is blocked. Tap Listen again and check this site’s sound permission.');
     }
   }
 
@@ -248,7 +324,7 @@ export class VoicePlayer {
   async playWithAudioContext(blob, { signal, rate }) {
     const context = this.audioContext;
     if (!context) throw new Error('Web Audio is unavailable.');
-    if (context.state === 'suspended') await context.resume();
+    await this.ensureAudioContextReady();
     const bytes = await blob.arrayBuffer();
     if (signal?.aborted) throw abortError(signal.reason);
     const buffer = await context.decodeAudioData(bytes.slice(0));
@@ -499,7 +575,7 @@ export class VoicePlayer {
     this.audioContext ||= this.audioContextFactory();
     const context = this.audioContext;
     if (!context) throw new Error('Web Audio is unavailable for local speech streaming.');
-    if (context.state === 'suspended') await context.resume();
+    await this.ensureAudioContextReady();
 
     const internalController = new AbortController();
     const onExternalAbort = () => internalController.abort(signal?.reason);
@@ -512,39 +588,63 @@ export class VoicePlayer {
     let receivedSamples = 0;
     /** @type {Promise<void> | null} */
     let lastPlayback = null;
+    /** @type {Array<{ samples: Float32Array, sampleRate: number }>} */
+    const initialChunks = [];
+    let initialBufferSeconds = 0;
+
+    const schedule = (samples, sampleRate) => {
+      const buffer = context.createBuffer(1, samples.length, sampleRate);
+      buffer.getChannelData(0).set(samples);
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.playbackRate.value = Math.max(0.5, Math.min(2, Number(rate) || 1));
+      source.connect(context.destination);
+      this.scheduledAudioSources.add(source);
+      const startTime = Math.max(nextStartTime, context.currentTime + 0.02);
+      nextStartTime = startTime + buffer.duration / source.playbackRate.value;
+      receivedSamples += samples.length;
+      lastPlayback = new Promise(resolve => {
+        source.onended = () => {
+          source.onended = null;
+          this.scheduledAudioSources.delete(source);
+          try { source.disconnect(); } catch {}
+          resolve();
+        };
+      });
+      source.start(startTime);
+    };
+
+    const flushInitialChunks = () => {
+      for (const chunk of initialChunks.splice(0)) schedule(chunk.samples, chunk.sampleRate);
+    };
 
     try {
       while (true) {
         if (internalController.signal.aborted) {
           throw abortError(internalController.signal.reason);
         }
-        const { done, value } = await reader.read();
-        if (done) break;
+        const { done, value } = await readStreamChunk(
+          reader,
+          internalController.signal,
+          this.pcmStallTimeoutMs,
+        );
+        if (done) {
+          flushInitialChunks();
+          break;
+        }
         const rawSamples = value?.samples instanceof Float32Array
           ? value.samples
           : new Float32Array(value?.samples || []);
         const sampleRate = Math.max(8_000, Number(value?.sampleRate) || 24_000);
         const samples = trimPcmEdgeSilence(rawSamples, sampleRate);
         if (!samples.length) continue;
-        const buffer = context.createBuffer(1, samples.length, sampleRate);
-        buffer.getChannelData(0).set(samples);
-        const source = context.createBufferSource();
-        source.buffer = buffer;
-        source.playbackRate.value = Math.max(0.5, Math.min(2, Number(rate) || 1));
-        source.connect(context.destination);
-        this.scheduledAudioSources.add(source);
-        const startTime = Math.max(nextStartTime, context.currentTime + 0.02);
-        nextStartTime = startTime + buffer.duration / source.playbackRate.value;
-        receivedSamples += samples.length;
-        lastPlayback = new Promise(resolve => {
-          source.onended = () => {
-            source.onended = null;
-            this.scheduledAudioSources.delete(source);
-            try { source.disconnect(); } catch {}
-            resolve();
-          };
-        });
-        source.start(startTime);
+        if (initialChunks.length || !lastPlayback) {
+          initialChunks.push({ samples, sampleRate });
+          initialBufferSeconds += samples.length / sampleRate;
+          if (initialBufferSeconds >= this.pcmInitialBufferSeconds) flushInitialChunks();
+        } else {
+          schedule(samples, sampleRate);
+        }
       }
       if (internalController.signal.aborted) {
         throw abortError(internalController.signal.reason);
@@ -554,6 +654,9 @@ export class VoicePlayer {
       }
       await lastPlayback;
       return true;
+    } catch (error) {
+      try { await reader.cancel(error); } catch {}
+      throw error;
     } finally {
       signal?.removeEventListener('abort', onExternalAbort);
       if (this.rejectCurrent === stopCurrent) this.rejectCurrent = null;
