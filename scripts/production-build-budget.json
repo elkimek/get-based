@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "maximums": {
     "startupJavaScriptFiles": 2,
-    "startupDecodedBytes": 1195000,
+    "startupDecodedBytes": 1199000,
     "outputJavaScriptFiles": 158,
     "outputDecodedBytes": 5065000
   },
@@ -48,7 +48,9 @@
     "externalAgentProposalInboxStartupDecodedBytes": 1188775,
     "externalAgentProposalInboxOutputDecodedBytes": 5042219,
     "agentProposalDogfoodBootstrapStartupDecodedBytes": 1191765,
-    "agentProposalHardeningOutputDecodedBytes": 5056987
+    "agentProposalHardeningOutputDecodedBytes": 5056987,
+    "agentProposalReviewHardeningStartupDecodedBytes": 1195035,
+    "agentProposalReviewHardeningOutputDecodedBytes": 5057717
   },
   "referenceCommit": "807732a8",
   "measuredAt": "2026-09-01"

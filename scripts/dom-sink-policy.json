@@ -72,7 +72,7 @@
     },
     "js/chat-empty-state.js": {
       "count": 11,
-      "digest": "781cdf0b1eb6f9e3cfe33762023b76935132a47ff3d60c655f5263ad9eb4455b",
+      "digest": "c9eaac5ba554631e5b161fa12f67d0f0b8a94aac58c6774acea2386533ab8faa",
       "kinds": {
         "innerHTML": 11
       }
@@ -232,7 +232,7 @@
     },
     "js/crypto-ui.js": {
       "count": 20,
-      "digest": "825f2283684a3b5ae93c19eba23c340fc8b664dbfe76144f8c68c0df3bc58b28",
+      "digest": "8b917d29d12c72331c3ef3fa6f754ac0e9465b15cf69a3e8f73084fe657ae69b",
       "kinds": {
         "innerHTML": 20
       }
@@ -358,7 +358,7 @@
     },
     "js/focus-card.js": {
       "count": 8,
-      "digest": "c3d5dd3e9a5d351c1d7bc4da0babbe9ed5b9f44c7a7b97dbe4dfca760899bfed",
+      "digest": "1d2009cf66416720c881e8e723448975335a40086c2447aef4d736b31c6f9bfc",
       "kinds": {
         "innerHTML": 8
       }
@@ -414,7 +414,7 @@
     },
     "js/light-channel-view.js": {
       "count": 2,
-      "digest": "b79d7024bf121330332f928400b2798c0b681fb3eb0618c634bd9e7cbca76ea2",
+      "digest": "992b1a0f0e11ef6778d167c9712d4ad51698a8c74574e90ada94598002f38df9",
       "kinds": {
         "innerHTML": 2
       }
@@ -478,7 +478,7 @@
     },
     "js/light-tool-cct-meter.js": {
       "count": 3,
-      "digest": "7584eb83e21fa8b6e6ad60026242cc38277f73578dd0be1c7eef84b44eec2ba3",
+      "digest": "7090b58d07fb3b9f77f14804aa28c84ce1fc6647950b263fd03510bde6f791fc",
       "kinds": {
         "innerHTML": 3
       }
@@ -628,7 +628,7 @@
     },
     "js/nutrition-review-ui.js": {
       "count": 10,
-      "digest": "70e970a978e5f83191952ee5d1684e9c280789adb228c3242468a641936a42b6",
+      "digest": "682d7a32954d08c122db26cb6563744aec4b29d31a7625003fb69940ac3336e1",
       "kinds": {
         "innerHTML": 10
       }
@@ -714,14 +714,14 @@
     },
     "js/provider-panels.js": {
       "count": 36,
-      "digest": "9de2a2f8b1ee123ee0c3fbfcc311ef12a6ecfa3c60504a7557a7c7b81ba1b017",
+      "digest": "c0813b3ea7f2b7dc3c30b1ffe40e404a4455a28307d2ebcf8d2869b0a41a6c83",
       "kinds": {
         "innerHTML": 36
       }
     },
     "js/provider-ppq-panels.js": {
       "count": 22,
-      "digest": "1ee46c114d857bd8fe76e1b05ad7b81dd0075737837dd3d29f6c2be06377dadd",
+      "digest": "379adb88e59a95d14bec798804eb0d27d7e0e0d4c2963f2c44de2a216863bbee",
       "kinds": {
         "innerHTML": 22
       }
@@ -735,14 +735,14 @@
     },
     "js/provider-wallet-panels.js": {
       "count": 61,
-      "digest": "0d6c698f6c9ba4079cabc45e6c7b1706dc1fcdd260334b08834badc5a3da2646",
+      "digest": "a63de6385285058e07d910366325d8da90f3e2c1e0d8c23d9ba03f1a7b9c83e7",
       "kinds": {
         "innerHTML": 61
       }
     },
     "js/recommendation-actions.js": {
       "count": 3,
-      "digest": "0d601e12802393ac0b8c579db9b038eedee24ae5812defcea948b5e55f0c19c8",
+      "digest": "182318a1344e121bb9000ecdaf700fad7724a45c36f2b98b5c6d8e00afdc5171",
       "kinds": {
         "innerHTML": 3
       }

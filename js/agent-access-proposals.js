@@ -281,12 +281,15 @@ export async function pollAgentAccessProposals() {
     return { ingested: 0, rejected, persistenceFailed: true };
   }
   for (const proposalId of acknowledged) await acknowledgeProposal(baseUrl, access.token, proposalId);
-  proposalDeps.notify(
-    accepted.length === 1 ? 'New agent proposal ready for review.' : `${accepted.length} new agent proposals ready for review.`,
-    'info',
-  );
-  document.dispatchEvent(new CustomEvent('getbased-agent-proposals-changed'));
-  return { ingested: accepted.length, rejected };
+  const profileStillActive = state.currentProfile === profileId && state.importedData === profileData;
+  if (profileStillActive) {
+    proposalDeps.notify(
+      accepted.length === 1 ? 'New agent proposal ready for review.' : `${accepted.length} new agent proposals ready for review.`,
+      'info',
+    );
+    document.dispatchEvent(new CustomEvent('getbased-agent-proposals-changed'));
+  }
+  return { ingested: accepted.length, rejected, profileStillActive };
 }
 
 const applyInFlight = new Map();

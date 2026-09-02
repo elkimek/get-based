@@ -25,7 +25,9 @@ async function runPoll() {
   if (pollInFlight) return pollInFlight;
   pollInFlight = (async () => {
     const result = await pollingDeps.poll();
-    if (result?.ingested > 0) await pollingDeps.refreshNavigation();
+    if (result?.ingested > 0 && result?.profileStillActive !== false) {
+      await pollingDeps.refreshNavigation();
+    }
     return result;
   })().finally(() => { pollInFlight = null; });
   return pollInFlight;

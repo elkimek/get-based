@@ -483,7 +483,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (pathname === '/api/agent-proposals' || pathname.startsWith('/api/agent-proposals/')) {
-    req.url = pathname;
+    req.url = `${pathname}${url.search}`;
     _handleAgentProposalDevProxy(req, res);
     return;
   }

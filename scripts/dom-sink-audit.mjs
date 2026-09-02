@@ -16,6 +16,12 @@ const CALL_SINKS = new Set([
   'setHTMLUnsafe',
 ]);
 
+function compareText(left, right) {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
 function propertyName(node) {
   if (ts.isPropertyAccessExpression(node)) return node.name.text;
   if (
@@ -95,7 +101,7 @@ function listJavaScriptFiles(directory = SOURCE_ROOT) {
 function sinkDigest(sinks) {
   const reviewedSurface = sinks
     .map(({ kind, source }) => ({ kind, source }))
-    .sort((a, b) => `${a.kind}:${a.source}`.localeCompare(`${b.kind}:${b.source}`));
+    .sort((a, b) => compareText(`${a.kind}:${a.source}`, `${b.kind}:${b.source}`));
   return crypto.createHash('sha256').update(JSON.stringify(reviewedSurface)).digest('hex');
 }
 

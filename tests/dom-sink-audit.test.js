@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { auditDomSinks, scanDomSinks } from '../scripts/dom-sink-audit.mjs';
+import {
+  auditDomSinks,
+  createDomSinkPolicy,
+  scanDomSinks,
+} from '../scripts/dom-sink-audit.mjs';
 
 describe('DOM HTML sink audit', () => {
   it('tracks every production JavaScript module and reviewed sink fingerprint', () => {
@@ -34,5 +38,18 @@ describe('DOM HTML sink audit', () => {
       'document.write',
       'document.writeln',
     ]);
+  });
+
+  it('fingerprints reviewed sinks without locale-sensitive collation', () => {
+    const originalLocaleCompare = String.prototype.localeCompare;
+    String.prototype.localeCompare = () => {
+      throw new Error('locale-sensitive comparison invoked');
+    };
+
+    try {
+      expect(createDomSinkPolicy().sinkCount).toBeGreaterThan(400);
+    } finally {
+      String.prototype.localeCompare = originalLocaleCompare;
+    }
   });
 });

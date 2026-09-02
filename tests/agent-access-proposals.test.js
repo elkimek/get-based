@@ -106,6 +106,24 @@ describe('external proposal polling lifecycle', () => {
     await vi.advanceTimersByTimeAsync(15_000);
     expect(poll).toHaveBeenCalledTimes(2);
   });
+
+  it('does not refresh navigation for an ingest completed after the profile changed', async () => {
+    vi.useFakeTimers();
+    const poll = vi.fn(async () => ({
+      ingested: 1,
+      rejected: 0,
+      profileStillActive: false,
+    }));
+    const refreshNavigation = vi.fn(async () => {});
+    configureAgentProposalPollingDeps({ poll, refreshNavigation, intervalMs: 15_000 });
+
+    startAgentProposalPolling();
+    await vi.runAllTicks();
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(poll).toHaveBeenCalledOnce();
+    expect(refreshNavigation).not.toHaveBeenCalled();
+  });
 });
 
 describe('external proposal inbox UI', () => {
@@ -232,6 +250,61 @@ describe('external Agent Access proposals', () => {
       expect.objectContaining({ method: 'DELETE' }),
     );
     expect(JSON.stringify(fetchImpl.mock.calls[0])).not.toContain('Sunbathing');
+  });
+
+  it('persists and acknowledges without profile-facing UI after the profile changed', async () => {
+    const envelope = await proposalEnvelope({ profileId: 'profile-a' });
+    let resolvePersist;
+    const persistImportedData = vi.fn(() => new Promise((resolve) => { resolvePersist = resolve; }));
+    const notify = vi.fn();
+    const changed = vi.fn();
+    const fetchImpl = vi.fn(async (url, init = {}) => {
+      if (init.method === 'DELETE') {
+        return new Response(JSON.stringify({ ok: true, deleted: true }), { status: 200 });
+      }
+      return new Response(JSON.stringify({
+        proposals: [{ proposalId: envelope.proposalId, createdAt: '2026-09-01T10:35:00.000Z', envelope }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+    const profileA = { entries: [], sunSessions: [], agentProposals: [] };
+    const profileB = { entries: [], sunSessions: [], agentProposals: [] };
+    configureAgentAccessProposalDeps({
+      fetchImpl,
+      getAgentAccessState: () => ({ enabled: true, token: 'test-token', contextKey: CONTEXT_KEY }),
+      getRelayUrl: () => 'https://gateway.test',
+      now: () => Date.parse('2026-09-01T10:40:00.000Z'),
+      persistImportedData,
+      notify,
+    });
+    state.currentProfile = 'profile-a';
+    state.importedData = profileA;
+    document.addEventListener('getbased-agent-proposals-changed', changed);
+
+    try {
+      const polling = pollAgentAccessProposals();
+      await vi.waitFor(() => expect(persistImportedData).toHaveBeenCalledOnce());
+      state.currentProfile = 'profile-b';
+      state.importedData = profileB;
+      resolvePersist(true);
+
+      await expect(polling).resolves.toMatchObject({
+        ingested: 1,
+        rejected: 0,
+        profileStillActive: false,
+      });
+      expect(profileA.agentProposals).toEqual([
+        expect.objectContaining({ id: 'proposal_external_1', profileId: 'profile-a' }),
+      ]);
+      expect(profileB.agentProposals).toEqual([]);
+      expect(fetchImpl).toHaveBeenCalledWith(
+        'https://gateway.test/api/agent-proposals/proposal_external_1',
+        expect.objectContaining({ method: 'DELETE' }),
+      );
+      expect(notify).not.toHaveBeenCalled();
+      expect(changed).not.toHaveBeenCalled();
+    } finally {
+      document.removeEventListener('getbased-agent-proposals-changed', changed);
+    }
   });
 
   it('leaves relay items unacknowledged when the pending inbox is full', async () => {

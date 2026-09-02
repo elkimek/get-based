@@ -8,9 +8,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   loadAgentProposalDogfoodAccess,
 } from '../js/agent-proposal-dogfood-bootstrap.js';
-import {
-  _handleAgentProposalDogfoodBootstrap,
-} from '../lib/dev-agent-proposal-dogfood.js';
+import * as dogfoodServer from '../lib/dev-agent-proposal-dogfood.js';
+
+const { _handleAgentProposalDogfoodBootstrap } = dogfoodServer;
 
 const TEST_TOKEN = 'a'.repeat(64);
 const TEST_CONTEXT_KEY = `gbctx_v1_${'A'.repeat(43)}`;
@@ -57,6 +57,36 @@ function createCredentialsFile(mode = 0o600) {
 }
 
 describe('disposable proposal dogfood bootstrap endpoint', () => {
+  it('reads credentials through the descriptor it validates', () => {
+    const calls = [];
+    const fsImpl = {
+      openSync(filePath, flags) {
+        calls.push(['open', filePath, flags]);
+        return 41;
+      },
+      fstatSync(fd) {
+        calls.push(['fstat', fd]);
+        return { isFile: () => true, mode: 0o100600, size: 3 };
+      },
+      readFileSync(fd, encoding) {
+        calls.push(['read', fd, encoding]);
+        return ' ok ';
+      },
+      closeSync(fd) {
+        calls.push(['close', fd]);
+      },
+    };
+
+    expect(typeof dogfoodServer._readAgentProposalDogfoodEnvFile).toBe('function');
+    expect(dogfoodServer._readAgentProposalDogfoodEnvFile('/private.env', { fsImpl })).toBe('ok');
+    expect(calls).toEqual([
+      ['open', '/private.env', 'r'],
+      ['fstat', 41],
+      ['read', 41, 'utf8'],
+      ['close', 41],
+    ]);
+  });
+
   it('stays disabled unless explicitly configured', () => {
     const res = mockResponse();
 
