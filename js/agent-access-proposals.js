@@ -16,6 +16,7 @@ export const AGENT_PROPOSAL_AAD_PREFIX = 'getbased-agent-proposal-v1';
 const MAX_PROPOSALS_PER_POLL = 50;
 const MAX_PROPOSAL_LIFETIME_MS = 60 * 60_000;
 const CLOCK_SKEW_MS = 5 * 60_000;
+const MAX_ACTIVE_PROFILE_RECONCILE_ATTEMPTS = 3;
 
 export function resolveAgentProposalGateway(relayUrl, pageUrl = globalThis.location?.href || '') {
   const relayBase = String(relayUrl || '').replace(/^wss:/u, 'https:').replace(/^ws:/u, 'http:').replace(/\/+$/u, '');
@@ -206,6 +207,44 @@ async function acknowledgeProposal(baseUrl, token, proposalId) {
   }
 }
 
+/** @param {any} profileData @param {any[]} accepted */
+function profileContainsAcceptedProposals(profileData, accepted) {
+  return accepted.every(({ id }) => Array.isArray(profileData?.agentProposals)
+    && profileData.agentProposals.some(proposal => proposal?.id === id));
+}
+
+/**
+ * @param {string} profileId
+ * @param {any[]} accepted
+ * @returns {Promise<'ready' | 'inactive' | 'failed'>}
+ */
+async function reconcileAcceptedProposalsWithActiveProfile(profileId, accepted) {
+  for (let attempt = 0; attempt < MAX_ACTIVE_PROFILE_RECONCILE_ATTEMPTS; attempt += 1) {
+    if (state.currentProfile !== profileId) return 'inactive';
+    const activeProfileData = state.importedData;
+    if (profileContainsAcceptedProposals(activeProfileData, accepted)) return 'ready';
+    if (!activeProfileData || typeof activeProfileData !== 'object') return 'failed';
+
+    const hadProposals = Object.prototype.hasOwnProperty.call(activeProfileData, 'agentProposals');
+    const previousProposals = structuredClone(activeProfileData.agentProposals ?? []);
+    normalizeAgentProposals(activeProfileData).push(...structuredClone(accepted));
+    normalizeAgentProposals(activeProfileData);
+    const persisted = await proposalDeps.persistImportedData(
+      profileId,
+      activeProfileData,
+      { immediate: true, reason: 'agent-proposal-ingest-reconcile' },
+    );
+    if (persisted === false) {
+      if (hadProposals) activeProfileData.agentProposals = previousProposals;
+      else delete activeProfileData.agentProposals;
+      return 'failed';
+    }
+  }
+
+  if (state.currentProfile !== profileId) return 'inactive';
+  return profileContainsAcceptedProposals(state.importedData, accepted) ? 'ready' : 'failed';
+}
+
 export async function pollAgentAccessProposals() {
   const access = proposalDeps.getAgentAccessState();
   if (!access?.enabled || !access.token || !access.contextKey) {
@@ -280,8 +319,22 @@ export async function pollAgentAccessProposals() {
     profileData.agentProposals = previousProposals;
     return { ingested: 0, rejected, persistenceFailed: true };
   }
+  const beforeAcknowledgement = await reconcileAcceptedProposalsWithActiveProfile(profileId, accepted);
+  if (beforeAcknowledgement === 'failed') {
+    return { ingested: 0, rejected, persistenceFailed: true, profileStillActive: false };
+  }
   for (const proposalId of acknowledged) await acknowledgeProposal(baseUrl, access.token, proposalId);
-  const profileStillActive = state.currentProfile === profileId;
+  const completion = await reconcileAcceptedProposalsWithActiveProfile(profileId, accepted);
+  if (completion === 'failed') {
+    return {
+      ingested: accepted.length,
+      rejected,
+      persistenceFailed: true,
+      profileStillActive: false,
+      uiDeferred: true,
+    };
+  }
+  const profileStillActive = completion === 'ready';
   if (profileStillActive) {
     proposalDeps.notify(
       accepted.length === 1 ? 'New agent proposal ready for review.' : `${accepted.length} new agent proposals ready for review.`,

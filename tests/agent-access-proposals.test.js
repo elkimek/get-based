@@ -307,10 +307,124 @@ describe('external Agent Access proposals', () => {
     }
   });
 
-  it('emits profile-facing UI after same-profile data replacement during persistence', async () => {
+  it('reconciles into same-profile replacement data before emitting profile-facing UI', async () => {
     const envelope = await proposalEnvelope({ profileId: 'profile-a' });
     let resolvePersist;
-    const persistImportedData = vi.fn(() => new Promise((resolve) => { resolvePersist = resolve; }));
+    const persistImportedData = vi.fn()
+      .mockImplementationOnce(() => new Promise((resolve) => { resolvePersist = resolve; }))
+      .mockResolvedValue(true);
+    const notify = vi.fn();
+    const changed = vi.fn();
+    const fetchImpl = vi.fn(async (_url, init = {}) => {
+      if (init.method === 'DELETE') {
+        return new Response(JSON.stringify({ ok: true, deleted: true }), { status: 200 });
+      }
+      return new Response(JSON.stringify({
+        proposals: [{ proposalId: envelope.proposalId, createdAt: '2026-09-01T10:35:00.000Z', envelope }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+    const profileA = { entries: [], sunSessions: [], agentProposals: [] };
+    const refreshedProfileA = {
+      entries: [],
+      sunSessions: [{ id: 'fresh-session-from-sync' }],
+      agentProposals: [],
+    };
+    configureAgentAccessProposalDeps({
+      fetchImpl,
+      getAgentAccessState: () => ({ enabled: true, token: 'test-token', contextKey: CONTEXT_KEY }),
+      getRelayUrl: () => 'https://gateway.test',
+      now: () => Date.parse('2026-09-01T10:40:00.000Z'),
+      persistImportedData,
+      notify,
+    });
+    state.currentProfile = 'profile-a';
+    state.importedData = profileA;
+    document.addEventListener('getbased-agent-proposals-changed', changed);
+
+    try {
+      const polling = pollAgentAccessProposals();
+      await vi.waitFor(() => expect(persistImportedData).toHaveBeenCalledOnce());
+      state.importedData = refreshedProfileA;
+      resolvePersist(true);
+
+      await expect(polling).resolves.toMatchObject({
+        ingested: 1,
+        rejected: 0,
+        profileStillActive: true,
+      });
+      expect(refreshedProfileA.sunSessions).toEqual([{ id: 'fresh-session-from-sync' }]);
+      expect(refreshedProfileA.agentProposals).toEqual([
+        expect.objectContaining({ id: 'proposal_external_1', profileId: 'profile-a' }),
+      ]);
+      expect(persistImportedData).toHaveBeenCalledTimes(2);
+      expect(persistImportedData).toHaveBeenLastCalledWith(
+        'profile-a',
+        refreshedProfileA,
+        expect.objectContaining({ immediate: true, reason: 'agent-proposal-ingest-reconcile' }),
+      );
+      expect(notify).toHaveBeenCalledOnce();
+      expect(changed).toHaveBeenCalledOnce();
+    } finally {
+      document.removeEventListener('getbased-agent-proposals-changed', changed);
+    }
+  });
+
+  it('rechecks same-profile data after acknowledgement before emitting UI', async () => {
+    const envelope = await proposalEnvelope({ profileId: 'profile-a' });
+    const profileA = { entries: [], sunSessions: [], agentProposals: [] };
+    const refreshedProfileA = {
+      entries: [],
+      sunSessions: [{ id: 'session-arrived-during-ack' }],
+      agentProposals: [],
+    };
+    const persistImportedData = vi.fn(async () => true);
+    const notify = vi.fn();
+    const changed = vi.fn();
+    const fetchImpl = vi.fn(async (_url, init = {}) => {
+      if (init.method === 'DELETE') {
+        state.importedData = refreshedProfileA;
+        return new Response(JSON.stringify({ ok: true, deleted: true }), { status: 200 });
+      }
+      return new Response(JSON.stringify({
+        proposals: [{ proposalId: envelope.proposalId, createdAt: '2026-09-01T10:35:00.000Z', envelope }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+    configureAgentAccessProposalDeps({
+      fetchImpl,
+      getAgentAccessState: () => ({ enabled: true, token: 'test-token', contextKey: CONTEXT_KEY }),
+      getRelayUrl: () => 'https://gateway.test',
+      now: () => Date.parse('2026-09-01T10:40:00.000Z'),
+      persistImportedData,
+      notify,
+    });
+    state.currentProfile = 'profile-a';
+    state.importedData = profileA;
+    document.addEventListener('getbased-agent-proposals-changed', changed);
+
+    try {
+      await expect(pollAgentAccessProposals()).resolves.toMatchObject({
+        ingested: 1,
+        rejected: 0,
+        profileStillActive: true,
+      });
+      expect(refreshedProfileA.sunSessions).toEqual([{ id: 'session-arrived-during-ack' }]);
+      expect(refreshedProfileA.agentProposals).toEqual([
+        expect.objectContaining({ id: 'proposal_external_1', profileId: 'profile-a' }),
+      ]);
+      expect(persistImportedData).toHaveBeenCalledTimes(2);
+      expect(notify).toHaveBeenCalledOnce();
+      expect(changed).toHaveBeenCalledOnce();
+    } finally {
+      document.removeEventListener('getbased-agent-proposals-changed', changed);
+    }
+  });
+
+  it('withholds acknowledgement and UI when same-profile reconciliation cannot persist', async () => {
+    const envelope = await proposalEnvelope({ profileId: 'profile-a' });
+    let resolvePersist;
+    const persistImportedData = vi.fn()
+      .mockImplementationOnce(() => new Promise((resolve) => { resolvePersist = resolve; }))
+      .mockResolvedValue(false);
     const notify = vi.fn();
     const changed = vi.fn();
     const fetchImpl = vi.fn(async (_url, init = {}) => {
@@ -342,12 +456,19 @@ describe('external Agent Access proposals', () => {
       resolvePersist(true);
 
       await expect(polling).resolves.toMatchObject({
-        ingested: 1,
+        ingested: 0,
         rejected: 0,
-        profileStillActive: true,
+        persistenceFailed: true,
+        profileStillActive: false,
       });
-      expect(notify).toHaveBeenCalledOnce();
-      expect(changed).toHaveBeenCalledOnce();
+      expect(refreshedProfileA.agentProposals).toEqual([]);
+      expect(persistImportedData).toHaveBeenCalledTimes(2);
+      expect(fetchImpl).not.toHaveBeenCalledWith(
+        'https://gateway.test/api/agent-proposals/proposal_external_1',
+        expect.objectContaining({ method: 'DELETE' }),
+      );
+      expect(notify).not.toHaveBeenCalled();
+      expect(changed).not.toHaveBeenCalled();
     } finally {
       document.removeEventListener('getbased-agent-proposals-changed', changed);
     }
