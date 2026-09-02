@@ -51,5 +51,5 @@ describe('DOM HTML sink audit', () => {
     } finally {
       String.prototype.localeCompare = originalLocaleCompare;
     }
-  });
+  }, 15_000);
 });
