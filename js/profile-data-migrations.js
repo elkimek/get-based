@@ -15,8 +15,79 @@ import {
 import { repairProfileMarkerData } from './profile-marker-migrations.js';
 import { MARKER_SCHEMA } from './schema.js';
 import { migrateSupplementMedicationRecords } from './supplement-medication-domain.js';
+import {
+  agentProposalTimestamp as proposalTimestamp,
+  mergeAgentProposalItems,
+} from './sync-delta-surface-config.js';
 
 /** @typedef {import('../types/app-state.js').ProfileData} ProfileData */
+
+export const MAX_PENDING_AGENT_PROPOSALS = 50;
+export const MAX_STORED_AGENT_PROPOSALS = 100;
+
+/**
+ * Reconcile proposal audit state against durable domain writes, then keep the
+ * newest bounded history. A persisted idempotent session always proves Apply
+ * happened, even if a concurrent device later wrote Dismiss for the card.
+ * @param {ProfileData} data
+ * @returns {any[]}
+ */
+export function normalizeAgentProposals(data) {
+  const proposals = Array.isArray(data.agentProposals) ? data.agentProposals : [];
+  const sessions = Array.isArray(data.sunSessions) ? data.sunSessions : [];
+  const sessionsByProposal = new Map();
+  for (const session of sessions) {
+    const createdBy = session?.createdBy;
+    if (createdBy?.type === 'agent'
+        && createdBy.actionId === 'sun.session.log'
+        && typeof createdBy.idempotencyKey === 'string') {
+      sessionsByProposal.set(createdBy.idempotencyKey, session);
+    }
+  }
+
+  for (const proposal of proposals) {
+    const session = sessionsByProposal.get(proposal?.id);
+    if (!session || proposal?.actionId !== 'sun.session.log' || proposal.status === 'applied') continue;
+    const appliedAt = new Date(Math.max(
+      proposalTimestamp(proposal) + 1,
+      Number(session.updatedAt) || Number(session.endedAt) || 0,
+    )).toISOString();
+    proposal.status = 'applied';
+    proposal.appliedAt = appliedAt;
+    proposal.updatedAt = appliedAt;
+    proposal.result = { sessionId: session.id };
+  }
+
+  const byId = new Map();
+  const unkeyed = [];
+  for (const proposal of proposals) {
+    if (typeof proposal?.id !== 'string' || !proposal.id) {
+      unkeyed.push(proposal);
+      continue;
+    }
+    const current = byId.get(proposal.id);
+    if (!current) {
+      byId.set(proposal.id, proposal);
+      continue;
+    }
+    const ranked = mergeAgentProposalItems(current, proposal);
+    byId.set(proposal.id, ranked || (
+      proposalTimestamp(proposal) > proposalTimestamp(current) ? proposal : current
+    ));
+  }
+  const canonical = [...byId.values(), ...unkeyed];
+  const newestFirst = (a, b) => proposalTimestamp(b) - proposalTimestamp(a);
+  const pending = canonical
+    .filter(proposal => proposal?.status === 'pending')
+    .sort(newestFirst)
+    .slice(0, MAX_PENDING_AGENT_PROPOSALS);
+  const terminal = canonical
+    .filter(proposal => proposal?.status !== 'pending')
+    .sort(newestFirst)
+    .slice(0, MAX_STORED_AGENT_PROPOSALS - pending.length);
+  data.agentProposals = [...pending, ...terminal];
+  return data.agentProposals;
+}
 
 /**
  * @param {ProfileData} data
@@ -248,10 +319,12 @@ export function migrateProfileData(data) {
   else if (data.nutritionMeals !== null && !Array.isArray(data.nutritionMeals)) data.nutritionMeals = null;
   if (data.changeHistory === undefined) data.changeHistory = [];
   if (data.importSnapshots === undefined) data.importSnapshots = [];
+  if (!Array.isArray(data.agentProposals)) data.agentProposals = [];
   if (data.biometrics === undefined) data.biometrics = null;
   if (!data.manualMetricTombstones || typeof data.manualMetricTombstones !== 'object'
       || Array.isArray(data.manualMetricTombstones)) data.manualMetricTombstones = {};
   if (data.sunSessions === undefined) data.sunSessions = [];
+  normalizeAgentProposals(data);
   if (data.deviceSessions === undefined) data.deviceSessions = [];
   if (data.lightDevices === undefined) data.lightDevices = [];
   if (data.lightEnvironment === undefined) data.lightEnvironment = null;

@@ -60,6 +60,20 @@ import {
   prepareChatMessageEditSend,
 } from './chat-message-edit.js';
 import { setChatStreamStatus } from './chat-stream-status.js';
+import { handleAgentUserTurn } from './agent-runtime.js';
+
+const chatSendAgentDeps = {
+  handleAgentUserTurn,
+};
+
+/** @param {Partial<typeof chatSendAgentDeps>} [deps] */
+export function configureChatSendAgentDeps(deps = {}) {
+  const previous = { ...chatSendAgentDeps };
+  if (typeof deps.handleAgentUserTurn === 'function') {
+    chatSendAgentDeps.handleAgentUserTurn = deps.handleAgentUserTurn;
+  }
+  return previous;
+}
 
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
@@ -309,6 +323,61 @@ export async function sendChatMessage() {
   let aiMsgEl = null;
 
   try {
+    let agentTurn = null;
+    if (!hasImages) {
+      try {
+        agentTurn = await chatSendAgentDeps.handleAgentUserTurn(text, {
+          provider: _msgProvider,
+          signal: _chatAbortController ? _chatAbortController.signal : undefined,
+        });
+      } catch (plannerError) {
+        const error = /** @type {any} */ (plannerError);
+        if (error?.name === 'AbortError') throw error;
+        console.warn('[chat-agent] Action planning failed; continuing with normal chat.', error?.message || 'Unknown planner error');
+      }
+    }
+
+    if (agentTurn?.handled) {
+      if (typingEl.parentNode) typingEl.remove();
+      const personality = getActivePersonality();
+      const assistantMsg = {
+        role: 'assistant',
+        content: agentTurn.content,
+        personalityName: personality.name,
+        personalityIcon: personality.icon,
+        provider: _msgProvider,
+        modelId: _msgModelId,
+        modelDisplay: _msgModelDisplay,
+      };
+      if (agentTurn.proposal) assistantMsg.agentProposal = agentTurn.proposal;
+      const plannerUsage = agentTurn.usage;
+      if (plannerUsage && (plannerUsage.inputTokens || plannerUsage.outputTokens)) {
+        assistantMsg.usage = {
+          inputTokens: plannerUsage.inputTokens || 0,
+          outputTokens: plannerUsage.outputTokens || 0,
+        };
+        trackUsage(_msgProvider, _msgModelId, plannerUsage.inputTokens || 0, plannerUsage.outputTokens || 0);
+      }
+      state.chatHistory.push(assistantMsg);
+      await saveChatHistory();
+      renderChatMessages({ preserveScroll: true });
+      const msgIndex = state.chatHistory.length - 1;
+      void maybeAutoReadAssistantMessage(msgIndex);
+
+      _chatAbortController = null;
+      _activeChatGenerationUI = null;
+      setSendButtonMode(sendBtn, 'idle');
+      updateDiscussButton();
+      updateChatHeaderTitle();
+      notifyChatContentAdded(container);
+      setChatStreamStatus(agentTurn.proposal ? 'Action ready for review.' : 'Response complete.', { busy: false });
+      return;
+    }
+
+    if (agentTurn?.usage && (agentTurn.usage.inputTokens || agentTurn.usage.outputTokens)) {
+      trackUsage(_msgProvider, _msgModelId, agentTurn.usage.inputTokens || 0, agentTurn.usage.outputTokens || 0);
+    }
+
     let labContext = buildChatLabContext(text);
     let _lensResultForMsg = null;
     if (hasLens()) {

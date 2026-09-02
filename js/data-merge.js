@@ -67,7 +67,7 @@ export const ID_KEYED_ARRAYS = [
 ];
 
 export const NATURAL_KEYED_ARRAYS = Object.keys(DELTA_ARRAY_CONFIG)
-  .filter(path => path !== 'entries' && path !== 'changeHistory');
+  .filter(path => path !== 'entries' && path !== 'changeHistory' && !ID_KEYED_ARRAYS.includes(path));
 
 // `_deleted[path]` tombstones can apply to id-keyed arrays and to select
 // natural-key arrays that have a stable sync item id. Lab entries are keyed by
@@ -219,6 +219,15 @@ export function getConfiguredArrayItemId(path, item) {
     : null;
 }
 
+export function pickConfiguredArrayRecord(path, current, candidate) {
+  const mergeItemFn = DELTA_ARRAY_CONFIG[path]?.mergeItemFn;
+  if (typeof mergeItemFn === 'function') {
+    const selected = mergeItemFn(current, candidate);
+    if (selected === current || selected === candidate) return selected;
+  }
+  return pickFresherRecord(current, candidate);
+}
+
 export function recordArrayItemTombstone(importedData, arrayPath, item, { force = false } = {}) {
   if (DELTA_ARRAY_CONFIG[arrayPath]?.noTombstones && !force) return null;
   const id = getConfiguredArrayItemId(arrayPath, item);
@@ -318,7 +327,7 @@ export function trimImportedArray(importedData, arrayPath, maxLength, opts = {})
   return removed;
 }
 
-function unionByItemId(localArr, remoteArr, tombstones, itemIdFn) {
+function unionByItemId(localArr, remoteArr, tombstones, itemIdFn, arrayPath = '') {
   const tomb = tombstones instanceof Set ? tombstones : new Set(tombstones || []);
   const byId = new Map();
   const noId = [];
@@ -335,7 +344,9 @@ function unionByItemId(localArr, remoteArr, tombstones, itemIdFn) {
     if (!existing) { byId.set(id, item); return; }
     // Conflict — pick the fresher record. Existing/current wins ties so a
     // stale pull cannot revert local data when timestamps are equal/missing.
-    byId.set(id, pickFresherRecord(existing, item));
+    byId.set(id, arrayPath
+      ? pickConfiguredArrayRecord(arrayPath, existing, item)
+      : pickFresherRecord(existing, item));
   }
 
   if (Array.isArray(localArr))  for (const it of localArr)  consider(it);
@@ -463,7 +474,7 @@ function isSafeArrayPath(path) {
 // scalars / configs / id-less arrays.
 export function mergeImportedData(local, remote) {
   if (!remote || typeof remote !== 'object') return local;
-  if (!local  || typeof local  !== 'object') return remote;
+  if (!local  || typeof local  !== 'object') local = {};
 
   // Start from a shallow clone of remote — picks up new keys + LWW for
   // non-id-keyed scalars and arrays.
@@ -512,7 +523,13 @@ export function mergeImportedData(local, remote) {
     if (!Array.isArray(localArr) && !Array.isArray(remoteArr)) continue;
 
     const tomb = new Set(mergedDel[path] || []);
-    const merged = unionById(localArr, remoteArr, tomb);
+    const merged = unionByItemId(
+      localArr,
+      remoteArr,
+      tomb,
+      item => getConfiguredArrayItemId(path, item),
+      path,
+    );
 
     // Only set if at least one side had the array — avoids creating empty
     // arrays where neither side has one.
@@ -534,7 +551,7 @@ export function mergeImportedData(local, remote) {
     if (!Array.isArray(localArr) && !Array.isArray(remoteArr)) continue;
 
     const tomb = new Set(mergedDel[path] || []);
-    const merged = unionByItemId(localArr, remoteArr, tomb, item => naturalItemId(path, item));
+    const merged = unionByItemId(localArr, remoteArr, tomb, item => naturalItemId(path, item), path);
     setAt(out, path, merged);
   }
 
@@ -664,7 +681,7 @@ export function localHasRowsRemoteLacks(local, remote) {
       //     strictly higher canonical timestamp. Same logic mergeImportedData
       //     uses to pick a winner; mirroring it here keeps the rebroadcast
       //     decision aligned with what the merge actually did.
-      if (compareRecordFreshness(item, remoteItem) > 0) return true;
+      if (pickConfiguredArrayRecord(path, remoteItem, item) === item) return true;
     }
   }
   for (const path of NATURAL_KEYED_ARRAYS) {
@@ -683,7 +700,7 @@ export function localHasRowsRemoteLacks(local, remote) {
       if (!id) continue;
       const remoteItem = remoteById.get(id);
       if (!remoteItem) return true;
-      if (compareRecordFreshness(item, remoteItem) > 0) return true;
+      if (pickConfiguredArrayRecord(path, remoteItem, item) === item) return true;
     }
   }
   // (3) Tombstones on local but not on remote also need rebroadcast so

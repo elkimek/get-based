@@ -13,6 +13,10 @@ import { configureSyncLifecycleDeps } from './sync.js';
 import { configureSyncModules } from './sync-configure.js';
 import { disableSync, enableSync, pauseSync } from './sync-lifecycle.js';
 import { runAppExtensionStartup } from './app-extension-runtime.js';
+import { startAgentProposalPolling } from './agent-proposal-polling.js';
+import { configureAgentAccessProposalDeps } from './agent-access-proposals.js';
+import { loadAgentProposalDogfoodAccess } from './agent-proposal-dogfood-bootstrap.js';
+import { state } from './state.js';
 
 let appStarted = false;
 
@@ -21,11 +25,20 @@ async function runStartupSequence() {
 
   await initializeProfileData();
 
+  const dogfood = await loadAgentProposalDogfoodAccess({ currentProfileId: state.currentProfile });
+  if (dogfood.access) {
+    configureAgentAccessProposalDeps({ getAgentAccessState: () => dogfood.access });
+  } else if (dogfood.requested) {
+    showNotification('Disposable Agent proposal preview could not connect. Open the isolated dogfood URL again.', 'error', 8000);
+  }
+
   runPostProfileStartupMaintenance();
 
   await handleStartupOAuthCallbacks();
 
   renderStartupUI();
+
+  startAgentProposalPolling();
 
   // Edition-specific maintenance runs after the public shell is usable and
   // never delays core startup. The public build has a safe no-op adapter.

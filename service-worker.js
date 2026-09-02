@@ -1,4 +1,4 @@
-importScripts('/version.js'); importScripts('/service-worker-runtime.js'); // Production uses semver; previews add the deployment SHA. AI activation UX revision: 2026-08-31a.
+importScripts('/version.js'); importScripts('/service-worker-runtime.js'); // Production uses semver; previews add the deployment SHA. Agent proposal preview revision: 2026-09-01c.
 const PROD_HOSTS = new Set(['app.getbased.health', 'getbased.health', 'www.getbased.health']); const IS_PROD = PROD_HOSTS.has(self.location.hostname); let _cacheNamePromise = null;
 async function resolveCacheName() {
   const base = `labcharts-v${self.APP_VERSION}`;
@@ -14,17 +14,7 @@ async function resolveCacheName() {
 const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for first-launch offline use.
   '/version.js', '/service-worker-runtime.js',
   '/index.html', '/app',
-  '/styles.css',
-  '/css/app-shell.css',
-  '/css/import.css',
-  '/css/emf.css',
-  '/css/modal-shared.css',
-  '/css/dashboard-core.css',
-  '/css/dashboard-widgets.css',
-  '/css/dashboard-welcome.css',
-  '/css/dashboard-data.css',
-  '/css/category-views.css',
-  '/css/context-profile.css',
+  '/styles.css', '/css/app-shell.css', '/css/import.css', '/css/emf.css', '/css/modal-shared.css', '/css/dashboard-core.css', '/css/dashboard-widgets.css', '/css/dashboard-welcome.css', '/css/dashboard-data.css', '/css/category-views.css', '/css/context-profile.css',
   '/css/context-editor.css',
   '/css/genetics.css',
   '/css/data-protection.css',
@@ -240,7 +230,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/export-report.js', '/js/export-report-data.js',
   '/js/export-report-html.js',
   '/js/export-report-builder.js',
-  '/js/chat.js',
+  '/js/agent-actions/registry.js', '/js/agent-actions/schemas.js', '/js/agent-access-proposals.js', '/js/agent-proposal-dogfood-bootstrap.js', '/js/agent-proposal-inbox.js', '/js/agent-proposal-polling.js', '/js/agent-proposal-ui.js', '/js/agent-runtime.js', '/js/chat.js',
   '/js/chat-window-bindings.js',
   '/js/chat-marker-prompts.js',
   '/js/chat-attestation.js',

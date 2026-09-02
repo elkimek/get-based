@@ -3,7 +3,7 @@
 
 import {
   COMPOSITE_KEYED_ARRAYS,
-  compareRecordFreshness,
+  pickConfiguredArrayRecord,
   pickTimestamp,
   getAt,
   setAt,
@@ -35,6 +35,7 @@ export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows, o
   const cfg = DELTA_ARRAY_CONFIG[arrayName] || {};
   const rawItemIdFn = typeof cfg.itemIdFn === 'function' ? cfg.itemIdFn : (it => (it && typeof it.id === 'string' ? it.id : null));
   const itemIdFn = (it) => { const id = rawItemIdFn(it); return _isAllowlistSafeId(id) ? id : null; };
+  const mergeItemFn = typeof cfg.mergeItemFn === 'function' ? cfg.mergeItemFn : null;
   const baselineSyncedAt = Number.isFinite(options.baselineSyncedAt)
     ? Number(options.baselineSyncedAt)
     : 0;
@@ -70,6 +71,14 @@ export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows, o
         const ts = pickTimestamp(item);
         const sa = String(row.syncedAt || '');
         const cur = liveById.get(row.itemId);
+        if (cur && mergeItemFn) {
+          const selected = mergeItemFn(cur.item, item);
+          if (selected === cur.item) continue;
+          if (selected === item) {
+            liveById.set(row.itemId, { item, ts, syncedAt: sa });
+            continue;
+          }
+        }
         if (!cur || ts > cur.ts || (ts === cur.ts && sa > cur.syncedAt)) {
           liveById.set(row.itemId, { item, ts, syncedAt: sa });
         }
@@ -125,8 +134,9 @@ export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows, o
       // The blob merge may already contain a fresh local edit that has not
       // reached the per-row relay yet. Keep current on ties too; this must
       // match unionById/localHasRowsRemoteLacks in data-merge.js.
-      if (compareRecordFreshness(item, nextArr[idx]) <= 0) continue;
-      nextArr[idx] = item;
+      const selected = pickConfiguredArrayRecord(arrayName, nextArr[idx], item);
+      if (selected === nextArr[idx]) continue;
+      nextArr[idx] = selected;
     }
     else nextArr.push(item);
   }

@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "maximums": {
     "startupJavaScriptFiles": 2,
-    "startupDecodedBytes": 1180000,
+    "startupDecodedBytes": 1195000,
     "outputJavaScriptFiles": 158,
-    "outputDecodedBytes": 5025000
+    "outputDecodedBytes": 5065000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -43,8 +43,13 @@
     "routeAwareAiConsentStartupDecodedBytes": 1177819,
     "routeAwareAiConsentOutputDecodedBytes": 5009169,
     "onDeviceVoiceOutputDecodedBytes": 5017872,
-    "voiceStreamingUxOutputDecodedBytes": 5023375
+    "voiceStreamingUxOutputDecodedBytes": 5023375,
+    "agentHarnessSunProposalOutputDecodedBytes": 5029416,
+    "externalAgentProposalInboxStartupDecodedBytes": 1188775,
+    "externalAgentProposalInboxOutputDecodedBytes": 5042219,
+    "agentProposalDogfoodBootstrapStartupDecodedBytes": 1191765,
+    "agentProposalHardeningOutputDecodedBytes": 5056987
   },
   "referenceCommit": "807732a8",
-  "measuredAt": "2026-08-30"
+  "measuredAt": "2026-09-01"
 }

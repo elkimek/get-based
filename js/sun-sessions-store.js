@@ -34,6 +34,7 @@ import { createUniqueId } from './unique-id.js';
  * @property {(opts: any) => number} retinalUVdose
  * @property {(date: Date, lat: number, lon: number) => number} solarZenithAngle
  * @property {(skinType: string) => string | null} skinTypeToFitzpatrick
+ * @property {(options?: any) => Promise<boolean>} persistImportedData
  */
 
 /** @type {SunSessionsStoreDeps} */
@@ -51,6 +52,7 @@ const storeDeps = {
   retinalUVdose: () => 0,
   solarZenithAngle: () => 90,
   skinTypeToFitzpatrick: (skinType) => (String(skinType || '').match(/^(I{1,3}|IV|VI?)\b/) || [])[1] || null,
+  persistImportedData: saveImportedData,
 };
 
 /** @param {Partial<SunSessionsStoreDeps>} [deps] */
@@ -177,6 +179,17 @@ export async function stopSession(id) {
 
 // Log a completed session in one shot (after-the-fact entry).
 export async function logCompletedSession(payload) {
+  const sessions = getSessions();
+  const idempotencyKey = payload?.createdBy?.type === 'agent'
+    && typeof payload.createdBy.idempotencyKey === 'string'
+    ? payload.createdBy.idempotencyKey
+    : null;
+  if (idempotencyKey) {
+    const existing = sessions.find(candidate => candidate?.createdBy?.type === 'agent'
+      && candidate.createdBy.actionId === payload.createdBy.actionId
+      && candidate.createdBy.idempotencyKey === idempotencyKey);
+    if (existing?.id) return existing.id;
+  }
   const id = createUniqueId('sun_');
   const session = Object.assign({
     id,
@@ -194,8 +207,20 @@ export async function logCompletedSession(payload) {
   }, payload);
   if (!session.durationMin) session.durationMin = Math.max(0, (session.endedAt - session.startedAt) / 60000);
   session.calculationStatus = session.location ? 'pending' : 'needs-location';
-  getSessions().push(session);
-  await saveImportedData();
+  sessions.push(session);
+  let saved;
+  try {
+    saved = await storeDeps.persistImportedData();
+  } catch (error) {
+    const index = sessions.findIndex(candidate => candidate === session || candidate?.id === id);
+    if (index >= 0) sessions.splice(index, 1);
+    throw error;
+  }
+  if (saved !== true) {
+    const index = sessions.findIndex(candidate => candidate === session || candidate?.id === id);
+    if (index >= 0) sessions.splice(index, 1);
+    throw new Error('Could not save completed sunlight session');
+  }
   return id;
 }
 

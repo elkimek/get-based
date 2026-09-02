@@ -238,15 +238,21 @@ export async function mergePulledImportedData(profileId, importedData, options =
   const preservedFreshLocalEntries = preserveFreshLocalLabEntries(merged, localImportedForMerge);
   const preservedFreshLocalContextAI = preserveFreshLocalBiologyScoreContextAI(merged, localImportedForMerge, remoteImportedForFreshness);
   const preservedFreshLocalScoreAI = preserveFreshLocalBiologyScoreAI(merged, localImportedForMerge, remoteImportedForFreshness);
+  const agentProposalsBeforeMigration = Array.isArray(merged?.agentProposals)
+    ? importedDataSnapshot(merged.agentProposals)
+    : null;
   // Normalize the merged payload before change detection and persistence. If a
   // remote row still carries an old schema key/shape, refreshing the active
   // profile used to migrate only in-memory state after persist; the next pull
   // then saw the same old remote row as a fresh local change again, causing
   // repeated "Data updated from another device" toasts and rebroadcast loops.
   migrateProfileData(merged);
+  const agentProposalsCanonicalized = agentProposalsBeforeMigration !== null
+    && !importedDataMatches(agentProposalsBeforeMigration, merged.agentProposals);
 
   const mergeMsg = `Pull ${profileId.slice(0,8)} — local sun=${countArray(localImportedForMerge,'sunSessions')}/dev=${countArray(localImportedForMerge,'lightDevices')} · remote sun=${countArray(importedData,'sunSessions')}/dev=${countArray(importedData,'lightDevices')} · merged sun=${countArray(merged,'sunSessions')}/dev=${countArray(merged,'lightDevices')}`;
   const needsRebroadcast = preservedFreshLocalEntries || preservedFreshLocalContextAI || preservedFreshLocalScoreAI
+    || agentProposalsCanonicalized
     || (!!localImportedForMerge && !!importedData
       && localHasRowsRemoteLacks(localImportedForMerge, importedData));
   const remoteBroughtNewRows = !preservedFreshLocalEntries && !!localImportedForMerge && !!importedData

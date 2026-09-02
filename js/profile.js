@@ -19,8 +19,7 @@ import {
   saveProfiles as saveStoredProfiles,
 } from './profile-list-store.js';
 import {
-  clearLocalProfileDeleteIntent, isDemoProfileId, markLocalProfileDeleteIntent,
-  queueEligibleProfileSync,
+  clearLocalProfileDeleteIntent, isDemoProfileId, markLocalProfileDeleteIntent, queueEligibleProfileSync,
 } from './profile-sync-policy.js';
 
 export { migrateProfileData, profileStorageKey };
@@ -256,6 +255,7 @@ export function createDefaultProfileData() {
     nutritionMeals: [],
     changeHistory: [],
     importSnapshots: [],
+    agentProposals: [],
     biometrics: null,
     manualValues: {},
     manualMetricTombstones: {},

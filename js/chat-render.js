@@ -21,6 +21,7 @@ import { renderEmptyChatState } from './chat-empty-state.js';
 import { isChatRenderProductRecsEnabled, renderChatRecommendationSections } from './chat-render-runtime.js';
 import { sanitizeChatThumbnailUrl } from './chat-storage-safety.js';
 import { recommendationSummaryHTML } from './chat-recommendation-disclosure.js';
+import { renderAgentProposalCard } from './agent-proposal-ui.js';
 import {
   followChatLatest, initChatScrollControls, notifyChatContentAdded,
 } from './chat-scroll.js';
@@ -143,6 +144,7 @@ export function renderChatMessages({ preserveScroll = false } = {}) {
         const e2eeTag = msg.e2ee ? e2eeLockFootnote(msg.attestation) : '';
         html += `<div class="chat-cost-footnote">${escapeHTML(mName)} \u00b7 ${escapeHTML(formatCost(cost))} \u00b7 ${totalTokens.toLocaleString()} tokens${webTag}${e2eeTag}</div>`;
       }
+      if (msg.agentProposal) html += renderAgentProposalCard(msg.agentProposal, i);
       html += buildActionBar(i);
       // Lens citations — show which excerpts the AI received with this question.
       // Persisted on the message so re-rendering or switching threads keeps

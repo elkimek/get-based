@@ -35,6 +35,7 @@ export const DELTA_ARRAYS = [
   'changeHistory',
   'chatSummaries',
   'importSnapshots',
+  'agentProposals',
   // Reviewed meal records sync as ordinary per-meal rows. Image persistence is
   // sanitized to the 240px thumbnail before this surface is updated.
   'nutritionMeals',

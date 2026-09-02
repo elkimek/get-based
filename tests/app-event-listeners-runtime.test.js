@@ -5,6 +5,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 const shell = vi.hoisted(() => ({
   buildSidebar: vi.fn(),
   endTour: vi.fn(),
+  refreshAgentProposalNavBadge: vi.fn(),
   refreshCallback: null,
   registerRefreshCallback: vi.fn(callback => {
     shell.refreshCallback = callback;
@@ -14,7 +15,10 @@ const shell = vi.hoisted(() => ({
 
 vi.mock('../js/state.js', () => ({ state: shell.state }));
 vi.mock('../js/data.js', () => ({ registerRefreshCallback: shell.registerRefreshCallback }));
-vi.mock('../js/nav.js', () => ({ buildSidebar: shell.buildSidebar }));
+vi.mock('../js/nav.js', () => ({
+  buildSidebar: shell.buildSidebar,
+  refreshAgentProposalNavBadge: shell.refreshAgentProposalNavBadge,
+}));
 vi.mock('../js/tour.js', () => ({ endTour: shell.endTour }));
 
 const appEvents = await import('../js/app-event-listeners.js');

@@ -3,6 +3,28 @@
 
 import { _djb2, _isAllowlistSafeId } from './sync-delta-id.js';
 
+export function agentProposalTimestamp(proposal) {
+  const terminalAt = proposal?.status === 'applied'
+    ? proposal?.appliedAt
+    : proposal?.status === 'dismissed' ? proposal?.dismissedAt : null;
+  for (const value of [proposal?.updatedAt, terminalAt, proposal?.issuedAt, proposal?.createdAt]) {
+    const parsed = Date.parse(typeof value === 'string' ? value : '');
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+}
+
+export function mergeAgentProposalItems(current, candidate) {
+  const ranks = { pending: 0, dismissed: 1, applied: 2 };
+  const currentRank = ranks[current?.status] ?? -1;
+  const candidateRank = ranks[candidate?.status] ?? -1;
+  if (currentRank !== candidateRank) return candidateRank > currentRank ? candidate : current;
+  const currentTimestamp = agentProposalTimestamp(current);
+  const candidateTimestamp = agentProposalTimestamp(candidate);
+  if (currentTimestamp === candidateTimestamp) return null;
+  return candidateTimestamp > currentTimestamp ? candidate : current;
+}
+
 function unsafeMapKeyToHexId(rawKey, prefix) {
   if (typeof rawKey !== 'string' || rawKey.length === 0) return null;
   if (_isAllowlistSafeId(rawKey)) return rawKey;
@@ -14,6 +36,31 @@ function unsafeMapKeyToHexId(rawKey, prefix) {
 // Per-array overrides for arrays that do not fit the default
 // `it.id` / tombstone-on-removal contract.
 export const DELTA_ARRAY_CONFIG = {
+  // Agent-originated sessions use the proposal idempotency key as their
+  // cross-device identity. Two devices can Apply the same pending proposal
+  // concurrently and generate different local `sun_*` ids; this logical key
+  // makes the sync merge converge to one committed session.
+  sunSessions: {
+    itemIdFn: (it) => {
+      const createdBy = it?.createdBy;
+      if (createdBy?.type !== 'agent'
+          || typeof createdBy.actionId !== 'string'
+          || typeof createdBy.idempotencyKey !== 'string') {
+        return typeof it?.id === 'string' && _isAllowlistSafeId(it.id) ? it.id : null;
+      }
+      const logicalId = `agent.${createdBy.actionId}.${createdBy.idempotencyKey}`;
+      return _isAllowlistSafeId(logicalId) ? logicalId : null;
+    },
+  },
+  // Proposal decisions are monotonic. A stale device may rebroadcast Pending
+  // with a newer wall-clock timestamp, but it must never undo Dismissed or
+  // Applied; once the action ran, Applied also dominates Dismissed.
+  agentProposals: {
+    itemIdFn: (it) => (
+      it && typeof it.id === 'string' && _isAllowlistSafeId(it.id) ? it.id : null
+    ),
+    mergeItemFn: mergeAgentProposalItems,
+  },
   // changeHistory uses either the context `{ field, date }` shape or a
   // wearable anomaly `{ type, source, metricId, kind, ts }` shape. Both need
   // stable ids so explicit privacy deletions can survive cross-device sync.

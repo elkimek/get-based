@@ -128,6 +128,13 @@ assert('version.js sets APP_VERSION', versionMatch !== null, versionMatch ? `'${
 assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]), versionMatch ? versionMatch[1] : '');
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
+assert('latest patch connects the isolated proposal preview identity',
+  /version:\s*'1\.20\.2'[\s\S]{0,700}isolated local preview identity/.test(changelogSrc)
+    && /version:\s*'1\.20\.2'[\s\S]{0,1100}nothing is applied automatically/.test(changelogSrc));
+assert('latest changelog introduces review-before-save app actions in plain language',
+  /version:\s*'1\.19\.0'[\s\S]{0,500}Chat can prepare app changes for your review/.test(changelogSrc)
+    && /version:\s*'1\.19\.0'[\s\S]{0,1400}Tell Chat that you finished a sunlight session/.test(changelogSrc)
+    && /version:\s*'1\.19\.0'[\s\S]{0,1400}nothing changes until you choose Apply/.test(changelogSrc));
 assert('latest changelog gives a short user-readable Meals & Nutrition overview',
   /version:\s*'1\.18\.0'[\s\S]{0,500}Meals & Nutrition arrives/.test(changelogSrc)
     && /version:\s*'1\.18\.0'[\s\S]{0,2200}Log, review, and reuse meals/.test(changelogSrc)

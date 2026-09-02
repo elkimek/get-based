@@ -143,3 +143,101 @@
   color: var(--text-secondary);
   white-space: nowrap;
 }
+
+/* AI-proposed app actions — explicit review boundary before profile writes. */
+.agent-proposal-card {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 62%, var(--border));
+  border-left: 4px solid var(--accent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg-secondary));
+  box-shadow: 3px 3px 0 color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.agent-proposal-eyebrow {
+  margin-bottom: 5px;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.agent-proposal-card h4 {
+  margin: 0 0 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.35;
+}
+.agent-proposal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.agent-proposal-field {
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+.agent-proposal-field span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--text-muted);
+  font-size: 10px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.agent-proposal-field strong {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.agent-proposal-privacy,
+.agent-proposal-status,
+.agent-proposal-warning,
+.agent-proposal-error {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.agent-proposal-privacy { color: var(--text-secondary); }
+.agent-proposal-status { color: var(--text-muted); }
+.agent-proposal-status-success { color: var(--green); font-weight: 700; }
+.agent-proposal-warning { color: var(--yellow); }
+.agent-proposal-error { color: var(--red); }
+.agent-proposal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.agent-proposal-actions button {
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.agent-proposal-apply {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.agent-proposal-dismiss {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+}
+.agent-proposal-actions button:hover { filter: brightness(1.08); }
+.agent-proposal-actions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (max-width: 520px) {
+  .agent-proposal-grid { grid-template-columns: 1fr; }
+  .agent-proposal-actions button { flex: 1; }
+}

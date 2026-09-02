@@ -1227,7 +1227,7 @@ describe('AI provider request contracts', () => {
       jsonMode: true,
       reasoningEffort: 'none',
       preferNativeContext: true,
-    }))).rejects.toThrow(/context is too small.*supports up to 8,192/i);
+    }))).rejects.toThrow(/context is too small.*supports up to 8[\s,]?192/i);
     expect(globalThis.fetch.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
   });
 

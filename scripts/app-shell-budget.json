@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scenario": "Production service-worker app-shell precache during PWA installation",
   "maximums": {
-    "resources": 338,
-    "decodedBytes": 18170000
+    "resources": 345,
+    "decodedBytes": 18265000
   },
   "reference": {
     "resources": 277,
@@ -14,8 +14,13 @@
     "evolu8DefaultCutoverResources": 334,
     "evolu8DefaultCutoverDecodedBytes": 18016786,
     "routeAwareAiConsentDecodedBytes": 18142674,
-    "voiceStreamingUxDecodedBytes": 18167190
+    "voiceStreamingUxDecodedBytes": 18167190,
+    "agentHarnessSunProposalResources": 341,
+    "agentHarnessSunProposalDecodedBytes": 18193956,
+    "externalAgentProposalInboxDecodedBytes": 18229755,
+    "agentProposalDogfoodBootstrapDecodedBytes": 18241263,
+    "agentProposalHardeningDecodedBytes": 18253124
   },
   "referenceCommit": "807732a8",
-  "measuredAt": "2026-08-30"
+  "measuredAt": "2026-09-01"
 }

@@ -1296,8 +1296,9 @@ await import('../js/settings.js');
   assert('_mergeItemRowsIntoImported ignores stale remote tombstones when local item is newer',
     /remoteTombs\.set\(row\.itemId[\s\S]{0,1800}tombAt\s*>=\s*Math\.max\(pickTimestamp\(item\),\s*canonicalBlobAt\)/.test(syncDeltaArrayMergeSrc));
   assert('_mergeItemRowsIntoImported preserves fresher local non-lab items over stale per-row payloads',
-    /compareRecordFreshness\(item,\s*nextArr\[idx\]\)\s*<=\s*0[\s\S]{0,120}continue/.test(syncDeltaArrayMergeSrc)
-      && /nextArr\[idx\]\s*=\s*item/.test(syncDeltaArrayMergeSrc));
+    /pickConfiguredArrayRecord\(arrayName,\s*nextArr\[idx\],\s*item\)/.test(syncDeltaArrayMergeSrc)
+      && /selected\s*===\s*nextArr\[idx\][\s\S]{0,80}continue/.test(syncDeltaArrayMergeSrc)
+      && /nextArr\[idx\]\s*=\s*selected/.test(syncDeltaArrayMergeSrc));
   assert('_mergeItemRowsIntoImported merges same-date lab entries instead of replacing marker maps',
     /import\s*\{[^}]*mergeLabEntry[^}]*\}\s*from\s*['"]\.\/data-merge\.js['"]/.test(syncDeltaArrayMergeSrc)
       && /arrayName\s*===\s*'entries'[\s\S]{0,120}mergeLabEntry\(nextArr\[idx\],\s*item\)/.test(syncDeltaArrayMergeSrc));

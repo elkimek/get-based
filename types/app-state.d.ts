@@ -44,6 +44,7 @@ export interface ProfileData {
   nutritionMeals?: any[] | null;
   changeHistory: any[];
   importSnapshots: any[];
+  agentProposals?: any[];
   biometrics?: Record<string, any> | null;
   manualMetricTombstones?: Record<string, number>;
   manualValues?: Record<string, any>;

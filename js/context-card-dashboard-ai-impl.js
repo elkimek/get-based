@@ -40,6 +40,7 @@ import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { migrateStoredContextSourceSettingsToProfile } from './context-source-registry.js';
 import { openInterpretiveLensEditorRuntime } from './context-cards-runtime.js';
 import { notifyDashboardAIContextStatusChanged } from './context-card-dashboard-ai-runtime.js';
+import { installAgentProposalInboxActions, renderAgentProposalInbox } from './agent-proposal-inbox.js';
 
 let dashboardAISyncSetupHandler = showSyncSetupModal;
 const dashboardAIDataProtectionDeps = { pickFolderForBackup, showEnableEncryptionModal };
@@ -719,6 +720,7 @@ export function openContextModal() {
     </div>
     <div class="gb-form-body context-hub-body">
       <div class="context-hub-scroll">
+        ${renderAgentProposalInbox()}
         ${renderAnswerGroundingPanel({ lensSet, kbSet, kbEnabled, kbSummary, check })}
         ${renderContextSourceControls()}
       </div>
@@ -752,7 +754,16 @@ export function openContextModal() {
     };
   });
   bindContextSourceInputs(overlay);
+  installAgentProposalInboxActions();
 }
+
+export function refreshAgentProposalInboxSurface() {
+  const current = document.querySelector('.agent-proposal-inbox');
+  if (current) current.outerHTML = renderAgentProposalInbox();
+  installAgentProposalInboxActions();
+}
+
+document.addEventListener('getbased-agent-proposals-changed', refreshAgentProposalInboxSurface);
 
 export function openPersonalizeAIPicker() {
   openContextModal();

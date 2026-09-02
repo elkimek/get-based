@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 684,
-  "sinkCount": 545,
+  "scannedFiles": 692,
+  "sinkCount": 546,
   "files": {
     "js/backup.js": {
       "count": 1,
@@ -187,11 +187,11 @@
       }
     },
     "js/context-card-dashboard-ai-impl.js": {
-      "count": 4,
-      "digest": "425bcf47c968cbfc6f72dd5aede7114077c11cd7e19600e6ea8c02fd744f0443",
+      "count": 5,
+      "digest": "a1eb1cf70d1fa50e04df76699777772244d4d4063d2f084156cd8f891c597dc1",
       "kinds": {
         "innerHTML": 2,
-        "outerHTML": 2
+        "outerHTML": 3
       }
     },
     "js/context-card-editor-ui.js": {
@@ -232,7 +232,7 @@
     },
     "js/crypto-ui.js": {
       "count": 20,
-      "digest": "8b917d29d12c72331c3ef3fa6f754ac0e9465b15cf69a3e8f73084fe657ae69b",
+      "digest": "825f2283684a3b5ae93c19eba23c340fc8b664dbfe76144f8c68c0df3bc58b28",
       "kinds": {
         "innerHTML": 20
       }
@@ -628,7 +628,7 @@
     },
     "js/nutrition-review-ui.js": {
       "count": 10,
-      "digest": "682d7a32954d08c122db26cb6563744aec4b29d31a7625003fb69940ac3336e1",
+      "digest": "70e970a978e5f83191952ee5d1684e9c280789adb228c3242468a641936a42b6",
       "kinds": {
         "innerHTML": 10
       }
@@ -735,7 +735,7 @@
     },
     "js/provider-wallet-panels.js": {
       "count": 61,
-      "digest": "4129fafd6e1c22ef66b37aa8002af521c69074aa0f2fb0a52e3c684d83c7dae5",
+      "digest": "0d6c698f6c9ba4079cabc45e6c7b1706dc1fcdd260334b08834badc5a3da2646",
       "kinds": {
         "innerHTML": 61
       }

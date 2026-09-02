@@ -2,6 +2,11 @@
 // app-chat-hooks.js - first-use Chat wiring that must not enter the startup graph.
 
 import { setAIPaused } from './api.js';
+import {
+  applyAgentProposal,
+  configureAgentRuntimeDeps,
+  dismissAgentProposal,
+} from './agent-runtime.js';
 import { configureChatMessageActionDeps } from './chat-actions.js';
 import { configureChatEmptyStateDeps } from './chat-empty-state.js';
 import {
@@ -43,6 +48,7 @@ import {
   viewSavedSummary,
 } from './chat-summaries.js';
 import { configureChatThreadSearch, jumpToSearchResult } from './chat-thread-search.js';
+import { saveChatHistory } from './chat-history.js';
 import { updateChatNudge } from './chat-nudge.js';
 import {
   updateChatHeaderModel,
@@ -92,11 +98,14 @@ export function configureAppChatHooks(deps = {}) {
     updateChatNudge,
   });
   configureChatMessageEditDeps({ renderChatMessages, sendChatMessage, updateChatInputState });
+  configureAgentRuntimeDeps({ renderChatMessages, saveChatHistory });
   configureChatMessageActionDeps({
+    applyAgentProposal,
     closeSummaryModal,
     continueDiscussion,
     copySummary,
     deleteSavedSummary,
+    dismissAgentProposal,
     downloadSummary,
     endDiscussion,
     editUserMessage: beginChatMessageEdit,

@@ -283,8 +283,12 @@ export function buildSidebar(data) {
   html += `<div class="nav-section">Manage</div>`;
   html += `<div class="nav-item" data-category="reports" tabindex="0" role="button" ${_navActionAttrs('open-report-builder')}>
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('report')}</span><span class="nav-item-label">Reports</span><span class="nav-item-dot"></span></div>`;
+  const pendingAgentProposals = Array.isArray(state.importedData?.agentProposals)
+    ? state.importedData.agentProposals.filter(proposal => proposal?.status === 'pending'
+      && Date.parse(proposal.expiresAt || '') > Date.now()).length
+    : 0;
   html += `<div class="nav-item" data-category="context" tabindex="0" role="button" ${_navActionAttrs('open-context')}>
-    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('context')}</span><span class="nav-item-label">Context</span><span class="nav-item-dot"></span></div>`;
+    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('context')}</span><span class="nav-item-label">Context</span>${pendingAgentProposals ? `<span class="nav-item-count" aria-label="${pendingAgentProposals} pending agent proposal${pendingAgentProposals === 1 ? '' : 's'}">${pendingAgentProposals > 9 ? '9+' : pendingAgentProposals}</span>` : '<span class="nav-item-dot"></span>'}</div>`;
   html += `<div class="nav-item" data-category="knowledge-base" tabindex="0" role="button" ${_navActionAttrs('open-knowledge-base')}>
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('knowledge')}</span><span class="nav-item-label">Knowledge Base</span><span class="nav-item-dot"></span></div>`;
   html += `<div class="nav-item" data-category="custom-markers" tabindex="0" role="button" ${_navActionAttrs('open-custom-marker')}>
@@ -333,6 +337,25 @@ export function buildSidebar(data) {
 
   nav.innerHTML = html;
   syncSidebarActive(state.currentView || 'dashboard');
+}
+
+export function refreshAgentProposalNavBadge() {
+  const item = document.querySelector('#sidebar-nav .nav-item[data-category="context"]');
+  if (!item) return;
+  const count = Array.isArray(state.importedData?.agentProposals)
+    ? state.importedData.agentProposals.filter(proposal => proposal?.status === 'pending'
+      && Date.parse(proposal.expiresAt || '') > Date.now()).length
+    : 0;
+  item.querySelector('.nav-item-count, .nav-item-dot')?.remove();
+  const badge = document.createElement('span');
+  if (count > 0) {
+    badge.className = 'nav-item-count';
+    badge.setAttribute('aria-label', `${count} pending agent proposal${count === 1 ? '' : 's'}`);
+    badge.textContent = count > 9 ? '9+' : String(count);
+  } else {
+    badge.className = 'nav-item-dot';
+  }
+  item.appendChild(badge);
 }
 
 function _getGroupCollapsed(groupName) {

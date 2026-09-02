@@ -33,6 +33,11 @@ import {
   handleCatalogDeployRequest,
 } from './lib/dev-catalog.js';
 import { handleDevFetchPage } from './lib/dev-url-fetch.js';
+import {
+  _handleAgentProposalDevProxy,
+  _resolveAgentProposalProxyTarget,
+} from './lib/dev-agent-proposal-proxy.js';
+import { _handleAgentProposalDogfoodBootstrap } from './lib/dev-agent-proposal-dogfood.js';
 
 export {
   DEFAULT_UVDATA_UPSTREAM,
@@ -42,6 +47,9 @@ export {
   _isValidCatalogShape,
   _resolveCatalogRepo,
   _runPostDeployHooks,
+  _handleAgentProposalDevProxy,
+  _resolveAgentProposalProxyTarget,
+  _handleAgentProposalDogfoodBootstrap,
 };
 
 export function _sendCappedProxyResponse(req, res, proxyRes) {
@@ -471,6 +479,17 @@ const server = http.createServer((req, res) => {
   // encrypted records in memory only.
   if (pathname === '/api/share') {
     _handleProfileShareDev(req, res, url);
+    return;
+  }
+
+  if (pathname === '/api/agent-proposals' || pathname.startsWith('/api/agent-proposals/')) {
+    req.url = pathname;
+    _handleAgentProposalDevProxy(req, res);
+    return;
+  }
+
+  if (pathname === '/api/agent-proposal-dogfood-bootstrap') {
+    _handleAgentProposalDogfoodBootstrap(req, res);
     return;
   }
 

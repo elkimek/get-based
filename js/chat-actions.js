@@ -24,10 +24,12 @@ import { setChatInputValue } from './chat-composer.js';
 import { restoreMessageAttachments } from './chat-images.js';
 
 const chatMessageActionDeps = {
+  applyAgentProposal: /** @type {(index: number) => void | Promise<any>} */ (() => {}),
   closeSummaryModal: /** @type {() => void} */ (() => {}),
   continueDiscussion: /** @type {() => void | Promise<void>} */ (() => {}),
   copySummary: /** @type {() => void} */ (() => {}),
   deleteSavedSummary: /** @type {(id: string) => void | Promise<void>} */ (() => {}),
+  dismissAgentProposal: /** @type {(index: number) => void | Promise<any>} */ (() => {}),
   downloadSummary: /** @type {() => void} */ (() => {}),
   endDiscussion: /** @type {() => void} */ (() => {}),
   editUserMessage: /** @type {(index: number) => void} */ (() => {}),
@@ -90,7 +92,15 @@ function runChatMessageAction(actionEl, event) {
     return true;
   }
 
-  if (action === 'regenerate-last-message') {
+  if (action === 'apply-agent-proposal') {
+    const index = readMessageIndex(actionEl);
+    if (index == null) return false;
+    void chatMessageActionDeps.applyAgentProposal(index);
+  } else if (action === 'dismiss-agent-proposal') {
+    const index = readMessageIndex(actionEl);
+    if (index == null) return false;
+    void chatMessageActionDeps.dismissAgentProposal(index);
+  } else if (action === 'regenerate-last-message') {
     regenerateLastMessage();
   } else if (action === 'copy-message') {
     const index = readMessageIndex(actionEl);

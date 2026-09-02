@@ -302,6 +302,82 @@
   padding-right: 2px;
   -webkit-overflow-scrolling: touch;
 }
+.agent-proposal-inbox {
+  margin: 0 0 14px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-card));
+}
+.agent-proposal-inbox__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.context-section-kicker {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.agent-proposal-inbox h3,
+.agent-inbox-card h4 { margin: 0; color: var(--text-primary); }
+.agent-proposal-inbox h3 { font-size: 15px; }
+.agent-proposal-inbox__count {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg-card));
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+}
+.agent-proposal-inbox__intro,
+.agent-inbox-empty {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.agent-proposal-inbox__list {
+  display: grid;
+  gap: 9px;
+  margin-top: 10px;
+}
+.agent-inbox-card {
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: 11px;
+  background: var(--bg-elevated, var(--bg-card));
+}
+.agent-inbox-card__eyebrow {
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.agent-inbox-card h4 { font-size: 13px; line-height: 1.35; }
+.agent-inbox-card__notes {
+  margin-top: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.agent-inbox-card__status {
+  margin-top: 7px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.agent-inbox-card--applied .agent-inbox-card__status { color: var(--green); }
+.agent-inbox-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.agent-inbox-card__actions .import-btn { min-height: 38px; padding: 8px 14px; }
 .context-source-panel {
   margin: 14px 0 10px;
   padding: 0;
@@ -528,6 +604,9 @@
   .context-source-timeframe select { min-height: 44px; font-size: 16px; }
   .context-source-summary { grid-template-columns: 1fr; }
   .context-summary-detail { white-space: normal; }
+  .agent-proposal-inbox { padding: 12px; }
+  .agent-inbox-card__actions { flex-direction: column; }
+  .agent-inbox-card__actions .import-btn { width: 100%; min-height: 44px; }
   .context-hub-actions { align-items: stretch; flex-direction: column; }
   .context-hub-save-note { text-align: center; }
   .context-hub-actions .import-btn,

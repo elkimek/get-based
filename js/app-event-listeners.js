@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { registerRefreshCallback } from './data.js';
-import { buildSidebar } from './nav.js';
+import { buildSidebar, refreshAgentProposalNavBadge } from './nav.js';
 import { endTour } from './tour.js';
 
 let globalEventsBound = false;
@@ -289,6 +289,7 @@ export function installGlobalEventListeners() {
   document.addEventListener("click", handleDocumentClick);
   document.addEventListener("keydown", handleRoleButtonKeydown);
   document.addEventListener("keydown", handleAppKeydown);
+  document.addEventListener('getbased-agent-proposals-changed', refreshAgentProposalNavBadge);
 }
 
 export function registerAppRefreshCallback() {
