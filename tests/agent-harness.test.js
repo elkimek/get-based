@@ -23,7 +23,6 @@ import {
   installChatMessageActionDelegates,
 } from '../js/chat-actions.js';
 import { renderChatMessages } from '../js/chat-render.js';
-import { saveImportedData, saveImportedDataForProfile } from '../js/data.js';
 import { state } from '../js/state.js';
 import { configureSunSessionsStore, logCompletedSession } from '../js/sun-sessions-store.js';
 
@@ -31,6 +30,7 @@ const defaultDeps = configureAgentActionDeps();
 const defaultRuntimeDeps = configureAgentRuntimeDeps();
 const defaultChatActionDeps = configureChatMessageActionDeps();
 const defaultChatSendAgentDeps = configureChatSendAgentDeps();
+const defaultSunStoreDeps = configureSunSessionsStore();
 const originalImportedData = structuredClone(state.importedData);
 
 afterEach(() => {
@@ -41,10 +41,7 @@ afterEach(() => {
   state.chatHistory = [];
   state.importedData = structuredClone(originalImportedData);
   state.currentThreadId = null;
-  configureSunSessionsStore({
-    persistImportedData: saveImportedData,
-    persistImportedDataForProfile: saveImportedDataForProfile,
-  });
+  configureSunSessionsStore(defaultSunStoreDeps);
   localStorage.clear();
   document.body.innerHTML = '';
   vi.restoreAllMocks();
@@ -221,6 +218,46 @@ describe('getbased agent action registry', () => {
       expect.objectContaining({ forceProfileScope: true }),
     );
     expect(persistImportedData).not.toHaveBeenCalled();
+  });
+
+  it('writes an agent session into the latest durable inactive-profile snapshot', async () => {
+    const persistImportedDataForProfile = vi.fn(async () => true);
+    const capturedProfileA = { contextNotes: 'old', sunSessions: [] };
+    const refreshedProfileA = { contextNotes: 'fresh', sunSessions: [] };
+    const profileB = { contextNotes: 'profile-b', sunSessions: [] };
+    const loadProfileData = vi.fn(async () => refreshedProfileA);
+    configureSunSessionsStore({ loadProfileData, persistImportedDataForProfile });
+    state.currentProfile = 'profile-b';
+    state.importedData = profileB;
+
+    await expect(logCompletedSession({
+      durationMin: 30,
+      startedAt: Date.parse('2026-09-01T10:00:00.000Z'),
+      endedAt: Date.parse('2026-09-01T10:30:00.000Z'),
+      createdBy: {
+        type: 'agent',
+        actionId: 'sun.session.log',
+        idempotencyKey: 'proposal-inactive-domain',
+      },
+    }, {
+      profileId: 'profile-a',
+      importedData: capturedProfileA,
+    })).resolves.toEqual(expect.any(String));
+
+    expect(loadProfileData).toHaveBeenCalledWith('profile-a');
+    expect(refreshedProfileA.contextNotes).toBe('fresh');
+    expect(refreshedProfileA.sunSessions).toHaveLength(1);
+    expect(capturedProfileA.sunSessions).toEqual([
+      expect.objectContaining({
+        createdBy: expect.objectContaining({ idempotencyKey: 'proposal-inactive-domain' }),
+      }),
+    ]);
+    expect(profileB).toEqual({ contextNotes: 'profile-b', sunSessions: [] });
+    expect(persistImportedDataForProfile).toHaveBeenCalledWith(
+      'profile-a',
+      refreshedProfileA,
+      expect.objectContaining({ reason: 'agent-action-sun-session' }),
+    );
   });
 });
 

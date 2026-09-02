@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 717 |
-| Internal import edges | 3058 |
+| Internal import edges | 3060 |
 | Dynamic internal edges | 101 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -65,9 +65,9 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 81 | [`js/settings.js`](js/settings.js) | 28 |
 | [`js/data.js`](js/data.js) | 77 | [`js/sync-configure.js`](js/sync-configure.js) | 28 |
 | [`js/api.js`](js/api.js) | 70 | [`js/wearables-connect.js`](js/wearables-connect.js) | 27 |
-| [`js/profile.js`](js/profile.js) | 47 | [`js/pdf-import.js`](js/pdf-import.js) | 26 |
+| [`js/profile.js`](js/profile.js) | 48 | [`js/pdf-import.js`](js/pdf-import.js) | 26 |
 | [`js/schema.js`](js/schema.js) | 37 | [`js/lab-context.js`](js/lab-context.js) | 24 |
-| [`js/crypto.js`](js/crypto.js) | 34 | [`js/export.js`](js/export.js) | 23 |
+| [`js/crypto.js`](js/crypto.js) | 35 | [`js/export.js`](js/export.js) | 23 |
 | [`js/data-merge.js`](js/data-merge.js) | 33 | [`js/views.js`](js/views.js) | 22 |
 | [`js/utils-runtime.js`](js/utils-runtime.js) | 21 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
 | [`js/constants.js`](js/constants.js) | 20 | [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | 20 |
@@ -1105,7 +1105,7 @@ Native browser modules shipped with the static application.
 - [`js/sun-session-model.js`](js/sun-session-model.js) → no in-scope imports
 - [`js/sun-session-ui-hooks.js`](js/sun-session-ui-hooks.js) → [`js/sun-session-ui.js`](js/sun-session-ui.js), [`js/views.js`](js/views.js)
 - [`js/sun-session-ui.js`](js/sun-session-ui.js) → [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/sun-body-silhouette.js`](js/sun-body-silhouette.js), [`js/sun-session-actions.js`](js/sun-session-actions.js), [`js/sun-session-log-modal.js`](js/sun-session-log-modal.js), [`js/utils.js`](js/utils.js)
-- [`js/sun-sessions-store.js`](js/sun-sessions-store.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/light-sun-analysis-runtime.js`](js/light-sun-analysis-runtime.js), [`js/profile-data-migrations.js`](js/profile-data-migrations.js), [`js/state.js`](js/state.js), [`js/sun-body-silhouette.js`](js/sun-body-silhouette.js), [`js/sun-session-model.js`](js/sun-session-model.js), [`js/unique-id.js`](js/unique-id.js)
+- [`js/sun-sessions-store.js`](js/sun-sessions-store.js) → [`js/caught-error.js`](js/caught-error.js), [`js/crypto.js`](js/crypto.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/light-sun-analysis-runtime.js`](js/light-sun-analysis-runtime.js), [`js/profile-data-migrations.js`](js/profile-data-migrations.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sun-body-silhouette.js`](js/sun-body-silhouette.js), [`js/sun-session-model.js`](js/sun-session-model.js), [`js/unique-id.js`](js/unique-id.js)
 - [`js/sun-spectrum-actions.js`](js/sun-spectrum-actions.js) → no in-scope imports
 - [`js/sun-spectrum-device.js`](js/sun-spectrum-device.js) → no in-scope imports
 - [`js/sun-spectrum.js`](js/sun-spectrum.js) → [`js/sun-spectrum-actions.js`](js/sun-spectrum-actions.js), [`js/sun-spectrum-device.js`](js/sun-spectrum-device.js)

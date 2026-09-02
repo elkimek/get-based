@@ -1,14 +1,13 @@
 // @ts-check
-// sun-sessions-store.js — persisted Sun session lifecycle, hydration, and safety.
-//
-// This module owns importedData.sunSessions[] CRUD and dose hydration. UI flows
-// stay in sun.js / sun-active-session.js and inject live-runtime hooks here.
+// Persisted Sun session lifecycle; UI flows inject live-runtime hooks here.
 
 import { getErrorMessage } from './caught-error.js';
+import { encryptedGetItem } from './crypto.js';
 import { state } from './state.js';
 import { saveImportedData, saveImportedDataForProfile } from './data.js';
 import { deleteImportedArrayItem } from './data-merge.js';
 import { normalizeAgentProposals } from './profile-data-migrations.js';
+import { migrateProfileData, profileStorageKey } from './profile.js';
 import { requestSunSessionAnalysis } from './light-sun-analysis-runtime.js';
 import { BODY_REGIONS } from './sun-body-silhouette.js';
 import {
@@ -37,6 +36,7 @@ import { createUniqueId } from './unique-id.js';
  * @property {(skinType: string) => string | null} skinTypeToFitzpatrick
  * @property {(options?: any) => Promise<boolean>} persistImportedData
  * @property {(profileId: string, importedData: any, options?: any) => Promise<boolean>} persistImportedDataForProfile
+ * @property {(profileId: string) => Promise<any>} loadProfileData
  */
 
 /** @type {SunSessionsStoreDeps} */
@@ -56,11 +56,21 @@ const storeDeps = {
   skinTypeToFitzpatrick: (skinType) => (String(skinType || '').match(/^(I{1,3}|IV|VI?)\b/) || [])[1] || null,
   persistImportedData: saveImportedData,
   persistImportedDataForProfile: saveImportedDataForProfile,
+  loadProfileData: async (profileId) => {
+    const raw = await encryptedGetItem(profileStorageKey(profileId, 'imported'));
+    if (raw == null) return null;
+    const profileData = JSON.parse(raw);
+    if (!profileData || typeof profileData !== 'object') throw new Error('Stored profile data is invalid');
+    migrateProfileData(profileData);
+    return profileData;
+  },
 };
 
 /** @param {Partial<SunSessionsStoreDeps>} [deps] */
 export function configureSunSessionsStore(deps = {}) {
+  const previous = { ...storeDeps };
   Object.assign(storeDeps, deps);
+  return previous;
 }
 
 function runSessionAnalysis(session) {
@@ -70,9 +80,7 @@ function runSessionAnalysis(session) {
 export function getSessions(importedData = state.importedData) {
   if (!importedData) return [];
   if (!Array.isArray(importedData.sunSessions)) importedData.sunSessions = [];
-  // Strip runtime-only ticker fields that earlier dev builds may have
-  // accidentally persisted onto session objects. One-time cleanup on
-  // first read; no-op on records written after the fix.
+  // Strip runtime-only ticker fields accidentally persisted by earlier builds.
   for (const sess of importedData.sunSessions) {
     if (sess && (sess._activeRate || sess._activeRatePending || sess._fractionOfMED)) {
       delete sess._activeRate;
@@ -84,6 +92,14 @@ export function getSessions(importedData = state.importedData) {
 }
 
 const MAX_PROPOSAL_RECONCILE_ATTEMPTS = 3;
+
+/** @param {string} profileId @param {any} sourceData */
+async function latestProfileData(profileId, sourceData) {
+  if (state.currentProfile === profileId && state.importedData) return state.importedData;
+  const stored = await storeDeps.loadProfileData(profileId);
+  if (state.currentProfile === profileId && state.importedData) return state.importedData;
+  return stored || sourceData;
+}
 
 /** @param {any} profileData @param {string} proposalId */
 function findAgentSession(profileData, proposalId) {
@@ -103,17 +119,7 @@ function copyAgentSession(sourceData, targetData, proposalId) {
   }
 }
 
-/**
- * @param {{
- *   profileId: string,
- *   sourceData: any,
- *   sourceProposal: any,
- *   updates: Record<string, any>,
- *   reason: string,
- *   persist: (profileId: string, profileData: any, options: any) => Promise<any>,
- *   copyActionEvidence?: boolean,
- * }} options
- */
+/** @param {{profileId:string,sourceData:any,sourceProposal:any,updates:Record<string,any>,reason:string,persist:(profileId:string,profileData:any,options:any)=>Promise<any>,copyActionEvidence?:boolean}} options */
 export async function persistAgentProposalTransition({
   profileId,
   sourceData,
@@ -124,8 +130,10 @@ export async function persistAgentProposalTransition({
   copyActionEvidence = false,
 }) {
   for (let attempt = 0; attempt < MAX_PROPOSAL_RECONCILE_ATTEMPTS; attempt += 1) {
-    const profileStillActive = state.currentProfile === profileId;
-    const targetData = profileStillActive ? state.importedData : sourceData;
+    let targetData;
+    try { targetData = await latestProfileData(profileId, sourceData); } catch (_) {
+      return { persisted: false, profileStillActive: false };
+    }
     if (!targetData || typeof targetData !== 'object') {
       return { persisted: false, profileStillActive: false };
     }
@@ -160,10 +168,7 @@ export function getActiveSession() {
   return getSessions().find(s => !s.endedAt) || null;
 }
 
-// Start a session — minimal entry with sensible defaults. Returns id.
-// Accepts either an `exposurePreset` (legacy 4-preset coarse buckets) or a
-// `regions` array (anatomical-region picker output). Regions take priority
-// when both are supplied — fraction is computed by summing region fractions.
+// Start a session from a legacy exposure preset or anatomical regions; regions win.
 /**
  * @param {{
  *   exposurePreset?: string,
@@ -181,9 +186,7 @@ export async function startSession({ exposurePreset = 'face_hands', regions, eye
   const id = createUniqueId('sun_');
 
   let preset, fraction, regionsArr;
-  // If the caller explicitly supplied a regions array, honor it strictly.
-  // An empty array means "the user picked nothing" — silently substituting
-  // a face_hands preset would record a phantom exposure.
+  // An explicit empty regions array means nothing selected; never substitute a preset.
   if (Array.isArray(regions)) {
     if (regions.length === 0) throw new Error('startSession: regions array was empty — pick at least one region or pass exposurePreset instead');
     regionsArr = normalizedRegionList(regions);
@@ -201,8 +204,7 @@ export async function startSession({ exposurePreset = 'face_hands', regions, eye
     startedAt: Date.now(),
     endedAt: null,
     location: location || null,
-    // rotatedSides=true records that the user flipped front↔back. A flip
-    // closes the current timed exposure segment; it is not a dose multiplier.
+    // A front↔back flip closes the timed segment; it is not a dose multiplier.
     bodyExposure: { preset: preset.key, fraction, regions: regionsArr, sunscreenSPF: null, glassBetween, rotatedSides: !!rotatedSides },
     eyeExposure: { mode: glassBetween && eyeMode === 'direct' ? 'glass-window' : eyeMode, lensTint, durationSec: null }, // durationSec assigned at stop
     posture,                  // body orientation multiplier — see POSTURE_MULTIPLIERS
@@ -239,10 +241,7 @@ export async function stopSession(id) {
     sess.eyeExposure.durationSec = Math.round(durationMin * 60);
   }
   storeDeps.clearLiveState(id);
-  // Freeze every live-elapsed element for this session immediately so the
-  // dashboard CTA / cards visibly stop ticking even before surfaces re-render
-  // (network-stalled awaits, backgrounded tab, sync-driven stops from another
-  // device — all paths converge here).
+  // Freeze live elapsed fields before rerender, including stalled/background sync paths.
   if (typeof document !== 'undefined') {
     document.querySelectorAll(`[data-live-elapsed-for="${CSS.escape(id)}"]`).forEach(el => {
       el.removeAttribute('data-live-elapsed-for');
@@ -259,7 +258,10 @@ export async function logCompletedSession(payload, target = {}) {
     && target.profileId.length > 0
     && target.importedData
     && typeof target.importedData === 'object';
-  const importedData = hasExplicitProfileTarget ? target.importedData : state.importedData;
+  const sourceData = hasExplicitProfileTarget ? target.importedData : state.importedData;
+  const importedData = hasExplicitProfileTarget
+    ? await latestProfileData(target.profileId, sourceData)
+    : sourceData;
   const sessions = getSessions(importedData);
   const idempotencyKey = payload?.createdBy?.type === 'agent'
     && typeof payload.createdBy.idempotencyKey === 'string'
@@ -269,7 +271,10 @@ export async function logCompletedSession(payload, target = {}) {
     const existing = sessions.find(candidate => candidate?.createdBy?.type === 'agent'
       && candidate.createdBy.actionId === payload.createdBy.actionId
       && candidate.createdBy.idempotencyKey === idempotencyKey);
-    if (existing?.id) return existing.id;
+    if (existing?.id) {
+      if (hasExplicitProfileTarget) copyAgentSession(importedData, sourceData, idempotencyKey);
+      return existing.id;
+    }
   }
   const id = createUniqueId('sun_');
   const session = Object.assign({
@@ -308,6 +313,7 @@ export async function logCompletedSession(payload, target = {}) {
     if (index >= 0) sessions.splice(index, 1);
     throw new Error('Could not save completed sunlight session');
   }
+  if (hasExplicitProfileTarget && idempotencyKey) copyAgentSession(importedData, sourceData, idempotencyKey);
   return id;
 }
 
@@ -321,17 +327,12 @@ export async function deleteSession(id) {
   return true;
 }
 
-// Pause an active session. Commits the current rate slice to
-// committedDoses (so accumulated dose is preserved), then marks the
-// session paused so future ticks contribute zero. Active ticker
-// continues for elapsed display + UI state but stops accruing dose.
-// Idempotent — calling on an already-paused session is a no-op.
+// Pause idempotently: commit the current rate slice, then stop dose accrual.
 export async function pauseSession(id) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess || sess.endedAt) return null;
   if (sess.paused) return sess;
-  // Commit current slice with the currently-cached rate so the user-
-  // visible cumulative dose persists across the pause boundary.
+  // Preserve cumulative dose across the pause boundary.
   storeDeps.commitCurrentSlice(sess);
   sess.paused = true;
   sess.pausedAt = Date.now();
@@ -341,8 +342,7 @@ export async function pauseSession(id) {
   return sess;
 }
 
-// Resume a paused session — clears paused flag and the ticker re-snapshots
-// with current atmosphere on the next pass. New slice begins from now.
+// Resume with a fresh atmosphere snapshot on the next ticker pass.
 export async function resumeSession(id) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess || sess.endedAt || !sess.paused) return null;
@@ -420,16 +420,8 @@ export async function setSessionCoverage(id, regions) {
   return sess;
 }
 
-// Edit fields on a saved session. Bumps `updatedAt` so the cross-device
-// merge (data-merge.js pickTimestamp) picks this version on conflict —
-// without that, a careless re-end on a second device would silently
-// stick because endedAt-based timestamps favored the later end. With
-// updatedAt set, an edit anywhere becomes the canonical version.
-//
-// When the patch changes session duration (durationMin or endedAt),
-// re-derive doses + safety via hydrateSession so the per-channel
-// breakdown reflects the new duration. Doses are downstream of duration,
-// so leaving them stale would silently misrepresent the session.
+// Edit a saved session, bumping updatedAt for merge priority. Duration edits
+// re-derive dose and safety so downstream estimates never remain stale.
 export async function updateSession(id, patch) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess) return null;

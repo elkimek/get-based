@@ -22,6 +22,7 @@ import {
   startAgentProposalPolling,
   stopAgentProposalPolling,
 } from '../js/agent-proposal-polling.js';
+import { configureSunSessionsStore } from '../js/sun-sessions-store.js';
 import { state } from '../js/state.js';
 
 const KEY_BYTES = Uint8Array.from({ length: 32 }, (_, index) => index);
@@ -31,6 +32,7 @@ const defaultProposalDeps = configureAgentAccessProposalDeps();
 const defaultActionDeps = configureAgentActionDeps();
 const defaultInboxDeps = configureAgentProposalInboxDeps();
 const defaultPollingDeps = configureAgentProposalPollingDeps();
+const defaultSunStoreDeps = configureSunSessionsStore();
 
 function bytesToBase64(bytes) {
   let binary = '';
@@ -82,6 +84,7 @@ afterEach(() => {
   configureAgentProposalInboxDeps(defaultInboxDeps);
   stopAgentProposalPolling();
   configureAgentProposalPollingDeps(defaultPollingDeps);
+  configureSunSessionsStore(defaultSunStoreDeps);
   state.importedData = structuredClone(originalImportedData);
   state.currentProfile = 'default';
   vi.useRealTimers();
@@ -673,6 +676,70 @@ describe('external Agent Access proposals', () => {
       'profile-a',
       profileA,
       expect.objectContaining({ reason: 'agent-proposal-applied' }),
+    );
+  });
+
+  it('rebases inactive-profile Apply into the latest durable snapshot', async () => {
+    let resolveAction;
+    const proposal = {
+      id: 'proposal-inactive-refresh',
+      actionId: 'sun.session.log',
+      arguments: { durationMinutes: 20 },
+      profileId: 'profile-a',
+      capability: 'sun.sessions:write:propose',
+      sourceClient: 'getbased-mcp',
+      status: 'pending',
+      issuedAt: '2026-09-01T10:35:00.000Z',
+      expiresAt: '2026-09-01T11:05:00.000Z',
+      createdAt: '2026-09-01T10:35:00.000Z',
+      updatedAt: '2026-09-01T10:35:00.000Z',
+    };
+    const capturedProfileA = { agentProposals: [proposal], healthGoals: [{ id: 'old-goal' }], sunSessions: [] };
+    const refreshedProfileA = {
+      agentProposals: [structuredClone(proposal)],
+      healthGoals: [{ id: 'fresh-goal' }],
+      sunSessions: [],
+    };
+    const profileB = { agentProposals: [], healthGoals: [{ id: 'profile-b-goal' }], sunSessions: [] };
+    const loadProfileData = vi.fn(async profileId => (profileId === 'profile-a' ? refreshedProfileA : null));
+    const persistImportedData = vi.fn(async () => true);
+    const runAction = vi.fn(() => new Promise(resolve => { resolveAction = resolve; }));
+    configureSunSessionsStore({ loadProfileData });
+    configureAgentAccessProposalDeps({ now: () => Date.parse('2026-09-01T10:40:00.000Z'), persistImportedData, runAction });
+    state.currentProfile = 'profile-a';
+    state.importedData = capturedProfileA;
+
+    const applying = applyStoredAgentProposal(proposal.id);
+    await vi.waitFor(() => expect(runAction).toHaveBeenCalledTimes(1));
+    state.importedData = refreshedProfileA;
+    state.currentProfile = 'profile-b';
+    state.importedData = profileB;
+    capturedProfileA.sunSessions.push({
+      id: 'sun-inactive-refresh',
+      createdBy: { type: 'agent', actionId: 'sun.session.log', idempotencyKey: proposal.id },
+    });
+    resolveAction({ ok: true, result: { sessionId: 'sun-inactive-refresh' } });
+
+    const result = await applying;
+    expect(result).toEqual({ ok: true, result: { sessionId: 'sun-inactive-refresh' } });
+    expect(loadProfileData).toHaveBeenCalledWith('profile-a');
+    expect(refreshedProfileA.healthGoals).toEqual([{ id: 'fresh-goal' }]);
+    expect(refreshedProfileA.sunSessions).toEqual([
+      expect.objectContaining({ id: 'sun-inactive-refresh' }),
+    ]);
+    expect(refreshedProfileA.agentProposals).toEqual([
+      expect.objectContaining({ id: proposal.id, status: 'applied' }),
+    ]);
+    expect(profileB).toEqual({ agentProposals: [], healthGoals: [{ id: 'profile-b-goal' }], sunSessions: [] });
+    expect(persistImportedData).toHaveBeenCalledWith(
+      'profile-a',
+      refreshedProfileA,
+      expect.objectContaining({ reason: 'agent-proposal-applied' }),
+    );
+    expect(persistImportedData).not.toHaveBeenCalledWith(
+      'profile-a',
+      capturedProfileA,
+      expect.anything(),
     );
   });
 
