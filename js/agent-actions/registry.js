@@ -7,9 +7,9 @@ import {
 } from './schemas.js';
 
 const agentActionDeps = {
-  logCompletedSunSession: async (payload) => {
+  logCompletedSunSession: async (payload, target) => {
     const { logCompletedSession } = await import('../sun-sessions-store.js');
-    return logCompletedSession(payload);
+    return logCompletedSession(payload, target);
   },
   now: () => Date.now(),
 };
@@ -72,7 +72,7 @@ export function validateAgentActionInput(actionId, input) {
  *
  * @param {string} actionId
  * @param {unknown} input
- * @param {{ confirmed?: boolean, actorId?: string, idempotencyKey?: string }} [context]
+ * @param {{ confirmed?: boolean, actorId?: string, idempotencyKey?: string, profileId?: string, importedData?: any }} [context]
  */
 export async function runAgentAction(actionId, input, context = {}) {
   const action = getAgentAction(actionId);
@@ -97,7 +97,7 @@ export async function runAgentAction(actionId, input, context = {}) {
       && /^[A-Za-z0-9:_-]{1,128}$/.test(context.idempotencyKey)
       ? context.idempotencyKey
       : null;
-    const sessionId = await agentActionDeps.logCompletedSunSession({
+    const payload = {
       durationMin: args.durationMinutes,
       startedAt,
       endedAt,
@@ -108,7 +108,17 @@ export async function runAgentAction(actionId, input, context = {}) {
         actionId,
         ...(idempotencyKey ? { idempotencyKey } : {}),
       },
-    });
+    };
+    const hasExplicitProfileTarget = typeof context.profileId === 'string'
+      && context.profileId.length > 0
+      && context.importedData
+      && typeof context.importedData === 'object';
+    const sessionId = hasExplicitProfileTarget
+      ? await agentActionDeps.logCompletedSunSession(payload, {
+        profileId: context.profileId,
+        importedData: context.importedData,
+      })
+      : await agentActionDeps.logCompletedSunSession(payload);
     return { ok: true, actionId, result: { sessionId } };
   }
 

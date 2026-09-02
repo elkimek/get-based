@@ -23,7 +23,7 @@ import {
   installChatMessageActionDelegates,
 } from '../js/chat-actions.js';
 import { renderChatMessages } from '../js/chat-render.js';
-import { saveImportedData } from '../js/data.js';
+import { saveImportedData, saveImportedDataForProfile } from '../js/data.js';
 import { state } from '../js/state.js';
 import { configureSunSessionsStore, logCompletedSession } from '../js/sun-sessions-store.js';
 
@@ -41,7 +41,10 @@ afterEach(() => {
   state.chatHistory = [];
   state.importedData = structuredClone(originalImportedData);
   state.currentThreadId = null;
-  configureSunSessionsStore({ persistImportedData: saveImportedData });
+  configureSunSessionsStore({
+    persistImportedData: saveImportedData,
+    persistImportedDataForProfile: saveImportedDataForProfile,
+  });
   localStorage.clear();
   document.body.innerHTML = '';
   vi.restoreAllMocks();
@@ -190,6 +193,34 @@ describe('getbased agent action registry', () => {
 
     expect(persistImportedData).toHaveBeenCalledOnce();
     expect(state.importedData.sunSessions).toEqual([]);
+  });
+
+  it('writes a completed sunlight session to an explicit profile target after the active profile changed', async () => {
+    const persistImportedData = vi.fn(async () => true);
+    const persistImportedDataForProfile = vi.fn(async () => true);
+    const profileA = { entries: [], sunSessions: [] };
+    const profileB = { entries: [], sunSessions: [] };
+    configureSunSessionsStore({ persistImportedData, persistImportedDataForProfile });
+    state.currentProfile = 'profile-b';
+    state.importedData = profileB;
+
+    await expect(logCompletedSession({
+      durationMin: 60,
+      startedAt: Date.parse('2026-09-01T09:30:00.000Z'),
+      endedAt: Date.parse('2026-09-01T10:30:00.000Z'),
+    }, {
+      profileId: 'profile-a',
+      importedData: profileA,
+    })).resolves.toEqual(expect.any(String));
+
+    expect(profileA.sunSessions).toHaveLength(1);
+    expect(profileB.sunSessions).toEqual([]);
+    expect(persistImportedDataForProfile).toHaveBeenCalledWith(
+      'profile-a',
+      profileA,
+      expect.objectContaining({ forceProfileScope: true }),
+    );
+    expect(persistImportedData).not.toHaveBeenCalled();
   });
 });
 

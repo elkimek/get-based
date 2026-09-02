@@ -6,7 +6,7 @@
 
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
-import { saveImportedData } from './data.js';
+import { saveImportedData, saveImportedDataForProfile } from './data.js';
 import { deleteImportedArrayItem } from './data-merge.js';
 import { requestSunSessionAnalysis } from './light-sun-analysis-runtime.js';
 import { BODY_REGIONS } from './sun-body-silhouette.js';
@@ -35,6 +35,7 @@ import { createUniqueId } from './unique-id.js';
  * @property {(date: Date, lat: number, lon: number) => number} solarZenithAngle
  * @property {(skinType: string) => string | null} skinTypeToFitzpatrick
  * @property {(options?: any) => Promise<boolean>} persistImportedData
+ * @property {(profileId: string, importedData: any, options?: any) => Promise<boolean>} persistImportedDataForProfile
  */
 
 /** @type {SunSessionsStoreDeps} */
@@ -53,6 +54,7 @@ const storeDeps = {
   solarZenithAngle: () => 90,
   skinTypeToFitzpatrick: (skinType) => (String(skinType || '').match(/^(I{1,3}|IV|VI?)\b/) || [])[1] || null,
   persistImportedData: saveImportedData,
+  persistImportedDataForProfile: saveImportedDataForProfile,
 };
 
 /** @param {Partial<SunSessionsStoreDeps>} [deps] */
@@ -64,20 +66,20 @@ function runSessionAnalysis(session) {
   try { storeDeps.maybeAnalyzeSessionAfterFinish(session); } catch (_) {}
 }
 
-export function getSessions() {
-  if (!state.importedData) return [];
-  if (!Array.isArray(state.importedData.sunSessions)) state.importedData.sunSessions = [];
+export function getSessions(importedData = state.importedData) {
+  if (!importedData) return [];
+  if (!Array.isArray(importedData.sunSessions)) importedData.sunSessions = [];
   // Strip runtime-only ticker fields that earlier dev builds may have
   // accidentally persisted onto session objects. One-time cleanup on
   // first read; no-op on records written after the fix.
-  for (const sess of state.importedData.sunSessions) {
+  for (const sess of importedData.sunSessions) {
     if (sess && (sess._activeRate || sess._activeRatePending || sess._fractionOfMED)) {
       delete sess._activeRate;
       delete sess._activeRatePending;
       delete sess._fractionOfMED;
     }
   }
-  return state.importedData.sunSessions;
+  return importedData.sunSessions;
 }
 
 export function getActiveSession() {
@@ -178,8 +180,13 @@ export async function stopSession(id) {
 }
 
 // Log a completed session in one shot (after-the-fact entry).
-export async function logCompletedSession(payload) {
-  const sessions = getSessions();
+export async function logCompletedSession(payload, target = {}) {
+  const hasExplicitProfileTarget = typeof target.profileId === 'string'
+    && target.profileId.length > 0
+    && target.importedData
+    && typeof target.importedData === 'object';
+  const importedData = hasExplicitProfileTarget ? target.importedData : state.importedData;
+  const sessions = getSessions(importedData);
   const idempotencyKey = payload?.createdBy?.type === 'agent'
     && typeof payload.createdBy.idempotencyKey === 'string'
     ? payload.createdBy.idempotencyKey
@@ -210,7 +217,13 @@ export async function logCompletedSession(payload) {
   sessions.push(session);
   let saved;
   try {
-    saved = await storeDeps.persistImportedData();
+    saved = hasExplicitProfileTarget
+      ? await storeDeps.persistImportedDataForProfile(
+        target.profileId,
+        importedData,
+        { forceProfileScope: true, immediate: true, reason: 'agent-action-sun-session' },
+      )
+      : await storeDeps.persistImportedData();
   } catch (error) {
     const index = sessions.findIndex(candidate => candidate === session || candidate?.id === id);
     if (index >= 0) sessions.splice(index, 1);

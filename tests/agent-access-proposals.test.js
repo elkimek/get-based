@@ -307,6 +307,52 @@ describe('external Agent Access proposals', () => {
     }
   });
 
+  it('emits profile-facing UI after same-profile data replacement during persistence', async () => {
+    const envelope = await proposalEnvelope({ profileId: 'profile-a' });
+    let resolvePersist;
+    const persistImportedData = vi.fn(() => new Promise((resolve) => { resolvePersist = resolve; }));
+    const notify = vi.fn();
+    const changed = vi.fn();
+    const fetchImpl = vi.fn(async (_url, init = {}) => {
+      if (init.method === 'DELETE') {
+        return new Response(JSON.stringify({ ok: true, deleted: true }), { status: 200 });
+      }
+      return new Response(JSON.stringify({
+        proposals: [{ proposalId: envelope.proposalId, createdAt: '2026-09-01T10:35:00.000Z', envelope }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+    const profileA = { entries: [], sunSessions: [], agentProposals: [] };
+    const refreshedProfileA = { entries: [], sunSessions: [], agentProposals: [] };
+    configureAgentAccessProposalDeps({
+      fetchImpl,
+      getAgentAccessState: () => ({ enabled: true, token: 'test-token', contextKey: CONTEXT_KEY }),
+      getRelayUrl: () => 'https://gateway.test',
+      now: () => Date.parse('2026-09-01T10:40:00.000Z'),
+      persistImportedData,
+      notify,
+    });
+    state.currentProfile = 'profile-a';
+    state.importedData = profileA;
+    document.addEventListener('getbased-agent-proposals-changed', changed);
+
+    try {
+      const polling = pollAgentAccessProposals();
+      await vi.waitFor(() => expect(persistImportedData).toHaveBeenCalledOnce());
+      state.importedData = refreshedProfileA;
+      resolvePersist(true);
+
+      await expect(polling).resolves.toMatchObject({
+        ingested: 1,
+        rejected: 0,
+        profileStillActive: true,
+      });
+      expect(notify).toHaveBeenCalledOnce();
+      expect(changed).toHaveBeenCalledOnce();
+    } finally {
+      document.removeEventListener('getbased-agent-proposals-changed', changed);
+    }
+  });
+
   it('leaves relay items unacknowledged when the pending inbox is full', async () => {
     const envelope = await proposalEnvelope();
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
@@ -441,12 +487,18 @@ describe('external Agent Access proposals', () => {
       expect.objectContaining({ ok: true }),
     ]);
     expect(logCompletedSunSession).toHaveBeenCalledOnce();
-    expect(logCompletedSunSession).toHaveBeenCalledWith(expect.objectContaining({
-      createdBy: expect.objectContaining({
-        actorId: 'external-agent:getbased-mcp',
-        idempotencyKey: 'proposal_external_1',
+    expect(logCompletedSunSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        createdBy: expect.objectContaining({
+          actorId: 'external-agent:getbased-mcp',
+          idempotencyKey: 'proposal_external_1',
+        }),
       }),
-    }));
+      expect.objectContaining({
+        profileId: 'default',
+        importedData: state.importedData,
+      }),
+    );
     expect(state.importedData.agentProposals[0]).toMatchObject({
       status: 'applied',
       result: { sessionId: 'sun_external_1' },
@@ -484,6 +536,11 @@ describe('external Agent Access proposals', () => {
 
     const applying = applyStoredAgentProposal('proposal_profile_race');
     await vi.waitFor(() => expect(runAction).toHaveBeenCalledOnce());
+    expect(runAction).toHaveBeenCalledWith(
+      'sun.session.log',
+      expect.objectContaining({ durationMinutes: 60 }),
+      expect.objectContaining({ profileId: 'profile-a', importedData: profileA }),
+    );
     state.currentProfile = 'profile-b';
     state.importedData = profileB;
     resolveAction({ ok: true, result: { sessionId: 'sun_profile_a' } });
