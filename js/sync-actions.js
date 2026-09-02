@@ -259,8 +259,11 @@ export async function prepareRelayCompaction() {
   // forcePull merges every profile returned by the relay. Commit all durable
   // local edits first, including inactive profiles whose debounce survived a
   // profile switch, so stale relay scalars cannot overwrite the rebuild source.
+  // Pull-side unions can create a new dirty rebroadcast generation; flush that
+  // generation too before relay history is compacted.
   await flushDirtyProfilesForRelayCompaction(profiles);
   await _forcePull();
+  await flushDirtyProfilesForRelayCompaction(profiles);
 }
 
 function cloneRelayRebuildData(importedData) {

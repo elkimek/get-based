@@ -84,8 +84,8 @@ assert('maybeShowChangelog compares major.minor only', changelogSrc.includes('ge
 // patch silently shadows an earlier critical entry.
 assert('changelog.js has _semverGt helper for forceShow gate',
   /function\s+_semverGt\s*\(/.test(changelogSrc));
-assert('maybeShowChangelog scans all entries for forceShow (not just [0])',
-  /FORCE_SHOW_VERSIONS\.some\s*\(\s*version\s*=>\s*_semverGt\(version,\s*seen\)/.test(changelogFacadeSrc));
+assert('maybeShowChangelog scans all applicable forceShow entries without opening future releases',
+  /FORCE_SHOW_VERSIONS\.some\s*\(\s*version\s*=>\s*\(\s*_semverGt\(version,\s*seen\)\s*&&\s*!_semverGt\(version,\s*appVersion\)/.test(changelogFacadeSrc));
 const changelogVersionMatches = [...changelogImplSrc.matchAll(/version:\s*'([^']+)'/g)];
 const forceShowVersionsInArchive = changelogVersionMatches
   .filter((match, index) => {

@@ -127,7 +127,9 @@ export function maybeShowChangelog() {
   }
   // Critical patch notices stay eager as compact version metadata while their
   // full release-note content remains deferred.
-  if (FORCE_SHOW_VERSIONS.some(version => _semverGt(version, seen))) {
+  if (FORCE_SHOW_VERSIONS.some(version => (
+    _semverGt(version, seen) && !_semverGt(version, appVersion)
+  ))) {
     return openChangelog(false);
   }
 }

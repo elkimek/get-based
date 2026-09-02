@@ -315,7 +315,7 @@ describe('sync action profile dependencies', () => {
     }
   });
 
-  it('flushes active and inactive dirty profiles before compaction pulls all rows', async () => {
+  it('flushes dirty profiles and the pull-side union before compaction returns', async () => {
     const previousProfile = state.currentProfile;
     const previousImportedData = state.importedData;
     const activeId = 'compact-dirty-active';
@@ -328,7 +328,11 @@ describe('sync action profile dependencies', () => {
     markSyncProfileDirty(activeId);
     markSyncProfileDirty(inactiveId);
     configureSyncActions({
-      forcePull: async () => { order.push('pull'); },
+      forcePull: async () => {
+        order.push('pull');
+        state.importedData = { entries: [], contextNotes: 'merged pull union' };
+        markSyncProfileDirty(activeId);
+      },
       pushProfile: async (profileId, importedData) => {
         order.push(`push:${profileId}:${importedData.contextNotes}`);
         clearSyncProfileDirty(profileId, getSyncDirtyToken(profileId));
@@ -346,6 +350,7 @@ describe('sync action profile dependencies', () => {
         `push:${activeId}:fresh active edit`,
         `push:${inactiveId}:fresh inactive edit`,
         'pull',
+        `push:${activeId}:merged pull union`,
       ]);
     } finally {
       await encryptedRemoveItem(inactiveKey);

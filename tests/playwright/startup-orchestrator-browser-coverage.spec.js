@@ -22,6 +22,7 @@ async function openStartupOrchestratorPage(page) {
   await page.route('**/js/startup-profile.js*', route => route.fulfill({
     contentType: 'application/javascript',
     body: `
+      export function applyProfileDisplayState() {}
       export async function initializeProfileData() {
         window.__startupCalls.push('profile');
       }
@@ -65,6 +66,19 @@ async function openStartupOrchestratorPage(page) {
   await page.route('**/js/utils.js*', route => route.fulfill({
     contentType: 'application/javascript',
     body: `
+      export function bindSyncAppliedRefresh() {}
+      export function escapeAttr(value) { return String(value); }
+      export function escapeHTML(value) { return String(value); }
+      export function formatValue(value) { return String(value); }
+      export function getStatus() { return null; }
+      export function hasCardContent() { return false; }
+      export function hashString() { return ''; }
+      export function isDebugMode() { return false; }
+      export function isStartupNudgeBlocked() { return false; }
+      export function linearRegression() { return null; }
+      export async function loadScriptOnce() { return true; }
+      export function maybeShowAnalyticsConsent() {}
+      export async function showConfirmDialog() { return false; }
       export function showNotification(message, type, duration) {
         window.__startupNotifications.push({ message, type, duration });
       }
@@ -76,6 +90,10 @@ async function openStartupOrchestratorPage(page) {
       export function configureSyncLifecycleDeps({ enableSync, disableSync, pauseSync }) {
         window.__startupCalls.push(['sync-lifecycle-deps', typeof enableSync, typeof disableSync, typeof pauseSync]);
       }
+      export async function initSync() {}
+      export function onDataSaved() {}
+      export async function primeSyncState() {}
+      export function renderSyncIndicator() {}
     `,
   }));
   await page.route('**/js/sync-configure.js*', route => route.fulfill({
