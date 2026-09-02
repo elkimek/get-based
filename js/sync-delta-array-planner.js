@@ -104,7 +104,7 @@ export async function _planArrayDelta(profileId, arrayName, items, { explicitTom
   // change, and therefore remain authoritative under Phase 2 cutover.
   for (const itemId of explicitTombstones) queueTombstone(itemId);
 
-  if (!cfg.noTombstones) {
+  if (!cfg.noTombstones && !cfg.noInferredTombstones) {
     const prevCount = Object.keys(prev).length;
     const nextCount = Object.keys(next).length;
     const wouldEmitMassiveTombstone = prevCount >= 20 && nextCount < prevCount * 0.5;

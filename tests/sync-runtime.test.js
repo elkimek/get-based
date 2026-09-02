@@ -7,6 +7,7 @@ import {
   updateKeyCache,
 } from '../js/crypto.js';
 import { configureAppExtension } from '../js/app-extension-runtime.js';
+import { deleteImportedArrayItem } from '../js/data-merge.js';
 import { _djb2 } from '../js/sync-delta-registry.js';
 import { applyAISettings, applyDisplayPrefs } from '../js/sync-apply.js';
 import {
@@ -637,6 +638,38 @@ describe('sync delta planner runtime behavior', () => {
       args: expect.objectContaining({ id: 'google-history-row', isDeleted: 1 }),
     })]);
     expect(historyPlan?.next).not.toHaveProperty(eventId);
+  });
+
+  it('does not infer note deletion from a stale snapshot but propagates explicit user deletion', async () => {
+    const note = {
+      date: '2026-08-06T10:00:00.000Z',
+      text: 'concurrent-a',
+      updatedAt: '2026-08-06T10:00:00.000Z',
+    };
+    const noteId = `n_${_djb2(`${note.date}|${note.text}`)}`;
+    configureRuntimeDeps(makeEvolu({
+      itemRows: [{
+        id: 'concurrent-note-row',
+        profileId: PROFILE_ID,
+        arrayName: 'notes',
+        itemId: noteId,
+      }],
+    }));
+    writeSnapshot(PROFILE_ID, 'notes', { [noteId]: _djb2(JSON.stringify(note)) });
+
+    const staleAbsence = await _planArrayDelta(PROFILE_ID, 'notes', []);
+    expect(staleAbsence.ops).toEqual([]);
+
+    const profileData = { notes: [note] };
+    expect(deleteImportedArrayItem(profileData, 'notes', 0)?.tombstonedId).toBe(noteId);
+    const explicitDeletion = await planProfileDeltas(PROFILE_ID, profileData);
+    const notesPlan = explicitDeletion.deltaPlans
+      .find(({ arrayName }) => arrayName === 'notes')?.plan;
+    expect(notesPlan?.ops).toEqual([expect.objectContaining({
+      kind: 'tombstone',
+      args: expect.objectContaining({ id: 'concurrent-note-row', isDeleted: 1 }),
+    })]);
+    expect(notesPlan?.next).not.toHaveProperty(noteId);
   });
 
   it('plans keyed-map sanitized keys, explicit null clears, row-derived SNPs, and scalar transitions', async () => {

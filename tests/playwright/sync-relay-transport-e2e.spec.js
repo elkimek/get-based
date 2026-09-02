@@ -390,10 +390,15 @@ async function waitForContext(page, expected) {
 }
 
 async function waitForNotes(page, expected) {
-  await expect.poll(() => noteTexts(page), {
-    timeout: 30_000,
-    intervals: [100, 250, 500, 1000],
-  }).toEqual([...expected].sort());
+  try {
+    await expect.poll(() => noteTexts(page), {
+      timeout: 30_000,
+      intervals: [100, 250, 500, 1000],
+    }).toEqual([...expected].sort());
+  } catch (error) {
+    console.error('Notes sync diagnostics:', JSON.stringify(await syncDiagnostics(page)));
+    throw error;
+  }
 }
 
 test('real relay converges devices, resists no-op bloat, recovers offline, and rebuilds', async ({ browser }) => {

@@ -5,7 +5,7 @@
   "maximums": {
     "requests": 325,
     "transferBytes": 1193220,
-    "decodedBytes": 3313000
+    "decodedBytes": 3315000
   },
   "reference": {
     "requests": 276,
@@ -25,8 +25,11 @@
     "routeAwareAiConsentDecodedBytes": 3270632,
     "agentProposalsRequests": 322,
     "agentProposalsTransferBytes": 1179552,
-    "agentProposalsDecodedBytes": 3309027
+    "agentProposalsDecodedBytes": 3309027,
+    "agentProposalHardeningRequests": 322,
+    "agentProposalHardeningTransferBytes": 1180658,
+    "agentProposalHardeningDecodedBytes": 3314515
   },
   "referenceCommit": "df42f986",
-  "measuredAt": "2026-09-01"
+  "measuredAt": "2026-09-02"
 }

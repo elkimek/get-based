@@ -1944,7 +1944,7 @@ await import('../js/settings.js');
     `preserve at ${preserveIdx}, write at ${writeIdx}`);
 
   // ═══════════════════════════════════════
-  // 14a. DELTA_ARRAY_CONFIG — composite-keyed + noTombstones
+  // 14a. DELTA_ARRAY_CONFIG — composite-keyed + tombstone policy
   // ═══════════════════════════════════════
   console.log('14a. Delta Array Config');
 
@@ -1956,11 +1956,13 @@ await import('../js/settings.js');
     /changeHistory:[\s\S]{0,800}\$\{it\.field\}\.\$\{ts\}[\s\S]{0,200}replace\(\/\[\^a-zA-Z0-9_\.-\]/.test(deltaSearchSrc));
   assert('changeHistory flagged noTombstones (cap-eviction safety)',
     /changeHistory:[\s\S]{0,1200}noTombstones:\s*true/.test(deltaSearchSrc));
+  assert('notes suppress inferred tombstones while preserving explicit deletion intent',
+    /notes:[\s\S]{0,600}noInferredTombstones:\s*true/.test(deltaSearchSrc));
   assert('_planArrayDelta consults DELTA_ARRAY_CONFIG[arrayName]',
     /_planArrayDelta[\s\S]{0,400}DELTA_ARRAY_CONFIG\[arrayName\]/.test(deltaSearchSrc));
   assert('_planArrayDelta suppresses inferred tombstones but carries explicit privacy deletions',
-    /for \(const itemId of explicitTombstones\) queueTombstone\(itemId\);[\s\S]{0,200}if \(!cfg\.noTombstones\)/.test(deltaSearchSrc)
-      && /if \(!cfg\.noTombstones\)[\s\S]{0,1400}queueTombstone\(prevId\)/.test(deltaSearchSrc));
+    /for \(const itemId of explicitTombstones\) queueTombstone\(itemId\);[\s\S]{0,200}if \(!cfg\.noTombstones && !cfg\.noInferredTombstones\)/.test(deltaSearchSrc)
+      && /if \(!cfg\.noTombstones && !cfg\.noInferredTombstones\)[\s\S]{0,1400}queueTombstone\(prevId\)/.test(deltaSearchSrc));
   assert('planProfileDeltas passes explicit blob tombstones into the array planner',
     /importedData\._deleted\?\.\[arrayName\][\s\S]{0,300}_planArrayDelta\([^)]*explicitTombstoneIds/.test(syncPushDeltasSrc));
   assert('_planArrayDelta uses itemIdFn-derived id everywhere (not item.id)',

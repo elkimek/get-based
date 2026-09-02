@@ -213,6 +213,29 @@ function profileContainsAcceptedProposals(profileData, accepted) {
 }
 
 /** @param {string} profileId @param {any[]} accepted */
+function retainAcceptedProposalsInActiveProfile(profileId, accepted) {
+  if (state.currentProfile !== profileId) return false;
+  const activeProfileData = state.importedData;
+  if (!activeProfileData || typeof activeProfileData !== 'object') return false;
+  if (!profileContainsAcceptedProposals(activeProfileData, accepted)) {
+    normalizeAgentProposals(activeProfileData).push(...structuredClone(accepted));
+    normalizeAgentProposals(activeProfileData);
+  }
+  return state.currentProfile === profileId
+    && state.importedData === activeProfileData
+    && profileContainsAcceptedProposals(activeProfileData, accepted);
+}
+
+/** @param {any[]} accepted */
+function announceAcceptedProposals(accepted) {
+  proposalDeps.notify(
+    accepted.length === 1 ? 'New agent proposal ready for review.' : `${accepted.length} new agent proposals ready for review.`,
+    'info',
+  );
+  document.dispatchEvent(new CustomEvent('getbased-agent-proposals-changed'));
+}
+
+/** @param {string} profileId @param {any[]} accepted */
 async function reconcileAcceptedProposalsWithActiveProfile(profileId, accepted) {
   for (let attempt = 0; attempt < MAX_ACTIVE_PROFILE_RECONCILE_ATTEMPTS; attempt += 1) {
     if (state.currentProfile !== profileId) return 'inactive';
@@ -321,22 +344,21 @@ export async function pollAgentAccessProposals() {
   for (const proposalId of acknowledged) await acknowledgeProposal(baseUrl, access.token, proposalId);
   const completion = await reconcileAcceptedProposalsWithActiveProfile(profileId, accepted);
   if (completion === 'failed') {
+    // The relay item is already acknowledged and the captured snapshot is durable.
+    // Keep the proposal visible in a same-profile replacement even if persisting that
+    // replacement failed, so a transient save failure cannot suppress it forever.
+    const profileStillActive = retainAcceptedProposalsInActiveProfile(profileId, accepted);
+    if (profileStillActive) announceAcceptedProposals(accepted);
     return {
       ingested: accepted.length,
       rejected,
       persistenceFailed: true,
-      profileStillActive: false,
-      uiDeferred: true,
+      profileStillActive,
+      uiDeferred: !profileStillActive,
     };
   }
   const profileStillActive = completion === 'ready';
-  if (profileStillActive) {
-    proposalDeps.notify(
-      accepted.length === 1 ? 'New agent proposal ready for review.' : `${accepted.length} new agent proposals ready for review.`,
-      'info',
-    );
-    document.dispatchEvent(new CustomEvent('getbased-agent-proposals-changed'));
-  }
+  if (profileStillActive) announceAcceptedProposals(accepted);
   return { ingested: accepted.length, rejected, profileStillActive };
 }
 

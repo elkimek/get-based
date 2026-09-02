@@ -119,6 +119,12 @@ export const DELTA_ARRAY_CONFIG = {
       const sig = `${it.date || ''}|${it.text || ''}`;
       return sig === '|' ? null : `n_${_djb2(sig)}`;
     },
+    // Notes are deleted only through deleteImportedArrayItem, which records
+    // `_deleted.notes`. Do not infer user intent from snapshot absence: an old
+    // device can reload before relay reconciliation and otherwise tombstone a
+    // concurrently-created note it has not restored yet. Explicit tombstones
+    // still propagate normally.
+    noInferredTombstones: true,
   },
   // Use threadId so independently generated summaries for the same thread
   // collapse to one cross-device LWW row.

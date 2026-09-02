@@ -150,7 +150,9 @@ export async function persistAgentProposalTransition({
         if (hadProposals) targetData.agentProposals = previousProposals;
         else delete targetData.agentProposals;
       }
-      // The action already persisted its session; retain Applied evidence so retry cannot duplicate it.
+      // Apply reaches this point only after the action has durably persisted its
+      // idempotency-tagged session. Retain both the copied session and Applied
+      // projection so a retry returns that evidence instead of duplicating it.
       const activeTarget = state.currentProfile === profileId && state.importedData === targetData;
       return { persisted: false, profileStillActive: copyActionEvidence && activeTarget };
     }

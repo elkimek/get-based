@@ -422,6 +422,59 @@ describe('external Agent Access proposals', () => {
     }
   });
 
+  it('retains and announces an acknowledged proposal when replacement reconciliation cannot persist', async () => {
+    const envelope = await proposalEnvelope({ profileId: 'profile-a' });
+    const profileA = { entries: [], sunSessions: [], agentProposals: [] };
+    const refreshedProfileA = {
+      entries: [],
+      sunSessions: [{ id: 'session-arrived-during-ack' }],
+      agentProposals: [],
+    };
+    const persistImportedData = vi.fn()
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
+    const notify = vi.fn();
+    const changed = vi.fn();
+    const fetchImpl = vi.fn(async (_url, init = {}) => {
+      if (init.method === 'DELETE') {
+        state.importedData = refreshedProfileA;
+        return new Response(JSON.stringify({ ok: true, deleted: true }), { status: 200 });
+      }
+      return new Response(JSON.stringify({
+        proposals: [{ proposalId: envelope.proposalId, createdAt: '2026-09-01T10:35:00.000Z', envelope }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+    configureAgentAccessProposalDeps({
+      fetchImpl,
+      getAgentAccessState: () => ({ enabled: true, token: 'test-token', contextKey: CONTEXT_KEY }),
+      getRelayUrl: () => 'https://gateway.test',
+      now: () => Date.parse('2026-09-01T10:40:00.000Z'),
+      persistImportedData,
+      notify,
+    });
+    state.currentProfile = 'profile-a';
+    state.importedData = profileA;
+    document.addEventListener('getbased-agent-proposals-changed', changed);
+
+    try {
+      await expect(pollAgentAccessProposals()).resolves.toMatchObject({
+        ingested: 1,
+        rejected: 0,
+        persistenceFailed: true,
+        profileStillActive: true,
+      });
+      expect(refreshedProfileA.sunSessions).toEqual([{ id: 'session-arrived-during-ack' }]);
+      expect(refreshedProfileA.agentProposals).toEqual([
+        expect.objectContaining({ id: 'proposal_external_1', profileId: 'profile-a' }),
+      ]);
+      expect(persistImportedData).toHaveBeenCalledTimes(2);
+      expect(notify).toHaveBeenCalledOnce();
+      expect(changed).toHaveBeenCalledOnce();
+    } finally {
+      document.removeEventListener('getbased-agent-proposals-changed', changed);
+    }
+  });
+
   it('withholds acknowledgement and UI when same-profile reconciliation cannot persist', async () => {
     const envelope = await proposalEnvelope({ profileId: 'profile-a' });
     let resolvePersist;
@@ -874,6 +927,13 @@ describe('external Agent Access proposals', () => {
       }),
     ]);
     expect(changed).toHaveBeenCalledOnce();
+    await expect(applyStoredAgentProposal(pendingProposal.id)).resolves.toMatchObject({
+      ok: true,
+      alreadyApplied: true,
+      result: { sessionId: 'sun_apply_refresh_save_failure' },
+    });
+    expect(runAction).toHaveBeenCalledOnce();
+    expect(refreshedProfileA.sunSessions).toHaveLength(2);
   });
 
   it('rejects a stored proposal when the active profile changed before Apply', async () => {
