@@ -398,10 +398,10 @@ export function applyStoredAgentProposal(proposalId) {
       persist: proposalDeps.persistImportedData,
       copyActionEvidence: true,
     });
-    if (!persistence.persisted) return { ...result, statusPersistenceFailed: true };
     if (persistence.profileStillActive) {
       document.dispatchEvent(new CustomEvent('getbased-agent-proposals-changed'));
     }
+    if (!persistence.persisted) return { ...result, statusPersistenceFailed: true };
     return result;
   })().finally(() => applyInFlight.delete(proposalId));
   applyInFlight.set(proposalId, task);

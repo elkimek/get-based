@@ -744,6 +744,71 @@ describe('external Agent Access proposals', () => {
     );
   });
 
+  it('keeps durable Apply evidence authoritative when same-profile status persistence fails', async () => {
+    let resolveAction;
+    const runAction = vi.fn(() => new Promise((resolve) => { resolveAction = resolve; }));
+    const persistImportedData = vi.fn(async () => false);
+    const changed = vi.fn();
+    document.addEventListener('getbased-agent-proposals-changed', changed);
+    const pendingProposal = {
+      id: 'proposal_apply_refresh_save_failure',
+      actionId: 'sun.session.log',
+      arguments: { durationMinutes: 60, endedAt: '2026-09-01T10:30:00.000Z' },
+      profileId: 'profile-a',
+      capability: 'sun.sessions:write:propose',
+      sourceClient: 'getbased-mcp',
+      status: 'pending',
+      issuedAt: '2026-09-01T10:35:00.000Z',
+      expiresAt: '2026-09-01T11:05:00.000Z',
+      createdAt: '2026-09-01T10:35:00.000Z',
+      updatedAt: '2026-09-01T10:35:00.000Z',
+    };
+    const profileA = { entries: [], sunSessions: [], agentProposals: [pendingProposal] };
+    const refreshedProfileA = {
+      entries: [{ id: 'fresh-entry-from-sync' }],
+      sunSessions: [{ id: 'fresh-session-from-sync' }],
+      agentProposals: [structuredClone(pendingProposal)],
+    };
+    configureAgentAccessProposalDeps({
+      runAction,
+      persistImportedData,
+      now: () => Date.parse('2026-09-01T10:40:00.000Z'),
+    });
+    state.currentProfile = 'profile-a';
+    state.importedData = profileA;
+
+    const applying = applyStoredAgentProposal(pendingProposal.id);
+    await vi.waitFor(() => expect(runAction).toHaveBeenCalledOnce());
+    profileA.sunSessions.push({
+      id: 'sun_apply_refresh_save_failure',
+      createdBy: {
+        type: 'agent',
+        actionId: 'sun.session.log',
+        idempotencyKey: pendingProposal.id,
+      },
+    });
+    state.importedData = refreshedProfileA;
+    resolveAction({ ok: true, result: { sessionId: 'sun_apply_refresh_save_failure' } });
+
+    await expect(applying).resolves.toMatchObject({ ok: true, statusPersistenceFailed: true });
+    expect(refreshedProfileA.entries).toEqual([{ id: 'fresh-entry-from-sync' }]);
+    expect(refreshedProfileA.sunSessions).toEqual([
+      { id: 'fresh-session-from-sync' },
+      expect.objectContaining({
+        id: 'sun_apply_refresh_save_failure',
+        createdBy: expect.objectContaining({ idempotencyKey: pendingProposal.id }),
+      }),
+    ]);
+    expect(refreshedProfileA.agentProposals).toEqual([
+      expect.objectContaining({
+        id: pendingProposal.id,
+        status: 'applied',
+        result: { sessionId: 'sun_apply_refresh_save_failure' },
+      }),
+    ]);
+    expect(changed).toHaveBeenCalledOnce();
+  });
+
   it('rejects a stored proposal when the active profile changed before Apply', async () => {
     const runAction = vi.fn(async () => ({ ok: true }));
     configureAgentAccessProposalDeps({

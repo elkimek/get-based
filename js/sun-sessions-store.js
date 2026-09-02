@@ -138,9 +138,13 @@ export async function persistAgentProposalTransition({
 
     const saved = await persist(profileId, targetData, { immediate: true, reason });
     if (saved === false) {
-      if (hadProposals) targetData.agentProposals = previousProposals;
-      else delete targetData.agentProposals;
-      return { persisted: false, profileStillActive: false };
+      if (!copyActionEvidence) {
+        if (hadProposals) targetData.agentProposals = previousProposals;
+        else delete targetData.agentProposals;
+      }
+      // The action already persisted its session; retain Applied evidence so retry cannot duplicate it.
+      const activeTarget = state.currentProfile === profileId && state.importedData === targetData;
+      return { persisted: false, profileStillActive: copyActionEvidence && activeTarget };
     }
     if (state.currentProfile !== profileId) {
       return { persisted: true, profileStillActive: false };
