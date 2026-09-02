@@ -10,6 +10,7 @@ import {
 } from '../js/profile.js';
 import { localHasRowsRemoteLacks, mergeImportedData } from '../js/data-merge.js';
 import { mergeArrayRowsIntoImported } from '../js/sync-delta-array-merge.js';
+import { configureSyncDelta } from '../js/sync-delta.js';
 import { mergePulledImportedData } from '../js/sync-pull-merge.js';
 import { state } from '../js/state.js';
 
@@ -27,6 +28,10 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  configureSyncDelta({
+    getEvolu: () => null,
+    getItemRowQuery: () => null,
+  });
   state.profiles = savedProfiles;
   state.currentProfile = savedCurrentProfile;
   state.importedData = savedImportedData;
@@ -276,6 +281,56 @@ describe('profile data boundaries', () => {
       expect.objectContaining({ id, status: 'applied' }),
     ]);
     expect(result.needsRebroadcast).toBe(true);
+  });
+
+  it('keeps terminal proposals in either remote-only blob order when a newer pending item row overlays them', async () => {
+    const profileId = 'profile_remote_proposal_row_duplicate';
+    state.currentProfile = profileId;
+
+    for (const terminalStatus of ['dismissed', 'applied']) {
+      for (const terminalFirst of [false, true]) {
+        const id = `proposal_remote_pull_row_${terminalStatus}_${terminalFirst ? 'first' : 'last'}`;
+        const pending = {
+          id,
+          actionId: 'sun.session.log',
+          status: 'pending',
+          updatedAt: '2026-09-02T11:10:00.000Z',
+        };
+        const terminal = {
+          id,
+          actionId: 'sun.session.log',
+          status: terminalStatus,
+          updatedAt: '2026-09-02T10:40:00.000Z',
+        };
+        const pendingRow = {
+          profileId,
+          arrayName: 'agentProposals',
+          itemId: id,
+          isDeleted: 0,
+          syncedAt: '2026-09-02T12:01:00.000Z',
+          payload: JSON.stringify({
+            ...pending,
+            updatedAt: '2026-09-02T12:00:00.000Z',
+          }),
+        };
+        configureSyncDelta({
+          getEvolu: () => ({ getQueryRows: () => [pendingRow] }),
+          getItemRowQuery: () => ({}),
+        });
+        state.importedData = null;
+
+        const result = await mergePulledImportedData(profileId, {
+          agentProposals: structuredClone(terminalFirst
+            ? [terminal, pending]
+            : [pending, terminal]),
+        });
+
+        expect(result.merged.agentProposals).toEqual([
+          expect.objectContaining({ id, status: terminalStatus }),
+        ]);
+        expect(result.needsRebroadcast).toBe(true);
+      }
+    }
   });
 
   it('uses legacy terminal timestamps to canonicalize remote-only proposal duplicates', async () => {

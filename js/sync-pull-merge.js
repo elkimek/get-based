@@ -217,6 +217,17 @@ export async function mergePulledImportedData(profileId, importedData, options =
     ? (importedData ? mergeImportedData(localBaselineForMerge, importedData) : localBaselineForMerge)
     : (importedData || {});
 
+  // Canonicalize the blob before per-row overlay. A remote-only blob can
+  // contain duplicate proposal ids from older peers; if the overlay collapses
+  // those duplicates first, a newer Pending row can discard an older Applied
+  // copy before the monotonic proposal merge ever sees it.
+  const agentProposalsBeforeOverlayMigration = Array.isArray(merged?.agentProposals)
+    ? importedDataSnapshot(merged.agentProposals)
+    : null;
+  migrateProfileData(merged);
+  let agentProposalsCanonicalized = agentProposalsBeforeOverlayMigration !== null
+    && !importedDataMatches(agentProposalsBeforeOverlayMigration, merged.agentProposals);
+
   // Overlay rows after the blob. A newer canonical blob protects only items
   // it contains; local delete intent and newer row tombstones still win.
   try {
@@ -247,8 +258,9 @@ export async function mergePulledImportedData(profileId, importedData, options =
   // then saw the same old remote row as a fresh local change again, causing
   // repeated "Data updated from another device" toasts and rebroadcast loops.
   migrateProfileData(merged);
-  const agentProposalsCanonicalized = agentProposalsBeforeMigration !== null
-    && !importedDataMatches(agentProposalsBeforeMigration, merged.agentProposals);
+  agentProposalsCanonicalized = agentProposalsCanonicalized
+    || (agentProposalsBeforeMigration !== null
+      && !importedDataMatches(agentProposalsBeforeMigration, merged.agentProposals));
 
   const mergeMsg = `Pull ${profileId.slice(0,8)} — local sun=${countArray(localImportedForMerge,'sunSessions')}/dev=${countArray(localImportedForMerge,'lightDevices')} · remote sun=${countArray(importedData,'sunSessions')}/dev=${countArray(importedData,'lightDevices')} · merged sun=${countArray(merged,'sunSessions')}/dev=${countArray(merged,'lightDevices')}`;
   const needsRebroadcast = preservedFreshLocalEntries || preservedFreshLocalContextAI || preservedFreshLocalScoreAI

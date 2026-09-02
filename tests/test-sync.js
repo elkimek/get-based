@@ -1272,10 +1272,18 @@ await import('../js/settings.js');
     /Push committed[\s\S]{0,2500}applyCommittedDeltas\(profileId,\s*dataJson,\s*deltaPlans,\s*deltaOpCount,\s*_debug\)/.test(syncPushSrc)
       && /applyCommittedDeltas[\s\S]{0,1600}_applyArrayDelta\(arrayName,\s*plan\)[\s\S]{0,500}_writeDeltaSnapshot/.test(syncPushDeltasSrc));
 
-  // Pull-side merge contract — per-row authoritative, blob fallback, with
-  // fresher local edits protected until their itemRow update lands.
-  assert('onSyncReceived overlays per-row state AFTER blob merge',
-    /merged\s*=\s*localBaselineForMerge[\s\S]{0,400}mergeImportedData[\s\S]{0,800}_mergeItemRowsIntoImported/.test(syncPullMergeSrc));
+  // Pull-side merge contract — canonicalize the blob before per-row overlay
+  // so duplicate monotonic records remain visible to the row merge, then
+  // migrate again for legacy records that arrived through itemRows.
+  const pullBlobMergeIdx = syncPullMergeSrc.indexOf('let merged = localBaselineForMerge');
+  const pullPreOverlayMigrationIdx = syncPullMergeSrc.indexOf('migrateProfileData(merged);', pullBlobMergeIdx);
+  const pullItemRowOverlayIdx = syncPullMergeSrc.indexOf('_mergeItemRowsIntoImported', pullPreOverlayMigrationIdx);
+  const pullPostOverlayMigrationIdx = syncPullMergeSrc.indexOf('migrateProfileData(merged);', pullItemRowOverlayIdx);
+  assert('onSyncReceived canonicalizes blob before row overlay and legacy rows after it',
+    pullBlobMergeIdx >= 0
+      && pullPreOverlayMigrationIdx > pullBlobMergeIdx
+      && pullItemRowOverlayIdx > pullPreOverlayMigrationIdx
+      && pullPostOverlayMigrationIdx > pullItemRowOverlayIdx);
   assert('canonical rebuilt blob freshness bounds stale per-row tombstones',
     syncPullSrc.includes('remoteUpdated,')
       && syncPullMergeSrc.includes('baselineImported: importedData')
