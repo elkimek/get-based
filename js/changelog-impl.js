@@ -9,10 +9,10 @@ const CHANGELOG_ACTION_ATTR = 'data-changelog-action';
 const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
+  { version: '1.18.8', date: '2026-09-02', title: 'Claude Fable 5.1 joins recommended models', items: ['<b>Claude Fable 5.1 is recommended wherever it is available.</b> OpenRouter, Venice, Routstr, PPQ, and compatible custom providers recognize each provider\'s model ID format while continuing to source availability and pricing from live catalogs.'] },
   { version: '1.18.7', date: '2026-09-01', title: 'On-device voice is clearer and more reliable', items: ['<b>Local speech behaves better across phones and computers.</b> Android defaults to the stable CPU path, failed GPU runs recover safely when possible, and Whisper Medium is available again.', '<b>Kokoro starts as soon as its first sentence is ready.</b> Playback continues outside the chat panel and clearly shows when the next sentence is still being generated.', '<b>Voice settings are easier to understand.</b> Speech-to-text and text-to-speech have focused sections, model storage explains CPU and GPU weight files, and advanced connections stay collapsed until needed.'] },
   { version: '1.18.6', date: '2026-08-30', title: 'Cross-device sync moves to the newer engine', items: ['<b>Encrypted Sync now uses Evolu 8 by default.</b> Existing recovery words and relay identities carry forward automatically, while compatibility checks continue to exercise the previous client as a rollback path.', '<b>Sync recovery has stronger storage safeguards.</b> The app avoids stale rebroadcasts and preserves a complete snapshot when rebuilding relay history, reducing duplicate growth without dropping newer device changes.'] },
-  {
-    version: '1.18.2', date: '2026-08-28', title: 'WHOOP sync is current and securely stored',
+  { version: '1.18.2', date: '2026-08-28', title: 'WHOOP sync is current and securely stored',
     items: [
       '<b>Self-hosted WHOOP connections work with the current WHOOP API.</b> Recovery, sleep, strain, heart rate, and related daily readings once again line up with the correct day.',
       '<b>WHOOP data now has always-on device protection.</b> Imported rows and WHOOP-specific local profile values are AES-GCM encrypted even without an optional profile passphrase, and device-bound raw data stays out of portable backups.',
