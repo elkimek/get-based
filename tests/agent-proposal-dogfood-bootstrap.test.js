@@ -66,7 +66,13 @@ describe('disposable proposal dogfood bootstrap endpoint', () => {
       },
       fstatSync(fd) {
         calls.push(['fstat', fd]);
-        return { isFile: () => true, mode: 0o100600, size: 3 };
+        return {
+          isFile: () => true,
+          mode: 0o100600,
+          nlink: 1,
+          uid: process.getuid?.() ?? 0,
+          size: 3,
+        };
       },
       readFileSync(fd, encoding) {
         calls.push(['read', fd, encoding]);
@@ -80,11 +86,82 @@ describe('disposable proposal dogfood bootstrap endpoint', () => {
     expect(typeof dogfoodServer._readAgentProposalDogfoodEnvFile).toBe('function');
     expect(dogfoodServer._readAgentProposalDogfoodEnvFile('/private.env', { fsImpl })).toBe('ok');
     expect(calls).toEqual([
-      ['open', '/private.env', 'r'],
+      ['open', '/private.env', fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW],
       ['fstat', 41],
       ['read', 41, 'utf8'],
       ['close', 41],
     ]);
+  });
+
+  it('refuses a credential descriptor owned by another user', () => {
+    const closeSync = vi.fn();
+    const fsImpl = {
+      openSync: () => 41,
+      fstatSync: () => ({
+        isFile: () => true,
+        mode: 0o100600,
+        nlink: 1,
+        uid: 2000,
+      }),
+      readFileSync: () => 'secret',
+      closeSync,
+    };
+
+    expect(() => dogfoodServer._readAgentProposalDogfoodEnvFile('/private.env', {
+      fsImpl,
+      ownerUid: 1000,
+    })).toThrow('Dogfood credential file must be a private regular file');
+    expect(closeSync).toHaveBeenCalledWith(41);
+  });
+
+  it('fails closed when process ownership cannot be established', () => {
+    const openSync = vi.fn(() => 41);
+    const fsImpl = {
+      openSync,
+      fstatSync: () => ({
+        isFile: () => true,
+        mode: 0o100600,
+        nlink: 1,
+        uid: 1000,
+      }),
+      readFileSync: () => 'secret',
+      closeSync: vi.fn(),
+    };
+
+    expect(() => dogfoodServer._readAgentProposalDogfoodEnvFile('/private.env', {
+      fsImpl,
+      ownerUid: null,
+    })).toThrow('Dogfood credential file must be a private regular file');
+    expect(openSync).not.toHaveBeenCalled();
+  });
+
+  it('refuses a credential descriptor with multiple hard links', () => {
+    const closeSync = vi.fn();
+    const fsImpl = {
+      openSync: () => 41,
+      fstatSync: () => ({
+        isFile: () => true,
+        mode: 0o100600,
+        nlink: 2,
+        uid: 1000,
+      }),
+      readFileSync: () => 'secret',
+      closeSync,
+    };
+
+    expect(() => dogfoodServer._readAgentProposalDogfoodEnvFile('/private.env', {
+      fsImpl,
+      ownerUid: 1000,
+    })).toThrow('Dogfood credential file must be a private regular file');
+    expect(closeSync).toHaveBeenCalledWith(41);
+  });
+
+  it('refuses a symlink credential path', () => {
+    const envFile = createCredentialsFile();
+    const symlinkPath = `${envFile}.link`;
+    fs.symlinkSync(envFile, symlinkPath);
+
+    expect(() => dogfoodServer._readAgentProposalDogfoodEnvFile(symlinkPath)).toThrow();
   });
 
   it('stays disabled unless explicitly configured', () => {

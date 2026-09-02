@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   auditDomSinks,
   createDomSinkPolicy,
+  fingerprintDomSinks,
   scanDomSinks,
 } from '../scripts/dom-sink-audit.mjs';
 
@@ -52,4 +53,12 @@ describe('DOM HTML sink audit', () => {
       String.prototype.localeCompare = originalLocaleCompare;
     }
   }, 15_000);
+
+  it('changes the reviewed fingerprint when an identical sink is relocated', () => {
+    const original = scanDomSinks('node.innerHTML = html;\n');
+    const relocated = scanDomSinks('\n\n\nnode.innerHTML = html;\n');
+
+    expect(original[0].source).toBe(relocated[0].source);
+    expect(fingerprintDomSinks(original)).not.toBe(fingerprintDomSinks(relocated));
+  });
 });

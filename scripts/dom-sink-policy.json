@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
   "scannedFiles": 692,
@@ -7,14 +7,14 @@
   "files": {
     "js/backup.js": {
       "count": 1,
-      "digest": "5fcefb641662198138438fcdaa6cf6f263c141925406dde1cfb30b3c1f57674f",
+      "digest": "9fc382a6661dc79770dd7da8e152e6c9fba499e91eef76354a75d8bd868a1d85",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/biology-scores.js": {
       "count": 2,
-      "digest": "e95f81a844aa3d5b919a0c36511ade7efddfaffac485de41cf32e5885ac08080",
+      "digest": "5f389b263f68d95531d0735d7f37304df3428e443e88e788e7b91b022e30af35",
       "kinds": {
         "innerHTML": 1,
         "outerHTML": 1
@@ -22,42 +22,42 @@
     },
     "js/category-customization.js": {
       "count": 1,
-      "digest": "c95d3296e14bae61d2bc92c9c693319634681da39b51d4080b190e78b5abc330",
+      "digest": "f02e8b325d4516c1a0dd86259d0ad0dc4466170730d7e246df7857ef749a5a55",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/category-page-view.js": {
       "count": 7,
-      "digest": "167b7d14ce737c859d1ef831a14c3d919d4df424aa2fb8f164034432165f97ee",
+      "digest": "53ffff0beb747372e3e7d7d7001d829b4f8adabef0078097999559c3572b9f85",
       "kinds": {
         "innerHTML": 7
       }
     },
     "js/changelog-impl.js": {
       "count": 1,
-      "digest": "fe841c598e2b255d41cc4696ba0cdcaa3c98f5353f15a3cc2b63f10cc5eef1bb",
+      "digest": "ad6e22f69ba72181d6a71b4ae71035e936ce89ca64beffcd53b8346330f0eb90",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/chat-context-status.js": {
       "count": 1,
-      "digest": "b4754dc784d565c8d4b2f631d1b51d81ab52806480de27420aad3b64e7064c52",
+      "digest": "3d650cb1e979236e36fb8d554ee32451ac3d5c8f65974cd6433ab458c6e238b1",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/chat-discussion-picker.js": {
       "count": 1,
-      "digest": "23dfeedd784e7326500086f1b44dcc9360eb5042753ead6bf07194cb7aa31103",
+      "digest": "a0f9ca1f61f965bfad2218cc4a0de0f1a30c3c45051463f6749130e8bdb8814d",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/chat-discussion-round-view.js": {
       "count": 5,
-      "digest": "5e49eaaf870ead128a744799650b48f9ef6fdf21b64d81de4220f84653cf3b50",
+      "digest": "fe18fda3c1734f3a6fb70e2c5db6b5e94a2f9b8abf8f4bd1eb5466a572f7667f",
       "kinds": {
         "innerHTML": 4,
         "insertAdjacentHTML": 1
@@ -65,35 +65,35 @@
     },
     "js/chat-discussion-ui.js": {
       "count": 1,
-      "digest": "42e0ee63ef56491423df281875462819e0c587b50c019187d8ebf67aeb863a7e",
+      "digest": "985b145c1cbb7670f9ce498c0b553aed41fb79ebc86dc56be3e32cb50e3792df",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/chat-empty-state.js": {
       "count": 11,
-      "digest": "c9eaac5ba554631e5b161fa12f67d0f0b8a94aac58c6774acea2386533ab8faa",
+      "digest": "7b8011648c73feb5448b40042060ca528f7fc087e59b0d2bdf203a2307c83b8c",
       "kinds": {
         "innerHTML": 11
       }
     },
     "js/chat-images.js": {
       "count": 2,
-      "digest": "9435182f209fd95dcd14554336f25dd07ebf2343326bf6db58be4e0011a08f9d",
+      "digest": "99d06e363d5308904096004478fcd3ef2f12cc264b198d2e219ec9b84f0b3c12",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/chat-message-edit.js": {
       "count": 1,
-      "digest": "4cf5c9ecee8d08738fdd49efc45630795a9e552d69132578037986d53f25d575",
+      "digest": "f476254303d622c2b3304fc7290ed6d9f89c4f9cd6cc01871c4ac59e3d8a26ed",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/chat-onboarding.js": {
       "count": 3,
-      "digest": "681c81adc2e2ee707c7cc9d6a3f9f93c65a8d9bd944cee9d85f25687e1a8de73",
+      "digest": "75af20b711f8d771da3939ab3a590e148659258b26fd5b9f5575e691eb5cbc74",
       "kinds": {
         "insertAdjacentHTML": 1,
         "outerHTML": 2
@@ -101,28 +101,28 @@
     },
     "js/chat-personalities.js": {
       "count": 2,
-      "digest": "cb1249687da3e435647ed4604fe5d026dff27f1e391c1acd55c095cddea58ec5",
+      "digest": "32797827a3c88c619caccc0741920742dc6f103c894d5d12d60d28179308b61f",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/chat-personality-editor.js": {
       "count": 1,
-      "digest": "404e2b8ed72d00b4e67928917d5d655c70e5a33760783ea20c33f8b997a3bc53",
+      "digest": "33e4a63ab0817cd0128ded1e8f2091516225c01e30a37478a076e813a6d44ef4",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/chat-render.js": {
       "count": 1,
-      "digest": "69d0ae46fd037ba1cb04210e31c53159f2fa2349bbf5c273f1dcbb886d09e5c3",
+      "digest": "c2a8e09e3726c56854e8c3948954c957df7a207187c9949911beb309d5c8dd92",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/chat-send.js": {
       "count": 10,
-      "digest": "cb8912b15d0521d118f7be3509eded6e1c1e389c1ff750d34b03f1b3fe3fec35",
+      "digest": "8cbf4bf446ca3da9134af90b4c3fb6d9fdf27ed79eadc2831cc525b137d64aa7",
       "kinds": {
         "innerHTML": 9,
         "insertAdjacentHTML": 1
@@ -130,7 +130,7 @@
     },
     "js/chat-summaries.js": {
       "count": 5,
-      "digest": "3d21bb017610407938acf54304e83eac730dc4ddde4035ce8b128b8387627310",
+      "digest": "748cf8ff17f290a47cc6ccea9df1f61e85992f91b2ceaa109487c7051e4091db",
       "kinds": {
         "document.write": 1,
         "innerHTML": 4
@@ -138,7 +138,7 @@
     },
     "js/chat-thread-search.js": {
       "count": 4,
-      "digest": "e93383238e02473b805c4dc0a894f80ea570bc281275547cd1881e8f0c89701d",
+      "digest": "db2894946a1d165b75c38522915a76e43c66f5cdfe9ff7f66c46deb7f979897b",
       "kinds": {
         "innerHTML": 3,
         "insertAdjacentHTML": 1
@@ -146,49 +146,49 @@
     },
     "js/chat-threads.js": {
       "count": 2,
-      "digest": "af3a1916583fa2cdf83acbc67cc302996580c42b39c3691a4dfa880537eae97f",
+      "digest": "60285923966f2a942b0a30bd8f80625a1226a1b8863f0bcdb9821b4ec7428b99",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/client-list-form.js": {
       "count": 4,
-      "digest": "5476094af1f2a25885b9c13286246f562ffd909a4770f53b37f3e1410fc6cf79",
+      "digest": "12021dd9820b8e2c1f353232c6178b2e47fa449bcfe444ed19cfe438351b9d19",
       "kinds": {
         "innerHTML": 4
       }
     },
     "js/client-list-impl.js": {
       "count": 2,
-      "digest": "3ed52da058bcab845085f1599e6eee270d27b268b41a46ba61143f7a488191b7",
+      "digest": "03ae5b5d5cab1bdced7431af341bbd6c973a3a4406d58e5c43484182c9e6a58a",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/cloud-ai-consent.js": {
       "count": 1,
-      "digest": "99091c3093f2627242f106aef100196d798ff5874c6c059214a8944cf8aec0b5",
+      "digest": "592914cee26d8bb898cd5d04e81520bb9f4d19c492400fc395aa9d19bc007f66",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/commit-hash.js": {
       "count": 1,
-      "digest": "a3c56f651bd45f3478d31d12bc7f5c18fbff3014c2913ec6c445bf17f360c3fe",
+      "digest": "7aa10cca4ee4ef1aa776e8ad374e5ea018e76a2e740704a8a8ba53ec74dc6e17",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/compare-correlations.js": {
       "count": 7,
-      "digest": "67f21dc0bf97c735b4a594181c36a9e07d93924c1ce5de699a5fd8153de145de",
+      "digest": "33f84e73602445a2c1d719f987b6f2949478b87bac37a863f4b23fb53a26d0a3",
       "kinds": {
         "innerHTML": 7
       }
     },
     "js/context-card-dashboard-ai-impl.js": {
       "count": 5,
-      "digest": "a1eb1cf70d1fa50e04df76699777772244d4d4063d2f084156cd8f891c597dc1",
+      "digest": "249877af8d5873eedc2cea62a91cefe20a57aea49ae040f57e4ab8b1c0901ad2",
       "kinds": {
         "innerHTML": 2,
         "outerHTML": 3
@@ -196,14 +196,14 @@
     },
     "js/context-card-editor-ui.js": {
       "count": 1,
-      "digest": "7a470e267803dcbe1373fddf2d54fe3c35a2a2c5da313ae99fd8e8d32916e0ff",
+      "digest": "ade3d769995bfb7bc4e19b3ba907592a7d692424688d6a7f63a4f52b391dd645",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/context-card-lifestyle-special-editors.js": {
       "count": 2,
-      "digest": "21b53358600ba6fb03f0f4477b1e2ffea1053d0999112ea5cabbe1a1852e4064",
+      "digest": "8d2fa1369aaa280ec12e7a6cf0873a1ac2f3f971ad141f9101a31688687c6d0e",
       "kinds": {
         "innerHTML": 1,
         "insertAdjacentHTML": 1
@@ -211,252 +211,252 @@
     },
     "js/context-card-medical-history-editor-impl.js": {
       "count": 6,
-      "digest": "0398b14bdffd818a7cf9797c81a3f3aaa8ca947f4b102d0f7252a264b5783610",
+      "digest": "4e9621499d0ce5fe3f9b6ae8b6fd458eb2830588525e5cfccc23d4d71a4afd2f",
       "kinds": {
         "innerHTML": 6
       }
     },
     "js/context-card-medical-history-editor.js": {
       "count": 2,
-      "digest": "7d89b7de74d99b863a1d452da4f123aaa340cbff43a7be717f3160f205bdbdbf",
+      "digest": "9450f21f1cbcae5e87269a01de25d71be65278611812ea3eed03a28971409f6e",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/context-cards.js": {
       "count": 1,
-      "digest": "fe841c598e2b255d41cc4696ba0cdcaa3c98f5353f15a3cc2b63f10cc5eef1bb",
+      "digest": "724d37247ae248b394ad8e704fc5469e7794b2f564a3bde954c1615695509287",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/crypto-ui.js": {
       "count": 20,
-      "digest": "8b917d29d12c72331c3ef3fa6f754ac0e9465b15cf69a3e8f73084fe657ae69b",
+      "digest": "0515c3b0b08214a5ccee2b9e6dac25fcb5e3847baa65d05ac3011c31233c21cf",
       "kinds": {
         "innerHTML": 20
       }
     },
     "js/cycle-import.js": {
       "count": 2,
-      "digest": "7aec52559ddb8313949fe373f81bd1a62fb3a0b01d61cc4ec63500456159e8d5",
+      "digest": "9d575d1e3eda88f9c38bd9e34b23f23746363b67d2f7beed95a95d1ba99f4b9f",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/cycle.js": {
       "count": 1,
-      "digest": "fe841c598e2b255d41cc4696ba0cdcaa3c98f5353f15a3cc2b63f10cc5eef1bb",
+      "digest": "122c17305f1d7f1f2ee92747e98d8abab9b6105daf4432ff522dea815bd3b5a3",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/dashboard-page-view.js": {
       "count": 3,
-      "digest": "8cadb8084300e081bd63c7ccaca9725445dac165957f3863fe91e777b8bb1945",
+      "digest": "b43096cae9fda8f0b29f910839908dd8e4465e1c73bc9f58e98aff5586a3f2e1",
       "kinds": {
         "innerHTML": 3
       }
     },
     "js/dashboard-recommendation-widget.js": {
       "count": 1,
-      "digest": "cbdee0db380f36a51df034d594df5cb99145ed6cd19cadda1d5b9b10951d0493",
+      "digest": "41d3425d6620da18853398f776fedb291ef21daa2755864cb96248ff3fad1b47",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/dashboard-widget-controls.js": {
       "count": 1,
-      "digest": "3b6634d0f70bf7fb29792e9954a2583f1a90cb82aca19eb1779b1a84f408a354",
+      "digest": "4e092313b60b75176212500f47f4a942c9352fd6aabec1599ceb20da2fd6aaac",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/dashboard-widget-renderers.js": {
       "count": 1,
-      "digest": "e7d83870377d2f455e5365284215ef34395f8f3ceb493f5940ceae72d7451b03",
+      "digest": "c1a67b3bc6655f762f82754c6a07516f786e894c4d24b5bb6c2398d99014cced",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/data-view-controls.js": {
       "count": 2,
-      "digest": "eef0c8f34149971273fc76927694d6f7a810ae0161d853d5a8d01f252d7cd934",
+      "digest": "d7f69c3c486c3e1a63d3aaa405b02061a9cabf6eee597e2e2d3b4d562248f409",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/dna-mtdna.js": {
       "count": 1,
-      "digest": "7a613c36858095ae8fad79506a8f5999ebce9dbcb5d71a8ed4680b6faa3be873",
+      "digest": "00731d35b747673ef352d34e2930a494137e2c78389e6c0d31725cff8236f8df",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/dna-ui.js": {
       "count": 2,
-      "digest": "a54306fb368b46ef207b030f57c136a4b3772d26d119063fe8f89fcee63d1f6f",
+      "digest": "f075f1b3f9b9d885b6efb446d1f9b6183b4a1110a282a4dc633f2bd0738a71b7",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/dna.js": {
       "count": 1,
-      "digest": "28ae5423534cfbd950d177d54cb1b00913ec70dfb54fe2b9f6c2b0afbaac25c4",
+      "digest": "63a5696dbb790d13727a4b81007c8f26f5e0934bc0e4d092895422b9cc409913",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/emf-editor.js": {
       "count": 3,
-      "digest": "28098d3ecf8268c5b5ef1452e280494089e3b08474550335751bf167aaf7a1a4",
+      "digest": "600993061fe62d33a87be1e9c83a7f7f5419038ccf8866d4453c95c08eaec357",
       "kinds": {
         "innerHTML": 3
       }
     },
     "js/emf-interpretation.js": {
       "count": 7,
-      "digest": "2ea961e9b7e17270ccec05289b8cfd79596b2ab3f2fbe338442bef0a24ddd70c",
+      "digest": "a893aa574dfc476fbdc08aec6aed0ea5defe4884716d617c28a4cc093a2302a1",
       "kinds": {
         "innerHTML": 7
       }
     },
     "js/emf.js": {
       "count": 1,
-      "digest": "6f79650128edab26ce19804b79d39a52b3a1882c52def4f043d33bd1da91c9e3",
+      "digest": "a5475093d2e478e4c5a4a501133915f470fba13c1f5979f17e5417fbaebd509b",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/export-report-builder.js": {
       "count": 1,
-      "digest": "7165f86b26a73f39938cb9100790cbb04fc965fd138bd9be5995dd444c6c4976",
+      "digest": "4b2a48f6c1fde2f26a97f129af5d34aa455963db27adeb10575ebb72778658e6",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/export-report-html.js": {
       "count": 1,
-      "digest": "de5194c38294b04fd8138babefbfaca55112c9424bf9c8d30a5084738aace90a",
+      "digest": "b4039d38444f29ec295fc9c861b43d2fef7579d693fcc042364ab47ef09b509a",
       "kinds": {
         "document.write": 1
       }
     },
     "js/export-runtime.js": {
       "count": 2,
-      "digest": "434feb30ae84c23b586df02544b41c34a08cfacf61701cb7dcf8b20130652cce",
+      "digest": "ff87d20fb624c354b26e438760438ac23b07f2fc726784c251e54c0462e56ff0",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/feedback.js": {
       "count": 1,
-      "digest": "f098488c2b7808da55bb3b79ad0ac2887031944f00af92f2a99136aac8b395de",
+      "digest": "156bbddafe933892239d4a185e6982a84df1ae342b7d4ee40bc7be5c510d4675",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/focus-card.js": {
       "count": 8,
-      "digest": "1d2009cf66416720c881e8e723448975335a40086c2447aef4d736b31c6f9bfc",
+      "digest": "67dd3bc6acb1f0d8986f2d4f51998e4afac3dee905d7a594a6f48ebfa959d351",
       "kinds": {
         "innerHTML": 8
       }
     },
     "js/import-marker-map-modal.js": {
       "count": 4,
-      "digest": "68150c56675ffb1dd07bd6ce6610d33a28dcea2398846c056536ae894d9e5364",
+      "digest": "cbe285224f508cb0703274ce25635906cad41391611e1e22fa7bdab73383e71d",
       "kinds": {
         "innerHTML": 4
       }
     },
     "js/import-review-row-actions.js": {
       "count": 1,
-      "digest": "3aac26d460067025088450f30cac072c0f5070285345276c3e248503f2bfdbf6",
+      "digest": "9b26931219987cccbeb6c66af0bcd60198c7cf54aff511a254f9e6af7632c483",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/legal-consent.js": {
       "count": 1,
-      "digest": "e1a33d351f8bbc45e249c5b0bcf27f8623eff4d3c49d4152aaf8b037594a51ea",
+      "digest": "e8b3438a2a78c3544105c1964dd0bbfad8c406c893ba849edb0d374868abbd2f",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/lens-knowledge-base-ui.js": {
       "count": 8,
-      "digest": "31d50d2cec39feb3bddbc41b39bddbb2a01ddf531f795d14b85bcb76614fd564",
+      "digest": "1c32319c43110b367660a3f1f2bd8954d14e2cd4e990b5c68233ebd0aebff37c",
       "kinds": {
         "innerHTML": 8
       }
     },
     "js/lens-library.js": {
       "count": 4,
-      "digest": "6b190fac1c7e77d333148f96bdf650975d5a66ec365912ac25743e587c6c4a0c",
+      "digest": "ec70cab95a3056034538cacdc86303eb727f3f32b3512f594379b2ffad88b5b0",
       "kinds": {
         "innerHTML": 4
       }
     },
     "js/lens-pages.js": {
       "count": 10,
-      "digest": "0ff17e68faa8ae531885c7550177a748f8a536cd408033b7a555e5a4b5e847fa",
+      "digest": "fb677cf86024e66facbe803dda9436eddda25ba1d67206a2a22d965ef1e7e3b6",
       "kinds": {
         "innerHTML": 10
       }
     },
     "js/lens.js": {
       "count": 1,
-      "digest": "456ec053d24d4466144a23edb38858f44fcafb9fc5def853c99a3fa131f7887f",
+      "digest": "323261544bbd13e0e1b3236fa4eb4853a1141f0b6590c0fb806572dc8941be8f",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/light-channel-view.js": {
       "count": 2,
-      "digest": "992b1a0f0e11ef6778d167c9712d4ad51698a8c74574e90ada94598002f38df9",
+      "digest": "cba91b52453c54403d4de783a66bd1f1862e24a7d340e0f87af0ec16f7734f25",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/light-conditions-now.js": {
       "count": 5,
-      "digest": "aeb6494fb78f3b7d75bd49119cb2d6ac6bdc19864b1632d05e614eb945e515d3",
+      "digest": "49032fdf532c5c3faab37ae6b027ec5794cca4f2ec59fb1ddee73eb24c09f320",
       "kinds": {
         "innerHTML": 5
       }
     },
     "js/light-device-session-modal.js": {
       "count": 2,
-      "digest": "c78a7ebe23e085478811575305851154e713f8996ee54a57c28ef0ce62d5462d",
+      "digest": "6657667f844aa068cd409718f646d1995fc561050441309ed2c509abf33eb971",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/light-device-setup-modal.js": {
       "count": 2,
-      "digest": "64e4c7a0e0f179b47fb2df86eba0657604bc62c518383cc74039ae3cdcf09b50",
+      "digest": "a3f15470587b9361a771568b6e459d8f56257dbfb3e3f3c57be2c3bb9453a1b0",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/light-devices.js": {
       "count": 3,
-      "digest": "d7e2642d12acb82592fe9be0eb95e4f623c812e70556934d42dc96e8d83d9068",
+      "digest": "5c636546a69a062404fbf2fd50edf3cc54dbcda9ab2dac3005fc0495ba4143b0",
       "kinds": {
         "innerHTML": 3
       }
     },
     "js/light-env.js": {
       "count": 1,
-      "digest": "5a93ca8bb9ce953b2aa4eb85aee75f4f682b959778efcad89da5aa6021291e4e",
+      "digest": "bb8993d6f7059f92861593804ef947b71e803f50ddf44c372c3379da5d5633d2",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/light-page-view.js": {
       "count": 9,
-      "digest": "194252e50e2477527bfaf17397a6071178ea2734a0af3ab09409c64e2c17b239",
+      "digest": "6e1d362bdfa3cbc6c5d7a63e161c0a2a2054e95698332957f4c227515496eb8b",
       "kinds": {
         "innerHTML": 3,
         "outerHTML": 6
@@ -464,105 +464,105 @@
     },
     "js/light-sessions-view.js": {
       "count": 1,
-      "digest": "ed332699327a32a715b0d1a98124bc821b3811b2c10cf88359479a2e2729bbce",
+      "digest": "1b7cb0296722aea9aadb66203827d2353b6cc5ddb8db7b304da26d484a5d5e55",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/light-today-ai.js": {
       "count": 1,
-      "digest": "bb1199524015585757700c6e0c56c3d379b1494429875501c8a85859c2a5a6f8",
+      "digest": "a3292ba4f770ae7e1afc8ec0e3952bcbba3591d104fa537be3272cec91ed4a58",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/light-tool-cct-meter.js": {
       "count": 3,
-      "digest": "7090b58d07fb3b9f77f14804aa28c84ce1fc6647950b263fd03510bde6f791fc",
+      "digest": "51c247cce213d85265949fa87ee3ccf2d6e92c5b3bc6e6b3619c627e0697621f",
       "kinds": {
         "innerHTML": 3
       }
     },
     "js/light-tool-darkness-meter.js": {
       "count": 3,
-      "digest": "b75a133e5daa5be4241c8d12b9258c7bc4f4eafebb2e5f9cf5a9ad39b30e528d",
+      "digest": "a9b2ceff75471795775696ce6942cc21f20b958182408e4049afb2bd641239a0",
       "kinds": {
         "innerHTML": 3
       }
     },
     "js/light-tool-flicker-detector.js": {
       "count": 5,
-      "digest": "f76c2758ae16e947bc1a51b071c19a59ddfbaa7c080c7179fd3e3ca97ca5d4bb",
+      "digest": "34c7b3a4cb936a3d09b76b1cf36796869bc15195acd52d6aaece230b237d11cc",
       "kinds": {
         "innerHTML": 5
       }
     },
     "js/light-tool-glass-transmission.js": {
       "count": 2,
-      "digest": "845a2624a2807c44c22b13c9f341ba1183049a95ceae6e4eba08b1334ae44585",
+      "digest": "35a97c1f64d58537ac1410ed0910c2f801a698c1a4363c09a80cb00664645187",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/light-tool-lux-meter.js": {
       "count": 6,
-      "digest": "e3846d7175570c6d0bcc7a63aa840a787616b0eed8a13effb9774de2ef9f7cb4",
+      "digest": "2b5c10d8b1f2db4fb8651fe608f6424183a73f9617afd35be8bbfe775d92b1af",
       "kinds": {
         "innerHTML": 6
       }
     },
     "js/light-tool-spectrum-classifier.js": {
       "count": 4,
-      "digest": "6c064c2db9aed61d71d0307dfa72460ae92ae7e3c1f4009ab921285352af267c",
+      "digest": "d623e19d78e1a506dbac897c0497b3e1c31baa9fbe0366c6bb8696b121b9449f",
       "kinds": {
         "innerHTML": 4
       }
     },
     "js/light-tools.js": {
       "count": 6,
-      "digest": "13efcbc69f825a1b2a883865e3418fbd01b677052f03ecef9a0b250918a3d551",
+      "digest": "38d3c003c17f6f8bdb81f2e4a5beda400c54bbfbc992cdba04e3644024827b3e",
       "kinds": {
         "innerHTML": 6
       }
     },
     "js/marker-detail-custom-markers.js": {
       "count": 1,
-      "digest": "d1ac141085860d23721d3c98efaf57a65bcffc9999a6426d6a294b354b1ca920",
+      "digest": "72df073a583317a4a43db7f30c48776c8d172cee3d6a5ea656388d98afade0ef",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/marker-detail-editing.js": {
       "count": 1,
-      "digest": "419c400a72bac70d71f129047f0c85a0c8ce91b181b0d2d70a60b7b19b621085",
+      "digest": "d0883e1ee4049b18e17cb76d17f78e1e943a718e16a2b28763b4342e927e77b6",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/marker-detail-manual-entry.js": {
       "count": 1,
-      "digest": "eb55a3c9c8c732be4c878c5ca08c735db027025d14253a00508f55b0ee33b073",
+      "digest": "007fd5f8b7a66405a11f2712acdd6d6f9e24fe89dd9d69fe018346f7336e6917",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/marker-detail-modal-impl.js": {
       "count": 2,
-      "digest": "0050e72c749706f23cc5307ad5b3ccfc5b854849bea494c551b90f67e5ad4248",
+      "digest": "ac986830a4eb6b194f8426e99a3d9cae2cd85c7dcc4b8557a0d0f990007d9770",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/marker-detail-placement.js": {
       "count": 1,
-      "digest": "ddb46b5fad395b08b92ed8c75eace88d47b64ea8b8143dce358e291f48951aa1",
+      "digest": "91b2fddcd9ac22ec4513d4229e4acebeba73e37b409f49627c095dcbeffc25c6",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/mobile-dashboard.js": {
       "count": 3,
-      "digest": "459d8e78941ba3abcbe233472bf0e4d69d8700864fc15270ea1c5ba79583a1ae",
+      "digest": "6baab86a8e7f5864774f74310fe81806a2a0d54719df2d5f2e7fccc22ba4280f",
       "kinds": {
         "innerHTML": 1,
         "insertAdjacentHTML": 1,
@@ -571,35 +571,35 @@
     },
     "js/nav.js": {
       "count": 2,
-      "digest": "728f47ed45f2d1432120c7a7983509b59a56eca631332cdf9342cccc0300f795",
+      "digest": "be180169ee5dc940f329f9c455d2edee57090afccd0d32162cded29a50d4e4a3",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/notes.js": {
       "count": 1,
-      "digest": "7ae26c5099a4f6756e93484514cbc4bfbbe93a268f7fd44f67dcc6a2b6b1c608",
+      "digest": "d727c8c0204f86f0ec515b35ce750df252beaee77c3dea2744f2d9d0bb66942b",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/nutrition-benchmark-workspace.js": {
       "count": 3,
-      "digest": "eab777e84c48e3b72c0896d1be0e4ab5ec55bb15ecf0ed5a00fa3f3f4df48e89",
+      "digest": "aa0a09f69e1128e4ffefa7f9d58fc63570d1176efb285e65ad4cfc7046427cbd",
       "kinds": {
         "innerHTML": 3
       }
     },
     "js/nutrition-comparison-results.js": {
       "count": 2,
-      "digest": "1c97a38d1a29fdfcfdb4b1788d4069eb286490f2798da74194eb647f3651cdf0",
+      "digest": "628e98842242c6b1916e127c4b3575c83d20b93b22e69af799ac2f6f17d4b751",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/nutrition-comparison-ui.js": {
       "count": 6,
-      "digest": "2227cd51151f6a8bfde40c6f482310ea9708ddb48d781e9be5744fb1c84840b2",
+      "digest": "275aedf86ea3471b025b615bba114e4891bb96dcf174f5b7b27ce01c8526ff5b",
       "kinds": {
         "innerHTML": 5,
         "outerHTML": 1
@@ -607,35 +607,35 @@
     },
     "js/nutrition-entry-forms.js": {
       "count": 1,
-      "digest": "9cebc9e324252cd40ade39e881fb6667bdb807adde529c3ab9aa3189b3b5a721",
+      "digest": "4f23e6ac34ec5d9c23608f8754651af1e4b8583a389600e21bd7782794f8ae50",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/nutrition-history.js": {
       "count": 1,
-      "digest": "d6db6fd3c185188f3b9546223bc83083b8889172426fd2e5191bb8a4ca16cf99",
+      "digest": "23cfa4f8dd53fd03610ae9c98f48af254873a085a092b874b483ff50d527df4d",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/nutrition-render.js": {
       "count": 1,
-      "digest": "3d063eff8c81f87545d0c8540edfed609aa95db6cb8ce7187639e713b134d2fc",
+      "digest": "63746e36298101ff19280148d9eb9a76e3b7bc1b5f74e610331baac2e5fd592d",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/nutrition-review-ui.js": {
       "count": 10,
-      "digest": "682d7a32954d08c122db26cb6563744aec4b29d31a7625003fb69940ac3336e1",
+      "digest": "bcbab928704bf75e8963df431e2191217811c893216467db5f3feb782dfbeb9e",
       "kinds": {
         "innerHTML": 10
       }
     },
     "js/nutrition.js": {
       "count": 8,
-      "digest": "4451e6b7556eef262918354ac97ac797bcb52194c0f889a0aac00f09642a031e",
+      "digest": "bd1007d2d92acded4770a422ea157272a8bfcfc464a5a1f3eb2712d59adf2fca",
       "kinds": {
         "innerHTML": 7,
         "outerHTML": 1
@@ -643,49 +643,49 @@
     },
     "js/pdf-import-file-handlers.js": {
       "count": 1,
-      "digest": "3a9e68cc26d728fe2a93c2e8b3f58f153f4c7bb920f3ec934a6b00826e393573",
+      "digest": "9013dd5074c6ea496ffbd99d6db6b1a1af5abab7b1fcb57cf04bb38a89e729c0",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/pdf-import-preflight.js": {
       "count": 3,
-      "digest": "d254cca1162658f6355bed2d9c75eac772c064e5a24867691d59c939d7a29863",
+      "digest": "26c2f1563a57b247bdf621be2768ab3bdeee53c94815ae8fc88d7fbb14e26a92",
       "kinds": {
         "innerHTML": 3
       }
     },
     "js/pdf-import-progress.js": {
       "count": 4,
-      "digest": "ff7f8db70abf1d8008154a767e663b9a0e4367772f60e74dc39801faa8123c9a",
+      "digest": "1853dc45455d94166535e30165995efb2d9506201236272fb5f5b104ea31c938",
       "kinds": {
         "innerHTML": 4
       }
     },
     "js/pdf-import-review.js": {
       "count": 13,
-      "digest": "a5049f7801a4e9ec3967f0a3290318d6b0f09c012e91fbd87be2f6f666c8499c",
+      "digest": "bf44780928d7af4875034ed787d350a3842ee282a040baa34d41cab69045eb2c",
       "kinds": {
         "innerHTML": 13
       }
     },
     "js/pdf-import.js": {
       "count": 1,
-      "digest": "6237fd7f2e8322a2109993d2044655989a4e6c09e927598aff56f25cef7834be",
+      "digest": "cd7bcfc585f41882a8e21463e1f0e1b4f5bbb6d886eeb0027cba82eb868911da",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/pii-review.js": {
       "count": 5,
-      "digest": "82f297031de29e1981d24ad042bdcd91e9a77573db9080506d844d08156e7d0a",
+      "digest": "dad5cba6f7f0a46cd5a9d16435a816fa5e534e0cc395d16ae0e1edabfc5b3982",
       "kinds": {
         "innerHTML": 5
       }
     },
     "js/profile-share.js": {
       "count": 3,
-      "digest": "8f1d63e9be8fed1e0c409adf3ea2fd07dfa59331a7536a993afac481267384a3",
+      "digest": "79f1c02c714fce621d579006e42d88c29294e2f3629e45a903a3e7319136dd34",
       "kinds": {
         "innerHTML": 1,
         "outerHTML": 2
@@ -693,140 +693,140 @@
     },
     "js/provider-local-ai-controls.js": {
       "count": 4,
-      "digest": "2ff47e931d98db2992d0642145537605bd58eb1da7d035249f8df2c84aadd163",
+      "digest": "562ae1e9ae1475e96df54b0724c97b2a47563c4993abae0c727c90032bc77115",
       "kinds": {
         "innerHTML": 4
       }
     },
     "js/provider-model-controls.js": {
       "count": 11,
-      "digest": "4fad5fbaef102afa00cc3070fc40e103de3fce1ecf82321e97e79e8238854b21",
+      "digest": "e95fe69776e1dba8d54e3f7d5cc4394fa1a31d9a9326a3db64d369388bd09b91",
       "kinds": {
         "innerHTML": 11
       }
     },
     "js/provider-panel-renderers.js": {
       "count": 4,
-      "digest": "40efe7a45cf010f013b9d68285be1d61bd09e5e37438f9112f6f1d501e40abcd",
+      "digest": "380cd831c5e086ab41aa0f10210179b777a98d713e861aa4f931d67a0bda1e8d",
       "kinds": {
         "innerHTML": 4
       }
     },
     "js/provider-panels.js": {
       "count": 36,
-      "digest": "c0813b3ea7f2b7dc3c30b1ffe40e404a4455a28307d2ebcf8d2869b0a41a6c83",
+      "digest": "eac9a71796a84309d176b07c642cbb2f6cd0d2cf840fc30a5fdbc6c50d676edc",
       "kinds": {
         "innerHTML": 36
       }
     },
     "js/provider-ppq-panels.js": {
       "count": 22,
-      "digest": "379adb88e59a95d14bec798804eb0d27d7e0e0d4c2963f2c44de2a216863bbee",
+      "digest": "d7eb3462ebab47afb5e07ad3fea06f2b281b1079342abc554c28be1aa9019648",
       "kinds": {
         "innerHTML": 22
       }
     },
     "js/provider-wallet-funding-recovery.js": {
       "count": 2,
-      "digest": "afe580b44e136ebd61435be23146daf28b1ab84ff2e7d2b1e656e4d4a04e84d7",
+      "digest": "e3c919e648253c084aeda8e19ae7913a18b0ff0bda70cbdd37e3a7fe89c3cd8f",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/provider-wallet-panels.js": {
       "count": 61,
-      "digest": "a63de6385285058e07d910366325d8da90f3e2c1e0d8c23d9ba03f1a7b9c83e7",
+      "digest": "69bc3232a9bfaabdbada9a1258270d67cc369e061ae2e1e0c5978e37c89d77db",
       "kinds": {
         "innerHTML": 61
       }
     },
     "js/recommendation-actions.js": {
       "count": 3,
-      "digest": "182318a1344e121bb9000ecdaf700fad7724a45c36f2b98b5c6d8e00afdc5171",
+      "digest": "bf7d93fabb2fa7916c68b90ca7a56b120f71325087fd8fc7a45b64140c758e22",
       "kinds": {
         "innerHTML": 3
       }
     },
     "js/service-worker-update.js": {
       "count": 4,
-      "digest": "4c469eab2384b969913cee8b348b9168d754bac45b9964a691698c2ce6d5470e",
+      "digest": "e2e829ca2c190f34445de6d341774b64760b2cae4e8198fb414a7d1094d68564",
       "kinds": {
         "innerHTML": 4
       }
     },
     "js/settings-agent-access-panel.js": {
       "count": 1,
-      "digest": "3362c117c723cfb73f4c2107f2409e3b0dd05096b79a1ae4e4ef814213f6c9e9",
+      "digest": "d724dfb67865be46a63f717721355c744c4e6f1c61a09f90d945be8f0bf24e8e",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/settings-data.js": {
       "count": 3,
-      "digest": "6828d0c5034277ab64ece7e590c3cd064c5612d700c3578455cb3fc8630bdb42",
+      "digest": "a80b52e57f26441fc3757cf9241ec8a79831ec423e436dbdb62805ffa61b6ad2",
       "kinds": {
         "innerHTML": 3
       }
     },
     "js/settings-import-benchmark-controller.js": {
       "count": 5,
-      "digest": "059741dbbd6fb178daebdde06a1021637d0505fe0df48e58e7466e1b37c12fc5",
+      "digest": "a6181c95d502f62157a46b0d0a6dd24919a13395457ea007e8a48f2b361450d9",
       "kinds": {
         "innerHTML": 5
       }
     },
     "js/settings-privacy.js": {
       "count": 7,
-      "digest": "4d7ca23154bd7bd5821cbba802ede0006806e348389daef29a13e5294c6804ea",
+      "digest": "3159fa5a20dd14791c30dab20531430668e0dba9a03d9088077269afff0455ef",
       "kinds": {
         "innerHTML": 7
       }
     },
     "js/settings-provider-bridge.js": {
       "count": 2,
-      "digest": "9528c17cc8a39fcce0662c0eea6086f6f46ecb939446c25836a2957da5810a53",
+      "digest": "f5f8dee3a3a51f5346fe951aa78171295849cfa375b0a85b69d1021da9320bbd",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/settings-sync-panel-impl.js": {
       "count": 11,
-      "digest": "62df70a537c761259e15709f5a86f0bdc5d2d7fb594b28b8e7ca0fdb7fd394b1",
+      "digest": "3d50864b2a27f5f222f05c99f35e252a14e2da35cbf554bf28ab72ba1840b8d7",
       "kinds": {
         "innerHTML": 11
       }
     },
     "js/settings-sync-panel.js": {
       "count": 2,
-      "digest": "5cac7d5517fd9b9dab0e4c68df5b2c622ed8f4b928c4e9ea40297999588d2aca",
+      "digest": "ab5dba5097a7761f911abdc8d0d15162ee67e092a61d5eae8853ec045755ba84",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/settings-sync-restore-ui.js": {
       "count": 1,
-      "digest": "e48ce39b90c18ab76221daf781b2aa73b25b166d37982a4a2d8c8d10ded7d549",
+      "digest": "9175c8900c73e4009f6a82e4ac5999f5e0b4959b6f431d4a90f904580528d282",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/settings-tweaks.js": {
       "count": 1,
-      "digest": "86d7a31272bca80fcfaeea636af671e56d554f663e54e86b611d08754ae93ed2",
+      "digest": "2b449dca010b6b46ec915646c1fa0087f1a4f75c17859ae4e2d75fcddefcc405",
       "kinds": {
         "insertAdjacentHTML": 1
       }
     },
     "js/settings.js": {
       "count": 3,
-      "digest": "75310b7930897f1ca64ef88ec5fc69cfc22e5e17a26d2fa1fec27ab112edb3d4",
+      "digest": "dd644ef05da85a8f651ce671f4671149402701f5e9d1c32b79d25da00aea2da9",
       "kinds": {
         "innerHTML": 3
       }
     },
     "js/sun-active-session.js": {
       "count": 9,
-      "digest": "9441ea9c094c167f790aa841779bc06de5bccf19e8288383f64e6e904790551a",
+      "digest": "ea29d8d748228413e32a4701bf2765fc063fa5b1a0ea121261b11311c98cdf6d",
       "kinds": {
         "innerHTML": 6,
         "insertAdjacentHTML": 2,
@@ -835,14 +835,14 @@
     },
     "js/sun-body-silhouette.js": {
       "count": 1,
-      "digest": "fdff6e025e6bcd41f1af644a09b90a499f30e6d0ebb35c9e44a6d0d82d7001b1",
+      "digest": "668f8e10db87b39cef6d9ab6a640c4b2776b9528d0ba74e302966197b8638851",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/sun-defaults-setup-ui.js": {
       "count": 3,
-      "digest": "0be68382be6e10b616898e5f4fbf7b47a08757641b4427dcc257fc249a962d75",
+      "digest": "e554d256727dcd9b636c23d5443373d816e995e34cc4850543b0681325e3c8b6",
       "kinds": {
         "innerHTML": 2,
         "outerHTML": 1
@@ -850,35 +850,35 @@
     },
     "js/sun-session-ui.js": {
       "count": 2,
-      "digest": "1b1ab1709cfe007c2956f7a0bc104261c808ab34b13a691139319720f32161c4",
+      "digest": "40fdd0b1cb41607dd7b5d14d5a38e3e2ec4236c87ba60d32cb7efe18f8a0feb1",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/sun.js": {
       "count": 1,
-      "digest": "b7c8efe9bfe1ca6639c394cb3c78ecfe03be482db56df968b53722c420a6c05a",
+      "digest": "86638c59a1fbc15485e2f07b5c9859b6ef6ea10736828cd50ac8ceaed4de584d",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/supplement-dashboard.js": {
       "count": 1,
-      "digest": "dfa48a391deb467dffb86c7c9e9644d518f7e8c6208b0cd9a173da2223492707",
+      "digest": "082ca5bf7cb59a9b43e1595b5490dabd7d69fdf2fc6e608fa1c03cff864dd152",
       "kinds": {
         "outerHTML": 1
       }
     },
     "js/supplement-form-ui.js": {
       "count": 3,
-      "digest": "9ea0949de4fd036a1a8e6582ebf6c31ff59dd8f0b748b9b6521ed1ed82b602e4",
+      "digest": "c953d13988cb0ac870d283a132bb837d5ee103fe40c357a38cdb7f7dcb2d7743",
       "kinds": {
         "insertAdjacentHTML": 3
       }
     },
     "js/supplement-import-controller.js": {
       "count": 4,
-      "digest": "d462e6092237cd4bcbdabad3fa2c26206247d092b388080b05085d10c8734d59",
+      "digest": "267e3096b45c3d77c87dd551c12bd0efa7b1030e6d8cd382060ac9ae9f6d5aed",
       "kinds": {
         "innerHTML": 2,
         "insertAdjacentHTML": 2
@@ -886,7 +886,7 @@
     },
     "js/supplements.js": {
       "count": 8,
-      "digest": "3f2c3a9223eadaec4ed3c144a293918b4c77887296c47d9170571fe0541c7d59",
+      "digest": "42d5f93bc3d512bd7226e6946f5bce9fe1777fb7797c6cdc11b54d8378b73820",
       "kinds": {
         "innerHTML": 4,
         "insertAdjacentHTML": 1,
@@ -895,70 +895,70 @@
     },
     "js/sync-diagnose-identity-actions.js": {
       "count": 1,
-      "digest": "77c27e250dc74f3bbd70a3aa25de8871d4196b507776880db95c8d7085c926a1",
+      "digest": "404296adb07539fadcd3c38b7736829193b1e9618dae84df264fcbe39dece838",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/sync-diagnose-ui.js": {
       "count": 1,
-      "digest": "752f4fd977e69b3fd4472f72353c27fbc3f218a78918744f7d400c09a2ff6ec1",
+      "digest": "1788d19b47dbe9aa379e31b207b35ecd42943e159e1b3dfe62ad8cdeb7807e78",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/sync-ui.js": {
       "count": 3,
-      "digest": "ece2624909b55150e3bafbcc2ca2ffa7bbe1906fac6f1f35603f9125e74b687d",
+      "digest": "075f83502d76e460294dd1dc3cde37f72339866269d25b6bb464ec7dceb6ee01",
       "kinds": {
         "innerHTML": 3
       }
     },
     "js/tour.js": {
       "count": 1,
-      "digest": "ad8124dc0391ab471b37f9053077fa3f016a2b0d5762f6270aa6ddd795e2b056",
+      "digest": "9baf4b3c1fb4eed93e464f513269ee8fd6104704076bd55464c777475b9aaec2",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/utils.js": {
       "count": 3,
-      "digest": "12339abd23e39ae4a07be9721a7648acdd39b5c49668a8ccb8be4e3a2ac9f82e",
+      "digest": "6e784c2d3a5e31755b36731fac31f092d6cd58ac52c63f6a1fe4d6aaf35e8b54",
       "kinds": {
         "innerHTML": 3
       }
     },
     "js/wearables-detail-modal.js": {
       "count": 1,
-      "digest": "cf4f5cdb346521c43a3e0656c5cf86cface921e4b4e8657f6eb6c26a29aca08a",
+      "digest": "bfed3407e0e475a3af7b4035a42455f470594f0c2ae996f2a67b84c05c75cee4",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/wearables-manual-detail.js": {
       "count": 4,
-      "digest": "f1fac537e8538aca5428ea2d008af479c3b783fa4b0fc4a078c86da38463f835",
+      "digest": "691abd57ee91c09fed52c7030296fe67db0287b2ab592f9873e5f87383d62525",
       "kinds": {
         "innerHTML": 4
       }
     },
     "js/wearables-settings-groups.js": {
       "count": 1,
-      "digest": "298dd96e5d37b058e91b65c1c9f16083a73ba35b818e166ec53ede091dfe65ef",
+      "digest": "a2f9372bb6cd4f147a996cb828d6eb2cf7e6dcbf85c70c01dedd07ede33eedf4",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/wearables-settings-panel.js": {
       "count": 1,
-      "digest": "d9c87da97408f639a438ea6692471b4cc2076590fc62daf4d8e157065b6746a9",
+      "digest": "eaaf99541dc275ecaeb51a227cb5926cad2efb0b5507bf4fe55388be05f6a60a",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/wearables-strip-actions.js": {
       "count": 4,
-      "digest": "32cabf30fd172fdab750df8b18c49b71262711c66d2752c510dfad455973c129",
+      "digest": "b064f418aa6e651f0e934ba8df689b80b257a342770c1394388e983e6f43938c",
       "kinds": {
         "innerHTML": 4
       }

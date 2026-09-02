@@ -98,10 +98,13 @@ function listJavaScriptFiles(directory = SOURCE_ROOT) {
   return files.sort();
 }
 
-function sinkDigest(sinks) {
+export function fingerprintDomSinks(sinks) {
   const reviewedSurface = sinks
-    .map(({ kind, source }) => ({ kind, source }))
-    .sort((a, b) => compareText(`${a.kind}:${a.source}`, `${b.kind}:${b.source}`));
+    .map(({ kind, line, source }) => ({ kind, line, source }))
+    .sort((a, b) => (
+      compareText(`${a.kind}:${a.source}`, `${b.kind}:${b.source}`)
+      || a.line - b.line
+    ));
   return crypto.createHash('sha256').update(JSON.stringify(reviewedSurface)).digest('hex');
 }
 
@@ -116,7 +119,7 @@ export function createDomSinkPolicy() {
     sinkCount += sinks.length;
     sinkFiles[relative] = {
       count: sinks.length,
-      digest: sinkDigest(sinks),
+      digest: fingerprintDomSinks(sinks),
       kinds: Object.fromEntries(
         [...new Set(sinks.map(sink => sink.kind))]
           .sort()
@@ -125,7 +128,7 @@ export function createDomSinkPolicy() {
     };
   }
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     scope: 'Every non-generated JavaScript module under js/',
     reviewRule: 'Any added or modified HTML-writing sink requires security review and a policy refresh.',
     scannedFiles: files.length,
@@ -137,6 +140,9 @@ export function createDomSinkPolicy() {
 export function auditDomSinks(policy = JSON.parse(fs.readFileSync(POLICY_PATH, 'utf8'))) {
   const current = createDomSinkPolicy();
   const failures = [];
+  if (current.schemaVersion !== policy.schemaVersion) {
+    failures.push(`policy schema changed: ${policy.schemaVersion} -> ${current.schemaVersion}`);
+  }
   if (current.scannedFiles !== policy.scannedFiles) {
     failures.push(`scanned file count changed: ${policy.scannedFiles} -> ${current.scannedFiles}`);
   }
