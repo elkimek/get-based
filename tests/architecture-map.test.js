@@ -46,6 +46,24 @@ describe('architecture map tooling', () => {
     expect(components).toContainEqual(['self.js']);
   });
 
+  it('orders architecture output without locale-sensitive collation', () => {
+    const originalLocaleCompare = String.prototype.localeCompare;
+    String.prototype.localeCompare = () => {
+      throw new Error('locale-sensitive comparison invoked');
+    };
+
+    try {
+      const components = stronglyConnectedComponents(new Map([
+        ['z.js', new Set()],
+        ['a.js', new Set()],
+      ]));
+
+      expect(components).toEqual([['a.js'], ['z.js']]);
+    } finally {
+      String.prototype.localeCompare = originalLocaleCompare;
+    }
+  });
+
   it('reports imports that cross configured source boundaries', () => {
     const architecture = {
       modules: new Map([

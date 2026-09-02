@@ -12,6 +12,10 @@ const BASELINE_PATH = path.join(ROOT, 'scripts', 'architecture-cycle-baseline.js
 const MAP_PATH = path.join(ROOT, 'MODULE_MAP.md');
 const SOURCE_EXTENSIONS = new Set(['.js', '.mjs']);
 
+function compareText(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function repoRelative(file) {
   return path.relative(ROOT, file).replaceAll(path.sep, '/');
 }
@@ -147,7 +151,7 @@ export function stronglyConnectedComponents(graph) {
   for (const node of [...graph.keys()].sort()) {
     if (!indices.has(node)) connect(node);
   }
-  return components.sort((a, b) => b.length - a.length || a[0].localeCompare(b[0]));
+  return components.sort((a, b) => b.length - a.length || compareText(a[0], b[0]));
 }
 
 function collectArchitecture(rules) {
@@ -190,7 +194,7 @@ function collectArchitecture(rules) {
     modules.set(file, {
       file,
       group: groupForFile(file, rules),
-      imports: [...edgeKinds].map(([target, kind]) => ({ target, kind })).sort((a, b) => a.target.localeCompare(b.target)),
+      imports: [...edgeKinds].map(([target, kind]) => ({ target, kind })).sort((a, b) => compareText(a.target, b.target)),
       repositoryFiles: [...repositoryFiles].sort(),
     });
   }
@@ -249,7 +253,7 @@ export function findRestrictedImportViolations(architecture, rules) {
     }
   }
   return violations.sort((a, b) => (
-    a.to.localeCompare(b.to) || a.from.localeCompare(b.from)
+    compareText(a.to, b.to) || compareText(a.from, b.from)
   ));
 }
 
@@ -272,9 +276,9 @@ function renderModuleIndex(architecture, rules) {
       if (!families.has(family)) families.set(family, []);
       families.get(family).push(module);
     }
-    for (const [family, modules] of [...families].sort(([a], [b]) => a.localeCompare(b))) {
+    for (const [family, modules] of [...families].sort(([a], [b]) => compareText(a, b))) {
       lines.push(`<details><summary><code>${family}</code> family — ${modules.length} module${modules.length === 1 ? '' : 's'}</summary>`, '');
-      for (const module of modules.sort((a, b) => a.file.localeCompare(b.file))) {
+      for (const module of modules.sort((a, b) => compareText(a.file, b.file))) {
         const dependencies = module.imports.length
           ? module.imports.map(edge => `${moduleLink(edge.target)}${edge.kind === 'dynamic' ? ' *(dynamic)*' : ''}`).join(', ')
           : 'no in-scope imports';
@@ -295,11 +299,11 @@ function renderMap(architecture, rules) {
   const largestCycle = architecture.cyclicComponents[0]?.length || 0;
   const fanIn = [...architecture.modules.values()]
     .map(module => ({ file: module.file, count: architecture.importedBy.get(module.file)?.size || 0 }))
-    .sort((a, b) => b.count - a.count || a.file.localeCompare(b.file))
+    .sort((a, b) => b.count - a.count || compareText(a.file, b.file))
     .slice(0, 15);
   const fanOut = [...architecture.modules.values()]
     .map(module => ({ file: module.file, count: module.imports.length }))
-    .sort((a, b) => b.count - a.count || a.file.localeCompare(b.file))
+    .sort((a, b) => b.count - a.count || compareText(a.file, b.file))
     .slice(0, 15);
   const lines = [
     '# Generated module map',
