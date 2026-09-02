@@ -283,6 +283,36 @@ describe('profile data boundaries', () => {
     expect(result.needsRebroadcast).toBe(true);
   });
 
+  it('rebroadcasts remote proposal duplicate repairs in either order when local state is canonical', async () => {
+    const profileId = 'profile_local_canonical_remote_duplicate';
+    const id = 'proposal_local_canonical_remote_duplicate';
+    const applied = {
+      id,
+      actionId: 'sun.session.log',
+      status: 'applied',
+      updatedAt: '2026-09-02T10:40:00.000Z',
+    };
+    const pending = {
+      id,
+      actionId: 'sun.session.log',
+      status: 'pending',
+      updatedAt: '2026-09-02T11:10:00.000Z',
+    };
+    state.currentProfile = profileId;
+
+    for (const remoteProposals of [[pending, applied], [applied, pending]]) {
+      state.importedData = { agentProposals: [structuredClone(applied)] };
+      const result = await mergePulledImportedData(profileId, {
+        agentProposals: structuredClone(remoteProposals),
+      });
+
+      expect(result.merged.agentProposals).toEqual([
+        expect.objectContaining({ id, status: 'applied' }),
+      ]);
+      expect(result.needsRebroadcast).toBe(true);
+    }
+  });
+
   it('keeps terminal proposals in either remote-only blob order when a newer pending item row overlays them', async () => {
     const profileId = 'profile_remote_proposal_row_duplicate';
     state.currentProfile = profileId;

@@ -15,6 +15,7 @@ import { CONTEXT_REVIEW_RANGES } from './biology-score-context-ai.js';
 import { SYNC_PROFILE_FIELDS } from './sync-profile-fields.js';
 import { isDemoProfileRecord } from './profile-sync-policy.js';
 import { sanitizeNutritionProfileData } from './nutrition-sync-sanitize.js';
+import { normalizeAgentProposals } from './profile-data-migrations.js';
 
 export const PROFILE_ID_RE = /^[a-zA-Z0-9_-]+$/;
 
@@ -111,6 +112,24 @@ function importedDataMatches(snapshot, importedData) {
   return snapshot !== null && next !== null && snapshot === next;
 }
 
+function incomingAgentProposalsNeedRepair(importedData) {
+  if (!Array.isArray(importedData?.agentProposals)) return false;
+  try {
+    /** @type {any} Narrow proposal-only normalization copy. */
+    const proposalData = {
+      agentProposals: JSON.parse(JSON.stringify(importedData.agentProposals)),
+      sunSessions: Array.isArray(importedData.sunSessions)
+        ? JSON.parse(JSON.stringify(importedData.sunSessions))
+        : [],
+    };
+    const before = importedDataSnapshot(proposalData.agentProposals);
+    normalizeAgentProposals(proposalData);
+    return !importedDataMatches(before, proposalData.agentProposals);
+  } catch {
+    return false;
+  }
+}
+
 function getUpdatedAt(value) {
   const n = Number(value?.updatedAt || 0);
   return Number.isFinite(n) ? n : 0;
@@ -198,6 +217,7 @@ export async function mergePulledImportedData(profileId, importedData, options =
   const remoteImportedForFreshness = importedData && typeof importedData === 'object'
     ? JSON.parse(JSON.stringify(importedData))
     : importedData;
+  const incomingAgentProposalsRepaired = incomingAgentProposalsNeedRepair(importedData);
 
   // Preserve local wearableConnections - they're stripped from the push
   // payload (tokens stay per-device), so the remote blob never carries
@@ -264,7 +284,7 @@ export async function mergePulledImportedData(profileId, importedData, options =
 
   const mergeMsg = `Pull ${profileId.slice(0,8)} — local sun=${countArray(localImportedForMerge,'sunSessions')}/dev=${countArray(localImportedForMerge,'lightDevices')} · remote sun=${countArray(importedData,'sunSessions')}/dev=${countArray(importedData,'lightDevices')} · merged sun=${countArray(merged,'sunSessions')}/dev=${countArray(merged,'lightDevices')}`;
   const needsRebroadcast = preservedFreshLocalEntries || preservedFreshLocalContextAI || preservedFreshLocalScoreAI
-    || agentProposalsCanonicalized
+    || incomingAgentProposalsRepaired || agentProposalsCanonicalized
     || (!!localImportedForMerge && !!importedData
       && localHasRowsRemoteLacks(localImportedForMerge, importedData));
   const remoteBroughtNewRows = !preservedFreshLocalEntries && !!localImportedForMerge && !!importedData
