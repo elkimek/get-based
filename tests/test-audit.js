@@ -1147,6 +1147,7 @@ const labCtxSrc = read('js/lab-context.js');
 assert('buildLabContext has age computation',
   labCtxSrc.includes('Math.floor((now - new Date(state.profileDob).getTime())'));
 assert('buildLabContext uses a local calendar date key', labCtxSrc.includes('const today = localDateKey(now)'));
+assert('buildLabContext cache refreshes on each local calendar day', labCtxSrc.includes(":day-${localDateKey(Date.now())}"));
 assert('buildLabContext has unit system label', labCtxSrc.includes("unit system: ${unitLabel}"));
 assert('buildLabContext has fmtDate helper', labCtxSrc.includes("const fmtDate = d => new Date(d + 'T00:00:00')"));
 

@@ -94,7 +94,7 @@ export function formatLabDateAge(date, now = Date.now()) {
 
 export function buildLabContext(/** @type {LabContextOptions} */ { skipGroupFilter, ignoreContextToggles, queryText, nutritionHistoryLabel } = {}) {
   const supplementContextMode = resolveSupplementContextMode(queryText, state.importedData.supplements || []);
-  const fp = getLabContextFingerprint() + (skipGroupFilter ? ':all' : '') + (ignoreContextToggles ? ':ignore-context-toggles' : '') + `:supplements-${supplementContextMode}:nutrition-history-${nutritionHistoryLabel || 'routine'}`;
+  const fp = getLabContextFingerprint() + (skipGroupFilter ? ':all' : '') + (ignoreContextToggles ? ':ignore-context-toggles' : '') + `:supplements-${supplementContextMode}:nutrition-history-${nutritionHistoryLabel || 'routine'}:day-${localDateKey(Date.now())}`;
   return getOrBuildLabContext(fp, () => _buildLabContextInner({ skipGroupFilter, ignoreContextToggles, nutritionHistoryLabel, supplementContextMode }));
 }
 
