@@ -70,6 +70,38 @@ export {
   isNutritionContextEnabled, setNutritionContextEnabled,
 } from './lab-context-settings.js';
 export { injectLensChunks } from './lab-context-output.js';
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function localDateKey(value = Date.now()) {
+  const date = new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function getCalendarDaysSinceDate(date, now = Date.now()) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date || '');
+  const current = new Date(now);
+  if (!match || !Number.isFinite(current.getTime())) return NaN;
+  const measuredDay = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  const currentDay = Date.UTC(current.getFullYear(), current.getMonth(), current.getDate());
+  return Math.round((currentDay - measuredDay) / MS_PER_DAY);
+}
+
+export function formatLabDateAge(date, now = Date.now()) {
+  const days = getCalendarDaysSinceDate(date, now);
+  if (!Number.isFinite(days)) return 'date not recorded';
+  if (days < 0) return 'future-dated';
+  if (days === 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 14) return `${days} days ago`;
+  if (days < 60) return `~${Math.round(days / 7)} weeks ago`;
+  if (days < 730) return `~${Math.round(days / 30.44)} months ago`;
+  return `~${(days / 365.25).toFixed(1)} years ago`;
+}
+
 export function buildLabContext(/** @type {LabContextOptions} */ { skipGroupFilter, ignoreContextToggles, queryText, nutritionHistoryLabel } = {}) {
   const supplementContextMode = resolveSupplementContextMode(queryText, state.importedData.supplements || []);
   const fp = getLabContextFingerprint() + (skipGroupFilter ? ':all' : '') + (ignoreContextToggles ? ':ignore-context-toggles' : '') + `:supplements-${supplementContextMode}:nutrition-history-${nutritionHistoryLabel || 'routine'}`;
@@ -83,21 +115,13 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   const hasLabData = includeLabMarkers && hasImportedLabData;
   const includeInsightCards = ignoreContextToggles || isInsightContextCardsEnabled();
   const includeSupplementsMeds = ignoreContextToggles || isSupplementsMedsContextEnabled();
+  const now = Date.now();
   const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const daysSinceDate = d => Math.round((Date.now() - new Date(d + 'T00:00:00').getTime()) / (24 * 3600 * 1000));
-  const relativeAge = d => {
-    const days = daysSinceDate(d);
-    if (days < 0) return 'future-dated';
-    if (days === 0) return 'today';
-    if (days === 1) return 'yesterday';
-    if (days < 14) return `${days} day${days === 1 ? '' : 's'} ago`;
-    if (days < 60) return `~${Math.round(days / 7)} weeks ago`;
-    if (days < 730) return `~${Math.round(days / 30.44)} months ago`;
-    return `~${(days / 365.25).toFixed(1)} years ago`;
-  };
+  const daysSinceDate = d => getCalendarDaysSinceDate(d, now);
+  const relativeAge = d => formatLabDateAge(d, now);
   const sexLabel = state.profileSex === 'female' ? 'female' : state.profileSex === 'male' ? 'male' : 'not specified';
-  const age = state.profileDob ? Math.floor((Date.now() - new Date(state.profileDob).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null;
-  const today = new Date().toISOString().slice(0, 10);
+  const age = state.profileDob ? Math.floor((now - new Date(state.profileDob).getTime()) / (365.25 * MS_PER_DAY)) : null;
+  const today = localDateKey(now);
   const unitLabel = getUnitProfileLabel(state.unitSystem);
 
   let ctx;

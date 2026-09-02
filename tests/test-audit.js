@@ -1145,8 +1145,8 @@ console.log('16. Context Assembly Pipeline');
 const labCtxSrc = read('js/lab-context.js');
 
 assert('buildLabContext has age computation',
-  labCtxSrc.includes('Math.floor((Date.now() - new Date(state.profileDob).getTime())'));
-assert('buildLabContext has today ISO date', labCtxSrc.includes("new Date().toISOString().slice(0, 10)"));
+  labCtxSrc.includes('Math.floor((now - new Date(state.profileDob).getTime())'));
+assert('buildLabContext uses a local calendar date key', labCtxSrc.includes('const today = localDateKey(now)'));
 assert('buildLabContext has unit system label', labCtxSrc.includes("unit system: ${unitLabel}"));
 assert('buildLabContext has fmtDate helper', labCtxSrc.includes("const fmtDate = d => new Date(d + 'T00:00:00')"));
 

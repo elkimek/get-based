@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { formatLabDateAge, getCalendarDaysSinceDate } from '../js/lab-context.js';
 import { formatMarkerValuesForChat } from '../js/marker-analysis.js';
 
 function marker(overrides = {}) {
@@ -13,6 +14,15 @@ function marker(overrides = {}) {
 }
 
 describe('chat measurement date provenance', () => {
+  it('uses calendar days instead of rounding elapsed hours', () => {
+    const lateSameDay = new Date(2026, 8, 2, 23, 59, 59).getTime();
+    const earlyNextDay = new Date(2026, 8, 3, 0, 0, 1).getTime();
+
+    expect(getCalendarDaysSinceDate('2026-09-02', lateSameDay)).toBe(0);
+    expect(formatLabDateAge('2026-09-02', lateSameDay)).toBe('today');
+    expect(formatLabDateAge('2026-09-02', earlyNextDay)).toBe('yesterday');
+  });
+
   it('dates single-point measurements from their category-specific date', () => {
     const text = formatMarkerValuesForChat(
       marker({ singlePoint: true, singleDate: '2025-07-08' }),
