@@ -7,7 +7,7 @@ import { getStatus, hasCardContent } from './utils.js';
 import { formatTime } from './theme.js';
 import { getActiveData } from './data.js';
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
-import { getAllFlaggedMarkers, getEffectiveRangeForDate, getEffectiveRangeLabelForDate, getLatestValueIndex } from './marker-analysis.js';
+import { formatMarkerValuesForChat, getLatestValueIndex, getMarkerRangesForChat } from './marker-analysis.js';
 import { getProfileHeight, getProfileLocation, getLatitudeFromLocation } from './profile.js';
 import {
   detectCycleIronAlertsRuntime as detectCycleIronAlerts,
@@ -84,6 +84,17 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   const includeInsightCards = ignoreContextToggles || isInsightContextCardsEnabled();
   const includeSupplementsMeds = ignoreContextToggles || isSupplementsMedsContextEnabled();
   const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const daysSinceDate = d => Math.round((Date.now() - new Date(d + 'T00:00:00').getTime()) / (24 * 3600 * 1000));
+  const relativeAge = d => {
+    const days = daysSinceDate(d);
+    if (days < 0) return 'future-dated';
+    if (days === 0) return 'today';
+    if (days === 1) return 'yesterday';
+    if (days < 14) return `${days} day${days === 1 ? '' : 's'} ago`;
+    if (days < 60) return `~${Math.round(days / 7)} weeks ago`;
+    if (days < 730) return `~${Math.round(days / 30.44)} months ago`;
+    return `~${(days / 365.25).toFixed(1)} years ago`;
+  };
   const sexLabel = state.profileSex === 'female' ? 'female' : state.profileSex === 'male' ? 'male' : 'not specified';
   const age = state.profileDob ? Math.floor((Date.now() - new Date(state.profileDob).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null;
   const today = new Date().toISOString().slice(0, 10);
@@ -91,7 +102,8 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
   let ctx;
   if (hasLabData) {
-    ctx = includeInsightCards ? `[section:profile]\nLab data for current profile (sex: ${sexLabel}${age !== null ? ', age: ' + age : ''}, unit system: ${unitLabel}, today: ${today}, dates: ${data.dates.join(', ')}):\n[/section:profile]\n\n` : `Lab data (unit system: ${unitLabel}, today: ${today}, dates: ${data.dates.join(', ')}):\n\n`;
+    const datedIndex = data.dates.map(d => `${d} (${relativeAge(d)})`).join(', ');
+    ctx = includeInsightCards ? `[section:profile]\nLab data for current profile (sex: ${sexLabel}${age !== null ? ', age: ' + age : ''}, unit system: ${unitLabel}, today: ${today}, dates with relative ages: ${datedIndex}):\n[/section:profile]\n\n` : `Lab data (unit system: ${unitLabel}, today: ${today}, dates with relative ages: ${datedIndex}):\n\n`;
   } else {
     const missingDemo = [];
     if (includeInsightCards && sexLabel === 'not specified') missingDemo.push('sex');
@@ -113,7 +125,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   // ── Staleness signal ──
   if (hasLabData && data.dates.length > 0) {
     const lastDate = data.dates[data.dates.length - 1];
-    const daysSince = Math.round((Date.now() - new Date(lastDate + 'T00:00:00').getTime()) / (24 * 3600 * 1000));
+    const daysSince = daysSinceDate(lastDate);
     if (daysSince > 90) {
       const monthsAgo = Math.round(daysSince / 30.44);
       ctx += `NOTE: Most recent lab results are from ${fmtDate(lastDate)} (approximately ${monthsAgo} months ago). Values may have changed.\n\n`;
@@ -157,8 +169,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
       ctx += `[index]\nAvailable sections: ${_activeCatKeys.join(', ')}\n[/index]\n\n`;
     }
 
-    const rangeLabel = state.rangeMode === 'optimal' ? 'optimal' : 'reference';
-    ctx += `Note: status labels below use ${rangeLabel} ranges.\n\n`;
+    ctx += 'Ranges: r=lab/reference; o=getbased optimal; t=target/decision. app/app-context=getbased; in/below/above=comparisons, not diagnoses. Earlier ranges only when context changes.\n\n';
     ctx += labContextDeps.buildBiologyScoresAIContext?.(data, { limit: 7, ignoreContextToggles }) || '';
     for (const [catKey, cat] of Object.entries(data.categories)) {
       if (!skipGroupFilter && !ignoreContextToggles && cat.group && !isGroupInAIContext(cat.group)) continue;
@@ -168,7 +179,8 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
       ctx += `[section:${catKey}${_catDate ? ' updated:' + _catDate : ''}]\n## ${cat.label}\n`;
       for (const [, m] of markersWithData) {
         const latestIdx = getLatestValueIndex(m.values);
-        // Trajectory narrative: only for flagged markers or those with >25% change
+        // Trajectory narrative: use a reference/target frame when available so
+        // the dashboard's selected range mode cannot change the AI context.
         let trajectory = '';
         try {
           if (!m.singlePoint && data.dates.length >= 2) {
@@ -178,7 +190,10 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
             }
             if (points.length >= 2) {
               const first = points[0], last = points[points.length - 1];
-              const mr = getEffectiveRangeForDate(m, latestIdx);
+              const availableRanges = getMarkerRangesForChat(m, latestIdx);
+              const mr = availableRanges.find(item => item.kind !== 'optimal' && (item.min != null || item.max != null))
+                || availableRanges.find(item => item.min != null || item.max != null)
+                || { min: null, max: null };
               const range = (mr.min != null && mr.max != null) ? mr.max - mr.min : 0;
               const diff = last.v - first.v;
               const changePct = range > 0 ? Math.abs(diff) / range : 0;
@@ -204,41 +219,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
             }
           }
         } catch (_) { /* skip trajectory on error */ }
-        if (m.phaseRefRanges && m.phaseLabels) {
-          const parts = m.values.map((v, i) => {
-            if (v === null) return null;
-            const phase = m.phaseLabels[i];
-            const pr = m.phaseRefRanges[i];
-            const dateLabel = m.singlePoint ? '' : data.dates[i];
-            const s = pr ? getStatus(v, pr.min, pr.max) : getStatus(v, m.refMin, m.refMax);
-            const rangeStr = pr ? `${pr.min}\u2013${pr.max}` : `${m.refMin}\u2013${m.refMax}`;
-            return `${dateLabel}: ${v} [${phase || '?'}, ref ${rangeStr}, ${s}]`;
-          }).filter(Boolean).join(', ');
-          ctx += `- ${m.name}: ${parts} ${m.unit}${trajectory}\n`;
-        } else if (m.contextRefRanges || m.contextOptimalRanges) {
-          const parts = m.values.map((v, i) => {
-            if (v === null) return null;
-            const mr = getEffectiveRangeForDate(m, i);
-            const label = getEffectiveRangeLabelForDate(m, i);
-            const s = mr.min != null || mr.max != null ? getStatus(v, mr.min, mr.max) : 'unrated';
-            const rangeStr = mr.min != null || mr.max != null
-              ? `${mr.min ?? '–'}\u2013${mr.max ?? '–'}`
-              : 'not set';
-            return `${data.dates[i]}: ${v} [${label} ${rangeStr}, ${s}]`;
-          }).filter(Boolean).join(', ');
-          ctx += `- ${m.name}: ${parts} ${m.unit}${trajectory}\n`;
-        } else {
-          const vals = m.singlePoint
-            ? m.values.filter(v => v !== null).map(v => `${v}`).join('')
-            : m.values.map((v, i) => v !== null ? `${data.dates[i]}: ${v}` : null).filter(Boolean).join(', ');
-          const mr = getEffectiveRangeForDate(m, latestIdx);
-          const rangeLabel = getEffectiveRangeLabelForDate(m, latestIdx).toLowerCase();
-          const status = latestIdx !== -1
-            ? (mr.min != null || mr.max != null ? getStatus(m.values[latestIdx], mr.min, mr.max) : 'unrated')
-            : 'no data';
-          const refStr = mr.min != null || mr.max != null ? `${rangeLabel}: ${mr.min ?? '–'}\u2013${mr.max ?? '–'}, ` : '';
-          ctx += `- ${m.name}: ${vals} ${m.unit} (${refStr}status: ${status})${trajectory}\n`;
-        }
+        ctx += `- ${m.name}: ${formatMarkerValuesForChat(m, data, { dateLabel: relativeAge })}${trajectory}\n`;
       }
       // Per-category staleness: flag if this category's latest data is >90 days old
       const catLatestDate = cat.singleDate || (() => {
@@ -248,24 +229,13 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
         return null;
       })();
       if (catLatestDate) {
-        const catDaysSince = Math.round((Date.now() - new Date(catLatestDate + 'T00:00:00').getTime()) / (24 * 3600 * 1000));
+        const catDaysSince = daysSinceDate(catLatestDate);
         if (catDaysSince > 90) {
           const catMonthsAgo = Math.round(catDaysSince / 30.44);
           ctx += `⚠ Last tested ~${catMonthsAgo} months ago — values may no longer reflect current status.\n`;
         }
       }
       ctx += `[/section:${catKey}]\n\n`;
-    }
-
-    // ── 4. Flagged Results (quick-scan summary) ──
-    const allFlags = getAllFlaggedMarkers(data);
-    const flags = allFlags.filter(f => {
-      const cat = data.categories[f.categoryKey];
-      return !cat?.group || skipGroupFilter || ignoreContextToggles || isGroupInAIContext(cat.group);
-    });
-    if (flags.length > 0) {
-      ctx += `[critical]\nFlagged markers (details in sections above): ${flags.map(f => `${f.categoryKey}.${f.markerKey}`).join(', ')}\n`;
-      ctx += `[/critical]\n\n`;
     }
   }
 
@@ -386,49 +356,33 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
       const htLabel = state.unitSystem === 'US'
         ? `${Math.floor(htCm / 2.54 / 12)}' ${Math.round(htCm / 2.54 % 12)}"`
         : `${htCm} cm`;
-      ctx += `Height: ${htLabel}\n`;
+      ctx += `Height (date not recorded): ${htLabel}\n`;
     }
     if (bio?.weight?.length) {
       const sorted = [...bio.weight].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
       const latest = sorted[0];
       const latestKg = weightToKilograms(latest.value, latest.unit || 'kg');
-      ctx += `Weight (latest ${latest.date}): ${latest.value} ${latest.unit}`;
-      if (sorted.length > 1) {
-        const recent = sorted.slice(0, 6);
-        const avgKg = recent.reduce(
-          (sum, entry) => sum + weightToKilograms(entry.value, entry.unit || 'kg'),
-          0,
-        ) / recent.length;
-        ctx += ` (avg last ${recent.length}: ${avgKg.toFixed(1)} kg)`;
-      }
+      const latestDate = latest.date || 'date not recorded';
+      ctx += `Weight (latest recorded ${latestDate}): ${latest.value} ${latest.unit}`;
       ctx += '\n';
       if (profileHeightCm) {
         const htM = profileHeightCm / 100;
         const bmi = (latestKg / (htM * htM)).toFixed(1);
-        ctx += `BMI: ${bmi}\n`;
+        ctx += `BMI (derived from ${latestDate} weight): ${bmi}\n`;
       }
     }
     if (bio?.bp?.length) {
       const sorted = [...bio.bp].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
       const latest = sorted[0];
-      ctx += `Blood Pressure (latest ${latest.date}): ${latest.sys}/${latest.dia} mmHg`;
-      if (sorted.length > 1) {
-        const recent = sorted.slice(0, 6);
-        const avgSys = Math.round(recent.reduce((s, e) => s + e.sys, 0) / recent.length);
-        const avgDia = Math.round(recent.reduce((s, e) => s + e.dia, 0) / recent.length);
-        ctx += ` (avg last ${recent.length}: ${avgSys}/${avgDia})`;
-      }
+      const latestDate = latest.date || 'date not recorded';
+      ctx += `Blood Pressure (latest recorded ${latestDate}): ${latest.sys}/${latest.dia} mmHg`;
       ctx += '\n';
     }
     if (bio?.pulse?.length) {
       const sorted = [...bio.pulse].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
       const latest = sorted[0];
-      ctx += `Resting Pulse (latest ${latest.date}): ${latest.value} bpm`;
-      if (sorted.length > 1) {
-        const recent = sorted.slice(0, 6);
-        const avg = Math.round(recent.reduce((s, e) => s + e.value, 0) / recent.length);
-        ctx += ` (avg last ${recent.length}: ${avg} bpm)`;
-      }
+      const latestDate = latest.date || 'date not recorded';
+      ctx += `Resting Pulse (latest recorded ${latestDate}): ${latest.value} bpm`;
       ctx += '\n';
     }
     ctx += `[/section:biometrics]\n\n`;

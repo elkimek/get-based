@@ -79,6 +79,20 @@ describe('date-aware Compare Dates ranges', () => {
     expect(html).not.toContain('null');
   });
 
+  it('preserves imported and custom optimal-range provenance', () => {
+    const imported = resolveMarkerRangeContext(marker({ optimalRangeSource: 'import' }), 0, 'both');
+    const custom = resolveMarkerRangeContext(marker({ optimalRangeSource: 'manual' }), 0, 'both');
+
+    expect(imported.displayedRanges.find(range => range.kind === 'optimal')).toMatchObject({
+      label: 'Lab optimal guidance',
+      source: 'lab',
+    });
+    expect(custom.displayedRanges.find(range => range.kind === 'optimal')).toMatchObject({
+      label: 'Custom optimal guidance',
+      source: 'custom',
+    });
+  });
+
   it('scores improvement against each date’s actual range instead of its midpoint', () => {
     state.rangeMode = 'reference';
     const html = renderCompareTable(dataFor(marker({

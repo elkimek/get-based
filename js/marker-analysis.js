@@ -26,6 +26,18 @@ function staticReferenceLabel(marker) {
   return marker.rangePolicy === 'target' ? 'Target' : 'Reference';
 }
 
+function staticOptimalLabel(marker) {
+  if (marker.optimalRangeSource === 'import') return 'Lab optimal guidance';
+  if (marker.optimalRangeSource) return 'Custom optimal guidance';
+  return 'Optimal';
+}
+
+function staticOptimalSource(marker) {
+  if (marker.optimalRangeSource === 'import') return 'lab';
+  if (marker.optimalRangeSource) return 'custom';
+  return 'schema';
+}
+
 function rangeDescriptor(range, label, kind, source) {
   return {
     min: range?.min ?? null,
@@ -77,9 +89,9 @@ function optimalRangeForDate(marker, dateIndex) {
   if (marker.optimalMin == null && marker.optimalMax == null) return null;
   return rangeDescriptor(
     { min: marker.optimalMin, max: marker.optimalMax },
-    'Optimal',
+    staticOptimalLabel(marker),
     'optimal',
-    'schema',
+    staticOptimalSource(marker),
   );
 }
 
@@ -135,6 +147,67 @@ export function formatRangeBounds(range) {
   if (min == null) return `\u2264${formatValue(max)}`;
   if (max == null) return `\u2265${formatValue(min)}`;
   return `${formatValue(min)} \u2013 ${formatValue(max)}`;
+}
+
+const GENERIC_CHAT_RANGE_LABELS = new Set([
+  'reference', 'lab reference', 'custom range', 'target', 'optimal',
+  'optimal guidance', 'lab optimal guidance', 'custom optimal guidance',
+]);
+
+function chatRangePosition(value, range) {
+  if (range.min == null && range.max == null) return 'unrated';
+  const status = getStatus(value, range.min, range.max);
+  return status === 'normal' ? 'in' : status === 'low' ? 'below' : 'above';
+}
+
+function chatRangeSource(range) {
+  if (range.source === 'schema') return 'app';
+  if (range.source === 'context') return 'app-context';
+  return range.source || 'supplied';
+}
+
+function chatRangeRole(range) {
+  return range.kind === 'optimal' ? 'o' : range.kind === 'target' ? 't' : 'r';
+}
+
+export function getMarkerRangesForChat(marker, dateIndex) {
+  return resolveMarkerRangeContext(marker, dateIndex, 'both').displayedRanges.filter(range =>
+    range.min != null || range.max != null
+      || (range.label && !GENERIC_CHAT_RANGE_LABELS.has(String(range.label).toLowerCase()))
+  );
+}
+
+function chatRangeSignature(ranges) {
+  return ranges.map(range => [range.kind, range.source, range.label, range.min, range.max].join(':')).join('|');
+}
+
+function formatChatRanges(ranges, value) {
+  if (!ranges.length) return 'not supplied';
+  return ranges.map(range => {
+    const generic = GENERIC_CHAT_RANGE_LABELS.has(String(range.label || '').toLowerCase());
+    const label = generic ? '' : `:${String(range.label).replace(/[\[\]]/g, '')}`;
+    return `${chatRangeRole(range)}[${chatRangeSource(range)}${label}]=${formatRangeBounds(range)} (${chatRangePosition(value, range)})`;
+  }).join('; ');
+}
+
+/** @param {{ dateLabel?: (date: string) => string }} [options] */
+export function formatMarkerValuesForChat(marker, data, options = {}) {
+  const points = marker.values.map((value, index) => value == null ? null : { value, index }).filter(Boolean);
+  if (!points.length) return '';
+  const latest = points[points.length - 1];
+  const latestRanges = getMarkerRangesForChat(marker, latest.index);
+  const latestSignature = chatRangeSignature(latestRanges);
+  const values = points.map(point => {
+    const pointDate = marker.singlePoint ? marker.singleDate : data.dates[point.index];
+    const dateLabel = pointDate && options.dateLabel ? options.dateLabel(pointDate) : pointDate;
+    const prefix = `${dateLabel || 'date not recorded'}: `;
+    const ranges = getMarkerRangesForChat(marker, point.index);
+    const changed = point.index !== latest.index && chatRangeSignature(ranges) !== latestSignature;
+    return `${prefix}${point.value}${changed ? ` [ranges: ${formatChatRanges(ranges, point.value)}]` : ''}`;
+  }).join(', ');
+  const unit = marker.unit ? ` ${marker.unit}` : '';
+  const latestText = formatChatRanges(latestRanges, latest.value);
+  return `${values}${unit}${latestText === 'not supplied' ? '' : ` (latest ranges: ${latestText})`}`;
 }
 
 export function getPhaseRefEnvelope(marker) {

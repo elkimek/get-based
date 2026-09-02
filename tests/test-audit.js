@@ -1174,18 +1174,17 @@ const utilsSrc3 = read('js/utils.js');
 assert('hasCardContent exported from utils.js', utilsSrc3.includes('export function hasCardContent'));
 
 const chatSystemPromptSrc = read('js/chat-system-prompt.js');
-assert('System prompt has per-category staleness instruction', chatSystemPromptSrc.includes('stale data') && chatSystemPromptSrc.includes('whether retesting is appropriate'));
-assert('System prompt has absent field instruction', chatSystemPromptSrc.includes('did not provide'));
-assert('System prompt has absent section instruction', chatSystemPromptSrc.includes('has not filled in'));
-assert('System prompt has Core Rules section', chatSystemPromptSrc.includes('## Core Rules'));
-assert('System prompt has Priority Context section', chatSystemPromptSrc.includes('## Priority Context'));
-assert('System prompt has Lifestyle Context section', chatSystemPromptSrc.includes('## Lifestyle Context'));
-assert('System prompt has cortisol cross-cutting note', chatSystemPromptSrc.includes('cortisol/HPA axis'));
-assert('System prompt has Style section', chatSystemPromptSrc.includes('## Style'));
-assert('Health goals at top of Priority Context', chatSystemPromptSrc.indexOf('Health goals:') < chatSystemPromptSrc.indexOf('Medical conditions:'));
+assert('System prompt bounds repeated staleness copy', chatSystemPromptSrc.includes('Flag staleness once per dataset or section') && chatSystemPromptSrc.includes('what a retest could distinguish'));
+assert('System prompt forbids invented missing context', chatSystemPromptSrc.includes('Never invent missing context'));
+assert('System prompt has role boundaries', chatSystemPromptSrc.includes('## Role and Boundaries'));
+assert('System prompt has response experience rules', chatSystemPromptSrc.includes('## Response Experience'));
+assert('System prompt has evidence and ranges rules', chatSystemPromptSrc.includes('## Evidence and Ranges'));
+assert('System prompt treats lifestyle as modifiers', chatSystemPromptSrc.includes('as modifiers or hypotheses, not automatic causes'));
+assert('System prompt encourages conversational warmth', chatSystemPromptSrc.includes('conversational, warm, concise'));
+assert('Health goals lead personal-context use', chatSystemPromptSrc.indexOf("Prioritize the user's question and major goals") < chatSystemPromptSrc.indexOf('Treat the interpretive lens'));
 
 assert('chat-send.js delegates prompt assembly to chat-prompt-context', chatSendSrc.includes('buildChatSystemPrompt'));
-assert('Persona placed after lab data', chatPromptContextSrc.includes("'\\n\\nCurrent lab data:\\n' + labContext + personalityPrompt"));
+assert('Persona is separated from and precedes health data', chatPromptContextSrc.includes('personalityPrompt + multiPersonaInstruction') && chatPromptContextSrc.includes('## Current User Health and Lab Context'));
 
 assert('buildFocusContext exists in focus-card.js', focusCardSrc.includes('function buildFocusContext()'));
 assert('views.js imports focus card module', viewsSrc.includes("from './focus-card.js'"));

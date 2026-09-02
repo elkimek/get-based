@@ -133,11 +133,16 @@ if (!state.profiles) {
 
   const ctx = labContext.buildLabContext();
   assert('AI context includes biometrics section', ctx.includes('[section:biometrics]'));
-  assert('AI context includes height', ctx.includes('Height:'));
+  assert('AI context includes height', ctx.includes('Height'));
   assert('AI context includes weight', ctx.includes('Weight'));
-  assert('AI context includes BMI', ctx.includes('BMI:'));
+  assert('AI context includes BMI', ctx.includes('BMI'));
   assert('AI context includes BP', ctx.includes('Blood Pressure'));
   assert('AI context includes pulse', ctx.includes('Resting Pulse'));
+  assert('AI context labels undated profile height', ctx.includes('Height (date not recorded):'));
+  assert('AI context dates latest weight', ctx.includes('Weight (latest recorded 2026-03-15):'));
+  assert('AI context dates derived BMI input', ctx.includes('BMI (derived from 2026-03-15 weight):'));
+  assert('AI context dates latest BP', ctx.includes('Blood Pressure (latest recorded 2026-02-15):'));
+  assert('AI context dates latest pulse', ctx.includes('Resting Pulse (latest recorded 2026-02-15):'));
 
   // ═══════════════════════════════════════
   // 8. Export includes biometrics
