@@ -112,6 +112,16 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
             refMax: 3,
           },
         },
+        refOverrides: {
+          'coverage.ferritin': {
+            refMin: 30,
+            refMax: 150,
+            refSource: 'import',
+            optimalMin: 50,
+            optimalMax: 100,
+            optimalSource: 'manual',
+          },
+        },
         healthGoals: [
           { severity: 'major', text: 'Improve inflammatory resilience' },
           { severity: 'minor', text: 'Keep training output stable' },
@@ -428,6 +438,18 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
         && context.includes('Imported SNP inventory for lookup')
         && contextHasHfeInventory;
       outcomes.buildLabContextIncludesSpecialtyLabs = context.includes('Coverage Labs');
+      outcomes.labDateIndexSuppliesRelativeAges =
+        context.includes(`dates with relative ages: ${recentDates.old} (~5 weeks ago)`)
+        && context.includes(`${recentDates.current} (2 days ago)`);
+      const ferritinContextLine = context.split('\n').find(line => line.startsWith('- Ferritin Coverage:')) || '';
+      outcomes.labRangesAreCompactBalancedAndUnbiased =
+        context.includes('Ranges: r=lab/reference; o=getbased optimal')
+        && ferritinContextLine.includes('~5 weeks ago: 18')
+        && ferritinContextLine.includes('2 days ago: 44')
+        && ferritinContextLine.includes('r[lab]=30 – 150 (in)')
+        && ferritinContextLine.includes('o[custom]=50 – 100 (below)')
+        && !context.includes('[critical]')
+        && !context.includes('status labels below use');
       outcomes.buildLabContextIncludesChangeTimeline = context.includes('Context Change Timeline');
       outcomes.buildLabContextIncludesDietDiff = context.includes('type: Standard') && context.includes('Mediterranean');
       outcomes.buildLabContextIncludesAddedGoalDiff = context.includes('added: Added goal');

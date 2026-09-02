@@ -48,13 +48,14 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
     'NOTE should recommend panels, gently nudge enabled cards, and respect disabled cards');
   assert('No-data path flags missing demographics', labCtxSrc.includes('missingDemo') && labCtxSrc.includes("urge the user to set"),
     'Should add IMPORTANT warning when sex/DOB missing');
-  assert('Lab values section gated by hasLabData', labCtxSrc.includes('if (hasLabData) {') && labCtxSrc.includes("const rangeLabel"),
-    'Lab values + flagged results should be wrapped in if (hasLabData)');
+  assert('Lab values section gated by hasLabData', labCtxSrc.includes('if (hasLabData) {') && labCtxSrc.includes('formatMarkerValuesForChat'),
+    'Lab values should be wrapped in if (hasLabData)');
   assert('Biology Scores context receives an explicit trusted full-context override',
     labCtxSrc.includes('labContextDeps.buildBiologyScoresAIContext?.(data, { limit: 7, ignoreContextToggles })'),
     'Trusted internal review should be able to include Biology Score context flags explicitly');
-  assert('Flagged results inside hasLabData guard', labCtxSrc.includes("const allFlags = getAllFlaggedMarkers(data)") && labCtxSrc.includes("if (flags.length > 0)"),
-    'Flagged results should be inside the hasLabData block');
+  assert('Lab context avoids a duplicate flagged-results inventory',
+    !labCtxSrc.includes('getAllFlaggedMarkers') && !labCtxSrc.includes('[critical]'),
+    'Marker lines already carry distinct range comparisons; do not repeat a mode-dependent flag list');
   assert('Staleness uses hasLabData guard', labCtxSrc.includes('if (hasLabData && data.dates.length > 0)'),
     'Staleness signal should check hasLabData first');
 
@@ -105,34 +106,33 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
 
   const chatSystemPromptSrc = read('js/chat-system-prompt.js');
 
-  assert('Has ## No Lab Data State section', chatSystemPromptSrc.includes('## No Lab Data State'),
+  assert('Has a no-lab-results section', chatSystemPromptSrc.includes('## When No Lab Results Exist'),
     'CHAT_SYSTEM_PROMPT should have no-data section');
-  assert('Advises pre-lab advisor role', chatSystemPromptSrc.includes('pre-lab advisor role'),
-    'Should tell AI to shift to advisor role');
-  assert('Recommends tailored panels', chatSystemPromptSrc.includes('tailored to their health goals'),
+  assert('Advises a focused pre-lab role', chatSystemPromptSrc.includes('Help the user choose a focused set of tests'),
+    'Should make the no-data conversation immediately useful');
+  assert('Recommends tailored panels', chatSystemPromptSrc.includes('based on the provided goals, age, sex, conditions, lifestyle, and environment'),
     'Should instruct personalized recommendations');
-  assert('Explains WHY for each panel', chatSystemPromptSrc.includes('explain in one sentence WHY'),
+  assert('Explains why each panel is relevant', chatSystemPromptSrc.includes('give one short reason for each'),
     'Should instruct per-panel reasoning');
   assert('No-lab card nudge respects disabled Insight Context Cards',
-    chatSystemPromptSrc.includes('Insight Context Cards are turned off by the user') &&
-      chatSystemPromptSrc.includes('gently mention that filling relevant Insight Context Cards can sharpen recommendations') &&
-      chatSystemPromptSrc.includes('do not overwhelm the user with a full checklist'),
+    chatSystemPromptSrc.includes('Respect disabled Insight Context Cards') &&
+      chatSystemPromptSrc.includes('mention only the most useful missing context') &&
+      chatSystemPromptSrc.includes('without turning the response into a setup checklist'),
     'Should nudge gently when useful and respect disabled card context');
-  assert('Sex and age critical instruction', chatSystemPromptSrc.includes('Sex and age are critical for test recommendations'),
+  assert('Sex and age materially shape selection', chatSystemPromptSrc.includes('If age or sex is missing and materially changes selection'),
     'Should instruct AI about importance of demographics');
-  assert('Urge to set sex/DOB in Settings', chatSystemPromptSrc.includes('tell the user to set these in Settings'),
-    'Should direct user to Settings for demographics');
+  assert('Missing demographics should be surfaced when material', chatSystemPromptSrc.includes('If age or sex is missing') && chatSystemPromptSrc.includes('say so'),
+    'Should surface missing demographics without a rigid setup script');
   assert('Menstrual timing is profile-gated',
-    chatSystemPromptSrc.includes('only apply cycle-phase timing when a menstrualCycle context section is present') &&
-      chatSystemPromptSrc.includes('For male') &&
-      chatSystemPromptSrc.includes('do not recommend follicular/luteal/ovulatory timing'),
+    chatSystemPromptSrc.includes('Apply cycle-phase reasoning only when an active natural menstrual cycle') &&
+      chatSystemPromptSrc.includes('Do not infer it for male'),
     'Should not give cycle-phase timing to male/non-cycling profiles');
-  assert('Never apologize instruction', chatSystemPromptSrc.includes('Never apologize for missing lab data'),
+  assert('Never apologize instruction', chatSystemPromptSrc.includes('do not apologize for absent data'),
     'Should not apologize');
-  assert('Never pretend instruction', chatSystemPromptSrc.includes('Never pretend to interpret lab results'),
+  assert('Never imply absent results', chatSystemPromptSrc.includes('Never imply results or trends that are not present'),
     'Should not hallucinate results');
-  assert('Suggests starter panels', chatSystemPromptSrc.includes('CBC, CMP, lipid panel, thyroid, vitamin D, iron'),
-    'Should suggest general starter panels');
+  assert('Keeps no-data recommendations focused', chatSystemPromptSrc.includes('choose a focused set of tests'),
+    'Should avoid turning a concise answer into a universal panel inventory');
 
   // ═══════════════════════════════════════
   // 4. Dashboard nudge subtitle
@@ -267,7 +267,7 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
   // (buildLabContext wrapper may return cached context — that's intentional)
   assert('buildLabContext has no early return before section 1', (() => {
     const fnStart = labCtxSrc.indexOf('function _buildLabContextInner');
-    const section1 = labCtxSrc.indexOf('// ── 1. Health Goals', fnStart);
+    const section1 = labCtxSrc.indexOf('// ── 1. Health Goals (', fnStart);
     const between = labCtxSrc.substring(fnStart, section1);
     // Should not have a bare return statement (only conditional ctx assignment)
     const returnCount = (between.match(/\breturn\b/g) || []).length;

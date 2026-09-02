@@ -137,6 +137,7 @@ describe('dated clinical-wellness ranges in the data pipeline', () => {
     expect(hormones.dheaS.contextRefRanges).toBeUndefined();
     expect(hormones.dheaS.refMin).toBe(1);
     expect(hormones.testosterone.contextOptimalRanges).toBeUndefined();
+    expect(hormones.testosterone.optimalRangeSource).toBe('manual');
     expect(getEffectiveRangeForDate(hormones.testosterone, 0, 'optimal')).toEqual({ min: 11, max: 17 });
     expect(OPTIMAL_RANGES['calculatedRatios.tygIndex']).toEqual({ optimalMin: null, optimalMax: 8.6 });
     expect(getEffectiveRangeForDate(tyg, 0, 'optimal')).toEqual({ min: null, max: null });
