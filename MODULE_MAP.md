@@ -10,8 +10,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 717 |
-| Internal import edges | 3056 |
-| Dynamic internal edges | 100 |
+| Internal import edges | 3058 |
+| Dynamic internal edges | 101 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -102,7 +102,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>agent</code> family — 6 modules</summary>
 
-- [`js/agent-access-proposals.js`](js/agent-access-proposals.js) → [`js/agent-actions/registry.js`](js/agent-actions/registry.js), [`js/data.js`](js/data.js), [`js/profile-data-migrations.js`](js/profile-data-migrations.js), [`js/state.js`](js/state.js), [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-messenger.js`](js/sync-messenger.js), [`js/utils.js`](js/utils.js)
+- [`js/agent-access-proposals.js`](js/agent-access-proposals.js) → [`js/agent-actions/registry.js`](js/agent-actions/registry.js), [`js/data.js`](js/data.js), [`js/profile-data-migrations.js`](js/profile-data-migrations.js), [`js/state.js`](js/state.js), [`js/sun-sessions-store.js`](js/sun-sessions-store.js) *(dynamic)*, [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-messenger.js`](js/sync-messenger.js), [`js/utils.js`](js/utils.js)
 - [`js/agent-proposal-dogfood-bootstrap.js`](js/agent-proposal-dogfood-bootstrap.js) → no in-scope imports
 - [`js/agent-proposal-inbox.js`](js/agent-proposal-inbox.js) → [`js/agent-access-proposals.js`](js/agent-access-proposals.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/agent-proposal-polling.js`](js/agent-proposal-polling.js) → [`js/agent-access-proposals.js`](js/agent-access-proposals.js)
@@ -1105,7 +1105,7 @@ Native browser modules shipped with the static application.
 - [`js/sun-session-model.js`](js/sun-session-model.js) → no in-scope imports
 - [`js/sun-session-ui-hooks.js`](js/sun-session-ui-hooks.js) → [`js/sun-session-ui.js`](js/sun-session-ui.js), [`js/views.js`](js/views.js)
 - [`js/sun-session-ui.js`](js/sun-session-ui.js) → [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/sun-body-silhouette.js`](js/sun-body-silhouette.js), [`js/sun-session-actions.js`](js/sun-session-actions.js), [`js/sun-session-log-modal.js`](js/sun-session-log-modal.js), [`js/utils.js`](js/utils.js)
-- [`js/sun-sessions-store.js`](js/sun-sessions-store.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/light-sun-analysis-runtime.js`](js/light-sun-analysis-runtime.js), [`js/state.js`](js/state.js), [`js/sun-body-silhouette.js`](js/sun-body-silhouette.js), [`js/sun-session-model.js`](js/sun-session-model.js), [`js/unique-id.js`](js/unique-id.js)
+- [`js/sun-sessions-store.js`](js/sun-sessions-store.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/light-sun-analysis-runtime.js`](js/light-sun-analysis-runtime.js), [`js/profile-data-migrations.js`](js/profile-data-migrations.js), [`js/state.js`](js/state.js), [`js/sun-body-silhouette.js`](js/sun-body-silhouette.js), [`js/sun-session-model.js`](js/sun-session-model.js), [`js/unique-id.js`](js/unique-id.js)
 - [`js/sun-spectrum-actions.js`](js/sun-spectrum-actions.js) → no in-scope imports
 - [`js/sun-spectrum-device.js`](js/sun-spectrum-device.js) → no in-scope imports
 - [`js/sun-spectrum.js`](js/sun-spectrum.js) → [`js/sun-spectrum-actions.js`](js/sun-spectrum-actions.js), [`js/sun-spectrum-device.js`](js/sun-spectrum-device.js)

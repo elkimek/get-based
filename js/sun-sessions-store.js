@@ -8,6 +8,7 @@ import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { saveImportedData, saveImportedDataForProfile } from './data.js';
 import { deleteImportedArrayItem } from './data-merge.js';
+import { normalizeAgentProposals } from './profile-data-migrations.js';
 import { requestSunSessionAnalysis } from './light-sun-analysis-runtime.js';
 import { BODY_REGIONS } from './sun-body-silhouette.js';
 import {
@@ -80,6 +81,75 @@ export function getSessions(importedData = state.importedData) {
     }
   }
   return importedData.sunSessions;
+}
+
+const MAX_PROPOSAL_RECONCILE_ATTEMPTS = 3;
+
+/** @param {any} profileData @param {string} proposalId */
+function findAgentSession(profileData, proposalId) {
+  return (Array.isArray(profileData?.sunSessions) ? profileData.sunSessions : [])
+    .find(session => session?.createdBy?.type === 'agent'
+      && session.createdBy.idempotencyKey === proposalId);
+}
+
+/** @param {any} sourceData @param {any} targetData @param {string} proposalId */
+function copyAgentSession(sourceData, targetData, proposalId) {
+  if (sourceData === targetData) return;
+  const sourceSession = findAgentSession(sourceData, proposalId);
+  if (!sourceSession) return;
+  if (!Array.isArray(targetData.sunSessions)) targetData.sunSessions = [];
+  if (!findAgentSession(targetData, proposalId)) {
+    targetData.sunSessions.push(structuredClone(sourceSession));
+  }
+}
+
+/**
+ * @param {{
+ *   profileId: string,
+ *   sourceData: any,
+ *   sourceProposal: any,
+ *   updates: Record<string, any>,
+ *   reason: string,
+ *   persist: (profileId: string, profileData: any, options: any) => Promise<any>,
+ *   copyActionEvidence?: boolean,
+ * }} options
+ */
+export async function persistAgentProposalTransition({
+  profileId,
+  sourceData,
+  sourceProposal,
+  updates,
+  reason,
+  persist,
+  copyActionEvidence = false,
+}) {
+  for (let attempt = 0; attempt < MAX_PROPOSAL_RECONCILE_ATTEMPTS; attempt += 1) {
+    const profileStillActive = state.currentProfile === profileId;
+    const targetData = profileStillActive ? state.importedData : sourceData;
+    if (!targetData || typeof targetData !== 'object') {
+      return { persisted: false, profileStillActive: false };
+    }
+
+    const hadProposals = Object.prototype.hasOwnProperty.call(targetData, 'agentProposals');
+    const previousProposals = structuredClone(targetData.agentProposals ?? []);
+    if (copyActionEvidence) copyAgentSession(sourceData, targetData, sourceProposal.id);
+    normalizeAgentProposals(targetData).push({ ...structuredClone(sourceProposal), ...structuredClone(updates) });
+    normalizeAgentProposals(targetData);
+
+    const saved = await persist(profileId, targetData, { immediate: true, reason });
+    if (saved === false) {
+      if (hadProposals) targetData.agentProposals = previousProposals;
+      else delete targetData.agentProposals;
+      return { persisted: false, profileStillActive: false };
+    }
+    if (state.currentProfile !== profileId) {
+      return { persisted: true, profileStillActive: false };
+    }
+    if (state.importedData === targetData) {
+      return { persisted: true, profileStillActive: true };
+    }
+  }
+  return { persisted: false, profileStillActive: false };
 }
 
 export function getActiveSession() {

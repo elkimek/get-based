@@ -676,6 +676,74 @@ describe('external Agent Access proposals', () => {
     );
   });
 
+  it('rebases Apply evidence and status into same-profile replacement data', async () => {
+    let resolveAction;
+    const runAction = vi.fn(() => new Promise((resolve) => { resolveAction = resolve; }));
+    const persistImportedData = vi.fn(async () => true);
+    const pendingProposal = {
+      id: 'proposal_apply_refresh',
+      actionId: 'sun.session.log',
+      arguments: { durationMinutes: 60, endedAt: '2026-09-01T10:30:00.000Z' },
+      profileId: 'profile-a',
+      capability: 'sun.sessions:write:propose',
+      sourceClient: 'getbased-mcp',
+      status: 'pending',
+      issuedAt: '2026-09-01T10:35:00.000Z',
+      expiresAt: '2026-09-01T11:05:00.000Z',
+      createdAt: '2026-09-01T10:35:00.000Z',
+      updatedAt: '2026-09-01T10:35:00.000Z',
+    };
+    const profileA = { entries: [], sunSessions: [], agentProposals: [pendingProposal] };
+    const refreshedProfileA = {
+      entries: [{ id: 'fresh-entry-from-sync' }],
+      sunSessions: [{ id: 'fresh-session-from-sync' }],
+      agentProposals: [structuredClone(pendingProposal)],
+    };
+    configureAgentAccessProposalDeps({
+      runAction,
+      persistImportedData,
+      now: () => Date.parse('2026-09-01T10:40:00.000Z'),
+    });
+    state.currentProfile = 'profile-a';
+    state.importedData = profileA;
+
+    const applying = applyStoredAgentProposal(pendingProposal.id);
+    await vi.waitFor(() => expect(runAction).toHaveBeenCalledOnce());
+    profileA.sunSessions.push({
+      id: 'sun_apply_refresh',
+      createdBy: {
+        type: 'agent',
+        actionId: 'sun.session.log',
+        idempotencyKey: pendingProposal.id,
+      },
+    });
+    state.importedData = refreshedProfileA;
+    resolveAction({ ok: true, result: { sessionId: 'sun_apply_refresh' } });
+
+    await expect(applying).resolves.toMatchObject({ ok: true });
+    expect(refreshedProfileA.entries).toEqual([{ id: 'fresh-entry-from-sync' }]);
+    expect(refreshedProfileA.sunSessions).toEqual([
+      { id: 'fresh-session-from-sync' },
+      expect.objectContaining({
+        id: 'sun_apply_refresh',
+        createdBy: expect.objectContaining({ idempotencyKey: pendingProposal.id }),
+      }),
+    ]);
+    expect(refreshedProfileA.agentProposals).toEqual([
+      expect.objectContaining({
+        id: pendingProposal.id,
+        status: 'applied',
+        result: { sessionId: 'sun_apply_refresh' },
+      }),
+    ]);
+    expect(persistImportedData).toHaveBeenCalledOnce();
+    expect(persistImportedData).toHaveBeenCalledWith(
+      'profile-a',
+      refreshedProfileA,
+      expect.objectContaining({ reason: 'agent-proposal-applied' }),
+    );
+  });
+
   it('rejects a stored proposal when the active profile changed before Apply', async () => {
     const runAction = vi.fn(async () => ({ ok: true }));
     configureAgentAccessProposalDeps({
@@ -739,6 +807,62 @@ describe('external Agent Access proposals', () => {
     });
     expect(persistImportedData).not.toHaveBeenCalled();
     expect(state.importedData.agentProposals[0].status).toBe('pending');
+  });
+
+  it('rebases Dismiss into same-profile replacement data before emitting UI', async () => {
+    let resolvePersist;
+    const persistImportedData = vi.fn()
+      .mockImplementationOnce(() => new Promise((resolve) => { resolvePersist = resolve; }))
+      .mockResolvedValue(true);
+    const pendingProposal = {
+      id: 'proposal_dismiss_refresh',
+      actionId: 'sun.session.log',
+      arguments: { durationMinutes: 60 },
+      profileId: 'profile-a',
+      capability: 'sun.sessions:write:propose',
+      sourceClient: 'getbased-mcp',
+      status: 'pending',
+      issuedAt: '2026-09-01T10:35:00.000Z',
+      expiresAt: '2026-09-01T11:05:00.000Z',
+      createdAt: '2026-09-01T10:35:00.000Z',
+      updatedAt: '2026-09-01T10:35:00.000Z',
+    };
+    const profileA = { entries: [], sunSessions: [], agentProposals: [pendingProposal] };
+    const refreshedProfileA = {
+      entries: [{ id: 'fresh-entry-from-sync' }],
+      sunSessions: [],
+      agentProposals: [structuredClone(pendingProposal)],
+    };
+    const changed = vi.fn();
+    configureAgentAccessProposalDeps({
+      persistImportedData,
+      now: () => Date.parse('2026-09-01T10:40:00.000Z'),
+    });
+    state.currentProfile = 'profile-a';
+    state.importedData = profileA;
+    document.addEventListener('getbased-agent-proposals-changed', changed);
+
+    try {
+      const dismissing = dismissStoredAgentProposal(pendingProposal.id);
+      await vi.waitFor(() => expect(persistImportedData).toHaveBeenCalledOnce());
+      state.importedData = refreshedProfileA;
+      resolvePersist(true);
+
+      await expect(dismissing).resolves.toEqual({ ok: true });
+      expect(refreshedProfileA.entries).toEqual([{ id: 'fresh-entry-from-sync' }]);
+      expect(refreshedProfileA.agentProposals).toEqual([
+        expect.objectContaining({ id: pendingProposal.id, status: 'dismissed' }),
+      ]);
+      expect(persistImportedData).toHaveBeenCalledTimes(2);
+      expect(persistImportedData).toHaveBeenLastCalledWith(
+        'profile-a',
+        refreshedProfileA,
+        expect.objectContaining({ reason: 'agent-proposal-dismissed' }),
+      );
+      expect(changed).toHaveBeenCalledOnce();
+    } finally {
+      document.removeEventListener('getbased-agent-proposals-changed', changed);
+    }
   });
 
   it('rejects tampered capability and arguments before Apply', async () => {

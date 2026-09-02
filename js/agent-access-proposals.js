@@ -1,5 +1,4 @@
 // @ts-check
-// agent-access-proposals.js — decrypt, validate, persist, and apply external proposals.
 
 import { getAgentActionManifest, runAgentAction, validateAgentActionInput } from './agent-actions/registry.js';
 import { saveImportedDataForProfile } from './data.js';
@@ -28,7 +27,7 @@ export function resolveAgentProposalGateway(relayUrl, pageUrl = globalThis.locat
       return `${page.origin}${override}`.replace(/\/+$/u, '');
     }
   } catch {
-    // Use the configured Sync relay when the page URL is unavailable or malformed.
+    // Fall back to the configured relay.
   }
   return relayBase;
 }
@@ -203,7 +202,7 @@ async function acknowledgeProposal(baseUrl, token, proposalId) {
       headers: { Authorization: `Bearer ${token}` },
     });
   } catch {
-    // Durable local dedupe makes acknowledgement retries safe.
+    // Local dedupe makes retries safe.
   }
 }
 
@@ -213,11 +212,7 @@ function profileContainsAcceptedProposals(profileData, accepted) {
     && profileData.agentProposals.some(proposal => proposal?.id === id));
 }
 
-/**
- * @param {string} profileId
- * @param {any[]} accepted
- * @returns {Promise<'ready' | 'inactive' | 'failed'>}
- */
+/** @param {string} profileId @param {any[]} accepted */
 async function reconcileAcceptedProposalsWithActiveProfile(profileId, accepted) {
   for (let attempt = 0; attempt < MAX_ACTIVE_PROFILE_RECONCILE_ATTEMPTS; attempt += 1) {
     if (state.currentProfile !== profileId) return 'inactive';
@@ -388,17 +383,25 @@ export function applyStoredAgentProposal(proposalId) {
     });
     if (!result?.ok) return result;
     const appliedAt = new Date(proposalDeps.now()).toISOString();
-    proposal.status = 'applied';
-    proposal.result = result.result || null;
-    proposal.appliedAt = appliedAt;
-    proposal.updatedAt = appliedAt;
-    const persisted = await proposalDeps.persistImportedData(
+    const { persistAgentProposalTransition } = await import('./sun-sessions-store.js');
+    const persistence = await persistAgentProposalTransition({
       profileId,
-      profileData,
-      { immediate: true, reason: 'agent-proposal-applied' },
-    );
-    if (persisted === false) return { ...result, statusPersistenceFailed: true };
-    document.dispatchEvent(new CustomEvent('getbased-agent-proposals-changed'));
+      sourceData: profileData,
+      sourceProposal: proposal,
+      updates: {
+        status: 'applied',
+        result: result.result || null,
+        appliedAt,
+        updatedAt: appliedAt,
+      },
+      reason: 'agent-proposal-applied',
+      persist: proposalDeps.persistImportedData,
+      copyActionEvidence: true,
+    });
+    if (!persistence.persisted) return { ...result, statusPersistenceFailed: true };
+    if (persistence.profileStillActive) {
+      document.dispatchEvent(new CustomEvent('getbased-agent-proposals-changed'));
+    }
     return result;
   })().finally(() => applyInFlight.delete(proposalId));
   applyInFlight.set(proposalId, task);
@@ -416,21 +419,25 @@ export async function dismissStoredAgentProposal(proposalId) {
   const proposal = normalizeAgentProposals(profileData).find(item => item?.id === proposalId);
   if (!proposal) return { ok: false, code: 'proposal_not_found' };
   if (proposal.status !== 'pending') return { ok: false, code: 'proposal_not_pending' };
-  const previous = structuredClone(proposal);
   const dismissedAt = new Date(proposalDeps.now()).toISOString();
-  proposal.status = 'dismissed';
-  proposal.dismissedAt = dismissedAt;
-  proposal.updatedAt = dismissedAt;
-  const persisted = await proposalDeps.persistImportedData(
+  const { persistAgentProposalTransition } = await import('./sun-sessions-store.js');
+  const persistence = await persistAgentProposalTransition({
     profileId,
-    profileData,
-    { immediate: true, reason: 'agent-proposal-dismissed' },
-  );
-  if (persisted === false) {
-    Object.keys(proposal).forEach(key => delete proposal[key]);
-    Object.assign(proposal, previous);
+    sourceData: profileData,
+    sourceProposal: proposal,
+    updates: {
+      status: 'dismissed',
+      dismissedAt,
+      updatedAt: dismissedAt,
+    },
+    reason: 'agent-proposal-dismissed',
+    persist: proposalDeps.persistImportedData,
+  });
+  if (!persistence.persisted) {
     return { ok: false, code: 'persistence_failed' };
   }
-  document.dispatchEvent(new CustomEvent('getbased-agent-proposals-changed'));
+  if (persistence.profileStillActive) {
+    document.dispatchEvent(new CustomEvent('getbased-agent-proposals-changed'));
+  }
   return { ok: true };
 }
