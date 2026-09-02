@@ -696,21 +696,23 @@ assert('filterDatesByRange defaults to an honest empty timeframe instead of sile
     && Object.values(defaultOldOnly.categories).every(cat =>
       Object.values(cat.markers || {}).every(marker => marker.singlePoint || marker.values.length === 0)
     ));
+const oldContextDate = new Date(Date.now() - (400 * 86400000)).toISOString().slice(0, 10);
+const recentContextDate = new Date(Date.now() - (30 * 86400000)).toISOString().slice(0, 10);
 const contextFilteredData = {
-  dates: ['2025-01-01', '2026-06-01'],
-  dateLabels: ['Jan 2025', 'Jun 2026'],
+  dates: [oldContextDate, recentContextDate],
+  dateLabels: ['Older draw', 'Recent draw'],
   entryContextByDate: {
-    '2025-01-01': { sampleTime: '23:00', cyclePhase: 'follicular' },
-    '2026-06-01': { sampleTime: '08:30', cyclePhase: 'luteal', hormoneTherapy: true },
+    [oldContextDate]: { sampleTime: '23:00', cyclePhase: 'follicular' },
+    [recentContextDate]: { sampleTime: '08:30', cyclePhase: 'luteal', hormoneTherapy: true },
   },
   categories: { hormones: { label: 'Hormones', markers: { cortisol: { name: 'Cortisol', values: [500, 320] } } } },
 };
 const contextFiltered = filterDatesByRange(contextFilteredData, { fallbackToAll: false });
 assert('filterDatesByRange preserves per-draw entry context for active timeframe scoring',
-  contextFiltered.entryContextByDate?.['2026-06-01']?.sampleTime === '08:30'
-    && contextFiltered.entryContextByDate?.['2026-06-01']?.cyclePhase === 'luteal'
-    && contextFiltered.entryContextByDate?.['2026-06-01']?.hormoneTherapy === true
-    && !contextFiltered.entryContextByDate?.['2025-01-01'],
+  contextFiltered.entryContextByDate?.[recentContextDate]?.sampleTime === '08:30'
+    && contextFiltered.entryContextByDate?.[recentContextDate]?.cyclePhase === 'luteal'
+    && contextFiltered.entryContextByDate?.[recentContextDate]?.hormoneTherapy === true
+    && !contextFiltered.entryContextByDate?.[oldContextDate],
   JSON.stringify(contextFiltered.entryContextByDate));
 state.importedData.biologyScoreContextAI = { summary: 'Context checked for filtered tests', suggestions: [], fingerprint: buildBiologyScoreContextFingerprint(strictOldOnly), range: state.dateRangeFilter, updatedAt: Date.now() };
 const timeframeLimitedHtml = renderDashboardBiologicalCoherenceWidget({ data: oldOnlyData });

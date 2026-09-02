@@ -25,7 +25,7 @@ import { callOpenAICompatibleAPI } from './api-openai-compatible.js';
 
 const apiWindow = /** @type {PpqApiWindow} */ (typeof window !== 'undefined' ? window : {});
 
-const PPQ_CURATED = ['claude-', 'gpt-5', 'gpt-4', 'gpt-oss', 'gemini-3', 'gemini-2', 'google/gemini-3', 'google/gemini-2', 'glm-5', 'z-ai/glm-5', 'moonshotai/kimi-', 'grok-', 'x-ai/grok-4', 'llama-', 'qwen', 'deepseek-', 'mistral-', 'kimi', 'perplexity'];
+const PPQ_CURATED = ['claude-', 'anthropic/claude-', 'gpt-5', 'gpt-4', 'gpt-oss', 'gemini-3', 'gemini-2', 'google/gemini-3', 'google/gemini-2', 'glm-5', 'z-ai/glm-5', 'moonshotai/kimi-', 'grok-', 'x-ai/grok-4', 'llama-', 'qwen', 'deepseek-', 'mistral-', 'kimi', 'perplexity'];
 const PPQ_DEFAULT_CANDIDATES = ['gpt-5.5', 'openai/gpt-5.5', 'claude-sonnet-5', 'claude-sonnet-4.6'];
 const PPQ_EXCLUDE = ['codex', 'audio', 'image', 'embed', 'tts', 'whisper', 'video', 'nano-banana'];
 // The PPQ API is authoritative for private-model availability, names, and

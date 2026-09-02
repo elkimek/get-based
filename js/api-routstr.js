@@ -20,7 +20,7 @@ import {
 import { callOpenAICompatibleAPI } from './api-openai-compatible.js';
 import { notifyRoutstrRequestSettled } from './routstr-balance-settlement.js';
 
-const ROUTSTR_CURATED = ['claude-', 'gpt-5', 'gpt-4', 'gemini-3', 'gemini-2', 'glm-5', 'z-ai/glm-5', 'kimi-', 'moonshotai/kimi-', 'grok-4', 'x-ai/grok-4', 'grok-3', 'llama-', 'qwen', 'deepseek-', 'mistral-', 'mimo-'];
+const ROUTSTR_CURATED = ['claude-', 'anthropic/claude-', 'gpt-5', 'gpt-4', 'gemini-3', 'gemini-2', 'glm-5', 'z-ai/glm-5', 'kimi-', 'moonshotai/kimi-', 'grok-4', 'x-ai/grok-4', 'grok-3', 'llama-', 'qwen', 'deepseek-', 'mistral-', 'mimo-'];
 const ROUTSTR_DEFAULT_CANDIDATES = ['gpt-5.5', 'openai/gpt-5.5', 'claude-sonnet-5', 'claude-sonnet-4.6'];
 const ROUTSTR_EXCLUDE = ['codex', 'audio', 'image', 'oss', 'safeguard', 'coder', 'embed', 'tts', 'whisper', 'beta', 'preview', 'free', 'gratis'];
 const ROUTSTR_PRIVATE_REQUEST_TIMEOUT_MS = 180000;

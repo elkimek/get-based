@@ -80,6 +80,7 @@ assert('Has openrouter _default fallback', schemaSrc.includes("'_default':") && 
 assert('getModelPricing checks openrouter-pricing cache', schemaSrc.includes('labcharts-openrouter-pricing'));
 assert('OPENROUTER_CURATED whitelist exists', apiModelsSrc.includes('OPENROUTER_CURATED'));
 assert('Curated: anthropic/claude-sonnet-5 prefix', apiModelsSrc.includes("'anthropic/claude-sonnet-5'"));
+assert('Curated and recommended: Claude Fable 5.1', apiModelsSrc.includes("'anthropic/claude-fable-5'") && apiModelsSrc.includes("'anthropic/claude-fable-5.1'"));
 assert('Curated: anthropic/claude-sonnet prefix', apiModelsSrc.includes("'anthropic/claude-sonnet-4'"));
 assert('Curated: anthropic/claude-opus-5 prefix', apiModelsSrc.includes("'anthropic/claude-opus-5'"));
 assert('Curated: anthropic/claude-opus prefix', apiModelsSrc.includes("'anthropic/claude-opus-4'"));
