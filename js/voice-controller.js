@@ -42,6 +42,8 @@ let speechAbortController = null;
 let autoReadActivationNoticeShown = false;
 /** @type {number | null} */
 let speakingMessageIndex = null;
+/** @type {'idle' | 'busy' | 'speaking' | 'waiting'} */
+let speechButtonMode = 'idle';
 let voiceActivityEpoch = 0;
 
 function chatVoiceButton() {
@@ -307,20 +309,28 @@ function speechButton(messageIndex) {
 }
 
 function setSpeechButton(messageIndex, mode) {
+  if (speakingMessageIndex === messageIndex || mode === 'idle') speechButtonMode = mode;
   const button = speechButton(messageIndex);
   if (!button) return;
   button.classList.toggle('speaking', mode === 'speaking');
-  button.classList.toggle('busy', mode === 'busy');
-  button.setAttribute('aria-pressed', String(mode === 'speaking'));
+  button.classList.toggle('busy', mode === 'busy' || mode === 'waiting');
+  button.setAttribute('aria-pressed', String(mode !== 'idle'));
   button.disabled = false;
   if (mode === 'speaking') {
     setIconButtonContent(button, 'stop', 'Stop');
+    button.setAttribute('aria-label', 'Stop reading');
     button.title = 'Stop reading';
   } else if (mode === 'busy') {
-    setIconButtonContent(button, 'stop', 'Cancel');
-    button.title = 'Cancel speech preparation';
+    setIconButtonContent(button, 'loading', 'Preparing…');
+    button.setAttribute('aria-label', 'Cancel speech preparation');
+    button.title = 'Generating speech · tap to cancel';
+  } else if (mode === 'waiting') {
+    setIconButtonContent(button, 'loading', 'Still generating…');
+    button.setAttribute('aria-label', 'Cancel speech generation');
+    button.title = 'Speech generation is still running · tap to cancel';
   } else {
     setIconButtonContent(button, 'volume', 'Listen');
+    button.setAttribute('aria-label', 'Read message aloud');
     button.title = 'Read message aloud';
   }
 }
@@ -454,14 +464,16 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
       // Mark an early prefetch failure as observed while preserving the
       // original promise so the loop still reports it after playback.
       if (nextSynthesis) void nextSynthesis.catch(() => undefined);
-      setSpeechButton(messageIndex, 'speaking');
       try {
         if (hasPcmStream) {
           await voicePlayer.playPcmStream(result.pcmStream, {
             signal: controller.signal,
             rate: 1,
+            onPlaybackStart: () => setSpeechButton(messageIndex, 'speaking'),
+            onPlaybackWaiting: () => setSpeechButton(messageIndex, 'waiting'),
           });
         } else if (hasStream) {
+          setSpeechButton(messageIndex, 'speaking');
           await voicePlayer.playStream(result.stream, {
             contentType: result.contentType,
             signal: controller.signal,
@@ -469,6 +481,7 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
             progressive: streamsProgressiveAudio && !automatic,
           });
         } else {
+          setSpeechButton(messageIndex, 'speaking');
           await voicePlayer.play(/** @type {Blob} */ (result.audio), {
             signal: controller.signal,
             rate: 1,
@@ -506,17 +519,37 @@ export function toggleMessageSpeech(messageIndex) {
   return readAssistantMessage(messageIndex);
 }
 
-export function stopVoiceActivity() {
+export function isVoicePlaybackActive() {
+  return speakingMessageIndex !== null
+    && !!speechAbortController
+    && !speechAbortController.signal.aborted;
+}
+
+export function restoreVoicePlaybackUi() {
+  if (!isVoicePlaybackActive() || speakingMessageIndex === null) return false;
+  setSpeechButton(
+    speakingMessageIndex,
+    speechButtonMode === 'idle' ? (voicePlayer.isPlaying ? 'speaking' : 'busy') : speechButtonMode,
+  );
+  return !!speechButton(speakingMessageIndex);
+}
+
+export function stopVoiceActivity({ preservePlayback = false } = {}) {
   const hadActivity = captureState !== 'idle' || speakingMessageIndex !== null;
-  voiceActivityEpoch += 1;
-  captureSession?.cancel();
-  captureSession = null;
-  clearCaptureTicker();
-  setCaptureUi('idle', '');
-  stopSpeechPlayback();
+  const hadCaptureActivity = captureState !== 'idle';
+  if (!preservePlayback || hadCaptureActivity) voiceActivityEpoch += 1;
+  if (hadCaptureActivity) {
+    captureSession?.cancel();
+    captureSession = null;
+    clearCaptureTicker();
+    setCaptureUi('idle', '');
+    speechAbortController?.abort();
+    speechAbortController = null;
+  }
+  if (!preservePlayback) stopSpeechPlayback();
   return hadActivity;
 }
 
 if (typeof globalThis.addEventListener === 'function') {
-  globalThis.addEventListener('pagehide', stopVoiceActivity);
+  globalThis.addEventListener('pagehide', () => stopVoiceActivity());
 }

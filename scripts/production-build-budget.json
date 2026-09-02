@@ -4,7 +4,7 @@
     "startupJavaScriptFiles": 2,
     "startupDecodedBytes": 1180000,
     "outputJavaScriptFiles": 158,
-    "outputDecodedBytes": 5020000
+    "outputDecodedBytes": 5025000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -42,7 +42,8 @@
     "evolu8ScalarMergeStartupDecodedBytes": 1173660,
     "routeAwareAiConsentStartupDecodedBytes": 1177819,
     "routeAwareAiConsentOutputDecodedBytes": 5009169,
-    "onDeviceVoiceOutputDecodedBytes": 5017872
+    "onDeviceVoiceOutputDecodedBytes": 5017872,
+    "voiceStreamingUxOutputDecodedBytes": 5023375
   },
   "referenceCommit": "807732a8",
   "measuredAt": "2026-08-30"

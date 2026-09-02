@@ -10,13 +10,13 @@ import { escapeAttr, escapeHTML } from './utils.js';
 import { readVoiceCatalog } from './voice-catalog-storage.js';
 import {
   isLocalVoiceModelReady,
-  preferredLocalVoiceBackend,
 } from './voice-local-engine.js';
 import {
   KOKORO_VOICES,
   LOCAL_STT_MODELS,
   VOICE_LANGUAGES,
   getLocalModel,
+  getLocalModelStorageCopy,
 } from './voice-model-catalog.js';
 import {
   openRouterVoiceCatalogId,
@@ -119,8 +119,8 @@ function renderProviderNotice() {
       <div class="settings-section">
         <div class="settings-action-row">
           <div class="settings-copy">
-            <div class="settings-copy-title">Private by default</div>
-            <div class="settings-copy-desc">Choose On this device to keep recordings and messages in this browser. Automatic follows your AI provider when it supports voice; other services receive only what you ask them to process.</div>
+            <div class="settings-copy-title">Voice can stay on this device</div>
+            <div class="settings-copy-desc">Choose On this device to keep recordings and reply text in this browser. Automatic follows your chat service when it supports speech.</div>
           </div>
         </div>
       </div>
@@ -130,12 +130,12 @@ function renderProviderNotice() {
 function renderServiceSection(settings) {
   const automatic = getAutomaticVoiceStatus();
   return `
-    <div class="settings-group-title">Voice service</div>
-    <div class="settings-row voice-settings-list">
+    <div class="settings-group-title">Service</div>
+    <div class="settings-row voice-settings-list voice-service-card">
       <div class="settings-section voice-setting-row" data-voice-mode="linked">
         <div class="settings-copy">
-          <div class="settings-copy-title">Where voice is processed</div>
-          <div class="settings-copy-desc">Choose one service for dictation and spoken replies.</div>
+          <div class="settings-copy-title">Default speech service</div>
+          <div class="settings-copy-desc">Used for both STT and TTS unless you separate them below.</div>
         </div>
         <label class="voice-control">
           <span class="sr-only">Voice service</span>
@@ -154,12 +154,12 @@ function renderServiceSection(settings) {
       <div class="settings-section">
         <div class="settings-action-row">
           <div class="settings-copy">
-            <div class="settings-copy-title">Use different services for dictation and listening</div>
-            <div class="settings-copy-desc">Useful when you want private on-device dictation with a different voice for spoken replies.</div>
+            <div class="settings-copy-title">Use separate STT and TTS services</div>
+            <div class="settings-copy-desc">For example, keep dictation on-device while using a cloud voice.</div>
           </div>
           <label class="toggle-switch">
             <input type="checkbox" data-voice-setting="providersLinked"
-              aria-label="Use different services for dictation and listening"${settings.providersLinked ? '' : ' checked'}>
+              aria-label="Use separate speech-to-text and text-to-speech services"${settings.providersLinked ? '' : ' checked'}>
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -174,12 +174,16 @@ function renderInputSection(settings) {
     && !localSttModel.multilingual;
   const selectedLanguage = locksLanguage ? 'en' : settings.inputLanguage;
   return `
-    <div class="settings-group-title">Voice input</div>
-    <div class="settings-row voice-settings-list">
+    <section class="voice-task-block" aria-labelledby="voice-stt-heading">
+      <header class="voice-task-heading">
+        <h3 id="voice-stt-heading">Speech-to-text <span>STT</span></h3>
+        <p>Dictation: turns what you say into text.</p>
+      </header>
+    <div class="settings-row voice-settings-list voice-task-card">
       <div class="settings-section voice-setting-row" data-voice-mode="separate">
         <div class="settings-copy">
-          <div class="settings-copy-title">Dictation service</div>
-          <div class="settings-copy-desc">Turns what you say into text in the composer.</div>
+          <div class="settings-copy-title">STT service</div>
+          <div class="settings-copy-desc">Service used for dictation.</div>
         </div>
         <label class="voice-control">
           <span class="sr-only">Dictation service</span>
@@ -204,8 +208,8 @@ function renderInputSection(settings) {
       </div>
       <div class="settings-section voice-setting-row" data-voice-visible="input:browser-local">
         <div class="settings-copy">
-          <div class="settings-copy-title">Quality and speed</div>
-          <div class="settings-copy-desc">Whisper Small is fastest and recommended for most devices. Medium adds accuracy with a smaller download than Large v3 Turbo. Actual speed varies by hardware and processing mode.</div>
+          <div class="settings-copy-title">Whisper model</div>
+          <div class="settings-copy-desc">Small is fastest. Medium adds accuracy with a smaller download than Large; actual speed depends on your processor.</div>
         </div>
         <label class="voice-control">
           <span class="sr-only">Transcription quality and speed</span>
@@ -229,6 +233,7 @@ function renderInputSection(settings) {
         <span class="voice-control">Whisper Large V3</span>
       </div>
       ${renderSttHardwareRow(settings)}
+      ${renderLocalModelRow('stt', localSttModel, settings)}
       <div class="settings-section voice-setting-row" data-voice-visible="input:local-server">
         <div class="settings-copy">
           <div class="settings-copy-title">Transcription model</div>
@@ -240,7 +245,8 @@ function renderInputSection(settings) {
             data-voice-setting="localServerSttModel" autocomplete="off" spellcheck="false">
         </label>
       </div>
-    </div>`;
+    </div>
+    </section>`;
 }
 
 function renderOutputSection(settings) {
@@ -253,12 +259,16 @@ function renderOutputSection(settings) {
   const openRouterCatalogCount = readVoiceCatalog(openRouterCatalogId).length;
   const veniceCatalogCount = readVoiceCatalog('venice').length;
   return `
-    <div class="settings-group-title">Voice output</div>
-    <div class="settings-row voice-settings-list">
+    <section class="voice-task-block" aria-labelledby="voice-tts-heading">
+      <header class="voice-task-heading">
+        <h3 id="voice-tts-heading">Text-to-speech <span>TTS</span></h3>
+        <p>Listening: turns assistant replies into audio.</p>
+      </header>
+    <div class="settings-row voice-settings-list voice-task-card">
       <div class="settings-section voice-setting-row" data-voice-mode="separate">
         <div class="settings-copy">
-          <div class="settings-copy-title">Spoken replies service</div>
-          <div class="settings-copy-desc">Turns assistant replies into audio.</div>
+          <div class="settings-copy-title">TTS service</div>
+          <div class="settings-copy-desc">Service used to read replies.</div>
         </div>
         <label class="voice-control">
           <span class="sr-only">Spoken replies service</span>
@@ -267,7 +277,7 @@ function renderOutputSection(settings) {
           </select>
         </label>
       </div>
-      <div class="settings-section voice-setting-row">
+      <div class="settings-section voice-setting-row" data-voice-output-language-row${localOutput ? ' hidden' : ''}>
         <div class="settings-copy">
           <div class="settings-copy-title">Reading language</div>
           <div class="settings-copy-desc" data-voice-output-language-description>${localOutput
@@ -294,6 +304,7 @@ function renderOutputSection(settings) {
         </label>
       </div>
       ${renderTtsHardwareRow(settings)}
+      ${renderLocalModelRow('tts', getLocalModel('tts', settings.localTtsModel), settings)}
       <div class="settings-section voice-setting-row" data-voice-visible="output:local-server">
         <div class="settings-copy">
           <div class="settings-copy-title">Speech model</div>
@@ -376,7 +387,8 @@ function renderOutputSection(settings) {
           </label>
         </div>
       </div>
-    </div>`;
+    </div>
+    </section>`;
 }
 
 function renderCloudVoiceRow(
@@ -417,45 +429,29 @@ function renderCloudVoiceRow(
     </div>`;
 }
 
-function renderLocalModels(settings) {
-  const sttModel = getLocalModel('stt', settings.localSttModel);
-  const ttsModel = getLocalModel('tts', settings.localTtsModel);
-  const renderModel = (kind, model, purpose) => {
-    const backend = kind === 'tts' ? settings.localTtsBackend : settings.localSttBackend;
-    const ready = isLocalVoiceModelReady(kind, model.id, backend);
-    const downloadMB = kind === 'tts'
-      && preferredLocalVoiceBackend(kind, model.id, backend) === 'webgpu'
-      ? model.gpuDownloadMB
-      : model.downloadMB;
-    return `
-      <div class="settings-section voice-model-row" data-voice-model-kind="${kind}">
-        <div class="settings-copy">
-          <div class="settings-copy-title">${escapeHTML(model.label)}</div>
-          <div class="settings-copy-desc">${purpose} · about ${downloadMB} MB · ${escapeHTML(model.license)}</div>
-          <div class="voice-model-state" data-state="${ready ? 'ready' : 'missing'}"
-            data-voice-model-status="${kind}">${localModelUiStatus(kind, model.id)}</div>
-          <div class="voice-model-progress" hidden data-voice-model-progress="${kind}">
-            <div class="voice-model-progress-track" role="progressbar"
-              aria-label="${escapeAttr(model.label)} download progress"><span></span></div>
-            <small>Preparing model…</small>
-          </div>
-        </div>
-        <div class="voice-model-actions">
-          <button type="button" class="import-btn settings-mini-btn"
-            data-voice-action="install-model" data-kind="${kind}"${ready ? ' disabled' : ''}>${ready ? 'Ready' : 'Download'}</button>
-          <button type="button" class="settings-link-btn"
-            data-voice-action="remove-model" data-kind="${kind}"${ready ? '' : ' disabled'}>Remove</button>
-        </div>
-      </div>`;
-  };
+function renderLocalModelRow(kind, model, settings) {
+  const backend = kind === 'tts' ? settings.localTtsBackend : settings.localSttBackend;
+  const ready = isLocalVoiceModelReady(kind, model.id, backend);
+  const direction = kind === 'tts' ? 'output' : 'input';
   return `
-    <div class="settings-group-title">Built-in local models</div>
-    <div class="settings-row voice-model-list">
-      ${renderModel('stt', sttModel, 'Transcription')}
-      ${renderModel('tts', ttsModel, 'Speech')}
-      <div class="voice-model-footnote">
-        Models download only when you choose Download. Voice actions never start a model download
-        automatically. If browser storage removes the files, Voice will ask you to download them again.
+    <div class="settings-section voice-model-row" data-voice-visible="${direction}:browser-local"
+      data-voice-model-kind="${kind}">
+      <div class="settings-copy">
+        <div class="settings-copy-title">${escapeHTML(model.label)}</div>
+        <div class="settings-copy-desc">${escapeHTML(getLocalModelStorageCopy(kind, model.id, backend))}</div>
+        <div class="voice-model-state" data-state="${ready ? 'ready' : 'missing'}"
+          data-voice-model-status="${kind}">${localModelUiStatus(kind, model.id)}</div>
+        <div class="voice-model-progress" hidden data-voice-model-progress="${kind}">
+          <div class="voice-model-progress-track" role="progressbar"
+            aria-label="${escapeAttr(model.label)} download progress"><span></span></div>
+          <small>Preparing model…</small>
+        </div>
+      </div>
+      <div class="voice-model-actions">
+        <button type="button" class="import-btn settings-mini-btn"
+          data-voice-action="install-model" data-kind="${kind}"${ready ? ' disabled' : ''}>${ready ? 'Ready' : 'Download'}</button>
+        <button type="button" class="settings-link-btn"
+          data-voice-action="remove-model" data-kind="${kind}"${ready ? '' : ' disabled'}>Remove files</button>
       </div>
     </div>`;
 }
@@ -510,7 +506,10 @@ function renderConnectionCard(provider, title, description, settings) {
 
 function renderConnections(settings) {
   return `
-    <div class="settings-group-title">Connections</div>
+    <details class="voice-advanced-connections">
+      <summary>
+        <span><strong>Advanced connections</strong><small>Local server and direct provider keys</small></span>
+      </summary>
     <div class="settings-row voice-connections">
       <div class="settings-section">
         <div class="settings-action-row">
@@ -529,7 +528,8 @@ function renderConnections(settings) {
       )}
       ${renderConnectionCard('xai', 'xAI', 'Cloud transcription and speech with your own key', settings)}
       ${renderConnectionCard('elevenlabs', 'ElevenLabs', 'Scribe transcription and multilingual voices', settings)}
-    </div>`;
+    </div>
+    </details>`;
 }
 
 export function renderVoiceSettingsPanel(active = false) {
@@ -540,7 +540,6 @@ export function renderVoiceSettingsPanel(active = false) {
       ${renderServiceSection(settings)}
       ${renderInputSection(settings)}
       ${renderOutputSection(settings)}
-      ${renderLocalModels(settings)}
       ${renderConnections(settings)}
     </div>`;
 }

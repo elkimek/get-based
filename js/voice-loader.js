@@ -93,9 +93,17 @@ export function toggleMessageSpeech(messageIndex) {
   ));
 }
 
-export function stopVoiceActivity() {
+export function stopVoiceActivity(options) {
   voiceActivityEpoch += 1;
-  return voiceModule?.stopVoiceActivity() || false;
+  return voiceModule?.stopVoiceActivity(options) || false;
+}
+
+export function isVoicePlaybackActive() {
+  return voiceModule?.isVoicePlaybackActive() || false;
+}
+
+export function restoreVoicePlaybackUi() {
+  return voiceModule?.restoreVoicePlaybackUi() || false;
 }
 
 export function maybeAutoReadAssistantMessage(messageIndex) {

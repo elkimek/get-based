@@ -239,8 +239,10 @@ describe('chat presentation stylesheet runtime behavior', () => {
       expect(chatPanel.configureChatPanel({})).toEqual({
         restoreDiscussionContinuePrompt: null,
         isChatStreaming: null,
+        isVoicePlaybackActive: null,
         refreshMobileDashboardActiveTab: null,
         restoreChatGenerationUI: null,
+        restoreVoicePlaybackUi: null,
         stopVoiceActivity: null,
       });
       expect(chatPanel.isChatThreadInputBlocked()).toBe(false);

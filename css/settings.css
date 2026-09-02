@@ -1105,7 +1105,11 @@
   color: var(--text-primary);
 }
 .settings-modal .voice-overview .settings-section {
-  padding-top: 4px;
+  margin-top: 2px;
+  padding: 11px 13px;
+  border: 1px solid color-mix(in srgb, var(--green) 24%, var(--border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--green) 5%, var(--bg-card));
 }
 .settings-modal .voice-overview .settings-copy-title::before {
   content: '';
@@ -1117,6 +1121,88 @@
   background: var(--green);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 13%, transparent);
   vertical-align: 1px;
+}
+.settings-modal .voice-service-card,
+.settings-modal .voice-task-card {
+  overflow: hidden;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-card) 72%, transparent);
+}
+.settings-modal .voice-service-card .settings-section:last-child,
+.settings-modal .voice-task-card .settings-section:last-child {
+  border-bottom: 0;
+}
+.settings-modal .voice-task-block {
+  margin-top: 24px;
+}
+.settings-modal .voice-task-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 2px 8px;
+}
+.settings-modal .voice-task-heading h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 650;
+}
+.settings-modal .voice-task-heading h3 span {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 2px 5px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  vertical-align: 1px;
+}
+.settings-modal .voice-task-heading p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  line-height: 1.4;
+  text-align: right;
+}
+.settings-modal .voice-advanced-connections {
+  margin-top: 24px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-card) 60%, transparent);
+}
+.settings-modal .voice-advanced-connections > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.settings-modal .voice-advanced-connections > summary strong,
+.settings-modal .voice-advanced-connections > summary small {
+  display: block;
+}
+.settings-modal .voice-advanced-connections > summary strong {
+  font-size: 12px;
+}
+.settings-modal .voice-advanced-connections > summary small {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 400;
+}
+.settings-modal .voice-advanced-connections[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+.settings-modal .voice-advanced-connections .voice-connections {
+  padding: 0 14px 8px;
 }
 .settings-modal .voice-control {
   display: block;
@@ -1922,6 +2008,21 @@ label.sync-settings-toggle input:disabled + .sync-settings-toggle-slider { opaci
   .settings-modal .voice-control,
   .settings-modal .voice-control-stack {
     width: 100%;
+  }
+  .settings-modal .voice-service-card,
+  .settings-modal .voice-task-card {
+    padding: 0 12px;
+  }
+  .settings-modal .voice-task-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .settings-modal .voice-task-heading p {
+    text-align: left;
+  }
+  .settings-modal .voice-advanced-connections .voice-connections {
+    padding-inline: 12px;
   }
   .settings-modal .voice-connection-card summary {
     align-items: flex-start;

@@ -20,7 +20,7 @@ function waitForPromise(promise, timeoutMs, message) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
 }
 
-function readStreamChunk(reader, signal, timeoutMs) {
+function readStreamChunk(reader, signal, timeoutMs = 120_000) {
   return new Promise((resolve, reject) => {
     let settled = false;
     const cleanup = () => {
@@ -35,7 +35,7 @@ function readStreamChunk(reader, signal, timeoutMs) {
     };
     const onAbort = () => finish(reject)(abortError(signal?.reason));
     const timeoutId = setTimeout(() => finish(reject)(new Error(
-      'Local speech generation stopped responding. Try the graphics processor, a shorter reply, or a hosted voice.',
+      'Local speech generation stopped responding. Try a shorter reply or another voice service.',
     )), timeoutMs);
     signal?.addEventListener('abort', onAbort, { once: true });
     reader.read().then(finish(resolve), finish(reject));
@@ -44,7 +44,7 @@ function readStreamChunk(reader, signal, timeoutMs) {
 
 export function trimPcmEdgeSilence(samples, sampleRate, {
   threshold = 0.0015,
-  keepSeconds = 0.12,
+  keepSeconds = 0.06,
 } = {}) {
   if (!(samples instanceof Float32Array) || !samples.length) return samples;
   let first = 0;
@@ -126,7 +126,6 @@ export class VoicePlayer {
    *   revokeObjectURL?: (url: string) => void,
    *   audioUnlockTimeoutMs?: number,
    *   pcmStallTimeoutMs?: number,
-   *   pcmInitialBufferSeconds?: number,
    * }} [options]
    */
   constructor(options = {}) {
@@ -145,10 +144,6 @@ export class VoicePlayer {
     this.revokeObjectURL = options.revokeObjectURL || (url => URL.revokeObjectURL(url));
     this.audioUnlockTimeoutMs = Math.max(1000, Number(options.audioUnlockTimeoutMs) || 5000);
     this.pcmStallTimeoutMs = Math.max(1000, Number(options.pcmStallTimeoutMs) || 120_000);
-    this.pcmInitialBufferSeconds = Math.max(
-      0,
-      Number(options.pcmInitialBufferSeconds) || 6,
-    );
     /** @type {HTMLAudioElement | null} */
     this.audio = null;
     /** @type {AudioContext | null} */
@@ -567,9 +562,19 @@ export class VoicePlayer {
    * Schedule local Float32 PCM chunks as soon as Kokoro emits them.
    *
    * @param {ReadableStream<{ samples: Float32Array, sampleRate: number }>} stream
-   * @param {{ signal?: AbortSignal, rate?: number }} [options]
+   * @param {{
+   *   signal?: AbortSignal,
+   *   rate?: number,
+   *   onPlaybackStart?: () => void,
+   *   onPlaybackWaiting?: () => void,
+   * }} [options]
    */
-  async playPcmStream(stream, { signal, rate = 1 } = {}) {
+  async playPcmStream(stream, {
+    signal,
+    rate = 1,
+    onPlaybackStart,
+    onPlaybackWaiting,
+  } = {}) {
     this.stop();
     if (signal?.aborted) throw abortError(signal.reason);
     this.audioContext ||= this.audioContextFactory();
@@ -588,9 +593,9 @@ export class VoicePlayer {
     let receivedSamples = 0;
     /** @type {Promise<void> | null} */
     let lastPlayback = null;
-    /** @type {Array<{ samples: Float32Array, sampleRate: number }>} */
-    const initialChunks = [];
-    let initialBufferSeconds = 0;
+    let playbackStarted = false;
+    let streamDone = false;
+    let waitingForChunk = false;
 
     const schedule = (samples, sampleRate) => {
       const buffer = context.createBuffer(1, samples.length, sampleRate);
@@ -608,14 +613,19 @@ export class VoicePlayer {
           source.onended = null;
           this.scheduledAudioSources.delete(source);
           try { source.disconnect(); } catch {}
+          if (!streamDone && this.scheduledAudioSources.size === 0) {
+            waitingForChunk = true;
+            try { onPlaybackWaiting?.(); } catch {}
+          }
           resolve();
         };
       });
       source.start(startTime);
-    };
-
-    const flushInitialChunks = () => {
-      for (const chunk of initialChunks.splice(0)) schedule(chunk.samples, chunk.sampleRate);
+      if (!playbackStarted || waitingForChunk) {
+        playbackStarted = true;
+        waitingForChunk = false;
+        try { onPlaybackStart?.(); } catch {}
+      }
     };
 
     try {
@@ -629,7 +639,7 @@ export class VoicePlayer {
           this.pcmStallTimeoutMs,
         );
         if (done) {
-          flushInitialChunks();
+          streamDone = true;
           break;
         }
         const rawSamples = value?.samples instanceof Float32Array
@@ -638,13 +648,7 @@ export class VoicePlayer {
         const sampleRate = Math.max(8_000, Number(value?.sampleRate) || 24_000);
         const samples = trimPcmEdgeSilence(rawSamples, sampleRate);
         if (!samples.length) continue;
-        if (initialChunks.length || !lastPlayback) {
-          initialChunks.push({ samples, sampleRate });
-          initialBufferSeconds += samples.length / sampleRate;
-          if (initialBufferSeconds >= this.pcmInitialBufferSeconds) flushInitialChunks();
-        } else {
-          schedule(samples, sampleRate);
-        }
+        schedule(samples, sampleRate);
       }
       if (internalController.signal.aborted) {
         throw abortError(internalController.signal.reason);

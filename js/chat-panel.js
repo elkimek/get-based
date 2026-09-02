@@ -49,15 +49,19 @@ let useChatPresentationStylesheetRetryUrl = false;
 /** @type {{
  *   restoreDiscussionContinuePrompt: (() => void) | null,
  *   isChatStreaming: (() => boolean) | null,
+ *   isVoicePlaybackActive: (() => boolean) | null,
  *   refreshMobileDashboardActiveTab: (() => void) | null,
  *   restoreChatGenerationUI: (() => boolean) | null,
- *   stopVoiceActivity: (() => void) | null,
+ *   restoreVoicePlaybackUi: (() => boolean) | null,
+ *   stopVoiceActivity: ((options?: { preservePlayback?: boolean }) => void) | null,
  * }} */
 const panelCallbacks = {
   restoreDiscussionContinuePrompt: null,
   isChatStreaming: null,
+  isVoicePlaybackActive: null,
   refreshMobileDashboardActiveTab: null,
   restoreChatGenerationUI: null,
+  restoreVoicePlaybackUi: null,
   stopVoiceActivity: null,
 };
 let chatThreadInputBlocked = false;
@@ -81,7 +85,7 @@ function updateChatPanelAccessibility(panel, open) {
   setChatBackgroundInert(open && mobile);
 }
 
-/** @param {{ restoreDiscussionContinuePrompt?: (() => void) | null, isChatStreaming?: (() => boolean) | null, refreshMobileDashboardActiveTab?: (() => void) | null, restoreChatGenerationUI?: (() => boolean) | null, stopVoiceActivity?: (() => void) | null }} [callbacks] */
+/** @param {{ restoreDiscussionContinuePrompt?: (() => void) | null, isChatStreaming?: (() => boolean) | null, isVoicePlaybackActive?: (() => boolean) | null, refreshMobileDashboardActiveTab?: (() => void) | null, restoreChatGenerationUI?: (() => boolean) | null, restoreVoicePlaybackUi?: (() => boolean) | null, stopVoiceActivity?: ((options?: { preservePlayback?: boolean }) => void) | null }} [callbacks] */
 export function configureChatPanel(callbacks = {}) {
   const previous = { ...panelCallbacks };
   Object.assign(panelCallbacks, callbacks);
@@ -294,11 +298,14 @@ export async function openChatPanel(prefillMessage) {
   // An in-flight answer exists only in the live request/typewriter state
   // until it finishes. Reloading the persisted thread here would erase that
   // partial response and typing indicator while the request kept running,
-  // making the latest user message look interrupted and retryable.
+  // making the latest user message look interrupted and retryable. Replacing
+  // message objects during speech would likewise invalidate its active turn.
   const generationInProgress = panelCallbacks.isChatStreaming?.() === true;
+  const voicePlaybackInProgress = panelCallbacks.isVoicePlaybackActive?.() === true;
+  const liveSessionInProgress = generationInProgress || voicePlaybackInProgress;
   // Load threads and ensure active thread
   let threadsLoaded = true;
-  if (!generationInProgress) {
+  if (!liveSessionInProgress) {
     threadsLoaded = await loadChatThreads();
     chatThreadInputBlocked = threadsLoaded === false;
     if (threadsLoaded !== false) ensureActiveThread();
@@ -306,7 +313,7 @@ export async function openChatPanel(prefillMessage) {
   restoreRailState();
   renderThreadList();
   renderSavedSummaries();
-  if (!generationInProgress && threadsLoaded !== false) await loadChatHistory();
+  if (!liveSessionInProgress && threadsLoaded !== false) await loadChatHistory();
   if (!generationInProgress) panelCallbacks.restoreDiscussionContinuePrompt?.();
   updateChatInputState();
   initChatComposer();
@@ -316,6 +323,7 @@ export async function openChatPanel(prefillMessage) {
     if (prefillMessage) setChatInputValue(prefillMessage, { focus: true });
     else await restoreChatDraft(undefined, { focus: true });
   }
+  panelCallbacks.restoreVoicePlaybackUi?.();
   return true;
 }
 
@@ -341,7 +349,7 @@ export function updateChatInputState() {
 
 export function closeChatPanel() {
   chatPanelIntent += 1;
-  panelCallbacks.stopVoiceActivity?.();
+  panelCallbacks.stopVoiceActivity?.({ preservePlayback: true });
   stopMobileChatViewportSync();
   const panel = document.getElementById('chat-panel');
   panel?.classList.remove('open');

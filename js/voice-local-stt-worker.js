@@ -73,6 +73,7 @@ async function loadRecognizer(
   id,
   backendPreference = 'auto',
   preferredBackend = 'webgpu',
+  allowWebGpuFallback = true,
 ) {
   const requestedModel = String(model || DEFAULT_MODEL);
   const requestedBackend = normalizeBackend(backendPreference);
@@ -91,6 +92,9 @@ async function loadRecognizer(
   }
   await recognizer?.dispose?.().catch?.(() => {});
   recognizer = null;
+  activeModel = '';
+  activeBackend = '';
+  activeFallbackReason = '';
 
   if (isMockMode()) {
     activeModel = requestedModel;
@@ -102,7 +106,9 @@ async function loadRecognizer(
   const { pipeline } = await ensureTransformers();
   const modelConfig = getLocalModel('stt', requestedModel);
   const candidates = requestedBackend === 'auto'
-    ? [autoPreference, autoPreference === 'webgpu' ? 'wasm' : 'webgpu']
+    ? allowWebGpuFallback
+      ? [autoPreference, autoPreference === 'webgpu' ? 'wasm' : 'webgpu']
+      : ['wasm']
     : [requestedBackend];
   let fallbackReason = '';
   for (const backend of candidates) {
@@ -138,6 +144,7 @@ async function transcribe(message) {
     message.id,
     message.backend,
     message.preferredBackend,
+    message.allowWebGpuFallback,
   );
   if (isMockMode()) {
     return {
@@ -176,6 +183,7 @@ self.addEventListener('message', async event => {
         id,
         message.backend,
         message.preferredBackend,
+        message.allowWebGpuFallback,
       );
       self.postMessage({ type: 'ready', id, kind: 'stt', ...ready });
       return;
@@ -200,6 +208,7 @@ self.addEventListener('message', async event => {
       type: 'error',
       id,
       kind: 'stt',
+      backend: activeBackend || undefined,
       message: getErrorMessage(error, 'Local transcription failed'),
     });
   }

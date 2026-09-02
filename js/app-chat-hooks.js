@@ -47,7 +47,12 @@ import { updateChatNudge } from './chat-nudge.js';
 import {
   updateChatHeaderModel,
 } from './chat-personalities.js';
-import { stopVoiceActivity, toggleMessageSpeech } from './voice-loader.js';
+import {
+  isVoicePlaybackActive,
+  restoreVoicePlaybackUi,
+  stopVoiceActivity,
+  toggleMessageSpeech,
+} from './voice-loader.js';
 import { switchToThread } from './chat-threads.js';
 let initialized = false;
 
@@ -66,7 +71,9 @@ export function configureAppChatHooks(deps = {}) {
     setOnboardingFocus: deps.setOnboardingFocus,
   });
   configureChatPanel({
+    isVoicePlaybackActive,
     refreshMobileDashboardActiveTab: deps.refreshMobileDashboardActiveTab,
+    restoreVoicePlaybackUi,
     stopVoiceActivity,
   });
   configureChatRuntimeCallbacks({
