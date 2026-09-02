@@ -71,27 +71,17 @@ export {
 } from './lab-context-settings.js';
 export { injectLensChunks } from './lab-context-output.js';
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-function localDateKey(value = Date.now()) {
-  const date = new Date(value);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-export function getCalendarDaysSinceDate(date, now = Date.now()) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date || '');
-  const current = new Date(now);
-  if (!match || !Number.isFinite(current.getTime())) return NaN;
-  const measuredDay = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-  const currentDay = Date.UTC(current.getFullYear(), current.getMonth(), current.getDate());
-  return Math.round((currentDay - measuredDay) / MS_PER_DAY);
-}
+const MS_PER_DAY = 86_400_000;
+const localDateKey = now => {
+  const date = new Date(now);
+  return new Date(now - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+};
+const calendarDaysSince = (date, now) => Math.round(
+  (Date.parse(`${localDateKey(now)}T00:00:00Z`) - Date.parse(`${date}T00:00:00Z`)) / MS_PER_DAY,
+);
 
 export function formatLabDateAge(date, now = Date.now()) {
-  const days = getCalendarDaysSinceDate(date, now);
+  const days = calendarDaysSince(date, now);
   if (!Number.isFinite(days)) return 'date not recorded';
   if (days < 0) return 'future-dated';
   if (days === 0) return 'today';
@@ -117,7 +107,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   const includeSupplementsMeds = ignoreContextToggles || isSupplementsMedsContextEnabled();
   const now = Date.now();
   const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const daysSinceDate = d => getCalendarDaysSinceDate(d, now);
+  const daysSinceDate = d => calendarDaysSince(d, now);
   const relativeAge = d => formatLabDateAge(d, now);
   const sexLabel = state.profileSex === 'female' ? 'female' : state.profileSex === 'male' ? 'male' : 'not specified';
   const age = state.profileDob ? Math.floor((now - new Date(state.profileDob).getTime()) / (365.25 * MS_PER_DAY)) : null;
@@ -203,8 +193,6 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
       ctx += `[section:${catKey}${_catDate ? ' updated:' + _catDate : ''}]\n## ${cat.label}\n`;
       for (const [, m] of markersWithData) {
         const latestIdx = getLatestValueIndex(m.values);
-        // Trajectory narrative: use a reference/target frame when available so
-        // the dashboard's selected range mode cannot change the AI context.
         let trajectory = '';
         try {
           if (!m.singlePoint && data.dates.length >= 2) {
@@ -230,7 +218,6 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
               else if (days < 90) { const w = Math.round(days / 7); durStr = `${w} week${w !== 1 ? 's' : ''}`; }
               else if (days < 730) { const mo = Math.round(days / 30.44); durStr = `${mo} month${mo !== 1 ? 's' : ''}`; }
               else { const yr = Math.round(days / 365.25 * 10) / 10; durStr = `${yr} year${yr !== 1 ? 's' : ''}`; }
-              // Verbose trajectory for flagged markers or >25% change; simple delta for the rest
               if (isFlagged || changePct > 0.25) {
                 const dir = diff > 0 ? '\u2191 rising' : '\u2193 declining';
                 trajectory = ` \u2014 ${dir} over ${durStr} (${points.length} readings)`;
@@ -245,7 +232,6 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
         } catch (_) { /* skip trajectory on error */ }
         ctx += `- ${m.name}: ${formatMarkerValuesForChat(m, data, { dateLabel: relativeAge })}${trajectory}\n`;
       }
-      // Per-category staleness: flag if this category's latest data is >90 days old
       const catLatestDate = cat.singleDate || (() => {
         for (let i = data.dates.length - 1; i >= 0; i--) {
           if (markersWithData.some(([_, m]) => m.values[i] !== null)) return data.dates[i];
@@ -286,15 +272,9 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   }
 
   // ── 5c. Per-Value Notes ──
-  // Context attached to a single (marker, date) reading — e.g. "fasted 14h",
-  // "retake of low value", "different lab". Distinct from markerNotes (which
-  // are overall per-marker thoughts) — these reframe a specific data point.
   const mvNotes = state.importedData.markerValueNotes || {};
   const mvKeys = Object.keys(mvNotes);
   if (includeLabMarkers && mvKeys.length > 0) {
-    // Group by marker so an AI scanning a single biomarker's history sees its
-    // value-level annotations contiguously. Sort dates ascending within each
-    // marker for chronological reading.
     const byMarker = new Map();
     for (const key of mvKeys) {
       const colonIdx = key.lastIndexOf(':');
@@ -355,8 +335,6 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   const relevantSupps = data?.dates?.length
     ? getSupplementsOverlappingRange(allSupps, data.dates[0], data.dates[data.dates.length - 1])
     : getCurrentSupplements(allSupps);
-  // A supplement-specific question may need a paused/ended course. Detail mode
-  // remains bounded, but draws from the complete stored history.
   const supps = supplementContextMode === 'detail' ? allSupps : relevantSupps;
   if (includeSupplementsMeds && allSupps.length > 0) {
     ctx += `[section:supplements]\n## Supplements & Medications\n`;
@@ -420,7 +398,6 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   const includeGeneticsPriority = ignoreContextToggles || isGeneticsPriorityInAIContext();
   const includeSnpInventory = ignoreContextToggles || isGeneticsInventoryInAIContext();
   if (hasGeneticsData && (includeGeneticsSummary || includeGeneticsPriority || includeSnpInventory)) {
-    // Collect active marker keys to filter relevant SNPs
     const activeMarkerKeys = hasLabData ? Object.entries(data.categories).flatMap(([catKey, cat]) =>
       Object.entries(cat.markers).filter(([_, m]) => m.values.some(v => v !== null)).map(([key]) => `${catKey}.${key}`)
     ) : [];
@@ -562,7 +539,6 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     const dParts = [];
     if (diet.bowelFrequency) dParts.push(`Bowel frequency: ${diet.bowelFrequency}`);
     if (diet.stoolConsistency) dParts.push(`Stool consistency: ${diet.stoolConsistency}`);
-    // Preserve explicit negatives: `null` is unanswered; `none` / `normal` means ruled out.
     if (diet.bloating) dParts.push(`Bloating: ${diet.bloating}`);
     if (diet.gas) dParts.push(`Gas: ${diet.gas}`);
     if (diet.acidReflux) dParts.push(`Acid reflux: ${diet.acidReflux}`);
@@ -573,7 +549,6 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     if (diet.foodSensitivities && diet.foodSensitivities.length) dParts.push(`Food sensitivities: ${diet.foodSensitivities.join(', ')}`);
     if (dParts.length) ctx += dParts.join('. ') + '\n';
     if (diet.note) ctx += `Notes: ${diet.note}\n`;
-    // Food contaminant scan (EWG + PlasticList)
     const foodWarnings = detailedNutritionOverridesMeals ? [] : scanDietForContaminants(diet);
     const flagged = foodWarnings.filter(w => w.type !== 'clean');
     if (flagged.length > 0) {
@@ -752,12 +727,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     ctx += `[section:contextNotes]\n## Additional Context Notes\n${ctxNotes.trim()}\n[/section:contextNotes]\n\n`;
   }
 
-  // ── 19. Light & Sun lens — full standard tier when user has data ──
-  // buildSunContext returns '' when there's nothing to show, so a
-  // user without sessions pays zero tokens. Users with sessions get
-  // compact weekly/session aggregates + correlations on every turn,
-  // matching the pattern the rest of this file uses for every other
-  // section (include if-data-exists, no keyword gating).
+  // ── 19. Light & Sun lens ──
   if ((ignoreContextToggles || isLightSunContextEnabled()) && typeof labContextDeps.buildSunContext === 'function') {
     try {
       ctx += labContextDeps.buildSunContext({ tier: 'standard', ignoreContextToggles });
