@@ -94,7 +94,8 @@ export async function discoverLocalChatAgents(options = {}) {
         : [];
     }
   } catch { /* hosted/static builds fall back to direct loopback discovery */ }
-  if (direct.some(agent => agent.id === 'codex' && agent.compatible)) return direct;
+  if (direct.some(agent => agent.id === 'codex' && agent.compatible
+    && ['available', 'starting'].includes(agent.status))) return direct;
   const companions = await discoverLoopbackAgentHosts({ signal: options.signal });
   return runtime.mergeDiscoveredAgents(direct, companions);
 }

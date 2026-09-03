@@ -151,7 +151,7 @@ export function getAIProcessingDestination(provider, { endpoint = '', modelId = 
   const policy = selectedPolicy(provider, cloudModel);
   const label = destinationLabel(provider, boundary, origin, policy.label);
   const route = provider === 'codex-agent'
-    ? 'through the local Get-based Agent Host to OpenAI Codex'
+    ? 'through the local getbased Agent Host to OpenAI Codex'
     : boundary === 'same-device'
     ? 'on this device'
     : boundary === 'private-network'

@@ -20,7 +20,7 @@ describe('companion distribution bundle', () => {
 
     expect(source.startsWith('#!/usr/bin/env node\n')).toBe(true);
     expect(result.bytes).toBeLessThan(250_000);
-    expect(source).toContain('Get-based Companion');
+    expect(source).toContain('getbased Companion');
     expect(source).toContain('getbased-companion install');
     expect(source).not.toMatch(/from\s+['"]\.\.?\//);
   });

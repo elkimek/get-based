@@ -25,7 +25,7 @@ describe('local agent selection UI', () => {
     expect(source).toContain('copy-cli-companion-run');
     expect(source).toContain('Connect your installed CLI agents');
     expect(source).toContain('getbased-companion.mjs');
-    expect(source).toContain('View companion source on GitHub');
+    expect(source).toContain('Review the source on GitHub');
     expect(settings).toContain('copyCLICompanionInstallCommand');
     expect(settings).toContain('copyCLICompanionRunCommand');
   });
@@ -43,17 +43,17 @@ describe('local agent selection UI', () => {
     expect(source).toContain("provider === 'cli'");
   });
 
-  it('offers temporary and installed companion commands locally and when hosted', () => {
+  it('offers self-contained download commands locally and when hosted', () => {
     expect(getLinuxCompanionRunCommand({ hostname: 'localhost', origin: 'http://localhost:8000' }))
-      .toBe('npm run companion');
+      .toBe('curl -fsS http://localhost:8000/getbased-companion.mjs -o /tmp/getbased-companion.mjs && node /tmp/getbased-companion.mjs run');
     expect(getLinuxCompanionInstallCommand({ hostname: 'localhost', origin: 'http://localhost:8000' }))
-      .toBe('npm run companion:install');
+      .toBe('curl -fsS http://localhost:8000/getbased-companion.mjs -o /tmp/getbased-companion.mjs && node /tmp/getbased-companion.mjs install');
     expect(getLinuxCompanionRunCommand({
       hostname: 'app.getbased.health', origin: 'https://app.getbased.health',
     })).toBe('curl -fsS https://app.getbased.health/getbased-companion.mjs -o /tmp/getbased-companion.mjs && node /tmp/getbased-companion.mjs run');
     expect(getLinuxCompanionInstallCommand({
       hostname: 'app.getbased.health', origin: 'https://app.getbased.health',
-    })).toBe('curl -fsS https://app.getbased.health/getbased-companion.mjs -o getbased-companion.mjs && node getbased-companion.mjs install');
+    })).toBe('curl -fsS https://app.getbased.health/getbased-companion.mjs -o /tmp/getbased-companion.mjs && node /tmp/getbased-companion.mjs install');
   });
 
   it('renders Codex model and reasoning controls from the CLI catalog', () => {

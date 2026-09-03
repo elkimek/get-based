@@ -7,7 +7,7 @@ import {
   installLinuxCompanion, runLinuxCompanionServiceCommand, uninstallLinuxCompanion,
 } from '../lib/linux-companion-install.js';
 
-const HELP = `Get-based Companion
+const HELP = `getbased Companion
 
 Usage:
   getbased-companion install [--dry-run]  Install and start the Linux user service
@@ -34,7 +34,7 @@ export async function main(args, options = {}) {
       dryRun: args.includes('--dry-run'),
     });
     if (result.installed) {
-      process.stdout.write('Get-based Companion is installed and running. Return to Get-based and select Rescan.\n');
+      process.stdout.write('getbased Companion is installed and running. Return to getbased and select Check connection.\n');
       process.stdout.write(`Service: ${result.serviceFile}\n`);
     } else {
       process.stdout.write(`Dry run successful. Service would be installed at ${result.serviceFile}\n`);
@@ -43,7 +43,7 @@ export async function main(args, options = {}) {
   }
   if (command === 'uninstall') {
     uninstallLinuxCompanion();
-    process.stdout.write('Get-based Companion was removed. Private pairing state was kept for a future reinstall.\n');
+    process.stdout.write('getbased Companion was removed. Private pairing state was kept for a future reinstall.\n');
     return;
   }
   if (command === 'restart' || command === 'status') {

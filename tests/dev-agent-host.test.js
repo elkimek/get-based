@@ -42,7 +42,7 @@ describe('development agent discovery', () => {
     expect(controller.describe()).toEqual({ agents: [expect.objectContaining({
       id: 'codex', compatible: true, status: 'starting', token: 'private-token',
     })] });
-    child.stdout.emit('data', 'Get-based Companion listening at http://127.0.0.1:8324\n');
+    child.stdout.emit('data', 'getbased Companion listening at http://127.0.0.1:8324\n');
     expect(controller.describe().agents[0]).toMatchObject({ status: 'available', version: 'codex-cli 0.150.1' });
     expect(spawnImpl).toHaveBeenCalledWith(process.execPath, [
       '--watch-preserve-output', '--watch', '/workspace/server/agent-host-server.js',

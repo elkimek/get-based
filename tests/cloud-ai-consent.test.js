@@ -165,7 +165,7 @@ describe('AI transparency and route-aware approval', () => {
       boundary: 'remote',
       required: true,
       label: 'OpenAI Codex',
-      route: 'through the local Get-based Agent Host to OpenAI Codex',
+      route: 'through the local getbased Agent Host to OpenAI Codex',
       privacyUrl: 'https://openai.com/policies/privacy-policy/',
       termsUrl: 'https://openai.com/policies/terms-of-use/',
     });

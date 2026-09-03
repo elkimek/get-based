@@ -32,7 +32,7 @@ try {
 } catch (error) {
   rmSync(workspaceRoot, { recursive: true, force: true });
   const message = error instanceof Error ? error.message : 'unknown error';
-  process.stderr.write(`Get-based Agent Host refused to start: ${message}\n`);
+  process.stderr.write(`getbased Agent Host refused to start: ${message}\n`);
   process.exit(1);
 }
 const { codexHome, token } = agentStorage;
@@ -109,19 +109,19 @@ function listen() {
 }
 
 server.on('listening', () => {
-  process.stdout.write(`Get-based Companion listening at http://${host}:${port}\n`);
+  process.stdout.write(`getbased Companion listening at http://${host}:${port}\n`);
   process.stdout.write('Automatic browser discovery enabled.\n');
   process.stdout.write(`Private agent state: ${agentStorage.dataDirectory}\n`);
-  process.stdout.write('Keep this process running while using CLI agents in Get-based.\n');
+  process.stdout.write('Keep this process running while using CLI agents in getbased.\n');
 });
 server.on('error', error => {
   if (/** @type {NodeJS.ErrnoException} */ (error).code === 'EADDRINUSE' && port < lastPort) {
     port += 1;
-    process.stderr.write(`Get-based Companion port busy; trying http://${host}:${port}\n`);
+    process.stderr.write(`getbased Companion port busy; trying http://${host}:${port}\n`);
     listen();
     return;
   }
-  process.stderr.write(`Get-based Companion could not start: ${error.message}\n`);
+  process.stderr.write(`getbased Companion could not start: ${error.message}\n`);
   void shutdown().finally(() => { process.exitCode = 1; });
 });
 

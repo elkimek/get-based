@@ -136,8 +136,9 @@ A hosted browser cannot start an operating-system process. The production
 build therefore emits a single dependency-free `getbased-companion.mjs`
 download. When no companion is detected, **Settings → AI → CLI agents** shows
 two copyable Linux commands: run the bundle for the current terminal session,
-or install it for automatic startup. Local development shows the equivalent
-`npm run companion` and `npm run companion:install` commands.
+or install it for automatic startup. Both commands download the bundle from
+the same getbased origin the user has open, so they do not require a repository
+checkout or npm.
 
 Temporary mode writes only the downloaded bundle to `/tmp` and stops when its
 terminal closes. The installer performs only user-scoped operations: it copies
@@ -148,6 +149,14 @@ absolute Node and Codex
 executables plus the existing Codex auth directory, so the background service
 does not depend on an interactive shell PATH. No root access, desktop package,
 or platform signing is required.
+
+The companion source stays in this repository for now. Its browser protocol,
+tool contract, security policy, and generated PWA download can therefore ship
+atomically with the UI that consumes them. A separate repository becomes
+useful only if the companion gains an independent release cadence or supports
+several products; splitting it earlier would add version and security-policy
+drift. The production bundle is generated from the committed `bin/`, `server/`,
+`lib/`, and `shared/` sources by `scripts/build-companion-bundle.mjs`.
 
 After installation, the service starts at login and the hosted PWA discovers
 it through the same origin-gated loopback protocol. The CLI supports `status`,

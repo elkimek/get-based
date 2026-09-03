@@ -26,12 +26,9 @@ let codexModels = [];
  * @param {{hostname?: string, origin?: string}} [location]
  */
 export function getLinuxCompanionInstallCommand(location = {}) {
-  const hostname = location.hostname ?? globalThis.location?.hostname ?? '';
-  const loopback = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
-  if (loopback) return 'npm run companion:install';
   const origin = String(location.origin ?? globalThis.location?.origin ?? 'https://app.getbased.health')
     .replace(/\/$/, '');
-  return `curl -fsS ${origin}/getbased-companion.mjs -o getbased-companion.mjs && node getbased-companion.mjs install`;
+  return `curl -fsS ${origin}/getbased-companion.mjs -o /tmp/getbased-companion.mjs && node /tmp/getbased-companion.mjs install`;
 }
 
 /**
@@ -41,9 +38,6 @@ export function getLinuxCompanionInstallCommand(location = {}) {
  * @param {{hostname?: string, origin?: string}} [location]
  */
 export function getLinuxCompanionRunCommand(location = {}) {
-  const hostname = location.hostname ?? globalThis.location?.hostname ?? '';
-  const loopback = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
-  if (loopback) return 'npm run companion';
   const origin = String(location.origin ?? globalThis.location?.origin ?? 'https://app.getbased.health')
     .replace(/\/$/, '');
   return `curl -fsS ${origin}/getbased-companion.mjs -o /tmp/getbased-companion.mjs && node /tmp/getbased-companion.mjs run`;
@@ -52,16 +46,16 @@ export function getLinuxCompanionRunCommand(location = {}) {
 function renderCompanionSetup() {
   const runCommand = getLinuxCompanionRunCommand();
   const installCommand = getLinuxCompanionInstallCommand();
-  return `<div class="local-agent-install-card">
+  return `<div class="local-agent-install-card" role="region" aria-label="Connect local CLI agents">
     <div class="local-agent-install-copy">
       <strong>Connect your installed CLI agents</strong>
-      <p>A browser cannot scan or start local CLIs by itself. Run the small open-source companion temporarily, or install it for automatic startup.</p>
+      <p>Your browser needs a small local bridge before it can use Codex or another CLI program. Choose a Linux option, paste the copied command into Terminal, then select <strong>Check connection</strong>.</p>
     </div>
     <div class="local-agent-install-options">
       <div class="local-agent-install-option">
-        <div><strong>Run for this session</strong><span>Stops when you close the terminal. No service is installed.</span></div>
+        <div><strong>Run once</strong><span>Downloads one open-source file to <code>/tmp</code>. It stops when you close Terminal and installs no service.</span></div>
         <code title="${escapeAttr(runCommand)}">${escapeHTML(runCommand)}</code>
-        <button type="button" class="import-btn import-btn-primary settings-mini-btn" data-settings-action="copy-cli-companion-run">Copy run command</button>
+        <button type="button" class="import-btn import-btn-primary settings-mini-btn" data-settings-action="copy-cli-companion-run">Copy &ldquo;run once&rdquo; command</button>
       </div>
       <div class="local-agent-install-option">
         <div><strong>Start automatically</strong><span>Installs a user-level Linux service. No root access.</span></div>
@@ -69,14 +63,14 @@ function renderCompanionSetup() {
         <button type="button" class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="copy-cli-companion-install">Copy install command</button>
       </div>
     </div>
-    <small>Requires Node.js 20+ and <code>codex login</code> for the current adapter. No port or pairing token is needed. <a href="https://github.com/elkimek/get-based/blob/main/bin/getbased-companion.js" target="_blank" rel="noopener">View companion source on GitHub</a>.</small>
+    <small>Both commands download <code>getbased-companion.mjs</code> from this getbased site. Requires Node.js 20+ and <code>codex login</code> for the current adapter. No port or pairing token is needed. <a href="https://github.com/elkimek/get-based/blob/main/bin/getbased-companion.js" target="_blank" rel="noopener">Review the source on GitHub</a>.</small>
   </div>`;
 }
 
 export async function copyCLICompanionRunCommand() {
   try {
     await navigator.clipboard.writeText(getLinuxCompanionRunCommand());
-    showNotification('Temporary companion command copied', 'success');
+    showNotification('Run-once command copied. Paste it into Terminal, then check the connection.', 'success', 7000);
   } catch {
     showNotification('Could not access the clipboard', 'error');
   }
@@ -85,7 +79,7 @@ export async function copyCLICompanionRunCommand() {
 export async function copyCLICompanionInstallCommand() {
   try {
     await navigator.clipboard.writeText(getLinuxCompanionInstallCommand());
-    showNotification('Linux companion install command copied', 'success');
+    showNotification('Install command copied. Paste it into Terminal, then check the connection.', 'success', 7000);
   } catch {
     showNotification('Could not access the clipboard', 'error');
   }
@@ -98,11 +92,11 @@ export function renderCLIAgentProviderPanel() {
       <div class="local-agent-chat-head">
         <div class="settings-copy">
           <div id="local-agent-chat-title" class="settings-copy-title">CLI agents <span class="settings-beta-badge">Experimental</span></div>
-          <div class="settings-copy-desc">Use an installed agent and its existing subscription for Get-based chat and supported vision features. Detection and connection happen automatically on this computer.</div>
+          <div class="settings-copy-desc">Use an installed agent and its existing subscription across getbased. A small local companion connects the browser to CLI programs on this computer.</div>
         </div>
-        <button class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="rescan-cli-agents">Rescan</button>
+        <button class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="rescan-cli-agents">Check connection</button>
       </div>
-      <div class="local-agent-capability-note"><strong>One assistant across Get-based.</strong> The selected CLI agent powers chat, supported image and document imports, summaries, explanations, and other AI features. It can read enabled active-profile context through constrained tools; any proposed data change stays a draft until you apply it.</div>
+      <div class="local-agent-capability-note"><strong>One assistant across getbased.</strong> The selected CLI agent powers chat, supported image and document imports, summaries, explanations, and other AI features. It can read enabled active-profile context through constrained tools; any proposed data change stays a draft until you apply it.</div>
       <div class="local-agent-list-kicker">Installed CLIs</div>
       <div id="local-agent-list" class="local-agent-list" aria-live="polite">
         <div class="local-agent-scan-state"><span class="local-agent-spinner" aria-hidden="true"></span>Scanning this computer…</div>
@@ -110,7 +104,7 @@ export function renderCLIAgentProviderPanel() {
       <div id="local-agent-status" class="sr-only" role="status" aria-live="polite"></div>
       <details class="local-agent-details">
         <summary>How CLI agents work</summary>
-        <p>Get-based uses a local companion and the agent&rsquo;s existing sign-in. Connection details stay hidden. Agents receive health data only through Get-based&rsquo;s approved tools. Codex may combine those tools with hosted web research in chat; shell, files, browser control, plugins, and other local capabilities stay off. Focused feature jobs such as imports run without tools or web search.</p>
+        <p>getbased uses a local companion and the agent&rsquo;s existing sign-in. Connection details stay hidden. Agents receive health data only through getbased&rsquo;s approved tools. Codex may combine those tools with hosted web research in chat; shell, files, browser control, plugins, and other local capabilities stay off. Focused feature jobs such as imports run without tools or web search.</p>
       </details>
     </div>`;
 }
@@ -180,8 +174,8 @@ function renderDetectedAgent(agent) {
   const selected = isCodex && getChatBackend() === 'codex';
   const isReady = agent.status === 'available';
   const statusLabel = isCodex
-    ? (isReady ? 'Ready' : agent.status === 'starting' ? 'Starting…' : 'Detected')
-    : 'Detected · adapter coming next';
+    ? (isReady ? 'Connected · companion running' : agent.status === 'starting' ? 'Companion starting…' : 'Installed · companion not running')
+    : 'Installed · adapter not supported yet';
   const initials = agent.id === 'opencode' ? 'OC' : agent.id === 'hermes' ? 'H' : agent.id === 'grok' ? 'G' : '✦';
   return `
     <div class="local-agent-row${isCodex ? ' local-agent-row-compatible' : ''}">
@@ -193,13 +187,13 @@ function renderDetectedAgent(agent) {
           <div class="local-agent-state"><span class="local-agent-dot ${isReady ? 'is-ready' : ''}"></span>${escapeHTML(statusLabel)}</div>
         </div>
         ${isCodex ? `
-          <button class="import-btn import-btn-secondary settings-mini-btn local-agent-test" data-settings-action="test-cli-codex">Test</button>
-          <label class="chat-websearch-toggle-label sync-settings-toggle local-agent-toggle" aria-label="Use Codex for chat">
-            <input type="checkbox" data-settings-action="toggle-cli-codex"${selected ? ' checked' : ''}>
+          <button class="import-btn import-btn-secondary settings-mini-btn local-agent-test" data-settings-action="test-cli-codex"${isReady ? '' : ' disabled title="Start the companion first"'}>Test</button>
+          <label class="chat-websearch-toggle-label sync-settings-toggle local-agent-toggle" aria-label="Use Codex in getbased">
+            <input type="checkbox" data-settings-action="toggle-cli-codex"${selected ? ' checked' : ''}${isReady ? '' : ' disabled'}>
             <span class="chat-toggle-slider sync-settings-toggle-slider"></span>
           </label>` : ''}
       </div>
-      ${selected ? '<div id="cli-agent-options" class="local-agent-options-loading">Loading Codex models…</div>' : ''}
+      ${selected && isReady ? '<div id="cli-agent-options" class="local-agent-options-loading">Loading Codex models…</div>' : ''}
     </div>`;
 }
 
@@ -214,7 +208,7 @@ export async function refreshDetectedAgentList(options = {}) {
     const companionReady = agents.some(agent => agent.id === 'codex'
       && agent.compatible && ['available', 'starting'].includes(agent.status));
     list.innerHTML = `${agentRows}${companionReady ? '' : renderCompanionSetup()}`;
-    if (getChatBackend() === 'codex' && agents.some(agent => agent.id === 'codex' && agent.compatible)) {
+    if (getChatBackend() === 'codex' && agents.some(agent => agent.id === 'codex' && agent.compatible && agent.status === 'available')) {
       void hydrateCodexModelControls();
     }
   } catch (error) {

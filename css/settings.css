@@ -1098,18 +1098,20 @@
   font-size: 9.5px;
   line-height: 1.35;
 }
-.settings-modal .local-agent-install-option code {
+.settings-modal .local-agent-install-option > code {
   display: block;
-  overflow: hidden;
+  overflow-x: auto;
   padding: 7px 8px;
   border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--bg-secondary);
   color: var(--text-secondary);
   font-size: 9px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
+.settings-modal .local-agent-install-option span code { color: var(--text-secondary); font-size: inherit; }
 .settings-modal .local-agent-install-option .import-btn { justify-content: center; width: 100%; }
 .settings-modal .local-agent-install-card > small {
   color: var(--text-muted);
