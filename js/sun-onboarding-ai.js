@@ -9,7 +9,7 @@
 
 import { state } from './state.js';
 import { escapeHTML } from './utils.js';
-import { hasAIProvider } from './api.js';
+import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
@@ -177,7 +177,7 @@ export function maybeAnalyzeOnboardingAfterSave() {
 export function renderOnboardingAIBlock() {
   const d = _getDefaults();
   if (!d || !d.completedAt) return '';
-  if (!hasAIProvider() && !(d.aiAnalysis?.status === 'ok' && d.aiAnalysis?.dot)) return '';
+  if (!hasAssistantFeatureProvider() && !(d.aiAnalysis?.status === 'ok' && d.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(SINGLETON_TARGET);
   const a = d.aiAnalysis;
   if (status === 'analyzing') {

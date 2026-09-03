@@ -10,7 +10,7 @@
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
-import { hasAIProvider } from './api.js';
+import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
@@ -130,7 +130,7 @@ const _autoFiredScreenKeys = new Set();
 
 export function renderScreenAIBlock(s) {
   if (!s) return '';
-  if (!hasAIProvider() && !(s.aiAnalysis?.status === 'ok' && s.aiAnalysis?.dot)) return '';
+  if (!hasAssistantFeatureProvider() && !(s.aiAnalysis?.status === 'ok' && s.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(s);
   const a = s.aiAnalysis;
   const currentFingerprint = getScreenFingerprint(s);

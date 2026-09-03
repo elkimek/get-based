@@ -149,4 +149,38 @@ describe('chat storage safety', () => {
     expect(normalizeCustomPersonalities([{ id: 'custom_safe', name: 42 }, null]))
       .toEqual([expect.objectContaining({ id: 'custom_safe', name: 'Custom Personality' })]);
   });
+
+  it('allowlists persisted agent proposals and keeps them bound to a profile', () => {
+    const [message] = normalizeChatMessages([{
+      role: 'assistant',
+      content: 'I prepared this for review.',
+      agentDrafts: [{
+        id: 'draft-1',
+        profileId: 'profile-1',
+        kind: 'meal',
+        summary: 'Breakfast',
+        status: 'pending',
+        payload: {
+          name: 'Oats', mealType: 'breakfast', note: 'with berries',
+          nutrients: { energyKcal: 420, proteinG: 18, prototype: 'ignored' },
+          hiddenMutation: true,
+        },
+        hiddenMutation: true,
+      }, {
+        id: '__proto__', profileId: 'profile-1', kind: 'note', payload: { scope: 'profile', text: 'bad' },
+      }],
+    }]);
+
+    expect(message.agentDrafts).toEqual([{
+      id: 'draft-1',
+      profileId: 'profile-1',
+      kind: 'meal',
+      summary: 'Breakfast',
+      status: 'pending',
+      payload: {
+        name: 'Oats', eatenAt: '', mealType: 'breakfast', note: 'with berries',
+        nutrients: { energyKcal: 420, proteinG: 18 },
+      },
+    }]);
+  });
 });

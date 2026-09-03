@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "maximums": {
     "startupJavaScriptFiles": 2,
-    "startupDecodedBytes": 1186000,
+    "startupDecodedBytes": 1192000,
     "outputJavaScriptFiles": 158,
-    "outputDecodedBytes": 5070000
+    "outputDecodedBytes": 5095000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -48,7 +48,9 @@
     "cliAgentProviderStartupDecodedBytes": 1184285,
     "cliAgentProviderOutputDecodedBytes": 5048862,
     "capabilityAwareAgentVisionStartupDecodedBytes": 1185123,
-    "capabilityAwareAgentVisionOutputDecodedBytes": 5057427
+    "capabilityAwareAgentVisionOutputDecodedBytes": 5057427,
+    "structuredCliAgentToolsStartupDecodedBytes": 1190453,
+    "structuredCliAgentToolsOutputDecodedBytes": 5090965
   },
   "referenceCommit": "331112b1",
   "measuredAt": "2026-09-03"

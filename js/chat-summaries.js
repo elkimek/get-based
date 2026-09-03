@@ -7,7 +7,10 @@ import { calculateCost, formatCost } from './schema.js';
 import { bindModalSyncRefresh, escapeHTML, showNotification } from './utils.js';
 import { shouldHideAppExtensionAIUsage } from './app-extension-runtime.js';
 import { saveImportedData } from './data.js';
-import { callClaudeAPI, getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider, isAIPaused } from './api.js';
+import { isAIPaused } from './api.js';
+import {
+  callAssistantFeatureAI, getAssistantFeatureIdentity, hasAssistantFeatureProvider,
+} from './ai-feature-routing.js';
 import { renderThreadList, saveChatThreadIndex } from './chat-threads.js';
 import { renderMarkdown } from './markdown.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
@@ -76,7 +79,7 @@ export async function summarizeThread() {
     showNotification('Need at least 4 messages to summarize', 'info');
     return;
   }
-  if (!hasAIProvider()) {
+  if (!hasAssistantFeatureProvider()) {
     showNotification('No AI provider configured', 'error');
     return;
   }
@@ -110,14 +113,15 @@ async function _generateSummary() {
 
   _showSummaryModal(null, thread, true);
 
-  const _modelId = getActiveModelId();
-  const _modelDisplay = getActiveModelDisplay();
-  const _provider = getAIProvider();
+  const identity = getAssistantFeatureIdentity();
+  const _modelId = identity.modelId;
+  const _modelDisplay = identity.modelDisplay;
+  const _provider = identity.provider;
 
   _summaryAbortController = new AbortController();
 
   try {
-    const { text, usage } = await callClaudeAPI({
+    const { text, usage } = await callAssistantFeatureAI({
       system: SUMMARY_PROMPT,
       messages,
       maxTokens: 2048,
@@ -131,7 +135,7 @@ async function _generateSummary() {
       }
     });
 
-    const costInfo = usage ? { provider: _provider, modelId: _modelId, modelDisplay: _modelDisplay, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens } : null;
+    const costInfo = usage && !identity.subscription ? { provider: _provider, modelId: _modelId, modelDisplay: _modelDisplay, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens } : null;
     const now = new Date().toISOString();
     thread.summary = text;
     thread.summaryDate = now;

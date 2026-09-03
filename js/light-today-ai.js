@@ -8,7 +8,7 @@
 
 import { state } from './state.js';
 import { escapeHTML } from './utils.js';
-import { hasAIProvider } from './api.js';
+import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { CHANNEL_DISPLAY, formatChannelUnit, rollingChannelTotals, rollingVitaminDIU } from './sun.js';
 import { rollingDeviceTotals } from './light-devices-store.js';
 import { solarZenithAngle } from './sun-uvdata.js';
@@ -352,7 +352,7 @@ export function renderLightTodayHero() {
   const cached = _getDailyVerdicts()[target.key];
   // No provider: still render a cached `ok` verdict (pre-populated demo
   // or cross-device-synced from a device that has a key).
-  if (!hasAIProvider() && !(cached?.status === 'ok' && cached?.dot)) return '';
+  if (!hasAssistantFeatureProvider() && !(cached?.status === 'ok' && cached?.dot)) return '';
 
   // Auto-fire on first idle render of the day. Skip if we've already
   // tried in this tab session (prevents tight-loop refire on transient
@@ -462,7 +462,7 @@ export function renderLightTodayDashboardChip() {
   const target = _wrapDate(today);
   const status = engine.getStatus(target);
   const cached = _getDailyVerdicts()[target.key];
-  if (!hasAIProvider() && !(cached?.status === 'ok' && cached?.dot)) return '';
+  if (!hasAssistantFeatureProvider() && !(cached?.status === 'ok' && cached?.dot)) return '';
   // Stale-verdict auto-fire — same logic as renderLightTodayHero. The
   // dashboard is what the user sees first, so triggering re-analysis
   // here means a stale cached verdict (e.g. one from before the

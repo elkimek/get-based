@@ -11,7 +11,7 @@
 // without a side-channel cache.
 
 import { escapeHTML, escapeAttr } from './utils.js';
-import { hasAIProvider } from './api.js';
+import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { getSunDefaults } from './sun-defaults.js';
 import { getSessions, formatChannelUnit, CHANNEL_DISPLAY } from './sun.js';
 import { solarZenithAngle } from './sun-uvdata.js';
@@ -238,7 +238,7 @@ export function renderSessionAIInline(sess) {
   // cross-device-synced verdicts shouldn't disappear just because the
   // current device hasn't configured an AI key. Provider-gate only the
   // fresh-analyze paths (engine.analyze checks hasAIProvider internally).
-  if (!hasAIProvider() && !(sess.aiAnalysis?.status === 'ok' && sess.aiAnalysis?.dot)) return '';
+  if (!hasAssistantFeatureProvider() && !(sess.aiAnalysis?.status === 'ok' && sess.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(sess);
   const a = sess.aiAnalysis;
   const refreshBtn = `<button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-sun-session', sess.id, { stopPropagation: true })} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>`;
@@ -276,7 +276,7 @@ export function renderSessionAIDetail(sess) {
   // cross-device-synced verdicts shouldn't disappear just because the
   // current device hasn't configured an AI key. Provider-gate only the
   // fresh-analyze paths (engine.analyze checks hasAIProvider internally).
-  if (!hasAIProvider() && !(sess.aiAnalysis?.status === 'ok' && sess.aiAnalysis?.dot)) return '';
+  if (!hasAssistantFeatureProvider() && !(sess.aiAnalysis?.status === 'ok' && sess.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(sess);
   const a = sess.aiAnalysis;
   if (status === 'analyzing') {

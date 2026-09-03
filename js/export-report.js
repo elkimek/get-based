@@ -7,7 +7,8 @@ import { getActiveData } from './data.js';
 import { getAllFlaggedMarkers } from './marker-analysis.js';
 import { getProfiles, getProfileHeight } from './profile.js';
 import { getBloodDrawPhases } from './cycle.js';
-import { callClaudeAPI, getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider, isAIPaused } from './api.js';
+import { isAIPaused } from './api.js';
+import { callAssistantFeatureAI, getAssistantFeatureIdentity, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { trackUsage } from './schema.js';
 import {
   wearableDisplayUnit,
@@ -639,7 +640,7 @@ export async function generateReportAISummary(options = {}) {
     showNotification('Choose at least one report section', 'error');
     return null;
   }
-  if (!hasAIProvider()) {
+  if (!hasAssistantFeatureProvider()) {
     showNotification('Connect an AI provider before generating a report summary', 'error');
     return null;
   }
@@ -649,19 +650,17 @@ export async function generateReportAISummary(options = {}) {
   }
 
   const payload = buildPreparedReportPayload(options);
-  const provider = getAIProvider();
-  const modelId = getActiveModelId(provider);
-  const modelDisplay = getActiveModelDisplay(provider);
-  const result = await callClaudeAPI({
+  const { provider, modelId, modelDisplay, subscription } = getAssistantFeatureIdentity();
+  const result = await callAssistantFeatureAI({
     system: REPORT_AI_SUMMARY_PROMPT,
     messages: [{ role: 'user', content: formatReportDataForAgent(payload.reportData) }],
     maxTokens: 900,
     forceNonStream: true,
-  }, provider);
+  });
 
   const text = cleanReportAISummaryText(result?.text || '');
   if (!text) throw new Error('AI returned an empty summary');
-  if (result?.usage) {
+  if (result?.usage && !subscription) {
     trackUsage(provider, modelId, result.usage.inputTokens || 0, result.usage.outputTokens || 0);
   }
   return {

@@ -2,7 +2,8 @@
 // chat-empty-state.js — chat empty states and onboarding message HTML
 
 import { state } from './state.js';
-import { hasAIProvider, isAIPaused } from './api.js';
+import { isAIPaused } from './api.js';
+import { hasChatResponseBackend } from './chat-backend-selection.js';
 import { getActiveData } from './data.js';
 import { getProfileHeight, getProfileLocation, getProfiles } from './profile.js';
 import { renderProfileContextCards } from './context-cards.js';
@@ -239,7 +240,7 @@ function renderOnboardingCompleteLabel(label) {
 
 function shouldRenderProviderSetup() {
   const providerRequested = sessionStorage.getItem(`chat-onboard-provider-requested-${state.currentProfile}`) === '1';
-  return !hasAIProvider() && providerRequested;
+  return !hasChatResponseBackend() && providerRequested;
 }
 
 function renderProfileOnboardingState(container, panel, { personality, currentP }) {
@@ -324,7 +325,7 @@ function renderAIPausedState(container, panel, { personality, name }) {
 
 function renderProviderSetupState(container, panel, { personality, name }) {
   setOnboardingActive(panel);
-  if (hasAIProvider()) return renderProviderConnectedState(container, { personality, name });
+  if (hasChatResponseBackend()) return renderProviderConnectedState(container, { personality, name });
   const branch = sessionStorage.getItem(`chat-onboard-provider-branch-${state.currentProfile}`) || '';
   container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
@@ -362,7 +363,7 @@ function renderOptionalContextState(container, panel, { personality }) {
   container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${_renderOnboardCrumbs(3)}
-      <p>${hasAIProvider() ? 'Great, we are connected.' : 'Nice. We can collect useful context first and connect AI when optional tips or AI imports need it.'} These optional context pieces make later interpretation more useful. Add any that matter now, or continue to the context cards.</p>
+      <p>${hasChatResponseBackend() ? 'Great, we are connected.' : 'Nice. We can collect useful context first and connect AI when optional tips or AI imports need it.'} These optional context pieces make later interpretation more useful. Add any that matter now, or continue to the context cards.</p>
       <div class="chat-onboard-task-grid">${cards}</div>
       ${renderAffiliateDnaKitLink(hasSnps)}
       <div class="chat-onboard-note">You can change all of this later from the dashboard, settings, or client profile.</div>
@@ -468,7 +469,7 @@ function renderWearableTask() {
 
 function renderFullContextNoDataState(container, panel, { personality, name }) {
   panel?.classList.remove('chat-onboarding-active');
-  const providerConnected = hasAIProvider();
+  const providerConnected = hasChatResponseBackend();
   container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${renderOnboardingCompleteLabel('Context complete')}
@@ -488,7 +489,7 @@ function renderFullContextNoDataState(container, panel, { personality, name }) {
 function renderPartialContextNoDataState(container, panel, { personality, name }, filled) {
   setOnboardingActive(panel);
   const progressPct = Math.round((filled / 9) * 100);
-  const providerConnected = hasAIProvider();
+  const providerConnected = hasChatResponseBackend();
   container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${_renderOnboardCrumbs(4)}
@@ -510,7 +511,7 @@ function renderPartialContextNoDataState(container, panel, { personality, name }
 
 function renderContextImportHandoffState(container, panel, { personality, name }, skipped) {
   panel?.classList.remove('chat-onboarding-active');
-  const providerConnected = hasAIProvider();
+  const providerConnected = hasChatResponseBackend();
   const filled = _countFilledCards();
   const contextCopy = skipped
     ? `Context cards are skipped for now, ${escapeHTML(name)}. You can add them later from Profile Context when they are useful.`
@@ -537,7 +538,7 @@ function renderContextImportHandoffState(container, panel, { personality, name }
 
 function renderInitialNoDataState(container, panel, { personality }) {
   setOnboardingActive(panel);
-  const providerConnected = hasAIProvider();
+  const providerConnected = hasChatResponseBackend();
   container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${_renderOnboardCrumbs(4)}

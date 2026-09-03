@@ -4,7 +4,8 @@
 import { state } from './state.js';
 import { CHAT_PERSONALITIES } from './constants.js';
 import { escapeAttr, escapeHTML, showNotification, showConfirmDialog } from './utils.js';
-import { callClaudeAPI, hasAIProvider, getAIProvider, isVeniceE2EEActive, isPpqPrivateModeActive, isRoutstrPrivateModeActive } from './api.js';
+import { getAIProvider, isVeniceE2EEActive, isPpqPrivateModeActive, isRoutstrPrivateModeActive } from './api.js';
+import { callAssistantFeatureAI, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { saveChatThreadIndex, renderThreadList } from './chat-threads.js';
 import { CHAT_ICON_EDIT, CHAT_ICON_X } from './chat-icons.js';
 import { e2eeLockHTML } from './chat-attestation.js';
@@ -665,7 +666,7 @@ export async function deleteCustomPersonality(id) {
 }
 
 export async function generateCustomPersonality() {
-  if (!hasAIProvider()) {
+  if (!hasAssistantFeatureProvider()) {
     showNotification('AI provider not configured. Open Settings first.', 'info');
     return;
   }
@@ -705,7 +706,7 @@ Write only the persona instructions. Do not include commentary about these gener
 
 IMPORTANT: On the very first line, output ONLY a single emoji that best captures this specific person's identity or what they're most known for — not just their profession. Think about what makes them unique (e.g. ☀️ for someone known for sun exposure protocols, 🧊 for a cold therapy advocate, 🍖 for a carnivore diet proponent). Then a blank line, then the persona description.`;
 
-    const { text } = await callClaudeAPI({
+    const { text } = await callAssistantFeatureAI({
       system: systemPrompt,
       messages: [{ role: 'user', content: `Create a comprehensive persona for: ${name}` }],
       maxTokens: 2048,

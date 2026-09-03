@@ -67,7 +67,7 @@ export function renderCLIAgentProviderPanel() {
         </div>
         <button class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="rescan-cli-agents">Rescan</button>
       </div>
-      <div class="local-agent-capability-note"><strong>Current scope: chat and meal-photo analysis.</strong> Image support follows the selected CLI model. Lab imports and background insights still use the API or Local provider you configured here.</div>
+      <div class="local-agent-capability-note"><strong>One assistant across Get-based.</strong> The selected CLI agent powers chat, supported image and document imports, summaries, explanations, and other AI features. It can read enabled active-profile context through constrained tools; any proposed data change stays a draft until you apply it.</div>
       <div class="local-agent-list-kicker">Installed CLIs</div>
       <div id="local-agent-list" class="local-agent-list" aria-live="polite">
         <div class="local-agent-scan-state"><span class="local-agent-spinner" aria-hidden="true"></span>Scanning this computer…</div>
@@ -75,7 +75,7 @@ export function renderCLIAgentProviderPanel() {
       <div id="local-agent-status" class="sr-only" role="status" aria-live="polite"></div>
       <details class="local-agent-details">
         <summary>How CLI agents work</summary>
-        <p>Get-based uses a local companion and the agent&rsquo;s existing sign-in. Connection details stay hidden. Agents receive health data only through Get-based&rsquo;s approved tools. Codex may combine those tools with hosted web research; shell, files, browser control, plugins, and other local capabilities stay off.</p>
+        <p>Get-based uses a local companion and the agent&rsquo;s existing sign-in. Connection details stay hidden. Agents receive health data only through Get-based&rsquo;s approved tools. Codex may combine those tools with hosted web research in chat; shell, files, browser control, plugins, and other local capabilities stay off. Focused feature jobs such as imports run without tools or web search.</p>
       </details>
     </div>`;
 }

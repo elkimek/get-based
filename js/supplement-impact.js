@@ -3,7 +3,7 @@
 
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
-import { callClaudeAPI, hasAIProvider } from './api.js';
+import { callAssistantFeatureAI, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { getActiveData } from './data.js';
 import { profileStorageKey } from './profile.js';
 import { escapeHTML, hashString, isDebugMode } from './utils.js';
@@ -154,7 +154,7 @@ let _analyzeTimer = null;
 let _batchPromise = null;
 
 export function renderSupplementImpact(supplement, editIdx) {
-  const hasAI = hasAIProvider();
+  const hasAI = hasAssistantFeatureProvider();
   const data = getActiveData();
   if (!data || !data.dates || data.dates.length < 2) {
     return `<div class="supp-impact-section"><div class="supp-impact-header"><span class="ctx-health-dot ctx-health-dot-gray"></span><span>Impact Analysis</span></div><div class="supp-impact-hint">Needs at least 2 lab dates to compare</div></div>`;
@@ -252,7 +252,7 @@ green=beneficial, yellow=mixed, red=concerning, gray=insufficient data. Mention 
 
   _batchPromise = (async () => {
     try {
-      const result = await callClaudeAPI({ system, messages: [{ role: 'user', content: ctx }], maxTokens: 300 * suppEntries.length + 1000 });
+      const result = await callAssistantFeatureAI({ system, messages: [{ role: 'user', content: ctx }], maxTokens: 300 * suppEntries.length + 1000 });
       const cleaned = result.text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
       const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
       if (!jsonMatch) return;

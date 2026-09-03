@@ -8,7 +8,9 @@
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification, isDebugMode } from './utils.js';
-import { callClaudeAPI, hasAIProvider, supportsVision } from './api.js';
+import {
+  assistantFeatureSupports, callAssistantFeatureAI, hasAssistantFeatureProvider,
+} from './ai-feature-routing.js';
 import { resizeImage, isValidImageType, formatImageBlock, buildVisionContent } from './image-utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { getUtilsRuntimeHostname } from './utils-runtime.js';
@@ -88,7 +90,7 @@ export async function openAddDeviceDialog() {
   // Anything not in the curated preset list goes through the AI-powered
   // custom-add flow (paste URL or scan label) — same UX shape as the
   // supplement-add modal in supplements.js.
-  const hasAI = hasAIProvider();
+  const hasAI = hasAssistantFeatureProvider();
   const aiHint = hasAI
     ? 'Don\'t see your device? Paste its product page or snap a photo of the back panel — AI extracts the specs.'
     : 'Don\'t see your device? Set up an AI provider in Settings to auto-extract specs from a URL or photo, or click below to enter manually.';
@@ -188,8 +190,8 @@ function _formatPresetMeta(p) {
 // (see supplements.js fetchSupplementFromURL + scanSupplementLabel): paste a
 // product URL or snap a photo, AI extracts specs, user verifies and saves.
 export async function openCustomDeviceDialog() {
-  const hasAI = hasAIProvider();
-  const hasVision = hasAI && supportsVision();
+  const hasAI = hasAssistantFeatureProvider();
+  const hasVision = hasAI && assistantFeatureSupports('image');
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const closeDialog = () => removeModalOverlay(overlay);
@@ -501,7 +503,7 @@ async function _fetchCustomDeviceFromURL(overlay) {
     const kwPattern = /(.{0,300}(?:wavelength|spectrum|nm|red light|near.?infrared|UV[AB]?|irradiance|mW\/cm|lux|inches|distance|specifications?|specs).{0,500})/gi;
     const kwMatches = plainText.match(kwPattern) || [];
     const trimmed = (ldText + '\n' + kwMatches.join('\n') + '\n' + plainText.slice(0, 5000)).slice(0, 15000);
-    const result = await callClaudeAPI({
+    const result = await callAssistantFeatureAI({
       system: _CUSTOM_DEVICE_PROMPT,
       messages: [{ role: 'user', content: trimmed }],
       maxTokens: 800,
@@ -536,7 +538,7 @@ async function _scanCustomDeviceLabel(input, overlay) {
     const { base64, mediaType } = await resizeImage(file, 1024, 0.85);
     const imageBlock = formatImageBlock(base64, mediaType, 'openrouter');
     const content = buildVisionContent([imageBlock], _CUSTOM_DEVICE_PROMPT, 'openrouter');
-    const result = await callClaudeAPI({ messages: [{ role: 'user', content }], maxTokens: 800 });
+    const result = await callAssistantFeatureAI({ messages: [{ role: 'user', content }], maxTokens: 800, consentKind: 'image' });
     if (!overlay.isConnected) return;
     const jsonMatch = result.text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) { showNotification('Could not parse device specs from image', 'error'); return; }

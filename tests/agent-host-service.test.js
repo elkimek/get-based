@@ -48,7 +48,7 @@ function turnRequest(body = {}) {
     headers: {
       Authorization: `Bearer ${TOKEN}`,
       'Content-Type': 'application/json',
-      Origin: 'https://getbased.health',
+      Origin: 'http://127.0.0.1:8000',
     },
     body: JSON.stringify({
       prompt: 'What changed in my labs?',
@@ -87,10 +87,12 @@ describe('agent host service', () => {
     expect(isAllowedAgentHostOrigin('http://127.0.0.1:4173')).toBe(true);
     expect(isAllowedAgentHostOrigin('https://getbased.health')).toBe(true);
     expect(isAllowedAgentHostOrigin('https://app.getbased.health')).toBe(true);
+    expect(isAllowedAgentHostOrigin('https://beta.getbased.health')).toBe(true);
     expect(isAllowedAgentHostOrigin('https://get-based.vercel.app')).toBe(true);
     expect(isAllowedAgentHostOrigin('https://self-host.example', ['https://self-host.example'])).toBe(true);
     expect(isAllowedAgentHostOrigin('https://evil.example')).toBe(false);
     expect(isAllowedAgentHostOrigin('https://getbased.health.evil.example')).toBe(false);
+    expect(isAllowedAgentHostOrigin('https://untrusted.getbased.health')).toBe(false);
   });
 
   it('requires a bearer token for turn requests', async () => {
@@ -116,7 +118,8 @@ describe('agent host service', () => {
     }));
     expect(response.status).toBe(200);
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://getbased.health');
-    expect(await response.json()).toMatchObject({
+    const discovery = await response.json();
+    expect(discovery).toMatchObject({
       service: 'getbased-agent-host',
       protocolVersion: AGENT_HOST_PROTOCOL_VERSION,
       capabilities: expect.arrayContaining([
@@ -125,12 +128,27 @@ describe('agent host service', () => {
         AGENT_HOST_CAPABILITIES.STRUCTURED_OUTPUT,
       ]),
       endpoint: 'http://127.0.0.1:8324',
-      token: TOKEN,
+      token: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      tokenExpiresAt: expect.any(String),
       agents: [expect.objectContaining({ id: 'codex', compatible: true, status: 'available' })],
     });
 
-    const status = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/status', {
+    const sessionStatus = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/status', {
+      headers: { Authorization: `Bearer ${discovery.token}`, Origin: 'https://getbased.health' },
+    }));
+    expect(sessionStatus.status).toBe(200);
+    const wrongOrigin = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/status', {
+      headers: { Authorization: `Bearer ${discovery.token}`, Origin: 'https://app.getbased.health' },
+    }));
+    expect(wrongOrigin.status).toBe(401);
+
+    const rejectedInstallToken = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/status', {
       headers: { Authorization: `Bearer ${TOKEN}`, Origin: 'https://getbased.health' },
+    }));
+    expect(rejectedInstallToken.status).toBe(401);
+
+    const status = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/status', {
+      headers: { Authorization: `Bearer ${TOKEN}`, Origin: 'http://127.0.0.1:8000' },
     }));
     expect(await status.json()).toMatchObject({
       protocolVersion: AGENT_HOST_PROTOCOL_VERSION,
@@ -142,7 +160,7 @@ describe('agent host service', () => {
     const appServer = new FakeAppServer();
     const service = createAgentHostService({ appServer, token: TOKEN, workspaceRoot: '/tmp/agent-test' });
     const response = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/models', {
-      headers: { Authorization: `Bearer ${TOKEN}`, Origin: 'https://getbased.health' },
+      headers: { Authorization: `Bearer ${TOKEN}`, Origin: 'http://127.0.0.1:8000' },
     }));
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ models: [{
@@ -157,7 +175,7 @@ describe('agent host service', () => {
     const service = createAgentHostService({ appServer, token: TOKEN, workspaceRoot: '/tmp/agent-test' });
     const response = await service.handleRequest(turnRequest({ model: 'gpt-5.6-sol', effort: 'high' }));
     expect(response.status).toBe(200);
-    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://getbased.health');
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('http://127.0.0.1:8000');
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     const buffer = { value: '' };
@@ -208,7 +226,7 @@ describe('agent host service', () => {
       const service = createAgentHostService({ appServer, token: TOKEN, workspaceRoot });
       const upload = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/uploads', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'image/png', Origin: 'https://getbased.health' },
+        headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'image/png', Origin: 'http://127.0.0.1:8000' },
         body: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
       }));
       expect(upload.status).toBe(201);

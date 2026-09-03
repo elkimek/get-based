@@ -10,6 +10,7 @@ export const AGENT_HOST_CAPABILITIES = Object.freeze({
   MODEL_CATALOG: 'model-catalog',
   REASONING_CATALOG: 'reasoning-catalog',
   STRUCTURED_OUTPUT: 'structured-output',
+  STRUCTURED_HEALTH_TOOLS: 'structured-health-tools',
   THREAD_HISTORY: 'thread-history',
   WEB_SEARCH_ACTIVITY: 'web-search-activity',
 });

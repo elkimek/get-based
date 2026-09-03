@@ -13,7 +13,8 @@ import {
   isSupplementsMedsContextEnabled,
   isWearableContextEnabled,
 } from './lab-context.js';
-import { callClaudeAPI, hasAIProvider, isAIPaused } from './api.js';
+import { isAIPaused } from './api.js';
+import { callAssistantFeatureAI, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { state } from './state.js';
 import { escapeAttr, escapeHTML, hashString, showNotification } from './utils.js';
 import { sortHealthGoalsByPriority } from './health-goals-utils.js';
@@ -22,14 +23,14 @@ import { resolveActiveMarkerPath } from './marker-placement.js';
 import { buildCompactSupplementContextRecords } from './supplement-context.js';
 
 /** @type {{
- *   callClaudeAPI: typeof callClaudeAPI,
- *   hasAIProvider: typeof hasAIProvider,
+ *   callClaudeAPI: typeof callAssistantFeatureAI,
+ *   hasAIProvider: typeof hasAssistantFeatureProvider,
  *   isAIPaused: typeof isAIPaused,
  *   navigate: null | ((route?: string) => void),
  * }} */
 const biologyScoreContextAIDeps = {
-  callClaudeAPI,
-  hasAIProvider,
+  callClaudeAPI: callAssistantFeatureAI,
+  hasAIProvider: hasAssistantFeatureProvider,
   isAIPaused,
   navigate: null,
 };

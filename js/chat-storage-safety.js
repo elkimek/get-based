@@ -80,6 +80,83 @@ function normalizeLensSources(value) {
   }));
 }
 
+function normalizeAgentDraftPayload(kind, value) {
+  if (!isRecord(value)) return null;
+  const string = (key, max) => boundedString(value[key], max).trim();
+  const numberFrom = (source, key, min, max) => {
+    if (source?.[key] === undefined || source?.[key] === null || source?.[key] === '') return undefined;
+    const parsed = Number(source?.[key]);
+    return Number.isFinite(parsed) && parsed >= min && parsed <= max ? parsed : undefined;
+  };
+  const number = (key, min, max) => numberFrom(value, key, min, max);
+  if (kind === 'note') {
+    const scope = ['profile', 'marker'].includes(value.scope) ? value.scope : 'profile';
+    const text = string('text', 2000);
+    if (!text || (scope === 'marker' && !string('marker', 160))) return null;
+    return { scope, marker: string('marker', 160), text, mode: value.mode === 'replace' ? 'replace' : 'append' };
+  }
+  if (kind === 'meal') {
+    const name = string('name', 160);
+    if (!name) return null;
+    const nutrients = {};
+    for (const [key, max] of Object.entries({ energyKcal: 20000, proteinG: 2000, carbohydrateG: 3000, fatG: 2000, fiberG: 1000, fluidMl: 20000 })) {
+      const amount = numberFrom(value.nutrients, key, 0, max);
+      if (amount !== undefined) nutrients[key] = amount;
+    }
+    return {
+      name,
+      eatenAt: string('eatenAt', 40),
+      mealType: ['breakfast', 'brunch', 'lunch', 'dinner', 'snack', 'drink', 'other'].includes(value.mealType) ? value.mealType : 'other',
+      note: string('note', 500),
+      nutrients,
+    };
+  }
+  if (kind === 'biometric') {
+    const metric = ['weight', 'bp', 'rhr'].includes(value.metric) ? value.metric : '';
+    if (!metric) return null;
+    return {
+      metric,
+      date: /^\d{4}-\d{2}-\d{2}$/.test(string('date', 10)) ? string('date', 10) : '',
+      value: number('value', metric === 'weight' ? 1 : 20, metric === 'weight' ? 1000 : 250),
+      unit: ['kg', 'lb', 'bpm'].includes(value.unit) ? value.unit : metric === 'weight' ? 'kg' : 'bpm',
+      systolic: number('systolic', 40, 300),
+      diastolic: number('diastolic', 20, 200),
+      pulse: number('pulse', 20, 250),
+      note: string('note', 500),
+    };
+  }
+  if (kind === 'supplement') {
+    const name = string('name', 160);
+    const type = ['supplement', 'medication'].includes(value.type) ? value.type : '';
+    if (!name || !type) return null;
+    return {
+      name, type, dosage: string('dosage', 160), note: string('note', 500),
+      startDate: /^\d{4}-\d{2}-\d{2}$/.test(string('startDate', 10)) ? string('startDate', 10) : '',
+    };
+  }
+  return null;
+}
+
+function normalizeAgentDrafts(value) {
+  if (!Array.isArray(value)) return undefined;
+  const drafts = [];
+  for (const draft of value.slice(0, 20)) {
+    if (!isRecord(draft)) continue;
+    const id = normalizeChatRecordId(draft.id);
+    const profileId = normalizeChatRecordId(draft.profileId);
+    const kind = ['note', 'meal', 'biometric', 'supplement'].includes(draft.kind) ? draft.kind : '';
+    const payload = normalizeAgentDraftPayload(kind, draft.payload);
+    if (!id || !profileId || !kind || !payload) continue;
+    const status = ['pending', 'applied', 'discarded'].includes(draft.status) ? draft.status : 'pending';
+    drafts.push({
+      id, profileId, kind, payload, status,
+      summary: boundedString(draft.summary, 500),
+      ...(status === 'applied' ? { appliedAt: normalizeTimestamp(draft.appliedAt, '') } : {}),
+    });
+  }
+  return drafts;
+}
+
 function normalizeDiscussionPersonas(value) {
   if (!Array.isArray(value)) return [];
   const ids = new Set();
@@ -130,6 +207,10 @@ export function normalizeChatMessages(value) {
     const lensSources = normalizeLensSources(message.lensSources);
     if (lensSources) normalized.lensSources = lensSources;
     else delete normalized.lensSources;
+
+    const agentDrafts = normalizeAgentDrafts(message.agentDrafts);
+    if (agentDrafts?.length) normalized.agentDrafts = agentDrafts;
+    else delete normalized.agentDrafts;
 
     for (const flag of ['auto', 'discussion', 'discussionError', 'hidden', 'joined', 'stopped']) {
       if (message[flag] === true) normalized[flag] = true;

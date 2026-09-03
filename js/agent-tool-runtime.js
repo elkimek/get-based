@@ -3,7 +3,8 @@
 
 import {
   getAgentToolCatalog,
-  MAX_AGENT_PROFILE_ID_LENGTH as MAX_PROFILE_ID_LENGTH,
+  MAX_AGENT_NOTE_LENGTH,
+  MAX_AGENT_QUERY_LENGTH,
   MAX_AGENT_SECTION_NAME_LENGTH as MAX_SECTION_NAME_LENGTH,
 } from '../shared/agent-tool-contract.js';
 
@@ -50,6 +51,11 @@ function success(text) {
     success: true,
     contentItems: [{ type: 'inputText', text }],
   };
+}
+
+/** @param {unknown} value */
+function successJson(value) {
+  return success(JSON.stringify(value, null, 2));
 }
 
 /** @param {string} message */
@@ -100,6 +106,45 @@ function optionalString(args, key, maxLength) {
   return normalized;
 }
 
+function requiredString(args, key, maxLength) {
+  const value = optionalString(args, key, maxLength);
+  if (!value) throw new Error(`${key} is required.`);
+  return value;
+}
+
+function optionalInteger(args, key, { min, max, fallback }) {
+  const value = args[key];
+  if (value === undefined || value === null || value === '') return fallback;
+  if (!Number.isInteger(value) || value < min || value > max) {
+    throw new Error(`${key} must be an integer from ${min} to ${max}.`);
+  }
+  return value;
+}
+
+function optionalFiniteNumber(args, key, { min = -Infinity, max = Infinity } = {}) {
+  const value = args[key];
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) {
+    throw new Error(`${key} must be a number from ${min} to ${max}.`);
+  }
+  return value;
+}
+
+function optionalDate(args, key) {
+  const value = optionalString(args, key, 10);
+  if (!value) return '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(new Date(`${value}T00:00:00Z`).getTime())) {
+    throw new Error(`${key} must use YYYY-MM-DD.`);
+  }
+  return value;
+}
+
+function enumValue(args, key, allowed, fallback = '') {
+  const value = optionalString(args, key, 80) || fallback;
+  if (!allowed.includes(value)) throw new Error(`${key} is not supported.`);
+  return value;
+}
+
 /**
  * @typedef {{context: string, profileId?: string, updatedAt?: string}} AgentContextSnapshot
  */
@@ -121,7 +166,7 @@ function normalizeSnapshot(value) {
 /** @param {AgentContextSnapshot} snapshot */
 function formatFullContext(snapshot) {
   const parts = [];
-  if (snapshot.profileId) parts.push(`Profile: ${snapshot.profileId}`);
+  if (snapshot.profileId) parts.push('Profile scope: active Get-based profile');
   if (snapshot.updatedAt) parts.push(`Updated: ${snapshot.updatedAt}`);
   parts.push(snapshot.context || 'No context available');
   return parts.join('\n\n');
@@ -154,14 +199,48 @@ function findSection(sections, query) {
  * module never reaches into IndexedDB, global state, or the DOM.
  *
  * @param {{
- *   readContext: (options: {profile: string}) => Promise<string|AgentContextSnapshot>|string|AgentContextSnapshot,
+ *   readContext: () => Promise<string|AgentContextSnapshot>|string|AgentContextSnapshot,
+ *   searchMarkers?: (options: {query: string, limit: number}) => Promise<unknown>|unknown,
+ *   readMarkerHistory?: (options: {marker: string, from: string, to: string, limit: number}) => Promise<unknown>|unknown,
+ *   readNutritionSummary?: (options: {range: string}) => Promise<unknown>|unknown,
+ *   readWearableSeries?: (options: {days: number}) => Promise<unknown>|unknown,
+ *   searchKnowledge?: (options: {query: string, limit: number}) => Promise<unknown>|unknown,
+ *   navigate?: (options: {view: string, marker: string}) => Promise<unknown>|unknown,
+ *   onDraftCreated?: (draft: AgentDraft) => Promise<void>|void,
+ *   createId?: () => string,
  * }} dependencies
  */
-export function createAgentToolRuntime({ readContext }) {
+export function createAgentToolRuntime(dependencies) {
+  const { readContext } = dependencies;
   if (typeof readContext !== 'function') throw new TypeError('readContext is required');
+  /** @type {AgentDraft[]} */
+  const drafts = [];
+
+  const runDependency = async (name, options) => {
+    const handler = dependencies[name];
+    if (typeof handler !== 'function') throw new Error('tool_unavailable');
+    return handler(options);
+  };
+
+  const createDraft = async (kind, payload, summary) => {
+    const generated = typeof dependencies.createId === 'function'
+      ? dependencies.createId()
+      : globalThis.crypto?.randomUUID?.() || `draft-${Date.now()}-${drafts.length + 1}`;
+    const draft = Object.freeze({
+      id: String(generated).replace(/[^A-Za-z0-9_.-]/g, '').slice(0, 128),
+      kind,
+      summary,
+      payload: Object.freeze({ ...payload }),
+      status: 'pending',
+    });
+    drafts.push(draft);
+    await dependencies.onDraftCreated?.(draft);
+    return successJson({ draftId: draft.id, status: 'pending_user_approval', summary });
+  };
 
   return Object.freeze({
     tools: getAgentToolCatalog(),
+    getDrafts: () => drafts.map(draft => ({ ...draft, payload: { ...draft.payload } })),
 
     /**
      * Execute the shape emitted by Codex app-server `item/tool/call`. Other
@@ -183,32 +262,141 @@ export function createAgentToolRuntime({ readContext }) {
       try {
         const args = parseToolArguments(call.arguments);
         if (tool === 'getbased_lab_context') {
-          rejectUnknownArguments(args, ['profile']);
-          const profile = optionalString(args, 'profile', MAX_PROFILE_ID_LENGTH);
-          const snapshot = normalizeSnapshot(await readContext({ profile }));
-          if (profile && snapshot.profileId !== profile) throw new Error('profile_unavailable');
+          rejectUnknownArguments(args, []);
+          const snapshot = normalizeSnapshot(await readContext());
           return success(formatFullContext(snapshot));
         }
 
-        rejectUnknownArguments(args, ['section', 'profile']);
-        const section = optionalString(args, 'section', MAX_SECTION_NAME_LENGTH);
-        const profile = optionalString(args, 'profile', MAX_PROFILE_ID_LENGTH);
-        const snapshot = normalizeSnapshot(await readContext({ profile }));
-        if (profile && snapshot.profileId !== profile) throw new Error('profile_unavailable');
-        const sections = parseAgentContextSections(snapshot.context);
-        if (!section) return success(formatSectionIndex(sections));
+        if (tool === 'getbased_section') {
+          rejectUnknownArguments(args, ['section']);
+          const section = optionalString(args, 'section', MAX_SECTION_NAME_LENGTH);
+          const snapshot = normalizeSnapshot(await readContext());
+          const sections = parseAgentContextSections(snapshot.context);
+          if (!section) return success(formatSectionIndex(sections));
 
-        const match = findSection(sections, section);
-        if (!match) {
-          const available = sections.map(item => item.baseName).join(', ');
-          return failure(`Section "${section}" not found.${available ? ` Available: ${available}` : ''}`);
+          const match = findSection(sections, section);
+          if (!match) {
+            const available = sections.map(item => item.baseName).join(', ');
+            return failure(`Section "${section}" not found.${available ? ` Available: ${available}` : ''}`);
+          }
+          return success(`[${match.name}]\n\n${match.content}`);
         }
-        return success(`[${match.name}]\n\n${match.content}`);
+
+        if (tool === 'getbased_search_markers') {
+          rejectUnknownArguments(args, ['query', 'limit']);
+          return successJson(await runDependency('searchMarkers', {
+            query: requiredString(args, 'query', MAX_AGENT_QUERY_LENGTH),
+            limit: optionalInteger(args, 'limit', { min: 1, max: 25, fallback: 10 }),
+          }));
+        }
+
+        if (tool === 'getbased_marker_history') {
+          rejectUnknownArguments(args, ['marker', 'from', 'to', 'limit']);
+          const from = optionalDate(args, 'from');
+          const to = optionalDate(args, 'to');
+          if (from && to && from > to) throw new Error('from must not be after to.');
+          return successJson(await runDependency('readMarkerHistory', {
+            marker: requiredString(args, 'marker', MAX_AGENT_QUERY_LENGTH), from, to,
+            limit: optionalInteger(args, 'limit', { min: 1, max: 100, fallback: 50 }),
+          }));
+        }
+
+        if (tool === 'getbased_nutrition_summary') {
+          rejectUnknownArguments(args, ['range']);
+          const range = enumValue(args, 'range', ['7d', '30d', '3m', '6m', '1y', 'all'], '30d');
+          return successJson(await runDependency('readNutritionSummary', { range }));
+        }
+
+        if (tool === 'getbased_wearable_series') {
+          rejectUnknownArguments(args, ['days']);
+          const days = optionalInteger(args, 'days', { min: 7, max: 90, fallback: 30 });
+          if (![7, 30, 90].includes(days)) throw new Error('days is not supported.');
+          return successJson(await runDependency('readWearableSeries', { days }));
+        }
+
+        if (tool === 'getbased_search_knowledge') {
+          rejectUnknownArguments(args, ['query', 'limit']);
+          return successJson(await runDependency('searchKnowledge', {
+            query: requiredString(args, 'query', MAX_AGENT_QUERY_LENGTH),
+            limit: optionalInteger(args, 'limit', { min: 1, max: 10, fallback: 5 }),
+          }));
+        }
+
+        if (tool === 'getbased_navigate') {
+          rejectUnknownArguments(args, ['view', 'marker']);
+          const view = optionalString(args, 'view', 40);
+          const marker = optionalString(args, 'marker', MAX_AGENT_QUERY_LENGTH);
+          if (!view && !marker) throw new Error('view or marker is required.');
+          if (view && !['dashboard', 'labs', 'biologyScores', 'genome', 'body', 'light', 'insight', 'recommendations', 'correlations', 'compare'].includes(view)) {
+            throw new Error('view is not supported.');
+          }
+          return successJson(await runDependency('navigate', { view, marker }));
+        }
+
+        if (tool === 'getbased_draft_note') {
+          rejectUnknownArguments(args, ['scope', 'marker', 'text', 'mode']);
+          const scope = enumValue(args, 'scope', ['profile', 'marker']);
+          const marker = optionalString(args, 'marker', MAX_AGENT_QUERY_LENGTH);
+          if (scope === 'marker' && !marker) throw new Error('marker is required for a marker note.');
+          const text = requiredString(args, 'text', MAX_AGENT_NOTE_LENGTH);
+          const mode = enumValue(args, 'mode', ['append', 'replace'], 'append');
+          return createDraft('note', { scope, marker, text, mode }, `${scope === 'marker' ? `Marker note for ${marker}` : 'Profile note'}: ${text.slice(0, 120)}`);
+        }
+
+        if (tool === 'getbased_draft_meal') {
+          rejectUnknownArguments(args, ['name', 'eatenAt', 'mealType', 'energyKcal', 'proteinG', 'carbohydrateG', 'fatG', 'fiberG', 'fluidMl', 'note']);
+          const name = requiredString(args, 'name', 160);
+          const eatenAt = optionalString(args, 'eatenAt', 40);
+          if (eatenAt && !Number.isFinite(new Date(eatenAt).getTime())) throw new Error('eatenAt must be an ISO-8601 date-time.');
+          const mealType = enumValue(args, 'mealType', ['breakfast', 'brunch', 'lunch', 'dinner', 'snack', 'drink', 'other'], 'other');
+          const payload = { name, eatenAt, mealType, note: optionalString(args, 'note', 500), nutrients: {} };
+          for (const [key, max] of Object.entries({ energyKcal: 20000, proteinG: 2000, carbohydrateG: 3000, fatG: 2000, fiberG: 1000, fluidMl: 20000 })) {
+            const value = optionalFiniteNumber(args, key, { min: 0, max });
+            if (value !== null) payload.nutrients[key] = value;
+          }
+          return createDraft('meal', payload, `${name}${eatenAt ? ` · ${eatenAt}` : ''}`);
+        }
+
+        if (tool === 'getbased_draft_biometric') {
+          rejectUnknownArguments(args, ['metric', 'date', 'value', 'unit', 'systolic', 'diastolic', 'pulse', 'note']);
+          const metric = enumValue(args, 'metric', ['weight', 'bp', 'rhr']);
+          const date = optionalDate(args, 'date');
+          const note = optionalString(args, 'note', 500);
+          if (metric === 'bp') {
+            const systolic = optionalFiniteNumber(args, 'systolic', { min: 40, max: 300 });
+            const diastolic = optionalFiniteNumber(args, 'diastolic', { min: 20, max: 200 });
+            const pulse = optionalFiniteNumber(args, 'pulse', { min: 20, max: 250 });
+            if (systolic === null || diastolic === null) throw new Error('systolic and diastolic are required for blood pressure.');
+            return createDraft('biometric', { metric, date, systolic, diastolic, pulse, note }, `Blood pressure ${systolic}/${diastolic}${pulse ? ` · pulse ${pulse}` : ''}`);
+          }
+          const value = optionalFiniteNumber(args, 'value', metric === 'weight' ? { min: 1, max: 1000 } : { min: 20, max: 250 });
+          if (value === null) throw new Error('value is required.');
+          const unit = metric === 'weight' ? enumValue(args, 'unit', ['kg', 'lb'], 'kg') : 'bpm';
+          return createDraft('biometric', { metric, date, value, unit, note }, `${metric === 'weight' ? 'Weight' : 'Resting pulse'} ${value} ${unit}`);
+        }
+
+        rejectUnknownArguments(args, ['name', 'type', 'dosage', 'startDate', 'note']);
+        const name = requiredString(args, 'name', 160);
+        const type = enumValue(args, 'type', ['supplement', 'medication']);
+        const dosage = optionalString(args, 'dosage', 160);
+        const startDate = optionalDate(args, 'startDate');
+        const note = optionalString(args, 'note', 500);
+        return createDraft('supplement', { name, type, dosage, startDate, note }, `${type === 'medication' ? 'Medication' : 'Supplement'}: ${name}${dosage ? ` · ${dosage}` : ''}`);
       } catch (error) {
         const message = error instanceof Error ? error.message : '';
-        const safeInputError = /^(Tool arguments|Unknown argument:|profile |section )/.test(message);
+        const safeInputError = /^(Tool arguments|Unknown argument:|[A-Za-z]+ (?:is|required|must)|from must|view or marker)/.test(message);
         return failure(safeInputError ? message : 'Get-based context is temporarily unavailable.');
       }
     },
   });
 }
+
+/**
+ * @typedef {{
+ *   id: string,
+ *   kind: 'note'|'meal'|'biometric'|'supplement',
+ *   summary: string,
+ *   payload: Record<string, any>,
+ *   status: 'pending',
+ * }} AgentDraft
+ */

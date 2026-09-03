@@ -13,8 +13,9 @@ export function isCodexChatBackend() {
 }
 
 export function hasChatResponseBackend() {
+  if (isAIPaused()) return false;
   if (isCodexChatBackend()) return hasAgentChatConnection();
-  return !isAIPaused() && hasAIProvider();
+  return hasAIProvider();
 }
 
 export function getChatBackendDisplay() {

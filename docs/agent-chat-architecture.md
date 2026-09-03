@@ -30,8 +30,9 @@ Get-based PWA
 
 Get-based data authority
   └─ agent tool runtime
-       ├─ getbased_lab_context  [read]
-       └─ getbased_section      [read]
+       ├─ approved context and typed queries  [read]
+       ├─ bounded in-app destinations         [navigate]
+       └─ reviewable proposed changes         [draft]
 ```
 
 The browser cannot safely or portably spawn local executables. The companion
@@ -42,19 +43,31 @@ reachable health-data proxy.
 
 ## One tool contract, multiple adapters
 
-`js/agent-tool-runtime.js` is the protocol-neutral catalog and execution
-boundary. The initial catalog deliberately matches the existing MCP names:
+`shared/agent-tool-contract.js` is the runtime-neutral catalog and
+`js/agent-tool-runtime.js` is its validation and execution boundary. The
+browser binds it to Get-based data through `js/agent-tool-bindings.js`:
 
 | Tool | Access | Behavior |
 | --- | --- | --- |
-| `getbased_lab_context` | read | Returns the user-approved context projection for the active/default or requested profile. |
+| `getbased_lab_context` | read | Returns the user-approved context projection for the profile active when the turn starts. |
 | `getbased_section` | read | Lists projected sections or returns one exact/prefix match. |
+| `getbased_search_markers` | read | Resolves markers with recorded values by name, category, or stable key. |
+| `getbased_marker_history` | read | Returns bounded, dated values and ranges for one resolved marker. |
+| `getbased_nutrition_summary` | read | Returns aggregate nutrient coverage without meal names, notes, or photos. |
+| `getbased_wearable_series` | read | Returns enabled daily wearable series for a bounded window. |
+| `getbased_search_knowledge` | read | Searches the active profile's user-provided Knowledge Base. |
+| `getbased_navigate` | navigate | Opens an allowlisted view or marker detail without editing data. |
+| `getbased_draft_note` | draft | Proposes an active-profile or marker note. |
+| `getbased_draft_meal` | draft | Proposes a manual meal entry. |
+| `getbased_draft_biometric` | draft | Proposes a weight, blood-pressure, or resting-pulse entry. |
+| `getbased_draft_supplement` | draft | Proposes a supplement or medication entry. |
 
 The catalog can be rendered as Codex app-server `dynamicTools`; calls are
 answered using its `{ success, contentItems }` response shape. An MCP adapter
-can expose the same definitions and call behavior. Tool handlers receive a
-`readContext` dependency rather than reaching into global state, IndexedDB,
-localStorage, or the DOM.
+can expose the same definitions and call behavior. Tool handlers receive
+injected dependencies rather than arbitrary DOM, storage, database, or network
+access. The contract has no profile selector: every call is bound to the
+profile active when the turn starts.
 
 The browser binding must use the normal context builder without bypass flags.
 This preserves the user's context toggles and prevents a connected agent from
@@ -69,18 +82,19 @@ Tools are classified before they are implemented:
 | `read` | Read approved context or one section | May run during an agent turn. |
 | `navigate` | Open a Get-based view | May change UI state, never health data. |
 | `draft` | Prepare a note or proposed regimen change | Creates a reviewable draft only. |
-| `commit` | Apply an approved draft | Requires a separate, explicit in-app approval tied to the exact draft. |
+| `commit` | Apply an approved draft | Performed only by Get-based after an explicit in-app approval. It is not exposed to the CLI. |
 
 No tool grants raw DOM control, arbitrary JavaScript, shell access, direct
 database access, credential access, or a generic record-update primitive.
-Write support starts with narrow draft tools. The commit tool validates the
-draft again and uses existing Get-based persistence paths so migrations,
-change history, encryption, and sync hooks remain intact.
+Write support consists of narrow draft tools. Drafts are sanitized before chat
+storage and rendered as **Apply** / **Discard** proposal cards. Apply validates
+the active-profile binding again and uses existing Get-based persistence paths
+so migrations, encryption, and sync hooks remain intact.
 
 Codex command/file approvals and Get-based data approvals are separate. The
-read-only milestone declines every Codex command, file, MCP elicitation, and
-permission request. A later capability may render selected requests in chat,
-but accepting a Codex sandbox action will never imply permission to mutate
+host declines every Codex command, file, MCP elicitation, and permission
+request. A future capability may render selected requests in chat, but
+accepting a Codex sandbox action will never imply permission to mutate
 Get-based health data.
 
 ## Initial turn flow
@@ -98,9 +112,9 @@ Get-based health data.
 6. The Get-based chat stores its own messages plus the external agent/thread
    identifier needed to resume later.
 
-The first end-to-end milestone remains read-only. Navigation, drafts, and
-commits are added only after the agent stream, reconnect behavior, pairing,
-and activity display are working reliably.
+Navigation and draft tools use the same streamed call flow. The agent can
+propose, but cannot perform, a health-data write. Only the user's **Apply**
+action inside Get-based crosses the persistence boundary.
 
 ## Current development workflow
 
@@ -146,10 +160,12 @@ credential, endpoint, and protocol details remain hidden from normal settings.
 An explicit `GETBASED_AGENT_HOST_PORT` remains strict for operators who need a
 fixed port.
 
-Behind the UI, the host binds to `127.0.0.1:8324`; the development server
-detects installed CLIs and owns the host lifecycle. Its pairing token is stable
-across restarts and stored with private file permissions in the Agent Host data
-directory. Advanced self-hosting can override the port and token with
+Behind the UI, the host binds only to loopback; the development server detects
+installed CLIs and owns the host lifecycle. Hosted-origin discovery issues a
+short-lived, origin-bound session credential. The global discovery-session
+pool is bounded, and only an exact allowlist of official Get-based hostnames is
+accepted. A stable install credential is limited to originless or loopback
+development use. Advanced self-hosting can override the port and token with
 `GETBASED_AGENT_HOST_PORT` and `GETBASED_AGENT_HOST_TOKEN`. Official Get-based
 origins and loopback development origins are allowed. A self-hosted HTTPS
 origin must be explicitly listed in the comma-separated
@@ -180,38 +196,38 @@ web search remains available; it is separate from browser control and command
 network access. Agent instructions prohibit putting user-specific health data
 in search queries.
 
-This milestone supports text and image chat, hosted cached web research, the
-two read-only context tools for the profile active when the turn starts, and
-structured meal-photo / nutrition-label analysis when the selected CLI model
-declares image input. Images are uploaded to the authenticated loopback host,
-validated, written only to its private temporary workspace, consumed as
-`localImage` turn inputs, and deleted after completion or cancellation. Voice,
-navigation, drafts, data writes, and interactive Codex shell/file approvals
-remain deliberately unavailable.
+The current Codex adapter supports text and image chat, hosted cached web
+research, all structured tools listed above, and structured feature inference
+when the selected CLI model declares the required modality. Images are
+uploaded to the authenticated loopback host, validated, written only to its
+private temporary workspace, consumed as `localImage` turn inputs, and deleted
+after completion or cancellation. Voice and interactive Codex shell/file
+approvals remain deliberately unavailable. Health-data writes remain under
+Get-based's proposal-card approval boundary.
 
 ## Product capability coverage
 
-CLI agents are a chat provider in this milestone, not yet a universal
-replacement for every existing AI call:
+The selected CLI agent now participates in chat and supported product features
+through one capability-aware dispatcher:
 
-| Get-based capability | CLI agent today | Next contract |
+| Get-based capability | Codex CLI today | Remaining boundary |
 | --- | --- | --- |
-| Text chat over approved profile context | Yes | Add richer bounded query tools. |
+| Text chat over approved profile context | Yes | Add typed queries only when a real product need appears. |
 | Hosted web research | Codex cached search; activity is recorded on the answer | Add an explicit user control and richer activity display. |
-| Model and reasoning selection | Codex | Implement adapter-specific catalogs for other CLIs. |
-| Lab PDF/photo import | No | Add a structured extraction adapter; keep the existing review before save. |
-| Meal-photo analysis | Codex models that declare image input, with structured output and normal review-before-save | Extend the capability router to other CLI adapters. |
-| Context-card, marker, EMF, light, and report insights | No | Route provider-agnostic inference through one capability-aware dispatcher. |
+| Model and reasoning selection | Yes | Implement adapter-specific catalogs for other CLIs. |
+| Lab PDF/photo import | Yes, with a vision-capable selected model and existing review-before-save | Keep the extraction schema provider-neutral. |
+| Meal-photo and nutrition-label analysis | Yes, with a vision-capable selected model and normal review-before-save | Extend the capability router to other CLI adapters. |
+| Context cards, marker explanations, biology scores, supplements, EMF, light/sun, reports, summaries, and Lens query rewriting | Yes | Preserve feature-specific schemas and consent labels. |
+| Knowledge Base search and bounded health queries | Yes, through active-profile tools | Add only privacy-preserving aggregate queries. |
+| Navigation | Yes, for allowlisted views and marker detail | Add destinations deliberately rather than exposing generic UI control. |
+| Proposed health-data changes | Notes, meals, biometrics, supplements, and medications | Add new draft types only with an exact review and apply path. |
 | Voice | No | Keep transcription/speech providers separate until an adapter declares audio support. |
-| Navigation | No | Add narrow UI navigation tools. |
-| Health-data writes | No | Add draft tools first, then exact in-app approval and validated commit tools. |
 
-The current two tools are sufficient for broad read-only chat analysis but do
-not cover the full application. The next read layer should add typed tools for
-profile discovery, marker history/comparison, bounded wearable and biometric
-series, nutrition summaries, and source metadata. It should then add narrow
-navigation tools and reviewable draft tools. Raw DOM control, raw IndexedDB
-access, arbitrary record updates, and shell access remain outside the contract.
+Raw DOM control, raw IndexedDB access, arbitrary record updates, credentials,
+and shell access remain outside the contract. **Follow chat assistant** resolves
+to the selected Codex model for feature-model labels and capability checks; it
+does not silently fall back to the previously selected direct provider. Global
+**Pause AI** pauses both direct-provider and CLI-agent routes.
 
 ## Adapter roadmap
 
@@ -222,11 +238,14 @@ only capabilities an adapter reports.
 
 - **Codex:** app-server supplies account status and ChatGPT login, model and
   reasoning catalogs, threads, streamed events, and dynamic tools.
-- **OpenCode:** use its server/SDK session APIs and its provider-backed model
-  and variant catalog instead of scraping terminal output.
+- **OpenCode:** detection is implemented, but selection remains disabled until
+  a constrained adapter can supply the same tool contract through an isolated
+  MCP/session bridge. Use its machine-readable session and model APIs rather
+  than scraping terminal output.
 - **Claude Code:** reuse an installed authenticated CLI initially; add an
   embedded sign-in only if Anthropic exposes a supported third-party client
   flow for that adapter.
-- **Hermes / Grok:** keep detection informational until an adapter has a stable
-  machine-readable session and tool protocol. Detection alone must not imply
-  compatibility.
+- **Hermes / Grok:** detection is informational. Each needs an isolated MCP
+  bridge, model/reasoning catalog, streaming normalization, and the same denial
+  of shell/file/browser capabilities before it can be selected. Detection alone
+  must not imply compatibility.

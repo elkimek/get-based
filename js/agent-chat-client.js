@@ -24,7 +24,11 @@ async function responseError(response) {
 
 /** @param {string} capability */
 export function agentHostUpgradeRequiredError(capability) {
-  const feature = capability === AGENT_HOST_CAPABILITIES.IMAGE_UPLOAD ? 'image support' : 'this feature';
+  const feature = capability === AGENT_HOST_CAPABILITIES.IMAGE_UPLOAD
+    ? 'image support'
+    : capability === AGENT_HOST_CAPABILITIES.STRUCTURED_HEALTH_TOOLS
+      ? 'the latest Get-based tools'
+      : 'this feature';
   const error = new Error(`The local Codex companion is outdated. Restart it to enable ${feature}.`);
   // @ts-ignore — lightweight browser error classification.
   error.code = 'agent_host_upgrade_required';

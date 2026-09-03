@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { getProfiles } from './profile.js';
-import { hasAIProvider } from './api.js';
+import { hasChatResponseBackend } from './chat-backend-selection.js';
 
 /**
  * Show/hide the unread badge + gentle pulse on the chat FAB.
@@ -51,7 +51,7 @@ export function updateChatNudge() {
   if (!hasProfile) {
     // Stage 0: no profile — always nudge (can't dismiss)
     setChatNudge('profile');
-  } else if (!hasAIProvider()) {
+  } else if (!hasChatResponseBackend()) {
     if (dismissed !== 'api') setChatNudge('api');
     else setChatNudge(null);
   } else if (!hasData) {

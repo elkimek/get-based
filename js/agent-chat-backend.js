@@ -7,6 +7,7 @@ import {
 } from './agent-chat-settings.js';
 import { getAssistantExecutionRoute } from './ai-execution-routing.js';
 import { AGENT_HOST_CAPABILITIES } from '../shared/agent-host-protocol.js';
+import { createBrowserAgentToolDependencies } from './agent-tool-bindings.js';
 
 /**
  * @param {{
@@ -28,12 +29,14 @@ export async function callCodexAgent(options) {
       profileId: options.profileId || '',
       updatedAt: new Date().toISOString(),
     }),
+    ...createBrowserAgentToolDependencies(),
   });
   await connectDetectedCodex({
     signal: options.signal,
     requiredCapabilities: [
       AGENT_HOST_CAPABILITIES.CHAT_STREAM,
       AGENT_HOST_CAPABILITIES.DYNAMIC_TOOLS,
+      AGENT_HOST_CAPABILITIES.STRUCTURED_HEALTH_TOOLS,
       ...((options.images || []).length ? [AGENT_HOST_CAPABILITIES.IMAGE_UPLOAD] : []),
     ],
   });
@@ -67,9 +70,11 @@ export async function callCodexAgent(options) {
     onStream: options.onStream,
   });
   try {
-    return await run(options.threadId);
+    const result = await run(options.threadId);
+    return { ...result, drafts: runtime.getDrafts().map(draft => ({ ...draft, profileId: options.profileId || '' })) };
   } catch (error) {
     if (!options.threadId || !(error instanceof Error) || !error.message.includes('invalid thread session')) throw error;
-    return run(undefined);
+    const result = await run(undefined);
+    return { ...result, drafts: runtime.getDrafts().map(draft => ({ ...draft, profileId: options.profileId || '' })) };
   }
 }

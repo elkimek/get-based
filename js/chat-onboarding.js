@@ -5,21 +5,14 @@ import { state } from './state.js';
 import { LATITUDE_BANDS } from './constants.js';
 import { escapeAttr, escapeHTML, showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
+import { appendImportedArrayItem, deleteImportedArrayItem } from './data-merge.js';
 import {
-  appendImportedArrayItem,
-  deleteImportedArrayItem,
-} from './data-merge.js';
-import {
-  getLatitudeFromLocation, getLocationCache,
-  latitudeToBand, renameProfile, setProfileDob, setProfileLocation,
-  setProfileSex,
+  getLatitudeFromLocation, getLocationCache, latitudeToBand, renameProfile,
+  setProfileDob, setProfileLocation, setProfileSex,
 } from './profile.js';
-import { hasAIProvider, isAIPaused } from './api.js';
+import { isAIPaused } from './api.js';
 import { hasChatResponseBackend } from './chat-backend-selection.js';
-import {
-  handleAppExtensionOnboardingAction,
-  renderAppExtensionOnboardingSlot,
-} from './app-extension-runtime.js';
+import { handleAppExtensionOnboardingAction, renderAppExtensionOnboardingSlot } from './app-extension-runtime.js';
 
 /** @type {{
  *   closeChatPanel: () => void,
@@ -264,7 +257,7 @@ export function startOnboardingLabImport() {
     openSettingsModal('ai');
     return;
   }
-  if (!hasAIProvider()) {
+  if (!hasChatResponseBackend()) {
     requestOnboardingLabImportProvider();
     return;
   }
@@ -605,7 +598,7 @@ export function _renderProviderQuiz(branch, name) {
   if (extensionQuiz) return extensionQuiz;
   if (branch === 'cli') {
     return `<div class="chat-provider-quiz"><button type="button" class="chat-quiz-back" ${chatOnboardingActionAttrs('back-to-provider-quiz')} aria-label="Back to provider options">&larr; Back</button>
-      <p><strong>Use an existing subscription &rarr; CLI agents</strong></p><p style="font-size:13px">Get-based scans this computer for signed-in agents such as Codex, OpenCode, Hermes, and Grok. There is no API key or connection address to paste.</p><button type="button" class="chat-setup-btn" ${chatOnboardingActionAttrs('open-provider-settings', { provider: 'cli' })}>Find my installed agents &rarr;</button><p style="font-size:11px;color:var(--text-muted);margin-top:10px">Codex works now. Other detected agents are shown while their adapters are added.</p></div>`;
+      <p><strong>Use an existing subscription &rarr; CLI agents</strong></p><p style="font-size:13px">Get-based scans this computer for signed-in agents such as Codex, OpenCode, Hermes, and Grok. There is no API key or connection address to paste.</p><button type="button" class="chat-setup-btn" ${chatOnboardingActionAttrs('open-provider-settings', { provider: 'cli' })}>Find my installed agents &rarr;</button><p style="font-size:11px;color:var(--text-muted);margin-top:10px">Codex is currently the supported adapter. Other installed CLIs are identified clearly but cannot be selected until their constrained tool adapters are available.</p></div>`;
   }
   if (branch === 'card') {
     return `<div class="chat-provider-quiz"><button type="button" class="chat-quiz-back" ${chatOnboardingActionAttrs('back-to-provider-quiz')} aria-label="Back to provider options">&larr; Back</button>

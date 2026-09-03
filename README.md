@@ -67,7 +67,7 @@ All normal tracking works without AI. AI features can use:
 | **OpenRouter** | A broad hosted model marketplace with OAuth or manual key setup. |
 | **Venice AI** | Hosted models with optional browser-side message encryption plus required Intel DCAP and NVIDIA NRAS checks. |
 | **Local AI** | Any OpenAI-compatible local server, such as Ollama, LM Studio, Jan, or llama.cpp. |
-| **CLI agents (Linux preview)** | Use an existing signed-in Codex CLI subscription through the local Get-based Companion. The hosted app detects it automatically. |
+| **CLI agents (Linux preview)** | Use an existing signed-in Codex CLI subscription for chat and supported AI features through the local Get-based Companion. The hosted app detects it automatically; health-data changes remain reviewable drafts. |
 | **Custom API** | Bring your own OpenAI-compatible endpoint or proxy. |
 
 Switch providers in Settings. Supported provider keys are wrapped locally with

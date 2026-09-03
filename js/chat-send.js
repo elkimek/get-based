@@ -459,6 +459,7 @@ export async function sendChatMessage() {
 
     // Build assistant message object with context snapshot
     const assistantMsg = { role: 'assistant', content: fullText, context: contextSnapshot, personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, modelId: _msgModelId, modelDisplay: _msgModelDisplay };
+    if (useCodexAgent && Array.isArray(aiResult.drafts) && aiResult.drafts.length) assistantMsg.agentDrafts = aiResult.drafts;
     if (responseTruncated) {
       assistantMsg.truncated = true;
       assistantMsg.finishReason = aiResult.finishReason || 'length';

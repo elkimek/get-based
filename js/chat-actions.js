@@ -22,6 +22,7 @@ import { getChatRegenerateCallbacks, isChatRuntimeStreaming } from './chat-runti
 import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { setChatInputValue } from './chat-composer.js';
 import { restoreMessageAttachments } from './chat-images.js';
+import { applyAgentDraft, renderAgentDraftCards } from './agent-drafts.js';
 
 const chatMessageActionDeps = {
   closeSummaryModal: /** @type {() => void} */ (() => {}),
@@ -47,6 +48,7 @@ const chatMessageActionDeps = {
   startDiscussionFromPicker: /** @type {() => void | Promise<void>} */ (() => {}),
   toggleMessageSpeech: /** @type {(index: number) => void | Promise<void>} */ (() => {}),
   viewSavedSummary: /** @type {(id: string) => void} */ (() => {}),
+  renderChatMessages: /** @type {() => void} */ (() => {}),
 };
 
 export function configureChatMessageActionDeps(deps = {}) {
@@ -80,6 +82,36 @@ function readMessageIndex(actionEl) {
 function containChatMessageEvent(event) {
   event.stopPropagation();
   if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+}
+
+async function updateAgentDraft(actionEl, apply) {
+  const index = readMessageIndex(actionEl);
+  const draftId = actionEl.dataset.chatMessageDraftId || '';
+  const message = index == null ? null : state.chatHistory[index];
+  const draft = message?.agentDrafts?.find(item => item.id === draftId);
+  if (!draft || draft.status !== 'pending') return false;
+  if (!apply) {
+    draft.status = 'discarded';
+    await saveChatHistory();
+    chatMessageActionDeps.renderChatMessages();
+    showNotification('Proposed change discarded', 'info');
+    return true;
+  }
+  draft.status = 'applying';
+  chatMessageActionDeps.renderChatMessages();
+  try {
+    const notice = await applyAgentDraft({ ...draft, status: 'pending' });
+    draft.status = 'applied';
+    draft.appliedAt = new Date().toISOString();
+    await saveChatHistory();
+    chatMessageActionDeps.renderChatMessages();
+    showNotification(notice, 'success');
+  } catch (error) {
+    draft.status = 'pending';
+    chatMessageActionDeps.renderChatMessages();
+    showNotification(error instanceof Error ? error.message : 'The proposed change could not be applied.', 'error');
+  }
+  return true;
 }
 
 function runChatMessageAction(actionEl, event) {
@@ -167,6 +199,10 @@ function runChatMessageAction(actionEl, event) {
     chatMessageActionDeps.pauseDiscussion();
   } else if (action === 'show-earlier-messages') {
     chatMessageActionDeps.showEarlierMessages();
+  } else if (action === 'apply-agent-draft') {
+    void updateAgentDraft(actionEl, true);
+  } else if (action === 'discard-agent-draft') {
+    void updateAgentDraft(actionEl, false);
   } else {
     return false;
   }
@@ -246,7 +282,8 @@ export function buildActionBar(msgIndex) {
   if (!msg || msg.role !== 'assistant') return '';
   const isLast = msgIndex === state.chatHistory.length - 1;
 
-  let html = '<div class="chat-action-bar">';
+  let html = renderAgentDraftCards(msg, msgIndex);
+  html += '<div class="chat-action-bar">';
   if (isLast && msg.discussionError) {
     if (msg.discussionPersonaId) {
       html += `<button class="chat-action-btn" type="button" ${chatMessageActionAttrs('retry-discussion-participant', { personaId: msg.discussionPersonaId })} title="Retry only this participant">${CHAT_ICON_REFRESH}<span>Retry ${escapeHTML(msg.personalityName || 'participant')}</span></button>`;
