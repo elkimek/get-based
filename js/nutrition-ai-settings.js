@@ -119,7 +119,7 @@ export function getNutritionModelGuidance(modelId) {
   if (/^claude-sonnet-4-6(?:-|$)/.test(slug)) {
     return { rank: 1, level: 'published', label: 'Best studied balance' };
   }
-  if (/^gemini-3-7-flash(?:-|$)/.test(slug)) {
+  if (/^gemini-3-(?:7|8)-flash(?:-|$)/.test(slug)) {
     return { rank: 2, level: 'candidate', label: 'Value candidate' };
   }
   if (/^gemini-3-(?:0|1)-flash(?:-|$)/.test(slug)) {

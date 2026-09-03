@@ -198,25 +198,27 @@ describe('meal-photo model routing', () => {
     expect(isConfirmedMealVisionModel('custom', 'verified-vision-model')).toBe(true);
   });
 
-  it('prefers Gemini 3.7 Flash and excludes text-only GLM 5.3 from meal routes', () => {
+  it('prefers Gemini 3.8 Flash and excludes text-only GLM 5.3 from meal routes', () => {
     updateKeyCache('labcharts-openrouter-key', 'test-openrouter-key');
     setAIProvider('openrouter');
-    setOpenRouterModel('google/gemini-3.7-flash');
+    setOpenRouterModel('google/gemini-3.8-flash');
     localStorage.setItem('labcharts-openrouter-models', JSON.stringify([
       { id: 'google/gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
       { id: 'google/gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
+      { id: 'google/gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
       { id: 'z-ai/glm-5.3', name: 'GLM 5.3' },
     ]));
     localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify([
-      'google/gemini-3.5-flash', 'google/gemini-3.7-flash',
+      'google/gemini-3.5-flash', 'google/gemini-3.7-flash', 'google/gemini-3.8-flash',
     ]));
 
     expect(listNutritionVisionModels().filter(model => model.provider === 'openrouter')).toEqual([
       expect.objectContaining({
-        provider: 'openrouter', model: 'google/gemini-3.7-flash', current: true,
+        provider: 'openrouter', model: 'google/gemini-3.8-flash', current: true,
       }),
     ]);
-    expect(renderNutritionAISettings()).toContain('Gemini 3.7 Flash');
+    expect(renderNutritionAISettings()).toContain('Gemini 3.8 Flash');
+    expect(renderNutritionAISettings()).not.toContain('Gemini 3.7 Flash');
     expect(renderNutritionAISettings()).not.toContain('Gemini 3.5 Flash');
     expect(renderNutritionAISettings()).not.toContain('GLM 5.3');
   });
@@ -333,6 +335,9 @@ describe('meal-photo model routing', () => {
       rank: 1, level: 'published', label: 'Best studied balance',
     });
     expect(getNutritionModelGuidance('google/gemini-3.7-flash')).toMatchObject({
+      rank: 2, level: 'candidate', label: 'Value candidate',
+    });
+    expect(getNutritionModelGuidance('google/gemini-3.8-flash')).toMatchObject({
       rank: 2, level: 'candidate', label: 'Value candidate',
     });
     expect(getNutritionModelGuidance('google/gemini-3.0-flash')).toMatchObject({
