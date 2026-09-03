@@ -8,7 +8,7 @@ import { getAIProvider, hasAIProvider, isAIPaused, setOllamaPIIModel } from './a
 import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots } from './crypto.js';
 import { renderSyncSection, renderMessengerSection, hydrateSettingsSyncPanel } from './settings-sync-panel.js';
 import { getChatBackend } from './agent-chat-settings.js';
-import { copyCLICompanionInstallCommand, copyCLICompanionRunCommand, refreshDetectedAgentList, renderCLIAgentProviderPanel, setCLIAgentEffort, setCLIAgentModel, setCLICompanionPlatform, testLocalCodex, toggleLocalCodex } from './settings-cli-agent-panel.js';
+import { controlCLICompanion, copyCLICompanionRunCommand, copyCLICompanionStartCommand, refreshDetectedAgentList, renderCLIAgentProviderPanel, setCLIAgentEffort, setCLIAgentModel, setCLICompanionPlatform, testLocalCodex, toggleLocalCodex } from './settings-cli-agent-panel.js';
 import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
 import { setProductRecsEnabled } from './recommendations.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
@@ -21,15 +21,9 @@ import {
   testPIIOllamaConnectionBridge,
   toggleAIPauseBridge,
 } from './settings-provider-bridge.js';
-import {
-  requestSettingsFrame,
-  settingsMediaMatches,
-} from './settings-runtime.js';
+import { requestSettingsFrame, settingsMediaMatches } from './settings-runtime.js';
 import { configureSettingsModuleBridge } from './settings-runtime-bridge.js';
-import {
-  closestSettingsTarget,
-  getSettingsProxyToggle,
-} from './settings-event-target.js';
+import { closestSettingsTarget, getSettingsProxyToggle } from './settings-event-target.js';
 import {
   renderDisplaySettingsPanel,
   updateDisplaySettingsPanel,
@@ -302,10 +296,12 @@ async function handleSettingsClick(event) {
     if (panel) panel.innerHTML = renderCLIAgentProviderPanel();
   } else if (action === 'rescan-cli-agents') {
     event.preventDefault(); void refreshDetectedAgentList({ refresh: true });
-  } else if (action === 'copy-cli-companion-install') {
-    event.preventDefault(); void copyCLICompanionInstallCommand();
   } else if (action === 'copy-cli-companion-run') {
     event.preventDefault(); void copyCLICompanionRunCommand();
+  } else if (action === 'copy-cli-companion-start') {
+    event.preventDefault(); void copyCLICompanionStartCommand();
+  } else if (action === 'control-cli-companion') {
+    event.preventDefault(); void controlCLICompanion(actionEl.dataset.value || '');
   } else if (action === 'set-cli-companion-platform') {
     event.preventDefault(); setCLICompanionPlatform(actionEl.dataset.value || '');
   } else if (action === 'test-cli-codex') {

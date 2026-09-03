@@ -1075,6 +1075,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 9px;
 }
+.settings-modal .local-agent-install-options-single { grid-template-columns: minmax(0, 1fr); }
 .settings-modal .local-agent-platforms { display: flex; gap: 6px; }
 .settings-modal .local-agent-platforms .import-btn {
   flex: 1;
@@ -1183,6 +1184,38 @@
 @keyframes local-agent-spin { to { transform: rotate(360deg); } }
 .settings-modal .local-agent-toggle { margin-left: 2px; }
 .settings-modal .local-agent-options-loading { padding: 10px 0 2px 49px; color: var(--text-muted); font-size: 11px; }
+.settings-modal .local-agent-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 9px 0 2px 49px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-secondary);
+}
+.settings-modal .local-agent-controls-copy { min-width: 0; }
+.settings-modal .local-agent-controls-copy strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: 11px;
+}
+.settings-modal .local-agent-controls-copy span {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 9.5px;
+}
+.settings-modal .local-agent-control-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.settings-modal .local-agent-danger { color: var(--red); }
+.settings-modal .local-agent-danger:hover { border-color: color-mix(in srgb, var(--red) 55%, var(--border)); }
 .settings-modal .local-agent-options {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(150px, .6fr);
@@ -2258,6 +2291,8 @@ label.sync-settings-toggle input:disabled + .sync-settings-toggle-slider { opaci
     gap: 9px;
   }
   .settings-modal .local-agent-install-options { grid-template-columns: 1fr; }
+  .settings-modal .local-agent-controls { align-items: stretch; flex-direction: column; margin-left: 43px; }
+  .settings-modal .local-agent-control-actions { justify-content: flex-start; }
   .settings-modal .local-agent-options { grid-template-columns: 1fr; padding-left: 43px; }
   .settings-modal .local-agent-options small { grid-column: auto; }
   .settings-modal .local-agent-test { display: none; }

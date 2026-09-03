@@ -21,6 +21,10 @@ export function normalizeDiscoveredAgent(agent) {
     endpoint: String(agent?.endpoint || ''),
     token: String(agent?.token || ''),
     message: String(agent?.message || '').slice(0, 240),
+    companionVersion: String(agent?.companionVersion || '').slice(0, 40),
+    runtimeMode: ['installed', 'temporary'].includes(String(agent?.runtimeMode)) ? String(agent.runtimeMode) : '',
+    platform: String(agent?.platform || '').slice(0, 24),
+    paused: agent?.paused === true || agent?.status === 'paused',
     protocolVersion: normalizeAgentHostProtocolVersion(agent?.protocolVersion),
     capabilities: normalizeAgentHostCapabilities(agent?.capabilities),
   };
@@ -50,6 +54,10 @@ async function probeLoopbackAgentHost(endpoint, parentSignal, normalizeEndpoint)
       : [{ id: payload.agent || 'codex', name: 'Codex CLI', compatible: true, status: 'available' }];
     return rows.map(row => normalizeDiscoveredAgent({
       ...row, endpoint: normalizedEndpoint, token,
+      companionVersion: row?.companionVersion || payload.companionVersion,
+      runtimeMode: row?.runtimeMode || payload.runtimeMode,
+      platform: row?.platform || payload.platform,
+      paused: row?.paused === true || payload.paused === true,
       protocolVersion: row?.protocolVersion || protocolVersion,
       capabilities: row?.capabilities || capabilities,
     })).filter(agent => agent.id);
@@ -89,7 +97,7 @@ export function mergeDiscoveredAgents(primary, companions) {
   for (const candidate of companions) {
     const index = merged.findIndex(agent => agent.id === candidate.id);
     if (index < 0) merged.push(candidate);
-    else if (candidate.compatible && candidate.status === 'available') merged[index] = candidate;
+    else if (candidate.compatible && ['available', 'paused'].includes(candidate.status)) merged[index] = candidate;
   }
   return merged;
 }
@@ -115,6 +123,7 @@ export async function connectAgentHostCandidate(options) {
   for (let attempt = 0; attempt < options.attempts; attempt += 1) {
     try {
       const status = await checkAgentHost({ endpoint, token: options.candidate.token, signal: options.signal });
+      if (status?.paused === true || status?.state === 'paused') throw new Error('The getbased Companion is paused. Resume it in AI settings.');
       if (!agentHostSupportsCapabilities(status, options.requiredCapabilities)) {
         throw agentHostUpgradeRequiredError(options.requiredCapabilities[0] || 'requested-feature');
       }

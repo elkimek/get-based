@@ -57,12 +57,25 @@ describe('Linux companion installer', () => {
     expect(service).toContain('WantedBy=default.target');
     expect(service).toContain(`GETBASED_CODEX_COMMAND=${setup.codexCommand}`);
     expect(service).toContain(`GETBASED_SOURCE_CODEX_HOME=${setup.codexHome}`);
+    expect(service).toContain('GETBASED_COMPANION_SERVICE=1');
     expect(service).toContain(`${result.installedBundle}" run`);
     expect(readFileSync(result.launcher, 'utf8')).toContain(result.installedBundle);
     expect(systemctl.mock.calls.map(call => call[1])).toEqual([
       ['--user', 'daemon-reload'],
       ['--user', 'enable', '--now', LINUX_COMPANION_SERVICE],
       ['--user', 'is-active', '--quiet', LINUX_COMPANION_SERVICE],
+    ]);
+  });
+
+  it('can register automatic startup without launching a duplicate bridge', () => {
+    const setup = fixture();
+    const systemctl = vi.fn();
+    installLinuxCompanion({
+      ...setup, nodePath: process.execPath, platform: 'linux', startService: false, execFileSyncImpl: systemctl,
+    });
+    expect(systemctl.mock.calls.map(call => call[1])).toEqual([
+      ['--user', 'daemon-reload'],
+      ['--user', 'enable', LINUX_COMPANION_SERVICE],
     ]);
   });
 

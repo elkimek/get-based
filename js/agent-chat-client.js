@@ -26,6 +26,8 @@ async function responseError(response) {
 export function agentHostUpgradeRequiredError(capability) {
   const feature = capability === AGENT_HOST_CAPABILITIES.IMAGE_UPLOAD
     ? 'image support'
+    : capability === AGENT_HOST_CAPABILITIES.COMPANION_CONTROL
+      ? 'companion controls'
     : capability === AGENT_HOST_CAPABILITIES.STRUCTURED_HEALTH_TOOLS
       ? 'the latest Get-based tools'
       : 'this feature';
@@ -52,6 +54,27 @@ export async function checkAgentHost(options) {
     protocolVersion: normalizeAgentHostProtocolVersion(payload.protocolVersion),
     capabilities: normalizeAgentHostCapabilities(payload.capabilities),
   };
+}
+
+/**
+ * @param {{endpoint: string, token: string, action: 'pause'|'resume'|'install'|'restart'|'update'|'uninstall', signal?: AbortSignal}} options
+ */
+export async function controlAgentHost(options) {
+  const response = await fetch(endpointUrl(options.endpoint, '/v1/control'), {
+    method: 'POST',
+    signal: options.signal,
+    cache: 'no-store',
+    headers: {
+      Authorization: `Bearer ${options.token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ action: options.action }),
+  });
+  if (response.status === 404 || response.status === 501) {
+    throw agentHostUpgradeRequiredError(AGENT_HOST_CAPABILITIES.COMPANION_CONTROL);
+  }
+  if (!response.ok) throw new Error(await responseError(response));
+  return response.json();
 }
 
 /**

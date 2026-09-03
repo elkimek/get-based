@@ -78,13 +78,16 @@ the provider's terms on its behalf. Custom endpoints are identified by their
 origin. Users connecting a personal or local endpoint are not asked to supply
 policy metadata.
 
-On Linux, macOS, and Windows, Settings provides OS-specific one-line commands
-to run the companion temporarily or install it for automatic startup. Both
-commands download the same auditable, single-file `getbased-companion.mjs`
-emitted by the production build. Temporary mode stops with its Terminal or
-PowerShell session. Installed mode uses a systemd user service, macOS
-LaunchAgent, or current-user Windows scheduled task. It does not need root or
-administrator access, and the browser never exposes a port or pairing token.
+On Linux, macOS, and Windows, Settings provides one OS-specific bootstrap
+command that runs the companion temporarily. Once connected, Settings can
+directly register automatic startup, pause or resume AI work, restart Codex,
+update the installed bundle, or uninstall it. A recovery start command remains
+available when the local process is completely stopped. The bootstrap downloads
+the same auditable, single-file `getbased-companion.mjs` emitted by the
+production build. Temporary mode stops with its Terminal or PowerShell session.
+Installed mode uses a systemd user service, macOS LaunchAgent, or current-user
+Windows scheduled task. It does not need root or administrator access, and the
+browser never exposes a port or pairing token.
 The entry point, host, installers, protocol, and bundle build are all
 source-available in this repository under `bin/`, `server/`, `lib/`, `shared/`,
 and `scripts/`.

@@ -11,6 +11,9 @@ import {
   buildIsolatedCodexArgs, buildIsolatedCodexEnvironment,
 } from '../lib/codex-agent-isolation.js';
 import { prepareAgentHostStorage } from '../lib/agent-host-storage.js';
+import { createCompanionRuntimeController } from '../lib/companion-runtime-control.js';
+import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 
 const host = '127.0.0.1';
 const configuredPort = String(process.env.GETBASED_AGENT_HOST_PORT || '').trim();
@@ -47,7 +50,22 @@ const appServer = new CodexAppServerClient({
   args: buildIsolatedCodexArgs(),
   env: buildIsolatedCodexEnvironment(process.env, codexHome),
 });
-const service = createAgentHostService({ appServer, token, workspaceRoot, allowedOrigins });
+const invokedPath = resolve(process.argv[1] || '');
+const bundlePath = invokedPath.endsWith('getbased-companion.mjs')
+  ? invokedPath
+  : fileURLToPath(new URL('../getbased-companion.mjs', import.meta.url));
+const runtimeController = createCompanionRuntimeController({
+  appServer,
+  bundlePath,
+});
+const service = createAgentHostService({
+  appServer,
+  token,
+  workspaceRoot,
+  allowedOrigins,
+  runtimeInfo: runtimeController.getInfo,
+  controlHandler: runtimeController.handle,
+});
 
 const server = createServer(async (incoming, outgoing) => {
   try {

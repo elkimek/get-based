@@ -43,6 +43,7 @@ describe('macOS companion installer', () => {
     expect(result.installed).toBe(true);
     expect(readFileSync(result.serviceFile, 'utf8')).toContain(`<string>${MACOS_COMPANION_LABEL}</string>`);
     expect(readFileSync(result.serviceFile, 'utf8')).toContain('<key>RunAtLoad</key><true/>');
+    expect(readFileSync(result.serviceFile, 'utf8')).toContain('<key>GETBASED_COMPANION_SERVICE</key><string>1</string>');
     expect(readFileSync(result.launcher, 'utf8')).toContain(result.installedBundle);
     expect(launchctl.mock.calls.map(call => call[1][0])).toEqual(['bootout', 'bootstrap', 'kickstart']);
 
@@ -54,6 +55,14 @@ describe('macOS companion installer', () => {
     uninstallMacOSCompanion({ ...setup, execFileSyncImpl: launchctl });
     expect(existsSync(result.runtimeDirectory)).toBe(false);
     expect(existsSync(result.serviceFile)).toBe(false);
+  });
+
+  it('can write a LaunchAgent without starting a duplicate bridge', () => {
+    const setup = fixture();
+    const launchctl = vi.fn();
+    const result = installMacOSCompanion({ ...setup, startService: false, execFileSyncImpl: launchctl });
+    expect(existsSync(result.serviceFile)).toBe(true);
+    expect(launchctl).not.toHaveBeenCalled();
   });
 
   it('resolves user-owned macOS paths', () => {

@@ -170,6 +170,55 @@ describe('agent host service', () => {
     }] });
   });
 
+  it('pauses and resumes new AI work through the authenticated control endpoint', async () => {
+    const appServer = new FakeAppServer();
+    const service = createAgentHostService({
+      appServer, token: TOKEN, workspaceRoot: '/tmp/agent-test',
+      runtimeInfo: () => ({ companionVersion: '1.0.0', runtimeMode: 'installed', platform: 'linux' }),
+    });
+    const control = action => service.handleRequest(new Request('http://127.0.0.1:8324/v1/control', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json', Origin: 'http://127.0.0.1:8000' },
+      body: JSON.stringify({ action }),
+    }));
+
+    const paused = await control('pause');
+    expect(await paused.json()).toMatchObject({
+      state: 'paused', paused: true, companionVersion: '1.0.0', runtimeMode: 'installed',
+    });
+    const blockedTurn = await service.handleRequest(turnRequest());
+    expect(blockedTurn.status).toBe(503);
+    expect(await blockedTurn.json()).toEqual({ error: 'companion_paused' });
+    const resumed = await control('resume');
+    expect(await resumed.json()).toMatchObject({ state: 'running', paused: false });
+  });
+
+  it('delegates installation controls but rejects them while a turn is active', async () => {
+    const appServer = new FakeAppServer();
+    const controlHandler = vi.fn(async action => ({ action, installed: true }));
+    const service = createAgentHostService({
+      appServer, token: TOKEN, workspaceRoot: '/tmp/agent-test', controlHandler,
+    });
+    const request = action => service.handleRequest(new Request('http://127.0.0.1:8324/v1/control', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json', Origin: 'http://127.0.0.1:8000' },
+      body: JSON.stringify({ action }),
+    }));
+    const installed = await request('install');
+    expect(await installed.json()).toMatchObject({ action: 'install', installed: true });
+    expect(controlHandler).toHaveBeenCalledWith('install', { origin: 'http://127.0.0.1:8000' });
+
+    const turn = await service.handleRequest(turnRequest());
+    const reader = turn.body.getReader();
+    await nextEvent(reader, new TextDecoder(), { value: '' });
+    const blocked = await request('uninstall');
+    expect(blocked.status).toBe(409);
+    expect(await blocked.json()).toEqual({ error: 'finish_the_active_response_first' });
+    appServer.emit('notification', {
+      method: 'turn/completed', params: { threadId: 'thread-1', turn: { id: 'turn-1', status: 'completed' } },
+    });
+  });
+
   it('starts a read-only Codex turn and relays text and completion', async () => {
     const appServer = new FakeAppServer();
     const service = createAgentHostService({ appServer, token: TOKEN, workspaceRoot: '/tmp/agent-test' });

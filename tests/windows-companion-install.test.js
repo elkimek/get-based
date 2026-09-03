@@ -22,6 +22,7 @@ describe('Windows companion installer', () => {
     expect(runner).toContain(', 0, True');
     expect(runner).toContain('GETBASED_CODEX_COMMAND');
     expect(runner).toContain('GETBASED_SOURCE_CODEX_HOME');
+    expect(runner).toContain('GETBASED_COMPANION_SERVICE');
     expect(renderWindowsCompanionLauncher({ nodePath: 'C:\\Node\\node.exe', bundlePath: paths.installedBundle }))
       .toContain('%*');
   });

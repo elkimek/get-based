@@ -135,11 +135,15 @@ requirement.
 A hosted browser cannot start an operating-system process. The production
 build therefore emits a single dependency-free `getbased-companion.mjs`
 download. When no companion is detected, **Settings → AI → CLI agents** shows
-two copyable commands for the detected operating system: run the bundle for the
-current Terminal or PowerShell session, or install it for automatic startup.
-Linux and macOS use a POSIX-shell command; Windows uses PowerShell. Both
-commands download the bundle from the same getbased origin the user has open,
-so they do not require a repository checkout or npm.
+one bootstrap command for the detected operating system. It runs the bundle for
+the current Terminal or PowerShell session. Once that authenticated loopback
+connection exists, the page can register or remove automatic startup directly;
+there is no second installation command in the normal flow. Linux and macOS use
+a POSIX-shell command and Windows uses PowerShell. The command downloads the
+bundle from the same getbased origin the user has open, so it does not require a
+repository checkout or npm. A separate start command remains available for
+recovery when an installed companion is completely stopped, because a webpage
+cannot start a missing operating-system process.
 
 Temporary mode writes only the downloaded bundle to the operating system's
 temporary directory and stops when its terminal closes. Installed mode copies
@@ -168,10 +172,15 @@ getbased Settings; a tray shell can consume the same local control protocol
 later without changing the health-data or agent boundaries.
 
 After installation, the service starts at login and the hosted PWA discovers
-it through the same origin-gated loopback protocol. The CLI supports `start`,
-`stop`, `status`, `restart`, and `uninstall`; uninstall removes only the
-service/runtime and retains separate private pairing state for a recoverable
-reinstall.
+it through the same origin-gated loopback protocol. Authenticated Settings
+controls can pause or resume new AI work, restart only the Codex subprocess,
+register automatic startup, update the installed bundle from the active
+getbased HTTPS origin, and remove automatic startup. Destructive lifecycle
+actions are rejected while an agent turn is active. Updates are bounded and
+validated as companion bundles before replacing the installed copy; they take
+effect on the next companion start. The CLI also supports `start`, `stop`,
+`status`, `restart`, and `uninstall` for recovery. Uninstall retains separate
+private pairing state for a recoverable reinstall.
 
 The same entry point is exposed as `npm run companion` for an independently
 running local companion. Without an explicit port it tries only the bounded
@@ -194,7 +203,8 @@ origin must be explicitly listed in the comma-separated
 
 ## Companion protocol and upgrades
 
-The companion advertises a numeric protocol version and named capabilities
+The companion advertises a numeric protocol version, companion version,
+runtime mode, and named capabilities
 from `shared/agent-host-protocol.js`. Authenticated status and origin-checked
 discovery report the same values. A feature turn verifies its required
 capabilities before sending health data; an older process produces a specific

@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { checkAgentHost, listAgentModels, streamAgentTurn, uploadAgentImage } from '../js/agent-chat-client.js';
+import { checkAgentHost, controlAgentHost, listAgentModels, streamAgentTurn, uploadAgentImage } from '../js/agent-chat-client.js';
 
 function ndjsonResponse(events) {
   const body = events.map(event => `${JSON.stringify(event)}\n`).join('');
@@ -76,6 +76,20 @@ describe('agent chat client', () => {
       .resolves.toEqual([{ id: 'gpt-5.6-sol' }]);
     expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:8324/v1/models', expect.objectContaining({
       headers: { Authorization: 'Bearer secret-token' },
+    }));
+  });
+
+  it('sends authenticated companion controls only to the loopback host', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{"state":"paused","paused":true}', {
+      status: 200, headers: { 'Content-Type': 'application/json' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(controlAgentHost({
+      endpoint: 'http://127.0.0.1:8324', token: 'secret-token', action: 'pause',
+    })).resolves.toMatchObject({ paused: true });
+    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:8324/v1/control', expect.objectContaining({
+      method: 'POST', body: '{"action":"pause"}',
+      headers: expect.objectContaining({ Authorization: 'Bearer secret-token' }),
     }));
   });
 

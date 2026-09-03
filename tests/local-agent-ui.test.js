@@ -23,12 +23,13 @@ describe('local agent selection UI', () => {
     expect(source).not.toContain('id="agent-chat-token"');
     expect(source).not.toContain('Paste the Agent Host pairing token');
     expect(source).toContain('hosted web research');
-    expect(source).toContain('copy-cli-companion-install');
+    expect(source).toContain('control-cli-companion');
     expect(source).toContain('copy-cli-companion-run');
+    expect(source).toContain('copy-cli-companion-start');
     expect(source).toContain('Connect your installed CLI agents');
     expect(source).toContain('getbased-companion.mjs');
     expect(source).toContain('Review the source on GitHub');
-    expect(settings).toContain('copyCLICompanionInstallCommand');
+    expect(settings).toContain('controlCLICompanion');
     expect(settings).toContain('copyCLICompanionRunCommand');
   });
 
