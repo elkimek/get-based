@@ -9,6 +9,7 @@ const BACKEND_KEY = 'labcharts-chat-backend';
 const ENDPOINT_KEY = 'labcharts-agent-host-endpoint';
 const MODEL_KEY = 'labcharts-agent-host-model';
 const EFFORT_KEY = 'labcharts-agent-host-effort';
+const AGENT_KEY = 'labcharts-agent-host-agent';
 export const DEFAULT_AGENT_HOST_ENDPOINT = 'http://127.0.0.1:8324';
 
 export function getChatBackend() {
@@ -51,8 +52,12 @@ export function getAgentHostEffort() {
   return (localStorage.getItem(EFFORT_KEY) || '').trim();
 }
 
+export function getAgentHostAgent() {
+  return (localStorage.getItem(AGENT_KEY) || 'codex').trim().slice(0, 40) || 'codex';
+}
+
 /**
- * @param {{endpoint?: string, token?: string, model?: string, effort?: string}} settings
+ * @param {{endpoint?: string, token?: string, model?: string, effort?: string, agent?: string}} settings
  */
 export async function saveAgentChatSettings(settings) {
   if (settings.endpoint !== undefined) {
@@ -60,6 +65,7 @@ export async function saveAgentChatSettings(settings) {
   }
   if (settings.model !== undefined) localStorage.setItem(MODEL_KEY, settings.model.trim().slice(0, 100));
   if (settings.effort !== undefined) localStorage.setItem(EFFORT_KEY, settings.effort.trim().slice(0, 40));
+  if (settings.agent !== undefined) localStorage.setItem(AGENT_KEY, settings.agent.trim().slice(0, 40) || 'codex');
   if (settings.token !== undefined) await encryptedSetCredentialItem(AGENT_HOST_TOKEN_KEY, settings.token.trim());
   globalThis.dispatchEvent?.(new CustomEvent('getbased:agent-host-settings-changed'));
 }
@@ -94,14 +100,14 @@ export async function discoverLocalChatAgents(options = {}) {
         : [];
     }
   } catch { /* hosted/static builds fall back to direct loopback discovery */ }
-  if (direct.some(agent => agent.id === 'codex' && agent.compatible
+  if (direct.some(agent => agent.compatible
     && ['available', 'starting', 'paused'].includes(agent.status))) return direct;
   const companions = await discoverLoopbackAgentHosts({ signal: options.signal });
   return runtime.mergeDiscoveredAgents(direct, companions);
 }
 
 /** @param {{signal?: AbortSignal, requiredCapabilities?: string[]}} [options] */
-export async function connectDetectedCodex(options = {}) {
+export async function connectDetectedAgent(agentId = getAgentHostAgent(), options = {}) {
   const runtime = await import('./agent-host-discovery.js');
   const savedToken = getAgentHostToken();
   const requiredCapabilities = runtime.normalizeRequiredCapabilities(options.requiredCapabilities);
@@ -109,10 +115,12 @@ export async function connectDetectedCodex(options = {}) {
   try {
     agents = await discoverLocalChatAgents(options);
   } catch { /* use a saved local host or direct companion scan below */ }
-  const candidates = agents.filter(agent => agent.id === 'codex' && agent.compatible);
-  if (savedToken && !candidates.some(agent => agent.endpoint === getAgentHostEndpoint())) {
+  const candidates = agents.filter(agent => agent.id === agentId && agent.compatible && agent.status !== 'login_required');
+  const knownAgent = agents.find(agent => agent.id === agentId);
+  if (savedToken && knownAgent?.status !== 'login_required'
+    && !candidates.some(agent => agent.endpoint === getAgentHostEndpoint())) {
     candidates.push(runtime.normalizeDiscoveredAgent({
-      id: 'codex', name: 'Codex CLI', status: 'available', compatible: true,
+      id: agentId, name: agentId, status: 'available', compatible: true,
       endpoint: getAgentHostEndpoint(), token: savedToken,
     }));
   }
@@ -122,22 +130,31 @@ export async function connectDetectedCodex(options = {}) {
       return await runtime.connectAgentHostCandidate({
         candidate, requiredCapabilities, signal: options.signal,
         attempts: candidate.status === 'starting' ? 12 : 1,
-        normalizeEndpoint: normalizeAgentHostEndpoint, onConnected: saveAgentChatSettings,
+        normalizeEndpoint: normalizeAgentHostEndpoint,
+        onConnected: saveAgentChatSettings,
       });
     } catch (error) { lastError = error; }
   }
   // A dev server can keep advertising an older child process while a newer
   // standalone companion is already available on the next bounded port.
   const recovered = await discoverLoopbackAgentHosts({ signal: options.signal });
-  for (const candidate of recovered.filter(agent => agent.id === 'codex' && agent.compatible)) {
+  for (const candidate of recovered.filter(agent => agent.id === agentId && agent.compatible && agent.status !== 'login_required')) {
     if (candidates.some(existing => existing.endpoint === candidate.endpoint && existing.token === candidate.token)) continue;
     try {
       return await runtime.connectAgentHostCandidate({
         candidate, requiredCapabilities, signal: options.signal, attempts: 1,
-        normalizeEndpoint: normalizeAgentHostEndpoint, onConnected: saveAgentChatSettings,
+        normalizeEndpoint: normalizeAgentHostEndpoint,
+        onConnected: saveAgentChatSettings,
       });
     } catch (error) { lastError = error; }
   }
-  if (!candidates.length && !recovered.length) throw new Error('Codex was not detected on this computer.');
-  throw lastError instanceof Error ? lastError : new Error('Codex connection is unavailable.');
+  const installed = [...agents, ...recovered].find(agent => agent.id === agentId);
+  if (installed?.status === 'login_required') throw new Error(installed.message || `${installed.name || agentId} requires sign-in.`);
+  if (!candidates.length && !recovered.length) throw new Error(`${installed?.name || agentId} was not detected on this computer.`);
+  throw lastError instanceof Error ? lastError : new Error(`${installed?.name || agentId} connection is unavailable.`);
+}
+
+/** Backwards-compatible name while the surrounding chat modules are renamed. */
+export function connectDetectedCodex(options = {}) {
+  return connectDetectedAgent(getAgentHostAgent(), options);
 }

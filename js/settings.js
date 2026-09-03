@@ -8,7 +8,7 @@ import { getAIProvider, hasAIProvider, isAIPaused, setOllamaPIIModel } from './a
 import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots } from './crypto.js';
 import { renderSyncSection, renderMessengerSection, hydrateSettingsSyncPanel } from './settings-sync-panel.js';
 import { getChatBackend } from './agent-chat-settings.js';
-import { controlCLICompanion, copyCLICompanionRunCommand, copyCLICompanionStartCommand, refreshDetectedAgentList, renderCLIAgentProviderPanel, setCLIAgentEffort, setCLIAgentModel, setCLICompanionPlatform, testLocalCodex, toggleLocalCodex } from './settings-cli-agent-panel.js';
+import { controlCLICompanion, copyCLIAgentLoginCommand, copyCLICompanionRunCommand, copyCLICompanionStartCommand, refreshDetectedAgentList, renderCLIAgentProviderPanel, setCLIAgentEffort, setCLIAgentModel, setCLICompanionPlatform, testLocalCodex, toggleLocalCodex } from './settings-cli-agent-panel.js';
 import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
 import { setProductRecsEnabled } from './recommendations.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
@@ -300,13 +300,15 @@ async function handleSettingsClick(event) {
     event.preventDefault(); void copyCLICompanionRunCommand();
   } else if (action === 'copy-cli-companion-start') {
     event.preventDefault(); void copyCLICompanionStartCommand();
+  } else if (action === 'copy-cli-agent-login') {
+    event.preventDefault(); void copyCLIAgentLoginCommand(actionEl.dataset.value || '');
   } else if (action === 'control-cli-companion') {
     event.preventDefault(); void controlCLICompanion(actionEl.dataset.value || '');
   } else if (action === 'set-cli-companion-platform') {
     event.preventDefault(); setCLICompanionPlatform(actionEl.dataset.value || '');
   } else if (action === 'test-cli-codex') {
     event.preventDefault();
-    void testLocalCodex();
+    void testLocalCodex(actionEl.dataset.value || '');
   } else if (action === 'set-cli-agent-model' || action === 'set-cli-agent-effort') {
     event.preventDefault();
     void (action === 'set-cli-agent-model' ? setCLIAgentModel : setCLIAgentEffort)(actionEl.dataset.value || '');
@@ -411,7 +413,7 @@ function handleSettingsChange(event) {
     setNutritionAIRouteFromValue(actionEl instanceof HTMLSelectElement ? actionEl.value : '');
     showNotification('Meal photo model updated.', 'success');
   } else if (action === 'toggle-cli-codex' && actionEl instanceof HTMLInputElement) {
-    void toggleLocalCodex(actionEl.checked);
+    void toggleLocalCodex(actionEl.checked, actionEl.dataset.agent || '');
   }
 }
 

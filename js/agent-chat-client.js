@@ -31,14 +31,14 @@ export function agentHostUpgradeRequiredError(capability) {
     : capability === AGENT_HOST_CAPABILITIES.STRUCTURED_HEALTH_TOOLS
       ? 'the latest Get-based tools'
       : 'this feature';
-  const error = new Error(`The local Codex companion is outdated. Restart it to enable ${feature}.`);
+  const error = new Error(`The local getbased Companion is outdated. Restart it to enable ${feature}.`);
   // @ts-ignore — lightweight browser error classification.
   error.code = 'agent_host_upgrade_required';
   return error;
 }
 
 /**
- * @param {{endpoint: string, token: string, signal?: AbortSignal}} options
+ * @param {{endpoint: string, token: string, agent?: string, signal?: AbortSignal}} options
  */
 export async function checkAgentHost(options) {
   const response = await fetch(endpointUrl(options.endpoint, '/v1/status'), {
@@ -78,10 +78,11 @@ export async function controlAgentHost(options) {
 }
 
 /**
- * @param {{endpoint: string, token: string, signal?: AbortSignal}} options
+ * @param {{endpoint: string, token: string, agent?: string, signal?: AbortSignal}} options
  */
 export async function listAgentModels(options) {
-  const response = await fetch(endpointUrl(options.endpoint, '/v1/models'), {
+  const query = options.agent ? `?agent=${encodeURIComponent(options.agent)}` : '';
+  const response = await fetch(endpointUrl(options.endpoint, `/v1/models${query}`), {
     signal: options.signal,
     cache: 'no-store',
     headers: { Authorization: `Bearer ${options.token}` },
@@ -120,6 +121,7 @@ export async function uploadAgentImage(options) {
  * @param {{
  *   endpoint: string,
  *   token: string,
+ *   agent?: string,
  *   prompt: string,
  *   threadId?: string,
  *   model?: string,
@@ -143,6 +145,7 @@ export async function streamAgentTurn(options) {
     headers,
     body: JSON.stringify({
       prompt: options.prompt,
+      agent: options.agent || undefined,
       threadId: options.threadId || undefined,
       model: options.model || undefined,
       effort: options.effort || undefined,
@@ -164,7 +167,7 @@ export async function streamAgentTurn(options) {
   let buffer = '';
   let text = '';
   let threadId = options.threadId || '';
-  let model = options.model || 'Codex';
+  let model = options.model || 'CLI agent';
   let finishReason = '';
   let usage;
   const toolCalls = [];
@@ -185,7 +188,7 @@ export async function streamAgentTurn(options) {
     } else if (event?.type === 'usage') {
       usage = { inputTokens: Number(event.inputTokens || 0), outputTokens: Number(event.outputTokens || 0) };
     } else if (event?.type === 'tool_call') {
-      if (!options.toolRuntime) throw new Error('Codex requested a tool that is not available for this feature.');
+      if (!options.toolRuntime) throw new Error('The CLI agent requested a tool that is not available for this feature.');
       toolCalls.push({ tool: String(event.tool || ''), arguments: event.arguments });
       const result = await options.toolRuntime.execute({
         tool: event.tool,
@@ -199,7 +202,7 @@ export async function streamAgentTurn(options) {
     } else if (event?.type === 'done') {
       finishReason = String(event.finishReason || 'stop');
     } else if (event?.type === 'error') {
-      throw new Error(String(event.message || 'Codex response failed.'));
+      throw new Error(String(event.message || 'CLI agent response failed.'));
     }
   };
 
@@ -217,6 +220,6 @@ export async function streamAgentTurn(options) {
   }
   const finalLine = `${buffer}${decoder.decode()}`.trim();
   if (finalLine) await processEvent(JSON.parse(finalLine));
-  if (!finishReason) throw new Error('Agent Host disconnected before Codex completed the response.');
+  if (!finishReason) throw new Error('The companion disconnected before the CLI agent completed the response.');
   return { text, threadId, model, finishReason, usage, toolCalls, webSearches };
 }

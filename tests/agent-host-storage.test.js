@@ -46,4 +46,15 @@ describe('Agent Host storage', () => {
       env: { CODEX_HOME: sourceCodexHome, GETBASED_AGENT_HOST_DATA_DIR: 'relative/path' },
     })).toThrow('absolute path');
   });
+
+  it('can prepare companion state when only a non-Codex CLI is used', () => {
+    const { sourceCodexHome, dataDirectory } = fixture();
+    const result = prepareAgentHostStorage({
+      env: { CODEX_HOME: sourceCodexHome, GETBASED_AGENT_HOST_DATA_DIR: dataDirectory },
+      requireCodexAuth: false,
+      randomToken: () => 'non-codex-pairing-token',
+    });
+    expect(result.codexAuthenticated).toBe(false);
+    expect(result.token).toBe('non-codex-pairing-token');
+  });
 });

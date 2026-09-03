@@ -6,12 +6,15 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CodexAppServerClient } from '../lib/codex-app-server-client.js';
+import { ACPAgentClient } from '../lib/acp-agent-client.js';
+import { ClaudeAgentClient } from '../lib/claude-agent-client.js';
 import { createAgentHostService } from '../lib/agent-host-service.js';
 import {
   buildIsolatedCodexArgs, buildIsolatedCodexEnvironment,
 } from '../lib/codex-agent-isolation.js';
 import { prepareAgentHostStorage } from '../lib/agent-host-storage.js';
 import { createCompanionRuntimeController } from '../lib/companion-runtime-control.js';
+import { buildLocalAgentEnvironment, detectLocalAgents } from '../lib/local-agent-registry.js';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 
@@ -31,7 +34,7 @@ const allowedOrigins = String(process.env.GETBASED_AGENT_HOST_ALLOWED_ORIGINS ||
 const workspaceRoot = mkdtempSync(join(tmpdir(), 'getbased-agent-'));
 let agentStorage;
 try {
-  agentStorage = prepareAgentHostStorage();
+  agentStorage = prepareAgentHostStorage({ requireCodexAuth: false });
 } catch (error) {
   rmSync(workspaceRoot, { recursive: true, force: true });
   const message = error instanceof Error ? error.message : 'unknown error';
@@ -39,27 +42,58 @@ try {
   process.exit(1);
 }
 const { codexHome, token } = agentStorage;
-const codexCommand = String(process.env.GETBASED_CODEX_COMMAND || 'codex').trim();
-if (!codexCommand || codexCommand.includes('\0') || /[\r\n]/.test(codexCommand)) {
-  process.stderr.write('GETBASED_CODEX_COMMAND is invalid.\n');
+const detectedAgents = detectLocalAgents();
+const localAgentEnvironment = buildLocalAgentEnvironment(process.env);
+if (!detectedAgents.length) {
+  rmSync(workspaceRoot, { recursive: true, force: true });
+  process.stderr.write('getbased Companion did not find Codex, Claude Code, OpenCode, Hermes, or Grok on PATH.\n');
   process.exit(1);
 }
-const appServer = new CodexAppServerClient({
-  command: codexCommand,
-  cwd: workspaceRoot,
-  args: buildIsolatedCodexArgs(),
-  env: buildIsolatedCodexEnvironment(process.env, codexHome),
+/** @type {CodexAppServerClient | null} */
+let appServer = null;
+const agentAdapters = detectedAgents.map(agent => {
+  let client = null;
+  let status = agent.status;
+  let message = agent.message;
+  if (agent.protocol === 'codex') {
+    if (agentStorage.codexAuthenticated) {
+      appServer = new CodexAppServerClient({
+        command: agent.command, cwd: workspaceRoot, args: buildIsolatedCodexArgs(),
+        env: buildIsolatedCodexEnvironment(process.env, codexHome),
+      });
+      client = appServer;
+    } else {
+      status = 'login_required';
+      message = 'Run `codex login` once, then check the connection again.';
+    }
+  } else if (agent.protocol === 'acp') {
+    client = new ACPAgentClient({
+      id: agent.id, command: agent.command, args: agent.args, cwd: workspaceRoot, env: localAgentEnvironment,
+    });
+  } else if (agent.protocol === 'claude' && status === 'available') {
+    client = new ClaudeAgentClient({ command: agent.command, cwd: workspaceRoot, env: localAgentEnvironment });
+  }
+  return { ...agent, status, message, client };
 });
 const invokedPath = resolve(process.argv[1] || '');
 const bundlePath = invokedPath.endsWith('getbased-companion.mjs')
   ? invokedPath
   : fileURLToPath(new URL('../getbased-companion.mjs', import.meta.url));
+const bridgePath = invokedPath.endsWith('getbased-companion.mjs')
+  ? invokedPath
+  : fileURLToPath(new URL('../bin/getbased-companion.js', import.meta.url));
+const runtimeClients = agentAdapters.map(agent => agent.client).filter(Boolean);
 const runtimeController = createCompanionRuntimeController({
-  appServer,
+  appServer: {
+    async restart() { await Promise.all(runtimeClients.map(client => client.restart?.())); },
+    async initialize() {},
+  },
   bundlePath,
 });
 const service = createAgentHostService({
   appServer,
+  agents: agentAdapters,
+  bundlePath: bridgePath,
   token,
   workspaceRoot,
   allowedOrigins,
@@ -148,7 +182,7 @@ let shutdownPromise;
 async function shutdown() {
   if (!shutdownPromise) shutdownPromise = (async () => {
     if (server.listening) await new Promise(resolve => server.close(() => resolve()));
-    await appServer.close();
+    await Promise.all(runtimeClients.map(client => client.close?.()));
     rmSync(workspaceRoot, { recursive: true, force: true });
   })();
   return shutdownPromise;

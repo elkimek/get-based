@@ -4,7 +4,7 @@
     "startupJavaScriptFiles": 2,
     "startupDecodedBytes": 1192000,
     "outputJavaScriptFiles": 158,
-    "outputDecodedBytes": 5095000
+    "outputDecodedBytes": 5125000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -50,7 +50,8 @@
     "capabilityAwareAgentVisionStartupDecodedBytes": 1185123,
     "capabilityAwareAgentVisionOutputDecodedBytes": 5057427,
     "structuredCliAgentToolsStartupDecodedBytes": 1190453,
-    "structuredCliAgentToolsOutputDecodedBytes": 5090965
+    "structuredCliAgentToolsOutputDecodedBytes": 5090965,
+    "multiCliAgentAdaptersOutputDecodedBytes": 5100001
   },
   "referenceCommit": "331112b1",
   "measuredAt": "2026-09-03"

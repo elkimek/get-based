@@ -453,7 +453,7 @@ export async function sendChatMessage() {
       const footnote = document.createElement('div');
       footnote.className = 'chat-cost-footnote';
       const webTag = aiResult.webSearches?.length ? ' · 🌐 web' : '';
-      footnote.textContent = `${_msgModelDisplay} · Codex subscription${webTag}`;
+      footnote.textContent = `${_msgModelDisplay} · CLI subscription${webTag}`;
       aiMsgEl.appendChild(footnote);
     }
 

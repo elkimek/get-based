@@ -14,19 +14,20 @@ inference servers such as Ollama, LM Studio, and Jan. “Agent Access” remains
 separate inbound feature for agents that query Get-based through the encrypted
 Evolu relay.
 
-The first agent target is Codex through `codex app-server`. Its JSON-RPC
-protocol supplies thread lifecycle, streamed agent events, dynamic tool calls,
-and approval requests. The loopback host supplies origin checks and pairing
-authentication. Other agent runtimes can be added behind the same
-companion contract. External MCP clients continue to use the same Get-based
-tool semantics through `getbased-agent-stack`.
+Codex connects through `codex app-server`. OpenCode, Hermes, and Grok share a
+standards-based Agent Client Protocol (ACP) adapter. Claude Code connects
+through its non-interactive `stream-json` interface. The loopback host
+normalizes their sessions, model catalogs, streamed events, cancellation, and
+tool calls behind one browser contract. External MCP clients continue to use
+the same getbased tool semantics through `getbased-agent-stack`.
 
 ```text
 Get-based PWA
   ├─ direct-model backend ───────────────> existing AI providers
   └─ local-agent backend ── loopback ───> getbased-agent-host
                                              ├─ Codex app-server (stdio)
-                                             └─ future agent adapters
+                                             ├─ ACP: OpenCode, Hermes, Grok
+                                             └─ Claude Code stream-json
 
 Get-based data authority
   └─ agent tool runtime
@@ -62,9 +63,10 @@ browser binds it to Get-based data through `js/agent-tool-bindings.js`:
 | `getbased_draft_biometric` | draft | Proposes a weight, blood-pressure, or resting-pulse entry. |
 | `getbased_draft_supplement` | draft | Proposes a supplement or medication entry. |
 
-The catalog can be rendered as Codex app-server `dynamicTools`; calls are
-answered using its `{ success, contentItems }` response shape. An MCP adapter
-can expose the same definitions and call behavior. Tool handlers receive
+The catalog is rendered as Codex app-server `dynamicTools` or as a private,
+per-session stdio MCP server for ACP and Claude Code. MCP calls cross an
+unpublished loopback route protected by a random session credential, then use
+the same browser approval loop. Tool handlers receive
 injected dependencies rather than arbitrary DOM, storage, database, or network
 access. The contract has no profile selector: every call is bound to the
 profile active when the turn starts.
@@ -118,12 +120,12 @@ action inside Get-based crosses the persistence boundary.
 
 ## Current development workflow
 
-1. Install and sign in to Codex CLI on the machine running Get-based.
+1. Install and sign in to Codex, Claude Code, OpenCode, Hermes, or Grok on the machine running getbased.
 2. From the repository, run the normal `npm run dev-server` command.
-3. Open **Settings → AI → CLI agents** and enable **Codex**. Get-based detects
+3. Open **Settings → AI → CLI agents** and enable a ready agent. getbased detects
    the CLI, starts its local bridge, and reuses its existing sign-in.
 
-The Codex row reads the CLI model catalog and lets the user choose the model
+The selected row reads that CLI's model catalog and lets the user choose the model
 and supported reasoning effort without leaving Get-based. Transport URLs and
 pairing credentials are intentionally not part of the normal user interface.
 The standalone `npm run agent-host` command and its environment variables
@@ -147,8 +149,8 @@ cannot start a missing operating-system process.
 
 Temporary mode writes only the downloaded bundle to the operating system's
 temporary directory and stops when its terminal closes. Installed mode copies
-the bundle into user-owned application data and records absolute Node, Codex,
-and Codex-auth paths so it does not depend on an interactive shell PATH. Linux
+the bundle into user-owned application data and records absolute Node and
+detected-agent paths so it does not depend on an interactive shell PATH. Linux
 uses a systemd user service, macOS uses `~/Library/LaunchAgents`, and Windows
 uses a least-privilege current-user scheduled task with a hidden WScript
 launcher. No root/administrator access, desktop package, or platform signing is
@@ -173,7 +175,7 @@ later without changing the health-data or agent boundaries.
 
 After installation, the service starts at login and the hosted PWA discovers
 it through the same origin-gated loopback protocol. Authenticated Settings
-controls can pause or resume new AI work, restart only the Codex subprocess,
+controls can pause or resume new AI work, restart agent subprocesses,
 register automatic startup, update the installed bundle from the active
 getbased HTTPS origin, and remove automatic startup. Destructive lifecycle
 actions are rejected while an agent turn is active. Updates are bounded and
@@ -241,13 +243,13 @@ Get-based's proposal-card approval boundary.
 The selected CLI agent now participates in chat and supported product features
 through one capability-aware dispatcher:
 
-| Get-based capability | Codex CLI today | Remaining boundary |
+| getbased capability | CLI agents today | Remaining boundary |
 | --- | --- | --- |
 | Text chat over approved profile context | Yes | Add typed queries only when a real product need appears. |
-| Hosted web research | Codex cached search; activity is recorded on the answer | Add an explicit user control and richer activity display. |
-| Model and reasoning selection | Yes | Implement adapter-specific catalogs for other CLIs. |
-| Lab PDF/photo import | Yes, with a vision-capable selected model and existing review-before-save | Keep the extraction schema provider-neutral. |
-| Meal-photo and nutrition-label analysis | Yes, with a vision-capable selected model and normal review-before-save | Extend the capability router to other CLI adapters. |
+| Hosted web research | Agent-dependent; normalized activity is recorded when the protocol reports it | Add an explicit user control and richer activity display. |
+| Model and reasoning selection | Codex and ACP catalogs; Claude Code aliases and effort levels | Keep catalogs capability-driven as CLIs evolve. |
+| Lab PDF/photo import | Yes when the selected adapter/model declares image input, with existing review-before-save | Keep the extraction schema provider-neutral. |
+| Meal-photo and nutrition-label analysis | Yes when the selected adapter/model declares image input, with normal review-before-save | Verify new adapter modalities before routing. |
 | Context cards, marker explanations, biology scores, supplements, EMF, light/sun, reports, summaries, and Lens query rewriting | Yes | Preserve feature-specific schemas and consent labels. |
 | Knowledge Base search and bounded health queries | Yes, through active-profile tools | Add only privacy-preserving aggregate queries. |
 | Navigation | Yes, for allowlisted views and marker detail | Add destinations deliberately rather than exposing generic UI control. |
@@ -256,7 +258,7 @@ through one capability-aware dispatcher:
 
 Raw DOM control, raw IndexedDB access, arbitrary record updates, credentials,
 and shell access remain outside the contract. **Follow chat assistant** resolves
-to the selected Codex model for feature-model labels and capability checks; it
+to the selected CLI model for feature-model labels and capability checks; it
 does not silently fall back to the previously selected direct provider. Global
 **Pause AI** pauses both direct-provider and CLI-agent routes.
 
@@ -269,14 +271,13 @@ only capabilities an adapter reports.
 
 - **Codex:** app-server supplies account status and ChatGPT login, model and
   reasoning catalogs, threads, streamed events, and dynamic tools.
-- **OpenCode:** detection is implemented, but selection remains disabled until
-  a constrained adapter can supply the same tool contract through an isolated
-  MCP/session bridge. Use its machine-readable session and model APIs rather
-  than scraping terminal output.
-- **Claude Code:** reuse an installed authenticated CLI initially; add an
-  embedded sign-in only if Anthropic exposes a supported third-party client
-  flow for that adapter.
-- **Hermes / Grok:** detection is informational. Each needs an isolated MCP
-  bridge, model/reasoning catalog, streaming normalization, and the same denial
-  of shell/file/browser capabilities before it can be selected. Detection alone
-  must not imply compatibility.
+- **OpenCode / Hermes / Grok:** one ACP v1 transport handles initialization,
+  model/reasoning options, resumable sessions, streaming, declared image
+  support, cancellation, and the private getbased MCP server. Client terminal
+  and filesystem capabilities are not advertised; permission requests are
+  denied.
+- **Claude Code:** the adapter uses `--print` with `stream-json`, restricted
+  mode, no interactive permissions, an exact MCP configuration, resumable
+  sessions, model aliases, reasoning effort, images, and JSON Schema output.
+  Authentication remains owned by the official CLI; getbased reports
+  “sign-in required” rather than pretending an installed binary is ready.

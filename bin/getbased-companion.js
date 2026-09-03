@@ -6,6 +6,7 @@ import { resolve } from 'node:path';
 import {
   companionPlatformName, installCompanion, runCompanionServiceCommand, uninstallCompanion,
 } from '../lib/companion-install.js';
+import { runAgentMCPBridge } from '../lib/agent-mcp-bridge.js';
 
 const HELP = `getbased Companion
 
@@ -22,6 +23,10 @@ Usage:
 /** @param {string[]} args @param {{bundlePath?: string}} [options] */
 export async function main(args, options = {}) {
   const command = args[0] || 'help';
+  if (command === 'mcp-bridge') {
+    await runAgentMCPBridge();
+    return;
+  }
   if (command === 'help' || command === '--help' || command === '-h') {
     process.stdout.write(HELP);
     return;

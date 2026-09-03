@@ -170,6 +170,42 @@ describe('agent host service', () => {
     }] });
   });
 
+  it('routes model discovery and streaming turns through an ACP agent', async () => {
+    const acp = {
+      getModelCatalog: vi.fn(async () => [{
+        id: 'open-model', model: 'open-model', displayName: 'Open Model', isDefault: true,
+        inputModalities: ['text'], supportedReasoningEfforts: [],
+      }]),
+      ensureSession: vi.fn(async () => ({ sessionId: 'acp/session:1', configOptions: [] })),
+      configureSession: vi.fn(async () => []),
+      prompt: vi.fn(async options => {
+        options.onNotification({ params: { sessionId: options.sessionId, update: {
+          sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'From OpenCode' },
+        } } });
+        return { stopReason: 'end_turn' };
+      }),
+    };
+    const service = createAgentHostService({
+      appServer: null, token: TOKEN, workspaceRoot: '/tmp/agent-test', bundlePath: '/tmp/getbased-companion.mjs',
+      agents: [{ id: 'opencode', name: 'OpenCode', description: 'Agent', protocol: 'acp', client: acp }],
+    });
+    const models = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/models?agent=opencode', {
+      headers: { Authorization: `Bearer ${TOKEN}`, Origin: 'http://127.0.0.1:8000' },
+    }));
+    expect(await models.json()).toMatchObject({ models: [expect.objectContaining({ id: 'open-model' })] });
+
+    const response = await service.handleRequest(turnRequest({ agent: 'opencode', model: 'open-model' }));
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    const buffer = { value: '' };
+    const session = await nextEvent(reader, decoder, buffer);
+    expect(session).toMatchObject({ type: 'session', model: 'open-model' });
+    expect(session.threadId).toMatch(/^v2\.opencode\./);
+    expect(await nextEvent(reader, decoder, buffer)).toEqual({ type: 'text_delta', delta: 'From OpenCode' });
+    expect(await nextEvent(reader, decoder, buffer)).toEqual({ type: 'done', finishReason: 'end_turn' });
+    expect(acp.ensureSession.mock.calls[0][0].mcpServers[0]).toMatchObject({ name: 'getbased', command: process.execPath });
+  });
+
   it('pauses and resumes new AI work through the authenticated control endpoint', async () => {
     const appServer = new FakeAppServer();
     const service = createAgentHostService({

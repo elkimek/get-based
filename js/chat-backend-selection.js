@@ -2,7 +2,7 @@
 
 import { getActiveModelDisplay, hasAIProvider, isAIPaused } from './api.js';
 import {
-  connectDetectedCodex, discoverLocalChatAgents, getAgentHostModel, getChatBackend, hasAgentChatConnection, setChatBackend,
+  connectDetectedCodex, discoverLocalChatAgents, getAgentHostAgent, getAgentHostModel, getChatBackend, hasAgentChatConnection, setChatBackend,
 } from './agent-chat-settings.js';
 import { state } from './state.js';
 
@@ -21,7 +21,8 @@ export function hasChatResponseBackend() {
 export function getChatBackendDisplay() {
   if (!isCodexChatBackend()) return hasAIProvider() ? getActiveModelDisplay() : '';
   const thread = state.chatThreads.find(item => item.id === state.currentThreadId);
-  return getAgentHostModel() || thread?.agentModel || 'Codex';
+  const fallback = ({ codex: 'Codex', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes', grok: 'Grok' })[getAgentHostAgent()] || 'CLI agent';
+  return getAgentHostModel() || thread?.agentModel || fallback;
 }
 
 export function refreshChatBackendControl() {
@@ -54,13 +55,12 @@ export async function refreshLocalAgentAvailability(force = false) {
   }
   dot.className = 'chat-agent-status-dot is-checking';
   const agents = await localAgentAvailabilityRequest;
-  const codex = agents.find(agent => agent.id === 'codex' && agent.compatible);
-  option.disabled = !codex;
-  option.textContent = codex ? 'Codex' : 'Codex · not found';
-  dot.className = `chat-agent-status-dot ${codex?.status === 'available' ? 'is-ready' : codex ? 'is-starting' : 'is-unavailable'}`;
-  dot.title = codex?.status === 'available'
-    ? 'Codex is ready'
-    : codex ? 'Codex is starting' : 'Codex CLI was not found';
+  const selected = agents.find(agent => agent.id === getAgentHostAgent() && agent.compatible);
+  const ready = selected?.status === 'available';
+  option.disabled = !ready;
+  option.textContent = selected ? `${selected.name}${ready ? '' : ' · unavailable'}` : 'CLI agent · not found';
+  dot.className = `chat-agent-status-dot ${ready ? 'is-ready' : selected ? 'is-starting' : 'is-unavailable'}`;
+  dot.title = ready ? `${selected.name} is ready` : selected?.message || 'The selected CLI agent is unavailable';
 }
 
 /** @param {unknown} value */

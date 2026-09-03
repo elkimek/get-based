@@ -117,10 +117,10 @@ export async function setChatBackendFromUI(value) {
     try {
       await connectDetectedCodex();
       persistChatBackend('codex');
-      showNotification('Codex selected for chat', 'success');
+      showNotification('CLI agent selected for chat', 'success');
     } catch (error) {
       persistChatBackend('direct');
-      showNotification(error instanceof Error ? error.message : 'Codex could not connect.', 'error', 9000);
+      showNotification(error instanceof Error ? error.message : 'CLI agent could not connect.', 'error', 9000);
     } finally {
       if (select) select.disabled = false;
       await refreshLocalAgentAvailability(true);

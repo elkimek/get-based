@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 734 |
-| Internal import edges | 3118 |
+| Modules | 739 |
+| Internal import edges | 3126 |
 | Dynamic internal edges | 103 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1440,10 +1440,24 @@ Standalone Node compatibility-relay entry point.
 
 Node-only policy and transport code shared by hosted runtimes.
 
-<details><summary><code>agent</code> family — 2 modules</summary>
+<details><summary><code>acp</code> family — 1 module</summary>
 
-- [`lib/agent-host-service.js`](lib/agent-host-service.js) → [`shared/agent-host-protocol.js`](shared/agent-host-protocol.js), [`shared/agent-tool-contract.js`](shared/agent-tool-contract.js)
+- [`lib/acp-agent-client.js`](lib/acp-agent-client.js) → no in-scope imports
+
+</details>
+
+<details><summary><code>agent</code> family — 4 modules</summary>
+
+- [`lib/agent-host-external-turn.js`](lib/agent-host-external-turn.js) → no in-scope imports
+- [`lib/agent-host-service.js`](lib/agent-host-service.js) → [`lib/agent-host-external-turn.js`](lib/agent-host-external-turn.js), [`shared/agent-host-protocol.js`](shared/agent-host-protocol.js), [`shared/agent-tool-contract.js`](shared/agent-tool-contract.js)
 - [`lib/agent-host-storage.js`](lib/agent-host-storage.js) → no in-scope imports
+- [`lib/agent-mcp-bridge.js`](lib/agent-mcp-bridge.js) → no in-scope imports
+
+</details>
+
+<details><summary><code>claude</code> family — 1 module</summary>
+
+- [`lib/claude-agent-client.js`](lib/claude-agent-client.js) → no in-scope imports
 
 </details>
 
@@ -1478,13 +1492,19 @@ Node-only policy and transport code shared by hosted runtimes.
 
 <details><summary><code>linux</code> family — 1 module</summary>
 
-- [`lib/linux-companion-install.js`](lib/linux-companion-install.js) → no in-scope imports
+- [`lib/linux-companion-install.js`](lib/linux-companion-install.js) → [`lib/local-agent-registry.js`](lib/local-agent-registry.js)
+
+</details>
+
+<details><summary><code>local</code> family — 1 module</summary>
+
+- [`lib/local-agent-registry.js`](lib/local-agent-registry.js) → no in-scope imports
 
 </details>
 
 <details><summary><code>macos</code> family — 1 module</summary>
 
-- [`lib/macos-companion-install.js`](lib/macos-companion-install.js) → [`lib/linux-companion-install.js`](lib/linux-companion-install.js)
+- [`lib/macos-companion-install.js`](lib/macos-companion-install.js) → [`lib/linux-companion-install.js`](lib/linux-companion-install.js), [`lib/local-agent-registry.js`](lib/local-agent-registry.js)
 
 </details>
 
@@ -1514,7 +1534,7 @@ Node-only policy and transport code shared by hosted runtimes.
 
 <details><summary><code>windows</code> family — 1 module</summary>
 
-- [`lib/windows-companion-install.js`](lib/windows-companion-install.js) → no in-scope imports
+- [`lib/windows-companion-install.js`](lib/windows-companion-install.js) → [`lib/local-agent-registry.js`](lib/local-agent-registry.js)
 
 </details>
 
@@ -1544,7 +1564,7 @@ Standalone loopback companion for installed CLI agents.
 
 <details><summary><code>agent</code> family — 1 module</summary>
 
-- [`server/agent-host-server.js`](server/agent-host-server.js) → [`lib/agent-host-service.js`](lib/agent-host-service.js), [`lib/agent-host-storage.js`](lib/agent-host-storage.js), [`lib/codex-agent-isolation.js`](lib/codex-agent-isolation.js), [`lib/codex-app-server-client.js`](lib/codex-app-server-client.js), [`lib/companion-runtime-control.js`](lib/companion-runtime-control.js)
+- [`server/agent-host-server.js`](server/agent-host-server.js) → [`lib/acp-agent-client.js`](lib/acp-agent-client.js), [`lib/agent-host-service.js`](lib/agent-host-service.js), [`lib/agent-host-storage.js`](lib/agent-host-storage.js), [`lib/claude-agent-client.js`](lib/claude-agent-client.js), [`lib/codex-agent-isolation.js`](lib/codex-agent-isolation.js), [`lib/codex-app-server-client.js`](lib/codex-app-server-client.js), [`lib/companion-runtime-control.js`](lib/companion-runtime-control.js), [`lib/local-agent-registry.js`](lib/local-agent-registry.js)
 
 </details>
 
@@ -1554,7 +1574,7 @@ Install and control the Linux user-level agent companion.
 
 <details><summary><code>getbased</code> family — 1 module</summary>
 
-- [`bin/getbased-companion.js`](bin/getbased-companion.js) → [`lib/companion-install.js`](lib/companion-install.js), [`server/agent-host-server.js`](server/agent-host-server.js) *(dynamic)*
+- [`bin/getbased-companion.js`](bin/getbased-companion.js) → [`lib/agent-mcp-bridge.js`](lib/agent-mcp-bridge.js), [`lib/companion-install.js`](lib/companion-install.js), [`server/agent-host-server.js`](server/agent-host-server.js) *(dynamic)*
 
 </details>
 

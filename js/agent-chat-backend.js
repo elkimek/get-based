@@ -3,7 +3,7 @@
 import { createAgentToolRuntime, getCodexDynamicTools } from './agent-tool-runtime.js';
 import { streamAgentTurn, uploadAgentImage } from './agent-chat-client.js';
 import {
-  connectDetectedCodex, getAgentHostEffort, getAgentHostEndpoint, getAgentHostModel, getAgentHostToken,
+  connectDetectedCodex, getAgentHostAgent, getAgentHostEffort, getAgentHostEndpoint, getAgentHostModel, getAgentHostToken,
 } from './agent-chat-settings.js';
 import { getAssistantExecutionRoute } from './ai-execution-routing.js';
 import { AGENT_HOST_CAPABILITIES } from '../shared/agent-host-protocol.js';
@@ -57,6 +57,7 @@ export async function callCodexAgent(options) {
   const run = threadId => streamAgentTurn({
     endpoint,
     token,
+    agent: getAgentHostAgent(),
     model: getAgentHostModel() || getAssistantExecutionRoute().model,
     effort: getAgentHostEffort(),
     prompt: options.prompt,
@@ -73,7 +74,8 @@ export async function callCodexAgent(options) {
     const result = await run(options.threadId);
     return { ...result, drafts: runtime.getDrafts().map(draft => ({ ...draft, profileId: options.profileId || '' })) };
   } catch (error) {
-    if (!options.threadId || !(error instanceof Error) || !error.message.includes('invalid thread session')) throw error;
+    if (!options.threadId || !(error instanceof Error)
+      || (!error.message.includes('invalid thread session') && !error.message.includes('thread agent mismatch'))) throw error;
     const result = await run(undefined);
     return { ...result, drafts: runtime.getDrafts().map(draft => ({ ...draft, profileId: options.profileId || '' })) };
   }

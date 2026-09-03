@@ -55,7 +55,7 @@ describe('development agent discovery', () => {
     expect(child.kill).toHaveBeenCalledWith('SIGTERM');
   });
 
-  it('lists detected CLIs while only enabling implemented adapters', () => {
+  it('lists detected CLIs and enables implemented adapters', () => {
     const child = fakeChild();
     const versions = new Map([
       ['codex', 'codex-cli 0.150.1'],
@@ -75,7 +75,7 @@ describe('development agent discovery', () => {
     });
 
     expect(controller.describe().agents.map(agent => agent.id)).toEqual(['codex', 'opencode', 'hermes', 'grok']);
-    expect(controller.describe().agents.map(agent => agent.compatible)).toEqual([true, false, false, false]);
+    expect(controller.describe().agents.map(agent => agent.compatible)).toEqual([true, true, true, true]);
   });
 
   it('reuses an authenticated Codex bridge that is already running', async () => {

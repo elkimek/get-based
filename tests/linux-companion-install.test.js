@@ -79,7 +79,7 @@ describe('Linux companion installer', () => {
     ]);
   });
 
-  it('supports a write-free dry run and rejects a missing Codex CLI', () => {
+  it('supports a write-free dry run and rejects a missing supported CLI', () => {
     const setup = fixture();
     const paths = resolveLinuxCompanionPaths(setup);
     const result = installLinuxCompanion({
@@ -94,7 +94,20 @@ describe('Linux companion installer', () => {
       nodePath: process.execPath,
       platform: 'linux',
       dryRun: true,
-    })).toThrow('Codex CLI was not found');
+    })).toThrow('No supported CLI agent was found');
+  });
+
+  it('can install for Claude Code without Codex', () => {
+    const setup = fixture();
+    const claudeCommand = join(setup.root, 'commands', 'claude');
+    writeFileSync(claudeCommand, '#!/bin/sh\nexit 0\n');
+    chmodSync(claudeCommand, 0o755);
+    const result = installLinuxCompanion({
+      ...setup,
+      env: { ...setup.env, GETBASED_CODEX_COMMAND: 'missing-codex', GETBASED_CLAUDE_COMMAND: claudeCommand },
+      nodePath: process.execPath, platform: 'linux', dryRun: true,
+    });
+    expect(result.serviceSource).toContain(`GETBASED_CLAUDE_COMMAND=${claudeCommand}`);
   });
 
   it('uninstalls the exact service runtime while preserving separate pairing state', () => {

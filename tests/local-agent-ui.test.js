@@ -22,7 +22,7 @@ describe('local agent selection UI', () => {
     expect(source).not.toContain('id="agent-chat-endpoint"');
     expect(source).not.toContain('id="agent-chat-token"');
     expect(source).not.toContain('Paste the Agent Host pairing token');
-    expect(source).toContain('hosted web research');
+    expect(source).toContain('hosted research capabilities');
     expect(source).toContain('control-cli-companion');
     expect(source).toContain('copy-cli-companion-run');
     expect(source).toContain('copy-cli-companion-start');

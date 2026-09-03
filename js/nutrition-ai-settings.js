@@ -32,7 +32,7 @@ const PROVIDER_LABELS = Object.freeze({
   routstr: 'Routstr',
   custom: 'Custom API',
   ollama: 'Local AI',
-  codex: 'Codex CLI',
+  codex: 'CLI agent',
 });
 const MODEL_CACHE_KEYS = Object.freeze({
   openrouter: ['labcharts-openrouter-models'],
@@ -230,7 +230,7 @@ function formattedTokenRate(value) {
 }
 
 export function nutritionModelPricing(provider, modelId) {
-  if (provider === 'codex') return { priceLabel: 'Uses Codex subscription', priceScore: 0 };
+  if (provider === 'codex') return { priceLabel: 'Uses CLI subscription', priceScore: 0 };
   if (provider === 'ollama') return { priceLabel: 'Local · no token charge', priceScore: 0 };
   if (provider === 'custom') return { priceLabel: 'Endpoint pricing', priceScore: Number.POSITIVE_INFINITY };
   try {
@@ -409,9 +409,9 @@ export function renderNutritionAISettings() {
     const rows = listCodexExecutionRoutes('image').map(model => {
       const value = routeValue('codex', model.model);
       if (value === selectedValue) savedChoiceRendered = true;
-      return `<option value="${escapeAttr(value)}"${value === selectedValue ? ' selected' : ''}>${escapeHTML(model.modelDisplay)} — Uses Codex subscription</option>`;
+      return `<option value="${escapeAttr(value)}"${value === selectedValue ? ' selected' : ''}>${escapeHTML(model.modelDisplay)} — Uses CLI subscription</option>`;
     }).join('');
-    if (rows) options += `<optgroup label="Codex vision models">${rows}</optgroup>`;
+    if (rows) options += `<optgroup label="CLI agent vision models">${rows}</optgroup>`;
   }
 
   if (hasAIProvider(directProvider)) {

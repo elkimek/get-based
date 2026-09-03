@@ -2,7 +2,7 @@
 // Structured, capability-gated feature inference through a local CLI adapter.
 
 import { streamAgentTurn, uploadAgentImage } from './agent-chat-client.js';
-import { connectDetectedCodex, getAgentHostEndpoint, getAgentHostToken } from './agent-chat-settings.js';
+import { connectDetectedCodex, getAgentHostAgent, getAgentHostEndpoint, getAgentHostToken } from './agent-chat-settings.js';
 import { AGENT_HOST_CAPABILITIES } from '../shared/agent-host-protocol.js';
 
 /**
@@ -33,7 +33,7 @@ export async function callCodexFeature(options) {
   await requireAIProcessingApproval('codex-agent', { kind: options.consentKind || (files.length ? 'meal-photo' : 'text'), modelId: options.model });
   const endpoint = getAgentHostEndpoint();
   const token = getAgentHostToken();
-  if (!token) throw new Error('Codex is not connected.');
+  if (!token) throw new Error('The selected CLI agent is not connected.');
   const imageUploadIds = await Promise.all(files.map(file => uploadAgentImage({
     endpoint,
     token,
@@ -44,6 +44,7 @@ export async function callCodexFeature(options) {
   return streamAgentTurn({
     endpoint,
     token,
+    agent: getAgentHostAgent(),
     model: options.model,
     effort: options.effort || 'low',
     prompt: options.prompt,

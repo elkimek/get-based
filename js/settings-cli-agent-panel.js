@@ -4,9 +4,10 @@
 import { controlAgentHost, listAgentModels } from './agent-chat-client.js';
 import { cacheAgentModelCatalog } from './agent-model-catalog.js';
 import {
-  connectDetectedCodex,
+  connectDetectedAgent,
   discoverLocalChatAgents,
   getAgentHostEffort,
+  getAgentHostAgent,
   getAgentHostEndpoint,
   getAgentHostModel,
   getAgentHostToken,
@@ -20,7 +21,7 @@ import { escapeAttr, escapeHTML, showConfirmDialog, showNotification } from './u
 /** @typedef {{id: string, model: string, displayName: string, isDefault: boolean, defaultReasoningEffort: string, supportedReasoningEfforts: AgentReasoningEffort[], inputModalities?: string[]}} AgentModel */
 
 /** @type {AgentModel[]} */
-let codexModels = [];
+let agentModels = [];
 /** @type {'linux'|'macos'|'windows'|''} */
 let companionPlatformOverride = '';
 
@@ -81,7 +82,7 @@ function renderCompanionSetup() {
         <button type="button" class="import-btn import-btn-primary settings-mini-btn" data-settings-action="copy-cli-companion-run">Copy connection command</button>
       </div>
     </div>
-    <small>Already installed but stopped? <button type="button" class="settings-link-btn" data-settings-action="copy-cli-companion-start" data-command="${escapeAttr(startCommand)}">Copy the start command</button>. Requires Node.js 20+ and <code>codex login</code>. No port or pairing token is needed. <a href="https://github.com/elkimek/get-based/blob/main/bin/getbased-companion.js" target="_blank" rel="noopener">Review the source on GitHub</a>.</small>
+    <small>Already installed but stopped? <button type="button" class="settings-link-btn" data-settings-action="copy-cli-companion-start" data-command="${escapeAttr(startCommand)}">Copy the start command</button>. Requires Node.js 20+ and at least one signed-in supported CLI. No port or pairing token is needed. <a href="https://github.com/elkimek/get-based/blob/main/bin/getbased-companion.js" target="_blank" rel="noopener">Review the source on GitHub</a>.</small>
   </div>`;
 }
 
@@ -114,6 +115,16 @@ export async function copyCLICompanionStartCommand() {
   }
 }
 
+/** @param {string} agentId */
+export async function copyCLIAgentLoginCommand(agentId) {
+  const command = agentId === 'claude' ? 'claude auth login' : agentId === 'codex' ? 'codex login' : '';
+  if (!command) return;
+  try {
+    await navigator.clipboard.writeText(command);
+    showNotification(`${agentId === 'claude' ? 'Claude Code' : 'Codex'} sign-in command copied`, 'success');
+  } catch { showNotification('Could not access the clipboard', 'error'); }
+}
+
 export function renderCLIAgentProviderPanel() {
   queueMicrotask(() => { void refreshDetectedAgentList(); });
   return `
@@ -133,7 +144,7 @@ export function renderCLIAgentProviderPanel() {
       <div id="local-agent-status" class="sr-only" role="status" aria-live="polite"></div>
       <details class="local-agent-details">
         <summary>How CLI agents work</summary>
-        <p>getbased uses a local companion and the agent&rsquo;s existing sign-in. Connection details stay hidden. Agents receive health data only through getbased&rsquo;s approved tools. Codex may combine those tools with hosted web research in chat; shell, files, browser control, plugins, and other local capabilities stay off. Focused feature jobs such as imports run without tools or web search.</p>
+        <p>getbased uses a local companion and the selected agent&rsquo;s existing sign-in. Connection details stay hidden. Agents receive health data only through getbased&rsquo;s approved tools. An agent may use its own hosted research capabilities in chat; permission prompts, shell, local files, browser control, plugins, and other computer capabilities stay off. Focused feature jobs such as imports receive no getbased tools.</p>
       </details>
     </div>`;
 }
@@ -166,7 +177,7 @@ function renderAgentPicker(config) {
 }
 
 /** @param {AgentModel[]} models */
-function renderCodexModelControls(models) {
+function renderAgentModelControls(models) {
   const selectedModel = getAgentHostModel();
   const selectedEffort = getAgentHostEffort();
   const current = selectedModelEntry(models, selectedModel);
@@ -193,23 +204,25 @@ function renderCodexModelControls(models) {
   return `<div class="local-agent-options">
     <div class="local-agent-option-field">${renderAgentPicker({ id: 'cli-agent-model', label: 'Model', value: selectedModel, options: modelOptions, action: 'set-cli-agent-model' })}</div>
     <div class="local-agent-option-field">${renderAgentPicker({ id: 'cli-agent-effort', label: 'Reasoning effort', value: selectedEffort, options: effortOptions, action: 'set-cli-agent-effort', disabled: !efforts.length })}</div>
-    <small>Synced from the Codex CLI model catalog.</small>
+    <small>Synced from ${escapeHTML(({ codex: 'Codex CLI', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes Agent', grok: 'Grok Build' })[getAgentHostAgent()] || 'the selected CLI')}.</small>
   </div>`;
 }
 
 /** @param {{id: string, name: string, description: string, version: string, status: string, compatible: boolean, message: string, paused?: boolean, runtimeMode?: string, companionVersion?: string}} agent */
 function renderDetectedAgent(agent) {
-  const isCodex = agent.id === 'codex';
-  const selected = isCodex && getChatBackend() === 'codex';
+  const selected = agent.id === getAgentHostAgent() && getChatBackend() === 'codex';
   const isReady = agent.status === 'available';
   const isPaused = agent.status === 'paused' || agent.paused === true;
   const isReachable = isReady || isPaused;
-  const statusLabel = isCodex
-    ? (isReady ? 'Connected · companion running' : isPaused ? 'Connected · companion paused' : agent.status === 'starting' ? 'Companion starting…' : 'Installed · companion not running')
-    : 'Installed · adapter not supported yet';
-  const initials = agent.id === 'opencode' ? 'OC' : agent.id === 'hermes' ? 'H' : agent.id === 'grok' ? 'G' : '✦';
+  const statusLabel = isReady ? 'Ready · companion running'
+    : isPaused ? 'Companion paused'
+      : agent.status === 'starting' ? 'Companion starting…'
+        : agent.status === 'login_required' ? (agent.message || 'Installed · sign-in required')
+          : agent.compatible ? 'Installed · companion not running' : 'Installed · adapter unavailable';
+  const initials = agent.id === 'opencode' ? 'OC' : agent.id === 'hermes' ? 'H'
+    : agent.id === 'grok' ? 'G' : agent.id === 'claude' ? 'A' : '✦';
   return `
-    <div class="local-agent-row${isCodex ? ' local-agent-row-compatible' : ''}">
+    <div class="local-agent-row${agent.compatible ? ' local-agent-row-compatible' : ''}">
       <div class="local-agent-row-main">
         <div class="local-agent-icon local-agent-icon-${escapeHTML(agent.id)}" aria-hidden="true">${initials}</div>
         <div class="local-agent-copy">
@@ -217,15 +230,17 @@ function renderDetectedAgent(agent) {
           <div class="local-agent-meta">${escapeHTML(agent.description || '')}${agent.version ? ` · ${escapeHTML(agent.version)}` : ''}</div>
           <div class="local-agent-state"><span class="local-agent-dot ${isReady ? 'is-ready' : ''}"></span>${escapeHTML(statusLabel)}</div>
         </div>
-        ${isCodex ? `
-          <button class="import-btn import-btn-secondary settings-mini-btn local-agent-test" data-settings-action="test-cli-codex"${isReady ? '' : ` disabled title="${isPaused ? 'Resume the companion first' : 'Start the companion first'}"`}>Test</button>
-          <label class="chat-websearch-toggle-label sync-settings-toggle local-agent-toggle" aria-label="Use Codex in getbased">
-            <input type="checkbox" data-settings-action="toggle-cli-codex"${selected ? ' checked' : ''}${isReady ? '' : ' disabled'}>
+        ${agent.status === 'login_required' && ['codex', 'claude'].includes(agent.id)
+    ? `<button class="import-btn import-btn-secondary settings-mini-btn local-agent-test" data-settings-action="copy-cli-agent-login" data-value="${escapeAttr(agent.id)}">Copy sign-in command</button>` : ''}
+        ${agent.compatible ? `
+          <button class="import-btn import-btn-secondary settings-mini-btn local-agent-test" data-settings-action="test-cli-codex" data-value="${escapeAttr(agent.id)}"${isReady ? '' : ` disabled title="${isPaused ? 'Resume the companion first' : agent.status === 'login_required' ? 'Sign in to this CLI first' : 'Start the companion first'}"`}>Test</button>
+          <label class="chat-websearch-toggle-label sync-settings-toggle local-agent-toggle" aria-label="Use ${escapeAttr(agent.name)} in getbased">
+            <input type="checkbox" data-settings-action="toggle-cli-codex" data-agent="${escapeAttr(agent.id)}"${selected ? ' checked' : ''}${isReady ? '' : ' disabled'}>
             <span class="chat-toggle-slider sync-settings-toggle-slider"></span>
           </label>` : ''}
       </div>
-      ${isCodex && isReachable ? renderCompanionControls(agent) : ''}
-      ${selected && isReady ? '<div id="cli-agent-options" class="local-agent-options-loading">Loading Codex models…</div>' : ''}
+      ${agent.id === getAgentHostAgent() && isReachable ? renderCompanionControls(agent) : ''}
+      ${selected && isReady ? `<div id="cli-agent-options" class="local-agent-options-loading">Loading ${escapeHTML(agent.name)} models…</div>` : ''}
     </div>`;
 }
 
@@ -241,7 +256,7 @@ function renderCompanionControls(agent) {
     </div>
     <div class="local-agent-control-actions">
       <button type="button" class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="control-cli-companion" data-value="${paused ? 'resume' : 'pause'}">${paused ? 'Resume' : 'Pause'}</button>
-      <button type="button" class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="control-cli-companion" data-value="restart"${paused ? ' disabled title="Resume the companion first"' : ''}>Restart Codex</button>
+      <button type="button" class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="control-cli-companion" data-value="restart"${paused ? ' disabled title="Resume the companion first"' : ''}>Restart agents</button>
       ${installed
     ? '<button type="button" class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="control-cli-companion" data-value="update">Update</button><button type="button" class="import-btn settings-mini-btn local-agent-danger" data-settings-action="control-cli-companion" data-value="uninstall">Uninstall</button>'
     : '<button type="button" class="import-btn import-btn-primary settings-mini-btn" data-settings-action="control-cli-companion" data-value="install">Start automatically</button>'}
@@ -257,11 +272,10 @@ export async function refreshDetectedAgentList(options = {}) {
   try {
     const agents = await discoverLocalChatAgents({ refresh: options.refresh });
     const agentRows = agents.length ? agents.map(renderDetectedAgent).join('') : '';
-    const companionReady = agents.some(agent => agent.id === 'codex'
-      && agent.compatible && ['available', 'starting', 'paused'].includes(agent.status));
+    const companionReady = agents.some(agent => agent.compatible && ['available', 'starting', 'paused', 'login_required'].includes(agent.status));
     list.innerHTML = `${agentRows}${companionReady ? '' : renderCompanionSetup()}`;
-    if (getChatBackend() === 'codex' && agents.some(agent => agent.id === 'codex' && agent.compatible && agent.status === 'available')) {
-      void hydrateCodexModelControls();
+    if (getChatBackend() === 'codex' && agents.some(agent => agent.id === getAgentHostAgent() && agent.compatible && agent.status === 'available')) {
+      void hydrateAgentModelControls();
     }
   } catch (error) {
     list.innerHTML = '<div class="local-agent-scan-state local-agent-scan-error">CLI detection is unavailable.</div>';
@@ -278,7 +292,7 @@ export async function controlCLICompanion(requestedAction) {
   )) return;
   try {
     const agents = await discoverLocalChatAgents({ refresh: true });
-    const companion = agents.find(agent => agent.id === 'codex' && agent.compatible
+    const companion = agents.find(agent => agent.compatible
       && ['available', 'paused'].includes(agent.status) && agent.endpoint && agent.token);
     if (!companion) throw new Error('The getbased Companion is not running. Use the connection command first.');
     const result = await controlAgentHost({ endpoint: companion.endpoint, token: companion.token, action });
@@ -286,7 +300,7 @@ export async function controlCLICompanion(requestedAction) {
       if (getChatBackend() === 'codex') setChatBackend('direct');
       showNotification('Companion paused. getbased switched to direct AI.', 'success');
     } else if (action === 'resume') showNotification('Companion resumed', 'success');
-    else if (action === 'restart') showNotification('Codex connection restarted', 'success');
+    else if (action === 'restart') showNotification('CLI agent connections restarted', 'success');
     else if (action === 'install') showNotification('Companion will now start automatically at login', 'success', 7000);
     else if (action === 'uninstall') showNotification('Companion removed from automatic startup', 'success', 7000);
     else if (action === 'update') showNotification(result.restartRequired
@@ -299,39 +313,43 @@ export async function controlCLICompanion(requestedAction) {
   }
 }
 
-async function hydrateCodexModelControls() {
+async function hydrateAgentModelControls() {
   const options = document.getElementById('cli-agent-options');
   if (!options) return;
   try {
-    await connectDetectedCodex();
-    codexModels = cacheAgentModelCatalog(await listAgentModels({
+    const agent = getAgentHostAgent();
+    await connectDetectedAgent(agent);
+    agentModels = cacheAgentModelCatalog(await listAgentModels({
       endpoint: getAgentHostEndpoint(),
       token: getAgentHostToken(),
+      agent,
     }));
-    if (options.isConnected) options.innerHTML = renderCodexModelControls(codexModels);
+    if (options.isConnected) options.innerHTML = renderAgentModelControls(agentModels);
   } catch (error) {
-    if (options.isConnected) options.innerHTML = '<div class="local-agent-scan-state local-agent-scan-error">Could not load the Codex model catalog.</div>';
-    console.warn('[agent-chat] Codex model discovery failed', error);
+    if (options.isConnected) options.innerHTML = '<div class="local-agent-scan-state local-agent-scan-error">Could not load this CLI&rsquo;s model catalog. Check its sign-in, then try again.</div>';
+    console.warn('[agent-chat] CLI model discovery failed', error);
   }
 }
 
-export async function testLocalCodex() {
+export async function testLocalCodex(agentId = getAgentHostAgent()) {
+  agentId ||= getAgentHostAgent();
   const status = document.getElementById('local-agent-status');
-  if (status) status.textContent = 'Testing Codex…';
+  if (status) status.textContent = 'Testing CLI agent…';
   try {
-    await connectDetectedCodex();
-    await listAgentModels({ endpoint: getAgentHostEndpoint(), token: getAgentHostToken() });
-    if (status) status.textContent = 'Codex is ready.';
-    showNotification('Codex is ready', 'success');
+    await connectDetectedAgent(agentId);
+    await listAgentModels({ endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent: agentId });
+    if (status) status.textContent = 'CLI agent is ready.';
+    showNotification('CLI agent is ready', 'success');
     await refreshDetectedAgentList();
   } catch (error) {
-    if (status) status.textContent = 'Codex could not connect.';
-    showNotification(error instanceof Error ? error.message : 'Codex could not connect.', 'error', 9000);
+    if (status) status.textContent = 'CLI agent could not connect.';
+    showNotification(error instanceof Error ? error.message : 'CLI agent could not connect.', 'error', 9000);
   }
 }
 
 /** @param {boolean} enabled */
-export async function toggleLocalCodex(enabled) {
+export async function toggleLocalCodex(enabled, agentId = getAgentHostAgent()) {
+  agentId ||= getAgentHostAgent();
   if (!enabled) {
     setChatBackend('direct');
     showNotification('API or Local AI selected for chat', 'success');
@@ -339,12 +357,13 @@ export async function toggleLocalCodex(enabled) {
     return;
   }
   try {
-    await connectDetectedCodex();
+    await connectDetectedAgent(agentId);
+    await saveAgentChatSettings({ agent: agentId, model: '', effort: '' });
     setChatBackend('codex');
-    showNotification('Codex selected for chat', 'success');
+    showNotification('CLI agent selected for chat', 'success');
   } catch (error) {
     setChatBackend('direct');
-    showNotification(error instanceof Error ? error.message : 'Codex could not connect.', 'error', 9000);
+    showNotification(error instanceof Error ? error.message : 'CLI agent could not connect.', 'error', 9000);
   }
   await refreshDetectedAgentList();
 }
@@ -352,15 +371,15 @@ export async function toggleLocalCodex(enabled) {
 /** @param {string} model */
 export async function setCLIAgentModel(model) {
   await saveAgentChatSettings({ model, effort: '' });
-  showNotification(model ? 'Codex model updated' : 'Codex will use its CLI default model', 'success');
+  showNotification(model ? 'CLI model updated' : 'The agent will use its CLI default model', 'success');
   const options = document.getElementById('cli-agent-options');
-  if (options?.isConnected) options.innerHTML = renderCodexModelControls(codexModels);
+  if (options?.isConnected) options.innerHTML = renderAgentModelControls(agentModels);
 }
 
 /** @param {string} effort */
 export async function setCLIAgentEffort(effort) {
   await saveAgentChatSettings({ effort });
-  showNotification(effort ? `Codex reasoning set to ${effort}` : 'Codex will use its default reasoning effort', 'success');
+  showNotification(effort ? `Reasoning set to ${effort}` : 'The agent will use its default reasoning effort', 'success');
   const options = document.getElementById('cli-agent-options');
-  if (options?.isConnected) options.innerHTML = renderCodexModelControls(codexModels);
+  if (options?.isConnected) options.innerHTML = renderAgentModelControls(agentModels);
 }
