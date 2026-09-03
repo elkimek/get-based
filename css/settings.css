@@ -1086,23 +1086,35 @@
   box-shadow: 0 0 0 3px var(--accent-fill);
 }
 .settings-modal select.api-key-input {
-  appearance: none;
-  -webkit-appearance: none;
+  appearance: auto;
+  -webkit-appearance: menulist;
   cursor: pointer;
-  padding-right: 34px;
+  padding-right: 12px;
   background-color: var(--select-surface);
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
-    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
-  background-position:
-    calc(100% - 17px) 50%,
-    calc(100% - 12px) 50%;
-  background-repeat: no-repeat;
-  background-size: 5px 5px, 5px 5px;
 }
 .settings-modal select.api-key-input option {
   background: var(--select-popup-surface);
   color: var(--text-primary);
+}
+@supports (appearance: base-select) {
+  .settings-modal select.api-key-input,
+  .settings-modal select.api-key-input::picker(select) {
+    appearance: base-select;
+  }
+  .settings-modal select.api-key-input::picker(select) {
+    max-height: min(360px, 60vh);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--select-popup-surface);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-lg);
+  }
+  .settings-modal select.api-key-input::picker-icon {
+    color: var(--text-muted);
+  }
+  .settings-modal select.api-key-input option {
+    padding: 8px 12px;
+  }
 }
 .settings-modal .voice-overview .settings-section {
   margin-top: 2px;

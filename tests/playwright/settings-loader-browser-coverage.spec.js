@@ -195,6 +195,39 @@ test('Settings loader retries a failed stylesheet without re-evaluating its modu
   }
 });
 
+test('Settings model selects use a persistent picker on desktop', async ({ page }) => {
+  await page.route('**/settings-model-select-coverage', route => route.fulfill({
+    status: 200,
+    contentType: 'text/html',
+    body: `<!doctype html>
+      <html data-theme="dark">
+        <head><link rel="stylesheet" href="/css/settings.css"></head>
+        <body>
+          <div class="settings-modal">
+            <select id="model-select" class="api-key-input">
+              <option>Model one</option>
+              <option>Model two</option>
+            </select>
+          </div>
+        </body>
+      </html>`,
+  }));
+  await page.goto('/settings-model-select-coverage', { waitUntil: 'load' });
+
+  const modelSelect = page.locator('#model-select');
+  await expect(modelSelect).toBeVisible();
+  const pickerSupport = await page.evaluate(() => CSS.supports('appearance', 'base-select'));
+
+  if (pickerSupport) {
+    await expect(modelSelect).toHaveCSS('appearance', 'base-select');
+    await modelSelect.click({ position: { x: 20, y: 20 } });
+    await expect.poll(() => modelSelect.evaluate(select => select.matches(':open'))).toBe(true);
+    await page.keyboard.press('Escape');
+  } else {
+    await expect(modelSelect).not.toHaveCSS('appearance', 'none');
+  }
+});
+
 test('Settings lazy entry points contain load failures', async ({ page }) => {
   let settingsRequests = 0;
   await page.route('**/js/settings.js*', route => {
