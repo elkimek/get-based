@@ -8,9 +8,7 @@ import { getAIProvider, hasAIProvider, isAIPaused, setOllamaPIIModel } from './a
 import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots } from './crypto.js';
 import { renderSyncSection, renderMessengerSection, hydrateSettingsSyncPanel } from './settings-sync-panel.js';
 import { getChatBackend } from './agent-chat-settings.js';
-import {
-  copyCLICompanionInstallCommand, refreshDetectedAgentList, renderCLIAgentProviderPanel, setCLIAgentEffort, setCLIAgentModel, testLocalCodex, toggleLocalCodex,
-} from './settings-cli-agent-panel.js';
+import { copyCLICompanionInstallCommand, copyCLICompanionRunCommand, refreshDetectedAgentList, renderCLIAgentProviderPanel, setCLIAgentEffort, setCLIAgentModel, testLocalCodex, toggleLocalCodex } from './settings-cli-agent-panel.js';
 import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
 import { setProductRecsEnabled } from './recommendations.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
@@ -306,8 +304,9 @@ async function handleSettingsClick(event) {
     event.preventDefault();
     void refreshDetectedAgentList({ refresh: true });
   } else if (action === 'copy-cli-companion-install') {
-    event.preventDefault();
-    void copyCLICompanionInstallCommand();
+    event.preventDefault(); void copyCLICompanionInstallCommand();
+  } else if (action === 'copy-cli-companion-run') {
+    event.preventDefault(); void copyCLICompanionRunCommand();
   } else if (action === 'test-cli-codex') {
     event.preventDefault();
     void testLocalCodex();

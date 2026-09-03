@@ -78,12 +78,15 @@ the provider's terms on its behalf. Custom endpoints are identified by their
 origin. Users connecting a personal or local endpoint are not asked to supply
 policy metadata.
 
-On Linux, a CLI user can build and install the companion from a Get-based
-checkout with `npm run companion:install`. Production builds also emit a
+On Linux, a CLI user can run the companion temporarily from a Get-based
+checkout with `npm run companion`, or install it for automatic startup with
+`npm run companion:install`. Production builds emit the same auditable,
 single-file `getbased-companion.mjs` download for the hosted Settings flow.
-The installer copies that file into the user data directory and enables a
-user-level systemd service; it does not need root access or expose a port or
-pairing token in the UI.
+The temporary mode stops with its terminal. The installer copies the bundle
+into the user data directory and enables a user-level systemd service; neither
+mode needs root access or exposes a port or pairing token in the UI. The entry
+point, host, installer, protocol, and bundle build are all source-available in
+this repository under `bin/`, `server/`, `lib/`, `shared/`, and `scripts/`.
 
 Independent deployment operators can identify themselves without inheriting
 getbased policies by setting these metadata values in `index.html`:

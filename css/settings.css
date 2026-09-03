@@ -1041,10 +1041,9 @@
 }
 .settings-modal .local-agent-list { padding: 0 10px 10px; }
 .settings-modal .local-agent-install-card {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   margin: 4px 0;
   padding: 13px;
   border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
@@ -1071,12 +1070,53 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.settings-modal .local-agent-install-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+.settings-modal .local-agent-install-option {
+  display: grid;
+  grid-template-rows: auto auto auto;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-card);
+}
+.settings-modal .local-agent-install-option > div { min-height: 39px; }
+.settings-modal .local-agent-install-option strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: 11px;
+}
+.settings-modal .local-agent-install-option span {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 9.5px;
+  line-height: 1.35;
+}
+.settings-modal .local-agent-install-option code {
+  display: block;
+  overflow: hidden;
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-modal .local-agent-install-option .import-btn { justify-content: center; width: 100%; }
 .settings-modal .local-agent-install-card > small {
-  grid-column: 1 / -1;
   color: var(--text-muted);
   font-size: 9.5px;
 }
 .settings-modal .local-agent-install-card > small code { color: var(--text-secondary); }
+.settings-modal .local-agent-install-card > small a { color: var(--accent); }
 .settings-modal .local-agent-row {
   padding: 10px;
   border-radius: 11px;
@@ -2204,8 +2244,7 @@ label.sync-settings-toggle input:disabled + .sync-settings-toggle-slider { opaci
     grid-template-columns: 34px minmax(0, 1fr) auto;
     gap: 9px;
   }
-  .settings-modal .local-agent-install-card { grid-template-columns: 1fr; align-items: stretch; }
-  .settings-modal .local-agent-install-card > .import-btn { width: 100%; justify-content: center; }
+  .settings-modal .local-agent-install-options { grid-template-columns: 1fr; }
   .settings-modal .local-agent-options { grid-template-columns: 1fr; padding-left: 43px; }
   .settings-modal .local-agent-options small { grid-column: auto; }
   .settings-modal .local-agent-test { display: none; }

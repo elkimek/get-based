@@ -135,14 +135,16 @@ requirement.
 A hosted browser cannot start an operating-system process. The production
 build therefore emits a single dependency-free `getbased-companion.mjs`
 download. When no companion is detected, **Settings → AI → CLI agents** shows
-one copyable Linux command that downloads this file from the current Get-based
-origin and runs its installer. Local development shows the equivalent
-`npm run companion:install` command.
+two copyable Linux commands: run the bundle for the current terminal session,
+or install it for automatic startup. Local development shows the equivalent
+`npm run companion` and `npm run companion:install` commands.
 
-The installer performs only user-scoped operations: it copies the bundle to
-the XDG user data directory, writes `getbased-companion.service` under the XDG
-user configuration directory, creates a launcher in `~/.local/bin`, and calls
-`systemctl --user enable --now`. It records the absolute Node and Codex
+Temporary mode writes only the downloaded bundle to `/tmp` and stops when its
+terminal closes. The installer performs only user-scoped operations: it copies
+the bundle to the XDG user data directory, writes `getbased-companion.service`
+under the XDG user configuration directory, creates a launcher in
+`~/.local/bin`, and calls `systemctl --user enable --now`. It records the
+absolute Node and Codex
 executables plus the existing Codex auth directory, so the background service
 does not depend on an interactive shell PATH. No root access, desktop package,
 or platform signing is required.

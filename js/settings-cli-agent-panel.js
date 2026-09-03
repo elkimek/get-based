@@ -34,17 +34,52 @@ export function getLinuxCompanionInstallCommand(location = {}) {
   return `curl -fsS ${origin}/getbased-companion.mjs -o getbased-companion.mjs && node getbased-companion.mjs install`;
 }
 
+/**
+ * Run the same auditable bundle only for the lifetime of the terminal. Hosted
+ * pages download it to the system temporary directory; local development uses
+ * the repository script directly.
+ * @param {{hostname?: string, origin?: string}} [location]
+ */
+export function getLinuxCompanionRunCommand(location = {}) {
+  const hostname = location.hostname ?? globalThis.location?.hostname ?? '';
+  const loopback = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+  if (loopback) return 'npm run companion';
+  const origin = String(location.origin ?? globalThis.location?.origin ?? 'https://app.getbased.health')
+    .replace(/\/$/, '');
+  return `curl -fsS ${origin}/getbased-companion.mjs -o /tmp/getbased-companion.mjs && node /tmp/getbased-companion.mjs run`;
+}
+
 function renderCompanionSetup() {
-  const command = getLinuxCompanionInstallCommand();
+  const runCommand = getLinuxCompanionRunCommand();
+  const installCommand = getLinuxCompanionInstallCommand();
   return `<div class="local-agent-install-card">
     <div class="local-agent-install-copy">
-      <strong>Linux companion isn&rsquo;t running</strong>
-      <p>Install it once from a terminal. It starts automatically at login and lets this hosted page use your signed-in Codex CLI.</p>
-      <code>${escapeHTML(command)}</code>
+      <strong>Connect your installed CLI agents</strong>
+      <p>A browser cannot scan or start local CLIs by itself. Run the small open-source companion temporarily, or install it for automatic startup.</p>
     </div>
-    <button type="button" class="import-btn import-btn-primary settings-mini-btn" data-settings-action="copy-cli-companion-install">Copy install command</button>
-    <small>Requires Node.js 20+ and <code>codex login</code>. No port or pairing token is needed.</small>
+    <div class="local-agent-install-options">
+      <div class="local-agent-install-option">
+        <div><strong>Run for this session</strong><span>Stops when you close the terminal. No service is installed.</span></div>
+        <code title="${escapeAttr(runCommand)}">${escapeHTML(runCommand)}</code>
+        <button type="button" class="import-btn import-btn-primary settings-mini-btn" data-settings-action="copy-cli-companion-run">Copy run command</button>
+      </div>
+      <div class="local-agent-install-option">
+        <div><strong>Start automatically</strong><span>Installs a user-level Linux service. No root access.</span></div>
+        <code title="${escapeAttr(installCommand)}">${escapeHTML(installCommand)}</code>
+        <button type="button" class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="copy-cli-companion-install">Copy install command</button>
+      </div>
+    </div>
+    <small>Requires Node.js 20+ and <code>codex login</code> for the current adapter. No port or pairing token is needed. <a href="https://github.com/elkimek/get-based/blob/main/bin/getbased-companion.js" target="_blank" rel="noopener">View companion source on GitHub</a>.</small>
   </div>`;
+}
+
+export async function copyCLICompanionRunCommand() {
+  try {
+    await navigator.clipboard.writeText(getLinuxCompanionRunCommand());
+    showNotification('Temporary companion command copied', 'success');
+  } catch {
+    showNotification('Could not access the clipboard', 'error');
+  }
 }
 
 export async function copyCLICompanionInstallCommand() {
