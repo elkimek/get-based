@@ -1,13 +1,13 @@
 // @ts-check
 // chat-panel.js — Chat panel chrome, web-search toggle, and input state
 
-import { hasAIProvider, isAIPaused, supportsWebSearch } from './api.js';
+import { isAIPaused, supportsWebSearch } from './api.js';
 import {
   loadChatThreads, ensureActiveThread, renderThreadList, restoreRailState,
 } from './chat-threads.js';
 import { loadChatHistory } from './chat-history.js';
 import {
-  loadChatPersonality, loadCustomPersonalities, updateChatHeaderTitle, updatePersonalityBar,
+  loadChatPersonality, loadCustomPersonalities, updateChatHeaderModel, updateChatHeaderTitle, updatePersonalityBar,
 } from './chat-personalities.js';
 import { renderSavedSummaries } from './chat-summaries.js';
 import { dismissCurrentChatNudge } from './chat-nudge.js';
@@ -19,6 +19,12 @@ import {
   initChatComposer, refreshChatComposer, restoreChatDraft, setChatInputValue,
 } from './chat-composer.js';
 import { showNotification } from './utils.js';
+import { connectDetectedCodex } from './agent-chat-settings.js';
+import { updateAttachButtonVisibility } from './chat-images.js';
+import {
+  hasChatResponseBackend, isCodexChatBackend, refreshChatBackendControl, refreshLocalAgentAvailability,
+  setChatBackendFromUI as persistChatBackend,
+} from './chat-backend-selection.js';
 
 export { setChatNudge, updateChatNudge } from './chat-nudge.js';
 
@@ -104,9 +110,32 @@ export function setChatWebSearchEnabled(val) {
   updateWebSearchToggleVisibility();
 }
 
+export async function setChatBackendFromUI(value) {
+  const select = /** @type {HTMLSelectElement | null} */ (document.getElementById('chat-backend-select'));
+  if (value === 'codex') {
+    if (select) select.disabled = true;
+    try {
+      await connectDetectedCodex();
+      persistChatBackend('codex');
+      showNotification('Codex selected for chat', 'success');
+    } catch (error) {
+      persistChatBackend('direct');
+      showNotification(error instanceof Error ? error.message : 'Codex could not connect.', 'error', 9000);
+    } finally {
+      if (select) select.disabled = false;
+      await refreshLocalAgentAvailability(true);
+    }
+  } else {
+    persistChatBackend('direct');
+  }
+  updateChatInputState();
+  updateChatHeaderModel();
+  updateAttachButtonVisibility();
+}
+
 function updateWebSearchToggleVisibility() {
   const label = /** @type {HTMLElement | null} */ (document.querySelector('#chat-panel .chat-websearch-toggle-label'));
-  if (label) label.style.display = supportsWebSearch() ? '' : 'none';
+  if (label) label.style.display = !isCodexChatBackend() && supportsWebSearch() ? '' : 'none';
 }
 
 export function refreshWebSearchToggle() {
@@ -289,6 +318,7 @@ export async function openChatPanel(prefillMessage) {
   dismissCurrentChatNudge();
   await loadCustomPersonalities();
   loadChatPersonality();
+  refreshChatBackendControl();
   updateChatHeaderTitle();
   updatePersonalityBar();
   // Sync web search toggle
@@ -331,20 +361,35 @@ export function updateChatInputState() {
   const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
   const sendBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-send-btn'));
   const voiceBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-voice-btn'));
-  const noAI = !hasAIProvider();
+  const noAI = !hasChatResponseBackend();
   const blocked = chatThreadInputBlocked;
   if (input) {
     input.disabled = noAI || blocked;
     input.placeholder = blocked
       ? 'Conversations are paused to protect saved chats'
       : noAI
-        ? (isAIPaused() ? 'AI features are paused' : 'Connect an AI provider in Settings to chat')
+        ? (isAIPaused()
+          ? 'AI features are paused'
+          : isCodexChatBackend()
+          ? 'Codex is unavailable on this computer'
+          : 'Connect an AI provider in Settings to chat')
         : 'Ask about your lab results...';
   }
   if (sendBtn) sendBtn.disabled = noAI || blocked;
-  if (voiceBtn) voiceBtn.disabled = noAI || blocked;
+  if (voiceBtn) voiceBtn.disabled = noAI || blocked || isCodexChatBackend();
   refreshChatComposer();
   updateWebSearchToggleVisibility();
+}
+
+if (typeof globalThis.addEventListener === 'function') {
+  const refreshAgentChatUi = () => {
+    refreshChatBackendControl();
+    updateChatInputState();
+    updateChatHeaderModel();
+    updateAttachButtonVisibility();
+  };
+  globalThis.addEventListener('getbased:chat-backend-changed', refreshAgentChatUi);
+  globalThis.addEventListener('getbased:agent-host-settings-changed', refreshAgentChatUi);
 }
 
 export function closeChatPanel() {

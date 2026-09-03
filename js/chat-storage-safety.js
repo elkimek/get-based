@@ -196,6 +196,19 @@ export function normalizeChatThreads(value) {
       MAX_MESSAGES_PER_THREAD,
     );
     else delete normalized.forkedFromMessageIndex;
+    if (thread.chatBackend === 'codex') {
+      normalized.chatBackend = 'codex';
+      const agentThreadId = normalizeChatRecordId(thread.agentThreadId);
+      if (agentThreadId) normalized.agentThreadId = agentThreadId;
+      else delete normalized.agentThreadId;
+      const agentModel = boundedString(thread.agentModel, 100).trim();
+      if (agentModel) normalized.agentModel = agentModel;
+      else delete normalized.agentModel;
+    } else {
+      delete normalized.chatBackend;
+      delete normalized.agentThreadId;
+      delete normalized.agentModel;
+    }
     threads.push(normalized);
     if (threads.length >= MAX_THREADS) break;
   }

@@ -46,6 +46,9 @@ describe('chat storage safety', () => {
           discussionEnded: true,
           forkedFromThreadId: 't_parent',
           forkedFromMessageIndex: 7,
+          chatBackend: 'codex',
+          agentThreadId: '019c-agent-thread',
+          agentModel: 'gpt-5.4',
         },
         { id: '__proto__', name: 'Rejected' },
       ],
@@ -106,6 +109,9 @@ describe('chat storage safety', () => {
       discussionEnded: true,
       forkedFromThreadId: 't_parent',
       forkedFromMessageIndex: 7,
+      chatBackend: 'codex',
+      agentThreadId: '019c-agent-thread',
+      agentModel: 'gpt-5.4',
     });
     expect(chat.messages.t_safe[0]).toMatchObject({
       content: 'Hello',

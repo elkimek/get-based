@@ -285,6 +285,13 @@ describe('service worker runtime cache behavior', () => {
     expect(await (await version.response()).text()).toBe('network:https://preview.getbased.health/version.js');
     await vi.waitFor(() => expect(cache.put).toHaveBeenCalledWith(version.request, expect.any(Response)));
 
+    matches.set('/', new Response('stale-navigation'));
+    globalThis.fetch = vi.fn(async () => new Response('fresh-navigation', { status: 200 }));
+    const freshNavigate = makeFetchEvent('https://preview.getbased.health/', { method: 'GET' });
+    Object.defineProperty(freshNavigate.request, 'mode', { value: 'navigate' });
+    listeners.get('fetch')(freshNavigate);
+    expect(await (await freshNavigate.response()).text()).toBe('fresh-navigation');
+
     matches.set('/app', new Response('cached-app-shell'));
     globalThis.fetch = vi.fn(async () => {
       throw new Error('offline');

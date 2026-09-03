@@ -15,6 +15,8 @@ import { hasAIProvider, supportsVision } from './api.js';
 import { openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { chatMessageActionAttrs } from './chat-message-action-attrs.js';
 import { state } from './state.js';
+import { isCodexChatBackend } from './chat-backend-selection.js';
+import { getAssistantExecutionRoute } from './ai-execution-routing.js';
 
 const MAX_ATTACHMENTS = 5;
 const THUMB_SIZE = 80;
@@ -222,7 +224,9 @@ export function restoreMessageAttachments(message) {
 }
 
 export function updateAttachButtonVisibility() {
-  const visible = hasAIProvider() && supportsVision();
+  const visible = isCodexChatBackend()
+    ? getAssistantExecutionRoute().inputModalities?.includes('image') === true
+    : hasAIProvider() && supportsVision();
   const btn = document.getElementById('chat-attach-btn');
   if (btn) btn.style.display = visible ? 'flex' : 'none';
   const hdBtn = document.getElementById('chat-hd-btn');
@@ -231,6 +235,10 @@ export function updateAttachButtonVisibility() {
     hdBtn.classList.toggle('active', _hdMode);
     hdBtn.title = hdTitle();
   }
+}
+
+if (typeof globalThis.addEventListener === 'function') {
+  globalThis.addEventListener('getbased:agent-model-catalog-changed', updateAttachButtonVisibility);
 }
 
 export function initChatImageHandlers() {
@@ -256,7 +264,7 @@ export function initChatImageHandlers() {
   // Drag-drop on chat messages area
   if (chatMessages) {
     chatMessages.addEventListener('dragover', (e) => {
-      if (!supportsVision()) return;
+      if (isCodexChatBackend() ? !getAssistantExecutionRoute().inputModalities?.includes('image') : !supportsVision()) return;
       const hasImage = [...(e.dataTransfer?.types || [])].includes('Files');
       if (hasImage) {
         e.preventDefault();
@@ -274,7 +282,7 @@ export function initChatImageHandlers() {
       e.preventDefault();
       e.stopPropagation();
       chatMessages.classList.remove('chat-drop-active');
-      if (!supportsVision()) return;
+      if (isCodexChatBackend() ? !getAssistantExecutionRoute().inputModalities?.includes('image') : !supportsVision()) return;
       const files = [...(e.dataTransfer?.files || [])].filter(f => f.type.startsWith('image/'));
       for (const file of files) addImageAttachment(file);
     });

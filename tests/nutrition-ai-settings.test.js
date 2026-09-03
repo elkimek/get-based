@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { setAIProvider, setOllamaMainModel, setOpenRouterModel, setVeniceModel } from '../js/api.js';
 import { updateKeyCache } from '../js/crypto-key-cache.js';
+import { AGENT_HOST_TOKEN_KEY, setChatBackend } from '../js/agent-chat-settings.js';
+import { cacheAgentModelCatalog } from '../js/agent-model-catalog.js';
 import { discoverLocalAI } from '../js/local-ai-discovery.js';
 import {
   getDefaultNutritionComparisonModelValues,
@@ -22,6 +24,7 @@ beforeEach(() => {
   updateKeyCache('labcharts-openrouter-key', '');
   updateKeyCache('labcharts-venice-key', '');
   updateKeyCache('labcharts-ollama', '');
+  updateKeyCache(AGENT_HOST_TOKEN_KEY, '');
   window._lastOllamaModelDetails = [];
   window._lastIsOllamaServer = false;
   setAIProvider('ollama');
@@ -38,6 +41,31 @@ afterEach(() => {
 });
 
 describe('meal-photo model routing', () => {
+  it('follows a vision-capable Codex assistant and names a direct fallback when needed', () => {
+    updateKeyCache(AGENT_HOST_TOKEN_KEY, 'paired-agent-token');
+    localStorage.setItem('labcharts-agent-host-model', 'gpt-5.6-sol');
+    setChatBackend('codex');
+    cacheAgentModelCatalog([{
+      id: 'gpt-5.6-sol', model: 'gpt-5.6-sol', displayName: 'GPT-5.6-Sol', isDefault: true,
+      inputModalities: ['text', 'image'], supportedReasoningEfforts: [],
+    }]);
+
+    expect(getMealAISelection()).toMatchObject({
+      adapter: 'codex', provider: 'codex', model: 'gpt-5.6-sol', usesAssistant: true, available: true,
+    });
+    expect(renderNutritionAISettings()).toContain('Follow chat assistant — GPT-5.6-Sol');
+    expect(renderNutritionAISettings()).not.toContain('Automatic fallback');
+
+    cacheAgentModelCatalog([{
+      id: 'gpt-5.6-sol', model: 'gpt-5.6-sol', displayName: 'GPT-5.6-Sol', isDefault: true,
+      inputModalities: ['text'], supportedReasoningEfforts: [],
+    }]);
+    expect(getMealAISelection()).toMatchObject({
+      adapter: 'direct', provider: 'ollama', model: 'qwen-vl-chat', fallback: true, available: true,
+    });
+    expect(renderNutritionAISettings()).toContain('Automatic fallback — qwen-vl-chat via Local AI');
+  });
+
   it('uses the chat model by default and keeps a dedicated override isolated', () => {
     expect(getMealAISelection()).toMatchObject({
       provider: 'ollama',
@@ -74,7 +102,7 @@ describe('meal-photo model routing', () => {
       model: 'qwen-vl-chat',
       usesChatModel: true,
     });
-    expect(renderNutritionAISettings()).toContain('Only image-capable Local AI models are shown');
+    expect(renderNutritionAISettings()).toContain('Only models with confirmed image input are shown');
     expect(renderNutritionAISettings()).not.toContain('anthropic/claude-opus-5');
   });
 
@@ -272,7 +300,7 @@ describe('meal-photo model routing', () => {
       'qwen/qwen3.6-35b-a3b',
       'qwen/qwen3.8-27b',
     ]);
-    expect(renderNutritionAISettings()).toContain('Other vision models');
+    expect(renderNutritionAISettings()).toContain('OpenRouter vision models');
     expect(renderNutritionAISettings()).toContain('Qwen3.8 27B');
     expect(renderNutritionAISettings()).toContain('Qwen3.6 35B-A3B');
     expect(renderNutritionAISettings()).not.toContain('Qwen3.8 72B');
@@ -302,7 +330,7 @@ describe('meal-photo model routing', () => {
       'x-ai/grok-4.6',
       'anthropic/claude-sonnet-5',
     ]);
-    expect(renderNutritionAISettings()).toContain('Other vision models');
+    expect(renderNutritionAISettings()).toContain('OpenRouter vision models');
     expect(renderNutritionAISettings()).toContain('$0.5 in · $2 out / 1M');
   });
 
@@ -325,7 +353,7 @@ describe('meal-photo model routing', () => {
       expect.objectContaining({ provider: 'venice', model: 'openai-gpt-56-luna' }),
       expect.objectContaining({ provider: 'venice', model: 'openai-gpt-56-sol', current: true }),
     ]);
-    expect(renderNutritionAISettings()).toContain('Follow main — OpenAI GPT 5.6 Sol');
+    expect(renderNutritionAISettings()).toContain('Follow chat assistant — OpenAI GPT 5.6 Sol');
     expect(renderNutritionAISettings()).toContain('OpenAI GPT 5.6 Luna');
     expect(renderNutritionAISettings()).toContain('OpenAI GPT 5.6 Sol');
   });

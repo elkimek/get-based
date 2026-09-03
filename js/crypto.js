@@ -113,6 +113,7 @@ const SENSITIVE_PATTERNS = [
   /^labcharts-imported$/,
   /^labcharts-profiles$/,
   /^labcharts-api-key$/,
+  /^labcharts-agent-host-token$/,
   /^labcharts-venice-key$/,
   /^labcharts-openrouter-key$/,
   /^labcharts-routstr-key$/,
@@ -169,6 +170,7 @@ async function decryptDeviceCredential(storageKey, envelope) {
 // ═══════════════════════════════════════════════
 const API_KEY_LS_KEYS = [
   'labcharts-api-key',
+  'labcharts-agent-host-token',
   'labcharts-venice-key',
   'labcharts-openrouter-key',
   'labcharts-routstr-key',

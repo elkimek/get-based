@@ -21,6 +21,7 @@ const shellChatActionDeps = {
   clearChatHistory: () => {},
   handleChatKeydown: (_event) => {},
   sendChatMessage: () => {},
+  setChatBackendFromUI: (_backend) => {},
   setChatPersonality: (_personality) => {},
   setChatWebSearchEnabled: (_enabled) => {},
   startDiscussion: () => {},
@@ -214,9 +215,11 @@ function handleShellInput(event) {
 
 function handleShellChange(event) {
   const input = event.target;
-  if (!(input instanceof HTMLInputElement)) return;
-  if (input.dataset.chatChangeAction === 'set-websearch') {
+  if (!(input instanceof HTMLInputElement) && !(input instanceof HTMLSelectElement)) return;
+  if (input.dataset.chatChangeAction === 'set-websearch' && input instanceof HTMLInputElement) {
     shellChatActionDeps.setChatWebSearchEnabled(input.checked);
+  } else if (input.dataset.chatChangeAction === 'set-backend' && input instanceof HTMLSelectElement) {
+    shellChatActionDeps.setChatBackendFromUI(input.value);
   }
 }
 

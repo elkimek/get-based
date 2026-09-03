@@ -13,6 +13,9 @@ import {
   supportsVision,
 } from './api.js';
 import { getCachedKey } from './crypto-key-cache.js';
+import {
+  getAssistantExecutionRoute, getCodexExecutionRoute, listCodexExecutionRoutes,
+} from './ai-execution-routing.js';
 import { discoverLocalAI } from './local-ai-discovery.js';
 import { cacheLocalAiModelDetails, getCachedLocalAiModelDetails } from './provider-local-ai-runtime.js';
 import { getModelPricing } from './schema.js';
@@ -21,6 +24,7 @@ import { escapeAttr, escapeHTML } from './utils.js';
 export const NUTRITION_AI_ROUTE_KEY = 'labcharts-nutrition-ai-route';
 
 const PROVIDERS = Object.freeze(['openrouter', 'venice', 'ppq', 'routstr', 'custom', 'ollama']);
+const ROUTE_PROVIDERS = Object.freeze([...PROVIDERS, 'codex']);
 const PROVIDER_LABELS = Object.freeze({
   openrouter: 'OpenRouter',
   venice: 'Venice',
@@ -28,6 +32,7 @@ const PROVIDER_LABELS = Object.freeze({
   routstr: 'Routstr',
   custom: 'Custom API',
   ollama: 'Local AI',
+  codex: 'Codex CLI',
 });
 const MODEL_CACHE_KEYS = Object.freeze({
   openrouter: ['labcharts-openrouter-models'],
@@ -146,7 +151,7 @@ function readStoredArray(key) {
 function cleanRoute(value) {
   const provider = String(value?.provider || '');
   const model = String(value?.model || '').trim();
-  if (!PROVIDERS.includes(provider) || !model || model.length > 300) return null;
+  if (!ROUTE_PROVIDERS.includes(provider) || !model || model.length > 300) return null;
   return { provider, model };
 }
 
@@ -166,6 +171,7 @@ function modelIdMatchesCapability(modelId, capabilityId) {
 export function isConfirmedMealVisionModel(provider, modelId) {
   const id = String(modelId || '').trim();
   if (!id) return false;
+  if (provider === 'codex') return getCodexExecutionRoute(id, 'image').available;
   if (provider === 'ollama') {
     return getCachedLocalAiModelDetails().modelDetails
       .some(row => row?.name === id && row?.vision === true);
@@ -224,6 +230,7 @@ function formattedTokenRate(value) {
 }
 
 export function nutritionModelPricing(provider, modelId) {
+  if (provider === 'codex') return { priceLabel: 'Uses Codex subscription', priceScore: 0 };
   if (provider === 'ollama') return { priceLabel: 'Local · no token charge', priceScore: 0 };
   if (provider === 'custom') return { priceLabel: 'Endpoint pricing', priceScore: Number.POSITIVE_INFINITY };
   try {
@@ -241,6 +248,7 @@ export function nutritionModelPricing(provider, modelId) {
 }
 
 function modelDisplay(provider, model) {
+  if (provider === 'codex') return getCodexExecutionRoute(model, 'image').modelDisplay;
   for (const key of MODEL_CACHE_KEYS[provider] || []) {
     const found = readStoredArray(key).find(row => row?.id === model);
     if (found) return String(found.name || found.id);
@@ -251,14 +259,40 @@ function modelDisplay(provider, model) {
 export function getMealAISelection() {
   const provider = getAIProvider();
   const stored = getNutritionAIRoute();
+  const assistant = getAssistantExecutionRoute();
+  if (stored?.provider === 'codex') {
+    return {
+      ...getCodexExecutionRoute(stored.model, 'image'),
+      usesChatModel: assistant.adapter === 'codex' && assistant.model === stored.model,
+      usesAssistant: assistant.adapter === 'codex' && assistant.model === stored.model,
+      usesAutomatic: false,
+      fallback: false,
+    };
+  }
   const saved = stored?.provider === provider ? stored : null;
+  if (!saved && assistant.adapter === 'codex') {
+    const codex = getCodexExecutionRoute(assistant.model, 'image');
+    if (codex.available) {
+      return {
+        ...codex,
+        usesChatModel: true,
+        usesAssistant: true,
+        usesAutomatic: true,
+        fallback: false,
+      };
+    }
+  }
   const model = saved?.model || getActiveModelId(provider);
   return {
+    adapter: 'direct',
     provider,
     model,
     modelDisplay: saved ? modelDisplay(provider, model) : (getActiveModelDisplay(provider) || model || 'Selected model'),
     providerDisplay: PROVIDER_LABELS[provider] || provider,
-    usesChatModel: !saved,
+    usesChatModel: !saved && assistant.adapter === 'direct',
+    usesAssistant: !saved && assistant.adapter === 'direct',
+    usesAutomatic: !saved,
+    fallback: !saved && assistant.adapter === 'codex',
     local: provider === 'ollama',
     available: hasAIProvider(provider) && !!model && isConfirmedMealVisionModel(provider, model),
   };
@@ -269,15 +303,29 @@ export function getMealAISelectionForRoute(route) {
   if (!saved) {
     return {
       provider: '', model: '', modelDisplay: 'Unavailable model', providerDisplay: '',
-      usesChatModel: false, local: false, available: false,
+      adapter: 'direct', usesChatModel: false, usesAssistant: false, usesAutomatic: false,
+      fallback: false, local: false, available: false,
+    };
+  }
+  if (saved.provider === 'codex') {
+    return {
+      ...getCodexExecutionRoute(saved.model, 'image'),
+      usesChatModel: false,
+      usesAssistant: false,
+      usesAutomatic: false,
+      fallback: false,
     };
   }
   return {
+    adapter: 'direct',
     provider: saved.provider,
     model: saved.model,
     modelDisplay: modelDisplay(saved.provider, saved.model),
     providerDisplay: PROVIDER_LABELS[saved.provider] || saved.provider,
     usesChatModel: false,
+    usesAssistant: false,
+    usesAutomatic: false,
+    fallback: false,
     local: saved.provider === 'ollama',
     available: hasAIProvider(saved.provider) && isConfirmedMealVisionModel(saved.provider, saved.model),
   };
@@ -286,7 +334,7 @@ export function getMealAISelectionForRoute(route) {
 export function listNutritionVisionModels() {
   const current = getMealAISelection();
   const providerOrder = [current.provider, ...PROVIDERS.filter(provider => provider !== current.provider)];
-  return providerOrder.flatMap(provider => {
+  const directModels = providerOrder.flatMap(provider => {
     if (!hasAIProvider(provider)) return [];
     const providerModel = getActiveModelId(provider);
     return modelCatalog(provider).map(model => ({
@@ -302,6 +350,16 @@ export function listNutritionVisionModels() {
       value: routeValue(provider, model.id),
     }));
   });
+  const codexModels = listCodexExecutionRoutes('image').map(route => ({
+    ...route,
+    current: current.provider === 'codex' && route.model === current.model,
+    providerCurrent: getAssistantExecutionRoute().adapter === 'codex'
+      && getAssistantExecutionRoute().model === route.model,
+    guidance: getNutritionModelGuidance(route.model),
+    ...nutritionModelPricing('codex', route.model),
+    value: routeValue('codex', route.model),
+  }));
+  return current.provider === 'codex' ? [...codexModels, ...directModels] : [...directModels, ...codexModels];
 }
 
 /**
@@ -334,28 +392,36 @@ export function setNutritionAIRouteFromValue(value) {
 }
 
 export function renderNutritionAISettings() {
-  const chatProvider = getAIProvider();
-  const providerDisplay = PROVIDER_LABELS[chatProvider] || chatProvider;
-  const chatModelId = getActiveModelId(chatProvider);
-  const chatModel = getActiveModelDisplay(chatProvider) || getActiveModelId(chatProvider) || 'selected model';
+  const directProvider = getAIProvider();
+  const directProviderDisplay = PROVIDER_LABELS[directProvider] || directProvider;
+  const assistant = getAssistantExecutionRoute();
+  const selection = getMealAISelection();
   const stored = getNutritionAIRoute();
-  const saved = stored?.provider === chatProvider ? stored : null;
+  const saved = selection.usesAutomatic ? null : stored;
   const selectedValue = saved ? routeValue(saved.provider, saved.model) : '';
-  const mainSupportsVision = hasAIProvider(chatProvider) && !!chatModelId && isConfirmedMealVisionModel(chatProvider, chatModelId);
-  const mainLabel = mainSupportsVision
-    ? `Follow main — ${chatModel}`
-    : `Main cannot analyze photos — ${chatModel}`;
-  let options = `<option value=""${saved ? '' : ' selected'}${mainSupportsVision ? '' : ' disabled'}>${escapeHTML(mainLabel)}</option>`;
+  const automaticLabel = selection.fallback
+    ? `Automatic fallback — ${selection.modelDisplay} via ${selection.providerDisplay}`
+    : `Follow chat assistant — ${selection.modelDisplay}`;
+  let options = `<option value=""${saved ? '' : ' selected'}${selection.available ? '' : ' disabled'}>${escapeHTML(automaticLabel)}</option>`;
   let savedChoiceRendered = false;
 
-  if (hasAIProvider(chatProvider)) {
-    const models = modelCatalog(chatProvider);
+  if (assistant.adapter === 'codex') {
+    const rows = listCodexExecutionRoutes('image').map(model => {
+      const value = routeValue('codex', model.model);
+      if (value === selectedValue) savedChoiceRendered = true;
+      return `<option value="${escapeAttr(value)}"${value === selectedValue ? ' selected' : ''}>${escapeHTML(model.modelDisplay)} — Uses Codex subscription</option>`;
+    }).join('');
+    if (rows) options += `<optgroup label="Codex vision models">${rows}</optgroup>`;
+  }
+
+  if (hasAIProvider(directProvider)) {
+    const models = modelCatalog(directProvider);
     const rows = models.map(model => {
-      const value = routeValue(chatProvider, model.id);
+      const value = routeValue(directProvider, model.id);
       if (value === selectedValue) savedChoiceRendered = true;
       return `<option value="${escapeAttr(value)}"${value === selectedValue ? ' selected' : ''}>${escapeHTML(model.name)} — ${escapeHTML(model.priceLabel)}</option>`;
     }).join('');
-    if (rows) options += `<optgroup label="Other vision models">${rows}</optgroup>`;
+    if (rows) options += `<optgroup label="${escapeAttr(directProviderDisplay)} vision models">${rows}</optgroup>`;
   }
 
   if (saved && !savedChoiceRendered) {
@@ -365,8 +431,8 @@ export function renderNutritionAISettings() {
   return `<div class="settings-group-title">Feature models</div>
     <div class="settings-section" id="nutrition-ai-model-settings">
       <div class="settings-copy-title">Meal photos and labels</div>
-      <div class="settings-copy-desc">Use the main model or choose a separate vision model.</div>
+      <div class="settings-copy-desc">Follow the chat assistant when it supports images, or use the configured feature fallback.</div>
       <select class="api-key-input" style="margin-top:8px" aria-label="Meal photo and nutrition label model" data-settings-action="set-nutrition-ai-route">${options}</select>
-      <details class="nutrition-ai-model-details"><summary>About this list</summary><div class="settings-copy-desc">Only image-capable ${escapeHTML(providerDisplay)} models are shown, sorted by estimated token price. Evidence informs ordering only and does not prove accuracy. <a href="https://doi.org/10.3390/nu18122017" target="_blank" rel="noopener noreferrer">Claude study ↗</a> · <a href="https://doi.org/10.64898/2026.07.26.740845" target="_blank" rel="noopener noreferrer">Gemini preprint ↗</a></div></details>
+      <details class="nutrition-ai-model-details"><summary>About this list</summary><div class="settings-copy-desc">Only models with confirmed image input are shown. CLI models use their existing subscription; API and Local models use the configured ${escapeHTML(directProviderDisplay)} route. Evidence informs ordering only and does not prove accuracy. <a href="https://doi.org/10.3390/nu18122017" target="_blank" rel="noopener noreferrer">Claude study ↗</a> · <a href="https://doi.org/10.64898/2026.07.26.740845" target="_blank" rel="noopener noreferrer">Gemini preprint ↗</a></div></details>
     </div>`;
 }

@@ -40,6 +40,7 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
       clearChatHistory: () => calls.push(['clearChatHistory']),
       handleChatKeydown: event => calls.push(['handleChatKeydown', event]),
       sendChatMessage: () => calls.push(['sendChatMessage']),
+      setChatBackendFromUI: backend => calls.push(['setChatBackendFromUI', backend]),
       setChatPersonality: personality => calls.push(['setChatPersonality', personality]),
       setChatWebSearchEnabled: enabled => calls.push(['setChatWebSearchEnabled', enabled]),
       startDiscussion: () => calls.push(['startDiscussion']),
@@ -96,6 +97,7 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
         <button id="unknown-chat" data-chat-action="unknown"></button>
         <input id="thread-search" data-chat-input-action="filter-thread-list">
         <input id="websearch" type="checkbox" data-chat-change-action="set-websearch">
+        <select id="chat-backend" data-chat-change-action="set-backend"><option value="codex">Codex</option></select>
         <textarea id="message-input" data-chat-key-action="message-input"></textarea>
       `;
       document.getElementById('pdf-input').addEventListener('click', () => calls.push(['pdf-input-click']));
@@ -176,10 +178,14 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
       const websearch = document.getElementById('websearch');
       websearch.checked = true;
       websearch.dispatchEvent(new Event('change', { bubbles: true }));
+      const chatBackend = document.getElementById('chat-backend');
+      chatBackend.value = 'codex';
+      chatBackend.dispatchEvent(new Event('change', { bubbles: true }));
       outcomes.inputSearchAndChangeActionsDelegate =
         calls.some(call => call[0] === 'filterThreadList' && call[1] === 'ferritin')
         && calls.some(call => call[0] === 'filterThreadList' && call[1] === 'vitamin d')
-        && calls.some(call => call[0] === 'setChatWebSearchEnabled' && call[1] === true);
+        && calls.some(call => call[0] === 'setChatWebSearchEnabled' && call[1] === true)
+        && calls.some(call => call[0] === 'setChatBackendFromUI' && call[1] === 'codex');
 
       const messageKey = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
       document.getElementById('message-input').dispatchEvent(messageKey);

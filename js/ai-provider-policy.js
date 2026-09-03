@@ -12,6 +12,12 @@ import {
 } from './local-ai-provider-shared.js';
 
 const BUILTIN_PROVIDERS = Object.freeze({
+  'codex-agent': Object.freeze({
+    label: 'OpenAI Codex',
+    endpoint: 'https://chatgpt.com',
+    privacyUrl: 'https://openai.com/policies/privacy-policy/',
+    termsUrl: 'https://openai.com/policies/terms-of-use/',
+  }),
   openrouter: Object.freeze({
     label: 'OpenRouter',
     endpoint: 'https://openrouter.ai/api/v1',
@@ -144,7 +150,9 @@ export function getAIProcessingDestination(provider, { endpoint = '', modelId = 
   }
   const policy = selectedPolicy(provider, cloudModel);
   const label = destinationLabel(provider, boundary, origin, policy.label);
-  const route = boundary === 'same-device'
+  const route = provider === 'codex-agent'
+    ? 'through the local Get-based Agent Host to OpenAI Codex'
+    : boundary === 'same-device'
     ? 'on this device'
     : boundary === 'private-network'
       ? `directly from this browser to ${origin || 'the configured endpoint'} on your local network`

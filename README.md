@@ -67,6 +67,7 @@ All normal tracking works without AI. AI features can use:
 | **OpenRouter** | A broad hosted model marketplace with OAuth or manual key setup. |
 | **Venice AI** | Hosted models with optional browser-side message encryption plus required Intel DCAP and NVIDIA NRAS checks. |
 | **Local AI** | Any OpenAI-compatible local server, such as Ollama, LM Studio, Jan, or llama.cpp. |
+| **CLI agents (Linux preview)** | Use an existing signed-in Codex CLI subscription through the local Get-based Companion. The hosted app detects it automatically. |
 | **Custom API** | Bring your own OpenAI-compatible endpoint or proxy. |
 
 Switch providers in Settings. Supported provider keys are wrapped locally with
@@ -76,6 +77,13 @@ and Terms documents when known; reviewing those links is not an acceptance of
 the provider's terms on its behalf. Custom endpoints are identified by their
 origin. Users connecting a personal or local endpoint are not asked to supply
 policy metadata.
+
+On Linux, a CLI user can build and install the companion from a Get-based
+checkout with `npm run companion:install`. Production builds also emit a
+single-file `getbased-companion.mjs` download for the hosted Settings flow.
+The installer copies that file into the user data directory and enables a
+user-level systemd service; it does not need root access or expose a port or
+pairing token in the UI.
 
 Independent deployment operators can identify themselves without inheriting
 getbased policies by setting these metadata values in `index.html`:

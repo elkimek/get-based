@@ -7,6 +7,7 @@ import {
   getOpenRouterKey,
   rememberOpenRouterOAuthPreviousProvider,
 } from './api.js';
+import { getChatBackend, setChatBackend } from './agent-chat-settings.js';
 
 let _providerPanelsLoad = null;
 let settingsHadProvider = false;
@@ -71,8 +72,15 @@ export function switchAIProviderBridge(provider) {
   loadProviderPanels().then(async providerPanels => {
     const changed = await providerPanels.switchAIProvider(provider, { previousProvider });
     setProviderButtonState(changed ? provider : previousProvider);
+    if (changed) setChatBackend('direct');
     settingsProviderBridgeDeps.refreshNutritionAISettings();
   }).catch(() => {});
+}
+
+if (typeof globalThis.addEventListener === 'function') {
+  globalThis.addEventListener('getbased:chat-backend-changed', () => {
+    setProviderButtonState(getChatBackend() === 'codex' ? 'cli' : getAIProvider());
+  });
 }
 
 export function toggleAIPauseBridge(enabled) {

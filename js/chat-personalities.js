@@ -4,11 +4,14 @@
 import { state } from './state.js';
 import { CHAT_PERSONALITIES } from './constants.js';
 import { escapeAttr, escapeHTML, showNotification, showConfirmDialog } from './utils.js';
-import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelDisplay, isVeniceE2EEActive, isPpqPrivateModeActive, isRoutstrPrivateModeActive } from './api.js';
+import { callClaudeAPI, hasAIProvider, getAIProvider, isVeniceE2EEActive, isPpqPrivateModeActive, isRoutstrPrivateModeActive } from './api.js';
 import { saveChatThreadIndex, renderThreadList } from './chat-threads.js';
 import { CHAT_ICON_EDIT, CHAT_ICON_X } from './chat-icons.js';
 import { e2eeLockHTML } from './chat-attestation.js';
 import { updateChatContextStatus } from './chat-context-status.js';
+import {
+  getChatBackendDisplay, hasChatResponseBackend, isCodexChatBackend,
+} from './chat-backend-selection.js';
 import {
   getChatProviderAttestation,
   notifyCustomPersonalitySavedRuntime,
@@ -347,9 +350,13 @@ export function updateChatHeaderModel() {
     el.addEventListener('e2ee-attestation', () => updateChatHeaderModel());
     _headerListenerAdded = true;
   }
-  if (!hasAIProvider()) { el.textContent = ''; updateChatContextStatus(); return; }
+  if (!hasChatResponseBackend()) { el.textContent = ''; updateChatContextStatus(); return; }
   updateChatContextStatus();
-  const display = getActiveModelDisplay();
+  const display = getChatBackendDisplay();
+  if (isCodexChatBackend()) {
+    el.textContent = display;
+    return;
+  }
   const provider = getAIProvider();
   const e2ee = provider === 'venice' && isVeniceE2EEActive();
   const ppqPrivate = provider === 'ppq' && isPpqPrivateModeActive();

@@ -33,6 +33,7 @@ import {
   handleCatalogDeployRequest,
 } from './lib/dev-catalog.js';
 import { handleDevFetchPage } from './lib/dev-url-fetch.js';
+import { startDevAgentHost } from './lib/dev-agent-host.js';
 
 export {
   DEFAULT_UVDATA_UPSTREAM,
@@ -59,6 +60,7 @@ const ROOT = path.dirname(__filename);
 const SITE_DIR = process.env.SITE_DIR || path.join(ROOT, '..', 'get-based-site');
 const SITE_INDEX = path.join(SITE_DIR, 'index.html');
 const hasSite = fs.existsSync(SITE_INDEX);
+let devAgentHost = null;
 
 // Auto-load .env.local (gitignored) before anything else reads process.env.
 // Keeps OAuth client secrets out of shell history and out of git. Values
@@ -466,6 +468,15 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (pathname === '/api/local-agents' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    const inventory = url.searchParams.get('refresh') === '1'
+      ? devAgentHost?.refresh?.()
+      : devAgentHost?.describe();
+    res.end(JSON.stringify(inventory || { agents: [] }));
+    return;
+  }
+
   // API: encrypted profile share mirror for local development. Production
   // uses api/share.js with private Vercel Blob storage; localhost keeps the
   // encrypted records in memory only.
@@ -692,18 +703,30 @@ const server = http.createServer((req, res) => {
 // `node dev-server.js`, different means `import ... from './dev-server.js'`.
 const _entryUrl = process.argv[1] ? new URL(`file://${path.resolve(process.argv[1])}`).href : '';
 const _isDirectRun = import.meta.url === _entryUrl;
-if (_isDirectRun) server.listen(PORT, HOST, () => {
-  const localUrl = `http://127.0.0.1:${PORT}`;
-  console.log(`Dev server running at http://${HOST === '0.0.0.0' ? '0.0.0.0' : '127.0.0.1'}:${PORT}`);
-  if (HOST === '0.0.0.0') {
-    console.log(`  → reachable on your LAN at http://<your-lan-ip>:${PORT}`);
-  }
-  if (hasSite) {
-    console.log(`  /        → landing page (${SITE_DIR})`);
-    console.log(`  /app     → index.html`);
-  } else {
-    console.log(`  /        → index.html (no site repo found at ${SITE_DIR})`);
-  }
-  console.log(`  /docs/*  → 301 docs.getbased.health`);
-  openDevBrowser(localUrl);
-});
+if (_isDirectRun) {
+  devAgentHost = startDevAgentHost({ root: ROOT });
+  server.listen(PORT, HOST, () => {
+    const localUrl = `http://127.0.0.1:${PORT}`;
+    // A unique development navigation bypasses an older service worker's exact
+    // cached document while switching branches or worktrees on the same origin.
+    const appUrl = `${localUrl}/app?dev=${Date.now()}`;
+    console.log(`Dev server running at http://${HOST === '0.0.0.0' ? '0.0.0.0' : '127.0.0.1'}:${PORT}`);
+    if (HOST === '0.0.0.0') {
+      console.log(`  → reachable on your LAN at http://<your-lan-ip>:${PORT}`);
+    }
+    if (hasSite) {
+      console.log(`  /        → landing page (${SITE_DIR})`);
+      console.log(`  /app     → index.html`);
+    } else {
+      console.log(`  /        → index.html (no site repo found at ${SITE_DIR})`);
+    }
+    console.log(`  /docs/*  → 301 docs.getbased.health`);
+    openDevBrowser(appUrl);
+  });
+  const shutdown = () => {
+    devAgentHost?.close();
+    server.close(() => process.exit(0));
+  };
+  process.once('SIGINT', shutdown);
+  process.once('SIGTERM', shutdown);
+}

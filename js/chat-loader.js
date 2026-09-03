@@ -87,6 +87,7 @@ export function createNewThread(...args) { return callChatModule('createNewThrea
 export function clearChatHistory(...args) { return callChatModule('clearChatHistory', args); }
 export function filterThreadList(...args) { return callChatModule('filterThreadList', args); }
 export function sendChatMessage(...args) { return callChatModule('sendChatMessage', args); }
+export function setChatBackendFromUI(...args) { return callChatModule('setChatBackendFromUI', args); }
 export function setChatPersonality(...args) { return callChatModule('setChatPersonality', args); }
 export function setChatWebSearchEnabled(...args) { return callChatModule('setChatWebSearchEnabled', args); }
 export function startDiscussion(...args) { return callChatModule('startDiscussion', args); }

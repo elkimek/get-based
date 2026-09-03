@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "maximums": {
     "startupJavaScriptFiles": 2,
-    "startupDecodedBytes": 1180000,
+    "startupDecodedBytes": 1186000,
     "outputJavaScriptFiles": 158,
-    "outputDecodedBytes": 5025000
+    "outputDecodedBytes": 5070000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -43,8 +43,13 @@
     "routeAwareAiConsentStartupDecodedBytes": 1177819,
     "routeAwareAiConsentOutputDecodedBytes": 5009169,
     "onDeviceVoiceOutputDecodedBytes": 5017872,
-    "voiceStreamingUxOutputDecodedBytes": 5023375
+    "voiceStreamingUxOutputDecodedBytes": 5023375,
+    "agentBackedChatOutputDecodedBytes": 5038406,
+    "cliAgentProviderStartupDecodedBytes": 1184285,
+    "cliAgentProviderOutputDecodedBytes": 5048862,
+    "capabilityAwareAgentVisionStartupDecodedBytes": 1185123,
+    "capabilityAwareAgentVisionOutputDecodedBytes": 5057427
   },
-  "referenceCommit": "807732a8",
-  "measuredAt": "2026-08-30"
+  "referenceCommit": "331112b1",
+  "measuredAt": "2026-09-03"
 }

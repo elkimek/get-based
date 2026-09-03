@@ -15,6 +15,7 @@ import {
   setProfileSex,
 } from './profile.js';
 import { hasAIProvider, isAIPaused } from './api.js';
+import { hasChatResponseBackend } from './chat-backend-selection.js';
 import {
   handleAppExtensionOnboardingAction,
   renderAppExtensionOnboardingSlot,
@@ -86,7 +87,10 @@ function openAiProviderSettings(provider) {
   closeChatPanel();
   setTimeout(() => {
     openSettingsModal('ai');
-    if (CHAT_ONBOARDING_SETTING_PROVIDERS.has(provider)) switchAIProvider(provider);
+    if (provider === 'cli') {
+      const cliButton = /** @type {HTMLElement | null} */ (document.querySelector('[data-settings-action="show-cli-agent-provider"]'));
+      cliButton?.click();
+    } else if (CHAT_ONBOARDING_SETTING_PROVIDERS.has(provider)) switchAIProvider(provider);
   }, 300);
 }
 
@@ -236,7 +240,7 @@ function clearForcedOnboardingStep() {
 }
 
 export function useChatPrompt(text) {
-  if (!hasAIProvider()) {
+  if (!hasChatResponseBackend()) {
     showNotification('Connect an AI provider first — open Settings → AI to set one up.', 'info');
     return;
   }
@@ -399,11 +403,11 @@ export async function saveChatProfile(advance) {
   if (advance && name && state.profileSex) {
     const shouldContinueOnboarding = !state.importedData?.entries?.length && !isAIPaused();
     if (sessionStorage.getItem(forcedStepKey()) === 'profile' && shouldContinueOnboarding) {
-      goToOnboardingStep(hasAIProvider() ? 3 : 2);
+      goToOnboardingStep(hasChatResponseBackend() ? 3 : 2);
       return true;
     }
     if (shouldContinueOnboarding) {
-      goToOnboardingStep(hasAIProvider() ? 3 : 2);
+      goToOnboardingStep(hasChatResponseBackend() ? 3 : 2);
       return true;
     }
     // Profile complete — advance to next stage
@@ -550,7 +554,7 @@ function _refreshDashboardCycle() {
 }
 
 function getOnboardingProgressMeta(currentStep) {
-  const providerConnected = hasAIProvider();
+  const providerConnected = hasChatResponseBackend();
   const labels = {
     1: 'Basics',
     2: 'AI setup',
@@ -584,7 +588,7 @@ function getOnboardingProgressMeta(currentStep) {
 export function _renderOnboardCrumbs(currentStep) {
   const progress = getOnboardingProgressMeta(currentStep);
   const dots = Array.from({ length: progress.total }, (_, i) => `<span class="chat-onboard-crumb${i + 1 <= progress.step ? ' active' : ''}"></span>`).join('');
-  const previousStep = currentStep === 3 && hasAIProvider() ? 1 : currentStep - 1;
+  const previousStep = currentStep === 3 && hasChatResponseBackend() ? 1 : currentStep - 1;
   const back = currentStep > 1
     ? `<button type="button" class="chat-onboard-back-btn" ${chatOnboardingActionAttrs('go-onboarding-step', { step: previousStep })} aria-label="Back to previous onboarding step" title="Previous step">&larr;</button>`
     : '';
@@ -594,18 +598,15 @@ export function _renderOnboardCrumbs(currentStep) {
   </div>`;
 }
 
-// Provider quiz — 4 plain-language branches replace the 5-card jargon grid.
-// Branch state lives in sessionStorage so a tab refresh mid-flow doesn't
-// drop the user back at the root (deliberately *not* localStorage — a new
-// session starts fresh).
+// Plain-language provider branches. Session state survives refreshes, while a new session starts at the root.
 export function _renderProviderQuiz(branch, name) {
   const safeName = escapeHTML(name);
-  const extensionQuiz = renderAppExtensionOnboardingSlot('provider-quiz', {
-    actionAttrs: chatOnboardingActionAttrs,
-    branch,
-    name,
-  });
+  const extensionQuiz = renderAppExtensionOnboardingSlot('provider-quiz', { actionAttrs: chatOnboardingActionAttrs, branch, name });
   if (extensionQuiz) return extensionQuiz;
+  if (branch === 'cli') {
+    return `<div class="chat-provider-quiz"><button type="button" class="chat-quiz-back" ${chatOnboardingActionAttrs('back-to-provider-quiz')} aria-label="Back to provider options">&larr; Back</button>
+      <p><strong>Use an existing subscription &rarr; CLI agents</strong></p><p style="font-size:13px">Get-based scans this computer for signed-in agents such as Codex, OpenCode, Hermes, and Grok. There is no API key or connection address to paste.</p><button type="button" class="chat-setup-btn" ${chatOnboardingActionAttrs('open-provider-settings', { provider: 'cli' })}>Find my installed agents &rarr;</button><p style="font-size:11px;color:var(--text-muted);margin-top:10px">Codex works now. Other detected agents are shown while their adapters are added.</p></div>`;
+  }
   if (branch === 'card') {
     return `<div class="chat-provider-quiz"><button type="button" class="chat-quiz-back" ${chatOnboardingActionAttrs('back-to-provider-quiz')} aria-label="Back to provider options">&larr; Back</button>
       <p><strong>Pay with a card &rarr; OpenRouter</strong></p>
@@ -644,11 +645,14 @@ export function _renderProviderQuiz(branch, name) {
   // Root question
   return `<div class="chat-provider-quiz"><p>Welcome, ${safeName}! Next, pick how you want to power the AI:</p>
     <div class="chat-quiz-options">
-      <button type="button" class="chat-quiz-option chat-quiz-recommended" ${chatOnboardingActionAttrs('set-provider-branch', { 'provider-branch': 'card' })}>
+      <button type="button" class="chat-quiz-option chat-quiz-recommended" ${chatOnboardingActionAttrs('set-provider-branch', { 'provider-branch': 'cli' })}>
+        <span class="chat-quiz-icon" aria-hidden="true">&#9002;</span><span class="chat-quiz-body"><strong>Use an AI subscription I already have</strong><span>Detect Codex and other installed agents. <em class="chat-quiz-rec">Recommended</em></span></span><span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
+      </button>
+      <button type="button" class="chat-quiz-option" ${chatOnboardingActionAttrs('set-provider-branch', { 'provider-branch': 'card' })}>
         <span class="chat-quiz-icon" aria-hidden="true">&#128179;</span>
         <span class="chat-quiz-body">
           <strong>Easiest &mdash; pay with a card</strong>
-          <span>One-click login. <em class="chat-quiz-rec">Recommended</em></span>
+          <span>One-click login through OpenRouter.</span>
         </span>
         <span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
       </button>

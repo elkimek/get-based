@@ -1,0 +1,133 @@
+// @ts-check
+// Lazy browser runtime for origin-gated standalone companion discovery.
+
+import { agentHostUpgradeRequiredError, checkAgentHost } from './agent-chat-client.js';
+import {
+  agentHostSupportsCapabilities, normalizeAgentHostCapabilities, normalizeAgentHostProtocolVersion,
+} from '../shared/agent-host-protocol.js';
+
+const LOOPBACK_AGENT_PORTS = Object.freeze(Array.from({ length: 8 }, (_, index) => 8324 + index));
+const LOOPBACK_DISCOVERY_TIMEOUT_MS = 650;
+
+/** @param {any} agent */
+export function normalizeDiscoveredAgent(agent) {
+  return {
+    id: String(agent?.id || ''),
+    name: String(agent?.name || ''),
+    description: String(agent?.description || '').slice(0, 100),
+    version: String(agent?.version || '').slice(0, 100),
+    status: String(agent?.status || 'unavailable'),
+    compatible: agent?.compatible === true,
+    endpoint: String(agent?.endpoint || ''),
+    token: String(agent?.token || ''),
+    message: String(agent?.message || '').slice(0, 240),
+    protocolVersion: normalizeAgentHostProtocolVersion(agent?.protocolVersion),
+    capabilities: normalizeAgentHostCapabilities(agent?.capabilities),
+  };
+}
+
+/** @param {string} endpoint @param {AbortSignal|undefined} parentSignal @param {(value: string) => string} normalizeEndpoint */
+async function probeLoopbackAgentHost(endpoint, parentSignal, normalizeEndpoint) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), LOOPBACK_DISCOVERY_TIMEOUT_MS);
+  const abort = () => controller.abort(parentSignal?.reason);
+  parentSignal?.addEventListener('abort', abort, { once: true });
+  try {
+    const response = await fetch(`${endpoint}/v1/discovery`, {
+      cache: 'no-store', signal: controller.signal,
+      headers: { Accept: 'application/json' },
+    });
+    if (!response.ok) return [];
+    const payload = await response.json();
+    if (payload?.service !== 'getbased-agent-host') return [];
+    const normalizedEndpoint = normalizeEndpoint(payload.endpoint || endpoint);
+    const token = String(payload.token || '');
+    if (token.length < 16 || token.length > 256) return [];
+    const protocolVersion = normalizeAgentHostProtocolVersion(payload.protocolVersion);
+    const capabilities = normalizeAgentHostCapabilities(payload.capabilities);
+    const rows = Array.isArray(payload.agents) && payload.agents.length
+      ? payload.agents
+      : [{ id: payload.agent || 'codex', name: 'Codex CLI', compatible: true, status: 'available' }];
+    return rows.map(row => normalizeDiscoveredAgent({
+      ...row, endpoint: normalizedEndpoint, token,
+      protocolVersion: row?.protocolVersion || protocolVersion,
+      capabilities: row?.capabilities || capabilities,
+    })).filter(agent => agent.id);
+  } catch { return []; }
+  finally {
+    clearTimeout(timer);
+    parentSignal?.removeEventListener('abort', abort);
+  }
+}
+
+/**
+ * @param {{savedEndpoint: string, normalizeEndpoint: (value: string) => string, signal?: AbortSignal, ports?: number[]}} options
+ */
+export async function discoverLoopbackAgentHostsRuntime(options) {
+  const ports = Array.isArray(options.ports) ? options.ports : LOOPBACK_AGENT_PORTS;
+  const boundedEndpoints = ports.filter(port => Number.isInteger(port) && port >= 1 && port <= 65535)
+    .map(port => `http://127.0.0.1:${port}`);
+  // Probe in port order and stop at the first companion. Browsers report a
+  // caught connection refusal in DevTools, so fanning out to every unused
+  // port made a successful discovery look broken. Keep a custom saved port
+  // first, but let the standard range retain its predictable 8324-first order.
+  const savedIsBounded = boundedEndpoints.includes(options.savedEndpoint);
+  const endpoints = [...new Set([
+    ...(savedIsBounded ? [] : [options.savedEndpoint]),
+    ...boundedEndpoints,
+  ].filter(Boolean))];
+  for (const endpoint of endpoints) {
+    if (options.signal?.aborted) return [];
+    const agents = await probeLoopbackAgentHost(endpoint, options.signal, options.normalizeEndpoint);
+    if (agents.length) return agents;
+  }
+  return [];
+}
+
+export function mergeDiscoveredAgents(primary, companions) {
+  const merged = [...primary];
+  for (const candidate of companions) {
+    const index = merged.findIndex(agent => agent.id === candidate.id);
+    if (index < 0) merged.push(candidate);
+    else if (candidate.compatible && candidate.status === 'available') merged[index] = candidate;
+  }
+  return merged;
+}
+
+export const normalizeRequiredCapabilities = normalizeAgentHostCapabilities;
+
+/**
+ * @param {{
+ *   candidate: ReturnType<typeof normalizeDiscoveredAgent>,
+ *   requiredCapabilities: string[],
+ *   signal?: AbortSignal,
+ *   attempts: number,
+ *   normalizeEndpoint: (value: string) => string,
+ *   onConnected: (settings: {endpoint: string, token: string}) => Promise<unknown>,
+ * }} options
+ */
+export async function connectAgentHostCandidate(options) {
+  const endpoint = options.normalizeEndpoint(options.candidate.endpoint);
+  if (options.candidate.token.length < 16 || options.candidate.token.length > 256) {
+    throw new Error('Codex connection is not ready yet.');
+  }
+  let lastError = null;
+  for (let attempt = 0; attempt < options.attempts; attempt += 1) {
+    try {
+      const status = await checkAgentHost({ endpoint, token: options.candidate.token, signal: options.signal });
+      if (!agentHostSupportsCapabilities(status, options.requiredCapabilities)) {
+        throw agentHostUpgradeRequiredError(options.requiredCapabilities[0] || 'requested-feature');
+      }
+      await options.onConnected({ endpoint, token: options.candidate.token });
+      return normalizeDiscoveredAgent({
+        ...options.candidate, ...status, endpoint, token: options.candidate.token,
+        status: 'available', compatible: true,
+      });
+    } catch (error) {
+      lastError = error;
+      if (/** @type {any} */ (error)?.code === 'agent_host_upgrade_required') throw error;
+      if (attempt < options.attempts - 1) await new Promise(resolve => setTimeout(resolve, 200));
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('Codex connection is unavailable.');
+}

@@ -24,6 +24,12 @@ afterAll(async () => {
 });
 
 describe('production startup build', () => {
+  it('keeps repository HTML pointed at the native development entry', async () => {
+    const sourceIndex = await fs.readFile('index.html', 'utf8');
+    expect(sourceIndex).toContain('<script type="module" src="js/main.js"></script>');
+    expect(sourceIndex).not.toMatch(/<script type="module" src="js\/bundle-main-[^"]+\.js"><\/script>/);
+  });
+
   it('rejects ineffective dynamic imports instead of shipping misleading lazy boundaries', () => {
     expect(() => handleBuildLog(
       'warn',
@@ -63,6 +69,12 @@ describe('production startup build', () => {
     expect(index).toContain('Chat starts with the basics');
     expect(index).toContain('<script src="js/legal-consent-bootstrap.js"></script>');
     expect(index).not.toMatch(/<script(?:\s[^>]*)?>\s*[^<]/);
+  });
+
+  it('emits the standalone Linux companion download beside the hosted app', async () => {
+    const companion = await fs.readFile(path.join(outputRoot, 'getbased-companion.mjs'), 'utf8');
+    expect(companion.startsWith('#!/usr/bin/env node\n')).toBe(true);
+    expect(companion).toContain('getbased-companion install');
   });
 
   it('pre-caches every generated lazy chunk for installed offline use', async () => {

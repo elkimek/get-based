@@ -1,0 +1,142 @@
+// @ts-check
+// Browser-side configuration for the optional loopback agent host.
+
+import { encryptedSetCredentialItem } from './crypto.js';
+import { getCachedKey } from './crypto-key-cache.js';
+
+export const AGENT_HOST_TOKEN_KEY = 'labcharts-agent-host-token';
+const BACKEND_KEY = 'labcharts-chat-backend';
+const ENDPOINT_KEY = 'labcharts-agent-host-endpoint';
+const MODEL_KEY = 'labcharts-agent-host-model';
+const EFFORT_KEY = 'labcharts-agent-host-effort';
+export const DEFAULT_AGENT_HOST_ENDPOINT = 'http://127.0.0.1:8324';
+
+export function getChatBackend() {
+  return localStorage.getItem(BACKEND_KEY) === 'codex' ? 'codex' : 'direct';
+}
+
+/** @param {unknown} value */
+export function setChatBackend(value) {
+  const backend = value === 'codex' ? 'codex' : 'direct';
+  localStorage.setItem(BACKEND_KEY, backend);
+  globalThis.dispatchEvent?.(new CustomEvent('getbased:chat-backend-changed', { detail: { backend } }));
+  return backend;
+}
+
+/** @param {string} value */
+export function normalizeAgentHostEndpoint(value) {
+  let url;
+  try { url = new URL(String(value || '').trim()); } catch { throw new Error('Enter a valid Agent Host URL.'); }
+  const loopback = url.hostname === '127.0.0.1' || url.hostname === 'localhost' || url.hostname === '[::1]';
+  if (url.protocol !== 'http:' || !loopback || url.username || url.password || url.search || url.hash) {
+    throw new Error('Agent Host must be an http:// loopback URL.');
+  }
+  return url.origin;
+}
+
+export function getAgentHostEndpoint() {
+  try { return normalizeAgentHostEndpoint(localStorage.getItem(ENDPOINT_KEY) || DEFAULT_AGENT_HOST_ENDPOINT); }
+  catch { return DEFAULT_AGENT_HOST_ENDPOINT; }
+}
+
+export function getAgentHostToken() {
+  return getCachedKey(AGENT_HOST_TOKEN_KEY) || '';
+}
+
+export function getAgentHostModel() {
+  return (localStorage.getItem(MODEL_KEY) || '').trim();
+}
+
+export function getAgentHostEffort() {
+  return (localStorage.getItem(EFFORT_KEY) || '').trim();
+}
+
+/**
+ * @param {{endpoint?: string, token?: string, model?: string, effort?: string}} settings
+ */
+export async function saveAgentChatSettings(settings) {
+  if (settings.endpoint !== undefined) {
+    localStorage.setItem(ENDPOINT_KEY, normalizeAgentHostEndpoint(settings.endpoint));
+  }
+  if (settings.model !== undefined) localStorage.setItem(MODEL_KEY, settings.model.trim().slice(0, 100));
+  if (settings.effort !== undefined) localStorage.setItem(EFFORT_KEY, settings.effort.trim().slice(0, 40));
+  if (settings.token !== undefined) await encryptedSetCredentialItem(AGENT_HOST_TOKEN_KEY, settings.token.trim());
+  globalThis.dispatchEvent?.(new CustomEvent('getbased:agent-host-settings-changed'));
+}
+
+export function hasAgentChatConnection() {
+  return Boolean(getAgentHostToken());
+}
+
+/**
+ * Discover a separately running companion without asking for a URL or token.
+ * The fixed, narrow port range is intentionally bounded to Get-based hosts.
+ * @param {{signal?: AbortSignal, ports?: number[]}} [options]
+ */
+export async function discoverLoopbackAgentHosts(options = {}) {
+  const runtime = await import('./agent-host-discovery.js');
+  return runtime.discoverLoopbackAgentHostsRuntime({
+    ...options, savedEndpoint: getAgentHostEndpoint(), normalizeEndpoint: normalizeAgentHostEndpoint,
+  });
+}
+
+/** @param {{signal?: AbortSignal, refresh?: boolean}} [options] */
+export async function discoverLocalChatAgents(options = {}) {
+  const runtime = await import('./agent-host-discovery.js');
+  const url = options.refresh ? '/api/local-agents?refresh=1' : '/api/local-agents';
+  let direct = [];
+  try {
+    const response = await fetch(url, { cache: 'no-store', signal: options.signal });
+    if (response.ok) {
+      const payload = await response.json();
+      direct = Array.isArray(payload?.agents)
+        ? payload.agents.filter(agent => agent && typeof agent === 'object').map(runtime.normalizeDiscoveredAgent)
+        : [];
+    }
+  } catch { /* hosted/static builds fall back to direct loopback discovery */ }
+  if (direct.some(agent => agent.id === 'codex' && agent.compatible)) return direct;
+  const companions = await discoverLoopbackAgentHosts({ signal: options.signal });
+  return runtime.mergeDiscoveredAgents(direct, companions);
+}
+
+/** @param {{signal?: AbortSignal, requiredCapabilities?: string[]}} [options] */
+export async function connectDetectedCodex(options = {}) {
+  const runtime = await import('./agent-host-discovery.js');
+  const savedToken = getAgentHostToken();
+  const requiredCapabilities = runtime.normalizeRequiredCapabilities(options.requiredCapabilities);
+  let agents = [];
+  try {
+    agents = await discoverLocalChatAgents(options);
+  } catch { /* use a saved local host or direct companion scan below */ }
+  const candidates = agents.filter(agent => agent.id === 'codex' && agent.compatible);
+  if (savedToken && !candidates.some(agent => agent.endpoint === getAgentHostEndpoint())) {
+    candidates.push(runtime.normalizeDiscoveredAgent({
+      id: 'codex', name: 'Codex CLI', status: 'available', compatible: true,
+      endpoint: getAgentHostEndpoint(), token: savedToken,
+    }));
+  }
+  let lastError = null;
+  for (const candidate of candidates) {
+    try {
+      return await runtime.connectAgentHostCandidate({
+        candidate, requiredCapabilities, signal: options.signal,
+        attempts: candidate.status === 'starting' ? 12 : 1,
+        normalizeEndpoint: normalizeAgentHostEndpoint, onConnected: saveAgentChatSettings,
+      });
+    } catch (error) { lastError = error; }
+  }
+  // A dev server can keep advertising an older child process while a newer
+  // standalone companion is already available on the next bounded port.
+  const recovered = await discoverLoopbackAgentHosts({ signal: options.signal });
+  for (const candidate of recovered.filter(agent => agent.id === 'codex' && agent.compatible)) {
+    if (candidates.some(existing => existing.endpoint === candidate.endpoint && existing.token === candidate.token)) continue;
+    try {
+      return await runtime.connectAgentHostCandidate({
+        candidate, requiredCapabilities, signal: options.signal, attempts: 1,
+        normalizeEndpoint: normalizeAgentHostEndpoint, onConnected: saveAgentChatSettings,
+      });
+    } catch (error) { lastError = error; }
+  }
+  if (!candidates.length && !recovered.length) throw new Error('Codex was not detected on this computer.');
+  throw lastError instanceof Error ? lastError : new Error('Codex connection is unavailable.');
+}

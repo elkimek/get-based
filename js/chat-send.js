@@ -7,7 +7,7 @@ import { calculateCost, formatCost, trackUsage } from './schema.js';
 import { escapeHTML, showNotification } from './utils.js';
 import { shouldHideAppExtensionAIUsage } from './app-extension-runtime.js';
 import {
-  getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider,
+  getActiveModelDisplay, getActiveModelId, getAIProvider,
   isPpqPrivateModeActive, isRoutstrPrivateModeActive, isVeniceE2EEActive, supportsWebSearch,
 } from './api.js';
 import { buildVisionContent, formatImageBlock } from './image-utils.js';
@@ -60,6 +60,12 @@ import {
   prepareChatMessageEditSend,
 } from './chat-message-edit.js';
 import { setChatStreamStatus } from './chat-stream-status.js';
+import { callCodexAgent } from './agent-chat-backend.js';
+import {
+  getChatBackendDisplay, hasChatResponseBackend, isCodexChatBackend,
+} from './chat-backend-selection.js';
+import { getAssistantExecutionRoute } from './ai-execution-routing.js';
+import { getAgentModelDisplay } from './agent-model-catalog.js';
 
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
@@ -207,7 +213,8 @@ export function setSendButtonMode(btn, mode) {
 // SEND MESSAGE
 // ═══════════════════════════════════════════════
 export async function sendChatMessage() {
-  if (!hasAIProvider()) {
+  const useCodexAgent = isCodexChatBackend();
+  if (!hasChatResponseBackend()) {
     renderChatMessages(); // Re-render to show setup guide
     return;
   }
@@ -228,13 +235,17 @@ export async function sendChatMessage() {
   const text = (pendingEditText ?? input.value).trim();
   const hasImages = !isEditedRetry && hasPendingAttachments();
   if (!text && !hasImages) return;
+  if (useCodexAgent && hasImages && !getAssistantExecutionRoute().inputModalities?.includes('image')) {
+    showNotification('The selected Codex model does not report image support.', 'info');
+    return;
+  }
 
   // Ask before mutating the conversation or preparing any provider request.
   // The shared gate separates AI transparency from endpoint-specific route
   // confirmation or remote sensitive-data approval.
-  const _msgProvider = getAIProvider();
+  const _msgProvider = useCodexAgent ? 'codex-agent' : getAIProvider();
   const { requestAIProcessingApproval } = await import('./cloud-ai-consent.js');
-  if (!await requestAIProcessingApproval(_msgProvider, { kind: 'text' })) return;
+  if (!await requestAIProcessingApproval(_msgProvider, { kind: hasImages ? 'image' : 'text' })) return;
 
   // Capture attachments before clearing (they're ephemeral)
   const attachments = hasImages ? [...getPendingAttachments()] : [];
@@ -298,13 +309,13 @@ export async function sendChatMessage() {
   setChatStreamStatus(`${getActivePersonality().name} is responding.`, { busy: true });
   let streamOutcome = 'complete';
 
-  const _msgModelId = getActiveModelId(_msgProvider);
-  const _msgModelDisplay = getActiveModelDisplay(_msgProvider);
-  const _msgE2EE = (_msgProvider === 'venice' && isVeniceE2EEActive())
+  let _msgModelId = useCodexAgent ? 'codex' : getActiveModelId(_msgProvider);
+  let _msgModelDisplay = useCodexAgent ? getChatBackendDisplay() : getActiveModelDisplay(_msgProvider);
+  const _msgE2EE = !useCodexAgent && ((_msgProvider === 'venice' && isVeniceE2EEActive())
     || (_msgProvider === 'ppq' && isPpqPrivateModeActive())
-    || (_msgProvider === 'routstr' && isRoutstrPrivateModeActive());
-  const _msgAttestation = getChatSendProviderAttestation(_msgProvider);
-  const webSearchSupported = supportsWebSearch(_msgProvider);
+    || (_msgProvider === 'routstr' && isRoutstrPrivateModeActive()));
+  const _msgAttestation = useCodexAgent ? null : getChatSendProviderAttestation(_msgProvider);
+  const webSearchSupported = !useCodexAgent && supportsWebSearch(_msgProvider);
   const webSearchEnabled = getChatWebSearchEnabled() && webSearchSupported;
   let aiMsgEl = null;
 
@@ -318,10 +329,10 @@ export async function sendChatMessage() {
         _lensResultForMsg = lensResult;
       }
     }
-    // The receipt must describe the exact final context sent to this response,
-    // including query-specific Lens retrieval and dynamically loaded modules.
+    // Direct providers receive this projection in the prompt. Agent-backed
+    // turns expose it behind tools and narrow the receipt to tools actually used.
     const { getContextSummary } = await import('./chat-context-summary.js');
-    const contextSnapshot = getContextSummary(labContext);
+    let contextSnapshot = getContextSummary(labContext);
     const personality = getActivePersonality();
     const currentPersonaName = personality.name;
     const personalityPrompt = buildPersonalityPrompt(personality, getCustomPersonality());
@@ -370,15 +381,51 @@ export async function sendChatMessage() {
     // Typewriter: trickle buffered text at a steady rate for smooth appearance
     const typewriter = createTypewriter(aiMsgEl, typingEl, container);
 
-    const aiResult = await callChatAPIWithContinuation({
-      system: systemPrompt,
-      messages: apiMessages,
-      maxTokens: CHAT_RESPONSE_MAX_TOKENS,
-      signal: _chatAbortController ? _chatAbortController.signal : undefined,
-      onStream(text) { typewriter.update(text); },
-      webSearch: webSearchEnabled,
-      provider: _msgProvider
-    });
+    const getStreamSignal = () => _chatAbortController ? _chatAbortController.signal : undefined;
+    let aiResult;
+    if (useCodexAgent) {
+      const currentThread = state.chatThreads.find(thread => thread.id === state.currentThreadId);
+      aiResult = await callCodexAgent({
+        prompt: text || 'Respond to the attached image.',
+        instructions: `${CHAT_SYSTEM_PROMPT}${personalityPrompt}${multiPersonaInstruction}`,
+        labContext,
+        profileId: state.currentProfile || '',
+        threadId: currentThread?.agentThreadId,
+        history: apiMessages.slice(0, -1).filter(message => typeof message.content === 'string').map(message => ({
+          role: message.role,
+          content: message.content,
+        })),
+        images: attachments.map(attachment => ({ base64: attachment.base64, mediaType: attachment.mediaType })),
+        signal: getStreamSignal(),
+        onStream(streamedText) { typewriter.update(streamedText); },
+      });
+      if (currentThread) {
+        currentThread.agentThreadId = aiResult.threadId;
+        currentThread.chatBackend = 'codex';
+        currentThread.agentModel = aiResult.model;
+      }
+      const agentToolCalls = Array.isArray(aiResult.toolCalls) ? aiResult.toolCalls : [];
+      if (!agentToolCalls.some(call => call.tool === 'getbased_lab_context')) {
+        contextSnapshot = agentToolCalls.filter(call => call.tool === 'getbased_section').map(call => {
+          const section = typeof call.arguments?.section === 'string' ? call.arguments.section.slice(0, 80) : 'section list';
+          return { label: 'Get-based agent tool', detail: `Section: ${section}` };
+        });
+      }
+    } else {
+      aiResult = await callChatAPIWithContinuation({
+        system: systemPrompt,
+        messages: apiMessages,
+        maxTokens: CHAT_RESPONSE_MAX_TOKENS,
+        signal: getStreamSignal(),
+        onStream(streamedText) { typewriter.update(streamedText); },
+        webSearch: webSearchEnabled,
+        provider: _msgProvider
+      });
+    }
+    if (useCodexAgent && aiResult.model) {
+      _msgModelId = aiResult.model;
+      _msgModelDisplay = getAgentModelDisplay(aiResult.model);
+    }
     const fullText = aiResult.text;
     const usage = /** @type {{ inputTokens?: number, outputTokens?: number } | undefined} */ (aiResult.usage);
     const responseTruncated = isAIResponseTruncated(aiResult);
@@ -393,7 +440,7 @@ export async function sendChatMessage() {
     aiMsgEl.innerHTML = renderMarkdown(fullText);
     if (responseTruncated) aiMsgEl.insertAdjacentHTML('beforeend', responseLimitNote());
     // Cost footnote
-    if (usage && (usage.inputTokens || usage.outputTokens) && !shouldHideAppExtensionAIUsage(_msgProvider)) {
+    if (!useCodexAgent && usage && (usage.inputTokens || usage.outputTokens) && !shouldHideAppExtensionAIUsage(_msgProvider)) {
       const cost = calculateCost(_msgProvider, _msgModelId, usage.inputTokens, usage.outputTokens);
       const totalTokens = (usage.inputTokens || 0) + (usage.outputTokens || 0);
       const webTag = webSearchEnabled ? ' \u00b7 \ud83c\udf10 web' : '';
@@ -401,6 +448,12 @@ export async function sendChatMessage() {
       const footnote = document.createElement('div');
       footnote.className = 'chat-cost-footnote';
       footnote.innerHTML = `${escapeHTML(_msgModelDisplay)} \u00b7 ${escapeHTML(formatCost(cost))} \u00b7 ${totalTokens.toLocaleString()} tokens${webTag}${e2eeTag}`;
+      aiMsgEl.appendChild(footnote);
+    } else if (useCodexAgent) {
+      const footnote = document.createElement('div');
+      footnote.className = 'chat-cost-footnote';
+      const webTag = aiResult.webSearches?.length ? ' · 🌐 web' : '';
+      footnote.textContent = `${_msgModelDisplay} · Codex subscription${webTag}`;
       aiMsgEl.appendChild(footnote);
     }
 
@@ -410,12 +463,12 @@ export async function sendChatMessage() {
       assistantMsg.truncated = true;
       assistantMsg.finishReason = aiResult.finishReason || 'length';
     }
-    if (webSearchEnabled) assistantMsg.webSearch = true;
+    if (webSearchEnabled || (useCodexAgent && aiResult.webSearches?.length)) assistantMsg.webSearch = true;
     if (_msgE2EE) { assistantMsg.e2ee = true; assistantMsg.attestation = getChatSendProviderAttestation(_msgProvider) || _msgAttestation || null; }
     attachLensSources(assistantMsg, _lensResultForMsg);
     if (usage && (usage.inputTokens || usage.outputTokens)) {
       assistantMsg.usage = { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens };
-      trackUsage(_msgProvider, _msgModelId, usage.inputTokens, usage.outputTokens);
+      if (!useCodexAgent) trackUsage(_msgProvider, _msgModelId, usage.inputTokens, usage.outputTokens);
     }
     state.chatHistory.push(assistantMsg);
 
@@ -542,7 +595,10 @@ export async function sendChatMessage() {
         // condition (e.g., OpenRouter 402 → showInsufficientBalanceDialog),
         // to avoid double-notifying the user.
         const technicalMessage = error.message || 'AI request failed';
-        const errorMessage = 'I couldn\'t complete this response. Check your provider connection and try again.';
+        const agentRestartRequired = error?.code === 'agent_host_upgrade_required';
+        const errorMessage = agentRestartRequired
+          ? technicalMessage
+          : 'I couldn\'t complete this response. Check your provider connection and try again.';
         const personality = getActivePersonality();
         state.chatHistory.push({
           role: 'assistant',
@@ -558,7 +614,9 @@ export async function sendChatMessage() {
         await saveChatHistory();
         renderChatMessages({ preserveScroll: true });
         console.warn('[chat] AI request failed', technicalMessage);
-        showNotification('AI response failed. Check your provider connection and try again.', 'error', 10000);
+        showNotification(agentRestartRequired
+          ? technicalMessage
+          : 'AI response failed. Check your provider connection and try again.', 'error', 10000);
       }
     }
   }

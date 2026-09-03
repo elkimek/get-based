@@ -1,0 +1,255 @@
+// @ts-check
+// settings-cli-agent-panel.js — Settings → AI → CLI agents rendering/actions.
+
+import { listAgentModels } from './agent-chat-client.js';
+import { cacheAgentModelCatalog } from './agent-model-catalog.js';
+import {
+  connectDetectedCodex,
+  discoverLocalChatAgents,
+  getAgentHostEffort,
+  getAgentHostEndpoint,
+  getAgentHostModel,
+  getAgentHostToken,
+  getChatBackend,
+  saveAgentChatSettings,
+  setChatBackend,
+} from './agent-chat-settings.js';
+import { escapeAttr, escapeHTML, showNotification } from './utils.js';
+
+/** @typedef {{reasoningEffort: string, description: string}} AgentReasoningEffort */
+/** @typedef {{id: string, model: string, displayName: string, isDefault: boolean, defaultReasoningEffort: string, supportedReasoningEfforts: AgentReasoningEffort[], inputModalities?: string[]}} AgentModel */
+
+/** @type {AgentModel[]} */
+let codexModels = [];
+
+/**
+ * @param {{hostname?: string, origin?: string}} [location]
+ */
+export function getLinuxCompanionInstallCommand(location = {}) {
+  const hostname = location.hostname ?? globalThis.location?.hostname ?? '';
+  const loopback = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+  if (loopback) return 'npm run companion:install';
+  const origin = String(location.origin ?? globalThis.location?.origin ?? 'https://app.getbased.health')
+    .replace(/\/$/, '');
+  return `curl -fsS ${origin}/getbased-companion.mjs -o getbased-companion.mjs && node getbased-companion.mjs install`;
+}
+
+function renderCompanionSetup() {
+  const command = getLinuxCompanionInstallCommand();
+  return `<div class="local-agent-install-card">
+    <div class="local-agent-install-copy">
+      <strong>Linux companion isn&rsquo;t running</strong>
+      <p>Install it once from a terminal. It starts automatically at login and lets this hosted page use your signed-in Codex CLI.</p>
+      <code>${escapeHTML(command)}</code>
+    </div>
+    <button type="button" class="import-btn import-btn-primary settings-mini-btn" data-settings-action="copy-cli-companion-install">Copy install command</button>
+    <small>Requires Node.js 20+ and <code>codex login</code>. No port or pairing token is needed.</small>
+  </div>`;
+}
+
+export async function copyCLICompanionInstallCommand() {
+  try {
+    await navigator.clipboard.writeText(getLinuxCompanionInstallCommand());
+    showNotification('Linux companion install command copied', 'success');
+  } catch {
+    showNotification('Could not access the clipboard', 'error');
+  }
+}
+
+export function renderCLIAgentProviderPanel() {
+  queueMicrotask(() => { void refreshDetectedAgentList(); });
+  return `
+    <div class="ai-provider-panel cli-agent-provider-panel" data-ai-provider-mode="cli">
+      <div class="local-agent-chat-head">
+        <div class="settings-copy">
+          <div id="local-agent-chat-title" class="settings-copy-title">CLI agents <span class="settings-beta-badge">Experimental</span></div>
+          <div class="settings-copy-desc">Use an installed agent and its existing subscription for Get-based chat and supported vision features. Detection and connection happen automatically on this computer.</div>
+        </div>
+        <button class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="rescan-cli-agents">Rescan</button>
+      </div>
+      <div class="local-agent-capability-note"><strong>Current scope: chat and meal-photo analysis.</strong> Image support follows the selected CLI model. Lab imports and background insights still use the API or Local provider you configured here.</div>
+      <div class="local-agent-list-kicker">Installed CLIs</div>
+      <div id="local-agent-list" class="local-agent-list" aria-live="polite">
+        <div class="local-agent-scan-state"><span class="local-agent-spinner" aria-hidden="true"></span>Scanning this computer…</div>
+      </div>
+      <div id="local-agent-status" class="sr-only" role="status" aria-live="polite"></div>
+      <details class="local-agent-details">
+        <summary>How CLI agents work</summary>
+        <p>Get-based uses a local companion and the agent&rsquo;s existing sign-in. Connection details stay hidden. Agents receive health data only through Get-based&rsquo;s approved tools. Codex may combine those tools with hosted web research; shell, files, browser control, plugins, and other local capabilities stay off.</p>
+      </details>
+    </div>`;
+}
+
+/** @param {AgentModel[]} models @param {string} selectedModel */
+function selectedModelEntry(models, selectedModel) {
+  return models.find(model => model.id === selectedModel || model.model === selectedModel)
+    || models.find(model => model.isDefault)
+    || models[0]
+    || null;
+}
+
+/**
+ * Render an in-page picker instead of a native select. Some Linux/Chromium
+ * combinations open a native select beneath the pointer on mouse-down, then
+ * immediately choose that option on mouse-up.
+ * @param {{id: string, label: string, value: string, options: {value: string, label: string}[], action: string, disabled?: boolean}} config
+ */
+function renderAgentPicker(config) {
+  const selected = config.options.find(option => option.value === config.value) || config.options[0];
+  return `<label class="local-agent-option-label" for="${escapeAttr(config.id)}-summary"><span>${escapeHTML(config.label)}</span></label>
+    <details class="cli-agent-picker"${config.disabled ? ' data-disabled="true"' : ''}>
+      <summary id="${escapeAttr(config.id)}-summary" class="cli-agent-picker-summary"${config.disabled ? ' aria-disabled="true" tabindex="-1"' : ''}>
+        <span>${escapeHTML(selected?.label || '')}</span><span class="cli-agent-picker-chevron" aria-hidden="true">⌄</span>
+      </summary>
+      <div class="cli-agent-picker-options" role="listbox" aria-label="${escapeAttr(config.label)}">
+        ${config.options.map(option => `<button type="button" role="option" aria-selected="${option.value === config.value}" data-settings-action="${escapeAttr(config.action)}" data-value="${escapeAttr(option.value)}"><span>${escapeHTML(option.label)}</span>${option.value === config.value ? '<span aria-hidden="true">✓</span>' : ''}</button>`).join('')}
+      </div>
+    </details>`;
+}
+
+/** @param {AgentModel[]} models */
+function renderCodexModelControls(models) {
+  const selectedModel = getAgentHostModel();
+  const selectedEffort = getAgentHostEffort();
+  const current = selectedModelEntry(models, selectedModel);
+  const defaultModel = models.find(model => model.isDefault) || models[0] || null;
+  const modelOptions = [
+    { value: '', label: `CLI default${defaultModel?.displayName ? ` · ${defaultModel.displayName}` : ''}` },
+    ...models.map(model => {
+      const value = model.id || model.model;
+      return { value, label: model.displayName || value };
+    }),
+  ];
+  if (selectedModel && !models.some(model => model.id === selectedModel || model.model === selectedModel)) {
+    modelOptions.splice(1, 0, { value: selectedModel, label: `${selectedModel} · unavailable` });
+  }
+  const efforts = current?.supportedReasoningEfforts || [];
+  const defaultEffort = current?.defaultReasoningEffort || '';
+  const effortOptions = [
+    { value: '', label: `Default${defaultEffort ? ` · ${defaultEffort}` : ''}` },
+    ...efforts.map(item => ({ value: item.reasoningEffort, label: item.reasoningEffort })),
+  ];
+  if (selectedEffort && !efforts.some(item => item.reasoningEffort === selectedEffort)) {
+    effortOptions.push({ value: selectedEffort, label: `${selectedEffort} · unavailable` });
+  }
+  return `<div class="local-agent-options">
+    <div class="local-agent-option-field">${renderAgentPicker({ id: 'cli-agent-model', label: 'Model', value: selectedModel, options: modelOptions, action: 'set-cli-agent-model' })}</div>
+    <div class="local-agent-option-field">${renderAgentPicker({ id: 'cli-agent-effort', label: 'Reasoning effort', value: selectedEffort, options: effortOptions, action: 'set-cli-agent-effort', disabled: !efforts.length })}</div>
+    <small>Synced from the Codex CLI model catalog.</small>
+  </div>`;
+}
+
+/** @param {{id: string, name: string, description: string, version: string, status: string, compatible: boolean, message: string}} agent */
+function renderDetectedAgent(agent) {
+  const isCodex = agent.id === 'codex';
+  const selected = isCodex && getChatBackend() === 'codex';
+  const isReady = agent.status === 'available';
+  const statusLabel = isCodex
+    ? (isReady ? 'Ready' : agent.status === 'starting' ? 'Starting…' : 'Detected')
+    : 'Detected · adapter coming next';
+  const initials = agent.id === 'opencode' ? 'OC' : agent.id === 'hermes' ? 'H' : agent.id === 'grok' ? 'G' : '✦';
+  return `
+    <div class="local-agent-row${isCodex ? ' local-agent-row-compatible' : ''}">
+      <div class="local-agent-row-main">
+        <div class="local-agent-icon local-agent-icon-${escapeHTML(agent.id)}" aria-hidden="true">${initials}</div>
+        <div class="local-agent-copy">
+          <div class="local-agent-name">${escapeHTML(agent.name || agent.id)}</div>
+          <div class="local-agent-meta">${escapeHTML(agent.description || '')}${agent.version ? ` · ${escapeHTML(agent.version)}` : ''}</div>
+          <div class="local-agent-state"><span class="local-agent-dot ${isReady ? 'is-ready' : ''}"></span>${escapeHTML(statusLabel)}</div>
+        </div>
+        ${isCodex ? `
+          <button class="import-btn import-btn-secondary settings-mini-btn local-agent-test" data-settings-action="test-cli-codex">Test</button>
+          <label class="chat-websearch-toggle-label sync-settings-toggle local-agent-toggle" aria-label="Use Codex for chat">
+            <input type="checkbox" data-settings-action="toggle-cli-codex"${selected ? ' checked' : ''}>
+            <span class="chat-toggle-slider sync-settings-toggle-slider"></span>
+          </label>` : ''}
+      </div>
+      ${selected ? '<div id="cli-agent-options" class="local-agent-options-loading">Loading Codex models…</div>' : ''}
+    </div>`;
+}
+
+/** @param {{refresh?: boolean}} [options] */
+export async function refreshDetectedAgentList(options = {}) {
+  const list = document.getElementById('local-agent-list');
+  if (!list) return;
+  list.innerHTML = '<div class="local-agent-scan-state"><span class="local-agent-spinner" aria-hidden="true"></span>Scanning this computer…</div>';
+  try {
+    const agents = await discoverLocalChatAgents({ refresh: options.refresh });
+    const agentRows = agents.length ? agents.map(renderDetectedAgent).join('') : '';
+    const companionReady = agents.some(agent => agent.id === 'codex'
+      && agent.compatible && ['available', 'starting'].includes(agent.status));
+    list.innerHTML = `${agentRows}${companionReady ? '' : renderCompanionSetup()}`;
+    if (getChatBackend() === 'codex' && agents.some(agent => agent.id === 'codex' && agent.compatible)) {
+      void hydrateCodexModelControls();
+    }
+  } catch (error) {
+    list.innerHTML = '<div class="local-agent-scan-state local-agent-scan-error">CLI detection is unavailable.</div>';
+    console.warn('[agent-chat] CLI detection failed', error);
+  }
+}
+
+async function hydrateCodexModelControls() {
+  const options = document.getElementById('cli-agent-options');
+  if (!options) return;
+  try {
+    await connectDetectedCodex();
+    codexModels = cacheAgentModelCatalog(await listAgentModels({
+      endpoint: getAgentHostEndpoint(),
+      token: getAgentHostToken(),
+    }));
+    if (options.isConnected) options.innerHTML = renderCodexModelControls(codexModels);
+  } catch (error) {
+    if (options.isConnected) options.innerHTML = '<div class="local-agent-scan-state local-agent-scan-error">Could not load the Codex model catalog.</div>';
+    console.warn('[agent-chat] Codex model discovery failed', error);
+  }
+}
+
+export async function testLocalCodex() {
+  const status = document.getElementById('local-agent-status');
+  if (status) status.textContent = 'Testing Codex…';
+  try {
+    await connectDetectedCodex();
+    await listAgentModels({ endpoint: getAgentHostEndpoint(), token: getAgentHostToken() });
+    if (status) status.textContent = 'Codex is ready.';
+    showNotification('Codex is ready', 'success');
+    await refreshDetectedAgentList();
+  } catch (error) {
+    if (status) status.textContent = 'Codex could not connect.';
+    showNotification(error instanceof Error ? error.message : 'Codex could not connect.', 'error', 9000);
+  }
+}
+
+/** @param {boolean} enabled */
+export async function toggleLocalCodex(enabled) {
+  if (!enabled) {
+    setChatBackend('direct');
+    showNotification('API or Local AI selected for chat', 'success');
+    await refreshDetectedAgentList();
+    return;
+  }
+  try {
+    await connectDetectedCodex();
+    setChatBackend('codex');
+    showNotification('Codex selected for chat', 'success');
+  } catch (error) {
+    setChatBackend('direct');
+    showNotification(error instanceof Error ? error.message : 'Codex could not connect.', 'error', 9000);
+  }
+  await refreshDetectedAgentList();
+}
+
+/** @param {string} model */
+export async function setCLIAgentModel(model) {
+  await saveAgentChatSettings({ model, effort: '' });
+  showNotification(model ? 'Codex model updated' : 'Codex will use its CLI default model', 'success');
+  const options = document.getElementById('cli-agent-options');
+  if (options?.isConnected) options.innerHTML = renderCodexModelControls(codexModels);
+}
+
+/** @param {string} effort */
+export async function setCLIAgentEffort(effort) {
+  await saveAgentChatSettings({ effort });
+  showNotification(effort ? `Codex reasoning set to ${effort}` : 'Codex will use its default reasoning effort', 'success');
+  const options = document.getElementById('cli-agent-options');
+  if (options?.isConnected) options.innerHTML = renderCodexModelControls(codexModels);
+}

@@ -11,6 +11,7 @@ import {
   formatAppShellSummary,
   summarizeAppShell,
 } from './app-shell-budget.mjs';
+import { buildCompanionBundle } from './build-companion-bundle.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MAIN_ENTRY = path.join(ROOT, 'js', 'main.js');
@@ -158,6 +159,7 @@ async function enforceBuildBudget(summary) {
 
 export async function buildProduction({ outputRoot = ROOT } = {}) {
   await validateBundlerLock();
+  await buildCompanionBundle({ outputRoot });
 
   const outputDirectory = path.join(outputRoot, 'js');
   await fs.mkdir(outputDirectory, { recursive: true });

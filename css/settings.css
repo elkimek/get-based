@@ -1003,6 +1003,222 @@
     linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 55%),
     var(--bg-card);
 }
+.settings-modal .local-agent-chat-card,
+.settings-modal .cli-agent-provider-panel {
+  margin-bottom: 20px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-card);
+}
+.settings-modal .local-agent-chat-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 62%);
+}
+.settings-modal .local-agent-capability-note {
+  margin: 12px 15px 0;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.settings-modal .local-agent-list-kicker {
+  padding: 13px 15px 7px;
+  color: var(--text-muted);
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.settings-modal .local-agent-list { padding: 0 10px 10px; }
+.settings-modal .local-agent-install-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px 14px;
+  margin: 4px 0;
+  padding: 13px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg-secondary));
+}
+.settings-modal .local-agent-install-copy { min-width: 0; }
+.settings-modal .local-agent-install-copy strong { color: var(--text-primary); font-size: 12.5px; }
+.settings-modal .local-agent-install-copy p {
+  margin: 4px 0 8px;
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+.settings-modal .local-agent-install-copy code {
+  display: block;
+  overflow: hidden;
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 9.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-modal .local-agent-install-card > small {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: 9.5px;
+}
+.settings-modal .local-agent-install-card > small code { color: var(--text-secondary); }
+.settings-modal .local-agent-row {
+  padding: 10px;
+  border-radius: 11px;
+}
+.settings-modal .local-agent-row-main {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 11px;
+  min-height: 58px;
+}
+.settings-modal .local-agent-row + .local-agent-row { border-top: 1px solid var(--border); border-radius: 0; }
+.settings-modal .local-agent-row-compatible { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+.settings-modal .local-agent-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+}
+.settings-modal .local-agent-icon-codex { color: var(--accent); font-size: 18px; }
+.settings-modal .local-agent-name { color: var(--text-primary); font-size: 13px; font-weight: 650; }
+.settings-modal .local-agent-meta {
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-modal .local-agent-state { display: flex; align-items: center; gap: 6px; margin-top: 4px; color: var(--text-secondary); font-size: 10.5px; }
+.settings-modal .local-agent-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--yellow); }
+.settings-modal .local-agent-dot.is-ready { background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 14%, transparent); }
+.settings-modal .local-agent-scan-state { padding: 18px 8px; color: var(--text-muted); font-size: 12px; text-align: center; }
+.settings-modal .local-agent-scan-error { color: var(--red); }
+.settings-modal .local-agent-spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 7px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: local-agent-spin .8s linear infinite;
+}
+@keyframes local-agent-spin { to { transform: rotate(360deg); } }
+.settings-modal .local-agent-toggle { margin-left: 2px; }
+.settings-modal .local-agent-options-loading { padding: 10px 0 2px 49px; color: var(--text-muted); font-size: 11px; }
+.settings-modal .local-agent-options {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, .6fr);
+  gap: 10px;
+  padding: 12px 0 2px 49px;
+}
+.settings-modal .local-agent-option-field { min-width: 0; }
+.settings-modal .local-agent-option-label { display: block; margin-bottom: 5px; color: var(--text-secondary); font-size: 10.5px; font-weight: 600; }
+.settings-modal .cli-agent-picker {
+  position: relative;
+  width: 100%;
+}
+.settings-modal .cli-agent-picker-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.settings-modal .cli-agent-picker-summary::-webkit-details-marker { display: none; }
+.settings-modal .cli-agent-picker-summary:focus-visible {
+  border-color: var(--accent);
+  outline: 3px solid var(--accent-fill);
+}
+.settings-modal .cli-agent-picker-chevron { color: var(--text-muted); transition: transform 140ms ease; }
+.settings-modal .cli-agent-picker[open] .cli-agent-picker-chevron { transform: rotate(180deg); }
+.settings-modal .cli-agent-picker[data-disabled="true"] { opacity: .55; pointer-events: none; }
+.settings-modal .cli-agent-picker-options {
+  display: grid;
+  margin-top: 5px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--select-popup-surface);
+  box-shadow: var(--shadow-md);
+}
+.settings-modal .cli-agent-picker-options button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.settings-modal .cli-agent-picker-options button:hover,
+.settings-modal .cli-agent-picker-options button:focus-visible {
+  background: var(--accent-fill);
+  outline: none;
+}
+.settings-modal .cli-agent-picker-options button[aria-selected="true"] { color: var(--accent); font-weight: 600; }
+.settings-modal .cli-agent-picker-options button[aria-selected="true"] span:last-child { color: var(--green); }
+.settings-modal .cli-agent-picker-options button span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-modal .local-agent-options small { grid-column: 1 / -1; color: var(--text-muted); font-size: 10.5px; }
+.settings-modal .local-agent-details { padding: 10px 15px 13px; border-top: 1px solid var(--border); }
+.settings-modal .local-agent-details summary { color: var(--text-muted); cursor: pointer; font-size: 11px; }
+.settings-modal .local-agent-details p { margin: 8px 0 0; color: var(--text-muted); font-size: 11px; line-height: 1.55; }
+.settings-modal .settings-beta-badge {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 2px 5px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: .06em;
+}
 .settings-modal .agent-access-client-kicker {
   margin-top: 11px;
   margin-bottom: 6px;
@@ -1984,6 +2200,15 @@ label.sync-settings-toggle input:disabled + .sync-settings-toggle-slider { opaci
     grid-template-columns: 1fr;
     align-items: stretch;
   }
+  .settings-modal .local-agent-row-main {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    gap: 9px;
+  }
+  .settings-modal .local-agent-install-card { grid-template-columns: 1fr; align-items: stretch; }
+  .settings-modal .local-agent-install-card > .import-btn { width: 100%; justify-content: center; }
+  .settings-modal .local-agent-options { grid-template-columns: 1fr; padding-left: 43px; }
+  .settings-modal .local-agent-options small { grid-column: auto; }
+  .settings-modal .local-agent-test { display: none; }
   .settings-modal .agent-access-copy-btn {
     width: 100%;
     justify-content: center;

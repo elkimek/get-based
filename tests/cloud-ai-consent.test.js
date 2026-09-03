@@ -160,6 +160,17 @@ describe('AI transparency and route-aware approval', () => {
     });
   });
 
+  it('describes the local-host-to-Codex processing route', () => {
+    expect(cloudAIConsentDetails('codex-agent')).toMatchObject({
+      boundary: 'remote',
+      required: true,
+      label: 'OpenAI Codex',
+      route: 'through the local Get-based Agent Host to OpenAI Codex',
+      privacyUrl: 'https://openai.com/policies/privacy-policy/',
+      termsUrl: 'https://openai.com/policies/terms-of-use/',
+    });
+  });
+
   it('selects API-specific processing and terms links for remote voice providers', () => {
     expect(cloudAIConsentDetails('xai')).toMatchObject({
       privacyUrl: 'https://x.ai/legal/data-processing-addendum',

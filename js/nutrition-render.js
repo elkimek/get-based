@@ -2,9 +2,8 @@
 // nutrition-render.js — pure Meals & Nutrition view templates and formatting.
 
 import { state } from './state.js';
-import { getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider } from './api.js';
 import { getMealAnalysisAvailability, nutritionUsageSummary } from './nutrition-analysis.js';
-import { getDefaultNutritionComparisonModelValues, getMealAISelection, isConfirmedMealVisionModel, isNutritionLocalAICatalogLoading, listNutritionVisionModels, nutritionModelPricing } from './nutrition-ai-settings.js';
+import { getDefaultNutritionComparisonModelValues, getMealAISelection, isNutritionLocalAICatalogLoading, listNutritionVisionModels, nutritionModelPricing } from './nutrition-ai-settings.js';
 import { MEAL_COMPARISON_REFERENCE_FIELDS } from './nutrition-comparison.js';
 import { assessFuelStrategy, calculateFuelOverlap } from './nutrition-fuel-mix.js';
 import { NUTRIENT_DEFINITIONS, NUTRIENT_GROUPS, nutrientFieldsForGroup } from './nutrition-nutrient-registry.js';
@@ -634,22 +633,21 @@ export function renderNutritionBenchmarkModal() {
 }
 
 export function renderMealModelControl() {
-  const provider = getAIProvider();
-  const mainModel = getActiveModelId(provider);
-  const mainDisplay = getActiveModelDisplay(provider) || mainModel || 'selected model';
-  const mainAvailable = hasAIProvider(provider) && !!mainModel && isConfirmedMealVisionModel(provider, mainModel);
   const selection = getMealAISelection();
   const checkingLocal = selection.local && isNutritionLocalAICatalogLoading();
-  const selectedValue = selection.usesChatModel ? '' : JSON.stringify({ provider: selection.provider, model: selection.model });
-  const models = listNutritionVisionModels().filter(model => model.provider === provider);
+  const selectedValue = selection.usesAutomatic ? '' : JSON.stringify({ provider: selection.provider, model: selection.model });
+  const models = listNutritionVisionModels().filter(model => model.provider === selection.provider);
   const options = models.map(model => `<option value="${escapeAttr(model.value)}"${model.value === selectedValue ? ' selected' : ''}>${escapeHTML(model.modelDisplay)}</option>`).join('');
   const hasSelectedRoute = !selectedValue || models.some(model => model.value === selectedValue);
   const unavailableSaved = selectedValue && !hasSelectedRoute
     ? `<option value="${escapeAttr(selectedValue)}" selected>${escapeHTML(selection.modelDisplay)} · saved choice</option>`
     : '';
   const pricing = nutritionModelPricing(selection.provider, selection.model);
-  const status = selection.available ? (selection.local ? 'Local' : 'Ready') : checkingLocal ? 'Checking…' : 'Unavailable';
-  return `<section id="nutrition-meal-model-control" class="nutrition-meal-model-control"><label class="nutrition-meal-model-select"><span id="nutrition-model-purpose">Photo model</span><select aria-label="Meal photo analysis model" data-nutrition-model-route><option value=""${selection.usesChatModel ? ' selected' : ''}${mainAvailable ? '' : ' disabled'}>Follow main · ${escapeHTML(mainDisplay)}</option>${unavailableSaved}${options}</select></label><div class="nutrition-meal-model-foot"><span>${escapeHTML(selection.providerDisplay)} · ${escapeHTML(pricing.priceLabel)} · <span class="nutrition-meal-model-status${selection.available ? ' is-ready' : ' is-unavailable'}">${status}</span></span><button type="button" class="nutrition-meal-model-settings" ${actionAttrs('open-ai-settings')}>AI settings</button></div></section>`;
+  const status = selection.available ? (selection.adapter === 'codex' ? 'Connected' : selection.local ? 'Local' : 'Ready') : checkingLocal ? 'Checking…' : 'Unavailable';
+  const automaticLabel = selection.fallback
+    ? `Automatic fallback · ${selection.modelDisplay}`
+    : `Follow chat assistant · ${selection.modelDisplay}`;
+  return `<section id="nutrition-meal-model-control" class="nutrition-meal-model-control"><label class="nutrition-meal-model-select"><span id="nutrition-model-purpose">Photo model</span><select aria-label="Meal photo analysis model" data-nutrition-model-route><option value=""${selection.usesAutomatic ? ' selected' : ''}${selection.available ? '' : ' disabled'}>${escapeHTML(automaticLabel)}</option>${unavailableSaved}${options}</select></label><div class="nutrition-meal-model-foot"><span>${escapeHTML(selection.providerDisplay)} · ${escapeHTML(pricing.priceLabel)} · <span class="nutrition-meal-model-status${selection.available ? ' is-ready' : ' is-unavailable'}">${status}</span></span><button type="button" class="nutrition-meal-model-settings" ${actionAttrs('open-ai-settings')}>AI settings</button></div></section>`;
 }
 
 function renderComparisonLauncher() {

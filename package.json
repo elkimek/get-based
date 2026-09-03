@@ -8,8 +8,12 @@
     "node": "24.x"
   },
   "scripts": {
+    "agent-host": "node server/agent-host-server.js",
     "architecture:build": "node scripts/architecture-map.mjs --write",
     "architecture:check": "node scripts/architecture-map.mjs --check",
+    "companion": "node server/agent-host-server.js",
+    "companion:bundle": "node scripts/build-companion-bundle.mjs",
+    "companion:install": "npm run companion:bundle && node getbased-companion.mjs install",
     "dev-server": "node dev-server.js",
     "marker-schema:build": "node scripts/build-marker-schema.mjs --write",
     "marker-schema:check": "node scripts/build-marker-schema.mjs --check",
