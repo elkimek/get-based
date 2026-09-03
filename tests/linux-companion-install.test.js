@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   installLinuxCompanion, LINUX_COMPANION_SERVICE, resolveLinuxCompanionPaths,
-  uninstallLinuxCompanion,
+  runLinuxCompanionServiceCommand, uninstallLinuxCompanion,
 } from '../lib/linux-companion-install.js';
 
 const roots = [];
@@ -100,5 +100,20 @@ describe('Linux companion installer', () => {
     expect(existsSync(result.serviceFile)).toBe(false);
     expect(existsSync(result.launcher)).toBe(false);
     expect(readFileSync(pairingState, 'utf8')).toBe('keep-me');
+  });
+
+  it('supports start, stop, restart, and status controls', () => {
+    const systemctl = vi.fn();
+    for (const command of ['start', 'stop', 'restart', 'status']) {
+      runLinuxCompanionServiceCommand(/** @type {'start'|'stop'|'restart'|'status'} */ (command), {
+        execFileSyncImpl: systemctl,
+      });
+    }
+    expect(systemctl.mock.calls.map(call => call[1])).toEqual([
+      ['--user', 'start', LINUX_COMPANION_SERVICE],
+      ['--user', 'stop', LINUX_COMPANION_SERVICE],
+      ['--user', 'restart', LINUX_COMPANION_SERVICE],
+      ['--user', 'status', '--no-pager', LINUX_COMPANION_SERVICE],
+    ]);
   });
 });

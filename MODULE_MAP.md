@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 730 |
-| Internal import edges | 3111 |
+| Modules | 733 |
+| Internal import edges | 3115 |
 | Dynamic internal edges | 103 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1454,6 +1454,12 @@ Node-only policy and transport code shared by hosted runtimes.
 
 </details>
 
+<details><summary><code>companion</code> family — 1 module</summary>
+
+- [`lib/companion-install.js`](lib/companion-install.js) → [`lib/linux-companion-install.js`](lib/linux-companion-install.js), [`lib/macos-companion-install.js`](lib/macos-companion-install.js), [`lib/windows-companion-install.js`](lib/windows-companion-install.js)
+
+</details>
+
 <details><summary><code>dev</code> family — 4 modules</summary>
 
 - [`lib/dev-agent-host.js`](lib/dev-agent-host.js) → [`lib/agent-host-storage.js`](lib/agent-host-storage.js)
@@ -1472,6 +1478,12 @@ Node-only policy and transport code shared by hosted runtimes.
 <details><summary><code>linux</code> family — 1 module</summary>
 
 - [`lib/linux-companion-install.js`](lib/linux-companion-install.js) → no in-scope imports
+
+</details>
+
+<details><summary><code>macos</code> family — 1 module</summary>
+
+- [`lib/macos-companion-install.js`](lib/macos-companion-install.js) → [`lib/linux-companion-install.js`](lib/linux-companion-install.js)
 
 </details>
 
@@ -1496,6 +1508,12 @@ Node-only policy and transport code shared by hosted runtimes.
 <details><summary><code>vercel</code> family — 1 module</summary>
 
 - [`lib/vercel-blob-rest.js`](lib/vercel-blob-rest.js) → no in-scope imports
+
+</details>
+
+<details><summary><code>windows</code> family — 1 module</summary>
+
+- [`lib/windows-companion-install.js`](lib/windows-companion-install.js) → no in-scope imports
 
 </details>
 
@@ -1535,7 +1553,7 @@ Install and control the Linux user-level agent companion.
 
 <details><summary><code>getbased</code> family — 1 module</summary>
 
-- [`bin/getbased-companion.js`](bin/getbased-companion.js) → [`lib/linux-companion-install.js`](lib/linux-companion-install.js), [`server/agent-host-server.js`](server/agent-host-server.js) *(dynamic)*
+- [`bin/getbased-companion.js`](bin/getbased-companion.js) → [`lib/companion-install.js`](lib/companion-install.js), [`server/agent-host-server.js`](server/agent-host-server.js) *(dynamic)*
 
 </details>
 

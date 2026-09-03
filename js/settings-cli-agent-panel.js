@@ -21,44 +21,67 @@ import { escapeAttr, escapeHTML, showNotification } from './utils.js';
 
 /** @type {AgentModel[]} */
 let codexModels = [];
+/** @type {'linux'|'macos'|'windows'|''} */
+let companionPlatformOverride = '';
+
+/** @param {{userAgentData?: {platform?: string}, platform?: string, userAgent?: string}} [navigatorLike] */
+export function detectCompanionPlatform(navigatorLike = globalThis.navigator || {}) {
+  const value = String(navigatorLike.userAgentData?.platform || navigatorLike.platform || navigatorLike.userAgent || '').toLowerCase();
+  if (value.includes('win')) return /** @type {const} */ ('windows');
+  if (value.includes('mac')) return /** @type {const} */ ('macos');
+  return /** @type {const} */ ('linux');
+}
+
+function getCompanionDownloadOrigin(location = {}) {
+  return String(location.origin ?? globalThis.location?.origin ?? 'https://app.getbased.health').replace(/\/$/, '');
+}
+
+/** @param {'linux'|'macos'|'windows'} platform @param {'run'|'install'} action @param {{origin?: string}} [location] */
+export function getCompanionCommand(platform, action, location = {}) {
+  const url = `${getCompanionDownloadOrigin(location)}/getbased-companion.mjs`;
+  if (platform === 'windows') {
+    return `$ErrorActionPreference='Stop'; $p=Join-Path $env:TEMP 'getbased-companion.mjs'; Invoke-WebRequest '${url}' -OutFile $p; node $p ${action}`;
+  }
+  return `curl -fsSL '${url}' -o "\${TMPDIR:-/tmp}/getbased-companion.mjs" && node "\${TMPDIR:-/tmp}/getbased-companion.mjs" ${action}`;
+}
 
 /**
  * @param {{hostname?: string, origin?: string}} [location]
  */
 export function getLinuxCompanionInstallCommand(location = {}) {
-  const origin = String(location.origin ?? globalThis.location?.origin ?? 'https://app.getbased.health')
-    .replace(/\/$/, '');
-  return `curl -fsS ${origin}/getbased-companion.mjs -o /tmp/getbased-companion.mjs && node /tmp/getbased-companion.mjs install`;
+  return getCompanionCommand('linux', 'install', location);
 }
 
 /**
  * Run the same auditable bundle only for the lifetime of the terminal. Hosted
- * pages download it to the system temporary directory; local development uses
- * the repository script directly.
+ * pages download it to the operating system's temporary directory.
  * @param {{hostname?: string, origin?: string}} [location]
  */
 export function getLinuxCompanionRunCommand(location = {}) {
-  const origin = String(location.origin ?? globalThis.location?.origin ?? 'https://app.getbased.health')
-    .replace(/\/$/, '');
-  return `curl -fsS ${origin}/getbased-companion.mjs -o /tmp/getbased-companion.mjs && node /tmp/getbased-companion.mjs run`;
+  return getCompanionCommand('linux', 'run', location);
 }
 
 function renderCompanionSetup() {
-  const runCommand = getLinuxCompanionRunCommand();
-  const installCommand = getLinuxCompanionInstallCommand();
+  const platform = companionPlatformOverride || detectCompanionPlatform();
+  const runCommand = getCompanionCommand(platform, 'run');
+  const installCommand = getCompanionCommand(platform, 'install');
+  const terminal = platform === 'windows' ? 'PowerShell' : 'Terminal';
   return `<div class="local-agent-install-card" role="region" aria-label="Connect local CLI agents">
     <div class="local-agent-install-copy">
       <strong>Connect your installed CLI agents</strong>
-      <p>Your browser needs a small local bridge before it can use Codex or another CLI program. Choose a Linux option, paste the copied command into Terminal, then select <strong>Check connection</strong>.</p>
+      <p>Your browser needs a small local bridge before it can use Codex or another CLI program. Choose an option, paste the copied command into ${terminal}, then select <strong>Check connection</strong>.</p>
+    </div>
+    <div class="local-agent-platforms" role="group" aria-label="Operating system">
+      ${[['linux', 'Linux'], ['macos', 'macOS'], ['windows', 'Windows']].map(([value, label]) => `<button type="button" class="import-btn settings-mini-btn${platform === value ? ' active' : ''}" aria-pressed="${platform === value}" data-settings-action="set-cli-companion-platform" data-value="${value}">${label}</button>`).join('')}
     </div>
     <div class="local-agent-install-options">
       <div class="local-agent-install-option">
-        <div><strong>Run once</strong><span>Downloads one open-source file to <code>/tmp</code>. It stops when you close Terminal and installs no service.</span></div>
+        <div><strong>Run once</strong><span>Downloads one open-source file to your temporary folder. It stops when you close ${terminal} and installs no service.</span></div>
         <code title="${escapeAttr(runCommand)}">${escapeHTML(runCommand)}</code>
         <button type="button" class="import-btn import-btn-primary settings-mini-btn" data-settings-action="copy-cli-companion-run">Copy &ldquo;run once&rdquo; command</button>
       </div>
       <div class="local-agent-install-option">
-        <div><strong>Start automatically</strong><span>Installs a user-level Linux service. No root access.</span></div>
+        <div><strong>Start automatically</strong><span>Installs for your user account and starts at login. No administrator or root access.</span></div>
         <code title="${escapeAttr(installCommand)}">${escapeHTML(installCommand)}</code>
         <button type="button" class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="copy-cli-companion-install">Copy install command</button>
       </div>
@@ -67,10 +90,20 @@ function renderCompanionSetup() {
   </div>`;
 }
 
+/** @param {string} platform */
+export function setCLICompanionPlatform(platform) {
+  if (!['linux', 'macos', 'windows'].includes(platform)) return;
+  companionPlatformOverride = /** @type {'linux'|'macos'|'windows'} */ (platform);
+  const card = document.querySelector('.local-agent-install-card');
+  if (card) card.outerHTML = renderCompanionSetup();
+}
+
 export async function copyCLICompanionRunCommand() {
   try {
-    await navigator.clipboard.writeText(getLinuxCompanionRunCommand());
-    showNotification('Run-once command copied. Paste it into Terminal, then check the connection.', 'success', 7000);
+    const platform = companionPlatformOverride || detectCompanionPlatform();
+    await navigator.clipboard.writeText(getCompanionCommand(platform, 'run'));
+    const terminal = platform === 'windows' ? 'PowerShell' : 'Terminal';
+    showNotification(`Run-once command copied. Paste it into ${terminal}, then check the connection.`, 'success', 7000);
   } catch {
     showNotification('Could not access the clipboard', 'error');
   }
@@ -78,8 +111,10 @@ export async function copyCLICompanionRunCommand() {
 
 export async function copyCLICompanionInstallCommand() {
   try {
-    await navigator.clipboard.writeText(getLinuxCompanionInstallCommand());
-    showNotification('Install command copied. Paste it into Terminal, then check the connection.', 'success', 7000);
+    const platform = companionPlatformOverride || detectCompanionPlatform();
+    await navigator.clipboard.writeText(getCompanionCommand(platform, 'install'));
+    const terminal = platform === 'windows' ? 'PowerShell' : 'Terminal';
+    showNotification(`Install command copied. Paste it into ${terminal}, then check the connection.`, 'success', 7000);
   } catch {
     showNotification('Could not access the clipboard', 'error');
   }

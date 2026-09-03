@@ -22,6 +22,8 @@ describe('companion distribution bundle', () => {
     expect(result.bytes).toBeLessThan(250_000);
     expect(source).toContain('getbased Companion');
     expect(source).toContain('getbased-companion install');
+    expect(source).toContain('health.getbased.companion');
+    expect(source).toContain('schtasks.exe');
     expect(source).not.toMatch(/from\s+['"]\.\.?\//);
   });
 });

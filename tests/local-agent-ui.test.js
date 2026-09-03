@@ -2,7 +2,9 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { getLinuxCompanionInstallCommand, getLinuxCompanionRunCommand } from '../js/settings-cli-agent-panel.js';
+import {
+  detectCompanionPlatform, getCompanionCommand, getLinuxCompanionInstallCommand, getLinuxCompanionRunCommand,
+} from '../js/settings-cli-agent-panel.js';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -43,17 +45,24 @@ describe('local agent selection UI', () => {
     expect(source).toContain("provider === 'cli'");
   });
 
-  it('offers self-contained download commands locally and when hosted', () => {
+  it('offers self-contained download commands for Linux, macOS, and Windows', () => {
     expect(getLinuxCompanionRunCommand({ hostname: 'localhost', origin: 'http://localhost:8000' }))
-      .toBe('curl -fsS http://localhost:8000/getbased-companion.mjs -o /tmp/getbased-companion.mjs && node /tmp/getbased-companion.mjs run');
+      .toContain("curl -fsSL 'http://localhost:8000/getbased-companion.mjs'");
     expect(getLinuxCompanionInstallCommand({ hostname: 'localhost', origin: 'http://localhost:8000' }))
-      .toBe('curl -fsS http://localhost:8000/getbased-companion.mjs -o /tmp/getbased-companion.mjs && node /tmp/getbased-companion.mjs install');
+      .toContain('getbased-companion.mjs" install');
     expect(getLinuxCompanionRunCommand({
       hostname: 'app.getbased.health', origin: 'https://app.getbased.health',
-    })).toBe('curl -fsS https://app.getbased.health/getbased-companion.mjs -o /tmp/getbased-companion.mjs && node /tmp/getbased-companion.mjs run');
+    })).toContain("curl -fsSL 'https://app.getbased.health/getbased-companion.mjs'");
     expect(getLinuxCompanionInstallCommand({
       hostname: 'app.getbased.health', origin: 'https://app.getbased.health',
-    })).toBe('curl -fsS https://app.getbased.health/getbased-companion.mjs -o /tmp/getbased-companion.mjs && node /tmp/getbased-companion.mjs install');
+    })).toContain('getbased-companion.mjs" install');
+    expect(getCompanionCommand('macos', 'run', { origin: 'https://app.getbased.health' }))
+      .toContain('${TMPDIR:-/tmp}/getbased-companion.mjs" run');
+    expect(getCompanionCommand('windows', 'install', { origin: 'https://app.getbased.health' }))
+      .toContain("Invoke-WebRequest 'https://app.getbased.health/getbased-companion.mjs' -OutFile $p; node $p install");
+    expect(detectCompanionPlatform({ platform: 'Win32' })).toBe('windows');
+    expect(detectCompanionPlatform({ platform: 'MacIntel' })).toBe('macos');
+    expect(detectCompanionPlatform({ platform: 'Linux x86_64' })).toBe('linux');
   });
 
   it('renders Codex model and reasoning controls from the CLI catalog', () => {

@@ -4,14 +4,16 @@
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 import {
-  installLinuxCompanion, runLinuxCompanionServiceCommand, uninstallLinuxCompanion,
-} from '../lib/linux-companion-install.js';
+  companionPlatformName, installCompanion, runCompanionServiceCommand, uninstallCompanion,
+} from '../lib/companion-install.js';
 
 const HELP = `getbased Companion
 
 Usage:
-  getbased-companion install [--dry-run]  Install and start the Linux user service
+  getbased-companion install [--dry-run]  Install and start at login
   getbased-companion run                  Run the companion in this terminal
+  getbased-companion start                Start an installed companion
+  getbased-companion stop                 Stop an installed companion
   getbased-companion restart              Restart the installed user service
   getbased-companion status               Show the installed user service status
   getbased-companion uninstall            Remove the service and runtime
@@ -29,12 +31,12 @@ export async function main(args, options = {}) {
     return;
   }
   if (command === 'install') {
-    const result = installLinuxCompanion({
+    const result = installCompanion({
       bundlePath: options.bundlePath || fileURLToPath(import.meta.url),
       dryRun: args.includes('--dry-run'),
     });
     if (result.installed) {
-      process.stdout.write('getbased Companion is installed and running. Return to getbased and select Check connection.\n');
+      process.stdout.write(`getbased Companion is installed and running on ${companionPlatformName()}. Return to getbased and select Check connection.\n`);
       process.stdout.write(`Service: ${result.serviceFile}\n`);
     } else {
       process.stdout.write(`Dry run successful. Service would be installed at ${result.serviceFile}\n`);
@@ -42,12 +44,12 @@ export async function main(args, options = {}) {
     return;
   }
   if (command === 'uninstall') {
-    uninstallLinuxCompanion();
+    uninstallCompanion();
     process.stdout.write('getbased Companion was removed. Private pairing state was kept for a future reinstall.\n');
     return;
   }
-  if (command === 'restart' || command === 'status') {
-    runLinuxCompanionServiceCommand(command);
+  if (['start', 'stop', 'restart', 'status'].includes(command)) {
+    runCompanionServiceCommand(/** @type {'start'|'stop'|'restart'|'status'} */ (command));
     return;
   }
   throw new Error(`Unknown command: ${command}\n\n${HELP}`);

@@ -19,9 +19,10 @@ describe('CLI companion setup UI', () => {
 
     const list = document.getElementById('local-agent-list');
     expect(list.textContent).toContain('Connect your installed CLI agents');
-    expect(list.textContent).toContain('curl -fsS http://localhost:3000/getbased-companion.mjs');
-    expect(list.textContent).toContain('node /tmp/getbased-companion.mjs run');
-    expect(list.textContent).toContain('node /tmp/getbased-companion.mjs install');
+    expect(list.textContent).toContain("curl -fsSL 'http://localhost:3000/getbased-companion.mjs'");
+    expect(list.textContent).toContain('getbased-companion.mjs" run');
+    expect(list.textContent).toContain('getbased-companion.mjs" install');
+    expect(list.querySelectorAll('[data-settings-action="set-cli-companion-platform"]')).toHaveLength(3);
     expect(list.querySelector('[data-settings-action="copy-cli-companion-run"]')).not.toBeNull();
     expect(list.querySelector('[data-settings-action="copy-cli-companion-install"]')).not.toBeNull();
     expect(list.textContent).toContain('No port or pairing token is needed');

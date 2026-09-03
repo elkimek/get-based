@@ -1075,6 +1075,17 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 9px;
 }
+.settings-modal .local-agent-platforms { display: flex; gap: 6px; }
+.settings-modal .local-agent-platforms .import-btn {
+  flex: 1;
+  justify-content: center;
+  background: var(--bg-card);
+}
+.settings-modal .local-agent-platforms .import-btn.active {
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
+  color: var(--text-primary);
+}
 .settings-modal .local-agent-install-option {
   display: grid;
   grid-template-rows: auto auto auto;

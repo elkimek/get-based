@@ -67,7 +67,7 @@ All normal tracking works without AI. AI features can use:
 | **OpenRouter** | A broad hosted model marketplace with OAuth or manual key setup. |
 | **Venice AI** | Hosted models with optional browser-side message encryption plus required Intel DCAP and NVIDIA NRAS checks. |
 | **Local AI** | Any OpenAI-compatible local server, such as Ollama, LM Studio, Jan, or llama.cpp. |
-| **CLI agents (Linux preview)** | Use an existing signed-in Codex CLI subscription for chat and supported AI features through the local Get-based Companion. The hosted app detects it automatically; health-data changes remain reviewable drafts. |
+| **CLI agents (desktop preview)** | Use an existing signed-in Codex CLI subscription for chat and supported AI features through the local getbased Companion on Linux, macOS, or Windows. Health-data changes remain reviewable drafts. |
 | **Custom API** | Bring your own OpenAI-compatible endpoint or proxy. |
 
 Switch providers in Settings. Supported provider keys are wrapped locally with
@@ -78,15 +78,16 @@ the provider's terms on its behalf. Custom endpoints are identified by their
 origin. Users connecting a personal or local endpoint are not asked to supply
 policy metadata.
 
-On Linux, a CLI user can run the companion temporarily from a Get-based
-checkout with `npm run companion`, or install it for automatic startup with
-`npm run companion:install`. Production builds emit the same auditable,
-single-file `getbased-companion.mjs` download for the hosted Settings flow.
-The temporary mode stops with its terminal. The installer copies the bundle
-into the user data directory and enables a user-level systemd service; neither
-mode needs root access or exposes a port or pairing token in the UI. The entry
-point, host, installer, protocol, and bundle build are all source-available in
-this repository under `bin/`, `server/`, `lib/`, `shared/`, and `scripts/`.
+On Linux, macOS, and Windows, Settings provides OS-specific one-line commands
+to run the companion temporarily or install it for automatic startup. Both
+commands download the same auditable, single-file `getbased-companion.mjs`
+emitted by the production build. Temporary mode stops with its Terminal or
+PowerShell session. Installed mode uses a systemd user service, macOS
+LaunchAgent, or current-user Windows scheduled task. It does not need root or
+administrator access, and the browser never exposes a port or pairing token.
+The entry point, host, installers, protocol, and bundle build are all
+source-available in this repository under `bin/`, `server/`, `lib/`, `shared/`,
+and `scripts/`.
 
 Independent deployment operators can identify themselves without inheriting
 getbased policies by setting these metadata values in `index.html`:

@@ -130,25 +130,25 @@ The standalone `npm run agent-host` command and its environment variables
 remain an advanced development/self-hosting escape hatch, not an onboarding
 requirement.
 
-## Hosted Linux companion
+## Hosted desktop companion
 
 A hosted browser cannot start an operating-system process. The production
 build therefore emits a single dependency-free `getbased-companion.mjs`
 download. When no companion is detected, **Settings → AI → CLI agents** shows
-two copyable Linux commands: run the bundle for the current terminal session,
-or install it for automatic startup. Both commands download the bundle from
-the same getbased origin the user has open, so they do not require a repository
-checkout or npm.
+two copyable commands for the detected operating system: run the bundle for the
+current Terminal or PowerShell session, or install it for automatic startup.
+Linux and macOS use a POSIX-shell command; Windows uses PowerShell. Both
+commands download the bundle from the same getbased origin the user has open,
+so they do not require a repository checkout or npm.
 
-Temporary mode writes only the downloaded bundle to `/tmp` and stops when its
-terminal closes. The installer performs only user-scoped operations: it copies
-the bundle to the XDG user data directory, writes `getbased-companion.service`
-under the XDG user configuration directory, creates a launcher in
-`~/.local/bin`, and calls `systemctl --user enable --now`. It records the
-absolute Node and Codex
-executables plus the existing Codex auth directory, so the background service
-does not depend on an interactive shell PATH. No root access, desktop package,
-or platform signing is required.
+Temporary mode writes only the downloaded bundle to the operating system's
+temporary directory and stops when its terminal closes. Installed mode copies
+the bundle into user-owned application data and records absolute Node, Codex,
+and Codex-auth paths so it does not depend on an interactive shell PATH. Linux
+uses a systemd user service, macOS uses `~/Library/LaunchAgents`, and Windows
+uses a least-privilege current-user scheduled task with a hidden WScript
+launcher. No root/administrator access, desktop package, or platform signing is
+required.
 
 The companion source stays in this repository for now. Its browser protocol,
 tool contract, security policy, and generated PWA download can therefore ship
@@ -158,10 +158,20 @@ several products; splitting it earlier would add version and security-policy
 drift. The production bundle is generated from the committed `bin/`, `server/`,
 `lib/`, and `shared/` sources by `scripts/build-companion-bundle.mjs`.
 
+The headless single-file companion cannot create a native tray icon using Node
+standard-library APIs. A real cross-platform tray requires a GUI runtime such
+as Electron or Tauri and platform-specific icon/application packaging. That is
+an optional desktop shell, not part of the headless companion: making it the
+only distribution would reintroduce unsigned-app warnings and a much larger
+download. Companion state and lifecycle controls should first be exposed in
+getbased Settings; a tray shell can consume the same local control protocol
+later without changing the health-data or agent boundaries.
+
 After installation, the service starts at login and the hosted PWA discovers
-it through the same origin-gated loopback protocol. The CLI supports `status`,
-`restart`, and `uninstall`; uninstall removes only the service/runtime and
-retains separate private pairing state for a recoverable reinstall.
+it through the same origin-gated loopback protocol. The CLI supports `start`,
+`stop`, `status`, `restart`, and `uninstall`; uninstall removes only the
+service/runtime and retains separate private pairing state for a recoverable
+reinstall.
 
 The same entry point is exposed as `npm run companion` for an independently
 running local companion. Without an explicit port it tries only the bounded
