@@ -169,14 +169,15 @@ function selectedModelEntry(models, selectedModel) {
 function renderAgentPicker(config) {
   const selected = config.options.find(option => option.value === config.value)
     || (!config.value && !config.placeholder ? config.options[0] : null);
+  const selectedLabel = selected?.label || config.placeholder || '';
   return `<label class="local-agent-option-label" for="${escapeAttr(config.id)}-summary"><span>${escapeHTML(config.label)}</span></label>
     <details class="cli-agent-picker"${config.disabled ? ' data-disabled="true"' : ''}>
       <summary id="${escapeAttr(config.id)}-summary" class="cli-agent-picker-summary"${config.disabled ? ' aria-disabled="true" tabindex="-1"' : ''}>
-        <span>${escapeHTML(selected?.label || config.placeholder || '')}</span><span class="cli-agent-picker-chevron" aria-hidden="true">⌄</span>
+        <span title="${escapeAttr(selectedLabel)}">${escapeHTML(selectedLabel)}</span><span class="cli-agent-picker-chevron" aria-hidden="true">⌄</span>
       </summary>
       <div class="cli-agent-picker-options"${config.searchable ? ' id="cli-agent-model-options"' : ''} role="listbox" aria-label="${escapeAttr(config.label)}">
         ${config.searchable ? `<div class="cli-agent-picker-search"><input type="search" data-cli-agent-model-search aria-label="Search models" placeholder="Search ${config.options.length} models"><span id="cli-agent-model-result-count">${config.options.length} models</span></div>` : ''}
-        ${config.options.map(option => `<button type="button" role="option" aria-selected="${option.value === config.value}" data-settings-action="${escapeAttr(config.action)}" data-value="${escapeAttr(option.value)}"${config.searchable ? ` data-model-search="${escapeAttr(`${option.label} ${option.value}`.toLowerCase())}"` : ''}><span>${escapeHTML(option.label)}</span>${option.value === config.value ? '<span aria-hidden="true">✓</span>' : ''}</button>`).join('')}
+        ${config.options.map(option => `<button type="button" role="option" aria-selected="${option.value === config.value}" data-settings-action="${escapeAttr(config.action)}" data-value="${escapeAttr(option.value)}"${config.searchable ? ` data-model-search="${escapeAttr(`${option.label} ${option.value}`.toLowerCase())}"` : ''}><span title="${escapeAttr(option.label)}">${escapeHTML(option.label)}</span>${option.value === config.value ? '<span aria-hidden="true">✓</span>' : ''}</button>`).join('')}
       </div>
     </details>`;
 }
@@ -234,7 +235,7 @@ export function filterCLIAgentModelOptions(query) {
 export function setCLIAgentProviderFilter(provider) {
   agentProviderFilter = String(provider || '').slice(0, 80);
   const options = document.getElementById('cli-agent-options');
-  if (options?.isConnected) options.innerHTML = renderAgentModelControls(agentModels);
+  if (options?.isConnected) showAgentModelControls(options, agentModels);
 }
 
 /** @param {AgentModel[]} models */
@@ -252,7 +253,7 @@ function renderAgentModelControls(models) {
     : models;
   const modelOptions = [
     ...(!providers.length || getCLIAgentModelProvider(agentId, defaultModel) === agentProviderFilter
-      ? [{ value: '', label: `CLI default${defaultModel?.displayName ? ` · ${defaultModel.displayName}` : ''}` }]
+      ? [{ value: '', label: `CLI default${defaultModel ? ` · ${agentModelLabel(agentId, defaultModel)}` : ''}` }]
       : []),
     ...visibleModels.map(model => {
       const value = model.id || model.model;
@@ -285,6 +286,12 @@ function renderAgentModelControls(models) {
     <div class="local-agent-option-field">${renderAgentPicker({ id: 'cli-agent-effort', label: 'Reasoning effort', value: selectedEffort, options: effortOptions, action: 'set-cli-agent-effort', disabled: !efforts.length })}</div>
     <small>Catalog supplied by ${escapeHTML(agentName)}. Your choices apply only to GetBased sessions and do not change the CLI&rsquo;s own default settings.${escapeHTML(reasoningNote)}</small>
   </div>`;
+}
+
+/** @param {HTMLElement} host @param {AgentModel[]} models */
+function showAgentModelControls(host, models) {
+  host.classList.remove('local-agent-options-loading');
+  host.innerHTML = renderAgentModelControls(models);
 }
 
 /** @param {{id: string, name: string, description: string, version: string, status: string, compatible: boolean, message: string, paused?: boolean, runtimeMode?: string, companionVersion?: string}} agent */
@@ -412,7 +419,7 @@ async function hydrateAgentModelControls() {
       token: getAgentHostToken(),
       agent,
     }));
-    if (options.isConnected) options.innerHTML = renderAgentModelControls(agentModels);
+    if (options.isConnected) showAgentModelControls(options, agentModels);
   } catch (error) {
     if (options.isConnected) options.innerHTML = '<div class="local-agent-scan-state local-agent-scan-error">Could not load this CLI&rsquo;s model catalog. Check its sign-in, then try again.</div>';
     console.warn('[agent-chat] CLI model discovery failed', error);
@@ -472,7 +479,7 @@ export async function setCLIAgentModel(model) {
     if (provider) agentProviderFilter = provider;
     showNotification(model ? 'CLI model updated for GetBased' : 'GetBased will use the CLI default model', 'success');
     const options = document.getElementById('cli-agent-options');
-    if (options?.isConnected) options.innerHTML = renderAgentModelControls(agentModels);
+    if (options?.isConnected) showAgentModelControls(options, agentModels);
   } catch (error) {
     showNotification(error instanceof Error ? error.message : 'Could not select this CLI model.', 'error', 9000);
   }
@@ -483,7 +490,7 @@ export async function setCLIAgentEffort(effort) {
   await saveAgentChatSettings({ effort });
   showNotification(effort ? `Reasoning set to ${effort}` : 'The agent will use its default reasoning effort', 'success');
   const options = document.getElementById('cli-agent-options');
-  if (options?.isConnected) options.innerHTML = renderAgentModelControls(agentModels);
+  if (options?.isConnected) showAgentModelControls(options, agentModels);
 }
 
 if (typeof document !== 'undefined') {
