@@ -4,11 +4,11 @@
 export const VOICE_PROVIDERS = Object.freeze([
   {
     id: 'auto',
-    label: 'Same as chat',
+    label: 'Automatic',
     privacy: 'automatic',
     execution: 'automatic',
     capabilities: Object.freeze({ stt: true, tts: true, streamingTts: true }),
-    description: 'Uses the current AI provider when it supports voice, with an on-device fallback.',
+    description: 'Uses a connected voice-capable AI provider when available, with an on-device fallback.',
   },
   {
     id: 'browser-local',

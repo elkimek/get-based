@@ -12,6 +12,7 @@ import {
   OPENROUTER_DEFAULT_TTS_MODEL,
   OPENROUTER_DEFAULT_VOICE,
 } from './voice-openrouter-catalog.js';
+import { getChatBackend } from './agent-chat-settings.js';
 
 export const AUTO_VOICE_PROVIDER_ID = 'auto';
 
@@ -67,30 +68,39 @@ export function resolveVoiceProviderId(_kind, configuredProvider) {
 export function getAutomaticVoiceStatus() {
   const aiProvider = getAIProvider();
   const label = AI_PROVIDER_LABELS[aiProvider] || aiProvider || 'Your chat provider';
+  const cliChat = getChatBackend() === 'codex';
   if (isAiVoiceProvider(aiProvider)) {
     if (getAiVoiceProviderKey(aiProvider)) {
       return {
         providerId: aiProvider,
         state: 'connected',
-        text: `Automatic voice actions use ${label} and its connection from AI settings.`,
+        text: cliChat
+          ? `The selected CLI handles chat. Automatic voice uses ${label} directly through its connection in AI settings.`
+          : `Automatic voice actions use ${label} and its connection from AI settings.`,
       };
     }
     return {
       providerId: 'browser-local',
       state: 'fallback',
-      text: `${label} is not connected yet, so voice stays on this device. Add its key in AI settings to use it automatically.`,
+      text: cliChat
+        ? `The selected CLI does not expose a compatible speech connection. ${label} is not connected, so voice stays on this device.`
+        : `${label} is not connected yet, so voice stays on this device. Add its key in AI settings to use it automatically.`,
     };
   }
   if (aiProvider === 'routstr') {
     return {
       providerId: 'browser-local',
       state: 'fallback',
-      text: 'Routstr does not offer live voice endpoints yet, so voice stays on this device.',
+      text: cliChat
+        ? 'The selected CLI does not expose a compatible speech connection, and Routstr has no live voice endpoints, so voice stays on this device.'
+        : 'Routstr does not offer live voice endpoints yet, so voice stays on this device.',
     };
   }
   return {
     providerId: 'browser-local',
     state: 'fallback',
-    text: `${label} does not provide a compatible voice connection, so voice stays on this device.`,
+    text: cliChat
+      ? 'The selected CLI does not expose a compatible speech connection, so automatic voice stays on this device.'
+      : `${label} does not provide a compatible voice connection, so voice stays on this device.`,
   };
 }

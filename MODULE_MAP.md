@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 745 |
-| Internal import edges | 3153 |
+| Internal import edges | 3154 |
 | Dynamic internal edges | 105 |
 | Modules participating in cycles | 66 |
 | Cyclic components | 1 |
@@ -1324,7 +1324,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>voice</code> family — 24 modules</summary>
 
-- [`js/voice-ai-provider.js`](js/voice-ai-provider.js) → [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/voice-openrouter-catalog.js`](js/voice-openrouter-catalog.js)
+- [`js/voice-ai-provider.js`](js/voice-ai-provider.js) → [`js/agent-chat-settings.js`](js/agent-chat-settings.js), [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/voice-openrouter-catalog.js`](js/voice-openrouter-catalog.js)
 - [`js/voice-audio.js`](js/voice-audio.js) → no in-scope imports
 - [`js/voice-capture.js`](js/voice-capture.js) → no in-scope imports
 - [`js/voice-catalog-storage.js`](js/voice-catalog-storage.js) → no in-scope imports

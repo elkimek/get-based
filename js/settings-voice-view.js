@@ -43,7 +43,7 @@ function providerOptions(value, kind = 'shared') {
     : getVoiceProvidersFor(kind);
   return providers.map(provider => {
     const label = provider.id === 'auto'
-      ? 'Same as chat (automatic)'
+      ? 'Automatic'
       : provider.credentialSource === 'ai'
         ? `${provider.label} (AI connection)`
         : provider.privacy === 'cloud'
@@ -120,7 +120,7 @@ function renderProviderNotice() {
         <div class="settings-action-row">
           <div class="settings-copy">
             <div class="settings-copy-title">Voice can stay on this device</div>
-            <div class="settings-copy-desc">Choose On this device to keep recordings and reply text in this browser. Automatic follows your chat service when it supports speech.</div>
+            <div class="settings-copy-desc">Choose On this device to keep recordings and reply text in this browser. Automatic uses a connected voice-capable AI provider when available and otherwise stays on this device. CLI chat agents remain separate from voice.</div>
           </div>
         </div>
       </div>

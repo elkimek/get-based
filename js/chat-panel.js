@@ -381,7 +381,9 @@ export function updateChatInputState() {
         : 'Ask about your lab results...';
   }
   if (sendBtn) sendBtn.disabled = noAI || blocked;
-  if (voiceBtn) voiceBtn.disabled = noAI || blocked || isCodexChatBackend();
+  // Dictation is routed through getbased's independent voice service. A CLI
+  // agent handles the resulting text, but does not need to transport audio.
+  if (voiceBtn) voiceBtn.disabled = noAI || blocked;
   refreshChatComposer();
   updateWebSearchToggleVisibility();
 }

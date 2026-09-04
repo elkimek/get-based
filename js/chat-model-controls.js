@@ -19,7 +19,10 @@ import {
   getPpqPrivateMode,
   getVeniceKey,
   getVeniceE2EE,
+  isRecommendedModel,
   isRoutstrPrivateModeActive,
+  selectLatestModelFamilies,
+  selectLatestRecommendedModels,
   setCustomApiModel,
   setOllamaMainModel,
   setPpqModel,
@@ -115,9 +118,46 @@ function providerGroupFromModel(agent, modelId) {
 }
 
 function friendlyProviderGroup(value) {
-  const known = { openrouter: 'OpenRouter', anthropic: 'Anthropic', openai: 'OpenAI', 'openai-codex': 'OpenAI Codex', opencode: 'OpenCode', 'custom:ollama': 'Ollama' };
+  const known = {
+    recommended: 'Recommended',
+    other: 'Other models',
+    openrouter: 'OpenRouter',
+    anthropic: 'Anthropic',
+    openai: 'OpenAI',
+    'openai-codex': 'OpenAI Codex',
+    opencode: 'OpenCode',
+    'custom:ollama': 'Ollama',
+  };
   return known[value] || String(value || '').split(/[-_:]/).filter(Boolean)
     .map(part => `${part.charAt(0).toUpperCase()}${part.slice(1)}`).join(' ');
+}
+
+function cliModelIsRecommended(agent, modelId) {
+  const id = String(modelId || '');
+  if (agent === 'opencode' && id.startsWith('openrouter/')) {
+    return isRecommendedModel('openrouter', id.slice('openrouter/'.length));
+  }
+  return isRecommendedModel('custom', id);
+}
+
+function orderCliModels(agent, catalog) {
+  const recommended = selectLatestModelFamilies(
+    catalog.filter(model => cliModelIsRecommended(agent, model.id)),
+  );
+  const recommendedIds = new Set(recommended.map(model => model.id));
+  return {
+    recommendedIds,
+    models: [...recommended, ...catalog.filter(model => !recommendedIds.has(model.id))],
+  };
+}
+
+function orderDirectModels(provider, catalog) {
+  const recommended = selectLatestRecommendedModels(provider, catalog);
+  const recommendedIds = new Set(recommended.map(model => model.id));
+  return {
+    recommendedIds,
+    models: [...recommended, ...catalog.filter(model => !recommendedIds.has(model.id))],
+  };
 }
 
 function currentControlState() {
@@ -128,6 +168,7 @@ function currentControlState() {
     const selectedId = getAgentHostModel();
     const selected = resolveAgentModel(selectedId, catalog);
     const defaultModel = catalog.find(model => model.isDefault) || catalog[0] || null;
+    const orderedCatalog = orderCliModels(agent, catalog);
     const models = [
       {
         id: '',
@@ -135,11 +176,13 @@ function currentControlState() {
         search: `default ${defaultModel?.displayName || ''} ${defaultModel?.id || ''}`,
         group: '',
       },
-      ...catalog.map(model => ({
+      ...orderedCatalog.models.map(model => ({
         id: model.id,
         name: model.displayName || model.id,
         search: `${model.displayName || ''} ${model.id} ${model.model || ''}`,
-        group: providerGroupFromModel(agent, model.id),
+        group: orderedCatalog.recommendedIds.has(model.id)
+          ? 'recommended'
+          : providerGroupFromModel(agent, model.id) || (orderedCatalog.recommendedIds.size ? 'other' : ''),
       })),
     ];
     if (selectedId && !catalog.some(model => model.id === selectedId || model.model === selectedId)) {
@@ -162,14 +205,22 @@ function currentControlState() {
   const cached = readDirectModels(provider);
   const selected = cached.find(model => model.id === selectedId) || null;
   const reasoningCapabilities = getModelReasoningCapabilities(provider, selected);
-  const models = cached.map(model => ({
+  const orderedCatalog = orderDirectModels(provider, cached);
+  const models = orderedCatalog.models.map(model => ({
     id: model.id,
     name: model.name || model.displayName || model.id,
     search: `${model.name || ''} ${model.displayName || ''} ${model.id}`,
-    group: '',
+    group: orderedCatalog.recommendedIds.has(model.id)
+      ? 'recommended'
+      : orderedCatalog.recommendedIds.size ? 'other' : '',
   }));
   if (selectedId && !models.some(model => model.id === selectedId)) {
-    models.unshift({ id: selectedId, name: getActiveModelDisplay(provider), search: selectedId, group: '' });
+    models.unshift({
+      id: selectedId,
+      name: getActiveModelDisplay(provider),
+      search: selectedId,
+      group: orderedCatalog.recommendedIds.size ? 'other' : '',
+    });
   }
   return {
     cli: false,

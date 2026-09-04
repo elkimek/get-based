@@ -21,11 +21,21 @@ test.beforeEach(async ({ page }) => {
 
 test('direct-provider picker searches models and persists a dragged reasoning effort', async ({ page }) => {
   await page.addInitScript(() => {
-    const models = Array.from({ length: 11 }, (_, index) => ({
-      id: `openai/reasoner-${index + 1}`,
-      name: `Reasoner ${index + 1}`,
-      reasoning: { supported_efforts: ['low', 'medium', 'high'] },
-    }));
+    const models = [
+      {
+        id: 'openai/gpt-5.6-sol', name: 'GPT-5.6 Sol',
+        reasoning: { supported_efforts: ['low', 'medium', 'high'] },
+      },
+      {
+        id: 'anthropic/claude-sonnet-5', name: 'Claude Sonnet 5',
+        reasoning: { supported_efforts: ['low', 'medium', 'high'] },
+      },
+      ...Array.from({ length: 11 }, (_, index) => ({
+        id: `openai/reasoner-${index + 1}`,
+        name: `Reasoner ${index + 1}`,
+        reasoning: { supported_efforts: ['low', 'medium', 'high'] },
+      })),
+    ];
     localStorage.setItem('labcharts-ai-provider', 'openrouter');
     localStorage.setItem('labcharts-openrouter-model', 'openai/reasoner-1');
     localStorage.setItem('labcharts-openrouter-models', JSON.stringify(models));
@@ -36,6 +46,9 @@ test('direct-provider picker searches models and persists a dragged reasoning ef
   await expect(page.locator('#chat-model-menu-label')).toHaveText('Reasoner 1');
   await page.locator('#chat-model-menu-toggle').click();
   await expect(page.locator('#chat-model-search')).toBeVisible();
+  await expect(page.locator('.chat-model-option-group-label')).toHaveText(['Recommended', 'Other models']);
+  await expect(page.locator('.chat-model-option').nth(0)).toContainText('GPT-5.6 Sol');
+  await expect(page.locator('.chat-model-option').nth(1)).toContainText('Claude Sonnet 5');
   await page.locator('#chat-model-search').fill('Reasoner 10');
   await expect(page.locator('.chat-model-option:not([hidden])')).toHaveCount(1);
   await page.locator('#chat-model-search').fill('');
@@ -85,11 +98,33 @@ test('CLI picker groups a large OpenCode catalog and shares its effort with Sett
   });
 
   await page.locator('#chat-model-menu-toggle').click();
-  await expect(page.locator('.chat-model-option-group-label')).toContainText(['OpenRouter', 'Anthropic']);
+  await expect(page.locator('.chat-model-option-group-label')).toHaveText(['Recommended', 'Anthropic']);
   await expect(page.locator('#chat-model-search')).toBeVisible();
   await page.locator('#chat-model-effort').fill('3');
   await expect.poll(() => page.evaluate(async () => (await import('/js/agent-chat-settings.js')).getAgentHostEffort())).toBe('high');
   await expect(page.locator('#chat-model-menu-label')).toContainText('High');
+});
+
+test('CLI chat keeps dictation enabled through the independent voice service', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const crypto = await import('/js/crypto.js');
+    crypto.updateKeyCache('labcharts-agent-host-token', 'test-token');
+    const catalog = await import('/js/agent-model-catalog.js');
+    catalog.cacheAgentModelCatalog([{
+      id: 'gpt-5.6-sol', model: 'gpt-5.6-sol', displayName: 'GPT-5.6 Sol', isDefault: true,
+      defaultReasoningEffort: 'medium', supportedReasoningEfforts: [], inputModalities: ['text', 'image'],
+    }], 'codex');
+    const settings = await import('/js/agent-chat-settings.js');
+    await settings.saveAgentChatSettings({ agent: 'codex', model: '' });
+    settings.setChatBackend('codex');
+    await (await import('/js/chat-panel.js')).openChatPanel();
+  });
+
+  await expect(page.locator('#chat-voice-btn')).toBeEnabled();
+  await page.locator('#chat-voice-btn').click();
+  await expect(page.locator('[data-tab-panel="voice"]')).toHaveClass(/\bactive\b/);
+  await expect(page.locator('[data-voice-model-kind="stt"]')).toContainText('Not downloaded yet');
 });
 
 test('an existing chat immediately shows the newly selected CLI default model', async ({ page }) => {

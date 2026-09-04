@@ -285,9 +285,12 @@ research, all structured tools listed above, and structured feature inference
 when the selected CLI model declares the required modality. Images are
 uploaded to the authenticated loopback host, validated, written only to its
 private temporary workspace, consumed as `localImage` turn inputs, and deleted
-after completion or cancellation. Voice and interactive Codex shell/file
-approvals remain deliberately unavailable. Health-data writes remain under
-getbased's proposal-card approval boundary.
+after completion or cancellation. CLI adapters do not currently expose a
+standardized audio transport. Dictation and spoken replies remain available
+through getbased's independent on-device, local-server, or configured cloud
+voice providers; only the resulting text crosses the CLI chat boundary.
+Interactive Codex shell/file approvals remain deliberately unavailable.
+Health-data writes remain under getbased's proposal-card approval boundary.
 
 ## Product capability coverage
 
@@ -305,7 +308,7 @@ through one capability-aware dispatcher:
 | Knowledge Base search and bounded health queries | Yes, through active-profile tools | Add only privacy-preserving aggregate queries. |
 | Navigation | Yes, for allowlisted views and marker detail | Add destinations deliberately rather than exposing generic UI control. |
 | Proposed health-data changes | Notes, meals, biometrics, supplements, and medications | Add new draft types only with an exact review and apply path. |
-| Voice | No | Keep transcription/speech providers separate until an adapter declares audio support. |
+| Voice | Yes, through getbased's independent STT/TTS service | Keep raw audio out of CLI adapters until one declares a secure, standardized audio capability. |
 
 Raw DOM control, raw IndexedDB access, arbitrary record updates, credentials,
 and shell access remain outside the contract. **Follow chat assistant** resolves

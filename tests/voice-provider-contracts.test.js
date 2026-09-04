@@ -72,6 +72,10 @@ describe('voice provider registry', () => {
   });
 
   it('publishes capabilities independently from adapter loading', () => {
+    expect(getVoiceProviderDefinition('auto')).toMatchObject({
+      label: 'Automatic',
+      execution: 'automatic',
+    });
     expect(getVoiceProviderDefinition('xai')).toMatchObject({
       execution: 'cloud',
       capabilities: { stt: true, tts: true, streamingTts: true },

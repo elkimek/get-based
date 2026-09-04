@@ -48,6 +48,7 @@ import { normalizeSpeechText, splitSpeechText } from '../js/voice-text.js';
 afterEach(() => {
   for (const key of Object.values(VOICE_STORAGE_KEYS)) localStorage.removeItem(key);
   localStorage.removeItem('labcharts-ai-provider');
+  localStorage.removeItem('labcharts-chat-backend');
   clearKeyCache();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -90,6 +91,23 @@ describe('voice settings storage', () => {
     localStorage.setItem('labcharts-ai-provider', 'routstr');
     expect(resolveVoiceProviderId('tts', 'auto')).toBe('browser-local');
     expect(getAutomaticVoiceStatus().text).toContain('does not offer live voice endpoints');
+  });
+
+  it('keeps automatic voice independent from a selected CLI chat agent', () => {
+    localStorage.setItem('labcharts-chat-backend', 'codex');
+    localStorage.setItem('labcharts-ai-provider', 'ollama');
+
+    expect(resolveVoiceProviderId('stt', 'auto')).toBe('browser-local');
+    expect(getAutomaticVoiceStatus()).toMatchObject({
+      providerId: 'browser-local',
+      state: 'fallback',
+    });
+    expect(getAutomaticVoiceStatus().text).toContain('selected CLI');
+
+    localStorage.setItem('labcharts-ai-provider', 'ppq');
+    updateKeyCache('labcharts-ppq-key', 'ppq-secret');
+    expect(resolveVoiceProviderId('tts', 'auto')).toBe('ppq');
+    expect(getAutomaticVoiceStatus().text).toContain('Automatic voice uses PPQ directly');
   });
 
   it('migrates removed legacy Whisper selections to Small', () => {
