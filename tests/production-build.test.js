@@ -92,6 +92,8 @@ describe('production startup build', () => {
     }
     expect(serviceWorker).not.toContain("'/js/main.js',");
     expect(serviceWorker).not.toContain("'/js/views.js',");
+    expect(serviceWorker).not.toContain("'/js/chat-layout.js',");
+    expect(serviceWorker).not.toContain("'/js/agent-chat-client.js',");
     expect(serviceWorker).toContain("'/js/theme-bootstrap.js',");
     expect(serviceWorker).toContain("'/js/extra-theme-bootstrap.js',");
     expect(serviceWorker).toContain("'/js/analytics-bootstrap.js',");

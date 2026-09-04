@@ -565,6 +565,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   .report-ai-summary-body p { margin-bottom: 9px; }
   .report-ai-subhead { color: #111827; font-size: 12px; font-weight: 750; letter-spacing: 0; margin: 12px 0 4px; text-transform: uppercase; }
   .report-ai-meta { color: #64748b; font-size: 11px; font-weight: 650; margin-top: 10px; }
+  .report-ai-attribution { color: #475569; font-size: 11px; font-weight: 700; margin-top: 8px; }
   .report-summary { border: 1px solid #d8e0ea; background: #fbfcfe; padding: 16px 18px; margin: 0 0 22px; break-inside: avoid; page-break-inside: avoid; }
   h2 { color: #111827; font-size: 18px; font-weight: 750; margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #d8e0ea; page-break-after: avoid; }
   .report-summary h2 { margin-top: 0; }

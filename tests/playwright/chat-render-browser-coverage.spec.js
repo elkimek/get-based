@@ -142,6 +142,8 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
           personalityName: 'Lab <Guide>',
           personalityIcon: '#',
           content: 'Follow-up answer',
+          agentId: 'grok',
+          modelId: 'grok-default',
           hasImages: true,
           imageCount: 1,
         },
@@ -172,6 +174,8 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
         && costFootnote.includes('300 tokens')
         && costFootnote.includes('web')
         && costFootnote.includes('encrypted');
+      outcomes.grokOutputIsVisiblyAttributed = rendered.querySelectorAll('.chat-provider-attribution').length === 1
+        && rendered.querySelector('.chat-provider-attribution')?.textContent === 'Written with Grok';
       outcomes.assistantExtrasRender = rendered.textContent.includes('[stopped]')
         && rendered.textContent.includes('[output limit reached - ask "continue" to finish]')
         && rendered.querySelector('.chat-action-bar') !== null

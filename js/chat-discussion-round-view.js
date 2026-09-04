@@ -12,6 +12,7 @@ import { applyChatMessageAvatar } from './chat-message-avatars.js';
 import {
   createChatThinkingIndicator, stopChatThinkingStatus,
 } from './chat-thinking-status.js';
+import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
 
 export function createDiscussionTypingIndicator(personality = {}) {
   return createChatThinkingIndicator({
@@ -76,6 +77,19 @@ export function appendDiscussionUsageFootnote({
   footnote.className = 'chat-cost-footnote';
   footnote.innerHTML = `${escapeHTML(modelDisplay)} \u00b7 ${escapeHTML(formatCost(cost))} \u00b7 ${totalTokens.toLocaleString()} tokens${webTag}${e2eeTag}`;
   aiMsgEl.appendChild(footnote);
+  return true;
+}
+
+export function appendDiscussionOutputAttribution({
+  threadId, aiMsgEl, provider, agentId, modelId, modelDisplay,
+}) {
+  if (!isRoundThreadActive(threadId)) return false;
+  const attribution = getAIOutputAttribution({ provider, agentId, modelId, modelDisplay });
+  if (!attribution) return false;
+  const element = document.createElement('div');
+  element.className = 'chat-provider-attribution';
+  element.textContent = attribution;
+  aiMsgEl.appendChild(element);
   return true;
 }
 

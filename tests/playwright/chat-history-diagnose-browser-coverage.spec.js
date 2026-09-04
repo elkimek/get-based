@@ -122,9 +122,18 @@ test('chat history browser coverage saves loads clears and updates thread state'
         && renderCalls > 0;
 
       localStorage.setItem(threadKey, '{bad json');
-      await chatHistory.loadChatHistory();
+      const malformedLoad = await chatHistory.loadChatHistory();
       outcomes.loadHandlesMalformedStorage = Array.isArray(state.chatHistory)
-        && state.chatHistory.length === 0;
+        && state.chatHistory.length === 0
+        && malformedLoad === false;
+      state.chatHistory = [{ role: 'user', content: 'must not replace corrupt storage' }];
+      outcomes.malformedStorageBlocksOverwrite = await chatHistory.saveChatHistory() === false
+        && localStorage.getItem(threadKey) === '{bad json';
+
+      localStorage.setItem(threadKey, JSON.stringify([{ role: 'user', content: 'recovered' }]));
+      outcomes.validReloadClearsWriteBlock = await chatHistory.loadChatHistory() === true
+        && chatHistory.canSaveChatHistory() === true
+        && state.chatHistory[0]?.content === 'recovered';
 
       state.currentThreadId = '';
       state.chatHistory = [{ role: 'assistant', content: 'should clear' }];
@@ -168,7 +177,8 @@ test('chat history browser coverage saves loads clears and updates thread state'
         && !('summary' in savedThread)
         && !('summaryDate' in savedThread)
         && !('summaryModel' in savedThread)
-        && !('summaryCost' in savedThread);
+        && !('summaryCost' in savedThread)
+        && !('summaryAttribution' in savedThread);
       outcomes.clearDeletesOnlyMatchingSavedSummary = state.importedData.chatSummaries.length === 1
         && state.importedData.chatSummaries[0].id === 'summary-b'
         && persistedImported.chatSummaries?.length === 1

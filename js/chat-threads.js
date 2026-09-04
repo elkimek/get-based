@@ -1,9 +1,5 @@
 // @ts-check
 // chat-threads.js — Conversation-thread management for the chat panel
-//
-// Extracted from chat.js (v1.21.9) as the second Phase 2e refactor split.
-// Owns: thread index CRUD (localStorage layout) and thread-rail UI.
-
 import { state } from './state.js';
 import { escapeAttr, escapeHTML, showNotification, showConfirmDialog, showPromptDialog } from './utils.js';
 import { saveImportedData } from './data.js';
@@ -13,8 +9,10 @@ import { chatDeletedThreadsKey } from './sync-payload-collectors.js';
 import { CHAT_PERSONALITIES } from './constants.js';
 import { encryptedGetItem, encryptedSetItem } from './crypto.js';
 import {
-  configureChatThreadSearch, filterThreadList,
-  invalidateThreadContentCache, jumpToSearchResult,
+  configureChatThreadProjects, configureChatThreadSearch, createThreadProject,
+  deleteThreadProject, deleteThreadProjectPrompt, filterThreadList, getThreadProjectNames,
+  invalidateThreadContentCache, jumpToSearchResult, moveThreadToProject,
+  renameThreadProject, renameThreadProjectPrompt, toggleThreadPinned,
 } from './chat-thread-search.js';
 import { normalizeChatMessages, normalizeChatThreads } from './chat-storage-safety.js';
 import { createUniqueId } from './unique-id.js';
@@ -22,8 +20,11 @@ import {
   clearChatDraft, restoreChatDraft, saveChatDraft,
 } from './chat-composer.js';
 import { syncChatLayout } from './chat-layout.js';
-
 export { filterThreadList, invalidateThreadContentCache, jumpToSearchResult };
+export {
+  createThreadProject, deleteThreadProject, deleteThreadProjectPrompt, moveThreadToProject,
+  renameThreadProject, renameThreadProjectPrompt, toggleThreadPinned,
+};
 
 const THREAD_ICON_EDIT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 const THREAD_ICON_DELETE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
@@ -141,9 +142,7 @@ function parseThreadIndex(raw) {
   return Array.isArray(parsed) ? normalizeChatThreads(parsed) : null;
 }
 
-// ═══════════════════════════════════════════════
 // THREAD INDEX CRUD
-// ═══════════════════════════════════════════════
 export async function loadChatThreads() {
   const key = getChatThreadsKey();
   const storedRaw = localStorage.getItem(key);
@@ -354,14 +353,20 @@ export async function switchToThread(threadId) {
 
 export async function deleteThread(threadId) {
   if (await showConfirmDialog('Delete this conversation? This cannot be undone.')) {
+    const previousThreads = state.chatThreads;
     if (threadId === state.currentThreadId) chatThreadDeps.stopChatGeneration();
     invalidateThreadContentCache();
-    recordDeletedChatThread(threadId);
-    await clearChatDraft(threadId);
-    chatThreadDeps.deleteAttachmentDraft(threadId);
     // Remove from index
     state.chatThreads = state.chatThreads.filter(t => t.id !== threadId);
-    await saveChatThreadIndex();
+    if (!await saveChatThreadIndex()) {
+      state.chatThreads = previousThreads;
+      renderThreadList();
+      return false;
+    }
+    recordDeletedChatThread(threadId);
+    onChatSaved();
+    await clearChatDraft(threadId);
+    chatThreadDeps.deleteAttachmentDraft(threadId);
     // Remove per-thread messages
     localStorage.removeItem(getChatThreadKey(threadId));
     // Remove saved summary
@@ -385,7 +390,9 @@ export async function deleteThread(threadId) {
     }
     renderThreadList();
     showNotification('Conversation deleted', 'info');
+    return true;
   }
+  return false;
 }
 
 export function renameThread(threadId, newName) {
@@ -406,131 +413,6 @@ export async function renameThreadPrompt(threadId) {
     okLabel: 'Rename',
   });
   if (name) renameThread(threadId, name);
-}
-
-function projectNames() {
-  return [...new Set(state.chatThreads.map(thread => String(thread.projectName || '').trim()).filter(Boolean))]
-    .sort((a, b) => a.localeCompare(b));
-}
-
-export async function createThreadProject() {
-  const name = await chatThreadDeps.showPromptDialog('Create a project:', {
-    defaultValue: '',
-    okLabel: 'Create',
-  });
-  const projectName = String(name || '').trim().slice(0, 60);
-  if (!projectName) return null;
-  return createNewThread({ projectName });
-}
-
-function restoreProjectMutation(snapshots) {
-  for (const snapshot of snapshots) {
-    const thread = state.chatThreads.find(item => item.id === snapshot.id);
-    if (!thread) continue;
-    if (snapshot.projectName) thread.projectName = snapshot.projectName;
-    else delete thread.projectName;
-    thread.updatedAt = snapshot.updatedAt;
-  }
-}
-
-export async function renameThreadProject(currentName, nextName) {
-  const current = String(currentName || '').trim();
-  const next = String(nextName || '').trim().slice(0, 60);
-  if (!current || !next) return false;
-  if (current === next) return true;
-  if (projectNames().some(name => name !== current && name.toLocaleLowerCase() === next.toLocaleLowerCase())) {
-    showNotification('A project with that name already exists', 'error');
-    return false;
-  }
-  const affected = state.chatThreads.filter(thread => thread.projectName === current);
-  if (!affected.length) return false;
-  const snapshots = affected.map(thread => ({ id: thread.id, projectName: thread.projectName, updatedAt: thread.updatedAt }));
-  const changedAt = new Date().toISOString();
-  for (const thread of affected) {
-    thread.projectName = next;
-    thread.updatedAt = changedAt;
-  }
-  const saved = await saveChatThreadIndex();
-  if (!saved) restoreProjectMutation(snapshots);
-  renderThreadList();
-  if (saved) showNotification(`Project renamed to ${next}`, 'info');
-  return saved;
-}
-
-export async function renameThreadProjectPrompt(projectName) {
-  const current = String(projectName || '').trim();
-  if (!current) return false;
-  const name = await chatThreadDeps.showPromptDialog('Rename project:', {
-    defaultValue: current,
-    okLabel: 'Rename',
-  });
-  if (!name) return false;
-  return renameThreadProject(current, name);
-}
-
-export async function deleteThreadProject(projectName) {
-  const current = String(projectName || '').trim();
-  const affected = state.chatThreads.filter(thread => thread.projectName === current);
-  if (!current || !affected.length) return false;
-  const snapshots = affected.map(thread => ({ id: thread.id, projectName: thread.projectName, updatedAt: thread.updatedAt }));
-  const changedAt = new Date().toISOString();
-  for (const thread of affected) {
-    delete thread.projectName;
-    thread.updatedAt = changedAt;
-  }
-  const saved = await saveChatThreadIndex();
-  if (!saved) restoreProjectMutation(snapshots);
-  renderThreadList();
-  if (saved) showNotification('Project deleted; its conversations were kept', 'info', 5000);
-  return saved;
-}
-
-export async function deleteThreadProjectPrompt(projectName) {
-  const current = String(projectName || '').trim();
-  const count = state.chatThreads.filter(thread => thread.projectName === current).length;
-  if (!current || !count) return false;
-  const confirmed = await showConfirmDialog(
-    `Delete “${current}”? ${count === 1 ? 'Its conversation' : `Its ${count} conversations`} will be kept outside the project.`,
-    { confirmLabel: 'Delete project', ariaLabel: 'Delete project' },
-  );
-  return confirmed ? deleteThreadProject(current) : false;
-}
-
-export function toggleThreadPinned(threadId) {
-  const thread = state.chatThreads.find(item => item.id === threadId);
-  if (!thread) return false;
-  thread.pinned = thread.pinned !== true;
-  thread.updatedAt = new Date().toISOString();
-  saveChatThreadIndex();
-  renderThreadList();
-  return thread.pinned;
-}
-
-export async function moveThreadToProject(threadId, nextProjectName) {
-  const thread = state.chatThreads.find(item => item.id === threadId);
-  if (!thread) return false;
-  const previousProjectName = thread.projectName;
-  const previousPinned = thread.pinned;
-  const previousUpdatedAt = thread.updatedAt;
-  const projectName = String(nextProjectName || '').trim().slice(0, 60);
-  if (projectName) thread.projectName = projectName;
-  else delete thread.projectName;
-  // A pinned conversation stays visually in Pinned, which makes a successful
-  // project drop look like it did nothing. Dropping into a project therefore
-  // unpins it so it appears at the destination immediately.
-  if (projectName) delete thread.pinned;
-  thread.updatedAt = new Date().toISOString();
-  const saved = await saveChatThreadIndex();
-  if (!saved) {
-    if (previousProjectName) thread.projectName = previousProjectName;
-    else delete thread.projectName;
-    if (previousPinned) thread.pinned = true;
-    else delete thread.pinned;
-    thread.updatedAt = previousUpdatedAt;
-  }
-  renderThreadList();
-  if (saved) showNotification(projectName ? `Moved to ${projectName}` : 'Removed from project', 'info');
-  return saved;
 }
 
 export function getChatThreadSort() {
@@ -566,9 +448,7 @@ export function pruneOldThreads() {
   return 0;
 }
 
-// ═══════════════════════════════════════════════
 // THREAD RAIL UI
-// ═══════════════════════════════════════════════
 function closeThreadRailAfterMobileSelection() {
   const isMobile = typeof matchMedia === 'function'
     ? matchMedia(MOBILE_THREAD_RAIL_QUERY).matches
@@ -642,6 +522,9 @@ function handleThreadActionClick(event) {
   } else if (action === 'pin') {
     event.preventDefault();
     toggleThreadPinned(threadId);
+  } else if (action === 'move-project') {
+    event.preventDefault();
+    void moveThreadToProject(threadId, actionEl.dataset.projectName || '');
   }
 }
 
@@ -762,6 +645,7 @@ export function renderThreadList(filter) {
   }
   const personalityMap = {};
   for (const p of CHAT_PERSONALITIES) personalityMap[p.id] = p.icon;
+  const projects = getThreadProjectNames();
 
   const renderThread = t => {
     const isActive = t.id === state.currentThreadId;
@@ -772,7 +656,16 @@ export function renderThreadList(filter) {
     const messageCount = Number.isFinite(Number(t.messageCount))
       ? Math.max(0, Math.trunc(Number(t.messageCount)))
       : 0;
-    return `<div class="chat-thread-item${isActive ? ' active' : ''}${t.pinned ? ' pinned' : ''}" data-thread-id="${escapeAttr(t.id)}" aria-grabbed="false" title="Drag to move this conversation into a project">
+    const moveTargets = projects
+      .filter(projectName => projectName !== t.projectName)
+      .map(projectName => `<button type="button" data-chat-thread-action="move-project" data-thread-id="${escapeAttr(t.id)}" data-project-name="${escapeAttr(projectName)}">${THREAD_ICON_FOLDER}<span>${escapeHTML(projectName)}</span></button>`);
+    if (t.projectName) {
+      moveTargets.push(`<button type="button" data-chat-thread-action="move-project" data-thread-id="${escapeAttr(t.id)}" data-project-name="">${THREAD_ICON_FOLDER}<span>No project</span></button>`);
+    }
+    const moveMenu = moveTargets.length
+      ? `<div class="chat-thread-move-label">Move to project</div>${moveTargets.join('')}`
+      : '';
+    return `<div class="chat-thread-item${isActive ? ' active' : ''}${t.pinned ? ' pinned' : ''}" data-thread-id="${escapeAttr(t.id)}" aria-grabbed="false" title="Drag into a project">
       <button type="button" class="chat-thread-item-main" data-chat-thread-action="switch" aria-current="${isActive ? 'true' : 'false'}">
         <span class="chat-thread-item-name">${escapeHTML(t.name)}</span>
         <span class="chat-thread-item-meta">
@@ -786,6 +679,7 @@ export function renderThreadList(filter) {
         <div class="chat-thread-item-menu-popover">
           <button type="button" data-chat-thread-action="pin" data-thread-id="${escapeHTML(t.id)}">${THREAD_ICON_PIN}<span>${t.pinned ? 'Unpin' : 'Pin'}</span></button>
           <button type="button" data-chat-thread-action="rename" data-thread-id="${escapeHTML(t.id)}">${THREAD_ICON_EDIT}<span>Rename</span></button>
+          ${moveMenu}
           <button type="button" class="delete" data-chat-thread-action="delete" data-thread-id="${escapeHTML(t.id)}">${THREAD_ICON_DELETE}<span>Delete</span></button>
         </div>
       </details>
@@ -808,7 +702,7 @@ export function renderThreadList(filter) {
   const remaining = threads.filter(thread => thread.pinned !== true);
   const groups = [];
   groups.push(renderGroup('Pinned', pinned, THREAD_ICON_PIN));
-  for (const name of projectNames()) {
+  for (const name of projects) {
     groups.push(renderGroup(name, remaining.filter(thread => thread.projectName === name), THREAD_ICON_FOLDER, name));
   }
   const ungrouped = remaining.filter(thread => !thread.projectName);
@@ -881,5 +775,11 @@ configureChatThreadSearch({
   getChatThreadKey,
   renderThreadList,
   switchToThread,
+});
+configureChatThreadProjects({
+  createNewThread,
+  renderThreadList,
+  saveChatThreadIndex,
+  showPromptDialog: (...args) => chatThreadDeps.showPromptDialog(...args),
 });
 installChatThreadDelegates();

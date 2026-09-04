@@ -233,6 +233,15 @@ test('conversation projects, pinning, and sorting persist through the thread ind
 
       const pinned = threads.toggleThreadPinned('zulu') === true
         && state.chatThreads.find(thread => thread.id === 'zulu')?.pinned === true;
+      threads.renderThreadList();
+      const menuMove = document.querySelector(
+        '.chat-thread-item[data-thread-id="alpha"] [data-chat-thread-action="move-project"][data-project-name="Metabolic"]'
+      );
+      menuMove?.click();
+      for (let i = 0; i < 20 && state.chatThreads.find(thread => thread.id === 'alpha')?.projectName !== 'Metabolic'; i += 1) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      const projectMenuMoveWorks = state.chatThreads.find(thread => thread.id === 'alpha')?.projectName === 'Metabolic';
       await threads.moveThreadToProject('alpha', 'Hormones');
       const moved = state.chatThreads.find(thread => thread.id === 'alpha')?.projectName === 'Hormones';
 
@@ -243,6 +252,7 @@ test('conversation projects, pinning, and sorting persist through the thread ind
         alphabeticalSort: alphabetical.join('|') === 'Alpha|Zulu',
         sortPersisted: localStorage.getItem('labcharts-chat-thread-sort') === 'name',
         pinned,
+        projectMenuMoveWorks,
         moved,
         projectCreationStartsConversation: created?.projectName === 'Nutrition'
           && state.currentThreadId === created.id,

@@ -87,7 +87,6 @@ import {
   notifyAppExtensionSettings,
   renderAppExtensionSettingsSlot,
 } from './app-extension-runtime.js';
-
 /** @typedef {Window & typeof globalThis & Record<string, any>} SettingsWindow */
 
 const settingsWindow = /** @type {SettingsWindow} */ (window);
@@ -150,9 +149,7 @@ export {
   resetCurrentProfileUsage,
 };
 
-// ═══════════════════════════════════════════════
 // SETTINGS MODAL
-// ═══════════════════════════════════════════════
 let _activeSettingsTab = 'display';
 
 function requestSettingsScrollFrame(callback) {

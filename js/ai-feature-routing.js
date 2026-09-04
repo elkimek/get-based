@@ -24,7 +24,8 @@ export function getAssistantFeatureIdentity() {
   if (route.adapter === 'codex') {
     return {
       provider: 'codex-agent', modelId: route.model || 'cli-default',
-      modelDisplay: route.modelDisplay || route.model || 'CLI default', providerDisplay: route.providerDisplay || 'Codex CLI',
+      modelDisplay: route.modelDisplay || route.model || 'CLI default', providerDisplay: route.providerDisplay,
+      agentId: route.provider,
       subscription: true,
     };
   }

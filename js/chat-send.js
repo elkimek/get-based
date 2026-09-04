@@ -36,7 +36,7 @@ import { e2eeLockFootnote } from './chat-attestation.js';
 import {
   getActivePersonality, getCustomPersonality, updateChatHeaderTitle,
 } from './chat-personalities.js';
-import { saveChatHistory } from './chat-history.js';
+import { canSaveChatHistory, saveChatHistory } from './chat-history.js';
 import { buildActionBar, chatMessageActionAttrs } from './chat-actions.js';
 import { getChatWebSearchEnabled, isChatThreadInputBlocked } from './chat-panel.js';
 import {
@@ -76,6 +76,7 @@ import {
 import {
   createChatThinkingIndicator, stopChatThinkingStatus,
 } from './chat-thinking-status.js';
+import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
 
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
@@ -272,6 +273,7 @@ export async function sendChatMessage() {
     createNewThread();
     if (!state.currentThreadId) return;
   }
+  if (!canSaveChatHistory()) return;
   const editPreparation = prepareChatMessageEditSend();
   if (editPreparation === false) return;
 
@@ -481,6 +483,19 @@ export async function sendChatMessage() {
       const webTag = aiResult.webSearches?.length ? ' · 🌐 web' : '';
       footnote.textContent = `${_msgModelDisplay} · CLI subscription${webTag}`;
       aiMsgEl.appendChild(footnote);
+    }
+
+    const attribution = getAIOutputAttribution({
+      provider: _msgProvider,
+      agentId: _msgAgentId,
+      modelId: _msgModelId,
+      modelDisplay: _msgModelDisplay,
+    });
+    if (attribution) {
+      const attributionEl = document.createElement('div');
+      attributionEl.className = 'chat-provider-attribution';
+      attributionEl.textContent = attribution;
+      aiMsgEl.appendChild(attributionEl);
     }
 
     // Build assistant message object with context snapshot

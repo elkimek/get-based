@@ -220,6 +220,7 @@ function collectReportBuilderOptions(overlay) {
       model: aiEl?.dataset.reportAiModel || '',
       provider: aiEl?.dataset.reportAiProvider || '',
       modelId: aiEl?.dataset.reportAiModelId || '',
+      agentId: aiEl?.dataset.reportAiAgentId || '',
     };
   }
   return options;
@@ -302,6 +303,7 @@ function setReportBuilderAISummary(overlay, summary) {
     delete textEl.dataset.reportAiModel;
     delete textEl.dataset.reportAiProvider;
     delete textEl.dataset.reportAiModelId;
+    delete textEl.dataset.reportAiAgentId;
     statusEl.textContent = 'Not generated.';
     if (clearBtn) clearBtn.hidden = true;
     return;
@@ -312,6 +314,7 @@ function setReportBuilderAISummary(overlay, summary) {
   textEl.dataset.reportAiModel = summary.model || '';
   textEl.dataset.reportAiProvider = summary.provider || '';
   textEl.dataset.reportAiModelId = summary.modelId || '';
+  textEl.dataset.reportAiAgentId = summary.agentId || '';
   statusEl.textContent = `Generated${summary.model ? ` with ${summary.model}` : ''}. Editable before preview.`;
   if (clearBtn) clearBtn.hidden = false;
 }

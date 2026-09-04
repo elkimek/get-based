@@ -609,6 +609,13 @@ function installRoundRequestMocks({ lens = true, provider = 'venice', e2ee = tru
     buildTaggedChatMessages: vi.fn(() => [{ role: 'user', content: 'tagged' }]),
     buildWebSearchHint: vi.fn(() => 'web hint'),
     getChatWebSearchEnabled: vi.fn(() => true),
+    getAssistantExecutionRoute: vi.fn(() => ({ adapter: 'direct' })),
+    isPersonalAgentTarget: vi.fn(() => false),
+    callCodexAgent: vi.fn(),
+    callChatAPIWithContinuation: vi.fn(),
+    getAgentModelDisplay: vi.fn(model => `Resolved ${model}`),
+    getCachedAgentModelCatalog: vi.fn(() => []),
+    mergeAgentContextReceipts: vi.fn((_calls, context) => [...context, { label: 'Tools', detail: 'getbased context read' }]),
   };
 
   vi.doMock('../js/chat-system-prompt.js', () => ({ CHAT_SYSTEM_PROMPT: 'base system' }));
@@ -619,6 +626,8 @@ function installRoundRequestMocks({ lens = true, provider = 'venice', e2ee = tru
     getActiveModelDisplay: deps.getActiveModelDisplay,
     supportsWebSearch: deps.supportsWebSearch,
     isVeniceE2EEActive: deps.isVeniceE2EEActive,
+    isPpqPrivateModeActive: vi.fn(() => false),
+    isRoutstrPrivateModeActive: vi.fn(() => false),
   }));
   vi.doMock('../js/lab-context.js', () => ({
     buildLabContext: deps.buildLabContext,
@@ -644,6 +653,18 @@ function installRoundRequestMocks({ lens = true, provider = 'venice', e2ee = tru
   }));
   vi.doMock('../js/chat-context-summary.js', () => ({ getContextSummary: deps.getContextSummary }));
   vi.doMock('../js/chat-panel.js', () => ({ getChatWebSearchEnabled: deps.getChatWebSearchEnabled }));
+  vi.doMock('../js/ai-execution-routing.js', () => ({ getAssistantExecutionRoute: deps.getAssistantExecutionRoute }));
+  vi.doMock('../js/agent-chat-context.js', () => ({ isPersonalAgentTarget: deps.isPersonalAgentTarget }));
+  vi.doMock('../js/agent-chat-backend.js', () => ({ callCodexAgent: deps.callCodexAgent }));
+  vi.doMock('../js/chat-continuation.js', () => ({
+    CHAT_RESPONSE_MAX_TOKENS: 8192,
+    callChatAPIWithContinuation: deps.callChatAPIWithContinuation,
+  }));
+  vi.doMock('../js/agent-model-catalog.js', () => ({
+    getAgentModelDisplay: deps.getAgentModelDisplay,
+    getCachedAgentModelCatalog: deps.getCachedAgentModelCatalog,
+  }));
+  vi.doMock('../js/agent-tool-runtime.js', () => ({ mergeAgentContextReceipts: deps.mergeAgentContextReceipts }));
   return deps;
 }
 
@@ -727,6 +748,61 @@ describe('chat discussion round request runtime behavior', () => {
     expect(deps.trackUsage).not.toHaveBeenCalled();
     mod.trackDiscussionUsage({ provider: 'venice', modelId: 'model-1' }, { inputTokens: 2, outputTokens: 5 });
     expect(deps.trackUsage).toHaveBeenCalledWith('venice', 'model-1', 2, 5);
+  });
+
+  it('keeps discussion rounds on the selected CLI agent with tools and session continuity', async () => {
+    const deps = installRoundRequestMocks({ lens: false, provider: 'ollama', e2ee: false });
+    deps.getAssistantExecutionRoute.mockReturnValue({
+      adapter: 'codex', provider: 'grok', target: 'local',
+      model: 'grok-default', modelDisplay: 'Grok default', providerDisplay: 'Grok Build',
+    });
+    deps.callCodexAgent.mockResolvedValue({
+      text: 'CLI discussion response', threadId: 'signed-thread', model: 'grok-4',
+      toolCalls: [{ name: 'get_profile_context' }], webSearches: [{ query: 'study' }],
+      drafts: [{ id: 'draft-1', kind: 'note' }], usage: { inputTokens: 4, outputTokens: 8 },
+    });
+    const mod = await import('../js/chat-discussion-round-request.js');
+    const signal = new AbortController().signal;
+    const request = await mod.buildDiscussionRoundRequest({
+      msgText: 'compare markers',
+      roundHistory: [{ role: 'user', content: 'compare markers' }],
+      signal,
+    });
+    const thread = { id: 'thread-1', agentThreadId: 'existing-thread' };
+    const result = await mod.callDiscussionRoundAssistant({
+      request, thread, profileId: 'profile-1', signal, onStream: () => {},
+    });
+    const message = mod.buildDiscussionAssistantMessage({
+      fullText: result.text, request, aiResult: result, responseTruncated: false, attestation: null,
+    });
+
+    expect(request).toMatchObject({
+      useCodexAgent: true,
+      provider: 'codex-agent',
+      agentId: 'grok',
+      target: 'local',
+      modelId: 'grok-4',
+      modelDisplay: 'Resolved grok-4',
+      webSearch: true,
+    });
+    expect(deps.callCodexAgent).toHaveBeenCalledWith(expect.objectContaining({
+      prompt: 'compare markers',
+      profileId: 'profile-1',
+      target: 'local',
+      threadId: 'existing-thread',
+      signal,
+    }));
+    expect(thread).toMatchObject({
+      agentThreadId: 'signed-thread', chatBackend: 'codex', agentModel: 'grok-4',
+    });
+    expect(message).toMatchObject({
+      provider: 'codex-agent', agentId: 'grok', modelId: 'grok-4',
+      webSearch: true, agentDrafts: [{ id: 'draft-1', kind: 'note' }],
+    });
+    expect(message.context.at(-1)).toEqual({ label: 'Tools', detail: 'getbased context read' });
+    deps.trackUsage.mockClear();
+    mod.trackDiscussionUsage(request, result.usage);
+    expect(deps.trackUsage).not.toHaveBeenCalled();
   });
 });
 

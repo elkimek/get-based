@@ -3,7 +3,6 @@
 
 import { state } from './state.js';
 import {
-  CHAT_RESPONSE_MAX_TOKENS, callChatAPIWithContinuation,
   isAIResponseTruncated,
 } from './chat-continuation.js';
 import {
@@ -15,13 +14,14 @@ import {
   hasExistingDiscussionResponses,
 } from './chat-discussion-round-prompts.js';
 import {
-  buildDiscussionAssistantMessage, buildDiscussionRoundRequest, trackDiscussionUsage,
+  buildDiscussionAssistantMessage, buildDiscussionRoundRequest, callDiscussionRoundAssistant,
+  trackDiscussionUsage,
 } from './chat-discussion-round-request.js';
 import {
   isRoundThreadActive, renderRoundMessages, saveRoundChatHistory,
 } from './chat-discussion-round-state.js';
 import {
-  appendDiscussionUsageFootnote, appendRoundPersonaLabel, createDiscussionAiMessage,
+  appendDiscussionOutputAttribution, appendDiscussionUsageFootnote, appendRoundPersonaLabel, createDiscussionAiMessage,
   createDiscussionPersonaLabel, createDiscussionTypingIndicator,
   renderFinalDiscussionMessage,
 } from './chat-discussion-round-view.js';
@@ -97,10 +97,11 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       activeRound.aiMsgEl = aiMsgEl;
       activeRound.typewriter = typewriter;
 
-      const aiResult = await callChatAPIWithContinuation({
-        system: request.systemPrompt,
-        messages: request.apiMessages,
-        maxTokens: CHAT_RESPONSE_MAX_TOKENS,
+      const currentThread = state.chatThreads.find(thread => thread.id === roundThreadId);
+      const aiResult = await callDiscussionRoundAssistant({
+        request,
+        thread: currentThread,
+        profileId: state.currentProfile || '',
         signal: controller.signal,
         onStream(text) {
           if (isRoundThreadActive(roundThreadId)) {
@@ -108,9 +109,6 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
             typewriter.update(text);
           }
         },
-        webSearch: request.webSearch,
-        provider: request.provider,
-        reasoningEffort: request.reasoningEffort,
       });
       const fullText = aiResult.text;
       const usage = /** @type {{ inputTokens?: number, outputTokens?: number } | undefined} */ (aiResult.usage);
@@ -138,6 +136,14 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         webSearch: request.webSearch,
         e2ee: request.e2ee,
         attestation,
+      });
+      appendDiscussionOutputAttribution({
+        threadId: roundThreadId,
+        aiMsgEl,
+        provider: request.provider,
+        agentId: request.agentId,
+        modelId: request.modelId,
+        modelDisplay: request.modelDisplay,
       });
 
       const assistantMsg = buildDiscussionAssistantMessage({

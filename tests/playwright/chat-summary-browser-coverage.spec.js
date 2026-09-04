@@ -17,6 +17,7 @@ async function openIsolatedSummaryPage(page) {
       export function getAIProvider() { return 'ollama'; }
       export function getActiveModelId() { return 'summary-coverage-model'; }
       export function getActiveModelDisplay() { return 'Summary Coverage Model'; }
+      export function supportsVision() { return false; }
       export async function callClaudeAPI(opts) {
         window.__summaryApiCalls = window.__summaryApiCalls || [];
         window.__summaryApiCalls.push({
@@ -142,12 +143,24 @@ test('chat summary browser coverage streams saves refreshes and closes summaries
       outcomes.exportedCloseHidesModal =
         document.getElementById('summary-modal-overlay')?.classList.contains('show') === false;
 
+      saved.attribution = 'Written with Grok';
+      generatedThread.summaryAttribution = 'Written with Grok';
+      let copiedSummary = '';
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: async text => { copiedSummary = text; } },
+      });
       summaries.viewSavedSummary(saved.id);
       await waitUntil(
         () => document.getElementById('summary-modal-overlay')?.classList.contains('show') === true,
         'saved summary modal reopen'
       );
       const reopenedBody = document.getElementById('summary-modal-body');
+      summaries.copySummary();
+      await Promise.resolve();
+      outcomes.grokSummaryCarriesVisibleAndCopiedAttribution =
+        document.getElementById('summary-modal-overlay')?.textContent.includes('Written with Grok') === true
+        && copiedSummary.endsWith('Written with Grok');
       if (reopenedBody) reopenedBody.scrollTop = 11;
       saved.content = '## Key Findings\nSynced summary content.';
       window.dispatchEvent(new Event('labcharts-sync-applied'));

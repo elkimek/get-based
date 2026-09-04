@@ -23,6 +23,7 @@ import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { setChatInputValue } from './chat-composer.js';
 import { restoreMessageAttachments } from './chat-images.js';
 import { applyAgentDraft, renderAgentDraftCards } from './agent-drafts.js';
+import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
 
 const chatMessageActionDeps = {
   closeSummaryModal: /** @type {() => void} */ (() => {}),
@@ -366,7 +367,9 @@ export function copyMessage(msgIndex) {
     }
     return;
   }
-  navigator.clipboard.writeText(msg.content).then(() => {
+  const attribution = msg.role === 'assistant' ? getAIOutputAttribution(msg) : '';
+  const clipboardText = attribution ? `${msg.content}\n\n${attribution}` : msg.content;
+  navigator.clipboard.writeText(clipboardText).then(() => {
     if (btn) {
       setIconButtonContent(btn, 'check', 'Copied');
       setTimeout(() => { setIconButtonContent(btn, 'copy', 'Copy'); }, 1500);

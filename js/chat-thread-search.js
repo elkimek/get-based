@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { encryptedGetItem, getEncryptionEnabled } from './crypto.js';
-import { escapeHTML } from './utils.js';
+import { escapeHTML, showConfirmDialog, showNotification } from './utils.js';
 import { chatMessageActionAttrs } from './chat-message-action-attrs.js';
 import { preferredChatScrollBehavior } from './chat-scroll.js';
 
@@ -30,6 +30,143 @@ const SEARCH_RESULT_LIMIT = 30;
 /** @param {Partial<typeof threadSearchCallbacks>} [callbacks] */
 export function configureChatThreadSearch(callbacks = {}) {
   Object.assign(threadSearchCallbacks, callbacks);
+}
+
+const threadProjectCallbacks = {
+  createNewThread: _options => null,
+  renderThreadList: () => {},
+  saveChatThreadIndex: async () => false,
+  showPromptDialog: async (_message, _options) => null,
+};
+
+export function configureChatThreadProjects(callbacks = {}) {
+  Object.assign(threadProjectCallbacks, callbacks);
+}
+
+export function getThreadProjectNames() {
+  return [...new Set(state.chatThreads.map(thread => String(thread.projectName || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
+}
+
+export async function createThreadProject() {
+  const name = await threadProjectCallbacks.showPromptDialog('Create a project:', {
+    defaultValue: '',
+    okLabel: 'Create',
+  });
+  const projectName = String(name || '').trim().slice(0, 60);
+  return projectName ? threadProjectCallbacks.createNewThread({ projectName }) : null;
+}
+
+function restoreProjectMutation(snapshots) {
+  for (const snapshot of snapshots) {
+    const thread = state.chatThreads.find(item => item.id === snapshot.id);
+    if (!thread) continue;
+    if (snapshot.projectName) thread.projectName = snapshot.projectName;
+    else delete thread.projectName;
+    thread.updatedAt = snapshot.updatedAt;
+  }
+}
+
+function projectSnapshots(threads) {
+  return threads.map(thread => ({
+    id: thread.id, projectName: thread.projectName, updatedAt: thread.updatedAt,
+  }));
+}
+
+export async function renameThreadProject(currentName, nextName) {
+  const current = String(currentName || '').trim();
+  const next = String(nextName || '').trim().slice(0, 60);
+  if (!current || !next) return false;
+  if (current === next) return true;
+  if (getThreadProjectNames().some(name => name !== current && name.toLocaleLowerCase() === next.toLocaleLowerCase())) {
+    showNotification('A project with that name already exists', 'error');
+    return false;
+  }
+  const affected = state.chatThreads.filter(thread => thread.projectName === current);
+  if (!affected.length) return false;
+  const snapshots = projectSnapshots(affected);
+  const changedAt = new Date().toISOString();
+  for (const thread of affected) {
+    thread.projectName = next;
+    thread.updatedAt = changedAt;
+  }
+  const saved = await threadProjectCallbacks.saveChatThreadIndex();
+  if (!saved) restoreProjectMutation(snapshots);
+  threadProjectCallbacks.renderThreadList();
+  if (saved) showNotification(`Project renamed to ${next}`, 'info');
+  return saved;
+}
+
+export async function renameThreadProjectPrompt(projectName) {
+  const current = String(projectName || '').trim();
+  if (!current) return false;
+  const name = await threadProjectCallbacks.showPromptDialog('Rename project:', {
+    defaultValue: current,
+    okLabel: 'Rename',
+  });
+  return name ? renameThreadProject(current, name) : false;
+}
+
+export async function deleteThreadProject(projectName) {
+  const current = String(projectName || '').trim();
+  const affected = state.chatThreads.filter(thread => thread.projectName === current);
+  if (!current || !affected.length) return false;
+  const snapshots = projectSnapshots(affected);
+  const changedAt = new Date().toISOString();
+  for (const thread of affected) {
+    delete thread.projectName;
+    thread.updatedAt = changedAt;
+  }
+  const saved = await threadProjectCallbacks.saveChatThreadIndex();
+  if (!saved) restoreProjectMutation(snapshots);
+  threadProjectCallbacks.renderThreadList();
+  if (saved) showNotification('Project deleted; its conversations were kept', 'info', 5000);
+  return saved;
+}
+
+export async function deleteThreadProjectPrompt(projectName) {
+  const current = String(projectName || '').trim();
+  const count = state.chatThreads.filter(thread => thread.projectName === current).length;
+  if (!current || !count) return false;
+  const confirmed = await showConfirmDialog(
+    `Delete “${current}”? ${count === 1 ? 'Its conversation' : `Its ${count} conversations`} will be kept outside the project.`,
+    { confirmLabel: 'Delete project', ariaLabel: 'Delete project' },
+  );
+  return confirmed ? deleteThreadProject(current) : false;
+}
+
+export function toggleThreadPinned(threadId) {
+  const thread = state.chatThreads.find(item => item.id === threadId);
+  if (!thread) return false;
+  thread.pinned = thread.pinned !== true;
+  thread.updatedAt = new Date().toISOString();
+  void threadProjectCallbacks.saveChatThreadIndex();
+  threadProjectCallbacks.renderThreadList();
+  return thread.pinned;
+}
+
+export async function moveThreadToProject(threadId, nextProjectName) {
+  const thread = state.chatThreads.find(item => item.id === threadId);
+  if (!thread) return false;
+  const previous = {
+    projectName: thread.projectName, pinned: thread.pinned, updatedAt: thread.updatedAt,
+  };
+  const projectName = String(nextProjectName || '').trim().slice(0, 60);
+  if (projectName) thread.projectName = projectName;
+  else delete thread.projectName;
+  if (projectName) delete thread.pinned;
+  thread.updatedAt = new Date().toISOString();
+  const saved = await threadProjectCallbacks.saveChatThreadIndex();
+  if (!saved) {
+    if (previous.projectName) thread.projectName = previous.projectName;
+    else delete thread.projectName;
+    if (previous.pinned) thread.pinned = true;
+    else delete thread.pinned;
+    thread.updatedAt = previous.updatedAt;
+  }
+  threadProjectCallbacks.renderThreadList();
+  if (saved) showNotification(projectName ? `Moved to ${projectName}` : 'Removed from project', 'info');
+  return saved;
 }
 
 async function getThreadMessages(threadId) {

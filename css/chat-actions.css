@@ -13,6 +13,12 @@
   margin-top: 6px;
   opacity: 0.6;
 }
+.chat-provider-attribution {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 650;
+  margin-top: 6px;
+}
 .e2ee-attestation-badge {
   display: inline-flex;
   align-items: baseline;

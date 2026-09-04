@@ -171,7 +171,7 @@ export async function handleDroppedChatFiles(source) {
       { confirmLabel: 'Choose file', cancelLabel: 'Cancel', tone: 'primary', ariaLabel: 'Choose dropped file' },
     );
     if (!chooseFile) return;
-    const input = document.getElementById('chat-image-input');
+    const input = document.getElementById('chat-file-input');
     if (input instanceof HTMLInputElement) input.click();
     else showNotification('The file picker is unavailable. Reload the app and try again.', 'error');
   }
@@ -369,6 +369,7 @@ export function initChatImageHandlers() {
   const chatDropZone = /** @type {HTMLElement | null} */ (document.querySelector('.chat-panel-conversation'));
   const chatDropOverlay = document.getElementById('chat-drop-overlay');
   const fileInput = document.getElementById('chat-image-input');
+  const fallbackFileInput = document.getElementById('chat-file-input');
 
   if (!chatMenuDismissInstalled) {
     chatMenuDismissInstalled = true;
@@ -439,6 +440,14 @@ export function initChatImageHandlers() {
   if (fileInput && fileInput.dataset.chatFilePickerBound !== 'true') {
     fileInput.dataset.chatFilePickerBound = 'true';
     fileInput.addEventListener('change', (e) => {
+      const input = /** @type {HTMLInputElement} */ (e.target);
+      const files = Array.from(input.files || []);
+      void handleChatFiles(files).finally(() => { input.value = ''; });
+    });
+  }
+  if (fallbackFileInput && fallbackFileInput.dataset.chatFilePickerBound !== 'true') {
+    fallbackFileInput.dataset.chatFilePickerBound = 'true';
+    fallbackFileInput.addEventListener('change', (e) => {
       const input = /** @type {HTMLInputElement} */ (e.target);
       const files = Array.from(input.files || []);
       void handleChatFiles(files).finally(() => { input.value = ''; });

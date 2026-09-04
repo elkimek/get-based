@@ -17,6 +17,7 @@ import {
 } from './wearables-formatters.js';
 import { buildReportDataSnapshot, formatReportDataForAgent } from './export-report-data.js';
 import { getSupplementsOverlappingRange } from './supplement-medication-domain.js';
+import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
 
 // ═══════════════════════════════════════════════
 // PDF REPORT EXPORT
@@ -142,6 +143,7 @@ function normalizeReportAISummary(summary) {
     model: input.model || input.modelDisplay || '',
     provider: input.provider || '',
     modelId: input.modelId || '',
+    agentId: input.agentId || '',
   };
 }
 
@@ -650,7 +652,7 @@ export async function generateReportAISummary(options = {}) {
   }
 
   const payload = buildPreparedReportPayload(options);
-  const { provider, modelId, modelDisplay, subscription } = getAssistantFeatureIdentity();
+  const { provider, modelId, modelDisplay, agentId, subscription } = getAssistantFeatureIdentity();
   const result = await callAssistantFeatureAI({
     system: REPORT_AI_SUMMARY_PROMPT,
     messages: [{ role: 'user', content: formatReportDataForAgent(payload.reportData) }],
@@ -669,6 +671,7 @@ export async function generateReportAISummary(options = {}) {
     provider,
     modelId,
     model: modelDisplay,
+    agentId,
   };
 }
 
@@ -703,10 +706,12 @@ export function renderReportAISummarySection(summary) {
     ? new Date(summary.generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : '';
   const meta = [summary.model, generatedDate ? `generated ${generatedDate}` : ''].filter(Boolean).join(' · ');
+  const attribution = getAIOutputAttribution(summary);
   return `<section class="report-ai-summary">
     <h2>Practitioner Overview</h2>
     <div class="report-ai-summary-body">${renderReportAISummaryText(summary.text)}</div>
     ${meta ? `<p class="report-ai-meta">${escapeHTML(meta)}</p>` : ''}
+    ${attribution ? `<p class="report-ai-attribution">${escapeHTML(attribution)}</p>` : ''}
     <p class="report-note">AI-generated from the selected report data. Review for accuracy before sharing.</p>
   </section>`;
 }

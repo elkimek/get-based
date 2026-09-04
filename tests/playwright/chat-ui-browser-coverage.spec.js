@@ -22,6 +22,7 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
     const attachBtn = document.getElementById('chat-attach-btn');
     const photoAction = document.getElementById('chat-add-photo-action');
     const input = document.getElementById('chat-image-input');
+    const fallbackInput = document.getElementById('chat-file-input');
     const messages = document.getElementById('chat-messages');
     const inputArea = document.querySelector('.chat-input-area');
     const conversation = document.querySelector('.chat-panel-conversation');
@@ -68,6 +69,8 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
         && photoAction?.hidden === false
         && input?.getAttribute('accept')?.includes('image/') === true
         && input?.getAttribute('accept')?.includes('.pdf') === false
+        && fallbackInput?.getAttribute('accept')?.includes('.pdf') === true
+        && fallbackInput?.getAttribute('accept')?.includes('image/') === true
         && attachBtn?.getAttribute('aria-label') === 'Add to message';
 
       await chatImages.addImageAttachment(makeImage('tiny <lab>.png'));
@@ -215,7 +218,7 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       outcomes.fileEntryDropWorks = importedFiles.includes('entry.pdf');
 
       let fallbackPickerClicks = 0;
-      input?.addEventListener('click', event => {
+      fallbackInput?.addEventListener('click', event => {
         fallbackPickerClicks += 1;
         event.preventDefault();
       }, { once: true });

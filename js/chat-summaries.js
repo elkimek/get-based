@@ -23,6 +23,7 @@ import {
   replaceImportedArrayItem,
 } from './data-merge.js';
 import { createUniqueId } from './unique-id.js';
+import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
 
 const SUMMARY_PROMPT = `You are a concise medical note-taker. Summarize this health consultation into a structured note.
 
@@ -90,7 +91,11 @@ export async function summarizeThread() {
 
   const thread = state.chatThreads.find(t => t.id === state.currentThreadId);
   if (thread?.summary) {
-    _showSummaryModal(thread.summary, thread);
+    const saved = _getLatestSavedSummary(thread.id);
+    _showSummaryModal(thread.summary, {
+      ...thread,
+      summaryAttribution: saved?.attribution === 'Written with Grok' ? saved.attribution : '',
+    });
     return;
   }
 
@@ -117,6 +122,7 @@ async function _generateSummary() {
   const _modelId = identity.modelId;
   const _modelDisplay = identity.modelDisplay;
   const _provider = identity.provider;
+  const attribution = getAIOutputAttribution(identity);
 
   _summaryAbortController = new AbortController();
 
@@ -150,6 +156,7 @@ async function _generateSummary() {
       content: text,
       createdAt: now,
       model: _modelDisplay,
+      attribution,
       cost: costInfo
     });
 
@@ -157,7 +164,11 @@ async function _generateSummary() {
     renderSavedSummaries();
 
     const savedSummary = _getLatestSavedSummary(thread.id);
-    _showSummaryModal(text, { ...thread, _savedId: savedSummary?.id }, false, costInfo);
+    _showSummaryModal(text, {
+      ...thread,
+      _savedId: savedSummary?.id,
+      summaryAttribution: attribution,
+    }, false, costInfo);
   } catch (e) {
     if (getErrorName(e) === 'AbortError') {
       showNotification('Summary cancelled', 'info');
@@ -228,6 +239,7 @@ export function viewSavedSummary(id) {
     name: s.threadName,
     summaryDate: s.createdAt,
     summaryModel: s.model,
+    summaryAttribution: s.attribution === 'Written with Grok' ? s.attribution : '',
     summaryCost: s.cost,
     summary: s.content,
     _savedId: s.id
@@ -260,7 +272,13 @@ export function renderSavedSummaries() {
  * @param {{ provider: string, modelId: any, modelDisplay: any, inputTokens: any, outputTokens: any } | null} [usageInfo]
  */
 function _showSummaryModal(summaryText, thread, loading = false, usageInfo = null) {
-  _activeSummary = summaryText ? { content: summaryText, name: thread?.name, date: thread?.summaryDate, model: thread?.summaryModel } : null;
+  _activeSummary = summaryText ? {
+    content: summaryText,
+    name: thread?.name,
+    date: thread?.summaryDate,
+    model: thread?.summaryModel,
+    attribution: thread?.summaryAttribution === 'Written with Grok' ? thread.summaryAttribution : '',
+  } : null;
   let overlay = document.getElementById('summary-modal-overlay');
   if (!overlay) {
     overlay = document.createElement('div');
@@ -305,6 +323,7 @@ function _showSummaryModal(summaryText, thread, loading = false, usageInfo = nul
     <h3>Summary</h3>
     <div class="summary-modal-meta">${threadName}${dateStr ? ' \u00b7 ' + dateStr : ''}${modelStr}${costLine}</div>
     <div id="summary-modal-body" class="summary-modal-body">${bodyContent}</div>
+    ${!loading && thread?.summaryAttribution === 'Written with Grok' ? '<div class="chat-provider-attribution">Written with Grok</div>' : ''}
     <div class="summary-modal-actions"${loading ? ' style="display:none"' : ''}>
       <button class="summary-action-btn" type="button" ${chatMessageActionAttrs('copy-summary')} title="Copy as markdown">Copy</button>
       <button class="summary-action-btn" type="button" ${chatMessageActionAttrs('download-summary')} title="Download as .md file">Download</button>
@@ -334,7 +353,10 @@ export function closeSummaryModal() {
 
 export function copySummary() {
   if (!_activeSummary?.content) return;
-  navigator.clipboard.writeText(_activeSummary.content).then(() => {
+  const text = _activeSummary.attribution
+    ? `${_activeSummary.content}\n\n${_activeSummary.attribution}`
+    : _activeSummary.content;
+  navigator.clipboard.writeText(text).then(() => {
     showNotification('Summary copied to clipboard', 'info');
   });
 }
@@ -345,7 +367,8 @@ export function downloadSummary() {
   const filename = name.replace(/[^a-zA-Z0-9_-]/g, '_') + '_summary.md';
   const dateLine = _activeSummary.date ? `_Summarized ${new Date(_activeSummary.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}${_activeSummary.model ? ' \u00b7 ' + _activeSummary.model : ''}_` : '';
   const header = `# ${name}\n\n${dateLine}\n\n---\n\n`;
-  const blob = new Blob([header + _activeSummary.content], { type: 'text/markdown' });
+  const attribution = _activeSummary.attribution ? `\n\n${_activeSummary.attribution}` : '';
+  const blob = new Blob([header + _activeSummary.content + attribution], { type: 'text/markdown' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = filename;
@@ -357,6 +380,8 @@ export function printSummary() {
   if (!_activeSummary?.content) return;
   const name = _activeSummary.name || 'Summary';
   const html = renderMarkdown(_activeSummary.content);
+  const attribution = _activeSummary.attribution
+    ? `<p class="attribution">${escapeHTML(_activeSummary.attribution)}</p>` : '';
   const dateLine = _activeSummary.date ? `Summarized ${new Date(_activeSummary.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}${_activeSummary.model ? ' \u00b7 ' + escapeHTML(_activeSummary.model) : ''}` : '';
   const w = openUtilsRuntimeWindow('', '_blank');
   if (!w) { showNotification('Popup blocked \u2014 allow popups for this site', 'error'); return; }
@@ -364,12 +389,13 @@ export function printSummary() {
 <style>body{font-family:-apple-system,system-ui,sans-serif;max-width:700px;margin:40px auto;padding:0 20px;line-height:1.6;color:#1a1a1a}
 h1{font-size:20px;border-bottom:1px solid #ddd;padding-bottom:8px}h2{font-size:16px;margin-top:24px}
 ul,ol{padding-left:20px}li{margin:4px 0}.meta{color:#666;font-size:13px;margin-bottom:20px}
-table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}
+table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}.attribution{color:#555;font-size:12px;font-weight:700;margin-top:18px}
 @media print{body{margin:20px}}</style>
 </head><body>
 <h1>${escapeHTML(name)}</h1>
 ${dateLine ? `<div class="meta">${dateLine}</div>` : ''}
 ${html}
+${attribution}
 </body></html>`);
   w.document.close();
   w.print();

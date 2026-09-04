@@ -33,6 +33,7 @@ import {
 import {
   applyRenderedChatMessageAvatars, shouldShowChatPersonaLabel,
 } from './chat-message-avatars.js';
+import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
 
 export { _getNoDataPrompts } from './chat-empty-state.js';
 
@@ -146,6 +147,8 @@ export function renderChatMessages({ preserveScroll = false } = {}) {
         const e2eeTag = msg.e2ee ? e2eeLockFootnote(msg.attestation) : '';
         html += `<div class="chat-cost-footnote">${escapeHTML(mName)} \u00b7 ${escapeHTML(formatCost(cost))} \u00b7 ${totalTokens.toLocaleString()} tokens${webTag}${e2eeTag}</div>`;
       }
+      const attribution = getAIOutputAttribution(msg);
+      if (attribution) html += `<div class="chat-provider-attribution">${escapeHTML(attribution)}</div>`;
       html += buildActionBar(i);
       // Lens citations — show which excerpts the AI received with this question.
       // Persisted on the message so re-rendering or switching threads keeps

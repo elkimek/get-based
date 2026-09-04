@@ -153,7 +153,7 @@ export function renderCLIAgentProviderPanel() {
       <div id="local-agent-status" class="sr-only" role="status" aria-live="polite"></div>
       <details class="local-agent-details">
         <summary>How CLI agents work</summary>
-        <p>getbased uses a local companion and the selected agent&rsquo;s existing sign-in. Connection details stay hidden. Agents receive health data only through getbased&rsquo;s approved tools. An agent may use its own hosted research capabilities in chat; permission prompts, shell, local files, browser control, plugins, and other computer capabilities stay off. Focused feature jobs such as imports receive no getbased tools.</p>
+        <p>getbased uses a local companion and the selected agent&rsquo;s existing sign-in. Connection details stay hidden. Local CLI sessions receive health data only through getbased&rsquo;s approved tools; permission prompts, shell, local files, browser control, plugins, and other computer capabilities stay off. A personal gateway may use tools already configured there under that gateway&rsquo;s own approval policy, but it does not receive getbased&rsquo;s local tools. Focused feature jobs such as imports receive no getbased tools.</p>
       </details>
     </div>`;
 }

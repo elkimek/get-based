@@ -111,10 +111,14 @@ function replaceMarkedSection(source, startMarker, endMarker, replacementLines) 
 }
 
 function pruneSourceModuleAppShell(source) {
-  return source.replace(
-    /^  '(\/js\/[^']+\.js)',\n/gm,
-    (line, url) => (PRODUCTION_RAW_JS_ASSETS.has(url) ? line : ''),
+  const start = source.indexOf('const APP_SHELL = [');
+  const end = source.indexOf('\n];', start);
+  if (start < 0 || end < start) throw new Error('Missing or invalid APP_SHELL array');
+  const appShell = source.slice(start, end).replace(
+    /\s*'(\/js\/[^']+\.js)',/g,
+    (entry, url) => (PRODUCTION_RAW_JS_ASSETS.has(url) ? entry : ''),
   );
+  return `${source.slice(0, start)}${appShell}${source.slice(end)}`;
 }
 
 async function validateBundlerLock() {

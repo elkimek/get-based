@@ -28,7 +28,7 @@ function storedNumber(key, fallback) {
 }
 
 function desktopAvailableWidth() {
-  return Math.max(PANEL_MIN, Math.min(PANEL_MAX, window.innerWidth - 48));
+  return Math.max(PANEL_MIN, Math.min(PANEL_MAX, globalThis.innerWidth - 48));
 }
 
 function currentPanelStorage(railOpen) {
@@ -139,7 +139,7 @@ export function initChatLayout() {
     persistRailWidth,
     RAIL_DEFAULT,
   );
-  window.addEventListener('resize', syncChatLayout);
+  globalThis.addEventListener('resize', syncChatLayout);
 }
 
 export const CHAT_LAYOUT_LIMITS = Object.freeze({
