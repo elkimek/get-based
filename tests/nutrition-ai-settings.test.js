@@ -48,7 +48,7 @@ describe('meal-photo model routing', () => {
     cacheAgentModelCatalog([{
       id: 'gpt-5.6-sol', model: 'gpt-5.6-sol', displayName: 'GPT-5.6-Sol', isDefault: true,
       inputModalities: ['text', 'image'], supportedReasoningEfforts: [],
-    }]);
+    }], 'codex');
 
     expect(getMealAISelection()).toMatchObject({
       adapter: 'codex', provider: 'codex', model: 'gpt-5.6-sol', usesAssistant: true, available: true,
@@ -59,7 +59,7 @@ describe('meal-photo model routing', () => {
     cacheAgentModelCatalog([{
       id: 'gpt-5.6-sol', model: 'gpt-5.6-sol', displayName: 'GPT-5.6-Sol', isDefault: true,
       inputModalities: ['text'], supportedReasoningEfforts: [],
-    }]);
+    }], 'codex');
     expect(getMealAISelection()).toMatchObject({
       adapter: 'direct', provider: 'ollama', model: 'qwen-vl-chat', fallback: true, available: true,
     });

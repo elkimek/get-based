@@ -55,7 +55,9 @@ const agentAdapters = detectedAgents.map(agent => {
   let client = null;
   let status = agent.status;
   let message = agent.message;
-  if (agent.protocol === 'codex') {
+  if (agent.compatible === false) {
+    status = 'unavailable';
+  } else if (agent.protocol === 'codex') {
     if (agentStorage.codexAuthenticated) {
       appServer = new CodexAppServerClient({
         command: agent.command, cwd: workspaceRoot, args: buildIsolatedCodexArgs(),

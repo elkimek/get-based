@@ -78,6 +78,27 @@ describe('development agent discovery', () => {
     expect(controller.describe().agents.map(agent => agent.compatible)).toEqual([true, true, true, true]);
   });
 
+  it('honors an explicit CLI path during development discovery', () => {
+    const child = fakeChild();
+    const run = vi.fn(command => {
+      if (command === '/opt/custom/codex') return 'codex-cli custom';
+      throw new Error('missing');
+    });
+    const controller = startDevAgentHost({
+      root: '/workspace',
+      env: { GETBASED_CODEX_COMMAND: '/opt/custom/codex' },
+      execFileSyncImpl: run,
+      prepareStorage: vi.fn(() => ({ token: 'private-token' })),
+      spawnImpl: vi.fn(() => child),
+    });
+
+    expect(controller.describe().agents).toEqual([expect.objectContaining({
+      id: 'codex', version: 'codex-cli custom',
+    })]);
+    expect(run).toHaveBeenCalledWith('/opt/custom/codex', ['--version'], expect.any(Object));
+    controller.close();
+  });
+
   it('reuses an authenticated Codex bridge that is already running', async () => {
     const child = fakeChild();
     vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));

@@ -2,6 +2,7 @@
 // Cached, capability-bearing model catalog reported by a local CLI adapter.
 
 export const AGENT_MODEL_CATALOG_KEY = 'labcharts-agent-model-catalog-v1';
+export const AGENT_MODEL_CATALOG_AGENT_KEY = 'labcharts-agent-model-catalog-agent-v1';
 
 /** @param {unknown} value */
 function boundedString(value, maxLength) {
@@ -10,9 +11,9 @@ function boundedString(value, maxLength) {
 
 /** @param {unknown} value */
 function normalizeInputModalities(value) {
-  // Codex App Server documents text + image as the backwards-compatible
-  // default for older model catalogs that omit inputModalities.
-  const source = Array.isArray(value) ? value : ['text', 'image'];
+  // Be conservative when an older or third-party adapter omits capabilities:
+  // sending an image is allowed only when the companion declares support.
+  const source = Array.isArray(value) ? value : ['text'];
   return [...new Set(source.map(item => boundedString(item, 24)).filter(Boolean))];
 }
 
@@ -43,20 +44,31 @@ function normalizeModel(value) {
   };
 }
 
-/** @param {unknown} models */
-export function cacheAgentModelCatalog(models) {
-  const normalized = Array.isArray(models) ? models.map(normalizeModel).filter(Boolean).slice(0, 500) : [];
+/** @param {ReturnType<typeof normalizeModel>} model @returns {model is NonNullable<ReturnType<typeof normalizeModel>>} */
+function isNormalizedModel(model) {
+  return model !== null;
+}
+
+/** @param {unknown} models @param {string} [agentId] */
+export function cacheAgentModelCatalog(models, agentId = '') {
+  const normalized = Array.isArray(models) ? models.map(normalizeModel).filter(isNormalizedModel).slice(0, 500) : [];
   localStorage.setItem(AGENT_MODEL_CATALOG_KEY, JSON.stringify(normalized));
+  const owner = boundedString(agentId, 40);
+  if (owner) localStorage.setItem(AGENT_MODEL_CATALOG_AGENT_KEY, owner);
+  else localStorage.removeItem(AGENT_MODEL_CATALOG_AGENT_KEY);
   if (typeof globalThis.dispatchEvent === 'function' && typeof CustomEvent !== 'undefined') {
     globalThis.dispatchEvent(new CustomEvent('getbased:agent-model-catalog-changed'));
   }
   return normalized;
 }
 
-export function getCachedAgentModelCatalog() {
+/** @param {string} [agentId] */
+export function getCachedAgentModelCatalog(agentId = '') {
+  const expectedOwner = boundedString(agentId, 40);
+  if (expectedOwner && localStorage.getItem(AGENT_MODEL_CATALOG_AGENT_KEY) !== expectedOwner) return [];
   try {
     const parsed = JSON.parse(localStorage.getItem(AGENT_MODEL_CATALOG_KEY) || '[]');
-    return Array.isArray(parsed) ? parsed.map(normalizeModel).filter(Boolean).slice(0, 500) : [];
+    return Array.isArray(parsed) ? parsed.map(normalizeModel).filter(isNormalizedModel).slice(0, 500) : [];
   } catch {
     return [];
   }
@@ -71,14 +83,14 @@ export function resolveAgentModel(modelId = '', models = getCachedAgentModelCata
     || null;
 }
 
-/** @param {string} modelId @param {string} modality */
-export function agentModelSupports(modelId, modality) {
-  const model = resolveAgentModel(modelId);
+/** @param {string} modelId @param {string} modality @param {ReturnType<typeof getCachedAgentModelCatalog>} [models] */
+export function agentModelSupports(modelId, modality, models = getCachedAgentModelCatalog()) {
+  const model = resolveAgentModel(modelId, models);
   return !!model && model.inputModalities.includes(modality);
 }
 
-/** @param {string} modelId */
-export function getAgentModelDisplay(modelId) {
-  const model = resolveAgentModel(modelId);
-  return model?.displayName || modelId || 'Codex';
+/** @param {string} modelId @param {ReturnType<typeof getCachedAgentModelCatalog>} [models] */
+export function getAgentModelDisplay(modelId, models = getCachedAgentModelCatalog()) {
+  const model = resolveAgentModel(modelId, models);
+  return model?.displayName || modelId || 'CLI default';
 }

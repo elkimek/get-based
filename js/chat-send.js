@@ -65,7 +65,9 @@ import {
   getChatBackendDisplay, hasChatResponseBackend, isCodexChatBackend,
 } from './chat-backend-selection.js';
 import { getAssistantExecutionRoute } from './ai-execution-routing.js';
-import { getAgentModelDisplay } from './agent-model-catalog.js';
+import { getAgentModelDisplay, getCachedAgentModelCatalog } from './agent-model-catalog.js';
+import { getAgentHostAgent } from './agent-chat-settings.js';
+import { summarizeAgentToolReceipts } from './agent-tool-runtime.js';
 
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
@@ -236,7 +238,7 @@ export async function sendChatMessage() {
   const hasImages = !isEditedRetry && hasPendingAttachments();
   if (!text && !hasImages) return;
   if (useCodexAgent && hasImages && !getAssistantExecutionRoute().inputModalities?.includes('image')) {
-    showNotification('The selected Codex model does not report image support.', 'info');
+    showNotification('The selected CLI model does not report image support.', 'info');
     return;
   }
 
@@ -405,12 +407,7 @@ export async function sendChatMessage() {
         currentThread.agentModel = aiResult.model;
       }
       const agentToolCalls = Array.isArray(aiResult.toolCalls) ? aiResult.toolCalls : [];
-      if (!agentToolCalls.some(call => call.tool === 'getbased_lab_context')) {
-        contextSnapshot = agentToolCalls.filter(call => call.tool === 'getbased_section').map(call => {
-          const section = typeof call.arguments?.section === 'string' ? call.arguments.section.slice(0, 80) : 'section list';
-          return { label: 'Get-based agent tool', detail: `Section: ${section}` };
-        });
-      }
+      contextSnapshot = summarizeAgentToolReceipts(agentToolCalls, contextSnapshot);
     } else {
       aiResult = await callChatAPIWithContinuation({
         system: systemPrompt,
@@ -424,7 +421,7 @@ export async function sendChatMessage() {
     }
     if (useCodexAgent && aiResult.model) {
       _msgModelId = aiResult.model;
-      _msgModelDisplay = getAgentModelDisplay(aiResult.model);
+      _msgModelDisplay = getAgentModelDisplay(aiResult.model, getCachedAgentModelCatalog(getAgentHostAgent()));
     }
     const fullText = aiResult.text;
     const usage = /** @type {{ inputTokens?: number, outputTokens?: number } | undefined} */ (aiResult.usage);

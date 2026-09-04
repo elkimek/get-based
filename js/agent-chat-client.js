@@ -1,9 +1,13 @@
 // @ts-check
-// NDJSON streaming client for the loopback Get-based Agent Host.
+// NDJSON streaming client for the loopback getbased Agent Host.
 
 import {
   AGENT_HOST_CAPABILITIES, normalizeAgentHostCapabilities, normalizeAgentHostProtocolVersion,
 } from '../shared/agent-host-protocol.js';
+
+const MAX_AGENT_RESPONSE_CHARS = 2_000_000;
+const MAX_AGENT_TOOL_CALLS = 100;
+const MAX_AGENT_WEB_SEARCH_EVENTS = 200;
 
 /** @param {string} endpoint @param {string} path */
 function endpointUrl(endpoint, path) {
@@ -29,7 +33,7 @@ export function agentHostUpgradeRequiredError(capability) {
     : capability === AGENT_HOST_CAPABILITIES.COMPANION_CONTROL
       ? 'companion controls'
     : capability === AGENT_HOST_CAPABILITIES.STRUCTURED_HEALTH_TOOLS
-      ? 'the latest Get-based tools'
+      ? 'the latest getbased tools'
       : 'this feature';
   const error = new Error(`The local getbased Companion is outdated. Restart it to enable ${feature}.`);
   // @ts-ignore — lightweight browser error classification.
@@ -184,20 +188,30 @@ export async function streamAgentTurn(options) {
     } else if (event?.type === 'model' && typeof event.model === 'string') {
       model = event.model;
     } else if (event?.type === 'activity' && event.activity === 'web_search') {
-      webSearches.push({ status: String(event.status || ''), query: String(event.query || '') });
+      if (webSearches.length < MAX_AGENT_WEB_SEARCH_EVENTS) {
+        webSearches.push({ status: String(event.status || ''), query: String(event.query || '') });
+      }
     } else if (event?.type === 'text_delta' && typeof event.delta === 'string') {
+      if (text.length + event.delta.length > MAX_AGENT_RESPONSE_CHARS) {
+        throw new Error('CLI agent response exceeded the safe size limit.');
+      }
       text += event.delta;
       options.onStream?.(text);
     } else if (event?.type === 'usage') {
       usage = { inputTokens: Number(event.inputTokens || 0), outputTokens: Number(event.outputTokens || 0) };
     } else if (event?.type === 'tool_call') {
       if (!options.toolRuntime) throw new Error('The CLI agent requested a tool that is not available for this feature.');
-      toolCalls.push({ tool: String(event.tool || ''), arguments: event.arguments });
+      if (toolCalls.length >= MAX_AGENT_TOOL_CALLS) {
+        throw new Error('CLI agent requested too many tools in one response.');
+      }
+      const recordedCall = { tool: String(event.tool || ''), arguments: event.arguments, success: false };
+      toolCalls.push(recordedCall);
       const result = await options.toolRuntime.execute({
         tool: event.tool,
         namespace: event.namespace,
         arguments: event.arguments,
       });
+      recordedCall.success = result?.success === true;
       const toolResponse = await fetch(endpointUrl(options.endpoint, `/v1/responses/${encodeURIComponent(event.responseId)}`), {
         method: 'POST', headers, body: JSON.stringify(result), signal: options.signal,
       });
@@ -209,20 +223,25 @@ export async function streamAgentTurn(options) {
     }
   };
 
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    if (buffer.length > 1_100_000) throw new Error('Agent Host sent an oversized stream event.');
-    let newline;
-    while ((newline = buffer.indexOf('\n')) >= 0) {
-      const line = buffer.slice(0, newline).trim();
-      buffer = buffer.slice(newline + 1);
-      if (line) await processEvent(JSON.parse(line));
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      if (buffer.length > 1_100_000) throw new Error('Agent Host sent an oversized stream event.');
+      let newline;
+      while ((newline = buffer.indexOf('\n')) >= 0) {
+        const line = buffer.slice(0, newline).trim();
+        buffer = buffer.slice(newline + 1);
+        if (line) await processEvent(JSON.parse(line));
+      }
     }
+    const finalLine = `${buffer}${decoder.decode()}`.trim();
+    if (finalLine) await processEvent(JSON.parse(finalLine));
+  } catch (error) {
+    try { await reader.cancel(error); } catch { /* already closed */ }
+    throw error;
   }
-  const finalLine = `${buffer}${decoder.decode()}`.trim();
-  if (finalLine) await processEvent(JSON.parse(finalLine));
   if (!finishReason) throw new Error('The companion disconnected before the CLI agent completed the response.');
   return { text, threadId, model, finishReason, usage, toolCalls, webSearches };
 }

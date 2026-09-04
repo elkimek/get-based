@@ -8,17 +8,18 @@ import {
 
 export function getAssistantExecutionRoute() {
   if (getChatBackend() !== 'codex') return { adapter: 'direct' };
-  const configuredModel = getAgentHostModel();
-  const modelEntry = resolveAgentModel(configuredModel);
-  const model = configuredModel || modelEntry?.id || '';
   const agent = getAgentHostAgent();
+  const catalog = getCachedAgentModelCatalog(agent);
+  const configuredModel = getAgentHostModel();
+  const modelEntry = resolveAgentModel(configuredModel, catalog);
+  const model = configuredModel || modelEntry?.id || '';
   const providerDisplay = ({ codex: 'Codex CLI', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes Agent', grok: 'Grok Build' })[agent] || 'CLI agent';
   return {
     adapter: 'codex',
     provider: agent,
     providerDisplay,
     model,
-    modelDisplay: getAgentModelDisplay(model),
+    modelDisplay: getAgentModelDisplay(model, catalog),
     available: Boolean(getAgentHostToken()),
     inputModalities: modelEntry?.inputModalities || [],
   };
@@ -27,17 +28,18 @@ export function getAssistantExecutionRoute() {
 /** @param {string} modelId @param {string} modality */
 export function getCodexExecutionRoute(modelId = '', modality = 'text') {
   const agent = getAgentHostAgent();
+  const catalog = getCachedAgentModelCatalog(agent);
   const providerDisplay = ({ codex: 'Codex CLI', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes Agent', grok: 'Grok Build' })[agent] || 'CLI agent';
-  const entry = resolveAgentModel(modelId);
+  const entry = resolveAgentModel(modelId, catalog);
   const model = modelId || entry?.id || '';
   return {
     adapter: 'codex',
     provider: agent,
     providerDisplay,
     model,
-    modelDisplay: getAgentModelDisplay(model),
+    modelDisplay: getAgentModelDisplay(model, catalog),
     local: true,
-    available: Boolean(getAgentHostToken()) && !!entry && agentModelSupports(model, modality),
+    available: Boolean(getAgentHostToken()) && !!entry && agentModelSupports(model, modality, catalog),
     inputModalities: entry?.inputModalities || [],
   };
 }
@@ -46,7 +48,7 @@ export function getCodexExecutionRoute(modelId = '', modality = 'text') {
 export function listCodexExecutionRoutes(modality = 'text') {
   const agent = getAgentHostAgent();
   const providerDisplay = ({ codex: 'Codex CLI', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes Agent', grok: 'Grok Build' })[agent] || 'CLI agent';
-  return getCachedAgentModelCatalog().filter(model => model.inputModalities.includes(modality)).map(model => ({
+  return getCachedAgentModelCatalog(agent).filter(model => model.inputModalities.includes(modality)).map(model => ({
     adapter: 'codex',
     provider: agent,
     providerDisplay,

@@ -47,7 +47,7 @@ export function renderAgentDraftCards(message, messageIndex) {
     const details = rows.map(([label, value]) => `<div class="chat-agent-draft-row"><span>${escapeHTML(String(label))}</span><strong>${escapeHTML(String(value))}</strong></div>`).join('');
     const controls = status === 'pending'
       ? `<div class="chat-agent-draft-controls"><button type="button" class="chat-agent-draft-apply" ${chatMessageActionAttrs('apply-agent-draft', { index: messageIndex, draftId: draft.id })}>Apply</button><button type="button" class="chat-agent-draft-discard" ${chatMessageActionAttrs('discard-agent-draft', { index: messageIndex, draftId: draft.id })}>Discard</button></div>`
-      : `<div class="chat-agent-draft-status chat-agent-draft-status-${status}">${status === 'applying' ? 'Applying…' : status === 'applied' ? 'Applied to Get-based' : status === 'discarded' ? 'Discarded' : 'Could not apply'}</div>`;
+      : `<div class="chat-agent-draft-status chat-agent-draft-status-${status}">${status === 'applying' ? 'Applying…' : status === 'applied' ? 'Applied to getbased' : status === 'discarded' ? 'Discarded' : 'Could not apply'}</div>`;
     return `<section class="chat-agent-draft chat-agent-draft-${status}" aria-label="Agent-proposed change"><div class="chat-agent-draft-heading"><span>Proposed change</span><small>Review required</small></div><p>${escapeHTML(draft.summary || 'Agent proposal')}</p><div class="chat-agent-draft-details">${details}</div>${controls}</section>`;
   }).join('');
 }

@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 740 |
-| Internal import edges | 3127 |
+| Internal import edges | 3130 |
 | Dynamic internal edges | 103 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -65,8 +65,8 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
 | [`js/utils.js`](js/utils.js) | 285 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 78 |
-| [`js/state.js`](js/state.js) | 192 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
-| [`js/caught-error.js`](js/caught-error.js) | 88 | [`js/chat-send.js`](js/chat-send.js) | 35 |
+| [`js/state.js`](js/state.js) | 192 | [`js/chat-send.js`](js/chat-send.js) | 37 |
+| [`js/caught-error.js`](js/caught-error.js) | 88 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 81 | [`js/settings.js`](js/settings.js) | 30 |
 | [`js/data.js`](js/data.js) | 78 | [`js/sync-configure.js`](js/sync-configure.js) | 28 |
 | [`js/profile.js`](js/profile.js) | 48 | [`js/pdf-import.js`](js/pdf-import.js) | 27 |
@@ -346,7 +346,7 @@ Native browser modules shipped with the static application.
 - [`js/chat-runtime.js`](js/chat-runtime.js) → [`js/context-cards-runtime.js`](js/context-cards-runtime.js)
 - [`js/chat-scroll.js`](js/chat-scroll.js) → no in-scope imports
 - [`js/chat-send-runtime.js`](js/chat-send-runtime.js) → [`js/recommendations-runtime.js`](js/recommendations-runtime.js)
-- [`js/chat-send.js`](js/chat-send.js) → [`js/agent-chat-backend.js`](js/agent-chat-backend.js), [`js/agent-model-catalog.js`](js/agent-model-catalog.js), [`js/ai-execution-routing.js`](js/ai-execution-routing.js), [`js/api.js`](js/api.js), [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/chat-actions.js`](js/chat-actions.js), [`js/chat-attestation.js`](js/chat-attestation.js), [`js/chat-backend-selection.js`](js/chat-backend-selection.js), [`js/chat-composer.js`](js/chat-composer.js), [`js/chat-context-summary.js`](js/chat-context-summary.js) *(dynamic)*, [`js/chat-continuation.js`](js/chat-continuation.js), [`js/chat-discussion.js`](js/chat-discussion.js), [`js/chat-history.js`](js/chat-history.js), [`js/chat-icons.js`](js/chat-icons.js), [`js/chat-images.js`](js/chat-images.js), [`js/chat-message-edit.js`](js/chat-message-edit.js), [`js/chat-panel.js`](js/chat-panel.js), [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-prompt-context.js`](js/chat-prompt-context.js), [`js/chat-recommendation-disclosure.js`](js/chat-recommendation-disclosure.js), [`js/chat-render.js`](js/chat-render.js), [`js/chat-scroll.js`](js/chat-scroll.js), [`js/chat-send-runtime.js`](js/chat-send-runtime.js), [`js/chat-stream-status.js`](js/chat-stream-status.js), [`js/chat-system-prompt.js`](js/chat-system-prompt.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js) *(dynamic)*, [`js/image-utils.js`](js/image-utils.js), [`js/lab-context.js`](js/lab-context.js), [`js/lens.js`](js/lens.js), [`js/markdown.js`](js/markdown.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/voice-loader.js`](js/voice-loader.js)
+- [`js/chat-send.js`](js/chat-send.js) → [`js/agent-chat-backend.js`](js/agent-chat-backend.js), [`js/agent-chat-settings.js`](js/agent-chat-settings.js), [`js/agent-model-catalog.js`](js/agent-model-catalog.js), [`js/agent-tool-runtime.js`](js/agent-tool-runtime.js), [`js/ai-execution-routing.js`](js/ai-execution-routing.js), [`js/api.js`](js/api.js), [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/chat-actions.js`](js/chat-actions.js), [`js/chat-attestation.js`](js/chat-attestation.js), [`js/chat-backend-selection.js`](js/chat-backend-selection.js), [`js/chat-composer.js`](js/chat-composer.js), [`js/chat-context-summary.js`](js/chat-context-summary.js) *(dynamic)*, [`js/chat-continuation.js`](js/chat-continuation.js), [`js/chat-discussion.js`](js/chat-discussion.js), [`js/chat-history.js`](js/chat-history.js), [`js/chat-icons.js`](js/chat-icons.js), [`js/chat-images.js`](js/chat-images.js), [`js/chat-message-edit.js`](js/chat-message-edit.js), [`js/chat-panel.js`](js/chat-panel.js), [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-prompt-context.js`](js/chat-prompt-context.js), [`js/chat-recommendation-disclosure.js`](js/chat-recommendation-disclosure.js), [`js/chat-render.js`](js/chat-render.js), [`js/chat-scroll.js`](js/chat-scroll.js), [`js/chat-send-runtime.js`](js/chat-send-runtime.js), [`js/chat-stream-status.js`](js/chat-stream-status.js), [`js/chat-system-prompt.js`](js/chat-system-prompt.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js) *(dynamic)*, [`js/image-utils.js`](js/image-utils.js), [`js/lab-context.js`](js/lab-context.js), [`js/lens.js`](js/lens.js), [`js/markdown.js`](js/markdown.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/voice-loader.js`](js/voice-loader.js)
 - [`js/chat-storage-safety.js`](js/chat-storage-safety.js) → no in-scope imports
 - [`js/chat-stream-status.js`](js/chat-stream-status.js) → no in-scope imports
 - [`js/chat-summaries.js`](js/chat-summaries.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/api.js`](js/api.js), [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/caught-error.js`](js/caught-error.js), [`js/chat-message-action-attrs.js`](js/chat-message-action-attrs.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/markdown.js`](js/markdown.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/unique-id.js`](js/unique-id.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
@@ -1483,7 +1483,7 @@ Node-only policy and transport code shared by hosted runtimes.
 
 <details><summary><code>dev</code> family — 4 modules</summary>
 
-- [`lib/dev-agent-host.js`](lib/dev-agent-host.js) → [`lib/agent-host-storage.js`](lib/agent-host-storage.js)
+- [`lib/dev-agent-host.js`](lib/dev-agent-host.js) → [`lib/agent-host-storage.js`](lib/agent-host-storage.js), [`lib/local-agent-registry.js`](lib/local-agent-registry.js)
 - [`lib/dev-api-proxy.js`](lib/dev-api-proxy.js) → [`lib/proxy-policy.js`](lib/proxy-policy.js)
 - [`lib/dev-catalog.js`](lib/dev-catalog.js) → no in-scope imports
 - [`lib/dev-url-fetch.js`](lib/dev-url-fetch.js) → [`lib/error-utils.js`](lib/error-utils.js), [`lib/proxy-policy.js`](lib/proxy-policy.js), [`lib/proxy-upstream.js`](lib/proxy-upstream.js)

@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import { cacheAgentModelCatalog, getCachedAgentModelCatalog } from '../js/agent-model-catalog.js';
+import {
+  AGENT_MODEL_CATALOG_AGENT_KEY, cacheAgentModelCatalog, getCachedAgentModelCatalog,
+} from '../js/agent-model-catalog.js';
 import { filterCLIAgentModelOptions } from '../js/settings-cli-agent-panel.js';
 
 describe('CLI agent model catalog cache', () => {
@@ -16,6 +18,18 @@ describe('CLI agent model catalog cache', () => {
     }));
     expect(cacheAgentModelCatalog(models)).toHaveLength(366);
     expect(getCachedAgentModelCatalog()).toHaveLength(366);
+  });
+
+  it('does not reuse one CLI agent catalog for another agent', () => {
+    cacheAgentModelCatalog([{ id: 'openrouter/model-a', inputModalities: ['text', 'image'] }], 'opencode');
+    expect(localStorage.getItem(AGENT_MODEL_CATALOG_AGENT_KEY)).toBe('opencode');
+    expect(getCachedAgentModelCatalog('opencode')).toHaveLength(1);
+    expect(getCachedAgentModelCatalog('codex')).toEqual([]);
+  });
+
+  it('does not assume image support when an adapter omits modalities', () => {
+    cacheAgentModelCatalog([{ id: 'third-party/text-model' }], 'opencode');
+    expect(getCachedAgentModelCatalog('opencode')[0].inputModalities).toEqual(['text']);
   });
 
   it('filters a large rendered catalog without changing the selected model', () => {

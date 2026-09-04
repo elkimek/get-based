@@ -24,7 +24,7 @@ describe('agent proposal cards', () => {
       summary: 'Weight 80 kg', payload: { metric: 'weight', value: 80, unit: 'kg' },
     }] }, 2);
 
-    expect(html).toContain('Applied to Get-based');
+    expect(html).toContain('Applied to getbased');
     expect(html).not.toContain('apply-agent-draft');
   });
 });

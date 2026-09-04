@@ -2,12 +2,12 @@
 
 Audited 2026-09-04. These marks identify an installed third-party CLI beside
 its full product name. They do not represent a partnership or endorsement.
-GetBased keeps every mark subordinate to its own UI, preserves its aspect
+getbased keeps every mark subordinate to its own UI, preserves its aspect
 ratio and colors, and places it on a quiet white tile with clear space.
 
 | UI agent | Asset source | Use notes |
 |---|---|---|
-| Codex CLI | OpenAI's official `OpenAI-Logos-2025.zip`, black Monoblossom | Identification only. Do not recolor, distort, add effects, or use as GetBased branding. OpenAI asks that the Blossom not be used as primary branding and that it retain clear space. |
+| Codex CLI | OpenAI's official `OpenAI-Logos-2025.zip`, black Monoblossom | Identification only. Do not recolor, distort, add effects, or use as getbased branding. OpenAI asks that the Blossom not be used as primary branding and that it retain clear space. |
 | Claude Code | Official public product icon at `https://claude.com/icon.png` | PNG bytes are embedded unchanged in the SVG container so the PWA remains local-first. Keep the coral color and proportions. |
 | OpenCode | `packages/identity/mark.svg` in the official `anomalyco/opencode` repository | Original black, gray, and white square mark; do not recolor or crop. The repository is MIT licensed, while the product name and mark remain their owners' identifiers. |
 | Hermes Agent | `apps/desktop/public/hermes.png` in the official `NousResearch/hermes-agent` repository | The official desktop mascot icon is embedded unchanged in the SVG container so the PWA remains local-first. Keep it paired with “Hermes Agent.” |

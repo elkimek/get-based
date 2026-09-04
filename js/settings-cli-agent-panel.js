@@ -23,6 +23,7 @@ import { escapeAttr, escapeHTML, showConfirmDialog, showNotification } from './u
 
 /** @type {AgentModel[]} */
 let agentModels = [];
+let agentModelsAgentId = '';
 let agentProviderFilter = '';
 let hydratedAgentId = '';
 /** @type {'linux'|'macos'|'windows'|''} */
@@ -276,7 +277,7 @@ function renderAgentModelControls(models) {
   }
   const agentName = ({ codex: 'Codex CLI', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes Agent', grok: 'Grok Build' })[agentId] || 'the selected CLI';
   const reasoningNote = !efforts.length && agentId === 'hermes'
-    ? ' Hermes ACP does not expose a separate reasoning control yet, so GetBased uses your Hermes setting.' : '';
+    ? ' Hermes ACP does not expose a separate reasoning control yet, so getbased uses your Hermes setting.' : '';
   return `<div class="local-agent-options${providers.length > 1 ? ' has-provider' : ''}">
     ${providers.length > 1 ? `<div class="local-agent-option-field">${renderAgentPicker({ id: 'cli-agent-provider', label: 'Provider catalog', value: agentProviderFilter, options: providers.map(provider => ({ value: provider, label: agentProviderLabel(provider) })), action: 'set-cli-agent-provider-filter' })}</div>` : ''}
     <div class="local-agent-option-field">${renderAgentPicker({
@@ -285,7 +286,7 @@ function renderAgentModelControls(models) {
       placeholder: agentProviderFilter ? `Choose ${agentProviderLabel(agentProviderFilter)} model` : 'Choose a model',
     })}</div>
     <div class="local-agent-option-field">${renderAgentPicker({ id: 'cli-agent-effort', label: 'Reasoning effort', value: selectedEffort, options: effortOptions, action: 'set-cli-agent-effort', disabled: !efforts.length })}</div>
-    <small>Catalog supplied by ${escapeHTML(agentName)}. Your choices apply only to GetBased sessions and do not change the CLI&rsquo;s own default settings.${escapeHTML(reasoningNote)}</small>
+    <small>Catalog supplied by ${escapeHTML(agentName)}. Your choices apply only to getbased sessions and do not change the CLI&rsquo;s own default settings.${escapeHTML(reasoningNote)}</small>
   </div>`;
 }
 
@@ -414,15 +415,22 @@ async function hydrateAgentModelControls() {
     }
     await connectDetectedAgent(agent);
     const selectedModel = getAgentHostModel();
-    agentModels = cacheAgentModelCatalog(await listAgentModels({
+    const models = await listAgentModels({
       endpoint: getAgentHostEndpoint(),
       token: getAgentHostToken(),
       agent,
       model: selectedModel || undefined,
-    }));
-    if (options.isConnected) showAgentModelControls(options, agentModels);
+    });
+    if (!options.isConnected || getAgentHostAgent() !== agent) return;
+    agentModels = cacheAgentModelCatalog(models, agent);
+    agentModelsAgentId = agent;
+    showAgentModelControls(options, agentModels);
   } catch (error) {
-    if (options.isConnected) options.innerHTML = '<div class="local-agent-scan-state local-agent-scan-error">Could not load this CLI&rsquo;s model catalog. Check its sign-in, then try again.</div>';
+    if (options.isConnected) {
+      agentModels = [];
+      agentModelsAgentId = '';
+      options.innerHTML = '<div class="local-agent-scan-state local-agent-scan-error">Could not load this CLI&rsquo;s model catalog. Check its sign-in, then try again.</div>';
+    }
     console.warn('[agent-chat] CLI model discovery failed', error);
   }
 }
@@ -455,6 +463,8 @@ export async function toggleLocalCodex(enabled, agentId = getAgentHostAgent()) {
   try {
     await connectDetectedAgent(agentId);
     await saveAgentChatSettings({ agent: agentId, model: '', effort: '' });
+    agentModels = [];
+    agentModelsAgentId = '';
     hydratedAgentId = '';
     agentProviderFilter = '';
     setChatBackend('codex');
@@ -471,14 +481,17 @@ export async function setCLIAgentModel(model) {
   try {
     const agent = getAgentHostAgent();
     await connectDetectedAgent(agent);
-    agentModels = cacheAgentModelCatalog(await listAgentModels({
+    const models = await listAgentModels({
       endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent, model: model || undefined,
-    }));
+    });
+    if (getAgentHostAgent() !== agent) return;
+    agentModels = cacheAgentModelCatalog(models, agent);
+    agentModelsAgentId = agent;
     await saveAgentChatSettings({ model, effort: '' });
     const selected = selectedModelEntry(agentModels, model);
     const provider = getCLIAgentModelProvider(agent, selected);
     if (provider) agentProviderFilter = provider;
-    showNotification(model ? 'CLI model updated for GetBased' : 'GetBased will use the CLI default model', 'success');
+    showNotification(model ? 'CLI model updated for getbased' : 'getbased will use the CLI default model', 'success');
     const options = document.getElementById('cli-agent-options');
     if (options?.isConnected) showAgentModelControls(options, agentModels);
   } catch (error) {
@@ -488,10 +501,16 @@ export async function setCLIAgentModel(model) {
 
 /** @param {string} effort */
 export async function setCLIAgentEffort(effort) {
+  const agent = getAgentHostAgent();
   await saveAgentChatSettings({ effort });
   showNotification(effort ? `Reasoning set to ${effort}` : 'The agent will use its default reasoning effort', 'success');
   const options = document.getElementById('cli-agent-options');
-  if (options?.isConnected) showAgentModelControls(options, agentModels);
+  if (options?.isConnected && agentModelsAgentId === agent) showAgentModelControls(options, agentModels);
+  else if (options?.isConnected) {
+    options.className = 'local-agent-options-loading';
+    options.textContent = 'Refreshing CLI model options…';
+    void hydrateAgentModelControls();
+  }
 }
 
 if (typeof document !== 'undefined') {

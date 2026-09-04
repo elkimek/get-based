@@ -82,7 +82,7 @@ describe('agent host service', () => {
     expect(getAgentHostToolSpecs()).toEqual(getCodexDynamicTools());
   });
 
-  it('accepts only local development and official Get-based origins', () => {
+  it('accepts only local development and official getbased origins', () => {
     expect(isAllowedAgentHostOrigin('http://localhost:8080')).toBe(true);
     expect(isAllowedAgentHostOrigin('http://127.0.0.1:4173')).toBe(true);
     expect(isAllowedAgentHostOrigin('https://getbased.health')).toBe(true);
@@ -383,6 +383,44 @@ describe('agent host service', () => {
       method: 'turn/completed', params: { threadId: 'thread-1', turn: { id: 'turn-1', status: 'completed' } },
     });
     await nextEvent(reader, new TextDecoder(), buffer);
+  });
+
+  it('interrupts and releases a Codex turn when its response stream is cancelled', async () => {
+    const appServer = new FakeAppServer();
+    const controlHandler = vi.fn(async action => ({ action }));
+    const service = createAgentHostService({
+      appServer, token: TOKEN, workspaceRoot: '/tmp/agent-test', controlHandler,
+    });
+    const response = await service.handleRequest(turnRequest());
+    const reader = response.body.getReader();
+    await nextEvent(reader, new TextDecoder(), { value: '' });
+
+    await reader.cancel();
+    await vi.waitFor(() => expect(appServer.requests).toContainEqual({
+      method: 'turn/interrupt', params: { threadId: 'thread-1', turnId: 'turn-1' },
+    }));
+
+    const control = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/control', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json', Origin: 'http://127.0.0.1:8000' },
+      body: JSON.stringify({ action: 'restart' }),
+    }));
+    expect(control.status).toBe(200);
+    expect(controlHandler).toHaveBeenCalledWith('restart', { origin: 'http://127.0.0.1:8000' });
+  });
+
+  it('does not start a Codex thread after the browser cancels during initialization', async () => {
+    const appServer = new FakeAppServer();
+    let finishInitialization;
+    appServer.initialize = vi.fn(() => new Promise(resolve => { finishInitialization = resolve; }));
+    const service = createAgentHostService({ appServer, token: TOKEN, workspaceRoot: '/tmp/agent-test' });
+    const response = await service.handleRequest(turnRequest());
+
+    await response.body.getReader().cancel();
+    finishInitialization({ userAgent: 'fake' });
+
+    await vi.waitFor(() => expect(appServer.initialize).toHaveBeenCalledOnce());
+    expect(appServer.requests).toEqual([]);
   });
 
   it('round-trips an allowlisted dynamic tool and declines other requests', async () => {

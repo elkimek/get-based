@@ -50,7 +50,7 @@ export async function callCodexFeature(options) {
     prompt: options.prompt,
     instructions: options.instructions || (options.outputSchema
       ? 'Perform only the requested structured feature analysis. Do not use web search or external tools. Return only data matching the supplied output schema.'
-      : 'Perform only the requested Get-based feature analysis. Do not use web search or external tools. Return only the requested answer.'),
+      : 'Perform only the requested getbased feature analysis. Do not use web search or external tools. Return only the requested answer.'),
     imageUploadIds,
     outputSchema: options.outputSchema,
     purpose: 'feature',

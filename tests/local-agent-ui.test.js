@@ -41,11 +41,14 @@ describe('local agent selection UI', () => {
   });
 
   it('maps every supported CLI to a local vendor mark', () => {
+    const serviceWorker = read('service-worker.js');
     for (const agent of ['codex', 'claude', 'opencode', 'hermes', 'grok']) {
       expect(getCLIAgentBrandAsset(agent)).toBe(`/brands/cli-agent-${agent}.svg`);
       expect(renderCLIAgentBrandIcon(agent)).toContain(`src="/brands/cli-agent-${agent}.svg"`);
       expect(read(`brands/cli-agent-${agent}.svg`)).toContain('<svg');
+      expect(serviceWorker).toContain(`/brands/cli-agent-${agent}.svg`);
     }
+    expect(serviceWorker).toContain('/js/cli-agent-brand-assets.js');
     expect(renderCLIAgentBrandIcon('unknown')).toContain('local-agent-icon-fallback');
   });
 
@@ -86,7 +89,7 @@ describe('local agent selection UI', () => {
     expect(source).not.toContain('<select id="cli-agent-effort"');
     expect(source).toContain("action: 'set-cli-agent-provider-filter'");
     expect(source).toContain('data-cli-agent-model-search');
-    expect(source).toContain('choices apply only to GetBased sessions');
+    expect(source).toContain('choices apply only to getbased sessions');
     expect(source).toContain('model: selectedModel || undefined');
     expect(getCLIAgentModelProvider('opencode', { id: 'openrouter/openai/gpt-5.6-sol' })).toBe('openrouter');
     expect(getCLIAgentModelProvider('hermes', { id: 'openai-codex:gpt-5.6-sol' })).toBe('openai-codex');

@@ -2,16 +2,16 @@
 
 ## Decision
 
-Get-based presents an installed agent as an **AI provider source** alongside
+getbased presents an installed agent as an **AI provider source** alongside
 API providers and locally served models. Internally it remains an agent
 backend, not a pretend OpenAI-compatible endpoint: a user-owned localhost
-companion owns the agent process and its session. Get-based remains the
+companion owns the agent process and its session. getbased remains the
 authority for health data and fulfills only explicitly registered semantic
 tools.
 
 Settings uses the label **CLI agents**. “Local models” is reserved for local
 inference servers such as Ollama, LM Studio, and Jan. “Agent Access” remains a
-separate inbound feature for agents that query Get-based through the encrypted
+separate inbound feature for agents that query getbased through the encrypted
 Evolu relay.
 
 Codex connects through `codex app-server`. OpenCode, Hermes, and Grok share a
@@ -22,14 +22,14 @@ tool calls behind one browser contract. External MCP clients continue to use
 the same getbased tool semantics through `getbased-agent-stack`.
 
 ```text
-Get-based PWA
+getbased PWA
   ├─ direct-model backend ───────────────> existing AI providers
   └─ local-agent backend ── loopback ───> getbased-agent-host
                                              ├─ Codex app-server (stdio)
                                              ├─ ACP: OpenCode, Hermes, Grok
                                              └─ Claude Code stream-json
 
-Get-based data authority
+getbased data authority
   └─ agent tool runtime
        ├─ approved context and typed queries  [read]
        ├─ bounded in-app destinations         [navigate]
@@ -39,14 +39,14 @@ Get-based data authority
 The browser cannot safely or portably spawn local executables. The companion
 therefore translates loopback HTTP/event streams into each agent runtime's
 native protocol. It must bind to loopback only, authenticate a paired browser
-session, allow the Get-based origin explicitly, and never become a remotely
+session, allow the getbased origin explicitly, and never become a remotely
 reachable health-data proxy.
 
 ## One tool contract, multiple adapters
 
 `shared/agent-tool-contract.js` is the runtime-neutral catalog and
 `js/agent-tool-runtime.js` is its validation and execution boundary. The
-browser binds it to Get-based data through `js/agent-tool-bindings.js`:
+browser binds it to getbased data through `js/agent-tool-bindings.js`:
 
 | Tool | Access | Behavior |
 | --- | --- | --- |
@@ -74,6 +74,9 @@ profile active when the turn starts.
 The browser binding must use the normal context builder without bypass flags.
 This preserves the user's context toggles and prevents a connected agent from
 reading data the user excluded from AI context.
+Every typed binding also verifies that the profile which started the turn is
+still active. If the user switches profiles mid-response, subsequent reads and
+navigation fail closed and the user can retry in the intended profile.
 
 ## Capability and approval model
 
@@ -82,22 +85,22 @@ Tools are classified before they are implemented:
 | Class | Examples | Rule |
 | --- | --- | --- |
 | `read` | Read approved context or one section | May run during an agent turn. |
-| `navigate` | Open a Get-based view | May change UI state, never health data. |
+| `navigate` | Open a getbased view | May change UI state, never health data. |
 | `draft` | Prepare a note or proposed regimen change | Creates a reviewable draft only. |
-| `commit` | Apply an approved draft | Performed only by Get-based after an explicit in-app approval. It is not exposed to the CLI. |
+| `commit` | Apply an approved draft | Performed only by getbased after an explicit in-app approval. It is not exposed to the CLI. |
 
 No tool grants raw DOM control, arbitrary JavaScript, shell access, direct
 database access, credential access, or a generic record-update primitive.
 Write support consists of narrow draft tools. Drafts are sanitized before chat
 storage and rendered as **Apply** / **Discard** proposal cards. Apply validates
-the active-profile binding again and uses existing Get-based persistence paths
+the active-profile binding again and uses existing getbased persistence paths
 so migrations, encryption, and sync hooks remain intact.
 
-Codex command/file approvals and Get-based data approvals are separate. The
+Codex command/file approvals and getbased data approvals are separate. The
 host declines every Codex command, file, MCP elicitation, and permission
 request. A future capability may render selected requests in chat, but
 accepting a Codex sandbox action will never imply permission to mutate
-Get-based health data.
+getbased health data.
 
 ## Initial turn flow
 
@@ -105,18 +108,19 @@ Get-based health data.
 2. The local companion supplies the browser with an authenticated connection
    automatically and reports available agents and models.
 3. The companion starts or resumes an agent thread and registers the allowed
-   Get-based tool definitions.
+   getbased tool definitions.
 4. The PWA sends the user turn. The companion normalizes streamed events such
    as text deltas, tool activity, approval requests, completion, and errors.
-5. When the agent calls a Get-based tool, the companion forwards the bounded
+5. When the agent calls a getbased tool, the companion forwards the bounded
    call to the paired PWA. The PWA executes the registered handler and returns
    only the result projection.
-6. The Get-based chat stores its own messages plus the external agent/thread
-   identifier needed to resume later.
+6. The getbased chat stores its own messages plus the external agent/thread
+   identifier needed to resume later. Its context receipt lists only successful
+   data-returning tool calls; failed calls and draft-only calls are excluded.
 
 Navigation and draft tools use the same streamed call flow. The agent can
 propose, but cannot perform, a health-data write. Only the user's **Apply**
-action inside Get-based crosses the persistence boundary.
+action inside getbased crosses the persistence boundary.
 
 ## Current development workflow
 
@@ -125,8 +129,12 @@ action inside Get-based crosses the persistence boundary.
 3. Open **Settings → AI → CLI agents** and enable a ready agent. getbased detects
    the CLI, starts its local bridge, and reuses its existing sign-in.
 
+The npm development command rebuilds the ignored single-file companion first,
+so the in-app **Start automatically** control installs exactly the source being
+tested. Production performs the same bundle step during its normal build.
+
 The selected row reads that CLI's model catalog and lets the user choose the model
-and supported reasoning effort without leaving Get-based. Transport URLs and
+and supported reasoning effort without leaving getbased. Transport URLs and
 pairing credentials are intentionally not part of the normal user interface.
 The standalone `npm run agent-host` command and its environment variables
 remain an advanced development/self-hosting escape hatch, not an onboarding
@@ -190,15 +198,18 @@ range `8324`–`8331`; the browser probes that same range and obtains the privat
 session credential through an origin-checked loopback discovery response. The
 credential, endpoint, and protocol details remain hidden from normal settings.
 An explicit `GETBASED_AGENT_HOST_PORT` remains strict for operators who need a
-fixed port.
+fixed port. Development and standalone discovery also honor the per-adapter
+`GETBASED_CODEX_COMMAND`, `GETBASED_CLAUDE_COMMAND`,
+`GETBASED_OPENCODE_COMMAND`, `GETBASED_HERMES_COMMAND`, and
+`GETBASED_GROK_COMMAND` executable overrides.
 
 Behind the UI, the host binds only to loopback; the development server detects
 installed CLIs and owns the host lifecycle. Hosted-origin discovery issues a
 short-lived, origin-bound session credential. The global discovery-session
-pool is bounded, and only an exact allowlist of official Get-based hostnames is
+pool is bounded, and only an exact allowlist of official getbased hostnames is
 accepted. A stable install credential is limited to originless or loopback
 development use. Advanced self-hosting can override the port and token with
-`GETBASED_AGENT_HOST_PORT` and `GETBASED_AGENT_HOST_TOKEN`. Official Get-based
+`GETBASED_AGENT_HOST_PORT` and `GETBASED_AGENT_HOST_TOKEN`. Official getbased
 origins and loopback development origins are allowed. A self-hosted HTTPS
 origin must be explicitly listed in the comma-separated
 `GETBASED_AGENT_HOST_ALLOWED_ORIGINS` environment variable.
@@ -211,23 +222,35 @@ from `shared/agent-host-protocol.js`. Authenticated status and origin-checked
 discovery report the same values. A feature turn verifies its required
 capabilities before sending health data; an older process produces a specific
 restart message instead of a generic HTTP error. If a saved endpoint is stale,
-Get-based re-runs bounded loopback discovery and switches to a compatible
+getbased re-runs bounded loopback discovery and switches to a compatible
 companion automatically.
 
 Development-owned companions run under Node watch mode, so changes to the host
 and its imported protocol modules restart the child without restarting the PWA
 server. The parent uses a strict requested port, while a standalone companion
 can move to the next free port in the bounded range and remain discoverable.
+If the PWA port itself is already occupied, the development server closes its
+companion child before reporting the startup error so a failed command cannot
+leave a stale bridge behind.
 
 At startup the host creates a private Codex home with an MCP-free config and a
 separate thread store. It copies only Codex CLI login state from the user's
 normal Codex home, disables Codex's shell, browser, computer-use, plugin, hook,
 skill, workspace, image, and multi-agent features, and passes only a small
 environment allowlist to the Codex process. API keys supplied only through
-environment variables are intentionally not forwarded. Codex's hosted cached
+environment variables are intentionally not forwarded. Standard HTTP proxy
+variables are preserved so signed-in agents can work on managed networks.
+On Windows, standard npm `.cmd` launchers are resolved to their JavaScript
+entry point and started with the current Node executable; unknown command-file
+wrappers are rejected rather than executed through a shell. Codex's hosted cached
 web search remains available; it is separate from browser control and command
 network access. Agent instructions prohibit putting user-specific health data
 in search queries.
+
+Claude Code receives its private MCP credential and per-turn instructions
+through mode-0600 temporary files rather than process arguments. Those files
+are removed after the one-shot process exits, including error and cancellation
+paths.
 
 The current Codex adapter supports text and image chat, hosted cached web
 research, all structured tools listed above, and structured feature inference
@@ -236,7 +259,7 @@ uploaded to the authenticated loopback host, validated, written only to its
 private temporary workspace, consumed as `localImage` turn inputs, and deleted
 after completion or cancellation. Voice and interactive Codex shell/file
 approvals remain deliberately unavailable. Health-data writes remain under
-Get-based's proposal-card approval boundary.
+getbased's proposal-card approval boundary.
 
 ## Product capability coverage
 

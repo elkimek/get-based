@@ -533,7 +533,7 @@ export function openSettingsModal(tab) {
       <div class="settings-group-title">AI providers</div>
 
       <div class="settings-section" id="ai-provider-advanced-section">
-        <div class="settings-copy-title" style="margin-bottom:10px">Choose how Get-based runs AI</div>
+        <div class="settings-copy-title" style="margin-bottom:10px">Choose how getbased runs AI</div>
         <div class="ai-model-tip">Use an API provider, a locally served model, or an installed CLI agent with its existing subscription.<br>Stick with the same model across imports to keep marker keys consistent.</div>
         <div class="ai-provider-toggle">
           <button class="ai-provider-btn${directAIActive && provider === 'ppq' ? ' active' : ''}" data-provider="ppq" data-settings-action="switch-ai-provider"><svg class="ai-provider-logo" viewBox="0 0 24 24" fill="currentColor"><path d="M12 23c-3.2 0-7-2.4-7-7 0-3.1 2.1-5.7 4-7.6.3-.3.8-.1.8.4v2.5c0 .2.2.3.3.2C12 9.6 13.5 5.3 13.6 2.2c0-.3.4-.5.6-.2C17.3 5.7 21 10.3 21 14.5 21 19.6 17 23 12 23z"/></svg> PPQ</button>

@@ -1,5 +1,5 @@
 // @ts-check
-// Runtime-neutral Get-based agent tool definitions shared by browser and host.
+// Runtime-neutral getbased agent tool definitions shared by browser and host.
 
 export const AGENT_TOOL_CONTRACT_VERSION = 2;
 export const MAX_AGENT_SECTION_NAME_LENGTH = 80;
@@ -21,7 +21,7 @@ const LIMIT_PROPERTY = Object.freeze({
 const AGENT_TOOL_CATALOG = Object.freeze([
   Object.freeze({
     name: 'getbased_lab_context',
-    description: 'Read the user-approved Get-based health context, including available lab summaries, context cards, supplements, and goals. Use for broad questions about labs, biomarkers, or health trends.',
+    description: 'Read the user-approved getbased health context, including available lab summaries, context cards, supplements, and goals. Use for broad questions about labs, biomarkers, or health trends.',
     access: /** @type {const} */ ('read'),
     inputSchema: Object.freeze({
       type: 'object',
@@ -31,7 +31,7 @@ const AGENT_TOOL_CATALOG = Object.freeze([
   }),
   Object.freeze({
     name: 'getbased_section',
-    description: 'Read one section of the user-approved Get-based health context. Omit section to list available section names. Section names are matched exactly, then by prefix.',
+    description: 'Read one section of the user-approved getbased health context. Omit section to list available section names. Section names are matched exactly, then by prefix.',
     access: /** @type {const} */ ('read'),
     inputSchema: Object.freeze({
       type: 'object',
@@ -47,7 +47,7 @@ const AGENT_TOOL_CATALOG = Object.freeze([
   }),
   Object.freeze({
     name: 'getbased_search_markers',
-    description: 'Find biomarkers in the active Get-based profile by display name, category, or stable marker key. Returns only markers that have recorded values.',
+    description: 'Find biomarkers in the active getbased profile by display name, category, or stable marker key. Returns only markers that have recorded values.',
     access: /** @type {const} */ ('read'),
     inputSchema: Object.freeze({
       type: 'object',
@@ -66,7 +66,7 @@ const AGENT_TOOL_CATALOG = Object.freeze([
   }),
   Object.freeze({
     name: 'getbased_marker_history',
-    description: 'Read dated values and ranges for one biomarker in the active Get-based profile. Resolve an ambiguous name with getbased_search_markers first.',
+    description: 'Read dated values and ranges for one biomarker in the active getbased profile. Resolve an ambiguous name with getbased_search_markers first.',
     access: /** @type {const} */ ('read'),
     inputSchema: Object.freeze({
       type: 'object',
@@ -116,7 +116,7 @@ const AGENT_TOOL_CATALOG = Object.freeze([
   }),
   Object.freeze({
     name: 'getbased_search_knowledge',
-    description: 'Search the active Get-based Knowledge Base for user-provided sources relevant to a question.',
+    description: 'Search the active getbased Knowledge Base for user-provided sources relevant to a question.',
     access: /** @type {const} */ ('read'),
     inputSchema: Object.freeze({
       type: 'object',
@@ -134,7 +134,7 @@ const AGENT_TOOL_CATALOG = Object.freeze([
   }),
   Object.freeze({
     name: 'getbased_navigate',
-    description: 'Open a Get-based view for the user. This changes only visible navigation state and never edits health data.',
+    description: 'Open a getbased view for the user. This changes only visible navigation state and never edits health data.',
     access: /** @type {const} */ ('navigate'),
     inputSchema: Object.freeze({
       type: 'object',
@@ -155,7 +155,7 @@ const AGENT_TOOL_CATALOG = Object.freeze([
   }),
   Object.freeze({
     name: 'getbased_draft_note',
-    description: 'Prepare a reviewable active-profile or marker note. This does not save anything; the user must approve the draft in Get-based.',
+    description: 'Prepare a reviewable active-profile or marker note. This does not save anything; the user must approve the draft in getbased.',
     access: /** @type {const} */ ('draft'),
     inputSchema: Object.freeze({
       type: 'object',
@@ -171,7 +171,7 @@ const AGENT_TOOL_CATALOG = Object.freeze([
   }),
   Object.freeze({
     name: 'getbased_draft_meal',
-    description: 'Prepare a reviewable manual meal entry. This does not save anything; the user must approve the draft in Get-based.',
+    description: 'Prepare a reviewable manual meal entry. This does not save anything; the user must approve the draft in getbased.',
     access: /** @type {const} */ ('draft'),
     inputSchema: Object.freeze({
       type: 'object',

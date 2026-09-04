@@ -1,0 +1,105 @@
+// @vitest-environment node
+
+import { describe, expect, it, vi } from 'vitest';
+import { startExternalAgentTurn } from '../lib/agent-host-external-turn.js';
+
+function turnOptions(agent) {
+  return {
+    agent,
+    agentId: agent.id,
+    requestedThreadId: '',
+    requestedActiveKey: `${agent.id}:`,
+    dynamicTools: [{ name: 'getbased_lab_context', description: 'Read context', inputSchema: { type: 'object' } }],
+    sessionMcp: new Map(),
+    mcpSessions: new Map(),
+    maxMcpSessions: 8,
+    activeTurns: new Map(),
+    pendingTools: new Map(),
+    turnUploads: [],
+    cleanup: vi.fn(),
+    origin: 'http://127.0.0.1:8324',
+    bridgePath: '/tmp/getbased-companion.mjs',
+    baseInstructions: 'Base instructions',
+    requestedInstructions: '',
+    history: [],
+    outputSchema: null,
+    prompt: 'Hello',
+    model: '',
+    effort: '',
+    send: vi.fn(),
+    close: vi.fn(),
+    cleanError: error => error instanceof Error ? error.message : String(error),
+    createHandle: sessionId => `handle:${sessionId}`,
+  };
+}
+
+describe('external agent turn lifecycle', () => {
+  it('does not start a prompt when the browser cancels during ACP session setup', async () => {
+    let finishSession;
+    const agent = {
+      id: 'opencode', protocol: 'acp', name: 'OpenCode',
+      client: {
+        ensureSession: vi.fn(() => new Promise(resolve => { finishSession = resolve; })),
+        configureSession: vi.fn(),
+        prompt: vi.fn(),
+      },
+    };
+    const options = turnOptions(agent);
+    const cancel = startExternalAgentTurn(options);
+    await vi.waitFor(() => expect(agent.client.ensureSession).toHaveBeenCalledOnce());
+
+    cancel();
+    finishSession({ sessionId: 'session-1', configOptions: [] });
+
+    await vi.waitFor(() => expect(options.close).toHaveBeenCalled());
+    expect(agent.client.configureSession).not.toHaveBeenCalled();
+    expect(agent.client.prompt).not.toHaveBeenCalled();
+    expect(options.activeTurns.size).toBe(0);
+    expect(options.mcpSessions.size).toBe(0);
+    expect(options.sessionMcp.size).toBe(0);
+  });
+
+  it('immediately releases an active ACP turn and any pending browser tool call on cancel', async () => {
+    const agent = {
+      id: 'opencode', protocol: 'acp', name: 'OpenCode',
+      client: {
+        ensureSession: vi.fn(async () => ({ sessionId: 'session-1', configOptions: [] })),
+        configureSession: vi.fn(async () => []),
+        prompt: vi.fn(({ signal }) => new Promise((resolve, reject) => {
+          signal.addEventListener('abort', () => {
+            const error = new Error('cancelled');
+            error.name = 'AbortError';
+            reject(error);
+          }, { once: true });
+        })),
+      },
+    };
+    const options = turnOptions(agent);
+    const cancel = startExternalAgentTurn(options);
+    await vi.waitFor(() => expect(options.activeTurns.has('opencode:session-1')).toBe(true));
+    const respond = vi.fn();
+    options.pendingTools.set('response-1', {
+      threadId: 'opencode:session-1', timer: setTimeout(() => {}, 60_000), respond,
+    });
+
+    cancel();
+
+    expect(options.activeTurns.size).toBe(0);
+    expect(options.pendingTools.size).toBe(0);
+    expect(respond).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
+    await vi.waitFor(() => expect(options.close).toHaveBeenCalled());
+  });
+
+  it('removes one-shot Claude MCP credentials after an adapter failure', async () => {
+    const agent = {
+      id: 'claude', protocol: 'claude', name: 'Claude Code',
+      client: { prompt: vi.fn(async () => { throw new Error('service failed'); }) },
+    };
+    const options = turnOptions(agent);
+    startExternalAgentTurn(options);
+    await vi.waitFor(() => expect(options.close).toHaveBeenCalled());
+    expect(options.activeTurns.size).toBe(0);
+    expect(options.mcpSessions.size).toBe(0);
+    expect(options.sessionMcp.size).toBe(0);
+  });
+});

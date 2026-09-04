@@ -117,7 +117,7 @@ export const normalizeRequiredCapabilities = normalizeAgentHostCapabilities;
 export async function connectAgentHostCandidate(options) {
   const endpoint = options.normalizeEndpoint(options.candidate.endpoint);
   if (options.candidate.token.length < 16 || options.candidate.token.length > 256) {
-    throw new Error('Codex connection is not ready yet.');
+    throw new Error('CLI agent connection is not ready yet.');
   }
   let lastError = null;
   for (let attempt = 0; attempt < options.attempts; attempt += 1) {
@@ -138,5 +138,5 @@ export async function connectAgentHostCandidate(options) {
       if (attempt < options.attempts - 1) await new Promise(resolve => setTimeout(resolve, 200));
     }
   }
-  throw lastError instanceof Error ? lastError : new Error('Codex connection is unavailable.');
+  throw lastError instanceof Error ? lastError : new Error('CLI agent connection is unavailable.');
 }

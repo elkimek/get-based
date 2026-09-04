@@ -723,10 +723,18 @@ if (_isDirectRun) {
     console.log(`  /docs/*  → 301 docs.getbased.health`);
     openDevBrowser(appUrl);
   });
-  const shutdown = () => {
+  let shuttingDown = false;
+  const shutdown = (exitCode = 0) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     devAgentHost?.close();
-    server.close(() => process.exit(0));
+    process.exitCode = exitCode;
+    if (server.listening) server.close();
   };
-  process.once('SIGINT', shutdown);
-  process.once('SIGTERM', shutdown);
+  server.once('error', (error) => {
+    console.error(`Dev server failed: ${error.message}`);
+    shutdown(1);
+  });
+  process.once('SIGINT', () => shutdown(0));
+  process.once('SIGTERM', () => shutdown(0));
 }

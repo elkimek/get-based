@@ -2,6 +2,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { createCompanionRuntimeController } from '../lib/companion-runtime-control.js';
+import { GETBASED_COMPANION_VERSION } from '../shared/agent-host-protocol.js';
 
 const VALID_BUNDLE = '#!/usr/bin/env node\nconst title = "getbased Companion"; const service = "getbased-agent-host";\n';
 
@@ -13,7 +14,7 @@ describe('running companion controls', () => {
       appServer, bundlePath: '/tmp/getbased-companion.mjs', env: {}, platform: 'linux', installImpl,
     });
 
-    expect(controller.getInfo()).toMatchObject({ runtimeMode: 'temporary', companionVersion: '1.0.0' });
+    expect(controller.getInfo()).toMatchObject({ runtimeMode: 'temporary', companionVersion: GETBASED_COMPANION_VERSION });
     await expect(controller.handle('install', { origin: 'https://getbased.health' }))
       .resolves.toMatchObject({ runtimeMode: 'installed', installed: true });
     expect(installImpl).toHaveBeenCalledWith(expect.objectContaining({

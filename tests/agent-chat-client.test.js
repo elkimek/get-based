@@ -46,7 +46,7 @@ describe('agent chat client', () => {
       model: 'gpt-5.4',
       finishReason: 'stop',
       usage: { inputTokens: 10, outputTokens: 3 },
-      toolCalls: [{ tool: 'getbased_section', arguments: { section: 'lipids' } }],
+      toolCalls: [{ tool: 'getbased_section', arguments: { section: 'lipids' }, success: true }],
       webSearches: [],
     });
     expect(onStream).toHaveBeenLastCalledWith('ApoB improved.');
@@ -155,5 +155,31 @@ describe('agent chat client', () => {
       model: 'gpt-5.6-terra',
       webSearches: [{ status: 'started', query: 'generic health research' }],
     });
+  });
+
+  it('cancels a malformed stream when accumulated agent text exceeds the storage limit', async () => {
+    const cancel = vi.fn().mockResolvedValue(undefined);
+    const first = new TextEncoder().encode(`${JSON.stringify({
+      type: 'text_delta', delta: 'x'.repeat(1_000_000),
+    })}\n`);
+    const second = new TextEncoder().encode(`${JSON.stringify({
+      type: 'text_delta', delta: 'x'.repeat(1_000_001),
+    })}\n`);
+    const reader = {
+      read: vi.fn()
+        .mockResolvedValueOnce({ value: first, done: false })
+        .mockResolvedValueOnce({ value: second, done: false }),
+      cancel,
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: { getReader: () => reader },
+    }));
+
+    await expect(streamAgentTurn({
+      endpoint: 'http://127.0.0.1:8324', token: 'secret-token', prompt: 'Respond', tools: [],
+    })).rejects.toThrow('safe size limit');
+    expect(cancel).toHaveBeenCalledOnce();
   });
 });

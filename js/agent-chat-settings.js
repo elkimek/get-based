@@ -76,7 +76,7 @@ export function hasAgentChatConnection() {
 
 /**
  * Discover a separately running companion without asking for a URL or token.
- * The fixed, narrow port range is intentionally bounded to Get-based hosts.
+ * The fixed, narrow port range is intentionally bounded to getbased hosts.
  * @param {{signal?: AbortSignal, ports?: number[]}} [options]
  */
 export async function discoverLoopbackAgentHosts(options = {}) {

@@ -6,6 +6,7 @@ import {
   getAgentToolCatalog,
   getCodexDynamicTools,
   parseAgentContextSections,
+  summarizeAgentToolReceipts,
 } from '../js/agent-tool-runtime.js';
 
 const CONTEXT = [
@@ -15,6 +16,22 @@ const CONTEXT = [
 ].join('\n\n');
 
 describe('agent tool catalog', () => {
+  it('discloses only profile tools that successfully returned data', () => {
+    const full = [{ label: 'Full context', detail: 'All enabled sources' }];
+    expect(summarizeAgentToolReceipts([
+      { tool: 'getbased_marker_history', arguments: { marker: 'ApoB' }, success: true },
+      { tool: 'getbased_nutrition_summary', arguments: { range: '30d' }, success: true },
+      { tool: 'getbased_search_knowledge', arguments: { query: 'sleep' }, success: false },
+      { tool: 'getbased_draft_note', arguments: {}, success: true },
+    ], full)).toEqual([
+      { label: 'Blood marker results', detail: 'History: ApoB' },
+      { label: 'Meals & Nutrition', detail: 'Summary: 30d' },
+    ]);
+    expect(summarizeAgentToolReceipts([
+      { tool: 'getbased_lab_context', arguments: {}, success: true },
+    ], full)).toBe(full);
+  });
+
   it('exports versioned least-authority tools using Codex dynamic-tool schemas', () => {
     expect(AGENT_TOOL_CONTRACT_VERSION).toBe(2);
     expect(getAgentToolCatalog().map(tool => [tool.name, tool.access])).toEqual([
@@ -80,7 +97,7 @@ describe('agent tool runtime', () => {
 
     expect(readContext).toHaveBeenCalledWith();
     expect(result.success).toBe(true);
-    expect(result.contentItems[0].text).toContain('Profile scope: active Get-based profile');
+    expect(result.contentItems[0].text).toContain('Profile scope: active getbased profile');
     expect(result.contentItems[0].text).not.toContain('active-profile');
     expect(result.contentItems[0].text).toContain(CONTEXT);
   });
@@ -127,7 +144,7 @@ describe('agent tool runtime', () => {
     const result = await runtime.execute({ tool: 'getbased_lab_context', arguments: {} });
     expect(result).toEqual({
       success: false,
-      contentItems: [{ type: 'inputText', text: 'Error: Get-based context is temporarily unavailable.' }],
+      contentItems: [{ type: 'inputText', text: 'Error: getbased context is temporarily unavailable.' }],
     });
   });
 
@@ -212,9 +229,13 @@ describe('agent tool runtime', () => {
     const invalidBp = await runtime.execute({
       tool: 'getbased_draft_biometric', arguments: { metric: 'bp', systolic: 120 },
     });
+    const impossibleDate = await runtime.execute({
+      tool: 'getbased_draft_biometric', arguments: { metric: 'weight', value: 80, date: '2026-02-30' },
+    });
 
     expect(invalidLimit.success).toBe(false);
     expect(invalidBp.success).toBe(false);
+    expect(impossibleDate).toMatchObject({ success: false });
     expect(searchMarkers).not.toHaveBeenCalled();
   });
 });

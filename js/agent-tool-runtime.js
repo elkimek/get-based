@@ -1,5 +1,5 @@
 // @ts-check
-// agent-tool-runtime.js — Portable Get-based agent-tool catalog and read-only execution boundary.
+// agent-tool-runtime.js — Portable getbased agent-tool catalog and read-only execution boundary.
 
 import {
   getAgentToolCatalog,
@@ -23,7 +23,7 @@ export {
 
 /**
  * Parse the bounded `[section:name metadata]...[/section:name]` projection
- * produced by Get-based. It intentionally does not parse arbitrary HTML or
+ * produced by getbased. It intentionally does not parse arbitrary HTML or
  * inspect application storage.
  *
  * @param {string} context
@@ -43,6 +43,34 @@ export function parseAgentContextSections(context) {
     });
   }
   return sections;
+}
+
+/**
+ * Build the persisted disclosure from tools that successfully returned data to
+ * the agent. Draft-only calls are excluded because they do not disclose stored
+ * profile data.
+ * @param {Array<{tool?: string, arguments?: unknown, success?: boolean}>} toolCalls
+ * @param {Array<{label: string, detail: string}>} fullContext
+ */
+export function summarizeAgentToolReceipts(toolCalls, fullContext = []) {
+  const successful = Array.isArray(toolCalls) ? toolCalls.filter(call => call?.success === true) : [];
+  if (successful.some(call => call.tool === 'getbased_lab_context')) return fullContext;
+  const clean = value => String(value || '').replace(/[\u0000-\u001F\u007F]+/g, ' ').trim().slice(0, 160);
+  const receipts = successful.flatMap(call => {
+    const args = call.arguments && typeof call.arguments === 'object' && !Array.isArray(call.arguments)
+      ? /** @type {Record<string, unknown>} */ (call.arguments) : {};
+    if (call.tool === 'getbased_section') return [{ label: 'getbased agent tool', detail: `Section: ${clean(args.section) || 'section list'}` }];
+    if (call.tool === 'getbased_search_markers') return [{ label: 'Blood marker results', detail: `Search: ${clean(args.query) || 'markers'}` }];
+    if (call.tool === 'getbased_marker_history') return [{ label: 'Blood marker results', detail: `History: ${clean(args.marker) || 'marker'}` }];
+    if (call.tool === 'getbased_nutrition_summary') return [{ label: 'Meals & Nutrition', detail: `Summary: ${clean(args.range) || '30d'}` }];
+    if (call.tool === 'getbased_wearable_series') return [{ label: 'Wearable recovery context', detail: `Series: ${clean(args.days) || '30'} days` }];
+    if (call.tool === 'getbased_search_knowledge') return [{ label: 'Knowledge Base', detail: `Search: ${clean(args.query) || 'knowledge'}` }];
+    if (call.tool === 'getbased_navigate' && args.marker) return [{ label: 'Blood marker results', detail: `Opened: ${clean(args.marker)}` }];
+    return [];
+  });
+  return receipts.filter((receipt, index) => receipts.findIndex(item => (
+    item.label === receipt.label && item.detail === receipt.detail
+  )) === index).slice(0, 20);
 }
 
 /** @param {string} text */
@@ -133,7 +161,10 @@ function optionalFiniteNumber(args, key, { min = -Infinity, max = Infinity } = {
 function optionalDate(args, key) {
   const value = optionalString(args, key, 10);
   if (!value) return '';
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(new Date(`${value}T00:00:00Z`).getTime())) {
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)
+    || !Number.isFinite(parsed.getTime())
+    || parsed.toISOString().slice(0, 10) !== value) {
     throw new Error(`${key} must use YYYY-MM-DD.`);
   }
   return value;
@@ -166,7 +197,7 @@ function normalizeSnapshot(value) {
 /** @param {AgentContextSnapshot} snapshot */
 function formatFullContext(snapshot) {
   const parts = [];
-  if (snapshot.profileId) parts.push('Profile scope: active Get-based profile');
+  if (snapshot.profileId) parts.push('Profile scope: active getbased profile');
   if (snapshot.updatedAt) parts.push(`Updated: ${snapshot.updatedAt}`);
   parts.push(snapshot.context || 'No context available');
   return parts.join('\n\n');
@@ -385,7 +416,7 @@ export function createAgentToolRuntime(dependencies) {
       } catch (error) {
         const message = error instanceof Error ? error.message : '';
         const safeInputError = /^(Tool arguments|Unknown argument:|[A-Za-z]+ (?:is|required|must)|from must|view or marker)/.test(message);
-        return failure(safeInputError ? message : 'Get-based context is temporarily unavailable.');
+        return failure(safeInputError ? message : 'getbased context is temporarily unavailable.');
       }
     },
   });

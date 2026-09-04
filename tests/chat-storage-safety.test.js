@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   normalizeChatBackup,
   normalizeChatMessages,
+  normalizeAgentThreadHandle,
   normalizeChatRecordId,
   normalizeCustomPersonalities,
   sanitizeChatThumbnailUrl,
@@ -16,6 +17,15 @@ describe('chat storage safety', () => {
     expect(normalizeChatRecordId('__proto__')).toBeNull();
     expect(normalizeChatRecordId('thread\"><img src=x>')).toBeNull();
     expect(normalizeChatRecordId('')).toBeNull();
+  });
+
+  it('preserves bounded signed external-agent handles longer than a generic chat ID', () => {
+    const handle = `v3.opencode.${'a'.repeat(180)}.${'b'.repeat(43)}`;
+    expect(handle.length).toBeGreaterThan(128);
+    expect(normalizeAgentThreadHandle(handle)).toBe(handle);
+    expect(normalizeAgentThreadHandle('019c-legacy-thread')).toBe('019c-legacy-thread');
+    expect(normalizeAgentThreadHandle('unsigned session')).toBeNull();
+    expect(normalizeAgentThreadHandle(`v3.opencode.${'a'.repeat(400)}`)).toBeNull();
   });
 
   it('only permits bounded raster data thumbnails', () => {
@@ -182,5 +192,16 @@ describe('chat storage safety', () => {
         nutrients: { energyKcal: 420, proteinG: 18 },
       },
     }]);
+  });
+
+  it('drops impossible dates and incomplete biometric proposals', () => {
+    const [message] = normalizeChatMessages([{
+      role: 'assistant', content: 'Review', agentDrafts: [
+        { id: 'draft-bp', profileId: 'profile-1', kind: 'biometric', status: 'pending', payload: { metric: 'bp', systolic: 120 } },
+        { id: 'draft-weight', profileId: 'profile-1', kind: 'biometric', status: 'pending', payload: { metric: 'weight', value: 80, date: '2026-02-30' } },
+        { id: 'draft-meal', profileId: 'profile-1', kind: 'meal', status: 'pending', payload: { name: 'Meal', eatenAt: 'not-a-date' } },
+      ],
+    }]);
+    expect(message).not.toHaveProperty('agentDrafts');
   });
 });

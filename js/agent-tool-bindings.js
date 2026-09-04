@@ -207,13 +207,40 @@ export async function navigateFromAgent({ view, marker }) {
   return { changed: true, opened: view };
 }
 
-export function createBrowserAgentToolDependencies() {
+/**
+ * Keep every typed tool attached to the profile that started the turn. The
+ * active-profile stores are intentionally global, so a profile switch during
+ * a long response must fail closed instead of reading the newly selected
+ * profile.
+ * @param {Record<string, Function>} dependencies
+ * @param {string} profileId
+ * @param {() => string} [readActiveProfile]
+ */
+export function bindAgentToolDependenciesToProfile(dependencies, profileId, readActiveProfile = () => state.currentProfile || '') {
+  const changed = () => Boolean(profileId) && readActiveProfile() !== profileId;
+  const reason = 'The active profile changed while the agent was responding. Retry the request in the intended profile.';
+  const bind = (handler, navigation = false) => async options => {
+    if (changed()) return navigation ? { changed: false, reason } : unavailable(reason);
+    return handler(options);
+  };
   return {
+    searchMarkers: bind(dependencies.searchMarkers),
+    readMarkerHistory: bind(dependencies.readMarkerHistory),
+    readNutritionSummary: bind(dependencies.readNutritionSummary),
+    readWearableSeries: bind(dependencies.readWearableSeries),
+    searchKnowledge: bind(dependencies.searchKnowledge),
+    navigate: bind(dependencies.navigate, true),
+  };
+}
+
+/** @param {string} [profileId] */
+export function createBrowserAgentToolDependencies(profileId = state.currentProfile || '') {
+  return bindAgentToolDependenciesToProfile({
     searchMarkers: searchAgentMarkers,
     readMarkerHistory: readAgentMarkerHistory,
     readNutritionSummary: readAgentNutritionSummary,
     readWearableSeries: readAgentWearableSeries,
     searchKnowledge: searchAgentKnowledge,
     navigate: navigateFromAgent,
-  };
+  }, profileId);
 }

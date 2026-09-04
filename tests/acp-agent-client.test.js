@@ -88,4 +88,31 @@ describe('ACP agent model catalogs', () => {
       cwd: '/tmp/current', mcpServers: [],
     });
   });
+
+  it('reuses one private catalog session across per-model option refreshes', async () => {
+    const client = new ACPAgentClient({ id: 'opencode', command: 'opencode', args: ['acp'], cwd: '/tmp/current' });
+    client.initialize = vi.fn(async () => ({ agentCapabilities: { promptCapabilities: { image: true } } }));
+    client.request = vi.fn(async (method, params) => {
+      if (method === 'session/new') return {
+        sessionId: 'catalog-session',
+        configOptions: [{ id: 'model', category: 'model', currentValue: 'model-a', options: [
+          { value: 'model-a', name: 'Model A' }, { value: 'model-b', name: 'Model B' },
+        ] }],
+      };
+      if (method === 'session/set_config_option') return {
+        configOptions: [{ id: 'model', category: 'model', currentValue: params.value, options: [
+          { value: 'model-a', name: 'Model A' }, { value: 'model-b', name: 'Model B' },
+        ] }],
+      };
+      throw new Error(`Unexpected request: ${method}`);
+    });
+
+    await client.loadModelCatalog({ model: 'model-a' });
+    await client.loadModelCatalog({ model: 'model-b' });
+
+    expect(client.request.mock.calls.filter(([method]) => method === 'session/new')).toHaveLength(1);
+    expect(client.request).toHaveBeenCalledWith('session/set_config_option', {
+      sessionId: 'catalog-session', configId: 'model', value: 'model-b',
+    });
+  });
 });

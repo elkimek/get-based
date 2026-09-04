@@ -44,7 +44,7 @@ flowchart TD
   Features --> Direct[chosen browser-direct AI and voice providers]
   Features --> AgentHost[user-owned loopback agent host]
   AgentHost --> Codex[Codex app-server]
-  AgentHost --> AgentTools[browser-executed Get-based tools]
+  AgentHost --> AgentTools[browser-executed getbased tools]
   Features --> Vercel[legacy encrypted/static-host API operations]
   Vercel --> LegacyCiphertext[bounded legacy share continuity]
   Features --> ProfileShare[separate profile-share service]

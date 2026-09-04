@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "scenario": "Production service-worker app-shell precache during PWA installation",
   "maximums": {
-    "resources": 342,
+    "resources": 348,
     "decodedBytes": 18300000
   },
   "reference": {
@@ -19,7 +19,8 @@
     "cliAgentProviderDecodedBytes": 18210385,
     "capabilityAwareAgentVisionResources": 337,
     "capabilityAwareAgentVisionDecodedBytes": 18207790,
-    "multiCliAgentAdaptersDecodedBytes": 18265416
+    "multiCliAgentAdaptersDecodedBytes": 18265416,
+    "cliAgentBrandAssetsResources": 346
   },
   "referenceCommit": "331112b1",
   "measuredAt": "2026-09-03"

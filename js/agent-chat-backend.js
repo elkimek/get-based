@@ -29,7 +29,7 @@ export async function callCodexAgent(options) {
       profileId: options.profileId || '',
       updatedAt: new Date().toISOString(),
     }),
-    ...createBrowserAgentToolDependencies(),
+    ...createBrowserAgentToolDependencies(options.profileId || ''),
   });
   await connectDetectedCodex({
     signal: options.signal,
