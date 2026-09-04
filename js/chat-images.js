@@ -73,6 +73,30 @@ export async function handleChatFiles(files) {
   }
 }
 
+/**
+ * Files supplied by OS drag-and-drop can be backed by a short-lived portal or
+ * file-manager handle. Start reading every file before the drop event returns,
+ * then continue with ordinary in-memory Files that survive lazy PDF loading.
+ * @param {File[] | FileList} files
+ */
+export async function handleDroppedChatFiles(files) {
+  const reads = Array.from(files || [], file => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => reader.result instanceof ArrayBuffer
+      ? resolve(new File([reader.result], file.name, { type: file.type, lastModified: file.lastModified }))
+      : reject(new Error(`Could not read ${file.name}.`));
+    reader.onerror = () => reject(reader.error || new Error(`Could not read ${file.name}.`));
+    reader.onabort = () => reject(new Error(`Reading ${file.name} was interrupted.`));
+    reader.readAsArrayBuffer(file);
+  }));
+  try {
+    await handleChatFiles(/** @type {File[]} */ (await Promise.all(reads)));
+  } catch (error) {
+    console.error('[chat-files] dropped file read failed:', error);
+    showNotification('Could not read the dropped file. Try the paperclip button instead.', 'error');
+  }
+}
+
 function attachmentDraftKey(threadId = state.currentThreadId) {
   return `${state.currentProfile || 'default'}:${threadId || 'unassigned'}`;
 }
@@ -324,7 +348,7 @@ export function initChatImageHandlers() {
       dragEvent.preventDefault();
       dragEvent.stopPropagation();
       setDropActive(false);
-      void handleChatFiles(dragEvent.dataTransfer?.files || []);
+      void handleDroppedChatFiles(dragEvent.dataTransfer?.files || []);
     });
   }
 

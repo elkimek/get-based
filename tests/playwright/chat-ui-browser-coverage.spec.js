@@ -37,6 +37,7 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
     const originalThreadId = state.currentThreadId;
     let sendButtonRefreshes = 0;
     const importedFiles = [];
+    const importedPayloads = [];
     let releaseHeldImport = null;
 
     const pngBytes = Uint8Array.from(atob(
@@ -51,6 +52,7 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       chatImages.configureChatImages({
         updateSendButtonState: () => { sendButtonRefreshes += 1; },
         importFiles: async files => {
+          importedPayloads.push(...files);
           importedFiles.push(...files.map(file => file.name));
           if (files.some(file => file.name === 'held-open.pdf')) {
             await new Promise(resolve => { releaseHeldImport = resolve; });
@@ -187,19 +189,30 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       }
       outcomes.dropHandlerAddsImage = chatImages.getPendingAttachments().some(att => att.name === 'dropped.png');
 
+      let droppedReport = null;
       if (inputArea) {
+        droppedReport = new File(['%PDF stable drop'], 'labs.pdf', {
+          type: 'application/pdf',
+          lastModified: 12345,
+        });
         const reportDrop = new Event('drop', { bubbles: true, cancelable: true });
         Object.defineProperty(reportDrop, 'dataTransfer', {
           configurable: true,
-          value: { files: [new File(['%PDF test'], 'labs.pdf', { type: 'application/pdf' })] },
+          value: { files: [droppedReport] },
         });
         inputArea.dispatchEvent(reportDrop);
-        for (let i = 0; i < 40 && importedFiles.length === 0; i += 1) {
+        for (let i = 0; i < 40 && !importedFiles.includes('labs.pdf'); i += 1) {
           await new Promise(resolve => setTimeout(resolve, 25));
         }
       }
+      const stableDroppedReport = importedPayloads.find(file => file.name === 'labs.pdf');
       outcomes.dropOnComposerRoutesPdfToImport = importedFiles.includes('labs.pdf')
-        && chatImages.getPendingAttachments().every(att => att.name !== 'labs.pdf');
+        && chatImages.getPendingAttachments().every(att => att.name !== 'labs.pdf')
+        && stableDroppedReport instanceof File
+        && stableDroppedReport !== droppedReport
+        && stableDroppedReport.type === 'application/pdf'
+        && stableDroppedReport.lastModified === 12345
+        && await stableDroppedReport.text() === '%PDF stable drop';
 
       if (input) {
         Object.defineProperty(input, 'files', {
