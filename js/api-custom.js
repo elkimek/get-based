@@ -52,6 +52,9 @@ export async function fetchCustomApiModels(baseUrl, key) {
         ...(Array.isArray(m.input_modalities) ? { input_modalities: m.input_modalities } : {}),
         ...(Array.isArray(m.input) ? { input: m.input } : {}),
         ...(m.capabilities ? { capabilities: m.capabilities } : {}),
+        ...(m.reasoning && typeof m.reasoning === 'object' ? { reasoning: m.reasoning } : {}),
+        ...(Array.isArray(m.supported_parameters) ? { supported_parameters: m.supported_parameters } : {}),
+        ...(typeof m.defaultReasoningEffort === 'string' ? { defaultReasoningEffort: m.defaultReasoningEffort } : {}),
       };
     }).sort(function(a, b) { return a.name.localeCompare(b.name); });
     const visionIds = models.filter(modelMetadataSupportsVision).map(model => model.id);

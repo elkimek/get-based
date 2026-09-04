@@ -396,6 +396,7 @@ if (typeof globalThis.addEventListener === 'function') {
   };
   globalThis.addEventListener('getbased:chat-backend-changed', refreshAgentChatUi);
   globalThis.addEventListener('getbased:agent-host-settings-changed', refreshAgentChatUi);
+  globalThis.addEventListener('getbased:agent-model-catalog-changed', refreshAgentChatUi);
 }
 
 export function closeChatPanel() {

@@ -47,11 +47,11 @@ import {
   sortReasoningEffortValues,
 } from './agent-model-catalog.js';
 import { getDirectChatReasoningEffort, setDirectChatReasoningEffort } from './chat-model-preferences.js';
+import { getModelReasoningCapabilities } from './reasoning-capabilities.js';
 import { updateChatHeaderModelRuntime } from './chat-runtime.js';
 import { hasPendingAttachments } from './chat-images.js';
 import { escapeAttr, escapeHTML, showNotification } from './utils.js';
 
-const STANDARD_REASONING_EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 const MODEL_SEARCH_THRESHOLD = 9;
 let controlsInitialized = false;
 let modelRefreshInProgress = false;
@@ -83,32 +83,6 @@ function normalizedEfforts(value) {
   return sortReasoningEffortValues([...new Set(value.map(item => typeof item === 'string'
     ? item
     : item?.reasoningEffort || item?.effort || item?.value || '').map(item => String(item).trim()).filter(Boolean))]);
-}
-
-function directModelEfforts(model) {
-  if (!model || typeof model !== 'object') return [];
-  const reasoning = model.reasoning && typeof model.reasoning === 'object' ? model.reasoning : {};
-  const explicit = normalizedEfforts(
-    model.supportedReasoningEfforts
-      || reasoning.supported_efforts
-      || reasoning.supportedEfforts
-      || model.capabilities?.supportedReasoningEfforts,
-  );
-  if (explicit.length) return explicit;
-  const supportedParameters = Array.isArray(model.supported_parameters) ? model.supported_parameters : [];
-  const advertised = reasoning.enabled === true
-    || reasoning.supported === true
-    || model.capabilities?.reasoning === true
-    || model.capabilities?.supportsReasoning === true
-    || supportedParameters.some(value => ['reasoning', 'reasoning_effort'].includes(String(value)));
-  return advertised ? STANDARD_REASONING_EFFORTS : [];
-}
-
-function directDefaultEffort(model) {
-  return String(model?.defaultReasoningEffort
-    || model?.reasoning?.default_effort
-    || model?.reasoning?.defaultEffort
-    || '').trim();
 }
 
 function readDirectModels(provider) {
@@ -187,6 +161,7 @@ function currentControlState() {
   const selectedId = getActiveModelId(provider);
   const cached = readDirectModels(provider);
   const selected = cached.find(model => model.id === selectedId) || null;
+  const reasoningCapabilities = getModelReasoningCapabilities(provider, selected);
   const models = cached.map(model => ({
     id: model.id,
     name: model.name || model.displayName || model.id,
@@ -203,8 +178,8 @@ function currentControlState() {
     selectedId,
     selectedName: getActiveModelDisplay(provider),
     models,
-    efforts: directModelEfforts(selected),
-    defaultEffort: directDefaultEffort(selected),
+    efforts: normalizedEfforts(reasoningCapabilities.efforts),
+    defaultEffort: reasoningCapabilities.defaultEffort,
     selectedEffort: getDirectChatReasoningEffort(provider, selectedId),
   };
 }

@@ -91,3 +91,53 @@ test('CLI picker groups a large OpenCode catalog and shares its effort with Sett
   await expect.poll(() => page.evaluate(async () => (await import('/js/agent-chat-settings.js')).getAgentHostEffort())).toBe('high');
   await expect(page.locator('#chat-model-menu-label')).toContainText('High');
 });
+
+test('an existing chat immediately shows the newly selected CLI default model', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const stateModule = await import('/js/state.js');
+    stateModule.state.currentThreadId = 'existing-thread';
+    stateModule.state.chatThreads = [{ id: 'existing-thread', agentModel: 'openrouter/muse-1.3' }];
+    const crypto = await import('/js/crypto.js');
+    crypto.updateKeyCache('labcharts-agent-host-token', 'test-token');
+    const settings = await import('/js/agent-chat-settings.js');
+    const catalog = await import('/js/agent-model-catalog.js');
+    catalog.cacheAgentModelCatalog([{
+      id: 'openrouter/muse-1.3', model: 'openrouter/muse-1.3', displayName: 'Muse 1.3', isDefault: true,
+      defaultReasoningEffort: 'medium', supportedReasoningEfforts: [], inputModalities: ['text'],
+    }], 'opencode');
+    await settings.saveAgentChatSettings({ agent: 'opencode', model: '' });
+    settings.setChatBackend('codex');
+    await (await import('/js/chat-panel.js')).openChatPanel();
+  });
+  await expect(page.locator('.chat-header-model')).toHaveText('Muse 1.3');
+
+  await page.evaluate(async () => {
+    const catalog = await import('/js/agent-model-catalog.js');
+    catalog.cacheAgentModelCatalog([{
+      id: 'gpt-5.6-sol', model: 'gpt-5.6-sol', displayName: 'GPT-5.6 Sol', isDefault: true,
+      defaultReasoningEffort: 'medium', supportedReasoningEfforts: [], inputModalities: ['text'],
+    }], 'codex');
+    const settings = await import('/js/agent-chat-settings.js');
+    await settings.saveAgentChatSettings({ agent: 'codex', model: '' });
+  });
+  await expect(page.locator('.chat-header-model')).toHaveText('GPT-5.6 Sol');
+  await expect(page.locator('#chat-model-menu-label')).toHaveText('GPT-5.6 Sol');
+});
+
+test('direct provider and Local AI catalogs expose their reported reasoning controls', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-ai-provider', 'venice');
+    localStorage.setItem('labcharts-venice-model', 'qwen-thinking');
+    localStorage.setItem('labcharts-venice-models', JSON.stringify([{
+      id: 'qwen-thinking', name: 'Qwen Thinking',
+      model_spec: { capabilities: { supportsReasoning: true, supportsReasoningEffort: true } },
+    }]));
+  });
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => (await import('/js/chat-panel.js')).openChatPanel());
+  await page.locator('#chat-model-menu-toggle').click();
+  await expect(page.locator('#chat-model-effort')).toBeVisible();
+  await expect(page.locator('#chat-model-effort')).toHaveAttribute('max', '3');
+  await expect(page.locator('#chat-model-effort-value')).toHaveText('Default');
+});

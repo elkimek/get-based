@@ -31,10 +31,13 @@ const PPQ_EXCLUDE = ['codex', 'audio', 'image', 'embed', 'tts', 'whisper', 'vide
 // The PPQ API is authoritative for private-model availability, names, and
 // pricing. This map only fills capability metadata that the current private
 // catalogue rows omit; it must never act as an availability allowlist.
-/** @type {Record<string, { input: string[] }>} */
+/** @type {Record<string, { input: string[], reasoning?: { supported_efforts: string[], default_effort: string } }>} */
 const PPQ_PRIVATE_MODEL_CAPABILITIES = {
   'private/kimi-k2-6': { input: ['text', 'image'] },
-  'private/gpt-oss-120b': { input: ['text'] },
+  'private/gpt-oss-120b': {
+    input: ['text'],
+    reasoning: { supported_efforts: ['low', 'medium', 'high'], default_effort: 'medium' },
+  },
   'private/llama3-3-70b': { input: ['text'] },
   'private/qwen3-vl-30b': { input: ['text', 'image'] },
   'private/glm-5-2': { input: ['text'] },

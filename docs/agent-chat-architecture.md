@@ -145,6 +145,18 @@ The standalone `npm run agent-host` command and its environment variables
 remain an advanced development/self-hosting escape hatch, not an onboarding
 requirement.
 
+The same compact picker also follows the selected direct provider. Reasoning
+controls are capability-driven rather than inferred for every model:
+OpenRouter uses its per-model effort catalogue; Venice uses its reasoning
+capability flags; PPQ, Routstr, and Custom API retain compatible metadata from
+their model endpoints; Ollama and LM Studio use their native thinking
+catalogues. Jan, llama.cpp, Unsloth Studio, and other OpenAI-compatible local
+servers receive a control when their catalogue advertises one (with a narrow
+GPT-OSS fallback). A model with built-in but non-configurable reasoning, or a
+server that publishes only model IDs, keeps its native default and does not
+show a misleading effort slider. Encrypted PPQ, Routstr, and Venice requests
+carry the same selected effort inside their already-attested transport.
+
 ## Hosted desktop companion
 
 A hosted browser cannot start an operating-system process. The production

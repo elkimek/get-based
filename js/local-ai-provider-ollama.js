@@ -82,6 +82,7 @@ export async function discoverOllamaProvider({
       const running = runningIndex.get(name);
       const capabilities = Array.isArray(model?.capabilities) ? model.capabilities : [];
       const supportsThinking = capabilities.includes('thinking');
+      const gptOss = /(?:^|[/_.:-])gpt[-_.]?oss(?:$|[/_.:-])/i.test(String(name || ''));
       return {
         name,
         type: isLikelyEmbeddingModel(name) ? 'embedding' : 'llm',
@@ -97,7 +98,10 @@ export async function discoverOllamaProvider({
         maxContextLength: Number(model?.details?.context_length || model?.context_length) || 0,
         vramAllocated: Number(running?.size_vram) || 0,
         vision: capabilities.includes('vision') ? true : null,
-        reasoning: supportsThinking ? { allowedOptions: ['off', 'on'], default: 'on' } : null,
+        reasoning: supportsThinking ? {
+          allowedOptions: gptOss ? ['low', 'medium', 'high'] : ['off', 'on'],
+          default: gptOss ? 'medium' : 'on',
+        } : null,
         executionLocation: getLocalAiExecutionLocation(baseUrl, name),
         source: 'ollama',
       };
@@ -226,7 +230,9 @@ export async function inferWithOllamaNativeProvider({ config, model, opts, plan,
     ...(Object.keys(options).length ? { options } : {}),
   };
   if (opts.jsonMode) body.format = opts.jsonSchema || 'json';
-  if (opts.jsonMode || opts.reasoningEffort === 'none') body.think = false;
+  if (opts.jsonMode || ['none', 'off'].includes(opts.reasoningEffort)) body.think = false;
+  else if (['low', 'medium', 'high'].includes(opts.reasoningEffort)) body.think = opts.reasoningEffort;
+  else if (opts.reasoningEffort === 'on') body.think = true;
   /** @type {Response | null} */
   let response = null;
   let structuredOutputFallback = false;

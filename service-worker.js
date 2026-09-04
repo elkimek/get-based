@@ -87,6 +87,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/api-transport.js',
   '/js/proxy-runtime.js',
   '/js/api-openai-compatible.js',
+  '/js/reasoning-capabilities.js',
   '/js/api-local.js',
   '/js/local-ai-provider-shared.js',
   '/js/local-ai-provider-openai-compatible.js',

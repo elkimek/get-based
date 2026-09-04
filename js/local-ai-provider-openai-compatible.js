@@ -112,12 +112,15 @@ export async function inferWithOpenAICompatibleProvider({ config, model, opts, p
   const extraBody = {};
   if (opts.jsonMode || opts.reasoningEffort === 'none') extraBody.reasoning_effort = 'none';
   if (opts.jsonMode || opts.temperature === 0) extraBody.temperature = 0;
+  // "on" is a native boolean-model choice, not an OpenAI reasoning_effort
+  // value. Omitting it preserves the model/server's enabled default.
+  const requestOpts = opts.reasoningEffort === 'on' ? { ...opts, reasoningEffort: undefined } : opts;
   const result = await callOpenAICompatibleAPI(
     `${url}/v1/chat/completions`,
     config.apiKey,
     model,
     'Local AI',
-    { ...opts, maxTokens: plan.maxTokens },
+    { ...requestOpts, maxTokens: plan.maxTokens },
     {},
     { useProxy: false, extraBody, firstReadStallMs: LOCAL_AI_FIRST_TOKEN_STALL_MS },
   );

@@ -4,7 +4,7 @@ import { getActiveModelDisplay, hasAIProvider, isAIPaused } from './api.js';
 import {
   connectDetectedCodex, discoverLocalChatAgents, getAgentHostAgent, getAgentHostModel, getChatBackend, hasAgentChatConnection, setChatBackend,
 } from './agent-chat-settings.js';
-import { state } from './state.js';
+import { getAgentModelDisplay, getCachedAgentModelCatalog } from './agent-model-catalog.js';
 
 export { getChatBackend } from './agent-chat-settings.js';
 
@@ -20,9 +20,13 @@ export function hasChatResponseBackend() {
 
 export function getChatBackendDisplay() {
   if (!isCodexChatBackend()) return hasAIProvider() ? getActiveModelDisplay() : '';
-  const thread = state.chatThreads.find(item => item.id === state.currentThreadId);
-  const fallback = ({ codex: 'Codex', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes', grok: 'Grok', openclaw: 'OpenClaw' })[getAgentHostAgent()] || 'CLI agent';
-  return getAgentHostModel() || thread?.agentModel || fallback;
+  const agent = getAgentHostAgent();
+  const catalog = getCachedAgentModelCatalog(agent);
+  const configuredModel = getAgentHostModel();
+  const fallback = ({ codex: 'Codex', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes', grok: 'Grok', openclaw: 'OpenClaw' })[agent] || 'CLI agent';
+  if (configuredModel) return getAgentModelDisplay(configuredModel, catalog);
+  const defaultModel = catalog.find(model => model.isDefault) || catalog[0] || null;
+  return defaultModel?.displayName || fallback;
 }
 
 export function refreshChatBackendControl() {
