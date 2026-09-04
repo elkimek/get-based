@@ -22,6 +22,7 @@ import { showNotification } from './utils.js';
 import { connectDetectedCodex } from './agent-chat-settings.js';
 import { updateAttachButtonVisibility } from './chat-images.js';
 import { initChatLayout, syncChatLayout } from './chat-layout.js';
+import { initChatModelControls, refreshChatModelControls } from './chat-model-controls.js';
 import {
   hasChatResponseBackend, isCodexChatBackend, refreshChatBackendControl, refreshLocalAgentAvailability,
   setChatBackendFromUI as persistChatBackend,
@@ -350,6 +351,7 @@ export async function openChatPanel(prefillMessage) {
   if (!generationInProgress) panelCallbacks.restoreDiscussionContinuePrompt?.();
   updateChatInputState();
   initChatComposer();
+  initChatModelControls();
   if (generationInProgress) {
     panelCallbacks.restoreChatGenerationUI?.();
   } else if (!chatThreadInputBlocked) {
@@ -390,6 +392,7 @@ if (typeof globalThis.addEventListener === 'function') {
     updateChatInputState();
     updateChatHeaderModel();
     updateAttachButtonVisibility();
+    refreshChatModelControls();
   };
   globalThis.addEventListener('getbased:chat-backend-changed', refreshAgentChatUi);
   globalThis.addEventListener('getbased:agent-host-settings-changed', refreshAgentChatUi);

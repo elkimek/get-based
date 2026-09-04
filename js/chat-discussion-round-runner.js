@@ -109,6 +109,7 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         },
         webSearch: request.webSearch,
         provider: request.provider,
+        reasoningEffort: request.reasoningEffort,
       });
       const fullText = aiResult.text;
       const usage = /** @type {{ inputTokens?: number, outputTokens?: number } | undefined} */ (aiResult.usage);

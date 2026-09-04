@@ -117,6 +117,18 @@ describe('agent chat settings', () => {
     expect(getAgentHostEffort()).toBe('xhigh');
   });
 
+  it('remembers reasoning independently for each model within a CLI agent', async () => {
+    await saveAgentChatSettings({ agent: 'codex', model: 'gpt-5.6-sol', effort: 'medium' });
+    await saveAgentChatSettings({ model: 'gpt-5.6-luna' });
+    expect(getAgentHostEffort()).toBe('');
+    await saveAgentChatSettings({ effort: 'low' });
+
+    await saveAgentChatSettings({ model: 'gpt-5.6-sol' });
+    expect(getAgentHostEffort()).toBe('medium');
+    await saveAgentChatSettings({ model: 'gpt-5.6-luna' });
+    expect(getAgentHostEffort()).toBe('low');
+  });
+
   it('retains full provider-qualified model IDs for catalog rehydration', async () => {
     const model = `openrouter/${'provider-segment/'.repeat(7)}model-name`;
     expect(model.length).toBeGreaterThan(100);

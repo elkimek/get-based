@@ -74,7 +74,7 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       outcomes.addImageCreatesPreview = chatImages.getPendingAttachments().length === 1
         && chatImages.hasPendingAttachments() === true
         && preview?.style.display === 'flex'
-        && preview?.querySelector('.chat-attach-count')?.textContent === '1/5 · original quality'
+        && preview?.querySelector('.chat-attach-count')?.textContent === '1/5'
         && preview?.querySelector('img')?.getAttribute('alt') === 'tiny <lab>.png'
         && chatImages.getPendingAttachments()[0]?.base64 === btoa(String.fromCharCode(...pngBytes));
 

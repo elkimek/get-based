@@ -68,6 +68,7 @@ import { getAssistantExecutionRoute } from './ai-execution-routing.js';
 import { getAgentModelDisplay, getCachedAgentModelCatalog } from './agent-model-catalog.js';
 import { getAgentHostAgent } from './agent-chat-settings.js';
 import { summarizeAgentToolReceipts } from './agent-tool-runtime.js';
+import { getDirectChatReasoningEffort } from './chat-model-preferences.js';
 
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
@@ -313,6 +314,7 @@ export async function sendChatMessage() {
 
   let _msgModelId = useCodexAgent ? 'codex' : getActiveModelId(_msgProvider);
   let _msgModelDisplay = useCodexAgent ? getChatBackendDisplay() : getActiveModelDisplay(_msgProvider);
+  const _msgReasoningEffort = useCodexAgent ? '' : getDirectChatReasoningEffort(_msgProvider, _msgModelId);
   const _msgE2EE = !useCodexAgent && ((_msgProvider === 'venice' && isVeniceE2EEActive())
     || (_msgProvider === 'ppq' && isPpqPrivateModeActive())
     || (_msgProvider === 'routstr' && isRoutstrPrivateModeActive()));
@@ -416,7 +418,8 @@ export async function sendChatMessage() {
         signal: getStreamSignal(),
         onStream(streamedText) { typewriter.update(streamedText); },
         webSearch: webSearchEnabled,
-        provider: _msgProvider
+        provider: _msgProvider,
+        reasoningEffort: _msgReasoningEffort,
       });
     }
     if (useCodexAgent && aiResult.model) {

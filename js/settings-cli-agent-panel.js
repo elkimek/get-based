@@ -487,7 +487,7 @@ export async function setCLIAgentModel(model) {
     if (getAgentHostAgent() !== agent) return;
     agentModels = cacheAgentModelCatalog(models, agent);
     agentModelsAgentId = agent;
-    await saveAgentChatSettings({ model, effort: '' });
+    await saveAgentChatSettings({ model });
     const selected = selectedModelEntry(agentModels, model);
     const provider = getCLIAgentModelProvider(agent, selected);
     if (provider) agentProviderFilter = provider;

@@ -465,7 +465,7 @@
                 <div class="chat-context-menu-popover" role="menu" aria-label="Add to message">
                   <button type="button" id="chat-add-photo-action" data-chat-action="attach-image" role="menuitem">
                     <span class="chat-context-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5L5 20"/></svg></span>
-                    <span><strong>Add photos</strong><small>Attach original-resolution images</small></span>
+                    <span><strong>Add photos</strong></span>
                   </button>
                   <button type="button" data-chat-action="import-health-file" role="menuitem">
                     <span class="chat-context-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16h16V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg></span>
@@ -482,6 +482,13 @@
               <button type="button" class="chat-discuss-btn" id="chat-discuss-btn" data-chat-action="start-discussion" style="display:none" aria-label="Start discussion" title="Personas discuss your results">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
               </button>
+              <details class="chat-model-menu" id="chat-model-menu">
+                <summary class="chat-model-menu-toggle" id="chat-model-menu-toggle" aria-label="Choose model and reasoning effort" title="Choose model and reasoning effort">
+                  <span class="chat-model-menu-label" id="chat-model-menu-label">Select model</span>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+                </summary>
+                <div class="chat-model-menu-popover" id="chat-model-menu-popover" aria-live="polite"></div>
+              </details>
               <button type="button" class="chat-voice-btn" id="chat-voice-btn" data-chat-action="toggle-voice-recording" aria-label="Speak message" aria-pressed="false" title="Speak message">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8"/></svg>
               </button>

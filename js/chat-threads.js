@@ -5,7 +5,7 @@
 // Owns: thread index CRUD (localStorage layout) and thread-rail UI.
 
 import { state } from './state.js';
-import { escapeHTML, showNotification, showConfirmDialog, showPromptDialog } from './utils.js';
+import { escapeAttr, escapeHTML, showNotification, showConfirmDialog, showPromptDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItems } from './data-merge.js';
 import { onChatSaved } from './sync.js';
@@ -33,6 +33,7 @@ const THREAD_ICON_PIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m1
 const MOBILE_THREAD_RAIL_QUERY = '(max-width: 768px)';
 const CHAT_DELETED_PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 let chatThreadDelegatesInstalled = false;
+let draggedThreadId = '';
 let blockedThreadIndexKey = null;
 let blockedThreadIndexNoticeShown = false;
 const noop = (..._args) => {};
@@ -428,24 +429,27 @@ export function toggleThreadPinned(threadId) {
   return thread.pinned;
 }
 
-export async function moveThreadToProjectPrompt(threadId) {
+export async function moveThreadToProject(threadId, nextProjectName) {
   const thread = state.chatThreads.find(item => item.id === threadId);
   if (!thread) return false;
-  const names = projectNames();
-  const prompt = names.length
-    ? `Move to project (leave blank for no project). Existing projects: ${names.join(', ')}`
-    : 'Move to project (leave blank for no project):';
-  const name = await chatThreadDeps.showPromptDialog(prompt, {
-    defaultValue: thread.projectName || '',
-    okLabel: 'Move',
-  });
-  if (name === null || name === undefined) return false;
-  const projectName = String(name).trim().slice(0, 60);
+  const previousProjectName = thread.projectName;
+  const previousPinned = thread.pinned;
+  const projectName = String(nextProjectName || '').trim().slice(0, 60);
   if (projectName) thread.projectName = projectName;
   else delete thread.projectName;
-  await saveChatThreadIndex();
+  // A pinned conversation stays visually in Pinned, which makes a successful
+  // project drop look like it did nothing. Dropping into a project therefore
+  // unpins it so it appears at the destination immediately.
+  if (projectName) delete thread.pinned;
+  const saved = await saveChatThreadIndex();
+  if (!saved) {
+    if (previousProjectName) thread.projectName = previousProjectName;
+    else delete thread.projectName;
+    if (previousPinned) thread.pinned = true;
+    else delete thread.pinned;
+  }
   renderThreadList();
-  return true;
+  return saved;
 }
 
 export function getChatThreadSort() {
@@ -539,16 +543,68 @@ function handleThreadActionClick(event) {
   } else if (action === 'pin') {
     event.preventDefault();
     toggleThreadPinned(threadId);
-  } else if (action === 'move') {
-    event.preventDefault();
-    moveThreadToProjectPrompt(threadId);
   }
+}
+
+function clearThreadDragState() {
+  draggedThreadId = '';
+  document.getElementById('chat-thread-list')?.classList.remove('is-thread-dragging');
+  document.querySelectorAll('[data-chat-project-drop].is-drop-target').forEach(target => target.classList.remove('is-drop-target'));
+  document.querySelectorAll('.chat-thread-item.is-dragging').forEach(item => {
+    item.classList.remove('is-dragging');
+    item.setAttribute('aria-grabbed', 'false');
+  });
+}
+
+/** @param {DragEvent} event */
+function handleThreadDragStart(event) {
+  const target = event.target instanceof Element ? event.target.closest('.chat-thread-item[draggable="true"]') : null;
+  if (!target || matchMedia(MOBILE_THREAD_RAIL_QUERY).matches) {
+    event.preventDefault();
+    return;
+  }
+  draggedThreadId = String(target.getAttribute('data-thread-id') || '');
+  if (!draggedThreadId || !event.dataTransfer) return;
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', draggedThreadId);
+  target.classList.add('is-dragging');
+  target.setAttribute('aria-grabbed', 'true');
+  document.getElementById('chat-thread-list')?.classList.add('is-thread-dragging');
+}
+
+/** @param {DragEvent} event */
+function handleThreadDragOver(event) {
+  if (!draggedThreadId) return;
+  const target = event.target instanceof Element ? event.target.closest('[data-chat-project-drop]') : null;
+  if (!target) return;
+  event.preventDefault();
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('[data-chat-project-drop].is-drop-target').forEach(item => {
+    if (item !== target) item.classList.remove('is-drop-target');
+  });
+  target.classList.add('is-drop-target');
+}
+
+/** @param {DragEvent} event */
+function handleThreadDrop(event) {
+  if (!draggedThreadId) return;
+  const target = event.target instanceof Element ? event.target.closest('[data-chat-project-drop]') : null;
+  if (!target) return;
+  event.preventDefault();
+  const threadId = draggedThreadId;
+  const projectName = target.getAttribute('data-chat-project-drop') || '';
+  clearThreadDragState();
+  void moveThreadToProject(threadId, projectName);
 }
 
 export function installChatThreadDelegates() {
   if (chatThreadDelegatesInstalled || typeof document === 'undefined') return;
   chatThreadDelegatesInstalled = true;
   document.addEventListener('click', handleThreadActionClick);
+  document.addEventListener('dragstart', handleThreadDragStart);
+  document.addEventListener('dragover', handleThreadDragOver);
+  document.addEventListener('drop', handleThreadDrop);
+  document.addEventListener('dragend', clearThreadDragState);
 }
 
 /** @param {string} [filter] */
@@ -585,7 +641,7 @@ export function renderThreadList(filter) {
     const messageCount = Number.isFinite(Number(t.messageCount))
       ? Math.max(0, Math.trunc(Number(t.messageCount)))
       : 0;
-    return `<div class="chat-thread-item${isActive ? ' active' : ''}${t.pinned ? ' pinned' : ''}" data-thread-id="${escapeHTML(t.id)}">
+    return `<div class="chat-thread-item${isActive ? ' active' : ''}${t.pinned ? ' pinned' : ''}" data-thread-id="${escapeHTML(t.id)}" draggable="true" aria-grabbed="false" title="Drag to move this conversation into a project">
       <button type="button" class="chat-thread-item-main" data-chat-thread-action="switch" aria-current="${isActive ? 'true' : 'false'}">
         <span class="chat-thread-item-name">${escapeHTML(t.name)}</span>
         <span class="chat-thread-item-meta">
@@ -598,15 +654,14 @@ export function renderThreadList(filter) {
         <summary class="chat-thread-item-action" title="Conversation actions" aria-label="Actions for ${escapeHTML(t.name)}">${THREAD_ICON_MORE}</summary>
         <div class="chat-thread-item-menu-popover">
           <button type="button" data-chat-thread-action="pin" data-thread-id="${escapeHTML(t.id)}">${THREAD_ICON_PIN}<span>${t.pinned ? 'Unpin' : 'Pin'}</span></button>
-          <button type="button" data-chat-thread-action="move" data-thread-id="${escapeHTML(t.id)}">${THREAD_ICON_FOLDER}<span>Move to project</span></button>
           <button type="button" data-chat-thread-action="rename" data-thread-id="${escapeHTML(t.id)}">${THREAD_ICON_EDIT}<span>Rename</span></button>
           <button type="button" class="delete" data-chat-thread-action="delete" data-thread-id="${escapeHTML(t.id)}">${THREAD_ICON_DELETE}<span>Delete</span></button>
         </div>
       </details>
     </div>`;
   };
-  const renderGroup = (title, items, icon = '') => items.length
-    ? `<section class="chat-thread-group"><div class="chat-thread-group-title">${icon}${escapeHTML(title)}</div>${items.map(renderThread).join('')}</section>`
+  const renderGroup = (title, items, icon = '', projectName = null) => items.length
+    ? `<section class="chat-thread-group"${projectName !== null ? ` data-chat-project-drop="${escapeAttr(projectName)}"` : ''}><div class="chat-thread-group-title">${icon}${escapeHTML(title)}</div>${items.map(renderThread).join('')}</section>`
     : '';
   if (filter?.trim()) {
     list.innerHTML = threads.map(renderThread).join('');
@@ -615,9 +670,10 @@ export function renderThreadList(filter) {
   const pinned = threads.filter(thread => thread.pinned === true);
   const remaining = threads.filter(thread => thread.pinned !== true);
   const groups = [];
+  groups.push('<div class="chat-thread-unfiled-drop" data-chat-project-drop="">Drop here for no project</div>');
   groups.push(renderGroup('Pinned', pinned, THREAD_ICON_PIN));
   for (const name of projectNames()) {
-    groups.push(renderGroup(name, remaining.filter(thread => thread.projectName === name), THREAD_ICON_FOLDER));
+    groups.push(renderGroup(name, remaining.filter(thread => thread.projectName === name), THREAD_ICON_FOLDER, name));
   }
   const ungrouped = remaining.filter(thread => !thread.projectName);
   if (sort !== 'recent') {

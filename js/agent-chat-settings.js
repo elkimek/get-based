@@ -22,6 +22,11 @@ function scopedAgentSettingKey(baseKey, agentId) {
   return `${baseKey}:${encodeURIComponent(normalizeAgentId(agentId))}`;
 }
 
+/** @param {string} agentId @param {string} modelId */
+function scopedAgentModelEffortKey(agentId, modelId) {
+  return `${scopedAgentSettingKey(EFFORT_KEY, agentId)}:model:${encodeURIComponent(String(modelId || '').trim() || 'default')}`;
+}
+
 export function getChatBackend() {
   return localStorage.getItem(BACKEND_KEY) === 'codex' ? 'codex' : 'direct';
 }
@@ -60,7 +65,10 @@ export function getAgentHostModel() {
 }
 
 export function getAgentHostEffort() {
-  const scoped = localStorage.getItem(scopedAgentSettingKey(EFFORT_KEY, getAgentHostAgent()));
+  const agent = getAgentHostAgent();
+  const modelScoped = localStorage.getItem(scopedAgentModelEffortKey(agent, getAgentHostModel()));
+  if (modelScoped !== null) return modelScoped.trim();
+  const scoped = localStorage.getItem(scopedAgentSettingKey(EFFORT_KEY, agent));
   return (scoped ?? localStorage.getItem(EFFORT_KEY) ?? '').trim();
 }
 
@@ -73,6 +81,8 @@ export function getAgentHostAgent() {
  */
 export async function saveAgentChatSettings(settings) {
   const previousAgent = getAgentHostAgent();
+  const previousModel = getAgentHostModel();
+  const previousEffort = getAgentHostEffort();
   const nextAgent = settings.agent === undefined ? previousAgent : normalizeAgentId(settings.agent);
   if (settings.endpoint !== undefined) {
     localStorage.setItem(ENDPOINT_KEY, normalizeAgentHostEndpoint(settings.endpoint));
@@ -87,12 +97,20 @@ export async function saveAgentChatSettings(settings) {
       localStorage.setItem(previousEffortKey, (localStorage.getItem(EFFORT_KEY) || '').trim().slice(0, 40));
     }
   }
+  const previousModelEffortKey = scopedAgentModelEffortKey(previousAgent, previousModel);
+  if (localStorage.getItem(previousModelEffortKey) === null && previousEffort) {
+    localStorage.setItem(previousModelEffortKey, previousEffort.slice(0, 40));
+  }
   if (settings.agent !== undefined) localStorage.setItem(AGENT_KEY, nextAgent);
   const model = settings.model === undefined
     ? (nextAgent !== previousAgent ? localStorage.getItem(scopedAgentSettingKey(MODEL_KEY, nextAgent)) || '' : null)
     : settings.model.trim().slice(0, 160);
+  const targetModel = model === null ? getAgentHostModel() : model;
+  const targetModelEffort = localStorage.getItem(scopedAgentModelEffortKey(nextAgent, targetModel));
   const effort = settings.effort === undefined
-    ? (nextAgent !== previousAgent ? localStorage.getItem(scopedAgentSettingKey(EFFORT_KEY, nextAgent)) || '' : null)
+    ? (nextAgent !== previousAgent || model !== null
+      ? targetModelEffort ?? (nextAgent !== previousAgent ? localStorage.getItem(scopedAgentSettingKey(EFFORT_KEY, nextAgent)) || '' : '')
+      : null)
     : settings.effort.trim().slice(0, 40);
   if (model !== null) {
     localStorage.setItem(MODEL_KEY, model);
@@ -101,6 +119,7 @@ export async function saveAgentChatSettings(settings) {
   if (effort !== null) {
     localStorage.setItem(EFFORT_KEY, effort);
     localStorage.setItem(scopedAgentSettingKey(EFFORT_KEY, nextAgent), effort);
+    localStorage.setItem(scopedAgentModelEffortKey(nextAgent, targetModel), effort);
   }
   if (settings.token !== undefined) await encryptedSetCredentialItem(AGENT_HOST_TOKEN_KEY, settings.token.trim());
   globalThis.dispatchEvent?.(new CustomEvent('getbased:agent-host-settings-changed'));

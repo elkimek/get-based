@@ -12,6 +12,12 @@ test('chat image attachment DOM is present and its CSS loads on demand', async (
   await expect(page.locator('#chat-composer-hint')).toHaveCount(0);
   await expect(page.locator('[data-chat-action="import-health-file"]')).toHaveCount(1);
   await expect(page.locator('[data-chat-action="open-chat-context"]')).toHaveCount(1);
+  await expect(page.locator('#chat-model-menu-toggle')).toHaveCount(1);
+  expect(await page.evaluate(() => {
+    const model = document.getElementById('chat-model-menu');
+    const voice = document.getElementById('chat-voice-btn');
+    return !!(model && voice && (model.compareDocumentPosition(voice) & Node.DOCUMENT_POSITION_FOLLOWING));
+  })).toBe(true);
 
   const loadedRules = await page.evaluate(async () => {
     await (await import('/js/chat-panel.js')).loadChatPresentationStylesheets();

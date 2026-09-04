@@ -51,7 +51,7 @@ const threadFns = [
   'ensureActiveThread', 'createNewThread',
   'switchToThread', 'deleteThread',
   'renameThread', 'renameThreadPrompt',
-  'createThreadProject', 'toggleThreadPinned', 'moveThreadToProjectPrompt',
+  'createThreadProject', 'toggleThreadPinned', 'moveThreadToProject',
   'getChatThreadSort', 'setChatThreadSort',
   'autoNameThread', 'pruneOldThreads',
   'renderThreadList', 'filterThreadList',

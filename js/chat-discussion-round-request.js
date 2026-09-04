@@ -15,6 +15,7 @@ import {
   buildPersonalityPrompt, buildTaggedChatMessages, buildWebSearchHint,
 } from './chat-prompt-context.js';
 import { getChatWebSearchEnabled } from './chat-panel.js';
+import { getDirectChatReasoningEffort } from './chat-model-preferences.js';
 
 export async function buildDiscussionRoundRequest({ msgText, roundHistory, signal }) {
   let labContext = buildChatLabContext(msgText);
@@ -32,6 +33,7 @@ export async function buildDiscussionRoundRequest({ msgText, roundHistory, signa
   const provider = getAIProvider();
   const modelId = getActiveModelId(provider);
   const modelDisplay = getActiveModelDisplay(provider);
+  const reasoningEffort = getDirectChatReasoningEffort(provider, modelId);
   const e2ee = (provider === 'venice' && isVeniceE2EEActive())
     || (provider === 'ppq' && isPpqPrivateModeActive())
     || (provider === 'routstr' && isRoutstrPrivateModeActive());
@@ -63,6 +65,7 @@ export async function buildDiscussionRoundRequest({ msgText, roundHistory, signa
     modelId,
     personality,
     provider,
+    reasoningEffort,
     systemPrompt,
     webSearch,
   };

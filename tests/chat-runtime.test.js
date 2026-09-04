@@ -100,9 +100,12 @@ describe('chat continuation runtime behavior', () => {
       onStream,
       webSearch: true,
       provider: 'openrouter',
+      reasoningEffort: 'high',
     });
 
     expect(callClaudeAPI).toHaveBeenCalledTimes(2);
+    expect(callClaudeAPI.mock.calls[0][0].reasoningEffort).toBe('high');
+    expect(callClaudeAPI.mock.calls[1][0].reasoningEffort).toBe('high');
     expect(callClaudeAPI.mock.calls[1][0].messages).toEqual([
       { role: 'user', content: 'question' },
       { role: 'assistant', content: 'first half ' },

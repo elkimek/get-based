@@ -227,7 +227,7 @@ test('conversation projects, pinning, and sorting persist through the thread ind
 
       const pinned = threads.toggleThreadPinned('zulu') === true
         && state.chatThreads.find(thread => thread.id === 'zulu')?.pinned === true;
-      await threads.moveThreadToProjectPrompt('alpha');
+      await threads.moveThreadToProject('alpha', 'Hormones');
       const moved = state.chatThreads.find(thread => thread.id === 'alpha')?.projectName === 'Hormones';
 
       promptValue = 'Nutrition';
@@ -252,6 +252,57 @@ test('conversation projects, pinning, and sorting persist through the thread ind
   });
 
   for (const [name, passed] of Object.entries(outcomes)) expect(passed, name).toBe(true);
+});
+
+test('desktop conversations move into projects with drag and drop', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 850 });
+  await page.goto('/app', { waitUntil: 'load' });
+  const original = await page.evaluate(async () => {
+    const [{ state }, threads, panelModule] = await Promise.all([import('/js/state.js'), import('/js/chat-threads.js'), import('/js/chat-panel.js')]);
+    await panelModule.loadChatPresentationStylesheets();
+    const panel = document.getElementById('chat-panel');
+    panel?.classList.add('open');
+    panel?.removeAttribute('inert');
+    document.getElementById('chat-thread-rail')?.classList.add('open');
+    document.getElementById('tour-overlay')?.remove();
+    const snapshot = { chatThreads: state.chatThreads, currentThreadId: state.currentThreadId };
+    const now = new Date().toISOString();
+    state.chatThreads = [
+      { id: 'drag-me', name: 'Move me', createdAt: now, updatedAt: now, messageCount: 1, personality: 'default' },
+      { id: 'project-home', name: 'Metabolic overview', createdAt: now, updatedAt: now, messageCount: 2, personality: 'default', projectName: 'Metabolic' },
+    ];
+    state.currentThreadId = 'drag-me';
+    threads.renderThreadList();
+    return snapshot;
+  });
+
+  await expect(page.locator('[data-chat-thread-action="move"]')).toHaveCount(0);
+  const projectTransfer = await page.evaluateHandle(() => new DataTransfer());
+  await page.locator('.chat-thread-item[data-thread-id="drag-me"]').dispatchEvent('dragstart', { dataTransfer: projectTransfer });
+  await page.locator('[data-chat-project-drop="Metabolic"] .chat-thread-group-title').dispatchEvent('dragover', { dataTransfer: projectTransfer });
+  await page.locator('[data-chat-project-drop="Metabolic"] .chat-thread-group-title').dispatchEvent('drop', { dataTransfer: projectTransfer });
+  await expect.poll(() => page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return state.chatThreads.find(thread => thread.id === 'drag-me')?.projectName || '';
+  })).toBe('Metabolic');
+  await expect(page.locator('[data-chat-project-drop="Metabolic"] .chat-thread-item')).toHaveCount(2);
+
+  const unfiledTransfer = await page.evaluateHandle(() => new DataTransfer());
+  await page.locator('.chat-thread-item[data-thread-id="drag-me"]').dispatchEvent('dragstart', { dataTransfer: unfiledTransfer });
+  await expect(page.locator('.chat-thread-unfiled-drop')).toBeVisible();
+  await page.locator('.chat-thread-unfiled-drop').dispatchEvent('dragover', { dataTransfer: unfiledTransfer });
+  await page.locator('.chat-thread-unfiled-drop').dispatchEvent('drop', { dataTransfer: unfiledTransfer });
+  await expect.poll(() => page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return state.chatThreads.find(thread => thread.id === 'drag-me')?.projectName || '';
+  })).toBe('');
+
+  await page.evaluate(async snapshot => {
+    const [{ state }, threads] = await Promise.all([import('/js/state.js'), import('/js/chat-threads.js')]);
+    state.chatThreads = snapshot.chatThreads;
+    state.currentThreadId = snapshot.currentThreadId;
+    threads.renderThreadList();
+  }, original);
 });
 
 test('mobile thread selection and creation return directly to the chat', async ({ page }) => {

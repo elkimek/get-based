@@ -276,7 +276,7 @@ export function renderAttachmentPreview() {
     `<button class="chat-attach-remove" type="button" ${chatMessageActionAttrs('remove-image-attachment', { index: i })} aria-label="Remove ${escapeHTML(att.name)}">&times;</button>` +
     `</div>`
   ).join('') +
-  `<span class="chat-attach-count">${pendingAttachments.length}/${currentAttachmentLimit()} · original quality</span>`;
+  `<span class="chat-attach-count">${pendingAttachments.length}/${currentAttachmentLimit()}</span>`;
 }
 
 export function openImageLightbox(src) {
@@ -361,6 +361,7 @@ export function updateAttachButtonVisibility() {
 
 if (typeof globalThis.addEventListener === 'function') {
   globalThis.addEventListener('getbased:agent-model-catalog-changed', updateAttachButtonVisibility);
+  globalThis.addEventListener('labcharts-ai-settings-local-changed', updateAttachButtonVisibility);
 }
 
 export function initChatImageHandlers() {
