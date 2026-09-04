@@ -23,7 +23,7 @@ export function getChatBackendDisplay() {
   const agent = getAgentHostAgent();
   const catalog = getCachedAgentModelCatalog(agent, getAgentHostTarget(agent));
   const configuredModel = getAgentHostModel();
-  const fallback = ({ codex: 'Codex', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes', grok: 'Grok', openclaw: 'OpenClaw' })[agent] || 'CLI agent';
+  const fallback = ({ codex: 'Codex', claude: 'Claude Agent', opencode: 'OpenCode', hermes: 'Hermes', grok: 'Grok', openclaw: 'OpenClaw' })[agent] || 'CLI agent';
   if (configuredModel) return getAgentModelDisplay(configuredModel, catalog);
   const defaultModel = catalog.find(model => model.isDefault) || catalog[0] || null;
   return defaultModel?.displayName || fallback;

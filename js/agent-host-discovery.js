@@ -9,6 +9,19 @@ import {
 const LOOPBACK_AGENT_PORTS = Object.freeze(Array.from({ length: 8 }, (_, index) => 8324 + index));
 const LOOPBACK_DISCOVERY_TIMEOUT_MS = 650;
 
+/** @param {{hostname?: string}} [locationLike] */
+function isOfficialAgentHostPage(locationLike = globalThis.location) {
+  const hostname = String(locationLike?.hostname || '').toLowerCase().replace(/\.$/, '');
+  return hostname === 'getbased.health' || hostname.endsWith('.getbased.health')
+    || hostname === 'get-based.vercel.app'
+    || hostname === 'get-based-managed-subscription-v2.vercel.app';
+}
+
+/** @param {string} agentId @param {{hostname?: string}} [locationLike] */
+export function isAgentAllowedForDeployment(agentId, locationLike = globalThis.location) {
+  return !(agentId === 'claude' && isOfficialAgentHostPage(locationLike));
+}
+
 /** @param {any} agent */
 export function normalizeDiscoveredAgent(agent) {
   return {
@@ -87,7 +100,8 @@ export async function discoverLoopbackAgentHostsRuntime(options) {
   for (const endpoint of endpoints) {
     if (options.signal?.aborted) return [];
     const agents = await probeLoopbackAgentHost(endpoint, options.signal, options.normalizeEndpoint);
-    if (agents.length) return agents;
+    const allowedAgents = agents.filter(agent => isAgentAllowedForDeployment(agent.id));
+    if (allowedAgents.length) return allowedAgents;
   }
   return [];
 }

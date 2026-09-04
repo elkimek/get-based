@@ -67,7 +67,7 @@ All normal tracking works without AI. AI features can use:
 | **OpenRouter** | A broad hosted model marketplace with OAuth or manual key setup. |
 | **Venice AI** | Hosted models with optional browser-side message encryption plus required Intel DCAP and NVIDIA NRAS checks. |
 | **Local AI** | Any OpenAI-compatible local server, such as Ollama, LM Studio, Jan, or llama.cpp. |
-| **CLI agents** | Use an existing signed-in Codex, Claude Code, OpenCode, Hermes, Grok, or OpenClaw subscription for chat and supported AI features through the local getbased Companion on Linux, macOS, or Windows. Hermes and OpenClaw can also route chat to a detected personal gateway/profile. Health-data changes remain reviewable drafts. |
+| **CLI agents** | Use an installed Codex, OpenCode, Hermes, Grok, or OpenClaw account or configured model provider for chat and supported AI features through the local getbased Companion on Linux, macOS, or Windows. Hermes and OpenClaw can also route chat to a detected personal gateway/profile. Health-data changes remain reviewable drafts. |
 | **Custom API** | Bring your own OpenAI-compatible endpoint or proxy. |
 
 Switch providers in Settings. Supported provider keys are wrapped locally with
@@ -91,6 +91,15 @@ browser never exposes a port or pairing token.
 The entry point, host, installers, protocol, and bundle build are all
 source-available in this repository under `bin/`, `server/`, `lib/`, `shared/`,
 and `scripts/`.
+
+The dormant Claude adapter is intentionally not advertised or detected in
+normal builds. Anthropic does not permit third-party products to route
+claude.ai Free, Pro, or Max credentials without prior approval. Self-hosting
+operators using Anthropic Console/API billing may expose the adapter as
+**Claude Agent** by starting or installing the companion with
+`GETBASED_ENABLE_CLAUDE_AGENT=api-console`; then sign in with
+`claude auth login --console`. This opt-in does not make consumer subscription
+credentials permissible.
 
 Independent deployment operators can identify themselves without inheriting
 getbased policies by setting these metadata values in `index.html`:
@@ -145,7 +154,7 @@ The **Interpretive Lens** is different: it changes the framing of analysis. For 
 
 ## Agent Access
 
-Agent Access is for using your getbased context from external AI tools — Hermes Agent, OpenClaw, Claude Code, Claude Desktop, Cursor, Cline, Codex CLI, or another MCP-compatible client.
+Agent Access is for using your getbased context from external AI tools — Hermes Agent, OpenClaw, Claude Agent, Claude Desktop, Cursor, Cline, Codex CLI, or another MCP-compatible client.
 
 How it works:
 

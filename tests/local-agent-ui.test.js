@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
   detectCompanionPlatform, getCLIAgentModelProvider, getCompanionCommand, getLinuxCompanionInstallCommand, getLinuxCompanionRunCommand,
@@ -47,13 +48,38 @@ describe('local agent selection UI', () => {
       expect(getCLIAgentBrandAsset(agent)).toBe(`/brands/cli-agent-${agent}.svg`);
       expect(renderCLIAgentBrandIcon(agent)).toContain(`src="/brands/cli-agent-${agent}.svg"`);
       expect(read(`brands/cli-agent-${agent}.svg`)).toContain('<svg');
-      expect(serviceWorker).toContain(`/brands/cli-agent-${agent}.svg`);
+      if (agent !== 'grok') expect(serviceWorker).toContain(`/brands/cli-agent-${agent}.svg`);
     }
     expect(serviceWorker).toContain('/js/cli-agent-brand-assets.js');
     expect(renderCLIAgentBrandIcon('unknown')).toContain('local-agent-icon-fallback');
+    expect(read('brands/cli-agent-grok.svg')).not.toContain('data:image');
+    expect(read('brands/cli-agent-claude.svg')).not.toContain('data:image');
+    expect(read('brands/CLI_AGENTS.md')).toContain('do not represent a partnership, sponsorship, or');
   });
 
-  it('offers existing subscriptions in chat onboarding', () => {
+  it('uses current provider identification assets and publishes their provenance', () => {
+    const settings = read('js/settings.js');
+    const serviceWorker = read('service-worker.js');
+    const expectedHashes = {
+      openrouter: '5b49593d44e6aa41011be377e182cd89e57473f1948e0dfb128f99a92adfc68d',
+      routstr: '56fb66f3083ac0de62d933121df1506708292739465e3119421400284f544f4f',
+      venice: '0218ef39e62887d49ae81dab563cec35ef61f3a1a0342d526fa8ff5ae5003eef',
+    };
+    for (const [provider, expectedHash] of Object.entries(expectedHashes)) {
+      const path = `brands/ai-provider-${provider}.svg`;
+      expect(settings).toContain(`src="/${path}"`);
+      expect(createHash('sha256').update(read(path)).digest('hex')).toBe(expectedHash);
+    }
+    const ppqSvg = read('brands/ai-provider-ppq.svg');
+    const ppqBytes = Buffer.from(ppqSvg.match(/base64,([^\"]+)/)?.[1] || '', 'base64');
+    expect(createHash('sha256').update(ppqBytes).digest('hex'))
+      .toBe('d1c6cab3f71ed07d4ebf086efbaa2e517dadfd5009a564b15780c4be5cda9de5');
+    expect(settings).toContain('src="/brands/ai-provider-ppq.svg"');
+    expect(serviceWorker).not.toContain('/brands/ai-provider-ppq.svg');
+    expect(read('brands/AI_PROVIDERS.md')).toContain('do not imply');
+  });
+
+  it('offers existing AI accounts in chat onboarding', () => {
     const source = read('js/chat-onboarding.js');
     expect(source).toContain('Use an AI subscription I already have');
     expect(source).toContain("branch === 'cli'");

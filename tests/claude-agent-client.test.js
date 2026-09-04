@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { extractClaudeStreamEvent, getClaudeModelCatalog } from '../lib/claude-agent-client.js';
 import { ClaudeAgentClient } from '../lib/claude-agent-client.js';
 
-describe('Claude Code adapter', () => {
+describe('Claude Agent adapter', () => {
   it('offers alias models with image and reasoning metadata', () => {
     const models = getClaudeModelCatalog();
     expect(models.map(model => model.id)).toEqual(expect.arrayContaining(['sonnet', 'opus', 'fable']));

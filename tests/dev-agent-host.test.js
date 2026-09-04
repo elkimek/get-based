@@ -80,6 +80,28 @@ describe('development agent discovery', () => {
     expect(controller.describe().agents.map(agent => agent.compatible)).toEqual([true, true, true, true, true]);
   });
 
+  it('keeps Claude Agent dormant unless API/Console use is explicitly enabled', () => {
+    const discover = env => startDevAgentHost({
+      root: '/workspace', env,
+      execFileSyncImpl: vi.fn((command, args) => {
+        if (command !== 'claude') throw new Error('missing');
+        if (args[0] === '--version') return 'Claude CLI 2.1.0';
+        if (args[0] === 'auth') return JSON.stringify({ loggedIn: true });
+        throw new Error('unexpected');
+      }),
+      prepareStorage: vi.fn(() => ({ token: 'private-token' })),
+      spawnImpl: vi.fn(() => fakeChild()),
+    });
+
+    expect(discover({}).describe().agents).toEqual([]);
+    const enabled = discover({ GETBASED_ENABLE_CLAUDE_AGENT: 'api-console' });
+    expect(enabled.describe().agents).toEqual([expect.objectContaining({
+      id: 'claude', name: 'Claude Agent', status: 'starting',
+      description: 'Anthropic agent · API/Console billing only',
+    })]);
+    enabled.close();
+  });
+
   it('honors an explicit CLI path during development discovery', () => {
     const child = fakeChild();
     const run = vi.fn(command => {

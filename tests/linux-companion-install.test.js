@@ -97,17 +97,21 @@ describe('Linux companion installer', () => {
     })).toThrow('No supported CLI agent was found');
   });
 
-  it('can install for Claude Code without Codex', () => {
+  it('can install the opt-in Claude Agent for API/Console billing without Codex', () => {
     const setup = fixture();
     const claudeCommand = join(setup.root, 'commands', 'claude');
     writeFileSync(claudeCommand, '#!/bin/sh\nexit 0\n');
     chmodSync(claudeCommand, 0o755);
     const result = installLinuxCompanion({
       ...setup,
-      env: { ...setup.env, GETBASED_CODEX_COMMAND: 'missing-codex', GETBASED_CLAUDE_COMMAND: claudeCommand },
+      env: {
+        ...setup.env, GETBASED_CODEX_COMMAND: 'missing-codex', GETBASED_CLAUDE_COMMAND: claudeCommand,
+        GETBASED_ENABLE_CLAUDE_AGENT: 'api-console',
+      },
       nodePath: process.execPath, platform: 'linux', dryRun: true,
     });
     expect(result.serviceSource).toContain(`GETBASED_CLAUDE_COMMAND=${claudeCommand}`);
+    expect(result.serviceSource).toContain('GETBASED_ENABLE_CLAUDE_AGENT=api-console');
   });
 
   it('finds an official self-contained OpenClaw install without a PATH entry', () => {

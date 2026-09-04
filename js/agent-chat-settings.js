@@ -13,6 +13,11 @@ const AGENT_KEY = 'labcharts-agent-host-agent';
 const TARGET_KEY = 'labcharts-agent-host-target';
 export const DEFAULT_AGENT_HOST_ENDPOINT = 'http://127.0.0.1:8324';
 
+function isOfficialAgentChatPage() {
+  return /(^|\.)getbased\.health\.?$|^get-based(?:-managed-subscription-v2)?\.vercel\.app\.?$/i
+    .test(globalThis.location?.hostname || '');
+}
+
 /** @param {unknown} value */
 function normalizeAgentId(value) {
   return String(value || '').trim().slice(0, 40) || 'codex';
@@ -42,7 +47,8 @@ function scopedAgentModelEffortKey(agentId, targetId, modelId) {
 }
 
 export function getChatBackend() {
-  return localStorage.getItem(BACKEND_KEY) === 'codex' ? 'codex' : 'direct';
+  const blocked = getAgentHostAgent() === 'claude' && isOfficialAgentChatPage();
+  return localStorage.getItem(BACKEND_KEY) === 'codex' && !blocked ? 'codex' : 'direct';
 }
 
 /** @param {unknown} value */

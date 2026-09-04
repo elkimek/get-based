@@ -69,7 +69,7 @@ const PROVIDER_LABELS = Object.freeze({
   ppq: 'PPQ',
   custom: 'Custom API',
   codex: 'Codex CLI',
-  claude: 'Claude Code',
+  claude: 'Claude Agent',
   opencode: 'OpenCode',
   hermes: 'Hermes Agent',
   grok: 'Grok Build',

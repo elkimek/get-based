@@ -1164,6 +1164,7 @@
 }
 .settings-modal .local-agent-icon-opencode img { width: 24px; height: 24px; }
 .settings-modal .local-agent-icon-claude img { width: 23px; height: 23px; }
+.settings-modal .local-agent-icon-grok img { width: 23px; height: 23px; }
 .settings-modal .local-agent-icon-fallback { color: #141413; font-size: 9px; font-weight: 700; }
 .settings-modal .local-agent-name { color: var(--text-primary); font-size: 13px; font-weight: 650; }
 .settings-modal .local-agent-meta {

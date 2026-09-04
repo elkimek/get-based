@@ -280,7 +280,6 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/brands/cli-agent-claude.svg',
   '/brands/cli-agent-opencode.svg',
   '/brands/cli-agent-hermes.svg',
-  '/brands/cli-agent-grok.svg',
   '/brands/cli-agent-openclaw.svg',
   '/js/chat-message-action-attrs.js',
   '/js/chat-icons.js',

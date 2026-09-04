@@ -92,7 +92,7 @@ describe('external agent turn lifecycle', () => {
 
   it('removes one-shot Claude MCP credentials after an adapter failure', async () => {
     const agent = {
-      id: 'claude', protocol: 'claude', name: 'Claude Code',
+      id: 'claude', protocol: 'claude', name: 'Claude Agent',
       client: { prompt: vi.fn(async () => { throw new Error('service failed'); }) },
     };
     const options = turnOptions(agent);

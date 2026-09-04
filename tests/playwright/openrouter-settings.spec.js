@@ -72,10 +72,10 @@ test('CLI provider discovers branded agents and keeps model controls stable acro
   const token = 'playwright-companion-token-1234';
   const agents = [
     ['codex', 'Codex CLI', 'OpenAI official CLI'],
-    ['claude', 'Claude Code', 'Anthropic official CLI'],
+    ['claude', 'Claude Agent', 'Anthropic agent · API/Console billing only'],
     ['opencode', 'OpenCode', 'Open-source multi-model agent CLI'],
     ['hermes', 'Hermes Agent', 'Nous Research agent CLI'],
-    ['grok', 'Grok Build', 'xAI coding CLI'],
+    ['grok', 'Grok Build', 'SpaceXAI coding agent CLI'],
     ['openclaw', 'OpenClaw', 'Open-source personal AI assistant'],
   ].map(([id, name, description]) => ({
     id, name, description, version: 'test', status: 'available', compatible: true,
@@ -173,7 +173,7 @@ test('CLI provider discovers branded agents and keeps model controls stable acro
 
   const rows = page.locator('.local-agent-row');
   await expect(rows).toHaveCount(6);
-  await expect(rows).toContainText(['Codex CLI', 'Claude Code', 'OpenCode', 'Hermes Agent', 'Grok Build', 'OpenClaw']);
+  await expect(rows).toContainText(['Codex CLI', 'Claude Agent', 'OpenCode', 'Hermes Agent', 'Grok Build', 'OpenClaw']);
   const iconsLoaded = await page.locator('.local-agent-icon img').evaluateAll(images => images.map(image => ({
     complete: image.complete, naturalWidth: image.naturalWidth,
   })));

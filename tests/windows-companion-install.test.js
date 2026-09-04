@@ -17,12 +17,18 @@ describe('Windows companion installer', () => {
     const runner = renderWindowsCompanionRunner({
       nodePath: 'C:\\Node\\node.exe', bundlePath: paths.installedBundle,
       codexCommand: 'C:\\Users\\Alex\\bin\\codex.exe', sourceCodexHome: 'C:\\Users\\Alex\\.codex',
+      agentCommands: {
+        GETBASED_CODEX_COMMAND: 'C:\\Users\\Alex\\bin\\codex.exe',
+        GETBASED_ENABLE_CLAUDE_AGENT: 'api-console',
+      },
     });
     expect(runner).toContain('WScript.Shell');
     expect(runner).toContain(', 0, True');
     expect(runner).toContain('GETBASED_CODEX_COMMAND');
     expect(runner).toContain('GETBASED_SOURCE_CODEX_HOME');
     expect(runner).toContain('GETBASED_COMPANION_SERVICE');
+    expect(runner).toContain('GETBASED_ENABLE_CLAUDE_AGENT');
+    expect(runner).toContain('api-console');
     expect(renderWindowsCompanionLauncher({ nodePath: 'C:\\Node\\node.exe', bundlePath: paths.installedBundle }))
       .toContain('%*');
   });

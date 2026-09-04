@@ -90,7 +90,7 @@ function renderCompanionSetup() {
         <button type="button" class="import-btn import-btn-primary settings-mini-btn" data-settings-action="copy-cli-companion-run">Copy connection command</button>
       </div>
     </div>
-    <small>Already installed but stopped? <button type="button" class="settings-link-btn" data-settings-action="copy-cli-companion-start" data-command="${escapeAttr(startCommand)}">Copy the start command</button>. Requires Node.js 20+ and at least one signed-in supported CLI. No port or pairing token is needed. <a href="https://github.com/elkimek/get-based/blob/main/bin/getbased-companion.js" target="_blank" rel="noopener">Review the source on GitHub</a>.</small>
+    <small>Already installed but stopped? <button type="button" class="settings-link-btn" data-settings-action="copy-cli-companion-start" data-command="${escapeAttr(startCommand)}">Copy the start command</button>. Requires Node.js 20+ and at least one configured supported CLI. No port or pairing token is needed. <a href="https://github.com/elkimek/get-based/blob/main/bin/getbased-companion.js" target="_blank" rel="noopener">Review the source on GitHub</a>.</small>
   </div>`;
 }
 
@@ -125,11 +125,11 @@ export async function copyCLICompanionStartCommand() {
 
 /** @param {string} agentId */
 export async function copyCLIAgentLoginCommand(agentId) {
-  const command = agentId === 'claude' ? 'claude auth login' : agentId === 'codex' ? 'codex login' : '';
+  const command = agentId === 'claude' ? 'claude auth login --console' : agentId === 'codex' ? 'codex login' : '';
   if (!command) return;
   try {
     await navigator.clipboard.writeText(command);
-    showNotification(`${agentId === 'claude' ? 'Claude Code' : 'Codex'} sign-in command copied`, 'success');
+    showNotification(`${agentId === 'claude' ? 'Claude Agent' : 'Codex'} sign-in command copied`, 'success');
   } catch { showNotification('Could not access the clipboard', 'error'); }
 }
 
@@ -140,7 +140,7 @@ export function renderCLIAgentProviderPanel() {
       <div class="local-agent-chat-head">
         <div class="settings-copy">
           <div id="local-agent-chat-title" class="settings-copy-title">CLI agents</div>
-          <div class="settings-copy-desc">Use an installed agent and its existing subscription across getbased. A small local companion connects the browser to CLI programs on this computer.</div>
+          <div class="settings-copy-desc">Use an installed agent with its existing account or configured model provider. A small local companion connects the browser to CLI programs on this computer.</div>
         </div>
         <button class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="rescan-cli-agents">Check connection</button>
       </div>
@@ -283,7 +283,7 @@ function renderAgentModelControls(models) {
   if (selectedEffort && !efforts.some(item => item.reasoningEffort === selectedEffort)) {
     effortOptions.push({ value: selectedEffort, label: `${selectedEffort} · unavailable` });
   }
-  const agentName = ({ codex: 'Codex CLI', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes Agent', grok: 'Grok Build', openclaw: 'OpenClaw' })[agentId] || 'the selected CLI';
+  const agentName = ({ codex: 'Codex CLI', claude: 'Claude Agent', opencode: 'OpenCode', hermes: 'Hermes Agent', grok: 'Grok Build', openclaw: 'OpenClaw' })[agentId] || 'the selected CLI';
   const reasoningNote = !efforts.length && agentId === 'hermes'
     ? ' Hermes ACP does not expose a separate reasoning control yet, so getbased uses your Hermes setting.' : '';
   const targetOptions = agentTargets.map(target => ({

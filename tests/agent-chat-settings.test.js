@@ -28,6 +28,14 @@ describe('agent chat settings', () => {
     expect(setChatBackend('unexpected')).toBe('direct');
   });
 
+  it('fails a legacy Claude Agent selection closed on the official hosted app', () => {
+    vi.stubGlobal('location', { hostname: 'app.getbased.health' });
+    localStorage.setItem('labcharts-agent-host-agent', 'claude');
+    localStorage.setItem('labcharts-chat-backend', 'codex');
+    expect(getChatBackend()).toBe('direct');
+    expect(localStorage.getItem('labcharts-chat-backend')).toBe('codex');
+  });
+
   it('normalizes local CLI discovery and requests a real rescan when asked', async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ agents: [{
       id: 'codex', name: 'Codex CLI', description: 'OpenAI official CLI', version: '0.150.1',

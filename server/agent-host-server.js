@@ -50,7 +50,7 @@ const hermesRouteProvider = detectedAgents.some(agent => agent.id === 'hermes')
   ? createHermesGatewayRouteProvider({ env: process.env }) : null;
 if (!detectedAgents.length) {
   rmSync(workspaceRoot, { recursive: true, force: true });
-  process.stderr.write('getbased Companion did not find Codex, Claude Code, OpenCode, Hermes, Grok, or OpenClaw on this computer.\n');
+  process.stderr.write('getbased Companion did not find Codex, OpenCode, Hermes, Grok, or OpenClaw on this computer.\n');
   process.exit(1);
 }
 /** @type {CodexAppServerClient | null} */

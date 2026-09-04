@@ -65,6 +65,17 @@ describe('macOS companion installer', () => {
     expect(launchctl).not.toHaveBeenCalled();
   });
 
+  it('preserves the explicit Claude Agent API/Console gate in the LaunchAgent', () => {
+    const setup = fixture();
+    const result = installMacOSCompanion({
+      ...setup,
+      env: { ...setup.env, GETBASED_ENABLE_CLAUDE_AGENT: 'api-console' },
+      dryRun: true,
+    });
+    expect(result.serviceSource)
+      .toContain('<key>GETBASED_ENABLE_CLAUDE_AGENT</key><string>api-console</string>');
+  });
+
   it('resolves user-owned macOS paths', () => {
     const paths = resolveMacOSCompanionPaths({ homeDirectory: '/Users/alex' });
     expect(paths.runtimeDirectory).toBe('/Users/alex/Library/Application Support/getbased/companion');

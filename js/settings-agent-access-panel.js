@@ -31,7 +31,7 @@ let _setupCommandClipboardClearTimer = null;
 const AGENT_ACCESS_CLIENTS = [
   { id: 'hermes', label: 'Hermes Agent', terminal: 'Hermes' },
   { id: 'openclaw', label: 'OpenClaw', terminal: 'OpenClaw' },
-  { id: 'claude-code', label: 'Claude Code', terminal: 'Claude Code' },
+  { id: 'claude-code', label: 'Claude Agent', terminal: 'Claude' },
   { id: 'claude-desktop', label: 'Claude Desktop', terminal: 'Claude Desktop' },
   { id: 'cursor', label: 'Cursor', terminal: 'Cursor' },
   { id: 'cline', label: 'Cline', terminal: 'Cline' },
