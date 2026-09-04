@@ -318,13 +318,8 @@ export function buildUserActionBar(msgIndex) {
   const msg = state.chatHistory[msgIndex];
   if (!msg || msg.role !== 'user' || msg.hidden) return '';
   const latestUserIndex = latestVisibleUserMessageIndex();
-  let html = '<div class="chat-action-bar chat-user-action-bar">';
-  html += `<button class="chat-action-btn" type="button" ${chatMessageActionAttrs('copy-message', { index: msgIndex })} id="chat-copy-btn-${msgIndex}" title="Copy to clipboard">${CHAT_ICON_COPY}<span>Copy</span></button>`;
-  if (msgIndex === latestUserIndex && !msg.hasImages) {
-    html += `<button class="chat-action-btn chat-edit-retry-action" type="button" ${chatMessageActionAttrs('edit-user-message', { index: msgIndex })} title="Edit your latest message and replace its response">${CHAT_ICON_EDIT}<span>Edit &amp; retry</span></button>`;
-  }
-  html += '</div>';
-  return html;
+  if (msgIndex !== latestUserIndex || msg.hasImages) return '';
+  return `<div class="chat-user-action-bar"><button class="chat-action-btn chat-edit-retry-action" type="button" ${chatMessageActionAttrs('edit-user-message', { index: msgIndex })} title="Edit and resend (replaces the current response)" aria-label="Edit and resend your latest message">${CHAT_ICON_EDIT}</button></div>`;
 }
 
 export function buildForkSourceNotice() {

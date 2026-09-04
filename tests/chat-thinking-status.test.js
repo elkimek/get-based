@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { state } from '../js/state.js';
 import {
-  applyChatMessageAvatar, applyRenderedChatMessageAvatars,
+  applyChatMessageAvatar, applyRenderedChatMessageAvatars, shouldShowChatPersonaLabel,
 } from '../js/chat-message-avatars.js';
 import {
   CHAT_THINKING_DURATIONS_MS, CHAT_THINKING_PHRASES,
@@ -84,5 +84,8 @@ describe('chat thinking status and sender avatars', () => {
     const assistant = document.getElementById('chat-msg-1');
     expect(assistant?.dataset.chatAvatarText).toBe('🦯');
     expect(assistant?.style.getPropertyValue('--chat-avatar-image')).toBe('');
+    expect(shouldShowChatPersonaLabel({ personalityName: 'AI Lab Analyst' })).toBe(false);
+    expect(shouldShowChatPersonaLabel({ personalityName: 'Dr. Gregory House' })).toBe(true);
+    expect(shouldShowChatPersonaLabel({ personalityName: 'AI Lab Analyst', discussion: true })).toBe(true);
   });
 });

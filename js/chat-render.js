@@ -30,7 +30,9 @@ import {
   resetChatRenderWindow,
   revealChatRenderIndex,
 } from './chat-render-range.js';
-import { applyRenderedChatMessageAvatars } from './chat-message-avatars.js';
+import {
+  applyRenderedChatMessageAvatars, shouldShowChatPersonaLabel,
+} from './chat-message-avatars.js';
 
 export { _getNoDataPrompts } from './chat-empty-state.js';
 
@@ -102,7 +104,7 @@ export function renderChatMessages({ preserveScroll = false } = {}) {
     // Hidden auto messages (instruction sent to API but not shown)
     if (msg.hidden) continue;
     // Show persona label when personality changes between AI messages
-    if (msg.role === 'assistant' && msg.personalityName && msg.personalityName !== lastPersonaName) {
+    if (msg.role === 'assistant' && shouldShowChatPersonaLabel(msg) && msg.personalityName !== lastPersonaName) {
       html += `<div class="chat-persona-label">${escapeHTML(msg.personalityIcon || '')} ${escapeHTML(msg.personalityName)}</div>`;
     }
     if (msg.role === 'assistant') lastPersonaName = msg.personalityName || null;

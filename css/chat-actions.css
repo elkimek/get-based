@@ -108,9 +108,19 @@
   stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto;
 }
 .chat-action-btn { display: inline-flex; align-items: center; gap: 5px; }
-.chat-user-action-bar { border-top-color: rgba(255, 255, 255, 0.28); justify-content: flex-end; flex-wrap: wrap; }
-.chat-user-action-bar .chat-action-btn { color: rgba(255, 255, 255, 0.82); }
-.chat-user-action-bar .chat-action-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.14); }
+.chat-user-action-bar {
+  position: absolute; right: calc(100% + 6px); bottom: 0;
+  margin: 0; padding: 0; border: 0; opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.chat-msg.chat-user:hover .chat-user-action-bar,
+.chat-msg.chat-user:focus-within .chat-user-action-bar { opacity: 1; }
+.chat-user-action-bar .chat-action-btn {
+  display: grid; width: 28px; height: 28px; padding: 0; place-items: center;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-card); color: var(--text-muted); box-shadow: var(--shadow);
+}
+.chat-user-action-bar .chat-action-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
 .chat-action-more { display: none; position: relative; color: inherit; }
 .chat-action-more > summary {
   display: grid; place-items: center; min-width: 32px; min-height: 28px; padding: 0 7px;
@@ -118,7 +128,7 @@
 }
 .chat-action-more > summary::-webkit-details-marker { display: none; }
 .chat-action-more > summary:hover { background: var(--bg-hover); color: var(--text-primary); }
-.chat-user-action-bar .chat-action-more > summary:hover { color: #fff; background: rgba(255, 255, 255, 0.14); }
+.chat-user-action-bar .chat-action-more > summary:hover { color: var(--text-primary); background: var(--bg-hover); }
 .chat-action-more-popover {
   position: absolute; z-index: 20; right: 0; bottom: calc(100% + 5px); min-width: 174px;
   padding: 4px; border: 1px solid var(--border); border-radius: 8px;
@@ -132,6 +142,9 @@
 .chat-action-more-popover button:hover { background: var(--bg-hover); }
 .chat-action-more-popover button:focus-visible,
 .chat-action-more > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (hover: none), (pointer: coarse) {
+  .chat-user-action-bar { opacity: 1; }
+}
 /* Context used toggle + details */
 .chat-context-toggle {
   display: block; border: 0; background: transparent; font-family: inherit; text-align: left;

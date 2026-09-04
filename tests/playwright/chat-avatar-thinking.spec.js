@@ -71,6 +71,7 @@ test('chat shows profile, CLI, and persona identities with rotating pre-token co
       userMargin: getComputedStyle(user).marginRight,
       assistantMargin: getComputedStyle(cli).marginLeft,
       cliTileColor: getComputedStyle(cli, '::before').backgroundColor,
+      personaLabels: [...container.querySelectorAll('.chat-persona-label')].map(label => label.textContent.trim()),
     };
   });
 
@@ -87,4 +88,5 @@ test('chat shows profile, CLI, and persona identities with rotating pre-token co
   expect(results.userMargin).toBe('36px');
   expect(results.assistantMargin).toBe('36px');
   expect(results.cliTileColor).toBe('rgb(255, 255, 255)');
+  expect(results.personaLabels).toEqual(['🦯 Dr. Gregory House']);
 });

@@ -6,6 +6,16 @@ import { getCLIAgentBrandAsset } from './cli-agent-brand-assets.js';
 
 const DEFAULT_PERSONA_NAME = 'AI Lab Analyst';
 
+/**
+ * Default one-assistant chat is identified by its avatar and header. Named
+ * personas and discussion participants still need an explicit transcript label.
+ * @param {{ personalityName?: string, discussion?: boolean }} message
+ */
+export function shouldShowChatPersonaLabel(message) {
+  const name = String(message?.personalityName || '').trim();
+  return Boolean(name && (message?.discussion || name !== DEFAULT_PERSONA_NAME));
+}
+
 /** @param {unknown} value */
 function isSafeProfileAvatar(value) {
   return typeof value === 'string' && /^data:image\/(?:png|jpe?g|webp|gif|avif|svg\+xml);base64,/i.test(value);

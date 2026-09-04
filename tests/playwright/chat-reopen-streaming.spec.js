@@ -54,7 +54,7 @@ test('closing and reopening chat preserves an in-flight response', async ({ page
       if (messages) {
         messages.innerHTML = `
           <div class="chat-msg chat-user">Explain this result
-            <button class="chat-action-btn chat-edit-retry-action" data-chat-message-action="edit-user-message">Edit &amp; retry</button>
+            <button class="chat-action-btn chat-edit-retry-action" data-chat-message-action="edit-user-message" aria-label="Edit and resend your latest message"></button>
           </div>
           <div class="chat-persona-label">AI Lab Analyst</div>
           <div class="chat-msg chat-ai" data-chat-streaming="true">Partial answer still arriving…</div>

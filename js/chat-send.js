@@ -70,7 +70,9 @@ import { getAgentHostAgent, getAgentHostTarget } from './agent-chat-settings.js'
 import { isPersonalAgentTarget } from './agent-chat-context.js';
 import { mergeAgentContextReceipts } from './agent-tool-runtime.js';
 import { getDirectChatReasoningEffort } from './chat-model-preferences.js';
-import { applyChatMessageAvatar } from './chat-message-avatars.js';
+import {
+  applyChatMessageAvatar, shouldShowChatPersonaLabel,
+} from './chat-message-avatars.js';
 import {
   createChatThinkingIndicator, stopChatThinkingStatus,
 } from './chat-thinking-status.js';
@@ -380,7 +382,8 @@ export async function sendChatMessage() {
 
     // Show persona label if personality changed from last AI message
     const lastAiMsg = [...state.chatHistory].reverse().find(m => m.role === 'assistant');
-    if (!lastAiMsg || lastAiMsg.personalityName !== personality.name) {
+    if (shouldShowChatPersonaLabel({ personalityName: personality.name })
+      && (!lastAiMsg || lastAiMsg.personalityName !== personality.name)) {
       const labelEl = document.createElement('div');
       labelEl.className = 'chat-persona-label';
       labelEl.textContent = `${personality.icon || ''} ${personality.name}`;
