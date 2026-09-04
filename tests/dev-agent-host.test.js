@@ -62,9 +62,11 @@ describe('development agent discovery', () => {
       ['opencode', '1.18.23'],
       ['hermes', 'Hermes Agent v0.21.0'],
       ['grok', 'grok 1.0.3'],
+      ['openclaw', 'OpenClaw 2026.9.1'],
     ]);
     const controller = startDevAgentHost({
       root: '/workspace',
+      env: { GETBASED_OPENCLAW_COMMAND: 'openclaw' },
       execFileSyncImpl: vi.fn(command => {
         const version = versions.get(String(command));
         if (!version) throw new Error('missing');
@@ -74,8 +76,8 @@ describe('development agent discovery', () => {
       spawnImpl: vi.fn(() => child),
     });
 
-    expect(controller.describe().agents.map(agent => agent.id)).toEqual(['codex', 'opencode', 'hermes', 'grok']);
-    expect(controller.describe().agents.map(agent => agent.compatible)).toEqual([true, true, true, true]);
+    expect(controller.describe().agents.map(agent => agent.id)).toEqual(['codex', 'opencode', 'hermes', 'grok', 'openclaw']);
+    expect(controller.describe().agents.map(agent => agent.compatible)).toEqual([true, true, true, true, true]);
   });
 
   it('honors an explicit CLI path during development discovery', () => {

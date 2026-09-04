@@ -102,4 +102,32 @@ describe('external agent turn lifecycle', () => {
     expect(options.mcpSessions.size).toBe(0);
     expect(options.sessionMcp.size).toBe(0);
   });
+
+  it('replays visible history when continuing a one-shot OpenClaw conversation', async () => {
+    const agent = {
+      id: 'openclaw', protocol: 'openclaw', name: 'OpenClaw',
+      client: { prompt: vi.fn(async ({ sessionId, onEvent }) => {
+        onEvent({ type: 'session', sessionId, model: 'openai/gpt-5.6-sol' });
+        onEvent({ type: 'done', finishReason: 'stop' });
+      }) },
+    };
+    const options = turnOptions(agent);
+    options.requestedThreadId = 'conversation-1';
+    options.requestedActiveKey = 'openclaw:conversation-1';
+    options.history = [
+      { role: 'user', content: 'Earlier question' },
+      { role: 'assistant', content: 'Earlier answer' },
+    ];
+    startExternalAgentTurn(options);
+    await vi.waitFor(() => expect(options.close).toHaveBeenCalled());
+    expect(agent.client.prompt).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: 'conversation-1',
+      prompt: [expect.objectContaining({
+        type: 'text', text: expect.stringContaining('Earlier visible conversation:'),
+      })],
+    }));
+    expect(agent.client.prompt.mock.calls[0][0].prompt[0].text).toContain('Earlier question');
+    expect(agent.client.prompt.mock.calls[0][0].prompt[0].text).toContain('Earlier answer');
+    expect(options.mcpSessions.size).toBe(0);
+  });
 });

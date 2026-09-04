@@ -135,7 +135,7 @@ export function renderCLIAgentProviderPanel() {
     <div class="ai-provider-panel cli-agent-provider-panel" data-ai-provider-mode="cli">
       <div class="local-agent-chat-head">
         <div class="settings-copy">
-          <div id="local-agent-chat-title" class="settings-copy-title">CLI agents <span class="settings-beta-badge">Experimental</span></div>
+          <div id="local-agent-chat-title" class="settings-copy-title">CLI agents</div>
           <div class="settings-copy-desc">Use an installed agent and its existing subscription across getbased. A small local companion connects the browser to CLI programs on this computer.</div>
         </div>
         <button class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="rescan-cli-agents">Check connection</button>
@@ -187,7 +187,7 @@ function renderAgentPicker(config) {
 /** @param {string} agentId @param {AgentModel | null} model */
 export function getCLIAgentModelProvider(agentId, model) {
   const id = String(model?.id || model?.model || '');
-  if (agentId === 'opencode') return id.includes('/') ? id.slice(0, id.indexOf('/')) : '';
+  if (agentId === 'opencode' || agentId === 'openclaw') return id.includes('/') ? id.slice(0, id.indexOf('/')) : '';
   if (agentId === 'hermes') {
     if (id.startsWith('custom:')) {
       const parts = id.split(':');
@@ -275,7 +275,7 @@ function renderAgentModelControls(models) {
   if (selectedEffort && !efforts.some(item => item.reasoningEffort === selectedEffort)) {
     effortOptions.push({ value: selectedEffort, label: `${selectedEffort} · unavailable` });
   }
-  const agentName = ({ codex: 'Codex CLI', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes Agent', grok: 'Grok Build' })[agentId] || 'the selected CLI';
+  const agentName = ({ codex: 'Codex CLI', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes Agent', grok: 'Grok Build', openclaw: 'OpenClaw' })[agentId] || 'the selected CLI';
   const reasoningNote = !efforts.length && agentId === 'hermes'
     ? ' Hermes ACP does not expose a separate reasoning control yet, so getbased uses your Hermes setting.' : '';
   return `<div class="local-agent-options${providers.length > 1 ? ' has-provider' : ''}">

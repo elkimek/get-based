@@ -110,6 +110,20 @@ describe('Linux companion installer', () => {
     expect(result.serviceSource).toContain(`GETBASED_CLAUDE_COMMAND=${claudeCommand}`);
   });
 
+  it('finds an official self-contained OpenClaw install without a PATH entry', () => {
+    const setup = fixture();
+    const openClawCommand = join(setup.homeDirectory, '.openclaw', 'bin', 'openclaw');
+    mkdirSync(join(setup.homeDirectory, '.openclaw', 'bin'), { recursive: true });
+    writeFileSync(openClawCommand, '#!/bin/sh\nexit 0\n');
+    chmodSync(openClawCommand, 0o755);
+    const result = installLinuxCompanion({
+      ...setup,
+      env: { PATH: '', HOME: setup.homeDirectory },
+      nodePath: process.execPath, platform: 'linux', dryRun: true,
+    });
+    expect(result.serviceSource).toContain(`GETBASED_OPENCLAW_COMMAND=${openClawCommand}`);
+  });
+
   it('uninstalls the exact service runtime while preserving separate pairing state', () => {
     const setup = fixture();
     const systemctl = vi.fn();

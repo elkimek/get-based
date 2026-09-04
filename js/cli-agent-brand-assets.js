@@ -8,6 +8,7 @@ const CLI_AGENT_BRAND_ASSETS = Object.freeze({
   opencode: '/brands/cli-agent-opencode.svg',
   hermes: '/brands/cli-agent-hermes.svg',
   grok: '/brands/cli-agent-grok.svg',
+  openclaw: '/brands/cli-agent-openclaw.svg',
 });
 
 /** @param {string} agentId */

@@ -16,6 +16,7 @@ const REASONING_EFFORT_RANK = new Map([
   ['extra-high', 50],
   ['max', 60],
   ['ultra', 70],
+  ['adaptive', 80],
 ]);
 
 /** @param {unknown} value */

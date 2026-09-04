@@ -19,6 +19,7 @@ describe('local agent selection UI', () => {
     expect(source).toContain('data-settings-action="toggle-cli-codex"');
     expect(settings).toContain('data-settings-action="show-cli-agent-provider"');
     expect(settings).toContain('CLI agents');
+    expect(source).not.toContain('settings-beta-badge">Experimental');
     expect(agentAccess).not.toContain('Installed CLIs');
     expect(source).not.toContain('id="agent-chat-endpoint"');
     expect(source).not.toContain('id="agent-chat-token"');
@@ -42,7 +43,7 @@ describe('local agent selection UI', () => {
 
   it('maps every supported CLI to a local vendor mark', () => {
     const serviceWorker = read('service-worker.js');
-    for (const agent of ['codex', 'claude', 'opencode', 'hermes', 'grok']) {
+    for (const agent of ['codex', 'claude', 'opencode', 'hermes', 'grok', 'openclaw']) {
       expect(getCLIAgentBrandAsset(agent)).toBe(`/brands/cli-agent-${agent}.svg`);
       expect(renderCLIAgentBrandIcon(agent)).toContain(`src="/brands/cli-agent-${agent}.svg"`);
       expect(read(`brands/cli-agent-${agent}.svg`)).toContain('<svg');
@@ -93,6 +94,7 @@ describe('local agent selection UI', () => {
     expect(source).toContain('model: selectedModel || undefined');
     expect(getCLIAgentModelProvider('opencode', { id: 'openrouter/openai/gpt-5.6-sol' })).toBe('openrouter');
     expect(getCLIAgentModelProvider('hermes', { id: 'openai-codex:gpt-5.6-sol' })).toBe('openai-codex');
+    expect(getCLIAgentModelProvider('openclaw', { id: 'openai/gpt-5.6-sol' })).toBe('openai');
   });
 
   it('returns chat to direct inference when an API or local-model provider is chosen', () => {

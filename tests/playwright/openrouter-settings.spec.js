@@ -76,6 +76,7 @@ test('CLI provider discovers branded agents and keeps model controls stable acro
     ['opencode', 'OpenCode', 'Open-source multi-model agent CLI'],
     ['hermes', 'Hermes Agent', 'Nous Research agent CLI'],
     ['grok', 'Grok Build', 'xAI coding CLI'],
+    ['openclaw', 'OpenClaw', 'Open-source personal AI assistant'],
   ].map(([id, name, description]) => ({
     id, name, description, version: 'test', status: 'available', compatible: true,
     endpoint, token, runtimeMode: 'temporary', companionVersion: '1.1.0',
@@ -143,12 +144,12 @@ test('CLI provider discovers branded agents and keeps model controls stable acro
   await page.locator('.ai-provider-btn[data-provider="cli"]').click();
 
   const rows = page.locator('.local-agent-row');
-  await expect(rows).toHaveCount(5);
-  await expect(rows).toContainText(['Codex CLI', 'Claude Code', 'OpenCode', 'Hermes Agent', 'Grok Build']);
+  await expect(rows).toHaveCount(6);
+  await expect(rows).toContainText(['Codex CLI', 'Claude Code', 'OpenCode', 'Hermes Agent', 'Grok Build', 'OpenClaw']);
   const iconsLoaded = await page.locator('.local-agent-icon img').evaluateAll(images => images.map(image => ({
     complete: image.complete, naturalWidth: image.naturalWidth,
   })));
-  expect(iconsLoaded).toHaveLength(5);
+  expect(iconsLoaded).toHaveLength(6);
   expect(iconsLoaded.every(icon => icon.complete && icon.naturalWidth > 0)).toBe(true);
 
   const options = page.locator('#cli-agent-options');

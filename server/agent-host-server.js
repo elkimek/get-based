@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { CodexAppServerClient } from '../lib/codex-app-server-client.js';
 import { ACPAgentClient } from '../lib/acp-agent-client.js';
 import { ClaudeAgentClient } from '../lib/claude-agent-client.js';
+import { OpenClawAgentClient } from '../lib/openclaw-agent-client.js';
 import { createAgentHostService } from '../lib/agent-host-service.js';
 import {
   buildIsolatedCodexArgs, buildIsolatedCodexEnvironment,
@@ -46,7 +47,7 @@ const detectedAgents = detectLocalAgents();
 const localAgentEnvironment = buildLocalAgentEnvironment(process.env);
 if (!detectedAgents.length) {
   rmSync(workspaceRoot, { recursive: true, force: true });
-  process.stderr.write('getbased Companion did not find Codex, Claude Code, OpenCode, Hermes, or Grok on PATH.\n');
+  process.stderr.write('getbased Companion did not find Codex, Claude Code, OpenCode, Hermes, Grok, or OpenClaw on this computer.\n');
   process.exit(1);
 }
 /** @type {CodexAppServerClient | null} */
@@ -74,6 +75,8 @@ const agentAdapters = detectedAgents.map(agent => {
     });
   } else if (agent.protocol === 'claude' && status === 'available') {
     client = new ClaudeAgentClient({ command: agent.command, cwd: workspaceRoot, env: localAgentEnvironment });
+  } else if (agent.protocol === 'openclaw' && status === 'available') {
+    client = new OpenClawAgentClient({ command: agent.command, cwd: workspaceRoot, env: localAgentEnvironment });
   }
   return { ...agent, status, message, client };
 });

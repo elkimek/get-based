@@ -21,7 +21,7 @@ export function hasChatResponseBackend() {
 export function getChatBackendDisplay() {
   if (!isCodexChatBackend()) return hasAIProvider() ? getActiveModelDisplay() : '';
   const thread = state.chatThreads.find(item => item.id === state.currentThreadId);
-  const fallback = ({ codex: 'Codex', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes', grok: 'Grok' })[getAgentHostAgent()] || 'CLI agent';
+  const fallback = ({ codex: 'Codex', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes', grok: 'Grok', openclaw: 'OpenClaw' })[getAgentHostAgent()] || 'CLI agent';
   return getAgentHostModel() || thread?.agentModel || fallback;
 }
 

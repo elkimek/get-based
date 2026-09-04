@@ -68,6 +68,7 @@ const PROVIDER_LABELS = Object.freeze({
   opencode: 'OpenCode',
   hermes: 'Hermes Agent',
   grok: 'Grok Build',
+  openclaw: 'OpenClaw',
 });
 
 function titleCase(value) {

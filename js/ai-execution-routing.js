@@ -13,7 +13,7 @@ export function getAssistantExecutionRoute() {
   const configuredModel = getAgentHostModel();
   const modelEntry = resolveAgentModel(configuredModel, catalog);
   const model = configuredModel || modelEntry?.id || '';
-  const providerDisplay = ({ codex: 'Codex CLI', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes Agent', grok: 'Grok Build' })[agent] || 'CLI agent';
+  const providerDisplay = ({ codex: 'Codex CLI', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes Agent', grok: 'Grok Build', openclaw: 'OpenClaw' })[agent] || 'CLI agent';
   return {
     adapter: 'codex',
     provider: agent,
@@ -29,7 +29,7 @@ export function getAssistantExecutionRoute() {
 export function getCodexExecutionRoute(modelId = '', modality = 'text') {
   const agent = getAgentHostAgent();
   const catalog = getCachedAgentModelCatalog(agent);
-  const providerDisplay = ({ codex: 'Codex CLI', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes Agent', grok: 'Grok Build' })[agent] || 'CLI agent';
+  const providerDisplay = ({ codex: 'Codex CLI', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes Agent', grok: 'Grok Build', openclaw: 'OpenClaw' })[agent] || 'CLI agent';
   const entry = resolveAgentModel(modelId, catalog);
   const model = modelId || entry?.id || '';
   return {
@@ -47,7 +47,7 @@ export function getCodexExecutionRoute(modelId = '', modality = 'text') {
 /** @param {string} modality */
 export function listCodexExecutionRoutes(modality = 'text') {
   const agent = getAgentHostAgent();
-  const providerDisplay = ({ codex: 'Codex CLI', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes Agent', grok: 'Grok Build' })[agent] || 'CLI agent';
+  const providerDisplay = ({ codex: 'Codex CLI', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes Agent', grok: 'Grok Build', openclaw: 'OpenClaw' })[agent] || 'CLI agent';
   return getCachedAgentModelCatalog(agent).filter(model => model.inputModalities.includes(modality)).map(model => ({
     adapter: 'codex',
     provider: agent,

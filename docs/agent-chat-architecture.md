@@ -16,7 +16,9 @@ Evolu relay.
 
 Codex connects through `codex app-server`. OpenCode, Hermes, and Grok share a
 standards-based Agent Client Protocol (ACP) adapter. Claude Code connects
-through its non-interactive `stream-json` interface. The loopback host
+through its non-interactive `stream-json` interface. OpenClaw connects through
+its isolated, headless `agent exec` interface because its ACP bridge does not
+accept per-session MCP servers. The loopback host
 normalizes their sessions, model catalogs, streamed events, cancellation, and
 tool calls behind one browser contract. External MCP clients continue to use
 the same getbased tool semantics through `getbased-agent-stack`.
@@ -27,7 +29,8 @@ getbased PWA
   └─ local-agent backend ── loopback ───> getbased-agent-host
                                              ├─ Codex app-server (stdio)
                                              ├─ ACP: OpenCode, Hermes, Grok
-                                             └─ Claude Code stream-json
+                                             ├─ Claude Code stream-json
+                                             └─ OpenClaw agent exec
 
 getbased data authority
   └─ agent tool runtime
@@ -64,7 +67,7 @@ browser binds it to getbased data through `js/agent-tool-bindings.js`:
 | `getbased_draft_supplement` | draft | Proposes a supplement or medication entry. |
 
 The catalog is rendered as Codex app-server `dynamicTools` or as a private,
-per-session stdio MCP server for ACP and Claude Code. MCP calls cross an
+per-session stdio MCP server for ACP, Claude Code, and OpenClaw. MCP calls cross an
 unpublished loopback route protected by a random session credential, then use
 the same browser approval loop. Tool handlers receive
 injected dependencies rather than arbitrary DOM, storage, database, or network
@@ -124,7 +127,7 @@ action inside getbased crosses the persistence boundary.
 
 ## Current development workflow
 
-1. Install and sign in to Codex, Claude Code, OpenCode, Hermes, or Grok on the machine running getbased.
+1. Install and sign in to Codex, Claude Code, OpenCode, Hermes, Grok, or OpenClaw on the machine running getbased.
 2. From the repository, run the normal `npm run dev-server` command.
 3. Open **Settings → AI → CLI agents** and enable a ready agent. getbased detects
    the CLI, starts its local bridge, and reuses its existing sign-in.
@@ -254,6 +257,17 @@ through mode-0600 temporary files rather than process arguments. Those files
 are removed after the one-shot process exits, including error and cancellation
 paths.
 
+OpenClaw uses its official `agent exec` headless path and the model catalog,
+model-harness mapping, and stored login already configured by the user.
+getbased overlays each turn with a mode-0600 temporary config whose final tool
+allowlist exposes only web search/fetch and the private getbased MCP server;
+OpenClaw's shell, filesystem, messaging, browser-control, session, automation,
+and unrelated plugin surfaces are not enabled. The prompt and MCP
+credential are kept out of process arguments and the temporary files are
+removed on every exit path. Because this safe entry point is one-shot, getbased
+replays the browser-visible conversation instead of persisting an OpenClaw
+session. It currently declares text input only.
+
 The current Codex adapter supports text and image chat, hosted cached web
 research, all structured tools listed above, and structured feature inference
 when the selected CLI model declares the required modality. Images are
@@ -272,7 +286,7 @@ through one capability-aware dispatcher:
 | --- | --- | --- |
 | Text chat over approved profile context | Yes | Add typed queries only when a real product need appears. |
 | Hosted web research | Agent-dependent; normalized activity is recorded when the protocol reports it | Add an explicit user control and richer activity display. |
-| Model and reasoning selection | Codex catalogs; OpenCode provider/model catalogs and model-specific effort variants; Hermes provider/model catalogs; Claude Code aliases and effort levels | Hermes ACP does not yet expose a session-scoped reasoning control, so it inherits the user's Hermes setting. Keep every control capability-driven as CLIs evolve. |
+| Model and reasoning selection | Codex catalogs; OpenCode provider/model catalogs and model-specific effort variants; Hermes provider/model catalogs; Claude Code aliases and effort levels; OpenClaw configured provider/model catalog and thinking levels | Hermes ACP does not yet expose a session-scoped reasoning control, so it inherits the user's Hermes setting. Keep every control capability-driven as CLIs evolve. |
 | Lab PDF/photo import | Yes when the selected adapter/model declares image input, with existing review-before-save | Keep the extraction schema provider-neutral. |
 | Meal-photo and nutrition-label analysis | Yes when the selected adapter/model declares image input, with normal review-before-save | Verify new adapter modalities before routing. |
 | Context cards, marker explanations, biology scores, supplements, EMF, light/sun, reports, summaries, and Lens query rewriting | Yes | Preserve feature-specific schemas and consent labels. |
@@ -309,3 +323,10 @@ only capabilities an adapter reports.
   sessions, model aliases, reasoning effort, images, and JSON Schema output.
   Authentication remains owned by the official CLI; getbased reports
   “sign-in required” rather than pretending an installed binary is ready.
+- **OpenClaw:** the adapter discovers PATH installs and the official
+  self-contained `~/.openclaw/bin/openclaw` installation, reads the configured
+  model catalog, and runs one isolated `agent exec` turn with explicit model and
+  thinking choices. Its temporary tool policy permits only hosted web helpers
+  and getbased's turn-scoped MCP server. The headless interface currently has
+  no image flag or resumable-session flag, so the adapter declares text-only
+  input and replays visible conversation history.
