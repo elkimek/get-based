@@ -218,6 +218,7 @@ export function normalizeChatMessages(value) {
       modelDisplay: boundedString(message.modelDisplay, 200),
       modelId: boundedString(message.modelId, 200),
       provider: boundedString(message.provider, 100),
+      agentId: boundedString(message.agentId, 40),
       imageCount: safeCount(message.imageCount, MAX_THUMBNAILS_PER_MESSAGE),
     };
     const thumbnails = Array.isArray(message.thumbnails)

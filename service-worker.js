@@ -253,6 +253,8 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/chat-runtime.js',
   '/js/chat-render-runtime.js',
   '/js/chat-render.js',
+  '/js/chat-message-avatars.js',
+  '/js/chat-thinking-status.js',
   '/js/chat-composer.js',
   '/js/chat-recommendation-disclosure.js',
   '/js/chat-scroll.js',

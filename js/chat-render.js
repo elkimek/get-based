@@ -30,6 +30,7 @@ import {
   resetChatRenderWindow,
   revealChatRenderIndex,
 } from './chat-render-range.js';
+import { applyRenderedChatMessageAvatars } from './chat-message-avatars.js';
 
 export { _getNoDataPrompts } from './chat-empty-state.js';
 
@@ -174,6 +175,7 @@ export function renderChatMessages({ preserveScroll = false } = {}) {
     html += '</div>';
   }
   container.innerHTML = html;
+  applyRenderedChatMessageAvatars(container, state.chatHistory, renderStart);
   bindRenderedChatContainClicks(container);
   if (preserveScroll) notifyChatContentAdded(container);
   else followChatLatest(container, { behavior: 'auto' });

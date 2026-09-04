@@ -69,6 +69,7 @@ describe('chat storage safety', () => {
           role: 'assistant',
           content: 'Hello',
           personalityIcon: '<svg onload=alert(1)>',
+          agentId: 'opencode<script>'.repeat(5),
           imageCount: 'not-a-number',
           hasImages: true,
           thumbnails: [TINY_PNG, 'data:image/svg+xml,<svg onload=alert(1)>'],
@@ -130,6 +131,7 @@ describe('chat storage safety', () => {
     expect(chat.messages.t_safe[0]).toMatchObject({
       content: 'Hello',
       personalityIcon: 'svg onload=alert(1)',
+      agentId: 'opencode<script>opencode<script>opencode',
       imageCount: 0,
       thumbnails: [TINY_PNG],
       usage: { inputTokens: 0, outputTokens: 12 },

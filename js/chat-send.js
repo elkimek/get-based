@@ -70,6 +70,10 @@ import { getAgentHostAgent, getAgentHostTarget } from './agent-chat-settings.js'
 import { isPersonalAgentTarget } from './agent-chat-context.js';
 import { mergeAgentContextReceipts } from './agent-tool-runtime.js';
 import { getDirectChatReasoningEffort } from './chat-model-preferences.js';
+import { applyChatMessageAvatar } from './chat-message-avatars.js';
+import {
+  createChatThinkingIndicator, stopChatThinkingStatus,
+} from './chat-thinking-status.js';
 
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
@@ -139,6 +143,7 @@ export function createTypewriter(el, typingEl, container) {
     const behind = target.length - displayed;
     const batch = Math.max(1, Math.ceil(behind * 0.3));
     displayed = Math.min(displayed + batch, target.length);
+    stopChatThinkingStatus(typingEl);
     if (typingEl.parentNode) typingEl.remove();
     if (!el.parentNode) container.appendChild(el);
     el.textContent = target.slice(0, displayed);
@@ -152,6 +157,7 @@ export function createTypewriter(el, typingEl, container) {
       if (globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
         if (timer) { clearTimeout(timer); timer = null; }
         displayed = target.length;
+        stopChatThinkingStatus(typingEl);
         if (typingEl.parentNode) typingEl.remove();
         if (!el.parentNode) container.appendChild(el);
         el.textContent = target;
@@ -163,6 +169,7 @@ export function createTypewriter(el, typingEl, container) {
     stop() {
       if (timer) { clearTimeout(timer); timer = null; }
       displayed = target.length;
+      stopChatThinkingStatus(typingEl);
     }
   };
 }
@@ -248,6 +255,7 @@ export async function sendChatMessage() {
   // The shared gate separates AI transparency from endpoint-specific route
   // confirmation or remote sensitive-data approval.
   const _msgAgentTarget = useCodexAgent ? getAgentHostTarget() : 'local';
+  const _msgAgentId = useCodexAgent ? getAgentHostAgent() : '';
   const _msgProvider = useCodexAgent
     ? (isPersonalAgentTarget(_msgAgentTarget) ? 'personal-agent-gateway' : 'codex-agent')
     : getAIProvider();
@@ -296,10 +304,12 @@ export async function sendChatMessage() {
   }
 
   // Show typing indicator
-  const typingEl = document.createElement('div');
-  typingEl.className = 'typing-indicator';
-  typingEl.setAttribute('aria-hidden', 'true');
-  typingEl.innerHTML = '<span></span><span></span><span></span>';
+  const pendingPersonality = getActivePersonality();
+  const typingEl = createChatThinkingIndicator({
+    personalityName: pendingPersonality.name,
+    personalityIcon: pendingPersonality.icon,
+    agentId: _msgAgentId,
+  });
   container.appendChild(typingEl);
   notifyChatContentAdded(container);
 
@@ -385,6 +395,12 @@ export async function sendChatMessage() {
     aiMsgEl.setAttribute('aria-label', `${personality.name} response`);
     aiMsgEl.dataset.chatStreaming = 'true';
     aiMsgEl.style.whiteSpace = 'pre-wrap';
+    applyChatMessageAvatar(aiMsgEl, {
+      role: 'assistant',
+      personalityName: personality.name,
+      personalityIcon: personality.icon,
+      agentId: _msgAgentId,
+    });
     if (_activeChatGenerationUI) _activeChatGenerationUI.aiMsgEl = aiMsgEl;
 
     // Typewriter: trickle buffered text at a steady rate for smooth appearance
@@ -440,6 +456,7 @@ export async function sendChatMessage() {
     typewriter.stop();
     aiMsgEl.style.whiteSpace = '';
     delete aiMsgEl.dataset.chatStreaming;
+    stopChatThinkingStatus(typingEl);
     if (typingEl.parentNode) typingEl.remove();
     if (!aiMsgEl.parentNode) container.appendChild(aiMsgEl);
 
@@ -464,7 +481,7 @@ export async function sendChatMessage() {
     }
 
     // Build assistant message object with context snapshot
-    const assistantMsg = { role: 'assistant', content: fullText, context: contextSnapshot, personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, modelId: _msgModelId, modelDisplay: _msgModelDisplay };
+    const assistantMsg = { role: 'assistant', content: fullText, context: contextSnapshot, personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, agentId: _msgAgentId, modelId: _msgModelId, modelDisplay: _msgModelDisplay };
     if (useCodexAgent && Array.isArray(aiResult.drafts) && aiResult.drafts.length) assistantMsg.agentDrafts = aiResult.drafts;
     if (responseTruncated) {
       assistantMsg.truncated = true;
@@ -579,6 +596,7 @@ export async function sendChatMessage() {
     void maybeAutoReadAssistantMessage(msgIndex);
   } catch (err) {
     const error = /** @type {any} */ (err);
+    stopChatThinkingStatus(typingEl);
     if (typingEl.parentNode) typingEl.remove();
 
     // Abort: save partial streamed text as a normal message
@@ -591,7 +609,7 @@ export async function sendChatMessage() {
         aiMsgEl.style.whiteSpace = '';
         aiMsgEl.innerHTML = renderMarkdown(partialText) + '<div class="chat-stopped-note">[stopped]</div>';
         const personality = getActivePersonality();
-        state.chatHistory.push({ role: 'assistant', content: partialText, personalityName: personality.name, personalityIcon: personality.icon, stopped: true });
+        state.chatHistory.push({ role: 'assistant', content: partialText, personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, agentId: _msgAgentId, modelId: _msgModelId, modelDisplay: _msgModelDisplay, stopped: true });
         await saveChatHistory();
         renderChatMessages({ preserveScroll: true });
       }
@@ -615,6 +633,7 @@ export async function sendChatMessage() {
           personalityName: personality.name,
           personalityIcon: personality.icon,
           provider: _msgProvider,
+          agentId: _msgAgentId,
           modelId: _msgModelId,
           modelDisplay: _msgModelDisplay,
         });

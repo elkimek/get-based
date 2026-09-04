@@ -29,6 +29,7 @@ import { getChatProviderAttestation } from './chat-runtime.js';
 import { notifyChatContentAdded } from './chat-scroll.js';
 import { updateDiscussionProgress } from './chat-discussion-ui.js';
 import { setChatStreamStatus } from './chat-stream-status.js';
+import { stopChatThinkingStatus } from './chat-thinking-status.js';
 
 export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
   const container = document.getElementById('chat-messages');
@@ -73,7 +74,7 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         await saveRoundChatHistory(roundThreadId, roundHistory);
       }
 
-      const typingEl = createDiscussionTypingIndicator();
+      const typingEl = createDiscussionTypingIndicator(persona);
       activeRound = { aiMsgEl: null, index: pi, persona, request: null, typewriter: null, typingEl };
       if (isRoundThreadActive(roundThreadId)) {
         container.appendChild(typingEl);
@@ -90,7 +91,7 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       const labelEl = createDiscussionPersonaLabel(request.personality);
       appendRoundPersonaLabel(roundThreadId, container, labelEl);
 
-      const aiMsgEl = createDiscussionAiMessage();
+      const aiMsgEl = createDiscussionAiMessage(request.personality);
 
       const typewriter = createDiscussionTypewriter(aiMsgEl, typingEl, container);
       activeRound.aiMsgEl = aiMsgEl;
@@ -161,6 +162,7 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
     const error = /** @type {any} */ (err);
     const interruptedRound = activeRound;
     interruptedRound?.typewriter?.stop?.();
+    if (interruptedRound?.typingEl) stopChatThinkingStatus(interruptedRound.typingEl);
     interruptedRound?.typingEl?.remove?.();
     if (error.name === 'AbortError') {
       outcome = 'stopped';

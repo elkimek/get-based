@@ -441,6 +441,10 @@ body.chat-open .analytics-consent-banner {
   width: 100% !important;
   max-width: 100%;
 }
+.chat-panel.chat-panel-fullscreen .chat-msg.chat-ai.chat-avatar-anchor {
+  width: calc(100% - 36px) !important;
+  max-width: calc(100% - 36px);
+}
 .chat-panel.chat-panel-fullscreen .chat-msg.chat-user {
   max-width: min(100%, 1120px);
 }
