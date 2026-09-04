@@ -63,7 +63,7 @@ export async function saveAgentChatSettings(settings) {
   if (settings.endpoint !== undefined) {
     localStorage.setItem(ENDPOINT_KEY, normalizeAgentHostEndpoint(settings.endpoint));
   }
-  if (settings.model !== undefined) localStorage.setItem(MODEL_KEY, settings.model.trim().slice(0, 100));
+  if (settings.model !== undefined) localStorage.setItem(MODEL_KEY, settings.model.trim().slice(0, 160));
   if (settings.effort !== undefined) localStorage.setItem(EFFORT_KEY, settings.effort.trim().slice(0, 40));
   if (settings.agent !== undefined) localStorage.setItem(AGENT_KEY, settings.agent.trim().slice(0, 40) || 'codex');
   if (settings.token !== undefined) await encryptedSetCredentialItem(AGENT_HOST_TOKEN_KEY, settings.token.trim());

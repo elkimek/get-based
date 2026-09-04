@@ -99,4 +99,11 @@ describe('agent chat settings', () => {
     expect(getAgentHostModel()).toBe('gpt-5.6-sol');
     expect(getAgentHostEffort()).toBe('high');
   });
+
+  it('retains full provider-qualified model IDs for catalog rehydration', async () => {
+    const model = `openrouter/${'provider-segment/'.repeat(7)}model-name`;
+    expect(model.length).toBeGreaterThan(100);
+    await saveAgentChatSettings({ model });
+    expect(getAgentHostModel()).toBe(model);
+  });
 });

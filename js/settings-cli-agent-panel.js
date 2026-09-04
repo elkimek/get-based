@@ -414,10 +414,12 @@ async function hydrateAgentModelControls() {
       agentProviderFilter = '';
     }
     await connectDetectedAgent(agent);
+    const selectedModel = getAgentHostModel();
     agentModels = cacheAgentModelCatalog(await listAgentModels({
       endpoint: getAgentHostEndpoint(),
       token: getAgentHostToken(),
       agent,
+      model: selectedModel || undefined,
     }));
     if (options.isConnected) showAgentModelControls(options, agentModels);
   } catch (error) {

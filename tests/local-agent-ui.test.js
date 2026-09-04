@@ -77,6 +77,7 @@ describe('local agent selection UI', () => {
     expect(source).toContain("action: 'set-cli-agent-provider-filter'");
     expect(source).toContain('data-cli-agent-model-search');
     expect(source).toContain('choices apply only to GetBased sessions');
+    expect(source).toContain('model: selectedModel || undefined');
     expect(getCLIAgentModelProvider('opencode', { id: 'openrouter/openai/gpt-5.6-sol' })).toBe('openrouter');
     expect(getCLIAgentModelProvider('hermes', { id: 'openai-codex:gpt-5.6-sol' })).toBe('openai-codex');
   });
