@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 740 |
-| Internal import edges | 3130 |
+| Internal import edges | 3131 |
 | Dynamic internal edges | 103 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -324,7 +324,7 @@ Native browser modules shipped with the static application.
 - [`js/chat-empty-state.js`](js/chat-empty-state.js) → [`js/api.js`](js/api.js), [`js/chat-backend-selection.js`](js/chat-backend-selection.js), [`js/chat-onboarding.js`](js/chat-onboarding.js), [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/context-cards.js`](js/context-cards.js), [`js/cycle.js`](js/cycle.js), [`js/data.js`](js/data.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/profile.js`](js/profile.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/supplements.js`](js/supplements.js), [`js/utils.js`](js/utils.js)
 - [`js/chat-history.js`](js/chat-history.js) → [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/chat-storage-safety.js`](js/chat-storage-safety.js), [`js/chat-summaries.js`](js/chat-summaries.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/crypto.js`](js/crypto.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/chat-icons.js`](js/chat-icons.js) → no in-scope imports
-- [`js/chat-images.js`](js/chat-images.js) → [`js/ai-execution-routing.js`](js/ai-execution-routing.js), [`js/api.js`](js/api.js), [`js/chat-backend-selection.js`](js/chat-backend-selection.js), [`js/chat-message-action-attrs.js`](js/chat-message-action-attrs.js), [`js/image-utils.js`](js/image-utils.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/chat-images.js`](js/chat-images.js) → [`js/ai-execution-routing.js`](js/ai-execution-routing.js), [`js/api.js`](js/api.js), [`js/chat-backend-selection.js`](js/chat-backend-selection.js), [`js/chat-message-action-attrs.js`](js/chat-message-action-attrs.js), [`js/image-utils.js`](js/image-utils.js), [`js/import-file-input.js`](js/import-file-input.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/chat-loader.js`](js/chat-loader.js) → [`js/app-ai-interaction-modules.js`](js/app-ai-interaction-modules.js) *(dynamic)*
 - [`js/chat-marker-prompts.js`](js/chat-marker-prompts.js) → [`js/chat-history.js`](js/chat-history.js), [`js/chat-panel.js`](js/chat-panel.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/data.js`](js/data.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/chat-message-action-attrs.js`](js/chat-message-action-attrs.js) → [`js/utils.js`](js/utils.js)

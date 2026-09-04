@@ -17,6 +17,7 @@ import { chatMessageActionAttrs } from './chat-message-action-attrs.js';
 import { state } from './state.js';
 import { isCodexChatBackend } from './chat-backend-selection.js';
 import { getAssistantExecutionRoute } from './ai-execution-routing.js';
+import { handleImportInputChange } from './import-file-input.js';
 
 const MAX_ATTACHMENTS = 5;
 const THUMB_SIZE = 80;
@@ -28,14 +29,7 @@ const sentMessageAttachments = new WeakMap();
 let _hdMode = localStorage.getItem('labcharts-hd-images') === 'true';
 const chatImageDeps = {
   updateSendButtonState: () => {},
-  importFiles: files => {
-    const input = document.getElementById('pdf-input');
-    if (!(input instanceof HTMLInputElement)) throw new Error('The health-file importer is unavailable.');
-    const transfer = new DataTransfer();
-    for (const file of files) transfer.items.add(file);
-    input.files = transfer.files;
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-  },
+  importFiles: files => handleImportInputChange({ target: { files, value: '' } }),
 };
 
 export function configureChatImages(deps = {}) {
@@ -339,8 +333,7 @@ export function initChatImageHandlers() {
     fileInput.addEventListener('change', (e) => {
       const input = /** @type {HTMLInputElement} */ (e.target);
       const files = Array.from(input.files || []);
-      input.value = '';
-      void handleChatFiles(files);
+      void handleChatFiles(files).finally(() => { input.value = ''; });
     });
   }
 }

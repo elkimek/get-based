@@ -33,9 +33,11 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
     const originalHdClass = hdBtn?.className;
     const originalAttachDisplay = attachBtn?.style.display;
     const originalInputFiles = input ? Object.getOwnPropertyDescriptor(input, 'files') : null;
+    const originalInputValue = input ? Object.getOwnPropertyDescriptor(input, 'value') : null;
     const originalThreadId = state.currentThreadId;
     let sendButtonRefreshes = 0;
     const importedFiles = [];
+    let releaseHeldImport = null;
 
     const pngBytes = Uint8Array.from(atob(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
@@ -43,27 +45,17 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
     const makeImage = (name = 'tiny-lab.png') => new File([pngBytes], name, { type: 'image/png' });
 
     try {
-      const originalImportInput = document.getElementById('pdf-input');
-      const isolatedImportInput = originalImportInput?.cloneNode(true);
-      let defaultImportFiles = [];
-      if (originalImportInput && isolatedImportInput instanceof HTMLInputElement) {
-        originalImportInput.replaceWith(isolatedImportInput);
-        isolatedImportInput.addEventListener('change', () => {
-          defaultImportFiles = Array.from(isolatedImportInput.files || [], file => file.name);
-        });
-        await chatImages.handleChatFiles([
-          new File(['%PDF test'], 'default-route.pdf', { type: 'application/pdf' }),
-        ]);
-        isolatedImportInput.replaceWith(originalImportInput);
-      }
-      outcomes.defaultPdfRouteUsesExistingImportInput = defaultImportFiles.includes('default-route.pdf');
-
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.setItem('labcharts-ai-paused', 'false');
       localStorage.setItem('labcharts-hd-images', 'false');
       chatImages.configureChatImages({
         updateSendButtonState: () => { sendButtonRefreshes += 1; },
-        importFiles: async files => { importedFiles.push(...files.map(file => file.name)); },
+        importFiles: async files => {
+          importedFiles.push(...files.map(file => file.name));
+          if (files.some(file => file.name === 'held-open.pdf')) {
+            await new Promise(resolve => { releaseHeldImport = resolve; });
+          }
+        },
       });
       chatImages.clearAttachments();
       chatImages.updateAttachButtonVisibility();
@@ -145,6 +137,24 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       outcomes.fileInputHandlerAddsAndResets = chatImages.getPendingAttachments().some(att => att.name === 'picked.png')
         && input?.value === '';
 
+      if (input) {
+        Object.defineProperty(input, 'files', {
+          configurable: true,
+          value: [new File(['%PDF test'], 'held-open.pdf', { type: 'application/pdf' })],
+        });
+        Object.defineProperty(input, 'value', { configurable: true, writable: true, value: 'selected' });
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        for (let i = 0; i < 40 && !importedFiles.includes('held-open.pdf'); i += 1) {
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+        outcomes.fileSelectionLivesUntilImporterFinishes = input.value === 'selected';
+        releaseHeldImport?.();
+        for (let i = 0; i < 40 && input.value !== ''; i += 1) {
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+        outcomes.fileSelectionClearsAfterImporterFinishes = input.value === '';
+      }
+
       chatImages.clearAttachments();
       if (conversation && messages) {
         const dragOver = new Event('dragover', { bubbles: true, cancelable: true });
@@ -217,6 +227,7 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       outcomes.lightboxEscapeCloses = !document.querySelector('.chat-lightbox');
     } finally {
+      releaseHeldImport?.();
       chatImages.configureChatImages({ updateSendButtonState: () => {}, importFiles: async () => {} });
       chatImages.clearAttachments();
       if (preview) {
@@ -230,6 +241,10 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       }
       if (attachBtn) attachBtn.style.display = originalAttachDisplay || '';
       if (input && originalInputFiles) Object.defineProperty(input, 'files', originalInputFiles);
+      if (input) {
+        if (originalInputValue) Object.defineProperty(input, 'value', originalInputValue);
+        else delete input.value;
+      }
       state.currentThreadId = originalThreadId;
       localStorage.clear();
       for (const [key, value] of storage) {

@@ -14,7 +14,7 @@ import {
 
 let importInputBound = false;
 
-/** @param {Event & { target: HTMLInputElement }} e */
+/** @param {{ target: { files: File[] | FileList | null, value: string } }} e */
 export async function handleImportInputChange(e) {
   if (isImportRunningRuntime()) {
     e.target.value = '';
