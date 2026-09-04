@@ -12,6 +12,16 @@ const EFFORT_KEY = 'labcharts-agent-host-effort';
 const AGENT_KEY = 'labcharts-agent-host-agent';
 export const DEFAULT_AGENT_HOST_ENDPOINT = 'http://127.0.0.1:8324';
 
+/** @param {unknown} value */
+function normalizeAgentId(value) {
+  return String(value || '').trim().slice(0, 40) || 'codex';
+}
+
+/** @param {string} baseKey @param {string} agentId */
+function scopedAgentSettingKey(baseKey, agentId) {
+  return `${baseKey}:${encodeURIComponent(normalizeAgentId(agentId))}`;
+}
+
 export function getChatBackend() {
   return localStorage.getItem(BACKEND_KEY) === 'codex' ? 'codex' : 'direct';
 }
@@ -45,27 +55,53 @@ export function getAgentHostToken() {
 }
 
 export function getAgentHostModel() {
-  return (localStorage.getItem(MODEL_KEY) || '').trim();
+  const scoped = localStorage.getItem(scopedAgentSettingKey(MODEL_KEY, getAgentHostAgent()));
+  return (scoped ?? localStorage.getItem(MODEL_KEY) ?? '').trim();
 }
 
 export function getAgentHostEffort() {
-  return (localStorage.getItem(EFFORT_KEY) || '').trim();
+  const scoped = localStorage.getItem(scopedAgentSettingKey(EFFORT_KEY, getAgentHostAgent()));
+  return (scoped ?? localStorage.getItem(EFFORT_KEY) ?? '').trim();
 }
 
 export function getAgentHostAgent() {
-  return (localStorage.getItem(AGENT_KEY) || 'codex').trim().slice(0, 40) || 'codex';
+  return normalizeAgentId(localStorage.getItem(AGENT_KEY));
 }
 
 /**
  * @param {{endpoint?: string, token?: string, model?: string, effort?: string, agent?: string}} settings
  */
 export async function saveAgentChatSettings(settings) {
+  const previousAgent = getAgentHostAgent();
+  const nextAgent = settings.agent === undefined ? previousAgent : normalizeAgentId(settings.agent);
   if (settings.endpoint !== undefined) {
     localStorage.setItem(ENDPOINT_KEY, normalizeAgentHostEndpoint(settings.endpoint));
   }
-  if (settings.model !== undefined) localStorage.setItem(MODEL_KEY, settings.model.trim().slice(0, 160));
-  if (settings.effort !== undefined) localStorage.setItem(EFFORT_KEY, settings.effort.trim().slice(0, 40));
-  if (settings.agent !== undefined) localStorage.setItem(AGENT_KEY, settings.agent.trim().slice(0, 40) || 'codex');
+  if (nextAgent !== previousAgent) {
+    const previousModelKey = scopedAgentSettingKey(MODEL_KEY, previousAgent);
+    const previousEffortKey = scopedAgentSettingKey(EFFORT_KEY, previousAgent);
+    if (localStorage.getItem(previousModelKey) === null) {
+      localStorage.setItem(previousModelKey, (localStorage.getItem(MODEL_KEY) || '').trim().slice(0, 160));
+    }
+    if (localStorage.getItem(previousEffortKey) === null) {
+      localStorage.setItem(previousEffortKey, (localStorage.getItem(EFFORT_KEY) || '').trim().slice(0, 40));
+    }
+  }
+  if (settings.agent !== undefined) localStorage.setItem(AGENT_KEY, nextAgent);
+  const model = settings.model === undefined
+    ? (nextAgent !== previousAgent ? localStorage.getItem(scopedAgentSettingKey(MODEL_KEY, nextAgent)) || '' : null)
+    : settings.model.trim().slice(0, 160);
+  const effort = settings.effort === undefined
+    ? (nextAgent !== previousAgent ? localStorage.getItem(scopedAgentSettingKey(EFFORT_KEY, nextAgent)) || '' : null)
+    : settings.effort.trim().slice(0, 40);
+  if (model !== null) {
+    localStorage.setItem(MODEL_KEY, model);
+    localStorage.setItem(scopedAgentSettingKey(MODEL_KEY, nextAgent), model);
+  }
+  if (effort !== null) {
+    localStorage.setItem(EFFORT_KEY, effort);
+    localStorage.setItem(scopedAgentSettingKey(EFFORT_KEY, nextAgent), effort);
+  }
   if (settings.token !== undefined) await encryptedSetCredentialItem(AGENT_HOST_TOKEN_KEY, settings.token.trim());
   globalThis.dispatchEvent?.(new CustomEvent('getbased:agent-host-settings-changed'));
 }

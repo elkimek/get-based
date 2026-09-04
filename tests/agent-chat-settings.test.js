@@ -2,8 +2,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  connectDetectedCodex, DEFAULT_AGENT_HOST_ENDPOINT, discoverLocalChatAgents, getAgentHostEffort,
-  getAgentHostEndpoint, getAgentHostModel, getAgentHostToken, getChatBackend, normalizeAgentHostEndpoint,
+  connectDetectedCodex, DEFAULT_AGENT_HOST_ENDPOINT, discoverLocalChatAgents, getAgentHostAgent,
+  getAgentHostEffort, getAgentHostEndpoint, getAgentHostModel, getAgentHostToken, getChatBackend, normalizeAgentHostEndpoint,
   saveAgentChatSettings, setChatBackend,
 } from '../js/agent-chat-settings.js';
 import { clearKeyCache } from '../js/crypto-key-cache.js';
@@ -98,6 +98,23 @@ describe('agent chat settings', () => {
     await saveAgentChatSettings({ model: 'gpt-5.6-sol', effort: 'high' });
     expect(getAgentHostModel()).toBe('gpt-5.6-sol');
     expect(getAgentHostEffort()).toBe('high');
+  });
+
+  it('remembers model and reasoning choices independently for each CLI agent', async () => {
+    await saveAgentChatSettings({ agent: 'codex', model: 'gpt-5.6-sol', effort: 'medium' });
+    await saveAgentChatSettings({ agent: 'opencode' });
+    expect(getAgentHostAgent()).toBe('opencode');
+    expect(getAgentHostModel()).toBe('');
+    expect(getAgentHostEffort()).toBe('');
+
+    await saveAgentChatSettings({ model: 'openrouter/model-a', effort: 'xhigh' });
+    await saveAgentChatSettings({ agent: 'codex' });
+    expect(getAgentHostModel()).toBe('gpt-5.6-sol');
+    expect(getAgentHostEffort()).toBe('medium');
+
+    await saveAgentChatSettings({ agent: 'opencode' });
+    expect(getAgentHostModel()).toBe('openrouter/model-a');
+    expect(getAgentHostEffort()).toBe('xhigh');
   });
 
   it('retains full provider-qualified model IDs for catalog rehydration', async () => {

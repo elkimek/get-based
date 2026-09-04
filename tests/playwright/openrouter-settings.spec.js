@@ -98,6 +98,14 @@ test('CLI provider discovers branded agents and keeps model controls stable acro
       isDefault: false, defaultReasoningEffort: '', supportedReasoningEfforts: [], inputModalities: ['text'],
     },
   ];
+  const codexModels = [{
+    id: 'gpt-5.6-sol', model: 'gpt-5.6-sol', displayName: 'GPT-5.6-Sol', isDefault: true,
+    defaultReasoningEffort: 'low', inputModalities: ['text', 'image'],
+    supportedReasoningEfforts: [
+      { reasoningEffort: 'low', description: 'Low' },
+      { reasoningEffort: 'medium', description: 'Medium' },
+    ],
+  }];
 
   await page.route('**/api/local-agents*', route => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({ agents }),
@@ -110,9 +118,13 @@ test('CLI provider discovers branded agents and keeps model controls stable acro
       state: 'running', paused: false, runtimeMode: 'temporary', companionVersion: '1.1.0',
     }),
   }));
-  await page.route(`${endpoint}/v1/models**`, route => route.fulfill({
-    status: 200, contentType: 'application/json', body: JSON.stringify({ models }),
-  }));
+  await page.route(`${endpoint}/v1/models**`, route => {
+    const agent = new URL(route.request().url()).searchParams.get('agent');
+    return route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ models: agent === 'codex' ? codexModels : models }),
+    });
+  });
   await page.addInitScript(() => {
     const profileId = localStorage.getItem('labcharts-active-profile') || 'default';
     localStorage.setItem(`labcharts-${profileId}-emptyTour`, 'completed');
@@ -166,4 +178,20 @@ test('CLI provider discovers branded agents and keeps model controls stable acro
   await expect(page.locator('#cli-agent-model-summary')).toContainText('Model 14');
   await expect(page.locator('#cli-agent-effort-summary')).toContainText('xhigh');
   await expect(page.locator('.local-agent-companion-section')).toContainText('Connected for this terminal session');
+
+  await page.locator('label.local-agent-toggle:has(input[data-agent="codex"])').click();
+  await expect(page.locator('#cli-agent-model-summary')).toContainText('GPT-5.6-Sol');
+  await page.locator('#cli-agent-model-summary').click();
+  await page.locator('[data-settings-action="set-cli-agent-model"][data-value="gpt-5.6-sol"]').click();
+  await page.locator('#cli-agent-effort-summary').click();
+  await page.locator('[data-settings-action="set-cli-agent-effort"][data-value="medium"]').click();
+  await expect(page.locator('#cli-agent-effort-summary')).toContainText('medium');
+
+  await page.locator('label.local-agent-toggle:has(input[data-agent="opencode"])').click();
+  await expect(page.locator('#cli-agent-model-summary')).toContainText('Model 14');
+  await expect(page.locator('#cli-agent-effort-summary')).toContainText('xhigh');
+
+  await page.locator('label.local-agent-toggle:has(input[data-agent="codex"])').click();
+  await expect(page.locator('#cli-agent-model-summary')).toContainText('GPT-5.6-Sol');
+  await expect(page.locator('#cli-agent-effort-summary')).toContainText('medium');
 });

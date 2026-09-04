@@ -462,7 +462,7 @@ export async function toggleLocalCodex(enabled, agentId = getAgentHostAgent()) {
   }
   try {
     await connectDetectedAgent(agentId);
-    await saveAgentChatSettings({ agent: agentId, model: '', effort: '' });
+    await saveAgentChatSettings({ agent: agentId });
     agentModels = [];
     agentModelsAgentId = '';
     hydratedAgentId = '';

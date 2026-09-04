@@ -136,6 +136,8 @@ tested. Production performs the same bundle step during its normal build.
 The selected row reads that CLI's model catalog and lets the user choose the model
 and supported reasoning effort without leaving getbased. Transport URLs and
 pairing credentials are intentionally not part of the normal user interface.
+Model and reasoning selections are stored per CLI, so switching agents and
+returning restores that agent's last compatible choices.
 The standalone `npm run agent-host` command and its environment variables
 remain an advanced development/self-hosting escape hatch, not an onboarding
 requirement.
