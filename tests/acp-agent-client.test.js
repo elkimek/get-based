@@ -69,4 +69,23 @@ describe('ACP agent model catalogs', () => {
       sessionId: 'session-2', modelId: 'openai-codex:gpt-5.6-terra',
     });
   });
+
+  it('starts a fresh session when an ACP session can no longer be loaded', async () => {
+    const client = new ACPAgentClient({ id: 'opencode', command: 'opencode', args: ['acp'], cwd: '/tmp/current' });
+    client.initialize = vi.fn(async () => ({ agentCapabilities: { loadSession: true } }));
+    client.request = vi.fn(async method => {
+      if (method === 'session/load') throw new Error('Previous workspace no longer exists.');
+      if (method === 'session/new') return { sessionId: 'fresh-session', configOptions: [] };
+      throw new Error(`Unexpected request: ${method}`);
+    });
+
+    await expect(client.ensureSession({ requestedSessionId: 'stale-session', mcpServers: [] }))
+      .resolves.toMatchObject({ sessionId: 'fresh-session' });
+    expect(client.request).toHaveBeenNthCalledWith(1, 'session/load', {
+      sessionId: 'stale-session', cwd: '/tmp/current', mcpServers: [],
+    });
+    expect(client.request).toHaveBeenNthCalledWith(2, 'session/new', {
+      cwd: '/tmp/current', mcpServers: [],
+    });
+  });
 });

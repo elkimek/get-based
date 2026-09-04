@@ -201,10 +201,26 @@ describe('agent host service', () => {
     const buffer = { value: '' };
     const session = await nextEvent(reader, decoder, buffer);
     expect(session).toMatchObject({ type: 'session', model: 'open-model' });
-    expect(session.threadId).toMatch(/^v2\.opencode\./);
+    expect(session.threadId).toMatch(/^v3\.opencode\./);
     expect(await nextEvent(reader, decoder, buffer)).toEqual({ type: 'text_delta', delta: 'From OpenCode' });
     expect(await nextEvent(reader, decoder, buffer)).toEqual({ type: 'done', finishReason: 'end_turn' });
     expect(acp.ensureSession.mock.calls[0][0].mcpServers[0]).toMatchObject({ name: 'getbased', command: process.execPath });
+
+    const resumed = await service.handleRequest(turnRequest({ agent: 'opencode', threadId: session.threadId }));
+    const resumedReader = resumed.body.getReader();
+    const resumedBuffer = { value: '' };
+    expect(await nextEvent(resumedReader, decoder, resumedBuffer)).toMatchObject({ type: 'session', resumed: true });
+    expect(acp.ensureSession).toHaveBeenLastCalledWith(expect.objectContaining({ requestedSessionId: 'acp/session:1' }));
+    await nextEvent(resumedReader, decoder, resumedBuffer);
+    await nextEvent(resumedReader, decoder, resumedBuffer);
+
+    const restartedService = createAgentHostService({
+      appServer: null, token: TOKEN, workspaceRoot: '/tmp/agent-test-new', bundlePath: '/tmp/getbased-companion.mjs',
+      agents: [{ id: 'opencode', name: 'OpenCode', description: 'Agent', protocol: 'acp', client: acp }],
+    });
+    const stale = await restartedService.handleRequest(turnRequest({ agent: 'opencode', threadId: session.threadId }));
+    expect(stale.status).toBe(400);
+    expect(await stale.json()).toEqual({ error: 'invalid_thread_session' });
   });
 
   it('pauses and resumes new AI work through the authenticated control endpoint', async () => {
