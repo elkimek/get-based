@@ -66,8 +66,9 @@ import {
 } from './chat-backend-selection.js';
 import { getAssistantExecutionRoute } from './ai-execution-routing.js';
 import { getAgentModelDisplay, getCachedAgentModelCatalog } from './agent-model-catalog.js';
-import { getAgentHostAgent } from './agent-chat-settings.js';
-import { summarizeAgentToolReceipts } from './agent-tool-runtime.js';
+import { getAgentHostAgent, getAgentHostTarget } from './agent-chat-settings.js';
+import { isPersonalAgentTarget } from './agent-chat-context.js';
+import { mergeAgentContextReceipts } from './agent-tool-runtime.js';
 import { getDirectChatReasoningEffort } from './chat-model-preferences.js';
 
 // ═══════════════════════════════════════════════
@@ -246,7 +247,10 @@ export async function sendChatMessage() {
   // Ask before mutating the conversation or preparing any provider request.
   // The shared gate separates AI transparency from endpoint-specific route
   // confirmation or remote sensitive-data approval.
-  const _msgProvider = useCodexAgent ? 'codex-agent' : getAIProvider();
+  const _msgAgentTarget = useCodexAgent ? getAgentHostTarget() : 'local';
+  const _msgProvider = useCodexAgent
+    ? (isPersonalAgentTarget(_msgAgentTarget) ? 'personal-agent-gateway' : 'codex-agent')
+    : getAIProvider();
   const { requestAIProcessingApproval } = await import('./cloud-ai-consent.js');
   if (!await requestAIProcessingApproval(_msgProvider, { kind: hasImages ? 'image' : 'text' })) return;
 
@@ -333,8 +337,9 @@ export async function sendChatMessage() {
         _lensResultForMsg = lensResult;
       }
     }
-    // Direct providers receive this projection in the prompt. Agent-backed
-    // turns expose it behind tools and narrow the receipt to tools actually used.
+    // Every provider receives the same user-enabled baseline projection.
+    // Local CLI agents can additionally use bounded tools for exact lookups,
+    // navigation, and reviewable drafts.
     const { getContextSummary } = await import('./chat-context-summary.js');
     let contextSnapshot = getContextSummary(labContext);
     const personality = getActivePersonality();
@@ -394,6 +399,7 @@ export async function sendChatMessage() {
         instructions: `${CHAT_SYSTEM_PROMPT}${personalityPrompt}${multiPersonaInstruction}`,
         labContext,
         profileId: state.currentProfile || '',
+        target: _msgAgentTarget,
         threadId: currentThread?.agentThreadId,
         history: apiMessages.slice(0, -1).filter(message => typeof message.content === 'string').map(message => ({
           role: message.role,
@@ -409,7 +415,7 @@ export async function sendChatMessage() {
         currentThread.agentModel = aiResult.model;
       }
       const agentToolCalls = Array.isArray(aiResult.toolCalls) ? aiResult.toolCalls : [];
-      contextSnapshot = summarizeAgentToolReceipts(agentToolCalls, contextSnapshot);
+      contextSnapshot = mergeAgentContextReceipts(agentToolCalls, contextSnapshot);
     } else {
       aiResult = await callChatAPIWithContinuation({
         system: systemPrompt,
@@ -424,7 +430,7 @@ export async function sendChatMessage() {
     }
     if (useCodexAgent && aiResult.model) {
       _msgModelId = aiResult.model;
-      _msgModelDisplay = getAgentModelDisplay(aiResult.model, getCachedAgentModelCatalog(getAgentHostAgent()));
+      _msgModelDisplay = getAgentModelDisplay(aiResult.model, getCachedAgentModelCatalog(getAgentHostAgent(), _msgAgentTarget));
     }
     const fullText = aiResult.text;
     const usage = /** @type {{ inputTokens?: number, outputTokens?: number } | undefined} */ (aiResult.usage);

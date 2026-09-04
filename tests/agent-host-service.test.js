@@ -172,7 +172,14 @@ describe('agent host service', () => {
 
   it('lists safe execution targets and routes model discovery without exposing gateway credentials', async () => {
     const local = { getModelCatalog: vi.fn(async () => [{ id: 'local-model', model: 'local-model', displayName: 'Local', inputModalities: ['text'] }]) };
-    const gateway = { getModelCatalog: vi.fn(async () => [{ id: 'remote-model', model: 'remote-model', displayName: 'Remote', inputModalities: ['text'] }]) };
+    const gateway = {
+      getModelCatalog: vi.fn(async () => [{ id: 'remote-model', model: 'remote-model', displayName: 'Remote', inputModalities: ['text'] }]),
+      prompt: vi.fn(async options => {
+        options.onEvent({ type: 'session', sessionId: 'personal-session', model: 'remote-model' });
+        options.onEvent({ type: 'text_delta', delta: 'Personal answer' });
+        options.onEvent({ type: 'done', finishReason: 'stop' });
+      }),
+    };
     const service = createAgentHostService({
       appServer: null, token: TOKEN, workspaceRoot: '/tmp/agent-test',
       agents: [{
@@ -198,6 +205,23 @@ describe('agent host service', () => {
     expect(await modelsResponse.json()).toEqual({ models: [expect.objectContaining({ id: 'remote-model' })] });
     expect(gateway.getModelCatalog).toHaveBeenCalled();
     expect(local.getModelCatalog).not.toHaveBeenCalled();
+
+    await service.handleRequest(new Request('http://127.0.0.1:8324/v1/models?agent=hermes&target=gateway-home&refresh=true', { headers }));
+    expect(gateway.getModelCatalog).toHaveBeenLastCalledWith({ refresh: true });
+
+    const turn = await service.handleRequest(turnRequest({
+      agent: 'hermes', target: 'gateway-home', instructions: 'Enabled context: Ferritin 42 ng/mL.',
+    }));
+    const reader = turn.body.getReader();
+    const decoder = new TextDecoder();
+    const buffer = { value: '' };
+    await nextEvent(reader, decoder, buffer);
+    await nextEvent(reader, decoder, buffer);
+    await nextEvent(reader, decoder, buffer);
+    expect(gateway.prompt).toHaveBeenCalledWith(expect.objectContaining({
+      instructions: expect.stringContaining('Enabled context: Ferritin 42 ng/mL.'),
+    }));
+    expect(gateway.prompt.mock.calls[0][0].instructions).toContain('existing personal agent');
   });
 
   it('routes model discovery and streaming turns through an ACP agent', async () => {
@@ -236,13 +260,18 @@ describe('agent host service', () => {
     expect(await nextEvent(reader, decoder, buffer)).toEqual({ type: 'done', finishReason: 'end_turn' });
     expect(acp.ensureSession.mock.calls[0][0].mcpServers[0]).toMatchObject({ name: 'getbased', command: process.execPath });
 
-    const resumed = await service.handleRequest(turnRequest({ agent: 'opencode', threadId: session.threadId }));
+    const resumed = await service.handleRequest(turnRequest({
+      agent: 'opencode', threadId: session.threadId,
+      instructions: 'Updated enabled context: ferritin is now 46 ng/mL.',
+    }));
     const resumedReader = resumed.body.getReader();
     const resumedBuffer = { value: '' };
     expect(await nextEvent(resumedReader, decoder, resumedBuffer)).toMatchObject({ type: 'session', resumed: true });
     expect(acp.ensureSession).toHaveBeenLastCalledWith(expect.objectContaining({ requestedSessionId: 'acp/session:1' }));
     await nextEvent(resumedReader, decoder, resumedBuffer);
     await nextEvent(resumedReader, decoder, resumedBuffer);
+    expect(acp.prompt.mock.calls[1][0].prompt[0].text)
+      .toContain('Updated enabled context: ferritin is now 46 ng/mL.');
 
     const restartedService = createAgentHostService({
       appServer: null, token: TOKEN, workspaceRoot: '/tmp/agent-test-new', bundlePath: '/tmp/getbased-companion.mjs',

@@ -105,6 +105,43 @@ test('CLI picker groups a large OpenCode catalog and shares its effort with Sett
   await expect(page.locator('#chat-model-menu-label')).toContainText('High');
 });
 
+test('personal Hermes gateway highlights only its current profile model', async ({ page }) => {
+  await page.addInitScript(() => {
+    const models = [
+      {
+        id: 'openai-codex:gpt-5.6-sol', model: 'openai-codex:gpt-5.6-sol', displayName: 'GPT-5.6 Sol', isDefault: true,
+        defaultReasoningEffort: 'medium', supportedReasoningEfforts: [], inputModalities: ['text'],
+      },
+      {
+        id: 'openai-codex:gpt-5.6-terra', model: 'openai-codex:gpt-5.6-terra', displayName: 'GPT-5.6 Terra', isDefault: false,
+        defaultReasoningEffort: 'medium', supportedReasoningEfforts: [], inputModalities: ['text'],
+      },
+      {
+        id: 'ollama-cloud:qwen3', model: 'ollama-cloud:qwen3', displayName: 'Qwen 3', isDefault: false,
+        defaultReasoningEffort: '', supportedReasoningEfforts: [], inputModalities: ['text'],
+      },
+    ];
+    localStorage.setItem('labcharts-agent-host-agent', 'hermes');
+    localStorage.setItem('labcharts-agent-host-target:hermes', 'gateway-home');
+    localStorage.setItem('labcharts-agent-model-catalog-v1', JSON.stringify(models));
+    localStorage.setItem('labcharts-agent-model-catalog-agent-v1', 'hermes');
+    localStorage.setItem('labcharts-agent-model-catalog-target-v1', 'gateway-home');
+  });
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    localStorage.setItem('labcharts-chat-backend', 'codex');
+    await (await import('/js/chat-panel.js')).openChatPanel();
+  });
+
+  await page.locator('#chat-model-menu-toggle').click();
+  await expect(page.locator('.chat-model-option-group-label')).toHaveText([
+    'Current personal profile', 'OpenAI Codex', 'Ollama Cloud',
+  ]);
+  await expect(page.locator('.chat-model-option-group-label', { hasText: 'Recommended' })).toHaveCount(0);
+  await expect(page.locator('[data-chat-model-value="openai-codex:gpt-5.6-sol"]')).toBeVisible();
+  await expect(page.locator('[data-chat-model-value="openai-codex:gpt-5.6-terra"]')).toBeVisible();
+});
+
 test('CLI chat keeps dictation enabled through the independent voice service', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(async () => {

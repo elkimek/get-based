@@ -8,12 +8,14 @@ import {
 import { getAssistantExecutionRoute } from './ai-execution-routing.js';
 import { AGENT_HOST_CAPABILITIES } from '../shared/agent-host-protocol.js';
 import { createBrowserAgentToolDependencies } from './agent-tool-bindings.js';
+import { buildAgentChatInstructions } from './agent-chat-context.js';
 
 /**
  * @param {{
  *   prompt: string,
  *   instructions: string,
  *   labContext: string,
+ *   target?: string,
  *   profileId?: string,
  *   threadId?: string,
  *   history?: Array<{role: 'user'|'assistant', content: string}>,
@@ -23,6 +25,8 @@ import { createBrowserAgentToolDependencies } from './agent-tool-bindings.js';
  * }} options
  */
 export async function callCodexAgent(options) {
+  const agent = getAgentHostAgent();
+  const target = options.target || getAgentHostTarget(agent);
   const runtime = createAgentToolRuntime({
     readContext: async () => ({
       context: options.labContext,
@@ -57,12 +61,12 @@ export async function callCodexAgent(options) {
   const run = threadId => streamAgentTurn({
     endpoint,
     token,
-    agent: getAgentHostAgent(),
-    target: getAgentHostTarget(),
+    agent,
+    target,
     model: getAgentHostModel() || getAssistantExecutionRoute().model,
     effort: getAgentHostEffort(),
     prompt: options.prompt,
-    instructions: options.instructions,
+    instructions: buildAgentChatInstructions(options.instructions, options.labContext, target),
     threadId,
     history: options.history,
     imageUploadIds,

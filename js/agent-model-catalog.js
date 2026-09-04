@@ -3,6 +3,7 @@
 
 export const AGENT_MODEL_CATALOG_KEY = 'labcharts-agent-model-catalog-v1';
 export const AGENT_MODEL_CATALOG_AGENT_KEY = 'labcharts-agent-model-catalog-agent-v1';
+export const AGENT_MODEL_CATALOG_TARGET_KEY = 'labcharts-agent-model-catalog-target-v1';
 
 const REASONING_EFFORT_RANK = new Map([
   ['none', 0],
@@ -79,23 +80,31 @@ function isNormalizedModel(model) {
   return model !== null;
 }
 
-/** @param {unknown} models @param {string} [agentId] */
-export function cacheAgentModelCatalog(models, agentId = '') {
+/** @param {unknown} models @param {string} [agentId] @param {string} [targetId] */
+export function cacheAgentModelCatalog(models, agentId = '', targetId = 'local') {
   const normalized = Array.isArray(models) ? models.map(normalizeModel).filter(isNormalizedModel).slice(0, 500) : [];
   localStorage.setItem(AGENT_MODEL_CATALOG_KEY, JSON.stringify(normalized));
   const owner = boundedString(agentId, 40);
-  if (owner) localStorage.setItem(AGENT_MODEL_CATALOG_AGENT_KEY, owner);
-  else localStorage.removeItem(AGENT_MODEL_CATALOG_AGENT_KEY);
+  if (owner) {
+    localStorage.setItem(AGENT_MODEL_CATALOG_AGENT_KEY, owner);
+    localStorage.setItem(AGENT_MODEL_CATALOG_TARGET_KEY, boundedString(targetId, 80) || 'local');
+  } else {
+    localStorage.removeItem(AGENT_MODEL_CATALOG_AGENT_KEY);
+    localStorage.removeItem(AGENT_MODEL_CATALOG_TARGET_KEY);
+  }
   if (typeof globalThis.dispatchEvent === 'function' && typeof CustomEvent !== 'undefined') {
     globalThis.dispatchEvent(new CustomEvent('getbased:agent-model-catalog-changed'));
   }
   return normalized;
 }
 
-/** @param {string} [agentId] */
-export function getCachedAgentModelCatalog(agentId = '') {
+/** @param {string} [agentId] @param {string} [targetId] */
+export function getCachedAgentModelCatalog(agentId = '', targetId = 'local') {
   const expectedOwner = boundedString(agentId, 40);
   if (expectedOwner && localStorage.getItem(AGENT_MODEL_CATALOG_AGENT_KEY) !== expectedOwner) return [];
+  const expectedTarget = boundedString(targetId, 80) || 'local';
+  const storedTarget = localStorage.getItem(AGENT_MODEL_CATALOG_TARGET_KEY) || 'local';
+  if (expectedOwner && storedTarget !== expectedTarget) return [];
   try {
     const parsed = JSON.parse(localStorage.getItem(AGENT_MODEL_CATALOG_KEY) || '[]');
     return Array.isArray(parsed) ? parsed.map(normalizeModel).filter(isNormalizedModel).slice(0, 500) : [];

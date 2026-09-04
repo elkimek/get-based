@@ -94,6 +94,21 @@ describe('agent chat client', () => {
     );
   });
 
+  it('requests a forced refresh for the selected personal gateway catalog', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{"models":[]}', {
+      status: 200, headers: { 'Content-Type': 'application/json' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    await listAgentModels({
+      endpoint: 'http://127.0.0.1:8324', token: 'secret-token', agent: 'hermes',
+      target: 'gateway-home', refresh: true,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8324/v1/models?agent=hermes&target=gateway-home&refresh=true',
+      expect.objectContaining({ headers: { Authorization: 'Bearer secret-token' } }),
+    );
+  });
+
   it('loads safe execution targets and sends the selected target with turns', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ targets: [{

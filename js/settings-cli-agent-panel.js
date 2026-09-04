@@ -447,7 +447,7 @@ async function hydrateAgentModelControls() {
       model: selectedModel || undefined,
     });
     if (!options.isConnected || getAgentHostAgent() !== agent) return;
-    agentModels = cacheAgentModelCatalog(models, agent);
+    agentModels = cacheAgentModelCatalog(models, agent, getAgentHostTarget(agent));
     agentModelsAgentId = agent;
     showAgentModelControls(options, agentModels);
   } catch (error) {
@@ -519,7 +519,7 @@ export async function setCLIAgentModel(model) {
       target: getAgentHostTarget(agent), model: model || undefined,
     });
     if (getAgentHostAgent() !== agent) return;
-    agentModels = cacheAgentModelCatalog(models, agent);
+    agentModels = cacheAgentModelCatalog(models, agent, getAgentHostTarget(agent));
     agentModelsAgentId = agent;
     await saveAgentChatSettings({ model });
     const selected = selectedModelEntry(agentModels, model);

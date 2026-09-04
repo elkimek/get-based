@@ -12,6 +12,12 @@ import {
 } from './local-ai-provider-shared.js';
 
 const BUILTIN_PROVIDERS = Object.freeze({
+  'personal-agent-gateway': Object.freeze({
+    label: 'Personal agent gateway',
+    endpoint: '',
+    privacyUrl: '',
+    termsUrl: '',
+  }),
   'codex-agent': Object.freeze({
     label: 'OpenAI Codex',
     endpoint: 'https://chatgpt.com',
@@ -138,7 +144,8 @@ export function getAIProcessingDestination(provider, { endpoint = '', modelId = 
   const resolvedEndpoint = selectedEndpoint(provider, endpoint);
   const origin = safeInferenceOrigin(resolvedEndpoint);
   let boundary;
-  if (provider === 'browser-local') boundary = 'same-device';
+  if (provider === 'personal-agent-gateway') boundary = 'remote';
+  else if (provider === 'browser-local') boundary = 'same-device';
   else if (cloudModel) boundary = 'remote';
   else {
     const execution = getLocalAiExecutionLocation(resolvedEndpoint);
@@ -150,7 +157,9 @@ export function getAIProcessingDestination(provider, { endpoint = '', modelId = 
   }
   const policy = selectedPolicy(provider, cloudModel);
   const label = destinationLabel(provider, boundary, origin, policy.label);
-  const route = provider === 'codex-agent'
+  const route = provider === 'personal-agent-gateway'
+    ? 'through the local getbased Companion to your selected personal agent gateway and its configured model provider'
+    : provider === 'codex-agent'
     ? 'through the local getbased Agent Host to OpenAI Codex'
     : boundary === 'same-device'
     ? 'on this device'

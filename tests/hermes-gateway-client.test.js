@@ -51,7 +51,10 @@ class FakeWebSocket extends EventEmitter {
 
 const modelPayload = {
   provider: 'openai-codex', model: 'gpt-5.6-sol',
-  providers: [{ slug: 'openai-codex', name: 'ChatGPT or Codex subscription', authenticated: true, models: ['gpt-5.6-sol', 'gpt-5.6-luna'] }],
+  providers: [{
+    slug: 'openai-codex', name: 'ChatGPT or Codex subscription', authenticated: true,
+    models: ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'], unavailable_models: ['gpt-5.6-luna'],
+  }],
 };
 
 describe('Hermes personal gateway adapter', () => {
@@ -72,6 +75,7 @@ describe('Hermes personal gateway adapter', () => {
     expect(catalog[0]).toMatchObject({
       id: 'openai-codex:gpt-5.6-sol', isDefault: true, inputModalities: ['text'],
     });
+    expect(catalog.map(model => model.id)).not.toContain('openai-codex:gpt-5.6-luna');
     expect(catalog[0].supportedReasoningEfforts.map(item => item.reasoningEffort))
       .toEqual(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra']);
   });
@@ -108,6 +112,8 @@ describe('Hermes personal gateway adapter', () => {
       fetchImpl, WebSocketImpl: FakeWebSocket,
     });
     await expect(client.getModelCatalog()).resolves.toHaveLength(2);
+    await expect(client.getModelCatalog({ refresh: true })).resolves.toHaveLength(2);
+    expect(String(fetchImpl.mock.calls.at(-1)[0])).toContain('refresh=true');
     const events = [];
     await client.prompt({
       sessionId: 'getbased-chat-1', model: 'openai-codex:gpt-5.6-sol', effort: 'high', instructions: 'Keep your identity.',
@@ -121,12 +127,12 @@ describe('Hermes personal gateway adapter', () => {
       { type: 'done', finishReason: 'stop' },
     ]);
     await client.prompt({
-      sessionId: 'getbased-chat-1', model: 'openai-codex:gpt-5.6-luna', effort: '', instructions: 'Keep your identity.',
+      sessionId: 'getbased-chat-1', model: 'openai-codex:gpt-5.6-terra', effort: '', instructions: 'Keep your identity.',
       prompt: [{ type: 'text', text: 'And now?' }], onEvent: () => {},
     });
     expect(FakeWebSocket.frames.filter(frame => frame.method === 'session.create')).toHaveLength(1);
     expect(FakeWebSocket.frames).toEqual(expect.arrayContaining([
-      expect.objectContaining({ method: 'config.set', params: expect.objectContaining({ key: 'model', value: 'openai-codex:gpt-5.6-luna', session_id: 'hermes-live-1' }) }),
+      expect.objectContaining({ method: 'config.set', params: expect.objectContaining({ key: 'model', value: 'openai-codex:gpt-5.6-terra', session_id: 'hermes-live-1' }) }),
       expect.objectContaining({ method: 'config.get', params: { key: 'reasoning', profile: 'omer' } }),
       expect.objectContaining({ method: 'config.set', params: expect.objectContaining({ key: 'reasoning', value: 'medium', session_id: 'hermes-live-1' }) }),
     ]));

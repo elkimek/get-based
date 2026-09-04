@@ -121,6 +121,7 @@ function providerGroupFromModel(agent, modelId) {
 function friendlyProviderGroup(value) {
   const known = {
     recommended: 'Recommended',
+    current: 'Current personal profile',
     other: 'Other models',
     openrouter: 'OpenRouter',
     anthropic: 'Anthropic',
@@ -141,10 +142,13 @@ function cliModelIsRecommended(agent, modelId) {
   return isRecommendedModel('custom', id);
 }
 
-function orderCliModels(agent, catalog) {
-  const recommended = selectLatestModelFamilies(
-    catalog.filter(model => cliModelIsRecommended(agent, model.id)),
-  );
+function orderCliModels(agent, target, catalog) {
+  // A personal gateway is the authority for its own profile. Do not apply
+  // getbased's cross-provider recommendations to that catalog: they can make
+  // an unrelated model look endorsed even when the gateway merely reports it.
+  const recommended = target === 'local'
+    ? selectLatestModelFamilies(catalog.filter(model => cliModelIsRecommended(agent, model.id)))
+    : catalog.filter(model => model.isDefault);
   const recommendedIds = new Set(recommended.map(model => model.id));
   return {
     recommendedIds,
@@ -165,11 +169,12 @@ function currentControlState() {
   const cli = getChatBackend() === 'codex';
   if (cli) {
     const agent = getAgentHostAgent();
-    const catalog = getCachedAgentModelCatalog(agent);
+    const target = getAgentHostTarget(agent);
+    const catalog = getCachedAgentModelCatalog(agent, target);
     const selectedId = getAgentHostModel();
     const selected = resolveAgentModel(selectedId, catalog);
     const defaultModel = catalog.find(model => model.isDefault) || catalog[0] || null;
-    const orderedCatalog = orderCliModels(agent, catalog);
+    const orderedCatalog = orderCliModels(agent, target, catalog);
     const models = [
       {
         id: '',
@@ -182,7 +187,7 @@ function currentControlState() {
         name: model.displayName || model.id,
         search: `${model.displayName || ''} ${model.id} ${model.model || ''}`,
         group: orderedCatalog.recommendedIds.has(model.id)
-          ? 'recommended'
+          ? (target === 'local' ? 'recommended' : 'current')
           : providerGroupFromModel(agent, model.id) || (orderedCatalog.recommendedIds.size ? 'other' : ''),
       })),
     ];
@@ -192,6 +197,7 @@ function currentControlState() {
     return {
       cli: true,
       provider: agent,
+      target,
       providerLabel: PROVIDER_LABELS[agent] || 'CLI agent',
       selectedId,
       selectedName: selectedId ? getAgentModelDisplay(selectedId, catalog) : (defaultModel?.displayName || 'CLI default'),
@@ -238,7 +244,7 @@ function currentControlState() {
 
 function currentCatalogIsEmpty() {
   return getChatBackend() === 'codex'
-    ? getCachedAgentModelCatalog(getAgentHostAgent()).length === 0
+    ? getCachedAgentModelCatalog(getAgentHostAgent(), getAgentHostTarget()).length === 0
     : readDirectModels(getAIProvider()).length === 0;
 }
 
@@ -328,7 +334,7 @@ async function selectModel(value) {
   const state = currentControlState();
   if (hasPendingAttachments()) {
     const supportsImages = state.cli
-      ? resolveAgentModel(value, getCachedAgentModelCatalog(state.provider))?.inputModalities.includes('image') === true
+      ? resolveAgentModel(value, getCachedAgentModelCatalog(state.provider, state.target))?.inputModalities.includes('image') === true
       : supportsVision(state.provider, value);
     if (!supportsImages) {
       showNotification('Remove the attached photos before switching to a text-only model.', 'error', 6000);
@@ -340,9 +346,9 @@ async function selectModel(value) {
       await connectDetectedAgent(state.provider);
       const models = await listAgentModels({
         endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent: state.provider,
-        target: getAgentHostTarget(state.provider), model: value || undefined,
+        target: state.target, model: value || undefined,
       });
-      cacheAgentModelCatalog(models, state.provider);
+      cacheAgentModelCatalog(models, state.provider, state.target);
       await saveAgentChatSettings({ model: value });
     } else {
       await selectDirectModel(state.provider, value);
@@ -365,9 +371,10 @@ async function refreshModels() {
       await connectDetectedAgent(state.provider);
       const models = await listAgentModels({
         endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent: state.provider,
-        target: getAgentHostTarget(state.provider),
+        target: state.target,
+        refresh: true,
       });
-      cacheAgentModelCatalog(models, state.provider);
+      cacheAgentModelCatalog(models, state.provider, state.target);
     } else if (state.provider === 'openrouter') await fetchOpenRouterModels(getOpenRouterKey());
     else if (state.provider === 'venice') await fetchVeniceModels(getVeniceKey());
     else if (state.provider === 'routstr') await fetchRoutstrModels();

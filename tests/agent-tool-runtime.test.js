@@ -5,6 +5,7 @@ import {
   createAgentToolRuntime,
   getAgentToolCatalog,
   getCodexDynamicTools,
+  mergeAgentContextReceipts,
   parseAgentContextSections,
   summarizeAgentToolReceipts,
 } from '../js/agent-tool-runtime.js';
@@ -30,6 +31,16 @@ describe('agent tool catalog', () => {
     expect(summarizeAgentToolReceipts([
       { tool: 'getbased_lab_context', arguments: {}, success: true },
     ], full)).toBe(full);
+  });
+
+  it('keeps the baseline context receipt and appends additional successful tool lookups', () => {
+    const baseline = [{ label: 'Profile context', detail: '' }];
+    expect(mergeAgentContextReceipts([
+      { tool: 'getbased_marker_history', arguments: { marker: 'Ferritin' }, success: true },
+    ], baseline)).toEqual([
+      { label: 'Profile context', detail: '' },
+      { label: 'Blood marker results', detail: 'History: Ferritin' },
+    ]);
   });
 
   it('exports versioned least-authority tools using Codex dynamic-tool schemas', () => {

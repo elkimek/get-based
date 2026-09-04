@@ -171,6 +171,16 @@ describe('AI transparency and route-aware approval', () => {
     });
   });
 
+  it('treats a personal CLI gateway as a distinct remote destination', () => {
+    expect(cloudAIConsentDetails('personal-agent-gateway')).toMatchObject({
+      boundary: 'remote',
+      required: true,
+      label: 'Personal agent gateway',
+      scope: 'personal-agent-gateway',
+      route: 'through the local getbased Companion to your selected personal agent gateway and its configured model provider',
+    });
+  });
+
   it('selects API-specific processing and terms links for remote voice providers', () => {
     expect(cloudAIConsentDetails('xai')).toMatchObject({
       privacyUrl: 'https://x.ai/legal/data-processing-addendum',

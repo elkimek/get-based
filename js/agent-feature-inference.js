@@ -21,6 +21,10 @@ import { AGENT_HOST_CAPABILITIES } from '../shared/agent-host-protocol.js';
 export async function callCodexFeature(options) {
   const files = Array.isArray(options.files) ? options.files : [];
   if (files.length > 4) throw new Error('The CLI companion can analyze up to 4 images or rendered PDF pages at once. Split this import into smaller files.');
+  const target = getAgentHostTarget();
+  if (target !== 'local') {
+    throw new Error('Personal gateway targets are for chat. Choose Local CLI for image imports and background AI features.');
+  }
   await connectDetectedCodex({
     signal: options.signal,
     requiredCapabilities: [
@@ -45,7 +49,7 @@ export async function callCodexFeature(options) {
     endpoint,
     token,
     agent: getAgentHostAgent(),
-    target: getAgentHostTarget(),
+    target,
     model: options.model,
     effort: options.effort || 'low',
     prompt: options.prompt,

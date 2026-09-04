@@ -2,7 +2,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  AGENT_MODEL_CATALOG_AGENT_KEY, cacheAgentModelCatalog, getCachedAgentModelCatalog,
+  AGENT_MODEL_CATALOG_AGENT_KEY, AGENT_MODEL_CATALOG_TARGET_KEY, cacheAgentModelCatalog, getCachedAgentModelCatalog,
 } from '../js/agent-model-catalog.js';
 import { filterCLIAgentModelOptions } from '../js/settings-cli-agent-panel.js';
 
@@ -25,6 +25,15 @@ describe('CLI agent model catalog cache', () => {
     expect(localStorage.getItem(AGENT_MODEL_CATALOG_AGENT_KEY)).toBe('opencode');
     expect(getCachedAgentModelCatalog('opencode')).toHaveLength(1);
     expect(getCachedAgentModelCatalog('codex')).toEqual([]);
+  });
+
+  it('does not reuse a local CLI catalog for the same agent personal gateway', () => {
+    cacheAgentModelCatalog([{ id: 'local-model' }], 'hermes', 'local');
+    expect(localStorage.getItem(AGENT_MODEL_CATALOG_TARGET_KEY)).toBe('local');
+    expect(getCachedAgentModelCatalog('hermes', 'gateway-home')).toEqual([]);
+    cacheAgentModelCatalog([{ id: 'personal-model' }], 'hermes', 'gateway-home');
+    expect(getCachedAgentModelCatalog('hermes', 'local')).toEqual([]);
+    expect(getCachedAgentModelCatalog('hermes', 'gateway-home')[0].id).toBe('personal-model');
   });
 
   it('does not assume image support when an adapter omits modalities', () => {

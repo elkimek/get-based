@@ -88,6 +88,15 @@ Every typed binding also verifies that the profile which started the turn is
 still active. If the user switches profiles mid-response, subsequent reads and
 navigation fail closed and the user can retry in the intended profile.
 
+Every chat backend also receives the same bounded, user-enabled context
+snapshot in its turn instructions. This is the common behavior shared by API,
+local-model, local-CLI, and personal-gateway routes, so ordinary questions do
+not depend on an agent deciding to call a tool. Local CLI agents additionally
+receive the structured tools above for exact lookups, longer histories,
+navigation, and reviewable drafts. The tools extend the baseline; they do not
+replace it. Personal gateways receive the baseline snapshot but no local tool
+credential.
+
 ## Capability and approval model
 
 Tools are classified before they are implemented:
@@ -125,8 +134,9 @@ getbased health data.
    call to the paired PWA. The PWA executes the registered handler and returns
    only the result projection.
 6. The getbased chat stores its own messages plus the external agent/thread
-   identifier needed to resume later. Its context receipt lists only successful
-   data-returning tool calls; failed calls and draft-only calls are excluded.
+   identifier needed to resume later. Its context receipt always lists the
+   enabled baseline projection and adds successful, data-returning tool calls;
+   failed calls and draft-only calls are excluded.
 
 Navigation and draft tools use the same streamed call flow. The agent can
 propose, but cannot perform, a health-data write. Only the user's **Apply**
@@ -304,6 +314,14 @@ cannot enforce its local MCP allowlist there. Consequently these routes are
 chat-only today. They receive the approved visible chat context but not the
 local structured health-data bridge, image imports, or background feature jobs.
 The UI states this boundary next to the execution picker.
+
+The personal gateway is authoritative for its model catalog. getbased marks
+only that profile's current/default model as current and groups the remaining
+advertised models by their actual provider; it does not apply generic getbased
+recommendations across the gateway catalog. Explicit refresh bypasses the
+gateway client's cache, and models identified by Hermes as unavailable are
+removed. If a gateway advertises a model without reporting account entitlement,
+the first attempted request remains the authoritative availability check.
 
 The current Codex adapter supports text and image chat, hosted cached web
 research, all structured tools listed above, and structured feature inference

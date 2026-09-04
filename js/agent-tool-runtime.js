@@ -73,6 +73,21 @@ export function summarizeAgentToolReceipts(toolCalls, fullContext = []) {
   )) === index).slice(0, 20);
 }
 
+/**
+ * Every chat provider receives the enabled baseline projection. Append any
+ * narrower tool lookups that disclosed additional data without dropping that
+ * baseline receipt.
+ * @param {Array<{tool?: string, arguments?: unknown, success?: boolean}>} toolCalls
+ * @param {Array<{label: string, detail: string}>} fullContext
+ */
+export function mergeAgentContextReceipts(toolCalls, fullContext = []) {
+  const toolReceipts = summarizeAgentToolReceipts(toolCalls, fullContext);
+  const combined = [...fullContext, ...toolReceipts];
+  return combined.filter((receipt, index) => combined.findIndex(item => (
+    item.label === receipt.label && item.detail === receipt.detail
+  )) === index).slice(0, 30);
+}
+
 /** @param {string} text */
 function success(text) {
   return {

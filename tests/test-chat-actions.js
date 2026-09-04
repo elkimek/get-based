@@ -437,7 +437,8 @@ assert('chat-actions.js exports regenerateLastMessage', chatActionsSrc.includes(
 assert('chat.js does NOT have readAloud', !chatSrc.includes('function readAloud'), 'removed');
 assert('chat-actions.js exports copyMessage', chatActionsSrc.includes('export function copyMessage'), 'found');
 assert('sendChatMessage snapshots exact final assembled context', chatSendSrc.includes('getContextSummary(labContext)') && chatSendSrc.indexOf('getContextSummary(labContext)') > chatSendSrc.indexOf('injectLensChunks(labContext'), 'found');
-assert('sendChatMessage snapshots provider for API call', chatSendSrc.includes('const _msgProvider = getAIProvider()') && chatSendSrc.includes('provider: _msgProvider'), 'found');
+assert('sendChatMessage snapshots provider for API call',
+  chatSendSrc.includes(': getAIProvider();') && chatSendSrc.includes('provider: _msgProvider'), 'found');
 assert('sendChatMessage awaits chat saves before repaint-sensitive work',
   (chatSendSrc.match(/await saveChatHistory\(\)/g) || []).length >= 2, 'found');
 assert('sendChatMessage keeps AI placeholder in abort-handler scope',
@@ -445,7 +446,8 @@ assert('sendChatMessage keeps AI placeholder in abort-handler scope',
   'found');
 assert('chat raises response token headroom', chatContinuationSrc.includes('CHAT_RESPONSE_MAX_TOKENS = 16384'), 'found');
 assert('chat auto-continues token-limit stops', chatContinuationSrc.includes('CHAT_AUTO_CONTINUE_LIMIT') && chatContinuationSrc.includes('callChatAPIWithContinuation'), 'found');
-assert('chat continuation uses provider snapshot', chatContinuationSrc.includes('provider })') && chatContinuationSrc.includes('}, provider)'), 'found');
+assert('chat continuation uses provider snapshot',
+  chatContinuationSrc.includes('reasoningEffort }, provider)') && chatContinuationSrc.includes('    }, provider);'), 'found');
 assert('chat auto-continues likely mid-sentence stops', chatContinuationSrc.includes('isLikelyIncompleteResponse') && chatContinuationSrc.includes('shouldAutoContinueResponse'), 'found');
 assert('chat incomplete heuristic does not continue solely because final line is long',
   !chatSrc.includes('return lastLine.length > 60') && !chatSendSrc.includes('return lastLine.length > 60') && !chatContinuationSrc.includes('return lastLine.length > 60'), 'length-only fallback removed');
