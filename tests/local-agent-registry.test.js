@@ -2,10 +2,19 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  buildLocalAgentEnvironment, findBundledOpenClawExecutable, resolveAgentLaunch, resolveWindowsNodeShim,
+  buildLocalAgentEnvironment, findBundledOpenClawExecutable, normalizeAgentVersion, readCommandJson,
+  resolveAgentLaunch, resolveWindowsNodeShim,
 } from '../lib/local-agent-registry.js';
 
 describe('local CLI process resolution', () => {
+  it('reads valid status JSON returned with a non-zero command exit', () => {
+    const error = Object.assign(new Error('Command failed'), {
+      stdout: JSON.stringify({ loggedIn: false, authMethod: 'none' }),
+    });
+    expect(readCommandJson(() => { throw error; })).toEqual({ loggedIn: false, authMethod: 'none' });
+    expect(normalizeAgentVersion('claude', '2.1.259 (Claude Code)')).toBe('2.1.259');
+  });
+
   it('unwraps a standard Windows npm shim without enabling a command shell', () => {
     const source = '@ECHO off\r\nendLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%_prog%"  "%dp0%\\node_modules\\@anthropic-ai\\claude-code\\cli.js" %*\r\n';
     expect(resolveWindowsNodeShim('C:\\Users\\Alex\\bin\\claude.cmd', source, 'C:\\Node\\node.exe')).toEqual({

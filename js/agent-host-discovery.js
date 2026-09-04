@@ -26,6 +26,8 @@ export function isAgentAllowedForDeployment(agentId, locationLike = globalThis.l
 export function normalizeDiscoveredAgent(agent) {
   const id = String(agent?.id || '');
   const isClaudeAgent = id === 'claude';
+  const message = String(agent?.message || '').slice(0, 240);
+  const version = String(agent?.version || '').slice(0, 100);
   return {
     id,
     // Older companions advertised the prohibited integration label “Claude
@@ -35,12 +37,12 @@ export function normalizeDiscoveredAgent(agent) {
     description: isClaudeAgent
       ? 'Anthropic agent · API/Console billing only'
       : String(agent?.description || '').slice(0, 100),
-    version: String(agent?.version || '').slice(0, 100),
+    version: isClaudeAgent ? version.replace(/\s*\(Claude Code\)\s*/gi, ' ').trim() : version,
     status: String(agent?.status || 'unavailable'),
     compatible: agent?.compatible === true,
     endpoint: String(agent?.endpoint || ''),
     token: String(agent?.token || ''),
-    message: String(agent?.message || '').slice(0, 240),
+    message: isClaudeAgent ? message.replaceAll('Claude Code', 'Claude Agent') : message,
     companionVersion: String(agent?.companionVersion || '').slice(0, 40),
     runtimeMode: ['installed', 'temporary'].includes(String(agent?.runtimeMode)) ? String(agent.runtimeMode) : '',
     platform: String(agent?.platform || '').slice(0, 24),

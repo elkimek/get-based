@@ -18,11 +18,14 @@ describe('CLI agent release policy', () => {
 
   it('replaces stale Claude Code metadata from an older running companion', () => {
     expect(normalizeDiscoveredAgent({
-      id: 'claude', name: 'Claude Code', description: 'Anthropic official CLI',
+      id: 'claude', name: 'Claude Code', description: 'Anthropic official CLI', version: '2.1.259 (Claude Code)',
+      message: 'Claude Code is installed, but its sign-in could not be verified.',
     })).toEqual(expect.objectContaining({
       id: 'claude',
       name: 'Claude Agent',
       description: 'Anthropic agent · API/Console billing only',
+      version: '2.1.259',
+      message: 'Claude Agent is installed, but its sign-in could not be verified.',
     }));
   });
 });

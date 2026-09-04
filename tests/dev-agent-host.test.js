@@ -102,6 +102,28 @@ describe('development agent discovery', () => {
     enabled.close();
   });
 
+  it('reports a non-zero logged-out Claude status as sign-in required', () => {
+    const controller = startDevAgentHost({
+      root: '/workspace', env: { GETBASED_ENABLE_CLAUDE_AGENT: 'api-console' },
+      execFileSyncImpl: vi.fn((command, args) => {
+        if (command !== 'claude') throw new Error('missing');
+        if (args[0] === '--version') return 'Claude CLI 2.1.0';
+        if (args[0] === 'auth') throw Object.assign(new Error('Command failed'), {
+          stdout: JSON.stringify({ loggedIn: false, authMethod: 'none' }),
+        });
+        throw new Error('unexpected');
+      }),
+      prepareStorage: vi.fn(() => ({ token: 'private-token' })),
+      spawnImpl: vi.fn(() => fakeChild()),
+    });
+
+    expect(controller.describe().agents).toEqual([expect.objectContaining({
+      id: 'claude', name: 'Claude Agent', status: 'login_required',
+      message: 'Run `claude auth login --console` for API billing, then check the connection again.',
+    })]);
+    controller.close();
+  });
+
   it('honors an explicit CLI path during development discovery', () => {
     const child = fakeChild();
     const run = vi.fn(command => {
