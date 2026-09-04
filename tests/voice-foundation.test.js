@@ -102,12 +102,16 @@ describe('voice settings storage', () => {
       providerId: 'browser-local',
       state: 'fallback',
     });
-    expect(getAutomaticVoiceStatus().text).toContain('selected CLI');
+    expect(getAutomaticVoiceStatus().text).toContain('CLI agent');
 
     localStorage.setItem('labcharts-ai-provider', 'ppq');
     updateKeyCache('labcharts-ppq-key', 'ppq-secret');
-    expect(resolveVoiceProviderId('tts', 'auto')).toBe('ppq');
-    expect(getAutomaticVoiceStatus().text).toContain('Automatic voice uses PPQ directly');
+    expect(resolveVoiceProviderId('stt', 'auto')).toBe('browser-local');
+    expect(resolveVoiceProviderId('tts', 'auto')).toBe('browser-local');
+    expect(getAutomaticVoiceStatus().text).toContain('stays on this device');
+
+    expect(resolveVoiceProviderId('stt', 'ppq')).toBe('ppq');
+    expect(resolveVoiceProviderId('tts', 'venice')).toBe('venice');
   });
 
   it('migrates removed legacy Whisper selections to Small', () => {

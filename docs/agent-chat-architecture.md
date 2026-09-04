@@ -288,7 +288,9 @@ private temporary workspace, consumed as `localImage` turn inputs, and deleted
 after completion or cancellation. CLI adapters do not currently expose a
 standardized audio transport. Dictation and spoken replies remain available
 through getbased's independent on-device, local-server, or configured cloud
-voice providers; only the resulting text crosses the CLI chat boundary.
+voice providers. Automatic voice stays on-device during CLI chat; a cloud or
+local-server voice provider is used only when the user selects it explicitly.
+Only the resulting text crosses the CLI chat boundary.
 Interactive Codex shell/file approvals remain deliberately unavailable.
 Health-data writes remain under getbased's proposal-card approval boundary.
 

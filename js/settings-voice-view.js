@@ -120,7 +120,7 @@ function renderProviderNotice() {
         <div class="settings-action-row">
           <div class="settings-copy">
             <div class="settings-copy-title">Voice can stay on this device</div>
-            <div class="settings-copy-desc">Choose On this device to keep recordings and reply text in this browser. Automatic uses a connected voice-capable AI provider when available and otherwise stays on this device. CLI chat agents remain separate from voice.</div>
+            <div class="settings-copy-desc">Choose On this device to keep recordings and reply text in this browser. Automatic can reuse a voice-capable direct AI provider, but stays on this device during CLI chat unless you explicitly choose another voice service.</div>
           </div>
         </div>
       </div>

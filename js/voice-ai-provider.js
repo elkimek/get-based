@@ -59,6 +59,10 @@ export function getAiVoiceProviderKey(providerId) {
 
 export function resolveVoiceProviderId(_kind, configuredProvider) {
   if (configuredProvider !== AUTO_VOICE_PROVIDER_ID) return configuredProvider;
+  // A CLI chat selection must not silently revive a previously configured
+  // cloud AI provider for audio. Users can still choose that voice provider
+  // explicitly in Voice settings.
+  if (getChatBackend() === 'codex') return 'browser-local';
   const aiProvider = getAIProvider();
   return isAiVoiceProvider(aiProvider) && getAiVoiceProviderKey(aiProvider)
     ? aiProvider
@@ -69,38 +73,37 @@ export function getAutomaticVoiceStatus() {
   const aiProvider = getAIProvider();
   const label = AI_PROVIDER_LABELS[aiProvider] || aiProvider || 'Your chat provider';
   const cliChat = getChatBackend() === 'codex';
+  if (cliChat) {
+    return {
+      providerId: 'browser-local',
+      state: 'fallback',
+      text: 'Automatic voice stays on this device while a CLI agent handles chat. Select a specific voice service to send speech elsewhere.',
+    };
+  }
   if (isAiVoiceProvider(aiProvider)) {
     if (getAiVoiceProviderKey(aiProvider)) {
       return {
         providerId: aiProvider,
         state: 'connected',
-        text: cliChat
-          ? `The selected CLI handles chat. Automatic voice uses ${label} directly through its connection in AI settings.`
-          : `Automatic voice actions use ${label} and its connection from AI settings.`,
+        text: `Automatic voice actions use ${label} and its connection from AI settings.`,
       };
     }
     return {
       providerId: 'browser-local',
       state: 'fallback',
-      text: cliChat
-        ? `The selected CLI does not expose a compatible speech connection. ${label} is not connected, so voice stays on this device.`
-        : `${label} is not connected yet, so voice stays on this device. Add its key in AI settings to use it automatically.`,
+      text: `${label} is not connected yet, so voice stays on this device. Add its key in AI settings to use it automatically.`,
     };
   }
   if (aiProvider === 'routstr') {
     return {
       providerId: 'browser-local',
       state: 'fallback',
-      text: cliChat
-        ? 'The selected CLI does not expose a compatible speech connection, and Routstr has no live voice endpoints, so voice stays on this device.'
-        : 'Routstr does not offer live voice endpoints yet, so voice stays on this device.',
+      text: 'Routstr does not offer live voice endpoints yet, so voice stays on this device.',
     };
   }
   return {
     providerId: 'browser-local',
     state: 'fallback',
-    text: cliChat
-      ? 'The selected CLI does not expose a compatible speech connection, so automatic voice stays on this device.'
-      : `${label} does not provide a compatible voice connection, so voice stays on this device.`,
+    text: `${label} does not provide a compatible voice connection, so voice stays on this device.`,
   };
 }
