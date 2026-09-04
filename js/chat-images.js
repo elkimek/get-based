@@ -1,5 +1,5 @@
 // @ts-check
-// chat-images.js — Chat panel image attachment flow
+// chat-images.js — Chat panel attachment and health-file import flow
 //
 // Extracted from chat.js (v1.21.9) as the first Phase 2e refactor split.
 // Owns the pending-attachment queue, paste/drop/picker handlers, HD-mode
@@ -28,11 +28,54 @@ const sentMessageAttachments = new WeakMap();
 let _hdMode = localStorage.getItem('labcharts-hd-images') === 'true';
 const chatImageDeps = {
   updateSendButtonState: () => {},
+  importFiles: files => {
+    const input = document.getElementById('pdf-input');
+    if (!(input instanceof HTMLInputElement)) throw new Error('The health-file importer is unavailable.');
+    const transfer = new DataTransfer();
+    for (const file of files) transfer.items.add(file);
+    input.files = transfer.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  },
 };
 
 export function configureChatImages(deps = {}) {
   if (typeof deps.updateSendButtonState === 'function') {
     chatImageDeps.updateSendButtonState = deps.updateSendButtonState;
+  }
+  if (typeof deps.importFiles === 'function') {
+    chatImageDeps.importFiles = deps.importFiles;
+  }
+}
+
+function canAttachImages() {
+  return isCodexChatBackend()
+    ? getAssistantExecutionRoute().inputModalities?.includes('image') === true
+    : hasAIProvider() && supportsVision();
+}
+
+function isChatImageFile(file) {
+  return isValidImageType(file.type);
+}
+
+/**
+ * Images remain message attachments when the selected chat model can see
+ * them. PDFs, spreadsheets, text exports, and every other file are routed to
+ * getbased's reviewed import flow. If image input is unavailable, an image is
+ * also offered to the import flow instead of disappearing silently.
+ * @param {File[] | FileList} files
+ */
+export async function handleChatFiles(files) {
+  const selectedFiles = Array.from(files || []);
+  if (selectedFiles.length === 0) return;
+  const imageFiles = canAttachImages() ? selectedFiles.filter(isChatImageFile) : [];
+  const importFiles = selectedFiles.filter(file => !imageFiles.includes(file));
+  for (const file of imageFiles) await addImageAttachment(file);
+  if (importFiles.length === 0) return;
+  try {
+    await chatImageDeps.importFiles(importFiles);
+  } catch (error) {
+    console.error('[chat-files] import failed:', error);
+    showNotification('Import failed — check the file and try again.', 'error');
   }
 }
 
@@ -224,14 +267,11 @@ export function restoreMessageAttachments(message) {
 }
 
 export function updateAttachButtonVisibility() {
-  const visible = isCodexChatBackend()
-    ? getAssistantExecutionRoute().inputModalities?.includes('image') === true
-    : hasAIProvider() && supportsVision();
   const btn = document.getElementById('chat-attach-btn');
-  if (btn) btn.style.display = visible ? 'flex' : 'none';
+  if (btn) btn.style.display = 'flex';
   const hdBtn = document.getElementById('chat-hd-btn');
   if (hdBtn) {
-    hdBtn.style.display = visible ? 'flex' : 'none';
+    hdBtn.style.display = canAttachImages() ? 'flex' : 'none';
     hdBtn.classList.toggle('active', _hdMode);
     hdBtn.title = hdTitle();
   }
@@ -243,7 +283,8 @@ if (typeof globalThis.addEventListener === 'function') {
 
 export function initChatImageHandlers() {
   const textarea = document.getElementById('chat-input');
-  const chatMessages = document.getElementById('chat-messages');
+  const chatDropZone = document.querySelector('.chat-panel-conversation');
+  const chatDropOverlay = document.getElementById('chat-drop-overlay');
   const fileInput = document.getElementById('chat-image-input');
 
   // Paste handler
@@ -261,30 +302,35 @@ export function initChatImageHandlers() {
     });
   }
 
-  // Drag-drop on chat messages area
-  if (chatMessages) {
-    chatMessages.addEventListener('dragover', (e) => {
-      if (isCodexChatBackend() ? !getAssistantExecutionRoute().inputModalities?.includes('image') : !supportsVision()) return;
-      const hasImage = [...(e.dataTransfer?.types || [])].includes('Files');
-      if (hasImage) {
-        e.preventDefault();
-        e.stopPropagation();
-        chatMessages.classList.add('chat-drop-active');
+  // Drag-drop across the conversation and composer. The overlay explains the
+  // image-attachment vs health-import split before the user releases a file.
+  if (chatDropZone) {
+    const setDropActive = active => {
+      chatDropZone.classList.toggle('chat-drop-active', active);
+      if (chatDropOverlay) chatDropOverlay.hidden = !active;
+    };
+    chatDropZone.addEventListener('dragover', (e) => {
+      const dragEvent = /** @type {DragEvent} */ (e);
+      const hasFiles = [...(dragEvent.dataTransfer?.types || [])].includes('Files');
+      if (hasFiles) {
+        dragEvent.preventDefault();
+        dragEvent.stopPropagation();
+        if (dragEvent.dataTransfer) dragEvent.dataTransfer.dropEffect = 'copy';
+        setDropActive(true);
       }
     });
-    chatMessages.addEventListener('dragleave', (e) => {
-      const relatedTarget = /** @type {Node | null} */ (e.relatedTarget);
-      if (!relatedTarget || !chatMessages.contains(relatedTarget)) {
-        chatMessages.classList.remove('chat-drop-active');
+    chatDropZone.addEventListener('dragleave', (e) => {
+      const relatedTarget = /** @type {Node | null} */ (/** @type {DragEvent} */ (e).relatedTarget);
+      if (!relatedTarget || !chatDropZone.contains(relatedTarget)) {
+        setDropActive(false);
       }
     });
-    chatMessages.addEventListener('drop', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      chatMessages.classList.remove('chat-drop-active');
-      if (isCodexChatBackend() ? !getAssistantExecutionRoute().inputModalities?.includes('image') : !supportsVision()) return;
-      const files = [...(e.dataTransfer?.files || [])].filter(f => f.type.startsWith('image/'));
-      for (const file of files) addImageAttachment(file);
+    chatDropZone.addEventListener('drop', (e) => {
+      const dragEvent = /** @type {DragEvent} */ (e);
+      dragEvent.preventDefault();
+      dragEvent.stopPropagation();
+      setDropActive(false);
+      void handleChatFiles(dragEvent.dataTransfer?.files || []);
     });
   }
 
@@ -292,10 +338,9 @@ export function initChatImageHandlers() {
   if (fileInput) {
     fileInput.addEventListener('change', (e) => {
       const input = /** @type {HTMLInputElement} */ (e.target);
-      for (const file of input.files || []) {
-        addImageAttachment(file);
-      }
+      const files = Array.from(input.files || []);
       input.value = '';
+      void handleChatFiles(files);
     });
   }
 }

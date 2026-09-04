@@ -224,10 +224,20 @@
   max-width: 90vw; max-height: 90vh; border-radius: 8px;
   box-shadow: 0 0 40px rgba(0, 0, 0, 0.5); image-rendering: auto;
 }
-.chat-drop-active {
-  outline: 2px dashed var(--accent); outline-offset: -4px;
-  background: color-mix(in srgb, var(--accent) 5%, transparent);
+.chat-panel-conversation.chat-drop-active {
+  outline: 2px dashed var(--accent); outline-offset: -5px;
 }
+.chat-drop-overlay {
+  position: absolute; inset: 64px 10px 10px; z-index: 30;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 24px; border: 2px dashed var(--accent); border-radius: 14px;
+  background: color-mix(in srgb, var(--bg-card) 92%, var(--accent));
+  color: var(--text-primary); text-align: center; pointer-events: none;
+  box-shadow: var(--shadow-lg);
+}
+.chat-drop-overlay[hidden] { display: none; }
+.chat-drop-overlay strong { font-size: 16px; }
+.chat-drop-overlay span { max-width: 340px; color: var(--text-secondary); font-size: 13px; line-height: 1.45; }
 @media (pointer: coarse) {
   .chat-attach-btn, .chat-hd-btn, .chat-voice-btn { width: 44px; height: 44px; }
   .chat-attach-remove { opacity: 1; width: 24px; height: 24px; }

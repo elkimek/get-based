@@ -23,6 +23,9 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
     const attachBtn = document.getElementById('chat-attach-btn');
     const input = document.getElementById('chat-image-input');
     const messages = document.getElementById('chat-messages');
+    const inputArea = document.querySelector('.chat-input-area');
+    const conversation = document.querySelector('.chat-panel-conversation');
+    const dropOverlay = document.getElementById('chat-drop-overlay');
     const originalPreview = preview?.innerHTML;
     const originalPreviewDisplay = preview?.style.display;
     const originalHdDisplay = hdBtn?.style.display;
@@ -32,6 +35,7 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
     const originalInputFiles = input ? Object.getOwnPropertyDescriptor(input, 'files') : null;
     const originalThreadId = state.currentThreadId;
     let sendButtonRefreshes = 0;
+    const importedFiles = [];
 
     const pngBytes = Uint8Array.from(atob(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
@@ -39,11 +43,27 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
     const makeImage = (name = 'tiny-lab.png') => new File([pngBytes], name, { type: 'image/png' });
 
     try {
+      const originalImportInput = document.getElementById('pdf-input');
+      const isolatedImportInput = originalImportInput?.cloneNode(true);
+      let defaultImportFiles = [];
+      if (originalImportInput && isolatedImportInput instanceof HTMLInputElement) {
+        originalImportInput.replaceWith(isolatedImportInput);
+        isolatedImportInput.addEventListener('change', () => {
+          defaultImportFiles = Array.from(isolatedImportInput.files || [], file => file.name);
+        });
+        await chatImages.handleChatFiles([
+          new File(['%PDF test'], 'default-route.pdf', { type: 'application/pdf' }),
+        ]);
+        isolatedImportInput.replaceWith(originalImportInput);
+      }
+      outcomes.defaultPdfRouteUsesExistingImportInput = defaultImportFiles.includes('default-route.pdf');
+
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.setItem('labcharts-ai-paused', 'false');
       localStorage.setItem('labcharts-hd-images', 'false');
       chatImages.configureChatImages({
         updateSendButtonState: () => { sendButtonRefreshes += 1; },
+        importFiles: async files => { importedFiles.push(...files.map(file => file.name)); },
       });
       chatImages.clearAttachments();
       chatImages.updateAttachButtonVisibility();
@@ -61,7 +81,9 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
 
       outcomes.attachButtonsVisibleForVisionProvider = attachBtn?.style.display === 'flex'
         && hdBtn?.style.display === 'flex'
-        && hdBtn?.classList.contains('active') === false;
+        && hdBtn?.classList.contains('active') === false
+        && input?.getAttribute('accept')?.includes('.pdf') === true
+        && attachBtn?.getAttribute('aria-label')?.includes('import health file') === true;
 
       chatImages.toggleHDMode();
       outcomes.hdTogglePersistsAndUpdatesButton = localStorage.getItem('labcharts-hd-images') === 'true'
@@ -124,14 +146,15 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
         && input?.value === '';
 
       chatImages.clearAttachments();
-      if (messages) {
+      if (conversation && messages) {
         const dragOver = new Event('dragover', { bubbles: true, cancelable: true });
         Object.defineProperty(dragOver, 'dataTransfer', {
           configurable: true,
-          value: { types: ['Files'], files: [] },
+          value: { types: ['Files'], files: [], dropEffect: 'none' },
         });
         messages.dispatchEvent(dragOver);
-        outcomes.dragOverMarksDropArea = messages.classList.contains('chat-drop-active');
+        outcomes.dragOverMarksDropArea = conversation.classList.contains('chat-drop-active')
+          && dropOverlay?.hidden === false;
 
         const dragLeave = new Event('dragleave', { bubbles: true });
         Object.defineProperty(dragLeave, 'relatedTarget', {
@@ -139,7 +162,8 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
           value: null,
         });
         messages.dispatchEvent(dragLeave);
-        outcomes.dragLeaveClearsDropArea = !messages.classList.contains('chat-drop-active');
+        outcomes.dragLeaveClearsDropArea = !conversation.classList.contains('chat-drop-active')
+          && dropOverlay?.hidden === true;
 
         const drop = new Event('drop', { bubbles: true, cancelable: true });
         Object.defineProperty(drop, 'dataTransfer', {
@@ -152,6 +176,33 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
         }
       }
       outcomes.dropHandlerAddsImage = chatImages.getPendingAttachments().some(att => att.name === 'dropped.png');
+
+      if (inputArea) {
+        const reportDrop = new Event('drop', { bubbles: true, cancelable: true });
+        Object.defineProperty(reportDrop, 'dataTransfer', {
+          configurable: true,
+          value: { files: [new File(['%PDF test'], 'labs.pdf', { type: 'application/pdf' })] },
+        });
+        inputArea.dispatchEvent(reportDrop);
+        for (let i = 0; i < 40 && importedFiles.length === 0; i += 1) {
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+      }
+      outcomes.dropOnComposerRoutesPdfToImport = importedFiles.includes('labs.pdf')
+        && chatImages.getPendingAttachments().every(att => att.name !== 'labs.pdf');
+
+      if (input) {
+        Object.defineProperty(input, 'files', {
+          configurable: true,
+          value: [new File(['marker,value'], 'labs.csv', { type: 'text/csv' })],
+        });
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        for (let i = 0; i < 40 && !importedFiles.includes('labs.csv'); i += 1) {
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+      }
+      outcomes.filePickerRoutesHealthDataToImport = importedFiles.includes('labs.csv')
+        && input?.value === '';
 
       chatImages.openImageLightbox('data:image/png;base64,abc');
       const lightbox = document.querySelector('.chat-lightbox');
@@ -166,7 +217,7 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       outcomes.lightboxEscapeCloses = !document.querySelector('.chat-lightbox');
     } finally {
-      chatImages.configureChatImages({ updateSendButtonState: () => {} });
+      chatImages.configureChatImages({ updateSendButtonState: () => {}, importFiles: async () => {} });
       chatImages.clearAttachments();
       if (preview) {
         preview.innerHTML = originalPreview || '';
