@@ -16,6 +16,7 @@ import {
   deduplicateModels,
   findPreferredModel,
   isRecommendedModel,
+  modelMetadataIsAvailable,
 } from './api-models.js';
 import { callOpenAICompatibleAPI } from './api-openai-compatible.js';
 
@@ -105,7 +106,7 @@ export async function fetchPpqModels(key) {
     const res = await fetch('https://api.ppq.ai/v1/models?type=chat', { headers });
     if (!res.ok) return [];
     const json = await res.json();
-    const rawModels = json.data || [];
+    const rawModels = (json.data || []).filter(modelMetadataIsAvailable);
     const privateFromApi = rawModels.filter(function(m) { return m?.id && m.id.startsWith('private/'); });
     const privateModels = privateFromApi
       .map(function(m) { return { ...PPQ_PRIVATE_MODEL_CAPABILITIES[m.id], ...m }; })

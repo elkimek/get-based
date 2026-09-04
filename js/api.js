@@ -69,6 +69,7 @@ export {
   getActiveModelDisplay,
   getActiveModelId,
   isRecommendedModel,
+  modelMetadataIsAvailable,
   modelMetadataSupportsVision,
   needsMaxCompletionTokens,
   renderModelPricingHint,

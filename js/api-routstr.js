@@ -15,6 +15,7 @@ import {
   deduplicateModels,
   findPreferredModel,
   isRecommendedModel,
+  modelMetadataIsAvailable,
   needsMaxCompletionTokens,
 } from './api-models.js';
 import { callOpenAICompatibleAPI } from './api-openai-compatible.js';
@@ -49,7 +50,7 @@ export async function fetchRoutstrModels() {
     const res = await fetch(nodeUrl + '/v1/models');
     if (!res.ok) return [];
     const json = await res.json();
-    const enabled = (json.data || []).filter(function(m) { return m.id && m.enabled !== false; });
+    const enabled = (json.data || []).filter(function(m) { return m.id && modelMetadataIsAvailable(m); });
     const privateModels = enabled.filter(function(m) { return isRoutstrTinfoilModel(m.id); })
       .sort(function(a, b) { return (a.name || a.id).localeCompare(b.name || b.id); });
     const all = enabled.filter(function(m) {

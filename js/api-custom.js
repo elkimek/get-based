@@ -9,7 +9,7 @@ import {
   notifyAIModelCatalogChanged,
   setCustomApiModel,
 } from './api-provider-storage.js';
-import { findPreferredModel, modelMetadataSupportsVision } from './api-models.js';
+import { findPreferredModel, modelMetadataIsAvailable, modelMetadataSupportsVision } from './api-models.js';
 import { callOpenAICompatibleAPI } from './api-openai-compatible.js';
 
 const CUSTOM_DEFAULT_CANDIDATES = ['openai/gpt-5.5', 'gpt-5.5', 'anthropic/claude-sonnet-5', 'claude-sonnet-5', 'anthropic/claude-sonnet-4.6', 'claude-sonnet-4.6'];
@@ -44,7 +44,9 @@ export async function fetchCustomApiModels(baseUrl, key) {
     }
     if (!res.ok) return [];
     const json = await res.json();
-    const models = (json.data || []).filter(function(m) { return m.id; }).map(function(m) {
+    const models = (json.data || []).filter(function(m) {
+      return m.id && modelMetadataIsAvailable(m);
+    }).map(function(m) {
       return {
         id: m.id,
         name: m.name || m.id,

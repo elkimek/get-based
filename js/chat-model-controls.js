@@ -21,6 +21,7 @@ import {
   getVeniceE2EE,
   isRecommendedModel,
   isRoutstrPrivateModeActive,
+  modelMetadataIsAvailable,
   selectLatestModelFamilies,
   selectLatestRecommendedModels,
   setCustomApiModel,
@@ -104,13 +105,14 @@ function readDirectModels(provider) {
     ppq: [getPpqPrivateMode() ? 'labcharts-ppq-private-models' : 'labcharts-ppq-models'],
     custom: ['labcharts-custom-models'],
   }[provider] || [];
-  const models = keys.flatMap(readStoredArray).filter(model => model && typeof model === 'object' && model.id);
+  const models = keys.flatMap(readStoredArray).filter(model => model && typeof model === 'object'
+    && model.id && modelMetadataIsAvailable(model));
   return [...new Map(models.map(model => [model.id, model])).values()];
 }
 
 function providerGroupFromModel(agent, modelId) {
   const id = String(modelId || '');
-  if (agent === 'opencode') return id.includes('/') ? id.split('/')[0] : 'OpenCode';
+  if (agent === 'opencode' || agent === 'openclaw') return id.includes('/') ? id.split('/')[0] : agent;
   if (agent === 'hermes') {
     if (id.startsWith('custom:')) return id.split(':').slice(0, 2).join(':');
     return id.includes(':') ? id.split(':')[0] : 'Hermes';
@@ -128,7 +130,15 @@ function friendlyProviderGroup(value) {
     openai: 'OpenAI',
     'openai-codex': 'OpenAI Codex',
     opencode: 'OpenCode',
+    openclaw: 'OpenClaw',
+    'opencode-free': 'OpenCode Free',
+    'opencode-zen': 'OpenCode Zen',
+    ollama: 'Ollama',
+    'ollama-cloud': 'Ollama Cloud',
+    venice: 'Venice',
+    xai: 'xAI',
     'custom:ollama': 'Ollama',
+    'custom:openrouter': 'OpenRouter (custom)',
   };
   return known[value] || String(value || '').split(/[-_:]/).filter(Boolean)
     .map(part => `${part.charAt(0).toUpperCase()}${part.slice(1)}`).join(' ');
@@ -248,6 +258,16 @@ function currentCatalogIsEmpty() {
     : readDirectModels(getAIProvider()).length === 0;
 }
 
+/** @param {{cli: boolean, provider: string, target?: string}} snapshot */
+function controlStateIsCurrent(snapshot) {
+  if ((getChatBackend() === 'codex') !== snapshot.cli) return false;
+  if (snapshot.cli) {
+    return getAgentHostAgent() === snapshot.provider
+      && getAgentHostTarget(snapshot.provider) === snapshot.target;
+  }
+  return getAIProvider() === snapshot.provider;
+}
+
 function effortOptions(state) {
   return [
     { value: '', label: state.defaultEffort ? `Default · ${titleCase(state.defaultEffort)}` : 'Default' },
@@ -344,19 +364,23 @@ async function selectModel(value) {
   try {
     if (state.cli) {
       await connectDetectedAgent(state.provider);
+      if (!controlStateIsCurrent(state)) return;
       const models = await listAgentModels({
         endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent: state.provider,
         target: state.target, model: value || undefined,
       });
+      if (!controlStateIsCurrent(state)) return;
       cacheAgentModelCatalog(models, state.provider, state.target);
       await saveAgentChatSettings({ model: value });
     } else {
       await selectDirectModel(state.provider, value);
+      if (!controlStateIsCurrent(state)) return;
     }
     document.getElementById('chat-model-menu')?.removeAttribute('open');
     updateChatHeaderModelRuntime();
     refreshChatModelControls();
   } catch (error) {
+    if (!controlStateIsCurrent(state)) return;
     showNotification(error instanceof Error ? error.message : 'Could not switch models.', 'error', 8000);
   }
 }
@@ -369,11 +393,13 @@ async function refreshModels() {
   try {
     if (state.cli) {
       await connectDetectedAgent(state.provider);
+      if (!controlStateIsCurrent(state)) return;
       const models = await listAgentModels({
         endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent: state.provider,
         target: state.target,
         refresh: true,
       });
+      if (!controlStateIsCurrent(state)) return;
       cacheAgentModelCatalog(models, state.provider, state.target);
     } else if (state.provider === 'openrouter') await fetchOpenRouterModels(getOpenRouterKey());
     else if (state.provider === 'venice') await fetchVeniceModels(getVeniceKey());
@@ -386,6 +412,7 @@ async function refreshModels() {
       cacheLocalAiModelDetails(result.modelDetails || [], result.provider === 'ollama');
     }
   } catch (error) {
+    if (!controlStateIsCurrent(state)) return;
     showNotification(error instanceof Error ? error.message : 'Could not refresh models.', 'error', 8000);
   } finally {
     modelRefreshInProgress = false;

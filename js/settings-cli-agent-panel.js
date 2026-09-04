@@ -27,6 +27,7 @@ let agentModels = [];
 /** @type {Array<{id: string, label: string, description?: string, kind?: string, status?: string, message?: string, supportsLocalTools?: boolean}>} */
 let agentTargets = [];
 let agentModelsAgentId = '';
+let agentModelsTargetId = '';
 let agentProviderFilter = '';
 let hydratedAgentId = '';
 /** @type {'linux'|'macos'|'windows'|''} */
@@ -206,6 +207,9 @@ function agentProviderLabel(provider) {
   const known = {
     opencode: 'OpenCode', openrouter: 'OpenRouter', anthropic: 'Anthropic',
     'openai-codex': 'OpenAI Codex', openai: 'OpenAI', 'custom:ollama': 'Ollama',
+    openclaw: 'OpenClaw', 'opencode-free': 'OpenCode Free', 'opencode-zen': 'OpenCode Zen',
+    ollama: 'Ollama', 'ollama-cloud': 'Ollama Cloud', venice: 'Venice', xai: 'xAI',
+    'custom:openrouter': 'OpenRouter (custom)',
   };
   return known[provider] || provider.split(/[-_]/).filter(Boolean)
     .map(part => `${part.charAt(0).toUpperCase()}${part.slice(1)}`).join(' ');
@@ -420,17 +424,22 @@ export async function controlCLICompanion(requestedAction) {
 async function hydrateAgentModelControls() {
   const options = document.getElementById('cli-agent-options');
   if (!options) return;
+  const requestedAgent = getAgentHostAgent();
+  let requestedTarget = '';
   try {
-    const agent = getAgentHostAgent();
+    const agent = requestedAgent;
     if (hydratedAgentId !== agent) {
       hydratedAgentId = agent;
       agentProviderFilter = '';
       agentTargets = [];
     }
     await connectDetectedAgent(agent);
-    agentTargets = await listAgentExecutionTargets({
+    if (getAgentHostAgent() !== agent) return;
+    const targets = await listAgentExecutionTargets({
       endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent,
     });
+    if (getAgentHostAgent() !== agent) return;
+    agentTargets = targets;
     if (!agentTargets.some(target => target.id === getAgentHostTarget(agent))) {
       await saveAgentChatSettings({ target: 'local' });
     }
@@ -439,21 +448,27 @@ async function hydrateAgentModelControls() {
       throw new Error(activeTarget.message || 'This personal gateway is currently offline.');
     }
     const selectedModel = getAgentHostModel();
+    const target = getAgentHostTarget(agent);
+    requestedTarget = target;
     const models = await listAgentModels({
       endpoint: getAgentHostEndpoint(),
       token: getAgentHostToken(),
       agent,
-      target: getAgentHostTarget(agent),
+      target,
       model: selectedModel || undefined,
     });
-    if (!options.isConnected || getAgentHostAgent() !== agent) return;
-    agentModels = cacheAgentModelCatalog(models, agent, getAgentHostTarget(agent));
+    if (!options.isConnected || getAgentHostAgent() !== agent || getAgentHostTarget(agent) !== target) return;
+    agentModels = cacheAgentModelCatalog(models, agent, target);
     agentModelsAgentId = agent;
+    agentModelsTargetId = target;
     showAgentModelControls(options, agentModels);
   } catch (error) {
+    if (getAgentHostAgent() !== requestedAgent
+      || (requestedTarget && getAgentHostTarget(requestedAgent) !== requestedTarget)) return;
     if (options.isConnected) {
       agentModels = [];
       agentModelsAgentId = '';
+      agentModelsTargetId = '';
       const message = escapeHTML(error instanceof Error ? error.message : 'Could not load this execution target. Check its connection, then try again.');
       if (agentTargets.length > 1) {
         showAgentModelControls(options, []);
@@ -498,6 +513,7 @@ export async function toggleLocalCodex(enabled, agentId = getAgentHostAgent()) {
     agentModels = [];
     agentTargets = [];
     agentModelsAgentId = '';
+    agentModelsTargetId = '';
     hydratedAgentId = '';
     agentProviderFilter = '';
     setChatBackend('codex');
@@ -511,16 +527,19 @@ export async function toggleLocalCodex(enabled, agentId = getAgentHostAgent()) {
 
 /** @param {string} model */
 export async function setCLIAgentModel(model) {
+  const agent = getAgentHostAgent();
+  const target = getAgentHostTarget(agent);
   try {
-    const agent = getAgentHostAgent();
     await connectDetectedAgent(agent);
+    if (getAgentHostAgent() !== agent || getAgentHostTarget(agent) !== target) return;
     const models = await listAgentModels({
       endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent,
-      target: getAgentHostTarget(agent), model: model || undefined,
+      target, model: model || undefined,
     });
-    if (getAgentHostAgent() !== agent) return;
-    agentModels = cacheAgentModelCatalog(models, agent, getAgentHostTarget(agent));
+    if (getAgentHostAgent() !== agent || getAgentHostTarget(agent) !== target) return;
+    agentModels = cacheAgentModelCatalog(models, agent, target);
     agentModelsAgentId = agent;
+    agentModelsTargetId = target;
     await saveAgentChatSettings({ model });
     const selected = selectedModelEntry(agentModels, model);
     const provider = getCLIAgentModelProvider(agent, selected);
@@ -529,6 +548,7 @@ export async function setCLIAgentModel(model) {
     const options = document.getElementById('cli-agent-options');
     if (options?.isConnected) showAgentModelControls(options, agentModels);
   } catch (error) {
+    if (getAgentHostAgent() !== agent || getAgentHostTarget(agent) !== target) return;
     showNotification(error instanceof Error ? error.message : 'Could not select this CLI model.', 'error', 9000);
   }
 }
@@ -538,15 +558,18 @@ export async function setCLIAgentTarget(target) {
   const agent = getAgentHostAgent();
   try {
     await connectDetectedAgent(agent);
+    if (getAgentHostAgent() !== agent) return;
     const targets = await listAgentExecutionTargets({
       endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent,
     });
+    if (getAgentHostAgent() !== agent) return;
     const selected = targets.find(item => item.id === target);
     if (!selected) throw new Error('This execution target is no longer available.');
     await saveAgentChatSettings({ target });
     agentTargets = targets;
     agentModels = [];
     agentModelsAgentId = '';
+    agentModelsTargetId = '';
     agentProviderFilter = '';
     const options = document.getElementById('cli-agent-options');
     if (options?.isConnected) {
@@ -563,6 +586,7 @@ export async function setCLIAgentTarget(target) {
     showNotification(selected.kind === 'gateway'
       ? `Personal agent selected: ${selected.label}` : 'Local CLI execution selected', 'success', 7000);
   } catch (error) {
+    if (getAgentHostAgent() !== agent) return;
     showNotification(error instanceof Error ? error.message : 'Could not select this execution target.', 'error', 9000);
   }
 }
@@ -570,10 +594,11 @@ export async function setCLIAgentTarget(target) {
 /** @param {string} effort */
 export async function setCLIAgentEffort(effort) {
   const agent = getAgentHostAgent();
+  const target = getAgentHostTarget(agent);
   await saveAgentChatSettings({ effort });
   showNotification(effort ? `Reasoning set to ${effort}` : 'The agent will use its default reasoning effort', 'success');
   const options = document.getElementById('cli-agent-options');
-  if (options?.isConnected && agentModelsAgentId === agent) showAgentModelControls(options, agentModels);
+  if (options?.isConnected && agentModelsAgentId === agent && agentModelsTargetId === target) showAgentModelControls(options, agentModels);
   else if (options?.isConnected) {
     options.className = 'local-agent-options-loading';
     options.textContent = 'Refreshing CLI model options…';

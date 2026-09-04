@@ -61,6 +61,9 @@ export function sortReasoningEffortValues(values) {
 function normalizeModel(value) {
   if (!value || typeof value !== 'object') return null;
   const row = /** @type {any} */ (value);
+  if (row.available === false || row.enabled === false || row.disabled === true
+    || row.unavailable === true || row.missing === true
+    || ['disabled', 'offline', 'removed', 'unavailable'].includes(String(row.status || '').trim().toLowerCase())) return null;
   const id = boundedString(row.id || row.model, 160);
   if (!id) return null;
   return {

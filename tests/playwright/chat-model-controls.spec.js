@@ -39,6 +39,11 @@ test('direct-provider picker searches models and persists a dragged reasoning ef
     localStorage.setItem('labcharts-ai-provider', 'openrouter');
     localStorage.setItem('labcharts-openrouter-model', 'openai/reasoner-1');
     localStorage.setItem('labcharts-openrouter-models', JSON.stringify(models));
+    localStorage.setItem('labcharts-venice-model', 'venice-only');
+    localStorage.setItem('labcharts-venice-models', JSON.stringify([
+      { id: 'venice-only', name: 'Venice Only' },
+      { id: 'venice-offline', name: 'Venice Offline', status: 'offline' },
+    ]));
   });
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(async () => (await import('/js/chat-panel.js')).openChatPanel());
@@ -49,6 +54,7 @@ test('direct-provider picker searches models and persists a dragged reasoning ef
   await expect(page.locator('.chat-model-option-group-label')).toHaveText(['Recommended', 'Other models']);
   await expect(page.locator('.chat-model-option').nth(0)).toContainText('GPT-5.6 Sol');
   await expect(page.locator('.chat-model-option').nth(1)).toContainText('Claude Sonnet 5');
+  await expect(page.locator('[data-chat-model-value="venice-only"]')).toHaveCount(0);
   await page.locator('#chat-model-search').fill('Reasoner 10');
   await expect(page.locator('.chat-model-option:not([hidden])')).toHaveCount(1);
   await page.locator('#chat-model-search').fill('');
@@ -66,6 +72,13 @@ test('direct-provider picker searches models and persists a dragged reasoning ef
   await expect(page.locator('#chat-model-menu')).not.toHaveAttribute('open', '');
   await expect(page.locator('#chat-model-menu-label')).toHaveText('Reasoner 2');
   await expect.poll(() => page.evaluate(() => localStorage.getItem('labcharts-openrouter-model'))).toBe('openai/reasoner-2');
+
+  await page.evaluate(async () => (await import('/js/api-provider-storage.js')).setAIProvider('venice'));
+  await page.locator('#chat-model-menu-toggle').click();
+  await expect(page.locator('.chat-model-menu-head')).toContainText('Venice');
+  await expect(page.locator('[data-chat-model-value="venice-only"]')).toBeVisible();
+  await expect(page.locator('[data-chat-model-value="venice-offline"]')).toHaveCount(0);
+  await expect(page.locator('[data-chat-model-value="openai/reasoner-2"]')).toHaveCount(0);
 });
 
 test('CLI picker groups a large OpenCode catalog and shares its effort with Settings', async ({ page }) => {
@@ -140,6 +153,38 @@ test('personal Hermes gateway highlights only its current profile model', async 
   await expect(page.locator('.chat-model-option-group-label', { hasText: 'Recommended' })).toHaveCount(0);
   await expect(page.locator('[data-chat-model-value="openai-codex:gpt-5.6-sol"]')).toBeVisible();
   await expect(page.locator('[data-chat-model-value="openai-codex:gpt-5.6-terra"]')).toBeVisible();
+
+  await page.evaluate(() => {
+    localStorage.setItem('labcharts-agent-host-target:hermes', 'local');
+    globalThis.dispatchEvent(new CustomEvent('getbased:agent-host-settings-changed'));
+  });
+  await expect(page.locator('[data-chat-model-value="openai-codex:gpt-5.6-sol"]')).toHaveCount(0);
+  await expect(page.locator('.chat-model-option')).toHaveCount(1);
+  await expect(page.locator('.chat-model-option')).toContainText('CLI default');
+});
+
+test('OpenClaw chat groups only models from its own advertised sub-providers', async ({ page }) => {
+  await page.addInitScript(() => {
+    const models = [
+      { id: 'openrouter/model-a', model: 'openrouter/model-a', displayName: 'Model A', isDefault: true, inputModalities: ['text'] },
+      { id: 'ollama/model-b', model: 'ollama/model-b', displayName: 'Model B', isDefault: false, inputModalities: ['text'] },
+    ];
+    localStorage.setItem('labcharts-agent-host-agent', 'openclaw');
+    localStorage.setItem('labcharts-agent-model-catalog-v1', JSON.stringify(models));
+    localStorage.setItem('labcharts-agent-model-catalog-agent-v1', 'openclaw');
+    localStorage.setItem('labcharts-agent-model-catalog-target-v1', 'local');
+  });
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    localStorage.setItem('labcharts-chat-backend', 'codex');
+    await (await import('/js/chat-panel.js')).openChatPanel();
+  });
+  await page.locator('#chat-model-menu-toggle').click();
+  await expect(page.locator('.chat-model-menu-head')).toContainText('OpenClaw');
+  await expect(page.locator('.chat-model-option-group-label')).toHaveText(['OpenRouter', 'Ollama']);
+  await expect(page.locator('[data-chat-model-value="openrouter/model-a"]')).toBeVisible();
+  await expect(page.locator('[data-chat-model-value="ollama/model-b"]')).toBeVisible();
+  await expect(page.locator('[data-chat-model-value="openai-codex:gpt-5.6-sol"]')).toHaveCount(0);
 });
 
 test('CLI chat keeps dictation enabled through the independent voice service', async ({ page }) => {

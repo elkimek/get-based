@@ -8,6 +8,7 @@ describe('ACP agent model catalogs', () => {
     expect(normalizeACPModelCatalog({ configOptions: [
       { id: 'model', category: 'model', currentValue: 'model-a', options: [
         { value: 'model-a', name: 'Model A' }, { value: 'model-b', name: 'Model B' },
+        { value: 'model-disabled', name: 'Disabled model', available: false },
       ] },
       { id: 'thought_level', category: 'thought_level', currentValue: 'medium', options: [
         { value: 'low', name: 'Low' }, { value: 'medium', name: 'Medium' },

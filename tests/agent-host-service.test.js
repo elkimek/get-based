@@ -32,6 +32,8 @@ class FakeAppServer extends EventEmitter {
       id: 'gpt-5.6-sol', model: 'gpt-5.6-sol', displayName: 'GPT-5.6-Sol', isDefault: true,
       inputModalities: ['text', 'image'],
       defaultReasoningEffort: 'low', supportedReasoningEfforts: [{ reasoningEffort: 'low', description: 'Fast' }],
+    }, {
+      id: 'retired-model', model: 'retired-model', displayName: 'Retired', available: false,
     }] };
     if (method === 'turn/start') return { turn: { id: 'turn-1' } };
     if (method === 'thread/inject_items') return {};

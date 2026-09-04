@@ -158,6 +158,15 @@ and supported reasoning effort without leaving getbased. Transport URLs and
 pairing credentials are intentionally not part of the normal user interface.
 Model and reasoning selections are stored per CLI, so switching agents and
 returning restores that agent's last compatible choices.
+Direct-provider model caches are isolated by provider and privacy mode. CLI
+catalogs are owned by the exact `(agent, execution target)` pair, and late
+responses are discarded if the user switches either value while discovery is
+running. Multi-provider harnesses such as OpenCode, Hermes, and OpenClaw show
+only sub-providers advertised by that active harness and group their models
+under those sub-provider names. Explicit `disabled`, `offline`, `missing`, or
+`unavailable` catalog entries are not offered. An unmarked advertised model is
+still only a provider claim; account entitlement may not be knowable until the
+first request.
 The standalone `npm run agent-host` command and its environment variables
 remain an advanced development/self-hosting escape hatch, not an onboarding
 requirement.

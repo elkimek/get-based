@@ -18,6 +18,7 @@ import {
   getVeniceModel,
   getVeniceBalance,
   isRecommendedModel,
+  modelMetadataIsAvailable,
   needsMaxCompletionTokens,
   selectLatestModelFamilies,
   selectLatestRecommendedModels,
@@ -83,6 +84,13 @@ afterEach(() => {
 });
 
 describe('API provider runtime behavior', () => {
+  it('excludes only models explicitly marked unavailable by their catalog', () => {
+    expect(modelMetadataIsAvailable({ id: 'ready' })).toBe(true);
+    expect(modelMetadataIsAvailable({ id: 'disabled', enabled: false })).toBe(false);
+    expect(modelMetadataIsAvailable({ id: 'missing', missing: true })).toBe(false);
+    expect(modelMetadataIsAvailable({ id: 'offline', status: 'offline' })).toBe(false);
+  });
+
   it('filters OpenRouter models, caches pricing and vision metadata, and fetches fuzzy pricing', async () => {
     const catalogChanged = vi.fn();
     window.addEventListener('labcharts-ai-settings-local-changed', catalogChanged, { once: true });

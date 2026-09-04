@@ -41,6 +41,15 @@ describe('CLI agent model catalog cache', () => {
     expect(getCachedAgentModelCatalog('opencode')[0].inputModalities).toEqual(['text']);
   });
 
+  it('does not cache models explicitly marked unavailable by an adapter', () => {
+    const models = cacheAgentModelCatalog([
+      { id: 'ready-model' },
+      { id: 'disabled-model', disabled: true },
+      { id: 'offline-model', status: 'offline' },
+    ], 'opencode');
+    expect(models.map(model => model.id)).toEqual(['ready-model']);
+  });
+
   it('orders reversed Grok reasoning metadata from lowest to highest effort', () => {
     const [model] = cacheAgentModelCatalog([{
       id: 'grok-4.6',

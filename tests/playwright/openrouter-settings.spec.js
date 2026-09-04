@@ -107,11 +107,17 @@ test('CLI provider discovers branded agents and keeps model controls stable acro
       { reasoningEffort: 'medium', description: 'Medium' },
     ],
   }];
-  const hermesModels = [{
-    id: 'openai-codex:gpt-5.6-sol', model: 'openai-codex:gpt-5.6-sol', displayName: 'GPT-5.6 Sol', isDefault: true,
+  const hermesLocalModels = [{
+    id: 'hermes-local', model: 'hermes-local', displayName: 'Hermes Local', isDefault: true,
     defaultReasoningEffort: 'medium', inputModalities: ['text'],
     supportedReasoningEfforts: [{ reasoningEffort: 'medium', description: 'Medium' }],
   }];
+  const hermesGatewayModels = [{
+    id: 'openai-codex:gpt-5.6-sol', model: 'openai-codex:gpt-5.6-sol', displayName: 'Gateway Sol', isDefault: true,
+    defaultReasoningEffort: 'medium', inputModalities: ['text'],
+    supportedReasoningEfforts: [{ reasoningEffort: 'medium', description: 'Medium' }],
+  }];
+  let delayGatewayModels = false;
 
   await page.route('**/api/local-agents*', route => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({ agents }),
@@ -136,11 +142,17 @@ test('CLI provider discovers branded agents and keeps model controls stable acro
     });
   });
   await page.route(`${endpoint}/v1/models**`, route => {
-    const agent = new URL(route.request().url()).searchParams.get('agent');
-    return route.fulfill({
+    const url = new URL(route.request().url());
+    const agent = url.searchParams.get('agent');
+    const target = url.searchParams.get('target') || 'local';
+    const fulfill = () => route.fulfill({
       status: 200, contentType: 'application/json',
-      body: JSON.stringify({ models: agent === 'codex' ? codexModels : agent === 'hermes' ? hermesModels : models }),
+      body: JSON.stringify({ models: agent === 'codex' ? codexModels
+        : agent === 'hermes' ? (target === 'gateway-home' ? hermesGatewayModels : hermesLocalModels) : models }),
     });
+    return agent === 'hermes' && target === 'gateway-home' && delayGatewayModels
+      ? new Promise(resolve => setTimeout(resolve, 350)).then(fulfill)
+      : fulfill();
   });
   await page.addInitScript(() => {
     const profileId = localStorage.getItem('labcharts-active-profile') || 'default';
@@ -214,8 +226,24 @@ test('CLI provider discovers branded agents and keeps model controls stable acro
 
   await page.locator('label.local-agent-toggle:has(input[data-agent="hermes"])').click();
   await expect(page.locator('#cli-agent-target-summary')).toContainText('Local CLI');
+  await expect(page.locator('#cli-agent-model-summary')).toContainText('Hermes Local');
   await page.locator('#cli-agent-target-summary').click();
   await page.locator('[data-settings-action="set-cli-agent-target"][data-value="gateway-home"]').click();
   await expect(page.locator('#cli-agent-target-summary')).toContainText('Omer · Homelab');
+  await expect(page.locator('#cli-agent-model-summary')).toContainText('Gateway Sol');
+  await expect(page.locator('#cli-agent-options')).not.toContainText('Hermes Local');
   await expect(page.locator('#cli-agent-options')).toContainText('Personal gateway uses that profile');
+
+  await page.locator('#cli-agent-target-summary').click();
+  await page.locator('[data-settings-action="set-cli-agent-target"][data-value="local"]').click();
+  await expect(page.locator('#cli-agent-model-summary')).toContainText('Hermes Local');
+  delayGatewayModels = true;
+  await page.locator('#cli-agent-target-summary').click();
+  await page.locator('[data-settings-action="set-cli-agent-target"][data-value="gateway-home"]').click();
+  await expect(page.locator('#cli-agent-target-summary')).toContainText('Omer · Homelab');
+  await page.evaluate(async () => (await import('/js/settings-cli-agent-panel.js')).setCLIAgentTarget('local'));
+  await expect(page.locator('#cli-agent-target-summary')).toContainText('Local CLI');
+  await expect(page.locator('#cli-agent-model-summary')).toContainText('Hermes Local');
+  await page.waitForTimeout(450);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('labcharts-agent-model-catalog-target-v1'))).toBe('local');
 });
