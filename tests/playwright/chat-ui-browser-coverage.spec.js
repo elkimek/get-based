@@ -198,7 +198,17 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
         const reportDrop = new Event('drop', { bubbles: true, cancelable: true });
         Object.defineProperty(reportDrop, 'dataTransfer', {
           configurable: true,
-          value: { files: [droppedReport] },
+          value: {
+            files: [],
+            items: [{
+              kind: 'file',
+              getAsFile: () => null,
+              getAsFileSystemHandle: async () => ({
+                kind: 'file',
+                getFile: async () => droppedReport,
+              }),
+            }],
+          },
         });
         inputArea.dispatchEvent(reportDrop);
         for (let i = 0; i < 40 && !importedFiles.includes('labs.pdf'); i += 1) {

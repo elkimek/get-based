@@ -73,14 +73,9 @@ export async function handleChatFiles(files) {
   }
 }
 
-/**
- * Files supplied by OS drag-and-drop can be backed by a short-lived portal or
- * file-manager handle. Start reading every file before the drop event returns,
- * then continue with ordinary in-memory Files that survive lazy PDF loading.
- * @param {File[] | FileList} files
- */
-export async function handleDroppedChatFiles(files) {
-  const reads = Array.from(files || [], file => new Promise((resolve, reject) => {
+/** @param {File} file */
+function snapshotDroppedFile(file) {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => reader.result instanceof ArrayBuffer
       ? resolve(new File([reader.result], file.name, { type: file.type, lastModified: file.lastModified }))
@@ -88,7 +83,56 @@ export async function handleDroppedChatFiles(files) {
     reader.onerror = () => reject(reader.error || new Error(`Could not read ${file.name}.`));
     reader.onabort = () => reject(new Error(`Reading ${file.name} was interrupted.`));
     reader.readAsArrayBuffer(file);
-  }));
+  });
+}
+
+/** @param {DataTransferItem} item */
+function readDroppedItem(item) {
+  const reads = [];
+  const directFile = item.getAsFile();
+  if (directFile) reads.push(snapshotDroppedFile(directFile));
+
+  const getHandle = /** @type {any} */ (item).getAsFileSystemHandle;
+  if (typeof getHandle === 'function') {
+    try {
+      const handleRequest = getHandle.call(item);
+      reads.push(Promise.resolve(handleRequest).then(async handle => {
+        if (!handle || handle.kind !== 'file' || typeof handle.getFile !== 'function') {
+          throw new Error('The dropped item is not a readable file.');
+        }
+        return snapshotDroppedFile(await handle.getFile());
+      }));
+    } catch (_) {}
+  }
+
+  const getEntry = /** @type {any} */ (item).webkitGetAsEntry;
+  if (typeof getEntry === 'function') {
+    try {
+      const entry = getEntry.call(item);
+      if (entry?.isFile && typeof entry.file === 'function') {
+        reads.push(new Promise((resolve, reject) => {
+          entry.file(file => snapshotDroppedFile(file).then(resolve, reject), reject);
+        }));
+      }
+    } catch (_) {}
+  }
+  return reads.length ? Promise.any(reads) : Promise.reject(new Error('The dropped item is not a readable file.'));
+}
+
+/**
+ * Files supplied by OS drag-and-drop can be backed by a short-lived portal or
+ * file-manager handle. Acquire every available browser handle before the drop
+ * event returns, then continue with ordinary in-memory Files that survive lazy
+ * PDF loading.
+ * @param {DataTransfer | File[] | FileList} source
+ */
+export async function handleDroppedChatFiles(source) {
+  const fileItems = 'items' in source
+    ? Array.from(source.items || []).filter(item => item.kind === 'file')
+    : [];
+  const reads = fileItems.length
+    ? fileItems.map(readDroppedItem)
+    : Array.from('files' in source ? source.files : source).map(snapshotDroppedFile);
   try {
     await handleChatFiles(/** @type {File[]} */ (await Promise.all(reads)));
   } catch (error) {
@@ -348,7 +392,7 @@ export function initChatImageHandlers() {
       dragEvent.preventDefault();
       dragEvent.stopPropagation();
       setDropActive(false);
-      void handleDroppedChatFiles(dragEvent.dataTransfer?.files || []);
+      if (dragEvent.dataTransfer) void handleDroppedChatFiles(dragEvent.dataTransfer);
     });
   }
 
