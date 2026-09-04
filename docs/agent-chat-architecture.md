@@ -18,7 +18,10 @@ Codex connects through `codex app-server`. OpenCode, Hermes, and Grok share a
 standards-based Agent Client Protocol (ACP) adapter. Claude Code connects
 through its non-interactive `stream-json` interface. OpenClaw connects through
 its isolated, headless `agent exec` interface because its ACP bridge does not
-accept per-session MCP servers. The loopback host
+accept per-session MCP servers. Hermes and OpenClaw can additionally use an
+explicitly selected personal-gateway route: Hermes connections and profiles are
+discovered from Hermes Desktop, while OpenClaw uses its configured gateway and
+default agent. The loopback host
 normalizes their sessions, model catalogs, streamed events, cancellation, and
 tool calls behind one browser contract. External MCP clients continue to use
 the same getbased tool semantics through `getbased-agent-stack`.
@@ -30,7 +33,10 @@ getbased PWA
                                              ├─ Codex app-server (stdio)
                                              ├─ ACP: OpenCode, Hermes, Grok
                                              ├─ Claude Code stream-json
-                                             └─ OpenClaw agent exec
+                                             ├─ OpenClaw agent exec
+                                             └─ personal gateways
+                                                  ├─ Hermes (gateway, profile)
+                                                  └─ OpenClaw configured agent
 
 getbased data authority
   └─ agent tool runtime
@@ -67,7 +73,8 @@ browser binds it to getbased data through `js/agent-tool-bindings.js`:
 | `getbased_draft_supplement` | draft | Proposes a supplement or medication entry. |
 
 The catalog is rendered as Codex app-server `dynamicTools` or as a private,
-per-session stdio MCP server for ACP, Claude Code, and OpenClaw. MCP calls cross an
+per-session stdio MCP server for local ACP, Claude Code, and isolated OpenClaw
+turns. MCP calls cross an
 unpublished loopback route protected by a random session credential, then use
 the same browser approval loop. Tool handlers receive
 injected dependencies rather than arbitrary DOM, storage, database, or network
@@ -280,6 +287,24 @@ removed on every exit path. Because this safe entry point is one-shot, getbased
 replays the browser-visible conversation instead of persisting an OpenClaw
 session. It currently declares text input only.
 
+Personal-gateway execution is an explicit, separately remembered target inside
+the Hermes or OpenClaw provider. The browser stores only an opaque target ID.
+The companion reads Hermes Desktop's platform-specific connection registry and
+uses a stored token in process; it never returns the token, gateway URL, or
+authentication headers to the browser. Plain HTTP is accepted only for
+loopback tunnels, while non-loopback gateways require HTTPS. OAuth,
+safeStorage-encrypted, and SSH connection credentials are not copied out of
+Hermes Desktop and appear as unavailable until a supported broker exists.
+
+A Hermes target is the exact `(gateway, profile)` pair, so its SOUL, memory,
+model catalog, and durable agent state remain personal. OpenClaw's gateway mode
+uses the normal `openclaw agent` route rather than isolated `agent exec`.
+Personal gateways own their configured tools and approval policy; getbased
+cannot enforce its local MCP allowlist there. Consequently these routes are
+chat-only today. They receive the approved visible chat context but not the
+local structured health-data bridge, image imports, or background feature jobs.
+The UI states this boundary next to the execution picker.
+
 The current Codex adapter supports text and image chat, hosted cached web
 research, all structured tools listed above, and structured feature inference
 when the selected CLI model declares the required modality. Images are
@@ -301,13 +326,13 @@ through one capability-aware dispatcher:
 
 | getbased capability | CLI agents today | Remaining boundary |
 | --- | --- | --- |
-| Text chat over approved profile context | Yes | Add typed queries only when a real product need appears. |
+| Text chat over approved profile context | Yes; personal gateways receive the approved visible context | Personal gateways need a separately installed, authenticated getbased bridge before they can make typed live queries. |
 | Hosted web research | Agent-dependent; normalized activity is recorded when the protocol reports it | Add an explicit user control and richer activity display. |
 | Model and reasoning selection | Codex catalogs; OpenCode provider/model catalogs and model-specific effort variants; Hermes provider/model catalogs; Claude Code aliases and effort levels; OpenClaw configured provider/model catalog and thinking levels | Hermes ACP does not yet expose a session-scoped reasoning control, so it inherits the user's Hermes setting. Keep every control capability-driven as CLIs evolve. |
 | Lab PDF/photo import | Yes when the selected adapter/model declares image input, with existing review-before-save | Keep the extraction schema provider-neutral. |
 | Meal-photo and nutrition-label analysis | Yes when the selected adapter/model declares image input, with normal review-before-save | Verify new adapter modalities before routing. |
 | Context cards, marker explanations, biology scores, supplements, EMF, light/sun, reports, summaries, and Lens query rewriting | Yes | Preserve feature-specific schemas and consent labels. |
-| Knowledge Base search and bounded health queries | Yes, through active-profile tools | Add only privacy-preserving aggregate queries. |
+| Knowledge Base search and bounded health queries | Yes on local execution through active-profile tools | Personal gateways do not receive the local tool credential. |
 | Navigation | Yes, for allowlisted views and marker detail | Add destinations deliberately rather than exposing generic UI control. |
 | Proposed health-data changes | Notes, meals, biometrics, supplements, and medications | Add new draft types only with an exact review and apply path. |
 | Voice | Yes, through getbased's independent STT/TTS service | Keep raw audio out of CLI adapters until one declares a secure, standardized audio capability. |
@@ -335,6 +360,13 @@ only capabilities an adapter reports.
   reasoning to the user's Hermes configuration because its ACP server does not
   advertise a session-scoped reasoning option. Client terminal and filesystem
   capabilities are not advertised; permission requests are denied.
+- **Hermes personal gateway:** the companion discovers registered remote
+  gateways, enumerates their profiles over authenticated REST, loads that
+  profile's model catalog, and starts/resumes chat over Hermes' WebSocket
+  JSON-RPC protocol. Each getbased conversation owns its own Hermes session.
+  Interactive approval, clarification, sudo, and secret requests fail with an
+  instruction to complete them in Hermes Desktop rather than being approved
+  automatically.
 - **Claude Code:** the adapter uses `--print` with `stream-json`, restricted
   mode, no interactive permissions, an exact MCP configuration, resumable
   sessions, model aliases, reasoning effort, images, and JSON Schema output.
@@ -346,4 +378,6 @@ only capabilities an adapter reports.
   thinking choices. Its temporary tool policy permits only hosted web helpers
   and getbased's turn-scoped MCP server. The headless interface currently has
   no image flag or resumable-session flag, so the adapter declares text-only
-  input and replays visible conversation history.
+  input and replays visible conversation history. Its optional personal target
+  calls the gateway-backed `openclaw agent` command with an isolated getbased
+  session ID, preserving the configured default agent's memory and tools.

@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 745 |
-| Internal import edges | 3154 |
+| Modules | 746 |
+| Internal import edges | 3155 |
 | Dynamic internal edges | 105 |
 | Modules participating in cycles | 66 |
 | Cyclic components | 1 |
@@ -1509,6 +1509,12 @@ Node-only policy and transport code shared by hosted runtimes.
 
 </details>
 
+<details><summary><code>hermes</code> family — 1 module</summary>
+
+- [`lib/hermes-gateway-client.js`](lib/hermes-gateway-client.js) → no in-scope imports
+
+</details>
+
 <details><summary><code>linux</code> family — 1 module</summary>
 
 - [`lib/linux-companion-install.js`](lib/linux-companion-install.js) → [`lib/local-agent-registry.js`](lib/local-agent-registry.js)
@@ -1589,7 +1595,7 @@ Standalone loopback companion for installed CLI agents.
 
 <details><summary><code>agent</code> family — 1 module</summary>
 
-- [`server/agent-host-server.js`](server/agent-host-server.js) → [`lib/acp-agent-client.js`](lib/acp-agent-client.js), [`lib/agent-host-service.js`](lib/agent-host-service.js), [`lib/agent-host-storage.js`](lib/agent-host-storage.js), [`lib/claude-agent-client.js`](lib/claude-agent-client.js), [`lib/codex-agent-isolation.js`](lib/codex-agent-isolation.js), [`lib/codex-app-server-client.js`](lib/codex-app-server-client.js), [`lib/companion-runtime-control.js`](lib/companion-runtime-control.js), [`lib/local-agent-registry.js`](lib/local-agent-registry.js), [`lib/openclaw-agent-client.js`](lib/openclaw-agent-client.js)
+- [`server/agent-host-server.js`](server/agent-host-server.js) → [`lib/acp-agent-client.js`](lib/acp-agent-client.js), [`lib/agent-host-service.js`](lib/agent-host-service.js), [`lib/agent-host-storage.js`](lib/agent-host-storage.js), [`lib/claude-agent-client.js`](lib/claude-agent-client.js), [`lib/codex-agent-isolation.js`](lib/codex-agent-isolation.js), [`lib/codex-app-server-client.js`](lib/codex-app-server-client.js), [`lib/companion-runtime-control.js`](lib/companion-runtime-control.js), [`lib/hermes-gateway-client.js`](lib/hermes-gateway-client.js), [`lib/local-agent-registry.js`](lib/local-agent-registry.js), [`lib/openclaw-agent-client.js`](lib/openclaw-agent-client.js)
 
 </details>
 

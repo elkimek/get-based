@@ -89,6 +89,8 @@ describe('local agent selection UI', () => {
     expect(source).not.toContain('<select id="cli-agent-model"');
     expect(source).not.toContain('<select id="cli-agent-effort"');
     expect(source).toContain("action: 'set-cli-agent-provider-filter'");
+    expect(source).toContain("action: 'set-cli-agent-target'");
+    expect(source).toContain('Personal gateway uses that profile');
     expect(source).toContain('data-cli-agent-model-search');
     expect(source).toContain('choices apply only to getbased sessions');
     expect(source).toContain('model: selectedModel || undefined');

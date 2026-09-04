@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { CodexAppServerClient } from '../lib/codex-app-server-client.js';
 import { ACPAgentClient } from '../lib/acp-agent-client.js';
 import { ClaudeAgentClient } from '../lib/claude-agent-client.js';
+import { createHermesGatewayRouteProvider } from '../lib/hermes-gateway-client.js';
 import { OpenClawAgentClient } from '../lib/openclaw-agent-client.js';
 import { createAgentHostService } from '../lib/agent-host-service.js';
 import {
@@ -45,6 +46,8 @@ try {
 const { codexHome, token } = agentStorage;
 const detectedAgents = detectLocalAgents();
 const localAgentEnvironment = buildLocalAgentEnvironment(process.env);
+const hermesRouteProvider = detectedAgents.some(agent => agent.id === 'hermes')
+  ? createHermesGatewayRouteProvider({ env: process.env }) : null;
 if (!detectedAgents.length) {
   rmSync(workspaceRoot, { recursive: true, force: true });
   process.stderr.write('getbased Companion did not find Codex, Claude Code, OpenCode, Hermes, Grok, or OpenClaw on this computer.\n');
@@ -78,7 +81,20 @@ const agentAdapters = detectedAgents.map(agent => {
   } else if (agent.protocol === 'openclaw' && status === 'available') {
     client = new OpenClawAgentClient({ command: agent.command, cwd: workspaceRoot, env: localAgentEnvironment });
   }
-  return { ...agent, status, message, client };
+  const routes = agent.id === 'openclaw' && client ? [{
+    id: 'gateway-default',
+    label: 'Personal gateway · default agent',
+    description: 'Use the default agent, memory, sessions, and tools configured in your OpenClaw gateway.',
+    kind: 'gateway', status: 'available', supportsLocalTools: false, supportsFeatureJobs: false,
+    protocol: 'openclaw',
+    client: new OpenClawAgentClient({
+      command: agent.command, cwd: workspaceRoot, env: localAgentEnvironment, mode: 'gateway',
+    }),
+  }] : [];
+  return {
+    ...agent, status, message, client, routes,
+    ...(agent.id === 'hermes' && hermesRouteProvider ? { routeProvider: hermesRouteProvider } : {}),
+  };
 });
 const invokedPath = resolve(process.argv[1] || '');
 const bundlePath = invokedPath.endsWith('getbased-companion.mjs')
@@ -87,10 +103,14 @@ const bundlePath = invokedPath.endsWith('getbased-companion.mjs')
 const bridgePath = invokedPath.endsWith('getbased-companion.mjs')
   ? invokedPath
   : fileURLToPath(new URL('../bin/getbased-companion.js', import.meta.url));
-const runtimeClients = agentAdapters.map(agent => agent.client).filter(Boolean);
+const runtimeClients = [
+  ...agentAdapters.map(agent => agent.client),
+  ...agentAdapters.flatMap(agent => (agent.routes || []).map(route => route.client)),
+  hermesRouteProvider,
+].filter(Boolean);
 const runtimeController = createCompanionRuntimeController({
   appServer: {
-    async restart() { await Promise.all(runtimeClients.map(client => client.restart?.())); },
+    async restart() { await Promise.all(runtimeClients.map(client => /** @type {any} */ (client).restart?.())); },
     async initialize() {},
   },
   bundlePath,

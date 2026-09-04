@@ -37,6 +37,7 @@ import {
   getAgentHostEffort,
   getAgentHostEndpoint,
   getAgentHostModel,
+  getAgentHostTarget,
   getAgentHostToken,
   getChatBackend,
   saveAgentChatSettings,
@@ -338,7 +339,8 @@ async function selectModel(value) {
     if (state.cli) {
       await connectDetectedAgent(state.provider);
       const models = await listAgentModels({
-        endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent: state.provider, model: value || undefined,
+        endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent: state.provider,
+        target: getAgentHostTarget(state.provider), model: value || undefined,
       });
       cacheAgentModelCatalog(models, state.provider);
       await saveAgentChatSettings({ model: value });
@@ -363,6 +365,7 @@ async function refreshModels() {
       await connectDetectedAgent(state.provider);
       const models = await listAgentModels({
         endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent: state.provider,
+        target: getAgentHostTarget(state.provider),
       });
       cacheAgentModelCatalog(models, state.provider);
     } else if (state.provider === 'openrouter') await fetchOpenRouterModels(getOpenRouterKey());

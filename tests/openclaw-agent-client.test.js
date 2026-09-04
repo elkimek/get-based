@@ -120,6 +120,42 @@ describe('OpenClaw agent adapter', () => {
     expect(readdirSync(cwd)).toEqual([]);
   });
 
+  it('routes a personal-agent turn through the configured gateway without a temporary config overlay', async () => {
+    const cwd = fixture();
+    let observedPrompt = '';
+    const spawnImpl = vi.fn((command, args, spawnOptions) => {
+      if (args[0] === 'models') return fakeChild(modelPayload, spawnOptions.stdio);
+      const promptPath = args[args.indexOf('--message-file') + 1];
+      observedPrompt = readFileSync(promptPath, 'utf8');
+      return fakeChild({
+        ok: true, status: 'ok', final: 'From my personal agent.', provider: 'openai', model: 'gpt-5.6-sol',
+        sessionId: 'gateway-session', usage: { input: 10, output: 5 },
+      }, spawnOptions.stdio);
+    });
+    const client = new OpenClawAgentClient({
+      command: '/opt/openclaw', cwd, env: { HOME: cwd, OPENCLAW_CONFIG_PATH: '/private/openclaw.json' },
+      spawnImpl, mode: 'gateway', gatewayAgentId: 'main',
+    });
+    client.modelCatalogPromise = Promise.resolve(normalizeOpenClawModelCatalog(modelPayload));
+    await client.prompt({
+      sessionId: 'getbased-personal-session', model: 'openai/gpt-5.6-sol', effort: 'medium',
+      instructions: 'Keep your configured identity.', prompt: [{ type: 'text', text: 'Who is there?' }],
+      outputSchema: null, mcpConfig: {}, allowedToolNames: [], onEvent: vi.fn(),
+    });
+    const [command, args, options] = spawnImpl.mock.calls[0];
+    expect(command).toBe('/opt/openclaw');
+    expect(args).toEqual(expect.arrayContaining([
+      'agent', '--agent', 'main', '--session-id', 'getbased-personal-session', '--message-file', expect.any(String),
+      '--json', '--model', 'openai/gpt-5.6-sol', '--thinking', 'medium',
+    ]));
+    expect(args).not.toContain('exec');
+    expect(args).not.toContain('--config');
+    expect(options.env.OPENCLAW_CONFIG_PATH).toBe('/private/openclaw.json');
+    expect(observedPrompt).toContain('Keep your configured identity.');
+    expect(observedPrompt).toContain('Who is there?');
+    expect(readdirSync(cwd)).toEqual([]);
+  });
+
   it('rejects failed envelopes', () => {
     expect(() => extractOpenClawResult({ ok: false, status: 'error', error: { message: 'Provider unavailable' } }))
       .toThrow('Provider unavailable');

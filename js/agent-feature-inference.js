@@ -2,7 +2,7 @@
 // Structured, capability-gated feature inference through a local CLI adapter.
 
 import { streamAgentTurn, uploadAgentImage } from './agent-chat-client.js';
-import { connectDetectedCodex, getAgentHostAgent, getAgentHostEndpoint, getAgentHostToken } from './agent-chat-settings.js';
+import { connectDetectedCodex, getAgentHostAgent, getAgentHostEndpoint, getAgentHostTarget, getAgentHostToken } from './agent-chat-settings.js';
 import { AGENT_HOST_CAPABILITIES } from '../shared/agent-host-protocol.js';
 
 /**
@@ -45,6 +45,7 @@ export async function callCodexFeature(options) {
     endpoint,
     token,
     agent: getAgentHostAgent(),
+    target: getAgentHostTarget(),
     model: options.model,
     effort: options.effort || 'low',
     prompt: options.prompt,

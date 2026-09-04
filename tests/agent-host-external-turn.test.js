@@ -76,10 +76,10 @@ describe('external agent turn lifecycle', () => {
     };
     const options = turnOptions(agent);
     const cancel = startExternalAgentTurn(options);
-    await vi.waitFor(() => expect(options.activeTurns.has('opencode:session-1')).toBe(true));
+    await vi.waitFor(() => expect(options.activeTurns.has('opencode:local:session-1')).toBe(true));
     const respond = vi.fn();
     options.pendingTools.set('response-1', {
-      threadId: 'opencode:session-1', timer: setTimeout(() => {}, 60_000), respond,
+      threadId: 'opencode:local:session-1', timer: setTimeout(() => {}, 60_000), respond,
     });
 
     cancel();
@@ -129,5 +129,34 @@ describe('external agent turn lifecycle', () => {
     expect(agent.client.prompt.mock.calls[0][0].prompt[0].text).toContain('Earlier question');
     expect(agent.client.prompt.mock.calls[0][0].prompt[0].text).toContain('Earlier answer');
     expect(options.mcpSessions.size).toBe(0);
+  });
+
+  it('keeps personal gateway sessions remote without creating a local MCP credential or replaying history', async () => {
+    const agent = {
+      id: 'openclaw', protocol: 'openclaw', name: 'OpenClaw',
+      target: { id: 'gateway-main', kind: 'gateway', supportsLocalTools: false },
+      client: { prompt: vi.fn(async ({ sessionId, onEvent }) => {
+        onEvent({ type: 'session', sessionId, model: 'openai/gpt-5.6-sol' });
+        onEvent({ type: 'done', finishReason: 'stop' });
+      }) },
+    };
+    const options = turnOptions(agent);
+    options.targetId = 'gateway-main';
+    options.requestedThreadId = 'personal-session-1';
+    options.requestedActiveKey = 'openclaw:gateway-main:personal-session-1';
+    options.history = [
+      { role: 'user', content: 'Do not replay this remote history' },
+      { role: 'assistant', content: 'The gateway already owns it' },
+    ];
+    startExternalAgentTurn(options);
+    await vi.waitFor(() => expect(options.close).toHaveBeenCalled());
+    expect(agent.client.prompt).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: 'personal-session-1',
+      mcpConfig: { mcpServers: {} },
+      prompt: [expect.objectContaining({ type: 'text', text: 'Hello' })],
+    }));
+    expect(agent.client.prompt.mock.calls[0][0].prompt[0].text).not.toContain('Earlier visible conversation:');
+    expect(options.mcpSessions.size).toBe(0);
+    expect(options.sessionMcp.size).toBe(0);
   });
 });

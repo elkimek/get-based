@@ -170,6 +170,36 @@ describe('agent host service', () => {
     }] });
   });
 
+  it('lists safe execution targets and routes model discovery without exposing gateway credentials', async () => {
+    const local = { getModelCatalog: vi.fn(async () => [{ id: 'local-model', model: 'local-model', displayName: 'Local', inputModalities: ['text'] }]) };
+    const gateway = { getModelCatalog: vi.fn(async () => [{ id: 'remote-model', model: 'remote-model', displayName: 'Remote', inputModalities: ['text'] }]) };
+    const service = createAgentHostService({
+      appServer: null, token: TOKEN, workspaceRoot: '/tmp/agent-test',
+      agents: [{
+        id: 'hermes', name: 'Hermes Agent', description: 'Agent', protocol: 'acp', client: local,
+        routes: [{
+          id: 'gateway-home', label: 'Omer · Homelab', description: 'Personal assistant',
+          kind: 'gateway', protocol: 'hermes-gateway', status: 'available', supportsLocalTools: false,
+          client: gateway, token: 'must-not-leak',
+        }],
+      }],
+    });
+    const headers = { Authorization: `Bearer ${TOKEN}`, Origin: 'http://127.0.0.1:8000' };
+    const targetsResponse = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/targets?agent=hermes', { headers }));
+    expect(targetsResponse.status).toBe(200);
+    const targetsText = await targetsResponse.text();
+    expect(targetsText).not.toContain('must-not-leak');
+    expect(JSON.parse(targetsText)).toEqual({ targets: [
+      expect.objectContaining({ id: 'local', kind: 'local', supportsLocalTools: true }),
+      expect.objectContaining({ id: 'gateway-home', kind: 'gateway', supportsLocalTools: false }),
+    ] });
+
+    const modelsResponse = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/models?agent=hermes&target=gateway-home', { headers }));
+    expect(await modelsResponse.json()).toEqual({ models: [expect.objectContaining({ id: 'remote-model' })] });
+    expect(gateway.getModelCatalog).toHaveBeenCalled();
+    expect(local.getModelCatalog).not.toHaveBeenCalled();
+  });
+
   it('routes model discovery and streaming turns through an ACP agent', async () => {
     const acp = {
       getModelCatalog: vi.fn(async () => [{

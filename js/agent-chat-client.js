@@ -32,6 +32,8 @@ export function agentHostUpgradeRequiredError(capability) {
     ? 'image support'
     : capability === AGENT_HOST_CAPABILITIES.COMPANION_CONTROL
       ? 'companion controls'
+      : capability === AGENT_HOST_CAPABILITIES.EXECUTION_TARGETS
+        ? 'personal gateway targets'
     : capability === AGENT_HOST_CAPABILITIES.STRUCTURED_HEALTH_TOOLS
       ? 'the latest getbased tools'
       : 'this feature';
@@ -82,11 +84,12 @@ export async function controlAgentHost(options) {
 }
 
 /**
- * @param {{endpoint: string, token: string, agent?: string, model?: string, signal?: AbortSignal}} options
+ * @param {{endpoint: string, token: string, agent?: string, target?: string, model?: string, signal?: AbortSignal}} options
  */
 export async function listAgentModels(options) {
   const query = new URLSearchParams();
   if (options.agent) query.set('agent', options.agent);
+  if (options.target) query.set('target', options.target);
   if (options.model) query.set('model', options.model);
   const suffix = query.size ? `?${query}` : '';
   const response = await fetch(endpointUrl(options.endpoint, `/v1/models${suffix}`), {
@@ -98,6 +101,23 @@ export async function listAgentModels(options) {
   if (!response.ok) throw new Error(await responseError(response));
   const payload = await response.json();
   return Array.isArray(payload?.models) ? payload.models : [];
+}
+
+/**
+ * @param {{endpoint: string, token: string, agent?: string, signal?: AbortSignal}} options
+ */
+export async function listAgentExecutionTargets(options) {
+  const query = new URLSearchParams();
+  if (options.agent) query.set('agent', options.agent);
+  const response = await fetch(endpointUrl(options.endpoint, `/v1/targets?${query}`), {
+    signal: options.signal,
+    cache: 'no-store',
+    headers: { Authorization: `Bearer ${options.token}` },
+  });
+  if (response.status === 404) throw agentHostUpgradeRequiredError(AGENT_HOST_CAPABILITIES.EXECUTION_TARGETS);
+  if (!response.ok) throw new Error(await responseError(response));
+  const payload = await response.json();
+  return Array.isArray(payload?.targets) ? payload.targets : [];
 }
 
 /**
@@ -129,6 +149,7 @@ export async function uploadAgentImage(options) {
  *   endpoint: string,
  *   token: string,
  *   agent?: string,
+ *   target?: string,
  *   prompt: string,
  *   threadId?: string,
  *   model?: string,
@@ -153,6 +174,7 @@ export async function streamAgentTurn(options) {
     body: JSON.stringify({
       prompt: options.prompt,
       agent: options.agent || undefined,
+      target: options.target || undefined,
       threadId: options.threadId || undefined,
       model: options.model || undefined,
       effort: options.effort || undefined,

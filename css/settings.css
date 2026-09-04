@@ -1235,6 +1235,12 @@
 .settings-modal .local-agent-options.has-provider {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
+.settings-modal .local-agent-options.has-target:not(.has-provider) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.settings-modal .local-agent-options.has-target.has-provider {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 .settings-modal .local-agent-option-field { min-width: 0; }
 .settings-modal .local-agent-option-label { display: block; margin-bottom: 5px; color: var(--text-secondary); font-size: 10.5px; font-weight: 600; }
 .settings-modal .cli-agent-picker {
@@ -2349,7 +2355,8 @@ label.sync-settings-toggle input:disabled + .sync-settings-toggle-slider { opaci
   .settings-modal .local-agent-controls { align-items: stretch; flex-direction: column; }
   .settings-modal .local-agent-control-actions { justify-content: flex-start; }
   .settings-modal .local-agent-options,
-  .settings-modal .local-agent-options.has-provider { grid-template-columns: 1fr; }
+  .settings-modal .local-agent-options.has-provider,
+  .settings-modal .local-agent-options.has-target { grid-template-columns: 1fr; }
   .settings-modal .local-agent-options small { grid-column: auto; }
   .settings-modal .local-agent-test { display: none; }
   .settings-modal .agent-access-copy-btn {

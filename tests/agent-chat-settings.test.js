@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   connectDetectedCodex, DEFAULT_AGENT_HOST_ENDPOINT, discoverLocalChatAgents, getAgentHostAgent,
   getAgentHostEffort, getAgentHostEndpoint, getAgentHostModel, getAgentHostToken, getChatBackend, normalizeAgentHostEndpoint,
+  getAgentHostTarget,
   saveAgentChatSettings, setChatBackend,
 } from '../js/agent-chat-settings.js';
 import { clearKeyCache } from '../js/crypto-key-cache.js';
@@ -127,6 +128,22 @@ describe('agent chat settings', () => {
     expect(getAgentHostEffort()).toBe('medium');
     await saveAgentChatSettings({ model: 'gpt-5.6-luna' });
     expect(getAgentHostEffort()).toBe('low');
+  });
+
+  it('remembers model and reasoning independently for local and personal gateway targets', async () => {
+    await saveAgentChatSettings({ agent: 'hermes', target: 'local', model: 'local-model', effort: 'medium' });
+    await saveAgentChatSettings({ target: 'gateway-abc123' });
+    expect(getAgentHostTarget()).toBe('gateway-abc123');
+    expect(getAgentHostModel()).toBe('');
+    expect(getAgentHostEffort()).toBe('');
+    await saveAgentChatSettings({ model: 'openai-codex:gpt-5.6-sol', effort: 'high' });
+
+    await saveAgentChatSettings({ target: 'local' });
+    expect(getAgentHostModel()).toBe('local-model');
+    expect(getAgentHostEffort()).toBe('medium');
+    await saveAgentChatSettings({ target: 'gateway-abc123' });
+    expect(getAgentHostModel()).toBe('openai-codex:gpt-5.6-sol');
+    expect(getAgentHostEffort()).toBe('high');
   });
 
   it('retains full provider-qualified model IDs for catalog rehydration', async () => {

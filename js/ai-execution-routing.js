@@ -1,7 +1,7 @@
 // @ts-check
 // Capability-aware resolution for the assistant and CLI-backed feature routes.
 
-import { getAgentHostAgent, getAgentHostModel, getAgentHostToken, getChatBackend } from './agent-chat-settings.js';
+import { getAgentHostAgent, getAgentHostModel, getAgentHostTarget, getAgentHostToken, getChatBackend } from './agent-chat-settings.js';
 import {
   agentModelSupports, getAgentModelDisplay, getCachedAgentModelCatalog, resolveAgentModel,
 } from './agent-model-catalog.js';
@@ -17,6 +17,7 @@ export function getAssistantExecutionRoute() {
   return {
     adapter: 'codex',
     provider: agent,
+    target: getAgentHostTarget(agent),
     providerDisplay,
     model,
     modelDisplay: getAgentModelDisplay(model, catalog),
@@ -35,6 +36,7 @@ export function getCodexExecutionRoute(modelId = '', modality = 'text') {
   return {
     adapter: 'codex',
     provider: agent,
+    target: getAgentHostTarget(agent),
     providerDisplay,
     model,
     modelDisplay: getAgentModelDisplay(model, catalog),
@@ -51,6 +53,7 @@ export function listCodexExecutionRoutes(modality = 'text') {
   return getCachedAgentModelCatalog(agent).filter(model => model.inputModalities.includes(modality)).map(model => ({
     adapter: 'codex',
     provider: agent,
+    target: getAgentHostTarget(agent),
     providerDisplay,
     model: model.id,
     modelDisplay: model.displayName,

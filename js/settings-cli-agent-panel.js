@@ -1,7 +1,7 @@
 // @ts-check
 // settings-cli-agent-panel.js — Settings → AI → CLI agents rendering/actions.
 
-import { controlAgentHost, listAgentModels } from './agent-chat-client.js';
+import { controlAgentHost, listAgentExecutionTargets, listAgentModels } from './agent-chat-client.js';
 import { cacheAgentModelCatalog } from './agent-model-catalog.js';
 import { renderCLIAgentBrandIcon } from './cli-agent-brand-assets.js';
 import {
@@ -11,6 +11,7 @@ import {
   getAgentHostAgent,
   getAgentHostEndpoint,
   getAgentHostModel,
+  getAgentHostTarget,
   getAgentHostToken,
   getChatBackend,
   saveAgentChatSettings,
@@ -23,6 +24,8 @@ import { escapeAttr, escapeHTML, showConfirmDialog, showNotification } from './u
 
 /** @type {AgentModel[]} */
 let agentModels = [];
+/** @type {Array<{id: string, label: string, description?: string, kind?: string, status?: string, message?: string, supportsLocalTools?: boolean}>} */
+let agentTargets = [];
 let agentModelsAgentId = '';
 let agentProviderFilter = '';
 let hydratedAgentId = '';
@@ -243,6 +246,7 @@ export function setCLIAgentProviderFilter(provider) {
 /** @param {AgentModel[]} models */
 function renderAgentModelControls(models) {
   const agentId = getAgentHostAgent();
+  const selectedTarget = getAgentHostTarget(agentId);
   const selectedModel = getAgentHostModel();
   const selectedEffort = getAgentHostEffort();
   const current = selectedModelEntry(models, selectedModel);
@@ -278,7 +282,14 @@ function renderAgentModelControls(models) {
   const agentName = ({ codex: 'Codex CLI', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes Agent', grok: 'Grok Build', openclaw: 'OpenClaw' })[agentId] || 'the selected CLI';
   const reasoningNote = !efforts.length && agentId === 'hermes'
     ? ' Hermes ACP does not expose a separate reasoning control yet, so getbased uses your Hermes setting.' : '';
-  return `<div class="local-agent-options${providers.length > 1 ? ' has-provider' : ''}">
+  const targetOptions = agentTargets.map(target => ({
+    value: target.id,
+    label: `${target.label}${target.status === 'unavailable' ? ' · offline' : ''}`,
+  }));
+  const selectedTargetEntry = agentTargets.find(target => target.id === selectedTarget);
+  const personalTarget = selectedTargetEntry?.kind === 'gateway';
+  return `<div class="local-agent-options${providers.length > 1 ? ' has-provider' : ''}${targetOptions.length > 1 ? ' has-target' : ''}">
+    ${targetOptions.length > 1 ? `<div class="local-agent-option-field">${renderAgentPicker({ id: 'cli-agent-target', label: 'Execution', value: selectedTarget, options: targetOptions, action: 'set-cli-agent-target' })}</div>` : ''}
     ${providers.length > 1 ? `<div class="local-agent-option-field">${renderAgentPicker({ id: 'cli-agent-provider', label: 'Provider catalog', value: agentProviderFilter, options: providers.map(provider => ({ value: provider, label: agentProviderLabel(provider) })), action: 'set-cli-agent-provider-filter' })}</div>` : ''}
     <div class="local-agent-option-field">${renderAgentPicker({
       id: 'cli-agent-model', label: 'Model', value: selectedModel, options: modelOptions,
@@ -286,7 +297,9 @@ function renderAgentModelControls(models) {
       placeholder: agentProviderFilter ? `Choose ${agentProviderLabel(agentProviderFilter)} model` : 'Choose a model',
     })}</div>
     <div class="local-agent-option-field">${renderAgentPicker({ id: 'cli-agent-effort', label: 'Reasoning effort', value: selectedEffort, options: effortOptions, action: 'set-cli-agent-effort', disabled: !efforts.length })}</div>
-    <small>Catalog supplied by ${escapeHTML(agentName)}. Your choices apply only to getbased sessions and do not change the CLI&rsquo;s own default settings.${escapeHTML(reasoningNote)}</small>
+    <small>${personalTarget
+    ? 'Personal gateway uses that profile&rsquo;s identity, memory, sessions, and configured tools. getbased sends the approved chat context, but its local health-data tools and background feature jobs are not available on this route.'
+    : `Catalog supplied by ${escapeHTML(agentName)}. Your choices apply only to getbased sessions and do not change the CLI&rsquo;s own default settings.${escapeHTML(reasoningNote)}`}</small>
   </div>`;
 }
 
@@ -412,13 +425,25 @@ async function hydrateAgentModelControls() {
     if (hydratedAgentId !== agent) {
       hydratedAgentId = agent;
       agentProviderFilter = '';
+      agentTargets = [];
     }
     await connectDetectedAgent(agent);
+    agentTargets = await listAgentExecutionTargets({
+      endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent,
+    });
+    if (!agentTargets.some(target => target.id === getAgentHostTarget(agent))) {
+      await saveAgentChatSettings({ target: 'local' });
+    }
+    const activeTarget = agentTargets.find(target => target.id === getAgentHostTarget(agent));
+    if (activeTarget?.status === 'unavailable') {
+      throw new Error(activeTarget.message || 'This personal gateway is currently offline.');
+    }
     const selectedModel = getAgentHostModel();
     const models = await listAgentModels({
       endpoint: getAgentHostEndpoint(),
       token: getAgentHostToken(),
       agent,
+      target: getAgentHostTarget(agent),
       model: selectedModel || undefined,
     });
     if (!options.isConnected || getAgentHostAgent() !== agent) return;
@@ -429,7 +454,11 @@ async function hydrateAgentModelControls() {
     if (options.isConnected) {
       agentModels = [];
       agentModelsAgentId = '';
-      options.innerHTML = '<div class="local-agent-scan-state local-agent-scan-error">Could not load this CLI&rsquo;s model catalog. Check its sign-in, then try again.</div>';
+      const message = escapeHTML(error instanceof Error ? error.message : 'Could not load this execution target. Check its connection, then try again.');
+      if (agentTargets.length > 1) {
+        showAgentModelControls(options, []);
+        options.insertAdjacentHTML('beforeend', `<div class="local-agent-scan-state local-agent-scan-error">${message}</div>`);
+      } else options.innerHTML = `<div class="local-agent-scan-state local-agent-scan-error">${message}</div>`;
     }
     console.warn('[agent-chat] CLI model discovery failed', error);
   }
@@ -441,7 +470,10 @@ export async function testLocalCodex(agentId = getAgentHostAgent()) {
   if (status) status.textContent = 'Testing CLI agent…';
   try {
     await connectDetectedAgent(agentId);
-    await listAgentModels({ endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent: agentId });
+    await listAgentModels({
+      endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent: agentId,
+      target: agentId === getAgentHostAgent() ? getAgentHostTarget(agentId) : 'local',
+    });
     if (status) status.textContent = 'CLI agent is ready.';
     showNotification('CLI agent is ready', 'success');
     await refreshDetectedAgentList();
@@ -464,6 +496,7 @@ export async function toggleLocalCodex(enabled, agentId = getAgentHostAgent()) {
     await connectDetectedAgent(agentId);
     await saveAgentChatSettings({ agent: agentId });
     agentModels = [];
+    agentTargets = [];
     agentModelsAgentId = '';
     hydratedAgentId = '';
     agentProviderFilter = '';
@@ -482,7 +515,8 @@ export async function setCLIAgentModel(model) {
     const agent = getAgentHostAgent();
     await connectDetectedAgent(agent);
     const models = await listAgentModels({
-      endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent, model: model || undefined,
+      endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent,
+      target: getAgentHostTarget(agent), model: model || undefined,
     });
     if (getAgentHostAgent() !== agent) return;
     agentModels = cacheAgentModelCatalog(models, agent);
@@ -496,6 +530,40 @@ export async function setCLIAgentModel(model) {
     if (options?.isConnected) showAgentModelControls(options, agentModels);
   } catch (error) {
     showNotification(error instanceof Error ? error.message : 'Could not select this CLI model.', 'error', 9000);
+  }
+}
+
+/** @param {string} target */
+export async function setCLIAgentTarget(target) {
+  const agent = getAgentHostAgent();
+  try {
+    await connectDetectedAgent(agent);
+    const targets = await listAgentExecutionTargets({
+      endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent,
+    });
+    const selected = targets.find(item => item.id === target);
+    if (!selected) throw new Error('This execution target is no longer available.');
+    await saveAgentChatSettings({ target });
+    agentTargets = targets;
+    agentModels = [];
+    agentModelsAgentId = '';
+    agentProviderFilter = '';
+    const options = document.getElementById('cli-agent-options');
+    if (options?.isConnected) {
+      options.className = 'local-agent-options-loading';
+      options.textContent = selected.status === 'unavailable'
+        ? (selected.message || 'This gateway is currently offline. Start it, then check the connection again.')
+        : 'Loading models for this execution target…';
+      if (selected.status !== 'unavailable') void hydrateAgentModelControls();
+      else {
+        showAgentModelControls(options, []);
+        options.insertAdjacentHTML('beforeend', `<div class="local-agent-scan-state local-agent-scan-error">${escapeHTML(selected.message || 'This gateway is currently offline. Start it, then check the connection again.')}</div>`);
+      }
+    }
+    showNotification(selected.kind === 'gateway'
+      ? `Personal agent selected: ${selected.label}` : 'Local CLI execution selected', 'success', 7000);
+  } catch (error) {
+    showNotification(error instanceof Error ? error.message : 'Could not select this execution target.', 'error', 9000);
   }
 }
 

@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { checkAgentHost, controlAgentHost, listAgentModels, streamAgentTurn, uploadAgentImage } from '../js/agent-chat-client.js';
+import { checkAgentHost, controlAgentHost, listAgentExecutionTargets, listAgentModels, streamAgentTurn, uploadAgentImage } from '../js/agent-chat-client.js';
 
 function ndjsonResponse(events) {
   const body = events.map(event => `${JSON.stringify(event)}\n`).join('');
@@ -92,6 +92,27 @@ describe('agent chat client', () => {
       'http://127.0.0.1:8324/v1/models?agent=opencode&model=openrouter%2Fopenai%2Fgpt-5.6-sol',
       expect.objectContaining({ headers: { Authorization: 'Bearer secret-token' } }),
     );
+  });
+
+  it('loads safe execution targets and sends the selected target with turns', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ targets: [{
+        id: 'gateway-home', label: 'Omer · Homelab', kind: 'gateway', status: 'available',
+      }] }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+      .mockResolvedValueOnce(ndjsonResponse([
+        { type: 'session', threadId: 'thread-remote', model: 'remote-model' },
+        { type: 'text_delta', delta: 'Personal reply' },
+        { type: 'done', finishReason: 'stop' },
+      ]));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(listAgentExecutionTargets({
+      endpoint: 'http://127.0.0.1:8324', token: 'secret-token', agent: 'hermes',
+    })).resolves.toEqual([expect.objectContaining({ id: 'gateway-home' })]);
+    await streamAgentTurn({
+      endpoint: 'http://127.0.0.1:8324', token: 'secret-token', agent: 'hermes', target: 'gateway-home',
+      prompt: 'Who is there?', tools: [],
+    });
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ agent: 'hermes', target: 'gateway-home' });
   });
 
   it('sends authenticated companion controls only to the loopback host', async () => {

@@ -107,23 +107,39 @@ test('CLI provider discovers branded agents and keeps model controls stable acro
       { reasoningEffort: 'medium', description: 'Medium' },
     ],
   }];
+  const hermesModels = [{
+    id: 'openai-codex:gpt-5.6-sol', model: 'openai-codex:gpt-5.6-sol', displayName: 'GPT-5.6 Sol', isDefault: true,
+    defaultReasoningEffort: 'medium', inputModalities: ['text'],
+    supportedReasoningEfforts: [{ reasoningEffort: 'medium', description: 'Medium' }],
+  }];
 
   await page.route('**/api/local-agents*', route => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({ agents }),
   }));
   await page.route(`${endpoint}/v1/status`, route => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({
-      ok: true, service: 'getbased-agent-host', protocolVersion: 4,
+      ok: true, service: 'getbased-agent-host', protocolVersion: 5,
       capabilities: ['chat-stream', 'dynamic-tools', 'structured-health-tools', 'model-catalog',
-        'reasoning-catalog', 'image-upload', 'structured-output', 'companion-control'],
+        'reasoning-catalog', 'image-upload', 'structured-output', 'companion-control', 'execution-targets'],
       state: 'running', paused: false, runtimeMode: 'temporary', companionVersion: '1.1.0',
     }),
   }));
+  await page.route(`${endpoint}/v1/targets**`, route => {
+    const agent = new URL(route.request().url()).searchParams.get('agent');
+    return route.fulfill({
+      status: 200, contentType: 'application/json', body: JSON.stringify({
+        targets: agent === 'hermes' ? [
+          { id: 'local', label: 'Local CLI', kind: 'local', status: 'available' },
+          { id: 'gateway-home', label: 'Omer · Homelab', kind: 'gateway', status: 'available', supportsLocalTools: false },
+        ] : [{ id: 'local', label: 'Local CLI', kind: 'local', status: 'available' }],
+      }),
+    });
+  });
   await page.route(`${endpoint}/v1/models**`, route => {
     const agent = new URL(route.request().url()).searchParams.get('agent');
     return route.fulfill({
       status: 200, contentType: 'application/json',
-      body: JSON.stringify({ models: agent === 'codex' ? codexModels : models }),
+      body: JSON.stringify({ models: agent === 'codex' ? codexModels : agent === 'hermes' ? hermesModels : models }),
     });
   });
   await page.addInitScript(() => {
@@ -195,4 +211,11 @@ test('CLI provider discovers branded agents and keeps model controls stable acro
   await page.locator('label.local-agent-toggle:has(input[data-agent="codex"])').click();
   await expect(page.locator('#cli-agent-model-summary')).toContainText('GPT-5.6-Sol');
   await expect(page.locator('#cli-agent-effort-summary')).toContainText('medium');
+
+  await page.locator('label.local-agent-toggle:has(input[data-agent="hermes"])').click();
+  await expect(page.locator('#cli-agent-target-summary')).toContainText('Local CLI');
+  await page.locator('#cli-agent-target-summary').click();
+  await page.locator('[data-settings-action="set-cli-agent-target"][data-value="gateway-home"]').click();
+  await expect(page.locator('#cli-agent-target-summary')).toContainText('Omer · Homelab');
+  await expect(page.locator('#cli-agent-options')).toContainText('Personal gateway uses that profile');
 });
