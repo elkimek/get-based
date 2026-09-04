@@ -5,7 +5,7 @@ import { refreshDetectedAgentList } from '../js/settings-cli-agent-panel.js';
 
 describe('CLI companion setup UI', () => {
   beforeEach(() => {
-    document.body.innerHTML = '<div id="local-agent-list"></div>';
+    document.body.innerHTML = '<div id="local-agent-list"></div><div id="local-agent-companion-section"></div>';
     localStorage.clear();
   });
   afterEach(() => vi.unstubAllGlobals());
@@ -44,12 +44,12 @@ describe('CLI companion setup UI', () => {
 
     await refreshDetectedAgentList();
 
-    const list = document.getElementById('local-agent-list');
-    expect(list.textContent).toContain('Connected for this terminal session · v1.0.0');
-    expect(list.querySelector('[data-value="pause"]')).not.toBeNull();
-    expect(list.querySelector('[data-value="restart"]')).not.toBeNull();
-    expect(list.querySelector('[data-value="install"]')).not.toBeNull();
-    expect(list.querySelector('[data-value="uninstall"]')).toBeNull();
+    const companion = document.getElementById('local-agent-companion-section');
+    expect(companion.textContent).toContain('Connected for this terminal session · v1.0.0');
+    expect(companion.querySelector('[data-value="pause"]')).not.toBeNull();
+    expect(companion.querySelector('[data-value="restart"]')).not.toBeNull();
+    expect(companion.querySelector('[data-value="install"]')).not.toBeNull();
+    expect(companion.querySelector('[data-value="uninstall"]')).toBeNull();
   });
 
   it('shows a stopped companion state without attempting to load models', async () => {

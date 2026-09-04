@@ -247,7 +247,7 @@ through one capability-aware dispatcher:
 | --- | --- | --- |
 | Text chat over approved profile context | Yes | Add typed queries only when a real product need appears. |
 | Hosted web research | Agent-dependent; normalized activity is recorded when the protocol reports it | Add an explicit user control and richer activity display. |
-| Model and reasoning selection | Codex and ACP catalogs; Claude Code aliases and effort levels | Keep catalogs capability-driven as CLIs evolve. |
+| Model and reasoning selection | Codex catalogs; OpenCode provider/model catalogs and model-specific effort variants; Hermes provider/model catalogs; Claude Code aliases and effort levels | Hermes ACP does not yet expose a session-scoped reasoning control, so it inherits the user's Hermes setting. Keep every control capability-driven as CLIs evolve. |
 | Lab PDF/photo import | Yes when the selected adapter/model declares image input, with existing review-before-save | Keep the extraction schema provider-neutral. |
 | Meal-photo and nutrition-label analysis | Yes when the selected adapter/model declares image input, with normal review-before-save | Verify new adapter modalities before routing. |
 | Context cards, marker explanations, biology scores, supplements, EMF, light/sun, reports, summaries, and Lens query rewriting | Yes | Preserve feature-specific schemas and consent labels. |
@@ -272,10 +272,13 @@ only capabilities an adapter reports.
 - **Codex:** app-server supplies account status and ChatGPT login, model and
   reasoning catalogs, threads, streamed events, and dynamic tools.
 - **OpenCode / Hermes / Grok:** one ACP v1 transport handles initialization,
-  model/reasoning options, resumable sessions, streaming, declared image
-  support, cancellation, and the private getbased MCP server. Client terminal
-  and filesystem capabilities are not advertised; permission requests are
-  denied.
+  resumable sessions, streaming, declared image support, cancellation, and the
+  private getbased MCP server. OpenCode exposes its connected provider catalogs
+  and model-specific effort variants as session configuration options. Hermes
+  exposes provider/model state through `session/set_model`, but currently leaves
+  reasoning to the user's Hermes configuration because its ACP server does not
+  advertise a session-scoped reasoning option. Client terminal and filesystem
+  capabilities are not advertised; permission requests are denied.
 - **Claude Code:** the adapter uses `--print` with `stream-json`, restricted
   mode, no interactive permissions, an exact MCP configuration, resumable
   sessions, model aliases, reasoning effort, images, and JSON Schema output.

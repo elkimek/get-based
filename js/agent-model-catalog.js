@@ -29,12 +29,13 @@ function normalizeEfforts(value) {
 function normalizeModel(value) {
   if (!value || typeof value !== 'object') return null;
   const row = /** @type {any} */ (value);
-  const id = boundedString(row.id || row.model, 100);
+  const id = boundedString(row.id || row.model, 160);
   if (!id) return null;
   return {
     id,
-    model: boundedString(row.model || row.id, 100) || id,
-    displayName: boundedString(row.displayName || row.model || row.id, 120) || id,
+    model: boundedString(row.model || row.id, 160) || id,
+    displayName: boundedString(row.displayName || row.model || row.id, 180) || id,
+    description: boundedString(row.description, 300),
     isDefault: row.isDefault === true,
     defaultReasoningEffort: boundedString(row.defaultReasoningEffort, 40),
     supportedReasoningEfforts: normalizeEfforts(row.supportedReasoningEfforts),
@@ -44,7 +45,7 @@ function normalizeModel(value) {
 
 /** @param {unknown} models */
 export function cacheAgentModelCatalog(models) {
-  const normalized = Array.isArray(models) ? models.map(normalizeModel).filter(Boolean).slice(0, 100) : [];
+  const normalized = Array.isArray(models) ? models.map(normalizeModel).filter(Boolean).slice(0, 500) : [];
   localStorage.setItem(AGENT_MODEL_CATALOG_KEY, JSON.stringify(normalized));
   if (typeof globalThis.dispatchEvent === 'function' && typeof CustomEvent !== 'undefined') {
     globalThis.dispatchEvent(new CustomEvent('getbased:agent-model-catalog-changed'));
@@ -55,7 +56,7 @@ export function cacheAgentModelCatalog(models) {
 export function getCachedAgentModelCatalog() {
   try {
     const parsed = JSON.parse(localStorage.getItem(AGENT_MODEL_CATALOG_KEY) || '[]');
-    return Array.isArray(parsed) ? parsed.map(normalizeModel).filter(Boolean).slice(0, 100) : [];
+    return Array.isArray(parsed) ? parsed.map(normalizeModel).filter(Boolean).slice(0, 500) : [];
   } catch {
     return [];
   }
@@ -63,7 +64,7 @@ export function getCachedAgentModelCatalog() {
 
 /** @param {string} [modelId] @param {ReturnType<typeof getCachedAgentModelCatalog>} [models] */
 export function resolveAgentModel(modelId = '', models = getCachedAgentModelCatalog()) {
-  const requested = boundedString(modelId, 100);
+  const requested = boundedString(modelId, 160);
   if (requested) return models.find(model => model.id === requested || model.model === requested) || null;
   return models.find(model => model.isDefault)
     || models[0]

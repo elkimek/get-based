@@ -18,10 +18,12 @@ import {
 import { escapeAttr, escapeHTML, showConfirmDialog, showNotification } from './utils.js';
 
 /** @typedef {{reasoningEffort: string, description: string}} AgentReasoningEffort */
-/** @typedef {{id: string, model: string, displayName: string, isDefault: boolean, defaultReasoningEffort: string, supportedReasoningEfforts: AgentReasoningEffort[], inputModalities?: string[]}} AgentModel */
+/** @typedef {{id: string, model: string, displayName: string, description?: string, isDefault: boolean, defaultReasoningEffort: string, supportedReasoningEfforts: AgentReasoningEffort[], inputModalities?: string[]}} AgentModel */
 
 /** @type {AgentModel[]} */
 let agentModels = [];
+let agentProviderFilter = '';
+let hydratedAgentId = '';
 /** @type {'linux'|'macos'|'windows'|''} */
 let companionPlatformOverride = '';
 
@@ -141,6 +143,7 @@ export function renderCLIAgentProviderPanel() {
       <div id="local-agent-list" class="local-agent-list" aria-live="polite">
         <div class="local-agent-scan-state"><span class="local-agent-spinner" aria-hidden="true"></span>Scanning this computer…</div>
       </div>
+      <div id="local-agent-companion-section" class="local-agent-companion-section"></div>
       <div id="local-agent-status" class="sr-only" role="status" aria-live="polite"></div>
       <details class="local-agent-details">
         <summary>How CLI agents work</summary>
@@ -161,32 +164,99 @@ function selectedModelEntry(models, selectedModel) {
  * Render an in-page picker instead of a native select. Some Linux/Chromium
  * combinations open a native select beneath the pointer on mouse-down, then
  * immediately choose that option on mouse-up.
- * @param {{id: string, label: string, value: string, options: {value: string, label: string}[], action: string, disabled?: boolean}} config
+ * @param {{id: string, label: string, value: string, options: {value: string, label: string}[], action: string, disabled?: boolean, searchable?: boolean, placeholder?: string}} config
  */
 function renderAgentPicker(config) {
-  const selected = config.options.find(option => option.value === config.value) || config.options[0];
+  const selected = config.options.find(option => option.value === config.value)
+    || (!config.value && !config.placeholder ? config.options[0] : null);
   return `<label class="local-agent-option-label" for="${escapeAttr(config.id)}-summary"><span>${escapeHTML(config.label)}</span></label>
     <details class="cli-agent-picker"${config.disabled ? ' data-disabled="true"' : ''}>
       <summary id="${escapeAttr(config.id)}-summary" class="cli-agent-picker-summary"${config.disabled ? ' aria-disabled="true" tabindex="-1"' : ''}>
-        <span>${escapeHTML(selected?.label || '')}</span><span class="cli-agent-picker-chevron" aria-hidden="true">⌄</span>
+        <span>${escapeHTML(selected?.label || config.placeholder || '')}</span><span class="cli-agent-picker-chevron" aria-hidden="true">⌄</span>
       </summary>
-      <div class="cli-agent-picker-options" role="listbox" aria-label="${escapeAttr(config.label)}">
-        ${config.options.map(option => `<button type="button" role="option" aria-selected="${option.value === config.value}" data-settings-action="${escapeAttr(config.action)}" data-value="${escapeAttr(option.value)}"><span>${escapeHTML(option.label)}</span>${option.value === config.value ? '<span aria-hidden="true">✓</span>' : ''}</button>`).join('')}
+      <div class="cli-agent-picker-options"${config.searchable ? ' id="cli-agent-model-options"' : ''} role="listbox" aria-label="${escapeAttr(config.label)}">
+        ${config.searchable ? `<div class="cli-agent-picker-search"><input type="search" data-cli-agent-model-search aria-label="Search models" placeholder="Search ${config.options.length} models"><span id="cli-agent-model-result-count">${config.options.length} models</span></div>` : ''}
+        ${config.options.map(option => `<button type="button" role="option" aria-selected="${option.value === config.value}" data-settings-action="${escapeAttr(config.action)}" data-value="${escapeAttr(option.value)}"${config.searchable ? ` data-model-search="${escapeAttr(`${option.label} ${option.value}`.toLowerCase())}"` : ''}><span>${escapeHTML(option.label)}</span>${option.value === config.value ? '<span aria-hidden="true">✓</span>' : ''}</button>`).join('')}
       </div>
     </details>`;
 }
 
+/** @param {string} agentId @param {AgentModel | null} model */
+export function getCLIAgentModelProvider(agentId, model) {
+  const id = String(model?.id || model?.model || '');
+  if (agentId === 'opencode') return id.includes('/') ? id.slice(0, id.indexOf('/')) : '';
+  if (agentId === 'hermes') {
+    if (id.startsWith('custom:')) {
+      const parts = id.split(':');
+      return parts.length > 2 ? parts.slice(0, 2).join(':') : 'custom';
+    }
+    return id.includes(':') ? id.slice(0, id.indexOf(':')) : '';
+  }
+  return '';
+}
+
+/** @param {string} provider */
+function agentProviderLabel(provider) {
+  const known = {
+    opencode: 'OpenCode', openrouter: 'OpenRouter', anthropic: 'Anthropic',
+    'openai-codex': 'OpenAI Codex', openai: 'OpenAI', 'custom:ollama': 'Ollama',
+  };
+  return known[provider] || provider.split(/[-_]/).filter(Boolean)
+    .map(part => `${part.charAt(0).toUpperCase()}${part.slice(1)}`).join(' ');
+}
+
+/** @param {string} agentId @param {AgentModel} model */
+function agentModelLabel(agentId, model) {
+  const provider = getCLIAgentModelProvider(agentId, model);
+  let label = model.displayName || model.id || model.model;
+  if (provider && label.includes('/')) label = label.slice(label.indexOf('/') + 1);
+  if (provider && label.includes(' · ')) label = label.slice(label.indexOf(' · ') + 3);
+  const id = String(model.id || model.model || '').toLowerCase();
+  const isFree = id === 'opencode/big-pickle' || id.endsWith(':free') || /(?:^|[-/])free(?:$|[-/])/.test(id);
+  return `${label}${isFree && !label.toLowerCase().includes('free') ? ' · Free' : ''}`;
+}
+
+export function filterCLIAgentModelOptions(query) {
+  const root = document.getElementById('cli-agent-model-options');
+  if (!root) return;
+  const normalized = String(query || '').trim().toLowerCase();
+  const options = [...root.querySelectorAll('[data-model-search]')];
+  let visible = 0;
+  for (const option of options) {
+    const matches = !normalized || String(option.getAttribute('data-model-search') || '').includes(normalized);
+    option.toggleAttribute('hidden', !matches);
+    if (matches) visible += 1;
+  }
+  const count = document.getElementById('cli-agent-model-result-count');
+  if (count) count.textContent = `${visible} ${visible === 1 ? 'model' : 'models'}`;
+}
+
+export function setCLIAgentProviderFilter(provider) {
+  agentProviderFilter = String(provider || '').slice(0, 80);
+  const options = document.getElementById('cli-agent-options');
+  if (options?.isConnected) options.innerHTML = renderAgentModelControls(agentModels);
+}
+
 /** @param {AgentModel[]} models */
 function renderAgentModelControls(models) {
+  const agentId = getAgentHostAgent();
   const selectedModel = getAgentHostModel();
   const selectedEffort = getAgentHostEffort();
   const current = selectedModelEntry(models, selectedModel);
   const defaultModel = models.find(model => model.isDefault) || models[0] || null;
+  const providers = [...new Set(models.map(model => getCLIAgentModelProvider(agentId, model)).filter(Boolean))];
+  const selectedProvider = getCLIAgentModelProvider(agentId, current || defaultModel);
+  if (!providers.includes(agentProviderFilter)) agentProviderFilter = selectedProvider || providers[0] || '';
+  const visibleModels = agentProviderFilter
+    ? models.filter(model => getCLIAgentModelProvider(agentId, model) === agentProviderFilter)
+    : models;
   const modelOptions = [
-    { value: '', label: `CLI default${defaultModel?.displayName ? ` · ${defaultModel.displayName}` : ''}` },
-    ...models.map(model => {
+    ...(!providers.length || getCLIAgentModelProvider(agentId, defaultModel) === agentProviderFilter
+      ? [{ value: '', label: `CLI default${defaultModel?.displayName ? ` · ${defaultModel.displayName}` : ''}` }]
+      : []),
+    ...visibleModels.map(model => {
       const value = model.id || model.model;
-      return { value, label: model.displayName || value };
+      return { value, label: agentModelLabel(agentId, model) || value };
     }),
   ];
   if (selectedModel && !models.some(model => model.id === selectedModel || model.model === selectedModel)) {
@@ -195,16 +265,25 @@ function renderAgentModelControls(models) {
   const efforts = current?.supportedReasoningEfforts || [];
   const defaultEffort = current?.defaultReasoningEffort || '';
   const effortOptions = [
-    { value: '', label: `Default${defaultEffort ? ` · ${defaultEffort}` : ''}` },
+    { value: '', label: efforts.length ? `Default${defaultEffort ? ` · ${defaultEffort}` : ''}`
+      : agentId === 'hermes' ? 'Uses Hermes setting' : 'Not offered by this model' },
     ...efforts.map(item => ({ value: item.reasoningEffort, label: item.reasoningEffort })),
   ];
   if (selectedEffort && !efforts.some(item => item.reasoningEffort === selectedEffort)) {
     effortOptions.push({ value: selectedEffort, label: `${selectedEffort} · unavailable` });
   }
-  return `<div class="local-agent-options">
-    <div class="local-agent-option-field">${renderAgentPicker({ id: 'cli-agent-model', label: 'Model', value: selectedModel, options: modelOptions, action: 'set-cli-agent-model' })}</div>
+  const agentName = ({ codex: 'Codex CLI', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes Agent', grok: 'Grok Build' })[agentId] || 'the selected CLI';
+  const reasoningNote = !efforts.length && agentId === 'hermes'
+    ? ' Hermes ACP does not expose a separate reasoning control yet, so GetBased uses your Hermes setting.' : '';
+  return `<div class="local-agent-options${providers.length > 1 ? ' has-provider' : ''}">
+    ${providers.length > 1 ? `<div class="local-agent-option-field">${renderAgentPicker({ id: 'cli-agent-provider', label: 'Provider catalog', value: agentProviderFilter, options: providers.map(provider => ({ value: provider, label: agentProviderLabel(provider) })), action: 'set-cli-agent-provider-filter' })}</div>` : ''}
+    <div class="local-agent-option-field">${renderAgentPicker({
+      id: 'cli-agent-model', label: 'Model', value: selectedModel, options: modelOptions,
+      action: 'set-cli-agent-model', searchable: modelOptions.length > 12,
+      placeholder: agentProviderFilter ? `Choose ${agentProviderLabel(agentProviderFilter)} model` : 'Choose a model',
+    })}</div>
     <div class="local-agent-option-field">${renderAgentPicker({ id: 'cli-agent-effort', label: 'Reasoning effort', value: selectedEffort, options: effortOptions, action: 'set-cli-agent-effort', disabled: !efforts.length })}</div>
-    <small>Synced from ${escapeHTML(({ codex: 'Codex CLI', claude: 'Claude Code', opencode: 'OpenCode', hermes: 'Hermes Agent', grok: 'Grok Build' })[getAgentHostAgent()] || 'the selected CLI')}.</small>
+    <small>Catalog supplied by ${escapeHTML(agentName)}. Your choices apply only to GetBased sessions and do not change the CLI&rsquo;s own default settings.${escapeHTML(reasoningNote)}</small>
   </div>`;
 }
 
@@ -213,7 +292,6 @@ function renderDetectedAgent(agent) {
   const selected = agent.id === getAgentHostAgent() && getChatBackend() === 'codex';
   const isReady = agent.status === 'available';
   const isPaused = agent.status === 'paused' || agent.paused === true;
-  const isReachable = isReady || isPaused;
   const statusLabel = isReady ? 'Ready · companion running'
     : isPaused ? 'Companion paused'
       : agent.status === 'starting' ? 'Companion starting…'
@@ -239,7 +317,6 @@ function renderDetectedAgent(agent) {
             <span class="chat-toggle-slider sync-settings-toggle-slider"></span>
           </label>` : ''}
       </div>
-      ${agent.id === getAgentHostAgent() && isReachable ? renderCompanionControls(agent) : ''}
       ${selected && isReady ? `<div id="cli-agent-options" class="local-agent-options-loading">Loading ${escapeHTML(agent.name)} models…</div>` : ''}
     </div>`;
 }
@@ -249,7 +326,8 @@ function renderCompanionControls(agent) {
   const paused = agent.status === 'paused' || agent.paused === true;
   const installed = agent.runtimeMode === 'installed';
   const modeLabel = installed ? 'Starts automatically at login' : 'Connected for this terminal session';
-  return `<div class="local-agent-controls" aria-label="Companion controls">
+  return `<div class="local-agent-list-kicker local-agent-companion-kicker">Companion</div>
+  <div class="local-agent-controls" aria-label="Companion controls">
     <div class="local-agent-controls-copy">
       <strong>Companion</strong>
       <span>${escapeHTML(modeLabel)}${agent.companionVersion ? ` · v${escapeHTML(agent.companionVersion)}` : ''}</span>
@@ -268,12 +346,18 @@ function renderCompanionControls(agent) {
 export async function refreshDetectedAgentList(options = {}) {
   const list = document.getElementById('local-agent-list');
   if (!list) return;
+  const companionSection = document.getElementById('local-agent-companion-section');
   list.innerHTML = '<div class="local-agent-scan-state"><span class="local-agent-spinner" aria-hidden="true"></span>Scanning this computer…</div>';
+  if (companionSection) companionSection.innerHTML = '';
   try {
     const agents = await discoverLocalChatAgents({ refresh: options.refresh });
     const agentRows = agents.length ? agents.map(renderDetectedAgent).join('') : '';
-    const companionReady = agents.some(agent => agent.compatible && ['available', 'starting', 'paused', 'login_required'].includes(agent.status));
+    const companion = agents.find(agent => agent.id === getAgentHostAgent() && agent.compatible
+      && ['available', 'paused', 'login_required'].includes(agent.status))
+      || agents.find(agent => agent.compatible && ['available', 'paused', 'login_required'].includes(agent.status));
+    const companionReady = Boolean(companion || agents.some(agent => agent.compatible && agent.status === 'starting'));
     list.innerHTML = `${agentRows}${companionReady ? '' : renderCompanionSetup()}`;
+    if (companionSection && companion) companionSection.innerHTML = renderCompanionControls(companion);
     if (getChatBackend() === 'codex' && agents.some(agent => agent.id === getAgentHostAgent() && agent.compatible && agent.status === 'available')) {
       void hydrateAgentModelControls();
     }
@@ -318,6 +402,10 @@ async function hydrateAgentModelControls() {
   if (!options) return;
   try {
     const agent = getAgentHostAgent();
+    if (hydratedAgentId !== agent) {
+      hydratedAgentId = agent;
+      agentProviderFilter = '';
+    }
     await connectDetectedAgent(agent);
     agentModels = cacheAgentModelCatalog(await listAgentModels({
       endpoint: getAgentHostEndpoint(),
@@ -359,6 +447,8 @@ export async function toggleLocalCodex(enabled, agentId = getAgentHostAgent()) {
   try {
     await connectDetectedAgent(agentId);
     await saveAgentChatSettings({ agent: agentId, model: '', effort: '' });
+    hydratedAgentId = '';
+    agentProviderFilter = '';
     setChatBackend('codex');
     showNotification('CLI agent selected for chat', 'success');
   } catch (error) {
@@ -370,10 +460,22 @@ export async function toggleLocalCodex(enabled, agentId = getAgentHostAgent()) {
 
 /** @param {string} model */
 export async function setCLIAgentModel(model) {
-  await saveAgentChatSettings({ model, effort: '' });
-  showNotification(model ? 'CLI model updated' : 'The agent will use its CLI default model', 'success');
-  const options = document.getElementById('cli-agent-options');
-  if (options?.isConnected) options.innerHTML = renderAgentModelControls(agentModels);
+  try {
+    const agent = getAgentHostAgent();
+    await connectDetectedAgent(agent);
+    agentModels = cacheAgentModelCatalog(await listAgentModels({
+      endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent, model: model || undefined,
+    }));
+    await saveAgentChatSettings({ model, effort: '' });
+    const selected = selectedModelEntry(agentModels, model);
+    const provider = getCLIAgentModelProvider(agent, selected);
+    if (provider) agentProviderFilter = provider;
+    showNotification(model ? 'CLI model updated for GetBased' : 'GetBased will use the CLI default model', 'success');
+    const options = document.getElementById('cli-agent-options');
+    if (options?.isConnected) options.innerHTML = renderAgentModelControls(agentModels);
+  } catch (error) {
+    showNotification(error instanceof Error ? error.message : 'Could not select this CLI model.', 'error', 9000);
+  }
 }
 
 /** @param {string} effort */
@@ -382,4 +484,13 @@ export async function setCLIAgentEffort(effort) {
   showNotification(effort ? `Reasoning set to ${effort}` : 'The agent will use its default reasoning effort', 'success');
   const options = document.getElementById('cli-agent-options');
   if (options?.isConnected) options.innerHTML = renderAgentModelControls(agentModels);
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('input', event => {
+    const target = event.target;
+    if (target instanceof HTMLInputElement && target.matches('[data-cli-agent-model-search]')) {
+      filterCLIAgentModelOptions(target.value);
+    }
+  });
 }

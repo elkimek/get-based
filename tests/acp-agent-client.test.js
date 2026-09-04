@@ -1,7 +1,7 @@
 // @vitest-environment node
 
-import { describe, expect, it } from 'vitest';
-import { normalizeACPModelCatalog } from '../lib/acp-agent-client.js';
+import { describe, expect, it, vi } from 'vitest';
+import { ACPAgentClient, normalizeACPModelCatalog } from '../lib/acp-agent-client.js';
 
 describe('ACP agent model catalogs', () => {
   it('normalizes standard session config options', () => {
@@ -29,6 +29,44 @@ describe('ACP agent model catalogs', () => {
     expect(models[0]).toMatchObject({
       id: 'grok-4.6', isDefault: true, defaultReasoningEffort: 'high',
       supportedReasoningEfforts: [{ reasoningEffort: 'low' }, { reasoningEffort: 'high' }],
+    });
+  });
+
+  it('recognizes OpenCode effort options and applies them per session', async () => {
+    const models = normalizeACPModelCatalog({ configOptions: [
+      { id: 'model', category: 'model', currentValue: 'opencode/free', options: [
+        { value: 'opencode/free', name: 'OpenCode/Free' },
+      ] },
+      { id: 'effort', category: 'thought_level', currentValue: 'medium', options: [
+        { value: 'low', name: 'Low' }, { value: 'high', name: 'High' },
+      ] },
+    ] });
+    expect(models[0]).toMatchObject({
+      defaultReasoningEffort: 'medium',
+      supportedReasoningEfforts: [{ reasoningEffort: 'low' }, { reasoningEffort: 'high' }],
+    });
+
+    const client = new ACPAgentClient({ id: 'opencode', command: 'opencode', args: ['acp'], cwd: '/tmp' });
+    client.request = vi.fn(async () => ({ configOptions: [] }));
+    await client.configureSession('session-1', [{
+      id: 'effort', category: 'thought_level', currentValue: 'medium', options: [],
+    }], '', 'high');
+    expect(client.request).toHaveBeenCalledWith('session/set_config_option', {
+      sessionId: 'session-1', configId: 'effort', value: 'high',
+    });
+  });
+
+  it('uses the ACP model extension for Hermes session-local model choices', async () => {
+    const client = new ACPAgentClient({ id: 'hermes', command: 'hermes', args: ['acp'], cwd: '/tmp' });
+    client.request = vi.fn(async () => ({}));
+    await client.configureSession('session-2', [], 'openai-codex:gpt-5.6-terra', '', {
+      currentModelId: 'openai-codex:gpt-5.6-sol',
+      availableModels: [
+        { modelId: 'openai-codex:gpt-5.6-sol' }, { modelId: 'openai-codex:gpt-5.6-terra' },
+      ],
+    });
+    expect(client.request).toHaveBeenCalledWith('session/set_model', {
+      sessionId: 'session-2', modelId: 'openai-codex:gpt-5.6-terra',
     });
   });
 });

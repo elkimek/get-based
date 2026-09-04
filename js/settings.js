@@ -1,6 +1,5 @@
 // @ts-check
 // settings.js — Settings modal (profile, display, AI provider, privacy)
-
 import { isDebugMode, setDebugMode, setAnalyticsEnabled, showNotification, showConfirmDialog } from './utils.js';
 import { applyAccentOverride, setTimeFormat } from './theme.js';
 import { switchUnitSystem, toggleAltUnits, switchRangeMode } from './data.js';
@@ -8,7 +7,7 @@ import { getAIProvider, hasAIProvider, isAIPaused, setOllamaPIIModel } from './a
 import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots } from './crypto.js';
 import { renderSyncSection, renderMessengerSection, hydrateSettingsSyncPanel } from './settings-sync-panel.js';
 import { getChatBackend } from './agent-chat-settings.js';
-import { controlCLICompanion, copyCLIAgentLoginCommand, copyCLICompanionRunCommand, copyCLICompanionStartCommand, refreshDetectedAgentList, renderCLIAgentProviderPanel, setCLIAgentEffort, setCLIAgentModel, setCLICompanionPlatform, testLocalCodex, toggleLocalCodex } from './settings-cli-agent-panel.js';
+import { controlCLICompanion, copyCLIAgentLoginCommand, copyCLICompanionRunCommand, copyCLICompanionStartCommand, refreshDetectedAgentList, renderCLIAgentProviderPanel, setCLIAgentEffort, setCLIAgentModel, setCLIAgentProviderFilter, setCLICompanionPlatform, testLocalCodex, toggleLocalCodex } from './settings-cli-agent-panel.js';
 import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
 import { setProductRecsEnabled } from './recommendations.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
@@ -312,6 +311,9 @@ async function handleSettingsClick(event) {
   } else if (action === 'set-cli-agent-model' || action === 'set-cli-agent-effort') {
     event.preventDefault();
     void (action === 'set-cli-agent-model' ? setCLIAgentModel : setCLIAgentEffort)(actionEl.dataset.value || '');
+  } else if (action === 'set-cli-agent-provider-filter') {
+    event.preventDefault();
+    setCLIAgentProviderFilter(actionEl.dataset.value || '');
   } else if (action === 'toggle-privacy-configure') {
     event.preventDefault();
     togglePrivacyConfigure();

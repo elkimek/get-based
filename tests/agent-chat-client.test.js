@@ -79,6 +79,21 @@ describe('agent chat client', () => {
     }));
   });
 
+  it('requests live per-model options from a multi-provider CLI catalog', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{"models":[]}', {
+      status: 200, headers: { 'Content-Type': 'application/json' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    await listAgentModels({
+      endpoint: 'http://127.0.0.1:8324', token: 'secret-token',
+      agent: 'opencode', model: 'openrouter/openai/gpt-5.6-sol',
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8324/v1/models?agent=opencode&model=openrouter%2Fopenai%2Fgpt-5.6-sol',
+      expect.objectContaining({ headers: { Authorization: 'Bearer secret-token' } }),
+    );
+  });
+
   it('sends authenticated companion controls only to the loopback host', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response('{"state":"paused","paused":true}', {
       status: 200, headers: { 'Content-Type': 'application/json' },

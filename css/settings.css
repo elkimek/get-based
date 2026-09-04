@@ -1189,12 +1189,14 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 9px 0 2px 49px;
+  margin: 0;
   padding: 9px 10px;
   border: 1px solid var(--border);
   border-radius: 9px;
   background: var(--bg-secondary);
 }
+.settings-modal .local-agent-companion-section { margin-top: 12px; }
+.settings-modal .local-agent-companion-kicker { margin-bottom: 7px; }
 .settings-modal .local-agent-controls-copy { min-width: 0; }
 .settings-modal .local-agent-controls-copy strong {
   display: block;
@@ -1221,6 +1223,9 @@
   grid-template-columns: minmax(0, 1fr) minmax(150px, .6fr);
   gap: 10px;
   padding: 12px 0 2px 49px;
+}
+.settings-modal .local-agent-options.has-provider {
+  grid-template-columns: minmax(120px, .55fr) minmax(220px, 1.2fr) minmax(150px, .65fr);
 }
 .settings-modal .local-agent-option-field { min-width: 0; }
 .settings-modal .local-agent-option-label { display: block; margin-bottom: 5px; color: var(--text-secondary); font-size: 10.5px; font-weight: 600; }
@@ -1255,6 +1260,8 @@
 .settings-modal .cli-agent-picker[data-disabled="true"] { opacity: .55; pointer-events: none; }
 .settings-modal .cli-agent-picker-options {
   display: grid;
+  max-height: min(360px, 52vh);
+  overflow-y: auto;
   margin-top: 5px;
   padding: 4px;
   border: 1px solid var(--border);
@@ -1262,6 +1269,38 @@
   background: var(--select-popup-surface);
   box-shadow: var(--shadow-md);
 }
+.settings-modal .cli-agent-picker-search {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  background: var(--select-popup-surface);
+}
+.settings-modal .cli-agent-picker-search input {
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 11px;
+}
+.settings-modal .cli-agent-picker-search input:focus {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent-fill);
+}
+.settings-modal .cli-agent-picker-search span {
+  padding-right: 4px;
+  color: var(--text-muted);
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+.settings-modal .cli-agent-picker-options button[hidden] { display: none; }
 .settings-modal .cli-agent-picker-options button {
   display: flex;
   align-items: center;
@@ -2291,9 +2330,10 @@ label.sync-settings-toggle input:disabled + .sync-settings-toggle-slider { opaci
     gap: 9px;
   }
   .settings-modal .local-agent-install-options { grid-template-columns: 1fr; }
-  .settings-modal .local-agent-controls { align-items: stretch; flex-direction: column; margin-left: 43px; }
+  .settings-modal .local-agent-controls { align-items: stretch; flex-direction: column; }
   .settings-modal .local-agent-control-actions { justify-content: flex-start; }
-  .settings-modal .local-agent-options { grid-template-columns: 1fr; padding-left: 43px; }
+  .settings-modal .local-agent-options,
+  .settings-modal .local-agent-options.has-provider { grid-template-columns: 1fr; padding-left: 43px; }
   .settings-modal .local-agent-options small { grid-column: auto; }
   .settings-modal .local-agent-test { display: none; }
   .settings-modal .agent-access-copy-btn {

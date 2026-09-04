@@ -78,11 +78,14 @@ export async function controlAgentHost(options) {
 }
 
 /**
- * @param {{endpoint: string, token: string, agent?: string, signal?: AbortSignal}} options
+ * @param {{endpoint: string, token: string, agent?: string, model?: string, signal?: AbortSignal}} options
  */
 export async function listAgentModels(options) {
-  const query = options.agent ? `?agent=${encodeURIComponent(options.agent)}` : '';
-  const response = await fetch(endpointUrl(options.endpoint, `/v1/models${query}`), {
+  const query = new URLSearchParams();
+  if (options.agent) query.set('agent', options.agent);
+  if (options.model) query.set('model', options.model);
+  const suffix = query.size ? `?${query}` : '';
+  const response = await fetch(endpointUrl(options.endpoint, `/v1/models${suffix}`), {
     signal: options.signal,
     cache: 'no-store',
     headers: { Authorization: `Bearer ${options.token}` },

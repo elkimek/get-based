@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
-  detectCompanionPlatform, getCompanionCommand, getLinuxCompanionInstallCommand, getLinuxCompanionRunCommand,
+  detectCompanionPlatform, getCLIAgentModelProvider, getCompanionCommand, getLinuxCompanionInstallCommand, getLinuxCompanionRunCommand,
 } from '../js/settings-cli-agent-panel.js';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -74,6 +74,11 @@ describe('local agent selection UI', () => {
     expect(source).toContain('class="cli-agent-picker"');
     expect(source).not.toContain('<select id="cli-agent-model"');
     expect(source).not.toContain('<select id="cli-agent-effort"');
+    expect(source).toContain("action: 'set-cli-agent-provider-filter'");
+    expect(source).toContain('data-cli-agent-model-search');
+    expect(source).toContain('choices apply only to GetBased sessions');
+    expect(getCLIAgentModelProvider('opencode', { id: 'openrouter/openai/gpt-5.6-sol' })).toBe('openrouter');
+    expect(getCLIAgentModelProvider('hermes', { id: 'openai-codex:gpt-5.6-sol' })).toBe('openai-codex');
   });
 
   it('returns chat to direct inference when an API or local-model provider is chosen', () => {

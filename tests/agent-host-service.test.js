@@ -189,10 +189,11 @@ describe('agent host service', () => {
       appServer: null, token: TOKEN, workspaceRoot: '/tmp/agent-test', bundlePath: '/tmp/getbased-companion.mjs',
       agents: [{ id: 'opencode', name: 'OpenCode', description: 'Agent', protocol: 'acp', client: acp }],
     });
-    const models = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/models?agent=opencode', {
+    const models = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/models?agent=opencode&model=open-model', {
       headers: { Authorization: `Bearer ${TOKEN}`, Origin: 'http://127.0.0.1:8000' },
     }));
     expect(await models.json()).toMatchObject({ models: [expect.objectContaining({ id: 'open-model' })] });
+    expect(acp.getModelCatalog).toHaveBeenCalledWith({ model: 'open-model' });
 
     const response = await service.handleRequest(turnRequest({ agent: 'opencode', model: 'open-model' }));
     const reader = response.body.getReader();
