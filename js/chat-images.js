@@ -136,9 +136,14 @@ export async function handleDroppedChatFiles(source) {
   try {
     await handleChatFiles(/** @type {File[]} */ (await Promise.all(reads)));
   } catch (error) {
-    console.warn('[chat-files] Browser did not grant access to the dropped file:', error);
+    console.debug('[chat-files] Browser did not grant access to the dropped file:', error);
+    const chromiumOnLinux = /Linux/i.test(navigator.userAgent)
+      && /(?:Chrome|Chromium|Edg)\//i.test(navigator.userAgent);
+    const platformHint = chromiumOnLinux
+      ? ' Chrome on Linux/Wayland may require its Ozone platform to be set to X11 for file drag-and-drop.'
+      : '';
     const chooseFile = await showConfirmDialog(
-      'Your browser could not read this dropped file. Choose it from the file picker to continue.',
+      `Your browser could not read this dropped file. Choose it from the file picker to continue.${platformHint}`,
       { confirmLabel: 'Choose file', cancelLabel: 'Cancel', tone: 'primary', ariaLabel: 'Choose dropped file' },
     );
     if (!chooseFile) return;

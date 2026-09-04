@@ -257,10 +257,15 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       for (let i = 0; i < 40 && !document.getElementById('confirm-ok'); i += 1) {
         await new Promise(resolve => setTimeout(resolve, 25));
       }
+      const fallbackMessage = document.querySelector('#confirm-dialog-overlay .confirm-message')?.textContent || '';
+      const expectsLinuxChromiumHint = /Linux/i.test(navigator.userAgent)
+        && /(?:Chrome|Chromium|Edg)\//i.test(navigator.userAgent);
       document.getElementById('confirm-ok')?.click();
       await unreadableDrop;
       outcomes.unreadableDropOffersWorkingPickerFallback = fallbackPickerClicks === 1
-        && !document.getElementById('confirm-dialog-overlay')?.classList.contains('show');
+        && !document.getElementById('confirm-dialog-overlay')?.classList.contains('show')
+        && fallbackMessage.includes('could not read this dropped file')
+        && fallbackMessage.includes('Ozone platform') === expectsLinuxChromiumHint;
 
       if (input) {
         Object.defineProperty(input, 'files', {
