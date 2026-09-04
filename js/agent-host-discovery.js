@@ -24,10 +24,17 @@ export function isAgentAllowedForDeployment(agentId, locationLike = globalThis.l
 
 /** @param {any} agent */
 export function normalizeDiscoveredAgent(agent) {
+  const id = String(agent?.id || '');
+  const isClaudeAgent = id === 'claude';
   return {
-    id: String(agent?.id || ''),
-    name: String(agent?.name || ''),
-    description: String(agent?.description || '').slice(0, 100),
+    id,
+    // Older companions advertised the prohibited integration label “Claude
+    // Code”. Canonicalize it at the browser boundary so a running companion
+    // cannot reintroduce stale third-party branding after an app update.
+    name: isClaudeAgent ? 'Claude Agent' : String(agent?.name || ''),
+    description: isClaudeAgent
+      ? 'Anthropic agent · API/Console billing only'
+      : String(agent?.description || '').slice(0, 100),
     version: String(agent?.version || '').slice(0, 100),
     status: String(agent?.status || 'unavailable'),
     compatible: agent?.compatible === true,

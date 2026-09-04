@@ -14,7 +14,7 @@
     "bundle": {
       "package": "getbased-agent-stack",
       "repository": "https://github.com/elkimek/getbased-agents/tree/main/packages/stack",
-      "description": "Meta-package that bundles the MCP server with the RAG backend and example Claude Code / Hermes / OpenClaw configs."
+      "description": "Meta-package that bundles the MCP server with the RAG backend and example Claude Agent / Hermes / OpenClaw configs."
     }
   },
   "authentication": {
