@@ -44,6 +44,7 @@ import {
   getAgentModelDisplay,
   getCachedAgentModelCatalog,
   resolveAgentModel,
+  sortReasoningEffortValues,
 } from './agent-model-catalog.js';
 import { getDirectChatReasoningEffort, setDirectChatReasoningEffort } from './chat-model-preferences.js';
 import { updateChatHeaderModelRuntime } from './chat-runtime.js';
@@ -78,9 +79,9 @@ function titleCase(value) {
 
 function normalizedEfforts(value) {
   if (!Array.isArray(value)) return [];
-  return [...new Set(value.map(item => typeof item === 'string'
+  return sortReasoningEffortValues([...new Set(value.map(item => typeof item === 'string'
     ? item
-    : item?.reasoningEffort || item?.effort || item?.value || '').map(item => String(item).trim()).filter(Boolean))];
+    : item?.reasoningEffort || item?.effort || item?.value || '').map(item => String(item).trim()).filter(Boolean))]);
 }
 
 function directModelEfforts(model) {

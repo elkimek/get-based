@@ -51,7 +51,9 @@ const threadFns = [
   'ensureActiveThread', 'createNewThread',
   'switchToThread', 'deleteThread',
   'renameThread', 'renameThreadPrompt',
-  'createThreadProject', 'toggleThreadPinned', 'moveThreadToProject',
+  'createThreadProject', 'renameThreadProject', 'renameThreadProjectPrompt',
+  'deleteThreadProject', 'deleteThreadProjectPrompt',
+  'toggleThreadPinned', 'moveThreadToProject',
   'getChatThreadSort', 'setChatThreadSort',
   'autoNameThread', 'pruneOldThreads',
   'renderThreadList', 'filterThreadList',
@@ -206,7 +208,8 @@ const encryptedThread = {
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
   messageCount: 3,
-  personality: 'default'
+  personality: 'default',
+  projectName: 'Encrypted project',
 };
 await cryptoModule.encryptedSetItem(guardedIndexKey, JSON.stringify([encryptedThread]));
 let encryptedIndexRaw = localStorage.getItem(guardedIndexKey);
@@ -214,6 +217,7 @@ assert('thread index can be encrypted at rest', encryptedIndexRaw?.startsWith('v
 st.chatThreads = [];
 const encryptedLoadResult = await chatThreadsModule.loadChatThreads();
 assert('loadChatThreads decrypts encrypted thread index', encryptedLoadResult === true && st.chatThreads[0]?.id === encryptedThread.id);
+assert('loadChatThreads keeps encrypted project membership', st.chatThreads[0]?.projectName === 'Encrypted project');
 st.chatThreads[0].name = 'Encrypted Index Saved';
 const encryptedSaveResult = await chatThreadsModule.saveChatThreadIndex({ sync: false });
 encryptedIndexRaw = localStorage.getItem(guardedIndexKey);
@@ -222,7 +226,8 @@ const encryptedSavedThreads = JSON.parse(encryptedSavedPlaintext || '[]');
 assert('saveChatThreadIndex keeps unlocked encrypted index encrypted',
   encryptedSaveResult === true && encryptedIndexRaw?.startsWith('v1:'));
 assert('saveChatThreadIndex encrypted write round-trips index JSON',
-  encryptedSavedThreads[0]?.name === 'Encrypted Index Saved');
+  encryptedSavedThreads[0]?.name === 'Encrypted Index Saved'
+    && encryptedSavedThreads[0]?.projectName === 'Encrypted project');
 
 await cryptoModule._setTestSessionKey(null);
 st.chatThreads = [{
@@ -409,8 +414,12 @@ assert('chat-threads render path uses delegated thread actions',
   chatThreadsSrc.includes('data-chat-thread-action="delete"'));
 assert('chat-threads installs an idempotent click delegate',
   chatThreadsSrc.includes('let chatThreadDelegatesInstalled = false') &&
-  chatThreadsSrc.includes("document.addEventListener('click', handleThreadActionClick)") &&
-  chatThreadsSrc.includes('installChatThreadDelegates();'));
+    chatThreadsSrc.includes("document.addEventListener('click', handleThreadActionClick)") &&
+    chatThreadsSrc.includes('installChatThreadDelegates();'));
+assert('chat-threads uses delegated pointer gestures for reliable project drag and drop',
+  chatThreadsSrc.includes("document.addEventListener('pointerdown', handleThreadPointerDown)")
+    && chatThreadsSrc.includes("document.addEventListener('pointermove', handleThreadPointerMove")
+    && chatThreadsSrc.includes('projectDropTargetAt(event.clientX, event.clientY)'));
 
 // ═══════════════════════════════════════════════
 // 18. CSS Inspection

@@ -34,6 +34,8 @@ const MOBILE_THREAD_RAIL_QUERY = '(max-width: 768px)';
 const CHAT_DELETED_PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 let chatThreadDelegatesInstalled = false;
 let draggedThreadId = '';
+let pendingThreadDrag = null;
+let suppressThreadClick = false;
 let blockedThreadIndexKey = null;
 let blockedThreadIndexNoticeShown = false;
 const noop = (..._args) => {};
@@ -390,6 +392,7 @@ export function renameThread(threadId, newName) {
   const thread = state.chatThreads.find(t => t.id === threadId);
   if (thread && newName && newName.trim()) {
     thread.name = newName.trim().slice(0, 60);
+    thread.updatedAt = new Date().toISOString();
     saveChatThreadIndex();
     renderThreadList();
   }
@@ -420,10 +423,84 @@ export async function createThreadProject() {
   return createNewThread({ projectName });
 }
 
+function restoreProjectMutation(snapshots) {
+  for (const snapshot of snapshots) {
+    const thread = state.chatThreads.find(item => item.id === snapshot.id);
+    if (!thread) continue;
+    if (snapshot.projectName) thread.projectName = snapshot.projectName;
+    else delete thread.projectName;
+    thread.updatedAt = snapshot.updatedAt;
+  }
+}
+
+export async function renameThreadProject(currentName, nextName) {
+  const current = String(currentName || '').trim();
+  const next = String(nextName || '').trim().slice(0, 60);
+  if (!current || !next) return false;
+  if (current === next) return true;
+  if (projectNames().some(name => name !== current && name.toLocaleLowerCase() === next.toLocaleLowerCase())) {
+    showNotification('A project with that name already exists', 'error');
+    return false;
+  }
+  const affected = state.chatThreads.filter(thread => thread.projectName === current);
+  if (!affected.length) return false;
+  const snapshots = affected.map(thread => ({ id: thread.id, projectName: thread.projectName, updatedAt: thread.updatedAt }));
+  const changedAt = new Date().toISOString();
+  for (const thread of affected) {
+    thread.projectName = next;
+    thread.updatedAt = changedAt;
+  }
+  const saved = await saveChatThreadIndex();
+  if (!saved) restoreProjectMutation(snapshots);
+  renderThreadList();
+  if (saved) showNotification(`Project renamed to ${next}`, 'info');
+  return saved;
+}
+
+export async function renameThreadProjectPrompt(projectName) {
+  const current = String(projectName || '').trim();
+  if (!current) return false;
+  const name = await chatThreadDeps.showPromptDialog('Rename project:', {
+    defaultValue: current,
+    okLabel: 'Rename',
+  });
+  if (!name) return false;
+  return renameThreadProject(current, name);
+}
+
+export async function deleteThreadProject(projectName) {
+  const current = String(projectName || '').trim();
+  const affected = state.chatThreads.filter(thread => thread.projectName === current);
+  if (!current || !affected.length) return false;
+  const snapshots = affected.map(thread => ({ id: thread.id, projectName: thread.projectName, updatedAt: thread.updatedAt }));
+  const changedAt = new Date().toISOString();
+  for (const thread of affected) {
+    delete thread.projectName;
+    thread.updatedAt = changedAt;
+  }
+  const saved = await saveChatThreadIndex();
+  if (!saved) restoreProjectMutation(snapshots);
+  renderThreadList();
+  if (saved) showNotification('Project deleted; its conversations were kept', 'info', 5000);
+  return saved;
+}
+
+export async function deleteThreadProjectPrompt(projectName) {
+  const current = String(projectName || '').trim();
+  const count = state.chatThreads.filter(thread => thread.projectName === current).length;
+  if (!current || !count) return false;
+  const confirmed = await showConfirmDialog(
+    `Delete “${current}”? ${count === 1 ? 'Its conversation' : `Its ${count} conversations`} will be kept outside the project.`,
+    { confirmLabel: 'Delete project', ariaLabel: 'Delete project' },
+  );
+  return confirmed ? deleteThreadProject(current) : false;
+}
+
 export function toggleThreadPinned(threadId) {
   const thread = state.chatThreads.find(item => item.id === threadId);
   if (!thread) return false;
   thread.pinned = thread.pinned !== true;
+  thread.updatedAt = new Date().toISOString();
   saveChatThreadIndex();
   renderThreadList();
   return thread.pinned;
@@ -434,6 +511,7 @@ export async function moveThreadToProject(threadId, nextProjectName) {
   if (!thread) return false;
   const previousProjectName = thread.projectName;
   const previousPinned = thread.pinned;
+  const previousUpdatedAt = thread.updatedAt;
   const projectName = String(nextProjectName || '').trim().slice(0, 60);
   if (projectName) thread.projectName = projectName;
   else delete thread.projectName;
@@ -441,14 +519,17 @@ export async function moveThreadToProject(threadId, nextProjectName) {
   // project drop look like it did nothing. Dropping into a project therefore
   // unpins it so it appears at the destination immediately.
   if (projectName) delete thread.pinned;
+  thread.updatedAt = new Date().toISOString();
   const saved = await saveChatThreadIndex();
   if (!saved) {
     if (previousProjectName) thread.projectName = previousProjectName;
     else delete thread.projectName;
     if (previousPinned) thread.pinned = true;
     else delete thread.pinned;
+    thread.updatedAt = previousUpdatedAt;
   }
   renderThreadList();
+  if (saved) showNotification(projectName ? `Moved to ${projectName}` : 'Removed from project', 'info');
   return saved;
 }
 
@@ -517,13 +598,31 @@ function getThreadActionId(actionEl) {
 
 /** @param {Event} event */
 function handleThreadActionClick(event) {
+  if (suppressThreadClick) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
   const actionEl = closestThreadAction(event);
   const target = event.target;
   document.querySelectorAll('.chat-thread-item-menu[open]').forEach(menu => {
     if (!(target instanceof Node) || !menu.contains(target)) menu.removeAttribute('open');
   });
-  if (!actionEl) return;
+  document.querySelectorAll('.chat-project-menu[open]').forEach(menu => {
+    if (!(target instanceof Node) || !menu.contains(target)) menu.removeAttribute('open');
+  });
+  const projectActionEl = target instanceof Element ? target.closest('[data-chat-project-action]') : null;
   const list = document.getElementById('chat-thread-list');
+  if (projectActionEl && list?.contains(projectActionEl)) {
+    event.preventDefault();
+    projectActionEl.closest('details')?.removeAttribute('open');
+    const projectAction = projectActionEl.getAttribute('data-chat-project-action');
+    const projectName = projectActionEl.getAttribute('data-project-name') || '';
+    if (projectAction === 'rename') void renameThreadProjectPrompt(projectName);
+    else if (projectAction === 'delete') void deleteThreadProjectPrompt(projectName);
+    return;
+  }
+  if (!actionEl) return;
   if (!list || !list.contains(actionEl)) return;
 
   const action = actionEl.dataset.chatThreadAction;
@@ -548,6 +647,8 @@ function handleThreadActionClick(event) {
 
 function clearThreadDragState() {
   draggedThreadId = '';
+  pendingThreadDrag = null;
+  document.body?.classList.remove('is-chat-thread-pointer-dragging');
   document.getElementById('chat-thread-list')?.classList.remove('is-thread-dragging');
   document.querySelectorAll('[data-chat-project-drop].is-drop-target').forEach(target => target.classList.remove('is-drop-target'));
   document.querySelectorAll('.chat-thread-item.is-dragging').forEach(item => {
@@ -556,55 +657,85 @@ function clearThreadDragState() {
   });
 }
 
-/** @param {DragEvent} event */
-function handleThreadDragStart(event) {
-  const target = event.target instanceof Element ? event.target.closest('.chat-thread-item[draggable="true"]') : null;
-  if (!target || matchMedia(MOBILE_THREAD_RAIL_QUERY).matches) {
-    event.preventDefault();
-    return;
-  }
-  draggedThreadId = String(target.getAttribute('data-thread-id') || '');
-  if (!draggedThreadId || !event.dataTransfer) return;
-  event.dataTransfer.effectAllowed = 'move';
-  event.dataTransfer.setData('text/plain', draggedThreadId);
-  target.classList.add('is-dragging');
-  target.setAttribute('aria-grabbed', 'true');
+function beginThreadPointerDrag() {
+  if (!pendingThreadDrag || draggedThreadId) return;
+  draggedThreadId = pendingThreadDrag.threadId;
+  pendingThreadDrag.item.classList.add('is-dragging');
+  pendingThreadDrag.item.setAttribute('aria-grabbed', 'true');
+  document.body?.classList.add('is-chat-thread-pointer-dragging');
   document.getElementById('chat-thread-list')?.classList.add('is-thread-dragging');
 }
 
-/** @param {DragEvent} event */
-function handleThreadDragOver(event) {
-  if (!draggedThreadId) return;
-  const target = event.target instanceof Element ? event.target.closest('[data-chat-project-drop]') : null;
-  if (!target) return;
-  event.preventDefault();
-  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+function projectDropTargetAt(clientX, clientY) {
+  const hit = document.elementFromPoint(clientX, clientY);
+  return hit instanceof Element ? hit.closest('[data-chat-project-drop]') : null;
+}
+
+function highlightProjectDropTarget(target) {
   document.querySelectorAll('[data-chat-project-drop].is-drop-target').forEach(item => {
     if (item !== target) item.classList.remove('is-drop-target');
   });
-  target.classList.add('is-drop-target');
+  target?.classList.add('is-drop-target');
 }
 
-/** @param {DragEvent} event */
-function handleThreadDrop(event) {
-  if (!draggedThreadId) return;
-  const target = event.target instanceof Element ? event.target.closest('[data-chat-project-drop]') : null;
-  if (!target) return;
+/** @param {PointerEvent} event */
+function handleThreadPointerDown(event) {
+  if (event.button !== 0 || event.isPrimary === false || event.pointerType === 'touch') return;
+  const isMobile = typeof matchMedia === 'function' && matchMedia(MOBILE_THREAD_RAIL_QUERY).matches;
+  if (isMobile) return;
+  const target = event.target instanceof Element ? event.target.closest('.chat-thread-item-main') : null;
+  const item = target?.closest('.chat-thread-item');
+  if (!target || !item) return;
+  const threadId = item.getAttribute('data-thread-id') || '';
+  if (!threadId) return;
+  pendingThreadDrag = { threadId, item, source: target, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY };
+}
+
+/** @param {PointerEvent} event */
+function handleThreadPointerMove(event) {
+  if (!pendingThreadDrag || pendingThreadDrag.pointerId !== event.pointerId) return;
+  if (!draggedThreadId) {
+    const distance = Math.hypot(event.clientX - pendingThreadDrag.startX, event.clientY - pendingThreadDrag.startY);
+    if (distance < 6) return;
+    beginThreadPointerDrag();
+    try { pendingThreadDrag.source.setPointerCapture(event.pointerId); } catch {}
+  }
   event.preventDefault();
+  globalThis.getSelection?.()?.removeAllRanges();
+  highlightProjectDropTarget(projectDropTargetAt(event.clientX, event.clientY));
+}
+
+/** @param {PointerEvent} event */
+function handleThreadPointerUp(event) {
+  if (!pendingThreadDrag || pendingThreadDrag.pointerId !== event.pointerId) return;
+  const didDrag = !!draggedThreadId;
   const threadId = draggedThreadId;
-  const projectName = target.getAttribute('data-chat-project-drop') || '';
+  const target = didDrag ? projectDropTargetAt(event.clientX, event.clientY) : null;
+  try { pendingThreadDrag.source.releasePointerCapture(event.pointerId); } catch {}
+  const projectName = target?.getAttribute('data-chat-project-drop') || '';
   clearThreadDragState();
-  void moveThreadToProject(threadId, projectName);
+  if (!didDrag) return;
+  event.preventDefault();
+  suppressThreadClick = true;
+  setTimeout(() => { suppressThreadClick = false; }, 0);
+  if (target) void moveThreadToProject(threadId, projectName);
+}
+
+/** @param {PointerEvent} event */
+function handleThreadPointerCancel(event) {
+  if (pendingThreadDrag?.pointerId !== event.pointerId) return;
+  clearThreadDragState();
 }
 
 export function installChatThreadDelegates() {
   if (chatThreadDelegatesInstalled || typeof document === 'undefined') return;
   chatThreadDelegatesInstalled = true;
   document.addEventListener('click', handleThreadActionClick);
-  document.addEventListener('dragstart', handleThreadDragStart);
-  document.addEventListener('dragover', handleThreadDragOver);
-  document.addEventListener('drop', handleThreadDrop);
-  document.addEventListener('dragend', clearThreadDragState);
+  document.addEventListener('pointerdown', handleThreadPointerDown);
+  document.addEventListener('pointermove', handleThreadPointerMove, { passive: false });
+  document.addEventListener('pointerup', handleThreadPointerUp);
+  document.addEventListener('pointercancel', handleThreadPointerCancel);
+  globalThis.addEventListener?.('blur', clearThreadDragState);
 }
 
 /** @param {string} [filter] */
@@ -641,7 +772,7 @@ export function renderThreadList(filter) {
     const messageCount = Number.isFinite(Number(t.messageCount))
       ? Math.max(0, Math.trunc(Number(t.messageCount)))
       : 0;
-    return `<div class="chat-thread-item${isActive ? ' active' : ''}${t.pinned ? ' pinned' : ''}" data-thread-id="${escapeHTML(t.id)}" draggable="true" aria-grabbed="false" title="Drag to move this conversation into a project">
+    return `<div class="chat-thread-item${isActive ? ' active' : ''}${t.pinned ? ' pinned' : ''}" data-thread-id="${escapeAttr(t.id)}" aria-grabbed="false" title="Drag to move this conversation into a project">
       <button type="button" class="chat-thread-item-main" data-chat-thread-action="switch" aria-current="${isActive ? 'true' : 'false'}">
         <span class="chat-thread-item-name">${escapeHTML(t.name)}</span>
         <span class="chat-thread-item-meta">
@@ -661,7 +792,13 @@ export function renderThreadList(filter) {
     </div>`;
   };
   const renderGroup = (title, items, icon = '', projectName = null) => items.length
-    ? `<section class="chat-thread-group"${projectName !== null ? ` data-chat-project-drop="${escapeAttr(projectName)}"` : ''}><div class="chat-thread-group-title">${icon}${escapeHTML(title)}</div>${items.map(renderThread).join('')}</section>`
+    ? `<section class="chat-thread-group"${projectName !== null ? ` data-chat-project-drop="${escapeAttr(projectName)}"` : ''}><div class="chat-thread-group-title"><span class="chat-thread-group-label">${icon}${escapeHTML(title)}</span>${projectName !== null ? `<details class="chat-project-menu">
+        <summary class="chat-project-action" aria-label="Actions for ${escapeAttr(title)}" title="Project actions">${THREAD_ICON_MORE}</summary>
+        <div class="chat-project-menu-popover" role="menu">
+          <button type="button" data-chat-project-action="rename" data-project-name="${escapeAttr(projectName)}" role="menuitem">${THREAD_ICON_EDIT}<span>Rename project</span></button>
+          <button type="button" class="delete" data-chat-project-action="delete" data-project-name="${escapeAttr(projectName)}" role="menuitem">${THREAD_ICON_DELETE}<span>Delete project</span></button>
+        </div>
+      </details>` : ''}</div>${items.map(renderThread).join('')}</section>`
     : '';
   if (filter?.trim()) {
     list.innerHTML = threads.map(renderThread).join('');
@@ -670,7 +807,6 @@ export function renderThreadList(filter) {
   const pinned = threads.filter(thread => thread.pinned === true);
   const remaining = threads.filter(thread => thread.pinned !== true);
   const groups = [];
-  groups.push('<div class="chat-thread-unfiled-drop" data-chat-project-drop="">Drop here for no project</div>');
   groups.push(renderGroup('Pinned', pinned, THREAD_ICON_PIN));
   for (const name of projectNames()) {
     groups.push(renderGroup(name, remaining.filter(thread => thread.projectName === name), THREAD_ICON_FOLDER, name));
@@ -694,6 +830,7 @@ export function renderThreadList(filter) {
     })));
     groups.push(renderGroup('Earlier', ungrouped.filter(thread => updatedTime(thread) < yesterday.getTime())));
   }
+  groups.push('<div class="chat-thread-unfiled-drop" data-chat-project-drop="">Drop here for no project</div>');
   list.innerHTML = groups.join('');
 }
 

@@ -4,6 +4,20 @@
 export const AGENT_MODEL_CATALOG_KEY = 'labcharts-agent-model-catalog-v1';
 export const AGENT_MODEL_CATALOG_AGENT_KEY = 'labcharts-agent-model-catalog-agent-v1';
 
+const REASONING_EFFORT_RANK = new Map([
+  ['none', 0],
+  ['off', 0],
+  ['minimal', 10],
+  ['low', 20],
+  ['medium', 30],
+  ['high', 40],
+  ['xhigh', 50],
+  ['extra_high', 50],
+  ['extra-high', 50],
+  ['max', 60],
+  ['ultra', 70],
+]);
+
 /** @param {unknown} value */
 function boundedString(value, maxLength) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
@@ -23,7 +37,22 @@ function normalizeEfforts(value) {
   return value.filter(item => item && typeof item === 'object').map(item => ({
     reasoningEffort: boundedString(/** @type {any} */ (item).reasoningEffort, 40),
     description: boundedString(/** @type {any} */ (item).description, 240),
-  })).filter(item => item.reasoningEffort);
+  })).filter(item => item.reasoningEffort).sort((left, right) => (
+    reasoningEffortRank(left.reasoningEffort) - reasoningEffortRank(right.reasoningEffort)
+  ));
+}
+
+function reasoningEffortRank(value) {
+  return REASONING_EFFORT_RANK.get(String(value || '').trim().toLowerCase()) ?? 1_000;
+}
+
+/** Keep every provider's effort scale consistent from least to most reasoning. */
+export function sortReasoningEffortValues(values) {
+  if (!Array.isArray(values)) return [];
+  return values.map((value, index) => ({ value, index })).sort((left, right) => {
+    const byRank = reasoningEffortRank(left.value) - reasoningEffortRank(right.value);
+    return byRank || left.index - right.index;
+  }).map(item => item.value);
 }
 
 /** @param {unknown} value */

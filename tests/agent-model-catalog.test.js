@@ -32,6 +32,23 @@ describe('CLI agent model catalog cache', () => {
     expect(getCachedAgentModelCatalog('opencode')[0].inputModalities).toEqual(['text']);
   });
 
+  it('orders reversed Grok reasoning metadata from lowest to highest effort', () => {
+    const [model] = cacheAgentModelCatalog([{
+      id: 'grok-4.6',
+      inputModalities: ['text'],
+      supportedReasoningEfforts: [
+        { reasoningEffort: 'ultra' },
+        { reasoningEffort: 'high' },
+        { reasoningEffort: 'medium' },
+        { reasoningEffort: 'low' },
+      ],
+    }], 'grok');
+    expect(model.supportedReasoningEfforts.map(item => item.reasoningEffort))
+      .toEqual(['low', 'medium', 'high', 'ultra']);
+    expect(getCachedAgentModelCatalog('grok')[0].supportedReasoningEfforts.map(item => item.reasoningEffort))
+      .toEqual(['low', 'medium', 'high', 'ultra']);
+  });
+
   it('filters a large rendered catalog without changing the selected model', () => {
     document.body.innerHTML = `<div id="cli-agent-model-options">
       <span id="cli-agent-model-result-count"></span>
