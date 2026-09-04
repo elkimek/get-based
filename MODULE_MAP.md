@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 739 |
-| Internal import edges | 3126 |
+| Modules | 740 |
+| Internal import edges | 3127 |
 | Dynamic internal edges | 103 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -361,6 +361,12 @@ Native browser modules shipped with the static application.
 <details><summary><code>clear</code> family — 1 module</summary>
 
 - [`js/clear-all-profile-reset.js`](js/clear-all-profile-reset.js) → [`js/crypto.js`](js/crypto.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/profile-sync-policy.js`](js/profile-sync-policy.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-profile-fields.js`](js/sync-profile-fields.js), [`js/unique-id.js`](js/unique-id.js)
+
+</details>
+
+<details><summary><code>cli</code> family — 1 module</summary>
+
+- [`js/cli-agent-brand-assets.js`](js/cli-agent-brand-assets.js) → no in-scope imports
 
 </details>
 
@@ -1024,7 +1030,7 @@ Native browser modules shipped with the static application.
 <details><summary><code>settings</code> family — 21 modules</summary>
 
 - [`js/settings-agent-access-panel.js`](js/settings-agent-access-panel.js) → [`js/data.js`](js/data.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
-- [`js/settings-cli-agent-panel.js`](js/settings-cli-agent-panel.js) → [`js/agent-chat-client.js`](js/agent-chat-client.js), [`js/agent-chat-settings.js`](js/agent-chat-settings.js), [`js/agent-model-catalog.js`](js/agent-model-catalog.js), [`js/utils.js`](js/utils.js)
+- [`js/settings-cli-agent-panel.js`](js/settings-cli-agent-panel.js) → [`js/agent-chat-client.js`](js/agent-chat-client.js), [`js/agent-chat-settings.js`](js/agent-chat-settings.js), [`js/agent-model-catalog.js`](js/agent-model-catalog.js), [`js/cli-agent-brand-assets.js`](js/cli-agent-brand-assets.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-data.js`](js/settings-data.js) → [`js/api.js`](js/api.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/import-loader.js`](js/import-loader.js), [`js/import-reference-benchmark.js`](js/import-reference-benchmark.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-display-panel.js`](js/settings-display-panel.js) → [`js/recommendations.js`](js/recommendations.js), [`js/state.js`](js/state.js), [`js/theme.js`](js/theme.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/settings-event-target.js`](js/settings-event-target.js) → no in-scope imports

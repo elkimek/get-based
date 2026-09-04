@@ -1151,12 +1151,20 @@
   place-items: center;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 700;
+  background: #fff;
+  overflow: hidden;
 }
-.settings-modal .local-agent-icon-codex { color: var(--accent); font-size: 18px; }
+.settings-modal .local-agent-icon img {
+  display: block;
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+.settings-modal .local-agent-icon-opencode img { width: 24px; height: 24px; }
+.settings-modal .local-agent-icon-claude img { width: 23px; height: 23px; }
+.settings-modal .local-agent-icon-fallback { color: #141413; font-size: 9px; font-weight: 700; }
 .settings-modal .local-agent-name { color: var(--text-primary); font-size: 13px; font-weight: 650; }
 .settings-modal .local-agent-meta {
   margin-top: 2px;

@@ -3,6 +3,7 @@
 
 import { controlAgentHost, listAgentModels } from './agent-chat-client.js';
 import { cacheAgentModelCatalog } from './agent-model-catalog.js';
+import { renderCLIAgentBrandIcon } from './cli-agent-brand-assets.js';
 import {
   connectDetectedAgent,
   discoverLocalChatAgents,
@@ -304,12 +305,10 @@ function renderDetectedAgent(agent) {
       : agent.status === 'starting' ? 'Companion starting…'
         : agent.status === 'login_required' ? (agent.message || 'Installed · sign-in required')
           : agent.compatible ? 'Installed · companion not running' : 'Installed · adapter unavailable';
-  const initials = agent.id === 'opencode' ? 'OC' : agent.id === 'hermes' ? 'H'
-    : agent.id === 'grok' ? 'G' : agent.id === 'claude' ? 'A' : '✦';
   return `
     <div class="local-agent-row${agent.compatible ? ' local-agent-row-compatible' : ''}">
       <div class="local-agent-row-main">
-        <div class="local-agent-icon local-agent-icon-${escapeHTML(agent.id)}" aria-hidden="true">${initials}</div>
+        <div class="local-agent-icon local-agent-icon-${escapeHTML(agent.id)}" aria-hidden="true">${renderCLIAgentBrandIcon(agent.id)}</div>
         <div class="local-agent-copy">
           <div class="local-agent-name">${escapeHTML(agent.name || agent.id)}</div>
           <div class="local-agent-meta">${escapeHTML(agent.description || '')}${agent.version ? ` · ${escapeHTML(agent.version)}` : ''}</div>

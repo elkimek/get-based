@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   detectCompanionPlatform, getCLIAgentModelProvider, getCompanionCommand, getLinuxCompanionInstallCommand, getLinuxCompanionRunCommand,
 } from '../js/settings-cli-agent-panel.js';
+import { getCLIAgentBrandAsset, renderCLIAgentBrandIcon } from '../js/cli-agent-brand-assets.js';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -37,6 +38,15 @@ describe('local agent selection UI', () => {
     const source = read('index.html');
     expect(source).not.toContain('id="chat-backend-select"');
     expect(source).not.toContain('id="chat-agent-status-dot"');
+  });
+
+  it('maps every supported CLI to a local vendor mark', () => {
+    for (const agent of ['codex', 'claude', 'opencode', 'hermes', 'grok']) {
+      expect(getCLIAgentBrandAsset(agent)).toBe(`/brands/cli-agent-${agent}.svg`);
+      expect(renderCLIAgentBrandIcon(agent)).toContain(`src="/brands/cli-agent-${agent}.svg"`);
+      expect(read(`brands/cli-agent-${agent}.svg`)).toContain('<svg');
+    }
+    expect(renderCLIAgentBrandIcon('unknown')).toContain('local-agent-icon-fallback');
   });
 
   it('offers existing subscriptions in chat onboarding', () => {
