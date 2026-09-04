@@ -84,6 +84,7 @@ function callLoadedChatModule(name, args, fallback) {
 export function openChatPanel(...args) { return callChatModule('openChatPanel', args); }
 export function toggleChatPanel(...args) { return callChatModule('toggleChatPanel', args); }
 export function createNewThread(...args) { return callChatModule('createNewThread', args); }
+export function createThreadProject(...args) { return callChatModule('createThreadProject', args); }
 export function clearChatHistory(...args) { return callChatModule('clearChatHistory', args); }
 export function filterThreadList(...args) { return callChatModule('filterThreadList', args); }
 export function sendChatMessage(...args) { return callChatModule('sendChatMessage', args); }
@@ -92,8 +93,8 @@ export function setChatPersonality(...args) { return callChatModule('setChatPers
 export function setChatWebSearchEnabled(...args) { return callChatModule('setChatWebSearchEnabled', args); }
 export function startDiscussion(...args) { return callChatModule('startDiscussion', args); }
 export function summarizeThread(...args) { return callChatModule('summarizeThread', args); }
+export function setChatThreadSort(...args) { return callChatModule('setChatThreadSort', args); }
 export function toggleChatFullscreen(...args) { return callChatModule('toggleChatFullscreen', args); }
-export function toggleHDMode(...args) { return callChatModule('toggleHDMode', args); }
 export function togglePersonalityBar(...args) { return callChatModule('togglePersonalityBar', args); }
 export function toggleVoiceRecording(...args) { return callChatModule('toggleVoiceRecording', args); }
 export function toggleThreadRail(...args) { return callChatModule('toggleThreadRail', args); }

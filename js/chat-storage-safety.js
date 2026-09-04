@@ -287,6 +287,11 @@ export function normalizeChatThreads(value) {
       personalityName: boundedString(thread.personalityName, 200),
       personalityIcon: normalizeDisplayIcon(thread.personalityIcon),
     };
+    const projectName = boundedString(thread.projectName, 60).trim();
+    if (projectName) normalized.projectName = projectName;
+    else delete normalized.projectName;
+    if (thread.pinned === true) normalized.pinned = true;
+    else delete normalized.pinned;
     const discussionPersonas = normalizeDiscussionPersonas(thread.discussionPersonas);
     const pendingPersonas = normalizeDiscussionPersonas(thread.discussionPendingPersonas);
     if (discussionPersonas.length >= 2) normalized.discussionPersonas = discussionPersonas;

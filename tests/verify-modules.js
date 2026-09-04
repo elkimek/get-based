@@ -924,7 +924,6 @@
   ].every(name => !(name in window)));
   assert('window.updateChatContextStatus stays module-only', !('updateChatContextStatus' in window));
   assert('chat image handlers stay module-only', [
-    'toggleHDMode',
     'addImageAttachment',
     'removeImageAttachment',
     'renderAttachmentPreview',

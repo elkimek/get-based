@@ -51,6 +51,8 @@ const threadFns = [
   'ensureActiveThread', 'createNewThread',
   'switchToThread', 'deleteThread',
   'renameThread', 'renameThreadPrompt',
+  'createThreadProject', 'toggleThreadPinned', 'moveThreadToProjectPrompt',
+  'getChatThreadSort', 'setChatThreadSort',
   'autoNameThread', 'pruneOldThreads',
   'renderThreadList', 'filterThreadList',
   'installChatThreadDelegates',
@@ -422,7 +424,7 @@ assert('CSS has .chat-thread-item', cssSrc.includes('.chat-thread-item'));
 assert('CSS has .chat-thread-item.active', cssSrc.includes('.chat-thread-item.active'));
 assert('CSS has .chat-panel-conversation', cssSrc.includes('.chat-panel-conversation'));
 assert('CSS has .chat-rail-toggle', cssSrc.includes('.chat-rail-toggle'));
-assert('CSS has .chat-thread-item-actions', cssSrc.includes('.chat-thread-item-actions'));
+assert('CSS has compact thread action menu', cssSrc.includes('.chat-thread-item-menu-popover'));
 assert('CSS has mobile rail overlay', cssSrc.includes('.chat-thread-rail.open') && cssSrc.includes('768px'));
 assert('chat thread list is a named keyboard-focusable region',
   indexSrc.includes('id="chat-thread-list"')

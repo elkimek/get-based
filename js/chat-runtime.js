@@ -81,8 +81,19 @@ export function updateDiscussButtonRuntime() {
   callChatRuntimeCallback('updateDiscussButton');
 }
 
-export function openChatContextModalRuntime() {
-  openContextModalRuntime();
+export async function openChatContextModalRuntime() {
+  if (openContextModalRuntime()) return true;
+  // Chat can be the first feature opened on a fresh profile, before the
+  // dashboard Context composition has registered its callback. Load that
+  // surface only when the user explicitly asks for it.
+  try {
+    const { openContextModal } = await import('./context-cards.js');
+    openContextModal();
+    return true;
+  } catch (error) {
+    console.error('[chat] Context could not be opened', error);
+    return false;
+  }
 }
 
 export function closeChatModalRuntime() {

@@ -8,11 +8,15 @@ test('chat image attachment DOM is present and its CSS loads on demand', async (
   await expect(page.locator('#chat-image-input')).toHaveCount(1);
   await expect(page.locator('.chat-input-row')).toHaveCount(1);
   await expect(page.locator('#chat-image-input')).toHaveAttribute('accept', /image\//);
+  await expect(page.locator('#chat-hd-btn')).toHaveCount(0);
+  await expect(page.locator('#chat-composer-hint')).toHaveCount(0);
+  await expect(page.locator('[data-chat-action="import-health-file"]')).toHaveCount(1);
+  await expect(page.locator('[data-chat-action="open-chat-context"]')).toHaveCount(1);
 
   const loadedRules = await page.evaluate(async () => {
     await (await import('/js/chat-panel.js')).loadChatPresentationStylesheets();
     const selectors = [
-      '.chat-attach-btn',
+      '.chat-context-menu-toggle',
       '.chat-attach-preview',
       '.chat-attach-thumb',
       '.chat-attach-remove',
@@ -30,7 +34,7 @@ test('chat image attachment DOM is present and its CSS loads on demand', async (
   });
 
   expect(loadedRules).toEqual({
-    '.chat-attach-btn': true,
+    '.chat-context-menu-toggle': true,
     '.chat-attach-preview': true,
     '.chat-attach-thumb': true,
     '.chat-attach-remove': true,

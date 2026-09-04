@@ -1,10 +1,10 @@
 .chat-panel {
-  width: min(600px, 100vw);
+  width: min(var(--chat-panel-width, 600px), 100vw);
   background: var(--bg-secondary);
   box-shadow: -16px 0 44px rgba(0, 0, 0, 0.36);
 }
 body.chat-autostart-reserved .main {
-  padding-right: calc(32px + min(600px, 100vw));
+  padding-right: calc(32px + min(var(--chat-panel-current-width, 600px), 100vw));
 }
 body.chat-autostart-reserved.chat-fullscreen .main {
   padding-right: 32px;
@@ -31,7 +31,6 @@ body.chat-autostart-reserved.chat-fullscreen .main {
 .ai-provider-btn.active,
 .emf-room-tab.active,
 .cl-tag-chip.active,
-.chat-hd-btn.active,
 .welcome-sex-btn.active,
 .onboarding-sex-btn.active {
   background: var(--accent);
@@ -40,8 +39,8 @@ body.chat-autostart-reserved.chat-fullscreen .main {
 }
 
 @media (min-width: 1400px) {
-  .chat-panel { width: 600px; }
-  body.chat-autostart-reserved .main { padding-right: calc(32px + 600px); }
+  .chat-panel { width: min(var(--chat-panel-width, 600px), 100vw); }
+  body.chat-autostart-reserved .main { padding-right: calc(32px + min(var(--chat-panel-current-width, 600px), 100vw)); }
   body.chat-autostart-reserved.chat-fullscreen .main { padding-right: 32px; }
 }
 @media (max-width: 768px) {
@@ -57,15 +56,6 @@ body.chat-autostart-reserved.chat-fullscreen .main {
   }
   body.chat-autostart-reserved .main { padding-right: 0; }
   body.chat-autostart-reserved.chat-fullscreen .main { padding-right: 0; }
-}
-body.chat-autostart-reserved:has(#chat-thread-rail.open) .main {
-  padding-right: calc(32px + min(820px, 100vw));
-}
-body.chat-autostart-reserved.chat-fullscreen:has(#chat-thread-rail.open) .main {
-  padding-right: 32px;
-}
-@media (max-width: 768px) {
-  body.chat-autostart-reserved:has(#chat-thread-rail.open) .main { padding-right: 0; }
 }
 
 /* Reduced motion */

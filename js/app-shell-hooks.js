@@ -19,6 +19,7 @@ import {
   closeSummaryModal,
   configureChatLoader,
   createNewThread,
+  createThreadProject,
   ensureActiveThreadIfLoaded,
   filterThreadList,
   handleChatKeydown,
@@ -32,11 +33,11 @@ import {
   setChatBackendFromUI,
   setChatPersonality,
   setChatWebSearchEnabled,
+  setChatThreadSort,
   startDiscussion,
   summarizeThread,
   toggleChatFullscreen,
   toggleChatPanel,
-  toggleHDMode,
   togglePersonalityBar,
   toggleThreadRail,
   toggleVoiceRecording,
@@ -162,7 +163,6 @@ import {
 import { configureRecommendationsRuntime } from './recommendations-runtime.js';
 import {
   configureShellChatActionDeps,
-  configureShellChatImageDeps,
   configureShellChatThreadDeps,
   configureShellNavDeps,
   configureShellProfileShareDeps,
@@ -356,8 +356,7 @@ configureShellChatActionDeps({
   togglePersonalityBar,
   toggleVoiceRecording,
 });
-configureShellChatImageDeps({ toggleHDMode });
-configureShellChatThreadDeps({ createNewThread, filterThreadList, toggleThreadRail });
+configureShellChatThreadDeps({ createNewThread, createThreadProject, filterThreadList, setChatThreadSort, toggleThreadRail });
 configureShellNavDeps({ closeMobileSidebar, toggleMobileSidebar });
 configureShellProfileShareDeps({ openProfileShareModal });
 configureStartupUIDeps({

@@ -21,11 +21,15 @@ import { createUniqueId } from './unique-id.js';
 import {
   clearChatDraft, restoreChatDraft, saveChatDraft,
 } from './chat-composer.js';
+import { syncChatLayout } from './chat-layout.js';
 
 export { filterThreadList, invalidateThreadContentCache, jumpToSearchResult };
 
 const THREAD_ICON_EDIT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 const THREAD_ICON_DELETE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
+const THREAD_ICON_MORE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>';
+const THREAD_ICON_FOLDER = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"/></svg>';
+const THREAD_ICON_PIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 4 6 6-3 1-4 4-1 5-2-2-4 4-1-1 4-4-2-2 5-1 4-4z"/></svg>';
 const MOBILE_THREAD_RAIL_QUERY = '(max-width: 768px)';
 const CHAT_DELETED_PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 let chatThreadDelegatesInstalled = false;
@@ -238,7 +242,7 @@ export function ensureActiveThread() {
   return true;
 }
 
-export function createNewThread({ sync = true } = {}) {
+export function createNewThread({ sync = true, projectName = '' } = {}) {
   if (isThreadIndexWriteBlocked()) {
     notifyThreadIndexBlocked();
     return null;
@@ -261,7 +265,8 @@ export function createNewThread({ sync = true } = {}) {
     messageCount: 0,
     personality: state.currentChatPersonality || 'default',
     personalityName: p.name,
-    personalityIcon: p.icon
+    personalityIcon: p.icon,
+    ...(projectName.trim() ? { projectName: projectName.trim().slice(0, 60) } : {}),
   };
   state.chatThreads.unshift(thread);
   saveChatThreadIndex({ sync });
@@ -308,6 +313,7 @@ export async function createForkedThread(sourceThreadId, sourceMessageIndex, mes
     personalityIcon: source.personalityIcon || '',
     forkedFromThreadId: sourceThreadId,
     forkedFromMessageIndex: sourceMessageIndex,
+    ...(source.projectName ? { projectName: source.projectName } : {}),
   };
   state.chatThreads.unshift(thread);
   if (!await saveChatThreadIndex()) {
@@ -398,6 +404,61 @@ export async function renameThreadPrompt(threadId) {
   if (name) renameThread(threadId, name);
 }
 
+function projectNames() {
+  return [...new Set(state.chatThreads.map(thread => String(thread.projectName || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
+}
+
+export async function createThreadProject() {
+  const name = await chatThreadDeps.showPromptDialog('Create a project:', {
+    defaultValue: '',
+    okLabel: 'Create',
+  });
+  const projectName = String(name || '').trim().slice(0, 60);
+  if (!projectName) return null;
+  return createNewThread({ projectName });
+}
+
+export function toggleThreadPinned(threadId) {
+  const thread = state.chatThreads.find(item => item.id === threadId);
+  if (!thread) return false;
+  thread.pinned = thread.pinned !== true;
+  saveChatThreadIndex();
+  renderThreadList();
+  return thread.pinned;
+}
+
+export async function moveThreadToProjectPrompt(threadId) {
+  const thread = state.chatThreads.find(item => item.id === threadId);
+  if (!thread) return false;
+  const names = projectNames();
+  const prompt = names.length
+    ? `Move to project (leave blank for no project). Existing projects: ${names.join(', ')}`
+    : 'Move to project (leave blank for no project):';
+  const name = await chatThreadDeps.showPromptDialog(prompt, {
+    defaultValue: thread.projectName || '',
+    okLabel: 'Move',
+  });
+  if (name === null || name === undefined) return false;
+  const projectName = String(name).trim().slice(0, 60);
+  if (projectName) thread.projectName = projectName;
+  else delete thread.projectName;
+  await saveChatThreadIndex();
+  renderThreadList();
+  return true;
+}
+
+export function getChatThreadSort() {
+  const value = localStorage.getItem('labcharts-chat-thread-sort');
+  return ['recent', 'oldest', 'name'].includes(value || '') ? value : 'recent';
+}
+
+export function setChatThreadSort(value) {
+  const sort = ['recent', 'oldest', 'name'].includes(value) ? value : 'recent';
+  localStorage.setItem('labcharts-chat-thread-sort', sort);
+  renderThreadList();
+}
+
 export function autoNameThread(threadId, firstMessage) {
   const thread = state.chatThreads.find(t => t.id === threadId);
   if (!thread || thread.name !== 'New Conversation') return;
@@ -453,6 +514,10 @@ function getThreadActionId(actionEl) {
 /** @param {Event} event */
 function handleThreadActionClick(event) {
   const actionEl = closestThreadAction(event);
+  const target = event.target;
+  document.querySelectorAll('.chat-thread-item-menu[open]').forEach(menu => {
+    if (!(target instanceof Node) || !menu.contains(target)) menu.removeAttribute('open');
+  });
   if (!actionEl) return;
   const list = document.getElementById('chat-thread-list');
   if (!list || !list.contains(actionEl)) return;
@@ -460,6 +525,7 @@ function handleThreadActionClick(event) {
   const action = actionEl.dataset.chatThreadAction;
   const threadId = getThreadActionId(actionEl);
   if (!action || !threadId) return;
+  actionEl.closest('details')?.removeAttribute('open');
 
   if (action === 'switch') {
     event.preventDefault();
@@ -470,6 +536,12 @@ function handleThreadActionClick(event) {
   } else if (action === 'delete') {
     event.preventDefault();
     deleteThread(threadId);
+  } else if (action === 'pin') {
+    event.preventDefault();
+    toggleThreadPinned(threadId);
+  } else if (action === 'move') {
+    event.preventDefault();
+    moveThreadToProjectPrompt(threadId);
   }
 }
 
@@ -483,7 +555,15 @@ export function installChatThreadDelegates() {
 export function renderThreadList(filter) {
   const list = document.getElementById('chat-thread-list');
   if (!list) return;
-  let threads = state.chatThreads.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const sort = getChatThreadSort();
+  const sortSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('chat-thread-sort'));
+  if (sortSelect) sortSelect.value = sort;
+  const compareThreads = (a, b) => sort === 'name'
+    ? a.name.localeCompare(b.name)
+    : sort === 'oldest'
+      ? a.updatedAt.localeCompare(b.updatedAt)
+      : b.updatedAt.localeCompare(a.updatedAt);
+  let threads = state.chatThreads.slice().sort(compareThreads);
   if (filter && filter.trim()) {
     const q = filter.toLowerCase().trim();
     threads = threads.filter(t => t.name.toLowerCase().includes(q));
@@ -496,7 +576,7 @@ export function renderThreadList(filter) {
   const personalityMap = {};
   for (const p of CHAT_PERSONALITIES) personalityMap[p.id] = p.icon;
 
-  list.innerHTML = threads.map(t => {
+  const renderThread = t => {
     const isActive = t.id === state.currentThreadId;
     const date = new Date(t.updatedAt);
     const dateStr = formatThreadDate(date);
@@ -505,7 +585,7 @@ export function renderThreadList(filter) {
     const messageCount = Number.isFinite(Number(t.messageCount))
       ? Math.max(0, Math.trunc(Number(t.messageCount)))
       : 0;
-    return `<div class="chat-thread-item${isActive ? ' active' : ''}" data-thread-id="${escapeHTML(t.id)}">
+    return `<div class="chat-thread-item${isActive ? ' active' : ''}${t.pinned ? ' pinned' : ''}" data-thread-id="${escapeHTML(t.id)}">
       <button type="button" class="chat-thread-item-main" data-chat-thread-action="switch" aria-current="${isActive ? 'true' : 'false'}">
         <span class="chat-thread-item-name">${escapeHTML(t.name)}</span>
         <span class="chat-thread-item-meta">
@@ -514,12 +594,51 @@ export function renderThreadList(filter) {
           <span>${messageCount} msg${messageCount !== 1 ? 's' : ''}</span>
         </span>
       </button>
-      <div class="chat-thread-item-actions">
-        <button type="button" class="chat-thread-item-action" data-chat-thread-action="rename" data-thread-id="${escapeHTML(t.id)}" title="Rename" aria-label="Rename ${escapeHTML(t.name)}">${THREAD_ICON_EDIT}</button>
-        <button type="button" class="chat-thread-item-action delete" data-chat-thread-action="delete" data-thread-id="${escapeHTML(t.id)}" title="Delete" aria-label="Delete ${escapeHTML(t.name)}">${THREAD_ICON_DELETE}</button>
-      </div>
+      <details class="chat-thread-item-menu">
+        <summary class="chat-thread-item-action" title="Conversation actions" aria-label="Actions for ${escapeHTML(t.name)}">${THREAD_ICON_MORE}</summary>
+        <div class="chat-thread-item-menu-popover">
+          <button type="button" data-chat-thread-action="pin" data-thread-id="${escapeHTML(t.id)}">${THREAD_ICON_PIN}<span>${t.pinned ? 'Unpin' : 'Pin'}</span></button>
+          <button type="button" data-chat-thread-action="move" data-thread-id="${escapeHTML(t.id)}">${THREAD_ICON_FOLDER}<span>Move to project</span></button>
+          <button type="button" data-chat-thread-action="rename" data-thread-id="${escapeHTML(t.id)}">${THREAD_ICON_EDIT}<span>Rename</span></button>
+          <button type="button" class="delete" data-chat-thread-action="delete" data-thread-id="${escapeHTML(t.id)}">${THREAD_ICON_DELETE}<span>Delete</span></button>
+        </div>
+      </details>
     </div>`;
-  }).join('');
+  };
+  const renderGroup = (title, items, icon = '') => items.length
+    ? `<section class="chat-thread-group"><div class="chat-thread-group-title">${icon}${escapeHTML(title)}</div>${items.map(renderThread).join('')}</section>`
+    : '';
+  if (filter?.trim()) {
+    list.innerHTML = threads.map(renderThread).join('');
+    return;
+  }
+  const pinned = threads.filter(thread => thread.pinned === true);
+  const remaining = threads.filter(thread => thread.pinned !== true);
+  const groups = [];
+  groups.push(renderGroup('Pinned', pinned, THREAD_ICON_PIN));
+  for (const name of projectNames()) {
+    groups.push(renderGroup(name, remaining.filter(thread => thread.projectName === name), THREAD_ICON_FOLDER));
+  }
+  const ungrouped = remaining.filter(thread => !thread.projectName);
+  if (sort !== 'recent') {
+    groups.push(renderGroup('Conversations', ungrouped));
+  } else {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const updatedTime = thread => {
+      const time = new Date(thread.updatedAt).getTime();
+      return Number.isFinite(time) ? time : 0;
+    };
+    groups.push(renderGroup('Today', ungrouped.filter(thread => updatedTime(thread) >= today.getTime())));
+    groups.push(renderGroup('Yesterday', ungrouped.filter(thread => {
+      const updated = updatedTime(thread);
+      return updated >= yesterday.getTime() && updated < today.getTime();
+    })));
+    groups.push(renderGroup('Earlier', ungrouped.filter(thread => updatedTime(thread) < yesterday.getTime())));
+  }
+  list.innerHTML = groups.join('');
 }
 
 function formatThreadDate(date) {
@@ -546,6 +665,7 @@ export function toggleThreadRail() {
   }
   document.querySelector('.chat-rail-toggle')?.setAttribute('aria-expanded', String(isOpen));
   localStorage.setItem(`labcharts-${state.currentProfile}-chatRailOpen`, isOpen ? 'true' : 'false');
+  syncChatLayout();
 }
 
 export function restoreRailState() {
@@ -561,6 +681,7 @@ export function restoreRailState() {
     'aria-expanded',
     String(rail.classList.contains('open')),
   );
+  syncChatLayout();
 }
 
 configureChatThreadSearch({

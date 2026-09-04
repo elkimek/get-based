@@ -2,15 +2,15 @@
 // chat-images.js — Chat panel attachment and health-file import flow
 //
 // Extracted from chat.js (v1.21.9) as the first Phase 2e refactor split.
-// Owns the pending-attachment queue, paste/drop/picker handlers, HD-mode
-// toggle, and thumbnail generation. Exposes a small interface so
+// Owns the pending-attachment queue, paste/drop/picker handlers, original
+// image reads, and thumbnail generation. Exposes a small interface so
 // chat.js can read the queue when sending and clear it afterwards.
 //
 // The only back-reference into chat-send.js is the configured
 // updateSendButtonState callback invoked when the queue changes.
 
 import { escapeHTML, showConfirmDialog, showNotification } from './utils.js';
-import { resizeImage, isValidImageType } from './image-utils.js';
+import { imageFileToBase64, isValidImageType } from './image-utils.js';
 import { hasAIProvider, supportsVision } from './api.js';
 import { openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { chatMessageActionAttrs } from './chat-message-action-attrs.js';
@@ -20,13 +20,15 @@ import { getAssistantExecutionRoute } from './ai-execution-routing.js';
 import { handleImportInputChange } from './import-file-input.js';
 
 const MAX_ATTACHMENTS = 5;
+const MAX_AGENT_ATTACHMENTS = 4;
+const MAX_TOTAL_ATTACHMENT_BYTES = 18 * 1024 * 1024;
 const THUMB_SIZE = 80;
-/** @typedef {{ base64: string, mediaType: string, name: string, previewUrl: string, thumbUrl: string | null }} PendingAttachment */
+/** @typedef {{ base64: string, mediaType: string, name: string, previewUrl: string, thumbUrl: string | null, sizeBytes: number }} PendingAttachment */
 /** @type {Map<string, PendingAttachment[]>} */
 const pendingAttachmentsByThread = new Map();
 /** @type {WeakMap<object, PendingAttachment[]>} */
 const sentMessageAttachments = new WeakMap();
-let _hdMode = localStorage.getItem('labcharts-hd-images') === 'true';
+let chatMenuDismissInstalled = false;
 const chatImageDeps = {
   updateSendButtonState: () => {},
   importFiles: files => handleImportInputChange({ target: { files, value: '' } }),
@@ -49,6 +51,28 @@ function canAttachImages() {
 
 function isChatImageFile(file) {
   return isValidImageType(file.type);
+}
+
+function currentAttachmentLimit() {
+  return isCodexChatBackend() ? MAX_AGENT_ATTACHMENTS : MAX_ATTACHMENTS;
+}
+
+/** @param {File} file */
+function readImageDimensions(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      if (!img.naturalWidth || !img.naturalHeight) reject(new Error('Image dimensions are unavailable.'));
+      else resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Failed to load image.'));
+    };
+    img.src = url;
+  });
 }
 
 /**
@@ -193,48 +217,36 @@ function makeThumbnail(previewUrl, width, height) {
   });
 }
 
-function hdTitle() {
-  return _hdMode ? 'HD quality (2048px) — click for standard' : 'Standard quality (1024px) — click for HD';
-}
-
-export function toggleHDMode() {
-  _hdMode = !_hdMode;
-  localStorage.setItem('labcharts-hd-images', String(_hdMode));
-  const btn = document.getElementById('chat-hd-btn');
-  if (btn) {
-    btn.classList.toggle('active', _hdMode);
-    btn.title = hdTitle();
-  }
-}
-
 export async function addImageAttachment(file) {
   if (!isValidImageType(file.type)) {
     showNotification('Unsupported image type. Use JPEG, PNG, GIF, or WebP.', 'error');
     return;
   }
   const pendingAttachments = currentAttachmentDraft();
-  if (pendingAttachments.length >= MAX_ATTACHMENTS) {
-    showNotification(`Maximum ${MAX_ATTACHMENTS} images per message`, 'error');
+  const attachmentLimit = currentAttachmentLimit();
+  if (pendingAttachments.length >= attachmentLimit) {
+    showNotification(`Maximum ${attachmentLimit} images per message`, 'error');
+    return;
+  }
+  const queuedBytes = pendingAttachments.reduce((total, attachment) => total + (attachment.sizeBytes || 0), 0);
+  if (!file.size || file.size + queuedBytes > MAX_TOTAL_ATTACHMENT_BYTES) {
+    showNotification('Photos can be up to 18 MB total per message. The original files are not compressed.', 'error', 6000);
     return;
   }
   try {
-    const maxDim = _hdMode ? 2048 : 1024;
-    const quality = _hdMode ? 0.92 : 0.85;
-    const { base64, mediaType, width, height, origWidth, origHeight, quality_warnings } = await resizeImage(file, maxDim, quality);
+    const [{ width, height }, base64] = await Promise.all([
+      readImageDimensions(file),
+      imageFileToBase64(file),
+    ]);
+    const mediaType = file.type;
     const previewUrl = `data:${mediaType};base64,${base64}`;
     const thumbUrl = await makeThumbnail(previewUrl, width, height);
-    pendingAttachments.push({ base64, mediaType, name: file.name, previewUrl, thumbUrl });
+    pendingAttachments.push({ base64, mediaType, name: file.name, previewUrl, thumbUrl, sizeBytes: file.size });
     renderAttachmentPreview();
     chatImageDeps.updateSendButtonState();
-    // Warn about image quality issues
-    const longSide = Math.max(origWidth, origHeight);
+    const longSide = Math.max(width, height);
     if (longSide < 512) {
-      showNotification(`Low resolution image (${origWidth}×${origHeight}). AI may struggle with fine details.`, 'info', 5000);
-    } else if (longSide < 1024 && _hdMode) {
-      showNotification(`Image is ${origWidth}×${origHeight} — smaller than HD target. Consider using a higher-res photo.`, 'info', 4000);
-    }
-    if (quality_warnings.length > 0) {
-      showNotification(quality_warnings[0], 'info', 5000);
+      showNotification(`Low resolution image (${width}×${height}). AI may struggle with fine details.`, 'info', 5000);
     }
   } catch (e) {
     const error = /** @type {Error} */ (e);
@@ -264,7 +276,7 @@ export function renderAttachmentPreview() {
     `<button class="chat-attach-remove" type="button" ${chatMessageActionAttrs('remove-image-attachment', { index: i })} aria-label="Remove ${escapeHTML(att.name)}">&times;</button>` +
     `</div>`
   ).join('') +
-  `<span class="chat-attach-count">${pendingAttachments.length}/${MAX_ATTACHMENTS}</span>`;
+  `<span class="chat-attach-count">${pendingAttachments.length}/${currentAttachmentLimit()} · original quality</span>`;
 }
 
 export function openImageLightbox(src) {
@@ -343,12 +355,8 @@ export function restoreMessageAttachments(message) {
 export function updateAttachButtonVisibility() {
   const btn = document.getElementById('chat-attach-btn');
   if (btn) btn.style.display = 'flex';
-  const hdBtn = document.getElementById('chat-hd-btn');
-  if (hdBtn) {
-    hdBtn.style.display = canAttachImages() ? 'flex' : 'none';
-    hdBtn.classList.toggle('active', _hdMode);
-    hdBtn.title = hdTitle();
-  }
+  const photoAction = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-add-photo-action'));
+  if (photoAction) photoAction.hidden = !canAttachImages();
 }
 
 if (typeof globalThis.addEventListener === 'function') {
@@ -360,6 +368,21 @@ export function initChatImageHandlers() {
   const chatDropZone = /** @type {HTMLElement | null} */ (document.querySelector('.chat-panel-conversation'));
   const chatDropOverlay = document.getElementById('chat-drop-overlay');
   const fileInput = document.getElementById('chat-image-input');
+
+  if (!chatMenuDismissInstalled) {
+    chatMenuDismissInstalled = true;
+    document.addEventListener('click', event => {
+      const menu = /** @type {HTMLDetailsElement | null} */ (document.getElementById('chat-context-menu'));
+      if (menu?.open && event.target instanceof Node && !menu.contains(event.target)) menu.open = false;
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      const menu = /** @type {HTMLDetailsElement | null} */ (document.getElementById('chat-context-menu'));
+      if (!menu?.open) return;
+      menu.open = false;
+      menu.querySelector('summary')?.focus();
+    });
+  }
 
   // Paste handler
   if (textarea && textarea.dataset.chatFilePasteBound !== 'true') {

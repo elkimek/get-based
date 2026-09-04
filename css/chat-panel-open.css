@@ -1,25 +1,19 @@
 /* When chat is open, push the dashboard left by the chat panel's
-   responsive width so content stays visible alongside the chat
-   instead of hiding behind it. The padding-right values match the
-   .chat-panel width breakpoints (defined further down) plus the
-   default 32px gutter. Fullscreen chat suppresses the shift since
+   current user-selected width so content stays visible alongside the
+   chat instead of hiding behind it. Fullscreen chat suppresses the shift since
    the panel covers everything. Mobile (<768px) is also no-op since
    chat is a 100%-width takeover. We deliberately don't transition the
    padding — Chromium aborts the transition partway through when the
    chat panel's own transform animation runs simultaneously. The snap
    is barely perceptible alongside the panel's slide-in. */
 body.chat-open .main,
-body.chat-autostart-reserved .main { padding-right: calc(32px + 560px); }
+body.chat-autostart-reserved .main { padding-right: calc(32px + min(var(--chat-panel-current-width, 600px), 100vw)); }
 body.chat-open.chat-fullscreen .main,
 body.chat-autostart-reserved.chat-fullscreen .main { padding-right: 32px; }
 
 body.chat-open:not(.chat-fullscreen) .dashboard-sticky-actions,
 body.chat-autostart-reserved:not(.chat-fullscreen) .dashboard-sticky-actions {
-  right: calc(32px + min(600px, 100vw));
-}
-body.chat-open:has(#chat-thread-rail.open):not(.chat-fullscreen) .dashboard-sticky-actions,
-body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .dashboard-sticky-actions {
-  right: calc(32px + min(820px, 100vw));
+  right: calc(32px + min(var(--chat-panel-current-width, 600px), 100vw));
 }
 @media (max-width: 768px) {
   body.chat-open:not(.chat-fullscreen) .dashboard-sticky-actions,
@@ -53,7 +47,7 @@ body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .
   border-right: 1px solid var(--border); background: var(--bg-primary);
   transition: width 0.25s ease; flex-shrink: 0;
 }
-.chat-thread-rail.open { width: 220px; }
+.chat-thread-rail.open { width: var(--chat-rail-width, 220px); }
 .chat-thread-rail-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 14px 10px; flex-shrink: 0;
@@ -86,9 +80,32 @@ body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .
 }
 .chat-thread-search:focus { border-color: var(--accent); outline: none; }
 .chat-thread-search::placeholder { color: var(--text-muted); }
+.chat-thread-toolbar {
+  display: flex; align-items: center; gap: 6px; margin: 0 10px 8px;
+}
+.chat-thread-sort-label {
+  color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .05em;
+}
+.chat-thread-sort {
+  min-width: 0; flex: 1; height: 30px; padding: 4px 24px 4px 8px;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary);
+  color: var(--text-secondary); font: inherit; font-size: 11px;
+}
+.chat-project-new-btn {
+  width: 30px; height: 30px; flex: 0 0 30px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer;
+}
+.chat-project-new-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--bg-hover); }
+.chat-project-new-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .chat-thread-list {
   flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 0 6px 10px;
 }
+.chat-thread-group { margin: 0 0 10px; }
+.chat-thread-group-title {
+  display: flex; align-items: center; gap: 6px; min-height: 24px; padding: 4px 8px;
+  color: var(--text-muted); font-size: 10px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase;
+}
+.chat-thread-group-title svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.8; }
 .chat-thread-list:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
@@ -102,7 +119,7 @@ body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .
 .chat-thread-item.active { background: rgba(99,102,241,0.10); border-left-color: var(--accent); }
 .chat-thread-item-main {
   display: flex; flex-direction: column; gap: 2px; width: 100%; min-width: 0;
-  padding: 8px 54px 8px 10px; border: 0; border-radius: inherit;
+  padding: 8px 38px 8px 10px; border: 0; border-radius: inherit;
   background: transparent; color: inherit; font: inherit; text-align: left;
   cursor: pointer;
 }
@@ -137,11 +154,10 @@ body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .
 .chat-thread-item-meta {
   font-size: 10px; color: var(--text-muted); display: flex; gap: 6px; align-items: center;
 }
-.chat-thread-item-actions {
-  position: absolute; top: 6px; right: 6px; display: none; gap: 2px;
-}
-.chat-thread-item:hover .chat-thread-item-actions,
-.chat-thread-item:focus-within .chat-thread-item-actions { display: flex; }
+.chat-thread-item-menu { position: absolute; top: 6px; right: 6px; }
+.chat-thread-item:has(.chat-thread-item-menu[open]) { z-index: 25; }
+.chat-thread-item-menu > summary { list-style: none; }
+.chat-thread-item-menu > summary::-webkit-details-marker { display: none; }
 .chat-thread-item-action {
   width: 20px; height: 20px; border: none; background: var(--bg-card);
   border-radius: 4px; font-size: 11px; cursor: pointer; color: var(--text-muted);
@@ -149,7 +165,22 @@ body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .
   transition: all 0.15s;
 }
 .chat-thread-item-action:hover { color: var(--text-primary); background: var(--bg-hover); }
-.chat-thread-item-action.delete:hover { color: var(--red); }
+.chat-thread-item-menu-popover {
+  position: absolute; z-index: 24; top: calc(100% + 5px); right: 0; width: 168px;
+  padding: 5px; border: 1px solid var(--border); border-radius: 9px;
+  background: var(--bg-card); box-shadow: var(--shadow-md);
+}
+.chat-thread-item-menu-popover button {
+  width: 100%; min-height: 32px; display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border: 0; border-radius: 6px; background: transparent;
+  color: var(--text-secondary); font: inherit; font-size: 11px; text-align: left; cursor: pointer;
+}
+.chat-thread-item-menu-popover button:hover { background: var(--bg-hover); color: var(--text-primary); }
+.chat-thread-item-menu-popover button.delete { color: var(--red); }
+.chat-thread-item-menu-popover svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.chat-thread-group:last-child .chat-thread-item:last-child .chat-thread-item-menu-popover {
+  top: auto; bottom: calc(100% + 5px);
+}
 .chat-more-menu { position: relative; }
 .chat-more-menu > summary {
   display: flex; align-items: center; justify-content: center; width: 34px; height: 34px;

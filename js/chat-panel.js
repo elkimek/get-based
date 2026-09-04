@@ -21,6 +21,7 @@ import {
 import { showNotification } from './utils.js';
 import { connectDetectedCodex } from './agent-chat-settings.js';
 import { updateAttachButtonVisibility } from './chat-images.js';
+import { initChatLayout, syncChatLayout } from './chat-layout.js';
 import {
   hasChatResponseBackend, isCodexChatBackend, refreshChatBackendControl, refreshLocalAgentAvailability,
   setChatBackendFromUI as persistChatBackend,
@@ -279,6 +280,7 @@ export function toggleChatFullscreen() {
   button?.setAttribute('aria-pressed', String(next));
   button?.setAttribute('aria-label', next ? 'Exit fullscreen chat' : 'Enter fullscreen chat');
   if (button) button.title = next ? 'Exit fullscreen' : 'Enter fullscreen';
+  syncChatLayout();
 }
 
 export async function openChatPanel(prefillMessage) {
@@ -341,6 +343,7 @@ export async function openChatPanel(prefillMessage) {
     if (threadsLoaded !== false) ensureActiveThread();
   }
   restoreRailState();
+  initChatLayout();
   renderThreadList();
   renderSavedSummaries();
   if (!liveSessionInProgress && threadsLoaded !== false) await loadChatHistory();

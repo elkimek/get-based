@@ -59,6 +59,8 @@ describe('chat storage safety', () => {
           chatBackend: 'codex',
           agentThreadId: '019c-agent-thread',
           agentModel: 'gpt-5.4',
+          projectName: 'Metabolic follow-up'.repeat(10),
+          pinned: true,
         },
         { id: '__proto__', name: 'Rejected' },
       ],
@@ -122,6 +124,8 @@ describe('chat storage safety', () => {
       chatBackend: 'codex',
       agentThreadId: '019c-agent-thread',
       agentModel: 'gpt-5.4',
+      projectName: 'Metabolic follow-upMetabolic follow-upMetabolic follow-upMet',
+      pinned: true,
     });
     expect(chat.messages.t_safe[0]).toMatchObject({
       content: 'Hello',
