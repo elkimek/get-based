@@ -9,7 +9,7 @@
 // The only back-reference into chat-send.js is the configured
 // updateSendButtonState callback invoked when the queue changes.
 
-import { escapeHTML, showNotification } from './utils.js';
+import { escapeHTML, showConfirmDialog, showNotification } from './utils.js';
 import { resizeImage, isValidImageType } from './image-utils.js';
 import { hasAIProvider, supportsVision } from './api.js';
 import { openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
@@ -136,8 +136,15 @@ export async function handleDroppedChatFiles(source) {
   try {
     await handleChatFiles(/** @type {File[]} */ (await Promise.all(reads)));
   } catch (error) {
-    console.error('[chat-files] dropped file read failed:', error);
-    showNotification('Could not read the dropped file. Try the paperclip button instead.', 'error');
+    console.warn('[chat-files] Browser did not grant access to the dropped file:', error);
+    const chooseFile = await showConfirmDialog(
+      'Your browser could not read this dropped file. Choose it from the file picker to continue.',
+      { confirmLabel: 'Choose file', cancelLabel: 'Cancel', tone: 'primary', ariaLabel: 'Choose dropped file' },
+    );
+    if (!chooseFile) return;
+    const input = document.getElementById('chat-image-input');
+    if (input instanceof HTMLInputElement) input.click();
+    else showNotification('The file picker is unavailable. Reload the app and try again.', 'error');
   }
 }
 
@@ -345,12 +352,13 @@ if (typeof globalThis.addEventListener === 'function') {
 
 export function initChatImageHandlers() {
   const textarea = document.getElementById('chat-input');
-  const chatDropZone = document.querySelector('.chat-panel-conversation');
+  const chatDropZone = /** @type {HTMLElement | null} */ (document.querySelector('.chat-panel-conversation'));
   const chatDropOverlay = document.getElementById('chat-drop-overlay');
   const fileInput = document.getElementById('chat-image-input');
 
   // Paste handler
-  if (textarea) {
+  if (textarea && textarea.dataset.chatFilePasteBound !== 'true') {
+    textarea.dataset.chatFilePasteBound = 'true';
     textarea.addEventListener('paste', (e) => {
       const items = e.clipboardData?.items;
       if (!items) return;
@@ -366,7 +374,8 @@ export function initChatImageHandlers() {
 
   // Drag-drop across the conversation and composer. The overlay explains the
   // image-attachment vs health-import split before the user releases a file.
-  if (chatDropZone) {
+  if (chatDropZone && chatDropZone.dataset.chatFileDropBound !== 'true') {
+    chatDropZone.dataset.chatFileDropBound = 'true';
     const setDropActive = active => {
       chatDropZone.classList.toggle('chat-drop-active', active);
       if (chatDropOverlay) chatDropOverlay.hidden = !active;
@@ -389,6 +398,7 @@ export function initChatImageHandlers() {
     });
     chatDropZone.addEventListener('drop', (e) => {
       const dragEvent = /** @type {DragEvent} */ (e);
+      if (dragEvent.defaultPrevented) return;
       dragEvent.preventDefault();
       dragEvent.stopPropagation();
       setDropActive(false);
@@ -397,7 +407,8 @@ export function initChatImageHandlers() {
   }
 
   // File input change
-  if (fileInput) {
+  if (fileInput && fileInput.dataset.chatFilePickerBound !== 'true') {
+    fileInput.dataset.chatFilePickerBound = 'true';
     fileInput.addEventListener('change', (e) => {
       const input = /** @type {HTMLInputElement} */ (e.target);
       const files = Array.from(input.files || []);

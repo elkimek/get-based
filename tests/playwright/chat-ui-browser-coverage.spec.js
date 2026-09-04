@@ -125,6 +125,7 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       outcomes.invalidImageIsRejected = chatImages.getPendingAttachments().length === 0;
 
       chatImages.initChatImageHandlers();
+      chatImages.initChatImageHandlers();
       const fileInputImage = makeImage('picked.png');
       if (input) {
         Object.defineProperty(input, 'files', {
@@ -217,12 +218,49 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       }
       const stableDroppedReport = importedPayloads.find(file => file.name === 'labs.pdf');
       outcomes.dropOnComposerRoutesPdfToImport = importedFiles.includes('labs.pdf')
+        && importedFiles.filter(name => name === 'labs.pdf').length === 1
         && chatImages.getPendingAttachments().every(att => att.name !== 'labs.pdf')
         && stableDroppedReport instanceof File
         && stableDroppedReport !== droppedReport
         && stableDroppedReport.type === 'application/pdf'
         && stableDroppedReport.lastModified === 12345
         && await stableDroppedReport.text() === '%PDF stable drop';
+
+      const standardDrop = new DataTransfer();
+      standardDrop.items.add(new File(['standard'], 'standard.pdf', { type: 'application/pdf' }));
+      await chatImages.handleDroppedChatFiles(standardDrop);
+      outcomes.standardFileDropWorks = importedFiles.includes('standard.pdf');
+
+      const entryFile = new File(['entry'], 'entry.pdf', { type: 'application/pdf' });
+      await chatImages.handleDroppedChatFiles(/** @type {any} */ ({
+        files: [],
+        items: [{
+          kind: 'file',
+          getAsFile: () => null,
+          webkitGetAsEntry: () => ({
+            isFile: true,
+            file: resolve => resolve(entryFile),
+          }),
+        }],
+      }));
+      outcomes.fileEntryDropWorks = importedFiles.includes('entry.pdf');
+
+      let fallbackPickerClicks = 0;
+      input?.addEventListener('click', event => {
+        fallbackPickerClicks += 1;
+        event.preventDefault();
+      }, { once: true });
+      const unreadableDrop = chatImages.handleDroppedChatFiles(/** @type {any} */ ({
+        files: [],
+        items: [{ kind: 'file', getAsFile: () => null }],
+      }));
+      for (let i = 0; i < 40 && !document.getElementById('confirm-ok'); i += 1) {
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      document.getElementById('confirm-ok')?.click();
+      await unreadableDrop;
+      outcomes.unreadableDropOffersWorkingPickerFallback = fallbackPickerClicks === 1
+        && !document.getElementById('confirm-dialog-overlay')?.classList.contains('show');
 
       if (input) {
         Object.defineProperty(input, 'files', {
