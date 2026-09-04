@@ -287,7 +287,10 @@ body.chat-open .analytics-consent-banner {
 }
 
 @media (min-width: 1400px) {
-  body.chat-open .main { padding-right: calc(32px + 600px); }
+  /* Keep the dashboard reservation coupled to the live panel width. A fixed
+     desktop value makes widths above 600px overlap the dashboard while the
+     user drags the resize handle or opens the conversation rail. */
+  body.chat-open .main { padding-right: calc(32px + min(var(--chat-panel-current-width, 600px), 100vw)); }
   body.chat-open.chat-fullscreen .main { padding-right: 32px; }
   .chat-messages { padding: 18px; gap: 14px; }
   .chat-header { padding: 14px 18px; }

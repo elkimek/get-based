@@ -29,13 +29,16 @@ test.beforeEach(async ({ page }) => {
 test('desktop chat and conversation rail resize independently and persist', async ({ page }) => {
   const panel = page.locator('#chat-panel');
   const rail = page.locator('#chat-thread-rail');
+  const main = page.locator('#main-content');
   const panelHandle = page.locator('#chat-panel-resize-handle');
   const railHandle = page.locator('#chat-rail-resize-handle');
 
   await expect(panel).toHaveCSS('width', '600px');
+  await expect(main).toHaveCSS('padding-right', '632px');
   await page.evaluate(async () => (await import('/js/chat-threads.js')).toggleThreadRail());
   await expect(panel).toHaveCSS('width', '820px');
   await expect(rail).toHaveCSS('width', '220px');
+  await expect(main).toHaveCSS('padding-right', '852px');
   await expect(panelHandle).toHaveAttribute('aria-valuemin', '580');
   await expect(railHandle).toHaveAttribute('aria-valuemax', '360');
 
@@ -44,10 +47,14 @@ test('desktop chat and conversation rail resize independently and persist', asyn
   await page.mouse.move(panelBox.x + panelBox.width / 2, 300);
   await page.mouse.down();
   await page.mouse.move(panelBox.x - 80, 300);
+  const livePanelWidth = Math.round((await panel.boundingBox()).width);
+  expect(livePanelWidth).toBeGreaterThanOrEqual(895);
+  expect(livePanelWidth).toBeLessThanOrEqual(910);
+  await expect(main).toHaveCSS('padding-right', `${livePanelWidth + 32}px`);
   await page.mouse.up();
   const panelWidthAfterDrag = Math.round((await panel.boundingBox()).width);
-  expect(panelWidthAfterDrag).toBeGreaterThanOrEqual(895);
-  expect(panelWidthAfterDrag).toBeLessThanOrEqual(910);
+  expect(panelWidthAfterDrag).toBe(livePanelWidth);
+  await expect(main).toHaveCSS('padding-right', `${panelWidthAfterDrag + 32}px`);
 
   const railBox = await railHandle.boundingBox();
   expect(railBox).toBeTruthy();
@@ -59,6 +66,7 @@ test('desktop chat and conversation rail resize independently and persist', asyn
   expect(railWidthAfterDrag).toBeGreaterThanOrEqual(255);
   expect(railWidthAfterDrag).toBeLessThanOrEqual(265);
   expect(Math.round((await panel.boundingBox()).width)).toBe(panelWidthAfterDrag);
+  await expect(main).toHaveCSS('padding-right', `${panelWidthAfterDrag + 32}px`);
 
   await panelHandle.focus();
   await page.keyboard.press('ArrowLeft');
