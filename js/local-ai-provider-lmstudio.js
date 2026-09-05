@@ -218,8 +218,12 @@ export async function inferWithLMStudioNativeProvider({ config, model, opts, pla
   const reasoningOptions = Array.isArray(modelDetail?.reasoning?.allowedOptions)
     ? modelDetail.reasoning.allowedOptions
     : [];
-  const disableReasoning = opts.jsonMode || opts.reasoningEffort === 'none';
-  const reasoning = disableReasoning && reasoningOptions.includes('off') ? 'off' : undefined;
+  const requestedReasoning = ['none', 'off'].includes(opts.reasoningEffort) ? 'off' : opts.reasoningEffort;
+  const reasoning = opts.jsonMode && reasoningOptions.includes('off')
+    ? 'off'
+    : requestedReasoning && reasoningOptions.includes(requestedReasoning)
+      ? requestedReasoning
+      : undefined;
   const requestInit = {
     method: 'POST',
     headers: createLocalAiHeaders(config.apiKey, { json: true }),

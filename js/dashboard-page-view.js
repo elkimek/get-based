@@ -6,7 +6,8 @@ import { escapeAttr, escapeHTML, formatDate } from './utils.js';
 import { getActiveData } from './data.js';
 import { getProfiles, profileStorageKey } from './profile.js';
 import { loadContextHealthDots } from './health-data-loader.js';
-import { hasAIProvider, isAIPaused } from './api.js';
+import { isAIPaused } from './api.js';
+import { hasChatResponseBackend } from './chat-backend-selection.js';
 import { loadCommitHash } from './commit-hash.js';
 import {
   isMobileDashboardViewport,
@@ -226,7 +227,7 @@ export function createDashboardPageView(deps) {
     if (!hasData) {
       document.body.classList.add('empty-dashboard-active');
       document.body.classList.remove('chat-autostart-reserved');
-      const aiReady = hasAIProvider();
+      const aiReady = hasChatResponseBackend();
       const aiPaused = isAIPaused();
       const importReady = aiReady && !aiPaused;
       const heroClass = importReady ? 'welcome-hero welcome-hero-ready' : 'welcome-hero welcome-hero-noai';
@@ -326,6 +327,9 @@ export function createDashboardPageView(deps) {
     main.innerHTML = html;
 
     setupDropZone();
+    void import('./dashboard-widget-packing.js')
+      .then(module => module.setupDashboardWidgetPacking(main))
+      .catch(() => { /* Keep the standard grid if optional packing cannot load. */ });
 
     // Non-blocking: hydrate cached focus text for LCP, but don't replace stale
     // cached text with a fresh AI response during startup.

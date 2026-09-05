@@ -26,7 +26,7 @@ test.use({
   serviceWorkers: 'block',
 });
 
-test('cold mobile app load stays within committed resource budgets', async ({ page }) => {
+test('cold mobile app load stays within committed resource budgets', async ({ page }, testInfo) => {
   const client = await page.context().newCDPSession(page);
   await client.send('Network.enable');
   await client.send('Network.setCacheDisabled', { cacheDisabled: true });
@@ -321,6 +321,7 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
     .filter(pathname => deferredHealthDataModules.has(pathname));
   expect(eagerlyLoadedHealthDataModules).toEqual([]);
   const metrics = summarizeColdLoad(entries, appOrigin);
+  await testInfo.attach('cold-load-resources', { body: JSON.stringify(entries, null, 2), contentType: 'application/json' });
 
   console.log(`Cold-load budget: ${formatColdLoadSummary(metrics)}`);
   console.log(`Cold-load metrics: ${JSON.stringify(metrics)}`);

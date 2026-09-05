@@ -65,9 +65,10 @@ assert('architecture tooling parses ESM with TypeScript and enforces cycle growt
     architectureSrc.includes('new modules entered dependency cycles') &&
     architectureSrc.includes('new computed dynamic import cannot be checked statically'));
 assert('architecture source groups preserve browser/server separation',
-  architectureRules.groups?.find(group => group.name === 'browser')?.mayImport?.join(',') === 'browser' &&
+  architectureRules.groups?.find(group => group.name === 'browser')?.mayImport?.join(',') === 'browser,shared' &&
     architectureRules.groups?.find(group => group.name === 'serverless')?.mayImport?.includes('server-shared') &&
-    architectureRules.groups?.find(group => group.name === 'server-shared')?.mayImport?.join(',') === 'server-shared' &&
+    architectureRules.groups?.find(group => group.name === 'server-shared')?.mayImport?.join(',') === 'server-shared,shared' &&
+    architectureRules.groups?.find(group => group.name === 'shared')?.mayImport?.join(',') === 'shared' &&
     architectureRules.groups?.find(group => group.name === 'local-server')?.mayImport?.join(',') === 'server-shared' &&
     architectureRules.groups?.find(group => group.name === 'service-worker')?.mayImport?.join(',') === 'service-worker' &&
     architectureRules.entryPoints?.includes('dev-server.js') &&

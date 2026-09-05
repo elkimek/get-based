@@ -146,7 +146,7 @@ export function createLensPageHandlers(deps) {
     if (!main) return;
     document.body.classList.remove('mobile-dashboard-active');
     const actions = renderDateRangeFilter();
-    let html = renderLensHeader('Labs', 'Dedicated biomarker workspace: categories, marker changes, and lab-level patterns.', actions);
+    let html = renderLensHeader('Labs', '', actions);
 
     if (!hasAnyLabData(rawData)) {
       html += `<div class="drop-zone" id="drop-zone">
@@ -198,11 +198,11 @@ export function createLensPageHandlers(deps) {
     const contextReady = hasBiologyScoreContextReview(scoreData);
     const actions = `<div class="biology-score-header-actions">${contextReady ? '<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="interpret-lens">Explain my Biology Scores</button>' : ''}
       ${renderDateRangeFilter()}</div>`;
-    let html = renderLensHeader('Biology Scores', 'A quick overview of how major body systems look from your labs. Start with the score and pattern; open details when you want the marker-level explanation.', actions, { className: 'biology-scores-lens-header' });
+    let html = renderLensHeader('Biology Scores', 'Body-system patterns from your labs, with marker-level explanations.', actions, { className: 'biology-scores-lens-header' });
     html += renderBiologyScoreContextBanner();
     if (!contextReady) {
       html += renderBiologyScoreContextAI(scoreData);
-      html += `<section class="biology-score-context-gate biology-score-context-gate-lens"><div class="biology-scores-eyebrow">Waiting for context check</div><h3>Scores unlock after one context check</h3><p>Use the unlock button above. After the review finishes, scores render for this timeframe and any suggested context flags remain under your control.</p></section>`;
+      html += `<section class="biology-score-context-gate biology-score-context-gate-lens"><h3>Scores unlock after one context check</h3><p>Use the unlock button above. After the review finishes, scores render for this timeframe and any suggested context flags remain under your control.</p></section>`;
       main.innerHTML = html;
       setupDropZone();
       return;
@@ -233,7 +233,7 @@ export function createLensPageHandlers(deps) {
     const genomeActions = `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lensPageActionAttrs('import-dna')}>Import raw DNA</button>
       <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('import-snp-report')}>Import report</button>
       <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('add-manual-snp')}>Add SNP manually</button>${affiliate}`;
-    let html = renderLensHeader('Genome', 'Dedicated DNA workspace: curated findings and traits, mtDNA context and evidence, import status, and lab-linked signals.', genomeActions, { className: 'genome-lens-header' });
+    let html = renderLensHeader('Genome', 'DNA findings and traits linked to your labs.', genomeActions, { className: 'genome-lens-header' });
     html += renderLensPageWidgets('genome', [
       { id: 'genome', title: 'Genetic Findings & Traits', description: 'Curated SNP context, evidence, and lab-linked modifiers', body: renderDashboardGenomeWidget(), size: 'full', opts: { source: 'Genome' } },
       importDetails ? { id: 'genome-import', title: 'Import Details', description: 'Source, counts, mtDNA, and file management', body: importDetails, size: 'full', opts: { source: 'Genome', dashboardId: '' } } : null,
@@ -245,7 +245,7 @@ export function createLensPageHandlers(deps) {
     const main = document.getElementById("main-content");
     if (!main) return;
     document.body.classList.remove('mobile-dashboard-active');
-    let html = renderLensHeader('Body', 'Biometrics, recovery, supplements, and optional meal tracking in one local-first workspace.',
+    let html = renderLensHeader('Body', '',
       `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lensPageActionAttrs('open-wearables-settings')}>Connect source</button>
        <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('open-biometric-picker')}>Choose metrics</button>`);
     html += renderLensPageWidgets('body', [
@@ -265,7 +265,7 @@ export function createLensPageHandlers(deps) {
     if (!main) return;
     document.body.classList.remove('mobile-dashboard-active');
     const ctx = buildDashboardWidgetContext(rawData);
-    let html = renderLensHeader('Insight', 'Dedicated synthesis workspace: AI focus, trend interpretation, context, and next-step surfaces.',
+    let html = renderLensHeader('Insight', '',
       `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lensPageActionAttrs('open-ai-chat')}>Open AI chat</button>
        <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('open-emf-assessment')}>EMF assessment</button>
        <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('open-recommendations')}>Tips</button>`);
@@ -273,7 +273,7 @@ export function createLensPageHandlers(deps) {
       { id: 'focus', title: 'Current Focus', description: 'One synthesized read on the latest data', body: renderFocusCard(), size: 'full', opts: { source: 'Insight' } },
       { id: 'recommendations', title: 'Tips to Explore', description: 'General-information ideas connected to your data', body: renderDashboardRecommendationsWidget(ctx), size: 'half', opts: { source: 'Insight' } },
       { id: 'insights', title: 'AI Insights', description: 'Top trend and range reads', body: renderDashboardInsightsListWidget(ctx), size: 'half', opts: { source: 'Insight' } },
-      { id: 'profile-context', title: 'Profile Context', description: 'Goals, history, lifestyle, and context cards', body: renderProfileContextCards(), size: 'full', opts: { source: 'Insight' } },
+      { id: 'profile-context', title: 'Profile Context', description: 'Goals, history, lifestyle, and context cards', body: renderProfileContextCards({ embedded: true }), size: 'full', opts: { source: 'Insight' } },
     ]);
     main.innerHTML = html;
     loadFocusCard();

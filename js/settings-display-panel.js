@@ -10,7 +10,7 @@ import { escapeHTML, isDebugMode } from './utils.js';
 /** @param {boolean} active */
 export function renderDisplaySettingsPanel(active) {
   return `
-    <div class="settings-tab-panel${active ? ' active' : ''}" data-tab-panel="display">
+    <div class="settings-tab-panel${active ? ' active' : ''}" data-tab-panel="display" id="settings-tab-display" role="tabpanel" aria-label="Display">
       <div class="settings-row">
         <div class="settings-section">
           <label class="settings-label">Unit System</label>
@@ -59,7 +59,7 @@ export function renderDisplaySettingsPanel(active) {
               <div class="settings-copy-desc">Optional general-information ideas about lifestyle, food, supplements, and products. Not a care plan.</div>
             </div>
             <label class="toggle-switch">
-              <input type="checkbox" id="settings-product-recs" ${isProductRecsEnabled() ? 'checked' : ''} data-settings-action="set-product-recs">
+              <input type="checkbox" id="settings-product-recs" aria-label="Tips" ${isProductRecsEnabled() ? 'checked' : ''} data-settings-action="set-product-recs">
               <span class="toggle-slider"></span>
             </label>
           </div>
@@ -71,7 +71,7 @@ export function renderDisplaySettingsPanel(active) {
               <div class="settings-copy-desc">Adds detailed log output and reveals low-level diagnostic details for troubleshooting. No data leaves your device.</div>
             </div>
             <label class="toggle-switch">
-              <input type="checkbox" id="debug-mode-toggle" ${isDebugMode() ? 'checked' : ''} data-settings-action="set-debug-mode">
+              <input type="checkbox" id="debug-mode-toggle" aria-label="Debug Mode" ${isDebugMode() ? 'checked' : ''} data-settings-action="set-debug-mode">
               <span class="toggle-slider"></span>
             </label>
           </div>

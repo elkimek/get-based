@@ -284,7 +284,7 @@ test('lens page browser coverage renders genome details and marker-backed labs',
       const emptyLabsHtml = main?.innerHTML || '';
 
       return {
-        genomeLensRenders: genomeText.includes('Dedicated DNA workspace') && genomeText.includes('Genome widget'),
+        genomeLensRenders: genomeText.includes('DNA findings and traits linked to your labs') && genomeText.includes('Genome widget'),
         genomeImportDetailsRender: genomeCardCount >= 4
           && genomeHtml.includes('genome-import-details')
           && genomeHtml.includes('23andMe &lt;raw&gt;')

@@ -4,6 +4,13 @@
   display: grid; grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 18px; align-items: start; grid-auto-flow: dense;
 }
+.dashboard-widgets.is-adaptive { align-items: stretch; grid-auto-flow: row; }
+.dashboard-widgets.is-adaptive > .dashboard-widget {
+  grid-column: span var(--widget-columns, 12);
+  grid-row: var(--widget-row, auto);
+}
+.dashboard-widgets.is-adaptive.is-measuring { align-items: start; }
+.dashboard-widgets.is-adaptive .db-spotlight .db-spark { height: 80px; }
 .dashboard-widget {
   grid-column: span 12; min-width: 0;
   background: var(--bg-card);

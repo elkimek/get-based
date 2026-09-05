@@ -43,6 +43,8 @@ function createChatIcon(kind) {
     path('M11 5 6 9H2v6h4l5 4Z');
     path('M15.5 8.5a5 5 0 0 1 0 7');
     path('M18 6a9 9 0 0 1 0 12');
+  } else if (kind === 'loading') {
+    path('M21 12a9 9 0 1 1-9-9');
   } else {
     path('M18 6 6 18');
     path('m6 6 12 12');

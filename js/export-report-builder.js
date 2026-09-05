@@ -128,7 +128,6 @@ function renderReportBuilder(presetId = DEFAULT_REPORT_PRESET) {
     <div class="modal gb-form-modal report-builder-modal" role="dialog" aria-modal="true" aria-labelledby="report-builder-title">
       <div class="gb-modal-head">
         <div>
-          <div class="gb-modal-kicker">Reports</div>
           <div class="gb-modal-title" id="report-builder-title">Create a report</div>
         </div>
         <button type="button" class="modal-close" aria-label="Close" ${reportBuilderActionAttrs('close')}>&times;</button>
@@ -220,6 +219,7 @@ function collectReportBuilderOptions(overlay) {
       model: aiEl?.dataset.reportAiModel || '',
       provider: aiEl?.dataset.reportAiProvider || '',
       modelId: aiEl?.dataset.reportAiModelId || '',
+      agentId: aiEl?.dataset.reportAiAgentId || '',
     };
   }
   return options;
@@ -302,6 +302,7 @@ function setReportBuilderAISummary(overlay, summary) {
     delete textEl.dataset.reportAiModel;
     delete textEl.dataset.reportAiProvider;
     delete textEl.dataset.reportAiModelId;
+    delete textEl.dataset.reportAiAgentId;
     statusEl.textContent = 'Not generated.';
     if (clearBtn) clearBtn.hidden = true;
     return;
@@ -312,6 +313,7 @@ function setReportBuilderAISummary(overlay, summary) {
   textEl.dataset.reportAiModel = summary.model || '';
   textEl.dataset.reportAiProvider = summary.provider || '';
   textEl.dataset.reportAiModelId = summary.modelId || '';
+  textEl.dataset.reportAiAgentId = summary.agentId || '';
   statusEl.textContent = `Generated${summary.model ? ` with ${summary.model}` : ''}. Editable before preview.`;
   if (clearBtn) clearBtn.hidden = false;
 }

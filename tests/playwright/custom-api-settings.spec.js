@@ -8,10 +8,11 @@ test('custom API provider panel renders from Settings AI', async ({ page }) => {
   });
 
   const providerButtons = page.locator('.ai-provider-btn');
-  await expect(providerButtons).toHaveCount(6);
+  await expect(providerButtons).toHaveCount(7);
 
   const providerValues = await providerButtons.evaluateAll((buttons) => buttons.map((button) => button.dataset.provider));
   expect(providerValues).toContain('custom');
+  expect(providerValues).toContain('cli');
   expect(providerValues.indexOf('custom')).toBeLessThan(providerValues.indexOf('ollama'));
 
   await page.locator('.ai-provider-btn[data-provider="custom"]').dispatchEvent('click');

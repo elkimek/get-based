@@ -3,7 +3,8 @@
 
 import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, isDebugMode, showNotification } from './utils.js';
-import { callClaudeAPI, getAIProvider, hasAIProvider } from './api.js';
+import { getAIProvider } from './api.js';
+import { callAssistantFeatureAI, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { buildVisionContent, formatImageBlock, isValidImageType, resizeImage } from './image-utils.js';
 import { suppActionAttrs } from './supplement-action-delegates.js';
 import { formatSupplementAmount, getIngredientQuantity } from './supplement-medication-domain.js';
@@ -126,7 +127,7 @@ export async function scanSupplementLabel(input) {
     updateImportProgress(progressId, 2, 'Reading label and quality evidence…');
     const content = buildVisionContent(imageBlocks, `These images may show a front label, Supplement Facts, OTC Drug Facts, prescription label, or directions. Reconcile facts across all images.\n${SUPPLEMENT_EXTRACTION_SCHEMA_PROMPT}`, provider);
     updateImportProgress(progressId, 3, 'Classifying active ingredients and quality results with AI…');
-    const result = await callClaudeAPI({ messages: [{ role: 'user', content }], maxTokens: 6000 }, provider);
+    const result = await callAssistantFeatureAI({ messages: [{ role: 'user', content }], maxTokens: 6000, consentKind: 'image' }, provider);
     updateImportProgress(progressId, 4, 'Preparing selective review…');
     stageParsedSupplement(parseSupplementImportJson(result.text), { kind: 'label photos' });
     completed = true;
@@ -399,7 +400,7 @@ export async function fetchSupplementFromURL() {
     const source = { kind: 'product URL', url, deterministicFields };
     const hasVerifiedIngredients = pageFacts.product && Array.isArray(pageFacts.ingredients) && pageFacts.ingredients.length;
     const hasCoreLabelContext = pageFacts.servingSize?.value != null || pageFacts.labelDirections;
-    if (!hasAIProvider()) {
+    if (!hasAssistantFeatureProvider()) {
       updateImportProgress(progressId, 4, 'Preparing selective review…');
       stageParsedSupplement(pageFacts, source);
       completed = true;
@@ -414,7 +415,7 @@ export async function fetchSupplementFromURL() {
     const plainText = structuredPage.evidenceText || collectImportPageText(pageDocument);
     const trimmed = `${ldText.slice(0, 8000)}\n${embeddedText.slice(0, 8000)}\n${plainText.slice(0, 8000)}\n${plainText.slice(-3000)}`.slice(0, 24000);
     updateImportProgress(progressId, 3, 'Classifying active ingredients and quality evidence with AI…');
-    const result = await callClaudeAPI({
+    const result = await callAssistantFeatureAI({
       system: `Extract supplement or medication label facts from the supplied product page. ${SUPPLEMENT_EXTRACTION_SCHEMA_PROMPT}`,
       messages: [{ role: 'user', content: `${deterministicFields.length ? `Verified page facts (preserve these unless the user reviews a correction): ${JSON.stringify(pageFacts)}\n\n` : ''}${trimmed}` }],
       maxTokens: 6000,

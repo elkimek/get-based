@@ -38,6 +38,23 @@ Hugging Face at runtime; they are not bundled with this repository.
 | [Whisper Large v3 Turbo ONNX](https://huggingface.co/onnx-community/whisper-large-v3-turbo) and [Small ONNX](https://huggingface.co/onnx-community/whisper-small) | `onnx-community` model repositories | Apache-2.0 |
 | [Kokoro 82M v1.0 ONNX](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX) | `onnx-community/Kokoro-82M-v1.0-ONNX` | Apache-2.0 |
 
+## CLI agent identification assets (`brands/`)
+
+The CLI integration does not redistribute the agent executables. Small local
+identification assets are documented in [brands/CLI_AGENTS.md](brands/CLI_AGENTS.md).
+OpenCode, Hermes Agent, and OpenClaw assets come from their MIT-licensed
+repositories/packages. The Codex and Grok Build marks are official unmodified
+assets used only to identify compatible local software under their owners'
+published brand guidance. Claude Agent uses a getbased-owned neutral terminal
+glyph rather than Anthropic artwork. No affiliation or endorsement is implied.
+
+## AI provider identification assets (`brands/`)
+
+PPQ, Routstr, OpenRouter, and Venice identification assets and their provenance
+are documented in [brands/AI_PROVIDERS.md](brands/AI_PROVIDERS.md). They are
+used only beside the corresponding provider name in settings. The integration
+does not imply affiliation, sponsorship, certification, or endorsement.
+
 ## Notes
 
 - **Apache-2.0 (pdf.js)** — Mozilla's `@licstart` notice is preserved inline in `vendor/pdf.min.mjs` and `vendor/pdf.worker.min.mjs`.

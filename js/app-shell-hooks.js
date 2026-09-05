@@ -19,6 +19,7 @@ import {
   closeSummaryModal,
   configureChatLoader,
   createNewThread,
+  createThreadProject,
   ensureActiveThreadIfLoaded,
   filterThreadList,
   handleChatKeydown,
@@ -29,13 +30,14 @@ import {
   refreshChatPersonalitiesIfLoaded,
   renderThreadListIfLoaded,
   sendChatMessage,
+  setChatBackendFromUI,
   setChatPersonality,
   setChatWebSearchEnabled,
+  setChatThreadSort,
   startDiscussion,
   summarizeThread,
   toggleChatFullscreen,
   toggleChatPanel,
-  toggleHDMode,
   togglePersonalityBar,
   toggleThreadRail,
   toggleVoiceRecording,
@@ -93,6 +95,7 @@ import { configureLabContext, invalidateLabContextCache } from './lab-context.js
 import { configureLensPageShell } from './lens-page-shell.js';
 import {
   detectWearableTrendSlots,
+  loadContextCardsModule,
   loadHealthDataContextForPersistedState,
   openMenstrualCycleEditor,
   renderMenstrualCycleSection,
@@ -161,7 +164,6 @@ import {
 import { configureRecommendationsRuntime } from './recommendations-runtime.js';
 import {
   configureShellChatActionDeps,
-  configureShellChatImageDeps,
   configureShellChatThreadDeps,
   configureShellNavDeps,
   configureShellProfileShareDeps,
@@ -201,6 +203,7 @@ if (typeof document !== 'undefined') {
 }
 configureChatRuntimeCallbacks({
   onChatSaved,
+  openContextModal: () => loadContextCardsModule().then(module => module.openContextModal()),
   updateChatHeaderModel: updateChatHeaderModelIfLoaded,
   updateChatNudge,
 });
@@ -345,6 +348,7 @@ configureShellChatActionDeps({
   clearChatHistory,
   handleChatKeydown,
   sendChatMessage,
+  setChatBackendFromUI,
   setChatPersonality,
   setChatWebSearchEnabled,
   startDiscussion,
@@ -354,8 +358,7 @@ configureShellChatActionDeps({
   togglePersonalityBar,
   toggleVoiceRecording,
 });
-configureShellChatImageDeps({ toggleHDMode });
-configureShellChatThreadDeps({ createNewThread, filterThreadList, toggleThreadRail });
+configureShellChatThreadDeps({ createNewThread, createThreadProject, filterThreadList, setChatThreadSort, toggleThreadRail });
 configureShellNavDeps({ closeMobileSidebar, toggleMobileSidebar });
 configureShellProfileShareDeps({ openProfileShareModal });
 configureStartupUIDeps({

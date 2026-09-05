@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   normalizeChatBackup,
   normalizeChatMessages,
+  normalizeAgentThreadHandle,
   normalizeChatRecordId,
   normalizeCustomPersonalities,
   sanitizeChatThumbnailUrl,
@@ -16,6 +17,15 @@ describe('chat storage safety', () => {
     expect(normalizeChatRecordId('__proto__')).toBeNull();
     expect(normalizeChatRecordId('thread\"><img src=x>')).toBeNull();
     expect(normalizeChatRecordId('')).toBeNull();
+  });
+
+  it('preserves bounded signed external-agent handles longer than a generic chat ID', () => {
+    const handle = `v3.opencode.${'a'.repeat(180)}.${'b'.repeat(43)}`;
+    expect(handle.length).toBeGreaterThan(128);
+    expect(normalizeAgentThreadHandle(handle)).toBe(handle);
+    expect(normalizeAgentThreadHandle('019c-legacy-thread')).toBe('019c-legacy-thread');
+    expect(normalizeAgentThreadHandle('unsigned session')).toBeNull();
+    expect(normalizeAgentThreadHandle(`v3.opencode.${'a'.repeat(400)}`)).toBeNull();
   });
 
   it('only permits bounded raster data thumbnails', () => {
@@ -46,6 +56,11 @@ describe('chat storage safety', () => {
           discussionEnded: true,
           forkedFromThreadId: 't_parent',
           forkedFromMessageIndex: 7,
+          chatBackend: 'codex',
+          agentThreadId: '019c-agent-thread',
+          agentModel: 'gpt-5.4',
+          projectName: 'Metabolic follow-up'.repeat(10),
+          pinned: true,
         },
         { id: '__proto__', name: 'Rejected' },
       ],
@@ -54,6 +69,7 @@ describe('chat storage safety', () => {
           role: 'assistant',
           content: 'Hello',
           personalityIcon: '<svg onload=alert(1)>',
+          agentId: 'opencode<script>'.repeat(5),
           imageCount: 'not-a-number',
           hasImages: true,
           thumbnails: [TINY_PNG, 'data:image/svg+xml,<svg onload=alert(1)>'],
@@ -106,10 +122,16 @@ describe('chat storage safety', () => {
       discussionEnded: true,
       forkedFromThreadId: 't_parent',
       forkedFromMessageIndex: 7,
+      chatBackend: 'codex',
+      agentThreadId: '019c-agent-thread',
+      agentModel: 'gpt-5.4',
+      projectName: 'Metabolic follow-upMetabolic follow-upMetabolic follow-upMet',
+      pinned: true,
     });
     expect(chat.messages.t_safe[0]).toMatchObject({
       content: 'Hello',
       personalityIcon: 'svg onload=alert(1)',
+      agentId: 'opencode<script>opencode<script>opencode',
       imageCount: 0,
       thumbnails: [TINY_PNG],
       usage: { inputTokens: 0, outputTokens: 12 },
@@ -142,5 +164,50 @@ describe('chat storage safety', () => {
       .toEqual([expect.objectContaining({ content: '', thumbnails: [], imageCount: 0 })]);
     expect(normalizeCustomPersonalities([{ id: 'custom_safe', name: 42 }, null]))
       .toEqual([expect.objectContaining({ id: 'custom_safe', name: 'Custom Personality' })]);
+  });
+
+  it('allowlists persisted agent proposals and keeps them bound to a profile', () => {
+    const [message] = normalizeChatMessages([{
+      role: 'assistant',
+      content: 'I prepared this for review.',
+      agentDrafts: [{
+        id: 'draft-1',
+        profileId: 'profile-1',
+        kind: 'meal',
+        summary: 'Breakfast',
+        status: 'pending',
+        payload: {
+          name: 'Oats', mealType: 'breakfast', note: 'with berries',
+          nutrients: { energyKcal: 420, proteinG: 18, prototype: 'ignored' },
+          hiddenMutation: true,
+        },
+        hiddenMutation: true,
+      }, {
+        id: '__proto__', profileId: 'profile-1', kind: 'note', payload: { scope: 'profile', text: 'bad' },
+      }],
+    }]);
+
+    expect(message.agentDrafts).toEqual([{
+      id: 'draft-1',
+      profileId: 'profile-1',
+      kind: 'meal',
+      summary: 'Breakfast',
+      status: 'pending',
+      payload: {
+        name: 'Oats', eatenAt: '', mealType: 'breakfast', note: 'with berries',
+        nutrients: { energyKcal: 420, proteinG: 18 },
+      },
+    }]);
+  });
+
+  it('drops impossible dates and incomplete biometric proposals', () => {
+    const [message] = normalizeChatMessages([{
+      role: 'assistant', content: 'Review', agentDrafts: [
+        { id: 'draft-bp', profileId: 'profile-1', kind: 'biometric', status: 'pending', payload: { metric: 'bp', systolic: 120 } },
+        { id: 'draft-weight', profileId: 'profile-1', kind: 'biometric', status: 'pending', payload: { metric: 'weight', value: 80, date: '2026-02-30' } },
+        { id: 'draft-meal', profileId: 'profile-1', kind: 'meal', status: 'pending', payload: { name: 'Meal', eatenAt: 'not-a-date' } },
+      ],
+    }]);
+    expect(message).not.toHaveProperty('agentDrafts');
   });
 });

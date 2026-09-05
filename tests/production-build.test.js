@@ -24,6 +24,12 @@ afterAll(async () => {
 });
 
 describe('production startup build', () => {
+  it('keeps repository HTML pointed at the native development entry', async () => {
+    const sourceIndex = await fs.readFile('index.html', 'utf8');
+    expect(sourceIndex).toContain('<script type="module" src="js/main.js"></script>');
+    expect(sourceIndex).not.toMatch(/<script type="module" src="js\/bundle-main-[^"]+\.js"><\/script>/);
+  });
+
   it('rejects ineffective dynamic imports instead of shipping misleading lazy boundaries', () => {
     expect(() => handleBuildLog(
       'warn',
@@ -65,6 +71,12 @@ describe('production startup build', () => {
     expect(index).not.toMatch(/<script(?:\s[^>]*)?>\s*[^<]/);
   });
 
+  it('emits the standalone Linux companion download beside the hosted app', async () => {
+    const companion = await fs.readFile(path.join(outputRoot, 'getbased-companion.mjs'), 'utf8');
+    expect(companion.startsWith('#!/usr/bin/env node\n')).toBe(true);
+    expect(companion).toContain('getbased-companion install');
+  });
+
   it('pre-caches every generated lazy chunk for installed offline use', async () => {
     const serviceWorker = await fs.readFile(path.join(outputRoot, 'service-worker.js'), 'utf8');
     const serviceWorkerRuntime = await fs.readFile(
@@ -80,6 +92,8 @@ describe('production startup build', () => {
     }
     expect(serviceWorker).not.toContain("'/js/main.js',");
     expect(serviceWorker).not.toContain("'/js/views.js',");
+    expect(serviceWorker).not.toContain("'/js/chat-layout.js',");
+    expect(serviceWorker).not.toContain("'/js/agent-chat-client.js',");
     expect(serviceWorker).toContain("'/js/theme-bootstrap.js',");
     expect(serviceWorker).toContain("'/js/extra-theme-bootstrap.js',");
     expect(serviceWorker).toContain("'/js/analytics-bootstrap.js',");

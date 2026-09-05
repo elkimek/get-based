@@ -8,7 +8,7 @@
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
-import { hasAIProvider } from './api.js';
+import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
@@ -211,7 +211,7 @@ const _autoFiredRoomKeys = new Set();
 
 export function renderRoomAIBlock(r) {
   if (!r) return '';
-  if (!hasAIProvider() && !(r.aiAnalysis?.status === 'ok' && r.aiAnalysis?.dot)) return '';
+  if (!hasAssistantFeatureProvider() && !(r.aiAnalysis?.status === 'ok' && r.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(r);
   const a = r.aiAnalysis;
   const currentFingerprint = getRoomFingerprint(r);

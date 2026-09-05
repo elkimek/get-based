@@ -74,6 +74,7 @@ test('sync chat apply covers browser storage merge tombstone lock and encryption
           id: 'collector',
           messageCount: 1,
           updatedAt: '2026-06-08T08:00:00.000Z',
+          projectName: 'Collected project',
           discussionPersonas: [
             { id: 'default', name: 'Analyst', icon: 'A' },
             { id: 'collector_voice', name: 'Collector Voice', icon: 'C' },
@@ -97,6 +98,7 @@ test('sync chat apply covers browser storage merge tombstone lock and encryption
         && collectedChat?.messages?.collector?.[0]?.content === 'collect me'
         && collectedChat?.messages?.collector?.[0]?.recNew === true
         && collectedChat?.threads?.[0]?.discussionPersonas?.[1]?.id === 'collector_voice'
+        && collectedChat?.threads?.[0]?.projectName === 'Collected project'
         && Array.isArray(collectedChat?.messages?.['collector-empty'])
         && collectedChat.customPersonalities?.[0]?.name === 'Collector Voice'
         && collectedChat.activePersonality === 'collector_voice';
@@ -159,7 +161,7 @@ test('sync chat apply covers browser storage merge tombstone lock and encryption
           { id: 'keep', messageCount: 2, updatedAt: '2026-06-08T10:30:00.000Z' },
           { id: 'gone', messageCount: 2, updatedAt: '2026-06-08T10:30:00.000Z' },
           { id: 'stale', messageCount: 1, updatedAt: '2026-06-08T10:15:00.000Z' },
-          { id: 'remote-new', messageCount: 1, updatedAt: '2026-06-08T12:00:00.000Z' },
+          { id: 'remote-new', messageCount: 1, updatedAt: '2026-06-08T12:00:00.000Z', projectName: 'Remote project' },
         ],
         messages: {
           keep: [{ role: 'assistant', content: 'fresh remote keep' }],
@@ -181,6 +183,7 @@ test('sync chat apply covers browser storage merge tombstone lock and encryption
       outcomes.remoteMergeAppliesMessagesTombstonesAndPersonality =
         mergedApplied === true
         && mergedThreads[0]?.id === 'remote-new'
+        && mergedThreads[0]?.projectName === 'Remote project'
         && mergedThreads.some(thread => thread.id === 'keep')
         && mergedThreads.some(thread => thread.id === 'stale')
         && !mergedThreads.some(thread => thread.id === 'gone')
@@ -244,6 +247,7 @@ test('sync chat apply covers browser storage merge tombstone lock and encryption
           id: 'secret',
           messageCount: 1,
           updatedAt: '2026-06-08T15:00:00.000Z',
+          projectName: 'Encrypted synced project',
           discussionPersonas: [
             { id: 'default', name: 'Analyst', icon: 'A' },
             { id: 'custom_secret', name: 'Encrypted Voice', icon: 'E' },
@@ -290,10 +294,14 @@ test('sync chat apply covers browser storage merge tombstone lock and encryption
         && JSON.parse(decryptedSecretThreads || '[]')?.some(thread => thread.id === 'secret')
         && JSON.parse(decryptedSecretThreads || '[]')?.find(thread => thread.id === 'secret')
           ?.discussionPendingPersonas?.[0]?.id === 'custom_secret'
+        && JSON.parse(decryptedSecretThreads || '[]')?.find(thread => thread.id === 'secret')
+          ?.projectName === 'Encrypted synced project'
         && JSON.parse(decryptedSecretPersonas || '[]')
           .some(personality => personality.promptText?.includes('encrypted'))
         && encryptedCollectedChat?.customPersonalities
           ?.some(personality => personality.personaAgreement?.accepted === true)
+        && encryptedCollectedChat?.threads?.find(thread => thread.id === 'secret')
+          ?.projectName === 'Encrypted synced project'
         && encryptedCollectedChat?.activePersonality === 'custom_secret';
 
       await cryptoModule._setTestSessionKey(null);

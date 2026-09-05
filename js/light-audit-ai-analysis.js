@@ -14,7 +14,7 @@
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
-import { hasAIProvider } from './api.js';
+import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
@@ -234,7 +234,7 @@ export const maybeAnalyzeAuditAfterSave = engine.maybeAfterFinish;
 // (via aiAnalysis.fingerprint) and won't re-fire on subsequent renders.
 export function renderAuditAIBlock(a) {
   if (!a) return '';
-  if (!hasAIProvider() && !(a.aiAnalysis?.status === 'ok' && a.aiAnalysis?.dot)) return '';
+  if (!hasAssistantFeatureProvider() && !(a.aiAnalysis?.status === 'ok' && a.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(a);
   const verdict = a.aiAnalysis;
   if (status === 'analyzing') {

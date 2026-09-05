@@ -12,7 +12,7 @@ import {
   openSpectrumClassifier,
 } from './light-tools.js';
 import { configureSunDefaults } from './sun-defaults.js';
-import { hasAIProvider } from './api.js';
+import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { addRoom, configureLightEnv, getRooms, refreshLightEnvironmentAssessment, suggestRoomSourceFromSpectrum } from './light-env.js';
 import { maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot } from './light-audit-ai-analysis.js';
 import { openChatPanel } from './chat-loader.js';
@@ -35,7 +35,7 @@ configureLightEnv({
   openCCTMeter,
   openDarknessMeter,
 });
-configureLightEnvAudits({ hasAIProvider, maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot, openChatPanel });
+configureLightEnvAudits({ hasAIProvider: hasAssistantFeatureProvider, maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot, openChatPanel });
 configureLightTools({
   maybeAnalyzeMeasurementAfterSave,
   suggestRoomSourceFromSpectrum,

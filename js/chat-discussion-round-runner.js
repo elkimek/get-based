@@ -3,7 +3,6 @@
 
 import { state } from './state.js';
 import {
-  CHAT_RESPONSE_MAX_TOKENS, callChatAPIWithContinuation,
   isAIResponseTruncated,
 } from './chat-continuation.js';
 import {
@@ -15,13 +14,14 @@ import {
   hasExistingDiscussionResponses,
 } from './chat-discussion-round-prompts.js';
 import {
-  buildDiscussionAssistantMessage, buildDiscussionRoundRequest, trackDiscussionUsage,
+  buildDiscussionAssistantMessage, buildDiscussionRoundRequest, callDiscussionRoundAssistant,
+  trackDiscussionUsage,
 } from './chat-discussion-round-request.js';
 import {
   isRoundThreadActive, renderRoundMessages, saveRoundChatHistory,
 } from './chat-discussion-round-state.js';
 import {
-  appendDiscussionUsageFootnote, appendRoundPersonaLabel, createDiscussionAiMessage,
+  appendDiscussionOutputAttribution, appendDiscussionUsageFootnote, appendRoundPersonaLabel, createDiscussionAiMessage,
   createDiscussionPersonaLabel, createDiscussionTypingIndicator,
   renderFinalDiscussionMessage,
 } from './chat-discussion-round-view.js';
@@ -29,6 +29,7 @@ import { getChatProviderAttestation } from './chat-runtime.js';
 import { notifyChatContentAdded } from './chat-scroll.js';
 import { updateDiscussionProgress } from './chat-discussion-ui.js';
 import { setChatStreamStatus } from './chat-stream-status.js';
+import { stopChatThinkingStatus } from './chat-thinking-status.js';
 
 export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
   const container = document.getElementById('chat-messages');
@@ -73,7 +74,7 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         await saveRoundChatHistory(roundThreadId, roundHistory);
       }
 
-      const typingEl = createDiscussionTypingIndicator();
+      const typingEl = createDiscussionTypingIndicator(persona);
       activeRound = { aiMsgEl: null, index: pi, persona, request: null, typewriter: null, typingEl };
       if (isRoundThreadActive(roundThreadId)) {
         container.appendChild(typingEl);
@@ -90,16 +91,17 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       const labelEl = createDiscussionPersonaLabel(request.personality);
       appendRoundPersonaLabel(roundThreadId, container, labelEl);
 
-      const aiMsgEl = createDiscussionAiMessage();
+      const aiMsgEl = createDiscussionAiMessage(request.personality);
 
       const typewriter = createDiscussionTypewriter(aiMsgEl, typingEl, container);
       activeRound.aiMsgEl = aiMsgEl;
       activeRound.typewriter = typewriter;
 
-      const aiResult = await callChatAPIWithContinuation({
-        system: request.systemPrompt,
-        messages: request.apiMessages,
-        maxTokens: CHAT_RESPONSE_MAX_TOKENS,
+      const currentThread = state.chatThreads.find(thread => thread.id === roundThreadId);
+      const aiResult = await callDiscussionRoundAssistant({
+        request,
+        thread: currentThread,
+        profileId: state.currentProfile || '',
         signal: controller.signal,
         onStream(text) {
           if (isRoundThreadActive(roundThreadId)) {
@@ -107,8 +109,6 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
             typewriter.update(text);
           }
         },
-        webSearch: request.webSearch,
-        provider: request.provider,
       });
       const fullText = aiResult.text;
       const usage = /** @type {{ inputTokens?: number, outputTokens?: number } | undefined} */ (aiResult.usage);
@@ -137,6 +137,14 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         e2ee: request.e2ee,
         attestation,
       });
+      appendDiscussionOutputAttribution({
+        threadId: roundThreadId,
+        aiMsgEl,
+        provider: request.provider,
+        agentId: request.agentId,
+        modelId: request.modelId,
+        modelDisplay: request.modelDisplay,
+      });
 
       const assistantMsg = buildDiscussionAssistantMessage({
         fullText,
@@ -160,6 +168,7 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
     const error = /** @type {any} */ (err);
     const interruptedRound = activeRound;
     interruptedRound?.typewriter?.stop?.();
+    if (interruptedRound?.typingEl) stopChatThinkingStatus(interruptedRound.typingEl);
     interruptedRound?.typingEl?.remove?.();
     if (error.name === 'AbortError') {
       outcome = 'stopped';

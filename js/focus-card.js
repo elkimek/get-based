@@ -7,7 +7,8 @@ import { escapeAttr, escapeHTML, hasCardContent, getStatus } from './utils.js';
 import { getActiveData, getFocusCardFingerprint } from './data.js';
 import { getAllFlaggedMarkers } from './marker-analysis.js';
 import { profileStorageKey } from './profile.js';
-import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId } from './api.js';
+import { getAIProvider, getActiveModelId } from './api.js';
+import { callAssistantFeatureAI, getAssistantFeatureIdentity, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { injectLensChunks, isGroupInAIContext, isInsightContextCardsEnabled, isLabMarkersContextEnabled, isSupplementsMedsContextEnabled } from './lab-context.js';
 import { hasLens, queryLens } from './lens.js';
 import { applyInlineMarkdown } from './markdown.js';
@@ -190,10 +191,10 @@ export async function loadFocusCard(opts = {}) {
     // fingerprint; never auto-refresh. The manual refresh button still
     // works because refreshFocusCard clears the cache entirely.
     if (!cached.fingerprint) return;
-    if (cached.fingerprint === fp || !hasAIProvider()) return;
+    if (cached.fingerprint === fp || !hasAssistantFeatureProvider()) return;
     if (!refreshStale) return;
   }
-  if (!hasAIProvider()) {
+  if (!hasAssistantFeatureProvider()) {
     if (!cached?.text) el.innerHTML = `<span class="focus-card-text" style="color:var(--text-muted)">Enable AI to generate insights</span>`;
     return;
   }
@@ -235,7 +236,7 @@ export async function loadFocusCard(opts = {}) {
       timer = setTimeout(tick, 16);
     }
 
-    const { text: fullText, usage } = await callClaudeAPI({
+    const { text: fullText, usage } = await callAssistantFeatureAI({
       system: focusSystem,
       messages: [{ role: 'user', content: ctx }],
       maxTokens: 500,
@@ -252,7 +253,7 @@ export async function loadFocusCard(opts = {}) {
     });
     if (timer) { clearTimeout(timer); timer = null; }
 
-    if (usage) {
+    if (usage && !getAssistantFeatureIdentity().subscription) {
       trackUsage(getAIProvider(), getActiveModelId(), usage.inputTokens || 0, usage.outputTokens || 0);
     }
     let trimmed = (fullText || '')

@@ -62,7 +62,7 @@ test('long prompts grow across the full composer and drafts follow their convers
   expect(layout.scrollHeight).toBeGreaterThanOrEqual(layout.input.height);
   expect(layout.overflowY).toBe('auto');
   await expect(send).toBeEnabled();
-  await expect(input).toHaveAttribute('aria-describedby', 'chat-composer-hint');
+  await expect(input).not.toHaveAttribute('aria-describedby');
 
   const outcomes = await page.evaluate(async () => {
     const [{ state }, composer, threads, chatSend] = await Promise.all([

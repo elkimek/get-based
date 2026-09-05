@@ -27,10 +27,12 @@ test('provider changes refresh attachments and composer controls without a reloa
   const input = page.locator('#chat-input');
   const voice = page.locator('#chat-voice-btn');
   const attach = page.locator('#chat-attach-btn');
+  const addPhoto = page.locator('#chat-add-photo-action');
 
   await expect(input).toBeDisabled();
   await expect(voice).toBeDisabled();
-  await expect(attach).toHaveCSS('display', 'none');
+  await expect(attach).toHaveCSS('display', 'flex');
+  await expect(addPhoto).toHaveAttribute('hidden', '');
 
   await page.evaluate(async () => {
     const storage = await import('/js/api-provider-storage.js');
@@ -44,6 +46,7 @@ test('provider changes refresh attachments and composer controls without a reloa
   await expect(input).toBeEnabled();
   await expect(voice).toBeEnabled();
   await expect(attach).toHaveCSS('display', 'flex');
+  await expect(addPhoto).not.toHaveAttribute('hidden', '');
 
   await page.evaluate(async () => {
     const storage = await import('/js/api-provider-storage.js');
@@ -54,5 +57,6 @@ test('provider changes refresh attachments and composer controls without a reloa
 
   await expect(input).toBeDisabled();
   await expect(voice).toBeDisabled();
-  await expect(attach).toHaveCSS('display', 'none');
+  await expect(attach).toHaveCSS('display', 'flex');
+  await expect(addPhoto).toHaveAttribute('hidden', '');
 });

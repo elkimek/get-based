@@ -4,7 +4,7 @@
 import { state } from './state.js';
 import { escapeAttr, escapeHTML, showConfirmDialog, showNotification } from './utils.js';
 import { saveImportedData, getActiveData } from './data.js';
-import { hasAIProvider } from './api.js';
+import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { renderNutritionCircadianExtension, renderNutritionDietExtension } from './nutrition-context-card-extensions.js';
@@ -308,7 +308,7 @@ export {
 
 let contextCardRenderSequence = 0;
 
-export function renderProfileContextCards() {
+export function renderProfileContextCards({ embedded = false } = {}) {
   contextCardRenderSequence += 1;
   const renderId = `ctx-${contextCardRenderSequence}`;
   const sectionTitleId = `${renderId}-section-title`;
@@ -322,11 +322,11 @@ export function renderProfileContextCards() {
     : 'Add only what is relevant, then use Chat to plan which labs may be useful for you.';
   if (_ccMissingDemo) _ccSubtitle += ' Age and sex in Settings also shape interpretation.';
   const _demoAIMode = getDemoContextAIMode();
-  const _refreshBtn = hasAIProvider() && (!_demoAIMode.demo || _demoAIMode.live) ? `<button type="button" class="ctx-refresh-all-btn" ${contextCardActionAttrs('refresh-all-health-dots')} aria-label="Refresh AI context insights"><span class="ctx-refresh-all-icon" aria-hidden="true">&#x21bb;</span><span class="ctx-refresh-all-label">Refresh insights</span></button>` : '';
-  let html = `<section class="profile-context-section" aria-labelledby="${sectionTitleId}">
+  const _refreshBtn = hasAssistantFeatureProvider() && (!_demoAIMode.demo || _demoAIMode.live) ? `<button type="button" class="ctx-refresh-all-btn" ${contextCardActionAttrs('refresh-all-health-dots')} aria-label="Refresh AI context insights"><span class="ctx-refresh-all-icon" aria-hidden="true">&#x21bb;</span><span class="ctx-refresh-all-label">Refresh insights</span></button>` : '';
+  let html = `<section class="profile-context-section" ${embedded ? 'aria-label="Your health context"' : `aria-labelledby="${sectionTitleId}"`}>
     <div class="context-section-header">
       <div class="context-section-intro">
-        <div class="context-section-title" id="${sectionTitleId}">Your health context</div>
+        ${embedded ? '' : `<div class="context-section-title" id="${sectionTitleId}">Your health context</div>`}
         <div class="context-section-subtitle">${escapeHTML(_ccSubtitle)}</div>
       </div>
       <div class="context-section-tools">

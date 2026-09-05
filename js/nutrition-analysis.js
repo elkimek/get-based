@@ -2,6 +2,7 @@
 // nutrition-analysis.js — provider-agnostic meal-photo extraction.
 
 import { AI_IMPORT_REQUEST_TIMEOUT_MS, callClaudeAPI } from './api.js';
+import { callCodexVisionFeature } from './agent-feature-inference.js';
 import {
   buildVisionContent, formatImageBlock, imageFileToBase64,
   isValidImageType, resizeImageVariants,
@@ -533,26 +534,34 @@ export async function analyzeMealPhoto(file, options = {}) {
     ? options.preparedPhotos.slice(0, 4)
     : await prepareMealPhotos(file);
   onProgress(2, `${correctedMealName ? 'Recalculating with' : analysisKind === 'nutrition-label' ? 'Reading label with' : 'Waiting for'} ${availability.modelDisplay}…`);
-  const imageBlocks = mealAnalysisImageBlocks(prepared, availability.provider);
-  const content = buildVisionContent(imageBlocks, buildMealAnalysisPrompt({ correctedMealName, previousMealName, analysisKind, consumedAmount, consumedUnit, userContext: options.userContext }), availability.provider);
-  const result = await callClaudeAPI({
-    messages: [{ role: 'user', content }],
-    maxTokens: 8192,
-    forceNonStream: true,
-    requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS,
-    requestRetries: 0,
-    jsonMode: true,
-    jsonSchema: analysisKind === 'nutrition-label' ? MEAL_ANALYSIS_SCHEMA : MEAL_PHOTO_ANALYSIS_SCHEMA,
-    reasoningEffort: 'low',
-    minOutputTokens: analysisKind === 'nutrition-label' ? 1536 : 1024,
-    preferNativeContext: true,
-    temperature: 0,
-    signal: options.signal,
-    consentKind: 'meal-photo',
-    modelOverride: availability.model,
-  }, availability.provider);
+  const prompt = buildMealAnalysisPrompt({ correctedMealName, previousMealName, analysisKind, consumedAmount, consumedUnit, userContext: options.userContext });
+  const jsonSchema = analysisKind === 'nutrition-label' ? MEAL_ANALYSIS_SCHEMA : MEAL_PHOTO_ANALYSIS_SCHEMA;
+  const result = availability.adapter === 'codex'
+    ? await callCodexVisionFeature({
+      files: prepared.map(item => item.item),
+      prompt,
+      model: availability.model,
+      outputSchema: jsonSchema,
+      signal: options.signal,
+    })
+    : await callClaudeAPI({
+      messages: [{ role: 'user', content: buildVisionContent(mealAnalysisImageBlocks(prepared, availability.provider), prompt, availability.provider) }],
+      maxTokens: 8192,
+      forceNonStream: true,
+      requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS,
+      requestRetries: 0,
+      jsonMode: true,
+      jsonSchema,
+      reasoningEffort: 'low',
+      minOutputTokens: analysisKind === 'nutrition-label' ? 1536 : 1024,
+      preferNativeContext: true,
+      temperature: 0,
+      signal: options.signal,
+      consentKind: 'meal-photo',
+      modelOverride: availability.model,
+    }, availability.provider);
   const usage = normalizeNutritionAIUsage(result?.usage);
-  if (usage) trackUsage(availability.provider, availability.model, usage.inputTokens, usage.outputTokens);
+  if (usage && availability.adapter !== 'codex') trackUsage(availability.provider, availability.model, usage.inputTokens, usage.outputTokens);
   onProgress(3, 'Checking foods, portions, and nutrients…');
   if (result?.truncated) {
     throw new Error('The vision model cut off the meal data before it was complete. Try again or choose a faster meal-photo model.');

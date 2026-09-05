@@ -27,6 +27,8 @@ let _getAgentWearableSeriesDays = () => 0;
 let _getProfiles = () => [];
 /** @type {number | null} */
 let _contextPushTimer = null;
+let _contextPushInFlight = false;
+let _blockedContextPushIdentity = '';
 let _agentAccessMigrationDirty = false;
 
 function cancelPendingContextPush() {
@@ -151,6 +153,8 @@ let _lastAgentAccessMigrationSignature = null;
 export function _resetAgentAccessMigrationStateForTesting() {
   _lastAgentAccessMigrationSignature = null;
   _agentAccessMigrationDirty = false;
+  _contextPushInFlight = false;
+  _blockedContextPushIdentity = '';
 }
 
 export function isAgentAccessMigrationDirty() {
@@ -534,6 +538,11 @@ export function pushContextToGateway() {
   if (!isMessengerEnabled()) return;
   const token = getMessengerToken();
   if (!token) return;
+  const pushIdentity = `${ownerIdString(currentAppOwner()) || ''}:${token}`;
+  if (_blockedContextPushIdentity === pushIdentity) {
+    dbg('Skipped Agent Access context push until its token is regenerated for this Sync identity');
+    return;
+  }
   const contextKey = ensureMessengerContextKey();
   const profileId = state.currentProfile || 'default';
   // Demo profiles are intentionally local-only. Agent Access uses a separate
@@ -541,6 +550,9 @@ export function pushContextToGateway() {
   if (isDemoProfileId(profileId, _getProfiles())) return;
 
   _contextPushTimer = setTimeout(async () => {
+    _contextPushTimer = null;
+    if (_blockedContextPushIdentity === pushIdentity || _contextPushInFlight) return;
+    _contextPushInFlight = true;
     try {
       const latest = getAgentAccessState();
       if (state.currentProfile !== profileId
@@ -596,16 +608,23 @@ export function pushContextToGateway() {
         }),
       });
       if (!res.ok) {
-        let detail = '';
+        let body = '';
         try {
-          const body = await res.text();
-          detail = body ? `: ${body.slice(0, 240)}` : '';
+          body = await res.text();
         } catch {}
+        if (res.status === 409 && /"error"\s*:\s*"token_owner_mismatch"/.test(body)) {
+          _blockedContextPushIdentity = pushIdentity;
+          console.warn('[sync] Agent Access token belongs to another Sync identity. Regenerate it in Settings → Data → Agent Access.');
+          return;
+        }
+        const detail = body ? `: ${body.slice(0, 240)}` : '';
         throw new Error(`Gateway returned ${res.status}${detail}`);
       }
       dbg(`Encrypted context pushed to gateway (profile: ${profileId}, series: ${seriesBlock ? 'yes' : 'no'})`);
     } catch (e) {
       console.warn('[sync] Context push failed:', e);
+    } finally {
+      _contextPushInFlight = false;
     }
   }, 5000); // 5s debounce - less urgent than sync
 }

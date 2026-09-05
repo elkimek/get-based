@@ -419,11 +419,12 @@ Evidence and candidate guidance:
    image study found the best cost/performance balance; Opus' median percentage
    error was generally only 1–3 points lower at roughly five times the listed
    input-token cost.
-2. **Gemini 3.7 Flash** — recommended value candidate where available. A July
+2. **Gemini 3.8 Flash** — recommended value candidate where available. A July
    2026 Nutrition5k preprint found Gemini 3.0 Flash best for calorie estimation
    among ten tested models and Gemini 3.1 Flash Lite best for cost/performance,
-   but that evidence does not validate the newer 3.7 route. The exact version
-   therefore remains explicitly marked as needing an app-specific benchmark.
+   but that evidence does not validate the newer 3.8 route. Google reports that
+   3.8 improves on 3.7 at the same introductory token price; the exact version
+   nevertheless remains explicitly marked as needing an app-specific benchmark.
 3. **Claude Opus 4.6** — studied accuracy tier for complex meals. The same study found a
    modest advantage on meal photos, but not a consistently meaningful numerical
    advantage across all conditions.

@@ -80,13 +80,14 @@ assert('Has openrouter _default fallback', schemaSrc.includes("'_default':") && 
 assert('getModelPricing checks openrouter-pricing cache', schemaSrc.includes('labcharts-openrouter-pricing'));
 assert('OPENROUTER_CURATED whitelist exists', apiModelsSrc.includes('OPENROUTER_CURATED'));
 assert('Curated: anthropic/claude-sonnet-5 prefix', apiModelsSrc.includes("'anthropic/claude-sonnet-5'"));
+assert('Curated and recommended: Claude Fable 5.1', apiModelsSrc.includes("'anthropic/claude-fable-5'") && apiModelsSrc.includes("'anthropic/claude-fable-5.1'"));
 assert('Curated: anthropic/claude-sonnet prefix', apiModelsSrc.includes("'anthropic/claude-sonnet-4'"));
 assert('Curated: anthropic/claude-opus-5 prefix', apiModelsSrc.includes("'anthropic/claude-opus-5'"));
 assert('Curated: anthropic/claude-opus prefix', apiModelsSrc.includes("'anthropic/claude-opus-4'"));
 assert('Curated: openai/gpt prefix', apiModelsSrc.includes("'openai/gpt-5'"));
 assert('Curated: google/gemini-3 prefix', apiModelsSrc.includes("'google/gemini-3'"));
 assert('Curated: google/gemini-2 prefix', apiModelsSrc.includes("'google/gemini-2'"));
-assert('Recommended: Gemini 3.5 Flash', apiModelsSrc.includes("'google/gemini-3.5-flash'"));
+assert('Recommended: Gemini 3.8 Flash', apiModelsSrc.includes("'google/gemini-3.8-flash'"));
 assert('Curated: deepseek prefix', apiModelsSrc.includes("'deepseek/deepseek'"));
 assert('Curated: qwen prefix', apiModelsSrc.includes("'qwen/qwen'"));
 assert('Curated: z-ai/glm-5 prefix', apiModelsSrc.includes("'z-ai/glm-5'"));
@@ -203,7 +204,7 @@ console.log('\n4. chat-send.js source inspection');
 const chatSendSrc = read('js/chat-send.js');
 const chatOnboardingSrc = read('js/chat-onboarding.js');
 assert('chat-send.js uses getActiveModelId for model resolution', chatSendSrc.includes('getActiveModelId'));
-assert('chat-send.js snapshots provider for sends', chatSendSrc.includes('const _msgProvider = getAIProvider()') && chatSendSrc.includes('provider: _msgProvider'));
+assert('chat-send.js snapshots provider for sends', /const _msgProvider =[^;]+getAIProvider\(\)/.test(chatSendSrc) && chatSendSrc.includes('provider: _msgProvider'));
 
 // ─── 5. pdf-import.js source inspection ───
 console.log('\n5. pdf-import.js source inspection');

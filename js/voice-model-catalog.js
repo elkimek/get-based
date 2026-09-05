@@ -22,7 +22,18 @@ export const LOCAL_STT_MODELS = Object.freeze([
     dtype: 'q8',
     downloadMB: 260,
     license: 'Apache-2.0',
-    notes: 'Recommended balance of transcription quality and speed on modern consumer hardware.',
+    notes: 'Recommended default for most devices: faster than the larger tiers, with lower transcription accuracy.',
+  },
+  {
+    id: 'onnx-community/whisper-medium-ONNX',
+    label: 'Whisper Medium · Balanced',
+    optionLabel: 'Balanced · Whisper Medium',
+    language: 'Multilingual',
+    multilingual: true,
+    dtype: 'q4',
+    downloadMB: 690,
+    license: 'Apache-2.0',
+    notes: 'Balanced accuracy tier between Small and Large. Speed varies by hardware and processing mode.',
   },
   {
     id: 'onnx-community/whisper-large-v3-turbo',
@@ -94,6 +105,20 @@ export function getLocalVoice(voiceId) {
 export function getLocalModel(kind, modelId) {
   const models = kind === 'tts' ? LOCAL_TTS_MODELS : LOCAL_STT_MODELS;
   return models.find(model => model.id === modelId) || models[0];
+}
+
+export function getLocalModelStorageCopy(kind, modelId, backend = 'auto') {
+  const model = getLocalModel(kind, modelId);
+  if (kind !== 'tts') {
+    return `One shared CPU/GPU file · about ${model.downloadMB} MB · ${model.license}`;
+  }
+  if (backend === 'webgpu') {
+    return `GPU weights · about ${model.gpuDownloadMB} MB · separate from the ${model.downloadMB} MB CPU weights`;
+  }
+  if (backend === 'wasm') {
+    return `CPU weights · about ${model.downloadMB} MB · separate from the ${model.gpuDownloadMB} MB GPU weights`;
+  }
+  return `Optimized weights · about ${model.downloadMB} MB on CPU or ${model.gpuDownloadMB} MB on GPU`;
 }
 
 export function resolveLocalSttLanguage(modelId, language = 'auto') {

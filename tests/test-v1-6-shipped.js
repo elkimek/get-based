@@ -450,12 +450,12 @@ const _origProfileSex = state ? state.profileSex : null;
     // through _fetchWithRetry and the streaming helpers. We don't
     // duplicate the timeout logic here, just confirm the import + call
     // sites exist so a future refactor doesn't accidentally bypass them.
-    assert('pdf-import-ai-utils.js: imports callClaudeAPI from api.js',
-      /import\s*\{[^}]*callClaudeAPI[^}]*\}\s*from\s*['"]\.\/api\.js['"]/.test(pdfAiUtilsSrc));
+    assert('pdf-import-ai-utils.js: imports provider-aware feature routing',
+      /import\s*\{[^}]*callAssistantFeatureAI[^}]*\}\s*from\s*['"]\.\/ai-feature-routing\.js['"]/.test(pdfAiUtilsSrc));
     assert('pdf-import-ai-utils.js: imports import-specific AI timeout from api.js',
       /import\s*\{[^}]*AI_IMPORT_REQUEST_TIMEOUT_MS[^}]*\}\s*from\s*['"]\.\/api\.js['"]/.test(pdfAiUtilsSrc));
-    assert('pdf-import-ai-utils.js: import AI fallback calls callClaudeAPI',
-      /function\s+callImportAIWithStreamFallback[\s\S]+?callClaudeAPI\(/.test(pdfAiUtilsSrc));
+    assert('pdf-import-ai-utils.js: import AI fallback uses feature routing',
+      /function\s+callImportAIWithStreamFallback[\s\S]+?callAssistantFeatureAI\(/.test(pdfAiUtilsSrc));
     assert('pdf-import-ai-utils.js: retries aborted AI import streams without streaming',
       /function\s+isAIStreamAbortError/.test(pdfAiUtilsSrc)
       && /aborted by user/.test(pdfAiUtilsSrc)

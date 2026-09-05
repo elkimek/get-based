@@ -71,7 +71,7 @@ export function renderPrivacySection() {
         <div class="settings-copy-desc">Requires a server you trust; the original report is sent to that endpoint for scrubbing. Cloud-tagged models are blocked. When disabled, deterministic pattern matching is used instead.</div>
       </div>
       <label class="toggle-switch">
-        <input type="checkbox" id="pii-local-toggle" ${piiEnabled ? 'checked' : ''} data-settings-action="toggle-pii-local">
+        <input type="checkbox" id="pii-local-toggle" aria-label="Remove personal identifiers locally" ${piiEnabled ? 'checked' : ''} data-settings-action="toggle-pii-local">
         <span class="toggle-slider"></span>
       </label>
     </div>
@@ -81,7 +81,7 @@ export function renderPrivacySection() {
         <div class="settings-copy-desc">Pause after privacy protection runs so you can inspect what the AI is about to receive.</div>
       </div>
       <label class="toggle-switch">
-        <input type="checkbox" id="pii-review-toggle" ${isPIIReviewEnabled() ? 'checked' : ''} data-settings-action="toggle-pii-review">
+        <input type="checkbox" id="pii-review-toggle" aria-label="Review personal identifiers before sending" ${isPIIReviewEnabled() ? 'checked' : ''} data-settings-action="toggle-pii-review">
         <span class="toggle-slider"></span>
       </label>
     </div>
@@ -156,7 +156,7 @@ export function renderPrivacyAnalyticsSection() {
       <div class="privacy-setting-note">Takes effect on next launch.</div>
     </div>
     <label class="toggle-switch">
-      <input type="checkbox" id="analytics-toggle" ${isAnalyticsEnabled() ? 'checked' : ''} data-settings-action="set-analytics">
+      <input type="checkbox" id="analytics-toggle" aria-label="Send optional cookieless usage stats" ${isAnalyticsEnabled() ? 'checked' : ''} data-settings-action="set-analytics">
       <span class="toggle-slider"></span>
     </label>
   </div>`;

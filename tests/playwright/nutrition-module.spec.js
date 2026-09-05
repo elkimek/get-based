@@ -1924,6 +1924,15 @@ test('quick drink logging stores total beverage volume and plain water separatel
 
 test('AI Settings can route meal photos to Opus without changing the Grok chat model', async ({ page }) => {
   await page.route('https://api.venice.ai/api/v1/models', route => route.abort());
+  await page.route('https://openrouter.ai/api/v1/models**', route => route.fulfill({
+    json: { data: [
+      { id: 'z-ai/glm-5.3', name: 'Z.ai: GLM 5.3', architecture: { input_modalities: ['text'] } },
+      { id: 'x-ai/grok-4.6', name: 'Grok 4.6', architecture: { input_modalities: ['text', 'image'] } },
+      { id: 'anthropic/claude-opus-5', name: 'Claude Opus 5', architecture: { input_modalities: ['text', 'image'] } },
+      { id: 'anthropic/claude-opus-4.8', name: 'Legacy Opus', architecture: { input_modalities: ['text', 'image'] } },
+      { id: 'anthropic/claude-sonnet-5', name: 'Text-only Sonnet', architecture: { input_modalities: ['text'] } },
+    ] },
+  }));
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(async () => {
     const api = await import('/js/api.js');
@@ -1966,8 +1975,8 @@ test('AI Settings can route meal photos to Opus without changing the Grok chat m
   const selector = page.locator('[data-settings-action="set-nutrition-ai-route"]');
   await expect(selector).toBeVisible();
   await expect(page.locator('#nutrition-ai-model-settings')).toContainText('Meal photos and labels');
-  await expect(page.locator('#nutrition-ai-model-settings')).toContainText('Only image-capable OpenRouter models are shown');
-  await expect(selector.locator('option').first()).toContainText('Main cannot analyze photos — Z.ai: GLM 5.3');
+  await expect(page.locator('#nutrition-ai-model-settings')).toContainText('Only models with confirmed image input are shown');
+  await expect(selector.locator('option').first()).toContainText('Follow chat assistant — Z.ai: GLM 5.3');
   await expect(selector.locator('option').first()).toBeDisabled();
   await expect(selector).toHaveValue('');
   await expect(selector).not.toContainText('Venice Vision');
@@ -1983,12 +1992,12 @@ test('AI Settings can route meal photos to Opus without changing the Grok chat m
   await page.locator('#openrouter-model-select').selectOption('x-ai/grok-4.6');
   await expect(page.locator('[data-settings-action="set-nutrition-ai-route"] option').first()).toContainText('Grok 4.6');
   await page.locator('[data-settings-action="switch-ai-provider"][data-provider="venice"]').click();
-  await expect(page.locator('#nutrition-ai-model-settings')).toContainText('Only image-capable Venice models are shown');
+  await expect(page.locator('#nutrition-ai-model-settings')).toContainText('Only models with confirmed image input are shown');
   await expect(page.locator('[data-settings-action="set-nutrition-ai-route"]')).toContainText('Venice Vision');
   await expect(page.locator('[data-settings-action="set-nutrition-ai-route"]')).not.toContainText('Claude Opus 5');
   await page.locator('[data-settings-action="switch-ai-provider"][data-provider="openrouter"]').click();
   const openRouterSelector = page.locator('[data-settings-action="set-nutrition-ai-route"]');
-  await expect(page.locator('#nutrition-ai-model-settings')).toContainText('Only image-capable OpenRouter models are shown');
+  await expect(page.locator('#nutrition-ai-model-settings')).toContainText('Only models with confirmed image input are shown');
   await expect(openRouterSelector).not.toContainText('Venice Vision');
   await openRouterSelector.selectOption(JSON.stringify({ provider: 'openrouter', model: 'anthropic/claude-opus-5' }));
 
@@ -2021,7 +2030,7 @@ test('the meal editor switches visual models directly and returns from AI Settin
 
   const mealSelector = page.locator('[data-nutrition-model-route]');
   await expect(mealSelector).toHaveValue('');
-  await expect(mealSelector.locator('option').first()).toContainText('Follow main · Grok 4.6');
+  await expect(mealSelector.locator('option').first()).toContainText('Follow chat assistant · Grok 4.6');
   await expect(page.locator('#nutrition-meal-model-control')).toContainText('Photo model');
   await expect(page.locator('#nutrition-meal-model-control')).toContainText('Ready');
   await expect(mealSelector.locator('option:checked')).toContainText('Grok 4.6');
@@ -2050,13 +2059,13 @@ test('the meal editor switches visual models directly and returns from AI Settin
   await expect(page.locator('#settings-modal-overlay')).toBeVisible();
   await expect(page.locator('#modal-overlay')).toBeVisible();
   await page.locator('#openrouter-model-select').selectOption('anthropic/claude-opus-5');
-  await expect(page.locator('[data-settings-action="set-nutrition-ai-route"] option').first()).toContainText('Follow main — Claude Opus 5');
+  await expect(page.locator('[data-settings-action="set-nutrition-ai-route"] option').first()).toContainText('Follow chat assistant — Claude Opus 5');
   await page.locator('#settings-modal .modal-close').click();
 
   await expect(page.locator('#settings-modal-overlay')).not.toBeVisible();
   await expect(page.locator('#modal-overlay')).toBeVisible();
   await expect(page.locator('#nutrition-meal-name')).toHaveValue('Draft rice bowl');
-  await expect(page.locator('[data-nutrition-model-route] option').first()).toContainText('Follow main · Claude Opus 5');
+  await expect(page.locator('[data-nutrition-model-route] option').first()).toContainText('Follow chat assistant · Claude Opus 5');
   await expect(mealSelector.locator('option:checked')).toContainText('Claude Opus 5');
   await page.locator('[data-nutrition-model-route]').selectOption(JSON.stringify({ provider: 'openrouter', model: 'x-ai/grok-4.6' }));
   await expect(page.locator('[data-nutrition-model-route] option:checked')).toContainText('Grok 4.6');

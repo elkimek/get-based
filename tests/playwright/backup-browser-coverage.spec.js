@@ -42,7 +42,7 @@ test('backup browser coverage exercises export import auto backup and folder sta
     const previousBackupRuntimeDeps = backup.configureBackupRuntimeDeps({
       encryptedGetItem: async key => {
         if (key === `labcharts-${profileId}-chat-threads`) {
-          return JSON.stringify([{ id: threadId, title: 'Thread' }]);
+          return JSON.stringify([{ id: threadId, title: 'Thread', projectName: 'Metabolic project' }]);
         }
         return localStorage.getItem(key);
       },
@@ -118,7 +118,7 @@ test('backup browser coverage exercises export import auto backup and folder sta
       localStorage.setItem('labcharts-profiles', originalProfileList);
       localStorage.setItem(importedKey, JSON.stringify({ entries: [{ date: '2026-06-09', markers: { ferritin: 41 } }] }));
       localStorage.setItem(`labcharts-${profileId}-chat`, JSON.stringify([{ role: 'user', content: 'hello' }]));
-      localStorage.setItem(`labcharts-${profileId}-chat-threads`, JSON.stringify([{ id: threadId, title: 'Thread' }]));
+      localStorage.setItem(`labcharts-${profileId}-chat-threads`, JSON.stringify([{ id: threadId, title: 'Thread', projectName: 'Metabolic project' }]));
       localStorage.setItem(`labcharts-${profileId}-chat-t_${threadId}`, JSON.stringify([{ role: 'assistant', content: 'saved thread' }]));
       localStorage.setItem(`labcharts-${profileId}-units`, 'EU');
       localStorage.setItem(`labcharts-${profileId}-chatRailOpen`, 'true');
@@ -136,6 +136,7 @@ test('backup browser coverage exercises export import auto backup and folder sta
         && snapshot.profiles?.[0]?.keys?.imported?.includes('ferritin')
         && snapshot.profiles?.[0]?.keys?.chat?.includes('hello')
         && snapshot.profiles?.[0]?.keys?.['chat-threads']?.includes(threadId)
+        && snapshot.profiles?.[0]?.keys?.['chat-threads']?.includes('Metabolic project')
         && snapshot.profiles?.[0]?.keys?.[`chat-t_${threadId}`]?.includes('saved thread')
         && snapshot.profiles?.[0]?.keys?.units === 'EU'
         && snapshot.profiles?.[0]?.keys?.chatRailOpen === 'true';
@@ -172,7 +173,7 @@ test('backup browser coverage exercises export import auto backup and folder sta
         && encryptedChatSnapshot?.profiles?.[0]?.keys?.[`chat-t_${threadId}`] === 'v1:encrypted-thread-messages'
         && encryptedChatSnapshot?.profiles?.[0]?.keys?.chatPersonalityCustom === 'v1:encrypted-custom-personas'
         && encryptedChatSnapshot?.profiles?.[0]?.keys?.chatPersonalityDeleted === 'v1:encrypted-persona-tombstones';
-      localStorage.setItem(`labcharts-${profileId}-chat-threads`, JSON.stringify([{ id: threadId, title: 'Thread' }]));
+      localStorage.setItem(`labcharts-${profileId}-chat-threads`, JSON.stringify([{ id: threadId, title: 'Thread', projectName: 'Metabolic project' }]));
       localStorage.setItem(`labcharts-${profileId}-chat-t_${threadId}`, JSON.stringify([{ role: 'assistant', content: 'saved thread' }]));
 
       const downloads = [];

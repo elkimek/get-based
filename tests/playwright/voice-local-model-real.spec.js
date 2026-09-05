@@ -1,11 +1,21 @@
 import { expect, test } from '@playwright/test';
 
 const runRealModels = process.env.GETBASED_VOICE_REAL_MODELS === '1';
+const runMediumModel = process.env.GETBASED_VOICE_MEDIUM_MODEL === '1';
 const runLargeModel = process.env.GETBASED_VOICE_LARGE_MODEL === '1';
 const expectTtsGpuRejection = process.env.GETBASED_VOICE_EXPECT_TTS_GPU_REJECTION === '1';
 const smallModelBackend = process.env.GETBASED_VOICE_SMALL_BACKEND || 'auto';
 const ttsModelBackend = process.env.GETBASED_VOICE_TTS_BACKEND || 'auto';
+const mediumModelBackend = process.env.GETBASED_VOICE_MEDIUM_BACKEND || 'auto';
 const largeModelBackend = process.env.GETBASED_VOICE_LARGE_BACKEND || 'webgpu';
+
+async function acknowledgeAiTransparency(page) {
+  const overlay = page.locator('#ai-transparency-overlay');
+  await expect(overlay).toBeVisible({ timeout: 5_000 });
+  await overlay.locator('input[type="checkbox"]').check();
+  await overlay.getByRole('button', { name: 'Acknowledge & continue' }).click();
+  await expect(overlay).toHaveCount(0);
+}
 
 test.describe('Voice real local models', () => {
   test.describe.configure({ mode: 'serial' });
@@ -157,6 +167,8 @@ test.describe('Voice real local models', () => {
     await page.locator('#settings-modal .modal-close').click();
     const listenButton = page.locator('#chat-listen-btn-0');
     await listenButton.click();
+    await expect(listenButton).toContainText('Cancel');
+    await acknowledgeAiTransparency(page);
     await expect(listenButton).toContainText('Stop', { timeout: 2 * 60_000 });
     await expect(listenButton).toContainText('Listen', { timeout: 30_000 });
     const playbackState = await page.evaluate(async () => {
@@ -229,6 +241,8 @@ test.describe('Voice real local models', () => {
     const listenButton = page.locator('#chat-listen-btn-0');
     const startedAt = Date.now();
     await listenButton.click();
+    await expect(listenButton).toContainText('Cancel');
+    await acknowledgeAiTransparency(page);
     await expect(listenButton).toContainText('Stop', { timeout: 20_000 });
     await expect.poll(
       () => page.evaluate(async () => {
@@ -361,6 +375,43 @@ test.describe('Voice real local models', () => {
     });
     expect(result.ok).toBe(false);
     expect(result.message).toContain('Graphics speech validation failed');
+  });
+
+  test('runs the balanced Whisper Medium q4 tier', async ({ page }) => {
+    test.skip(!runMediumModel, 'Set GETBASED_VOICE_MEDIUM_MODEL=1 to run the medium-model canary.');
+    test.setTimeout(10 * 60_000);
+    await page.goto('/app', { waitUntil: 'load' });
+    const result = await page.evaluate(async backend => {
+      const { browserLocalVoiceProvider } = await import('/js/voice-provider-browser-local.js');
+      await browserLocalVoiceProvider.installModel(
+        'tts',
+        'onnx-community/Kokoro-82M-v1.0-ONNX',
+      );
+      await browserLocalVoiceProvider.installModel(
+        'stt',
+        'onnx-community/whisper-medium-ONNX',
+        undefined,
+        backend,
+      );
+      const speech = await browserLocalVoiceProvider.synthesize({
+        text: 'Check my iron level.',
+        modelId: 'onnx-community/Kokoro-82M-v1.0-ONNX',
+        voiceId: 'af_heart',
+        rate: 1,
+      });
+      const startedAt = performance.now();
+      const transcript = await browserLocalVoiceProvider.transcribe({
+        audio: speech.audio,
+        modelId: 'onnx-community/whisper-medium-ONNX',
+        language: 'en',
+        backend,
+      });
+      return { ...transcript, elapsedMs: performance.now() - startedAt };
+    }, mediumModelBackend);
+    console.log(`[stage] Whisper Medium result: ${JSON.stringify(result)}`);
+
+    expect(['wasm', 'webgpu']).toContain(result.backend);
+    expect(result.text.toLowerCase()).toContain('check my iron level');
   });
 
   test('runs the high-end Whisper Large v3 Turbo q4 tier', async ({ page }) => {

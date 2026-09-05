@@ -2,6 +2,7 @@
 // dashboard-widget-controls.js - dashboard widget controls, picker, and layout actions
 
 import { DASHBOARD_WIDGET_SOURCE_ORDER, dashboardBiometricSelectionKey } from './dashboard-widgets.js';
+import { getWidgetHeaderDescription } from './dashboard-widget-copy.js';
 import { escapeAttr, escapeHTML, formatValue, getStatus, safeMarkerId, showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import {
@@ -89,6 +90,7 @@ export function createDashboardWidgetControls(deps) {
 
   function renderDashboardWidget(entry, prefs, index, visibleEntries) {
     const { def, body } = entry;
+    const description = getWidgetHeaderDescription(def.id, def.description);
     const isHidden = prefs.hidden.includes(def.id);
     if (isHidden || (!body && !organizeMode)) return '';
     const canMoveUp = index > 0;
@@ -105,9 +107,9 @@ export function createDashboardWidgetControls(deps) {
       <div class="dashboard-widget-chrome">
         <div class="dashboard-widget-handle" aria-hidden="true">⋮⋮</div>
         <div class="dashboard-widget-heading">
-          ${def.source ? `<div class="dashboard-widget-source">${escapeHTML(def.source)}</div>` : ''}
+          ${organizeMode && def.source ? `<div class="dashboard-widget-source">${escapeHTML(def.source)}</div>` : ''}
           <div class="dashboard-widget-title">${escapeHTML(def.title)}</div>
-          <div class="dashboard-widget-description">${escapeHTML(def.description || '')}</div>
+          ${description ? `<div class="dashboard-widget-description">${escapeHTML(description)}</div>` : ''}
         </div>
         ${controls}
       </div>

@@ -82,6 +82,8 @@ test('dashboard renders Biological Coherence hero and domain rows', async ({ pag
   await expect(hero.locator('.db-bio-coherence-hero')).toBeVisible();
   await expect(hero.locator('.db-bio-coherence-ring')).toBeVisible();
   await expect(hero.locator('.db-bio-coherence-number')).toContainText('/100');
+  await expect(hero.locator('.dashboard-widget-source, .db-bio-coherence-eyebrow')).toHaveCount(0);
+  await expect(hero.locator('.dashboard-widget-description')).toBeVisible();
 
   const domainRows = hero.locator('.bc-micro-domain');
   await expect(domainRows).toHaveCount(12);
@@ -194,6 +196,10 @@ test('Biology Scores lens renders coherence hero with dashboard toggle and score
   // Biology Score detail card is live, with no "needs more data" disclosure.
   await expect(page.locator('.biology-score-detail')).toHaveCount(18);
   await expect(page.locator('.biology-score-unavailable-group')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Improve lab coverage' })).toBeVisible();
+  await expect(page.locator('.biology-score-question .biology-score-question-kicker, .biology-coverage-section-kicker')).toHaveCount(0);
+  await expect(page.getByText('What this means', { exact: true }).first()).toBeVisible();
+  await expect(page.locator('.biology-score-question').first()).toContainText('?');
 });
 
 test('dashboard domain rows without primaryScoreId get no-jump visual cue', async ({ page }) => {

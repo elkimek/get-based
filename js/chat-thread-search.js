@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { encryptedGetItem, getEncryptionEnabled } from './crypto.js';
-import { escapeHTML } from './utils.js';
+import { escapeHTML, showConfirmDialog, showNotification } from './utils.js';
 import { chatMessageActionAttrs } from './chat-message-action-attrs.js';
 import { preferredChatScrollBehavior } from './chat-scroll.js';
 
@@ -24,6 +24,7 @@ const threadSearchCallbacks = {
 let _threadSearchTimer = null;
 /** @type {{ profileId: string | null, threads: Map<string, any[]> } | null} */
 let _threadContentCache = null; // { profileId, threads: Map<threadId, messages[]> }
+let searchRevision = 0;
 
 const SEARCH_RESULT_LIMIT = 30;
 
@@ -32,25 +33,178 @@ export function configureChatThreadSearch(callbacks = {}) {
   Object.assign(threadSearchCallbacks, callbacks);
 }
 
+const threadProjectCallbacks = {
+  createNewThread: _options => null,
+  renderThreadList: () => {},
+  saveChatThreadIndex: async () => false,
+  showPromptDialog: async (_message, _options) => null,
+};
+
+export function configureChatThreadProjects(callbacks = {}) {
+  Object.assign(threadProjectCallbacks, callbacks);
+}
+
+export function getThreadProjectNames() {
+  return [...new Set(state.chatThreads.map(thread => String(thread.projectName || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
+}
+
+export async function createThreadProject() {
+  const profile = state.currentProfile;
+  const name = await threadProjectCallbacks.showPromptDialog('Create a project:', {
+    defaultValue: '',
+    okLabel: 'Create',
+  });
+  if (profile !== state.currentProfile) return null;
+  const projectName = String(name || '').trim().slice(0, 60);
+  return projectName ? threadProjectCallbacks.createNewThread({ projectName }) : null;
+}
+
+function restoreProjectMutation(snapshots) {
+  for (const snapshot of snapshots) {
+    const thread = state.chatThreads.find(item => item.id === snapshot.id);
+    if (!thread) continue;
+    if (snapshot.projectName) thread.projectName = snapshot.projectName;
+    else delete thread.projectName;
+    thread.updatedAt = snapshot.updatedAt;
+  }
+}
+
+function projectSnapshots(threads) {
+  return threads.map(thread => ({
+    id: thread.id, projectName: thread.projectName, updatedAt: thread.updatedAt,
+  }));
+}
+
+export async function renameThreadProject(currentName, nextName) {
+  const profile = state.currentProfile;
+  const current = String(currentName || '').trim();
+  const next = String(nextName || '').trim().slice(0, 60);
+  if (!current || !next) return false;
+  if (current === next) return true;
+  if (getThreadProjectNames().some(name => name !== current && name.toLocaleLowerCase() === next.toLocaleLowerCase())) {
+    showNotification('A project with that name already exists', 'error');
+    return false;
+  }
+  const affected = state.chatThreads.filter(thread => thread.projectName === current);
+  if (!affected.length) return false;
+  const snapshots = projectSnapshots(affected);
+  const changedAt = new Date().toISOString();
+  for (const thread of affected) {
+    thread.projectName = next;
+    thread.updatedAt = changedAt;
+  }
+  const saved = await threadProjectCallbacks.saveChatThreadIndex();
+  if (profile !== state.currentProfile) return false;
+  if (!saved) restoreProjectMutation(snapshots);
+  threadProjectCallbacks.renderThreadList();
+  if (saved) showNotification(`Project renamed to ${next}`, 'info');
+  return saved;
+}
+
+export async function renameThreadProjectPrompt(projectName) {
+  const profile = state.currentProfile;
+  const current = String(projectName || '').trim();
+  if (!current) return false;
+  const name = await threadProjectCallbacks.showPromptDialog('Rename project:', {
+    defaultValue: current,
+    okLabel: 'Rename',
+  });
+  return name && profile === state.currentProfile ? renameThreadProject(current, name) : false;
+}
+
+export async function deleteThreadProject(projectName) {
+  const profile = state.currentProfile;
+  const current = String(projectName || '').trim();
+  const affected = state.chatThreads.filter(thread => thread.projectName === current);
+  if (!current || !affected.length) return false;
+  const snapshots = projectSnapshots(affected);
+  const changedAt = new Date().toISOString();
+  for (const thread of affected) {
+    delete thread.projectName;
+    thread.updatedAt = changedAt;
+  }
+  const saved = await threadProjectCallbacks.saveChatThreadIndex();
+  if (profile !== state.currentProfile) return false;
+  if (!saved) restoreProjectMutation(snapshots);
+  threadProjectCallbacks.renderThreadList();
+  if (saved) showNotification('Project deleted; its conversations were kept', 'info', 5000);
+  return saved;
+}
+
+export async function deleteThreadProjectPrompt(projectName) {
+  const profile = state.currentProfile;
+  const current = String(projectName || '').trim();
+  const count = state.chatThreads.filter(thread => thread.projectName === current).length;
+  if (!current || !count) return false;
+  const confirmed = await showConfirmDialog(
+    `Delete “${current}”? ${count === 1 ? 'Its conversation' : `Its ${count} conversations`} will be kept outside the project.`,
+    { confirmLabel: 'Delete project', ariaLabel: 'Delete project' },
+  );
+  return confirmed && profile === state.currentProfile ? deleteThreadProject(current) : false;
+}
+
+export function toggleThreadPinned(threadId) {
+  const thread = state.chatThreads.find(item => item.id === threadId);
+  if (!thread) return false;
+  thread.pinned = thread.pinned !== true;
+  thread.updatedAt = new Date().toISOString();
+  void threadProjectCallbacks.saveChatThreadIndex();
+  threadProjectCallbacks.renderThreadList();
+  return thread.pinned;
+}
+
+export async function moveThreadToProject(threadId, nextProjectName) {
+  const profile = state.currentProfile;
+  const thread = state.chatThreads.find(item => item.id === threadId);
+  if (!thread) return false;
+  const previous = {
+    projectName: thread.projectName, pinned: thread.pinned, updatedAt: thread.updatedAt,
+  };
+  const projectName = String(nextProjectName || '').trim().slice(0, 60);
+  if (projectName) thread.projectName = projectName;
+  else delete thread.projectName;
+  if (projectName) delete thread.pinned;
+  thread.updatedAt = new Date().toISOString();
+  const saved = await threadProjectCallbacks.saveChatThreadIndex();
+  if (profile !== state.currentProfile) return false;
+  if (!saved) {
+    if (previous.projectName) thread.projectName = previous.projectName;
+    else delete thread.projectName;
+    if (previous.pinned) thread.pinned = true;
+    else delete thread.pinned;
+    thread.updatedAt = previous.updatedAt;
+  }
+  threadProjectCallbacks.renderThreadList();
+  if (saved) showNotification(projectName ? `Moved to ${projectName}` : 'Removed from project', 'info');
+  return saved;
+}
+
 async function getThreadMessages(threadId) {
   // Invalidate cache on profile switch
   if (!_threadContentCache || _threadContentCache.profileId !== state.currentProfile) {
     _threadContentCache = { profileId: state.currentProfile, threads: new Map() };
   }
-  if (_threadContentCache.threads.has(threadId)) return _threadContentCache.threads.get(threadId);
+  if (_threadContentCache.threads.has(threadId)) return _threadContentCache.threads.get(threadId) || [];
+  const cache = _threadContentCache;
   try {
     const key = threadSearchCallbacks.getChatThreadKey(threadId);
     const raw = getEncryptionEnabled() ? await encryptedGetItem(key) : localStorage.getItem(key);
+    if (cache !== _threadContentCache || cache.profileId !== state.currentProfile) return [];
     const messages = raw ? JSON.parse(raw) : [];
-    _threadContentCache.threads.set(threadId, messages);
-    return messages;
+    const valid = Array.isArray(messages) ? messages.filter(message => message && typeof message.content === 'string') : [];
+    cache.threads.set(threadId, valid);
+    return valid;
   } catch { return []; }
 }
 
 // Invalidate cache when messages change
-export function invalidateThreadContentCache() { _threadContentCache = null; }
+export function invalidateThreadContentCache() { _threadContentCache = null; searchRevision += 1; }
 
 export function filterThreadList(value) {
+  const revision = ++searchRevision;
+  if (_threadSearchTimer !== null) clearTimeout(_threadSearchTimer);
+  _threadSearchTimer = null;
   if (!value || !value.trim()) {
     // Clear highlights when search is cleared
     document.querySelectorAll('.chat-search-mark').forEach(m => m.replaceWith(m.textContent));
@@ -63,11 +217,12 @@ export function filterThreadList(value) {
   const list = document.getElementById('chat-thread-list');
   if (list) list.insertAdjacentHTML('beforeend', '<div class="chat-search-progress" role="status">Searching messages…</div>');
   // Debounced: search message content
-  if (_threadSearchTimer !== null) clearTimeout(_threadSearchTimer);
-  _threadSearchTimer = setTimeout(() => searchThreadContent(value.trim()), 250);
+  _threadSearchTimer = setTimeout(() => searchThreadContent(value.trim(), revision), 250);
 }
 
-async function searchThreadContent(query) {
+async function searchThreadContent(query, revision) {
+  const profile = state.currentProfile;
+  const isCurrent = () => profile === state.currentProfile && revision === searchRevision;
   const q = query.toLowerCase();
   const results = [];
   let scannedThreads = 0;
@@ -75,6 +230,7 @@ async function searchThreadContent(query) {
     const input = /** @type {HTMLInputElement | null} */ (document.getElementById('chat-thread-search'));
     if (!input || input.value.trim().toLowerCase() !== q) return;
     const messages = await getThreadMessages(t.id);
+    if (!isCurrent()) return;
     scannedThreads += 1;
     for (let i = 0; i < messages.length; i++) {
       const m = messages[i];
@@ -97,7 +253,7 @@ async function searchThreadContent(query) {
   }
   // Re-check input hasn't changed
   const input = /** @type {HTMLInputElement | null} */ (document.getElementById('chat-thread-search'));
-  if (!input || input.value.trim().toLowerCase() !== q) return;
+  if (!isCurrent() || !input || input.value.trim().toLowerCase() !== q) return;
   showSearchResults(results);
 }
 

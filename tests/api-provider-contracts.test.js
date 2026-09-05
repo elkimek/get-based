@@ -663,6 +663,9 @@ describe('AI provider request contracts', () => {
       if (contract.name === 'Venice') {
         expect(bodies[0].reasoning).toEqual({ enabled: false });
         expect(bodies[0]).not.toHaveProperty('reasoning_effort');
+      } else if (contract.name === 'OpenRouter') {
+        expect(bodies[0].reasoning).toEqual({ effort: 'none' });
+        expect(bodies[0]).not.toHaveProperty('reasoning_effort');
       } else {
         expect(bodies[0].reasoning_effort).toBe('none');
       }
@@ -1386,6 +1389,50 @@ describe('AI provider request contracts', () => {
     expect(globalThis.fetch.mock.calls.some(([url]) => String(url).endsWith('/v1/chat/completions'))).toBe(false);
   });
 
+  it('passes a supported reasoning level to Ollama native chat', async () => {
+    globalThis.fetch = vi.fn(async () => jsonResponse({
+      message: { role: 'assistant', content: 'thoughtful answer' },
+      done: true,
+      done_reason: 'stop',
+    }));
+
+    await inferWithOllamaNativeProvider({
+      config: { url: 'http://localhost:11434', apiKey: '' },
+      model: 'gpt-oss:20b',
+      opts: baseChatOptions({ reasoningEffort: 'high' }),
+      plan: { maxTokens: 64 },
+      contextLength: 8192,
+    });
+
+    expect(requestFromLastFetch().body).toMatchObject({
+      model: 'gpt-oss:20b',
+      think: 'high',
+    });
+  });
+
+  it('passes a catalog-supported reasoning level to LM Studio native chat', async () => {
+    globalThis.fetch = vi.fn(async () => jsonResponse({
+      output: [{ type: 'message', content: 'thoughtful answer' }],
+      stats: { input_tokens: 5, total_output_tokens: 7 },
+    }));
+
+    await inferWithLMStudioNativeProvider({
+      config: { url: 'http://localhost:1234', apiKey: '' },
+      model: 'reasoning-model',
+      opts: baseChatOptions({ reasoningEffort: 'high' }),
+      plan: { maxTokens: 64 },
+      contextLength: 8192,
+      modelDetail: {
+        reasoning: { allowedOptions: ['off', 'low', 'medium', 'high'], default: 'medium' },
+      },
+    });
+
+    expect(requestFromLastFetch().body).toMatchObject({
+      model: 'reasoning-model',
+      reasoning: 'high',
+    });
+  });
+
   it('keeps native Ollama imports compatible when schema and thinking controls are unsupported', async () => {
     setAIProvider('ollama');
     setOllamaMainModel('legacy-ollama:8b');
@@ -1670,9 +1717,14 @@ describe('AI provider request contracts', () => {
     await expect(callClaudeAPI({
       messages: [{ role: 'user', content: 'stream through e2ee' }],
       maxTokens: 16,
+      reasoningEffort: 'none',
       onStream: vi.fn(),
       requestTimeoutMs: 1000,
     })).rejects.toThrow('Venice E2EE returned no response stream');
+    expect(providerRequestFromFetchCall().body).toMatchObject({
+      reasoning: { enabled: false },
+      venice_parameters: { disable_thinking: true, strip_thinking_response: true },
+    });
   });
 
   it('returns encrypted Venice reasoning when a reasoning model emits no final content', async () => {
@@ -1693,6 +1745,7 @@ describe('AI provider request contracts', () => {
     await expect(callClaudeAPI({
       messages: [{ role: 'user', content: 'reason carefully' }],
       maxTokens: 64,
+      reasoningEffort: 'high',
       onStream,
       requestTimeoutMs: 1000,
     })).resolves.toEqual({
@@ -1704,6 +1757,7 @@ describe('AI provider request contracts', () => {
     expect(onStream).toHaveBeenCalledWith('decrypted:encrypted-reasoning');
     const request = providerRequestFromFetchCall();
     expect(request.body).toMatchObject({
+      reasoning_effort: 'high',
       venice_parameters: { enable_e2ee: true },
     });
     expect(request.body).not.toHaveProperty('reasoning');
@@ -1775,7 +1829,7 @@ describe('AI provider request contracts', () => {
     localStorage.setItem('labcharts-routstr-private-models', JSON.stringify([{ id: 'tinfoil-glm-5-2' }]));
     setRoutstrModel('tinfoil-glm-5-2');
 
-    await expect(callClaudeAPI(baseChatOptions({ webSearch: true }))).resolves.toMatchObject({
+    await expect(callClaudeAPI(baseChatOptions({ webSearch: true, reasoningEffort: 'high' }))).resolves.toMatchObject({
       text: 'contract ok',
       usage: { inputTokens: 11, outputTokens: 13 },
     });
@@ -1788,7 +1842,7 @@ describe('AI provider request contracts', () => {
       'Content-Type': 'application/json',
       'X-Routstr-Model': 'tinfoil-glm-5-2',
     });
-    expect(request.body).toMatchObject({ model: 'glm-5-2', max_tokens: 32 });
+    expect(request.body).toMatchObject({ model: 'glm-5-2', max_tokens: 32, reasoning_effort: 'high' });
     expect(request.body).not.toHaveProperty('plugins');
     expect(globalThis._routstrAttestation).toMatchObject({ securityVerified: true });
     expect(isRoutstrPrivateModeActive()).toBe(true);

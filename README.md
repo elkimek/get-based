@@ -45,7 +45,7 @@ getbased is private by default, not magic. The boundary depends on which feature
 - **Optional encryption at rest.** A passphrase-derived key can protect browser storage.
 - **Optional AI.** PDF import and chat need either an AI provider or a local OpenAI-compatible server. Non-AI tracking features still work without one.
 - **One activation decision, separate records.** The first remote AI activation presents the provider-neutral AI notice and destination-specific approval together, while storing them separately. It explains that enabled automatic insights may request updated analysis after relevant profile or data changes. Same-device inference needs only the AI notice. A private/LAN endpoint is confirmed by origin, while each remote provider or endpoint needs a browser-local sensitive-data approval before any data-bearing AI request can proceed. User-triggered connection checks may run first, but contain no profile, chat, image, or voice content; a custom endpoint may receive a fixed synthetic compatibility probe.
-- **Optional Voice.** On-device Whisper/Kokoro keep recordings and message text in the browser after model download. A selected local server receives them directly. A selected OpenRouter, PPQ, Venice, xAI, or ElevenLabs audio endpoint receives only the recording or reply text explicitly processed with that cloud provider; **Same as chat** falls back on-device when the active provider is unsupported or disconnected.
+- **Optional Voice.** On-device Whisper/Kokoro keep recordings and message text in the browser after model download. A selected local server receives them directly. A selected OpenRouter, PPQ, Venice, xAI, or ElevenLabs audio endpoint receives only the recording or reply text explicitly processed with that cloud provider; **Automatic** can reuse a connected voice-capable direct AI provider but stays on-device during CLI chat unless another voice service is explicitly selected.
 - **PII review for text imports.** Deterministic patterns and an optional trusted self-hosted model can strip likely identifiers before lab text is sent to an AI provider. Automated detection can miss unusual layouts, so review is still recommended. Image imports cannot be scrubbed and always show a separate warning before upload.
 - **Optional encrypted sync.** Cross-device sync uses Evolu CRDT storage and end-to-end encrypted profile payloads. Pausing one browser keeps its identity and queues local edits; disconnect/reset is a separate Advanced action.
 - **Optional sharing.** Profile sharing creates an encrypted, password-protected copy for someone else. On the official app, getbased's isolated Czech VPS service (hosted by SecurityNet.cz/Hukot) receives caller network metadata plus the opaque envelope and expiry/deletion/abuse metadata, but not the password or decrypted profile. Temporary share copies are not backed up and can be lost after a service failure; the source profile remains in the sender's browser.
@@ -67,6 +67,7 @@ All normal tracking works without AI. AI features can use:
 | **OpenRouter** | A broad hosted model marketplace with OAuth or manual key setup. |
 | **Venice AI** | Hosted models with optional browser-side message encryption plus required Intel DCAP and NVIDIA NRAS checks. |
 | **Local AI** | Any OpenAI-compatible local server, such as Ollama, LM Studio, Jan, or llama.cpp. |
+| **CLI agents** | Use an installed Codex, OpenCode, Hermes, Grok, or OpenClaw account or configured model provider for chat and supported AI features through the local getbased Companion on Linux, macOS, or Windows. Hermes and OpenClaw can also route chat to a detected personal gateway/profile. Health-data changes remain reviewable drafts. |
 | **Custom API** | Bring your own OpenAI-compatible endpoint or proxy. |
 
 Switch providers in Settings. Supported provider keys are wrapped locally with
@@ -76,6 +77,29 @@ and Terms documents when known; reviewing those links is not an acceptance of
 the provider's terms on its behalf. Custom endpoints are identified by their
 origin. Users connecting a personal or local endpoint are not asked to supply
 policy metadata.
+
+On Linux, macOS, and Windows, Settings provides one OS-specific bootstrap
+command that runs the companion temporarily. Once connected, Settings can
+directly register automatic startup, pause or resume AI work, restart Codex,
+update the installed bundle, or uninstall it. A recovery start command remains
+available when the local process is completely stopped. The bootstrap downloads
+the same auditable, single-file `getbased-companion.mjs` emitted by the
+production build. Temporary mode stops with its Terminal or PowerShell session.
+Installed mode uses a systemd user service, macOS LaunchAgent, or current-user
+Windows scheduled task. It does not need root or administrator access, and the
+browser never exposes a port or pairing token.
+The entry point, host, installers, protocol, and bundle build are all
+source-available in this repository under `bin/`, `server/`, `lib/`, `shared/`,
+and `scripts/`.
+
+The dormant Claude adapter is intentionally not advertised or detected in
+normal builds. Anthropic does not permit third-party products to route
+claude.ai Free, Pro, or Max credentials without prior approval. Self-hosting
+operators using Anthropic Console/API billing may expose the adapter as
+**Claude Agent** by starting or installing the companion with
+`GETBASED_ENABLE_CLAUDE_AGENT=api-console`; then sign in with
+`claude auth login --console`. This opt-in does not make consumer subscription
+credentials permissible.
 
 Independent deployment operators can identify themselves without inheriting
 getbased policies by setting these metadata values in `index.html`:
@@ -110,8 +134,8 @@ Voice input and output use one service by default in **Settings → Voice**. An
 advanced toggle can select different services for dictation and spoken replies,
 for example on-device Whisper input with ElevenLabs output:
 
-- **Same as chat** reuses a connected OpenRouter, PPQ, or Venice account when that provider supports the requested audio operation, and otherwise falls back to the browser-local models.
-- **On this device** uses quantized multilingual Whisper Small by default and offers Large v3 Turbo for high-end hardware. Local transcription and Kokoro speech can use CPU/WASM or a validated WebGPU path. Automatic processing starts with the broadly compatible CPU path, records normalized timings, and selects the fastest tested backend. Each required CPU or GPU model variant downloads only after explicit confirmation and runs in a dedicated Web Worker. Built-in speech currently offers English US and UK voices. Markdown tables are skipped with a short spoken notice so the surrounding explanation remains easy to follow.
+- **Automatic** reuses a connected OpenRouter, PPQ, or Venice account during direct-provider chat when that provider supports the requested audio operation, and otherwise falls back to the browser-local models. During CLI chat it always stays on-device unless the user explicitly selects another voice service. A selected CLI agent receives only the transcribed text, not the recording.
+- **On this device** uses quantized multilingual Whisper Small by default, with Medium as a balanced accuracy step-up and Large v3 Turbo as the high-end option. Local transcription and Kokoro speech can use CPU/WASM or a validated WebGPU path. Automatic processing tries WebGPU first on capable mobile browsers, starts with the broadly compatible CPU path elsewhere, falls back safely, records normalized timings, and then selects the fastest tested backend. Each required CPU or GPU model variant downloads only after explicit confirmation and runs in a dedicated Web Worker. Slow transcription shows elapsed time and can be cancelled; a stalled local transcription is stopped after three minutes. Kokoro buffers short opening segments to avoid a long gap while it generates the next sentence. Built-in speech currently offers English US and UK voices. Markdown tables are skipped with a short spoken notice so the surrounding explanation remains easy to follow.
 - **Local voice server** connects directly to an OpenAI-compatible `/v1/audio/transcriptions` and `/v1/audio/speech` server, including apps such as LocalAI or Speaches when configured with compatible models.
 - **OpenRouter**, **PPQ**, and **Venice** reuse their key from AI settings and call the provider's standard audio endpoints directly. A private chat mode does not automatically extend to voice.
 - **xAI** and **ElevenLabs** use your own API key. There is no delegated account sign-in for these integrations; supported provider keys are device-key encrypted even when passphrase protection is off.
@@ -130,7 +154,7 @@ The **Interpretive Lens** is different: it changes the framing of analysis. For 
 
 ## Agent Access
 
-Agent Access is for using your getbased context from external AI tools — Hermes Agent, OpenClaw, Claude Code, Claude Desktop, Cursor, Cline, Codex CLI, or another MCP-compatible client.
+Agent Access is for using your getbased context from external AI tools — Hermes Agent, OpenClaw, Claude Agent, Claude Desktop, Cursor, Cline, Codex CLI, or another MCP-compatible client.
 
 How it works:
 
@@ -204,7 +228,7 @@ Default to tests related to the current change. GitHub Actions runs the exhausti
 - Chart.js for charts.
 - pdf.js for PDF text extraction.
 - transformers.js + OPFS for the in-browser Knowledge Base.
-- transformers.js, quantized Whisper Large v3 Turbo/Small, and Kokoro for optional in-browser voice.
+- transformers.js, quantized Whisper Small/Medium/Large v3 Turbo, and Kokoro for optional in-browser voice.
 - Evolu for optional encrypted CRDT sync.
 - A getbased-operated, SQLite-backed service for opaque encrypted profile shares; a Vercel endpoint for public deployment metadata; and a separately deployed, narrowly scoped compatibility relay for supported wearable providers, NVIDIA attestation, the fixed privacy-rounded CAMS lookup, and credential-free public-page imports. Generic AI, voice, and custom-provider forwarding is rejected on getbased-operated hosts. Self-host-only providers use the deployment owner's OAuth credentials and, only where required, its same-origin proxy.
 - Vitest, TypeScript checkers, quality guardrails, and Playwright for verification.

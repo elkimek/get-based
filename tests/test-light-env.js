@@ -701,10 +701,10 @@ const {
     !globalsSrc.includes('renderAuditAIBlock') &&
     !globalsSrc.includes('renderAuditAIDot') &&
     aiSaveHooksSrc.includes("import { configureLightEnvAudits } from './light-env-audits.js';") &&
-    aiSaveHooksSrc.includes("import { hasAIProvider } from './api.js';") &&
+    aiSaveHooksSrc.includes("import { hasAssistantFeatureProvider } from './ai-feature-routing.js';") &&
     aiSaveHooksSrc.includes("import { openChatPanel } from './chat-loader.js';") &&
     aiSaveHooksSrc.includes("import { maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot } from './light-audit-ai-analysis.js';") &&
-    aiSaveHooksSrc.includes('configureLightEnvAudits({ hasAIProvider, maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot, openChatPanel })') &&
+    aiSaveHooksSrc.includes('configureLightEnvAudits({ hasAIProvider: hasAssistantFeatureProvider, maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot, openChatPanel })') &&
     appLightSunSrc.includes("import './light-ai-save-hooks.js';"));
   assert('Burden AI renderer routes through light-env configuration instead of window lookup',
     envSrc.includes('export function configureLightEnv') &&

@@ -10,7 +10,7 @@ import {
   updateKeyCache,
 } from './crypto.js';
 import { hashString, isDebugMode, showNotification } from './utils.js';
-import { hasAIProvider, callClaudeAPI } from './api.js';
+import { callAssistantFeatureAI, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { isValidLensUrl as isValidLensUrlImpl } from './lens-url.js';
 import { clearLensCache as clearLensCacheImpl, getLensCacheEntry, setLensCacheEntry } from './lens-cache.js';
 import { updateChatHeaderModelRuntime } from './chat-runtime.js';
@@ -229,7 +229,7 @@ export async function queryLensMulti(queryHint, opts = {}) {
   // Single-query path: no AI provider, or feature disabled, or short query
   // (1-2 word queries are usually proper nouns / lab names where rewriting
   // adds noise without helping).
-  if (!enabled || !hasAIProvider() || hint.split(/\s+/).length < 3) {
+  if (!enabled || !hasAssistantFeatureProvider() || hint.split(/\s+/).length < 3) {
     return queryLens(hint, opts);
   }
 
@@ -277,7 +277,7 @@ async function _rewriteQuery(hint, signal) {
   const key = hashString(hint);
   if (_rewriteCache.has(key)) return _rewriteCache.get(key);
 
-  const { text } = await callClaudeAPI({
+  const { text } = await callAssistantFeatureAI({
     system: REWRITE_SYSTEM_PROMPT,
     messages: [{ role: 'user', content: hint }],
     maxTokens: MULTI_QUERY_MAX_TOKENS,
@@ -479,7 +479,7 @@ function recordLocalLensStats(stats) {
 export function getLensSummary() {
   const cfg = getLensConfig();
   const configured = hasLens();
-  const aiAvailable = hasAIProvider();
+  const aiAvailable = hasAssistantFeatureProvider();
   const summary = {
     configured,
     backend: cfg.backend,

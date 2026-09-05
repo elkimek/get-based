@@ -9,7 +9,6 @@ export {
   initChatImageHandlers,
   openImageLightbox,
   removeImageAttachment,
-  toggleHDMode,
   updateAttachButtonVisibility,
 } from './chat-images.js';
 export {
@@ -23,10 +22,12 @@ export {
 } from './chat-summaries.js';
 export {
   createNewThread,
+  createThreadProject,
   ensureActiveThread,
   filterThreadList,
   loadChatThreads,
   renderThreadList,
+  setChatThreadSort,
   toggleThreadRail,
 } from './chat-threads.js';
 export { updateChatContextStatus } from './chat-personalities.js';

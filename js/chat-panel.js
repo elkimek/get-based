@@ -1,13 +1,13 @@
 // @ts-check
 // chat-panel.js — Chat panel chrome, web-search toggle, and input state
 
-import { hasAIProvider, isAIPaused, supportsWebSearch } from './api.js';
+import { isAIPaused, supportsWebSearch } from './api.js';
 import {
   loadChatThreads, ensureActiveThread, renderThreadList, restoreRailState,
 } from './chat-threads.js';
 import { loadChatHistory } from './chat-history.js';
 import {
-  loadChatPersonality, loadCustomPersonalities, updateChatHeaderTitle, updatePersonalityBar,
+  loadChatPersonality, loadCustomPersonalities, updateChatHeaderModel, updateChatHeaderTitle, updatePersonalityBar,
 } from './chat-personalities.js';
 import { renderSavedSummaries } from './chat-summaries.js';
 import { dismissCurrentChatNudge } from './chat-nudge.js';
@@ -19,6 +19,14 @@ import {
   initChatComposer, refreshChatComposer, restoreChatDraft, setChatInputValue,
 } from './chat-composer.js';
 import { showNotification } from './utils.js';
+import { connectDetectedCodex } from './agent-chat-settings.js';
+import { updateAttachButtonVisibility } from './chat-images.js';
+import { initChatLayout, syncChatLayout } from './chat-layout.js';
+import { initChatModelControls, refreshChatModelControls } from './chat-model-controls.js';
+import {
+  hasChatResponseBackend, isCodexChatBackend, refreshChatBackendControl, refreshLocalAgentAvailability,
+  setChatBackendFromUI as persistChatBackend,
+} from './chat-backend-selection.js';
 
 export { setChatNudge, updateChatNudge } from './chat-nudge.js';
 
@@ -49,15 +57,19 @@ let useChatPresentationStylesheetRetryUrl = false;
 /** @type {{
  *   restoreDiscussionContinuePrompt: (() => void) | null,
  *   isChatStreaming: (() => boolean) | null,
+ *   isVoicePlaybackActive: (() => boolean) | null,
  *   refreshMobileDashboardActiveTab: (() => void) | null,
  *   restoreChatGenerationUI: (() => boolean) | null,
- *   stopVoiceActivity: (() => void) | null,
+ *   restoreVoicePlaybackUi: (() => boolean) | null,
+ *   stopVoiceActivity: ((options?: { preservePlayback?: boolean }) => void) | null,
  * }} */
 const panelCallbacks = {
   restoreDiscussionContinuePrompt: null,
   isChatStreaming: null,
+  isVoicePlaybackActive: null,
   refreshMobileDashboardActiveTab: null,
   restoreChatGenerationUI: null,
+  restoreVoicePlaybackUi: null,
   stopVoiceActivity: null,
 };
 let chatThreadInputBlocked = false;
@@ -81,7 +93,7 @@ function updateChatPanelAccessibility(panel, open) {
   setChatBackgroundInert(open && mobile);
 }
 
-/** @param {{ restoreDiscussionContinuePrompt?: (() => void) | null, isChatStreaming?: (() => boolean) | null, refreshMobileDashboardActiveTab?: (() => void) | null, restoreChatGenerationUI?: (() => boolean) | null, stopVoiceActivity?: (() => void) | null }} [callbacks] */
+/** @param {{ restoreDiscussionContinuePrompt?: (() => void) | null, isChatStreaming?: (() => boolean) | null, isVoicePlaybackActive?: (() => boolean) | null, refreshMobileDashboardActiveTab?: (() => void) | null, restoreChatGenerationUI?: (() => boolean) | null, restoreVoicePlaybackUi?: (() => boolean) | null, stopVoiceActivity?: ((options?: { preservePlayback?: boolean }) => void) | null }} [callbacks] */
 export function configureChatPanel(callbacks = {}) {
   const previous = { ...panelCallbacks };
   Object.assign(panelCallbacks, callbacks);
@@ -100,9 +112,32 @@ export function setChatWebSearchEnabled(val) {
   updateWebSearchToggleVisibility();
 }
 
+export async function setChatBackendFromUI(value) {
+  const select = /** @type {HTMLSelectElement | null} */ (document.getElementById('chat-backend-select'));
+  if (value === 'codex') {
+    if (select) select.disabled = true;
+    try {
+      await connectDetectedCodex();
+      persistChatBackend('codex');
+      showNotification('CLI agent selected for chat', 'success');
+    } catch (error) {
+      persistChatBackend('direct');
+      showNotification(error instanceof Error ? error.message : 'CLI agent could not connect.', 'error', 9000);
+    } finally {
+      if (select) select.disabled = false;
+      await refreshLocalAgentAvailability(true);
+    }
+  } else {
+    persistChatBackend('direct');
+  }
+  updateChatInputState();
+  updateChatHeaderModel();
+  updateAttachButtonVisibility();
+}
+
 function updateWebSearchToggleVisibility() {
   const label = /** @type {HTMLElement | null} */ (document.querySelector('#chat-panel .chat-websearch-toggle-label'));
-  if (label) label.style.display = supportsWebSearch() ? '' : 'none';
+  if (label) label.style.display = !isCodexChatBackend() && supportsWebSearch() ? '' : 'none';
 }
 
 export function refreshWebSearchToggle() {
@@ -246,6 +281,7 @@ export function toggleChatFullscreen() {
   button?.setAttribute('aria-pressed', String(next));
   button?.setAttribute('aria-label', next ? 'Exit fullscreen chat' : 'Enter fullscreen chat');
   if (button) button.title = next ? 'Exit fullscreen' : 'Enter fullscreen';
+  syncChatLayout();
 }
 
 export async function openChatPanel(prefillMessage) {
@@ -285,6 +321,7 @@ export async function openChatPanel(prefillMessage) {
   dismissCurrentChatNudge();
   await loadCustomPersonalities();
   loadChatPersonality();
+  refreshChatBackendControl();
   updateChatHeaderTitle();
   updatePersonalityBar();
   // Sync web search toggle
@@ -294,28 +331,34 @@ export async function openChatPanel(prefillMessage) {
   // An in-flight answer exists only in the live request/typewriter state
   // until it finishes. Reloading the persisted thread here would erase that
   // partial response and typing indicator while the request kept running,
-  // making the latest user message look interrupted and retryable.
+  // making the latest user message look interrupted and retryable. Replacing
+  // message objects during speech would likewise invalidate its active turn.
   const generationInProgress = panelCallbacks.isChatStreaming?.() === true;
+  const voicePlaybackInProgress = panelCallbacks.isVoicePlaybackActive?.() === true;
+  const liveSessionInProgress = generationInProgress || voicePlaybackInProgress;
   // Load threads and ensure active thread
   let threadsLoaded = true;
-  if (!generationInProgress) {
+  if (!liveSessionInProgress) {
     threadsLoaded = await loadChatThreads();
     chatThreadInputBlocked = threadsLoaded === false;
     if (threadsLoaded !== false) ensureActiveThread();
   }
   restoreRailState();
+  initChatLayout();
   renderThreadList();
   renderSavedSummaries();
-  if (!generationInProgress && threadsLoaded !== false) await loadChatHistory();
+  if (!liveSessionInProgress && threadsLoaded !== false) await loadChatHistory();
   if (!generationInProgress) panelCallbacks.restoreDiscussionContinuePrompt?.();
   updateChatInputState();
   initChatComposer();
+  initChatModelControls();
   if (generationInProgress) {
     panelCallbacks.restoreChatGenerationUI?.();
   } else if (!chatThreadInputBlocked) {
     if (prefillMessage) setChatInputValue(prefillMessage, { focus: true });
     else await restoreChatDraft(undefined, { focus: true });
   }
+  panelCallbacks.restoreVoicePlaybackUi?.();
   return true;
 }
 
@@ -323,25 +366,44 @@ export function updateChatInputState() {
   const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
   const sendBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-send-btn'));
   const voiceBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-voice-btn'));
-  const noAI = !hasAIProvider();
+  const noAI = !hasChatResponseBackend();
   const blocked = chatThreadInputBlocked;
   if (input) {
     input.disabled = noAI || blocked;
     input.placeholder = blocked
       ? 'Conversations are paused to protect saved chats'
       : noAI
-        ? (isAIPaused() ? 'AI features are paused' : 'Connect an AI provider in Settings to chat')
+        ? (isAIPaused()
+          ? 'AI features are paused'
+          : isCodexChatBackend()
+          ? 'Codex is unavailable on this computer'
+          : 'Connect an AI provider in Settings to chat')
         : 'Ask about your lab results...';
   }
   if (sendBtn) sendBtn.disabled = noAI || blocked;
+  // Dictation is routed through getbased's independent voice service. A CLI
+  // agent handles the resulting text, but does not need to transport audio.
   if (voiceBtn) voiceBtn.disabled = noAI || blocked;
   refreshChatComposer();
   updateWebSearchToggleVisibility();
 }
 
+if (typeof globalThis.addEventListener === 'function') {
+  const refreshAgentChatUi = () => {
+    refreshChatBackendControl();
+    updateChatInputState();
+    updateChatHeaderModel();
+    updateAttachButtonVisibility();
+    refreshChatModelControls();
+  };
+  globalThis.addEventListener('getbased:chat-backend-changed', refreshAgentChatUi);
+  globalThis.addEventListener('getbased:agent-host-settings-changed', refreshAgentChatUi);
+  globalThis.addEventListener('getbased:agent-model-catalog-changed', refreshAgentChatUi);
+}
+
 export function closeChatPanel() {
   chatPanelIntent += 1;
-  panelCallbacks.stopVoiceActivity?.();
+  panelCallbacks.stopVoiceActivity?.({ preservePlayback: true });
   stopMobileChatViewportSync();
   const panel = document.getElementById('chat-panel');
   panel?.classList.remove('open');

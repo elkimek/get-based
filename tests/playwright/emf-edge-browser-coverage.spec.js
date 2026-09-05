@@ -24,6 +24,8 @@ async function openIsolatedEMFPage(page) {
       export function getAIProvider() { return 'ollama'; }
       export function getActiveModelId() { return 'emf-edge-model'; }
       export function getActiveModelDisplay() { return 'EMF Edge Model'; }
+      export function isAIPaused() { return false; }
+      export function supportsVision() { return true; }
       export async function callClaudeAPI(opts) {
         window.__emfApiCalls = window.__emfApiCalls || [];
         window.__emfApiCalls.push({

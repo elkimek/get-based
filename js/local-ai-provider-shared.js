@@ -1,6 +1,8 @@
 // @ts-check
 // Shared normalization helpers for Local AI provider adapters.
 
+import { extractModelReasoningMetadata } from './reasoning-capabilities.js';
+
 export const LOCAL_AI_DISCOVERY_TIMEOUT_MS = 3000;
 
 export function normalizeLocalAiBaseUrl(url) {
@@ -173,7 +175,7 @@ export function parseOpenAICompatibleModel(model, baseUrl) {
     maxContextLength: Number(model?.max_context_length || model?.context_length) || 0,
     vramAllocated: Number(model?.size_vram) || 0,
     vision: explicitVision,
-    reasoning: null,
+    reasoning: extractModelReasoningMetadata(model),
     executionLocation: getLocalAiExecutionLocation(baseUrl, id),
     source: 'openai-compatible',
   };

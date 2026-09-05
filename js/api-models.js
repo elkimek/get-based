@@ -35,6 +35,21 @@ import {
   refreshAppExtensionAI,
 } from './app-extension-runtime.js';
 
+/**
+ * Provider catalogs use several equivalent flags for a model that should not
+ * be offered. Treat an omitted flag as unknown/available and only exclude an
+ * explicit negative signal from the provider.
+ * @param {unknown} value
+ */
+export function modelMetadataIsAvailable(value) {
+  if (!value || typeof value !== 'object') return false;
+  const model = /** @type {Record<string, unknown>} */ (value);
+  if (model.available === false || model.enabled === false || model.disabled === true
+    || model.unavailable === true || model.missing === true) return false;
+  const status = String(model.status || '').trim().toLowerCase();
+  return !['disabled', 'offline', 'removed', 'unavailable'].includes(status);
+}
+
 export function deduplicateModels(models, familyFn) {
   const seen = {};
   return models.filter(function(m) {
@@ -70,6 +85,7 @@ export function modelMetadataSupportsVision(model) {
 
 // Curated: latest-gen medically capable models only (prefixes matched against IDs)
 const OPENROUTER_CURATED = [
+  'anthropic/claude-fable-5',
   'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4',
   'anthropic/claude-opus-5', 'anthropic/claude-opus-4',
   'openai/gpt-5',
@@ -87,10 +103,11 @@ const OPENROUTER_CURATED = [
 // Anthropic: "claude-model-version" (hyphens: 4-6, with date suffix)
 // Venice: "model-version" (hyphens: 4-6, no provider prefix)
 const OPENROUTER_RECOMMENDED = [
+  'anthropic/claude-fable-5.1',
   'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.6',
   'anthropic/claude-opus-5', 'anthropic/claude-opus-4.7',
   'openai/gpt-5.6-sol', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-luna', 'openai/gpt-5.4',
-  'google/gemini-3.7-flash', 'google/gemini-3.6-flash', 'google/gemini-3.5-flash', 'google/gemini-3-flash-preview',
+  'google/gemini-3.8-flash', 'google/gemini-3.7-flash', 'google/gemini-3.6-flash', 'google/gemini-3.5-flash', 'google/gemini-3-flash-preview',
   'z-ai/glm-5.3-flash',
   'moonshotai/kimi-k3',
   'x-ai/grok-4',
@@ -98,11 +115,11 @@ const OPENROUTER_RECOMMENDED = [
 const OPENROUTER_DEFAULT_CANDIDATES = ['openai/gpt-5.6-sol', 'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.6'];
 
 // Routstr uses bare model IDs (no provider prefix, dots: claude-sonnet-4.6)
-const ROUTSTR_RECOMMENDED = ['claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-5', 'claude-opus-4.7', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'openai/gpt-5.6-sol', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-luna', 'gpt-5.5', 'gpt-5.4', 'gemini-3.7-flash', 'google/gemini-3.7-flash', 'gemini-3.6-flash', 'google/gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'glm-5.3-flash', 'z-ai/glm-5.3-flash', 'kimi-k3', 'moonshotai/kimi-k3', 'x-ai/grok-4.3', 'grok-4.3', 'grok-4'];
+const ROUTSTR_RECOMMENDED = ['claude-fable-5.1', 'claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-5', 'claude-opus-4.7', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'openai/gpt-5.6-sol', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-luna', 'gpt-5.5', 'gpt-5.4', 'gemini-3.8-flash', 'google/gemini-3.8-flash', 'gemini-3.7-flash', 'google/gemini-3.7-flash', 'gemini-3.6-flash', 'google/gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'glm-5.3-flash', 'z-ai/glm-5.3-flash', 'kimi-k3', 'moonshotai/kimi-k3', 'x-ai/grok-4.3', 'grok-4.3', 'grok-4'];
 const ROUTSTR_PRIVATE_RECOMMENDED = ['tinfoil-gemma4-31b', 'tinfoil-kimi-k2-6', 'tinfoil-deepseek-v4-pro', 'tinfoil-glm-5-3-flash'];
 
 // PPQ uses bare model IDs for regular routing and private/ IDs for Tinfoil TEE models.
-const PPQ_RECOMMENDED = ['claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-5', 'claude-opus-4.7', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'openai/gpt-5.6-sol', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-luna', 'gpt-5.5', 'gpt-5.4', 'gemini-3.7-flash', 'google/gemini-3.7-flash', 'gemini-3.6-flash', 'google/gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'z-ai/glm-5.3-flash', 'glm-5.3-flash', 'moonshotai/kimi-k3', 'kimi-k3', 'x-ai/grok-4.3', 'grok-4'];
+const PPQ_RECOMMENDED = ['claude-fable-5.1', 'claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-5', 'claude-opus-4.7', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'openai/gpt-5.6-sol', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-luna', 'gpt-5.5', 'gpt-5.4', 'gemini-3.8-flash', 'google/gemini-3.8-flash', 'gemini-3.7-flash', 'google/gemini-3.7-flash', 'gemini-3.6-flash', 'google/gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'z-ai/glm-5.3-flash', 'glm-5.3-flash', 'moonshotai/kimi-k3', 'kimi-k3', 'x-ai/grok-4.3', 'grok-4'];
 const PPQ_PRIVATE_RECOMMENDED = ['private/kimi-k3', 'private/kimi-k2-6', 'private/glm-5-3-flash'];
 
 function normalizedModelId(modelId) {
@@ -113,11 +130,20 @@ function isClaudeSonnet5Model(modelId) {
   return /(^|[/-])claude-sonnet-5($|[-:])/.test(normalizedModelId(modelId));
 }
 
+function isClaudeFable51Model(modelId) {
+  return /(^|[/-])claude-fable-5-1($|[-:])/.test(normalizedModelId(modelId));
+}
+
+function isGemini38FlashCyberModel(modelId) {
+  return /(^|[/-])gemini-3-8-flash-cyber($|[-:])/.test(normalizedModelId(modelId));
+}
+
 function isCustomRecommendedModel(modelId) {
+  if (isClaudeFable51Model(modelId)) return true;
   if (isClaudeSonnet5Model(modelId)) return true;
   return /(^|[/-])claude-(sonnet-4-6|opus-5|opus-4-7)($|[-:])/.test(normalizedModelId(modelId))
     || /(^|[/-])gpt-5-(?:[45]|6-(?:sol|terra|luna))($|[-:])/.test(normalizedModelId(modelId))
-    || /(^|[/-])gemini-3-(7-flash|6-flash|5-flash|flash-preview)($|[-:])/.test(normalizedModelId(modelId))
+    || /(^|[/-])gemini-3-(8-flash|7-flash|6-flash|5-flash|flash-preview)($|[-:])/.test(normalizedModelId(modelId))
     || /(^|[/-])glm-5-3-flash($|[-:])/.test(normalizedModelId(modelId))
     || /(^|[/-])kimi-k3($|[-:])/.test(normalizedModelId(modelId))
     || /(^|[/-])grok-4($|[-:])/.test(normalizedModelId(modelId));
@@ -160,13 +186,17 @@ export function findPreferredModel(models, preferredIds) {
 }
 
 export function isRecommendedModel(provider, modelId) {
+  // Flash Cyber is restricted and security-specialized, so it must not inherit
+  // the general-purpose 3.8 Flash recommendation through prefix matching.
+  if (isGemini38FlashCyberModel(modelId)) return false;
   if (provider === 'openrouter') return OPENROUTER_RECOMMENDED.some(function(prefix) { return modelStartsWithRecommended(modelId, prefix); });
   if (provider === 'venice') {
     if (modelId.startsWith('e2ee-')) return /qwen3-5-122b|gpt-oss-120b|qwen3-30b|glm-5-3-flash/.test(modelId);
     // claude-(sonnet-5|sonnet-4-6|opus-5|opus-4-7) is intentionally narrow. When newer
     // versions land, broaden the alternation rather than matching all 4.x.
-    return isVeniceRecommendedGpt5Model(modelId)
-      || /^(claude-(sonnet-5|sonnet-4-6|opus-5|opus-4-7)|gemini-3-(7-flash|6-flash|5-flash|flash-preview)|zai-org-glm-5-3-flash|z-ai-glm-5-3-flash|glm-5-3-flash|kimi-k3|grok-4[1-9]?)(-|$)/.test(normalizedModelId(modelId));
+    return isClaudeFable51Model(modelId)
+      || isVeniceRecommendedGpt5Model(modelId)
+      || /^(claude-(sonnet-5|sonnet-4-6|opus-5|opus-4-7)|gemini-3-(8-flash|7-flash|6-flash|5-flash|flash-preview)|zai-org-glm-5-3-flash|z-ai-glm-5-3-flash|glm-5-3-flash|kimi-k3|grok-4[1-9]?)(-|$)/.test(normalizedModelId(modelId));
   }
   if (provider === 'routstr') {
     if (modelId.startsWith('tinfoil-')) return ROUTSTR_PRIVATE_RECOMMENDED.includes(modelId);
@@ -307,7 +337,7 @@ export async function fetchOpenRouterModels(key) {
     if (!res.ok) return [];
     const json = await res.json();
     const all = (json.data || []).filter(function(m) {
-      if (!m.id) return false;
+      if (!m.id || !modelMetadataIsAvailable(m)) return false;
       if (OPENROUTER_EXCLUDE.some(function(ex) { return m.id.includes(ex); })) return false;
       if (allowlist) return allowlist.includes(m.id);
       return OPENROUTER_CURATED.some(function(prefix) { return m.id.startsWith(prefix); });
@@ -334,7 +364,7 @@ export async function fetchOpenRouterModels(key) {
     }
     localStorage.setItem('labcharts-openrouter-pricing', JSON.stringify(pricingCache));
     const visionIds = (json.data || []).filter(function(m) {
-      return !!m.id && modelMetadataSupportsVision(m);
+      return !!m.id && modelMetadataIsAvailable(m) && modelMetadataSupportsVision(m);
     }).map(function(m) { return m.id; });
     localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify(visionIds));
     localStorage.setItem('labcharts-openrouter-models', JSON.stringify(models));
@@ -412,7 +442,9 @@ export async function fetchVeniceModels(key) {
     });
     if (!res.ok) return [];
     const json = await res.json();
-    const allText = (json.data || []).filter(function(m) { return m.id && m.type === 'text'; }).sort(function(a, b) { return b.id.localeCompare(a.id); });
+    const allText = (json.data || []).filter(function(m) {
+      return m.id && m.type === 'text' && modelMetadataIsAvailable(m);
+    }).sort(function(a, b) { return b.id.localeCompare(a.id); });
     const e2eeList = allText.filter(modelSupportsVeniceE2EE);
     localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify(e2eeList));
     const e2eeIds = new Set(e2eeList.map(function(m) { return m.id; }));

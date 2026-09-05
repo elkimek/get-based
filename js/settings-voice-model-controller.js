@@ -11,7 +11,11 @@ import {
   removeLocalVoiceModel,
   verifyLocalVoiceModelReady,
 } from './voice-local-engine.js';
-import { LOCAL_STT_MODELS, LOCAL_TTS_MODELS } from './voice-model-catalog.js';
+import {
+  LOCAL_STT_MODELS,
+  LOCAL_TTS_MODELS,
+  getLocalModelStorageCopy,
+} from './voice-model-catalog.js';
 import { getVoiceSettings } from './voice-settings-storage.js';
 
 /** @typedef {{ id: number, model: string, backend: string }} ModelOperation */
@@ -32,9 +36,12 @@ function selectedBackend(kind) {
 export function localModelUiStatus(kind, modelId) {
   const backend = selectedBackend(kind);
   if (!isLocalVoiceModelReady(kind, modelId, backend)) {
-    return getLocalVoiceModelStatus(kind, modelId)
-      ? 'Download needed for the selected processing mode'
-      : 'Not downloaded yet';
+    const status = getLocalVoiceModelStatus(kind, modelId);
+    if (!status) return 'Not downloaded yet';
+    if (kind !== 'tts') return 'Ready to use with either processor';
+    const selected = backend === 'webgpu' ? 'GPU' : 'CPU';
+    const other = selected === 'GPU' ? 'CPU' : 'GPU';
+    return `${selected} weights need a separate download · ${other} weights remain stored`;
   }
   return localModelStatusText(getLocalVoiceModelStatus(kind, modelId), kind);
 }
@@ -115,9 +122,7 @@ export function refreshLocalModelDetails(panel, kind) {
   const description = row.querySelector('.settings-copy-desc');
   if (title) title.textContent = model.label;
   if (description) {
-    const gpu = kind === 'tts' && selectedBackend(kind) === 'webgpu';
-    const downloadMB = gpu ? model.gpuDownloadMB : model.downloadMB;
-    description.textContent = `${kind === 'tts' ? 'Speech' : 'Transcription'} · about ${downloadMB} MB · ${model.license}`;
+    description.textContent = getLocalModelStorageCopy(kind, model.id, selectedBackend(kind));
   }
   const progress = row.querySelector(`[data-voice-model-progress="${kind}"]`);
   if (progress instanceof HTMLElement) progress.hidden = true;
@@ -178,8 +183,8 @@ async function installModel(panel, button) {
   } catch (error) {
     const detail = getErrorMessage(error, 'Unknown model error');
     const message = backend === 'webgpu'
-      ? `Could not use graphics processing. Choose Automatic or Main processor and retry. ${detail}`
-      : 'Could not prepare this model. Check your connection and available browser storage, then retry.';
+      ? `Could not use experimental graphics processing. Choose Automatic or Main processor and retry. ${detail}`
+      : `Could not prepare this model. ${detail}`;
     if (isSelectedModelOperation(kind, operation)) {
       updateModelStatus(panel, kind, message, 'error');
       const status = panel.querySelector(`[data-voice-model-status="${kind}"]`);

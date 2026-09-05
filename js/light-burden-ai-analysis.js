@@ -17,7 +17,7 @@
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
-import { hasAIProvider } from './api.js';
+import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { computeIndoorBurden, configureLightEnv, isActiveToday } from './light-env.js';
@@ -195,7 +195,7 @@ export function renderBurdenInterp(burden) {
   // No provider: render a cached AI verdict if one exists (pre-populated
   // demo, cross-device sync from a device that had a provider, etc.) —
   // otherwise fall back to the static heuristic interp text.
-  if (!hasAIProvider()) {
+  if (!hasAssistantFeatureProvider()) {
     const cached = env?.burdenAI;
     if (cached?.status === 'ok' && cached?.dot && cached?.tip && cached.fingerprint === getBurdenFingerprint()) {
       const dot = cached.dot;

@@ -18,7 +18,7 @@
 //   • the render functions (idle CTA / shimmer / verdict / error UI is
 //     similar but each consumer slots into different parent containers)
 
-import { hasAIProvider, callClaudeAPI } from './api.js';
+import { callAssistantFeatureAI, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import {
   dispatchAIVerdictUpdatedRuntime,
   getAIVerdictConcurrencyCapRuntime,
@@ -362,7 +362,7 @@ export function createAIVerdict(cfg) {
       }, timeoutMs);
     });
     try {
-      if (!hasAIProvider()) return null;
+      if (!hasAssistantFeatureProvider()) return null;
       if (!canAnalyze(target)) return null;
       // Race slot acquisition against the watchdog. If the watchdog wins,
       // _acquireAISlot's promise eventually resolves anyway when a slot
@@ -374,7 +374,7 @@ export function createAIVerdict(cfg) {
       });
       await Promise.race([acquire, watchdog]);
       const ctx = buildContext(target);
-      const apiCall = callClaudeAPI({
+      const apiCall = callAssistantFeatureAI({
         system: systemPrompt,
         messages: [{ role: 'user', content: ctx }],
         maxTokens,
@@ -478,7 +478,7 @@ export function createAIVerdict(cfg) {
   /** Fire-and-forget after a target finishes (e.g. session stop, measurement save). */
   function maybeAfterFinish(target) {
     if (!target) return;
-    if (!hasAIProvider()) return;
+    if (!hasAssistantFeatureProvider()) return;
     if (!shouldAutoFire(target)) return;
     const id = getId(target);
     if (retrying.has(id)) return; // already running

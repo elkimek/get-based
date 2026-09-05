@@ -18,7 +18,21 @@ const engineDeps = {
 const workers = { stt: null, tts: null };
 const inflight = { stt: new Map(), tts: new Map() };
 const queues = { stt: Promise.resolve(), tts: Promise.resolve() };
+const failedGpuModels = { stt: new Set(), tts: new Set() };
 let nextRequestId = 1;
+
+/**
+ * Android browsers expose WebGPU through the regular mobile GPU, not the
+ * device's NPU. Large local voice graphs can be slower than WASM or cause the
+ * browser GPU process to run out of memory, so Automatic stays on CPU there.
+ *
+ * @param {Navigator | { userAgent?: string, userAgentData?: { platform?: string } } | undefined} [navigatorLike]
+ */
+export function isAndroidDevice(navigatorLike = globalThis.navigator) {
+  const platform = String(/** @type {any} */ (navigatorLike)?.userAgentData?.platform || '');
+  const userAgent = String(navigatorLike?.userAgent || '');
+  return /android/i.test(`${platform} ${userAgent}`);
+}
 
 export function configureVoiceLocalEngine(deps = {}) {
   const previous = {
@@ -72,8 +86,46 @@ function rememberInstalled(
   } catch {}
 }
 
-export function resolveLocalBackend(backend = 'auto', performance = {}) {
+export function isMobileVoiceDevice(navigatorValue = globalThis.navigator) {
+  try {
+    const clientHints = /** @type {any} */ (navigatorValue)?.userAgentData;
+    if (typeof clientHints?.mobile === 'boolean') return clientHints.mobile;
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(String(navigatorValue?.userAgent || ''));
+  } catch {
+    return false;
+  }
+}
+
+export function initialLocalVoiceBackend(navigatorValue = globalThis.navigator) {
+  const gpu = /** @type {any} */ (navigatorValue)?.gpu;
+  return !isAndroidDevice(navigatorValue)
+    && isMobileVoiceDevice(navigatorValue)
+    && typeof gpu?.requestAdapter === 'function'
+    ? 'webgpu'
+    : 'wasm';
+}
+
+/**
+ * @param {string} [backend]
+ * @param {Record<string, any>} [performance]
+ * @param {'wasm' | 'webgpu' | { android?: boolean, initialBackend?: 'wasm' | 'webgpu' }} [initialBackendOrEnvironment]
+ */
+export function resolveLocalBackend(
+  backend = 'auto',
+  performance = {},
+  initialBackendOrEnvironment = 'wasm',
+) {
   if (backend !== 'auto') return backend;
+  const environment = typeof initialBackendOrEnvironment === 'object'
+    ? initialBackendOrEnvironment
+    : {};
+  const initialBackend = typeof initialBackendOrEnvironment === 'string'
+    ? initialBackendOrEnvironment
+    : environment.initialBackend || 'wasm';
+  const android = typeof environment.android === 'boolean'
+    ? environment.android
+    : isAndroidDevice();
+  if (android) return 'wasm';
   const score = measurement => {
     if (measurement == null) return Number.NaN;
     const normalized = Number(measurement?.realtimeFactor);
@@ -86,12 +138,23 @@ export function resolveLocalBackend(backend = 'auto', performance = {}) {
     return gpuScore < cpuScore ? 'webgpu' : 'wasm';
   }
   if (Number.isFinite(gpuScore)) return 'webgpu';
-  return 'wasm';
+  return initialBackend === 'webgpu' ? 'webgpu' : 'wasm';
 }
 
-function preferredLocalBackend(kind, model, backend) {
-  const performance = getLocalVoiceModelStatus(kind, model)?.performance || {};
-  return resolveLocalBackend(backend, performance);
+export function preferredLocalVoiceBackend(kind, model, backend) {
+  if (backend === 'auto' && failedGpuModels[kind].has(String(model || ''))) return 'wasm';
+  const status = getLocalVoiceModelStatus(kind, model);
+  const performance = status?.performance || {};
+  if (
+    backend === 'auto'
+    && !isAndroidDevice()
+    && !Object.keys(performance).length
+    && status?.fallbackReason
+    && ['wasm', 'webgpu'].includes(status.backend)
+  ) {
+    return status.backend;
+  }
+  return resolveLocalBackend(backend, performance, initialLocalVoiceBackend());
 }
 
 // Retained for compatibility with integrations that used the original
@@ -116,7 +179,7 @@ export function isLocalVoiceModelReady(kind, model, backend = 'auto') {
     ...(status.availableBackends || [status.backend]),
     ...Object.keys(status.performance || {}),
   ]);
-  const preferred = preferredLocalBackend(kind, model, backend);
+  const preferred = preferredLocalVoiceBackend(kind, model, backend);
   return available.has(preferred);
 }
 
@@ -196,8 +259,11 @@ function ensureWorker(kind) {
       return;
     }
     inflight[kind].delete(message.id);
-    if (message.type === 'error') pending.reject(new Error(message.message || `Local ${kind} failed`));
-    else pending.resolve(message);
+    if (message.type === 'error') {
+      const error = new Error(message.message || `Local ${kind} failed`);
+      if (message.backend) /** @type {any} */ (error).voiceBackend = message.backend;
+      pending.reject(error);
+    } else pending.resolve(message);
   });
   worker.addEventListener('error', event => {
     const error = new Error(event.message || `Local ${kind} worker failed`);
@@ -242,7 +308,13 @@ function rawWorkerRequest(kind, payload, transfer = [], signal, onChunk) {
 
 function workerRequest(kind, payload, transfer = [], signal, onChunk) {
   const result = queues[kind].catch(() => undefined)
-    .then(() => rawWorkerRequest(kind, payload, transfer, signal, onChunk));
+    .then(() => {
+      // Whisper and Kokoro are large enough that retaining both workers can
+      // exhaust a mobile browser's CPU/GPU memory. Voice turns are sequential,
+      // so release the inactive model immediately before allocating this one.
+      terminateLocalVoiceWorker(kind === 'stt' ? 'tts' : 'stt');
+      return rawWorkerRequest(kind, payload, transfer, signal, onChunk);
+    });
   queues[kind] = result.catch(() => undefined);
   return result;
 }
@@ -251,10 +323,16 @@ export async function installLocalVoiceModel(kind, model, signal, backend = 'aut
   if (hasStaleInstallation(kind, model)) {
     await removeLocalVoiceModel(kind, model);
   }
-  const preferredBackend = preferredLocalBackend(kind, model, backend);
+  const preferredBackend = preferredLocalVoiceBackend(kind, model, backend);
   const result = await workerRequest(
     kind,
-    { type: 'init', model, backend, preferredBackend },
+    {
+      type: 'init',
+      model,
+      backend,
+      preferredBackend,
+      allowWebGpuFallback: !isAndroidDevice(),
+    },
     [],
     signal,
   );
@@ -274,20 +352,42 @@ export async function transcribeLocalAudio(samples, {
 } = {}) {
   const audio = samples instanceof Float32Array ? samples : new Float32Array(samples || []);
   const audioSeconds = audio.length / 16_000;
-  const preferredBackend = preferredLocalBackend('stt', model, backend);
-  const result = await workerRequest(
-    'stt',
-    {
-      type: 'transcribe',
-      model,
-      language,
-      backend,
-      preferredBackend,
-      audio: audio.buffer,
-    },
-    [audio.buffer],
-    signal,
-  );
+  const preferredBackend = preferredLocalVoiceBackend('stt', model, backend);
+  const request = (requestedBackend, requestedPreference, allowWebGpuFallback) => {
+    const transferableAudio = audio.slice();
+    return workerRequest(
+      'stt',
+      {
+        type: 'transcribe',
+        model,
+        language,
+        backend: requestedBackend,
+        preferredBackend: requestedPreference,
+        allowWebGpuFallback,
+        audio: transferableAudio.buffer,
+      },
+      [transferableAudio.buffer],
+      signal,
+    );
+  };
+  let result;
+  try {
+    result = await request(backend, preferredBackend, !isAndroidDevice());
+  } catch (error) {
+    const errorBackend = /** @type {any} */ (error)?.voiceBackend;
+    const mayBeGpuFailure = errorBackend === 'webgpu'
+      || backend === 'webgpu'
+      || (backend === 'auto' && preferredBackend === 'webgpu');
+    if (
+      !mayBeGpuFailure
+      || /** @type {any} */ (error)?.name === 'AbortError'
+      || !isLocalVoiceModelReady('stt', model, 'wasm')
+    ) throw error;
+    failedGpuModels.stt.add(String(model || ''));
+    terminateLocalVoiceWorker('stt');
+    result = await request('wasm', 'wasm', false);
+    result.fallbackReason = String(/** @type {any} */ (error)?.message || 'Graphics processing failed');
+  }
   rememberInstalled(
     'stt',
     result.model || model,
@@ -316,13 +416,40 @@ export async function synthesizeLocalSpeech(text, {
   backend = 'auto',
   signal,
 } = {}) {
-  const preferredBackend = preferredLocalBackend('tts', model, backend);
-  const result = await workerRequest(
+  const preferredBackend = preferredLocalVoiceBackend('tts', model, backend);
+  const request = (requestedBackend, requestedPreference, allowWebGpuFallback) => workerRequest(
     'tts',
-    { type: 'synthesize', model, voice, rate, backend, preferredBackend, text: String(text || '') },
+    {
+      type: 'synthesize',
+      model,
+      voice,
+      rate,
+      backend: requestedBackend,
+      preferredBackend: requestedPreference,
+      allowWebGpuFallback,
+      text: String(text || ''),
+    },
     [],
     signal,
   );
+  let result;
+  try {
+    result = await request(backend, preferredBackend, !isAndroidDevice());
+  } catch (error) {
+    const errorBackend = /** @type {any} */ (error)?.voiceBackend;
+    const mayBeGpuFailure = errorBackend === 'webgpu'
+      || backend === 'webgpu'
+      || (backend === 'auto' && preferredBackend === 'webgpu');
+    if (
+      !mayBeGpuFailure
+      || /** @type {any} */ (error)?.name === 'AbortError'
+      || !isLocalVoiceModelReady('tts', model, 'wasm')
+    ) throw error;
+    failedGpuModels.tts.add(String(model || ''));
+    terminateLocalVoiceWorker('tts');
+    result = await request('wasm', 'wasm', false);
+    result.fallbackReason = String(/** @type {any} */ (error)?.message || 'Graphics processing failed');
+  }
   rememberInstalled(
     'tts',
     result.model || model,
@@ -354,9 +481,19 @@ export function streamLocalSpeech(text, {
   signal,
 } = {}) {
   let cancelled = false;
+  const preferredBackend = preferredLocalVoiceBackend('tts', model, backend);
   const stream = new ReadableStream({
     start(controller) {
-      const request = workerRequest(
+      let emittedChunks = 0;
+      const onChunk = message => {
+        if (cancelled) return;
+        emittedChunks += 1;
+        controller.enqueue({
+          samples: new Float32Array(message.samples),
+          sampleRate: Number(message.sampleRate) || 24_000,
+        });
+      };
+      const request = (requestedBackend, requestedPreference, allowWebGpuFallback) => workerRequest(
         'tts',
         {
           type: 'synthesize',
@@ -364,21 +501,37 @@ export function streamLocalSpeech(text, {
           model,
           voice,
           rate,
-          backend,
-          preferredBackend: preferredLocalBackend('tts', model, backend),
+          backend: requestedBackend,
+          preferredBackend: requestedPreference,
+          allowWebGpuFallback,
           text: String(text || ''),
         },
         [],
         signal,
-        message => {
-          if (cancelled) return;
-          controller.enqueue({
-            samples: new Float32Array(message.samples),
-            sampleRate: Number(message.sampleRate) || 24_000,
-          });
-        },
+        onChunk,
       );
-      void request.then(result => {
+      const run = async () => {
+        try {
+          return await request(backend, preferredBackend, !isAndroidDevice());
+        } catch (error) {
+          const errorBackend = /** @type {any} */ (error)?.voiceBackend;
+          const mayBeGpuFailure = errorBackend === 'webgpu'
+            || backend === 'webgpu'
+            || (backend === 'auto' && preferredBackend === 'webgpu');
+          if (
+            emittedChunks > 0
+            || !mayBeGpuFailure
+            || /** @type {any} */ (error)?.name === 'AbortError'
+            || !isLocalVoiceModelReady('tts', model, 'wasm')
+          ) throw error;
+          failedGpuModels.tts.add(String(model || ''));
+          terminateLocalVoiceWorker('tts');
+          const result = await request('wasm', 'wasm', false);
+          result.fallbackReason = String(/** @type {any} */ (error)?.message || 'Graphics processing failed');
+          return result;
+        }
+      };
+      void run().then(result => {
         rememberInstalled(
           'tts',
           result.model || model,

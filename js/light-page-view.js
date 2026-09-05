@@ -505,7 +505,7 @@ export function showLight(_data) {
   const widgets = [];
 
   let html = `<div class="light-page">
-    ${renderLensHeader('Light & Sun', 'See how sunlight and indoor light reach the light-sensitive systems in your eyes, skin, and body.')}`;
+    ${renderLensHeader('Light & Sun', 'Sunlight, indoor light, and your daily rhythm.')}`;
 
   // AI hero verdict — synthesizes today's full picture (sun + devices +
   // environment + trends) into one read. Sits above active-session and

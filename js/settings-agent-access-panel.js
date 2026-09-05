@@ -31,7 +31,7 @@ let _setupCommandClipboardClearTimer = null;
 const AGENT_ACCESS_CLIENTS = [
   { id: 'hermes', label: 'Hermes Agent', terminal: 'Hermes' },
   { id: 'openclaw', label: 'OpenClaw', terminal: 'OpenClaw' },
-  { id: 'claude-code', label: 'Claude Code', terminal: 'Claude Code' },
+  { id: 'claude-code', label: 'Claude Agent', terminal: 'Claude' },
   { id: 'claude-desktop', label: 'Claude Desktop', terminal: 'Claude Desktop' },
   { id: 'cursor', label: 'Cursor', terminal: 'Cursor' },
   { id: 'cline', label: 'Cline', terminal: 'Cline' },
@@ -123,13 +123,13 @@ export function renderMessengerSection() {
   const toggleDisabled = !enabled && !canEnable;
   const ownerActionDisabled = !ownerReady ? ' disabled aria-disabled="true"' : '';
   return `
-    <div class="settings-action-row" style="margin-bottom:${enabled ? '16' : '8'}px;${toggleDisabled ? 'opacity:0.75' : ''}">
+    <div class="settings-action-row" style="margin-bottom:${enabled ? '16' : '8'}px">
       <div class="settings-copy">
         <div class="settings-copy-title">Agent Access</div>
         <div class="settings-copy-desc">Let AI agents query your labs and context via MCP, Hermes Agent, or OpenClaw</div>
       </div>
-      <label class="chat-websearch-toggle-label sync-settings-toggle" aria-label="Toggle Agent Access">
-        <input type="checkbox" ${enabled ? 'checked' : ''} data-sync-action="toggle-messenger" ${toggleDisabled ? 'disabled' : ''}>
+      <label class="chat-websearch-toggle-label sync-settings-toggle">
+        <input type="checkbox" aria-label="Toggle Agent Access" ${enabled ? 'checked' : ''} data-sync-action="toggle-messenger" ${toggleDisabled ? 'disabled' : ''}>
         <span class="chat-toggle-slider sync-settings-toggle-slider"></span>
       </label>
     </div>

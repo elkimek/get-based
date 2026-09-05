@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scenario": "Production service-worker app-shell precache during PWA installation",
   "maximums": {
-    "resources": 338,
-    "decodedBytes": 18160000
+    "resources": 348,
+    "decodedBytes": 18350000
   },
   "reference": {
     "resources": 277,
@@ -13,8 +13,17 @@
     "mealsNutritionFinalDecodedBytes": 15526961,
     "evolu8DefaultCutoverResources": 334,
     "evolu8DefaultCutoverDecodedBytes": 18016786,
-    "routeAwareAiConsentDecodedBytes": 18142674
+    "routeAwareAiConsentDecodedBytes": 18142674,
+    "voiceStreamingUxDecodedBytes": 18167190,
+    "agentBackedChatDecodedBytes": 18181134,
+    "cliAgentProviderDecodedBytes": 18210385,
+    "capabilityAwareAgentVisionResources": 337,
+    "capabilityAwareAgentVisionDecodedBytes": 18207790,
+    "multiCliAgentAdaptersDecodedBytes": 18265416,
+    "cliAgentBrandAssetsResources": 346,
+    "openClawAndChatWorkspaceDecodedBytes": 18334630,
+    "directProviderReasoningDecodedBytes": 18337504
   },
-  "referenceCommit": "807732a8",
-  "measuredAt": "2026-08-30"
+  "referenceCommit": "331112b1",
+  "measuredAt": "2026-09-04"
 }

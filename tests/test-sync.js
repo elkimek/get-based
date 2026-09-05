@@ -1846,7 +1846,7 @@ await import('../js/settings.js');
     /export function onChatSaved[\s\S]{0,700}scheduleProfilePush\(profileId,\s*data\)/.test(syncSaveHooksSrc));
   assert('chat thread deletes record tombstones before syncing index',
     await fetchWithRetry('js/chat-threads.js').then(s =>
-      /export async function deleteThread[\s\S]{0,500}recordDeletedChatThread\(threadId\)[\s\S]{0,500}state\.chatThreads = state\.chatThreads\.filter/.test(s)));
+      /export async function deleteThread[\s\S]*?saveChatThreadIndex\(\{ sync: false \}\)[\s\S]*?recordDeletedChatThread\(threadId\);\s*onChatSaved\(\)/.test(s)));
   assert('chat-threads.js imports onChatSaved', await fetchWithRetry('js/chat-threads.js').then(s => s.includes("import { onChatSaved } from './sync.js'")));
 
   // ═══════════════════════════════════════

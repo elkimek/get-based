@@ -75,11 +75,12 @@ function optimalRangeForDate(marker, dateIndex) {
     );
   }
   if (marker.optimalMin == null && marker.optimalMax == null) return null;
+  const source = marker.optimalRangeSource;
   return rangeDescriptor(
     { min: marker.optimalMin, max: marker.optimalMax },
-    'Optimal',
+    source === 'import' ? 'Lab optimal guidance' : source ? 'Custom optimal guidance' : 'Optimal',
     'optimal',
-    'schema',
+    source === 'import' ? 'lab' : source ? 'custom' : 'schema',
   );
 }
 
@@ -135,6 +136,52 @@ export function formatRangeBounds(range) {
   if (min == null) return `\u2264${formatValue(max)}`;
   if (max == null) return `\u2265${formatValue(min)}`;
   return `${formatValue(min)} \u2013 ${formatValue(max)}`;
+}
+
+const GENERIC_CHAT_RANGE = /^(reference|lab reference|custom range|target|optimal( guidance)?|lab optimal guidance|custom optimal guidance)$/i;
+const CHAT_RANGE_ROLE = { optimal: 'o', target: 't' };
+const CHAT_RANGE_SOURCE = { schema: 'app', context: 'app-context' };
+const CHAT_RANGE_POSITION = { normal: 'in', low: 'below' };
+
+export function getMarkerRangesForChat(marker, dateIndex) {
+  return resolveMarkerRangeContext(marker, dateIndex, 'both').displayedRanges.filter(range =>
+    range.min != null || range.max != null
+      || (range.label && !GENERIC_CHAT_RANGE.test(range.label))
+  );
+}
+
+const chatRangeSignature = ranges => ranges
+  .map(range => `${range.kind}:${range.source}:${range.label}:${range.min}:${range.max}`).join('|');
+
+function formatChatRanges(ranges, value) {
+  return ranges.map(range => {
+    const label = GENERIC_CHAT_RANGE.test(range.label || '') ? '' : `:${String(range.label).replace(/[\[\]]/g, '')}`;
+    const source = CHAT_RANGE_SOURCE[range.source] || range.source || 'supplied';
+    const status = range.min == null && range.max == null
+      ? 'unrated'
+      : CHAT_RANGE_POSITION[getStatus(value, range.min, range.max)] || 'above';
+    return `${CHAT_RANGE_ROLE[range.kind] || 'r'}[${source}${label}]=${formatRangeBounds(range)} (${status})`;
+  }).join('; ');
+}
+
+/** @param {{ dateLabel?: (date: string) => string }} [options] */
+export function formatMarkerValuesForChat(marker, data, options = {}) {
+  const indices = marker.values.map((value, index) => value == null ? -1 : index).filter(index => index >= 0);
+  if (!indices.length) return '';
+  const latestIndex = indices[indices.length - 1];
+  const latestRanges = getMarkerRangesForChat(marker, latestIndex);
+  const latestSignature = chatRangeSignature(latestRanges);
+  const values = indices.map(index => {
+    const value = marker.values[index];
+    const pointDate = marker.singlePoint ? marker.singleDate : data.dates[index];
+    const dateLabel = pointDate && options.dateLabel ? options.dateLabel(pointDate) : pointDate;
+    const ranges = getMarkerRangesForChat(marker, index);
+    const changed = index !== latestIndex && chatRangeSignature(ranges) !== latestSignature;
+    return `${dateLabel || 'date not recorded'}: ${value}${changed ? ` [ranges: ${formatChatRanges(ranges, value)}]` : ''}`;
+  }).join(', ');
+  const unit = marker.unit ? ` ${marker.unit}` : '';
+  const latestText = formatChatRanges(latestRanges, marker.values[latestIndex]);
+  return `${values}${unit}${latestText ? ` (latest ranges: ${latestText})` : ''}`;
 }
 
 export function getPhaseRefEnvelope(marker) {

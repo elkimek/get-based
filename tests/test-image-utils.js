@@ -48,7 +48,6 @@ assert('image utility exports stay module-scoped',
   && typeof window.buildVisionContent === 'undefined');
 assert('supportsVision exported from api module', typeof api.supportsVision === 'function');
 const chatImageExports = [
-  'toggleHDMode',
   'addImageAttachment',
   'removeImageAttachment',
   'renderAttachmentPreview',
@@ -163,8 +162,10 @@ assert('chat-send.js wires send-button refresh into chat-images without a window
 assert('Pending attachments are scoped by thread in chat-images.js',
   chatImagesSrc.includes('pendingAttachmentsByThread')
     && chatImagesSrc.includes('attachmentDraftKey'));
-assert('chat-images.js imports isValidImageType + resizeImage',
-  chatImagesSrc.includes('isValidImageType') && chatImagesSrc.includes('resizeImage'));
+assert('chat-images keeps original image bytes instead of a legacy quality mode',
+  chatImagesSrc.includes('isValidImageType')
+    && chatImagesSrc.includes('imageFileToBase64')
+    && !chatImagesSrc.includes('toggleHDMode'));
 assert('Image badge in renderChatMessages', chatRenderSrc.includes('chat-image-badge'));
 assert('buildVisionContent used in sendChatMessage', chatSendSrc.includes('buildVisionContent(imageBlocks'));
 
@@ -191,7 +192,7 @@ const cssSrc = [
   await fetchWithRetry('css/chat-redesign.css'),
   await fetchWithRetry('css/chat-redesign-open.css'),
 ].join('\n');
-assert('.chat-attach-btn style exists in CSS bundle', cssSrc.includes('.chat-attach-btn'));
+assert('.chat-context-menu-toggle style exists in CSS bundle', cssSrc.includes('.chat-context-menu-toggle'));
 assert('.chat-attach-preview style exists in CSS bundle', cssSrc.includes('.chat-attach-preview'));
 assert('.chat-attach-thumb style exists in CSS bundle', cssSrc.includes('.chat-attach-thumb'));
 assert('.chat-attach-remove style exists in CSS bundle', cssSrc.includes('.chat-attach-remove'));
@@ -205,6 +206,10 @@ assert('chat-attach-btn defined in index.html', htmlSrc.includes('id="chat-attac
 assert('chat-attach-preview defined in index.html', htmlSrc.includes('id="chat-attach-preview"'));
 assert('chat-image-input defined in index.html', htmlSrc.includes('id="chat-image-input"'));
 assert('chat-input-row defined in index.html', htmlSrc.includes('chat-input-row'));
+assert('legacy HD control is absent', !htmlSrc.includes('chat-hd-btn'));
+assert('composer exposes structured photo, import, and Context actions',
+  ['attach-image', 'import-health-file', 'open-chat-context']
+    .every(action => htmlSrc.includes(`data-chat-action="${action}"`)));
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

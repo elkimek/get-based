@@ -14,7 +14,7 @@ import {
 } from './utils.js';
 import { saveImportedData } from './data.js';
 import { resizeImage, isValidImageType } from './image-utils.js';
-import { callClaudeAPI, hasAIProvider } from './api.js';
+import { callAssistantFeatureAI, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { extractPDFText } from './pdf-import.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
 import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';
@@ -40,8 +40,8 @@ import {
 } from './emf-interpretation.js';
 
 const emfAIDeps = {
-  callClaudeAPI,
-  hasAIProvider,
+  callClaudeAPI: callAssistantFeatureAI,
+  hasAIProvider: hasAssistantFeatureProvider,
 };
 
 const emfRuntimeDeps = {

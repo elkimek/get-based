@@ -51,6 +51,10 @@ const threadFns = [
   'ensureActiveThread', 'createNewThread',
   'switchToThread', 'deleteThread',
   'renameThread', 'renameThreadPrompt',
+  'createThreadProject', 'renameThreadProject', 'renameThreadProjectPrompt',
+  'deleteThreadProject', 'deleteThreadProjectPrompt',
+  'toggleThreadPinned', 'moveThreadToProject',
+  'getChatThreadSort', 'setChatThreadSort',
   'autoNameThread', 'pruneOldThreads',
   'renderThreadList', 'filterThreadList',
   'installChatThreadDelegates',
@@ -204,7 +208,8 @@ const encryptedThread = {
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
   messageCount: 3,
-  personality: 'default'
+  personality: 'default',
+  projectName: 'Encrypted project',
 };
 await cryptoModule.encryptedSetItem(guardedIndexKey, JSON.stringify([encryptedThread]));
 let encryptedIndexRaw = localStorage.getItem(guardedIndexKey);
@@ -212,6 +217,7 @@ assert('thread index can be encrypted at rest', encryptedIndexRaw?.startsWith('v
 st.chatThreads = [];
 const encryptedLoadResult = await chatThreadsModule.loadChatThreads();
 assert('loadChatThreads decrypts encrypted thread index', encryptedLoadResult === true && st.chatThreads[0]?.id === encryptedThread.id);
+assert('loadChatThreads keeps encrypted project membership', st.chatThreads[0]?.projectName === 'Encrypted project');
 st.chatThreads[0].name = 'Encrypted Index Saved';
 const encryptedSaveResult = await chatThreadsModule.saveChatThreadIndex({ sync: false });
 encryptedIndexRaw = localStorage.getItem(guardedIndexKey);
@@ -220,7 +226,8 @@ const encryptedSavedThreads = JSON.parse(encryptedSavedPlaintext || '[]');
 assert('saveChatThreadIndex keeps unlocked encrypted index encrypted',
   encryptedSaveResult === true && encryptedIndexRaw?.startsWith('v1:'));
 assert('saveChatThreadIndex encrypted write round-trips index JSON',
-  encryptedSavedThreads[0]?.name === 'Encrypted Index Saved');
+  encryptedSavedThreads[0]?.name === 'Encrypted Index Saved'
+    && encryptedSavedThreads[0]?.projectName === 'Encrypted project');
 
 await cryptoModule._setTestSessionKey(null);
 st.chatThreads = [{
@@ -363,6 +370,7 @@ assert('profile-runtime preserves the lazy Chat boundary until first use',
 // ═══════════════════════════════════════════════
 console.log('17. Thread Search Extraction (source inspection)');
 const chatThreadsSrc = read('js/chat-threads.js');
+const chatThreadViewSrc = read('js/chat-thread-list-view.js');
 const chatWindowBindingsSrc = read('js/chat-window-bindings.js');
 const chatThreadSearchSrc = read('js/chat-thread-search.js');
 const inlineHandlerRe = /\bon(?:click|change|input|search|keydown|keyup|submit)=/;
@@ -401,14 +409,19 @@ assert('chat-thread-search uses overflow sentinel before truncation banner',
   chatThreadSearchSrc.includes('results.length > SEARCH_RESULT_LIMIT') &&
   chatThreadSearchSrc.includes('results.slice(0, SEARCH_RESULT_LIMIT)'));
 assert('chat-threads render path uses delegated thread actions',
-  !inlineHandlerRe.test(chatThreadsSrc) &&
-  chatThreadsSrc.includes('data-chat-thread-action="switch"') &&
-  chatThreadsSrc.includes('data-chat-thread-action="rename"') &&
-  chatThreadsSrc.includes('data-chat-thread-action="delete"'));
+  chatThreadsSrc.includes('renderChatThreadList(getChatThreadSort(), filter)') &&
+  !inlineHandlerRe.test(chatThreadViewSrc) &&
+  chatThreadViewSrc.includes('data-chat-thread-action="switch"') &&
+  chatThreadViewSrc.includes('data-chat-thread-action="rename"') &&
+  chatThreadViewSrc.includes('data-chat-thread-action="delete"'));
 assert('chat-threads installs an idempotent click delegate',
   chatThreadsSrc.includes('let chatThreadDelegatesInstalled = false') &&
-  chatThreadsSrc.includes("document.addEventListener('click', handleThreadActionClick)") &&
-  chatThreadsSrc.includes('installChatThreadDelegates();'));
+    chatThreadsSrc.includes("document.addEventListener('click', handleThreadActionClick)") &&
+    chatThreadsSrc.includes('installChatThreadDelegates();'));
+assert('chat-threads uses delegated pointer gestures for reliable project drag and drop',
+  chatThreadsSrc.includes("document.addEventListener('pointerdown', handleThreadPointerDown)")
+    && chatThreadsSrc.includes("document.addEventListener('pointermove', handleThreadPointerMove")
+    && chatThreadsSrc.includes('projectDropTargetAt(event.clientX, event.clientY)'));
 
 // ═══════════════════════════════════════════════
 // 18. CSS Inspection
@@ -422,7 +435,7 @@ assert('CSS has .chat-thread-item', cssSrc.includes('.chat-thread-item'));
 assert('CSS has .chat-thread-item.active', cssSrc.includes('.chat-thread-item.active'));
 assert('CSS has .chat-panel-conversation', cssSrc.includes('.chat-panel-conversation'));
 assert('CSS has .chat-rail-toggle', cssSrc.includes('.chat-rail-toggle'));
-assert('CSS has .chat-thread-item-actions', cssSrc.includes('.chat-thread-item-actions'));
+assert('CSS has compact thread action menu', cssSrc.includes('.chat-thread-item-menu-popover'));
 assert('CSS has mobile rail overlay', cssSrc.includes('.chat-thread-rail.open') && cssSrc.includes('768px'));
 assert('chat thread list is a named keyboard-focusable region',
   indexSrc.includes('id="chat-thread-list"')

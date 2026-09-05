@@ -1,7 +1,8 @@
 // @ts-check
 // pdf-import-ai-utils.js - AI request retry, JSON parsing, and accounting helpers.
 
-import { callClaudeAPI, AI_IMPORT_REQUEST_TIMEOUT_MS } from './api.js';
+import { AI_IMPORT_REQUEST_TIMEOUT_MS } from './api.js';
+import { callAssistantFeatureAI } from './ai-feature-routing.js';
 import { getAIProvider, getOllamaMainModel } from './api-provider-storage.js';
 import { normalizeLabFastingStatus, normalizeLabSampleTime } from './lab-entry.js';
 import { isDebugMode } from './utils.js';
@@ -183,12 +184,12 @@ export function isAIStreamAbortError(err) {
 
 export async function callImportAIWithStreamFallback(request, label) {
   try {
-    return await callClaudeAPI(request);
+    return await callAssistantFeatureAI(request);
   } catch (err) {
     if (!request.onStream || request.signal?.aborted || !isAIStreamAbortError(err)) throw err;
     if (isDebugMode()) console.warn(`[Import] ${label} stream aborted; retrying without streaming`, err);
     try {
-      const result = await callClaudeAPI({ ...request, onStream: undefined, forceNonStream: true, requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS });
+      const result = await callAssistantFeatureAI({ ...request, onStream: undefined, forceNonStream: true, requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS });
       return {
         ...result,
         diagnostics: { ...result?.diagnostics, streamFallback: true },

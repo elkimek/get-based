@@ -56,6 +56,7 @@ export {
   dataChangeAttrs,
   destroyAllCharts,
   installDataActionDelegates,
+  navigateDataViewRuntime,
   renderChartLayersDropdown,
   renderDateRangeFilter,
   setDateRange,
@@ -64,6 +65,7 @@ export {
   setSuppOverlay,
   switchRangeMode,
   switchUnitSystem,
+  showDataMarkerDetailRuntime,
   toggleAltUnits,
   toggleChartLayersDropdown,
   updateHeaderDates,
@@ -423,6 +425,7 @@ export function getActiveData() {
       if ('refMin' in ovr || 'refMax' in ovr) m.referenceRangeSource = ovr.refSource || 'custom';
       if ('optimalMin' in ovr) m.optimalMin = ovr.optimalMin;
       if ('optimalMax' in ovr) m.optimalMax = ovr.optimalMax;
+      if ('optimalMin' in ovr || 'optimalMax' in ovr) m.optimalRangeSource = ovr.optimalSource || 'custom';
     }
   }
 

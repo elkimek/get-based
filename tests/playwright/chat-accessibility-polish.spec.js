@@ -139,7 +139,7 @@ test('mobile chat exposes concise live status, reduced motion, and touch targets
       rail.getBoundingClientRect();
     }
     const name = document.querySelector('.chat-thread-item-name')?.getBoundingClientRect();
-    const actions = document.querySelector('.chat-thread-item-actions')?.getBoundingClientRect();
+    const actions = document.querySelector('.chat-thread-item-menu')?.getBoundingClientRect();
     const actionRects = Array.from(document.querySelectorAll('.chat-thread-item-action'))
       .map(action => action.getBoundingClientRect());
     const back = document.querySelector('.chat-rail-back')?.getBoundingClientRect();

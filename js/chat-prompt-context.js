@@ -18,9 +18,9 @@ export function buildChatLabContext(queryText = '', options = {}) {
 
 export function buildPersonalityPrompt(personality, customPersonality) {
   if (personality?.id && personality.id.startsWith('custom_')) {
-    return customPersonality?.promptText ? `\n\nPersona: ${customPersonality.promptText}` : '';
+    return customPersonality?.promptText ? `\n\n## Communication Persona\n${customPersonality.promptText}` : '';
   }
-  return personality?.promptAddition ? '\n\n' + personality.promptAddition : '';
+  return personality?.promptAddition ? '\n\n## Communication Persona\n' + personality.promptAddition : '';
 }
 
 export function buildMultiPersonaInstruction(chatHistory, currentPersonaName) {
@@ -73,7 +73,8 @@ export function buildChatSystemPrompt({
   personalityPrompt = '',
   multiPersonaInstruction = '',
 }) {
-  return basePrompt + webHint + '\n\nCurrent lab data:\n' + labContext + personalityPrompt + multiPersonaInstruction;
+  return basePrompt + webHint + personalityPrompt + multiPersonaInstruction
+    + '\n\n## Current User Health and Lab Context\n' + labContext;
 }
 
 export function serializeLensSources(lensResult) {

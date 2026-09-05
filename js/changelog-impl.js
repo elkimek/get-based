@@ -1,18 +1,19 @@
 // @ts-check
 // changelog-impl.js — lazy What's New release-note archive and modal renderer
-// APP_VERSION comes from /version.js (loaded as classic script before modules)
 import { escapeHTML } from './utils.js';
 import { getAppVersionRuntime } from './utils-runtime.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
-
+import { CURRENT_RELEASE } from './changelog-current.js';
 const CHANGELOG_ACTION_ATTR = 'data-changelog-action';
 const changelogDelegateRoots = new WeakSet();
-
 const CHANGELOG = [
-  { version: '1.18.6', date: '2026-08-30', title: 'Cross-device sync moves to the newer engine', items: [
-    '<b>Encrypted Sync now uses Evolu 8 by default.</b> Existing recovery words and relay identities carry forward automatically, while compatibility checks continue to exercise the previous client as a rollback path.', '<b>Sync recovery has stronger storage safeguards.</b> The app avoids stale rebroadcasts and preserves a complete snapshot when rebuilding relay history, reducing duplicate growth without dropping newer device changes.' ] },
-  {
-    version: '1.18.2', date: '2026-08-28', title: 'WHOOP sync is current and securely stored',
+  CURRENT_RELEASE,
+  { version: '1.18.10', date: '2026-09-03', title: 'AI model menus stay open on desktop', items: ['<b>Model dropdowns in Settings → AI now behave like persistent pickers.</b> A normal click keeps the list open for selection, the list stays above the Settings modal, and browsers without the newer picker UI fall back to their reliable native control.'] },
+  { version: '1.18.9', date: '2026-09-03', title: 'Gemini 3.8 Flash joins recommended models', items: ['<b>Gemini 3.8 Flash is recommended wherever it is available.</b> It replaces older Gemini Flash versions in the visible Recommended group for OpenRouter, Venice, Routstr, PPQ, and compatible custom providers, while availability and pricing continue to come from each provider\'s live catalog.'] },
+  { version: '1.18.8', date: '2026-09-02', title: 'Claude Fable 5.1 joins recommended models', items: ['<b>Claude Fable 5.1 is recommended wherever it is available.</b> OpenRouter, Venice, Routstr, PPQ, and compatible custom providers recognize each provider\'s model ID format while continuing to source availability and pricing from live catalogs.'] },
+  { version: '1.18.7', date: '2026-09-01', title: 'On-device voice is clearer and more reliable', items: ['<b>Local speech behaves better across phones and computers.</b> Android defaults to the stable CPU path, failed GPU runs recover safely when possible, and Whisper Medium is available again.', '<b>Kokoro starts as soon as its first sentence is ready.</b> Playback continues outside the chat panel and clearly shows when the next sentence is still being generated.', '<b>Voice settings are easier to understand.</b> Speech-to-text and text-to-speech have focused sections, model storage explains CPU and GPU weight files, and advanced connections stay collapsed until needed.'] },
+  { version: '1.18.6', date: '2026-08-30', title: 'Cross-device sync moves to the newer engine', items: ['<b>Encrypted Sync now uses Evolu 8 by default.</b> Existing recovery words and relay identities carry forward automatically, while compatibility checks continue to exercise the previous client as a rollback path.', '<b>Sync recovery has stronger storage safeguards.</b> The app avoids stale rebroadcasts and preserves a complete snapshot when rebuilding relay history, reducing duplicate growth without dropping newer device changes.'] },
+  { version: '1.18.2', date: '2026-08-28', title: 'WHOOP sync is current and securely stored',
     items: [
       '<b>Self-hosted WHOOP connections work with the current WHOOP API.</b> Recovery, sleep, strain, heart rate, and related daily readings once again line up with the correct day.',
       '<b>WHOOP data now has always-on device protection.</b> Imported rows and WHOOP-specific local profile values are AES-GCM encrypted even without an optional profile passphrase, and device-bound raw data stays out of portable backups.',
@@ -356,7 +357,7 @@ const CHANGELOG = [
     forceShow: true,
     items: [
       '<b>Agent Access is now a real private bridge for your agents.</b> getbased can hand your selected health context to local AI tools through the self-hosted MCP while keeping the hosted relay limited to encrypted context.',
-      '<b>It works beyond Hermes.</b> Pick Hermes, OpenClaw, Claude Code, Claude Desktop, Cursor, Cline, or Codex in Settings → Agent Access, then copy one private setup command for that exact tool.',
+      '<b>It works beyond Hermes.</b> Pick Hermes, OpenClaw, Claude Agent, Claude Desktop, Cursor, Cline, or Codex in Settings → Agent Access, then copy one private setup command for that exact tool.',
       '<b>Your setup follows your synced profile.</b> Agent Access enabled state, the relay token, the local Agent Context key, and wearable-series window travel inside your existing end-to-end encrypted Sync profile, so a restored browser does not look disconnected.',
       '<b>The secret boundary is clearer.</b> The token authorizes relay access; the Agent Context key decrypts locally inside your MCP. getbased shows both values separately, and manual-config clients get the exact config snippet to paste next.',
     ]
@@ -645,7 +646,7 @@ const CHANGELOG = [
       '<b>Five wearables, one dashboard.</b> Connect Oura, Fitbit, Withings, Polar, or Apple Health (file import). Or log weight / BP / resting HR by hand. HRV, sleep, recovery, body composition, blood pressure, steps — every signal your hardware produces surfaces in a single strip alongside your blood work. Withings users get the full Body Scan / ScanWatch / BPM picture: body fat %, muscle / bone / water mass, vascular age, PWV, SpO₂, body and skin temperature, sleep architecture (deep / light / REM / awake / breathing rate / snoring / apnea-class), nerve health — cards auto-hide when your device doesn\'t measure that signal. (WHOOP and Ultrahuman support is built but private-beta only while we validate partner credentials.)',
       '<b>Tap any card for detail.</b> 90-day chart, baselines, rolling averages, every individual reading, manual-entry CRUD. Multiple devices? Tap the <i>via Oura</i> / <i>via Fitbit</i> source badge to switch which one drives the card. Reorder the strip via the ⇄ button — hold per profile, sync across devices.',
       '<b>Overnight and daytime, separately.</b> HRV and heart rate split into recovery (overnight) and reactivity (daytime) so the AI can reason about both.',
-      '<b>AI chat sees a compact summary</b> by default. External agents (Hermes, OpenClaw, Claude Code, anything MCP) connect via the new Agent Access tab — token, push controls, optional 7 / 30 / 90-day series for time-series reasoning.',
+      '<b>AI chat sees a compact summary</b> by default. External agents (Hermes, OpenClaw, Claude Agent, anything MCP) connect via the new Agent Access tab — token, push controls, optional 7 / 30 / 90-day series for time-series reasoning.',
       '<b>Honest "as of {date}" dates.</b> If a metric\'s latest reading is older than its source\'s freshest reading (e.g. HRV from Oura\'s <code>/sleep</code> often lags daily_sleep by hours while the night\'s analysis finishes), the card surfaces the actual date so the value reads honestly. Hover for the explanation.',
       '<b>Privacy.</b> Raw daily samples never leave your device. Sync carries only the compact summary, encrypted end-to-end. OAuth tokens never sync — re-connect each device independently. Wearable storage is wrapped in AES-GCM when encryption-at-rest is enabled.',
       '<b>Settings reorganised.</b> Old Integrations tab split into <b>Wearables</b> (your devices) and <b>Agent Access</b> (read permission for AI). See the <a href="https://docs.getbased.health/guides/wearables">user guide</a> for the full setup walkthrough.',
@@ -706,7 +707,6 @@ export function openChangelog(showAll) {
   modal.className = 'modal changelog-modal gb-history-modal';
   let html = `<div class="gb-modal-head">
     <div>
-      <div class="gb-modal-kicker">Release notes</div>
       <div class="gb-modal-title">What's New</div>
     </div>
     <button type="button" class="modal-close" aria-label="Close" ${CHANGELOG_ACTION_ATTR}="close">&times;</button>

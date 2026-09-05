@@ -36,6 +36,24 @@ function normalizeTimestamp(value, fallback) {
   return Number.isFinite(parsed) ? new Date(parsed).toISOString() : fallback;
 }
 
+function normalizeCalendarDate(value) {
+  const text = boundedString(value, 10).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return '';
+  const parsed = new Date(`${text}T00:00:00.000Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === text ? text : '';
+}
+
+export function normalizeAgentThreadHandle(value) {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 400) return null;
+  // Older Codex threads stored the upstream opaque ID directly. Preserve those
+  // bounded IDs while also accepting the longer signed handles issued by the
+  // companion's multi-adapter protocol.
+  const isLegacyHandle = value.length <= 128 && CHAT_ID_RE.test(value);
+  const isSignedHandle = /^v\d+\.[A-Za-z0-9_.:-]+$/.test(value);
+  if ((!isLegacyHandle && !isSignedHandle) || INVALID_RECORD_KEYS.has(value)) return null;
+  return value;
+}
+
 export function normalizeChatRecordId(value) {
   if (typeof value !== 'string' || value.length === 0 || value.length > 128) return null;
   if (!CHAT_ID_RE.test(value) || INVALID_RECORD_KEYS.has(value)) return null;
@@ -80,6 +98,94 @@ function normalizeLensSources(value) {
   }));
 }
 
+function normalizeAgentDraftPayload(kind, value) {
+  if (!isRecord(value)) return null;
+  const string = (key, max) => boundedString(value[key], max).trim();
+  const numberFrom = (source, key, min, max) => {
+    if (source?.[key] === undefined || source?.[key] === null || source?.[key] === '') return undefined;
+    const parsed = Number(source?.[key]);
+    return Number.isFinite(parsed) && parsed >= min && parsed <= max ? parsed : undefined;
+  };
+  const number = (key, min, max) => numberFrom(value, key, min, max);
+  if (kind === 'note') {
+    const scope = ['profile', 'marker'].includes(value.scope) ? value.scope : 'profile';
+    const text = string('text', 2000);
+    if (!text || (scope === 'marker' && !string('marker', 160))) return null;
+    return { scope, marker: string('marker', 160), text, mode: value.mode === 'replace' ? 'replace' : 'append' };
+  }
+  if (kind === 'meal') {
+    const name = string('name', 160);
+    if (!name) return null;
+    const eatenAt = string('eatenAt', 40);
+    if (eatenAt && !Number.isFinite(new Date(eatenAt).getTime())) return null;
+    const nutrients = {};
+    for (const [key, max] of Object.entries({ energyKcal: 20000, proteinG: 2000, carbohydrateG: 3000, fatG: 2000, fiberG: 1000, fluidMl: 20000 })) {
+      const amount = numberFrom(value.nutrients, key, 0, max);
+      if (amount !== undefined) nutrients[key] = amount;
+    }
+    return {
+      name,
+      eatenAt,
+      mealType: ['breakfast', 'brunch', 'lunch', 'dinner', 'snack', 'drink', 'other'].includes(value.mealType) ? value.mealType : 'other',
+      note: string('note', 500),
+      nutrients,
+    };
+  }
+  if (kind === 'biometric') {
+    const metric = ['weight', 'bp', 'rhr'].includes(value.metric) ? value.metric : '';
+    if (!metric) return null;
+    const rawDate = string('date', 10);
+    const date = normalizeCalendarDate(rawDate);
+    if (rawDate && !date) return null;
+    const normalized = {
+      metric,
+      date,
+      value: number('value', metric === 'weight' ? 1 : 20, metric === 'weight' ? 1000 : 250),
+      unit: ['kg', 'lb', 'bpm'].includes(value.unit) ? value.unit : metric === 'weight' ? 'kg' : 'bpm',
+      systolic: number('systolic', 40, 300),
+      diastolic: number('diastolic', 20, 200),
+      pulse: number('pulse', 20, 250),
+      note: string('note', 500),
+    };
+    if (metric === 'bp' && (normalized.systolic === undefined || normalized.diastolic === undefined)) return null;
+    if (metric !== 'bp' && normalized.value === undefined) return null;
+    return normalized;
+  }
+  if (kind === 'supplement') {
+    const name = string('name', 160);
+    const type = ['supplement', 'medication'].includes(value.type) ? value.type : '';
+    if (!name || !type) return null;
+    const rawStartDate = string('startDate', 10);
+    const startDate = normalizeCalendarDate(rawStartDate);
+    if (rawStartDate && !startDate) return null;
+    return {
+      name, type, dosage: string('dosage', 160), note: string('note', 500),
+      startDate,
+    };
+  }
+  return null;
+}
+
+function normalizeAgentDrafts(value) {
+  if (!Array.isArray(value)) return undefined;
+  const drafts = [];
+  for (const draft of value.slice(0, 20)) {
+    if (!isRecord(draft)) continue;
+    const id = normalizeChatRecordId(draft.id);
+    const profileId = normalizeChatRecordId(draft.profileId);
+    const kind = ['note', 'meal', 'biometric', 'supplement'].includes(draft.kind) ? draft.kind : '';
+    const payload = normalizeAgentDraftPayload(kind, draft.payload);
+    if (!id || !profileId || !kind || !payload) continue;
+    const status = ['pending', 'applied', 'discarded'].includes(draft.status) ? draft.status : 'pending';
+    drafts.push({
+      id, profileId, kind, payload, status,
+      summary: boundedString(draft.summary, 500),
+      ...(status === 'applied' ? { appliedAt: normalizeTimestamp(draft.appliedAt, '') } : {}),
+    });
+  }
+  return drafts;
+}
+
 function normalizeDiscussionPersonas(value) {
   if (!Array.isArray(value)) return [];
   const ids = new Set();
@@ -112,6 +218,7 @@ export function normalizeChatMessages(value) {
       modelDisplay: boundedString(message.modelDisplay, 200),
       modelId: boundedString(message.modelId, 200),
       provider: boundedString(message.provider, 100),
+      agentId: boundedString(message.agentId, 40),
       imageCount: safeCount(message.imageCount, MAX_THUMBNAILS_PER_MESSAGE),
     };
     const thumbnails = Array.isArray(message.thumbnails)
@@ -130,6 +237,10 @@ export function normalizeChatMessages(value) {
     const lensSources = normalizeLensSources(message.lensSources);
     if (lensSources) normalized.lensSources = lensSources;
     else delete normalized.lensSources;
+
+    const agentDrafts = normalizeAgentDrafts(message.agentDrafts);
+    if (agentDrafts?.length) normalized.agentDrafts = agentDrafts;
+    else delete normalized.agentDrafts;
 
     for (const flag of ['auto', 'discussion', 'discussionError', 'hidden', 'joined', 'stopped']) {
       if (message[flag] === true) normalized[flag] = true;
@@ -177,6 +288,11 @@ export function normalizeChatThreads(value) {
       personalityName: boundedString(thread.personalityName, 200),
       personalityIcon: normalizeDisplayIcon(thread.personalityIcon),
     };
+    const projectName = boundedString(thread.projectName, 60).trim();
+    if (projectName) normalized.projectName = projectName;
+    else delete normalized.projectName;
+    if (thread.pinned === true) normalized.pinned = true;
+    else delete normalized.pinned;
     const discussionPersonas = normalizeDiscussionPersonas(thread.discussionPersonas);
     const pendingPersonas = normalizeDiscussionPersonas(thread.discussionPendingPersonas);
     if (discussionPersonas.length >= 2) normalized.discussionPersonas = discussionPersonas;
@@ -196,6 +312,19 @@ export function normalizeChatThreads(value) {
       MAX_MESSAGES_PER_THREAD,
     );
     else delete normalized.forkedFromMessageIndex;
+    if (thread.chatBackend === 'codex') {
+      normalized.chatBackend = 'codex';
+      const agentThreadId = normalizeAgentThreadHandle(thread.agentThreadId);
+      if (agentThreadId) normalized.agentThreadId = agentThreadId;
+      else delete normalized.agentThreadId;
+      const agentModel = boundedString(thread.agentModel, 160).trim();
+      if (agentModel) normalized.agentModel = agentModel;
+      else delete normalized.agentModel;
+    } else {
+      delete normalized.chatBackend;
+      delete normalized.agentThreadId;
+      delete normalized.agentModel;
+    }
     threads.push(normalized);
     if (threads.length >= MAX_THREADS) break;
   }

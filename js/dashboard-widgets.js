@@ -71,7 +71,7 @@ export function createDashboardWidgetRegistry(renderers, opts = {}) {
     { id: 'light-live-session', source: 'Light', title: 'Live Light Session', description: 'Running sun or therapy session with live estimates and controls', size: 'full', render: renderers.renderDashboardLightLiveSessionWidget },
     { id: 'light-session-log', source: 'Light', title: 'Log Sessions', description: 'Start sun or therapy sessions quickly', size: 'third', render: renderers.renderDashboardLightSessionLogWidget },
     { id: 'light-channels', source: 'Light', title: 'Light Channels', description: 'Seven-day rhythm across light biology channels', size: 'half', render: renderers.renderDashboardLightChannelsWidget },
-    { id: 'profile-context', source: 'Insight', title: 'Profile Context', description: 'Goals, history, lifestyle, and context cards', render: () => renderProfileContextCards() },
+    { id: 'profile-context', source: 'Insight', title: 'Profile Context', description: 'Goals, history, lifestyle, and context cards', render: () => renderProfileContextCards({ embedded: true }) },
     { id: 'cycle', source: 'Body', title: 'Cycle', description: 'Menstrual cycle context', size: 'half', isAvailable: () => state.profileSex === 'female', render: (ctx) => ctx ? renderMenstrualCycleSection(ctx.data, { variant: 'dashboard', showHeader: false }) : '' },
     { id: 'supplements', source: 'Body', title: 'Supplements & Meds', description: 'Supplements and medication timeline', render: () => renderSupplementsSection() },
     { id: 'key-trends', source: 'Labs', title: 'Key Trends', description: 'Auto-selected markers from your current range', render: renderers.renderDashboardKeyTrendsWidget },

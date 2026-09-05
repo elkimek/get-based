@@ -326,10 +326,10 @@ const _realFetch = globalThis.fetch;
   // ═══════════════════════════════════════
   console.log('%c 11. System Prompt ', 'font-weight:bold;color:#f59e0b');
 
-  assert('System prompt has Supplement Information section', chatSystemPromptSrc.includes('## Supplement Information'));
-  assert('System prompt puts lifestyle and food context first', chatSystemPromptSrc.includes('lifestyle and food context first'));
+  assert('System prompt has supplements and medications section', chatSystemPromptSrc.includes('## Supplements and Medications'));
+  assert('System prompt puts non-product, food, and lifestyle context first', chatSystemPromptSrc.includes('non-product, food, and lifestyle context first'));
   assert('System prompt frames supplements as educational options', chatSystemPromptSrc.includes('educational options to review'));
-  assert('System prompt prohibits individualized dosing', chatSystemPromptSrc.includes('Do not provide an individualized dose'));
+  assert('System prompt prohibits individualized dosing', chatSystemPromptSrc.includes('Do not give an individualized dose'));
   assert('System prompt mentions medication interactions', chatSystemPromptSrc.includes('medication interactions'));
 
   // ═══════════════════════════════════════

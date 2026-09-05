@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { escapeHTML } from './utils.js';
-import { hasAIProvider, supportsVision } from './api.js';
+import { assistantFeatureSupports, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { suppActionAttrs } from './supplement-action-delegates.js';
 import { formatSupplementTotal, ingredientDailyTotal } from './supplement-impact.js';
 import {
@@ -329,7 +329,7 @@ export function suppFormHtml(editIdx, supplement, importReviewHtml = '') {
   const status = editing ? getSupplementStatus(supplement) : 'planned';
   return `<div class="supp-form" id="supp-form-panel" data-edit-index="${editIdx}">
     <div class="supp-form-row supp-url-row"><div class="supp-form-field"><label>Import product facts <span class="supp-label-hint">Review required before anything is applied</span></label>
-      <div class="supp-url-input-row"><input type="url" id="supp-url" placeholder="https://..." autocomplete="off" value="${escapeHTML(editing ? supplement.sourceUrl || '' : '')}"><button type="button" class="supp-url-fetch" ${suppActionAttrs('fetch-url')}>Review link</button>${hasAIProvider() && supportsVision() ? `<button type="button" class="supp-url-fetch supp-scan-label" ${suppActionAttrs('scan-label')}>Review photos</button><input type="file" id="supp-label-input" accept="image/*" capture="environment" multiple hidden>` : ''}</div>
+      <div class="supp-url-input-row"><input type="url" id="supp-url" placeholder="https://..." autocomplete="off" value="${escapeHTML(editing ? supplement.sourceUrl || '' : '')}"><button type="button" class="supp-url-fetch" ${suppActionAttrs('fetch-url')}>Review link</button>${hasAssistantFeatureProvider() && assistantFeatureSupports('image') ? `<button type="button" class="supp-url-fetch supp-scan-label" ${suppActionAttrs('scan-label')}>Review photos</button><input type="file" id="supp-label-input" accept="image/*" capture="environment" multiple hidden>` : ''}</div>
       <div class="supp-form-help">Use front label + Facts/Drug Facts + directions (up to 4 photos). Images are processed for extraction and are not saved. Patient and prescription identifiers are ignored.</div><div id="supp-import-progress" class="supp-import-progress" aria-live="polite" hidden></div>
     </div></div><div id="supp-import-review-area">${importReviewHtml}</div>
     <div class="supp-form-section-title">Identity</div><div class="supp-form-row">

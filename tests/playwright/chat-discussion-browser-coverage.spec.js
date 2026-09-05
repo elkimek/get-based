@@ -98,8 +98,8 @@ test('chat prompt context attestation and discussion prompt helpers cover browse
       promptContext.buildPersonalityPrompt(
         { id: 'custom_reviewer' },
         { promptText: 'Challenge weak claims.' }
-      ).includes('Challenge weak claims.')
-      && promptContext.buildPersonalityPrompt({ promptAddition: 'Use evidence.' }).includes('Use evidence.')
+      ).includes('## Communication Persona\nChallenge weak claims.')
+      && promptContext.buildPersonalityPrompt({ promptAddition: 'Use evidence.' }).includes('## Communication Persona\nUse evidence.')
       && promptContext.buildPersonalityPrompt({ id: 'custom_empty' }, { promptText: '' }) === '';
 
     const roundHistory = [
@@ -127,7 +127,7 @@ test('chat prompt context attestation and discussion prompt helpers cover browse
       webHint: ' Web hint.',
       personalityPrompt: ' Persona note.',
       multiPersonaInstruction: ' Multi persona note.',
-    }) === 'Base prompt. Web hint.\n\nCurrent lab data:\nFerritin context. Persona note. Multi persona note.';
+    }) === 'Base prompt. Web hint. Persona note. Multi persona note.\n\n## Current User Health and Lab Context\nFerritin context.';
 
     const lensResult = {
       sourceName: 'Knowledge Base',

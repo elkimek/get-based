@@ -1,7 +1,7 @@
 // @ts-check
 // chat-context-status.js - Unified AI Context state in the chat header.
 
-import { hasAIProvider } from './api.js';
+import { hasChatResponseBackend } from './chat-backend-selection.js';
 import { openChatContextModalRuntime } from './chat-runtime.js';
 import { CONTEXT_SOURCE_IDS, isContextSourceEnabled } from './context-source-registry.js';
 import { getLensStatus, getLensSummary } from './lens.js';
@@ -60,7 +60,7 @@ export function updateChatContextStatus() {
     status.classList.remove('chat-context-status-pending', 'chat-context-status-error');
     if (live) live.textContent = '';
   };
-  if (!hasAIProvider()) {
+  if (!hasChatResponseBackend()) {
     clearStatus();
     return;
   }

@@ -7,6 +7,7 @@ test-data.json
 !icon-512.png
 !dashboard.png
 # Build artifacts
+/getbased-companion.mjs
 artifacts/
 dist/
 out/

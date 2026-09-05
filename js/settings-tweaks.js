@@ -320,7 +320,6 @@ export function openTweaksPanel() {
       <aside class="tweaks-panel" id="tweaks-panel" role="dialog" aria-modal="true" aria-label="Tweaks">
         <div class="tweaks-head">
           <div>
-            <div class="gb-modal-kicker">Controls</div>
             <div class="gb-modal-title">Tweaks</div>
           </div>
           <button class="modal-close" aria-label="Close" data-tweaks-action="close">&times;</button>

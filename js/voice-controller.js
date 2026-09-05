@@ -25,6 +25,7 @@ import { normalizeSpeechText, splitSpeechText } from './voice-text.js';
 import { getAppExtensionVoicePlaybackPolicy } from './app-extension-runtime.js';
 
 const MAX_RECORDING_MS = 5 * 60 * 1000;
+const LOCAL_STT_TIMEOUT_MS = 3 * 60 * 1000;
 // Kokoro's own TextSplitterStream emits sentence-sized audio progressively.
 // Keep the outer request large to avoid restarting playback between paragraphs.
 const BROWSER_LOCAL_SPEECH_CHUNK_CHARACTERS = 3500;
@@ -41,6 +42,8 @@ let speechAbortController = null;
 let autoReadActivationNoticeShown = false;
 /** @type {number | null} */
 let speakingMessageIndex = null;
+/** @type {'idle' | 'busy' | 'speaking' | 'waiting'} */
+let speechButtonMode = 'idle';
 let voiceActivityEpoch = 0;
 
 function chatVoiceButton() {
@@ -63,12 +66,23 @@ function setCaptureUi(stateName, text = '') {
   if (button) {
     const recording = stateName === 'recording';
     const busy = stateName === 'requesting' || stateName === 'transcribing';
+    const cancellable = stateName === 'transcribing';
     button.classList.toggle('recording', recording);
     button.classList.toggle('busy', busy);
     button.setAttribute('aria-pressed', String(recording));
-    button.setAttribute('aria-label', recording ? 'Stop recording' : busy ? 'Processing voice' : 'Speak message');
-    button.title = recording ? 'Stop and transcribe' : 'Speak message';
-    button.disabled = busy;
+    button.setAttribute('aria-label', recording
+      ? 'Stop recording'
+      : cancellable
+        ? 'Cancel transcription'
+        : busy
+          ? 'Processing voice'
+          : 'Speak message');
+    button.title = recording
+      ? 'Stop and transcribe'
+      : cancellable
+        ? 'Cancel transcription'
+        : 'Speak message';
+    button.disabled = stateName === 'requesting';
   }
   if (status) {
     status.textContent = text;
@@ -87,6 +101,18 @@ function startCaptureTicker() {
   captureTicker = setInterval(() => {
     if (captureState !== 'recording') return;
     setCaptureUi('recording', `Listening · ${formatElapsed(Date.now() - captureStartedAt)} · ${capturePrivacyText} · tap to finish`);
+  }, 1000);
+}
+
+function startTranscriptionTicker(local) {
+  clearCaptureTicker();
+  captureTicker = setInterval(() => {
+    if (captureState !== 'transcribing') return;
+    const elapsed = formatElapsed(Date.now() - captureStartedAt);
+    setCaptureUi(
+      'transcribing',
+      `${local ? 'Transcribing on this device' : 'Transcribing'} · ${elapsed} · tap to cancel`,
+    );
   }, 1000);
 }
 
@@ -138,14 +164,29 @@ async function finishVoiceRecording() {
   if (!session || captureState !== 'recording') return false;
   captureSession = null;
   clearCaptureTicker();
-  setCaptureUi('transcribing', 'Transcribing…');
+  setCaptureUi('transcribing', 'Preparing transcription… · tap to cancel');
   const controller = new AbortController();
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let timeoutId = null;
   speechAbortController?.abort();
   speechAbortController = controller;
   try {
     const audio = await session.stop();
     if (!audio.size) throw new Error('The recording was empty.');
     const settings = getVoiceSettings();
+    const local = getVoiceProviderId('stt', settings) === 'browser-local';
+    captureStartedAt = Date.now();
+    setCaptureUi(
+      'transcribing',
+      `${local ? 'Transcribing on this device' : 'Transcribing'} · 0:00 · tap to cancel`,
+    );
+    startTranscriptionTicker(local);
+    if (local) {
+      timeoutId = setTimeout(() => controller.abort(new DOMException(
+        'Local transcription took longer than 3 minutes. Try the graphics processor, a shorter recording, or a hosted service.',
+        'TimeoutError',
+      )), LOCAL_STT_TIMEOUT_MS);
+    }
     const result = await transcribeVoice(audio, {
       settings,
       signal: controller.signal,
@@ -175,6 +216,8 @@ async function finishVoiceRecording() {
     }, 5000);
     return false;
   } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+    clearCaptureTicker();
     if (speechAbortController === controller) speechAbortController = null;
   }
 }
@@ -250,7 +293,12 @@ async function startVoiceRecording() {
 
 export function toggleVoiceRecording() {
   if (captureState === 'recording') return finishVoiceRecording();
-  if (captureState === 'requesting' || captureState === 'transcribing') return Promise.resolve(false);
+  if (captureState === 'transcribing') {
+    speechAbortController?.abort(new DOMException('Voice transcription cancelled', 'AbortError'));
+    setCaptureUi('idle', '');
+    return Promise.resolve(false);
+  }
+  if (captureState === 'requesting') return Promise.resolve(false);
   return startVoiceRecording();
 }
 
@@ -261,20 +309,28 @@ function speechButton(messageIndex) {
 }
 
 function setSpeechButton(messageIndex, mode) {
+  if (speakingMessageIndex === messageIndex || mode === 'idle') speechButtonMode = mode;
   const button = speechButton(messageIndex);
   if (!button) return;
   button.classList.toggle('speaking', mode === 'speaking');
-  button.classList.toggle('busy', mode === 'busy');
-  button.setAttribute('aria-pressed', String(mode === 'speaking'));
-  button.disabled = mode === 'busy';
+  button.classList.toggle('busy', mode === 'busy' || mode === 'waiting');
+  button.setAttribute('aria-pressed', String(mode !== 'idle'));
+  button.disabled = false;
   if (mode === 'speaking') {
     setIconButtonContent(button, 'stop', 'Stop');
+    button.setAttribute('aria-label', 'Stop reading');
     button.title = 'Stop reading';
   } else if (mode === 'busy') {
-    setIconButtonContent(button, 'volume', 'Preparing…');
-    button.title = 'Preparing speech';
+    setIconButtonContent(button, 'loading', 'Preparing…');
+    button.setAttribute('aria-label', 'Cancel speech preparation');
+    button.title = 'Generating speech · tap to cancel';
+  } else if (mode === 'waiting') {
+    setIconButtonContent(button, 'loading', 'Still generating…');
+    button.setAttribute('aria-label', 'Cancel speech generation');
+    button.title = 'Speech generation is still running · tap to cancel';
   } else {
     setIconButtonContent(button, 'volume', 'Listen');
+    button.setAttribute('aria-label', 'Read message aloud');
     button.title = 'Read message aloud';
   }
 }
@@ -367,9 +423,7 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
   if (!automatic) {
     autoReadActivationNoticeShown = false;
     voicePlayer.unlock();
-    const primed = streamsProgressiveAudio
-      && voicePlayer.primeStreamPlayback('audio/mpeg', 1);
-    if (!primed) voicePlayer.unlock();
+    if (streamsProgressiveAudio) voicePlayer.primeStreamPlayback('audio/mpeg', 1);
   }
   const controller = new AbortController();
   speechAbortController = controller;
@@ -410,14 +464,16 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
       // Mark an early prefetch failure as observed while preserving the
       // original promise so the loop still reports it after playback.
       if (nextSynthesis) void nextSynthesis.catch(() => undefined);
-      setSpeechButton(messageIndex, 'speaking');
       try {
         if (hasPcmStream) {
           await voicePlayer.playPcmStream(result.pcmStream, {
             signal: controller.signal,
             rate: 1,
+            onPlaybackStart: () => setSpeechButton(messageIndex, 'speaking'),
+            onPlaybackWaiting: () => setSpeechButton(messageIndex, 'waiting'),
           });
         } else if (hasStream) {
+          setSpeechButton(messageIndex, 'speaking');
           await voicePlayer.playStream(result.stream, {
             contentType: result.contentType,
             signal: controller.signal,
@@ -425,6 +481,7 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
             progressive: streamsProgressiveAudio && !automatic,
           });
         } else {
+          setSpeechButton(messageIndex, 'speaking');
           await voicePlayer.play(/** @type {Blob} */ (result.audio), {
             signal: controller.signal,
             rate: 1,
@@ -462,17 +519,37 @@ export function toggleMessageSpeech(messageIndex) {
   return readAssistantMessage(messageIndex);
 }
 
-export function stopVoiceActivity() {
+export function isVoicePlaybackActive() {
+  return speakingMessageIndex !== null
+    && !!speechAbortController
+    && !speechAbortController.signal.aborted;
+}
+
+export function restoreVoicePlaybackUi() {
+  if (!isVoicePlaybackActive() || speakingMessageIndex === null) return false;
+  setSpeechButton(
+    speakingMessageIndex,
+    speechButtonMode === 'idle' ? (voicePlayer.isPlaying ? 'speaking' : 'busy') : speechButtonMode,
+  );
+  return !!speechButton(speakingMessageIndex);
+}
+
+export function stopVoiceActivity({ preservePlayback = false } = {}) {
   const hadActivity = captureState !== 'idle' || speakingMessageIndex !== null;
-  voiceActivityEpoch += 1;
-  captureSession?.cancel();
-  captureSession = null;
-  clearCaptureTicker();
-  setCaptureUi('idle', '');
-  stopSpeechPlayback();
+  const hadCaptureActivity = captureState !== 'idle';
+  if (!preservePlayback || hadCaptureActivity) voiceActivityEpoch += 1;
+  if (hadCaptureActivity) {
+    captureSession?.cancel();
+    captureSession = null;
+    clearCaptureTicker();
+    setCaptureUi('idle', '');
+    speechAbortController?.abort();
+    speechAbortController = null;
+  }
+  if (!preservePlayback) stopSpeechPlayback();
   return hadActivity;
 }
 
 if (typeof globalThis.addEventListener === 'function') {
-  globalThis.addEventListener('pagehide', stopVoiceActivity);
+  globalThis.addEventListener('pagehide', () => stopVoiceActivity());
 }

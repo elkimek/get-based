@@ -7,7 +7,8 @@ import { getActiveData } from './data.js';
 import { getAllFlaggedMarkers } from './marker-analysis.js';
 import { getProfiles, getProfileHeight } from './profile.js';
 import { getBloodDrawPhases } from './cycle.js';
-import { callClaudeAPI, getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider, isAIPaused } from './api.js';
+import { isAIPaused } from './api.js';
+import { callAssistantFeatureAI, getAssistantFeatureIdentity, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { trackUsage } from './schema.js';
 import {
   wearableDisplayUnit,
@@ -16,6 +17,7 @@ import {
 } from './wearables-formatters.js';
 import { buildReportDataSnapshot, formatReportDataForAgent } from './export-report-data.js';
 import { getSupplementsOverlappingRange } from './supplement-medication-domain.js';
+import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
 
 // ═══════════════════════════════════════════════
 // PDF REPORT EXPORT
@@ -141,6 +143,7 @@ function normalizeReportAISummary(summary) {
     model: input.model || input.modelDisplay || '',
     provider: input.provider || '',
     modelId: input.modelId || '',
+    agentId: input.agentId || '',
   };
 }
 
@@ -639,7 +642,7 @@ export async function generateReportAISummary(options = {}) {
     showNotification('Choose at least one report section', 'error');
     return null;
   }
-  if (!hasAIProvider()) {
+  if (!hasAssistantFeatureProvider()) {
     showNotification('Connect an AI provider before generating a report summary', 'error');
     return null;
   }
@@ -649,19 +652,17 @@ export async function generateReportAISummary(options = {}) {
   }
 
   const payload = buildPreparedReportPayload(options);
-  const provider = getAIProvider();
-  const modelId = getActiveModelId(provider);
-  const modelDisplay = getActiveModelDisplay(provider);
-  const result = await callClaudeAPI({
+  const { provider, modelId, modelDisplay, agentId, subscription } = getAssistantFeatureIdentity();
+  const result = await callAssistantFeatureAI({
     system: REPORT_AI_SUMMARY_PROMPT,
     messages: [{ role: 'user', content: formatReportDataForAgent(payload.reportData) }],
     maxTokens: 900,
     forceNonStream: true,
-  }, provider);
+  });
 
   const text = cleanReportAISummaryText(result?.text || '');
   if (!text) throw new Error('AI returned an empty summary');
-  if (result?.usage) {
+  if (result?.usage && !subscription) {
     trackUsage(provider, modelId, result.usage.inputTokens || 0, result.usage.outputTokens || 0);
   }
   return {
@@ -670,6 +671,7 @@ export async function generateReportAISummary(options = {}) {
     provider,
     modelId,
     model: modelDisplay,
+    agentId,
   };
 }
 
@@ -704,10 +706,12 @@ export function renderReportAISummarySection(summary) {
     ? new Date(summary.generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : '';
   const meta = [summary.model, generatedDate ? `generated ${generatedDate}` : ''].filter(Boolean).join(' · ');
+  const attribution = getAIOutputAttribution(summary);
   return `<section class="report-ai-summary">
     <h2>Practitioner Overview</h2>
     <div class="report-ai-summary-body">${renderReportAISummaryText(summary.text)}</div>
     ${meta ? `<p class="report-ai-meta">${escapeHTML(meta)}</p>` : ''}
+    ${attribution ? `<p class="report-ai-attribution">${escapeHTML(attribution)}</p>` : ''}
     <p class="report-note">AI-generated from the selected report data. Review for accuracy before sharing.</p>
   </section>`;
 }

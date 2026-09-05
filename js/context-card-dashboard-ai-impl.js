@@ -711,7 +711,6 @@ export function openContextModal() {
   overlay.innerHTML = `<div class="confirm-dialog gb-form-modal context-hub-dialog" role="dialog" aria-modal="true" aria-labelledby="context-hub-title" aria-describedby="context-hub-description">
     <div class="gb-modal-head context-hub-header">
       <div class="context-hub-heading">
-        <div class="gb-modal-kicker">Manage</div>
         <div class="gb-modal-title" id="context-hub-title">Context</div>
         <p class="context-hub-subtext" id="context-hub-description">Control what can influence AI answers, Biology Scores, and source-driven warnings.</p>
       </div>

@@ -4,6 +4,7 @@
 import { handleImportStatusClick, isImportRunning } from './pdf-import-progress.js';
 import { openFeedbackModal } from './feedback.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
+import { openChatContextModalRuntime } from './chat-runtime.js';
 
 let shellDelegatesInstalled = false;
 const shellImportDeps = { handleImportStatusClick, isImportRunning };
@@ -15,12 +16,12 @@ const shellNavDeps = {
   closeMobileSidebar: () => {},
   toggleMobileSidebar: () => {},
 };
-const shellChatImageDeps = { toggleHDMode: () => {} };
 const shellChatActionDeps = {
   closeChatPanel: () => {},
   clearChatHistory: () => {},
   handleChatKeydown: (_event) => {},
   sendChatMessage: () => {},
+  setChatBackendFromUI: (_backend) => {},
   setChatPersonality: (_personality) => {},
   setChatWebSearchEnabled: (_enabled) => {},
   startDiscussion: () => {},
@@ -31,8 +32,10 @@ const shellChatActionDeps = {
   toggleVoiceRecording: () => {},
 };
 const shellChatThreadDeps = {
+  createThreadProject: () => {},
   createNewThread: () => {},
   filterThreadList: (_value) => {},
+  setChatThreadSort: (_value) => {},
   toggleThreadRail: () => {},
 };
 
@@ -65,12 +68,6 @@ export function configureShellNavDeps(deps = {}) {
   return previous;
 }
 
-export function configureShellChatImageDeps(deps = {}) {
-  const previous = { ...shellChatImageDeps };
-  if (typeof deps.toggleHDMode === 'function') shellChatImageDeps.toggleHDMode = deps.toggleHDMode;
-  return previous;
-}
-
 /** @param {Partial<typeof shellChatActionDeps>} [deps] */
 export function configureShellChatActionDeps(deps = {}) {
   const previous = { ...shellChatActionDeps };
@@ -84,8 +81,10 @@ export function configureShellChatActionDeps(deps = {}) {
 
 export function configureShellChatThreadDeps(deps = {}) {
   const previous = { ...shellChatThreadDeps };
+  if (typeof deps.createThreadProject === 'function') shellChatThreadDeps.createThreadProject = deps.createThreadProject;
   if (typeof deps.createNewThread === 'function') shellChatThreadDeps.createNewThread = deps.createNewThread;
   if (typeof deps.filterThreadList === 'function') shellChatThreadDeps.filterThreadList = deps.filterThreadList;
+  if (typeof deps.setChatThreadSort === 'function') shellChatThreadDeps.setChatThreadSort = deps.setChatThreadSort;
   if (typeof deps.toggleThreadRail === 'function') shellChatThreadDeps.toggleThreadRail = deps.toggleThreadRail;
   return previous;
 }
@@ -144,6 +143,7 @@ function runShellAction(action) {
 }
 
 function runChatAction(action, actionEl) {
+  const closeComposerMenu = () => actionEl.closest('details')?.removeAttribute('open');
   if (action === 'toggle-panel') {
     shellChatActionDeps.toggleChatPanel();
     return true;
@@ -155,6 +155,9 @@ function runChatAction(action, actionEl) {
     return true;
   } else if (action === 'create-thread') {
     shellChatThreadDeps.createNewThread();
+    return true;
+  } else if (action === 'create-project') {
+    shellChatThreadDeps.createThreadProject();
     return true;
   } else if (action === 'summarize-thread') {
     shellChatActionDeps.summarizeThread();
@@ -172,10 +175,16 @@ function runChatAction(action, actionEl) {
     shellChatActionDeps.setChatPersonality(actionEl.dataset.personality || 'default');
     return true;
   } else if (action === 'attach-image') {
+    closeComposerMenu();
     clickFileInput('chat-image-input');
     return true;
-  } else if (action === 'toggle-hd') {
-    shellChatImageDeps.toggleHDMode();
+  } else if (action === 'import-health-file') {
+    closeComposerMenu();
+    clickFileInput('pdf-input');
+    return true;
+  } else if (action === 'open-chat-context') {
+    closeComposerMenu();
+    openChatContextModalRuntime();
     return true;
   } else if (action === 'start-discussion') {
     shellChatActionDeps.startDiscussion();
@@ -214,9 +223,13 @@ function handleShellInput(event) {
 
 function handleShellChange(event) {
   const input = event.target;
-  if (!(input instanceof HTMLInputElement)) return;
-  if (input.dataset.chatChangeAction === 'set-websearch') {
+  if (!(input instanceof HTMLInputElement) && !(input instanceof HTMLSelectElement)) return;
+  if (input.dataset.chatChangeAction === 'set-websearch' && input instanceof HTMLInputElement) {
     shellChatActionDeps.setChatWebSearchEnabled(input.checked);
+  } else if (input.dataset.chatChangeAction === 'set-backend' && input instanceof HTMLSelectElement) {
+    shellChatActionDeps.setChatBackendFromUI(input.value);
+  } else if (input.dataset.chatChangeAction === 'sort-thread-list' && input instanceof HTMLSelectElement) {
+    shellChatThreadDeps.setChatThreadSort(input.value);
   }
 }
 

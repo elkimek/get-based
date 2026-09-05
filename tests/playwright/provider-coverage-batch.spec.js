@@ -166,7 +166,10 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       }));
       localStorage.setItem('labcharts-openrouter-model', 'anthropic/claude-sonnet-4.6');
       controls.renderOpenRouterModelDropdown([
+        { id: 'anthropic/claude-fable-5.1', name: 'Claude Fable 5.1' },
         { id: 'google/gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
+        { id: 'google/gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
+        { id: 'google/gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
         { id: 'google/gemini-3.1-pro', name: 'Gemini 3.1 Pro' },
         { id: 'z-ai/glm-5.3-flash', name: 'GLM 5.3 Flash' },
         { id: 'z-ai/glm-5.3', name: 'GLM 5.3' },
@@ -180,17 +183,20 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         { id: 'qwen/qwen3.8-27b', name: 'Qwen3.8 27B' },
       ]);
       const openRouterRecommendedGroup = document.querySelector('#openrouter-model-select optgroup[label="Recommended"]');
-      const openRouterRecommended = !!openRouterRecommendedGroup?.querySelector('option[value="anthropic/claude-sonnet-5"]')
-        && !!openRouterRecommendedGroup?.querySelector('option[value="google/gemini-3.5-flash"]')
+      const openRouterRecommended = !!openRouterRecommendedGroup?.querySelector('option[value="anthropic/claude-fable-5.1"]')
+        && !!openRouterRecommendedGroup?.querySelector('option[value="anthropic/claude-sonnet-5"]')
+        && !!openRouterRecommendedGroup?.querySelector('option[value="google/gemini-3.8-flash"]')
         && !!openRouterRecommendedGroup?.querySelector('option[value="z-ai/glm-5.3-flash"]')
         && !!openRouterRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k3"]')
         && !openRouterRecommendedGroup?.querySelector('option[value="anthropic/claude-sonnet-4.6"]')
+        && !openRouterRecommendedGroup?.querySelector('option[value="google/gemini-3.7-flash"]')
         && !openRouterRecommendedGroup?.querySelector('option[value="google/gemini-3.1-pro"]')
         && !openRouterRecommendedGroup?.querySelector('option[value="z-ai/glm-5.3"]')
         && !openRouterRecommendedGroup?.querySelector('option[value="z-ai/glm-5.2"]')
         && !openRouterRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.7-code"]')
         && !openRouterRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.6"]')
         && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="anthropic/claude-sonnet-4.6"]')
+        && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="google/gemini-3.7-flash"]')
         && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="google/gemini-3.1-pro"]')
         && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.3"]')
         && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.2"]')
@@ -243,7 +249,18 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       localStorage.setItem('labcharts-venice-model', 'regular-a');
       localStorage.setItem('labcharts-venice-models', JSON.stringify([{ id: 'regular-a', name: 'Regular A' }]));
       localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-secure', name: 'Secure E2EE' }]));
-      controls.renderVeniceModelDropdown([{ id: 'regular-a', name: 'Regular A' }]);
+      controls.renderVeniceModelDropdown([
+        { id: 'regular-a', name: 'Regular A' },
+        { id: 'claude-fable-5-1', name: 'Claude Fable 5.1' },
+        { id: 'gemini-3-7-flash', name: 'Gemini 3.7 Flash' },
+        { id: 'gemini-3-8-flash', name: 'Gemini 3.8 Flash' },
+      ]);
+      const veniceLatestGeminiRecommended = !!document.querySelector(
+        '#venice-model-select optgroup[label="Recommended"] option[value="claude-fable-5-1"]'
+      )
+        && !!document.querySelector('#venice-model-select optgroup[label="Recommended"] option[value="gemini-3-8-flash"]')
+        && !document.querySelector('#venice-model-select optgroup[label="Recommended"] option[value="gemini-3-7-flash"]')
+        && !!document.querySelector('#venice-model-select optgroup[label="Other models"] option[value="gemini-3-7-flash"]');
       controls.toggleVeniceE2EE(true);
       const veniceE2EEEnabled = localStorage.getItem('labcharts-venice-e2ee') === 'on'
         && localStorage.getItem('labcharts-venice-model') === 'e2ee-secure'
@@ -263,6 +280,9 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       const routstrFallback = localStorage.getItem('labcharts-routstr-model') === 'routstr-a'
         && document.getElementById('routstr-model-select')?.value === 'routstr-a';
       controls.renderRoutstrModelDropdown([
+        { id: 'anthropic/claude-fable-5.1', name: 'Claude Fable 5.1' },
+        { id: 'google/gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
+        { id: 'google/gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
         { id: 'grok-41-fast', name: 'Grok 4.1 Fast' },
         { id: 'x-ai/grok-4.3', name: 'Grok 4.3' },
         { id: 'z-ai/glm-5.3-flash', name: 'GLM 5.3 Flash' },
@@ -272,14 +292,18 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         { id: 'moonshotai/kimi-k2.7-code', name: 'Kimi K2.7 Code' },
       ]);
       const routstrRecommendedGroup = document.querySelector('#routstr-model-select optgroup[label="Recommended"]');
-      const routstrLatestGrokRecommended = !!routstrRecommendedGroup?.querySelector('option[value="x-ai/grok-4.3"]')
+      const routstrLatestGrokRecommended = !!routstrRecommendedGroup?.querySelector('option[value="anthropic/claude-fable-5.1"]')
+        && !!routstrRecommendedGroup?.querySelector('option[value="google/gemini-3.8-flash"]')
+        && !!routstrRecommendedGroup?.querySelector('option[value="x-ai/grok-4.3"]')
         && !!routstrRecommendedGroup?.querySelector('option[value="z-ai/glm-5.3-flash"]')
         && !!routstrRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k3"]')
         && !routstrRecommendedGroup?.querySelector('option[value="grok-41-fast"]')
+        && !routstrRecommendedGroup?.querySelector('option[value="google/gemini-3.7-flash"]')
         && !routstrRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.7-code"]')
         && !routstrRecommendedGroup?.querySelector('option[value="glm-5.3"]')
         && !routstrRecommendedGroup?.querySelector('option[value="z-ai/glm-5.2"]')
         && !!document.querySelector('#routstr-model-select optgroup[label="Other models"] option[value="grok-41-fast"]')
+        && !!document.querySelector('#routstr-model-select optgroup[label="Other models"] option[value="google/gemini-3.7-flash"]')
         && !!document.querySelector('#routstr-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.7-code"]')
         && !!document.querySelector('#routstr-model-select optgroup[label="Other models"] option[value="glm-5.3"]')
         && !!document.querySelector('#routstr-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.2"]');
@@ -289,8 +313,11 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       controls.renderPpqModelDropdown([
         { id: 'ppq-a', name: 'PPQ A' },
         { id: 'ppq-b', name: 'PPQ B' },
+        { id: 'claude-fable-5.1', name: 'Claude Fable 5.1' },
         { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash Preview' },
         { id: 'google/gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
+        { id: 'google/gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
+        { id: 'google/gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
         { id: 'glm-5.3-flash', name: 'GLM 5.3 Flash' },
         { id: 'glm-5.3', name: 'GLM 5.3' },
         { id: 'z-ai/glm-5.2', name: 'GLM 5.2' },
@@ -301,11 +328,14 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         { id: 'x-ai/grok-4.3', name: 'Grok 4.3' },
       ]);
       const ppqRecommendedGroup = document.querySelector('#ppq-model-select optgroup[label="Recommended"]');
-      const ppqLatestGrokRecommended = !!ppqRecommendedGroup?.querySelector('option[value="x-ai/grok-4.3"]')
+      const ppqLatestGrokRecommended = !!ppqRecommendedGroup?.querySelector('option[value="claude-fable-5.1"]')
+        && !!ppqRecommendedGroup?.querySelector('option[value="x-ai/grok-4.3"]')
         && !ppqRecommendedGroup?.querySelector('option[value="grok-4.20"]')
         && !!document.querySelector('#ppq-model-select optgroup[label="Other models"] option[value="grok-4.20"]');
-      const ppqLatestGeminiRecommended = !!ppqRecommendedGroup?.querySelector('option[value="google/gemini-3.5-flash"]')
+      const ppqLatestGeminiRecommended = !!ppqRecommendedGroup?.querySelector('option[value="google/gemini-3.8-flash"]')
+        && !ppqRecommendedGroup?.querySelector('option[value="google/gemini-3.7-flash"]')
         && !ppqRecommendedGroup?.querySelector('option[value="gemini-3-flash-preview"]')
+        && !!document.querySelector('#ppq-model-select optgroup[label="Other models"] option[value="google/gemini-3.7-flash"]')
         && !!document.querySelector('#ppq-model-select optgroup[label="Other models"] option[value="gemini-3-flash-preview"]');
       const ppqLatestGlmKimiRecommended = !!ppqRecommendedGroup?.querySelector('option[value="glm-5.3-flash"]')
         && !!ppqRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k3"]')
@@ -324,6 +354,9 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       localStorage.setItem('labcharts-custom-model', 'outside-model');
       controls.renderCustomApiModelDropdown([
         { id: 'model-a', name: 'Model A' },
+        { id: 'claude-fable-5-1', name: 'Claude Fable 5.1' },
+        { id: 'gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
+        { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
         { id: 'z-ai/glm-5.3-flash', name: 'GLM 5.3 Flash' },
         { id: 'z-ai/glm-5.3', name: 'GLM 5.3' },
         { id: 'z-ai/glm-5.2', name: 'GLM 5.2' },
@@ -332,13 +365,17 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         { id: 'moonshotai/kimi-k2.6', name: 'Kimi K2.6' },
       ]);
       const customRecommendedGroup = document.querySelector('#custom-model-select optgroup[label="Recommended"]');
-      const customGlmKimiRecommended = !!customRecommendedGroup?.querySelector('option[value="z-ai/glm-5.3-flash"]')
+      const customGlmKimiRecommended = !!customRecommendedGroup?.querySelector('option[value="claude-fable-5-1"]')
+        && !!customRecommendedGroup?.querySelector('option[value="gemini-3.8-flash"]')
+        && !!customRecommendedGroup?.querySelector('option[value="z-ai/glm-5.3-flash"]')
         && !!customRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k3"]')
         && !customRecommendedGroup?.querySelector('option[value="z-ai/glm-5.3"]')
+        && !customRecommendedGroup?.querySelector('option[value="gemini-3.7-flash"]')
         && !customRecommendedGroup?.querySelector('option[value="z-ai/glm-5.2"]')
         && !customRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.7-code"]')
         && !customRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.6"]')
         && !!document.querySelector('#custom-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.3"]')
+        && !!document.querySelector('#custom-model-select optgroup[label="Other models"] option[value="gemini-3.7-flash"]')
         && !!document.querySelector('#custom-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.2"]')
         && !!document.querySelector('#custom-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.7-code"]')
         && !!document.querySelector('#custom-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.6"]');
@@ -392,6 +429,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         openRouterCustomApplied,
         openRouterCustomFailure,
         openRouterDropdownReset,
+        veniceLatestGeminiRecommended,
         veniceE2EEEnabled,
         veniceE2EERestored,
         routstrFallback,

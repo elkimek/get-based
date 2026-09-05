@@ -15,6 +15,7 @@ const syntheticChatModule = `
   export function openChatPanel(...args) { return record('openChatPanel', args); }
   export function toggleChatPanel(...args) { return record('toggleChatPanel', args); }
   export function createNewThread(...args) { return record('createNewThread', args); }
+  export function createThreadProject(...args) { return record('createThreadProject', args); }
   export function clearChatHistory(...args) { return record('clearChatHistory', args); }
   export function filterThreadList(...args) { return record('filterThreadList', args); }
   export function sendChatMessage(...args) { return record('sendChatMessage', args); }
@@ -22,8 +23,8 @@ const syntheticChatModule = `
   export function setChatWebSearchEnabled(...args) { return record('setChatWebSearchEnabled', args); }
   export function startDiscussion(...args) { return record('startDiscussion', args); }
   export function summarizeThread(...args) { return record('summarizeThread', args); }
+  export function setChatThreadSort(...args) { return record('setChatThreadSort', args); }
   export function toggleChatFullscreen(...args) { return record('toggleChatFullscreen', args); }
-  export function toggleHDMode(...args) { return record('toggleHDMode', args); }
   export function togglePersonalityBar(...args) { return record('togglePersonalityBar', args); }
   export function toggleThreadRail(...args) { return record('toggleThreadRail', args); }
   export function useChatPrompt(...args) { return record('useChatPrompt', args); }
@@ -88,6 +89,7 @@ test('Chat lazy facade preserves every public action before and after first load
       loader.openChatPanel('open'),
       loader.toggleChatPanel('toggle'),
       loader.createNewThread('thread'),
+      loader.createThreadProject('project'),
       loader.clearChatHistory('history'),
       loader.filterThreadList('filter'),
       loader.sendChatMessage('send'),
@@ -95,8 +97,8 @@ test('Chat lazy facade preserves every public action before and after first load
       loader.setChatWebSearchEnabled(true),
       loader.startDiscussion('discussion'),
       loader.summarizeThread('summary'),
+      loader.setChatThreadSort('name'),
       loader.toggleChatFullscreen('fullscreen'),
-      loader.toggleHDMode('hd'),
       loader.togglePersonalityBar('personality'),
       loader.toggleThreadRail('rail'),
       loader.useChatPrompt('prompt'),
@@ -157,6 +159,7 @@ test('Chat lazy facade preserves every public action before and after first load
       'openChatPanel',
       'toggleChatPanel',
       'createNewThread',
+      'createThreadProject',
       'clearChatHistory',
       'filterThreadList',
       'sendChatMessage',
@@ -164,8 +167,8 @@ test('Chat lazy facade preserves every public action before and after first load
       'setChatWebSearchEnabled',
       'startDiscussion',
       'summarizeThread',
+      'setChatThreadSort',
       'toggleChatFullscreen',
-      'toggleHDMode',
       'togglePersonalityBar',
       'toggleThreadRail',
       'useChatPrompt',
