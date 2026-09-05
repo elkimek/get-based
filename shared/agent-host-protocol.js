@@ -57,4 +57,3 @@ const MANAGEMENT_PARENT_ORIGINS = new Set([
 export function isAllowedCompanionManagementParent(origin) {
   return MANAGEMENT_PARENT_ORIGINS.has(origin);
 }
-
