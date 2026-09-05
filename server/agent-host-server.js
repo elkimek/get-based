@@ -114,8 +114,15 @@ const runtimeController = createCompanionRuntimeController({
     async initialize() {},
   },
   bundlePath,
-  stopRuntime: () => shutdown(),
-  exitRuntime: () => process.exit(0),
+  // Keep agent clients and their workspace intact until the service starts.
+  stopRuntime: () => new Promise((resolve, reject) => {
+    server.close(error => error ? reject(error) : resolve());
+  }),
+  recoverRuntime: () => new Promise(resolve => {
+    server.once('listening', resolve);
+    listen();
+  }),
+  exitRuntime: () => { void shutdown().finally(() => process.exit(0)); },
 });
 const service = createAgentHostService({
   appServer,
