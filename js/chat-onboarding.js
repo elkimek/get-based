@@ -19,7 +19,7 @@ import { handleAppExtensionOnboardingAction, renderAppExtensionOnboardingSlot } 
  *   getActiveData: () => any,
  *   navigate: (route: string, data?: any) => void,
  *   openChatProviderQuiz: null | (() => void),
- *   openSettingsModal: (tab?: string) => void,
+ *   openSettingsModal: (tab?: string) => unknown,
  *   recordChange: (field: string) => void,
  *   renderChatMessages: () => void,
  *   renderMenstrualCycleSection: null | ((data: any, opts?: any) => string),
@@ -78,8 +78,8 @@ function openAiSettings() {
 function openAiProviderSettings(provider) {
   clearForcedOnboardingStep();
   closeChatPanel();
-  setTimeout(() => {
-    openSettingsModal('ai');
+  setTimeout(async () => {
+    await openSettingsModal('ai');
     if (provider === 'cli') {
       const cliButton = /** @type {HTMLElement | null} */ (document.querySelector('[data-settings-action="show-cli-agent-provider"]'));
       cliButton?.click();
@@ -176,7 +176,7 @@ function openChatProviderQuiz() {
 }
 
 function openSettingsModal(tab) {
-  onboardingCallbacks.openSettingsModal?.(tab);
+  return onboardingCallbacks.openSettingsModal?.(tab);
 }
 
 function recordChange(field) {
@@ -598,7 +598,7 @@ export function _renderProviderQuiz(branch, name) {
   if (extensionQuiz) return extensionQuiz;
   if (branch === 'cli') {
     return `<div class="chat-provider-quiz"><button type="button" class="chat-quiz-back" ${chatOnboardingActionAttrs('back-to-provider-quiz')} aria-label="Back to provider options">&larr; Back</button>
-      <p><strong>Use an existing AI account &rarr; CLI agents</strong></p><p style="font-size:13px">getbased scans this computer for configured agents such as Codex, OpenCode, Hermes, Grok, and OpenClaw. There is no connection address to paste.</p><button type="button" class="chat-setup-btn" ${chatOnboardingActionAttrs('open-provider-settings', { provider: 'cli' })}>Find my installed agents &rarr;</button><p style="font-size:11px;color:var(--text-muted);margin-top:10px">Choose any ready agent, then pick its model and reasoning level directly in getbased. Health-data changes always remain reviewable drafts.</p></div>`;
+      <p><strong>Use an existing AI account &rarr; CLI agents</strong></p><p style="font-size:13px">getbased scans this computer for configured agents such as Codex, OpenCode, Hermes, Grok, and OpenClaw. You need a supported CLI installed and signed in, plus getbased Companion. We’ll check for an existing Companion connection first and guide you through any missing setup.</p><button type="button" class="chat-setup-btn" ${chatOnboardingActionAttrs('open-provider-settings', { provider: 'cli' })}>Find my installed agents &rarr;</button><p style="font-size:11px;color:var(--text-muted);margin-top:10px">Choose any ready agent, then pick its model and reasoning level directly in getbased. Health-data changes always remain reviewable drafts.</p></div>`;
   }
   if (branch === 'card') {
     return `<div class="chat-provider-quiz"><button type="button" class="chat-quiz-back" ${chatOnboardingActionAttrs('back-to-provider-quiz')} aria-label="Back to provider options">&larr; Back</button>
@@ -638,16 +638,16 @@ export function _renderProviderQuiz(branch, name) {
   // Root question
   return `<div class="chat-provider-quiz"><p>Welcome, ${safeName}! Next, pick how you want to power the AI:</p>
     <div class="chat-quiz-options">
-      <button type="button" class="chat-quiz-option chat-quiz-recommended" ${chatOnboardingActionAttrs('set-provider-branch', { 'provider-branch': 'cli' })}>
-        <span class="chat-quiz-icon" aria-hidden="true">&#9002;</span><span class="chat-quiz-body"><strong>Use an AI subscription I already have</strong><span>Detect Codex and other installed agents. <em class="chat-quiz-rec">Recommended</em></span></span><span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
-      </button>
-      <button type="button" class="chat-quiz-option" ${chatOnboardingActionAttrs('set-provider-branch', { 'provider-branch': 'card' })}>
+      <button type="button" class="chat-quiz-option chat-quiz-recommended" ${chatOnboardingActionAttrs('set-provider-branch', { 'provider-branch': 'card' })}>
         <span class="chat-quiz-icon" aria-hidden="true">&#128179;</span>
         <span class="chat-quiz-body">
           <strong>Easiest &mdash; pay with a card</strong>
-          <span>One-click login through OpenRouter.</span>
+          <span>One-click login through OpenRouter. <em class="chat-quiz-rec">Recommended</em></span>
         </span>
         <span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
+      </button>
+      <button type="button" class="chat-quiz-option" ${chatOnboardingActionAttrs('set-provider-branch', { 'provider-branch': 'cli' })}>
+        <span class="chat-quiz-icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="6.5" width="23" height="19" rx="4.5"/><path d="m10 12 4 4-4 4M17 20h5"/></svg></span><span class="chat-quiz-body"><strong>Use an AI subscription I already have</strong><span>Requires an installed CLI, sign-in, and getbased Companion.</span></span><span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
       </button>
       <button type="button" class="chat-quiz-option" ${chatOnboardingActionAttrs('set-provider-branch', { 'provider-branch': 'local' })}>
         <span class="chat-quiz-icon" aria-hidden="true">&#128274;</span>

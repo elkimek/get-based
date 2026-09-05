@@ -2,13 +2,14 @@
 // Runtime-neutral version and capability contract for the loopback companion.
 
 export const AGENT_HOST_PROTOCOL_VERSION = 5;
-export const GETBASED_COMPANION_VERSION = '1.3.0';
+export const GETBASED_COMPANION_VERSION = '1.3.1';
 
 export const AGENT_HOST_CAPABILITIES = Object.freeze({
   CHAT_STREAM: 'chat-stream',
   COMPANION_CONTROL: 'companion-control',
   COMPANION_RESTART: 'companion-restart',
   COMPANION_MANAGEMENT: 'companion-management',
+  COMPANION_MANAGEMENT_EMBEDDED: 'companion-management-embedded',
   DYNAMIC_TOOLS: 'dynamic-tools',
   EXECUTION_TARGETS: 'execution-targets',
   IMAGE_UPLOAD: 'image-upload',
@@ -40,4 +41,19 @@ export function agentHostSupportsCapabilities(status, required = []) {
 export function normalizeAgentHostProtocolVersion(value) {
   const version = Number(value);
   return Number.isInteger(version) && version > 0 ? version : 0;
+}
+
+// Management has a narrower trust boundary than chat: custom chat origins and
+// arbitrary loopback ports must never receive privileged frame access.
+const MANAGEMENT_PARENT_ORIGINS = new Set([
+  'https://getbased.health', 'https://www.getbased.health',
+  'https://app.getbased.health', 'https://beta.getbased.health',
+  'https://get-based.vercel.app', 'https://get-based-managed-subscription-v2.vercel.app',
+  'http://iobqafpywmncin7m2wpvbemouvulaeb7jnvtvugxnru4gpneushb5jyd.onion',
+  'http://127.0.0.1:8000', 'http://localhost:8000',
+]);
+
+/** @param {string} origin */
+export function isAllowedCompanionManagementParent(origin) {
+  return MANAGEMENT_PARENT_ORIGINS.has(origin);
 }

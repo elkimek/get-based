@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createCompanionRuntimeController } from '../lib/companion-runtime-control.js';
 import { GETBASED_COMPANION_VERSION } from '../shared/agent-host-protocol.js';
 
-const VALID_BUNDLE = '#!/usr/bin/env node\nconst title = "getbased Companion"; const service = "getbased-agent-host";\n';
+const VALID_BUNDLE = '#!/usr/bin/env node\nconst title = "getbased Companion"; const service = "getbased-agent-host";\nconst GETBASED_COMPANION_VERSION = "99.0.0";\n';
 
 describe('running companion controls', () => {
   it('installs automatic startup from a temporary connection without starting a duplicate host', async () => {
@@ -95,6 +95,7 @@ describe('running companion controls', () => {
       await controller.handle('restart-companion', { origin: 'http://127.0.0.1:8324' });
       await scheduled();
       expect(order).toEqual(['stop-listener', 'start-service', 'restore-listener']);
+      expect(controller.getInfo().restartStatus).toBe('failed');
       expect(stderr).toHaveBeenCalledWith(expect.stringContaining('Service unavailable'));
     } finally { stderr.mockRestore(); }
   });
@@ -117,6 +118,43 @@ describe('running companion controls', () => {
     expect(installImpl).toHaveBeenCalledWith(expect.objectContaining({ platform: 'linux', startService: false }));
     await controller.handle('update', { origin: 'http://localhost:9999' });
     expect(fetchImpl.mock.calls.every(([url]) => url === 'https://app.getbased.health/getbased-companion.mjs')).toBe(true);
+  });
+
+  it.each([GETBASED_COMPANION_VERSION, '1.0.0'])('does not install the same or an older release (%s)', async version => {
+    const installImpl = vi.fn();
+    const controller = createCompanionRuntimeController({
+      appServer: { restart: vi.fn(), initialize: vi.fn() }, bundlePath: '/tmp/getbased-companion.mjs',
+      env: { GETBASED_COMPANION_SERVICE: '1' }, installImpl,
+      fetchImpl: async () => new Response(VALID_BUNDLE.replace('99.0.0', version)),
+    });
+    await expect(controller.handle('update', { origin: 'http://localhost:8000' }))
+      .resolves.toMatchObject({ updated: false, upToDate: true, restartRequired: false });
+    expect(installImpl).not.toHaveBeenCalled();
+  });
+
+  it('installs a newer release once and preserves the pending restart across status checks', async () => {
+    const installImpl = vi.fn();
+    const controller = createCompanionRuntimeController({
+      appServer: { restart: vi.fn(), initialize: vi.fn() }, bundlePath: '/tmp/getbased-companion.mjs',
+      env: { GETBASED_COMPANION_SERVICE: '1' }, installImpl,
+      fetchImpl: async () => new Response(VALID_BUNDLE),
+    });
+    await controller.handle('update', { origin: 'http://localhost:8000' });
+    expect(controller.getInfo()).toMatchObject({ pendingUpdateVersion: '99.0.0', restartRequired: true });
+    await expect(controller.handle('update', { origin: 'http://localhost:8000' }))
+      .resolves.toMatchObject({ updated: false, upToDate: false, restartRequired: true });
+    expect(installImpl).toHaveBeenCalledOnce();
+  });
+
+  it('rejects an update without a verifiable version before installing anything', async () => {
+    const installImpl = vi.fn();
+    const controller = createCompanionRuntimeController({
+      appServer: { restart: vi.fn(), initialize: vi.fn() }, bundlePath: '/tmp/getbased-companion.mjs',
+      env: { GETBASED_COMPANION_SERVICE: '1' }, installImpl,
+      fetchImpl: async () => new Response(VALID_BUNDLE.replace('99.0.0', 'unknown')),
+    });
+    await expect(controller.handle('update', { origin: 'http://localhost:8000' })).rejects.toThrow('verify');
+    expect(installImpl).not.toHaveBeenCalled();
   });
 
   it('removes automatic startup without killing the response in flight', async () => {
