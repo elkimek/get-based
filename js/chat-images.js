@@ -83,11 +83,16 @@ function readImageDimensions(file) {
  * @param {File[] | FileList} files
  */
 export async function handleChatFiles(files) {
+  const scope = attachmentDraftKey();
   const selectedFiles = Array.from(files || []);
   if (selectedFiles.length === 0) return;
   const imageFiles = canAttachImages() ? selectedFiles.filter(isChatImageFile) : [];
   const importFiles = selectedFiles.filter(file => !imageFiles.includes(file));
-  for (const file of imageFiles) await addImageAttachment(file);
+  for (const file of imageFiles) {
+    if (scope !== attachmentDraftKey()) return;
+    await addImageAttachment(file);
+  }
+  if (scope !== attachmentDraftKey()) return;
   if (importFiles.length === 0) return;
   try {
     await chatImageDeps.importFiles(importFiles);
@@ -151,6 +156,7 @@ function readDroppedItem(item) {
  * @param {DataTransfer | File[] | FileList} source
  */
 export async function handleDroppedChatFiles(source) {
+  const scope = attachmentDraftKey();
   const fileItems = 'items' in source
     ? Array.from(source.items || []).filter(item => item.kind === 'file')
     : [];
@@ -158,8 +164,11 @@ export async function handleDroppedChatFiles(source) {
     ? fileItems.map(readDroppedItem)
     : Array.from('files' in source ? source.files : source).map(snapshotDroppedFile);
   try {
-    await handleChatFiles(/** @type {File[]} */ (await Promise.all(reads)));
+    const files = /** @type {File[]} */ (await Promise.all(reads));
+    if (scope !== attachmentDraftKey()) return;
+    await handleChatFiles(files);
   } catch (error) {
+    if (scope !== attachmentDraftKey()) return;
     console.debug('[chat-files] Browser did not grant access to the dropped file:', error);
     const chromiumOnLinux = /Linux/i.test(navigator.userAgent)
       && /(?:Chrome|Chromium|Edg)\//i.test(navigator.userAgent);
@@ -170,7 +179,7 @@ export async function handleDroppedChatFiles(source) {
       `Your browser could not read this dropped file. Choose it from the file picker to continue.${platformHint}`,
       { confirmLabel: 'Choose file', cancelLabel: 'Cancel', tone: 'primary', ariaLabel: 'Choose dropped file' },
     );
-    if (!chooseFile) return;
+    if (!chooseFile || scope !== attachmentDraftKey()) return;
     const input = document.getElementById('chat-file-input');
     if (input instanceof HTMLInputElement) input.click();
     else showNotification('The file picker is unavailable. Reload the app and try again.', 'error');

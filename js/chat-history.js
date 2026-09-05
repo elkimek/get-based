@@ -17,6 +17,7 @@ import { normalizeChatMessages } from './chat-storage-safety.js';
 
 const blockedChatHistoryKeys = new Set();
 const notifiedChatHistoryKeys = new Set();
+let historyLoadRevision = 0;
 
 function clearChatHistoryWriteBlock(key) {
   blockedChatHistoryKeys.delete(key);
@@ -46,6 +47,10 @@ export function getChatStorageKey() {
 }
 
 export async function loadChatHistory() {
+  const revision = ++historyLoadRevision;
+  const profile = state.currentProfile;
+  const threadId = state.currentThreadId;
+  const isCurrent = () => revision === historyLoadRevision && profile === state.currentProfile && threadId === state.currentThreadId;
   if (!state.currentThreadId) {
     state.chatHistory = [];
     renderChatMessagesRuntime();
@@ -61,12 +66,14 @@ export async function loadChatHistory() {
   }
   try {
     const stored = await encryptedGetItem(key);
+    if (!isCurrent()) return false;
     if (stored === null) throw new Error();
     const parsed = JSON.parse(stored);
     if (!Array.isArray(parsed)) throw new Error();
     state.chatHistory = normalizeChatMessages(parsed);
     clearChatHistoryWriteBlock(key);
   } catch {
+    if (!isCurrent()) return false;
     blockChatHistoryWrites(key);
     notifyChatHistoryBlocked(key);
     state.chatHistory = [];
@@ -82,8 +89,10 @@ export async function saveChatHistory() {
   if (!canSaveChatHistory()) return false;
   invalidateThreadContentCache();
   const key = getChatThreadKey(state.currentThreadId);
+  const history = state.chatHistory;
   const value = JSON.stringify(state.chatHistory);
   await encryptedSetItem(key, value);
+  if (key !== getChatThreadKey(state.currentThreadId) || history !== state.chatHistory) return false;
   const thread = state.chatThreads.find(t => t.id === state.currentThreadId);
   if (thread) {
     if (thread.messageCount !== state.chatHistory.length) thread.updatedAt = new Date().toISOString();
@@ -99,7 +108,11 @@ export async function saveChatHistory() {
 }
 
 export async function clearChatHistory() {
+  const profile = state.currentProfile;
+  const threadId = state.currentThreadId;
+  const isCurrent = () => profile === state.currentProfile && threadId === state.currentThreadId;
   if (await showConfirmDialog("Clear all messages in this conversation? This can't be undone.")) {
+    if (!isCurrent()) return false;
     const previousHistory = state.chatHistory;
     if (state.currentThreadId) {
       const key = getChatThreadKey(state.currentThreadId);
@@ -114,7 +127,9 @@ export async function clearChatHistory() {
         delete thread.summaryModel;
         delete thread.summaryCost;
         delete thread.summaryAttribution;
-        if (!await saveChatThreadIndex()) {
+        const saved = await saveChatThreadIndex();
+        if (!isCurrent()) return false;
+        if (!saved) {
           Object.keys(thread).forEach(field => delete thread[field]);
           Object.assign(thread, previousThread);
           state.chatHistory = previousHistory;

@@ -516,7 +516,7 @@ export function openSettingsModal(tab) {
     ${renderDisplaySettingsPanel(_activeSettingsTab === 'display')}
 
     <!-- AI Tab -->
-    <div class="settings-tab-panel${_activeSettingsTab === 'ai' ? ' active' : ''}" data-tab-panel="ai">
+    <div class="settings-tab-panel${_activeSettingsTab === 'ai' ? ' active' : ''}" data-tab-panel="ai" id="settings-tab-ai" role="tabpanel" aria-label="AI">
       ${extensionAI}
       <div class="settings-section">
         <div class="settings-action-row" style="margin-bottom:12px">
@@ -524,7 +524,7 @@ export function openSettingsModal(tab) {
             <div class="settings-copy-title">AI features</div>
           </div>
           <label class="toggle-switch">
-            <input type="checkbox" id="ai-pause-toggle" ${isAIPaused() ? '' : 'checked'} data-settings-action="toggle-ai-pause">
+            <input type="checkbox" id="ai-pause-toggle" aria-label="AI features" ${isAIPaused() ? '' : 'checked'} data-settings-action="toggle-ai-pause">
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -569,7 +569,7 @@ export function openSettingsModal(tab) {
     ${extensionPanels}
 
     <!-- Privacy Tab -->
-    <div class="settings-tab-panel${_activeSettingsTab === 'privacy' ? ' active' : ''}" data-tab-panel="privacy">
+    <div class="settings-tab-panel${_activeSettingsTab === 'privacy' ? ' active' : ''}" data-tab-panel="privacy" id="settings-tab-privacy" role="tabpanel" aria-label="Privacy">
       <div class="settings-group-title">AI Privacy Protection</div>
 
       <div class="settings-section settings-privacy-section" id="privacy-section">
@@ -584,7 +584,7 @@ export function openSettingsModal(tab) {
     </div>
 
     <!-- Data Tab -->
-    <div class="settings-tab-panel${_activeSettingsTab === 'data' ? ' active' : ''}" data-tab-panel="data">
+    <div class="settings-tab-panel${_activeSettingsTab === 'data' ? ' active' : ''}" data-tab-panel="data" id="settings-tab-data" role="tabpanel" aria-label="Data">
       <div class="settings-group-title">Security</div>
 
       <div class="settings-section" id="encryption-section">
@@ -611,14 +611,14 @@ export function openSettingsModal(tab) {
     </div>
 
     <!-- Wearables Tab — incoming biometric data (Oura, WHOOP, Fitbit, etc.) -->
-    <div class="settings-tab-panel${_activeSettingsTab === 'wearables' ? ' active' : ''}" data-tab-panel="wearables">
+    <div class="settings-tab-panel${_activeSettingsTab === 'wearables' ? ' active' : ''}" data-tab-panel="wearables" id="settings-tab-wearables" role="tabpanel" aria-label="Wearables">
       <div class="settings-section" id="wearables-section">
         ${renderWearablesSettingsSection()}
       </div>
     </div>
 
     <!-- Agent Access Tab — outgoing read permission for AI agents (MCP / Hermes / OpenClaw) -->
-    <div class="settings-tab-panel${_activeSettingsTab === 'agent' ? ' active' : ''}" data-tab-panel="agent">
+    <div class="settings-tab-panel${_activeSettingsTab === 'agent' ? ' active' : ''}" data-tab-panel="agent" id="settings-tab-agent" role="tabpanel" aria-label="Agent Access">
       <div class="settings-section" id="messenger-section">
         ${renderMessengerSection()}
       </div>

@@ -371,6 +371,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/dashboard-widgets.js',
   '/js/dashboard-widget-runtime.js',
   '/js/dashboard-widget-controls.js',
+  '/js/dashboard-widget-copy.js', '/js/dashboard-widget-packing.js', '/js/chat-thread-list-view.js', '/js/changelog-current.js',
   '/js/dashboard-lab-widget-renderers.js',
   '/js/dashboard-widget-renderers.js',
   '/js/dashboard-recommendation-widget.js',

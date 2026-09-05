@@ -1,14 +1,13 @@
 // @ts-check
 // changelog-impl.js — lazy What's New release-note archive and modal renderer
-// APP_VERSION comes from /version.js (loaded as classic script before modules)
 import { escapeHTML } from './utils.js';
 import { getAppVersionRuntime } from './utils-runtime.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
-
+import { CURRENT_RELEASE } from './changelog-current.js';
 const CHANGELOG_ACTION_ATTR = 'data-changelog-action';
 const changelogDelegateRoots = new WeakSet();
-
 const CHANGELOG = [
+  CURRENT_RELEASE,
   { version: '1.18.10', date: '2026-09-03', title: 'AI model menus stay open on desktop', items: ['<b>Model dropdowns in Settings → AI now behave like persistent pickers.</b> A normal click keeps the list open for selection, the list stays above the Settings modal, and browsers without the newer picker UI fall back to their reliable native control.'] },
   { version: '1.18.9', date: '2026-09-03', title: 'Gemini 3.8 Flash joins recommended models', items: ['<b>Gemini 3.8 Flash is recommended wherever it is available.</b> It replaces older Gemini Flash versions in the visible Recommended group for OpenRouter, Venice, Routstr, PPQ, and compatible custom providers, while availability and pricing continue to come from each provider\'s live catalog.'] },
   { version: '1.18.8', date: '2026-09-02', title: 'Claude Fable 5.1 joins recommended models', items: ['<b>Claude Fable 5.1 is recommended wherever it is available.</b> OpenRouter, Venice, Routstr, PPQ, and compatible custom providers recognize each provider\'s model ID format while continuing to source availability and pricing from live catalogs.'] },

@@ -99,7 +99,7 @@ export async function summarizeThread() {
     return;
   }
 
-  _generateSummary();
+  return _generateSummary();
 }
 
 async function _generateSummary() {
@@ -109,6 +109,7 @@ async function _generateSummary() {
   }
   const thread = state.chatThreads.find(t => t.id === state.currentThreadId);
   if (!thread) return;
+  const profile = state.currentProfile;
 
   const transcript = buildSummaryTranscript(state.chatHistory);
   const messages = [{
@@ -124,15 +125,19 @@ async function _generateSummary() {
   const _provider = identity.provider;
   const attribution = getAIOutputAttribution(identity);
 
-  _summaryAbortController = new AbortController();
+  const controller = new AbortController();
+  _summaryAbortController = controller;
+  const isCurrent = () => _summaryAbortController === controller && !controller.signal.aborted
+    && profile === state.currentProfile && state.currentThreadId === thread.id && state.chatThreads.includes(thread);
 
   try {
     const { text, usage } = await callAssistantFeatureAI({
       system: SUMMARY_PROMPT,
       messages,
       maxTokens: 2048,
-      signal: _summaryAbortController.signal,
+      signal: controller.signal,
       onStream(partial) {
+        if (!isCurrent()) { controller.abort(); return; }
         const body = document.getElementById('summary-modal-body');
         if (body) {
           body.innerHTML = renderMarkdown(partial);
@@ -140,14 +145,23 @@ async function _generateSummary() {
         }
       }
     });
+    if (!isCurrent()) return;
 
     const costInfo = usage && !identity.subscription ? { provider: _provider, modelId: _modelId, modelDisplay: _modelDisplay, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens } : null;
     const now = new Date().toISOString();
+    const previous = ['summary', 'summaryDate', 'summaryModel', 'summaryCost'].map(key => [key, thread[key]]);
     thread.summary = text;
     thread.summaryDate = now;
     thread.summaryModel = _modelDisplay;
     if (costInfo) thread.summaryCost = costInfo;
-    await saveChatThreadIndex();
+    if (!await saveChatThreadIndex()) {
+      if (isCurrent()) for (const [key, value] of previous) {
+        if (value === undefined) delete thread[key];
+        else thread[key] = value;
+      }
+      throw new Error('Could not save the conversation summary.');
+    }
+    if (!isCurrent()) return;
 
     await _saveSummaryToProfile({
       id: createUniqueId('s_'),
@@ -159,6 +173,7 @@ async function _generateSummary() {
       attribution,
       cost: costInfo
     });
+    if (!isCurrent()) return;
 
     renderThreadList();
     renderSavedSummaries();
@@ -170,6 +185,7 @@ async function _generateSummary() {
       summaryAttribution: attribution,
     }, false, costInfo);
   } catch (e) {
+    if (!isCurrent()) return;
     if (getErrorName(e) === 'AbortError') {
       showNotification('Summary cancelled', 'info');
     } else {
@@ -177,7 +193,7 @@ async function _generateSummary() {
     }
     _closeSummaryModal();
   } finally {
-    _summaryAbortController = null;
+    if (_summaryAbortController === controller) _summaryAbortController = null;
   }
 }
 

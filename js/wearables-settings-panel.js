@@ -225,7 +225,7 @@ export function renderWearablesSettingsSection() {
   return `<div class="settings-action-row wearable-visibility-row">
     <div class="settings-copy"><div class="settings-copy-title">Show wearable data on the dashboard</div>
       <div class="settings-copy-desc">Turn this off to hide readings from connected services. Manual weight, blood pressure, and pulse entries stay visible.</div></div>
-    <label class="toggle-switch"><input type="checkbox" id="wearables-strip-hidden-toggle" ${hidden ? '' : 'checked'} ${wearableSettingsInputAttrs('strip-hidden')}><span class="toggle-slider"></span></label>
+    <label class="toggle-switch"><input type="checkbox" id="wearables-strip-hidden-toggle" aria-label="Show wearable data on the dashboard" ${hidden ? '' : 'checked'} ${wearableSettingsInputAttrs('strip-hidden')}><span class="toggle-slider"></span></label>
   </div>
   <div class="wearable-sources-intro" aria-labelledby="wearable-sources-title">
     <div class="wearable-sources-heading"><div class="settings-section-title" id="wearable-sources-title">Health data sources <span class="wearable-beta-label">Beta</span></div>
@@ -329,9 +329,9 @@ function renderAdapterRow(adapter, isConnected) {
         ${vendorIcon(adapter.id, { size: 20 })}
         ${nameSpan}
         ${status}
-        <span class="wearable-row-action">${action}</span>
+        <span class="wearable-row-action">${action.includes('<button') ? '<span class="wearable-row-chevron" aria-hidden="true">▾</span>' : action}</span>
       </summary>
-      <div class="wearable-row-detail">${detail}</div>
+      <div class="wearable-row-detail">${action.includes('<button') ? `<div class="wearable-adapter-actions">${action}</div>` : ''}${detail}</div>
     </details>`;
   }
 

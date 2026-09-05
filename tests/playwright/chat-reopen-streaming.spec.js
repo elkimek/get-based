@@ -1,6 +1,10 @@
 import { expect, test } from './coverage-fixture.js';
 
 test('closing and reopening chat preserves an in-flight response', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-default-emptyTour', 'completed');
+    localStorage.setItem('labcharts-default-tour', 'completed');
+  });
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#chat-panel');
 
@@ -86,7 +90,11 @@ test('closing and reopening chat preserves an in-flight response', async ({ page
         bubbles: true,
         cancelable: true,
       }));
-      await new Promise(resolve => setTimeout(resolve, 0));
+      // Escape passes through asynchronous lazy shell handlers. Wait for the
+      // expected close state instead of racing it after one event-loop tick.
+      for (let attempt = 0; panel?.classList.contains('open') && attempt < 50; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
       const escapeClosedWithoutAbort = !panel?.classList.contains('open')
         && chatSend.getChatAbortController() === controller
         && !controller.signal.aborted;

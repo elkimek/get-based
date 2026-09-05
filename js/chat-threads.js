@@ -1,16 +1,16 @@
 // @ts-check
 // chat-threads.js — Conversation-thread management for the chat panel
 import { state } from './state.js';
-import { escapeAttr, escapeHTML, showNotification, showConfirmDialog, showPromptDialog } from './utils.js';
+import { showNotification, showConfirmDialog, showPromptDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItems } from './data-merge.js';
 import { onChatSaved } from './sync.js';
 import { chatDeletedThreadsKey } from './sync-payload-collectors.js';
-import { CHAT_PERSONALITIES } from './constants.js';
+import { renderChatThreadList } from './chat-thread-list-view.js';
 import { encryptedGetItem, encryptedSetItem } from './crypto.js';
 import {
   configureChatThreadProjects, configureChatThreadSearch, createThreadProject,
-  deleteThreadProject, deleteThreadProjectPrompt, filterThreadList, getThreadProjectNames,
+  deleteThreadProject, deleteThreadProjectPrompt, filterThreadList,
   invalidateThreadContentCache, jumpToSearchResult, moveThreadToProject,
   renameThreadProject, renameThreadProjectPrompt, toggleThreadPinned,
 } from './chat-thread-search.js';
@@ -26,11 +26,6 @@ export {
   renameThreadProject, renameThreadProjectPrompt, toggleThreadPinned,
 };
 
-const THREAD_ICON_EDIT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
-const THREAD_ICON_DELETE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
-const THREAD_ICON_MORE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>';
-const THREAD_ICON_FOLDER = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"/></svg>';
-const THREAD_ICON_PIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 4 6 6-3 1-4 4-1 5-2-2-4 4-1-1 4-4-2-2 5-1 4-4z"/></svg>';
 const MOBILE_THREAD_RAIL_QUERY = '(max-width: 768px)';
 const CHAT_DELETED_PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 let chatThreadDelegatesInstalled = false;
@@ -39,6 +34,8 @@ let pendingThreadDrag = null;
 let suppressThreadClick = false;
 let blockedThreadIndexKey = null;
 let blockedThreadIndexNoticeShown = false;
+let threadLoadRevision = 0;
+let threadSwitchRevision = 0;
 const noop = (..._args) => {};
 const asyncNoop = async () => {};
 const defaultPersonality = () => ({ name: 'Default', icon: '' });
@@ -145,10 +142,13 @@ function parseThreadIndex(raw) {
 // THREAD INDEX CRUD
 export async function loadChatThreads() {
   const key = getChatThreadsKey();
+  const revision = ++threadLoadRevision;
+  const isCurrent = () => revision === threadLoadRevision && key === getChatThreadsKey();
   const storedRaw = localStorage.getItem(key);
   if (storedRaw !== null) {
     let raw = null;
     try { raw = await encryptedGetItem(key); } catch { raw = null; }
+    if (!isCurrent()) return false;
     if (raw === null) {
       blockThreadIndexWrites(key);
       notifyThreadIndexBlocked();
@@ -176,6 +176,7 @@ export async function loadChatThreads() {
 
   let legacyRaw = null;
   try { legacyRaw = await encryptedGetItem(legacyKey); } catch { legacyRaw = null; }
+  if (!isCurrent()) return false;
   if (legacyRaw === null) {
     blockThreadIndexWrites(key);
     notifyThreadIndexBlocked();
@@ -195,11 +196,13 @@ export async function loadChatThreads() {
         personality: state.currentChatPersonality || 'default'
       }];
       await encryptedSetItem(getChatThreadKey(threadId), legacyRaw);
+      if (!isCurrent()) return false;
       await saveChatThreadIndex();
       // Leave legacy key in place for rollback safety
     }
     return true;
   } catch {
+    if (!isCurrent()) return false;
     blockThreadIndexWrites(key);
     notifyThreadIndexBlocked();
     return false;
@@ -215,10 +218,11 @@ export function saveChatThreadIndex({ sync = true } = {}) {
   const value = JSON.stringify(state.chatThreads);
   return encryptedSetItem(key, value)
     .then(() => {
-      if (sync) onChatSaved();
+      if (sync && key === getChatThreadsKey()) onChatSaved();
       return true;
     })
     .catch((err) => {
+      if (key !== getChatThreadsKey()) return false;
       console.warn('[chat-threads] failed to save thread index', err?.message || err);
       showNotification('Could not save conversation list', 'error');
       return false;
@@ -290,6 +294,7 @@ export function createNewThread({ sync = true, projectName = '' } = {}) {
  * @param {any[]} messages
  */
 export async function createForkedThread(sourceThreadId, sourceMessageIndex, messages) {
+  const profile = state.currentProfile;
   if (isThreadIndexWriteBlocked()) {
     notifyThreadIndexBlocked();
     return null;
@@ -318,13 +323,16 @@ export async function createForkedThread(sourceThreadId, sourceMessageIndex, mes
     ...(source.projectName ? { projectName: source.projectName } : {}),
   };
   state.chatThreads.unshift(thread);
-  if (!await saveChatThreadIndex()) {
+  const saved = await saveChatThreadIndex();
+  if (profile !== state.currentProfile) return null;
+  if (!saved) {
     state.chatThreads = state.chatThreads.filter(item => item.id !== id);
     return null;
   }
   applyThreadContext(thread);
   state.chatHistory = history;
   await chatThreadDeps.saveChatHistory();
+  if (profile !== state.currentProfile || state.currentThreadId !== id) return null;
   chatThreadDeps.renderChatMessages();
   chatThreadDeps.updateChatHeaderTitle();
   chatThreadDeps.updatePersonalityBar();
@@ -334,6 +342,9 @@ export async function createForkedThread(sourceThreadId, sourceMessageIndex, mes
 }
 
 export async function switchToThread(threadId) {
+  const profile = state.currentProfile;
+  const revision = ++threadSwitchRevision;
+  const isCurrent = () => profile === state.currentProfile && revision === threadSwitchRevision;
   closeThreadRailAfterMobileSelection();
   if (threadId === state.currentThreadId) return;
   chatThreadDeps.stopVoiceActivity();
@@ -341,24 +352,30 @@ export async function switchToThread(threadId) {
   saveChatDraft();
   // Save current thread messages
   await chatThreadDeps.saveChatHistory();
+  if (!isCurrent()) return;
   chatThreadDeps.cleanupDiscussionState();
   // Switch
   const thread = state.chatThreads.find(t => t.id === threadId);
   if (!applyThreadContext(thread)) return;
   await chatThreadDeps.loadChatHistory();
+  if (!isCurrent() || state.currentThreadId !== threadId) return;
   chatThreadDeps.restoreDiscussionContinuePrompt();
   renderThreadList();
   await restoreChatDraft(threadId);
 }
 
 export async function deleteThread(threadId) {
+  const profile = state.currentProfile;
   if (await showConfirmDialog('Delete this conversation? This cannot be undone.')) {
+    if (profile !== state.currentProfile) return false;
     const previousThreads = state.chatThreads;
     if (threadId === state.currentThreadId) chatThreadDeps.stopChatGeneration();
     invalidateThreadContentCache();
     // Remove from index
     state.chatThreads = state.chatThreads.filter(t => t.id !== threadId);
-    if (!await saveChatThreadIndex()) {
+    const saved = await saveChatThreadIndex();
+    if (profile !== state.currentProfile) return false;
+    if (!saved) {
       state.chatThreads = previousThreads;
       renderThreadList();
       return false;
@@ -366,6 +383,7 @@ export async function deleteThread(threadId) {
     recordDeletedChatThread(threadId);
     onChatSaved();
     await clearChatDraft(threadId);
+    if (profile !== state.currentProfile) return false;
     chatThreadDeps.deleteAttachmentDraft(threadId);
     // Remove per-thread messages
     localStorage.removeItem(getChatThreadKey(threadId));
@@ -382,8 +400,10 @@ export async function deleteThread(threadId) {
         const nextThread = state.chatThreads.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
         applyThreadContext(nextThread);
         await chatThreadDeps.loadChatHistory();
+        if (profile !== state.currentProfile || state.currentThreadId !== nextThread.id) return false;
         chatThreadDeps.restoreDiscussionContinuePrompt();
         await restoreChatDraft(state.currentThreadId);
+        if (profile !== state.currentProfile) return false;
       } else {
         createNewThread();
       }
@@ -406,17 +426,18 @@ export function renameThread(threadId, newName) {
 }
 
 export async function renameThreadPrompt(threadId) {
+  const profile = state.currentProfile;
   const thread = state.chatThreads.find(t => t.id === threadId);
   if (!thread) return;
   const name = await chatThreadDeps.showPromptDialog('Rename conversation:', {
     defaultValue: thread.name,
     okLabel: 'Rename',
   });
-  if (name) renameThread(threadId, name);
+  if (name && profile === state.currentProfile) renameThread(threadId, name);
 }
 
 export function getChatThreadSort() {
-  const value = localStorage.getItem('labcharts-chat-thread-sort');
+  const value = localStorage.getItem('labcharts-chat-thread-sort') || 'recent';
   return ['recent', 'oldest', 'name'].includes(value || '') ? value : 'recent';
 }
 
@@ -623,122 +644,7 @@ export function installChatThreadDelegates() {
 
 /** @param {string} [filter] */
 export function renderThreadList(filter) {
-  const list = document.getElementById('chat-thread-list');
-  if (!list) return;
-  const sort = getChatThreadSort();
-  const sortSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('chat-thread-sort'));
-  if (sortSelect) sortSelect.value = sort;
-  const compareThreads = (a, b) => sort === 'name'
-    ? a.name.localeCompare(b.name)
-    : sort === 'oldest'
-      ? a.updatedAt.localeCompare(b.updatedAt)
-      : b.updatedAt.localeCompare(a.updatedAt);
-  let threads = state.chatThreads.slice().sort(compareThreads);
-  if (filter && filter.trim()) {
-    const q = filter.toLowerCase().trim();
-    threads = threads.filter(t => t.name.toLowerCase().includes(q));
-  }
-  if (threads.length === 0) {
-    list.innerHTML = '<div style="padding:12px 10px;font-size:11px;color:var(--text-muted);text-align:center">' +
-      (filter ? 'No matching conversations' : 'No conversations yet') + '</div>';
-    return;
-  }
-  const personalityMap = {};
-  for (const p of CHAT_PERSONALITIES) personalityMap[p.id] = p.icon;
-  const projects = getThreadProjectNames();
-
-  const renderThread = t => {
-    const isActive = t.id === state.currentThreadId;
-    const date = new Date(t.updatedAt);
-    const dateStr = formatThreadDate(date);
-    const icon = t.personalityIcon || personalityMap[t.personality] || personalityMap.default || '';
-    const iconTitle = t.personalityName ? ` title="${escapeHTML(t.personalityName)}"` : '';
-    const messageCount = Number.isFinite(Number(t.messageCount))
-      ? Math.max(0, Math.trunc(Number(t.messageCount)))
-      : 0;
-    const moveTargets = projects
-      .filter(projectName => projectName !== t.projectName)
-      .map(projectName => `<button type="button" data-chat-thread-action="move-project" data-thread-id="${escapeAttr(t.id)}" data-project-name="${escapeAttr(projectName)}">${THREAD_ICON_FOLDER}<span>${escapeHTML(projectName)}</span></button>`);
-    if (t.projectName) {
-      moveTargets.push(`<button type="button" data-chat-thread-action="move-project" data-thread-id="${escapeAttr(t.id)}" data-project-name="">${THREAD_ICON_FOLDER}<span>No project</span></button>`);
-    }
-    const moveMenu = moveTargets.length
-      ? `<div class="chat-thread-move-label">Move to project</div>${moveTargets.join('')}`
-      : '';
-    return `<div class="chat-thread-item${isActive ? ' active' : ''}${t.pinned ? ' pinned' : ''}" data-thread-id="${escapeAttr(t.id)}" aria-grabbed="false" title="Drag into a project">
-      <button type="button" class="chat-thread-item-main" data-chat-thread-action="switch" aria-current="${isActive ? 'true' : 'false'}">
-        <span class="chat-thread-item-name">${escapeHTML(t.name)}</span>
-        <span class="chat-thread-item-meta">
-          <span${iconTitle}>${escapeHTML(icon)}</span>
-          <span>${dateStr}</span>
-          <span>${messageCount} msg${messageCount !== 1 ? 's' : ''}</span>
-        </span>
-      </button>
-      <details class="chat-thread-item-menu">
-        <summary class="chat-thread-item-action" title="Conversation actions" aria-label="Actions for ${escapeHTML(t.name)}">${THREAD_ICON_MORE}</summary>
-        <div class="chat-thread-item-menu-popover">
-          <button type="button" data-chat-thread-action="pin" data-thread-id="${escapeHTML(t.id)}">${THREAD_ICON_PIN}<span>${t.pinned ? 'Unpin' : 'Pin'}</span></button>
-          <button type="button" data-chat-thread-action="rename" data-thread-id="${escapeHTML(t.id)}">${THREAD_ICON_EDIT}<span>Rename</span></button>
-          ${moveMenu}
-          <button type="button" class="delete" data-chat-thread-action="delete" data-thread-id="${escapeHTML(t.id)}">${THREAD_ICON_DELETE}<span>Delete</span></button>
-        </div>
-      </details>
-    </div>`;
-  };
-  const renderGroup = (title, items, icon = '', projectName = null) => items.length
-    ? `<section class="chat-thread-group"${projectName !== null ? ` data-chat-project-drop="${escapeAttr(projectName)}"` : ''}><div class="chat-thread-group-title"><span class="chat-thread-group-label">${icon}${escapeHTML(title)}</span>${projectName !== null ? `<details class="chat-project-menu">
-        <summary class="chat-project-action" aria-label="Actions for ${escapeAttr(title)}" title="Project actions">${THREAD_ICON_MORE}</summary>
-        <div class="chat-project-menu-popover" role="menu">
-          <button type="button" data-chat-project-action="rename" data-project-name="${escapeAttr(projectName)}" role="menuitem">${THREAD_ICON_EDIT}<span>Rename project</span></button>
-          <button type="button" class="delete" data-chat-project-action="delete" data-project-name="${escapeAttr(projectName)}" role="menuitem">${THREAD_ICON_DELETE}<span>Delete project</span></button>
-        </div>
-      </details>` : ''}</div>${items.map(renderThread).join('')}</section>`
-    : '';
-  if (filter?.trim()) {
-    list.innerHTML = threads.map(renderThread).join('');
-    return;
-  }
-  const pinned = threads.filter(thread => thread.pinned === true);
-  const remaining = threads.filter(thread => thread.pinned !== true);
-  const groups = [];
-  groups.push(renderGroup('Pinned', pinned, THREAD_ICON_PIN));
-  for (const name of projects) {
-    groups.push(renderGroup(name, remaining.filter(thread => thread.projectName === name), THREAD_ICON_FOLDER, name));
-  }
-  const ungrouped = remaining.filter(thread => !thread.projectName);
-  if (sort !== 'recent') {
-    groups.push(renderGroup('Conversations', ungrouped));
-  } else {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const updatedTime = thread => {
-      const time = new Date(thread.updatedAt).getTime();
-      return Number.isFinite(time) ? time : 0;
-    };
-    groups.push(renderGroup('Today', ungrouped.filter(thread => updatedTime(thread) >= today.getTime())));
-    groups.push(renderGroup('Yesterday', ungrouped.filter(thread => {
-      const updated = updatedTime(thread);
-      return updated >= yesterday.getTime() && updated < today.getTime();
-    })));
-    groups.push(renderGroup('Earlier', ungrouped.filter(thread => updatedTime(thread) < yesterday.getTime())));
-  }
-  groups.push('<div class="chat-thread-unfiled-drop" data-chat-project-drop="">Drop here for no project</div>');
-  list.innerHTML = groups.join('');
-}
-
-function formatThreadDate(date) {
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d ago`;
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  renderChatThreadList(getChatThreadSort(), filter);
 }
 
 export function toggleThreadRail() {

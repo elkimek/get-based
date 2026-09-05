@@ -31,7 +31,8 @@ const changelogModule = await import('../js/changelog.js');
 
 const changelogFacadeSrc = await fetchWithRetry('js/changelog.js');
 const changelogImplSrc = await fetchWithRetry('js/changelog-impl.js');
-const changelogSrc = `${changelogFacadeSrc}\n${changelogImplSrc}`;
+const changelogCurrentSrc = await fetchWithRetry('js/changelog-current.js');
+const changelogSrc = `${changelogFacadeSrc}\n${changelogCurrentSrc}\n${changelogImplSrc}`;
 const utilsSrc = await fetchWithRetry('js/utils.js');
 const startupUiSrc = await fetchWithRetry('js/startup-ui.js');
 const appEventsSrc = await fetchWithRetry('js/app-event-listeners.js');
@@ -58,6 +59,9 @@ assert('Startup footer delegates APP_VERSION through utils runtime',
     && startupUiSrc.includes('vTextEl.textContent = getAppVersionRuntime()')
     && !startupUiSrc.includes("getStartupRuntimeValue('APP_VERSION')"));
 assert('changelog.js has CHANGELOG array', changelogSrc.includes('const CHANGELOG'));
+assert('current release covers collapsible CLI settings and adaptive dashboard layout',
+  changelogImplSrc.includes('CURRENT_RELEASE,') && changelogCurrentSrc.includes('details can be collapsed')
+    && changelogCurrentSrc.includes('Widgets rebalance their widths'));
 assert('changelog.js exports openChangelog', changelogSrc.includes('export function openChangelog'));
 assert('changelog.js exports closeChangelog', changelogSrc.includes('export function closeChangelog'));
 assert('changelog.js exports maybeShowChangelog', changelogSrc.includes('export function maybeShowChangelog'));

@@ -1,8 +1,8 @@
 // test-a11y-axe.js — Runtime accessibility scan via axe-core 4.13.
 //
 // Complements test-a11y-phase3.js, which asserts that specific aria-*
-// attributes appear in the source. This file RENDERS each lens + every
-// modal we ship and runs axe.run() against the live DOM, catching the
+// attributes appear in the source. This file renders selected core pages,
+// settings tabs, and modals, then runs axe.run() against the live DOM, catching the
 // long tail no source-grep can see: contrast ratios, focus order,
 // landmark structure, mislabeled custom widgets.
 //
@@ -34,7 +34,7 @@ return (async () => {
   const { state } = await import('/js/state.js');
   const { loadDemoData } = await import('/js/export.js');
   const viewsModule = await import('/js/views.js');
-  const settingsModule = await import('/js/settings.js');
+  const settingsModule = await (await import('/js/settings-loader.js')).loadSettingsModule();
   // Capture full state shape so we can restore even if we mutate
   // currentProfile / importedData / markerRegistry / etc along the way.
   const snapshot = {
@@ -67,7 +67,7 @@ return (async () => {
     // longer than feels necessary because subsequent renderViews assume
     // markerRegistry has been populated by buildSidebar.
     if (!state.importedData?.entries?.length) {
-      try { await loadDemoData('male'); } catch (e) { note('loadDemoData failed: ' + e.message); }
+      try { await loadDemoData('male'); } catch (e) { assert('demo data loaded', false, e.message); }
       await new Promise(r => setTimeout(r, 3000));
     }
     if (!state.markerRegistry || Object.keys(state.markerRegistry).length === 0) {
@@ -77,7 +77,7 @@ return (async () => {
     // ── 3. Helpers ──────────────────────────────────────────────────────
     const allViolations = new Map();
     async function safeNav(view) {
-      try { viewsModule.navigate(view); } catch (e) { note(`navigate(${view}) threw: ${e.message}`); }
+      try { await viewsModule.navigate(view); } catch (e) { assert(`navigate(${view})`, false, e.message); }
       await new Promise(r => setTimeout(r, 700));
     }
     function clearTransientUi() {
@@ -91,7 +91,7 @@ return (async () => {
           runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] },
         });
       } catch (e) {
-        note(`scan "${stopName}" threw: ${e.message}`);
+        assert(`scan "${stopName}" completed`, false, e.message);
         return;
       }
       const cnt = result.violations.length;
@@ -105,7 +105,7 @@ return (async () => {
       }
     }
     async function safeOp(label, fn) {
-      try { await fn(); } catch (e) { note(`${label} threw: ${e.message}`); }
+      try { await fn(); } catch (e) { assert(label, false, e.message); }
     }
 
     // ── 4. Scan stops — every step defensive so one failure doesn't ────
@@ -133,21 +133,23 @@ return (async () => {
     await scan('detail-modal');
     await safeOp('close detail modal', () => viewsModule.closeModal());
 
-    // Settings — scan each tab. Skip if openSettings isn't exposed.
+    // Use the production module entry point; the legacy window helper no
+    // longer exists. A missing panel must not silently scan the page behind it.
     await safeOp('open settings', async () => {
-      if (typeof window.openSettings === 'function') {
-        window.openSettings();
-        await new Promise(r => setTimeout(r, 400));
-      }
+      await settingsModule.openSettingsModal('display');
+      await new Promise(r => setTimeout(r, 400));
     });
-    for (const tab of ['display', 'ai', 'privacy', 'data', 'wearables', 'agent']) {
+    for (const tab of ['display', 'ai', 'voice', 'privacy', 'data', 'wearables', 'agent']) {
       await safeOp(`switch to settings/${tab}`, async () => {
-        settingsModule.switchSettingsTab(tab);
+        await settingsModule.switchSettingsTab(tab);
         await new Promise(r => setTimeout(r, 250));
       });
+      assert(`settings/${tab} is actually open`, Boolean(document.querySelector(
+        `#settings-modal-overlay.show [data-tab-panel="${tab}"].active`,
+      )));
       await scan(`settings-${tab}`);
     }
-    await safeOp('close settings', () => viewsModule.closeModal());
+    await safeOp('close settings', () => settingsModule.closeSettingsModal());
 
     // EMF assessment editor
     await safeOp('open EMF editor', async () => {
@@ -174,8 +176,8 @@ return (async () => {
       console.log(`▶ [a11y/${impact}] ${rules.length} rule${rules.length === 1 ? '' : 's'}, ${total} node${total === 1 ? '' : 's'}`);
       for (const r of rules) {
         console.log(`▶   [${r.id}] ${r.help} (${r.nodes.length})`);
-        for (const n of r.nodes.slice(0, 2)) console.log(`▶     at "${n.stop}": ${n.target}`);
-        if (r.nodes.length > 2) console.log(`▶     ... ${r.nodes.length - 2} more`);
+        for (const n of r.nodes.slice(0, 20)) console.log(`▶     at "${n.stop}": ${n.target}`);
+        if (r.nodes.length > 20) console.log(`▶     ... ${r.nodes.length - 20} more`);
         console.log(`▶     docs: ${r.helpUrl}`);
       }
     }

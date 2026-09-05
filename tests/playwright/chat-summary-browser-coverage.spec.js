@@ -43,11 +43,19 @@ async function openIsolatedSummaryPage(page) {
       }
     `,
   }));
+  await page.route('**/js/ai-feature-routing.js*', route => route.fulfill({
+    contentType: 'application/javascript',
+    body: `import { callClaudeAPI } from '/js/api.js';
+      export const hasAssistantFeatureProvider = () => true;
+      export const getAssistantFeatureIdentity = () => ({ provider: 'ollama', modelId: 'summary-coverage-model', modelDisplay: 'Summary Coverage Model' });
+      export const callAssistantFeatureAI = options => callClaudeAPI(options);`,
+  }));
   await page.route('**/js/chat-threads.js*', route => route.fulfill({
     contentType: 'application/javascript',
     body: `
       export function saveChatThreadIndex() {
         window.__summaryThreadIndexSaves = (window.__summaryThreadIndexSaves || 0) + 1;
+        return true;
       }
       export function renderThreadList() {
         window.__summaryThreadListRenders = (window.__summaryThreadListRenders || 0) + 1;

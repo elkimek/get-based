@@ -370,6 +370,7 @@ assert('profile-runtime preserves the lazy Chat boundary until first use',
 // ═══════════════════════════════════════════════
 console.log('17. Thread Search Extraction (source inspection)');
 const chatThreadsSrc = read('js/chat-threads.js');
+const chatThreadViewSrc = read('js/chat-thread-list-view.js');
 const chatWindowBindingsSrc = read('js/chat-window-bindings.js');
 const chatThreadSearchSrc = read('js/chat-thread-search.js');
 const inlineHandlerRe = /\bon(?:click|change|input|search|keydown|keyup|submit)=/;
@@ -408,10 +409,11 @@ assert('chat-thread-search uses overflow sentinel before truncation banner',
   chatThreadSearchSrc.includes('results.length > SEARCH_RESULT_LIMIT') &&
   chatThreadSearchSrc.includes('results.slice(0, SEARCH_RESULT_LIMIT)'));
 assert('chat-threads render path uses delegated thread actions',
-  !inlineHandlerRe.test(chatThreadsSrc) &&
-  chatThreadsSrc.includes('data-chat-thread-action="switch"') &&
-  chatThreadsSrc.includes('data-chat-thread-action="rename"') &&
-  chatThreadsSrc.includes('data-chat-thread-action="delete"'));
+  chatThreadsSrc.includes('renderChatThreadList(getChatThreadSort(), filter)') &&
+  !inlineHandlerRe.test(chatThreadViewSrc) &&
+  chatThreadViewSrc.includes('data-chat-thread-action="switch"') &&
+  chatThreadViewSrc.includes('data-chat-thread-action="rename"') &&
+  chatThreadViewSrc.includes('data-chat-thread-action="delete"'));
 assert('chat-threads installs an idempotent click delegate',
   chatThreadsSrc.includes('let chatThreadDelegatesInstalled = false') &&
     chatThreadsSrc.includes("document.addEventListener('click', handleThreadActionClick)") &&

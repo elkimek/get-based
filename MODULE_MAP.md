@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 752 |
-| Internal import edges | 3183 |
+| Modules | 754 |
+| Internal import edges | 3188 |
 | Dynamic internal edges | 105 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -64,8 +64,8 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 286 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 78 |
-| [`js/state.js`](js/state.js) | 192 | [`js/chat-send.js`](js/chat-send.js) | 42 |
+| [`js/utils.js`](js/utils.js) | 287 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 78 |
+| [`js/state.js`](js/state.js) | 193 | [`js/chat-send.js`](js/chat-send.js) | 42 |
 | [`js/caught-error.js`](js/caught-error.js) | 88 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 81 | [`js/settings.js`](js/settings.js) | 30 |
 | [`js/data.js`](js/data.js) | 78 | [`js/sync-configure.js`](js/sync-configure.js) | 28 |
@@ -279,9 +279,10 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>changelog</code> family — 2 modules</summary>
+<details><summary><code>changelog</code> family — 3 modules</summary>
 
-- [`js/changelog-impl.js`](js/changelog-impl.js) → [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
+- [`js/changelog-current.js`](js/changelog-current.js) → no in-scope imports
+- [`js/changelog-impl.js`](js/changelog-impl.js) → [`js/changelog-current.js`](js/changelog-current.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/changelog.js`](js/changelog.js) → [`js/changelog-impl.js`](js/changelog-impl.js) *(dynamic)*, [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 
 </details>
@@ -299,7 +300,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>chat</code> family — 60 modules</summary>
+<details><summary><code>chat</code> family — 61 modules</summary>
 
 - [`js/chat-actions.js`](js/chat-actions.js) → [`js/agent-drafts.js`](js/agent-drafts.js), [`js/chat-composer.js`](js/chat-composer.js), [`js/chat-history.js`](js/chat-history.js), [`js/chat-icons.js`](js/chat-icons.js), [`js/chat-images.js`](js/chat-images.js), [`js/chat-message-action-attrs.js`](js/chat-message-action-attrs.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/cli-agent-brand-assets.js`](js/cli-agent-brand-assets.js), [`js/emf-runtime.js`](js/emf-runtime.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/chat-attestation.js`](js/chat-attestation.js) → [`js/utils.js`](js/utils.js)
@@ -357,8 +358,9 @@ Native browser modules shipped with the static application.
 - [`js/chat-summaries.js`](js/chat-summaries.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/api.js`](js/api.js), [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/caught-error.js`](js/caught-error.js), [`js/chat-message-action-attrs.js`](js/chat-message-action-attrs.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/cli-agent-brand-assets.js`](js/cli-agent-brand-assets.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/markdown.js`](js/markdown.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/unique-id.js`](js/unique-id.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/chat-system-prompt.js`](js/chat-system-prompt.js) → no in-scope imports
 - [`js/chat-thinking-status.js`](js/chat-thinking-status.js) → [`js/chat-message-avatars.js`](js/chat-message-avatars.js)
+- [`js/chat-thread-list-view.js`](js/chat-thread-list-view.js) → [`js/chat-thread-search.js`](js/chat-thread-search.js), [`js/constants.js`](js/constants.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/chat-thread-search.js`](js/chat-thread-search.js) → [`js/chat-message-action-attrs.js`](js/chat-message-action-attrs.js), [`js/chat-scroll.js`](js/chat-scroll.js), [`js/crypto.js`](js/crypto.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
-- [`js/chat-threads.js`](js/chat-threads.js) → [`js/chat-composer.js`](js/chat-composer.js), [`js/chat-layout.js`](js/chat-layout.js), [`js/chat-storage-safety.js`](js/chat-storage-safety.js), [`js/chat-thread-search.js`](js/chat-thread-search.js), [`js/constants.js`](js/constants.js), [`js/crypto.js`](js/crypto.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/state.js`](js/state.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync.js`](js/sync.js), [`js/unique-id.js`](js/unique-id.js), [`js/utils.js`](js/utils.js)
+- [`js/chat-threads.js`](js/chat-threads.js) → [`js/chat-composer.js`](js/chat-composer.js), [`js/chat-layout.js`](js/chat-layout.js), [`js/chat-storage-safety.js`](js/chat-storage-safety.js), [`js/chat-thread-list-view.js`](js/chat-thread-list-view.js), [`js/chat-thread-search.js`](js/chat-thread-search.js), [`js/crypto.js`](js/crypto.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/state.js`](js/state.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync.js`](js/sync.js), [`js/unique-id.js`](js/unique-id.js), [`js/utils.js`](js/utils.js)
 - [`js/chat-window-bindings.js`](js/chat-window-bindings.js) → [`js/chat-discussion.js`](js/chat-discussion.js), [`js/chat-history.js`](js/chat-history.js), [`js/chat-images.js`](js/chat-images.js), [`js/chat-nudge.js`](js/chat-nudge.js), [`js/chat-onboarding.js`](js/chat-onboarding.js), [`js/chat-panel.js`](js/chat-panel.js), [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-render.js`](js/chat-render.js), [`js/chat-send.js`](js/chat-send.js), [`js/chat-summaries.js`](js/chat-summaries.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/voice-loader.js`](js/voice-loader.js)
 - [`js/chat.js`](js/chat.js) → [`js/chat-actions.js`](js/chat-actions.js), [`js/chat-discussion.js`](js/chat-discussion.js), [`js/chat-history.js`](js/chat-history.js), [`js/chat-marker-prompts.js`](js/chat-marker-prompts.js), [`js/chat-nudge.js`](js/chat-nudge.js), [`js/chat-onboarding.js`](js/chat-onboarding.js), [`js/chat-panel.js`](js/chat-panel.js), [`js/chat-personalities.js`](js/chat-personalities.js), [`js/chat-render.js`](js/chat-render.js), [`js/chat-send.js`](js/chat-send.js), [`js/chat-window-bindings.js`](js/chat-window-bindings.js)
 

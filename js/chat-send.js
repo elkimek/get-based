@@ -83,8 +83,9 @@ import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
 // ═══════════════════════════════════════════════
 /** @type {AbortController | null} */
 let _chatAbortController = null;
+let chatSendRevision = 0;
 
-/** @type {{ container: HTMLElement, typingEl: HTMLElement, aiMsgEl: HTMLElement | null, labelEl: HTMLElement | null, personalityName: string } | null} */
+/** @type {{ container: HTMLElement, typingEl: HTMLElement, aiMsgEl: HTMLElement | null, labelEl: HTMLElement | null, personalityName: string, isCurrent: () => boolean } | null} */
 let _activeChatGenerationUI = null;
 
 export function isChatStreaming() {
@@ -114,6 +115,7 @@ export function restoreChatGenerationUI() {
 
   const active = _activeChatGenerationUI;
   if (!active) return true; // Discussion rounds own their live message UI.
+  if (!active.isCurrent()) return false;
   const container = /** @type {HTMLElement | null} */ (document.getElementById('chat-messages')) || active.container;
   active.container = container;
   if (active.aiMsgEl?.textContent) {
@@ -135,13 +137,14 @@ export function restoreChatGenerationUI() {
  * @param {HTMLElement} typingEl
  * @param {HTMLElement} container
  */
-export function createTypewriter(el, typingEl, container) {
+export function createTypewriter(el, typingEl, container, isCurrent = () => true) {
   let target = '';
   let displayed = 0;
   /** @type {ReturnType<typeof setTimeout> | null} */
   let timer = null;
 
   function tick() {
+    if (!isCurrent()) { timer = null; stopChatThinkingStatus(typingEl); return; }
     if (displayed >= target.length) { timer = null; return; }
     const behind = target.length - displayed;
     const batch = Math.max(1, Math.ceil(behind * 0.3));
@@ -156,6 +159,7 @@ export function createTypewriter(el, typingEl, container) {
 
   return {
     update(text) {
+      if (!isCurrent()) return;
       target = text;
       if (globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
         if (timer) { clearTimeout(timer); timer = null; }
@@ -249,6 +253,10 @@ export async function sendChatMessage() {
   const text = (pendingEditText ?? input.value).trim();
   const hasImages = !isEditedRetry && hasPendingAttachments();
   if (!text && !hasImages) return;
+  const revision = ++chatSendRevision;
+  const profile = state.currentProfile;
+  let threadId = state.currentThreadId;
+  const scopeIsCurrent = () => revision === chatSendRevision && profile === state.currentProfile && threadId === state.currentThreadId;
   if (useCodexAgent && hasImages && !getAssistantExecutionRoute().inputModalities?.includes('image')) {
     showNotification('The selected CLI model does not report image support.', 'info');
     return;
@@ -264,6 +272,8 @@ export async function sendChatMessage() {
     : getAIProvider();
   const { requestAIProcessingApproval } = await import('./cloud-ai-consent.js');
   if (!await requestAIProcessingApproval(_msgProvider, { kind: hasImages ? 'image' : 'text' })) return;
+  if (!scopeIsCurrent() || useCodexAgent !== isCodexChatBackend()
+    || (useCodexAgent ? _msgAgentId !== getAgentHostAgent() || _msgAgentTarget !== getAgentHostTarget() : _msgProvider !== getAIProvider())) return;
 
   // Capture attachments before clearing (they're ephemeral)
   const attachments = hasImages ? [...getPendingAttachments()] : [];
@@ -272,6 +282,7 @@ export async function sendChatMessage() {
   if (!state.currentThreadId) {
     createNewThread();
     if (!state.currentThreadId) return;
+    threadId = state.currentThreadId;
   }
   if (!canSaveChatHistory()) return;
   const editPreparation = prepareChatMessageEditSend();
@@ -297,6 +308,7 @@ export async function sendChatMessage() {
   }
   renderChatMessages();
   await saveChatHistory(); // persist immediately so messages survive API failures
+  if (!scopeIsCurrent()) return;
 
   if (isFirstMessage) {
     autoNameThread(state.currentThreadId, text);
@@ -318,14 +330,17 @@ export async function sendChatMessage() {
   notifyChatContentAdded(container);
 
   // Switch to stop mode
-  _chatAbortController = new AbortController();
-  _activeChatGenerationUI = {
+  const controller = new AbortController();
+  _chatAbortController = controller;
+  const generationUI = {
     container,
     typingEl,
     aiMsgEl: null,
     labelEl: null,
     personalityName: getActivePersonality().name,
+    isCurrent: scopeIsCurrent,
   };
+  _activeChatGenerationUI = generationUI;
   setSendButtonMode(sendBtn, 'streaming');
   setChatStreamStatus(`${getActivePersonality().name} is responding.`, { busy: true });
   let streamOutcome = 'complete';
@@ -340,12 +355,14 @@ export async function sendChatMessage() {
   const webSearchSupported = !useCodexAgent && supportsWebSearch(_msgProvider);
   const webSearchEnabled = getChatWebSearchEnabled() && webSearchSupported;
   let aiMsgEl = null;
+  let typewriter = null;
 
   try {
     let labContext = buildChatLabContext(text);
     let _lensResultForMsg = null;
     if (hasLens()) {
       const lensResult = await queryLensMulti(text, { signal: _chatAbortController ? _chatAbortController.signal : undefined });
+      if (!scopeIsCurrent()) return;
       if (lensResult) {
         labContext = injectLensChunks(labContext, lensResult);
         _lensResultForMsg = lensResult;
@@ -355,6 +372,8 @@ export async function sendChatMessage() {
     // Local CLI agents can additionally use bounded tools for exact lookups,
     // navigation, and reviewable drafts.
     const { getContextSummary } = await import('./chat-context-summary.js');
+    if (!scopeIsCurrent()) return;
+    controller.signal.throwIfAborted();
     let contextSnapshot = getContextSummary(labContext);
     const personality = getActivePersonality();
     const currentPersonaName = personality.name;
@@ -409,9 +428,13 @@ export async function sendChatMessage() {
     if (_activeChatGenerationUI) _activeChatGenerationUI.aiMsgEl = aiMsgEl;
 
     // Typewriter: trickle buffered text at a steady rate for smooth appearance
-    const typewriter = createTypewriter(aiMsgEl, typingEl, container);
+    typewriter = createTypewriter(aiMsgEl, typingEl, container, scopeIsCurrent);
 
-    const getStreamSignal = () => _chatAbortController ? _chatAbortController.signal : undefined;
+    const getStreamSignal = () => controller.signal;
+    const onStream = streamedText => {
+      if (scopeIsCurrent() && !controller.signal.aborted) typewriter.update(streamedText);
+      else { typewriter.stop(); controller.abort(); }
+    };
     let aiResult;
     if (useCodexAgent) {
       const currentThread = state.chatThreads.find(thread => thread.id === state.currentThreadId);
@@ -428,8 +451,10 @@ export async function sendChatMessage() {
         })),
         images: attachments.map(attachment => ({ base64: attachment.base64, mediaType: attachment.mediaType })),
         signal: getStreamSignal(),
-        onStream(streamedText) { typewriter.update(streamedText); },
+        onStream,
       });
+      if (!scopeIsCurrent()) return;
+      controller.signal.throwIfAborted();
       if (currentThread) {
         currentThread.agentThreadId = aiResult.threadId;
         currentThread.chatBackend = 'codex';
@@ -443,12 +468,14 @@ export async function sendChatMessage() {
         messages: apiMessages,
         maxTokens: CHAT_RESPONSE_MAX_TOKENS,
         signal: getStreamSignal(),
-        onStream(streamedText) { typewriter.update(streamedText); },
+        onStream,
         webSearch: webSearchEnabled,
         provider: _msgProvider,
         reasoningEffort: _msgReasoningEffort,
       });
     }
+    if (!scopeIsCurrent()) return;
+    controller.signal.throwIfAborted();
     if (useCodexAgent && aiResult.model) {
       _msgModelId = aiResult.model;
       _msgModelDisplay = getAgentModelDisplay(aiResult.model, getCachedAgentModelCatalog(getAgentHostAgent(), _msgAgentTarget));
@@ -560,6 +587,7 @@ export async function sendChatMessage() {
     })();
 
     await saveChatHistory(); // persist before any sync-triggered chat reload can repaint older storage
+    if (!scopeIsCurrent()) return;
 
     if (assistantMsg.lensSources?.length) {
       const lensContainer = document.createElement('div');
@@ -579,7 +607,7 @@ export async function sendChatMessage() {
     if (_recSlots.length && recommendationRuntime) {
       const { renderRecommendationSectionSync, loadCatalog } = recommendationRuntime;
       loadCatalog().then(catalog => {
-        if (!catalog?.slots || !aiMsgEl.isConnected) return;
+        if (!scopeIsCurrent() || !catalog?.slots || !aiMsgEl.isConnected) return;
         const sections = _recSlots.map(slot => {
           const slotLabel = catalog.slots[slot]?.label || slot.split('.').pop();
           return renderRecommendationSectionSync(slot, { label: slotLabel, maxProducts: 2 });
@@ -613,6 +641,7 @@ export async function sendChatMessage() {
     notifyChatContentAdded(container);
     void maybeAutoReadAssistantMessage(msgIndex);
   } catch (err) {
+    if (!scopeIsCurrent()) return;
     const error = /** @type {any} */ (err);
     stopChatThinkingStatus(typingEl);
     if (typingEl.parentNode) typingEl.remove();
@@ -629,6 +658,7 @@ export async function sendChatMessage() {
         const personality = getActivePersonality();
         state.chatHistory.push({ role: 'assistant', content: partialText, personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, agentId: _msgAgentId, modelId: _msgModelId, modelDisplay: _msgModelDisplay, stopped: true });
         await saveChatHistory();
+        if (!scopeIsCurrent()) return;
         renderChatMessages({ preserveScroll: true });
       }
     } else {
@@ -656,6 +686,7 @@ export async function sendChatMessage() {
           modelDisplay: _msgModelDisplay,
         });
         await saveChatHistory();
+        if (!scopeIsCurrent()) return;
         renderChatMessages({ preserveScroll: true });
         console.warn('[chat] AI request failed', technicalMessage);
         showNotification(agentRestartRequired
@@ -663,20 +694,25 @@ export async function sendChatMessage() {
           : 'AI response failed. Check your provider connection and try again.', 'error', 10000);
       }
     }
+  } finally {
+    typewriter?.stop();
+    stopChatThinkingStatus(typingEl);
+    typingEl.remove();
+    if (_activeChatGenerationUI === generationUI) {
+      _chatAbortController = null;
+      _activeChatGenerationUI = null;
+      setSendButtonMode(sendBtn, 'idle');
+      updateDiscussButton();
+      updateChatHeaderTitle();
+      notifyChatContentAdded(container);
+      setChatStreamStatus(
+        !scopeIsCurrent() ? '' : streamOutcome === 'complete' ? 'Response complete.'
+          : streamOutcome === 'stopped' ? 'Response stopped. Retry is available.'
+            : 'Response failed. Retry is available.',
+        { busy: false },
+      );
+    }
   }
-
-  _chatAbortController = null;
-  _activeChatGenerationUI = null;
-  setSendButtonMode(sendBtn, 'idle');
-  updateDiscussButton();
-  updateChatHeaderTitle();
-  notifyChatContentAdded(container);
-  setChatStreamStatus(
-    streamOutcome === 'complete' ? 'Response complete.'
-      : streamOutcome === 'stopped' ? 'Response stopped. Retry is available.'
-        : 'Response failed. Retry is available.',
-    { busy: false },
-  );
 }
 
 export function handleChatKeydown(event) {

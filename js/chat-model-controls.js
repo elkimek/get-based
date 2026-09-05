@@ -331,7 +331,7 @@ export function refreshChatModelControls() {
 function filterModelOptions(query) {
   const normalized = String(query || '').trim().toLowerCase();
   document.querySelectorAll('#chat-model-options [data-chat-model-search]').forEach(option => {
-    option.toggleAttribute('hidden', normalized && !String(option.getAttribute('data-chat-model-search') || '').includes(normalized));
+    option.toggleAttribute('hidden', Boolean(normalized) && !String(option.getAttribute('data-chat-model-search') || '').includes(normalized));
   });
   document.querySelectorAll('#chat-model-options .chat-model-option-group').forEach(group => {
     group.toggleAttribute('hidden', !group.querySelector('.chat-model-option:not([hidden])'));

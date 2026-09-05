@@ -360,8 +360,8 @@ function renderDetectedAgent(agent) {
     ? `<button class="import-btn import-btn-secondary settings-mini-btn local-agent-test" data-settings-action="copy-cli-agent-login" data-value="${escapeAttr(agent.id)}">Copy sign-in command</button>` : ''}
         ${agent.compatible ? `
           <button class="import-btn import-btn-secondary settings-mini-btn local-agent-test" data-settings-action="test-cli-codex" data-value="${escapeAttr(agent.id)}"${isReady ? '' : ` disabled title="${isPaused ? 'Resume the companion first' : agent.status === 'login_required' ? 'Sign in to this CLI first' : 'Start the companion first'}"`}>Test</button>
-          <label class="chat-websearch-toggle-label sync-settings-toggle local-agent-toggle" aria-label="Use ${escapeAttr(agent.name)} in getbased">
-            <input type="checkbox" data-settings-action="toggle-cli-codex" data-agent="${escapeAttr(agent.id)}"${selected ? ' checked' : ''}${isReady ? '' : ' disabled'}>
+          <label class="chat-websearch-toggle-label sync-settings-toggle local-agent-toggle">
+            <input type="checkbox" aria-label="Use ${escapeAttr(agent.name)} in getbased" data-settings-action="toggle-cli-codex" data-agent="${escapeAttr(agent.id)}"${selected ? ' checked' : ''}${isReady ? '' : ' disabled'}>
             <span class="chat-toggle-slider sync-settings-toggle-slider"></span>
           </label>` : ''}
       </div>
