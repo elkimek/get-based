@@ -475,6 +475,7 @@ export async function registerServiceWorkerUpdates({
     const registration = await serviceWorkerContainer.register('/service-worker.js', { updateViaCache: 'none' });
     reloadPage = () => win.location.reload();
     let refreshing = false;
+    let controller = serviceWorkerContainer.controller;
     serviceWorkerContainer.addEventListener('message', (event) => {
       if (event?.data?.type !== PRECACHE_PROGRESS_MESSAGE || !updateInstallPending) return;
       const total = Math.max(0, Math.round(Number(event.data.total) || 0));
@@ -486,7 +487,13 @@ export async function registerServiceWorkerUpdates({
       if (banner) renderVersionUpdateBanner(banner);
     });
     serviceWorkerContainer.addEventListener('controllerchange', () => {
-      if (refreshing) return;
+      const nextController = serviceWorkerContainer.controller;
+      if (refreshing || !nextController || nextController === controller) return;
+      const previousController = controller;
+      controller = nextController;
+      // A first install claims an already current page. Only replacement of
+      // an existing controller is evidence that this page needs a reload.
+      if (!previousController && !updateRequested) return;
       if (!updateRequested) {
         reloadAvailable = true;
         showVersionUpdateBanner(registration);
