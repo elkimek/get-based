@@ -1142,6 +1142,16 @@
   gap: 11px;
   min-height: 58px;
 }
+.settings-modal .local-agent-copy { min-width: 0; }
+.settings-modal .local-agent-copy > span { display: block; }
+.settings-modal .local-agent-disclosure {
+  padding: 0; border: 0; background: transparent; text-align: left;
+  font: inherit; cursor: pointer; width: 100%; border-radius: 4px;
+}
+.settings-modal .local-agent-disclosure:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.settings-modal .local-agent-chevron { display: inline-block; margin-left: 8px; }
+.settings-modal .local-agent-disclosure[aria-expanded="false"] .local-agent-chevron { transform: rotate(-90deg); }
+.settings-modal #cli-agent-options[hidden] { display: none; }
 .settings-modal .local-agent-row + .local-agent-row { border-top: 1px solid var(--border); border-radius: 0; }
 .settings-modal .local-agent-row-compatible { background: color-mix(in srgb, var(--accent) 4%, transparent); }
 .settings-modal .local-agent-icon {

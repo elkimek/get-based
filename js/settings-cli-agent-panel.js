@@ -31,6 +31,17 @@ let agentModelsAgentId = '';
 let agentModelsTargetId = '';
 let agentProviderFilter = '';
 let hydratedAgentId = '';
+const collapsedAgentOptions = new Set();
+
+export function toggleCLIAgentOptions() {
+  const button = document.querySelector('[data-settings-action="toggle-cli-agent-options"]');
+  const options = document.getElementById('cli-agent-options');
+  if (!button || !options) return;
+  options.hidden = !options.hidden;
+  button.setAttribute('aria-expanded', String(!options.hidden));
+  if (options.hidden) collapsedAgentOptions.add(getAgentHostAgent());
+  else collapsedAgentOptions.delete(getAgentHostAgent());
+}
 /** @type {'linux'|'macos'|'windows'|''} */
 let companionPlatformOverride = '';
 
@@ -328,6 +339,8 @@ function showAgentModelControls(host, models) {
 function renderDetectedAgent(agent) {
   const selected = agent.id === getAgentHostAgent() && getChatBackend() === 'codex';
   const isReady = agent.status === 'available';
+  const expandable = selected && isReady;
+  const collapsed = collapsedAgentOptions.has(agent.id);
   const isPaused = agent.status === 'paused' || agent.paused === true;
   const statusLabel = isReady ? 'Ready · companion running'
     : isPaused ? 'Companion paused'
@@ -338,11 +351,11 @@ function renderDetectedAgent(agent) {
     <div class="local-agent-row${agent.compatible ? ' local-agent-row-compatible' : ''}">
       <div class="local-agent-row-main">
         <div class="local-agent-icon local-agent-icon-${escapeHTML(agent.id)}" aria-hidden="true">${renderCLIAgentBrandIcon(agent.id)}</div>
-        <div class="local-agent-copy">
-          <div class="local-agent-name">${escapeHTML(agent.name || agent.id)}</div>
-          <div class="local-agent-meta">${escapeHTML(agent.description || '')}${agent.version ? ` · ${escapeHTML(agent.version)}` : ''}</div>
-          <div class="local-agent-state"><span class="local-agent-dot ${isReady ? 'is-ready' : ''}"></span>${escapeHTML(statusLabel)}</div>
-        </div>
+        ${expandable ? `<button type="button" class="local-agent-copy local-agent-disclosure" data-settings-action="toggle-cli-agent-options" aria-expanded="${!collapsed}" aria-controls="cli-agent-options">` : '<div class="local-agent-copy">'}
+          <span class="local-agent-name">${escapeHTML(agent.name || agent.id)}${expandable ? '<span class="local-agent-chevron" aria-hidden="true">⌄</span>' : ''}</span>
+          <span class="local-agent-meta">${escapeHTML(agent.description || '')}${agent.version ? ` · ${escapeHTML(agent.version)}` : ''}</span>
+          <span class="local-agent-state"><span class="local-agent-dot ${isReady ? 'is-ready' : ''}"></span>${escapeHTML(statusLabel)}</span>
+        ${expandable ? '</button>' : '</div>'}
         ${agent.status === 'login_required' && ['codex', 'claude'].includes(agent.id)
     ? `<button class="import-btn import-btn-secondary settings-mini-btn local-agent-test" data-settings-action="copy-cli-agent-login" data-value="${escapeAttr(agent.id)}">Copy sign-in command</button>` : ''}
         ${agent.compatible ? `
@@ -352,7 +365,7 @@ function renderDetectedAgent(agent) {
             <span class="chat-toggle-slider sync-settings-toggle-slider"></span>
           </label>` : ''}
       </div>
-      ${selected && isReady ? `<div id="cli-agent-options" class="local-agent-options-loading">Loading ${escapeHTML(agent.name)} models…</div>` : ''}
+      ${expandable ? `<div id="cli-agent-options" class="local-agent-options-loading"${collapsed ? ' hidden' : ''}>Loading ${escapeHTML(agent.name)} models…</div>` : ''}
     </div>`;
 }
 

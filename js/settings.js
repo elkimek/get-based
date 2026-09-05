@@ -7,7 +7,7 @@ import { getAIProvider, hasAIProvider, isAIPaused, setOllamaPIIModel } from './a
 import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots } from './crypto.js';
 import { renderSyncSection, renderMessengerSection, hydrateSettingsSyncPanel } from './settings-sync-panel.js';
 import { getChatBackend } from './agent-chat-settings.js';
-import { controlCLICompanion, copyCLIAgentLoginCommand, copyCLICompanionRunCommand, copyCLICompanionStartCommand, copyCLICompanionUpdateCommand, refreshDetectedAgentList, renderCLIAgentProviderPanel, setCLIAgentEffort, setCLIAgentModel, setCLIAgentProviderFilter, setCLIAgentTarget, setCLICompanionPlatform, testLocalCodex, toggleLocalCodex } from './settings-cli-agent-panel.js';
+import { controlCLICompanion, copyCLIAgentLoginCommand, copyCLICompanionRunCommand, copyCLICompanionStartCommand, copyCLICompanionUpdateCommand, refreshDetectedAgentList, renderCLIAgentProviderPanel, setCLIAgentEffort, setCLIAgentModel, setCLIAgentProviderFilter, setCLIAgentTarget, setCLICompanionPlatform, testLocalCodex, toggleCLIAgentOptions, toggleLocalCodex } from './settings-cli-agent-panel.js';
 import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
 import { setProductRecsEnabled } from './recommendations.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
@@ -305,6 +305,8 @@ async function handleSettingsClick(event) {
   } else if (action === 'test-cli-codex') {
     event.preventDefault();
     void testLocalCodex(actionEl.dataset.value || '');
+  } else if (action === 'toggle-cli-agent-options') {
+    event.preventDefault(); toggleCLIAgentOptions();
   } else if (action === 'set-cli-agent-model' || action === 'set-cli-agent-effort') {
     event.preventDefault();
     void (action === 'set-cli-agent-model' ? setCLIAgentModel : setCLIAgentEffort)(actionEl.dataset.value || '');

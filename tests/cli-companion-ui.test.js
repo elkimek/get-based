@@ -1,9 +1,25 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { refreshDetectedAgentList } from '../js/settings-cli-agent-panel.js';
+import { refreshDetectedAgentList, toggleCLIAgentOptions } from '../js/settings-cli-agent-panel.js';
 
 describe('CLI companion setup UI', () => {
+  it('collapses agent settings without changing the selected provider or controls', () => {
+    localStorage.setItem('labcharts-agent-host-agent', 'codex');
+    document.body.innerHTML = '<button data-settings-action="toggle-cli-agent-options" aria-expanded="true" aria-controls="cli-agent-options">Codex</button><div id="cli-agent-options"><input value="medium"></div>';
+    const button = document.querySelector('button');
+    const options = document.getElementById('cli-agent-options');
+    const input = options.querySelector('input');
+    toggleCLIAgentOptions();
+    expect(options.hidden).toBe(true);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(localStorage.getItem('labcharts-agent-host-agent')).toBe('codex');
+    toggleCLIAgentOptions();
+    expect(options.hidden).toBe(false);
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(options.querySelector('input')).toBe(input);
+    expect(input.value).toBe('medium');
+  });
   beforeEach(() => {
     document.body.innerHTML = '<div id="local-agent-list"></div><div id="local-agent-companion-section"></div>';
     localStorage.clear();
