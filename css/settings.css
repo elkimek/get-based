@@ -1143,7 +1143,8 @@
   min-height: 58px;
 }
 .settings-modal .local-agent-copy { min-width: 0; }
-.settings-modal .local-agent-copy > span { display: block; }
+.settings-modal .local-agent-copy > .local-agent-name,
+.settings-modal .local-agent-copy > .local-agent-meta { display: block; }
 .settings-modal .local-agent-disclosure {
   padding: 0; border: 0; background: transparent; text-align: left;
   font: inherit; cursor: pointer; width: 100%; border-radius: 4px;
@@ -1186,7 +1187,7 @@
   white-space: nowrap;
 }
 .settings-modal .local-agent-state { display: flex; align-items: center; gap: 6px; margin-top: 4px; color: var(--text-secondary); font-size: 10.5px; }
-.settings-modal .local-agent-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--yellow); }
+.settings-modal .local-agent-dot { flex: 0 0 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--yellow); }
 .settings-modal .local-agent-dot.is-ready { background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 14%, transparent); }
 .settings-modal .local-agent-scan-state { padding: 18px 8px; color: var(--text-muted); font-size: 12px; text-align: center; }
 .settings-modal .local-agent-scan-error { color: var(--red); }

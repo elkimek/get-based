@@ -4,6 +4,18 @@
   display: grid; grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 18px; align-items: start; grid-auto-flow: dense;
 }
+.dashboard-widgets.is-packed {
+  grid-auto-rows: 1px;
+  row-gap: 0;
+}
+.dashboard-widgets.is-packed > .dashboard-widget {
+  grid-row-end: span var(--widget-row-span, 1);
+}
+/* A final unpaired card can use the row instead of leaving an empty column. */
+.dashboard-widgets.is-packed > .dashboard-widget:first-child:last-child,
+.dashboard-widgets.is-packed > .dashboard-widget-full + .dashboard-widget:last-child {
+  grid-column: 1 / -1;
+}
 .dashboard-widget {
   grid-column: span 12; min-width: 0;
   background: var(--bg-card);

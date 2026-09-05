@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 751 |
-| Internal import edges | 3182 |
-| Dynamic internal edges | 104 |
+| Modules | 752 |
+| Internal import edges | 3183 |
+| Dynamic internal edges | 105 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -464,14 +464,15 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>dashboard</code> family — 9 modules</summary>
+<details><summary><code>dashboard</code> family — 10 modules</summary>
 
 - [`js/dashboard-lab-widget-renderers.js`](js/dashboard-lab-widget-renderers.js) → [`js/dashboard-widget-controls.js`](js/dashboard-widget-controls.js), [`js/dashboard-widget-runtime.js`](js/dashboard-widget-runtime.js), [`js/data.js`](js/data.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/profile-context.js`](js/profile-context.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
-- [`js/dashboard-page-view.js`](js/dashboard-page-view.js) → [`js/api.js`](js/api.js), [`js/chat-backend-selection.js`](js/chat-backend-selection.js), [`js/commit-hash.js`](js/commit-hash.js), [`js/data.js`](js/data.js), [`js/export-loader.js`](js/export-loader.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/mobile-dashboard.js`](js/mobile-dashboard.js), [`js/profile.js`](js/profile.js), [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/state.js`](js/state.js), [`js/tour.js`](js/tour.js), [`js/utils.js`](js/utils.js)
+- [`js/dashboard-page-view.js`](js/dashboard-page-view.js) → [`js/api.js`](js/api.js), [`js/chat-backend-selection.js`](js/chat-backend-selection.js), [`js/commit-hash.js`](js/commit-hash.js), [`js/dashboard-widget-packing.js`](js/dashboard-widget-packing.js) *(dynamic)*, [`js/data.js`](js/data.js), [`js/export-loader.js`](js/export-loader.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/mobile-dashboard.js`](js/mobile-dashboard.js), [`js/profile.js`](js/profile.js), [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/state.js`](js/state.js), [`js/tour.js`](js/tour.js), [`js/utils.js`](js/utils.js)
 - [`js/dashboard-recommendation-widget.js`](js/dashboard-recommendation-widget.js) → [`js/biology-scores.js`](js/biology-scores.js), [`js/data.js`](js/data.js), [`js/light-sun-loader.js`](js/light-sun-loader.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/profile.js`](js/profile.js), [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) → [`js/chat-loader.js`](js/chat-loader.js), [`js/commit-hash.js`](js/commit-hash.js), [`js/dashboard-page-view.js`](js/dashboard-page-view.js), [`js/dashboard-widget-controls.js`](js/dashboard-widget-controls.js), [`js/dashboard-widget-renderers.js`](js/dashboard-widget-renderers.js), [`js/dashboard-widgets.js`](js/dashboard-widgets.js), [`js/data.js`](js/data.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/import-drop-zone.js`](js/import-drop-zone.js), [`js/lens-page-shell.js`](js/lens-page-shell.js), [`js/light-sun-loader.js`](js/light-sun-loader.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/marker-detail-modal.js`](js/marker-detail-modal.js), [`js/marker-detail-runtime.js`](js/marker-detail-runtime.js), [`js/mobile-dashboard.js`](js/mobile-dashboard.js), [`js/nav.js`](js/nav.js), [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/state.js`](js/state.js), [`js/views-router-runtime.js`](js/views-router-runtime.js), [`js/wearable-adapters.js`](js/wearable-adapters.js)
 - [`js/dashboard-widget-controls.js`](js/dashboard-widget-controls.js) → [`js/dashboard-widget-copy.js`](js/dashboard-widget-copy.js), [`js/dashboard-widget-runtime.js`](js/dashboard-widget-runtime.js), [`js/dashboard-widgets.js`](js/dashboard-widgets.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils.js`](js/utils.js)
 - [`js/dashboard-widget-copy.js`](js/dashboard-widget-copy.js) → no in-scope imports
+- [`js/dashboard-widget-packing.js`](js/dashboard-widget-packing.js) → no in-scope imports
 - [`js/dashboard-widget-renderers.js`](js/dashboard-widget-renderers.js) → [`js/biology-scores.js`](js/biology-scores.js), [`js/dashboard-lab-widget-renderers.js`](js/dashboard-lab-widget-renderers.js), [`js/dashboard-recommendation-widget.js`](js/dashboard-recommendation-widget.js), [`js/dashboard-widget-controls.js`](js/dashboard-widget-controls.js), [`js/dashboard-widget-runtime.js`](js/dashboard-widget-runtime.js), [`js/dashboard-widgets.js`](js/dashboard-widgets.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-formatters.js`](js/wearables-formatters.js)
 - [`js/dashboard-widget-runtime.js`](js/dashboard-widget-runtime.js) → [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js), [`js/state.js`](js/state.js), [`js/wearables-runtime.js`](js/wearables-runtime.js)
 - [`js/dashboard-widgets.js`](js/dashboard-widgets.js) → [`js/biology-scores.js`](js/biology-scores.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)

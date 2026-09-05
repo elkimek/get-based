@@ -18,6 +18,7 @@ test('active CLI options collapse by mouse and keyboard without deselecting the 
   });
   await page.route('**/api/local-agents*', route => route.fulfill({ json: { agents: [] } }));
   await page.goto('/app', { waitUntil: 'load' });
+  await page.addStyleTag({ url: '/css/settings.css' });
   await page.evaluate(async () => {
     window.endTour?.();
     for (const id of ['tour-overlay', 'tour-spotlight', 'tour-tooltip']) document.getElementById(id)?.remove();
@@ -30,6 +31,16 @@ test('active CLI options collapse by mouse and keyboard without deselecting the 
   const toggle = page.locator('[data-settings-action="toggle-cli-codex"][data-agent="codex"]');
   await expect(header).toHaveAttribute('aria-expanded', 'true');
   await expect(options).toBeVisible();
+  const dotLayout = await header.locator('.local-agent-state').evaluate(state => {
+    const dot = state.querySelector('.local-agent-dot');
+    const text = [...state.childNodes].find(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+    const range = document.createRange();
+    range.selectNode(text);
+    return { display: getComputedStyle(state).display, gap: range.getBoundingClientRect().left - dot.getBoundingClientRect().right, width: dot.getBoundingClientRect().width };
+  });
+  expect(dotLayout.display).toBe('flex');
+  expect(dotLayout.gap).toBeGreaterThanOrEqual(5);
+  expect(dotLayout.width).toBe(7);
   await header.click();
   await expect(options).toBeHidden();
   await expect(toggle).toBeChecked();

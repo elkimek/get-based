@@ -327,6 +327,9 @@ export function createDashboardPageView(deps) {
     main.innerHTML = html;
 
     setupDropZone();
+    void import('./dashboard-widget-packing.js')
+      .then(module => module.setupDashboardWidgetPacking(main))
+      .catch(() => { /* Keep the standard grid if optional packing cannot load. */ });
 
     // Non-blocking: hydrate cached focus text for LCP, but don't replace stale
     // cached text with a fresh AI response during startup.
