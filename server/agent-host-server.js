@@ -64,7 +64,7 @@ const agentAdapters = detectedAgents.map(agent => {
   } else if (agent.protocol === 'codex') {
     if (agentStorage.codexAuthenticated) {
       appServer = new CodexAppServerClient({
-        command: agent.command, cwd: workspaceRoot, args: buildIsolatedCodexArgs(),
+        command: agent.command, cwd: workspaceRoot, args: [...agent.args, ...buildIsolatedCodexArgs()],
         env: buildIsolatedCodexEnvironment(process.env, codexHome),
       });
       client = appServer;
@@ -77,9 +77,9 @@ const agentAdapters = detectedAgents.map(agent => {
       id: agent.id, command: agent.command, args: agent.args, cwd: workspaceRoot, env: localAgentEnvironment,
     });
   } else if (agent.protocol === 'claude' && status === 'available') {
-    client = new ClaudeAgentClient({ command: agent.command, cwd: workspaceRoot, env: localAgentEnvironment });
+    client = new ClaudeAgentClient({ command: agent.command, args: agent.args, cwd: workspaceRoot, env: localAgentEnvironment });
   } else if (agent.protocol === 'openclaw' && status === 'available') {
-    client = new OpenClawAgentClient({ command: agent.command, cwd: workspaceRoot, env: localAgentEnvironment });
+    client = new OpenClawAgentClient({ command: agent.command, args: agent.args, cwd: workspaceRoot, env: localAgentEnvironment });
   }
   const routes = agent.id === 'openclaw' && client ? [{
     id: 'gateway-default',
@@ -88,7 +88,7 @@ const agentAdapters = detectedAgents.map(agent => {
     kind: 'gateway', status: 'available', supportsLocalTools: false, supportsFeatureJobs: false,
     protocol: 'openclaw',
     client: new OpenClawAgentClient({
-      command: agent.command, cwd: workspaceRoot, env: localAgentEnvironment, mode: 'gateway',
+      command: agent.command, args: agent.args, cwd: workspaceRoot, env: localAgentEnvironment, mode: 'gateway',
     }),
   }] : [];
   return {

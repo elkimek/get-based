@@ -4,6 +4,56 @@ import { describe, expect, it, vi } from 'vitest';
 import { ACPAgentClient, normalizeACPModelCatalog } from '../lib/acp-agent-client.js';
 
 describe('ACP agent model catalogs', () => {
+  it('rejects a removed model rather than silently using a different one', async () => {
+    const client = new ACPAgentClient({ id: 'hermes', command: 'hermes', args: [], cwd: '/tmp' });
+    client.request = vi.fn();
+    await expect(client.configureSession('s', [], 'removed', '', {
+      currentModelId: 'available', availableModels: [{ modelId: 'available' }],
+    })).rejects.toThrow('model is unavailable');
+    expect(client.request).not.toHaveBeenCalled();
+  });
+
+  it('refreshes the catalog from a fresh session without restarting active chats', async () => {
+    const client = new ACPAgentClient({ id: 'hermes', command: 'hermes', args: [], cwd: '/tmp' });
+    client.initialize = vi.fn(async () => ({}));
+    client.request = vi.fn(async () => ({ sessionId: 'catalog', models: {
+      currentModelId: 'a', availableModels: [{ modelId: 'a' }],
+    } }));
+    await client.getModelCatalog();
+    await client.getModelCatalog();
+    expect(client.request).toHaveBeenCalledTimes(1);
+    await client.getModelCatalog({ refresh: true });
+    expect(client.request).toHaveBeenCalledTimes(2);
+    expect(client.request.mock.calls.map(([method]) => method)).toEqual(['session/new', 'session/new']);
+  });
+
+  it('grants only active-turn Grok MCP tools once and denies unrelated permissions', async () => {
+    const client = new ACPAgentClient({ id: 'grok', command: 'grok', args: [], cwd: '/tmp' });
+    const write = vi.fn();
+    const controller = new AbortController();
+    client.child = { stdin: { write } };
+    const permission = (tool = 'getbased__getbased_lab_context', sessionId = 'turn', variant = 'UseTool') => {
+      client.handleLine(JSON.stringify({ id: 1, method: 'session/request_permission', params: {
+        sessionId, toolCall: { title: 'getbased__getbased_lab_context', rawInput: { variant, tool_name: tool } },
+        options: [{ optionId: 'always', kind: 'allow_always' }, { optionId: 'once', kind: 'allow_once' }],
+      } }));
+      return JSON.parse(write.mock.lastCall[0]).result.outcome;
+    };
+    client.request = vi.fn(async () => {
+      expect(permission()).toEqual({ outcome: 'selected', optionId: 'once' });
+      expect(permission('getbased__getbased_save_draft')).toEqual({ outcome: 'cancelled' });
+      expect(permission('terminal')).toEqual({ outcome: 'cancelled' });
+      expect(permission(undefined, 'different-session')).toEqual({ outcome: 'cancelled' });
+      expect(permission(undefined, 'turn', 'RunCommand')).toEqual({ outcome: 'cancelled' });
+      controller.abort();
+      expect(permission()).toEqual({ outcome: 'cancelled' });
+      return { stopReason: 'end_turn' };
+    });
+    expect(permission()).toEqual({ outcome: 'cancelled' });
+    await client.prompt({ sessionId: 'turn', prompt: [], allowedToolNames: ['getbased_lab_context'], signal: controller.signal, onNotification() {} });
+    expect(permission()).toEqual({ outcome: 'cancelled' });
+  });
+
   it('normalizes standard session config options', () => {
     expect(normalizeACPModelCatalog({ configOptions: [
       { id: 'model', category: 'model', currentValue: 'model-a', options: [

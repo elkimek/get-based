@@ -361,12 +361,13 @@ function renderCompanionControls(agent) {
   const paused = agent.status === 'paused' || agent.paused === true;
   const installed = agent.runtimeMode === 'installed';
   const canControl = agent.capabilities?.includes(AGENT_HOST_CAPABILITIES.COMPANION_CONTROL) === true;
-  if (!canControl) {
+  const canRestart = agent.capabilities?.includes(AGENT_HOST_CAPABILITIES.COMPANION_RESTART) === true;
+  if (!canControl || (installed && !canRestart)) {
     return `<div class="local-agent-list-kicker local-agent-companion-kicker">Companion</div>
     <div class="local-agent-controls local-agent-controls-outdated" aria-label="Companion update required">
       <div class="local-agent-controls-copy">
         <strong>Update required</strong>
-        <span>This older companion cannot receive controls from the browser. Restarting the same file will not update it.</span>
+        <span>This companion needs an update to support the current controls. Restarting the same file will not update it.</span>
       </div>
       <div class="local-agent-control-actions">
         <button type="button" class="import-btn import-btn-primary settings-mini-btn" data-settings-action="copy-cli-companion-update">Copy one-time update command</button>

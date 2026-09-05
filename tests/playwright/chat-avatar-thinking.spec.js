@@ -16,6 +16,20 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+test('the composer opens AI context before dashboard context hooks are registered', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    window.endTour?.();
+    for (const id of ['tour-overlay', 'tour-spotlight', 'tour-tooltip']) document.getElementById(id)?.remove();
+    await (await import('/js/chat-panel.js')).openChatPanel();
+    const runtime = await import('/js/context-cards-runtime.js');
+    runtime.configureContextCardsRuntimeCallbacks({ openContextModal: null });
+  });
+  await page.locator('#chat-attach-btn').click();
+  await page.locator('[data-chat-action="open-chat-context"]').click();
+  await expect(page.locator('#context-hub-overlay')).toBeVisible();
+});
+
 test('chat shows profile, CLI, and persona identities with rotating pre-token copy', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#chat-messages', { state: 'attached' });

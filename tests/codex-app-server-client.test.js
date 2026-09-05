@@ -4,6 +4,7 @@ import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
 import { CodexAppServerClient } from '../lib/codex-app-server-client.js';
+import { ACPAgentClient } from '../lib/acp-agent-client.js';
 
 function fakeChild() {
   const child = new EventEmitter();
@@ -17,6 +18,22 @@ function fakeChild() {
 }
 
 describe('CodexAppServerClient', () => {
+  it.each(['codex', 'acp'])('ignores delayed output and exit from a replaced %s process', async kind => {
+    const oldChild = fakeChild();
+    const newChild = fakeChild();
+    const spawnImpl = vi.fn().mockReturnValueOnce(oldChild).mockReturnValueOnce(newChild);
+    const client = kind === 'codex' ? new CodexAppServerClient({ spawnImpl })
+      : new ACPAgentClient({ id: 'opencode', command: 'opencode', args: ['acp'], cwd: '/tmp', spawnImpl });
+    client.start();
+    await client.restart();
+    const pending = client.request('ping', {});
+    oldChild.stdout.write('{"id":1,"result":{"stale":true}}\n');
+    oldChild.emit('exit', 0);
+    expect(client.child).toBe(newChild);
+    newChild.stdout.write('{"id":1,"result":{"current":true}}\n');
+    await expect(pending).resolves.toEqual({ current: true });
+    await client.close();
+  });
   it('performs the experimental initialize handshake', async () => {
     const child = fakeChild();
     const writes = [];
@@ -51,4 +68,3 @@ describe('CodexAppServerClient', () => {
     await client.close();
   });
 });
-

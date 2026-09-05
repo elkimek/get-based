@@ -541,7 +541,6 @@ export async function analyzeMealPhoto(file, options = {}) {
       files: prepared.map(item => item.item),
       prompt,
       model: availability.model,
-      effort: 'low',
       outputSchema: jsonSchema,
       signal: options.signal,
     })

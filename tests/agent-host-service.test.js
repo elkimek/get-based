@@ -80,6 +80,40 @@ async function nextEvent(reader, decoder, bufferRef) {
 }
 
 describe('agent host service', () => {
+  it('discovers local CLIs without waiting for an unreachable personal gateway', async () => {
+    const listRoutes = vi.fn(() => new Promise(() => {}));
+    const service = createAgentHostService({
+      appServer: null, token: TOKEN, workspaceRoot: '/tmp/agent-test',
+      agents: [{ id: 'hermes', name: 'Hermes', description: 'Agent', protocol: 'acp', client: {},
+        routeProvider: { listRoutes, resolve: vi.fn() } }],
+    });
+    const response = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/discovery', {
+      headers: { Origin: 'http://127.0.0.1:8000' },
+    }));
+    expect(response.status).toBe(200);
+    expect((await response.json()).agents[0].id).toBe('hermes');
+    expect(listRoutes).not.toHaveBeenCalled();
+  });
+  it('blocks restart and duplicate requests while a resumed conversation is still initializing', async () => {
+    const appServer = new FakeAppServer();
+    let finishInitialization;
+    appServer.initialize = () => new Promise(resolve => { finishInitialization = resolve; });
+    const service = createAgentHostService({ appServer, token: TOKEN, workspaceRoot: '/tmp/agent-test' });
+    const { createThreadHandle } = await import('../lib/agent-host-boundary.js');
+    const threadId = createThreadHandle('thread-1', TOKEN);
+    const response = await service.handleRequest(turnRequest({ threadId }));
+    const duplicate = await service.handleRequest(turnRequest({ threadId }));
+    expect(duplicate.status).toBe(409);
+    const control = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/control', {
+      method: 'POST', headers: { Authorization: `Bearer ${TOKEN}`, Origin: 'http://127.0.0.1:8000' },
+      body: JSON.stringify({ action: 'restart-companion' }),
+    }));
+    expect(control.status).toBe(409);
+    await response.body.cancel();
+    finishInitialization({});
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(appServer.requests).toEqual([]);
+  });
   it('keeps the host-side allowlist identical to the browser tool contract', () => {
     expect(getAgentHostToolSpecs()).toEqual(getCodexDynamicTools());
   });
@@ -328,9 +362,11 @@ describe('agent host service', () => {
     const turn = await service.handleRequest(turnRequest());
     const reader = turn.body.getReader();
     await nextEvent(reader, new TextDecoder(), { value: '' });
-    const blocked = await request('uninstall');
-    expect(blocked.status).toBe(409);
-    expect(await blocked.json()).toEqual({ error: 'finish_the_active_response_first' });
+    for (const action of ['uninstall', 'restart-companion', 'pause']) {
+      const blocked = await request(action);
+      expect(blocked.status).toBe(409);
+      expect(await blocked.json()).toEqual({ error: 'finish_the_active_response_first' });
+    }
     appServer.emit('notification', {
       method: 'turn/completed', params: { threadId: 'thread-1', turn: { id: 'turn-1', status: 'completed' } },
     });

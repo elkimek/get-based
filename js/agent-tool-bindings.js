@@ -221,7 +221,9 @@ export function bindAgentToolDependenciesToProfile(dependencies, profileId, read
   const reason = 'The active profile changed while the agent was responding. Retry the request in the intended profile.';
   const bind = (handler, navigation = false) => async options => {
     if (changed()) return navigation ? { changed: false, reason } : unavailable(reason);
-    return handler(options);
+    const result = await handler(options);
+    if (changed()) return navigation ? { changed: false, reason } : unavailable(reason);
+    return result;
   };
   return {
     searchMarkers: bind(dependencies.searchMarkers),

@@ -2,7 +2,7 @@
 // Structured, capability-gated feature inference through a local CLI adapter.
 
 import { streamAgentTurn, uploadAgentImage } from './agent-chat-client.js';
-import { connectDetectedCodex, getAgentHostAgent, getAgentHostEndpoint, getAgentHostTarget, getAgentHostToken } from './agent-chat-settings.js';
+import { connectDetectedAgent, getAgentHostAgent, getAgentHostEffort, getAgentHostEndpoint, getAgentHostTarget, getAgentHostToken } from './agent-chat-settings.js';
 import { AGENT_HOST_CAPABILITIES } from '../shared/agent-host-protocol.js';
 
 /**
@@ -22,10 +22,12 @@ export async function callCodexFeature(options) {
   const files = Array.isArray(options.files) ? options.files : [];
   if (files.length > 4) throw new Error('The CLI companion can analyze up to 4 images or rendered PDF pages at once. Split this import into smaller files.');
   const target = getAgentHostTarget();
+  const agent = getAgentHostAgent();
+  const effort = options.effort ?? getAgentHostEffort();
   if (target !== 'local') {
     throw new Error('Personal gateway targets are for chat. Choose Local CLI for image imports and background AI features.');
   }
-  await connectDetectedCodex({
+  await connectDetectedAgent(agent, {
     signal: options.signal,
     requiredCapabilities: [
       AGENT_HOST_CAPABILITIES.CHAT_STREAM,
@@ -48,10 +50,10 @@ export async function callCodexFeature(options) {
   return streamAgentTurn({
     endpoint,
     token,
-    agent: getAgentHostAgent(),
+    agent,
     target,
     model: options.model,
-    effort: options.effort || 'low',
+    effort,
     prompt: options.prompt,
     instructions: options.instructions || (options.outputSchema
       ? 'Perform only the requested structured feature analysis. Do not use web search or external tools. Return only data matching the supplied output schema.'

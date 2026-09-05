@@ -95,7 +95,7 @@ export async function callAssistantFeatureAI(options, provider) {
     prompt,
     instructions: String(options.system || '').trim() || undefined,
     model: route.model,
-    effort: options.reasoningEffort || getAgentHostEffort() || 'low',
+    effort: options.reasoningEffort ?? getAgentHostEffort(),
     outputSchema: options.jsonSchema,
     signal: options.signal,
     onStream: options.onStream,

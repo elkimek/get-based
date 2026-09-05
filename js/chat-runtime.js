@@ -3,11 +3,12 @@
 
 import { openContextModalRuntime } from './context-cards-runtime.js';
 
-/** @type {Record<'closeModal' | 'isChatStreaming' | 'onChatSaved' | 'refreshWebSearchToggle' | 'renderChatMessages' | 'resumeAI' | 'sendChatMessage' | 'updateChatHeaderModel' | 'updateChatNudge' | 'updateDiscussButton', Function | null>} */
+/** @type {Record<'closeModal' | 'isChatStreaming' | 'onChatSaved' | 'openContextModal' | 'refreshWebSearchToggle' | 'renderChatMessages' | 'resumeAI' | 'sendChatMessage' | 'updateChatHeaderModel' | 'updateChatNudge' | 'updateDiscussButton', Function | null>} */
 const chatRuntimeCallbacks = {
   closeModal: null,
   isChatStreaming: null,
   onChatSaved: null,
+  openContextModal: null,
   refreshWebSearchToggle: null,
   renderChatMessages: null,
   resumeAI: null,
@@ -87,8 +88,8 @@ export async function openChatContextModalRuntime() {
   // dashboard Context composition has registered its callback. Load that
   // surface only when the user explicitly asks for it.
   try {
-    const { openContextModal } = await import('./context-cards.js');
-    openContextModal();
+    if (!chatRuntimeCallbacks.openContextModal) return false;
+    await chatRuntimeCallbacks.openContextModal();
     return true;
   } catch (error) {
     console.error('[chat] Context could not be opened', error);

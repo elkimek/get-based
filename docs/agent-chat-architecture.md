@@ -280,6 +280,18 @@ restart message instead of a generic HTTP error. If a saved endpoint is stale,
 getbased re-runs bounded loopback discovery and switches to a compatible
 companion automatically.
 
+Companion 1.2.1 also advertises `companion-restart` separately from general
+`companion-control`. Installed runtimes without that capability show update
+recovery guidance instead of an unsupported restart button. Restart agents
+recycles inference subprocesses; restart companion reloads the installed host.
+Neither action is allowed while a response is starting or active. Updating an
+old installed bundle requires replacing that bundle, not merely restarting it.
+
+Local discovery does not wait for remote gateway enumeration; personal targets
+are fetched separately through `/v1/targets`. ACP permission requests default to
+denial. Grok's MCP wrapper can receive an allow-once response only for an exact
+getbased tool declared for the active turn; cancellation revokes that permission.
+
 Development-owned companions run under Node watch mode, so changes to the host
 and its imported protocol modules restart the child without restarting the PWA
 server. The parent uses a strict requested port, while a standalone companion

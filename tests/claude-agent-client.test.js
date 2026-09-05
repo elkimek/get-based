@@ -34,7 +34,8 @@ describe('Claude Agent adapter', () => {
       capturedArgs = args;
       mcpPath = args[args.indexOf('--mcp-config') + 1];
       promptPath = args[args.indexOf('--system-prompt-file') + 1];
-      expect(command).toBe('claude');
+      expect(command).toBe('node');
+      expect(args.slice(0, 2)).toEqual(['C:\\cli\\claude.js', '-p']);
       expect(JSON.parse(readFileSync(mcpPath, 'utf8'))).toMatchObject({
         mcpServers: { getbased: { env: { GETBASED_MCP_TOKEN: 'private-mcp-token' } } },
       });
@@ -50,7 +51,7 @@ describe('Claude Agent adapter', () => {
       });
       return child;
     });
-    const client = new ClaudeAgentClient({ command: 'claude', cwd: '/tmp', spawnImpl });
+    const client = new ClaudeAgentClient({ command: 'node', args: ['C:\\cli\\claude.js'], cwd: '/tmp', spawnImpl });
 
     await client.prompt({
       prompt: [{ type: 'text', text: 'Hello' }],

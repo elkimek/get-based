@@ -3,7 +3,7 @@
 import { createAgentToolRuntime, getCodexDynamicTools } from './agent-tool-runtime.js';
 import { streamAgentTurn, uploadAgentImage } from './agent-chat-client.js';
 import {
-  connectDetectedCodex, getAgentHostAgent, getAgentHostEffort, getAgentHostEndpoint, getAgentHostModel, getAgentHostTarget, getAgentHostToken,
+  connectDetectedAgent, getAgentHostAgent, getAgentHostEffort, getAgentHostEndpoint, getAgentHostModel, getAgentHostTarget, getAgentHostToken,
 } from './agent-chat-settings.js';
 import { getAssistantExecutionRoute } from './ai-execution-routing.js';
 import { AGENT_HOST_CAPABILITIES } from '../shared/agent-host-protocol.js';
@@ -27,6 +27,8 @@ import { buildAgentChatInstructions } from './agent-chat-context.js';
 export async function callCodexAgent(options) {
   const agent = getAgentHostAgent();
   const target = options.target || getAgentHostTarget(agent);
+  const model = getAgentHostModel() || getAssistantExecutionRoute().model;
+  const effort = getAgentHostEffort();
   const runtime = createAgentToolRuntime({
     readContext: async () => ({
       context: options.labContext,
@@ -35,7 +37,7 @@ export async function callCodexAgent(options) {
     }),
     ...createBrowserAgentToolDependencies(options.profileId || ''),
   });
-  await connectDetectedCodex({
+  await connectDetectedAgent(agent, {
     signal: options.signal,
     requiredCapabilities: [
       AGENT_HOST_CAPABILITIES.CHAT_STREAM,
@@ -63,8 +65,8 @@ export async function callCodexAgent(options) {
     token,
     agent,
     target,
-    model: getAgentHostModel() || getAssistantExecutionRoute().model,
-    effort: getAgentHostEffort(),
+    model,
+    effort,
     prompt: options.prompt,
     instructions: buildAgentChatInstructions(options.instructions, options.labContext, target),
     threadId,

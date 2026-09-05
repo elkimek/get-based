@@ -95,6 +95,7 @@ import { configureLabContext, invalidateLabContextCache } from './lab-context.js
 import { configureLensPageShell } from './lens-page-shell.js';
 import {
   detectWearableTrendSlots,
+  loadContextCardsModule,
   loadHealthDataContextForPersistedState,
   openMenstrualCycleEditor,
   renderMenstrualCycleSection,
@@ -202,6 +203,7 @@ if (typeof document !== 'undefined') {
 }
 configureChatRuntimeCallbacks({
   onChatSaved,
+  openContextModal: () => loadContextCardsModule().then(module => module.openContextModal()),
   updateChatHeaderModel: updateChatHeaderModelIfLoaded,
   updateChatNudge,
 });

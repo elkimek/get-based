@@ -10,6 +10,15 @@ import {
 } from '../lib/openclaw-agent-client.js';
 
 const roots = [];
+it('refreshes OpenClaw models without restarting active turns', async () => {
+  const client = new OpenClawAgentClient({ command: 'openclaw', cwd: '/tmp' });
+  client.loadModelCatalog = vi.fn(async () => []);
+  await client.getModelCatalog();
+  await client.getModelCatalog();
+  expect(client.loadModelCatalog).toHaveBeenCalledTimes(1);
+  await client.getModelCatalog({ refresh: true });
+  expect(client.loadModelCatalog).toHaveBeenCalledTimes(2);
+});
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
 
 function fixture() {
@@ -65,9 +74,9 @@ describe('OpenClaw agent adapter', () => {
   it('reads the OpenClaw catalog through its stable JSON command', async () => {
     const cwd = fixture();
     const spawnImpl = vi.fn((command, args, options) => fakeChild(modelPayload, options.stdio));
-    const client = new OpenClawAgentClient({ command: '/opt/openclaw', cwd, env: { HOME: cwd }, spawnImpl });
+    const client = new OpenClawAgentClient({ command: 'node', args: ['C:\\cli\\openclaw.js'], cwd, env: { HOME: cwd }, spawnImpl });
     await expect(client.getModelCatalog()).resolves.toHaveLength(2);
-    expect(spawnImpl).toHaveBeenCalledWith('/opt/openclaw', ['models', 'list', '--json'], expect.objectContaining({
+    expect(spawnImpl).toHaveBeenCalledWith('node', ['C:\\cli\\openclaw.js', 'models', 'list', '--json'], expect.objectContaining({
       cwd, stdio: ['ignore', expect.any(Number), expect.any(Number)],
     }));
   });

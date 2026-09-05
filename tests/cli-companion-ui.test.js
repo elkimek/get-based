@@ -59,7 +59,7 @@ describe('CLI companion setup UI', () => {
       if (String(input).startsWith('/api/local-agents')) return new Response('{"agents":[]}', { status: 200 });
       return new Response(JSON.stringify({
         service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8324', token: '1234567890123456',
-        protocolVersion: 5, capabilities: ['companion-control'], runtimeMode: 'installed',
+        protocolVersion: 5, capabilities: ['companion-control', 'companion-restart'], runtimeMode: 'installed',
         companionVersion: '1.2.0', agents: [{ id: 'codex', name: 'Codex CLI', status: 'available', compatible: true }],
       }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }));
@@ -72,12 +72,12 @@ describe('CLI companion setup UI', () => {
     expect(companion.querySelector('[data-value="update"]')?.textContent).toContain('Check for update');
   });
 
-  it('replaces dead controls on a legacy companion with one clear update recovery action', async () => {
+  it.each([['chat-stream'], ['chat-stream', 'companion-control']])('offers recovery when an installed companion lacks service restart (%j)', async (...capabilities) => {
     vi.stubGlobal('fetch', vi.fn(async input => {
       if (String(input).startsWith('/api/local-agents')) return new Response('{"agents":[]}', { status: 200 });
       return new Response(JSON.stringify({
         service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8324', token: '1234567890123456',
-        protocolVersion: 2, capabilities: ['chat-stream'], runtimeMode: 'installed',
+        protocolVersion: 2, capabilities, runtimeMode: 'installed',
         agents: [{ id: 'codex', name: 'Codex CLI', status: 'available', compatible: true }],
       }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }));

@@ -34,6 +34,21 @@ function turnOptions(agent) {
 }
 
 describe('external agent turn lifecycle', () => {
+  it('replays visible history when a saved ACP session falls back to a fresh session', async () => {
+    const client = {
+      ensureSession: vi.fn(async () => ({ sessionId: 'fresh-session', configOptions: [] })),
+      configureSession: vi.fn(async () => []),
+      prompt: vi.fn(async () => ({ stopReason: 'stop' })),
+    };
+    const options = turnOptions({ id: 'opencode', protocol: 'acp', name: 'OpenCode', client });
+    options.requestedThreadId = 'stale-session';
+    options.history = [{ role: 'user', content: 'Earlier question' }, { role: 'assistant', content: 'Earlier answer' }];
+    startExternalAgentTurn(options);
+    await vi.waitFor(() => expect(options.close).toHaveBeenCalled());
+    expect(client.prompt.mock.calls[0][0].prompt[0].text).toContain('Earlier question');
+    expect(client.prompt.mock.calls[0][0].prompt[0].text).toContain('Earlier answer');
+    expect(options.send).toHaveBeenCalledWith(expect.objectContaining({ type: 'session', resumed: false }));
+  });
   it('does not start a prompt when the browser cancels during ACP session setup', async () => {
     let finishSession;
     const agent = {

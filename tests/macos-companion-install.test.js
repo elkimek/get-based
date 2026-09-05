@@ -63,6 +63,12 @@ describe('macOS companion installer', () => {
     const result = installMacOSCompanion({ ...setup, startService: false, execFileSyncImpl: launchctl });
     expect(existsSync(result.serviceFile)).toBe(true);
     expect(launchctl).not.toHaveBeenCalled();
+    launchctl.mockImplementation((_command, args) => {
+      if (args[0] === 'print') throw new Error('Service not loaded');
+    });
+    runMacOSCompanionServiceCommand('restart', { ...setup, execFileSyncImpl: launchctl });
+    expect(launchctl.mock.calls.map(call => call[1][0])).toEqual(['print', 'bootstrap', 'kickstart']);
+    expect(launchctl).toHaveBeenCalledWith('launchctl', ['bootstrap', 'gui/501', result.serviceFile], expect.anything());
   });
 
   it('preserves the explicit Claude Agent API/Console gate in the LaunchAgent', () => {
