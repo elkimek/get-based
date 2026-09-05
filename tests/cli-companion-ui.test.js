@@ -50,7 +50,10 @@ describe('CLI companion setup UI', () => {
 
   it('renders direct management controls for a running temporary companion', async () => {
     vi.stubGlobal('fetch', vi.fn(async input => {
-      if (String(input).startsWith('/api/local-agents')) return new Response('{"agents":[]}', { status: 200 });
+      if (String(input).startsWith('/api/local-agents')) return new Response(JSON.stringify({ agents: [{
+        id: 'codex', name: 'Codex CLI', status: 'available', compatible: true,
+        endpoint: 'http://127.0.0.1:8324', token: 'installation-token', controlAuthorized: true,
+      }] }), { status: 200 });
       return new Response(JSON.stringify({
         service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8324', token: '1234567890123456',
         protocolVersion: 3, capabilities: ['companion-control'], runtimeMode: 'temporary',
@@ -72,7 +75,10 @@ describe('CLI companion setup UI', () => {
 
   it('separates CLI reconnection from an installed companion service restart', async () => {
     vi.stubGlobal('fetch', vi.fn(async input => {
-      if (String(input).startsWith('/api/local-agents')) return new Response('{"agents":[]}', { status: 200 });
+      if (String(input).startsWith('/api/local-agents')) return new Response(JSON.stringify({ agents: [{
+        id: 'codex', name: 'Codex CLI', status: 'available', compatible: true,
+        endpoint: 'http://127.0.0.1:8324', token: 'installation-token', controlAuthorized: true,
+      }] }), { status: 200 });
       return new Response(JSON.stringify({
         service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8324', token: '1234567890123456',
         protocolVersion: 5, capabilities: ['companion-control', 'companion-restart'], runtimeMode: 'installed',
@@ -105,6 +111,22 @@ describe('CLI companion setup UI', () => {
     expect(companion.textContent).toContain('Restarting the same file will not update it');
     expect(companion.querySelector('[data-settings-action="copy-cli-companion-update"]')).not.toBeNull();
     expect(companion.querySelector('[data-settings-action="control-cli-companion"]')).toBeNull();
+  });
+
+  it('shows chat-only lifecycle guidance for discovery, even if an old host advertises controls', async () => {
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      if (String(input).startsWith('/api/local-agents')) return new Response('{"agents":[]}');
+      return new Response(JSON.stringify({
+        service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8324', token: '1234567890123456',
+        capabilities: ['companion-control', 'companion-restart'], runtimeMode: 'installed',
+        agents: [{ id: 'codex', status: 'available', compatible: true }],
+      }));
+    }));
+    await refreshDetectedAgentList();
+    const companion = document.getElementById('local-agent-companion-section');
+    expect(companion.textContent).toContain('Connected for chat');
+    expect(companion.querySelector('[data-settings-action="control-cli-companion"]')).toBeNull();
+    expect(companion.querySelector('[data-settings-action="copy-cli-companion-update"]')).not.toBeNull();
   });
 
   it('shows a stopped companion state without attempting to load models', async () => {

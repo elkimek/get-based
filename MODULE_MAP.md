@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 754 |
-| Internal import edges | 3189 |
+| Modules | 755 |
+| Internal import edges | 3191 |
 | Dynamic internal edges | 105 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1515,7 +1515,7 @@ Node-only policy and transport code shared by hosted runtimes.
 
 <details><summary><code>hermes</code> family — 1 module</summary>
 
-- [`lib/hermes-gateway-client.js`](lib/hermes-gateway-client.js) → no in-scope imports
+- [`lib/hermes-gateway-client.js`](lib/hermes-gateway-client.js) → [`lib/read-bounded-file.js`](lib/read-bounded-file.js)
 
 </details>
 
@@ -1539,7 +1539,7 @@ Node-only policy and transport code shared by hosted runtimes.
 
 <details><summary><code>openclaw</code> family — 1 module</summary>
 
-- [`lib/openclaw-agent-client.js`](lib/openclaw-agent-client.js) → no in-scope imports
+- [`lib/openclaw-agent-client.js`](lib/openclaw-agent-client.js) → [`lib/read-bounded-file.js`](lib/read-bounded-file.js)
 
 </details>
 
@@ -1558,6 +1558,12 @@ Node-only policy and transport code shared by hosted runtimes.
 - [`lib/proxy-policy.js`](lib/proxy-policy.js) → no in-scope imports
 - [`lib/proxy-rate-limit.js`](lib/proxy-rate-limit.js) → no in-scope imports
 - [`lib/proxy-upstream.js`](lib/proxy-upstream.js) → [`lib/error-utils.js`](lib/error-utils.js), [`lib/proxy-network.js`](lib/proxy-network.js), [`lib/proxy-policy.js`](lib/proxy-policy.js)
+
+</details>
+
+<details><summary><code>read</code> family — 1 module</summary>
+
+- [`lib/read-bounded-file.js`](lib/read-bounded-file.js) → no in-scope imports
 
 </details>
 

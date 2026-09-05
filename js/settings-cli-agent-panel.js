@@ -373,12 +373,6 @@ function renderDetectedAgent(agent) {
 function renderCompanionControls(agent) {
   const paused = agent.status === 'paused' || agent.paused === true;
   const installed = agent.runtimeMode === 'installed';
-  if (agent.controlAuthorized === false) {
-    return `<div class="local-agent-list-kicker local-agent-companion-kicker">Companion</div>
-    <div class="local-agent-controls"><div class="local-agent-controls-copy"><strong>Connected for chat</strong>
-    <span>Manage startup, pause, restart, or uninstall from the Companion tray or terminal. Browser discovery does not grant installation controls.</span></div>
-    <button type="button" class="import-btn settings-mini-btn" data-settings-action="copy-cli-companion-update">Copy update command</button></div>`;
-  }
   const canControl = agent.capabilities?.includes(AGENT_HOST_CAPABILITIES.COMPANION_CONTROL) === true;
   const canRestart = agent.capabilities?.includes(AGENT_HOST_CAPABILITIES.COMPANION_RESTART) === true;
   if (!canControl || (installed && !canRestart)) {
@@ -394,6 +388,12 @@ function renderCompanionControls(agent) {
     </div>`;
   }
   const modeLabel = installed ? 'Starts automatically at login' : 'Connected for this terminal session';
+  if (agent.controlAuthorized === false) {
+    return `<div class="local-agent-list-kicker local-agent-companion-kicker">Companion</div>
+    <div class="local-agent-controls"><div class="local-agent-controls-copy"><strong>Connected for chat</strong>
+    <span>Manage startup, pause, restart, or uninstall from the Companion tray or terminal. Browser discovery does not grant installation controls.</span></div>
+    <button type="button" class="import-btn settings-mini-btn" data-settings-action="copy-cli-companion-update">Copy update command</button></div>`;
+  }
   return `<div class="local-agent-list-kicker local-agent-companion-kicker">Companion</div>
   <div class="local-agent-controls" aria-label="Companion controls">
     <div class="local-agent-controls-copy">

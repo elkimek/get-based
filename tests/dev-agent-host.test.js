@@ -165,6 +165,9 @@ describe('development agent discovery', () => {
 
     child.stderr.emit('data', 'listen EADDRINUSE: address already in use 127.0.0.1:8324');
     await vi.waitFor(() => expect(controller.describe().agents[0].status).toBe('available'));
+    expect(globalThis.fetch).toHaveBeenCalledWith('http://127.0.0.1:8324/v1/status', expect.objectContaining({
+      redirect: 'error', headers: { Authorization: 'Bearer private-token' },
+    }));
   });
 
   it('follows the current development companion to the next free discovery port', () => {

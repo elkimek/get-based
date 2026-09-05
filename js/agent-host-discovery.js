@@ -129,7 +129,15 @@ export function mergeDiscoveredAgents(primary, companions) {
   for (const candidate of companions) {
     const index = merged.findIndex(agent => agent.id === candidate.id);
     if (index < 0) merged.push(candidate);
-    else if (candidate.compatible && ['available', 'paused'].includes(candidate.status)) merged[index] = candidate;
+    else if (candidate.compatible && ['available', 'paused'].includes(candidate.status)) {
+      const direct = merged[index];
+      // A same-origin dev inventory may already hold this exact host's
+      // installation credential. Do not replace it with lesser discovery
+      // authority, and never carry it to a different companion endpoint.
+      merged[index] = direct.endpoint === candidate.endpoint && direct.token && direct.controlAuthorized
+        && ['available', 'paused'].includes(direct.status)
+        ? { ...candidate, token: direct.token, controlAuthorized: true } : candidate;
+    }
   }
   return merged;
 }
