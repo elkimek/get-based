@@ -128,7 +128,6 @@ function renderReportBuilder(presetId = DEFAULT_REPORT_PRESET) {
     <div class="modal gb-form-modal report-builder-modal" role="dialog" aria-modal="true" aria-labelledby="report-builder-title">
       <div class="gb-modal-head">
         <div>
-          <div class="gb-modal-kicker">Reports</div>
           <div class="gb-modal-title" id="report-builder-title">Create a report</div>
         </div>
         <button type="button" class="modal-close" aria-label="Close" ${reportBuilderActionAttrs('close')}>&times;</button>

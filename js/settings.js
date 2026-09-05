@@ -472,7 +472,6 @@ export function openSettingsModal(tab) {
   modal.innerHTML = `
     <div class="gb-modal-head settings-modal-head">
       <div>
-        <div class="gb-modal-kicker">Controls</div>
         <div class="gb-modal-title">Settings</div>
       </div>
       <button class="modal-close" aria-label="Close" data-settings-action="close">&times;</button>

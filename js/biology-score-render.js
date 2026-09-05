@@ -92,7 +92,6 @@ function renderScoreRail(score, tone) {
 function renderBiologyScoreGate(variant = 'lens') {
   const compact = variant === 'dashboard';
   return `<section class="biology-score-context-gate biology-score-context-gate-${escapeAttr(variant)}">
-    <div class="biology-scores-eyebrow">Waiting for context check</div>
     <h3>${compact ? 'Biology Scores locked' : 'Scores unlock after one context check'}</h3>
     <p>${compact ? 'Open Biology Scores and use the single unlock button there. The check is scoped to the active timeframe.' : 'Use the unlock button above. After the review finishes, scores render for this timeframe and any suggested context flags remain under your control.'}</p>
     ${compact ? '<button type="button" class="dashboard-action-btn dashboard-action-btn-secondary" data-biology-score-action="open-lens">Open Biology Scores</button>' : ''}
@@ -225,7 +224,7 @@ function renderBiologicalCoherenceHero(score) {
   return `<section class="biology-coherence-hero biology-score-card-${escapeAttr(score.tone || 'unknown')}" id="biology-score-${escapeAttr(score.id)}">
     <div class="biology-coherence-copy">
       <div class="biology-coherence-title-row">
-        <div><div class="biology-scores-eyebrow">System-level score</div><h2>${escapeHTML(score.title)}</h2></div>
+        <div><h2>${escapeHTML(score.title)}</h2></div>
         ${dashboardToggle ? `<div class="biology-coherence-tools">${dashboardToggle}</div>` : ''}
       </div>
       <p>${escapeHTML(score.summary)}</p>
@@ -327,7 +326,6 @@ export function renderDashboardBiologicalCoherenceWidget(ctx, computeBiologyScor
       : 'Add labs to see your system-level coherence';
   return `<section class="db-bio-coherence-hero db-bio-coherence-${escapeAttr(tone)}">
     <div class="db-bio-coherence-header">
-      <span class="db-bio-coherence-eyebrow">Biology overview</span>
       <span class="db-bio-coherence-status">${escapeHTML(toneLabel)}</span>
     </div>
     <div class="db-bio-coherence-body">
@@ -360,7 +358,6 @@ export function renderBiologyScoresWidget(ctx, computeBiologyScores) {
   return `<div class="biology-scores-widget">
     <div class="biology-scores-hero">
       <div>
-        <div class="biology-scores-eyebrow">Composite lab widgets</div>
         <p>${escapeHTML(lead)}</p>
       </div>
       <span class="biology-scores-count">${usefulScores.length}/${scores.length} live</span>
@@ -420,9 +417,8 @@ function renderCoverageMarkerList(markers, emptyText) {
   }).join('');
 }
 
-function renderCoverageBundle(title, kicker, markers, emptyText) {
+function renderCoverageBundle(title, markers, emptyText) {
   return `<div class="biology-coverage-bundle-card">
-    <div class="biology-coverage-section-kicker">${escapeHTML(kicker)}</div>
     <strong>${escapeHTML(title)}</strong>
     <div class="biology-coverage-marker-list">${renderCoverageMarkerList(markers, emptyText)}</div>
   </div>`;
@@ -433,14 +429,14 @@ export function renderBiologyScoreCoveragePlanner(detailScores, coherence) {
   const { baselineCoverage, liveDomains, missingDomains, coreShortlist, optionalUpgrades, advancedDepth, baselineIntro } = planner;
   return `<section class="biology-score-coverage-planner">
     <div class="biology-score-coverage-head">
-      <div class="biology-score-coverage-main"><div class="biology-scores-eyebrow">Coverage planner</div><div class="biology-score-coverage-title-row"><div class="biology-score-coverage-metric"><strong>${baselineCoverage}%</strong><span>baseline coverage</span></div><div><h3>Improve coverage without over-testing</h3><p>${escapeHTML(baselineIntro)}</p></div></div></div>
+      <div class="biology-score-coverage-main"><div class="biology-score-coverage-title-row"><div class="biology-score-coverage-metric"><strong>${baselineCoverage}%</strong><span>baseline coverage</span></div><div><h3>Improve lab coverage</h3><p>${escapeHTML(baselineIntro)}</p></div></div></div>
       <div class="biology-score-coverage-actions"><div class="biology-coverage-mini-stats"><span><b>${liveDomains}</b> live core domains</span><span><b>${missingDomains}</b> missing domains</span><span>Advanced depth stays optional</span></div><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="plan-coverage-chat">Make lab plan</button></div>
       <div class="biology-coverage-progress-row"><div class="biology-coverage-progress" aria-label="Baseline coverage ${baselineCoverage}%"><span style="width:${Math.max(0, Math.min(100, baselineCoverage))}%"></span></div></div>
     </div>
     <div class="biology-coverage-bundle-grid">
-      ${renderCoverageBundle('Best next lab bundle', 'Baseline first', coreShortlist, 'Baseline core markers covered')}
-      ${renderCoverageBundle('Optional upgrades', 'If budget allows', optionalUpgrades, 'No obvious baseline upgrades')}
-      ${renderCoverageBundle('Advanced depth', 'Specialty depth', advancedDepth, 'Advanced scores are optional')}
+      ${renderCoverageBundle('Baseline first', coreShortlist, 'Baseline core markers covered')}
+      ${renderCoverageBundle('Optional upgrades', optionalUpgrades, 'No obvious baseline upgrades')}
+      ${renderCoverageBundle('Advanced depth', advancedDepth, 'Advanced scores are optional')}
     </div>
   </section>`;
 }
@@ -461,7 +457,6 @@ export function renderBiologyScoresLens(ctx, computeBiologyScores) {
   const contextLabels = [[pc.lowMuscleMass, 'Low muscle / creatinine unreliable'], [pc.hormoneTherapy, 'Hormone therapy context'], [pc.cycleStatus && pc.cycleStatus !== 'regular', `Cycle: ${pc.cycleStatus}`], [pc.recentHardTraining, 'Recent hard training'], [pc.acuteInflammationContext, 'Acute illness/injury'], [Number.isFinite(pc.ageYears), `Age: ${pc.ageYears}y`]].filter(x => x[0]).map(x => `<span>${escapeHTML(String(x[1]))}</span>`).join('');
   return `<div class="biology-scores-lens">
     <div class="biology-scores-hero biology-scores-lens-hero"><div>
-        <div class="biology-scores-eyebrow">Biology overview</div>
         <p>${escapeHTML(lead)}</p>
         ${contextLabels ? `<div class="biology-score-context-banner"><strong>Active context modifiers</strong>${contextLabels}</div>` : ''}
       </div>

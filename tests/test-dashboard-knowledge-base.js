@@ -185,8 +185,8 @@ try {
     assert('Profile Context still renders the personal context cards',
       /Your health context/.test(html) && /profile-context-cards/.test(html));
     assert('Profile Context renderer does not prepend the Interpretive Lens surface',
-      /export function renderProfileContextCards\(\) \{[\s\S]{0,3200}Your health context/.test(contextCardsSrc)
-      && !/export function renderProfileContextCards\(\) \{[\s\S]{0,2200}renderInterpretiveLensSection\(\)/.test(contextCardsSrc));
+      /export function renderProfileContextCards\([^\n]*\) \{[\s\S]{0,3200}Your health context/.test(contextCardsSrc)
+      && !/export function renderProfileContextCards\([^\n]*\) \{[\s\S]{0,2200}renderInterpretiveLensSection\(\)/.test(contextCardsSrc));
   }
 
   // Section 5b (picker open/dismiss — live DOM) lives in
@@ -218,9 +218,9 @@ try {
     const chatSrc = fs.readFileSync('js/chat-personalities.js', 'utf8');
     const chatContextStatusSrc = fs.readFileSync('js/chat-context-status.js', 'utf8');
     assert('chat header hides AI Context chip when no provider is configured',
-      /function updateChatContextStatus\(\)[\s\S]*?const clearStatus = \(\) => \{[\s\S]*?status\.hidden = true;[\s\S]*?if \(!hasAIProvider\(\)\) \{[\s\S]*?clearStatus\(\);[\s\S]*?return;[\s\S]*?const contextState/.test(chatContextStatusSrc));
+      /function updateChatContextStatus\(\)[\s\S]*?const clearStatus = \(\) => \{[\s\S]*?status\.hidden = true;[\s\S]*?if \(!hasChatResponseBackend\(\)\) \{[\s\S]*?clearStatus\(\);[\s\S]*?return;[\s\S]*?const contextState/.test(chatContextStatusSrc));
     assert('chat header clears model before refreshing hidden context state in no-provider path',
-      /if \(!hasAIProvider\(\)\) \{ el\.textContent = ''; updateChatContextStatus\(\); return; \}/.test(chatSrc));
+      /if \(!hasChatResponseBackend\(\)\) \{ el\.textContent = ''; updateChatContextStatus\(\); return; \}/.test(chatSrc));
     assert('chat header reads Genome lookup status from Context source registry helper',
       chatContextStatusSrc.includes("import { CONTEXT_SOURCE_IDS, isContextSourceEnabled } from './context-source-registry.js';")
       && /function isGenomeLookupContextActive\(\) \{[\s\S]{0,160}isContextSourceEnabled\(CONTEXT_SOURCE_IDS\.GENOME_INVENTORY\)/.test(chatContextStatusSrc)

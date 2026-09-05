@@ -708,7 +708,6 @@ export function openChangelog(showAll) {
   modal.className = 'modal changelog-modal gb-history-modal';
   let html = `<div class="gb-modal-head">
     <div>
-      <div class="gb-modal-kicker">Release notes</div>
       <div class="gb-modal-title">What's New</div>
     </div>
     <button type="button" class="modal-close" aria-label="Close" ${CHANGELOG_ACTION_ATTR}="close">&times;</button>

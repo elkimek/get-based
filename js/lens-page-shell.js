@@ -2,6 +2,7 @@
 // lens-page-shell.js — shared lens page chrome, ordering, and widget helpers
 
 import { state } from './state.js';
+import { getWidgetHeaderDescription } from './dashboard-widget-copy.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import { profileStorageKey } from './profile.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
@@ -107,7 +108,7 @@ export function renderLensHeader(title, subtitle, actions = '', options = {}) {
   const extraClass = options?.className ? ` ${escapeAttr(String(options.className))}` : '';
   return `<div class="category-header lens-page-header${extraClass}">
     <h2>${escapeHTML(title)}</h2>
-    <p>${escapeHTML(subtitle)}</p>
+    ${subtitle ? `<p>${escapeHTML(subtitle)}</p>` : ''}
     ${actions ? `<div class="dashboard-widget-inline-controls">${actions}</div>` : ''}
   </div>`;
 }
@@ -191,6 +192,7 @@ export function renderLensDashboardToggle(dashboardId) {
 }
 
 export function renderLensWidget(id, title, description, body, size = 'full', opts = {}) {
+  const headerDescription = getWidgetHeaderDescription(id, description);
   const dashboardId = Object.prototype.hasOwnProperty.call(opts, 'dashboardId') ? opts.dashboardId : id;
   const dashboardToggle = renderLensDashboardToggle(dashboardId);
   const pageControls = renderLensPageMoveControls(opts.pageRoute || '', id, opts.pageIndex || 0, opts.pageCount || 0);
@@ -198,9 +200,8 @@ export function renderLensWidget(id, title, description, body, size = 'full', op
   return `<section class="dashboard-widget dashboard-widget-${escapeAttr(size)}${body ? '' : ' is-empty'}" data-widget-id="${escapeAttr(id)}">
     <div class="dashboard-widget-chrome">
       <div class="dashboard-widget-heading">
-        ${opts.source ? `<div class="dashboard-widget-source">${escapeHTML(opts.source)}</div>` : ''}
         <div class="dashboard-widget-title">${escapeHTML(title)}</div>
-        <div class="dashboard-widget-description">${escapeHTML(description || '')}</div>
+        ${headerDescription ? `<div class="dashboard-widget-description">${escapeHTML(headerDescription)}</div>` : ''}
       </div>
       ${tools ? `<div class="dashboard-widget-tools">${tools}</div>` : ''}
     </div>

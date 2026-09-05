@@ -366,7 +366,7 @@ export function renderNutritionHistoryModal(history, { storageError = '', return
     : '';
   return `<button type="button" class="modal-close" aria-label="Close Nutrition history" ${actionAttrs('close')}>&times;</button>
     ${returnControl}
-    <div class="nutrition-modal-head nutrition-history-head"><div><h3>Meals &amp; Nutrition</h3><p>Browse individual entries or review recorded trends.</p></div><div class="nutrition-history-head-actions"><button type="button" class="dashboard-action-btn" ${actionAttrs('open-targets', { return: 'history' })}>Setup</button><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${actionAttrs('open', { return: 'history' })}>${returnTo === 'editor' ? 'New meal' : 'Log meal'}</button></div></div>
+    <div class="nutrition-modal-head nutrition-history-head"><div><h3>Meals &amp; Nutrition</h3></div><div class="nutrition-history-head-actions"><button type="button" class="dashboard-action-btn" ${actionAttrs('open-targets', { return: 'history' })}>Setup</button><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${actionAttrs('open', { return: 'history' })}>${returnTo === 'editor' ? 'New meal' : 'Log meal'}</button></div></div>
     <div class="nutrition-history-tabs" role="tablist" aria-label="Meals & Nutrition history view"><button type="button" role="tab" aria-selected="${historyView === 'meals'}" class="${historyView === 'meals' ? 'active' : ''}" ${actionAttrs('set-history-view', { view: 'meals' })}>Meals</button><button type="button" role="tab" aria-selected="${historyView === 'trends'}" class="${historyView === 'trends' ? 'active' : ''}" ${actionAttrs('set-history-view', { view: 'trends' })}>Trends</button></div>
     <div class="ctx-btn-group nutrition-history-range" role="group" aria-label="Nutrition history range">${rangeButtons}</div>
     ${storageError ? `<div class="nutrition-history-error" role="status">${escapeHTML(storageError)}</div>` : ''}
@@ -427,7 +427,7 @@ export function renderNutritionCustomizeModal({ returnTo = '' } = {}) {
 
 export function renderFluidLogModal() {
   return `<button type="button" class="modal-close" aria-label="Close drink log" ${actionAttrs('close')}>&times;</button>
-    <div class="nutrition-modal-head"><div><h3>Log a drink</h3><p>A fast, dedicated entry for water, coffee, tea, and other beverages.</p></div></div>
+    <div class="nutrition-modal-head"><div><h3>Log a drink</h3></div></div>
     <section class="nutrition-fluid-log">
       <fieldset class="nutrition-fluid-kind-fieldset"><legend>Beverage type</legend><div class="nutrition-fluid-kind-grid">
         <label class="nutrition-fluid-kind"><input type="radio" name="nutrition-fluid-kind" value="water" checked><span aria-hidden="true">◌</span><strong>Water</strong><small>Counts as plain water</small></label>
