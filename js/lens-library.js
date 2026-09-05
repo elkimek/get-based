@@ -223,7 +223,6 @@ export function createLensLibraryHandlers({
       overlay.innerHTML = `<div class="kb-create-dialog" role="dialog" aria-modal="true" aria-labelledby="lens-create-title">
         <div class="gb-modal-head">
           <div>
-            <div class="gb-modal-kicker">Local context</div>
             <div class="gb-modal-title" id="lens-create-title">Create a library</div>
           </div>
           <button class="modal-close" id="lens-create-close" aria-label="Close">&times;</button>

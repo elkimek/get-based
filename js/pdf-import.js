@@ -5,7 +5,7 @@ import { getErrorMessage, getErrorName } from './caught-error.js';
 import { state } from './state.js';
 import { calculateCost, trackUsage } from './schema.js';
 import { showNotification, isDebugMode, isPIIReviewEnabled, hashString } from './utils.js';
-import { hasAIProvider, getAIProvider, getActiveModelId, AI_IMPORT_REQUEST_TIMEOUT_MS, startOpenRouterOAuth } from './api.js';
+import { getAIProvider, getActiveModelId, AI_IMPORT_REQUEST_TIMEOUT_MS, startOpenRouterOAuth } from './api.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
 import { getProfileLocation, getActiveProfileId } from './profile.js';
 import { maybeShowEncryptionNudge } from './crypto.js';
@@ -65,6 +65,7 @@ import {
   handlePDFFileWorkflow,
 } from './pdf-import-file-handlers.js';
 import { logPrivacyDiagnostic } from './privacy-safe-diagnostics.js';
+import { getAssistantFeatureIdentity, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 
 const pdfImportDeps = {
   importDataJSON,
@@ -292,7 +293,8 @@ Return ONLY valid JSON in this exact format, no other text:
   ]
 }`;
 
-  const provider = getAIProvider();
+  const featureIdentity = getAssistantFeatureIdentity();
+  const provider = featureIdentity.provider;
   const maxTokens = 16384;
   // Include previously imported marker keys so the AI reuses consistent mappings
   const existingKeys = deterministicBenchmark ? new Set() : getExistingImportMarkerKeys();
@@ -370,6 +372,7 @@ Return ONLY valid JSON in this exact format, no other text:
     fileName,
     usage,
     provider,
+    modelId: featureIdentity.modelId,
     diagnostics,
     imageMode: false,
     ...(rawModelResult ? { benchmarkRawModelResult: rawModelResult } : {}),
@@ -493,7 +496,8 @@ Return ONLY valid JSON in this exact format:
   ]
 }`;
 
-  const provider = getAIProvider();
+  const featureIdentity = getAssistantFeatureIdentity();
+  const provider = featureIdentity.provider;
   const maxTokens = 16384;
 
   // Build content array with image blocks + text instruction
@@ -560,6 +564,7 @@ Return ONLY valid JSON in this exact format:
     fileName,
     usage: usage || {},
     provider,
+    modelId: featureIdentity.modelId,
     diagnostics,
     imageMode: true,
   };
@@ -674,7 +679,7 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
   result.privacyReplacements = privacyReplacements;
   result.timings = { pii: piiTime, analysis: analysisTime, piiMs, analysisMs };
   const prov = result.provider || getAIProvider();
-  const mid = getActiveModelId();
+  const mid = result.modelId || getActiveModelId();
   const tokens = getUsageTokens(result.usage);
   result.costInfo = {
     provider: prov, modelId: mid,
@@ -682,7 +687,7 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
     outputTokens: tokens.outputTokens,
     cost: calculateCost(prov, mid, tokens.inputTokens, tokens.outputTokens)
   };
-  trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
+  if (prov !== 'codex-agent') trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
   result.importHash = hashString(pdfText);
   result.benchmarkId = benchmarkId;
   captureImportBenchmarkReviewBaseline(result);
@@ -699,7 +704,7 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
 }
 
 export async function handleBatchPDFs(pdfFiles) {
-  if (!hasAIProvider()) {
+  if (!hasAssistantFeatureProvider()) {
     showAINeededDialog('import');
     return;
   }

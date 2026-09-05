@@ -1067,6 +1067,8 @@ test('report export helpers cover option normalization AI markup and popup block
         && aiMarkup.includes('<p class="report-ai-subhead">Discussion focus</p>')
         && aiMarkup.includes('Stable &lt;script&gt;alert(1)&lt;/script&gt;')
         && !aiMarkup.includes('Stable <script>alert(1)</script>');
+      const grokMarkup = report.renderReportAISummarySection({ ...normalized.aiSummary, agentId: 'grok' });
+      outcomes.grokReportSummaryIsVisiblyAttributed = grokMarkup.includes('<p class="report-ai-attribution">Written with Grok</p>');
 
       window.open = () => null;
       outcomes.popupBlockedReturnsFalseAndNotifies = html.exportPDFReport({

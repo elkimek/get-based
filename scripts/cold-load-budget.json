@@ -3,9 +3,9 @@
   "route": "/app",
   "scenario": "Fresh mobile returning-user load with browser cache and service workers disabled",
   "maximums": {
-    "requests": 317,
+    "requests": 324,
     "transferBytes": 1193220,
-    "decodedBytes": 3271000
+    "decodedBytes": 3320000
   },
   "reference": {
     "requests": 276,
@@ -22,8 +22,11 @@
     "evolu8DefaultDecodedBytes": 3259926,
     "evolu8ScalarMergeDecodedBytes": 3260875,
     "routeAwareAiConsentRequests": 317,
-    "routeAwareAiConsentDecodedBytes": 3270632
+    "routeAwareAiConsentDecodedBytes": 3270632,
+    "cliProviderRoutingRequests": 324,
+    "cliProviderRoutingTransferBytes": 1183242,
+    "cliProviderRoutingDecodedBytes": 3319406
   },
-  "referenceCommit": "df42f986",
-  "measuredAt": "2026-09-01"
+  "referenceCommit": "95d13199",
+  "measuredAt": "2026-09-05"
 }

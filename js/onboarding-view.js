@@ -4,7 +4,7 @@
 import { state } from './state.js';
 import { getActiveData, updateHeaderDates } from './data.js';
 import { profileStorageKey, setProfileSex, setProfileDob } from './profile.js';
-import { hasAIProvider } from './api.js';
+import { hasChatResponseBackend } from './chat-backend-selection.js';
 import { escapeAttr, showNotification } from './utils.js';
 import {
   createOnboardingChatThreadRuntime,
@@ -169,7 +169,7 @@ export function dismissOnboarding() {
 }
 
 export function renderAIConnectionReminder() {
-  if (hasAIProvider()) return '';
+  if (hasChatResponseBackend()) return '';
   const skipKey = `labcharts-onboard-provider-skipped-${state.currentProfile}`;
   const skipped = localStorage.getItem(skipKey);
   if (!skipped) return '';

@@ -7,7 +7,7 @@
 // (deviceId + distanceCm + bodyArea + eyesProtected).
 
 import { escapeHTML, escapeAttr } from './utils.js';
-import { hasAIProvider } from './api.js';
+import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { getSunDefaults } from './sun-defaults.js';
 import { getDevices, getDeviceSessions } from './light-devices-store.js';
 import { CHANNEL_DISPLAY, formatChannelUnit, BODY_REGIONS } from './sun.js';
@@ -259,7 +259,7 @@ function _hasCompleteModeledDeviceSession(sess) {
 
 export function renderDeviceSessionAIInline(sess) {
   if (!_hasCompleteModeledDeviceSession(sess)) return '';
-  if (!hasAIProvider() && !(sess.aiAnalysis?.status === 'ok' && sess.aiAnalysis?.dot)) return '';
+  if (!hasAssistantFeatureProvider() && !(sess.aiAnalysis?.status === 'ok' && sess.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(sess);
   const a = sess.aiAnalysis;
   const refreshBtn = `<button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-device-session', sess.id, { stopPropagation: true })} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>`;
@@ -293,7 +293,7 @@ export function renderDeviceSessionAIInline(sess) {
 
 export function renderDeviceSessionAIDetail(sess) {
   if (!_hasCompleteModeledDeviceSession(sess)) return '';
-  if (!hasAIProvider() && !(sess.aiAnalysis?.status === 'ok' && sess.aiAnalysis?.dot)) return '';
+  if (!hasAssistantFeatureProvider() && !(sess.aiAnalysis?.status === 'ok' && sess.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(sess);
   const a = sess.aiAnalysis;
   if (status === 'analyzing') {

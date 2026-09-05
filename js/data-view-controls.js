@@ -77,6 +77,18 @@ function navigateDataView(route, data) {
   dataRuntimeDeps.navigate?.(route, data);
 }
 
+export function navigateDataViewRuntime(route, data) {
+  if (!dataRuntimeDeps.navigate) return false;
+  dataRuntimeDeps.navigate(route, data);
+  return true;
+}
+
+export function showDataMarkerDetailRuntime(markerId) {
+  if (!dataRuntimeDeps.showDetailModal) return false;
+  dataRuntimeDeps.showDetailModal(markerId);
+  return true;
+}
+
 function buildDataSidebar(data) {
   dataRuntimeDeps.buildSidebar?.(data);
 }

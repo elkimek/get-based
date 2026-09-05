@@ -10,7 +10,7 @@
 
 import { state } from './state.js';
 import { escapeHTML, showNotification } from './utils.js';
-import { hasAIProvider } from './api.js';
+import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { createAIVerdict, hashString } from './ai-verdict-engine.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
 import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
@@ -295,7 +295,7 @@ function _renderWeeklyAIReview(analysis, action = '') {
 // neutral: safety colors belong to deterministic Today checks, while this
 // block only explains patterns in the two rolling seven-day windows.
 export function renderChannelMixVerdict(staticFallback) {
-  if (!hasAIProvider()) {
+  if (!hasAssistantFeatureProvider()) {
     // Pre-populated demo or cross-device synced cached verdict still
     // renders even without a provider when it matches the new source-aware
     // fingerprint. Older target/deficit verdicts must not leak back in.

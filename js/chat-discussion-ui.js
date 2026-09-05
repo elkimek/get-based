@@ -62,18 +62,16 @@ export function showDiscussContinuePrompt(personas, originalPersonality, { onPer
   const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
   if (input) {
     input.placeholder = 'Reply to the discussion…';
-    input.setAttribute('aria-describedby', 'chat-discussion-composer-help chat-composer-hint');
+    input.setAttribute('aria-describedby', 'chat-discussion-composer-help');
   }
   const expectation = prompt.querySelector('.chat-discussion-expectation');
   if (expectation) expectation.id = 'chat-discussion-composer-help';
   refreshChatComposer();
-  const attachButton = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-attach-btn'));
-  const hdButton = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-hd-btn'));
-  if (attachButton) {
-    attachButton.disabled = true;
-    attachButton.title = 'End the discussion to attach images';
+  const photoAction = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-add-photo-action'));
+  if (photoAction) {
+    photoAction.disabled = true;
+    photoAction.title = 'End the discussion to attach photos';
   }
-  if (hdButton) hdButton.disabled = true;
 
   state._discussionPersonas = personas;
   state._discussionOriginalPersonality = originalPersonality;
@@ -86,14 +84,15 @@ export function removeDiscussContinuePrompt() {
   const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
   if (input) {
     input.placeholder = 'Ask about your lab results...';
-    input.setAttribute('aria-describedby', 'chat-composer-hint');
+    input.removeAttribute('aria-describedby');
   }
   refreshChatComposer();
   updateAttachButtonVisibility();
-  const attachButton = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-attach-btn'));
-  const hdButton = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-hd-btn'));
-  if (attachButton) attachButton.disabled = false;
-  if (hdButton) hdButton.disabled = false;
+  const photoAction = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-add-photo-action'));
+  if (photoAction) {
+    photoAction.disabled = false;
+    photoAction.removeAttribute('title');
+  }
 }
 
 export function updateDiscussionProgress(persona, index, total, status = 'responding') {

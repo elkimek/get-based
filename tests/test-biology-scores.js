@@ -624,7 +624,7 @@ assert('single-point specialty markers preserve their own panel date for recency
 state.importedData = savedSinglePointImported; invalidateActiveDataCache();
 
 const lockedWidgetHtml = renderBiologyScoresWidget({ data });
-assert('biology score dashboard widgets are locked until a context review exists', lockedWidgetHtml.includes('Biology Scores locked') && lockedWidgetHtml.includes('Waiting for context check'));
+assert('biology score dashboard widgets explain their locked state without a duplicate heading', lockedWidgetHtml.includes('Biology Scores locked') && !lockedWidgetHtml.includes('Waiting for context check'));
 state.importedData.biologyScoreContextAI = { summary: 'Context checked for tests', suggestions: [], fingerprint: buildBiologyScoreContextFingerprint(data), fingerprintsByRange: buildBiologyScoreContextFingerprintsByRange(data), unlockedRanges: ['all', '1y', '6m', '3m'], range: state.dateRangeFilter || 'all', updatedAt: Date.now() };
 const widgetHtml = renderBiologyScoresWidget({ data });
 assert('render includes native widget class', widgetHtml.includes('biology-scores-widget'));
@@ -771,9 +771,9 @@ assert('action summary falls back to the weakest live score when coherence is un
   && fallbackActionSummaryHtml.includes('Fallback score: marker-level explanation behind the most strained domain.')
   && fallbackActionSummaryHtml.includes('Avoid over-testing'));
 assert('lens render includes drilldown stack', lensHtml.includes('biology-score-detail-stack'));
-assert('lens pins Biological Coherence as a distinguished hero before score details', lensHtml.includes('biology-coherence-hero') && lensHtml.indexOf('biology-coherence-hero') < lensHtml.indexOf('biology-score-detail-stack') && lensHtml.includes('System-level score'));
+assert('lens pins Biological Coherence before score details without a redundant kicker', lensHtml.includes('biology-coherence-hero') && lensHtml.indexOf('biology-coherence-hero') < lensHtml.indexOf('biology-score-detail-stack') && !lensHtml.includes('System-level score'));
 assert('lens coherence hero has dashboard toggle via lens page shell', lensHtml.includes('data-lens-page-action="add-dashboard-widget"') || lensHtml.includes('data-lens-page-action="remove-dashboard-widget"'));
-assert('lens explains what each score checks in plain language', lensHtml.includes('What this score is checking') && lensHtml.includes('Is the thyroid axis internally coherent'));
+assert('lens keeps each plain-language score question without a redundant label', !lensHtml.includes('What this score is checking') && lensHtml.includes('Is the thyroid axis internally coherent'));
 assert('hormone axis copy no longer calls it an advanced no-baseline score', BIOLOGY_SCORE_COPY.hormoneAxis.basicInputs.some(text => text.includes('Sex hormone status')) && !BIOLOGY_SCORE_COPY.hormoneAxis.basicInputs.some(text => text.includes('No routine baseline')));
 assert('lens gives normie action summary before detail stack', lensHtml.includes('What matters now') && lensHtml.indexOf('What matters now') < lensHtml.indexOf('biology-score-detail-stack'));
 const weakestCoherenceDomain = [...(byId.biologicalCoherence.available || [])]
@@ -791,12 +791,12 @@ assert('lens puts Biological Coherence before supporting explanation cards',
   && lensHtml.indexOf('biology-coherence-hero') < lensHtml.indexOf('biology-score-coverage-planner'));
 assert('lens includes a simplified coverage planner before score details',
   lensHtml.includes('biology-score-coverage-planner')
-  && lensHtml.includes('Improve coverage without over-testing')
+  && lensHtml.includes('Improve lab coverage')
   && lensHtml.includes('Make lab plan')
-  && lensHtml.includes('Best next lab bundle')
+  && lensHtml.includes('Baseline first')
   && lensHtml.includes('Optional upgrades')
   && lensHtml.includes('Advanced depth')
-  && lensHtml.includes('Specialty depth')
+  && !lensHtml.includes('Specialty depth')
   && !lensHtml.includes('Full marker plan')
   && !lensHtml.includes('Hide marker plan')
   && !lensHtml.includes('Score gaps')

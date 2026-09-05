@@ -12,7 +12,6 @@ function renderInlineList(items) {
 export function renderScoreQuestion(score) {
   const question = score.question || `What does ${score.title} say about this biology pattern?`;
   return `<section class="biology-score-question">
-    <div class="biology-score-question-kicker">What this score is checking</div>
     <p>${escapeHTML(question)}</p>
     <div class="biology-score-panel-levels" aria-label="Labs used for this score">
       <div><span>Core markers</span><strong>${renderInlineList(score.basicInputs || [])}</strong></div>

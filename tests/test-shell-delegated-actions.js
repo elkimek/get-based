@@ -88,9 +88,8 @@ assert('Share Profile shell action uses its wired module dependency instead of a
     && !shellSrc.includes("callShellRuntime('openProfileShareModal')")
     && appShellHooksSrc.includes('configureShellProfileShareDeps({ openProfileShareModal });'));
 
-assert('Chat HD shell action uses its module dependency instead of a window lookup',
-  shellSrc.includes('shellChatImageDeps.toggleHDMode()')
-    && !shellSrc.includes("callShellRuntime('toggleHDMode')"));
+assert('Legacy Chat HD action is removed',
+  !shellSrc.includes("action === 'toggle-hd'") && !html.includes('chat-hd-btn'));
 
 assert('Mobile sidebar shell actions use injected nav dependencies',
   shellSrc.includes('shellNavDeps.toggleMobileSidebar()')
@@ -100,7 +99,6 @@ assert('Mobile sidebar shell actions use injected nav dependencies',
 
 assert('App shell wires module-only chat image consumers',
   appShellHooksSrc.includes("from './chat-loader.js'")
-    && appShellHooksSrc.includes('configureShellChatImageDeps({ toggleHDMode });')
     && appChatHooksSrc.includes("from './chat-images.js'")
     && appChatHooksSrc.includes('configureChatMessageActionDeps({')
     && appChatHooksSrc.includes('openImageLightbox,')
@@ -117,7 +115,9 @@ assert('App shell wires module-only chat message actions',
 assert('Chat thread shell actions use module dependencies instead of window lookups',
   shellSrc.includes('shellChatThreadDeps.toggleThreadRail()')
     && shellSrc.includes('shellChatThreadDeps.createNewThread()')
+    && shellSrc.includes('shellChatThreadDeps.createThreadProject()')
     && shellSrc.includes('shellChatThreadDeps.filterThreadList(input.value)')
+    && shellSrc.includes('shellChatThreadDeps.setChatThreadSort(input.value)')
     && !shellSrc.includes("callShellRuntime('toggleThreadRail')")
     && !shellSrc.includes("callShellRuntime('createNewThread')")
     && !shellSrc.includes("callShellRuntime('filterThreadList'"));
@@ -125,7 +125,7 @@ assert('Chat thread shell actions use module dependencies instead of window look
 assert('App shell wires module-only chat thread consumers',
   appShellHooksSrc.includes("from './chat-loader.js'")
     && chatLoaderSrc.includes("import('./app-ai-interaction-modules.js')")
-    && appShellHooksSrc.includes('configureShellChatThreadDeps({ createNewThread, filterThreadList, toggleThreadRail });')
+    && appShellHooksSrc.includes('configureShellChatThreadDeps({ createNewThread, createThreadProject, filterThreadList, setChatThreadSort, toggleThreadRail });')
     && appShellHooksSrc.includes('configureOnboardingViewRuntimeDeps({ buildSidebar, createNewThread, navigate, openChatPanel, toggleChatPanel });')
     && appShellHooksSrc.includes('ensureActiveThread: ensureActiveThreadIfLoaded,')
     && appShellHooksSrc.includes('loadChatHistory: loadChatHistoryIfLoaded,')
@@ -370,13 +370,15 @@ assert('Chat shell controls use module dependencies instead of window lookups',
   'close-panel',
   'toggle-thread-rail',
   'create-thread',
+  'create-project',
   'summarize-thread',
   'clear-history',
   'toggle-fullscreen',
   'toggle-personality',
   'set-personality',
   'attach-image',
-  'toggle-hd',
+  'import-health-file',
+  'open-chat-context',
   'start-discussion',
   'send-message',
 ].forEach(action => {
@@ -393,6 +395,9 @@ assert('Web search toggle uses delegated change action',
   html.includes('data-chat-change-action="set-websearch"')
     && shellSrc.includes("document.addEventListener('change', handleShellChange)")
     && shellSrc.includes('shellChatActionDeps.setChatWebSearchEnabled(input.checked)'));
+assert('Conversation sorting uses delegated change action',
+  html.includes('data-chat-change-action="sort-thread-list"')
+    && shellSrc.includes('shellChatThreadDeps.setChatThreadSort(input.value)'));
 assert('Chat composer key handler is delegated',
   html.includes('data-chat-key-action="message-input"')
     && shellSrc.includes("document.addEventListener('keydown', handleShellKeydown)")

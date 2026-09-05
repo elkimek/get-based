@@ -1,11 +1,12 @@
 // @ts-check
 // biology-score-ai.js — embedded AI interpretation for deterministic Biology Scores.
 
-import { callClaudeAPI, hasAIProvider, isAIPaused } from './api.js';
+import { isAIPaused } from './api.js';
+import { callAssistantFeatureAI, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 
 const biologyScoreAIDeps = {
-  callClaudeAPI,
-  hasAIProvider,
+  callClaudeAPI: callAssistantFeatureAI,
+  hasAIProvider: hasAssistantFeatureProvider,
   isAIPaused,
 };
 

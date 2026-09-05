@@ -35,6 +35,21 @@ import {
   refreshAppExtensionAI,
 } from './app-extension-runtime.js';
 
+/**
+ * Provider catalogs use several equivalent flags for a model that should not
+ * be offered. Treat an omitted flag as unknown/available and only exclude an
+ * explicit negative signal from the provider.
+ * @param {unknown} value
+ */
+export function modelMetadataIsAvailable(value) {
+  if (!value || typeof value !== 'object') return false;
+  const model = /** @type {Record<string, unknown>} */ (value);
+  if (model.available === false || model.enabled === false || model.disabled === true
+    || model.unavailable === true || model.missing === true) return false;
+  const status = String(model.status || '').trim().toLowerCase();
+  return !['disabled', 'offline', 'removed', 'unavailable'].includes(status);
+}
+
 export function deduplicateModels(models, familyFn) {
   const seen = {};
   return models.filter(function(m) {
@@ -322,7 +337,7 @@ export async function fetchOpenRouterModels(key) {
     if (!res.ok) return [];
     const json = await res.json();
     const all = (json.data || []).filter(function(m) {
-      if (!m.id) return false;
+      if (!m.id || !modelMetadataIsAvailable(m)) return false;
       if (OPENROUTER_EXCLUDE.some(function(ex) { return m.id.includes(ex); })) return false;
       if (allowlist) return allowlist.includes(m.id);
       return OPENROUTER_CURATED.some(function(prefix) { return m.id.startsWith(prefix); });
@@ -349,7 +364,7 @@ export async function fetchOpenRouterModels(key) {
     }
     localStorage.setItem('labcharts-openrouter-pricing', JSON.stringify(pricingCache));
     const visionIds = (json.data || []).filter(function(m) {
-      return !!m.id && modelMetadataSupportsVision(m);
+      return !!m.id && modelMetadataIsAvailable(m) && modelMetadataSupportsVision(m);
     }).map(function(m) { return m.id; });
     localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify(visionIds));
     localStorage.setItem('labcharts-openrouter-models', JSON.stringify(models));
@@ -427,7 +442,9 @@ export async function fetchVeniceModels(key) {
     });
     if (!res.ok) return [];
     const json = await res.json();
-    const allText = (json.data || []).filter(function(m) { return m.id && m.type === 'text'; }).sort(function(a, b) { return b.id.localeCompare(a.id); });
+    const allText = (json.data || []).filter(function(m) {
+      return m.id && m.type === 'text' && modelMetadataIsAvailable(m);
+    }).sort(function(a, b) { return b.id.localeCompare(a.id); });
     const e2eeList = allText.filter(modelSupportsVeniceE2EE);
     localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify(e2eeList));
     const e2eeIds = new Set(e2eeList.map(function(m) { return m.id; }));

@@ -5,7 +5,13 @@
       "name": "browser",
       "description": "Native browser modules shipped with the static application.",
       "roots": ["js"],
-      "mayImport": ["browser"]
+      "mayImport": ["browser", "shared"]
+    },
+    {
+      "name": "shared",
+      "description": "Runtime-neutral contracts shared by browser and server modules.",
+      "roots": ["shared"],
+      "mayImport": ["shared"]
     },
     {
       "name": "serverless",
@@ -23,7 +29,7 @@
       "name": "server-shared",
       "description": "Node-only policy and transport code shared by hosted runtimes.",
       "roots": ["lib"],
-      "mayImport": ["server-shared"]
+      "mayImport": ["server-shared", "shared"]
     },
     {
       "name": "local-server",
@@ -36,6 +42,18 @@
       "description": "Operator-deployed profile-share service entry point.",
       "roots": ["server/profile-share-server.js"],
       "mayImport": ["server-shared"]
+    },
+    {
+      "name": "agent-companion",
+      "description": "Standalone loopback companion for installed CLI agents.",
+      "roots": ["server/agent-host-server.js"],
+      "mayImport": ["server-shared", "shared"]
+    },
+    {
+      "name": "companion-cli",
+      "description": "Install and control the Linux user-level agent companion.",
+      "roots": ["bin/getbased-companion.js"],
+      "mayImport": ["server-shared", "agent-companion"]
     },
     {
       "name": "service-worker",
@@ -76,6 +94,8 @@
     "api/proxy.js",
     "api/share.js",
     "server/compat-proxy-server.js",
+    "server/agent-host-server.js",
+    "bin/getbased-companion.js",
     "server/profile-share-server.js",
     "dev-server.js",
     "service-worker.js"

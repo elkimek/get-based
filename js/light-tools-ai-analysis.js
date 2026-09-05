@@ -9,7 +9,7 @@
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
-import { hasAIProvider } from './api.js';
+import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
@@ -230,7 +230,7 @@ export const maybeAnalyzeMeasurementAfterSave = engine.maybeAfterFinish;
 export function renderMeasurementAIInline(m) {
   if (!m) return '';
   if (m.tool === 'audit') return ''; // aggregate row carries no per-tool verdict
-  if (!hasAIProvider() && !(m.aiAnalysis?.status === 'ok' && m.aiAnalysis?.dot)) return '';
+  if (!hasAssistantFeatureProvider() && !(m.aiAnalysis?.status === 'ok' && m.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(m);
   const a = m.aiAnalysis;
   const refreshBtn = `<button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-measurement', m.id, { stopPropagation: true })} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>`;

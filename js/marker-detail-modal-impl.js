@@ -7,7 +7,7 @@ import { getActiveData } from './data.js';
 import { getEffectiveRange, getEffectiveRangeForDate, getEffectiveRangeLabelForDate } from './marker-analysis.js';
 import { createLineChart, getMarkerDescription } from './charts.js';
 import { closeSuggestionsOnClickOutside } from './context-cards.js';
-import { hasAIProvider } from './api.js';
+import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { getMarkerStorageDotKey, resolveActiveMarkerPath } from './marker-placement.js';
 import { installMarkerDetailActionDelegates, markerDetailActionAttrs } from './marker-detail-actions.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
@@ -743,7 +743,7 @@ function renderDetailModal(id, opts = {}) {
     if (desc) {
       descEl.textContent = desc;
       descEl.classList.add('loaded');
-    } else if (!marker.desc && hasAIProvider()) {
+    } else if (!marker.desc && hasAssistantFeatureProvider()) {
       descEl.classList.add('loading');
       fetchCustomMarkerDescription(descriptionKey, marker.name, marker.unit).then(text => {
         const el = document.getElementById('marker-desc');

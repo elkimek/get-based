@@ -33,8 +33,10 @@ test('chat action bars, clipboard, and context toggles work in the live DOM', as
         outcomes.aiActionBarHasButtons = aiMsgs.length > 0 && aiMsgs[0].querySelectorAll('.chat-action-btn').length >= 1;
         outcomes.editStaysOnLatestUserWhileForkStaysOnAssistant = userMsgs.length === 2
           && userMsgs[0].querySelector('[data-chat-message-action="edit-user-message"]') === null
+          && userMsgs[0].querySelector('[data-chat-message-action="copy-message"]') === null
           && userMsgs[0].querySelector('[data-chat-message-action="fork-message"]') === null
-          && userMsgs[1].querySelector('[data-chat-message-action="edit-user-message"]')?.textContent.includes('Edit & retry')
+          && userMsgs[1].querySelector('[data-chat-message-action="edit-user-message"]')?.getAttribute('aria-label') === 'Edit and resend your latest message'
+          && userMsgs[1].querySelector('[data-chat-message-action="copy-message"]') === null
           && userMsgs[1].querySelector('[data-chat-message-action="fork-message"]') === null
           && aiMsgs[0].querySelector('[data-chat-message-action="fork-message"]')?.textContent.includes('Fork to new chat');
       } else {
@@ -50,7 +52,8 @@ test('chat action bars, clipboard, and context toggles work in the live DOM', as
         outcomes.editStaysOnLatestUserWhileForkStaysOnAssistant =
           oldUserMsg?.querySelector('[data-chat-message-action="edit-user-message"]') === null
           && oldUserMsg?.querySelector('[data-chat-message-action="fork-message"]') === null
-          && latestUserMsg?.querySelector('[data-chat-message-action="edit-user-message"]')?.textContent.includes('Edit & retry')
+          && latestUserMsg?.querySelector('[data-chat-message-action="edit-user-message"]')?.getAttribute('aria-label') === 'Edit and resend your latest message'
+          && latestUserMsg?.querySelector('[data-chat-message-action="copy-message"]') === null
           && latestUserMsg?.querySelector('[data-chat-message-action="fork-message"]') === null
           && aiMsg?.querySelector('[data-chat-message-action="fork-message"]')?.textContent.includes('Fork to new chat');
       }

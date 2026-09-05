@@ -225,6 +225,8 @@ export async function callVeniceAPI(opts) {
   // controls into an invalid zero-token reasoning budget. Let that model use its
   // native reasoning path; the stream reader below handles reasoning_content.
   const disableGlmThinking = isGlmE2EE && !isGlm52E2EE;
+  const requestedReasoningEffort = String(opts.reasoningEffort || '').trim();
+  const disableRequestedReasoning = requestedReasoningEffort === 'none';
   const body = /** @type {any} */ ({
     model: modelId,
     messages: apiMessages,
@@ -232,9 +234,12 @@ export async function callVeniceAPI(opts) {
     stream: useStream,
     venice_parameters: {
       enable_e2ee: true,
-      ...(disableGlmThinking ? { disable_thinking: true, strip_thinking_response: true } : {}),
+      ...(disableGlmThinking || disableRequestedReasoning
+        ? { disable_thinking: true, strip_thinking_response: true } : {}),
     },
   });
+  if (disableRequestedReasoning) body.reasoning = { enabled: false };
+  else if (requestedReasoningEffort) body.reasoning_effort = requestedReasoningEffort;
   if (useStream) body.stream_options = { include_usage: true };
   let res;
   try {

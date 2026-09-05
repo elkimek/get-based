@@ -12,6 +12,7 @@ import {
   OPENROUTER_DEFAULT_TTS_MODEL,
   OPENROUTER_DEFAULT_VOICE,
 } from './voice-openrouter-catalog.js';
+import { getChatBackend } from './agent-chat-settings.js';
 
 export const AUTO_VOICE_PROVIDER_ID = 'auto';
 
@@ -58,6 +59,10 @@ export function getAiVoiceProviderKey(providerId) {
 
 export function resolveVoiceProviderId(_kind, configuredProvider) {
   if (configuredProvider !== AUTO_VOICE_PROVIDER_ID) return configuredProvider;
+  // A CLI chat selection must not silently revive a previously configured
+  // cloud AI provider for audio. Users can still choose that voice provider
+  // explicitly in Voice settings.
+  if (getChatBackend() === 'codex') return 'browser-local';
   const aiProvider = getAIProvider();
   return isAiVoiceProvider(aiProvider) && getAiVoiceProviderKey(aiProvider)
     ? aiProvider
@@ -67,6 +72,14 @@ export function resolveVoiceProviderId(_kind, configuredProvider) {
 export function getAutomaticVoiceStatus() {
   const aiProvider = getAIProvider();
   const label = AI_PROVIDER_LABELS[aiProvider] || aiProvider || 'Your chat provider';
+  const cliChat = getChatBackend() === 'codex';
+  if (cliChat) {
+    return {
+      providerId: 'browser-local',
+      state: 'fallback',
+      text: 'Automatic voice stays on this device while a CLI agent handles chat. Select a specific voice service to send speech elsewhere.',
+    };
+  }
   if (isAiVoiceProvider(aiProvider)) {
     if (getAiVoiceProviderKey(aiProvider)) {
       return {

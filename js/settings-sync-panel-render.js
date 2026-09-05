@@ -55,8 +55,8 @@ export function renderSyncSectionMarkup(listPendingTombstones) {
       </div>
       <div class="sync-settings-state">
         <span class="sync-settings-badge ${enabled ? 'is-enabled' : paused ? 'is-paused' : ''}">${enabled ? 'Enabled' : paused ? 'Paused' : 'Off'}</span>
-        <label class="chat-websearch-toggle-label sync-settings-toggle" aria-label="Toggle cross-device sync">
-          <input type="checkbox" ${enabled ? 'checked' : ''} data-sync-action="toggle-sync" ${toggleDisabled}>
+        <label class="chat-websearch-toggle-label sync-settings-toggle">
+          <input type="checkbox" aria-label="Toggle cross-device sync" ${enabled ? 'checked' : ''} data-sync-action="toggle-sync" ${toggleDisabled}>
           <span class="chat-toggle-slider sync-settings-toggle-slider"></span>
         </label>
       </div>

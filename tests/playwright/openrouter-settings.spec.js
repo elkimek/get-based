@@ -1,6 +1,12 @@
 import { expect, test } from './coverage-fixture.js';
 
 test('OpenRouter provider controls render from Settings AI', async ({ page }) => {
+  await page.route('**/api/local-agents*', route => route.fulfill({
+    status: 404, contentType: 'application/json', body: '{"error":"not_found"}',
+  }));
+  await page.route(/^http:\/\/127\.0\.0\.1:83(?:2[4-9]|3[01])\/v1\/discovery$/, route => route.fulfill({
+    status: 404, contentType: 'application/json', body: '{"error":"not_found"}',
+  }));
   await page.addInitScript(() => {
     const profileId = localStorage.getItem('labcharts-active-profile') || 'default';
     localStorage.setItem(`labcharts-${profileId}-emptyTour`, 'completed');
@@ -17,10 +23,10 @@ test('OpenRouter provider controls render from Settings AI', async ({ page }) =>
   });
 
   const providerButtons = page.locator('.ai-provider-btn');
-  await expect(providerButtons).toHaveCount(6);
+  await expect(providerButtons).toHaveCount(7);
   const providerSection = page.locator('#ai-provider-advanced-section');
   await expect(providerSection).toBeVisible();
-  await expect(providerSection).toContainText('Bring your own key / local AI');
+  await expect(providerSection).toContainText('Choose how getbased runs AI');
   await expect(providerSection.locator('summary')).toHaveCount(0);
   expect(await providerSection.evaluate(section => section.tagName)).toBe('DIV');
 
@@ -30,6 +36,7 @@ test('OpenRouter provider controls render from Settings AI', async ({ page }) =>
   expect(providerValues).toContain('venice');
   expect(providerValues).toContain('ollama');
   expect(providerValues).toContain('openrouter');
+  expect(providerValues).toContain('cli');
   expect(providerValues.indexOf('openrouter')).toBeLessThan(providerValues.indexOf('venice'));
 
   const rowCount = await providerButtons.evaluateAll((buttons) => {
@@ -51,4 +58,203 @@ test('OpenRouter provider controls render from Settings AI', async ({ page }) =>
   await expect(page.locator('#openrouter-key-status')).toHaveCount(1);
   await expect(page.locator('#openrouter-model-area')).toHaveCount(1);
   await expect(page.locator('#save-openrouter-key-btn')).toHaveCount(1);
+
+  await page.locator('.ai-provider-btn[data-provider="cli"]').click();
+  const installCard = page.locator('.local-agent-install-card');
+  await expect(installCard).toBeVisible();
+  await expect(installCard).toContainText('Connect your installed CLI agents');
+  await expect(installCard).toContainText('Nothing is installed automatically');
+  await expect(installCard.locator('[data-settings-action="copy-cli-companion-run"]')).toBeVisible();
+});
+
+test('CLI provider discovers branded agents and keeps model controls stable across settings refreshes', async ({ page }) => {
+  const endpoint = 'http://127.0.0.1:8324';
+  const token = 'playwright-companion-token-1234';
+  const agents = [
+    ['codex', 'Codex CLI', 'OpenAI official CLI'],
+    ['claude', 'Claude Agent', 'Anthropic agent · API/Console billing only'],
+    ['opencode', 'OpenCode', 'Open-source multi-model agent CLI'],
+    ['hermes', 'Hermes Agent', 'Nous Research agent CLI'],
+    ['grok', 'Grok Build', 'SpaceXAI coding agent CLI'],
+    ['openclaw', 'OpenClaw', 'Open-source personal AI assistant'],
+  ].map(([id, name, description]) => ({
+    id, name, description, version: 'test', status: 'available', compatible: true,
+    endpoint, token, runtimeMode: 'temporary', companionVersion: '1.1.0',
+    protocolVersion: 5, capabilities: ['chat-stream', 'companion-control', 'execution-targets'],
+  }));
+  const models = [
+    ...Array.from({ length: 14 }, (_, index) => ({
+      id: `openrouter/test/model-${index + 1}`,
+      model: `openrouter/test/model-${index + 1}`,
+      displayName: `OpenRouter / Model ${index + 1}`,
+      isDefault: index === 0,
+      defaultReasoningEffort: 'high',
+      supportedReasoningEfforts: [
+        { reasoningEffort: 'low', description: 'Low' },
+        { reasoningEffort: 'xhigh', description: 'Extra high' },
+      ],
+      inputModalities: ['text', 'image'],
+    })),
+    {
+      id: 'opencode/big-pickle', model: 'opencode/big-pickle', displayName: 'OpenCode / Big Pickle',
+      isDefault: false, defaultReasoningEffort: '', supportedReasoningEfforts: [], inputModalities: ['text'],
+    },
+  ];
+  const codexModels = [{
+    id: 'gpt-5.6-sol', model: 'gpt-5.6-sol', displayName: 'GPT-5.6-Sol', isDefault: true,
+    defaultReasoningEffort: 'low', inputModalities: ['text', 'image'],
+    supportedReasoningEfforts: [
+      { reasoningEffort: 'low', description: 'Low' },
+      { reasoningEffort: 'medium', description: 'Medium' },
+    ],
+  }];
+  const hermesLocalModels = [{
+    id: 'hermes-local', model: 'hermes-local', displayName: 'Hermes Local', isDefault: true,
+    defaultReasoningEffort: 'medium', inputModalities: ['text'],
+    supportedReasoningEfforts: [{ reasoningEffort: 'medium', description: 'Medium' }],
+  }];
+  const hermesGatewayModels = [{
+    id: 'openai-codex:gpt-5.6-sol', model: 'openai-codex:gpt-5.6-sol', displayName: 'Gateway Sol', isDefault: true,
+    defaultReasoningEffort: 'medium', inputModalities: ['text'],
+    supportedReasoningEfforts: [{ reasoningEffort: 'medium', description: 'Medium' }],
+  }];
+  let delayGatewayModels = false;
+
+  await page.route('**/api/local-agents*', route => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ agents }),
+  }));
+  await page.route(`${endpoint}/v1/discovery`, route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      service: 'getbased-agent-host', endpoint, token, agents,
+      protocolVersion: 5,
+      capabilities: ['chat-stream', 'companion-control', 'execution-targets'],
+      companionVersion: '1.1.0', runtimeMode: 'temporary', platform: 'linux',
+    }),
+  }));
+  await page.route(`${endpoint}/v1/status`, route => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({
+      ok: true, service: 'getbased-agent-host', protocolVersion: 5,
+      capabilities: ['chat-stream', 'dynamic-tools', 'structured-health-tools', 'model-catalog',
+        'reasoning-catalog', 'image-upload', 'structured-output', 'companion-control', 'execution-targets'],
+      state: 'running', paused: false, runtimeMode: 'temporary', companionVersion: '1.1.0',
+    }),
+  }));
+  await page.route(`${endpoint}/v1/targets**`, route => {
+    const agent = new URL(route.request().url()).searchParams.get('agent');
+    return route.fulfill({
+      status: 200, contentType: 'application/json', body: JSON.stringify({
+        targets: agent === 'hermes' ? [
+          { id: 'local', label: 'Local CLI', kind: 'local', status: 'available' },
+          { id: 'gateway-home', label: 'Omer · Homelab', kind: 'gateway', status: 'available', supportsLocalTools: false },
+        ] : [{ id: 'local', label: 'Local CLI', kind: 'local', status: 'available' }],
+      }),
+    });
+  });
+  await page.route(`${endpoint}/v1/models**`, route => {
+    const url = new URL(route.request().url());
+    const agent = url.searchParams.get('agent');
+    const target = url.searchParams.get('target') || 'local';
+    const fulfill = () => route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ models: agent === 'codex' ? codexModels
+        : agent === 'hermes' ? (target === 'gateway-home' ? hermesGatewayModels : hermesLocalModels) : models }),
+    });
+    return agent === 'hermes' && target === 'gateway-home' && delayGatewayModels
+      ? new Promise(resolve => setTimeout(resolve, 350)).then(fulfill)
+      : fulfill();
+  });
+  await page.addInitScript(() => {
+    const profileId = localStorage.getItem('labcharts-active-profile') || 'default';
+    localStorage.setItem(`labcharts-${profileId}-emptyTour`, 'completed');
+    localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
+    localStorage.setItem('labcharts-chat-backend', 'codex');
+    localStorage.setItem('labcharts-agent-host-agent', 'opencode');
+  });
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    window.endTour?.();
+    document.getElementById('tour-overlay')?.remove();
+    document.getElementById('tour-spotlight')?.remove();
+    document.getElementById('tour-tooltip')?.remove();
+    await (await import('/js/settings-loader.js')).openSettingsModal('ai');
+  });
+  await page.locator('.ai-provider-btn[data-provider="cli"]').click();
+
+  const rows = page.locator('.local-agent-row');
+  await expect(rows).toHaveCount(6);
+  await expect(rows).toContainText(['Codex CLI', 'Claude Agent', 'OpenCode', 'Hermes Agent', 'Grok Build', 'OpenClaw']);
+  const iconsLoaded = await page.locator('.local-agent-icon img').evaluateAll(images => images.map(image => ({
+    complete: image.complete, naturalWidth: image.naturalWidth,
+  })));
+  expect(iconsLoaded).toHaveLength(6);
+  expect(iconsLoaded.every(icon => icon.complete && icon.naturalWidth > 0)).toBe(true);
+
+  const options = page.locator('#cli-agent-options');
+  await expect(options).toBeVisible();
+  await expect(options.locator('#cli-agent-provider-summary')).toContainText('OpenRouter');
+  await expect(options.locator('#cli-agent-model-summary')).toContainText('Model 1');
+
+  await options.locator('#cli-agent-model-summary').click();
+  const modelSearch = options.locator('[data-cli-agent-model-search]');
+  await expect(modelSearch).toBeVisible();
+  await modelSearch.fill('model 14');
+  await expect(options.locator('#cli-agent-model-result-count')).toHaveText('1 model');
+  await options.locator('[data-settings-action="set-cli-agent-model"][data-value="openrouter/test/model-14"]').click();
+  await expect(options.locator('#cli-agent-model-summary')).toContainText('Model 14');
+  const effortPicker = options.locator('#cli-agent-effort-summary').locator('..');
+  await options.locator('#cli-agent-effort-summary').click();
+  await expect(effortPicker).toHaveAttribute('open', '');
+  await options.locator('[data-settings-action="set-cli-agent-effort"][data-value="xhigh"]').click();
+  await expect(options.locator('#cli-agent-effort-summary')).toContainText('xhigh');
+
+  await page.evaluate(async () => {
+    const settings = await import('/js/settings-loader.js');
+    settings.closeSettingsModal();
+    await settings.openSettingsModal('ai');
+  });
+  await page.locator('.ai-provider-btn[data-provider="cli"]').click();
+  await expect(page.locator('#cli-agent-model-summary')).toContainText('Model 14');
+  await expect(page.locator('#cli-agent-effort-summary')).toContainText('xhigh');
+  await expect(page.locator('.local-agent-companion-section')).toContainText('Connected for this terminal session');
+
+  await page.locator('label.local-agent-toggle:has(input[data-agent="codex"])').click();
+  await expect(page.locator('#cli-agent-model-summary')).toContainText('GPT-5.6-Sol');
+  await page.locator('#cli-agent-model-summary').click();
+  await page.locator('[data-settings-action="set-cli-agent-model"][data-value="gpt-5.6-sol"]').click();
+  await page.locator('#cli-agent-effort-summary').click();
+  await page.locator('[data-settings-action="set-cli-agent-effort"][data-value="medium"]').click();
+  await expect(page.locator('#cli-agent-effort-summary')).toContainText('medium');
+
+  await page.locator('label.local-agent-toggle:has(input[data-agent="opencode"])').click();
+  await expect(page.locator('#cli-agent-model-summary')).toContainText('Model 14');
+  await expect(page.locator('#cli-agent-effort-summary')).toContainText('xhigh');
+
+  await page.locator('label.local-agent-toggle:has(input[data-agent="codex"])').click();
+  await expect(page.locator('#cli-agent-model-summary')).toContainText('GPT-5.6-Sol');
+  await expect(page.locator('#cli-agent-effort-summary')).toContainText('medium');
+
+  await page.locator('label.local-agent-toggle:has(input[data-agent="hermes"])').click();
+  await expect(page.locator('#cli-agent-target-summary')).toContainText('Local CLI');
+  await expect(page.locator('#cli-agent-model-summary')).toContainText('Hermes Local');
+  await page.locator('#cli-agent-target-summary').click();
+  await page.locator('[data-settings-action="set-cli-agent-target"][data-value="gateway-home"]').click();
+  await expect(page.locator('#cli-agent-target-summary')).toContainText('Omer · Homelab');
+  await expect(page.locator('#cli-agent-model-summary')).toContainText('Gateway Sol');
+  await expect(page.locator('#cli-agent-options')).not.toContainText('Hermes Local');
+  await expect(page.locator('#cli-agent-options')).toContainText('Personal gateway uses that profile');
+
+  await page.locator('#cli-agent-target-summary').click();
+  await page.locator('[data-settings-action="set-cli-agent-target"][data-value="local"]').click();
+  await expect(page.locator('#cli-agent-model-summary')).toContainText('Hermes Local');
+  delayGatewayModels = true;
+  await page.locator('#cli-agent-target-summary').click();
+  await page.locator('[data-settings-action="set-cli-agent-target"][data-value="gateway-home"]').click();
+  await expect(page.locator('#cli-agent-target-summary')).toContainText('Omer · Homelab');
+  await page.evaluate(async () => (await import('/js/settings-cli-agent-panel.js')).setCLIAgentTarget('local'));
+  await expect(page.locator('#cli-agent-target-summary')).toContainText('Local CLI');
+  await expect(page.locator('#cli-agent-model-summary')).toContainText('Hermes Local');
+  await page.waitForTimeout(450);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('labcharts-agent-model-catalog-target-v1'))).toBe('local');
 });

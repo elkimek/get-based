@@ -1277,6 +1277,52 @@ describe('synced Agent Access state', () => {
     expect(fetchSpy).toHaveBeenCalledOnce();
   });
 
+  it('stops retrying an Agent Access token bound to another Sync identity until the token changes', async () => {
+    vi.useFakeTimers();
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let resolveFirstFetch = () => {};
+    let resolveSecondFetch = () => {};
+    const firstFetch = new Promise(resolve => { resolveFirstFetch = resolve; });
+    const secondFetch = new Promise(resolve => { resolveSecondFetch = resolve; });
+    const fetchSpy = vi.fn(async () => {
+      if (fetchSpy.mock.calls.length === 1) resolveFirstFetch();
+      if (fetchSpy.mock.calls.length === 2) resolveSecondFetch();
+      return new Response('{"error":"token_owner_mismatch"}', {
+        status: 409, headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    configureSyncMessenger({
+      getSyncRelay: () => 'wss://sync.getbased.health',
+      getAppOwner: () => ({ id: 'new-sync-owner', writeKey: new Uint8Array(32).fill(7) }),
+      debug: vi.fn(),
+      buildLabContext: () => 'base context',
+    });
+    state.importedData.agentAccess = {
+      version: 1,
+      enabled: true,
+      token: 'q'.repeat(64),
+      contextKey: 'gbctx_v1_' + 'Q'.repeat(43),
+      updatedAt: 123,
+    };
+
+    pushContextToGateway();
+    await vi.advanceTimersByTimeAsync(5000);
+    await firstFetch;
+    await vi.waitFor(() => expect(warning).toHaveBeenCalledWith(expect.stringContaining('Regenerate it')));
+    expect(fetchSpy).toHaveBeenCalledOnce();
+
+    pushContextToGateway();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(fetchSpy).toHaveBeenCalledOnce();
+
+    generateMessengerToken();
+    pushContextToGateway();
+    await vi.advanceTimersByTimeAsync(5000);
+    await secondFetch;
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
   it('cancels a pending context push when switching to a profile without Agent Access', async () => {
     vi.useFakeTimers();
     const fetchSpy = vi.fn(async () => new Response(null, { status: 204 }));

@@ -1,7 +1,7 @@
 // @ts-check
 // client-list-runtime.js - Browser runtime adapters for client-list UI shell hooks.
 
-import { hasAIProvider } from './api.js';
+import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { getDnaModuleFunction, getDnaModuleValue } from './dna-runtime-bridge.js';
 import { showNotification } from './utils.js';
 
@@ -61,7 +61,7 @@ export function setClientManualHaplogroup(haplogroup) {
 
 export function hasClientListAIProvider() {
   try {
-    return hasAIProvider() === true;
+    return hasAssistantFeatureProvider() === true;
   } catch {
     return false;
   }

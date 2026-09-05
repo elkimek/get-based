@@ -8,13 +8,17 @@ import { responseLimitNote } from './chat-continuation.js';
 import { e2eeLockFootnote } from './chat-attestation.js';
 import { isRoundThreadActive } from './chat-discussion-round-state.js';
 import { shouldHideAppExtensionAIUsage } from './app-extension-runtime.js';
+import { applyChatMessageAvatar } from './chat-message-avatars.js';
+import {
+  createChatThinkingIndicator, stopChatThinkingStatus,
+} from './chat-thinking-status.js';
+import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
 
-export function createDiscussionTypingIndicator() {
-  const typingEl = document.createElement('div');
-  typingEl.className = 'typing-indicator';
-  typingEl.setAttribute('aria-hidden', 'true');
-  typingEl.innerHTML = '<span></span><span></span><span></span>';
-  return typingEl;
+export function createDiscussionTypingIndicator(personality = {}) {
+  return createChatThinkingIndicator({
+    personalityName: personality.name,
+    personalityIcon: personality.icon,
+  });
 }
 
 export function createDiscussionPersonaLabel(personality) {
@@ -29,12 +33,17 @@ export function appendRoundPersonaLabel(threadId, container, labelEl) {
   container.appendChild(labelEl);
 }
 
-export function createDiscussionAiMessage() {
+export function createDiscussionAiMessage(personality = {}) {
   const aiMsgEl = document.createElement('div');
   aiMsgEl.className = 'chat-msg chat-ai';
   aiMsgEl.setAttribute('role', 'article');
   aiMsgEl.setAttribute('aria-label', 'AI response');
   aiMsgEl.style.whiteSpace = 'pre-wrap';
+  applyChatMessageAvatar(aiMsgEl, {
+    role: 'assistant',
+    personalityName: personality.name,
+    personalityIcon: personality.icon,
+  });
   return aiMsgEl;
 }
 
@@ -44,6 +53,7 @@ export function renderFinalDiscussionMessage({
   if (!isRoundThreadActive(threadId)) return false;
   appendRoundPersonaLabel(threadId, container, labelEl);
   aiMsgEl.style.whiteSpace = '';
+  stopChatThinkingStatus(typingEl);
   if (typingEl.parentNode) typingEl.remove();
   if (!aiMsgEl.parentNode) container.appendChild(aiMsgEl);
   aiMsgEl.innerHTML = renderMarkdown(fullText);
@@ -67,6 +77,19 @@ export function appendDiscussionUsageFootnote({
   footnote.className = 'chat-cost-footnote';
   footnote.innerHTML = `${escapeHTML(modelDisplay)} \u00b7 ${escapeHTML(formatCost(cost))} \u00b7 ${totalTokens.toLocaleString()} tokens${webTag}${e2eeTag}`;
   aiMsgEl.appendChild(footnote);
+  return true;
+}
+
+export function appendDiscussionOutputAttribution({
+  threadId, aiMsgEl, provider, agentId, modelId, modelDisplay,
+}) {
+  if (!isRoundThreadActive(threadId)) return false;
+  const attribution = getAIOutputAttribution({ provider, agentId, modelId, modelDisplay });
+  if (!attribution) return false;
+  const element = document.createElement('div');
+  element.className = 'chat-provider-attribution';
+  element.textContent = attribution;
+  aiMsgEl.appendChild(element);
   return true;
 }
 

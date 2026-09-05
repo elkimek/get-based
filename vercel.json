@@ -15,6 +15,14 @@
   },
   "routes": [
     {
+      "src": "^/getbased-companion\\.mjs$",
+      "headers": {
+        "Cache-Control": "no-store",
+        "Content-Type": "text/javascript; charset=utf-8"
+      },
+      "continue": true
+    },
+    {
       "src": "^/js/bundle-.*\\.js$",
       "headers": {
         "Cache-Control": "public, max-age=31536000, immutable"

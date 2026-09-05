@@ -2,9 +2,8 @@
 // nutrition-render.js — pure Meals & Nutrition view templates and formatting.
 
 import { state } from './state.js';
-import { getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider } from './api.js';
 import { getMealAnalysisAvailability, nutritionUsageSummary } from './nutrition-analysis.js';
-import { getDefaultNutritionComparisonModelValues, getMealAISelection, isConfirmedMealVisionModel, isNutritionLocalAICatalogLoading, listNutritionVisionModels, nutritionModelPricing } from './nutrition-ai-settings.js';
+import { getDefaultNutritionComparisonModelValues, getMealAISelection, isNutritionLocalAICatalogLoading, listNutritionVisionModels, nutritionModelPricing } from './nutrition-ai-settings.js';
 import { MEAL_COMPARISON_REFERENCE_FIELDS } from './nutrition-comparison.js';
 import { assessFuelStrategy, calculateFuelOverlap } from './nutrition-fuel-mix.js';
 import { NUTRIENT_DEFINITIONS, NUTRIENT_GROUPS, nutrientFieldsForGroup } from './nutrition-nutrient-registry.js';
@@ -367,7 +366,7 @@ export function renderNutritionHistoryModal(history, { storageError = '', return
     : '';
   return `<button type="button" class="modal-close" aria-label="Close Nutrition history" ${actionAttrs('close')}>&times;</button>
     ${returnControl}
-    <div class="nutrition-modal-head nutrition-history-head"><div><h3>Meals &amp; Nutrition</h3><p>Browse individual entries or review recorded trends.</p></div><div class="nutrition-history-head-actions"><button type="button" class="dashboard-action-btn" ${actionAttrs('open-targets', { return: 'history' })}>Setup</button><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${actionAttrs('open', { return: 'history' })}>${returnTo === 'editor' ? 'New meal' : 'Log meal'}</button></div></div>
+    <div class="nutrition-modal-head nutrition-history-head"><div><h3>Meals &amp; Nutrition</h3></div><div class="nutrition-history-head-actions"><button type="button" class="dashboard-action-btn" ${actionAttrs('open-targets', { return: 'history' })}>Setup</button><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${actionAttrs('open', { return: 'history' })}>${returnTo === 'editor' ? 'New meal' : 'Log meal'}</button></div></div>
     <div class="nutrition-history-tabs" role="tablist" aria-label="Meals & Nutrition history view"><button type="button" role="tab" aria-selected="${historyView === 'meals'}" class="${historyView === 'meals' ? 'active' : ''}" ${actionAttrs('set-history-view', { view: 'meals' })}>Meals</button><button type="button" role="tab" aria-selected="${historyView === 'trends'}" class="${historyView === 'trends' ? 'active' : ''}" ${actionAttrs('set-history-view', { view: 'trends' })}>Trends</button></div>
     <div class="ctx-btn-group nutrition-history-range" role="group" aria-label="Nutrition history range">${rangeButtons}</div>
     ${storageError ? `<div class="nutrition-history-error" role="status">${escapeHTML(storageError)}</div>` : ''}
@@ -428,7 +427,7 @@ export function renderNutritionCustomizeModal({ returnTo = '' } = {}) {
 
 export function renderFluidLogModal() {
   return `<button type="button" class="modal-close" aria-label="Close drink log" ${actionAttrs('close')}>&times;</button>
-    <div class="nutrition-modal-head"><div><h3>Log a drink</h3><p>A fast, dedicated entry for water, coffee, tea, and other beverages.</p></div></div>
+    <div class="nutrition-modal-head"><div><h3>Log a drink</h3></div></div>
     <section class="nutrition-fluid-log">
       <fieldset class="nutrition-fluid-kind-fieldset"><legend>Beverage type</legend><div class="nutrition-fluid-kind-grid">
         <label class="nutrition-fluid-kind"><input type="radio" name="nutrition-fluid-kind" value="water" checked><span aria-hidden="true">◌</span><strong>Water</strong><small>Counts as plain water</small></label>
@@ -634,22 +633,21 @@ export function renderNutritionBenchmarkModal() {
 }
 
 export function renderMealModelControl() {
-  const provider = getAIProvider();
-  const mainModel = getActiveModelId(provider);
-  const mainDisplay = getActiveModelDisplay(provider) || mainModel || 'selected model';
-  const mainAvailable = hasAIProvider(provider) && !!mainModel && isConfirmedMealVisionModel(provider, mainModel);
   const selection = getMealAISelection();
   const checkingLocal = selection.local && isNutritionLocalAICatalogLoading();
-  const selectedValue = selection.usesChatModel ? '' : JSON.stringify({ provider: selection.provider, model: selection.model });
-  const models = listNutritionVisionModels().filter(model => model.provider === provider);
+  const selectedValue = selection.usesAutomatic ? '' : JSON.stringify({ provider: selection.provider, model: selection.model });
+  const models = listNutritionVisionModels().filter(model => model.provider === selection.provider);
   const options = models.map(model => `<option value="${escapeAttr(model.value)}"${model.value === selectedValue ? ' selected' : ''}>${escapeHTML(model.modelDisplay)}</option>`).join('');
   const hasSelectedRoute = !selectedValue || models.some(model => model.value === selectedValue);
   const unavailableSaved = selectedValue && !hasSelectedRoute
     ? `<option value="${escapeAttr(selectedValue)}" selected>${escapeHTML(selection.modelDisplay)} · saved choice</option>`
     : '';
   const pricing = nutritionModelPricing(selection.provider, selection.model);
-  const status = selection.available ? (selection.local ? 'Local' : 'Ready') : checkingLocal ? 'Checking…' : 'Unavailable';
-  return `<section id="nutrition-meal-model-control" class="nutrition-meal-model-control"><label class="nutrition-meal-model-select"><span id="nutrition-model-purpose">Photo model</span><select aria-label="Meal photo analysis model" data-nutrition-model-route><option value=""${selection.usesChatModel ? ' selected' : ''}${mainAvailable ? '' : ' disabled'}>Follow main · ${escapeHTML(mainDisplay)}</option>${unavailableSaved}${options}</select></label><div class="nutrition-meal-model-foot"><span>${escapeHTML(selection.providerDisplay)} · ${escapeHTML(pricing.priceLabel)} · <span class="nutrition-meal-model-status${selection.available ? ' is-ready' : ' is-unavailable'}">${status}</span></span><button type="button" class="nutrition-meal-model-settings" ${actionAttrs('open-ai-settings')}>AI settings</button></div></section>`;
+  const status = selection.available ? (selection.adapter === 'codex' ? 'Connected' : selection.local ? 'Local' : 'Ready') : checkingLocal ? 'Checking…' : 'Unavailable';
+  const automaticLabel = selection.fallback
+    ? `Automatic fallback · ${selection.modelDisplay}`
+    : `Follow chat assistant · ${selection.modelDisplay}`;
+  return `<section id="nutrition-meal-model-control" class="nutrition-meal-model-control"><label class="nutrition-meal-model-select"><span id="nutrition-model-purpose">Photo model</span><select aria-label="Meal photo analysis model" data-nutrition-model-route><option value=""${selection.usesAutomatic ? ' selected' : ''}${selection.available ? '' : ' disabled'}>${escapeHTML(automaticLabel)}</option>${unavailableSaved}${options}</select></label><div class="nutrition-meal-model-foot"><span>${escapeHTML(selection.providerDisplay)} · ${escapeHTML(pricing.priceLabel)} · <span class="nutrition-meal-model-status${selection.available ? ' is-ready' : ' is-unavailable'}">${status}</span></span><button type="button" class="nutrition-meal-model-settings" ${actionAttrs('open-ai-settings')}>AI settings</button></div></section>`;
 }
 
 function renderComparisonLauncher() {

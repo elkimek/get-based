@@ -5,7 +5,7 @@ import { state } from './state.js';
 import { SBM_2015_THRESHOLDS, getEMFSeverity, calculateCost, formatCost, trackUsage } from './schema.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import { saveImportedData } from './data.js';
-import { callClaudeAPI, getAIProvider, getActiveModelId, getActiveModelDisplay } from './api.js';
+import { callAssistantFeatureAI, getAssistantFeatureIdentity } from './ai-feature-routing.js';
 import { renderMarkdown } from './markdown.js';
 import {
   detectMitigationsInText,
@@ -22,7 +22,7 @@ import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-li
  */
 
 const emfInterpretationRuntimeDeps = {
-  callClaudeAPI,
+  callClaudeAPI: callAssistantFeatureAI,
   closeModal: /** @type {null | (() => void)} */ (null),
   openChatPanel: /** @type {null | ((message?: string) => unknown)} */ (null),
 };
@@ -238,9 +238,10 @@ function streamInterpretation(prompt, onComplete) {
   let lastRender = 0;
   const THROTTLE_MS = 150;
 
-  const provider = getAIProvider();
-  const modelId = getActiveModelId();
-  const modelDisplay = getActiveModelDisplay();
+  const identity = getAssistantFeatureIdentity();
+  const provider = identity.provider;
+  const modelId = identity.modelId;
+  const modelDisplay = identity.modelDisplay;
 
   emfInterpretationRuntimeDeps.callClaudeAPI({
     messages: [{ role: 'user', content: prompt }],
@@ -268,7 +269,7 @@ function streamInterpretation(prompt, onComplete) {
       outputTokens: usage.outputTokens || 0,
       date: new Date().toISOString()
     };
-    trackUsage(provider, modelId, usage.inputTokens || 0, usage.outputTokens || 0);
+    if (!identity.subscription) trackUsage(provider, modelId, usage.inputTokens || 0, usage.outputTokens || 0);
 
     if (meta) meta.innerHTML = buildMetaLine(interp);
 

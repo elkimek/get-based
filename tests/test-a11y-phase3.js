@@ -146,11 +146,13 @@ console.log('=== Phase 3 A11y Tests ===\n');
   // ─── 8. Chat streaming announcements ───
   const chatSendSrc = read('/js/chat-send.js');
   const chatDiscussionRoundViewSrc = read('/js/chat-discussion-round-view.js');
+  const chatThinkingStatusSrc = read('/js/chat-thinking-status.js');
   const chatStreamStatusSrc = read('/js/chat-stream-status.js');
   const chatMarkupSrc = read('/index.html');
   assert('decorative typing indicators stay silent while one shared status announces response phases',
-    chatSendSrc.includes("typingEl.setAttribute('aria-hidden', 'true')")
-    && chatDiscussionRoundViewSrc.includes("typingEl.setAttribute('aria-hidden', 'true')")
+    chatSendSrc.includes('createChatThinkingIndicator')
+    && chatDiscussionRoundViewSrc.includes('createChatThinkingIndicator')
+    && chatThinkingStatusSrc.includes("element.setAttribute('aria-hidden', 'true')")
     && chatMarkupSrc.includes('id="chat-stream-status" role="status" aria-live="polite" aria-atomic="true"')
     && chatStreamStatusSrc.includes('if (status) status.textContent = message;'));
 

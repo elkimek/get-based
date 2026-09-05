@@ -18,6 +18,7 @@ import {
   getVeniceModel,
   getVeniceBalance,
   isRecommendedModel,
+  modelMetadataIsAvailable,
   needsMaxCompletionTokens,
   selectLatestModelFamilies,
   selectLatestRecommendedModels,
@@ -83,6 +84,13 @@ afterEach(() => {
 });
 
 describe('API provider runtime behavior', () => {
+  it('excludes only models explicitly marked unavailable by their catalog', () => {
+    expect(modelMetadataIsAvailable({ id: 'ready' })).toBe(true);
+    expect(modelMetadataIsAvailable({ id: 'disabled', enabled: false })).toBe(false);
+    expect(modelMetadataIsAvailable({ id: 'missing', missing: true })).toBe(false);
+    expect(modelMetadataIsAvailable({ id: 'offline', status: 'offline' })).toBe(false);
+  });
+
   it('filters OpenRouter models, caches pricing and vision metadata, and fetches fuzzy pricing', async () => {
     const catalogChanged = vi.fn();
     window.addEventListener('labcharts-ai-settings-local-changed', catalogChanged, { once: true });
@@ -300,12 +308,22 @@ describe('API provider runtime behavior', () => {
     fetch.mockResolvedValueOnce(jsonResponse({
       data: [
         { id: 'z-ai/glm-5.3-flash', name: 'GLM 5.3 Flash' },
-        { id: 'openai/gpt-5.5', name: 'GPT 5.5' },
+        {
+          id: 'openai/gpt-5.5',
+          name: 'GPT 5.5',
+          reasoning: { supported_efforts: ['low', 'medium', 'high'], default_effort: 'medium' },
+          supported_parameters: ['reasoning'],
+        },
         { id: 'anthropic/claude-sonnet-5', name: 'Claude Sonnet 5' },
       ],
     }));
     await fetchCustomApiModels('https://custom.example/v1', 'sk-custom');
     expect(getCustomApiModel()).toBe('openai/gpt-5.5');
+    expect(JSON.parse(localStorage.getItem('labcharts-custom-models'))
+      .find(model => model.id === 'openai/gpt-5.5')).toMatchObject({
+      reasoning: { supported_efforts: ['low', 'medium', 'high'], default_effort: 'medium' },
+      supported_parameters: ['reasoning'],
+    });
 
     setCustomApiModel('');
     fetch.mockResolvedValueOnce(jsonResponse({
@@ -608,7 +626,7 @@ describe('API provider runtime behavior', () => {
       reasoningEffort: 'none',
       requestTimeoutMs: 50,
     })).resolves.toMatchObject({ text: 'mandatory answer' });
-    expect(JSON.parse(fetch.mock.calls.at(-1)[1].body).reasoning_effort).toBe('minimal');
+    expect(JSON.parse(fetch.mock.calls.at(-1)[1].body).reasoning).toEqual({ effort: 'minimal' });
 
     localStorage.removeItem('labcharts-openrouter-models');
     fetch.mockResolvedValueOnce(jsonResponse({
@@ -629,8 +647,8 @@ describe('API provider runtime behavior', () => {
     });
     const staleCacheBodies = fetch.mock.calls.slice(-2)
       .map(([, init]) => JSON.parse(init.body));
-    expect(staleCacheBodies[0].reasoning_effort).toBe('none');
-    expect(staleCacheBodies[1]).not.toHaveProperty('reasoning_effort');
+    expect(staleCacheBodies[0].reasoning).toEqual({ effort: 'none' });
+    expect(staleCacheBodies[1]).not.toHaveProperty('reasoning');
   });
 
   it('reports model capabilities across providers', () => {

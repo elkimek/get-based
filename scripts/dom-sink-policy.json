@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 684,
-  "sinkCount": 545,
+  "scannedFiles": 709,
+  "sinkCount": 557,
   "files": {
     "js/backup.js": {
       "count": 1,
@@ -56,10 +56,10 @@
       }
     },
     "js/chat-discussion-round-view.js": {
-      "count": 5,
-      "digest": "5e49eaaf870ead128a744799650b48f9ef6fdf21b64d81de4220f84653cf3b50",
+      "count": 4,
+      "digest": "37d2eeda166fcdf2780bbd8438e9ae702ebebfe45d0fd9604700714625d1b684",
       "kinds": {
-        "innerHTML": 4,
+        "innerHTML": 3,
         "insertAdjacentHTML": 1
       }
     },
@@ -72,14 +72,14 @@
     },
     "js/chat-empty-state.js": {
       "count": 11,
-      "digest": "781cdf0b1eb6f9e3cfe33762023b76935132a47ff3d60c655f5263ad9eb4455b",
+      "digest": "61eac9e1697ff14ede4200217e96937c009f517c048ec02d8cde6fb05aaca09e",
       "kinds": {
         "innerHTML": 11
       }
     },
     "js/chat-images.js": {
       "count": 2,
-      "digest": "9435182f209fd95dcd14554336f25dd07ebf2343326bf6db58be4e0011a08f9d",
+      "digest": "c12b98988e7d36c5ebe9b95287b12939dc69742269b5db2c7d3e078baaf76a59",
       "kinds": {
         "innerHTML": 2
       }
@@ -87,6 +87,13 @@
     "js/chat-message-edit.js": {
       "count": 1,
       "digest": "4cf5c9ecee8d08738fdd49efc45630795a9e552d69132578037986d53f25d575",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/chat-model-controls.js": {
+      "count": 1,
+      "digest": "b2bad668a80fd7ac26b311032608b63b513d3306141091cb203934b3eff83066",
       "kinds": {
         "innerHTML": 1
       }
@@ -121,19 +128,33 @@
       }
     },
     "js/chat-send.js": {
-      "count": 10,
-      "digest": "cb8912b15d0521d118f7be3509eded6e1c1e389c1ff750d34b03f1b3fe3fec35",
+      "count": 9,
+      "digest": "f51f50f13f08c852ffba2e7ea4f2aff3443c167c218ea467bfedf93dee99be12",
       "kinds": {
-        "innerHTML": 9,
+        "innerHTML": 8,
         "insertAdjacentHTML": 1
       }
     },
     "js/chat-summaries.js": {
       "count": 5,
-      "digest": "3d21bb017610407938acf54304e83eac730dc4ddde4035ce8b128b8387627310",
+      "digest": "cac5aa404325deb9f7c2387d7d1bc9e61d255cb0c7d7b88d51d59280a0abacd3",
       "kinds": {
         "document.write": 1,
         "innerHTML": 4
+      }
+    },
+    "js/chat-thinking-status.js": {
+      "count": 1,
+      "digest": "5ff0882cb0f5c0b5b35868c37c10bc1d495775b9f348d18ffed60717710039f0",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/chat-thread-list-view.js": {
+      "count": 3,
+      "digest": "f5af3f36256ed36a8c35834312c8e9f88c51dbb68662532f4e9445ed86a5a9b0",
+      "kinds": {
+        "innerHTML": 3
       }
     },
     "js/chat-thread-search.js": {
@@ -142,13 +163,6 @@
       "kinds": {
         "innerHTML": 3,
         "insertAdjacentHTML": 1
-      }
-    },
-    "js/chat-threads.js": {
-      "count": 2,
-      "digest": "af3a1916583fa2cdf83acbc67cc302996580c42b39c3691a4dfa880537eae97f",
-      "kinds": {
-        "innerHTML": 2
       }
     },
     "js/client-list-form.js": {
@@ -188,7 +202,7 @@
     },
     "js/context-card-dashboard-ai-impl.js": {
       "count": 4,
-      "digest": "425bcf47c968cbfc6f72dd5aede7114077c11cd7e19600e6ea8c02fd744f0443",
+      "digest": "2b4f9cb99bf338849d301ea6dee7efcfe79f09c161d3cf23334812239fe4db21",
       "kinds": {
         "innerHTML": 2,
         "outerHTML": 2
@@ -386,14 +400,14 @@
     },
     "js/lens-knowledge-base-ui.js": {
       "count": 8,
-      "digest": "31d50d2cec39feb3bddbc41b39bddbb2a01ddf531f795d14b85bcb76614fd564",
+      "digest": "84321aed184de475b7da9b1a2caeab6dcff0b565af4fc1c4985bff54012dd5b8",
       "kinds": {
         "innerHTML": 8
       }
     },
     "js/lens-library.js": {
       "count": 4,
-      "digest": "6b190fac1c7e77d333148f96bdf650975d5a66ec365912ac25743e587c6c4a0c",
+      "digest": "465d1f85d6fc8f5791dd9aaf38c9411409e54c9fd140849227dfcfc4d65a255e",
       "kinds": {
         "innerHTML": 4
       }
@@ -761,6 +775,15 @@
         "innerHTML": 1
       }
     },
+    "js/settings-cli-agent-panel.js": {
+      "count": 10,
+      "digest": "88812696f7f9aeeb09b49751b9af9dfa9fcceea9fe65e4c26907f866bb4e45f3",
+      "kinds": {
+        "innerHTML": 7,
+        "insertAdjacentHTML": 2,
+        "outerHTML": 1
+      }
+    },
     "js/settings-data.js": {
       "count": 3,
       "digest": "6828d0c5034277ab64ece7e590c3cd064c5612d700c3578455cb3fc8630bdb42",
@@ -812,16 +835,16 @@
     },
     "js/settings-tweaks.js": {
       "count": 1,
-      "digest": "86d7a31272bca80fcfaeea636af671e56d554f663e54e86b611d08754ae93ed2",
+      "digest": "c4a7ccd84475c90eec60f3b62a351432808cb83b16583bc1528ce3cf98d97b7f",
       "kinds": {
         "insertAdjacentHTML": 1
       }
     },
     "js/settings.js": {
-      "count": 3,
-      "digest": "75310b7930897f1ca64ef88ec5fc69cfc22e5e17a26d2fa1fec27ab112edb3d4",
+      "count": 4,
+      "digest": "fcb2e24d2dbc76ecb4023e13c49d1678dd5e649fde7d974a11693404a51fdf1f",
       "kinds": {
-        "innerHTML": 3
+        "innerHTML": 4
       }
     },
     "js/sun-active-session.js": {

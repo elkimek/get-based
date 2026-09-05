@@ -9,7 +9,7 @@ import {
   notifyAIModelCatalogChanged,
   setCustomApiModel,
 } from './api-provider-storage.js';
-import { findPreferredModel, modelMetadataSupportsVision } from './api-models.js';
+import { findPreferredModel, modelMetadataIsAvailable, modelMetadataSupportsVision } from './api-models.js';
 import { callOpenAICompatibleAPI } from './api-openai-compatible.js';
 
 const CUSTOM_DEFAULT_CANDIDATES = ['openai/gpt-5.5', 'gpt-5.5', 'anthropic/claude-sonnet-5', 'claude-sonnet-5', 'anthropic/claude-sonnet-4.6', 'claude-sonnet-4.6'];
@@ -44,7 +44,9 @@ export async function fetchCustomApiModels(baseUrl, key) {
     }
     if (!res.ok) return [];
     const json = await res.json();
-    const models = (json.data || []).filter(function(m) { return m.id; }).map(function(m) {
+    const models = (json.data || []).filter(function(m) {
+      return m.id && modelMetadataIsAvailable(m);
+    }).map(function(m) {
       return {
         id: m.id,
         name: m.name || m.id,
@@ -52,6 +54,9 @@ export async function fetchCustomApiModels(baseUrl, key) {
         ...(Array.isArray(m.input_modalities) ? { input_modalities: m.input_modalities } : {}),
         ...(Array.isArray(m.input) ? { input: m.input } : {}),
         ...(m.capabilities ? { capabilities: m.capabilities } : {}),
+        ...(m.reasoning && typeof m.reasoning === 'object' ? { reasoning: m.reasoning } : {}),
+        ...(Array.isArray(m.supported_parameters) ? { supported_parameters: m.supported_parameters } : {}),
+        ...(typeof m.defaultReasoningEffort === 'string' ? { defaultReasoningEffort: m.defaultReasoningEffort } : {}),
       };
     }).sort(function(a, b) { return a.name.localeCompare(b.name); });
     const visionIds = models.filter(modelMetadataSupportsVision).map(model => model.id);

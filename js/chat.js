@@ -26,7 +26,7 @@ export {
 } from './chat-actions.js';
 export {
   closeChatPanel, getChatWebSearchEnabled, refreshWebSearchToggle,
-  setChatWebSearchEnabled, toggleChatFullscreen,
+  setChatBackendFromUI, setChatWebSearchEnabled, toggleChatFullscreen,
   toggleChatPanel, openChatPanel, updateChatInputState,
 } from './chat-panel.js';
 export { setChatNudge, updateChatNudge } from './chat-nudge.js';

@@ -32,14 +32,12 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
     const previousShellProfileShareDeps = shellActions.configureShellProfileShareDeps({
       openProfileShareModal: (...args) => calls.push(['openProfileShareModal', ...args]),
     });
-    const previousShellChatImageDeps = shellActions.configureShellChatImageDeps({
-      toggleHDMode: () => calls.push(['toggleHDMode']),
-    });
     const previousShellChatActionDeps = shellActions.configureShellChatActionDeps({
       closeChatPanel: () => calls.push(['closeChatPanel']),
       clearChatHistory: () => calls.push(['clearChatHistory']),
       handleChatKeydown: event => calls.push(['handleChatKeydown', event]),
       sendChatMessage: () => calls.push(['sendChatMessage']),
+      setChatBackendFromUI: backend => calls.push(['setChatBackendFromUI', backend]),
       setChatPersonality: personality => calls.push(['setChatPersonality', personality]),
       setChatWebSearchEnabled: enabled => calls.push(['setChatWebSearchEnabled', enabled]),
       startDiscussion: () => calls.push(['startDiscussion']),
@@ -49,8 +47,10 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
       togglePersonalityBar: () => calls.push(['togglePersonalityBar']),
     });
     const previousShellChatThreadDeps = shellActions.configureShellChatThreadDeps({
+      createThreadProject: () => calls.push(['createThreadProject']),
       createNewThread: () => calls.push(['createNewThread']),
       filterThreadList: value => calls.push(['filterThreadList', value]),
+      setChatThreadSort: value => calls.push(['setChatThreadSort', value]),
       toggleThreadRail: () => calls.push(['toggleThreadRail']),
     });
     const previousShellNavDeps = shellActions.configureShellNavDeps({
@@ -84,18 +84,22 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
         <button id="chat-close" data-chat-action="close-panel"></button>
         <button id="thread-rail" data-chat-action="toggle-thread-rail"></button>
         <button id="new-thread" data-chat-action="create-thread"></button>
+        <button id="new-project" data-chat-action="create-project"></button>
         <button id="summarize" data-chat-action="summarize-thread"></button>
         <button id="clear-history" data-chat-action="clear-history"></button>
         <button id="fullscreen" data-chat-action="toggle-fullscreen"></button>
         <button id="toggle-personality" data-chat-action="toggle-personality" data-chat-key-action="toggle-personality"></button>
         <button id="set-personality" data-chat-action="set-personality" data-personality="house"></button>
-        <button id="attach-image" data-chat-action="attach-image"></button>
-        <button id="toggle-hd" data-chat-action="toggle-hd"></button>
+        <details id="composer-menu" open><button id="attach-image" data-chat-action="attach-image"></button></details>
+        <details id="import-menu" open><button id="import-health-file" data-chat-action="import-health-file"></button></details>
+        <button id="open-chat-context" data-chat-action="open-chat-context"></button>
         <button id="start-discussion" data-chat-action="start-discussion"></button>
         <button id="send-message" data-chat-action="send-message"></button>
         <button id="unknown-chat" data-chat-action="unknown"></button>
         <input id="thread-search" data-chat-input-action="filter-thread-list">
         <input id="websearch" type="checkbox" data-chat-change-action="set-websearch">
+        <select id="chat-backend" data-chat-change-action="set-backend"><option value="codex">Codex</option></select>
+        <select id="thread-sort" data-chat-change-action="sort-thread-list"><option value="name">Name</option></select>
         <textarea id="message-input" data-chat-key-action="message-input"></textarea>
       `;
       document.getElementById('pdf-input').addEventListener('click', () => calls.push(['pdf-input-click']));
@@ -140,13 +144,15 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
         click('#chat-close'),
         click('#thread-rail'),
         click('#new-thread'),
+        click('#new-project'),
         click('#summarize'),
         click('#clear-history'),
         click('#fullscreen'),
         click('#toggle-personality'),
         click('#set-personality'),
         click('#attach-image'),
-        click('#toggle-hd'),
+        click('#import-health-file'),
+        click('#open-chat-context'),
         click('#start-discussion'),
         click('#send-message'),
       ];
@@ -158,13 +164,16 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
         && calls.some(call => call[0] === 'closeChatPanel')
         && calls.some(call => call[0] === 'toggleThreadRail')
         && calls.some(call => call[0] === 'createNewThread')
+        && calls.some(call => call[0] === 'createThreadProject')
         && calls.some(call => call[0] === 'summarizeThread')
         && calls.some(call => call[0] === 'clearChatHistory')
         && calls.some(call => call[0] === 'toggleChatFullscreen')
         && calls.some(call => call[0] === 'togglePersonalityBar')
         && calls.some(call => call[0] === 'setChatPersonality' && call[1] === 'house')
         && calls.some(call => call[0] === 'chat-image-input-click')
-        && calls.some(call => call[0] === 'toggleHDMode')
+        && calls.filter(call => call[0] === 'pdf-input-click').length >= 2
+        && document.getElementById('composer-menu')?.open === false
+        && document.getElementById('import-menu')?.open === false
         && calls.some(call => call[0] === 'startDiscussion')
         && calls.some(call => call[0] === 'sendChatMessage');
 
@@ -176,10 +185,18 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
       const websearch = document.getElementById('websearch');
       websearch.checked = true;
       websearch.dispatchEvent(new Event('change', { bubbles: true }));
+      const chatBackend = document.getElementById('chat-backend');
+      chatBackend.value = 'codex';
+      chatBackend.dispatchEvent(new Event('change', { bubbles: true }));
+      const threadSort = document.getElementById('thread-sort');
+      threadSort.value = 'name';
+      threadSort.dispatchEvent(new Event('change', { bubbles: true }));
       outcomes.inputSearchAndChangeActionsDelegate =
         calls.some(call => call[0] === 'filterThreadList' && call[1] === 'ferritin')
         && calls.some(call => call[0] === 'filterThreadList' && call[1] === 'vitamin d')
-        && calls.some(call => call[0] === 'setChatWebSearchEnabled' && call[1] === true);
+        && calls.some(call => call[0] === 'setChatWebSearchEnabled' && call[1] === true)
+        && calls.some(call => call[0] === 'setChatBackendFromUI' && call[1] === 'codex')
+        && calls.some(call => call[0] === 'setChatThreadSort' && call[1] === 'name');
 
       const messageKey = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
       document.getElementById('message-input').dispatchEvent(messageKey);
@@ -201,7 +218,6 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
       shellActions.configureShellFeedbackDeps(previousShellFeedbackDeps);
       shellActions.configureShellProfileShareDeps(previousShellProfileShareDeps);
       shellActions.configureShellChatActionDeps(previousShellChatActionDeps);
-      shellActions.configureShellChatImageDeps(previousShellChatImageDeps);
       shellActions.configureShellChatThreadDeps(previousShellChatThreadDeps);
       settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       document.body.innerHTML = '';

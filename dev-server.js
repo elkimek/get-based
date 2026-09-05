@@ -33,6 +33,7 @@ import {
   handleCatalogDeployRequest,
 } from './lib/dev-catalog.js';
 import { handleDevFetchPage } from './lib/dev-url-fetch.js';
+import { startDevAgentHost } from './lib/dev-agent-host.js';
 
 export {
   DEFAULT_UVDATA_UPSTREAM,
@@ -59,6 +60,7 @@ const ROOT = path.dirname(__filename);
 const SITE_DIR = process.env.SITE_DIR || path.join(ROOT, '..', 'get-based-site');
 const SITE_INDEX = path.join(SITE_DIR, 'index.html');
 const hasSite = fs.existsSync(SITE_INDEX);
+let devAgentHost = null;
 
 // Auto-load .env.local (gitignored) before anything else reads process.env.
 // Keeps OAuth client secrets out of shell history and out of git. Values
@@ -264,11 +266,16 @@ export function isSameOrigin(req) {
 
 // Loopback check on the actual TCP socket — the only authentication that
 // can't be forged by a LAN peer setting `Origin: http://localhost:PORT`.
-// Used as a hard gate in front of /api/* when HOST=0.0.0.0 (phone testing).
+// Used as a hard gate in front of private APIs for every bind address.
 export function _isLoopbackSocket(req) {
   const ra = req.socket?.remoteAddress || '';
   // Node reports IPv4 via "::ffff:127.0.0.1" on dual-stack listeners.
   return ra === '127.0.0.1' || ra === '::1' || ra === '::ffff:127.0.0.1';
+}
+
+export function _isPrivateApiPeerAllowed(req, pathname) {
+  if (pathname === '/api/commit') return true;
+  return !(pathname.startsWith('/api/') || pathname === '/proxy') || _isLoopbackSocket(req);
 }
 
 // Canonical same-origin check using the request's own Host header.
@@ -445,12 +452,8 @@ const server = http.createServer((req, res) => {
   // to whatever bundle they first cached, so phone testing silently
   // missed every code change after the initial visit. Allowlist it
   // explicitly here.
-  const LAN_SAFE_API_PATHS = new Set(['/api/commit']);
-  if (HOST === '0.0.0.0'
-      && (pathname.startsWith('/api/') || pathname === '/proxy')
-      && !LAN_SAFE_API_PATHS.has(pathname)
-      && !_isLoopbackSocket(req)) {
-    res.writeHead(403); res.end('Forbidden — /api/* disabled for non-loopback peers when HOST=0.0.0.0'); return;
+  if (!_isPrivateApiPeerAllowed(req, pathname)) {
+    res.writeHead(403); res.end('Forbidden — private APIs require a loopback peer'); return;
   }
 
   // API: return current git HEAD + branch so Settings → Display shows the
@@ -463,6 +466,15 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ sha: sha.trim(), ref: e2 ? '' : ref.trim() }));
       });
     });
+    return;
+  }
+
+  if (pathname === '/api/local-agents' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    const inventory = url.searchParams.get('refresh') === '1'
+      ? devAgentHost?.refresh?.()
+      : devAgentHost?.describe();
+    res.end(JSON.stringify(inventory || { agents: [] }));
     return;
   }
 
@@ -692,18 +704,38 @@ const server = http.createServer((req, res) => {
 // `node dev-server.js`, different means `import ... from './dev-server.js'`.
 const _entryUrl = process.argv[1] ? new URL(`file://${path.resolve(process.argv[1])}`).href : '';
 const _isDirectRun = import.meta.url === _entryUrl;
-if (_isDirectRun) server.listen(PORT, HOST, () => {
-  const localUrl = `http://127.0.0.1:${PORT}`;
-  console.log(`Dev server running at http://${HOST === '0.0.0.0' ? '0.0.0.0' : '127.0.0.1'}:${PORT}`);
-  if (HOST === '0.0.0.0') {
-    console.log(`  → reachable on your LAN at http://<your-lan-ip>:${PORT}`);
-  }
-  if (hasSite) {
-    console.log(`  /        → landing page (${SITE_DIR})`);
-    console.log(`  /app     → index.html`);
-  } else {
-    console.log(`  /        → index.html (no site repo found at ${SITE_DIR})`);
-  }
-  console.log(`  /docs/*  → 301 docs.getbased.health`);
-  openDevBrowser(localUrl);
-});
+if (_isDirectRun) {
+  devAgentHost = startDevAgentHost({ root: ROOT });
+  server.listen(PORT, HOST, () => {
+    const localUrl = `http://127.0.0.1:${PORT}`;
+    // A unique development navigation bypasses an older service worker's exact
+    // cached document while switching branches or worktrees on the same origin.
+    const appUrl = `${localUrl}/app?dev=${Date.now()}`;
+    console.log(`Dev server running at http://${HOST === '0.0.0.0' ? '0.0.0.0' : '127.0.0.1'}:${PORT}`);
+    if (HOST === '0.0.0.0') {
+      console.log(`  → reachable on your LAN at http://<your-lan-ip>:${PORT}`);
+    }
+    if (hasSite) {
+      console.log(`  /        → landing page (${SITE_DIR})`);
+      console.log(`  /app     → index.html`);
+    } else {
+      console.log(`  /        → index.html (no site repo found at ${SITE_DIR})`);
+    }
+    console.log(`  /docs/*  → 301 docs.getbased.health`);
+    openDevBrowser(appUrl);
+  });
+  let shuttingDown = false;
+  const shutdown = (exitCode = 0) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    devAgentHost?.close();
+    process.exitCode = exitCode;
+    if (server.listening) server.close();
+  };
+  server.once('error', (error) => {
+    console.error(`Dev server failed: ${error.message}`);
+    shutdown(1);
+  });
+  process.once('SIGINT', () => shutdown(0));
+  process.once('SIGTERM', () => shutdown(0));
+}

@@ -1,7 +1,8 @@
 // @ts-check
 // marker-detail-content.js — Biological-age and custom-description content helpers
 
-import { callClaudeAPI, getActiveModelId, getAIProvider, hasAIProvider } from './api.js';
+import { getActiveModelId, getAIProvider } from './api.js';
+import { callAssistantFeatureAI, getAssistantFeatureIdentity, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { resolveActiveMarkerPath } from './marker-placement.js';
 import { trackUsage } from './schema.js';
 
@@ -81,14 +82,14 @@ export async function fetchCustomMarkerDescription(markerId, markerName, unit) {
   const cacheKey = 'labcharts-marker-desc';
   const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
   if (cache[markerId]) return cache[markerId];
-  if (!hasAIProvider()) return null;
+  if (!hasAssistantFeatureProvider()) return null;
   try {
-    const result = await callClaudeAPI({
+    const result = await callAssistantFeatureAI({
       system: 'You are a concise medical reference. Reply with exactly one sentence (max 30 words) explaining what this blood biomarker measures and why it matters clinically. No preamble.',
       messages: [{ role: 'user', content: `${markerName} (${unit})` }],
       maxTokens: 100,
     });
-    if (result?.usage) {
+    if (result?.usage && !getAssistantFeatureIdentity().subscription) {
       trackUsage(
         getAIProvider(),
         getActiveModelId(),

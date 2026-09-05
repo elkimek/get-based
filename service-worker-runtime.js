@@ -223,6 +223,12 @@ function installServiceWorkerRuntime({
     // Installed PWAs launch at /app. Offline navigation falls back to the
     // cached application document.
     if (event.request.mode === 'navigate') {
+      if (!isProduction) {
+        event.respondWith(
+          fetchAndCache(event.request).catch(() => cachedAppShell())
+        );
+        return;
+      }
       event.respondWith(
         matchCurrentCache(event.request).then((cached) => {
           const fetched = fetchAndCache(event.request).catch(() => cached || cachedAppShell());

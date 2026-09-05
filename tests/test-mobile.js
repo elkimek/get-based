@@ -37,6 +37,7 @@ return (async function() {
 ${await fetchWithRetry('css/settings.css')}
 ${await fetchWithRetry('css/category-views.css')}
 ${await fetchWithRetry('css/data-protection.css')}
+${await fetchWithRetry('css/chat-mobile.css')}
 ${await fetchWithRetry('css/chat-redesign-open.css')}`;
 
   // ═══ Section 1: Header mobile layout ═══
@@ -184,7 +185,7 @@ ${await fetchWithRetry('css/chat-redesign-open.css')}`;
   console.log('%c[9] Touch Hover Fix', 'font-weight:bold');
   assert('hover:none media query exists', css.includes('hover: none'));
   assert('mv-delete visible on touch', css.includes('mv-delete') && css.includes('opacity: 0.7'));
-  assert('chat-thread-item-actions visible on touch', css.includes('chat-thread-item-actions'));
+  assert('chat thread action menu remains available on touch', css.includes('chat-thread-item-menu'));
   assert('lens-section-edit visible on touch', css.includes('lens-section-edit') && css.includes('opacity: 0.7'));
 
   // ═══ Section 10: Chat thread rail back button ═══

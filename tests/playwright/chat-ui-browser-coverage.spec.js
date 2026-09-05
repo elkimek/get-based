@@ -19,19 +19,23 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       return [key, localStorage.getItem(key)];
     }));
     const preview = document.getElementById('chat-attach-preview');
-    const hdBtn = document.getElementById('chat-hd-btn');
     const attachBtn = document.getElementById('chat-attach-btn');
+    const photoAction = document.getElementById('chat-add-photo-action');
     const input = document.getElementById('chat-image-input');
+    const fallbackInput = document.getElementById('chat-file-input');
     const messages = document.getElementById('chat-messages');
+    const inputArea = document.querySelector('.chat-input-area');
+    const conversation = document.querySelector('.chat-panel-conversation');
+    const dropOverlay = document.getElementById('chat-drop-overlay');
     const originalPreview = preview?.innerHTML;
     const originalPreviewDisplay = preview?.style.display;
-    const originalHdDisplay = hdBtn?.style.display;
-    const originalHdTitle = hdBtn?.title;
-    const originalHdClass = hdBtn?.className;
     const originalAttachDisplay = attachBtn?.style.display;
     const originalInputFiles = input ? Object.getOwnPropertyDescriptor(input, 'files') : null;
+    const originalInputValue = input ? Object.getOwnPropertyDescriptor(input, 'value') : null;
     const originalThreadId = state.currentThreadId;
     let sendButtonRefreshes = 0;
+    const importedFiles = [];
+    const importedPayloads = [];
 
     const pngBytes = Uint8Array.from(atob(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
@@ -41,15 +45,17 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
     try {
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.setItem('labcharts-ai-paused', 'false');
-      localStorage.setItem('labcharts-hd-images', 'false');
       chatImages.configureChatImages({
         updateSendButtonState: () => { sendButtonRefreshes += 1; },
+        importFiles: async files => {
+          importedPayloads.push(...files);
+          importedFiles.push(...files.map(file => file.name));
+        },
       });
       chatImages.clearAttachments();
       chatImages.updateAttachButtonVisibility();
 
       outcomes.chatImageHandlersStayModuleOnly = [
-        'toggleHDMode',
         'addImageAttachment',
         'removeImageAttachment',
         'renderAttachmentPreview',
@@ -59,21 +65,21 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
         'initChatImageHandlers',
       ].every(name => typeof window[name] === 'undefined');
 
-      outcomes.attachButtonsVisibleForVisionProvider = attachBtn?.style.display === 'flex'
-        && hdBtn?.style.display === 'flex'
-        && hdBtn?.classList.contains('active') === false;
-
-      chatImages.toggleHDMode();
-      outcomes.hdTogglePersistsAndUpdatesButton = localStorage.getItem('labcharts-hd-images') === 'true'
-        && hdBtn?.classList.contains('active') === true
-        && hdBtn?.title.includes('2048px') === true;
+      outcomes.structuredComposerMenuExposesOriginalPhotoPicker = attachBtn?.style.display === 'flex'
+        && photoAction?.hidden === false
+        && input?.getAttribute('accept')?.includes('image/') === true
+        && input?.getAttribute('accept')?.includes('.pdf') === false
+        && fallbackInput?.getAttribute('accept')?.includes('.pdf') === true
+        && fallbackInput?.getAttribute('accept')?.includes('image/') === true
+        && attachBtn?.getAttribute('aria-label') === 'Add to message';
 
       await chatImages.addImageAttachment(makeImage('tiny <lab>.png'));
       outcomes.addImageCreatesPreview = chatImages.getPendingAttachments().length === 1
         && chatImages.hasPendingAttachments() === true
         && preview?.style.display === 'flex'
         && preview?.querySelector('.chat-attach-count')?.textContent === '1/5'
-        && preview?.querySelector('img')?.getAttribute('alt') === 'tiny <lab>.png';
+        && preview?.querySelector('img')?.getAttribute('alt') === 'tiny <lab>.png'
+        && chatImages.getPendingAttachments()[0]?.base64 === btoa(String.fromCharCode(...pngBytes));
 
       const attachmentMessage = {};
       chatImages.rememberMessageAttachments(attachmentMessage, chatImages.getPendingAttachments());
@@ -109,6 +115,7 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       outcomes.invalidImageIsRejected = chatImages.getPendingAttachments().length === 0;
 
       chatImages.initChatImageHandlers();
+      chatImages.initChatImageHandlers();
       const fileInputImage = makeImage('picked.png');
       if (input) {
         Object.defineProperty(input, 'files', {
@@ -124,14 +131,15 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
         && input?.value === '';
 
       chatImages.clearAttachments();
-      if (messages) {
+      if (conversation && messages) {
         const dragOver = new Event('dragover', { bubbles: true, cancelable: true });
         Object.defineProperty(dragOver, 'dataTransfer', {
           configurable: true,
-          value: { types: ['Files'], files: [] },
+          value: { types: ['Files'], files: [], dropEffect: 'none' },
         });
         messages.dispatchEvent(dragOver);
-        outcomes.dragOverMarksDropArea = messages.classList.contains('chat-drop-active');
+        outcomes.dragOverMarksDropArea = conversation.classList.contains('chat-drop-active')
+          && dropOverlay?.hidden === false;
 
         const dragLeave = new Event('dragleave', { bubbles: true });
         Object.defineProperty(dragLeave, 'relatedTarget', {
@@ -139,7 +147,8 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
           value: null,
         });
         messages.dispatchEvent(dragLeave);
-        outcomes.dragLeaveClearsDropArea = !messages.classList.contains('chat-drop-active');
+        outcomes.dragLeaveClearsDropArea = !conversation.classList.contains('chat-drop-active')
+          && dropOverlay?.hidden === true;
 
         const drop = new Event('drop', { bubbles: true, cancelable: true });
         Object.defineProperty(drop, 'dataTransfer', {
@@ -152,6 +161,83 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
         }
       }
       outcomes.dropHandlerAddsImage = chatImages.getPendingAttachments().some(att => att.name === 'dropped.png');
+
+      let droppedReport = null;
+      if (inputArea) {
+        droppedReport = new File(['%PDF stable drop'], 'labs.pdf', {
+          type: 'application/pdf',
+          lastModified: 12345,
+        });
+        const reportDrop = new Event('drop', { bubbles: true, cancelable: true });
+        Object.defineProperty(reportDrop, 'dataTransfer', {
+          configurable: true,
+          value: {
+            files: [],
+            items: [{
+              kind: 'file',
+              getAsFile: () => null,
+              getAsFileSystemHandle: async () => ({
+                kind: 'file',
+                getFile: async () => droppedReport,
+              }),
+            }],
+          },
+        });
+        inputArea.dispatchEvent(reportDrop);
+        for (let i = 0; i < 40 && !importedFiles.includes('labs.pdf'); i += 1) {
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+      }
+      const stableDroppedReport = importedPayloads.find(file => file.name === 'labs.pdf');
+      outcomes.dropOnComposerRoutesPdfToImport = importedFiles.includes('labs.pdf')
+        && importedFiles.filter(name => name === 'labs.pdf').length === 1
+        && chatImages.getPendingAttachments().every(att => att.name !== 'labs.pdf')
+        && stableDroppedReport instanceof File
+        && stableDroppedReport !== droppedReport
+        && stableDroppedReport.type === 'application/pdf'
+        && stableDroppedReport.lastModified === 12345
+        && await stableDroppedReport.text() === '%PDF stable drop';
+
+      const standardDrop = new DataTransfer();
+      standardDrop.items.add(new File(['standard'], 'standard.pdf', { type: 'application/pdf' }));
+      await chatImages.handleDroppedChatFiles(standardDrop);
+      outcomes.standardFileDropWorks = importedFiles.includes('standard.pdf');
+
+      const entryFile = new File(['entry'], 'entry.pdf', { type: 'application/pdf' });
+      await chatImages.handleDroppedChatFiles(/** @type {any} */ ({
+        files: [],
+        items: [{
+          kind: 'file',
+          getAsFile: () => null,
+          webkitGetAsEntry: () => ({
+            isFile: true,
+            file: resolve => resolve(entryFile),
+          }),
+        }],
+      }));
+      outcomes.fileEntryDropWorks = importedFiles.includes('entry.pdf');
+
+      let fallbackPickerClicks = 0;
+      fallbackInput?.addEventListener('click', event => {
+        fallbackPickerClicks += 1;
+        event.preventDefault();
+      }, { once: true });
+      const unreadableDrop = chatImages.handleDroppedChatFiles(/** @type {any} */ ({
+        files: [],
+        items: [{ kind: 'file', getAsFile: () => null }],
+      }));
+      for (let i = 0; i < 40 && !document.getElementById('confirm-ok'); i += 1) {
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      const fallbackMessage = document.querySelector('#confirm-dialog-overlay .confirm-message')?.textContent || '';
+      const expectsLinuxChromiumHint = /Linux/i.test(navigator.userAgent)
+        && /(?:Chrome|Chromium|Edg)\//i.test(navigator.userAgent);
+      document.getElementById('confirm-ok')?.click();
+      await unreadableDrop;
+      outcomes.unreadableDropOffersWorkingPickerFallback = fallbackPickerClicks === 1
+        && !document.getElementById('confirm-dialog-overlay')?.classList.contains('show')
+        && fallbackMessage.includes('could not read this dropped file')
+        && fallbackMessage.includes('Ozone platform') === expectsLinuxChromiumHint;
 
       chatImages.openImageLightbox('data:image/png;base64,abc');
       const lightbox = document.querySelector('.chat-lightbox');
@@ -166,19 +252,18 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       outcomes.lightboxEscapeCloses = !document.querySelector('.chat-lightbox');
     } finally {
-      chatImages.configureChatImages({ updateSendButtonState: () => {} });
+      chatImages.configureChatImages({ updateSendButtonState: () => {}, importFiles: async () => {} });
       chatImages.clearAttachments();
       if (preview) {
         preview.innerHTML = originalPreview || '';
         preview.style.display = originalPreviewDisplay || '';
       }
-      if (hdBtn) {
-        hdBtn.style.display = originalHdDisplay || '';
-        hdBtn.title = originalHdTitle || '';
-        hdBtn.className = originalHdClass || '';
-      }
       if (attachBtn) attachBtn.style.display = originalAttachDisplay || '';
       if (input && originalInputFiles) Object.defineProperty(input, 'files', originalInputFiles);
+      if (input) {
+        if (originalInputValue) Object.defineProperty(input, 'value', originalInputValue);
+        else delete input.value;
+      }
       state.currentThreadId = originalThreadId;
       localStorage.clear();
       for (const [key, value] of storage) {

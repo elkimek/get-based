@@ -51,6 +51,10 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
         'deleteThread',
         'renameThread',
         'renameThreadPrompt',
+        'renameThreadProject',
+        'renameThreadProjectPrompt',
+        'deleteThreadProject',
+        'deleteThreadProjectPrompt',
         'installChatThreadDelegates',
         'autoNameThread',
         'pruneOldThreads',
@@ -82,8 +86,8 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
 
       const threadItem = document.querySelector('.chat-thread-item[data-thread-id="t_a"]');
       const threadSwitch = threadItem?.querySelector('.chat-thread-item-main');
-      const renameBtn = document.querySelector('.chat-thread-item[data-thread-id="t_a"] .chat-thread-item-action');
-      const deleteBtn = document.querySelector('.chat-thread-item[data-thread-id="t_a"] .chat-thread-item-action.delete');
+      const renameBtn = document.querySelector('.chat-thread-item[data-thread-id="t_a"] [data-chat-thread-action="rename"]');
+      const deleteBtn = document.querySelector('.chat-thread-item[data-thread-id="t_a"] [data-chat-thread-action="delete"]');
       outcomes.threadItemUsesNativeDelegatedSwitch = threadSwitch?.tagName === 'BUTTON'
         && threadSwitch?.getAttribute('data-chat-thread-action') === 'switch'
         && threadSwitch?.getAttribute('aria-current') === 'false'
@@ -123,14 +127,14 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
         rail?.classList.contains('open') === true
         && localStorage.getItem(railKey) === 'true';
 
-      document.querySelector('.chat-thread-item[data-thread-id="t_a"] .chat-thread-item-action')?.click();
+      document.querySelector('.chat-thread-item[data-thread-id="t_a"] [data-chat-thread-action="rename"]')?.click();
       outcomes.renameButtonRenamesThread = await waitFor(() =>
         state.chatThreads.find(thread => thread.id === 't_a')?.name === 'Renamed Thread'
       );
 
       state.chatThreads.find(thread => thread.id === 't_a').name = 'Thyroid Panel Discussion';
       chatThreads.renderThreadList();
-      document.querySelector('.chat-thread-item[data-thread-id="t_c"] .chat-thread-item-action.delete')?.click();
+      document.querySelector('.chat-thread-item[data-thread-id="t_c"] [data-chat-thread-action="delete"]')?.click();
       const confirmOk = await waitFor(() => document.getElementById('confirm-ok'));
       document.getElementById('confirm-ok')?.click();
       outcomes.deleteButtonRemovesThread = confirmOk
@@ -183,6 +187,179 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
   for (const [name, passed] of Object.entries(results)) {
     expect(passed, name).toBe(true);
   }
+});
+
+test('conversation projects, pinning, and sorting persist through the thread index', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  const outcomes = await page.evaluate(async () => {
+    const [{ state }, threads] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/chat-threads.js'),
+    ]);
+    const originalThreads = state.chatThreads;
+    const originalThreadId = state.currentThreadId;
+    const originalSort = localStorage.getItem('labcharts-chat-thread-sort');
+    const now = new Date().toISOString();
+    const earlier = new Date(Date.now() - 3 * 86400000).toISOString();
+    let promptValue = 'Hormones';
+    const previousDeps = threads.configureChatThreadDeps({
+      saveChatHistory: async () => {},
+      loadChatHistory: async () => {},
+      cleanupDiscussionState: () => {},
+      restoreDiscussionContinuePrompt: () => {},
+      renderChatMessages: () => {},
+      renderSavedSummaries: () => {},
+      updateChatHeaderTitle: () => {},
+      updatePersonalityBar: () => {},
+      getActivePersonality: () => ({ name: 'Default', icon: '' }),
+      showPromptDialog: async () => promptValue,
+    });
+    try {
+      state.chatThreads = [
+        { id: 'pinned', name: 'Pinned labs', createdAt: earlier, updatedAt: earlier, messageCount: 2, personality: 'default', pinned: true },
+        { id: 'project', name: 'Metabolic review', createdAt: earlier, updatedAt: earlier, messageCount: 3, personality: 'default', projectName: 'Metabolic' },
+        { id: 'zulu', name: 'Zulu', createdAt: now, updatedAt: now, messageCount: 1, personality: 'default' },
+        { id: 'alpha', name: 'Alpha', createdAt: now, updatedAt: now, messageCount: 1, personality: 'default' },
+      ];
+      state.currentThreadId = 'alpha';
+      threads.setChatThreadSort('recent');
+      const recentGroups = [...document.querySelectorAll('.chat-thread-group-label')].map(node => node.textContent.trim());
+
+      threads.setChatThreadSort('name');
+      const conversationGroup = [...document.querySelectorAll('.chat-thread-group')]
+        .find(group => group.querySelector('.chat-thread-group-label')?.textContent.trim() === 'Conversations');
+      const alphabetical = [...(conversationGroup?.querySelectorAll('.chat-thread-item-name') || [])]
+        .map(node => node.textContent);
+
+      const pinned = threads.toggleThreadPinned('zulu') === true
+        && state.chatThreads.find(thread => thread.id === 'zulu')?.pinned === true;
+      threads.renderThreadList();
+      const menuMove = document.querySelector(
+        '.chat-thread-item[data-thread-id="alpha"] [data-chat-thread-action="move-project"][data-project-name="Metabolic"]'
+      );
+      menuMove?.click();
+      for (let i = 0; i < 20 && state.chatThreads.find(thread => thread.id === 'alpha')?.projectName !== 'Metabolic'; i += 1) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      const projectMenuMoveWorks = state.chatThreads.find(thread => thread.id === 'alpha')?.projectName === 'Metabolic';
+      await threads.moveThreadToProject('alpha', 'Hormones');
+      const moved = state.chatThreads.find(thread => thread.id === 'alpha')?.projectName === 'Hormones';
+
+      promptValue = 'Nutrition';
+      const created = await threads.createThreadProject();
+      return {
+        groupsExist: recentGroups.includes('Pinned') && recentGroups.includes('Metabolic') && recentGroups.includes('Today'),
+        alphabeticalSort: alphabetical.join('|') === 'Alpha|Zulu',
+        sortPersisted: localStorage.getItem('labcharts-chat-thread-sort') === 'name',
+        pinned,
+        projectMenuMoveWorks,
+        moved,
+        projectCreationStartsConversation: created?.projectName === 'Nutrition'
+          && state.currentThreadId === created.id,
+      };
+    } finally {
+      threads.configureChatThreadDeps(previousDeps);
+      state.chatThreads = originalThreads;
+      state.currentThreadId = originalThreadId;
+      if (originalSort === null) localStorage.removeItem('labcharts-chat-thread-sort');
+      else localStorage.setItem('labcharts-chat-thread-sort', originalSort);
+      threads.renderThreadList();
+    }
+  });
+
+  for (const [name, passed] of Object.entries(outcomes)) expect(passed, name).toBe(true);
+});
+
+test('desktop conversations move into projects with drag and drop', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 850 });
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-default-emptyTour', 'completed');
+    localStorage.setItem('labcharts-default-tour', 'completed');
+  });
+  await page.goto('/app', { waitUntil: 'load' });
+  const original = await page.evaluate(async () => {
+    const [{ state }, threads, panelModule] = await Promise.all([import('/js/state.js'), import('/js/chat-threads.js'), import('/js/chat-panel.js')]);
+    await panelModule.loadChatPresentationStylesheets();
+    const panel = document.getElementById('chat-panel');
+    panel?.classList.add('open');
+    panel?.removeAttribute('inert');
+    document.getElementById('chat-thread-rail')?.classList.add('open');
+    document.getElementById('tour-overlay')?.remove();
+    const snapshot = { chatThreads: state.chatThreads, currentThreadId: state.currentThreadId };
+    const now = new Date().toISOString();
+    state.chatThreads = [
+      { id: 'drag-me', name: 'Move me', createdAt: now, updatedAt: now, messageCount: 1, personality: 'default' },
+      { id: 'project-home', name: 'Metabolic overview', createdAt: now, updatedAt: now, messageCount: 2, personality: 'default', projectName: 'Metabolic' },
+    ];
+    state.currentThreadId = 'drag-me';
+    threads.renderThreadList();
+    return snapshot;
+  });
+
+  await expect(page.locator('[data-chat-thread-action="move"]')).toHaveCount(0);
+  await expect.poll(() => page.locator('#chat-panel').evaluate(panel => panel.getBoundingClientRect().right))
+    .toBeLessThanOrEqual(1280.5);
+  await page.evaluate(() => {
+    document.getElementById('tour-overlay')?.remove();
+    document.getElementById('tour-popup')?.remove();
+  });
+  const source = page.locator('.chat-thread-item[data-thread-id="drag-me"] .chat-thread-item-main');
+  const projectTarget = page.locator('[data-chat-project-drop="Metabolic"] .chat-thread-group-title');
+  const sourceBox = await source.boundingBox();
+  const projectBox = await projectTarget.boundingBox();
+  expect(sourceBox).not.toBeNull();
+  expect(projectBox).not.toBeNull();
+  await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(sourceBox.x + sourceBox.width / 2 + 12, sourceBox.y + sourceBox.height / 2 + 4, { steps: 4 });
+  await page.mouse.move(projectBox.x + projectBox.width / 2, projectBox.y + projectBox.height / 2, { steps: 10 });
+  await page.mouse.up();
+  await expect.poll(() => page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return state.chatThreads.find(thread => thread.id === 'drag-me')?.projectName || '';
+  })).toBe('Metabolic');
+  await expect(page.locator('[data-chat-project-drop="Metabolic"] .chat-thread-item')).toHaveCount(2);
+
+  const movedSource = page.locator('.chat-thread-item[data-thread-id="drag-me"] .chat-thread-item-main');
+  const movedSourceBox = await movedSource.boundingBox();
+  expect(movedSourceBox).not.toBeNull();
+  await page.mouse.move(movedSourceBox.x + movedSourceBox.width / 2, movedSourceBox.y + movedSourceBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(movedSourceBox.x + movedSourceBox.width / 2 + 12, movedSourceBox.y + movedSourceBox.height / 2 + 4, { steps: 4 });
+  await expect(page.locator('.chat-thread-unfiled-drop')).toBeVisible();
+  const unfiledBox = await page.locator('.chat-thread-unfiled-drop').boundingBox();
+  expect(unfiledBox).not.toBeNull();
+  await page.mouse.move(unfiledBox.x + unfiledBox.width / 2, unfiledBox.y + unfiledBox.height / 2, { steps: 10 });
+  await page.mouse.up();
+  await expect.poll(() => page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return state.chatThreads.find(thread => thread.id === 'drag-me')?.projectName || '';
+  })).toBe('');
+
+  await page.locator('[data-chat-project-drop="Metabolic"] .chat-project-action').click();
+  await page.locator('[data-chat-project-action="rename"][data-project-name="Metabolic"]').click();
+  await expect(page.locator('#prompt-dialog-overlay')).toHaveClass(/show/);
+  await page.locator('#prompt-dialog-input').fill('Cardiometabolic');
+  await page.locator('#prompt-ok').click();
+  await expect(page.locator('[data-chat-project-drop="Cardiometabolic"]')).toBeVisible();
+  await expect(page.locator('[data-chat-project-drop="Metabolic"]')).toHaveCount(0);
+
+  await page.locator('[data-chat-project-drop="Cardiometabolic"] .chat-project-action').click();
+  await page.locator('[data-chat-project-action="delete"][data-project-name="Cardiometabolic"]').click();
+  await expect(page.locator('#confirm-dialog-overlay')).toContainText('conversation will be kept outside the project');
+  await page.locator('#confirm-ok').click();
+  await expect(page.locator('[data-chat-project-drop="Cardiometabolic"]')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return state.chatThreads.find(thread => thread.id === 'project-home')?.projectName || '';
+  })).toBe('');
+
+  await page.evaluate(async snapshot => {
+    const [{ state }, threads] = await Promise.all([import('/js/state.js'), import('/js/chat-threads.js')]);
+    state.chatThreads = snapshot.chatThreads;
+    state.currentThreadId = snapshot.currentThreadId;
+    threads.renderThreadList();
+  }, original);
 });
 
 test('mobile thread selection and creation return directly to the chat', async ({ page }) => {

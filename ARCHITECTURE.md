@@ -42,6 +42,9 @@ flowchart TD
   Features --> Foundation[state, profile, data, crypto, storage]
   Foundation --> BrowserStorage[localStorage, IndexedDB, OPFS]
   Features --> Direct[chosen browser-direct AI and voice providers]
+  Features --> AgentHost[user-owned loopback agent host]
+  AgentHost --> Codex[Codex app-server]
+  AgentHost --> AgentTools[browser-executed getbased tools]
   Features --> Vercel[legacy encrypted/static-host API operations]
   Vercel --> LegacyCiphertext[bounded legacy share continuity]
   Features --> ProfileShare[separate profile-share service]
@@ -151,7 +154,7 @@ dependency.
 | Labs and genome | `schema*`, `adapters.js`, `marker-*`, `dna*`, `biology-score*` | Marker normalization, reference data, genetics, and deterministic scoring |
 | Body | `wearables-*`, `wearable-*`, `cycle*`, `supplements*`, `supplement-*` | Device adapters, local raw rows, synced summaries, cycle context, and period-based therapy/product evidence |
 | Light and environment | `light-*`, `sun-*`, `emf*` | Light measurements, spectral/session models, environment and EMF context |
-| AI, voice, and knowledge | `api-*`, `provider-*`, `chat-*`, `voice-*`, `lens-*`, `pii.js` | Provider routing, prompt/context workflows, STT/TTS, RAG, transport, and PII controls |
+| AI, voice, knowledge, and agents | `api-*`, `provider-*`, `chat-*`, `voice-*`, `lens-*`, `agent-tool-*`, `pii.js` | Provider routing, prompt/context workflows, STT/TTS, RAG, portable agent-tool contracts, transport, and PII controls |
 | Sync and Agent Access | `sync-*` | Encrypted CRDT payloads, deltas, relay health, configured/paused identity lifecycle, restore preflight, and agent context |
 | Import/export | `pdf-import*`, `import-*`, `export*`, `backup*` | File classification, review/commit, portable report-data snapshots, PDF/agent projections, backups, and restoration |
 | Presentation | `dashboard-*`, `context-card-*`, `settings*`, `modal-*` | Views, editing surfaces, settings, accessibility, and interaction lifecycle |
@@ -186,6 +189,9 @@ the higher-layer behavior through a narrow runtime seam.
   can apply.
 - Network calls use the existing provider, URL-safety, PII, same-origin, and
   proxy-policy boundaries. New direct fetch paths require an explicit review.
+- Agent tools expose semantic projections through an explicit catalog. They do
+  not grant raw DOM, storage, credential, arbitrary JavaScript, or shell access;
+  data mutations require narrow draft/commit tools and explicit approval.
 - UI modules render escaped/sanitized values and use the shared modal and
   delegated-action patterns; architecture cleanup must not weaken XSS or
   accessibility guards.

@@ -1,7 +1,7 @@
 // @ts-check
 // biology-scores-runtime.js - Browser runtime adapters for Biology Scores UI hooks.
 
-import { hasAIProvider } from './api.js';
+import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { getActiveData } from './data.js';
 import { showNotification } from './utils.js';
 
@@ -88,7 +88,7 @@ export function showBiologyScoresNotification(message, type = 'info') {
 
 export function hasBiologyScoresAIProvider() {
   try {
-    return Boolean(hasAIProvider());
+    return Boolean(hasAssistantFeatureProvider());
   } catch {
     return false;
   }

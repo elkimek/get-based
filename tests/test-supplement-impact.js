@@ -185,8 +185,8 @@ const { computeSupplementImpact, computeAllImpacts, parseAmount, ingredientDaily
     JSON.stringify(runtimeCalls) === JSON.stringify([['close'], ['navigate', 'supplements']]));
 
   // AI-driven display (health dots pattern)
-  assert('Uses callClaudeAPI', impactSrc.includes('callClaudeAPI'));
-  assert('Uses hasAIProvider', impactSrc.includes('hasAIProvider'));
+  assert('Uses provider-aware feature routing', impactSrc.includes('callAssistantFeatureAI'));
+  assert('Checks provider-aware availability', impactSrc.includes('hasAssistantFeatureProvider'));
   assert('Per-supp fingerprint includes dosage+ingredients', impactSrc.includes('getSuppFingerprint') && impactSrc.includes('supp.dosage') && impactSrc.includes('supp.ingredients'));
   assert('Per-supp AI call (not whole batch)', impactSrc.includes('loadImpactsForSupps'));
   assert('Coalesces concurrent renders via debounce', impactSrc.includes('_pendingAnalyses') && impactSrc.includes('scheduleAnalyze'));

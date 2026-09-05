@@ -81,7 +81,7 @@ test('latest-message edit retries in place while a fork starts a linked new chat
   await expect(page.locator('#chat-msg-0 [data-chat-message-action="edit-user-message"]')).toHaveCount(0);
   await expect(page.locator('#chat-msg-0 [data-chat-message-action="fork-message"]')).toHaveCount(0);
   const editButton = page.locator('#chat-msg-2 [data-chat-message-action="edit-user-message"]');
-  await expect(editButton).toContainText('Edit & retry');
+  await expect(editButton).toHaveAttribute('aria-label', 'Edit and resend your latest message');
   await expect(page.locator('#chat-msg-2 [data-chat-message-action="fork-message"]')).toHaveCount(0);
 
   await editButton.click();
@@ -155,6 +155,11 @@ test('mobile keeps fork in the message overflow menu', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/app', { waitUntil: 'load' });
   await setupConversation(page);
+
+  const latestUserEdit = page.locator('#chat-msg-2 [data-chat-message-action="edit-user-message"]');
+  await expect(latestUserEdit).toBeVisible();
+  await expect(latestUserEdit).toHaveAttribute('aria-label', 'Edit and resend your latest message');
+  await expect(page.locator('.chat-msg.chat-user [data-chat-message-action="copy-message"]')).toHaveCount(0);
 
   const message = page.locator('#chat-msg-1');
   await expect(message.locator('.chat-fork-action')).toBeHidden();

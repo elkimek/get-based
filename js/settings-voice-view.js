@@ -43,7 +43,7 @@ function providerOptions(value, kind = 'shared') {
     : getVoiceProvidersFor(kind);
   return providers.map(provider => {
     const label = provider.id === 'auto'
-      ? 'Same as chat (automatic)'
+      ? 'Automatic'
       : provider.credentialSource === 'ai'
         ? `${provider.label} (AI connection)`
         : provider.privacy === 'cloud'
@@ -120,7 +120,7 @@ function renderProviderNotice() {
         <div class="settings-action-row">
           <div class="settings-copy">
             <div class="settings-copy-title">Voice can stay on this device</div>
-            <div class="settings-copy-desc">Choose On this device to keep recordings and reply text in this browser. Automatic follows your chat service when it supports speech.</div>
+            <div class="settings-copy-desc">Choose On this device to keep recordings and reply text in this browser. Automatic can reuse a voice-capable direct AI provider, but stays on this device during CLI chat unless you explicitly choose another voice service.</div>
           </div>
         </div>
       </div>
@@ -382,7 +382,7 @@ function renderOutputSection(settings) {
             <div class="settings-copy-desc">Works while chat is open. You can stop playback at any time.</div>
           </div>
           <label class="toggle-switch">
-            <input type="checkbox" data-voice-setting="autoRead"${settings.autoRead ? ' checked' : ''}>
+            <input type="checkbox" aria-label="Read new replies automatically" data-voice-setting="autoRead"${settings.autoRead ? ' checked' : ''}>
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -535,7 +535,7 @@ function renderConnections(settings) {
 export function renderVoiceSettingsPanel(active = false) {
   const settings = getVoiceSettings();
   return `
-    <div class="settings-tab-panel${active ? ' active' : ''}" data-tab-panel="voice">
+    <div class="settings-tab-panel${active ? ' active' : ''}" data-tab-panel="voice" id="settings-tab-voice" role="tabpanel" aria-label="Voice">
       ${renderProviderNotice()}
       ${renderServiceSection(settings)}
       ${renderInputSection(settings)}

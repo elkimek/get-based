@@ -1,36 +1,41 @@
 // @ts-check
 // chat-threads.js — Conversation-thread management for the chat panel
-//
-// Extracted from chat.js (v1.21.9) as the second Phase 2e refactor split.
-// Owns: thread index CRUD (localStorage layout) and thread-rail UI.
-
 import { state } from './state.js';
-import { escapeHTML, showNotification, showConfirmDialog, showPromptDialog } from './utils.js';
+import { showNotification, showConfirmDialog, showPromptDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItems } from './data-merge.js';
 import { onChatSaved } from './sync.js';
 import { chatDeletedThreadsKey } from './sync-payload-collectors.js';
-import { CHAT_PERSONALITIES } from './constants.js';
+import { renderChatThreadList } from './chat-thread-list-view.js';
 import { encryptedGetItem, encryptedSetItem } from './crypto.js';
 import {
-  configureChatThreadSearch, filterThreadList,
-  invalidateThreadContentCache, jumpToSearchResult,
+  configureChatThreadProjects, configureChatThreadSearch, createThreadProject,
+  deleteThreadProject, deleteThreadProjectPrompt, filterThreadList,
+  invalidateThreadContentCache, jumpToSearchResult, moveThreadToProject,
+  renameThreadProject, renameThreadProjectPrompt, toggleThreadPinned,
 } from './chat-thread-search.js';
 import { normalizeChatMessages, normalizeChatThreads } from './chat-storage-safety.js';
 import { createUniqueId } from './unique-id.js';
 import {
   clearChatDraft, restoreChatDraft, saveChatDraft,
 } from './chat-composer.js';
-
+import { syncChatLayout } from './chat-layout.js';
 export { filterThreadList, invalidateThreadContentCache, jumpToSearchResult };
+export {
+  createThreadProject, deleteThreadProject, deleteThreadProjectPrompt, moveThreadToProject,
+  renameThreadProject, renameThreadProjectPrompt, toggleThreadPinned,
+};
 
-const THREAD_ICON_EDIT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
-const THREAD_ICON_DELETE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
 const MOBILE_THREAD_RAIL_QUERY = '(max-width: 768px)';
 const CHAT_DELETED_PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 let chatThreadDelegatesInstalled = false;
+let draggedThreadId = '';
+let pendingThreadDrag = null;
+let suppressThreadClick = false;
 let blockedThreadIndexKey = null;
 let blockedThreadIndexNoticeShown = false;
+let threadLoadRevision = 0;
+let threadSwitchRevision = 0;
 const noop = (..._args) => {};
 const asyncNoop = async () => {};
 const defaultPersonality = () => ({ name: 'Default', icon: '' });
@@ -134,15 +139,16 @@ function parseThreadIndex(raw) {
   return Array.isArray(parsed) ? normalizeChatThreads(parsed) : null;
 }
 
-// ═══════════════════════════════════════════════
 // THREAD INDEX CRUD
-// ═══════════════════════════════════════════════
 export async function loadChatThreads() {
   const key = getChatThreadsKey();
+  const revision = ++threadLoadRevision;
+  const isCurrent = () => revision === threadLoadRevision && key === getChatThreadsKey();
   const storedRaw = localStorage.getItem(key);
   if (storedRaw !== null) {
     let raw = null;
     try { raw = await encryptedGetItem(key); } catch { raw = null; }
+    if (!isCurrent()) return false;
     if (raw === null) {
       blockThreadIndexWrites(key);
       notifyThreadIndexBlocked();
@@ -170,6 +176,7 @@ export async function loadChatThreads() {
 
   let legacyRaw = null;
   try { legacyRaw = await encryptedGetItem(legacyKey); } catch { legacyRaw = null; }
+  if (!isCurrent()) return false;
   if (legacyRaw === null) {
     blockThreadIndexWrites(key);
     notifyThreadIndexBlocked();
@@ -189,11 +196,13 @@ export async function loadChatThreads() {
         personality: state.currentChatPersonality || 'default'
       }];
       await encryptedSetItem(getChatThreadKey(threadId), legacyRaw);
+      if (!isCurrent()) return false;
       await saveChatThreadIndex();
       // Leave legacy key in place for rollback safety
     }
     return true;
   } catch {
+    if (!isCurrent()) return false;
     blockThreadIndexWrites(key);
     notifyThreadIndexBlocked();
     return false;
@@ -209,10 +218,11 @@ export function saveChatThreadIndex({ sync = true } = {}) {
   const value = JSON.stringify(state.chatThreads);
   return encryptedSetItem(key, value)
     .then(() => {
-      if (sync) onChatSaved();
+      if (sync && key === getChatThreadsKey()) onChatSaved();
       return true;
     })
     .catch((err) => {
+      if (key !== getChatThreadsKey()) return false;
       console.warn('[chat-threads] failed to save thread index', err?.message || err);
       showNotification('Could not save conversation list', 'error');
       return false;
@@ -238,7 +248,7 @@ export function ensureActiveThread() {
   return true;
 }
 
-export function createNewThread({ sync = true } = {}) {
+export function createNewThread({ sync = true, projectName = '' } = {}) {
   if (isThreadIndexWriteBlocked()) {
     notifyThreadIndexBlocked();
     return null;
@@ -261,7 +271,8 @@ export function createNewThread({ sync = true } = {}) {
     messageCount: 0,
     personality: state.currentChatPersonality || 'default',
     personalityName: p.name,
-    personalityIcon: p.icon
+    personalityIcon: p.icon,
+    ...(projectName.trim() ? { projectName: projectName.trim().slice(0, 60) } : {}),
   };
   state.chatThreads.unshift(thread);
   saveChatThreadIndex({ sync });
@@ -283,6 +294,7 @@ export function createNewThread({ sync = true } = {}) {
  * @param {any[]} messages
  */
 export async function createForkedThread(sourceThreadId, sourceMessageIndex, messages) {
+  const profile = state.currentProfile;
   if (isThreadIndexWriteBlocked()) {
     notifyThreadIndexBlocked();
     return null;
@@ -308,15 +320,19 @@ export async function createForkedThread(sourceThreadId, sourceMessageIndex, mes
     personalityIcon: source.personalityIcon || '',
     forkedFromThreadId: sourceThreadId,
     forkedFromMessageIndex: sourceMessageIndex,
+    ...(source.projectName ? { projectName: source.projectName } : {}),
   };
   state.chatThreads.unshift(thread);
-  if (!await saveChatThreadIndex()) {
+  const saved = await saveChatThreadIndex();
+  if (profile !== state.currentProfile) return null;
+  if (!saved) {
     state.chatThreads = state.chatThreads.filter(item => item.id !== id);
     return null;
   }
   applyThreadContext(thread);
   state.chatHistory = history;
   await chatThreadDeps.saveChatHistory();
+  if (profile !== state.currentProfile || state.currentThreadId !== id) return null;
   chatThreadDeps.renderChatMessages();
   chatThreadDeps.updateChatHeaderTitle();
   chatThreadDeps.updatePersonalityBar();
@@ -326,6 +342,9 @@ export async function createForkedThread(sourceThreadId, sourceMessageIndex, mes
 }
 
 export async function switchToThread(threadId) {
+  const profile = state.currentProfile;
+  const revision = ++threadSwitchRevision;
+  const isCurrent = () => profile === state.currentProfile && revision === threadSwitchRevision;
   closeThreadRailAfterMobileSelection();
   if (threadId === state.currentThreadId) return;
   chatThreadDeps.stopVoiceActivity();
@@ -333,26 +352,39 @@ export async function switchToThread(threadId) {
   saveChatDraft();
   // Save current thread messages
   await chatThreadDeps.saveChatHistory();
+  if (!isCurrent()) return;
   chatThreadDeps.cleanupDiscussionState();
   // Switch
   const thread = state.chatThreads.find(t => t.id === threadId);
   if (!applyThreadContext(thread)) return;
   await chatThreadDeps.loadChatHistory();
+  if (!isCurrent() || state.currentThreadId !== threadId) return;
   chatThreadDeps.restoreDiscussionContinuePrompt();
   renderThreadList();
   await restoreChatDraft(threadId);
 }
 
 export async function deleteThread(threadId) {
+  const profile = state.currentProfile;
   if (await showConfirmDialog('Delete this conversation? This cannot be undone.')) {
+    if (profile !== state.currentProfile) return false;
+    const previousThreads = state.chatThreads;
     if (threadId === state.currentThreadId) chatThreadDeps.stopChatGeneration();
     invalidateThreadContentCache();
-    recordDeletedChatThread(threadId);
-    await clearChatDraft(threadId);
-    chatThreadDeps.deleteAttachmentDraft(threadId);
     // Remove from index
     state.chatThreads = state.chatThreads.filter(t => t.id !== threadId);
-    await saveChatThreadIndex();
+    const saved = await saveChatThreadIndex({ sync: false });
+    if (profile !== state.currentProfile) return false;
+    if (!saved) {
+      state.chatThreads = previousThreads;
+      renderThreadList();
+      return false;
+    }
+    recordDeletedChatThread(threadId);
+    onChatSaved();
+    await clearChatDraft(threadId);
+    if (profile !== state.currentProfile) return false;
+    chatThreadDeps.deleteAttachmentDraft(threadId);
     // Remove per-thread messages
     localStorage.removeItem(getChatThreadKey(threadId));
     // Remove saved summary
@@ -368,34 +400,51 @@ export async function deleteThread(threadId) {
         const nextThread = state.chatThreads.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
         applyThreadContext(nextThread);
         await chatThreadDeps.loadChatHistory();
+        if (profile !== state.currentProfile || state.currentThreadId !== nextThread.id) return false;
         chatThreadDeps.restoreDiscussionContinuePrompt();
         await restoreChatDraft(state.currentThreadId);
+        if (profile !== state.currentProfile) return false;
       } else {
         createNewThread();
       }
     }
     renderThreadList();
     showNotification('Conversation deleted', 'info');
+    return true;
   }
+  return false;
 }
 
 export function renameThread(threadId, newName) {
   const thread = state.chatThreads.find(t => t.id === threadId);
   if (thread && newName && newName.trim()) {
     thread.name = newName.trim().slice(0, 60);
+    thread.updatedAt = new Date().toISOString();
     saveChatThreadIndex();
     renderThreadList();
   }
 }
 
 export async function renameThreadPrompt(threadId) {
+  const profile = state.currentProfile;
   const thread = state.chatThreads.find(t => t.id === threadId);
   if (!thread) return;
   const name = await chatThreadDeps.showPromptDialog('Rename conversation:', {
     defaultValue: thread.name,
     okLabel: 'Rename',
   });
-  if (name) renameThread(threadId, name);
+  if (name && profile === state.currentProfile) renameThread(threadId, name);
+}
+
+export function getChatThreadSort() {
+  const value = localStorage.getItem('labcharts-chat-thread-sort') || 'recent';
+  return ['recent', 'oldest', 'name'].includes(value || '') ? value : 'recent';
+}
+
+export function setChatThreadSort(value) {
+  const sort = ['recent', 'oldest', 'name'].includes(value) ? value : 'recent';
+  localStorage.setItem('labcharts-chat-thread-sort', sort);
+  renderThreadList();
 }
 
 export function autoNameThread(threadId, firstMessage) {
@@ -420,9 +469,7 @@ export function pruneOldThreads() {
   return 0;
 }
 
-// ═══════════════════════════════════════════════
 // THREAD RAIL UI
-// ═══════════════════════════════════════════════
 function closeThreadRailAfterMobileSelection() {
   const isMobile = typeof matchMedia === 'function'
     ? matchMedia(MOBILE_THREAD_RAIL_QUERY).matches
@@ -452,14 +499,37 @@ function getThreadActionId(actionEl) {
 
 /** @param {Event} event */
 function handleThreadActionClick(event) {
+  if (suppressThreadClick) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
   const actionEl = closestThreadAction(event);
-  if (!actionEl) return;
+  const target = event.target;
+  document.querySelectorAll('.chat-thread-item-menu[open]').forEach(menu => {
+    if (!(target instanceof Node) || !menu.contains(target)) menu.removeAttribute('open');
+  });
+  document.querySelectorAll('.chat-project-menu[open]').forEach(menu => {
+    if (!(target instanceof Node) || !menu.contains(target)) menu.removeAttribute('open');
+  });
+  const projectActionEl = target instanceof Element ? target.closest('[data-chat-project-action]') : null;
   const list = document.getElementById('chat-thread-list');
+  if (projectActionEl && list?.contains(projectActionEl)) {
+    event.preventDefault();
+    projectActionEl.closest('details')?.removeAttribute('open');
+    const projectAction = projectActionEl.getAttribute('data-chat-project-action');
+    const projectName = projectActionEl.getAttribute('data-project-name') || '';
+    if (projectAction === 'rename') void renameThreadProjectPrompt(projectName);
+    else if (projectAction === 'delete') void deleteThreadProjectPrompt(projectName);
+    return;
+  }
+  if (!actionEl) return;
   if (!list || !list.contains(actionEl)) return;
 
   const action = actionEl.dataset.chatThreadAction;
   const threadId = getThreadActionId(actionEl);
   if (!action || !threadId) return;
+  actionEl.closest('details')?.removeAttribute('open');
 
   if (action === 'switch') {
     event.preventDefault();
@@ -470,69 +540,111 @@ function handleThreadActionClick(event) {
   } else if (action === 'delete') {
     event.preventDefault();
     deleteThread(threadId);
+  } else if (action === 'pin') {
+    event.preventDefault();
+    toggleThreadPinned(threadId);
+  } else if (action === 'move-project') {
+    event.preventDefault();
+    void moveThreadToProject(threadId, actionEl.dataset.projectName || '');
   }
+}
+
+function clearThreadDragState() {
+  draggedThreadId = '';
+  pendingThreadDrag = null;
+  document.body?.classList.remove('is-chat-thread-pointer-dragging');
+  document.getElementById('chat-thread-list')?.classList.remove('is-thread-dragging');
+  document.querySelectorAll('[data-chat-project-drop].is-drop-target').forEach(target => target.classList.remove('is-drop-target'));
+  document.querySelectorAll('.chat-thread-item.is-dragging').forEach(item => {
+    item.classList.remove('is-dragging');
+    item.setAttribute('aria-grabbed', 'false');
+  });
+}
+
+function beginThreadPointerDrag() {
+  if (!pendingThreadDrag || draggedThreadId) return;
+  draggedThreadId = pendingThreadDrag.threadId;
+  pendingThreadDrag.item.classList.add('is-dragging');
+  pendingThreadDrag.item.setAttribute('aria-grabbed', 'true');
+  document.body?.classList.add('is-chat-thread-pointer-dragging');
+  document.getElementById('chat-thread-list')?.classList.add('is-thread-dragging');
+}
+
+function projectDropTargetAt(clientX, clientY) {
+  const hit = document.elementFromPoint(clientX, clientY);
+  return hit instanceof Element ? hit.closest('[data-chat-project-drop]') : null;
+}
+
+function highlightProjectDropTarget(target) {
+  document.querySelectorAll('[data-chat-project-drop].is-drop-target').forEach(item => {
+    if (item !== target) item.classList.remove('is-drop-target');
+  });
+  target?.classList.add('is-drop-target');
+}
+
+/** @param {PointerEvent} event */
+function handleThreadPointerDown(event) {
+  if (event.button !== 0 || event.isPrimary === false || event.pointerType === 'touch') return;
+  const isMobile = typeof matchMedia === 'function' && matchMedia(MOBILE_THREAD_RAIL_QUERY).matches;
+  if (isMobile) return;
+  const target = event.target instanceof Element ? event.target.closest('.chat-thread-item-main') : null;
+  const item = target?.closest('.chat-thread-item');
+  if (!target || !item) return;
+  const threadId = item.getAttribute('data-thread-id') || '';
+  if (!threadId) return;
+  pendingThreadDrag = { threadId, item, source: target, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY };
+}
+
+/** @param {PointerEvent} event */
+function handleThreadPointerMove(event) {
+  if (!pendingThreadDrag || pendingThreadDrag.pointerId !== event.pointerId) return;
+  if (!draggedThreadId) {
+    const distance = Math.hypot(event.clientX - pendingThreadDrag.startX, event.clientY - pendingThreadDrag.startY);
+    if (distance < 6) return;
+    beginThreadPointerDrag();
+    try { pendingThreadDrag.source.setPointerCapture(event.pointerId); } catch {}
+  }
+  event.preventDefault();
+  globalThis.getSelection?.()?.removeAllRanges();
+  highlightProjectDropTarget(projectDropTargetAt(event.clientX, event.clientY));
+}
+
+/** @param {PointerEvent} event */
+function handleThreadPointerUp(event) {
+  if (!pendingThreadDrag || pendingThreadDrag.pointerId !== event.pointerId) return;
+  const didDrag = !!draggedThreadId;
+  const threadId = draggedThreadId;
+  const target = didDrag ? projectDropTargetAt(event.clientX, event.clientY) : null;
+  try { pendingThreadDrag.source.releasePointerCapture(event.pointerId); } catch {}
+  const projectName = target?.getAttribute('data-chat-project-drop') || '';
+  clearThreadDragState();
+  if (!didDrag) return;
+  event.preventDefault();
+  suppressThreadClick = true;
+  setTimeout(() => { suppressThreadClick = false; }, 0);
+  if (target) void moveThreadToProject(threadId, projectName);
+}
+
+/** @param {PointerEvent} event */
+function handleThreadPointerCancel(event) {
+  if (pendingThreadDrag?.pointerId !== event.pointerId) return;
+  clearThreadDragState();
 }
 
 export function installChatThreadDelegates() {
   if (chatThreadDelegatesInstalled || typeof document === 'undefined') return;
   chatThreadDelegatesInstalled = true;
   document.addEventListener('click', handleThreadActionClick);
+  document.addEventListener('pointerdown', handleThreadPointerDown);
+  document.addEventListener('pointermove', handleThreadPointerMove, { passive: false });
+  document.addEventListener('pointerup', handleThreadPointerUp);
+  document.addEventListener('pointercancel', handleThreadPointerCancel);
+  globalThis.addEventListener?.('blur', clearThreadDragState);
 }
 
 /** @param {string} [filter] */
 export function renderThreadList(filter) {
-  const list = document.getElementById('chat-thread-list');
-  if (!list) return;
-  let threads = state.chatThreads.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  if (filter && filter.trim()) {
-    const q = filter.toLowerCase().trim();
-    threads = threads.filter(t => t.name.toLowerCase().includes(q));
-  }
-  if (threads.length === 0) {
-    list.innerHTML = '<div style="padding:12px 10px;font-size:11px;color:var(--text-muted);text-align:center">' +
-      (filter ? 'No matching conversations' : 'No conversations yet') + '</div>';
-    return;
-  }
-  const personalityMap = {};
-  for (const p of CHAT_PERSONALITIES) personalityMap[p.id] = p.icon;
-
-  list.innerHTML = threads.map(t => {
-    const isActive = t.id === state.currentThreadId;
-    const date = new Date(t.updatedAt);
-    const dateStr = formatThreadDate(date);
-    const icon = t.personalityIcon || personalityMap[t.personality] || personalityMap.default || '';
-    const iconTitle = t.personalityName ? ` title="${escapeHTML(t.personalityName)}"` : '';
-    const messageCount = Number.isFinite(Number(t.messageCount))
-      ? Math.max(0, Math.trunc(Number(t.messageCount)))
-      : 0;
-    return `<div class="chat-thread-item${isActive ? ' active' : ''}" data-thread-id="${escapeHTML(t.id)}">
-      <button type="button" class="chat-thread-item-main" data-chat-thread-action="switch" aria-current="${isActive ? 'true' : 'false'}">
-        <span class="chat-thread-item-name">${escapeHTML(t.name)}</span>
-        <span class="chat-thread-item-meta">
-          <span${iconTitle}>${escapeHTML(icon)}</span>
-          <span>${dateStr}</span>
-          <span>${messageCount} msg${messageCount !== 1 ? 's' : ''}</span>
-        </span>
-      </button>
-      <div class="chat-thread-item-actions">
-        <button type="button" class="chat-thread-item-action" data-chat-thread-action="rename" data-thread-id="${escapeHTML(t.id)}" title="Rename" aria-label="Rename ${escapeHTML(t.name)}">${THREAD_ICON_EDIT}</button>
-        <button type="button" class="chat-thread-item-action delete" data-chat-thread-action="delete" data-thread-id="${escapeHTML(t.id)}" title="Delete" aria-label="Delete ${escapeHTML(t.name)}">${THREAD_ICON_DELETE}</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function formatThreadDate(date) {
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d ago`;
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  renderChatThreadList(getChatThreadSort(), filter);
 }
 
 export function toggleThreadRail() {
@@ -546,6 +658,7 @@ export function toggleThreadRail() {
   }
   document.querySelector('.chat-rail-toggle')?.setAttribute('aria-expanded', String(isOpen));
   localStorage.setItem(`labcharts-${state.currentProfile}-chatRailOpen`, isOpen ? 'true' : 'false');
+  syncChatLayout();
 }
 
 export function restoreRailState() {
@@ -561,11 +674,18 @@ export function restoreRailState() {
     'aria-expanded',
     String(rail.classList.contains('open')),
   );
+  syncChatLayout();
 }
 
 configureChatThreadSearch({
   getChatThreadKey,
   renderThreadList,
   switchToThread,
+});
+configureChatThreadProjects({
+  createNewThread,
+  renderThreadList,
+  saveChatThreadIndex,
+  showPromptDialog: (...args) => chatThreadDeps.showPromptDialog(...args),
 });
 installChatThreadDelegates();

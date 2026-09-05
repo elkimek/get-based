@@ -107,6 +107,7 @@ export function configureAppChatHooks(deps = {}) {
     printSummary,
     cancelMessageEdit: cancelChatMessageEdit,
     removeImageAttachment,
+    renderChatMessages,
     resumeDiscussion,
     retryDiscussionParticipant: resumeDiscussion,
     showEarlierMessages: showEarlierChatMessages,

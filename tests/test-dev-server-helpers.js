@@ -32,6 +32,7 @@ import {
   isSameOrigin,
   _isValidCatalogShape,
   _isLoopbackSocket,
+  _isPrivateApiPeerAllowed,
   _isHostOriginMatch,
   corsHeaders,
   _browserLaunchDisabled,
@@ -53,6 +54,11 @@ import {
 } from '../lib/dev-api-proxy.js';
 
 let passed = 0, failed = 0;
+for (const peer of ['192.168.1.10', '10.0.0.5', '::ffff:192.168.1.10', '']) {
+  const request = { socket: { remoteAddress: peer }, headers: { origin: 'http://localhost:8000', host: 'localhost:8000' } };
+  if (_isPrivateApiPeerAllowed(request, '/api/local-agents')) throw new Error('LAN discovery credential leak');
+}
+if (!_isPrivateApiPeerAllowed({ socket: { remoteAddress: '127.0.0.1' } }, '/api/local-agents')) throw new Error('Loopback discovery blocked');
 const DEV_SERVER_PORT = parseInt(process.argv[2], 10) || 8000;
 const LOOPBACK_ORIGIN = `http://127.0.0.1:${DEV_SERVER_PORT}`;
 const LOCALHOST_ORIGIN = `http://localhost:${DEV_SERVER_PORT}`;

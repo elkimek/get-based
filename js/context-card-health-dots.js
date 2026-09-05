@@ -2,7 +2,8 @@
 // context-card-health-dots.js - AI health-dot scoring for dashboard context cards
 
 import { state } from './state.js';
-import { callClaudeAPI, getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider, isAIPaused } from './api.js';
+import { isAIPaused } from './api.js';
+import { callAssistantFeatureAI, getAssistantFeatureIdentity, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { CONTEXT_CARD_KEYS } from './context-card-summaries.js';
 import { buildLabContext } from './lab-context.js';
 import { isCloudModel } from './local-ai-provider-shared.js';
@@ -18,6 +19,7 @@ const PROVIDER_LABELS = {
   routstr: 'Routstr',
   ppq: 'PPQ',
   custom: 'Custom provider',
+  'codex-agent': 'Codex CLI',
 };
 /** @type {Map<string, { provider: string, modelId: string, enabledAt: number }>} */
 const demoLiveAIConsents = new Map();
@@ -69,9 +71,10 @@ if (typeof globalThis.addEventListener === 'function') {
 export function getDemoContextAIMode() {
   if (!isActiveDemoContextProfile()) return { mode: 'standard', live: true, demo: false };
 
-  const provider = getAIProvider();
-  const modelId = getActiveModelId(provider) || '';
-  const modelLabel = getActiveModelDisplay(provider) || modelId || 'Selected model';
+  const identity = getAssistantFeatureIdentity();
+  const provider = identity.provider;
+  const modelId = identity.modelId || '';
+  const modelLabel = identity.modelDisplay || modelId || 'Selected model';
   const ollamaCloudModel = provider === 'ollama' && isCloudModel(modelId);
   const providerLabel = ollamaCloudModel
     ? 'Local AI cloud model'
@@ -83,7 +86,7 @@ export function getDemoContextAIMode() {
   if (isAIPaused()) {
     return { mode: 'paused', live: false, demo: true, provider, providerLabel, modelId, modelLabel };
   }
-  if (!hasAIProvider()) {
+  if (!hasAssistantFeatureProvider()) {
     return { mode: 'precomputed', live: false, demo: true, provider, providerLabel, modelId, modelLabel };
   }
 
@@ -351,7 +354,7 @@ async function loadContextHealthDotsOnce() {
     markDemoCardsStale(staleKeys);
     return;
   }
-  if (!hasAIProvider()) return;
+  if (!hasAssistantFeatureProvider()) return;
 
   showStaleCardsLoading(staleKeys);
   if (!staleCardsHaveAssessableData(staleKeys)) {
@@ -367,7 +370,7 @@ async function loadContextHealthDotsOnce() {
   const prompt = buildHealthDotsPrompt(staleKeys);
 
   try {
-    const result = await callClaudeAPI({
+    const result = await callAssistantFeatureAI({
       system: prompt,
       messages: [{ role: 'user', content: ctx }],
       maxTokens: 2048,
@@ -376,8 +379,9 @@ async function loadContextHealthDotsOnce() {
     const text = (result && typeof result === 'object')
       ? (result.text || '')
       : (typeof result === 'string' ? result : '');
-    if (result && typeof result === 'object' && result.usage) {
-      trackUsage(getAIProvider(), getActiveModelId(), result.usage.inputTokens || 0, result.usage.outputTokens || 0);
+    if (result && typeof result === 'object' && result.usage && !getAssistantFeatureIdentity().subscription) {
+      const identity = getAssistantFeatureIdentity();
+      trackUsage(identity.provider, identity.modelId, result.usage.inputTokens || 0, result.usage.outputTokens || 0);
     }
 
     const parsed = parseHealthDotsResponse(text);
@@ -426,7 +430,7 @@ export function refreshAllHealthDots() {
     showNotification('Live AI is off for this demo. Enable it before refreshing insights.', 'info');
     return;
   }
-  if (!hasAIProvider()) {
+  if (!hasAssistantFeatureProvider()) {
     showNotification('Set up an AI provider first', 'error');
     return;
   }

@@ -11,6 +11,7 @@ import {
   formatAppShellSummary,
   summarizeAppShell,
 } from './app-shell-budget.mjs';
+import { buildCompanionBundle } from './build-companion-bundle.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MAIN_ENTRY = path.join(ROOT, 'js', 'main.js');
@@ -110,10 +111,14 @@ function replaceMarkedSection(source, startMarker, endMarker, replacementLines) 
 }
 
 function pruneSourceModuleAppShell(source) {
-  return source.replace(
-    /^  '(\/js\/[^']+\.js)',\n/gm,
-    (line, url) => (PRODUCTION_RAW_JS_ASSETS.has(url) ? line : ''),
+  const start = source.indexOf('const APP_SHELL = [');
+  const end = source.indexOf('\n];', start);
+  if (start < 0 || end < start) throw new Error('Missing or invalid APP_SHELL array');
+  const appShell = source.slice(start, end).replace(
+    /\s*'(\/js\/[^']+\.js)',/g,
+    (entry, url) => (PRODUCTION_RAW_JS_ASSETS.has(url) ? entry : ''),
   );
+  return `${source.slice(0, start)}${appShell}${source.slice(end)}`;
 }
 
 async function validateBundlerLock() {
@@ -158,6 +163,7 @@ async function enforceBuildBudget(summary) {
 
 export async function buildProduction({ outputRoot = ROOT } = {}) {
   await validateBundlerLock();
+  await buildCompanionBundle({ outputRoot });
 
   const outputDirectory = path.join(outputRoot, 'js');
   await fs.mkdir(outputDirectory, { recursive: true });

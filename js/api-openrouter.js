@@ -80,6 +80,7 @@ export async function callOpenRouterAPI(opts) {
     && !Array.isArray(extensionOptions.provider)
     ? extensionOptions.provider
     : {};
+  const reasoningEffort = String(requestOpts.reasoningEffort || '').trim();
   const extraBody = {
     ...extensionOptions,
     // OpenRouter aggregates parameter support across a model's providers.
@@ -88,7 +89,10 @@ export async function callOpenRouterAPI(opts) {
       provider: { ...extensionProviderRouting, require_parameters: true },
     } : {}),
     ...(requestOpts.webSearch ? { plugins: [{ id: 'web' }] } : {}),
+    ...(reasoningEffort ? { reasoning: { effort: reasoningEffort } } : {}),
   };
+  const transportOpts = reasoningEffort ? { ...requestOpts } : requestOpts;
+  if (reasoningEffort) delete transportOpts.reasoningEffort;
   try {
     const extensionCall = await callAppExtensionAIProvider({
       provider: 'openrouter',
@@ -103,7 +107,7 @@ export async function callOpenRouterAPI(opts) {
       key,
       modelId,
       'OpenRouter',
-      requestOpts,
+      transportOpts,
       { 'HTTP-Referer': getApiLocationOriginRuntime(), 'X-Title': 'getbased' },
       { extraBody }
     );

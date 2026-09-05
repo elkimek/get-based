@@ -3,11 +3,12 @@
 
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
-import { callClaudeAPI, getActiveModelId, getAIProvider, hasAIProvider, setAIProvider, setCustomApiModel, setOllamaMainModel, setOpenRouterModel, setPpqModel, setRoutstrModel, setVeniceModel } from './api.js';
+import { getAIProvider, setAIProvider, setCustomApiModel, setOllamaMainModel, setOpenRouterModel, setPpqModel, setRoutstrModel, setVeniceModel } from './api.js';
 import { detectProduct, getAdapterByTestType } from './adapters.js';
 import { escapeHTML, hashString, isDebugMode } from './utils.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { IMPORT_CLASSIFICATION_JSON_SCHEMA } from './pdf-import-ai-utils.js';
+import { callAssistantFeatureAI, getAssistantFeatureIdentity, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 
 function ensurePreflightOverlay() {
   let overlay = document.getElementById('confirm-dialog-overlay');
@@ -103,8 +104,7 @@ export function normalizeImportModelId(id) {
 }
 
 function checkModelMismatch() {
-  const provider = getAIProvider();
-  const currentModel = getActiveModelId(provider);
+  const { modelId: currentModel } = getAssistantFeatureIdentity();
   const entries = (state.importedData?.entries || []).filter(e => e.importedWith?.modelId);
   if (entries.length === 0) return null;
   const lastEntry = entries[entries.length - 1];
@@ -164,7 +164,7 @@ function showModelMismatchDialog(mismatch) {
 async function classifyTestType(pdfText) {
   const snippet = pdfText.slice(0, 2000);
   try {
-    const { text: response } = await callClaudeAPI({
+    const { text: response } = await callAssistantFeatureAI({
       system: 'You classify lab reports. Respond with ONLY a JSON object, no other text.',
       messages: [{ role: 'user', content: `What type of lab test is this PDF? Look at the header, lab name, and test names.
 
@@ -255,7 +255,7 @@ export async function runPreflightChecks(pdfText, fileName) {
     if (result === 'cancel') return false;
   }
 
-  if (hasAIProvider()) {
+  if (hasAssistantFeatureProvider()) {
     const detected = detectProduct(fileName || '', pdfText);
     if (!detected) {
       const classified = await classifyTestType(pdfText);

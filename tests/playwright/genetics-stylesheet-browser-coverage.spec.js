@@ -111,7 +111,7 @@ test('Genome route contains a stylesheet failure and retries with a fresh URL', 
   });
 
   expect(retryOpen.opened).toBe(true);
-  expect(retryOpen.workspace).toContain('Dedicated DNA workspace');
+  expect(retryOpen.workspace).toContain('DNA findings and traits linked to your labs.');
   expect(retryOpen.sheetLoaded).toBe(true);
   expect(new URL(retryOpen.href).searchParams.get('lazy-retry')).toBe('1');
 });

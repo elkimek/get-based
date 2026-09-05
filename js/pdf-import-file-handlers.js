@@ -5,7 +5,7 @@ import { getErrorName } from './caught-error.js';
 import { state } from './state.js';
 import { calculateCost, trackUsage } from './schema.js';
 import { showNotification, showConfirmDialog, isDebugMode, isPIIReviewEnabled, hashString } from './utils.js';
-import { hasAIProvider, getAIProvider, getActiveModelId } from './api.js';
+import { getAIProvider, getActiveModelId } from './api.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import {
@@ -30,6 +30,7 @@ import {
   updateImportBenchmark,
 } from './import-benchmarks.js';
 import { logPrivacyDiagnostic } from './privacy-safe-diagnostics.js';
+import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 
 const fileHandlerDeps = {
   parseLabPDFWithAI: /** @type {((text: string, fileName: string, onProgress?: (pct: number) => void) => Promise<any>) | null} */ (null),
@@ -133,7 +134,7 @@ export async function handlePDFFileWorkflow(file, forceImageMode = false, preExt
     }
 
     if (useImageMode) {
-      if (!hasAIProvider()) {
+      if (!hasAssistantFeatureProvider()) {
         hideImportProgress('error');
         showAINeededDialog('image');
         return;
@@ -151,7 +152,7 @@ export async function handlePDFFileWorkflow(file, forceImageMode = false, preExt
       result.privacyMethod = 'none (image mode)';
       result.timings = { pii: 0, analysis: analysisTime, piiMs: 0, analysisMs };
       const prov = result.provider || getAIProvider();
-      const mid = getActiveModelId();
+      const mid = result.modelId || getActiveModelId();
       const tokens = getUsageTokens(result.usage);
       result.costInfo = {
         provider: prov, modelId: mid,
@@ -159,7 +160,7 @@ export async function handlePDFFileWorkflow(file, forceImageMode = false, preExt
         outputTokens: tokens.outputTokens,
         cost: calculateCost(prov, mid, tokens.inputTokens, tokens.outputTokens)
       };
-      trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
+      if (prov !== 'codex-agent') trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
       result.importHash = hashString(images.map(image => image.base64).join('|'));
       result.benchmarkId = benchmarkId;
       captureImportBenchmarkReviewBaseline(result);
@@ -175,7 +176,7 @@ export async function handlePDFFileWorkflow(file, forceImageMode = false, preExt
 
     if (!pdfText.trim()) { hideImportProgress('error'); showNotification(`${textImportKind} appears empty — no text extracted`, "error"); return; }
 
-    if (!hasAIProvider()) {
+    if (!hasAssistantFeatureProvider()) {
       hideImportProgress('error');
       showAINeededDialog(textAction);
       return;
@@ -269,7 +270,7 @@ export async function handlePDFFileWorkflow(file, forceImageMode = false, preExt
     result.privacyReplacements = privacyReplacements;
     result.timings = { pii: piiTime, analysis: analysisTime, piiMs, analysisMs };
     const prov = result.provider || getAIProvider();
-    const mid = getActiveModelId();
+    const mid = result.modelId || getActiveModelId();
     const tokens = getUsageTokens(result.usage);
     result.costInfo = {
       provider: prov, modelId: mid,
@@ -277,7 +278,7 @@ export async function handlePDFFileWorkflow(file, forceImageMode = false, preExt
       outputTokens: tokens.outputTokens,
       cost: calculateCost(prov, mid, tokens.inputTokens, tokens.outputTokens)
     };
-    trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
+    if (prov !== 'codex-agent') trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
     result.importHash = hashString(pdfText);
     result.benchmarkId = benchmarkId;
     captureImportBenchmarkReviewBaseline(result);
@@ -307,7 +308,7 @@ export async function handleImageFileWorkflow(file) {
   if (!parseLabPDFWithAIImages || !showAINeededDialog) {
     throw new Error('PDF import image handler dependencies are not configured');
   }
-  if (!hasAIProvider()) {
+  if (!hasAssistantFeatureProvider()) {
     showAINeededDialog('image');
     return;
   }
@@ -336,7 +337,7 @@ export async function handleImageFileWorkflow(file) {
     result.privacyMethod = 'none (image mode)';
     result.timings = { pii: 0, analysis: analysisTime, piiMs: 0, analysisMs };
     const prov = result.provider || getAIProvider();
-    const mid = getActiveModelId();
+    const mid = result.modelId || getActiveModelId();
     const tokens = getUsageTokens(result.usage);
     result.costInfo = {
       provider: prov, modelId: mid,
@@ -344,7 +345,7 @@ export async function handleImageFileWorkflow(file) {
       outputTokens: tokens.outputTokens,
       cost: calculateCost(prov, mid, tokens.inputTokens, tokens.outputTokens)
     };
-    trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
+    if (prov !== 'codex-agent') trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
     result.importHash = hashString(base64);
     result.benchmarkId = benchmarkId;
     captureImportBenchmarkReviewBaseline(result);
