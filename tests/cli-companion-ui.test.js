@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { refreshDetectedAgentList, toggleCLIAgentOptions } from '../js/settings-cli-agent-panel.js';
+import { refreshDetectedAgentList, renderCLIAgentProviderPanel, resizeCLICompanionPanel, toggleCLIAgentOptions } from '../js/settings-cli-agent-panel.js';
 
 describe('CLI companion setup UI', () => {
   it('collapses agent settings without changing the selected provider or controls', () => {
@@ -73,7 +73,7 @@ describe('CLI companion setup UI', () => {
     expect(companion.querySelector('[data-value="uninstall"]')).toBeNull();
   });
 
-  it('separates CLI reconnection from an installed companion service restart', async () => {
+  it('checks an installed companion on first opening without a manual connection check', async () => {
     vi.stubGlobal('fetch', vi.fn(async input => {
       if (String(input).startsWith('/api/local-agents')) return new Response(JSON.stringify({ agents: [{
         id: 'codex', name: 'Codex CLI', status: 'available', compatible: true,
@@ -86,7 +86,14 @@ describe('CLI companion setup UI', () => {
       }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }));
 
-    await refreshDetectedAgentList();
+    document.body.innerHTML = renderCLIAgentProviderPanel();
+    expect(document.body.textContent).toContain('Scanning this computer');
+    expect(document.querySelector('.local-agent-install-card')).toBeNull();
+    await vi.waitFor(() => {
+      expect(document.querySelector('[data-value="restart-companion"]')).not.toBeNull();
+    });
+    expect(fetch).toHaveBeenCalledWith('/api/local-agents?refresh=1', expect.any(Object));
+    expect(document.querySelector('.local-agent-install-card')).toBeNull();
 
     const companion = document.getElementById('local-agent-companion-section');
     expect(companion.querySelector('[data-value="restart"]')?.textContent).toContain('Reconnect CLIs');
@@ -146,6 +153,40 @@ describe('CLI companion setup UI', () => {
     expect(companion.textContent).toContain('Starts automatically at login');
     expect(companion.innerHTML).not.toContain('1234567890123456');
     expect(companion.querySelector('[data-settings-action="control-cli-companion"]')).toBeNull();
+  });
+
+  it('shows supported local management inside Settings without putting a credential in the frame URL', async () => {
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      if (String(input).startsWith('/api/local-agents')) return Response.json({ agents: [] });
+      return Response.json({
+        service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8325', token: '1234567890123456',
+        capabilities: ['companion-control', 'companion-restart', 'companion-management-embedded'], runtimeMode: 'installed',
+        agents: [{ id: 'codex', status: 'available', compatible: true }],
+      });
+    }));
+    await refreshDetectedAgentList();
+    const companion = document.getElementById('local-agent-companion-section');
+    const frame = companion.querySelector('iframe');
+    expect(frame.title).toBe('Companion controls');
+    const url = new URL(frame.src);
+    expect(url.origin + url.pathname).toBe('http://127.0.0.1:8325/manage/embed');
+    expect(url.searchParams.get('parentOrigin')).toBe(location.origin);
+    expect(frame.getAttribute('sandbox')).toBe('allow-scripts allow-same-origin');
+    expect(companion.querySelector('a')).toBeNull();
+    expect(companion.innerHTML).not.toContain('1234567890123456');
+  });
+
+  it('accepts bounded frame sizing only from its own local management panel', () => {
+    document.body.innerHTML = '<iframe class="local-agent-management-frame" src="http://127.0.0.1:8325/manage/embed"></iframe>';
+    const frame = document.querySelector('iframe');
+    const event = { data: { type: 'getbased-companion-panel-size', height: 340 }, origin: 'http://127.0.0.1:8325', source: frame.contentWindow };
+    resizeCLICompanionPanel({ ...event, origin: 'https://attacker.example' });
+    resizeCLICompanionPanel({ ...event, source: window });
+    expect(frame.style.height).toBe('');
+    resizeCLICompanionPanel(event);
+    expect(frame.style.height).toBe('340px');
+    resizeCLICompanionPanel({ ...event, data: { ...event.data, height: 100000 } });
+    expect(frame.style.height).toBe('800px');
   });
 
   it('shows a stopped companion state without attempting to load models', async () => {

@@ -156,7 +156,7 @@ export async function copyCLIAgentLoginCommand(agentId) {
 }
 
 export function renderCLIAgentProviderPanel() {
-  queueMicrotask(() => { void refreshDetectedAgentList(); });
+  queueMicrotask(() => { void refreshDetectedAgentList({ refresh: true }); });
   return `
     <div class="ai-provider-panel cli-agent-provider-panel" data-ai-provider-mode="cli">
       <div class="local-agent-chat-head">
@@ -388,20 +388,27 @@ function renderCompanionControls(agent) {
     </div>`;
   }
   const modeLabel = installed ? 'Starts automatically at login' : 'Connected for this terminal session';
-  if (agent.controlAuthorized === false) {
+  if (agent.controlAuthorized === false || agent.capabilities?.includes(AGENT_HOST_CAPABILITIES.COMPANION_MANAGEMENT_EMBEDDED)) {
     const managementURL = new URL(agent.endpoint || getAgentHostEndpoint());
     managementURL.hostname = '127.0.0.1';
     managementURL.pathname = '/manage';
     managementURL.search = '';
     managementURL.hash = '';
+    if (agent.capabilities?.includes(AGENT_HOST_CAPABILITIES.COMPANION_MANAGEMENT_EMBEDDED)) {
+      managementURL.pathname = '/manage/embed';
+      managementURL.searchParams.set('parentOrigin', globalThis.location.origin);
+      managementURL.searchParams.set('theme', document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
+      return `<div class="local-agent-list-kicker local-agent-companion-kicker">Companion</div>
+      <iframe class="local-agent-management-frame" title="Companion controls" src="${escapeAttr(managementURL.href)}" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>`;
+    }
     const managementLink = agent.capabilities?.includes(AGENT_HOST_CAPABILITIES.COMPANION_MANAGEMENT)
-      ? `<a class="import-btn import-btn-primary settings-mini-btn" href="${escapeAttr(managementURL.href)}" target="_blank" rel="noopener noreferrer">Manage Companion</a>` : '';
+      ? `<a class="import-btn import-btn-secondary settings-mini-btn local-agent-management-link" href="${escapeAttr(managementURL.href)}" target="_blank" rel="noopener noreferrer">Manage Companion</a>` : '';
     return `<div class="local-agent-list-kicker local-agent-companion-kicker">Companion</div>
     <div class="local-agent-controls"><div class="local-agent-controls-copy"><strong>Connected for chat</strong>
     <span>${escapeHTML(modeLabel)} · ${escapeHTML(managementURL.host)}${agent.companionVersion ? ` · v${escapeHTML(agent.companionVersion)}` : ''}</span>
-    <span>${managementLink ? 'Open local management for startup, pause, restart, update, or uninstall. Hosted chat does not receive installation permissions.' : 'Update Companion to enable its local management page. Until then, manage it from the terminal.'}</span></div>
-    ${managementLink}
-    <button type="button" class="import-btn settings-mini-btn" data-settings-action="copy-cli-companion-update">Copy update command</button></div>`;
+    <span>${managementLink ? 'Update Companion once to manage it directly in Settings. Until then, its controls open in local management.' : 'Update Companion to enable its local management page. Until then, manage it from the terminal.'}</span></div>
+    <div class="local-agent-control-actions">${managementLink}
+    <button type="button" class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="copy-cli-companion-update">Copy update command</button></div></div>`;
   }
   return `<div class="local-agent-list-kicker local-agent-companion-kicker">Companion</div>
   <div class="local-agent-controls" aria-label="Companion controls">
@@ -664,7 +671,22 @@ export async function setCLIAgentEffort(effort) {
   }
 }
 
+/** @param {MessageEvent} event */
+export function resizeCLICompanionPanel(event) {
+  if (event.data?.type !== 'getbased-companion-panel-size' || !Number.isFinite(event.data.height)) return;
+  const frame = /** @type {HTMLIFrameElement | null} */ (document.querySelector('.local-agent-management-frame'));
+  if (!frame || event.source !== frame.contentWindow || event.origin !== new URL(frame.src).origin) return;
+  frame.style.height = `${Math.max(64, Math.min(800, Math.ceil(event.data.height)))}px`;
+  const styles = getComputedStyle(frame);
+  frame.contentWindow?.postMessage({
+    type: 'getbased-companion-panel-theme',
+    colors: Object.fromEntries(Object.entries({ bg: '--bg-card', text: '--text-primary', muted: '--text-muted', border: '--border', button: '--bg-card', accent: '--accent' })
+      .map(([name, variable]) => [name, styles.getPropertyValue(variable).trim()])),
+  }, event.origin);
+}
+
 if (typeof document !== 'undefined') {
+  document.defaultView?.addEventListener('message', resizeCLICompanionPanel);
   document.addEventListener('input', event => {
     const target = event.target;
     if (target instanceof HTMLInputElement && target.matches('[data-cli-agent-model-search]')) {

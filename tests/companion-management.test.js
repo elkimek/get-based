@@ -19,7 +19,7 @@ describe('local Companion management', () => {
     const { response, html, token } = await session(handle);
     expect(response.headers.get('Content-Security-Policy')).toContain("frame-ancestors 'none'");
     expect(response.headers.has('Access-Control-Allow-Origin')).toBe(false);
-    expect(html).toContain('Start automatically');
+    expect(html).toContain('Automatic startup');
     const result = await handle(new Request(origin + '/manage/control', { method: 'POST', headers: { ...local, Authorization: `Bearer ${token}` }, body: '{"action":"pause"}' }));
     expect(result.status).toBe(200);
     expect(result.headers.has('Access-Control-Allow-Origin')).toBe(false);
@@ -32,6 +32,32 @@ describe('local Companion management', () => {
       const denied = await handle(new Request(origin + '/manage/control', { method: 'POST', headers: { Authorization: `Bearer ${token}`, ...headers }, body: '{}' }));
       expect(denied.status).toBe(403);
     }
+    expect(control).toHaveBeenCalledOnce();
+  });
+  it('embeds only for an approved exact parent origin and keeps control credentials local', async () => {
+    const parent = 'https://app.getbased.health';
+    const control = vi.fn(async () => Response.json({ ok: true }));
+    const handle = createCompanionManagement({ status: () => ({}), control, allowParentOrigin: value => value === parent });
+    const embed = (value, headers = {}) => handle(new Request(`${origin}/manage/embed?parentOrigin=${encodeURIComponent(value)}`, {
+      headers: { ...navigation, 'Sec-Fetch-Dest': 'iframe', ...headers },
+    }));
+    expect((await embed('https://attacker.example')).status).toBe(403);
+    expect((await embed(parent + '/path')).status).toBe(403);
+    expect((await embed(parent, { 'Sec-Fetch-Dest': 'document' })).status).toBe(403);
+    expect((await embed(parent, { Host: 'attacker.example:8324' })).status).toBe(403);
+    const response = await embed(parent);
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Security-Policy')).toContain(`frame-ancestors ${parent};`);
+    expect(response.headers.has('X-Frame-Options')).toBe(false);
+    expect(response.headers.has('Access-Control-Allow-Origin')).toBe(false);
+    const html = await response.text();
+    const token = html.match(/const credential="([^"]+)"/)[1];
+    const request = headers => handle(new Request(origin + '/manage/control', {
+      method: 'POST', headers: { ...local, Authorization: `Bearer ${token}`, ...headers }, body: '{"action":"pause"}',
+    }));
+    expect((await request({ Origin: parent, 'Sec-Fetch-Site': 'cross-site' })).status).toBe(403);
+    expect(control).not.toHaveBeenCalled();
+    expect((await request({})).status).toBe(200);
     expect(control).toHaveBeenCalledOnce();
   });
   it('refuses iframe, fetch, DNS aliases, expired and evicted sessions', async () => {
