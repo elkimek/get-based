@@ -59,6 +59,24 @@ describe('running companion controls', () => {
       .rejects.toThrow('Start the companion automatically');
   });
 
+  it('hands an installed terminal runtime over without two listeners', async () => {
+    const order = [];
+    let scheduled;
+    const controller = createCompanionRuntimeController({
+      appServer: { restart: vi.fn(), initialize: vi.fn() }, bundlePath: '/tmp/getbased-companion.mjs',
+      env: {}, installImpl: vi.fn(), scheduleImpl: callback => { scheduled = callback; },
+      stopRuntime: async () => { order.push('stop-listener'); },
+      serviceCommandImpl: () => { order.push('start-service'); },
+      exitRuntime: () => { order.push('exit'); },
+    });
+    await controller.handle('install', { origin: 'http://127.0.0.1:8324' });
+    expect(controller.getInfo()).toMatchObject({ runtimeMode: 'installed', processMode: 'terminal' });
+    await controller.handle('restart-companion', { origin: 'http://127.0.0.1:8324' });
+    expect(order).toEqual([]);
+    await scheduled();
+    expect(order).toEqual(['stop-listener', 'start-service', 'exit']);
+  });
+
   it('updates only from the fixed official endpoint, never from a calling page', async () => {
     const installImpl = vi.fn(() => ({ installed: true }));
     const fetchImpl = vi.fn(async () => new Response(VALID_BUNDLE, { status: 200 }));

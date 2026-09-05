@@ -114,6 +114,8 @@ const runtimeController = createCompanionRuntimeController({
     async initialize() {},
   },
   bundlePath,
+  stopRuntime: () => shutdown(),
+  exitRuntime: () => process.exit(0),
 });
 const service = createAgentHostService({
   appServer,
@@ -189,7 +191,10 @@ server.on('listening', () => {
   process.stdout.write(`getbased Companion listening at http://${host}:${port}\n`);
   process.stdout.write('Automatic browser discovery enabled.\n');
   process.stdout.write(`Private agent state: ${agentStorage.dataDirectory}\n`);
-  process.stdout.write('Keep this process running while using CLI agents in getbased.\n');
+  process.stdout.write(`Local management: http://${host}:${port}/manage\n`);
+  process.stdout.write(process.env.GETBASED_COMPANION_SERVICE === '1'
+    ? 'Installed Companion service is running in the background.\n'
+    : 'Temporary Companion: keep this terminal open. Closing it stops this instance, not other installed or development Companions.\n');
 });
 server.on('error', error => {
   if (/** @type {NodeJS.ErrnoException} */ (error).code === 'EADDRINUSE' && port < lastPort) {

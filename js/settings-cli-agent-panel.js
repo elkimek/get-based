@@ -369,7 +369,7 @@ function renderDetectedAgent(agent) {
     </div>`;
 }
 
-/** @param {{status: string, paused?: boolean, runtimeMode?: string, companionVersion?: string, capabilities?: string[], controlAuthorized?: boolean}} agent */
+/** @param {{status: string, endpoint?: string, paused?: boolean, runtimeMode?: string, companionVersion?: string, capabilities?: string[], controlAuthorized?: boolean}} agent */
 function renderCompanionControls(agent) {
   const paused = agent.status === 'paused' || agent.paused === true;
   const installed = agent.runtimeMode === 'installed';
@@ -389,9 +389,18 @@ function renderCompanionControls(agent) {
   }
   const modeLabel = installed ? 'Starts automatically at login' : 'Connected for this terminal session';
   if (agent.controlAuthorized === false) {
+    const managementURL = new URL(agent.endpoint || getAgentHostEndpoint());
+    managementURL.hostname = '127.0.0.1';
+    managementURL.pathname = '/manage';
+    managementURL.search = '';
+    managementURL.hash = '';
+    const managementLink = agent.capabilities?.includes(AGENT_HOST_CAPABILITIES.COMPANION_MANAGEMENT)
+      ? `<a class="import-btn import-btn-primary settings-mini-btn" href="${escapeAttr(managementURL.href)}" target="_blank" rel="noopener noreferrer">Manage Companion</a>` : '';
     return `<div class="local-agent-list-kicker local-agent-companion-kicker">Companion</div>
     <div class="local-agent-controls"><div class="local-agent-controls-copy"><strong>Connected for chat</strong>
-    <span>Manage startup, pause, restart, or uninstall from the Companion tray or terminal. Browser discovery does not grant installation controls.</span></div>
+    <span>${escapeHTML(modeLabel)} · ${escapeHTML(managementURL.host)}${agent.companionVersion ? ` · v${escapeHTML(agent.companionVersion)}` : ''}</span>
+    <span>${managementLink ? 'Open local management for startup, pause, restart, update, or uninstall. Hosted chat does not receive installation permissions.' : 'Update Companion to enable its local management page. Until then, manage it from the terminal.'}</span></div>
+    ${managementLink}
     <button type="button" class="import-btn settings-mini-btn" data-settings-action="copy-cli-companion-update">Copy update command</button></div>`;
   }
   return `<div class="local-agent-list-kicker local-agent-companion-kicker">Companion</div>

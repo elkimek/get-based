@@ -129,6 +129,25 @@ describe('CLI companion setup UI', () => {
     expect(companion.querySelector('[data-settings-action="copy-cli-companion-update"]')).not.toBeNull();
   });
 
+  it('links hosted discovery to management on the actual discovered port without sharing credentials', async () => {
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      if (String(input).startsWith('/api/local-agents')) return new Response('{"agents":[]}');
+      return Response.json({
+        service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8325', token: '1234567890123456',
+        capabilities: ['companion-control', 'companion-restart', 'companion-management'], runtimeMode: 'installed',
+        agents: [{ id: 'codex', status: 'available', compatible: true }],
+      });
+    }));
+    await refreshDetectedAgentList();
+    const companion = document.getElementById('local-agent-companion-section');
+    const link = companion.querySelector('a');
+    expect(link?.href).toBe('http://127.0.0.1:8325/manage');
+    expect(link?.rel).toContain('noopener');
+    expect(companion.textContent).toContain('Starts automatically at login');
+    expect(companion.innerHTML).not.toContain('1234567890123456');
+    expect(companion.querySelector('[data-settings-action="control-cli-companion"]')).toBeNull();
+  });
+
   it('shows a stopped companion state without attempting to load models', async () => {
     localStorage.setItem('labcharts-chat-backend', 'codex');
     vi.stubGlobal('fetch', vi.fn(async input => {

@@ -2,12 +2,13 @@
 // Runtime-neutral version and capability contract for the loopback companion.
 
 export const AGENT_HOST_PROTOCOL_VERSION = 5;
-export const GETBASED_COMPANION_VERSION = '1.2.2';
+export const GETBASED_COMPANION_VERSION = '1.3.0';
 
 export const AGENT_HOST_CAPABILITIES = Object.freeze({
   CHAT_STREAM: 'chat-stream',
   COMPANION_CONTROL: 'companion-control',
   COMPANION_RESTART: 'companion-restart',
+  COMPANION_MANAGEMENT: 'companion-management',
   DYNAMIC_TOOLS: 'dynamic-tools',
   EXECUTION_TARGETS: 'execution-targets',
   IMAGE_UPLOAD: 'image-upload',
