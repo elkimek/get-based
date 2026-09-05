@@ -16,6 +16,7 @@ import {
 } from '../lib/codex-agent-isolation.js';
 import { prepareAgentHostStorage } from '../lib/agent-host-storage.js';
 import { createCompanionRuntimeController } from '../lib/companion-runtime-control.js';
+import { recoverCompanionListener } from '../lib/companion-listener.js';
 import { buildLocalAgentEnvironment, detectLocalAgents } from '../lib/local-agent-registry.js';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
@@ -29,6 +30,7 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 }
 const strictPort = configuredPort !== '' || String(process.env.GETBASED_AGENT_HOST_STRICT_PORT || '').trim() === '1';
 const lastPort = strictPort ? port : Math.min(65535, port + 7);
+let recoveringListener = false;
 const maxRequestBytes = 1_200_000;
 const maxImageRequestBytes = 20 * 1024 * 1024;
 const allowedOrigins = String(process.env.GETBASED_AGENT_HOST_ALLOWED_ORIGINS || '')
@@ -118,10 +120,12 @@ const runtimeController = createCompanionRuntimeController({
   stopRuntime: () => new Promise((resolve, reject) => {
     server.close(error => error ? reject(error) : resolve());
   }),
-  recoverRuntime: () => new Promise(resolve => {
-    server.once('listening', resolve);
-    listen();
-  }),
+  recoverRuntime: async () => {
+    recoveringListener = true;
+    try {
+      await recoverCompanionListener(server, { host, port, lastPort, onPort: value => { port = value; } });
+    } finally { recoveringListener = false; }
+  },
   exitRuntime: () => { void shutdown().finally(() => process.exit(0)); },
 });
 const service = createAgentHostService({
@@ -204,6 +208,9 @@ server.on('listening', () => {
     : 'Temporary Companion: keep this terminal open. Closing it stops this instance, not other installed or development Companions.\n');
 });
 server.on('error', error => {
+  // Recovery owns its retries and error settlement; do not destroy the retained
+  // clients/workspace through the normal startup failure path.
+  if (recoveringListener) return;
   if (/** @type {NodeJS.ErrnoException} */ (error).code === 'EADDRINUSE' && port < lastPort) {
     port += 1;
     process.stderr.write(`getbased Companion port busy; trying http://${host}:${port}\n`);
