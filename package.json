@@ -45,7 +45,7 @@
     "canary:routstr-real": "node scripts/routstr-real-funds-canary.mjs"
   },
   "devDependencies": {
-    "@cashu/cashu-ts": "4.9.0",
+    "@cashu/cashu-ts": "4.10.0",
     "@evolu/common": "8.7.0",
     "@evolu/web": "3.1.0",
     "@noble/curves": "2.2.0",
