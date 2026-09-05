@@ -37,6 +37,7 @@ return (async function() {
 ${await fetchWithRetry('css/settings.css')}
 ${await fetchWithRetry('css/category-views.css')}
 ${await fetchWithRetry('css/data-protection.css')}
+${await fetchWithRetry('css/chat-mobile.css')}
 ${await fetchWithRetry('css/chat-redesign-open.css')}`;
 
   // ═══ Section 1: Header mobile layout ═══

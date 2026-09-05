@@ -1,11 +1,15 @@
 import { expect, test } from '@playwright/test';
 
 test('active CLI options collapse by mouse and keyboard without deselecting the agent', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-default-emptyTour', 'completed');
+    localStorage.setItem('labcharts-default-tour', 'completed');
+    localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({
     accepted: true, termsVersion: '2026-08-22', privacyVersion: '2026-08-22',
     policyScope: 'self-hosted-notice', acceptedAt: '2026-09-05T00:00:00Z',
     appVersion: 'cli-collapse-test', location: 'cli-collapse-test',
-  })));
+    }));
+  });
   await page.route('**/v1/**', async route => {
     const path = new URL(route.request().url()).pathname;
     const data = path === '/v1/discovery' ? {
