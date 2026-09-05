@@ -11,7 +11,7 @@ for (const width of [760, 360]) {
     const parent = 'https://app.getbased.health';
 
     const actions = [];
-    let updateAvailable = false, offlineUntil = 0;
+    let updateAvailable = false, offlineUntil = 0, recoverSameSession = false;
     const status = { runtimeMode: 'installed', processMode: 'service', companionVersion: '1.3.0', paused: false, restartRequired: false };
     const createManagement = () => createCompanionManagement({
       allowParentOrigin: value => value === parent,
@@ -24,6 +24,7 @@ for (const width of [760, 360]) {
           status.restartRequired = updateAvailable;
           return Response.json({ ...status, updated: updateAvailable, upToDate: !updateAvailable });
         }
+        if (action === 'uninstall') status.runtimeMode = 'temporary';
         if (action === 'restart-companion') {
           offlineUntil = Date.now() + 2600;
           return Response.json({ ...status, restarting: true });
@@ -38,7 +39,8 @@ for (const width of [760, 360]) {
         offlineUntil = 0;
         status.restartRequired = false;
         status.paused = false;
-        handle = createManagement(); // A restart invalidates management sessions.
+        if (recoverSameSession) status.restartStatus = 'failed';
+        else handle = createManagement(); // A restart invalidates management sessions.
       }
       if (req.url === '/health') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -107,6 +109,15 @@ for (const width of [760, 360]) {
     await expect(frame.locator('#status')).toHaveText('Connected', { timeout: 10000 });
     await expect(frame.getByRole('button', { name: 'Restart to finish update' })).toBeHidden();
     expect(actions).toEqual(['update', 'pause', 'update', 'restart-companion']);
+    // Failed service handoff restores the same healthy session (HTTP 200).
+    recoverSameSession = true;
+    await frame.getByText('Advanced', { exact: true }).click();
+    await frame.getByRole('button', { name: 'Restart Companion', exact: true }).click();
+    await expect(frame.locator('#message')).toContainText('previous connection is still available', { timeout: 10000 });
+    await expect(frame.locator('#status')).toHaveText('Connected');
+    await frame.getByRole('button', { name: 'Uninstall…', exact: true }).click();
+    await frame.getByRole('button', { name: 'Uninstall Companion', exact: true }).click();
+    await expect(frame.locator('#startup-description')).toContainText('Automatic startup removed · service still running');
     expect(page.url()).toBe(parent + '/companion-settings-test');
     expect(page.context().pages()).toHaveLength(1);
     const contentFrame = page.frames().find(item => item.url().startsWith(endpoint));

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
-import { createCompanionManagement } from '../lib/companion-management.js';
+import { createCompanionManagement, isAllowedCompanionManagementParent } from '../lib/companion-management.js';
 import { findExistingCompanion } from '../lib/companion-existing.js';
 
 const origin = 'http://127.0.0.1:8324';
@@ -13,6 +13,14 @@ async function session(handle) {
 }
 
 describe('local Companion management', () => {
+  it('allows only exact getbased management parents, never arbitrary chat origins', () => {
+    for (const origin of ['https://app.getbased.health', 'http://127.0.0.1:8000', 'http://localhost:8000']) {
+      expect(isAllowedCompanionManagementParent(origin)).toBe(true);
+    }
+    for (const origin of ['http://127.0.0.1:9999', 'http://localhost:8080', 'https://custom-chat.example', 'https://app.getbased.health:8443', 'https://app.getbased.health.attacker.example', 'null', '']) {
+      expect(isAllowedCompanionManagementParent(origin)).toBe(false);
+    }
+  });
   it('uses an isolated navigation-only page, not discovery or the persistent token', async () => {
     const control = vi.fn(async () => Response.json({ ok: true }));
     const handle = createCompanionManagement({ status: () => ({ runtimeMode: 'installed' }), control });

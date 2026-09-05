@@ -95,6 +95,7 @@ describe('running companion controls', () => {
       await controller.handle('restart-companion', { origin: 'http://127.0.0.1:8324' });
       await scheduled();
       expect(order).toEqual(['stop-listener', 'start-service', 'restore-listener']);
+      expect(controller.getInfo().restartStatus).toBe('failed');
       expect(stderr).toHaveBeenCalledWith(expect.stringContaining('Service unavailable'));
     } finally { stderr.mockRestore(); }
   });
