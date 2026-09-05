@@ -19,15 +19,23 @@ test('the real demo dashboard packs without overlapping cards', async ({ page })
     (await import('/js/views.js')).navigate('dashboard');
   });
   const grid = page.locator('#main-content .dashboard-widgets');
-  await expect(grid).toHaveClass(/is-packed/);
+  await expect(grid).toHaveClass(/is-adaptive/);
   await expect.poll(() => grid.locator(':scope > .dashboard-widget').evaluateAll(cards => {
     const boxes = cards.map(card => card.getBoundingClientRect());
     return boxes.length > 2 && boxes.every((a, i) => boxes.slice(i + 1).every(b => a.right <= b.x + 1 || b.right <= a.x + 1 || a.bottom <= b.y + 1 || b.bottom <= a.y + 1));
   })).toBe(true);
+  const pair = await grid.locator('[data-widget-id="focus"], [data-widget-id="spotlight"]').evaluateAll(cards => cards.map(card => {
+    const r = card.getBoundingClientRect();
+    return { width: r.width, bottom: r.bottom };
+  }));
+  expect(pair).toHaveLength(2);
+  expect(Math.abs(pair[0].bottom - pair[1].bottom)).toBeLessThanOrEqual(1);
+  expect(pair[0].width).not.toBe(pair[1].width);
+  await expect(grid.locator('.db-spotlight .db-spark')).toHaveCSS('height', '80px');
   await page.screenshot({ path: '/tmp/getbased-packed-dashboard.png' });
 });
 
-test('desktop cards fill usable gaps and respond to content, width, and organize changes', async ({ page }) => {
+test('desktop rows adapt widths and heights after content and order changes', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 1000 });
   await page.goto('/app', { waitUntil: 'load' });
   await page.addStyleTag({ url: '/css/dashboard-widgets.css' });
@@ -36,32 +44,42 @@ test('desktop cards fill usable gaps and respond to content, width, and organize
     main.id = 'packing-fixture';
     document.body.appendChild(main);
     main.innerHTML = '<div class="dashboard-widgets" style="width:1000px">' + [
-      ['short', 'half', 120], ['tall', 'half', 360], ['wide', 'full', 90], ['filler', 'half', 100], ['end', 'full', 80],
-    ].map(([id, size, height]) => `<section id="${id}" class="dashboard-widget dashboard-widget-${size}" style="height:${height}px;box-sizing:border-box">${id}</section>`).join('') + '</div>';
+      ['short', 'half', 'Short text. '.repeat(8)], ['tall', 'half', 'Longer explanation. '.repeat(60)],
+      ['wide', 'full', 'Full-width content'], ['filler', 'half', 'Another card'], ['end', 'full', 'Last wide card'],
+    ].map(([id, size, text]) => `<section id="${id}" class="dashboard-widget dashboard-widget-${size}"><div>${text}</div></section>`).join('') + '</div>';
     (await import('/js/dashboard-widget-packing.js')).setupDashboardWidgetPacking(main);
   });
   const grid = page.locator('#packing-fixture .dashboard-widgets');
-  await expect(grid).toHaveClass(/is-packed/);
+  await expect(grid).toHaveClass(/is-adaptive/);
   const boxes = () => grid.locator('.dashboard-widget').evaluateAll(cards => cards.map(card => {
     const r = card.getBoundingClientRect();
     return { id: card.id, x: r.x, y: r.y, right: r.right, bottom: r.bottom };
   }));
   await expect.poll(async () => {
     const [short, tall, wide, filler] = await boxes();
-    return filler.y < wide.y && filler.x === short.x && filler.bottom < tall.bottom;
+    return short.right - short.x < tall.right - tall.x && Math.abs(short.bottom - tall.bottom) < 1 && filler.y > wide.y;
   }).toBe(true);
   expect((await boxes()).map(card => card.id)).toEqual(['short', 'tall', 'wide', 'filler', 'end']);
-  await page.locator('#filler').evaluate(card => { card.style.height = '300px'; });
+  await page.locator('#short > div').evaluate(card => { card.textContent = 'New long explanation. '.repeat(120); });
+  await expect.poll(async () => {
+    const [short, tall] = await boxes();
+    return short.right - short.x > tall.right - tall.x;
+  }).toBe(true);
   await expect.poll(async () => {
     const all = await boxes();
     return all.every((a, i) => all.slice(i + 1).every(b => a.right <= b.x || b.right <= a.x || a.bottom <= b.y || b.bottom <= a.y));
   }).toBe(true);
   await grid.evaluate(el => el.classList.add('is-organizing'));
-  await expect(grid).not.toHaveClass(/is-packed/);
+  await expect(grid).toHaveClass(/is-adaptive/);
+  await grid.evaluate(el => el.insertBefore(el.querySelector('#filler'), el.querySelector('#tall')));
+  await expect.poll(async () => {
+    const all = await boxes();
+    return all[0].y === all[1].y && all[1].id === 'filler' && all[2].y > all[1].y;
+  }).toBe(true);
   await grid.evaluate(el => { el.classList.remove('is-organizing'); el.style.width = '500px'; });
-  await expect(grid).not.toHaveClass(/is-packed/);
+  await expect(grid).not.toHaveClass(/is-adaptive/);
   await grid.evaluate(el => { el.style.width = '1000px'; });
-  await expect(grid).toHaveClass(/is-packed/);
+  await expect(grid).toHaveClass(/is-adaptive/);
 });
 
 test('a final lone card after a full-width widget expands without changing its saved size', async ({ page }) => {
