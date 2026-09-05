@@ -321,6 +321,9 @@ describe('agent host service', () => {
     const installed = await request('install');
     expect(await installed.json()).toMatchObject({ action: 'install', installed: true });
     expect(controlHandler).toHaveBeenCalledWith('install', { origin: 'http://127.0.0.1:8000' });
+    const restarted = await request('restart-companion');
+    expect(await restarted.json()).toMatchObject({ action: 'restart-companion' });
+    expect(controlHandler).toHaveBeenCalledWith('restart-companion', { origin: 'http://127.0.0.1:8000' });
 
     const turn = await service.handleRequest(turnRequest());
     const reader = turn.body.getReader();

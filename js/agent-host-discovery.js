@@ -3,7 +3,8 @@
 
 import { agentHostUpgradeRequiredError, checkAgentHost } from './agent-chat-client.js';
 import {
-  agentHostSupportsCapabilities, normalizeAgentHostCapabilities, normalizeAgentHostProtocolVersion,
+  AGENT_HOST_CAPABILITIES, agentHostSupportsCapabilities,
+  normalizeAgentHostCapabilities, normalizeAgentHostProtocolVersion,
 } from '../shared/agent-host-protocol.js';
 
 const LOOPBACK_AGENT_PORTS = Object.freeze(Array.from({ length: 8 }, (_, index) => 8324 + index));
@@ -106,13 +107,17 @@ export async function discoverLoopbackAgentHostsRuntime(options) {
     ...(savedIsBounded ? [] : [options.savedEndpoint]),
     ...boundedEndpoints,
   ].filter(Boolean))];
+  let legacyCompanion = [];
   for (const endpoint of endpoints) {
     if (options.signal?.aborted) return [];
     const agents = await probeLoopbackAgentHost(endpoint, options.signal, options.normalizeEndpoint);
     const allowedAgents = agents.filter(agent => isAgentAllowedForDeployment(agent.id));
-    if (allowedAgents.length) return allowedAgents;
+    if (!allowedAgents.length) continue;
+    const current = allowedAgents.some(agent => agent.capabilities.includes(AGENT_HOST_CAPABILITIES.COMPANION_CONTROL));
+    if (current) return allowedAgents;
+    if (!legacyCompanion.length) legacyCompanion = allowedAgents;
   }
-  return [];
+  return legacyCompanion;
 }
 
 export function mergeDiscoveredAgents(primary, companions) {

@@ -62,7 +62,8 @@ describe('Linux companion installer', () => {
     expect(readFileSync(result.launcher, 'utf8')).toContain(result.installedBundle);
     expect(systemctl.mock.calls.map(call => call[1])).toEqual([
       ['--user', 'daemon-reload'],
-      ['--user', 'enable', '--now', LINUX_COMPANION_SERVICE],
+      ['--user', 'enable', LINUX_COMPANION_SERVICE],
+      ['--user', 'restart', LINUX_COMPANION_SERVICE],
       ['--user', 'is-active', '--quiet', LINUX_COMPANION_SERVICE],
     ]);
   });

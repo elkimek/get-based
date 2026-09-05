@@ -80,6 +80,7 @@ test('CLI provider discovers branded agents and keeps model controls stable acro
   ].map(([id, name, description]) => ({
     id, name, description, version: 'test', status: 'available', compatible: true,
     endpoint, token, runtimeMode: 'temporary', companionVersion: '1.1.0',
+    protocolVersion: 5, capabilities: ['chat-stream', 'companion-control', 'execution-targets'],
   }));
   const models = [
     ...Array.from({ length: 14 }, (_, index) => ({
@@ -121,6 +122,16 @@ test('CLI provider discovers branded agents and keeps model controls stable acro
 
   await page.route('**/api/local-agents*', route => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({ agents }),
+  }));
+  await page.route(`${endpoint}/v1/discovery`, route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      service: 'getbased-agent-host', endpoint, token, agents,
+      protocolVersion: 5,
+      capabilities: ['chat-stream', 'companion-control', 'execution-targets'],
+      companionVersion: '1.1.0', runtimeMode: 'temporary', platform: 'linux',
+    }),
   }));
   await page.route(`${endpoint}/v1/status`, route => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({

@@ -37,7 +37,7 @@ export function agentHostUpgradeRequiredError(capability) {
     : capability === AGENT_HOST_CAPABILITIES.STRUCTURED_HEALTH_TOOLS
       ? 'the latest getbased tools'
       : 'this feature';
-  const error = new Error(`The local getbased Companion is outdated. Restart it to enable ${feature}.`);
+  const error = new Error(`The local getbased Companion is outdated. Update it in AI settings to enable ${feature}.`);
   // @ts-ignore — lightweight browser error classification.
   error.code = 'agent_host_upgrade_required';
   return error;
@@ -63,7 +63,7 @@ export async function checkAgentHost(options) {
 }
 
 /**
- * @param {{endpoint: string, token: string, action: 'pause'|'resume'|'install'|'restart'|'update'|'uninstall', signal?: AbortSignal}} options
+ * @param {{endpoint: string, token: string, action: 'pause'|'resume'|'install'|'restart'|'restart-companion'|'update'|'uninstall', signal?: AbortSignal}} options
  */
 export async function controlAgentHost(options) {
   const response = await fetch(endpointUrl(options.endpoint, '/v1/control'), {

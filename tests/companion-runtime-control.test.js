@@ -22,7 +22,7 @@ describe('running companion controls', () => {
     }));
   });
 
-  it('restarts only the Codex connection while keeping the control channel available', async () => {
+  it('reopens CLI connections while keeping the companion control channel available', async () => {
     const appServer = { restart: vi.fn(), initialize: vi.fn() };
     const controller = createCompanionRuntimeController({
       appServer, bundlePath: '/tmp/getbased-companion.mjs', env: {}, platform: 'linux',
@@ -31,6 +31,32 @@ describe('running companion controls', () => {
       .resolves.toMatchObject({ restarted: true });
     expect(appServer.restart).toHaveBeenCalledOnce();
     expect(appServer.initialize).toHaveBeenCalledOnce();
+  });
+
+  it('schedules an installed companion service restart after the response can be sent', async () => {
+    const serviceCommandImpl = vi.fn();
+    let scheduled;
+    const controller = createCompanionRuntimeController({
+      appServer: { restart: vi.fn(), initialize: vi.fn() },
+      bundlePath: '/tmp/getbased-companion.mjs',
+      env: { GETBASED_COMPANION_SERVICE: '1' }, platform: 'linux', serviceCommandImpl,
+      scheduleImpl: callback => { scheduled = callback; },
+    });
+
+    await expect(controller.handle('restart-companion', { origin: 'https://getbased.health' }))
+      .resolves.toMatchObject({ restarting: true, runtimeMode: 'installed' });
+    expect(serviceCommandImpl).not.toHaveBeenCalledWith('restart', expect.anything());
+    scheduled();
+    expect(serviceCommandImpl).toHaveBeenCalledWith('restart', expect.objectContaining({ platform: 'linux' }));
+  });
+
+  it('does not pretend a temporary terminal companion can restart itself', async () => {
+    const controller = createCompanionRuntimeController({
+      appServer: { restart: vi.fn(), initialize: vi.fn() },
+      bundlePath: '/tmp/getbased-companion.mjs', env: {}, platform: 'linux',
+    });
+    await expect(controller.handle('restart-companion', { origin: 'http://localhost:8000' }))
+      .rejects.toThrow('Start the companion automatically');
   });
 
   it('updates only from the active HTTPS getbased origin and keeps the service registered', async () => {

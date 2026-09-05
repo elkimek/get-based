@@ -4,6 +4,7 @@
 import { controlAgentHost, listAgentExecutionTargets, listAgentModels } from './agent-chat-client.js';
 import { cacheAgentModelCatalog } from './agent-model-catalog.js';
 import { renderCLIAgentBrandIcon } from './cli-agent-brand-assets.js';
+import { AGENT_HOST_CAPABILITIES } from '../shared/agent-host-protocol.js';
 import {
   connectDetectedAgent,
   discoverLocalChatAgents,
@@ -118,6 +119,16 @@ export async function copyCLICompanionStartCommand() {
     const platform = companionPlatformOverride || detectCompanionPlatform();
     await navigator.clipboard.writeText(getCompanionCommand(platform, 'start'));
     showNotification(`Start command copied. Paste it into ${platform === 'windows' ? 'PowerShell' : 'Terminal'}.`, 'success', 7000);
+  } catch {
+    showNotification('Could not access the clipboard', 'error');
+  }
+}
+
+export async function copyCLICompanionUpdateCommand() {
+  try {
+    const platform = companionPlatformOverride || detectCompanionPlatform();
+    await navigator.clipboard.writeText(getCompanionCommand(platform, 'install'));
+    showNotification(`Update command copied. Run it in ${platform === 'windows' ? 'PowerShell' : 'Terminal'}, then check the connection.`, 'success', 8000);
   } catch {
     showNotification('Could not access the clipboard', 'error');
   }
@@ -345,10 +356,23 @@ function renderDetectedAgent(agent) {
     </div>`;
 }
 
-/** @param {{status: string, paused?: boolean, runtimeMode?: string, companionVersion?: string}} agent */
+/** @param {{status: string, paused?: boolean, runtimeMode?: string, companionVersion?: string, capabilities?: string[]}} agent */
 function renderCompanionControls(agent) {
   const paused = agent.status === 'paused' || agent.paused === true;
   const installed = agent.runtimeMode === 'installed';
+  const canControl = agent.capabilities?.includes(AGENT_HOST_CAPABILITIES.COMPANION_CONTROL) === true;
+  if (!canControl) {
+    return `<div class="local-agent-list-kicker local-agent-companion-kicker">Companion</div>
+    <div class="local-agent-controls local-agent-controls-outdated" aria-label="Companion update required">
+      <div class="local-agent-controls-copy">
+        <strong>Update required</strong>
+        <span>This older companion cannot receive controls from the browser. Restarting the same file will not update it.</span>
+      </div>
+      <div class="local-agent-control-actions">
+        <button type="button" class="import-btn import-btn-primary settings-mini-btn" data-settings-action="copy-cli-companion-update">Copy one-time update command</button>
+      </div>
+    </div>`;
+  }
   const modeLabel = installed ? 'Starts automatically at login' : 'Connected for this terminal session';
   return `<div class="local-agent-list-kicker local-agent-companion-kicker">Companion</div>
   <div class="local-agent-controls" aria-label="Companion controls">
@@ -358,9 +382,9 @@ function renderCompanionControls(agent) {
     </div>
     <div class="local-agent-control-actions">
       <button type="button" class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="control-cli-companion" data-value="${paused ? 'resume' : 'pause'}">${paused ? 'Resume' : 'Pause'}</button>
-      <button type="button" class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="control-cli-companion" data-value="restart"${paused ? ' disabled title="Resume the companion first"' : ''}>Restart agents</button>
+      <button type="button" class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="control-cli-companion" data-value="restart"${paused ? ' disabled title="Resume the companion first"' : ' title="Close and reopen the CLI agent connections without stopping the companion"'}>Reconnect CLIs</button>
       ${installed
-    ? '<button type="button" class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="control-cli-companion" data-value="update">Update</button><button type="button" class="import-btn settings-mini-btn local-agent-danger" data-settings-action="control-cli-companion" data-value="uninstall">Uninstall</button>'
+    ? '<button type="button" class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="control-cli-companion" data-value="restart-companion" title="Restart the getbased Companion service">Restart companion</button><button type="button" class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="control-cli-companion" data-value="update">Check for update</button><button type="button" class="import-btn settings-mini-btn local-agent-danger" data-settings-action="control-cli-companion" data-value="uninstall">Uninstall</button>'
     : '<button type="button" class="import-btn import-btn-primary settings-mini-btn" data-settings-action="control-cli-companion" data-value="install">Start automatically</button>'}
     </div>
   </div>`;
@@ -393,8 +417,8 @@ export async function refreshDetectedAgentList(options = {}) {
 
 /** @param {string} requestedAction */
 export async function controlCLICompanion(requestedAction) {
-  if (!['pause', 'resume', 'install', 'restart', 'update', 'uninstall'].includes(requestedAction)) return;
-  const action = /** @type {'pause'|'resume'|'install'|'restart'|'update'|'uninstall'} */ (requestedAction);
+  if (!['pause', 'resume', 'install', 'restart', 'restart-companion', 'update', 'uninstall'].includes(requestedAction)) return;
+  const action = /** @type {'pause'|'resume'|'install'|'restart'|'restart-companion'|'update'|'uninstall'} */ (requestedAction);
   if (action === 'uninstall' && !await showConfirmDialog(
     'Remove the getbased Companion from automatic startup? The current connection will remain available until this session ends.',
   )) return;
@@ -408,13 +432,18 @@ export async function controlCLICompanion(requestedAction) {
       if (getChatBackend() === 'codex') setChatBackend('direct');
       showNotification('Companion paused. getbased switched to direct AI.', 'success');
     } else if (action === 'resume') showNotification('Companion resumed', 'success');
-    else if (action === 'restart') showNotification('CLI agent connections restarted', 'success');
+    else if (action === 'restart') showNotification('CLI connections reopened', 'success');
+    else if (action === 'restart-companion') showNotification('Companion is restarting. It will reconnect in a moment.', 'success', 7000);
     else if (action === 'install') showNotification('Companion will now start automatically at login', 'success', 7000);
     else if (action === 'uninstall') showNotification('Companion removed from automatic startup', 'success', 7000);
     else if (action === 'update') showNotification(result.restartRequired
-      ? 'Update installed. It will take effect the next time the companion starts.'
+      ? 'Update installed. Select Restart companion to use it now.'
       : 'Companion is up to date', 'success', 8000);
-    await refreshDetectedAgentList({ refresh: true });
+    if (action === 'restart-companion') {
+      setTimeout(() => { void refreshDetectedAgentList({ refresh: true }); }, 1800);
+    } else {
+      await refreshDetectedAgentList({ refresh: true });
+    }
     return result;
   } catch (error) {
     showNotification(error instanceof Error ? error.message : 'Could not manage the companion.', 'error', 9000);

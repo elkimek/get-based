@@ -167,14 +167,14 @@ describe('agent chat client', () => {
     }));
   });
 
-  it('turns an outdated image endpoint into an actionable restart error', async () => {
+  it('turns an outdated image endpoint into an actionable update error', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{"error":"not_found"}', {
       status: 404, headers: { 'Content-Type': 'application/json' },
     })));
     const file = new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], { type: 'image/png' });
     const promise = uploadAgentImage({ endpoint: 'http://127.0.0.1:8324', token: 'secret-token', file });
     await expect(promise).rejects.toMatchObject({ code: 'agent_host_upgrade_required' });
-    await expect(promise).rejects.toThrow('Restart it to enable image support');
+    await expect(promise).rejects.toThrow('Update it in AI settings to enable image support');
   });
 
   it('records model reroutes and web-search activity for answer provenance', async () => {

@@ -55,8 +55,8 @@ describe('agent chat settings', () => {
       if (url === 'http://127.0.0.1:8326/v1/discovery') {
         return new Response(JSON.stringify({
           service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8326',
-          token: 'automatic-companion-token', protocolVersion: 2,
-          capabilities: ['chat-stream', 'image-upload'],
+          token: 'automatic-companion-token', protocolVersion: 5,
+          capabilities: ['chat-stream', 'image-upload', 'companion-control'],
           agents: [{ id: 'codex', name: 'Codex CLI', status: 'available', compatible: true }],
         }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
@@ -66,9 +66,31 @@ describe('agent chat settings', () => {
 
     await expect(discoverLocalChatAgents()).resolves.toEqual([expect.objectContaining({
       id: 'codex', endpoint: 'http://127.0.0.1:8326', token: 'automatic-companion-token',
-      protocolVersion: 2, capabilities: ['chat-stream', 'image-upload'],
+      protocolVersion: 5, capabilities: ['chat-stream', 'image-upload', 'companion-control'],
     })]);
     expect(fetchMock).not.toHaveBeenCalledWith('http://127.0.0.1:8327/v1/discovery', expect.anything());
+  });
+
+  it('continues past an outdated companion when a current one is on the next discovery port', async () => {
+    const discovery = (endpoint, token, protocolVersion, capabilities) => new Response(JSON.stringify({
+      service: 'getbased-agent-host', endpoint, token, protocolVersion, capabilities,
+      agents: [{ id: 'codex', name: 'Codex CLI', status: 'available', compatible: true }],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      const url = String(input);
+      if (url === '/api/local-agents') return new Response('{"error":"not_found"}', { status: 404 });
+      if (url === 'http://127.0.0.1:8324/v1/discovery') {
+        return discovery('http://127.0.0.1:8324', 'outdated-companion-token', 2, ['chat-stream']);
+      }
+      if (url === 'http://127.0.0.1:8325/v1/discovery') {
+        return discovery('http://127.0.0.1:8325', 'current-companion-token', 5, ['chat-stream', 'companion-control']);
+      }
+      throw new TypeError('connection refused');
+    }));
+
+    await expect(discoverLocalChatAgents()).resolves.toEqual([expect.objectContaining({
+      endpoint: 'http://127.0.0.1:8325', token: 'current-companion-token', protocolVersion: 5,
+    })]);
   });
 
   it('recovers from an outdated saved host by switching to a capable companion', async () => {

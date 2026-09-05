@@ -37,8 +37,9 @@ describe('Windows companion installer', () => {
     const schtasks = vi.fn();
     runWindowsCompanionServiceCommand('start', { execFileSyncImpl: schtasks });
     runWindowsCompanionServiceCommand('stop', { execFileSyncImpl: schtasks });
+    runWindowsCompanionServiceCommand('restart', { execFileSyncImpl: schtasks });
     runWindowsCompanionServiceCommand('status', { execFileSyncImpl: schtasks });
-    expect(schtasks.mock.calls.map(call => call[1][0])).toEqual(['/Run', '/End', '/Query']);
+    expect(schtasks.mock.calls.map(call => call[1][0])).toEqual(['/Run', '/End', '/End', '/Run', '/Query']);
     expect(schtasks.mock.calls.every(call => call[1].includes(WINDOWS_COMPANION_TASK))).toBe(true);
   });
 });

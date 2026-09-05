@@ -7,7 +7,7 @@ import { getAIProvider, hasAIProvider, isAIPaused, setOllamaPIIModel } from './a
 import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots } from './crypto.js';
 import { renderSyncSection, renderMessengerSection, hydrateSettingsSyncPanel } from './settings-sync-panel.js';
 import { getChatBackend } from './agent-chat-settings.js';
-import { controlCLICompanion, copyCLIAgentLoginCommand, copyCLICompanionRunCommand, copyCLICompanionStartCommand, refreshDetectedAgentList, renderCLIAgentProviderPanel, setCLIAgentEffort, setCLIAgentModel, setCLIAgentProviderFilter, setCLIAgentTarget, setCLICompanionPlatform, testLocalCodex, toggleLocalCodex } from './settings-cli-agent-panel.js';
+import { controlCLICompanion, copyCLIAgentLoginCommand, copyCLICompanionRunCommand, copyCLICompanionStartCommand, copyCLICompanionUpdateCommand, refreshDetectedAgentList, renderCLIAgentProviderPanel, setCLIAgentEffort, setCLIAgentModel, setCLIAgentProviderFilter, setCLIAgentTarget, setCLICompanionPlatform, testLocalCodex, toggleLocalCodex } from './settings-cli-agent-panel.js';
 import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
 import { setProductRecsEnabled } from './recommendations.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
@@ -88,9 +88,7 @@ import {
   renderAppExtensionSettingsSlot,
 } from './app-extension-runtime.js';
 /** @typedef {Window & typeof globalThis & Record<string, any>} SettingsWindow */
-
 const settingsWindow = /** @type {SettingsWindow} */ (window);
-
 /**
  * @typedef {{
  *   clearAllData: () => Promise<void> | void,
@@ -296,6 +294,8 @@ async function handleSettingsClick(event) {
     event.preventDefault(); void copyCLICompanionRunCommand();
   } else if (action === 'copy-cli-companion-start') {
     event.preventDefault(); void copyCLICompanionStartCommand();
+  } else if (action === 'copy-cli-companion-update') {
+    event.preventDefault(); void copyCLICompanionUpdateCommand();
   } else if (action === 'copy-cli-agent-login') {
     event.preventDefault(); void copyCLIAgentLoginCommand(actionEl.dataset.value || '');
   } else if (action === 'control-cli-companion') {

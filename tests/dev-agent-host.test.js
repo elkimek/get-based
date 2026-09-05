@@ -43,12 +43,16 @@ describe('development agent discovery', () => {
       id: 'codex', compatible: true, status: 'starting', token: 'private-token',
     })] });
     child.stdout.emit('data', 'getbased Companion listening at http://127.0.0.1:8324\n');
-    expect(controller.describe().agents[0]).toMatchObject({ status: 'available', version: 'codex-cli 0.150.1' });
+    expect(controller.describe().agents[0]).toMatchObject({
+      status: 'available', version: 'codex-cli 0.150.1', protocolVersion: 5,
+      capabilities: expect.arrayContaining(['companion-control', 'execution-targets']),
+      companionVersion: '1.2.0', runtimeMode: 'temporary',
+    });
     expect(spawnImpl).toHaveBeenCalledWith(process.execPath, [
       '--watch-preserve-output', '--watch', '/workspace/server/agent-host-server.js',
     ], expect.objectContaining({
       cwd: '/workspace', stdio: ['ignore', 'pipe', 'pipe'],
-      env: expect.objectContaining({ GETBASED_AGENT_HOST_STRICT_PORT: '1' }),
+      env: expect.objectContaining({ GETBASED_AGENT_HOST_STRICT_PORT: '0' }),
     }));
 
     controller.close();
@@ -150,6 +154,7 @@ describe('development agent discovery', () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
     const controller = startDevAgentHost({
       root: '/workspace',
+      env: { GETBASED_AGENT_HOST_PORT: '8324' },
       execFileSyncImpl: vi.fn(command => {
         if (command === 'codex') return 'codex-cli 0.150.1';
         throw new Error('missing');
@@ -160,5 +165,24 @@ describe('development agent discovery', () => {
 
     child.stderr.emit('data', 'listen EADDRINUSE: address already in use 127.0.0.1:8324');
     await vi.waitFor(() => expect(controller.describe().agents[0].status).toBe('available'));
+  });
+
+  it('follows the current development companion to the next free discovery port', () => {
+    const child = fakeChild();
+    const controller = startDevAgentHost({
+      root: '/workspace', env: {},
+      execFileSyncImpl: vi.fn(command => {
+        if (command === 'codex') return 'codex-cli 0.150.1';
+        throw new Error('missing');
+      }),
+      prepareStorage: vi.fn(() => ({ token: 'private-token' })),
+      spawnImpl: vi.fn(() => child),
+    });
+
+    child.stderr.emit('data', 'listen EADDRINUSE: address already in use 127.0.0.1:8324');
+    expect(controller.describe().agents[0]).toMatchObject({ status: 'starting', endpoint: 'http://127.0.0.1:8324' });
+    child.stdout.emit('data', 'getbased Companion listening at http://127.0.0.1:8325\n');
+    expect(controller.describe().agents[0]).toMatchObject({ status: 'available', endpoint: 'http://127.0.0.1:8325' });
+    controller.close();
   });
 });
