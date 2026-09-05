@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 755 |
-| Internal import edges | 3191 |
+| Modules | 758 |
+| Internal import edges | 3194 |
 | Dynamic internal edges | 105 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1472,7 +1472,7 @@ Node-only policy and transport code shared by hosted runtimes.
 
 - [`lib/agent-host-boundary.js`](lib/agent-host-boundary.js) → [`shared/agent-tool-contract.js`](shared/agent-tool-contract.js)
 - [`lib/agent-host-external-turn.js`](lib/agent-host-external-turn.js) → no in-scope imports
-- [`lib/agent-host-service.js`](lib/agent-host-service.js) → [`lib/agent-host-boundary.js`](lib/agent-host-boundary.js), [`lib/agent-host-external-turn.js`](lib/agent-host-external-turn.js), [`shared/agent-host-protocol.js`](shared/agent-host-protocol.js)
+- [`lib/agent-host-service.js`](lib/agent-host-service.js) → [`lib/agent-host-boundary.js`](lib/agent-host-boundary.js), [`lib/agent-host-external-turn.js`](lib/agent-host-external-turn.js), [`lib/companion-management.js`](lib/companion-management.js), [`shared/agent-host-protocol.js`](shared/agent-host-protocol.js)
 - [`lib/agent-host-storage.js`](lib/agent-host-storage.js) → no in-scope imports
 - [`lib/agent-mcp-bridge.js`](lib/agent-mcp-bridge.js) → no in-scope imports
 
@@ -1491,9 +1491,12 @@ Node-only policy and transport code shared by hosted runtimes.
 
 </details>
 
-<details><summary><code>companion</code> family — 2 modules</summary>
+<details><summary><code>companion</code> family — 5 modules</summary>
 
+- [`lib/companion-existing.js`](lib/companion-existing.js) → no in-scope imports
 - [`lib/companion-install.js`](lib/companion-install.js) → [`lib/linux-companion-install.js`](lib/linux-companion-install.js), [`lib/macos-companion-install.js`](lib/macos-companion-install.js), [`lib/windows-companion-install.js`](lib/windows-companion-install.js)
+- [`lib/companion-listener.js`](lib/companion-listener.js) → no in-scope imports
+- [`lib/companion-management.js`](lib/companion-management.js) → no in-scope imports
 - [`lib/companion-runtime-control.js`](lib/companion-runtime-control.js) → [`lib/companion-install.js`](lib/companion-install.js), [`shared/agent-host-protocol.js`](shared/agent-host-protocol.js)
 
 </details>
@@ -1605,7 +1608,7 @@ Standalone loopback companion for installed CLI agents.
 
 <details><summary><code>agent</code> family — 1 module</summary>
 
-- [`server/agent-host-server.js`](server/agent-host-server.js) → [`lib/acp-agent-client.js`](lib/acp-agent-client.js), [`lib/agent-host-service.js`](lib/agent-host-service.js), [`lib/agent-host-storage.js`](lib/agent-host-storage.js), [`lib/claude-agent-client.js`](lib/claude-agent-client.js), [`lib/codex-agent-isolation.js`](lib/codex-agent-isolation.js), [`lib/codex-app-server-client.js`](lib/codex-app-server-client.js), [`lib/companion-runtime-control.js`](lib/companion-runtime-control.js), [`lib/hermes-gateway-client.js`](lib/hermes-gateway-client.js), [`lib/local-agent-registry.js`](lib/local-agent-registry.js), [`lib/openclaw-agent-client.js`](lib/openclaw-agent-client.js)
+- [`server/agent-host-server.js`](server/agent-host-server.js) → [`lib/acp-agent-client.js`](lib/acp-agent-client.js), [`lib/agent-host-service.js`](lib/agent-host-service.js), [`lib/agent-host-storage.js`](lib/agent-host-storage.js), [`lib/claude-agent-client.js`](lib/claude-agent-client.js), [`lib/codex-agent-isolation.js`](lib/codex-agent-isolation.js), [`lib/codex-app-server-client.js`](lib/codex-app-server-client.js), [`lib/companion-listener.js`](lib/companion-listener.js), [`lib/companion-runtime-control.js`](lib/companion-runtime-control.js), [`lib/hermes-gateway-client.js`](lib/hermes-gateway-client.js), [`lib/local-agent-registry.js`](lib/local-agent-registry.js), [`lib/openclaw-agent-client.js`](lib/openclaw-agent-client.js)
 
 </details>
 
@@ -1615,7 +1618,7 @@ Install and control the Linux user-level agent companion.
 
 <details><summary><code>getbased</code> family — 1 module</summary>
 
-- [`bin/getbased-companion.js`](bin/getbased-companion.js) → [`lib/agent-mcp-bridge.js`](lib/agent-mcp-bridge.js), [`lib/companion-install.js`](lib/companion-install.js), [`server/agent-host-server.js`](server/agent-host-server.js) *(dynamic)*
+- [`bin/getbased-companion.js`](bin/getbased-companion.js) → [`lib/agent-mcp-bridge.js`](lib/agent-mcp-bridge.js), [`lib/companion-existing.js`](lib/companion-existing.js), [`lib/companion-install.js`](lib/companion-install.js), [`server/agent-host-server.js`](server/agent-host-server.js) *(dynamic)*
 
 </details>
 

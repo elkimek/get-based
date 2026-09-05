@@ -7,6 +7,7 @@ import {
   companionPlatformName, installCompanion, runCompanionServiceCommand, uninstallCompanion,
 } from '../lib/companion-install.js';
 import { runAgentMCPBridge } from '../lib/agent-mcp-bridge.js';
+import { findExistingCompanion } from '../lib/companion-existing.js';
 
 const HELP = `getbased Companion
 
@@ -32,6 +33,13 @@ export async function main(args, options = {}) {
     return;
   }
   if (command === 'run') {
+    if (process.env.GETBASED_COMPANION_SERVICE !== '1') {
+      const existing = await findExistingCompanion();
+      if (existing) {
+        process.stdout.write(`getbased Companion is already running at ${existing.endpoint}. No second process was started.\nReturn to getbased and select Check connection.\nLocal management (current Companion versions): ${existing.endpoint}/manage\nStopping this command does not stop the existing Companion.\n`);
+        return;
+      }
+    }
     await import('../server/agent-host-server.js');
     return;
   }

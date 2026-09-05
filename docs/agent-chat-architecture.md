@@ -201,9 +201,11 @@ A hosted browser cannot start an operating-system process. The production
 build therefore emits a single dependency-free `getbased-companion.mjs`
 download. When no companion is detected, **Settings → AI → CLI agents** shows
 one bootstrap command for the detected operating system. It runs the bundle for
-the current Terminal or PowerShell session. Once that authenticated loopback
-connection exists, the page can register or remove automatic startup directly;
-there is no second installation command in the normal flow. Linux and macOS use
+the current Terminal or PowerShell session. A temporary bootstrap first checks
+for an existing Companion in the bounded port range and exits without launching
+a duplicate when one is found. Hosted discovery remains chat-only. Companion
+1.3.0 advertises `companion-management`; **Manage Companion** opens a separate
+numeric-loopback page for installation and lifecycle controls. Linux and macOS use
 a POSIX-shell command and Windows uses PowerShell. The command downloads the
 bundle from the same getbased origin the user has open, so it does not require a
 repository checkout or npm. A separate start command remains available for
@@ -232,15 +234,15 @@ standard-library APIs. A real cross-platform tray requires a GUI runtime such
 as Electron or Tauri and platform-specific icon/application packaging. That is
 an optional desktop shell, not part of the headless companion: making it the
 only distribution would reintroduce unsigned-app warnings and a much larger
-download. Companion state and lifecycle controls should first be exposed in
-getbased Settings; a tray shell can consume the same local control protocol
-later without changing the health-data or agent boundaries.
+download. Settings links to the local management page; a future tray shell
+must preserve the same health-data and management authorization boundaries.
 
 After installation, the service starts at login and the hosted PWA discovers
-it through the same origin-gated loopback protocol. Authenticated Settings
-controls can pause or resume new AI work, restart agent subprocesses,
-register automatic startup, update the installed bundle from the active
-getbased HTTPS origin, and remove automatic startup. Destructive lifecycle
+it through the same origin-gated loopback protocol. Local management and
+installation-authorized development controls can pause or resume new AI work,
+restart agent subprocesses, register automatic startup, update the installed
+bundle from the fixed official getbased HTTPS URL, and remove startup. Hosted
+discovery credentials cannot invoke those actions. Destructive lifecycle
 actions are rejected while an agent turn is active. Updates are bounded and
 validated as companion bundles before replacing the installed copy; they take
 effect on the next companion start. The CLI also supports `start`, `stop`,
@@ -270,6 +272,23 @@ origin must be explicitly listed in the comma-separated
 `GETBASED_AGENT_HOST_ALLOWED_ORIGINS` environment variable.
 
 ## Companion protocol and upgrades
+
+### Local management authorization
+
+The management page requires top-level browser navigation and rejects frames
+and cross-origin fetches. It has no CORS permission, uses a nonce CSP with
+`frame-ancestors 'none'`, checks the exact numeric-loopback Host, and issues an
+in-memory, 15-minute token (maximum eight sessions). Its status/control endpoints
+require that token and same-origin Fetch Metadata; mutation requests additionally
+require the exact Origin and JSON. No installation token is embedded or passed
+back to the hosted app. It reuses the existing action allowlist and active-turn
+guards. Opening the page performs no lifecycle mutation; each control requires
+a user action, with confirmation for installation, update, restart, and removal.
+State distinguishes an installed login configuration from the current terminal
+or background-service process. After registering startup from a terminal,
+Restart companion releases that listener before handing over to the service.
+
+### Capability negotiation
 
 The companion advertises a numeric protocol version, companion version,
 runtime mode, and named capabilities

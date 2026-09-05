@@ -384,10 +384,22 @@ describe('agent host service', () => {
     const turn = await service.handleRequest(turnRequest());
     const reader = turn.body.getReader();
     await nextEvent(reader, new TextDecoder(), { value: '' });
-    for (const action of ['uninstall', 'restart-companion', 'pause']) {
+    const managementPage = await service.handleRequest(new Request('http://127.0.0.1:8324/manage', {
+      headers: { Host: '127.0.0.1:8324', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Dest': 'document' },
+    }));
+    const managementToken = (await managementPage.text()).match(/const credential="([^"]+)"/)[1];
+    for (const action of ['install', 'uninstall', 'restart-companion', 'pause']) {
       const blocked = await request(action);
       expect(blocked.status).toBe(409);
       expect(await blocked.json()).toEqual({ error: 'finish_the_active_response_first' });
+      const localBlocked = await service.handleRequest(new Request('http://127.0.0.1:8324/manage/control', {
+        method: 'POST', headers: {
+          Host: '127.0.0.1:8324', Origin: 'http://127.0.0.1:8324', 'Sec-Fetch-Site': 'same-origin',
+          Authorization: `Bearer ${managementToken}`, 'Content-Type': 'application/json',
+        }, body: JSON.stringify({ action }),
+      }));
+      expect(localBlocked.status).toBe(409);
+      expect(await localBlocked.json()).toEqual({ error: 'finish_the_active_response_first' });
     }
     appServer.emit('notification', {
       method: 'turn/completed', params: { threadId: 'thread-1', turn: { id: 'turn-1', status: 'completed' } },

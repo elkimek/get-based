@@ -46,7 +46,7 @@ describe('development agent discovery', () => {
     expect(controller.describe().agents[0]).toMatchObject({
       status: 'available', version: 'codex-cli 0.150.1', protocolVersion: 5,
       capabilities: expect.arrayContaining(['companion-control', 'execution-targets']),
-      companionVersion: '1.2.2', runtimeMode: 'temporary',
+      companionVersion: '1.3.0', runtimeMode: 'temporary',
     });
     expect(spawnImpl).toHaveBeenCalledWith(process.execPath, [
       '--watch-preserve-output', '--watch', '/workspace/server/agent-host-server.js',
