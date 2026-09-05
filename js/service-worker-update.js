@@ -487,12 +487,13 @@ export async function registerServiceWorkerUpdates({
       if (banner) renderVersionUpdateBanner(banner);
     });
     serviceWorkerContainer.addEventListener('controllerchange', () => {
+      const nextController = serviceWorkerContainer.controller;
+      if (refreshing || !nextController || nextController === controller) return;
       const previousController = controller;
-      controller = serviceWorkerContainer.controller;
+      controller = nextController;
       // A first install claims an already current page. Only replacement of
       // an existing controller is evidence that this page needs a reload.
-      if (refreshing || !controller || controller === previousController
-          || (!previousController && !updateRequested)) return;
+      if (!previousController && !updateRequested) return;
       if (!updateRequested) {
         reloadAvailable = true;
         showVersionUpdateBanner(registration);

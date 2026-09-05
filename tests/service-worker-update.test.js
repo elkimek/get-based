@@ -153,6 +153,49 @@ describe('service worker update prompt', () => {
     expect(document.getElementById('version-update-banner')).toBeNull();
   });
 
+  it.each([false, true])('preserves the previous controller across null notifications (requested=%s)', async requested => {
+    let onControllerChange;
+    const reload = vi.fn();
+    const waiting = { postMessage: vi.fn() };
+    const registration = { waiting: requested ? waiting : null, addEventListener: vi.fn() };
+    const original = {};
+    const container = {
+      controller: original,
+      register: vi.fn(async () => registration),
+      addEventListener: vi.fn((type, listener) => {
+        if (type === 'controllerchange') onControllerChange = listener;
+      }),
+    };
+    await serviceWorkerUpdate.registerServiceWorkerUpdates({
+      win: { location: { hostname: 'getbased.health', search: '', reload } },
+      serviceWorkerContainer: container, cacheStorage: null,
+    });
+    if (requested) {
+      document.querySelector('[data-version-update-action="apply"]').click();
+      await vi.waitFor(() => expect(waiting.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' }));
+    }
+    container.controller = null;
+    onControllerChange();
+    container.controller = original;
+    onControllerChange();
+    expect(reload).not.toHaveBeenCalled();
+    if (!requested) expect(document.getElementById('version-update-banner')).toBeNull();
+    container.controller = null;
+    onControllerChange();
+    container.controller = {};
+    onControllerChange();
+    if (requested) {
+      expect(reload).toHaveBeenCalledTimes(1);
+      onControllerChange();
+      container.controller = {};
+      onControllerChange();
+      expect(reload).toHaveBeenCalledTimes(1);
+    } else {
+      expect(reload).not.toHaveBeenCalled();
+      expect(document.getElementById('version-update-banner').textContent).toContain('New version installed');
+    }
+  });
+
   it('registers with lightweight five-minute version checks for open tabs', async () => {
     const { registerServiceWorkerUpdates } = serviceWorkerUpdate;
     let intervalCallback = null;
