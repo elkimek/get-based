@@ -40,7 +40,7 @@ it('never grants lifecycle authority to browser discovery sessions', async () =>
 it('keeps configured chat origins out of embedded management', async () => {
   const service = createAgentHostService({ appServer: new FakeAppServer(), token: TOKEN,
     workspaceRoot: '/tmp/agent-test', allowedOrigins: ['https://custom-chat.example'] });
-  for (const [origin, expected] of [['https://app.getbased.health', 200], ['http://127.0.0.1:8000', 200], ['http://localhost:9999', 403], ['https://custom-chat.example', 403]]) {
+  for (const [origin, expected] of [['https://app.getbased.health', 200], ['http://127.0.0.1:8000', 200], ['http://iobqafpywmncin7m2wpvbemouvulaeb7jnvtvugxnru4gpneushb5jyd.onion', 200], ['http://localhost:9999', 403], ['https://custom-chat.example', 403]]) {
     const response = await service.handleRequest(new Request(`http://127.0.0.1:8324/manage/embed?parentOrigin=${encodeURIComponent(origin)}`, {
       headers: { Host: '127.0.0.1:8324', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Dest': 'iframe' },
     }));

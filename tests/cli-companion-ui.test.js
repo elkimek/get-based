@@ -155,18 +155,26 @@ describe('CLI companion setup UI', () => {
     expect(companion.querySelector('[data-settings-action="control-cli-companion"]')).toBeNull();
   });
 
-  it('shows supported local management inside Settings without putting a credential in the frame URL', async () => {
+  it.each(['http://localhost:8000', 'http://iobqafpywmncin7m2wpvbemouvulaeb7jnvtvugxnru4gpneushb5jyd.onion', 'https://custom-chat.example'])('uses embedded controls or a local fallback on %s without sharing credentials', async origin => {
+    vi.stubGlobal('location', { origin });
     vi.stubGlobal('fetch', vi.fn(async input => {
       if (String(input).startsWith('/api/local-agents')) return Response.json({ agents: [] });
       return Response.json({
         service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8325', token: '1234567890123456',
-        capabilities: ['companion-control', 'companion-restart', 'companion-management-embedded'], runtimeMode: 'installed',
+        capabilities: ['companion-control', 'companion-restart', 'companion-management', 'companion-management-embedded'], runtimeMode: 'installed',
         agents: [{ id: 'codex', status: 'available', compatible: true }],
       });
     }));
     await refreshDetectedAgentList();
     const companion = document.getElementById('local-agent-companion-section');
     const frame = companion.querySelector('iframe');
+    if (origin === 'https://custom-chat.example') {
+      expect(frame).toBeNull();
+      expect(companion.querySelector('a').href).toBe('http://127.0.0.1:8325/manage');
+      expect(companion.textContent).toContain('from this deployment');
+      expect(companion.textContent).not.toContain('Update Companion once');
+      return;
+    }
     expect(frame.title).toBe('Companion controls');
     const url = new URL(frame.src);
     expect(url.origin + url.pathname).toBe('http://127.0.0.1:8325/manage/embed');

@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
-import { createCompanionManagement, isAllowedCompanionManagementParent } from '../lib/companion-management.js';
+import { createCompanionManagement } from '../lib/companion-management.js';
+import { isAllowedCompanionManagementParent } from '../shared/agent-host-protocol.js';
+import { readFileSync } from 'node:fs';
 import { findExistingCompanion } from '../lib/companion-existing.js';
 
 const origin = 'http://127.0.0.1:8324';
@@ -14,6 +16,9 @@ async function session(handle) {
 
 describe('local Companion management', () => {
   it('allows only exact getbased management parents, never arbitrary chat origins', () => {
+    const config = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+    const onion = config.routes.find(route => route.headers?.['Onion-Location']).headers['Onion-Location'];
+    expect(isAllowedCompanionManagementParent(new URL(onion).origin)).toBe(true);
     for (const origin of ['https://app.getbased.health', 'http://127.0.0.1:8000', 'http://localhost:8000']) {
       expect(isAllowedCompanionManagementParent(origin)).toBe(true);
     }

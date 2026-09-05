@@ -4,7 +4,7 @@
 import { controlAgentHost, listAgentExecutionTargets, listAgentModels } from './agent-chat-client.js';
 import { cacheAgentModelCatalog } from './agent-model-catalog.js';
 import { renderCLIAgentBrandIcon } from './cli-agent-brand-assets.js';
-import { AGENT_HOST_CAPABILITIES } from '../shared/agent-host-protocol.js';
+import { AGENT_HOST_CAPABILITIES, isAllowedCompanionManagementParent } from '../shared/agent-host-protocol.js';
 import {
   connectDetectedAgent,
   discoverLocalChatAgents,
@@ -394,7 +394,8 @@ function renderCompanionControls(agent) {
     managementURL.pathname = '/manage';
     managementURL.search = '';
     managementURL.hash = '';
-    if (agent.capabilities?.includes(AGENT_HOST_CAPABILITIES.COMPANION_MANAGEMENT_EMBEDDED)) {
+    const canEmbedHere = isAllowedCompanionManagementParent(globalThis.location.origin);
+    if (canEmbedHere && agent.capabilities?.includes(AGENT_HOST_CAPABILITIES.COMPANION_MANAGEMENT_EMBEDDED)) {
       managementURL.pathname = '/manage/embed';
       managementURL.searchParams.set('parentOrigin', globalThis.location.origin);
       managementURL.searchParams.set('theme', document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
@@ -406,7 +407,7 @@ function renderCompanionControls(agent) {
     return `<div class="local-agent-list-kicker local-agent-companion-kicker">Companion</div>
     <div class="local-agent-controls"><div class="local-agent-controls-copy"><strong>Connected for chat</strong>
     <span>${escapeHTML(modeLabel)} · ${escapeHTML(managementURL.host)}${agent.companionVersion ? ` · v${escapeHTML(agent.companionVersion)}` : ''}</span>
-    <span>${managementLink ? 'Update Companion once to manage it directly in Settings. Until then, its controls open in local management.' : 'Update Companion to enable its local management page. Until then, manage it from the terminal.'}</span></div>
+    <span>${managementLink ? (canEmbedHere ? 'Update Companion once to manage it directly in Settings. Until then, its controls open in local management.' : 'Open local management to control Companion from this deployment.') : 'Update Companion to enable its local management page. Until then, manage it from the terminal.'}</span></div>
     <div class="local-agent-control-actions">${managementLink}
     <button type="button" class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="copy-cli-companion-update">Copy update command</button></div></div>`;
   }

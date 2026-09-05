@@ -42,3 +42,19 @@ export function normalizeAgentHostProtocolVersion(value) {
   const version = Number(value);
   return Number.isInteger(version) && version > 0 ? version : 0;
 }
+
+// Management has a narrower trust boundary than chat: custom chat origins and
+// arbitrary loopback ports must never receive privileged frame access.
+const MANAGEMENT_PARENT_ORIGINS = new Set([
+  'https://getbased.health', 'https://www.getbased.health',
+  'https://app.getbased.health', 'https://beta.getbased.health',
+  'https://get-based.vercel.app', 'https://get-based-managed-subscription-v2.vercel.app',
+  'http://iobqafpywmncin7m2wpvbemouvulaeb7jnvtvugxnru4gpneushb5jyd.onion',
+  'http://127.0.0.1:8000', 'http://localhost:8000',
+]);
+
+/** @param {string} origin */
+export function isAllowedCompanionManagementParent(origin) {
+  return MANAGEMENT_PARENT_ORIGINS.has(origin);
+}
+
