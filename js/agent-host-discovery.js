@@ -48,6 +48,7 @@ export function normalizeDiscoveredAgent(agent) {
     runtimeMode: ['installed', 'temporary'].includes(String(agent?.runtimeMode)) ? String(agent.runtimeMode) : '',
     platform: String(agent?.platform || '').slice(0, 24),
     paused: agent?.paused === true || agent?.status === 'paused',
+    controlAuthorized: agent?.controlAuthorized !== false,
     protocolVersion: normalizeAgentHostProtocolVersion(agent?.protocolVersion),
     capabilities: normalizeAgentHostCapabilities(agent?.capabilities),
   };
@@ -81,6 +82,9 @@ async function probeLoopbackAgentHost(endpoint, parentSignal, normalizeEndpoint)
       runtimeMode: row?.runtimeMode || payload.runtimeMode,
       platform: row?.platform || payload.platform,
       paused: row?.paused === true || payload.paused === true,
+      // Discovery never conveys the installation credential, including on
+      // older companions that omitted the explicit authority field.
+      controlAuthorized: false,
       protocolVersion: row?.protocolVersion || protocolVersion,
       capabilities: row?.capabilities || capabilities,
     })).filter(agent => agent.id);

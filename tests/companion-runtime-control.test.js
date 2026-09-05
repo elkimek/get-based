@@ -59,7 +59,7 @@ describe('running companion controls', () => {
       .rejects.toThrow('Start the companion automatically');
   });
 
-  it('updates only from the active HTTPS getbased origin and keeps the service registered', async () => {
+  it('updates only from the fixed official endpoint, never from a calling page', async () => {
     const installImpl = vi.fn(() => ({ installed: true }));
     const fetchImpl = vi.fn(async () => new Response(VALID_BUNDLE, { status: 200 }));
     const controller = createCompanionRuntimeController({
@@ -73,10 +73,10 @@ describe('running companion controls', () => {
 
     await expect(controller.handle('update', { origin: 'https://getbased.health' }))
       .resolves.toMatchObject({ updated: true, restartRequired: true, runtimeMode: 'installed' });
-    expect(fetchImpl).toHaveBeenCalledWith('https://getbased.health/getbased-companion.mjs', { cache: 'no-store' });
+    expect(fetchImpl).toHaveBeenCalledWith('https://app.getbased.health/getbased-companion.mjs', expect.objectContaining({ cache: 'no-store', redirect: 'error' }));
     expect(installImpl).toHaveBeenCalledWith(expect.objectContaining({ platform: 'linux', startService: false }));
-    await expect(controller.handle('update', { origin: 'http://remote.example' }))
-      .rejects.toThrow('HTTPS or a loopback');
+    await controller.handle('update', { origin: 'http://localhost:9999' });
+    expect(fetchImpl.mock.calls.every(([url]) => url === 'https://app.getbased.health/getbased-companion.mjs')).toBe(true);
   });
 
   it('removes automatic startup without killing the response in flight', async () => {

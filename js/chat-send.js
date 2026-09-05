@@ -89,6 +89,15 @@ let chatSendRevision = 0;
 let _activeChatGenerationUI = null;
 
 export function isChatStreaming() {
+  if (_activeChatGenerationUI && !_activeChatGenerationUI.isCurrent()) {
+    _chatAbortController?.abort();
+    stopChatThinkingStatus(_activeChatGenerationUI.typingEl);
+    _activeChatGenerationUI.typingEl.remove();
+    _activeChatGenerationUI = null;
+    _chatAbortController = null;
+    setSendButtonMode(document.getElementById('chat-send-btn'), 'idle');
+    setChatStreamStatus('', { busy: false });
+  }
   return !!_chatAbortController;
 }
 
@@ -109,7 +118,7 @@ export function stopChatGeneration() {
 // same DOM nodes and restore the Stop affordance without restarting or
 // duplicating the billable request.
 export function restoreChatGenerationUI() {
-  if (!_chatAbortController) return false;
+  if (!isChatStreaming()) return false;
   const sendBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-send-btn'));
   setSendButtonMode(sendBtn, 'streaming');
 
@@ -237,12 +246,16 @@ export async function sendChatMessage() {
     return;
   }
   // If currently streaming, abort and return (toggle behavior)
-  if (_chatAbortController) {
-    _chatAbortController.abort();
+  if (isChatStreaming()) {
+    _chatAbortController?.abort();
     _chatAbortController = null;
     return;
   }
   if (isChatThreadInputBlocked()) return;
+  if (useCodexAgent && !getAssistantExecutionRoute().available) {
+    showNotification('The selected CLI model is unavailable. Choose an available model in chat or AI settings.', 'info');
+    return;
+  }
 
   const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
   const sendBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-send-btn'));

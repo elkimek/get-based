@@ -99,6 +99,7 @@ describe('Hermes personal gateway adapter', () => {
     expect(JSON.stringify(routes)).not.toContain('desktop-secret-token');
     await expect(provider.resolve(routes[0].id)).resolves.toHaveProperty('client');
     expect(fetchImpl.mock.calls[0][1].headers).toEqual({ 'X-Hermes-Session-Token': 'desktop-secret-token' });
+    expect(fetchImpl.mock.calls[0][1].redirect).toBe('error');
   });
 
   it('creates a profile-scoped session and streams the personal reply', async () => {

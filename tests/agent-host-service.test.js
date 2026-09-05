@@ -15,6 +15,28 @@ import {
 
 const TOKEN = 'test-pairing-token';
 
+it('never grants lifecycle authority to browser discovery sessions', async () => {
+  const controlHandler = vi.fn();
+  const service = createAgentHostService({ appServer: new FakeAppServer(), token: TOKEN, workspaceRoot: '/tmp/agent-test', controlHandler });
+  for (const origin of ['http://localhost:9876', 'https://app.getbased.health']) {
+    const discovery = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/discovery', { headers: { Origin: origin } }));
+    const payload = await discovery.json();
+    expect(payload.controlAuthorized).toBe(false);
+    for (const action of ['pause', 'resume', 'install', 'update', 'restart', 'restart-companion', 'uninstall']) {
+      const result = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/control', {
+        method: 'POST', headers: { Origin: origin, Authorization: `Bearer ${payload.token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      }));
+      expect(result.status).toBe(403);
+    }
+    const chatStatus = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/status', {
+      headers: { Origin: origin, Authorization: `Bearer ${payload.token}` },
+    }));
+    expect(chatStatus.status).toBe(200);
+  }
+  expect(controlHandler).not.toHaveBeenCalled();
+});
+
 class FakeAppServer extends EventEmitter {
   constructor() {
     super();

@@ -373,7 +373,7 @@ export async function deleteThread(threadId) {
     invalidateThreadContentCache();
     // Remove from index
     state.chatThreads = state.chatThreads.filter(t => t.id !== threadId);
-    const saved = await saveChatThreadIndex();
+    const saved = await saveChatThreadIndex({ sync: false });
     if (profile !== state.currentProfile) return false;
     if (!saved) {
       state.chatThreads = previousThreads;

@@ -266,11 +266,16 @@ export function isSameOrigin(req) {
 
 // Loopback check on the actual TCP socket — the only authentication that
 // can't be forged by a LAN peer setting `Origin: http://localhost:PORT`.
-// Used as a hard gate in front of /api/* when HOST=0.0.0.0 (phone testing).
+// Used as a hard gate in front of private APIs for every bind address.
 export function _isLoopbackSocket(req) {
   const ra = req.socket?.remoteAddress || '';
   // Node reports IPv4 via "::ffff:127.0.0.1" on dual-stack listeners.
   return ra === '127.0.0.1' || ra === '::1' || ra === '::ffff:127.0.0.1';
+}
+
+export function _isPrivateApiPeerAllowed(req, pathname) {
+  if (pathname === '/api/commit') return true;
+  return !(pathname.startsWith('/api/') || pathname === '/proxy') || _isLoopbackSocket(req);
 }
 
 // Canonical same-origin check using the request's own Host header.
@@ -447,12 +452,8 @@ const server = http.createServer((req, res) => {
   // to whatever bundle they first cached, so phone testing silently
   // missed every code change after the initial visit. Allowlist it
   // explicitly here.
-  const LAN_SAFE_API_PATHS = new Set(['/api/commit']);
-  if (HOST === '0.0.0.0'
-      && (pathname.startsWith('/api/') || pathname === '/proxy')
-      && !LAN_SAFE_API_PATHS.has(pathname)
-      && !_isLoopbackSocket(req)) {
-    res.writeHead(403); res.end('Forbidden — /api/* disabled for non-loopback peers when HOST=0.0.0.0'); return;
+  if (!_isPrivateApiPeerAllowed(req, pathname)) {
+    res.writeHead(403); res.end('Forbidden — private APIs require a loopback peer'); return;
   }
 
   // API: return current git HEAD + branch so Settings → Display shows the

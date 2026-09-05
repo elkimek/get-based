@@ -576,7 +576,7 @@ assert('chat-discussion-round-prompts.js owns round prompt helpers',
   'found');
 assert('chat-discussion-round-runner.js owns per-persona round execution',
   chatDiscussionRoundRunnerSrc.includes('export async function runDiscussionRound') &&
-    chatDiscussionRoundRunnerSrc.includes('callChatAPIWithContinuation') &&
+    chatDiscussionRoundRunnerSrc.includes('callDiscussionRoundAssistant') &&
     chatDiscussionRoundRunnerSrc.includes('buildDiscussionRoundRequest') &&
     chatDiscussionRoundRunnerSrc.includes('renderFinalDiscussionMessage') &&
     chatDiscussionRoundRunnerSrc.includes('appendDiscussionUsageFootnote') &&

@@ -3,6 +3,7 @@
 
 import { state } from './state.js';
 import { saveImportedData } from './data.js';
+import { appendImportedArrayItem } from './data-merge.js';
 import { getActiveProfileId } from './profile.js';
 import { saveMarkerNoteText } from './marker-detail-store.js';
 import { saveActiveProfileMeal } from './nutrition-store.js';
@@ -136,8 +137,7 @@ async function applySupplement(payload) {
     lifecycle: { state: startDate <= localDateKey() ? 'active' : 'planned', changedAt: now },
     updatedAt: now,
   };
-  if (!Array.isArray(state.importedData.supplements)) state.importedData.supplements = [];
-  state.importedData.supplements.push(entry);
+  appendImportedArrayItem(state.importedData, 'supplements', entry);
   await saveImportedData();
   return `${payload.type === 'medication' ? 'Medication' : 'Supplement'} “${payload.name}” saved.`;
 }

@@ -65,6 +65,27 @@ for (const change of ['profile', 'thread', 'none']) {
   });
 }
 
+test('a stale silent generation releases controls before it settles', async ({ page }) => {
+  await page.evaluate(() => {
+    globalThis.__auditSending = import('/js/chat-send.js').then(module => module.sendChatMessage());
+  });
+  await page.waitForFunction(() => Boolean(globalThis.__auditRequest));
+  const result = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.currentProfile = 'audit-b';
+    state.currentThreadId = 't_b';
+    const chat = await import('/js/chat-send.js');
+    const streaming = chat.isChatStreaming();
+    const restored = chat.restoreChatGenerationUI();
+    const aborted = globalThis.__auditRequest.signal.aborted;
+    const title = document.getElementById('chat-send-btn').title;
+    globalThis.__auditFinishReply({ text: 'Discard stale reply', finishReason: 'stop' });
+    await globalThis.__auditSending;
+    return { streaming, restored, aborted, title };
+  });
+  expect(result).toEqual({ streaming: false, restored: false, aborted: true, title: 'Send message' });
+});
+
 test('a profile switch during consent never starts a provider request', async ({ page }) => {
   await page.evaluate(() => {
     globalThis.__auditApproval = () => new Promise(resolve => { globalThis.__auditFinishApproval = resolve; });

@@ -343,7 +343,7 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
   assert('sendChatMessage guards no provider', (() => {
     const fnStart = chatSendSrc.indexOf('export async function sendChatMessage()');
     const fnBody = chatSendSrc.substring(fnStart, fnStart + 300);
-    return fnBody.includes('if (!hasAIProvider())');
+    return fnBody.includes('if (!hasChatResponseBackend())');
   })(), 'sendChatMessage should check for provider and re-render setup guide');
 
   // CSS checks — provider quiz (new) + setup button (legacy, still used)

@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 754 |
-| Internal import edges | 3188 |
+| Internal import edges | 3189 |
 | Dynamic internal edges | 105 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -74,7 +74,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/schema.js`](js/schema.js) | 37 | [`js/lab-context.js`](js/lab-context.js) | 24 |
 | [`js/ai-feature-routing.js`](js/ai-feature-routing.js) | 35 | [`js/export.js`](js/export.js) | 23 |
 | [`js/crypto.js`](js/crypto.js) | 35 | [`js/views.js`](js/views.js) | 22 |
-| [`js/data-merge.js`](js/data-merge.js) | 33 | [`js/chat-render.js`](js/chat-render.js) | 20 |
+| [`js/data-merge.js`](js/data-merge.js) | 34 | [`js/chat-render.js`](js/chat-render.js) | 20 |
 | [`js/chat-runtime.js`](js/chat-runtime.js) | 21 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
 | [`js/utils-runtime.js`](js/utils-runtime.js) | 21 | [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | 20 |
 | [`js/constants.js`](js/constants.js) | 20 | [`js/marker-schema/index.js`](js/marker-schema/index.js) | 20 |
@@ -111,7 +111,7 @@ Native browser modules shipped with the static application.
 - [`js/agent-chat-client.js`](js/agent-chat-client.js) → [`shared/agent-host-protocol.js`](shared/agent-host-protocol.js)
 - [`js/agent-chat-context.js`](js/agent-chat-context.js) → no in-scope imports
 - [`js/agent-chat-settings.js`](js/agent-chat-settings.js) → [`js/agent-host-discovery.js`](js/agent-host-discovery.js) *(dynamic)*, [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/crypto.js`](js/crypto.js)
-- [`js/agent-drafts.js`](js/agent-drafts.js) → [`js/agent-tool-bindings.js`](js/agent-tool-bindings.js), [`js/chat-message-action-attrs.js`](js/chat-message-action-attrs.js), [`js/data.js`](js/data.js), [`js/marker-detail-store.js`](js/marker-detail-store.js), [`js/nutrition-store.js`](js/nutrition-store.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/utils.js`](js/utils.js), [`js/wearables-manual.js`](js/wearables-manual.js)
+- [`js/agent-drafts.js`](js/agent-drafts.js) → [`js/agent-tool-bindings.js`](js/agent-tool-bindings.js), [`js/chat-message-action-attrs.js`](js/chat-message-action-attrs.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/marker-detail-store.js`](js/marker-detail-store.js), [`js/nutrition-store.js`](js/nutrition-store.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/utils.js`](js/utils.js), [`js/wearables-manual.js`](js/wearables-manual.js)
 - [`js/agent-feature-inference.js`](js/agent-feature-inference.js) → [`js/agent-chat-client.js`](js/agent-chat-client.js), [`js/agent-chat-settings.js`](js/agent-chat-settings.js), [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js) *(dynamic)*, [`shared/agent-host-protocol.js`](shared/agent-host-protocol.js)
 - [`js/agent-host-discovery.js`](js/agent-host-discovery.js) → [`js/agent-chat-client.js`](js/agent-chat-client.js), [`shared/agent-host-protocol.js`](shared/agent-host-protocol.js)
 - [`js/agent-model-catalog.js`](js/agent-model-catalog.js) → no in-scope imports

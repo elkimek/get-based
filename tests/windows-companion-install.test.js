@@ -7,6 +7,15 @@ import {
 } from '../lib/windows-companion-install.js';
 
 describe('Windows companion installer', () => {
+  it('preserves batch metacharacters and disables delayed expansion for paths', () => {
+    const source = renderWindowsCompanionLauncher({
+      nodePath: 'C:\\Tools\\A&B^!%PATH%\\node.exe', bundlePath: 'C:\\Users\\50% done!\\companion.mjs',
+    });
+    expect(source).toContain('setlocal DisableDelayedExpansion');
+    expect(source).toContain('"C:\\Tools\\A&B^!%%PATH%%\\node.exe"');
+    expect(source).toContain('"C:\\Users\\50%% done!\\companion.mjs" %*');
+    expect(() => renderWindowsCompanionLauncher({ nodePath: 'C:\\bad"path', bundlePath: 'C:\\file' })).toThrow('Invalid');
+  });
   it('uses user-owned LocalAppData paths and a hidden WScript runner', () => {
     const paths = resolveWindowsCompanionPaths({
       homeDirectory: 'C:\\Users\\Alex',

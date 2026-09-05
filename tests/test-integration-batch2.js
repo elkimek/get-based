@@ -187,7 +187,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
 
   const chatSrc = read('/js/chat-history.js');
   // clearChatHistory should call updateChatHeaderTitle
-  const clearIdx = chatSrc.indexOf('function clearChatHistory');
+  const clearIdx = chatSrc.indexOf('export async function clearChatHistory');
   const clearBlock = chatSrc.substring(clearIdx, chatSrc.indexOf('\n}', clearIdx));
   assert('clearChatHistory calls updateChatHeaderTitle', clearBlock.includes('updateChatHeaderTitle'));
   assert('clearChatHistory calls updateDiscussButton', clearBlock.includes('updateDiscussButton'));

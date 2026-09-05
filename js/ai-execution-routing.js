@@ -27,7 +27,7 @@ export function getAssistantExecutionRoute() {
     providerDisplay,
     model,
     modelDisplay: getAgentModelDisplay(model, catalog),
-    available: Boolean(getAgentHostToken()),
+    available: Boolean(getAgentHostToken()) && !!modelEntry && agentModelSupports(model, 'text', catalog),
     inputModalities: modelEntry?.inputModalities || [],
   };
 }

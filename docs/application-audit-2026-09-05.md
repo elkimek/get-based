@@ -43,6 +43,16 @@ Startup remains **two JavaScript files, approximately 1,169 KiB decoded**; its b
 
 ## Before production
 
+### PR review follow-up
+
+The first independent review of PR #1612 found additional issues that the local audit had missed. They were not waived: the dev-server peer gate is now independent of its bind address; discovery credentials cannot invoke any lifecycle control; executable updates use a fixed official HTTPS URL with redirects refused and bounded reads; stale silent generations immediately release UI controls; unavailable CLI models cannot be sent; and Windows launchers preserve batch metacharacters. Companion version 1.2.2 contains these security changes; older running companions need an update.
+
+File size checks now use the same open descriptor as reads, token creation handles competing exclusive creates without a check/write race, and arbitrary CLI error details are no longer serialized to the browser. Credential-bearing Hermes and dev-host HTTP requests refuse redirects. The intended credential flows remain limited to the configured Hermes gateway and numeric-loopback Companion respectively.
+
+CI also exposed an untracked supplement-array mutation and premature chat deletion sync scheduling. Draft supplements now use the shared sync-aware helper; thread deletions persist locally without syncing, record the tombstone, and only then schedule sync. Legacy tests were updated to assert the provider-neutral feature-routing contract and shared runtime module boundaries; no assertion group or quality baseline was removed.
+
+Discovery-only browser sessions intentionally show tray/terminal lifecycle guidance. They do not pretend to have installation authority or request a persistent installation secret from hosted pages.
+
 1. Run the complete GitHub Actions browser and combined-coverage jobs on the final merge candidate. They were not launched by this local audit.
 2. Perform native Windows and macOS Companion install/start/restart/pause/uninstall checks. Linux and browser emulation cannot establish those results.
 3. Perform a real two-device encrypted-sync and backup/recovery drill with a disposable profile, including chat projects and attachments/imported records.
