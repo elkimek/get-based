@@ -93,6 +93,7 @@ describe('service worker update prompt', () => {
       cacheStorage: null,
     });
 
+    serviceWorkerContainer.controller = {};
     onControllerChange();
     const banner = document.getElementById('version-update-banner');
     expect(reload).not.toHaveBeenCalled();
@@ -100,6 +101,56 @@ describe('service worker update prompt', () => {
 
     banner.querySelector('[data-version-update-action="apply"]').click();
     expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores initial claims and repeated controller notifications but prompts for a later replacement', async () => {
+    let onControllerChange;
+    const reload = vi.fn();
+    const registration = { waiting: null, addEventListener: vi.fn() };
+    const serviceWorkerContainer = {
+      controller: null,
+      register: vi.fn(async () => registration),
+      addEventListener: vi.fn((type, listener) => {
+        if (type === 'controllerchange') onControllerChange = listener;
+      }),
+    };
+    await serviceWorkerUpdate.registerServiceWorkerUpdates({
+      win: { location: { hostname: 'getbased.health', search: '', reload } },
+      serviceWorkerContainer,
+      cacheStorage: null,
+    });
+    onControllerChange();
+    serviceWorkerContainer.controller = {};
+    onControllerChange();
+    onControllerChange();
+    expect(document.getElementById('version-update-banner')).toBeNull();
+    expect(reload).not.toHaveBeenCalled();
+
+    serviceWorkerContainer.controller = {};
+    onControllerChange();
+    expect(document.getElementById('version-update-banner').textContent)
+      .toContain('New version installed');
+  });
+
+  it('does not prompt after reload when the existing controller is reported again', async () => {
+    let onControllerChange;
+    const serviceWorkerContainer = {
+      controller: {},
+      register: vi.fn(async () => ({ waiting: null, addEventListener: vi.fn() })),
+      addEventListener: vi.fn((type, listener) => {
+        if (type === 'controllerchange') onControllerChange = listener;
+      }),
+    };
+    await serviceWorkerUpdate.registerServiceWorkerUpdates({
+      win: {
+        location: { hostname: 'getbased.health', search: '', reload: vi.fn() },
+        performance: { getEntriesByType: () => [{ type: 'reload' }] },
+      },
+      serviceWorkerContainer,
+      cacheStorage: null,
+    });
+    onControllerChange();
+    expect(document.getElementById('version-update-banner')).toBeNull();
   });
 
   it('registers with lightweight five-minute version checks for open tabs', async () => {
