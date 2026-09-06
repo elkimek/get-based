@@ -558,7 +558,7 @@ test('provider panels cover provider switching key saves balances custom API and
         if (href === 'https://openrouter.ai/api/v1/models') {
           return jsonResponse({
             data: [
-              { id: 'openai/gpt-5.6-sol', name: 'GPT 5.6 Sol', pricing: { prompt: '0.000005', completion: '0.000030' }, architecture: { modality: 'text->text' } },
+              { id: 'openai/gpt-6-astra', name: 'GPT 6 Astra', pricing: { prompt: '0.000005', completion: '0.000030' }, architecture: { modality: 'text->text' } },
               { id: 'anthropic/claude-sonnet-4.6', name: 'Claude Sonnet', pricing: { prompt: '0.000003', completion: '0.000015' }, architecture: { modality: 'text+image->text' } },
               { id: 'audio/not-used', name: 'Audio', pricing: { prompt: '0', completion: '0' } },
             ],
@@ -654,7 +654,7 @@ test('provider panels cover provider switching key saves balances custom API and
       panels.refreshOpenRouterBalance();
       await wait(50);
       const openRouterSaveAndBalance = document.getElementById('openrouter-key-status')?.textContent.includes('Connected')
-        && document.getElementById('openrouter-model-select')?.value === 'openai/gpt-5.6-sol'
+        && document.getElementById('openrouter-model-select')?.value === 'openai/gpt-6-astra'
         && (document.getElementById('or-balance')?.textContent || '').includes('$0.75');
 
       panel.innerHTML = `

@@ -392,10 +392,9 @@ list is ordered by the provider's token price, with evidence labels shown
 separately. A studied predecessor can inform the guidance copy without forcing
 Sonnet 4.6 or Opus 4.6 to appear beside a catalogued Sonnet 5 or Opus 5.
 Fast/FastAPI Kimi K3 routes are treated as variants
-of base Kimi K3 and lose the slot when the base route is available. GPT-5.6 Sol,
-Terra, and Luna stay separate because
-they represent flagship, balanced, and cost-sensitive tiers rather than version
-duplicates. GLM 5.2 remains available under other text models when a provider
+of base Kimi K3 and lose the slot when the base route is available. GPT-6 Astra replaces GPT-5.6 Sol in cloud recommendations when listed by
+the provider; Sol remains the fallback until then. GPT Nano and Mini variants
+do not inherit flagship recommendations. Existing model selections remain available. GLM 5.2 remains available under other text models when a provider
 offers it, but is no longer in the regular recommended set now that GLM 5.3 is
 the curated generation. GLM is excluded from meal routes unless its exact
 provider route explicitly reports image input. Local discovery adds only models that explicitly report
