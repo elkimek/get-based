@@ -18,6 +18,7 @@
  *   getModelPolicy?: (context: Record<string, any>) => Record<string, any> | null | undefined,
  *   refresh?: (context?: Record<string, any>) => any | Promise<any>,
  *   authorizeRequest?: (context: Record<string, any>) => boolean | Promise<boolean>,
+ *   requestProcessingApproval?: (context: Record<string, any>) => boolean | Promise<boolean>,
  *   isProviderCallOwned?: (context: Record<string, any>) => boolean,
  *   callProvider?: (context: Record<string, any>) => any | Promise<any>,
  *   getRequestOptions?: (context: Record<string, any>) => Record<string, any> | null | undefined,
@@ -176,6 +177,22 @@ export function isAppExtensionAIProviderActive(provider) {
 /** @param {string} provider */
 export function isAppExtensionAICredentialOwned(provider) {
   return activeExtension()?.ai?.isCredentialOwned?.(provider) === true;
+}
+
+/**
+ * A credential-owning edition identifies and approves its actual recipient.
+ * Missing hooks and ownership changes fail closed; this does not replace the
+ * transport's independent request authorization.
+ * @param {Record<string, any> & { provider: string }} context
+ */
+export async function requestAppExtensionAIProcessingApproval(context) {
+  const extension = activeExtension();
+  const ai = extension?.ai;
+  if (ai?.isCredentialOwned?.(context.provider) !== true
+      || typeof ai.requestProcessingApproval !== 'function') return false;
+  const approved = await ai.requestProcessingApproval(context);
+  return approved === true && activeExtension() === extension
+    && ai.isCredentialOwned?.(context.provider) === true;
 }
 
 /** @param {string} provider */

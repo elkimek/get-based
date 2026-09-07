@@ -3,6 +3,7 @@
 
 import { getAIProcessingDestination } from './ai-provider-policy.js';
 import { getSupplementaryDeploymentPolicy } from './deployment-policy.js';
+import { isAppExtensionAICredentialOwned, requestAppExtensionAIProcessingApproval } from './app-extension-runtime.js';
 
 export const AI_TRANSPARENCY_VERSION = '2026-08-31';
 export const AI_TRANSPARENCY_KEY = 'labcharts-ai-transparency-acknowledgement';
@@ -543,6 +544,15 @@ function processingApprovalSatisfied(provider, options) {
  * route confirmation and remote sensitive-data approval records.
  */
 export function requestAIProcessingApproval(provider, { kind = 'text', endpoint = '', modelId = '' } = {}) {
+  if (isAppExtensionAICredentialOwned(provider)) {
+    return (async () => {
+      if (!hasAcknowledgedAITransparency()) {
+        if (kind === 'automatic-insight' || !await requestAITransparencyAcknowledgement()) return false;
+      }
+      return requestAppExtensionAIProcessingApproval({ provider, kind, endpoint, modelId,
+        interactive: kind !== 'automatic-insight' });
+    })();
+  }
   const options = { endpoint, modelId };
   const initialDetails = cloudAIConsentDetails(provider, options);
   const promptKey = initialDetails.boundary === 'same-device'
@@ -573,6 +583,11 @@ export function requestAIProviderActivation(provider, options = {}) {
 }
 
 export async function requireAIProcessingApproval(provider, options = {}) {
+  if (isAppExtensionAICredentialOwned(provider)) {
+    if (await requestAIProcessingApproval(provider, options)) return true;
+    if (!hasAcknowledgedAITransparency()) throw new AITransparencyDeclinedError();
+    throw new CloudAIConsentDeclinedError();
+  }
   const details = cloudAIConsentDetails(provider, options);
   const destinationApproved = details.boundary === 'same-device'
     || (details.boundary === 'private-network' && hasAIRouteConfirmation(provider, options))
