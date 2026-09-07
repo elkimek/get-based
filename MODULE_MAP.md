@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 758 |
-| Internal import edges | 3194 |
+| Internal import edges | 3195 |
 | Dynamic internal edges | 105 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -389,7 +389,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>cloud</code> family — 1 module</summary>
 
-- [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js) → [`js/ai-provider-policy.js`](js/ai-provider-policy.js), [`js/deployment-policy.js`](js/deployment-policy.js)
+- [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js) → [`js/ai-provider-policy.js`](js/ai-provider-policy.js), [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/deployment-policy.js`](js/deployment-policy.js)
 
 </details>
 
