@@ -4,7 +4,7 @@
     "startupJavaScriptFiles": 2,
     "startupDecodedBytes": 1198000,
     "outputJavaScriptFiles": 160,
-    "outputDecodedBytes": 5160000
+    "outputDecodedBytes": 5162000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -56,8 +56,9 @@
     "openClawAndChatWorkspaceStartupDecodedBytes": 1194667,
     "openClawAndChatWorkspaceOutputDecodedBytes": 5136578,
     "directProviderReasoningStartupDecodedBytes": 1196609,
-    "directProviderReasoningOutputDecodedBytes": 5139452
+    "directProviderReasoningOutputDecodedBytes": 5139452,
+    "ownedProcessingApprovalOutputDecodedBytes": 5160463
   },
-  "referenceCommit": "331112b1",
-  "measuredAt": "2026-09-05"
+  "referenceCommit": "ee5ed1d06bd45902c04dda2680ba5d3b1b0c7391",
+  "measuredAt": "2026-09-07"
 }
