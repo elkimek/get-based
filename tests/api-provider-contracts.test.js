@@ -1954,6 +1954,7 @@ describe('AI provider request contracts', () => {
   });
 
   it('lets a trusted edition replace the OpenRouter transport after authorization', async () => {
+    const requestProcessingApproval = vi.fn(async () => true);
     const secret = 'sk-managed-transport-contract';
     const callProvider = vi.fn(async () => ({
       text: 'edition transport',
@@ -1964,6 +1965,7 @@ describe('AI provider request contracts', () => {
     configureAppExtension({
       id: 'managed-transport-test',
       ai: {
+        requestProcessingApproval,
         isCredentialOwned: provider => provider === 'openrouter',
         authorizeRequest: async () => true,
         isProviderCallOwned: ({ provider }) => provider === 'openrouter',
@@ -1975,6 +1977,7 @@ describe('AI provider request contracts', () => {
     updateKeyCache('labcharts-openrouter-key', secret);
 
     await expect(callClaudeAPI(baseChatOptions())).resolves.toMatchObject({ text: 'edition transport' });
+    expect(requestProcessingApproval).toHaveBeenCalledWith(expect.objectContaining({ provider: 'openrouter', interactive: true }));
     expect(callProvider).toHaveBeenCalledWith(expect.objectContaining({
       provider: 'openrouter',
       credential: secret,
@@ -1984,6 +1987,7 @@ describe('AI provider request contracts', () => {
   });
 
   it('lets a trusted edition own an OpenRouter-shaped call without a browser credential', async () => {
+    const requestProcessingApproval = vi.fn(async () => true);
     const callProvider = vi.fn(async ({ credential }) => ({
       text: credential ? 'unexpected credential' : 'credentialless edition transport',
       usage: { inputTokens: 2, outputTokens: 3 },
@@ -1993,6 +1997,7 @@ describe('AI provider request contracts', () => {
     configureAppExtension({
       id: 'credentialless-managed-transport-test',
       ai: {
+        requestProcessingApproval,
         isCredentialOwned: provider => provider === 'openrouter',
         authorizeRequest: async () => true,
         isProviderCallOwned: ({ provider }) => provider === 'openrouter',
@@ -2003,6 +2008,7 @@ describe('AI provider request contracts', () => {
     setOpenRouterModel('reviewed/model');
 
     await expect(callClaudeAPI(baseChatOptions())).resolves.toMatchObject({ text: 'credentialless edition transport' });
+    expect(requestProcessingApproval).toHaveBeenCalled();
     expect(callProvider).toHaveBeenCalledWith(expect.objectContaining({
       provider: 'openrouter',
       credential: '',
@@ -2016,6 +2022,8 @@ describe('AI provider request contracts', () => {
     configureAppExtension({
       id: 'denied-managed-transport-test',
       ai: {
+        isCredentialOwned: provider => provider === 'openrouter',
+        requestProcessingApproval: async () => true,
         authorizeRequest: async () => false,
         isProviderCallOwned: ({ provider }) => provider === 'openrouter',
         callProvider,
