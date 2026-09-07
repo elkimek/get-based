@@ -5,7 +5,7 @@
   "maximums": {
     "requests": 324,
     "transferBytes": 1193220,
-    "decodedBytes": 3320000
+    "decodedBytes": 3322000
   },
   "reference": {
     "requests": 276,
@@ -25,8 +25,9 @@
     "routeAwareAiConsentDecodedBytes": 3270632,
     "cliProviderRoutingRequests": 324,
     "cliProviderRoutingTransferBytes": 1183242,
-    "cliProviderRoutingDecodedBytes": 3319406
+    "cliProviderRoutingDecodedBytes": 3319406,
+    "ownedProcessingApprovalDecodedBytes": 3320759
   },
-  "referenceCommit": "95d13199",
-  "measuredAt": "2026-09-05"
+  "referenceCommit": "2c87ad0af840b6ca77695288eebd3467a85819ea",
+  "measuredAt": "2026-09-07"
 }
