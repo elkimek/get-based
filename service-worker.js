@@ -100,6 +100,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/api-openrouter-oauth.js',
   '/js/api-routstr.js',
   '/js/routstr-model-cache.js',
+  '/js/routstr-validation.js', '/js/routstr-session.js', '/js/routstr-node-payments.js', '/vendor/routstr-crypto.js',
   '/js/routstr-balance-settlement.js',
   '/js/tinfoil-secure-fetch.js',
   '/js/api-ppq.js',

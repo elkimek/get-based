@@ -1,3 +1,4 @@
+import { getRoutstrSessionKey } from '../js/routstr-session.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -167,6 +168,7 @@ beforeEach(() => {
   updateKeyCache('labcharts-openrouter-key', '');
   updateKeyCache('labcharts-venice-key', '');
   updateKeyCache('labcharts-routstr-key', '');
+  updateKeyCache('labcharts-routstr-sessions', '');
   updateKeyCache('labcharts-ppq-key', '');
   updateKeyCache('labcharts-custom-key', '');
   updateKeyCache('labcharts-cashu-wallet-mnemonic', '');
@@ -227,20 +229,24 @@ describe('sync apply runtime behavior', () => {
     let selection = createPulledAISettingsSelection();
     selection = selectPulledAISettings(selection, {
       'labcharts-venice-model': 'newest-general-setting',
-      'labcharts-routstr-key': 'zero-balance-stale-key',
+      'labcharts-routstr-key': 'sk-zero-balance-stale-key',
       'labcharts-routstr-node': 'https://stale-node.example',
       'labcharts-routstr-session-updated-at': '100',
     }, 300);
     selection = selectPulledAISettings(selection, {
       'labcharts-venice-model': 'older-general-setting',
-      'labcharts-routstr-key': 'funded-key',
+      'labcharts-routstr-key': 'sk-funded-key',
       'labcharts-routstr-node': 'https://funded-node.example',
       'labcharts-routstr-session-updated-at': '500',
     }, 200);
 
     expect(combinePulledAISettings(selection)).toEqual({
       'labcharts-venice-model': 'newest-general-setting',
-      'labcharts-routstr-key': 'funded-key',
+      'labcharts-routstr-key': null,
+      'labcharts-routstr-sessions': JSON.stringify({ version: 1, sessions: {
+        'https://stale-node.example': { key: 'sk-zero-balance-stale-key', updatedAt: 100 },
+        'https://funded-node.example': { key: 'sk-funded-key', updatedAt: 500 },
+      } }),
       'labcharts-routstr-node': 'https://funded-node.example',
       'labcharts-routstr-session-updated-at': '500',
     });
@@ -251,22 +257,22 @@ describe('sync apply runtime behavior', () => {
     localStorage.setItem('labcharts-encryption-enabled', 'true');
     await _setTestSessionKey('SyncRoutstrPass1!');
     try {
-      await applyAISettings({ 'labcharts-routstr-key': 'sk-routstr-remote' });
+      await applyAISettings({ 'labcharts-routstr-key': 'sk-routstr-remote', 'labcharts-routstr-node': 'https://sync-node.test' });
       expect(localStorage.getItem('labcharts-routstr-key')).toMatch(/^v1:/);
-      expect(getCachedKey('labcharts-routstr-key')).toBe('sk-routstr-remote');
+      expect(getRoutstrSessionKey()).toBe('sk-routstr-remote');
 
       sessionStorage.setItem('labcharts-ai-settings-local-lock-until', String(Date.now() + 60_000));
-      await applyAISettings({ 'labcharts-routstr-key': 'sk-routstr-blocked' });
-      expect(getCachedKey('labcharts-routstr-key')).toBe('sk-routstr-remote');
+      await applyAISettings({ 'labcharts-routstr-key': 'sk-routstr-blocked', 'labcharts-routstr-node': 'https://sync-node.test' });
+      expect(getRoutstrSessionKey()).toBe('sk-routstr-remote');
       await applyAISettings(
-        { 'labcharts-routstr-key': 'sk-routstr-restored-owner' },
+        { 'labcharts-routstr-key': 'sk-routstr-restored-owner', 'labcharts-routstr-node': 'https://sync-node.test' },
         { preferRemote: true },
       );
-      expect(getCachedKey('labcharts-routstr-key')).toBe('sk-routstr-restored-owner');
+      expect(getRoutstrSessionKey()).toBe('sk-routstr-restored-owner');
 
-      await applyAISettings({ 'labcharts-routstr-key': null }, { preferRemote: true });
+      await applyAISettings({ 'labcharts-routstr-key': null, 'labcharts-routstr-node': 'https://sync-node.test' }, { preferRemote: true });
       expect(localStorage.getItem('labcharts-routstr-key')).toMatch(/^v1:/);
-      expect(getCachedKey('labcharts-routstr-key')).toBe('');
+      expect(getRoutstrSessionKey()).toBe('');
     } finally {
       await _setTestSessionKey(null);
       delete window.__WEARABLES_TEST;
@@ -385,7 +391,7 @@ describe('sync apply runtime behavior', () => {
       'labcharts-routstr-node': 'https://node.remote.test',
       'labcharts-routstr-session-updated-at': '200',
     });
-    expect(getCachedKey('labcharts-routstr-key')).toBe('sk-remote-funded');
+    expect(getRoutstrSessionKey()).toBe('sk-remote-funded');
     expect(localStorage.getItem('labcharts-routstr-node')).toBe('https://node.remote.test');
     expect(localStorage.getItem('labcharts-routstr-session-updated-at')).toBe('200');
     expect(refreshRoutstrBalance).toHaveBeenCalledTimes(1);
@@ -395,14 +401,14 @@ describe('sync apply runtime behavior', () => {
       'labcharts-routstr-node': 'https://node.stale.test',
       'labcharts-routstr-session-updated-at': '150',
     });
-    expect(getCachedKey('labcharts-routstr-key')).toBe('sk-remote-funded');
+    expect(getRoutstrSessionKey()).toBe('sk-remote-funded');
     expect(refreshRoutstrBalance).toHaveBeenCalledTimes(1);
 
     await applyAISettings({
       'labcharts-routstr-key': 'sk-legacy-profile-row',
       'labcharts-routstr-node': 'https://node.legacy.test',
     });
-    expect(getCachedKey('labcharts-routstr-key')).toBe('sk-remote-funded');
+    expect(getRoutstrSessionKey()).toBe('sk-remote-funded');
     expect(localStorage.getItem('labcharts-routstr-node')).toBe('https://node.remote.test');
     expect(refreshRoutstrBalance).toHaveBeenCalledTimes(1);
 

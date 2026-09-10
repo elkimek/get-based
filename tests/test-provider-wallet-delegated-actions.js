@@ -86,8 +86,8 @@ assert('service worker precaches provider wallet delegate module',
 
 assert('deposit recovery awaits pending-deposit clear before reload',
   /async function _recoverPendingDeposit[\s\S]*await walletRuntime\.cashuReceiveToken\?\.\([\s\S]*await walletRuntime\.cashuClearPendingDeposit\?\.\([\s\S]*globalThis\.location\?\.reload\?\.\(\)/.test(walletDelegatesSrc));
-assert('withdraw recovery conditionally awaits pending-withdraw clear and clears node session before reload',
-  /async function _recoverPendingWithdraw[\s\S]*await walletRuntime\.cashuReceiveToken\?\.\([\s\S]*if \(el\.dataset\.clearPendingWithdraw !== 'false'\) await walletRuntime\.cashuClearPendingWithdraw\?\.\([\s\S]*await _call\('clearRoutstrNodeSession'\)[\s\S]*globalThis\.location\?\.reload\?\.\(\)/.test(walletDelegatesSrc));
+assert('withdraw recovery awaits pending-withdraw clear before reload',
+  /async function _recoverPendingWithdraw[\s\S]*await walletRuntime\.cashuReceiveToken\?\.\([\s\S]*if \(el\.dataset\.clearPendingWithdraw !== 'false'\) await walletRuntime\.cashuClearPendingWithdraw\?\.\([\s\S]*globalThis\.location\?\.reload\?\.\(\)/.test(walletDelegatesSrc));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) process.exit(1);

@@ -1,275 +1,18 @@
+import { proof, AmountStub, installCashuStub, loadWallet, readCashuStore, openCashuTestDB, seedExistingUserCashuState, readIdbMeta, readIdbStore, jsonResponse } from './helpers/cashu-wallet.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
+import { makeTestInvoice, LNURL_METADATA } from './fixtures/lightning-invoices.js';
+import { configureApiProviderStorageRuntimeDeps } from '../js/api-provider-storage-runtime.js';
+import { encryptedSetCredentialItem } from '../js/crypto.js';
+import { clearKeyCache } from '../js/crypto-key-cache.js';
 import existingUserFixture from './fixtures/cashu-wallet-v4.6.1.json';
 
-let importId = 0;
 const realFetch = globalThis.fetch;
-
-function proof(secret, amount) {
-  return { secret, amount, C: `C-${secret}` };
-}
-
-class AmountStub {
-  constructor(value) { this.value = Number(value) || 0; }
-  toNumber() { return this.value; }
-  toString() { return String(this.value); }
-  toJSON() { return String(this.value); }
-  add(other) { return new AmountStub(this.value + amountNumber(other)); }
-}
-
-function amountNumber(value) {
-  if (value && typeof value.toNumber === 'function') return value.toNumber();
-  return Number(value) || 0;
-}
-
-function installCashuStub(options = {}) {
-  const state = {
-    receiveProofs: [proof('rx-1', 10)],
-    meltQuotes: new Map(),
-    mintQuoteStates: new Map(),
-    failMelt: false,
-    failReceive: false,
-    failRestore: false,
-    failProofPersistence: false,
-    failEncodeOnce: false,
-    failMintPersistenceOnce: false,
-    failMintOutputsAlreadySigned: false,
-    restoreProofs: [proof('restored-1', 7), { ...proof('restored-spent', 3), spent: true }],
-    instances: [],
-  };
-
-  function splitSend(amount, proofs) {
-    const amountSats = amountNumber(amount);
-    const total = amountNumber(sumProofs(proofs));
-    const result = {
-      send: [proof(`send-${amountSats}-${state.instances.length}`, options.amountObjects ? new AmountStub(amountSats) : amountSats)],
-      keep: total > amountSats ? [proof(`keep-${total - amountSats}-${state.instances.length}`, options.amountObjects ? new AmountStub(total - amountSats) : total - amountSats)] : [],
-    };
-    if (state.failProofPersistence && result.keep[0]) result.keep[0].uncloneable = () => {};
-    return result;
-  }
-
-  function outputForProof(p, index) {
-    return {
-      blindedMessage: { B_: `B-${p.secret}-${index}`, amount: p.amount, id: 'keyset-stub' },
-      fixtureProof: { ...p },
-    };
-  }
-
-  class Wallet {
-    constructor(url, opts = {}) {
-      this.url = url;
-      this.opts = opts;
-      this.keysetId = 'keyset-stub';
-      this.keyChain = {
-        getKeysets: () => [{ id: this.keysetId }],
-        ensureKeysetKeys: async id => ({ id, keys: {} }),
-      };
-      this.counters = {
-        advanceToAtLeast: (keysetId, value) => opts.counterSource?.advanceToAtLeast(keysetId, value),
-      };
-      if (options.durableOps) {
-        this.ops = {
-          send: (amount, proofs) => {
-            const builder = {
-              includeFees: () => builder,
-              prepare: async () => {
-                const result = splitSend(amount, proofs);
-                const preview = {
-                  inputs: proofs.map(p => ({ ...p })),
-                  sendOutputs: result.send.map(outputForProof),
-                  keepOutputs: result.keep.map(outputForProof),
-                  unselectedProofs: [],
-                  keysetId: 'keyset-stub',
-                };
-                preview.fixtureResult = result;
-                return preview;
-              },
-            };
-            return builder;
-          },
-          receive: () => ({
-            prepare: async () => {
-              const result = { keep: state.receiveProofs.map(p => ({ ...p })), send: [] };
-              const preview = {
-                inputs: [],
-                sendOutputs: [],
-                keepOutputs: result.keep.map(outputForProof),
-                unselectedProofs: [],
-                keysetId: 'keyset-stub',
-                fixtureResult: result,
-              };
-              return preview;
-            },
-          }),
-        };
-        this.prepareMint = async (method, amount, quote) => {
-          const mintedProof = proof(`minted-${quote.quote}`, amountNumber(amount));
-          return {
-            method,
-            payload: { quote: quote.quote },
-            outputData: [outputForProof(mintedProof, 0)],
-            keysetId: 'keyset-stub',
-            quote,
-          };
-        };
-        this.prepareMelt = async (method, quote, proofs) => ({
-          method,
-          inputs: proofs,
-          outputData: [outputForProof(proof(`melt-change-${quote.quote}`, 1), 0)],
-          keysetId: 'keyset-stub',
-          quote,
-        });
-      }
-      state.instances.push(this);
-    }
-
-    async loadMint() {}
-
-    async groupProofsByState(proofs) {
-      return {
-        unspent: proofs.filter(p => !p.spent && !p.pending),
-        spent: proofs.filter(p => p.spent),
-        pending: proofs.filter(p => p.pending),
-      };
-    }
-
-    async receive() {
-      if (state.failReceive) throw new Error('receive failed');
-      return state.receiveProofs.map(p => ({ ...p }));
-    }
-
-    async send(amount, proofs) {
-      return splitSend(amount, proofs);
-    }
-
-    async completeSwap(preview) {
-      return preview.fixtureResult;
-    }
-
-    async completeMint(preview) {
-      const proofs = preview.outputData.map(output => ({ ...output.fixtureProof }));
-      if (state.failMintPersistenceOnce) {
-        state.failMintPersistenceOnce = false;
-        proofs[0].uncloneable = () => {};
-      }
-      return proofs;
-    }
-
-    async completeMelt(preview) {
-      if (state.failMelt) throw new Error('melt failed');
-      return { change: preview.outputData.map(output => ({ ...output.fixtureProof })) };
-    }
-
-    createMeltChangeProofs(outputData) {
-      return outputData.map(output => output.toProof());
-    }
-
-    async createMintQuoteBolt11(amount) {
-      const amountSats = amountNumber(typeof amount === 'object' && amount ? amount.amount : amount);
-      return { quote: `mint-${amountSats}`, request: `invoice-${amountSats}`, amount: options.amountObjects ? new AmountStub(amountSats) : amountSats, state: 'UNPAID' };
-    }
-
-    async checkMintQuoteBolt11(quoteId) {
-      const quoteState = state.mintQuoteStates.get(quoteId) || 'PAID';
-      return { state: quoteState, amount: Number(String(quoteId).replace(/\D/g, '')) || 0 };
-    }
-
-    async mintProofsBolt11(amount, quoteId) {
-      if (state.failMintOutputsAlreadySigned) throw new Error('outputs already signed');
-      return [proof(`minted-${quoteId}`, amount)];
-    }
-
-    async createMeltQuoteBolt11(invoice) {
-      const amount = Number(String(invoice).split(':').pop()) || 10;
-      const quote = {
-        quote: `quote-${amount}`,
-        amount: options.amountObjects ? new AmountStub(amount) : amount,
-        fee_reserve: options.amountObjects ? new AmountStub(5) : 5,
-        state: 'UNPAID'
-      };
-      state.meltQuotes.set(quote.quote, quote);
-      return quote;
-    }
-
-    async checkMeltQuoteBolt11(quoteId) {
-      return state.meltQuotes.get(quoteId) || { quote: quoteId, amount: 10, fee_reserve: 2 };
-    }
-
-    async meltProofsBolt11() {
-      if (state.failMelt) throw new Error('melt failed');
-      return { change: [proof(`melt-change-${state.instances.length}`, 1)] };
-    }
-
-    async batchRestore(batchSize, gap, start) {
-      if (state.failRestore) throw new Error('restore unavailable');
-      if (start > 0) return { proofs: [] };
-      return { proofs: state.restoreProofs.map(p => ({ ...p })) };
-    }
-  }
-
-  function sumProofs(proofs = []) {
-    const total = proofs.reduce((sum, p) => sum + amountNumber(p.amount), 0);
-    return options.amountObjects ? new AmountStub(total) : total;
-  }
-
-  globalThis.cashuts = {
-    Wallet,
-    Mint: options.durableOps ? class Mint {
-      async restore({ outputs }) {
-        return {
-          outputs,
-          signatures: outputs.map(output => ({ id: output.id, amount: output.amount })),
-        };
-      }
-    } : undefined,
-    OutputData: options.durableOps ? {
-      serialize: output => ({ blindedMessage: output.blindedMessage, fixtureProof: output.fixtureProof }),
-      deserialize: output => ({
-        blindedMessage: output.blindedMessage,
-        toProof: () => ({ ...output.fixtureProof }),
-      }),
-    } : undefined,
-    MintQuoteState: { PAID: 'PAID', ISSUED: 'ISSUED', EXPIRED: 'EXPIRED' },
-    sumProofs,
-    getEncodedToken: ({ mint, proofs }) => {
-      if (state.failEncodeOnce) {
-        state.failEncodeOnce = false;
-        throw new Error('codec failed after swap');
-      }
-      return `cashu:${mint}:${sumProofs(proofs)}:${proofs.map(p => p.secret).join(',')}`;
-    },
-    getTokenMetadata: (token) => {
-      const parts = String(token).split(':');
-      return parts[0] === 'cashu' && parts[1] && parts[2]
-        ? { mint: `${parts[1]}:${parts[2]}`, unit: 'sat', amount: parts[4] || '0' }
-        : { mint: 'https://mint.getbased.test/Bitcoin', unit: 'sat', amount: '0' };
-    },
-  };
-  window.cashuts = globalThis.cashuts;
-  return state;
-}
-
-async function loadWallet() {
-  return import(/* @vite-ignore */ `../js/cashu-wallet.js?runtime=${importId++}`);
-}
-
-async function readCashuStore(storeName) {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open('getbased-cashu', 2);
-    req.onsuccess = () => {
-      const db = req.result;
-      const tx = db.transaction(storeName, 'readonly');
-      const getAll = tx.objectStore(storeName).getAll();
-      getAll.onsuccess = () => { db.close(); resolve(getAll.result || []); };
-      getAll.onerror = () => { db.close(); reject(getAll.error); };
-    };
-    req.onerror = () => reject(req.error);
-  });
-}
 
 beforeEach(() => {
   localStorage.clear();
+  clearKeyCache();
+  configureApiProviderStorageRuntimeDeps({ encryptedSetItem: encryptedSetCredentialItem });
   sessionStorage.clear();
   globalThis.fetch = realFetch;
   globalThis.indexedDB = new IDBFactory();
@@ -410,7 +153,16 @@ describe('Cashu wallet runtime behavior', () => {
     await expect(wallet.exportWallet()).resolves.toContain('cashu:https://mint.getbased.test/Bitcoin:10:rx-1');
 
     await expect(wallet.sendAsToken(4)).resolves.toMatchObject({ amount: 4, remaining: 6 });
+    await expect(wallet.clearPendingWithdraw()).rejects.toThrow('still unspent');
+    const state = globalThis.cashuts;
+    const outgoing = await wallet.recoverPendingWithdraw();
+    const stubWallet = await import('../js/cashu-wallet-store.js');
+    const inputs = state.getDecodedToken(outgoing).proofs;
+    // Simulate delivery: the recipient spends the outgoing token at the mint.
+    const sdkWallet = new state.Wallet('https://mint.getbased.test/Bitcoin');
+    await sdkWallet.completeSwap({ inputs, sendOutputs: [], keepOutputs: [], unselectedProofs: [] });
     await wallet.clearPendingWithdraw();
+    await expect(stubWallet._getMeta('pendingWithdraw')).resolves.toBeNull();
     await expect(wallet.sendAsToken(99)).rejects.toThrow('Insufficient balance: 6 sats, need 99');
 
     await expect(wallet.restoreWalletFromSeed('too short')).rejects.toThrow('Invalid mnemonic');
@@ -421,6 +173,7 @@ describe('Cashu wallet runtime behavior', () => {
   });
 
   it('keeps failed node deposits recoverable and clears pending tokens after success', async () => {
+    const stub = installCashuStub();
     const wallet = await loadWallet();
     await wallet.setMintUrl('https://mint.getbased.test/Bitcoin');
     await wallet.receiveToken('cashu-token');
@@ -429,22 +182,25 @@ describe('Cashu wallet runtime behavior', () => {
       detail: [{ msg: 'token rejected' }, { msg: 'mint unavailable' }],
     }, { status: 400 }));
 
-    await expect(wallet.depositToNode('https://node.getbased.test/', 5, 'sk-existing')).rejects.toThrow('token rejected; mint unavailable');
+    await expect(wallet.depositToNode('https://node.getbased.test/', 5)).rejects.toThrow('outcome is unconfirmed');
     await expect(wallet.recoverPendingDeposit()).resolves.toContain('cashu:https://mint.getbased.test/Bitcoin:5:send-5');
 
-    await wallet.clearPendingDeposit();
+    await expect(wallet.clearPendingDeposit()).rejects.toThrow('Recover or reconcile');
+    const pending = await wallet.recoverPendingDeposit();
+    stub.receiveProofs = [proof('reclaimed-deposit', 5)];
+    await wallet.receiveToken(pending);
     await expect(wallet.recoverPendingDeposit()).resolves.toBeNull();
 
-    const stub = installCashuStub();
     stub.receiveProofs = [proof('rx-2', 9)];
     await wallet.setMintUrl('https://mint.getbased.test/Bitcoin');
-    await expect(wallet.receiveToken('another-token')).resolves.toEqual({ received: 9, fee: 0, balance: 14 });
+    await expect(wallet.receiveToken('another-token')).resolves.toEqual({ received: 9, fee: 0, balance: 19 });
     fetch.mockResolvedValueOnce(jsonResponse({ api_key: 'sk-new', balance: 4000 }));
 
     await expect(wallet.depositToNode('https://node.getbased.test///', 4)).resolves.toEqual({ api_key: 'sk-new', balance: 4000 });
-    expect(fetch.mock.calls.at(-1)[0]).toMatch(/^https:\/\/node\.getbased\.test\/v1\/balance\/create\?initial_balance_token=/);
+    expect(fetch.mock.calls.at(-1)[0]).toBe('https://node.getbased.test/v1/balance/create');
+    expect(fetch.mock.calls.at(-1)[1].method).toBe('POST');
     await expect(wallet.recoverPendingDeposit()).resolves.toBeNull();
-    await expect(wallet.getWalletBalance()).resolves.toBe(10);
+    await expect(wallet.getWalletBalance()).resolves.toBe(15);
   });
 
   it('recovers paid wallet funding quotes after reload and keeps unpaid quotes pending', async () => {
@@ -495,7 +251,7 @@ describe('Cashu wallet runtime behavior', () => {
     expect(paidFunding.quote).toBe('mint-12');
   });
 
-  it('recovers already-issued funding outputs from seed restore when retrying a paid quote reports outputs already signed', async () => {
+  it('recovers already-issued funding outputs from the exact prepared quote after a lost response', async () => {
     const stub = installCashuStub();
     stub.failMintOutputsAlreadySigned = true;
     stub.restoreProofs = [proof('issued-after-lost-response', 200)];
@@ -548,11 +304,11 @@ describe('Cashu wallet runtime behavior', () => {
 
     globalThis.fetch = vi.fn(async (url) => {
       if (String(url).includes('/.well-known/lnurlp/alice')) {
-        return jsonResponse({ callback: 'https://lnurl.getbased.test/cb', minSendable: 1000, maxSendable: 200000 });
+        return jsonResponse({ tag: 'payRequest', metadata: LNURL_METADATA, callback: 'https://lnurl.getbased.test/cb', minSendable: 1000, maxSendable: 200000 });
       }
       if (String(url).startsWith('https://lnurl.getbased.test/cb')) {
         const amountMsats = Number(new URL(String(url)).searchParams.get('amount'));
-        return jsonResponse({ pr: `invoice:${amountMsats / 1000}` });
+        return jsonResponse({ pr: makeTestInvoice(amountMsats / 1000) });
       }
       return new Response('', { status: 404 });
     });
@@ -566,19 +322,21 @@ describe('Cashu wallet runtime behavior', () => {
 
     await wallet.receiveToken('cashu-token');
     stub.failMelt = true;
-    const quote = await wallet.createWithdrawQuote('invoice:10');
+    const quote = await wallet.createWithdrawQuote(makeTestInvoice(10));
 
     await expect(wallet.executeWithdraw(quote.quote)).rejects.toThrow('melt failed');
     await expect(wallet.recoverPendingWithdraw()).resolves.toContain('cashu:https://mint.getbased.test/Bitcoin:15:send-15');
     await expect(wallet.savePendingWithdrawToken('cashu:node-refund-token', 'routstr-node-refund')).resolves.toBe(false);
     await expect(wallet.recoverPendingWithdraw()).resolves.toContain('cashu:https://mint.getbased.test/Bitcoin:15:send-15');
     await expect(wallet.recoverPendingWithdraw()).resolves.not.toContain('cashu:node-refund-token');
-    await wallet.clearPendingWithdraw();
+    await expect(wallet.clearPendingWithdraw()).rejects.toThrow('still unspent');
+    stub.receiveProofs = [proof('reclaimed-withdraw', 15)];
+    await wallet.receiveToken(await wallet.recoverPendingWithdraw());
 
     await expect(wallet.savePendingWithdrawToken('cashu:first-node-refund', 'routstr-node-refund')).resolves.toBe(true);
     await expect(wallet.savePendingWithdrawToken('cashu:second-node-refund', 'routstr-node-refund')).resolves.toBe(false);
     await expect(wallet.recoverPendingWithdraw()).resolves.toBe('cashu:first-node-refund');
-    await wallet.clearPendingWithdraw();
+    await wallet.receiveToken(await wallet.recoverPendingWithdraw());
     await expect(wallet.recoverPendingWithdraw()).resolves.toBeNull();
   });
 
@@ -627,7 +385,9 @@ describe('Cashu wallet runtime behavior', () => {
 
     globalThis.fetch = vi.fn().mockResolvedValueOnce(jsonResponse({ balance: 100000 }));
 
-    await expect(wallet.depositToNode('https://node.getbased.test/', 5, 'sk-existing')).resolves.toEqual({ balance: 100000 });
+    const { saveRoutstrSessionKey } = await import('../js/routstr-session.js');
+    await saveRoutstrSessionKey('sk-existing', 'https://node.getbased.test/');
+    await expect(wallet.depositToNode('https://node.getbased.test/', 5, 'sk-existing')).resolves.toEqual({ balance: 100000, api_key: 'sk-existing' });
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch.mock.calls[0][0]).toBe('https://node.getbased.test/v1/balance/topup');
     expect(fetch.mock.calls[0][1]).toMatchObject({
@@ -668,16 +428,9 @@ describe('Cashu wallet runtime behavior', () => {
     const metaRows = await readIdbStore('meta');
     expect(metaRows.find(row => row.key.startsWith('counter:') && row.key.endsWith(':keyset-alpha'))?.value).toBe(15);
 
-    await wallet.clearPendingDeposit();
-    globalThis.fetch = vi.fn().mockResolvedValueOnce(jsonResponse({ balance: 123000 }));
-    await expect(wallet.depositToNode(localStorage.getItem('labcharts-routstr-node'), 5, localStorage.getItem('labcharts-routstr-key'))).resolves.toEqual({ balance: 123000 });
-    expect(fetch).toHaveBeenCalledTimes(1);
-    expect(fetch.mock.calls[0][0]).toBe('https://node.existing.test/v1/balance/topup');
-    expect(fetch.mock.calls[0][1].headers.Authorization).toBe('Bearer sk-existing-user-session');
-    expect(fetch.mock.calls[0][0]).not.toContain('/v1/balance/create');
-    await expect(wallet.recoverPendingDeposit()).resolves.toBeNull();
-    await expect(wallet.recoverPendingWithdraw()).resolves.toBe(existingUserFixture.pendingWithdraw.token);
-    expect(localStorage.getItem('labcharts-routstr-key')).toBe('sk-existing-user-session');
+    await expect(wallet.clearPendingDeposit()).rejects.toThrow('Recover or reconcile');
+    await expect(wallet.clearPendingWithdraw()).rejects.toThrow('still unspent');
+    await expect(wallet.recoverPendingDeposit()).resolves.toBe(existingUserFixture.pendingDeposit);
   });
 
   it('migrates oldest untagged default-mint proof rows without dropping balance', async () => {
@@ -717,7 +470,7 @@ describe('Cashu wallet runtime behavior', () => {
     expect(wallet.getFeePct()).toBe(0);
     await expect(wallet.getFeeBalance()).resolves.toBe(0);
     await expect(wallet.retryFeeAutoMelt()).resolves.toEqual({ melted: 0, remaining: 0 });
-    await expect(wallet.redeemFees('invoice:1')).rejects.toThrow('No fee proofs to redeem');
+    await expect(wallet.redeemFees(makeTestInvoice(1))).rejects.toThrow('No fee proofs to redeem');
   });
 
   it('keeps existing proofs and the original seed when restore cannot be proven', async () => {
@@ -756,12 +509,12 @@ describe('Cashu wallet runtime behavior', () => {
     await expect(wallet.getMintUrl()).resolves.toBe('https://mint.original.test/Bitcoin');
 
     stub.failReceive = false;
-    await wallet.receiveToken('cashu:https://mint.original.test/Bitcoin:5:local-token');
-    await expect(wallet.receiveToken(
-      'cashu:https://mint.other.test/Bitcoin:5:foreign-token'
-    )).rejects.toThrow('different mint');
-    await expect(wallet.setMintUrl('https://mint.other.test/Bitcoin')).rejects.toThrow('funds or pending');
-    await expect(wallet.getMintUrl()).resolves.toBe('https://mint.original.test/Bitcoin');
+    await expect(wallet.receiveToken('cashu:https://mint.original.test/Bitcoin:5:local-token')).rejects.toThrow('original mint');
+    await expect(wallet.createFundingInvoice(5)).rejects.toThrow('original mint');
+    await wallet.receiveToken('cashu:https://mint.other.test/Bitcoin:5:failed-token');
+    await expect(wallet.getMintUrl()).resolves.toBe('https://mint.other.test/Bitcoin');
+    await expect(wallet.receiveToken('cashu:https://mint.original.test/Bitcoin:5:foreign-token')).rejects.toThrow('different mint');
+    await expect(wallet.setMintUrl('https://mint.original.test/Bitcoin')).rejects.toThrow('funds or pending');
     await expect(wallet.getWalletBalance()).resolves.toBe(10);
   });
 
@@ -770,11 +523,11 @@ describe('Cashu wallet runtime behavior', () => {
     const walletA = await loadWallet();
     await walletA.setMintUrl('https://mint.getbased.test/Bitcoin');
     await walletA.generateWalletSeed();
-    await walletA.createWithdrawQuote('invoice:1');
+    await walletA.createWithdrawQuote(makeTestInvoice(1));
     const sourceA = stub.instances.at(-1).opts.counterSource;
 
     const walletB = await loadWallet();
-    await walletB.createWithdrawQuote('invoice:1');
+    await walletB.createWithdrawQuote(makeTestInvoice(1));
     const sourceB = stub.instances.at(-1).opts.counterSource;
     const ranges = await Promise.all([
       sourceA.reserve('keyset-concurrent', 3),
@@ -836,9 +589,10 @@ describe('Cashu wallet runtime behavior', () => {
 
     await expect(wallet.sendAsToken(4)).rejects.toThrow();
     expect(await readIdbStore('proofs')).toEqual(rowsBefore);
-    await expect(wallet.recoverPendingWithdraw()).resolves.toContain(
-      'cashu:https://mint.getbased.test/Bitcoin:10:'
-    );
+    await expect(wallet.recoverPendingWithdraw()).resolves.toContain('cashu:https://mint.getbased.test/Bitcoin:10:');
+    stub.failProofPersistence = false;
+    await expect(wallet.recoverPendingWalletOperation()).resolves.toMatchObject({ recovered: 10, pending: false });
+    await expect(wallet.getWalletBalance()).resolves.toBe(10);
   });
 
   it('restores prepared swap outputs after a crash boundary before local persistence', async () => {
@@ -850,7 +604,7 @@ describe('Cashu wallet runtime behavior', () => {
 
     await expect(wallet.sendAsToken(4)).rejects.toThrow('codec failed after swap');
     await expect(readIdbMeta('pendingSwap')).resolves.toMatchObject({
-      version: 1,
+      version: 2,
       operation: 'send',
       mint: 'https://mint.getbased.test/Bitcoin',
     });
@@ -887,7 +641,7 @@ describe('Cashu wallet runtime behavior', () => {
     const wallet = await loadWallet();
     await wallet.setMintUrl('https://mint.getbased.test/Bitcoin');
     await wallet.receiveToken('cashu-token');
-    const quote = await wallet.createWithdrawQuote('invoice:10');
+    const quote = await wallet.createWithdrawQuote(makeTestInvoice(10));
     stub.failMelt = true;
 
     await expect(wallet.executeWithdraw(quote.quote)).rejects.toThrow('melt failed');
@@ -906,76 +660,3 @@ describe('Cashu wallet runtime behavior', () => {
     await expect(readIdbMeta('pendingWithdraw')).resolves.toBeNull();
   });
 });
-
-async function openCashuTestDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open('getbased-cashu', 2);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains('proofs')) db.createObjectStore('proofs', { keyPath: 'secret' });
-      if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'key' });
-      if (!db.objectStoreNames.contains('fee-proofs')) db.createObjectStore('fee-proofs', { keyPath: 'secret' });
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function seedExistingUserCashuState({ mintUrl, proofs = [], pendingQuote, pendingDeposit, pendingWithdraw, mnemonic, counters = {}, feeProofs = [] }) {
-  const db = await openCashuTestDB();
-  try {
-    await new Promise((resolve, reject) => {
-      const tx = db.transaction(['proofs', 'meta', 'fee-proofs'], 'readwrite');
-      const proofStore = tx.objectStore('proofs');
-      const metaStore = tx.objectStore('meta');
-      const feeStore = tx.objectStore('fee-proofs');
-      for (const p of proofs) proofStore.put({ ...p, _mint: mintUrl });
-      for (const p of feeProofs) feeStore.put({ ...p, _mint: mintUrl });
-      metaStore.put({ key: 'mintUrl', value: mintUrl });
-      if (mnemonic) metaStore.put({ key: 'walletMnemonic', value: mnemonic });
-      if (pendingQuote) metaStore.put({ key: 'pendingQuote:' + pendingQuote.quote, value: pendingQuote.amount });
-      if (pendingDeposit) metaStore.put({ key: 'pendingDeposit', value: pendingDeposit });
-      if (pendingWithdraw) metaStore.put({ key: 'pendingWithdraw', value: JSON.stringify(pendingWithdraw) });
-      for (const [key, value] of Object.entries(counters)) metaStore.put({ key, value });
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  } finally {
-    db.close();
-  }
-}
-
-async function readIdbMeta(key) {
-  const db = await openCashuTestDB();
-  try {
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction('meta', 'readonly');
-      const req = tx.objectStore('meta').get(key);
-      req.onsuccess = () => resolve(req.result?.value ?? null);
-      req.onerror = () => reject(req.error);
-    });
-  } finally {
-    db.close();
-  }
-}
-
-async function readIdbStore(storeName) {
-  const db = await openCashuTestDB();
-  try {
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(storeName, 'readonly');
-      const req = tx.objectStore(storeName).getAll();
-      req.onsuccess = () => resolve(req.result || []);
-      req.onerror = () => reject(req.error);
-    });
-  } finally {
-    db.close();
-  }
-}
-
-function jsonResponse(body, init = {}) {
-  return new Response(JSON.stringify(body), {
-    status: init.status || 200,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}

@@ -2,6 +2,9 @@
 // provider-wallet-runtime.js - Cashu/Nostr dependencies for Routstr wallet panels
 
 import {
+  refundNodeToToken as cashuRefundNodeToToken,
+  finishNodeRefund as cashuFinishNodeRefund,
+  getPendingNodeRefund as cashuGetPendingNodeRefund,
   checkProofStates as cashuCheckProofStates,
   createFundingInvoice as cashuCreateFundingInvoice,
   checkFundingStatus as cashuCheckFundingStatus,
@@ -37,6 +40,7 @@ import {
 } from './nostr-discovery.js';
 
 const walletRuntimeDefaults = {
+  cashuRefundNodeToToken, cashuFinishNodeRefund, cashuGetPendingNodeRefund,
   cashuCheckProofStates,
   cashuCreateFundingInvoice,
   cashuCheckFundingStatus,

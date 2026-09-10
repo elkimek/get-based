@@ -2,7 +2,7 @@
   "name": "getbased",
   "version": "1.3.9",
   "private": true,
-  "description": "getbased — open-source health dashboard (PWA)",
+  "description": "getbased \u2014 open-source health dashboard (PWA)",
   "type": "module",
   "engines": {
     "node": "24.x"
@@ -59,7 +59,9 @@
     "typescript": "^6.0.3",
     "venice-e2ee": "https://github.com/elkimek/venice-e2ee/archive/7da6228c0cef3ad516196129eea2f9d64760e6b3.tar.gz",
     "vitest": "^4.1.11",
-    "elliptic": "file:scripts/vendor-packages/elliptic-verify-only"
+    "elliptic": "file:scripts/vendor-packages/elliptic-verify-only",
+    "@scure/base": "2.2.0",
+    "@noble/hashes": "2.2.0"
   },
   "dependencies": {
     "@vercel/blob": "2.8.0",

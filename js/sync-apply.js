@@ -1,6 +1,8 @@
 // @ts-check
 // sync-apply.js - apply inbound synced AI settings and display prefs.
 
+import { encodeMergedRoutstrSessions, withRoutstrSessionLock, ROUTSTR_SESSIONS_KEY } from './routstr-session.js';
+import { canonicalRoutstrUrl } from './routstr-validation.js';
 import { encryptedSetItem, encryptedGetItem, updateKeyCache } from './crypto.js';
 import { AI_SETTINGS_KEYS, DISPLAY_PREF_SUFFIXES } from './sync-payload-collectors.js';
 import {
@@ -22,7 +24,7 @@ const OPENROUTER_OAUTH_LOCAL_SETTINGS_LOCK_UNTIL_KEY = 'or_oauth_local_settings_
 const OPENROUTER_OAUTH_LOCAL_SETTING_KEYS = new Set(['labcharts-ai-provider', 'labcharts-openrouter-key']);
 const AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY = 'labcharts-ai-settings-local-lock-until';
 const ROUTSTR_SESSION_UPDATED_AT_KEY = 'labcharts-routstr-session-updated-at';
-const ROUTSTR_SESSION_KEYS = new Set(['labcharts-routstr-key', 'labcharts-routstr-node']);
+const ROUTSTR_SESSION_KEYS = new Set(['labcharts-routstr-key', ROUTSTR_SESSIONS_KEY, 'labcharts-routstr-node']);
 
 function hasLocalAISettingsLock() {
   try {
@@ -55,6 +57,7 @@ const ENCRYPTED_AI_KEYS = [
   'labcharts-openrouter-key',
   'labcharts-venice-key',
   'labcharts-routstr-key',
+  ROUTSTR_SESSIONS_KEY,
   'labcharts-ppq-key',
   'labcharts-ollama',
   'labcharts-ollama-pii-key',
@@ -66,7 +69,10 @@ const ENCRYPTED_AI_KEYS = [
 /** @param {Record<string, any> | null | undefined} settings
  * @param {{ preferRemote?: boolean }} [options]
  */
-export async function applyAISettings(settings, options = {}) {
+export function applyAISettings(settings, options = {}) {
+  return withRoutstrSessionLock(() => applyAISettingsUnlocked(settings, options));
+}
+async function applyAISettingsUnlocked(settings, options) {
   if (!settings) return;
   let changed = false;
   const changedKeys = [];
@@ -89,7 +95,10 @@ export async function applyAISettings(settings, options = {}) {
     && remoteRoutstrUpdatedAt > localRoutstrUpdatedAt;
   const localRoutstrIsNewer = Number.isFinite(localRoutstrUpdatedAt)
     && localRoutstrUpdatedAt > remoteRoutstrUpdatedAt;
-  for (const [key, val] of Object.entries(settings)) {
+  const localNode = localStorage.getItem('labcharts-routstr-node');
+  let localCredential = await encryptedGetItem(ROUTSTR_SESSIONS_KEY) || await encryptedGetItem('labcharts-routstr-key');
+  for (const [key, rawVal] of Object.entries(settings)) {
+    let val = rawVal;
     const coreSetting = AI_SETTINGS_KEYS.includes(key);
     const extensionSetting = extensionKeys.has(key)
       || extensionPrefixes.some(prefix => key.startsWith(prefix))
@@ -110,6 +119,29 @@ export async function applyAISettings(settings, options = {}) {
       || extensionPreferRemoteKeys.has(key)
       || (routstrSessionKey && remoteRoutstrIsNewer);
     if (shouldKeepLocalAISetting(key, coreSetting || extensionSetting, preferRemoteSetting)) continue;
+    if (key === 'labcharts-routstr-node' && val) { try { val = canonicalRoutstrUrl(val); } catch { continue; } }
+    if (key === 'labcharts-routstr-key' || key === ROUTSTR_SESSIONS_KEY) {
+      if (key === 'labcharts-routstr-key' && Object.hasOwn(settings, ROUTSTR_SESSIONS_KEY)) continue;
+      const bound = encodeMergedRoutstrSessions(localCredential, localNode, val, settings['labcharts-routstr-node'], localRoutstrUpdatedAt, remoteRoutstrUpdatedAt);
+      if (bound === localCredential && !await encryptedGetItem('labcharts-routstr-key')) continue;
+      await encryptedSetItem(ROUTSTR_SESSIONS_KEY, bound);
+      updateKeyCache(ROUTSTR_SESSIONS_KEY, bound);
+      await encryptedSetItem('labcharts-routstr-key', '');
+      updateKeyCache('labcharts-routstr-key', '');
+      localCredential = bound;
+      changed = true; routstrSessionChanged = true;
+      changedKeys.push(ROUTSTR_SESSIONS_KEY, 'labcharts-routstr-key');
+      continue;
+    }
+    if (key === 'labcharts-routstr-node' && /^(sk-|cashu)/.test(localCredential || '')) {
+      // Freeze legacy origin binding before changing the selected node.
+      const bound = encodeMergedRoutstrSessions(localCredential, localNode, null, null, localRoutstrUpdatedAt, 0);
+      await encryptedSetItem(ROUTSTR_SESSIONS_KEY, bound);
+      updateKeyCache(ROUTSTR_SESSIONS_KEY, bound);
+      await encryptedSetItem('labcharts-routstr-key', '');
+      updateKeyCache('labcharts-routstr-key', '');
+      localCredential = bound;
+    }
     const before = await encryptedGetItem(key);
     const hasStoredValue = localStorage.getItem(key) !== null;
     if (val === null ? before === '' && hasStoredValue : before === val) continue;

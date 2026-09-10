@@ -8,6 +8,7 @@ import { isValidExternalUrl } from './url-safety.js';
 export const DEFAULT_MINT = 'https://mint.minibits.cash/Bitcoin';
 export const PENDING_QUOTE_PREFIX = 'pendingQuote:';
 export const PENDING_SWAP_KEY = 'pendingSwap';
+export const PENDING_RECEIVE_PREFIX = 'pendingReceive:';
 
 const DB_NAME = 'getbased-cashu';
 const DB_VERSION = 2;
@@ -41,7 +42,7 @@ function _sessionLockedError() {
   return error;
 }
 
-async function _digestStorageKey(value) {
+export async function _digestStorageKey(value) {
   const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(value))));
   return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
 }
@@ -206,17 +207,23 @@ async function _deleteProofs(proofs) {
   });
 }
 
-export async function _replaceProofs(previousProofs, nextProofs, forMint) {
+export async function _replaceProofs(previousProofs, nextProofs, forMint, commit = {}) {
   const mintUrl = _normalizeMintUrl(forMint || await storeRuntime.getMintUrl());
   const previousKeys = (await Promise.all((previousProofs || []).map(proof => _proofStorageKeys(proof.secret)))).flat();
   const nextRows = await Promise.all((nextProofs || []).map(proof => _proofForStorage(proof, mintUrl)));
+  const metaRows = await Promise.all(Object.entries(commit.meta || {}).map(([key, value]) => _metaForStorage(key, value)));
+  const feeRows = await Promise.all((commit.feeProofs || []).map(proof => _proofForStorage(proof, mintUrl)));
   const db = await _openDB();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_PROOFS, 'readwrite');
+    const tx = db.transaction([STORE_PROOFS, STORE_META, STORE_FEES], 'readwrite');
     const store = tx.objectStore(STORE_PROOFS);
     try {
       for (const key of previousKeys) store.delete(key);
       for (const row of nextRows) store.put(row);
+      for (const row of feeRows) tx.objectStore(STORE_FEES).put(row);
+      const meta = tx.objectStore(STORE_META);
+      for (const key of commit.deleteKeys || []) meta.delete(key);
+      for (const row of metaRows) meta.put(row);
     } catch (error) {
       try { tx.abort(); } catch {}
       reject(error);
@@ -299,24 +306,42 @@ function _serializePreparedOutputs(cashuts, preview) {
   return outputData.map(output => cashuts.OutputData.serialize(output));
 }
 
-export async function _prepareDurableSwap(wallet, cashuts, operation, mintUrl, builder, localInputs) {
-  if (!wallet.ops || !cashuts.OutputData || typeof builder?.prepare !== 'function') return null;
-  if (await _getMeta(PENDING_SWAP_KEY)) throw new Error('A previous Cashu operation needs recovery before another can start');
+export async function _prepareDurableSwap(wallet, cashuts, operation, mintUrl, builder, localInputs, context = {}) {
+  if (!wallet.ops || !cashuts.OutputData || typeof builder?.prepare !== 'function') throw new Error('Cashu runtime must support durable operations');
+  const journalKey = context.journalKey || PENDING_SWAP_KEY;
+  const previous = await _getMeta(journalKey);
+  if (previous) {
+    if (operation !== 'receive' || previous.operation !== operation) throw new Error('A previous Cashu operation needs recovery before another can start');
+    return { preview: _resumeDurableSwap(cashuts, previous), record: previous, journalKey };
+  }
   const preview = await builder.prepare();
+  const selected = new Set((preview.inputs || []).map(proof => proof.secret));
   const record = {
-    version: 1,
-    operation,
-    mint: mintUrl,
-    createdAt: Date.now(),
-    localInputs: (localInputs || []).map(proof => _normalizeProofForStorage(proof, mintUrl)),
+    ...context,
+    version: 2, operation, mint: mintUrl, createdAt: Date.now(),
+    localInputs: (localInputs || []).filter(proof => selected.has(proof.secret)).map(proof => _normalizeProofForStorage(proof, mintUrl)),
+    inputs: (preview.inputs || []).map(proof => _normalizeProofForStorage(proof, mintUrl)),
+    unselectedProofs: (preview.unselectedProofs || []).map(proof => _normalizeProofForStorage(proof, mintUrl)),
+    keysetId: preview.keysetId,
+    sendOutputCount: (preview.sendOutputs || []).length,
     outputs: _serializePreparedOutputs(cashuts, preview),
   };
-  await _setMeta(PENDING_SWAP_KEY, record);
-  return { preview, record };
+  await _setMeta(journalKey, record);
+  return { preview, record, journalKey };
+}
+
+export function _resumeDurableSwap(cashuts, record) {
+  const outputs = record.outputs.map(output => cashuts.OutputData.deserialize(output));
+  return {
+    inputs: record.inputs || [], unselectedProofs: record.unselectedProofs || [],
+    keysetId: record.keysetId,
+    sendOutputs: outputs.slice(0, record.sendOutputCount || 0),
+    keepOutputs: outputs.slice(record.sendOutputCount || 0),
+  };
 }
 
 export async function _prepareDurableMint(wallet, cashuts, mintUrl, amount, quote, pendingKey) {
-  if (typeof wallet.prepareMint !== 'function' || !cashuts.OutputData) return null;
+  if (typeof wallet.prepareMint !== 'function' || !cashuts.OutputData) throw new Error('Cashu runtime must support durable minting');
   if (await _getMeta(PENDING_SWAP_KEY)) throw new Error('A previous Cashu operation needs recovery before another can start');
   const preview = await wallet.prepareMint('bolt11', amount, quote);
   const record = {
@@ -345,11 +370,11 @@ export function _resumeDurableMint(cashuts, record) {
   };
 }
 
-export async function _recoverPendingSwapUnlocked() {
-  const record = await _getMeta(PENDING_SWAP_KEY);
+export async function _recoverPendingSwapUnlocked(recordKey = PENDING_SWAP_KEY) {
+  const record = await _getMeta(recordKey);
   if (!record) return { recovered: 0, pending: false };
   const mintUrl = _normalizeMintUrl(record.mint);
-  if (!isValidExternalUrl(mintUrl) || !Array.isArray(record.outputs)) {
+  if (!isValidExternalUrl(mintUrl) || !Array.isArray(record.outputs) || !record.outputs.length) {
     throw new Error('Cashu recovery journal is malformed; local proofs were left untouched');
   }
   const cashuts = await storeRuntime.cashuLib();
@@ -362,30 +387,80 @@ export async function _recoverPendingSwapUnlocked() {
   for (let index = 0; index < (response.outputs || []).length; index++) {
     signaturesByOutput.set(response.outputs[index].B_, response.signatures?.[index]);
   }
-  const recoveredProofs = [];
-  for (const output of outputData) {
-    const signature = signaturesByOutput.get(output.blindedMessage.B_);
-    if (!signature) continue;
-    const keyset = await wallet.keyChain.ensureKeysetKeys(signature.id);
-    recoveredProofs.push(output.toProof(signature, keyset));
-  }
-  if (!recoveredProofs.length) {
+  if (!signaturesByOutput.size) {
+    if (record.operation === 'mint') {
+      const quote = await wallet.checkMintQuoteBolt11(record.quoteId);
+      if (String(quote.state).toUpperCase() === 'PAID') {
+        const proofs = await wallet.completeMint(_resumeDurableMint(cashuts, record));
+        await _replaceProofs([], proofs, mintUrl, { deleteKeys: [recordKey, record.pendingKey].filter(Boolean) });
+        return { recovered: _sumProofsAsNumber(cashuts, proofs), pending: false };
+      }
+    }
+    if (record.operation === 'receive') {
+      // Keep incoming outputs for exact retry/recovery in an independent
+      // journal, without blocking unrelated outgoing wallet funds.
+      if (recordKey === PENDING_SWAP_KEY) {
+        await _setMeta(PENDING_RECEIVE_PREFIX + await _digestStorageKey(JSON.stringify(record.outputs)), record);
+        await _deleteMeta(PENDING_SWAP_KEY);
+      }
+      return { recovered: 0, pending: true };
+    }
     const inputs = record.localInputs || [];
     if (inputs.length) {
       const { unspent, pending } = await wallet.groupProofsByState(inputs);
       if (unspent.length === inputs.length && !pending.length) {
-        await _deleteMeta(PENDING_SWAP_KEY);
+        await _deleteMeta(recordKey);
         return { recovered: 0, pending: false, notSubmitted: true };
       }
     }
     throw new Error('Cashu operation is still pending at the mint; local proofs were left untouched');
   }
-  await _replaceProofs(record.localInputs || [], recoveredProofs, mintUrl);
-  await _deleteMeta(PENDING_SWAP_KEY);
-  if (record.operation === 'mint' && record.pendingKey) await _deleteMeta(record.pendingKey);
-  if (record.operation === 'deposit') await _setMeta('pendingDeposit', null);
-  if (record.operation === 'withdraw' || record.operation === 'send') await _setMeta('pendingWithdraw', null);
+  // NUT-09 may return a subset. Never replace input value with partial outputs.
+  if (outputData.some(output => !signaturesByOutput.get(output.blindedMessage.B_))) {
+    throw new Error('Mint returned incomplete recovery outputs; local proofs were left untouched');
+  }
+  const signatures = outputData.map(output => signaturesByOutput.get(output.blindedMessage.B_));
+  wallet.validateReturnedSignatures?.(signatures, outputData);
+  const recoveredProofs = [];
+  for (let index = 0; index < outputData.length; index++) {
+    const signature = signatures[index];
+    if (signature.id !== outputData[index].blindedMessage.id || _amountToNumber(signature.amount) !== _amountToNumber(outputData[index].blindedMessage.amount)) throw new Error('Recovery output mismatch');
+    const keyset = await wallet.keyChain.ensureKeysetKeys(signature.id);
+    recoveredProofs.push(outputData[index].toProof(signature, keyset));
+  }
+  // Version-one journals included unselected wallet proofs in localInputs.
+  let retained = record.unselectedProofs || [];
+  if (record.version === 1 && record.localInputs?.length) {
+    retained = (await wallet.groupProofsByState(record.localInputs)).unspent;
+  }
+  const currentMint = await storeRuntime.getMintUrl();
+  const selectsMint = record.selectMint || (record.operation === 'receive' && mintUrl !== currentMint);
+  if (selectsMint && mintUrl !== currentMint && ((await _getAllProofs(currentMint)).length || (await _getAllFeeProofs(currentMint)).length)) throw new Error('Empty the current mint wallet before recovering this other-mint operation');
+  const meta = selectsMint ? { mintUrl } : {};
+  if (record.operation === 'receive' && record.incomingToken) {
+    for (const key of ['pendingDeposit', 'pendingWithdraw', 'pendingNodeRefund']) {
+      let pending = await _getMeta(key);
+      if (typeof pending === 'string') { try { pending = JSON.parse(pending); } catch {} }
+      if (pending === record.incomingToken || pending?.token === record.incomingToken || pending?.recoveryToken === record.incomingToken) meta[key] = null;
+    }
+  }
+  if (record.operation === 'deposit') meta.pendingDeposit = null;
+  if (record.operation === 'withdraw' || record.operation === 'send') meta.pendingWithdraw = null;
+  await _replaceProofs(record.localInputs || [], [...retained, ...recoveredProofs], mintUrl, {
+    deleteKeys: [recordKey, record.operation === 'mint' ? record.pendingKey : null].filter(Boolean), meta,
+  });
+  storeRuntime.resetWallet?.();
   return { recovered: _sumProofsAsNumber(cashuts, recoveredProofs), pending: false };
+}
+
+export async function _recoverAllPendingOperations() {
+  const results = [];
+  const keys = [PENDING_SWAP_KEY, ...(await _getMetaEntries(PENDING_RECEIVE_PREFIX)).map(entry => entry.key)];
+  for (const key of keys) {
+    try { results.push(await _recoverPendingSwapUnlocked(key)); }
+    catch (error) { results.push({ recovered: 0, pending: true, error: getErrorMessage(error) }); }
+  }
+  return { recovered: results.reduce((sum, result) => sum + result.recovered, 0), pending: results.some(result => result.pending), results };
 }
 
 export async function _ensureNoPendingSwap() {
@@ -436,17 +511,18 @@ export async function _saveFeeProofs(proofs, forMint) {
   });
 }
 
-export async function _replaceFeeProofs(previousProofs, nextProofs, forMint) {
+export async function _replaceFeeProofs(previousProofs, nextProofs, forMint, deleteKeys = []) {
   const mintUrl = _normalizeMintUrl(forMint || await storeRuntime.getMintUrl());
   const previousKeys = (await Promise.all((previousProofs || []).map(proof => _proofStorageKeys(proof.secret)))).flat();
   const nextRows = await Promise.all((nextProofs || []).map(proof => _proofForStorage(proof, mintUrl)));
   const db = await _openDB();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_FEES, 'readwrite');
+    const tx = db.transaction([STORE_FEES, STORE_META], 'readwrite');
     const store = tx.objectStore(STORE_FEES);
     try {
       for (const key of previousKeys) store.delete(key);
       for (const row of nextRows) store.put(row);
+      for (const key of deleteKeys) tx.objectStore(STORE_META).delete(key);
     } catch (error) {
       try { tx.abort(); } catch {}
       reject(error);

@@ -119,7 +119,7 @@ async function writeRawStoredItem(key, value) {
 // BACKUP / RESTORE
 // ═══════════════════════════════════════════════
 const GLOBAL_SETTINGS_KEYS = [
-  'labcharts-venice-key', 'labcharts-openrouter-key', 'labcharts-routstr-key', 'labcharts-ppq-key',
+  'labcharts-venice-key', 'labcharts-openrouter-key', 'labcharts-routstr-key', 'labcharts-routstr-sessions', 'labcharts-ppq-key',
   'labcharts-custom-key', 'labcharts-custom-url', 'labcharts-custom-model', 'labcharts-custom-models',
   'labcharts-ai-provider',
   'labcharts-ppq-credit-id',

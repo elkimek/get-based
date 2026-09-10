@@ -53,6 +53,7 @@ const discoveryModule = await import('../js/nostr-discovery.js');
 const walletFacadeSrc = await fetchWithRetry('js/cashu-wallet.js');
 const walletTransfersSrc = await fetchWithRetry('js/cashu-wallet-transfers.js');
 const walletSrc = [walletFacadeSrc, walletTransfersSrc].join('\n');
+const nodePaymentsSrc = await fetchWithRetry('js/routstr-node-payments.js');
 const walletStoreSrc = await fetchWithRetry('js/cashu-wallet-store.js');
 const appAIInteractionSrc = await fetchWithRetry('js/app-ai-interaction-modules.js');
 const appShellHooksSrc = await fetchWithRetry('js/app-shell-hooks.js');
@@ -189,15 +190,15 @@ console.log('5. Deposit/Withdraw Recovery');
 const depositFnSrc = walletSrc.slice(walletSrc.indexOf('export async function depositToNode'));
 assert('Pending deposit saved BEFORE node call',
   depositFnSrc.includes("_setMeta('pendingDeposit', pendingDeposit)") &&
-  depositFnSrc.indexOf("_setMeta('pendingDeposit', pendingDeposit)") < depositFnSrc.indexOf('fetch(nodeUrl'));
-assert('Pending deposit cleared after success', walletSrc.includes("_setMeta('pendingDeposit', null)"));
+  depositFnSrc.indexOf("_setMeta('pendingDeposit', pendingDeposit)") < depositFnSrc.indexOf('return submitRoutstrDeposit('));
+assert('Pending deposit cleared after credential storage', nodePaymentsSrc.includes("_setMeta('pendingDeposit', null)"));
 assert('Pending withdraw saved before melt', walletSrc.includes("_setMeta('pendingWithdraw',"));
 const nodeRefundIdx = walletPanelSrc.indexOf('export async function doRoutstrNodeWithdraw');
 const nodeRefundSrc = nodeRefundIdx >= 0 ? walletPanelSrc.slice(nodeRefundIdx) : '';
-assert('Node refund token saved before wallet receive', nodeRefundSrc.includes('cashuSavePendingWithdrawToken') && nodeRefundSrc.indexOf('cashuSavePendingWithdrawToken') < nodeRefundSrc.indexOf('cashuReceiveToken(token)'));
-assert('Node refund success only clears matching pending-withdraw record', nodeRefundSrc.includes('const savedPendingWithdraw =') && nodeRefundSrc.includes('if (savedPendingWithdraw !== false) await walletRuntime.cashuClearPendingWithdraw?.()'));
-assert('Node refund retry button preserves unrelated pending-withdraw records', nodeRefundSrc.includes('data-clear-pending-withdraw="') && nodeRefundSrc.includes("(savedPendingWithdraw !== false ? 'true' : 'false')"));
-assert('Saved node refund never overwrites existing withdraw recovery token', walletSrc.includes('if (existing?.token) return false'));
+assert('Node refund uses its durable payment helper before receiving', nodeRefundSrc.indexOf('cashuRefundNodeToToken(target)') < nodeRefundSrc.indexOf('cashuReceiveToken(token)'));
+assert('Node refund has a separate encrypted journal', nodePaymentsSrc.includes("_setMeta('pendingNodeRefund', result)"));
+assert('Node refund retry retains its origin', nodeRefundSrc.includes('resume-node-refund') && nodeRefundSrc.includes('data-node-url'));
+assert('Node refund cannot overwrite outgoing recovery', !nodePaymentsSrc.includes("_setMeta('pendingWithdraw'"));
 assert('Pending withdraw cleared after success', walletSrc.includes("_setMeta('pendingWithdraw', null)"));
 assert('Recovery UI shows for pending deposits', ppSrc.includes('Pending deposit recovery'));
 assert('Recovery UI shows for pending withdrawals', ppSrc.includes('Pending withdraw recovery'));
@@ -212,9 +213,9 @@ assert('Wallet runtime exposes pending deposit clear callback', walletRuntimeSrc
 console.log('6. Fee Mechanism');
 
 assert('Fee percentage constant exists', walletSrc.includes('WALLET_FEE_PCT'));
-assert('Fee collected on Lightning deposits', walletSrc.includes('Lightning deposit fee collected'));
+assert('Fee collected on Lightning deposits', walletSrc.includes('await _collectFee(wallet, cashuts, proofs, fee, mintUrl)'));
 assert('Fee minimum threshold for melt', walletSrc.includes('FEE_MELT_MIN_SATS'));
-assert('Fee auto-melt is fire-and-forget', walletSrc.includes('}).catch(() => {}); // fire-and-forget'));
+assert('Fee auto-melt is fire-and-forget', walletSrc.includes('void _withWalletLock') && walletSrc.includes('ready ? retryFeeAutoMelt() : null'));
 assert('Fee Lightning address configured', walletSrc.includes('FEE_LN_ADDRESS'));
 assert('LNURL-pay resolution', walletSrc.includes('.well-known/lnurlp/'));
 assert('Fee text gated on cashuGetFeePct', walletPanelSrc.includes('cashuGetFeePct'));
@@ -292,8 +293,8 @@ assert('Unseeded device UI explains separate sync and wallet identities',
   walletPanelRenderSrc.includes("Set up this device's Cashu wallet")
     && walletPanelRenderSrc.includes('does not copy spendable Cashu proofs')
     && walletPanelRenderSrc.includes('setup-wallet-seed'));
-assert('Node refund is gated before its network mutation until the local wallet has a seed',
-  /doRoutstrNodeWithdraw\(\)[\s\S]*cashuHasWalletSeed[\s\S]*_ensureWalletSeed\(_withdrawRoutstrNodeToWallet\)[\s\S]*async function _withdrawRoutstrNodeToWallet\(\)[\s\S]*\/v1\/wallet\/refund/.test(walletPanelSrc));
+assert('Node refund is gated before its mutation until the local wallet has a seed',
+  nodeRefundSrc.indexOf('cashuHasWalletSeed') < nodeRefundSrc.indexOf('cashuRefundNodeToToken(target)'));
 assert('Wallet mnemonic excluded from generic settings apply', !syncApplySrc.includes("'labcharts-cashu-wallet-mnemonic'"));
 assert('Generic backup excludes wallet identity but keeps node preference',
   !backupSrc.includes("'labcharts-cashu-wallet-mint'") &&

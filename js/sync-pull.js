@@ -1,6 +1,8 @@
 // @ts-check
 // sync-pull.js - inbound Evolu rows -> localStorage merge path.
 
+import { encodeMergedRoutstrSessions, ROUTSTR_SESSIONS_KEY } from './routstr-session.js';
+
 import { parseSyncPayload } from './sync-payload.js';
 import { applyChatData, getChatDataLocalLockRemainingMs } from './sync-chat-apply.js';
 import { refreshActiveProfileAfterPull } from './sync-pull-active-refresh.js';
@@ -56,6 +58,7 @@ const _chatPullRetryTimers = new Map();
 const ROUTSTR_SESSION_UPDATED_AT_KEY = 'labcharts-routstr-session-updated-at';
 const ROUTSTR_SESSION_KEYS = [
   'labcharts-routstr-key',
+  ROUTSTR_SESSIONS_KEY,
   'labcharts-routstr-node',
   ROUTSTR_SESSION_UPDATED_AT_KEY,
 ];
@@ -65,6 +68,7 @@ export function createPulledAISettingsSelection() {
     latestAiSettings: null,
     latestAiRowTs: -1,
     latestRoutstrSettings: null,
+    routstrSessions: null,
     latestRoutstrClock: -1,
     latestRoutstrRowTs: -1,
   };
@@ -86,6 +90,9 @@ export function selectPulledAISettings(selection, settings, rowSyncedAt) {
   if (!ROUTSTR_SESSION_KEYS.some(key => Object.prototype.hasOwnProperty.call(settings, key))) return next;
   const rawClock = Number(settings[ROUTSTR_SESSION_UPDATED_AT_KEY] || 0);
   const clock = Number.isFinite(rawClock) && rawClock >= 0 ? rawClock : 0;
+  if (Object.hasOwn(settings, ROUTSTR_SESSIONS_KEY) || Object.hasOwn(settings, 'labcharts-routstr-key')) {
+    next.routstrSessions = encodeMergedRoutstrSessions(next.routstrSessions, null, settings[ROUTSTR_SESSIONS_KEY] ?? settings['labcharts-routstr-key'], settings['labcharts-routstr-node'], 0, clock);
+  }
   if (clock > next.latestRoutstrClock
       || clock === next.latestRoutstrClock && rowTs > next.latestRoutstrRowTs) {
     next.latestRoutstrSettings = settings;
@@ -104,6 +111,10 @@ export function combinePulledAISettings(selection) {
     if (Object.prototype.hasOwnProperty.call(selection.latestRoutstrSettings, key)) {
       combined[key] = selection.latestRoutstrSettings[key];
     }
+  }
+  if (selection.routstrSessions) {
+    combined[ROUTSTR_SESSIONS_KEY] = selection.routstrSessions;
+    combined['labcharts-routstr-key'] = null;
   }
   return combined;
 }

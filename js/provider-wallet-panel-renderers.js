@@ -24,10 +24,10 @@ export function routstrNodePickerRowHtml(node) {
   const label = escapeHTML(node.name || domain);
   const models = node.modelCount + ' model' + (node.modelCount !== 1 ? 's' : '');
   const hasPrivateTee = (node.models || []).some(model => String(model.id || '').startsWith('tinfoil-'));
-  const privateTee = hasPrivateTee ? ' <span style="font-size:9px;color:var(--green);font-weight:600">&#128274; Private TEE</span>' : '';
+  const privateTee = hasPrivateTee ? ' <span style="font-size:9px;color:var(--green);font-weight:600">&#128274; Advertises Private TEE</span>' : '';
   const onion = node.onion ? ' <span style="font-size:10px" title="Tor available">\ud83e\udde5</span>' : '';
   return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
-    <div><span style="font-size:12px;font-weight:500">${label}</span>${onion}${privateTee}<br><span style="font-size:10px;color:var(--text-muted)">${domain} \u00b7 ${models}</span></div>
+    <div><span style="font-size:12px;font-weight:500">${label}</span>${onion}${privateTee}<br><span style="font-size:10px;color:var(--text-muted)">${domain} \u00b7 ${models}<br>Operator: ${escapeHTML(node.pubkey || 'unknown')}</span></div>
     <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px" data-routstr-wallet-action="connect-node" data-node-url="${escapeAttr(url)}">Connect</button>
   </div>`;
 }

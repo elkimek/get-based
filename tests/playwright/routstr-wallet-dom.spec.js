@@ -1,9 +1,13 @@
+import { installWalletFixtures } from '../helpers/wallet-browser-fixtures.js';
 import { expect, test } from './coverage-fixture.js';
+test.beforeEach(async ({ page }) => installWalletFixtures(page));
 
 test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
+    const { makeTestInvoice, LNURL_METADATA } = await import('/wallet-test-lightning-invoices.js');
+    const { validateLightningInvoice } = await import('/js/routstr-validation.js');
     const api = await import('/js/api.js');
     const cryptoStore = await import('/js/crypto.js');
     const cloudConsent = await import('/js/cloud-ai-consent.js');
@@ -35,6 +39,9 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       'cashuExportWallet',
       'cashuSavePendingWithdrawToken',
       'cashuClearPendingWithdraw',
+      'cashuRefundNodeToToken',
+      'cashuFinishNodeRefund',
+      'cashuGetPendingNodeRefund',
       'cashuClearPendingDeposit',
       'cashuGetWalletMnemonic',
       'cashuRestoreWalletFromSeed',
@@ -51,6 +58,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
     const storageKeys = [
       'labcharts-ai-provider',
       'labcharts-routstr-key',
+      'labcharts-routstr-sessions',
       'labcharts-routstr-node',
       'labcharts-routstr-model',
       'labcharts-routstr-models',
@@ -116,7 +124,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       };
       window.cashuCreateFundingInvoice = async amount => {
         fundingInvoiceAmount = amount;
-        return { quote: 'funding-quote-1000', invoice: 'lnbc1000getbasedtestinvoice' };
+        return { quote: 'funding-quote-1000', invoice: makeTestInvoice(amount) };
       };
       window.cashuCheckFundingStatus = async quote => {
         fundingStatusQuote = quote;
@@ -168,6 +176,13 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       window.cashuClearPendingWithdraw = async () => {
         clearPendingWithdrawCalled = true;
       };
+      window.cashuRefundNodeToToken = async url => {
+        refundCalled = url === nodeUrl && api.getRoutstrKey(url) === 'sk-routstr-dom';
+        savedPendingWithdraw = { token: 'cashuArefundtoken', source: 'routstr-node-refund' };
+        return savedPendingWithdraw;
+      };
+      window.cashuFinishNodeRefund = async token => { clearPendingWithdrawCalled = token === 'cashuArefundtoken'; };
+      window.cashuGetPendingNodeRefund = async () => null;
       window.cashuClearPendingDeposit = async () => {};
       window.cashuGetWalletMnemonic = async () => null;
       window.cashuRestoreWalletFromSeed = async mnemonic => {
@@ -175,9 +190,9 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         return { balance: 4321 };
       };
       window.cashuHasWalletSeed = async () => false;
-      window.cashuGenerateWalletSeed = async () => ({
-        mnemonic: 'abandon ability able about above absent absorb abstract absurd abuse access accident',
-      });
+      window.cashuGenerateWalletSeed = async () => {
+        return { mnemonic: 'abandon ability able about above absent absorb abstract absurd abuse access accident' };
+      };
       const panels = await import('/js/provider-wallet-panels.js');
       panels.configureRoutstrWalletRuntime({
         cashuGetBalance: window.cashuGetBalance,
@@ -194,6 +209,9 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         cashuSavePendingWithdrawToken: window.cashuSavePendingWithdrawToken,
         cashuClearPendingDeposit: window.cashuClearPendingDeposit,
         cashuClearPendingWithdraw: window.cashuClearPendingWithdraw,
+        cashuRefundNodeToToken: window.cashuRefundNodeToToken,
+        cashuFinishNodeRefund: window.cashuFinishNodeRefund,
+        cashuGetPendingNodeRefund: window.cashuGetPendingNodeRefund,
         cashuGetWalletMnemonic: window.cashuGetWalletMnemonic,
         cashuRestoreWalletFromSeed: window.cashuRestoreWalletFromSeed,
         cashuHasWalletSeed: window.cashuHasWalletSeed,
@@ -247,7 +265,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         && depositArgs.amount === 500
         && depositArgs.existingKey === 'sk-routstr-dom';
       const depositFailureChecksRecovery = recoverCalled;
-      const depositFailureShowsRecovery = fundAreaText.includes('Deposit failed')
+      const depositFailureShowsRecovery = fundAreaText.includes('Deposit outcome unconfirmed')
         && fundAreaText.includes('Recover to Wallet')
         && fundAreaText.includes('Copy Token');
       const recoveryButtonCarriesToken = document.querySelector('#routstr-wallet-fund-area [data-token="cashuArecoverytoken"]') !== null;
@@ -262,6 +280,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       if (refundSeedAck) {
         refundSeedAck.checked = true;
         refundSeedAck.dispatchEvent(new Event('change', { bubbles: true }));
+        panels.configureRoutstrWalletRuntime({ ...panels.walletRuntime, cashuHasWalletSeed: async () => true });
         providerPanels.walletSeedAcknowledged();
       }
       await wait(150);
@@ -271,8 +290,10 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       const refundReceivesToken = receivedToken === 'cashuArefundtoken';
       const refundDoesNotUseBackupImport = importedToken === null;
       const refundClearsPendingWithdraw = clearPendingWithdrawCalled;
-      const routstrKeyClearsAfterRefund = !api.getRoutstrKey();
+      const routstrKeyRetainedAfterRefund = api.getRoutstrKey() === 'sk-routstr-dom';
 
+      window.cashuHasWalletSeed = async () => false;
+      panels.configureRoutstrWalletRuntime({ ...panels.walletRuntime, cashuHasWalletSeed: window.cashuHasWalletSeed });
       await providerPanels.showWalletSeedPhrase();
       await wait(50);
       const restoreInput = document.getElementById('routstr-restore-seed');
@@ -374,7 +395,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         refundReceivesToken,
         refundDoesNotUseBackupImport,
         refundClearsPendingWithdraw,
-        routstrKeyClearsAfterRefund,
+        routstrKeyRetainedAfterRefund,
         restoreTextareaRenders,
         unseededSetupExplainsMnemonicSplit,
         restoreUsesNormalizedMnemonic,

@@ -15,7 +15,8 @@ export const AI_SETTINGS_KEYS = [
   'labcharts-ai-provider',
   'labcharts-openrouter-key',    // OpenRouter key (encrypted)
   'labcharts-venice-key',        // Venice key (encrypted)
-  'labcharts-routstr-key',       // Routstr key (encrypted)
+  'labcharts-routstr-key',       // Legacy credential/tombstone
+  'labcharts-routstr-sessions',  // Node-bound credentials (encrypted)
   'labcharts-ppq-key',           // PPQ key (encrypted)
   'labcharts-ppq-credit-id',     // PPQ credit ID (for balance/topup)
   'labcharts-custom-key',        // Custom API key (encrypted)

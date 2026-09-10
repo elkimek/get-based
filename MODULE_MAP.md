@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 758 |
-| Internal import edges | 3194 |
-| Dynamic internal edges | 105 |
+| Modules | 761 |
+| Internal import edges | 3213 |
+| Dynamic internal edges | 107 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -64,7 +64,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 287 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 78 |
+| [`js/utils.js`](js/utils.js) | 286 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 78 |
 | [`js/state.js`](js/state.js) | 193 | [`js/chat-send.js`](js/chat-send.js) | 42 |
 | [`js/caught-error.js`](js/caught-error.js) | 88 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 81 | [`js/settings.js`](js/settings.js) | 30 |
@@ -72,8 +72,8 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/profile.js`](js/profile.js) | 48 | [`js/pdf-import.js`](js/pdf-import.js) | 27 |
 | [`js/api.js`](js/api.js) | 46 | [`js/wearables-connect.js`](js/wearables-connect.js) | 27 |
 | [`js/schema.js`](js/schema.js) | 37 | [`js/lab-context.js`](js/lab-context.js) | 24 |
-| [`js/ai-feature-routing.js`](js/ai-feature-routing.js) | 35 | [`js/export.js`](js/export.js) | 23 |
-| [`js/crypto.js`](js/crypto.js) | 35 | [`js/views.js`](js/views.js) | 22 |
+| [`js/crypto.js`](js/crypto.js) | 36 | [`js/export.js`](js/export.js) | 23 |
+| [`js/ai-feature-routing.js`](js/ai-feature-routing.js) | 35 | [`js/views.js`](js/views.js) | 22 |
 | [`js/data-merge.js`](js/data-merge.js) | 34 | [`js/chat-render.js`](js/chat-render.js) | 20 |
 | [`js/chat-runtime.js`](js/chat-runtime.js) | 21 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
 | [`js/utils-runtime.js`](js/utils-runtime.js) | 21 | [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | 20 |
@@ -147,8 +147,8 @@ Native browser modules shipped with the static application.
 - [`js/api-openrouter.js`](js/api-openrouter.js) → [`js/api-openai-compatible.js`](js/api-openai-compatible.js), [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/api-runtime.js`](js/api-runtime.js), [`js/app-extension-runtime.js`](js/app-extension-runtime.js)
 - [`js/api-ppq.js`](js/api-ppq.js) → [`js/api-models.js`](js/api-models.js), [`js/api-openai-compatible.js`](js/api-openai-compatible.js), [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/caught-error.js`](js/caught-error.js)
 - [`js/api-provider-storage-runtime.js`](js/api-provider-storage-runtime.js) → [`js/chat-runtime.js`](js/chat-runtime.js)
-- [`js/api-provider-storage.js`](js/api-provider-storage.js) → [`js/api-provider-storage-runtime.js`](js/api-provider-storage-runtime.js), [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/crypto-key-cache.js`](js/crypto-key-cache.js)
-- [`js/api-routstr.js`](js/api-routstr.js) → [`js/api-models.js`](js/api-models.js), [`js/api-openai-compatible.js`](js/api-openai-compatible.js), [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/caught-error.js`](js/caught-error.js), [`js/routstr-balance-settlement.js`](js/routstr-balance-settlement.js), [`js/tinfoil-secure-fetch.js`](js/tinfoil-secure-fetch.js) *(dynamic)*
+- [`js/api-provider-storage.js`](js/api-provider-storage.js) → [`js/api-provider-storage-runtime.js`](js/api-provider-storage-runtime.js), [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/routstr-session.js`](js/routstr-session.js)
+- [`js/api-routstr.js`](js/api-routstr.js) → [`js/api-models.js`](js/api-models.js), [`js/api-openai-compatible.js`](js/api-openai-compatible.js), [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/cashu-wallet.js`](js/cashu-wallet.js) *(dynamic)*, [`js/caught-error.js`](js/caught-error.js), [`js/routstr-balance-settlement.js`](js/routstr-balance-settlement.js), [`js/tinfoil-secure-fetch.js`](js/tinfoil-secure-fetch.js) *(dynamic)*
 - [`js/api-runtime.js`](js/api-runtime.js) → no in-scope imports
 - [`js/api-transport.js`](js/api-transport.js) → [`js/caught-error.js`](js/caught-error.js), [`js/proxy-runtime.js`](js/proxy-runtime.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
 - [`js/api-venice.js`](js/api-venice.js) → [`js/api-models.js`](js/api-models.js), [`js/api-openai-compatible.js`](js/api-openai-compatible.js), [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/api-transport.js`](js/api-transport.js), [`js/caught-error.js`](js/caught-error.js), [`js/proxy-runtime.js`](js/proxy-runtime.js)
@@ -250,8 +250,8 @@ Native browser modules shipped with the static application.
 <details><summary><code>cashu</code> family — 3 modules</summary>
 
 - [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js) → [`js/caught-error.js`](js/caught-error.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
-- [`js/cashu-wallet-transfers.js`](js/cashu-wallet-transfers.js) → [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js), [`js/caught-error.js`](js/caught-error.js), [`js/utils.js`](js/utils.js)
-- [`js/cashu-wallet.js`](js/cashu-wallet.js) → [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js), [`js/cashu-wallet-transfers.js`](js/cashu-wallet-transfers.js), [`js/caught-error.js`](js/caught-error.js), [`js/crypto.js`](js/crypto.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
+- [`js/cashu-wallet-transfers.js`](js/cashu-wallet-transfers.js) → [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js), [`js/caught-error.js`](js/caught-error.js), [`js/routstr-node-payments.js`](js/routstr-node-payments.js), [`js/routstr-session.js`](js/routstr-session.js), [`js/routstr-validation.js`](js/routstr-validation.js)
+- [`js/cashu-wallet.js`](js/cashu-wallet.js) → [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js), [`js/cashu-wallet-transfers.js`](js/cashu-wallet-transfers.js), [`js/caught-error.js`](js/caught-error.js), [`js/crypto.js`](js/crypto.js), [`js/routstr-validation.js`](js/routstr-validation.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
 
 </details>
 
@@ -850,7 +850,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>nostr</code> family — 1 module</summary>
 
-- [`js/nostr-discovery.js`](js/nostr-discovery.js) → [`js/api-provider-storage-runtime.js`](js/api-provider-storage-runtime.js), [`js/routstr-model-cache.js`](js/routstr-model-cache.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
+- [`js/nostr-discovery.js`](js/nostr-discovery.js) → [`js/api-provider-storage-runtime.js`](js/api-provider-storage-runtime.js), [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/routstr-model-cache.js`](js/routstr-model-cache.js), [`js/routstr-validation.js`](js/routstr-validation.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
 
 </details>
 
@@ -985,7 +985,7 @@ Native browser modules shipped with the static application.
 - [`js/provider-wallet-funding-recovery.js`](js/provider-wallet-funding-recovery.js) → [`js/caught-error.js`](js/caught-error.js), [`js/utils.js`](js/utils.js)
 - [`js/provider-wallet-panel-buttons.js`](js/provider-wallet-panel-buttons.js) → [`js/utils.js`](js/utils.js)
 - [`js/provider-wallet-panel-renderers.js`](js/provider-wallet-panel-renderers.js) → [`js/utils.js`](js/utils.js)
-- [`js/provider-wallet-panels.js`](js/provider-wallet-panels.js) → [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/provider-qr.js`](js/provider-qr.js), [`js/provider-wallet-delegates.js`](js/provider-wallet-delegates.js), [`js/provider-wallet-funding-recovery.js`](js/provider-wallet-funding-recovery.js), [`js/provider-wallet-panel-buttons.js`](js/provider-wallet-panel-buttons.js), [`js/provider-wallet-panel-renderers.js`](js/provider-wallet-panel-renderers.js), [`js/provider-wallet-runtime.js`](js/provider-wallet-runtime.js), [`js/routstr-balance-settlement.js`](js/routstr-balance-settlement.js), [`js/routstr-model-cache.js`](js/routstr-model-cache.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
+- [`js/provider-wallet-panels.js`](js/provider-wallet-panels.js) → [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/provider-qr.js`](js/provider-qr.js), [`js/provider-wallet-delegates.js`](js/provider-wallet-delegates.js), [`js/provider-wallet-funding-recovery.js`](js/provider-wallet-funding-recovery.js), [`js/provider-wallet-panel-buttons.js`](js/provider-wallet-panel-buttons.js), [`js/provider-wallet-panel-renderers.js`](js/provider-wallet-panel-renderers.js), [`js/provider-wallet-runtime.js`](js/provider-wallet-runtime.js), [`js/routstr-balance-settlement.js`](js/routstr-balance-settlement.js), [`js/routstr-model-cache.js`](js/routstr-model-cache.js), [`js/routstr-validation.js`](js/routstr-validation.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
 - [`js/provider-wallet-runtime.js`](js/provider-wallet-runtime.js) → [`js/cashu-wallet.js`](js/cashu-wallet.js), [`js/nostr-discovery.js`](js/nostr-discovery.js)
 
 </details>
@@ -1017,10 +1017,13 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>routstr</code> family — 2 modules</summary>
+<details><summary><code>routstr</code> family — 5 modules</summary>
 
 - [`js/routstr-balance-settlement.js`](js/routstr-balance-settlement.js) → no in-scope imports
 - [`js/routstr-model-cache.js`](js/routstr-model-cache.js) → [`js/tinfoil-secure-fetch.js`](js/tinfoil-secure-fetch.js) *(dynamic)*
+- [`js/routstr-node-payments.js`](js/routstr-node-payments.js) → [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js), [`js/routstr-session.js`](js/routstr-session.js), [`js/routstr-validation.js`](js/routstr-validation.js)
+- [`js/routstr-session.js`](js/routstr-session.js) → [`js/api-provider-storage-runtime.js`](js/api-provider-storage-runtime.js), [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/crypto.js`](js/crypto.js) *(dynamic)*, [`js/routstr-validation.js`](js/routstr-validation.js)
+- [`js/routstr-validation.js`](js/routstr-validation.js) → [`js/url-safety.js`](js/url-safety.js)
 
 </details>
 
@@ -1163,7 +1166,7 @@ Native browser modules shipped with the static application.
 <details><summary><code>sync</code> family — 75 modules</summary>
 
 - [`js/sync-actions.js`](js/sync-actions.js) → [`js/profile-sync-policy.js`](js/profile-sync-policy.js), [`js/state.js`](js/state.js), [`js/sync-cutover.js`](js/sync-cutover.js), [`js/sync-dirty-state.js`](js/sync-dirty-state.js), [`js/sync-messenger.js`](js/sync-messenger.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-storage-cleanup.js`](js/sync-storage-cleanup.js), [`js/utils.js`](js/utils.js)
-- [`js/sync-apply.js`](js/sync-apply.js) → [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/crypto.js`](js/crypto.js), [`js/sync-chat-apply.js`](js/sync-chat-apply.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/voice-settings-schema.js`](js/voice-settings-schema.js)
+- [`js/sync-apply.js`](js/sync-apply.js) → [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/crypto.js`](js/crypto.js), [`js/routstr-session.js`](js/routstr-session.js), [`js/routstr-validation.js`](js/routstr-validation.js), [`js/sync-chat-apply.js`](js/sync-chat-apply.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/voice-settings-schema.js`](js/voice-settings-schema.js)
 - [`js/sync-backup-restore-state.js`](js/sync-backup-restore-state.js) → [`js/profile-sync-policy.js`](js/profile-sync-policy.js), [`js/sync-delta-snapshot.js`](js/sync-delta-snapshot.js), [`js/sync-dirty-state.js`](js/sync-dirty-state.js)
 - [`js/sync-chat-apply.js`](js/sync-chat-apply.js) → [`js/chat-personality-merge.js`](js/chat-personality-merge.js), [`js/chat-personality-storage.js`](js/chat-personality-storage.js), [`js/crypto.js`](js/crypto.js), [`js/state.js`](js/state.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync-state.js`](js/sync-state.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-configure.js`](js/sync-configure.js) → [`js/data.js`](js/data.js), [`js/lab-context.js`](js/lab-context.js), [`js/profile.js`](js/profile.js), [`js/sync-actions.js`](js/sync-actions.js), [`js/sync-cutover.js`](js/sync-cutover.js), [`js/sync-delta.js`](js/sync-delta.js), [`js/sync-diagnose-ui.js`](js/sync-diagnose-ui.js), [`js/sync-diagnostics.js`](js/sync-diagnostics.js), [`js/sync-environment.js`](js/sync-environment.js), [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-init.js`](js/sync-init.js), [`js/sync-messenger.js`](js/sync-messenger.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-pull-rebroadcast.js`](js/sync-pull-rebroadcast.js), [`js/sync-pull.js`](js/sync-pull.js), [`js/sync-push.js`](js/sync-push.js), [`js/sync-reconcile.js`](js/sync-reconcile.js), [`js/sync-recovery.js`](js/sync-recovery.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/sync-runtime.js`](js/sync-runtime.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-settings-state.js`](js/sync-settings-state.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-storage-cleanup.js`](js/sync-storage-cleanup.js), [`js/sync-subscriptions.js`](js/sync-subscriptions.js), [`js/sync-tombstones.js`](js/sync-tombstones.js), [`js/sync-ui.js`](js/sync-ui.js), [`js/utils.js`](js/utils.js)
@@ -1221,7 +1224,7 @@ Native browser modules shipped with the static application.
 - [`js/sync-pull-maintenance.js`](js/sync-pull-maintenance.js) → no in-scope imports
 - [`js/sync-pull-merge.js`](js/sync-pull-merge.js) → [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js), [`js/caught-error.js`](js/caught-error.js), [`js/clear-all-profile-reset.js`](js/clear-all-profile-reset.js) *(dynamic)*, [`js/crypto.js`](js/crypto.js), [`js/data-merge.js`](js/data-merge.js), [`js/nutrition-sync-sanitize.js`](js/nutrition-sync-sanitize.js), [`js/profile-sync-policy.js`](js/profile-sync-policy.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sync-delta.js`](js/sync-delta.js), [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-profile-fields.js`](js/sync-profile-fields.js)
 - [`js/sync-pull-rebroadcast.js`](js/sync-pull-rebroadcast.js) → [`js/state.js`](js/state.js), [`js/sync-state.js`](js/sync-state.js)
-- [`js/sync-pull.js`](js/sync-pull.js) → [`js/nutrition-sync-sanitize.js`](js/nutrition-sync-sanitize.js), [`js/profile-sync-policy.js`](js/profile-sync-policy.js), [`js/sync-apply.js`](js/sync-apply.js) *(dynamic)*, [`js/sync-backup-restore-state.js`](js/sync-backup-restore-state.js), [`js/sync-chat-apply.js`](js/sync-chat-apply.js), [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-origin-state.js`](js/sync-origin-state.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-pull-active-refresh.js`](js/sync-pull-active-refresh.js), [`js/sync-pull-maintenance.js`](js/sync-pull-maintenance.js), [`js/sync-pull-merge.js`](js/sync-pull-merge.js), [`js/sync-pull-rebroadcast.js`](js/sync-pull-rebroadcast.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-tombstones.js`](js/sync-tombstones.js)
+- [`js/sync-pull.js`](js/sync-pull.js) → [`js/nutrition-sync-sanitize.js`](js/nutrition-sync-sanitize.js), [`js/profile-sync-policy.js`](js/profile-sync-policy.js), [`js/routstr-session.js`](js/routstr-session.js), [`js/sync-apply.js`](js/sync-apply.js) *(dynamic)*, [`js/sync-backup-restore-state.js`](js/sync-backup-restore-state.js), [`js/sync-chat-apply.js`](js/sync-chat-apply.js), [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-origin-state.js`](js/sync-origin-state.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-pull-active-refresh.js`](js/sync-pull-active-refresh.js), [`js/sync-pull-maintenance.js`](js/sync-pull-maintenance.js), [`js/sync-pull-merge.js`](js/sync-pull-merge.js), [`js/sync-pull-rebroadcast.js`](js/sync-pull-rebroadcast.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-tombstones.js`](js/sync-tombstones.js)
 - [`js/sync-push-deltas.js`](js/sync-push-deltas.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data-merge.js`](js/data-merge.js), [`js/sync-delta.js`](js/sync-delta.js)
 - [`js/sync-push.js`](js/sync-push.js) → [`js/caught-error.js`](js/caught-error.js), [`js/nutrition-sync-sanitize.js`](js/nutrition-sync-sanitize.js), [`js/profile-sync-policy.js`](js/profile-sync-policy.js), [`js/profile.js`](js/profile.js), [`js/sync-delta.js`](js/sync-delta.js), [`js/sync-dirty-state.js`](js/sync-dirty-state.js), [`js/sync-origin-state.js`](js/sync-origin-state.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-push-deltas.js`](js/sync-push-deltas.js), [`js/sync-relay-health.js`](js/sync-relay-health.js), [`js/sync-state.js`](js/sync-state.js)
 - [`js/sync-reconcile.js`](js/sync-reconcile.js) → [`js/data-merge.js`](js/data-merge.js), [`js/profile-sync-policy.js`](js/profile-sync-policy.js), [`js/state.js`](js/state.js), [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-payload-collectors.js`](js/sync-payload-collectors.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-state.js`](js/sync-state.js)

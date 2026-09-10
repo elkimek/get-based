@@ -22,7 +22,7 @@ export async function recoverPendingWalletFunding(walletRuntime, refreshBalance)
       refreshBalance();
       return;
     }
-    if (!result.checked) return setStatus('No pending Lightning deposits found.');
+    if (!result.checked) return setStatus(operationRecovery.pending ? 'A wallet operation is still awaiting reconciliation. Retry its original token or check again when the mint is reachable.' : 'No pending Lightning deposits found.');
     if (result.recovered > 0) {
       const extra = [
         result.cleared > 0 ? result.cleared + ' completed or expired deposit cleared.' : '',

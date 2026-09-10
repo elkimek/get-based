@@ -2,6 +2,8 @@
 // nostr-discovery.js — Discover Routstr AI nodes via Nostr relays (NIP-91 / Kind 38421)
 // Queries multiple relays in parallel, parses provider announcements, health-checks endpoints.
 
+import { canonicalRoutstrUrl, verifyRoutstrAnnouncement } from './routstr-validation.js';
+import { getCachedKey } from './crypto-key-cache.js';
 import { isDebugMode } from './utils.js';
 import { isValidExternalUrl } from './url-safety.js';
 import {
@@ -55,7 +57,7 @@ function _queryRelay(relayUrl) {
       ws.onmessage = (msg) => {
         try {
           const data = JSON.parse(msg.data);
-          if (data[0] === 'EVENT' && data[1] === subId && data[2]) {
+          if (data[0] === 'EVENT' && data[1] === subId && events.length < 50 && verifyRoutstrAnnouncement(data[2])) {
             events.push(data[2]);
           } else if (data[0] === 'EOSE') {
             // End of stored events — close connection
@@ -119,11 +121,13 @@ function _parseNodeEvent(event) {
   };
 }
 
-/** Deduplicate nodes by `d` tag (keep most recent) */
+/** Keep the newest signed event per operator and addressable event identifier. */
 function _deduplicateNodes(events) {
-  const byId = {};
+  const byId = Object.create(null);
   for (const event of events) {
+    if (!verifyRoutstrAnnouncement(event)) continue;
     const node = _parseNodeEvent(event);
+    node.id = `${event.kind}:${event.pubkey}:${node.id}`;
     if (!byId[node.id] || node.createdAt > byId[node.id].createdAt) {
       byId[node.id] = node;
     }
@@ -215,6 +219,11 @@ export function setSelectedNodeUrl(url) {
   if (!isValidExternalUrl(url)) {
     if (typeof console !== 'undefined') console.warn('[Nostr] Refusing Routstr node URL — must be public https://', url);
     return;
+  }
+  url = canonicalRoutstrUrl(url);
+  const legacyKey = getCachedKey('labcharts-routstr-key');
+  if (getSelectedNodeUrl() && canonicalRoutstrUrl(getSelectedNodeUrl()) !== url && /^(sk-|cashu)/.test(legacyKey || '')) {
+    throw new Error('Save the existing node session before switching nodes');
   }
   if (getSelectedNodeUrl() !== url) clearRoutstrModelCaches();
   localStorage.setItem('labcharts-routstr-node', url);

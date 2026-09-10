@@ -50,9 +50,10 @@ function _inputInt(id) {
   return parseInt(input?.value || '', 10);
 }
 
-function _copyClipboard(el) {
+async function _copyClipboard(el) {
   const text = el.dataset.clipboardText || el.dataset.token || '';
-  globalThis.navigator?.clipboard?.writeText?.(text);
+  try { await navigator.clipboard.writeText(text); }
+  catch { showNotification('Clipboard copy failed. Select and copy the text manually.', 'error'); return; }
   el.textContent = el.dataset.copiedText || '✓ Copied';
   if (!el.dataset.clearTimer) return;
   clearTimeout(globalThis[el.dataset.clearTimer]);
@@ -77,6 +78,7 @@ async function _handleRoutstrWalletClick(event) {
   if (action === 'connect-node') return _call('connectRoutstrNode', el.dataset.nodeUrl || '');
   if (action === 'deposit-node-input') return _call('doRoutstrNodeDeposit', el.dataset.nodeUrl || '', _inputInt('routstr-deposit-amount'));
   if (action === 'deposit-node-preset') return _depositNodePreset(el);
+  if (action === 'resume-node-refund') return _call('doRoutstrNodeWithdraw', el.dataset.nodeUrl);
   if (action === 'recover-pending-deposit') return _recoverPendingDeposit(el);
   if (action === 'recover-pending-withdraw') return _recoverPendingWithdraw(el);
   if (action === 'node-action') return _runNodeAction(el);
@@ -143,7 +145,7 @@ async function _recoverPendingWithdraw(el) {
   try {
     await walletRuntime.cashuReceiveToken?.(el.dataset.token || '');
     if (el.dataset.clearPendingWithdraw !== 'false') await walletRuntime.cashuClearPendingWithdraw?.();
-    await _call('clearRoutstrNodeSession');
+    // Token recovery does not authorize deletion of a node's credential.
     showNotification('Recovered!', 'success');
     globalThis.location?.reload?.();
   } catch (e) {
