@@ -244,19 +244,20 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       const fundedLegacySessionGetsSyncClock = Number(localStorage.getItem('labcharts-routstr-session-updated-at') || 0) > 0;
       const unseededWalletStatusRenders = (document.getElementById('routstr-wallet-device-status')?.textContent || '').includes('No 12-word wallet seed');
 
-      await providerPanels.connectRoutstrNode(nodeUrl);
+      await panels.showRoutstrNodeDeposit(nodeUrl);
       await wait(100);
       const fundedWalletRefusesMintSwitch = setMintUrl === null
         && currentMint === 'https://mint-old.example'
-        && document.getElementById('routstr-node-picker')?.style.display === 'none';
+        && document.getElementById('routstr-node-picker')?.textContent.includes('stay available');
 
       walletBalance = 0;
-      await providerPanels.connectRoutstrNode(nodeUrl);
+      await panels.showRoutstrNodeDeposit(nodeUrl);
       await wait(100);
-      const emptyWalletSwitchesMint = setMintUrl === 'https://mint-required.example';
+      const emptyWalletDoesNotSwitchMint = setMintUrl === null;
+      await window.cashuSetMintUrl('https://mint-required.example');
 
       walletBalance = 1500;
-      await providerPanels.connectRoutstrNode(nodeUrl);
+      await panels.showRoutstrNodeDeposit(nodeUrl);
       await wait(100);
       const connectRendersDepositPicker = !!document.getElementById('routstr-deposit-amount');
 
@@ -412,7 +413,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         fundedLegacySessionGetsSyncClock,
         unseededWalletStatusRenders,
         fundedWalletRefusesMintSwitch,
-        emptyWalletSwitchesMint,
+        emptyWalletDoesNotSwitchMint,
         connectRendersDepositPicker,
         depositUsesSessionKey,
         depositFailureChecksRecovery,

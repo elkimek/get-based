@@ -226,7 +226,7 @@ describe('Routstr security boundaries', () => {
     expect(stub.signatures.has(before.value.outputs[0].blindedMessage.B_)).toBe(true);
     expect((await readIdbStore('meta')).find(r => r.key === before.key)).toBeUndefined();
   });
-  it.each([1, 2])('recovers a cross-mint receive into the visible wallet after a lost response (version %s)', async version => {
+  it.each([1, 2])('recovers a cross-mint receive without changing the selected mint after a lost response (version %s)', async version => {
     const wallet = await loadWallet(); await wallet.setMintUrl('https://old-mint.test');
     stub.failSwapAfter = true;
     await expect(wallet.receiveToken('cashuAforeign')).rejects.toThrow('lost swap response');
@@ -237,8 +237,9 @@ describe('Routstr security boundaries', () => {
       await store._setMeta('pendingSwap', { ...entry.value, version: 1, selectMint: undefined, incomingToken: undefined });
       await store._deleteMeta(entry.key);
     }
-    expect(await wallet.getWalletBalance()).toBe(10);
-    expect(await wallet.getMintUrl()).toBe(MINT);
+    expect(await wallet.getWalletBalance()).toBe(0);
+    expect(await wallet.getMintUrl()).toBe('https://old-mint.test');
+    expect(await wallet.getWalletMints()).toEqual(expect.arrayContaining([expect.objectContaining({ mint: MINT, balance: 10, active: false })]));
   });
   it('includes incoming tokens and outstanding funding in the wallet cap', async () => {
     const wallet = await funded(24990);

@@ -11,6 +11,8 @@ import { createFundingMonitor, renderFundingInvoice, recoverPendingWalletFunding
 import { buildRoutstrNodeActions, routstrWalletActionButtons } from './provider-wallet-panel-buttons.js';
 import {
   routstrNodePickerRowHtml,
+  walletMintRowHtml,
+  walletMintPickerHtml,
   walletSeedManagementHtml,
   walletSeedMissingHtml,
   walletSeedOnboardingHtml,
@@ -95,9 +97,9 @@ installRoutstrBalanceSettlementRefresh(refreshRoutstrBalance);
 
 let _fundingRequest = null;
 let _fundingInvoice = null;
-const fundingMonitor = createFundingMonitor(walletRuntime, _refreshRoutstrWalletBalance, result => {
+const fundingMonitor = createFundingMonitor(walletRuntime, () => _refreshRoutstrWalletBalance(true), result => {
   if (result.results?.some(item => item.quote === _fundingInvoice?.quote
-    && result.mint === _fundingInvoice?.mint
+    && (item.mint || result.mint) === _fundingInvoice?.mint
     && (item.paid || /^(EXPIRED|CANCELLED|CANCELED)$/.test(String(item.state).toUpperCase())))) _fundingInvoice = null;
 });
 export function startRoutstrFundingMonitor() { fundingMonitor.start(); }
@@ -132,14 +134,14 @@ async function _renderWalletFundUI() {
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:2px">Deposit with Lightning</div>
     ${feeNote}
     <div style="display:flex;flex-wrap:wrap;gap:4px">
-      ${presets.map(s => `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="fund-wallet-preset" data-sats="${s}">\u26a1 ${s.toLocaleString()}</button>`).join('')}<div id="routstr-wfund-custom-slot" style="display:flex"><button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;color:var(--text-muted)" data-routstr-wallet-action="fund-wallet-custom-input">\u26a1\u2026</button></div>
+      ${presets.map(s => `<button class="import-btn import-btn-secondary" style="flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="fund-wallet-preset" data-sats="${s}">\u26a1 ${s.toLocaleString()}</button>`).join('')}<div id="routstr-wfund-custom-slot" style="display:flex"><button class="import-btn import-btn-secondary" style="color:var(--text-muted)" data-routstr-wallet-action="fund-wallet-custom-input">\u26a1\u2026</button></div>
     </div>
     <div style="font-size:10px;color:var(--text-muted);margin-top:5px;text-align:center">1,000 sats is enough for a few chats</div>
     <div style="font-size:11px;color:var(--text-muted);margin-top:6px">Paid deposits are checked and credited automatically, even after closing this panel.</div>
     <div style="margin-top:6px"><div class="or-oauth-divider"><span>${cashuFeeLabel}</span></div>
-    <div style="display:flex;gap:6px;margin-top:4px">
+    <div class="routstr-wallet-input-row">
       <input type="text" class="api-key-input" id="routstr-wcashu-input" placeholder="cashuA... / cashuB... / cashu:..." style="font-size:11px;flex:1;font-family:monospace">
-      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;white-space:nowrap" data-routstr-wallet-action="receive-wallet-cashu">Deposit</button>
+      <button class="import-btn import-btn-primary" style="white-space:nowrap" data-routstr-wallet-action="receive-wallet-cashu">Deposit</button>
     </div></div>
     <div id="routstr-wfund-status"></div>
   </div>`;
@@ -186,7 +188,7 @@ export async function doRoutstrWalletFund(amountSats) {
       const mint = await walletRuntime.cashuGetMintUrl();
       const result = await walletRuntime.cashuCreateFundingInvoice(amountSats);
       _fundingInvoice = { ...result, amount: amountSats, mint };
-      fundingMonitor.start();
+      fundingMonitor.start({ recheck: true });
       // The quote is durable even if the user navigated away while creating it.
       if (statusEl === document.getElementById('routstr-wfund-status')) {
         await renderFundingInvoice(_fundingInvoice);
@@ -252,29 +254,22 @@ export async function showRoutstrMintEdit() {
   let nodeMints = [];
   if (nodeUrl) {
     try {
-      const res = await fetch(nodeUrl.replace(/\/+$/, '') + '/v1/info');
-      if (res.ok) { const info = await res.json(); nodeMints = info.mints || []; }
+      nodeMints = await getNodeMints(nodeUrl);
     } catch {}
   }
-  const nodeMintsHtml = nodeMints.length
-    ? `<div style="font-size:10px;color:var(--text-muted);margin-top:4px">Node accepts: ${nodeMints.map(m => {
-        const label = escapeHTML(m.replace(/^https?:\/\//, ''));
-        const isCurrent = m === currentMint;
-        return isCurrent ? '<strong style="color:var(--green)">' + label + '</strong>'
-          : '<a href="#" data-routstr-wallet-action="set-mint-input" data-mint-url="' + escapeAttr(m) + '" style="color:var(--accent);text-decoration:none">' + label + '</a>';
-      }).join(', ')}</div>`
-    : '';
+  const savedMints = await walletRuntime.cashuGetWalletMints();
   area.style.display = 'block';
-  area.innerHTML = `<div style="margin-top:6px">
-    <input type="text" class="api-key-input" id="routstr-mint-input" value="${escapeAttr(currentMint)}" placeholder="https://mint.example.com" style="font-size:11px;font-family:monospace">
-    <div style="display:flex;gap:4px;margin-top:4px">
-      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" data-routstr-wallet-action="save-mint">Save</button>
-      <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" data-routstr-wallet-action="cancel-mint">Cancel</button>
-    </div>
-    ${nodeMintsHtml}
-    <div style="font-size:10px;color:var(--text-muted);margin-top:4px">\u26a0 Changing mint resets wallet connection. Existing proofs stay tied to their mint.</div>
-    <div id="routstr-mint-status"></div>
-  </div>`;
+  area.innerHTML = walletMintPickerHtml(currentMint, savedMints, nodeMints);
+}
+
+export async function chooseRoutstrNodeMint(mint) {
+  const area = document.getElementById('routstr-mint-edit');
+  if (area) area.style.display = 'none';
+  await showRoutstrMintEdit();
+  const input = _getWalletInput('routstr-mint-input');
+  if (input) { input.value = mint; input.dispatchEvent(new Event('input', { bubbles: true })); }
+  area?.scrollIntoView({ block: 'nearest' });
+  /** @type {HTMLElement | null} */ (area?.querySelector('[data-routstr-wallet-action="save-mint"]'))?.focus({ preventScroll: true });
 }
 
 export async function doRoutstrMintChange() {
@@ -290,16 +285,26 @@ export async function doRoutstrMintChange() {
   }
   statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Checking mint\u2026</div>';
   try {
-    const res = await fetch(url + '/v1/info');
-    if (!res.ok) throw new Error('Mint not reachable');
-    const info = await res.json();
-    if (!info.nuts) throw new Error('Not a valid Cashu mint');
+    const savedMints = await walletRuntime.cashuGetWalletMints();
+    // Saved balances and token exports must remain accessible while offline.
+    if (!savedMints.some(entry => entry.mint === url)) {
+      const res = await fetch(url + '/v1/info', { redirect: 'error', signal: AbortSignal.timeout(20000) });
+      if (!res.ok) throw new Error('Mint not reachable');
+      const info = await res.json();
+      if (!info.nuts) throw new Error('Not a valid Cashu mint');
+    }
     await walletRuntime.cashuSetMintUrl(url);
     const label = document.getElementById('routstr-mint-label');
     if (label) label.textContent = url.replace(/^https?:\/\//, '');
     const mintEdit = document.getElementById('routstr-mint-edit'); if (mintEdit) mintEdit.style.display = 'none';
-    _refreshRoutstrWalletBalance();
-    showNotification('Mint changed to ' + url.replace(/^https?:\/\//, ''), 'success');
+    const fundArea = document.getElementById('routstr-wallet-fund-area');
+    if (fundArea) { fundArea.innerHTML = ''; fundArea.style.display = 'none'; }
+    _setActiveWalletAction(null);
+    await _refreshRoutstrWalletBalance();
+    const nodePicker = document.getElementById('routstr-node-picker');
+    if (nodePicker) { nodePicker.innerHTML = ''; nodePicker.style.display = 'none'; }
+    _setActiveNodeAction(null);
+    showNotification('Mint selected: ' + url.replace(/^https?:\/\//, ''), 'success');
   } catch (e) {
     statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
   }
@@ -323,7 +328,8 @@ export async function showRoutstrWalletBackup() {
 export async function showRoutstrNodePicker() {
   const area = document.getElementById('routstr-node-picker');
   if (!area) return;
-  if (area.style.display !== 'none') { area.style.display = 'none'; return; }
+  if (area.style.display !== 'none' && area.dataset.mode === 'browse') { area.style.display = 'none'; return; }
+  area.dataset.mode = 'browse';
   area.style.display = 'block';
   area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">Searching Nostr relays\u2026</div>';
   try {
@@ -339,12 +345,16 @@ export async function showRoutstrNodePicker() {
   }
 }
 
+let _nodeSelectionInFlight = false;
 export async function connectRoutstrNode(nodeUrl) {
-  const picker = document.getElementById('routstr-node-picker');
-  if (picker) picker.style.display = 'block';
-  nodeUrl = canonicalRoutstrUrl(nodeUrl);
-  if (getRoutstrKey(nodeUrl) && nodeUrl !== walletRuntime.nostrGetSelectedNode?.()) {
+  if (_nodeSelectionInFlight) return;
+  _nodeSelectionInFlight = true;
+  try {
+    nodeUrl = canonicalRoutstrUrl(nodeUrl);
     if (typeof walletCallbacks.requestProviderActivation === 'function' && !await walletCallbacks.requestProviderActivation('routstr', { endpoint: nodeUrl })) return;
+    const previousNode = walletRuntime.nostrGetSelectedNode?.();
+    const previousKey = previousNode && getRoutstrKey(previousNode);
+    if (previousKey && previousNode !== nodeUrl) await saveRoutstrKey(previousKey, previousNode);
     walletRuntime.nostrSetSelectedNode(nodeUrl);
     clearRoutstrModelCaches();
     const models = await fetchRoutstrModels();
@@ -352,67 +362,68 @@ export async function connectRoutstrNode(nodeUrl) {
     const html = _renderRoutstrPanel('routstr');
     if (panel && html) panel.innerHTML = html;
     if (models.length) _renderRoutstrModelDropdown(models);
+    await _refreshRoutstrWalletBalance();
     refreshRoutstrBalance();
+    const picker = document.getElementById('routstr-node-picker');
     if (picker) picker.style.display = 'none';
-    showNotification('Connected using this node’s saved session', 'success');
-    return;
-  }
+    showNotification('Selected ' + nodeUrl.replace(/^https?:\/\//, ''), 'success');
+    if (!getRoutstrKey(nodeUrl)) await showRoutstrNodeDeposit(nodeUrl);
+  } catch (e) {
+    showNotification(getErrorMessage(e), 'error');
+  } finally { _nodeSelectionInFlight = false; }
+}
+
+async function getNodeMints(nodeUrl) {
+  const response = await fetch(canonicalRoutstrUrl(nodeUrl) + '/v1/info', { redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(20000) });
+  if (!response.ok) throw new Error('Could not check this node’s accepted mints. Try again.');
+  const info = await response.json();
+  if (info.mints == null) return [];
+  if (!Array.isArray(info.mints) || info.mints.some(mint => typeof mint !== 'string' || !isValidExternalUrl(mint))) throw new Error('Node returned an invalid mint list.');
+  return [...new Set(info.mints.map(mint => mint.trim().replace(/\/+$/, '')))];
+}
+
+export async function showRoutstrNodeDeposit(nodeUrl) {
+  nodeUrl = canonicalRoutstrUrl(nodeUrl);
+  const picker = document.getElementById('routstr-node-picker');
+  if (picker) { picker.style.display = 'block'; picker.dataset.mode = 'deposit'; }
   const nodeLabel = escapeHTML(nodeUrl.replace(/^https?:\/\//, '').replace(/\/$/, ''));
   if (picker) picker.innerHTML = `<div style="margin-top:8px;padding:10px;background:var(--bg-primary);border-radius:6px;border:1px solid var(--accent)">
     <div style="font-size:11px;color:var(--text-muted)">Checking ${nodeLabel}\u2026</div>
   </div>`;
 
-  let nodeMints = [];
-  try {
-    const infoRes = await fetch(nodeUrl.replace(/\/+$/, '') + '/v1/info');
-    if (infoRes.ok) {
-      const info = await infoRes.json();
-      nodeMints = info.mints || [];
-    }
-  } catch {}
-
-  const currentMint = await walletRuntime.cashuGetMintUrl();
-  const currentWalletBalance = await walletRuntime.cashuGetBalance();
-  let mintSwitched = false;
+  let nodeMints;
+  try { nodeMints = await getNodeMints(nodeUrl); }
+  catch (e) { if (picker) picker.textContent = getErrorMessage(e); return; }
+  const currentMint = (await walletRuntime.cashuGetMintUrl()).replace(/\/+$/, '');
+  const walletBalance = await walletRuntime.cashuGetBalance();
   if (nodeMints.length > 0 && !nodeMints.includes(currentMint)) {
-    if (currentWalletBalance > 0) {
-      showNotification('This node requires a different mint. Withdraw or back up the current wallet before switching.', 'error');
-      if (picker) picker.style.display = 'none';
-      return;
-    }
-    try {
-      await walletRuntime.cashuSetMintUrl(nodeMints[0]);
-      mintSwitched = true;
-      const mintLabel = document.getElementById('routstr-mint-label');
-      if (mintLabel) mintLabel.textContent = nodeMints[0].replace(/^https?:\/\//, '');
-      showNotification('Mint switched to ' + nodeMints[0].replace(/^https?:\/\//, '') + ' (required by node)', 'info');
-    } catch (e) {
-      showNotification('Node requires an unsafe mint URL \u2014 refused. Try a different node.', 'error');
-      if (picker) picker.style.display = 'none';
-      return;
-    }
-  }
-
-  const walletBalance = mintSwitched ? await walletRuntime.cashuGetBalance() : currentWalletBalance;
-  if (walletBalance < 1) {
-    showNotification('Fund your wallet first' + (mintSwitched ? ' \u2014 mint was updated' : ''), 'error');
-    showRoutstrWalletFund();
+    const savedMints = await walletRuntime.cashuGetWalletMints();
+    if (picker) picker.innerHTML = `<div class="routstr-mint-panel">
+      <div class="routstr-mint-heading">Choose a mint for this node</div>
+      <p class="routstr-mint-help">This node accepts a different mint. Select one below to continue.</p>
+      <div class="routstr-mint-preserved"><span class="routstr-mint-row-copy"><span class="routstr-mint-section-label">Your current mint</span><span class="routstr-mint-name">${escapeHTML(currentMint.replace(/^https?:\/\//, ''))}</span></span><span class="routstr-mint-amount">${walletBalance.toLocaleString()} <span>sats</span></span></div>
+      <p class="routstr-mint-help">These funds stay available in Mints &amp; balances.</p>
+      <div class="routstr-mint-section-label">Accepted mints</div>
+      <div class="routstr-mint-list">${nodeMints.map(mint => walletMintRowHtml(mint, { balance: savedMints.find(entry => entry.mint === mint)?.balance ?? null, action: 'choose-node-mint' })).join('')}</div>
+      <p class="routstr-mint-help">You can review your choice before switching. Fund the selected mint if its balance is empty.</p>
+    </div>`;
     return;
   }
-
-  const mintNote = mintSwitched ? `<div style="font-size:10px;color:var(--accent);margin-bottom:4px">\u26a0 Mint switched to ${escapeHTML(nodeMints[0].replace(/^https?:\/\//, ''))}</div>` : '';
+  if (walletBalance < 1) {
+    if (picker) picker.innerHTML = '<div class="routstr-mint-panel"><p class="routstr-mint-help">This mint has no funds yet. Use <strong>Deposit</strong> in the Wallet section above to add sats.</p></div>';
+    return;
+  }
   const presets = [500, 1000, 2500, 5000].filter(v => v <= walletBalance);
   if (picker) picker.innerHTML = `<div style="margin-top:8px;padding:10px;background:var(--bg-primary);border-radius:6px;border:1px solid var(--accent)">
     <div style="font-size:12px;margin-bottom:6px">Deposit to <strong>${nodeLabel}</strong></div>
-    ${mintNote}
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Wallet: \u26a1 ${walletBalance.toLocaleString()} sats</div>
     <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px">
       <input type="number" class="api-key-input" id="routstr-deposit-amount" placeholder="sats" style="font-size:11px;flex:1" min="1" max="${walletBalance}">
-      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;white-space:nowrap" data-routstr-wallet-action="deposit-node-input" data-node-url="${escapeAttr(nodeUrl)}">Deposit</button>
+      <button class="import-btn import-btn-primary" style="white-space:nowrap" data-routstr-wallet-action="deposit-node-input" data-node-url="${escapeAttr(nodeUrl)}">Deposit</button>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:4px">
-      ${presets.map(v => `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="deposit-node-preset" data-node-url="${escapeAttr(nodeUrl)}" data-amount="${v}">\u26a1 ${v.toLocaleString()}</button>`).join('')}
-      ${walletBalance > 0 ? `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="deposit-node-preset" data-node-url="${escapeAttr(nodeUrl)}" data-amount="${walletBalance}">All (${walletBalance.toLocaleString()})</button>` : ''}
+      ${presets.map(v => `<button class="import-btn import-btn-secondary" style="flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="deposit-node-preset" data-node-url="${escapeAttr(nodeUrl)}" data-amount="${v}">\u26a1 ${v.toLocaleString()}</button>`).join('')}
+      ${walletBalance > 0 ? `<button class="import-btn import-btn-secondary" style="flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="deposit-node-preset" data-node-url="${escapeAttr(nodeUrl)}" data-amount="${walletBalance}">All (${walletBalance.toLocaleString()})</button>` : ''}
     </div>
     <div id="routstr-deposit-status" style="margin-top:6px"></div>
   </div>`;
@@ -431,18 +442,14 @@ export async function doRoutstrNodeDeposit(nodeUrl, amount) {
   }
   if (statusEl) statusEl.innerHTML = '<div style="font-size:11px;color:var(--text-muted)">Depositing ' + amount.toLocaleString() + ' sats\u2026</div>';
   try {
-    const infoRes = await fetch(nodeUrl.replace(/\/+$/, '') + '/v1/info');
-    if (infoRes.ok) {
-      const info = await infoRes.json();
-      const nodeMints = info.mints || [];
-      const currentMint = await walletRuntime.cashuGetMintUrl();
-      if (nodeMints.length > 0 && !nodeMints.includes(currentMint)) {
-        _rsConnecting = false;
-        if (statusEl) statusEl.innerHTML = '<div style="font-size:11px;color:var(--red)">Node doesn\u2019t accept mint ' + escapeHTML(currentMint.replace(/^https?:\/\//, '')) + '. Accepted: ' + escapeHTML(nodeMints.map(m => m.replace(/^https?:\/\//, '')).join(', ')) + '</div>';
-        return;
-      }
-    }
-  } catch {}
+    const nodeMints = await getNodeMints(nodeUrl);
+    const currentMint = (await walletRuntime.cashuGetMintUrl()).replace(/\/+$/, '');
+    if (nodeMints.length > 0 && !nodeMints.includes(currentMint)) throw new Error('Select a mint accepted by this node before depositing. Your other balances remain available.');
+  } catch (e) {
+    _rsConnecting = false;
+    if (statusEl) statusEl.textContent = getErrorMessage(e);
+    return;
+  }
   if (typeof walletCallbacks.requestProviderActivation === 'function' && !await walletCallbacks.requestProviderActivation('routstr', { endpoint: nodeUrl })) { if (statusEl) statusEl.innerHTML = '<div style="font-size:11px;color:var(--text-muted)">Node verified — AI not activated</div>'; _rsConnecting = false; return; }
   try {
     nodeUrl = canonicalRoutstrUrl(nodeUrl);
@@ -473,8 +480,8 @@ export async function doRoutstrNodeDeposit(nodeUrl, amount) {
         '<div style="font-size:11px;color:var(--yellow, #f0a800);margin-bottom:4px">\u26a0 Deposit outcome unconfirmed</div>' +
         '<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">The node may have received this deposit. Check the node account or reclaim this token only if it remains unspent:</div>' +
         '<div style="display:flex;gap:4px">' +
-        '<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" data-routstr-wallet-action="recover-pending-deposit" data-token="' + escapeAttr(token) + '">Recover to Wallet</button>' +
-        '<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" data-routstr-wallet-action="copy-clipboard" data-clipboard-text="' + escapeAttr(token) + '" data-copied-text="\u2713 Copied">Copy Token</button>' +
+        '<button class="import-btn import-btn-primary" style="flex:1" data-routstr-wallet-action="recover-pending-deposit" data-token="' + escapeAttr(token) + '">Recover to Wallet</button>' +
+        '<button class="import-btn import-btn-secondary"  data-routstr-wallet-action="copy-clipboard" data-clipboard-text="' + escapeAttr(token) + '" data-copied-text="\u2713 Copied">Copy Token</button>' +
         '</div></div>';
     });
   }
@@ -506,27 +513,31 @@ export async function doRoutstrNodeWithdraw(nodeUrl) {
   } catch (error) {
     token = token || /** @type {{recoveryToken?: string}} */ (error)?.recoveryToken || '';
     if (picker) {
-      picker.innerHTML = '<div style="margin-top:8px;color:var(--red)">' + escapeHTML(getErrorMessage(error)) + '</div>';
-      if (token) picker.innerHTML += '<div>Keep this refund token until recovery succeeds.</div><textarea class="api-key-input" readonly>' + escapeHTML(token) + '</textarea>';
+      picker.innerHTML = '<div class="routstr-wallet-message routstr-wallet-message-error" role="status">' + escapeHTML(getErrorMessage(error)) + '</div>';
+      if (token) picker.innerHTML += '<p class="routstr-wallet-help" id="routstr-refund-token-hint">Keep this refund token until recovery succeeds.</p><textarea class="api-key-input routstr-refund-token" aria-label="Node refund recovery token" aria-describedby="routstr-refund-token-hint" readonly>' + escapeHTML(token) + '</textarea>';
       picker.innerHTML += '<button class="import-btn import-btn-primary" data-routstr-wallet-action="resume-node-refund" data-node-url="' + escapeAttr(target || '') + '">Retry refund recovery</button>';
     }
   } finally { _nodeRefundInFlight = false; }
 }
 
-async function _refreshRoutstrWalletBalance(knownBalance = null) {
+let _walletBalanceRefresh = 0;
+async function _refreshRoutstrWalletBalance(localOnly = false) {
+  const request = ++_walletBalanceRefresh;
   refreshWalletSeedStatus();
   const el = document.getElementById('routstr-wallet-balance');
   if (!el) return;
   try {
-    const balance = typeof knownBalance === 'number' ? knownBalance : await walletRuntime.cashuGetBalance();
+    const mint = await walletRuntime.cashuGetMintUrl?.();
+    const balance = await (localOnly ? walletRuntime.cashuGetLocalBalance() : walletRuntime.cashuGetBalance());
+    const currentMint = await walletRuntime.cashuGetMintUrl?.();
+    if (request !== _walletBalanceRefresh || el !== document.getElementById('routstr-wallet-balance')) return;
+    if (mint !== currentMint) return _refreshRoutstrWalletBalance(localOnly);
     el.textContent = '\u26a1 ' + balance.toLocaleString() + ' sats';
-  } catch {
-    el.textContent = '\u26a1 balance unavailable';
-  }
-  if (walletRuntime.cashuGetMintUrl) Promise.resolve(walletRuntime.cashuGetMintUrl()).then(function(url) {
     const mintEl = document.getElementById('routstr-mint-label');
-    if (mintEl && url) mintEl.textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
-  });
+    if (mintEl && mint) mintEl.textContent = mint.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  } catch {
+    if (request === _walletBalanceRefresh) el.textContent = '\u26a1 balance unavailable';
+  }
 }
 
 export async function refreshWalletSeedStatus() {
@@ -642,7 +653,7 @@ export async function doRoutstrSendToken(amount) {
       <div style="font-size:11px;color:var(--green);margin-bottom:4px">\u2713 Token created \u2014 \u26a1 ${result.amount.toLocaleString()} sats</div>
       <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Copy and share. Sats are deducted from your wallet now.</div>
       <textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:60px;resize:none;user-select:all" readonly data-routstr-wallet-action="select-textarea">${escapeHTML(result.token)}</textarea>
-      <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;margin-top:4px;width:100%" data-routstr-wallet-action="copy-clipboard" data-clipboard-text="${escapeAttr(result.token)}" data-copied-text="\u2713 Copied (60s)" data-clear-timer="_tokenClipTimer">Copy Token</button>
+      <button class="import-btn import-btn-secondary" style="margin-top:4px;width:100%" data-routstr-wallet-action="copy-clipboard" data-clipboard-text="${escapeAttr(result.token)}" data-copied-text="\u2713 Copied (60s)" data-clear-timer="_tokenClipTimer">Copy Token</button>
     </div>`;
     // Rendering/copying is not delivery. Retain the journal until spent or reclaimed.
     showNotification('\u26a1 ' + result.amount.toLocaleString() + ' sats token ready', 'success');
@@ -692,7 +703,7 @@ export async function doRoutstrWithdrawQuote() {
       <div style="font-size:11px;color:var(--text-muted)">Amount: <strong>${quote.amount.toLocaleString()} sats</strong></div>
       <div style="font-size:11px;color:var(--text-muted)">Fee reserve: <strong>${quote.fee_reserve.toLocaleString()} sats</strong></div>
       <div style="font-size:11px;color:var(--text-muted)">Total: <strong>${(quote.amount + quote.fee_reserve).toLocaleString()} sats</strong></div>
-      <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;margin-top:6px;width:100%" data-routstr-wallet-action="withdraw-execute" data-quote-id="${escapeAttr(quote.quote)}">Confirm Withdraw</button>
+      <button class="import-btn import-btn-primary" style="margin-top:6px;width:100%" data-routstr-wallet-action="withdraw-execute" data-quote-id="${escapeAttr(quote.quote)}">Confirm Withdraw</button>
     </div>`;
   } catch (e) {
     statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
@@ -746,6 +757,8 @@ installRoutstrWalletDelegates({
   showRoutstrWalletBackup,
   showRoutstrNodePicker,
   connectRoutstrNode,
+  showRoutstrNodeDeposit,
+  chooseRoutstrNodeMint,
   doRoutstrNodeDeposit,
   doRoutstrNodeWithdraw,
   _setActiveNodeAction,

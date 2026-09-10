@@ -30,6 +30,175 @@ afterEach(() => {
 });
 
 describe('Cashu wallet runtime behavior', () => {
+  it('shares automatic invoice pacing across reloads and caps checks per mint', async () => {
+    const stub = installCashuStub();
+    const wallet = await loadWallet();
+    const mint = 'https://mint.pacing.test';
+    await wallet.setMintUrl(mint);
+    await wallet.createFundingInvoice(12);
+    await wallet.createFundingInvoice(13);
+    stub.mintQuoteStates.set('mint-12', 'UNPAID');
+    stub.mintQuoteStates.set('mint-13', 'UNPAID');
+    const check = vi.spyOn(globalThis.cashuts.Wallet.prototype, 'checkMintQuoteBolt11');
+    let now = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now);
+    try {
+      await wallet.recoverPendingFunding({ automatic: true });
+      expect(check).toHaveBeenCalledTimes(1);
+      const reloaded = await loadWallet();
+      await reloaded.recoverPendingFunding({ automatic: true });
+      expect(check).toHaveBeenCalledTimes(1);
+      now += 5000;
+      await reloaded.recoverPendingFunding({ automatic: true });
+      expect(check).toHaveBeenCalledTimes(2);
+      now += 5000;
+      await reloaded.recoverPendingFunding({ automatic: true });
+      expect(check).toHaveBeenCalledTimes(3);
+      expect(check.mock.calls.some(([id]) => id === 'mint-13')).toBe(true);
+    } finally { check.mockRestore(); clock.mockRestore(); }
+  });
+
+  it('persists Retry-After across reloads and applies it to proof verification too', async () => {
+    const wallet = await loadWallet();
+    const store = await import('../js/cashu-wallet-store.js');
+    const mint = 'https://mint.rate-limited.test';
+    await wallet.setMintUrl(mint);
+    await wallet.createFundingInvoice(12);
+    await store._saveProofs([proof('existing-rate-limit-funds', 7)], mint);
+    const check = vi.spyOn(globalThis.cashuts.Wallet.prototype, 'checkMintQuoteBolt11').mockRejectedValueOnce(Object.assign(new Error('Slow down'), { status: 429, retryAfterMs: 120000 }));
+    const states = vi.spyOn(globalThis.cashuts.Wallet.prototype, 'groupProofsByState');
+    let now = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now);
+    try {
+      const first = await wallet.recoverPendingFunding({ automatic: true });
+      expect(first.errors[0]).toMatchObject({ mint, retryAfterMs: 120000 });
+      const reloaded = await loadWallet();
+      now += 60000;
+      await reloaded.recoverPendingFunding({ automatic: true, notified: [{ mint, quote: 'mint-12' }] });
+      await store._pruneSpentProofs(true, mint);
+      expect(check).toHaveBeenCalledTimes(1);
+      expect(states).not.toHaveBeenCalled();
+      now += 60001;
+      await expect(reloaded.recoverPendingFunding({ automatic: true })).resolves.toMatchObject({ recovered: 12 });
+      expect(check).toHaveBeenCalledTimes(2);
+      expect(states).not.toHaveBeenCalled();
+    } finally { check.mockRestore(); states.mockRestore(); clock.mockRestore(); }
+  });
+
+  it('uses a slow safety check with notifications and verifies a paid notification normally', async () => {
+    const stub = installCashuStub();
+    const wallet = await loadWallet();
+    const mint = 'https://mint.push.test';
+    await wallet.setMintUrl(mint);
+    await wallet.createFundingInvoice(12);
+    stub.mintQuoteStates.set('mint-12', 'UNPAID');
+    const check = vi.spyOn(globalThis.cashuts.Wallet.prototype, 'checkMintQuoteBolt11');
+    let now = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now);
+    try {
+      await wallet.recoverPendingFunding({ automatic: true, subscribedMints: [mint] });
+      now += 10000;
+      await wallet.recoverPendingFunding({ automatic: true, subscribedMints: [mint] });
+      expect(check).toHaveBeenCalledTimes(1);
+      await expect(wallet.getLocalWalletBalance()).resolves.toBe(0);
+      stub.mintQuoteStates.set('mint-12', 'PAID');
+      await expect(wallet.recoverPendingFunding({ automatic: true, subscribedMints: [mint], notified: [{ mint, quote: 'mint-12' }] })).resolves.toMatchObject({ recovered: 12 });
+      expect(check).toHaveBeenCalledTimes(2);
+      await expect(wallet.recoverPendingFunding({ automatic: true })).resolves.toMatchObject({ checked: 0, recovered: 0 });
+    } finally { check.mockRestore(); clock.mockRestore(); }
+  });
+
+  it('sets up and cleans up NUT-17 without loading a wallet seed or mint keysets', async () => {
+    const wallet = await loadWallet();
+    const OriginalWallet = globalThis.cashuts.Wallet;
+    const cancel = vi.fn(), disconnect = vi.fn(), load = vi.fn();
+    let closed;
+    globalThis.cashuts.Wallet = class {
+      mint = { getLazyMintInfo: async () => ({ isSupported: () => ({ supported: true, params: [{ method: 'bolt11', unit: 'sat', commands: ['bolt11_mint_quote'] }] }) }), disconnectWebSocket: disconnect, webSocketConnection: { onClose: callback => { closed = callback; } } };
+      on = { mintQuoteUpdates: async (ids, update) => { update({ quote: ids[0], state: 'UNPAID' }); return cancel; } };
+      loadMint = load;
+    };
+    try {
+      const update = vi.fn(), error = vi.fn();
+      const stop = await wallet.subscribeFundingQuotes('https://mint.push.test', ['quote-1'], update, error);
+      expect(update).toHaveBeenCalledWith({ quote: 'quote-1', state: 'UNPAID' });
+      expect(load).not.toHaveBeenCalled();
+      closed(); expect(error).toHaveBeenCalledTimes(1);
+      stop(); closed();
+      expect(cancel).toHaveBeenCalledTimes(1);
+      expect(disconnect).toHaveBeenCalledTimes(1);
+      expect(error).toHaveBeenCalledTimes(1);
+    } finally { globalThis.cashuts.Wallet = OriginalWallet; }
+  });
+
+  it('keeps funded mint balances selectable across reload without sending funds', async () => {
+    const stub = installCashuStub();
+    const wallet = await loadWallet();
+    const first = 'https://mint.first.test', second = 'https://mint.second.test';
+    await wallet.setMintUrl(first);
+    stub.receiveProofs = [proof('first-funds', 12)];
+    await wallet.receiveToken('cashu:' + first + ':12:first');
+    await wallet.setMintUrl(second);
+    await expect(wallet.getWalletBalance()).resolves.toBe(0);
+    stub.receiveProofs = [proof('second-funds', 7)];
+    await wallet.receiveToken('cashu:' + second + ':7:second');
+    const reloaded = await loadWallet();
+    await expect(reloaded.getWalletMints()).resolves.toEqual(expect.arrayContaining([
+      expect.objectContaining({ mint: first, balance: 12, active: false }),
+      expect.objectContaining({ mint: second, balance: 7, active: true }),
+    ]));
+    await reloaded.setMintUrl(first);
+    await expect(reloaded.getWalletBalance()).resolves.toBe(12);
+    expect(await reloaded.exportWallet()).toContain(first);
+    await expect(reloaded.sendAsToken(4)).resolves.toMatchObject({ amount: 4, remaining: 8 });
+    await expect(reloaded.getWalletMints()).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ mint: second, balance: 7 })]));
+  });
+
+  it('credits a paid invoice at its original inactive mint, including a legacy quote', async () => {
+    const stub = installCashuStub();
+    const wallet = await loadWallet();
+    const first = 'https://mint.first.test', second = 'https://mint.second.test';
+    await wallet.setMintUrl(first);
+    const quote = await wallet.createFundingInvoice(12);
+    const store = await import('../js/cashu-wallet-store.js');
+    for (const entry of await store._getMetaEntries('pendingQuote:')) await store._deleteMeta(entry.key);
+    await store._setMeta('pendingQuote:' + quote.quote, 12);
+    stub.mintQuoteStates.set(quote.quote, 'UNPAID');
+    await wallet.setMintUrl(second);
+    await expect(wallet.recoverPendingFunding()).resolves.toMatchObject({ pending: 1, recovered: 0, mint: second });
+    stub.mintQuoteStates.set(quote.quote, 'PAID');
+    await expect(wallet.recoverPendingFunding()).resolves.toMatchObject({ recovered: 12, balance: 0, mint: second, results: [expect.objectContaining({ mint: first, paid: true })] });
+    await expect(wallet.getMintUrl()).resolves.toBe(second);
+    await wallet.setMintUrl(first);
+    await expect(wallet.getWalletBalance()).resolves.toBe(12);
+    await expect(wallet.recoverPendingFunding()).resolves.toMatchObject({ checked: 0 });
+  });
+
+  it('keeps the wallet safety cap and seed replacement guard across inactive mints', async () => {
+    const wallet = await loadWallet();
+    const store = await import('../js/cashu-wallet-store.js');
+    await wallet.generateWalletSeed();
+    await wallet.setMintUrl('https://mint.first.test');
+    await store._saveProofs([proof('large-inactive-balance', 25000)], 'https://mint.first.test');
+    await wallet.setMintUrl('https://mint.second.test');
+    await expect(wallet.createFundingInvoice(1)).rejects.toThrow('safety cap');
+    await expect(wallet.restoreWalletFromSeed('ability '.repeat(11) + 'about')).rejects.toThrow('Cannot replace');
+    await expect(wallet.getWalletMints()).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ mint: 'https://mint.first.test', balance: 25000 })]));
+  });
+
+  it('refuses proof collisions across mints without overwriting existing funds', async () => {
+    const wallet = await loadWallet();
+    const store = await import('../js/cashu-wallet-store.js');
+    await store._saveProofs([proof('same-secret', 12)], 'https://mint.first.test');
+    await expect(store._replaceProofs([], [proof('same-secret', 2)], 'https://mint.second.test')).rejects.toThrow('another mint');
+    await store._saveFeeProofs([proof('same-fee-secret', 3)], 'https://mint.first.test');
+    await expect(store._saveFeeProofs([proof('same-fee-secret', 2)], 'https://mint.second.test')).rejects.toThrow('another mint');
+    await expect(store._replaceFeeProofs([], [proof('same-fee-secret', 2)], 'https://mint.second.test')).rejects.toThrow('another mint');
+    await expect(store._replaceProofs([], [], 'https://mint.second.test', { feeProofs: [proof('same-fee-secret', 2)] })).rejects.toThrow('another mint');
+    await expect(wallet.getWalletMints()).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ mint: 'https://mint.first.test', balance: 12 })]));
+    await expect(store._getAllFeeProofs('https://mint.first.test')).resolves.toEqual([expect.objectContaining({ secret: 'same-fee-secret', amount: 3 })]);
+  });
+
   it('fails closed when the Cashu storage encryption runtime is not configured', async () => {
     const store = await import('../js/cashu-wallet-store.js');
     const previous = store.configureCashuWalletStoreCryptoDeps({
@@ -523,7 +692,7 @@ describe('Cashu wallet runtime behavior', () => {
     await expect(wallet.getWalletBalance()).resolves.toBe(10);
   });
 
-  it('does not change the visible mint when a cross-mint receive fails or existing funds block it', async () => {
+  it('preserves the selected mint after failed receive and keeps balances at both mints', async () => {
     const stub = installCashuStub();
     const wallet = await loadWallet();
     await wallet.setMintUrl('https://mint.original.test/Bitcoin');
@@ -539,8 +708,10 @@ describe('Cashu wallet runtime behavior', () => {
     await expect(wallet.createFundingInvoice(5)).rejects.toThrow('original mint');
     await wallet.receiveToken('cashu:https://mint.other.test/Bitcoin:5:failed-token');
     await expect(wallet.getMintUrl()).resolves.toBe('https://mint.other.test/Bitcoin');
-    await expect(wallet.receiveToken('cashu:https://mint.original.test/Bitcoin:5:foreign-token')).rejects.toThrow('different mint');
-    await expect(wallet.setMintUrl('https://mint.original.test/Bitcoin')).rejects.toThrow('funds or pending');
+    stub.receiveProofs = [proof('foreign-receive', 5)];
+    await wallet.receiveToken('cashu:https://mint.original.test/Bitcoin:5:foreign-token');
+    await expect(wallet.getWalletBalance()).resolves.toBe(5);
+    await wallet.setMintUrl('https://mint.other.test/Bitcoin');
     await expect(wallet.getWalletBalance()).resolves.toBe(10);
   });
 

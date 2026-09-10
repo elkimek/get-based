@@ -1,6 +1,102 @@
 // Regression cases from the Routstr fund-safety audit. Simulated services only.
 import { expect, test } from './coverage-fixture.js';
 
+test('a new node can be selected while old mint funds remain, with explicit mint selection', async ({ page }) => {
+  await page.goto('/app');
+  const initial = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const { profileStorageKey } = await import('/js/profile-storage-key.js');
+    for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(profileStorageKey(state.currentProfile, suffix), 'completed');
+    (await import('/js/tour.js')).endTour({ openEmptyChat: false });
+    const panels = await import('/js/provider-wallet-panels.js');
+    const api = await import('/js/api.js');
+    const discovery = await import('/js/nostr-discovery.js');
+    const first = 'https://mint.first.test', second = 'https://mint.second.test';
+    let selectedMint = first;
+    const balances = { [first]: 879, [second]: 0 };
+    window.__mintTest = { changes: [], requests: [] };
+    await api.saveRoutstrKey('sk-existing-zero-node', 'https://old-node.test');
+    discovery.setSelectedNodeUrl('https://old-node.test');
+    const render = () => '<div id="routstr-wallet-balance"></div><div id="routstr-mint-label"></div><div id="routstr-mint-edit" style="display:none"></div><div id="routstr-wallet-fund-area" style="display:none"></div><div id="routstr-node-picker"></div>';
+    document.body.innerHTML = '<div id="ai-provider-panel">' + render() + '</div>';
+    window.fetch = async (url, options) => {
+      window.__mintTest.requests.push({ url, method: options?.method || 'GET' });
+      return new Response(JSON.stringify(String(url).endsWith('/models') ? { data: [] } : { nuts: {}, mints: [second + '/'] }));
+    };
+    panels.configureRoutstrWalletPanels({ requestProviderActivation: async () => true, renderAIProviderPanel: render });
+    panels.configureRoutstrWalletRuntime({
+      cashuHasWalletSeed: async () => true,
+      cashuGetMintUrl: async () => selectedMint,
+      cashuGetBalance: async () => balances[selectedMint],
+      cashuGetWalletMints: async () => Object.entries(balances).map(([mint, balance]) => ({ mint, balance, active: mint === selectedMint })),
+      cashuSetMintUrl: async mint => { selectedMint = mint; window.__mintTest.changes.push(mint); },
+      cashuDepositToNode: async () => { throw new Error('Node selection must not deposit'); },
+    });
+    await panels.connectRoutstrNode('https://new-node.test');
+    return { selectedNode: discovery.getSelectedNodeUrl(), selectedMint, key: api.getRoutstrKey(), previousKey: api.getRoutstrKey('https://old-node.test') };
+  });
+  expect(initial).toEqual({ selectedNode: 'https://new-node.test', selectedMint: 'https://mint.first.test', key: '', previousKey: 'sk-existing-zero-node' });
+  await expect(page.locator('#routstr-node-picker')).toContainText('879 sats');
+  await page.locator('[data-routstr-wallet-action="choose-node-mint"]').click();
+  await expect(page.locator('#routstr-mint-input')).toHaveValue('https://mint.second.test');
+  await expect(page.locator('#routstr-mint-edit')).toContainText('879 sats');
+  expect(await page.evaluate(() => window.__mintTest.changes)).toEqual([]);
+  await page.locator('[data-routstr-wallet-action="save-mint"]').click();
+  await expect(page.locator('#routstr-mint-label')).toHaveText('mint.second.test');
+  await expect(page.locator('#routstr-wallet-balance')).toContainText('0 sats');
+  await expect(page.locator('#routstr-node-picker')).toBeHidden();
+  await page.evaluate(async () => (await import('/js/provider-wallet-panels.js')).showRoutstrNodeDeposit('https://new-node.test'));
+  await expect(page.locator('#routstr-node-picker')).toContainText('Use Deposit in the Wallet section above');
+  await page.evaluate(async () => (await import('/js/provider-wallet-panels.js')).showRoutstrMintEdit());
+  await page.locator('[data-routstr-wallet-action="set-mint-input"][data-mint-url="https://mint.first.test"]').click();
+  await page.locator('[data-routstr-wallet-action="save-mint"]').click();
+  await expect(page.locator('#routstr-wallet-balance')).toContainText('879 sats');
+  expect(await page.evaluate(() => window.__mintTest.requests.every(request => request.method === 'GET'))).toBe(true);
+});
+
+test('funding recovery cannot show an old balance under a newly selected mint', async ({ page }) => {
+  await page.goto('/app');
+  await page.evaluate(async () => {
+    const panels = await import('/js/provider-wallet-panels.js');
+    document.body.innerHTML = '<div id="routstr-wallet-balance"></div><div id="routstr-mint-label"></div>';
+    let mint = 'https://mint.first.test';
+    panels.configureRoutstrWalletRuntime({
+      cashuHasWalletSeed: async () => true,
+      cashuRecoverPendingFunding: async () => ({ mint, balance: 879, recovered: 0, pending: 0, results: [] }),
+      cashuGetMintUrl: async () => mint,
+      cashuGetBalance: async () => {
+        if (mint === 'https://mint.first.test') {
+          mint = 'https://mint.second.test';
+          return 879;
+        }
+        return 0;
+      },
+      cashuGetLocalBalance: async () => {
+        if (mint === 'https://mint.first.test') { mint = 'https://mint.second.test'; return 879; }
+        return 0;
+      },
+    });
+    panels.startRoutstrFundingMonitor();
+  });
+  await expect(page.locator('#routstr-mint-label')).toHaveText('mint.second.test');
+  await expect(page.locator('#routstr-wallet-balance')).toHaveText('⚡ 0 sats');
+});
+
+test('a failed node mint lookup cannot submit a deposit', async ({ page }) => {
+  await page.goto('/app');
+  const result = await page.evaluate(async () => {
+    const panels = await import('/js/provider-wallet-panels.js');
+    document.body.innerHTML = '<div id="routstr-deposit-status"></div>';
+    let deposits = 0;
+    window.fetch = async () => new Response('{}', { status: 503 });
+    panels.configureRoutstrWalletRuntime({ cashuDepositToNode: async () => { deposits++; } });
+    await panels.doRoutstrNodeDeposit('https://node.test', 10);
+    return { deposits, message: document.body.textContent };
+  });
+  expect(result.deposits).toBe(0);
+  expect(result.message).toContain('Could not check');
+});
+
 test('displaying a token preserves its durable journal before copying', async ({ page }) => {
   await page.goto('/app');
   const result = await page.evaluate(async () => {

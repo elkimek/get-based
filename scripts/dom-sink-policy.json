@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 712,
-  "sinkCount": 553,
+  "scannedFiles": 713,
+  "sinkCount": 556,
   "files": {
     "js/backup.js": {
       "count": 1,
@@ -742,16 +742,16 @@
     },
     "js/provider-wallet-funding-recovery.js": {
       "count": 3,
-      "digest": "beaa9db12000da6a1cfb20ea53691c21188c087dc5261f6554d55212d1e70f62",
+      "digest": "321234237958701021a0df9f5eba96237e239abcb469a261dcd0af9dd599c1f6",
       "kinds": {
         "innerHTML": 3
       }
     },
     "js/provider-wallet-panels.js": {
-      "count": 55,
-      "digest": "1ace6ef6bbe50a79064f613f460a96d4e25bf2ac00c661786ba71cb02b01d865",
+      "count": 58,
+      "digest": "efc46cf53d09aec983815ff183a998b9871c3d3ba37179716cc5f8c7e7a3658a",
       "kinds": {
-        "innerHTML": 55
+        "innerHTML": 58
       }
     },
     "js/recommendation-actions.js": {

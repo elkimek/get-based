@@ -34,7 +34,7 @@ const cashuWalletStoreCryptoDeps = /** @type {any} */ ({
 let _db = null;
 let _indexedDBFactory = null;
 let _legacyProofsMigrated = false;
-let _lastProofCheck = 0;
+const _lastProofChecks = new Map();
 
 function _sessionLockedError() {
   const error = new Error('Cashu wallet storage is encrypted; unlock with your passphrase first.');
@@ -139,7 +139,7 @@ export function _openDB() {
     try { _db.close(); } catch {}
     _db = null;
     _legacyProofsMigrated = false;
-    _lastProofCheck = 0;
+    _lastProofChecks.clear();
   }
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
@@ -180,9 +180,38 @@ export async function _getAllProofs(forMint) {
   return proofs.filter(proof => _normalizeMintUrl(proof._mint) === mintUrl);
 }
 
+/** Local inventory; never contacts a mint or changes the selected wallet. */
+export async function _getWalletMintInventory() {
+  await _migrateUntaggedProofs();
+  const current = await storeRuntime.getMintUrl();
+  const saved = await _getMeta('walletMints');
+  const mints = new Map();
+  const add = mint => {
+    mint = _normalizeMintUrl(mint);
+    if (isValidExternalUrl(mint) && !mints.has(mint)) mints.set(mint, { mint, balance: 0, feeBalance: 0 });
+    return mints.get(mint);
+  };
+  add(current);
+  for (const mint of Array.isArray(saved) ? saved : []) add(mint);
+  for (const [store, field] of [[STORE_PROOFS, 'balance'], [STORE_FEES, 'feeBalance']]) {
+    for (const row of await _getAllRaw(store)) {
+      const proof = await _proofFromStorage(row);
+      const entry = add(proof._mint || DEFAULT_MINT);
+      if (entry) entry[field] += _amountToNumber(proof.amount);
+    }
+  }
+  for (const entry of await _getMetaEntries('pending')) {
+    let record = entry.value;
+    if (typeof record === 'string') { try { record = JSON.parse(record); } catch {} }
+    add(entry.key.startsWith(PENDING_QUOTE_PREFIX) ? _pendingQuoteDetails(entry, current).mint : record?.mint);
+  }
+  return [...mints.values()].map(entry => ({ ...entry, active: entry.mint === current }));
+}
+
 export async function _saveProofs(proofs, forMint) {
   if (!proofs.length) return;
   const mintUrl = _normalizeMintUrl(forMint || await storeRuntime.getMintUrl());
+  await _assertProofMintOwnership(proofs, mintUrl);
   const rows = await Promise.all(proofs.map(proof => _proofForStorage(proof, mintUrl)));
   const db = await _openDB();
   return new Promise((resolve, reject) => {
@@ -192,6 +221,17 @@ export async function _saveProofs(proofs, forMint) {
     tx.oncomplete = () => resolve(undefined);
     tx.onerror = () => reject(tx.error);
   });
+}
+
+async function _assertProofMintOwnership(proofs, mintUrl, store = STORE_PROOFS) {
+  if (!proofs.length) return;
+  const secrets = new Set(proofs.map(proof => proof.secret));
+  for (const row of await _getAllRaw(store)) {
+    const existing = await _proofFromStorage(row);
+    if (secrets.has(existing.secret) && _normalizeMintUrl(existing._mint || DEFAULT_MINT) !== mintUrl) {
+      throw new Error('Proof conflicts with funds at another mint. Existing funds were preserved.');
+    }
+  }
 }
 
 async function _deleteProofs(proofs) {
@@ -209,6 +249,8 @@ async function _deleteProofs(proofs) {
 
 export async function _replaceProofs(previousProofs, nextProofs, forMint, commit = {}) {
   const mintUrl = _normalizeMintUrl(forMint || await storeRuntime.getMintUrl());
+  await _assertProofMintOwnership([...(previousProofs || []), ...(nextProofs || [])], mintUrl);
+  await _assertProofMintOwnership(commit.feeProofs || [], mintUrl, STORE_FEES);
   const previousKeys = (await Promise.all((previousProofs || []).map(proof => _proofStorageKeys(proof.secret)))).flat();
   const nextRows = await Promise.all((nextProofs || []).map(proof => _proofForStorage(proof, mintUrl)));
   const metaRows = await Promise.all(Object.entries(commit.meta || {}).map(([key, value]) => _metaForStorage(key, value)));
@@ -241,19 +283,47 @@ export async function _pruneSpentProofs(force = false, forMint) {
   const proofs = await _getAllProofs(mintUrl);
   if (!proofs.length) return proofs;
   if (await _getMeta(PENDING_SWAP_KEY)) return proofs;
-  if (!force && (now - _lastProofCheck) < PROOF_CHECK_COOLDOWN) return proofs;
+  const checkKey = 'proofCheckAt:' + mintUrl;
+  if (!force && now - Math.max(_lastProofChecks.get(mintUrl) || 0, Number(await _getMeta(checkKey)) || 0) < PROOF_CHECK_COOLDOWN) return proofs;
   try {
-    const wallet = await storeRuntime.getWallet(mintUrl);
-    const { unspent, spent, pending } = await wallet.groupProofsByState(proofs);
+    // Persist attempts, including failures, so other tabs cannot repeat them.
+    await _setMeta(checkKey, now);
+    const { unspent, spent, pending } = await _withMintRequest(mintUrl, async () => {
+      const wallet = await storeRuntime.getWallet(mintUrl);
+      return wallet.groupProofsByState(proofs);
+    });
     if (spent.length > 0) {
       await _deleteProofs(spent);
       if (isDebugMode()) console.log(`[cashu-wallet] Pruned ${spent.length} spent proofs` + (pending.length ? `, ${pending.length} pending (kept)` : ''));
     }
-    _lastProofCheck = Date.now();
+    _lastProofChecks.set(mintUrl, Date.now());
     return [...unspent, ...pending];
   } catch (error) {
     if (isDebugMode()) console.warn('[cashu-wallet] Proof state check failed:', getErrorMessage(error));
     return proofs;
+  }
+}
+
+/** Shared mint cooldown. Call while holding the wallet lock. */
+export async function _withMintRequest(mint, request) {
+  const key = 'mintRetryAt:' + _normalizeMintUrl(mint);
+  const until = Number(await _getMeta(key)) || 0;
+  if (until > Date.now()) {
+    const error = Object.assign(new Error('The mint requested a pause. Retrying automatically.'), { status: 429, retryAfterMs: until - Date.now() });
+    throw error;
+  }
+  try { return await request(); }
+  catch (error) {
+    const details = /** @type {{status?: number, statusCode?: number, retryAfterMs?: number, name?: string}} */ (error);
+    const status = Number(details?.status ?? details?.statusCode);
+    const retry = Number(details?.retryAfterMs);
+    if (status === 429 || details?.name === 'RateLimitError' || (Number.isFinite(retry) && retry > 0)) {
+      const wait = Math.max(60000, Number.isFinite(retry) ? retry : 0);
+      await _setMeta(key, Math.max(until, Date.now() + wait));
+      // Preserve the actual cooldown, including our conservative default.
+      throw Object.assign(new Error(getErrorMessage(error)), { status: status || 429, retryAfterMs: wait });
+    }
+    throw error;
   }
 }
 
@@ -433,10 +503,9 @@ export async function _recoverPendingSwapUnlocked(recordKey = PENDING_SWAP_KEY) 
   if (record.version === 1 && record.localInputs?.length) {
     retained = (await wallet.groupProofsByState(record.localInputs)).unspent;
   }
-  const currentMint = await storeRuntime.getMintUrl();
-  const selectsMint = record.selectMint || (record.operation === 'receive' && mintUrl !== currentMint);
-  if (selectsMint && mintUrl !== currentMint && ((await _getAllProofs(currentMint)).length || (await _getAllFeeProofs(currentMint)).length)) throw new Error('Empty the current mint wallet before recovering this other-mint operation');
-  const meta = selectsMint ? { mintUrl } : {};
+  // Background recovery restores the original mint's proofs without changing
+  // the wallet the user selected while this operation was pending.
+  const meta = {};
   if (record.operation === 'receive' && record.incomingToken) {
     for (const key of ['pendingDeposit', 'pendingWithdraw', 'pendingNodeRefund']) {
       let pending = await _getMeta(key);
@@ -500,6 +569,7 @@ export function _pendingQuoteDetails(entry, fallbackMint) {
 export async function _saveFeeProofs(proofs, forMint) {
   if (!proofs.length) return;
   const mintUrl = _normalizeMintUrl(forMint || await storeRuntime.getMintUrl());
+  await _assertProofMintOwnership(proofs, mintUrl, STORE_FEES);
   const rows = await Promise.all(proofs.map(proof => _proofForStorage(proof, mintUrl)));
   const db = await _openDB();
   return new Promise((resolve, reject) => {
@@ -513,6 +583,7 @@ export async function _saveFeeProofs(proofs, forMint) {
 
 export async function _replaceFeeProofs(previousProofs, nextProofs, forMint, deleteKeys = []) {
   const mintUrl = _normalizeMintUrl(forMint || await storeRuntime.getMintUrl());
+  await _assertProofMintOwnership([...(previousProofs || []), ...(nextProofs || [])], mintUrl, STORE_FEES);
   const previousKeys = (await Promise.all((previousProofs || []).map(proof => _proofStorageKeys(proof.secret)))).flat();
   const nextRows = await Promise.all((nextProofs || []).map(proof => _proofForStorage(proof, mintUrl)));
   const db = await _openDB();

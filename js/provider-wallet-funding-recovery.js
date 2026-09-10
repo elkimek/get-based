@@ -5,6 +5,7 @@ import { validateLightningInvoice } from './routstr-validation.js';
 import { ensureQRCode } from './provider-qr.js';
 import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
+import { createFundingCoordinator } from './cashu-funding-coordinator.js';
 
 export async function recoverPendingWalletFunding(walletRuntime, refreshBalance) {
   const statusEl = document.getElementById('routstr-wfund-status');
@@ -57,11 +58,11 @@ function renderFundingPaid(status, credited) {
   check.style.cssText = 'display:flex;align-items:center;justify-content:center;width:72px;height:72px;border:2px solid currentColor;border-radius:50%;font-size:42px;line-height:1';
   check.textContent = '✓';
   const title = document.createElement('strong');
-  title.style.cssText = 'font-size:16px';
+  title.style.cssText = 'font-size:12px';
   title.textContent = 'Payment received';
   card.append(check, title);
   const detail = document.createElement('div');
-  detail.style.cssText = 'margin-top:8px;font-size:12px;color:var(--green)';
+  detail.style.cssText = 'margin-top:8px;font-size:11px;color:var(--green)';
   detail.textContent = '+' + credited.toLocaleString() + ' sats added to wallet';
   confirmation.append(amount, card, detail);
   status.replaceChildren(confirmation);
@@ -72,67 +73,176 @@ export function createFundingMonitor(runtime, refreshBalance, onResult = (_resul
   let timer = null;
   let running = false;
   let enabled = false;
+  let leader = false;
   let failures = 0;
+  let notBefore = 0;
+  let recheckRequested = false;
+  let refreshingBalance = false;
+  const subscriptions = new Map();
+  const notified = new Map();
+  const quoteKey = item => item.mint + '\n' + item.quote;
+
+  function displayResult(result) {
+    if (!enabled || !result || !Array.isArray(result.results)) return;
+    onResult(result);
+    const status = document.getElementById('routstr-wfund-status');
+    const displayed = result.results.find(item => item.quote === status?.dataset.quote && (item.mint || result.mint) === status?.dataset.mint);
+    if (displayed?.paid && status) {
+      renderFundingPaid(status, Math.max(0, Number(displayed.minted) - Number(displayed.fee || 0)));
+      delete status.dataset.quote;
+    } else if (displayed && /^(EXPIRED|CANCELLED|CANCELED)$/.test(String(displayed.state).toUpperCase()) && status) {
+      status.textContent = 'This invoice expired or was cancelled. Request a new invoice to deposit.';
+      delete status.dataset.quote;
+    }
+    if (result.recovered > 0) showNotification('Wallet funded ⚡ ' + result.recovered.toLocaleString() + ' sats', 'success');
+    // Both the leader and followers refresh from local proofs only.
+    if (!refreshingBalance) {
+      refreshingBalance = true;
+      void Promise.resolve().then(() => refreshBalance()).catch(() => {}).finally(() => { refreshingBalance = false; });
+    }
+    const poll = document.getElementById('routstr-wfund-poll');
+    if (poll) poll.textContent = result.failed
+      ? 'Payment confirmation delayed. Retrying automatically…'
+      : displayed?.state === 'ISSUED' ? 'Payment received. Recovering wallet balance…'
+      : 'Waiting for payment… Deposits are credited automatically.';
+  }
+
+  function closeSubscriptions() {
+    for (const entry of subscriptions.values()) entry.cancel?.();
+    subscriptions.clear();
+    notified.clear();
+  }
+
+  function syncSubscriptions(quotes, errors = []) {
+    if (typeof runtime.cashuSubscribeFundingQuotes !== 'function') return;
+    const groups = new Map();
+    for (const item of quotes) {
+      if (!groups.has(item.mint)) groups.set(item.mint, []);
+      groups.get(item.mint).push(item.quote);
+    }
+    for (const [mint, entry] of subscriptions) {
+      if (!groups.has(mint)) { entry.cancel?.(); subscriptions.delete(mint); }
+    }
+    for (const [mint, ids] of groups) {
+      const key = [...new Set(ids)].sort().join('\n');
+      const previous = subscriptions.get(mint);
+      const retry = Math.max(0, ...errors.filter(error => error.mint === mint).map(error => Number(error.retryAfterMs) || 0));
+      if (retry) {
+        previous?.cancel?.();
+        subscriptions.set(mint, { key, retryAt: Date.now() + retry, confirmed: false });
+        continue;
+      }
+      if (previous && (previous.retryAt > Date.now() || (previous.key === key && (previous.cancel || previous.connecting)))) continue;
+      previous?.cancel?.();
+      const entry = { key, cancel: /** @type {null | (() => void)} */ (null), connecting: true, confirmed: false, retryAt: 0 };
+      subscriptions.set(mint, entry);
+      const failed = error => {
+        if (subscriptions.get(mint) !== entry) return;
+        const wasConfirmed = entry.confirmed;
+        entry.cancel?.();
+        entry.cancel = null;
+        entry.connecting = false;
+        entry.confirmed = false;
+        entry.retryAt = Date.now() + Math.max(300000, Number(error?.retryAfterMs) || 0);
+        if (wasConfirmed) {
+          for (const quote of ids) { const item = { mint, quote }; notified.set(quoteKey(item), item); }
+          wakeLocal();
+        }
+      };
+      void Promise.resolve().then(() => runtime.cashuSubscribeFundingQuotes(mint, ids, update => {
+        if (!leader || !enabled || subscriptions.get(mint) !== entry || !ids.includes(update?.quote)) return;
+        entry.confirmed = true;
+        if (/^(PAID|ISSUED|EXPIRED|CANCELLED|CANCELED)$/.test(String(update.state).toUpperCase())) {
+          const item = { mint, quote: update.quote };
+          // A notification never credits funds directly or bypasses HTTP limits.
+          if (!notified.has(quoteKey(item))) { notified.set(quoteKey(item), item); wakeLocal(); }
+        }
+      }, failed)).then(cancel => {
+        if (!leader || !enabled || subscriptions.get(mint) !== entry || entry.retryAt) { cancel?.(); return; }
+        entry.connecting = false;
+        entry.cancel = cancel;
+        if (!cancel) entry.retryAt = Date.now() + 300000;
+      }).catch(failed);
+    }
+  }
+
+  const coordinator = createFundingCoordinator(active => {
+    leader = active;
+    if (active) wakeLocal();
+    else {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      closeSubscriptions();
+    }
+  }, displayResult, () => wakeLocal());
+
   async function tick() {
-    if (!enabled || running) return;
+    if (!enabled || !leader || running) return;
+    if (notBefore > Date.now()) { timer = setTimeout(tick, Math.min(2147483647, notBefore - Date.now())); return; }
     running = true;
+    recheckRequested = false;
     let delay = 30000;
     try {
       if (await runtime.cashuHasWalletSeed()) {
-        const result = await runtime.cashuRecoverPendingFunding();
-        onResult(result);
-        await refreshBalance(result.balance);
-        const status = document.getElementById('routstr-wfund-status');
-        const displayed = result.results?.find(item => item.quote === status?.dataset.quote && result.mint === status?.dataset.mint);
-        if (displayed?.paid && status) {
-          const credited = Math.max(0, Number(displayed.minted) - Number(displayed.fee || 0));
-          renderFundingPaid(status, credited);
-          delete status.dataset.quote;
-        } else if (displayed && /^(EXPIRED|CANCELLED|CANCELED)$/.test(String(displayed.state).toUpperCase()) && status) {
-          status.textContent = 'This invoice expired or was cancelled. Request a new invoice to deposit.';
-          delete status.dataset.quote;
+        const hints = [...notified.values()];
+        notified.clear();
+        let result;
+        try {
+          result = await runtime.cashuRecoverPendingFunding({ automatic: true, notified: hints, subscribedMints: [...subscriptions].filter(([, entry]) => entry.confirmed).map(([mint]) => mint) });
+        } catch (error) { for (const hint of hints) notified.set(quoteKey(hint), hint); throw error; }
+        if (!enabled || !leader) return;
+        for (const hint of hints) {
+          if (result.results?.some(item => quoteKey(item) === quoteKey(hint) && item.state === 'WAITING')) notified.set(quoteKey(hint), hint);
         }
-        if (result.recovered > 0) {
-          showNotification('Wallet funded ⚡ ' + result.recovered.toLocaleString() + ' sats', 'success');
-        }
-        if (result.failed) throw new Error('Pending deposit check failed');
-        failures = 0;
-        delay = result.pending ? 3000 : 30000;
-        const poll = document.getElementById('routstr-wfund-poll');
-        if (poll) poll.textContent = displayed?.state === 'ISSUED'
-          ? 'Payment received. Recovering wallet balance…'
-          : 'Waiting for payment… Deposits are credited automatically.';
+        displayResult(result);
+        coordinator.publish(result);
+        syncSubscriptions(result.pendingQuotes || [], result.errors || []);
+        failures = result.failed ? failures + 1 : 0;
+        // Per-quote pacing and per-mint budgets are persisted by the wallet.
+        // These scans are local when no quote is due. Hidden tabs scan slowly.
+        delay = document.visibilityState === 'hidden' ? 60000 : result.pending || result.failed ? 5000 : 30000;
       }
-    } catch {
-      delay = Math.min(60000, 3000 * 2 ** Math.min(++failures, 5));
+    } catch (error) {
+      delay = Math.max(Number(/** @type {{retryAfterMs?: number}} */ (error)?.retryAfterMs) || 0, Math.min(60000, 5000 * 2 ** Math.min(++failures, 4)));
+      notBefore = Date.now() + delay;
       const poll = document.getElementById('routstr-wfund-poll');
       if (poll) poll.textContent = 'Payment confirmation delayed. Retrying automatically…';
     } finally {
       running = false;
-      if (enabled) timer = setTimeout(tick, delay);
+      if (enabled && leader) timer = setTimeout(tick, Math.min(2147483647, Math.max(notBefore - Date.now(), recheckRequested ? 0 : delay, 0)));
     }
   }
-  function wake() {
+  function wakeLocal() {
     if (timer) clearTimeout(timer);
     timer = null;
+    if (running) { recheckRequested = true; return; }
     void tick();
   }
+  const wake = () => coordinator.wake();
+  const suspend = () => coordinator.stop();
+  const resume = () => { if (enabled) coordinator.start(); };
   return {
-    start() {
+    start({ recheck = false } = {}) {
       if (!enabled) {
         enabled = true;
         globalThis.addEventListener?.('online', wake);
         globalThis.addEventListener?.('focus', wake);
-      }
-      // Refreshes made by the loop must not schedule a second in-flight check.
-      if (!running) wake();
+        globalThis.addEventListener?.('pagehide', suspend);
+        globalThis.addEventListener?.('pageshow', resume);
+        coordinator.start();
+      } else if (!running || recheck) wake();
     },
     stop() {
       enabled = false;
       if (timer) clearTimeout(timer);
       timer = null;
+      recheckRequested = false;
+      coordinator.stop();
+      closeSubscriptions();
       globalThis.removeEventListener?.('online', wake);
       globalThis.removeEventListener?.('focus', wake);
+      globalThis.removeEventListener?.('pagehide', suspend);
+      globalThis.removeEventListener?.('pageshow', resume);
     },
   };
 }
@@ -155,7 +265,7 @@ export async function renderFundingInvoice(result) {
   status.innerHTML = `<div style="margin-top:8px;text-align:center">
     <div style="font-size:12px;font-weight:600;margin-bottom:4px">⚡ ${result.amount.toLocaleString()} sats</div>
     ${qrSvg ? `<a href="${escapeAttr('lightning:' + result.invoice)}" style="display:inline-block;background:#fff;padding:10px;border-radius:8px;width:220px;height:220px">${qrSvg}</a>` : ''}
-    <div style="margin-top:6px"><button class="import-btn import-btn-secondary" style="font-size:10px;padding:2px 8px" data-routstr-wallet-action="copy-clipboard" data-clipboard-text="${escapeAttr(result.invoice)}" data-copied-text="✓ Copied">${escapeHTML(result.invoice.slice(0, 20))}… copy</button></div>
+    <div style="margin-top:6px"><button class="import-btn import-btn-secondary"  data-routstr-wallet-action="copy-clipboard" data-clipboard-text="${escapeAttr(result.invoice)}" data-copied-text="✓ Copied">${escapeHTML(result.invoice.slice(0, 20))}… copy</button></div>
     <div style="font-size:11px;color:var(--text-muted);margin-top:4px" id="routstr-wfund-poll">Waiting for payment… Deposits are credited automatically.</div>
   </div>`;
 }
