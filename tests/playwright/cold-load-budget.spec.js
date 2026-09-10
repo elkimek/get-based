@@ -172,6 +172,9 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
     new URL(entry.name).pathname === '/js/cashu-wallet.js'
   ))).toBe(false);
   expect(entries.some(entry => (
+    new URL(entry.name).pathname === '/vendor/routstr-crypto.js'
+  ))).toBe(false);
+  expect(entries.some(entry => (
     new URL(entry.name).pathname === '/js/cashu-wallet-store.js'
   ))).toBe(false);
   const deferredKnowledgeBaseUiModules = new Set([

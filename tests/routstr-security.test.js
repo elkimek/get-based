@@ -44,6 +44,27 @@ function signedEvent(keyNumber, created = Math.floor(Date.now() / 1000)) {
 }
 
 describe('Routstr security boundaries', () => {
+  it('keeps cached node credentials separate from the persisted Ollama model', async () => {
+    const { saveOllamaConfig, getOllamaMainModel, setOllamaMainModel } = await import('../js/api-provider-storage.js');
+    await saveOllamaConfig({ url: 'http://localhost:11434', model: 'llama3.2', apiKey: 'ollama-secret' });
+    await saveRoutstrSessionKey('sk-node-secret', NODE);
+    setOllamaMainModel(getOllamaMainModel());
+    expect(localStorage.getItem('labcharts-ollama-model')).toBe('llama3.2');
+    expect(localStorage.getItem('labcharts-routstr-sessions')).not.toContain('sk-node-secret');
+    expect(getRoutstrSessionKey(NODE)).toBe('sk-node-secret');
+  });
+  it('warns once after three consecutive background fee failures while retaining the pool', async () => {
+    const wallet = await funded();
+    const notify = vi.fn();
+    vi.stubGlobal('window', { ...globalThis.window, showNotification: notify });
+    const { _autoMeltFees } = await import('../js/cashu-wallet-transfers.js');
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      await _autoMeltFees(attempt === 1 ? [proof('fee-reserve', 120)] : [], MINT);
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(attempt));
+    }
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledTimes(1));
+    expect(await wallet.getFeeBalance()).toBe(120);
+  });
   it('retains funded keys by canonical node and rejects forwarding another node key', async () => {
     const wallet = await funded();
     await saveRoutstrSessionKey('sk-a', 'https://node-a.test/');
@@ -250,6 +271,9 @@ describe('Routstr security boundaries', () => {
     const wallet = await funded(); await saveRoutstrSessionKey('sk-node', NODE);
     globalThis.fetch = vi.fn(async () => jsonResponse({ token: 'cashuArefund' }));
     const pending = await wallet.refundNodeToToken(NODE);
+    expect(fetch).toHaveBeenCalledWith(NODE + '/v1/wallet/refund', expect.objectContaining({
+      method: 'POST', headers: { Authorization: 'Bearer sk-node' }, redirect: 'error',
+    }));
     await wallet.receiveToken(pending.token);
     expect(await wallet.getPendingNodeRefund()).toBeNull();
     await wallet.finishNodeRefund(pending.token);

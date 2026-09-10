@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "maximums": {
     "startupJavaScriptFiles": 2,
-    "startupDecodedBytes": 1250000,
+    "startupDecodedBytes": 1202000,
     "outputJavaScriptFiles": 160,
     "outputDecodedBytes": 5230000
   },
@@ -57,8 +57,8 @@
     "openClawAndChatWorkspaceOutputDecodedBytes": 5136578,
     "directProviderReasoningStartupDecodedBytes": 1196609,
     "directProviderReasoningOutputDecodedBytes": 5139452,
-    "routstrPaymentValidationStartupDecodedBytes": 1247020,
-    "routstrPaymentValidationOutputDecodedBytes": 5220637
+    "routstrPaymentValidationStartupDecodedBytes": 1200060,
+    "routstrPaymentValidationOutputDecodedBytes": 5220376
   },
   "referenceCommit": "331112b1",
   "measuredAt": "2026-09-05"

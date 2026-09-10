@@ -389,7 +389,7 @@ export async function retryFeeAutoMelt() {
         return { melted: amount, remaining: await getFeeBalance() };
       }
       return { melted: 0, remaining: total, reason: 'insufficient routing fee reserve' };
-    } catch (error) { return { melted: 0, remaining: total, reason: getErrorMessage(error) }; }
+    } catch (error) { return { melted: 0, remaining: total, reason: getErrorMessage(error), error: true }; }
   }));
 }
 
@@ -502,13 +502,23 @@ async function _meltFeePool(wallet, cashuts, mintUrl, inputs, quote) {
 }
 
 /** Persist first; background remittance never owns the only copy of fee proofs. */
+let _autoMeltConsecutiveFailures = 0;
+function _recordAutoMeltFailure() {
+  _autoMeltConsecutiveFailures++;
+  if (_autoMeltConsecutiveFailures === 3 && typeof window !== 'undefined') {
+    /** @type {any} */ (window).showNotification?.('Cashu fee payments are repeatedly unconfirmed. Check Settings → AI → Routstr for recovery.', 'warning', 7000);
+  }
+}
 export async function _autoMeltFees(feeProofs, operationMint) {
   void _withWalletLock(() => _withFeeLock(async () => {
     const mintUrl = operationMint || await getMintUrl();
     await _saveFeeProofs(feeProofs, mintUrl);
     const cashuts = await _cashuLib();
     return _sumProofsAsNumber(cashuts, await _getAllFeeProofs(mintUrl)) >= FEE_MELT_MIN_SATS;
-  })).then(ready => ready ? retryFeeAutoMelt() : null).catch(() => {});
+  })).then(ready => ready ? retryFeeAutoMelt() : null).then(result => {
+    if (result?.error) _recordAutoMeltFailure();
+    else if (result?.melted > 0) _autoMeltConsecutiveFailures = 0;
+  }).catch(_recordAutoMeltFailure);
 }
 export async function getFeeBalance() {
   return _sumProofsAsNumber(await _cashuLib(), await _getAllFeeProofs());

@@ -12,6 +12,13 @@
 // legitimately need a local target (lens external-server, Ollama custom
 // provider) pass { allowLocalhost: true } and accept that risk explicitly.
 
+export function canonicalRoutstrUrl(raw) {
+  if (!isValidExternalUrl(raw)) throw new Error('Expected a public HTTPS endpoint');
+  const url = new URL(raw);
+  if (url.username || url.password || url.search || url.hash) throw new Error('Endpoint must not contain credentials, a query, or a fragment');
+  return url.href.replace(/\/+$/, '');
+}
+
 export function isOfficialGetbasedHost(locationLike = globalThis.location) {
   const hostname = String(locationLike?.hostname || '').toLowerCase().replace(/\.$/, '');
   return hostname === 'getbased.health'

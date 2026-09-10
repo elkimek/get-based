@@ -3,7 +3,7 @@
 import { getCachedKey, updateKeyCache } from './crypto-key-cache.js';
 import { encryptedGetItem } from './crypto.js';
 import { encryptedSetProviderItemRuntime, touchRoutstrSessionClock, dispatchAISettingsLocalChangedRuntime } from './api-provider-storage-runtime.js';
-import { canonicalRoutstrUrl } from './routstr-validation.js';
+import { canonicalRoutstrUrl } from './url-safety.js';
 export const ROUTSTR_SESSIONS_KEY = 'labcharts-routstr-sessions';
 const KEY = ROUTSTR_SESSIONS_KEY;
 const LEGACY_KEY = 'labcharts-routstr-key';

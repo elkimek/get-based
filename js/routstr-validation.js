@@ -1,14 +1,7 @@
 // @ts-check
 // Payment/discovery boundary validation. Cryptography comes from pinned vendors.
 import { bech32, secp256k1, schnorr, sha256 } from '../vendor/routstr-crypto.js';
-import { isValidExternalUrl } from './url-safety.js';
-
-export function canonicalRoutstrUrl(raw) {
-  if (!isValidExternalUrl(raw)) throw new Error('Expected a public HTTPS endpoint');
-  const url = new URL(raw);
-  if (url.username || url.password || url.search || url.hash) throw new Error('Endpoint must not contain credentials, a query, or a fragment');
-  return url.href.replace(/\/+$/, '');
-}
+export { canonicalRoutstrUrl } from './url-safety.js';
 export function positiveSats(value) {
   if (!Number.isSafeInteger(value) || value < 1) throw new Error('Amount must be a positive safe integer in sats');
   return value;

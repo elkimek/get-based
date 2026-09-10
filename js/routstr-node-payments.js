@@ -73,7 +73,7 @@ export async function requestNodeRefund(nodeUrl) {
   // Separate from outgoing Cashu/Lightning journals. A full/locked store fails
   // before money moves. Explicit retry uses the same node/account record.
   await _setMeta('pendingNodeRefund', record);
-  const response = await fetchNodePayment(nodeUrl + '/v1/balance/refund', { method: 'POST', headers: { Authorization: 'Bearer ' + key } });
+  const response = await fetchNodePayment(nodeUrl + '/v1/wallet/refund', { method: 'POST', headers: { Authorization: 'Bearer ' + key } });
   if (!response.ok) throw new Error(`Node refund returned HTTP ${response.status}. Its outcome is unconfirmed; retry recovery for this node.`);
   const data = await response.json();
   const token = data?.token || data?.cashu_token || (typeof data === 'string' ? data : '');
