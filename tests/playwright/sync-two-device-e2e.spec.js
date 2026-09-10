@@ -525,18 +525,27 @@ async function run(browser, testInfo) {
         'labcharts-routstr-key': 'sk-legacy-other-profile',
         'labcharts-routstr-node': 'https://legacy-node.routstr.e2e/',
       });
+      const crypto = await import('/js/crypto.js');
+      (await import('/js/crypto-key-cache.js')).clearKeyCache();
+      const lockedKey = window.__syncE2EGetRoutstrKey();
+      const persistedSessions = JSON.parse(await crypto.encryptedGetItem('labcharts-routstr-sessions'));
+      await crypto.decryptKeyCache();
       return {
         rawKey: localStorage.getItem('labcharts-routstr-sessions'),
-        legacyKey: await (await import('/js/crypto.js')).encryptedGetItem('labcharts-routstr-key'),
+        legacyKey: await crypto.encryptedGetItem('labcharts-routstr-key'),
+        lockedKey,
+        persistedKey: persistedSessions.sessions['https://node.routstr.e2e']?.key,
         usableKey: window.__syncE2EGetRoutstrKey(),
         node: localStorage.getItem('labcharts-routstr-node'),
         updatedAt: localStorage.getItem('labcharts-routstr-session-updated-at'),
       };
     });
-    assert('Device B immediately uses encrypted Routstr session pulled from A',
+    assert('Device B recovers the encrypted Routstr session from storage after clearing its cache',
       routstrSync.rawKey?.startsWith('v1:')
         && routstrSync.rawKey !== routstrSync.usableKey
         && routstrSync.usableKey === 'sk-routstr-two-device'
+        && routstrSync.persistedKey === routstrSync.usableKey
+        && routstrSync.lockedKey === ''
         && routstrSync.node === 'https://node.routstr.e2e'
         && routstrSync.legacyKey === ''
         && routstrSync.updatedAt === '200',
