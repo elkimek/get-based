@@ -1,4 +1,4 @@
-import { expect, test } from './coverage-fixture.js';
+import { expect, test, startPageCoverage, stopPageCoverage } from './coverage-fixture.js';
 
 test('the vendored Cashu library receives NUT-17 updates and closes its subscription', async ({ page }) => {
   await page.route('**/funding-monitor-fixture', route => route.fulfill({ contentType: 'text/html', body: '<div>Mint notification fixture</div>' }));
@@ -31,7 +31,7 @@ test('the vendored Cashu library receives NUT-17 updates and closes its subscrip
   expect(requests).toEqual(['https://mint.push.test/v1/info']);
 });
 
-test('one tab monitors invoices, shares committed receipts, and hands over when closed', async ({ page, context }) => {
+test('one tab monitors invoices, shares committed receipts, and hands over when closed', async ({ page, context }, testInfo) => {
   await context.route('**/funding-monitor-fixture', route => route.fulfill({ contentType: 'text/html', body: '<div id="routstr-wfund-status" data-quote="q1" data-mint="https://mint.test">Invoice QR</div>' }));
   const start = async tab => {
     await tab.goto('/funding-monitor-fixture');
@@ -54,6 +54,7 @@ test('one tab monitors invoices, shares committed receipts, and hands over when 
   await start(page);
   await expect.poll(() => page.evaluate(() => window.__fundingStats.checks)).toBe(1);
   const follower = await context.newPage();
+  await startPageCoverage(follower);
   await start(follower);
   expect(await follower.evaluate(() => window.__fundingStats.checks)).toBe(0);
   await page.evaluate(() => { window.__fundingStats.paid = true; });
@@ -62,7 +63,10 @@ test('one tab monitors invoices, shares committed receipts, and hands over when 
   await expect(page.locator('#routstr-wfund-status')).toContainText('Payment received');
   await expect(follower.locator('#routstr-wfund-status')).toContainText('Payment received');
   expect(await follower.evaluate(() => window.__fundingStats.checks)).toBe(0);
+  // Flush coverage before closing the leader to exercise real tab handover.
+  await stopPageCoverage(page, testInfo);
   await page.close();
   await expect.poll(() => follower.evaluate(() => window.__fundingStats.checks)).toBe(1);
+  await stopPageCoverage(follower, testInfo, 'follower');
   await follower.close();
 });
