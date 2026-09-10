@@ -367,10 +367,10 @@ export async function getMaxWithdrawable() {
 }
 
 /** Retry melting accumulated fee proofs. Returns { melted, remaining } */
-export async function retryFeeAutoMelt() {
+export async function retryFeeAutoMelt(operationMint = undefined) {
   return _withWalletLock(() => _withFeeLock(async () => {
     const cashuts = await _cashuLib();
-    const mintUrl = await getMintUrl();
+    const mintUrl = _normalizeMintUrl(operationMint || await getMintUrl());
     await _reconcileFeeMelt(mintUrl);
     const total = _sumProofsAsNumber(cashuts, await _getAllFeeProofs(mintUrl));
     if (!total) return { melted: 0, remaining: 0 };
@@ -502,23 +502,26 @@ async function _meltFeePool(wallet, cashuts, mintUrl, inputs, quote) {
 }
 
 /** Persist first; background remittance never owns the only copy of fee proofs. */
-let _autoMeltConsecutiveFailures = 0;
-function _recordAutoMeltFailure() {
-  _autoMeltConsecutiveFailures++;
+const _autoMeltFailuresByMint = new Map();
+function _recordAutoMeltResult(mintUrl, failed) {
+  let _autoMeltConsecutiveFailures = 0;
+  if (failed) _autoMeltConsecutiveFailures = (_autoMeltFailuresByMint.get(mintUrl) || 0) + 1;
+  if (failed) _autoMeltFailuresByMint.set(mintUrl, _autoMeltConsecutiveFailures);
+  else _autoMeltFailuresByMint.delete(mintUrl);
   if (_autoMeltConsecutiveFailures === 3 && typeof window !== 'undefined') {
     /** @type {any} */ (window).showNotification?.('Cashu fee payments are repeatedly unconfirmed. Check Settings → AI → Routstr for recovery.', 'warning', 7000);
   }
 }
 export async function _autoMeltFees(feeProofs, operationMint) {
+  let mintUrl;
   void _withWalletLock(() => _withFeeLock(async () => {
-    const mintUrl = operationMint || await getMintUrl();
+    mintUrl = _normalizeMintUrl(operationMint || await getMintUrl());
     await _saveFeeProofs(feeProofs, mintUrl);
     const cashuts = await _cashuLib();
     return _sumProofsAsNumber(cashuts, await _getAllFeeProofs(mintUrl)) >= FEE_MELT_MIN_SATS;
-  })).then(ready => ready ? retryFeeAutoMelt() : null).then(result => {
-    if (result?.error) _recordAutoMeltFailure();
-    else if (result?.melted > 0) _autoMeltConsecutiveFailures = 0;
-  }).catch(_recordAutoMeltFailure);
+  })).then(ready => ready ? retryFeeAutoMelt(mintUrl) : null).then(result => {
+    _recordAutoMeltResult(mintUrl, !!result?.error);
+  }).catch(() => { if (mintUrl) _recordAutoMeltResult(mintUrl, true); });
 }
 export async function getFeeBalance() {
   return _sumProofsAsNumber(await _cashuLib(), await _getAllFeeProofs());

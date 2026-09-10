@@ -65,6 +65,33 @@ describe('Routstr security boundaries', () => {
     await vi.waitFor(() => expect(notify).toHaveBeenCalledTimes(1));
     expect(await wallet.getFeeBalance()).toBe(120);
   });
+  it('isolates fee warnings by mint and resets the streak after a successful no-op', async () => {
+    await funded();
+    const notify = vi.fn();
+    vi.stubGlobal('window', { ...globalThis.window, showNotification: notify });
+    const { _autoMeltFees } = await import('../js/cashu-wallet-transfers.js');
+    const a = 'https://fee-a.test', b = 'https://fee-b.test';
+    let requests = 0;
+    const attempt = async (mint, inputs = []) => {
+      await _autoMeltFees(inputs, mint);
+      requests++;
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(requests));
+    };
+    await attempt(a, [proof('fee-a', 120)]);
+    await attempt(a);
+    await attempt(b, [proof('fee-b', 120)]);
+    expect(notify).not.toHaveBeenCalled();
+    globalThis.fetch.mockImplementation(async () => jsonResponse({ tag: 'payRequest', metadata: LNURL_METADATA,
+      callback: 'https://lnurl.test/pay', minSendable: 1000000, maxSendable: 2000000 }));
+    await attempt(a);
+    globalThis.fetch.mockImplementation(async () => { throw new Error('Offline mint'); });
+    await attempt(a);
+    await attempt(a);
+    expect(notify).not.toHaveBeenCalled();
+    await attempt(a);
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledTimes(1));
+    expect(stub.instances.some(wallet => wallet.url === a)).toBe(true);
+  });
   it('retains funded keys by canonical node and rejects forwarding another node key', async () => {
     const wallet = await funded();
     await saveRoutstrSessionKey('sk-a', 'https://node-a.test/');
