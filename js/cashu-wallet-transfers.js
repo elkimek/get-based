@@ -460,7 +460,10 @@ async function _lnAddressToInvoice(address, amountSats) {
   if (!cbRes.ok) throw new Error('Invoice request failed');
   const cbData = await cbRes.json();
   if (cbData.status === 'ERROR') throw new Error('Lightning address refused the invoice request');
-  return validateLightningInvoice(cbData.pr, amountSats, lnurl.metadata).invoice;
+  // Current LUD-06 requires the requested amount, not SHA256(metadata), to
+  // match the invoice. Providers may use a different description/hash.
+  // https://github.com/lnurl/luds/blob/luds/06.md
+  return validateLightningInvoice(cbData.pr, amountSats).invoice;
 }
 
 /** Recover fee melts before any reuse of the fee pool. */

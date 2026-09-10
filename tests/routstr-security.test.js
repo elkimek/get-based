@@ -149,6 +149,23 @@ describe('Routstr security boundaries', () => {
     expect(stub.meltQuotes.size).toBe(0);
     expect(await wallet.getWalletBalance()).toBe(1000);
   });
+  it.each([
+    { metadata: 'provider-specific invoice description' },
+    { description: 'Provider payment' },
+  ])('accepts current LUD-06 invoices with provider descriptions: %j', async options => {
+    const wallet = await funded(1000);
+    globalThis.fetch = lnurlFetch(makeTestInvoice(20, options));
+    await expect(wallet.withdrawToAddress('alice@lnurl.test', 20)).resolves.toMatchObject({ paid: true, amount: 20 });
+    expect(stub.meltQuotes.size).toBe(1);
+    expect(await wallet.getWalletBalance()).toBeLessThan(1000);
+  });
+  it('still rejects expired provider invoices before requesting a mint quote', async () => {
+    const wallet = await funded(1000);
+    globalThis.fetch = lnurlFetch(makeTestInvoice(20, { metadata: 'provider description', timestamp: 1 }));
+    await expect(wallet.withdrawToAddress('alice@lnurl.test', 20)).rejects.toThrow('expired');
+    expect(stub.meltQuotes.size).toBe(0);
+    expect(await wallet.getWalletBalance()).toBe(1000);
+  });
   it('validates signed invoices, expiry, metadata, checksum and integer amounts', async () => {
     const invoice = makeTestInvoice(50);
     expect(validateLightningInvoice(invoice, 50, LNURL_METADATA).msats).toBe(50000);
