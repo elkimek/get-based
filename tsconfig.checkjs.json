@@ -452,6 +452,7 @@
     "js/provider-wallet-delegates.js",
     "js/provider-wallet-panels.js",
     "js/provider-wallet-runtime.js",
+    "js/cashu-funding-coordinator.js",
     "js/cashu-wallet.js",
     "js/cashu-wallet-transfers.js",
     "js/cashu-wallet-store.js",
