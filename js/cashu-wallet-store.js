@@ -470,7 +470,7 @@ export async function _ensureNoPendingSwap() {
 }
 
 export function _isTerminalMintQuoteState(state) {
-  return String(state || '').toUpperCase() === 'EXPIRED';
+  return /^(EXPIRED|CANCELLED|CANCELED)$/.test(String(state || '').toUpperCase());
 }
 
 export async function _pendingQuoteKey(mintUrl, quoteId) {

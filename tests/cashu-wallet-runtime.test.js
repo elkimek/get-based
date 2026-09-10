@@ -251,6 +251,32 @@ describe('Cashu wallet runtime behavior', () => {
     expect(paidFunding.quote).toBe('mint-12');
   });
 
+  it.each(['EXPIRED', 'CANCELLED', 'CANCELED', 'cancelled'])('removes a %s funding quote durably without crediting funds', async state => {
+    const stub = installCashuStub();
+    const wallet = await loadWallet();
+    await wallet.setMintUrl('https://mint.getbased.test/Bitcoin');
+    const funding = await wallet.createFundingInvoice(7);
+    stub.mintQuoteStates.set(funding.quote, state);
+
+    const reloaded = await loadWallet();
+    await expect(reloaded.recoverPendingFunding()).resolves.toMatchObject({
+      checked: 1, pending: 0, cleared: 1, recovered: 0, failed: 0, balance: 0,
+      results: [{ quote: funding.quote, paid: false, state }],
+    });
+    const afterCleanup = await loadWallet();
+    await expect(afterCleanup.recoverPendingFunding()).resolves.toMatchObject({ checked: 0, recovered: 0, balance: 0 });
+  });
+
+  it('retains unrecognized funding states for later reconciliation', async () => {
+    const stub = installCashuStub();
+    const wallet = await loadWallet();
+    const funding = await wallet.createFundingInvoice(7);
+    stub.mintQuoteStates.set(funding.quote, 'UNKNOWN');
+    await expect(wallet.recoverPendingFunding()).resolves.toMatchObject({ checked: 1, pending: 1, cleared: 0 });
+    const reloaded = await loadWallet();
+    await expect(reloaded.recoverPendingFunding()).resolves.toMatchObject({ checked: 1, pending: 1, cleared: 0 });
+  });
+
   it('recovers already-issued funding outputs from the exact prepared quote after a lost response', async () => {
     const stub = installCashuStub();
     stub.failMintOutputsAlreadySigned = true;
