@@ -11,7 +11,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | --- | ---: |
 | Modules | 761 |
 | Internal import edges | 3213 |
-| Dynamic internal edges | 107 |
+| Dynamic internal edges | 106 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -1022,7 +1022,7 @@ Native browser modules shipped with the static application.
 - [`js/routstr-balance-settlement.js`](js/routstr-balance-settlement.js) → no in-scope imports
 - [`js/routstr-model-cache.js`](js/routstr-model-cache.js) → [`js/tinfoil-secure-fetch.js`](js/tinfoil-secure-fetch.js) *(dynamic)*
 - [`js/routstr-node-payments.js`](js/routstr-node-payments.js) → [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js), [`js/routstr-session.js`](js/routstr-session.js), [`js/routstr-validation.js`](js/routstr-validation.js)
-- [`js/routstr-session.js`](js/routstr-session.js) → [`js/api-provider-storage-runtime.js`](js/api-provider-storage-runtime.js), [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/crypto.js`](js/crypto.js) *(dynamic)*, [`js/routstr-validation.js`](js/routstr-validation.js)
+- [`js/routstr-session.js`](js/routstr-session.js) → [`js/api-provider-storage-runtime.js`](js/api-provider-storage-runtime.js), [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/crypto.js`](js/crypto.js), [`js/routstr-validation.js`](js/routstr-validation.js)
 - [`js/routstr-validation.js`](js/routstr-validation.js) → [`js/url-safety.js`](js/url-safety.js)
 
 </details>

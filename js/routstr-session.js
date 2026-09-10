@@ -1,6 +1,7 @@
 // @ts-check
 // A single encrypted credential value binds each bearer key to its node.
 import { getCachedKey, updateKeyCache } from './crypto-key-cache.js';
+import { encryptedGetItem } from './crypto.js';
 import { encryptedSetProviderItemRuntime, touchRoutstrSessionClock, dispatchAISettingsLocalChangedRuntime } from './api-provider-storage-runtime.js';
 import { canonicalRoutstrUrl } from './routstr-validation.js';
 export const ROUTSTR_SESSIONS_KEY = 'labcharts-routstr-sessions';
@@ -53,7 +54,6 @@ export function saveRoutstrSessionKey(key, nodeUrl = localStorage.getItem('labch
   const node = canonicalRoutstrUrl(nodeUrl);
   if (key && !/^(sk-|cashu)/.test(key)) throw new Error('Invalid Routstr credential');
   const run = async () => {
-    const { encryptedGetItem } = await import('./crypto.js');
     const fresh = await encryptedGetItem(KEY) || await encryptedGetItem(LEGACY_KEY);
     const sessions = parseRoutstrSessions(fresh, localStorage.getItem('labcharts-routstr-node'), Number(localStorage.getItem('labcharts-routstr-session-updated-at')));
     const currentKey = sessions[node]?.key || '';

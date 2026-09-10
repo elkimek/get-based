@@ -57,9 +57,10 @@ function _queryRelay(relayUrl) {
       ws.onmessage = (msg) => {
         try {
           const data = JSON.parse(msg.data);
-          if (data[0] === 'EVENT' && data[1] === subId && events.length < 50 && verifyRoutstrAnnouncement(data[2])) {
+          const verified = verifyRoutstrAnnouncement(data[2]);
+          if (data[0] === 'EVENT' && data[1] === subId && events.length < 50 && verified) {
             events.push(data[2]);
-          } else if (data[0] === 'EOSE') {
+          } else if (data[0] === 'EOSE' && data[1] === subId) {
             // End of stored events — close connection
             clearTimeout(timer);
             ws.close();
