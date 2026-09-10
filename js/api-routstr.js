@@ -145,6 +145,7 @@ export async function callRoutstrAPI(opts) {
         {
           ...opts,
           webSearch: false,
+          requestRetries: 0,
           requestTimeoutMs: opts.requestTimeoutMs || ROUTSTR_PRIVATE_REQUEST_TIMEOUT_MS,
         },
         { 'X-Routstr-Model': modelId },
@@ -167,23 +168,13 @@ export async function callRoutstrAPI(opts) {
     key,
     modelId,
     'Routstr',
-    opts
+    { ...opts, requestRetries: 0 }
   );
 }
 
 export async function createRoutstrAccount(cashuToken) {
-  if (!cashuToken) throw new Error('A Cashu token is required to create a wallet');
-  const res = await fetch(_requireNodeUrl() + '/v1/balance/create?initial_balance_token=' + encodeURIComponent(cashuToken));
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    const detail = err?.detail;
-    const msg = typeof detail === 'string' ? detail
-      : (detail && detail.error) ? detail.error.message
-      : Array.isArray(detail) ? detail.map(d => d.msg || JSON.stringify(d)).join('; ')
-      : err?.message;
-    throw new Error(msg || 'Failed to create Routstr wallet: ' + res.status);
-  }
-  return res.json();
+  const { depositTokenToNode } = await import('./cashu-wallet.js');
+  return depositTokenToNode(_requireNodeUrl(), cashuToken);
 }
 
 export async function getRoutstrBalance() {

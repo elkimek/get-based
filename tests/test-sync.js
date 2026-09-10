@@ -291,7 +291,8 @@ await import('../js/settings.js');
     serviceWorkerSrc.includes("'/js/sync-schema.js'"));
   assert('sync-apply.js lazily owns inbound AI/display apply helpers and chat compatibility exports',
     syncPullSrc.includes("import('./sync-apply.js')")
-      && syncApplySrc.includes('export async function applyAISettings')
+      && syncApplySrc.includes('export function applyAISettings')
+      && syncApplySrc.includes('withRoutstrSessionLock')
       && syncApplySrc.includes('export function applyDisplayPrefs')
       && syncApplySrc.includes("from './sync-chat-apply.js'"));
   assert('service worker precaches sync-apply.js',

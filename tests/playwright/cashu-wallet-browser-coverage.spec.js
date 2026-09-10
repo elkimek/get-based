@@ -1,4 +1,6 @@
+import { installWalletFixtures } from '../helpers/wallet-browser-fixtures.js';
 import { expect, test } from './coverage-fixture.js';
+test.beforeEach(async ({ page }) => installWalletFixtures(page));
 
 test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, and fee paths', async ({ page }) => {
   await page.route('**/cashu-wallet-blank', route => route.fulfill({
@@ -8,6 +10,8 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
   await page.goto('/cashu-wallet-blank', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
+    const { makeTestInvoice, LNURL_METADATA } = await import('/wallet-test-lightning-invoices.js');
+    const { validateLightningInvoice } = await import('/js/routstr-validation.js');
     const oldGlobals = {
       cashuts: window.cashuts,
       bip39: window.bip39,
@@ -70,7 +74,7 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
       }
 
       async createMintQuoteBolt11(amount) {
-        return { quote: `mint-${amount}`, request: `lnbc-mint-${amount}`, amount, state: 'UNPAID' };
+        return { quote: `mint-${amount}`, request: makeTestInvoice(amount), amount, state: 'UNPAID' };
       }
 
       async checkMintQuoteBolt11(quoteId) {
@@ -89,8 +93,8 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
       }
 
       async createMeltQuoteBolt11(invoice) {
-        const amount = Number(String(invoice).match(/(\d+)/)?.[1] || 10);
-        const quote = { quote: `quote-${amount}-${state.meltQuotes.size}`, amount, fee_reserve: 5, state: 'UNPAID' };
+        const amount = validateLightningInvoice(invoice).msats / 1000;
+        const quote = { quote: `quote-${amount}-${state.meltQuotes.size}`, amount, request: invoice, fee_reserve: 5, state: 'UNPAID' };
         state.meltQuotes.set(quote.quote, quote);
         return quote;
       }
@@ -112,6 +116,8 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
       getEncodedToken: ({ mint, proofs }) => `cashu:${mint}:${sumProofs(proofs)}:${proofs.map(item => item.secret).join(',')}`,
       getTokenMetadata: () => ({ mint: 'https://mint.browser-wallet.test/Bitcoin', unit: 'sat' }),
     };
+    const { installDurableBrowserStub } = await import('/wallet-test-cashu-browser-durable.js');
+    const mintStub = installDurableBrowserStub(window.cashuts, () => sumProofs(state.receiveQueue[0] || []));
     window.bip39 = {
       generateMnemonic: async () => 'abandon ability able about above absent absorb abstract absurd abuse access accident',
       validateMnemonic: async mnemonic => String(mnemonic).trim().split(/\s+/).length === 12,
@@ -122,7 +128,7 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
       const href = String(url);
       if (href === 'https://getbased.test/.well-known/lnurlp/alice') {
         return new Response(JSON.stringify({
-          callback: 'https://lnurl.getbased.test/callback?tag=pay',
+          tag: 'payRequest', metadata: LNURL_METADATA, callback: 'https://lnurl.getbased.test/callback?tag=pay',
           minSendable: 1000,
           maxSendable: 200000,
         }), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -130,7 +136,7 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
       if (href.startsWith('https://lnurl.getbased.test/callback')) {
         const amountMsats = Number(new URL(href).searchParams.get('amount'));
         state.lnurlAmounts.push(amountMsats);
-        return new Response(JSON.stringify({ pr: `lnbc${amountMsats / 1000}` }), {
+        return new Response(JSON.stringify({ pr: makeTestInvoice(amountMsats / 1000) }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         });
@@ -176,6 +182,9 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
       isEncryptedObject: cryptoStore.isEncryptedObject,
     });
     const wallet = await import(`/js/cashu-wallet.js?cashuWalletCoverage=${Date.now()}`);
+    const { configureApiProviderStorageRuntimeDeps } = await import('/js/api-provider-storage-runtime.js');
+    configureApiProviderStorageRuntimeDeps({ encryptedSetItem: cryptoStore.encryptedSetCredentialItem });
+    const { saveRoutstrSessionKey } = await import('/js/routstr-session.js');
     const outcomes = {};
 
     try {
@@ -199,7 +208,7 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
       const funding = await wallet.createFundingInvoice(7);
       const funded = await wallet.checkFundingStatus(funding.quote);
       const unpaid = await wallet.checkFundingStatus('mint-unpaid');
-      outcomes.fundingPaths = funding.invoice === 'lnbc-mint-7'
+      outcomes.fundingPaths = validateLightningInvoice(funding.invoice, 7).msats === 7000
         && funded.paid === true
         && funded.balance === 7
         && unpaid.paid === false;
@@ -214,24 +223,29 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
         && sent.amount === 4
         && sent.remaining === 13
         && pendingSentToken === sent.token;
+      mintStub.spendToken(await wallet.recoverPendingWithdraw());
       await wallet.clearPendingWithdraw();
 
+      await saveRoutstrSessionKey('sk-existing', 'https://node.wallet-browser.test');
       try {
         await wallet.depositToNode('https://node.wallet-browser.test///', 5, 'sk-existing');
         outcomes.depositFailureRecoverable = false;
       } catch (error) {
         const pending = await wallet.recoverPendingDeposit();
-        outcomes.depositFailureRecoverable = /token rejected; mint unavailable/.test(error.message)
+        outcomes.depositFailureRecoverable = /outcome is unconfirmed/.test(error.message)
           && state.topupAuth === 'Bearer sk-existing'
           && pending.includes('send-5');
       }
+      state.receiveQueue.unshift([proof('deposit-reclaimed', 5)]);
+      await wallet.receiveToken(await wallet.recoverPendingDeposit());
       await wallet.clearPendingDeposit();
+      await saveRoutstrSessionKey('', 'https://node.wallet-browser.test');
       outcomes.clearPendingDeposit = await wallet.recoverPendingDeposit() === null;
 
       await wallet.receiveToken('cashuA-second');
       const created = await wallet.depositToNode('https://node.wallet-browser.test', 4);
       outcomes.depositSuccessClearsPending = created.api_key === 'sk-created'
-        && state.createDepositUrl.includes('/v1/balance/create?initial_balance_token=')
+        && state.createDepositUrl.endsWith('/v1/balance/create')
         && await wallet.recoverPendingDeposit() === null;
 
       const imported = await wallet.importWallet('cashuA-import');
@@ -257,7 +271,7 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
         && state.lnurlAmounts.length > 0;
 
       await wallet.receiveToken('cashuA-third');
-      const quote = await wallet.createWithdrawQuote('lnbc10');
+      const quote = await wallet.createWithdrawQuote(makeTestInvoice(10));
       state.failMelt = true;
       try {
         await wallet.executeWithdraw(quote.quote);
@@ -267,6 +281,7 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
         outcomes.failedMeltRecoverable = /melt failed/.test(error.message)
           && pendingWithdraw.includes('send-15');
       }
+      mintStub.spendToken(await wallet.recoverPendingWithdraw());
       await wallet.clearPendingWithdraw();
       outcomes.clearPendingWithdraw = await wallet.recoverPendingWithdraw() === null;
       state.failMelt = false;
@@ -281,7 +296,7 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
         && await wallet.getFeeBalance() === 0
         && (await wallet.retryFeeAutoMelt()).melted === 0;
       try {
-        await wallet.redeemFees('lnbc1');
+        await wallet.redeemFees(makeTestInvoice(1));
         outcomes.redeemEmptyFeesRejects = false;
       } catch (error) {
         outcomes.redeemEmptyFeesRejects = /No fee proofs/.test(error.message);
@@ -334,6 +349,8 @@ test('cashu wallet browser coverage exercises fee proof auto-melt storage', asyn
   await page.goto('/cashu-wallet-fee-blank', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
+    const { makeTestInvoice, LNURL_METADATA } = await import('/wallet-test-lightning-invoices.js');
+    const { validateLightningInvoice } = await import('/js/routstr-validation.js');
     const oldGlobals = {
       cashuts: window.cashuts,
       bip39: window.bip39,
@@ -377,8 +394,8 @@ test('cashu wallet browser coverage exercises fee proof auto-melt storage', asyn
       }
 
       async createMeltQuoteBolt11(invoice) {
-        const amount = Number(String(invoice).match(/(\d+)/)?.[1] || 0);
-        return { quote: `fee-quote-${amount}`, amount, fee_reserve: 5, state: 'UNPAID' };
+        const amount = validateLightningInvoice(invoice).msats / 1000;
+        return { quote: `fee-quote-${amount}`, amount, request: invoice, fee_reserve: 5, state: 'UNPAID' };
       }
 
       async meltProofsBolt11(quote, proofs) {
@@ -393,13 +410,15 @@ test('cashu wallet browser coverage exercises fee proof auto-melt storage', asyn
       getEncodedToken: ({ mint, proofs }) => `cashu:${mint}:${sumProofs(proofs)}:${proofs.map(item => item.secret).join(',')}`,
       getTokenMetadata: () => ({ mint: 'https://mint.fee-coverage.test/Bitcoin', unit: 'sat' }),
     };
+    const { installDurableBrowserStub } = await import('/wallet-test-cashu-browser-durable.js');
+    installDurableBrowserStub(window.cashuts, () => sumProofs(state.receiveQueue[0] || []));
     window.bip39 = oldGlobals.bip39 || {};
     window.showNotification = () => {};
     window.fetch = async url => {
       const href = String(url);
       if (href === 'https://primal.net/.well-known/lnurlp/denimgecko11') {
         return new Response(JSON.stringify({
-          callback: 'https://lnurl.primal.test/callback?tag=pay',
+          tag: 'payRequest', metadata: LNURL_METADATA, callback: 'https://lnurl.primal.test/callback?tag=pay',
           minSendable: 1000,
           maxSendable: 200000,
         }), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -407,7 +426,7 @@ test('cashu wallet browser coverage exercises fee proof auto-melt storage', asyn
       if (href.startsWith('https://lnurl.primal.test/callback')) {
         const amountMsats = Number(new URL(href).searchParams.get('amount'));
         state.lnurlAmounts.push(amountMsats);
-        return new Response(JSON.stringify({ pr: `lnbc${amountMsats / 1000}` }), {
+        return new Response(JSON.stringify({ pr: makeTestInvoice(amountMsats / 1000) }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         });
@@ -483,6 +502,8 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
   await page.goto('/cashu-wallet-panels-blank', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
+    const { makeTestInvoice, LNURL_METADATA } = await import('/wallet-test-lightning-invoices.js');
+    const { validateLightningInvoice } = await import('/js/routstr-validation.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const [walletStore, cryptoStore] = await Promise.all([
       import('/js/cashu-wallet-store.js'),
@@ -582,7 +603,7 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       };
       window.cashuGetBalance = async () => 1500;
       window.cashuCheckProofStates = async () => 1400;
-      window.cashuCreateFundingInvoice = async amount => ({ quote: `quote-${amount}`, invoice: `lnbc${amount}` });
+      window.cashuCreateFundingInvoice = async amount => ({ quote: `quote-${amount}`, invoice: makeTestInvoice(amount) });
       window.cashuCheckFundingStatus = async quote => ({ paid: quote === 'quote-1000', fee: 0, balance: 1500 });
       window.cashuRecoverPendingFunding = async () => ({ checked: 1, recovered: 777, pending: 0, failed: 0, balance: 2277, errors: [] });
       window.cashuReceiveToken = async token => {
@@ -596,6 +617,7 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       };
       window.cashuDepositToNode = async (nodeUrl, amount, existingKey) => {
         calls.push(['depositToNode', nodeUrl, amount, existingKey || '']);
+        await (await import('/js/api.js')).saveRoutstrKey('sk-wallet-browser', nodeUrl);
         return { api_key: 'sk-wallet-browser', balance: amount };
       };
       window.cashuHasWalletSeed = async () => true;
@@ -605,8 +627,8 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       window.cashuExportWallet = async () => 'cashuAbackup';
       window.cashuSendAsToken = async amount => ({ token: `cashuAsent-${amount}`, amount, remaining: 1500 - amount });
       window.cashuCreateWithdrawQuote = async invoice => ({ quote: `quote-${invoice}`, amount: 200, fee_reserve: 5 });
-      window.cashuExecuteWithdraw = async quote => calls.push(['executeWithdraw', quote]);
-      window.cashuWithdrawToAddress = async (address, amount) => calls.push(['withdrawAddress', address, amount]);
+      window.cashuExecuteWithdraw = async quote => { calls.push(['executeWithdraw', quote]); return { paid: true }; };
+      window.cashuWithdrawToAddress = async (address, amount) => { calls.push(['withdrawAddress', address, amount]); return { paid: true, amount }; };
       window.cashuGetMaxWithdrawable = getMaxWithdrawable;
       window.cashuGetFeePct = () => 0;
       window.nostrDiscoverNodes = async () => [
@@ -811,7 +833,7 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       document.getElementById('routstr-wallet-fund-area').appendChild(blurProbe);
       blurProbe.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
       await wait(0);
-      const blurDelegateFunds = document.getElementById('routstr-wfund-poll')?.textContent.includes('Waiting for payment');
+      const blurDoesNotCreateInvoice = !document.getElementById('routstr-wfund-poll');
 
       const seed = document.createElement('div');
       seed.dataset.routstrWalletAction = 'toggle-seed-blur';
@@ -855,7 +877,7 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
         executeWithdrawDelegates,
         tokenPresetCreatesToken,
         copyDelegateWritesToken,
-        blurDelegateFunds,
+        blurDoesNotCreateInvoice,
         seedBlurToggles,
       };
     } finally {
@@ -901,6 +923,8 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
   await page.goto('/cashu-wallet-delegates-blank', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
+    const { makeTestInvoice, LNURL_METADATA } = await import('/wallet-test-lightning-invoices.js');
+    const { validateLightningInvoice } = await import('/js/routstr-validation.js');
     const calls = [];
     const clipboardWrites = [];
     const hadClipboard = Object.prototype.hasOwnProperty.call(window.navigator, 'clipboard');
@@ -1054,9 +1078,9 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
         depositPreset: calls.some(item => item[0] === 'depositNode' && item[2] === 77)
           && document.getElementById('routstr-deposit-amount').value === '77',
         recoverAttempted: calls.some(item => item[0] === 'recoverAttempt' && item[1] === 'cashuArecover'),
-        recoverWithdrawClearsSession: calls.some(item => item[0] === 'recoverAttempt' && item[1] === 'cashuWithdrawRecover')
+        recoverWithdrawPreservesSession: calls.some(item => item[0] === 'recoverAttempt' && item[1] === 'cashuWithdrawRecover')
           && calls.filter(item => item[0] === 'clearPendingWithdraw').length === 1
-          && calls.filter(item => item[0] === 'clearRoutstrNodeSession').length >= 2,
+          && calls.filter(item => item[0] === 'clearRoutstrNodeSession').length === 0,
         nodeActions: ['deposit', 'withdraw', 'browse'].every(action => calls.some(item => item[0] === 'activeNode' && item[1] === action)),
         walletActions: ['walletFund', 'walletWithdraw', 'walletSeed', 'walletBackup'].every(name => calls.some(item => item[0] === name)),
         seedChangeAndContinue: document.getElementById('routstr-seed-continue').disabled === false
@@ -1069,7 +1093,7 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
           && calls.some(item => item[0] === 'sendToken' && item[1] === 55)
           && calls.some(item => item[0] === 'executeWithdraw' && item[1] === 'quote-delegate'),
         withdrawMaxAndKeyBlur: document.getElementById('routstr-withdraw-amount').value === '888'
-          && calls.filter(item => item[0] === 'fundCustom').length >= 2
+          && calls.filter(item => item[0] === 'fundCustom').length === 1
           && calls.some(item => item[0] === 'walletFund'),
         seedBlurToggled: document.getElementById('seed-blur').style.filter === '',
       };

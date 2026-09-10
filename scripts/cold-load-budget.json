@@ -3,9 +3,9 @@
   "route": "/app",
   "scenario": "Fresh mobile returning-user load with browser cache and service workers disabled",
   "maximums": {
-    "requests": 324,
+    "requests": 325,
     "transferBytes": 1193220,
-    "decodedBytes": 3320000
+    "decodedBytes": 3327000
   },
   "reference": {
     "requests": 276,
@@ -25,7 +25,10 @@
     "routeAwareAiConsentDecodedBytes": 3270632,
     "cliProviderRoutingRequests": 324,
     "cliProviderRoutingTransferBytes": 1183242,
-    "cliProviderRoutingDecodedBytes": 3319406
+    "cliProviderRoutingDecodedBytes": 3319406,
+    "routstrNodeSessionsRequests": 325,
+    "routstrNodeSessionsTransferBytes": 1185315,
+    "routstrNodeSessionsDecodedBytes": 3325198
   },
   "referenceCommit": "95d13199",
   "measuredAt": "2026-09-05"

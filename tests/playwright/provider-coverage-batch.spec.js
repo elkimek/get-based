@@ -469,6 +469,7 @@ test('provider panels cover provider switching key saves balances custom API and
     const panels = await import(panelsUrl);
     const cloudConsent = await import('/js/cloud-ai-consent.js');
     const cryptoStore = await import('/js/crypto.js');
+    const nodeSessions = await import('/js/routstr-session.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const jsonResponse = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), {
       status,
@@ -491,6 +492,7 @@ test('provider panels cover provider switching key saves balances custom API and
       'labcharts-venice-pricing',
       'labcharts-venice-vision-models',
       'labcharts-routstr-key',
+      'labcharts-routstr-sessions',
       'labcharts-routstr-node',
       'labcharts-routstr-model',
       'labcharts-routstr-models',
@@ -535,6 +537,7 @@ test('provider panels cover provider switching key saves balances custom API and
       cryptoStore.updateKeyCache('labcharts-openrouter-key', '');
       cryptoStore.updateKeyCache('labcharts-venice-key', '');
       cryptoStore.updateKeyCache('labcharts-routstr-key', '');
+      cryptoStore.updateKeyCache('labcharts-routstr-sessions', '');
       cryptoStore.updateKeyCache('labcharts-ppq-key', '');
       cryptoStore.updateKeyCache('labcharts-custom-key', '');
       const routstrScope = cloudConsent.cloudAIConsentDetails('routstr', {
@@ -689,17 +692,20 @@ test('provider panels cover provider switching key saves balances custom API and
       `;
       await panels.handleSaveRoutstrKey();
       await wait(0);
-      const storedRoutstrKey = localStorage.getItem('labcharts-routstr-key');
+      const storedRoutstrKey = localStorage.getItem('labcharts-routstr-sessions');
       const routstrSaveRendersModels = document.getElementById('routstr-key-status')?.textContent.includes('Connected')
         && storedRoutstrKey?.startsWith('d1:') === true
         && !storedRoutstrKey.includes('sk-routstr-good')
-        && await cryptoStore.encryptedGetItem('labcharts-routstr-key') === 'sk-routstr-good'
+        && nodeSessions.getRoutstrSessionKey() === 'sk-routstr-good'
+        && await cryptoStore.encryptedGetItem('labcharts-routstr-key') === ''
         && document.getElementById('routstr-model-select')?.value === 'claude-sonnet-5'
         && JSON.parse(localStorage.getItem('labcharts-routstr-vision-models') || '[]').includes('claude-sonnet-4.6');
 
-      panels.handleRemoveRoutstrKey();
+      await nodeSessions.saveRoutstrSessionKey('sk-other-node', 'https://other-node.example');
+      await panels.handleRemoveRoutstrKey();
       const routstrRemoveClearsKeyModelsAndPricing =
-        localStorage.getItem('labcharts-routstr-key') === null
+        nodeSessions.getRoutstrSessionKey() === ''
+        && nodeSessions.getRoutstrSessionKey('https://other-node.example') === 'sk-other-node'
         && localStorage.getItem('labcharts-routstr-models') === null
         && localStorage.getItem('labcharts-routstr-model') === null
         && localStorage.getItem('labcharts-routstr-pricing') === null
@@ -774,6 +780,7 @@ test('provider panels cover provider switching key saves balances custom API and
       cryptoStore.updateKeyCache('labcharts-openrouter-key', oldStorage['labcharts-openrouter-key'] || '');
       cryptoStore.updateKeyCache('labcharts-venice-key', oldStorage['labcharts-venice-key'] || '');
       cryptoStore.updateKeyCache('labcharts-routstr-key', oldStorage['labcharts-routstr-key'] || '');
+      cryptoStore.updateKeyCache('labcharts-routstr-sessions', null);
       cryptoStore.updateKeyCache('labcharts-ppq-key', oldStorage['labcharts-ppq-key'] || '');
       cryptoStore.updateKeyCache('labcharts-custom-key', oldStorage['labcharts-custom-key'] || '');
       if (oldSessionPrevious == null) sessionStorage.removeItem('or_previous_ai_provider');

@@ -3,6 +3,7 @@
 // Uses cashu-ts (vendored IIFE → global `cashuts`) for protocol operations.
 // Durable proofs, counters, recovery journals, and seed storage live in cashu-wallet-store.js.
 
+import { positiveSats, validateLightningInvoice } from './routstr-validation.js';
 import { getErrorMessage } from './caught-error.js';
 import { isDebugMode, loadScriptOnce } from './utils.js';
 import { isValidExternalUrl } from './url-safety.js';
@@ -11,6 +12,9 @@ import {
   DEFAULT_MINT,
   PENDING_QUOTE_PREFIX,
   PENDING_SWAP_KEY,
+  PENDING_RECEIVE_PREFIX,
+  _digestStorageKey,
+  _recoverAllPendingOperations,
   configureCashuWalletStore,
   configureCashuWalletStoreCryptoDeps,
   _amountToNumber,
@@ -46,6 +50,10 @@ import {
 } from './cashu-wallet-transfers.js';
 
 export {
+  depositTokenToNode,
+  refundNodeToToken,
+  finishNodeRefund,
+  getPendingNodeRefund,
   clearPendingDeposit,
   clearPendingWithdraw,
   createWithdrawQuote,
@@ -79,10 +87,14 @@ let _cashuLibLoad = null;
 let _bip39Load = null;
 
 async function _cashuLib() {
-  if (cashuWindow.cashuts) return cashuWindow.cashuts;
+  if (cashuWindow.cashuts) {
+    cashuWindow.cashuts.setGlobalRequestOptions?.({ requestTimeout: 30000, redirect: 'error' });
+    return cashuWindow.cashuts;
+  }
   if (!_cashuLibLoad) {
     _cashuLibLoad = loadScriptOnce('/vendor/cashu-ts.js').then(() => {
       if (!cashuWindow.cashuts) throw new Error('Cashu library did not initialize');
+      cashuWindow.cashuts.setGlobalRequestOptions?.({ requestTimeout: 30000, redirect: 'error' });
       return cashuWindow.cashuts;
     });
   }
@@ -118,6 +130,8 @@ function _withWalletLock(fn) {
   if (navigator.locks?.request) {
     return navigator.locks.request(WALLET_LOCK_NAME, { mode: 'exclusive' }, () => _withModuleWalletLock(fn));
   }
+  // Production browser mutations require a lock shared by all tabs.
+  if (globalThis.document?.defaultView) return Promise.reject(new Error('This browser lacks Web Locks support required to protect wallet funds across tabs. Update your browser before using the wallet.'));
   return _withModuleWalletLock(fn);
 }
 
@@ -149,13 +163,15 @@ async function _getWallet(mintUrl) {
     opts.bip39seed = await bip39.mnemonicToSeed(mnemonic);
     opts.counterSource = _createCounterSource(await _counterNamespaceForSeed(opts.bip39seed));
   }
-  _wallet = new Wallet(url, opts);
-  await _wallet.loadMint();
+  const wallet = new Wallet(url, opts);
+  await wallet.loadMint();
+  _wallet = wallet;
   _mintUrl = url;
-  return _wallet;
+  return wallet;
 }
 
 configureCashuWalletStore({
+  resetWallet: () => { _wallet = null; _mintUrl = null; },
   getMintUrl: () => getMintUrl(),
   getWallet: mintUrl => _getWallet(mintUrl),
   cashuLib: () => _cashuLib(),
@@ -181,7 +197,7 @@ export async function setMintUrl(url) {
       const [proofs, feeProofs, quotes, pendingDeposit, pendingWithdraw, pendingSwap] = await Promise.all([
         _getAllProofs(currentMint),
         _getAllFeeProofs(currentMint),
-        _getMetaEntries(PENDING_QUOTE_PREFIX),
+        _getMetaEntries('pending').then(entries => entries.filter(entry => entry.value)),
         _getMeta('pendingDeposit'),
         _getMeta('pendingWithdraw'),
         _getMeta(PENDING_SWAP_KEY),
@@ -258,7 +274,7 @@ async function _restoreProofsFromSeed(mnemonic, restoreMintUrl) {
     const [proofs, feeProofs, pendingQuotes, pendingDeposit, pendingWithdraw, pendingSwap] = await Promise.all([
       _getAllProofs(mintUrl),
       _getAllFeeProofs(mintUrl),
-      _getMetaEntries(PENDING_QUOTE_PREFIX),
+      _getMetaEntries('pending').then(entries => entries.filter(entry => entry.value)),
       _getMeta('pendingDeposit'),
       _getMeta('pendingWithdraw'),
       _getMeta(PENDING_SWAP_KEY),
@@ -328,17 +344,25 @@ function _normalizeMintUrlForCompare(url) {
   return _normalizeMintUrl(url);
 }
 
+async function _assertNoForeignReceive(mintUrl) {
+  const pending = await _getMetaEntries(PENDING_RECEIVE_PREFIX);
+  if (pending.some(({ value }) => value && value.mint !== mintUrl)) {
+    throw new Error('Recover the incoming token at its original mint before funding another mint');
+  }
+}
+
 async function _prepareTokenMint(cashuts, tokenString) {
   const tokenMint = extractTokenMintUrl(cashuts, tokenString);
   if (!tokenMint) throw new Error('Cannot determine the Cashu token mint');
   if (!isValidExternalUrl(tokenMint)) throw new Error('Cashu token mint must be public https://');
   const currentMint = await getMintUrl();
+  await _assertNoForeignReceive(tokenMint);
   const changed = _normalizeMintUrlForCompare(tokenMint) !== _normalizeMintUrlForCompare(currentMint);
   if (changed) {
     const [proofs, feeProofs, quotes, pendingDeposit, pendingWithdraw, pendingSwap] = await Promise.all([
       _getAllProofs(currentMint),
       _getAllFeeProofs(currentMint),
-      _getMetaEntries(PENDING_QUOTE_PREFIX),
+      _getMetaEntries('pending').then(entries => entries.filter(entry => entry.value)),
       _getMeta('pendingDeposit'),
       _getMeta('pendingWithdraw'),
       _getMeta(PENDING_SWAP_KEY),
@@ -351,7 +375,7 @@ async function _prepareTokenMint(cashuts, tokenString) {
     const pendingWithdrawTokens = [pendingWithdrawRecord?.token, pendingWithdrawRecord?.recoveryToken].filter(Boolean);
     const unrelatedPendingDeposit = pendingDepositTokens.length && !pendingDepositTokens.includes(tokenString);
     const unrelatedPendingWithdraw = pendingWithdrawTokens.length && !pendingWithdrawTokens.includes(tokenString);
-    if (proofs.length || feeProofs.length || quotes.length || unrelatedPendingDeposit || unrelatedPendingWithdraw || pendingSwap) {
+    if (proofs.length || feeProofs.length || quotes.some(entry => { let value = entry.value; if (typeof value === 'string') { try { value = JSON.parse(value); } catch {} } return value !== tokenString && value?.incomingToken !== tokenString && value?.token !== tokenString && value?.recoveryToken !== tokenString; }) || unrelatedPendingDeposit || unrelatedPendingWithdraw || pendingSwap) {
       throw new Error('This token uses a different mint. Finish or back up the current wallet before switching mints.');
     }
   }
@@ -368,7 +392,7 @@ export async function restoreWalletFromSeed(mnemonic) {
 /** Get wallet balance in sats (prunes spent proofs on first call / after cooldown) */
 export async function getWalletBalance() {
   return _withWalletLock(async () => {
-    try { await _recoverPendingSwapUnlocked(); } catch (e) {
+    try { await _recoverAllPendingOperations(); } catch (e) {
       if (isDebugMode()) console.warn('[cashu-wallet] Pending swap recovery deferred:', getErrorMessage(e));
     }
     const mintUrl = await getMintUrl();
@@ -380,7 +404,7 @@ export async function getWalletBalance() {
 
 /** Retry a crash-interrupted prepared swap without deleting its inputs. */
 export async function recoverPendingWalletOperation() {
-  return _withWalletLock(() => _recoverPendingSwapUnlocked());
+  return _withWalletLock(() => _recoverAllPendingOperations());
 }
 
 /** Force-check all proof states against mint and return updated balance */
@@ -395,13 +419,17 @@ export async function checkProofStates() {
 /** Create a Lightning invoice to fund the wallet.
  *  Returns { quote, invoice, amount } */
 export async function createFundingInvoice(amountSats) {
+  positiveSats(amountSats);
   return _withWalletLock(async () => {
     const cashuts = await _cashuLib();
     const mintUrl = await getMintUrl();
+    await _assertNoForeignReceive(mintUrl);
     const currentBal = _sumProofsAsNumber(cashuts, await _pruneSpentProofs(false, mintUrl));
-    if (currentBal + amountSats > MAX_WALLET_BALANCE) throw new Error('Would exceed ' + MAX_WALLET_BALANCE.toLocaleString() + ' sats safety cap. Withdraw some sats first.');
+    const pendingAmount = (await _getMetaEntries('pending')).reduce((sum, entry) => sum + (entry.key.startsWith(PENDING_QUOTE_PREFIX) ? _pendingQuoteDetails(entry, mintUrl).amount : entry.key.startsWith(PENDING_RECEIVE_PREFIX) ? _amountToNumber(entry.value?.incomingAmount) : 0), 0);
+    if (currentBal + pendingAmount + amountSats > MAX_WALLET_BALANCE) throw new Error('Would exceed ' + MAX_WALLET_BALANCE.toLocaleString() + ' sats safety cap. Withdraw some sats first.');
     const wallet = await _getWallet(mintUrl);
     const quote = await wallet.createMintQuoteBolt11(amountSats);
+    validateLightningInvoice(quote.request, amountSats);
     await _setMeta(await _pendingQuoteKey(mintUrl, quote.quote), {
       quote: quote.quote,
       amount: amountSats,
@@ -426,6 +454,19 @@ export async function checkFundingStatus(quoteId) {
     const mintUrl = await getMintUrl();
     const wallet = await _getWallet(mintUrl);
     const checked = await wallet.checkMintQuoteBolt11(quoteId);
+    // A response can be lost after the mint issued the exact journaled outputs.
+    // Recover those outputs automatically instead of waiting forever for PAID.
+    if (String(checked.state).toUpperCase() === 'ISSUED') {
+      const journal = await _getMeta(PENDING_SWAP_KEY);
+      if (journal?.operation === 'mint' && journal.quoteId === quoteId && journal.mint === mintUrl) {
+        const exact = await _recoverPendingSwapUnlocked();
+        if (exact.recovered > 0) return {
+          paid: true, minted: exact.recovered, fee: 0,
+          balance: _sumProofsAsNumber(cashuts, await _getAllProofs(mintUrl)),
+          recoveredFromJournal: true,
+        };
+      }
+    }
     if (checked.state === cashuts.MintQuoteState.PAID) {
       const namespacedKey = await _pendingQuoteKey(mintUrl, quoteId);
       const previousNamespacedKey = _legacyNamespacedPendingQuoteKey(mintUrl, quoteId);
@@ -457,9 +498,7 @@ export async function checkFundingStatus(quoteId) {
             pendingKey
           );
         }
-        proofs = preparedMint
-          ? await wallet.completeMint(preparedMint.preview)
-          : await wallet.mintProofsBolt11(amount, quoteId);
+        proofs = await wallet.completeMint(preparedMint.preview);
       } catch (e) {
         if (!_looksLikeAlreadyIssuedMintError(e)) throw e;
         if (preparedMint || await _getMeta(PENDING_SWAP_KEY)) {
@@ -471,27 +510,16 @@ export async function checkFundingStatus(quoteId) {
             }
           } catch {}
         }
-        const mnemonic = await _loadMnemonic();
-        if (!mnemonic) throw e;
-        const before = _sumProofsAsNumber(cashuts, await _getAllProofs(mintUrl));
-        const restored = await _restoreProofsFromSeed(mnemonic, mintUrl);
-        const recovered = Math.max(0, restored.balance - before);
-        if (recovered <= 0) throw e;
-        await _deleteMeta(pendingKey);
-        return { paid: true, balance: restored.balance, minted: recovered, fee: 0, recoveredFromRestore: true };
+        // A seed scan cannot attribute unrelated recovered proofs to this quote.
+        throw e;
       }
       const total = _sumProofsAsNumber(cashuts, proofs);
       const fee = Math.ceil(total * WALLET_FEE_PCT);
 
-      if (fee > 0 && total > fee) {
-        const { keep, send } = await wallet.send(fee, proofs, { includeFees: true });
-        await _saveProofs(keep, mintUrl);
-        _autoMeltFees(send, mintUrl);
-        if (isDebugMode()) console.log('[cashu-wallet] Lightning deposit fee collected:', fee, 'sats');
-      } else {
-        await _saveProofs(proofs, mintUrl);
-      }
-      if (preparedMint) await _deleteMeta(PENDING_SWAP_KEY);
+      // First commit the mint outputs with its journal. A later fee swap has
+      // its own journal, so neither side of the fee split can disappear.
+      await _replaceProofs([], proofs, mintUrl, { deleteKeys: [pendingKey, ...(preparedMint ? [PENDING_SWAP_KEY] : [])] });
+      if (fee > 0 && total > fee) await _collectFee(wallet, cashuts, proofs, fee, mintUrl);
       const balance = _sumProofsAsNumber(cashuts, await _pruneSpentProofs(false, mintUrl));
       await _deleteMeta(pendingKey);
       return { paid: true, balance, minted: amount, fee };
@@ -538,58 +566,67 @@ export async function recoverPendingFunding() {
     }
   }
 
-  return { checked: entries.length, recovered, pending, cleared, failed: errors.length, errors, balance, results };
+  return { mint: currentMint, checked: entries.length, recovered, pending, cleared, failed: errors.length, errors, balance, results };
 }
 
 /** Receive a Cashu token string (from external source).
  *  Takes fee, stores remaining proofs.
  *  Returns { received, fee, balance } */
-export async function receiveToken(tokenString) {
-  return _withWalletLock(async () => {
-    await _ensureNoPendingSwap();
-    const cashuts = await _cashuLib();
-    const { tokenMint, changed } = await _prepareTokenMint(cashuts, tokenString);
-    const currentBal = _sumProofsAsNumber(cashuts, await _pruneSpentProofs(false, tokenMint));
-    if (currentBal >= MAX_WALLET_BALANCE) throw new Error('Wallet at ' + MAX_WALLET_BALANCE.toLocaleString() + ' sats safety cap. Withdraw some sats first.');
-    const wallet = await _getWallet(tokenMint);
-    const prepared = await _prepareDurableSwap(
-      wallet,
-      cashuts,
-      'receive',
-      tokenMint,
-      wallet.ops?.receive(tokenString),
-      []
-    );
-    const proofs = prepared
-      ? (await wallet.completeSwap(prepared.preview)).keep
-      : await wallet.receive(tokenString);
-    const total = _sumProofsAsNumber(cashuts, proofs);
-    const fee = Math.ceil(total * WALLET_FEE_PCT);
-    await _saveProofs(proofs, tokenMint);
-    if (prepared) await _deleteMeta(PENDING_SWAP_KEY);
+async function _collectFee(wallet, cashuts, proofs, fee, mintUrl) {
+  const prepared = await _prepareDurableSwap(wallet, cashuts, 'fee', mintUrl, wallet.ops.send(fee, proofs).includeFees(true), proofs);
+  const { keep, send } = await wallet.completeSwap(prepared.preview);
+  await _replaceProofs(proofs, keep, mintUrl, { feeProofs: send, deleteKeys: [PENDING_SWAP_KEY] });
+  _autoMeltFees([], mintUrl);
+}
 
-    if (fee > 0 && total > fee) {
-      const feePrepared = await _prepareDurableSwap(
-        wallet,
-        cashuts,
-        'fee',
-        tokenMint,
-        wallet.ops?.send(fee, proofs).includeFees(true),
-        proofs
-      );
-      const { keep, send } = feePrepared
-        ? await wallet.completeSwap(feePrepared.preview)
-        : await wallet.send(fee, proofs, { includeFees: true });
-      await _replaceProofs(proofs, keep, tokenMint);
-      if (feePrepared) await _deleteMeta(PENDING_SWAP_KEY);
-      _autoMeltFees(send, tokenMint);
-      if (isDebugMode()) console.log('[cashu-wallet] Fee collected:', fee, 'sats');
-    }
-
-    if (changed) await _setMintUrlUnlocked(tokenMint);
-    const balance = _sumProofsAsNumber(cashuts, await _pruneSpentProofs(false, tokenMint));
-    return { received: total - fee, fee, balance };
+async function _receiveTokenUnlocked(tokenString, backupRestore = false) {
+  await _ensureNoPendingSwap();
+  const cashuts = await _cashuLib();
+  const { tokenMint, changed } = await _prepareTokenMint(cashuts, tokenString);
+  const journalKey = PENDING_RECEIVE_PREFIX + await _digestStorageKey(tokenString);
+  const previous = await _getMeta(journalKey);
+  if (previous) {
+    const recovered = await _recoverPendingSwapUnlocked(journalKey);
+    if (!recovered.pending) return { received: recovered.recovered, fee: 0, balance: _sumProofsAsNumber(cashuts, await _getAllProofs(tokenMint)) };
+  }
+  const pendingRecords = await _getMetaEntries('pending');
+  const isRecovery = pendingRecords.some(({ value }) => {
+    let record = value;
+    if (typeof record === 'string') { try { record = JSON.parse(record); } catch { return record === tokenString; } }
+    return record?.token === tokenString || record?.recoveryToken === tokenString || record?.incomingToken === tokenString;
   });
+  const incoming = _amountToNumber(cashuts.getTokenMetadata(tokenString).amount);
+  positiveSats(incoming);
+  const currentBal = _sumProofsAsNumber(cashuts, await _pruneSpentProofs(false, tokenMint));
+  const reserved = pendingRecords.filter(({ key }) => key !== journalKey).reduce((sum, { key, value }) => {
+    if (key.startsWith(PENDING_QUOTE_PREFIX)) return sum + _pendingQuoteDetails({ key, value }, tokenMint).amount;
+    if (key.startsWith(PENDING_RECEIVE_PREFIX)) return sum + _amountToNumber(value.incomingAmount);
+    return sum;
+  }, 0);
+  if (!backupRestore && !isRecovery && currentBal + reserved + incoming > MAX_WALLET_BALANCE) {
+    throw new Error('Would exceed the 25,000 sats safety cap. Withdraw some sats first.');
+  }
+  const wallet = await _getWallet(tokenMint);
+  const prepared = await _prepareDurableSwap(wallet, cashuts, 'receive', tokenMint,
+    wallet.ops?.receive(tokenString), await _getAllProofs(tokenMint), { journalKey, incomingToken: tokenString, incomingAmount: incoming, selectMint: changed });
+  const proofs = (await wallet.completeSwap(prepared.preview)).keep;
+  const meta = changed ? { mintUrl: tokenMint } : {};
+  for (const { key, value } of pendingRecords) {
+    let record = value;
+    if (typeof record === 'string') { try { record = JSON.parse(record); } catch {} }
+    if (['pendingDeposit', 'pendingWithdraw', 'pendingNodeRefund'].includes(key) && (record === tokenString || record?.token === tokenString || record?.recoveryToken === tokenString)) meta[key] = null;
+  }
+  await _replaceProofs(prepared.record.localInputs, proofs, tokenMint, { deleteKeys: [journalKey], meta });
+  if (changed) { _wallet = null; _mintUrl = null; }
+  const total = _sumProofsAsNumber(cashuts, proofs);
+  const fee = backupRestore || isRecovery ? 0 : Math.ceil(total * WALLET_FEE_PCT);
+  if (fee > 0 && total > fee) await _collectFee(wallet, cashuts, proofs, fee, tokenMint);
+  const balance = _sumProofsAsNumber(cashuts, await _getAllProofs(tokenMint));
+  return { received: total - fee, fee, balance };
+}
+
+export async function receiveToken(tokenString) {
+  return _withWalletLock(() => _receiveTokenUnlocked(tokenString));
 }
 
 /** Export all proofs as a cashu token string (for backup) */
@@ -605,27 +642,8 @@ export async function exportWallet() {
 
 /** Import proofs from a cashu token string (restore from backup) */
 export async function importWallet(tokenString) {
-  return _withWalletLock(async () => {
-    await _ensureNoPendingSwap();
-    const cashuts = await _cashuLib();
-    const { tokenMint, changed } = await _prepareTokenMint(cashuts, tokenString);
-    const wallet = await _getWallet(tokenMint);
-    const prepared = await _prepareDurableSwap(
-      wallet,
-      cashuts,
-      'receive',
-      tokenMint,
-      wallet.ops?.receive(tokenString),
-      []
-    );
-    const proofs = prepared
-      ? (await wallet.completeSwap(prepared.preview)).keep
-      : await wallet.receive(tokenString);
-    await _saveProofs(proofs, tokenMint);
-    if (prepared) await _deleteMeta(PENDING_SWAP_KEY);
-    if (changed) await _setMintUrlUnlocked(tokenMint);
-    return _sumProofsAsNumber(cashuts, proofs);
-  });
+  // Explicit backup recovery may exceed the cap: never strand existing funds.
+  return _withWalletLock(async () => (await _receiveTokenUnlocked(tokenString, true)).received);
 }
 
 /** Clear the wallet (remove all proofs for current mint) */

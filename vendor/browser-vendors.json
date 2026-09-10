@@ -2,6 +2,16 @@
   "schemaVersion": 2,
   "runtimes": [
     {
+      "package": "@noble/curves",
+      "version": "2.2.0",
+      "integrity": "sha512-T/BoHgFXirb0ENSPBquzX0rcjXeM6Lo892a2jlYJkqk83LqZx0l1Of7DzlKJ6jkpvMrkHSnAcgb5JegL8SeIkQ==",
+      "entry": "scripts/vendor-entries/routstr-crypto.js",
+      "output": "vendor/routstr-crypto.js",
+      "format": "es",
+      "minified": true,
+      "sha256": "c98e53784fdd0712fea14b58cd009eebdeeb45fe82e9e21ab78d6bcdbae50b1f"
+    },
+    {
       "package": "@cashu/cashu-ts",
       "version": "4.9.0",
       "integrity": "sha512-cFJj4Pr4v0HVnh5vSRO4uzx4ts57NmvMV+XfziR0pBowcRlsqOpbas9K21XIqClqZw1ODFrGsWy5pL1iBHBFhw==",

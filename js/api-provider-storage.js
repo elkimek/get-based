@@ -1,6 +1,7 @@
 // @ts-check
 // api-provider-storage.js — persisted AI provider settings, keys, and model caches.
 
+import { getRoutstrSessionKey, saveRoutstrSessionKey } from './routstr-session.js';
 import { getCachedKey, updateKeyCache } from './crypto-key-cache.js';
 import {
   dispatchAISettingsLocalChangedRuntime,
@@ -275,15 +276,14 @@ export function getOpenRouterPricing(modelId) {
   return cached[modelId] || null;
 }
 
-export function getRoutstrKey() { return getCachedKey('labcharts-routstr-key') || ''; }
+export function getRoutstrKey(nodeUrl) { return getRoutstrSessionKey(nodeUrl); }
 export function touchRoutstrSession() {
   touchRoutstrSessionClock();
   markAISettingsLocal();
 }
-export async function saveRoutstrKey(key) {
-  await encryptedSetProviderItemRuntime('labcharts-routstr-key', key);
-  updateKeyCache('labcharts-routstr-key', key);
-  touchRoutstrSession();
+export async function saveRoutstrKey(key, nodeUrl) {
+  await saveRoutstrSessionKey(key, nodeUrl);
+  markAISettingsLocal();
 }
 export function hasRoutstrKey() { return !!getRoutstrKey(); }
 export function getRoutstrModel() { return localStorage.getItem('labcharts-routstr-model') || 'claude-sonnet-4.6'; }

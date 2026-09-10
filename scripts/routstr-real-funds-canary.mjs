@@ -32,7 +32,7 @@ function requireRealFundsAllowed() {
   if (process.env.ROUTSTR_CANARY_ALLOW_REAL_FUNDS !== '1') {
     throw new Error('Refusing real-funds canary without ROUTSTR_CANARY_ALLOW_REAL_FUNDS=1');
   }
-  if (!Number.isFinite(AMOUNT_SATS) || AMOUNT_SATS < 100 || AMOUNT_SATS > 5000) {
+  if (!Number.isSafeInteger(AMOUNT_SATS) || AMOUNT_SATS < 100 || AMOUNT_SATS > 5000) {
     throw new Error(`Unsafe CANARY_SATS=${AMOUNT_SATS}; expected 100..5000`);
   }
 }
@@ -109,7 +109,9 @@ async function preflightCanaryProfileReset() {
                 resolve(false);
                 return;
               }
-              if (String(cursor.value?.key || '').startsWith('pendingQuote:')) {
+              if (String(cursor.value?.key || '').startsWith('pendingQuote:')
+                || String(cursor.value?.key || '').startsWith('pendingReceive:')
+                || ['pendingSwap', 'pendingFeeMelt', 'pendingNodeRefund', 'pendingDeposit', 'pendingWithdraw'].includes(cursor.value?.key)) {
                 db.close();
                 resolve(true);
                 return;
@@ -127,7 +129,7 @@ async function preflightCanaryProfileReset() {
         pendingFunding: await safe(hasPendingFundingQuote),
         pendingDeposit: await safe(async () => !!(await window.__cashuCanaryWallet.recoverPendingDeposit())),
         pendingWithdraw: await safe(async () => !!(await window.__cashuCanaryWallet.recoverPendingWithdraw())),
-        hasRoutstrKey: !!localStorage.getItem('labcharts-routstr-key'),
+        hasRoutstrKey: !!localStorage.getItem('labcharts-routstr-key') || !!localStorage.getItem('labcharts-routstr-sessions'),
       };
     });
     if (state.inspectError) throw new Error(`Refusing to reset canary profile: ${state.inspectError}`);
@@ -225,15 +227,12 @@ async function resume() {
         modelCall = { ok: res.ok, status: res.status, hasChoice: Array.isArray(json.choices) && json.choices.length > 0 };
       } catch (e) { modelCall = { ok: false, error: e.message }; }
       const afterModel = await balanceInfo();
-      const refundRes = await fetch(node + '/v1/wallet/refund', { method: 'POST', headers: { Authorization: 'Bearer ' + key } });
-      const refundJson = await refundRes.json().catch(() => null);
-      const token = refundJson?.token || refundJson?.cashu_token || (typeof refundJson === 'string' && refundJson.startsWith('cashu') ? refundJson : null);
-      if (!refundRes.ok || !token) return { before, afterModel, modelCall, refund: { ok: refundRes.ok, hasToken: !!token } };
-      const pendingSaved = await window.__cashuCanaryWallet.savePendingWithdrawToken(token, 'routstr-real-canary-refund');
+      const { token } = await window.__cashuCanaryWallet.refundNodeToToken(node);
+      const pendingSaved = (await window.__cashuCanaryWallet.getPendingNodeRefund())?.token === token;
       const recv = await window.__cashuCanaryWallet.receiveToken(token);
-      await window.__cashuCanaryWallet.clearPendingWithdraw();
+      await window.__cashuCanaryWallet.finishNodeRefund(token);
       delete window.__routstrCanaryKey;
-      localStorage.removeItem('labcharts-routstr-key');
+      // Retain the encrypted account for residual balance and future reconciliation.
       return { before, afterModel, modelCall, refund: { ok: true, hasToken: true, pendingSaved, received: Number(recv?.received ?? recv) || 0 } };
     });
     if (!nodeResult.modelCall.ok) throw new Error('Routstr model call failed: ' + redactText(JSON.stringify(nodeResult.modelCall)));
@@ -253,12 +252,13 @@ async function resume() {
       const finalState = await final.page.evaluate(async () => ({
         mintHost: new URL(await window.__cashuCanaryWallet.getMintUrl()).host,
         walletBalance: Number(await window.__cashuCanaryWallet.getWalletBalance()) || 0,
-        hasRoutstrKey: !!localStorage.getItem('labcharts-routstr-key') || !!window.__routstrCanaryKey,
+        hasRoutstrKey: !!(await import('/js/routstr-session.js')).getRoutstrSessionKey(),
         pendingDeposit: !!(await window.__cashuCanaryWallet.recoverPendingDeposit()),
         pendingWithdraw: !!(await window.__cashuCanaryWallet.recoverPendingWithdraw()),
+        pendingNodeRefund: !!(await window.__cashuCanaryWallet.getPendingNodeRefund()),
       }));
       log('PASS final state', finalState);
-      if (finalState.hasRoutstrKey || finalState.pendingDeposit || finalState.pendingWithdraw) {
+      if (!finalState.hasRoutstrKey || finalState.pendingDeposit || finalState.pendingWithdraw || finalState.pendingNodeRefund) {
         throw new Error('Final canary state is not clean: ' + JSON.stringify(finalState));
       }
       if (final.errors.length) log('WARN final_browser_errors_redacted', final.errors.map(redactText).slice(-10));

@@ -41,6 +41,9 @@ test('api provider storage browser coverage handles provider gates and model cac
       'labcharts-openrouter-models',
       'labcharts-openrouter-pricing',
       'labcharts-routstr-key',
+      'labcharts-routstr-sessions',
+      'labcharts-routstr-node',
+      'labcharts-routstr-session-updated-at',
       'labcharts-routstr-model',
       'labcharts-routstr-models',
       'labcharts-ppq-key',
@@ -59,6 +62,7 @@ test('api provider storage browser coverage handles provider gates and model cac
       'labcharts-venice-key',
       'labcharts-openrouter-key',
       'labcharts-routstr-key',
+      'labcharts-routstr-sessions',
       'labcharts-ppq-key',
       'labcharts-custom-key',
     ];
@@ -116,7 +120,8 @@ test('api provider storage browser coverage handles provider gates and model cac
       const openrouterAvailable = storage.hasAIProvider() === true && storage.hasOpenRouterKey() === true;
       storage.setAIProvider('routstr');
       const routstrMissingKey = storage.hasAIProvider() === false;
-      await storage.saveRoutstrKey('routstr-secret');
+      localStorage.setItem('labcharts-routstr-node', 'https://node.storage.test');
+      await storage.saveRoutstrKey('sk-routstr-secret');
       const routstrAvailable = storage.hasAIProvider() === true && storage.hasRoutstrKey() === true;
       storage.setAIProvider('ppq');
       const ppqMissingKey = storage.hasAIProvider() === false;

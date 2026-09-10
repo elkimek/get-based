@@ -17,7 +17,6 @@ export function installRoutstrWalletDelegates(actions = {}) {
   document.addEventListener('click', _handleRoutstrWalletClick);
   document.addEventListener('keydown', _handleRoutstrWalletKeydown);
   document.addEventListener('change', _handleRoutstrWalletChange);
-  document.addEventListener('blur', _handleRoutstrWalletBlur, true);
 }
 
 function _call(name, ...args) {
@@ -50,9 +49,10 @@ function _inputInt(id) {
   return parseInt(input?.value || '', 10);
 }
 
-function _copyClipboard(el) {
+async function _copyClipboard(el) {
   const text = el.dataset.clipboardText || el.dataset.token || '';
-  globalThis.navigator?.clipboard?.writeText?.(text);
+  try { await navigator.clipboard.writeText(text); }
+  catch { showNotification('Clipboard copy failed. Select and copy the text manually.', 'error'); return; }
   el.textContent = el.dataset.copiedText || '✓ Copied';
   if (!el.dataset.clearTimer) return;
   clearTimeout(globalThis[el.dataset.clearTimer]);
@@ -67,6 +67,7 @@ async function _handleRoutstrWalletClick(event) {
   const action = el.dataset.routstrWalletAction;
 
   if (action === 'fund-wallet-preset') return _call('doRoutstrWalletFund', Number(el.dataset.sats));
+  if (action === 'fund-wallet-custom') return _call('doRoutstrWalletFundCustom');
   if (action === 'fund-wallet-custom-input') return _call('rsWalletFundCustomInput');
   if (action === 'recover-wallet-funding') return _call('recoverPendingWalletFunding');
   if (action === 'receive-wallet-cashu') return _call('doRoutstrWalletReceiveCashu');
@@ -77,6 +78,7 @@ async function _handleRoutstrWalletClick(event) {
   if (action === 'connect-node') return _call('connectRoutstrNode', el.dataset.nodeUrl || '');
   if (action === 'deposit-node-input') return _call('doRoutstrNodeDeposit', el.dataset.nodeUrl || '', _inputInt('routstr-deposit-amount'));
   if (action === 'deposit-node-preset') return _depositNodePreset(el);
+  if (action === 'resume-node-refund') return _call('doRoutstrNodeWithdraw', el.dataset.nodeUrl);
   if (action === 'recover-pending-deposit') return _recoverPendingDeposit(el);
   if (action === 'recover-pending-withdraw') return _recoverPendingWithdraw(el);
   if (action === 'node-action') return _runNodeAction(el);
@@ -111,12 +113,6 @@ function _handleRoutstrWalletChange(event) {
   if (continueBtn) continueBtn.disabled = !checkbox.checked;
 }
 
-function _handleRoutstrWalletBlur(event) {
-  const el = _closestWalletEl(event, '[data-routstr-wallet-blur]');
-  const input = /** @type {HTMLInputElement | null} */ (el);
-  if (input?.dataset.routstrWalletBlur === 'wallet-fund-custom' && input.value.trim()) _call('doRoutstrWalletFundCustom');
-}
-
 function _hideMintEdit() {
   const area = document.getElementById('routstr-mint-edit');
   if (area) area.style.display = 'none';
@@ -143,7 +139,7 @@ async function _recoverPendingWithdraw(el) {
   try {
     await walletRuntime.cashuReceiveToken?.(el.dataset.token || '');
     if (el.dataset.clearPendingWithdraw !== 'false') await walletRuntime.cashuClearPendingWithdraw?.();
-    await _call('clearRoutstrNodeSession');
+    // Token recovery does not authorize deletion of a node's credential.
     showNotification('Recovered!', 'success');
     globalThis.location?.reload?.();
   } catch (e) {

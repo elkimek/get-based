@@ -20,9 +20,8 @@ labcharts-*.json
 test-*.json
 /node_modules
 dist-docs/
-docs/.vitepress/cache/
+/docs/
 BingSiteAuth.xml
-docs/plans/
 tools/
 dev-chrome.sh
 test-screenshots/

@@ -1,8 +1,10 @@
 // @ts-check
 // Cashu outbound transfers, recovery journals, Lightning melts, and fee handling.
 
+import { positiveSats, canonicalRoutstrUrl, validateLightningInvoice } from './routstr-validation.js';
+import { getRoutstrSessionKey } from './routstr-session.js';
+import { submitRoutstrDeposit, reconcileRoutstrDeposit, depositExternalTokenToNode, requestNodeRefund, completeNodeRefund } from './routstr-node-payments.js';
 import { getErrorMessage } from './caught-error.js';
-import { isDebugMode } from './utils.js';
 import {
   PENDING_SWAP_KEY,
   _amountToNumber,
@@ -23,10 +25,6 @@ import {
 const FEE_LN_ADDRESS = 'denimgecko11@primal.net';
 const FEE_MELT_MIN_SATS = 100;
 const FEE_LOCK_NAME = 'getbased-cashu-fees';
-const cashuWindow = /** @type {Window & typeof globalThis & {
-  showNotification?: (message: string, type?: string, duration?: number) => void
-}} */ (window);
-
 /**
  * @typedef {{
  *   cashuLib: null | (() => Promise<any>),
@@ -138,7 +136,10 @@ function _withModuleFeeLock(fn) {
 /** Deposit sats to a Routstr node. Uses topup if session key exists, otherwise creates new.
  *  Returns { api_key, balance } from the node. */
 export async function depositToNode(nodeUrl, amountSats, existingKey) {
-  nodeUrl = nodeUrl.replace(/\/+$/, ''); // normalize trailing slashes
+  nodeUrl = canonicalRoutstrUrl(nodeUrl);
+  positiveSats(amountSats);
+  if (existingKey && existingKey !== getRoutstrSessionKey(nodeUrl)) throw new Error('Deposit credential does not belong to this node');
+  existingKey = getRoutstrSessionKey(nodeUrl);
   return _withWalletLock(async () => {
     await _ensureNoPendingSwap();
     const cashuts = await _cashuLib();
@@ -157,9 +158,7 @@ export async function depositToNode(nodeUrl, amountSats, existingKey) {
       wallet.ops?.send(amountSats, proofs).includeFees(true),
       proofs
     );
-    const { keep, send } = prepared
-      ? await wallet.completeSwap(prepared.preview)
-      : await wallet.send(amountSats, proofs, { includeFees: true });
+    const { keep, send } = await wallet.completeSwap(prepared.preview);
 
     const token = _encodeRecoveryToken(cashuts, mintUrl, send);
     const recoveryToken = _encodeRecoveryToken(cashuts, mintUrl, [...keep, ...send]);
@@ -173,45 +172,23 @@ export async function depositToNode(nodeUrl, amountSats, existingKey) {
     await _setMeta('pendingDeposit', { ...pendingDeposit, localCommit: true });
     if (prepared) await _deleteMeta(PENDING_SWAP_KEY);
 
-    // Deposit to node — topup existing session or create new
-    let res;
-    if (existingKey) {
-      res = await fetch(nodeUrl + '/v1/balance/topup', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + existingKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cashu_token: token })
-      });
-      // Do NOT fall back to create — that would replace the existing key and lose its balance
-    } else {
-      res = await fetch(nodeUrl + '/v1/balance/create?initial_balance_token=' + encodeURIComponent(token));
-    }
-    if (!res.ok) {
-      const err = await res.json().catch(() => null);
-      const detail = err?.detail;
-      const msg = typeof detail === 'string' ? detail
-        : (detail && detail.error) ? detail.error.message
-        : Array.isArray(detail) ? detail.map(d => d.msg || JSON.stringify(d)).join('; ')
-        : err?.message;
-      throw new Error(msg || 'Node deposit failed: ' + res.status + '. Your sats are safe — check Pending Recovery.');
-    }
-
-    const response = await res.json();
-    if (!existingKey && !response?.api_key) throw new Error('Node deposit response did not include a recoverable account key');
-    await _setMeta('pendingDeposit', null);
-    return response;
+    return submitRoutstrDeposit({ ...pendingDeposit, localCommit: true, existingKey });
   });
 }
 
 /** Recover a failed deposit. Returns the pending token string or null. */
 export async function recoverPendingDeposit() {
-  const pending = await _getMeta('pendingDeposit');
-  if (typeof pending === 'string') return pending;
-  return (pending?.localCommit ? pending?.token : pending?.recoveryToken) || pending?.token || null;
+  return _withWalletLock(async () => {
+    let pending;
+    try { pending = await reconcileRoutstrDeposit(); } catch { pending = await _getMeta('pendingDeposit'); }
+    if (typeof pending === 'string') return pending;
+    return (pending?.localCommit ? pending?.token : pending?.recoveryToken) || pending?.token || null;
+  });
 }
-
-/** Clear a pending deposit after manual recovery */
 export async function clearPendingDeposit() {
-  await _setMeta('pendingDeposit', null);
+  return _withWalletLock(async () => {
+    if (await _getMeta('pendingDeposit')) throw new Error('Recover or reconcile the deposit before clearing it');
+  });
 }
 
 /** Recover a failed withdraw. Returns the pending token string or null. */
@@ -222,64 +199,64 @@ export async function recoverPendingWithdraw() {
 async function _recoverPendingWithdrawUnlocked() {
   const raw = await _getMeta('pendingWithdraw');
   if (!raw) return null;
-  try {
-    const pending = JSON.parse(raw);
-    if (pending?.quoteId && Array.isArray(pending?.meltOutputs) && pending?.mint) {
-      try {
-        const wallet = await _getWallet(pending.mint);
-        const quote = await wallet.checkMeltQuoteBolt11(pending.quoteId);
-        const state = String(quote?.state || '').toUpperCase();
-        if (state === 'PAID') {
-          const cashuts = await _cashuLib();
-          const outputData = pending.meltOutputs.map(output => cashuts.OutputData.deserialize(output));
-          const change = wallet.createMeltChangeProofs(outputData, quote.change || []);
-          if (change.length) await _saveProofs(change, pending.mint);
-          await _setMeta('pendingWithdraw', null);
-          return null;
-        }
-        if (state === 'PENDING') return null;
-      } catch {}
+  const pending = JSON.parse(raw);
+  const wallet = await _getWallet(pending.mint || await getMintUrl());
+  const cashuts = await _cashuLib();
+  if (pending.quoteId && Array.isArray(pending.meltOutputs)) {
+    // An unavailable quote is ambiguous, never proof that the melt failed.
+    const quote = await wallet.checkMeltQuoteBolt11(pending.quoteId);
+    if (quote.state === 'PAID') {
+      for (const signature of quote.change || []) await wallet.keyChain.ensureKeysetKeys(signature.id);
+      const outputData = pending.meltOutputs.map(output => cashuts.OutputData.deserialize(output));
+      const change = wallet.createMeltChangeProofs(outputData, quote.change || []);
+      await _replaceProofs([], change, pending.mint, { deleteKeys: ['pendingWithdraw', 'withdrawQuote:' + pending.quoteId] });
+      return null;
     }
-    return (pending?.localCommit ? pending?.token : pending?.recoveryToken) || pending?.token || null;
-  } catch { return null; }
+    if (quote.state !== 'UNPAID') return null;
+  }
+  const token = (pending.localCommit ? pending.token : pending.recoveryToken) || pending.token;
+  if (!token) return null;
+  const decoded = cashuts.getDecodedToken(token, wallet.keyChain.getKeysets().map(keyset => keyset.id));
+  const state = await wallet.groupProofsByState(decoded.proofs);
+  if (state.pending.length) return null;
+  if (state.spent.length === decoded.proofs.length) {
+    await _setMeta('pendingWithdraw', null);
+    return null;
+  }
+  return state.spent.length ? _encodeRecoveryToken(cashuts, pending.mint, state.unspent) : token;
 }
 
-/** Clear a pending withdraw after manual recovery */
 export async function clearPendingWithdraw() {
-  await _setMeta('pendingWithdraw', null);
+  return _withWalletLock(async () => {
+    if (!await _getMeta('pendingWithdraw')) return;
+    await _recoverPendingWithdrawUnlocked();
+    if (await _getMeta('pendingWithdraw')) throw new Error('The outgoing token is still unspent or pending. Keep it until delivered or recovered.');
+  });
 }
 
 /** Persist a recoverable Cashu token before attempting risky refund/import flows. */
 export async function savePendingWithdrawToken(token, source = 'manual') {
-  if (!token) return false;
-  const raw = await _getMeta('pendingWithdraw');
-  if (raw) {
-    try {
-      const existing = JSON.parse(raw);
-      if (existing?.token) return false;
-    } catch {
-      return false;
-    }
-  }
-  await _setMeta('pendingWithdraw', JSON.stringify({
-    quoteId: null,
-    token,
-    source,
-    mint: _extractTokenMintUrl(await _cashuLib(), token),
-    savedAt: Date.now(),
-  }));
-  return true;
+  return _withWalletLock(async () => {
+    if (!token) return false;
+    if (await _getMeta('pendingWithdraw')) return false;
+    await _setMeta('pendingWithdraw', JSON.stringify({ quoteId: null, token, source,
+      mint: _extractTokenMintUrl(await _cashuLib(), token), savedAt: Date.now() }));
+    return true;
+  });
 }
 
 /** Create a melt quote for paying a Lightning invoice.
  *  Returns { quote, amount, fee_reserve, state } */
 export async function createWithdrawQuote(bolt11Invoice) {
+  const invoice = validateLightningInvoice(bolt11Invoice);
   return _withWalletLock(async () => {
     const mintUrl = await getMintUrl();
     const wallet = await _getWallet(mintUrl);
-    const quote = await wallet.createMeltQuoteBolt11(bolt11Invoice);
+    const quote = await wallet.createMeltQuoteBolt11(invoice.invoice);
     const quoteAmount = _amountToNumber(quote.amount);
     const feeReserve = _amountToNumber(quote.fee_reserve);
+    if (quoteAmount * 1000 !== invoice.msats || !Number.isSafeInteger(feeReserve) || feeReserve < 0) throw new Error('Invalid withdrawal quote amount');
+    await _setMeta('withdrawQuote:' + quote.quote, { ...invoice, mint: mintUrl, amount: quoteAmount, feeReserve });
     return {
       quote: quote.quote,
       amount: quoteAmount,
@@ -296,9 +273,15 @@ export async function executeWithdraw(quoteId) {
     await _ensureNoPendingSwap();
     const cashuts = await _cashuLib();
     const mintUrl = await getMintUrl();
-    if (await _getMeta('pendingWithdraw')) throw new Error('Recover or clear the previous pending withdrawal first');
+    if (await _getMeta('pendingWithdraw')) await _recoverPendingWithdrawUnlocked();
+    if (await _getMeta('pendingWithdraw')) throw new Error('Recover the previous pending withdrawal first');
     const wallet = await _getWallet(mintUrl);
+    if (typeof wallet.prepareMelt !== 'function' || !cashuts.OutputData) throw new Error('Cashu runtime must support durable melting');
+    const approved = await _getMeta('withdrawQuote:' + quoteId);
+    if (!approved || approved.mint !== mintUrl) throw new Error('Withdrawal quote is not approved for this mint');
+    validateLightningInvoice(approved.invoice);
     const quote = await wallet.checkMeltQuoteBolt11(quoteId);
+    if (quote.state !== 'UNPAID' || _amountToNumber(quote.amount) !== approved.amount || _amountToNumber(quote.fee_reserve) !== approved.feeReserve || (quote.request && quote.request.toLowerCase() !== approved.invoice)) throw new Error('Withdrawal quote changed or is no longer unpaid');
     const amountNeeded = _amountToNumber(quote.amount) + _amountToNumber(quote.fee_reserve);
     const proofs = await _pruneSpentProofs(true, mintUrl);
     const total = _sumProofsAsNumber(cashuts, proofs);
@@ -312,9 +295,7 @@ export async function executeWithdraw(quoteId) {
       wallet.ops?.send(amountNeeded, proofs).includeFees(true),
       proofs
     );
-    const { keep, send } = prepared
-      ? await wallet.completeSwap(prepared.preview)
-      : await wallet.send(amountNeeded, proofs, { includeFees: true });
+    const { keep, send } = await wallet.completeSwap(prepared.preview);
 
     const token = _encodeRecoveryToken(cashuts, mintUrl, send);
     const recoveryToken = _encodeRecoveryToken(cashuts, mintUrl, [...keep, ...send]);
@@ -332,21 +313,20 @@ export async function executeWithdraw(quoteId) {
     await _setMeta('pendingWithdraw', JSON.stringify({ ...pendingWithdraw, localCommit: true }));
     if (prepared) await _deleteMeta(PENDING_SWAP_KEY);
 
-    let meltPreview = null;
-    if (typeof wallet.prepareMelt === 'function' && cashuts.OutputData) {
-      meltPreview = await wallet.prepareMelt('bolt11', quote, send);
-      pendingWithdraw.meltOutputs = (meltPreview.outputData || []).map(output => cashuts.OutputData.serialize(output));
-      await _setMeta('pendingWithdraw', JSON.stringify({ ...pendingWithdraw, localCommit: true }));
-    }
-    const result = meltPreview
-      ? await wallet.completeMelt(meltPreview)
-      : await wallet.meltProofsBolt11(quote, send);
+    const meltPreview = await wallet.prepareMelt('bolt11', quote, send);
+    pendingWithdraw.meltOutputs = (meltPreview.outputData || []).map(output => cashuts.OutputData.serialize(output));
+    await _setMeta('pendingWithdraw', JSON.stringify({ ...pendingWithdraw, localCommit: true }));
+    const result = await wallet.completeMelt(meltPreview);
 
+    if (String(result.quote?.state || '').toUpperCase() !== 'PAID') {
+      throw new Error('Lightning payment is not confirmed paid. Its recovery record has been retained.');
+    }
     if (result.change && result.change.length) {
       await _saveProofs(result.change, mintUrl);
     }
 
     await _setMeta('pendingWithdraw', null);
+    await _deleteMeta('withdrawQuote:' + quoteId);
 
     const balance = _sumProofsAsNumber(cashuts, await _pruneSpentProofs(false, mintUrl));
     return { paid: true, change: balance };
@@ -357,6 +337,7 @@ export async function executeWithdraw(quoteId) {
  *  Auto-reduces amount if balance can't cover fee reserve.
  *  Returns { paid, amount, balance } */
 export async function withdrawToAddress(address, amountSats) {
+  positiveSats(amountSats);
   const balance = await getWalletBalance();
   // Try full amount first, reduce if fee reserve exceeds balance
   let tryAmount = amountSats;
@@ -364,7 +345,8 @@ export async function withdrawToAddress(address, amountSats) {
     const invoice = await _lnAddressToInvoice(address, tryAmount);
     if (!invoice) throw new Error('Amount out of range for this Lightning address');
     const quote = await createWithdrawQuote(invoice);
-    const needed = (quote.amount || 0) + (quote.fee_reserve || 0);
+    if (quote.amount !== tryAmount) throw new Error('Invoice does not match the requested withdrawal amount');
+    const needed = quote.amount + quote.fee_reserve;
     if (balance >= needed) {
       const result = await executeWithdraw(quote.quote);
       return { paid: true, amount: tryAmount, balance: result.change };
@@ -385,36 +367,42 @@ export async function getMaxWithdrawable() {
 }
 
 /** Retry melting accumulated fee proofs. Returns { melted, remaining } */
-export async function retryFeeAutoMelt() {
-  return _withFeeLock(async () => {
+export async function retryFeeAutoMelt(operationMint = undefined) {
+  return _withWalletLock(() => _withFeeLock(async () => {
     const cashuts = await _cashuLib();
-    const mintUrl = await getMintUrl();
-    const feeProofs = await _getAllFeeProofs(mintUrl);
-    const feeSats = _sumProofsAsNumber(cashuts, feeProofs);
-    if (feeSats < 1) return { melted: 0, remaining: 0 };
+    const mintUrl = _normalizeMintUrl(operationMint || await getMintUrl());
+    await _reconcileFeeMelt(mintUrl);
+    const total = _sumProofsAsNumber(cashuts, await _getAllFeeProofs(mintUrl));
+    if (!total) return { melted: 0, remaining: 0 };
     try {
-      const invoice = await _lnAddressToInvoice(FEE_LN_ADDRESS, feeSats);
-      if (!invoice) return { melted: 0, remaining: feeSats, reason: 'below minimum' };
+      let amount = Math.max(1, total - 5);
       const wallet = await _getWallet(mintUrl);
-      const quote = await wallet.createMeltQuoteBolt11(invoice);
-      const result = await wallet.meltProofsBolt11(quote, feeProofs);
-      await _replaceFeeProofs(feeProofs, result.change || [], mintUrl);
-      const remaining = await getFeeBalance();
-      return { melted: feeSats, remaining };
-    } catch (e) {
-      return { melted: 0, remaining: feeSats, reason: getErrorMessage(e) };
-    }
-  });
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const invoice = await _lnAddressToInvoice(FEE_LN_ADDRESS, amount);
+        if (!invoice) return { melted: 0, remaining: total, reason: 'below minimum' };
+        const quote = await wallet.createMeltQuoteBolt11(invoice);
+        const inputs = await _getAllFeeProofs(mintUrl);
+        const fees = _amountToNumber(wallet.getFeesForProofs?.(inputs) || 0);
+        const needed = _amountToNumber(quote.amount) + _amountToNumber(quote.fee_reserve) + fees;
+        if (needed > total) { amount -= needed - total; if (amount < 1) break; continue; }
+        await _meltFeePool(wallet, cashuts, mintUrl, inputs, quote);
+        return { melted: amount, remaining: await getFeeBalance() };
+      }
+      return { melted: 0, remaining: total, reason: 'insufficient routing fee reserve' };
+    } catch (error) { return { melted: 0, remaining: total, reason: getErrorMessage(error), error: true }; }
+  }));
 }
 
 /** Send sats from wallet as a Cashu token string.
  *  Returns { token, amount, remaining } */
 export async function sendAsToken(amountSats) {
+  positiveSats(amountSats);
   return _withWalletLock(async () => {
     await _ensureNoPendingSwap();
     const cashuts = await _cashuLib();
     const mintUrl = await getMintUrl();
-    if (await _getMeta('pendingWithdraw')) throw new Error('Recover or clear the previous pending token first');
+    if (await _getMeta('pendingWithdraw')) await _recoverPendingWithdrawUnlocked();
+    if (await _getMeta('pendingWithdraw')) throw new Error('Deliver or recover the previous outgoing token first');
     const proofs = await _pruneSpentProofs(true, mintUrl);
     const total = _sumProofsAsNumber(cashuts, proofs);
     if (total < amountSats) throw new Error('Insufficient balance: ' + total + ' sats, need ' + amountSats);
@@ -427,9 +415,7 @@ export async function sendAsToken(amountSats) {
       wallet.ops?.send(amountSats, proofs).includeFees(true),
       proofs
     );
-    const { keep, send } = prepared
-      ? await wallet.completeSwap(prepared.preview)
-      : await wallet.send(amountSats, proofs, { includeFees: true });
+    const { keep, send } = await wallet.completeSwap(prepared.preview);
     const token = _encodeRecoveryToken(cashuts, mintUrl, send);
     const recoveryToken = _encodeRecoveryToken(cashuts, mintUrl, [...keep, ...send]);
     const pendingWithdraw = {
@@ -452,108 +438,119 @@ export async function sendAsToken(amountSats) {
 
 /** Resolve a Lightning address to a BOLT11 invoice via LNURL-pay */
 async function _lnAddressToInvoice(address, amountSats) {
-  const [user, domain] = address.split('@');
-  if (!user || !domain) throw new Error('Invalid Lightning address');
-  const res = await fetch('https://' + domain + '/.well-known/lnurlp/' + user);
+  positiveSats(amountSats);
+  const parts = String(address).trim().split('@');
+  if (parts.length !== 2 || !/^[a-zA-Z0-9._+-]+$/.test(parts[0]) || !/^[a-zA-Z0-9.-]+$/.test(parts[1])) throw new Error('Invalid Lightning address');
+  const [user, domain] = parts;
+  const url = canonicalRoutstrUrl('https://' + domain) + '/.well-known/lnurlp/' + encodeURIComponent(user);
+  const request = target => fetch(target, { redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(30000) });
+  const res = await request(url);
   if (!res.ok) throw new Error('Lightning address lookup failed');
   const lnurl = await res.json();
-  if (!lnurl.callback) throw new Error('No callback in LNURL response');
+  if (lnurl.status === 'ERROR' || lnurl.tag !== 'payRequest' || typeof lnurl.metadata !== 'string') throw new Error('Invalid LNURL payment response');
+  const callback = new URL(lnurl.callback);
+  canonicalRoutstrUrl(callback.origin);
+  if (callback.username || callback.password || callback.hash) throw new Error('Invalid LNURL callback');
+  if (!Number.isSafeInteger(lnurl.minSendable) || !Number.isSafeInteger(lnurl.maxSendable) || lnurl.minSendable < 1 || lnurl.maxSendable < lnurl.minSendable) throw new Error('Invalid LNURL payment limits');
   const amountMsats = amountSats * 1000;
-  if (lnurl.minSendable && amountMsats < lnurl.minSendable) return null;
-  if (lnurl.maxSendable && amountMsats > lnurl.maxSendable) return null;
-  const sep = lnurl.callback.includes('?') ? '&' : '?';
-  const cbRes = await fetch(lnurl.callback + sep + 'amount=' + amountMsats);
+  if (!Number.isSafeInteger(amountMsats)) throw new Error('Amount is too large');
+  if (amountMsats < lnurl.minSendable || amountMsats > lnurl.maxSendable) return null;
+  callback.searchParams.set('amount', String(amountMsats));
+  const cbRes = await request(callback.href);
   if (!cbRes.ok) throw new Error('Invoice request failed');
   const cbData = await cbRes.json();
-  return cbData.pr || null;
+  if (cbData.status === 'ERROR') throw new Error('Lightning address refused the invoice request');
+  // Current LUD-06 requires the requested amount, not SHA256(metadata), to
+  // match the invoice. Providers may use a different description/hash.
+  // https://github.com/lnurl/luds/blob/luds/06.md
+  return validateLightningInvoice(cbData.pr, amountSats).invoice;
 }
 
-/** Auto-melt fee proofs to getbased Lightning address. Silent — errors swallowed.
- *  Locked to prevent concurrent double-spend of fee proofs (C6). */
-export async function _autoMeltFees(feeProofs, operationMint) {
-  if (!FEE_LN_ADDRESS) return;
-  _withFeeLock(async () => {
-    const cashuts = await _cashuLib();
-    const mintUrl = _normalizeMintUrl(operationMint || await getMintUrl());
-    const accumulated = await _getAllFeeProofs(mintUrl);
-    const allFees = [...accumulated, ...feeProofs];
-    if (!allFees.length) return;
-    const feeSats = _sumProofsAsNumber(cashuts, allFees);
-    if (feeSats < 1) return;
-    if (feeSats < FEE_MELT_MIN_SATS) {
-      if (feeProofs.length) await _saveFeeProofs(feeProofs, mintUrl);
-      if (isDebugMode()) console.log('[cashu-wallet] Fee pool ' + feeSats + ' sats < ' + FEE_MELT_MIN_SATS + ' min, accumulating');
+/** Recover fee melts before any reuse of the fee pool. */
+async function _reconcileFeeMelt(mintUrl) {
+  const record = await _getMeta('pendingFeeMelt');
+  if (!record) return;
+  if (record.mint !== mintUrl) throw new Error('Recover fees at their original mint first');
+  const wallet = await _getWallet(mintUrl);
+  const cashuts = await _cashuLib();
+  const quote = await wallet.checkMeltQuoteBolt11(record.quoteId);
+  if (quote.state === 'PAID') {
+    for (const signature of quote.change || []) await wallet.keyChain.ensureKeysetKeys(signature.id);
+    const outputs = record.outputs.map(output => cashuts.OutputData.deserialize(output));
+    const change = wallet.createMeltChangeProofs(outputs, quote.change || []);
+    await _replaceFeeProofs(record.inputs, change, mintUrl, ['pendingFeeMelt']);
+    return;
+  }
+  if (quote.state === 'UNPAID') {
+    const state = await wallet.groupProofsByState(record.inputs);
+    if (state.unspent.length === record.inputs.length && !state.pending.length) {
+      await _deleteMeta('pendingFeeMelt');
       return;
     }
-    try {
-      // Request invoice for amount minus estimated melt overhead (mint fee ~2-3 sats)
-      const payAmount = feeSats - 5; // reserve 5 sats for mint melt fee
-      if (payAmount < 1) {
-        if (feeProofs.length) await _saveFeeProofs(feeProofs, mintUrl);
-        return;
-      }
-      const invoice = await _lnAddressToInvoice(FEE_LN_ADDRESS, payAmount);
-      if (!invoice) {
-        if (feeProofs.length) await _saveFeeProofs(feeProofs, mintUrl);
-        if (isDebugMode()) console.log('[cashu-wallet] Fee below LNURL min (' + payAmount + ' sats), saved for later');
-        return;
-      }
-      const wallet = await _getWallet(mintUrl);
-      const quote = await wallet.createMeltQuoteBolt11(invoice);
-      // Verify we have enough proofs for amount + fee_reserve
-      const needed = _amountToNumber(quote.amount) + _amountToNumber(quote.fee_reserve);
-      if (feeSats < needed) {
-        if (feeProofs.length) await _saveFeeProofs(feeProofs, mintUrl);
-        if (isDebugMode()) console.log('[cashu-wallet] Fee pool ' + feeSats + ' < ' + needed + ' needed for melt, accumulating');
-        return;
-      }
-      const result = await wallet.meltProofsBolt11(quote, allFees);
-      await _replaceFeeProofs(allFees, result.change || [], mintUrl);
-      if (isDebugMode()) console.log('[cashu-wallet] Fee melted:', feeSats, 'sats to', FEE_LN_ADDRESS);
-      // Success — reset the consecutive-failure counter so the user
-      // doesn't see a persistent-failure toast just because they had
-      // a brief offline gap earlier.
-      _autoMeltConsecutiveFailures = 0;
-    } catch (e) {
-      if (feeProofs.length) await _saveFeeProofs(feeProofs, mintUrl);
-      if (isDebugMode()) console.log('[cashu-wallet] Fee melt failed, saved for later:', getErrorMessage(e));
-      // Surface persistent failures so the user can act (top up the
-      // LN node, fix the address, etc.). Transient airplane-mode
-      // toggles produce one or two failures; only flag when something
-      // is durably broken.
-      _autoMeltConsecutiveFailures = (_autoMeltConsecutiveFailures || 0) + 1;
-      if (_autoMeltConsecutiveFailures === 3 && typeof window !== 'undefined' && cashuWindow.showNotification) {
-        cashuWindow.showNotification('Cashu fee melt failing repeatedly — proofs are safe and queued, but check Settings → AI → Routstr if the failures continue.', 'warning', 7000);
-      }
-    }
-  }).catch(() => {}); // fire-and-forget, never block caller
+  }
+  throw new Error('Fee payment remains unconfirmed; proofs and recovery outputs are retained');
 }
-
-// Module-scoped counter for persistent-failure detection. Resets on
-// success, increments on each catch; only fires a user toast at 3 to
-// avoid noise during transient airplane-mode toggles.
-let _autoMeltConsecutiveFailures = 0;
-
-/** Get accumulated fee balance in sats */
-export async function getFeeBalance() {
-  const cashuts = await _cashuLib();
-  const proofs = await _getAllFeeProofs();
-  return _sumProofsAsNumber(cashuts, proofs);
-}
-
-/** Redeem accumulated fee proofs by paying a Lightning invoice.
- *  Returns { paid, amount } */
-export async function redeemFees(bolt11Invoice) {
-  return _withFeeLock(async () => {
-    const cashuts = await _cashuLib();
-    const mintUrl = await getMintUrl();
-    const proofs = await _getAllFeeProofs(mintUrl);
-    const total = _sumProofsAsNumber(cashuts, proofs);
-    if (total < 1) throw new Error('No fee proofs to redeem');
-    const wallet = await _getWallet(mintUrl);
-    const quote = await wallet.createMeltQuoteBolt11(bolt11Invoice);
-    const result = await wallet.meltProofsBolt11(quote, proofs);
-    await _replaceFeeProofs(proofs, result.change || [], mintUrl);
-    return { paid: true, amount: total };
+async function _meltFeePool(wallet, cashuts, mintUrl, inputs, quote) {
+  validateLightningInvoice(quote.request, _amountToNumber(quote.amount));
+  if (!wallet.prepareMelt || !cashuts.OutputData) throw new Error('Durable fee melts are unavailable');
+  const preview = await wallet.prepareMelt('bolt11', quote, inputs);
+  await _setMeta('pendingFeeMelt', {
+    mint: mintUrl, quoteId: quote.quote,
+    inputs: inputs.map(proof => ({ ...proof, amount: _amountToNumber(proof.amount) })),
+    outputs: preview.outputData.map(output => cashuts.OutputData.serialize(output)),
   });
+  const result = await wallet.completeMelt(preview);
+  if (result.quote?.state !== 'PAID') throw new Error('Fee payment is not confirmed paid');
+  await _replaceFeeProofs(inputs, result.change || [], mintUrl, ['pendingFeeMelt']);
 }
+
+/** Persist first; background remittance never owns the only copy of fee proofs. */
+const _autoMeltFailuresByMint = new Map();
+function _recordAutoMeltResult(mintUrl, failed) {
+  let _autoMeltConsecutiveFailures = 0;
+  if (failed) _autoMeltConsecutiveFailures = (_autoMeltFailuresByMint.get(mintUrl) || 0) + 1;
+  if (failed) _autoMeltFailuresByMint.set(mintUrl, _autoMeltConsecutiveFailures);
+  else _autoMeltFailuresByMint.delete(mintUrl);
+  if (_autoMeltConsecutiveFailures === 3 && typeof window !== 'undefined') {
+    /** @type {any} */ (window).showNotification?.('Cashu fee payments are repeatedly unconfirmed. Check Settings → AI → Routstr for recovery.', 'warning', 7000);
+  }
+}
+export async function _autoMeltFees(feeProofs, operationMint) {
+  let mintUrl;
+  void _withWalletLock(() => _withFeeLock(async () => {
+    mintUrl = _normalizeMintUrl(operationMint || await getMintUrl());
+    await _saveFeeProofs(feeProofs, mintUrl);
+    const cashuts = await _cashuLib();
+    return _sumProofsAsNumber(cashuts, await _getAllFeeProofs(mintUrl)) >= FEE_MELT_MIN_SATS;
+  })).then(ready => ready ? retryFeeAutoMelt(mintUrl) : null).then(result => {
+    _recordAutoMeltResult(mintUrl, !!result?.error);
+  }).catch(() => { if (mintUrl) _recordAutoMeltResult(mintUrl, true); });
+}
+export async function getFeeBalance() {
+  return _sumProofsAsNumber(await _cashuLib(), await _getAllFeeProofs());
+}
+export async function redeemFees(bolt11Invoice) {
+  const invoice = validateLightningInvoice(bolt11Invoice);
+  return _withWalletLock(() => _withFeeLock(async () => {
+    const mintUrl = await getMintUrl();
+    await _reconcileFeeMelt(mintUrl);
+    const cashuts = await _cashuLib();
+    const inputs = await _getAllFeeProofs(mintUrl);
+    if (!inputs.length) throw new Error('No fee proofs to redeem');
+    const wallet = await _getWallet(mintUrl);
+    const quote = await wallet.createMeltQuoteBolt11(invoice.invoice);
+    if (_amountToNumber(quote.amount) * 1000 !== invoice.msats) throw new Error('Fee invoice amount mismatch');
+    await _meltFeePool(wallet, cashuts, mintUrl, inputs, quote);
+    return { paid: true, amount: invoice.msats / 1000 };
+  }));
+}
+export function depositTokenToNode(nodeUrl, token) {
+  return _withWalletLock(() => depositExternalTokenToNode(nodeUrl, token));
+}
+export function refundNodeToToken(nodeUrl) {
+  return _withWalletLock(async () => { await _ensureNoPendingSwap(); return requestNodeRefund(nodeUrl); });
+}
+export function finishNodeRefund(token) {
+  return _withWalletLock(() => completeNodeRefund(token));
+}
+export function getPendingNodeRefund() { return _getMeta('pendingNodeRefund'); }

@@ -70,6 +70,7 @@ import {
 import {
   configureRoutstrWalletPanels,
   clearRoutstrWalletTimers,
+  startRoutstrFundingMonitor,
   refreshCashuWalletBalance,
   refreshWalletSeedStatus,
   refreshRoutstrBalance,
@@ -273,6 +274,7 @@ export function initSettingsModelFetch() {
   }
   // Cashu wallet balance + mint label + pending recovery (always, even without node connection)
   if (document.getElementById('routstr-wallet-balance') && typeof walletRuntime.cashuGetBalance === 'function') {
+    startRoutstrFundingMonitor();
     walletRuntime.cashuGetBalance().then(function(bal) {
       const el = document.getElementById('routstr-wallet-balance');
       if (el) el.textContent = '\u26a1 ' + bal.toLocaleString() + ' sats';
@@ -290,7 +292,7 @@ export function initSettingsModelFetch() {
         area.style.display = 'block';
         area.innerHTML = '<div style="margin-top:8px;padding:8px;background:rgba(255,160,0,0.1);border:1px solid var(--yellow, #f0a800);border-radius:6px">' +
           '<div style="font-size:11px;color:var(--yellow, #f0a800);margin-bottom:4px">\u26a0 Pending deposit recovery</div>' +
-          '<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">A previous node deposit failed. Your sats are safe in this token:</div>' +
+          '<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">A previous node deposit has an unconfirmed outcome. This token may be unspent. Reconcile the node account before reclaiming it:</div>' +
           '<textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:40px;resize:none;user-select:all" readonly data-provider-panel-action="select-provider-panel-text">' + escapeHTML(token) + '</textarea>' +
           '<div style="display:flex;gap:4px;margin-top:4px">' +
           '<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" data-provider-panel-action="recover-pending-deposit" data-token="' + escapeAttr(token) + '">Recover to Wallet</button>' +
@@ -298,6 +300,13 @@ export function initSettingsModelFetch() {
           '</div></div>';
       }
     });
+    walletRuntime.cashuGetPendingNodeRefund?.().then(function(refund) {
+      if (!refund) return;
+      const area = document.getElementById('routstr-node-picker');
+      if (!area) return;
+      area.style.display = 'block';
+      area.innerHTML = '<div>Unfinished node refund: ' + escapeHTML(refund.nodeUrl) + '</div><button class="import-btn import-btn-primary" data-routstr-wallet-action="resume-node-refund" data-node-url="' + escapeAttr(refund.nodeUrl) + '">Check refund recovery</button>';
+    }).catch(() => {});
     // Check for pending withdraw recovery
     if (typeof walletRuntime.cashuRecoverPendingWithdraw === 'function') walletRuntime.cashuRecoverPendingWithdraw().then(function(token) {
       if (!token) return;
@@ -306,7 +315,7 @@ export function initSettingsModelFetch() {
       area.style.display = 'block';
       area.innerHTML = '<div style="margin-top:8px;padding:8px;background:rgba(255,160,0,0.1);border:1px solid var(--yellow, #f0a800);border-radius:6px">' +
         '<div style="font-size:11px;color:var(--yellow, #f0a800);margin-bottom:4px">\u26a0 Pending withdraw recovery</div>' +
-        '<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">A previous Lightning withdrawal failed mid-operation. Your sats are safe in this token:</div>' +
+        '<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">An outgoing transfer needs reconciliation. Check its payment status or contact its recipient before reclaiming this token:</div>' +
         '<textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:40px;resize:none;user-select:all" readonly data-provider-panel-action="select-provider-panel-text">' + escapeHTML(token) + '</textarea>' +
         '<div style="display:flex;gap:4px;margin-top:4px">' +
         '<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" data-provider-panel-action="recover-pending-withdraw" data-token="' + escapeAttr(token) + '">Recover to Wallet</button>' +
@@ -605,9 +614,9 @@ export async function handleSaveRoutstrKey() {
   btn.disabled = true; btn.textContent = 'Validating...';
   const result = await validateRoutstrKey(key);
   if (result.valid) {
-    status.innerHTML = '<span style="color:var(--text-muted)">Connection verified — waiting for activation…</span>';
+    status.innerHTML = '<span style="color:var(--text-muted)">Key format accepted — waiting for activation…</span>';
     if (!await requestProviderActivation('routstr')) {
-      status.innerHTML = '<span style="color:var(--text-muted)">Connection verified — AI not activated</span>';
+      status.innerHTML = '<span style="color:var(--text-muted)">Key format accepted — AI not activated</span>';
       btn.disabled = false; btn.textContent = 'Save & Validate';
       return;
     }
@@ -623,15 +632,14 @@ export async function handleSaveRoutstrKey() {
         btn.disabled = false; btn.textContent = 'Save & Validate';
         return;
       }
-      // Cashu token is now spent — user MUST save the session key
-      await saveRoutstrKey(finalKey);
+      // The payment layer has already durably saved the node-bound key.
       await fetchRoutstrModels();
       const panel = document.getElementById('ai-provider-panel');
       if (panel) {
         panel.innerHTML = `<div class="ai-provider-panel">
           <div style="padding:12px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--accent)">
             <div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:6px">\u26a0 Save your session key</div>
-            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Your Cashu token has been redeemed. This session key is the <strong>only way to access your balance</strong>. Copy it now \u2014 there is no recovery.</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Your Cashu token has been redeemed. This session key is the <strong>only way to access your balance</strong>. It is saved on this device. Keep your own backup as well.</div>
             <label style="font-size:11px;color:var(--text-muted)">Session Key</label>
             <div style="font-family:monospace;font-size:11px;word-break:break-all;background:var(--bg-primary);padding:8px;border-radius:6px;border:1px solid var(--border);color:var(--text-primary);user-select:all;cursor:text">${escapeHTML(finalKey)}</div>
             <div style="display:flex;gap:8px;margin-top:8px">
@@ -662,9 +670,9 @@ export async function handleSaveRoutstrKey() {
   btn.disabled = false; btn.textContent = 'Save & Validate';
 }
 
-export function handleRemoveRoutstrKey() {
-  localStorage.removeItem('labcharts-routstr-key');
-  updateKeyCache('labcharts-routstr-key', null);
+export async function handleRemoveRoutstrKey() {
+  try { await saveRoutstrKey(''); }
+  catch { showNotification('Could not remove the Routstr key. Try again.', 'error'); return; }
   clearRoutstrModelCaches();
   showNotification('Routstr key removed', 'info');
   providerPanelDeps.openSettingsModal();

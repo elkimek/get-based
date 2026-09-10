@@ -33,8 +33,7 @@ assert('provider-wallet-panels.js renders no inline event attributes',
 assert('provider wallet renders delegated action attributes',
   walletUiSrc.includes('data-routstr-wallet-action') &&
     walletUiSrc.includes('data-routstr-wallet-key') &&
-    walletUiSrc.includes('data-routstr-wallet-change') &&
-    walletUiSrc.includes('data-routstr-wallet-blur'));
+    walletUiSrc.includes('data-routstr-wallet-change'));
 assert('provider wallet panel installs delegates with wallet callbacks',
   walletPanelSrc.includes("import { installRoutstrWalletDelegates } from './provider-wallet-delegates.js'") &&
     walletPanelSrc.includes('installRoutstrWalletDelegates({') &&
@@ -44,8 +43,7 @@ assert('provider wallet delegates install idempotent listeners',
   walletDelegatesSrc.includes('let routstrWalletDelegatesInstalled = false') &&
     walletDelegatesSrc.includes("document.addEventListener('click', _handleRoutstrWalletClick)") &&
     walletDelegatesSrc.includes("document.addEventListener('keydown', _handleRoutstrWalletKeydown)") &&
-    walletDelegatesSrc.includes("document.addEventListener('change', _handleRoutstrWalletChange)") &&
-    walletDelegatesSrc.includes("document.addEventListener('blur', _handleRoutstrWalletBlur, true)"));
+    walletDelegatesSrc.includes("document.addEventListener('change', _handleRoutstrWalletChange)"));
 assert('provider wallet delegates are scoped to wallet surfaces',
   walletDelegatesSrc.includes('WALLET_ROOTS') &&
     walletDelegatesSrc.includes('el.closest(WALLET_ROOTS)'));
@@ -55,6 +53,7 @@ assert('service worker precaches provider wallet delegate module',
 [
   'fund-wallet-preset',
   'fund-wallet-custom-input',
+  'fund-wallet-custom',
   'recover-wallet-funding',
   'receive-wallet-cashu',
   'copy-clipboard',
@@ -86,8 +85,8 @@ assert('service worker precaches provider wallet delegate module',
 
 assert('deposit recovery awaits pending-deposit clear before reload',
   /async function _recoverPendingDeposit[\s\S]*await walletRuntime\.cashuReceiveToken\?\.\([\s\S]*await walletRuntime\.cashuClearPendingDeposit\?\.\([\s\S]*globalThis\.location\?\.reload\?\.\(\)/.test(walletDelegatesSrc));
-assert('withdraw recovery conditionally awaits pending-withdraw clear and clears node session before reload',
-  /async function _recoverPendingWithdraw[\s\S]*await walletRuntime\.cashuReceiveToken\?\.\([\s\S]*if \(el\.dataset\.clearPendingWithdraw !== 'false'\) await walletRuntime\.cashuClearPendingWithdraw\?\.\([\s\S]*await _call\('clearRoutstrNodeSession'\)[\s\S]*globalThis\.location\?\.reload\?\.\(\)/.test(walletDelegatesSrc));
+assert('withdraw recovery awaits pending-withdraw clear before reload',
+  /async function _recoverPendingWithdraw[\s\S]*await walletRuntime\.cashuReceiveToken\?\.\([\s\S]*if \(el\.dataset\.clearPendingWithdraw !== 'false'\) await walletRuntime\.cashuClearPendingWithdraw\?\.\([\s\S]*globalThis\.location\?\.reload\?\.\(\)/.test(walletDelegatesSrc));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) process.exit(1);

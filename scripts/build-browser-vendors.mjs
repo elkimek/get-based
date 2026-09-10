@@ -11,6 +11,12 @@ const CHECK_ONLY = process.argv.includes('--check');
 const MANIFEST = 'vendor/browser-vendors.json';
 const TARGETS = [
   {
+    package: '@noble/curves',
+    entry: 'scripts/vendor-entries/routstr-crypto.js',
+    output: 'vendor/routstr-crypto.js',
+    format: 'es',
+  },
+  {
     package: '@cashu/cashu-ts',
     entry: 'scripts/vendor-entries/cashu.js',
     output: 'vendor/cashu-ts.js',
