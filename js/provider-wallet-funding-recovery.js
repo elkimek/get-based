@@ -43,6 +43,30 @@ export async function recoverPendingWalletFunding(walletRuntime, refreshBalance)
   }
 }
 
+function renderFundingPaid(status, credited) {
+  const confirmation = document.createElement('div');
+  confirmation.setAttribute('role', 'status');
+  confirmation.style.cssText = 'margin-top:8px;text-align:center';
+  const amount = document.createElement('div');
+  amount.style.cssText = 'font-size:12px;font-weight:600;margin-bottom:4px';
+  amount.textContent = '⚡ ' + credited.toLocaleString() + ' sats';
+  const card = document.createElement('div');
+  card.style.cssText = 'display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;box-sizing:border-box;width:220px;height:220px;border:1px solid var(--green);border-radius:8px;background:rgba(34,197,94,0.08);color:var(--green)';
+  const check = document.createElement('span');
+  check.setAttribute('aria-hidden', 'true');
+  check.style.cssText = 'display:flex;align-items:center;justify-content:center;width:72px;height:72px;border:2px solid currentColor;border-radius:50%;font-size:42px;line-height:1';
+  check.textContent = '✓';
+  const title = document.createElement('strong');
+  title.style.cssText = 'font-size:16px';
+  title.textContent = 'Payment received';
+  card.append(check, title);
+  const detail = document.createElement('div');
+  detail.style.cssText = 'margin-top:8px;font-size:12px;color:var(--green)';
+  detail.textContent = '+' + credited.toLocaleString() + ' sats added to wallet';
+  confirmation.append(amount, card, detail);
+  status.replaceChildren(confirmation);
+}
+
 /** One wallet-wide loop, independent of the currently visible invoice/panel. */
 export function createFundingMonitor(runtime, refreshBalance, onResult = (_result) => {}) {
   let timer = null;
@@ -62,7 +86,7 @@ export function createFundingMonitor(runtime, refreshBalance, onResult = (_resul
         const displayed = result.results?.find(item => item.quote === status?.dataset.quote && result.mint === status?.dataset.mint);
         if (displayed?.paid && status) {
           const credited = Math.max(0, Number(displayed.minted) - Number(displayed.fee || 0));
-          status.textContent = '✓ +' + credited.toLocaleString() + ' sats added to wallet!';
+          renderFundingPaid(status, credited);
           delete status.dataset.quote;
         } else if (displayed && /^(EXPIRED|CANCELLED|CANCELED)$/.test(String(displayed.state).toUpperCase()) && status) {
           status.textContent = 'This invoice expired or was cancelled. Request a new invoice to deposit.';

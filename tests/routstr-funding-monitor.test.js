@@ -34,6 +34,8 @@ it('backs off through repeated failures and recovers on connectivity restoration
   check.mockResolvedValue(result({ pending: 0, recovered: 500, balance: 500, results: [{ quote: 'new', paid: true, minted: 500, fee: 0 }] }));
   window.dispatchEvent(new Event('online')); await settle();
   expect(document.body.textContent).toContain('+500 sats added');
+  expect(document.querySelector('[role="status"]')?.textContent).toContain('Payment received');
+  expect(document.querySelector('a')).toBeNull();
 });
 it('single-flights slow checks even during repeated starts and focus events', async () => {
   let resolve;
