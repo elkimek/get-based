@@ -14,6 +14,28 @@ export function walletMintRowHtml(mint, { balance = null, active = false, accept
   </button>`;
 }
 
+export function walletMintPickerHtml(currentMint, savedMints, nodeMints) {
+  const savedMintsHtml = savedMints.map(entry => walletMintRowHtml(entry.mint, { balance: entry.balance, active: entry.active, accepted: nodeMints.includes(entry.mint) })).join('');
+  const otherMints = nodeMints.filter(mint => !savedMints.some(entry => entry.mint === mint));
+  const nodeMintsHtml = otherMints.length ? `<div class="routstr-mint-section-label">Also accepted by this node</div><div class="routstr-mint-list">${otherMints.map(mint => walletMintRowHtml(mint)).join('')}</div>` : '';
+  return `<div class="routstr-mint-panel">
+    <div class="routstr-mint-heading">Mints &amp; balances</div>
+    <p class="routstr-mint-help">Each mint has its own balance. Choose one to deposit, withdraw, or export funds.</p>
+    <div class="routstr-mint-section-label">Saved mint balances</div><div class="routstr-mint-list">${savedMintsHtml}</div>
+    ${nodeMintsHtml}
+    <div class="routstr-mint-custom">
+      <label class="routstr-mint-section-label" for="routstr-mint-input">Mint URL</label>
+      <input type="url" class="api-key-input" id="routstr-mint-input" value="${escapeAttr(currentMint)}" placeholder="https://mint.example.com" spellcheck="false" autocapitalize="none" aria-describedby="routstr-mint-hint">
+      <p class="routstr-mint-help" id="routstr-mint-hint">Choose a mint above or enter another URL. Existing balances stay at their original mint.</p>
+    </div>
+    <div class="routstr-mint-actions">
+      <button type="button" class="import-btn import-btn-primary" data-routstr-wallet-action="save-mint">Select mint</button>
+      <button type="button" class="import-btn import-btn-secondary" data-routstr-wallet-action="cancel-mint">Cancel</button>
+    </div>
+    <div id="routstr-mint-status" role="status" aria-live="polite"></div>
+  </div>`;
+}
+
 export function walletSeedOnboardingHtml(mnemonic) {
   return `<div style="padding:12px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--accent);margin-top:8px">
     <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px">Your wallet seed phrase</div>
