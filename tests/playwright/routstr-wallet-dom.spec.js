@@ -79,6 +79,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
     let importedToken = null;
     let receivedToken = null;
     let fundingInvoiceAmount = null;
+    let fundingInvoiceCount = 0;
     let fundingStatusQuote = null;
     let pendingFundingChecked = false;
     let exportedWallet = false;
@@ -124,6 +125,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       };
       window.cashuCreateFundingInvoice = async amount => {
         fundingInvoiceAmount = amount;
+        fundingInvoiceCount += 1;
         return { quote: 'funding-quote-1000', invoice: makeTestInvoice(amount) };
       };
       window.cashuCheckFundingStatus = async quote => {
@@ -335,6 +337,33 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         && (document.getElementById('routstr-wfund-status')?.textContent || '').includes('+998 sats recovered');
       const fundingPollUsesQuote = fundingStatusQuote === null || fundingStatusQuote === 'funding-quote-1000';
 
+      // Reopening the deposit panel must never revive a terminal cached invoice.
+      let terminalFundingInvoicesAreReplaced = true;
+      for (const state of ['EXPIRED', 'CANCELLED', 'CANCELED']) {
+        await panels.showRoutstrWalletFund(); // Close the deposit panel.
+        document.getElementById('routstr-wallet-fund-area').innerHTML = '';
+        let terminalReported = false;
+        panels.configureRoutstrWalletRuntime({
+          ...panels.walletRuntime,
+          cashuHasWalletSeed: async () => true,
+          cashuRecoverPendingFunding: async () => {
+            const results = terminalReported ? [] : [{ quote: 'funding-quote-1000', paid: false, state }];
+            terminalReported = true;
+            return { mint: currentMint, balance: walletBalance, recovered: 0, pending: 0, failed: 0, results };
+          },
+        });
+        panels.startRoutstrFundingMonitor();
+        await wait(50);
+        await panels.showRoutstrWalletFund();
+        await wait(50);
+        const status = document.getElementById('routstr-wfund-status');
+        terminalFundingInvoicesAreReplaced &&= !status?.querySelector('a[href^="lightning:"]') && !status?.dataset.quote;
+        const previousCount = fundingInvoiceCount;
+        await panels.doRoutstrWalletFund(1000);
+        terminalFundingInvoicesAreReplaced &&= fundingInvoiceCount === previousCount + 1;
+      }
+      panels.configureRoutstrWalletRuntime({ ...panels.walletRuntime, cashuHasWalletSeed: window.cashuHasWalletSeed, cashuRecoverPendingFunding: window.cashuRecoverPendingFunding });
+
       await panels.showRoutstrWalletBackup();
       await wait(50);
       const walletBackupExportCalled = exportedWallet === true;
@@ -407,6 +436,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         lightningFundingCreatesInvoice,
         pendingFundingRecoveryReportsRecovered,
         fundingPollUsesQuote,
+        terminalFundingInvoicesAreReplaced,
         walletBackupExportCalled,
         sendTokenUsesWalletRuntime,
         lightningWithdrawQuotesInvoice,

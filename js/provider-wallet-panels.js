@@ -96,7 +96,9 @@ installRoutstrBalanceSettlementRefresh(refreshRoutstrBalance);
 let _fundingRequest = null;
 let _fundingInvoice = null;
 const fundingMonitor = createFundingMonitor(walletRuntime, _refreshRoutstrWalletBalance, result => {
-  if (result.results?.some(item => item.paid && item.quote === _fundingInvoice?.quote && result.mint === _fundingInvoice?.mint)) _fundingInvoice = null;
+  if (result.results?.some(item => item.quote === _fundingInvoice?.quote
+    && result.mint === _fundingInvoice?.mint
+    && (item.paid || /^(EXPIRED|CANCELLED|CANCELED)$/.test(String(item.state).toUpperCase())))) _fundingInvoice = null;
 });
 export function startRoutstrFundingMonitor() { fundingMonitor.start(); }
 
