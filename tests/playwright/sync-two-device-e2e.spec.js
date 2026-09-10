@@ -526,7 +526,8 @@ async function run(browser, testInfo) {
         'labcharts-routstr-node': 'https://legacy-node.routstr.e2e/',
       });
       return {
-        rawKey: localStorage.getItem('labcharts-routstr-key'),
+        rawKey: localStorage.getItem('labcharts-routstr-sessions'),
+        legacyKey: await (await import('/js/crypto.js')).encryptedGetItem('labcharts-routstr-key'),
         usableKey: window.__syncE2EGetRoutstrKey(),
         node: localStorage.getItem('labcharts-routstr-node'),
         updatedAt: localStorage.getItem('labcharts-routstr-session-updated-at'),
@@ -536,7 +537,8 @@ async function run(browser, testInfo) {
       routstrSync.rawKey?.startsWith('v1:')
         && routstrSync.rawKey !== routstrSync.usableKey
         && routstrSync.usableKey === 'sk-routstr-two-device'
-        && routstrSync.node === 'https://node.routstr.e2e/'
+        && routstrSync.node === 'https://node.routstr.e2e'
+        && routstrSync.legacyKey === ''
         && routstrSync.updatedAt === '200',
       JSON.stringify(routstrSync));
 

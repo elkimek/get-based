@@ -17,6 +17,16 @@ test('nostr discovery browser coverage handles relay parsing cache health and se
 
   const results = await page.evaluate(async ({ nostrUrl }) => {
     const nostr = await import(nostrUrl);
+    const { schnorr, sha256 } = await import('/vendor/routstr-crypto.js');
+    const hex = bytes => Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    const signer = number => { const key = new Uint8Array(32); key[31] = number; return key; };
+    const nodeId = (number, name) => `38421:${hex(schnorr.getPublicKey(signer(number)))}:${name}`;
+    const signEvent = event => {
+      const key = signer(event.pubkey.startsWith('pub-a') ? 1 : event.pubkey === 'pub-b' ? 2 : 3);
+      const signed = { ...event, kind: 38421, pubkey: hex(schnorr.getPublicKey(key)) };
+      const digest = sha256(new TextEncoder().encode(JSON.stringify([0, signed.pubkey, signed.created_at, signed.kind, signed.tags, signed.content])));
+      return { ...signed, id: hex(digest), sig: hex(schnorr.sign(digest, key)) };
+    };
     const outcomes = {};
     const savedStorage = new Map(Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
       .filter(key => key !== null)
@@ -61,7 +71,10 @@ test('nostr discovery browser coverage handles relay parsing cache health and se
           subId = JSON.parse(this.sent[0] || '[]')[1] || subId;
         } catch {}
 
-        const emit = data => this.onmessage?.({ data: JSON.stringify(data) });
+        const emit = data => {
+          if (data[0] === 'EVENT') data[2] = signEvent(data[2]);
+          this.onmessage?.({ data: JSON.stringify(data) });
+        };
         if (this.url.includes('damus')) {
           emit(['EVENT', subId, {
             pubkey: 'pub-a-old',
@@ -139,9 +152,9 @@ test('nostr discovery browser coverage handles relay parsing cache health and se
 
       nostr.clearNodeCache();
       const nodes = await nostr.discoverNodes(true);
-      const alpha = nodes.find(node => node.id === 'provider-a');
-      const onionUrlSkipped = nodes.find(node => node.id === 'provider-b');
-      const noPublicUrl = nodes.find(node => node.id === 'provider-c');
+      const alpha = nodes.find(node => node.id === nodeId(1, 'provider-a'));
+      const onionUrlSkipped = nodes.find(node => node.id === nodeId(2, 'provider-b'));
+      const noPublicUrl = nodes.find(node => node.id === nodeId(3, 'provider-c'));
 
       outcomes.discoveryApiStaysModuleOnly = !('nostrDiscoverNodes' in window)
         && !('nostrGetSelectedNode' in window)
@@ -154,7 +167,7 @@ test('nostr discovery browser coverage handles relay parsing cache health and se
           return sent[0] === 'REQ' && sent[2]?.kinds?.[0] === 38421 && sent[2]?.limit === 50;
         });
 
-      outcomes.eventsDeduplicateAndParseMetadata = alpha?.pubkey === 'pub-a-new'
+      outcomes.eventsDeduplicateAndParseMetadata = alpha?.pubkey === hex(schnorr.getPublicKey(signer(1)))
         && alpha.name === 'Alpha <Node>'
         && alpha.about === 'Public Routstr node'
         && alpha.mints[0] === 'https://mint.example'
@@ -163,7 +176,7 @@ test('nostr discovery browser coverage handles relay parsing cache health and se
         && alpha.urls.length === 1
         && alpha.urls[0] === 'https://node-a.example/base';
 
-      outcomes.healthCheckMarksOnlineModelsAndSortsFirst = nodes[0]?.id === 'provider-a'
+      outcomes.healthCheckMarksOnlineModelsAndSortsFirst = nodes[0]?.id === nodeId(1, 'provider-a')
         && alpha.online === true
         && alpha.modelCount === 2
         && alpha.models.some(model => model.id === 'model-a' && model.name === 'Model A')
