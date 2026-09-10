@@ -59,9 +59,9 @@ assert('Startup footer delegates APP_VERSION through utils runtime',
     && startupUiSrc.includes('vTextEl.textContent = getAppVersionRuntime()')
     && !startupUiSrc.includes("getStartupRuntimeValue('APP_VERSION')"));
 assert('changelog.js has CHANGELOG array', changelogSrc.includes('const CHANGELOG'));
-assert('current release covers collapsible CLI settings and adaptive dashboard layout',
-  changelogImplSrc.includes('CURRENT_RELEASE,') && changelogCurrentSrc.includes('details can be collapsed')
-    && changelogCurrentSrc.includes('Widgets rebalance their widths'));
+assert('changelog retains CLI settings and dashboard release notes',
+  changelogImplSrc.includes('CURRENT_RELEASE,') && changelogImplSrc.includes('details can be collapsed')
+    && changelogImplSrc.includes('Widgets rebalance their widths'));
 assert('changelog.js exports openChangelog', changelogSrc.includes('export function openChangelog'));
 assert('changelog.js exports closeChangelog', changelogSrc.includes('export function closeChangelog'));
 assert('changelog.js exports maybeShowChangelog', changelogSrc.includes('export function maybeShowChangelog'));

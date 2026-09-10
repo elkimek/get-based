@@ -8,6 +8,15 @@ const CHANGELOG_ACTION_ATTR = 'data-changelog-action';
 const changelogDelegateRoots = new WeakSet();
 const CHANGELOG = [
   CURRENT_RELEASE,
+  { version: '1.19.0', date: '2026-09-05', title: 'Your agents, a better chat, and a more flexible dashboard', items: [
+    '<b>Use your installed AI agents.</b> Connect Codex, OpenCode, Hermes, Grok Build, or OpenClaw through the local Companion or a terminal command. Setup and connection controls live together in AI settings, and agent details can be collapsed.',
+    '<b>Talk to your personal agent.</b> Hermes and OpenClaw can also connect through supported personal gateways, with the health context you choose to share.',
+    '<b>Choose models right in chat.</b> Search your active provider’s models, see recommended choices, and adjust reasoning when supported. Your selections are remembered.',
+    '<b>Add files and keep conversations organized.</b> The new plus menu brings together photos, health-file imports, and AI context. Drag conversations into projects, rename projects, or remove a project while keeping its chats.',
+    '<b>A calmer, clearer chat.</b> Avatars, rotating waiting messages, and simpler message controls make conversations easier to follow. Resize the chat and conversation sidebar while the dashboard adjusts alongside them.',
+    '<b>A dashboard that fits together.</b> Widgets rebalance their widths and align neighboring cards when you rearrange them. Repeated headings and unnecessary explanatory text have also been reduced.',
+    '<b>Voice stays on your device by default when needed.</b> Automatic voice uses on-device processing when the active chat provider does not support audio; you can still choose another speech service.',
+  ] },
   { version: '1.18.10', date: '2026-09-03', title: 'AI model menus stay open on desktop', items: ['<b>Model dropdowns in Settings → AI now behave like persistent pickers.</b> A normal click keeps the list open for selection, the list stays above the Settings modal, and browsers without the newer picker UI fall back to their reliable native control.'] },
   { version: '1.18.9', date: '2026-09-03', title: 'Gemini 3.8 Flash joins recommended models', items: ['<b>Gemini 3.8 Flash is recommended wherever it is available.</b> It replaces older Gemini Flash versions in the visible Recommended group for OpenRouter, Venice, Routstr, PPQ, and compatible custom providers, while availability and pricing continue to come from each provider\'s live catalog.'] },
   { version: '1.18.8', date: '2026-09-02', title: 'Claude Fable 5.1 joins recommended models', items: ['<b>Claude Fable 5.1 is recommended wherever it is available.</b> OpenRouter, Venice, Routstr, PPQ, and compatible custom providers recognize each provider\'s model ID format while continuing to source availability and pricing from live catalogs.'] },
