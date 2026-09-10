@@ -16,6 +16,8 @@ test('api provider browser coverage exercises OAuth and provider call wrappers',
   const results = await page.evaluate(async ({ apiUrl }) => {
     const api = await import(apiUrl);
     const cryptoMod = await import('/js/crypto.js');
+    const storageRuntime = await import('/js/api-provider-storage-runtime.js');
+    const previousStorageRuntime = storageRuntime.configureApiProviderStorageRuntimeDeps({ encryptedSetItem: cryptoMod.encryptedSetCredentialItem });
     const outcomes = {};
     const fetchCalls = [];
     const savedFetch = window.fetch;
@@ -31,6 +33,8 @@ test('api provider browser coverage exercises OAuth and provider call wrappers',
       openrouterKey: localStorage.getItem('labcharts-openrouter-key'),
       openrouterModel: localStorage.getItem('labcharts-openrouter-model'),
       routstrKey: localStorage.getItem('labcharts-routstr-key'),
+      routstrSessions: localStorage.getItem('labcharts-routstr-sessions'),
+      routstrSessionsCache: cryptoMod.getCachedKey('labcharts-routstr-sessions'),
       routstrModel: localStorage.getItem('labcharts-routstr-model'),
       routstrNode: localStorage.getItem('labcharts-routstr-node'),
       ppqKey: localStorage.getItem('labcharts-ppq-key'),
@@ -170,6 +174,7 @@ test('api provider browser coverage exercises OAuth and provider call wrappers',
         maxTokens: 22,
         requestTimeoutMs: 50,
       });
+      setKey('labcharts-routstr-key', '');
       const routstrAccount = await api.createRoutstrAccount('cashu-token-value');
 
       setKey('labcharts-ppq-key', 'sk-ppq');
@@ -206,9 +211,14 @@ test('api provider browser coverage exercises OAuth and provider call wrappers',
       outcomes.routstrValidationAndAccountCreationUseNodeState = validRoutstrCashu.valid === true
         && invalidRoutstr.valid === false
         && routstrAccount.api_key === 'sk-created'
-        && callFor('/v1/balance/create')?.url.includes(encodeURIComponent('cashu-token-value'));
+        && callFor('/v1/balance/create')?.body?.initial_balance_token === 'cashu-token-value'
+        && !callFor('/v1/balance/create')?.url.includes('cashu-token-value')
+        && api.getRoutstrKey() === 'sk-created';
     } finally {
       window.fetch = savedFetch;
+      storageRuntime.configureApiProviderStorageRuntimeDeps(previousStorageRuntime);
+      restoreStorage('labcharts-routstr-sessions', savedKeys.routstrSessions);
+      cryptoMod.updateKeyCache('labcharts-routstr-sessions', savedKeys.routstrSessionsCache);
       if (savedGetOllamaConfig) window.getOllamaConfig = savedGetOllamaConfig;
       else delete window.getOllamaConfig;
       restoreStorage('labcharts-ai-provider', savedKeys.aiProvider);

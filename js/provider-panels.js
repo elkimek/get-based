@@ -668,9 +668,9 @@ export async function handleSaveRoutstrKey() {
   btn.disabled = false; btn.textContent = 'Save & Validate';
 }
 
-export function handleRemoveRoutstrKey() {
-  localStorage.removeItem('labcharts-routstr-key');
-  updateKeyCache('labcharts-routstr-key', null);
+export async function handleRemoveRoutstrKey() {
+  try { await saveRoutstrKey(''); }
+  catch { showNotification('Could not remove the Routstr key. Try again.', 'error'); return; }
   clearRoutstrModelCaches();
   showNotification('Routstr key removed', 'info');
   providerPanelDeps.openSettingsModal();
