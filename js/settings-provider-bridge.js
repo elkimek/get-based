@@ -97,3 +97,11 @@ export function initSettingsProviderPanels() {
     providerPanels.initSettingsModelFetch();
   });
 }
+
+// Resume saved wallet invoices after reload without requiring Settings to open.
+// Do not load the wallet/crypto graph for visitors who have never set one up.
+try {
+  if (localStorage.getItem('labcharts-cashu-wallet-mnemonic')) {
+    void import('./provider-wallet-panels.js').then(panels => panels.startRoutstrFundingMonitor()).catch(() => {});
+  }
+} catch {}

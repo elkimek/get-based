@@ -17,7 +17,6 @@ export function installRoutstrWalletDelegates(actions = {}) {
   document.addEventListener('click', _handleRoutstrWalletClick);
   document.addEventListener('keydown', _handleRoutstrWalletKeydown);
   document.addEventListener('change', _handleRoutstrWalletChange);
-  document.addEventListener('blur', _handleRoutstrWalletBlur, true);
 }
 
 function _call(name, ...args) {
@@ -68,6 +67,7 @@ async function _handleRoutstrWalletClick(event) {
   const action = el.dataset.routstrWalletAction;
 
   if (action === 'fund-wallet-preset') return _call('doRoutstrWalletFund', Number(el.dataset.sats));
+  if (action === 'fund-wallet-custom') return _call('doRoutstrWalletFundCustom');
   if (action === 'fund-wallet-custom-input') return _call('rsWalletFundCustomInput');
   if (action === 'recover-wallet-funding') return _call('recoverPendingWalletFunding');
   if (action === 'receive-wallet-cashu') return _call('doRoutstrWalletReceiveCashu');
@@ -111,12 +111,6 @@ function _handleRoutstrWalletChange(event) {
   const continueBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('routstr-seed-continue'));
   const checkbox = /** @type {HTMLInputElement} */ (el);
   if (continueBtn) continueBtn.disabled = !checkbox.checked;
-}
-
-function _handleRoutstrWalletBlur(event) {
-  const el = _closestWalletEl(event, '[data-routstr-wallet-blur]');
-  const input = /** @type {HTMLInputElement | null} */ (el);
-  if (input?.dataset.routstrWalletBlur === 'wallet-fund-custom' && input.value.trim()) _call('doRoutstrWalletFundCustom');
 }
 
 function _hideMintEdit() {

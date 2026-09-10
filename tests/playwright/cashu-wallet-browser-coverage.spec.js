@@ -833,7 +833,7 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       document.getElementById('routstr-wallet-fund-area').appendChild(blurProbe);
       blurProbe.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
       await wait(0);
-      const blurDelegateFunds = document.getElementById('routstr-wfund-poll')?.textContent.includes('Waiting for payment');
+      const blurDoesNotCreateInvoice = !document.getElementById('routstr-wfund-poll');
 
       const seed = document.createElement('div');
       seed.dataset.routstrWalletAction = 'toggle-seed-blur';
@@ -877,7 +877,7 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
         executeWithdrawDelegates,
         tokenPresetCreatesToken,
         copyDelegateWritesToken,
-        blurDelegateFunds,
+        blurDoesNotCreateInvoice,
         seedBlurToggles,
       };
     } finally {
@@ -1093,7 +1093,7 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
           && calls.some(item => item[0] === 'sendToken' && item[1] === 55)
           && calls.some(item => item[0] === 'executeWithdraw' && item[1] === 'quote-delegate'),
         withdrawMaxAndKeyBlur: document.getElementById('routstr-withdraw-amount').value === '888'
-          && calls.filter(item => item[0] === 'fundCustom').length >= 2
+          && calls.filter(item => item[0] === 'fundCustom').length === 1
           && calls.some(item => item[0] === 'walletFund'),
         seedBlurToggled: document.getElementById('seed-blur').style.filter === '',
       };

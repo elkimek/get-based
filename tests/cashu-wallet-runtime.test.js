@@ -615,6 +615,20 @@ describe('Cashu wallet runtime behavior', () => {
     expect((await readIdbStore('proofs')).map(row => row.amount).sort((a, b) => a - b)).toEqual([4, 6]);
   });
 
+  it('automatically recovers an ISSUED invoice from its exact mint journal', async () => {
+    const stub = installCashuStub({ durableOps: true });
+    const wallet = await loadWallet();
+    await wallet.setMintUrl('https://mint.getbased.test/Bitcoin');
+    await wallet.generateWalletSeed();
+    const funding = await wallet.createFundingInvoice(23);
+    stub.failMintPersistenceOnce = true;
+    await expect(wallet.checkFundingStatus(funding.quote)).rejects.toThrow();
+    stub.mintQuoteStates.set(funding.quote, 'ISSUED');
+    await expect(wallet.checkFundingStatus(funding.quote)).resolves.toMatchObject({ paid: true, minted: 23, balance: 23 });
+    await expect(readIdbMeta('pendingSwap')).resolves.toBeNull();
+    await expect(wallet.recoverPendingFunding()).resolves.toMatchObject({ checked: 0, recovered: 0 });
+  });
+
   it('restores quote-specific prepared mint outputs after proof persistence fails', async () => {
     const stub = installCashuStub({ durableOps: true });
     const wallet = await loadWallet();

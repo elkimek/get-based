@@ -6,9 +6,8 @@ import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { getRoutstrKey, saveRoutstrKey, touchRoutstrSession, fetchRoutstrModels, getRoutstrBalance } from './api.js';
 import { isValidExternalUrl } from './url-safety.js';
-import { ensureQRCode } from './provider-qr.js';
 import { installRoutstrWalletDelegates } from './provider-wallet-delegates.js';
-import { recoverPendingWalletFunding as recoverPendingWalletFundingImpl } from './provider-wallet-funding-recovery.js';
+import { createFundingMonitor, renderFundingInvoice, recoverPendingWalletFunding as recoverPendingWalletFundingImpl } from './provider-wallet-funding-recovery.js';
 import { buildRoutstrNodeActions, routstrWalletActionButtons } from './provider-wallet-panel-buttons.js';
 import {
   routstrNodePickerRowHtml,
@@ -94,16 +93,18 @@ export function refreshRoutstrBalance() {
 
 installRoutstrBalanceSettlementRefresh(refreshRoutstrBalance);
 
-let _rsFundPollTimer = null;
-const FUNDING_POLL_INTERVAL_MS = 3000;
-const FUNDING_POLL_MAX_CONSECUTIVE_FAILURES = 3;
+let _fundingRequest = null;
+let _fundingInvoice = null;
+const fundingMonitor = createFundingMonitor(walletRuntime, _refreshRoutstrWalletBalance, result => {
+  if (result.results?.some(item => item.paid && item.quote === _fundingInvoice?.quote && result.mint === _fundingInvoice?.mint)) _fundingInvoice = null;
+});
+export function startRoutstrFundingMonitor() { fundingMonitor.start(); }
 
 function _getWalletInput(id) {
   return /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (document.getElementById(id));
 }
 
 export function clearRoutstrWalletTimers() {
-  if (_rsFundPollTimer) { clearInterval(_rsFundPollTimer); _rsFundPollTimer = null; }
   if (_rsCashuBackupTimer) { clearTimeout(_rsCashuBackupTimer); _rsCashuBackupTimer = null; }
   clearRoutstrBalanceSettlementTimers();
   _walletSeedThenAction = null;
@@ -117,7 +118,7 @@ export function showRoutstrWalletFund() {
   _ensureWalletSeed(() => _renderWalletFundUI());
 }
 
-function _renderWalletFundUI() {
+async function _renderWalletFundUI() {
   const area = document.getElementById('routstr-wallet-fund-area');
   if (!area) return;
   area.style.display = 'block';
@@ -132,7 +133,7 @@ function _renderWalletFundUI() {
       ${presets.map(s => `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="fund-wallet-preset" data-sats="${s}">\u26a1 ${s.toLocaleString()}</button>`).join('')}<div id="routstr-wfund-custom-slot" style="display:flex"><button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;color:var(--text-muted)" data-routstr-wallet-action="fund-wallet-custom-input">\u26a1\u2026</button></div>
     </div>
     <div style="font-size:10px;color:var(--text-muted);margin-top:5px;text-align:center">1,000 sats is enough for a few chats</div>
-    <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;margin-top:6px;width:100%" data-routstr-wallet-action="recover-wallet-funding">Check pending Lightning deposits</button>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:6px">Paid deposits are checked and credited automatically, even after closing this panel.</div>
     <div style="margin-top:6px"><div class="or-oauth-divider"><span>${cashuFeeLabel}</span></div>
     <div style="display:flex;gap:6px;margin-top:4px">
       <input type="text" class="api-key-input" id="routstr-wcashu-input" placeholder="cashuA... / cashuB... / cashu:..." style="font-size:11px;flex:1;font-family:monospace">
@@ -140,12 +141,18 @@ function _renderWalletFundUI() {
     </div></div>
     <div id="routstr-wfund-status"></div>
   </div>`;
+  startRoutstrFundingMonitor();
+  const invoice = _fundingInvoice;
+  if (invoice && invoice.mint === await walletRuntime.cashuGetMintUrl()) {
+    try { await renderFundingInvoice(invoice); }
+    catch { _fundingInvoice = null; }
+  }
 }
 
 export function rsWalletFundCustomInput() {
   const slot = document.getElementById('routstr-wfund-custom-slot');
   if (!slot) return;
-  slot.innerHTML = '<input type="text" inputmode="numeric" id="routstr-wfund-custom" class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;width:80px;text-align:center;cursor:text;border:1px solid var(--accent)" placeholder="sats" data-routstr-wallet-key="wallet-fund-custom" data-routstr-wallet-blur="wallet-fund-custom">';
+  slot.innerHTML = '<input type="text" inputmode="numeric" id="routstr-wfund-custom" class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;width:80px;text-align:center;cursor:text;border:1px solid var(--accent)" placeholder="sats" data-routstr-wallet-key="wallet-fund-custom"><button class="import-btn import-btn-secondary" data-routstr-wallet-action="fund-wallet-custom">Get invoice</button>';
   document.getElementById('routstr-wfund-custom')?.focus();
 }
 
@@ -158,68 +165,38 @@ export function doRoutstrWalletFundCustom() {
     if (s) s.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Minimum 100 sats</div>';
     return;
   }
-  doRoutstrWalletFund(amount);
+  void doRoutstrWalletFund(amount);
 }
 
 export async function doRoutstrWalletFund(amountSats) {
+  // Repeated clicks must not race to replace the displayed invoice.
+  if (_fundingRequest) return false;
   const statusEl = document.getElementById('routstr-wfund-status');
-  if (!statusEl) return;
-  statusEl.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">Creating invoice\u2026</div>';
-  try {
-    const result = await walletRuntime.cashuCreateFundingInvoice(amountSats);
-    validateLightningInvoice(result.invoice, amountSats);
-    let qrSvg = '';
-    if (typeof qrcode === 'function') {
-      const qr = qrcode(0, 'L');
-      qr.addData(result.invoice.toUpperCase());
-      qr.make();
-      qrSvg = qr.createSvgTag({ cellSize: 4, margin: 4, scalable: true });
-    } else {
-      try {
-        const makeQr = await ensureQRCode();
-        const qr = makeQr(0, 'L');
-        qr.addData(result.invoice.toUpperCase());
-        qr.make();
-        qrSvg = qr.createSvgTag({ cellSize: 4, margin: 4, scalable: true });
-      } catch {}
-    }
-    const payUri = 'lightning:' + result.invoice;
-    statusEl.innerHTML = `<div style="margin-top:8px;text-align:center">
-      <div style="font-size:12px;font-weight:600;margin-bottom:4px">\u26a1 ${amountSats.toLocaleString()} sats</div>
-      ${qrSvg ? `<a href="${escapeAttr(payUri)}" style="display:inline-block;background:#fff;padding:10px;border-radius:8px;width:220px;height:220px">${qrSvg}</a>` : ''}
-      <div style="margin-top:6px"><button class="import-btn import-btn-secondary" style="font-size:10px;padding:2px 8px" data-routstr-wallet-action="copy-clipboard" data-clipboard-text="${escapeAttr(result.invoice)}" data-copied-text="\u2713 Copied">${escapeHTML(result.invoice.slice(0, 20))}\u2026 copy</button></div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:4px" id="routstr-wfund-poll">Waiting for payment\u2026</div>
-    </div>`;
-    if (_rsFundPollTimer) { clearInterval(_rsFundPollTimer); _rsFundPollTimer = null; }
-    let consecutivePollFailures = 0;
-    _rsFundPollTimer = setInterval(async function() {
-      try {
-        const s = await walletRuntime.cashuCheckFundingStatus(result.quote);
-        consecutivePollFailures = 0;
-        if (s && s.paid) {
-          clearInterval(_rsFundPollTimer); _rsFundPollTimer = null;
-          const feeText = s.fee ? ' (' + s.fee + ' fee)' : '';
-          const minted = Number(s.minted) || amountSats;
-          const credited = s.fee ? (minted - s.fee) : minted;
-          statusEl.innerHTML = '<div style="margin-top:8px;text-align:center;font-size:12px;color:var(--green)">\u2713 +' + credited.toLocaleString() + ' sats added to wallet!' + feeText + '</div>';
-          showNotification('Wallet funded \u26a1 ' + credited.toLocaleString() + ' sats', 'success');
-          _refreshRoutstrWalletBalance();
-          setTimeout(function() { const a = document.getElementById('routstr-wallet-fund-area'); if (a) a.style.display = 'none'; }, 3000);
-        }
-      } catch {
-        consecutivePollFailures += 1;
-        const poll = document.getElementById('routstr-wfund-poll');
-        if (consecutivePollFailures >= FUNDING_POLL_MAX_CONSECUTIVE_FAILURES) {
-          if (_rsFundPollTimer) { clearInterval(_rsFundPollTimer); _rsFundPollTimer = null; }
-          if (poll) poll.innerHTML = '<span style="color:var(--red)">Mint unreachable. Auto-check stopped; use "Check pending Lightning deposits" after the mint is reachable/payment confirms.</span>';
-        } else if (poll) {
-          poll.innerHTML = '<span style="color:var(--yellow, #f0a800)">Payment check failed. Retrying\u2026</span>';
-        }
-      }
-    }, FUNDING_POLL_INTERVAL_MS);
-  } catch (e) {
-    statusEl.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
+  if (!statusEl) return false;
+  if (_fundingInvoice?.amount === amountSats && statusEl.dataset.quote === _fundingInvoice.quote) {
+    try { validateLightningInvoice(_fundingInvoice.invoice, amountSats); return true; }
+    catch { _fundingInvoice = null; }
   }
+  statusEl.textContent = 'Creating invoice…';
+  delete statusEl.dataset.quote;
+  _fundingRequest = (async () => {
+    try {
+      const mint = await walletRuntime.cashuGetMintUrl();
+      const result = await walletRuntime.cashuCreateFundingInvoice(amountSats);
+      _fundingInvoice = { ...result, amount: amountSats, mint };
+      fundingMonitor.start();
+      // The quote is durable even if the user navigated away while creating it.
+      if (statusEl === document.getElementById('routstr-wfund-status')) {
+        await renderFundingInvoice(_fundingInvoice);
+      }
+      return true;
+    } catch (e) {
+      if (statusEl.isConnected) statusEl.textContent = getErrorMessage(e);
+      return false;
+    }
+  })();
+  try { return await _fundingRequest; }
+  finally { _fundingRequest = null; }
 }
 
 export async function recoverPendingWalletFunding() {
@@ -534,12 +511,12 @@ export async function doRoutstrNodeWithdraw(nodeUrl) {
   } finally { _nodeRefundInFlight = false; }
 }
 
-async function _refreshRoutstrWalletBalance() {
+async function _refreshRoutstrWalletBalance(knownBalance = null) {
   refreshWalletSeedStatus();
   const el = document.getElementById('routstr-wallet-balance');
   if (!el) return;
   try {
-    const balance = await walletRuntime.cashuGetBalance();
+    const balance = typeof knownBalance === 'number' ? knownBalance : await walletRuntime.cashuGetBalance();
     el.textContent = '\u26a1 ' + balance.toLocaleString() + ' sats';
   } catch {
     el.textContent = '\u26a1 balance unavailable';
@@ -574,7 +551,6 @@ let _activeWalletAction = null;
 
 function _setActiveWalletAction(actionId) {
   _activeWalletAction = actionId;
-  if (actionId !== 'deposit' && _rsFundPollTimer) { clearInterval(_rsFundPollTimer); _rsFundPollTimer = null; }
   const el = document.getElementById('routstr-wallet-actions');
   if (el) el.innerHTML = routstrWalletActionButtons(actionId);
 }

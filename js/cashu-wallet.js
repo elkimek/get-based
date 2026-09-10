@@ -454,6 +454,19 @@ export async function checkFundingStatus(quoteId) {
     const mintUrl = await getMintUrl();
     const wallet = await _getWallet(mintUrl);
     const checked = await wallet.checkMintQuoteBolt11(quoteId);
+    // A response can be lost after the mint issued the exact journaled outputs.
+    // Recover those outputs automatically instead of waiting forever for PAID.
+    if (String(checked.state).toUpperCase() === 'ISSUED') {
+      const journal = await _getMeta(PENDING_SWAP_KEY);
+      if (journal?.operation === 'mint' && journal.quoteId === quoteId && journal.mint === mintUrl) {
+        const exact = await _recoverPendingSwapUnlocked();
+        if (exact.recovered > 0) return {
+          paid: true, minted: exact.recovered, fee: 0,
+          balance: _sumProofsAsNumber(cashuts, await _getAllProofs(mintUrl)),
+          recoveredFromJournal: true,
+        };
+      }
+    }
     if (checked.state === cashuts.MintQuoteState.PAID) {
       const namespacedKey = await _pendingQuoteKey(mintUrl, quoteId);
       const previousNamespacedKey = _legacyNamespacedPendingQuoteKey(mintUrl, quoteId);
@@ -553,7 +566,7 @@ export async function recoverPendingFunding() {
     }
   }
 
-  return { checked: entries.length, recovered, pending, cleared, failed: errors.length, errors, balance, results };
+  return { mint: currentMint, checked: entries.length, recovered, pending, cleared, failed: errors.length, errors, balance, results };
 }
 
 /** Receive a Cashu token string (from external source).

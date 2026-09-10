@@ -163,3 +163,47 @@ test('switching back to a saved funded node does not require another deposit', a
   expect(result.requests.some(request => request.url === 'https://node-a.test/v1/balance/info' && request.key === 'Bearer sk-node-a')).toBe(true);
   expect(result.requests.some(request => /create|topup|refund/.test(request.url))).toBe(false);
 });
+
+test('custom funding Enter then blur creates exactly one invoice and keeps its QR', async ({ page }) => {
+  await page.goto('/app');
+  const invoice = (await import('../fixtures/lightning-invoices.js')).makeTestInvoice(500);
+  await page.evaluate(async invoice => {
+    const panels = await import('/js/provider-wallet-panels.js');
+    document.body.innerHTML = '<div id="routstr-wallet-fund-area"><div id="routstr-wfund-custom-slot"></div><div id="routstr-wfund-status"></div></div><button id="elsewhere">Elsewhere</button>';
+    window.qrcode = () => ({ addData() {}, make() {}, createSvgTag: () => '<svg></svg>' });
+    window.__fundingCalls = 0;
+    panels.configureRoutstrWalletRuntime({
+      cashuGetMintUrl: async () => 'https://mint.test',
+      cashuHasWalletSeed: async () => false,
+      cashuCreateFundingInvoice: async () => { window.__fundingCalls++; return { quote: 'original', invoice }; },
+    });
+    panels.rsWalletFundCustomInput();
+  }, invoice);
+  await page.locator('#routstr-wfund-custom').fill('500');
+  await page.locator('#routstr-wfund-custom').press('Enter');
+  await expect(page.locator('#routstr-wfund-status a')).toHaveAttribute('href', 'lightning:' + invoice);
+  await page.locator('#elsewhere').click();
+  expect(await page.evaluate(() => window.__fundingCalls)).toBe(1);
+  await expect(page.locator('#routstr-wfund-status a')).toHaveAttribute('href', 'lightning:' + invoice);
+});
+
+test('concurrent funding clicks cannot replace a slow invoice response', async ({ page }) => {
+  await page.goto('/app');
+  const invoice = (await import('../fixtures/lightning-invoices.js')).makeTestInvoice(500);
+  const result = await page.evaluate(async invoice => {
+    const panels = await import('/js/provider-wallet-panels.js');
+    document.body.innerHTML = '<div id="routstr-wfund-status"></div>';
+    window.qrcode = () => ({ addData() {}, make() {}, createSvgTag: () => '<svg></svg>' });
+    let release, calls = 0;
+    panels.configureRoutstrWalletRuntime({
+      cashuGetMintUrl: async () => 'https://mint.test', cashuHasWalletSeed: async () => false,
+      cashuCreateFundingInvoice: async () => { calls++; return new Promise(resolve => { release = resolve; }); },
+    });
+    const first = panels.doRoutstrWalletFund(500);
+    await Promise.resolve(); await Promise.resolve();
+    await panels.doRoutstrWalletFund(1000);
+    release({ quote: 'original', invoice }); await first;
+    return { calls, href: document.querySelector('a')?.getAttribute('href') };
+  }, invoice);
+  expect(result).toEqual({ calls: 1, href: 'lightning:' + invoice });
+});

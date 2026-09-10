@@ -70,6 +70,7 @@ import {
 import {
   configureRoutstrWalletPanels,
   clearRoutstrWalletTimers,
+  startRoutstrFundingMonitor,
   refreshCashuWalletBalance,
   refreshWalletSeedStatus,
   refreshRoutstrBalance,
@@ -273,6 +274,7 @@ export function initSettingsModelFetch() {
   }
   // Cashu wallet balance + mint label + pending recovery (always, even without node connection)
   if (document.getElementById('routstr-wallet-balance') && typeof walletRuntime.cashuGetBalance === 'function') {
+    startRoutstrFundingMonitor();
     walletRuntime.cashuGetBalance().then(function(bal) {
       const el = document.getElementById('routstr-wallet-balance');
       if (el) el.textContent = '\u26a1 ' + bal.toLocaleString() + ' sats';
