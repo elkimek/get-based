@@ -134,7 +134,7 @@ export function createFundingMonitor(runtime, refreshBalance, onResult = (_resul
       }
       if (previous && (previous.retryAt > Date.now() || (previous.key === key && (previous.cancel || previous.connecting)))) continue;
       previous?.cancel?.();
-      const entry = { key, cancel: null, connecting: true, confirmed: false, retryAt: 0 };
+      const entry = { key, cancel: /** @type {null | (() => void)} */ (null), connecting: true, confirmed: false, retryAt: 0 };
       subscriptions.set(mint, entry);
       const failed = error => {
         if (subscriptions.get(mint) !== entry) return;

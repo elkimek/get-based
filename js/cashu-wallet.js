@@ -481,7 +481,10 @@ export async function createFundingInvoice(amountSats) {
 
 /** Check if a funding invoice has been paid and mint the tokens.
  *  Takes 3% fee on Lightning deposits.
- *  Returns { paid, balance, fee } */
+ *  Returns { paid, balance, fee }
+ *  @param {string} quoteId
+ *  @param {string | null} quoteMint
+ */
 export async function checkFundingStatus(quoteId, quoteMint = null, options = {}) {
   return _withWalletLock(async () => {
     const cashuts = await _cashuLib();
