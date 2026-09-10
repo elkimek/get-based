@@ -17,6 +17,14 @@ export function installRoutstrWalletDelegates(actions = {}) {
   document.addEventListener('click', _handleRoutstrWalletClick);
   document.addEventListener('keydown', _handleRoutstrWalletKeydown);
   document.addEventListener('change', _handleRoutstrWalletChange);
+  document.addEventListener('input', event => {
+    const input = _closestWalletEl(event, '#routstr-mint-input');
+    if (!input) return;
+    const mint = input.value.trim().replace(/\/+$/, '');
+    document.querySelectorAll('#routstr-mint-edit .routstr-mint-row').forEach(row => {
+      row.setAttribute('aria-pressed', String(row.getAttribute('data-mint-url') === mint));
+    });
+  });
 }
 
 function _call(name, ...args) {
@@ -72,10 +80,15 @@ async function _handleRoutstrWalletClick(event) {
   if (action === 'recover-wallet-funding') return _call('recoverPendingWalletFunding');
   if (action === 'receive-wallet-cashu') return _call('doRoutstrWalletReceiveCashu');
   if (action === 'copy-clipboard') return _copyClipboard(el);
-  if (action === 'set-mint-input') return _setInputValue('routstr-mint-input', el.dataset.mintUrl || '');
+  if (action === 'set-mint-input') {
+    _setInputValue('routstr-mint-input', el.dataset.mintUrl || '');
+    document.getElementById('routstr-mint-input')?.dispatchEvent(new Event('input', { bubbles: true }));
+    return;
+  }
   if (action === 'save-mint') return _call('doRoutstrMintChange');
   if (action === 'cancel-mint') return _hideMintEdit();
   if (action === 'connect-node') return _call('connectRoutstrNode', el.dataset.nodeUrl || '');
+  if (action === 'choose-node-mint') return _call('chooseRoutstrNodeMint', el.dataset.mintUrl || '');
   if (action === 'deposit-node-input') return _call('doRoutstrNodeDeposit', el.dataset.nodeUrl || '', _inputInt('routstr-deposit-amount'));
   if (action === 'deposit-node-preset') return _depositNodePreset(el);
   if (action === 'resume-node-refund') return _call('doRoutstrNodeWithdraw', el.dataset.nodeUrl);
@@ -150,7 +163,7 @@ async function _recoverPendingWithdraw(el) {
 function _runNodeAction(el) {
   const action = el.dataset.nodeAction;
   _call('_setActiveNodeAction', action);
-  if (action === 'deposit') return _call('connectRoutstrNode', el.dataset.nodeUrl || '');
+  if (action === 'deposit') return _call('showRoutstrNodeDeposit', el.dataset.nodeUrl || '');
   if (action === 'withdraw') return _call('doRoutstrNodeWithdraw');
   if (action === 'browse') return _call('showRoutstrNodePicker');
 }

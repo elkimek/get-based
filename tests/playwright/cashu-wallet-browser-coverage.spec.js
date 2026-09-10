@@ -678,6 +678,7 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
         cashuRecoverPendingFunding: window.cashuRecoverPendingFunding,
         cashuReceiveToken: window.cashuReceiveToken,
         cashuGetMintUrl: window.cashuGetMintUrl,
+        cashuGetWalletMints: async () => [{ mint: currentMint, balance: 1500, active: true }],
         cashuSetMintUrl: window.cashuSetMintUrl,
         cashuDepositToNode: window.cashuDepositToNode,
         cashuHasWalletSeed: window.cashuHasWalletSeed,
@@ -743,8 +744,8 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
 
       await panels.showRoutstrMintEdit();
       await wait(0);
-      const mintRendersNodeChoices = document.getElementById('routstr-mint-edit')?.textContent.includes('Node accepts');
-      const setMintLink = document.querySelector('[data-routstr-wallet-action="set-mint-input"]');
+      const mintRendersNodeChoices = document.getElementById('routstr-mint-edit')?.textContent.includes('Also accepted by this node');
+      const setMintLink = document.querySelector('[data-routstr-wallet-action="set-mint-input"][data-mint-url="https://mint.node.test/Bitcoin"]');
       setMintLink?.click();
       const mintInput = document.getElementById('routstr-mint-input');
       const mintDelegateSetsInput = mintInput?.value === 'https://mint.node.test/Bitcoin';
@@ -1006,6 +1007,7 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
         doRoutstrWalletReceiveCashu: () => calls.push(['receiveCashu']),
         doRoutstrWalletFundCustom: () => calls.push(['fundCustom']),
         connectRoutstrNode: url => calls.push(['connectNode', url]),
+        showRoutstrNodeDeposit: url => calls.push(['showNodeDeposit', url]),
         doRoutstrNodeDeposit: (url, amount) => calls.push(['depositNode', url, amount]),
         _setActiveNodeAction: action => calls.push(['activeNode', action]),
         doRoutstrNodeWithdraw: () => calls.push(['nodeWithdraw']),

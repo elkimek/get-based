@@ -539,6 +539,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/cashu-wallet.js',
   '/js/cashu-wallet-transfers.js',
   '/js/cashu-wallet-store.js',
+  '/js/cashu-funding-coordinator.js',
   '/js/nostr-discovery.js',
   '/js/touch-tooltip-runtime.js',
   '/js/touch-tooltip.js',

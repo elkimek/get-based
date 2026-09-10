@@ -36,7 +36,7 @@ export function routstrWalletActionButtons(active) {
   const menu = `<div style="position:relative;display:inline-block">
     <button class="import-btn ${menuActive ? 'import-btn-primary' : 'import-btn-secondary'}" style="${menuActive ? _active : _pill}" data-routstr-wallet-action="toggle-wallet-menu">\u22ef</button>
     <div id="routstr-wallet-menu" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;padding:4px;z-index:10;min-width:120px;box-shadow:var(--shadow-lg)">
-      ${menuItems.map(b => `<button class="import-btn ${b.id === active ? 'import-btn-primary' : 'import-btn-secondary'}" style="font-size:11px;padding:4px 10px;width:100%;text-align:left;margin-bottom:2px;${b.id === active ? '' : 'background:transparent;border-color:transparent;color:var(--text-primary)'}" data-routstr-wallet-action="wallet-action" data-wallet-action="${b.id}">${b.label}</button>`).join('')}
+      ${menuItems.map(b => `<button class="import-btn ${b.id === active ? 'import-btn-primary' : 'import-btn-secondary'}" style="font-size:11px;padding:3px 10px;width:100%;text-align:left;margin-bottom:2px;${b.id === active ? '' : 'background:transparent;border-color:transparent;color:var(--text-primary)'}" data-routstr-wallet-action="wallet-action" data-wallet-action="${b.id}">${b.label}</button>`).join('')}
     </div>
   </div>`;
   return main + menu;
