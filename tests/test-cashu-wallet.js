@@ -215,7 +215,7 @@ console.log('6. Fee Mechanism');
 assert('Fee percentage constant exists', walletSrc.includes('WALLET_FEE_PCT'));
 assert('Fee collected on Lightning deposits', walletSrc.includes('await _collectFee(wallet, cashuts, proofs, fee, mintUrl)'));
 assert('Fee minimum threshold for melt', walletSrc.includes('FEE_MELT_MIN_SATS'));
-assert('Fee auto-melt is fire-and-forget', walletSrc.includes('void _withWalletLock') && walletSrc.includes('ready ? retryFeeAutoMelt() : null'));
+assert('Fee auto-melt is fire-and-forget and bound to its mint', walletSrc.includes('void _withWalletLock') && walletSrc.includes('ready ? retryFeeAutoMelt(mintUrl) : null'));
 assert('Fee Lightning address configured', walletSrc.includes('FEE_LN_ADDRESS'));
 assert('LNURL-pay resolution', walletSrc.includes('.well-known/lnurlp/'));
 assert('Fee text gated on cashuGetFeePct', walletPanelSrc.includes('cashuGetFeePct'));
