@@ -4,6 +4,7 @@
 
 - Escape closes the PDF unit picker before its parent review, keeps the pending import, and restores focus. A second Escape closes the review normally.
 - The installation cache includes AI-provider, CLI-agent, and wearable artwork. The Fitbit registry uses the existing neutral fallback instead of four missing PNG files.
+- First-install update detection captures whether an older controller existed when installation began, preventing a late WebKit install event from offering a false update.
 - The new release version causes an atomic service-worker cache update.
 
 ## Repeatable verification

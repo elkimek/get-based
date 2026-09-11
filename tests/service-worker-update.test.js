@@ -19,6 +19,32 @@ afterEach(() => {
 });
 
 describe('service worker update prompt', () => {
+  it('does not offer the first install when its controller claim arrives before installed', () => {
+    let onUpdateFound;
+    let onStateChange;
+    const container = { controller: null };
+    const registration = {
+      waiting: null,
+      installing: null,
+      addEventListener: vi.fn((type, listener) => { if (type === 'updatefound') onUpdateFound = listener; }),
+    };
+    serviceWorkerUpdate.watchServiceWorkerRegistration(registration, container);
+    const firstWorker = { state: 'installing', addEventListener: vi.fn((_, listener) => { onStateChange = listener; }) };
+    registration.installing = firstWorker;
+    onUpdateFound();
+    container.controller = firstWorker;
+    firstWorker.state = 'installed';
+    onStateChange();
+    expect(document.getElementById('version-update-banner')).toBeNull();
+
+    const replacement = { state: 'installing', addEventListener: vi.fn((_, listener) => { onStateChange = listener; }) };
+    registration.installing = replacement;
+    onUpdateFound();
+    replacement.state = 'installed';
+    onStateChange();
+    expect(document.getElementById('version-update-banner').textContent).toContain('New version available');
+  });
+
   it('delegates default browser globals through runtime helpers', () => {
     expect(serviceWorkerUpdateSrc).toContain('function getDefaultServiceWorkerWindow()');
     expect(serviceWorkerUpdateSrc).toContain('getDefaultServiceWorkerWindow()?.location || null');
