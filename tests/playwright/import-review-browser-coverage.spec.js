@@ -136,6 +136,29 @@ test('import file input and drop zone route browser file types and busy states',
   }
 });
 
+test('Escape closes the unit picker without discarding the import review', async ({ page }) => {
+  await openImportApp(page);
+  await page.evaluate(async () => {
+    window.endTour?.();
+    (await import('/js/chat-panel.js')).closeChatPanel();
+    (await import('/js/pdf-import-review.js')).showImportPreview({
+      date: '2026-09-01', fileName: 'escape-review.pdf',
+      markers: [{ rawName: 'Glucose', value: 5.8, unit: 'mmol/l', matched: true, mappedKey: 'biochemistry.glucose' }],
+    });
+  });
+  const trigger = page.locator('.import-unit-input');
+  await trigger.click();
+  await expect(page.locator('.import-unit-menu')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.import-unit-menu')).toHaveCount(0);
+  await expect(page.locator('#import-modal-overlay')).toHaveClass(/\bshow\b/);
+  await expect(trigger).toBeFocused();
+  expect(await page.evaluate(async () => (await import('/js/pdf-import-review.js')).getPendingImport()?.fileName))
+    .toBe('escape-review.pdf');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#import-modal-overlay')).not.toHaveClass(/\bshow\b/);
+});
+
 test('PDF import review modal covers filtering mapping exclusion and batch close paths', async ({ page }) => {
   await openImportApp(page);
   await page.waitForSelector('#import-modal-overlay', { state: 'attached' });

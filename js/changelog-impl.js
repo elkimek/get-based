@@ -1,5 +1,4 @@
 // @ts-check
-// changelog-impl.js — lazy What's New release-note archive and modal renderer
 import { escapeHTML } from './utils.js';
 import { getAppVersionRuntime } from './utils-runtime.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
@@ -8,6 +7,7 @@ const CHANGELOG_ACTION_ATTR = 'data-changelog-action';
 const changelogDelegateRoots = new WeakSet();
 const CHANGELOG = [
   CURRENT_RELEASE,
+  { version: '1.19.1', date: '2026-09-10', title: 'Smoother Routstr wallet payments', items: [ '<b>Lightning deposits update automatically.</b> The invoice shows a clear payment confirmation when your wallet is credited.', '<b>More reliable wallet payments.</b> Improvements to Lightning address payments and pending deposit handling make funding your wallet smoother.', ] },
   { version: '1.19.0', date: '2026-09-05', title: 'Your agents, a better chat, and a more flexible dashboard', items: [
     '<b>Use your installed AI agents.</b> Connect Codex, OpenCode, Hermes, Grok Build, or OpenClaw through the local Companion or a terminal command. Setup and connection controls live together in AI settings, and agent details can be collapsed.',
     '<b>Talk to your personal agent.</b> Hermes and OpenClaw can also connect through supported personal gateways, with the health context you choose to share.',
