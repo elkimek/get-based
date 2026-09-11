@@ -137,6 +137,9 @@ test('import file input and drop zone route browser file types and busy states',
 });
 
 test('Escape closes the unit picker without discarding the import review', async ({ page }) => {
+  await page.addInitScript(() => {
+    for (const key of ['emptyTour', 'tour']) localStorage.setItem(`labcharts-default-${key}`, 'completed');
+  });
   await openImportApp(page);
   await page.evaluate(async () => {
     window.endTour?.();

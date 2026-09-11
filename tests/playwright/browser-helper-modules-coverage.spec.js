@@ -314,9 +314,11 @@ test('browser helper coverage exercises url safety marker keys markdown legal le
       && brandAssets.brandMarkMono('missing') === '';
     outcomes.brandMetadataCoversOfficialFallbackAndUnknownVendors = brandAssets.brandAsset('whoop')?.mode === 'official'
       && brandAssets.brandAsset('missing') === null
-      && brandAssets.brandHasSignIn('fitbit', 'dark') === true
+      && brandAssets.brandHasSignIn('withings', 'dark') === true
+      && brandAssets.brandHasSignIn('fitbit', 'dark') === false
+      && brandAssets.brandMarkMono('fitbit').includes('/brands/fitbit/mark-mono.svg')
       && brandAssets.brandHasSignIn('apple_health', 'dark') === false
-      && brandAssets.brandSignInUrl('fitbit', 'light').endsWith('/brands/fitbit/sign-in-dark.png')
+      && brandAssets.brandSignInUrl('withings', 'light').endsWith('/brands/withings/wordmark-on-light.svg')
       && brandAssets.brandSignInUrl('missing') === null
       && brandAssets.brandColor('withings') === '#00B0EA'
       && brandAssets.brandColor('oura') === null;
