@@ -50,7 +50,7 @@ describe('local agent selection UI', () => {
       expect(getCLIAgentBrandAsset(agent)).toBe(`/brands/cli-agent-${agent}.svg`);
       expect(renderCLIAgentBrandIcon(agent)).toContain(`src="/brands/cli-agent-${agent}.svg"`);
       expect(read(`brands/cli-agent-${agent}.svg`)).toContain('<svg');
-      if (agent !== 'grok') expect(serviceWorker).toContain(`/brands/cli-agent-${agent}.svg`);
+      expect(serviceWorker).toContain(`/brands/cli-agent-${agent}.svg`);
     }
     expect(serviceWorker).toContain('/js/cli-agent-brand-assets.js');
     expect(renderCLIAgentBrandIcon('unknown')).toContain('local-agent-icon-fallback');
@@ -70,6 +70,7 @@ describe('local agent selection UI', () => {
     for (const [provider, expectedHash] of Object.entries(expectedHashes)) {
       const path = `brands/ai-provider-${provider}.svg`;
       expect(settings).toContain(`src="/${path}"`);
+      expect(serviceWorker).toContain(`/${path}`);
       expect(createHash('sha256').update(read(path)).digest('hex')).toBe(expectedHash);
     }
     const ppqSvg = read('brands/ai-provider-ppq.svg');
@@ -77,7 +78,7 @@ describe('local agent selection UI', () => {
     expect(createHash('sha256').update(ppqBytes).digest('hex'))
       .toBe('d1c6cab3f71ed07d4ebf086efbaa2e517dadfd5009a564b15780c4be5cda9de5');
     expect(settings).toContain('src="/brands/ai-provider-ppq.svg"');
-    expect(serviceWorker).not.toContain('/brands/ai-provider-ppq.svg');
+    expect(serviceWorker).toContain('/brands/ai-provider-ppq.svg');
     expect(read('brands/AI_PROVIDERS.md')).toContain('do not imply');
   });
 
