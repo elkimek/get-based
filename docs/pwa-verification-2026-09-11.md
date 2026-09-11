@@ -33,4 +33,4 @@ No claim of universal or 100% correctness is made by these checks.
 
 ## Publication status
 
-The fix branch is local. Automatic approval review blocked its GitHub push pending explicit user authorization; full remote CI and a deployment preview have not run for this branch.
+The user authorized publication after local verification. The branch is published for review in [PR #1623](https://github.com/elkimek/get-based/pull/1623); use its checks and deployment links for current remote CI and preview status. Production promotion and physical-device acceptance remain separate steps.
