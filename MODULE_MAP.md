@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 762 |
-| Internal import edges | 3216 |
+| Internal import edges | 3217 |
 | Dynamic internal edges | 107 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -986,7 +986,7 @@ Native browser modules shipped with the static application.
 - [`js/provider-wallet-funding-recovery.js`](js/provider-wallet-funding-recovery.js) → [`js/cashu-funding-coordinator.js`](js/cashu-funding-coordinator.js), [`js/caught-error.js`](js/caught-error.js), [`js/provider-qr.js`](js/provider-qr.js), [`js/routstr-validation.js`](js/routstr-validation.js), [`js/utils.js`](js/utils.js)
 - [`js/provider-wallet-panel-buttons.js`](js/provider-wallet-panel-buttons.js) → [`js/utils.js`](js/utils.js)
 - [`js/provider-wallet-panel-renderers.js`](js/provider-wallet-panel-renderers.js) → [`js/utils.js`](js/utils.js)
-- [`js/provider-wallet-panels.js`](js/provider-wallet-panels.js) → [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/provider-wallet-delegates.js`](js/provider-wallet-delegates.js), [`js/provider-wallet-funding-recovery.js`](js/provider-wallet-funding-recovery.js), [`js/provider-wallet-panel-buttons.js`](js/provider-wallet-panel-buttons.js), [`js/provider-wallet-panel-renderers.js`](js/provider-wallet-panel-renderers.js), [`js/provider-wallet-runtime.js`](js/provider-wallet-runtime.js), [`js/routstr-balance-settlement.js`](js/routstr-balance-settlement.js), [`js/routstr-model-cache.js`](js/routstr-model-cache.js), [`js/routstr-validation.js`](js/routstr-validation.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
+- [`js/provider-wallet-panels.js`](js/provider-wallet-panels.js) → [`js/agent-chat-settings.js`](js/agent-chat-settings.js), [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/provider-wallet-delegates.js`](js/provider-wallet-delegates.js), [`js/provider-wallet-funding-recovery.js`](js/provider-wallet-funding-recovery.js), [`js/provider-wallet-panel-buttons.js`](js/provider-wallet-panel-buttons.js), [`js/provider-wallet-panel-renderers.js`](js/provider-wallet-panel-renderers.js), [`js/provider-wallet-runtime.js`](js/provider-wallet-runtime.js), [`js/routstr-balance-settlement.js`](js/routstr-balance-settlement.js), [`js/routstr-model-cache.js`](js/routstr-model-cache.js), [`js/routstr-validation.js`](js/routstr-validation.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
 - [`js/provider-wallet-runtime.js`](js/provider-wallet-runtime.js) → [`js/cashu-wallet.js`](js/cashu-wallet.js), [`js/nostr-discovery.js`](js/nostr-discovery.js)
 
 </details>

@@ -98,10 +98,20 @@ export function initSettingsProviderPanels() {
   });
 }
 
-// Resume saved wallet invoices after reload without requiring Settings to open.
-// Do not load the wallet/crypto graph for visitors who have never set one up.
-try {
-  if (localStorage.getItem('labcharts-cashu-wallet-mnemonic')) {
-    void import('./provider-wallet-panels.js').then(panels => panels.startRoutstrFundingMonitor()).catch(() => {});
-  }
-} catch {}
+// Load saved funding recovery only for the active direct Routstr provider.
+let walletPanelsLoad = null;
+function syncWalletFunding() {
+  try {
+    if (!walletPanelsLoad) {
+      if (getAIProvider() !== 'routstr' || getChatBackend() !== 'direct' || !localStorage.getItem('labcharts-cashu-wallet-mnemonic')) return;
+      walletPanelsLoad = import('./provider-wallet-panels.js');
+    }
+    void walletPanelsLoad.then(panels => panels.startRoutstrFundingMonitor()).catch(() => {});
+  } catch {}
+}
+globalThis.addEventListener?.('labcharts-ai-settings-local-changed', syncWalletFunding);
+globalThis.addEventListener?.('getbased:chat-backend-changed', syncWalletFunding);
+globalThis.addEventListener?.('storage', event => {
+  if (!event.key || ['labcharts-ai-provider', 'labcharts-chat-backend'].includes(event.key)) syncWalletFunding();
+});
+syncWalletFunding();

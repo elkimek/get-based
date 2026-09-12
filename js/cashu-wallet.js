@@ -487,6 +487,8 @@ export async function createFundingInvoice(amountSats) {
  */
 export async function checkFundingStatus(quoteId, quoteMint = null, options = {}) {
   return _withWalletLock(async () => {
+    const canCheck = () => !options.automatic || !options.shouldContinue || options.shouldContinue();
+    if (!canCheck()) return { paid: false, state: 'WAITING' };
     const cashuts = await _cashuLib();
     const mintUrl = _normalizeMintUrl(quoteMint || await getMintUrl());
     if (!isValidExternalUrl(mintUrl)) throw new Error('Invalid pending invoice mint');
@@ -494,16 +496,33 @@ export async function checkFundingStatus(quoteId, quoteMint = null, options = {}
     if (options.automatic) {
       const now = Date.now();
       const previous = await _getMeta(pollKey) || {};
+      if (previous.paused) return { paid: false, state: 'PAUSED' };
       const budgetKey = 'fundingNextAt:' + mintUrl;
-      const nextAt = Math.max(Number(await _getMeta(budgetKey)) || 0, options.notified ? 0 : Number(previous.nextAt) || 0);
+      const nextAt = Math.max(Number(await _getMeta(budgetKey)) || 0, Number(previous.retryAt) || 0, options.notified ? 0 : Number(previous.nextAt) || 0);
       if (nextAt > now) return { paid: false, state: 'WAITING', retryAfterMs: nextAt - now };
       const attempts = Math.min(4, (Number(previous.attempts) || 0) + 1);
       await _setMeta(budgetKey, now + 5000);
-      await _setMeta(pollKey, { attempts, nextAt: now + (options.subscribed ? 60000 : Math.min(30000, 5000 * 2 ** (attempts - 1))) });
+      await _setMeta(pollKey, { ...previous, attempts, nextAt: now + (options.subscribed ? 60000 : Math.min(30000, 5000 * 2 ** (attempts - 1))) });
     }
     const result = await _withMintRequest(mintUrl, async () => {
+      if (!canCheck()) return { paid: false, state: 'WAITING' };
       const wallet = await _getWallet(mintUrl);
-      const checked = await wallet.checkMintQuoteBolt11(quoteId);
+      if (!canCheck()) return { paid: false, state: 'WAITING' };
+      let checked;
+      try {
+        checked = await wallet.checkMintQuoteBolt11(quoteId);
+      } catch (error) {
+        const details = /** @type {{status?: number, statusCode?: number, retryAfterMs?: number}} */ (error);
+        const previous = await _getMeta(pollKey) || {};
+        const status = Number(details?.status ?? details?.statusCode);
+        const failures = Math.min(5, (Number(previous.failures) || 0) + 1);
+        const paused = status >= 400 && status < 500 && status !== 408 && status !== 429;
+        await _setMeta(pollKey, { ...previous, paused, failures, retryAt: Date.now() + Math.max(Number(details?.retryAfterMs) || 0, Math.min(900000, 60000 * 2 ** (failures - 1))) });
+        throw error;
+      }
+      // A successful explicit recheck releases a paused quote without losing it.
+      const poll = await _getMeta(pollKey);
+      if (poll?.paused || poll?.failures) await _setMeta(pollKey, { ...poll, paused: false, failures: 0, retryAt: 0 });
       // A response can be lost after the mint issued the exact journaled outputs.
       // Recover those outputs automatically instead of waiting forever for PAID.
       if (String(checked.state).toUpperCase() === 'ISSUED') {
@@ -594,6 +613,7 @@ export async function recoverPendingFunding(options = {}) {
   const entries = await _getMetaEntries(PENDING_QUOTE_PREFIX);
 
   for (const entry of entries) {
+    if (options.automatic && options.shouldContinue && !options.shouldContinue()) break;
     const details = _pendingQuoteDetails(entry, currentMint);
     const quoteId = details.quote;
     const pendingKey = entry.key;
@@ -607,6 +627,7 @@ export async function recoverPendingFunding(options = {}) {
         automatic: options.automatic,
         notified: options.notified?.some(item => item.mint === details.mint && item.quote === quoteId),
         subscribed: options.subscribedMints?.includes(details.mint),
+        shouldContinue: options.shouldContinue,
       });
       results.push({ quote: quoteId, mint: details.mint, ...result });
       if (result?.paid) {
@@ -619,11 +640,20 @@ export async function recoverPendingFunding(options = {}) {
         pending += 1;
       }
     } catch (e) {
+      if ((await _getMeta('fundingPoll:' + await _pendingQuoteKey(details.mint, quoteId)))?.paused) {
+        results.push({ quote: quoteId, mint: details.mint, paid: false, state: 'PAUSED' });
+      }
       errors.push({ quote: quoteId, mint: details.mint, message: getErrorMessage(e, String(e)), retryAfterMs: Number(/** @type {{retryAfterMs?: number}} */ (e)?.retryAfterMs) || 0 });
     }
   }
 
-  const pendingQuotes = entries.map(entry => _pendingQuoteDetails(entry, currentMint)).filter(item => item.quote && !results.some(result => result.mint === item.mint && result.quote === item.quote && (result.paid || _isTerminalMintQuoteState(result.state))));
+  const pendingQuotes = [];
+  for (const entry of entries) {
+    const item = _pendingQuoteDetails(entry, currentMint);
+    if (!item.quote || results.some(result => result.mint === item.mint && result.quote === item.quote && (result.paid || _isTerminalMintQuoteState(result.state)))) continue;
+    if ((await _getMeta('fundingPoll:' + await _pendingQuoteKey(item.mint, item.quote)))?.paused) continue;
+    pendingQuotes.push(item);
+  }
   return { mint: currentMint, checked: entries.length, recovered, pending, cleared, failed: errors.length, errors, balance, results, pendingQuotes };
 }
 

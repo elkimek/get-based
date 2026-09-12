@@ -4,7 +4,8 @@
 import { canonicalRoutstrUrl, validateLightningInvoice } from './routstr-validation.js';
 import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
-import { getRoutstrKey, saveRoutstrKey, touchRoutstrSession, fetchRoutstrModels, getRoutstrBalance } from './api.js';
+import { getAIProvider, getRoutstrKey, saveRoutstrKey, touchRoutstrSession, fetchRoutstrModels, getRoutstrBalance } from './api.js';
+import { getChatBackend } from './agent-chat-settings.js';
 import { isValidExternalUrl } from './url-safety.js';
 import { installRoutstrWalletDelegates } from './provider-wallet-delegates.js';
 import { createFundingMonitor, renderFundingInvoice, recoverPendingWalletFunding as recoverPendingWalletFundingImpl } from './provider-wallet-funding-recovery.js';
@@ -97,12 +98,19 @@ installRoutstrBalanceSettlementRefresh(refreshRoutstrBalance);
 
 let _fundingRequest = null;
 let _fundingInvoice = null;
+const isRoutstrActive = () => getAIProvider() === 'routstr' && getChatBackend() === 'direct';
 const fundingMonitor = createFundingMonitor(walletRuntime, () => _refreshRoutstrWalletBalance(true), result => {
   if (result.results?.some(item => item.quote === _fundingInvoice?.quote
     && (item.mint || result.mint) === _fundingInvoice?.mint
     && (item.paid || /^(EXPIRED|CANCELLED|CANCELED)$/.test(String(item.state).toUpperCase())))) _fundingInvoice = null;
-});
-export function startRoutstrFundingMonitor() { fundingMonitor.start(); }
+}, isRoutstrActive);
+export function startRoutstrFundingMonitor(options = {}) {
+  if (isRoutstrActive()) fundingMonitor.start(options);
+  else fundingMonitor.stop();
+}
+for (const event of ['labcharts-ai-settings-local-changed', 'getbased:chat-backend-changed', 'storage']) {
+  globalThis.addEventListener?.(event, () => startRoutstrFundingMonitor());
+}
 
 function _getWalletInput(id) {
   return /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (document.getElementById(id));
@@ -137,13 +145,14 @@ async function _renderWalletFundUI() {
       ${presets.map(s => `<button class="import-btn import-btn-secondary" style="flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="fund-wallet-preset" data-sats="${s}">\u26a1 ${s.toLocaleString()}</button>`).join('')}<div id="routstr-wfund-custom-slot" style="display:flex"><button class="import-btn import-btn-secondary" style="color:var(--text-muted)" data-routstr-wallet-action="fund-wallet-custom-input">\u26a1\u2026</button></div>
     </div>
     <div style="font-size:10px;color:var(--text-muted);margin-top:5px;text-align:center">1,000 sats is enough for a few chats</div>
-    <div style="font-size:11px;color:var(--text-muted);margin-top:6px">Paid deposits are checked and credited automatically, even after closing this panel.</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:6px">Paid deposits are checked automatically while Routstr is active, even after closing this panel.</div>
     <div style="margin-top:6px"><div class="or-oauth-divider"><span>${cashuFeeLabel}</span></div>
     <div class="routstr-wallet-input-row">
       <input type="text" class="api-key-input" id="routstr-wcashu-input" placeholder="cashuA... / cashuB... / cashu:..." style="font-size:11px;flex:1;font-family:monospace">
       <button class="import-btn import-btn-primary" style="white-space:nowrap" data-routstr-wallet-action="receive-wallet-cashu">Deposit</button>
     </div></div>
     <div id="routstr-wfund-status"></div>
+    <button class="import-btn import-btn-secondary" data-routstr-wallet-action="recover-wallet-funding">Check pending deposits</button>
   </div>`;
   startRoutstrFundingMonitor();
   const invoice = _fundingInvoice;
@@ -188,7 +197,7 @@ export async function doRoutstrWalletFund(amountSats) {
       const mint = await walletRuntime.cashuGetMintUrl();
       const result = await walletRuntime.cashuCreateFundingInvoice(amountSats);
       _fundingInvoice = { ...result, amount: amountSats, mint };
-      fundingMonitor.start({ recheck: true });
+      startRoutstrFundingMonitor({ recheck: true });
       // The quote is durable even if the user navigated away while creating it.
       if (statusEl === document.getElementById('routstr-wfund-status')) {
         await renderFundingInvoice(_fundingInvoice);

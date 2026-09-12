@@ -332,7 +332,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       await wait(50);
       const lightningFundingCreatesInvoice = fundingInvoiceAmount === 1000
         && (document.getElementById('routstr-wfund-status')?.textContent || '').includes('Waiting for payment');
-      await panels.recoverPendingWalletFunding();
+      document.querySelector('[data-routstr-wallet-action="recover-wallet-funding"]').click();
       await wait(50);
       const pendingFundingRecoveryReportsRecovered = pendingFundingChecked
         && (document.getElementById('routstr-wfund-status')?.textContent || '').includes('+998 sats recovered');
