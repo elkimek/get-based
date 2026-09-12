@@ -57,6 +57,8 @@ test('a new node can be selected while old mint funds remain, with explicit mint
 test('funding recovery cannot show an old balance under a newly selected mint', async ({ page }) => {
   await page.goto('/app');
   await page.evaluate(async () => {
+    localStorage.setItem('labcharts-ai-provider', 'routstr');
+    localStorage.setItem('labcharts-chat-backend', 'direct');
     const panels = await import('/js/provider-wallet-panels.js');
     document.body.innerHTML = '<div id="routstr-wallet-balance"></div><div id="routstr-mint-label"></div>';
     let mint = 'https://mint.first.test';
