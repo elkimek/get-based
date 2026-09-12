@@ -250,7 +250,7 @@ function installServiceWorkerRuntime({
       event.respondWith(
         matchCurrentCache(event.request).then((cached) => {
           if (cached) return cached;
-          if (url.pathname === '/app' || url.pathname === '/index.html') {
+          if (url.pathname === '/app' || url.pathname === '/app/' || url.pathname === '/index.html') {
             return cachedAppShell().then((shell) => shell || fetchAndCache(event.request));
           }
           return fetchAndCache(event.request).catch(() => cachedAppShell());

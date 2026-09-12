@@ -359,11 +359,11 @@ describe('service worker runtime cache behavior', () => {
     expect(self.clients.claim).not.toHaveBeenCalled();
   });
 
-  it('keeps the installed HTML unchanged when a new deployment is available', async () => {
+  it.each(['/app', '/app/', '/app?source=home', '/app/?source=home', '/index.html'])('keeps %s on the installed HTML when a new deployment is available', async entry => {
     const { listeners, matches } = await loadServiceWorker({ hostname: 'app.getbased.health' });
     matches.set('/app', new Response('installed-html'));
     globalThis.fetch = vi.fn(async () => new Response('new-html'));
-    const event = makeFetchEvent('https://app.getbased.health/app');
+    const event = makeFetchEvent(`https://app.getbased.health${entry}`);
     Object.defineProperty(event.request, 'mode', { value: 'navigate' });
     listeners.get('fetch')(event);
     expect(await (await event.response()).text()).toBe('installed-html');
