@@ -251,9 +251,9 @@ function initImportReviewDelegates() {
   document.addEventListener('click', handleImportReviewClick);
   document.addEventListener('input', handleImportReviewInput);
   document.addEventListener('change', handleImportReviewChange);
-  document.addEventListener('keydown', handleImportReviewKeydown);
+  // The unit menu owns Escape before the shell can dismiss its parent review.
+  document.addEventListener('keydown', handleImportReviewKeydown, true);
 }
-
 initImportReviewDelegates();
 
 export function getPendingImport() {
@@ -270,13 +270,13 @@ export function resolveImportPreviewBatch(action) {
   return true;
 }
 
-/** @param {KeyboardEvent} event */
-function handleImportReviewKeydown(event) {
-  if (event.key !== 'Escape') return;
-  if (document.querySelector('.import-unit-menu')) {
-    event.preventDefault();
-    closeImportUnitPicker();
-  }
+function handleImportReviewKeydown(/** @type {KeyboardEvent} */ event) {
+  if (event.key !== 'Escape' || !document.querySelector('.import-unit-menu')) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  const trigger = /** @type {HTMLElement | null} */ (document.querySelector('[data-import-review-action="unit-picker"][aria-expanded="true"]'));
+  closeImportUnitPicker();
+  trigger?.focus();
 }
 
 function closeImportUnitPicker() {

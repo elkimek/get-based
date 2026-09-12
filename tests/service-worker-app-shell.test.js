@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
+import { BRAND_ASSETS } from '../js/brand-assets.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const VIRTUAL_APP_SHELL_URLS = new Set(['/app']);
@@ -158,5 +159,15 @@ describe('service worker app-shell completeness', () => {
 
     expect(stylesheetDependencies.length).toBeGreaterThan(0);
     expect(uncached).toEqual([]);
+  });
+
+  it('pre-caches provider logos used by offline settings', () => {
+    const cached = new Set(appShellEntries());
+    const sources = ['/js/settings.js', '/js/cli-agent-brand-assets.js'].map(readRepoFile).join('\n');
+    const logos = [...sources.matchAll(/['"](\/brands\/[^'"\s]+\.svg)['"]/g)].map(match => match[1]);
+    logos.push(...Object.values(BRAND_ASSETS).flatMap(Object.values)
+      .filter(value => typeof value === 'string' && value.startsWith('/brands/')));
+    expect(logos.length).toBeGreaterThan(0);
+    expect(logos.filter(url => !cached.has(url))).toEqual([]);
   });
 });

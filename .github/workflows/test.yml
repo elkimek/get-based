@@ -68,7 +68,7 @@ jobs:
             playwright-browsers-${{ runner.os }}-
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium firefox
+        run: npx playwright install --with-deps chromium firefox webkit
 
       - name: Resolve catalog file (fetch from private source if creds set, else use stub)
         env:
@@ -78,6 +78,9 @@ jobs:
 
       - name: Run Firefox smoke suite
         run: npm run test:firefox
+
+      - name: Verify PWA offline and update lifecycle across browser engines
+        run: npm run test:pwa
 
       - name: Run test suite with coverage ratchet
         run: COVERAGE=1 SKIP_TYPECHECK=1 ./run-tests.sh
@@ -94,6 +97,8 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: test-logs
-          path: /tmp/dev-server.log
+          path: |
+            /tmp/dev-server.log
+            /tmp/getbased-pwa-results
           if-no-files-found: ignore
           retention-days: 7

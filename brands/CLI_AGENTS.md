@@ -26,5 +26,5 @@ Primary sources reviewed:
 - Official Grok Build repository: https://github.com/xai-org/grok-build
 - OpenClaw repository and MIT package metadata: https://github.com/openclaw/openclaw
 
-The neutral Grok Build glyph is loaded on demand and then stored by the normal
-same-origin runtime cache; it is not part of the first-install app shell.
+The neutral Grok Build glyph is included in the first-install app shell along
+with the other agent icons so settings can display it on first use offline.

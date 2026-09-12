@@ -5,9 +5,9 @@ services in getbased settings. They are not getbased branding and do not imply
 partnership, sponsorship, certification, or endorsement. Names and marks remain
 their owners' property.
 
-The icons are fetched on demand when AI settings opens and then stored by the
-normal same-origin runtime cache; they are intentionally not part of the
-first-install app shell.
+The icons are included in the first-install app shell so AI settings can render
+them when opened for the first time offline. Their artwork and provenance stay
+unchanged; the PWA resource and byte budgets include their installation cost.
 
 | Provider | Packaged asset | Source and handling |
 |---|---|---|

@@ -337,16 +337,20 @@ export function watchServiceWorkerRegistration(
 ) {
   if (!registration || !serviceWorkerContainer) return;
 
-  if (canPromptForUpdate(registration, serviceWorkerContainer)) {
+  if (registration.waiting && serviceWorkerContainer.controller) {
     showVersionUpdateBanner(registration);
   }
 
   registration.addEventListener('updatefound', () => {
     const installingWorker = registration.installing;
     if (!installingWorker) return;
+    // WebKit can claim the first page before delivering the installed event.
+    // Decide whether this replaces an existing worker when installation starts.
+    const replacesController = !!serviceWorkerContainer.controller;
 
     installingWorker.addEventListener('statechange', () => {
       if (installingWorker.state === 'installed'
+          && replacesController
           && canPromptForUpdate(registration, serviceWorkerContainer)) {
         if (updateRequested && updateInstallPending) {
           updateInstallPending = false;

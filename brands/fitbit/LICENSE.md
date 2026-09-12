@@ -1,7 +1,9 @@
 # Fitbit — brand assets
 
 ## Status
-**OFFICIAL.** Files in this directory are sourced from Fitbit's public 2022 API Brand Guidelines pack (`FitbitLogosAndGuidelines.zip`).
+**FALLBACK.** This checkout bundles only `mark-mono.svg`, a neutral dot-grid placeholder. The application uses that asset; the PNG files described below are not bundled.
+
+The following historical source notes describe the official pack, not files currently shipped by the application.
 
 ## Files
 

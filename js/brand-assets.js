@@ -84,15 +84,9 @@ export const BRAND_ASSETS = {
     signInDark:  `${BASE}/whoop/wordmark-on-light.svg`,
   },
   fitbit: {
-    // Fitbit ships an official "Symbol" mark separate from the wordmark
-    // — perfect for the small left-side icon. Sign-in asset stays the
-    // full "Works With Fitbit" badge for contexts that show it.
-    mode: 'official',
+    // Only the neutral fallback is bundled; do not request absent PNG assets.
+    mode: 'fallback',
     mono:        `${BASE}/fitbit/mark-mono.svg`,
-    iconLight:   `${BASE}/fitbit/symbol-light.png`,
-    iconDark:    `${BASE}/fitbit/symbol-dark.png`,
-    signInLight: `${BASE}/fitbit/sign-in-light.png`,
-    signInDark:  `${BASE}/fitbit/sign-in-dark.png`,
     selfBackground: true,
   },
   google_health: {
