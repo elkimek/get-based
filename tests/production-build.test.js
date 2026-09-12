@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { buildProduction, handleBuildLog } from '../scripts/build-production.mjs';
 
@@ -24,6 +24,32 @@ afterAll(async () => {
 });
 
 describe('production startup build', () => {
+  it('pins the same build identity into the app and worker without changing the release version', async () => {
+    const version = await fs.readFile(path.join(outputRoot, 'version.js'), 'utf8');
+    const source = await fs.readFile('version.js', 'utf8');
+    const worker = await fs.readFile(path.join(outputRoot, 'service-worker.js'), 'utf8');
+    const id = version.match(/APP_BUILD_ID = '([a-f0-9]{64})'/)?.[1];
+    expect(id).toBeTruthy();
+    expect(worker).toContain(`const BUILD_ID = '${id}';`);
+    expect(version).toContain(source.trim());
+  });
+  it('changes the worker and app identity for a new commit with the same version', async () => {
+    const nextRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'getbased-next-build-'));
+    const versionBefore = await fs.readFile(path.join(outputRoot, 'version.js'), 'utf8');
+    try {
+      vi.stubEnv('VERCEL_GIT_COMMIT_SHA', 'test-next-deployed-commit');
+      await buildProduction({ outputRoot: nextRoot });
+      const versionAfter = await fs.readFile(path.join(nextRoot, 'version.js'), 'utf8');
+      expect(versionAfter.match(/APP_VERSION = '[^']+'/)?.[0]).toBe(versionBefore.match(/APP_VERSION = '[^']+'/)?.[0]);
+      expect(versionAfter).not.toBe(versionBefore);
+      const id = versionAfter.match(/APP_BUILD_ID = '([^']+)'/)?.[1];
+      expect(await fs.readFile(path.join(nextRoot, 'service-worker.js'), 'utf8')).toContain(`const BUILD_ID = '${id}';`);
+    } finally {
+      vi.unstubAllEnvs();
+      await fs.rm(nextRoot, { recursive: true, force: true });
+    }
+  });
+
   it('keeps repository HTML pointed at the native development entry', async () => {
     const sourceIndex = await fs.readFile('index.html', 'utf8');
     expect(sourceIndex).toContain('<script type="module" src="js/main.js"></script>');

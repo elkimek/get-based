@@ -64,7 +64,7 @@ test('failed update preserves the installed app; retry updates two tabs without 
     });
     const other = await context.newPage();
     await openInstalledApp(other, server.origin);
-    server.state.version = '99.0.2';
+    server.state.buildId = 'build-b';
     server.state.failPath = '/css/settings.css';
     const failedState = await page.evaluate(async () => {
       const registration = await navigator.serviceWorker.getRegistration();
@@ -76,26 +76,37 @@ test('failed update preserves the installed app; retry updates two tabs without 
       return failed;
     });
     expect(failedState).toBe('redundant');
-    expect(await page.evaluate(() => window.APP_VERSION)).toBe('99.0.1');
+    expect(await page.evaluate(() => window.APP_BUILD_ID)).toBe('build-a');
     expect(await page.evaluate(() => localStorage.getItem('pwa-retained-data'))).toBe('retained');
+    await expect(page.locator('#version-update-banner')).toHaveCount(0);
+    await expect.poll(() => page.evaluate(async () => !(await navigator.serviceWorker.getRegistration()).installing)).toBe(true);
     server.state.failPath = '';
-    await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update());
+    server.state.holdPath = '/css/settings.css';
+    await page.evaluate(async () => {
+      const updates = await import('/js/service-worker-update.js');
+      await updates.checkForAppVersionUpdate(await navigator.serviceWorker.getRegistration(), navigator.serviceWorker, window, { force: true });
+    });
+    await expect.poll(() => server.state.held).toBeGreaterThan(0);
+    await expect(page.locator('#version-update-banner')).toHaveCount(0);
+    expect(await page.evaluate(() => window.APP_BUILD_ID)).toBe('build-a');
+    server.release();
     await expect(page.locator('#version-update-banner')).toBeVisible({ timeout: 30_000 });
-    await expect(page.locator('[data-version-update-action="apply"]')).toHaveText('Update');
+    await expect(page.locator('[data-version-update-action="apply"]')).toHaveText('Reload');
     await page.locator('[data-version-update-action="dismiss"]').click();
-    expect(await page.evaluate(() => window.APP_VERSION)).toBe('99.0.1');
+    expect(await page.evaluate(() => window.APP_BUILD_ID)).toBe('build-a');
     // A later visit offers the still-pending update again.
     await page.reload({ waitUntil: 'networkidle' });
     await expect(page.locator('#version-update-banner')).toBeVisible();
+    server.state.offline = true; // Applying an already cached build needs no download.
     await page.locator('[data-version-update-action="apply"]').click();
-    await expect.poll(() => page.evaluate(() => window.APP_VERSION).catch(() => null), { timeout: 30_000 }).toBe('99.0.2');
+    await expect.poll(() => page.evaluate(() => window.APP_BUILD_ID).catch(() => null), { timeout: 30_000 }).toBe('build-b');
     await expect(other.locator('#version-update-banner')).toContainText('Reload');
-    expect(await other.evaluate(() => window.APP_VERSION)).toBe('99.0.1');
+    expect(await other.evaluate(() => window.APP_BUILD_ID)).toBe('build-a');
     await other.locator('[data-version-update-action="apply"]').click();
-    await expect.poll(() => other.evaluate(() => window.APP_VERSION).catch(() => null)).toBe('99.0.2');
+    await expect.poll(() => other.evaluate(() => window.APP_BUILD_ID).catch(() => null)).toBe('build-b');
     expect(await page.evaluate(() => localStorage.getItem('pwa-retained-data'))).toBe('retained');
     expect(await page.evaluate(async () => (await import('/js/state.js')).state.importedData.entries))
       .toEqual([{ date: '2026-09-01', markers: { 'biochemistry.glucose': 5.8 } }]);
-    await expect.poll(() => page.evaluate(() => caches.keys())).toEqual(['labcharts-v99.0.2']);
+    await expect.poll(() => page.evaluate(() => caches.keys())).toEqual(['labcharts-vbuild-build-b']);
   } finally { await server.close(); }
 });

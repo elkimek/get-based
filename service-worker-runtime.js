@@ -1,6 +1,7 @@
 /**
  * @typedef {Object} ServiceWorkerRuntimeConfig
  * @property {ServiceWorkerGlobalScope} scope
+ * @property {string} [buildId]
  * @property {string[]} appShell
  * @property {boolean} isProduction
  * @property {() => Promise<string>} resolveCacheName
@@ -15,6 +16,7 @@
  */
 function installServiceWorkerRuntime({
   scope,
+  buildId = '',
   appShell,
   isProduction,
   resolveCacheName,
@@ -149,13 +151,29 @@ function installServiceWorkerRuntime({
     return matchCurrentCache('/app').then((cachedApp) => cachedApp || matchCurrentCache('/index.html'));
   }
 
-  // Install: pre-cache app shell.
+  // Pin every install to its build. A deployment switch during download must
+  // not leave a partially mixed cache that a later retry could activate.
+  async function verifyDeployment() {
+    if (!buildId) return;
+    const response = await fetch('/version.js?update-check=1', { cache: 'no-store' });
+    const source = response.ok ? await response.text() : '';
+    if (source.match(/\bAPP_BUILD_ID\s*=\s*(['"])([^'"]+)\1/)?.[2] !== buildId) {
+      throw new Error('Deployment changed during app installation');
+    }
+  }
+
   scope.addEventListener('install', (event) => {
-    event.waitUntil(
-      resolveCacheName().then((name) =>
-        caches.open(name).then((cache) => precacheAppShell(cache))
-      )
-    );
+    event.waitUntil((async () => {
+      const name = await resolveCacheName();
+      try {
+        await verifyDeployment();
+        await precacheAppShell(await caches.open(name));
+        await verifyDeployment();
+      } catch (error) {
+        if (buildId) await caches.delete(name);
+        throw error;
+      }
+    })());
   });
 
   /**
@@ -231,8 +249,11 @@ function installServiceWorkerRuntime({
       }
       event.respondWith(
         matchCurrentCache(event.request).then((cached) => {
-          const fetched = fetchAndCache(event.request).catch(() => cached || cachedAppShell());
-          return cached || fetched;
+          if (cached) return cached;
+          if (url.pathname === '/app' || url.pathname === '/index.html') {
+            return cachedAppShell().then((shell) => shell || fetchAndCache(event.request));
+          }
+          return fetchAndCache(event.request).catch(() => cachedAppShell());
         })
       );
       return;

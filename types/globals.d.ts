@@ -22,6 +22,7 @@ interface Window {
   _demoLoadingProfileId?: string;
   _snpTableCache?: unknown;
   APP_VERSION?: string;
+  APP_BUILD_ID?: string;
   callClaudeAPI?: (request: {
     system?: string;
     messages: Array<{ role: string; content: string }>;

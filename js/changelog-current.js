@@ -1,7 +1,6 @@
 // @ts-check
 // Current release kept separate so the historical archive remains bounded.
-export const CURRENT_RELEASE = { version: '1.19.2', date: '2026-09-11', title: 'Safer import review and more complete offline settings', items: [
-  '<b>Keep your import review open.</b> Escape closes the unit picker first, preserving the lab results you are reviewing.',
-  '<b>Fresh installations stay quiet.</b> The app avoids a false update prompt when the browser finishes its first offline installation.',
-  '<b>Settings artwork stays available offline.</b> Provider and wearable icons are included when the app is installed, and Fitbit uses its bundled fallback icon.',
+export const CURRENT_RELEASE = { version: '1.19.3', date: '2026-09-12', title: 'Updates ready when you are', items: [
+  '<b>Keep working while updates download.</b> The app prepares new builds in the background and offers Reload only when the update is ready.',
+  '<b>Small fixes arrive automatically.</b> Each deployed build can update the app without waiting for a new release version.',
 ] };

@@ -336,6 +336,40 @@ describe('service worker runtime cache behavior', () => {
     await vi.waitFor(() => expect(cache.put).toHaveBeenCalledWith(versionProbe.request, expect.any(Response)));
   });
 
+  it.each([false, true])('rejects a switched deployment and discards only its staging cache (after download=%s)', async afterDownload => {
+    const { listeners, self, caches, cache } = await loadServiceWorker({ hostname: 'app.getbased.health' });
+    self.GetBasedServiceWorkerRuntime.install({
+      scope: self, appShell: ['/app'], buildId: 'build-b', isProduction: true,
+      resolveCacheName: async () => 'labcharts-vbuild-build-b', shouldUseNetworkOnly: () => false,
+    });
+    let probes = 0;
+    globalThis.fetch = vi.fn(async url => {
+      if (url === '/version.js?update-check=1') {
+        probes += 1;
+        return new Response(`self.APP_BUILD_ID = '${afterDownload && probes === 1 ? 'build-b' : 'build-c'}';`);
+      }
+      return new Response('build-b-html');
+    });
+    const install = makeWaitEvent();
+    listeners.get('install')(install);
+    await expect(install.done()).rejects.toThrow('Deployment changed');
+    expect(cache.put).toHaveBeenCalledTimes(afterDownload ? 1 : 0);
+    expect(caches.delete).toHaveBeenCalledExactlyOnceWith('labcharts-vbuild-build-b');
+    expect(self.skipWaiting).not.toHaveBeenCalled();
+    expect(self.clients.claim).not.toHaveBeenCalled();
+  });
+
+  it('keeps the installed HTML unchanged when a new deployment is available', async () => {
+    const { listeners, matches } = await loadServiceWorker({ hostname: 'app.getbased.health' });
+    matches.set('/app', new Response('installed-html'));
+    globalThis.fetch = vi.fn(async () => new Response('new-html'));
+    const event = makeFetchEvent('https://app.getbased.health/app');
+    Object.defineProperty(event.request, 'mode', { value: 'navigate' });
+    listeners.get('fetch')(event);
+    expect(await (await event.response()).text()).toBe('installed-html');
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
   it('uses plain versioned cache names on production hosts', async () => {
     const { caches, listeners } = await loadServiceWorker({ hostname: 'app.getbased.health' });
     const install = makeWaitEvent();

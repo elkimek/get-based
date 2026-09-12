@@ -2,6 +2,8 @@
 
 import fs from 'node:fs/promises';
 import os from 'node:os';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build, RUNTIME_MODULE_ID } from 'rolldown';
@@ -162,6 +164,9 @@ async function enforceBuildBudget(summary) {
 }
 
 export async function buildProduction({ outputRoot = ROOT } = {}) {
+  const commit = process.env.VERCEL_GIT_COMMIT_SHA
+    || execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
+  const buildId = createHash('sha256').update(`${commit}:${process.env.VERCEL_DEPLOYMENT_ID || ''}`).digest('hex');
   await validateBundlerLock();
   await buildCompanionBundle({ outputRoot });
 
@@ -244,12 +249,15 @@ export async function buildProduction({ outputRoot = ROOT } = {}) {
     .map(chunk => `  '/js/${chunk.fileName}',`)
     .sort();
   const builtServiceWorker = replaceMarkedSection(
-    pruneSourceModuleAppShell(serviceWorkerSource),
+    pruneSourceModuleAppShell(serviceWorkerSource).replace(/const BUILD_ID = '[^']*';/, `const BUILD_ID = '${buildId}';`),
     SW_BUNDLES_START,
     SW_BUNDLES_END,
     bundleAssetLines,
   );
+  const versionSource = (await fs.readFile(path.join(ROOT, 'version.js'), 'utf8'))
+    .replace(/\nself\.APP_BUILD_ID = '[^']*';\n?/g, '\n');
   await Promise.all([
+    fs.writeFile(path.join(outputRoot, 'version.js'), `${versionSource.trimEnd()}\nself.APP_BUILD_ID = '${buildId}';\n`),
     fs.writeFile(path.join(outputRoot, 'index.html'), builtIndex),
     fs.writeFile(path.join(outputRoot, 'service-worker.js'), builtServiceWorker),
     fs.writeFile(path.join(outputRoot, 'service-worker-runtime.js'), serviceWorkerRuntimeSource),

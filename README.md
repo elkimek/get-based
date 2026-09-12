@@ -288,3 +288,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Project board: [planned features](https:
 AGPL-3.0-or-later. See [LICENSE](LICENSE).
 
 If you run a modified version as a network service, AGPLv3 §13 requires you to offer users the corresponding source. Vendored third-party libraries are listed under their own licenses in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+
+PWA updates use a build identity generated from the deployed commit and deployment ID. The builder embeds it in both `version.js` and the service worker; release versions remain for changelogs. Visible apps check every five minutes and on return, download new builds silently into a separate cache, and offer **Reload / Later** only after installation succeeds. Failed downloads keep the current build active. Version 1.19.3 provides the migration signal for older version-based clients; subsequent patches need no version bump.

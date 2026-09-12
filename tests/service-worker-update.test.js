@@ -42,7 +42,7 @@ describe('service worker update prompt', () => {
     onUpdateFound();
     replacement.state = 'installed';
     onStateChange();
-    expect(document.getElementById('version-update-banner').textContent).toContain('New version available');
+    expect(document.getElementById('version-update-banner').textContent).toContain('Update ready');
   });
 
   it('delegates default browser globals through runtime helpers', () => {
@@ -300,99 +300,44 @@ describe('service worker update prompt', () => {
     expect(fetchVersion).not.toHaveBeenCalled();
   });
 
-  it('detects a new version cheaply and installs only after the update action', async () => {
-    const { checkForAppVersionUpdate } = serviceWorkerUpdate;
-    const waiting = { postMessage: vi.fn() };
+  it('stages a same-version build silently and offers reload only when ready', async () => {
+    let installed;
+    const worker = { state: 'installing', postMessage: vi.fn(), addEventListener: vi.fn((_, cb) => { installed = cb; }) };
+    let found;
     const registration = {
-      waiting: null,
-      installing: null,
-      update: vi.fn(async () => {
-        registration.waiting = waiting;
-      }),
+      waiting: null, installing: null,
+      addEventListener: vi.fn((_, cb) => { found = cb; }),
+      update: vi.fn(async () => { registration.installing = worker; found(); }),
     };
-    const serviceWorkerContainer = { controller: {} };
-    const win = {
-      APP_VERSION: '1.2.3',
-      localStorage: { getItem: vi.fn(() => null), setItem: vi.fn() },
-    };
-    const fetchImpl = vi.fn(async () => new Response("self.APP_VERSION = '1.2.4';"));
-
-    await expect(checkForAppVersionUpdate(
-      registration,
-      serviceWorkerContainer,
-      win,
-      { force: true, fetchImpl }
-    )).resolves.toBe(true);
-
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
-    expect(registration.update).not.toHaveBeenCalled();
-    const banner = document.getElementById('version-update-banner');
-    expect(banner.textContent).toContain('New version available');
-
-    banner.querySelector('[data-version-update-action="apply"]').click();
-    await vi.waitFor(() => expect(registration.update).toHaveBeenCalledTimes(1));
-    await vi.waitFor(() => expect(waiting.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' }));
+    const container = { controller: {} };
+    serviceWorkerUpdate.watchServiceWorkerRegistration(registration, container);
+    const win = { APP_VERSION: '1.2.3', APP_BUILD_ID: 'build-a' };
+    const fetchImpl = vi.fn(async () => new Response("self.APP_VERSION = '1.2.3'; self.APP_BUILD_ID = 'build-b';"));
+    await expect(serviceWorkerUpdate.checkForAppVersionUpdate(registration, container, win,
+      { force: true, fetchImpl })).resolves.toBe(true);
+    expect(registration.update).toHaveBeenCalledTimes(1);
     expect(document.getElementById('version-update-banner')).toBeNull();
+    expect(worker.postMessage).not.toHaveBeenCalled();
+    worker.state = 'installed'; registration.waiting = worker; installed();
+    expect(document.getElementById('version-update-banner').textContent).toContain('Update ready');
+    document.querySelector('[data-version-update-action="apply"]').click();
+    expect(worker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' });
   });
 
-  it('renders themed, accessible install progress from service-worker messages', async () => {
-    const { checkForAppVersionUpdate, registerServiceWorkerUpdates } = serviceWorkerUpdate;
-    let onMessage = null;
-    let resolveUpdate;
-    const updatePending = new Promise((resolve) => { resolveUpdate = resolve; });
-    const registration = {
-      waiting: null,
-      installing: null,
-      addEventListener: vi.fn(),
-      update: vi.fn(() => updatePending),
-    };
-    const win = {
-      APP_VERSION: '1.2.3',
-      fetch: vi.fn(async () => new Response("self.APP_VERSION = '1.2.3';")),
-      location: { hostname: 'getbased.health', search: '', reload: vi.fn() },
-      localStorage: { getItem: vi.fn(() => null), setItem: vi.fn() },
-      performance: { getEntriesByType: vi.fn(() => [{ type: 'navigate' }]) },
-      document: { visibilityState: 'visible', addEventListener: vi.fn() },
-      addEventListener: vi.fn(),
-      setInterval: vi.fn(() => 7),
-      clearInterval: vi.fn(),
-    };
-    const serviceWorkerContainer = {
-      controller: {},
-      register: vi.fn(async () => registration),
-      addEventListener: vi.fn((type, listener) => {
-        if (type === 'message') onMessage = listener;
-      }),
-    };
-
-    await registerServiceWorkerUpdates({ win, serviceWorkerContainer, cacheStorage: null });
-    await checkForAppVersionUpdate(registration, serviceWorkerContainer, win, {
-      force: true,
-      fetchImpl: vi.fn(async () => new Response("self.APP_VERSION = '1.2.4';")),
-    });
-
-    document.querySelector('[data-version-update-action="apply"]').click();
-    expect(onMessage).toEqual(expect.any(Function));
-    onMessage({ data: { type: 'PRECACHE_PROGRESS', completed: 293, total: 586 } });
-
-    const banner = document.getElementById('version-update-banner');
-    const track = banner.querySelector('.version-update-progress-track');
-    expect(banner.querySelector('.version-update-percent').textContent).toBe('50%');
-    expect(banner.querySelector('.version-update-progress-fill').style.width).toBe('50%');
-    expect(banner.querySelector('.version-update-progress-meta').textContent).toContain('293 of 586 files cached');
-    expect(track.getAttribute('role')).toBe('progressbar');
-    expect(track.getAttribute('aria-valuenow')).toBe('50');
-    expect(track.getAttribute('aria-valuetext')).toBe('293 of 586 app files cached');
-    expect(banner.getAttribute('aria-live')).toBe('off');
-    expect(banner.getAttribute('aria-busy')).toBe('true');
-    expect(banner.querySelector('.version-update-actions').hidden).toBe(true);
-
-    onMessage({ data: { type: 'PRECACHE_PROGRESS', completed: 586, total: 586 } });
-    expect(banner.textContent).toContain('Finalizing update');
-    expect(banner.querySelector('.version-update-percent').textContent).toBe('100%');
-
-    resolveUpdate();
-    await updatePending;
+  it('ignores unchanged builds and silently retries failed background updates', async () => {
+    const registration = { waiting: null, update: vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue(undefined) };
+    const container = { controller: {} };
+    const win = { APP_VERSION: '1.2.3', APP_BUILD_ID: 'build-b' };
+    const same = { force: true, fetchImpl: async () => new Response("self.APP_BUILD_ID = 'build-b';") };
+    expect(await serviceWorkerUpdate.checkForAppVersionUpdate(registration, container, win, same)).toBe(false);
+    expect(registration.update).not.toHaveBeenCalled();
+    // A rollback is also a different deployed build, not a semver comparison.
+    const previous = { force: true, fetchImpl: async () => new Response("self.APP_BUILD_ID = 'build-a';") };
+    expect(await serviceWorkerUpdate.checkForAppVersionUpdate(registration, container, win, previous)).toBe(false);
+    expect(document.getElementById('version-update-banner')).toBeNull();
+    expect(await serviceWorkerUpdate.checkForAppVersionUpdate(registration, container, win, previous)).toBe(true);
+    expect(registration.update).toHaveBeenCalledTimes(2);
+    expect(document.getElementById('version-update-banner')).toBeNull();
   });
 
   it('shares the version-check throttle across tabs while allowing forced reload checks', async () => {
@@ -438,7 +383,7 @@ describe('service worker update prompt', () => {
     const banner = document.getElementById('version-update-banner');
     expect(banner).not.toBeNull();
     expect(banner.querySelector('.version-update-copy-short')).toBeNull();
-    expect(banner.textContent).toContain('New version available. Update when you are ready.');
+    expect(banner.textContent).toContain('Update ready. Reload when you are ready.');
     expect(document.body.classList.contains('version-update-visible')).toBe(true);
     expect(waiting.postMessage).not.toHaveBeenCalled();
 
