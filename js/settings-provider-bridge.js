@@ -110,6 +110,7 @@ function syncWalletFunding() {
   } catch {}
 }
 globalThis.addEventListener?.('labcharts-ai-settings-local-changed', syncWalletFunding);
+globalThis.addEventListener?.('labcharts-ai-settings-synced', syncWalletFunding);
 globalThis.addEventListener?.('getbased:chat-backend-changed', syncWalletFunding);
 globalThis.addEventListener?.('storage', event => {
   if (!event.key || ['labcharts-ai-provider', 'labcharts-chat-backend'].includes(event.key)) syncWalletFunding();

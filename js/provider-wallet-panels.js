@@ -108,7 +108,7 @@ export function startRoutstrFundingMonitor(options = {}) {
   if (isRoutstrActive()) fundingMonitor.start(options);
   else fundingMonitor.stop();
 }
-for (const event of ['labcharts-ai-settings-local-changed', 'getbased:chat-backend-changed', 'storage']) {
+for (const event of ['labcharts-ai-settings-local-changed', 'labcharts-ai-settings-synced', 'getbased:chat-backend-changed', 'storage']) {
   globalThis.addEventListener?.(event, () => startRoutstrFundingMonitor());
 }
 
