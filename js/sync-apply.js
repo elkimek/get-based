@@ -169,6 +169,9 @@ async function applyAISettingsUnlocked(settings, options) {
     if (routstrSessionKey) routstrSessionChanged = true;
   }
   if (changed) {
+    // Same-tab storage writes do not emit storage events. Reconcile consumers
+    // without marking remotely applied settings as a new local edit.
+    globalThis.dispatchEvent?.(new CustomEvent('labcharts-ai-settings-synced'));
     refreshSyncedAIProviderUiRuntime();
     notifyAppExtensionSyncSettingsApplied({ settings, changedKeys });
   }

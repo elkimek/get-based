@@ -69,7 +69,7 @@ function renderFundingPaid(status, credited) {
 }
 
 /** One wallet-wide loop, independent of the currently visible invoice/panel. */
-export function createFundingMonitor(runtime, refreshBalance, onResult = (_result) => {}) {
+export function createFundingMonitor(runtime, refreshBalance, onResult = (_result) => {}, isActive = () => true) {
   let timer = null;
   let running = false;
   let enabled = false;
@@ -78,6 +78,7 @@ export function createFundingMonitor(runtime, refreshBalance, onResult = (_resul
   let notBefore = 0;
   let recheckRequested = false;
   let refreshingBalance = false;
+  const canRun = () => enabled && leader && isActive();
   const subscriptions = new Map();
   const notified = new Map();
   const quoteKey = item => item.mint + '\n' + item.quote;
@@ -101,7 +102,9 @@ export function createFundingMonitor(runtime, refreshBalance, onResult = (_resul
       void Promise.resolve().then(() => refreshBalance()).catch(() => {}).finally(() => { refreshingBalance = false; });
     }
     const poll = document.getElementById('routstr-wfund-poll');
-    if (poll) poll.textContent = result.failed
+    if (poll) poll.textContent = displayed?.state === 'PAUSED'
+      ? 'Mint rejected this invoice check. Automatic checks paused; use Check pending deposits to retry.'
+      : result.failed
       ? 'Payment confirmation delayed. Retrying automatically…'
       : displayed?.state === 'ISSUED' ? 'Payment received. Recovering wallet balance…'
       : 'Waiting for payment… Deposits are credited automatically.';
@@ -149,16 +152,16 @@ export function createFundingMonitor(runtime, refreshBalance, onResult = (_resul
           wakeLocal();
         }
       };
-      void Promise.resolve().then(() => runtime.cashuSubscribeFundingQuotes(mint, ids, update => {
-        if (!leader || !enabled || subscriptions.get(mint) !== entry || !ids.includes(update?.quote)) return;
+      void Promise.resolve().then(() => canRun() ? runtime.cashuSubscribeFundingQuotes(mint, ids, update => {
+        if (!canRun() || subscriptions.get(mint) !== entry || !ids.includes(update?.quote)) return;
         entry.confirmed = true;
         if (/^(PAID|ISSUED|EXPIRED|CANCELLED|CANCELED)$/.test(String(update.state).toUpperCase())) {
           const item = { mint, quote: update.quote };
           // A notification never credits funds directly or bypasses HTTP limits.
           if (!notified.has(quoteKey(item))) { notified.set(quoteKey(item), item); wakeLocal(); }
         }
-      }, failed)).then(cancel => {
-        if (!leader || !enabled || subscriptions.get(mint) !== entry || entry.retryAt) { cancel?.(); return; }
+      }, failed) : null).then(cancel => {
+        if (!canRun() || subscriptions.get(mint) !== entry || entry.retryAt) { cancel?.(); return; }
         entry.connecting = false;
         entry.cancel = cancel;
         if (!cancel) entry.retryAt = Date.now() + 300000;
@@ -177,20 +180,20 @@ export function createFundingMonitor(runtime, refreshBalance, onResult = (_resul
   }, displayResult, () => wakeLocal());
 
   async function tick() {
-    if (!enabled || !leader || running) return;
+    if (!canRun() || running) return;
     if (notBefore > Date.now()) { timer = setTimeout(tick, Math.min(2147483647, notBefore - Date.now())); return; }
     running = true;
     recheckRequested = false;
     let delay = 30000;
     try {
-      if (await runtime.cashuHasWalletSeed()) {
+      if (await runtime.cashuHasWalletSeed() && canRun()) {
         const hints = [...notified.values()];
         notified.clear();
         let result;
         try {
-          result = await runtime.cashuRecoverPendingFunding({ automatic: true, notified: hints, subscribedMints: [...subscriptions].filter(([, entry]) => entry.confirmed).map(([mint]) => mint) });
+          result = await runtime.cashuRecoverPendingFunding({ automatic: true, shouldContinue: canRun, notified: hints, subscribedMints: [...subscriptions].filter(([, entry]) => entry.confirmed).map(([mint]) => mint) });
         } catch (error) { for (const hint of hints) notified.set(quoteKey(hint), hint); throw error; }
-        if (!enabled || !leader) return;
+        if (!canRun()) return;
         for (const hint of hints) {
           if (result.results?.some(item => quoteKey(item) === quoteKey(hint) && item.state === 'WAITING')) notified.set(quoteKey(hint), hint);
         }
@@ -209,7 +212,7 @@ export function createFundingMonitor(runtime, refreshBalance, onResult = (_resul
       if (poll) poll.textContent = 'Payment confirmation delayed. Retrying automatically…';
     } finally {
       running = false;
-      if (enabled && leader) timer = setTimeout(tick, Math.min(2147483647, Math.max(notBefore - Date.now(), recheckRequested ? 0 : delay, 0)));
+      if (canRun()) timer = setTimeout(tick, Math.min(2147483647, Math.max(notBefore - Date.now(), recheckRequested ? 0 : delay, 0)));
     }
   }
   function wakeLocal() {
@@ -223,6 +226,7 @@ export function createFundingMonitor(runtime, refreshBalance, onResult = (_resul
   const resume = () => { if (enabled) coordinator.start(); };
   return {
     start({ recheck = false } = {}) {
+      if (!isActive()) return;
       if (!enabled) {
         enabled = true;
         globalThis.addEventListener?.('online', wake);

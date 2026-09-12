@@ -30,6 +30,58 @@ afterEach(() => {
 });
 
 describe('Cashu wallet runtime behavior', () => {
+  it('pauses rejected quotes across reloads and notifications without deleting recoverable deposits', async () => {
+    const wallet = await loadWallet();
+    const mint = 'https://mint.rejected.test';
+    await wallet.setMintUrl(mint);
+    await wallet.createFundingInvoice(12);
+    const check = vi.spyOn(globalThis.cashuts.Wallet.prototype, 'checkMintQuoteBolt11').mockRejectedValue(Object.assign(new Error('Quote not found'), {status:400}));
+    try {
+      const first = await wallet.recoverPendingFunding({automatic:true});
+      expect(first).toMatchObject({failed:1,pendingQuotes:[]});
+      expect(first.results[0].state).toBe('PAUSED');
+      const reloaded = await loadWallet();
+      for (let i=0;i<5;i++) await reloaded.recoverPendingFunding({automatic:true,notified:[{mint,quote:'mint-12'}]});
+      expect(check).toHaveBeenCalledTimes(1);
+      expect((await reloaded.recoverPendingFunding({automatic:true})).checked).toBe(1);
+      check.mockRestore();
+      await expect(reloaded.recoverPendingFunding()).resolves.toMatchObject({recovered:12});
+    } finally { check.mockRestore(); }
+  });
+
+  it('backs off transient quote errors even when notifications request another check', async () => {
+    const wallet = await loadWallet();
+    const mint = 'https://mint.transient.test';
+    await wallet.setMintUrl(mint); await wallet.createFundingInvoice(12);
+    const check = vi.spyOn(globalThis.cashuts.Wallet.prototype, 'checkMintQuoteBolt11').mockRejectedValue(Object.assign(new Error('Unavailable'),{status:503}));
+    let now = Date.now();
+    const clock = vi.spyOn(Date,'now').mockImplementation(()=>now);
+    try {
+      await wallet.recoverPendingFunding({automatic:true});
+      const reloaded = await loadWallet();
+      now += 59999;
+      await reloaded.recoverPendingFunding({automatic:true,notified:[{mint,quote:'mint-12'}]});
+      expect(check).toHaveBeenCalledTimes(1);
+      now += 1; await reloaded.recoverPendingFunding({automatic:true});
+      expect(check).toHaveBeenCalledTimes(2);
+      now += 119999; await reloaded.recoverPendingFunding({automatic:true,notified:[{mint,quote:'mint-12'}]});
+      expect(check).toHaveBeenCalledTimes(2);
+      now += 1; await reloaded.recoverPendingFunding({automatic:true});
+      expect(check).toHaveBeenCalledTimes(3);
+    } finally { check.mockRestore(); clock.mockRestore(); }
+  });
+
+  it('does not start queued quote requests after automatic monitoring is disabled', async () => {
+    const wallet = await loadWallet();
+    await wallet.createFundingInvoice(12);
+    const check = vi.spyOn(globalThis.cashuts.Wallet.prototype,'checkMintQuoteBolt11');
+    try {
+      await wallet.recoverPendingFunding({automatic:true,shouldContinue:()=>false});
+      await wallet.checkFundingStatus('mint-12',null,{automatic:true,shouldContinue:()=>false});
+      expect(check).not.toHaveBeenCalled();
+    } finally { check.mockRestore(); }
+  });
+
   it('shares automatic invoice pacing across reloads and caps checks per mint', async () => {
     const stub = installCashuStub();
     const wallet = await loadWallet();

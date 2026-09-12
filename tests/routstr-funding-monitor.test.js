@@ -10,6 +10,40 @@ const result = (extra = {}) => ({ mint: 'https://mint.test', checked: 2, pending
 const runtime = check => ({ cashuHasWalletSeed: async () => true, cashuRecoverPendingFunding: check });
 const settle = () => vi.advanceTimersByTimeAsync(0);
 
+it('does not check or subscribe when Routstr is inactive, including during async startup', async () => {
+  let active = false;
+  let seedReady;
+  const check = vi.fn().mockResolvedValue(result());
+  const subscribe = vi.fn();
+  monitor = createFundingMonitor({ ...runtime(check), cashuHasWalletSeed: () => new Promise(r => { seedReady = r; }), cashuSubscribeFundingQuotes: subscribe }, vi.fn(), () => {}, () => active);
+  monitor.start(); await settle();
+  expect(check).not.toHaveBeenCalled();
+  active = true; monitor.start(); await settle();
+  active = false; seedReady(true); await settle();
+  window.dispatchEvent(new Event('focus'));
+  await vi.advanceTimersByTimeAsync(120000);
+  expect(check).not.toHaveBeenCalled();
+  expect(subscribe).not.toHaveBeenCalled();
+});
+
+it('stops subscriptions and rejects queued checks when the provider changes', async () => {
+  let active = true;
+  let options;
+  const cancel = vi.fn();
+  const check = vi.fn(async value => { options = value; return result({pendingQuotes:[{mint:'https://mint.test',quote:'new'}]}); });
+  monitor = createFundingMonitor({ ...runtime(check), cashuSubscribeFundingQuotes: async () => cancel }, vi.fn(), () => {}, () => active);
+  monitor.start(); await settle();
+  expect(options.shouldContinue()).toBe(true);
+  active = false; monitor.stop(); await settle();
+  expect(options.shouldContinue()).toBe(false);
+  expect(cancel).toHaveBeenCalledTimes(1);
+  window.dispatchEvent(new Event('focus'));
+  await vi.advanceTimersByTimeAsync(120000);
+  expect(check).toHaveBeenCalledTimes(1);
+  active = true; monitor.start(); await settle();
+  expect(check).toHaveBeenCalledTimes(2);
+});
+
 it('automatically credits an older invoice without replacing the newer QR', async () => {
   const refresh = vi.fn();
   monitor = createFundingMonitor(runtime(vi.fn().mockResolvedValue(result({ recovered: 500, balance: 500, results: [{ quote: 'old', paid: true, minted: 500, fee: 0 }, { quote: 'new', paid: false }] }))), refresh);
