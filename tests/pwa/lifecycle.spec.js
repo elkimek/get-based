@@ -107,6 +107,10 @@ test('failed update preserves the installed app; retry updates two tabs without 
     expect(await page.evaluate(() => localStorage.getItem('pwa-retained-data'))).toBe('retained');
     expect(await page.evaluate(async () => (await import('/js/state.js')).state.importedData.entries))
       .toEqual([{ date: '2026-09-01', markers: { 'biochemistry.glucose': 5.8 } }]);
-    await expect.poll(() => page.evaluate(() => caches.keys())).toEqual(['labcharts-vbuild-build-b']);
+    // WebKit can transiently reject CacheStorage reads while activation settles.
+    // Retry the read, while still requiring exactly the new build's cache.
+    await expect(async () => {
+      expect(await page.evaluate(() => caches.keys())).toEqual(['labcharts-vbuild-build-b']);
+    }).toPass({ timeout: 5_000 });
   } finally { await server.close(); }
 });
