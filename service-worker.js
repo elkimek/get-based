@@ -1,6 +1,8 @@
-importScripts('/version.js'); importScripts('/service-worker-runtime.js'); // Production uses semver; previews add the deployment SHA. AI activation UX revision: 2026-08-31a.
+importScripts('/version.js'); importScripts('/service-worker-runtime.js'); // Build output pins the deployment identity.
+const BUILD_ID = ''; // Replaced by the production builder.
 const PROD_HOSTS = new Set(['app.getbased.health', 'getbased.health', 'www.getbased.health']); const IS_PROD = PROD_HOSTS.has(self.location.hostname); let _cacheNamePromise = null;
 async function resolveCacheName() {
+  if (BUILD_ID) return `labcharts-vbuild-${BUILD_ID}`;
   const base = `labcharts-v${self.APP_VERSION}`;
   if (IS_PROD) return base;
   if (!_cacheNamePromise) {
@@ -793,4 +795,4 @@ const NETWORK_ONLY_HOSTS = new Set(['openrouter.ai', 'api.venice.ai', 'nras.atte
 function isLocalOrPrivateHost(hostname) { return ['localhost', '127.0.0.1', '::1', '[::1]'].includes(hostname) || hostname.startsWith('192.168.') || hostname.startsWith('10.') || /^172\.(1[6-9]|2\d|3[01])\./.test(hostname); }
 function shouldUseNetworkOnly(url, sameOrigin) { const h = url.hostname; return NETWORK_ONLY_HOSTS.has(h) || (!sameOrigin && isLocalOrPrivateHost(h)); }
 /** @type {ServiceWorkerGlobalScope & typeof globalThis & { GetBasedServiceWorkerRuntime: { install: (config: ServiceWorkerRuntimeConfig) => void } }} */
-const serviceWorkerScope = /** @type {any} */ (self); serviceWorkerScope.GetBasedServiceWorkerRuntime.install({ scope: serviceWorkerScope, appShell: APP_SHELL, isProduction: IS_PROD, resolveCacheName, shouldUseNetworkOnly });
+const serviceWorkerScope = /** @type {any} */ (self); serviceWorkerScope.GetBasedServiceWorkerRuntime.install({ scope: serviceWorkerScope, buildId: BUILD_ID, appShell: APP_SHELL, isProduction: IS_PROD || !!BUILD_ID, resolveCacheName, shouldUseNetworkOnly });

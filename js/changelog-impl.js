@@ -7,6 +7,7 @@ const CHANGELOG_ACTION_ATTR = 'data-changelog-action';
 const changelogDelegateRoots = new WeakSet();
 const CHANGELOG = [
   CURRENT_RELEASE,
+  { version: '1.19.2', date: '2026-09-11', title: 'Safer import review and more complete offline settings', items: [   '<b>Keep your import review open.</b> Escape closes the unit picker first, preserving the lab results you are reviewing.',   '<b>Fresh installations stay quiet.</b> The app avoids a false update prompt when the browser finishes its first offline installation.',   '<b>Settings artwork stays available offline.</b> Provider and wearable icons are included when the app is installed, and Fitbit uses its bundled fallback icon.', ] },
   { version: '1.19.1', date: '2026-09-10', title: 'Smoother Routstr wallet payments', items: [ '<b>Lightning deposits update automatically.</b> The invoice shows a clear payment confirmation when your wallet is credited.', '<b>More reliable wallet payments.</b> Improvements to Lightning address payments and pending deposit handling make funding your wallet smoother.', ] },
   { version: '1.19.0', date: '2026-09-05', title: 'Your agents, a better chat, and a more flexible dashboard', items: [
     '<b>Use your installed AI agents.</b> Connect Codex, OpenCode, Hermes, Grok Build, or OpenClaw through the local Companion or a terminal command. Setup and connection controls live together in AI settings, and agent details can be collapsed.',
@@ -662,7 +663,6 @@ const CHANGELOG = [
     ]
   },
 ];
-
 /** Extract major.minor from a semver string (e.g. '1.0.1' → '1.0') */
 function getMajorMinor(ver) {
   const parts = String(ver).split('.');
