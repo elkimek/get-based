@@ -271,7 +271,7 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
       const waitForPushes = async count => {
         const deadline = Date.now() + 5000;
         while (pushes.length < count && Date.now() < deadline) {
-          await new Promise(resolve => saved.setTimeout(resolve, 10));
+          await new Promise(resolve => saved.setTimeout.call(window, resolve, 10));
         }
       };
       await encryptedSetItem('labcharts-profile-fallback-imported', JSON.stringify({ notes: [{ text: 'persisted data' }] }));

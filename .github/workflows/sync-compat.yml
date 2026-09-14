@@ -6,7 +6,7 @@ on:
       focus:
         type: choice
         default: all
-        options: [all, offline, sync]
+        options: [all, offline, sync, browser]
 
 permissions:
   contents: read
@@ -51,6 +51,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run real-relay transport scenario
+        if: inputs.focus != 'browser'
         shell: bash
         run: |
           set -euo pipefail
@@ -115,7 +116,7 @@ jobs:
           retention-days: 7
 
   offline:
-    if: inputs.focus != 'sync'
+    if: inputs.focus == 'offline' || inputs.focus == 'all'
     name: Offline baseline (${{ matrix.ref }})
     runs-on: ubuntu-latest
     timeout-minutes: 12
