@@ -302,22 +302,29 @@ test('blob storage browser coverage exercises size diagnostics and IDB failure r
         if (originalDescriptor) Object.defineProperty(window, 'indexedDB', originalDescriptor);
         else delete window.indexedDB;
       };
-      const failRequest = label => {
+      const failRequest = (label, transaction) => {
         const request = { error: new Error(label) };
-        queueMicrotask(() => request.onerror?.());
+        queueMicrotask(() => {
+          request.onerror?.();
+          transaction.error = request.error;
+          transaction.onerror?.();
+        });
         return request;
       };
       const fakeDb = {
         objectStoreNames: { contains: () => true },
         createObjectStore: () => {},
-        transaction: () => ({
-          objectStore: () => ({
-            get: () => failRequest('get failed'),
-            put: () => failRequest('put failed'),
-            delete: () => failRequest('delete failed'),
-            getAll: () => failRequest('getAll failed'),
-          }),
-        }),
+        transaction: () => {
+          const transaction = {
+            objectStore: () => ({
+              get: () => failRequest('get failed', transaction),
+              put: () => failRequest('put failed', transaction),
+              delete: () => failRequest('delete failed', transaction),
+              getAll: () => failRequest('getAll failed', transaction),
+            }),
+          };
+          return transaction;
+        },
       };
       const fakeIndexedDB = {
         open: () => {
@@ -347,13 +354,16 @@ test('blob storage browser coverage exercises size diagnostics and IDB failure r
       }
     };
 
+    const readError = mod => mod.getBlob('missing').then(
+      () => '', error => String(error?.message || error),
+    );
     const openError = await withFakeIndexedDB('open-error', async mod => ({
-      value: await mod.getBlob('missing'),
+      error: await readError(mod),
       size: await mod.getBlobStorageSize(),
       shouldUseBlob: mod.shouldUseBlob('fake-imported'),
     }));
     const openBlocked = await withFakeIndexedDB('open-blocked', async mod => ({
-      value: await mod.getBlob('missing'),
+      error: await readError(mod),
       size: await mod.getBlobStorageSize(),
     }));
     const requestErrors = await withFakeIndexedDB('request-errors', async (mod, warnings) => {
@@ -365,22 +375,22 @@ test('blob storage browser coverage exercises size diagnostics and IDB failure r
       }
       await mod.deleteBlob('broken-imported');
       return {
-        getValue: await mod.getBlob('broken-imported'),
+        getError: await readError(mod),
         setError,
         size: await mod.getBlobStorageSize(),
         warningCount: warnings.length,
       };
     });
 
-    outcomes.fakeIndexedDBOpenFailuresReturnFallbacks =
-      openError.value === null
+    outcomes.fakeIndexedDBOpenFailuresRejectReadsButKeepDiagnosticFallbacks =
+      openError.error.includes('open-error failed')
       && openError.size === 0
       && openError.shouldUseBlob === true
-      && openBlocked.value === null
+      && openBlocked.error.includes('IndexedDB open blocked')
       && openBlocked.size === 0;
 
     outcomes.fakeIndexedDBRequestFailuresUseCatchAndRejectPaths =
-      requestErrors.getValue === null
+      requestErrors.getError.includes('get failed')
       && requestErrors.setError.includes('put failed')
       && requestErrors.size === 0
       && requestErrors.warningCount >= 2;
