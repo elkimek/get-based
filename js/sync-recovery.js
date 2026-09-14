@@ -4,9 +4,7 @@
 let _isSyncEnabled = () => false;
 let _isEvoluReady = () => false;
 /** @type {(...args: any[]) => Promise<any>} */
-let _pushCurrentProfile = async () => {};
-/** @type {(...args: any[]) => any} */
-let _forcePull = () => {};
+let _syncNow = async () => {};
 /** @type {(...args: any[]) => any} */
 let _debug = () => {};
 /** @type {(...args: any[]) => any} */
@@ -18,8 +16,7 @@ let _lastNetState = true;
 /** @param {{
  *   isSyncEnabled?: () => boolean,
  *   isEvoluReady?: () => boolean,
- *   pushCurrentProfile?: (...args: any[]) => Promise<any>,
- *   forcePull?: (...args: any[]) => any,
+ *   syncNow?: (...args: any[]) => Promise<any>,
  *   debug?: (...args: any[]) => any,
  *   notify?: (...args: any[]) => any,
  * }} [deps]
@@ -27,15 +24,13 @@ let _lastNetState = true;
 export function configureSyncRecovery({
   isSyncEnabled,
   isEvoluReady,
-  pushCurrentProfile,
-  forcePull,
+  syncNow,
   debug,
   notify,
 } = {}) {
   if (typeof isSyncEnabled === 'function') _isSyncEnabled = isSyncEnabled;
   if (typeof isEvoluReady === 'function') _isEvoluReady = isEvoluReady;
-  if (typeof pushCurrentProfile === 'function') _pushCurrentProfile = pushCurrentProfile;
-  if (typeof forcePull === 'function') _forcePull = forcePull;
+  if (typeof syncNow === 'function') _syncNow = syncNow;
   if (typeof debug === 'function') _debug = debug;
   if (typeof notify === 'function') _notify = notify;
 }
@@ -48,8 +43,7 @@ function _kickSync(reason) {
   _debug(`Tab resume (${reason}) - kicking syncNow`);
   // Let the visibility/network event return before heavier push/pull work.
   setTimeout(() => {
-    _pushCurrentProfile().catch(() => {});
-    _forcePull();
+    if (_isSyncEnabled() && _isEvoluReady()) _syncNow().catch(() => {});
   }, 100);
 }
 

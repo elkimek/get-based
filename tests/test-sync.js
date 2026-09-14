@@ -965,8 +965,8 @@ await import('../js/settings.js');
       && /pushProfile[\s\S]{0,700}Array\.isArray\(importedData\)/.test(syncPushSrc));
   assert('profile metadata sync retries while Evolu is busy or not ready',
     syncSaveHooksSrc.includes('function scheduleProfilePush')
-      && /scheduleProfilePush[\s\S]{0,600}attempt < 60/.test(syncSaveHooksSrc)
-      && /scheduleProfilePush[\s\S]{0,1000}_pushProfile\(profileId,\s*data\)/.test(syncSaveHooksSrc));
+      && syncSaveHooksSrc.slice(syncSaveHooksSrc.indexOf('function scheduleProfilePush'), syncSaveHooksSrc.indexOf('export function onProfileSaved')).includes('attempt < 60')
+      && syncSaveHooksSrc.slice(syncSaveHooksSrc.indexOf('function scheduleProfilePush'), syncSaveHooksSrc.indexOf('export function onProfileSaved')).includes('_pushProfile(profileId, latest)'));
 
   // Tombstone-aware pull: a remote delete from another device wipes the
   // local copy on next sync, so multi-device cleanup completes itself.
@@ -2491,7 +2491,7 @@ await import('../js/settings.js');
   assert('Receive path treats v4 (importedData null) as legitimate, not malformed',
     /function isMalformedPulledImportedData[\s\S]{0,160}importedData\s*!==\s*null[\s\S]{0,160}!importedData/.test(syncPullMergeSrc));
   assert('Receive path uses local as baseline when v4 (no blob to merge)',
-    /v4 cutover[\s\S]{0,800}importedData\s*\?\s*mergeImportedData\(localBaselineForMerge,\s*importedData\)\s*:\s*localBaselineForMerge/.test(deltaSearchSrc));
+    /v4 cutover[\s\S]{0,800}importedData\s*\?\s*mergeImportedData\(localBaselineForMerge,\s*importedData\)\s*:\s*JSON\.parse\(JSON\.stringify\(localBaselineForMerge\)\)/.test(deltaSearchSrc));
   assert('confirmEnablePhase2 re-checks readiness as defence-in-depth',
     /confirmEnablePhase2[\s\S]{0,400}getDeltaCutoverReadiness\(state\.currentProfile\)[\s\S]{0,200}!r\?\.ready/.test(deltaSearchSrc));
   assert('Cutover modal button gated when not ready (disabled attribute)',

@@ -267,19 +267,32 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
         && pushes[1].id === profileId
         && Number(sessionStorage.getItem('labcharts-chat-local-lock-until') || '0') > Date.now();
 
-      saveHooks.onProfileSaved('profile-fallback', { notes: [{ text: 'fallback data' }] });
+      const { encryptedSetItem, encryptedRemoveItem } = await import('/js/crypto.js');
+      const waitForPushes = async count => {
+        const deadline = Date.now() + 5000;
+        while (pushes.length < count && Date.now() < deadline) {
+          await new Promise(resolve => saved.setTimeout.call(window, resolve, 10));
+        }
+      };
+      await encryptedSetItem('labcharts-profile-fallback-imported', JSON.stringify({ notes: [{ text: 'persisted data' }] }));
+      saveHooks.onProfileSaved('profile-fallback', { notes: [{ text: 'stale fallback' }] });
       await runPendingTimers();
-      outcomes.profileSaveUsesProvidedFallbackData = pushes.length === 3
+      await waitForPushes(3);
+      await encryptedRemoveItem('labcharts-profile-fallback-imported');
+      outcomes.profileSaveUsesLatestPersistedData = pushes.length === 3
         && pushes[2].id === 'profile-fallback'
-        && pushes[2].data.notes?.[0]?.text === 'fallback data';
+        && pushes[2].data.notes?.[0]?.text === 'persisted data';
 
       ready = false;
+      await encryptedSetItem('labcharts-profile-retry-imported', JSON.stringify({ notes: [{ text: 'retry data' }] }));
       saveHooks.onProfileSaved('profile-retry', { notes: [{ text: 'retry data' }] });
       await runPendingTimers();
       outcomes.profileSaveRetriesUntilEvoluReady = pushes.length === 3
         && Array.from(timers.values()).some(timer => timer.ms === 1000);
       ready = true;
       await runPendingTimers();
+      await waitForPushes(4);
+      await encryptedRemoveItem('labcharts-profile-retry-imported');
       outcomes.profileRetryFlushPushesAfterReady = pushes.length === 4
         && pushes[3].id === 'profile-retry'
         && pushes[3].data.notes?.[0]?.text === 'retry data';
@@ -591,7 +604,7 @@ test('sync action delegates push force pull and all-profile paths', async ({ pag
       outcomes.forceResendUsesForceOption = pushes.some(call => call.id === profileId && call.options?.force === true);
 
       await actions.syncNow();
-      outcomes.syncNowPushesThenPulls = pushes.filter(call => call.id === profileId).length === 3
+      outcomes.cleanSyncNowOnlyPulls = pushes.filter(call => call.id === profileId).length === 2
         && pulls.length === 1;
 
       await actions.pushAllProfiles({ force: true });

@@ -8,7 +8,7 @@ import { encryptedGetItem } from './crypto.js';
 import { markChatDataLocal, markCustomPersonalityDataLocal } from './sync-chat-apply.js';
 import { pushContextToGateway } from './sync-messenger.js';
 import { addUtilsRuntimeListener } from './utils-runtime.js';
-import { discardSyncProfileDirty, markSyncProfileDirty } from './sync-dirty-state.js';
+import { discardSyncProfileDirty, getSyncDirtyToken, markSyncProfileDirty } from './sync-dirty-state.js';
 import { getProfileSyncBlockReason, hasPendingProfileTombstone } from './profile-sync-policy.js';
 
 /** @type {(...args: any[]) => Promise<any>} */
@@ -160,6 +160,8 @@ export async function readProfileImportedData(profileId, fallback = null) {
  * @param {number} [attempt]
  */
 function scheduleProfilePush(profileId, data, attempt = 0) {
+  // Manual sync or a dirty-profile flush may already have committed this save.
+  if (!getSyncDirtyToken(profileId)) return;
   if (isProfileSyncBlocked(profileId)) {
     _profileSyncTimers.delete(profileId);
     return;
@@ -189,7 +191,17 @@ function scheduleProfilePush(profileId, data, attempt = 0) {
     return;
   }
   _profileSyncTimers.delete(profileId);
-  _pushProfile(profileId, data).catch(() => {});
+  // Use current state for the active profile without deferring an immediate
+  // push. A pull may have replaced the object captured by this timer.
+  if (profileId === state.currentProfile && state.importedData) {
+    _pushProfile(profileId, state.importedData).catch(() => {});
+    return;
+  }
+  // A switched-away profile must be read from durable storage at send time.
+  readProfileImportedData(profileId).then(latest => {
+    if (!latest || !getSyncDirtyToken(profileId) || !_isSyncEnabled() || isProfileSyncBlocked(profileId)) return undefined;
+    return _pushProfile(profileId, latest);
+  }).catch(() => {});
 }
 
 /** @param {string | null | undefined} profileId

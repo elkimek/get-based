@@ -10,7 +10,7 @@ import {
   onProfileSaved,
   readProfileImportedData,
 } from '../js/sync-save-hooks.js';
-import { getSyncDirtyToken, markSyncProfileDirty } from '../js/sync-dirty-state.js';
+import { clearSyncProfileDirty, getSyncDirtyToken, markSyncProfileDirty } from '../js/sync-dirty-state.js';
 
 describe('sync save-hook profile data dependencies', () => {
   afterEach(() => {
@@ -108,6 +108,66 @@ describe('sync save-hook profile data dependencies', () => {
       state.importedData = previousImportedData;
       localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);
       await encryptedRemoveItem(storageKey);
+    }
+  });
+
+  for (const switchedProfile of [false, true]) {
+    it(`delayed saves use the latest ${switchedProfile ? 'stored' : 'active'} profile after an incoming merge`, async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      const profileId = 'delayed-merge-profile';
+      const storageKey = profileStorageKey(profileId, 'imported');
+      const previousProfile = state.currentProfile;
+      const previousData = state.importedData;
+      const pushProfile = vi.fn(async () => ({ ok: true }));
+      const previous = configureSyncSaveHooks({
+        pushProfile, isSyncConfigured: () => true, isSyncEnabled: () => true,
+        isEvoluReady: () => true, isSyncing: () => false,
+        getProfiles: () => [{ id: profileId }],
+      });
+      const fresh = { entries: [], notes: [{ id: 'local' }, { id: 'received' }] };
+      try {
+        state.currentProfile = profileId;
+        state.importedData = { entries: [], notes: [{ id: 'local' }] };
+        onDataSaved();
+        if (switchedProfile) {
+          await encryptedSetItem(storageKey, JSON.stringify(fresh));
+          state.currentProfile = 'other-profile';
+          state.importedData = { entries: [] };
+        } else state.importedData = fresh;
+        await vi.advanceTimersByTimeAsync(10_000);
+        vi.useRealTimers();
+        await vi.waitFor(() => expect(pushProfile).toHaveBeenCalledTimes(1));
+        expect(pushProfile.mock.calls[0][1].notes).toEqual(fresh.notes);
+      } finally {
+        clearSyncSaveTimers();
+        vi.useRealTimers();
+        configureSyncSaveHooks(previous);
+        state.currentProfile = previousProfile;
+        state.importedData = previousData;
+        localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);
+        await encryptedRemoveItem(storageKey);
+      }
+    });
+  }
+
+  it('does not replay a delayed save after manual sync already committed it', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const previousProfile = state.currentProfile, previousData = state.importedData;
+    const pushProfile = vi.fn(async () => ({ ok: true }));
+    const previous = configureSyncSaveHooks({
+      pushProfile, isSyncConfigured: () => true, isSyncEnabled: () => true,
+      isEvoluReady: () => true, isSyncing: () => false, getProfiles: () => [{ id: 'already-synced' }],
+    });
+    try {
+      state.currentProfile = 'already-synced';
+      state.importedData = { entries: [], contextNotes: 'edited locally' };
+      onDataSaved();
+      clearSyncProfileDirty('already-synced', getSyncDirtyToken('already-synced'));
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(pushProfile).not.toHaveBeenCalled();
+    } finally {
+      clearSyncSaveTimers(); vi.useRealTimers(); configureSyncSaveHooks(previous);
+      state.currentProfile = previousProfile; state.importedData = previousData;
     }
   });
 

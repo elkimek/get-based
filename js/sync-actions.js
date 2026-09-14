@@ -122,16 +122,18 @@ export async function syncNow() {
     }
     return pushCurrentProfileWhenIdle();
   }
-  // Apply any already-received remote state before publishing the local
-  // snapshot. Pull-then-push matches first-enable behavior and avoids sending
-  // a stale local row only to replace it milliseconds later.
+  // A clean device has nothing to publish. Its replica can still be stale
+  // just after reconnect; pushing it would give old scalars a newer timestamp.
+  // Pull now and let incoming subscriptions finish catching up.
   try {
     await _forcePull();
   } catch (error) {
-    console.warn('[sync] Manual pull failed; continuing with local push:', error);
-    logSyncEvent('skip', 'Manual pull failed — local push still attempted');
+    console.warn('[sync] Manual pull failed:', error);
+    logSyncEvent('skip', 'Manual pull failed — clean local state was not republished');
+    return { ok: false, reason: 'pull-failed' };
   }
-  return pushCurrentProfileWhenIdle();
+  if (getSyncDirtyToken(state.currentProfile)) return pushCurrentProfileWhenIdle();
+  return { ok: true, skipped: true, reason: 'unchanged' };
 }
 
 // Push all profiles on first enable.
