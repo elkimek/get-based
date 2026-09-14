@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { encryptedRemoveItem, encryptedSetItem } from '../js/crypto.js';
+import * as cryptoStore from '../js/crypto.js';
 import { profileStorageKey } from '../js/profile-storage-key.js';
 import { state } from '../js/state.js';
 import {
@@ -149,6 +150,49 @@ describe('sync save-hook profile data dependencies', () => {
       }
     });
   }
+
+  it('re-reads an inactive snapshot when a newer save arrives during its storage read', async () => {
+    const profileId = 'save-during-read';
+    const storageKey = profileStorageKey(profileId, 'imported');
+    const previousProfile = state.currentProfile, previousData = state.importedData;
+    const oldData = { entries: [], contextNotes: 'old' };
+    const newData = { entries: [], contextNotes: 'newer saved edit' };
+    const pushProfile = vi.fn(async id => {
+      clearSyncProfileDirty(id, getSyncDirtyToken(id));
+      return { ok: true };
+    });
+    const previous = configureSyncSaveHooks({
+      pushProfile, isSyncConfigured: () => true, isSyncEnabled: () => true,
+      isEvoluReady: () => true, isSyncing: () => false, getProfiles: () => [{ id: profileId }],
+    });
+    let finishRead;
+    const pendingRead = new Promise(resolve => { finishRead = resolve; });
+    const read = vi.spyOn(cryptoStore, 'encryptedGetItem').mockImplementationOnce(() => pendingRead);
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      state.currentProfile = profileId;
+      state.importedData = oldData;
+      onDataSaved();
+      state.currentProfile = 'other-profile';
+      state.importedData = { entries: [] };
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(read).toHaveBeenCalledWith(storageKey);
+      await encryptedSetItem(storageKey, JSON.stringify(newData));
+      markSyncProfileDirty(profileId);
+      finishRead(JSON.stringify(oldData));
+      vi.useRealTimers();
+      await vi.waitFor(() => expect(pushProfile).toHaveBeenCalledOnce());
+      expect(pushProfile.mock.calls[0][1]).toEqual(newData);
+      expect(getSyncDirtyToken(profileId)).toBeNull();
+    } finally {
+      finishRead(JSON.stringify(oldData));
+      clearSyncSaveTimers(); vi.useRealTimers(); read.mockRestore();
+      configureSyncSaveHooks(previous);
+      state.currentProfile = previousProfile; state.importedData = previousData;
+      localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);
+      await encryptedRemoveItem(storageKey);
+    }
+  });
 
   it('does not replay a delayed save after manual sync already committed it', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });

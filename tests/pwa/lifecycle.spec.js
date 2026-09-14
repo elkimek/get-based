@@ -8,6 +8,7 @@ async function openInstalledApp(page, origin) {
     for (const key of ['emptyTour', 'tour']) localStorage.setItem(`labcharts-default-${key}`, 'completed');
   });
   await page.goto(`${origin}/app?dev-sw=1`, { waitUntil: 'networkidle' });
+  await expect(page.locator('html[data-app-ready]')).toBeAttached();
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
   await page.evaluate(async () => {
@@ -104,6 +105,8 @@ test('failed update preserves the installed app; retry updates two tabs without 
     expect(await other.evaluate(() => window.APP_BUILD_ID)).toBe('build-a');
     await other.locator('[data-version-update-action="apply"]').click();
     await expect.poll(() => other.evaluate(() => window.APP_BUILD_ID).catch(() => null)).toBe('build-b');
+    await expect(page.locator('html[data-app-ready]')).toBeAttached();
+    await expect(other.locator('html[data-app-ready]')).toBeAttached();
     expect(await page.evaluate(() => localStorage.getItem('pwa-retained-data'))).toBe('retained');
     expect(await page.evaluate(async () => (await import('/js/state.js')).state.importedData.entries))
       .toEqual([{ date: '2026-09-01', markers: { 'biochemistry.glucose': 5.8 } }]);
