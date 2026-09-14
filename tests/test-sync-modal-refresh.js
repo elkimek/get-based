@@ -228,7 +228,12 @@ try {
   const firstPull = await mergePulledImportedData(profileId, null);
   assert('pull merge reports v4 per-row overlay as local data change',
     firstPull.localDataChanged === true && firstPull.merged.manualValues?.[rawKey] === 8);
+  assert('pull merge leaves active manual values untouched before commit',
+    state.importedData.manualValues?.[rawKey] === undefined);
 
+  // Model the active-profile update after the first pull is persisted.
+  // Preparing a merge must not mutate active data as a side effect.
+  state.importedData = firstPull.merged;
   const duplicatePull = await mergePulledImportedData(profileId, null);
   assert('pull merge reports duplicate v4 per-row overlay as no-op',
     duplicatePull.localDataChanged === false && duplicatePull.merged.manualValues?.[rawKey] === 8);
