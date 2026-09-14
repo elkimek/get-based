@@ -17,13 +17,19 @@ import { runAppExtensionStartup } from './app-extension-runtime.js';
 let appStarted = false;
 
 async function runStartupSequence() {
+  console.log('STARTUP before initializeStartupFoundation()');
   await initializeStartupFoundation();
+  console.log('STARTUP after initializeStartupFoundation()');
 
+  console.log('STARTUP before initializeProfileData()');
   await initializeProfileData();
+  console.log('STARTUP after initializeProfileData()');
 
   runPostProfileStartupMaintenance();
 
+  console.log('STARTUP before handleStartupOAuthCallbacks()');
   await handleStartupOAuthCallbacks();
+  console.log('STARTUP after handleStartupOAuthCallbacks()');
 
   renderStartupUI();
 
@@ -31,7 +37,9 @@ async function runStartupSequence() {
   // never delays core startup. The public build has a safe no-op adapter.
   runAppExtensionStartup();
 
+  console.log('STARTUP before restorePendingImportReviewDraft()');
   await restorePendingImportReviewDraft();
+  console.log('STARTUP after restorePendingImportReviewDraft()');
 
   // `load` only means the static shell arrived. Profile and local nutrition
   // hydration are asynchronous, so consumers that start changing state must
@@ -52,6 +60,7 @@ function configureSyncComposition() {
 export function startApp() {
   if (appStarted) return;
   appStarted = true;
+  console.log('STARTUP startApp', document.readyState);
 
   configureSyncComposition();
   installGlobalEventListeners();

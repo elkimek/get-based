@@ -133,8 +133,8 @@ jobs:
           node-version: 24
       - run: npm ci
       - run: npm test -- tests/sync-save-hooks.test.js tests/sync-pull-isolation.test.js
-      - run: npx playwright install --with-deps webkit
-      - run: npx playwright test --config=playwright.pwa.config.js --project=pwa-webkit --grep 'installed shell opens' --repeat-each=5
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - run: npx playwright test --config=playwright.pwa.config.js --repeat-each=3
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:

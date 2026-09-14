@@ -161,7 +161,8 @@ export async function readProfileImportedData(profileId, fallback = null) {
  */
 function scheduleProfilePush(profileId, data, attempt = 0) {
   // Manual sync or a dirty-profile flush may already have committed this save.
-  if (!getSyncDirtyToken(profileId)) return;
+  const dirtyToken = getSyncDirtyToken(profileId);
+  if (!dirtyToken) return;
   if (isProfileSyncBlocked(profileId)) {
     _profileSyncTimers.delete(profileId);
     return;
@@ -200,6 +201,8 @@ function scheduleProfilePush(profileId, data, attempt = 0) {
   // A switched-away profile must be read from durable storage at send time.
   readProfileImportedData(profileId).then(latest => {
     if (!latest || !getSyncDirtyToken(profileId) || !_isSyncEnabled() || isProfileSyncBlocked(profileId)) return undefined;
+    // Do not let an older read acknowledge a save that arrived during it.
+    if (getSyncDirtyToken(profileId) !== dirtyToken) return scheduleProfilePush(profileId, latest);
     return _pushProfile(profileId, latest);
   }).catch(() => {});
 }
