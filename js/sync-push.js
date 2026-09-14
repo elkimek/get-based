@@ -2,7 +2,7 @@
 // sync-push.js - Evolu profile push path and in-flight watchdog state.
 
 import { getErrorMessage } from './caught-error.js';
-import { buildSyncPayload, parseSyncPayload } from './sync-payload.js';
+import { buildSyncPayload, latestProfileRow, parseSyncPayload } from './sync-payload.js';
 import {
   notePushCommitted, scheduleOwnerStorageRefresh, trackPushBytes,
 } from './sync-relay-health.js';
@@ -149,9 +149,7 @@ export async function pushProfile(profileId, importedData, opts = {}) {
     // A tombstone/recreate race can leave more than one live row for an ID.
     // Always update the newest row; updating an arbitrary older row lets a
     // stale duplicate keep winning pulls and encourages another recreation.
-    const existing = (rows || [])
-      .filter(r => r?.profileId === profileId)
-      .sort((a, b) => Date.parse(b?.syncedAt || '') - Date.parse(a?.syncedAt || ''))[0];
+    const existing = latestProfileRow(rows, profileId);
 
     // Dirty/startup pushes can precede the first application-level pull.
     // Preserve chat from every available replica row before replacing the

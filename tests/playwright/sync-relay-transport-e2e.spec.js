@@ -81,6 +81,22 @@ async function waitForOwner(page, expectedOwnerId = null) {
     }).toBe('string');
   }
 
+  // Owner availability precedes startup repair. Finish that phase before
+  // the next scenario writes a newer value on another device, otherwise
+  // the fixture accidentally tests competing whole-profile writes.
+  let idleReads = 0;
+  await expect.poll(async () => {
+    const idle = await page.evaluate(async () => {
+      const [rebroadcast, pull, syncState] = await Promise.all([
+        import('/js/sync-pull-rebroadcast.js'), import('/js/sync-pull.js'), import('/js/sync-state.js'),
+      ]);
+      return !rebroadcast.isSyncRebroadcastSettling() && !pull.isSyncPulling()
+        && syncState.getSyncStatus().push !== 'pending';
+    });
+    idleReads = idle ? idleReads + 1 : 0;
+    return idleReads;
+  }, { timeout: 30_000, intervals: [250, 500, 750] }).toBeGreaterThanOrEqual(3);
+
   return page.evaluate(async () => {
     const [{ getMnemonic }, runtime] = await Promise.all([
       import('/js/sync.js'),
@@ -456,6 +472,10 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
     ]);
     await waitForContext(deviceA.page, OFFLINE_CONTEXT);
     await waitForContext(deviceB.page, OFFLINE_CONTEXT);
+
+    // The next phase tests deletion after convergence, so let the queued
+    // union rebroadcast commit before introducing the delete.
+    await waitForStableRelayStorage(deviceA.page);
 
     await setSyntheticData(deviceA.page, 'delete-baseline');
     expect((await syncNow(deviceA.page))?.ok).toBe(true);

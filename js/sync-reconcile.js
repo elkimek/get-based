@@ -4,7 +4,7 @@
 import { state } from './state.js';
 import { localHasRowsRemoteLacks } from './data-merge.js';
 import { collectAISettings } from './sync-payload-collectors.js';
-import { parseSyncPayload } from './sync-payload.js';
+import { latestProfileRow, parseSyncPayload } from './sync-payload.js';
 import { logSyncEvent } from './sync-state.js';
 import { isRestoreJoinPending } from './sync-identity.js';
 import { getProfileSyncBlockReason } from './profile-sync-policy.js';
@@ -71,7 +71,7 @@ export async function reconcileLocalStorageWithEvolu() {
     return;
   }
   const rows = evolu.getQueryRows(profileQuery);
-  const existing = rows?.find(r => r.profileId === state.currentProfile);
+  const existing = latestProfileRow(rows, state.currentProfile);
   // No existing row -> first sync ever for this profile, normal push path
   // (onDataSaved or enableSync) will handle it. Skip.
   if (!existing) return;

@@ -195,3 +195,16 @@ test('an unversioned metadata-only empty shell cannot mask a stored body', () =>
   const shell = { threads: [thread('a', newDate, 0)], messages: {} };
   expect(mergeChatData(shell, payload('a')).messages.a).toEqual(payload('a').messages.a);
 });
+
+test('startup ignores a superseded profile row once the newest replica already contains local chat', async () => {
+  await applyChatData(profileId, payload('current'));
+  const rows = [
+    { id: 'old', profileId, syncedAt: oldDate, dataJson: JSON.stringify({ _v: 4, chatData: payload('old') }) },
+    { id: 'new', profileId, syncedAt: newDate, dataJson: await buildSyncPayload(profileId, {}) },
+  ];
+  const push = vi.fn();
+  configureSyncReconcile({ getEvolu: () => ({ getQueryRows: () => rows }), getProfileQuery: () => ({}),
+    isSyncEnabled: () => true, getProfiles: () => [{ id: profileId }], pushProfile: push });
+  await reconcileLocalStorageWithEvolu();
+  expect(push).not.toHaveBeenCalled();
+});

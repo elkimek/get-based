@@ -19,6 +19,12 @@ export {
   _PER_ROW_DECOMPRESSED_CAP_BYTES, MAX_SYNC_PAYLOAD_BYTES, parseSyncPayload,
 } from './sync-payload-codec.js';
 
+/** @param {any[]} rows @param {string} profileId */
+export function latestProfileRow(rows, profileId) {
+  return (rows || []).filter(row => row?.profileId === profileId)
+    .sort((a, b) => Date.parse(b?.syncedAt || '') - Date.parse(a?.syncedAt || ''))[0];
+}
+
 /** @type {{ getProfiles: () => any[] }} */
 const syncPayloadDeps = {
   getProfiles: () => {
