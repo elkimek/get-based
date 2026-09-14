@@ -211,10 +211,12 @@ export async function mergePulledImportedData(profileId, importedData, options =
   }
 
   // v4 cutover: importedData is null by design. Use local as the baseline;
-  // per-row overlay below fills in every field. v3 and older still merge
+  // per-row overlay below fills in every field. Clone that baseline so the
+  // asynchronous overlay cannot mutate active data before persistence.
+  // v3 and older still merge
   // blob-into-local as before.
   let merged = localBaselineForMerge
-    ? (importedData ? mergeImportedData(localBaselineForMerge, importedData) : localBaselineForMerge)
+    ? (importedData ? mergeImportedData(localBaselineForMerge, importedData) : JSON.parse(JSON.stringify(localBaselineForMerge)))
     : (importedData || {});
 
   // Overlay rows after the blob. A newer canonical blob protects only items

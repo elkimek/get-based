@@ -122,5 +122,6 @@ export async function _planArrayDelta(profileId, arrayName, items, { explicitTom
     }
   }
 
+  if (arrayName === 'notes') console.log('[sync] DIAG plan', JSON.stringify({ profileId, prev, next, ops }));
   return { ops, next, plannedAt };
 }

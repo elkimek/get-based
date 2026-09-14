@@ -463,6 +463,7 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
     await waitForContext(deviceA.page, OFFLINE_CONTEXT);
     await waitForContext(deviceB.page, OFFLINE_CONTEXT);
 
+    console.log('DIAG before-prepare', JSON.stringify(await deviceA.page.evaluate(async () => (await import('/js/state.js')).state.importedData.notes)));
     // Keep a fully-synced paired device offline across compaction. Its local
     // Evolu log still contains every discarded relay message, which is the
     // production path that used to refill a 200 MB owner immediately.
@@ -470,6 +471,7 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
     await deviceA.page.evaluate(async () => (
       (await import('/js/sync-actions.js')).prepareRelayCompaction()
     ));
+    console.log('DIAG after-prepare', JSON.stringify(await deviceA.page.evaluate(async () => (await import('/js/state.js')).state.importedData.notes)));
     const beforeCompaction = await waitForStableRelayStorage(deviceA.page);
     const compacted = await deviceA.page.evaluate(async () => (
       (await import('/js/sync.js')).compactOwnerSelfServe()
@@ -477,10 +479,12 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
     expect(compacted.beforeStoredBytes).toBe(beforeCompaction.storedBytes);
     expect(compacted.afterStoredBytes).toBe(0);
 
+    console.log('DIAG after-compact', JSON.stringify(await deviceA.page.evaluate(async () => (await import('/js/state.js')).state.importedData.notes)));
     const rebuilt = await deviceA.page.evaluate(async () => (
       (await import('/js/sync-actions.js')).rebuildOwnerRelayState()
     ));
     expect(rebuilt.failed).toBe(0);
+    console.log('DIAG after-rebuild', JSON.stringify(await deviceA.page.evaluate(async () => (await import('/js/state.js')).state.importedData.notes)));
     const afterRebuild = await waitForStableRelayStorage(deviceA.page);
     expect(afterRebuild.messageCount).toBeGreaterThan(0);
     await waitForContext(deviceA.page, OFFLINE_CONTEXT);

@@ -130,6 +130,7 @@ export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows, o
     }
     else nextArr.push(item);
   }
+  if (arrayName === 'notes') console.log('[sync] DIAG overlay', JSON.stringify({ before: curArr, rows: arrRows, after: nextArr, localTombs: [...localTombs] }));
   writeArr(nextArr);
   // Re-apply COMPOSITE_KEYED_ARRAYS cap after the per-row overlay. v4 cutover
   // skips the blob merge entirely, so changeHistory needs this cap here.
