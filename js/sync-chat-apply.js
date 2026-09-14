@@ -2,22 +2,17 @@
 // sync-chat-apply.js - inbound chat sync apply helpers and freshness locks.
 
 import { state } from './state.js';
-import { isDebugMode } from './utils.js';
 import {
-  getEncryptionEnabled, isUnlocked, encryptedSetItem, encryptedGetItem, encryptedRemoveItem,
+  getEncryptionEnabled, isUnlocked, encryptedSetItem, encryptedRemoveItem,
 } from './crypto.js';
 import { chatDeletedThreadsKey, collectChatData } from './sync-payload-collectors.js';
 import { chatHasLocalChanges, chatThreadUpdatedAtMs, mergeChatData, normalizeChatDeletedThreads } from './sync-chat-merge.js';
 import { logSyncEvent } from './sync-state.js';
 import {
   loadCustomPersonalitiesFromStorage,
-  loadCustomPersonalityTombstones,
   saveCustomPersonalitiesToStorage,
   saveCustomPersonalityTombstones,
 } from './chat-personality-storage.js';
-import { mergeCustomPersonalityState } from './chat-personality-merge.js';
-
-function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
 
 const CHAT_LOCAL_LOCK_UNTIL_KEY = 'labcharts-chat-local-lock-until';
 const CHAT_PERSONA_LOCAL_LOCK_UNTIL_KEY = 'labcharts-chat-persona-local-lock-until';
@@ -54,46 +49,16 @@ export function getChatDataLocalLockRemainingMs(profileId) {
   );
 }
 
-/** @param {string} profileId */
-async function hasMeaningfulLocalChatData(profileId) {
-  try {
-    const key = `labcharts-${profileId}-chat-threads`;
-    const raw = await encryptedGetItem(key) || localStorage.getItem(key);
-    const threads = raw ? JSON.parse(raw) : [];
-    if (!Array.isArray(threads)) return false;
-    return threads.some(thread => (Number(thread?.messageCount) || 0) > 0);
-  } catch {
-    return false;
-  }
-}
-
-/** @param {string} profileId */
-async function shouldKeepLocalChatData(profileId) {
-  if (profileId !== state.currentProfile) return false;
-  return (
-    getLocalChatLockUntil(profileId) > Date.now()
-    && await hasMeaningfulLocalChatData(profileId)
-  );
-}
-
-/** @param {string} profileId @param {any} chatData */
-async function applyCustomPersonalityState(profileId, chatData) {
-  const hasPersonalities = Object.prototype.hasOwnProperty.call(chatData, 'customPersonalities');
-  const hasTombstones = Object.prototype.hasOwnProperty.call(chatData, 'customPersonalityDeleted');
-  if (!hasPersonalities && !hasTombstones) return false;
-  const localPersonalities = await loadCustomPersonalitiesFromStorage(profileId);
-  const localTombstones = await loadCustomPersonalityTombstones(profileId);
-  const merged = mergeCustomPersonalityState(
-    localPersonalities,
-    Array.isArray(chatData.customPersonalities) ? chatData.customPersonalities : [],
-    localTombstones,
-    chatData.customPersonalityDeleted,
-  );
-  const changed = JSON.stringify(localPersonalities) !== JSON.stringify(merged.personalities)
-    || JSON.stringify(localTombstones) !== JSON.stringify(merged.tombstones);
+/** @param {string} profileId @param {any} chatData @param {any} local @param {any} merged */
+async function applyCustomPersonalityState(profileId, chatData, local, merged) {
+  if (!Object.hasOwn(chatData, 'customPersonalities') && !Object.hasOwn(chatData, 'customPersonalityDeleted')) return false;
+  const personalities = merged.customPersonalities || [];
+  const tombstones = merged.customPersonalityDeleted || {};
+  const changed = JSON.stringify(local?.customPersonalities || []) !== JSON.stringify(personalities)
+    || JSON.stringify(local?.customPersonalityDeleted || {}) !== JSON.stringify(tombstones);
   if (!changed) return false;
-  await saveCustomPersonalitiesToStorage(merged.personalities, profileId);
-  await saveCustomPersonalityTombstones(merged.tombstones, profileId);
+  await saveCustomPersonalitiesToStorage(personalities, profileId);
+  await saveCustomPersonalityTombstones(tombstones, profileId);
   return true;
 }
 
@@ -140,7 +105,6 @@ async function applyChatThreadTombstones(profileId, existingThreads, deletedThre
 export async function applyChatData(profileId, chatData) {
   if (!chatData || !Array.isArray(chatData.threads)) return false;
   if (getEncryptionEnabled() && !isUnlocked()) {
-    dbg(`Skipped chatData for ${profileId.slice(0, 8)} - encryption is locked`);
     logSyncEvent('skip', `Chat pull skipped ${profileId.slice(0, 8)} - encryption locked`);
     return false;
   }
@@ -153,10 +117,13 @@ export async function applyChatData(profileId, chatData) {
   const deletedThreads = merged.deletedThreads || {};
   writeLocalDeletedThreads(profileId, deletedThreads);
   const tombstonesChanged = await applyChatThreadTombstones(profileId, existingThreads, deletedThreads);
-  const personalitiesChanged = await applyCustomPersonalityState(profileId, chatData);
+  const personalitiesChanged = await applyCustomPersonalityState(profileId, chatData, local, merged);
 
-  if (await shouldKeepLocalChatData(profileId)) {
-    dbg(`Skipped chatData for ${profileId.slice(0, 8)} - local chat has newer unsynced changes`);
+  // Reuse the decrypted snapshot. A second read could observe a different
+  // generation, and all locally deleted threads must be excluded from the lock.
+  const liveIds = new Set(merged.threads.map(thread => thread.id));
+  if (getChatDataLocalLockRemainingMs(profileId) > 0
+      && existingThreads.some(thread => (Number(thread?.messageCount) || 0) > 0 && liveIds.has(thread.id))) {
     logSyncEvent('skip', `Chat pull skipped ${profileId.slice(0, 8)} - local changes pending`);
     return tombstonesChanged || personalitiesChanged;
   }

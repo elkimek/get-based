@@ -38,6 +38,12 @@ function stableValue(value) {
 /** @param {any} value */
 function stableJson(value) { return JSON.stringify(stableValue(value)); }
 
+/** @param {any} a @param {any} b */
+function compareStable(a, b) {
+  const left = stableJson(a), right = stableJson(b);
+  return left > right ? 1 : left < right ? -1 : 0;
+}
+
 /** @param {any} thread */
 function messagesUpdatedAtMs(thread) {
   const ts = Date.parse(thread?.messagesUpdatedAt || '');
@@ -48,7 +54,7 @@ function messagesUpdatedAtMs(thread) {
 function compareThreads(a, b) {
   return chatThreadUpdatedAtMs(a) - chatThreadUpdatedAtMs(b)
     || (Number(a?.messageCount) || 0) - (Number(b?.messageCount) || 0)
-    || (stableJson(a) > stableJson(b) ? 1 : stableJson(a) < stableJson(b) ? -1 : 0);
+    || compareStable(a, b);
 }
 
 /** @param {any} local @param {any} incoming */
@@ -73,7 +79,7 @@ export function mergeChatData(local, incoming) {
   const messages = Object.create(null);
   for (const [id, items] of candidates) {
     items.sort((a, b) => compareThreads(b.thread, a.thread)
-      || (stableJson(b.messages) > stableJson(a.messages) ? 1 : stableJson(b.messages) < stableJson(a.messages) ? -1 : 0));
+      || compareStable(b.messages, a.messages));
     const winner = items[0];
     let mergedThread = winner.thread;
     // An explicit empty body is authoritative (clear history). Only absent or
@@ -83,7 +89,7 @@ export function mergeChatData(local, incoming) {
       const complete = items.filter(item => Array.isArray(item.messages)).sort((a, b) =>
         messagesUpdatedAtMs(b.thread) - messagesUpdatedAtMs(a.thread)
         || compareThreads(b.thread, a.thread)
-        || (stableJson(b.messages) > stableJson(a.messages) ? 1 : stableJson(b.messages) < stableJson(a.messages) ? -1 : 0))[0];
+        || compareStable(b.messages, a.messages))[0];
       if (complete) {
         messages[id] = complete.messages;
         // A recovered older body must not acquire the newer index's clock;
