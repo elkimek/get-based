@@ -135,7 +135,8 @@ describe('sync save-hook profile data dependencies', () => {
           state.importedData = { entries: [] };
         } else state.importedData = fresh;
         await vi.advanceTimersByTimeAsync(10_000);
-        expect(pushProfile).toHaveBeenCalledTimes(1);
+        vi.useRealTimers();
+        await vi.waitFor(() => expect(pushProfile).toHaveBeenCalledTimes(1));
         expect(pushProfile.mock.calls[0][1].notes).toEqual(fresh.notes);
       } finally {
         clearSyncSaveTimers();

@@ -2,12 +2,18 @@ name: Sync compatibility
 
 on:
   workflow_dispatch:
+    inputs:
+      focus:
+        type: choice
+        default: all
+        options: [all, offline]
 
 permissions:
   contents: read
 
 jobs:
   transport:
+    if: inputs.focus != 'offline'
     name: Transport (${{ matrix.evolu-client }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
