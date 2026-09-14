@@ -296,6 +296,7 @@ function installRoundStateMocks() {
     invalidateThreadContentCache: vi.fn(),
     renderThreadList: vi.fn(),
     saveChatThreadIndex: vi.fn(),
+    encryptedGetItem: vi.fn(async () => null),
     encryptedSetItem: vi.fn(async () => {}),
     saveChatHistory: vi.fn(async () => {}),
   };
@@ -308,6 +309,7 @@ function installRoundStateMocks() {
     saveChatThreadIndex: deps.saveChatThreadIndex,
   }));
   vi.doMock('../js/crypto.js', () => ({
+    encryptedGetItem: deps.encryptedGetItem,
     encryptedSetItem: deps.encryptedSetItem,
   }));
   vi.doMock('../js/chat-history.js', () => ({
@@ -377,6 +379,25 @@ describe('chat discussion round state runtime behavior', () => {
 
     expect(deps.encryptedSetItem).toHaveBeenCalledWith('chat-thread:background-thread', JSON.stringify(messages));
     expect(localStorage.getItem('chat-thread:background-thread')).toBeNull();
+  });
+
+  it('advances the inactive body clock for same-length edits and preserves it for unchanged saves', async () => {
+    const deps = installRoundStateMocks();
+    const mod = await import('../js/chat-discussion-round-state.js');
+    const messages = [{ role: 'assistant', content: 'edited reply' }];
+    const thread = deps.state.chatThreads[1];
+    deps.encryptedGetItem.mockResolvedValue(JSON.stringify([{ role: 'assistant', content: 'old reply' }]));
+
+    await mod.saveRoundChatHistory(thread.id, messages);
+    expect(thread.messagesUpdatedAt).toBe(thread.updatedAt);
+    expect(thread.messagesUpdatedAt).not.toBe('2026-01-01T00:00:00.000Z');
+
+    thread.updatedAt = '2026-09-13T00:00:00.000Z';
+    thread.messagesUpdatedAt = '2026-09-12T00:00:00.000Z';
+    deps.encryptedGetItem.mockResolvedValue(JSON.stringify(messages));
+    await mod.saveRoundChatHistory(thread.id, messages);
+    expect(thread.updatedAt).toBe('2026-09-13T00:00:00.000Z');
+    expect(thread.messagesUpdatedAt).toBe('2026-09-12T00:00:00.000Z');
   });
 });
 
