@@ -125,7 +125,7 @@ test('deletions beyond 200 persist and incomplete histories recover without undo
       await applyChatData(profileId, { threads: [{ id: 'partial', updatedAt: recent, messageCount: 1 }], messages: {} });
       await applyChatData(profileId, { threads: [{ id: 'partial', updatedAt: old, messageCount: 1 }], messages: { partial: [{ role: 'user', content: 'Recovered' }] } });
       const recovered = await collectChatData(profileId);
-      await applyChatData(profileId, { threads: [{ id: 'partial', updatedAt: '2026-09-14T12:00:00Z', messageCount: 0 }], messages: {} });
+      await applyChatData(profileId, { threads: [{ id: 'partial', updatedAt: '2026-09-14T12:00:00Z', messagesUpdatedAt: '2026-09-14T12:00:00Z', messageCount: 0 }], messages: {} });
       await applyChatData(profileId, recovered);
       return { recovered, cleared: await collectChatData(profileId) };
     });

@@ -101,7 +101,7 @@ export async function reconcileLocalStorageWithEvolu() {
   // every other device shows the session as still running.
   const localHasUnsynced = remoteImported ? localHasRowsRemoteLacks(state.importedData, remoteImported) : false;
   if (!localHasUnsynced && !localAiSettingsDiffer && !localChatDiffer) {
-    _debug('Startup reconciliation: localStorage, AI settings, and Evolu row match - nothing to do');
+    _debug('Startup reconciliation: no local changes');
     return;
   }
   const reason = localHasUnsynced ? 'unsynced rows' : localChatDiffer ? 'unsynced chat history or deletions' : 'newer local AI settings';

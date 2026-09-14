@@ -89,7 +89,7 @@ test('missing and malformed bodies recover without giving old messages the new m
 });
 
 test('newer explicit clears and thread tombstones never recover stale messages', async () => {
-  const cleared = { threads: [thread('a', newDate, 0)], messages: {} };
+  const cleared = { threads: [{ ...thread('a', newDate, 0), messagesUpdatedAt: newDate }], messages: {} };
   expect(mergeChatData(cleared, payload('a')).messages.a).toEqual([]);
   const explicitEmpty = { threads: [thread('a', newDate)], messages: { a: [] } };
   expect(mergeChatData(explicitEmpty, payload('a')).messages.a).toEqual([]);
@@ -165,4 +165,29 @@ test('a later rename cannot override a newer message edit or clear', () => {
   const edited = mergeChatData(renamedClear, newerMessage);
   expect(edited.messages.a).toEqual(payload('a').messages.a);
   expect(edited.threads[0].messageCount).toBe(1);
+});
+
+test('legacy metadata edits preserve the old body clock before rename, pin or project changes', async () => {
+  const { markThreadMetadataChanged } = await import('../js/chat-thread-search.js');
+  const legacy = payload('a');
+  markThreadMetadataChanged(legacy.threads[0], '2026-09-14T12:00:00Z');
+  const edited = { threads: [thread('a', newDate)], messages: { a: [{ role: 'user', content: 'new edit' }] } };
+  expect(legacy.threads[0].messagesUpdatedAt).toBe(oldDate);
+  expect(mergeChatData(legacy, edited).messages.a).toEqual(edited.messages.a);
+});
+
+test('an unreadable duplicate replica does not block preserving the usable remote chat', async () => {
+  const good = { id: 'good', profileId, dataJson: JSON.stringify({ _v: 4, chatData: payload('remote') }), syncedAt: newDate };
+  const bad = { id: 'bad', profileId, dataJson: '{malformed', syncedAt: oldDate };
+  let sent;
+  configureSyncPush({ getEvolu: () => ({ getQueryRows: () => [bad, good], update: (_table, value, { onComplete }) => { sent = value; onComplete(); } }),
+    getProfileQuery: () => ({}), isSyncEnabled: () => true, getProfiles: () => [{ id: profileId }], isPhase2CutoverEnabled: () => false });
+  expect(await pushProfile(profileId, {})).toMatchObject({ ok: true });
+  expect(sent.id).toBe('good');
+  expect((await parseSyncPayload(sent.dataJson)).chatData.messages.remote).toEqual(payload('remote').messages.remote);
+});
+
+test('an unversioned metadata-only empty shell cannot mask a stored body', () => {
+  const shell = { threads: [thread('a', newDate, 0)], messages: {} };
+  expect(mergeChatData(shell, payload('a')).messages.a).toEqual(payload('a').messages.a);
 });

@@ -92,7 +92,7 @@ export async function renameThreadProject(currentName, nextName) {
   const changedAt = new Date().toISOString();
   for (const thread of affected) {
     thread.projectName = next;
-    thread.updatedAt = changedAt;
+    markThreadMetadataChanged(thread, changedAt);
   }
   const saved = await threadProjectCallbacks.saveChatThreadIndex();
   if (profile !== state.currentProfile) return false;
@@ -122,7 +122,7 @@ export async function deleteThreadProject(projectName) {
   const changedAt = new Date().toISOString();
   for (const thread of affected) {
     delete thread.projectName;
-    thread.updatedAt = changedAt;
+    markThreadMetadataChanged(thread, changedAt);
   }
   const saved = await threadProjectCallbacks.saveChatThreadIndex();
   if (profile !== state.currentProfile) return false;
@@ -144,11 +144,17 @@ export async function deleteThreadProjectPrompt(projectName) {
   return confirmed && profile === state.currentProfile ? deleteThreadProject(current) : false;
 }
 
+// Freeze the legacy body's clock before any metadata-only edit advances it.
+export function markThreadMetadataChanged(thread, updatedAt = new Date().toISOString()) {
+  thread.messagesUpdatedAt ||= thread.updatedAt || thread.createdAt || updatedAt;
+  thread.updatedAt = updatedAt;
+}
+
 export function toggleThreadPinned(threadId) {
   const thread = state.chatThreads.find(item => item.id === threadId);
   if (!thread) return false;
   thread.pinned = thread.pinned !== true;
-  thread.updatedAt = new Date().toISOString();
+  markThreadMetadataChanged(thread);
   void threadProjectCallbacks.saveChatThreadIndex();
   threadProjectCallbacks.renderThreadList();
   return thread.pinned;
@@ -165,7 +171,7 @@ export async function moveThreadToProject(threadId, nextProjectName) {
   if (projectName) thread.projectName = projectName;
   else delete thread.projectName;
   if (projectName) delete thread.pinned;
-  thread.updatedAt = new Date().toISOString();
+  markThreadMetadataChanged(thread);
   const saved = await threadProjectCallbacks.saveChatThreadIndex();
   if (profile !== state.currentProfile) return false;
   if (!saved) {

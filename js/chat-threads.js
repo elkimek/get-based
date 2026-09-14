@@ -12,7 +12,7 @@ import {
   configureChatThreadProjects, configureChatThreadSearch, createThreadProject,
   deleteThreadProject, deleteThreadProjectPrompt, filterThreadList,
   invalidateThreadContentCache, jumpToSearchResult, moveThreadToProject,
-  renameThreadProject, renameThreadProjectPrompt, toggleThreadPinned,
+  renameThreadProject, renameThreadProjectPrompt, toggleThreadPinned, markThreadMetadataChanged,
 } from './chat-thread-search.js';
 import { normalizeChatMessages, normalizeChatThreads } from './chat-storage-safety.js';
 import { createUniqueId } from './unique-id.js';
@@ -419,7 +419,7 @@ export function renameThread(threadId, newName) {
   const thread = state.chatThreads.find(t => t.id === threadId);
   if (thread && newName && newName.trim()) {
     thread.name = newName.trim().slice(0, 60);
-    thread.updatedAt = new Date().toISOString();
+    markThreadMetadataChanged(thread);
     saveChatThreadIndex();
     renderThreadList();
   }

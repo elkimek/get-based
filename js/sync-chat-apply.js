@@ -6,7 +6,7 @@ import {
   getEncryptionEnabled, isUnlocked, encryptedSetItem, encryptedRemoveItem,
 } from './crypto.js';
 import { chatDeletedThreadsKey, collectChatData } from './sync-payload-collectors.js';
-import { chatHasLocalChanges, chatThreadUpdatedAtMs, mergeChatData, normalizeChatDeletedThreads } from './sync-chat-merge.js';
+import { chatHasLocalChanges, chatThreadUpdatedAtMs, mergeChatData } from './sync-chat-merge.js';
 import { logSyncEvent } from './sync-state.js';
 import {
   loadCustomPersonalitiesFromStorage,
@@ -69,11 +69,9 @@ function writeLocalDeletedThreads(profileId, deletedThreads) {
   // Deletion markers cannot expire until all replicas have acknowledged them.
   // Persist before removing bodies so a failed write never reports a deletion
   // as safely applied without retaining the evidence needed by stale peers.
-  const entries = Object.entries(normalizeChatDeletedThreads(deletedThreads))
-    .sort((a, b) => b[1] - a[1]);
   const key = chatDeletedThreadsKey(profileId);
-  if (entries.length === 0) localStorage.removeItem(key);
-  else localStorage.setItem(key, JSON.stringify(Object.fromEntries(entries)));
+  if (Object.keys(deletedThreads).length === 0) localStorage.removeItem(key);
+  else localStorage.setItem(key, JSON.stringify(deletedThreads));
 }
 
 /** @param {string} profileId

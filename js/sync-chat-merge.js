@@ -71,15 +71,14 @@ export function mergeChatData(local, incoming) {
       const deletedAt = deletedThreads[thread.id] || 0;
       if (deletedAt > 0 && deletedAt >= chatThreadUpdatedAtMs(thread)) continue;
       const items = candidates.get(thread.id) || [];
-      items.push({ thread, messages: (Number(thread.messageCount) || 0) === 0 ? [] : data?.messages?.[thread.id] });
+      items.push({ thread, messages: (Number(thread.messageCount) || 0) === 0 && thread.messagesUpdatedAt ? [] : data?.messages?.[thread.id] });
       candidates.set(thread.id, items);
     }
   }
   const threads = [];
   const messages = Object.create(null);
   for (const [id, items] of candidates) {
-    items.sort((a, b) => compareThreads(b.thread, a.thread)
-      || compareStable(b.messages, a.messages));
+    items.sort((a, b) => compareThreads(b.thread, a.thread));
     const winner = items[0];
     let mergedThread = winner.thread;
     // Message clocks are independent of metadata: renaming an old copy must

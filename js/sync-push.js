@@ -162,8 +162,12 @@ export async function pushProfile(profileId, importedData, opts = {}) {
     let remoteChatData = null;
     for (const row of rows || []) {
       if (row?.profileId !== profileId) continue;
-      const parsed = await parseSyncPayload(row.dataJson);
-      if (parsed.chatData) remoteChatData = mergeChatData(remoteChatData, parsed.chatData);
+      try {
+        const parsed = await parseSyncPayload(row.dataJson);
+        if (parsed.chatData) remoteChatData = mergeChatData(remoteChatData, parsed.chatData);
+      } catch {
+        logSyncEvent('skip', 'Unreadable chat replica skipped during push');
+      }
     }
     const dataJson = await buildSyncPayload(profileId, outboundData, remoteChatData);
 
