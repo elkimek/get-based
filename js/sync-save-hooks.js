@@ -135,6 +135,7 @@ export async function readProfileImportedData(profileId, fallback = null) {
     if (data && typeof data === 'object') _migrateProfileData(data);
     return data;
   };
+  if (fallback && typeof fallback === 'object') return normalize(fallback);
   if (profileId === state.currentProfile && state.importedData) return normalize(state.importedData);
   if (!profileId) return _createDefaultProfileData();
   try {
@@ -145,7 +146,6 @@ export async function readProfileImportedData(profileId, fallback = null) {
     // makes every inactive profile look empty.
     const raw = await encryptedGetItem(storageKey);
     if (raw) return normalize(JSON.parse(raw));
-    if (fallback && typeof fallback === 'object') return normalize(fallback);
   } catch (e) {
     console.warn('[sync] Could not read profile importedData for profile sync:', getErrorMessage(e, e));
   }
@@ -191,9 +191,14 @@ function scheduleProfilePush(profileId, data, attempt = 0) {
     return;
   }
   _profileSyncTimers.delete(profileId);
-  // A pull can replace the profile while this debounce/retry is waiting.
-  // Publishing the captured snapshot would infer deletions for newly received rows.
-  readProfileImportedData(profileId, data).then(latest => {
+  // Use current state for the active profile without deferring an immediate
+  // push. A pull may have replaced the object captured by this timer.
+  if (profileId === state.currentProfile && state.importedData) {
+    _pushProfile(profileId, state.importedData).catch(() => {});
+    return;
+  }
+  // A switched-away profile must be read from durable storage at send time.
+  readProfileImportedData(profileId).then(latest => {
     if (!latest || !getSyncDirtyToken(profileId) || !_isSyncEnabled() || isProfileSyncBlocked(profileId)) return undefined;
     return _pushProfile(profileId, latest);
   }).catch(() => {});

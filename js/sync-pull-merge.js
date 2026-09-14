@@ -253,6 +253,7 @@ export async function mergePulledImportedData(profileId, importedData, options =
       && localHasRowsRemoteLacks(localImportedForMerge, importedData));
   const remoteBroughtNewRows = !preservedFreshLocalEntries && !!localImportedForMerge && !!importedData
     && localHasRowsRemoteLacks(importedData, localImportedForMerge);
+  console.log('[sync] DIAG context merge', JSON.stringify({local:localImportedForMerge?.contextNotes,remote:importedData?.contextNotes,merged:merged.contextNotes}));
   const localDataChanged = !importedDataMatches(localImportedBeforeMerge, merged);
 
   return {

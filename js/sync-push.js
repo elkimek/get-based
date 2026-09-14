@@ -120,6 +120,7 @@ export async function pushProfile(profileId, importedData, opts = {}) {
   _syncingSince = Date.now();
   const dirtyToken = getSyncDirtyToken(profileId);
   const outboundData = normalizedImportedDataForPush(importedData);
+  console.log('[sync] DIAG context push', JSON.stringify({value:outboundData.contextNotes, dirtyToken}));
   // Post-enable schema-drift detection. enablePhase2Cutover gates ON
   // readiness AT FLIP TIME, but if a future commit adds a new write site
   // OUTSIDE DELTA_ARRAYS/MAPS/SCALARS (the exact failure mode of the
