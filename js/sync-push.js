@@ -2,7 +2,8 @@
 // sync-push.js - Evolu profile push path and in-flight watchdog state.
 
 import { getErrorMessage } from './caught-error.js';
-import { buildSyncPayload } from './sync-payload.js';
+import { buildSyncPayload, parseSyncPayload } from './sync-payload.js';
+import { mergeChatData } from './sync-chat-merge.js';
 import {
   notePushCommitted, scheduleOwnerStorageRefresh, trackPushBytes,
 } from './sync-relay-health.js';
@@ -147,7 +148,6 @@ export async function pushProfile(profileId, importedData, opts = {}) {
     } catch (e) { /* readiness check failures are non-fatal */ }
   }
   try {
-    const dataJson = await buildSyncPayload(profileId, outboundData);
     const rows = evolu.getQueryRows(profileQuery);
     // A tombstone/recreate race can leave more than one live row for an ID.
     // Always update the newest row; updating an arbitrary older row lets a
@@ -155,6 +155,17 @@ export async function pushProfile(profileId, importedData, opts = {}) {
     const existing = (rows || [])
       .filter(r => r?.profileId === profileId)
       .sort((a, b) => Date.parse(b?.syncedAt || '') - Date.parse(a?.syncedAt || ''))[0];
+
+    // Dirty/startup pushes can precede the first application-level pull.
+    // Preserve chat from every available replica row before replacing the
+    // profile blob, including duplicates left by a restore/create race.
+    let remoteChatData = null;
+    for (const row of rows || []) {
+      if (row?.profileId !== profileId) continue;
+      const parsed = await parseSyncPayload(row.dataJson);
+      if (parsed.chatData) remoteChatData = mergeChatData(remoteChatData, parsed.chatData);
+    }
+    const dataJson = await buildSyncPayload(profileId, outboundData, remoteChatData);
 
     const sunCount = Array.isArray(outboundData?.sunSessions) ? outboundData.sunSessions.length : 0;
     const devCount = Array.isArray(outboundData?.lightDevices) ? outboundData.lightDevices.length : 0;

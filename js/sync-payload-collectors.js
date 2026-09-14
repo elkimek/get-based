@@ -162,7 +162,11 @@ export async function collectChatData(profileId) {
       customPersonalityDeleted,
       activePersonality: personality || undefined,
     };
-  } catch { return null; }
+  } catch {
+    // An unreadable index must not discard independently durable deletions.
+    return Object.keys(deletedThreads).length > 0
+      ? { threads: [], messages: {}, deletedThreads } : null;
+  }
 }
 
 /** @param {string} profileId */

@@ -36,6 +36,7 @@ function dbg(debug, ...args) {
  *   needsRebroadcast?: boolean,
  *   pushProfile?: (...args: any[]) => any,
  *   debug?: (...args: any[]) => any,
+ *   readProfileData?: (profileId: string) => Promise<any>,
  * }} [options]
  */
 export function maybeScheduleRebroadcast({
@@ -43,13 +44,15 @@ export function maybeScheduleRebroadcast({
   needsRebroadcast,
   pushProfile,
   debug,
+  readProfileData,
 } = {}) {
   // Rebroadcast the union if local had rows the remote lacked. Defer
   // with setTimeout to avoid recursing inside the pull tick + give
-  // chat/profile/aiSettings appliers a chance to settle first. Skipped
-  // for non-active profiles - pushProfile uses state.importedData,
-  // which is only valid for the current profile.
-  if (!needsRebroadcast || profileId !== state.currentProfile || typeof pushProfile !== 'function') return false;
+  // chat/profile/aiSettings appliers a chance to settle first. Inactive
+  // profiles require a durable reader so we never publish active-profile data
+  // under another profile's ID.
+  if (!needsRebroadcast || !profileId || typeof pushProfile !== 'function') return false;
+  if (profileId !== state.currentProfile && !readProfileData) return false;
 
   if (_startupSettling) {
     dbg(debug, `Row ${profileId.slice(0,8)}: rebroadcast deferred — initial replica still settling`);
@@ -80,12 +83,13 @@ export function maybeScheduleRebroadcast({
   // state. Capturing `merged` here is unsafe: another pull or local edit can
   // replace state.importedData during the 100ms gap, and the delayed stale
   // snapshot would then regress scalar fields on every device.
-  setTimeout(() => {
-    if (profileId !== state.currentProfile) {
+  setTimeout(async () => {
+    if (profileId !== state.currentProfile && !readProfileData) {
       dbg(debug, `Rebroadcast aborted — active profile switched`);
       return;
     }
-    const latestImported = state.importedData;
+    const latestImported = profileId === state.currentProfile
+      ? state.importedData : await readProfileData?.(profileId);
     if (!latestImported || typeof latestImported !== 'object') {
       dbg(debug, `Rebroadcast aborted — active profile data unavailable`);
       return;

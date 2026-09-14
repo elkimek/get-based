@@ -4,7 +4,7 @@
 import { encodeMergedRoutstrSessions, ROUTSTR_SESSIONS_KEY } from './routstr-session.js';
 
 import { parseSyncPayload } from './sync-payload.js';
-import { applyChatData, getChatDataLocalLockRemainingMs } from './sync-chat-apply.js';
+import { applyChatData, chatDataNeedsRebroadcast, getChatDataLocalLockRemainingMs } from './sync-chat-apply.js';
 import { refreshActiveProfileAfterPull } from './sync-pull-active-refresh.js';
 import { clearStaleSyncHashKeysOnce } from './sync-pull-maintenance.js';
 import {
@@ -25,6 +25,7 @@ import {
   getProfileSyncBlockReason, isDemoProfileRecord,
 } from './profile-sync-policy.js';
 import { sanitizeNutritionProfileData } from './nutrition-sync-sanitize.js';
+import { readProfileImportedData } from './sync-save-hooks.js';
 
 // These use var + self-preserving defaults because sync.js can be re-entered
 // through app module cycles while sync-pull.js is still evaluating. An early
@@ -378,7 +379,7 @@ async function receiveSync() {
 
         // Apply chat data and display preferences
         const chatApplied = chatData ? await applyChatData(profileId, chatData) : false;
-        if (chatData && !chatApplied) {
+        if (chatData) {
           scheduleChatPullRetry(profileId, getChatDataLocalLockRemainingMs(profileId));
         }
         if (displayPrefs) (await loadSyncApply()).applyDisplayPrefs(profileId, displayPrefs);
@@ -397,8 +398,9 @@ async function receiveSync() {
 
         maybeScheduleRebroadcast({
           profileId,
-          needsRebroadcast,
+          needsRebroadcast: needsRebroadcast || await chatDataNeedsRebroadcast(profileId, chatData),
           pushProfile: _pushProfile,
+          readProfileData: readProfileImportedData,
           debug: dbg,
         });
       } catch (e) {

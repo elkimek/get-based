@@ -518,6 +518,7 @@
     "js/sync-apply.js",
     "js/sync-reconcile.js",
     "js/sync-chat-apply.js",
+    "js/sync-chat-merge.js",
     "js/sync-messenger.js",
     "js/sync-dirty-state.js",
     "js/sync-save-hooks.js",

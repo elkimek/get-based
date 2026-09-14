@@ -8,6 +8,7 @@ import { parseSyncPayload } from './sync-payload.js';
 import { logSyncEvent } from './sync-state.js';
 import { isRestoreJoinPending } from './sync-identity.js';
 import { getProfileSyncBlockReason } from './profile-sync-policy.js';
+import { chatDataNeedsRebroadcast } from './sync-chat-apply.js';
 
 /** @type {() => any} */
 let _getEvolu = () => null;
@@ -76,9 +77,11 @@ export async function reconcileLocalStorageWithEvolu() {
   if (!existing) return;
   let remoteImported;
   let localAiSettingsDiffer = false;
+  let localChatDiffer = false;
   try {
     const parsed = await parseSyncPayload(existing.dataJson);
     remoteImported = parsed?.importedData || null;
+    localChatDiffer = await chatDataNeedsRebroadcast(state.currentProfile, parsed?.chatData);
     const remoteAiSettings = parsed?.aiSettings || {};
     const localAiSettings = await collectAISettings();
     localAiSettingsDiffer = Object.entries(localAiSettings)
@@ -88,7 +91,7 @@ export async function reconcileLocalStorageWithEvolu() {
     // still recover via the Force Resend button.
     return;
   }
-  if (!remoteImported && !localAiSettingsDiffer) return;
+  if (!remoteImported && !localAiSettingsDiffer && !localChatDiffer) return;
 
   // Reuse the rebroadcast helper - same semantic ("local has anything remote
   // doesn't reflect"), same id-keyed array list, same pickTimestamp tiebreak.
@@ -97,11 +100,11 @@ export async function reconcileLocalStorageWithEvolu() {
   // strands the stop on the phone forever - relay row keeps endedAt=null and
   // every other device shows the session as still running.
   const localHasUnsynced = remoteImported ? localHasRowsRemoteLacks(state.importedData, remoteImported) : false;
-  if (!localHasUnsynced && !localAiSettingsDiffer) {
+  if (!localHasUnsynced && !localAiSettingsDiffer && !localChatDiffer) {
     _debug('Startup reconciliation: localStorage, AI settings, and Evolu row match - nothing to do');
     return;
   }
-  const reason = localHasUnsynced ? 'unsynced rows' : 'newer local AI settings';
+  const reason = localHasUnsynced ? 'unsynced rows' : localChatDiffer ? 'unsynced chat history or deletions' : 'newer local AI settings';
   _debug(`Startup reconciliation: localStorage has ${reason} vs Evolu row`);
   logSyncEvent('reconcile', `Reconcile ${state.currentProfile.slice(0, 8)} - local has ${reason}`);
   // Force-push so the next watchdog cycle can't lose us a clearly-needed

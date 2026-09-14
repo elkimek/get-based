@@ -59,6 +59,14 @@ export async function loadChatHistory() {
   const key = getChatThreadKey(state.currentThreadId);
   const storedRaw = localStorage.getItem(key);
   if (storedRaw === null) {
+    const thread = state.chatThreads.find(item => item.id === threadId);
+    if ((Number(thread?.messageCount) || 0) > 0) {
+      blockChatHistoryWrites(key);
+      notifyChatHistoryBlocked(key);
+      state.chatHistory = [];
+      renderChatMessagesRuntime();
+      return false;
+    }
     clearChatHistoryWriteBlock(key);
     state.chatHistory = [];
     renderChatMessagesRuntime();
@@ -91,11 +99,15 @@ export async function saveChatHistory() {
   const key = getChatThreadKey(state.currentThreadId);
   const history = state.chatHistory;
   const value = JSON.stringify(state.chatHistory);
+  const previousValue = await encryptedGetItem(key);
   await encryptedSetItem(key, value);
   if (key !== getChatThreadKey(state.currentThreadId) || history !== state.chatHistory) return false;
   const thread = state.chatThreads.find(t => t.id === state.currentThreadId);
   if (thread) {
-    if (thread.messageCount !== state.chatHistory.length) thread.updatedAt = new Date().toISOString();
+    if (previousValue !== value || thread.messageCount !== state.chatHistory.length) {
+      thread.updatedAt = new Date().toISOString();
+      thread.messagesUpdatedAt = thread.updatedAt;
+    }
     thread.messageCount = state.chatHistory.length;
     thread.personality = state.currentChatPersonality;
     const p = getActivePersonality();
@@ -122,6 +134,7 @@ export async function clearChatHistory() {
         state.chatHistory = [];
         thread.messageCount = 0;
         thread.updatedAt = new Date().toISOString();
+        thread.messagesUpdatedAt = thread.updatedAt;
         delete thread.summary;
         delete thread.summaryDate;
         delete thread.summaryModel;

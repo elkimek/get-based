@@ -472,6 +472,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/sync-backup-restore-state.js',
   '/js/sync-apply.js',
   '/js/sync-chat-apply.js',
+  '/js/sync-chat-merge.js',
   '/js/sync-schema.js',
   '/js/sync-delta.js',
   '/js/sync-delta-planners.js',

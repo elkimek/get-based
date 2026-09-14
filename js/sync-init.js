@@ -209,6 +209,10 @@ export async function initSync() {
         } finally {
           finishSyncRebroadcastSettling();
         }
+        // The barrier pull intentionally suppresses rebroadcast. Revisit the
+        // settled replica with publishing enabled so chat-only unions on
+        // inactive profiles also reach peers without waiting for another edit.
+        await _forcePull();
       }
       await reconcileLocalStorageWithEvolu();
     }).catch(e => {

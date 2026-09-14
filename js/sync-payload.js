@@ -9,6 +9,7 @@ import {
 } from './sync-payload-codec.js';
 import { selectSyncedProfile } from './sync-profile-fields.js';
 import { sanitizeNutritionProfileData } from './nutrition-sync-sanitize.js';
+import { mergeChatData } from './sync-chat-merge.js';
 
 export {
   AI_SETTINGS_KEYS, DISPLAY_PREF_SUFFIXES, chatDeletedThreadsKey,
@@ -65,12 +66,14 @@ export function disablePhase2CutoverFlag(profileId) {
 
 /** @param {string} profileId
  * @param {any} importedData
+ * @param {any} [remoteChatData]
  */
-export async function buildSyncPayload(profileId, importedData) {
+export async function buildSyncPayload(profileId, importedData, remoteChatData) {
   const profiles = syncPayloadDeps.getProfiles();
   const profile = selectSyncedProfile(profiles.find(p => p.id === profileId));
   const aiSettings = await collectAISettings();
-  const chatData = await collectChatData(profileId);
+  const localChatData = await collectChatData(profileId);
+  const chatData = remoteChatData ? mergeChatData(remoteChatData, localChatData) : localChatData;
   const displayPrefs = collectDisplayPrefs(profileId);
   // Strip wearable OAuth credentials before sync. Per-row LWW would let a stale
   // device resurrect a disconnected vendor or overwrite a freshly-rotated
