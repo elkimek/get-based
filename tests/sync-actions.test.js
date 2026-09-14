@@ -210,13 +210,13 @@ describe('sync action profile dependencies', () => {
 
     try {
       await syncNow();
-      expect(order).toEqual(['pull', 'push']);
+      expect(order).toEqual(['pull']);
     } finally {
       configureSyncActions({ forcePull: async () => {}, pushProfile: async () => {} });
     }
   });
 
-  it('still pushes local state when the manual pull fails', async () => {
+  it('does not republish clean local state when the manual pull fails', async () => {
     const pushProfile = vi.fn().mockResolvedValue({ ok: true });
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     configureSyncActions({
@@ -225,8 +225,8 @@ describe('sync action profile dependencies', () => {
     });
 
     try {
-      await expect(syncNow()).resolves.toEqual({ ok: true });
-      expect(pushProfile).toHaveBeenCalledOnce();
+      await expect(syncNow()).resolves.toEqual({ ok: false, reason: 'pull-failed' });
+      expect(pushProfile).not.toHaveBeenCalled();
       expect(warn).toHaveBeenCalledWith(
         expect.stringContaining('Manual pull failed'),
         expect.any(Error),
@@ -237,11 +237,13 @@ describe('sync action profile dependencies', () => {
   });
 
   it('waits and retries when a pull-side rebroadcast wins the manual-push race', async () => {
+    const previousProfile = state.currentProfile;
+    state.currentProfile = 'edit-during-pull';
     const pushProfile = vi.fn()
       .mockResolvedValueOnce({ ok: false, skipped: true, reason: 'in-flight' })
       .mockResolvedValueOnce({ ok: true });
     configureSyncActions({
-      forcePull: async () => {},
+      forcePull: async () => { markSyncProfileDirty(state.currentProfile); },
       pushProfile,
       isSyncing: () => false,
     });
@@ -250,6 +252,8 @@ describe('sync action profile dependencies', () => {
       await expect(syncNow()).resolves.toEqual({ ok: true });
       expect(pushProfile).toHaveBeenCalledTimes(2);
     } finally {
+      localStorage.removeItem('labcharts-edit-during-pull-sync-dirty');
+      state.currentProfile = previousProfile;
       configureSyncActions({
         forcePull: async () => {},
         pushProfile: async () => {},
