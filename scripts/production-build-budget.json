@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "maximums": {
     "startupJavaScriptFiles": 2,
-    "startupDecodedBytes": 1202000,
+    "startupDecodedBytes": 1205000,
     "outputJavaScriptFiles": 160,
-    "outputDecodedBytes": 5245000
+    "outputDecodedBytes": 5249000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -58,7 +58,9 @@
     "directProviderReasoningStartupDecodedBytes": 1196609,
     "directProviderReasoningOutputDecodedBytes": 5139452,
     "routstrPaymentValidationStartupDecodedBytes": 1200060,
-    "routstrPaymentValidationOutputDecodedBytes": 5220376
+    "routstrPaymentValidationOutputDecodedBytes": 5220376,
+    "importDataIntegrityStartupDecodedBytes": 1203020,
+    "importDataIntegrityOutputDecodedBytes": 5247655
   },
   "referenceCommit": "331112b1",
   "measuredAt": "2026-09-05"

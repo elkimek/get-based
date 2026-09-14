@@ -37,6 +37,7 @@ for (const [layout, width] of [['desktop', 1280], ['mobile', 390]]) {
     const range = page.locator('.dashboard-lab-date-range');
     const specialty = page.locator('#sidebar-nav [data-category="metabolomixMitochondrial"]');
     await expect(range).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Lab date range', exact: true })).toHaveCount(1);
     await expect(range).toContainText('Older results and categories may be hidden');
     await expect(range.getByRole('button', { name: '1Y', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(specialty).toHaveCount(0);

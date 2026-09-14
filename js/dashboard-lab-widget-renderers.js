@@ -6,7 +6,7 @@ import { dashboardWidgetActionAttrs } from './dashboard-widget-controls.js';
 import { openDashboardMarkerDetail } from './dashboard-widget-runtime.js';
 import { profileStorageKey } from './profile.js';
 import { escapeAttr, escapeHTML, formatValue, getStatus, getTrend, safeMarkerId, showNotification } from './utils.js';
-import { filterDatesByRange, getActiveData, renderDateRangeFilter } from './data.js';
+import { filterDatesByRange, getActiveData } from './data.js';
 import { detectTrendAlerts, getAllFlaggedMarkers, getEffectiveRange, getEffectiveRangeForDate, getKeyTrendMarkers, getLatestValueIndex } from './marker-analysis.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { getMarkerStorageViewId, resolveActiveMarkerPath, resolveMarkerStorageViewId } from './marker-placement.js';
@@ -697,7 +697,7 @@ export function createDashboardLabWidgetRenderers(deps) {
 
   function renderDashboardKeyTrendsWidget(ctx) {
     const rows = (ctx.keyMarkers || []).map(km => renderDashboardKeyTrendRow(ctx, km)).filter(Boolean);
-    let html = `<div class="dashboard-widget-inline-controls">${renderDateRangeFilter()}</div>`;
+    let html = '';
     if (rows.length > 0) {
       html += `<div class="db-key-trend-list">${rows.join('')}</div>`;
     } else {
