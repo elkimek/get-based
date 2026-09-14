@@ -624,7 +624,9 @@ const _origProfileSex = state ? state.profileSex : null;
       && /profileDob:\s*state\.profileDob/.test(dataSrc)
       && /wearableWeightLatest/.test(dataSrc)
       && /legacyWeightStamp/.test(dataSrc)
-      && /saveImportedData\([^)]*\)[\s\S]{0,120}invalidateActiveDataCache\(\)/.test(dataSrc)
+      && dataSrc.slice(dataSrc.indexOf('export async function saveImportedData('),
+        dataSrc.indexOf('export async function saveImportedDataForProfile('))
+        .includes('invalidateActiveDataCache();')
       && !/_makeActiveDataCacheMeta\(\)[\s\S]{0,900}rangeMode:\s*state\.rangeMode/.test(dataSrc)
       && !/switchRangeMode\(mode\)[\s\S]{0,220}invalidateActiveDataCache\(\)/.test(dataViewControlsSrc));
     assert('category-glyphs.js: marker category surfaces use coded glyphs instead of emoji icons',
