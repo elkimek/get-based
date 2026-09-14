@@ -337,7 +337,7 @@ return (async function () {
       /!_isEvoluReady\(\)\s*\|\|\s*_isSyncing\(\)/.test(helper)
         && /attempt\s*<\s*60/.test(helper));
     assert('scheduleProfilePush catches rejected push',
-      /_pushProfile\(profileId,\s*data\)\.catch\(\(\)\s*=>\s*\{\}\)/.test(helper));
+      /_pushProfile\(profileId,\s*state\.importedData\)\.catch\(\(\)\s*=>\s*\{\}\)/.test(helper));
     assert('onDataSaved routes through scheduleProfilePush',
       /scheduleProfilePush\(profileId,\s*data\)/.test(onSaved));
     assert('onChatSaved routes through scheduleProfilePush',

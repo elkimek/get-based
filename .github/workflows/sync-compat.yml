@@ -16,7 +16,7 @@ jobs:
     if: inputs.focus != 'offline'
     name: Transport (${{ matrix.evolu-client }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -97,7 +97,10 @@ jobs:
             SYNC_TRANSPORT_EVOLU_CLIENT="${client}" \
             SYNC_TRANSPORT_RELAY=ws://127.0.0.1:4000 \
             SYNC_TRANSPORT_SELF_URL=http://127.0.0.1:4003 \
-            npx playwright test tests/playwright/sync-relay-transport-e2e.spec.js --workers=1 --repeat-each=1 --grep "real relay converges"
+            npx playwright test tests/playwright/sync-relay-transport-e2e.spec.js --workers=1 --repeat-each=5 --grep "real relay converges"
+
+      - name: Verify affected sync browser behavior
+        run: npx playwright test tests/playwright/sync-actions-browser-coverage.spec.js tests/playwright/sync-orchestration-browser-coverage.spec.js tests/playwright/sync-configure-reconcile-browser-coverage.spec.js --workers=1
 
       - name: Upload transport logs on failure
         if: always()
