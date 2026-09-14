@@ -33,10 +33,13 @@ test('installed shell opens lazy features and reloads with the origin disconnect
     server.state.offline = true;
     expect(await page.evaluate(() => fetch('/api/offline-proof').then(() => false, () => true))).toBe(true);
     await page.locator('.settings-btn').evaluate(button => button.click());
-    await expect(page.locator('#settings-modal-overlay')).toHaveClass(/\bshow\b/);
+    // These first-use loads traverse the installed cache while the origin is
+    // disconnected. Allow WebKit's cache work to settle on shared CI runners;
+    // keep the offline proof and successful feature activation mandatory.
+    await expect(page.locator('#settings-modal-overlay')).toHaveClass(/\bshow\b/, { timeout: 15_000 });
     await expect(page.locator('#settings-modal .settings-layout')).toHaveCSS('display', isMobile ? 'flex' : 'grid');
     await page.locator('[data-settings-tab="wearables"]').click();
-    await expect(page.locator('[data-tab-panel="wearables"]')).toHaveClass(/\bactive\b/);
+    await expect(page.locator('[data-tab-panel="wearables"]')).toHaveClass(/\bactive\b/, { timeout: 15_000 });
     await expect.poll(() => page.evaluate(() => [...document.querySelectorAll('#settings-modal img')]
       .filter(img => img.loading !== 'lazy' || img.getBoundingClientRect().top < innerHeight)
       .every(img => img.complete && img.naturalWidth > 0))).toBe(true);
