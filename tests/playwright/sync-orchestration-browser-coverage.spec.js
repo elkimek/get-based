@@ -109,9 +109,10 @@ test('sync recovery events throttle resume pulls and notify network changes', as
   }
 });
 
-test('forced pulls wait for an active pull before reading a fresh replica', async ({ page }) => {
+for (const rejectActive of [false, true]) {
+test(`forced pulls wait for an active pull before reading a fresh replica (${rejectActive ? 'rejected' : 'fulfilled'})`, async ({ page }) => {
   await page.goto('/app');
-  const result = await page.evaluate(async () => {
+  const result = await page.evaluate(async rejectActive => {
     const pull = await import('/js/sync-pull.js');
     const tombstones = await import('/js/sync-tombstones.js');
     tombstones.configureSyncTombstones({ getEvolu: () => null, getTombstoneQuery: () => null, isSyncEnabled: () => false });
@@ -123,21 +124,27 @@ test('forced pulls wait for an active pull before reading a fresh replica', asyn
       getEvolu: () => ({ getQueryRows: () => [] }), getProfileQuery: () => ({}), isSyncEnabled: () => true,
       pushDirtyProfiles: async () => {
         calls++;
-        if (calls === 1) { entered(); await blocked; }
+        if (calls === 1) {
+          entered();
+          await blocked;
+          if (rejectActive) throw new Error('active pull failed');
+        }
         return { failed: 0, skipped: 0 };
       },
     });
     const initial = pull.onSyncReceived();
+    const originalResult = initial.then(() => 'fulfilled', error => error.message);
     await started;
     const forced = pull.forcePull();
     await new Promise(resolve => setTimeout(resolve, 20));
     const beforeRelease = calls;
     release();
-    await Promise.all([initial, forced]);
-    return { beforeRelease, calls, pulling: pull.isSyncPulling() };
-  });
-  expect(result).toEqual({ beforeRelease: 1, calls: 2, pulling: false });
+    await forced;
+    return { beforeRelease, calls, pulling: pull.isSyncPulling(), original: await originalResult };
+  }, rejectActive);
+  expect(result).toEqual({ beforeRelease: 1, calls: 2, pulling: false, original: rejectActive ? 'active pull failed' : 'fulfilled' });
 });
+}
 
 test('sync pull browser force paths update status and skip unsafe rows', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

@@ -685,7 +685,8 @@ await import('../js/settings.js');
   assert('sync-pull.js owns inbound pull orchestration',
     syncConfigureSrc.includes("from './sync-pull.js'")
       && syncPullSrc.includes('export function configureSyncPull')
-      && syncPullSrc.includes('export async function onSyncReceived')
+      && syncPullSrc.includes('export function onSyncReceived')
+      && syncPullSrc.includes('_pullPromise = receiveSync().finally(')
       && syncPullSrc.includes('export function forcePull')
       && syncPullSrc.includes('export function isSyncPulling')
       && syncPullSrc.includes('export function clearSyncPullTimers')
@@ -1036,7 +1037,7 @@ await import('../js/settings.js');
       && syncTombstonesSrc.includes('export async function rejectPendingTombstone')
       && exportBlockIncludes(syncSrc, ['listPendingTombstones', 'applyPendingTombstone', 'rejectPendingTombstone']));
   {
-    const receiveStart = syncPullSrc.indexOf('export async function onSyncReceived');
+    const receiveStart = syncPullSrc.indexOf('async function receiveSync');
     const restoredPush = syncPullSrc.indexOf('_pushProfilesById', receiveStart);
     const tombstoneApply = syncPullSrc.indexOf('await applyRemoteTombstones()', receiveStart);
     const dirtyPush = syncPullSrc.indexOf('_pushDirtyProfiles', receiveStart);

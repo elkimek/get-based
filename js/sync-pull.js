@@ -197,7 +197,9 @@ export function forcePull() {
   dbg('Force pull triggered');
   // Let the current merge finish before taking a fresh replica snapshot.
   // Resetting its guard lets an older pull overwrite a newer one mid-rebuild.
-  if (_pullPromise) return _pullPromise.then(() => onSyncReceived());
+  // The queued request still runs after a failure; the original caller keeps
+  // its rejected promise while this caller observes the fresh pull's result.
+  if (_pullPromise) return _pullPromise.then(onSyncReceived, onSyncReceived);
   return onSyncReceived();
 }
 
