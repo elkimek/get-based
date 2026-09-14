@@ -71,7 +71,7 @@ export function mergeChatData(local, incoming) {
       const deletedAt = deletedThreads[thread.id] || 0;
       if (deletedAt > 0 && deletedAt >= chatThreadUpdatedAtMs(thread)) continue;
       const items = candidates.get(thread.id) || [];
-      items.push({ thread, messages: data?.messages?.[thread.id] });
+      items.push({ thread, messages: (Number(thread.messageCount) || 0) === 0 ? [] : data?.messages?.[thread.id] });
       candidates.set(thread.id, items);
     }
   }
@@ -82,21 +82,20 @@ export function mergeChatData(local, incoming) {
       || compareStable(b.messages, a.messages));
     const winner = items[0];
     let mergedThread = winner.thread;
-    // An explicit empty body is authoritative (clear history). Only absent or
-    // malformed bodies on nonempty threads can be repaired from an older copy.
-    if ((Number(winner.thread.messageCount) || 0) === 0) messages[id] = [];
-    else {
-      const complete = items.filter(item => Array.isArray(item.messages)).sort((a, b) =>
-        messagesUpdatedAtMs(b.thread) - messagesUpdatedAtMs(a.thread)
-        || compareThreads(b.thread, a.thread)
-        || compareStable(b.messages, a.messages))[0];
-      if (complete) {
-        messages[id] = complete.messages;
-        // A recovered older body must not acquire the newer index's clock;
-        // otherwise it could defeat the actual complete copy on a later pull.
-        if (messagesUpdatedAtMs(complete.thread) !== messagesUpdatedAtMs(winner.thread)) {
-          mergedThread = { ...winner.thread, messagesUpdatedAt: new Date(messagesUpdatedAtMs(complete.thread)).toISOString() };
-        }
+    // Message clocks are independent of metadata: renaming an old copy must
+    // not undo a later clear or hide a later message edit on another device.
+    const complete = items.filter(item => Array.isArray(item.messages)).sort((a, b) =>
+      messagesUpdatedAtMs(b.thread) - messagesUpdatedAtMs(a.thread)
+      || compareThreads(b.thread, a.thread)
+      || compareStable(b.messages, a.messages))[0];
+    if (complete) {
+      messages[id] = complete.messages;
+      // A recovered older body must retain its original clock so an actual
+      // complete newer copy can replace it on a subsequent pull.
+      if (messagesUpdatedAtMs(complete.thread) !== messagesUpdatedAtMs(winner.thread)) {
+        mergedThread = { ...winner.thread,
+          messagesUpdatedAt: new Date(messagesUpdatedAtMs(complete.thread)).toISOString(),
+          messageCount: complete.messages.length };
       }
     }
     threads.push(mergedThread);

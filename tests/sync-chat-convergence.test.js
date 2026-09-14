@@ -153,3 +153,16 @@ test('a corrupted index cannot discard deletion evidence during recovery', async
   expect((await collectChatData(profileId)).threads).toEqual([]);
   expect(JSON.parse(localStorage.getItem(deletedKey))).toEqual({ a: Date.parse(newDate) });
 });
+
+test('a later rename cannot override a newer message edit or clear', () => {
+  const renamed = { threads: [{ ...thread('a', '2026-09-14T12:00:00Z'), messagesUpdatedAt: oldDate }], messages: payload('a').messages };
+  const cleared = { threads: [{ ...thread('a', newDate, 0), messagesUpdatedAt: newDate }], messages: {} };
+  const merged = mergeChatData(renamed, cleared);
+  expect(merged.messages.a).toEqual([]);
+  expect(merged.threads[0].messageCount).toBe(0);
+  const renamedClear = { ...cleared, threads: [{ ...cleared.threads[0], updatedAt: '2026-09-14T12:00:00Z' }] };
+  const newerMessage = { threads: [thread('a', '2026-09-13T12:00:00Z')], messages: payload('a').messages };
+  const edited = mergeChatData(renamedClear, newerMessage);
+  expect(edited.messages.a).toEqual(payload('a').messages.a);
+  expect(edited.threads[0].messageCount).toBe(1);
+});
