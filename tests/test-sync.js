@@ -41,6 +41,7 @@ const syncActions = await import('../js/sync-actions.js');
 const syncSaveHooks = await import('../js/sync-save-hooks.js');
 const syncApply = await import('../js/sync-apply.js');
 const syncChatApply = await import('../js/sync-chat-apply.js');
+const syncChatMerge = await import('../js/sync-chat-merge.js');
 const syncDelta = await import('../js/sync-delta.js');
 const syncCutover = await import('../js/sync-cutover.js');
 const dataMerge = await import('../js/data-merge.js');
@@ -863,7 +864,7 @@ await import('../js/settings.js');
     syncPullRebroadcastSrc.includes('export function maybeScheduleRebroadcast')
       && syncPullRebroadcastSrc.includes('consumeRebroadcastBudget(profileId)')
       && syncPullRebroadcastSrc.includes("getSyncStatus().push === 'pending'")
-      && syncPullRebroadcastSrc.includes('setTimeout(() => {'));
+      && /setTimeout\((?:async )?\(\) => \{/.test(syncPullRebroadcastSrc));
   assert('service worker precaches sync-pull-rebroadcast.js',
     serviceWorkerSrc.includes("'/js/sync-pull-rebroadcast.js'"));
   assert('sync-subscriptions.js owns Evolu subscription and polling helpers',
@@ -1607,7 +1608,7 @@ await import('../js/settings.js');
   assert('disableSync clears restore-join pending marker',
     syncDisableCleanupSrc.includes("key === 'labcharts-sync-restore-join-pending'"));
   assert('applyChatData encrypts thread index writes',
-    syncChatApplySrc.includes('await encryptedSetItem(threadsKey, JSON.stringify(mergedThreads))'));
+    /await encryptedSetItem\(threadsKey, JSON.stringify\(/.test(syncChatApplySrc));
   assert('applyChatData skips chat writes while encryption is locked',
     syncChatApplySrc.includes('getEncryptionEnabled() && !isUnlocked()')
       && syncChatApplySrc.includes('encryption locked'));
@@ -1719,7 +1720,7 @@ await import('../js/settings.js');
     }
   }
   assert('chat thread tombstones reject proto-pollution keys',
-    syncChatApplySrc.includes('CHAT_DELETED_PROTO_KEYS')
+    Object.keys(syncChatMerge.normalizeChatDeletedThreads(JSON.parse('{"__proto__":123,"constructor":123,"prototype":123}'))).length === 0
       && syncPayloadCollectorsSrc.includes('CHAT_DELETED_PROTO_KEYS')
       && await fetchWithRetry('js/chat-threads.js').then(s => s.includes('CHAT_DELETED_PROTO_KEYS.has(threadId)')));
   assert('sync-apply.js re-exports chat apply helpers for compatibility',
@@ -1727,14 +1728,8 @@ await import('../js/settings.js');
       && syncApply.markChatDataLocal === syncChatApply.markChatDataLocal
       && syncApply.getChatDataLocalLockRemainingMs === syncChatApply.getChatDataLocalLockRemainingMs);
   assert('applyChatData writes threads', syncChatApplySrc.includes('applyChatData'));
-  assert('applyChatData preserves local-only threads unless an explicit tombstone wins',
-    syncChatApplySrc.includes('mergedById.set(thread.id, thread)')
-      && syncChatApplySrc.includes('normalizeDeletedThreads(chatData.deletedThreads)')
-      && syncChatApplySrc.includes('encryptedRemoveItem(`labcharts-${profileId}-chat-t_${thread.id}`)'));
-  assert('applyChatData skips stale remote chat while local save is fresh',
-    syncChatApplySrc.includes('CHAT_LOCAL_LOCK_UNTIL_KEY') && syncChatApplySrc.includes('await shouldKeepLocalChatData(profileId)'));
-  assert('applyChatData local freshness guard reads encrypted thread indexes',
-    syncChatApplySrc.includes('await encryptedGetItem(key) || localStorage.getItem(key)'));
+  // Local-only retention, deletion and freshness locking are exercised below
+  // through applyChatData; encrypted storage paths run in the browser specs.
   assert('chat freshness lock is shorter than two minutes',
     syncChatApplySrc.includes('const CHAT_LOCAL_LOCK_MS = 90 * 1000'));
   assert('skipped chat pulls retry after the local freshness lock expires',
