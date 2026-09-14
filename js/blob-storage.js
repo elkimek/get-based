@@ -49,19 +49,14 @@ function _openDB() {
 
 export async function getBlob(key) {
   if (!_idbAvailable) return null;
-  try {
-    const db = await _openDB();
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.get(key);
-      req.onsuccess = () => resolve(req.result ?? null);
-      req.onerror = () => reject(req.error);
-    });
-  } catch (e) {
-    console.warn('[blob-storage] getBlob failed:', getErrorMessage(e, e));
-    return null;
-  }
+  const db = await _openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const req = tx.objectStore(STORE_NAME).get(key);
+    tx.oncomplete = () => resolve(req.result ?? null);
+    tx.onabort = () => reject(tx.error || new Error('Profile read was aborted'));
+    tx.onerror = () => reject(tx.error || req.error || new Error('Profile read failed'));
+  });
 }
 
 export async function setBlob(key, value) {
@@ -71,7 +66,9 @@ export async function setBlob(key, value) {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
     const req = store.put(value, key);
-    req.onsuccess = () => resolve();
+    tx.oncomplete = () => resolve();
+    tx.onabort = () => reject(tx.error || new Error('Storage transaction was aborted'));
+    tx.onerror = () => reject(tx.error || req.error || new Error('Storage transaction failed'));
     req.onerror = () => reject(req.error);
   }));
 }
@@ -88,7 +85,9 @@ export async function deleteBlob(key, options = {}) {
       const tx = db.transaction(STORE_NAME, 'readwrite');
       const store = tx.objectStore(STORE_NAME);
       const req = store.delete(key);
-      req.onsuccess = () => resolve();
+      tx.oncomplete = () => resolve();
+      tx.onabort = () => reject(tx.error || new Error('Storage transaction was aborted'));
+      tx.onerror = () => reject(tx.error || req.error || new Error('Storage transaction failed'));
       req.onerror = () => reject(req.error);
     }));
   } catch (e) {

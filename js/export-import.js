@@ -4,7 +4,7 @@
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { showNotification, isDebugMode } from './utils.js';
-import { saveImportedData, saveImportedDataForProfile } from './data.js';
+import { saveImportedData, saveImportedDataForProfile, invalidateActiveDataCache } from './data.js';
 import { getProfiles, profileStorageKey, createProfile, updateProfileMeta, loadProfile, migrateProfileData } from './profile.js';
 import { encryptedGetItem, encryptedSetItem, getEncryptionEnabled } from './crypto.js';
 import {
@@ -16,7 +16,7 @@ import {
   trimImportedArray,
 } from './data-merge.js';
 import { findOrCreateLabEntry } from './lab-entry-mutations.js';
-import { setLabEntryMarker } from './lab-entry.js';
+import { mergeRestoredLabEntry } from './lab-entry-restore.js';
 import {
   clearDemoLoadingProfile,
   isDemoLoadingProfile,
@@ -105,6 +105,7 @@ export function importDataJSON(file) {
     const reader = new FileReader();
     reader.onerror = () => resolve();
     reader.onload = async () => {
+      let rollback = null, rollbackProfile = null;
       try {
         const json = JSON.parse(/** @type {string} */ (reader.result));
         // Guard: demo data should never be silently imported into a non-demo profile
@@ -136,6 +137,8 @@ export function importDataJSON(file) {
           });
           await loadProfile(profileId);
         }
+        rollback = JSON.stringify(state.importedData);
+        rollbackProfile = state.currentProfile;
         let count = 0;
         const importTs = Date.now();
         for (const entry of json.entries || []) {
@@ -148,22 +151,8 @@ export function importDataJSON(file) {
           // specialty marker on import. Merge markers + markerSources
           // instead so all data lands; later entries win on key conflicts.
           const existing = findOrCreateLabEntry(state.importedData, entry.date, { now: importTs });
-          for (const [key, value] of Object.entries(entry.markers)) {
-            const source = entry.markerSources?.[key]
-              ? { ...entry.markerSources[key] }
-              : null;
-            setLabEntryMarker(existing, key, value, {
-              now: importTs,
-              ...(source ? { source } : {}),
-            });
-          }
-          if (entry.file && !existing.file) existing.file = entry.file;
-          if (entry.sourceFile && !existing.sourceFile) existing.sourceFile = entry.sourceFile;
-          if (Array.isArray(entry.sourceFiles)) {
-            existing.sourceFiles = Array.from(new Set([...(existing.sourceFiles || []), ...entry.sourceFiles]));
-          }
-          if (entry.importedWith && !existing.importedWith) existing.importedWith = entry.importedWith;
-          if (entry.importHash && !existing.importHash) existing.importHash = entry.importHash;
+          const restored = mergeRestoredLabEntry(existing, entry, importTs);
+          replaceImportedArrayItem(state.importedData, 'entries', state.importedData.entries.indexOf(existing), restored);
           count++;
         }
         if (count === 0 && (!json.notes || json.notes.length === 0) && !json.chat && !hasNutrition) {
@@ -546,9 +535,11 @@ export function importDataJSON(file) {
         }
 
         migrateProfileData(state.importedData);
-        await saveImportedData(isDemoLoadingProfile(state.currentProfile)
+        const saved = await saveImportedData(isDemoLoadingProfile(state.currentProfile)
           ? { skipSync: true, reason: 'demo-import' }
           : {});
+        if (!saved) throw new Error('The imported data could not be saved. Please retry.');
+        rollback = null;
         if (json.chat) {
           await _importChatData(state.currentProfile, json.chat);
         }
@@ -561,8 +552,9 @@ export function importDataJSON(file) {
         const mealMsg = mealCount ? ` and ${mealCount} meal${mealCount === 1 ? '' : 's'}` : '';
         showNotification(`Imported ${count} date entr${count === 1 ? 'y' : 'ies'}${mealMsg}${profileMsg}`, 'success');
       } catch (err) {
+        if (rollback && state.currentProfile === rollbackProfile) { state.importedData = JSON.parse(rollback); invalidateActiveDataCache(); }
         clearDemoLoadingProfile();
-        showNotification('Error parsing JSON: ' + getErrorMessage(err), 'error');
+        showNotification('Could not import JSON: ' + getErrorMessage(err), 'error');
       } finally {
         resolve();
       }
@@ -610,7 +602,7 @@ async function _importDatabaseBundle(json) {
         for (const entry of importData.entries) {
           if (!entry.date || !entry.markers) continue;
           const idx = entries.findIndex(ex => ex.date === entry.date);
-          if (idx >= 0) { replaceImportedArrayItem(current, 'entries', idx, entry); }
+          if (idx >= 0) { replaceImportedArrayItem(current, 'entries', idx, mergeRestoredLabEntry(entries[idx], entry)); }
           else { appendImportedArrayItem(current, 'entries', entry); }
         }
       }

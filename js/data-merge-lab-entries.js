@@ -133,6 +133,10 @@ export function mergeLabEntry(existing, incoming) {
       markers[key] = markerIncomingWins ? incomingMarkers[key] : existingMarkers[key];
       const sources = markerIncomingWins ? incomingSources : existingSources;
       if (Object.prototype.hasOwnProperty.call(sources, key)) markerSources[key] = sources[key];
+      else if (Object.is(existingMarkers[key], incomingMarkers[key])) {
+        const other = (markerIncomingWins ? existingSources : incomingSources)[key];
+        if (other?.snapshotId || other?.file) markerSources[key] = { ...other, at: valueTs };
+      }
       if (labEntryMarkerAffectsHOMAIR(key) && !Object.is(existingMarkers[key], incomingMarkers[key])) {
         homaIRInputChanged = true;
       }

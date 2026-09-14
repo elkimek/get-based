@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 762 |
-| Internal import edges | 3217 |
+| Modules | 766 |
+| Internal import edges | 3227 |
 | Dynamic internal edges | 107 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -71,7 +71,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/data.js`](js/data.js) | 78 | [`js/sync-configure.js`](js/sync-configure.js) | 28 |
 | [`js/profile.js`](js/profile.js) | 48 | [`js/pdf-import.js`](js/pdf-import.js) | 27 |
 | [`js/api.js`](js/api.js) | 46 | [`js/wearables-connect.js`](js/wearables-connect.js) | 27 |
-| [`js/schema.js`](js/schema.js) | 37 | [`js/lab-context.js`](js/lab-context.js) | 24 |
+| [`js/schema.js`](js/schema.js) | 39 | [`js/lab-context.js`](js/lab-context.js) | 24 |
 | [`js/crypto.js`](js/crypto.js) | 36 | [`js/export.js`](js/export.js) | 23 |
 | [`js/ai-feature-routing.js`](js/ai-feature-routing.js) | 35 | [`js/views.js`](js/views.js) | 22 |
 | [`js/data-merge.js`](js/data-merge.js) | 34 | [`js/chat-render.js`](js/chat-render.js) | 20 |
@@ -489,7 +489,7 @@ Native browser modules shipped with the static application.
 - [`js/data-merge.js`](js/data-merge.js) → [`js/data-merge-lab-entries.js`](js/data-merge-lab-entries.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/sync-delta-id.js`](js/sync-delta-id.js), [`js/sync-delta-surface-config.js`](js/sync-delta-surface-config.js)
 - [`js/data-view-controls.js`](js/data-view-controls.js) → [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/unit-profiles.js`](js/unit-profiles.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/data-wipe.js`](js/data-wipe.js) → no in-scope imports
-- [`js/data.js`](js/data.js) → [`js/crypto.js`](js/crypto.js), [`js/data-calculated-markers.js`](js/data-calculated-markers.js), [`js/data-view-controls.js`](js/data-view-controls.js), [`js/lab-date-range.js`](js/lab-date-range.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/marker-context-ranges.js`](js/marker-context-ranges.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync.js`](js/sync.js), [`js/unit-profiles.js`](js/unit-profiles.js), [`js/utils.js`](js/utils.js)
+- [`js/data.js`](js/data.js) → [`js/crypto.js`](js/crypto.js), [`js/data-calculated-markers.js`](js/data-calculated-markers.js), [`js/data-view-controls.js`](js/data-view-controls.js), [`js/lab-date-range.js`](js/lab-date-range.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/marker-context-ranges.js`](js/marker-context-ranges.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/profile-load-safety.js`](js/profile-load-safety.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync.js`](js/sync.js), [`js/unit-profiles.js`](js/unit-profiles.js), [`js/utils.js`](js/utils.js)
 
 </details>
 
@@ -550,7 +550,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>export</code> family — 8 modules</summary>
 
-- [`js/export-import.js`](js/export-import.js) → [`js/caught-error.js`](js/caught-error.js), [`js/chat-personality-storage.js`](js/chat-personality-storage.js), [`js/chat-storage-safety.js`](js/chat-storage-safety.js), [`js/crypto.js`](js/crypto.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/export-runtime.js`](js/export-runtime.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/nostr-discovery.js`](js/nostr-discovery.js), [`js/nutrition-store.js`](js/nutrition-store.js) *(dynamic)*, [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/export-import.js`](js/export-import.js) → [`js/caught-error.js`](js/caught-error.js), [`js/chat-personality-storage.js`](js/chat-personality-storage.js), [`js/chat-storage-safety.js`](js/chat-storage-safety.js), [`js/crypto.js`](js/crypto.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/export-runtime.js`](js/export-runtime.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry-restore.js`](js/lab-entry-restore.js), [`js/nostr-discovery.js`](js/nostr-discovery.js), [`js/nutrition-store.js`](js/nutrition-store.js) *(dynamic)*, [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/export-loader.js`](js/export-loader.js) → [`js/export.js`](js/export.js) *(dynamic)*, [`js/utils.js`](js/utils.js)
 - [`js/export-report-builder.js`](js/export-report-builder.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/export-report-html.js`](js/export-report-html.js), [`js/export-report.js`](js/export-report.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils.js`](js/utils.js)
 - [`js/export-report-data.js`](js/export-report-data.js) → [`js/marker-analysis.js`](js/marker-analysis.js), [`js/utils.js`](js/utils.js)
@@ -622,9 +622,10 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>import</code> family — 9 modules</summary>
+<details><summary><code>import</code> family — 10 modules</summary>
 
 - [`js/import-benchmarks.js`](js/import-benchmarks.js) → [`js/api.js`](js/api.js), [`js/data.js`](js/data.js), [`js/local-ai-discovery.js`](js/local-ai-discovery.js), [`js/state.js`](js/state.js), [`js/unique-id.js`](js/unique-id.js)
+- [`js/import-commit-validation.js`](js/import-commit-validation.js) → [`js/lab-entry.js`](js/lab-entry.js), [`js/pdf-import-unit-conversions.js`](js/pdf-import-unit-conversions.js), [`js/schema.js`](js/schema.js)
 - [`js/import-drop-zone-runtime.js`](js/import-drop-zone-runtime.js) → [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/export-loader.js`](js/export-loader.js), [`js/pdf-import-progress.js`](js/pdf-import-progress.js), [`js/utils.js`](js/utils.js)
 - [`js/import-drop-zone.js`](js/import-drop-zone.js) → [`js/import-drop-zone-runtime.js`](js/import-drop-zone-runtime.js), [`js/import-loader.js`](js/import-loader.js)
 - [`js/import-file-input.js`](js/import-file-input.js) → [`js/import-drop-zone-runtime.js`](js/import-drop-zone-runtime.js), [`js/import-loader.js`](js/import-loader.js)
@@ -649,7 +650,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>lab</code> family — 11 modules</summary>
+<details><summary><code>lab</code> family — 12 modules</summary>
 
 - [`js/lab-context-cache.js`](js/lab-context-cache.js) → [`js/lab-context-settings.js`](js/lab-context-settings.js), [`js/utils.js`](js/utils.js)
 - [`js/lab-context-change-timeline.js`](js/lab-context-change-timeline.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/lab-context-output.js`](js/lab-context-output.js)
@@ -661,6 +662,7 @@ Native browser modules shipped with the static application.
 - [`js/lab-context.js`](js/lab-context.js) → [`js/cycle-runtime.js`](js/cycle-runtime.js), [`js/cycle-summary.js`](js/cycle-summary.js), [`js/data.js`](js/data.js), [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/food-contaminants.js`](js/food-contaminants.js), [`js/lab-context-cache.js`](js/lab-context-cache.js), [`js/lab-context-change-timeline.js`](js/lab-context-change-timeline.js), [`js/lab-context-collection.js`](js/lab-context-collection.js), [`js/lab-context-output.js`](js/lab-context-output.js), [`js/lab-context-runtime.js`](js/lab-context-runtime.js), [`js/lab-context-settings.js`](js/lab-context-settings.js), [`js/lab-context-wearables.js`](js/lab-context-wearables.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/supplement-context.js`](js/supplement-context.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/supplement-warnings.js`](js/supplement-warnings.js), [`js/theme.js`](js/theme.js), [`js/unit-profiles.js`](js/unit-profiles.js), [`js/utils.js`](js/utils.js), [`js/wearables-formatters.js`](js/wearables-formatters.js)
 - [`js/lab-date-range.js`](js/lab-date-range.js) → no in-scope imports
 - [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js) → [`js/data-merge.js`](js/data-merge.js), [`js/lab-entry.js`](js/lab-entry.js)
+- [`js/lab-entry-restore.js`](js/lab-entry-restore.js) → [`js/data-merge-lab-entries.js`](js/data-merge-lab-entries.js), [`js/lab-entry.js`](js/lab-entry.js)
 - [`js/lab-entry.js`](js/lab-entry.js) → no in-scope imports
 
 </details>
@@ -908,7 +910,7 @@ Native browser modules shipped with the static application.
 <details><summary><code>pdf</code> family — 17 modules</summary>
 
 - [`js/pdf-import-ai-utils.js`](js/pdf-import-ai-utils.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/api.js`](js/api.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/utils.js`](js/utils.js)
-- [`js/pdf-import-commit.js`](js/pdf-import-commit.js) → [`js/adapters.js`](js/adapters.js), [`js/crypto.js`](js/crypto.js), [`js/custom-marker-identity.js`](js/custom-marker-identity.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/mosaic-oat-catalog.js`](js/mosaic-oat-catalog.js), [`js/pdf-import-marker-mapping.js`](js/pdf-import-marker-mapping.js), [`js/pdf-import-persistence.js`](js/pdf-import-persistence.js), [`js/pdf-import-ratio-units.js`](js/pdf-import-ratio-units.js), [`js/pdf-import-review.js`](js/pdf-import-review.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/unique-id.js`](js/unique-id.js), [`js/utils.js`](js/utils.js)
+- [`js/pdf-import-commit.js`](js/pdf-import-commit.js) → [`js/adapters.js`](js/adapters.js), [`js/crypto.js`](js/crypto.js), [`js/custom-marker-identity.js`](js/custom-marker-identity.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/import-commit-validation.js`](js/import-commit-validation.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/mosaic-oat-catalog.js`](js/mosaic-oat-catalog.js), [`js/pdf-import-marker-mapping.js`](js/pdf-import-marker-mapping.js), [`js/pdf-import-persistence.js`](js/pdf-import-persistence.js), [`js/pdf-import-ratio-units.js`](js/pdf-import-ratio-units.js), [`js/pdf-import-review.js`](js/pdf-import-review.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/unique-id.js`](js/unique-id.js), [`js/utils.js`](js/utils.js)
 - [`js/pdf-import-file-handlers.js`](js/pdf-import-file-handlers.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import-ai-utils.js`](js/pdf-import-ai-utils.js), [`js/pdf-import-file-utils.js`](js/pdf-import-file-utils.js), [`js/pdf-import-preflight.js`](js/pdf-import-preflight.js), [`js/pdf-import-progress.js`](js/pdf-import-progress.js), [`js/pdf-import-review.js`](js/pdf-import-review.js), [`js/pdf-import-spreadsheet.js`](js/pdf-import-spreadsheet.js), [`js/pii.js`](js/pii.js), [`js/privacy-safe-diagnostics.js`](js/privacy-safe-diagnostics.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/pdf-import-file-utils.js`](js/pdf-import-file-utils.js) → [`js/pdf-import-spreadsheet.js`](js/pdf-import-spreadsheet.js), [`js/pdfjs-loader.js`](js/pdfjs-loader.js)
 - [`js/pdf-import-marker-mapping.js`](js/pdf-import-marker-mapping.js) → [`js/adapters.js`](js/adapters.js), [`js/mosaic-oat-catalog.js`](js/mosaic-oat-catalog.js), [`js/pdf-import-ratio-units.js`](js/pdf-import-ratio-units.js), [`js/pdf-import-unit-conversions.js`](js/pdf-import-unit-conversions.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js)
@@ -946,12 +948,14 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>profile</code> family — 13 modules</summary>
+<details><summary><code>profile</code> family — 15 modules</summary>
 
 - [`js/profile-context.js`](js/profile-context.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js)
-- [`js/profile-data-migrations.js`](js/profile-data-migrations.js) → [`js/adapters.js`](js/adapters.js), [`js/context-source-registry.js`](js/context-source-registry.js), [`js/custom-marker-identity.js`](js/custom-marker-identity.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/light-env-evening.js`](js/light-env-evening.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/profile-marker-migrations.js`](js/profile-marker-migrations.js), [`js/schema.js`](js/schema.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js)
+- [`js/profile-data-migrations.js`](js/profile-data-migrations.js) → [`js/adapters.js`](js/adapters.js), [`js/context-source-registry.js`](js/context-source-registry.js), [`js/custom-marker-identity.js`](js/custom-marker-identity.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/light-env-evening.js`](js/light-env-evening.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/profile-import-provenance.js`](js/profile-import-provenance.js), [`js/profile-marker-migrations.js`](js/profile-marker-migrations.js), [`js/schema.js`](js/schema.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js)
 - [`js/profile-fatty-acid-migrations.js`](js/profile-fatty-acid-migrations.js) → [`js/adapters.js`](js/adapters.js)
+- [`js/profile-import-provenance.js`](js/profile-import-provenance.js) → [`js/schema.js`](js/schema.js)
 - [`js/profile-list-store.js`](js/profile-list-store.js) → [`js/crypto.js`](js/crypto.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/profile-load-safety.js`](js/profile-load-safety.js) → no in-scope imports
 - [`js/profile-marker-alias-migrations.js`](js/profile-marker-alias-migrations.js) → [`js/adapters.js`](js/adapters.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/schema.js`](js/schema.js)
 - [`js/profile-marker-migrations.js`](js/profile-marker-migrations.js) → [`js/adapters.js`](js/adapters.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/profile-fatty-acid-migrations.js`](js/profile-fatty-acid-migrations.js), [`js/profile-marker-alias-migrations.js`](js/profile-marker-alias-migrations.js), [`js/schema.js`](js/schema.js)
 - [`js/profile-runtime.js`](js/profile-runtime.js) → [`js/chat-loader.js`](js/chat-loader.js), [`js/state.js`](js/state.js), [`js/wearables-connect.js`](js/wearables-connect.js) *(dynamic)*, [`js/wearables-manual.js`](js/wearables-manual.js)
@@ -960,7 +964,7 @@ Native browser modules shipped with the static application.
 - [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js) → [`js/blob-storage.js`](js/blob-storage.js), [`js/crypto.js`](js/crypto.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/wearables-store.js`](js/wearables-store.js)
 - [`js/profile-storage-key.js`](js/profile-storage-key.js) → no in-scope imports
 - [`js/profile-sync-policy.js`](js/profile-sync-policy.js) → no in-scope imports
-- [`js/profile.js`](js/profile.js) → [`js/constants.js`](js/constants.js), [`js/crypto.js`](js/crypto.js), [`js/profile-data-migrations.js`](js/profile-data-migrations.js), [`js/profile-list-store.js`](js/profile-list-store.js), [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/profile-sync-policy.js`](js/profile-sync-policy.js), [`js/proxy-runtime.js`](js/proxy-runtime.js), [`js/state.js`](js/state.js), [`js/unique-id.js`](js/unique-id.js), [`js/unit-profiles.js`](js/unit-profiles.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
+- [`js/profile.js`](js/profile.js) → [`js/constants.js`](js/constants.js), [`js/crypto.js`](js/crypto.js), [`js/profile-data-migrations.js`](js/profile-data-migrations.js), [`js/profile-list-store.js`](js/profile-list-store.js), [`js/profile-load-safety.js`](js/profile-load-safety.js), [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/profile-sync-policy.js`](js/profile-sync-policy.js), [`js/proxy-runtime.js`](js/proxy-runtime.js), [`js/state.js`](js/state.js), [`js/unique-id.js`](js/unique-id.js), [`js/unit-profiles.js`](js/unit-profiles.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
 
 </details>
 

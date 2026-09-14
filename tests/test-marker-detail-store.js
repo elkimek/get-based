@@ -84,7 +84,7 @@ await saveManualMarkerValue({
 const entry = state.importedData.entries[0];
 assert('saveManualMarkerValue writes the canonical insulin value',
   entry.markers['diabetes.insulin'] === 9
-    && entry.markerSources['diabetes.insulin'].file === null);
+    && entry.markerSources['diabetes.insulin'].file === 'lab.pdf');
 assert('saveManualMarkerValue records the insulin manual original once',
   state.importedData.manualValues['diabetes.insulin:2026-05-01'] === 8
     && getManualOriginalForMarker('diabetes.insulin', '2026-05-01') === 8);
@@ -110,7 +110,7 @@ assert('revertManualMarkerValue restores original and clears manual map via null
   entry.markers['biochemistry.glucose'] === 4.7
     && entry.updatedAt === 1_200
     && state.importedData.manualValues['biochemistry.glucose:2026-05-01'] === null
-    && !Object.prototype.hasOwnProperty.call(entry.markerSources || {}, 'biochemistry.glucose'));
+    && entry.markerSources['biochemistry.glucose'].file === 'lab.pdf' && entry.markerSources['biochemistry.glucose'].at === 1_200);
 
 await deleteManualMarkerValue('diabetes.insulin', '2026-05-01', { now: 1_300 });
 assert('deleteManualMarkerValue removes canonical insulin and records its tombstone',

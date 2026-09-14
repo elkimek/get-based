@@ -80,11 +80,12 @@ const importCssSrc = read('css/import.css');
     /const rollback = snapshotImportedData\(\)/.test(confirmBlock)
       && /if \(!saved\) \{[\s\S]{0,200}restoreImportedDataSnapshot\(rollback\)/.test(confirmBlock));
   const jsonImportBlock = exportImportSrc.substring(exportImportSrc.indexOf('export function importDataJSON'), exportImportSrc.indexOf('function importContextField'));
+  const restoreSrc = read('js/lab-entry-restore.js');
   assert('JSON import preserves markerSources.at instead of stamping wall-clock time',
-    /\? \{ \.\.\.entry\.markerSources\[key\] \}/.test(jsonImportBlock)
-      && !/\? \{ \.\.\.entry\.markerSources\[key\], at: importTs \}/.test(jsonImportBlock));
+    restoreSrc.includes('source: source ? { ...source } : null') && !restoreSrc.includes('...source, at: now'));
   assert('JSON import canonicalizes insulin through the shared lab entry helper',
-    /setLabEntryMarker\(existing, key, value,/.test(jsonImportBlock));
+    jsonImportBlock.includes('mergeRestoredLabEntry(existing, entry, importTs)')
+      && restoreSrc.includes('setLabEntryMarker(restored, key, value,'));
   assert('JSON import implementation loads only on the first import action',
     !exportSrc.includes("from './export-import.js'")
       && exportSrc.includes("import('./export-import.js')")

@@ -151,7 +151,7 @@ export async function saveManualEntry(id, opts = {}) {
   const fasting = fastingInput?.value === 'fasting' ? true
     : fastingInput?.value === 'not-fasting' ? false
       : null;
-  await saveManualMarkerValue({
+  const saved = await saveManualMarkerValue({
     dotKey,
     date,
     storedValue,
@@ -161,6 +161,7 @@ export async function saveManualEntry(id, opts = {}) {
       fasting,
     },
   });
+  if (!saved) return;
   // Remember the date session-wide so the next manual entry defaults to it.
   try { sessionStorage.setItem('labcharts-last-manual-date', date); } catch (_) {}
   buildSidebar();
@@ -234,7 +235,7 @@ export function editMarkerValue(id, date, currentValue, event) {
     if (!dotKey) return;
     const storedValue = convertDisplayToSI(dotKey, newValue);
     const updated = await editManualMarkerValue({ dotKey, date, storedValue });
-    if (!updated) return;
+    if (!updated) { saveStarted = false; return; }
     // Rebuild the underlying view so Table/Heatmap/Chart reflect the edit.
     markerDetailDeps.navigate(state.currentView || 'dashboard');
     showDetailModal(id);
@@ -364,7 +365,7 @@ export async function saveMarkerNote(dotKey, id) {
   const input = /** @type {HTMLTextAreaElement | HTMLInputElement | null} */ (document.getElementById('marker-note-input'));
   const text = input?.value?.trim();
   const result = await saveMarkerNoteText(dotKey, text);
-  if (result.action === 'noop') return;
+  if (!result || result.action === 'noop') return;
   showNotification(result.action === 'deleted' ? 'Note removed' : 'Note saved', result.action === 'deleted' ? 'info' : 'success');
   showDetailModal(id);
 }

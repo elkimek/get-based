@@ -1,6 +1,7 @@
 // @ts-check
 // pdf-import-commit.js - Import commit, snapshot deletion, and re-review actions.
 
+import { prepareImportCommit } from './import-commit-validation.js';
 import { state } from './state.js';
 import { ensureCustomMarkerIdentity } from './custom-marker-identity.js';
 import { maybeShowEncryptionNudge } from './crypto.js';
@@ -134,9 +135,17 @@ function findNewestAdoptedLabRange(dotKey) {
     const excluded = new Set(Array.isArray(snapshot.excludedIndices) ? snapshot.excludedIndices : []);
     for (let i = 0; i < snapshot.markers.length; i++) {
       if (excluded.has(i)) continue;
-      const marker = snapshot.markers[i];
+      let marker = snapshot.markers[i];
       if (marker?.mappedKey !== dotKey) continue;
       if (marker.refMin == null && marker.refMax == null) continue;
+      const [category, name] = dotKey.split('.');
+      if (!MARKER_SCHEMA[category]?.markers?.[name] && state.importedData.customMarkers?.[dotKey]) {
+        // Snapshots retain report units; active ranges must use the same saved
+        // unit as the converted marker values, including after report deletion.
+        const prepared = prepareImportCommit({ date: snapshot.date, markers: [{ ...marker, matched: true }] }, new Set(), state.importedData.customMarkers);
+        if (prepared.error || !prepared.markers.length) continue;
+        marker = prepared.markers[0];
+      }
       // Older snapshots predate the explicit adoption flag. Treat only the
       // legacy snapshot matching the currently retained lab interval as
       // adopted, rather than assuming every historical report opted in.
@@ -233,11 +242,17 @@ export async function confirmImport() {
     closeImportModal();
     return;
   }
-  const rollback = snapshotImportedData();
   annotateImportedRatioUnitConventions(result.markers);
   const excludedIdxs = getExcludedImportIndices();
-  const matched = result.markers.filter((m, i) => m.matched && !excludedIdxs.has(i));
-  const newMarkers = result.markers.filter((m, i) => !m.matched && m.suggestedKey && !excludedIdxs.has(i));
+  const prepared = prepareImportCommit(result, excludedIdxs, state.importedData.customMarkers);
+  if (prepared.error) {
+    showNotification(prepared.error, 'error', 12000);
+    if (confirmBtn) confirmBtn.disabled = false;
+    return;
+  }
+  const rollback = snapshotImportedData();
+  const matched = prepared.markers.filter(m => m.matched);
+  const newMarkers = prepared.markers.filter(m => !m.matched && m.suggestedKey);
   const importCount = matched.length + newMarkers.length;
   if (importCount === 0) {
     showNotification("No markers to import", "error");
@@ -518,7 +533,10 @@ function restoreLatestSnapshotMarkerForKey(entry, removedSnapshot, dotKey, now =
   if (!entry || !removedSnapshot || !dotKey) return false;
   const replacement = findLatestRestorableSnapshotMarker(removedSnapshot.date, removedSnapshot.id, dotKey);
   if (!replacement) return false;
-  const { snap, marker } = replacement;
+  const { snap, marker: rawMarker } = replacement;
+  const prepared = prepareImportCommit({ date: snap.date, markers: [{ ...rawMarker, matched: !!rawMarker.mappedKey }] }, new Set(), state.importedData.customMarkers);
+  if (prepared.error || !prepared.markers.length) return false;
+  const marker = prepared.markers[0];
   setLabEntryMarker(entry, dotKey, normalizeToSI(dotKey, marker.value, marker.unit, marker), {
     now,
     source: { file: snap.fileName || null, at: snap.importedAt || now, snapshotId: snap.id },

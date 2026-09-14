@@ -492,8 +492,8 @@ return (async function() {
   assert('Bundle import republishes the complete post-write profile state',
     exportImportSrc.includes('saveImportedDataForProfile(existing.id, current, {') &&
     exportImportSrc.includes('forceProfileScope: true'));
-  assert('Bundle import does date-keyed entry upsert',
-    /const entries = ensureImportedArray\(current,\s*['"]entries['"]\)[\s\S]{0,260}entries\.findIndex\(ex => ex\.date === entry\.date\)[\s\S]{0,180}replaceImportedArrayItem\(current,\s*['"]entries['"],\s*idx,\s*entry\)/.test(exportImportSrc));
+  assert('Bundle import merges markers within a matching date',
+    /const entries = ensureImportedArray\(current,\s*['"]entries['"]\)[\s\S]{0,260}entries\.findIndex\(ex => ex\.date === entry\.date\)[\s\S]{0,180}replaceImportedArrayItem\(current,\s*['"]entries['"],\s*idx,\s*mergeRestoredLabEntry\(entries\[idx\], entry\)\)/.test(exportImportSrc));
   assert('Bundle import deduplicates notes', exportImportSrc.includes('notes.some(x => x.date === n.date && x.text === n.text)'));
   assert('Bundle import deduplicates supplements', exportImportSrc.includes('supplements.some(x => x.name === s.name && x.startDate === s.startDate)'));
   assert('Bundle import merges health goals', exportImportSrc.includes('healthGoals.some(x => x.text === g.text)'));

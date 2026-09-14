@@ -26,6 +26,7 @@ vi.mock('../js/utils.js', () => ({
 }));
 vi.mock('../js/data.js', () => ({
   saveImportedData: runtime.saveImportedData,
+  invalidateActiveDataCache: vi.fn(),
   saveImportedDataForProfile: runtime.saveImportedDataForProfile,
 }));
 vi.mock('../js/profile.js', () => ({
@@ -71,11 +72,6 @@ vi.mock('../js/lab-entry-mutations.js', () => ({
     return entry;
   },
 }));
-vi.mock('../js/lab-entry.js', () => ({
-  setLabEntryMarker(entry, key, value) {
-    entry.markers[key] = value;
-  },
-}));
 vi.mock('../js/export-runtime.js', () => ({
   clearDemoLoadingProfile: runtime.clearDemoLoadingProfile,
   isDemoLoadingProfile: () => false,
@@ -88,6 +84,7 @@ const { importDataJSON } = await import('../js/export-import.js');
 describe('JSON restore runtime', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    runtime.saveImportedData.mockResolvedValue(true);
     localStorage.clear();
     runtime.encryptedGetItem.mockImplementation(async key => localStorage.getItem(key));
     runtime.encryptedSetItem.mockImplementation(async (key, value) => localStorage.setItem(key, value));
@@ -122,6 +119,15 @@ describe('JSON restore runtime', () => {
       notes: [{ date: '2026-01-01', text: 'Existing note' }],
       importSnapshots: [{ id: 'snap-existing', importedAt: 10 }],
     };
+  });
+
+  it('rolls back a JSON import and does not announce success when saving fails', async () => {
+    const before = structuredClone(runtime.state.importedData);
+    runtime.saveImportedData.mockResolvedValueOnce(false);
+    await importDataJSON(new File([JSON.stringify({ entries: [{ date: '2026-01-10', markers: { glucose: 120 } }] })], 'failed.json'));
+    expect(runtime.state.importedData).toEqual(before);
+    expect(runtime.showNotification.mock.calls.some(([, kind]) => kind === 'success')).toBe(false);
+    expect(runtime.showNotification).toHaveBeenCalledWith(expect.stringContaining('could not be saved'), 'error');
   });
 
   it('restores a persona-only chat backup without requiring a conversation thread', async () => {

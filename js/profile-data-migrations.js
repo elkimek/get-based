@@ -13,6 +13,7 @@ import {
   syncLabEntryInsulinMirror,
 } from './lab-entry.js';
 import { repairProfileMarkerData } from './profile-marker-migrations.js';
+import { repairEditedImportProvenance } from './profile-import-provenance.js';
 import { MARKER_SCHEMA } from './schema.js';
 import { migrateSupplementMedicationRecords } from './supplement-medication-domain.js';
 
@@ -145,6 +146,11 @@ export function migrateProfileData(data) {
     for (const fullKey of Object.keys(data.customMarkers)) {
       const [categoryKey, markerKey] = fullKey.split('.');
       if (!markerKey || MARKER_SCHEMA[categoryKey]) continue;
+      if (!(categoryKey.endsWith('FA') || categoryKey === 'fattyAcidsTest')) continue;
+      const custom = data.customMarkers[fullKey];
+      const target = standardLookup[markerKey];
+      const standard = target ? MARKER_SCHEMA[target.split('.')[0]]?.markers?.[markerKey] : null;
+      if (!standard || custom.unit !== standard.unit || /urine|creatinine/i.test(`${custom.name || ''} ${custom.categoryLabel || ''}`)) continue;
       if (SPECIALTY_MARKER_DEFS[fullKey]) continue;
       const standardKey = standardLookup[markerKey];
       if (!standardKey) continue;
@@ -277,5 +283,6 @@ export function migrateProfileData(data) {
   migrateSupplementMedicationRecords(data);
   migrateCustomMarkerIdentities(data.customMarkers);
   migrateMarkerPlacements(data);
+  repairEditedImportProvenance(data);
   return data;
 }

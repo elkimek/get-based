@@ -109,7 +109,7 @@ test('marker detail store browser coverage persists manual values notes ranges a
       outcomes.saveManualMarkerValueStoresCanonicalInsulinOriginalNoteAndHOMAIR =
         entry.markers['diabetes.insulin'] === 9
         && entry.markers['diabetes.homaIR'] === 1.88
-        && entry.markerSources['diabetes.insulin'].file === null
+        && entry.markerSources['diabetes.insulin'].file === 'lab.pdf'
         && state.importedData.manualValues['diabetes.insulin:2026-05-01'] === 8
         && store.getManualOriginalForMarker('diabetes.insulin', '2026-05-01') === 8
         && state.importedData.markerValueNotes['diabetes.insulin:2026-05-01'] === 'fasted'
@@ -139,7 +139,7 @@ test('marker detail store browser coverage persists manual values notes ranges a
         && entry.markers['biochemistry.glucose'] === 4.7
         && entry.updatedAt === 1_200
         && state.importedData.manualValues['biochemistry.glucose:2026-05-01'] === null
-        && !hasOwn(entry.markerSources, 'biochemistry.glucose');
+        && entry.markerSources['biochemistry.glucose'].file === 'lab.pdf' && entry.markerSources['biochemistry.glucose'].at === 1_200;
 
       const deleteMissing = await store.deleteManualMarkerValue('hormones.cortisol', '2026-05-01', { now: 1_250 });
       const deletedInsulin = await store.deleteManualMarkerValue('diabetes.insulin', '2026-05-01', { now: 1_300 });

@@ -104,7 +104,7 @@ console.log('=== Manual Entry Flow Tests ===\n');
     /function getManualValueForMarker\(dotKey, date\)[\s\S]{0,500}const key = dotKey \+ ':' \+ date/.test(markerDetailSrc) &&
     /map\[key\] != null && map\[key\] !== true/.test(markerDetailSrc) &&
     /const manualVal = rawDate \? getManualValueForMarker\(dotKey, rawDate\) : undefined/.test(markerDetailSrc) &&
-    /const isManualSource = !!\(src && src\.file == null\)/.test(markerDetailSrc));
+    /const isManualSource = !!\(src && src\.file == null && !src\.snapshotId\)/.test(markerDetailSrc));
 
   // ═══════════════════════════════════════
   // 4. Save & Add Another flow

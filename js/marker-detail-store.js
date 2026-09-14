@@ -2,7 +2,7 @@
 // marker-detail-store.js - synced marker-detail mutation boundary.
 
 import { state } from './state.js';
-import { saveImportedData } from './data.js';
+import { saveImportedData, invalidateActiveDataCache } from './data.js';
 import {
   deleteLabEntryMarkerFromImportedData,
   findOrCreateLabEntry,
@@ -11,6 +11,20 @@ import {
   setLabEntryCollectionContext,
   setLabEntryMarker,
 } from './lab-entry.js';
+
+function captureMarkerEdit() {
+  return { profileId: state.currentProfile, data: JSON.parse(JSON.stringify({ ...state.importedData, toJSON: undefined })) };
+}
+
+async function persistMarkerEdit(rollback) {
+  const edited = state.importedData;
+  if (await saveImportedData()) return true;
+  if (state.currentProfile === rollback.profileId && state.importedData === edited) {
+    state.importedData = rollback.data;
+    invalidateActiveDataCache();
+  }
+  return false;
+}
 
 const VALUE_NOTE_MAX_CHARS = 500;
 
@@ -44,9 +58,16 @@ function entryMarkerValue(entry, dotKey) {
 function entryHasImportedSource(entry, dotKey) {
   if (!entry) return false;
   const markerSource = entry.markerSources?.[dotKey];
-  if (markerSource?.file) return true;
+  if (markerSource) return !!(markerSource.snapshotId || markerSource.file);
   if (entry.sourceFile) return true;
   return Array.isArray(entry.sourceFiles) && entry.sourceFiles.some(Boolean);
+}
+
+function editedMarkerSource(entry, dotKey, now) {
+  const source = entry.markerSources?.[dotKey];
+  return source?.snapshotId || source?.file
+    ? { ...source, at: now, manuallyEdited: true }
+    : { file: null, at: now };
 }
 
 function rememberManualOriginal(dotKey, date, entry) {
@@ -111,6 +132,7 @@ function writeMarkerValueNote(dotKey, date, noteText) {
  * @param {{ dotKey?: string, date?: string, storedValue?: any, noteText?: string, collectionContext?: { sampleTime?: unknown, fasting?: unknown }, now?: number }} [opts]
  */
 export async function saveManualMarkerValue({ dotKey, date, storedValue, noteText = '', collectionContext, now = Date.now() } = {}) {
+  const rollback = captureMarkerEdit();
   if (!dotKey || !date) return null;
   const data = ensureImportedData();
   const entry = findOrCreateLabEntry(data, date, { now });
@@ -118,11 +140,11 @@ export async function saveManualMarkerValue({ dotKey, date, storedValue, noteTex
   rememberManualOriginal(dotKey, date, entry);
   setLabEntryMarker(entry, dotKey, storedValue, {
     now,
-    source: { file: null, at: now },
+    source: editedMarkerSource(entry, dotKey, now),
   });
   if (collectionContext) setLabEntryCollectionContext(entry, collectionContext, { now });
   writeMarkerValueNote(dotKey, date, noteText);
-  await saveImportedData();
+  if (!await persistMarkerEdit(rollback)) return null;
   return entry;
 }
 
@@ -130,53 +152,60 @@ export async function saveManualMarkerValue({ dotKey, date, storedValue, noteTex
  * @param {{ dotKey?: string, date?: string, storedValue?: any, now?: number }} [opts]
  */
 export async function editManualMarkerValue({ dotKey, date, storedValue, now = Date.now() } = {}) {
+  const rollback = captureMarkerEdit();
   const entry = state.importedData?.entries?.find(e => e.date === date);
   if (!entry || !dotKey) return null;
   rememberManualOriginal(dotKey, date, entry);
   setLabEntryMarker(entry, dotKey, storedValue, {
     now,
-    source: { file: null, at: now },
+    source: editedMarkerSource(entry, dotKey, now),
   });
-  await saveImportedData();
+  if (!await persistMarkerEdit(rollback)) return null;
   return entry;
 }
 
 export async function deleteManualMarkerValue(dotKey, date, { now = Date.now() } = {}) {
+  const rollback = captureMarkerEdit();
   const entry = state.importedData?.entries?.find(e => e.date === date);
   if (!entry || entryMarkerValue(entry, dotKey) === undefined) return null;
   const result = deleteLabEntryMarkerFromImportedData(state.importedData, entry, dotKey, {
     now,
   });
   if (!result.changed) return null;
-  await saveImportedData();
+  if (!await persistMarkerEdit(rollback)) return null;
   return result;
 }
 
 export async function revertManualMarkerValue(dotKey, date, { now = Date.now() } = {}) {
+  const rollback = captureMarkerEdit();
   const original = getManualOriginalForMarker(dotKey, date);
   if (original == null || original === true) return null;
   const entry = state.importedData?.entries?.find(e => e.date === date);
   if (!entry) return null;
+  const source = { ...entry.markerSources?.[dotKey], at: now };
+  delete source.manuallyEdited;
   setLabEntryMarker(entry, dotKey, original, {
     now,
-    clearSource: true,
+    source,
   });
   const manualValues = ensureMap('manualValues');
   clearSyncedMapValue(manualValues, mapKey(dotKey, date));
-  await saveImportedData();
+  if (!await persistMarkerEdit(rollback)) return null;
   return entry;
 }
 
 export async function saveMarkerValueNote(dotKey, date, noteText) {
+  const rollback = captureMarkerEdit();
   const changed = writeMarkerValueNote(dotKey, date, noteText);
-  if (changed) await saveImportedData();
+  if (changed && !await persistMarkerEdit(rollback)) return false;
   return changed;
 }
 
 export async function deleteMarkerValueNote(dotKey, date) {
+  const rollback = captureMarkerEdit();
   const notes = ensureMap('markerValueNotes');
   const changedPrimary = clearSyncedMapValue(notes, mapKey(dotKey, date));
-  if (changedPrimary) await saveImportedData();
+  if (changedPrimary && !await persistMarkerEdit(rollback)) return false;
   return changedPrimary;
 }
 
@@ -186,6 +215,7 @@ export async function deleteMarkerValueNote(dotKey, date) {
  * @param {{ min?: number | null, max?: number | null }} [range]
  */
 export async function saveRefRangeOverride(dotKey, type, { min, max } = {}) {
+  const rollback = captureMarkerEdit();
   const isOptimal = type === 'optimal';
   const isReference = type === 'ref' || type === 'reference';
   if (!dotKey || (!isOptimal && !isReference)) return null;
@@ -209,11 +239,12 @@ export async function saveRefRangeOverride(dotKey, type, { min, max } = {}) {
     ovr.refMax = max;
     ovr.refSource = 'manual';
   }
-  await saveImportedData();
+  if (!await persistMarkerEdit(rollback)) return null;
   return ovr;
 }
 
 export async function revertRefRangeOverride(dotKey, type) {
+  const rollback = captureMarkerEdit();
   const ovr = state.importedData?.refOverrides?.[dotKey];
   const isOptimal = type === 'optimal';
   const isReference = type === 'ref' || type === 'reference';
@@ -247,29 +278,31 @@ export async function revertRefRangeOverride(dotKey, type) {
     }
   }
   if (Object.keys(ovr).length === 0) delete state.importedData.refOverrides[dotKey];
-  await saveImportedData();
+  if (!await persistMarkerEdit(rollback)) return null;
   return { message };
 }
 
 export async function saveMarkerNoteText(dotKey, text) {
+  const rollback = captureMarkerEdit();
   if (!dotKey) return { action: 'noop' };
   const markerNotes = ensureMap('markerNotes');
   const clean = String(text || '').trim();
   if (!clean) {
     if (!Object.prototype.hasOwnProperty.call(markerNotes, dotKey)) return { action: 'noop' };
     delete markerNotes[dotKey];
-    await saveImportedData();
+    if (!await persistMarkerEdit(rollback)) return null;
     return { action: 'deleted' };
   }
   markerNotes[dotKey] = clean;
-  await saveImportedData();
+  if (!await persistMarkerEdit(rollback)) return null;
   return { action: 'saved' };
 }
 
 export async function deleteMarkerNoteText(dotKey) {
+  const rollback = captureMarkerEdit();
   const markerNotes = state.importedData?.markerNotes;
   if (!markerNotes || !Object.prototype.hasOwnProperty.call(markerNotes, dotKey)) return false;
   delete markerNotes[dotKey];
-  await saveImportedData();
+  if (!await persistMarkerEdit(rollback)) return null;
   return true;
 }

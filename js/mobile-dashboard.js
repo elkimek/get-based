@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, getStatus, formatValue, getTrend, formatDate, safeMarkerId } from './utils.js';
-import { getActiveData } from './data.js';
+import { getActiveData, renderDateRangeFilter } from './data.js';
 import { getAllFlaggedMarkers, getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
 import { getProfiles } from './profile.js';
 import { canonicalMetric, metricsForSources } from './wearable-adapters.js';
@@ -515,6 +515,7 @@ export function renderMobileDashboard(data, { resetScroll = false } = {}) {
           <div class="m-greeting-sub">${escapeHTML(greetingSub)}</div>
         </section>
 
+        ${data.dates?.length ? renderDateRangeFilter({ showScope: true }) : ''}
         ${mobileWidgetStack}
       </div>
     </div>

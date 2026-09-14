@@ -1,6 +1,7 @@
 // @ts-check
 // data.js — Data pipeline, unit conversion, date range, trend detection
 
+import { isProfileReadBlocked } from './profile-load-safety.js';
 import { state } from './state.js';
 import { populateCalculatedMarkers } from './data-calculated-markers.js';
 import {
@@ -242,10 +243,8 @@ function _makeActiveDataCacheMeta() {
   };
 }
 
-// ═══════════════════════════════════════════════
-// STORAGE
-// ═══════════════════════════════════════════════
 export async function saveImportedData(options = {}) {
+  if (isProfileReadBlocked(state.currentProfile)) { showNotification('Profile could not be loaded. Reload before saving changes.', 'error'); return false; }
   invalidateActiveDataCache();
   try {
     // Persist the canonical schema shape, not just the current in-memory shape.
@@ -285,7 +284,7 @@ export async function saveImportedData(options = {}) {
 // write profile A's change into profile B. Active-profile calls retain the
 // usual save hooks unless the caller explicitly requires profile scoping.
 export async function saveImportedDataForProfile(profileId, importedData, options = {}) {
-  if (!profileId || !importedData || typeof importedData !== 'object') return false;
+  if (!profileId || !importedData || typeof importedData !== 'object' || isProfileReadBlocked(profileId)) return false;
   if (!options?.forceProfileScope && profileId === state.currentProfile && importedData === state.importedData) {
     return saveImportedData(options);
   }

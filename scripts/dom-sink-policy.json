@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 713,
+  "scannedFiles": 717,
   "sinkCount": 555,
   "files": {
     "js/backup.js": {
@@ -576,7 +576,7 @@
     },
     "js/mobile-dashboard.js": {
       "count": 3,
-      "digest": "459d8e78941ba3abcbe233472bf0e4d69d8700864fc15270ea1c5ba79583a1ae",
+      "digest": "01575c2a991ba2c5ecf2f04030dbc589ecbf5c3882225f9bcb0f2b8df9391ced",
       "kinds": {
         "innerHTML": 1,
         "insertAdjacentHTML": 1,

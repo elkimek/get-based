@@ -457,6 +457,17 @@
   border-radius: var(--radius-sm); border: 1px solid var(--border);
   width: fit-content;
 }
+.dashboard-lab-date-range {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px; margin-bottom: 20px; padding: 12px 16px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-secondary); color: var(--text-primary);
+}
+.dashboard-lab-date-range strong { font-size: 13px; }
+.dashboard-lab-date-range p {
+  margin: 4px 0 0; font-size: 12px; line-height: 1.5; color: var(--text-secondary);
+}
+.dashboard-lab-date-range .date-range-filter { flex-shrink: 0; }
 .range-btn {
   padding: 6px 12px; border-radius: 6px; border: none; background: transparent;
   color: var(--text-secondary); font-size: 12px; cursor: pointer;

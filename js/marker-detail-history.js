@@ -34,6 +34,9 @@ export function buildMarkerHistoryMetadata(entry, source, rawDate) {
     if (fileName) {
       const display = fileName.length > 30 ? fileName.slice(0, 27) + '...' : fileName;
       sourceHtml = `<div class="mv-source" title="${escapeHTML(fileName)}">${escapeHTML(display)}</div>`;
+      if (source?.manuallyEdited) sourceHtml += '<div class="mv-source mv-source-manual">manually edited</div>';
+    } else if (source?.snapshotId) {
+      sourceHtml = `<div class="mv-source">Imported report${source.manuallyEdited ? ' · manually edited' : ''}</div>`;
     } else if (source) {
       sourceHtml = '<div class="mv-source mv-source-manual">manual entry</div>';
     }

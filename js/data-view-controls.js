@@ -186,16 +186,21 @@ export function installDataActionDelegates(root = typeof document !== 'undefined
 
 installDataActionDelegates();
 
-export function renderDateRangeFilter() {
+export function renderDateRangeFilter({ showScope = false } = {}) {
   const ranges = [
     { key: '3m', label: '3M' },
     { key: '6m', label: '6M' },
     { key: '1y', label: '1Y' },
     { key: 'all', label: 'All' }
   ];
-  return `<div class="date-range-filter">${ranges.map(r =>
-    `<button class="range-btn${state.dateRangeFilter === r.key ? ' active' : ''}" type="button" ${dataActionAttrs('set-date-range', { range: r.key })}>${r.label}</button>`
+  const control = `<div class="date-range-filter" role="group" aria-label="Lab date range">${ranges.map(r =>
+    `<button class="range-btn${state.dateRangeFilter === r.key ? ' active' : ''}" type="button" aria-pressed="${state.dateRangeFilter === r.key}" ${dataActionAttrs('set-date-range', { range: r.key })}>${r.label}</button>`
   ).join('')}</div>`;
+  if (!showScope) return control;
+  return `<div class="dashboard-lab-date-range">
+    <div><strong>Lab date range</strong><p>Filters lab trends and sidebar categories.${state.dateRangeFilter === 'all' ? ' All saved dates are included.' : ' Older results and categories may be hidden.'}</p></div>
+    ${control}
+  </div>`;
 }
 
 export function setDateRange(range) {

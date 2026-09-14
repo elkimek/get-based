@@ -468,7 +468,7 @@ function renderDetailModal(id, opts = {}) {
     const src = srcEntry?.markerSources?.[dotKey];
     const { collectionContextHtml, sourceHtml } = buildMarkerHistoryMetadata(srcEntry, src, rawDate);
     const manualVal = rawDate ? getManualValueForMarker(dotKey, rawDate) : undefined;
-    const isManualSource = !!(src && src.file == null);
+    const isManualSource = !!(src && src.file == null && !src.snapshotId);
     const isManual = isManualSource || (manualVal !== undefined && manualVal !== null);
     const canRevert = manualVal !== undefined && manualVal !== null && manualVal !== true;
     const manualBadge = canRevert

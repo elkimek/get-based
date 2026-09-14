@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { escapeAttr, escapeHTML, formatDate } from './utils.js';
-import { getActiveData } from './data.js';
+import { getActiveData, renderDateRangeFilter } from './data.js';
 import { getProfiles, profileStorageKey } from './profile.js';
 import { loadContextHealthDots } from './health-data-loader.js';
 import { isAIPaused } from './api.js';
@@ -167,6 +167,7 @@ export function createDashboardPageView(deps) {
     const prefs = getDashboardWidgetPrefs();
     const visibleEntries = getVisibleDashboardWidgetEntries(ctx, prefs);
     let html = renderDashboardGreeting(ctx, title, visibleEntries.length);
+    if (ctx.data.dates.length > 0) html += renderDateRangeFilter({ showScope: true });
     html += `<div class="drop-zone drop-zone-hidden" id="drop-zone"></div>`;
     html += renderOnboardingBanner();
     html += renderAIConnectionReminder();

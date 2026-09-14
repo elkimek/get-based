@@ -1,5 +1,5 @@
 // @ts-check
-// profile.js — Profile CRUD, sex/DOB, location, and storage facade.
+import { readProfileForLoad } from './profile-load-safety.js';
 import { state } from './state.js';
 import { COUNTRY_LATITUDES, LATITUDE_BANDS } from './constants.js';
 import { isDebugMode, showConfirmDialog, showNotification } from './utils.js';
@@ -281,10 +281,10 @@ function queueProfileSync(profileId, importedData = null) {
  * @returns {Promise<void>}
  */
 export async function loadProfile(profileId) {
+  const savedImported = await readProfileForLoad(profileId, () => encryptedGetItem(profileStorageKey(profileId, 'imported')), profileDeps.showNotification);
   state.currentProfile = profileId;
   setActiveProfileId(profileId);
   await invalidateProfileContextCache();
-  const savedImported = await encryptedGetItem(profileStorageKey(profileId, 'imported'));
   const defaultData = createDefaultProfileData();
   state.importedData = defaultData;
   if (savedImported) {
