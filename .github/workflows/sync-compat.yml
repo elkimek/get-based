@@ -6,7 +6,7 @@ on:
       focus:
         type: choice
         default: all
-        options: [all, offline]
+        options: [all, offline, sync]
 
 permissions:
   contents: read
@@ -112,6 +112,7 @@ jobs:
           retention-days: 7
 
   offline:
+    if: inputs.focus != 'sync'
     name: Offline baseline (${{ matrix.ref }})
     runs-on: ubuntu-latest
     timeout-minutes: 12

@@ -10,7 +10,7 @@ import {
   onProfileSaved,
   readProfileImportedData,
 } from '../js/sync-save-hooks.js';
-import { getSyncDirtyToken, markSyncProfileDirty } from '../js/sync-dirty-state.js';
+import { clearSyncProfileDirty, getSyncDirtyToken, markSyncProfileDirty } from '../js/sync-dirty-state.js';
 
 describe('sync save-hook profile data dependencies', () => {
   afterEach(() => {
@@ -149,6 +149,27 @@ describe('sync save-hook profile data dependencies', () => {
       }
     });
   }
+
+  it('does not replay a delayed save after manual sync already committed it', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const previousProfile = state.currentProfile, previousData = state.importedData;
+    const pushProfile = vi.fn(async () => ({ ok: true }));
+    const previous = configureSyncSaveHooks({
+      pushProfile, isSyncConfigured: () => true, isSyncEnabled: () => true,
+      isEvoluReady: () => true, isSyncing: () => false, getProfiles: () => [{ id: 'already-synced' }],
+    });
+    try {
+      state.currentProfile = 'already-synced';
+      state.importedData = { entries: [], contextNotes: 'edited locally' };
+      onDataSaved();
+      clearSyncProfileDirty('already-synced', getSyncDirtyToken('already-synced'));
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(pushProfile).not.toHaveBeenCalled();
+    } finally {
+      clearSyncSaveTimers(); vi.useRealTimers(); configureSyncSaveHooks(previous);
+      state.currentProfile = previousProfile; state.importedData = previousData;
+    }
+  });
 
   it('keeps paused edits dirty without starting a push', () => {
     const previousCurrentProfile = state.currentProfile;

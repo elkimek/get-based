@@ -8,7 +8,7 @@ import { encryptedGetItem } from './crypto.js';
 import { markChatDataLocal, markCustomPersonalityDataLocal } from './sync-chat-apply.js';
 import { pushContextToGateway } from './sync-messenger.js';
 import { addUtilsRuntimeListener } from './utils-runtime.js';
-import { discardSyncProfileDirty, markSyncProfileDirty } from './sync-dirty-state.js';
+import { discardSyncProfileDirty, getSyncDirtyToken, markSyncProfileDirty } from './sync-dirty-state.js';
 import { getProfileSyncBlockReason, hasPendingProfileTombstone } from './profile-sync-policy.js';
 
 /** @type {(...args: any[]) => Promise<any>} */
@@ -160,6 +160,8 @@ export async function readProfileImportedData(profileId, fallback = null) {
  * @param {number} [attempt]
  */
 function scheduleProfilePush(profileId, data, attempt = 0) {
+  // Manual sync or a dirty-profile flush may already have committed this save.
+  if (!getSyncDirtyToken(profileId)) return;
   if (isProfileSyncBlocked(profileId)) {
     _profileSyncTimers.delete(profileId);
     return;
@@ -192,7 +194,7 @@ function scheduleProfilePush(profileId, data, attempt = 0) {
   // A pull can replace the profile while this debounce/retry is waiting.
   // Publishing the captured snapshot would infer deletions for newly received rows.
   readProfileImportedData(profileId, data).then(latest => {
-    if (!latest || !_isSyncEnabled() || isProfileSyncBlocked(profileId)) return;
+    if (!latest || !getSyncDirtyToken(profileId) || !_isSyncEnabled() || isProfileSyncBlocked(profileId)) return undefined;
     return _pushProfile(profileId, latest);
   }).catch(() => {});
 }
