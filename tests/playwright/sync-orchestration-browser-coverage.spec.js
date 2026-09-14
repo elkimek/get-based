@@ -21,8 +21,7 @@ test('sync recovery events throttle resume pulls and notify network changes', as
     let visibleState = 'hidden';
     let enabled = true;
     let ready = false;
-    const pushCount = () => calls.filter(call => call === 'push').length;
-    const pullCount = () => calls.filter(call => call === 'pull').length;
+    const syncCount = () => calls.filter(call => call === 'sync').length;
     const notifyCount = () => calls.filter(call => call.startsWith('notify:')).length;
     const pageShow = persisted => {
       const event = new Event('pageshow');
@@ -45,8 +44,7 @@ test('sync recovery events throttle resume pulls and notify network changes', as
       recovery.configureSyncRecovery({
         isSyncEnabled: () => enabled,
         isEvoluReady: () => ready,
-        pushCurrentProfile: async () => { calls.push('push'); },
-        forcePull: () => { calls.push('pull'); },
+        syncNow: async () => { calls.push('sync'); },
         debug: message => { calls.push(`debug:${message}`); },
         notify: (message, type, duration) => { calls.push(`notify:${type}:${duration}:${message}`); },
       });
@@ -59,20 +57,18 @@ test('sync recovery events throttle resume pulls and notify network changes', as
 
       ready = true;
       document.dispatchEvent(new Event('visibilitychange'));
-      outcomes.visibilityResumeKicksOnce = pushCount() === 1
-        && pullCount() === 1
+      outcomes.visibilityResumeKicksOnce = syncCount() === 1
         && calls.some(call => call === 'debug:Tab resume (visibilitychange) - kicking syncNow');
 
       document.dispatchEvent(new Event('visibilitychange'));
-      outcomes.throttlesRepeatedVisibility = pushCount() === 1 && pullCount() === 1;
+      outcomes.throttlesRepeatedVisibility = syncCount() === 1;
 
       now += 31_000;
       pageShow(false);
-      outcomes.ignoresNonPersistedPageShow = pushCount() === 1 && pullCount() === 1;
+      outcomes.ignoresNonPersistedPageShow = syncCount() === 1;
 
       pageShow(true);
-      outcomes.persistedPageShowKicksAfterThrottle = pushCount() === 2
-        && pullCount() === 2
+      outcomes.persistedPageShowKicksAfterThrottle = syncCount() === 2
         && calls.some(call => call === 'debug:Tab resume (pageshow-persisted) - kicking syncNow');
 
       window.dispatchEvent(new Event('offline'));
@@ -81,16 +77,14 @@ test('sync recovery events throttle resume pulls and notify network changes', as
 
       now += 31_000;
       window.dispatchEvent(new Event('online'));
-      outcomes.onlineKicksAndNotifies = pushCount() === 3
-        && pullCount() === 3
+      outcomes.onlineKicksAndNotifies = syncCount() === 3
         && calls.some(call => call.includes('notify:success:3000:Back online'));
 
       enabled = false;
       window.dispatchEvent(new Event('offline'));
       now += 31_000;
       window.dispatchEvent(new Event('online'));
-      outcomes.disabledOnlineDoesNotKick = pushCount() === 3
-        && pullCount() === 3
+      outcomes.disabledOnlineDoesNotKick = syncCount() === 3
         && notifyCount() === 4;
     } finally {
       Date.now = original.now;

@@ -22,7 +22,7 @@ import { bindSyncUIStatusUpdates, configureSyncUI, initSyncUIDelegates } from '.
 import { configureSyncDiagnoseUI, showSyncDiagnose } from './sync-diagnose-ui.js';
 import {
   configureSyncActions, forceResendCurrentProfile, pushAllProfiles,
-  pushCurrentProfile, pushDirtyProfiles, pushProfilesById, syncNow,
+  pushDirtyProfiles, pushProfilesById, syncNow,
 } from './sync-actions.js';
 import { bindSyncSaveHookEvents, configureSyncSaveHooks } from './sync-save-hooks.js';
 import { configureSyncPush, isSyncPushInFlight, pushProfile } from './sync-push.js';
@@ -194,8 +194,7 @@ export function configureSyncModules({ enableSync } = {}) {
   configureSyncRecovery({
     isSyncEnabled,
     isEvoluReady: isSyncEvoluReady,
-    pushCurrentProfile,
-    forcePull: _forcePull,
+    syncNow,
     debug: dbg,
     /** @param {...any} args */
     notify: (...args) => {
