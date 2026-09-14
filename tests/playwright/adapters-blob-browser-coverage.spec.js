@@ -378,7 +378,8 @@ test('blob storage browser coverage exercises size diagnostics and IDB failure r
         getError: await readError(mod),
         setError,
         size: await mod.getBlobStorageSize(),
-        warningCount: warnings.length,
+        deleteWarning: warnings.some(warning => warning.includes('[blob-storage] deleteBlob failed:')
+          && warning.includes('delete failed')),
       };
     });
 
@@ -393,7 +394,7 @@ test('blob storage browser coverage exercises size diagnostics and IDB failure r
       requestErrors.getError.includes('get failed')
       && requestErrors.setError.includes('put failed')
       && requestErrors.size === 0
-      && requestErrors.warningCount >= 2;
+      && requestErrors.deleteWarning;
 
     outcomes.allOutcomesReached = true;
     return outcomes;
