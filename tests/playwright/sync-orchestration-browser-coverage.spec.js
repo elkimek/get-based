@@ -109,6 +109,36 @@ test('sync recovery events throttle resume pulls and notify network changes', as
   }
 });
 
+test('forced pulls wait for an active pull before reading a fresh replica', async ({ page }) => {
+  await page.goto('/app');
+  const result = await page.evaluate(async () => {
+    const pull = await import('/js/sync-pull.js');
+    const tombstones = await import('/js/sync-tombstones.js');
+    tombstones.configureSyncTombstones({ getEvolu: () => null, getTombstoneQuery: () => null, isSyncEnabled: () => false });
+    let release, entered;
+    const blocked = new Promise(resolve => { release = resolve; });
+    const started = new Promise(resolve => { entered = resolve; });
+    let calls = 0;
+    pull.configureSyncPull({
+      getEvolu: () => ({ getQueryRows: () => [] }), getProfileQuery: () => ({}), isSyncEnabled: () => true,
+      pushDirtyProfiles: async () => {
+        calls++;
+        if (calls === 1) { entered(); await blocked; }
+        return { failed: 0, skipped: 0 };
+      },
+    });
+    const initial = pull.onSyncReceived();
+    await started;
+    const forced = pull.forcePull();
+    await new Promise(resolve => setTimeout(resolve, 20));
+    const beforeRelease = calls;
+    release();
+    await Promise.all([initial, forced]);
+    return { beforeRelease, calls, pulling: pull.isSyncPulling() };
+  });
+  expect(result).toEqual({ beforeRelease: 1, calls: 2, pulling: false });
+});
+
 test('sync pull browser force paths update status and skip unsafe rows', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#notification-container', { state: 'attached' });
