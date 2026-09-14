@@ -22,7 +22,7 @@ export {
 /** @param {any[]} rows @param {string} profileId */
 export function latestProfileRow(rows, profileId) {
   return (rows || []).filter(row => row?.profileId === profileId)
-    .sort((a, b) => Date.parse(b?.syncedAt || '') - Date.parse(a?.syncedAt || ''))[0];
+    .sort((a, b) => (Date.parse(b?.syncedAt || '') || 0) - (Date.parse(a?.syncedAt || '') || 0))[0];
 }
 
 /** @type {{ getProfiles: () => any[] }} */

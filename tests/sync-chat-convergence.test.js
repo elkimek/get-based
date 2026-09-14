@@ -3,7 +3,7 @@ import { state } from '../js/state.js';
 import { applyChatData, chatDataNeedsRebroadcast } from '../js/sync-chat-apply.js';
 import { collectChatData } from '../js/sync-payload-collectors.js';
 import { chatHasLocalChanges, mergeChatData } from '../js/sync-chat-merge.js';
-import { buildSyncPayload, parseSyncPayload } from '../js/sync-payload.js';
+import { buildSyncPayload, latestProfileRow, parseSyncPayload } from '../js/sync-payload.js';
 import { configureSyncReconcile, reconcileLocalStorageWithEvolu } from '../js/sync-reconcile.js';
 import { configureSyncPush, pushProfile } from '../js/sync-push.js';
 import { configureSyncDelta } from '../js/sync-delta.js';
@@ -182,7 +182,7 @@ test('legacy metadata edits preserve the old body clock before rename, pin or pr
 
 test('an unreadable duplicate replica does not block preserving the usable remote chat', async () => {
   const good = { id: 'good', profileId, dataJson: JSON.stringify({ _v: 4, chatData: payload('remote') }), syncedAt: newDate };
-  const bad = { id: 'bad', profileId, dataJson: '{malformed', syncedAt: oldDate };
+  const bad = { id: 'bad', profileId, dataJson: '{malformed', syncedAt: null };
   let sent;
   configureSyncPush({ getEvolu: () => ({ getQueryRows: () => [bad, good], update: (_table, value, { onComplete }) => { sent = value; onComplete(); } }),
     getProfileQuery: () => ({}), isSyncEnabled: () => true, getProfiles: () => [{ id: profileId }], isPhase2CutoverEnabled: () => false });
@@ -207,4 +207,11 @@ test('startup ignores a superseded profile row once the newest replica already c
     isSyncEnabled: () => true, getProfiles: () => [{ id: profileId }], pushProfile: push });
   await reconcileLocalStorageWithEvolu();
   expect(push).not.toHaveBeenCalled();
+});
+
+test.each([null, undefined, '', 'invalid'])('duplicate selection handles timestamp %s in either query order', syncedAt => {
+  const current = { profileId, syncedAt: newDate };
+  const stale = { profileId, syncedAt };
+  expect(latestProfileRow([stale, current], profileId)).toBe(current);
+  expect(latestProfileRow([current, stale], profileId)).toBe(current);
 });
