@@ -46,13 +46,20 @@ export async function startPwaServer(upstream) {
   });
   server.on('connection', socket => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  let closing;
+  const disconnect = () => {
+    if (!closing) {
+      state.offline = true;
+      closing = new Promise(resolve => server.close(resolve));
+      for (const socket of sockets) socket.destroy();
+    }
+    return closing;
+  };
   return {
     state,
+    disconnect,
     release() { state.holdPath = ''; for (const resume of heldResponses.splice(0)) resume(); },
     origin: `http://127.0.0.1:${server.address().port}`,
-    async close() {
-      for (const socket of sockets) socket.destroy();
-      await new Promise(resolve => server.close(resolve));
-    },
+    close: disconnect,
   };
 }

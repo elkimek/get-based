@@ -91,7 +91,7 @@ jobs:
             SYNC_TRANSPORT_EVOLU_CLIENT="${client}" \
             SYNC_TRANSPORT_RELAY=ws://127.0.0.1:4000 \
             SYNC_TRANSPORT_SELF_URL=http://127.0.0.1:4003 \
-            npx playwright test tests/playwright/sync-relay-transport-e2e.spec.js --workers=1 --repeat-each=3 --grep "real relay converges"
+            npx playwright test tests/playwright/sync-relay-transport-e2e.spec.js --workers=1 --repeat-each=5 --grep "real relay converges"
 
       - name: Upload transport logs on failure
         if: always()
@@ -112,7 +112,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ref: [82d0a42e9a047c95b9777d92020d5067ee817b92, f52541c59f6492a9c3d970cd7ecc2fb2fcfd9168]
+        ref: [codex/diagnose-sync-offline]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -121,6 +121,7 @@ jobs:
         with:
           node-version: 24
       - run: npm ci
+      - run: npm test -- tests/sync-save-hooks.test.js tests/sync-pull-isolation.test.js
       - run: npx playwright install --with-deps webkit
       - run: npx playwright test --config=playwright.pwa.config.js --project=pwa-webkit --grep 'installed shell opens' --repeat-each=5
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

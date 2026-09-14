@@ -111,6 +111,44 @@ describe('sync save-hook profile data dependencies', () => {
     }
   });
 
+  for (const switchedProfile of [false, true]) {
+    it(`delayed saves use the latest ${switchedProfile ? 'stored' : 'active'} profile after an incoming merge`, async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      const profileId = 'delayed-merge-profile';
+      const storageKey = profileStorageKey(profileId, 'imported');
+      const previousProfile = state.currentProfile;
+      const previousData = state.importedData;
+      const pushProfile = vi.fn(async () => ({ ok: true }));
+      const previous = configureSyncSaveHooks({
+        pushProfile, isSyncConfigured: () => true, isSyncEnabled: () => true,
+        isEvoluReady: () => true, isSyncing: () => false,
+        getProfiles: () => [{ id: profileId }],
+      });
+      const fresh = { entries: [], notes: [{ id: 'local' }, { id: 'received' }] };
+      try {
+        state.currentProfile = profileId;
+        state.importedData = { entries: [], notes: [{ id: 'local' }] };
+        onDataSaved();
+        if (switchedProfile) {
+          await encryptedSetItem(storageKey, JSON.stringify(fresh));
+          state.currentProfile = 'other-profile';
+          state.importedData = { entries: [] };
+        } else state.importedData = fresh;
+        await vi.advanceTimersByTimeAsync(10_000);
+        expect(pushProfile).toHaveBeenCalledTimes(1);
+        expect(pushProfile.mock.calls[0][1].notes).toEqual(fresh.notes);
+      } finally {
+        clearSyncSaveTimers();
+        vi.useRealTimers();
+        configureSyncSaveHooks(previous);
+        state.currentProfile = previousProfile;
+        state.importedData = previousData;
+        localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);
+        await encryptedRemoveItem(storageKey);
+      }
+    });
+  }
+
   it('keeps paused edits dirty without starting a push', () => {
     const previousCurrentProfile = state.currentProfile;
     const previousImportedData = state.importedData;

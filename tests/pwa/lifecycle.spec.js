@@ -30,16 +30,13 @@ test('installed shell opens lazy features and reloads with the origin disconnect
       return { ...body, iconsOk: await Promise.all(body.icons.map(icon => fetch(new URL(icon.src, url)).then(r => r.ok))) };
     });
     expect(manifest).toMatchObject({ id: '/app', start_url: '/app', display: 'standalone', iconsOk: [true, true, true] });
-    server.state.offline = true;
+    await server.disconnect();
     expect(await page.evaluate(() => fetch('/api/offline-proof').then(() => false, () => true))).toBe(true);
     await page.locator('.settings-btn').evaluate(button => button.click());
-    // These first-use loads traverse the installed cache while the origin is
-    // disconnected. Allow WebKit's cache work to settle on shared CI runners;
-    // keep the offline proof and successful feature activation mandatory.
-    await expect(page.locator('#settings-modal-overlay')).toHaveClass(/\bshow\b/, { timeout: 15_000 });
+    await expect(page.locator('#settings-modal-overlay')).toHaveClass(/\bshow\b/);
     await expect(page.locator('#settings-modal .settings-layout')).toHaveCSS('display', isMobile ? 'flex' : 'grid');
     await page.locator('[data-settings-tab="wearables"]').click();
-    await expect(page.locator('[data-tab-panel="wearables"]')).toHaveClass(/\bactive\b/, { timeout: 15_000 });
+    await expect(page.locator('[data-tab-panel="wearables"]')).toHaveClass(/\bactive\b/);
     await expect.poll(() => page.evaluate(() => [...document.querySelectorAll('#settings-modal img')]
       .filter(img => img.loading !== 'lazy' || img.getBoundingClientRect().top < innerHeight)
       .every(img => img.complete && img.naturalWidth > 0))).toBe(true);
@@ -100,7 +97,7 @@ test('failed update preserves the installed app; retry updates two tabs without 
     // A later visit offers the still-pending update again.
     await page.reload({ waitUntil: 'networkidle' });
     await expect(page.locator('#version-update-banner')).toBeVisible();
-    server.state.offline = true; // Applying an already cached build needs no download.
+    await server.disconnect(); // Applying an already cached build needs no download.
     await page.locator('[data-version-update-action="apply"]').click();
     await expect.poll(() => page.evaluate(() => window.APP_BUILD_ID).catch(() => null), { timeout: 30_000 }).toBe('build-b');
     await expect(other.locator('#version-update-banner')).toContainText('Reload');
