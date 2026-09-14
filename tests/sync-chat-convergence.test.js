@@ -128,6 +128,10 @@ test('same-time conflicts converge in either order without selection or key-orde
   expect(mergeChatData(b, a)).toEqual(merged);
   expect(chatHasLocalChanges(merged, merged)).toBe(false);
   expect(chatHasLocalChanges({ ...merged, activePersonality: 'one' }, { ...merged, activePersonality: 'two' })).toBe(false);
+  const nested = { ...a, messages: { a: [{ content: 'same', metadata: { a: 1, b: [2, 3] } }] } };
+  const reordered = { ...a, messages: { a: [{ metadata: { b: [2, 3], a: 1 }, content: 'same' }] } };
+  expect(chatHasLocalChanges(nested, reordered)).toBe(false);
+  expect(chatHasLocalChanges(reordered, nested)).toBe(false);
 });
 
 test('inactive-profile chat repair reads that profile at send time', async () => {

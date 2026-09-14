@@ -860,7 +860,7 @@ test('sync reconcile browser coverage force-pushes divergent startup state', asy
       rows = [await rowFor(state.importedData)];
       await reconcile.reconcileLocalStorageWithEvolu();
       outcomes.matchingRemotePayloadSkips = pushes.length === 0
-        && debugCalls.some(message => message.includes('nothing to do'));
+        && debugCalls.some(message => message.includes('No local changes'));
 
       resetCalls();
       rows = [await rowFor(profileData([

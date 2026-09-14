@@ -6,7 +6,6 @@ import {
   getEncryptionEnabled, isUnlocked, encryptedSetItem, encryptedRemoveItem,
 } from './crypto.js';
 import { chatDeletedThreadsKey, collectChatData } from './sync-payload-collectors.js';
-import { chatHasLocalChanges, chatThreadUpdatedAtMs, mergeChatData } from './sync-chat-merge.js';
 import { logSyncEvent } from './sync-state.js';
 import {
   loadCustomPersonalitiesFromStorage,
@@ -79,6 +78,7 @@ function writeLocalDeletedThreads(profileId, deletedThreads) {
  * @param {Record<string, number>} deletedThreads
  */
 async function applyChatThreadTombstones(profileId, existingThreads, deletedThreads) {
+  const { chatThreadUpdatedAtMs } = await import('./sync-chat-merge.js');
   const keptThreads = [];
   let changed = false;
   for (const thread of existingThreads) {
@@ -103,9 +103,10 @@ async function applyChatThreadTombstones(profileId, existingThreads, deletedThre
 export async function applyChatData(profileId, chatData) {
   if (!chatData || !Array.isArray(chatData.threads)) return false;
   if (getEncryptionEnabled() && !isUnlocked()) {
-    logSyncEvent('skip', `Chat pull skipped ${profileId.slice(0, 8)} - encryption locked`);
+    logSyncEvent('skip', `Chat encryption locked ${profileId.slice(0, 8)}`);
     return false;
   }
+  const { mergeChatData } = await import('./sync-chat-merge.js');
   // The thread index is a sensitive key, so writes must use the same encrypted
   // wrapper as normal chat saves.
   const threadsKey = `labcharts-${profileId}-chat-threads`;
@@ -122,7 +123,7 @@ export async function applyChatData(profileId, chatData) {
   const liveIds = new Set(merged.threads.map(thread => thread.id));
   if (getChatDataLocalLockRemainingMs(profileId) > 0
       && existingThreads.some(thread => (Number(thread?.messageCount) || 0) > 0 && liveIds.has(thread.id))) {
-    logSyncEvent('skip', `Chat pull skipped ${profileId.slice(0, 8)} - local changes pending`);
+    logSyncEvent('skip', `Chat pending ${profileId.slice(0, 8)}`);
     return tombstonesChanged || personalitiesChanged;
   }
 
@@ -148,5 +149,6 @@ export async function applyChatData(profileId, chatData) {
 /** @param {string} profileId @param {any} remoteChatData */
 export async function chatDataNeedsRebroadcast(profileId, remoteChatData) {
   if (getEncryptionEnabled() && !isUnlocked()) return false;
+  const { chatHasLocalChanges } = await import('./sync-chat-merge.js');
   return chatHasLocalChanges(await collectChatData(profileId), remoteChatData);
 }

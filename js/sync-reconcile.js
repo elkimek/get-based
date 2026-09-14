@@ -101,11 +101,11 @@ export async function reconcileLocalStorageWithEvolu() {
   // every other device shows the session as still running.
   const localHasUnsynced = remoteImported ? localHasRowsRemoteLacks(state.importedData, remoteImported) : false;
   if (!localHasUnsynced && !localAiSettingsDiffer && !localChatDiffer) {
-    _debug('Startup reconciliation: no local changes');
+    _debug('No local changes');
     return;
   }
-  const reason = localHasUnsynced ? 'unsynced rows' : localChatDiffer ? 'unsynced chat history or deletions' : 'newer local AI settings';
-  _debug(`Startup reconciliation: localStorage has ${reason} vs Evolu row`);
+  const reason = localHasUnsynced ? 'unsynced rows' : localChatDiffer ? 'unsynced chat' : 'newer local AI settings';
+  _debug(reason);
   logSyncEvent('reconcile', `Reconcile ${state.currentProfile.slice(0, 8)} - local has ${reason}`);
   // Force-push so the next watchdog cycle can't lose us a clearly-needed
   // catch-up. Bypasses the _syncing guard if it was wedged from a prior

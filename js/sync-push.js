@@ -3,7 +3,6 @@
 
 import { getErrorMessage } from './caught-error.js';
 import { buildSyncPayload, parseSyncPayload } from './sync-payload.js';
-import { mergeChatData } from './sync-chat-merge.js';
 import {
   notePushCommitted, scheduleOwnerStorageRefresh, trackPushBytes,
 } from './sync-relay-health.js';
@@ -92,7 +91,7 @@ export async function pushProfile(profileId, importedData, opts = {}) {
   // relay update. Callers that intentionally create an empty profile pass an
   // explicit default object; null/undefined/arrays are always invalid here.
   if (!importedData || typeof importedData !== 'object' || Array.isArray(importedData)) {
-    console.warn(`[sync] pushProfile skipped ${profileId.slice(0, 8)} — imported profile data is unavailable`);
+    console.warn(`[sync] ${profileId.slice(0, 8)} imported profile data is unavailable`);
     return { ok: false, skipped: true, reason: 'missing-profile-data' };
   }
   const blockReason = getProfileSyncBlockReason(profileId, _getProfiles());
@@ -112,11 +111,9 @@ export async function pushProfile(profileId, importedData, opts = {}) {
   // Resend popover button + startup reconciliation, both of which need to
   // run regardless of a stuck flag from a prior wedged push.
   if (!opts.force && _syncing && Date.now() - _syncingSince < 60_000) {
-    console.warn('[sync] pushProfile bailed — another push is in-flight (set <60s ago)');
+    console.warn('[sync] another push is in-flight');
     return { ok: false, skipped: true, reason: 'in-flight' };
   }
-  if (_syncing && !opts.force) console.warn('[sync] pushProfile clearing stale _syncing flag (>60s old)');
-  if (opts.force && _syncing) console.warn('[sync] pushProfile force-overriding in-flight flag');
   _syncing = true;
   _syncingSince = Date.now();
   const dirtyToken = getSyncDirtyToken(profileId);
@@ -141,9 +138,9 @@ export async function pushProfile(profileId, importedData, opts = {}) {
           .map(([k]) => k)
           .slice(0, 3)
           .join(', ');
-        console.warn(`[sync] Phase 2 cutover drift detected — auto-disabling. ${driftCheck.blockerCount} surface(s) lack per-row push history (e.g. ${blockerNames || 'unknown'}). This push will revert to v3 dual-write.`);
+        console.warn('[sync] Phase 2 cutover drift detected; reverting to dual-write');
         _disablePhase2Cutover(profileId);
-        logSyncEvent('skip', `Cutover drift: ${driftCheck.blockerCount} surface(s) missing per-row history — auto-reverted to dual-write (${blockerNames || 'unknown'})`);
+        logSyncEvent('skip', `Cutover reverted: ${driftCheck.blockerCount} missing surfaces (${blockerNames || 'unknown'})`);
       }
     } catch (e) { /* readiness check failures are non-fatal */ }
   }
@@ -164,9 +161,9 @@ export async function pushProfile(profileId, importedData, opts = {}) {
       if (row?.profileId !== profileId) continue;
       try {
         const parsed = await parseSyncPayload(row.dataJson);
-        if (parsed.chatData) remoteChatData = mergeChatData(remoteChatData, parsed.chatData);
+        if (parsed.chatData) remoteChatData = (await import('./sync-chat-merge.js')).mergeChatData(remoteChatData, parsed.chatData);
       } catch {
-        logSyncEvent('skip', 'Unreadable chat replica skipped during push');
+        logSyncEvent('skip', 'Invalid chat replica skipped');
       }
     }
     const dataJson = await buildSyncPayload(profileId, outboundData, remoteChatData);
@@ -248,8 +245,7 @@ export async function pushProfile(profileId, importedData, opts = {}) {
       // successful push doesn't get a spurious "stuck" event in the activity log.
       watchdogId = setTimeout(() => {
         if (!completed) {
-          const stuckMsg = `Push NOT committed after 30s ${profileId.slice(0,8)} — Evolu worker likely wedged`;
-          console.warn(`[sync] ${stuckMsg}`);
+          console.warn('[sync] Push NOT committed after 30s');
           logSyncEvent('skip', `Push stuck >30s — try reloading`);
           updateSyncStatus({ push: 'error', lastError: { type: 'PushStuck', message: 'Evolu replication did not complete in 30s', at: Date.now() } });
           finish({ ok: false, reason: 'timeout' });

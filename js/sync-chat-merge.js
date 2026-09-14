@@ -28,15 +28,11 @@ export function normalizeChatDeletedThreads(value) {
   return out;
 }
 
-/** @param {any} value @returns {any} */
-function stableValue(value) {
-  if (Array.isArray(value)) return value.map(stableValue);
-  if (!value || typeof value !== 'object') return value;
-  return Object.fromEntries(Object.keys(value).sort().map(key => [key, stableValue(value[key])]));
-}
-
 /** @param {any} value */
-function stableJson(value) { return JSON.stringify(stableValue(value)); }
+function stableJson(value) {
+  return JSON.stringify(value, (_key, item) => item && typeof item === 'object' && !Array.isArray(item)
+    ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item);
+}
 
 /** @param {any} a @param {any} b */
 function compareStable(a, b) {
