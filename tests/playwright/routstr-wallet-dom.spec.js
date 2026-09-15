@@ -353,7 +353,9 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
             return { mint: currentMint, balance: walletBalance, recovered: 0, pending: 0, failed: 0, results };
           },
         });
-        panels.startRoutstrFundingMonitor();
+        // Force the newly injected terminal response through the next scan;
+        // ordinary activation is idempotent and preserves its polling cadence.
+        panels.startRoutstrFundingMonitor({ recheck: true });
         await wait(50);
         await panels.showRoutstrWalletFund();
         await wait(50);
