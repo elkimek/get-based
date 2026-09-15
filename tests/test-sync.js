@@ -772,7 +772,7 @@ await import('../js/settings.js');
       && lightEnvSrc.includes('overlayId: LIGHT_ENV_ASSESSMENT_OVERLAY_ID')
       && lightEnvSrc.includes("modalSelector: '.light-env-assessment-modal'")
       && !lightEnvSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenLightEnvironmentAssessmentOnSync)"));
-  assert('shared data modals refresh clean editors on sync-applied',
+  assert('shared data modals refresh clean editors and guard stale note drafts on sync-applied',
     supplementsSrc.includes('refreshOpenSupplementsEditorOnSync')
       && supplementsSrc.includes("bindDetailModalSyncRefresh('supplements', refreshOpenSupplementsEditorOnSync)")
       && supplementsSrc.includes("modal.dataset.syncRefreshKind = 'supplements'")
@@ -781,8 +781,9 @@ await import('../js/settings.js');
       && notesSrc.includes('refreshOpenNoteEditorOnSync')
       && notesSrc.includes("bindDetailModalSyncRefresh('note', refreshOpenNoteEditorOnSync)")
       && notesSrc.includes("modal.dataset.syncRefreshKind = 'note'")
-      && notesSrc.includes('const noteAtIdx = state.importedData.notes?.[idx]')
-      && notesSrc.includes('noteAtIdx.date === date')
+      && notesSrc.includes('if (currentEditorIndex() === undefined) notifyStaleNote()')
+      && notesSrc.includes('session.profile !== state.currentProfile || session.data !== state.importedData')
+      && notesSrc.includes('JSON.stringify(session.note) === session.fingerprint')
       && contextCardLifestyleEditorsSrc.includes('refreshOpenHealthGoalsModalOnSync')
       && contextCardLifestyleEditorsSrc.includes("bindDetailModalSyncRefresh('healthGoals', refreshOpenHealthGoalsModalOnSync)")
       && contextCardLifestyleEditorsSrc.includes("modal.dataset.syncRefreshKind = 'healthGoals'"));

@@ -221,7 +221,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
           const resultNote = portableResult?.note
             ? `<div class="report-value-note">${esc(portableResult.note)}</div>`
             : '';
-          body += `<td class="val-${s}">${v !== null ? sPrefix + formatValue(v) : '\u2014'}${resultNote}</td>`;
+          body += `<td class="val-${s}">${v !== null ? sPrefix + esc(formatValue(v)) : '\u2014'}${resultNote}</td>`;
         }
         body += `<td>${trend.arrow}</td></tr>`;
       }
@@ -386,7 +386,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
           const dir = pctChange > 0 ? 'increased' : 'decreased';
           const firstDate = fullDateLabels[first.i] || '';
           const lastDate = fullDateLabels[last.i] || '';
-          items.push(`<li><strong>${esc(marker.name)}</strong> ${dir} ${Math.abs(pctChange).toFixed(0)}% (${formatValue(first.v)} \u2192 ${formatValue(last.v)} ${esc(marker.unit)}, ${firstDate} to ${lastDate})</li>`);
+          items.push(`<li><strong>${esc(marker.name)}</strong> ${dir} ${Math.abs(pctChange).toFixed(0)}% (${esc(formatValue(first.v))} \u2192 ${esc(formatValue(last.v))} ${esc(marker.unit)}, ${firstDate} to ${lastDate})</li>`);
         }
       }
     }
@@ -409,10 +409,11 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   function formatRangeBounds(range) {
     const min = Object.prototype.hasOwnProperty.call(range || {}, 'min') ? range.min : range?.effectiveMin;
     const max = Object.prototype.hasOwnProperty.call(range || {}, 'max') ? range.max : range?.effectiveMax;
+    if ([min, max].some(value => value != null && (typeof value !== 'number' || !Number.isFinite(value)))) return 'invalid range';
     if (min == null && max == null) return 'not set';
-    if (min == null) return `\u2264${formatValue(max)}`;
-    if (max == null) return `\u2265${formatValue(min)}`;
-    return `${formatValue(min)} \u2013 ${formatValue(max)}`;
+    if (min == null) return `\u2264${esc(formatValue(max))}`;
+    if (max == null) return `\u2265${esc(formatValue(min))}`;
+    return `${esc(formatValue(min))} \u2013 ${esc(formatValue(max))}`;
   }
 
   function rangeSetIdentity(rangeContext) {

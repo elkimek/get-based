@@ -407,7 +407,7 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
   console.log('Section 17: countFlagged and getAllFlaggedMarkers');
   assert('countFlagged uses getEffectiveRangeForDate', markerAnalysisSource.includes('getEffectiveRangeForDate(m, i)'));
   assert('getAllFlaggedMarkers preserves resolved range provenance',
-    markerAnalysisSource.includes('const rangeContext = resolveMarkerRangeContext(m, i)')
+    markerAnalysisSource.includes('const rangeContext = resolveMarkerRangeContext(m, i, rangeMode)')
       && markerAnalysisSource.includes('effectiveSource: r.source'));
 
   // ═══════════════════════════════════════

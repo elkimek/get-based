@@ -422,10 +422,11 @@ describe('report HTML runtime coverage', () => {
 describe('report flag output boundary', () => {
   it('escapes formatted flag values even when a supplied payload contains markup', () => {
     const html = buildReportHTML('Fixture', 'Male', { dates: [], categories: {} }, [
-      { name: 'Flag', value: '<img src=x onerror=alert(1)>', rawValue: 12, unit: '<script>alert(1)</script>', status: 'high', effectiveMax: 10, effectiveMin: 1 },
+      { name: 'Flag', value: '<img src=x onerror=alert(1)>', rawValue: 12, unit: '<script>alert(1)</script>', status: 'high', effectiveMax: '<img src=x onerror=alert(2)>', effectiveMin: null, displayedRanges: [{ min: '<svg onload=alert(3)>', max: null, label: 'Imported' }] },
     ], [], [], [], { sections: ['flagged', 'summary'], rangeMode: undefined });
     const doc = new DOMParser().parseFromString(html, 'text/html');
-    expect(doc.querySelector('img, script, [onerror]')).toBeNull();
+    expect(doc.querySelector('img, script, svg, [onerror], [onload]')).toBeNull();
+    expect(doc.body.textContent).toContain('invalid range');
     expect(doc.body.textContent).toContain('<img src=x onerror=alert(1)>');
   });
 });

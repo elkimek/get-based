@@ -288,9 +288,8 @@ assert('Finding shows separate evidence and relevance labels',
 state.importedData.genetics = origGenetics;
 
 // Every category used in snp-health.json must have a display label in SNP_CATEGORY_LABELS
-const catLabelsMatch = dnaSrc.match(/SNP_CATEGORY_LABELS = \{([^}]+)\}/);
-assert('SNP_CATEGORY_LABELS object found in dna.js source', catLabelsMatch != null);
-const catLabelsKeys = (catLabelsMatch?.[1] || '').match(/(\w+):/g)?.map(s => s.replace(':', '')) || [];
+assert('SNP_CATEGORY_LABELS is exposed by dna.js', typeof dna.SNP_CATEGORY_LABELS === 'object');
+const catLabelsKeys = Object.keys(dna.SNP_CATEGORY_LABELS || {});
 const usedCats = new Set();
 for (const [rsid, entry] of Object.entries(snpTable)) {
   if (rsid.startsWith('rs') && entry.category) usedCats.add(entry.category);

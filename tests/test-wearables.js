@@ -2067,7 +2067,9 @@ assert('PDF report Biometrics section reads wearableSummary.metrics.weight.lates
 assert('PDF report Biometrics section reads wearableSummary.metrics.bp_systolic + bp_diastolic',
   /wm\?\.bp_systolic\?\.latest/.test(reportSrc2) && /wm\?\.bp_diastolic\?\.latest/.test(reportSrc2));
 assert('PDF report Biometrics section reads wearableSummary.metrics.rhr.latest as pulse fallback',
-  /wm\?\.rhr\?\.latest/.test(reportSrc2));
+  reportSrc2.includes('const rhr = state.importedData?.wearableSummary?.metrics?.rhr;')
+    && reportSrc2.includes('Number.isFinite(rhr?.latest)')
+    && reportSrc2.includes('formatValue(rhr.latest)'));
 
 // ═══════════════════════════════════════
 // 17a. UX audit follow-ups (v1.26.0)
