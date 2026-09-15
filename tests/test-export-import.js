@@ -141,7 +141,7 @@ return (async function() {
   assert('PDF report header uses human-readable report labels',
       reportSrc.includes('${esc(profileName)} health report') &&
       reportSrc.includes('report-deck') &&
-      reportSrc.includes('Needs Attention') &&
+      reportSrc.includes('Outside selected ranges') &&
       reportSrc.includes('Lab Dates') &&
       reportSrc.includes('Lab Groups') &&
       reportSrc.includes('DOB / Age') &&
@@ -213,7 +213,7 @@ return (async function() {
       modalSharedSrc.includes('.report-builder-actions') &&
       modalSharedSrc.includes('.report-builder-preview-btn'));
   assert('PDF report accepts builder options',
-    reportSrc.includes('export function exportPDFReport(options = {})') &&
+    reportSrc.includes('export function exportPDFReport(options = {}, previewWindow = null, preparedPayload = null, lifecycle = {})') &&
       reportSrc.includes('filterReportCategories(data, reportOptions.categoryKeys)') &&
       reportSrc.includes("reportIncludes(renderOptions, 'categories')") &&
       reportSrc.includes('aiSummary: normalizeReportAISummary(options.aiSummary)'));

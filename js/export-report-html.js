@@ -161,7 +161,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     for (const f of flags) {
       const cls = f.status === 'high' ? 'val-high' : 'val-low';
       const label = f.status === 'high' ? 'HIGH' : 'LOW';
-      body += `<tr><td>${esc(f.name)}</td><td class="${cls}">${f.value} ${esc(f.unit)}</td>
+      body += `<tr><td>${esc(f.name)}</td><td class="${cls}">${esc(f.value)} ${esc(f.unit)}</td>
         <td>${f.displayedRanges?.length ? renderRangeSet({ displayedRanges: f.displayedRanges }, true) : esc(f.effectiveLabel || 'Range') + ' ' + formatRangeBounds(f)}</td><td class="${cls}">${label}</td></tr>`;
     }
     body += `</tbody></table>`;
@@ -482,7 +482,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
         const boundary = f.status === 'high' ? f.effectiveMax : f.effectiveMin;
         const diff = f.status === 'high' ? f.rawValue - boundary : boundary - f.rawValue;
         const pctBeyond = boundary !== 0 ? ((diff / boundary) * 100).toFixed(0) : '?';
-        summary += `<li><strong>${esc(f.name)}</strong>: ${f.value} ${esc(f.unit)} \u2014 <span class="val-${f.status}">${f.status.toUpperCase()}</span> (${pctBeyond}% beyond ${f.status === 'high' ? 'upper' : 'lower'} limit; ${esc(f.effectiveLabel || 'range')}: ${formatRangeBounds(f)})</li>`;
+        summary += `<li><strong>${esc(f.name)}</strong>: ${esc(f.value)} ${esc(f.unit)} \u2014 <span class="val-${f.status === 'high' ? 'high' : 'low'}">${esc(f.status.toUpperCase())}</span> (${pctBeyond}% beyond ${f.status === 'high' ? 'upper' : 'lower'} limit; ${esc(f.effectiveLabel || 'range')}: ${formatRangeBounds(f)})</li>`;
       }
       summary += `</ul>`;
       if (flags.length > summaryFlags.length) {
