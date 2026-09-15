@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 767 |
-| Internal import edges | 3231 |
-| Dynamic internal edges | 110 |
+| Modules | 771 |
+| Internal import edges | 3264 |
+| Dynamic internal edges | 114 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -64,16 +64,16 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 285 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 78 |
-| [`js/state.js`](js/state.js) | 193 | [`js/chat-send.js`](js/chat-send.js) | 42 |
+| [`js/utils.js`](js/utils.js) | 288 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 78 |
+| [`js/state.js`](js/state.js) | 194 | [`js/chat-send.js`](js/chat-send.js) | 42 |
 | [`js/caught-error.js`](js/caught-error.js) | 88 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 81 | [`js/settings.js`](js/settings.js) | 30 |
 | [`js/data.js`](js/data.js) | 78 | [`js/sync-configure.js`](js/sync-configure.js) | 28 |
 | [`js/profile.js`](js/profile.js) | 48 | [`js/pdf-import.js`](js/pdf-import.js) | 27 |
 | [`js/api.js`](js/api.js) | 46 | [`js/wearables-connect.js`](js/wearables-connect.js) | 27 |
 | [`js/schema.js`](js/schema.js) | 39 | [`js/lab-context.js`](js/lab-context.js) | 24 |
-| [`js/crypto.js`](js/crypto.js) | 36 | [`js/export.js`](js/export.js) | 23 |
-| [`js/ai-feature-routing.js`](js/ai-feature-routing.js) | 35 | [`js/views.js`](js/views.js) | 22 |
+| [`js/ai-feature-routing.js`](js/ai-feature-routing.js) | 36 | [`js/export.js`](js/export.js) | 23 |
+| [`js/crypto.js`](js/crypto.js) | 36 | [`js/views.js`](js/views.js) | 22 |
 | [`js/data-merge.js`](js/data-merge.js) | 34 | [`js/chat-render.js`](js/chat-render.js) | 20 |
 | [`js/chat-runtime.js`](js/chat-runtime.js) | 21 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
 | [`js/utils-runtime.js`](js/utils-runtime.js) | 21 | [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | 20 |
@@ -125,7 +125,7 @@ Native browser modules shipped with the static application.
 - [`js/ai-action-delegates.js`](js/ai-action-delegates.js) → [`js/utils.js`](js/utils.js)
 - [`js/ai-execution-routing.js`](js/ai-execution-routing.js) → [`js/agent-chat-settings.js`](js/agent-chat-settings.js), [`js/agent-model-catalog.js`](js/agent-model-catalog.js)
 - [`js/ai-feature-routing.js`](js/ai-feature-routing.js) → [`js/agent-chat-settings.js`](js/agent-chat-settings.js), [`js/agent-feature-inference.js`](js/agent-feature-inference.js) *(dynamic)*, [`js/ai-execution-routing.js`](js/ai-execution-routing.js), [`js/api.js`](js/api.js)
-- [`js/ai-provider-policy.js`](js/ai-provider-policy.js) → [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/local-ai-provider-shared.js`](js/local-ai-provider-shared.js)
+- [`js/ai-provider-policy.js`](js/ai-provider-policy.js) → [`js/agent-chat-settings.js`](js/agent-chat-settings.js), [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/local-ai-provider-shared.js`](js/local-ai-provider-shared.js)
 - [`js/ai-verdict-engine-runtime.js`](js/ai-verdict-engine-runtime.js) → no in-scope imports
 - [`js/ai-verdict-engine.js`](js/ai-verdict-engine.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/ai-verdict-engine-runtime.js`](js/ai-verdict-engine-runtime.js), [`js/data.js`](js/data.js), [`js/sync.js`](js/sync.js)
 
@@ -548,14 +548,18 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>export</code> family — 8 modules</summary>
+<details><summary><code>export</code> family — 12 modules</summary>
 
 - [`js/export-import.js`](js/export-import.js) → [`js/caught-error.js`](js/caught-error.js), [`js/chat-personality-storage.js`](js/chat-personality-storage.js), [`js/chat-storage-safety.js`](js/chat-storage-safety.js), [`js/crypto.js`](js/crypto.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/export-runtime.js`](js/export-runtime.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry-restore.js`](js/lab-entry-restore.js), [`js/nostr-discovery.js`](js/nostr-discovery.js), [`js/nutrition-store.js`](js/nutrition-store.js) *(dynamic)*, [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/export-loader.js`](js/export-loader.js) → [`js/export.js`](js/export.js) *(dynamic)*, [`js/utils.js`](js/utils.js)
-- [`js/export-report-builder.js`](js/export-report-builder.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/export-report-html.js`](js/export-report-html.js), [`js/export-report.js`](js/export-report.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils.js`](js/utils.js)
-- [`js/export-report-data.js`](js/export-report-data.js) → [`js/marker-analysis.js`](js/marker-analysis.js), [`js/utils.js`](js/utils.js)
-- [`js/export-report-html.js`](js/export-report-html.js) → [`js/export-report.js`](js/export-report.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/state.js`](js/state.js), [`js/supplement-impact.js`](js/supplement-impact.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/unit-profiles.js`](js/unit-profiles.js), [`js/utils.js`](js/utils.js)
-- [`js/export-report.js`](js/export-report.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/api.js`](js/api.js), [`js/cli-agent-brand-assets.js`](js/cli-agent-brand-assets.js), [`js/cycle.js`](js/cycle.js), [`js/data.js`](js/data.js), [`js/export-report-data.js`](js/export-report-data.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/utils.js`](js/utils.js), [`js/wearables-formatters.js`](js/wearables-formatters.js)
+- [`js/export-report-aggregates.js`](js/export-report-aggregates.js) → [`js/nutrition-nutrient-registry.js`](js/nutrition-nutrient-registry.js), [`js/nutrition-summary.js`](js/nutrition-summary.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-formatters.js`](js/wearables-formatters.js)
+- [`js/export-report-builder.js`](js/export-report-builder.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/export-report-html.js`](js/export-report-html.js), [`js/export-report-progress.js`](js/export-report-progress.js), [`js/export-report.js`](js/export-report.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/notes.js`](js/notes.js) *(dynamic)*, [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/export-report-data.js`](js/export-report-data.js) → [`js/dna-evidence.js`](js/dna-evidence.js), [`js/dna-genotype.js`](js/dna-genotype.js), [`js/export-report-sections.js`](js/export-report-sections.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/supplement-impact.js`](js/supplement-impact.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/utils.js`](js/utils.js)
+- [`js/export-report-html.js`](js/export-report-html.js) → [`js/dna-evidence.js`](js/dna-evidence.js), [`js/export-report-data.js`](js/export-report-data.js), [`js/export-report-summary-html.js`](js/export-report-summary-html.js), [`js/export-report.js`](js/export-report.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/unit-profiles.js`](js/unit-profiles.js), [`js/utils.js`](js/utils.js)
+- [`js/export-report-progress.js`](js/export-report-progress.js) → no in-scope imports
+- [`js/export-report-sections.js`](js/export-report-sections.js) → [`js/export-report-aggregates.js`](js/export-report-aggregates.js), [`js/light-tools-ai-analysis.js`](js/light-tools-ai-analysis.js) *(dynamic)*, [`js/nutrition-nutrient-registry.js`](js/nutrition-nutrient-registry.js), [`js/nutrition-store.js`](js/nutrition-store.js) *(dynamic)*, [`js/sun-spectrum.js`](js/sun-spectrum.js), [`js/utils.js`](js/utils.js), [`js/wearable-adapters.js`](js/wearable-adapters.js), [`js/wearables-formatters.js`](js/wearables-formatters.js), [`js/wearables-store.js`](js/wearables-store.js) *(dynamic)*
+- [`js/export-report-summary-html.js`](js/export-report-summary-html.js) → [`js/export-report-data.js`](js/export-report-data.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/utils.js`](js/utils.js)
+- [`js/export-report.js`](js/export-report.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/api.js`](js/api.js), [`js/cli-agent-brand-assets.js`](js/cli-agent-brand-assets.js), [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js), [`js/cycle.js`](js/cycle.js), [`js/data.js`](js/data.js), [`js/dna-evidence.js`](js/dna-evidence.js), [`js/export-report-data.js`](js/export-report-data.js), [`js/export-report-sections.js`](js/export-report-sections.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/unit-profiles.js`](js/unit-profiles.js), [`js/utils.js`](js/utils.js), [`js/wearables-formatters.js`](js/wearables-formatters.js)
 - [`js/export-runtime.js`](js/export-runtime.js) → [`js/cashu-wallet.js`](js/cashu-wallet.js) *(dynamic)*, [`js/crypto.js`](js/crypto.js), [`js/state.js`](js/state.js)
 - [`js/export.js`](js/export.js) → [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js) *(dynamic)*, [`js/caught-error.js`](js/caught-error.js), [`js/clear-all-profile-reset.js`](js/clear-all-profile-reset.js), [`js/context-cards.js`](js/context-cards.js) *(dynamic)*, [`js/crypto.js`](js/crypto.js), [`js/custom-marker-identity.js`](js/custom-marker-identity.js), [`js/data.js`](js/data.js), [`js/demo-nutrition.js`](js/demo-nutrition.js), [`js/export-import.js`](js/export-import.js) *(dynamic)*, [`js/export-report-builder.js`](js/export-report-builder.js) *(dynamic)*, [`js/export-report-html.js`](js/export-report-html.js), [`js/export-report.js`](js/export-report.js), [`js/export-runtime.js`](js/export-runtime.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/nostr-discovery.js`](js/nostr-discovery.js), [`js/nutrition-store.js`](js/nutrition-store.js) *(dynamic)*, [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js) *(dynamic)*, [`js/utils.js`](js/utils.js)
 

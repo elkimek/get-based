@@ -207,6 +207,8 @@ describe('portable report data', () => {
     expect(context).toContain('Magnesium');
     expect(context).toContain('Follow-up note');
     expect(context).toContain('Genetics: APOE E3/E4');
+    snapshot.scope.genomeVariants = ['rs429358'];
+    expect(formatReportDataForAgent(snapshot)).toContain('Genetics: APOE E3/E4');
   });
 
   it('honors section selection and returns a detached JSON-safe value', () => {

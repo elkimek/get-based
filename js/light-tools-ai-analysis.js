@@ -140,7 +140,7 @@ function _buildAuditContext(m) {
   return lines;
 }
 
-function _buildPerToolContext(m) {
+export function buildMeasurementFacts(m) {
   switch (m.tool) {
     case 'lux': return _buildLuxContext(m);
     case 'flicker': return _buildFlickerContext(m);
@@ -155,7 +155,7 @@ function _buildPerToolContext(m) {
 
 export function buildMeasurementContext(m) {
   if (!m) return '';
-  const lines = ['### Measurement', ...(_buildPerToolContext(m))];
+  const lines = ['### Measurement', ...(buildMeasurementFacts(m))];
   const desc = _TOOL_DESCRIPTIONS[m.tool];
   if (desc) lines.push(`Tool description: ${desc}`);
   lines.push(`Confidence: ${Math.round((m.confidence || 0.7) * 100)}%`);

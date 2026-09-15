@@ -3,8 +3,8 @@
   "maximums": {
     "startupJavaScriptFiles": 2,
     "startupDecodedBytes": 1205000,
-    "outputJavaScriptFiles": 160,
-    "outputDecodedBytes": 5249000
+    "outputJavaScriptFiles": 165,
+    "outputDecodedBytes": 5313000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -60,7 +60,15 @@
     "routstrPaymentValidationStartupDecodedBytes": 1200060,
     "routstrPaymentValidationOutputDecodedBytes": 5220376,
     "importDataIntegrityStartupDecodedBytes": 1203020,
-    "importDataIntegrityOutputDecodedBytes": 5247655
+    "importDataIntegrityOutputDecodedBytes": 5247655,
+    "configurableHealthReportOutputJavaScriptFiles": 164,
+    "configurableHealthReportOutputDecodedBytes": 5266270,
+    "configurableHealthReportStartupDecodedBytes": 1201756,
+    "environmentReportAndNoteReviewOutputDecodedBytes": 5293740,
+    "defaultReportAIOverviewOutputDecodedBytes": 5301148,
+    "distinctReportTemplatesOutputDecodedBytes": 5303522,
+    "reportGenerationProgressOutputDecodedBytes": 5307869,
+    "reportAITransparencyOutputDecodedBytes": 5310721
   },
   "referenceCommit": "331112b1",
   "measuredAt": "2026-09-05"

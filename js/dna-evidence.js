@@ -3,6 +3,52 @@
 
 import { findGenotypeInfo } from './dna-genotype.js';
 
+let catalog = null;
+let catalogPromise = null;
+export function getCachedSnpCatalog() { return catalog; }
+export function loadSnpCatalog({ forceFresh = false } = {}) {
+  if (forceFresh) { catalog = null; catalogPromise = null; }
+  if (catalog) return Promise.resolve(catalog);
+  if (!catalogPromise) {
+    const pending = fetch('data/snp-health.json', forceFresh ? { cache: 'no-store' } : undefined)
+      .then(response => { if (!response.ok) throw new Error('Genome catalog unavailable'); return response.json(); })
+      .then(data => {
+        if (!data || !Object.keys(data).some(key => /^rs/.test(key) && data[key]?.genotypes)) throw new Error('Invalid Genome catalog');
+        if (catalogPromise === pending) catalog = data;
+        return data;
+      }).catch(error => { if (catalogPromise === pending) catalogPromise = null; throw error; });
+    catalogPromise = pending;
+  }
+  return catalogPromise;
+}
+
+export const SNP_CATEGORY_LABELS = {
+  methylation: 'Methylation',
+  iron: 'Iron',
+  lipids: 'Lipids',
+  vitaminD: 'Vitamin D',
+  vitaminB12: 'Vitamin B12',
+  bilirubin: 'Bilirubin',
+  thyroid: 'Thyroid',
+  fattyAcids: 'Fatty Acids',
+  bloodSugar: 'Blood Sugar',
+  sexHormones: 'Sex Hormones',
+  alcohol: 'Alcohol',
+  caffeine: 'Caffeine',
+  bodyComposition: 'Body Composition',
+  neurotransmitters: 'Neurotransmitter Metabolism',
+  performance: 'Exercise Traits',
+  digestion: 'Digestion',
+  vitaminA: 'Vitamin A',
+  skin: 'Skin & Sun',
+  other: 'Other'
+};
+
+export function getSnpCategoryLabel(category) {
+  if (!category) return SNP_CATEGORY_LABELS.other;
+  return SNP_CATEGORY_LABELS[category] || String(category);
+}
+
 const ISSUE_ENDPOINT = 'https://github.com/elkimek/get-based/issues/new';
 
 export const SNP_EVIDENCE_LEVELS = Object.freeze({

@@ -4,7 +4,10 @@ import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { state } from '../js/state.js';
-import { buildReportHTML, exportPDFReport } from '../js/export-report-html.js';
+import { buildReportHTML as renderReportHTML, exportPDFReport } from '../js/export-report-html.js';
+
+// Exercise the retained detailed appendix renderer; summary behavior has dedicated tests.
+const buildReportHTML = (...args) => { args[7] = { ...args[7], detailed: true }; return renderReportHTML(...args); };
 
 const exportReportHtmlSource = readFileSync(
   'js/export-report-html.js',
@@ -261,7 +264,7 @@ describe('report HTML runtime coverage', () => {
       },
     );
 
-    expect(sparseReport).toContain('Sparse &lt;Profile&gt; lab report');
+    expect(sparseReport).toContain('Sparse &lt;Profile&gt; health report');
     expect(sparseReport).toContain('No lab results are available for the selected report window');
     expect(sparseReport).toContain('No lab dates in selected range');
     expect(sparseReport).toContain('No dosage supplement');
@@ -357,7 +360,7 @@ describe('report HTML runtime coverage', () => {
     expect(denseReport).toContain('<dt>Goal</dt><dd>cover report renderer</dd>');
     expect(denseReport).toContain('Unkeyed context line &lt;escaped&gt;');
     expect(denseReport).toContain('SIG');
-    expect(denseReport).toContain('Significant');
+    expect(denseReport).toContain('risk association');
     expect(denseReport).toContain('Reversed genotype note');
     expect(denseReport).toContain('SIG2');
     expect(denseReport).toContain('Same category moderate note');
@@ -365,8 +368,8 @@ describe('report HTML runtime coverage', () => {
     expect(denseReport).toContain('Moderate genotype note');
     expect(denseReport).toContain('APOE:</strong> E3/E4');
     expect(denseReport).toContain('mtDNA Haplogroup:</strong> H1');
-    expect(denseReport).not.toContain('NONE');
-    expect(denseReport).not.toContain('MISS');
+    expect(denseReport).toContain('reference finding');
+    expect(denseReport).toContain('unclassified');
   });
 
   it('exports a preview and wires the print button handler', () => {
@@ -403,7 +406,7 @@ describe('report HTML runtime coverage', () => {
       categoryKeys: ['biochemistry'],
     })).toBe(true);
 
-    expect(capturedReport).toContain('Runtime Report lab report');
+    expect(capturedReport).toContain('Runtime Report health report');
     expect(capturedReport).toContain('Glucose');
     expect(capturedReport).toContain('Print / Save PDF');
     expect(document.querySelector('.notification-toast.info')?.textContent).toContain('PDF preview opened');

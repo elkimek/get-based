@@ -234,7 +234,7 @@ export function countFlagged(markers) {
   return c;
 }
 
-export function getAllFlaggedMarkers(data) {
+export function getAllFlaggedMarkers(data, rangeMode = state.rangeMode) {
   if (!data?.categories) return [];
   const flags = [];
   for (const [ck, cat] of Object.entries(data.categories)) {
@@ -242,7 +242,7 @@ export function getAllFlaggedMarkers(data) {
       const i = getLatestValueIndex(m.values);
       if (i !== -1) {
         const v = m.values[i];
-        const rangeContext = resolveMarkerRangeContext(m, i);
+        const rangeContext = resolveMarkerRangeContext(m, i, rangeMode);
         const r = rangeContext.judgingRange;
         const s = getStatus(v, r.min, r.max);
         if (s === 'high' || s === 'low') {

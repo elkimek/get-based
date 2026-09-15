@@ -171,6 +171,25 @@ describe('AI transparency and route-aware approval', () => {
     });
   });
 
+  it('does not reuse Codex consent or policies for another CLI adapter or model', async () => {
+    localStorage.setItem('labcharts-agent-host-agent', 'claude');
+    const details = cloudAIConsentDetails('codex-agent', { modelId: 'fixture-model' });
+    expect(details).toMatchObject({ boundary: 'remote', required: true, privacyUrl: '', termsUrl: '' });
+    expect(details.label).toContain('claude');
+    expect(details.route).not.toContain('OpenAI');
+    expect(details.scope).not.toBe('codex-agent');
+    const pending = requestAIProcessingApproval('codex-agent', { kind: 'report', modelId: 'fixture-model' });
+    expect(document.querySelector('#cloud-ai-consent-overlay').textContent).toContain('cannot verify those external settings');
+    approve('cloud-ai-consent-overlay');
+    expect(await pending).toBe(true);
+    expect(hasCloudAIConsent('codex-agent', { modelId: 'fixture-model' })).toBe(true);
+    expect(hasCloudAIConsent('codex-agent', { modelId: 'other-model' })).toBe(false);
+    localStorage.setItem('labcharts-agent-host-agent', 'gemini');
+    expect(hasCloudAIConsent('codex-agent', { modelId: 'fixture-model' })).toBe(false);
+    localStorage.setItem('labcharts-agent-host-agent', 'codex');
+    expect(hasCloudAIConsent('codex-agent', { modelId: 'fixture-model' })).toBe(false);
+  });
+
   it('treats a personal CLI gateway as a distinct remote destination', () => {
     expect(cloudAIConsentDetails('personal-agent-gateway')).toMatchObject({
       boundary: 'remote',

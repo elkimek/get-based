@@ -99,8 +99,11 @@ test('report builder modal delegates presets categories AI state and preview exp
       localStorage.setItem('labcharts-ai-paused', 'true');
       localStorage.removeItem('labcharts-openrouter-key');
 
+      const popupDocument = document.implementation.createHTMLDocument('Report preview');
       window.open = () => ({
         document: {
+          body: popupDocument.body,
+          createElement: popupDocument.createElement.bind(popupDocument),
           write(markup) { capturedReport += markup; },
           close() {},
           querySelector(selector) {
@@ -123,13 +126,13 @@ test('report builder modal delegates presets categories AI state and preview exp
       outcomes.opensClinicianBuilder = !!overlay
         && overlay.dataset.reportPreset === 'clinician'
         && overlay.querySelector('#report-builder-title')?.textContent === 'Create a report'
-        && overlay.querySelector('.report-builder-local-badge')?.textContent === 'Local preview'
-        && overlay.querySelectorAll('.report-preset-btn').length === 3
+        && overlay.querySelector('.report-intro-copy')?.textContent.includes('created locally')
+        && overlay.querySelectorAll('.report-preset-btn').length === 4
         && overlay.querySelectorAll('input[data-report-section]').length >= 6
         && overlay.querySelectorAll('input[data-report-category]').length >= 2
         && checkedCategories(overlay).includes('biochemistry')
-        && overlay.querySelector('[data-report-section-count]')?.textContent === '6 of 8 sections'
-        && overlay.querySelector('[data-report-category-count]')?.textContent === '1 of 2 categories';
+        && overlay.querySelector('[data-report-section-count]')?.textContent === '4 of 9 sections'
+        && overlay.querySelector('[data-report-category-count]')?.textContent === '2 of 2 categories';
 
       const presetOverlay = overlay;
       click('[data-report-action="set-preset"][data-report-preset="full"]');
@@ -137,9 +140,9 @@ test('report builder modal delegates presets categories AI state and preview exp
       overlay = getOverlay();
       outcomes.presetClickUpdatesInPlace = overlay === presetOverlay
         && overlay?.dataset.reportPreset === 'full'
-        && overlay.querySelector('.report-preset-btn.active')?.textContent.includes('Full lab report') === true
+        && overlay.querySelector('.report-preset-btn.active')?.textContent.includes('Full health report') === true
         && overlay.querySelector('#report-date-range')?.value === 'all'
-        && overlay.querySelector('[data-report-section-count]')?.textContent === '8 of 8 sections'
+        && overlay.querySelector('[data-report-section-count]')?.textContent === '9 of 9 sections'
         && overlay.querySelector('[data-report-category-count]')?.textContent === '2 of 2 categories';
 
       const textEl = overlay.querySelector('#report-ai-summary-text');
@@ -157,7 +160,7 @@ test('report builder modal delegates presets categories AI state and preview exp
       await wait();
       outcomes.generateWithoutProviderNotifies = Array.from(document.querySelectorAll('.notification-toast.error'))
         .some(toast => toast.textContent.includes('Connect an AI provider'))
-        && statusEl.textContent === 'Not generated.';
+        && statusEl.textContent === 'Overview unavailable. Retry or preview without AI.';
 
       textEl.hidden = false;
       textEl.value = 'Generated text to clear';
@@ -168,7 +171,7 @@ test('report builder modal delegates presets categories AI state and preview exp
       await wait();
       outcomes.clearAISummaryResetsEditor = textEl.hidden === true
         && textEl.value === ''
-        && statusEl.textContent === 'Not generated.'
+        && statusEl.textContent === 'Not included.'
         && clearAiBtn.hidden === true;
 
       const sectionBoxes = Array.from(overlay.querySelectorAll('input[data-report-section]'));
@@ -216,7 +219,7 @@ test('report builder modal delegates presets categories AI state and preview exp
       click('[data-report-action="export"]');
       await wait();
       outcomes.successfulExportWritesPreviewAndCloses = !getOverlay()
-        && capturedReport.includes('Report Coverage lab report')
+        && capturedReport.includes('Report Coverage health report')
         && capturedReport.includes('Report export browser note')
         && capturedReport.includes('Print / Save PDF')
         && printHandlerInstalled === true
@@ -286,6 +289,7 @@ test('report lab categories use the modal scroll surface for reliable wheel inpu
   await expect.poll(() => categoryList.locator('.report-category-row').count()).toBeGreaterThan(4);
   await expect.poll(() => categoryList.evaluate(element => getComputedStyle(element).overflowY)).toBe('visible');
 
+  await overlay.locator('[data-report-for="categories"] summary').click();
   const firstCategory = categoryList.locator('.report-category-row').first();
   await firstCategory.scrollIntoViewIfNeeded();
   await firstCategory.hover();
@@ -548,7 +552,7 @@ test('report payload and HTML cover filtered context genetics and supplement bra
         payload.notes,
         payload.supps,
         payload.contextSections,
-        payload.reportOptions,
+        { ...payload.reportOptions, detailed: true },
       );
       outcomes.htmlRendersSelectedReportSections = reportHtml.includes('Flagged Results')
         && reportHtml.includes('Notable Trends')
@@ -702,12 +706,13 @@ test('report HTML renderer covers sparse single-date trend and print branches', 
         }],
         [{ title: 'Plain Context', text: 'Single context line <safe>' }],
         {
+          detailed: true,
           preset: 'personal',
           dateRange: '3m',
           sections: ['summary', 'categories', 'supplements', 'context', 'genetics'],
         },
       );
-      outcomes.emptyReportDeckSupplementAndMtDna = emptyReport.includes('Sparse &lt;Profile&gt; lab report')
+      outcomes.emptyReportDeckSupplementAndMtDna = emptyReport.includes('Sparse &lt;Profile&gt; health report')
         && emptyReport.includes('No lab results are available for the selected report window')
         && emptyReport.includes('No lab dates in selected range')
         && emptyReport.includes('<strong>No out-of-range results.</strong>')
@@ -772,6 +777,7 @@ test('report HTML renderer covers sparse single-date trend and print branches', 
         {
           preset: 'full',
           dateRange: 'all',
+          detailed: true,
           sections: ['summary', 'flagged', 'categories', 'trends', 'supplements', 'notes', 'genetics', 'context'],
         },
       );
@@ -817,13 +823,13 @@ test('report HTML renderer covers sparse single-date trend and print branches', 
         date: '2026-02-01',
         markers: { 'biochemistry.glucose': 5.6 },
       }];
-      outcomes.successfulExportWritesPreviewAndInstallsPrint = html.exportPDFReport({
+      outcomes.successfulExportWritesPreviewAndInstallsPrint = await html.exportPDFReport({
         preset: 'personal',
         dateRange: 'all',
         sections: ['summary', 'categories'],
         categoryKeys: ['biochemistry'],
       }) === true
-        && capturedReport.includes('Renderer Coverage lab report')
+        && capturedReport.includes('Renderer Coverage health report')
         && capturedReport.includes('Glucose')
         && capturedReport.includes('Print / Save PDF')
         && typeof printHandler === 'function'
@@ -960,7 +966,7 @@ Discussion focus:
         && request.url.includes('/v1/chat/completions')
         && request.body.model === 'summary-test-model'
         && request.body.max_tokens === 900
-        && request.body.messages.some(message => message.role === 'system' && message.content.includes('You write practitioner-facing patient overviews'))
+        && request.body.messages.some(message => message.role === 'system' && message.content.includes('You write descriptive personal health overviews'))
         && userContext.includes('Profile: Report AI Coverage')
         && userContext.includes('Notable trends:')
         && userContext.includes('Recent report notes:')
@@ -1055,14 +1061,14 @@ test('report export helpers cover option normalization AI markup and popup block
         aiSummary: 'Patient picture:\nStable <script>alert(1)</script>\n\nDiscussion focus:\n- Review vitamin D trend',
       });
       outcomes.normalizesExplicitOptions = normalized.preset === 'clinician'
-        && normalized.dateRange === 'current'
+        && normalized.dateRange === 'all'
         && normalized.sections.join('|') === 'summary|notes'
         && normalized.categoryKeys.join('|') === 'vitamins'
         && normalized.aiSummary.text.includes('Stable <script>alert(1)</script>')
         && report.normalizeReportOptions({ sections: [] }).sections.length === 0;
 
       const aiMarkup = report.renderReportAISummarySection(normalized.aiSummary);
-      outcomes.aiSummaryMarkupEscapesAndStructures = aiMarkup.includes('<h2>Practitioner Overview</h2>')
+      outcomes.aiSummaryMarkupEscapesAndStructures = aiMarkup.includes('<h2>AI-generated overview</h2>')
         && aiMarkup.includes('<p class="report-ai-subhead">Patient picture</p>')
         && aiMarkup.includes('<p class="report-ai-subhead">Discussion focus</p>')
         && aiMarkup.includes('Stable &lt;script&gt;alert(1)&lt;/script&gt;')
@@ -1071,7 +1077,7 @@ test('report export helpers cover option normalization AI markup and popup block
       outcomes.grokReportSummaryIsVisiblyAttributed = grokMarkup.includes('<p class="report-ai-attribution">Written with Grok</p>');
 
       window.open = () => null;
-      outcomes.popupBlockedReturnsFalseAndNotifies = html.exportPDFReport({
+      outcomes.popupBlockedReturnsFalseAndNotifies = await html.exportPDFReport({
         preset: 'personal',
         dateRange: 'all',
         sections: ['categories'],

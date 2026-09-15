@@ -1,8 +1,91 @@
 // @ts-check
 // export-report-data.js — portable, renderer-independent report snapshots
 
+import { buildExtraReportSections } from './export-report-sections.js';
 import { resolveMarkerRangeContext } from './marker-analysis.js';
+import { effectiveTimesPerDay, formatSupplementTotal, ingredientDailyTotal } from './supplement-impact.js';
+import { getSupplementStatus } from './supplement-medication-domain.js';
+import { findGenotypeInfo } from './dna-genotype.js';
+import { getSnpCategoryLabel, resolveSnpEvidenceProfile, snpFindingPresentation, snpFindingRank } from './dna-evidence.js';
 import { formatValue } from './utils.js';
+
+/** Resolve imported calls against current annotations.
+ * @param {any} genetics @param {Record<string, any> | null} [snpTable]
+ */
+export function buildReportGenetics(genetics, snpTable = null) {
+  if (!genetics) return null;
+  const result = cloneSerializable(genetics);
+  result.findings = Object.entries(genetics.snps || {}).map(([rsid, raw]) => {
+    const stored = raw || {};
+    const entry = snpTable?.[rsid];
+    const info = findGenotypeInfo(entry, stored.genotype);
+    const presentation = snpFindingPresentation(info?.effect, info?.valence);
+    const evidence = resolveSnpEvidenceProfile(info ? entry : {}, info || {});
+    return {
+      rsid, gene: stored.gene || entry?.gene || rsid, variant: stored.variant || entry?.variant || '',
+      genotype: stored.genotype || '?', category: getSnpCategoryLabel(entry?.category || stored.category),
+      direction: presentation.label, tone: presentation.tone, evidence,
+      note: info?.note || 'No current catalog interpretation is available for this call.',
+      apoeComponent: Boolean(genetics.apoe && ['rs429358', 'rs7412'].includes(rsid)),
+      references: [...new Set([info?.ref, ...(Array.isArray(entry?.references) ? entry.references : [])].filter(Boolean))],
+      strandNote: entry?.strandNote || '',
+      rank: snpFindingRank(evidence, presentation),
+    };
+  }).sort((a, b) => a.rank - b.rank || a.rsid.localeCompare(b.rsid));
+  result.catalogAvailable = Boolean(snpTable);
+  result.interpretationCatalogVersion = snpTable?._meta?.version || null;
+  return result;
+}
+
+export const REPORT_GENOME_MODES = ['risks', 'risks-traits', 'traits', 'all'];
+
+/** Apply the same current-catalog selection to the PDF and AI overview. */
+export function selectReportGenomeFindings(genetics, options = {}) {
+  const findings = genetics?.findings || [];
+  if (options.genomeMode === 'all') return findings;
+  if (options.genomeMode === 'risks') return findings.filter(finding => finding.tone === 'risk');
+  if (options.genomeMode === 'traits') return findings.filter(finding => finding.tone === 'trait');
+  if (options.genomeMode === 'risks-traits') return findings.filter(finding => ['risk', 'trait'].includes(finding.tone));
+  return findings.filter(finding => options.genomeVariants?.includes(finding.rsid));
+}
+
+export function getSupplementDosageParts(s) {
+  const parts = [];
+  if (s.dosage) parts.push(String(s.dosage));
+  if (s.dose) parts.push(String(s.dose));
+  if (s.amount) parts.push(String(s.amount));
+  if (s.frequency && !parts.some(part => part.toLowerCase().includes(String(s.frequency).toLowerCase()))) {
+    parts.push(String(s.frequency));
+  }
+  if (Array.isArray(s.ingredients) && s.ingredients.length > 0) {
+    const ingredientParts = s.ingredients.map(ing => {
+      const name = ing.name ? String(ing.name).trim() : '';
+      const amount = ing.amount ? String(ing.amount).trim() : '';
+      const base = [name, amount].filter(Boolean).join(' ').trim();
+      if (!base) return '';
+      const total = ingredientDailyTotal(ing, s);
+      const times = effectiveTimesPerDay(ing, s);
+      const timesStr = times && times > 1 ? ` x ${times}/day` : '';
+      const totalStr = total ? ` -> ${formatSupplementTotal(total)}` : '';
+      return `${base}${timesStr}${totalStr}`;
+    }).filter(Boolean);
+    if (ingredientParts.length > 0) parts.push(ingredientParts.join('; '));
+  }
+  if (Array.isArray(s.inactiveIngredients) && s.inactiveIngredients.length > 0) {
+    parts.push(`Other label ingredients: ${s.inactiveIngredients.join(', ')}`);
+  }
+  if (Array.isArray(s.qualityTests) && s.qualityTests.length > 0) {
+    parts.push(`Source-reported laboratory results: ${s.qualityTests.map(test => {
+      const result = test.resultText || test.status || 'result not reported';
+      return `${test.analyte || 'Unknown analyte'} ${result}${test.basis ? ` (${test.basis})` : ''}`;
+    }).join('; ')}`);
+  }
+  if (s.timesPerDay && !parts.some(part => /\b\/day\b|\bx\s*\d/i.test(part))) {
+    parts.push(`${s.timesPerDay}x/day`);
+  }
+  return [...new Set(parts)];
+}
+
 
 export const REPORT_DATA_SCHEMA_VERSION = 1;
 
@@ -16,35 +99,14 @@ export const REPORT_DATA_SCHEMA_VERSION = 1;
  *   unitSystem?: string,
  *   contextSections?: any[],
  *   generatedAt?: string,
+ *   snpTable?: any,
  * }} BuildReportDataSnapshotInput
  */
 
 const LAB_SECTION_IDS = new Set(['flagged', 'categories', 'summary', 'trends']);
-const CONTEXT_FIELDS = [
-  'healthGoals',
-  'diagnoses',
-  'diet',
-  'exercise',
-  'sleepRest',
-  'lightCircadian',
-  'stress',
-  'loveLife',
-  'environment',
-  'interpretiveLens',
-  'contextNotes',
-  'menstrualCycle',
-  'biometrics',
-  'wearableSummary',
-  'emfAssessment',
-  'sunSessions',
-  'deviceSessions',
-  'lightDevices',
-  'lightEnvironment',
-  'lightMeasurements',
-  'lightAudits',
-  'sunCorrelations',
-  'lifelightProfile',
-];
+// Preserve the v1 programmatic context contract; builder selections use explicit titles.
+const CONTEXT_FIELDS = ['healthGoals', 'diagnoses', 'diet', 'exercise', 'sleepRest', 'lightCircadian', 'stress', 'loveLife', 'environment', 'interpretiveLens', 'contextNotes', 'menstrualCycle', 'biometrics', 'wearableSummary', 'emfAssessment', 'sunSessions', 'deviceSessions', 'lightDevices', 'lightEnvironment', 'lightMeasurements', 'lightAudits', 'sunCorrelations', 'lifelightProfile'];
+
 
 function normalizeRangeMode(rangeMode) {
   return rangeMode === 'reference' || rangeMode === 'both' ? rangeMode : 'optimal';
@@ -269,6 +331,7 @@ function buildLabs(data, importedData, rangeMode) {
           status: latestResult.status,
           range: latestResult.ranges.judging,
           availableRanges: latestResult.ranges.available,
+          displayedRanges: latestResult.ranges.displayed,
           note: latestResult.note,
         });
       }
@@ -332,22 +395,15 @@ function buildProfile(profile, includeContext) {
   });
 }
 
-function buildContext(importedData, contextSections) {
-  const raw = {};
-  for (const key of CONTEXT_FIELDS) {
-    if (importedData[key] != null && importedData[key] !== '') raw[key] = cloneSerializable(importedData[key]);
-  }
-  return {
-    sections: cloneSerializable(contextSections || []),
-    raw,
-  };
-}
-
 function formatAgentRange(range) {
   if (range?.min != null && range?.max != null) return `${formatValue(range.min)}-${formatValue(range.max)}`;
   if (range?.min != null) return `\u2265${formatValue(range.min)}`;
   if (range?.max != null) return `\u2264${formatValue(range.max)}`;
   return 'not specified';
+}
+
+function formatAgentRanges(ranges) {
+  return ranges.map(range => `${range?.label || 'range'} ${formatAgentRange(range)}${range?.usedForStatus ? ' [status basis]' : ''}`).join('; ');
 }
 
 function reportAge(profile, generatedAt) {
@@ -422,7 +478,7 @@ export function formatReportDataForAgent(reportData, {
     if ((sections.has('flagged') || sections.has('summary')) && labs.flags?.length > 0) {
       lines.push('Latest out-of-range markers:');
       for (const flag of labs.flags.slice(0, flagLimit)) {
-        lines.push(`- ${flag.name}: ${flag.displayValue} ${flag.unit || ''} ${flag.status} (${flag.range?.label || 'range'} ${formatAgentRange(flag.range)}; ${flag.date || 'date not set'})`);
+        lines.push(`- ${flag.name}: ${flag.displayValue} ${flag.unit || ''} ${flag.status} (${formatAgentRanges(flag.displayedRanges || [flag.range])}; ${flag.date || 'date not set'})`);
       }
     }
 
@@ -438,7 +494,7 @@ export function formatReportDataForAgent(reportData, {
       for (const { category, marker } of markers.slice(0, markerLimit)) {
         const result = marker.latestResult;
         const notes = [marker.note, result.note].filter(Boolean).join('; ');
-        lines.push(`- ${category}: ${marker.name} ${result.displayValue} ${marker.unit || ''} (${result.status}; ${result.ranges.judging?.label || 'range'} ${formatAgentRange(result.ranges.judging)}; ${result.date || 'date not set'})${notes ? `; note: ${String(notes).replace(/\s+/g, ' ').slice(0, 180)}` : ''}`);
+        lines.push(`- ${category}: ${marker.name} ${result.displayValue} ${marker.unit || ''} (${result.status}; ${formatAgentRanges(result.ranges.displayed)}; ${result.date || 'date not set'})${notes ? `; note: ${String(notes).replace(/\s+/g, ' ').slice(0, 180)}` : ''}`);
       }
     }
 
@@ -459,8 +515,8 @@ export function formatReportDataForAgent(reportData, {
   if (sections.has('supplements') && reportData.supplements?.length > 0) {
     lines.push('Supplements and medications:');
     for (const supplement of reportData.supplements.slice(0, 12)) {
-      const dosage = [supplement.dosage, supplement.dose, supplement.amount, supplement.frequency].filter(Boolean).join(', ');
-      lines.push(`- ${supplement.name || 'Unnamed'}${dosage ? ` (${dosage})` : ''}`);
+      const dosage = getSupplementDosageParts(supplement).join('; ').slice(0, 500);
+      lines.push(`- ${supplement.name || 'Unnamed'} [${getSupplementStatus(supplement)}]${dosage ? ` (${dosage})` : ''}`);
     }
   }
   if (sections.has('notes') && reportData.notes?.length > 0) {
@@ -475,10 +531,24 @@ export function formatReportDataForAgent(reportData, {
       lines.push(`- ${section.title}: ${String(section.text || '').replace(/\s+/g, ' ').slice(0, 280)}`);
     }
   }
-  if (sections.has('genetics') && reportData.genetics?.apoe) {
-    lines.push(`Genetics: APOE ${reportData.genetics.apoe}`);
+  if (sections.has('genetics') && reportData.genetics) {
+    const genetics = reportData.genetics;
+    lines.push('Genetics: direction, evidence strength, and personal relevance are separate; associations are not diagnoses.');
+    const findings = selectReportGenomeFindings(genetics, reportData.scope);
+    if (genetics.apoe && (reportData.scope.genomeMode === 'all' || (!reportData.scope.genomeMode && !(genetics.findings || []).length) || findings.some(finding => ['rs429358', 'rs7412'].includes(finding.rsid)))) lines.push(`Genetics: APOE ${genetics.apoe}`);
+    if (genetics.mtdna && (!reportData.scope.genomeMode || reportData.scope.genomeMode === 'all')) lines.push(`mtDNA haplogroup: ${genetics.mtdna.haplogroup}`);
+    for (const finding of findings.slice(0, 24)) {
+      lines.push(`- ${finding.gene} ${finding.rsid} ${finding.genotype}: ${finding.direction}; evidence: ${finding.evidence.evidenceLabel}; relevance: ${finding.evidence.relevanceLabel}. ${finding.note} ${finding.evidence.scope} ${finding.evidence.context}`);
+    }
+    if (findings.length > 24) lines.push(`${findings.length - 24} additional genetic calls are present in the full report; this overview is selective.`);
   }
 
+  for (const section of reportData.additionalSections || []) {
+    const summary = section.summary || section;
+    lines.push(`${section.title}: ${summary.note}`);
+    for (const row of summary.rows) lines.push(row.map((value, index) => `${summary.columns[index]}: ${value}`).join('; '));
+  }
+  if (reportData.scope?.purpose) lines.unshift(`User's reason for sharing / questions: ${reportData.scope.purpose}`);
   return lines.join('\n');
 }
 
@@ -497,6 +567,7 @@ export function buildReportDataSnapshot(/** @type {BuildReportDataSnapshotInput}
     unitSystem = 'EU',
     contextSections = [],
     generatedAt = new Date().toISOString(),
+    snpTable = null,
   } = input;
   const options = reportOptions || { preset: 'full', presetLabel: 'Full lab report', dateRange: 'all', sections: [] };
   const sections = new Set(options.sections || []);
@@ -510,7 +581,13 @@ export function buildReportDataSnapshot(/** @type {BuildReportDataSnapshotInput}
       preset: options.preset || 'full',
       presetLabel: options.presetLabel || 'Report',
       dateRange: options.dateRange || 'all',
+      startDate: options.startDate || null,
+      endDate: options.endDate || null,
       sections: [...sections],
+      purpose: options.purpose || '',
+      appendixSections: options.appendixSections || [],
+      genomeVariants: options.genomeVariants || [],
+      genomeMode: REPORT_GENOME_MODES.includes(options.genomeMode) ? options.genomeMode : null,
       categoryKeys: Array.isArray(options.categoryKeys) ? [...options.categoryKeys] : null,
       rangeMode: normalizedRangeMode,
       statusBasis: normalizedRangeMode === 'reference'
@@ -518,11 +595,12 @@ export function buildReportDataSnapshot(/** @type {BuildReportDataSnapshotInput}
         : 'optimal when available; otherwise reference; phase-specific reference ranges take precedence',
       unitSystem,
     },
-    profile: buildProfile(profile || {}, sections.has('context')),
+    profile: buildProfile(profile || {}, sections.has('context') && !Array.isArray(options.contextTitles)),
     labs: includesLabs ? buildLabs(data || { dates: [], categories: {} }, safeImportedData, normalizedRangeMode) : null,
     notes: sections.has('notes') ? cloneSerializable(safeImportedData.notes || []) : [],
     supplements: sections.has('supplements') ? cloneSerializable(safeImportedData.supplements || []) : [],
-    genetics: sections.has('genetics') ? cloneSerializable(safeImportedData.genetics || null) : null,
-    context: sections.has('context') ? buildContext(safeImportedData, contextSections) : null,
+    genetics: sections.has('genetics') ? buildReportGenetics(safeImportedData.genetics, snpTable) : null,
+    additionalSections: buildExtraReportSections(safeImportedData, [...sections], { startDate: options.startDate, endDate: options.endDate, unitSystem }),
+    context: sections.has('context') ? { sections: cloneSerializable(contextSections.filter(section => !Array.isArray(options.contextTitles) || options.contextTitles.includes(section.title))), raw: Array.isArray(options.contextTitles) ? {} : cloneSerializable(Object.fromEntries(CONTEXT_FIELDS.filter(key => safeImportedData[key] != null).map(key => [key, safeImportedData[key]]))) } : null,
   };
 }

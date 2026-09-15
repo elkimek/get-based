@@ -93,7 +93,7 @@ function roundedTotals(totals, divisor = 1) {
   return output;
 }
 
-function nutrientRollup(meals) {
+export function nutrientRollup(meals) {
   const rows = Array.isArray(meals) ? meals : [];
   const byDay = new Map();
   for (const meal of rows) {

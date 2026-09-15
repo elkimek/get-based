@@ -410,6 +410,13 @@ export async function getAllDailyRaw(profileId) {
   });
 }
 
+// Read all sources without returning encrypted envelopes or connection credentials.
+export async function getDailyForReport(profileId, startDate = null, endDate = null) {
+  const raw = (await getAllDailyRaw(profileId)).filter(row => (!startDate || row.date >= startDate) && (!endDate || row.date <= endDate));
+  const rows = await Promise.all(raw.map(row => _decryptRowIfWrapped(profileId, row)));
+  return { rows: rows.filter(Boolean), unavailable: rows.filter(row => !row).length };
+}
+
 // Raw write — accepts rows AS-IS without re-encrypting. Used by the
 // backup-restore path so wrapped rows go back into IDB untouched. Restricted
 // provider sources are excluded because their device key never leaves the

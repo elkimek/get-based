@@ -197,6 +197,7 @@ export function withdrawAIRouteConfirmations() {
 }
 
 function purposeCopy(kind) {
+  if (kind === 'report') return 'generating an AI overview from the report facts and questions you selected';
   if (kind === 'activation') return 'activating this AI connection';
   if (kind === 'meal-photo') return 'analyzing the selected meal photos and any details you entered';
   if (kind === 'voice-input') return 'transcribing the audio you choose to record';
@@ -241,6 +242,7 @@ function appendPolicyLinks(container, details) {
 }
 
 function recipientPracticesPoint(details) {
+  if (details.scope.startsWith('cli-agent:')) return 'The CLI controls its model-provider routing. Review its configured recipient and that recipient’s privacy, retention and security policies before approving. This app cannot verify those external settings; changes require a new review.';
   if (details.provider === 'routstr') {
     return 'Routstr is a decentralized protocol, not the recipient. The selected independent node receives the request and may pass it to an upstream model provider; the node may publish no privacy policy or terms.';
   }
@@ -534,7 +536,7 @@ function processingApprovalSatisfied(provider, options) {
   }
   return hasCloudAIConsent(provider, {
     endpoint: details.endpoint,
-    modelId: details.cloudModel ? 'cloud' : '',
+    modelId: options.modelId,
   });
 }
 
@@ -554,7 +556,7 @@ export function requestAIProcessingApproval(provider, { kind = 'text', endpoint 
     const needsDestination = details.boundary === 'private-network'
       ? !hasAIRouteConfirmation(provider, { endpoint: details.endpoint })
       : details.boundary === 'remote'
-        ? !hasCloudAIConsent(provider, { endpoint: details.endpoint, modelId: details.cloudModel ? 'cloud' : '' })
+        ? !hasCloudAIConsent(provider, { endpoint: details.endpoint, modelId })
         : false;
     if (needsTransparency && needsDestination) return requestCombinedDestinationActivation(details, kind);
     if (needsTransparency && !await showAITransparencyPrompt()) return false;

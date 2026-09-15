@@ -18,6 +18,19 @@ import {
 } from './notes-runtime.js';
 
 let _noteActionDelegatesInstalled = false;
+let noteEditorSession = null;
+
+function currentEditorIndex() {
+  const session = noteEditorSession;
+  if (!session || session.profile !== state.currentProfile || session.data !== state.importedData) return undefined;
+  if (!session.note) return null;
+  const index = (state.importedData.notes || []).indexOf(session.note);
+  return index >= 0 && JSON.stringify(session.note) === session.fingerprint ? index : undefined;
+}
+
+function notifyStaleNote() {
+  showNotification('Profile or notes changed. Reopen the note before editing or deleting it.', 'info');
+}
 
 const NOTE_ACTION_ATTR = 'data-note-action';
 const NOTE_ACTION_SELECTOR = `[${NOTE_ACTION_ATTR}]`;
@@ -55,8 +68,8 @@ function handleNoteActionClick(event) {
   } else if (action === 'save') {
     saveNote(parseNoteIndex(actionEl));
   } else if (action === 'delete') {
-    const idx = parseNoteIndex(actionEl);
-    if (idx === null) return;
+    const idx = currentEditorIndex();
+    if (idx === undefined || idx === null) { notifyStaleNote(); return; }
     deleteNote(idx);
   } else {
     return;
@@ -70,25 +83,9 @@ export function installNoteActionDelegates(root = typeof document !== 'undefined
   root.addEventListener('click', handleNoteActionClick);
 }
 
-/** @param {{ modal: HTMLElement }} context */
-function refreshOpenNoteEditorOnSync({ modal }) {
-  if (modal.dataset.syncRefreshMode !== 'edit') {
-    openNoteEditor(modal.dataset.syncRefreshDate || undefined);
-    return;
-  }
-  const idx = Number.parseInt(modal.dataset.syncRefreshIndex || '', 10);
-  const date = modal.dataset.syncRefreshDate || '';
-  const noteAtIdx = state.importedData.notes?.[idx];
-  if (Number.isInteger(idx) && noteAtIdx && (!date || noteAtIdx.date === date)) {
-    openNoteEditor(null, idx);
-    return;
-  }
-  const nextIdx = (state.importedData.notes || []).findIndex(n => n?.date === date);
-  if (nextIdx >= 0) {
-    openNoteEditor(null, nextIdx);
-  } else {
-    closeNoteModalRuntime();
-  }
+function refreshOpenNoteEditorOnSync() {
+  // Keep the draft visible for copying; save/delete validate the captured record.
+  if (currentEditorIndex() === undefined) notifyStaleNote();
 }
 
 if (typeof window !== 'undefined') {
@@ -107,6 +104,8 @@ export function openNoteEditor(date, existingIdx) {
   const wasOpen = overlay.classList.contains('show');
   const isEditing = existingIdx !== undefined && existingIdx !== null;
   const existing = isEditing ? (state.importedData.notes || [])[existingIdx] : null;
+  if (isEditing && !existing) return;
+  noteEditorSession = { profile: state.currentProfile, data: state.importedData, note: existing, fingerprint: JSON.stringify(existing) };
   const defaultDate = existing ? existing.date : (date || new Date().toISOString().slice(0, 10));
   const currentText = existing ? existing.text : '';
   const title = isEditing ? 'Edit Note' : 'Add Note';
@@ -133,6 +132,8 @@ export function openNoteEditor(date, existingIdx) {
 
 /** @param {number | null | undefined} idx */
 export function saveNote(idx) {
+  idx = currentEditorIndex();
+  if (idx === undefined) { notifyStaleNote(); return; }
   const dateInput = /** @type {HTMLInputElement | null} */ (document.getElementById('note-date-input'));
   const ta = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('note-textarea'));
   const date = dateInput ? dateInput.value : '';
@@ -155,9 +156,15 @@ export function saveNote(idx) {
 
 /** @param {number} idx */
 export async function deleteNote(idx) {
-  if (!state.importedData.notes) return;
+  const data = state.importedData;
+  const profile = state.currentProfile;
+  const note = data.notes?.[idx];
+  if (!note) return;
+  const fingerprint = JSON.stringify(note);
   if (await showConfirmDialog("Delete this note? This can't be undone.")) {
-    deleteImportedArrayItem(state.importedData, 'notes', idx);
+    const currentIndex = (data.notes || []).indexOf(note);
+    if (state.currentProfile !== profile || state.importedData !== data || currentIndex < 0 || JSON.stringify(note) !== fingerprint) { notifyStaleNote(); return; }
+    deleteImportedArrayItem(data, 'notes', currentIndex);
     saveImportedData();
     closeNoteModalRuntime();
     const activeNav = /** @type {HTMLElement | null} */ (document.querySelector(".nav-item.active"));

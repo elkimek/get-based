@@ -48,6 +48,7 @@ import {
   setManualHaplogroup,
 } from './dna-mtdna.js';
 import {
+  SNP_CATEGORY_LABELS, getSnpCategoryLabel, loadSnpCatalog, getCachedSnpCatalog,
   buildSnpAIInterpretationPrompt,
   dnaStudyReferenceLabel,
   mtdnaEvidenceIssueUrl,
@@ -70,51 +71,14 @@ export {
 // PARSE DNA FILE
 // ═══════════════════════════════════════════════
 let _snpTable = null;
-let _snpTablePromise = null;
-export const SNP_CATEGORY_LABELS = {
-  methylation: 'Methylation',
-  iron: 'Iron',
-  lipids: 'Lipids',
-  vitaminD: 'Vitamin D',
-  vitaminB12: 'Vitamin B12',
-  bilirubin: 'Bilirubin',
-  thyroid: 'Thyroid',
-  fattyAcids: 'Fatty Acids',
-  bloodSugar: 'Blood Sugar',
-  sexHormones: 'Sex Hormones',
-  alcohol: 'Alcohol',
-  caffeine: 'Caffeine',
-  bodyComposition: 'Body Composition',
-  neurotransmitters: 'Neurotransmitter Metabolism',
-  performance: 'Exercise Traits',
-  digestion: 'Digestion',
-  vitaminA: 'Vitamin A',
-  skin: 'Skin & Sun',
-  other: 'Other'
-};
+export { SNP_CATEGORY_LABELS, getSnpCategoryLabel };
 
-export function getSnpCategoryLabel(category) {
-  if (!category) return SNP_CATEGORY_LABELS.other;
-  return SNP_CATEGORY_LABELS[category] || String(category);
-}
-
-function loadSNPTable({ forceFresh = false } = {}) {
-  // Page-lifetime cache short-circuit. Bypass with forceFresh=true so a
-  // re-import after a catalog version bump always sees the latest entries
-  // — without the bypass, the parser walks an old allowlist and silently
-  // drops any rsIDs that were added to the catalog since the page loaded.
-  if (_snpTable && !forceFresh) return Promise.resolve(_snpTable);
-  if (forceFresh) {
-    _snpTable = null;
-    _snpTablePromise = null;
-  }
-  if (!_snpTablePromise) {
-    _snpTablePromise = fetch('data/snp-health.json', forceFresh ? { cache: 'no-store' } : undefined)
-      .then(r => r.json())
-      .then(data => { _snpTable = data; cacheDnaSnpTable(data); return data; })
-      .catch(err => { _snpTablePromise = null; logDnaDebugError('Failed to load SNP table:', err); throw err; });
-  }
-  return _snpTablePromise;
+function loadSNPTable(options = {}) {
+  return loadSnpCatalog(options).then(data => {
+    _snpTable = getCachedSnpCatalog() || data;
+    cacheDnaSnpTable(_snpTable);
+    return _snpTable;
+  });
 }
 
 export function parseClinicalSnpReportText(text, options = {}) {

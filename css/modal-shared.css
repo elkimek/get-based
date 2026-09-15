@@ -784,6 +784,7 @@ select.kb-field-control {
   -webkit-overflow-scrolling: touch;
 }
 .report-builder-actions {
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   flex: 0 0 auto;
@@ -887,9 +888,11 @@ select.kb-field-control {
   font: inherit;
   font-size: 13px;
 }
+.report-section-choice { display: grid; gap: 4px; min-width: 0; }
+.report-section-choice .report-builder-select { font-size: 11px; padding: 6px 8px; }
 .report-preset-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 .report-preset-btn,
@@ -1921,3 +1924,30 @@ select.kb-field-control {
   .modal-close,
   .context-back-btn { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
 }
+
+/* Report setup uses one detail choice and contextual, progressively disclosed controls. */
+.report-builder-modal [hidden] { display: none !important; }
+.report-builder-modal .report-intro-copy { margin: 0; font-size: 13px; }
+.report-builder-modal .report-builder-two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.report-builder-modal .report-builder-label { font-family: inherit; font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.report-builder-modal .report-builder-section-title { font-size: 14px; }
+.report-detail-options { border: 0; padding: 0; margin: 6px 0 0; min-width: 0; }
+.report-detail-options legend { padding: 0; margin-bottom: 8px; }
+.report-detail-card { align-items: flex-start; padding: 12px; cursor: pointer; }
+.report-detail-card input { margin-top: 3px; }
+.report-detail-card strong { display: block; font-size: 13px; font-weight: 650; }
+.report-detail-card small { display: block; color: var(--text-muted); font-size: 12px; line-height: 1.5; margin-top: 4px; }
+.report-options-details { border-top: 1px solid var(--border); padding-top: 4px; }
+.report-options-details > summary { min-height: 44px; padding: 12px 4px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.report-options-details > summary::marker { color: var(--text-muted); }
+.report-options-meta { margin-left: 8px; font-size: 12px; font-weight: 400; color: var(--text-muted); }
+.report-options-body { padding: 4px 0 10px; display: grid; gap: 10px; }
+.report-genome-options { border-top: 1px solid var(--border); padding-top: 14px; }
+.report-note-review { padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; }
+.report-builder-modal .report-ai-actions { justify-content: flex-start; }
+.report-builder-modal :is(button, input, select, textarea, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (max-width: 720px) { .report-builder-modal .report-builder-two-col { grid-template-columns: 1fr; } }
+
+.report-builder-modal .report-preset-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.report-builder-modal .report-preset-btn { min-height: 64px; padding: 9px; }
+@media (max-width: 720px) { .report-builder-modal .report-preset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

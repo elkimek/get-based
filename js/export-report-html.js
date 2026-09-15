@@ -1,15 +1,19 @@
 // @ts-check
 // export-report-html.js — PDF report HTML renderer
 
+import { getCachedSnpCatalog } from './dna-evidence.js';
+import { renderConciseReportBody, renderReportOriginNotice } from './export-report-summary-html.js';
+import { buildReportDataSnapshot, buildReportGenetics, selectReportGenomeFindings, getSupplementDosageParts } from './export-report-data.js';
 import { state } from './state.js';
-import { getStatus, formatValue, getTrend, showNotification } from './utils.js';
-import { resolveMarkerRangeContext } from './marker-analysis.js';
+import { getStatus, formatValue, getTrend, showNotification, escapeAttr } from './utils.js';
+import { resolveMarkerRangeContext, getAllFlaggedMarkers } from './marker-analysis.js';
 import { getUnitProfileLabel } from './unit-profiles.js';
-import { effectiveTimesPerDay, formatSupplementTotal, ingredientDailyTotal } from './supplement-impact.js';
 import { getSupplementPeriods, getSupplementStatus } from './supplement-medication-domain.js';
 import {
   buildReportHeaderFacts,
   buildPreparedReportPayload,
+  loadReportDetails,
+  REPORT_LAB_SECTION_IDS,
   getReportHeaderProfile,
   normalizeReportOptions,
   renderReportAISummarySection,
@@ -20,7 +24,7 @@ function getReportRuntimeWindow() {
   return typeof window !== 'undefined' ? window : null;
 }
 
-function openReportPreviewWindow() {
+export function openReportPreviewWindow() {
   const runtimeWindow = getReportRuntimeWindow();
   return typeof runtimeWindow?.open === 'function'
     ? runtimeWindow.open('', '_blank')
@@ -28,38 +32,56 @@ function openReportPreviewWindow() {
 }
 
 function getReportSnpTableCache() {
-  return getReportRuntimeWindow()?._snpTableCache || null;
+  return getCachedSnpCatalog() || getReportRuntimeWindow()?._snpTableCache || null;
 }
 
-export function exportPDFReport(options = {}) {
-  const payload = buildPreparedReportPayload(options);
-  const html = buildReportHTML(
-    payload.profileName,
-    payload.sexLabel,
-    payload.data,
-    payload.flags,
-    payload.notes,
-    payload.supps,
-    payload.contextSections,
-    { ...payload.reportOptions, reportData: payload.reportData },
-  );
-  const win = openReportPreviewWindow();
+/** @param {any} options @param {Window | null} [previewWindow] @param {any} [preparedPayload] @param {any} [lifecycle] */
+export function exportPDFReport(options = {}, previewWindow = null, preparedPayload = null, lifecycle = {}) {
+  const captured = preparedPayload || buildPreparedReportPayload(options);
+  const payload = { ...captured, reportOptions: { ...captured.reportOptions, aiSummary: options.aiSummary } };
+  const win = previewWindow || openReportPreviewWindow();
   if (!win) { showNotification('Pop-up blocked - please allow pop-ups for this site', 'error'); return false; }
-  win.document.write(html);
-  win.document.close();
-  const printBtn = typeof win.document.querySelector === 'function'
-    ? win.document.querySelector('.report-print-btn')
-    : null;
-  if (printBtn) printBtn.addEventListener('click', () => win.print());
-  showNotification('PDF preview opened. Use Print in the preview to save as PDF.', 'info', 2500);
-  return true;
+  const headerFacts = payload.headerFacts || buildReportHeaderFacts({
+    profile: payload.profile, reportOptions: payload.reportOptions, dateRange: 'pending',
+    sexLabel: payload.sexLabel, unitLabel: getUnitProfileLabel(payload.reportData.scope.unitSystem),
+  });
+  const finish = () => {
+    if (win.closed || (lifecycle.isCurrent && !lifecycle.isCurrent())) { win.close?.(); return false; }
+    lifecycle.onProgress?.('rendering');
+    const html = buildReportHTML(
+      payload.profileName, payload.sexLabel, payload.data, payload.flags, payload.reportData.notes,
+      payload.reportData.supplements, payload.contextSections,
+      { ...payload.reportOptions, reportData: payload.reportData, headerFacts },
+    );
+    win.document.open?.();
+    win.document.write(html);
+    win.document.close();
+    const printBtn = typeof win.document.querySelector === 'function'
+      ? win.document.querySelector('.report-print-btn') : null;
+    if (printBtn) printBtn.addEventListener('click', () => win.print());
+    showNotification('PDF preview opened. Use Print in the preview to save as PDF.', 'info', 2500);
+    return true;
+  };
+  if (!payload.detailsLoaded && (Object.keys(payload.reportData.genetics?.snps || {}).length || payload.reportData.additionalSections.length)) {
+    return loadReportDetails(payload).then(finish).catch(() => {
+      win.close?.();
+      showNotification('Could not load selected report data. Please retry the report.', 'error');
+      return false;
+    });
+  }
+  return finish();
 }
 
 export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps, contextSections, options = {}) {
   const portableReport = options.reportData || null;
   const reportOptions = normalizeReportOptions(options);
+  const renderOptions = { ...reportOptions, sections: options.detailed ? reportOptions.sections : reportOptions.appendixSections };
+  const includesLabs = reportOptions.sections.some(section => REPORT_LAB_SECTION_IDS.includes(section));
+  if (!includesLabs) { data = { ...data, dates: [], categories: {} }; flags = []; }
   const now = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  const unitLabel = getUnitProfileLabel(state.unitSystem);
+  const rangeMode = portableReport?.scope?.rangeMode || reportOptions.rangeMode;
+  if (includesLabs && options.rangeMode) flags = getAllFlaggedMarkers(data, rangeMode);
+  const unitLabel = getUnitProfileLabel(portableReport?.scope?.unitSystem || state.unitSystem);
   const fmtDate = d => d && Number.isFinite(new Date(d + 'T00:00:00').getTime())
     ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : 'date not set';
@@ -74,26 +96,28 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     }
   }
   const reportDateLabels = [...reportDates].sort().map(fmtDate);
-  const dateRange = reportDateLabels.length > 0
+  const dateRange = !includesLabs ? 'Lab results not selected' : reportDateLabels.length > 0
     ? `${reportDateLabels[0]} \u2013 ${reportDateLabels[reportDateLabels.length - 1]}`
     : 'No lab dates in selected range';
   const hasReportValue = value => value !== null && value !== undefined;
   const trendItems = buildTrendItems();
   const reportStats = buildReportStats();
-  const genetics = state.importedData.genetics;
-  const snpTable = getReportSnpTableCache();
+  const genetics = portableReport ? portableReport.genetics : buildReportGenetics(state.importedData.genetics, getReportSnpTableCache());
+  const includeApoe = genetics?.apoe && (!reportOptions.genomeMode || reportOptions.genomeMode === 'all' || selectReportGenomeFindings(genetics, reportOptions).some(finding => ['rs429358', 'rs7412'].includes(finding.rsid)));
   const rangeModeLabel = getRangeModeLabel();
   const rangeModeTitle = rangeModeLabel.charAt(0).toUpperCase() + rangeModeLabel.slice(1);
   const headerDeck = buildHeaderDeck();
-  const headerProfile = getReportHeaderProfile(profileName);
-  const headerFacts = buildReportHeaderFacts({ profile: headerProfile, reportOptions, dateRange, sexLabel, unitLabel });
-  const headerMetaHTML = headerFacts.map(fact => `<div><dt>${esc(fact.label)}</dt><dd>${esc(fact.value)}</dd></div>`).join('');
+  const headerProfile = portableReport?.profile || getReportHeaderProfile(profileName);
+  const headerFacts = (options.headerFacts || buildReportHeaderFacts({ profile: headerProfile, reportOptions, dateRange, sexLabel, unitLabel }))
+    .map(fact => fact.label === 'Date range' ? { ...fact, value: dateRange } : fact);
+  const headerMetaHTML = headerFacts.map(fact => `<div${fact.label === 'Included data' ? ' class="report-included-data"' : ''}><dt>${esc(fact.label)}</dt><dd>${esc(fact.value)}</dd></div>`).join('');
   const portableMarkers = new Map((portableReport?.labs?.categories || []).flatMap(category =>
     category.markers.map(marker => [marker.storageDotKey, marker])
   ));
 
   let body = '';
 
+  if (options.detailed) {
   body += `<div class="report-preview-toolbar" aria-label="Report preview actions">
     <button type="button" class="report-print-btn" data-report-print-action="print">Print / Save PDF</button>
   </div>`;
@@ -107,87 +131,85 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
       </div>
       <div class="report-generated"><span>Generated</span><strong>${now}</strong></div>
     </div>
-    <h1>${esc(profileName)} lab report</h1>
+<h1>${esc(profileName)} health report</h1>
+    ${renderReportOriginNotice(reportOptions.aiSummary)}
     <p class="report-deck">${esc(headerDeck)}</p>
     <dl class="report-meta">${headerMetaHTML}</dl>
   </header>`;
 
-  body += `<div class="report-overview" aria-label="Report snapshot">
-    <div class="report-stat">
-      <span class="report-stat-label">Needs Attention</span>
-      <strong class="report-stat-value">${flags.length}</strong>
-      <span class="report-stat-note">latest out-of-range marker${flags.length === 1 ? '' : 's'}</span>
-    </div>
-    <div class="report-stat">
-      <span class="report-stat-label">Markers Reviewed</span>
-      <strong class="report-stat-value">${reportStats.totalWithData}</strong>
-      <span class="report-stat-note">${reportStats.totalInRange} within ${rangeModeLabel} range${reportStats.totalUnrated ? ` · ${reportStats.totalUnrated} unrated` : ''}</span>
-    </div>
-    <div class="report-stat">
-      <span class="report-stat-label">Lab Dates</span>
-      <strong class="report-stat-value">${reportDates.size}</strong>
-      <span class="report-stat-note">${esc(dateRange)}</span>
-    </div>
-    <div class="report-stat">
-      <span class="report-stat-label">Lab Groups</span>
-      <strong class="report-stat-value">${reportStats.categoryCount}</strong>
-      <span class="report-stat-note">with lab data</span>
-    </div>
-  </div>`;
+  if (includesLabs) body += `<div class="report-overview" aria-label="Report snapshot">${[
+    ['Outside selected ranges', flags.length, `latest out-of-range marker${flags.length === 1 ? '' : 's'}`],
+    ['Recorded markers', reportStats.totalWithData, `${reportStats.totalInRange} within ${rangeModeLabel} range${reportStats.totalUnrated ? ` · ${reportStats.totalUnrated} unrated` : ''}`],
+    ['Lab Dates', reportDates.size, dateRange],
+    ['Lab Groups', reportStats.categoryCount, 'with lab data'],
+  ].map(([label, value, note]) => `<div class="report-stat"><span class="report-stat-label">${esc(label)}</span><strong class="report-stat-value">${esc(value)}</strong><span class="report-stat-note">${esc(note)}</span></div>`).join('')}</div>`;
 
-  body += renderCollectionContextSection();
+  if (includesLabs) body += `<p class="report-note">Lab reference ranges are labeled when imported; other reference ranges come from app guidance or custom settings. ${rangeMode === 'reference' ? 'Flags use reference ranges.' : 'Flags use optimal ranges when available, otherwise reference ranges. Phase-specific reference ranges take precedence.'}</p>`;
 
-  body += renderReportAISummarySection(reportOptions.aiSummary);
+  }
+  if (options.detailed || renderOptions.sections.includes('categories')) body += renderCollectionContextSection();
 
-  if (reportIncludes(reportOptions, 'summary')) {
+  if (options.detailed) body += renderReportAISummarySection(reportOptions.aiSummary);
+
+  if (reportIncludes(renderOptions, 'summary')) {
     body += renderSummarySection();
   }
 
   // Flagged Results
-  if (reportIncludes(reportOptions, 'flagged') && flags.length > 0) {
+  if (reportIncludes(renderOptions, 'flagged') && flags.length > 0) {
     body += `<h2>Flagged Results</h2><table><thead><tr><th>Biomarker</th><th>Value</th><th>Range</th><th>Status</th></tr></thead><tbody>`;
     for (const f of flags) {
       const cls = f.status === 'high' ? 'val-high' : 'val-low';
       const label = f.status === 'high' ? 'HIGH' : 'LOW';
       body += `<tr><td>${esc(f.name)}</td><td class="${cls}">${f.value} ${esc(f.unit)}</td>
-        <td>${esc(f.effectiveLabel || 'Range')} ${formatRangeBounds(f)}</td><td class="${cls}">${label}</td></tr>`;
+        <td>${f.displayedRanges?.length ? renderRangeSet({ displayedRanges: f.displayedRanges }, true) : esc(f.effectiveLabel || 'Range') + ' ' + formatRangeBounds(f)}</td><td class="${cls}">${label}</td></tr>`;
     }
     body += `</tbody></table>`;
   }
 
-  if (reportIncludes(reportOptions, 'trends') && trendItems.length > 0) {
+  if (reportIncludes(renderOptions, 'trends') && trendItems.length > 0) {
     body += `<h2>Notable Trends</h2><ul class="report-list">${trendItems.join('')}</ul>`;
   }
 
   // Category tables
-  if (reportIncludes(reportOptions, 'categories')) {
+  if (reportIncludes(renderOptions, 'categories')) {
     for (const [catKey, cat] of Object.entries(data.categories)) {
       const markersWithData = Object.entries(cat.markers).filter(([_, m]) => !m.hidden && m.values && m.values.some(hasReportValue));
       if (markersWithData.length === 0) continue;
       const dateColumns = cat.singleDate
-        ? [{ label: cat.singleDateLabel || 'N/A', index: 0 }]
+        ? [{ label: cat.singleDateLabel || fmtDate(cat.singleDate), index: 0, date: cat.singleDate }]
         : fullDateLabels
-            .map((label, index) => ({ label, index }))
-            .filter(({ index }) => markersWithData.some(([, marker]) => hasReportValue(marker.values?.[index])));
+            .map((label, index) => ({ label, index, date: data.dates[index] }))
+            .filter(({ index }) => markersWithData.some(([, marker]) => !marker.singlePoint && hasReportValue(marker.values?.[index])));
+      for (const [, marker] of markersWithData) {
+        if (!marker.singlePoint) continue;
+        const date = marker.singleDate || cat.singleDate || null;
+        if (!dateColumns.some(column => column.date === date)) dateColumns.push({ label: fmtDate(date), date, index: -1 });
+      }
+      dateColumns.sort((a, b) => String(a.date || '9999').localeCompare(String(b.date || '9999')));
       if (dateColumns.length === 0) continue;
       body += `<h2>${esc(cat.label)}</h2><table><thead><tr><th>Biomarker</th><th>Unit</th><th>Range</th>`;
       for (const column of dateColumns) body += `<th>${esc(column.label)}</th>`;
       body += `<th>Trend</th></tr></thead><tbody>`;
       for (const [markerKey, marker] of markersWithData) {
         const latestIndex = getLatestReportValueIndex(marker.values);
-        const r = resolveMarkerRangeContext(marker, latestIndex, state.rangeMode).judgingRange;
+        const r = resolveMarkerRangeContext(marker, latestIndex, rangeMode).judgingRange;
         const trendValues = marker.values.map(v => hasReportValue(v) ? v : null);
         const trend = getTrend(trendValues, r.min, r.max);
-        const rangeStr = renderMarkerRanges(marker, dateColumns);
+        const markerColumns = dateColumns.map(column => ({ ...column,
+          index: marker.singlePoint || cat.singlePoint
+            ? (column.date === (marker.singleDate || cat.singleDate || null) ? 0 : -1) : column.index,
+        }));
+        const rangeStr = renderMarkerRanges(marker, markerColumns);
         const portableMarker = portableMarkers.get(marker.storageDotKey || `${catKey}.${markerKey}`)
           || [...portableMarkers.values()].find(item => item.id === marker.markerId);
         const markerNote = portableMarker?.note
           ? `<div class="report-marker-note">${esc(portableMarker.note)}</div>`
           : '';
         body += `<tr><td>${esc(marker.name)}${markerNote}</td><td class="muted">${esc(marker.unit)}</td><td class="muted">${rangeStr}</td>`;
-        for (const column of dateColumns) {
+        for (const column of markerColumns) {
           const v = marker.values[column.index] ?? null;
-          const resultRange = resolveMarkerRangeContext(marker, column.index, state.rangeMode).judgingRange;
+          const resultRange = resolveMarkerRangeContext(marker, column.index, rangeMode).judgingRange;
           const s = getReportStatus(v, resultRange);
           const sPrefix = s === 'high' ? '\u25B2 ' : s === 'low' ? '\u25BC ' : '';
           const resultDate = marker.singlePoint || cat.singlePoint
@@ -208,7 +230,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   }
 
   // Supplements
-  if (reportIncludes(reportOptions, 'supplements') && supps.length > 0) {
+  if (reportIncludes(renderOptions, 'supplements') && supps.length > 0) {
     body += `<h2>Supplements & Medications</h2><table><thead><tr><th>Name</th><th>Status</th><th>Dosage</th><th>Type</th><th>Period</th><th>Note</th></tr></thead><tbody>`;
     const orderedSupps = [...supps].sort((a, b) => (getSupplementStatus(a) === 'active' ? -1 : 1) - (getSupplementStatus(b) === 'active' ? -1 : 1));
     for (const s of orderedSupps) {
@@ -221,67 +243,55 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   }
 
   // Notes
-  if (reportIncludes(reportOptions, 'notes') && notes.length > 0) {
+  if (reportIncludes(renderOptions, 'notes') && notes.length > 0) {
     body += `<h2>Notes</h2>`;
     for (const n of notes) {
       body += `<div class="note-item"><strong>${fmtDate(n.date)}</strong>: ${esc(n.text)}</div>`;
     }
   }
 
-  // Genetics
-  if (reportIncludes(reportOptions, 'genetics') && genetics && genetics.snps && snpTable) {
-    const snpCount = Object.keys(genetics.snps).length;
-    body += `<h2>Genetics</h2>`;
-    body += `<p style="font-size:13px;color:#555;margin-bottom:12px"><strong>Source:</strong> ${esc(genetics.source)} &middot; <strong>SNPs:</strong> ${snpCount} &middot; <strong>Imported:</strong> ${genetics.importDate}${genetics.apoe ? ' &middot; <strong>APOE:</strong> ' + esc(genetics.apoe) : ''}</p>`;
-    const apoeRsids = new Set(['rs429358', 'rs7412']);
-    const byCat = {};
-    const catLabels = { methylation: 'Methylation', iron: 'Iron', lipids: 'Lipids', vitaminD: 'Vitamin D', vitaminB12: 'Vitamin B12', bilirubin: 'Bilirubin', thyroid: 'Thyroid', fattyAcids: 'Fatty Acids', bloodSugar: 'Blood Sugar', sexHormones: 'Sex Hormones', alcohol: 'Alcohol', caffeine: 'Caffeine', bodyComposition: 'Body Composition', skin: 'Skin & Sun', other: 'Other' };
-    for (const [rsid, stored] of Object.entries(genetics.snps)) {
-      if (genetics.apoe && apoeRsids.has(rsid)) continue;
-      const entry = snpTable[rsid];
-      if (!entry) continue;
-      const reversed = stored.genotype.length === 2 ? stored.genotype[1] + stored.genotype[0] : stored.genotype;
-      const info = entry.genotypes[stored.genotype] || entry.genotypes[reversed];
-      if (!info || info.effect === 'none') continue;
-      const cat = entry.category || 'other';
-      if (!byCat[cat]) byCat[cat] = [];
-      byCat[cat].push({ gene: stored.gene, variant: stored.variant, genotype: stored.genotype, effect: info.effect, note: info.note });
-    }
-    const catOrder = Object.entries(byCat).sort(([, a], [, b]) => {
-      const aS = a.some(f => f.effect === 'significant') ? 0 : 1;
-      const bS = b.some(f => f.effect === 'significant') ? 0 : 1;
-      return aS - bS;
-    });
-    if (catOrder.length > 0) {
-      body += `<table><thead><tr><th>Category</th><th>Gene</th><th>Variant</th><th>Genotype</th><th>Effect</th><th>Note</th></tr></thead><tbody>`;
-      for (const [cat, findings] of catOrder) {
-        findings.sort((a, b) => (a.effect === 'significant' ? 0 : 1) - (b.effect === 'significant' ? 0 : 1));
-        for (const f of findings) {
-          const effectLabel = f.effect === 'significant' ? 'Significant' : 'Moderate';
-          const effectCls = f.effect === 'significant' ? 'val-high' : 'val-low';
-          body += `<tr><td>${esc(catLabels[cat] || cat)}</td><td>${esc(f.gene)}</td><td>${esc(f.variant)}</td><td>${esc(f.genotype)}</td><td class="${effectCls}">${effectLabel}</td><td style="font-size:11px">${esc(f.note)}</td></tr>`;
-        }
+  // Genome uses the same direction, evidence, relevance and genotype resolver as the app.
+  if (reportIncludes(renderOptions, 'genetics') && genetics) {
+    const findings = reportOptions.genomeMode ? selectReportGenomeFindings(genetics, reportOptions) : genetics.findings || [];
+    body += `<h2>Genetics</h2><p><strong>Source:</strong> ${esc(genetics.source || 'Not specified')} &middot; <strong>Imported calls:</strong> ${findings.length} &middot; <strong>Imported:</strong> ${esc(genetics.importDate || 'Not specified')}${includeApoe ? ' &middot; <strong>APOE:</strong> ' + esc(genetics.apoe) : ''}</p>`;
+    if (genetics.coverage) body += `<p class="muted">Catalog coverage at import: ${esc(genetics.coverage.found)} / ${esc(genetics.coverage.total)}. Re-import the original DNA file to include newly added catalog variants.</p>`;
+    if (findings.length) {
+      body += `<p class="muted">Direction, evidence strength, and personal relevance are separate. Strong evidence is not a diagnosis or a proven intervention. Reference findings are included; unclassified calls have no current catalog interpretation.</p>`;
+      body += `<table class="genetics-table"><thead><tr><th>Variant / genotype</th><th>Direction</th><th>Evidence / relevance</th><th>Interpretation</th></tr></thead><tbody>`;
+      for (const f of findings) {
+        const e = f.evidence;
+        const refs = (f.references || []).map(renderReference).join('; ');
+        const tone = ['risk', 'protective', 'trait'].includes(f.tone) ? f.tone : 'neutral';
+        body += `<tr><td><strong>${esc(f.gene)}</strong><br>${esc(f.variant)}<br>${esc(f.rsid)}: ${esc(f.genotype)}<br><span class="muted">${esc(f.category)}${f.apoeComponent ? ' · APOE component' : ''}</span></td><td><span class="genome-direction genome-${tone}">${esc(f.direction)}</span></td><td>${esc(e.evidenceLabel)}<br>${esc(e.relevanceLabel)}</td><td>${esc(f.note)}${e.scope ? '<br>Evidence scope: ' + esc(e.scope) : ''}${e.context ? '<br>Relevance context: ' + esc(e.context) : ''}${f.strandNote ? '<br>Genotype context: ' + esc(f.strandNote) : ''}${refs ? '<br>References: ' + refs : ''}</td></tr>`;
       }
       body += `</tbody></table>`;
     }
-  }
-  // mtDNA haplogroup
-  if (reportIncludes(reportOptions, 'genetics') && genetics?.mtdna) {
-    const mt = genetics.mtdna;
-    if (!genetics.snps || !snpTable) body += `<h2>Genetics</h2>`;
-    body += `<div style="margin:12px 0;font-size:13px"><strong>mtDNA Haplogroup:</strong> ${esc(mt.haplogroup)}`;
-    if (mt.coupling) body += ` \u2014 ${esc(mt.coupling.label)} (${esc(mt.coupling.climate)})`;
-    if (mt.source) body += ` &middot; Source: ${esc(mt.source)}`;
-    body += `</div>`;
+    const mt = !reportOptions.genomeMode || reportOptions.genomeMode === 'all' ? genetics.mtdna : null;
+    if (mt) {
+      body += `<p><strong>mtDNA Haplogroup:</strong> ${esc(mt.haplogroup || 'Not specified')}`;
+      for (const [label, value] of Object.entries({ Source: mt.source, Imported: mt.importDate, Origin: mt.origin, 'Lineage context': mt.details, 'Coupling lens': mt.coupling?.label, Climate: mt.coupling?.climate, 'Coupling context': mt.coupling?.description, Implications: mt.coupling?.implications })) {
+        if (value) body += `<br>${esc(label)}: ${esc(value)}`;
+      }
+      if (mt.matchedMutations != null && mt.totalDiagnostic != null) body += `<br>Marker match: ${esc(mt.matchedMutations)} / ${esc(mt.totalDiagnostic)}`;
+      if (mt.coupling) body += `<br><span class="muted">Evolutionary context, not a direct measurement of personal coupling or proof that a climate causes symptoms.</span>`;
+      body += `</p>`;
+    }
   }
 
   // Context sections
-  if (reportIncludes(reportOptions, 'context') && contextSections.length > 0) {
+  if (reportIncludes(renderOptions, 'context') && contextSections.length > 0) {
     body += `<section class="profile-context" aria-labelledby="profile-context-heading"><h2 id="profile-context-heading">Profile Context</h2><div class="context-grid">`;
     for (const s of contextSections) {
       body += `<article class="context-card"><h3>${esc(s.title)}</h3>${renderContextBody(s.text)}</article>`;
     }
     body += `</div></section>`;
+  }
+
+  for (const section of portableReport?.additionalSections || []) {
+    if (!reportIncludes(renderOptions, section.id)) continue;
+    body += `<h2>${esc(section.title)}</h2><p class="muted">${esc(section.note)}</p>`;
+    if (!section.rows.length) { body += '<p>No records available in the selected date range.</p>'; continue; }
+    body += `<table class="report-history"><thead><tr>${section.columns.map(label => `<th>${esc(label)}</th>`).join('')}</tr></thead><tbody>${section.rows.map(row => `<tr>${row.map(value => `<td>${esc(value).replace(/\n/g, '<br>')}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
   }
 
   // Footer
@@ -290,7 +300,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     <p class="disclaimer">This report is for informational purposes only and does not constitute medical advice. Always consult a qualified healthcare professional for interpretation of lab results.</p>
   </div>`;
 
-  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
   function renderContextBody(text) {
     const lines = String(text || '').split(/\n+/).map(line => line.trim()).filter(Boolean);
@@ -325,43 +335,6 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     return `<section class="report-collection-context"><h2>Collection Context</h2><table><thead><tr><th>Date</th><th>Reported draw context</th></tr></thead><tbody>${rows}</tbody></table></section>`;
   }
 
-  function getSupplementDosageParts(s) {
-    const parts = [];
-    if (s.dosage) parts.push(String(s.dosage));
-    if (s.dose) parts.push(String(s.dose));
-    if (s.amount) parts.push(String(s.amount));
-    if (s.frequency && !parts.some(part => part.toLowerCase().includes(String(s.frequency).toLowerCase()))) {
-      parts.push(String(s.frequency));
-    }
-    if (Array.isArray(s.ingredients) && s.ingredients.length > 0) {
-      const ingredientParts = s.ingredients.map(ing => {
-        const name = ing.name ? String(ing.name).trim() : '';
-        const amount = ing.amount ? String(ing.amount).trim() : '';
-        const base = [name, amount].filter(Boolean).join(' ').trim();
-        if (!base) return '';
-        const total = ingredientDailyTotal(ing, s);
-        const times = effectiveTimesPerDay(ing, s);
-        const timesStr = times && times > 1 ? ` x ${times}/day` : '';
-        const totalStr = total ? ` -> ${formatSupplementTotal(total)}` : '';
-        return `${base}${timesStr}${totalStr}`;
-      }).filter(Boolean);
-      if (ingredientParts.length > 0) parts.push(ingredientParts.join('; '));
-    }
-    if (Array.isArray(s.inactiveIngredients) && s.inactiveIngredients.length > 0) {
-      parts.push(`Other label ingredients: ${s.inactiveIngredients.join(', ')}`);
-    }
-    if (Array.isArray(s.qualityTests) && s.qualityTests.length > 0) {
-      parts.push(`Source-reported laboratory results: ${s.qualityTests.map(test => {
-        const result = test.resultText || test.status || 'result not reported';
-        return `${test.analyte || 'Unknown analyte'} ${result}${test.basis ? ` (${test.basis})` : ''}`;
-      }).join('; ')}`);
-    }
-    if (s.timesPerDay && !parts.some(part => /\b\/day\b|\bx\s*\d/i.test(part))) {
-      parts.push(`${s.timesPerDay}x/day`);
-    }
-    return [...new Set(parts)];
-  }
-
   function formatSupplementDosage(s) {
     const parts = getSupplementDosageParts(s);
     return parts.length > 0 ? parts.map(part => esc(part)).join('<br>') : '\u2014';
@@ -372,12 +345,22 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     return `${esc(s.name)} [${esc(getSupplementStatus(s))}]${dosage ? ' (' + esc(dosage) + ')' : ''}`;
   }
 
+  function renderReference(reference) {
+    try {
+      const url = new URL(String(reference));
+      if (!['https:', 'http:'].includes(url.protocol)) return esc(reference);
+      const pubmedId = url.hostname === 'pubmed.ncbi.nlm.nih.gov' && url.pathname.match(/^\/(\d+)\/?$/)?.[1];
+      return `<a href="${escapeAttr(url.href)}" target="_blank" rel="noopener noreferrer">${esc(pubmedId ? `PubMed ${pubmedId}` : url.hostname + url.pathname + url.search + url.hash)}</a>`;
+    } catch { return esc(reference); }
+  }
+
   function getRangeModeLabel() {
-    if (state.rangeMode === 'reference') return 'reference';
+    if (rangeMode === 'reference') return 'reference';
     return 'optimal';
   }
 
   function buildHeaderDeck() {
+    if (!includesLabs) return 'Selected non-lab sections are included below when available.';
     if (reportStats.totalWithData === 0) {
       return 'No lab results are available for the selected report window; non-lab sections are included only when selected and available.';
     }
@@ -456,7 +439,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
       .filter(column => hasReportValue(marker.values?.[column.index]))
       .map(column => ({
         label: column.label,
-        context: resolveMarkerRangeContext(marker, column.index, state.rangeMode),
+        context: resolveMarkerRangeContext(marker, column.index, rangeMode),
       }));
     if (datedRanges.length === 0) return '\u2014';
     const firstIdentity = rangeSetIdentity(datedRanges[0].context);
@@ -476,7 +459,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
         if (li !== -1) {
           categoryHasData = true;
           totalWithData++;
-          const r = resolveMarkerRangeContext(marker, li, state.rangeMode).judgingRange;
+          const r = resolveMarkerRangeContext(marker, li, rangeMode).judgingRange;
           const status = getReportStatus(marker.values[li], r);
           if (status === 'normal') totalInRange++;
           else if (status === 'unrated') totalUnrated++;
@@ -489,7 +472,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
 
   function renderSummarySection() {
     let summary = `<section class="report-summary" aria-labelledby="report-summary-heading">
-      <h2 id="report-summary-heading">Summary for Healthcare Provider</h2>
+      <h2 id="report-summary-heading">Recorded results summary</h2>
       <p class="report-intro">Generated from <strong>${reportDates.size}</strong> collection date${reportDates.size !== 1 ? 's' : ''}${reportDateLabels.length >= 2 ? ` spanning ${reportDateLabels[0]} \u2013 ${reportDateLabels[reportDateLabels.length - 1]}` : ''}.</p>`;
 
     const summaryFlags = flags.slice(0, 10);
@@ -509,7 +492,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
       summary += `<p class="report-ok"><strong>No out-of-range results.</strong></p>`;
     }
 
-    if (reportIncludes(reportOptions, 'trends') && trendItems.length > 0) {
+    if (reportIncludes(renderOptions, 'trends') && trendItems.length > 0) {
       const summaryTrends = trendItems.slice(0, 8);
       summary += `<p class="report-subhead">Trend Highlights (&gt;10% change)</p><ul class="report-list">${summaryTrends.join('')}</ul>`;
       if (trendItems.length > summaryTrends.length) {
@@ -519,17 +502,26 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
 
     summary += `<p class="report-copy"><strong>Within ${rangeModeTitle} Range:</strong> ${reportStats.totalInRange} of ${reportStats.totalWithData} markers with data${reportStats.totalUnrated ? ` (${reportStats.totalUnrated} unrated because no applicable bounds were available)` : ''}</p>`;
 
-    if (reportIncludes(reportOptions, 'supplements') && supps.length > 0) {
+    if (reportIncludes(renderOptions, 'supplements') && supps.length > 0) {
       const suppList = supps.map(s => formatSupplementSummary(s)).join(', ');
       summary += `<p class="report-copy"><strong>Supplements/Medications:</strong> ${suppList}</p>`;
     }
 
-    if (reportIncludes(reportOptions, 'genetics') && genetics && genetics.apoe) {
+    if (reportIncludes(renderOptions, 'genetics') && includeApoe) {
       summary += `<p class="report-copy"><strong>APOE:</strong> ${esc(genetics.apoe)}</p>`;
     }
 
-    summary += `<p class="report-note">This summary was auto-generated by getbased. Values should be interpreted in clinical context.</p></section>`;
+    summary += `<p class="report-note">This summary is calculated from the selected records and ranges. Flags do not establish a diagnosis or treatment need.</p></section>`;
     return summary;
+  }
+
+  if (!options.detailed) {
+    const report = portableReport || buildReportDataSnapshot({
+      data, profile: { ...headerProfile, name: profileName }, importedData: { notes, supplements: supps, genetics: state.importedData.genetics },
+      reportOptions, rangeMode, unitSystem: state.unitSystem, contextSections, snpTable: getReportSnpTableCache(),
+    });
+    const appendix = reportOptions.appendixSections.length ? `<section id="report-appendix"><h2>Appendix — selected detailed records</h2><p class="report-note">${esc(reportOptions.appendixSections.join(', '))} · <a href="#report-top">Back to summary</a></p>${body || '<p>No detailed records available for these selections.</p>'}</section>` : '';
+    body = renderConciseReportBody(report, reportOptions, headerFacts, renderReportAISummarySection(reportOptions.aiSummary)) + appendix;
   }
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>getbased Report - ${esc(profileName)}</title>
@@ -538,6 +530,15 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   :root { color-scheme: light; }
   html, body { background: #fff; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111827; line-height: 1.55; padding: 36px; max-width: 1100px; margin: 0 auto; }
+  #report-top .report-meta { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+  .report-contents { font-size: 12px; margin: 14px 0; }
+  .report-summary-section { margin-top: 18px; }
+  #report-appendix { break-before: page; }
+  #report-environment { break-inside: avoid; }
+  .report-history-summary { table-layout: fixed; }
+  .report-purpose h2 { margin-top: 12px; }
+  .report-summary-section h2 { margin-top: 16px; }
+  a { color: #1d4ed8; text-decoration: underline; }
   .report-preview-toolbar { position: sticky; top: 0; z-index: 10; display: flex; justify-content: flex-end; margin: -16px -16px 22px; padding: 12px 16px; background: rgba(255,255,255,0.96); border-bottom: 1px solid #e5e7eb; backdrop-filter: blur(10px); }
   .report-print-btn { border: 1px solid #111827; background: #111827; color: #fff; border-radius: 6px; padding: 8px 13px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
   .report-print-btn:hover { background: #374151; border-color: #374151; }
@@ -586,6 +587,17 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   .val-low { color: #d97706; font-weight: 600; }
   .val-unrated { color: #64748b; font-weight: 600; }
   .val-missing { color: #999; }
+  .report-meta .report-included-data { grid-column: 1 / -1; }
+  .genetics-table, .report-history { table-layout: fixed; overflow-wrap: anywhere; }
+  .genome-direction { display: inline-block; padding: 3px 5px; border: 1px solid; border-radius: 4px; font-weight: 600; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .genome-risk { color: #b91c1c; background: #fef2f2; border-color: #fca5a5; }
+  .genome-protective { color: #166534; background: #f0fdf4; border-color: #86efac; }
+  .genome-trait { color: #1d4ed8; background: #eff6ff; border-color: #93c5fd; }
+  .genome-neutral { color: #475569; background: #f8fafc; border-color: #cbd5e1; }
+  .genetics-table a { color: #1d4ed8; text-decoration: underline; }
+  .genetics-table th:nth-child(1) { width: 19%; }
+  .genetics-table th:nth-child(2) { width: 14%; }
+  .genetics-table th:nth-child(3) { width: 19%; }
   .muted { color: #777; font-size: 11px; }
   .optimal { color: #059669; font-size: 10px; }
   .note-item { padding: 6px 0; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
@@ -603,8 +615,16 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   .context-row-full { display: block; }
   .report-footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 11px; color: #888; break-inside: avoid; page-break-inside: avoid; }
   .disclaimer { margin-top: 8px; font-style: italic; }
+  .report-origin-notice { border: 2px solid #526b89; padding: 12px 14px; margin: 12px 0; font-size: 12px; color: #172b43; break-inside: avoid; }
+  .report-origin-notice strong { display: block; font-size: 14px; }
+  .report-origin-notice p { margin-top: 6px; line-height: 1.5; }
+  .report-origin-note { font-size: 11px; line-height: 1.5; margin: 10px 0; color: #475569; }
+  .report-ai-edit-hint { color: #475569; font-size: 12px; }
+  .report-ai-summary-body[contenteditable]:focus { outline: 2px solid #2563eb; outline-offset: 4px; }
   @media print {
-    @page { margin: 12mm; }
+    .report-ai-edit-hint { display: none; }
+    .report-ai-summary-body[contenteditable], .report-ai-summary-body[contenteditable]:focus { outline: none; }
+    @page { margin: 12mm; @bottom-right { content: counter(page) " / " counter(pages); font: 9px sans-serif; color: #64748b; } }
     body { padding: 0; max-width: none; }
     .report-preview-toolbar { display: none; }
     .report-header { margin-bottom: 12px; padding-bottom: 12px; }

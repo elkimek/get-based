@@ -1,6 +1,8 @@
 // @ts-check
 // ai-provider-policy.js — provider-neutral inference destinations and policies.
 
+import { getAgentHostAgent, getAgentHostModel } from './agent-chat-settings.js';
+
 import {
   getCustomApiUrl,
   getOllamaConfig,
@@ -139,6 +141,17 @@ function scopeFor(provider, boundary, origin, cloudModel) {
  * @param {{ endpoint?: string, modelId?: string }} [options]
  */
 export function getAIProcessingDestination(provider, { endpoint = '', modelId = '' } = {}) {
+  const agent = provider === 'codex-agent' ? getAgentHostAgent() : '';
+  if (agent && agent !== 'codex') {
+    const model = modelId || getAgentHostModel() || 'default';
+    return {
+      provider, endpoint: '', origin: '', boundary: 'remote', cloudModel: false,
+      scope: `cli-agent:${encodeURIComponent(agent)}:${encodeURIComponent(model)}`,
+      label: `CLI adapter ${agent} and its configured model provider`,
+      route: `through the local getbased Companion to CLI adapter ${agent} (model: ${model}) and its configured model provider; processing may occur remotely`,
+      privacyUrl: '', termsUrl: '',
+    };
+  }
   const selectedModel = provider === 'ollama' ? (modelId || getOllamaMainModel()) : modelId;
   const cloudModel = provider === 'ollama' && isCloudModel(selectedModel);
   const resolvedEndpoint = selectedEndpoint(provider, endpoint);

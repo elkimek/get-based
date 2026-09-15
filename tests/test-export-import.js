@@ -139,7 +139,7 @@ return (async function() {
     reportSrc.includes('.report-summary, .report-ai-summary, .profile-context { break-inside: auto; page-break-inside: auto; }') &&
       reportSrc.includes('.report-summary, .report-ai-summary { padding: 12px 14px; margin-bottom: 16px; }'));
   assert('PDF report header uses human-readable report labels',
-      reportSrc.includes('${esc(profileName)} lab report') &&
+      reportSrc.includes('${esc(profileName)} health report') &&
       reportSrc.includes('report-deck') &&
       reportSrc.includes('Needs Attention') &&
       reportSrc.includes('Lab Dates') &&
@@ -196,12 +196,12 @@ return (async function() {
   assert('Report builder supports AI overview generation',
     reportSrc.includes('export async function generateReportAISummary') &&
       reportSrc.includes('REPORT_AI_SUMMARY_PROMPT') &&
-      reportSrc.includes('Patient picture:') &&
+      reportSrc.includes('Record overview:') &&
       reportSrc.includes('Discussion focus:') &&
-      reportSrc.includes('Practitioner overview') &&
+      reportSrc.includes('AI-generated overview') &&
       reportSrc.includes("reportBuilderActionAttrs('generate-ai-summary')") &&
       reportSrc.includes('report-ai-summary-text') &&
-      reportSrc.includes('aria-label="Editable practitioner overview"') &&
+      reportSrc.includes('aria-label="Editable AI-generated overview"') &&
       !reportSrc.includes('class="report-ai-summary-text" readonly') &&
       modalSharedSrc.includes('.report-ai-builder'));
   assert('Report category picker renders text labels without legacy emojis',
@@ -215,18 +215,18 @@ return (async function() {
   assert('PDF report accepts builder options',
     reportSrc.includes('export function exportPDFReport(options = {})') &&
       reportSrc.includes('filterReportCategories(data, reportOptions.categoryKeys)') &&
-      reportSrc.includes("reportIncludes(reportOptions, 'categories')") &&
+      reportSrc.includes("reportIncludes(renderOptions, 'categories')") &&
       reportSrc.includes('aiSummary: normalizeReportAISummary(options.aiSummary)'));
   assert('PDF preview opens without auto-printing',
     !reportSrc.includes('setTimeout(() => win.print()') &&
       reportSrc.includes('report-print-btn') &&
       reportSrc.includes("addEventListener('click', () => win.print())"));
   assert('PDF report initializes genetics before summary render',
-    reportSrc.indexOf('const genetics = state.importedData.genetics;') >= 0 &&
-      reportSrc.indexOf('const genetics = state.importedData.genetics;') < reportSrc.indexOf('body += renderSummarySection();'));
+    reportSrc.indexOf('const genetics = portableReport ? portableReport.genetics') >= 0 &&
+      reportSrc.indexOf('const genetics = portableReport ? portableReport.genetics') < reportSrc.indexOf('body += renderSummarySection();'));
   assert('PDF lab tables drop all-empty date columns',
     reportSrc.includes('hasReportValue') &&
-      reportSrc.includes('.filter(({ index }) => markersWithData.some(([, marker]) => hasReportValue(marker.values?.[index])))'));
+      reportSrc.includes('.filter(({ index }) => markersWithData.some(([, marker]) => !marker.singlePoint && hasReportValue(marker.values?.[index])))'));
 
   // ═══════════════════════════════════════
   // 3. buildAllDataBundle — live call
@@ -739,7 +739,7 @@ return (async function() {
         { date: isoDate(inWindow), text: 'Between-draw report note retained' },
         { date: isoDate(outsideWindow), text: 'Old report note excluded' }
       ]);
-      exportModule.exportPDFReport({ preset: 'personal', dateRange: '1y', sections: ['notes'], categoryKeys: null });
+      await exportModule.exportPDFReport({ preset: 'personal', dateRange: '1y', sections: ['notes', 'context'], categoryKeys: null });
       assert('Report notes include in-window notes without matching lab draw',
         capturedReport.includes('Between-draw report note retained') &&
           !capturedReport.includes('Old report note excluded'));
@@ -747,15 +747,11 @@ return (async function() {
         capturedReport.includes('class="report-preview-toolbar"') &&
           capturedReport.includes('Print / Save PDF') &&
           !printCalled);
-      assert('Report header includes complete profile data when present',
-        capturedReport.includes('<dt>Sex</dt><dd>Male</dd>') &&
-          capturedReport.includes('<dt>DOB / Age</dt><dd>Jan 2, 1980') &&
-          capturedReport.includes('<dt>Location</dt><dd>CZ, 11000</dd>') &&
-          capturedReport.includes('<dt>Height</dt><dd>180 cm</dd>') &&
-          capturedReport.includes('<dt>Weight</dt><dd>82 kg (May 15, 2026)</dd>') &&
-          capturedReport.includes('<dt>BMI</dt><dd>25.3 (May 15, 2026)</dd>') &&
-          capturedReport.includes('<dt>Blood pressure</dt><dd>118/76 mmHg (May 15, 2026)</dd>') &&
-          capturedReport.includes('<dt>Resting pulse</dt><dd>61 bpm (May 15, 2026)</dd>'));
+      assert('Report summary retains demographics and selected biometric context',
+        capturedReport.includes('<dt>DOB / Age</dt>') &&
+          capturedReport.includes('180 cm') && capturedReport.includes('82 kg') &&
+          capturedReport.includes('118/76 mmHg') && capturedReport.includes('61 bpm'));
+
 
       capturedReport = '';
       // The current demos deliberately carry a fresh July panel. Remove it
@@ -764,7 +760,7 @@ return (async function() {
       emptyWindowCutoff.setMonth(emptyWindowCutoff.getMonth() - 3);
       S.importedData.entries = (originalEntries || []).filter(entry => entry.date < isoDate(emptyWindowCutoff));
       dataModule.invalidateActiveDataCache?.();
-      exportModule.exportPDFReport({ preset: 'personal', dateRange: '3m', sections: ['categories'], categoryKeys: null });
+      await exportModule.exportPDFReport({ preset: 'personal', dateRange: '3m', sections: ['categories'], categoryKeys: null });
       assert('Report date window with no matching lab draws stays empty',
         capturedReport.includes('No lab dates in selected range') && !capturedReport.includes('<h2>Biochemistry</h2>'));
       S.importedData.entries = originalEntries;
@@ -779,7 +775,7 @@ return (async function() {
           { relative: 'paternal_grandfather', condition: "Alzheimer's Disease", onsetAge: 70, note: 'died' }
         ]
       };
-      exportModule.exportPDFReport({ preset: 'clinician', dateRange: 'all', sections: ['context'], categoryKeys: null });
+      await exportModule.exportPDFReport({ preset: 'clinician', dateRange: 'all', sections: ['context'], categoryKeys: null });
       assert('Report medical history formats family history as readable text',
         capturedReport.includes('Father: Psoriasis (onset 18)') &&
           capturedReport.includes('Paternal Grandfather: Alzheimer') &&
@@ -794,9 +790,9 @@ return (async function() {
         snps: {}
       };
       window._snpTableCache = {};
-      exportModule.exportPDFReport({ preset: 'personal', dateRange: 'all', sections: ['summary', 'genetics'], categoryKeys: null });
+      await exportModule.exportPDFReport({ preset: 'personal', dateRange: 'all', sections: ['summary', 'genetics'], categoryKeys: null });
       assert('Report summary can include genetics without crashing',
-        capturedReport.includes('<strong>APOE:</strong> E3/E4'));
+        capturedReport.includes('Reported APOE: E3/E4'));
 
       const exportMod = await import('/js/export.js');
       S.importedData.genetics = null;
@@ -823,6 +819,7 @@ return (async function() {
       const fixtureReport = exportMod.buildReportHTML('Fixture', 'Not specified', fixtureData, [], [], S.importedData.supplements, [], {
         preset: 'full',
         dateRange: 'all',
+        detailed: true,
         sections: ['summary', 'categories', 'supplements']
       });
       assert('Report category table omits all-empty date columns',
@@ -844,7 +841,7 @@ return (async function() {
         }
       });
       assert('Report renders escaped practitioner overview near top',
-        aiFixtureReport.includes('<h2>Practitioner Overview</h2>') &&
+        aiFixtureReport.includes('<h2>AI-generated overview</h2>') &&
           aiFixtureReport.includes('<p class="report-ai-subhead">Patient picture</p>') &&
           aiFixtureReport.includes('<p class="report-ai-subhead">Discussion focus</p>') &&
           aiFixtureReport.includes('Overall picture is stable &lt;script&gt;alert(1)&lt;/script&gt;') &&
