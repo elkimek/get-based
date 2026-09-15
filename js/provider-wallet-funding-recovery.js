@@ -234,7 +234,7 @@ export function createFundingMonitor(runtime, refreshBalance, onResult = (_resul
         globalThis.addEventListener?.('pagehide', suspend);
         globalThis.addEventListener?.('pageshow', resume);
         coordinator.start();
-      } else if (!running || recheck) wake();
+      } else if (recheck) wake();
     },
     stop() {
       enabled = false;

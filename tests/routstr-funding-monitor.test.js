@@ -111,6 +111,18 @@ it('checks a displayed invoice no faster than five seconds after each completed 
   expect(check).toHaveBeenCalledTimes(2);
 });
 
+it('keeps repeated activation events from restarting a completed scan before its next poll', async () => {
+  const check = vi.fn().mockResolvedValue(result());
+  monitor = createFundingMonitor(runtime(check), vi.fn());
+  monitor.start(); await settle();
+  monitor.start(); await settle();
+  expect(check).toHaveBeenCalledTimes(1);
+  await vi.advanceTimersByTimeAsync(5000);
+  expect(check).toHaveBeenCalledTimes(2);
+  monitor.start({ recheck: true }); await settle();
+  expect(check).toHaveBeenCalledTimes(3);
+});
+
 it('queues an immediate check when an invoice is created during an older idle scan', async () => {
   document.body.innerHTML = '';
   let resolve;

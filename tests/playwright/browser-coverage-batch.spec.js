@@ -147,24 +147,31 @@ test('notes editor browser contract adds edits and deletes notes', async ({ page
         notes.openNoteEditor(null, 0);
         state.importedData.notes[0].text = 'Synced coverage batch note';
         window.dispatchEvent(new Event('labcharts-sync-applied'));
-        outcomes.syncRefreshEditReopensSameIndex =
-          await waitFor(() => document.getElementById('note-textarea')?.value === 'Synced coverage batch note')
-          && document.getElementById('detail-modal')?.dataset.syncRefreshIndex === '0';
+        document.querySelector('[data-note-action="save"]')?.click();
+        outcomes.syncRefreshPreservesDraftAndRejectsStaleSave =
+          document.getElementById('note-textarea')?.value === 'Edited coverage batch note'
+          && state.importedData.notes[0].text === 'Synced coverage batch note';
 
         notes.openNoteEditor(null, 0);
         state.importedData.notes.unshift({ date: '2026-06-06', text: 'Inserted remote note' });
         window.dispatchEvent(new Event('labcharts-sync-applied'));
-        outcomes.syncRefreshFindsShiftedNote =
-          await waitFor(() => document.getElementById('detail-modal')?.dataset.syncRefreshIndex === '1')
-          && document.getElementById('note-textarea')?.value === 'Synced coverage batch note';
+        document.getElementById('note-textarea').value = 'Edited shifted note';
+        document.querySelector('[data-note-action="save"]')?.click();
+        outcomes.syncRefreshSavesShiftedRecord =
+          state.importedData.notes[1].text === 'Edited shifted note'
+          && state.importedData.notes[0].text === 'Inserted remote note';
 
         const closeCallsBeforeMissingNote = closeCalls;
         notes.openNoteEditor(null, 1);
         state.importedData.notes = state.importedData.notes.filter(note => note.date !== '2026-06-07');
         window.dispatchEvent(new Event('labcharts-sync-applied'));
-        outcomes.syncRefreshClosesWhenNoteMissing =
-          closeCalls >= closeCallsBeforeMissingNote + 1
-          && document.getElementById('modal-overlay')?.classList.contains('show') === false;
+        document.querySelector('[data-note-action="save"]')?.click();
+        outcomes.syncRefreshPreservesMissingDraftWithoutRecreatingNote =
+          closeCalls === closeCallsBeforeMissingNote
+          && document.getElementById('modal-overlay')?.classList.contains('show') === true
+          && document.getElementById('note-textarea')?.value === 'Edited shifted note'
+          && state.importedData.notes.length === 1
+          && state.importedData.notes[0].text === 'Inserted remote note';
 
         state.importedData.notes = [{ date: '2026-06-09', text: 'Delete coverage note' }];
         notes.openNoteEditor(null, 0);

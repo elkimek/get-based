@@ -4,6 +4,12 @@ import { expect, test } from './coverage-fixture.js';
 const catalog = JSON.parse(fs.readFileSync('data/snp-health.json', 'utf8'));
 
 async function prepareReport(page) {
+  await page.addInitScript(() => {
+    for (const profile of ['default', 'synthetic-report']) {
+      localStorage.setItem(`labcharts-${profile}-tour`, 'completed');
+      localStorage.setItem(`labcharts-${profile}-emptyTour`, 'completed');
+    }
+  });
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#notification-container', { state: 'attached' });
   await page.evaluate(async catalog => {
