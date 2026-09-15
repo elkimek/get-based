@@ -33,6 +33,13 @@ test('report builder modal delegates presets categories AI state and preview exp
     let capturedReport = '';
     let printHandlerInstalled = false;
     const wait = () => new Promise(resolve => setTimeout(resolve, 30));
+    const waitFor = async predicate => {
+      const deadline = Date.now() + 5000;
+      while (!predicate()) {
+        if (Date.now() >= deadline) throw new Error('Report preview did not finish within 5 seconds');
+        await wait();
+      }
+    };
     const getOverlay = () => document.getElementById('report-builder-overlay');
     const checkedCategories = overlay => Array.from(overlay.querySelectorAll('input[data-report-category]:checked'))
       .map(input => input.dataset.reportCategory);
@@ -101,6 +108,8 @@ test('report builder modal delegates presets categories AI state and preview exp
 
       const popupDocument = document.implementation.createHTMLDocument('Report preview');
       window.open = () => ({
+        closed: false,
+        close() { this.closed = true; },
         document: {
           body: popupDocument.body,
           createElement: popupDocument.createElement.bind(popupDocument),
@@ -217,7 +226,7 @@ test('report builder modal delegates presets categories AI state and preview exp
       capturedReport = '';
       printHandlerInstalled = false;
       click('[data-report-action="export"]');
-      await wait();
+      await waitFor(() => !getOverlay() && printHandlerInstalled);
       outcomes.successfulExportWritesPreviewAndCloses = !getOverlay()
         && capturedReport.includes('Report Coverage health report')
         && capturedReport.includes('Report export browser note')
