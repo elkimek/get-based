@@ -713,7 +713,6 @@ export function openChangelog(showAll) {
   if (!overlay || !modal) return;
 
   const entries = showAll ? CHANGELOG : CHANGELOG.slice(0, 3);
-
   modal.className = 'modal changelog-modal gb-history-modal';
   let html = `<div class="gb-modal-head">
     <div>
