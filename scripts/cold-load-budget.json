@@ -3,9 +3,9 @@
   "route": "/app",
   "scenario": "Fresh mobile returning-user load with browser cache and service workers disabled",
   "maximums": {
-    "requests": 327,
-    "transferBytes": 1193220,
-    "decodedBytes": 3327000
+    "requests": 335,
+    "transferBytes": 1225000,
+    "decodedBytes": 3436000
   },
   "reference": {
     "requests": 276,
@@ -31,8 +31,11 @@
     "routstrNodeSessionsDecodedBytes": 3325198,
     "importDataSafetyRequests": 327,
     "importDataSafetyTransferBytes": 1187212,
-    "importDataSafetyDecodedBytes": 3325734
+    "importDataSafetyDecodedBytes": 3325734,
+    "biologyScoresRequests": 335,
+    "biologyScoresTransferBytes": 1221780,
+    "biologyScoresDecodedBytes": 3433617
   },
   "referenceCommit": "7747f1d7",
-  "measuredAt": "2026-09-14"
+  "measuredAt": "2026-09-16"
 }

@@ -299,6 +299,7 @@ async function _exportChatData(profileId) {
  * @property {unknown} lifelightProfile
  * @property {unknown} lightDailyVerdicts
  * @property {unknown} channelMixAI
+ * @property {unknown} biologyScoreAI
  * @property {unknown} biologyScoreContextAI
  * @property {Object.<string, boolean>} contextSourceSettings
  * @property {7|30|90} nutritionContextDays
@@ -383,6 +384,7 @@ export async function buildClientExportObject(profileId, includeChat = false, in
     lightDailyVerdicts: data.lightDailyVerdicts || null,
     channelMixAI: data.channelMixAI || null,
     biologyScoreContextAI: data.biologyScoreContextAI || null,
+    biologyScoreAI: data.biologyScoreAI || {},
     contextSourceSettings: data.contextSourceSettings || {},
     nutritionContextDays: [7, 30, 90].includes(Number(data.nutritionContextDays)) ? /** @type {7|30|90} */ (Number(data.nutritionContextDays)) : 30,
     nutritionTargets: data.nutritionTargets && typeof data.nutritionTargets === 'object' && !Array.isArray(data.nutritionTargets)

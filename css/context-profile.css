@@ -586,10 +586,6 @@
 .ctx-health-dot-green { background: var(--green); box-shadow: 0 0 6px rgba(52, 211, 153, 0.5); }
 .ctx-health-dot-yellow { background: var(--yellow); box-shadow: 0 0 6px rgba(251, 191, 36, 0.5); }
 .ctx-health-dot-red { background: var(--red); box-shadow: 0 0 6px rgba(248, 113, 113, 0.5); }
-.ctx-health-dot-shimmer {
-  background: linear-gradient(90deg, var(--text-muted) 25%, var(--border) 50%, var(--text-muted) 75%);
-  background-size: 200% 100%; animation: shimmer 1.5s infinite;
-}
 /* AI card summary */
 .ctx-ai-summary-slot {
   max-height: 0; overflow: hidden; margin-top: auto;

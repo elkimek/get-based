@@ -167,7 +167,7 @@ export function hasAgentChatConnection() {
 /**
  * Discover a separately running companion without asking for a URL or token.
  * The fixed, narrow port range is intentionally bounded to getbased hosts.
- * @param {{signal?: AbortSignal, ports?: number[]}} [options]
+ * @param {{signal?: AbortSignal, ports?: number[], requiredTextFeatureTarget?: string, requiredAgentId?: string}} [options]
  */
 export async function discoverLoopbackAgentHosts(options = {}) {
   const runtime = await import('./agent-host-discovery.js');
@@ -176,7 +176,7 @@ export async function discoverLoopbackAgentHosts(options = {}) {
   });
 }
 
-/** @param {{signal?: AbortSignal, refresh?: boolean}} [options] */
+/** @param {{signal?: AbortSignal, refresh?: boolean, requiredTextFeatureTarget?: string, requiredAgentId?: string}} [options] */
 export async function discoverLocalChatAgents(options = {}) {
   const runtime = await import('./agent-host-discovery.js');
   const url = options.refresh ? '/api/local-agents?refresh=1' : '/api/local-agents';
@@ -194,18 +194,18 @@ export async function discoverLocalChatAgents(options = {}) {
   // server can expose its own temporary host, but service-level controls such
   // as restart belong to the installed companion on the standard loopback
   // port. The bounded probe also lets a current host replace a legacy result.
-  const companions = await discoverLoopbackAgentHosts({ signal: options.signal }).catch(() => []);
+  const companions = await discoverLoopbackAgentHosts({ signal: options.signal, requiredTextFeatureTarget: options.requiredTextFeatureTarget, requiredAgentId: options.requiredAgentId }).catch(() => []);
   return runtime.mergeDiscoveredAgents(direct, companions);
 }
 
-/** @param {{signal?: AbortSignal, requiredCapabilities?: string[]}} [options] */
+/** @param {{signal?: AbortSignal, requiredCapabilities?: string[], requiredTextFeatureTarget?: string}} [options] */
 export async function connectDetectedAgent(agentId = getAgentHostAgent(), options = {}) {
   const runtime = await import('./agent-host-discovery.js');
   const savedToken = getAgentHostToken();
   const requiredCapabilities = runtime.normalizeRequiredCapabilities(options.requiredCapabilities);
   let agents = [];
   try {
-    agents = await discoverLocalChatAgents(options);
+    agents = await discoverLocalChatAgents({ ...options, requiredAgentId: agentId });
   } catch { /* use a saved local host or direct companion scan below */ }
   const candidates = agents.filter(agent => agent.id === agentId && agent.compatible && agent.status !== 'login_required');
   const knownAgent = agents.find(agent => agent.id === agentId);
@@ -220,7 +220,7 @@ export async function connectDetectedAgent(agentId = getAgentHostAgent(), option
   for (const candidate of candidates) {
     try {
       return await runtime.connectAgentHostCandidate({
-        candidate, requiredCapabilities, signal: options.signal,
+        candidate, requiredCapabilities, requiredTextFeatureTarget: options.requiredTextFeatureTarget, signal: options.signal,
         attempts: candidate.status === 'starting' ? 12 : 1,
         normalizeEndpoint: normalizeAgentHostEndpoint,
         onConnected: saveAgentChatSettings,
@@ -229,12 +229,12 @@ export async function connectDetectedAgent(agentId = getAgentHostAgent(), option
   }
   // A dev server can keep advertising an older child process while a newer
   // standalone companion is already available on the next bounded port.
-  const recovered = await discoverLoopbackAgentHosts({ signal: options.signal });
+  const recovered = await discoverLoopbackAgentHosts({ signal: options.signal, requiredTextFeatureTarget: options.requiredTextFeatureTarget, requiredAgentId: agentId });
   for (const candidate of recovered.filter(agent => agent.id === agentId && agent.compatible && agent.status !== 'login_required')) {
     if (candidates.some(existing => existing.endpoint === candidate.endpoint && existing.token === candidate.token)) continue;
     try {
       return await runtime.connectAgentHostCandidate({
-        candidate, requiredCapabilities, signal: options.signal, attempts: 1,
+        candidate, requiredCapabilities, requiredTextFeatureTarget: options.requiredTextFeatureTarget, signal: options.signal, attempts: 1,
         normalizeEndpoint: normalizeAgentHostEndpoint,
         onConnected: saveAgentChatSettings,
       });

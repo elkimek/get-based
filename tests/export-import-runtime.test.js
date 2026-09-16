@@ -196,6 +196,17 @@ describe('JSON restore runtime', () => {
       .toMatchObject({ diet: { type: 'whole-food' } });
   });
 
+  it('restores Biology Score insights from JSON and keeps newer local interpretations', async () => {
+    runtime.state.importedData.biologyScoreAI = { thyroidCoherence: { text: 'New local explanation', summary: 'New local insight.', updatedAt: 20 } };
+    const backup = { entries: [{ date: '2026-01-10', markers: { glucose: 90 } }], biologyScoreAI: {
+      thyroidCoherence: { text: 'Older backup', summary: 'Older insight.', updatedAt: 10 },
+      metabolicFlexibility: { text: 'Saved full explanation', summary: 'Saved short insight.', materialFingerprint: 'evidence', updatedAt: 30 },
+    } };
+    await importDataJSON(new File([JSON.stringify(backup)], 'biology.json', { type: 'application/json' }));
+    expect(runtime.state.importedData.biologyScoreAI.thyroidCoherence.text).toBe('New local explanation');
+    expect(runtime.state.importedData.biologyScoreAI.metabolicFlexibility).toEqual(backup.biologyScoreAI.metabolicFlexibility);
+  });
+
   it('merges a rich backup without duplicating same-date or stable-id data', async () => {
     localStorage.setItem('labcharts-profile-1-chat-threads', JSON.stringify([
       { id: 'thread-existing', title: 'Existing' },

@@ -27,7 +27,7 @@ describe('stable built-in marker identity contract', () => {
     const identityDotKeys = BUILTIN_MARKER_IDENTITIES.map(identity => identity.currentDotKey);
     const ids = BUILTIN_MARKER_IDENTITIES.map(identity => identity.id);
 
-    expect(BUILTIN_MARKER_IDENTITIES).toHaveLength(196);
+    expect(BUILTIN_MARKER_IDENTITIES).toHaveLength(197);
     expect(new Set(ids).size).toBe(ids.length);
     expect(new Set(identityDotKeys).size).toBe(identityDotKeys.length);
     expect(new Set(identityDotKeys)).toEqual(new Set(schemaDotKeys));
@@ -39,8 +39,9 @@ describe('stable built-in marker identity contract', () => {
       .update(JSON.stringify(BUILTIN_MARKER_IDENTITIES.map(identity => identity.id).sort()))
       .digest('hex');
 
+    // Adding combined eGFR extends the identity set; existing ids are unchanged.
     // A marker move changes currentDotKey, not this checksum or its marker id.
-    expect(checksum).toBe('50a763e0b84b47918d26e9e7f2864515162b92e0a93e2d26e7f7178a395468f9');
+    expect(checksum).toBe('918a640da43256aefb258f91c9cce35fbd18835dac4ed41a1da0227a88079855');
   });
 
   it('keeps authored and generated identity catalogs aligned and immutable at runtime', () => {
@@ -55,6 +56,7 @@ describe('stable built-in marker identity contract', () => {
 
   it('resolves ids, current dotKeys, and historical aliases bidirectionally', () => {
     expect(BUILTIN_MARKER_DOT_KEY_ALIASES).toEqual({
+      'biochemistry.egfrCreatinineCystatinC': 'biochemistry.egfrCombined',
       'lipids.totalCholesterol': 'lipids.cholesterol',
       'lipids.cholesterolTotal': 'lipids.cholesterol',
       'lipids.total_cholesterol': 'lipids.cholesterol',

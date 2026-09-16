@@ -1,14 +1,16 @@
 // @ts-check
 // biology-scores.js — Biology Scores orchestrator and public API.
 
-import { filterDatesByRange, getActiveData } from './data.js';
-import { generateBiologyScoreAIAnswer } from './biology-score-ai.js';
+import { filterDatesByRange, getActiveData, invalidateActiveDataCache } from './data.js';
+import { canAutomaticallyExplainBiologyScores, generateBiologyScoreAIAnswer, generateBiologyScoreAIAnswers } from './biology-score-ai.js';
 import { computeBiologicalCoherence } from './biology-score-coherence.js';
+import { assessScoreRecency } from './biology-score-dates.js';
+import { getScoreInputs } from './biology-score-contract.js';
+import { addScoreInterpretation } from './biology-score-methodology.js';
 import { getBiologyScoreCopy } from './biology-score-copy.js';
 import { computeBloodFlowSignals } from './biology-score-blood-flow.js';
 import { computeWeightedComposite } from './biology-score-engine.js';
 import { computeIronHandling } from './biology-score-iron.js';
-import { CUSTOM_BIOLOGY_SCORE_MAPPINGS } from './biology-score-mappings.js';
 
 import {
   renderBiologicalCoherenceLensHero as renderBiologicalCoherenceLensHeroImpl,
@@ -19,19 +21,20 @@ import {
   renderDashboardBiologyScoreWidget as renderDashboardBiologyScoreWidgetImpl,
   renderDashboardBiologicalCoherenceWidget as renderDashboardBiologicalCoherenceWidgetImpl,
   renderScoreDetail,
+  groupBiologyScores,
 } from './biology-score-render.js';
-import { renderScoreAIAnswer, writeScoreAIAnswer } from './biology-score-sections.js';
+import { getScoreAIMaterialKey, hasCurrentScoreAIAssessment, getScoreAIRequestKey, renderScoreAIAnswer, renderScoreAISummary, writeScoreAIAnswer, writeScoreAIAnswers, pendingScoreExplanations, setScoreExplanationError } from './biology-score-sections.js';
 import { TIER1_BIOLOGY_SCORE_DEFINITIONS } from './biology-score-tier1-definitions.js';
 import { TIER2_BIOLOGY_SCORE_DEFINITIONS } from './biology-score-tier2-definitions.js';
 import { computeThyroidCoherence } from './biology-score-thyroid.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { state } from './state.js';
 import { createNewThread } from './chat-loader.js';
-import { renderMarkdown } from './markdown.js';
 import { buildBiologyScoreCoveragePlannerModel, formatBiologyScoreCoveragePlannerPrompt } from './biology-score-coverage-planner.js';
 import {
   canOpenBiologyScoresChatPanel,
   getBiologyScoresActiveData,
+  prepareBiologyScoresContext,
   hasBiologyScoresAIProvider,
   navigateBiologyScoresRoute,
   openBiologyScoreMarkerDetail,
@@ -47,7 +50,16 @@ function installBiologyScoreDelegates() {
   biologyScoreDelegatesInstalled = true;
   document.addEventListener('click', (event) => {
     const target = event.target instanceof Element ? event.target : null;
+    const summary = target?.closest('.biology-score-compact > .biology-score-summary');
     const actionEl = target?.closest('[data-biology-score-action]');
+    if (summary?.parentElement instanceof HTMLElement && (!actionEl || actionEl.getAttribute('data-biology-score-action') === 'toggle-score')) {
+      event.preventDefault();
+      const top = summary.getBoundingClientRect().top;
+      setScoreExpanded(summary.parentElement, !summary.parentElement.hasAttribute('open'));
+      // Closing another row must not move this toggle away from the pointer.
+      document.defaultView?.scrollBy({ top: summary.getBoundingClientRect().top - top, behavior: 'instant' });
+      return;
+    }
     if (!actionEl) return;
     const el = /** @type {HTMLElement} */ (actionEl);
     const action = el.dataset.biologyScoreAction;
@@ -81,6 +93,16 @@ function installBiologyScoreDelegates() {
       createNewThread();
       openBiologyScoresChatPanel(formatBiologyScoreCoveragePlannerPrompt(planner));
       event.preventDefault();
+    } else if (action === 'read-score-ai') {
+      event.preventDefault();
+      const scoreId = el.dataset.biologyScoreId || '';
+      const card = document.querySelector(`#biology-score-${CSS.escape(scoreId)}`);
+      if (card?.matches('.biology-score-compact')) setScoreExpanded(card, true);
+      else card?.querySelector('.biology-coherence-interpretation')?.setAttribute('open', '');
+      const answer = card?.querySelector('.biology-score-ai');
+      answer?.setAttribute('tabindex', '-1');
+      if (answer instanceof HTMLElement) answer.focus({ preventScroll: true });
+      answer?.scrollIntoView({ block: 'start', behavior: 'smooth' });
     } else if (action === 'interpret-score-ai') {
       event.preventDefault();
       runEmbeddedScoreAI(el).catch((err) => {
@@ -112,11 +134,28 @@ function installBiologyScoreDelegates() {
     event.preventDefault();
     el.click();
   });
+  document.addEventListener('toggle', event => {
+    if (event.target instanceof Element && event.target.matches('.biology-score-unavailable-group')) alignBiologyScoreCards();
+  }, true);
 }
 installBiologyScoreDelegates();
 
+function setScoreExpanded(target, open) {
+  if (open) {
+    const group = target.closest('.biology-score-unavailable-group');
+    if (group instanceof HTMLDetailsElement) group.open = true;
+    alignBiologyScoreCards();
+  }
+  if (open) document.querySelectorAll('.biology-score-compact[open]').forEach(other => {
+    if (other !== target) setScoreExpanded(other, false);
+  });
+  target.toggleAttribute('open', open);
+  target.querySelector('[data-biology-score-action=toggle-score]')?.setAttribute('aria-expanded', String(open));
+}
+
 function jumpToScore(scoreId) {
   const target = document.querySelector(`#biology-score-${CSS.escape(scoreId)}`);
+  if (target?.matches('.biology-score-compact')) setScoreExpanded(target, true);
   target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -125,6 +164,7 @@ function jumpToScoreWhenReady(scoreId, maxAttempts = 30) {
   function tryScroll() {
     const target = document.querySelector(`#biology-score-${CSS.escape(scoreId)}`);
     if (target) {
+      if (target?.matches('.biology-score-compact')) setScoreExpanded(target, true);
       target.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
@@ -135,31 +175,225 @@ function jumpToScoreWhenReady(scoreId, maxAttempts = 30) {
   requestAnimationFrame(tryScroll);
 }
 
+function replaceScoreMarkup(element, html) {
+  if (!element) return;
+  const template = document.createElement('template');
+  template.innerHTML = html.trim();
+  const next = template.content.firstElementChild;
+  if (!next || element.isEqualNode(next)) return;
+  const focused = element.contains(document.activeElement) ? document.activeElement?.getAttribute('data-biology-score-action') : null;
+  element.replaceWith(next);
+  const control = focused ? next.querySelector(`[data-biology-score-action="${CSS.escape(focused)}"]`) : null;
+  if (control instanceof HTMLElement) control.focus({ preventScroll: true });
+}
+
+function refreshScoreAIView(current) {
+  const scoreId = CSS.escape(current.id);
+  const panel = document.querySelector(`[data-biology-score-ai-panel="${scoreId}"]`);
+  replaceScoreMarkup(panel, renderScoreAIAnswer(current));
+  const currentTeaser = document.querySelector(`[data-biology-score-ai-summary="${scoreId}"]`);
+  replaceScoreMarkup(currentTeaser, renderScoreAISummary(current));
+}
+
 async function runEmbeddedScoreAI(el) {
   const scoreId = el.dataset.biologyScoreId;
-  const answerEl = scoreId ? document.querySelector(`[data-biology-score-ai-answer="${CSS.escape(scoreId)}"]`) : null;
-  if (!scoreId || !answerEl) return;
+  if (scoreId === 'biologicalCoherence') return loadBiologyScoreInsights({ force: true });
+  if (!scoreId) return;
+  const originProfile = state.currentProfile;
+  await prepareBiologyScoresContext();
+  if (state.currentProfile !== originProfile) return;
+  invalidateActiveDataCache();
   const rawData = getBiologyScoresActiveData();
-  const scoreData = filterDatesByRange(rawData, { fallbackToAll: false });
-  const score = computeBiologyScores(scoreData).find(item => item.id === scoreId);
+  const score = computeBiologyScoreAssessments(rawData).find(item => item.id === scoreId);
   if (!score) throw new Error('Score not found');
-  const button = /** @type {HTMLButtonElement | null} */ (el instanceof HTMLButtonElement ? el : null);
-  if (button) { button.disabled = true; button.textContent = 'Generating…'; }
-  answerEl.textContent = 'Generating AI answer…';
+  const profileId = state.currentProfile;
+  const imported = state.importedData;
+  const requestKey = getScoreAIRequestKey(score, profileId);
+  if (pendingScoreExplanations.has(requestKey)) return;
+  const requestKeys = assessmentRequestKeys(score, profileId);
+  requestKeys.forEach(key => pendingScoreExplanations.add(key));
+  setScoreExplanationError(requestKeys);
+  refreshScoreAIView(score);
+  alignBiologyScoreCards();
+  let errorText = '';
   try {
+    const material = getScoreAIMaterialKey(score);
     const answer = await generateBiologyScoreAIAnswer(score);
-    await writeScoreAIAnswer(score, answer);
-    const panel = answerEl.closest('.biology-score-ai');
-    panel?.querySelector('.biology-score-ai-stale')?.remove();
-    answerEl.innerHTML = renderMarkdown(answer);
-    if (button) button.textContent = 'Refresh answer';
-  } finally { if (button) button.disabled = false; }
+    await writeScoreAIAnswer(score, answer, profileId, imported, material);
+  } catch (error) {
+    errorText = error instanceof Error ? error.message : 'Explanation failed. Please retry.';
+    throw error;
+  } finally {
+    requestKeys.forEach(key => pendingScoreExplanations.delete(key));
+    setScoreExplanationError(requestKeys, errorText);
+    if (state.currentProfile === profileId) {
+      invalidateActiveDataCache();
+      reconcileBiologyScoreAIPanels();
+      const errorEl = document.querySelector(`[data-biology-score-ai-summary="${CSS.escape(scoreId)}"] .biology-score-ai-error`);
+      if (errorEl) errorEl.textContent = errorText;
+      alignBiologyScoreCards();
+    }
+  }
+}
+
+const automaticAttempts = new Map();
+const sharedExplanationLoads = new Map();
+
+export function loadBiologyScoreInsights({ force = false } = {}) {
+  const profileId = state.currentProfile;
+  if (sharedExplanationLoads.has(profileId)) {
+    if (!force) return sharedExplanationLoads.get(profileId);
+    // Explicit refresh is scoped to the current assessment; pending keys deduplicate it.
+    return prepareBiologyScoresContext().then(async () => {
+      if (state.currentProfile === profileId) await loadPreparedBiologyScoreInsights(profileId, true);
+    });
+  }
+  if (!force && !canAutomaticallyExplainBiologyScores()) return Promise.resolve();
+  // Match the ready context used by chat before comparing saved fingerprints.
+  // A cold Light runtime must not look like new biological evidence.
+  const pending = Promise.resolve().then(async () => {
+    await prepareBiologyScoresContext();
+    if (state.currentProfile !== profileId) return;
+    if (!force && !canAutomaticallyExplainBiologyScores()) return;
+    await loadPreparedBiologyScoreInsights(profileId, force);
+  }).catch(error => {
+    if (state.currentProfile === profileId) {
+      const errorEl = document.querySelector('#biology-score-biologicalCoherence .biology-score-ai-error');
+      if (errorEl) errorEl.textContent = error instanceof Error ? error.message : 'Context could not load. Refresh to retry.';
+    }
+  }).finally(() => sharedExplanationLoads.delete(profileId));
+  sharedExplanationLoads.set(profileId, pending);
+  return pending;
+}
+
+// Existing scoring helpers read range settings from state. Capture each view
+// synchronously and restore both settings before any render, write or await.
+export function computeBiologyScoreView(data, view) {
+  const previous = { rangeMode: state.rangeMode, dateRangeFilter: state.dateRangeFilter };
+  try {
+    Object.assign(state, view);
+    return computeBiologyScores(filterDatesByRange(data, { fallbackToAll: false }));
+  } finally { Object.assign(state, previous); }
+}
+
+// One comparison-aware answer covers all standard views. Repeated evidence
+// is described once; this does not make eight independent AI assessments.
+export function computeBiologyScoreAssessments(data) {
+  const current = computeBiologyScoreView(data, { rangeMode: state.rangeMode, dateRangeFilter: state.dateRangeFilter });
+  const groups = new Map(current.map(score => [score.id, { ...score, aiViews: [] }]));
+  for (const dateRangeFilter of ['all', '1y', '6m', '3m']) {
+    for (const rangeMode of ['optimal', 'reference']) {
+      for (const score of computeBiologyScoreView(data, { rangeMode, dateRangeFilter })) {
+        const group = groups.get(score.id);
+        const material = getScoreAIMaterialKey(score);
+        const label = `${rangeMode} / ${dateRangeFilter}`;
+        const existing = group.aiViews.find(view => view.material === material);
+        if (existing) existing.labels.push(label);
+        else group.aiViews.push({ labels: [label], material, score });
+      }
+    }
+  }
+  return [...groups.values()];
+}
+
+function assessmentRequestKeys(score, profileId) {
+  return score.aiViews.map(view => getScoreAIRequestKey(view.score, profileId));
+}
+
+function loadPreparedBiologyScoreInsights(profileId, force) {
+  invalidateActiveDataCache();
+  const data = getBiologyScoresActiveData();
+  const scores = computeBiologyScoreAssessments(data);
+  const requested = scores.filter(score => {
+    if (assessmentRequestKeys(score, profileId).some(key => pendingScoreExplanations.has(key))) return false;
+    if (!score.aiViews.some(view => (view.score.historicalSnapshot || view.score).available?.length)) return false;
+    if (force) return true;
+    // Legacy per-view answers stay usable. A filter change must not purchase
+    // an upgrade: explicit Refresh creates the combined interpretation.
+    if (hasCurrentScoreAIAssessment(score)) return false;
+    return !automaticAttempts.has(getScoreAIRequestKey(score, profileId));
+  });
+  if (!requested.length) {
+    reconcileBiologyScoreAIPanels();
+    alignBiologyScoreCards();
+    return Promise.resolve();
+  }
+  const materials = new Map(requested.map(score => [score.id, getScoreAIMaterialKey(score)]));
+  for (const score of requested) {
+    setScoreExplanationError(assessmentRequestKeys(score, profileId));
+    for (const key of assessmentRequestKeys(score, profileId)) {
+      pendingScoreExplanations.add(key);
+      automaticAttempts.set(key, true);
+    }
+    if (automaticAttempts.size > 512) automaticAttempts.delete(automaticAttempts.keys().next().value);
+  }
+  reconcileBiologyScoreAIPanels();
+  alignBiologyScoreCards();
+  const run = async () => {
+    let failed = [];
+    let errorText = '';
+    let errors = {};
+    try {
+      const { failedIds, errors: requestErrors } = await generateBiologyScoreAIAnswers(requested, {
+        automatic: !force,
+        shouldContinue: () => state.currentProfile === profileId,
+        onBatch: async (group, result) => {
+          const records = group.filter(score => result.answers[score.id]).map(score => ({ score, answer: result.answers[score.id], materialFingerprint: materials.get(score.id) }));
+          if (records.length) await writeScoreAIAnswers(records, profileId);
+          for (const score of group) {
+            const keys = assessmentRequestKeys(score, profileId);
+            keys.forEach(key => pendingScoreExplanations.delete(key));
+            setScoreExplanationError(keys, result.answers[score.id] ? '' : result.errors[score.id] || 'The response was incomplete. Refresh to retry this score.');
+          }
+          if (state.currentProfile === profileId) { reconcileBiologyScoreAIPanels(); alignBiologyScoreCards(); }
+        },
+      });
+      errors = requestErrors;
+      failed = failedIds;
+      if (failed.length) errorText = 'Some insights could not be generated. Refresh to retry.';
+    } catch (error) {
+      failed = requested.map(score => score.id);
+      errorText = error instanceof Error ? error.message : 'AI insights could not load. Refresh to retry.';
+    } finally {
+      for (const score of requested) {
+        const keys = assessmentRequestKeys(score, profileId);
+        keys.forEach(key => pendingScoreExplanations.delete(key));
+        if (failed.includes(score.id)) setScoreExplanationError(keys, errors[score.id] || errorText);
+      }
+      if (state.currentProfile === profileId) {
+        invalidateActiveDataCache();
+        reconcileBiologyScoreAIPanels();
+        alignBiologyScoreCards();
+      }
+    }
+    return !errorText;
+  };
+  return run();
+}
+
+// Expanded reading panels are deliberately excluded from row measurements.
+// Each row follows its longest natural summary; mobile cards size individually.
+function alignBiologyScoreCards() {
+  if (typeof document === 'undefined') return;
+  const cards = [...document.querySelectorAll('.biology-score-compact > .biology-score-summary')];
+  cards.forEach(card => /** @type {HTMLElement} */ (card).style.removeProperty('--biology-summary-height'));
+  const rows = new Map();
+  for (const card of cards) {
+    if (!card.getClientRects().length) continue;
+    const top = Math.round(card.getBoundingClientRect().top);
+    if (!rows.has(top)) rows.set(top, []);
+    rows.get(top).push(card);
+  }
+  for (const row of rows.values()) {
+    const height = Math.max(...row.map(card => card.getBoundingClientRect().height));
+    row.forEach(card => card.style.setProperty('--biology-summary-height', `${height}px`));
+  }
 }
 
 export const SCORE_DEFINITIONS = [
   {
     id: 'biologicalCoherence', title: 'Biological Coherence', kicker: 'System-level signal', evidence: 'contextual', panelTier: 'minimum', coherenceDomain: 'overview',
-    summary: 'A single read across your marker patterns. Strong domains show where your system is coherent; strained ones point to where retesting or deeper context helps.', compute: (data, def) => computeBiologicalCoherence(data, def, SCORE_DEFINITIONS, computeBiologyScoresInternal),
+    summary: 'A single read across your marker patterns. Strong domains show where your system is coherent; strained ones point to where retesting or deeper context helps.', compute: (data, def, options = {}) => computeBiologicalCoherence(data, def, SCORE_DEFINITIONS, (input, defs) => computeBiologyScoresInternal(input, defs, options)),
   },
   {
     id: 'metabolicFlexibility', title: 'Metabolic Flexibility', kicker: 'Glucose-insulin strain', evidence: 'production', panelTier: 'minimum', coherenceDomain: 'metabolic', coherenceWeight: 1.2,
@@ -179,11 +413,11 @@ export const SCORE_DEFINITIONS = [
   },
   {
     id: 'thyroidCoherence', title: 'Thyroid Coherence', kicker: 'Signal quality', evidence: 'contextual', panelTier: 'minimum', coherenceDomain: 'endocrine', coherenceWeight: 1.0,
-    summary: 'Profile-aware thyroid regulation, Free T3 activity, and T4-to-T3 conversion coherence.', compute: computeThyroidCoherence,
+    summary: 'TSH and Free T4 core pattern with additional Free T3, antibody and conversion context.', compute: computeThyroidCoherence,
   },
   {
     id: 'cardiovascularLipoprotein', title: 'Cardiovascular Risk', kicker: 'Lipoprotein pattern', evidence: 'production', panelTier: 'minimum', coherenceDomain: 'cardiovascular', coherenceWeight: 1.1,
-    summary: 'Atherogenic lipoprotein pattern anchored on ApoB and ApoB/ApoA1 ratio; the strongest outcome-predicted cardiovascular risk markers available.',
+    summary: 'ApoB and related lipoprotein patterns; a marker summary, not an event-risk calculation.',
     compute: computeWeightedComposite,
     inputs: [
       { key: 'apoB', label: 'ApoB', weight: 2.0, paths: ['lipids.apoB', 'lipids.apoB_'], core: true },
@@ -191,6 +425,7 @@ export const SCORE_DEFINITIONS = [
       { key: 'apoA1', label: 'ApoA1', weight: 1.0, paths: ['lipids.apoAI', 'lipids.apoA1'] },
       { key: 'lpA', label: 'Lp(a)', weight: 1.0, paths: ['lipids.lpA', 'lipids.lpa', 'lipids.lp_a'] },
       { key: 'ldl', label: 'LDL cholesterol', weight: 0.8, paths: ['lipids.ldl', 'lipids.ldlCholesterol', 'calculatedRatios.ldl'] },
+      { key: 'nonHdl', label: 'Non-HDL cholesterol', weight: 0.8, paths: 'lipids.nonHdl' },
       { key: 'cholHdlRatio', label: 'Total cholesterol/HDL ratio', weight: 0.6, paths: ['calculatedRatios.cholHdlRatio', 'lipids.cholHdlRatio'] },
       { key: 'homocysteine', label: 'Homocysteine', weight: 0.5, paths: 'coagulation.homocysteine', recencyRequired: false },
       { key: 'hsCrp', label: 'hs-CRP', weight: 0.4, paths: 'proteins.hsCRP', recencyRequired: false },
@@ -199,7 +434,7 @@ export const SCORE_DEFINITIONS = [
   },
   {
     id: 'redoxStress', title: 'Inflammatory Load', kicker: 'Metabolic burden context', evidence: 'contextual', panelTier: 'minimum', coherenceDomain: 'inflammation', coherenceWeight: 1.0,
-    summary: 'Inflammation and liver-metabolic burden anchored on hs-CRP and GGT; other markers are context, not direct redox measurement.', compute: computeWeightedComposite,
+    summary: 'CRP or hs-CRP anchors inflammation; liver-metabolic and nutrient markers add context.', compute: computeWeightedComposite,
     inputs: [
       { key: 'hsCrp', label: 'hs-CRP', weight: 1.55, paths: 'proteins.hsCRP', core: true },
       { key: 'crp', label: 'CRP', weight: 0.55, paths: 'proteins.crp' },
@@ -209,12 +444,14 @@ export const SCORE_DEFINITIONS = [
       { key: 'homocysteine', label: 'Homocysteine', weight: 0.55, paths: 'coagulation.homocysteine' },
       { key: 'bilirubin', label: 'Bilirubin', weight: 0.25, paths: 'biochemistry.bilirubinTotal' },
       { key: 'vitaminD', label: '25-OH vitamin D', weight: 0.3, paths: 'vitamins.vitaminD' },
-      { key: 'selenium', label: 'Selenium', weight: 0.25, paths: ['nutrientElements.selenium', 'biostarksMineral.selenium'] },
+      { key: 'selenium', label: 'Selenium', weight: 0.25, paths: 'electrolytes.selenium' },
+      { key: 'seleniumUrine', label: 'Urine selenium', weight: 0.25, paths: 'nutrientElements.selenium' },
+      { key: 'seleniumRBC', label: 'RBC selenium', weight: 0.25, paths: 'biostarksMineral.selenium' },
     ],
   },
   {
     id: 'lipidMembrane', title: 'Lipid Membrane', kicker: 'Fatty-acid architecture', evidence: 'contextual', panelTier: 'extended', coherenceDomain: 'membrane', coherenceWeight: 1.0,
-    summary: 'Cell-membrane lipid quality with emphasis on omega-3/DHA and inflammatory fatty-acid balance.', compute: computeWeightedComposite,
+    summary: 'Assay-specific fatty-acid patterns, including omega-3 status and lipid balance.', compute: computeWeightedComposite,
     inputs: [
       { key: 'omega3Index', label: 'Omega-3 index', weight: 2.0, core: true, paths: ['fattyAcids.omega3Index', 'spadiaFA.omega3Index', 'omegaquantFA.omega3Index', 'zinzinoFA.omega3Index', 'metabolomixFA.omega3Index', 'fattyAcidsTest.omega3Index', 'biostarksFA.omega3Index'] },
       { key: 'dha', label: 'DHA', weight: 1.15, paths: ['fattyAcids.dhaC22_6', 'spadiaFA.dhaC22_6', 'omegaquantFA.dhaC22_6', 'zinzinoFA.dhaC22_6', 'metabolomixFA.dhaC22_6', 'fattyAcidsTest.dhaC22_6', 'biostarksFA.dha'] },
@@ -241,11 +478,42 @@ export const SCORE_DEFINITIONS = [
 function computeBiologyScoresInternal(data, definitions, options = {}) {
   const profileContext = options.profileContext || getBiologyProfileContext(options);
   const computeOptions = { ...options, profileContext };
-  return definitions.map((def) => ({ ...def.compute(data, def, computeOptions), ...getBiologyScoreCopy(def.id, profileContext) }));
+  return definitions.map((def) => {
+    const result = addScoreInterpretation(def.compute(data, def, computeOptions));
+    const rows = [...result.available, ...result.missing];
+    const labels = core => [...new Set(rows.filter(i => !!i.core === core).map(i => i.coreGroupLabel || i.label))];
+    return { ...getBiologyScoreCopy(def.id), ...result, basicInputs: labels(true), extendedInputs: labels(false) };
+  });
 }
 
 export function computeBiologyScores(data, options = {}) {
-  return computeBiologyScoresInternal(data, SCORE_DEFINITIONS, options);
+  const components = computeBiologyScoresInternal(data, SCORE_DEFINITIONS.filter(d => d.id !== 'biologicalCoherence'), options);
+  const overview = computeBiologicalCoherence(data, SCORE_DEFINITIONS[0], SCORE_DEFINITIONS, (_data, defs) => components.filter(s => defs.some(d => d.id === s.id)));
+  // Keep a separate historical overview when no current domain can be computed.
+  // Current score/coverage remain unchanged for AI and other data consumers.
+  if (!Number.isFinite(overview.rawScore) && overview.available.length === 0) {
+    const historical = components.filter(s => Number.isFinite(s.rawScore) && ['stale', 'mixed-dates'].includes(s.recencyStatus));
+    if (historical.length) {
+      const snapshot = computeBiologicalCoherence(data, SCORE_DEFINITIONS[0], SCORE_DEFINITIONS,
+        (_data, defs) => components.filter(s => defs.some(d => d.id === s.id)).map(s => historical.includes(s) ? { ...s, score: s.rawScore } : s));
+      const markers = historical.filter(s => s.panelTier !== 'extended').flatMap(s => s.available.filter(i => i.core && !i.profileContextOnly));
+      const recency = assessScoreRecency(markers);
+      if (Number.isFinite(snapshot.rawScore)) overview.historicalSnapshot = { ...snapshot, score: null, presentationDates: markers.map(i => i.date),
+        recencyStatus: recency.status, recencyBadge: recency.badge, recencyMessage: recency.message };
+    }
+  }
+  const displayed = overview.historicalSnapshot || overview;
+  const contributorIds = new Set(displayed.available.flatMap(domain => domain.contributorIds || []));
+  const historicalOverview = !Number.isFinite(displayed.score) && Number.isFinite(displayed.rawScore);
+  for (const score of components) {
+    const included = contributorIds.has(score.id);
+    const optional = score.panelTier === 'extended';
+    const reason = score.recencyStatus === 'stale' ? 'Older results' : score.recencyStatus === 'mixed-dates' ? 'Mixed dates' : score.recencyStatus === 'unknown-date' ? 'Check dates' : 'Needs inputs or context';
+    score.overviewMembership = { included, optional, label: optional ? 'Optional · Outside overview' : included ? historicalOverview ? 'In historical overview' : Number.isFinite(displayed.rawScore) ? 'In overview' : 'Ready for overview' : `Excluded · ${reason}` };
+  }
+  overview.membership = components.filter(s => s.panelTier !== 'extended').map(s => ({ id: s.id, title: s.title, domain: s.coherenceDomain, ...s.overviewMembership }));
+  if (overview.historicalSnapshot) overview.historicalSnapshot.membership = overview.membership;
+  return [overview, ...components].map(score => ({ ...score, aiRangeMode: state.rangeMode }));
 }
 
 export function getBiologyScoreMapping() {
@@ -256,7 +524,7 @@ export function getBiologyScoreMapping() {
     panelTier: def.panelTier || 'minimum',
     coherenceDomain: def.coherenceDomain || null,
     coherenceWeight: def.coherenceWeight || 1,
-    inputs: (def.inputs || CUSTOM_BIOLOGY_SCORE_MAPPINGS[def.id] || []).map((input) => ({
+    inputs: getScoreInputs(def).map((input) => ({
       key: input.key,
       label: input.label,
       weight: input.weight,
@@ -264,9 +532,12 @@ export function getBiologyScoreMapping() {
       recencyRequired: input.recencyRequired !== false,
       core: input.core === true,
       coreGroup: input.coreGroup || '',
+      coreGroupLabel: input.coreGroupLabel || '',
+      evidenceGroup: input.evidenceGroup,
+      contextOnly: input.contextOnly || '',
       coreSex: Array.isArray(input.coreSex) ? input.coreSex : [],
     })),
-    formula: def.compute === computeWeightedComposite ? 'weighted-range-composite' : def.id,
+    formula: def.id === 'biologicalCoherence' ? 'fixed-domain-core-composite' : 'grouped-core-range-fit',
   }));
 }
 
@@ -301,15 +572,26 @@ function reconcileBiologyScoreAIPanels() {
     const scoreId = panel.getAttribute('data-biology-score-ai-panel');
     const score = scoreId ? scoreMap.get(scoreId) : null;
     if (!score) continue;
+    const teaser = document.querySelector(`[data-biology-score-ai-summary="${CSS.escape(scoreId || '')}"]`);
+    const summaryHtml = renderScoreAISummary(score);
+    replaceScoreMarkup(teaser, summaryHtml);
     const freshHtml = renderScoreAIAnswer(score);
-    if (panel.outerHTML !== freshHtml) panel.outerHTML = freshHtml;
+    replaceScoreMarkup(panel, freshHtml);
   }
 }
 
 export function scheduleBiologyScoreAIReconcile() {
   if (typeof globalThis === 'undefined' || typeof document === 'undefined') return;
-  const run = () => {
-    try { reconcileBiologyScoreAIPanels(); } catch {}
+  const profileId = state.currentProfile;
+  const run = async () => {
+    try {
+      await prepareBiologyScoresContext();
+      if (state.currentProfile !== profileId) return;
+      invalidateActiveDataCache();
+      reconcileBiologyScoreAIPanels();
+      alignBiologyScoreCards();
+      if (state.currentView === 'biology-scores') void loadBiologyScoreInsights();
+    } catch {}
   };
   if (typeof globalThis.requestAnimationFrame === 'function') globalThis.requestAnimationFrame(run);
   else setTimeout(run, 0);
@@ -319,16 +601,19 @@ export function scheduleBiologyScoreAIReconcile() {
 
 if (typeof globalThis !== 'undefined' && typeof globalThis.addEventListener === 'function') {
   globalThis.addEventListener('labcharts-sync-applied', scheduleBiologyScoreAIReconcile);
+  globalThis.addEventListener('resize', alignBiologyScoreCards);
 }
 
 export function getBiologyScoreLensWidgets(ctx) {
   const scoreCtx = contextForScores(ctx);
   const scores = computeBiologyScores(scoreCtx?.data || {}).filter(score => score.id !== 'biologicalCoherence');
-  const live = scores.filter(s => Number.isFinite(s.score)).sort((a, b) => b.score - a.score);
-  const waiting = scores.filter(s => !Number.isFinite(s.score));
-  const widgets = live.map(score => ({ id: `biology-score-detail-${score.id}`, title: score.title, description: score.summary, body: renderScoreDetail(score, { showHeading: false }), size: 'full', opts: { source: 'Biology Scores', dashboardId: `biology-score-${score.id}` } }));
-  if (waiting.length) widgets.push({ id: 'biology-score-needs-data', title: 'Scores needing more data', description: `${waiting.length} score${waiting.length === 1 ? '' : 's'} not shown in the main list`, body: `<details class="biology-score-unavailable-group"><summary>Show scores that need more markers or a retest</summary>${waiting.map(renderScoreDetail).join('')}</details>`, size: 'full', opts: { source: 'Biology Scores', dashboardId: '' } });
-  return widgets;
+  return scores.map(score => ({ id: `biology-score-detail-${score.id}`, title: score.title, description: '', body: renderScoreDetail(score), size: 'full', opts: { source: 'Biology Scores', dashboardId: `biology-score-${score.id}`, compactScore: true } }));
+}
+
+export function getBiologyScoreLensGroups(ctx) {
+  const groups = groupBiologyScores(computeBiologyScores(contextScoreData(ctx)));
+  const widgets = new Map(getBiologyScoreLensWidgets(ctx).map(widget => [widget.id, widget]));
+  return Object.fromEntries(Object.entries(groups).map(([key, scores]) => [key, scores.map(score => widgets.get(`biology-score-detail-${score.id}`))]));
 }
 
 export function renderBiologicalCoherenceLensHero(ctx) {

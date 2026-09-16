@@ -16,6 +16,7 @@ const IDENTITY_ROWS = [
   ['urea', 'biochemistry.urea'],
   ['creatinine', 'biochemistry.creatinine'],
   ['egfr', 'biochemistry.egfr'],
+  ['egfrCombined', 'biochemistry.egfrCombined', ['biochemistry.egfrCreatinineCystatinC']],
   ['uricAcid', 'biochemistry.uricAcid'],
   ['bilirubinTotal', 'biochemistry.bilirubinTotal'],
   ['bilirubinDirect', 'biochemistry.bilirubinDirect'],

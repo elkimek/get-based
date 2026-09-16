@@ -6,6 +6,7 @@ import { getActiveData } from './data.js';
 import { showNotification } from './utils.js';
 
 const biologyScoresRuntimeDeps = {
+  prepareContext: /** @type {null | (() => Promise<unknown>)} */ (null),
   getActiveData: /** @type {null | typeof getActiveData} */ (getActiveData),
   navigate: /** @type {null | ((route: string) => unknown)} */ (null),
   openChatPanel: /** @type {null | ((prompt?: string) => unknown)} */ (null),
@@ -16,6 +17,7 @@ const biologyScoresRuntimeDeps = {
 
 export function configureBiologyScoresRuntimeDeps(deps = {}) {
   const previous = { ...biologyScoresRuntimeDeps };
+  if ('prepareContext' in deps) biologyScoresRuntimeDeps.prepareContext = typeof deps.prepareContext === 'function' ? /** @type {() => Promise<unknown>} */ (deps.prepareContext) : null;
   if ('getActiveData' in deps) {
     biologyScoresRuntimeDeps.getActiveData = typeof deps.getActiveData === 'function'
       ? /** @type {typeof getActiveData} */ (deps.getActiveData)
@@ -121,4 +123,8 @@ export function scheduleBiologyScoresTask(callback, delayMs = 0) {
     return null;
   }
   return schedule(callback, delayMs);
+}
+
+export async function prepareBiologyScoresContext() {
+  await biologyScoresRuntimeDeps.prepareContext?.();
 }

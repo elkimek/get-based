@@ -175,7 +175,9 @@ export function getInitialView() {
 }
 
 export function showLabs(preData) { return getLensPageHandlers().showLabs(preData); }
-export function showBiologyScoresLens(preData) { return getLensPageHandlers().showBiologyScores(preData); }
+export function showBiologyScoresLens(preData) {
+  return showCategoryPresentationRoute('biology-scores', 'Biology Scores', () => getLensPageHandlers().showBiologyScores(preData));
+}
 export function showGenomeLens() { return getLensPageHandlers().showGenomeLens(); }
 export function showBodyLens() { return getLensPageHandlers().showBodyLens(); }
 export function showInsightLens(preData) { return getLensPageHandlers().showInsightLens(preData); }

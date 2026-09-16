@@ -145,7 +145,7 @@ function collectLightModifiers(data, options = {}) {
   const sunSessions = Array.isArray(data?.sunSessions) ? data.sunSessions : [];
   const deviceSessions = Array.isArray(data?.deviceSessions) ? data.deviceSessions : [];
   const measurements = Array.isArray(data?.lightMeasurements) ? data.lightMeasurements : [];
-  const hasLightData = sunSessions.length > 0 || deviceSessions.length > 0 || measurements.length > 0 || !!data?.sunDefaults?.completedAt || !!data?.lightCircadian;
+  const hasLightData = sunSessions.length > 0 || deviceSessions.length > 0 || measurements.length > 0 || !!data?.sunDefaults?.completedAt || Object.keys(data?.lightCircadian || {}).length > 0;
   const recentSun = sunSessions.filter(s => Number(s?.endedAt || s?.startedAt || 0) >= now - 14 * DAY_MS);
   const recentAny = [...sunSessions, ...deviceSessions].filter(s => Number(s?.endedAt || s?.startedAt || 0) >= now - 14 * DAY_MS);
   let vitD7 = null, circadian7 = null;
@@ -161,7 +161,7 @@ function collectLightModifiers(data, options = {}) {
   } catch {}
   const lowLoggedSunlight = hasLightData && recentSun.length === 0;
   const lowCircadianLight = hasLightData && ((circadian7 != null && circadian7 <= 0) || recentAny.length === 0);
-  const lowVitaminDSynthesis = vitD7 != null && vitD7 < 4000;
+  const lowVitaminDSynthesis = hasLightData && vitD7 != null && vitD7 < 4000;
   if (lowLoggedSunlight) flags.push('Light context: no recent outdoor sun sessions are logged; if accurate, vitamin D, inflammation, sleep, recovery, and hormone patterns may be light-constrained.');
   if (lowCircadianLight) flags.push('Light context: recent circadian-channel exposure appears absent/low; morning-light habits may be relevant to stress, sleep, glucose, and hormone patterns.');
   if (lowVitaminDSynthesis && vitD7 != null) flags.push(`Light context: logged 7-day vitamin-D synthesis is low (~${Math.round(vitD7)} IU), so low 25-OH vitamin D should be interpreted with sunlight exposure, not only supplementation.`);
@@ -202,8 +202,8 @@ export function getBiologyProfileContext(options = {}) {
   const dietText = `${diet.type || ''} ${diet.pattern || ''} ${diet.proteinIntake || ''} ${diet.hydration || ''} ${diet.alcohol || ''} ${diet.caffeine || ''} ${diet.caffeineTiming || ''} ${(diet.recentChanges || []).join(' ')} ${(diet.restrictions || []).join(' ')} ${diet.breakfast || ''} ${diet.lunch || ''} ${diet.dinner || ''} ${diet.snacks || ''} ${diet.bowelFrequency || ''} ${diet.stoolConsistency || ''} ${diet.bloating || ''} ${diet.gas || ''} ${diet.acidReflux || ''} ${diet.burping || ''} ${diet.nausea || ''} ${diet.appetite || ''} ${diet.abdominalPain || ''} ${(diet.foodSensitivities || []).join(' ')} ${diet.notes || diet.note || ''}`;
   const loveLifeText = `${loveLife.status || ''} ${loveLife.relationship || ''} ${loveLife.satisfaction || ''} ${loveLife.libido || ''} ${loveLife.libidoChange || ''} ${loveLife.frequency || ''} ${loveLife.orgasm || ''} ${(loveLife.reproductiveGoals || []).join(' ')} ${(loveLife.concerns || []).join(' ')} ${loveLife.notes || loveLife.note || ''}`;
   const environmentText = `${environment.setting || ''} ${environment.climate || ''} ${environment.altitude || ''} ${(environment.inhaledExposures || []).join(' ')} ${(environment.occupationalExposures || []).join(' ')} ${environment.water || ''} ${(environment.waterConcerns || []).join(' ')} ${(environment.emf || []).join(' ')} ${(environment.emfMitigation || []).join(' ')} ${environment.homeLight || ''} ${(environment.air || []).join(' ')} ${(environment.toxins || []).join(' ')} ${environment.building || ''} ${environment.sun || ''} ${environment.outdoorTime || ''} ${environment.notes || environment.note || ''}`;
-  const mc = includeInsightCards ? (data.menstrualCycle || null) : null;
-  const menopauseStatus = flags.postmenopause ? 'postmenopause' : (mc?.menopauseStatus || mc?.cycleStatus || null);
+  const mc = includeInsightCards && state.profileSex === 'female' ? (data.menstrualCycle || null) : null;
+  const menopauseStatus = state.profileSex === 'female' ? (flags.postmenopause ? 'postmenopause' : (mc?.menopauseStatus || mc?.cycleStatus || null)) : null;
   const notes = [conditionText, diagnoses.proceduresNote, diagnoses.note, includeInsightCards ? data.contextNotes : '', data.interpretiveLens, supplements, exerciseText, sleepText, lightText, stressText, dietText, loveLifeText, environmentText, healthGoalsText].filter(Boolean).join(' ');
   const genetic = collectGeneticModifiers(data, options);
   const body = collectBodyModifiers(data, options);
@@ -228,8 +228,8 @@ export function getBiologyProfileContext(options = {}) {
     lowMuscleReason: lowMuscleMass ? 'The Medical History low muscle mass interpretation flag is enabled, so creatinine-derived markers are treated as context rather than scored signal.' : '',
     lowSunlightExposure,
     lowSunlightReason: lowSunlightExposure ? (light.lowVitaminDSynthesis || light.lowLoggedSunlight
-      ? 'Light context suggests low recent UVB/sunlight exposure. Vitamin D target is raised to 100 nmol/L (40 ng/mL) as a sufficiency floor and inflammation/recovery scores should mention light context.'
-      : 'Profile context suggests minimal sunlight/UVB exposure. Vitamin D target is raised to 100 nmol/L (40 ng/mL) as a sufficiency floor rather than a bare minimum.') : '',
+      ? 'Light tracking suggests low recent UVB/sunlight exposure; incomplete logging can also explain this pattern.'
+      : 'Profile context suggests minimal sunlight/UVB exposure.') : '',
     genetic,
     body,
     light,

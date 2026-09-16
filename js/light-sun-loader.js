@@ -136,7 +136,7 @@ export function getLoadedRollingChannelTotals(days) {
 export function hasPersistedLightSunState() {
   const data = state.importedData;
   if (!data) return false;
-  if (data.sunSessions?.length || data.deviceSessions?.length || data.lightDevices?.length) return true;
+  if (data.sunSessions?.length || data.deviceSessions?.length || data.lightDevices?.length || data.lightMeasurements?.length) return true;
   if (data.sunDefaults && Object.keys(data.sunDefaults).length > 0) return true;
   if (data.lightCircadian && Object.keys(data.lightCircadian).length > 0) return true;
   const environment = data.lightEnvironment;

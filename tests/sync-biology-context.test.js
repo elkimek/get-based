@@ -36,6 +36,15 @@ describe('Biology Score context sync merge', () => {
     state.dateRangeFilter = 'all';
   });
 
+  it('preserves independently assessed range views when newer remote answers merge', async () => {
+    const answer = (materialFingerprint, updatedAt) => ({ text: materialFingerprint, summary: materialFingerprint, materialFingerprint, updatedAt });
+    state.importedData = { ...createDefaultProfileData(), biologyScoreAI: { redoxStress: answer('optimal', 2000) } };
+    const remote = { ...createDefaultProfileData(), biologyScoreAI: { redoxStress: answer('reference', 3000) } };
+    const result = await mergePulledImportedData(state.currentProfile, remote);
+    expect(result.merged.biologyScoreAI.redoxStress.materialFingerprint).toBe('reference');
+    expect(result.merged.biologyScoreAI.redoxStress.variants).toEqual([answer('optimal', 2000)]);
+  });
+
   it('preserves an all-range unlocked context review over a newer legacy single-range sync row', async () => {
     const local = {
       ...createDefaultProfileData(),

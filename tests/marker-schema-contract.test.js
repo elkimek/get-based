@@ -93,9 +93,9 @@ describe('marker schema compatibility contract', () => {
       .digest('hex');
 
     expect(Object.keys(facadeMarkerSchema)).toEqual(EXPECTED_CATEGORIES);
-    expect(dotKeys).toHaveLength(196);
+    expect(dotKeys).toHaveLength(197);
     expect(new Set(dotKeys).size).toBe(dotKeys.length);
-    expect(checksum).toBe('85de177aa4d31760f2ebc26582a03f780c1e7fc5791e7b329c32d778c608d4b6');
+    expect(checksum).toBe('27aab9c150320026d41437872d73c8fe01f166ba5140c29f27fb6b4a28cf41b0');
   });
 
   it('leaves canonical stored dotKeys intact across existing profile migration', () => {
@@ -160,6 +160,7 @@ describe('marker schema compatibility contract', () => {
 
     expect(unaccounted).toEqual([]);
     expect(contextual).toEqual([
+      'biochemistry.egfrCombined',
       'bodyComposition.leanMass',
       'bodyComposition.fatMass',
       'bodyComposition.androidFatPct',

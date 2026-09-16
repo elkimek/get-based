@@ -160,6 +160,14 @@ select optgroup {
 }
 /* Shared shimmer animation used by loading indicators across CSS bundles. */
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+/* Shared by Context cards and Biology Scores, including their lazy-loaded views. */
+:is(.ctx-health-dot, .biology-score-ai-dot).ctx-health-dot-shimmer {
+  background: linear-gradient(90deg, var(--text-muted) 25%, var(--border) 50%, var(--text-muted) 75%);
+  background-size: 200% 100%; animation: shimmer 1.5s infinite; box-shadow: none; opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(.ctx-health-dot, .biology-score-ai-dot).ctx-health-dot-shimmer { animation: none; background: var(--text-muted); }
+}
 /* Empty State */
 .empty-state {
   background: var(--bg-card); border-radius: var(--radius);

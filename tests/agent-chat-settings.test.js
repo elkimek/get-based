@@ -2,7 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  connectDetectedCodex, DEFAULT_AGENT_HOST_ENDPOINT, discoverLocalChatAgents, getAgentHostAgent,
+  connectDetectedCodex, connectDetectedAgent, DEFAULT_AGENT_HOST_ENDPOINT, discoverLocalChatAgents, getAgentHostAgent,
   getAgentHostEffort, getAgentHostEndpoint, getAgentHostModel, getAgentHostToken, getChatBackend, normalizeAgentHostEndpoint,
   getAgentHostTarget,
   saveAgentChatSettings, setChatBackend,
@@ -10,6 +10,23 @@ import {
 import { clearKeyCache } from '../js/crypto-key-cache.js';
 
 describe('agent chat settings', () => {
+  it('skips a generally current installed host when only the next host supports the requested gateway feature', async () => {
+    const caps = ['chat-stream', 'companion-control', 'execution-targets'];
+    const json = payload => new Response(JSON.stringify(payload), { headers: { 'Content-Type': 'application/json' } });
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      const url = String(input);
+      if (url === '/api/local-agents') return json({ agents: [] });
+      const port = new URL(url).port;
+      if (!['8324', '8325'].includes(port)) throw new Error('Unexpected later probe');
+      if (url.endsWith('/v1/discovery')) return json({ service: 'getbased-agent-host', endpoint: `http://127.0.0.1:${port}`, token: `private-token-for-${port}`, capabilities: caps, protocolVersion: 5, agents: [{ id: 'hermes', status: 'available', compatible: true }] });
+      if (url.includes('/v1/targets')) return json({ targets: [{ id: 'gateway-home', status: 'available', supportsTextFeatureJobs: port === '8325' }] });
+      if (url.endsWith('/v1/status')) return json({ service: 'getbased-agent-host', capabilities: caps, protocolVersion: 5 });
+      throw new Error('Unexpected request');
+    }));
+    await expect(connectDetectedAgent('hermes', { requiredCapabilities: ['chat-stream'], requiredTextFeatureTarget: 'gateway-home' })).resolves.toMatchObject({ endpoint: 'http://127.0.0.1:8325' });
+    expect(getAgentHostEndpoint()).toBe('http://127.0.0.1:8325');
+    expect(getAgentHostToken()).toBe('private-token-for-8325');
+  });
   beforeEach(() => { localStorage.clear(); clearKeyCache(); });
   afterEach(() => vi.unstubAllGlobals());
 

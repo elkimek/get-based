@@ -318,7 +318,7 @@ configureLightSunShellLoaderDeps({
   openProfileLocationEditor,
 });
 configureBiologyScoreContextAIDeps({ navigate });
-configureBiologyScoresRuntimeDeps({ navigate, openChatPanel, showDetailModal, useChatPrompt });
+configureBiologyScoresRuntimeDeps({ navigate, openChatPanel, showDetailModal, useChatPrompt, prepareContext: loadLightSunModulesForPersistedState });
 configureDashboardWidgetRuntimeDeps({ navigate, openChatPanel, showDetailModal });
 configureDashboardRecommendationRuntimeDeps({
   detectWearableTrendSlots,

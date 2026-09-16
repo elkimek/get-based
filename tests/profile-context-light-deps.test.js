@@ -63,6 +63,16 @@ describe('profile context light dependencies', () => {
     expect(sunSource).toContain('configureProfileContextLightDeps({ rollingChannelTotals, rollingVitaminDIU });');
   });
 
+  it('does not infer low vitamin-D synthesis from an empty tracker after lazy loading', () => {
+    state.importedData = { entries: [], lightCircadian: {} };
+    const cold = getBiologyProfileContext();
+    configureProfileContextLightDeps({ rollingVitaminDIU: () => 0, rollingChannelTotals: () => ({ circadian: 0 }) });
+    const warm = getBiologyProfileContext();
+    expect(warm.light.lowVitaminDSynthesis).toBe(false);
+    expect(warm.contextFlags).toEqual(cold.contextFlags);
+    expect(warm.lowSunlightExposure).toBe(cold.lowSunlightExposure);
+  });
+
   it('reads the current context-card schema for deterministic modifiers', () => {
     state.importedData = {
       ...state.importedData,

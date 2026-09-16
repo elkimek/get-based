@@ -1,6 +1,7 @@
 // @ts-check
 // sync-pull-merge.js - inbound row recovery and importedData merge helpers.
 
+import { mergeBiologyScoreAIRecords } from './biology-score-persistence.js';
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import {
@@ -157,8 +158,8 @@ function preserveFreshLocalBiologyScoreAI(merged, localImported, remoteImported)
   for (const scoreId of keys) {
     const candidates = candidateMaps.map(map => map?.[scoreId]).filter(item => item && typeof item === 'object');
     if (!candidates.length) continue;
-    const best = candidates.reduce((winner, item) => getUpdatedAt(item) > getUpdatedAt(winner) ? item : winner, candidates[0]);
-    if (mergedAnswers[scoreId] !== best && getUpdatedAt(best) > getUpdatedAt(mergedAnswers[scoreId])) {
+    const best = mergeBiologyScoreAIRecords(...candidates);
+    if (JSON.stringify(mergedAnswers[scoreId]) !== JSON.stringify(best)) {
       mergedAnswers[scoreId] = best;
       changed = true;
     }

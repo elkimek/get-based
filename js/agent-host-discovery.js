@@ -1,7 +1,7 @@
 // @ts-check
 // Lazy browser runtime for origin-gated standalone companion discovery.
 
-import { agentHostUpgradeRequiredError, checkAgentHost } from './agent-chat-client.js';
+import { agentHostUpgradeRequiredError, checkAgentHost, listAgentExecutionTargets } from './agent-chat-client.js';
 import {
   AGENT_HOST_CAPABILITIES, agentHostSupportsCapabilities,
   normalizeAgentHostCapabilities, normalizeAgentHostProtocolVersion,
@@ -96,7 +96,7 @@ async function probeLoopbackAgentHost(endpoint, parentSignal, normalizeEndpoint)
 }
 
 /**
- * @param {{savedEndpoint: string, normalizeEndpoint: (value: string) => string, signal?: AbortSignal, ports?: number[]}} options
+ * @param {{savedEndpoint: string, normalizeEndpoint: (value: string) => string, signal?: AbortSignal, ports?: number[], requiredTextFeatureTarget?: string, requiredAgentId?: string}} options
  */
 export async function discoverLoopbackAgentHostsRuntime(options) {
   const ports = Array.isArray(options.ports) ? options.ports : LOOPBACK_AGENT_PORTS;
@@ -117,6 +117,17 @@ export async function discoverLoopbackAgentHostsRuntime(options) {
     const agents = await probeLoopbackAgentHost(endpoint, options.signal, options.normalizeEndpoint);
     const allowedAgents = agents.filter(agent => isAgentAllowedForDeployment(agent.id));
     if (!allowedAgents.length) continue;
+    if (options.requiredTextFeatureTarget) {
+      const capable = [];
+      for (const agent of allowedAgents.filter(agent => !options.requiredAgentId || agent.id === options.requiredAgentId)) {
+        try {
+          await requireTextFeatureTarget(agent, options.requiredTextFeatureTarget, options.signal);
+          capable.push(agent);
+        } catch { /* Keep looking; another bounded companion may support this target. */ }
+      }
+      if (capable.length) return capable;
+      continue;
+    }
     const current = allowedAgents.some(agent => agent.capabilities.includes(AGENT_HOST_CAPABILITIES.COMPANION_CONTROL));
     if (current) return allowedAgents;
     if (!legacyCompanion.length) legacyCompanion = allowedAgents;
@@ -144,10 +155,18 @@ export function mergeDiscoveredAgents(primary, companions) {
 
 export const normalizeRequiredCapabilities = normalizeAgentHostCapabilities;
 
+async function requireTextFeatureTarget(candidate, target, signal) {
+  const targets = await listAgentExecutionTargets({ endpoint: candidate.endpoint, token: candidate.token, agent: candidate.id, signal: signal || AbortSignal.timeout(5000) });
+  if (!targets.some(item => item.id === target && item.supportsTextFeatureJobs === true && item.status !== 'unavailable')) {
+    throw new Error('No connected Companion supports text explanations on this gateway yet. Update the Companion in AI settings.');
+  }
+}
+
 /**
  * @param {{
  *   candidate: ReturnType<typeof normalizeDiscoveredAgent>,
  *   requiredCapabilities: string[],
+ *   requiredTextFeatureTarget?: string,
  *   signal?: AbortSignal,
  *   attempts: number,
  *   normalizeEndpoint: (value: string) => string,
@@ -167,6 +186,7 @@ export async function connectAgentHostCandidate(options) {
       if (!agentHostSupportsCapabilities(status, options.requiredCapabilities)) {
         throw agentHostUpgradeRequiredError(options.requiredCapabilities[0] || 'requested-feature');
       }
+      if (options.requiredTextFeatureTarget) await requireTextFeatureTarget({ ...options.candidate, endpoint }, options.requiredTextFeatureTarget, options.signal);
       await options.onConnected({ endpoint, token: options.candidate.token });
       return normalizeDiscoveredAgent({
         ...options.candidate, ...status, endpoint, token: options.candidate.token,

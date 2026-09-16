@@ -1,8 +1,11 @@
 // @ts-check
 // data.js — Data pipeline, unit conversion, date range, trend detection
 
+import { queueProfileDataWrite, profileDataBaseline, rememberProfileData, mergeProfileMutation } from './profile-data-writes.js';
+import { mergeBiologyScoreAIRecords } from './biology-score-persistence.js';
 import { isProfileReadBlocked } from './profile-load-safety.js';
 import { state } from './state.js';
+import { mergeCustomMarkerDefinitions } from './data-custom-markers.js';
 import { populateCalculatedMarkers } from './data-calculated-markers.js';
 import {
   CONTEXT_OPTIMAL_RANGES,
@@ -12,6 +15,7 @@ import {
   PHASE_RANGES,
 } from './schema.js';
 import {
+  captureCanonicalScoring,
   convertCanonicalToDisplay,
   convertDisplayToCanonical,
   normalizeUnitProfile,
@@ -244,71 +248,87 @@ function _makeActiveDataCacheMeta() {
 }
 
 export async function saveImportedData(options = {}) {
-  if (isProfileReadBlocked(state.currentProfile)) { showNotification('Profile could not be loaded. Reload before saving changes.', 'error'); return false; }
+  const profileId = state.currentProfile;
+  if (isProfileReadBlocked(profileId)) { showNotification('Profile could not be loaded. Reload before saving changes.', 'error'); return false; }
   invalidateActiveDataCache();
+  const source = state.importedData;
+  if (!source || !profileId) return false;
   try {
-    // Persist the canonical schema shape, not just the current in-memory shape.
-    // Otherwise a legacy key can be migrated for display but saved/synced again
-    // in its old form, creating repeated cross-device "updated" loops.
-    if (state.importedData && typeof state.importedData === 'object') migrateProfileData(state.importedData);
-    const key = profileStorageKey(state.currentProfile, 'imported');
-    const value = JSON.stringify(state.importedData);
-    // Equivalent maintenance/render saves are no-ops, avoiding storage writes
-    // and preventing their timestamps from creating full CRDT messages.
-    const changed = (await encryptedGetItem(key)) !== value;
-    if (!changed) return true;
-    // Always route through encryptedSetItem — it skips encryption when
-    // disabled (just a localStorage.setItem) but also routes big-blob
-    // keys to IndexedDB. Going through localStorage.setItem directly
-    // would bypass that routing and re-introduce the 5 MB quota wall.
-    await encryptedSetItem(key, value);
-  } catch (e) {
-    showNotification('Storage limit reached — clear old data or profiles to free space.', 'error');
-    return false;
-  }
-  try {
-    broadcastDataChanged(state.currentProfile);
-    scheduleAutoBackup();
-    await touchProfileTimestamp(state.currentProfile);
-    dataContextDeps.invalidateLabContextCache?.();
-    onDataSaved(options);
-  } catch (e) {
-    if (isDebugMode()) console.warn('Post-save hook failed after data was persisted:', e);
-  }
-  return true;
+    migrateProfileData(source);
+    return await persistProfileSnapshot(profileId, source, { ...options, baseData: profileDataBaseline(source), activeSave: true });
+  } catch { return failedProfileSave(); }
 }
 
-// Persist a specific profile snapshot without consulting or replacing the
-// active global profile. Long-running operations can finish after the user
-// switches profiles; routing through saveImportedData() at that point would
-// write profile A's change into profile B. Active-profile calls retain the
-// usual save hooks unless the caller explicitly requires profile scoping.
+// A supplied baseData describes a field mutation against a version read earlier.
+// Without it, scoped callers retain explicit whole-profile restore semantics.
 export async function saveImportedDataForProfile(profileId, importedData, options = {}) {
   if (!profileId || !importedData || typeof importedData !== 'object' || isProfileReadBlocked(profileId)) return false;
-  if (!options?.forceProfileScope && profileId === state.currentProfile && importedData === state.importedData) {
-    return saveImportedData(options);
-  }
+  if (!options?.forceProfileScope && profileId === state.currentProfile && importedData === state.importedData) return saveImportedData(options);
   try {
     migrateProfileData(importedData);
-    const key = profileStorageKey(profileId, 'imported');
-    const value = JSON.stringify(importedData);
-    // Scoped operations represent an explicit profile mutation or restore.
-    // Skip an identical storage write, but continue through the hooks so the
-    // complete persisted snapshot is marked dirty and republished.
-    if ((await encryptedGetItem(key)) !== value) await encryptedSetItem(key, value);
-  } catch (e) {
-    showNotification('Storage limit reached — clear old data or profiles to free space.', 'error');
-    return false;
-  }
-  try {
-    broadcastDataChanged(profileId);
-    scheduleAutoBackup();
-    await touchProfileTimestamp(profileId);
-    if (!options?.skipSync) onProfileSaved(profileId, importedData);
-  } catch (e) {
-    if (isDebugMode()) console.warn('Post-save hook failed after profile data was persisted:', e);
-  }
-  return true;
+    return await persistProfileSnapshot(profileId, importedData, options);
+  } catch { return failedProfileSave(); }
+}
+
+function failedProfileSave() {
+  showNotification('Could not save profile data. Check available storage and try again.', 'error');
+  return false;
+}
+
+function persistProfileSnapshot(profileId, source, options) {
+  const intent = structuredClone(source);
+  const base = options.baseData ? structuredClone(options.baseData) : null;
+  return queueProfileDataWrite(profileId, async () => {
+    let persisted;
+    let changed;
+    try {
+      if (isProfileReadBlocked(profileId)) return false;
+      const key = profileStorageKey(profileId, 'imported');
+      const previous = await encryptedGetItem(key);
+      const latest = base && previous != null ? JSON.parse(previous) : {};
+      persisted = base ? mergeProfileMutation(base, intent, latest) : intent;
+      // Concurrent assessments of the same score may cover different views.
+      // Merge their records rather than replacing a newly saved variant.
+      if (base && intent.biologyScoreAI) {
+        for (const id of Object.keys(intent.biologyScoreAI)) {
+          if (JSON.stringify(base.biologyScoreAI?.[id]) === JSON.stringify(intent.biologyScoreAI[id])) continue;
+          persisted.biologyScoreAI ||= {};
+          persisted.biologyScoreAI[id] = mergeBiologyScoreAIRecords(latest.biologyScoreAI?.[id], intent.biologyScoreAI[id]);
+        }
+      }
+      migrateProfileData(persisted);
+      const value = JSON.stringify(persisted);
+      changed = previous !== value;
+      if (changed) await encryptedSetItem(key, value);
+      // Retain unsaved local edits while adopting fields committed by other
+      // writers. A later maintenance save must not restore a stale field.
+      if (state.currentProfile === profileId && state.importedData && (options.activeSave || base)) {
+        const live = state.importedData;
+        const merged = mergeProfileMutation(options.activeSave ? intent : profileDataBaseline(live) || base, live, persisted);
+        if (persisted.biologyScoreAI) merged.biologyScoreAI = persisted.biologyScoreAI;
+        for (const key of Object.keys(live)) if (!Object.hasOwn(merged, key)) delete live[key];
+        Object.assign(live, merged);
+        rememberProfileData(live, persisted);
+        invalidateActiveDataCache();
+      }
+      rememberProfileData(source, persisted);
+    } catch (e) {
+      return failedProfileSave();
+    }
+    if (!changed && options.activeSave) return true;
+    try {
+      broadcastDataChanged(profileId);
+      scheduleAutoBackup();
+      await touchProfileTimestamp(profileId);
+      if (options.activeSave && state.currentProfile === profileId) {
+        dataContextDeps.invalidateLabContextCache?.();
+        onDataSaved(options);
+      } else if (!options?.skipSync) onProfileSaved(profileId, persisted);
+    } catch (e) {
+      if (isDebugMode()) console.warn('Post-save hook failed after data was persisted:', e);
+    }
+    return true;
+  });
 }
 
 export function getFocusCardFingerprint() {
@@ -338,56 +358,7 @@ export function getActiveData() {
     categories: JSON.parse(JSON.stringify(MARKER_SCHEMA))
   };
 
-  // Merge custom markers into categories
-  const custom = (state.importedData && state.importedData.customMarkers) ? state.importedData.customMarkers : {};
-  for (const [fullKey, def] of Object.entries(custom)) {
-    const [catKey, markerKey] = fullKey.split('.');
-    if (!markerKey) continue;
-    if (!data.categories[catKey]) {
-      // Create new category — infer icon from label/key
-      const _label = (def.categoryLabel || catKey).toLowerCase();
-      const _inferIcon = (l) => {
-        if (/urine|urinal/.test(l)) return '\uD83E\uDDEA';
-        if (/environ|toxic|heavy.?metal|pollut/.test(l)) return '\uD83C\uDF0D';
-        if (/amino/.test(l)) return '\uD83E\uDDEC';
-        if (/antioxid/.test(l)) return '\uD83D\uDEE1\uFE0F';
-        if (/fatty.?acid|omega|lipid/.test(l)) return '\uD83D\uDC1F';
-        if (/vitamin/.test(l)) return '\u2600\uFE0F';
-        if (/mineral|element/.test(l)) return '\u2696\uFE0F';
-        if (/hormone|endocrin/.test(l)) return '\uD83E\uDDEC';
-        if (/liver|hepat/.test(l)) return '\uD83E\uDDEA';
-        if (/kidney|renal/.test(l)) return '\uD83E\uDDEB';
-        if (/thyroid/.test(l)) return '\uD83E\uDD8B';
-        if (/bone|osteo/.test(l)) return '\uD83E\uDDB4';
-        if (/immune|inflam/.test(l)) return '\uD83D\uDEE1\uFE0F';
-        if (/cardio|heart/.test(l)) return '\uD83E\uDEC0';
-        if (/neuro|brain/.test(l)) return '\uD83E\uDDE0';
-        if (/digest|gut|gi|gastro|microb/.test(l)) return '\uD83E\uDDA0';
-        if (/blood|hemat/.test(l)) return '\uD83E\uDE78';
-        if (/metabol|energy|mitochond/.test(l)) return '\u26A1';
-        if (/oxalate|organic.?acid/.test(l)) return '\u2697\uFE0F';
-        if (/nutri|diet/.test(l)) return '\uD83C\uDF4E';
-        return null;
-      };
-      data.categories[catKey] = {
-        label: def.categoryLabel || catKey.charAt(0).toUpperCase() + catKey.slice(1),
-        icon: def.icon || _inferIcon(_label) || '\uD83D\uDD16',
-        singlePoint: !!def.singlePoint,
-        group: def.group || null,
-        markers: {}
-      };
-    }
-    // Add marker if not already in schema
-    if (!data.categories[catKey].markers[markerKey]) {
-      data.categories[catKey].markers[markerKey] = {
-        name: def.name,
-        unit: def.unit || '',
-        refMin: def.refMin,
-        refMax: def.refMax,
-        custom: true
-      };
-    }
-  }
+  mergeCustomMarkerDefinitions(data, state.importedData?.customMarkers || {});
 
   // Apply sex-specific reference ranges
   if (state.profileSex === 'female') {
@@ -452,7 +423,7 @@ export function getActiveData() {
   // differ between lab entries for the same profile.
   const entryLookup = {};
   const entryContextByDate = {};
-  const ENTRY_CONTEXT_KEYS = ['sampleTime', 'fasting', 'cycleDay', 'cyclePhase', 'cyclePhaseDetail', 'cyclePhaseSource', 'cycleStatus', 'menopauseStatus', 'contraception', 'hormoneTherapy', 'recentHardTraining', 'acuteIllness'];
+  const ENTRY_CONTEXT_KEYS = ['specimen', 'method', 'sampleTime', 'fasting', 'cycleDay', 'cyclePhase', 'cyclePhaseDetail', 'cyclePhaseSource', 'cycleStatus', 'menopauseStatus', 'contraception', 'hormoneTherapy', 'recentHardTraining', 'acuteIllness'];
   for (const entry of entries) {
     if (!entryLookup[entry.date]) entryLookup[entry.date] = {};
     Object.assign(entryLookup[entry.date], entry.markers);
@@ -622,6 +593,8 @@ export function getActiveData() {
   }
 
   setContextRanges('hormones.cortisol', 'reference', (dateStr, _i, marker) => {
+    const specimen = marker.specimen || entryContextByDate[dateStr]?.specimen;
+    if (marker.referenceRangeSource || (specimen && !/^(serum|plasma|blood)$/i.test(specimen))) return null;
     const guidance = cortisolReferenceForSampleTime(entryContextByDate[dateStr]?.sampleTime, marker.unit);
     return guidance ? { ...guidance.range, label: guidance.label } : null;
   });
@@ -705,6 +678,7 @@ export function applyUnitConversion(data, requestedUnitProfile = state.unitSyste
       const canonicalUnit = marker.unit || '';
       const resolved = resolveMarkerUnitProfile(dotKey, unitProfile, canonicalUnit);
       const conversion = resolved.conversion;
+      if (conversion && (conversion.type !== 'multiply' || conversion.factor !== 1)) captureCanonicalScoring(marker, data.dates);
       marker.values = marker.values.map(value =>
         convertProfileValue(dotKey, value, unitProfile, canonicalUnit, conversion));
       for (const key of ['refMin', 'refMax', 'optimalMin', 'optimalMax']) {

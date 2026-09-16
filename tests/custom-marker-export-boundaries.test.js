@@ -84,6 +84,7 @@ describe('custom marker export boundaries', () => {
               categoryKey: 'biochemistry',
             },
           },
+          biologyScoreAI: { thyroidCoherence: { summary: 'Saved insight.', text: 'Saved detailed explanation.', materialFingerprint: 'marker-evidence', updatedAt: 123 } },
           nutritionContextDays: 90,
           nutritionTargets: { energyKcal: 2200, proteinG: 130 },
         });
@@ -100,6 +101,7 @@ describe('custom marker export boundaries', () => {
       name: 'Acetoacetic Acid',
       futureField: { preserve: true },
     });
+    expect(exported.biologyScoreAI.thyroidCoherence).toEqual({ summary: 'Saved insight.', text: 'Saved detailed explanation.', materialFingerprint: 'marker-evidence', updatedAt: 123 });
     expect(exported.entries[0].markers).toEqual({ 'oatEnergy.acetoaceticAcid': 12.5 });
     expect(exported.markerPlacements).toEqual({
       [deriveLegacyCustomMarkerId('oatEnergy.acetoaceticAcid')]: {

@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "maximums": {
     "startupJavaScriptFiles": 2,
-    "startupDecodedBytes": 1205000,
+    "startupDecodedBytes": 1259000,
     "outputJavaScriptFiles": 165,
-    "outputDecodedBytes": 5313000
+    "outputDecodedBytes": 5371000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -68,8 +68,10 @@
     "defaultReportAIOverviewOutputDecodedBytes": 5301148,
     "distinctReportTemplatesOutputDecodedBytes": 5303522,
     "reportGenerationProgressOutputDecodedBytes": 5307869,
-    "reportAITransparencyOutputDecodedBytes": 5310721
+    "reportAITransparencyOutputDecodedBytes": 5310721,
+    "biologyScoresStartupDecodedBytes": 1256425,
+    "biologyScoresOutputDecodedBytes": 5367943
   },
   "referenceCommit": "331112b1",
-  "measuredAt": "2026-09-05"
+  "measuredAt": "2026-09-16"
 }

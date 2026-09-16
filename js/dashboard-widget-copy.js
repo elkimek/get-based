@@ -9,5 +9,5 @@ const REDUNDANT_CARD_DESCRIPTIONS = new Set([
 
 /** @param {string} id @param {string} [description] */
 export function getWidgetHeaderDescription(id, description = '') {
-  return REDUNDANT_CARD_DESCRIPTIONS.has(id) ? '' : description;
+  return REDUNDANT_CARD_DESCRIPTIONS.has(id) || id.startsWith('biology-score-') ? '' : description;
 }

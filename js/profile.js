@@ -1,4 +1,5 @@
 // @ts-check
+import { rememberProfileData } from './profile-data-writes.js';
 import { readProfileForLoad } from './profile-load-safety.js';
 import { state } from './state.js';
 import { COUNTRY_LATITUDES, LATITUDE_BANDS } from './constants.js';
@@ -276,10 +277,7 @@ function queueProfileSync(profileId, importedData = null) {
   queueEligibleProfileSync(profileId, getProfiles(), importedData, profileDeps);
 }
 
-/**
- * @param {string} profileId
- * @returns {Promise<void>}
- */
+/** @param {string} profileId @returns {Promise<void>} */
 export async function loadProfile(profileId) {
   const savedImported = await readProfileForLoad(profileId, () => encryptedGetItem(profileStorageKey(profileId, 'imported')), profileDeps.showNotification);
   state.currentProfile = profileId;
@@ -293,6 +291,7 @@ export async function loadProfile(profileId) {
       if (!d.notes) d.notes = [];
       if (!d.supplements) d.supplements = [];
       state.importedData = migrateProfileData(d);
+      rememberProfileData(state.importedData);
     } catch (e) {
       // Don't silently substitute defaults — preserve the corrupted bytes so
       // the user can recover (or we can debug). Same key suffix every time

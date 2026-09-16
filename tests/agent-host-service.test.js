@@ -256,6 +256,7 @@ describe('agent host service', () => {
         routes: [{
           id: 'gateway-home', label: 'Omer · Homelab', description: 'Personal assistant',
           kind: 'gateway', protocol: 'hermes-gateway', status: 'available', supportsLocalTools: false,
+          supportsFeatureJobs: false, supportsTextFeatureJobs: true,
           client: gateway, token: 'must-not-leak',
         }],
       }],
@@ -291,6 +292,13 @@ describe('agent host service', () => {
       instructions: expect.stringContaining('Enabled context: Ferritin 42 ng/mL.'),
     }));
     expect(gateway.prompt.mock.calls[0][0].instructions).toContain('existing personal agent');
+    const feature = await service.handleRequest(turnRequest({ agent: 'hermes', target: 'gateway-home', purpose: 'feature', tools: [], instructions: 'Explain synthetic markers only.' }));
+    expect(feature.status).toBe(200);
+    expect(await feature.text()).toContain('Personal answer');
+    expect(gateway.prompt).toHaveBeenLastCalledWith(expect.objectContaining({ instructions: expect.stringContaining('Explain synthetic markers only.'), allowedToolNames: [] }));
+    const imageFeature = await service.handleRequest(turnRequest({ agent: 'hermes', target: 'gateway-home', purpose: 'feature', tools: [], imageUploadIds: ['synthetic-image'] }));
+    expect(imageFeature.status).toBe(400);
+    expect(await imageFeature.text()).toContain('text explanations only');
   });
 
   it('routes model discovery and streaming turns through an ACP agent', async () => {

@@ -40,6 +40,7 @@ export const ANZ_UNIT_OVERRIDES = Object.freeze({
 
   // Kidney filtration and urate conventions.
   'biochemistry.egfr': { factor: 60, unit: 'mL/min/1.73m²', type: 'multiply', source: RCPA_CHEMICAL_PATHOLOGY_SOURCE },
+  'biochemistry.egfrCombined': { factor: 60, unit: 'mL/min/1.73m²', type: 'multiply', source: RCPA_CHEMICAL_PATHOLOGY_SOURCE },
   'biochemistry.gfrCystatin': { factor: 60, unit: 'mL/min', type: 'multiply', source: RCPA_CHEMICAL_PATHOLOGY_SOURCE },
   'biochemistry.uricAcid': { factor: 0.001, unit: 'mmol/L', type: 'multiply', source: RCPA_CHEMICAL_PATHOLOGY_SOURCE },
 
@@ -287,4 +288,12 @@ export function auditUnitProfileCoverage(unitProfile) {
     }
   }
   return resolved;
+}
+
+// Preserve original precision for downstream score consumers before rounding a display projection.
+// Date lookup survives timeframe filtering of the displayed marker arrays.
+export function captureCanonicalScoring(marker, dates = []) {
+  const keys = ['unit', 'values', 'refMin', 'refMax', 'optimalMin', 'optimalMax', 'phaseRefRanges', 'phaseLabels', 'contextRefRanges', 'contextRangeLabels', 'contextOptimalRanges', 'contextOptimalRangeLabels'];
+  marker.canonicalScoring = Object.fromEntries(keys.filter(key => marker[key] !== undefined).map(key => [key, structuredClone(marker[key])]));
+  marker.canonicalScoring.dateIndices = Object.fromEntries(dates.map((date, index) => [date, index]));
 }

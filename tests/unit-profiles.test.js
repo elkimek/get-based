@@ -20,7 +20,7 @@ const builtInCount = Object.values(MARKER_SCHEMA)
 
 describe('schema-wide unit profiles', () => {
   it('resolves every built-in marker in every profile', () => {
-    expect(builtInCount).toBe(196);
+    expect(builtInCount).toBe(197);
     for (const profile of ['EU', 'ANZ', 'US']) {
       const rows = auditUnitProfileCoverage(profile);
       expect(rows).toHaveLength(builtInCount);

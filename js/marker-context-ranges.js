@@ -50,7 +50,8 @@ export function cortisolReferenceForSampleTime(sampleTime, unit = '') {
   if (!isMorning && !isAfternoon) return null;
   const conventional = isMorning ? { min: 7, max: 25 } : { min: 2, max: 14 };
   const normalizedUnit = String(unit || '').toLowerCase();
-  const usesConventional = normalizedUnit.includes('µg/dl') || normalizedUnit.includes('ug/dl');
+  if (!/^(?:nmol\/l|[µμu]g\/dl)$/i.test(normalizedUnit)) return null;
+  const usesConventional = normalizedUnit.includes('µg/dl') || normalizedUnit.includes('μg/dl') || normalizedUnit.includes('ug/dl');
   return {
     range: usesConventional
       ? conventional

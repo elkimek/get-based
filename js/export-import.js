@@ -1,6 +1,7 @@
 // @ts-check
 // export-import.js — JSON import/restore helpers for the export facade.
 
+import { mergeBiologyScoreAIRecords } from './biology-score-persistence.js';
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { showNotification, isDebugMode } from './utils.js';
@@ -426,6 +427,15 @@ export function importDataJSON(file) {
         // visible immediately without spending a real LLM call.
         if (json.biologyScoreContextAI && typeof json.biologyScoreContextAI === 'object') {
           state.importedData.biologyScoreContextAI = json.biologyScoreContextAI;
+        }
+        // Merge saved range/window variants, retaining the latest matching evidence.
+        if (json.biologyScoreAI && typeof json.biologyScoreAI === 'object' && !Array.isArray(json.biologyScoreAI)) {
+          state.importedData.biologyScoreAI ||= {};
+          for (const [id, answer] of Object.entries(json.biologyScoreAI)) {
+            if (['__proto__', 'constructor', 'prototype'].includes(id) || !answer || typeof answer.text !== 'string') continue;
+            const existing = state.importedData.biologyScoreAI[id];
+            state.importedData.biologyScoreAI[id] = mergeBiologyScoreAIRecords(existing, answer);
+          }
         }
         if (json.contextSourceSettings && typeof json.contextSourceSettings === 'object') {
           state.importedData.contextSourceSettings = json.contextSourceSettings;

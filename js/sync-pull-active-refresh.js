@@ -2,6 +2,7 @@
 // sync-pull-active-refresh.js - active-profile UI refresh after inbound pulls.
 
 import { state } from './state.js';
+import { rememberProfileData } from './profile-data-writes.js';
 import { showNotification } from './utils.js';
 import { migrateProfileData } from './profile.js';
 import {
@@ -62,6 +63,7 @@ export function refreshActiveProfileAfterPull({
 
   state.importedData = merged;
   migrateProfileData(state.importedData);
+  rememberProfileData(state.importedData);
 
   // Reload chat threads + active thread messages into memory and re-render.
   if (chatApplied) {

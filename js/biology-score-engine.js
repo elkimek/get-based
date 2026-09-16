@@ -1,18 +1,16 @@
 // @ts-check
 // biology-score-engine.js — shared primitives for the Biology Scores composite engine.
 
-import { getEffectiveRangeForDate, getEffectiveRangeLabelForDate, getLatestValueIndex } from './marker-analysis.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { getInputProfileModifier, getScoreProfileFlags } from './biology-score-profile-modifiers.js';
-import { UNIT_CONVERSIONS, OPTIMAL_RANGES } from './schema.js';
-import { state } from './state.js';
-import { getMarkerStorageDotKey, resolveActiveMarkerPath } from './marker-placement.js';
-import { formatValue } from './utils.js';
+import { getMarkerHit, canonicalRange } from './biology-score-inputs.js';
+import { BIOLOGY_SCORE_VERSION } from './biology-score-contract.js';
+import { resolveScorePanel, panelAnchorWarning, applyPanelContext, selectCurrentCoreAlternatives } from './biology-score-panel-policy.js';
+import { assessScoreRecency } from './biology-score-dates.js';
+export { getMarkerHit, canonicalMarkerValue, parsePath } from './biology-score-inputs.js';
+export { getAgeDays, formatAge, assessScoreRecency, SCORE_STALE_DAYS, SCORE_DATE_SPAN_DAYS, DAY_MS } from './biology-score-dates.js';
 
-export const TONE_LABELS = { excellent: 'Strong', good: 'Good', strained: 'Watch', poor: 'Low score', concerning: 'Concerning', significant: 'Significant', severe: 'Severe' };
-export const SCORE_STALE_DAYS = 180;
-export const SCORE_DATE_SPAN_DAYS = 90;
-export const DAY_MS = 24 * 60 * 60 * 1000;
+export const TONE_LABELS = { excellent: 'Strong range fit', good: 'Good range fit', strained: 'Review pattern', poor: 'Low range fit', concerning: 'Low range fit', significant: 'Low range fit', severe: 'Far from range' };
 
 export function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
@@ -46,246 +44,26 @@ export function resolveCoverageLabel(coverage) {
 }
 
 export function contextOnlyNeedsMoreData(item) {
-  if (!item?.profileContextOnly) return false;
-  const reason = String(item.contextReason || '').toLowerCase();
-  return /\bneeds?\b|missing|add .*context|before it can be scored|sample time|cycle day|cycle phase/.test(reason);
+  if (!item?.profileContextOnly && !item?.contextLimited) return false;
+  const reason = String(item.contextReason || item.contextNote || '').toLowerCase();
+  return /\bneeds?\b|missing|unknown|confirm collection|add .*context|before it can be scored|sample time|cycle day|cycle phase/.test(reason);
 }
 
 export function resolveScoreConfidence(result) {
-  const coverage = Number(result?.coverage || 0);
-  const coveredCoreGroups = new Set((result?.available || [])
-    .filter(item => item.coreGroup && item.core !== false)
-    .map(item => item.coreGroup));
-  const missingCoreRaw = (result?.missing || [])
-    .filter(item => item.core === true)
-    .filter(item => !item.coreGroup || !coveredCoreGroups.has(item.coreGroup));
-  const missingCore = [];
-  const contextCore = (result?.available || []).filter(item => item.profileContextOnly && item.core === true && contextOnlyNeedsMoreData(item));
-  const contextOnly = (result?.available || []).filter(item => item.profileContextOnly);
-  const seenCoreGroups = new Set();
-  for (const item of missingCoreRaw) {
-    if (item.coreGroup) {
-      if (seenCoreGroups.has(item.coreGroup)) continue;
-      seenCoreGroups.add(item.coreGroup);
-      missingCore.push({ ...item, label: item.coreGroupLabel || item.label });
-      continue;
-    }
-    missingCore.push(item);
+  if (!Number.isFinite(result?.score)) return { level: 'not-current', label: result?.available?.length ? 'Check inputs' : 'Needs markers', warning: result?.anchorWarning || result?.recencyMessage || 'Core markers or their interpretation context are not available.' };
+  if (result.coverage < 1) {
+    const covered = new Set((result.available || []).filter(i => i.core && !i.profileContextOnly).map(i => i.coreGroup || i.key));
+    const missing = [...new Set([...(result.missing || []), ...(result.available || []).filter(i => i.profileContextOnly)].filter(i => i.core && !covered.has(i.coreGroup || i.key)).map(i => i.coreGroupLabel || i.label))];
+    return { level: 'low', label: result.contextLimited ? 'Needs context' : 'Core incomplete', warning: `Missing or unscored core markers: ${missing.join(', ') || 'some domains'}. This is a provisional pattern.` };
   }
-  if (!Number.isFinite(result?.score)) {
-    return { level: 'not-current', label: 'Not current', warning: result?.recencyMessage || 'This score is not currently computed.' };
-  }
-  if (missingCore.length) {
-    return { level: 'low', label: 'Low confidence', warning: `Missing core marker${missingCore.length === 1 ? '' : 's'}: ${missingCore.slice(0, 3).map(i => i.label).join(', ')}${missingCore.length > 3 ? ', …' : ''}. Treat the number as provisional.` };
-  }
-  if (contextCore.length) {
-    return { level: 'low', label: 'Needs context', warning: `Core marker${contextCore.length === 1 ? '' : 's'} need biological context before scoring: ${contextCore.slice(0, 3).map(i => i.label).join(', ')}${contextCore.length > 3 ? ', …' : ''}.` };
-  }
-  if (contextOnly.length) {
-    return { level: 'medium', label: 'Context-limited', warning: `${contextOnly.length} marker${contextOnly.length === 1 ? '' : 's'} shown as context only because timing, cycle, therapy, or training context changes interpretation.` };
-  }
-  if (coverage < 0.45) return { level: 'low', label: 'Low confidence', warning: 'Thin marker coverage. Treat the number as a rough clue, not a reliable score.' };
-  if (coverage < 0.8) return { level: 'medium', label: 'Medium confidence', warning: 'Partial panel. Useful for direction, but missing markers can change this score.' };
-  return { level: 'high', label: 'High confidence', warning: '' };
+  if (result.contextLimited) return { level: 'medium', label: 'Needs context', warning: result.available?.find(i => i.core && i.contextLimited)?.contextNote || 'Timing or profile context limits interpretation of this panel.' };
+  return { level: 'high', label: 'Core complete', warning: '' };
 }
 
 export function applyScoreConfidence(result) {
   const confidence = resolveScoreConfidence(result);
-  const flags = [...(result.flags || [])];
-  if (confidence.warning && !flags.includes(confidence.warning)) flags.unshift(confidence.warning);
-  if (Number.isFinite(result.score) && result.score >= 85 && confidence.level !== 'high') {
-    const warning = 'High numeric score with incomplete evidence: do not treat this as “all clear” until the core/extended panel is filled.';
-    if (!flags.includes(warning)) flags.unshift(warning);
-  }
-  return { ...result, scoreConfidence: confidence.level, scoreConfidenceLabel: confidence.label, scoreConfidenceWarning: confidence.warning, flags };
-}
-
-export function parsePath(path) {
-  if (Array.isArray(path)) return path;
-  const idx = String(path).indexOf('.');
-  return idx > 0 ? [String(path).slice(0, idx), String(path).slice(idx + 1)] : ['', ''];
-}
-
-export function canonicalMarkerValue(dotKey, marker, value) {
-  const conv = UNIT_CONVERSIONS[dotKey];
-  if (!conv || !Number.isFinite(value)) return value;
-  if (conv.type === 'multiply' && marker.unit === conv.usUnit) return parseFloat((value / conv.factor).toPrecision(6));
-  if (conv.type === 'hba1c' && marker.unit === '%') return parseFloat(((value - 2.15) * 10.929).toFixed(1));
-  return value;
-}
-
-function markerWithSchemaOptimalFallback(dotKey, marker) {
-  if (!marker || (state.rangeMode !== 'optimal' && state.rangeMode !== 'both')) return marker;
-  if (marker.optimalMin != null || marker.optimalMax != null) return marker;
-  const opt = OPTIMAL_RANGES[dotKey];
-  if (!opt) return marker;
-  const rawMin = state.profileSex === 'female' && opt.optimalMin_f !== undefined ? opt.optimalMin_f : opt.optimalMin;
-  const rawMax = state.profileSex === 'female' && opt.optimalMax_f !== undefined ? opt.optimalMax_f : opt.optimalMax;
-  const conv = UNIT_CONVERSIONS[dotKey];
-  const convert = (value) => {
-    if (value == null) return value;
-    if (conv?.type === 'multiply' && marker.unit === conv.usUnit) return parseFloat((Number(value) * conv.factor).toPrecision(4));
-    if (conv?.type === 'hba1c' && marker.unit === '%') return parseFloat(((Number(value) / 10.929) + 2.15).toFixed(1));
-    return value;
-  };
-  return { ...marker, optimalMin: convert(rawMin), optimalMax: convert(rawMax) };
-}
-
-function getEffectiveRangeLabel(marker, dateIndex) {
-  return `${getEffectiveRangeLabelForDate(marker, dateIndex).toLowerCase()} range`.replace('range range', 'range');
-}
-
-export function getMarkerHit(data, paths) {
-  const candidates = Array.isArray(paths) ? paths : [paths];
-  for (const path of candidates) {
-    const [catKey, markerKey] = parsePath(path);
-    if (!catKey || !markerKey) continue;
-    const resolved = resolveActiveMarkerPath(data?.categories, catKey, markerKey);
-    if (!resolved) continue;
-    const { categoryKey: displayCategoryKey, category, marker } = resolved;
-    const latestIdx = getLatestValueIndex(marker.values || []);
-    if (latestIdx < 0) continue;
-    const value = Number(marker.values[latestIdx]);
-    if (!Number.isFinite(value)) continue;
-    const dotKey = getMarkerStorageDotKey(marker, `${catKey}_${markerKey}`);
-    if (!dotKey) continue;
-    const effectiveMarker = markerWithSchemaOptimalFallback(dotKey, marker);
-    const range = getEffectiveRangeForDate(effectiveMarker, latestIdx);
-    const date = marker.singleDate || category.singleDate || data?.dates?.[latestIdx] || '';
-    const entryContext = date ? (data?.entryContextByDate?.[date] || {}) : {};
-    return {
-      id: `${displayCategoryKey}_${markerKey}`,
-      dotKey,
-      path: dotKey,
-      label: marker.name || markerKey,
-      value,
-      canonicalValue: canonicalMarkerValue(dotKey, marker, value),
-      displayValue: formatValue(value),
-      unit: marker.unit || '',
-      date,
-      dateIndex: latestIdx,
-      ageDays: getAgeDays(date),
-      range,
-      rangeLabel: getEffectiveRangeLabel(effectiveMarker, latestIdx),
-      entryContext,
-      phaseLabel: marker.phaseLabels?.[latestIdx] || null,
-      phaseRange: marker.phaseRefRanges?.[latestIdx] || null,
-    };
-  }
-  const derived = getDerivedMarkerHit(data, candidates);
-  if (derived) return derived;
-  return null;
-}
-
-function getDerivedMarkerHit(data, candidates) {
-  for (const path of candidates) {
-    const [catKey, markerKey] = parsePath(path);
-    if (!catKey) continue;
-    if (catKey === 'calculatedRatios' && markerKey === 'cholHdlRatio') {
-      const derived = deriveTotalCholesterolHdlRatio(data);
-      if (!derived) continue;
-      const { value, date, ageDays } = derived;
-      return {
-        id: 'calculatedRatios_cholHdlRatio',
-        dotKey: 'calculatedRatios.cholHdlRatio',
-        path: 'calculatedRatios.cholHdlRatio',
-        label: 'Total cholesterol/HDL ratio',
-        value,
-        canonicalValue: value,
-        displayValue: formatValue(value),
-        unit: '',
-        date,
-        ageDays,
-        range: { min: 0, max: 3.5 },
-        derivedFrom: ['lipids.cholesterol', 'lipids.hdl'],
-      };
-    }
-    if (!['aaEpaRatio', 'omega3Index'].includes(markerKey)) continue;
-    const derived = markerKey === 'aaEpaRatio'
-      ? deriveRatioFromMarkers(data, catKey, 'arachidonicC20_4', 'epaC20_5', (aa, epa) => epa > 0 ? aa / epa : null)
-      : (deriveRatioFromMarkers(data, catKey, 'epaC20_5', 'dhaC22_6', (epa, dha) => epa + dha)
-        || deriveRatioFromMarkers(data, catKey, 'epa', 'dha', (epa, dha) => epa + dha, valuesLookLikeFattyAcidPercent));
-    if (!derived) continue;
-    const { value, date, ageDays } = derived;
-    const label = markerKey === 'aaEpaRatio' ? 'AA/EPA ratio' : 'Omega-3 index';
-    const range = markerKey === 'aaEpaRatio' ? { min: 10, max: 86 } : { min: 8, max: 12 };
-    const derivedFrom = markerKey === 'aaEpaRatio'
-      ? [`${catKey}.arachidonicC20_4`, `${catKey}.epaC20_5`]
-      : [`${catKey}.epaC20_5`, `${catKey}.dhaC22_6`];
-    return {
-      id: `${catKey}_${markerKey}`,
-      dotKey: `${catKey}.${markerKey}`,
-      path: `${catKey}.${markerKey}`,
-      label,
-      value,
-      canonicalValue: value,
-      displayValue: formatValue(value),
-      unit: '',
-      date,
-      ageDays,
-      range,
-      derivedFrom,
-    };
-  }
-  return null;
-}
-
-function deriveTotalCholesterolHdlRatio(data) {
-  const pickMarker = (keys) => keys.map(key => resolveActiveMarkerPath(data?.categories, 'lipids', key)).find(Boolean);
-  const totalHit = pickMarker(['cholesterol', 'totalCholesterol', 'cholesterolTotal', 'total_cholesterol', 'totalChol']);
-  const hdlHit = pickMarker(['hdl', 'hdlCholesterol', 'hdl_cholesterol']);
-  if (!totalHit || !hdlHit) return null;
-  const totalMarker = totalHit.marker;
-  const hdlMarker = hdlHit.marker;
-  const totalIdx = getLatestValueIndex(totalMarker.values || []);
-  const hdlIdx = getLatestValueIndex(hdlMarker.values || []);
-  if (totalIdx < 0 || hdlIdx < 0) return null;
-  const totalRaw = Number(totalMarker.values[totalIdx]);
-  const hdlRaw = Number(hdlMarker.values[hdlIdx]);
-  if (!Number.isFinite(totalRaw) || !Number.isFinite(hdlRaw)) return null;
-  const total = canonicalMarkerValue('lipids.cholesterol', totalMarker, totalRaw);
-  const hdl = canonicalMarkerValue('lipids.hdl', hdlMarker, hdlRaw);
-  if (!Number.isFinite(total) || !Number.isFinite(hdl) || hdl <= 0) return null;
-  const totalDate = totalMarker.singleDate || totalHit.category.singleDate || data?.dates?.[totalIdx] || '';
-  const hdlDate = hdlMarker.singleDate || hdlHit.category.singleDate || data?.dates?.[hdlIdx] || '';
-  const date = hdlDate && totalDate && hdlDate !== totalDate ? hdlDate : (totalDate || hdlDate);
-  return { value: parseFloat((total / hdl).toPrecision(6)), date, ageDays: getAgeDays(date) };
-}
-
-/**
- * @param {any} data
- * @param {string} categoryKey
- * @param {string} leftKey
- * @param {string} rightKey
- * @param {(left: number, right: number) => number | null} compute
- * @param {((left: number, right: number, leftMarker: any, rightMarker: any) => boolean) | null} [valuesOk]
- */
-function deriveRatioFromMarkers(data, categoryKey, leftKey, rightKey, compute, valuesOk = null) {
-  const leftHit = resolveActiveMarkerPath(data?.categories, categoryKey, leftKey);
-  const rightHit = resolveActiveMarkerPath(data?.categories, categoryKey, rightKey);
-  if (!leftHit || !rightHit) return null;
-  const leftMarker = leftHit.marker;
-  const rightMarker = rightHit.marker;
-  const leftIdx = getLatestValueIndex(leftMarker.values || []);
-  const rightIdx = getLatestValueIndex(rightMarker.values || []);
-  if (leftIdx < 0 || rightIdx < 0) return null;
-  const left = Number(leftMarker.values[leftIdx]);
-  const right = Number(rightMarker.values[rightIdx]);
-  if (!Number.isFinite(left) || !Number.isFinite(right)) return null;
-  if (valuesOk && !valuesOk(left, right, leftMarker, rightMarker)) return null;
-  const raw = compute(left, right);
-  if (raw == null || !Number.isFinite(raw)) return null;
-  const leftDate = leftMarker.singleDate || leftHit.category.singleDate || data?.dates?.[leftIdx] || '';
-  const rightDate = rightMarker.singleDate || rightHit.category.singleDate || data?.dates?.[rightIdx] || '';
-  const date = rightDate && leftDate && rightDate !== leftDate ? rightDate : (leftDate || rightDate);
-  return { value: parseFloat(raw.toPrecision(6)), date, ageDays: getAgeDays(date) };
-}
-
-function valuesLookLikeFattyAcidPercent(left, right, leftMarker, rightMarker) {
-  const units = `${leftMarker?.unit || ''} ${rightMarker?.unit || ''}`.toLowerCase();
-  if (units.includes('µmol') || units.includes('umol') || units.includes('mg/') || units.includes('mmol')) return false;
-  if (units.includes('%') || units.trim() === '') return left >= 0 && right >= 0 && left <= 20 && right <= 20 && left + right <= 25;
-  return false;
+  return { ...result, scoreConfidence: confidence.level, scoreConfidenceLabel: confidence.label,
+    scoreConfidenceWarning: confidence.warning, flags: [...new Set([...(result.flags || []), ...(confidence.warning ? [confidence.warning] : [])])] };
 }
 
 export function scoreAgainstRange(value, range) {
@@ -296,83 +74,26 @@ export function scoreAgainstRange(value, range) {
 
   if (min == null && max != null) {
     if (value <= max) return 100;
-    const buffer = Math.max(Math.abs(max) * 0.5, 1);
+    const buffer = Math.abs(max) * 0.5 || Number.EPSILON;
     return Math.round(clamp(lerp(clamp(value, max, max + buffer), max, max + buffer, 99, 0), 0, 99));
   }
 
   if (max == null && min != null) {
     if (value >= min) return 100;
-    const buffer = Math.max(Math.abs(min) * 0.5, 1);
+    const buffer = Math.abs(min) * 0.5 || Number.EPSILON;
     return Math.round(clamp(lerp(clamp(value, min - buffer, min), min - buffer, min, 0, 99), 0, 99));
   }
 
   if (min == null || max == null) return null;
   if (value >= min && value <= max) return 100;
-  const span = Math.max(max - min, 1);
+  const span = Math.abs(max - min) || Math.abs(max) * 0.5 || Number.EPSILON;
   const lowFloor = Math.max(0, min - span);
   const highCeil = max + span;
   if (value < min) return Math.round(clamp(lerp(clamp(value, lowFloor, min), lowFloor, min, 0, 99), 0, 99));
   return Math.round(clamp(lerp(clamp(value, max, highCeil), max, highCeil, 99, 0), 0, 99));
 }
 
-export function getAgeDays(dateStr) {
-  if (!dateStr) return null;
-  const ts = new Date(`${dateStr}T00:00:00`).getTime();
-  if (!Number.isFinite(ts)) return null;
-  return Math.floor((Date.now() - ts) / DAY_MS);
-}
-
-export function formatAge(ageDays) {
-  if (!Number.isFinite(ageDays)) return '';
-  if (ageDays < 45) return `${Math.max(0, ageDays)}d old`;
-  if (ageDays < 730) return `${Math.round(ageDays / 30)}mo old`;
-  return `${Math.round(ageDays / 365)}y old`;
-}
-
-export function assessScoreRecency(available) {
-  const dated = available
-    .filter(item => item.date)
-    .map(item => ({ ...item, ts: new Date(`${item.date}T00:00:00`).getTime() }))
-    .filter(item => Number.isFinite(item.ts));
-  if (dated.length < 2) {
-    const staleOnly = dated.find(item => Number.isFinite(item.ageDays) && item.ageDays > SCORE_STALE_DAYS);
-    if (staleOnly) {
-      return {
-        status: 'stale',
-        blocked: true,
-        badge: 'Retest needed',
-        message: `${staleOnly.label} is ${formatAge(staleOnly.ageDays)}; retest this score together before trusting it.`,
-      };
-    }
-    return { status: 'fresh', blocked: false, badge: 'Dates aligned', message: '' };
-  }
-  dated.sort((a, b) => a.ts - b.ts);
-  const oldest = dated[0];
-  const newest = dated[dated.length - 1];
-  const spanDays = Math.round((newest.ts - oldest.ts) / DAY_MS);
-  const stale = dated.filter(item => Number.isFinite(item.ageDays) && item.ageDays > SCORE_STALE_DAYS)
-    .sort((a, b) => (b.ageDays || 0) - (a.ageDays || 0));
-  if (spanDays > SCORE_DATE_SPAN_DAYS) {
-    return {
-      status: 'mixed-dates',
-      blocked: true,
-      badge: 'Retest together',
-      message: `Inputs span ${spanDays} days (${oldest.label} ${oldest.date}, ${newest.label} ${newest.date}). Retest this panel together before scoring.`,
-    };
-  }
-  if (stale.length) {
-    return {
-      status: 'stale',
-      blocked: true,
-      badge: 'Retest needed',
-      message: `${stale[0].label} is ${formatAge(stale[0].ageDays)}; retest this score together before trusting it.`,
-    };
-  }
-  return { status: 'fresh', blocked: false, badge: 'Dates aligned', message: dated.length ? `Inputs span ${spanDays} days.` : '' };
-}
-
-export function applyScoreRecency(result) {
-  const recencyInputs = (result.available || []).filter(item => item.recencyRequired !== false);
+export function applyScoreRecency(result, recencyInputs = (result.available || []).filter(item => item.recencyRequired !== false)) {
   const recency = assessScoreRecency(recencyInputs);
   const flags = [...(result.flags || [])];
   if (recency.blocked && recency.message) flags.unshift(recency.message);
@@ -391,7 +112,7 @@ export function applyScoreRecency(result) {
 export function scoreHighOnly(value, threshold, highCeil) {
   if (!Number.isFinite(value)) return null;
   if (value <= threshold) return 100;
-  const ceil = Math.max(highCeil, threshold + 1);
+  const ceil = Math.max(highCeil, threshold + Number.EPSILON);
   return Math.round(clamp(lerp(clamp(value, threshold, ceil), threshold, ceil, 99, 0), 0, 99));
 }
 
@@ -401,80 +122,118 @@ export function scoreLowOnly(value, threshold, lowFloor = 0) {
   return Math.round(clamp(lerp(clamp(value, lowFloor, threshold), lowFloor, threshold, 0, 99), 0, 99));
 }
 
-export function finalizeCustomScore(def, parts, missing, flags = [], options = {}) {
-  const profileContext = options.profileContext || getBiologyProfileContext(options);
-  const profileFlags = getScoreProfileFlags(def.id, profileContext);
-  const allFlags = [...profileFlags, ...flags.filter(flag => !profileFlags.includes(flag))];
-  const available = parts.filter(Boolean);
-  const totalWeight = available.reduce((sum, p) => sum + p.weight, 0) + missing.reduce((sum, p) => sum + p.weight, 0);
-  const availableWeight = available.reduce((sum, p) => sum + p.weight, 0);
-  const scoreSum = available.reduce((sum, p) => sum + p.partial * p.weight, 0);
-  const score = availableWeight > 0 ? Math.round(scoreSum / availableWeight) : null;
-  const coverage = totalWeight > 0 ? availableWeight / totalWeight : 0;
-  return applyScoreConfidence(applyScoreRecency({
-    ...def,
-    score,
-    tone: score == null ? null : resolveScoreTone(score),
-    severity: resolveScoreSeverity(score),
-    coverage,
-    coverageLabel: resolveCoverageLabel(coverage),
-    available,
-    missing,
-    flags: allFlags,
-  }));
+// Correlated inputs share one family weight; adding aliases or ratios cannot add votes.
+function weightedFit(items) {
+  const groups = new Map();
+  for (const item of items.filter(i => Number.isFinite(i.partial) && i.weight > 0)) {
+    const key = item.evidenceGroup || item.coreGroup || item.key;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(item);
+  }
+  let sum = 0, weight = 0;
+  for (const members of groups.values()) {
+    const total = members.reduce((n, i) => n + i.weight, 0);
+    const familyWeight = Math.max(...members.map(i => i.familyWeight ?? i.weight));
+    for (const item of members) item.effectiveWeight = familyWeight * item.weight / total;
+    sum += members.reduce((n, i) => n + i.partial * i.effectiveWeight, 0);
+    weight += familyWeight;
+  }
+  return weight ? Math.round(sum / weight) : null;
 }
 
+function referenceAlert(hit) {
+  const range = hit.canonicalReferenceRange || hit.referenceRange;
+  const value = hit.canonicalReferenceRange ? hit.canonicalValue : hit.value;
+  if (!range) return '';
+  const outside = (Number.isFinite(range.min) && value < range.min) || (Number.isFinite(range.max) && value > range.max);
+  hit.referenceDirection = !outside ? '' : Number.isFinite(range.min) && value < range.min ? 'below' : 'above';
+  return outside ? `${hit.label} is outside its reference range${hit.profileContextOnly ? ` (${hit.date || 'date unknown'}; context only)` : ''}; review this result even when the composite looks favorable.` : '';
+}
 
-function clinicalGuardrailForHit(hit) {
-  if (!hit || !Number.isFinite(hit.value)) return '';
-  const dot = hit.dotKey;
-  const max = Number.isFinite(hit.range?.max) ? Number(hit.range.max) : null;
-  const min = Number.isFinite(hit.range?.min) ? Number(hit.range.min) : null;
-  const high = max != null && hit.value > max;
-  const low = min != null && hit.value < min;
-  if (!high && !low) return '';
-  if (['electrolytes.potassium', 'electrolytes.sodium'].includes(dot)) return `Clinical guardrail: ${hit.label} is outside range; electrolyte abnormalities are not wellness signals and deserve clinical context.`;
-  if (['biochemistry.egfr', 'biochemistry.eGFR', 'biochemistry.gfrCystatin'].includes(dot)) return `Clinical guardrail: ${hit.label} is outside range; kidney-filtration flags should not be hidden inside a composite score.`;
-  if (['hematology.platelets', 'hematology.wbc', 'hematology.hemoglobin'].includes(dot)) return `Clinical guardrail: ${hit.label} is outside range; review the raw CBC result, not only this score.`;
-  return '';
+export function finalizeCustomScore(def, parts, missing, flags = [], options = {}) {
+  const available = parts.filter(Boolean);
+  const core = available.filter(i => i.core && !i.profileContextOnly);
+  const coreKeys = new Set([...available, ...missing].filter(i => i.core).map(i => i.coreGroup || i.key));
+  const covered = new Set(core.map(i => i.coreGroup || i.key));
+  const coverage = coreKeys.size ? covered.size / coreKeys.size : 0;
+  const refinedScore = weightedFit(available);
+  let score = weightedFit(core);
+  // A core result with no fit cannot be averaged into a reassuring headline.
+  const discordant = core.filter(i => i.partial < 35);
+  const alerts = available.map(referenceAlert).filter(Boolean);
+  if (discordant.length) flags.unshift(`${discordant.map(i => i.label).join(', ')}: marked departure from the scoring range. The average cannot explain this pattern on its own.`);
+  const anchorWarning = panelAnchorWarning(def, available, options.profileContext || {});
+  if (anchorWarning) { score = null; flags.unshift(anchorWarning); }
+  const tone = score == null ? null : score >= 70 && (discordant.length || alerts.length) ? 'strained' : resolveScoreTone(score);
+  const optional = available.filter(i => !i.core);
+  for (const item of optional) {
+    const related = core.filter(i => i.evidenceGroup === item.evidenceGroup);
+    const coreFit = related.length ? related.reduce((n, i) => n + i.partial * i.effectiveWeight, 0) / related.reduce((n, i) => n + i.effectiveWeight, 0) : null;
+    item.evidenceRole = item.profileContextOnly ? 'Cannot assess' : coreFit == null ? 'Different dimension' : (item.partial >= 70) === (coreFit >= 70) ? 'Supports core pattern' : 'Differs from core pattern';
+  }
+  return applyScoreConfidence(applyScoreRecency({ ...def, algorithmVersion: BIOLOGY_SCORE_VERSION,
+    profileContext: options.profileContext || getBiologyProfileContext(options), score, refinedScore, anchorWarning, tone: score != null && score >= 70 && coverage < 1 && !alerts.length ? 'strained' : tone,
+    severity: resolveScoreSeverity(score), coverage, coreCovered: covered.size, coreTotal: coreKeys.size,
+    optionalAvailable: optional.filter(i => !i.profileContextOnly).length,
+    optionalTotal: optional.length + missing.filter(i => !i.core).length,
+    coverageLabel: resolveCoverageLabel(coverage), available, missing,
+    attention: alerts[0] || (discordant.length ? flags[0] : ''),
+    contextLimited: core.some(i => i.contextLimited) || available.some(i => i.core && i.profileContextOnly && !covered.has(i.coreGroup || i.key)),
+    flags: [...new Set([...alerts, ...getScoreProfileFlags(def.id, options.profileContext || {}), ...flags])],
+  }));
 }
 
 export function computeWeightedComposite(data, def, options = {}) {
   const profileContext = options.profileContext || getBiologyProfileContext(options);
-  const available = [], missing = [], flags = getScoreProfileFlags(def.id, profileContext);
-  let availableWeight = 0, totalWeight = 0, scoreSum = 0;
-  for (const input of def.inputs) {
-    const hit = getMarkerHit(data, input.paths);
-    const modifier = getInputProfileModifier(hit || {}, input, profileContext);
-    const effectiveWeight = input.weight * (modifier.weightScale ?? 1);
-    const coreApplies = input.core === true && (!Array.isArray(input.coreSex) || !profileContext?.sex || input.coreSex.includes(profileContext.sex));
-    const effectiveRange = modifier.rangeOverride ?? hit?.range;
-    const partial = hit ? scoreAgainstRange(hit.value, effectiveRange) : null;
-    if (partial == null) { totalWeight += effectiveWeight; missing.push({ key: input.key, label: input.label, weight: effectiveWeight, core: coreApplies, coreGroup: input.coreGroup || '', coreGroupLabel: input.coreGroupLabel || '', path: Array.isArray(input.paths) ? input.paths[0] : input.paths }); continue; }
-    if (modifier.flag && !flags.includes(modifier.flag)) flags.push(modifier.flag);
-    const guardrail = clinicalGuardrailForHit(hit);
-    if (guardrail && !flags.includes(guardrail)) flags.unshift(guardrail);
-    if (modifier.score === false) {
-      available.push({ ...hit, key: input.key, label: input.label, partial: null, weight: 0, profileContextOnly: true, contextReason: modifier.flag || '', recencyRequired: false, core: coreApplies, coreGroup: input.coreGroup || '' });
-      continue;
-    }
-    totalWeight += effectiveWeight;
-    available.push({ ...hit, key: input.key, label: input.label, partial, weight: effectiveWeight, recencyRequired: input.recencyRequired !== false, core: coreApplies, coreGroup: input.coreGroup || '' });
-    availableWeight += effectiveWeight;
-    scoreSum += partial * effectiveWeight;
+  const available = [], missing = [], flags = [];
+  const panel = resolveScorePanel(data, def);
+  def = { ...def, panelLabel: panel.panelLabel, panelRoute: panel.panelRoute };
+  const eligibleCore = input => input.core === true && (!input.coreSex?.length || !profileContext.sex || input.coreSex.includes(profileContext.sex));
+  const budgets = new Map();
+  for (const input of panel.inputs) {
+    const key = `${eligibleCore(input)}:${input.evidenceGroup}`;
+    budgets.set(key, Math.max(budgets.get(key) || 0, input.weight * (input.sexWeightScale?.[profileContext.sex] ?? 1)));
   }
+  for (const entry of [...panel.inputs.map(input => ({ input, hit: panel.hits.get(input.key) || getMarkerHit(data, input.paths) })), ...panel.extra]) {
+    const { input, hit } = entry;
+    const core = eligibleCore(input);
+    const meta = { ...input, core, familyWeight: budgets.get(`${core}:${input.evidenceGroup}`), path: Array.isArray(input.paths) ? input.paths[0] : input.paths };
+    if (!hit) { missing.push(meta); continue; }
+    const modifier = getInputProfileModifier(hit, input, profileContext);
+    const range = modifier.rangeOverride ?? hit.range;
+    const partial = scoreAgainstRange(hit.canonicalValue, modifier.rangeOverride ? canonicalRange(hit, range) : hit.canonicalScoringRange || canonicalRange(hit, range));
+    let reason = input.contextOnly || hit.contextReason || (modifier.score === false ? modifier.flag : '');
+    const dateCheck = assessScoreRecency([hit]);
+    if (!core && dateCheck.blocked) reason = dateCheck.message;
+    if (partial == null && !reason) reason = 'No usable range for this assay; add its laboratory range before scoring.';
+    if (modifier.flag) flags.push(modifier.flag);
+    const referenceRange = modifier.referenceRangeOverride || range;
+    available.push({ ...hit, ...meta, range, rangeLabel: modifier.rangeLabel || (modifier.rangeOverride ? hit.phaseLabel || 'Context range' : hit.rangeLabel),
+      canonicalScoringRange: modifier.rangeOverride ? canonicalRange(hit, range) : hit.canonicalScoringRange,
+      ...(modifier.rangeOverride ? { referenceRange, canonicalReferenceRange: canonicalRange(hit, referenceRange) } : {}),
+      partial: reason ? null : partial, weight: reason ? 0 : input.weight * (modifier.weightScale ?? 1),
+      contextNote: modifier.flag || '',
+      configuredWeight: input.weight, profileContextOnly: !!reason, contextReason: reason, recencyRequired: core && !reason,
+      contextLimited: modifier.limited === true || /missing.*confidence|sample time missing/i.test(modifier.flag || ''),
+    });
+  }
+  selectCurrentCoreAlternatives(available);
+  // Optional inputs from a different sampling period remain inspectable, without mixing snapshots.
+  const dates = available.filter(i => i.core && !i.profileContextOnly).map(i => i.date).sort();
+  const latest = dates.at(-1);
+  for (const item of available) {
+    if (!item.core && !item.profileContextOnly && latest && assessScoreRecency([item, { date: latest }]).blocked) {
+      item.partial = null; item.weight = 0; item.profileContextOnly = true;
+      item.contextReason = 'Collected outside the core sampling period; retained as historical context.';
+    }
+  }
+  applyPanelContext(def, available, flags);
+  return finalizeCustomScore(def, available, missing, flags, { ...options, profileContext });
+}
 
-  const score = availableWeight > 0 ? Math.round(scoreSum / availableWeight) : null;
-  const coverage = totalWeight > 0 ? availableWeight / totalWeight : 0;
-  return applyScoreConfidence(applyScoreRecency({
-    ...def,
-    score,
-    tone: score == null ? null : resolveScoreTone(score),
-    severity: resolveScoreSeverity(score),
-    coverage,
-    coverageLabel: resolveCoverageLabel(coverage),
-    available,
-    missing,
-    flags,
-  }));
+// Attribution follows the same effective core weights as the headline.
+export function coreScoreDrivers(score) {
+  return (score.available || []).filter(i => i.core && !i.profileContextOnly && Number.isFinite(i.partial))
+    .map(item => ({ item, impact: (100 - item.partial) * (item.effectiveWeight ?? item.weight ?? 0) }))
+    .sort((a, b) => b.impact - a.impact);
 }

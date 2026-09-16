@@ -8,9 +8,10 @@ describe('widget heading curation', () => {
     expect(widget.description).toBe('Menstrual cycle context');
   });
   it('keeps unfamiliar score explanations and informative captions by default', () => {
-    for (const id of ['biology-score-metabolicFlexibility', 'biology-score-detail-metabolicFlexibility', 'new-widget', 'recommendations']) {
+    for (const id of ['new-widget', 'recommendations']) {
       expect(getWidgetHeaderDescription(id, 'Educational proxy, not a diagnosis')).toBe('Educational proxy, not a diagnosis');
     }
     expect(getWidgetHeaderDescription('new-widget')).toBe('');
+    expect(getWidgetHeaderDescription('biology-score-metabolicFlexibility', 'Catalog description')).toBe('');
   });
 });

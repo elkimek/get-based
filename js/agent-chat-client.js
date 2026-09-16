@@ -21,6 +21,7 @@ function endpointUrl(endpoint, path) {
 async function responseError(response) {
   try {
     const body = await response.json();
+    if (body?.error === 'invalid_prompt') return 'The Companion rejected an empty or oversized AI request. Retry this score on its own.';
     if (typeof body?.error === 'string') return body.error.replaceAll('_', ' ');
   } catch { /* use status fallback */ }
   return `Agent Host returned HTTP ${response.status}.`;

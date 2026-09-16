@@ -3,7 +3,7 @@
 
 import { cortisolReferenceForSampleTime, parseSampleHour } from './marker-context-ranges.js';
 
-const LOW_MUSCLE_CONTEXT_PATHS = new Set(['biochemistry.creatinine', 'biochemistry.egfr', 'biochemistry.eGFR', 'calculatedRatios.bunCreatRatio']);
+const LOW_MUSCLE_CONTEXT_PATHS = new Set(['biochemistry.creatinine', 'biochemistry.egfr', 'biochemistry.eGFR', 'biochemistry.egfrCombined', 'biochemistry.egfrCreatinineCystatinC', 'calculatedRatios.bunCreatRatio']);
 const VITAMIN_D_PATHS = new Set(['vitamins.vitaminD', 'vitamins.vitaminD3', 'vitamins.vitaminD2']);
 const METHYLATION_CONTEXT_PATHS = new Set(['coagulation.homocysteine', 'vitamins.vitaminB12', 'vitamins.activeB12', 'vitamins.folate']);
 const IRON_CONTEXT_PATHS = new Set(['iron.ferritin', 'iron.transferrinSat', 'iron.transferrinSaturation', 'iron.tsat', 'iron.iron', 'iron.tibc', 'iron.transferrin']);
@@ -58,7 +58,7 @@ function isCyclingFemale(profileContext, entryContext) {
 }
 
 /**
- * @param {{dotKey?: string, label?: string, value?: number, range?: any, phaseLabel?: string | null, phaseRange?: any, entryContext?: any, sampleTime?: any, unit?: string}} hit
+ * @param {{dotKey?: string, label?: string, value?: number, range?: any, rangeLabel?: string, phaseLabel?: string | null, phaseRange?: any, entryContext?: any, sampleTime?: any, unit?: string, specimen?: string, referenceRangeSource?: string, referenceRange?: any, optimalRangeSource?: string, referenceSampleTime?: string}} hit
  * @param {any} input
  * @param {{lowMuscleMass?: boolean, lowMuscleReason?: string, sex?: string | null, lowSunlightExposure?: boolean, lowSunlightReason?: string, hormoneTherapy?: boolean, cycleStatus?: string | null, menopauseStatus?: string | null, recentHardTraining?: boolean, acuteInflammationContext?: boolean, genetic?: any, body?: any, light?: any, contextFlags?: string[]}} profileContext
  */
@@ -69,25 +69,25 @@ export function getInputProfileModifier(hit, input, profileContext) {
   const entryContext = getEntryContext(hit);
   if (input.profileContext === 'always-score') return { score: true, flag: '', weightScale: sexScale };
 
+  if (input.fastingRequired) {
+    if (entryContext.fasting === false) return contextOnly(`${hit.label || input.label} was collected non-fasting; use a fasting draw for this fasting-regulation pattern.`, sexScale);
+    if (entryContext.fasting !== true) return { score: true, limited: true, flag: `${hit.label || input.label}: fasting status is unknown. Confirm collection context before interpreting fasting regulation.`, weightScale: sexScale };
+  }
+
   if (profileContext?.lowMuscleMass && LOW_MUSCLE_CONTEXT_PATHS.has(dotKey)) {
     return contextOnly(`${hit.label || input.label} shown as context only: ${profileContext.lowMuscleReason}`, sexScale);
   }
+  if (profileContext?.lowMuscleMass && (/creatinine|\bcreat\b/i.test(hit.unit || '') || ['urinalysis.albuminCreatinineRatio', 'urinalysis.proteinCreatinineRatio'].includes(dotKey))) {
+    return { score: true, limited: true, flag: `${hit.label || input.label} is normalized to urine creatinine. Low muscle mass can alter the denominator; interpret this ratio with collection and muscle context.`, weightScale: sexScale };
+  }
   if (profileContext?.lowSunlightExposure && VITAMIN_D_PATHS.has(dotKey)) {
-    const overrideRange = { ...hit?.range };
-    const targetFloor = String(hit?.unit || '').toLowerCase().includes('ng/ml') ? 40 : 100;
-    const currentMin = Number.isFinite(overrideRange?.min) ? Number(overrideRange.min) : null;
-    if (currentMin == null || currentMin < targetFloor) overrideRange.min = targetFloor;
-    const geneticNote = profileContext?.genetic?.vitaminDRisk ? ' Genetic vitamin-D pathway context is also present.' : '';
-    return { score: true, flag: `${profileContext.lowSunlightReason}${geneticNote}`, weightScale: sexScale, rangeOverride: overrideRange };
+    return { score: true, flag: `${profileContext.lowSunlightReason || 'Low sunlight exposure.'} Vitamin D uses the selected range; sunlight exposure does not set a different numeric target.`, weightScale: sexScale };
   }
   if (profileContext?.genetic?.vitaminDRisk && VITAMIN_D_PATHS.has(dotKey)) {
     return { score: true, flag: 'Genetic context: vitamin-D pathway variants are present; interpret 25-OH vitamin D with sunlight/intake response context.', weightScale: sexScale };
   }
   if (profileContext?.genetic?.methylationRisk && dotKey === 'coagulation.homocysteine') {
-    const overrideRange = { ...hit?.range };
-    const currentMax = Number.isFinite(overrideRange?.max) ? Number(overrideRange.max) : null;
-    if (currentMax == null || currentMax > 8) overrideRange.max = 8;
-    return { score: true, flag: 'Genetic context: methylation variants are present; homocysteine is interpreted with a tighter target ceiling (~8 µmol/L) for confidence.', weightScale: sexScale, rangeOverride: overrideRange };
+    return { score: true, flag: 'Methylation variants add context; they do not establish a different homocysteine target.', weightScale: sexScale };
   }
   if (profileContext?.genetic?.methylationRisk && METHYLATION_CONTEXT_PATHS.has(dotKey)) {
     return { score: true, flag: 'Genetic context: methylation/B-vitamin variants are present; B12, folate, and homocysteine patterns deserve extra confidence review.', weightScale: sexScale };
@@ -125,9 +125,21 @@ export function getInputProfileModifier(hit, input, profileContext) {
   }
 
   if (dotKey === 'hormones.cortisol' || dotKey === 'biostarksHormone.cortisol') {
-    const guidance = cortisolReferenceForSampleTime(entryContext.sampleTime || entryContext.drawTime || entryContext.collectionTime || hit?.sampleTime, hit?.unit);
-    if (!guidance) return contextOnly(`${hit.label || input.label} needs sample time before a single-point cortisol value can be scored reliably.`, sexScale);
-    return { score: true, flag: `${hit.label || input.label} scored against sample-time range (${entryContext.sampleTime || entryContext.drawTime || entryContext.collectionTime}).`, weightScale: sexScale, rangeOverride: guidance.range };
+    const time = entryContext.sampleTime || entryContext.drawTime || entryContext.collectionTime || hit?.sampleTime;
+    const hour = parseSampleHour(time);
+    if (hour == null) return contextOnly(`${hit.label || input.label} needs sample time before this cortisol result can be scored.`, sexScale);
+    const specimen = String(hit.specimen || (dotKey.startsWith('biostarks') ? 'dried blood' : 'serum'));
+    const supplied = hit.referenceRangeSource && (Number.isFinite(hit.range?.min) || Number.isFinite(hit.range?.max));
+    if (supplied) {
+      if (hit.referenceSampleTime && parseSampleHour(hit.referenceSampleTime) !== hour) return contextOnly('Cortisol needs a laboratory range matching this collection time.', sexScale);
+      return { score: true, flag: `${hit.label || input.label}: ${specimen}, ${time}; using the supplied range.`, weightScale: sexScale,
+        rangeOverride: hit.optimalRangeSource ? hit.range : hit.referenceRange, referenceRangeOverride: hit.referenceRange,
+        rangeLabel: hit.optimalRangeSource ? hit.rangeLabel || 'Supplied scoring range' : 'Supplied reference range' };
+    }
+    if (!/^(serum|plasma|blood)$/i.test(specimen)) return contextOnly(`Cortisol from ${specimen} needs a laboratory range for that specimen and collection time; serum ranges do not apply.`, sexScale);
+    const guidance = cortisolReferenceForSampleTime(time, hit?.unit);
+    if (!guidance) return contextOnly('Cortisol needs a laboratory range for this collection time and unit.', sexScale);
+    return { score: true, flag: `${hit.label || input.label}: ${specimen}, ${time}; representative ${guidance.label.toLowerCase()}.`, weightScale: sexScale, rangeOverride: guidance.range, rangeLabel: `Representative ${guidance.label.toLowerCase()}` };
   }
 
   if (dotKey === 'biochemistry.creatineKinase' && (profileContext?.recentHardTraining || entryContext.recentHardTraining)) {
@@ -135,7 +147,9 @@ export function getInputProfileModifier(hit, input, profileContext) {
   }
 
   if ((dotKey === 'hormones.testosterone' || dotKey === 'hormones.freeTestosterone') && profileContext?.sex === 'male') {
-    const hasTime = parseSampleHour(entryContext.sampleTime || entryContext.drawTime || entryContext.collectionTime) != null;
+    const hour = parseSampleHour(entryContext.sampleTime || entryContext.drawTime || entryContext.collectionTime);
+    const hasTime = hour != null;
+    if (hasTime && (hour < 7 || hour > 10)) return { score: true, limited: true, flag: `${hit.label || input.label} was collected outside the usual morning window; confirm draw timing before interpreting a low result.`, weightScale: sexScale };
     if (!hasTime) return { score: true, flag: `${hit.label || input.label} is best interpreted from a morning draw; sample time missing lowers confidence.`, weightScale: sexScale };
   }
 

@@ -145,6 +145,8 @@ const data = {
   },
 };
 
+state.profileSex = 'male';
+state.profileDob = '1987-01-01';
 const scores = computeBiologyScores(data);
 const byId = Object.fromEntries(scores.map((score) => [score.id, score]));
 
@@ -192,7 +194,7 @@ const restoreScoreAIDeps = configureBiologyScoreAIDeps({
   callClaudeAPI: async ({ system, messages }) => {
     capturedScoreAISystem = system;
     capturedScoreAIUser = messages?.[0]?.content || '';
-    return { text: 'ok' };
+    return { text: JSON.stringify({ summary: 'The markers broadly agree. Review the collection context.', explanation: '## Main signal\nThe supplied ranges describe the marker pattern.' }) };
   },
 });
 try {
@@ -229,11 +231,10 @@ const maleHormoneCopyScore = computeBiologyScores(data).find(score => score.id =
 state.profileSex = 'female';
 const femaleHormoneCopyScore = computeBiologyScores(data).find(score => score.id === 'hormoneAxis');
 state.profileSex = savedSexForHormoneCopy;
-assert('hormone axis copy is sex-aware for male and female profiles',
-  maleHormoneCopyScore.basicInputs.includes('Total or free testosterone')
-  && !maleHormoneCopyScore.basicInputs.some(text => /cycle|menopause|contraception/i.test(text))
-  && femaleHormoneCopyScore.basicInputs.some(text => /cycle day|menopause|contraception/i.test(text)),
-  JSON.stringify({ male: maleHormoneCopyScore.basicInputs, female: femaleHormoneCopyScore.basicInputs }));
+assert('hormone axis core marker copy follows sex-specific requirements',
+  maleHormoneCopyScore.basicInputs.some(text => /total or free testosterone/i.test(text))
+  && femaleHormoneCopyScore.basicInputs.some(text => /estradiol with cycle or treatment context/i.test(text))
+  && !femaleHormoneCopyScore.basicInputs.some(text => /testosterone/i.test(text)));
 const savedHormoneContextState = { sex: state.profileSex, dob: state.profileDob, importedData: state.importedData };
 state.profileSex = 'female'; state.profileDob = '1990-01-01';
 state.importedData = { entries: [{ date: '2026-06-21', markers: {
@@ -252,7 +253,7 @@ invalidateActiveDataCache();
 const missingPhaseHormoneScore = computeBiologyScores(getActiveData()).find(score => score.id === 'hormoneAxis');
 assert('cycling female hormone axis makes phase-critical hormones context-only when cycle phase is missing',
   ['estradiol', 'progesterone', 'lh', 'fsh'].every(key => missingPhaseHormoneScore.available.some(i => i.key === key && i.profileContextOnly === true && i.weight === 0))
-  && missingPhaseHormoneScore.scoreConfidenceLabel === 'Needs context',
+  && missingPhaseHormoneScore.score === null && !!missingPhaseHormoneScore.anchorWarning,
   JSON.stringify({ available: missingPhaseHormoneScore.available, confidence: missingPhaseHormoneScore.scoreConfidenceLabel }));
 const cycleMetadataNoRangeScore = computeBiologyScores({
   dates: ['2026-06-21'],
@@ -298,7 +299,7 @@ const timedStressScore = computeBiologyScores(getActiveData()).find(score => sco
 assert('single-point cortisol is context-only without sample time and scored with sample-time context',
   noTimeStressScore.available.some(i => i.key === 'cortisol' && i.profileContextOnly === true)
   && timedStressScore.available.some(i => i.key === 'cortisol' && i.profileContextOnly !== true && i.partial > 0)
-  && timedStressScore.flags.some(flag => /sample-time range/i.test(flag)),
+  && timedStressScore.flags.some(flag => /representative morning assay range/i.test(flag)),
   JSON.stringify({ noTime: noTimeStressScore.available, timed: timedStressScore.available, flags: timedStressScore.flags }));
 const ambiguousSampleStressScore = computeBiologyScores({ dates: ['2026-06-21'], entryContextByDate: { '2026-06-21': { sampleTime: 'sample time unknown' } }, categories: {
   hormones: { label: 'Hormones', markers: { cortisol: marker('Cortisol', 'nmol/L', 140, 620, 500), dheaS: marker('DHEA-S', 'umol/L', 2.41, 11.6, 6) } },
@@ -326,13 +327,12 @@ assert('low-muscle profile adds interpretation flag for creatinine context', low
 assert('low-muscle profile also treats Blood Flow BUN/creatinine ratio as context only',
   lowMuscleById.bloodFlowViscosity.available.some(i => i.dotKey === 'calculatedRatios.bunCreatRatio' && i.profileContextOnly === true && i.weight === 0),
   JSON.stringify(lowMuscleById.bloodFlowViscosity.available));
-assert('resolved low-muscle creatinine exclusion is context-limited, not needs-context',
-  lowMuscleById.fluidFiltrationCoherence.scoreConfidenceLabel === 'Context-limited'
-  && !lowMuscleById.fluidFiltrationCoherence.scoreConfidenceWarning.includes('need biological context before scoring'),
-  JSON.stringify({ confidence: lowMuscleById.fluidFiltrationCoherence.scoreConfidenceLabel, warning: lowMuscleById.fluidFiltrationCoherence.scoreConfidenceWarning, flags: lowMuscleById.fluidFiltrationCoherence.flags }));
+assert('cystatin eGFR can complete the core despite resolved creatinine exclusions',
+  lowMuscleById.fluidFiltrationCoherence.scoreConfidenceLabel === 'Core complete'
+  && lowMuscleById.fluidFiltrationCoherence.available.some(i => i.key === 'gfrCystatin' && !i.profileContextOnly));
 const lowMusclePlannerHtml = renderBiologyScoreCoveragePlanner(Object.values(lowMuscleById).filter(score => score.id !== 'biologicalCoherence'), lowMuscleById.biologicalCoherence);
 assert('coverage planner does not list resolved low-muscle creatinine/eGFR exclusions as context-needed core gaps',
-  !/Kidney and hydration[\s\S]{0,220}context needed/i.test(lowMusclePlannerHtml),
+  !/Kidney and filtration[\s\S]{0,220}context needed/i.test(lowMusclePlannerHtml),
   lowMusclePlannerHtml.slice(lowMusclePlannerHtml.indexOf('Kidney'), lowMusclePlannerHtml.indexOf('Kidney') + 500));
 state.importedData.diagnoses = savedDiagnoses;
 state.importedData.contextNotes = savedContextNotes;
@@ -594,7 +594,7 @@ const oldMmaMethylationData = {
 };
 const oldMmaMethylation = computeBiologyScores(oldMmaMethylationData).find(score => score.id === 'oneCarbonCoherence');
 assert('methylation score computes from core panel despite old specialty MMA', Number.isFinite(oldMmaMethylation.score) && oldMmaMethylation.recencyStatus === 'fresh', JSON.stringify(oldMmaMethylation));
-assert('old specialty MMA remains visible but non-throttling', oldMmaMethylation.available.some(i => i.key === 'mma' && i.recencyRequired === false));
+assert('old specialty MMA remains visible but non-throttling', oldMmaMethylation.available.some(i => i.key === 'mmaUrine' && i.recencyRequired === false));
 
 const savedUnitSystem = state.unitSystem;
 const savedUnitImported = state.importedData;
@@ -619,16 +619,16 @@ state.importedData = { entries: [
 ], customMarkers: { 'oatNutritional.methylmalonic': { name: 'Methylmalonic Acid', categoryLabel: 'OAT Nutritional', unit: 'mmol/mol creatinine', refMin: 0, refMax: 2.3, singlePoint: true } }, diagnoses: null, contextNotes: '', interpretiveLens: '' };
 invalidateActiveDataCache();
 const singlePointScore = computeBiologyScores(getActiveData()).find(score => score.id === 'oneCarbonCoherence');
-const mmaHit = singlePointScore.available.find(i => i.key === 'mma');
+const mmaHit = singlePointScore.available.find(i => i.key === 'mmaUrine');
 assert('single-point specialty markers preserve their own panel date for recency', mmaHit?.date === '2025-06-01', JSON.stringify(mmaHit));
 state.importedData = savedSinglePointImported; invalidateActiveDataCache();
 
 const lockedWidgetHtml = renderBiologyScoresWidget({ data });
-assert('biology score dashboard widgets explain their locked state without a duplicate heading', lockedWidgetHtml.includes('Biology Scores locked') && !lockedWidgetHtml.includes('Waiting for context check'));
+assert('biology score dashboard widgets work without an AI context review', lockedWidgetHtml.includes('biology-scores-widget') && !lockedWidgetHtml.includes('locked'));
 state.importedData.biologyScoreContextAI = { summary: 'Context checked for tests', suggestions: [], fingerprint: buildBiologyScoreContextFingerprint(data), fingerprintsByRange: buildBiologyScoreContextFingerprintsByRange(data), unlockedRanges: ['all', '1y', '6m', '3m'], range: state.dateRangeFilter || 'all', updatedAt: Date.now() };
 const widgetHtml = renderBiologyScoresWidget({ data });
 assert('render includes native widget class', widgetHtml.includes('biology-scores-widget'));
-assert('render escapes score titles as text', widgetHtml.includes('Metabolic Flexibility') && widgetHtml.includes('Methylation') && widgetHtml.includes('Immune Cell Balance') && widgetHtml.includes('Recovery Capacity') && !widgetHtml.includes('One-Carbon Coherence'));
+assert('render escapes score titles as text', widgetHtml.includes('Metabolic Flexibility') && widgetHtml.includes('Methylation') && widgetHtml.includes('Immune Cell Balance') && widgetHtml.includes('Recovery Context') && !widgetHtml.includes('One-Carbon Coherence'));
 assert('dashboard widget score cards are clickable and jump to their score', widgetHtml.includes('data-biology-score-action="jump-to-domain"') && widgetHtml.includes('data-biology-score-id="metabolicFlexibility"'));
 assert('available marker tokens are delegated buttons', widgetHtml.includes('class="biology-score-token"') && widgetHtml.includes('data-biology-marker-id="biochemistry_glucose"'));
 assert('biology score UI avoids cropped pill chip class', !widgetHtml.includes('biology-score-chip'));
@@ -720,9 +720,9 @@ state.dateRangeFilter = savedRangeForBiologyScores;
 state.importedData.biologyScoreContextAI = { summary: 'Context checked for tests', suggestions: [], fingerprint: buildBiologyScoreContextFingerprint(data), fingerprintsByRange: buildBiologyScoreContextFingerprintsByRange(data), unlockedRanges: ['all', '1y', '6m', '3m'], range: state.dateRangeFilter || 'all', updatedAt: Date.now() };
 assert('biology score dashboard respects active timeframe instead of falling back to all dates', timeframeLimitedHtml.includes('Need inputs') || timeframeLimitedHtml.includes('—'), timeframeLimitedHtml);
 assert('dashboard coherence hero is full-width', coherenceWidgetHtml.includes('db-bio-coherence-hero'));
-assert('dashboard coherence hero shows score ring and number', coherenceWidgetHtml.includes('db-bio-coherence-ring') && coherenceWidgetHtml.includes('/100'));
-assert('dashboard coherence hero shows pattern coverage confidence and evidence strips',
-  ['biology-score-status-tone', 'biology-score-status-coverage', 'biology-score-status-confidence', 'biology-score-status-evidence'].every(kind => coherenceWidgetHtml.includes(kind)),
+assert('dashboard coherence hero shares the horizontal score scale and number', coherenceWidgetHtml.includes('db-hero-bio-bar-track') && coherenceWidgetHtml.includes('/100'));
+assert('dashboard coherence hero omits repeated metadata strips',
+  ['biology-score-status-tone', 'biology-score-status-coverage', 'biology-score-status-confidence', 'biology-score-status-evidence'].every(kind => !coherenceWidgetHtml.includes(kind)),
   coherenceWidgetHtml);
 assert('dashboard coherence hero domain rows are clickable', coherenceWidgetHtml.includes('data-biology-score-action="jump-to-domain"') && coherenceWidgetHtml.includes('title="Jump to'));
 const coherenceDomainCount = byId.biologicalCoherence.available.length;
@@ -730,16 +730,16 @@ const dashboardDomainRowCount = (coherenceWidgetHtml.match(/class="bc-micro-doma
 assert('dashboard coherence hero uses domain rows as the lens navigation instead of a duplicate CTA', coherenceWidgetHtml.includes('data-biology-score-action="jump-to-domain"') && !coherenceWidgetHtml.includes('data-biology-score-action="open-lens"'));
 assert('dashboard coherence hero shows every live coherence domain, not a hidden top-8 subset', dashboardDomainRowCount === coherenceDomainCount, JSON.stringify({ dashboardDomainRowCount, coherenceDomainCount }));
 assert('dashboard coherence hero domain labels avoid slash shorthand', byId.biologicalCoherence.available.every(d => !String(d.label || '').includes('/')), JSON.stringify(byId.biologicalCoherence.available.map(d => d.label)));
-assert('dashboard coherence hero uses user-friendly domain labels', ['Kidney and hydration', 'Bone and mineral balance', 'Iron and blood health', 'Liver and bile flow', 'Hormone axis'].every(label => coherenceWidgetHtml.includes(label)), coherenceWidgetHtml);
+assert('dashboard coherence hero uses user-friendly domain labels', ['Kidney and filtration', 'Bone and mineral balance', 'Iron and blood health', 'Liver and bile flow', 'Hormone axis'].every(label => coherenceWidgetHtml.includes(label)), coherenceWidgetHtml);
 
 import { renderDashboardBiologyScoreWidget } from '../js/biology-scores.js';
 const metabolicWidgetHtml = renderDashboardBiologyScoreWidget({ data }, 'metabolicFlexibility');
 assert('individual dashboard score widget renders score rail with pin and fill', metabolicWidgetHtml.includes('db-hero-bio-bar-track') && metabolicWidgetHtml.includes('db-hero-bio-bar-fill') && metabolicWidgetHtml.includes('db-hero-bio-bar-pin'));
 assert('individual dashboard score widget is clickable', metabolicWidgetHtml.includes('data-biology-score-action="jump-to-domain"') && metabolicWidgetHtml.includes('data-biology-score-id="metabolicFlexibility"'));
-assert('individual dashboard score widget shows pattern coverage confidence and evidence strips',
-  ['biology-score-status-tone', 'biology-score-status-coverage', 'biology-score-status-confidence', 'biology-score-status-evidence'].every(kind => metabolicWidgetHtml.includes(kind)),
+assert('individual dashboard score widget omits repeated metadata strips',
+  ['biology-score-status-tone', 'biology-score-status-coverage', 'biology-score-status-confidence', 'biology-score-status-evidence'].every(kind => !metabolicWidgetHtml.includes(kind)),
   metabolicWidgetHtml);
-assert('individual dashboard score widget inputs count shows available/total format', /Inputs<\/span><strong>\d+\/\d+/.test(metabolicWidgetHtml));
+assert('individual dashboard score widget shows core coverage once', /\d+\/\d+ core/.test(metabolicWidgetHtml) && !metabolicWidgetHtml.includes('>Inputs<'));
 
 const biologyScoreWidgetDefs = getBiologyScoreWidgetDefinitions();
 assert('dashboard exposes one configurable widget for every Biology Score definition',
@@ -768,14 +768,14 @@ const fallbackActionSummaryHtml = renderBiologyScoresActionSummary([{
 }], [], null);
 assert('action summary falls back to the weakest live score when coherence is unavailable',
   fallbackActionSummaryHtml.includes('data-biology-score-id="fallback-score"')
-  && fallbackActionSummaryHtml.includes('Fallback score: marker-level explanation behind the most strained domain.')
-  && fallbackActionSummaryHtml.includes('Avoid over-testing'));
+  && fallbackActionSummaryHtml.includes('Fallback score: lowest range fit in your available results.')
+  && !fallbackActionSummaryHtml.includes('Avoid over-testing'));
 assert('lens render includes drilldown stack', lensHtml.includes('biology-score-detail-stack'));
 assert('lens pins Biological Coherence before score details without a redundant kicker', lensHtml.includes('biology-coherence-hero') && lensHtml.indexOf('biology-coherence-hero') < lensHtml.indexOf('biology-score-detail-stack') && !lensHtml.includes('System-level score'));
 assert('lens coherence hero has dashboard toggle via lens page shell', lensHtml.includes('data-lens-page-action="add-dashboard-widget"') || lensHtml.includes('data-lens-page-action="remove-dashboard-widget"'));
-assert('lens keeps each plain-language score question without a redundant label', !lensHtml.includes('What this score is checking') && lensHtml.includes('Is the thyroid axis internally coherent'));
-assert('hormone axis copy no longer calls it an advanced no-baseline score', BIOLOGY_SCORE_COPY.hormoneAxis.basicInputs.some(text => text.includes('Sex hormone status')) && !BIOLOGY_SCORE_COPY.hormoneAxis.basicInputs.some(text => text.includes('No routine baseline')));
-assert('lens gives normie action summary before detail stack', lensHtml.includes('What matters now') && lensHtml.indexOf('What matters now') < lensHtml.indexOf('biology-score-detail-stack'));
+assert('score interpretation and original marker detail remain available inside disclosures', lensHtml.includes('How this score works') && lensHtml.includes('data-biology-score-action="open-marker"'));
+assert('hormone axis copy no longer calls it an advanced no-baseline score', BIOLOGY_SCORE_COPY.hormoneAxis.question.includes('sex, age, cycle/menopause') && byId.hormoneAxis.basicInputs.length > 0);
+assert('lens gives visible action summary before detail stack', lensHtml.includes('Suggested next checks') && lensHtml.indexOf('Suggested next checks') < lensHtml.indexOf('biology-score-detail-stack'));
 const weakestCoherenceDomain = [...(byId.biologicalCoherence.available || [])]
   .filter(item => item.primaryScoreId && Number.isFinite(Number(item.partial)))
   .sort((a, b) => Number(a.partial || 0) - Number(b.partial || 0))[0];
@@ -783,19 +783,18 @@ assert('What matters now Open first is an actionable jump to the weakest Biologi
   weakestCoherenceDomain
   && lensHtml.includes('data-biology-score-action="jump-to-domain"')
   && lensHtml.includes(`data-biology-score-id="${weakestCoherenceDomain.primaryScoreId}"`)
-  && lensHtml.includes(`${weakestCoherenceDomain.label}: marker-level explanation behind the most strained domain`)
-  && !lensHtml.includes(`Open ${weakestCoherenceDomain.label}`),
+  && lensHtml.includes(`${weakestCoherenceDomain.label}: lowest range fit in your available results`),
   JSON.stringify({ weakestCoherenceDomain }));
 assert('lens puts Biological Coherence before supporting explanation cards',
   lensHtml.indexOf('biology-coherence-hero') < lensHtml.indexOf('biology-score-action-summary')
   && lensHtml.indexOf('biology-coherence-hero') < lensHtml.indexOf('biology-score-coverage-planner'));
 assert('lens includes a simplified coverage planner before score details',
   lensHtml.includes('biology-score-coverage-planner')
-  && lensHtml.includes('Improve lab coverage')
+  && lensHtml.includes('Plan additional labs')
   && lensHtml.includes('Make lab plan')
   && lensHtml.includes('Baseline first')
-  && lensHtml.includes('Optional upgrades')
-  && lensHtml.includes('Advanced depth')
+  && lensHtml.includes('Optional context')
+  && lensHtml.includes('Optional score panels')
   && !lensHtml.includes('Specialty depth')
   && !lensHtml.includes('Full marker plan')
   && !lensHtml.includes('Hide marker plan')
@@ -815,7 +814,7 @@ assert('actual Biology Scores route leaves Score map out of the live lens path',
   && biologyScoreLensPageSrc.indexOf('renderBiologyScoreCoveragePlanner') < biologyScoreLensPageSrc.indexOf("renderLensPageWidgets('biology-scores'"),
   biologyScoreLensPageSrc.slice(biologyScoreLensPageSrc.indexOf('function showBiologyScores'), biologyScoreLensPageSrc.indexOf('function showGenomeLens')));
 assert('lens uses distinct AI CTA labels for overview, planning, and per-score explanations',
-  biologyScoreLensPageSrc.includes('Explain my Biology Scores')
+  biologyScoreLensPageSrc.includes('Discuss scores in chat')
   && lensHtml.includes('Make lab plan')
   && lensHtml.includes('Explain score')
   && !biologyScoreLensPageSrc.includes('Interpret with AI')
@@ -839,15 +838,15 @@ assert('Coverage Planner chat prompt uses the exact same marker bundles as the s
   && !/Score-by-score gaps[\s\S]*Total vitamin B12/i.test(plannerChatPrompt),
   plannerChatPrompt);
 assert('general chat Biology Scores context uses the same Coverage Planner bundles instead of generic missing-core tiers',
-  plannerUiLabels.slice(0, 8).every(label => plannerContext.includes(label))
-  && plannerContext.includes('use the same Coverage Planner as the UI')
+  [...plannerModel.bundles.baselineFirst.labels.slice(0, 5), ...plannerModel.bundles.optionalUpgrades.labels.slice(0, 5), ...plannerModel.bundles.advancedDepth.labels.slice(0, 6)].every(label => plannerContext.includes(label))
+  && plannerContext.includes('Coverage planning (UI planner):')
   && !plannerContext.includes('prioritize missing core markers: Total vitamin B12'),
   plannerContext);
 assert('coverage planner treats active B12 as satisfying the B12 core group',
   !coveragePlannerHtml.includes('Total vitamin B12'),
   coveragePlannerHtml);
 assert('coverage planner marker chips use lab-orderable marker names instead of explanatory context labels',
-  coveragePlannerHtml.includes('>Reverse T3<')
+  !coveragePlannerHtml.includes('>Reverse T3<')
   && coveragePlannerHtml.includes('>TPO antibodies<')
   && coveragePlannerHtml.includes('>Lactate<')
   && coveragePlannerHtml.includes('>Pyruvate<')
@@ -858,40 +857,25 @@ assert('coverage planner marker chips use lab-orderable marker names instead of 
   && !coveragePlannerHtml.includes('>D-dimer activation context<'),
   coveragePlannerHtml);
 const thyroidDetailHtml = renderScoreDetail(byId.thyroidCoherence);
-assert('score detail marker chips and tables use lab-orderable marker names instead of explanatory context labels',
-  thyroidDetailHtml.includes('>Reverse T3<')
-  && thyroidDetailHtml.includes('>TPO antibodies<')
-  && !thyroidDetailHtml.includes('>Reverse T3 brake context<')
-  && !thyroidDetailHtml.includes('>TPO antibody context<'),
-  thyroidDetailHtml);
+assert('score detail uses lab-orderable marker names for missing optional thyroid markers', thyroidDetailHtml.includes('Reverse T3') && thyroidDetailHtml.includes('TPO antibodies') && !thyroidDetailHtml.includes('Reverse T3 brake context'));
 assert('lens exposes embedded AI answer panel', lensHtml.includes('biology-score-ai') && lensHtml.includes('data-biology-score-action="interpret-score-ai"'));
-assert('lens surfaces evidence maturity as compact meta labels separate from profile context', lensHtml.includes('Production') && lensHtml.includes('Contextual') && lensHtml.includes('Experimental') && !lensHtml.includes('Early model'));
+assert('lens describes evidence maturity without suggesting score validation', ['Established marker biology', 'Contextual proxy', 'Exploratory pattern', 'heuristic score'].every(text => lensHtml.includes(text)) && !lensHtml.includes('Production'));
 const cellularDetailHtml = renderScoreDetail(byId.cellularEnergyCoherence);
-assert('thin experimental score details are downgraded to directional-only instead of a normal score hierarchy',
-  cellularDetailHtml.includes('Directional only')
-  && cellularDetailHtml.includes('Not enough data for a full score')
-  && !cellularDetailHtml.includes('71</strong><span>/100'),
-  cellularDetailHtml);
-const statusKinds = ['biology-score-status-tone', 'biology-score-status-coverage', 'biology-score-status-confidence', 'biology-score-status-evidence'];
-assert('every rendered live biology score card shows pattern coverage confidence and evidence',
-  liveScoresDesc.every(score => statusKinds.every(kind => renderScoreDetail(score, { showHeading: false }).includes(kind))),
-  JSON.stringify(liveScoresDesc.map(score => [score.id, statusKinds.filter(kind => !renderScoreDetail(score, { showHeading: false }).includes(kind))])));
-assert('production biology scores render a Production evidence badge instead of hiding evidence',
-  renderScoreDetail(byId.metabolicFlexibility).includes('Production') && renderScoreDetail(byId.cardiovascularLipoprotein).includes('Production'));
+assert('specialty scores expose anchor completeness and interpretation limits', cellularDetailHtml.includes('Core markers') && cellularDetailHtml.includes('not a mitochondrial-efficiency test'));
+assert('every score has one compact summary and deeper methodology disclosure', liveScoresDesc.every(score => { const html = renderScoreDetail(score); return html.includes('biology-score-summary-copy') && html.includes('How this score works') && html.includes(' core · '); }));
+assert('established markers are distinguished from heuristic composite validation', renderScoreDetail(byId.metabolicFlexibility).includes('Established marker biology · heuristic score'));
 assert('thyroid coherence is now contextual rather than experimental evidence', byId.thyroidCoherence.evidence === 'contextual' && renderScoreDetail(byId.thyroidCoherence).includes('Contextual') && !renderScoreDetail(byId.thyroidCoherence).includes('Experimental'));
-assert('lens keeps marker table behind friendly driver disclosure without formula weights', lensHtml.includes('See what’s driving this') && lensHtml.includes('Inputs affecting the score') && lensHtml.includes('Impact') && !lensHtml.includes('<th title="Relative influence'));
+assert('score detail preserves ranges dates and contribution with optional methodology', ['Scoring range', 'Collected', 'Range fit / contribution', 'How this score works'].every(text => lensHtml.includes(text)));
 
 const lensWidgets = getBiologyScoreLensWidgets({ data });
-assert('lens shows computed scores first in descending score order', lensWidgets.slice(0, liveScoresDesc.length).map(w => w.id).join('|') === liveScoresDesc.map(s => `biology-score-detail-${s.id}`).join('|'));
-assert('lens collapses unavailable biology scores at the end', lensWidgets.at(-1)?.id === 'biology-score-needs-data' && lensWidgets.at(-1)?.body.includes('biology-score-unavailable-group'));
+assert('lens keeps a stable order across changing score values', lensWidgets.map(w => w.id).join('|') === scores.filter(s => s.id !== 'biologicalCoherence').map(s => `biology-score-detail-${s.id}`).join('|'));
+assert('all individual scores remain discoverable as compact rows', lensWidgets.length === 18 && lensWidgets.every(w => w.body.includes('<details class="biology-score-detail')));
 assert('lens widget dashboard ids match score ids', lensWidgets.some(w => w.id === 'biology-score-detail-metabolicFlexibility' && w.opts.dashboardId === 'biology-score-metabolicFlexibility'));
 const coherenceTopDomains = [...byId.biologicalCoherence.available].sort((a, b) => Number(b.partial || 0) - Number(a.partial || 0));
 assert('biological coherence hero domain rows link to primary score anchors', coherenceTopDomains.every(d => !d.primaryScoreId || lensHtml.includes(`data-biology-score-action="jump-to-domain" data-biology-score-id="${d.primaryScoreId}"`)), JSON.stringify(coherenceTopDomains.map(d => [d.label, d.primaryScoreId])));
-assert('biological coherence hero domain rows carry score-tone classes',
-  coherenceTopDomains.some(d => lensHtml.includes(`biology-coherence-domain-${d.partial >= 85 ? 'excellent' : d.partial >= 70 ? 'good' : d.partial >= 50 ? 'strained' : d.partial >= 35 ? 'poor' : d.partial >= 15 ? 'concerning' : 'severe'}`)),
-  lensHtml.slice(lensHtml.indexOf('biology-coherence-domains'), lensHtml.indexOf('</section>', lensHtml.indexOf('biology-coherence-domains'))));
+assert('domain breakdown exposes provisional status rather than repeating tone badges', lensHtml.includes('How the overview works') && lensHtml.includes('biology-coherence-domain-row'));
 const coherenceDomainRow = coherenceTopDomains.find(d => d.primaryScoreId);
-assert('biological coherence domain row title hints navigation', coherenceDomainRow && lensHtml.includes(`title="Jump to ${coherenceDomainRow.label} score"`), JSON.stringify(coherenceDomainRow));
+assert('domain breakdown uses native accessible navigation buttons', coherenceDomainRow && lensHtml.includes('button type="button" class="biology-coherence-domain-row"'));
 
 // Lens hero domain rows without primaryScoreId should get a no-jump class
 const lensNoJumpDomains = coherenceTopDomains.filter(d => !d.primaryScoreId);
@@ -908,7 +892,7 @@ const mixedLensHtml = renderBiologyScoresLens({ data: mixedDateData });
 assert('mixed-date scores show retest state only once per score meta row',
   !/biology-score-meta[\s\S]*Retest together[\s\S]*Retest together/.test(mixedLensHtml));
 const aiContext = buildBiologyScoresAIContext(data);
-assert('AI context includes compact biology score section', aiContext.includes('[section:biologyScores]') && aiContext.includes('Coverage planning:') && aiContext.length < 2900, `length ${aiContext.length}: ${aiContext}`);
+assert('AI context includes compact biology score section', aiContext.includes('[section:biologyScores]') && aiContext.includes('Coverage planning (UI planner):') && aiContext.length < 2900, `length ${aiContext.length}: ${aiContext}`);
 assert('AI context exposes Biological Coherence directly for Agent Access queries',
   aiContext.includes('- Biological Coherence:')
     && aiContext.includes('[section:biologicalCoherence]')
@@ -928,7 +912,7 @@ assert('Agent Access Biology Scores context exposes individual subscore sections
     && agentBiologyContext.includes('[section:redoxStress]'),
   agentBiologyContext);
 assert('AI context does not expose formula weights', !/weight/i.test(aiContext));
-assert('AI context includes Biology Score coverage planning guidance', aiContext.includes('Coverage planning:') && /baseline/i.test(aiContext), aiContext);
+assert('AI context includes Biology Score coverage planning guidance', aiContext.includes('Coverage planning (UI planner):') && /baseline/i.test(aiContext), aiContext);
 const ambiguousMarkerLabelTerms = /(\bcontext\b|\bsignal\b|\bload\b|\bstress\b|\bsupport\b|\breserve\b|\bprotective\b|\batherogenic\b|\bdrag\b|\bskew\b|\bclue\b|\bavailability\b|\bbrake\b|\bactivation\b|\bconcentration\b|\butilization\b|\bironization\b|\btransport\b|\bsufficiency\b|\bvascular\b|\bmetabolic\b|\bliver\b|\bmuscle\b|\bbone\b|\bbile\b|\binflammation\b)/i;
 const badMarkerLabelPhrases = [
   'Homocysteine load', 'Homocysteine vascular context', 'Triglyceride atherogenic context',
@@ -970,7 +954,7 @@ assert('Biology Score AI cache survives non-material score/confidence recomputat
 const changedThyroidMarkerForAI = { ...byId.thyroidCoherence, available: byId.thyroidCoherence.available.map((item, idx) => idx === 0 ? { ...item, displayValue: `${item.displayValue}-changed` } : item) };
 assert('Biology Score AI cache keeps last user-generated answer for that score until refresh explanation is clicked and marks material drift stale',
   renderScoreAIAnswer(changedThyroidMarkerForAI).includes('<strong>sensitive thyroid</strong> interpretation')
-  && renderScoreAIAnswer(changedThyroidMarkerForAI).includes('generated before the current marker evidence changed'),
+  && renderScoreAIAnswer(changedThyroidMarkerForAI).includes('Changed since this explanation: marker results or their interpretation.'),
   renderScoreAIAnswer(changedThyroidMarkerForAI));
 const emptyScoreAIHtml = renderScoreAIAnswer({ ...changedThyroidMarkerForAI, id: 'differentScoreWithoutAnswer' });
 assert('Biology Score AI empty state avoids repeating CTA explainer copy on every card',
@@ -979,9 +963,7 @@ assert('Biology Score AI empty state avoids repeating CTA explainer copy on ever
   && !emptyScoreAIHtml.includes('A short, non-diagnostic read'),
   emptyScoreAIHtml);
 const biologyScoreSectionsSrc = await fs.promises.readFile(new URL('../js/biology-score-sections.js', import.meta.url), 'utf8');
-assert('Biology Score AI answers save with immediate sync so refresh/cross-device does not drop expensive generations',
-  biologyScoreSectionsSrc.includes("saveImportedData({ reason: 'biology-score-ai', immediate: true })"),
-  biologyScoreSectionsSrc.slice(biologyScoreSectionsSrc.indexOf('export async function writeScoreAIAnswer'), biologyScoreSectionsSrc.indexOf('export function renderScoreAIAnswer')));
+assert('Biology Score AI persistence binds the originating profile and checks the save result', biologyScoreSectionsSrc.includes('saveImportedDataForProfile(expectedProfile, snapshot') && biologyScoreSectionsSrc.includes('immediate: true, forceProfileScope: true') && biologyScoreSectionsSrc.includes('if (!saved) throw'));
 const biologyScoresSrc = await fs.promises.readFile(new URL('../js/biology-scores.js', import.meta.url), 'utf8');
 const biologyScoresRuntimeSrc = await fs.promises.readFile(new URL('../js/biology-scores-runtime.js', import.meta.url), 'utf8');
 assert('Biology Scores delegates browser globals to runtime adapter',
@@ -995,14 +977,14 @@ assert('Biology Scores delegates browser globals to runtime adapter',
     !biologyScoresRuntimeSrc.includes('getViewRuntimeFunction'),
   biologyScoresSrc.slice(0, 1800));
 assert('refreshing a stale Biology Score AI explanation removes the stale warning in-place',
-  /biology-score-ai-stale/.test(biologyScoresSrc)
-  && /closest\('\.biology-score-ai'\)/.test(biologyScoresSrc)
-  && /\.remove\(\)/.test(biologyScoresSrc.slice(biologyScoresSrc.indexOf('async function runEmbeddedScoreAI'), biologyScoresSrc.indexOf('function renderBiologyScoreContext'))),
+  biologyScoresSrc.includes('panel.outerHTML = renderScoreAIAnswer(current)')
+  && biologyScoresSrc.includes('currentTeaser.outerHTML = renderScoreAISummary(current)'),
   biologyScoresSrc.slice(biologyScoresSrc.indexOf('async function runEmbeddedScoreAI'), biologyScoresSrc.indexOf('async function runEmbeddedScoreAI') + 900));
-assert('refreshing Biology Score AI uses the active timeframe data so the refreshed material fingerprint matches the rendered card after F5',
-  /filterDatesByRange\([^)]*fallbackToAll:\s*false/.test(biologyScoresSrc.slice(biologyScoresSrc.indexOf('async function runEmbeddedScoreAI'), biologyScoresSrc.indexOf('export const SCORE_DEFINITIONS')))
-  && /computeBiologyScores\(scoreData\)/.test(biologyScoresSrc.slice(biologyScoresSrc.indexOf('async function runEmbeddedScoreAI'), biologyScoresSrc.indexOf('export const SCORE_DEFINITIONS'))),
-  biologyScoresSrc.slice(biologyScoresSrc.indexOf('async function runEmbeddedScoreAI'), biologyScoresSrc.indexOf('async function runEmbeddedScoreAI') + 1200));
+assert('refreshing a Biology Score uses the combined assessment while retaining truthful date filtering',
+  biologyScoresSrc.includes('computeBiologyScoreAssessments(rawData).find(item => item.id === scoreId)')
+  && biologyScoresSrc.includes('computeBiologyScores(filterDatesByRange(data, { fallbackToAll: false }))')
+  && biologyScoresSrc.includes("for (const dateRangeFilter of ['all', '1y', '6m', '3m'])"),
+  'Single-score refresh should cover all supported views without an all-history fallback.');
 state.importedData.biologyScoreAI = savedBiologyScoreAI;
 
 const savedContextAIState = { importedData: state.importedData };
@@ -1146,18 +1128,15 @@ assert('Biology Score good-tone visuals use semantic green instead of theme acce
   && !dashboardCoherenceToneCss.includes('var(--accent)')
   && !dashboardScoreRailSrc.includes("tone === 'good' ? 'var(--accent)'"),
   `${biologyScoreRailCss}\n---\n${dashboardCoherenceToneCss}\n---\n${dashboardScoreRailSrc}`);
-assert('Biological Coherence mobile layout compacts domain lists without duplicating dashboard title copy',
-  dashboardWidgetsCss.includes('.bc-micro-domain:nth-child(n+5):not(:nth-last-child(-n+2))')
-  && dashboardWidgetsCss.includes('.biology-coherence-domain-row:nth-child(n+5):not(:nth-last-child(-n+2))')
-  && dashboardWidgetsCss.includes("content: 'Strongest + strained domains'")
+assert('Biological Coherence lens keeps every domain on mobile without duplicating dashboard title copy',
+  !dashboardWidgetsCss.includes('.bc-micro-domain:nth-child(n+5):not(:nth-last-child(-n+2))')
+  && !dashboardWidgetsCss.includes('.biology-coherence-domain-row:nth-child(n+5):not(:nth-last-child(-n+2))')
+  && dashboardWidgetsCss.includes("content: 'Baseline domains'")
   && dashboardWidgetsCss.includes('.dashboard-widget .db-bio-coherence-summary h3')
   && dashboardWidgetsCss.includes('display: none;'),
   dashboardWidgetsCss.slice(dashboardWidgetsCss.indexOf('@media (max-width: 720px)'), dashboardWidgetsCss.indexOf('.biology-scores-hero')));
 const lensPagesSrc = fs.readFileSync(path.join(ROOT, 'js/lens-pages.js'), 'utf8');
-assert('actual Biology Scores page shows compact context status before coherence hero',
-  lensPagesSrc.includes('biology-context-status-strip')
-  && lensPagesSrc.indexOf('html += renderBiologyScoreContextStatus(scoreData)') < lensPagesSrc.indexOf('html += renderBiologicalCoherenceLensHero(ctx)')
-  && !/renderBiologicalCoherenceLensHero\(ctx\);\s*html \+= renderBiologyScoreContextAI\(scoreData\)/.test(lensPagesSrc));
+assert('actual Biology Scores page offers optional context before the overview without gating results', lensPagesSrc.includes('Profile &amp; collection context') && !lensPagesSrc.includes('if (!contextReady)') && lensPagesSrc.indexOf('Profile &amp; collection context') < lensPagesSrc.indexOf('html += renderBiologicalCoherenceLensHero(ctx)'));
 assert('actual Biology Scores lens route reconciles embedded AI panels after DOM insert so F5 hydration cannot leave a stale banner mounted',
   lensPagesSrc.includes('scheduleBiologyScoreAIReconcile')
   && lensPagesSrc.indexOf('main.innerHTML = html') < lensPagesSrc.indexOf('scheduleBiologyScoreAIReconcile()'),
@@ -1209,10 +1188,10 @@ assert('new high-impact optimal target ranges cover ratios and common baseline g
 assert('Lp(a) is a first-class lipid marker for cardiovascular score imports',
   MARKER_SCHEMA.lipids?.markers?.lpA?.name === 'Lp(a)' && mapping.find(s => s.id === 'cardiovascularLipoprotein')?.inputs.some(i => i.paths.includes('lipids.lpA')));
 const unresolvedStaticOptimalInputs = minimumScoreInputs
-  .filter(row => !row.paths.some(path => optimalRangeKeys.has(path)))
+  .filter(row => row.input.core && !row.paths.some(path => optimalRangeKeys.has(path)))
   .map(row => `${row.score}:${row.input.label}`);
 assert('remaining minimum optimal gaps are timing/cycle/specialty-context markers, not routine baseline holes',
-  unresolvedStaticOptimalInputs.every(label => /(Progesterone|LH|FSH|DHT|Androstenedione|DHEA-S|Cortisol|Free androgen index|Creatine kinase|Cystatin-C eGFR|TIBC|Copper|Selenium)/.test(label)),
+  unresolvedStaticOptimalInputs.every(label => /(Progesterone|LH|FSH|DHT|Androstenedione|DHEA-S|Cortisol|Free androgen index|Creatine kinase|Cystatin-C eGFR|Combined creatinine–cystatin eGFR|Ionized calcium|TIBC|Copper|Selenium)/.test(label)),
   JSON.stringify(unresolvedStaticOptimalInputs));
 assert('liver-bile mapping includes ALT AST GGT ALP', ['biochemistry.alt', 'biochemistry.ast', 'biochemistry.ggt', 'biochemistry.alp'].every(path => mapping.find(s => s.id === 'liverBileSignal')?.inputs.some(i => i.paths.includes(path))));
 assert('bone-mineral mapping includes D calcium phosphorus', mapping.find(s => s.id === 'boneMineralSignal')?.inputs.some(i => i.paths.includes('vitamins.vitaminD')) && mapping.find(s => s.id === 'boneMineralSignal')?.inputs.some(i => i.paths.includes('electrolytes.calciumTotal')) && mapping.find(s => s.id === 'boneMineralSignal')?.inputs.some(i => i.paths.includes('electrolytes.phosphorus')));
@@ -1273,7 +1252,7 @@ state.profileSex = 'male';
 const thinHormoneScore = computeBiologyScores(thinHormoneData).find(score => score.id === 'hormoneAxis');
 state.profileSex = savedSexForThinHormone;
 assert('thin male hormone axis reports missing core SHBG prolactin LH and FSH',
-  thinHormoneScore.scoreConfidence === 'low'
+  thinHormoneScore.score === null && !!thinHormoneScore.anchorWarning
   && ['shbg', 'lh', 'fsh', 'prolactin'].every(key => thinHormoneScore.missing.some(item => item.key === key && item.core === true)),
   JSON.stringify(thinHormoneScore));
 
@@ -1370,7 +1349,7 @@ const tsatOverloadData = {
 const tsatIronScore = computeBiologyScores(tsatOverloadData).find(s => s.id === 'ironHandling');
 const tsatPartial = tsatIronScore.available.find(i => i.key === 'transferrinSat');
 assert('TSAT 55% with high ferritin gets stricter overload score (< 71)', tsatPartial && tsatPartial.partial < 71, `got ${tsatPartial?.partial}`);
-assert('TSAT >= 50% triggers hemochromatosis screening flag', tsatIronScore.flags.some(f => f.includes('hemochromatosis') || f.includes('overload')), JSON.stringify(tsatIronScore.flags));
+assert('TSAT >= 50% triggers iron-loading context flag', tsatIronScore.flags.some(f => f.includes('iron loading') || f.includes('overload')), JSON.stringify(tsatIronScore.flags));
 
 
 const directRatioCardioData = {
@@ -1408,7 +1387,7 @@ const staleRatioCardioData = {
 const staleRatioCardio = computeBiologyScores(staleRatioCardioData).find(s => s.id === 'cardiovascularLipoprotein');
 assert('stale ApoB/ApoA-I ratio is treated as recency problem, not missing wiring',
   staleRatioCardio.score === null
-  && staleRatioCardio.recencyStatus === 'mixed-dates'
+  && staleRatioCardio.recencyStatus === 'stale'
   && staleRatioCardio.rawScore != null
   && !staleRatioCardio.flags.some(f => f.includes('Missing core marker') && f.includes('ApoB/ApoA1 ratio')),
   JSON.stringify({ score: staleRatioCardio.score, rawScore: staleRatioCardio.rawScore, recencyStatus: staleRatioCardio.recencyStatus, flags: staleRatioCardio.flags }));
@@ -1467,8 +1446,8 @@ const thinMetabolicData = {
   },
 };
 const thinMetabolic = computeBiologyScores(thinMetabolicData).find(s => s.id === 'metabolicFlexibility');
-assert('thin high-looking score is marked low confidence, not all-clear',
-  thinMetabolic.scoreConfidence === 'low' && thinMetabolic.flags.some(f => f.includes('High numeric score with incomplete evidence') || f.includes('Missing core marker')),
+assert('glucose alone cannot create a fasting-regulation headline',
+  thinMetabolic.score === null && /glucose.*insulin|HOMA/i.test(thinMetabolic.anchorWarning),
   JSON.stringify({ score: thinMetabolic.score, confidence: thinMetabolic.scoreConfidence, flags: thinMetabolic.flags }));
 
 const dDimerData = {
@@ -1484,7 +1463,7 @@ const dDimerData = {
 };
 const dDimerScore = computeBiologyScores(dDimerData).find(s => s.id === 'bloodFlowViscosity');
 assert('elevated D-dimer triggers clinical guardrail independent of composite score',
-  dDimerScore.flags.some(f => f.includes('Clinical guardrail') && f.includes('D-dimer')),
+  dDimerScore.flags.some(f => f.includes('outside its reference range') && f.includes('D-dimer')),
   JSON.stringify(dDimerScore.flags));
 
 const potassiumData = {
@@ -1496,11 +1475,11 @@ const potassiumData = {
 };
 const potassiumScore = computeBiologyScores(potassiumData).find(s => s.id === 'fluidFiltrationCoherence');
 assert('out-of-range potassium triggers clinical guardrail',
-  potassiumScore.flags.some(f => f.includes('Clinical guardrail') && f.includes('Potassium')),
+  potassiumScore.flags.some(f => f.includes('outside its reference range') && f.includes('Potassium')),
   JSON.stringify(potassiumScore.flags));
 
 const severeContext = buildBiologyScoresAIContext({ dates: ['2026-06-01'], categories: { proteins: { label: 'Proteins', markers: { hsCRP: marker('hs-CRP', 'mg/l', 0, 3, 30) } }, biochemistry: { label: 'Biochemistry', markers: { ggt: marker('GGT', 'ukat/l', 0.17, 1.19, 3.5) } } } });
-assert('AI context labels severe/concerning biology score tones', !severeContext.includes('undefined') && !severeContext.includes('not scored,') && /Concerning|Severe|Low score/.test(severeContext), severeContext);
+assert('AI context describes low range fit without implying clinical severity', !severeContext.includes('undefined') && /Inflammatory Load: 0\/100, Far from range/.test(severeContext), severeContext);
 
 console.log(`\nBiology Scores tests: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

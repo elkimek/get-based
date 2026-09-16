@@ -49,6 +49,7 @@ export const UNIT_CONVERSIONS = {
   'biochemistry.amylase': { factor: 60, usUnit: 'U/L', type: 'multiply' },
   'biochemistry.lipase': { factor: 60, usUnit: 'U/L', type: 'multiply' },
   'biochemistry.egfr': { factor: 60, usUnit: 'mL/min/1.73m²', type: 'multiply' },
+  'biochemistry.egfrCombined': { factor: 60, usUnit: 'mL/min/1.73m²', type: 'multiply' },
   'biochemistry.gfrCystatin': { factor: 60, usUnit: 'mL/min', type: 'multiply' },
   'biochemistry.cystatinC': { factor: 0.1, usUnit: 'mg/dl', type: 'multiply' },
   'proteins.hsCRP': { factor: 0.1, usUnit: 'mg/dl', type: 'multiply' },

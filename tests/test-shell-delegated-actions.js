@@ -162,7 +162,7 @@ assert('App shell injects Chat modal close without a view bridge lookup',
 assert('App shell wires Chat prompt consumers without window globals',
   appShellHooksSrc.includes("import { configureBiologyScoresRuntimeDeps } from './biology-scores-runtime.js'")
     && appShellHooksSrc.includes("import { configureContextCardLifestyleRuntimeDeps } from './context-card-lifestyle-runtime.js'")
-    && appShellHooksSrc.includes('configureBiologyScoresRuntimeDeps({ navigate, openChatPanel, showDetailModal, useChatPrompt });')
+    && appShellHooksSrc.includes('configureBiologyScoresRuntimeDeps({ navigate, openChatPanel, showDetailModal, useChatPrompt, prepareContext: loadLightSunModulesForPersistedState });')
     && appShellHooksSrc.includes('configureContextCardLifestyleRuntimeDeps({ closeModal, navigate, openChatPanel, useChatPrompt });'));
 
 assert('App shell injects Biology Score context navigation without bridge or window fallbacks',

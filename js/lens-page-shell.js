@@ -143,9 +143,10 @@ function renderLensPageMoveControls(route, id, index, count) {
     <button type="button" class="dashboard-widget-tool" ${index >= count - 1 ? 'disabled' : ''} ${lensPageActionAttrs('move-widget', { route, id, direction: 1 })} aria-label="Move page section down">↓</button>`;
 }
 
-export function renderLensPageWidgets(route, widgets) {
-  const ordered = orderLensPageWidgets(route, widgets.filter(Boolean));
-  return `<div class="dashboard-widgets lens-page-widgets" data-lens-route="${escapeAttr(route)}">
+export function renderLensPageWidgets(route, widgets, options = {}) {
+  const orderKey = options.group ? `${route}-${options.group}` : route;
+  const ordered = orderLensPageWidgets(orderKey, widgets.filter(Boolean));
+  return `<div class="dashboard-widgets lens-page-widgets" data-lens-route="${escapeAttr(route)}" data-lens-order-key="${escapeAttr(orderKey)}">
     ${ordered.map((widget, index) => renderLensWidget(
       widget.id,
       widget.title,
@@ -163,15 +164,15 @@ export function moveLensPageWidget(route, id, direction) {
   const dir = Number(direction);
   if (!route || !id || !Number.isFinite(dir) || dir === 0) return;
   const container = Array.from(/** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.lens-page-widgets[data-lens-route]')))
-    .find(el => el.dataset.lensRoute === route);
+    .find(el => el.dataset.lensRoute === route && Array.from(el.querySelectorAll('[data-widget-id]')).some(widget => widget.getAttribute('data-widget-id') === id));
   const ids = container
-    ? Array.from(/** @type {NodeListOf<HTMLElement>} */ (container.querySelectorAll('.dashboard-widget[data-widget-id]'))).map(el => el.dataset.widgetId).filter(Boolean)
+    ? Array.from(/** @type {NodeListOf<HTMLElement>} */ (container.querySelectorAll(':scope > [data-widget-id]'))).map(el => el.dataset.widgetId).filter(Boolean)
     : getLensPageWidgetOrder(route, []);
   const index = ids.indexOf(id);
   const target = index + (dir < 0 ? -1 : 1);
   if (index < 0 || target < 0 || target >= ids.length) return;
   [ids[index], ids[target]] = [ids[target], ids[index]];
-  localStorage.setItem(lensPageOrderStorageKey(route), JSON.stringify(ids));
+  localStorage.setItem(lensPageOrderStorageKey(container?.dataset.lensOrderKey || route), JSON.stringify(ids));
   if (state.currentView === route) callLensPageRuntime('navigate', route);
 }
 
@@ -197,6 +198,7 @@ export function renderLensWidget(id, title, description, body, size = 'full', op
   const dashboardToggle = renderLensDashboardToggle(dashboardId);
   const pageControls = renderLensPageMoveControls(opts.pageRoute || '', id, opts.pageIndex || 0, opts.pageCount || 0);
   const tools = [pageControls, dashboardToggle].filter(Boolean).join('');
+  if (opts.compactScore) return `<section class="biology-score-lens-row" data-widget-id="${escapeAttr(id)}">${body.replace('<!--score-tools-->', tools)}</section>`;
   return `<section class="dashboard-widget dashboard-widget-${escapeAttr(size)}${body ? '' : ' is-empty'}" data-widget-id="${escapeAttr(id)}">
     <div class="dashboard-widget-chrome">
       <div class="dashboard-widget-heading">

@@ -1,8 +1,8 @@
 // biology-score-ai-context.js — compact Biology Scores context for AI chat.
 
 import { computeBiologyScores } from './biology-scores.js';
-import { TONE_LABELS } from './biology-score-engine.js';
-import { buildBiologyScoreCoveragePlannerModel, labelMarkers, markerDisplayLabel } from './biology-score-coverage-planner.js';
+import { TONE_LABELS, coreScoreDrivers } from './biology-score-engine.js';
+import { buildBiologyScoreCoveragePlannerModel, labelMarkers, markerDisplayLabel, effectiveMissingMarkers } from './biology-score-coverage-planner.js';
 
 function summarizeContextFlag(flag) {
   const text = String(flag || '');
@@ -46,17 +46,20 @@ function formatBiologyScoreLine(score) {
   const toneText = score.tone ? TONE_LABELS[score.tone] : 'not scored';
   const coverageText = `${Math.round((score.coverage || 0) * 100)}% coverage`;
   const recencyText = score.recencyStatus && score.recencyStatus !== 'fresh' ? `; ${score.recencyBadge}` : '';
-  const impacts = (score.available || [])
-    .filter(item => !item.profileContextOnly && Number.isFinite(item.partial))
-    .map(item => ({ item, impact: Number(item.weight || 0) * (100 - Number(item.partial)) }))
-    .sort((a, b) => b.impact - a.impact)
+  const impacts = coreScoreDrivers(score)
     .filter(row => Number.isFinite(row.impact) && row.impact > 0.05)
     .slice(0, 1)
     .map(row => `${row.item.label} ${Math.round(row.item.partial)}/100`);
-  const missing = shortList(score.missing?.map(item => markerDisplayLabel(item)), 2);
-  let line = `- ${score.title}: ${scoreText}, ${toneText}, ${coverageText}${recencyText}`;
+  const missing = shortList(effectiveMissingMarkers(score).map(item => markerDisplayLabel(item)), 2);
+  let line = `- ${score.title}: ${scoreText}, ${toneText}, ${coverageText}${recencyText}; ${score.evidence}; ${score.scoreConfidenceLabel}`;
+  if (score.panelLabel) line += `; route: ${score.panelLabel}`;
   if (impacts.length) line += `; drag: ${impacts.join('; ')}`;
-  const contextFlags = (score.flags || []).filter(flag => /Genetic context|Light context|Body context/i.test(flag)).slice(0, 1).map(summarizeContextFlag);
+  // Keep the principal limitation here; complete marker and context facts are
+  // available in the dedicated score assessment. Avoid repeating missing lists.
+  const contextFlags = [...new Set([score.attention, score.scoreConfidenceWarning, ...(score.flags || []).filter(flag => /context only|needs cycle|Genetic context|Light context|Body context/i.test(flag))])].filter(Boolean).slice(0, 1).map(summarizeContextFlag);
+  for (const kind of ['Genetic', 'Light', 'Body']) {
+    if (score.flags?.some(flag => flag.startsWith(`${kind} context`)) && !contextFlags.some(flag => flag.includes(`${kind} context`))) contextFlags.push(`${kind} context considered.`);
+  }
   if (contextFlags.length) line += `; context: ${contextFlags.join('; ')}`;
   if (missing) line += `; missing: ${missing}`;
   return line;
@@ -75,7 +78,7 @@ function formatBiologicalCoherenceLine(score) {
     .slice(0, 2)
     .map(item => `${item.label} ${Math.round(item.partial)}/100`);
   const missing = shortList((score.missing || []).map(item => item.label), 3);
-  let line = `- Biological Coherence: ${scoreText}, ${toneText}, ${coverageText}`;
+  let line = `- Biological Coherence: ${scoreText}, ${toneText}, ${coverageText}; ${score.scoreConfidenceLabel}; ${score.attention || score.scoreConfidenceWarning || ''}`;
   if (domainSummary) line += `; ${domainSummary}`;
   if (weakest.length) line += `; weakest domains: ${weakest.join(', ')}`;
   if (missing) line += `; missing domains: ${missing}`;
@@ -131,7 +134,7 @@ export function buildBiologyScoresAIContext(data, options = {}) {
   const baseline = shortList(planner.bundles.baselineFirst.labels, 5) || planner.bundles.baselineFirst.emptyText;
   const optional = shortList(planner.bundles.optionalUpgrades.labels, 5) || planner.bundles.optionalUpgrades.emptyText;
   const advanced = shortList(planner.bundles.advancedDepth.labels, 6) || planner.bundles.advancedDepth.emptyText;
-  lines.push(`Coverage planning: use the same Coverage Planner as the UI. Baseline first: ${baseline}. Optional: ${optional}. Advanced: ${advanced}. Do not recommend markers already satisfied by equivalent core groups.`);
+  lines.push(`Coverage planning (UI planner): Baseline first: ${baseline}. Optional: ${optional}. Advanced: ${advanced}. Equivalent core tests already satisfy their group.`);
   const scoreGapLines = planner.scoreRows.slice(0, 4).map(row => `${row.score.title}: ${shortList(labelMarkers(row.usefulMissing), 3)} (${row.coveragePct}% coverage)`).join('; ');
   if (scoreGapLines) lines.push(`Coverage planner score gaps: ${scoreGapLines}.`);
   lines.push('[/section:biologyScores]');
@@ -141,13 +144,13 @@ export function buildBiologyScoresAIContext(data, options = {}) {
       '',
       '[section:biologicalCoherence]',
       '## Biological Coherence',
-      'System-level Biology Scores aggregate; same value shown in the Biology Scores UI.',
+      'System-level Biology Scores aggregate.',
       coherenceLine,
       '[/section:biologicalCoherence]',
       '',
       '[section:biologyCoherence]',
       '## Biology Coherence',
-      'Alias for Biological Coherence; same system-level Biology Scores aggregate shown in the UI.',
+      'Alias for Biological Coherence.',
       coherenceLine,
       '[/section:biologyCoherence]'
     );
