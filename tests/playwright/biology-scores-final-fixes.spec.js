@@ -168,6 +168,14 @@ test('score controls have independent keyboard actions and valid accessible stat
 
 test('two tabs preserve independent lab additions and edits through reload', async ({ page }) => {
   await prepareDemoProfile(page);
+  await page.evaluate(async () => {
+    const {state} = await import('/js/state.js');
+    state.importedData.entries.push(
+      {date:'2026-08-01',specimen:'serum',context:{sampleTime:'08:00',fasting:true},markers:{'hormones.cortisol':350}},
+      {date:'2026-08-01',specimen:'saliva',context:{sampleTime:'23:00',fasting:false},markers:{'hormones.cortisol':3}},
+    );
+    if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Panel setup failed');
+  });
   const other = await page.context().newPage(); await prepareDemoProfile(other);
   // Capture both stale intents before either tab writes.
   for (const [tab, date, value] of [[page, '2026-09-14', .7], [other, '2026-09-15', .8]]) {
@@ -188,5 +196,8 @@ test('two tabs preserve independent lab additions and edits through reload', asy
   expect(await other.evaluate(async () => (await import('/js/state.js')).state.importedData.entries
     .filter(e => ['2026-09-14', '2026-09-15'].includes(e.date)).sort((a,b) => a.date.localeCompare(b.date))
     .map(e => ({date:e.date, value:e.markers['lipids.apoB']})))).toEqual([{date:'2026-09-14',value:.7},{date:'2026-09-15',value:.8}]);
+  expect(await other.evaluate(async () => (await import('/js/state.js')).state.importedData.entries
+    .filter(e => e.date === '2026-08-01').map(e => ({specimen:e.specimen,time:e.context.sampleTime,fasting:e.context.fasting,value:e.markers['hormones.cortisol']}))))
+    .toEqual([{specimen:'serum',time:'08:00',fasting:true,value:350},{specimen:'saliva',time:'23:00',fasting:false,value:3}]);
   await other.close();
 });

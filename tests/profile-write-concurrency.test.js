@@ -119,7 +119,7 @@ it('preserves split same-day panels while merging concurrent lab additions', () 
   a.entries.push(entry('2026-09-02', { a: 3 }));
   b.entries.push(entry('2026-09-03', { a: 4 }));
   expect(mergeProfileMutation(base, b, a).entries).toEqual([
-    entry('2026-09-01', { a: 1, b: 2 }), entry('2026-09-02', { a: 3 }), entry('2026-09-03', { a: 4 }),
+    entry('2026-09-01', { a: 1 }), entry('2026-09-01', { b: 2 }), entry('2026-09-02', { a: 3 }), entry('2026-09-03', { a: 4 }),
   ]);
   const refs = [...base.entries];
   adoptProfileData(base, structuredClone(base));
@@ -144,4 +144,27 @@ it('a failed initial pull read cannot replace unreadable local data', async () =
   vi.spyOn(crypto, 'encryptedGetItem').mockRejectedValueOnce(new Error('read unavailable'));
   await expect(mergePulledImportedData(profileId, {entries:[]})).rejects.toThrow('read unavailable');
   expect((await read()).entries).toHaveLength(1);
+});
+
+
+it('keeps same-day specimen and collection context attached to each panel', () => {
+  const serum = {...entry('2026-09-01', {cortisol:350}), specimen:'serum', context:{sampleTime:'08:00',fasting:true}};
+  const saliva = {...entry('2026-09-01', {cortisol:3}), specimen:'saliva', context:{sampleTime:'23:00',fasting:false}};
+  const base = {entries:[serum,saliva]}, a = structuredClone(base), b = structuredClone(base);
+  a.entries.push(entry('2026-09-02',{a:1})); b.entries.push(entry('2026-09-03',{b:2}));
+  expect(mergeProfileMutation(base,b,a).entries.slice(0,2)).toEqual([serum,saliva]);
+  const removeSerum = {entries:[saliva]};
+  expect(mergeProfileMutation(base,removeSerum,a).entries).toEqual([saliva,entry('2026-09-02',{a:1})]);
+  const empty = {entries:[]};
+  expect(mergeProfileMutation(empty,{entries:[serum]},{entries:[saliva]}).entries).toEqual([saliva,serum]);
+});
+
+it('rejects ambiguous same-day panel conflicts without committing a guessed merge', async () => {
+  state.importedData.entries = [entry('2026-09-01',{a:1}),entry('2026-09-01',{b:2})];
+  expect(await saveImportedData()).toBe(true);
+  const base = structuredClone(state.importedData), a = structuredClone(base), b = structuredClone(base);
+  a.entries[0].markers.a=3; b.entries[1].markers.b=4;
+  expect(await saveImportedDataForProfile(profileId,a,{baseData:base,forceProfileScope:true})).toBe(true);
+  expect(await saveImportedDataForProfile(profileId,b,{baseData:base,forceProfileScope:true})).toBe(false);
+  expect((await read()).entries).toEqual(a.entries);
 });

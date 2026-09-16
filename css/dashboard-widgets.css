@@ -817,12 +817,7 @@
 .biology-score-context-banner span { padding:3px 7px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--bg-card); }
 .biology-score-context-page { margin: -6px 0 16px; padding: 0 2px; }
 .biology-context-ai-panel { margin: 0 0 16px; padding: 14px; border:1px solid var(--border); border-radius:var(--radius); background:color-mix(in srgb, var(--bg-card) 82%, transparent); display:grid; gap:12px; }
-.biology-context-ai-required,.biology-score-context-gate { border-color: color-mix(in srgb, var(--accent) 28%, var(--border)); background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 6%, var(--bg-card)) 0%, var(--bg-card) 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.03); }
-.biology-score-context-gate { margin: 0 0 16px; padding: 14px; border-width: 1px; border-style: solid; border-radius: var(--radius); display: grid; gap: 10px; }
-.biology-score-context-gate h3 { margin: 0; color: var(--text-primary); font-family: var(--font-display); }
-.biology-score-context-gate p { margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.45; }
-.biology-score-context-gate-dashboard { margin: 0; }
-.biology-score-context-gate-dashboard h3 { font-size: 16px; }
+.biology-context-ai-required{ border-color: color-mix(in srgb, var(--accent) 28%, var(--border)); background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 6%, var(--bg-card)) 0%, var(--bg-card) 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.03); }
 .biology-context-ai-head { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
 .biology-context-ai-head p,.biology-context-ai-summary,.biology-context-suggestion p { margin:4px 0 0; color:var(--text-secondary); font-size:13px; line-height:1.45; }
 .biology-context-suggestions { display:grid; gap:10px; }
@@ -1309,8 +1304,6 @@ button.biology-score-token:focus-visible {
     flex-direction: column;
     align-items: stretch;
   }
-  .biology-coherence-title-row { flex-direction: column; align-items: stretch; }
-  .biology-coherence-tools .dashboard-widget-tool { width: 100%; justify-content: center; }
   .biology-score-value strong { font-size: 32px; }
 }
 
@@ -1340,35 +1333,6 @@ button.biology-score-token:focus-visible {
   box-shadow: var(--shadow), 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent) inset;
   overflow: hidden;
 }
-.biology-coherence-tools {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 0;
-  z-index: 2;
-}
-.biology-coherence-title-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  min-width: 0;
-}
-.biology-coherence-title-row > div:first-child {
-  min-width: 0;
-}
-.biology-coherence-title-row .biology-coherence-tools {
-  justify-self: end;
-}
-.biology-coherence-title-row h2 {
-  overflow-wrap: anywhere;
-}
-.biology-coherence-tools .dashboard-widget-tool {
-  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
-  background: color-mix(in srgb, var(--bg-card) 80%, transparent);
-}
 .biology-coherence-hero::after {
   content: '';
   position: absolute;
@@ -1376,75 +1340,12 @@ button.biology-score-token:focus-visible {
   pointer-events: none;
   background: linear-gradient(120deg, transparent 0 55%, color-mix(in srgb, var(--accent) 9%, transparent) 76%, transparent 100%);
 }
-.biology-coherence-copy,
-.biology-coherence-metric,
 .biology-coherence-domains { position: relative; z-index: 1; }
-.biology-coherence-copy h2 {
-  margin: 4px 0 8px;
-  font-family: var(--font-display);
-  font-size: clamp(22px, 2.4vw, 32px);
-  line-height: 1.02;
-  color: var(--text-primary);
-}
-.biology-coherence-copy p {
-  max-width: 720px;
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 14px;
-  line-height: 1.5;
-}
-.biology-coherence-lines {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 8px;
-  margin-top: 14px;
-}
-.biology-coherence-lines > div,
 .biology-coherence-domain-row {
   min-width: 0;
   border-left: 2px solid color-mix(in srgb, var(--accent) 42%, var(--border));
   background: color-mix(in srgb, var(--bg-card) 54%, transparent);
 }
-.biology-coherence-lines > div {
-  padding: 8px 10px;
-}
-.biology-coherence-lines strong,
-.biology-coherence-lines span {
-  display: block;
-}
-.biology-coherence-lines strong {
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-}
-.biology-coherence-lines span {
-  margin-top: 3px;
-  color: var(--text-primary);
-  font-size: 12px;
-  line-height: 1.35;
-}
-.biology-coherence-metric {
-  display: grid;
-  justify-items: stretch;
-  gap: 9px;
-  min-width: 0;
-  padding-right: 0;
-  box-sizing: border-box;
-  font-family: var(--font-mono);
-  color: var(--text-muted);
-}
-.biology-coherence-metric > strong {
-  justify-self: start;
-  font-size: clamp(44px, 6vw, 68px);
-  line-height: 0.9;
-  color: var(--text-primary);
-  letter-spacing: -0.05em;
-}
-.biology-coherence-metric > span { justify-self: start; margin-top: -8px; font-size: 13px; }
-.biology-coherence-metric .biology-score-rail { width: 100%; }
-.biology-coherence-metric .biology-score-meta { justify-content: flex-start; }
 .biology-coherence-domains {
   grid-column: 1 / -1;
   display: grid;
@@ -1498,9 +1399,6 @@ button.biology-score-token:focus-visible {
 }
 @media (max-width: 720px) {
   .biology-coherence-hero { grid-template-columns: 1fr; gap: 14px; padding: 18px; }
-  .biology-coherence-title-row { gap: 10px; }
-  .biology-coherence-tools { margin-left: 0; }
-  .biology-coherence-lines { grid-template-columns: 1fr; }
   .biology-coherence-domains {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
@@ -1516,9 +1414,6 @@ button.biology-score-token:focus-visible {
     text-transform: uppercase;
   }
   .biology-coherence-domain-row { padding: 7px 8px; }
-  .biology-coherence-metric { justify-items: start; min-width: 0; padding-right: 0; }
-  .biology-coherence-metric > strong { font-size: 48px; }
-  .biology-coherence-metric .biology-score-meta { justify-content: flex-start; }
 }
 .biology-score-detail,
 .biology-score-research-note {

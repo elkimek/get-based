@@ -6,6 +6,7 @@ const baselines = new WeakMap();
 const queues = new Map();
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+export class ProfileWriteConflict extends Error {}
 
 export function rememberProfileData(data, persisted = data) {
   if (object(data)) baselines.set(data, structuredClone(persisted));
@@ -38,26 +39,43 @@ function mergeRecordArray(base, next, latest, path) {
   const keyed = arrays.every(items => Array.isArray(items) && items.every(item => recordKey(item, path))
     && (path === 'entries' || new Set(items.map(item => recordKey(item, path))).size === items.length));
   if (!keyed) {
-    if (base !== undefined && !equal(next, latest)) throw new Error(`Concurrent edits to ${path || 'an unkeyed list'} require a reload before saving.`);
+    if (base !== undefined && !equal(next, latest)) throw new ProfileWriteConflict(`Concurrent edits to ${path || 'an unkeyed list'} require a reload before saving.`);
     return structuredClone(next);
   }
   const [before, after, current] = arrays.map(items => {
     const rows = new Map();
     for (const item of items) {
       const key = recordKey(item, path);
-      rows.set(key, rows.has(key) ? mergeProfileMutation({}, item, rows.get(key), `${path}[]`) : item);
+      if (path === 'entries') rows.set(key, [...(rows.get(key) || []), item]);
+      else rows.set(key, item);
     }
     return rows;
   });
   for (const [key, item] of before) {
     if (!after.has(key)) current.delete(key);
-    else if (current.has(key)) current.set(key, mergeProfileMutation(item, after.get(key), current.get(key), `${path}[]`));
+    else if (current.has(key)) current.set(key, path === 'entries'
+      ? mergeEntryPanels(item, after.get(key), current.get(key))
+      : mergeProfileMutation(item, after.get(key), current.get(key), `${path}[]`));
     // A concurrently deleted record stays deleted; stale edits cannot revive it.
   }
   for (const [key, item] of after) {
-    if (!before.has(key)) current.set(key, mergeProfileMutation({}, item, current.get(key), `${path}[]`));
+    if (!before.has(key)) current.set(key, path === 'entries'
+      ? mergeEntryPanels([], item, current.get(key) || [])
+      : mergeProfileMutation({}, item, current.get(key), `${path}[]`));
   }
-  return [...current.values()].map(item => structuredClone(item));
+  return (path === 'entries' ? [...current.values()].flat() : [...current.values()]).map(item => structuredClone(item));
+}
+
+// A date is the sync address, not proof of one specimen or collection. Keep
+// split-day panels intact; ambiguous concurrent panel edits must not be guessed.
+function mergeEntryPanels(base, next, latest) {
+  if (equal(base, next)) return latest;
+  if (equal(base, latest) || equal(next, latest)) return next;
+  if (!base.length) return [...latest, ...next.filter(panel => !latest.some(item => equal(item, panel)))];
+  if (base.length === 1 && next.length === 1 && latest.length === 1) {
+    return [mergeProfileMutation(base[0], next[0], latest[0], 'entries[]')];
+  }
+  throw new ProfileWriteConflict('Concurrent changes to same-day panels cannot be combined safely.');
 }
 
 // Keep references held by open forms and running sessions attached to live data.
@@ -70,7 +88,10 @@ export function adoptProfileData(target, source, path = '') {
     }
     const items = source.map((item, index) => {
       const key = recordKey(item, path);
-      return adoptProfileData(key ? records.get(key)?.shift() : target[index], item, `${path}[]`);
+      const candidates = key ? records.get(key) || [] : [target[index]];
+      const match = candidates.findIndex(candidate => equal(candidate, item));
+      const previous = match >= 0 ? candidates.splice(match, 1)[0] : candidates.length === 1 ? candidates.shift() : undefined;
+      return adoptProfileData(previous, item, `${path}[]`);
     });
     target.splice(0, target.length, ...items);
     return target;

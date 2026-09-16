@@ -1,7 +1,7 @@
 // @ts-check
 // data.js — Data pipeline, unit conversion, date range, trend detection
 
-import { queueProfileDataWrite, profileDataBaseline, rememberProfileData, mergeProfileMutation, adoptProfileData } from './profile-data-writes.js';
+import { queueProfileDataWrite, profileDataBaseline, rememberProfileData, mergeProfileMutation, adoptProfileData, ProfileWriteConflict } from './profile-data-writes.js';
 import { mergeBiologyScoreAIRecords } from './biology-score-persistence.js';
 import { isProfileReadBlocked } from './profile-load-safety.js';
 import { state } from './state.js';
@@ -270,8 +270,11 @@ export async function saveImportedDataForProfile(profileId, importedData, option
   } catch { return failedProfileSave(); }
 }
 
-function failedProfileSave() {
-  showNotification('Could not save profile data. Check available storage and try again.', 'error');
+/** @param {unknown} [error] */
+function failedProfileSave(error) {
+  showNotification(error instanceof ProfileWriteConflict
+    ? 'Another tab changed these records. Your edits are still here, but this save could not be combined safely.'
+    : 'Could not save profile data. Check available storage and try again.', 'error');
   return false;
 }
 
@@ -312,7 +315,7 @@ function persistProfileSnapshot(profileId, source, options) {
       }
       rememberProfileData(source, persisted);
     } catch (e) {
-      return failedProfileSave();
+      return failedProfileSave(e);
     }
     if (!changed && options.activeSave) return true;
     try {
