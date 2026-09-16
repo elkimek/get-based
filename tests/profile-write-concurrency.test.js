@@ -168,3 +168,44 @@ it('rejects ambiguous same-day panel conflicts without committing a guessed merg
   expect(await saveImportedDataForProfile(profileId,b,{baseData:base,forceProfileScope:true})).toBe(false);
   expect((await read()).entries).toEqual(a.entries);
 });
+
+for (const duringWrite of [false, true]) it(`a committed scoped answer stays successful when live panels conflict ${duringWrite ? 'during' : 'before'} storage`, async () => {
+  state.importedData.entries = [entry('2026-09-01', { a: 1 }), entry('2026-09-01', { b: 2 })];
+  expect(await saveImportedData()).toBe(true);
+  const base = structuredClone(state.importedData), intent = structuredClone(base), peer = structuredClone(base);
+  intent.biologyScoreAI = { test: { text: 'Saved interpretation', summary: 'Saved summary', updatedAt: 1 } };
+  peer.entries[0].markers.a = 3;
+  await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  const edit = () => { state.importedData.entries[1].markers.b = 4; };
+  if (duringWrite) {
+    const original = crypto.encryptedSetItem;
+    vi.spyOn(crypto, 'encryptedSetItem').mockImplementationOnce(async (...args) => {
+      await original(...args);
+      edit();
+    });
+  } else edit();
+  expect(await saveImportedDataForProfile(profileId, intent, { baseData: base, forceProfileScope: true })).toBe(true);
+  expect((await read()).biologyScoreAI.test.text).toBe('Saved interpretation');
+  expect((await read()).entries).toEqual(peer.entries);
+  expect(state.importedData.biologyScoreAI.test.text).toBe('Saved interpretation');
+  expect(state.importedData.entries.map(e => e.markers)).toEqual([{ a: 1 }, { b: 4 }]);
+  // The retained original baseline prevents a later save from hiding the conflict.
+  expect(await saveImportedData()).toBe(false);
+  expect((await read()).entries).toEqual(peer.entries);
+});
+
+it('a committed pull preserves conflicting unsaved panels without rejecting after storage', async () => {
+  state.importedData.entries = [entry('2026-09-01', { a: 1 }), entry('2026-09-01', { b: 2 })];
+  expect(await saveImportedData()).toBe(true);
+  const pull = await mergePulledImportedData(profileId, null);
+  pull.merged.entries[0].markers.a = 3;
+  const original = crypto.encryptedSetItem;
+  vi.spyOn(crypto, 'encryptedSetItem').mockImplementationOnce(async (...args) => {
+    await original(...args);
+    state.importedData.entries[1].markers.b = 4;
+  });
+  await expect(persistPulledImportedData(key, profileId, pull.merged, Date.now())).resolves.toBeDefined();
+  expect((await read()).entries.map(e => e.markers)).toEqual([{ a: 3 }, { b: 2 }]);
+  expect(state.importedData.entries.map(e => e.markers)).toEqual([{ a: 1 }, { b: 4 }]);
+  expect(await saveImportedData()).toBe(false);
+});

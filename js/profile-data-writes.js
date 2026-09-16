@@ -78,6 +78,26 @@ function mergeEntryPanels(base, next, latest) {
   throw new ProfileWriteConflict('Concurrent changes to same-day panels cannot be combined safely.');
 }
 
+// After a successful write, preserve conflicting unsaved lists and their old
+// baseline. A later save must still detect the conflict, not overwrite its peer.
+export function rebaseLiveProfileData(base, live, committed, path = '') {
+  try { return { data: mergeProfileMutation(base, live, committed, path), baseline: structuredClone(committed), conflict: false }; }
+  catch (error) {
+    if (!(error instanceof ProfileWriteConflict)) throw error;
+    if (!object(live)) return { data: structuredClone(live), baseline: structuredClone(base), conflict: true };
+    const data = object(committed) ? structuredClone(committed) : {};
+    const baseline = structuredClone(data);
+    for (const key of new Set([...Object.keys(base || {}), ...Object.keys(live)])) {
+      if (['__proto__', 'constructor', 'prototype'].includes(key) || equal(base?.[key], live[key])) continue;
+      if (!Object.hasOwn(live, key)) { delete data[key]; continue; }
+      const result = rebaseLiveProfileData(base?.[key], live[key], committed?.[key], path ? `${path}.${key}` : key);
+      data[key] = result.data;
+      if (result.baseline === undefined) delete baseline[key]; else baseline[key] = result.baseline;
+    }
+    return { data, baseline, conflict: true };
+  }
+}
+
 // Keep references held by open forms and running sessions attached to live data.
 export function adoptProfileData(target, source, path = '') {
   if (Array.isArray(target) && Array.isArray(source)) {

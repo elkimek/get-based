@@ -1,7 +1,7 @@
 // @ts-check
 // data.js — Data pipeline, unit conversion, date range, trend detection
 
-import { queueProfileDataWrite, profileDataBaseline, rememberProfileData, mergeProfileMutation, adoptProfileData, ProfileWriteConflict } from './profile-data-writes.js';
+import { queueProfileDataWrite, profileDataBaseline, rememberProfileData, mergeProfileMutation, adoptProfileData, rebaseLiveProfileData, ProfileWriteConflict } from './profile-data-writes.js';
 import { mergeBiologyScoreAIRecords } from './biology-score-persistence.js';
 import { isProfileReadBlocked } from './profile-load-safety.js';
 import { state } from './state.js';
@@ -303,19 +303,23 @@ function persistProfileSnapshot(profileId, source, options) {
       const value = JSON.stringify(persisted);
       changed = previous !== value;
       if (changed) await encryptedSetItem(key, value);
-      // Retain unsaved local edits while adopting fields committed by other
-      // writers. A later maintenance save must not restore a stale field.
-      if (state.currentProfile === profileId && state.importedData && (options.activeSave || base)) {
-        const live = state.importedData;
-        const merged = mergeProfileMutation(options.activeSave ? intent : profileDataBaseline(live) || base, live, persisted);
-        if (persisted.biologyScoreAI) merged.biologyScoreAI = persisted.biologyScoreAI;
-        adoptProfileData(live, merged);
-        rememberProfileData(live, persisted);
-        invalidateActiveDataCache();
-      }
-      rememberProfileData(source, persisted);
     } catch (e) {
       return failedProfileSave(e);
+    }
+    // Storage has committed. Adoption and hooks cannot turn it into a failed save.
+    try {
+      const live = state.currentProfile === profileId ? state.importedData : null;
+      if (live && (options.activeSave || base)) {
+        const result = rebaseLiveProfileData(options.activeSave ? intent : profileDataBaseline(live) || base, live, persisted);
+        if (persisted.biologyScoreAI) result.data.biologyScoreAI = persisted.biologyScoreAI;
+        adoptProfileData(live, result.data);
+        rememberProfileData(live, result.baseline);
+        invalidateActiveDataCache();
+        if (result.conflict) showNotification('Update saved. Some unsaved records conflict with another tab and need review.', 'warning');
+      }
+      if (source !== live || !(options.activeSave || base)) rememberProfileData(source, persisted);
+    } catch (e) {
+      if (isDebugMode()) console.warn('Live profile refresh failed after data was persisted:', e);
     }
     if (!changed && options.activeSave) return true;
     try {

@@ -1,7 +1,7 @@
 // @ts-check
 // sync-pull-merge.js - inbound row recovery and importedData merge helpers.
 
-import { queueProfileDataWrite, profileDataBaseline, mergeProfileMutation, adoptProfileData, rememberProfileData } from './profile-data-writes.js';
+import { queueProfileDataWrite, profileDataBaseline, mergeProfileMutation, adoptProfileData, rebaseLiveProfileData, rememberProfileData } from './profile-data-writes.js';
 import { mergeBiologyScoreAIRecords } from './biology-score-persistence.js';
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
@@ -285,9 +285,9 @@ export async function persistPulledImportedData(localKey, profileId, merged, rem
     adoptProfileData(merged, committed);
     if (profileId === state.currentProfile && state.importedData) {
       const live = state.importedData;
-      const adopted = liveBeforeWrite ? mergeProfileMutation(liveBeforeWrite, live, committed) : committed;
-      adoptProfileData(live, adopted);
-      rememberProfileData(live, committed);
+      const result = rebaseLiveProfileData(liveBeforeWrite || {}, live, committed);
+      adoptProfileData(live, result.data);
+      rememberProfileData(live, result.baseline);
       invalidateActiveDataCache();
     }
     return { needsRebroadcast };

@@ -390,6 +390,13 @@ function alignBiologyScoreCards() {
   }
 }
 
+// These assays share schema suffixes; keep their ordered fallback paths together.
+function fattyAcidPaths(marker, biostarksMarker = '') {
+  const paths = ['fattyAcids', 'spadiaFA', 'omegaquantFA', 'zinzinoFA', 'metabolomixFA', 'fattyAcidsTest'].map(group => `${group}.${marker}`);
+  if (biostarksMarker) paths.push(`biostarksFA.${biostarksMarker}`);
+  return paths;
+}
+
 export const SCORE_DEFINITIONS = [
   {
     id: 'biologicalCoherence', title: 'Biological Coherence', kicker: 'System-level signal', evidence: 'contextual', panelTier: 'minimum', coherenceDomain: 'overview',
@@ -453,14 +460,14 @@ export const SCORE_DEFINITIONS = [
     id: 'lipidMembrane', title: 'Lipid Membrane', kicker: 'Fatty-acid architecture', evidence: 'contextual', panelTier: 'extended', coherenceDomain: 'membrane', coherenceWeight: 1.0,
     summary: 'Assay-specific fatty-acid patterns, including omega-3 status and lipid balance.', compute: computeWeightedComposite,
     inputs: [
-      { key: 'omega3Index', label: 'Omega-3 index', weight: 2.0, core: true, paths: ['fattyAcids.omega3Index', 'spadiaFA.omega3Index', 'omegaquantFA.omega3Index', 'zinzinoFA.omega3Index', 'metabolomixFA.omega3Index', 'fattyAcidsTest.omega3Index', 'biostarksFA.omega3Index'] },
-      { key: 'dha', label: 'DHA', weight: 1.15, paths: ['fattyAcids.dhaC22_6', 'spadiaFA.dhaC22_6', 'omegaquantFA.dhaC22_6', 'zinzinoFA.dhaC22_6', 'metabolomixFA.dhaC22_6', 'fattyAcidsTest.dhaC22_6', 'biostarksFA.dha'] },
-      { key: 'epa', label: 'EPA', weight: 0.9, paths: ['fattyAcids.epaC20_5', 'spadiaFA.epaC20_5', 'omegaquantFA.epaC20_5', 'zinzinoFA.epaC20_5', 'metabolomixFA.epaC20_5', 'fattyAcidsTest.epaC20_5', 'biostarksFA.epa'] },
-      { key: 'aaEpa', label: 'AA/EPA ratio', weight: 0.55, paths: ['fattyAcids.aaEpaRatio', 'spadiaFA.aaEpaRatio', 'omegaquantFA.aaEpaRatio', 'zinzinoFA.aaEpaRatio', 'metabolomixFA.aaEpaRatio', 'fattyAcidsTest.aaEpaRatio'] },
-      { key: 'omega6to3', label: 'Omega-6/3 ratio', weight: 0.45, paths: ['fattyAcids.omega6to3Ratio', 'spadiaFA.omega6to3Ratio', 'omegaquantFA.omega6to3Ratio', 'zinzinoFA.omega6to3Ratio', 'metabolomixFA.omega6to3Ratio', 'fattyAcidsTest.omega6to3Ratio'] },
-      { key: 'dpa', label: 'DPA', weight: 0.25, paths: ['fattyAcids.dpaC22_5', 'spadiaFA.dpaC22_5', 'omegaquantFA.dpaC22_5', 'zinzinoFA.dpaC22_5', 'metabolomixFA.dpaC22_5', 'fattyAcidsTest.dpaC22_5'] },
-      { key: 'linoleic', label: 'Linoleic acid', weight: 0.25, paths: ['fattyAcids.linoleicC18_2', 'spadiaFA.linoleicC18_2', 'omegaquantFA.linoleicC18_2', 'zinzinoFA.linoleicC18_2', 'metabolomixFA.linoleicC18_2', 'fattyAcidsTest.linoleicC18_2', 'biostarksFA.linoleicAcid'] },
-      { key: 'arachidonic', label: 'Arachidonic acid', weight: 0.25, paths: ['fattyAcids.arachidonicC20_4', 'spadiaFA.arachidonicC20_4', 'omegaquantFA.arachidonicC20_4', 'zinzinoFA.arachidonicC20_4', 'metabolomixFA.arachidonicC20_4', 'fattyAcidsTest.arachidonicC20_4'] },
+      { key: 'omega3Index', label: 'Omega-3 index', weight: 2.0, core: true, paths: fattyAcidPaths('omega3Index', 'omega3Index') },
+      { key: 'dha', label: 'DHA', weight: 1.15, paths: fattyAcidPaths('dhaC22_6', 'dha') },
+      { key: 'epa', label: 'EPA', weight: 0.9, paths: fattyAcidPaths('epaC20_5', 'epa') },
+      { key: 'aaEpa', label: 'AA/EPA ratio', weight: 0.55, paths: fattyAcidPaths('aaEpaRatio') },
+      { key: 'omega6to3', label: 'Omega-6/3 ratio', weight: 0.45, paths: fattyAcidPaths('omega6to3Ratio') },
+      { key: 'dpa', label: 'DPA', weight: 0.25, paths: fattyAcidPaths('dpaC22_5') },
+      { key: 'linoleic', label: 'Linoleic acid', weight: 0.25, paths: fattyAcidPaths('linoleicC18_2', 'linoleicAcid') },
+      { key: 'arachidonic', label: 'Arachidonic acid', weight: 0.25, paths: fattyAcidPaths('arachidonicC20_4') },
     ],
   },
   {
