@@ -27,6 +27,7 @@ const { findOrCreateLabEntry } = await import('../js/lab-entry-mutations.js');
 const { setLabEntryMarker } = await import('../js/lab-entry.js');
 const { migrateProfileData } = await import('../js/profile.js');
 const { getActiveData, invalidateActiveDataCache, filterDatesByRange } = await import('../js/data.js');
+const { effectiveMissingMarkers } = await import('../js/biology-score-coverage-planner.js');
 const { computeBiologyScores, getBiologyScoreMapping } = await import('../js/biology-scores.js');
 const { buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprintsByRange, hasCurrentBiologyScoreContextReview } = await import('../js/biology-score-context-ai.js');
 const contextOptions = await import('../js/constants.js');
@@ -347,21 +348,23 @@ function invalidContextOptions(demoJson) {
       }
       const scores = computeBiologyScores(activeData).filter(score => score.id !== 'biologicalCoherence');
       const liveScores = scores.filter(score => score.score != null);
-      assert(`${demo.label} computes every Biology Score detail card`,
-        liveScores.length === scores.length && scores.length === getBiologyScoreMapping().length - 1,
+      assert(`${demo.label} shows every Biology Score and retains context-limited demo panels`,
+        liveScores.length === 16 && scores.length === getBiologyScoreMapping().length - 1
+          && scores.filter(score => score.score == null).map(score => score.id).sort().join(',') === 'nerveMuscleSignal,stressResilience',
         `live=${liveScores.length}/${scores.length}, waiting=${scores.filter(score => score.score == null).map(score => score.id).join(', ')}`);
       const directionalOnly = scores.filter(score => score.evidence === 'experimental' && (score.coverage || 0) < 0.25).map(score => score.id);
       assert(`${demo.label} has no Biology Score stuck at directional-only coverage`,
         directionalOnly.length === 0,
         `directional-only: ${directionalOnly.join(', ')}`);
-      const missingCore = scores.flatMap(score => (score.missing || []).filter(item => item.core).map(item => `${score.id}:${item.label || item.path || item.key}`));
-      assert(`${demo.label} has no missing core Biology Score markers`,
-        missingCore.length === 0,
+      const missingCore = scores.flatMap(score => effectiveMissingMarkers(score).filter(item => item.core).map(item => `${score.id}:${item.label || item.path || item.key}`));
+      assert(`${demo.label} needs only the missing cortisol core route`,
+        missingCore.join(',') === 'stressResilience:Cortisol',
         `missing core: ${missingCore.join(', ')}`);
-      const perfectScores = scores.filter(score => score.score === 100).map(score => score.id);
-      assert(`${demo.label} avoids implausible clusters of perfect Biology Scores`,
-        perfectScores.length <= 1,
-        `perfect scores: ${perfectScores.join(', ')}`);
+      const perfectScores = scores.filter(score => score.score === 100);
+      const scoredCore = score => score.available.filter(item => item.core && !item.profileContextOnly && Number.isFinite(item.partial));
+      assert(`${demo.label} awards perfect range fit only when every scored core input fits`,
+        perfectScores.every(score => scoredCore(score).length > 0 && scoredCore(score).every(item => item.partial >= 99.5)),
+        `perfect scores: ${perfectScores.map(score => score.id).join(', ')}`);
       imported.biologyScoreContextAI = {
         summary: 'Demo context checked locally. Biology Scores are unlocked for this sample profile without using an AI provider.',
         suggestions: [],

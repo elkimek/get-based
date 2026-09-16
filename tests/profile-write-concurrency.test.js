@@ -1,0 +1,147 @@
+import { beforeEach, afterEach, expect, it, vi } from 'vitest';
+import { state } from '../js/state.js';
+import { mergeProfileMutation, rememberProfileData, adoptProfileData } from '../js/profile-data-writes.js';
+import { saveImportedData, saveImportedDataForProfile } from '../js/data.js';
+import { profileStorageKey } from '../js/profile.js';
+import * as crypto from '../js/crypto.js';
+import * as sync from '../js/sync.js';
+import { mergePulledImportedData, persistPulledImportedData } from '../js/sync-pull-merge.js';
+import { refreshActiveProfileAfterPull } from '../js/sync-pull-active-refresh.js';
+
+const profileId = 'profile-write-concurrency';
+const key = profileStorageKey(profileId, 'imported');
+const entry = (date, markers) => ({ date, markers });
+const read = async () => JSON.parse(await crypto.encryptedGetItem(key));
+beforeEach(async () => {
+  await crypto.encryptedRemoveItem(key);
+  state.currentProfile = profileId;
+  state.importedData = { entries: [entry('2026-09-01', { 'lipids.apoB': .8 })], notes: [], contextNotes: 'original' };
+  expect(await saveImportedData()).toBe(true);
+});
+afterEach(() => vi.restoreAllMocks());
+
+it('merges independent additions, same-entry marker edits, and delete-versus-edit without resurrection', () => {
+  const base = { entries: [entry('2026-09-01', { a: 1, b: 2 }), entry('2026-09-02', { a: 2 })] };
+  const a = structuredClone(base), b = structuredClone(base);
+  a.entries[0].markers.a = 3; a.entries.push(entry('2026-09-03', { a: 4 })); a.entries.splice(1, 1);
+  b.entries[0].markers.b = 5; b.entries[1].markers.a = 9; b.entries.push(entry('2026-09-04', { a: 6 }));
+  const merged = mergeProfileMutation(base, b, a);
+  expect(merged.entries).toEqual([entry('2026-09-01', { a: 3, b: 5 }), entry('2026-09-03', { a: 4 }), entry('2026-09-04', { a: 6 })]);
+  expect(mergeProfileMutation(base, a, b).entries).toEqual([entry('2026-09-01', { a: 3, b: 5 }), entry('2026-09-04', { a: 6 }), entry('2026-09-03', { a: 4 })]);
+});
+
+it('retains independent ID and natural-key records, including nested room edits', () => {
+  const base = { lightEnvironment: { rooms: [{ id: 'room', name: 'Study', floor: 1 }] }, notes: [] };
+  const a = structuredClone(base), b = structuredClone(base);
+  a.lightEnvironment.rooms[0].name = 'Office'; a.notes.push({ date: '2026-09-01', text: 'A' });
+  b.lightEnvironment.rooms[0].floor = 2; b.notes.push({ date: '2026-09-02', text: 'B' });
+  const merged = mergeProfileMutation(base, b, a);
+  expect(merged.lightEnvironment.rooms).toEqual([{ id: 'room', name: 'Office', floor: 2 }]);
+  expect(merged.notes.map(n => n.text)).toEqual(['A', 'B']);
+});
+
+it('preserves open-control references when applying a committed snapshot', () => {
+  const room = { id: 'r', name: 'Room' }, target = { lightEnvironment: { rooms: [room] } };
+  const rooms = target.lightEnvironment.rooms;
+  adoptProfileData(target, { lightEnvironment: { rooms: [{ id: 'r', name: 'Renamed' }, { id: 'r2', name: 'New' }] } });
+  expect(target.lightEnvironment.rooms).toBe(rooms);
+  expect(rooms[0]).toBe(room);
+  expect(room.name).toBe('Renamed');
+});
+
+it('persists two stale record-array snapshots without dropping either addition', async () => {
+  const base = structuredClone(state.importedData), a = structuredClone(base), b = structuredClone(base);
+  a.entries.push(entry('2026-09-02', { 'lipids.apoB': .9 }));
+  b.entries.push(entry('2026-09-03', { 'lipids.apoB': 1 }));
+  expect(await saveImportedDataForProfile(profileId, a, { baseData: base, forceProfileScope: true })).toBe(true);
+  expect(await saveImportedDataForProfile(profileId, b, { baseData: base, forceProfileScope: true })).toBe(true);
+  expect((await read()).entries.map(e => e.date)).toEqual(['2026-09-01', '2026-09-02', '2026-09-03']);
+});
+
+it('rebases a pull over a committed local edit and later UI refresh preserves newer live edits', async () => {
+  const remote = structuredClone(state.importedData);
+  remote.contextNotes = 'remote'; remote.entries.push(entry('2026-09-02', { 'lipids.apoB': .9 }));
+  const pull = await mergePulledImportedData(profileId, remote);
+  state.importedData.contextNotes = 'local after pull started';
+  state.importedData.entries[0].markers['lipids.apoB'] = 1.1;
+  expect(await saveImportedData()).toBe(true);
+  expect((await persistPulledImportedData(key, profileId, pull.merged, Date.now())).needsRebroadcast).toBe(true);
+  const stored = await read();
+  expect(stored.contextNotes).toBe('local after pull started');
+  expect(stored.entries.map(e => e.date)).toEqual(['2026-09-01', '2026-09-02']);
+  expect(stored.entries[0].markers['lipids.apoB']).toBe(1.1);
+  state.importedData.contextNotes = 'typed while chat sync awaited';
+  refreshActiveProfileAfterPull({ profileId, merged: pull.merged, dataAlreadyApplied: true, localDataChanged: false });
+  expect(state.importedData.contextNotes).toBe('typed while chat sync awaited');
+  expect(await saveImportedData()).toBe(true);
+  expect((await read()).contextNotes).toBe('typed while chat sync awaited');
+});
+
+it('keeps a save queued behind an in-flight pull and preserves both changes', async () => {
+  const remote = structuredClone(state.importedData); remote.entries.push(entry('2026-09-02', { 'lipids.apoB': .9 }));
+  const pull = await mergePulledImportedData(profileId, remote);
+  const original = crypto.encryptedSetItem;
+  let release, entered;
+  const writing = new Promise(resolve => entered = resolve);
+  vi.spyOn(crypto, 'encryptedSetItem').mockImplementationOnce(async (...args) => {
+    entered(); await new Promise(resolve => release = resolve); return original(...args);
+  });
+  const pendingPull = persistPulledImportedData(key, profileId, pull.merged, Date.now());
+  await writing;
+  state.importedData.contextNotes = 'edited during persistence';
+  const pendingSave = saveImportedData();
+  release(); await pendingPull; expect(await pendingSave).toBe(true);
+  const stored = await read();
+  expect(stored.contextNotes).toBe('edited during persistence');
+  expect(stored.entries.map(e => e.date)).toEqual(['2026-09-01', '2026-09-02']);
+});
+
+it('reads newer stored fields even when the active tab started from an older baseline', async () => {
+  const live = state.importedData; rememberProfileData(live);
+  const otherTab = structuredClone(live); otherTab.entries.push(entry('2026-09-03', { 'lipids.apoB': 1.2 }));
+  await crypto.encryptedSetItem(key, JSON.stringify(otherTab));
+  const remote = structuredClone(live); remote.entries.push(entry('2026-09-02', { 'lipids.apoB': .9 }));
+  const pull = await mergePulledImportedData(profileId, remote);
+  await persistPulledImportedData(key, profileId, pull.merged, Date.now());
+  expect((await read()).entries.map(e => e.date).sort()).toEqual(['2026-09-01', '2026-09-02', '2026-09-03']);
+});
+
+it('reports success after durable persistence even when a post-save sync hook fails', async () => {
+  vi.spyOn(sync, 'onDataSaved').mockImplementation(() => { throw new Error('post-save hook failed'); });
+  state.importedData.contextNotes = 'durable edit';
+  expect(await saveImportedData()).toBe(true);
+  expect((await read()).contextNotes).toBe('durable edit');
+});
+
+it('preserves split same-day panels while merging concurrent lab additions', () => {
+  const base = { entries: [entry('2026-09-01', { a: 1 }), entry('2026-09-01', { b: 2 })] };
+  const a = structuredClone(base), b = structuredClone(base);
+  a.entries.push(entry('2026-09-02', { a: 3 }));
+  b.entries.push(entry('2026-09-03', { a: 4 }));
+  expect(mergeProfileMutation(base, b, a).entries).toEqual([
+    entry('2026-09-01', { a: 1, b: 2 }), entry('2026-09-02', { a: 3 }), entry('2026-09-03', { a: 4 }),
+  ]);
+  const refs = [...base.entries];
+  adoptProfileData(base, structuredClone(base));
+  expect(base.entries[0]).toBe(refs[0]); expect(base.entries[1]).toBe(refs[1]);
+  expect(base.entries.map(e => e.markers)).toEqual([{a:1},{b:2}]);
+});
+
+it('a failed pull write leaves live data intact and releases the lock for a later save', async () => {
+  const remote = structuredClone(state.importedData); remote.contextNotes = 'remote';
+  const pull = await mergePulledImportedData(profileId, remote);
+  const before = JSON.stringify(state.importedData);
+  vi.spyOn(crypto, 'encryptedSetItem').mockRejectedValueOnce(new Error('storage unavailable'));
+  await expect(persistPulledImportedData(key, profileId, pull.merged, Date.now())).rejects.toThrow('storage unavailable');
+  expect(JSON.stringify(state.importedData)).toBe(before);
+  expect((await read()).contextNotes).toBe('original');
+  state.importedData.contextNotes = 'recovered';
+  expect(await saveImportedData()).toBe(true);
+  expect((await read()).contextNotes).toBe('recovered');
+});
+
+it('a failed initial pull read cannot replace unreadable local data', async () => {
+  vi.spyOn(crypto, 'encryptedGetItem').mockRejectedValueOnce(new Error('read unavailable'));
+  await expect(mergePulledImportedData(profileId, {entries:[]})).rejects.toThrow('read unavailable');
+  expect((await read()).entries).toHaveLength(1);
+});

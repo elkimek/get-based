@@ -80,7 +80,7 @@ function formatBiologicalCoherenceLine(score) {
   const missing = shortList((score.missing || []).map(item => item.label), 3);
   let line = `- Biological Coherence: ${scoreText}, ${toneText}, ${coverageText}; ${score.scoreConfidenceLabel}; ${score.attention || score.scoreConfidenceWarning || ''}`;
   if (domainSummary) line += `; ${domainSummary}`;
-  if (weakest.length) line += `; weakest domains: ${weakest.join(', ')}`;
+  if (weakest.length && !score.attention) line += `; weakest domains: ${weakest.join(', ')}`;
   if (missing) line += `; missing domains: ${missing}`;
   return line;
 }

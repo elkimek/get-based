@@ -197,8 +197,26 @@ describe('AI Markdown rendering paths', () => {
     const emfInterpretation = fs.readFileSync(path.join(ROOT, 'js', 'emf-interpretation.js'), 'utf8');
 
     expect(biologySections).toContain('renderMarkdown(cached)');
-    expect(biologyScores).toContain('answerEl.innerHTML = renderMarkdown(answer)');
+    expect(biologyScores).toContain('replaceScoreMarkup(panel, renderScoreAIAnswer(current))');
     expect(emfInterpretation).toContain('body.innerHTML = renderMarkdown(clean)');
     expect(emfInterpretation).toContain('body.innerHTML = finalText ? renderMarkdown(finalText)');
   });
+});
+
+it('keeps saved Biology interpretation and summary payloads inert in rendered cards', async () => {
+  const { state } = await import('../js/state.js');
+  const { renderScoreAIAnswer, renderScoreAISummary } = await import('../js/biology-score-sections.js');
+  const previous = state.importedData;
+  const score = { id: 'markdown-security', available: [], missing: [], flags: [], profileContext: {} };
+  try {
+    state.importedData = { biologyScoreAI: { [score.id]: {
+      text: '**Safe emphasis**\n\n<img src=x onerror=alert(1)>\n\n[bad](javascript:alert(1))',
+      summary: '<svg onload=alert(1)>Summary</svg>', updatedAt: 1,
+    } } };
+    const root = document.createElement('div');
+    root.innerHTML = renderScoreAIAnswer(score) + renderScoreAISummary(score);
+    expect(root.querySelector('strong')?.textContent).toBe('Safe emphasis');
+    expect(root.querySelector('img, svg, script, [onload], [onerror], a[href^="javascript:"]')).toBeNull();
+    expect(root.textContent).toContain('<svg onload=alert(1)>Summary</svg>');
+  } finally { state.importedData = previous; }
 });

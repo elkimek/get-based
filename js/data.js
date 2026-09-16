@@ -1,7 +1,7 @@
 // @ts-check
 // data.js — Data pipeline, unit conversion, date range, trend detection
 
-import { queueProfileDataWrite, profileDataBaseline, rememberProfileData, mergeProfileMutation } from './profile-data-writes.js';
+import { queueProfileDataWrite, profileDataBaseline, rememberProfileData, mergeProfileMutation, adoptProfileData } from './profile-data-writes.js';
 import { mergeBiologyScoreAIRecords } from './biology-score-persistence.js';
 import { isProfileReadBlocked } from './profile-load-safety.js';
 import { state } from './state.js';
@@ -306,8 +306,7 @@ function persistProfileSnapshot(profileId, source, options) {
         const live = state.importedData;
         const merged = mergeProfileMutation(options.activeSave ? intent : profileDataBaseline(live) || base, live, persisted);
         if (persisted.biologyScoreAI) merged.biologyScoreAI = persisted.biologyScoreAI;
-        for (const key of Object.keys(live)) if (!Object.hasOwn(merged, key)) delete live[key];
-        Object.assign(live, merged);
+        adoptProfileData(live, merged);
         rememberProfileData(live, persisted);
         invalidateActiveDataCache();
       }

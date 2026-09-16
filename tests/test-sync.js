@@ -1542,7 +1542,7 @@ await import('../js/settings.js');
     !/if\s*\(\s*remoteUpdated\s*<\s*localUpdated\s*\)/.test(syncPullSrc),
     'skip-decisions before merge regress to clock-skew/stale-hash bugs');
   assert('onSyncReceived guards on _pulling', syncPullSrc.includes('_pulling') && syncPullSrc.includes('_pulling = true'));
-  assert('Pull handles encryption', syncPullMergeSrc.includes('getEncryptionEnabled()') && syncPullMergeSrc.includes('encryptedSetItem(localKey'));
+  assert('Pull handles encryption', syncPullMergeSrc.includes('await encryptedGetItem(localKey)') && syncPullMergeSrc.includes('encryptedSetItem(localKey'));
   assert('Pull merges profiles with allowlist', syncPullMergeSrc.includes('SYNC_PROFILE_FIELDS') && syncPullMergeSrc.includes('saveProfiles(profiles)'));
   // v1.7.4: pull re-renders whatever view the user is on, not just dashboard
   // (so a Light & Sun page picks up newly-merged sun sessions immediately
@@ -1928,7 +1928,7 @@ await import('../js/settings.js');
   // `-imported` keys to IndexedDB); the preserve-before-write invariant
   // applies to whichever underlying setter is used.
   const preserveIdx = syncPullMergeSrc.indexOf('importedData.wearableConnections = localWearableConnections');
-  const writeIdx = syncPullMergeSrc.indexOf('encryptedSetItem(localKey, importedJson)');
+  const writeIdx = syncPullMergeSrc.indexOf('encryptedSetItem(localKey, JSON.stringify(committed))');
   assert('Preserve runs before localStorage write', preserveIdx > 0 && preserveIdx < writeIdx,
     `preserve at ${preserveIdx}, write at ${writeIdx}`);
 

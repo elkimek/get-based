@@ -183,7 +183,7 @@ const pdfImportNormalizationSrc = read('js/pdf-import-marker-normalization.js');
   // ═══════════════════════════════════════
   console.log('%c 5. Custom Marker Icon Support ', 'font-weight:bold;color:#f59e0b');
 
-  assert('data.js uses def.icon for custom category icon', dataSrc.includes("def.icon || _inferIcon(_label) || '\\uD83D\\uDD16'"));
+  assert('custom marker merge uses def.icon for custom category icon', fs.readFileSync(new URL('../js/data-custom-markers.js', import.meta.url), 'utf8').includes("def.icon || _inferIcon(_label) || '\\uD83D\\uDD16'"));
 
   // ═══════════════════════════════════════
   // 6. PDF Import: specialty reference + auto-create custom markers

@@ -165,3 +165,28 @@ test('score controls have independent keyboard actions and valid accessible stat
     await toggle.click();
   }
 });
+
+test('two tabs preserve independent lab additions and edits through reload', async ({ page }) => {
+  await prepareDemoProfile(page);
+  const other = await page.context().newPage(); await prepareDemoProfile(other);
+  // Capture both stale intents before either tab writes.
+  for (const [tab, date, value] of [[page, '2026-09-14', .7], [other, '2026-09-15', .8]]) {
+    await tab.evaluate(async ({date, value}) => {
+      const {state} = await import('/js/state.js');
+      const {profileDataBaseline} = await import('/js/profile-data-writes.js');
+      globalThis.staleProfileBaseline = structuredClone(profileDataBaseline(state.importedData));
+      globalThis.staleProfileIntent = structuredClone(state.importedData);
+      globalThis.staleProfileIntent.entries.push({date, markers: {'lipids.apoB': value}});
+    }, {date, value});
+  }
+  await Promise.all([page, other].map(tab => tab.evaluate(async () => {
+    const {state} = await import('/js/state.js');
+    const saved = await (await import('/js/data.js')).saveImportedDataForProfile(state.currentProfile, globalThis.staleProfileIntent, {baseData: globalThis.staleProfileBaseline, forceProfileScope: true});
+    if (!saved) throw new Error('Concurrent lab save failed');
+  })));
+  await other.reload(); await prepareDemoProfile(other);
+  expect(await other.evaluate(async () => (await import('/js/state.js')).state.importedData.entries
+    .filter(e => ['2026-09-14', '2026-09-15'].includes(e.date)).sort((a,b) => a.date.localeCompare(b.date))
+    .map(e => ({date:e.date, value:e.markers['lipids.apoB']})))).toEqual([{date:'2026-09-14',value:.7},{date:'2026-09-15',value:.8}]);
+  await other.close();
+});

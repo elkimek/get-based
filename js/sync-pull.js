@@ -369,7 +369,7 @@ async function receiveSync() {
         // persistence/render so an old local row cannot recreate a pulse the
         // user deleted on another device.
         await _reconcilePulledManualWearables(profileId, merged);
-        await persistPulledImportedData(localKey, profileId, merged, remoteUpdated);
+        const committedPull = await persistPulledImportedData(localKey, profileId, merged, remoteUpdated);
         if (restoreJoinApplied) clearRestoreJoinPending();
 
         if (await mergePulledProfile(profileId, profile)) {
@@ -391,6 +391,7 @@ async function receiveSync() {
           remoteBroughtNewRows,
           localDataChanged,
           localCommitEcho,
+          dataAlreadyApplied: true,
           debug: dbg,
         })) {
           dbg('Pulled profile:', profileId);
@@ -398,7 +399,7 @@ async function receiveSync() {
 
         maybeScheduleRebroadcast({
           profileId,
-          needsRebroadcast: needsRebroadcast || await chatDataNeedsRebroadcast(profileId, chatData),
+          needsRebroadcast: needsRebroadcast || committedPull.needsRebroadcast || await chatDataNeedsRebroadcast(profileId, chatData),
           pushProfile: _pushProfile,
           readProfileData: readProfileImportedData,
           debug: dbg,

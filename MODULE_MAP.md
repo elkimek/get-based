@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 779 |
-| Internal import edges | 3293 |
+| Internal import edges | 3296 |
 | Dynamic internal edges | 114 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -68,7 +68,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/state.js`](js/state.js) | 195 | [`js/chat-send.js`](js/chat-send.js) | 42 |
 | [`js/caught-error.js`](js/caught-error.js) | 88 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 81 | [`js/settings.js`](js/settings.js) | 30 |
-| [`js/data.js`](js/data.js) | 78 | [`js/sync-configure.js`](js/sync-configure.js) | 28 |
+| [`js/data.js`](js/data.js) | 79 | [`js/sync-configure.js`](js/sync-configure.js) | 28 |
 | [`js/profile.js`](js/profile.js) | 49 | [`js/pdf-import.js`](js/pdf-import.js) | 27 |
 | [`js/api.js`](js/api.js) | 46 | [`js/wearables-connect.js`](js/wearables-connect.js) | 27 |
 | [`js/schema.js`](js/schema.js) | 39 | [`js/lab-context.js`](js/lab-context.js) | 24 |
@@ -963,7 +963,7 @@ Native browser modules shipped with the static application.
 
 - [`js/profile-context.js`](js/profile-context.js) → [`js/context-source-registry.js`](js/context-source-registry.js), [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js)
 - [`js/profile-data-migrations.js`](js/profile-data-migrations.js) → [`js/adapters.js`](js/adapters.js), [`js/context-source-registry.js`](js/context-source-registry.js), [`js/custom-marker-identity.js`](js/custom-marker-identity.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/light-env-evening.js`](js/light-env-evening.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/profile-import-provenance.js`](js/profile-import-provenance.js), [`js/profile-marker-migrations.js`](js/profile-marker-migrations.js), [`js/schema.js`](js/schema.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js)
-- [`js/profile-data-writes.js`](js/profile-data-writes.js) → no in-scope imports
+- [`js/profile-data-writes.js`](js/profile-data-writes.js) → [`js/sync-delta-surface-config.js`](js/sync-delta-surface-config.js)
 - [`js/profile-fatty-acid-migrations.js`](js/profile-fatty-acid-migrations.js) → [`js/adapters.js`](js/adapters.js)
 - [`js/profile-import-provenance.js`](js/profile-import-provenance.js) → [`js/schema.js`](js/schema.js)
 - [`js/profile-list-store.js`](js/profile-list-store.js) → [`js/crypto.js`](js/crypto.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
@@ -1240,7 +1240,7 @@ Native browser modules shipped with the static application.
 - [`js/sync-pull-active-refresh-runtime.js`](js/sync-pull-active-refresh-runtime.js) → no in-scope imports
 - [`js/sync-pull-active-refresh.js`](js/sync-pull-active-refresh.js) → [`js/profile-data-writes.js`](js/profile-data-writes.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sync-pull-active-refresh-runtime.js`](js/sync-pull-active-refresh-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/sync-pull-maintenance.js`](js/sync-pull-maintenance.js) → no in-scope imports
-- [`js/sync-pull-merge.js`](js/sync-pull-merge.js) → [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js), [`js/biology-score-persistence.js`](js/biology-score-persistence.js), [`js/caught-error.js`](js/caught-error.js), [`js/clear-all-profile-reset.js`](js/clear-all-profile-reset.js) *(dynamic)*, [`js/crypto.js`](js/crypto.js), [`js/data-merge.js`](js/data-merge.js), [`js/nutrition-sync-sanitize.js`](js/nutrition-sync-sanitize.js), [`js/profile-sync-policy.js`](js/profile-sync-policy.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sync-delta.js`](js/sync-delta.js), [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-profile-fields.js`](js/sync-profile-fields.js)
+- [`js/sync-pull-merge.js`](js/sync-pull-merge.js) → [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js), [`js/biology-score-persistence.js`](js/biology-score-persistence.js), [`js/caught-error.js`](js/caught-error.js), [`js/clear-all-profile-reset.js`](js/clear-all-profile-reset.js) *(dynamic)*, [`js/crypto.js`](js/crypto.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/nutrition-sync-sanitize.js`](js/nutrition-sync-sanitize.js), [`js/profile-data-writes.js`](js/profile-data-writes.js), [`js/profile-sync-policy.js`](js/profile-sync-policy.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sync-delta.js`](js/sync-delta.js), [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-profile-fields.js`](js/sync-profile-fields.js)
 - [`js/sync-pull-rebroadcast.js`](js/sync-pull-rebroadcast.js) → [`js/state.js`](js/state.js), [`js/sync-state.js`](js/sync-state.js)
 - [`js/sync-pull.js`](js/sync-pull.js) → [`js/nutrition-sync-sanitize.js`](js/nutrition-sync-sanitize.js), [`js/profile-sync-policy.js`](js/profile-sync-policy.js), [`js/routstr-session.js`](js/routstr-session.js), [`js/sync-apply.js`](js/sync-apply.js) *(dynamic)*, [`js/sync-backup-restore-state.js`](js/sync-backup-restore-state.js), [`js/sync-chat-apply.js`](js/sync-chat-apply.js), [`js/sync-identity.js`](js/sync-identity.js), [`js/sync-origin-state.js`](js/sync-origin-state.js), [`js/sync-payload.js`](js/sync-payload.js), [`js/sync-pull-active-refresh.js`](js/sync-pull-active-refresh.js), [`js/sync-pull-maintenance.js`](js/sync-pull-maintenance.js), [`js/sync-pull-merge.js`](js/sync-pull-merge.js), [`js/sync-pull-rebroadcast.js`](js/sync-pull-rebroadcast.js), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync-state.js`](js/sync-state.js), [`js/sync-tombstones.js`](js/sync-tombstones.js)
 - [`js/sync-push-deltas.js`](js/sync-push-deltas.js) → [`js/caught-error.js`](js/caught-error.js), [`js/data-merge.js`](js/data-merge.js), [`js/sync-delta.js`](js/sync-delta.js)

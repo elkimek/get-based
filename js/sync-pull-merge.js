@@ -1,13 +1,15 @@
 // @ts-check
 // sync-pull-merge.js - inbound row recovery and importedData merge helpers.
 
+import { queueProfileDataWrite, profileDataBaseline, mergeProfileMutation, adoptProfileData, rememberProfileData } from './profile-data-writes.js';
 import { mergeBiologyScoreAIRecords } from './biology-score-persistence.js';
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
+import { invalidateActiveDataCache } from './data.js';
 import {
   getProfiles, loadProfile, migrateProfileData, profileStorageKey, saveProfiles,
 } from './profile.js';
-import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem } from './crypto.js';
+import { encryptedSetItem, encryptedGetItem } from './crypto.js';
 import { mergeImportedData, localHasRowsRemoteLacks, preserveFreshLocalLabEntries } from './data-merge.js';
 import { parseSyncPayload } from './sync-payload.js';
 import { _mergeItemRowsIntoImported } from './sync-delta.js';
@@ -16,6 +18,8 @@ import { CONTEXT_REVIEW_RANGES } from './biology-score-context-ai.js';
 import { SYNC_PROFILE_FIELDS } from './sync-profile-fields.js';
 import { isDemoProfileRecord } from './profile-sync-policy.js';
 import { sanitizeNutritionProfileData } from './nutrition-sync-sanitize.js';
+
+const pullBaselines = new WeakMap();
 
 export const PROFILE_ID_RE = /^[a-zA-Z0-9_-]+$/;
 
@@ -75,17 +79,6 @@ export async function prepareSyncPullRows(rawRows) {
   return dedupeSyncPullRows(await recoverSyncPullRows(rawRows));
 }
 
-async function readStoredImportedData(localKey, debug, label) {
-  try {
-    const rawLocal = getEncryptionEnabled()
-      ? await encryptedGetItem(localKey)
-      : localStorage.getItem(localKey);
-    return rawLocal ? JSON.parse(rawLocal) : null;
-  } catch (e) {
-    try { debug?.(`Could not read local importedData for ${label}:`, getErrorMessage(e)); } catch {}
-    return null;
-  }
-}
 
 function countArray(b, k) {
   return Array.isArray(b?.[k]) ? b[k].length : 0;
@@ -186,11 +179,16 @@ function preserveLocalOnlyProfileData(merged, localImported) {
 
 /** @param {{ debug?: (...args: any[]) => any, remoteUpdated?: number }} [options] */
 export async function mergePulledImportedData(profileId, importedData, options = {}) {
-  const { debug, remoteUpdated = 0 } = options;
+  const { remoteUpdated = 0 } = options;
   const localKey = profileStorageKey(profileId, 'imported');
-  const localImportedForMerge = profileId === state.currentProfile
-    ? (state.importedData || null)
-    : await readStoredImportedData(localKey, debug, 'merge');
+  // Capture durable and live baselines before asynchronous row overlays. Read
+  // errors must abort rather than letting a pull replace unreadable local data.
+  const rawStored = await encryptedGetItem(localKey);
+  const stored = rawStored ? JSON.parse(rawStored) : null;
+  const live = profileId === state.currentProfile ? structuredClone(state.importedData || null) : null;
+  const baseline = profileId === state.currentProfile ? profileDataBaseline(state.importedData) : null;
+  const localImportedForMerge = live && baseline && stored
+    ? mergeProfileMutation(baseline, live, stored) : (live || stored);
   const localImportedBeforeMerge = importedDataSnapshot(localImportedForMerge);
   const restoreJoinApplied = profileId === state.currentProfile && isRestoreJoinPending();
   const localBaselineForMerge = restoreJoinApplied
@@ -256,6 +254,7 @@ export async function mergePulledImportedData(profileId, importedData, options =
     && localHasRowsRemoteLacks(importedData, localImportedForMerge);
   const localDataChanged = !importedDataMatches(localImportedBeforeMerge, merged);
 
+  pullBaselines.set(merged, { stored, live });
   return {
     localKey,
     localImportedForMerge,
@@ -269,12 +268,30 @@ export async function mergePulledImportedData(profileId, importedData, options =
 }
 
 export async function persistPulledImportedData(localKey, profileId, merged, remoteUpdated) {
-  // Always go through encryptedSetItem - it routes big-blob `-imported`
-  // keys to IndexedDB regardless of encryption state. Bypassing this
-  // re-introduces the 5 MB quota wall.
-  const importedJson = JSON.stringify(merged);
-  await encryptedSetItem(localKey, importedJson);
-  localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(remoteUpdated));
+  return queueProfileDataWrite(profileId, async () => {
+    const baseline = pullBaselines.get(merged);
+    const raw = await encryptedGetItem(localKey);
+    const latest = raw ? JSON.parse(raw) : null;
+    // Rebase edits committed while the row overlay was running, under the same
+    // lock as ordinary saves. Local changes since the pull began take priority.
+    let committed = baseline ? mergeProfileMutation(baseline.stored || {}, latest || {}, merged) : structuredClone(merged);
+    const liveBeforeWrite = profileId === state.currentProfile ? structuredClone(state.importedData || null) : null;
+    if (baseline?.live && liveBeforeWrite) committed = mergeProfileMutation(baseline.live, liveBeforeWrite, committed);
+    preserveFreshLocalBiologyScoreAI(committed, latest, null);
+    migrateProfileData(committed);
+    await encryptedSetItem(localKey, JSON.stringify(committed));
+    localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(remoteUpdated));
+    const needsRebroadcast = !importedDataMatches(importedDataSnapshot(merged), committed);
+    adoptProfileData(merged, committed);
+    if (profileId === state.currentProfile && state.importedData) {
+      const live = state.importedData;
+      const adopted = liveBeforeWrite ? mergeProfileMutation(liveBeforeWrite, live, committed) : committed;
+      adoptProfileData(live, adopted);
+      rememberProfileData(live, committed);
+      invalidateActiveDataCache();
+    }
+    return { needsRebroadcast };
+  });
 }
 
 export async function mergePulledProfile(profileId, profile) {

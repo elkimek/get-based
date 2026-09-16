@@ -727,6 +727,14 @@
     "js/voice-service.js",
     "js/voice-settings-schema.js",
     "js/voice-settings-storage.js",
-    "js/voice-text.js"
+    "js/voice-text.js",
+    "js/biology-score-contract.js",
+    "js/biology-score-dates.js",
+    "js/biology-score-inputs.js",
+    "js/biology-score-methodology.js",
+    "js/biology-score-panel-policy.js",
+    "js/biology-score-persistence.js",
+    "js/data-custom-markers.js",
+    "js/profile-data-writes.js"
   ]
 }

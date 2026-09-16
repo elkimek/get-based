@@ -869,7 +869,7 @@ assert('score detail preserves ranges dates and contribution with optional metho
 
 const lensWidgets = getBiologyScoreLensWidgets({ data });
 assert('lens keeps a stable order across changing score values', lensWidgets.map(w => w.id).join('|') === scores.filter(s => s.id !== 'biologicalCoherence').map(s => `biology-score-detail-${s.id}`).join('|'));
-assert('all individual scores remain discoverable as compact rows', lensWidgets.length === 18 && lensWidgets.every(w => w.body.includes('<details class="biology-score-detail')));
+assert('all individual scores remain discoverable as compact rows', lensWidgets.length === 18 && lensWidgets.every(w => w.body.includes('<article class="biology-score-detail')));
 assert('lens widget dashboard ids match score ids', lensWidgets.some(w => w.id === 'biology-score-detail-metabolicFlexibility' && w.opts.dashboardId === 'biology-score-metabolicFlexibility'));
 const coherenceTopDomains = [...byId.biologicalCoherence.available].sort((a, b) => Number(b.partial || 0) - Number(a.partial || 0));
 assert('biological coherence hero domain rows link to primary score anchors', coherenceTopDomains.every(d => !d.primaryScoreId || lensHtml.includes(`data-biology-score-action="jump-to-domain" data-biology-score-id="${d.primaryScoreId}"`)), JSON.stringify(coherenceTopDomains.map(d => [d.label, d.primaryScoreId])));
@@ -951,7 +951,7 @@ const changedThyroidForAI = { ...byId.thyroidCoherence, score: Math.max(0, byId.
 assert('Biology Score AI cache survives non-material score/confidence recomputation after reload',
   renderScoreAIAnswer(changedThyroidForAI).includes('<strong>sensitive thyroid</strong> interpretation'),
   renderScoreAIAnswer(changedThyroidForAI));
-const changedThyroidMarkerForAI = { ...byId.thyroidCoherence, available: byId.thyroidCoherence.available.map((item, idx) => idx === 0 ? { ...item, displayValue: `${item.displayValue}-changed` } : item) };
+const changedThyroidMarkerForAI = { ...byId.thyroidCoherence, available: byId.thyroidCoherence.available.map((item, idx) => idx === 0 ? { ...item, value: Number(item.value) + 1, canonicalValue: Number(item.canonicalValue ?? item.value) + 1 } : item) };
 assert('Biology Score AI cache keeps last user-generated answer for that score until refresh explanation is clicked and marks material drift stale',
   renderScoreAIAnswer(changedThyroidMarkerForAI).includes('<strong>sensitive thyroid</strong> interpretation')
   && renderScoreAIAnswer(changedThyroidMarkerForAI).includes('Changed since this explanation: marker results or their interpretation.'),
@@ -977,8 +977,8 @@ assert('Biology Scores delegates browser globals to runtime adapter',
     !biologyScoresRuntimeSrc.includes('getViewRuntimeFunction'),
   biologyScoresSrc.slice(0, 1800));
 assert('refreshing a stale Biology Score AI explanation removes the stale warning in-place',
-  biologyScoresSrc.includes('panel.outerHTML = renderScoreAIAnswer(current)')
-  && biologyScoresSrc.includes('currentTeaser.outerHTML = renderScoreAISummary(current)'),
+  biologyScoresSrc.includes('replaceScoreMarkup(panel, renderScoreAIAnswer(current))')
+  && biologyScoresSrc.includes('replaceScoreMarkup(currentTeaser, renderScoreAISummary(current))'),
   biologyScoresSrc.slice(biologyScoresSrc.indexOf('async function runEmbeddedScoreAI'), biologyScoresSrc.indexOf('async function runEmbeddedScoreAI') + 900));
 assert('refreshing a Biology Score uses the combined assessment while retaining truthful date filtering',
   biologyScoresSrc.includes('computeBiologyScoreAssessments(rawData).find(item => item.id === scoreId)')

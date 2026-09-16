@@ -1165,88 +1165,6 @@ button.biology-score-token:focus-visible {
   font-size: 12px;
   line-height: 1.45;
 }
-.biology-context-status-strip {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px 10px;
-  margin: 0 0 12px;
-  padding: 8px 10px;
-  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
-  border-radius: calc(var(--radius) - 6px);
-  background: color-mix(in srgb, var(--bg-card) 86%, transparent);
-}
-.biology-context-status-strip span {
-  color: var(--text-primary);
-  font-weight: 700;
-  font-size: 13px;
-}
-.biology-context-status-strip small,
-.biology-context-status-strip summary {
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-.biology-context-status-copy {
-  display: flex;
-  min-width: 0;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.biology-context-status-copy small {
-  padding: 2px 7px;
-  border: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-secondary) 62%, transparent);
-}
-.biology-context-status-strip details {
-  justify-self: end;
-}
-.biology-context-status-strip details[open] {
-  grid-column: 1 / -1;
-  justify-self: stretch;
-}
-.biology-context-status-strip details[open] summary {
-  width: fit-content;
-  margin-left: auto;
-}
-.biology-context-status-strip summary {
-  cursor: pointer;
-  font-weight: 700;
-}
-.biology-context-status-strip summary::-webkit-details-marker { display: none; }
-.biology-context-status-strip summary::marker { content: ''; }
-.biology-context-review-cta {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: auto;
-  min-height: 28px;
-  padding: 4px 10px;
-  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
-  color: var(--text-primary);
-  font-weight: 700;
-  line-height: 1.2;
-}
-.biology-context-review-cta::after {
-  content: '+';
-  margin-left: 6px;
-  font-size: 12px;
-  opacity: 0.72;
-}
-.biology-context-status-strip details[open] .biology-context-review-cta::after {
-  content: '−';
-}
-.biology-context-review-close { display: none; }
-.biology-context-status-strip details[open] .biology-context-review-open { display: none; }
-.biology-context-status-strip details[open] .biology-context-review-close { display: inline; }
-.biology-context-status-strip .biology-context-ai-panel {
-  width: 100%;
-  margin: 10px 0 0;
-  border-radius: var(--radius);
-}
 .biology-score-coverage-planner {
   display: grid;
   gap: 12px;
@@ -1375,10 +1293,6 @@ button.biology-score-token:focus-visible {
   .biology-coverage-bundle-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 760px) {
-  .biology-context-status-strip { grid-template-columns: 1fr; align-items: stretch; }
-  .biology-context-status-strip details { width: 100%; justify-self: stretch; }
-  .biology-context-status-strip details[open] summary { margin-left: 0; }
-  .biology-context-review-cta { width: 100%; }
   .biology-score-action-summary,
   .biology-score-coverage-head,
   .biology-score-coverage-title-row { grid-template-columns: 1fr; }
@@ -1896,13 +1810,9 @@ button.biology-score-token:focus-visible {
 .biology-score-summary { display: flex; align-items: center; gap: 20px; padding: 20px; cursor: pointer; list-style: none; }
 .biology-score-summary::-webkit-details-marker { display: none; }
 .biology-score-summary-copy { display: grid; gap: 7px; flex: 1; min-width: 0; }
-.biology-score-summary-copy > strong { font-size: 17px; color: var(--text); }
+.biology-score-summary-copy > strong { font-size: 17px; color: var(--text-primary); }
 .biology-score-summary-copy > span { font-size: 14px; line-height: 1.5; color: var(--text-secondary); }
 .biology-score-summary-copy > small { font-size: 12px; color: var(--text-muted); }
-.biology-score-summary-value { flex-shrink: 0; font-size: 30px; font-weight: 650; text-align: right; color: var(--text); }
-.biology-score-summary-value small { display: block; font-size: 12px; font-weight: 400; color: var(--text-muted); }
-.biology-score-summary-chevron { color: var(--text-muted); transition: transform .15s; }
-.biology-score-compact[open] > .biology-score-summary .biology-score-summary-chevron { transform: rotate(180deg); }
 .biology-score-expanded { min-width: 0; max-width: 100%; padding: 0 20px 20px; border-top: 1px solid var(--border); }
 .biology-score-detail-tools { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .biology-score-marker-section h4 { margin: 22px 0 10px; font-size: 14px; }
@@ -1915,10 +1825,6 @@ button.biology-score-token:focus-visible {
 .biology-score-methodology, .biology-score-ai-details { margin-top: 20px; font-size: 14px; line-height: 1.6; }
 .biology-score-methodology summary, .biology-score-ai-details summary, .biology-coherence-breakdown summary, .biology-score-coverage-planner > summary, .biology-score-action-summary > summary, .biology-context-review-details > summary { cursor: pointer; font-weight: 500; font-size: 14px; padding: 8px 0; }
 .biology-score-flags { font-size: 13px; line-height: 1.6; }
-.biology-coherence-quiet { display: grid; grid-template-columns: 1fr auto; gap: 16px; margin: 18px 0; padding: 22px; }
-.biology-coherence-quiet h2 { font-size: 19px; margin: 0 0 8px; }
-.biology-coherence-quiet p { font-size: 14px; line-height: 1.5; margin: 8px 0; }
-.biology-coherence-quiet small { font-size: 12px; color: var(--text-muted); }
 .biology-coherence-breakdown { grid-column: 1 / -1; }
 .biology-score-context-fields { display: grid; gap: 10px; margin: 16px 0; font-size: 14px; }
 .biology-score-context-fields label { display: flex; align-items: center; gap: 10px; }
@@ -1929,9 +1835,7 @@ button.biology-score-token:focus-visible {
 @media (max-width: 600px) {
   .biology-score-summary { padding: 16px 12px; gap: 12px; align-items: flex-start; }
   .biology-score-summary-copy > strong { font-size: 16px; }
-  .biology-score-summary-value { font-size: 25px; }
   .biology-score-expanded { min-width: 0; max-width: 100%; padding: 0 12px 16px; }
-  .biology-coherence-quiet { padding: 16px; }
 }
 
 /* Keep the score itself visible; disclosures hold the explanation, not the overview. */

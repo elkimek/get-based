@@ -40,6 +40,7 @@ function hasOpenModalOverlay() {
  *   profileId?: string,
  *   merged?: any,
  *   chatApplied?: boolean,
+ *   dataAlreadyApplied?: boolean,
  *   remoteBroughtNewRows?: boolean,
  *   localDataChanged?: boolean,
  *   localCommitEcho?: boolean,
@@ -50,6 +51,7 @@ export function refreshActiveProfileAfterPull({
   profileId,
   merged,
   chatApplied,
+  dataAlreadyApplied = false,
   remoteBroughtNewRows,
   localDataChanged,
   localCommitEcho,
@@ -61,9 +63,11 @@ export function refreshActiveProfileAfterPull({
     ? localDataChanged
     : !!remoteBroughtNewRows;
 
-  state.importedData = merged;
-  migrateProfileData(state.importedData);
-  rememberProfileData(state.importedData);
+  if (!dataAlreadyApplied) {
+    state.importedData = merged;
+    migrateProfileData(state.importedData);
+    rememberProfileData(state.importedData);
+  }
 
   // Reload chat threads + active thread messages into memory and re-render.
   if (chatApplied) {
