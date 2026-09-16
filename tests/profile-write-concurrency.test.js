@@ -241,3 +241,18 @@ it('captures a coherent pull baseline when a local save starts during the storag
   await persistPulledImportedData(key, profileId, pull.merged, Date.now());
   expect((await read()).contextNotes).toBe('Typed during initial pull read');
 });
+
+it('persists remote wearable metrics while invalidating only a deleted manual latest reading', async () => {
+  const remote = structuredClone(state.importedData);
+  remote.manualMetricTombstones = { 'rhr.2026-08-12': Date.now() };
+  const steps = { latest: 8200, latestDate: '2026-08-13', primarySource: 'oura' };
+  remote.wearableSummary = { sources: { oura: { coverageDays: 40 } }, metrics: {
+    steps, rhr: { latest: 61, latestDate: '2026-08-12', primarySource: 'manual' },
+  } };
+  const pull = await mergePulledImportedData(profileId, remote);
+  const { reconcilePulledManualWearables } = await import('../js/profile-runtime.js');
+  expect(await reconcilePulledManualWearables(profileId, pull.merged)).toBe(true);
+  await persistPulledImportedData(key, profileId, pull.merged, Date.now());
+  expect((await read()).wearableSummary).toEqual({ sources: remote.wearableSummary.sources, metrics: { steps } });
+  expect(state.importedData.wearableSummary.metrics).toEqual({ steps });
+});

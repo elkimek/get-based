@@ -168,7 +168,7 @@ describe('durable manual heart-rate deletion', () => {
     ]);
   });
 
-  it('applies a pulled deletion before rebuilding the receiving device summary', async () => {
+  it('applies a pulled deletion to the draft before it is committed', async () => {
     await upsertDaily(PROFILE_ID, { source: 'manual', date: '2026-08-12', rhr: 61 });
     const merged = {
       ...state.importedData,
@@ -187,6 +187,34 @@ describe('durable manual heart-rate deletion', () => {
     expect(await getDaily(PROFILE_ID, 'manual', '2026-08-12')).toBeNull();
     expect(merged.biometrics.pulse).toEqual([]);
     expect(merged.wearableSummary.metrics.rhr).toBeUndefined();
+  });
+
+  for (const hasLocalRow of [true, false]) it(`preserves remote wearable metrics while pruning a deleted manual latest value (local row: ${hasLocalRow})`, async () => {
+    if (hasLocalRow) await upsertDaily(PROFILE_ID, { source: 'manual', date: '2026-08-12', rhr: 61 });
+    const summaryWrites = vi.fn(async () => true);
+    configureWearableSummary({ saveImportedData: summaryWrites });
+    const remoteSteps = { latest: 8200, latestDate: '2026-08-13', primarySource: 'oura', rolling: { d7: 7800 } };
+    const remoteWeight = { latest: 72, latestDate: '2026-08-13', primarySource: 'manual', rolling: { d7: 73 } };
+    const merged = structuredClone(state.importedData);
+    merged.biometrics = {};
+    merged.manualMetricTombstones = { 'rhr.2026-08-12': Date.now() };
+    merged.wearableSummary.metrics.steps = remoteSteps;
+    merged.wearableSummary.metrics.weight = remoteWeight;
+    merged.wearableSummary.sources.oura = { connectedSince: '2026-07-01', coverageDays: 40 };
+    const sources = structuredClone(merged.wearableSummary.sources);
+    const live = state.importedData;
+    expect(await reconcilePulledManualWearables(PROFILE_ID, merged)).toBe(true);
+    expect(merged.wearableSummary.metrics.rhr).toBeUndefined();
+    expect(merged.wearableSummary.metrics.steps).toEqual(remoteSteps);
+    expect(merged.wearableSummary.metrics.weight).toEqual(remoteWeight);
+    expect(merged.wearableSummary.sources).toEqual(sources);
+    expect(state.importedData).toBe(live);
+    expect(live.wearableSummary.metrics.rhr.latest).toBe(61);
+    expect(summaryWrites).not.toHaveBeenCalled();
+    const vendorRhr = { latest: 59, latestDate: '2026-08-12', primarySource: 'oura' };
+    merged.wearableSummary.metrics.rhr = vendorRhr;
+    expect(await reconcilePulledManualWearables(PROFILE_ID, merged)).toBe(false);
+    expect(merged.wearableSummary.metrics.rhr).toEqual(vendorRhr);
   });
 
   it('delete-all clears the final source and its stale synced summary', async () => {
