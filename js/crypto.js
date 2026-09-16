@@ -767,7 +767,9 @@ export function initBroadcastChannel() {
         ensureImportedArray(persisted, 'supplements');
         cryptoProfileDeps.migrateProfileData?.(persisted);
         const live = state.importedData;
-        const result = rebaseLiveProfileData(profileDataBaseline(live) || live, live, persisted);
+        const baseline = profileDataBaseline(live);
+        if (!baseline) return; // Unknown snapshot: do not discard local edits.
+        const result = rebaseLiveProfileData(baseline, live, persisted);
         state.importedData = adoptProfileData(live, result.data);
         rememberProfileData(state.importedData, result.baseline);
         cryptoProfileDeps.invalidateData?.();

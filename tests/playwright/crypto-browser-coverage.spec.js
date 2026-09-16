@@ -471,13 +471,19 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       }));
 
       cryptoStore.initBroadcastChannel();
+      state.importedData = { entries: [], contextNotes: 'Untracked local draft' };
+      await lastChannel.onmessage({ data: { type: 'data-changed', profileId } });
+      outcomes.broadcastPreservesUnknownBaseline = state.importedData.contextNotes === 'Untracked local draft'
+        && state.importedData.entries.length === 0 && calls.sidebar === 0;
+      state.importedData = { entries: [] };
+      (await import('/js/profile-data-writes.js')).rememberProfileData(state.importedData);
       await lastChannel.onmessage({ data: { type: 'noop', profileId } });
       await lastChannel.onmessage({ data: { type: 'data-changed', profileId: `${profileId}-other` } });
       await lastChannel.onmessage({ data: { type: 'data-changed', profileId } });
       cryptoStore.broadcastDataChanged(profileId);
       outcomes.broadcastReloadsCurrentProfile =
         lastChannel?.name === 'labcharts-sync'
-        && calls.migrated === 1
+        && calls.migrated === 2
         && calls.sidebar === 1
         && calls.navigated[0] === 'settings'
         && state.importedData.entries?.[0]?.date === '2026-06-09'

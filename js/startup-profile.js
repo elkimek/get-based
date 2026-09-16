@@ -96,9 +96,10 @@ export async function initializeProfileData() {
       state.importedData = JSON.parse(savedImported);
       ensureImportedArray(state.importedData, 'notes');
       migrateProfileData(state.importedData);
-      rememberProfileData(state.importedData);
     } catch (e) {}
   }
+  // Empty profiles also need a baseline before the first unsaved edit.
+  rememberProfileData(state.importedData);
   // Profile switches already hydrate this local-only aggregate. Initial boot
   // must do the same before Dashboard/Body render or a hard refresh makes
   // saved meals appear to have vanished until the nutrition editor is opened.

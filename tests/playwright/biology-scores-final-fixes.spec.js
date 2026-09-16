@@ -253,3 +253,40 @@ test('cross-tab refresh preserves unsaved edits and registers reload baselines',
   expect(await other.evaluate(async () => (await import('/js/state.js')).state.importedData.contextNotes)).toBe('Unsaved local note');
   await other.close();
 });
+
+test('fresh profiles preserve unsaved edits on their first peer broadcast', async ({ page }) => {
+  await page.goto('/app');
+  const other = await page.context().newPage();
+  await other.goto('/app');
+  await other.locator('html[data-app-ready]').waitFor({ state: 'attached' });
+  expect(await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const { profileDataBaseline } = await import('/js/profile-data-writes.js');
+    return profileDataBaseline(state.importedData)?.entries;
+  })).toEqual([]);
+  await page.evaluate(async () => {
+    (await import('/js/state.js')).state.importedData.contextNotes = 'Draft before first save';
+  });
+  await other.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.importedData.entries.push({ date: '2026-08-06', markers: { 'lipids.apoB': 0.7 } });
+    if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('First peer save failed');
+  });
+  await expect.poll(() => page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return { note: state.importedData.contextNotes, dates: state.importedData.entries.map(entry => entry.date) };
+  })).toEqual({ note: 'Draft before first save', dates: ['2026-08-06'] });
+  await page.evaluate(async () => {
+    if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('First local save failed');
+  });
+  await other.reload();
+  await other.locator('html[data-app-ready]').waitFor({ state: 'attached' });
+  expect(await other.evaluate(async () => (await import('/js/state.js')).state.importedData.contextNotes)).toBe('Draft before first save');
+  expect(await page.evaluate(async () => {
+    const { loadProfile } = await import('/js/profile.js');
+    const { state } = await import('/js/state.js');
+    await loadProfile('fresh-empty-profile-switch');
+    return (await import('/js/profile-data-writes.js')).profileDataBaseline(state.importedData)?.entries;
+  })).toEqual([]);
+  await other.close();
+});

@@ -285,6 +285,7 @@ export async function loadProfile(profileId) {
   await invalidateProfileContextCache();
   const defaultData = createDefaultProfileData();
   state.importedData = defaultData;
+  rememberProfileData(defaultData);
   if (savedImported) {
     try {
       const d = JSON.parse(savedImported);
