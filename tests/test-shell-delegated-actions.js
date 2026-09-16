@@ -249,7 +249,7 @@ assert('App shell injects Lens page navigation without bridge or window fallback
 assert('App shell injects crypto cross-tab refresh callbacks without bridge lookups',
   appShellHooksSrc.includes('configureCryptoProfileDeps,')
     && appShellHooksSrc.includes("from './crypto.js';")
-    && appShellHooksSrc.includes('configureCryptoProfileDeps({ buildSidebar, navigate });'));
+    && appShellHooksSrc.includes('configureCryptoProfileDeps({ buildSidebar, navigate, invalidateData: invalidateActiveDataCache });'));
 
 assert('App shell injects Cycle view callbacks without bridge lookups',
   appShellHooksSrc.includes("import { configureCycleRuntimeDeps } from './cycle-runtime.js'")

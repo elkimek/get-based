@@ -209,3 +209,35 @@ it('a committed pull preserves conflicting unsaved panels without rejecting afte
   expect(state.importedData.entries.map(e => e.markers)).toEqual([{ a: 1 }, { b: 4 }]);
   expect(await saveImportedData()).toBe(false);
 });
+
+it('wearable reconciliation leaves newer live notes intact until the pull commits', async () => {
+  const { reconcilePulledManualWearables } = await import('../js/profile-runtime.js');
+  const pull = await mergePulledImportedData(profileId, structuredClone(state.importedData));
+  const live = state.importedData;
+  live.notes.push({ date: '2026-09-02', text: 'Local note added during pull' });
+  expect(await saveImportedData()).toBe(true);
+  await reconcilePulledManualWearables(profileId, pull.merged);
+  expect.soft(state.importedData).toBe(live);
+  // An ordinary autosave before the draft commits must not erase this note.
+  expect(await saveImportedData()).toBe(true);
+  await persistPulledImportedData(key, profileId, pull.merged, Date.now());
+  expect((await read()).notes.map(note => note.text)).toContain('Local note added during pull');
+});
+
+it('captures a coherent pull baseline when a local save starts during the storage read', async () => {
+  const originalRead = crypto.encryptedGetItem;
+  let pendingSave;
+  vi.spyOn(crypto, 'encryptedGetItem').mockImplementationOnce(async (...args) => {
+    const raw = await originalRead(...args);
+    state.importedData.contextNotes = 'Typed during initial pull read';
+    pendingSave = saveImportedData();
+    // Let an unlocked save finish; with the lock it must wait for this read.
+    await new Promise(resolve => setTimeout(resolve, 20));
+    return raw;
+  });
+  const pull = await mergePulledImportedData(profileId, null);
+  expect(await pendingSave).toBe(true);
+  expect(pull.merged.contextNotes).toBe('Typed during initial pull read');
+  await persistPulledImportedData(key, profileId, pull.merged, Date.now());
+  expect((await read()).contextNotes).toBe('Typed during initial pull read');
+});

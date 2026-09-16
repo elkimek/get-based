@@ -84,10 +84,11 @@ export async function refreshProfileWearables(profileId, biometrics) {
 // from the user's perspective.
 export async function reconcilePulledManualWearables(profileId, merged) {
   if (!profileId || profileId !== state.currentProfile || !merged || typeof merged !== 'object') return false;
-  state.importedData = merged;
-  const result = await reconcileManualMetricTombstones(profileId);
+  // Reconcile the draft without exposing it as live data across an await.
+  const result = await reconcileManualMetricTombstones(profileId, merged);
   if (!result || ((result.prunedRows || 0) === 0 && (result.prunedLegacy || 0) === 0)) return false;
   await refreshManualSummary(profileId);
+  if (state.currentProfile === profileId) merged.wearableSummary = structuredClone(state.importedData.wearableSummary);
   return true;
 }
 

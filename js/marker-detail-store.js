@@ -2,6 +2,7 @@
 // marker-detail-store.js - synced marker-detail mutation boundary.
 
 import { state } from './state.js';
+import { adoptProfileData } from './profile-data-writes.js';
 import { saveImportedData, invalidateActiveDataCache } from './data.js';
 import {
   deleteLabEntryMarkerFromImportedData,
@@ -20,7 +21,7 @@ async function persistMarkerEdit(rollback) {
   const edited = state.importedData;
   if (await saveImportedData()) return true;
   if (state.currentProfile === rollback.profileId && state.importedData === edited) {
-    state.importedData = rollback.data;
+    adoptProfileData(state.importedData, rollback.data);
     invalidateActiveDataCache();
   }
   return false;

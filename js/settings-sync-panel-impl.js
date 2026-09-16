@@ -36,6 +36,7 @@ import {
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { saveImportedData } from './data.js';
 import { state } from './state.js';
+import { adoptProfileData } from './profile-data-writes.js';
 import {
   copyAgentAccessSetupCommand,
   copyMessengerContextKey,
@@ -68,7 +69,7 @@ function snapshotImportedData() {
 
 function restoreImportedDataSnapshot(snapshot) {
   if (!snapshot) return;
-  try { state.importedData = JSON.parse(snapshot); } catch {}
+  try { adoptProfileData(state.importedData, JSON.parse(snapshot)); } catch {}
 }
 
 const settingsSyncPanelDeps = {

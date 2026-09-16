@@ -81,10 +81,10 @@ function _manualMetricTombstones() {
   return imported[MANUAL_TOMBSTONE_FIELD];
 }
 
-export function isManualMetricTombstoned(metric, date) {
+export function isManualMetricTombstoned(metric, date, imported = state.importedData) {
   const key = manualMetricTombstoneKey(metric, date);
   if (!key) return false;
-  const tombstones = state.importedData?.[MANUAL_TOMBSTONE_FIELD];
+  const tombstones = imported?.[MANUAL_TOMBSTONE_FIELD];
   if (!tombstones || typeof tombstones !== 'object') return false;
   // An exact zero is an intentional re-add and wins over an earlier
   // delete-all marker. Otherwise the metric-wide marker protects dates this
@@ -162,9 +162,9 @@ function _removeLegacyBiometric(metric, date) {
  * check: every device must honor a deletion received after it had already
  * migrated the old pulse locally.
  */
-export async function reconcileManualMetricTombstones(profileId) {
+export async function reconcileManualMetricTombstones(profileId, imported = state.importedData) {
   if (!profileId || state.currentProfile !== profileId) return { skipped: 'inactive-profile' };
-  const tombstones = state.importedData?.[MANUAL_TOMBSTONE_FIELD];
+  const tombstones = imported?.[MANUAL_TOMBSTONE_FIELD];
   if (!tombstones || typeof tombstones !== 'object' || Array.isArray(tombstones)
       || Object.keys(tombstones).length === 0) {
     return { prunedRows: 0, prunedLegacy: 0 };
@@ -176,7 +176,7 @@ export async function reconcileManualMetricTombstones(profileId) {
     const next = { ...row };
     let changed = false;
     for (const metric of MANUAL_METRICS) {
-      if (isManualMetricTombstoned(metric, row.date) && next[metric] != null) {
+      if (isManualMetricTombstoned(metric, row.date, imported) && next[metric] != null) {
         delete next[metric];
         changed = true;
       }
@@ -188,7 +188,7 @@ export async function reconcileManualMetricTombstones(profileId) {
   }
 
   let prunedLegacy = 0;
-  const biometrics = state.importedData?.biometrics;
+  const biometrics = imported?.biometrics;
   if (biometrics && typeof biometrics === 'object') {
     const legacyPairs = [
       ['weight', 'weight'],
@@ -197,7 +197,7 @@ export async function reconcileManualMetricTombstones(profileId) {
     for (const [field, metric] of legacyPairs) {
       if (!Array.isArray(biometrics[field])) continue;
       const before = biometrics[field].length;
-      biometrics[field] = biometrics[field].filter(entry => !isManualMetricTombstoned(metric, entry?.date));
+      biometrics[field] = biometrics[field].filter(entry => !isManualMetricTombstoned(metric, entry?.date, imported));
       prunedLegacy += before - biometrics[field].length;
     }
     if (Array.isArray(biometrics.bp)) {
@@ -209,13 +209,13 @@ export async function reconcileManualMetricTombstones(profileId) {
         }
         const next = { ...entry };
         let changed = false;
-        if (isManualMetricTombstoned('bp_systolic', entry.date)
+        if (isManualMetricTombstoned('bp_systolic', entry.date, imported)
             && Object.prototype.hasOwnProperty.call(next, 'systolic')) {
           delete next.systolic;
           changed = true;
           prunedLegacy++;
         }
-        if (isManualMetricTombstoned('bp_diastolic', entry.date)
+        if (isManualMetricTombstoned('bp_diastolic', entry.date, imported)
             && Object.prototype.hasOwnProperty.call(next, 'diastolic')) {
           delete next.diastolic;
           changed = true;
@@ -228,7 +228,7 @@ export async function reconcileManualMetricTombstones(profileId) {
       biometrics.bp = remaining;
     }
   }
-  if (prunedLegacy > 0) await saveImportedData();
+  if (prunedLegacy > 0 && state.currentProfile === profileId && state.importedData === imported) await saveImportedData();
   return { prunedRows, prunedLegacy };
 }
 

@@ -4,6 +4,7 @@
 import { showNotification, bindSyncAppliedRefresh } from './utils.js';
 import { addUtilsRuntimeListener } from './utils-runtime.js';
 import { state } from './state.js';
+import { adoptProfileData } from './profile-data-writes.js';
 import {
   clearAgentAccessMigrationDirty,
   clearLegacyAgentAccessSecrets,
@@ -63,7 +64,7 @@ function snapshotImportedData() {
 
 function restoreImportedDataSnapshot(snapshot) {
   if (!snapshot) return;
-  try { state.importedData = JSON.parse(snapshot); } catch {}
+  try { adoptProfileData(state.importedData, JSON.parse(snapshot)); } catch {}
 }
 
 function syncRelayHttpUrl() {

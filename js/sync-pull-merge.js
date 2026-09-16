@@ -183,10 +183,15 @@ export async function mergePulledImportedData(profileId, importedData, options =
   const localKey = profileStorageKey(profileId, 'imported');
   // Capture durable and live baselines before asynchronous row overlays. Read
   // errors must abort rather than letting a pull replace unreadable local data.
-  const rawStored = await encryptedGetItem(localKey);
-  const stored = rawStored ? JSON.parse(rawStored) : null;
-  const live = profileId === state.currentProfile ? structuredClone(state.importedData || null) : null;
-  const baseline = profileId === state.currentProfile ? profileDataBaseline(state.importedData) : null;
+  const { stored, live, baseline } = await queueProfileDataWrite(profileId, async () => {
+    const rawStored = await encryptedGetItem(localKey);
+    const active = profileId === state.currentProfile;
+    return {
+      stored: rawStored ? JSON.parse(rawStored) : null,
+      live: active ? structuredClone(state.importedData || null) : null,
+      baseline: active ? profileDataBaseline(state.importedData) : null,
+    };
+  });
   const localImportedForMerge = live && baseline && stored
     ? mergeProfileMutation(baseline, live, stored) : (live || stored);
   const localImportedBeforeMerge = importedDataSnapshot(localImportedForMerge);

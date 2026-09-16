@@ -2,6 +2,7 @@
 // pdf-import-persistence.js - durable imported-data save helpers for PDF import flows
 
 import { state } from './state.js';
+import { adoptProfileData } from './profile-data-writes.js';
 import { showNotification, showPromptDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { clearTombstone, deleteImportedArrayItems, recordTombstone } from './data-merge.js';
@@ -14,7 +15,7 @@ export function snapshotImportedData() {
 
 export function restoreImportedDataSnapshot(snapshot) {
   if (!snapshot) return;
-  try { state.importedData = JSON.parse(snapshot); } catch {}
+  try { adoptProfileData(state.importedData, JSON.parse(snapshot)); } catch {}
 }
 
 export function refreshImportedDataViews() {

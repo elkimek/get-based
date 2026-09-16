@@ -177,7 +177,12 @@ describe('durable manual heart-rate deletion', () => {
       wearableSummary: oldRhrSummary(),
     };
 
+    const live = state.importedData;
+    live.contextNotes = 'Unsaved note while receiving a deletion';
     expect(await reconcilePulledManualWearables(PROFILE_ID, merged)).toBe(true);
+    expect(state.importedData).toBe(live);
+    expect(live.contextNotes).toBe('Unsaved note while receiving a deletion');
+    expect(live.biometrics.pulse).toHaveLength(1);
 
     expect(await getDaily(PROFILE_ID, 'manual', '2026-08-12')).toBeNull();
     expect(merged.biometrics.pulse).toEqual([]);

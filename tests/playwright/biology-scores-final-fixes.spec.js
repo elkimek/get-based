@@ -290,3 +290,42 @@ test('fresh profiles preserve unsaved edits on their first peer broadcast', asyn
   })).toEqual([]);
   await other.close();
 });
+
+test('failed import rollback keeps its baseline and accepts subsequent peer updates', async ({ page }) => {
+  await prepareDemoProfile(page);
+  const other = await page.context().newPage();
+  await prepareDemoProfile(other);
+  expect(await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const { saveImportedData } = await import('/js/data.js');
+    const { snapshotImportedData, restoreImportedDataSnapshot } = await import('/js/pdf-import-persistence.js');
+    const { profileDataBaseline } = await import('/js/profile-data-writes.js');
+    const live = state.importedData;
+    const baseline = profileDataBaseline(live);
+    live.contextNotes = 'Unsaved note before failed import';
+    const rollback = snapshotImportedData();
+    live.entries.push({ date: '2026-08-05', markers: { 'lipids.apoB': 0.6 } });
+    const originalPut = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function(value, key) {
+      const request = originalPut.call(this, value, key);
+      if (key === `labcharts-${state.currentProfile}-imported`) this.transaction.abort();
+      return request;
+    };
+    let saved;
+    try { saved = await saveImportedData(); }
+    finally { IDBObjectStore.prototype.put = originalPut; }
+    if (!saved) restoreImportedDataSnapshot(rollback);
+    return { saved, sameObject: live === state.importedData, tracked: !!baseline && profileDataBaseline(state.importedData) === baseline,
+      rolledBack: !state.importedData.entries.some(entry => entry.date === '2026-08-05') };
+  })).toEqual({ saved: false, sameObject: true, tracked: true, rolledBack: true });
+  await other.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.importedData.entries.push({ date: '2026-08-06', markers: { 'lipids.apoB': 0.7 } });
+    if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Peer save failed');
+  });
+  await expect.poll(() => page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return { note: state.importedData.contextNotes, peer: state.importedData.entries.some(entry => entry.date === '2026-08-06') };
+  })).toEqual({ note: 'Unsaved note before failed import', peer: true });
+  await other.close();
+});
