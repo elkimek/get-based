@@ -25,24 +25,11 @@ export function assessScoreRecency(available) {
     .filter(item => item.date)
     .map(item => ({ ...item, ageDays: getAgeDays(item.date), ts: new Date(`${item.date}T00:00:00Z`).getTime() }))
     .filter(item => Number.isFinite(item.ts));
-  if (dated.length < 2) {
-    const staleOnly = dated.find(item => Number.isFinite(item.ageDays) && item.ageDays > SCORE_STALE_DAYS);
-    if (staleOnly) {
-      return {
-        status: 'stale',
-        blocked: true,
-        badge: 'Retest needed',
-        message: `${staleOnly.label} is ${formatAge(staleOnly.ageDays)}; retest this score together before trusting it.`,
-      };
-    }
-    return { status: 'fresh', blocked: false, badge: 'Dates aligned', message: '' };
-  }
   dated.sort((a, b) => a.ts - b.ts);
   const oldest = dated[0];
   const newest = dated[dated.length - 1];
-  const spanDays = Math.round((newest.ts - oldest.ts) / DAY_MS);
-  const stale = dated.filter(item => Number.isFinite(item.ageDays) && item.ageDays > SCORE_STALE_DAYS)
-    .sort((a, b) => (b.ageDays || 0) - (a.ageDays || 0));
+  const spanDays = dated.length > 1 ? Math.round((newest.ts - oldest.ts) / DAY_MS) : 0;
+  const stale = dated.find(item => Number.isFinite(item.ageDays) && item.ageDays > SCORE_STALE_DAYS);
   if (spanDays > SCORE_DATE_SPAN_DAYS) {
     return {
       status: 'mixed-dates',
@@ -51,13 +38,13 @@ export function assessScoreRecency(available) {
       message: `Inputs span ${spanDays} days (${oldest.label} ${oldest.date}, ${newest.label} ${newest.date}). Retest this panel together before scoring.`,
     };
   }
-  if (stale.length) {
+  if (stale) {
     return {
       status: 'stale',
       blocked: true,
       badge: 'Retest needed',
-      message: `${stale[0].label} is ${formatAge(stale[0].ageDays)}; retest this score together before trusting it.`,
+      message: `${stale.label} is ${formatAge(stale.ageDays)}; retest this score together before trusting it.`,
     };
   }
-  return { status: 'fresh', blocked: false, badge: 'Dates aligned', message: dated.length ? `Inputs span ${spanDays} days.` : '' };
+  return { status: 'fresh', blocked: false, badge: 'Dates aligned', message: dated.length > 1 ? `Inputs span ${spanDays} days.` : '' };
 }

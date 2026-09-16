@@ -4,10 +4,8 @@ export async function prepareDemoProfile(page) {
   // time advances and eventually renders every score as stale.
   await page.clock.setFixedTime(new Date('2026-08-07T12:00:00Z'));
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(async () => {
-    const { state } = await import('/js/state.js');
-    return !!state;
-  });
+  // New tabs do not inherit coverage-fixture's readiness-aware page methods.
+  await page.locator('html[data-app-ready]').waitFor({ state: 'attached' });
 
   await page.evaluate(async () => {
     const [{ getActiveProfileId }, dataModule, navModule] = await Promise.all([
@@ -18,6 +16,8 @@ export async function prepareDemoProfile(page) {
     const profileId = getActiveProfileId() || localStorage.getItem('labcharts-active-profile') || 'default';
     localStorage.setItem(`labcharts-${profileId}-emptyTour`, 'completed');
     localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
+    // The startup tour may already be open on a slower, instrumented CI run.
+    (await import('/js/tour.js')).endTour({ openEmptyChat: false });
 
     if (!dataModule.getActiveData()?.dates?.length) {
       const resp = await fetch('data/demo-male.json');

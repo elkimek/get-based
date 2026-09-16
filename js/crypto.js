@@ -4,6 +4,7 @@
 import { getErrorMessage } from './caught-error.js';
 import { isAppExtensionSyncEncryptedStorageKey } from './app-extension-runtime.js';
 import { state } from './state.js';
+import { queueProfileDataWrite, profileDataBaseline, rebaseLiveProfileData, adoptProfileData, rememberProfileData } from './profile-data-writes.js';
 import { profileStorageKey } from './profile-storage-key.js';
 import { getBlob, setBlob, deleteBlob, shouldUseBlob } from './blob-storage.js';
 import { ensureImportedArray } from './data-merge.js';
@@ -63,6 +64,7 @@ const needsDataProtectionStylesheet = () => typeof document !== 'undefined' && !
 /**
  * @typedef {{
  *   buildSidebar: null | (() => void),
+ *   invalidateData: null | (() => void),
  *   migrateProfileData: null | ((data: any) => void),
  *   navigate: null | ((view: string) => void),
  * }} CryptoProfileDeps
@@ -71,6 +73,7 @@ const needsDataProtectionStylesheet = () => typeof document !== 'undefined' && !
 /** @type {CryptoProfileDeps} */
 const cryptoProfileDeps = {
   buildSidebar: null,
+  invalidateData: null,
   migrateProfileData: /** @type {null | ((data: any) => void)} */ (null),
   navigate: null,
 };
@@ -89,6 +92,7 @@ export function configureCryptoProfileDeps(deps = {}) {
   if (Object.hasOwn(deps, 'buildSidebar') && (deps.buildSidebar === null || typeof deps.buildSidebar === 'function')) {
     cryptoProfileDeps.buildSidebar = deps.buildSidebar;
   }
+  if (Object.hasOwn(deps, 'invalidateData') && (deps.invalidateData === null || typeof deps.invalidateData === 'function')) cryptoProfileDeps.invalidateData = deps.invalidateData;
   if (Object.hasOwn(deps, 'migrateProfileData') && (deps.migrateProfileData === null || typeof deps.migrateProfileData === 'function')) {
     cryptoProfileDeps.migrateProfileData = deps.migrateProfileData;
   }
@@ -753,21 +757,23 @@ export function initBroadcastChannel() {
   _bc.onmessage = async (event) => {
     const { type, profileId } = event.data || {};
     if (type === 'data-changed' && profileId === state.currentProfile) {
-      // Re-read from localStorage and re-render
-      const raw = await encryptedGetItem(profileStorageKey(profileId, 'imported'));
-      if (raw) {
-        try {
-          state.importedData = JSON.parse(raw);
-          ensureImportedArray(state.importedData, 'notes');
-          ensureImportedArray(state.importedData, 'supplements');
-          cryptoProfileDeps.migrateProfileData?.(state.importedData);
-          buildCryptoSidebar();
-          // buildSidebar resets the .active class to Dashboard, so source
-          // the target view from state.currentView (kept in sync by
-          // navigate) rather than re-reading the stale DOM.
-          navigateCryptoView(state.currentView || 'dashboard');
-        } catch { /* ignore parse errors */ }
-      }
+      // Serialize reads with saves so an older broadcast cannot roll back a
+      // newer commit. Retain unsaved edits and their conflict baseline.
+      await queueProfileDataWrite(profileId, async () => {
+        const raw = await encryptedGetItem(profileStorageKey(profileId, 'imported'));
+        if (!raw || profileId !== state.currentProfile) return;
+        const persisted = JSON.parse(raw);
+        ensureImportedArray(persisted, 'notes');
+        ensureImportedArray(persisted, 'supplements');
+        cryptoProfileDeps.migrateProfileData?.(persisted);
+        const live = state.importedData;
+        const result = rebaseLiveProfileData(profileDataBaseline(live) || live, live, persisted);
+        state.importedData = adoptProfileData(live, result.data);
+        rememberProfileData(state.importedData, result.baseline);
+        cryptoProfileDeps.invalidateData?.();
+        buildCryptoSidebar();
+        navigateCryptoView(state.currentView || 'dashboard');
+      }).catch(() => { /* retain current data if the remote snapshot cannot be read */ });
     }
   };
 }

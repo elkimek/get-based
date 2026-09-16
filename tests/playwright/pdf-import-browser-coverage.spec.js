@@ -1043,16 +1043,21 @@ test('PDF import commit rolls back failed storage and retries safely', async ({ 
       state.currentView = 'labs';
       state.profileSex = 'male';
       const failingData = emptyImportedData();
-      const rollbackData = JSON.parse(JSON.stringify(failingData));
-      let stringifyCalls = 0;
-      Object.defineProperty(failingData, 'toJSON', {
-        configurable: true,
-        value: () => {
-          stringifyCalls += 1;
-          if (stringifyCalls === 1) return rollbackData;
-          throw new Error('forced PDF import persistence failure');
-        },
-      });
+      const { encryptedGetItem } = await import('/js/crypto.js');
+      const storageKey = `labcharts-${state.currentProfile}-imported`;
+      const durableBeforeFailure = await encryptedGetItem(storageKey);
+      let abortedWrites = 0;
+      // Abort the actual durable write; snapshot cloning need not invoke toJSON.
+      const originalPut = IDBObjectStore.prototype.put;
+      IDBObjectStore.prototype.put = function(value, key) {
+        const request = originalPut.call(this, value, key);
+        if (key === `labcharts-${state.currentProfile}-imported`) {
+          IDBObjectStore.prototype.put = originalPut;
+          abortedWrites += 1;
+          this.transaction.abort();
+        }
+        return request;
+      };
       state.importedData = failingData;
       review.showImportPreview({
         _importProfileId: state.currentProfile,
@@ -1072,16 +1077,19 @@ test('PDF import commit rolls back failed storage and retries safely', async ({ 
       const adoptRanges = document.getElementById('import-adopt-ranges');
       if (adoptRanges) adoptRanges.checked = true;
 
-      await commit.confirmImport();
+      try { await commit.confirmImport(); }
+      finally { IDBObjectStore.prototype.put = originalPut; }
       outcomes.failedSaveRollsBackAndKeepsPreviewRetryable =
-        state.importedData.entries.length === 0
+        abortedWrites === 1
+        && await encryptedGetItem(storageKey) === durableBeforeFailure
+        && state.importedData.entries.length === 0
         && state.importedData.importSnapshots.length === 0
         && review.getPendingImport()?.fileName === 'retry-import.pdf'
         && document.getElementById('import-confirm-btn')?.disabled === false
         && refreshCalls.length === 0
         && nudgeCalls === 0
         && Array.from(document.querySelectorAll('.notification-toast.error'))
-          .some(toast => toast.textContent.includes('Storage limit reached'));
+          .some(toast => toast.textContent.trim() === '✗ Could not save profile data. Check available storage and try again.');
 
       clearNotifications();
       await commit.confirmImport();
@@ -1340,19 +1348,28 @@ test('PDF import snapshot deletion restores provenance and rolls back failures',
           markers: [{ mappedKey: 'iron.ferritin', value: 88, unit: 'µg/L' }],
         }],
       };
-      const rollbackData = JSON.parse(JSON.stringify(failingData));
-      let stringifyCalls = 0;
-      Object.defineProperty(failingData, 'toJSON', {
-        configurable: true,
-        value: () => {
-          stringifyCalls += 1;
-          if (stringifyCalls === 1) return rollbackData;
-          throw new Error('forced snapshot deletion persistence failure');
-        },
-      });
+      const { encryptedGetItem } = await import('/js/crypto.js');
+      const storageKey = `labcharts-${state.currentProfile}-imported`;
+      const durableBeforeFailure = await encryptedGetItem(storageKey);
+      let abortedWrites = 0;
+      // Abort the actual durable write; snapshot cloning need not invoke toJSON.
+      const originalPut = IDBObjectStore.prototype.put;
+      IDBObjectStore.prototype.put = function(value, key) {
+        const request = originalPut.call(this, value, key);
+        if (key === `labcharts-${state.currentProfile}-imported`) {
+          IDBObjectStore.prototype.put = originalPut;
+          abortedWrites += 1;
+          this.transaction.abort();
+        }
+        return request;
+      };
       state.importedData = failingData;
-      const failedDelete = await commit.deleteImportSnapshot('snap-delete-retry');
+      let failedDelete;
+      try { failedDelete = await commit.deleteImportSnapshot('snap-delete-retry'); }
+      finally { IDBObjectStore.prototype.put = originalPut; }
       outcomes.failedDeletionRestoresMarkersAndSnapshot = failedDelete === false
+        && abortedWrites === 1
+        && await encryptedGetItem(storageKey) === durableBeforeFailure
         && state.importedData.entries[0]?.markers?.['iron.ferritin'] === 88
         && state.importedData.entries[0]?.markerSources?.['iron.ferritin']?.snapshotId === 'snap-delete-retry'
         && state.importedData.importSnapshots[0]?.id === 'snap-delete-retry'

@@ -201,3 +201,55 @@ test('two tabs preserve independent lab additions and edits through reload', asy
     .toEqual([{specimen:'serum',time:'08:00',fasting:true,value:350},{specimen:'saliva',time:'23:00',fasting:false,value:3}]);
   await other.close();
 });
+
+
+test('cross-tab refresh preserves unsaved edits and registers reload baselines', async ({ page }) => {
+  await prepareDemoProfile(page);
+  await page.evaluate(async () => {
+    await (await import('/js/data.js')).saveImportedData();
+  });
+  const other = await page.context().newPage();
+  await prepareDemoProfile(other);
+  await other.reload();
+  await other.locator('html[data-app-ready]').waitFor({ state: 'attached' });
+  expect(await other.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return !!(await import('/js/profile-data-writes.js')).profileDataBaseline(state.importedData);
+  })).toBe(true);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    globalThis.liveProfileBeforeBroadcast = state.importedData;
+    state.importedData.contextNotes = 'Unsaved local note';
+  });
+  await other.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.importedData.entries.push({ date: '2026-08-06', markers: { 'lipids.apoB': 0.7 } });
+    if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Peer save failed');
+  });
+  await expect.poll(() => page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return state.importedData.entries.some(entry => entry.date === '2026-08-06');
+  })).toBe(true);
+  expect(await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return { note: state.importedData.contextNotes, sameObject: state.importedData === globalThis.liveProfileBeforeBroadcast };
+  })).toEqual({ note: 'Unsaved local note', sameObject: true });
+  // Warm the derived cache, then change a value without changing entry count.
+  await page.evaluate(async () => (await import('/js/data.js')).getActiveData());
+  await other.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.importedData.entries.find(entry => entry.date === '2026-08-06').markers['lipids.apoB'] = 0.9;
+    if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Peer edit failed');
+  });
+  await expect.poll(() => page.evaluate(async () => {
+    const data = (await import('/js/data.js')).getActiveData();
+    return data.categories.lipids.markers.apoB.values[data.dates.indexOf('2026-08-06')];
+  })).toBe(0.9);
+  await page.evaluate(async () => {
+    if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Local save failed');
+  });
+  await other.reload();
+  await other.locator('html[data-app-ready]').waitFor({ state: 'attached' });
+  expect(await other.evaluate(async () => (await import('/js/state.js')).state.importedData.contextNotes)).toBe('Unsaved local note');
+  await other.close();
+});

@@ -2,6 +2,7 @@
 // startup-profile.js - profile migration, active-profile load, and UI state
 
 import { state } from './state.js';
+import { rememberProfileData } from './profile-data-writes.js';
 import {
   saveProfiles,
   getActiveProfileId,
@@ -95,6 +96,7 @@ export async function initializeProfileData() {
       state.importedData = JSON.parse(savedImported);
       ensureImportedArray(state.importedData, 'notes');
       migrateProfileData(state.importedData);
+      rememberProfileData(state.importedData);
     } catch (e) {}
   }
   // Profile switches already hydrate this local-only aggregate. Initial boot

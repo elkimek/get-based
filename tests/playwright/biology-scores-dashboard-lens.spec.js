@@ -346,7 +346,7 @@ test('card AI explains without expanding or changing the score and supports retr
   const score = await card.locator('.biology-score-dial-number').textContent();
   const teaser = card.locator('[data-biology-score-ai-summary]');
   await teaser.getByRole('button').click();
-  await expect(teaser.locator('[role="status"]')).toContainText('Synthetic gateway unavailable');
+  await expect(teaser.locator('.biology-score-ai-error')).toContainText('Synthetic gateway unavailable');
   await expect(teaser.getByRole('button')).toBeEnabled();
   await expect(card).not.toHaveAttribute('open', '');
   await page.evaluate(async () => {
@@ -354,7 +354,7 @@ test('card AI explains without expanding or changing the score and supports retr
   });
   await teaser.getByRole('button').click();
   await expect(teaser).toContainText('Your thyroid markers broadly agree');
-  await expect(teaser.locator('[role="status"]')).toBeEmpty();
+  await expect(teaser.locator('.biology-score-ai-error')).toBeEmpty();
   await expect(card.locator('.biology-score-dial-number')).toHaveText(score);
   await expect(card).not.toHaveAttribute('open', '');
   await page.evaluate(async () => (await import('/js/views.js')).navigate('biology-scores'));
@@ -456,7 +456,7 @@ test('background telemetry does not discard AI and a real input edit preserves a
   await teaser.locator('[data-biology-score-action="interpret-score-ai"]').click();
   await expect(teaser).toContainText('Saved explanation for the inputs at request time.');
   await expect(teaser).toContainText('refresh needed');
-  await expect(teaser.locator('[role="status"]')).toBeEmpty();
+  await expect(teaser.locator('.biology-score-ai-error')).toBeEmpty();
 });
 
 
@@ -546,7 +546,7 @@ test('one refresh survives a harmless same-profile object replacement', async ({
   await teaser.getByRole('button').click();
   await expect(teaser).toContainText('Saved on the first refresh.');
   await expect(teaser).not.toContainText('refresh needed');
-  await expect(teaser.locator('[role=status]')).toBeEmpty();
+  await expect(teaser.locator('.biology-score-ai-error')).toBeEmpty();
 });
 
 test('processing uses shared gray dots, preserves saved text, and survives navigation', async ({ page }) => {
@@ -647,6 +647,8 @@ test('delayed Light hydration reuses all six saved insights and a single refresh
       summary: 'Saved insight remains useful. Review the collection dates.', text: '## Context\nThe saved marker evidence is unchanged.',
       materialFingerprint: getScoreAIMaterialKey(score), updatedAt: Date.now(),
     }]));
+    // These represent previously saved answers, including their durable snapshot.
+    await (await import('/js/data.js')).saveImportedData();
     // Warm saved context, followed by a cold page before its async hooks arrive.
     configureProfileContextLightDeps({ rollingVitaminDIU: null, rollingChannelTotals: null });
     const ready = new Promise(resolve => { globalThis.finishLightHydration = () => {

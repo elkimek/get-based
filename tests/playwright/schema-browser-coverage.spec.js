@@ -50,7 +50,8 @@ test('schema browser coverage exercises units pricing usage phase ranges and EMF
         && schema.OPTIMAL_RANGES['calculatedRatios.atherogenicIndexPlasma'].optimalMax === 0.11;
 
       outcomes.schemaExportsStableMarkerIdentityContract =
-        schema.BUILTIN_MARKER_IDENTITIES.length === 196
+        schema.BUILTIN_MARKER_IDENTITIES.length === 197
+        && schema.getBuiltinMarkerId('biochemistry.egfrCombined') === 'gb:marker:egfrCombined'
         && schema.getBuiltinMarkerId('biochemistry.glucose') === 'gb:marker:glucose'
         && schema.getBuiltinMarkerDotKey('gb:marker:glucose') === 'biochemistry.glucose'
         && schema.resolveBuiltinMarkerDotKey('lipids.cholHdlRatio') === 'calculatedRatios.cholHdlRatio'

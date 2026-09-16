@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 779 |
-| Internal import edges | 3296 |
+| Internal import edges | 3298 |
 | Dynamic internal edges | 114 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -449,7 +449,7 @@ Native browser modules shipped with the static application.
 
 - [`js/crypto-key-cache.js`](js/crypto-key-cache.js) → no in-scope imports
 - [`js/crypto-ui.js`](js/crypto-ui.js) → [`js/backup.js`](js/backup.js), [`js/caught-error.js`](js/caught-error.js), [`js/data-wipe.js`](js/data-wipe.js) *(dynamic)*, [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/utils.js`](js/utils.js)
-- [`js/crypto.js`](js/crypto.js) → [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/backup.js`](js/backup.js), [`js/blob-storage.js`](js/blob-storage.js), [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js) *(dynamic)*, [`js/caught-error.js`](js/caught-error.js), [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/crypto-ui.js`](js/crypto-ui.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/data-merge.js`](js/data-merge.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/state.js`](js/state.js), [`js/wearables-credential-vault.js`](js/wearables-credential-vault.js) *(dynamic)*, [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-whoop-storage.js`](js/wearables-whoop-storage.js) *(dynamic)*
+- [`js/crypto.js`](js/crypto.js) → [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/backup.js`](js/backup.js), [`js/blob-storage.js`](js/blob-storage.js), [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js) *(dynamic)*, [`js/caught-error.js`](js/caught-error.js), [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/crypto-ui.js`](js/crypto-ui.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/data-merge.js`](js/data-merge.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile-data-writes.js`](js/profile-data-writes.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/state.js`](js/state.js), [`js/wearables-credential-vault.js`](js/wearables-credential-vault.js) *(dynamic)*, [`js/wearables-store.js`](js/wearables-store.js), [`js/wearables-whoop-storage.js`](js/wearables-whoop-storage.js) *(dynamic)*
 
 </details>
 
@@ -1108,7 +1108,7 @@ Native browser modules shipped with the static application.
 - [`js/startup-maintenance.js`](js/startup-maintenance.js) → [`js/light-devices.js`](js/light-devices.js) *(dynamic)*, [`js/startup-maintenance-runtime.js`](js/startup-maintenance-runtime.js), [`js/state.js`](js/state.js), [`js/supplement-warnings.js`](js/supplement-warnings.js), [`js/wearables-connect-loader.js`](js/wearables-connect-loader.js), [`js/wearables-manual.js`](js/wearables-manual.js), [`js/wearables-summary.js`](js/wearables-summary.js)
 - [`js/startup-oauth-callbacks.js`](js/startup-oauth-callbacks.js) → [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js) *(dynamic)*, [`js/utils.js`](js/utils.js), [`js/wearables-connect-loader.js`](js/wearables-connect-loader.js)
 - [`js/startup-orchestrator.js`](js/startup-orchestrator.js) → [`js/app-event-listeners.js`](js/app-event-listeners.js), [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/import-loader.js`](js/import-loader.js), [`js/startup-foundation.js`](js/startup-foundation.js), [`js/startup-maintenance.js`](js/startup-maintenance.js), [`js/startup-oauth-callbacks.js`](js/startup-oauth-callbacks.js), [`js/startup-profile.js`](js/startup-profile.js), [`js/startup-ui.js`](js/startup-ui.js), [`js/sync-configure.js`](js/sync-configure.js), [`js/sync-lifecycle.js`](js/sync-lifecycle.js), [`js/sync.js`](js/sync.js), [`js/utils.js`](js/utils.js)
-- [`js/startup-profile.js`](js/startup-profile.js) → [`js/crypto.js`](js/crypto.js), [`js/data-merge.js`](js/data-merge.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/unit-profiles.js`](js/unit-profiles.js)
+- [`js/startup-profile.js`](js/startup-profile.js) → [`js/crypto.js`](js/crypto.js), [`js/data-merge.js`](js/data-merge.js), [`js/profile-data-writes.js`](js/profile-data-writes.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/unit-profiles.js`](js/unit-profiles.js)
 - [`js/startup-ui.js`](js/startup-ui.js) → [`js/changelog.js`](js/changelog.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/crypto.js`](js/crypto.js), [`js/data.js`](js/data.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/import-file-input.js`](js/import-file-input.js), [`js/legal-consent.js`](js/legal-consent.js), [`js/nav.js`](js/nav.js), [`js/startup-profile.js`](js/startup-profile.js), [`js/sync.js`](js/sync.js), [`js/theme.js`](js/theme.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 
 </details>
