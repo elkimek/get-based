@@ -51,8 +51,19 @@ test('real MiniLM indexes, searches and reloads without downloading weights agai
   });
   await page.reload({ waitUntil: 'load' });
   const restored = await inspect(false);
-  expect(restored).toEqual(first);
+  expect(restored.dim).toBe(first.dim);
+  expect(restored.documents).toBe(first.documents);
+  expect(restored.backend).toMatch(/^(wasm|webgpu)$/);
+  if (process.env.GETBASED_LENS_EXPECT_BACKEND) expect(restored.backend).toBe(process.env.GETBASED_LENS_EXPECT_BACKEND);
+  // A fresh worker can choose a different backend and recompute slightly
+  // different query scores. Persisted content and result order must be exact.
+  const identities = chunks => chunks.map(({ score, ...chunk }) => chunk);
+  expect(identities(restored.chunks)).toEqual(identities(first.chunks));
+  for (let index = 0; index < first.chunks.length; index++) {
+    expect(Number.isFinite(restored.chunks[index].score)).toBe(true);
+    expect(restored.chunks[index].score).toBeCloseTo(first.chunks[index].score, 2);
+  }
   expect(repeatedDownloads).toEqual([]);
   expect(issues).toEqual([]);
-  console.log(`Real MiniLM search and cached reload passed on ${first.backend}.`);
+  console.log(`Real MiniLM search and cached reload passed on ${first.backend} → ${restored.backend}.`);
 });
