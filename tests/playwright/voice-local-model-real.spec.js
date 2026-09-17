@@ -131,6 +131,8 @@ test.describe('Voice real local models', () => {
       state.chatHistory = [{ role: 'assistant', content: 'Check my iron level.' }];
       const host = document.createElement('div');
       host.id = 'real-voice-action-host';
+      // Keep the fixture's action bar from covering Settings' close button.
+      host.hidden = true;
       host.style.cssText = 'position:fixed;z-index:2147483647;top:20px;right:20px;padding:12px;background:#111';
       host.innerHTML = buildActionBar(0);
       document.body.appendChild(host);
@@ -164,10 +166,11 @@ test.describe('Voice real local models', () => {
     console.log(`[stage] Round trip complete: ${JSON.stringify(result)}`);
 
     console.log('[stage] Playing Kokoro through the real chat Web Audio path');
-    await page.locator('#settings-modal .modal-close').click();
+    await page.locator('#settings-modal .modal-close').click({ timeout: 15_000 });
+    await page.locator('#real-voice-action-host').evaluate(element => { element.hidden = false; });
     const listenButton = page.locator('#chat-listen-btn-0');
-    await listenButton.click();
-    await expect(listenButton).toContainText('Cancel');
+    await listenButton.click({ timeout: 15_000 });
+    await expect(listenButton).toHaveAttribute('aria-label', 'Cancel speech preparation');
     await acknowledgeAiTransparency(page);
     await expect(listenButton).toContainText('Stop', { timeout: 2 * 60_000 });
     await expect(listenButton).toContainText('Listen', { timeout: 30_000 });

@@ -259,7 +259,7 @@ test('lens local worker browser coverage exercises mocked protocol and libraries
 });
 
 test('lens local worker browser coverage exercises production embedder loading with stubbed transformers', async ({ page, context }) => {
-  await context.route('https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.1.0', route => route.fulfill({
+  await context.route('https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0', route => route.fulfill({
     status: 200,
     contentType: 'text/javascript',
     headers: {

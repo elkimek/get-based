@@ -33,7 +33,7 @@ Hugging Face at runtime; they are not bundled with this repository.
 
 | Module / model | Pinned version / repository | License |
 |---|---|---|
-| [`@huggingface/transformers`](https://github.com/huggingface/transformers.js) | 4.1.0 | Apache-2.0 |
+| [`@huggingface/transformers`](https://github.com/huggingface/transformers.js) | 4.3.0 | Apache-2.0 |
 | `onnxruntime-web` (transitive) | via Transformers.js / Kokoro.js | MIT |
 | [`kokoro-js`](https://github.com/hexgrad/kokoro) | 1.2.1 | Apache-2.0 |
 | [Whisper Large v3 Turbo ONNX](https://huggingface.co/onnx-community/whisper-large-v3-turbo) and [Small ONNX](https://huggingface.co/onnx-community/whisper-small) | `onnx-community` model repositories | Apache-2.0 |

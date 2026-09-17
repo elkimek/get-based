@@ -207,7 +207,7 @@ async function _ensureTransformers() {
   if (_transformersModule) return _transformersModule;
   // Library loads from jsdelivr — the npm-dist bundle has bare module
   // specifiers (`onnxruntime-web/webgpu` etc.) that browsers can't resolve
-  // without a bundler, and jsdelivr auto-rewrites them. Pin @4.1.0 for
+  // without a bundler, and jsdelivr auto-rewrites them. Pin @4.3.0 for
   // reproducibility. Browsers cache the bundle indefinitely after first
   // load; SW can cache too.
   //
@@ -217,7 +217,7 @@ async function _ensureTransformers() {
   // ESM locally via a bundler pass at vendor-update time; tracked as
   // phase 2c in project_browser_local_lens.md. Until then, trust is
   // rooted in jsdelivr + our CSP's cdn.jsdelivr.net allowlist.
-  const transformersUrl = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.1.0';
+  const transformersUrl = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0';
   const mod = await import(transformersUrl);
   // ORT picks one of 4 WASM variants at runtime (plain / asyncify / jsep /
   // jspi) based on what the browser supports — SharedArrayBuffer gates

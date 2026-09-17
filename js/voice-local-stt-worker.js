@@ -28,7 +28,7 @@ function postProgress(id, progress) {
 async function ensureTransformers() {
   if (transformersModule) return transformersModule;
   // @ts-expect-error Browser module workers can import the pinned HTTPS module.
-  transformersModule = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.1.0');
+  transformersModule = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0');
   transformersModule.env.backends.onnx.wasm.proxy = false;
   return transformersModule;
 }
