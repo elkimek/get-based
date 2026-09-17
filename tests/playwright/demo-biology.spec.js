@@ -1,5 +1,31 @@
 import { expect, test } from './coverage-fixture.js';
 
+test('legacy Biology context review survives real JSON import, export and reload', async ({ page }) => {
+  const review = {
+    summary: 'Previously saved context review.', suggestions: [{ text: 'Verify collection time.' }],
+    fingerprint: 'legacy-panel', fingerprintsByRange: { all: 'legacy-all', '3m': 'legacy-3m' },
+    unlockedRanges: ['all', '3m'], range: 'all', updatedAt: 1786104000000,
+  };
+  await page.goto('/app');
+  const imported = await page.evaluate(async review => {
+    const profile = await import('/js/profile.js');
+    const id = await profile.createProfile('Legacy review restore', { tags: ['test'], skipInitialSync: true });
+    await profile.switchProfile(id);
+    const { state } = await import('/js/state.js');
+    const { importDataJSON, buildClientExportObject } = await import('/js/export.js');
+    const backup = { version: 2, entries: [{ date: '2026-07-01', markers: { 'biochemistry.glucose': 5.1 } }], biologyScoreContextAI: review };
+    await importDataJSON(new File([JSON.stringify(backup)], 'legacy-review.json', { type: 'application/json' }));
+    return { id, live: state.importedData.biologyScoreContextAI, exported: (await buildClientExportObject(id, false, false)).biologyScoreContextAI };
+  }, review);
+  expect(imported.live).toEqual(review);
+  expect(imported.exported).toEqual(review);
+  await page.reload();
+  await expect.poll(() => page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return { id: state.currentProfile, review: state.importedData.biologyScoreContextAI };
+  })).toEqual({ id: imported.id, review });
+});
+
 for (const sex of ['male', 'female']) test(`${sex} demo has explorable Biology Scores on desktop and mobile without automatic AI`, async ({ page }) => {
   test.setTimeout(90_000);
   await page.addInitScript(() => {

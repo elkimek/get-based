@@ -1051,8 +1051,8 @@ return (async function() {
         _loadDemoSection.includes('await importDataJSON(demoImportFile)')
           && _loadDemoSection.includes('new File([JSON.stringify(demoJson)]'),
         'demo loader must pass prepared data through the awaited real import path');
-      assert('importDataJSON preserves optional legacy Biology Score context review',
-        _importBody.includes('json.biologyScoreContextAI') && _importBody.includes('state.importedData.biologyScoreContextAI'),
+      assert('importDataJSON preserves optional legacy Biology Score context review unchanged',
+        !!demo.biologyScoreContextAI && JSON.stringify(got.biologyScoreContextAI) === JSON.stringify(demo.biologyScoreContextAI),
         'JSON import must preserve an existing optional context review');
       assert('importDataJSON does NOT touch contextHealth cache (so non-demo imports are unaffected)',
         _importBody.length > 0 && !_importBody.includes('contextHealth'),
