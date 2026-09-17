@@ -353,7 +353,7 @@
       <form class="feedback-form" data-feedback-action="submit">
         <div class="feedback-field">
           <label class="feedback-label" for="feedback-type">Type</label>
-          <select class="feedback-select" id="feedback-type" data-feedback-action="placeholder">
+          <select class="kb-field-control" id="feedback-type" data-feedback-action="placeholder">
             <option value="bug">Bug Report</option>
             <option value="feature">Feature Request</option>
             <option value="idea">Idea / Suggestion</option>
@@ -362,11 +362,11 @@
         </div>
         <div class="feedback-field">
           <label class="feedback-label" for="feedback-title">Title</label>
-          <input class="feedback-input" id="feedback-title" maxlength="160" required>
+          <input class="kb-field-control" id="feedback-title" maxlength="160" required>
         </div>
         <div class="feedback-field">
           <label class="feedback-label" for="feedback-desc">Description</label>
-          <textarea class="feedback-textarea" id="feedback-desc" maxlength="10000" required></textarea>
+          <textarea class="kb-field-control feedback-textarea" id="feedback-desc" maxlength="10000" required></textarea>
         </div>
         <p class="feedback-notice">Public GitHub issue; account required. Keep health data and secrets out of text and screenshots. Includes app/browser settings, never automatic profile or lab attachments.</p>
         <div id="feedback-result" class="feedback-field" hidden>
@@ -374,13 +374,13 @@
           <details>
             <summary>View or copy full report</summary>
             <label class="feedback-label" for="feedback-draft">Report preview</label>
-            <textarea id="feedback-draft" class="feedback-textarea" readonly></textarea>
-            <button type="button" class="feedback-action-btn feedback-action-secondary" data-feedback-action="copy">Copy report</button>
+            <textarea id="feedback-draft" class="kb-field-control feedback-textarea" readonly></textarea>
+            <button type="button" class="import-btn import-btn-secondary" data-feedback-action="copy">Copy report</button>
           </details>
         </div>
         <div class="feedback-actions">
-          <button type="button" class="feedback-action-btn feedback-action-secondary" data-feedback-action="close">Close</button>
-          <button type="submit" class="feedback-action-btn feedback-action-primary">Open GitHub draft</button>
+          <button type="button" class="import-btn import-btn-secondary" data-feedback-action="close">Close</button>
+          <button type="submit" class="import-btn import-btn-primary">Open GitHub draft</button>
         </div>
       </form>
     </div>
