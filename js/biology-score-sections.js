@@ -8,6 +8,8 @@ import { canonicalRange } from './biology-score-inputs.js';
 import { state } from './state.js';
 import { renderMarkdown } from './markdown.js';
 import { escapeAttr, escapeHTML } from './utils.js';
+import { getProfiles } from './profile.js';
+import { buildDemoBiologyInsight } from './demo-biology-insights.js';
 
 // Render pending state from the request lifecycle, including after navigation.
 export const pendingScoreExplanations = new Set();
@@ -148,7 +150,11 @@ export function readScoreAIAnswer(score) {
   const material = getScoreAIMaterialKey(score);
   const matching = biologyAIRecords(profileAnswer).find(record => answerMatches(record, material));
   // Keep the last answer visible, explicitly stale, if this evidence is new.
-  return matching || (profileAnswer && typeof profileAnswer === 'object' ? profileAnswer : null);
+  if (matching || profileAnswer?.text) return matching || profileAnswer;
+  if (getProfiles().find(profile => profile.id === state.currentProfile)?.tags?.includes('demo')) {
+    return buildDemoBiologyInsight(score, material);
+  }
+  return null;
 }
 
 export function hasCurrentScoreAIAssessment(score) {
@@ -161,6 +167,7 @@ export function hasCurrentScoreAIAssessment(score) {
 
 export function renderScoreAISummary(score) {
   const record = readScoreAIAnswer(score);
+  const demo = record?.source === 'demo';
   const processing = isScoreAIProcessing(score);
   const refreshReason = getScoreAIRefreshReason(score);
   const stale = !!refreshReason;
@@ -170,9 +177,9 @@ export function renderScoreAISummary(score) {
   const tone = presented.tone || resolveScoreTone(value);
   const color = !record?.text || !Number.isFinite(value) ? 'var(--text-muted)' : ['excellent', 'good'].includes(tone) ? 'var(--green)' : tone === 'strained' ? 'var(--yellow)' : 'var(--red)';
   return `<span class="biology-score-ai-teaser" data-biology-score-ai-summary="${escapeAttr(score.id)}" aria-busy="${processing}">
-    <span class="biology-score-ai-teaser-label" role="status" aria-live="polite" aria-atomic="true" aria-label="${processing ? 'Assessing markers' : stale ? 'refresh needed' : record?.text ? 'Saved interpretation' : 'Interpretation not generated'}">${processing ? processingDot() : `<span class="biology-score-ai-dot" style="background:${color}" aria-hidden="true"></span>`}${processing ? 'Assessing' : stale ? 'refresh needed' : ''}</span>
+    <span class="biology-score-ai-teaser-label" role="status" aria-live="polite" aria-atomic="true" aria-label="${processing ? 'Assessing markers' : stale ? 'refresh needed' : demo ? 'Demo insight, generated locally without AI' : record?.text ? 'Saved interpretation' : 'Interpretation not generated'}">${processing ? processingDot() : `<span class="biology-score-ai-dot" style="background:${color}" aria-hidden="true"></span>`}${processing ? 'Assessing' : stale ? 'refresh needed' : demo ? 'Demo insight' : ''}</span>
     <span class="biology-score-ai-teaser-text">${processing && !summary ? loadingSkeleton() : escapeHTML(summary || (record?.text ? 'Refresh to add a short, complete insight. Your full explanation is saved.' : ''))}</span>
-    <button type="button" class="biology-score-ai-teaser-action" ${processing ? 'disabled' : ''} data-biology-score-action="interpret-score-ai" data-biology-score-id="${escapeAttr(score.id)}" aria-label="${score.id === 'biologicalCoherence' ? 'Refresh all Biology Score insights' : `${record?.text ? 'Refresh' : 'Explain'} ${escapeAttr(score.title)}`}">${score.id === 'biologicalCoherence' ? (record?.text ? 'Refresh all' : 'Explain all') : record?.text ? 'Refresh' : 'Explain score'}</button>
+    <button type="button" class="biology-score-ai-teaser-action" ${processing ? 'disabled' : ''} data-biology-score-action="interpret-score-ai" data-biology-score-id="${escapeAttr(score.id)}" aria-label="${demo ? `Use AI to explain ${score.id === 'biologicalCoherence' ? 'all Biology Scores' : escapeAttr(score.title)}` : score.id === 'biologicalCoherence' ? 'Refresh all Biology Score insights' : `${record?.text ? 'Refresh' : 'Explain'} ${escapeAttr(score.title)}`}">${demo ? 'Use AI' : score.id === 'biologicalCoherence' ? (record?.text ? 'Refresh all' : 'Explain all') : record?.text ? 'Refresh' : 'Explain score'}</button>
     ${stale ? `<span class="biology-score-ai-refresh-reason">${escapeHTML(refreshReason)}</span>` : ''}
     <span class="biology-score-ai-error" role="status">${escapeHTML(scoreExplanationErrors.get(getScoreAIRequestKey(score)) || '')}</span>
   </span>`;
@@ -218,16 +225,17 @@ export function scoreAIAnswerNeedsRefresh(score) {
 export function renderScoreAIAnswer(score) {
   const processing = isScoreAIProcessing(score);
   const cachedRecord = readScoreAIAnswer(score);
+  const demo = cachedRecord?.source === 'demo';
   const cached = cachedRecord?.text || '';
   const refreshReason = getScoreAIRefreshReason(score);
   const stale = !!refreshReason;
   return `<section class="biology-score-ai" tabindex="-1" data-biology-score-ai-panel="${escapeAttr(score.id)}" aria-busy="${processing}">
     <div class="biology-score-ai-head">
       <div>
-        ${score.id === 'biologicalCoherence' ? '' : '<h4>AI interpretation</h4>'}
+        ${demo ? '<h4>Demo explanation</h4>' : score.id === 'biologicalCoherence' ? '' : '<h4>AI interpretation</h4>'}
         ${processing ? `<span class="biology-score-ai-processing" role="status">${processingDot()}Assessing markers</span>` : ''}
       </div>
-      <button type="button" class="dashboard-action-btn dashboard-action-btn-secondary" ${processing ? 'disabled' : ''} data-biology-score-action="interpret-score-ai" data-biology-score-id="${escapeAttr(score.id)}">${score.id === 'biologicalCoherence' ? 'Refresh all insights' : cached ? 'Refresh explanation' : 'Explain score'}</button>
+      <button type="button" class="dashboard-action-btn dashboard-action-btn-secondary" ${processing ? 'disabled' : ''} data-biology-score-action="interpret-score-ai" data-biology-score-id="${escapeAttr(score.id)}">${demo ? 'Explain with AI' : score.id === 'biologicalCoherence' ? 'Refresh all insights' : cached ? 'Refresh explanation' : 'Explain score'}</button>
     </div>
     ${stale ? `<p class="biology-score-ai-stale">${escapeHTML(refreshReason)} Refresh to use the latest inputs.</p>` : ''}
     <div class="biology-score-ai-answer" data-biology-score-ai-answer="${escapeAttr(score.id)}">${cached ? renderMarkdown(cached) : processing ? loadingSkeleton() : 'Explain the main signal, the context that matters, and what to check next.'}</div>

@@ -5,14 +5,9 @@ import { getErrorMessage } from './caught-error.js';
 import { migrateCustomMarkerIdentities } from './custom-marker-identity.js';
 import { migrateMarkerPlacements } from './marker-placement.js';
 import { state } from './state.js';
+import { prepareDemoBiologyData } from './demo-biology-data.js';
 import { showNotification, showConfirmDialog } from './utils.js';
-import {
-  filterDatesByRange,
-  getActiveData,
-  invalidateActiveDataCache,
-  saveImportedData,
-  updateHeaderDates,
-} from './data.js';
+import { saveImportedData } from './data.js';
 import {
   createDefaultProfileData,
   createProfile,
@@ -595,13 +590,9 @@ export async function loadDemoData(sex = 'male') {
     // fire 9+1 AI calls before our prefill landed. Both writes are
     // demo-only by code path (regular importDataJSON does not touch
     // either localStorage cache).
-    let demoJson = null;
-    let demoImportFile = new File([blob], file, { type: 'application/json' });
-    try {
-      demoJson = JSON.parse(await blob.text());
-      addDemoNutrition(demoJson, sex);
-      demoImportFile = new File([JSON.stringify(demoJson)], file, { type: 'application/json' });
-    } catch (_) {}
+    const demoJson = prepareDemoBiologyData(JSON.parse(await blob.text()), sex);
+    addDemoNutrition(demoJson, sex);
+    const demoImportFile = new File([JSON.stringify(demoJson)], file, { type: 'application/json' });
     if (demoJson?.focusCard?.text) {
       // Focus card cache ships without a fingerprint — loadFocusCard
       // treats that as a hand-authored prefill and never auto-refreshes
@@ -665,71 +656,13 @@ export async function loadDemoData(sex = 'male') {
           localStorage.setItem(cacheKey, JSON.stringify({ dots, summaries, cardSummaries, fingerprints, sources, fixedDemo: true }));
         }
 
-        // Biology Scores use a manual AI context gate in normal profiles. For
-        // demos, generate the same fingerprint shape locally against the exact
-        // post-import data shape so Alex/Sarah land directly on unlocked scores
-        // without calling the user's provider.
-        try {
-          const previousImportedData = state.importedData;
-          const previousSex = state.profileSex;
-          const previousDob = state.profileDob;
-          const { buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprintsByRange } = await import('./biology-score-context-ai.js');
-          try {
-            state.importedData = structuredClone(_ctxData);
-            state.profileSex = sex;
-            state.profileDob = dob;
-            invalidateActiveDataCache?.();
-            const activeData = getActiveData();
-            demoJson.biologyScoreContextAI = {
-              summary: 'Demo context checked locally. Biology Scores are unlocked for this sample profile without using an AI provider.',
-              suggestions: [],
-              fingerprint: buildBiologyScoreContextFingerprint(activeData, 'all'),
-              fingerprintsByRange: buildBiologyScoreContextFingerprintsByRange(activeData),
-              unlockedRanges: ['all', '1y', '6m', '3m'],
-              range: 'all',
-              updatedAt: _ctxImportTs,
-            };
-          } finally {
-            state.importedData = previousImportedData;
-            state.profileSex = previousSex;
-            state.profileDob = previousDob;
-            invalidateActiveDataCache?.();
-          }
-          demoImportFile = new File([JSON.stringify(demoJson)], file, { type: 'application/json' });
-        } catch (_) {
-          // Best-effort: if Biology Scores modules fail to load, the demo still
-          // imports normally and the standard locked state remains honest.
-        }
       } catch (_) { /* prefill is best-effort */ }
     }
     await importDataJSON(demoImportFile);
+    // The empty dashboard may have reserved a delayed welcome chat before
+    // this import. A populated demo no longer needs that pending startup.
+    document.body.classList.remove('chat-autostart-reserved');
 
-    // Post-import safety net: the seeded Biology Scores review must match the
-    // exact state that survived importDataJSON + migrateProfileData + storage
-    // persistence. If any future import transform changes the fingerprint
-    // basis, recompute locally here instead of letting the demo briefly unlock
-    // and then fall back to the normal AI gate.
-    try {
-      const { buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprintsByRange, hasCurrentBiologyScoreContextReview } = await import('./biology-score-context-ai.js');
-      invalidateActiveDataCache?.();
-      const activeData = getActiveData();
-      const scoreData = filterDatesByRange(activeData, { fallbackToAll: false });
-      if (!hasCurrentBiologyScoreContextReview(scoreData)) {
-        state.importedData.biologyScoreContextAI = {
-          summary: 'Demo context checked locally. Biology Scores are unlocked for this sample profile without using an AI provider.',
-          suggestions: [],
-          fingerprint: buildBiologyScoreContextFingerprint(activeData, 'all'),
-          fingerprintsByRange: buildBiologyScoreContextFingerprintsByRange(activeData),
-          unlockedRanges: ['all', '1y', '6m', '3m'],
-          range: 'all',
-          updatedAt: Date.now(),
-        };
-        await saveImportedData({ skipSync: true, reason: 'demo-biology-score-context' });
-        exportRuntimeDeps.buildSidebar?.();
-        updateHeaderDates();
-        if (state.currentView === 'biology-scores') exportRuntimeDeps.navigate?.('biology-scores');
-      }
-    } catch (_) { /* demo Biology Scores post-import unlock is best-effort */ }
   } catch (err) {
     clearDemoLoadingProfile();
     showNotification('Could not load demo data: ' + getErrorMessage(err), 'error');

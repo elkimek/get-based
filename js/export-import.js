@@ -422,10 +422,8 @@ export function importDataJSON(file) {
         if (json.channelMixAI && typeof json.channelMixAI === 'object') {
           state.importedData.channelMixAI = json.channelMixAI;
         }
-        // Biology Scores are gated behind a context review because the review can
-        // send profile/lab context to the configured AI provider. Demo profiles
-        // ship a locally-generated review from loadDemoData() so the feature is
-        // visible immediately without spending a real LLM call.
+        // Preserve an optional saved context review; deterministic scores do
+        // not need an AI review or a synthetic demo "unlock" record.
         if (json.biologyScoreContextAI && typeof json.biologyScoreContextAI === 'object') {
           state.importedData.biologyScoreContextAI = json.biologyScoreContextAI;
         }

@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 779 |
-| Internal import edges | 3306 |
-| Dynamic internal edges | 114 |
+| Modules | 781 |
+| Internal import edges | 3308 |
+| Dynamic internal edges | 113 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -69,7 +69,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/caught-error.js`](js/caught-error.js) | 88 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 81 | [`js/settings.js`](js/settings.js) | 30 |
 | [`js/data.js`](js/data.js) | 79 | [`js/sync-configure.js`](js/sync-configure.js) | 28 |
-| [`js/profile.js`](js/profile.js) | 49 | [`js/pdf-import.js`](js/pdf-import.js) | 27 |
+| [`js/profile.js`](js/profile.js) | 50 | [`js/pdf-import.js`](js/pdf-import.js) | 27 |
 | [`js/api.js`](js/api.js) | 46 | [`js/wearables-connect.js`](js/wearables-connect.js) | 27 |
 | [`js/schema.js`](js/schema.js) | 39 | [`js/lab-context.js`](js/lab-context.js) | 24 |
 | [`js/ai-feature-routing.js`](js/ai-feature-routing.js) | 36 | [`js/export.js`](js/export.js) | 23 |
@@ -207,7 +207,7 @@ Native browser modules shipped with the static application.
 - [`js/biology-score-persistence.js`](js/biology-score-persistence.js) → no in-scope imports
 - [`js/biology-score-profile-modifiers.js`](js/biology-score-profile-modifiers.js) → [`js/marker-context-ranges.js`](js/marker-context-ranges.js)
 - [`js/biology-score-render.js`](js/biology-score-render.js) → [`js/biology-score-coverage-planner.js`](js/biology-score-coverage-planner.js), [`js/biology-score-engine.js`](js/biology-score-engine.js), [`js/biology-score-panel-policy.js`](js/biology-score-panel-policy.js), [`js/biology-score-sections.js`](js/biology-score-sections.js), [`js/lens-page-shell.js`](js/lens-page-shell.js), [`js/profile-context.js`](js/profile-context.js), [`js/utils.js`](js/utils.js)
-- [`js/biology-score-sections.js`](js/biology-score-sections.js) → [`js/biology-score-contract.js`](js/biology-score-contract.js), [`js/biology-score-engine.js`](js/biology-score-engine.js), [`js/biology-score-inputs.js`](js/biology-score-inputs.js), [`js/biology-score-persistence.js`](js/biology-score-persistence.js), [`js/data.js`](js/data.js), [`js/markdown.js`](js/markdown.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/biology-score-sections.js`](js/biology-score-sections.js) → [`js/biology-score-contract.js`](js/biology-score-contract.js), [`js/biology-score-engine.js`](js/biology-score-engine.js), [`js/biology-score-inputs.js`](js/biology-score-inputs.js), [`js/biology-score-persistence.js`](js/biology-score-persistence.js), [`js/data.js`](js/data.js), [`js/demo-biology-insights.js`](js/demo-biology-insights.js), [`js/markdown.js`](js/markdown.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/biology-score-thyroid.js`](js/biology-score-thyroid.js) → [`js/biology-score-engine.js`](js/biology-score-engine.js)
 - [`js/biology-score-tier1-definitions.js`](js/biology-score-tier1-definitions.js) → no in-scope imports
 - [`js/biology-score-tier2-definitions.js`](js/biology-score-tier2-definitions.js) → no in-scope imports
@@ -500,8 +500,10 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>demo</code> family — 1 module</summary>
+<details><summary><code>demo</code> family — 3 modules</summary>
 
+- [`js/demo-biology-data.js`](js/demo-biology-data.js) → no in-scope imports
+- [`js/demo-biology-insights.js`](js/demo-biology-insights.js) → no in-scope imports
 - [`js/demo-nutrition.js`](js/demo-nutrition.js) → no in-scope imports
 
 </details>
@@ -568,7 +570,7 @@ Native browser modules shipped with the static application.
 - [`js/export-report-summary-html.js`](js/export-report-summary-html.js) → [`js/export-report-data.js`](js/export-report-data.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/utils.js`](js/utils.js)
 - [`js/export-report.js`](js/export-report.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/api.js`](js/api.js), [`js/cli-agent-brand-assets.js`](js/cli-agent-brand-assets.js), [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js), [`js/cycle.js`](js/cycle.js), [`js/data.js`](js/data.js), [`js/dna-evidence.js`](js/dna-evidence.js), [`js/export-report-data.js`](js/export-report-data.js), [`js/export-report-sections.js`](js/export-report-sections.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile.js`](js/profile.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/unit-profiles.js`](js/unit-profiles.js), [`js/utils.js`](js/utils.js), [`js/wearables-formatters.js`](js/wearables-formatters.js)
 - [`js/export-runtime.js`](js/export-runtime.js) → [`js/cashu-wallet.js`](js/cashu-wallet.js) *(dynamic)*, [`js/crypto.js`](js/crypto.js), [`js/state.js`](js/state.js)
-- [`js/export.js`](js/export.js) → [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js) *(dynamic)*, [`js/caught-error.js`](js/caught-error.js), [`js/clear-all-profile-reset.js`](js/clear-all-profile-reset.js), [`js/context-cards.js`](js/context-cards.js) *(dynamic)*, [`js/crypto.js`](js/crypto.js), [`js/custom-marker-identity.js`](js/custom-marker-identity.js), [`js/data.js`](js/data.js), [`js/demo-nutrition.js`](js/demo-nutrition.js), [`js/export-import.js`](js/export-import.js) *(dynamic)*, [`js/export-report-builder.js`](js/export-report-builder.js) *(dynamic)*, [`js/export-report-html.js`](js/export-report-html.js), [`js/export-report.js`](js/export-report.js), [`js/export-runtime.js`](js/export-runtime.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/nostr-discovery.js`](js/nostr-discovery.js), [`js/nutrition-store.js`](js/nutrition-store.js) *(dynamic)*, [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js) *(dynamic)*, [`js/utils.js`](js/utils.js)
+- [`js/export.js`](js/export.js) → [`js/caught-error.js`](js/caught-error.js), [`js/clear-all-profile-reset.js`](js/clear-all-profile-reset.js), [`js/context-cards.js`](js/context-cards.js) *(dynamic)*, [`js/crypto.js`](js/crypto.js), [`js/custom-marker-identity.js`](js/custom-marker-identity.js), [`js/data.js`](js/data.js), [`js/demo-biology-data.js`](js/demo-biology-data.js), [`js/demo-nutrition.js`](js/demo-nutrition.js), [`js/export-import.js`](js/export-import.js) *(dynamic)*, [`js/export-report-builder.js`](js/export-report-builder.js) *(dynamic)*, [`js/export-report-html.js`](js/export-report-html.js), [`js/export-report.js`](js/export-report.js), [`js/export-runtime.js`](js/export-runtime.js), [`js/lab-entry-mutations.js`](js/lab-entry-mutations.js), [`js/lab-entry.js`](js/lab-entry.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/nostr-discovery.js`](js/nostr-discovery.js), [`js/nutrition-store.js`](js/nutrition-store.js) *(dynamic)*, [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/sync.js`](js/sync.js) *(dynamic)*, [`js/utils.js`](js/utils.js)
 
 </details>
 

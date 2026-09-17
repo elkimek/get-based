@@ -213,8 +213,12 @@ export function getBiologyProfileContext(options = {}) {
   const lowSunlightExposure = lightContextEnabled && (
     !!flags.lowSunlight || textMatchesAny(allText, LOW_SUNLIGHT_TERMS) || !!light.lowLoggedSunlight || !!light.lowVitaminDSynthesis
   );
-  const acuteInflammationContext = !!flags.acuteIllnessNearDraw || textMatchesAny(allText, ACUTE_TERMS);
-  const recentHardTraining = !!flags.intenseTrainingRecent || textMatchesAny(exerciseText, HARD_TRAINING_TERMS) || textMatchesAny(includeInsightCards ? data.contextNotes : '', ['recent workout', 'trained yesterday', 'post-exercise']);
+  // An explicitly reviewed false flag must not be re-enabled by general habits
+  // (e.g. strength training) or a mention of an old illness in free text.
+  const acuteInflammationContext = typeof flags.acuteIllnessNearDraw === 'boolean'
+    ? flags.acuteIllnessNearDraw : textMatchesAny(allText, ACUTE_TERMS);
+  const recentHardTraining = typeof flags.intenseTrainingRecent === 'boolean'
+    ? flags.intenseTrainingRecent : textMatchesAny(exerciseText, HARD_TRAINING_TERMS) || textMatchesAny(includeInsightCards ? data.contextNotes : '', ['recent workout', 'trained yesterday', 'post-exercise']);
   const sex = state.profileSex === 'female' ? 'female' : state.profileSex === 'male' ? 'male' : null;
   const cycleStatus = sex === 'female' ? (flags.postmenopause ? 'postmenopause' : (mc ? (mc.cycleStatus || 'regular') : null)) : null;
   const hormoneTherapy = !!flags.hormoneTherapy || textMatchesAny(allText, TRT_TERMS) || (sex === 'female' && isHormonalContraception(mc?.contraceptive));

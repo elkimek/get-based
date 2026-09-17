@@ -1734,7 +1734,7 @@ button.biology-score-token:focus-visible {
 }
 
 /* Keep the score itself visible; disclosures hold the explanation, not the overview. */
-.biology-scores-page { max-width: 1400px; margin-inline: auto; }
+.biology-scores-page { max-width: 1400px; margin-inline: auto; container: biology-page / inline-size; }
 .biology-scores-page .lens-page-widgets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
 .biology-score-lens-row { grid-column: auto; }
 .biology-score-compact { overflow: hidden; }
@@ -1981,3 +1981,22 @@ button.biology-score-token:focus-visible {
 .biology-score-compact[open] > .biology-score-expanded { display: block; }
 .biology-score-details-label { border: 0; background: transparent; padding: 8px 0 8px 8px; font-family: inherit; cursor: pointer; }
 .biology-score-summary:has(.biology-score-details-label:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* Chat can narrow a desktop page without changing the viewport breakpoint. */
+@container biology-page (max-width: 900px) {
+  .biology-scores-page .lens-page-widgets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .biology-coherence-visual { grid-template-columns: minmax(0, 1fr); }
+  .biology-coherence-visual .biology-coherence-overview,
+  .biology-coherence-visual .biology-coherence-ai,
+  .biology-coherence-visual > .biology-coherence-domains { grid-column: 1; grid-row: auto; }
+  .biology-score-lens-row:nth-child(n) { --biology-panel-offset: 0px; }
+  .biology-score-lens-row:nth-child(2n) { --biology-panel-offset: calc((100cqw + 16px) / -2); }
+}
+@container biology-page (max-width: 600px) {
+  .biology-scores-page .lens-page-widgets,
+  .biology-planning-grid { grid-template-columns: minmax(0, 1fr); }
+  .biology-score-lens-row:nth-child(n) { --biology-panel-offset: 0px; }
+  .biology-coherence-overview { gap: 16px; }
+  .biology-coherence-overview h2 { font-size: 20px; }
+  .biology-coherence-overview .biology-score-dial { width: 100px; height: 100px; }
+}

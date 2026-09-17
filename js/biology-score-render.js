@@ -256,7 +256,7 @@ function renderBiologicalCoherenceHero(score) {
     <div class="biology-coherence-ai">${renderScoreAISummary(sourceScore)}</div>
     ${domains.length ? `<div class="biology-coherence-domains">${domains.map(item => `<button type="button" class="biology-coherence-domain-row" style="--score-color:${scoreColor(item.partial)}" title="${item.partial}/100 · Open ${escapeAttr(item.label)}" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(item.primaryScoreId || '')}"><span class="biology-domain-label">${escapeHTML(item.label)}</span><span class="biology-domain-meter" aria-hidden="true"><span style="width:${clamp(item.partial, 0, 100)}%"></span></span><strong>${item.partial}</strong></button>`).join('')}</div>` : ''}
     ${renderOverviewMembership(sourceScore)}
-    <details class="biology-coherence-interpretation"><summary>AI interpretation</summary>${renderScoreAIAnswer(sourceScore)}</details>
+    <details class="biology-coherence-interpretation"><summary>Explanation</summary>${renderScoreAIAnswer(sourceScore)}</details>
     <details class="biology-coherence-breakdown"><summary>How the overview works</summary>
       <div class="biology-reading-body">${renderReadingFacts([
         ['What is combined', '13 baseline scores form 12 domains: Iron Handling and Blood Flow Context share one domain. An overview needs at least 3 domains and 25% core coverage. Available domain results remain visible below that threshold. Excluded domains remain reflected in coverage; open Overview contributors to see exactly which scores are included.'],

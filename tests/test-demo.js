@@ -348,9 +348,10 @@ function invalidContextOptions(demoJson) {
       }
       const scores = computeBiologyScores(activeData).filter(score => score.id !== 'biologicalCoherence');
       const liveScores = scores.filter(score => score.score != null);
-      assert(`${demo.label} shows every Biology Score and retains context-limited demo panels`,
-        liveScores.length === 16 && scores.length === getBiologyScoreMapping().length - 1
-          && scores.filter(score => score.score == null).map(score => score.id).sort().join(',') === 'nerveMuscleSignal,stressResilience',
+      const expectedWaiting = demo.sex === 'male' ? 'stressResilience' : 'nerveMuscleSignal,stressResilience';
+      assert(`${demo.label} archival fixture respects reviewed flags and reports missing timed cortisol`,
+        liveScores.length === (demo.sex === 'male' ? 17 : 16) && scores.length === getBiologyScoreMapping().length - 1
+          && scores.filter(score => score.score == null).map(score => score.id).sort().join(',') === expectedWaiting,
         `live=${liveScores.length}/${scores.length}, waiting=${scores.filter(score => score.score == null).map(score => score.id).join(', ')}`);
       const directionalOnly = scores.filter(score => score.evidence === 'experimental' && (score.coverage || 0) < 0.25).map(score => score.id);
       assert(`${demo.label} has no Biology Score stuck at directional-only coverage`,
