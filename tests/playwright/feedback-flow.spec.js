@@ -97,6 +97,34 @@ test('all feedback types route correctly and long reports survive clipboard deni
   expect(await page.locator('#feedback-draft').evaluate(el => el.selectionEnd - el.selectionStart)).toBe((await page.locator('#feedback-draft').inputValue()).length);
 });
 
+test('feedback drafts clear on profile switch, whether open or dismissed', async ({ page }) => {
+  await prepare(page);
+  for (const dismissed of [false, true]) {
+    await page.evaluate(async () => (await import('/js/feedback.js')).openFeedbackModal());
+    await page.locator('#feedback-type').selectOption('feature');
+    await page.locator('#feedback-title').fill('Private profile title');
+    await page.locator('#feedback-desc').fill('Private profile description');
+    await page.getByRole('button', { name: 'Open GitHub draft' }).click();
+    if (dismissed) await page.keyboard.press('Escape');
+    await page.evaluate(async () => {
+      const { createProfile, switchProfile } = await import('/js/profile.js');
+      const id = await createProfile('Another profile', { skipInitialSync: true });
+      localStorage.setItem(`labcharts-${id}-tour`, 'completed');
+      localStorage.setItem(`labcharts-${id}-emptyTour`, 'completed');
+      await switchProfile(id);
+    });
+    await expect(page.getByRole('dialog', { name: 'Send Feedback' })).not.toBeVisible();
+    await expect(page.locator('#feedback-draft')).toHaveCount(0);
+    await page.evaluate(async () => (await import('/js/feedback.js')).openFeedbackModal());
+    await expect(page.locator('#feedback-title')).toHaveValue('');
+    await expect(page.locator('#feedback-desc')).toHaveValue('');
+    await expect(page.locator('#feedback-type')).toHaveValue('bug');
+    await expect(page.locator('#feedback-result')).not.toBeVisible();
+    await expect(page.locator('#feedback-draft')).toHaveValue('');
+    await expect(page.locator('#feedback-modal')).not.toContainText('Private profile');
+  }
+});
+
 test('marker suggestions follow US, ANZ and SI after switching units without including personal ranges', async ({ page }) => {
   await prepare(page);
   await page.evaluate(async () => {

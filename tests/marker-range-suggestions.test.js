@@ -44,4 +44,14 @@ describe('marker range GitHub suggestions', () => {
     expect(markerRangeSuggestionIssueUrl('custom.marker')).toBeNull();
     expect(markerRangeSuggestionIssueUrl('not-a-dot-key')).toBeNull();
   });
+
+  it.each(['EU', 'US', 'ANZ'])('preserves deliberately unset female wellness ranges in %s', profile => {
+    for (const key of ['hormones.shbg', 'hormones.estradiol']) {
+      const body = new URL(markerRangeSuggestionIssueUrl(key, profile)).searchParams.get('body');
+      expect(body).toContain('**Female optimal override:** Not set\n');
+      expect(body).not.toContain('**Default optimal/wellness:** Not set');
+    }
+    const body = new URL(markerRangeSuggestionIssueUrl('calculatedRatios.apoBapoAIRatio', profile)).searchParams.get('body');
+    expect(body).toContain('**Female optimal override:** 0 to 0.5\n');
+  });
 });

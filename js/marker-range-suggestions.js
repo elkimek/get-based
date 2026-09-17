@@ -40,10 +40,10 @@ export function markerRangeSuggestionIssueUrl(dotKey, unitProfile = 'EU') {
   };
   const optimal = OPTIMAL_RANGES[dotKey] || {};
   const femaleReference = marker.refMin_f !== undefined || marker.refMax_f !== undefined
-    ? displayRange(marker.refMin_f ?? marker.refMin, marker.refMax_f ?? marker.refMax)
+    ? displayRange(marker.refMin_f !== undefined ? marker.refMin_f : marker.refMin, marker.refMax_f !== undefined ? marker.refMax_f : marker.refMax)
     : 'Same as default / not separately set';
   const femaleOptimal = optimal.optimalMin_f !== undefined || optimal.optimalMax_f !== undefined
-    ? displayRange(optimal.optimalMin_f ?? optimal.optimalMin, optimal.optimalMax_f ?? optimal.optimalMax)
+    ? displayRange(optimal.optimalMin_f !== undefined ? optimal.optimalMin_f : optimal.optimalMin, optimal.optimalMax_f !== undefined ? optimal.optimalMax_f : optimal.optimalMax)
     : 'Same as default / not separately set';
   const contextSupport = [
     CONTEXT_REFERENCE_RANGES[dotKey] ? 'age/sex reference rules' : null,

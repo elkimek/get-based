@@ -26,8 +26,10 @@ async function copyFeedbackDraft() {
   if (!draft) return;
   try {
     await navigator.clipboard.writeText(draft.value);
+    if (!draft.isConnected) return;
     showNotification('Report copied. Paste it into GitHub.', 'success');
   } catch {
+    if (!draft.isConnected) return;
     draft.focus(); draft.select();
     showNotification('Copy the selected report, then paste it into GitHub.', 'info');
   }
@@ -52,6 +54,10 @@ export function installFeedbackActionDelegates(root = typeof document !== 'undef
   if (!root || appWindow.__feedbackActionDelegatesBound) return;
   appWindow.__feedbackActionDelegatesBound = true;
   for (const event of ['click', 'submit', 'change', 'input']) root.addEventListener(event, handleFeedbackEvent);
+  appWindow.addEventListener('labcharts-profile-switched', () => {
+    closeFeedbackModal();
+    document.getElementById('feedback-modal')?.replaceChildren();
+  });
 }
 
 if (typeof window !== 'undefined') installFeedbackActionDelegates();
@@ -61,7 +67,7 @@ export function openFeedbackModal() {
   const overlay = document.getElementById('feedback-modal-overlay');
   if (!modal || !overlay) return;
   // Keep a draft when dismissed or when a new tab is blocked. It lives only in
-  // this page, never in profile storage, backups, or sync.
+  // this page until a profile switch, never in profile storage, backups, or sync.
   if (!modal.querySelector('.feedback-form')) {
     const template = /** @type {HTMLTemplateElement | null} */ (document.getElementById('feedback-form-template'));
     if (!template) return;
