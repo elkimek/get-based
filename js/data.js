@@ -187,24 +187,7 @@ export function invalidateActiveDataCache() {
 function _activeDataCacheMatches(meta) {
   const prev = _activeDataCacheMeta;
   return !!(_activeDataCache && prev
-    && prev.importedData === meta.importedData
-    && prev.entries === meta.entries
-    && prev.entriesLength === meta.entriesLength
-    && prev.customMarkers === meta.customMarkers
-    && prev.markerPlacements === meta.markerPlacements
-    && prev.refOverrides === meta.refOverrides
-    && prev.categoryLabels === meta.categoryLabels
-    && prev.categoryIcons === meta.categoryIcons
-    && prev.markerLabels === meta.markerLabels
-    && prev.menstrualCycle === meta.menstrualCycle
-    && prev.biometrics === meta.biometrics
-    && prev.wearableSummary === meta.wearableSummary
-    && prev.wearableWeightLatest === meta.wearableWeightLatest
-    && prev.legacyWeightStamp === meta.legacyWeightStamp
-    && prev.profileContextKey === meta.profileContextKey
-    && prev.unitSystem === meta.unitSystem
-    && prev.profileSex === meta.profileSex
-    && prev.profileDob === meta.profileDob);
+    && Object.keys(meta).every(key => prev[key] === meta[key]));
 }
 
 function _makeActiveDataCacheMeta() {
@@ -278,10 +261,20 @@ function failedProfileSave(error) {
   return false;
 }
 
+const pendingProfileSaves = new WeakMap();
+
 function persistProfileSnapshot(profileId, source, options) {
   const intent = structuredClone(source);
-  const base = options.baseData ? structuredClone(options.baseData) : null;
+  const previousSave = options.activeSave && pendingProfileSaves.get(source);
+  const snapshot = { baseline: options.baseData, base: options.baseData ? structuredClone(options.baseData) : null, intent, committed: false, profileId };
+  if (options.activeSave) pendingProfileSaves.set(source, snapshot);
   return queueProfileDataWrite(profileId, async () => {
+    // Same-tab snapshots queued before adoption share a stale baseline. Advance
+    // only over successful local writes; failed writes must remain retryable.
+    if (previousSave && previousSave.profileId === profileId && previousSave.baseline === snapshot.baseline) {
+      snapshot.base = previousSave.committed ? previousSave.intent : previousSave.base;
+    }
+    const base = snapshot.base;
     let persisted;
     let changed;
     try {
@@ -303,6 +296,7 @@ function persistProfileSnapshot(profileId, source, options) {
       const value = JSON.stringify(persisted);
       changed = previous !== value;
       if (changed) await encryptedSetItem(key, value);
+      snapshot.committed = true;
     } catch (e) {
       return failedProfileSave(e);
     }
@@ -334,6 +328,8 @@ function persistProfileSnapshot(profileId, source, options) {
       if (isDebugMode()) console.warn('Post-save hook failed after data was persisted:', e);
     }
     return true;
+  }).finally(() => {
+    if (pendingProfileSaves.get(source) === snapshot) pendingProfileSaves.delete(source);
   });
 }
 

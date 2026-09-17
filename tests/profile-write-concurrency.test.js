@@ -20,6 +20,77 @@ beforeEach(async () => {
 });
 afterEach(() => vi.restoreAllMocks());
 
+for (const failWrite of [0, 1, 2]) it(`keeps rapid queued note edits and deletion ordered when write ${failWrite} fails`, async () => {
+  const originalWrite = crypto.encryptedSetItem;
+  let writes = 0;
+  vi.spyOn(crypto, 'encryptedSetItem').mockImplementation(async (...args) => {
+    if (++writes === failWrite) throw new Error('storage unavailable');
+    return originalWrite(...args);
+  });
+  state.importedData.notes.push({ date: '2026-09-17', text: 'First draft' });
+  const add = saveImportedData();
+  state.importedData.notes[0].text = 'Edited draft';
+  const edit = saveImportedData();
+  state.importedData.notes = [];
+  const remove = saveImportedData();
+  expect(await Promise.all([add, edit, remove])).toEqual([failWrite !== 1, failWrite !== 2, true]);
+  expect((await read()).notes).toEqual([]);
+  expect(state.importedData.notes).toEqual([]);
+});
+
+it('keeps peer additions while later queued saves replace only their own pending additions', async () => {
+  const peerNote = { date: '2026-09-16', text: 'Other tab' };
+  const peer = structuredClone(state.importedData);
+  peer.notes.push(peerNote);
+  await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  state.importedData.notes.push({ date: '2026-09-17', text: 'First draft' });
+  const add = saveImportedData();
+  state.importedData.notes[0].text = 'Final draft';
+  const edit = saveImportedData();
+  expect(await Promise.all([add, edit])).toEqual([true, true]);
+  expect((await read()).notes).toEqual([peerNote, { date: '2026-09-17', text: 'Final draft' }]);
+  expect(state.importedData.notes).toEqual((await read()).notes);
+});
+
+it('persists a queued undo even when the final value matches the original baseline', async () => {
+  state.importedData.contextNotes = 'temporary edit';
+  const edit = saveImportedData();
+  state.importedData.contextNotes = 'original';
+  const undo = saveImportedData();
+  expect(await Promise.all([edit, undo])).toEqual([true, true]);
+  expect((await read()).contextNotes).toBe('original');
+  expect(state.importedData.contextNotes).toBe('original');
+});
+
+it('uses the adopted baseline when another save starts during post-save hooks', async () => {
+  const peerNote = { date: '2026-09-16', text: 'Other tab' };
+  const peer = structuredClone(state.importedData);
+  peer.notes.push(peerNote);
+  await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  let pendingSave;
+  vi.spyOn(sync, 'onDataSaved').mockImplementationOnce(() => {
+    // This save has already adopted peer data. A later peer deletion must win.
+    state.importedData.contextNotes = 'after adoption';
+    pendingSave = saveImportedData();
+  });
+  state.importedData.notes.push({ date: '2026-09-17', text: 'Local note' });
+  const originalRead = crypto.encryptedGetItem;
+  let reads = 0;
+  vi.spyOn(crypto, 'encryptedGetItem').mockImplementation(async (...args) => {
+    const raw = await originalRead(...args);
+    if (++reads !== 2) return raw;
+    const newer = JSON.parse(raw);
+    newer.notes = newer.notes.filter(note => note.text !== 'Other tab');
+    await crypto.encryptedSetItem(key, JSON.stringify(newer));
+    return JSON.stringify(newer);
+  });
+  expect(await saveImportedData()).toBe(true);
+  expect(await pendingSave).toBe(true);
+  expect((await read()).notes).toEqual([{ date: '2026-09-17', text: 'Local note' }]);
+  expect((await read()).contextNotes).toBe('after adoption');
+  expect(state.importedData.notes).toEqual((await read()).notes);
+});
+
 it('merges independent additions, same-entry marker edits, and delete-versus-edit without resurrection', () => {
   const base = { entries: [entry('2026-09-01', { a: 1, b: 2 }), entry('2026-09-02', { a: 2 })] };
   const a = structuredClone(base), b = structuredClone(base);
