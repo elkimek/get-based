@@ -143,7 +143,7 @@ function collectLightModifiers(data, options = {}) {
   const recentAny = [...sunSessions, ...deviceSessions].filter(s => Number(s?.endedAt || s?.startedAt || 0) >= now - 14 * DAY_MS);
   // Recalculation clears old doses before fetching replacements. Partial
   // rollups are unknown, not evidence of low exposure.
-  const complete = !recentAny.some(s => s.endedAt >= now - 7 * DAY_MS && s.doses === null);
+  const complete = !recentAny.some(s => (s.endedAt || s.startedAt) >= now - 7 * DAY_MS && s.doses === null);
   let vitD7 = null, circadian7 = null;
   try {
     if (complete && profileContextLightDeps.rollingVitaminDIU) {

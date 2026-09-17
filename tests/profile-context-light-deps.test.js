@@ -33,13 +33,17 @@ afterEach(() => {
 });
 
 describe('profile context light dependencies', () => {
-  it.each(['sunSessions', 'deviceSessions'])('keeps incomplete %s rollups unknown until recalculation finishes', key => {
-    const session = { endedAt: Date.now(), doses: null };
+  it.each([
+    ['sunSessions', false], ['deviceSessions', false],
+    ['sunSessions', true], ['deviceSessions', true],
+  ])('keeps incomplete %s rollups unknown (active: %s)', (key, active) => {
+    const session = { startedAt: Date.now(), endedAt: active ? null : Date.now(), doses: null };
     state.importedData[key] = [session];
     configureProfileContextLightDeps({ rollingVitaminDIU: () => 0, rollingChannelTotals: () => ({ circadian: 0 }) });
     expect(getBiologyProfileContext().light).toMatchObject({
       vitD7: null, circadian7: null, lowVitaminDSynthesis: false, lowCircadianLight: false,
     });
+    session.endedAt = Date.now();
     session.doses = {};
     expect(getBiologyProfileContext().light).toMatchObject({
       vitD7: 0, circadian7: 0, lowVitaminDSynthesis: true, lowCircadianLight: true,
