@@ -493,7 +493,8 @@ test('automatic shared insights survive reload and backups; refresh scopes stay 
   await installProvider();
   await page.evaluate(async () => (await import('/js/views.js')).navigate('biology-scores'));
   const first = page.locator('#biology-score-metabolicFlexibility [data-biology-score-ai-summary]');
-  await expect(first).toContainText('The core markers show a mixed pattern.');
+  // The 6x CPU slowdown also delays lazy context preparation before inference.
+  await expect(first).toContainText('The core markers show a mixed pattern.', { timeout: 30000 });
   expect(calls).toHaveLength(1);
   expect(calls[0].length).toBeGreaterThan(10);
   const exported = await page.evaluate(async () => {
