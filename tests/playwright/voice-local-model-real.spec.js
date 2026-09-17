@@ -200,6 +200,7 @@ test.describe('Voice real local models', () => {
     expect(result.speechInstalledBackend).toBe(result.speechBackend);
     expect(result.speechPerformance[result.speechBackend].realtimeFactor).toBeGreaterThan(0);
     expect(result.transcriptBackend).toMatch(/^(webgpu|wasm)$/);
+    if (smallModelBackend !== 'auto') expect(result.transcriptBackend).toBe(smallModelBackend);
     expect(playbackState.contextState).toBe('running');
     expect(playbackState.isPlaying).toBe(false);
     expect(browserIssues).toEqual([]);

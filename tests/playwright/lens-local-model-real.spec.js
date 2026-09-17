@@ -40,6 +40,7 @@ test('real MiniLM indexes, searches and reloads without downloading weights agai
   const first = await inspect(true);
   expect(first.dim).toBe(384);
   expect(first.backend).toMatch(/^(wasm|webgpu)$/);
+  if (process.env.GETBASED_LENS_EXPECT_BACKEND) expect(first.backend).toBe(process.env.GETBASED_LENS_EXPECT_BACKEND);
   expect(first.documents).toBe(2);
   expect(first.chunks[0].source).toBe('gardening.md');
   expect(first.chunks.every(chunk => Number.isFinite(chunk.score))).toBe(true);
