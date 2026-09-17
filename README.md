@@ -15,16 +15,19 @@ You can use it with no account. Most data lives in your browser by default. Heal
 - **Import lab reports** — drop PDFs, images, spreadsheets, or manually enter values. getbased maps known markers, lets you review values, laboratory ranges, collection time, and fasting status before saving, and keeps reviewable snapshots per file.
 - **Track biomarkers over time** — 196 core markers across 19 categories, plus specialty and custom markers, with charts, tables, heatmaps, lab-first and context-aware ranges, optional evidence-backed optimal ranges, notes, trend flags, and date comparison.
 - **Use calculated markers without duplicates** — supported lab-reported ratios and indices take priority, while deterministic fallbacks cover lipid/metabolic ratios, NLR/PLR/MLR/SII, FIB-4, anion gap, free water deficit, and biological age when their inputs are available.
-- **Read biology as patterns, not isolated numbers** — Biology Scores summarize deterministic marker patterns such as metabolism, thyroid, cardiovascular health, inflammation, methylation, iron/blood, hormones, stress resilience, cellular energy, gut-immune terrain, and Biological Coherence. They are pattern summaries, not diagnoses.
+- **Explore 18 Biology Scores** — deterministic scores keep affordable core markers central, with optional markers adding context. Biological Coherence brings eligible baseline scores together and shows which contribute or are excluded. Cleaner cards, coverage planning and saved AI explanations help you explore patterns across dates and ranges. Scores support wellness and learning, not diagnosis. [How Biology Scores work](https://docs.getbased.health/guides/biology-scores).
 - **Bring in DNA context** — raw DNA imports from common consumer and clinical formats, with curated SNP interpretation, APOE haplotype support, mtDNA haplogroups, and DNA-aware AI context.
 - **Connect wearables and body metrics** — the official app supports Oura, Withings, Polar, existing legacy Fitbit connections, local Apple Health file import, and manual weight, blood pressure, and resting pulse. The hosted cloud integrations use narrowly scoped provider relays; WHOOP, Ultrahuman, and Google Health remain self-host only and use infrastructure controlled by that deployment. Every stored OAuth token is device-key encrypted.
 - **Track light and environment** — sun sessions, UV/atmospheric context, indoor light setup, devices, measurements, EMF assessment, and daily light analysis.
 - **Keep a complete therapy history** — track current, scheduled, paused, cycled, and ended supplements or medications with dose periods, structured units, active and other ingredients, reviewed product-label imports, and source quality evidence.
 - **Add the missing human context** — medical history, family history, diet/digestion, sleep, exercise, stress, light/circadian habits, environment, EMF, health goals, and freeform notes. Cycle tracking can label individual blood draws and apply phase-specific estradiol, progesterone, LH, and FSH ranges only when context is reliable.
 - **Ask AI with context** — chat can use your labs, notes, bounded therapy history, scores, wearables, Knowledge Base passages, and selected interpretive lens. Dictate into the composer and listen to replies with browser-local voice models, a local compatible server, a supported OpenRouter/PPQ/Venice AI connection, xAI, or ElevenLabs.
-- **Build reports** — export a practitioner-readable PDF with selected labs, context, and summary sections.
+- **Build reports that fit the conversation** — choose a health summary, full report, nutrition/lifestyle report or lab-only report. Select dates, units, ranges and sections; keep it concise or include detailed records. An optional, labeled AI overview can be edited before you preview and print. [Create a health report](https://docs.getbased.health/guides/health-reports).
 - **Use multiple profiles** — separate profiles for yourself, family, clients, or test/demo data.
-- **Protect and move your data** — create full backups, optionally encrypt browser storage with a passphrase, sync encrypted profiles across devices, or share a password-protected copy.
+- **Protect and move your data** — create full backups, optionally encrypt browser storage with a passphrase, sync encrypted profiles across devices, or share a password-protected copy. Saved Biology Score interpretations travel with backups and sync; import and restore preserve marker-level ranges and source context.
+- **Help improve getbased** — prepare a public GitHub feedback draft from the app, or suggest better built-in marker ranges in your selected units. Review the draft before submitting; recover the full text if a new tab or clipboard action fails. [Feedback and range suggestions](https://docs.getbased.health/guides/feedback).
+
+See [release notes](https://github.com/elkimek/get-based/releases) for recent improvements and fixes.
 
 ## The five spaces
 
@@ -63,11 +66,11 @@ All normal tracking works without AI. AI features can use:
 | Provider path | What it is for |
 |---|---|
 | **PPQ** | Private TEE mode and regular hosted models, with in-app balance/top-up support. |
-| **Routstr** | Decentralized Bitcoin AI through Nostr-discovered nodes and the built-in Cashu wallet. |
+| **Routstr** | Decentralized Bitcoin AI through Nostr-discovered nodes and the built-in Cashu wallet, with mint-specific balances and recoverable funding and transfers. |
 | **OpenRouter** | A broad hosted model marketplace with OAuth or manual key setup. |
 | **Venice AI** | Hosted models with optional browser-side message encryption plus required Intel DCAP and NVIDIA NRAS checks. |
 | **Local AI** | Any OpenAI-compatible local server, such as Ollama, LM Studio, Jan, or llama.cpp. |
-| **CLI agents** | Use an installed Codex, OpenCode, Hermes, Grok, or OpenClaw account or configured model provider for chat and supported AI features through the local getbased Companion on Linux, macOS, or Windows. Hermes and OpenClaw can also route chat to a detected personal gateway/profile. Health-data changes remain reviewable drafts. |
+| **CLI agents** | Use an installed Codex, OpenCode, Hermes, Grok, or OpenClaw account or configured model provider for chat and supported AI features through the local getbased Companion on Linux, macOS, or Windows. Hermes and OpenClaw can also route chat to a detected personal gateway/profile; supported Hermes gateways can run text-only explanations. Capabilities determine which features are available. Health-data changes remain reviewable drafts. |
 | **Custom API** | Bring your own OpenAI-compatible endpoint or proxy. |
 
 Switch providers in Settings. Supported provider keys are wrapped locally with
