@@ -1036,26 +1036,24 @@ return (async function() {
           && contextCardsSrc.includes("contextCardActionAttrs('enable-demo-live-ai')")
           && contextCardsSrc.includes("contextCardActionAttrs('disable-demo-live-ai')"),
         'paid demo consent must be explicit in the rendered UI');
-      assert('loadDemoData pre-unlocks Biology Scores without AI provider call',
-        _loadDemoSection.includes('buildBiologyScoreContextFingerprintsByRange')
-          && _loadDemoSection.includes('biologyScoreContextAI')
-          && _loadDemoSection.includes('Demo context checked locally'),
-        'demo loader must seed Biology Scores context review locally');
+      assert('loadDemoData prepares complete Biology Score data without fabricating an AI context review',
+        _loadDemoSection.includes('prepareDemoBiologyData(JSON.parse(await blob.text()), sex)')
+          && !_loadDemoSection.includes('biologyScoreContextAI')
+          && !_loadDemoSection.includes('Demo context checked locally'),
+        'demo loader must prepare synthetic panels without the obsolete AI unlock');
       assert('loadDemoData does not depend on cross-device sync for demo Biology Scores',
         _loadDemoSection.includes('skipInitialSync: true')
           && _loadDemoSection.includes('markDemoLoadingProfile(profileId)')
           && exportRuntimeSrcLive.includes('_demoLoadingProfileId')
-          && exportImportSrcLive.includes("reason: 'demo-import'")
-          && _loadDemoSection.includes("skipSync: true, reason: 'demo-biology-score-context'"),
-        'demo loading must not sync an empty demo profile and wait for pull/rebroadcast to unlock Biology Scores');
-      assert('loadDemoData awaits demo import before post-import Biology Scores validation',
+          && exportImportSrcLive.includes("reason: 'demo-import'"),
+        'demo loading must not sync an empty demo profile or depend on pull/rebroadcast');
+      assert('loadDemoData awaits the standard import of prepared Biology Score data',
         _loadDemoSection.includes('await importDataJSON(demoImportFile)')
-          && _loadDemoSection.includes('hasCurrentBiologyScoreContextReview(scoreData)')
-          && _loadDemoSection.includes("reason: 'demo-biology-score-context'"),
-        'demo loader must recompute the local Biology Scores unlock after the real import path settles');
-      assert('importDataJSON imports precomputed Biology Score context review',
+          && _loadDemoSection.includes('new File([JSON.stringify(demoJson)]'),
+        'demo loader must pass prepared data through the awaited real import path');
+      assert('importDataJSON preserves optional legacy Biology Score context review',
         _importBody.includes('json.biologyScoreContextAI') && _importBody.includes('state.importedData.biologyScoreContextAI'),
-        'JSON import must preserve the demo Biology Scores unlock');
+        'JSON import must preserve an existing optional context review');
       assert('importDataJSON does NOT touch contextHealth cache (so non-demo imports are unaffected)',
         _importBody.length > 0 && !_importBody.includes('contextHealth'),
         'context-health prefill leaks into the regular JSON-import path');
@@ -1218,18 +1216,18 @@ return (async function() {
       }
 
       const bioReview = S.importedData?.biologyScoreContextAI;
-      assert('Biology Scores demo context review populated after demo load',
-        bioReview?.summary?.includes('Demo context checked locally')
-          && bioReview?.updatedAt
-          && Array.isArray(bioReview?.unlockedRanges)
-          && ['all','1y','6m','3m'].every(range => bioReview.unlockedRanges.includes(range)),
+      assert('Biology Scores demo import does not fabricate an AI context review',
+        !bioReview?.summary && !bioReview?.updatedAt,
         `got ${JSON.stringify(bioReview || {}).slice(0, 160)}`);
       try {
-        const { hasCurrentBiologyScoreContextReview } = await import('../js/biology-score-context-ai.js');
+        const { computeBiologyScores } = await import('../js/biology-scores.js');
+        const { readScoreAIAnswer, getScoreAIRefreshReason } = await import('../js/biology-score-sections.js');
         const scoreData = dataModule.filterDatesByRange?.(dataModule.getActiveData?.() || {}, { fallbackToAll: false }) || dataModule.getActiveData?.() || {};
-        assert('Biology Scores demo context review matches live fingerprints',
-          hasCurrentBiologyScoreContextReview(scoreData),
-          'demo Biology Scores would still show the unlock gate');
+        const scores = computeBiologyScores(scoreData);
+        assert('All Biology Scores have complete core data and current local demo insights without an AI gate',
+          scores.length === 19 && scores.every(score => Number.isFinite(score.score) && score.coverage === 1
+            && readScoreAIAnswer(score)?.source === 'demo' && !getScoreAIRefreshReason(score)),
+          'demo scores must work immediately with complete data and clearly labeled local explanations');
       } catch (err) {
         assert('Biology Scores demo context review module import failed', false, err?.message || String(err));
       }
