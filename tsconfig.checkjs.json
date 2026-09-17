@@ -606,6 +606,8 @@
     "js/notes-runtime.js",
     "js/notes.js",
     "js/demo-nutrition.js",
+    "js/demo-biology-data.js",
+    "js/demo-biology-insights.js",
     "js/nutrition-ai-settings.js",
     "js/nutrition-analysis.js",
     "js/nutrition-benchmark-workspace.js",

@@ -1992,7 +1992,7 @@ button.biology-score-token:focus-visible {
   .biology-score-lens-row:nth-child(n) { --biology-panel-offset: 0px; }
   .biology-score-lens-row:nth-child(2n) { --biology-panel-offset: calc((100cqw + 16px) / -2); }
 }
-@container biology-page (max-width: 600px) {
+@container biology-page (max-width: 650px) {
   .biology-scores-page .lens-page-widgets,
   .biology-planning-grid { grid-template-columns: minmax(0, 1fr); }
   .biology-score-lens-row:nth-child(n) { --biology-panel-offset: 0px; }

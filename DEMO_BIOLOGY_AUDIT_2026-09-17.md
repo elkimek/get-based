@@ -40,15 +40,18 @@ Scores use the same deterministic scoring engine as real profiles.
   context handling.
 - The Biology Scores layout responds to the space available when chat narrows
   the page, preventing squeezed overview labels and incorrect card columns.
-- A pending empty-dashboard welcome chat is cancelled after demo import so it
-  cannot unexpectedly cover the populated demo.
+- A pending empty-dashboard welcome chat is cancelled when demo loading starts,
+  before a slow download/import can allow the timer to cover the demo.
 
 ## Verification
 
 - 59 focused unit tests: demo preparation, score composition and scoring audit.
 - 71 existing demo checks, 223 Biology Score checks and 8 runtime checks.
 - Both demos imported through the real UI; all eight time/range combinations
-  checked, plus 1440px desktop and 390px mobile cards and expanded details.
+  checked, plus 1440px desktop and 650px/390px mobile cards and expanded details.
+- Review regressions were reproduced before fixing: a 1.2-second demo download
+  allowed the welcome chat to open, and 650px cards rendered in two columns.
+  Both cases now have browser regression assertions.
 - Manual AI response persisted through reload; zero automatic Biology AI calls.
   Provider responses were mocked; no paid provider or Hermes gateway was used.
 - Future-load checks include February 2028 and December 2030, with EU, US and

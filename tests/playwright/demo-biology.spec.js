@@ -8,6 +8,14 @@ for (const sex of ['male', 'female']) test(`${sex} demo has explorable Biology S
     localStorage.setItem('labcharts-default-tour', 'completed');
   });
   await page.goto('/app');
+  if (sex === 'male') {
+    // Let the real 800 ms welcome timer fire while the demo download is slow.
+    await expect(page.locator('body')).toHaveClass(/chat-autostart-reserved/);
+    await page.route('**/data/demo-male.json', async route => {
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      await route.continue();
+    });
+  }
   await page.evaluate(async sex => {
     (await import('/js/tour.js')).endTour({ openEmptyChat: false });
     await (await import('/js/export.js')).loadDemoData(sex);
@@ -19,6 +27,7 @@ for (const sex of ['male', 'female']) test(`${sex} demo has explorable Biology S
     await (await import('/js/views.js')).navigate('biology-scores');
   }, sex);
   await expect(page.locator('body')).not.toHaveClass(/chat-autostart-reserved/);
+  await expect(page.locator('#chat-panel')).not.toHaveClass(/\bopen\b/);
   await expect(page.locator('[data-biology-score-ai-summary]').first()).toContainText('Demo insight');
   const matrix = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
@@ -38,7 +47,7 @@ for (const sex of ['male', 'female']) test(`${sex} demo has explorable Biology S
   expect(matrix).toHaveLength(8);
   expect(matrix.every(view => view.scored === 19 && view.stale === 0 && view.draws >= 2)).toBe(true);
   expect(await page.evaluate(() => window.demoBiologyCalls)).toBe(0);
-  for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+  for (const viewport of [{ width: 1440, height: 1000 }, { width: 650, height: 844 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport);
     await page.evaluate(async () => (await import('/js/views.js')).navigate('biology-scores'));
     const layout = await page.evaluate(() => ({ width: innerWidth, scroll: document.documentElement.scrollWidth,
@@ -47,6 +56,10 @@ for (const sex of ['male', 'female']) test(`${sex} demo has explorable Biology S
       clipped: [...document.querySelectorAll('.biology-score-ai-teaser-text')].filter(el => el.getBoundingClientRect().width && el.scrollHeight > el.clientHeight + 2).length,
     }));
     expect(layout.scroll).toBeLessThanOrEqual(layout.width + 1); expect(layout.clipped).toBe(0); expect(layout.domainClipping).toBe(0);
+    if (viewport.width <= 650) {
+      const columns = await page.locator('[data-biology-group=baseline] .lens-page-widgets').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length);
+      expect(columns).toBe(1);
+    }
     for (const top of new Set(layout.cards.map(c => c.top))) {
       const heights = layout.cards.filter(c => c.top === top).map(c => c.height);
       expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(2);

@@ -305,11 +305,11 @@ assert('App shell injects client list view callbacks without bridge lookups',
 assert('App shell injects DNA view callbacks without bridge lookups',
   appShellHooksSrc.includes('configureDnaRuntimeDeps({ buildSidebar, navigate, openChatPanel });'));
 
-assert('App shell injects export demo refresh callbacks without bridge lookups',
+assert('App shell keeps demo imports lazy and delegates prepared data to the normal importer without bridge lookups',
   !exportSrc.includes("from './views-runtime-bridge.js'")
     && exportSrc.includes('export function configureExportRuntimeDeps(deps = {})')
-    && exportSrc.includes('exportRuntimeDeps.buildSidebar?.();')
-    && exportSrc.includes("exportRuntimeDeps.navigate?.('biology-scores')")
+    && exportSrc.includes('prepareDemoBiologyData(JSON.parse(await blob.text()), sex)')
+    && exportSrc.includes('await importDataJSON(demoImportFile);')
     && exportLoaderSrc.includes("import('./export.js')")
     && exportLoaderSrc.includes('module.configureExportRuntimeDeps(exportFacadeLoaderDeps);')
     && appShellHooksSrc.includes("} from './export-loader.js';")

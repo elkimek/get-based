@@ -542,6 +542,8 @@ export async function clearAllData() {
 }
 
 export async function loadDemoData(sex = 'male') {
+  // Cancel the empty dashboard's welcome timer before any download/import wait.
+  document.body.classList.remove('chat-autostart-reserved');
   try {
     const file = sex === 'female' ? 'data/demo-female.json' : 'data/demo-male.json';
     const resp = await fetch(file);
@@ -659,9 +661,6 @@ export async function loadDemoData(sex = 'male') {
       } catch (_) { /* prefill is best-effort */ }
     }
     await importDataJSON(demoImportFile);
-    // The empty dashboard may have reserved a delayed welcome chat before
-    // this import. A populated demo no longer needs that pending startup.
-    document.body.classList.remove('chat-autostart-reserved');
 
   } catch (err) {
     clearDemoLoadingProfile();
