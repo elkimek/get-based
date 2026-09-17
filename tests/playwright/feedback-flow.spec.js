@@ -56,6 +56,7 @@ for (const width of [1440, 390]) test(`feedback is recoverable and readable at $
   await page.screenshot({ path: `/tmp/feedback-review-${width}.png` });
   if (width === 390) {
     await page.evaluate(async () => (await import('/js/theme.js')).setTheme('light'));
+    await expect(page.locator('#feedback-type')).toHaveCSS('color-scheme', 'light');
     await page.setViewportSize({ width: 320, height: 640 });
     expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
     await page.getByRole('button', { name: 'Open GitHub draft' }).scrollIntoViewIfNeeded();
