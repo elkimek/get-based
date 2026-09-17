@@ -4,7 +4,7 @@
     "startupJavaScriptFiles": 2,
     "startupDecodedBytes": 1259000,
     "outputJavaScriptFiles": 165,
-    "outputDecodedBytes": 5371000
+    "outputDecodedBytes": 5372500
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -70,8 +70,9 @@
     "reportGenerationProgressOutputDecodedBytes": 5307869,
     "reportAITransparencyOutputDecodedBytes": 5310721,
     "biologyScoresStartupDecodedBytes": 1256425,
-    "biologyScoresOutputDecodedBytes": 5367943
+    "biologyScoresOutputDecodedBytes": 5367943,
+    "biologyScoresReleaseNotesOutputDecodedBytes": 5372275
   },
   "referenceCommit": "331112b1",
-  "measuredAt": "2026-09-16"
+  "measuredAt": "2026-09-17"
 }
