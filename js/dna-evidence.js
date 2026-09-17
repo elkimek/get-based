@@ -250,7 +250,7 @@ export function snpEvidenceIssueUrl(rsid, entry = {}) {
     '',
     '<!-- This is a public GitHub issue. Do not include your genotype, raw DNA, health data, account details, or other private information. -->',
   ].join('\n');
-  return issueUrl(`[Genome evidence] ${normalizedRsid}: study or annotation correction`, body, 'genome-evidence');
+  return issueUrl(`[Genome evidence] ${normalizedRsid}: study or annotation correction`, body, 'enhancement');
 }
 
 export function newSnpSuggestionIssueUrl() {
@@ -275,7 +275,7 @@ export function newSnpSuggestionIssueUrl() {
     '',
     '<!-- This is a public GitHub issue. Propose a catalog SNP, but do not include your own genotype, raw DNA, health data, account details, or other private information. -->',
   ].join('\n');
-  return issueUrl('[Genome catalog] Suggest a SNP', body, 'genome-evidence');
+  return issueUrl('[Genome catalog] Suggest a SNP', body, 'enhancement');
 }
 
 export function mtdnaEvidenceIssueUrl() {
@@ -296,5 +296,5 @@ export function mtdnaEvidenceIssueUrl() {
     '',
     '<!-- This is a public GitHub issue. Do not include your haplogroup, mtDNA markers, raw DNA, location, health data, account details, or other private information. -->',
   ].join('\n');
-  return issueUrl('[mtDNA evidence] Study or framework correction', body, 'genome-evidence');
+  return issueUrl('[mtDNA evidence] Study or framework correction', body, 'enhancement');
 }

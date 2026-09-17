@@ -13,8 +13,31 @@ describe('marker range GitHub suggestions', () => {
     expect(body).toContain('`hormones.igf1`');
     expect(body).toContain('**Default optimal/wellness:** 120 to 160 µg/l');
     expect(body).toContain('age/sex reference rules');
-    expect(body).toContain('Primary guideline, laboratory method study, cohort, or systematic review');
+    expect(body).toContain('primary guideline, laboratory method study, cohort, or systematic review');
     expect(body).toContain('Do not include your lab result');
+  });
+
+  it.each([
+    ['biochemistry.glucose', 'EU', '4.11 to 5.6 mmol/l'],
+    ['biochemistry.glucose', 'US', '74.05 to 100.9 mg/dl'],
+    ['biochemistry.ast', 'ANZ', '10.2 to 51 U/L'],
+    ['diabetes.hba1c', 'US', '4 to 6 %'],
+    ['calculatedRatios.atherogenicIndexPlasma', 'US', '– to 0.21'],
+    ['calculatedRatios.biologicalAge', 'US', 'Not set'],
+  ])('uses the selected units for %s in %s', (key, profile, reference) => {
+    const body = new URL(markerRangeSuggestionIssueUrl(key, profile)).searchParams.get('body');
+    expect(body).toContain(`**Default reference:** ${reference}\n`);
+    expect(body).not.toContain('**Canonical unit:**');
+    expect(body).not.toMatch(/NaN|undefined/);
+  });
+
+  it('converts female and optimal ranges and labels the proposal unit without changing the catalog', () => {
+    const body = new URL(markerRangeSuggestionIssueUrl('biochemistry.creatinine', 'US')).searchParams.get('body');
+    expect(body).toContain('**Female reference override:** 0.4976 to 0.9048 mg/dl');
+    expect(body).toContain('**Female optimal override:** 0.6447 to 0.9048 mg/dl');
+    expect(body).toContain('**Proposed range (mg/dl; specify if using a different unit):**');
+    const canonical = new URL(markerRangeSuggestionIssueUrl('biochemistry.creatinine', 'EU')).searchParams.get('body');
+    expect(canonical).toContain('**Default reference:** 62 to 106 µmol/l');
   });
 
   it('does not create reports for custom or unknown marker keys', () => {

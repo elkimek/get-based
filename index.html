@@ -344,6 +344,47 @@
   <div class="modal-overlay" id="feedback-modal-overlay">
     <div class="modal" id="feedback-modal" role="dialog" aria-modal="true" aria-label="Send Feedback"></div>
   </div>
+  <template id="feedback-form-template">
+    <div class="gb-modal-head feedback-modal-head">
+      <div><div class="gb-modal-kicker">GitHub issue</div><div class="gb-modal-title">Send Feedback</div></div>
+      <button type="button" class="modal-close" aria-label="Close" data-feedback-action="close">&times;</button>
+    </div>
+    <div class="gb-form-body feedback-form-body">
+      <form class="feedback-form" data-feedback-action="submit">
+        <div class="feedback-field">
+          <label class="feedback-label" for="feedback-type">Type</label>
+          <select class="feedback-select" id="feedback-type" data-feedback-action="placeholder">
+            <option value="bug">Bug Report</option>
+            <option value="feature">Feature Request</option>
+            <option value="idea">Idea / Suggestion</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="feedback-field">
+          <label class="feedback-label" for="feedback-title">Title</label>
+          <input class="feedback-input" id="feedback-title" maxlength="160" required>
+        </div>
+        <div class="feedback-field">
+          <label class="feedback-label" for="feedback-desc">Description</label>
+          <textarea class="feedback-textarea" id="feedback-desc" maxlength="10000" required></textarea>
+        </div>
+        <p class="feedback-notice">Public GitHub issue; account required. Keep health data and secrets out of text and screenshots. Includes app/browser settings, never automatic profile or lab attachments.</p>
+        <div id="feedback-result" class="feedback-field" hidden>
+          <p class="feedback-notice" role="status"><span id="feedback-status"></span> <a target="_blank" rel="noopener noreferrer">Continue on GitHub ↗</a>. Submit there to send it.</p>
+          <details>
+            <summary>View or copy full report</summary>
+            <label class="feedback-label" for="feedback-draft">Report preview</label>
+            <textarea id="feedback-draft" class="feedback-textarea" readonly></textarea>
+            <button type="button" class="feedback-action-btn feedback-action-secondary" data-feedback-action="copy">Copy report</button>
+          </details>
+        </div>
+        <div class="feedback-actions">
+          <button type="button" class="feedback-action-btn feedback-action-secondary" data-feedback-action="close">Close</button>
+          <button type="submit" class="feedback-action-btn feedback-action-primary">Open GitHub draft</button>
+        </div>
+      </form>
+    </div>
+  </template>
 
   <div class="modal-overlay" id="changelog-modal-overlay">
     <div class="modal" id="changelog-modal" role="dialog" aria-modal="true" aria-label="What's New" style="max-width:600px"></div>

@@ -106,7 +106,7 @@ describe('mitochondrial primary-study evidence', () => {
     }));
     const issueBody = issueUrl.searchParams.get('body') || '';
     expect(issueUrl.pathname).toBe('/elkimek/get-based/issues/new');
-    expect(issueUrl.searchParams.get('labels')).toBe('mitochondrial-evidence');
+    expect(issueUrl.searchParams.get('labels')).toBe('enhancement');
     expect(issueBody).toContain(`PMID ${matches[0].pmid}`);
     expect(issueBody).toContain(matches[0].summary);
     expect(issueBody).toContain('public GitHub issue');

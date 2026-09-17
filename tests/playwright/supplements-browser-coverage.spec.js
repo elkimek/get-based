@@ -214,7 +214,7 @@ test('supplements browser coverage handles editor ingredients imports sync and A
       const mitoReportBody = mitoReportUrl?.searchParams.get('body') || '';
       outcomes.mitoEvidenceReportPrefillsPublicCatalogContextWithoutPrivateRegimen =
         mitoReportUrl?.pathname === '/elkimek/get-based/issues/new'
-        && mitoReportUrl?.searchParams.get('labels') === 'mitochondrial-evidence'
+        && mitoReportUrl?.searchParams.get('labels') === 'enhancement'
         && mitoReportBody.includes('PMID 12345678')
         && mitoReportBody.includes('Changed a mitochondrial endpoint')
         && mitoReportBody.includes('Coverage fixture only')

@@ -248,7 +248,7 @@ function _renderChannelCitations(channelKey) {
     `**Suggested study (with link):**\n\n` +
     `**Why this is a better fit (one line):**\n`
   );
-  const suggestLink = `<div class="light-channel-cit-suggest"><a href="https://github.com/elkimek/get-based/issues/new?title=${issueTitle}&body=${issueBody}&labels=light-channel-citations" target="_blank" rel="noopener">Suggest a better study →</a></div>`;
+  const suggestLink = `<div class="light-channel-cit-suggest"><a href="https://github.com/elkimek/get-based/issues/new?title=${issueTitle}&body=${issueBody}&labels=enhancement" target="_blank" rel="noopener noreferrer">Suggest a better study →</a></div>`;
   return `<details class="light-channel-cit">
     <summary>Research &amp; sources</summary>
     <p class="light-channel-cit-spec"><strong>Spectrum:</strong> ${escapeHTML(cit.spectrum)}</p>

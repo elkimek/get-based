@@ -56,7 +56,9 @@ test('feedback modal browser contract builds and submits GitHub issue URLs', asy
       outcomes.issueTitleIsPrefixed = issueUrl.searchParams.get('title') === '[Feature] Batch coverage affordance';
       outcomes.issueLabelMatchesType = issueUrl.searchParams.get('labels') === 'enhancement';
       outcomes.issueBodyIncludesSystemInfo = (issueUrl.searchParams.get('body') || '').includes('## System Info');
-      outcomes.submitClosesOverlay = overlay?.classList.contains('show') === false;
+      outcomes.submitKeepsRecoverableDraft = overlay?.classList.contains('show') === true
+        && document.getElementById('feedback-draft')?.value === issueUrl.searchParams.get('body')
+        && document.querySelector('#feedback-result a')?.getAttribute('rel') === 'noopener noreferrer';
 
       feedback.openFeedbackModal();
       document.querySelector('[data-feedback-action="close"]')?.click();

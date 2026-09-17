@@ -378,7 +378,7 @@ function renderDetailModal(id, opts = {}) {
   const rangeCardControls = rangeInfo ? rangeInfo.replace(/^ &middot; /, '') : '';
   const hasPersonalRange = ['refMin', 'refMax', 'optimalMin', 'optimalMax']
     .some(field => Object.prototype.hasOwnProperty.call(overrides, field));
-  const rangeSuggestionUrl = isCustom || hasPersonalRange ? null : markerRangeSuggestionIssueUrl(dotKey);
+  const rangeSuggestionUrl = isCustom || hasPersonalRange ? null : markerRangeSuggestionIssueUrl(dotKey, state.unitSystem);
   const rangeSuggestionLink = rangeSuggestionUrl
     ? `<a class="marker-range-suggest" href="${escapeAttr(rangeSuggestionUrl)}" target="_blank" rel="noopener noreferrer" title="Open a public, pre-filled GitHub issue without including your health data">Suggest a better range <span aria-hidden="true">↗</span></a>`
     : '';

@@ -1123,9 +1123,14 @@ select.kb-field-control {
 .feedback-redesign-modal {
   width: min(94vw, 560px);
   max-width: 560px !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
+.feedback-modal-head { flex-shrink: 0; }
 .feedback-form-body {
   background: transparent;
+  overflow-y: auto;
 }
 .feedback-form {
   display: flex;
@@ -1138,6 +1143,9 @@ select.kb-field-control {
   flex-direction: column;
   gap: 6px;
 }
+.feedback-field[hidden] { display: none; }
+#feedback-result summary { cursor: pointer; color: var(--text-secondary); margin-bottom: 8px; }
+#feedback-result .feedback-textarea { min-height: 130px; margin: 6px 0; }
 .feedback-label {
   color: var(--text-secondary);
   font-family: var(--font-mono);

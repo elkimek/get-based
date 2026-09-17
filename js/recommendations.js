@@ -443,7 +443,7 @@ function _renderRecSection(slotKey, opts = {}) {
   const gated = !hasSeenDisclosure() ? ' rec-section-gated' : '';
   const issueTitle = encodeURIComponent(`[Rec] ${slot?.label || slotKey}: better study / correction`);
   const issueBody = encodeURIComponent(`**Slot:** \`${slotKey}\`\n**Current forms:** ${(slot?.forms || []).join(', ')}\n\n**What's wrong or what's better:**\n\n`);
-  const suggestLink = `<div class="rec-suggest"><a href="https://github.com/elkimek/get-based/issues/new?title=${issueTitle}&body=${issueBody}&labels=recommendations" target="_blank" rel="noopener">Suggest a better study</a></div>`;
+  const suggestLink = `<div class="rec-suggest"><a href="https://github.com/elkimek/get-based/issues/new?title=${issueTitle}&body=${issueBody}&labels=enhancement" target="_blank" rel="noopener noreferrer">Suggest a better study</a></div>`;
   const statusNote = isNormal ? `<div class="rec-in-range-note">Your value is in range. These tips are general information only.</div>` : '';
   // Coupon line: render when any rendered product references a vendor with a
   // resolvable coupon for the current region. Visible to supplement/lifestyle

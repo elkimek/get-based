@@ -133,7 +133,7 @@ export function mitochondrialEvidenceIssueUrl(item) {
   const issueUrl = new URL('https://github.com/elkimek/get-based/issues/new');
   issueUrl.searchParams.set('title', title);
   issueUrl.searchParams.set('body', body);
-  issueUrl.searchParams.set('labels', 'mitochondrial-evidence');
+  issueUrl.searchParams.set('labels', 'enhancement');
   return issueUrl.toString();
 }
 

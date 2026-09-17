@@ -203,7 +203,7 @@ assert('DOI evidence receives a specific study label',
 const snpIssue = new URL(evidence.snpEvidenceIssueUrl('rs4680', catalog.rs4680));
 const snpIssueBody = snpIssue.searchParams.get('body') || '';
 assert('SNP correction link targets the genome evidence workflow',
-  snpIssue.searchParams.get('labels') === 'genome-evidence' && snpIssueBody.includes('rs4680'));
+  snpIssue.searchParams.get('labels') === 'enhancement' && snpIssueBody.includes('rs4680'));
 assert('SNP correction link excludes private genotype data',
   !snpIssueBody.includes('**Genotype:**') && /do not include your genotype/i.test(snpIssueBody));
 const mtIssueBody = new URL(evidence.mtdnaEvidenceIssueUrl()).searchParams.get('body') || '';

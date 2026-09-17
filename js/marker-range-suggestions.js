@@ -7,6 +7,7 @@ import {
   MARKER_SCHEMA,
   OPTIMAL_RANGES,
 } from './schema.js';
+import { convertCanonicalToDisplay, getUnitProfileLabel, resolveMarkerUnitProfile } from './unit-profiles.js';
 
 function formatRange(min, max, unit) {
   if (min == null && max == null) return 'Not set';
@@ -17,9 +18,10 @@ function formatRange(min, max, unit) {
  * Build a public issue from catalog data only. The current user's result,
  * profile, age, sex, lab, dates, and imported ranges are never included.
  * @param {string} dotKey
+ * @param {string} [unitProfile]
  * @returns {string | null}
  */
-export function markerRangeSuggestionIssueUrl(dotKey) {
+export function markerRangeSuggestionIssueUrl(dotKey, unitProfile = 'EU') {
   if (typeof dotKey !== 'string') return null;
   const separator = dotKey.indexOf('.');
   if (separator <= 0) return null;
@@ -28,13 +30,20 @@ export function markerRangeSuggestionIssueUrl(dotKey) {
   const marker = MARKER_SCHEMA[categoryKey]?.markers?.[markerKey];
   if (!marker) return null;
 
-  const unit = marker.unit || '';
+  const { unit } = resolveMarkerUnitProfile(dotKey, unitProfile, marker.unit);
+  const displayRange = (min, max) => {
+    const convert = value => {
+      const converted = convertCanonicalToDisplay(dotKey, value, unitProfile, marker.unit);
+      return converted == null ? converted : Number(converted.toPrecision(4));
+    };
+    return formatRange(convert(min), convert(max), unit);
+  };
   const optimal = OPTIMAL_RANGES[dotKey] || {};
   const femaleReference = marker.refMin_f !== undefined || marker.refMax_f !== undefined
-    ? formatRange(marker.refMin_f ?? marker.refMin, marker.refMax_f ?? marker.refMax, unit)
+    ? displayRange(marker.refMin_f ?? marker.refMin, marker.refMax_f ?? marker.refMax)
     : 'Same as default / not separately set';
   const femaleOptimal = optimal.optimalMin_f !== undefined || optimal.optimalMax_f !== undefined
-    ? formatRange(optimal.optimalMin_f, optimal.optimalMax_f, unit)
+    ? displayRange(optimal.optimalMin_f ?? optimal.optimalMin, optimal.optimalMax_f ?? optimal.optimalMax)
     : 'Same as default / not separately set';
   const contextSupport = [
     CONTEXT_REFERENCE_RANGES[dotKey] ? 'age/sex reference rules' : null,
@@ -47,19 +56,24 @@ export function markerRangeSuggestionIssueUrl(dotKey) {
   const body = [
     '## Built-in marker',
     '',
+    'Current catalog ranges for reference. Describe your change in the proposal below; leave this section unchanged.',
+    '',
     `**Marker:** ${marker.name}`,
     `**Catalog key:** \`${dotKey}\``,
-    `**Canonical unit:** ${unit || 'Unitless'}`,
+    `**Unit system:** ${getUnitProfileLabel(unitProfile)}`,
+    `**Display unit:** ${unit || 'Unitless'}`,
     `**Range policy:** ${marker.rangePolicy || 'reference'}`,
-    `**Default reference:** ${formatRange(marker.refMin, marker.refMax, unit)}`,
+    `**Default reference:** ${displayRange(marker.refMin, marker.refMax)}`,
     `**Female reference override:** ${femaleReference}`,
-    `**Default optimal/wellness:** ${formatRange(optimal.optimalMin, optimal.optimalMax, unit)}`,
+    `**Default optimal/wellness:** ${displayRange(optimal.optimalMin, optimal.optimalMax)}`,
     `**Female optimal override:** ${femaleOptimal}`,
     `**Context-aware support:** ${contextSupport}`,
     '',
     '## Proposed change',
     '',
-    '**Proposed range and unit:**',
+    'Fill this section before submitting so we can understand and evaluate the change.',
+    '',
+    `**Proposed range (${unit || 'unitless'}; specify if using a different unit):**`,
     '',
     '**Reference, optimal/wellness, or contextual guidance:**',
     '',
@@ -69,16 +83,17 @@ export function markerRangeSuggestionIssueUrl(dotKey) {
     '',
     '## Evidence',
     '',
-    '**Primary guideline, laboratory method study, cohort, or systematic review:**',
+    '**Source or link (for example, a primary guideline, laboratory method study, cohort, or systematic review):**',
     '',
     '**Why this evidence matches the proposed population and use:**',
     '',
     '**Important limitations or contexts where the range should not apply:**',
     '',
-    '<!-- This is a public GitHub issue. Do not include your lab result, age/date of birth, sex, diagnoses, laboratory name, report, account details, or any other personal health information. -->',
+    'This is a public GitHub issue. Do not include your lab result, age/date of birth, sex, diagnoses, laboratory name, report, account details, or any other personal health information.',
   ].join('\n');
   const issueUrl = new URL('https://github.com/elkimek/get-based/issues/new');
   issueUrl.searchParams.set('title', `[Marker range] ${marker.name}: evidence-based update`);
   issueUrl.searchParams.set('body', body);
+  issueUrl.searchParams.set('labels', 'enhancement');
   return issueUrl.toString();
 }
