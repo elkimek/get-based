@@ -461,6 +461,10 @@ test('background telemetry does not discard AI and a real input edit preserves a
 
 
 test('automatic shared insights survive reload and backups; refresh scopes stay explicit', async ({ page }) => {
+  test.setTimeout(60000);
+  // Exercise startup maintenance overlapping a slower device's first render.
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 6 });
   await prepareDemoProfile(page);
   const calls = [];
   await page.exposeFunction('recordBiologyAIRequest', ids => calls.push(ids));

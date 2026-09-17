@@ -39,7 +39,7 @@ return (async function() {
     S.importedData = demo;
     S.profileSex = 'male';
     S.profileDob = '1987-11-22';
-    dataModule.saveImportedData();
+    if (!await dataModule.saveImportedData()) throw new Error('Export fixture save failed');
     nav.buildSidebar();
     views.navigate('dashboard');
     await wait(50);
@@ -340,8 +340,7 @@ return (async function() {
   if (!S.importedData.supplements) S.importedData.supplements = [];
   const origSuppCount = S.importedData.supplements.length;
   S.importedData.supplements.push({ name: '__EXPORT_TEST_SUPP__', dosage: '100mg', startDate: '2026-01-01', periods: [{ start: '2026-01-01', end: null }] });
-  dataModule.saveImportedData();
-  await wait(20);
+  if (!await dataModule.saveImportedData()) throw new Error('Export fixture save failed');
 
   // Rebuild bundle after adding supplement
   const raw2 = await exportModule.buildAllDataBundle();
@@ -357,7 +356,7 @@ return (async function() {
 
   // Clean up test supplement
   S.importedData.supplements = S.importedData.supplements.filter(s => s.name !== '__EXPORT_TEST_SUPP__');
-  dataModule.saveImportedData();
+  if (!await dataModule.saveImportedData()) throw new Error('Export fixture save failed');
   await wait(20);
 
   // ═══════════════════════════════════════
@@ -375,8 +374,7 @@ return (async function() {
   S.importedData.diet = { type: 'paleo', restrictions: ['dairy'], note: 'test diet' };
   S.importedData.exercise = { frequency: 'daily', types: ['running'], intensity: 'moderate', note: '' };
   S.importedData.interpretiveLens = '__TEST_LENS__';
-  dataModule.saveImportedData();
-  await wait(20);
+  if (!await dataModule.saveImportedData()) throw new Error('Export fixture save failed');
 
   const raw3 = await exportModule.buildAllDataBundle();
   const bundle3 = JSON.parse(raw3);
@@ -396,7 +394,7 @@ return (async function() {
   S.importedData.diet = origDiet;
   S.importedData.exercise = origExercise;
   S.importedData.interpretiveLens = origLens;
-  dataModule.saveImportedData();
+  if (!await dataModule.saveImportedData()) throw new Error('Export fixture save failed');
   await wait(20);
 
   // ═══════════════════════════════════════
@@ -417,8 +415,7 @@ return (async function() {
   S.importedData.refOverrides['biochemistry.glucose'] = {
     ref: { low: 3.5, high: 6.0 }, optimal: { low: 4.0, high: 5.5 }
   };
-  dataModule.saveImportedData();
-  await wait(20);
+  if (!await dataModule.saveImportedData()) throw new Error('Export fixture save failed');
 
   const raw4 = await exportModule.buildAllDataBundle();
   const bundle4 = JSON.parse(raw4);
@@ -435,7 +432,7 @@ return (async function() {
   // Restore originals
   S.importedData.customMarkers = origCustom;
   S.importedData.refOverrides = origOverrides;
-  dataModule.saveImportedData();
+  if (!await dataModule.saveImportedData()) throw new Error('Export fixture save failed');
   await wait(20);
 
   // ═══════════════════════════════════════

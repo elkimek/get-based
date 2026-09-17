@@ -20,15 +20,8 @@ const profileContextLightDeps = {
 /** @param {Partial<ProfileContextLightDeps>} [deps] */
 export function configureProfileContextLightDeps(deps = {}) {
   const previous = { ...profileContextLightDeps };
-  if ('rollingChannelTotals' in deps) {
-    profileContextLightDeps.rollingChannelTotals = typeof deps.rollingChannelTotals === 'function'
-      ? deps.rollingChannelTotals
-      : null;
-  }
-  if ('rollingVitaminDIU' in deps) {
-    profileContextLightDeps.rollingVitaminDIU = typeof deps.rollingVitaminDIU === 'function'
-      ? deps.rollingVitaminDIU
-      : null;
+  for (const key of /** @type {Array<keyof ProfileContextLightDeps>} */ (['rollingChannelTotals', 'rollingVitaminDIU'])) {
+    if (key in deps) profileContextLightDeps[key] = typeof deps[key] === 'function' ? deps[key] : null;
   }
   return previous;
 }
@@ -148,13 +141,16 @@ function collectLightModifiers(data, options = {}) {
   const hasLightData = sunSessions.length > 0 || deviceSessions.length > 0 || measurements.length > 0 || !!data?.sunDefaults?.completedAt || Object.keys(data?.lightCircadian || {}).length > 0;
   const recentSun = sunSessions.filter(s => Number(s?.endedAt || s?.startedAt || 0) >= now - 14 * DAY_MS);
   const recentAny = [...sunSessions, ...deviceSessions].filter(s => Number(s?.endedAt || s?.startedAt || 0) >= now - 14 * DAY_MS);
+  // Recalculation clears old doses before fetching replacements. Partial
+  // rollups are unknown, not evidence of low exposure.
+  const complete = !recentAny.some(s => s.endedAt >= now - 7 * DAY_MS && s.doses === null);
   let vitD7 = null, circadian7 = null;
   try {
-    if (profileContextLightDeps.rollingVitaminDIU) {
+    if (complete && profileContextLightDeps.rollingVitaminDIU) {
       const total = Number(profileContextLightDeps.rollingVitaminDIU(7));
       if (Number.isFinite(total)) vitD7 = total;
     }
-    if (profileContextLightDeps.rollingChannelTotals) {
+    if (complete && profileContextLightDeps.rollingChannelTotals) {
       const totals = profileContextLightDeps.rollingChannelTotals(7) || {};
       if (Number.isFinite(totals.circadian)) circadian7 = Number(totals.circadian);
     }

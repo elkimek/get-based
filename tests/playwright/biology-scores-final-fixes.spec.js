@@ -301,7 +301,7 @@ test('failed import rollback keeps its baseline and accepts subsequent peer upda
     const { snapshotImportedData, restoreImportedDataSnapshot } = await import('/js/pdf-import-persistence.js');
     const { profileDataBaseline } = await import('/js/profile-data-writes.js');
     const live = state.importedData;
-    const baseline = profileDataBaseline(live);
+    if (!profileDataBaseline(live)) throw new Error('Profile baseline was not initialized');
     live.contextNotes = 'Unsaved note before failed import';
     const rollback = snapshotImportedData();
     live.entries.push({ date: '2026-08-05', markers: { 'lipids.apoB': 0.6 } });
@@ -314,6 +314,9 @@ test('failed import rollback keeps its baseline and accepts subsequent peer upda
     let saved;
     try { saved = await saveImportedData(); }
     finally { IDBObjectStore.prototype.put = originalPut; }
+    // A peer broadcast may legitimately refresh the baseline while save waits
+    // for the lock. Rollback must retain the baseline current at restoration.
+    const baseline = profileDataBaseline(state.importedData);
     if (!saved) restoreImportedDataSnapshot(rollback);
     return { saved, sameObject: live === state.importedData, tracked: !!baseline && profileDataBaseline(state.importedData) === baseline,
       rolledBack: !state.importedData.entries.some(entry => entry.date === '2026-08-05') };

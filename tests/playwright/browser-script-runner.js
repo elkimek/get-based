@@ -70,7 +70,7 @@ export async function runBrowserScript(page, testPath, options = {}) {
         if (!clean) return;
         messages.push({ kind, text: clean });
         for (const line of clean.split('\n').map(part => part.trim()).filter(Boolean)) {
-          if (line.startsWith('FAIL ') || line.startsWith('FAIL:') || line.includes('\u274c') || line.includes('\u274C')) {
+          if (line.startsWith('FAIL ') || line.startsWith('FAIL:') || /[\u2717\u2718\u274c]/i.test(line)) {
             failures.push(line);
           }
           const summary = line.match(/(\d+)\s+passed[,\s]+(\d+)\s+failed/i);
