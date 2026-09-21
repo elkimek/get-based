@@ -13,7 +13,9 @@ jobs:
   regression:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-release-evidence')
     uses: ./.github/workflows/test.yml
-    secrets: inherit
+    secrets:
+      CATALOG_FETCH_URL: ${{ secrets.CATALOG_FETCH_URL }}
+      CATALOG_FETCH_TOKEN: ${{ secrets.CATALOG_FETCH_TOKEN }}
   real-models:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-release-evidence')
     strategy:

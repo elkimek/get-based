@@ -101,10 +101,16 @@ async function updateAgentDraft(actionEl, apply) {
   let mutationStarted = false;
   let mutationCompleted = false;
   try {
-    // Persist the claim before changing profile data. A reload must never turn an
-    // interrupted operation back into an actionable proposal.
+    // Reserve this draft in memory against duplicate clicks, then acquire the
+    // durable claim before saving an in-flight status. Navigation must never
+    // leave an unclaimed proposal persisted as an uncertain operation.
     draft.status = apply ? 'applying' : 'discarded';
     refresh();
+    if (apply) {
+      claimAttempted = true;
+      await claimAgentDraft(profile, draftId);
+      if (!isCurrent()) { draft.status = 'failed'; return true; }
+    }
     const claimed = await saveChatHistory();
     if (!claimed) throw new Error('Could not save the proposal status. No change was applied.');
     if (!isCurrent()) return true;
@@ -112,9 +118,6 @@ async function updateAgentDraft(actionEl, apply) {
       showNotification('Proposed change discarded', 'info');
       return true;
     }
-    claimAttempted = true;
-    await claimAgentDraft(profile, draftId);
-    if (!isCurrent()) { draft.status = 'failed'; return true; }
     mutationStarted = true;
     const notice = await applyAgentDraft({ ...draft, status: 'pending' });
     mutationCompleted = true;

@@ -16,6 +16,11 @@ on:
     branches: [main]
   workflow_dispatch:
   workflow_call:
+    secrets:
+      CATALOG_FETCH_URL:
+        required: false
+      CATALOG_FETCH_TOKEN:
+        required: false
 
 permissions:
   contents: read
