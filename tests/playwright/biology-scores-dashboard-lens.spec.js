@@ -881,7 +881,9 @@ test('dashboard biology widgets share the age-style layout without duplicate met
 });
 
 test('bounded comparison assessment survives range switching, reload and JSON restore without extra AI calls', async ({ page }) => {
-  test.setTimeout(60000);
+  // Exercises 24 range/date views plus durable export/import and reload.
+  // Coverage on shared CI runners can exceed a minute in aggregate.
+  test.setTimeout(120000);
   await prepareDemoProfile(page);
   const calls = [];
   await page.exposeFunction('recordVariantRequest', ids => calls.push(ids));
