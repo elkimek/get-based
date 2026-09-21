@@ -826,7 +826,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
   assert(testName(theme, viewportName, 'mobile has tappable widget marker'), !!quickMarker);
   if (quickMarker) {
     await quickMarker.click();
-    await delay(250);
+    await page.waitForSelector('#modal-overlay.show #detail-modal', { state: 'visible' });
     result = await page.evaluate(() => {
       const overlay = document.getElementById('modal-overlay');
       const modal = document.getElementById('detail-modal');
