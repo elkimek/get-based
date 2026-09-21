@@ -488,3 +488,9 @@ hardening worktree, with no push, PR, full suite or full coverage matrix.
 ### PR 1637 production-budget acceptance
 
 CI at `3b2aa362` measured 1,261,837 startup decoded bytes and 5,378,608 total decoded bytes, exceeding the previous caps by 837 and 3,608 bytes respectively. The persistence safeguards add 2,239 startup bytes and 5,161 total bytes versus the recorded demo-biology baseline. Record this intentional functional cost and narrowly set caps to 1,264,000 and 5,381,000 bytes, retaining the existing file-count limits. The focused `npm run production:check` passes, including the unchanged PWA precache budget (348 resources). Coverage thresholds are unchanged.
+
+### Greptile follow-up: retryable preparation and secret-free PR evidence
+
+Proposal preparation now saves the pending status under an in-memory duplicate-click guard, then acquires the durable claim immediately before mutation. A preparatory save failure or navigation cannot persist an unclaimed applying status or consume a claim. Ambiguous outcomes after claim acquisition remain non-retryable. The focused 26 proposal unit tests, six persistence browser tests, and checkJs pass.
+
+Release evidence no longer forwards catalog secrets. Ordinary PR tests also use the catalog stub; the direct Tests workflow supplies private catalog credentials only on a push to main. Reusable workflow calls declare no secrets.

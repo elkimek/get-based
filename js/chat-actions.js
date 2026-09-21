@@ -86,12 +86,15 @@ function containChatMessageEvent(event) {
   if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
 }
 
+const pendingDraftActions = new WeakSet();
+
 async function updateAgentDraft(actionEl, apply) {
   const index = readMessageIndex(actionEl);
   const draftId = actionEl.dataset.chatMessageDraftId || '';
   const message = index == null ? null : state.chatHistory[index];
   const draft = message?.agentDrafts?.find(item => item.id === draftId);
-  if (!draft || draft.status !== 'pending') return false;
+  if (!draft || draft.status !== 'pending' || pendingDraftActions.has(draft)) return false;
+  pendingDraftActions.add(draft);
   const profile = state.currentProfile;
   const thread = state.currentThreadId;
   const history = state.chatHistory;
@@ -101,23 +104,22 @@ async function updateAgentDraft(actionEl, apply) {
   let mutationStarted = false;
   let mutationCompleted = false;
   try {
-    // Reserve this draft in memory against duplicate clicks, then acquire the
-    // durable claim before saving an in-flight status. Navigation must never
-    // leave an unclaimed proposal persisted as an uncertain operation.
-    draft.status = apply ? 'applying' : 'discarded';
+    // Save the still-pending proposal before taking an irreversible claim.
+    // The in-memory guard rejects duplicate clicks during this preparatory save.
+    // A failure or navigation here leaves no persisted in-flight status.
+    if (!apply) draft.status = 'discarded';
     refresh();
-    if (apply) {
-      claimAttempted = true;
-      await claimAgentDraft(profile, draftId);
-      if (!isCurrent()) { draft.status = 'failed'; return true; }
-    }
-    const claimed = await saveChatHistory();
-    if (!claimed) throw new Error('Could not save the proposal status. No change was applied.');
+    if (!await saveChatHistory()) throw new Error('Could not save the proposal status. No change was applied.');
     if (!isCurrent()) return true;
     if (!apply) {
       showNotification('Proposed change discarded', 'info');
       return true;
     }
+    draft.status = 'applying';
+    refresh();
+    claimAttempted = true;
+    await claimAgentDraft(profile, draftId);
+    if (!isCurrent()) { draft.status = 'failed'; return true; }
     mutationStarted = true;
     const notice = await applyAgentDraft({ ...draft, status: 'pending' });
     mutationCompleted = true;
@@ -138,6 +140,7 @@ async function updateAgentDraft(actionEl, apply) {
         : error instanceof Error ? error.message : 'The proposal status could not be saved.', 'error');
     }
   } finally {
+    pendingDraftActions.delete(draft);
     refresh();
   }
   return true;

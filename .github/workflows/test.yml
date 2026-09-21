@@ -16,11 +16,6 @@ on:
     branches: [main]
   workflow_dispatch:
   workflow_call:
-    secrets:
-      CATALOG_FETCH_URL:
-        required: false
-      CATALOG_FETCH_TOKEN:
-        required: false
 
 permissions:
   contents: read
@@ -81,8 +76,8 @@ jobs:
 
       - name: Resolve catalog file (fetch from private source if creds set, else use stub)
         env:
-          CATALOG_FETCH_URL: ${{ secrets.CATALOG_FETCH_URL }}
-          CATALOG_FETCH_TOKEN: ${{ secrets.CATALOG_FETCH_TOKEN }}
+          CATALOG_FETCH_URL: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.CATALOG_FETCH_URL || '' }}
+          CATALOG_FETCH_TOKEN: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.CATALOG_FETCH_TOKEN || '' }}
         run: node scripts/fetch-catalog.mjs
 
       - name: Run Firefox smoke suite

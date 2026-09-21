@@ -29,23 +29,26 @@ beforeEach(() => {
 it('persists a claim before applying and rejects duplicate clicks while pending', async () => {
   const gate = deferred(); mocks.save.mockReturnValueOnce(gate.promise);
   click(); click();
-  expect(draft.status).toBe('applying'); expect(mocks.apply).not.toHaveBeenCalled();
+  expect(draft.status).toBe('pending'); expect(mocks.apply).not.toHaveBeenCalled();
   gate.resolve(true);
   await vi.waitFor(() => expect(draft.status).toBe('applied'));
   expect(mocks.apply).toHaveBeenCalledTimes(1); expect(mocks.save).toHaveBeenCalledTimes(2);
 });
-it.each([false, 'throw'])('does not mutate or release the durable claim when saving status fails: %s', async result => {
+it.each([false, 'throw'])('does not claim or mutate when the preparatory save fails: %s', async result => {
   if (result === 'throw') mocks.save.mockRejectedValueOnce(new Error('Disk full'));
   else mocks.save.mockResolvedValueOnce(false);
   click();
-  await vi.waitFor(() => expect(draft.status).toBe('failed'));
-  expect(mocks.apply).not.toHaveBeenCalled(); expect(mocks.notify).toHaveBeenCalled();
+  await vi.waitFor(() => expect(mocks.notify).toHaveBeenCalled());
+  expect(draft.status).toBe('pending');
+  expect(mocks.claim).not.toHaveBeenCalled();
+  expect(mocks.apply).not.toHaveBeenCalled();
+  click(); await vi.waitFor(() => expect(draft.status).toBe('applied'));
 });
 it.each(['profile', 'thread', 'history'])('does not apply after a %s switch during claim persistence', async scope => {
   const gate = deferred(); mocks.save.mockReturnValueOnce(gate.promise); click();
   await vi.waitFor(() => expect(mocks.save).toHaveBeenCalled());
-  expect(mocks.claim).toHaveBeenCalledWith('a', 'draft-1');
-  expect(mocks.claim.mock.invocationCallOrder[0]).toBeLessThan(mocks.save.mock.invocationCallOrder[0]);
+  expect(mocks.claim).not.toHaveBeenCalled();
+  expect(draft.status).toBe('pending');
   if (scope === 'profile') state.currentProfile = 'b';
   if (scope === 'thread') state.currentThreadId = 'thread-b';
   if (scope === 'history') state.chatHistory = [];
@@ -100,11 +103,11 @@ it('keeps persisted history pending until a durable claim exists', async () => {
   const gate = deferred(); mocks.claim.mockReturnValueOnce(gate.promise);
   const persisted = structuredClone(state.chatHistory);
   click();
-  expect(mocks.save).not.toHaveBeenCalled();
+  await vi.waitFor(() => expect(mocks.claim).toHaveBeenCalled());
   state.currentThreadId = 'thread-b'; state.chatHistory = [];
   gate.resolve();
   await vi.waitFor(() => expect(draft.status).toBe('failed'));
-  expect(mocks.save).not.toHaveBeenCalled();
+  expect(mocks.save).toHaveBeenCalledTimes(1);
   expect(mocks.apply).not.toHaveBeenCalled();
   expect(normalizeChatMessages(persisted)[0].agentDrafts[0].status).toBe('pending');
 });
