@@ -600,8 +600,8 @@ return (async function() {
     backupSrcEnc.includes('isEncryptedValue(snap.profileList)'));
   assert('buildFullBackupSnapshot decrypts via injected encryptedGetItem',
     backupSrcEnc.includes("getBackupRuntimeDeps().encryptedGetItem('labcharts-profiles')"));
-  assert('Re-enumeration only fires when profiles array is empty (no double-write)',
-    /snap\.profiles\.length\s*===\s*0\s*&&\s*snap\.profileList\s*&&\s*isEncryptedValue/.test(backupSrcEnc));
+  assert('Encrypted profile index is always re-enumerated, replacing partial legacy entries',
+    /if \(snap\.profileList && isEncryptedValue\(snap\.profileList\)\)/.test(backupSrcEnc) && backupSrcEnc.includes('snap.profiles = [];'));
   assert('Re-enumeration uses PER_PROFILE_PREF_SUFFIXES (parity with sync path)',
     /for\s*\(\s*const\s+suffix\s+of\s+PER_PROFILE_PREF_SUFFIXES\s*\)/.test(backupSrcEnc));
 

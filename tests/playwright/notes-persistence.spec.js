@@ -1,6 +1,11 @@
 import { expect, test } from './coverage-fixture.js';
 
 test('note edits survive reload and aborted commits retain the editor and stored record', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-default-emptyTour', 'completed');
+    localStorage.setItem('labcharts-default-tour', 'completed');
+    localStorage.setItem('labcharts-analytics-consent-seen', '1');
+  });
   await page.goto('/app');
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');

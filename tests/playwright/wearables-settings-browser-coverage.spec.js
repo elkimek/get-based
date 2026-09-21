@@ -171,6 +171,7 @@ test('wearables settings browser coverage exercises import and connection action
         date: '2026-06-02',
         weight: 80.2,
       });
+      if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Could not persist manual connection fixture');
       settingsRuntime.configureWearableSettingsRuntimeDeps({ showConfirmDialog: async () => true });
       await actions.handleManualDisconnect();
       const manualRows = await store.countSource(profileId, 'manual');

@@ -494,7 +494,7 @@ test('light environment AI analysis covers audit room screen and onboarding verd
         sleepRest: { qualityScore: 5, bedtime: '23:45', wakeup: '07:30' },
         profile: { location: { lat: 51.2, lon: 4.4 } },
         entries: [
-          { date: '2026-06-01', values: { lipids: { '25-oh-vitamin-d': 24 } } },
+          { date: '2026-06-01', markers: { 'vitamins.vitaminD': 24 } },
         ],
       };
       window.fetch = async (url, options = {}) => {

@@ -14,7 +14,7 @@ test('chat sends through the companion, executes a real marker tool, and persist
     localStorage.setItem('labcharts-default-emptyTour', 'completed');
     localStorage.setItem('labcharts-default-tour', 'completed');
     localStorage.setItem('labcharts-analytics-consent-seen', '1');
-    localStorage.setItem('labcharts-ai-paused', 'false');
+    if (localStorage.getItem('labcharts-ai-paused') === null) localStorage.setItem('labcharts-ai-paused', 'false');
   });
   await page.route('**/api/local-agents*', route => route.fulfill({ json: { agents: [] } }));
   await page.route('**/v1/**', async route => {
@@ -79,6 +79,8 @@ test('chat sends through the companion, executes a real marker tool, and persist
   expect(turns).toHaveLength(2);
   expect(turns[1].prompt).toBe('Please read my latest saved glucose.');
   const threadId = await page.evaluate(async () => (await import('/js/state.js')).state.currentThreadId);
+  // The persisted-chat assertion must not start background AI refreshes.
+  await page.evaluate(() => localStorage.setItem('labcharts-ai-paused', 'true'));
   await page.reload();
   await page.evaluate(async threadId => {
     await (await import('/js/chat-loader.js')).loadChatModule();

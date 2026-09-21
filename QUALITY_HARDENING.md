@@ -494,3 +494,9 @@ CI at `3b2aa362` measured 1,261,837 startup decoded bytes and 5,378,608 total de
 Proposal preparation now saves the pending status under an in-memory duplicate-click guard, then acquires the durable claim immediately before mutation. A preparatory save failure or navigation cannot persist an unclaimed applying status or consume a claim. Ambiguous outcomes after claim acquisition remain non-retryable. The focused 26 proposal unit tests, six persistence browser tests, and checkJs pass.
 
 Release evidence no longer forwards catalog secrets. Ordinary PR tests also use the catalog stub; the direct Tests workflow supplies private catalog credentials only on a push to main. Reusable workflow calls declare no secrets.
+
+### CI browser fixture compatibility
+
+The full Chromium run exposed seven fixture/budget failures (720 other tests passed). Updated note assertions to await durable saves and persisted synthetic remote edits, persisted the manual-connection fixture before deletion, used the canonical vitamin-D marker, and updated the encrypted-index source assertion. Returning-user notes explicitly complete onboarding; the chat reload assertion pauses background AI refreshes while retaining exact two-turn expectations.
+
+All seven affected scenarios pass in focused browser runs; the chat scenario also passes with CI coverage instrumentation. The cold-load check independently reproduces CI's 337 requests, 1,228,450 transfer bytes and 3,448,567 decoded bytes. Record the added production module and safeguards with caps of 337 requests, 1,230,000 transfer bytes and 3,451,000 decoded bytes. Global coverage floors remain unchanged.

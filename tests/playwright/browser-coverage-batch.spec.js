@@ -125,6 +125,7 @@ test('notes editor browser contract adds edits and deletes notes', async ({ page
 
         document.getElementById('note-textarea').value = 'Started coverage batching';
         document.querySelector('[data-note-action="save"]')?.click();
+        await waitFor(() => state.importedData.notes.length === 1 && navCalls.includes('dashboard'));
         outcomes.saveAddsNote = state.importedData.notes.length === 1
           && state.importedData.notes[0].date === '2026-06-07'
           && state.importedData.notes[0].text === 'Started coverage batching'
@@ -137,6 +138,7 @@ test('notes editor browser contract adds edits and deletes notes', async ({ page
 
         document.getElementById('note-textarea').value = 'Edited coverage batch note';
         document.querySelector('[data-note-action="save"]')?.click();
+        await waitFor(() => state.importedData.notes[0]?.text === 'Edited coverage batch note');
         outcomes.saveEditsInPlace = state.importedData.notes.length === 1
           && state.importedData.notes[0].text === 'Edited coverage batch note';
 
@@ -148,6 +150,7 @@ test('notes editor browser contract adds edits and deletes notes', async ({ page
 
         notes.openNoteEditor(null, 0);
         state.importedData.notes[0].text = 'Synced coverage batch note';
+        await (await import('/js/data.js')).saveImportedData();
         window.dispatchEvent(new Event('labcharts-sync-applied'));
         document.querySelector('[data-note-action="save"]')?.click();
         outcomes.syncRefreshPreservesDraftAndRejectsStaleSave =
@@ -156,9 +159,11 @@ test('notes editor browser contract adds edits and deletes notes', async ({ page
 
         notes.openNoteEditor(null, 0);
         state.importedData.notes.unshift({ date: '2026-06-06', text: 'Inserted remote note' });
+        await (await import('/js/data.js')).saveImportedData();
         window.dispatchEvent(new Event('labcharts-sync-applied'));
         document.getElementById('note-textarea').value = 'Edited shifted note';
         document.querySelector('[data-note-action="save"]')?.click();
+        await waitFor(() => state.importedData.notes[1]?.text === 'Edited shifted note');
         outcomes.syncRefreshSavesShiftedRecord =
           state.importedData.notes[1].text === 'Edited shifted note'
           && state.importedData.notes[0].text === 'Inserted remote note';
@@ -176,6 +181,7 @@ test('notes editor browser contract adds edits and deletes notes', async ({ page
           && state.importedData.notes[0].text === 'Inserted remote note';
 
         state.importedData.notes = [{ date: '2026-06-09', text: 'Delete coverage note' }];
+        await (await import('/js/data.js')).saveImportedData();
         notes.openNoteEditor(null, 0);
         document.querySelector('[data-note-action="delete"]')?.click();
         await Promise.resolve();
