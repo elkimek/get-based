@@ -484,3 +484,7 @@ acceptance, optional GPU/larger models, and documented architectural limitations
 trust). These are explicitly unverified or separate design work, not silently
 counted as passed tests. Everything remains local and uncommitted in the existing
 hardening worktree, with no push, PR, full suite or full coverage matrix.
+
+### PR 1637 production-budget acceptance
+
+CI at `3b2aa362` measured 1,261,837 startup decoded bytes and 5,378,608 total decoded bytes, exceeding the previous caps by 837 and 3,608 bytes respectively. The persistence safeguards add 2,239 startup bytes and 5,161 total bytes versus the recorded demo-biology baseline. Record this intentional functional cost and narrowly set caps to 1,264,000 and 5,381,000 bytes, retaining the existing file-count limits. The focused `npm run production:check` passes, including the unchanged PWA precache budget (348 resources). Coverage thresholds are unchanged.

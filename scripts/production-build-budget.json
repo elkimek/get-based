@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "maximums": {
     "startupJavaScriptFiles": 2,
-    "startupDecodedBytes": 1261000,
+    "startupDecodedBytes": 1264000,
     "outputJavaScriptFiles": 165,
-    "outputDecodedBytes": 5375000
+    "outputDecodedBytes": 5381000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -73,8 +73,11 @@
     "biologyScoresOutputDecodedBytes": 5367943,
     "biologyScoresReleaseNotesOutputDecodedBytes": 5372275,
     "demoBiologyStartupDecodedBytes": 1259598,
-    "demoBiologyOutputDecodedBytes": 5373447
+    "demoBiologyOutputDecodedBytes": 5373447,
+    "persistenceHardeningStartupDecodedBytes": 1261837,
+    "persistenceHardeningOutputDecodedBytes": 5378608,
+    "persistenceHardeningMeasuredCommit": "3b2aa362ff761e9b6fb0c208ebc3f3d595a92622"
   },
   "referenceCommit": "331112b1",
-  "measuredAt": "2026-09-17"
+  "measuredAt": "2026-09-21"
 }
