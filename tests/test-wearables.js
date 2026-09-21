@@ -1501,7 +1501,8 @@ const profileSrc31 = await fetch('/js/profile.js').then(r => r.text());
 const profileRuntimeSrc31 = await fetch('/js/profile-runtime.js').then(r => r.text());
 assert('loadProfile refresh aborts when state.currentProfile changes mid-await',
   profileSrc31.includes('refreshProfileWearables(profileId, state.importedData?.biometrics)') &&
-  /state\.currentProfile\s*!==\s*profileId\)\s*return/.test(profileRuntimeSrc31));
+  /const isCurrent = \(\) => state\.currentProfile === profileId && state\.importedData === data/.test(profileRuntimeSrc31) &&
+  /await connect\.recoverPendingWearableDisconnect\(profileId, data\);[\s\S]*?if \(!isCurrent\(\)\) return/.test(profileRuntimeSrc31));
 
 // P0-1 (the orchestrator side): syncWearableSummary bails on profile swap.
 const summarySrc31 = await fetch('/js/wearables-summary.js').then(r => r.text());
@@ -2053,7 +2054,8 @@ assert('Folder-backup writeLatest uses the full snapshot',
 assert('exportEncryptedBackup is async and uses the full snapshot',
   /export\s+async\s+function\s+exportEncryptedBackup/.test(backupSrc));
 assert('restoreAutoBackup hydrates wearable IDB rows back via restoreWearableIDB',
-  /export\s+async\s+function\s+restoreAutoBackup[\s\S]*?restoreWearableIDB\(backup\.wearableIDB\)/.test(backupSrc));
+  /export\s+async\s+function\s+restoreAutoBackup[\s\S]*?await restoreBackupSideStores\(backup\)/.test(backupSrc) &&
+  /async function restoreBackupSideStores[\s\S]*?restoreWearableIDB\(backup\.wearableIDB\)/.test(backupSrc));
 // v1.31.0: restoreWearableIDB now uses upsertDailyBatchRaw to preserve
 // encryption envelopes from an encrypted backup (no decrypt-on-restore).
 assert('restoreWearableIDB iterates per-source and upsertDailyBatchRaw (preserves encrypted wrappers)',
