@@ -217,6 +217,18 @@ npm run production:check
 Default to tests related to the current change. GitHub Actions runs the exhaustive browser and combined-coverage matrix so local development does not repeatedly create high volumes of temporary Chromium and V8 coverage data.
 `./run-tests.sh` runs both type checkers, verifies the architecture map, vendored browser assets and their supply-chain inventory, and the static module graph, starts an isolated local server, runs the Node/Vitest tests, checks the dev-server origin guard, and runs every Playwright browser assertion. It is blocked outside CI unless the high-write run is explicitly acknowledged with `GETBASED_ALLOW_HIGH_WRITE_TESTS=1`.
 `COVERAGE=1 ./run-tests.sh` also combines Vitest and Playwright V8 function coverage and enforces the committed ratchet in `scripts/coverage-baseline.json`; CI runs this mode on every change.
+Coverage includes all first-party browser, server, companion and shared runtime
+sources, including modules that tests never import. Function identities use source
+syntax ranges so same-named methods and anonymous callbacks remain distinct across
+collectors. CI retains a `production-coverage` artifact with commit-attributed JSON,
+an HTML file inventory, and a feature summary also shown in the job summary. These
+measure execution, not branch coverage or complete user-workflow coverage; unmatched
+collector ranges are exposed in the JSON for investigation. Keep local verification
+focused on the changed modules; use CI for the complete measurement.
+See [critical-workflow expectations](QUALITY_COVERAGE_POLICY.md) for behavioral
+requirements and the manual-only real-model workflow. The local
+[workflow evidence inventory](QUALITY_WORKFLOW_INVENTORY.md) separates reviewed
+regressions from unmeasured integration and coverage boundaries.
 `npm run test:evolu8-browsers` runs the focused Evolu 8 startup, durable-identity, resource-management-polyfill, and one-tab fallback checks in Chromium, Firefox, and WebKit.
 `npm run test:firefox` runs the focused Firefox critical-flow suite; install its browser binary once with `npx playwright install firefox`.
 `npm run test:pwa` checks offline lazy features, manifest assets, interrupted updates, retry, and two-tab data preservation in Chromium, Firefox, and desktop/mobile WebKit. Install those engines with `npx playwright install --with-deps chromium firefox webkit`. The tests disconnect an isolated local origin, use synthetic profiles, and never modify a deployed application.

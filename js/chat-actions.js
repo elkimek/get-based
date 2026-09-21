@@ -23,6 +23,7 @@ import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { setChatInputValue } from './chat-composer.js';
 import { restoreMessageAttachments } from './chat-images.js';
 import { applyAgentDraft, renderAgentDraftCards } from './agent-drafts.js';
+import { claimAgentDraft } from './agent-draft-claims.js';
 import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
 
 const chatMessageActionDeps = {
@@ -91,26 +92,50 @@ async function updateAgentDraft(actionEl, apply) {
   const message = index == null ? null : state.chatHistory[index];
   const draft = message?.agentDrafts?.find(item => item.id === draftId);
   if (!draft || draft.status !== 'pending') return false;
-  if (!apply) {
-    draft.status = 'discarded';
-    await saveChatHistory();
-    chatMessageActionDeps.renderChatMessages();
-    showNotification('Proposed change discarded', 'info');
-    return true;
-  }
-  draft.status = 'applying';
-  chatMessageActionDeps.renderChatMessages();
+  const profile = state.currentProfile;
+  const thread = state.currentThreadId;
+  const history = state.chatHistory;
+  const isCurrent = () => profile === state.currentProfile && thread === state.currentThreadId && history === state.chatHistory;
+  const refresh = () => { if (isCurrent()) chatMessageActionDeps.renderChatMessages(); };
+  let claimAttempted = false;
+  let mutationStarted = false;
+  let mutationCompleted = false;
   try {
+    // Persist the claim before changing profile data. A reload must never turn an
+    // interrupted operation back into an actionable proposal.
+    draft.status = apply ? 'applying' : 'discarded';
+    refresh();
+    const claimed = await saveChatHistory();
+    if (!claimed) throw new Error('Could not save the proposal status. No change was applied.');
+    if (!isCurrent()) return true;
+    if (!apply) {
+      showNotification('Proposed change discarded', 'info');
+      return true;
+    }
+    claimAttempted = true;
+    await claimAgentDraft(profile, draftId);
+    if (!isCurrent()) { draft.status = 'failed'; return true; }
+    mutationStarted = true;
     const notice = await applyAgentDraft({ ...draft, status: 'pending' });
+    mutationCompleted = true;
     draft.status = 'applied';
     draft.appliedAt = new Date().toISOString();
-    await saveChatHistory();
-    chatMessageActionDeps.renderChatMessages();
-    showNotification(notice, 'success');
+    // The origin retains its durable claim if the user navigated away. Never
+    // save the captured proposal into a different active conversation.
+    if (!isCurrent()) return true;
+    if (!await saveChatHistory()) throw new Error('The change was saved, but its conversation status could not be saved. Check your data before making another proposal.');
+    if (isCurrent()) showNotification(notice, 'success');
   } catch (error) {
-    draft.status = 'pending';
-    chatMessageActionDeps.renderChatMessages();
-    showNotification(error instanceof Error ? error.message : 'The proposed change could not be applied.', 'error');
+    // Mutators can fail after a partial commit. Keep ambiguous outcomes out of
+    // the retry path; the durable applying claim provides the same protection.
+    draft.status = mutationCompleted ? 'applied' : claimAttempted ? 'failed' : 'pending';
+    if (isCurrent()) {
+      showNotification(mutationStarted
+        ? 'Check your data before trying this change again. The proposal could not be fully confirmed.'
+        : error instanceof Error ? error.message : 'The proposal status could not be saved.', 'error');
+    }
+  } finally {
+    refresh();
   }
   return true;
 }
@@ -339,7 +364,7 @@ export function regenerateLastMessage() {
   const { renderChatMessages, sendChatMessage } = callbacks;
 
   const lastUserMsg = state.chatHistory[state.chatHistory.length - 2];
-  if (!lastUserMsg || lastUserMsg.role !== 'user') return;
+  if (!lastUserMsg || lastUserMsg.joined || lastUserMsg.role !== 'user') return;
   if (lastUserMsg.hasImages && !restoreMessageAttachments(lastUserMsg)) {
     showNotification(
       'The original images are no longer available. Attach them again to retry this response.',
@@ -358,7 +383,7 @@ export function regenerateLastMessage() {
 
 export function copyMessage(msgIndex) {
   const msg = state.chatHistory[msgIndex];
-  if (!msg) return;
+  if (!msg || msg.joined) return;
   const btn = document.getElementById(`chat-copy-btn-${msgIndex}`);
   if (!navigator.clipboard) {
     if (btn) {

@@ -8,6 +8,7 @@
 // one.
 
 import { state } from './state.js';
+import { latestVitaminDContext } from './lab-vitamin-d-context.js';
 import { escapeHTML } from './utils.js';
 import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
@@ -104,13 +105,8 @@ export function buildOnboardingContext() {
     lines.push(`Resolved latitude: ${latitude.toFixed(2)}°${latNote}; source: ${resolvedCoords.source || 'unknown'}`);
   }
 
-  try {
-    const entries = (state.importedData?.entries || []).slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    for (const e of entries) {
-      const v = e?.values?.hormones?.['25-oh-vitamin-d'] ?? e?.values?.lipids?.['25-oh-vitamin-d'];
-      if (v != null) { lines.push(`Latest 25-OH-D: ${v} (${e.date})`); break; }
-    }
-  } catch (_) {}
+  const vitaminD = latestVitaminDContext(state.importedData?.entries);
+  if (vitaminD) lines.push(vitaminD);
 
   return lines.join('\n');
 }

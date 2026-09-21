@@ -6,11 +6,16 @@ test.use({ serviceWorkers: 'allow' });
 async function openInstalledApp(page, origin) {
   await page.addInitScript(() => {
     for (const key of ['emptyTour', 'tour']) localStorage.setItem(`labcharts-default-${key}`, 'completed');
+    // This is an installed, returning-user scenario. The delayed first-visit
+    // analytics notice otherwise moves Reload between pointer targeting and click
+    // (observed in the Firefox CI trace), without exercising worker activation.
+    localStorage.setItem('labcharts-analytics-consent-seen', '1');
   });
   await page.goto(`${origin}/app?dev-sw=1`, { waitUntil: 'networkidle' });
   await expect(page.locator('html[data-app-ready]')).toBeAttached();
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  await expect(page.locator('#analytics-consent-banner')).toHaveCount(0);
   await page.evaluate(async () => {
     window.endTour?.();
     (await import('/js/chat-panel.js')).closeChatPanel();
@@ -46,6 +51,13 @@ test('installed shell opens lazy features and reloads with the origin disconnect
       await (await import('/js/views.js')).navigate('light');
     });
     await expect(page.locator('.light-page')).toBeVisible();
+    const offlineContext = await page.evaluate(async () => {
+      const { state } = await import('/js/state.js');
+      state.importedData.sunDefaults = { fitzpatrick: 'III' };
+      state.importedData.entries = [{ date: '2026-09-01', markers: { 'vitamins.vitaminD': 75 } }];
+      return (await import('/js/sun-onboarding-ai.js')).buildOnboardingContext();
+    });
+    expect(offlineContext).toContain('Latest 25-OH-D: 75 nmol/l (2026-09-01)');
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.locator('#main-content')).toBeVisible();
     expect(errors).toEqual([]);

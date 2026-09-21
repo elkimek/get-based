@@ -2,7 +2,7 @@
 // Review-and-approve boundary for changes proposed by a connected CLI agent.
 
 import { state } from './state.js';
-import { saveImportedData } from './data.js';
+import { saveImportedDataForProfile } from './data.js';
 import { appendImportedArrayItem } from './data-merge.js';
 import { getActiveProfileId } from './profile.js';
 import { saveMarkerNoteText } from './marker-detail-store.js';
@@ -48,7 +48,7 @@ export function renderAgentDraftCards(message, messageIndex) {
     const details = rows.map(([label, value]) => `<div class="chat-agent-draft-row"><span>${escapeHTML(String(label))}</span><strong>${escapeHTML(String(value))}</strong></div>`).join('');
     const controls = status === 'pending'
       ? `<div class="chat-agent-draft-controls"><button type="button" class="chat-agent-draft-apply" ${chatMessageActionAttrs('apply-agent-draft', { index: messageIndex, draftId: draft.id })}>Apply</button><button type="button" class="chat-agent-draft-discard" ${chatMessageActionAttrs('discard-agent-draft', { index: messageIndex, draftId: draft.id })}>Discard</button></div>`
-      : `<div class="chat-agent-draft-status chat-agent-draft-status-${status}">${status === 'applying' ? 'Applying…' : status === 'applied' ? 'Applied to getbased' : status === 'discarded' ? 'Discarded' : 'Could not apply'}</div>`;
+      : `<div class="chat-agent-draft-status chat-agent-draft-status-${status}">${status === 'applying' ? 'Applying…' : status === 'applied' ? 'Applied to getbased' : status === 'discarded' ? 'Discarded' : 'Outcome unconfirmed — check your data before proposing this change again.'}</div>`;
     return `<section class="chat-agent-draft chat-agent-draft-${status}" aria-label="Agent-proposed change"><div class="chat-agent-draft-heading"><span>Proposed change</span><small>Review required</small></div><p>${escapeHTML(draft.summary || 'Agent proposal')}</p><div class="chat-agent-draft-details">${details}</div>${controls}</section>`;
   }).join('');
 }
@@ -61,18 +61,20 @@ function localMealTime(date) {
   };
 }
 
-async function applyNote(payload) {
+async function applyNote(payload, profileId) {
   if (payload.scope === 'marker') {
     const resolved = resolveAgentMarker(payload.marker);
     if (!resolved.row) throw new Error(resolved.matches.length ? 'Choose an unambiguous marker before applying.' : 'That marker is no longer available.');
     const current = String(state.importedData?.markerNotes?.[resolved.row.key] || '').trim();
     const next = payload.mode === 'replace' || !current ? payload.text : `${current}\n\n${payload.text}`;
-    await saveMarkerNoteText(resolved.row.key, next);
+    if (!await saveMarkerNoteText(resolved.row.key, next)) throw new Error('Could not save the marker note.');
     return `Marker note saved for ${resolved.row.name}.`;
   }
-  const current = String(state.importedData?.contextNotes || '').trim();
-  state.importedData.contextNotes = payload.mode === 'replace' || !current ? payload.text : `${current}\n\n${payload.text}`;
-  await saveImportedData();
+  const baseData = structuredClone(state.importedData);
+  const draft = structuredClone(baseData);
+  const current = String(draft.contextNotes || '').trim();
+  draft.contextNotes = payload.mode === 'replace' || !current ? payload.text : `${current}\n\n${payload.text}`;
+  if (!await saveImportedDataForProfile(profileId, draft, { baseData })) throw new Error('Could not save the profile context note.');
   return 'Profile context note saved.';
 }
 
@@ -120,7 +122,7 @@ async function applyBiometric(payload, profileId) {
   return payload.metric === 'weight' ? 'Weight saved.' : 'Resting pulse saved.';
 }
 
-async function applySupplement(payload) {
+async function applySupplement(payload, profileId) {
   const startDate = payload.startDate || localDateKey();
   const now = Date.now();
   const entry = {
@@ -137,8 +139,10 @@ async function applySupplement(payload) {
     lifecycle: { state: startDate <= localDateKey() ? 'active' : 'planned', changedAt: now },
     updatedAt: now,
   };
-  appendImportedArrayItem(state.importedData, 'supplements', entry);
-  await saveImportedData();
+  const baseData = structuredClone(state.importedData);
+  const draft = structuredClone(baseData);
+  appendImportedArrayItem(draft, 'supplements', entry);
+  if (!await saveImportedDataForProfile(profileId, draft, { baseData })) throw new Error('Could not save the proposed supplement or medication.');
   return `${payload.type === 'medication' ? 'Medication' : 'Supplement'} “${payload.name}” saved.`;
 }
 
@@ -148,9 +152,9 @@ export async function applyAgentDraft(draft) {
   if (!draft.profileId || draft.profileId !== activeProfileId) {
     throw new Error('Switch back to the profile where this proposal was created before applying it.');
   }
-  if (draft.kind === 'note') return applyNote(draft.payload);
+  if (draft.kind === 'note') return applyNote(draft.payload, activeProfileId);
   if (draft.kind === 'meal') return applyMeal(draft.payload);
   if (draft.kind === 'biometric') return applyBiometric(draft.payload, activeProfileId);
-  if (draft.kind === 'supplement') return applySupplement(draft.payload);
+  if (draft.kind === 'supplement') return applySupplement(draft.payload, activeProfileId);
   throw new Error('This proposal type is not supported.');
 }

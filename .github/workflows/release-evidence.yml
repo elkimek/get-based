@@ -1,0 +1,35 @@
+name: Release verification evidence
+
+# An explicit dispatch verifies the selected immutable revision. It does not deploy.
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-release-evidence')
+    uses: ./.github/workflows/test.yml
+    secrets: inherit
+  real-models:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-release-evidence')
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [knowledge, voice]
+    uses: ./.github/workflows/real-models.yml
+    with:
+      model: ${{ matrix.model }}
+  verified:
+    needs: [regression, real-models]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record successful acceptance revision
+        env:
+          VERIFIED_SHA: ${{ github.sha }}
+        run: |
+          echo "Full regression and both real WASM model scenarios passed for $VERIFIED_SHA." >> "$GITHUB_STEP_SUMMARY"
+          echo 'Live paid providers, physical hardware, and human acceptance are separate evidence.' >> "$GITHUB_STEP_SUMMARY"

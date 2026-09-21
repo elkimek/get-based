@@ -289,6 +289,7 @@ export function saveSupplement(index) {
     }
   }
   const previous = index >= 0 ? state.importedData.supplements?.[index] : null;
+  /** @type {import('../types/supplement-data.js').SupplementRecordWithHistory} */
   const entry = {
     ...(previous && typeof previous === 'object' ? previous : {}),
     id: getSupplementRecordId(previous) || createSupplementRecordId(),

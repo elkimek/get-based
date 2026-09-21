@@ -386,7 +386,11 @@ const { state } = await import('../js/state.js');
       ],
     });
 
+    state.importedData.entries = [{ date: '2026-09-01', markers: { 'vitamins.vitaminD': 75 } }];
     const onboardingCtx = mod.buildOnboardingContext();
+    assert('onboarding includes canonical vitamin D and unit', onboardingCtx.includes('Latest 25-OH-D: 75 nmol/l (2026-09-01)'));
+    const dayContext = (await import('../js/light-today-ai.js')).buildDayContext('2026-09-01');
+    assert('daily context includes canonical vitamin D and unit', dayContext.includes('Latest 25-OH-D: 75 nmol/l (2026-09-01)'));
     assert('onboarding context references array-shaped health goals',
       onboardingCtx.includes('Stabilize sleep timing'),
       onboardingCtx);

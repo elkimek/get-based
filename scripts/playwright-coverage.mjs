@@ -8,9 +8,12 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { execFileSync } from 'node:child_process';
 import { chromium } from 'playwright';
 import { runBrowserScript } from '../tests/playwright/browser-script-runner.js';
 import { enforceFunctionCoverage, resolveCoverageMinimum } from './coverage-gate.mjs';
+import { isProductionSource, productionSources, sourceFunctions, matchSourceFunction, summarizeFeatures } from './coverage-source.mjs';
+import { renderCoverageMarkdown, renderCoverageHtml } from './coverage-report.mjs';
 import {
   coverageEntryMatchesSource,
   coverageFunctionRange,
@@ -89,11 +92,7 @@ function canonicalFile(url) {
 
 function isAppSource(url) {
   const rel = canonicalFile(url);
-  return /^js\/.*\.m?js$/.test(rel) ||
-    /^api\/.*\.js$/.test(rel) ||
-    rel === 'dev-server.js' ||
-    rel === 'service-worker.js' ||
-    rel === 'version.js';
+  return isProductionSource(rel);
 }
 
 function entrySource(entry) {
@@ -160,11 +159,14 @@ function locToRange(source, loc, offsets = lineOffsets(source)) {
 }
 
 function getFileMetrics(model, file, total = 0, source = null) {
+  const index = model.has(file) ? null : sourceFunctions(sourceForFile(file), file);
   const metrics = model.get(file) || {
     file,
     total: 0,
     ranges: [],
-    functions: new Map(),
+    functionIndex: index,
+    functions: new Map(index.map(fn => [`${fn.start}:${fn.end}`, { name: fn.name, called: false }])),
+    unmappedFunctions: new Set(),
     sources: new Set(),
   };
   metrics.total = Math.max(metrics.total, total);
@@ -181,21 +183,19 @@ function addCoveredRanges(metrics, ranges) {
   }
 }
 
-function addFunction(metrics, key, name, called, matchByName = false) {
-  let targetKey = key;
-  if (!metrics.functions.has(targetKey) && matchByName) {
-    const match = [...metrics.functions.entries()]
-      .find(([, fn]) => fn.name === name);
-    if (match) targetKey = match[0];
-  }
-
+function addFunction(metrics, key, name, called) {
+  const [start, end] = key.split(':').map(Number);
+  const sourceFunction = matchSourceFunction(metrics.functionIndex, start, end);
+  const targetKey = sourceFunction ? `${sourceFunction.start}:${sourceFunction.end}` : key;
   const existing = metrics.functions.get(targetKey);
   if (existing) {
     existing.called = existing.called || called;
     return;
   }
 
-  metrics.functions.set(targetKey, { name, called: Boolean(called) });
+  // Compiler-generated functions and mismatched source ranges must not merge
+  // unrelated callbacks by name. Surface unmatched executed ranges for review.
+  if (called) metrics.unmappedFunctions.add(`${key} ${name}`);
 }
 
 function addBrowserEntriesToModel(model, entries) {
@@ -256,10 +256,13 @@ function addBrowserEntriesToModel(model, entries) {
 
 function readVitestCoverageModel() {
   if (!includeVitestCoverage) return null;
-  if (!fs.existsSync(vitestCoveragePath)) return null;
+  if (!fs.existsSync(vitestCoveragePath)) throw new Error(`Required Vitest coverage is missing: ${vitestCoveragePath}`);
 
   const coverage = JSON.parse(fs.readFileSync(vitestCoveragePath, 'utf8'));
   const model = new Map();
+  // Include never-imported runtime modules in the denominator, independently
+  // of collector behavior or test discovery.
+  for (const file of productionSources(repoRoot)) getFileMetrics(model, file, sourceForFile(file).length);
 
   for (const [coveragePath, fileCoverage] of Object.entries(coverage)) {
     const file = canonicalFile(fileCoverage.path || coveragePath);
@@ -296,8 +299,9 @@ function mergeCoverageModels(...models) {
       for (const source of metrics.sources) target.sources.add(source);
       addCoveredRanges(target, metrics.ranges);
       for (const [key, fn] of metrics.functions) {
-        addFunction(target, key, fn.name, fn.called, true);
+        addFunction(target, key, fn.name, fn.called);
       }
+      for (const entry of metrics.unmappedFunctions) target.unmappedFunctions.add(entry);
     }
   }
 
@@ -320,6 +324,7 @@ function summarizeCoverageModel(model) {
       fnPct: fns.length > 0 ? (fnCalled / fns.length) * 100 : 100,
       uncalledFns: fns.filter(fn => !fn.called).map(fn => fn.name),
       sources: [...metrics.sources].sort(),
+      unmappedCalledFunctions: [...metrics.unmappedFunctions].sort(),
     };
   });
   rows.sort((a, b) => a.fnPct - b.fnPct || b.fnTotal - a.fnTotal);
@@ -415,7 +420,12 @@ function writeCoverageReport(entries, fixtures, options = {}) {
     // First coverage run on this checkout.
   }
 
-  fs.writeFileSync(jsonPath, JSON.stringify({
+  const report = {
+    schemaVersion: 2,
+    functionIdentity: 'source AST ranges (includes never-loaded production modules)',
+    commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim(),
+    workingTreeDirty: Boolean(execFileSync('git', ['status', '--porcelain', '--untracked-files=no'], { cwd: repoRoot, encoding: 'utf8' }).trim()),
+    ciRunUrl: process.env.GITHUB_RUN_ID ? `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` : null,
     runner,
     scope: vitest
       ? `app-source JavaScript covered by Vitest/Node V8 coverage plus ${options.playwrightScope || 'sampled Playwright Chromium fixtures'}`
@@ -425,13 +435,18 @@ function writeCoverageReport(entries, fixtures, options = {}) {
     totals: combined.totals,
     fixtures: fixtures.map(normalizeFixture),
     rows: combined.rows,
+    features: summarizeFeatures(combined.rows),
     reports: {
       combined,
       playwright,
       vitest,
     },
     generatedAt: new Date().toISOString(),
-  }, null, 2));
+  };
+  fs.writeFileSync(jsonPath, JSON.stringify(report, null, 2));
+  fs.writeFileSync(path.join(repoRoot, 'tests', '.coverage.md'), renderCoverageMarkdown(report));
+  fs.writeFileSync(path.join(repoRoot, 'tests', '.coverage.html'), renderCoverageHtml(report));
+  if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, renderCoverageMarkdown(report));
 
   console.log('\n' + '='.repeat(92));
   console.log(vitest

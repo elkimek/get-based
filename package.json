@@ -2,7 +2,7 @@
   "name": "getbased",
   "version": "1.3.9",
   "private": true,
-  "description": "getbased \u2014 open-source health dashboard (PWA)",
+  "description": "getbased — open-source health dashboard (PWA)",
   "type": "module",
   "engines": {
     "node": "24.x"
@@ -43,7 +43,8 @@
     "vendor:evolu8:check": "node scripts/build-evolu8-vendor.mjs --check",
     "test:watch": "vitest",
     "test:routstr-wallet": "PORT=${PORT:-8180} playwright test tests/playwright/routstr-wallet-dom.spec.js",
-    "canary:routstr-real": "node scripts/routstr-real-funds-canary.mjs"
+    "canary:routstr-real": "node scripts/routstr-real-funds-canary.mjs",
+    "test:critical-coverage": "vitest run --config vitest.critical.config.js"
   },
   "devDependencies": {
     "@cashu/cashu-ts": "4.9.0",

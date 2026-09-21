@@ -40,7 +40,7 @@ describe('development agent discovery', () => {
     });
 
     expect(controller.describe()).toEqual({ agents: [expect.objectContaining({
-      id: 'codex', compatible: true, status: 'starting', token: 'private-token',
+      id: 'codex', compatible: true, status: 'starting', token: '',
     })] });
     child.stdout.emit('data', 'getbased Companion listening at http://127.0.0.1:8324\n');
     expect(controller.describe().agents[0]).toMatchObject({
@@ -149,7 +149,7 @@ describe('development agent discovery', () => {
     controller.close();
   });
 
-  it('reuses an authenticated Codex bridge that is already running', async () => {
+  it('does not disclose the installation token to an unknown process occupying the configured port', async () => {
     const child = fakeChild();
     vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
     const controller = startDevAgentHost({
@@ -164,10 +164,12 @@ describe('development agent discovery', () => {
     });
 
     child.stderr.emit('data', 'listen EADDRINUSE: address already in use 127.0.0.1:8324');
-    await vi.waitFor(() => expect(controller.describe().agents[0].status).toBe('available'));
-    expect(globalThis.fetch).toHaveBeenCalledWith('http://127.0.0.1:8324/v1/status', expect.objectContaining({
-      redirect: 'error', headers: { Authorization: 'Bearer private-token' },
-    }));
+    expect(controller.describe().agents[0]).toMatchObject({ status: 'unavailable', token: '' });
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    child.emit('exit', 1);
+    expect(controller.describe().agents[0].status).toBe('unavailable');
+    expect(controller.describe().agents[0].message).toContain('already in use');
+    controller.close();
   });
 
   it('follows the current development companion to the next free discovery port', () => {

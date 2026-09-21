@@ -96,7 +96,9 @@ function handleCryptoActionClick(event) {
   else if (action === 'restore-auto-backup') {
     const id = readSnapshotActionId(actionElement);
     if (id == null) return;
-    restoreAutoBackup(id);
+    void restoreAutoBackup(id).catch(error => {
+      showNotification('Backup restore incomplete: ' + getErrorMessage(error), 'error');
+    });
   } else {
     return;
   }

@@ -156,30 +156,27 @@ async function restoreBackupSettings(backup) {
 async function collectWearableIDB(profileIds) {
   const out = {};
   for (const pid of profileIds) {
-    try {
-      // CRITICAL: read RAW (no decrypt). When encryption-at-rest is on, the
-      // rows on disk are AES-GCM-wrapped envelopes. getDailyRange would
-      // decrypt them into plaintext for the snapshot — silently downgrading
-      // the at-rest guarantee. getDailyRangeRaw returns rows as-stored.
-      // WHOOP and Google Health raw rows use an always-on device key.
-      // These keys are non-exportable, so omit those rows rather than creating
-      // undecryptable or downgraded backups; reconnecting can fetch them again.
-      const KNOWN_SOURCES = ['oura', 'fitbit', 'withings', 'ultrahuman', 'polar', 'apple_health', 'manual'];
-      const perProfile = {};
-      for (const src of KNOWN_SOURCES) {
-        try {
-          const srcRows = await getDailyRangeRaw(pid, src, '2000-01-01', '2099-12-31');
-          if (Array.isArray(srcRows) && srcRows.length > 0) perProfile[src] = srcRows;
-        } catch { /* db-not-yet-created → skip */ }
-      }
-      if (Object.keys(perProfile).length > 0) out[pid] = perProfile;
-    } catch { /* per-profile failure shouldn't break the whole backup */ }
+    // CRITICAL: read RAW (no decrypt). When encryption-at-rest is on, the
+    // rows on disk are AES-GCM-wrapped envelopes. getDailyRange would
+    // decrypt them into plaintext for the snapshot — silently downgrading
+    // the at-rest guarantee. getDailyRangeRaw returns rows as-stored.
+    // WHOOP and Google Health raw rows use an always-on device key.
+    // These keys are non-exportable, so omit those rows rather than creating
+    // undecryptable or downgraded backups; reconnecting can fetch them again.
+    const KNOWN_SOURCES = ['oura', 'fitbit', 'withings', 'ultrahuman', 'polar', 'apple_health', 'manual'];
+    const perProfile = {};
+    for (const src of KNOWN_SOURCES) {
+      const srcRows = await getDailyRangeRaw(pid, src, '2000-01-01', '2099-12-31');
+      if (Array.isArray(srcRows) && srcRows.length > 0) perProfile[src] = srcRows;
+    }
+    if (Object.keys(perProfile).length > 0) out[pid] = perProfile;
   }
   return out;
 }
 
 async function restoreWearableIDB(payload) {
   if (!payload || typeof payload !== 'object') return;
+  let failures = 0;
   for (const [pid, sources] of Object.entries(payload)) {
     for (const [, rows] of Object.entries(sources)) {
       if (!Array.isArray(rows) || rows.length === 0) continue;
@@ -189,8 +186,23 @@ async function restoreWearableIDB(payload) {
       // they get rewritten in plaintext on next mutation (write-on-touch
       // via the normal upsertDaily path). NOT decrypting at restore time
       // keeps the encryption guarantee end-to-end.
-      try { await upsertDailyBatchRaw(pid, rows); } catch { /* per-source failure shouldn't break the whole restore */ }
+      try { await upsertDailyBatchRaw(pid, rows); } catch { failures += 1; }
     }
+  }
+  if (failures) throw new Error(`${failures} wearable source(s) could not be restored.`);
+}
+
+async function restoreBackupSideStores(backup) {
+  // Wait for every dependent restore to settle. A partial restore must never
+  // trigger a success notification or an automatic reload.
+  const results = await Promise.allSettled([
+    restoreWearableIDB(backup.wearableIDB),
+    loadBackupCycleModule()
+      .then(({ restoreCycleBackup }) => restoreCycleBackup(backup.cycleIDB, backup.cycleImportMeta)),
+  ]);
+  const failures = results.filter(result => result.status === 'rejected');
+  if (failures.length) {
+    throw new Error('Backup restore incomplete. Some data may already be restored. Keep the backup and retry after resolving the storage problem.');
   }
 }
 
@@ -302,42 +314,42 @@ export async function buildFullBackupSnapshot() {
   const snap = buildBackupSnapshot();
   if (!snap) return null;
 
-  // buildBackupSnapshot is sync — when the profile list is encrypted (v1:),
-  // it can't enumerate IDs, and the localStorage fallback finds nothing
-  // because v1.6.x stores `*-imported` in IDB. Re-enumerate from the
-  // decrypted profile list here.
-  if (snap.profiles.length === 0 && snap.profileList && isEncryptedValue(snap.profileList)) {
+  // Always enumerate the decrypted profile index: localStorage may contain
+  // only a legacy subset while other profiles have already migrated to IDB.
+  if (snap.profileList && isEncryptedValue(snap.profileList)) {
     let profileList = null;
     try {
       const decrypted = await getBackupRuntimeDeps().encryptedGetItem('labcharts-profiles');
       if (decrypted) profileList = JSON.parse(decrypted);
     } catch {}
-    if (Array.isArray(profileList)) {
-      for (const p of profileList) {
-        /** @type {Record<string, string>} */
-        const keys = {};
-        const imported = localStorage.getItem(profileStorageKey(p.id, 'imported'));
-        if (imported) keys.imported = imported;
-        const chat = localStorage.getItem(`labcharts-${p.id}-chat`);
-        if (chat) keys.chat = chat;
-        const threadIndex = localStorage.getItem(`labcharts-${p.id}-chat-threads`);
-        if (threadIndex) {
-          keys['chat-threads'] = threadIndex;
-          try {
-            const threads = JSON.parse(threadIndex);
-            for (const t of threads) {
-              const tk = `labcharts-${p.id}-chat-t_${t.id}`;
-              const tv = localStorage.getItem(tk);
-              if (tv !== null) keys[`chat-t_${t.id}`] = tv;
-            }
-          } catch {}
-        }
-        for (const suffix of PER_PROFILE_PREF_SUFFIXES) {
-          const v = localStorage.getItem(`labcharts-${p.id}-${suffix}`);
-          if (v !== null) keys[suffix] = v;
-        }
-        snap.profiles.push({ profileId: p.id, name: p.name, keys });
+    if (!Array.isArray(profileList)) {
+      throw new Error('The encrypted profile list could not be read. Unlock your data before creating a backup.');
+    }
+    snap.profiles = [];
+    for (const p of profileList) {
+      /** @type {Record<string, string>} */
+      const keys = {};
+      const imported = localStorage.getItem(profileStorageKey(p.id, 'imported'));
+      if (imported) keys.imported = imported;
+      const chat = localStorage.getItem(`labcharts-${p.id}-chat`);
+      if (chat) keys.chat = chat;
+      const threadIndex = localStorage.getItem(`labcharts-${p.id}-chat-threads`);
+      if (threadIndex) {
+        keys['chat-threads'] = threadIndex;
+        try {
+          const threads = JSON.parse(threadIndex);
+          for (const t of threads) {
+            const tk = `labcharts-${p.id}-chat-t_${t.id}`;
+            const tv = localStorage.getItem(tk);
+            if (tv !== null) keys[`chat-t_${t.id}`] = tv;
+          }
+        } catch {}
       }
+      for (const suffix of PER_PROFILE_PREF_SUFFIXES) {
+        const v = localStorage.getItem(`labcharts-${p.id}-${suffix}`);
+        if (v !== null) keys[suffix] = v;
+      }
+      snap.profiles.push({ profileId: p.id, name: p.name, keys });
     }
   }
   for (const p of snap.profiles || []) {
@@ -360,7 +372,13 @@ export async function buildFullBackupSnapshot() {
 }
 
 export async function exportEncryptedBackup() {
-  const backup = await buildFullBackupSnapshot();
+  let backup;
+  try {
+    backup = await buildFullBackupSnapshot();
+  } catch (err) {
+    showNotification('Backup could not be created: ' + getErrorMessage(err), 'error');
+    return;
+  }
   if (!backup) {
     showNotification('No data to back up', 'error');
     return;
@@ -427,14 +445,9 @@ export function importEncryptedBackup(file) {
         }
         prepareRestoredProfilesForSync(backup);
 
-        Promise.all([
-          restoreWearableIDB(backup.wearableIDB),
-          loadBackupCycleModule()
-            .then(({ restoreCycleBackup }) => restoreCycleBackup(backup.cycleIDB, backup.cycleImportMeta)),
-        ]).finally(() => {
-          showNotification('Backup restored \u2014 reloading...', 'success');
-          setTimeout(() => location.reload(), 1000);
-        });
+        await restoreBackupSideStores(backup);
+        showNotification('Backup restored \u2014 reloading...', 'success');
+        setTimeout(() => location.reload(), 1000);
       }
     } catch (err) {
       showNotification('Error reading backup: ' + getErrorMessage(err), 'error');
@@ -573,14 +586,9 @@ export async function restoreAutoBackup(id) {
     // Wearable L1 IDB rows live outside localStorage \u2014 restore them
     // separately so the strip's detail-modal chart history is preserved
     // along with everything else.
-    Promise.all([
-      restoreWearableIDB(backup.wearableIDB),
-      loadBackupCycleModule()
-        .then(({ restoreCycleBackup }) => restoreCycleBackup(backup.cycleIDB, backup.cycleImportMeta)),
-    ]).finally(() => {
-      showNotification('Backup restored \u2014 reloading...', 'success');
-      setTimeout(() => location.reload(), 1000);
-    });
+    await restoreBackupSideStores(backup);
+    showNotification('Backup restored \u2014 reloading...', 'success');
+    setTimeout(() => location.reload(), 1000);
   }
 }
 

@@ -151,6 +151,7 @@
     "js/lab-entry.js",
     "js/lab-entry-mutations.js",
     "js/lab-context.js",
+    "js/lab-vitamin-d-context.js",
     "js/lab-context-output.js",
     "js/lab-context-settings.js",
     "js/lab-context-wearables.js",

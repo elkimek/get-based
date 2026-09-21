@@ -176,7 +176,9 @@ function normalizeAgentDrafts(value) {
     const kind = ['note', 'meal', 'biometric', 'supplement'].includes(draft.kind) ? draft.kind : '';
     const payload = normalizeAgentDraftPayload(kind, draft.payload);
     if (!id || !profileId || !kind || !payload) continue;
-    const status = ['pending', 'applied', 'discarded'].includes(draft.status) ? draft.status : 'pending';
+    // A persisted in-flight mutation has an uncertain outcome after reload.
+    const status = draft.status === 'applying' ? 'failed'
+      : ['pending', 'applied', 'discarded', 'failed'].includes(draft.status) ? draft.status : 'pending';
     drafts.push({
       id, profileId, kind, payload, status,
       summary: boundedString(draft.summary, 500),

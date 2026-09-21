@@ -225,7 +225,7 @@ function _normalizeProfileId(id) {
 }
 
 /**
- * @returns {ProfileData}
+ * @returns {import('../types/app-state.js').NormalizedProfileData}
  */
 export function createDefaultProfileData() {
   return {

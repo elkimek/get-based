@@ -1,0 +1,74 @@
+name: Opt-in real local models
+
+# Deliberate release evidence: no scheduled or pull-request weight downloads.
+on:
+  workflow_call:
+    inputs:
+      model:
+        description: 'Real model scenario: knowledge or voice'
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      model:
+        description: 'Download and test one real model workflow on the selected ref'
+        required: true
+        type: choice
+        default: knowledge
+        options: [knowledge, voice]
+
+permissions:
+  contents: read
+
+jobs:
+  inference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GETBASED_AUTO_AGENT_HOST: '0'
+      PLAYWRIGHT_OUTPUT_DIR: real-model-results
+      PLAYWRIGHT_JSON_OUTPUT_FILE: real-model-result.json
+      GETBASED_LENS_REAL_MODELS: '1'
+      GETBASED_VOICE_REAL_MODELS: '1'
+      GETBASED_VOICE_SMALL_BACKEND: wasm
+      GETBASED_VOICE_TTS_BACKEND: wasm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - name: Validate selected model scenario
+        env:
+          SELECTED_MODEL: ${{ inputs.model }}
+        run: |
+          case "$SELECTED_MODEL" in knowledge|voice) ;; *) echo 'Unknown model scenario'; exit 1 ;; esac
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Knowledge indexing and persisted reload
+        if: inputs.model == 'knowledge'
+        run: npx playwright test tests/playwright/lens-local-model-real.spec.js --workers=1 --trace=off --reporter=list,json
+      - name: Voice speech round trip
+        if: inputs.model == 'voice'
+        run: npx playwright test tests/playwright/voice-local-model-real.spec.js -g 'downloads Kokoro and Whisper' --workers=1 --trace=off --reporter=list,json
+      - name: Require completed inference evidence
+        env:
+          SELECTED_MODEL: ${{ inputs.model }}
+        run: node scripts/verify-real-model-evidence.mjs "$SELECTED_MODEL" real-model-result.json
+      - name: Record tested revision
+        if: always()
+        env:
+          SELECTED_MODEL: ${{ inputs.model }}
+        run: |
+          git rev-parse HEAD > real-model-revision.txt
+          echo "Real-model workflow: $SELECTED_MODEL; revision: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Only the selected workflow was tested. GPU and larger voice tiers require separate hardware evidence.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: real-model-${{ inputs.model }}-${{ github.sha }}
+          retention-days: 7
+          path: |
+            real-model-result.json
+            real-model-revision.txt
+            real-model-results/

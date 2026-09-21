@@ -14,6 +14,8 @@
 // Compound key [source, date] — multiple sources coexist per day (Oura +
 // WHOOP + Apple Health on the same 2026-04-22 is three distinct rows).
 
+import { queueManualRowWrite } from './wearables-manual-lock.js';
+
 const DB_PREFIX = 'labcharts-wearables-';
 const DB_VERSION = 1;
 const STORE_DAILY = 'daily-metrics';
@@ -423,15 +425,22 @@ export async function getDailyForReport(profileId, startDate = null, endDate = n
 // source device.
 export async function upsertDailyBatchRaw(profileId, rows) {
   if (!rows || rows.length === 0) return;
-  const db = await openWearablesDB(profileId);
-  const tx = db.transaction(STORE_DAILY, 'readwrite');
-  const store = tx.objectStore(STORE_DAILY);
-  for (const row of rows) {
-    if (!row || !row.source || !row.date) continue;
-    if (ALWAYS_DEVICE_ENCRYPTED_SOURCES.has(row.source) && !row._devicePayload && !row._payload) continue;
-    store.put(row);
-  }
-  return txPromise(tx);
+  const write = async () => {
+    const db = await openWearablesDB(profileId);
+    const tx = db.transaction(STORE_DAILY, 'readwrite');
+    const store = tx.objectStore(STORE_DAILY);
+    for (const row of rows) {
+      if (!row || !row.source || !row.date) continue;
+      if (ALWAYS_DEVICE_ENCRYPTED_SOURCES.has(row.source) && !row._devicePayload && !row._payload) continue;
+      store.put(row);
+    }
+    return txPromise(tx);
+  };
+  // Restore and encryption migration replace raw rows intentionally. Serialize
+  // manual batches with live read/modify/write operations so a mid-read restore
+  // cannot be silently overwritten by a patch computed from an older row.
+  return rows.some(row => row?.source === 'manual')
+    ? queueManualRowWrite(profileId, write) : write();
 }
 
 // Inclusive range query for ONE source. ISO dates; lexicographic order matches

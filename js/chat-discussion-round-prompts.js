@@ -20,5 +20,5 @@ export function buildDiscussionAutoMessage(content, { hideAutoMsg = false } = {}
 }
 
 export function buildDiscussionJoinMessage(persona) {
-  return { joined: true, joinName: persona.name, joinIcon: persona.icon };
+  return { joined: /** @type {const} */ (true), joinName: persona.name, joinIcon: persona.icon };
 }

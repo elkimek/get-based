@@ -306,7 +306,7 @@ export function importDataJSON(file) {
           if (!state.importedData.biometrics) {
             state.importedData.biometrics = json.biometrics;
           } else {
-            for (const metric of ['weight', 'pulse']) {
+            for (const metric of /** @type {const} */ (['weight', 'pulse'])) {
               if (Array.isArray(json.biometrics[metric])) {
                 if (!state.importedData.biometrics[metric]) state.importedData.biometrics[metric] = [];
                 for (const e of json.biometrics[metric]) {

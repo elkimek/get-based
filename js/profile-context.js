@@ -2,7 +2,7 @@
 // profile-context.js — lightweight profile modifiers for deterministic scoring.
 
 import { state } from './state.js';
-import { CONTEXT_SOURCE_IDS, isContextSourceEnabled } from './context-source-registry.js';
+import { CONTEXT_SOURCE_IDS, getContextSourceSlug, isContextSourceEnabled } from './context-source-registry.js';
 import { sortHealthGoalsByPriority } from './health-goals-utils.js';
 import { getCurrentSupplements } from './supplement-medication-domain.js';
 
@@ -38,9 +38,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** @param {unknown} text @param {string[]} terms */
 function textMatchesAny(text, terms) { const value = String(text || '').toLowerCase(); return terms.some(term => value.includes(term)); }
 
-function profileContextSetting(slug, importedValue = true, ignoreContextToggles = false) {
+function profileContextSetting(slug, importedValue = true, ignoreContextToggles = false, options = {}) {
   if (ignoreContextToggles) return true;
-  return isContextSourceEnabled(slug, { defaultValue: importedValue !== false });
+  return options.contextSourceEnabled ? options.contextSourceEnabled(slug, importedValue !== false) : importedValue !== false;
 }
 
 function hasMeaningfulSnp(stored) {
@@ -58,8 +58,8 @@ function isHormonalContraception(value) {
 }
 
 function collectGeneticModifiers(data, options = {}) {
-  const includeSummary = profileContextSetting('genetics-summary', true, options.ignoreContextToggles);
-  const includePriority = profileContextSetting('genetics-priority', true, options.ignoreContextToggles);
+  const includeSummary = profileContextSetting('genetics-summary', true, options.ignoreContextToggles, options);
+  const includePriority = profileContextSetting('genetics-priority', true, options.ignoreContextToggles, options);
   const genetics = data?.genetics || null;
   const snps = includePriority ? (genetics?.snps || {}) : {};
   const flags = [];
@@ -111,7 +111,7 @@ function latestMetricValue(metric, field = 'd7') {
 
 function collectBodyModifiers(data, options = {}) {
   const settings = data?.biologyScoreContextSettings || {};
-  const includeBody = profileContextSetting('wearables', settings.includeBodyContext, options.ignoreContextToggles);
+  const includeBody = profileContextSetting('wearables', settings.includeBodyContext, options.ignoreContextToggles, options);
   const summary = data?.wearableSummary || null;
   const metrics = summary?.metrics || {};
   const flags = [];
@@ -131,10 +131,10 @@ function collectBodyModifiers(data, options = {}) {
 
 function collectLightModifiers(data, options = {}) {
   const settings = data?.biologyScoreContextSettings || {};
-  const includeLight = profileContextSetting('light-sun', settings.includeLightContext, options.ignoreContextToggles);
+  const includeLight = profileContextSetting('light-sun', settings.includeLightContext, options.ignoreContextToggles, options);
   const flags = [];
   if (!includeLight) return { includeLight, hasLightData: false, flags };
-  const now = Date.now();
+  const now = options.now?.getTime() ?? Date.now();
   const sunSessions = Array.isArray(data?.sunSessions) ? data.sunSessions : [];
   const deviceSessions = Array.isArray(data?.deviceSessions) ? data.deviceSessions : [];
   const measurements = Array.isArray(data?.lightMeasurements) ? data.lightMeasurements : [];
@@ -146,12 +146,12 @@ function collectLightModifiers(data, options = {}) {
   const complete = !recentAny.some(s => (s.endedAt || s.startedAt) >= now - 7 * DAY_MS && s.doses === null);
   let vitD7 = null, circadian7 = null;
   try {
-    if (complete && profileContextLightDeps.rollingVitaminDIU) {
-      const total = Number(profileContextLightDeps.rollingVitaminDIU(7));
+    if (complete && options.lightDeps?.rollingVitaminDIU) {
+      const total = Number(options.lightDeps?.rollingVitaminDIU(7));
       if (Number.isFinite(total)) vitD7 = total;
     }
-    if (complete && profileContextLightDeps.rollingChannelTotals) {
-      const totals = profileContextLightDeps.rollingChannelTotals(7) || {};
+    if (complete && options.lightDeps?.rollingChannelTotals) {
+      const totals = options.lightDeps?.rollingChannelTotals(7) || {};
       if (Number.isFinite(totals.circadian)) circadian7 = Number(totals.circadian);
     }
   } catch {}
@@ -165,18 +165,40 @@ function collectLightModifiers(data, options = {}) {
   return { includeLight, hasLightData, recentSunDays: recentSun.length, vitD7, circadian7, lowLoggedSunlight, lowCircadianLight, lowVitaminDSynthesis, flags };
 }
 
-export function getProfileAgeYears(date = new Date()) {
-  if (!state.profileDob) return null;
-  const dob = new Date(`${state.profileDob}T00:00:00`);
+function profileAgeYears(profileDob, date) {
+  if (!profileDob) return null;
+  const dob = new Date(`${profileDob}T00:00:00`);
   if (!Number.isFinite(dob.getTime())) return null;
   const age = (date.getTime() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
   return age > 0 ? Math.floor(age) : null;
 }
 
+export function getProfileAgeYears(date = new Date()) {
+  return profileAgeYears(state.profileDob, date);
+}
+
+// Browser adapter: only this boundary reads the mutable active profile.
 export function getBiologyProfileContext(options = {}) {
-  const data = /** @type {{diagnoses?: any, supplements?: Array<any>, exercise?: any, sleepRest?: any, lightCircadian?: any, stress?: any, diet?: any, loveLife?: any, environment?: any, healthGoals?: Array<any>, menstrualCycle?: any, contextNotes?: string, interpretiveLens?: string, genetics?: any, wearableSummary?: any, biologyScoreContextSettings?: any, sunSessions?: Array<any>, deviceSessions?: Array<any>, lightMeasurements?: Array<any>, sunDefaults?: any}} */ (state.importedData || {});
-  const includeInsightCards = profileContextSetting(CONTEXT_SOURCE_IDS.INSIGHT_CARDS, true, options.ignoreContextToggles);
-  const includeSupplementsMeds = profileContextSetting(CONTEXT_SOURCE_IDS.SUPPLEMENTS_MEDS, true, options.ignoreContextToggles);
+  return buildBiologyProfileContext(state, {
+    ...options,
+    contextSourceEnabled: (slug, defaultValue) => isContextSourceEnabled(slug, { defaultValue }),
+    lightDeps: profileContextLightDeps,
+  });
+}
+
+/**
+ * Compute from an explicitly supplied profile and dependency snapshot.
+ * @param {Pick<import('../types/app-state.js').AppState, 'importedData' | 'profileSex' | 'profileDob'>} profile
+ * @param {{ignoreContextToggles?: boolean, now?: Date, contextSourceEnabled?: (slug: string, defaultValue: boolean) => boolean, lightDeps?: ProfileContextLightDeps}} [options]
+ */
+export function buildBiologyProfileContext(profile, options = {}) {
+  const data = profile.importedData;
+  options = { ...options, contextSourceEnabled: options.contextSourceEnabled || ((slug, defaultValue) => {
+    const setting = data.contextSourceSettings?.[getContextSourceSlug(slug)];
+    return typeof setting === 'boolean' ? setting : defaultValue;
+  }) };
+  const includeInsightCards = profileContextSetting(CONTEXT_SOURCE_IDS.INSIGHT_CARDS, true, options.ignoreContextToggles, options);
+  const includeSupplementsMeds = profileContextSetting(CONTEXT_SOURCE_IDS.SUPPLEMENTS_MEDS, true, options.ignoreContextToggles, options);
   const diagnoses = /** @type {{conditions?: Array<{name?: string, note?: string, severity?: string, status?: string}>, familyHistory?: Array<{relative?: string, condition?: string, onsetAge?: number, note?: string}>, proceduresNote?: string, note?: string, flags?: Record<string, boolean>}} */ (includeInsightCards ? (data.diagnoses || {}) : {});
   const conditions = Array.isArray(diagnoses.conditions) ? diagnoses.conditions : [];
   const flags = /** @type {Record<string, boolean>} */ (diagnoses.flags || {});
@@ -198,8 +220,8 @@ export function getBiologyProfileContext(options = {}) {
   const dietText = `${diet.type || ''} ${diet.pattern || ''} ${diet.proteinIntake || ''} ${diet.hydration || ''} ${diet.alcohol || ''} ${diet.caffeine || ''} ${diet.caffeineTiming || ''} ${(diet.recentChanges || []).join(' ')} ${(diet.restrictions || []).join(' ')} ${diet.breakfast || ''} ${diet.lunch || ''} ${diet.dinner || ''} ${diet.snacks || ''} ${diet.bowelFrequency || ''} ${diet.stoolConsistency || ''} ${diet.bloating || ''} ${diet.gas || ''} ${diet.acidReflux || ''} ${diet.burping || ''} ${diet.nausea || ''} ${diet.appetite || ''} ${diet.abdominalPain || ''} ${(diet.foodSensitivities || []).join(' ')} ${diet.notes || diet.note || ''}`;
   const loveLifeText = `${loveLife.status || ''} ${loveLife.relationship || ''} ${loveLife.satisfaction || ''} ${loveLife.libido || ''} ${loveLife.libidoChange || ''} ${loveLife.frequency || ''} ${loveLife.orgasm || ''} ${(loveLife.reproductiveGoals || []).join(' ')} ${(loveLife.concerns || []).join(' ')} ${loveLife.notes || loveLife.note || ''}`;
   const environmentText = `${environment.setting || ''} ${environment.climate || ''} ${environment.altitude || ''} ${(environment.inhaledExposures || []).join(' ')} ${(environment.occupationalExposures || []).join(' ')} ${environment.water || ''} ${(environment.waterConcerns || []).join(' ')} ${(environment.emf || []).join(' ')} ${(environment.emfMitigation || []).join(' ')} ${environment.homeLight || ''} ${(environment.air || []).join(' ')} ${(environment.toxins || []).join(' ')} ${environment.building || ''} ${environment.sun || ''} ${environment.outdoorTime || ''} ${environment.notes || environment.note || ''}`;
-  const mc = includeInsightCards && state.profileSex === 'female' ? (data.menstrualCycle || null) : null;
-  const menopauseStatus = state.profileSex === 'female' ? (flags.postmenopause ? 'postmenopause' : (mc?.menopauseStatus || mc?.cycleStatus || null)) : null;
+  const mc = includeInsightCards && profile.profileSex === 'female' ? (data.menstrualCycle || null) : null;
+  const menopauseStatus = profile.profileSex === 'female' ? (flags.postmenopause ? 'postmenopause' : (mc?.menopauseStatus || mc?.cycleStatus || null)) : null;
   const notes = [conditionText, diagnoses.proceduresNote, diagnoses.note, includeInsightCards ? data.contextNotes : '', data.interpretiveLens, supplements, exerciseText, sleepText, lightText, stressText, dietText, loveLifeText, environmentText, healthGoalsText].filter(Boolean).join(' ');
   const genetic = collectGeneticModifiers(data, options);
   const body = collectBodyModifiers(data, options);
@@ -219,11 +241,11 @@ export function getBiologyProfileContext(options = {}) {
     ? flags.acuteIllnessNearDraw : textMatchesAny(allText, ACUTE_TERMS);
   const recentHardTraining = typeof flags.intenseTrainingRecent === 'boolean'
     ? flags.intenseTrainingRecent : textMatchesAny(exerciseText, HARD_TRAINING_TERMS) || textMatchesAny(includeInsightCards ? data.contextNotes : '', ['recent workout', 'trained yesterday', 'post-exercise']);
-  const sex = state.profileSex === 'female' ? 'female' : state.profileSex === 'male' ? 'male' : null;
+  const sex = profile.profileSex === 'female' ? 'female' : profile.profileSex === 'male' ? 'male' : null;
   const cycleStatus = sex === 'female' ? (flags.postmenopause ? 'postmenopause' : (mc ? (mc.cycleStatus || 'regular') : null)) : null;
   const hormoneTherapy = !!flags.hormoneTherapy || textMatchesAny(allText, TRT_TERMS) || (sex === 'female' && isHormonalContraception(mc?.contraceptive));
   return {
-    sex, ageYears: getProfileAgeYears(), cycleStatus, menopauseStatus, hormoneTherapy, acuteInflammationContext, recentHardTraining, lowMuscleMass,
+    sex, ageYears: profileAgeYears(profile.profileDob, options.now || new Date()), cycleStatus, menopauseStatus, hormoneTherapy, acuteInflammationContext, recentHardTraining, lowMuscleMass,
     lowMuscleMassInferred,
     lowMuscleReason: lowMuscleMass ? 'The Medical History low muscle mass interpretation flag is enabled, so creatinine-derived markers are treated as context rather than scored signal.' : '',
     lowSunlightExposure,

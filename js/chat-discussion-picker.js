@@ -65,7 +65,7 @@ export function showDiscussPersonaPicker() {
     && !thread.discussionEnded;
   const activePersonaIds = new Set(
     existingDiscussion
-      ? thread.discussionPersonas.map(persona => persona.id)
+      ? (thread.discussionPersonas || []).map(persona => persona.id)
       : [state.currentChatPersonality || 'default'],
   );
   const addingToExisting = existingDiscussion;

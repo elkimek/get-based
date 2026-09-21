@@ -325,3 +325,21 @@ test('chat action browser coverage handles copy and regenerate branches', async 
     expect(passed, name).toBe(true);
   }
 });
+
+test('copy ignores discussion join events without message content', async ({ page }) => {
+  await page.goto('/app');
+  const copied = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.chatHistory = [{ joined: true, joinName: 'Synthetic persona' }];
+    const writes = [];
+    const descriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { writes.push(text); } } });
+    try { (await import('/js/chat-actions.js')).copyMessage(0); }
+    finally {
+      if (descriptor) Object.defineProperty(navigator, 'clipboard', descriptor);
+      else delete navigator.clipboard;
+    }
+    return writes;
+  });
+  expect(copied).toEqual([]);
+});

@@ -21,7 +21,7 @@ import { migrateSupplementMedicationRecords } from './supplement-medication-doma
 
 /**
  * @param {ProfileData} data
- * @returns {ProfileData}
+ * @returns {import('../types/app-state.js').NormalizedProfileData}
  */
 export function migrateProfileData(data) {
   // Migrate sleepCircadian → sleepRest (sleep fields go to sleepRest, circadian items to lightCircadian)
@@ -284,5 +284,6 @@ export function migrateProfileData(data) {
   migrateCustomMarkerIdentities(data.customMarkers);
   migrateMarkerPlacements(data);
   repairEditedImportProvenance(data);
-  return data;
+  // Legacy string context has been converted to records above.
+  return /** @type {import('../types/app-state.js').NormalizedProfileData} */ (data);
 }

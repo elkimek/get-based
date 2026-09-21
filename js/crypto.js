@@ -110,6 +110,7 @@ const SENSITIVE_PATTERNS = [
   /^labcharts-.+-imported-corrupt$/,
   /^labcharts-.+-chat$/,
   /^labcharts-.+-chat-threads$/,
+  /^labcharts-.+-agent-draft-claims$/,
   /^labcharts-.+-chat-t_.+$/,
   /^labcharts-.+-chatDraft_.+$/,
   /^labcharts-.+-chatPersonalityCustom$/,

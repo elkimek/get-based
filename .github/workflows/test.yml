@@ -15,6 +15,7 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -59,6 +60,9 @@ jobs:
       - name: Run quality guardrails
         run: npm run quality
 
+      - name: Enforce critical behavior branch coverage
+        run: npm run test:critical-coverage
+
       - name: Cache Playwright browsers
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -84,6 +88,21 @@ jobs:
 
       - name: Run test suite with coverage ratchet
         run: COVERAGE=1 SKIP_TYPECHECK=1 ./run-tests.sh
+
+      - name: Retain complete production coverage
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: production-coverage
+          path: |
+            tests/.coverage.json
+            tests/.coverage.md
+            tests/.coverage.html
+            tests/.vitest-coverage/coverage-summary.json
+            tests/.critical-coverage/coverage-summary.json
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Smoke the deployed production APIs
         if: github.event_name == 'push'

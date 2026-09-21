@@ -149,6 +149,7 @@ async function _generateSummary() {
 
     const costInfo = usage && !identity.subscription ? { provider: _provider, modelId: _modelId, modelDisplay: _modelDisplay, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens } : null;
     const now = new Date().toISOString();
+    /** @type {Array<[string, unknown]>} */
     const previous = ['summary', 'summaryDate', 'summaryModel', 'summaryCost'].map(key => [key, thread[key]]);
     thread.summary = text;
     thread.summaryDate = now;

@@ -446,6 +446,7 @@ export async function restoreNutritionArchive(profileId, archive) {
   // deletes every archive row we just wrote to IDB.
   if (state.currentProfile === profileId) {
     const importedData = state.importedData || (state.importedData = /** @type {any} */ ({}));
+    const baseData = structuredClone(importedData);
     const byId = new Map(canonicalNutritionMeals(importedData.nutritionMeals)
       .map(meal => [meal.id, meal]));
     for (const meal of canonicalNutritionMeals(validatedMeals)) {
@@ -456,7 +457,7 @@ export async function restoreNutritionArchive(profileId, archive) {
       clearTombstone(importedData, 'nutritionMeals', meal.id);
     }
     importedData.nutritionMeals = canonicalNutritionMeals([...byId.values()]);
-    const persistedData = await persistAlignedNutritionProfileData(profileId, importedData);
+    const persistedData = await persistAlignedNutritionProfileData(profileId, importedData, baseData);
     if (!persistedData) throw new Error('The Meals & Nutrition archive could not be prepared for cross-device sync.');
     await writeMeta(profileId, PROFILE_SYNC_INITIALIZED_META, true);
     await reconcileNutritionMealsFromProfileData(profileId);
@@ -498,24 +499,32 @@ function mealSnapshot(value) {
   try { return JSON.stringify(value); } catch { return ''; }
 }
 
-async function persistNutritionProfileData(profileId, importedData) {
+/**
+ * @param {string} profileId
+ * @param {import('../types/app-state.js').ProfileData} importedData
+ * @param {import('../types/app-state.js').ProfileData} baseData
+ */
+async function persistNutritionProfileData(profileId, importedData, baseData) {
   const { saveImportedDataForProfile } = await import('./data.js');
   // Meal writes can outlive the initiating profile view. Persist the captured
   // profile snapshot explicitly so a mid-save switch cannot split the IDB
   // cache from the canonical sync surface or write profile A into profile B.
-  return saveImportedDataForProfile(profileId, importedData, { forceProfileScope: true });
+  // The baseline limits this write to its mutation; a stale view must not
+  // replace unrelated changes already committed by another writer.
+  return saveImportedDataForProfile(profileId, importedData, { forceProfileScope: true, baseData });
 }
 
-async function persistAlignedNutritionProfileData(profileId, source) {
+async function persistAlignedNutritionProfileData(profileId, source, baseData) {
   let candidate = source;
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const active = state.currentProfile === profileId ? state.importedData : null;
     const activeAtStart = active && active !== candidate ? active : null;
     if (activeAtStart) {
+      baseData = structuredClone(activeAtStart);
       candidate = mergeNutritionOperationSurface(activeAtStart, candidate);
       candidate.nutritionMeals = canonicalNutritionMeals(candidate.nutritionMeals);
     }
-    if (!await persistNutritionProfileData(profileId, candidate)) return null;
+    if (!await persistNutritionProfileData(profileId, candidate, baseData)) return null;
     const latest = state.currentProfile === profileId ? state.importedData : null;
     if (!latest || latest === candidate) return candidate;
     if (latest === activeAtStart) return mergeNutritionOperationSurface(latest, candidate, { mutate: true });
@@ -553,8 +562,9 @@ export async function reconcileNutritionMealsFromProfileData(profileId = state.c
 
   const stateChanged = mealSnapshot(importedData.nutritionMeals) !== mealSnapshot(desiredMeals);
   if (stateChanged) {
+    const baseData = structuredClone(importedData);
     importedData.nutritionMeals = desiredMeals;
-    const saved = await persistNutritionProfileData(profileId, importedData);
+    const saved = await persistNutritionProfileData(profileId, importedData, baseData);
     if (!saved) throw new Error('Meal data was cached locally but could not be prepared for cross-device sync.');
   }
 
@@ -675,6 +685,7 @@ async function saveProfileMeal(profileId, importedData, meal) {
     : null;
   const saved = await putNutritionMeal(profileId, meal);
 
+  const baseData = structuredClone(importedData);
   const previousMeals = importedData.nutritionMeals;
   const previousTombstoneSurfaces = new Map(TOMBSTONE_KEYS.map(key => [key, {
     had: Object.hasOwn(importedData, key),
@@ -699,7 +710,7 @@ async function saveProfileMeal(profileId, importedData, meal) {
   clearTombstone(importedData, 'nutritionMeals', saved.id);
   let persistedData = null;
   try {
-    persistedData = await persistAlignedNutritionProfileData(profileId, importedData);
+    persistedData = await persistAlignedNutritionProfileData(profileId, importedData, baseData);
   } catch {}
   if (!persistedData) {
     importedData.nutritionMeals = previousMeals;
@@ -730,6 +741,7 @@ export function deleteActiveProfileMeal(id) {
   const profileId = state.currentProfile;
   const importedData = state.importedData || (state.importedData = /** @type {any} */ ({}));
   return queueNutritionOperation(async () => {
+    const baseData = structuredClone(importedData);
     const previousMeals = importedData.nutritionMeals;
     const previousTombstoneSurfaces = new Map(TOMBSTONE_KEYS.map(key => [key, {
       had: Object.hasOwn(importedData, key),
@@ -753,7 +765,7 @@ export function deleteActiveProfileMeal(id) {
     recordTombstone(importedData, 'nutritionMeals', String(id || ''));
     importedData.nutritionMeals = canonicalNutritionMeals(importedData.nutritionMeals)
       .filter(meal => meal.id !== id);
-    const persistedData = await persistAlignedNutritionProfileData(profileId, importedData);
+    const persistedData = await persistAlignedNutritionProfileData(profileId, importedData, baseData);
     if (!persistedData) {
       importedData.nutritionMeals = previousMeals;
       for (const [key, previous] of previousTombstoneSurfaces) {

@@ -8,7 +8,20 @@ import {
   isManualMetricTombstoned,
 } from './wearables-manual.js';
 
-/** @type {Record<string, (...args: any[]) => any>} */
+/** @typedef {{
+ * buildSidebar: () => void,
+ * destroyAllCharts: () => void,
+ * getInitialView: () => string,
+ * hydrateNutritionSummary: (profileId: string) => Promise<unknown>,
+ * invalidateLabContextCache: () => void,
+ * migrateBiometricsToManual: (profileId: string, biometrics: Record<string, unknown> | null) => Promise<unknown>,
+ * navigate: (view: string) => unknown,
+ * renderProfileButton: () => void,
+ * syncWearableSummary: (profileId: string, sources: object) => Promise<unknown>,
+ * updateHeaderDates: () => void,
+ * updateHeaderRangeToggle: () => void,
+ * }} ProfileRefreshDependencies */
+/** @type {ProfileRefreshDependencies} */
 const profileRefreshDeps = {
   buildSidebar: () => {},
   destroyAllCharts: () => {},
@@ -23,6 +36,7 @@ const profileRefreshDeps = {
   updateHeaderRangeToggle: () => {},
 };
 
+/** @param {Partial<ProfileRefreshDependencies>} [deps] */
 export function configureProfileRefreshDeps(deps = {}) {
   const previous = { ...profileRefreshDeps };
   for (const key of Object.keys(profileRefreshDeps)) {
@@ -36,16 +50,23 @@ export function invalidateProfileContextCache() {
 }
 
 export async function reloadProfileRuntimeShell(profileId) {
-  try { await profileRefreshDeps.hydrateNutritionSummary(profileId); } catch { state.nutritionSummary = null; }
-  if (state.currentProfile !== profileId) return;
+  const data = state.importedData;
+  const isCurrent = () => state.currentProfile === profileId && state.importedData === data;
+  if (!isCurrent()) return;
+  try { await profileRefreshDeps.hydrateNutritionSummary(profileId); }
+  catch { if (isCurrent()) state.nutritionSummary = null; }
+  if (!isCurrent()) return;
   const chat = isChatModuleLoaded() ? await loadChatModule() : null;
+  if (!isCurrent()) return;
 
   await chat?.loadCustomPersonalities?.();
+  if (!isCurrent()) return;
   chat?.loadChatPersonality();
   const threadsLoaded = chat ? await chat.loadChatThreads?.() : false;
+  if (!isCurrent()) return;
   if (threadsLoaded !== false && state.chatThreads.length > 0) chat?.ensureActiveThread?.();
   if (threadsLoaded !== false) await chat?.loadChatHistory?.();
-  if (state.currentProfile !== profileId) return;
+  if (!isCurrent()) return;
 
   chat?.renderThreadList?.();
   chat?.updateChatHeaderTitle?.();
@@ -64,17 +85,21 @@ export async function reloadProfileRuntimeShell(profileId) {
 // the boot profile. Migration runs first (idempotent per profile), then the
 // summary recomputes from this profile's connected sources.
 export async function refreshProfileWearables(profileId, biometrics) {
+  const data = state.importedData;
+  const isCurrent = () => state.currentProfile === profileId && state.importedData === data;
+  if (!isCurrent()) return;
   const connect = await import('./wearables-connect.js');
+  if (!isCurrent()) return;
   // Finish any profile-side disconnect cleanup journaled atomically with a
   // prior credential/row purge whose profile save failed.
-  try { await connect.recoverPendingWearableDisconnect(profileId, state.importedData); } catch {}
-  if (state.currentProfile !== profileId) return;
+  try { await connect.recoverPendingWearableDisconnect(profileId, data); } catch {}
+  if (!isCurrent()) return;
   try { await profileRefreshDeps.migrateBiometricsToManual(profileId, biometrics); } catch {}
   // The user can swap profile A→B during an IDB read. Abort before and after
   // summary persistence so A's metrics can never be saved into B's profile.
-  if (state.currentProfile !== profileId) return;
+  if (!isCurrent()) return;
   try { await profileRefreshDeps.syncWearableSummary(profileId, connect.listConnectedSources()); } catch {}
-  if (state.currentProfile !== profileId) return;
+  if (!isCurrent()) return;
   connect.syncStaleWearablesNow?.().catch(() => {});
 }
 

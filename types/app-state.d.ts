@@ -1,3 +1,9 @@
+import type { HealthGoal, Biometrics, Diagnoses, DietContext, ExerciseContext, SleepContext, StressContext, LoveLifeContext, EnvironmentContext, LightCircadianContext } from './profile-context-data.js';
+import type { ChatMessage, ChatThread } from './chat-data.js';
+import type { NutritionMeal } from './nutrition-data.js';
+import type { LabEntry } from './lab-data.js';
+import type { SupplementRecord } from './supplement-data.js';
+
 export interface CustomMarkerDefinition {
   markerId?: string;
   name?: string;
@@ -15,19 +21,27 @@ export interface MarkerPlacement {
   [key: string]: any;
 }
 
+export interface ProfileNote {
+  date: string;
+  text: string;
+  id?: string;
+  updatedAt?: string | number;
+  [key: string]: unknown;
+}
+
 export interface ProfileData {
-  entries: Array<Record<string, any>>;
-  notes: any[];
-  supplements: any[];
-  healthGoals: any[];
-  diagnoses: any;
-  diet: any;
-  exercise: any;
-  sleepRest: any;
-  lightCircadian: any;
-  stress: any;
-  loveLife: any;
-  environment: any;
+  entries: LabEntry[];
+  notes: ProfileNote[];
+  supplements: SupplementRecord[];
+  healthGoals: HealthGoal[];
+  diagnoses: Diagnoses | string | null;
+  diet: DietContext | string | null;
+  exercise: ExerciseContext | string | null;
+  sleepRest: SleepContext | string | null;
+  lightCircadian: LightCircadianContext | null;
+  stress: StressContext | null;
+  loveLife: LoveLifeContext | null;
+  environment: EnvironmentContext | null;
   interpretiveLens: string;
   contextNotes: string;
   menstrualCycle: any;
@@ -35,16 +49,16 @@ export interface ProfileData {
   genetics: any;
   customMarkers: Record<string, CustomMarkerDefinition>;
   markerPlacements: Record<string, MarkerPlacement>;
-  markerNotes: Record<string, any>;
-  markerValueNotes: Record<string, any>;
+  markerNotes: Record<string, string>;
+  markerValueNotes: Record<string, string>;
   biologyScoreAI: Record<string, any>;
   contextSourceSettings: Record<string, boolean>;
   nutritionContextDays?: 7 | 30 | 90;
   nutritionTargets?: Record<string, any> | null;
-  nutritionMeals?: any[] | null;
+  nutritionMeals?: NutritionMeal[] | null;
   changeHistory: any[];
   importSnapshots: any[];
-  biometrics?: Record<string, any> | null;
+  biometrics?: Biometrics | null;
   manualMetricTombstones?: Record<string, number>;
   manualValues?: Record<string, any>;
   sunSessions?: any[];
@@ -60,14 +74,14 @@ export interface ProfileData {
 }
 
 export interface NormalizedProfileData extends ProfileData {
-  diagnoses: Record<string, any> | null;
-  diet: Record<string, any> | null;
-  exercise: Record<string, any> | null;
-  sleepRest: Record<string, any> | null;
-  lightCircadian: Record<string, any> | null;
-  stress: Record<string, any> | null;
-  loveLife: Record<string, any> | null;
-  environment: Record<string, any> | null;
+  diagnoses: Diagnoses | null;
+  diet: DietContext | null;
+  exercise: ExerciseContext | null;
+  sleepRest: SleepContext | null;
+  lightCircadian: LightCircadianContext | null;
+  stress: StressContext | null;
+  loveLife: LoveLifeContext | null;
+  environment: EnvironmentContext | null;
   menstrualCycle: Record<string, any> | null;
   emfAssessment: Record<string, any> | null;
   genetics: Record<string, any> | null;
@@ -85,8 +99,8 @@ export interface AppState {
   profiles: any[] | null;
   profileSex: string | null;
   profileDob: string | null;
-  chatHistory: any[];
-  chatThreads: any[];
+  chatHistory: ChatMessage[];
+  chatThreads: ChatThread[];
   currentThreadId: string | null;
   currentChatPersonality: string;
   dateRangeFilter: string;

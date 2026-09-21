@@ -7,6 +7,7 @@
 // shared engine can drive it.
 
 import { state } from './state.js';
+import { latestVitaminDContext } from './lab-vitamin-d-context.js';
 import { escapeHTML } from './utils.js';
 import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { CHANNEL_DISPLAY, formatChannelUnit, rollingChannelTotals, rollingVitaminDIU } from './sun.js';
@@ -223,13 +224,8 @@ export function buildDayContext(target) {
   if (sd.dailyVitDTargetIU) lines.push(`Separate recorded vitamin-D intake target: ${sd.dailyVitDTargetIU} IU/day (do not compare directly with sunlight IU-equivalent)`);
   if (goals) lines.push(`Health goals: ${String(goals).slice(0, 200)}`);
 
-  try {
-    const entries = (state.importedData?.entries || []).slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    for (const e of entries) {
-      const v = e?.values?.hormones?.['25-oh-vitamin-d'] ?? e?.values?.lipids?.['25-oh-vitamin-d'];
-      if (v != null) { lines.push(`Latest 25-OH-D: ${v} (${e.date})`); break; }
-    }
-  } catch (_) {}
+  const vitaminD = latestVitaminDContext(state.importedData?.entries);
+  if (vitaminD) lines.push(vitaminD);
 
   const trends = computeLightTrends(targetDate);
   if (trends.signals.length) {

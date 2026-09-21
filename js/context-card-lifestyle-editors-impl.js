@@ -316,6 +316,7 @@ function getTimePlaceholder() {
 export function openDietEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openDietEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
+  /** @type {import('../types/profile-context-data.js').DietContext} */
   const current = state.importedData.diet || { type: null, restrictions: [], pattern: null, proteinIntake: null, hydration: null, alcohol: null, caffeine: null, caffeineTiming: null, recentChanges: [], breakfast: '', lunch: '', dinner: '', snacks: '', note: '', bowelFrequency: null, stoolConsistency: null, bloating: null, gas: null, acidReflux: null, burping: null, nausea: null, appetite: null, abdominalPain: null, foodSensitivities: [] };
   const detailedNutritionOverridesMeals = doesNutritionContextOverrideTypicalMeals();
   const typicalMealDisabledAttrs = detailedNutritionOverridesMeals

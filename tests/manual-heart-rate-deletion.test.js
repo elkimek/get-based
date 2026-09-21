@@ -4,6 +4,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { state } from '../js/state.js';
+import { saveImportedData } from '../js/data.js';
 import {
   deleteAllManualMetrics,
   deleteManualMetric,
@@ -49,7 +50,7 @@ function oldRhrSummary(date = '2026-08-12') {
   };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   globalThis.indexedDB = new IDBFactory();
   localStorage.clear();
   previousProfile = state.currentProfile;
@@ -69,6 +70,7 @@ beforeEach(() => {
     },
     wearableSummary: oldRhrSummary(),
   };
+  expect(await saveImportedData()).toBe(true);
   previousSummaryDeps = configureWearableSummary({ saveImportedData: vi.fn(async () => true) });
 });
 
@@ -161,6 +163,7 @@ describe('durable manual heart-rate deletion', () => {
       { date: '2026-08-12', systolic: 121, diastolic: 77 },
     ];
 
+    expect(await saveImportedData()).toBe(true);
     await deleteManualMetric(PROFILE_ID, 'bp_systolic', '2026-08-12');
 
     expect(state.importedData.biometrics.bp).toEqual([

@@ -6,11 +6,10 @@
 // `include` is an EXPLICIT allowlist. Anything not listed here is either a
 // browser fixture owned by Playwright or an ad-hoc helper script.
 //
-// Today we only have `_vitest-legacy.test.js`, which wraps each legacy
-// node-side file as a single `it()` test. As real `*.test.js` files
-// land, the include glob will pick them up automatically.
+// Native *.test.js suites coexist with the legacy script wrapper.
 
 import { defineConfig } from 'vitest/config';
+import { COVERAGE_INCLUDE } from './scripts/coverage-source.mjs';
 
 export default defineConfig({
   test: {
@@ -35,13 +34,7 @@ export default defineConfig({
       reporter: ['json-summary', 'json'],
       reportsDirectory: 'tests/.vitest-coverage',
       all: true,
-      include: [
-        'js/**/*.js',
-        'api/**/*.js',
-        'dev-server.js',
-        'service-worker.js',
-        'version.js',
-      ],
+      include: COVERAGE_INCLUDE,
       exclude: [
         '**/node_modules/**',
         'vendor/**',

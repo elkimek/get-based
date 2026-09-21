@@ -107,12 +107,13 @@ function checkModelMismatch() {
   const { modelId: currentModel } = getAssistantFeatureIdentity();
   const entries = (state.importedData?.entries || []).filter(e => e.importedWith?.modelId);
   if (entries.length === 0) return null;
-  const lastEntry = entries[entries.length - 1];
-  if (normalizeImportModelId(lastEntry.importedWith.modelId) === normalizeImportModelId(currentModel)) return null;
+  const importedWith = entries[entries.length - 1].importedWith;
+  if (!importedWith?.modelId) return null;
+  if (normalizeImportModelId(importedWith.modelId) === normalizeImportModelId(currentModel)) return null;
   return {
     currentModel,
-    prevModel: lastEntry.importedWith.modelId,
-    prevProvider: lastEntry.importedWith.provider
+    prevModel: importedWith.modelId,
+    prevProvider: importedWith.provider
   };
 }
 

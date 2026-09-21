@@ -1,0 +1,95 @@
+# Coverage and critical-workflow expectations
+
+Function execution coverage and functional workflow protection are separate
+evidence. A high global percentage cannot replace the following assertions.
+
+| Area | Required behavior | Focused evidence |
+| --- | --- | --- |
+| Lab import and restore | Reject invalid/duplicate values before mutation; retain canonical units, raw provenance and unrelated restored markers; reject aborted writes and roll back edits | `tests/import-data-integrity.test.js`, `tests/import-provenance.test.js`, `tests/playwright/import-data-integrity.spec.js` |
+| Profile isolation | Late responses and consent completion must not modify a different profile or thread; failed reads must block saves | `tests/chat-profile-races.test.js`, `tests/profile-persistence.test.js`, `tests/playwright/chat-send-profile-boundary.spec.js` |
+| Agent chat | Real application send → companion protocol → actual marker tool → response receipt → persisted answer; edit and resend survives reload | `tests/playwright/agent-chat-workflow.spec.js` |
+| Agent failures | Retry only invalid session/agent/target once; do not replay generic failures; failed negotiation sends nothing; reuse uploads on session recovery | `tests/agent-chat-backend.test.js` |
+| Chat editing | Cancel preserves the composer draft; retry stays in the thread; fork preserves the source | `tests/playwright/chat-message-edit.spec.js` plus the real send path above |
+| Offline updates | Failed update preserves data; retry activates; both tabs retain local data | `tests/pwa/lifecycle.spec.js` |
+| Notes and agent proposals | Do not announce success before commit; preserve records and drafts on failed writes; interrupted proposal application remains non-actionable until reviewed | `tests/notes-safety.test.js`, `tests/agent-draft-persistence.test.js`, corresponding focused browser specs |
+| Manual biometrics | Writes, tombstones, and migration metadata stay with the originating profile; failed deletion intent preserves wearable rows | `tests/manual-profile-boundaries.test.js`, `tests/manual-heart-rate-deletion.test.js`, `tests/playwright/manual-profile-persistence.spec.js` |
+| Light context | Read total vitamin D from canonical entries with units; do not substitute D3 or retain another profile's values | `tests/lab-vitamin-d-context.test.js`, `tests/test-light-ai-renders.js` |
+| Knowledge and voice | Actual model inference, meaningful search ordering and cached reload; actual speech round trip | Both selected WASM scenarios passed locally; manual CI workflow is prepared but unrun |
+
+These behavioral tests remain independently failing assertions in CI, regardless
+of aggregate coverage. Keep local runs limited to the affected rows.
+
+## Measurement policy
+
+The combined collector inventories first-party production roots, including
+never-imported modules. Functions are identified by source ranges, not names.
+The `production-coverage` artifact retains all file results, 17 feature groups,
+unmapped collector ranges, commit SHA and working-tree status. Feature groups are
+filename-based review aids, not architectural boundaries or branch coverage.
+
+The existing 79.50% function floor is unchanged. The expanded denominator and
+function identity correction mean old percentages are not directly comparable.
+On the first full CI measurement, inspect unmapped ranges and uncovered critical
+functions before proposing measured feature floors. Do not invent thresholds,
+lower the floor to make CI green, or claim the narrow local sample is a baseline.
+CI may require further test work to satisfy the unchanged floor.
+
+## Real integration boundary
+
+The manual workflow runs only one selected scenario on the chosen revision.
+Knowledge downloads MiniLM and tests indexing/search/cache reuse; voice explicitly
+uses WASM for Kokoro and Whisper's small tier. It has a 20-minute job limit,
+one browser worker, no traces, no scheduled trigger and no paid provider calls.
+Dispatch deliberately authorizes model downloads on the CI runner. It is not
+proof of WebGPU, larger Whisper tiers, provider billing or live CLI compatibility.
+Those remain separate release evidence requiring appropriate hardware/accounts.
+The two individual small WASM scenarios were run locally in the follow-on goal.
+No workflow dispatch, larger voice model or GPU weight download was performed.
+
+## Critical branch floors
+
+`npm run test:critical-coverage` runs exactly five selected test files. The three
+covered modules have independently enforced line, statement, function and branch
+floors; another feature cannot compensate for a regression. Current branch floors
+are 100% for the claim journal, 89% for proposal application/rendering, and 82% for
+notes. They were set from passing focused measurements, without changing the
+79.50% complete-production function floor. CI runs this gate before browser work
+and retains its summary artifact. A negative run containing only journal tests
+fails the proposal and note floors, demonstrating missing tests cannot pass.
+The bounded-config regression prevents inheritance of the broad test include glob.
+These are selected critical module gates, not complete per-feature global floors.
+Global feature rebaselining still requires the first exact-revision full CI report.
+
+## Security triage and remediation: CodeQL alert 120
+
+The original occupied-port probe sent the stored installation bearer token to an
+unidentified process at a loopback address. Loopback and blocked redirects did not
+prove the receiving process was the intended companion.
+
+The probe has been removed. When an explicitly configured port is occupied, the
+development companion now reports unavailable and exposes no token in its discovery
+result. It does not make an HTTP request to the occupying process. Automatic-port
+startup still follows the child companion to its available port. This intentionally
+replaces implicit reuse on a configured-port conflict with an actionable conflict
+message; stop the other process or select another port. Eight focused lifecycle
+tests pass, including no fetch/token disclosure on conflict and normal startup.
+
+GitHub has not rescanned this local change. The remote alert was not dismissed or
+suppressed, and is not described as closed. Other same-user filesystem/process
+trust assumptions remain; removing this probe is not a complete local-host threat
+model or an authenticated transport redesign.
+
+## Release verification gate
+
+The manually dispatched (or explicitly `run-release-evidence`-labeled PR)
+`release-evidence.yml` reuses the full regression workflow
+and both real-model scenarios on the selected revision. Its final acceptance job
+requires all three to pass. It does not deploy. Dispatch authorizes the explicitly
+selected CI model downloads; the workflow has not been dispatched for this local
+revision. Live paid providers, physical hardware and human acceptance remain
+separate evidence. The real-model input is validated before executing tests.
+
+Real-model acceptance additionally validates the JSON execution report with
+`scripts/verify-real-model-evidence.mjs`: one selected test must actually pass,
+with no skips, flaky retries or report errors. A green command with skipped
+inference is not accepted as integration evidence.
