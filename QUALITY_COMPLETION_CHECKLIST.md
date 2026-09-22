@@ -12,7 +12,8 @@ with no findings. This supersedes that batch's pending acceptance notes below.
 
 ## Current combined batch
 
-127 new regression cases accumulated locally for one combined publication:
+132 new regression cases: 127 accumulated locally for the initial combined publication,
+plus five review-driven lifecycle cases:
 
 - 36 Hermes lifecycle cases: shared handshakes, early close/error, timeout,
   restart during connection, stale socket events, RPC failure/cancellation,
@@ -20,7 +21,7 @@ with no findings. This supersedes that batch's pending acceptance notes below.
   catalog refresh races and configuration failures. Active replies now settle
   promptly on disconnect/restart; cancellation and early errors release pending
   submission RPCs, listeners and timers. Old sockets cannot fail new requests.
-- 15 Hermes registry cases: credential/URL rotation, removed routes, revoked or
+- 20 Hermes registry cases: credential/URL rotation, removed routes, revoked or
   protected credentials, malformed/missing/oversized registries, discovery
   failures and close during discovery. Resolution rereads the registry; obsolete
   clients close, and refresh/close operations are serialized.
@@ -53,6 +54,16 @@ with no findings. This supersedes that batch's pending acceptance notes below.
   PR #1641 artifact. Other feature counters/provenance are refreshed from the
   same artifact. This is a previous-result ratchet, not this batch's measured
   global improvement. No collector mapping or denominator rules changed.
+
+## Review follow-up
+
+Greptile reviewed all 13 files at `cd636a1e` and identified two lifecycle issues.
+The combined fix preserves established clients across temporary profile-probe
+failure while refusing new work on unavailable routes. Credential rotation and
+removal still revoke old clients. A terminal provider flag prevents queued,
+in-flight and later discovery from recreating clients during shutdown, including
+shutdown racing credential rotation. Five added regression cases cover these
+sequences. The 60 directly affected Hermes cases and server typecheck pass.
 
 ## Acceptance still required
 
