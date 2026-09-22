@@ -1,3 +1,61 @@
+# Nutrition request and storage boundaries — 2026-09-22
+
+## Verified starting point
+
+PR [#1643](https://github.com/elkimek/get-based/pull/1643) merged as
+`0efb968d7e77cbf7020c5cc688535e0e974fc3bd`. Its reviewed head
+`a49d9acd593ed4535bc773441d68707598fb0fb1` passed
+[CI run 35726349411](https://github.com/elkimek/get-based/actions/runs/35726349411):
+14,497/16,135 production functions (89.8482%), all 17 feature gates and 23
+critical module floors. Greptile reviewed all 18 files with no new comments;
+all five earlier findings were addressed. This supersedes its pending notes below.
+
+## Current combined batch
+
+69 new regression cases accumulated locally before publication:
+
+- 33 request/workspace cases: success, failures, correction context, cancellation
+  during photo preparation and provider execution, replacement requests, profile
+  navigation/reload, stale errors/progress, comparison controller cleanup,
+  background DOM preservation, focus restoration and workspace ownership.
+- 32 storage cases: archive validation before any writes, malformed photos,
+  profile-scoped encrypted metadata, chronological reads, transaction-abort
+  durability, corrupted export rejection and browser persistence permissions.
+- Four real Chromium scenarios delay a stored-photo fetch, then cancel, close,
+  switch profile or reload its data before releasing the response. None may
+  restart analysis or affect the destination editor.
+
+Analysis now owns a cancellation controller before asynchronous photo loading,
+checks the original profile and data identity at every asynchronous boundary,
+handles preparation failures, and ignores stale provider callbacks. Background
+workspaces retain their original owner even if parking is repeated, and a failed
+parking attempt does not create a resumable session.
+
+## Focused local verification
+
+- 80 relevant unit cases across four suites pass, including 65 new cases.
+- Four new browser scenarios and three existing correction/cancellation/background
+  workflows pass. Synthetic images/providers only; no live credentials or models.
+- Independent request coverage: 91.59% lines, 51.61% functions, 94.87% branches,
+  91.17% statements. Default dependency no-op functions remain in the denominator.
+- Independent storage coverage: 89.69% lines, 80% functions, 73.07% branches,
+  84.42% statements. Both modules receive new measured floors; all prior floors
+  remain intact. Critical collection now has 43 explicit suites and 25 modules.
+- Browser check-JS, strict-null, quality guards, architecture and production size
+  checks pass. Existing production budgets remain unchanged.
+- No complete local browser or coverage matrix was run. The new independent
+  percentages do not establish a new project-wide or functional coverage score.
+
+## Acceptance still required
+
+Verify exact-final-head CI, complete production artifact and all 17 feature gates,
+all 25 critical floors and full Greptile review. Address actionable findings in
+this batch. Do not merge or deploy. Browser request tests exercise real module
+and fetch lifecycles in a minimal DOM; the three existing browser workflows also
+exercise the application UI.
+
+---
+
 # Chat persistence and retry reliability — 2026-09-22
 
 ## Verified starting point

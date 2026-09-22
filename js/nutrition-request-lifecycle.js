@@ -8,10 +8,10 @@ import { state } from './state.js';
 import { showNotification } from './utils.js';
 
 let activeAnalysisController = null;
-let activeAnalysisProfileId = '';
 const activeComparisonControllers = new Set();
 let backgroundNutritionSession = false;
 let backgroundNutritionProfileId = '';
+let backgroundNutritionProfileData = null;
 /** @type {{host: HTMLElement, modalClassName: string, scrollTop: number}|null} */
 let backgroundNutritionWorkspace = null;
 /** @type {any} */
@@ -47,7 +47,6 @@ function updateBackgroundDismissalState() {
 function startNutritionAnalysisRequest() {
   activeAnalysisController?.abort(new DOMException('Replaced by a new meal request.', 'AbortError'));
   activeAnalysisController = new AbortController();
-  activeAnalysisProfileId = state.currentProfile;
   updateBackgroundDismissalState();
   return activeAnalysisController;
 }
@@ -96,9 +95,13 @@ function restoreBackgroundNutritionWorkspace(modal) {
 }
 
 export function beginNutritionBackgroundSession() {
+  if (!parkNutritionWorkspace()) return false;
+  if (!backgroundNutritionSession) {
+    backgroundNutritionProfileId = state.currentProfile;
+    backgroundNutritionProfileData = state.importedData;
+  }
   backgroundNutritionSession = true;
-  backgroundNutritionProfileId = state.currentProfile;
-  return parkNutritionWorkspace();
+  return true;
 }
 
 export function isNutritionBackgroundSession() {
@@ -106,7 +109,7 @@ export function isNutritionBackgroundSession() {
 }
 
 export function resumeNutritionBackgroundSession(modal, overlay) {
-  if (backgroundNutritionSession && backgroundNutritionProfileId !== state.currentProfile) {
+  if (backgroundNutritionSession && (backgroundNutritionProfileId !== state.currentProfile || backgroundNutritionProfileData !== state.importedData)) {
     resetNutritionRequestLifecycle();
     showNotification('The background meal request was closed because the active profile changed.', 'info');
     return false;
@@ -114,6 +117,7 @@ export function resumeNutritionBackgroundSession(modal, overlay) {
   if (!backgroundNutritionSession || !(restoreBackgroundNutritionWorkspace(modal) || modal.classList.contains('nutrition-modal'))) return false;
   backgroundNutritionSession = false;
   backgroundNutritionProfileId = '';
+  backgroundNutritionProfileData = null;
   overlay.setAttribute('data-modal-dismiss-protected', '');
   if (requestDeps.isAnalysisRunning() || requestDeps.isComparisonRunning()) overlay.setAttribute('data-modal-background-dismissible', '');
   const initialFocus = document.querySelector('[data-nutrition-action="cancel-comparison-run"]')
@@ -130,11 +134,11 @@ export function resumeNutritionBackgroundSession(modal, overlay) {
 export function resetNutritionRequestLifecycle() {
   activeAnalysisController?.abort(new DOMException('Meal editor closed.', 'AbortError'));
   activeAnalysisController = null;
-  activeAnalysisProfileId = '';
   for (const controller of activeComparisonControllers) controller.abort(new DOMException('Meal editor closed.', 'AbortError'));
   activeComparisonControllers.clear();
   backgroundNutritionSession = false;
   backgroundNutritionProfileId = '';
+  backgroundNutritionProfileData = null;
   backgroundNutritionWorkspace?.host.remove();
   backgroundNutritionWorkspace = null;
   document.getElementById('modal-overlay')?.removeAttribute('data-modal-background-dismissible');
@@ -142,23 +146,30 @@ export function resetNutritionRequestLifecycle() {
 
 /** @param {{correctedMealName?: string, previousMealName?: string, button?: HTMLButtonElement | null}} [options] */
 export async function runNutritionMealAnalysis({ correctedMealName = '', previousMealName = '', button = null } = {}) {
-  const files = await mealAnalysisFiles(requestDeps.selectedPhotos(), requestDeps.getExistingImages());
-  if (!files.length) {
-    showNotification('Choose at least one meal or label photo first.', 'info');
-    return;
-  }
-  const comparisonReturn = document.getElementById('nutrition-comparison-return');
-  if (comparisonReturn) comparisonReturn.hidden = true;
-  const analysisKind = requestDeps.getAnalysisKind();
-  const consumption = requestDeps.getConsumption();
-  const progressId = requestDeps.startProgress(button, correctedMealName ? 'Recalculating…' : analysisKind === 'nutrition-label' ? 'Scanning…' : 'Analyzing…');
+  const profileId = state.currentProfile;
+  const profileData = state.importedData;
   const controller = startNutritionAnalysisRequest();
+  const isCurrent = () => !controller.signal.aborted
+    && activeAnalysisController === controller
+    && profileId === state.currentProfile && profileData === state.importedData;
+  let progressId = '';
   let completed = false;
-  requestDeps.setStatus('');
   try {
+    const analysisKind = requestDeps.getAnalysisKind();
+    const consumption = requestDeps.getConsumption();
     const userContext = [requestDeps.getUserContext(), requestDeps.getCorrectionContext()].filter(Boolean).join('\n');
+    const files = await mealAnalysisFiles(requestDeps.selectedPhotos(), requestDeps.getExistingImages());
+    if (!isCurrent()) return;
+    if (!files.length) {
+      showNotification('Choose at least one meal or label photo first.', 'info');
+      return;
+    }
+    const comparisonReturn = document.getElementById('nutrition-comparison-return');
+    if (comparisonReturn) comparisonReturn.hidden = true;
+    progressId = requestDeps.startProgress(button, correctedMealName ? 'Recalculating…' : analysisKind === 'nutrition-label' ? 'Scanning…' : 'Analyzing…');
+    requestDeps.setStatus('');
     const result = await analyzeMealPhoto(files, {
-      onProgress: (phase, label) => requestDeps.updateProgress(progressId, phase, label),
+      onProgress: (phase, label) => { if (isCurrent()) requestDeps.updateProgress(progressId, phase, label); },
       correctedMealName,
       previousMealName,
       analysisKind,
@@ -167,20 +178,18 @@ export async function runNutritionMealAnalysis({ correctedMealName = '', previou
       userContext,
       signal: controller.signal,
     });
-    if (controller.signal.aborted || activeAnalysisController !== controller || activeAnalysisProfileId !== state.currentProfile) return;
+    if (!isCurrent()) return;
     requestDeps.applyAnalysis(result);
     requestDeps.focusReview();
     completed = true;
   } catch (error) {
-    if (!controller.signal.aborted && activeAnalysisController === controller) {
-      requestDeps.setStatus(getErrorMessage(error, 'The meal could not be analyzed.'), 'error');
-    }
+    if (isCurrent()) requestDeps.setStatus(getErrorMessage(error, 'The meal could not be analyzed.'), 'error');
   } finally {
     if (activeAnalysisController === controller) {
+      const currentProfile = profileId === state.currentProfile && profileData === state.importedData;
       activeAnalysisController = null;
-      activeAnalysisProfileId = '';
       updateBackgroundDismissalState();
-      requestDeps.finishProgress(progressId, completed, button);
+      if (progressId && currentProfile) requestDeps.finishProgress(progressId, completed, button);
     }
   }
 }

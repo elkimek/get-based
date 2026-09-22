@@ -8,6 +8,10 @@ export default defineConfig({
   test: {
     ...base.test,
     include: [
+      'tests/nutrition-request-lifecycle.test.js',
+      'tests/nutrition-storage-boundaries.test.js',
+      'tests/nutrition-store.test.js',
+      'tests/nutrition-store-save-race.test.js',
       'tests/chat-history-reliability.test.js',
       'tests/chat-message-edit-reliability.test.js',
       'tests/chat-retry-reliability.test.js',
@@ -52,6 +56,8 @@ export default defineConfig({
       ...base.test.coverage,
       enabled: true,
       include: [
+        'js/nutrition-request-lifecycle.js',
+        'js/nutrition-store.js',
         'js/chat-history.js',
         'js/chat-message-edit.js',
         'lib/hermes-gateway-client.js',
@@ -77,6 +83,8 @@ export default defineConfig({
       reportsDirectory: 'tests/.critical-coverage',
       reporter: ['json-summary', 'json', 'text'],
       thresholds: {
+        'js/nutrition-request-lifecycle.js': { lines: 91, functions: 51, branches: 94, statements: 91 },
+        'js/nutrition-store.js': { lines: 89, functions: 80, branches: 73, statements: 84 },
         'js/chat-history.js': { lines: 99, functions: 88, branches: 92, statements: 96 },
         'js/chat-message-edit.js': { lines: 98, functions: 83, branches: 91, statements: 97 },
         'lib/hermes-gateway-client.js': { lines: 99, functions: 94, branches: 82, statements: 98 },

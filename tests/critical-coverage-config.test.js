@@ -2,15 +2,15 @@ import { expect, it } from 'vitest';
 import config from '../vitest.critical.config.js';
 
 it('keeps the critical local coverage command bounded to explicit test and source files', () => {
-  expect(config.test.include).toHaveLength(39);
+  expect(config.test.include).toHaveLength(43);
   expect(config.test.include.every(file => file.startsWith('tests/') && file.endsWith('.test.js') && !/[?*]/.test(file))).toBe(true);
-  expect(config.test.coverage.include).toHaveLength(23);
+  expect(config.test.coverage.include).toHaveLength(25);
   expect(config.test.coverage.include.every(file => /^(?:js\/|lib\/|server\/|service-worker-runtime\.js$)/.test(file) && !/[?*]/.test(file))).toBe(true);
   expect(Object.keys(config.test.coverage.thresholds).sort()).toEqual([...config.test.coverage.include].sort());
   for (const file of config.test.coverage.include) {
-    // Preserve the original >=80 floor; voice playback starts
-    // at their measured branch coverage and must not weaken the other gates.
-    const floor = { 'js/voice-player.js': 74 }[file] ?? 80;
+    // Preserve existing floors; newly enforced modules start at measured
+    // independent branch coverage without weakening other module gates.
+    const floor = { 'js/voice-player.js': 74, 'js/nutrition-store.js': 73 }[file] ?? 80;
     expect(config.test.coverage.thresholds[file].branches).toBeGreaterThanOrEqual(floor);
   }
 });
