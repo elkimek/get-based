@@ -8,6 +8,13 @@ export default defineConfig({
   test: {
     ...base.test,
     include: [
+      'tests/sync-identity-vault-failures.test.js',
+      'tests/sync-evolu8-identity-vault.test.js',
+      'tests/profile-cleanup-failures.test.js',
+      'tests/profile-cleanup-indexeddb.test.js',
+      'tests/profile-storage-cleanup.test.js',
+      'tests/sync-cleanup-boundaries.test.js',
+      'tests/sync-evolu8-candidate.test.js',
       'tests/nutrition-request-lifecycle.test.js',
       'tests/nutrition-storage-boundaries.test.js',
       'tests/nutrition-store.test.js',
@@ -56,6 +63,9 @@ export default defineConfig({
       ...base.test.coverage,
       enabled: true,
       include: [
+        'js/sync-evolu8-identity-vault.js',
+        'js/profile-storage-cleanup.js',
+        'js/sync-disable-cleanup.js',
         'js/nutrition-request-lifecycle.js',
         'js/nutrition-store.js',
         'js/chat-history.js',
@@ -83,6 +93,9 @@ export default defineConfig({
       reportsDirectory: 'tests/.critical-coverage',
       reporter: ['json-summary', 'json', 'text'],
       thresholds: {
+        'js/sync-evolu8-identity-vault.js': { lines: 94, functions: 88, branches: 88, statements: 93 },
+        'js/profile-storage-cleanup.js': { lines: 100, functions: 100, branches: 88, statements: 98 },
+        'js/sync-disable-cleanup.js': { lines: 100, functions: 100, branches: 100, statements: 100 },
         'js/nutrition-request-lifecycle.js': { lines: 91, functions: 51, branches: 94, statements: 91 },
         'js/nutrition-store.js': { lines: 89, functions: 80, branches: 73, statements: 84 },
         'js/chat-history.js': { lines: 99, functions: 88, branches: 92, statements: 96 },

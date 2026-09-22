@@ -1,0 +1,72 @@
+# Remaining coverage surface after PR #1645
+
+Evidence: production artifact 10696256536 from CI run 35731140675,
+reviewed head `d5880741d7efcba9485912c2c7cd1d6741396b14`, merged as
+`a546c202cf84ee86759c2b9b938fc43b3cf75e59`.
+
+The complete denominator contains 16,136 functions; 14,507 executed (89.9046%).
+Unexecuted functions are investigation candidates, not proof of missing user
+workflows. Executed functions likewise do not establish complete branch or
+functional coverage. Default no-op callbacks remain in the denominator.
+
+## Current larger batch: identity and cleanup failure boundaries
+
+- Identity vault: blocked/open failures, late success, timeouts, transaction
+  durability/abort, malformed records, inaccessible storage and invalidation races.
+- Profile cleanup: each database failure, delayed deletion, blob failures, retry,
+  invalid IDs, discovery errors and preservation of unrelated profile/global data.
+- Sync-disable metadata cleanup, OPFS lock boundaries and legacy owner handoff are
+  covered in the combined batch.
+- Accumulate related fixes locally; focused tests only. CI owns the complete matrix.
+
+## Prioritized residual investigations
+
+1. Sync identity/candidate and storage cleanup: stale owner restoration, interrupted
+   migration, generation changes, resource disposal and failure recovery.
+2. Wallet persistence/provider recovery: locking, duplicate recovery actions and
+   failed durable commits; deterministic fixtures must avoid real funds/providers.
+3. Light/session persistence and UI: session restoration, timer cleanup, navigation,
+   mutation failures and profile ownership.
+4. Remaining nutrition comparison/editor flows: partial model failure, stale
+   comparisons, cancellation and durable edit failure.
+5. Shell/settings and chat event paths: actual event dispatch, route transitions,
+   queued operations and permission/clipboard failures.
+6. Import/export/cycle: recovery, partial failures and rollback across persisted data.
+
+Hardware/model inference, real paid providers and exhaustive device combinations
+remain separate integration acceptance surfaces; mocks cannot prove them.
+
+## Largest unexecuted function counts at the reference head
+
+| Module | Executed / total | Unexecuted |
+|---|---:|---:|
+| `js/light-page-view.js` | 28 / 60 | 32 |
+| `dev-server.js` | 24 / 53 | 29 |
+| `js/chat-actions.js` | 26 / 54 | 28 |
+| `js/sync-evolu8-candidate.js` | 40 / 66 | 26 |
+| `js/sun-session-ui.js` | 55 / 78 | 23 |
+| `js/cashu-wallet-store.js` | 127 / 150 | 23 |
+| `js/shell-actions.js` | 17 / 39 | 22 |
+| `js/light-tools.js` | 48 / 67 | 19 |
+| `js/nutrition-store.js` | 91 / 110 | 19 |
+| `js/app-event-listeners.js` | 19 / 37 | 18 |
+| `js/settings.js` | 29 / 47 | 18 |
+| `js/provider-panels.js` | 37 / 55 | 18 |
+| `js/nutrition-comparison-ui.js` | 68 / 86 | 18 |
+| `js/cycle-import.js` | 72 / 90 | 18 |
+| `js/sun-active-session.js` | 56 / 72 | 16 |
+| `js/sync-evolu8-identity-vault.js` | 21 / 36 | 15 |
+| `js/nutrition-review-ui.js` | 51 / 66 | 15 |
+| `js/cycle-store.js` | 69 / 84 | 15 |
+| `js/views.js` | 71 / 86 | 15 |
+| `js/settings-agent-access-panel.js` | 20 / 34 | 14 |
+| `js/settings-provider-bridge.js` | 16 / 29 | 13 |
+| `js/chat-model-controls.js` | 41 / 54 | 13 |
+| `js/sun-sessions-store.js` | 44 / 57 | 13 |
+| `js/profile-runtime.js` | 9 / 21 | 12 |
+| `js/voice-controller.js` | 23 / 35 | 12 |
+| `js/light-conditions-now.js` | 26 / 38 | 12 |
+| `lib/agent-host-service.js` | 32 / 44 | 12 |
+| `js/wearables-connect.js` | 52 / 64 | 12 |
+| `js/chat-layout.js` | 8 / 19 | 11 |
+| `js/pdf-import-preflight.js` | 29 / 40 | 11 |

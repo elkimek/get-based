@@ -115,7 +115,11 @@ export function createEvolu8IdentityVault({
   indexedDb = globalThis.indexedDB,
   tokenFactory = createCommitToken,
 } = {}) {
+  // Invalidate in-flight work even when the first write has no token yet.
+  // Token rechecks also detect changes made by a different vault/context.
+  let revision = 0;
   const read = async () => {
+    const startedRevision = revision;
     const token = readCommitToken(storage);
     if (!token || !indexedDb) return null;
     try {
@@ -124,7 +128,8 @@ export function createEvolu8IdentityVault({
         'readonly',
         store => store.get(RECORD_KEY),
       ));
-      if (record?.version !== RECORD_VERSION
+      if (revision !== startedRevision || readCommitToken(storage) !== token
+          || record?.version !== RECORD_VERSION
           || record?.token !== token
           || typeof record?.ownerId !== 'string'
           || !record.ownerId
@@ -140,6 +145,8 @@ export function createEvolu8IdentityVault({
     if (!indexedDb || typeof storage?.setItem !== 'function' || typeof storage?.getItem !== 'function') {
       throw new Error('Evolu 8 identity vault storage is unavailable');
     }
+    const startedRevision = ++revision;
+    const previousToken = readCommitToken(storage);
     const token = String(tokenFactory() || '');
     if (!token) throw new Error('Evolu 8 identity vault token is unavailable');
     await accessVault(indexedDb, 'readwrite', store => store.put({
@@ -148,6 +155,9 @@ export function createEvolu8IdentityVault({
       ownerId: String(ownerId),
       mnemonic: String(mnemonic),
     }, RECORD_KEY));
+    if (revision !== startedRevision || readCommitToken(storage) !== previousToken) {
+      throw new Error('Evolu 8 identity vault write was invalidated or superseded');
+    }
     storage.setItem(EVOLU8_IDENTITY_TOKEN_KEY, token);
     if (storage.getItem(EVOLU8_IDENTITY_TOKEN_KEY) !== token) {
       throw new Error('Evolu 8 identity vault commit was not retained');
@@ -155,6 +165,7 @@ export function createEvolu8IdentityVault({
   };
 
   const invalidate = () => {
+    revision += 1;
     if (typeof storage?.removeItem !== 'function' || typeof storage?.getItem !== 'function') {
       throw new Error('Evolu 8 identity vault cannot be invalidated');
     }

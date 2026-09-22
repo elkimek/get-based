@@ -1,3 +1,55 @@
+# Sync identity and cleanup boundaries — 2026-09-22
+
+## Verified starting point
+
+PR #1645 merged as `a546c202cf84ee86759c2b9b938fc43b3cf75e59`.
+[CI 35731140675](https://github.com/elkimek/get-based/actions/runs/35731140675)
+verified head `d5880741d7efcba9485912c2c7cd1d6741396b14`: 14,507/16,136
+production functions (89.9046%), all 17 feature gates and 25 critical floors.
+Greptile reviewed all seven files without findings. Its pending notes below are
+superseded by that acceptance. Remaining surfaces are recorded separately in
+QUALITY_REMAINING_SURFACE.md; no complete functional-coverage claim is made.
+
+## Current combined batch
+
+101 new regression cases accumulated before publication:
+
+- 39 identity-vault cases exercise open/block/timeout/late-success failures,
+  transaction commit/abort, malformed records, inaccessible storage, invalidation
+  during reads/writes and external commit-token changes.
+- 27 profile-cleanup cases exercise deletion failures and retries, delayed
+  database deletion, blob errors, invalid IDs, discovery and unrelated data
+  preservation; six use the default database operations with fake IndexedDB.
+- 32 sync cleanup/handoff cases exercise metadata retention, dirty markers,
+  exclusive OPFS cleanup locks, inaccessible/busy stores and legacy invalidation.
+- Three Chromium scenarios use real IndexedDB for invalidated reads/writes and
+  persistence after reload without putting the recovery words in localStorage.
+
+The vault now rechecks the commit token before returning an identity and before
+publishing a write. A per-vault revision invalidates in-flight work even when the
+first write has no token yet. Two new tests reproduced the original races before
+fixing them. This does not claim cross-tab atomicity across IndexedDB/localStorage.
+
+## Focused local evidence
+
+- 122 relevant unit cases across seven suites passed, including 98 new cases.
+- Three new Chromium scenarios plus the existing real v7/v8 identity handoff passed.
+- Independent floors now cover 28 modules across 50 explicit critical suites.
+  Existing floors are unchanged. Measurements (lines/functions/branches/statements):
+  vault 94.50/88.88/88.52/93.16; profile cleanup 100/100/88.63/98.68;
+  sync-disable cleanup 100/100/100/100.
+- Check-JS, strict-null, quality, architecture, 32 coverage policy/config checks
+  and existing production budgets pass. No budget increases.
+- No exhaustive local browser/coverage matrix, live providers or downloaded models.
+
+## Acceptance required
+
+Verify exact-final-head CI,
+all 17 feature gates and 28 critical floors in the complete production artifact,
+clean provenance and full Greptile review. Do not merge the new PR or deploy.
+
+---
+
 # Nutrition request and storage boundaries — 2026-09-22
 
 ## Verified starting point
