@@ -95,3 +95,24 @@ was performed. These mock-based failure tests verify lifecycle behavior, not
 physical audio-device quality or complete browser compatibility.
 
 Selected voice-player coverage: 77.1% functions, 68.51% branches, 90.48% lines. These values come only from the two selected voice test files.
+
+## Combined batch ready for PR/CI acceptance
+
+The local checkpoints above are historical: their changes are now being published
+as one combined update to PR #1638, rather than triggering CI after each increment.
+The final voice slice adds six more cases covering buffered-provider cancellation,
+PCM activation cancellation, and stopped MediaSource opening late. All 18 new
+voice lifecycle cases plus 33 existing voice cases pass. Buffered reads are
+cancelled on Stop/abort/replacement, obsolete preparation cannot resume, and
+MediaSource lifecycle listeners are released when playback stops.
+
+The batch adds 58 regression cases beyond the initial PR head: 13 gate validation,
+seven PWA runtime, 20 companion RPC and 18 voice lifecycle cases. Across the eight
+relevant unit-test files, 161 cases pass. Three targeted browser scenarios passed:
+PWA cold offline relaunch, managed buffered voice playback, and chat voice controls.
+Server/service-worker/CheckJs typechecks, 17 quality guards, production budgets,
+and diff checks pass. No exhaustive local suite or model download was run.
+
+Fresh whole-project CI coverage and complete review of the combined head are the
+remaining acceptance gate. Do not extrapolate the selected local coverage samples
+to a new project score, or treat older PR checks as evidence for this batch.

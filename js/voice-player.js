@@ -428,6 +428,37 @@ export class VoicePlayer {
     });
   }
 
+  async bufferStream(stream, contentType, signal) {
+    this.stop();
+    const generation = this.playbackGeneration;
+    const reader = stream.getReader();
+    const controller = new AbortController();
+    const abort = () => controller.abort(signal?.reason);
+    const stop = reason => controller.abort(reason);
+    this.streamReader = reader;
+    this.rejectCurrent = stop;
+    signal?.addEventListener('abort', abort, { once: true });
+    const chunks = [];
+    try {
+      while (true) {
+        if (signal?.aborted || controller.signal.aborted || generation !== this.playbackGeneration) throw abortError(signal?.reason);
+        const { done, value } = await readStreamChunk(reader, controller.signal);
+        if (done) break;
+        chunks.push(value);
+      }
+      if (controller.signal.aborted || generation !== this.playbackGeneration) throw abortError(signal?.reason);
+      return new Blob(chunks, { type: contentType });
+    } catch (error) {
+      void reader.cancel(error).catch(() => {});
+      throw error;
+    } finally {
+      signal?.removeEventListener('abort', abort);
+      if (this.streamReader === reader) this.streamReader = null;
+      if (this.rejectCurrent === stop) this.rejectCurrent = null;
+      try { reader.releaseLock(); } catch {}
+    }
+  }
+
   /**
    * Play provider bytes as they arrive. MediaSource handles arbitrary network
    * chunk boundaries and incremental MP3 parsing; unsupported browsers buffer
@@ -445,10 +476,10 @@ export class VoicePlayer {
     const mimeType = baseMimeType(contentType);
     if (signal?.aborted) throw abortError(signal.reason);
     if (!progressive || !this.supportsStreaming(mimeType)) {
-      this.stop();
-      const blob = await new Response(stream, {
-        headers: { 'Content-Type': contentType },
-      }).blob();
+      const buffering = this.bufferStream(stream, contentType, signal);
+      const generation = this.playbackGeneration;
+      const blob = await buffering;
+      if (generation !== this.playbackGeneration) throw abortError(signal?.reason);
       return this.play(blob, { signal, rate });
     }
 
@@ -457,9 +488,10 @@ export class VoicePlayer {
       : null;
     if (!prepared) {
       if (!this.primeStreamPlayback(mimeType, rate)) {
-        const blob = await new Response(stream, {
-          headers: { 'Content-Type': contentType },
-        }).blob();
+        const buffering = this.bufferStream(stream, contentType, signal);
+        const generation = this.playbackGeneration;
+        const blob = await buffering;
+        if (generation !== this.playbackGeneration) throw abortError(signal?.reason);
         return this.play(blob, { signal, rate });
       }
     }
@@ -475,6 +507,7 @@ export class VoicePlayer {
 
     return new Promise((resolve, reject) => {
       let settled = false;
+      const lifecycle = new AbortController();
       let receivedBytes = 0;
       let readerDone = false;
       /** @type {ReadableStreamDefaultReader<Uint8Array> | null} */
@@ -491,6 +524,7 @@ export class VoicePlayer {
       const cleanup = reason => {
         if (settled) return;
         settled = true;
+        lifecycle.abort(reason);
         signal?.removeEventListener('abort', onAbort);
         audio.removeEventListener('ended', onEnded);
         audio.removeEventListener('error', onAudioError);
@@ -549,17 +583,19 @@ export class VoicePlayer {
 
       void (async () => {
         try {
-          await waitForMediaSourceOpen(mediaSource, signal);
+          await waitForMediaSourceOpen(mediaSource, lifecycle.signal);
+          if (settled) return;
           sourceBuffer = mediaSource.addSourceBuffer(mimeType);
           this.sourceBuffer = sourceBuffer;
           reader = stream.getReader();
           this.streamReader = reader;
           while (true) {
             const { done, value } = await reader.read();
+            if (settled) return;
             if (done) break;
             if (!value?.byteLength) continue;
             receivedBytes += value.byteLength;
-            await appendSourceBuffer(sourceBuffer, value, signal);
+            await appendSourceBuffer(sourceBuffer, value, lifecycle.signal);
           }
           readerDone = true;
           releaseReader();
@@ -595,7 +631,9 @@ export class VoicePlayer {
     this.audioContext ||= this.audioContextFactory();
     const context = this.audioContext;
     if (!context) throw new Error('Web Audio is unavailable for local speech streaming.');
+    const generation = this.playbackGeneration;
     await this.ensureAudioContextReady();
+    if (signal?.aborted || generation !== this.playbackGeneration) throw abortError(signal?.reason);
 
     const internalController = new AbortController();
     const onExternalAbort = () => internalController.abort(signal?.reason);

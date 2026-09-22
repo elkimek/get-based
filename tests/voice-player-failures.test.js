@@ -152,6 +152,71 @@ describe('voice playback failure cleanup', () => {
     expect(stream.locked).toBe(false);
   });
 
+  it.each(['abort', 'stop', 'replace'])('cancels buffered provider audio on %s without reviving old playback', async action => {
+    const { player, audios } = fixture();
+    const cancel = vi.fn();
+    const stream = new ReadableStream({ cancel });
+    const controller = new AbortController();
+    const old = player.playStream(stream, { progressive: false, signal: controller.signal }).catch(error => error);
+    await vi.waitFor(() => expect(stream.locked).toBe(true));
+    let replacement;
+    if (action === 'abort') controller.abort();
+    else if (action === 'stop') player.stop();
+    else replacement = player.play(new Blob(['new']));
+    const result = await Promise.race([old, new Promise(resolve => setTimeout(() => resolve('still pending'), 20))]);
+    expect(result).toMatchObject({ name: 'AbortError' });
+    expect(cancel).toHaveBeenCalled();
+    expect(stream.locked).toBe(false);
+    expect(audios).toHaveLength(replacement ? 1 : 0);
+    if (replacement) {
+      expect(player.audio).toBe(audios[0]);
+      audios[0].dispatchEvent(new Event('ended'));
+      await expect(replacement).resolves.toBe(true);
+    }
+  });
+
+  it.each(['stop', 'abort'])('does not acquire a PCM stream after %s during audio activation', async action => {
+    const { player } = fixture();
+    const { context } = contextFixture();
+    const activation = deferred();
+    player.audioContext = context;
+    player.audioUnlockPromise = activation.promise;
+    const controller = new AbortController();
+    const stream = new ReadableStream();
+    const playback = player.playPcmStream(stream, { signal: controller.signal }).catch(error => error);
+    if (action === 'stop') player.stop();
+    else controller.abort();
+    activation.resolve();
+    const result = await Promise.race([playback, new Promise(resolve => setTimeout(() => resolve('still pending'), 20))]);
+    expect(result).toMatchObject({ name: 'AbortError' });
+    expect(stream.locked).toBe(false);
+    expect(player.streamReader).toBeNull();
+    expect(player.rejectCurrent).toBeNull();
+  });
+
+  it('does not attach a provider stream when a stopped MediaSource opens late', async () => {
+    const audio = new AudioStub();
+    const media = Object.assign(new EventTarget(), {
+      readyState: 'closed', addSourceBuffer: vi.fn(() => ({})),
+    });
+    const remove = vi.spyOn(media, 'removeEventListener');
+    const player = new VoicePlayer({
+      audioFactory: () => audio, mediaSourceFactory: () => media,
+      isMediaSourceTypeSupported: () => true,
+      createObjectURL: () => 'blob:stream', revokeObjectURL: vi.fn(),
+    });
+    const stream = new ReadableStream();
+    const playback = player.playStream(stream).catch(error => error);
+    player.stop();
+    expect(await playback).toMatchObject({ name: 'AbortError' });
+    expect(remove).toHaveBeenCalledWith('sourceopen', expect.any(Function));
+    media.readyState = 'open'; media.dispatchEvent(new Event('sourceopen'));
+    await Promise.resolve(); await Promise.resolve();
+    expect(media.addSourceBuffer).not.toHaveBeenCalled();
+    expect(stream.locked).toBe(false);
+    expect(player.streamReader).toBeNull();
+  });
+
   it('disconnects a Web Audio source when start throws before falling back', async () => {
     const { player, audios } = fixture();
     const { context, decoding, source } = contextFixture();
