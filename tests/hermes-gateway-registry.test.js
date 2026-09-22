@@ -95,3 +95,25 @@ it('does not replace a rotated client if shutdown starts while its close is pend
   const closing = provider.close(); release(); await listing; await closing;
   await expect(provider.resolve(route.id)).rejects.toThrow('provider is closed');
 });
+
+it('preserves non-default profile IDs and labels throughout sustained probe failure', async () => {
+  fetchImpl.mockImplementation(async () => new Response('{"profiles":[{"name":"personal","display_name":"Personal assistant","description":"My profile"},{"name":"work"}]}'));
+  const before = await provider.listRoutes();
+  fetchImpl.mockRejectedValue(new Error('metadata offline'));
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const during = await provider.listRoutes();
+    expect(during.map(route => [route.id, route.label, route.profile, route.description])).toEqual(before.map(route => [route.id, route.label, route.profile, route.description]));
+    expect(during.every(route => route.status === 'unavailable')).toBe(true);
+    await expect(provider.resolve(before[0].id)).rejects.toThrow('not reachable');
+  }
+});
+it.each(['remove', 'credentials', 'endpoint'])('does not reuse cached profile metadata after %s changes', async mode => {
+  fetchImpl.mockImplementation(async () => new Response('{"profiles":[{"name":"private-profile"}]}'));
+  const [old] = await provider.listRoutes();
+  if (mode === 'remove') { save([]); await provider.listRoutes(); save([connection]); }
+  else save([{ ...connection, ...(mode === 'credentials' ? { token: { encoding: 'plain', value: 'new-token' } } : { url: 'https://different.example' }) }]);
+  fetchImpl.mockRejectedValue(new Error('offline'));
+  const routes = await provider.listRoutes();
+  expect(routes.map(route => route.id)).not.toContain(old.id);
+  expect(routes.map(route => route.profile)).toEqual(['default']);
+});

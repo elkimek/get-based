@@ -12,8 +12,8 @@ with no findings. This supersedes that batch's pending acceptance notes below.
 
 ## Current combined batch
 
-132 new regression cases: 127 accumulated locally for the initial combined publication,
-plus five review-driven lifecycle cases:
+136 new regression cases: 127 accumulated locally for the initial combined publication,
+plus nine review-driven lifecycle cases:
 
 - 36 Hermes lifecycle cases: shared handshakes, early close/error, timeout,
   restart during connection, stale socket events, RPC failure/cancellation,
@@ -21,7 +21,7 @@ plus five review-driven lifecycle cases:
   catalog refresh races and configuration failures. Active replies now settle
   promptly on disconnect/restart; cancellation and early errors release pending
   submission RPCs, listeners and timers. Old sockets cannot fail new requests.
-- 20 Hermes registry cases: credential/URL rotation, removed routes, revoked or
+- 24 Hermes registry cases: credential/URL rotation, removed routes, revoked or
   protected credentials, malformed/missing/oversized registries, discovery
   failures and close during discovery. Resolution rereads the registry; obsolete
   clients close, and refresh/close operations are serialized.
@@ -64,6 +64,13 @@ removal still revoke old clients. A terminal provider flag prevents queued,
 in-flight and later discovery from recreating clients during shutdown, including
 shutdown racing credential rotation. Five added regression cases cover these
 sequences. The 60 directly affected Hermes cases and server typecheck pass.
+
+The second full review identified non-default route IDs disappearing during a
+sustained profile-probe outage. Cached, credential-bound profile metadata now
+preserves their IDs and labels as unavailable; successful rediscovery updates
+that metadata, while removal or credential/endpoint changes invalidate it.
+Four more cases cover sustained outages and cache invalidation. All 64 affected
+Hermes cases and server typecheck pass; independent coverage floors are retained.
 
 ## Acceptance still required
 
