@@ -8,6 +8,11 @@ export default defineConfig({
   test: {
     ...base.test,
     include: [
+      'tests/hermes-gateway-client.test.js',
+      'tests/hermes-gateway-lifecycle.test.js',
+      'tests/hermes-gateway-registry.test.js',
+      'tests/compat-proxy-server.test.js',
+      'tests/compat-proxy-startup.test.js',
       'tests/agent-host-bootstrap.test.js',
       'tests/dev-agent-host.test.js',
       'tests/dev-agent-host-lifecycle.test.js',
@@ -44,6 +49,8 @@ export default defineConfig({
       ...base.test.coverage,
       enabled: true,
       include: [
+        'lib/hermes-gateway-client.js',
+        'server/compat-proxy-server.js',
         'server/agent-host-server.js',
         'lib/dev-agent-host.js',
         'server/profile-share-server.js',
@@ -65,6 +72,8 @@ export default defineConfig({
       reportsDirectory: 'tests/.critical-coverage',
       reporter: ['json-summary', 'json', 'text'],
       thresholds: {
+        'lib/hermes-gateway-client.js': { lines: 99, functions: 94, branches: 82, statements: 98 },
+        'server/compat-proxy-server.js': { lines: 89, functions: 95, branches: 80, statements: 90 },
         'server/agent-host-server.js': { lines: 100, functions: 100, branches: 92, statements: 100 },
         'lib/dev-agent-host.js': { lines: 96, functions: 100, branches: 90, statements: 94 },
         'server/profile-share-server.js': { lines: 95, functions: 96, branches: 86, statements: 94 },

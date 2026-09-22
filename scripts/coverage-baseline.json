@@ -1,11 +1,11 @@
 {
   "minimumFunctionPct": 89,
-  "referenceFunctionPct": 89.19237693214973,
-  "referenceCommit": "89a33d53c785e8c4508be9504b642bbf4e766161",
+  "referenceFunctionPct": 89.53380098081819,
+  "referenceCommit": "633918b5b011b22b0177b7382b97d283d47e07aa",
   "measuredAt": "2026-09-22",
   "metric": "combined Vitest/Node and Playwright V8 function coverage",
-  "referenceHead": "4502455fbaa77b7198acd3ddfdac985e03eca3d8",
-  "referenceRun": "https://github.com/elkimek/get-based/actions/runs/35706359198",
+  "referenceHead": "0b5dcf8b8df791d444463641770472224eff924f",
+  "referenceRun": "https://github.com/elkimek/get-based/actions/runs/35710752083",
   "featureFloorPolicy": "Round the retained combined CI function percentage down to a whole percentage point. Mapping corrections may raise execution counts; no thresholds are reduced.",
   "features": {
     "PWA runtime": {
@@ -14,8 +14,8 @@
       "referenceTotal": 44
     },
     "Server and companion": {
-      "minimumFunctionPct": 75,
-      "referenceCalled": 616,
+      "minimumFunctionPct": 82,
+      "referenceCalled": 673,
       "referenceTotal": 819
     },
     "Knowledge and voice": {
@@ -35,7 +35,7 @@
     },
     "Light and environment": {
       "minimumFunctionPct": 88,
-      "referenceCalled": 1855,
+      "referenceCalled": 1854,
       "referenceTotal": 2092
     },
     "Sync": {
@@ -45,7 +45,7 @@
     },
     "Shell and shared browser utilities": {
       "minimumFunctionPct": 89,
-      "referenceCalled": 2865,
+      "referenceCalled": 2866,
       "referenceTotal": 3211
     },
     "Wallet and providers": {
@@ -65,7 +65,7 @@
     },
     "Wearables and body": {
       "minimumFunctionPct": 92,
-      "referenceCalled": 1543,
+      "referenceCalled": 1541,
       "referenceTotal": 1670
     },
     "Import and export": {

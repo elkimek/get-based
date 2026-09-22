@@ -1,3 +1,70 @@
+# Proxy and gateway failure handling — 2026-09-22
+
+## Verified starting point
+
+PR [#1641](https://github.com/elkimek/get-based/pull/1641) merged as
+`cdc79d30ff24fc6fcbc5a6552c6c76f5dcc459ae`. Its final head was
+`0b5dcf8b8df791d444463641770472224eff924f`; [CI run 35710752083](https://github.com/elkimek/get-based/actions/runs/35710752083)
+measured 14,423/16,109 functions (89.5338%) and 673/819 server functions
+(82.1734%). All 17 feature gates and 19 critical module floors passed, with
+2,432 unit, 493 critical and 727 Chromium cases. Greptile reviewed all 12 files
+with no findings. This supersedes that batch's pending acceptance notes below.
+
+## Current combined batch
+
+127 new regression cases accumulated locally for one combined publication:
+
+- 36 Hermes lifecycle cases: shared handshakes, early close/error, timeout,
+  restart during connection, stale socket events, RPC failure/cancellation,
+  streaming disconnect, early approval/error events, consumer callback failure,
+  catalog refresh races and configuration failures. Active replies now settle
+  promptly on disconnect/restart; cancellation and early errors release pending
+  submission RPCs, listeners and timers. Old sockets cannot fail new requests.
+- 15 Hermes registry cases: credential/URL rotation, removed routes, revoked or
+  protected credentials, malformed/missing/oversized registries, discovery
+  failures and close during discovery. Resolution rereads the registry; obsolete
+  clients close, and refresh/close operations are serialized.
+- 51 development API proxy cases: exchange/refresh grants for six providers,
+  server credential requirements, mismatched client IDs, transport failures,
+  declared/streamed response caps, interrupted responses, postal lookup parsing
+  and coordinate rounding, and idle upstream timeouts. OAuth responses now use
+  the existing cap; all four upstream paths receive a 180-second idle timeout.
+- 14 compatibility-relay startup cases: bind/timeout configuration, startup
+  failure, malformed HTTP, graceful/forced shutdown and simultaneous signals.
+  Shutdown is idempotent and cancels its forced-exit timer after draining.
+- 11 agent-host routing cases: unavailable/missing targets, failed discovery,
+  private metadata filtering, model/refresh forwarding, catalog failure and login
+  requirements. Unavailable targets cannot use a previously cached client.
+
+## Focused local verification
+
+- 172 cases across 11 directly relevant suites passed, with coverage restricted
+  to the four affected production modules.
+- 31 coverage-policy checks passed; the critical-config check also passed.
+- Two selected legacy wrappers passed 169 helper and 40 security assertions;
+  147 unrelated wrappers were skipped.
+- Server TypeScript, strict-null, quality guards, architecture checks and
+  production size budgets passed. No exhaustive local browser/coverage matrix.
+- Hermes: 99.33% lines, 95.16% functions, 82.96% branches, 98.08% statements.
+- Compatibility relay: 89.74% lines, 95.23% functions, 80.39% branches,
+  90% statements. Both now have independent critical CI floors, making 21 modules
+  across 36 explicit suites; all existing floors are preserved.
+- The server feature floor rises from 75% to 82%, using the retained complete
+  PR #1641 artifact. Other feature counters/provenance are refreshed from the
+  same artifact. This is a previous-result ratchet, not this batch's measured
+  global improvement. No collector mapping or denominator rules changed.
+
+## Acceptance still required
+
+Exact-final-head CI, complete production-coverage artifact, all 17 feature gates,
+all 21 critical floors and full Greptile review remain required before acceptance.
+Local gateway tests use deterministic transports; OAuth tests do not contact
+providers. Existing relay tests use real loopback HTTP. No live credentials,
+installed-agent/model integration, hardware validation, merge or deployment is
+claimed.
+
+---
+
 # Server lifecycle and storage boundaries — 2026-09-22
 
 ## Verified starting point

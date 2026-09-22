@@ -134,10 +134,14 @@ export async function startCompatProxyServer() {
     server.listen(port, host, () => resolve(undefined));
   });
   process.stdout.write(`Compatibility relay listening on ${host}:${port}\n`);
+  let stopping = false;
   const shutdown = signal => {
+    if (stopping) return;
+    stopping = true;
     process.stdout.write(`Compatibility relay stopping after ${signal}\n`);
-    server.close(() => process.exit(0));
-    setTimeout(() => process.exit(1), 10_000).unref();
+    const forceExit = setTimeout(() => process.exit(1), 10_000);
+    forceExit.unref();
+    server.close(() => { clearTimeout(forceExit); process.exit(0); });
   };
   process.once('SIGINT', () => shutdown('SIGINT'));
   process.once('SIGTERM', () => shutdown('SIGTERM'));
