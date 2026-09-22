@@ -149,4 +149,60 @@ describe.each(['codex', 'acp'])('%s RPC failure boundaries', kind => {
     child.stdout.write('{"id":1,"result":"ok"}\n');
     await expect(pending).resolves.toBe('ok');
   });
+
+  it('leaves no pending requests when spawning fails and allows retry', async () => {
+    const { client, child, spawnImpl } = setup(kind);
+    spawnImpl.mockReset().mockImplementationOnce(() => { throw new Error('spawn unavailable'); }).mockReturnValue(child);
+    expect(() => client.request('first', {})).toThrow('spawn unavailable');
+    expect(client.child).toBeNull(); expect(client.pending.size).toBe(0);
+    const retry = client.request('retry', {});
+    child.stdout.write('{"id":1,"result":"ok"}\n');
+    await expect(retry).resolves.toBe('ok');
+  });
+  it('rejects process error events and clears all pending timers', async () => {
+    vi.useFakeTimers();
+    const { client, child } = setup(kind);
+    const pending = client.request('ping', {}).catch(error => error);
+    const failure = new Error('process failed');
+    child.emit('error', failure);
+    expect(await pending).toBe(failure);
+    expect(client.pending.size).toBe(0); expect(vi.getTimerCount()).toBe(0);
+  });
+  it('reports signal exits and accepts repeated late exit events harmlessly', async () => {
+    const { client, child } = setup(kind);
+    const pending = client.request('ping', {}).catch(error => error);
+    child.emit('exit', null, 'SIGTERM');
+    expect((await pending).message).toContain('signal SIGTERM');
+    expect(() => child.emit('exit', null, 'SIGTERM')).not.toThrow();
+    expect(client.child).toBeNull();
+  });
+  it('rejects an RPC error without a message using the protocol fallback', async () => {
+    const { client, child } = setup(kind);
+    const pending = client.request('ping', {});
+    child.stdout.write('{"id":1,"error":{}}\n');
+    await expect(pending).rejects.toThrow('request failed');
+    expect(client.pending.size).toBe(0);
+  });
+  it('routes notifications without consuming pending request IDs', async () => {
+    const { client, child } = setup(kind);
+    const notification = vi.fn(); client.on('notification', notification);
+    const pending = client.request('ping', {});
+    child.stdout.write('  \n{"method":7}\n{"method":"progress","params":{"percent":50}}\n');
+    expect(notification).toHaveBeenCalledExactlyOnceWith({ method: 'progress', params: { percent: 50 } });
+    expect(client.pending.size).toBe(1);
+    child.stdout.write('{"id":1,"result":"done"}\n');
+    await expect(pending).resolves.toBe('done');
+  });
+  it('ignores obsolete process output while a replacement request is pending', async () => {
+    const oldChild = childProcess(), nextChild = childProcess();
+    const { client } = setup(kind, [oldChild, nextChild]);
+    const first = client.request('first', {}).catch(error => error);
+    oldChild.emit('exit', 1, null); await first;
+    const second = client.request('second', {});
+    oldChild.stdout.write('{"id":2,"result":"stale"}\n');
+    expect(client.pending.size).toBe(1);
+    nextChild.stdout.write('{"id":2,"result":"current"}\n');
+    await expect(second).resolves.toBe('current');
+  });
+
 });

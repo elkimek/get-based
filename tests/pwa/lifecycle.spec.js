@@ -92,7 +92,12 @@ test('failed update preserves the installed app; retry updates two tabs without 
     expect(await page.evaluate(() => window.APP_BUILD_ID)).toBe('build-a');
     expect(await page.evaluate(() => localStorage.getItem('pwa-retained-data'))).toBe('retained');
     await expect(page.locator('#version-update-banner')).toHaveCount(0);
-    await expect.poll(() => page.evaluate(async () => !(await navigator.serviceWorker.getRegistration()).installing)).toBe(true);
+    // Worker state and registration.installing propagate separately across
+    // browser processes. Require the slot to clear before triggering retry,
+    // using the same lifecycle budget as installation/activation below.
+    await expect.poll(() => page.evaluate(async () =>
+      (await navigator.serviceWorker.getRegistration()).installing?.state ?? 'none'
+    ), { timeout: 30_000 }).toBe('none');
     server.state.failPath = '';
     server.state.holdPath = '/css/settings.css';
     await page.evaluate(async () => {

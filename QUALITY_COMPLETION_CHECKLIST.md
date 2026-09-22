@@ -20,18 +20,20 @@ are reduced and no new whole-project percentage is claimed from local tests.
 
 ## Current batch
 
-- 51 new behavior cases: 20 TTS worker protocol/model lifecycle, 17 companion
-  HTTP boundary (including real loopback transport), 12 update-failure cases,
-  and two listener recovery cases.
+- 96 new behavior cases: 20 TTS worker and 22 STT worker protocol/model lifecycle,
+  17 companion HTTP boundary (including real loopback transport), 12 update
+  failures, two listener recoveries, 12 additional RPC lifecycle cases and
+  11 progressive-audio failure cases.
 - Fixed stale model reuse after failed disposal and late disposal clearing a
-  replacement model. Fixed listener handler leakage when port publication throws.
+  replacement model in both speech workers. Bounded MediaSource opening, provider
+  reads and decoder appends so stalled playback rejects and cleans up. Fixed listener handler leakage when port publication throws.
   Focused negative checks failed against each old implementation, then passed
   with the fixes restored.
 - Extracted the existing companion HTTP adapter without changing its request
   limits, headers, response/error semantics or abort propagation, allowing direct
   tests without starting installed agents or touching real agent credentials.
-- Expanded independent branch/function/line/statement gates from three to eleven
-  runtime modules. The explicit local suite contains 15 files; it is not the
+- Expanded independent branch/function/line/statement gates from three to twelve
+  runtime modules. The explicit local suite contains 17 files; it is not the
   exhaustive project coverage suite.
 - Pinned OpenRouter catalog responses in two additional mobile nutrition scenarios
   so provider refreshes cannot race their seeded model choices.
@@ -56,11 +58,23 @@ The retained report still has 54 unmapped executed collector ranges across 34
 files, including zero-length synthetic entries. They remain excluded rather
 than being matched speculatively. This batch makes no collector identity changes.
 
+The extension brings STT worker coverage to 91.86% branches and 98.95% lines.
+Codex RPC branch coverage increases 77.5 → 85%, ACP 80.95 → 83.33%, and voice
+playback 73.18 → 74.71% branches (79.31 → 87.35% functions). Each improvement
+has a corresponding raised committed critical gate; these are scoped metrics.
+
+The first PR #1639 CI run stopped before full coverage at Firefox's five-second
+wait for `registration.installing` to clear after a failed install. That assertion
+now reports the current worker state and uses the same 30-second lifecycle budget
+as activation, while still requiring no installing worker before retry. None of
+the offline, failed-update, two-tab activation or retained-data checks are removed.
+
 ## Verification
 
-- 248 focused cases in the expanded critical suite, enforcing all eleven modules.
+- 293 focused cases in the expanded critical suite, enforcing all twelve modules.
 - 33 additional coverage-gate/configuration/bundle checks.
-- Two changed Chromium mobile nutrition scenarios.
+- Two changed Chromium mobile nutrition scenarios, two targeted Chromium voice
+  scenarios and two repetitions of the failing Firefox PWA lifecycle scenario.
 - CheckJs, server types, strict-null ratchet, architecture checks, all 17 static
   quality guards and production budgets.
 - Final combined coverage and review on the new PR head remain CI acceptance.

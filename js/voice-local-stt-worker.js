@@ -194,11 +194,12 @@ self.addEventListener('message', async event => {
       return;
     }
     if (message.type === 'dispose') {
-      await recognizer?.dispose?.();
+      const previousRecognizer = recognizer;
       recognizer = null;
       activeModel = '';
       activeBackend = '';
       activeFallbackReason = '';
+      await previousRecognizer?.dispose?.();
       self.postMessage({ type: 'disposed', id, kind: 'stt' });
       return;
     }

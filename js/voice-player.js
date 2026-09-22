@@ -584,19 +584,21 @@ export class VoicePlayer {
 
       void (async () => {
         try {
-          await waitForMediaSourceOpen(mediaSource, lifecycle.signal);
+          await waitForPromise(waitForMediaSourceOpen(mediaSource, lifecycle.signal),
+            this.audioUnlockTimeoutMs, 'Streaming audio could not be opened.');
           if (settled) return;
           sourceBuffer = mediaSource.addSourceBuffer(mimeType);
           this.sourceBuffer = sourceBuffer;
           reader = stream.getReader();
           this.streamReader = reader;
           while (true) {
-            const { done, value } = await reader.read();
+            const { done, value } = await readStreamChunk(reader, lifecycle.signal);
             if (settled) return;
             if (done) break;
             if (!value?.byteLength) continue;
             receivedBytes += value.byteLength;
-            await appendSourceBuffer(sourceBuffer, value, lifecycle.signal);
+            await waitForPromise(appendSourceBuffer(sourceBuffer, value, lifecycle.signal),
+              120_000, 'A streamed audio segment stopped responding.');
           }
           readerDone = true;
           releaseReader();
