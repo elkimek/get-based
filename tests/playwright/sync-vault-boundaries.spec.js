@@ -32,3 +32,21 @@ test('a fresh write after invalidation persists across reload without exposing r
  });
  expect(result.identity).toEqual({ownerId:'new-fixture',mnemonic:'new synthetic fixture'});expect(JSON.stringify(result.local)).not.toContain('synthetic fixture');
 });
+test('two tabs serialize durable writes and retain a readable final identity',async({page,context})=>{
+ await context.route('**/sync-vault-second-harness',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><title>Second vault tab</title>'}));
+ const second=await context.newPage();await second.goto('/sync-vault-second-harness');
+ try {
+  await page.evaluate(async()=>{
+   let acquired;const ready=new Promise(r=>{acquired=r;});
+   window.heldLock=navigator.locks.request('getbased-evolu8-identity-write',()=>new Promise(resolve=>{window.releaseVaultLock=resolve;acquired();}));await ready;
+  });
+  for(const [tab,owner] of [[page,'tab-a'],[second,'tab-b']])await tab.evaluate(async ownerId=>{
+   const {createEvolu8IdentityVault}=await import('/js/sync-evolu8-identity-vault.js');window.concurrentWrite=createEvolu8IdentityVault().write({ownerId,mnemonic:`synthetic ${ownerId}`}).then(()=>true,error=>error.message);
+  },owner);
+  await expect.poll(()=>page.evaluate(async()=>(await navigator.locks.query()).pending.filter(x=>x.name==='getbased-evolu8-identity-write').length)).toBe(2);
+  await page.evaluate(()=>window.releaseVaultLock());
+  expect(await page.evaluate(()=>window.concurrentWrite)).toBe(true);expect(await second.evaluate(()=>window.concurrentWrite)).toBe(true);
+  const identities=await Promise.all([page,second].map(tab=>tab.evaluate(async()=>{const {createEvolu8IdentityVault}=await import('/js/sync-evolu8-identity-vault.js');return createEvolu8IdentityVault().read();})));
+  expect(identities[0]).toEqual({ownerId:'tab-b',mnemonic:'synthetic tab-b'});expect(identities[1]).toEqual(identities[0]);
+ } finally {await page.evaluate(()=>window.releaseVaultLock?.());await second.close();}
+});

@@ -4,6 +4,7 @@ import { createEvolu8IdentityVault, EVOLU8_IDENTITY_TOKEN_KEY as KEY } from '../
 let storage, values, request, db, tx, store, row, indexedDb, vault;
 const identity = {ownerId:'synthetic-owner',mnemonic:'synthetic recovery fixture'};
 beforeEach(() => {
+  vi.stubGlobal('navigator',{locks:{request:(_name,operation)=>operation()}});
   vi.useFakeTimers(); values=new Map([[KEY,'old-token']]);
   storage={getItem:vi.fn(k=>values.get(k)??null),setItem:vi.fn((k,v)=>values.set(k,v)),removeItem:vi.fn(k=>values.delete(k))};
   request={}; row={};
@@ -65,7 +66,7 @@ it('ignores inaccessible token storage without opening the database',async()=>{
   storage.getItem.mockImplementation(()=>{throw Error('denied');});await expect(vault.read()).resolves.toBeNull();expect(indexedDb.open).not.toHaveBeenCalled();
 });
 it('invalidates synchronously even when physical deletion fails',async()=>{
-  const pending=vault.invalidate();expect(values.has(KEY)).toBe(false);request.onerror();await expect(pending).resolves.toBeUndefined();
+  const pending=vault.invalidate();expect(values.has(KEY)).toBe(false);await Promise.resolve();request.onerror();await expect(pending).resolves.toBeUndefined();
 });
 it('does not delete the database record if removing the commit token fails',()=>{
   storage.removeItem.mockImplementation(()=>{throw Error('denied');});expect(()=>vault.invalidate()).toThrow('denied');expect(indexedDb.open).not.toHaveBeenCalled();
@@ -76,7 +77,7 @@ it('does not return an identity whose token changed while reading',async()=>{
 it('does not publish an in-flight write after invalidation',async()=>{
   const pending=vault.write(identity);const outcome=expect(pending).rejects.toThrow(/invalidated|superseded/);await opened();
   // A separate open request lets invalidation's deletion remain pending.
-  const deletionRequest={};indexedDb.open.mockReturnValue(deletionRequest);const deletion=vault.invalidate();await completed();await outcome;expect(values.has(KEY)).toBe(false);deletionRequest.onerror();await deletion;
+  const deletionRequest={};indexedDb.open.mockReturnValue(deletionRequest);const deletion=vault.invalidate();await completed();await outcome;expect(values.has(KEY)).toBe(false);await Promise.resolve();deletionRequest.onerror();await deletion;
 });
 it.each([null,{}, {getItem:()=>null}, {setItem:()=>{}}])('rejects writing with unavailable token storage %s',async unavailable=>{
  const isolated=createEvolu8IdentityVault({storage:unavailable,indexedDb});await expect(isolated.write(identity)).rejects.toThrow('unavailable');expect(indexedDb.open).not.toHaveBeenCalled();
@@ -89,11 +90,11 @@ it('does not publish a write after another context changes its token',async()=>{
 });
 it('does not return a read invalidated and reauthorized with the same token',async()=>{
  const pending=vault.read();await opened();const deletionRequest={};indexedDb.open.mockReturnValue(deletionRequest);
- const deletion=vault.invalidate();values.set(KEY,'old-token');await completed({version:1,token:'old-token',...identity});await expect(pending).resolves.toBeNull();deletionRequest.onerror();await deletion;
+ const deletion=vault.invalidate();values.set(KEY,'old-token');await completed({version:1,token:'old-token',...identity});await expect(pending).resolves.toBeNull();await Promise.resolve();deletionRequest.onerror();await deletion;
 });
 it('does not publish an in-flight first write after invalidation',async()=>{
  values.clear();const pending=vault.write(identity);const outcome=expect(pending).rejects.toThrow('invalidated');await opened();const deletionRequest={};indexedDb.open.mockReturnValue(deletionRequest);
- const deletion=vault.invalidate();await completed();await outcome;expect(values.has(KEY)).toBe(false);deletionRequest.onerror();await deletion;
+ const deletion=vault.invalidate();await completed();await outcome;expect(values.has(KEY)).toBe(false);await Promise.resolve();deletionRequest.onerror();await deletion;
 });
 it('clears timers and closes the database when transaction creation throws',async()=>{
  db.transaction.mockImplementation(()=>{throw Error('closed');});const pending=vault.write(identity);const outcome=expect(pending).rejects.toThrow('closed');await opened();await outcome;expect(db.close).toHaveBeenCalledOnce();expect(vi.getTimerCount()).toBe(0);
@@ -104,4 +105,14 @@ it('creates the object store only for a missing upgrade schema',async()=>{
 });
 it('does not recreate an existing store during an upgrade',async()=>{
  const pending=vault.read();request.result=db;request.onupgradeneeded();expect(db.createObjectStore).not.toHaveBeenCalled();await opened();await completed(null);await pending;
+});
+it('fails closed before writing when cross-context coordination is unavailable',async()=>{
+ const isolated=createEvolu8IdentityVault({storage,indexedDb,lockManager:null});await expect(isolated.write(identity)).rejects.toThrow('coordination is unavailable');expect(indexedDb.open).not.toHaveBeenCalled();
+});
+it('rejects a queued write invalidated before acquiring the lock',async()=>{
+ let acquire;const isolated=createEvolu8IdentityVault({storage,indexedDb,lockManager:{request:(_name,operation)=>new Promise((resolve,reject)=>{acquire=()=>Promise.resolve().then(operation).then(resolve,reject);})}});
+ const pending=isolated.write(identity);const outcome=expect(pending).rejects.toThrow('invalidated');const begin=acquire;
+ const deletion=isolated.invalidate();begin();await outcome;await Promise.resolve();expect(indexedDb.open).not.toHaveBeenCalled();
+ // Finish the separately queued deletion by denying storage access.
+ indexedDb.open.mockImplementation(()=>{throw Error('unavailable');});acquire();await deletion;
 });

@@ -3,8 +3,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   EVOLU8_IDENTITY_TOKEN_KEY,
-  createEvolu8IdentityVault,
+  createEvolu8IdentityVault as createVault,
 } from '../js/sync-evolu8-identity-vault.js';
+
+function createEvolu8IdentityVault(options) {
+  return createVault({lockManager:{request:(_name,operation)=>operation()},...options});
+}
 
 function createStorage() {
   const values = new Map();

@@ -12,9 +12,9 @@ QUALITY_REMAINING_SURFACE.md; no complete functional-coverage claim is made.
 
 ## Current combined batch
 
-101 new regression cases accumulated before publication:
+104 new regression cases: 101 accumulated before publication and three review regressions:
 
-- 39 identity-vault cases exercise open/block/timeout/late-success failures,
+- 41 identity-vault cases exercise open/block/timeout/late-success failures,
   transaction commit/abort, malformed records, inaccessible storage, invalidation
   during reads/writes and external commit-token changes.
 - 27 profile-cleanup cases exercise deletion failures and retries, delayed
@@ -22,7 +22,7 @@ QUALITY_REMAINING_SURFACE.md; no complete functional-coverage claim is made.
   preservation; six use the default database operations with fake IndexedDB.
 - 32 sync cleanup/handoff cases exercise metadata retention, dirty markers,
   exclusive OPFS cleanup locks, inaccessible/busy stores and legacy invalidation.
-- Three Chromium scenarios use real IndexedDB for invalidated reads/writes and
+- Four Chromium scenarios use real IndexedDB for invalidated reads/writes and
   persistence after reload without putting the recovery words in localStorage.
 
 The vault now rechecks the commit token before returning an identity and before
@@ -32,8 +32,9 @@ fixing them. This does not claim cross-tab atomicity across IndexedDB/localStora
 
 ## Focused local evidence
 
-- 122 relevant unit cases across seven suites passed, including 98 new cases.
-- Three new Chromium scenarios plus the existing real v7/v8 identity handoff passed.
+- 122 relevant unit cases initially passed; the review follow-up adds two unit
+  cases, with all 46 directly affected vault cases passing (100 new unit cases total).
+- Four new Chromium scenarios plus the existing real v7/v8 identity handoff passed.
 - Independent floors now cover 28 modules across 50 explicit critical suites.
   Existing floors are unchanged. Measurements (lines/functions/branches/statements):
   vault 94.50/88.88/88.52/93.16; profile cleanup 100/100/88.63/98.68;
@@ -41,6 +42,17 @@ fixing them. This does not claim cross-tab atomicity across IndexedDB/localStora
 - Check-JS, strict-null, quality, architecture, 32 coverage policy/config checks
   and existing production budgets pass. No budget increases.
 - No exhaustive local browser/coverage matrix, live providers or downloaded models.
+
+## Review follow-up
+
+Greptile reviewed all ten initial files and identified a cross-tab write race:
+a losing writer could overwrite the database record before rejecting a changed
+localStorage token. Writes now hold a Web Lock across the database commit and
+token publication; physical invalidation uses the same lock. Missing coordination
+fails closed. Per-instance revision checks still reject invalidated queued work.
+A two-tab real-browser regression verifies both writes settle and retain the same
+readable final identity. Two unit cases cover unavailable locks and invalidation
+while queued. Vault coverage is now 94.89/90/89.39/93.65; old floors remain intact.
 
 ## Acceptance required
 
