@@ -8,6 +8,12 @@ export default defineConfig({
   test: {
     ...base.test,
     include: [
+      'tests/agent-process-lifecycle.test.js',
+      'tests/agent-subprocess-lifecycle.test.js',
+      'tests/agent-one-shot-failures.test.js',
+      'tests/agent-private-files.test.js',
+      'tests/claude-agent-client.test.js',
+      'tests/openclaw-agent-client.test.js',
       'tests/agent-draft-claims.test.js',
       'tests/agent-draft-routing.test.js',
       'tests/agent-draft-persistence.test.js',
@@ -34,6 +40,9 @@ export default defineConfig({
         'js/voice-player.js',
         'js/voice-local-tts-worker.js',
         'js/voice-local-stt-worker.js',
+        'lib/agent-process-lifecycle.js',
+        'lib/claude-agent-client.js',
+        'lib/openclaw-agent-client.js',
         'lib/acp-agent-client.js',
         'lib/codex-app-server-client.js',
         'lib/companion-http.js',
@@ -44,6 +53,9 @@ export default defineConfig({
       reportsDirectory: 'tests/.critical-coverage',
       reporter: ['json-summary', 'json', 'text'],
       thresholds: {
+        'lib/agent-process-lifecycle.js': { lines: 100, functions: 91, branches: 100, statements: 100 },
+        'lib/claude-agent-client.js': { lines: 100, functions: 100, branches: 91, statements: 100 },
+        'lib/openclaw-agent-client.js': { lines: 96, functions: 90, branches: 84, statements: 93 },
         'js/voice-local-stt-worker.js': { lines: 98, functions: 83, branches: 91, statements: 99 },
         'js/voice-player.js': { lines: 92, functions: 87, branches: 74, statements: 88 },
         'js/voice-local-tts-worker.js': { lines: 99, functions: 90, branches: 95, statements: 99 },

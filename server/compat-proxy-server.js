@@ -6,6 +6,7 @@
 import { createServer } from 'node:http';
 import { resolve as resolvePath } from 'node:path';
 import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
 
 const DEFAULT_BIND_HOST = '0.0.0.0';
@@ -60,13 +61,7 @@ async function writeWebResponse(outgoing, response) {
     return;
   }
   try {
-    await new Promise((resolve, reject) => {
-      const body = Readable.fromWeb(response.body);
-      body.once('error', reject);
-      outgoing.once('error', reject);
-      outgoing.once('finish', resolve);
-      body.pipe(outgoing);
-    });
+    await pipeline(Readable.fromWeb(response.body), outgoing);
   } catch {
     if (!outgoing.destroyed) outgoing.destroy();
   }

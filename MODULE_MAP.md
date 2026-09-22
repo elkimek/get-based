@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 785 |
-| Internal import edges | 3316 |
+| Modules | 786 |
+| Internal import edges | 3318 |
 | Dynamic internal edges | 113 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1494,19 +1494,20 @@ Node-only policy and transport code shared by hosted runtimes.
 
 </details>
 
-<details><summary><code>agent</code> family — 5 modules</summary>
+<details><summary><code>agent</code> family — 6 modules</summary>
 
 - [`lib/agent-host-boundary.js`](lib/agent-host-boundary.js) → [`shared/agent-tool-contract.js`](shared/agent-tool-contract.js)
 - [`lib/agent-host-external-turn.js`](lib/agent-host-external-turn.js) → no in-scope imports
 - [`lib/agent-host-service.js`](lib/agent-host-service.js) → [`lib/agent-host-boundary.js`](lib/agent-host-boundary.js), [`lib/agent-host-external-turn.js`](lib/agent-host-external-turn.js), [`lib/companion-management.js`](lib/companion-management.js), [`shared/agent-host-protocol.js`](shared/agent-host-protocol.js)
 - [`lib/agent-host-storage.js`](lib/agent-host-storage.js) → no in-scope imports
 - [`lib/agent-mcp-bridge.js`](lib/agent-mcp-bridge.js) → no in-scope imports
+- [`lib/agent-process-lifecycle.js`](lib/agent-process-lifecycle.js) → no in-scope imports
 
 </details>
 
 <details><summary><code>claude</code> family — 1 module</summary>
 
-- [`lib/claude-agent-client.js`](lib/claude-agent-client.js) → no in-scope imports
+- [`lib/claude-agent-client.js`](lib/claude-agent-client.js) → [`lib/agent-process-lifecycle.js`](lib/agent-process-lifecycle.js)
 
 </details>
 
@@ -1569,7 +1570,7 @@ Node-only policy and transport code shared by hosted runtimes.
 
 <details><summary><code>openclaw</code> family — 1 module</summary>
 
-- [`lib/openclaw-agent-client.js`](lib/openclaw-agent-client.js) → [`lib/read-bounded-file.js`](lib/read-bounded-file.js)
+- [`lib/openclaw-agent-client.js`](lib/openclaw-agent-client.js) → [`lib/agent-process-lifecycle.js`](lib/agent-process-lifecycle.js), [`lib/read-bounded-file.js`](lib/read-bounded-file.js)
 
 </details>
 

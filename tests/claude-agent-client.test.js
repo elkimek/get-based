@@ -67,3 +67,23 @@ describe('Claude Agent adapter', () => {
     expect(existsSync(promptPath)).toBe(false);
   });
 });
+
+describe('Claude event protocol boundaries', () => {
+  it.each([null, {}, { type: 'unknown' }, { type: 'stream_event' }, { type: 'stream_event', event: { type: 'content_block_delta' } }])('ignores unsupported or incomplete event %j', message => {
+    expect(extractClaudeStreamEvent(message)).toBeNull();
+  });
+  it('normalizes missing session metadata and non-text deltas', () => {
+    expect(extractClaudeStreamEvent({ type: 'system', subtype: 'init', session_id: 42 }))
+      .toEqual({ type: 'session', sessionId: '', model: '' });
+    expect(extractClaudeStreamEvent({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 42 } } }))
+      .toEqual({ type: 'text_delta', delta: '' });
+  });
+  it.each([{}, { input_tokens: 4, output_tokens: 9 }])('reports usage with defaults for missing counters: %j', usage => {
+    expect(extractClaudeStreamEvent({ type: 'stream_event', event: { type: 'message_delta', usage } }))
+      .toEqual({ type: 'usage', inputTokens: usage.input_tokens || 0, outputTokens: usage.output_tokens || 0 });
+  });
+  it.each([{ result: 'denied' }, { error: 'denied' }, {}])('reports an error result without success text: %j', details => {
+    expect(extractClaudeStreamEvent({ type: 'result', is_error: true, ...details }))
+      .toMatchObject({ type: 'error', message: details.result || details.error || '', resultText: '', finishReason: '' });
+  });
+});

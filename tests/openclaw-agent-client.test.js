@@ -182,3 +182,18 @@ describe('OpenClaw agent adapter', () => {
     expect(readdirSync(cwd)).toEqual([]);
   });
 });
+
+it.each(['not-json', { models: [] }, { models: [{ key: 'missing', available: false }] }])('clears a failed model discovery cache and permits retry: %j', failure => {
+  const cwd = fixture();
+  const spawnImpl = vi.fn()
+    .mockImplementationOnce((_command, _args, options) => fakeChild(failure, options.stdio))
+    .mockImplementationOnce((_command, _args, options) => fakeChild(modelPayload, options.stdio));
+  const client = new OpenClawAgentClient({ command: 'fixture', cwd, env: { HOME: cwd }, spawnImpl });
+  return (async () => {
+    await expect(client.getModelCatalog()).rejects.toThrow();
+    expect(client.modelCatalogPromise).toBeNull();
+    await expect(client.getModelCatalog()).resolves.toHaveLength(2);
+    expect(spawnImpl).toHaveBeenCalledTimes(2);
+    expect(readdirSync(cwd)).toEqual([]);
+  })();
+});

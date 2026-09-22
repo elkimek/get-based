@@ -1,10 +1,11 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createCompatProxyServer } from '../server/compat-proxy-server.js';
 
 const servers = new Set();
 
 afterEach(async () => {
+  for (const server of servers) server.closeAllConnections();
   await Promise.all(Array.from(servers, server => new Promise(resolve => server.close(resolve))));
   servers.clear();
 });
@@ -58,4 +59,61 @@ describe('compatibility proxy Node adapter', () => {
       body: { operation: 'test' },
     });
   });
+});
+
+
+it('cancels the upstream request and response when the browser disconnects mid-stream', async () => {
+  let signal;
+  const cancel = vi.fn();
+  const port = await listen(createCompatProxyServer({ proxyHandler: request => {
+    signal = request.signal;
+    return new Response(new ReadableStream({
+      start(controller) { controller.enqueue(new TextEncoder().encode('first chunk')); }, cancel,
+    }));
+  } }));
+  const response = await fetch(`http://127.0.0.1:${port}/api/proxy`);
+  const reader = response.body.getReader();
+  expect((await reader.read()).value.byteLength).toBeGreaterThan(0);
+  await reader.cancel();
+  await vi.waitFor(() => expect(signal.aborted).toBe(true));
+  await vi.waitFor(() => expect(cancel).toHaveBeenCalledOnce());
+});
+
+it.each(['throw', 'reject'])('masks private handler failures by %s', async mode => {
+  const port = await listen(createCompatProxyServer({ proxyHandler: () => {
+    if (mode === 'throw') throw new Error('private credential');
+    return Promise.reject(new Error('private credential'));
+  } }));
+  const response = await fetch(`http://127.0.0.1:${port}/api/proxy`);
+  expect(response.status).toBe(500);
+  expect(response.headers.get('cache-control')).toBe('no-store');
+  expect(await response.json()).toEqual({ error: 'Compatibility relay failed' });
+});
+it.each(['GET', 'HEAD'])('handles body-free %s responses', async method => {
+  const handler = vi.fn(request => {
+    expect(request.body).toBeNull(); return new Response(null, { status: 204 });
+  });
+  const port = await listen(createCompatProxyServer({ proxyHandler: handler }));
+  const response = await fetch(`http://127.0.0.1:${port}/api/proxy`, { method });
+  expect(response.status).toBe(204); expect(await response.text()).toBe('');
+  expect(handler).toHaveBeenCalledOnce();
+});
+it('closes the connection on an upstream stream error after headers', async () => {
+  const port = await listen(createCompatProxyServer({ proxyHandler: () => new Response(new ReadableStream({
+    start(controller) { controller.error(new Error('secret transport failure')); },
+  })) }));
+  await expect(fetch(`http://127.0.0.1:${port}/api/proxy`).then(response => response.text())).rejects.toThrow();
+});
+it('uses only the first forwarded host and protocol and preserves the query', async () => {
+  let url;
+  const port = await listen(createCompatProxyServer({ proxyHandler: request => { url = request.url; return new Response(null, { status: 204 }); } }));
+  await fetch(`http://127.0.0.1:${port}/api/proxy?provider=test`, { headers: {
+    'x-forwarded-host': 'first.test, second.test', 'x-forwarded-proto': 'https, http',
+  } });
+  expect(url).toBe('https://first.test/api/proxy?provider=test');
+});
+it('rejects malformed forwarded origins without invoking the handler', async () => {
+  const handler = vi.fn(); const port = await listen(createCompatProxyServer({ proxyHandler: handler }));
+  const response = await fetch(`http://127.0.0.1:${port}/api/proxy`, { headers: { 'x-forwarded-host': '[' } });
+  expect(response.status).toBe(500); expect(handler).not.toHaveBeenCalled();
 });

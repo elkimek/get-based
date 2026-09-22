@@ -2,9 +2,9 @@ import { expect, it } from 'vitest';
 import config from '../vitest.critical.config.js';
 
 it('keeps the critical local coverage command bounded to explicit test and source files', () => {
-  expect(config.test.include).toHaveLength(17);
+  expect(config.test.include).toHaveLength(23);
   expect(config.test.include.every(file => file.startsWith('tests/') && file.endsWith('.test.js') && !/[?*]/.test(file))).toBe(true);
-  expect(config.test.coverage.include).toHaveLength(12);
+  expect(config.test.coverage.include).toHaveLength(15);
   expect(config.test.coverage.include.every(file => /^(?:js\/|lib\/|service-worker-runtime\.js$)/.test(file) && !/[?*]/.test(file))).toBe(true);
   expect(Object.keys(config.test.coverage.thresholds).sort()).toEqual([...config.test.coverage.include].sort());
   for (const file of config.test.coverage.include) {

@@ -1,3 +1,82 @@
+# Companion transport and CLI coverage — 2026-09-22
+
+## Verified starting point
+
+PR [#1639](https://github.com/elkimek/get-based/pull/1639) was squash merged as
+`d386f3751b62c0787a5c6bc55d21c48ebe970cc3` after explicit administrator-override
+authorization. Its reviewed head was `a37de6085239cf841a4523233ee654a85618dd32`.
+[Final CI](https://github.com/elkimek/get-based/actions/runs/35701715003) passed:
+2,249 unit cases, 727 Chromium cases (9 skipped), critical coverage and all 17
+feature gates. Greptile rated the final head 5/5 with no actionable findings.
+The complete report measured 14,341/16,100 functions (89.0745%) and 83.1529%
+bytes against synthetic merge `3bcd7868a78b67c58e28055dc50256a06dfc809b`.
+Optional model/release jobs were skipped; these were not acceptance evidence.
+
+## Current local batch
+
+73 new regression cases across CLI protocol and cancellation, private-file
+creation races, child-process failures, real Node subprocesses and compatibility
+proxy transport. The seven focused suites contain 86 cases including 13 existing
+ones. No installed model CLI, credentials, model downloads or hardware are used.
+
+- Both one-shot adapters reject pre-cancelled work without spawning and settle
+  active cancellation/restart even when a child does not acknowledge SIGTERM.
+  Process and stdin failures are observed immediately. Claude process failures
+  interrupt a stalled stdout iterator; failed input writes no longer orphan the
+  tracked turn.
+- Await all private-file writes/opens before cleaning up a failed preparation.
+  Retain and close successful sibling handles after another open fails. Close
+  handles before unlinking, and retry cleanup when child stdio closes for systems
+  that keep inherited files locked. Cancellation during preparation prevents spawn.
+- Preserve Claude streamed/final text semantics, resumed sessions and restrictions;
+  verify OpenClaw failed model discovery can recover on retry.
+- Proxy stream piping now destroys/cancels the upstream body when its downstream
+  connection closes. Real loopback tests also cover failed handlers, invalid
+  origins, stream errors, forwarded origins and body-free responses.
+- The failure tests reproduced hangs, unhandled rejection, private-file races and
+  a missing upstream cancellation before their fixes. Four tests additionally use
+  actual small Node child processes for successful output and SIGTERM cancellation.
+
+## Scoped measurements and gates
+
+| Module | Functions | Branches | Lines | Statements |
+| --- | ---: | ---: | ---: | ---: |
+| Process lifecycle | 91.66% | 100% | 100% | 100% |
+| Claude adapter | 100% | 91.35% | 100% | 100% |
+| OpenClaw adapter | 90.32% | 84.93% | 96.85% | 93.25% |
+
+Added independent floors for these three modules, preserving every existing
+critical floor. The bounded critical configuration now lists 23 suites and 15
+source modules. Only the relevant added suites were run locally; CI runs their
+combination with the previous critical suites.
+
+Global function floor increases 88 → 89 and knowledge/voice 81 → 85, using the
+retained complete PR #1639 report. All 17 feature floors were revalidated against
+that report, and its head/run/synthetic-merge provenance is retained. These floor
+changes reflect the merged batch, not a new whole-project local measurement.
+
+Local verification: 86 focused cases with scoped coverage, 61 related host,
+bundle and coverage-policy cases, server typecheck, strict-null ratchet,
+architecture generation/check, 17 static quality gates, production size budgets
+and diff whitespace checks passed. No exhaustive local browser/coverage run.
+
+## Remaining acceptance and limits
+
+Await exact-head CI, complete production coverage and Greptile on this batch.
+Do not substitute previous-head checks. The proxy module's focused measurement
+is 57.14% functions / 67.34% branches because startup, process-signal orchestration
+and lazy default-handler loading remain outside this adapter test scope. Its
+production denominator is preserved. The previous complete report's 55 unmapped
+ranges remain excluded; this batch changes no collector matching rules.
+
+Cancellation requests SIGTERM and settles the caller; it cannot guarantee death
+of an uncooperative third-party process. Deferred cleanup retries once on close.
+The real subprocess fixtures prove Node transport behavior, not actual installed
+agent compatibility or Windows filesystem semantics. No hardware/model coverage
+claim is made.
+
+---
+
 # Runtime coverage hardening — 2026-09-22
 
 ## Verified starting point

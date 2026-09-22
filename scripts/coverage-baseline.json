@@ -1,11 +1,11 @@
 {
-  "minimumFunctionPct": 88,
-  "referenceFunctionPct": 88.85506616139654,
-  "referenceCommit": "565171599e57bfb18d3d23f3f912d88c1978e6ca",
+  "minimumFunctionPct": 89,
+  "referenceFunctionPct": 89.07453416149067,
+  "referenceCommit": "3bcd7868a78b67c58e28055dc50256a06dfc809b",
   "measuredAt": "2026-09-22",
   "metric": "combined Vitest/Node and Playwright V8 function coverage",
-  "referenceHead": "0ebfa8235e4d8aeff2dadbcf3046a95f9ee5027a",
-  "referenceRun": "https://github.com/elkimek/get-based/actions/runs/35694525579",
+  "referenceHead": "a37de6085239cf841a4523233ee654a85618dd32",
+  "referenceRun": "https://github.com/elkimek/get-based/actions/runs/35701715003",
   "featureFloorPolicy": "Round the retained combined CI function percentage down to a whole percentage point. Mapping corrections may raise execution counts; no thresholds are reduced.",
   "features": {
     "PWA runtime": {
@@ -15,12 +15,12 @@
     },
     "Server and companion": {
       "minimumFunctionPct": 72,
-      "referenceCalled": 584,
-      "referenceTotal": 807
+      "referenceCalled": 590,
+      "referenceTotal": 810
     },
     "Knowledge and voice": {
-      "minimumFunctionPct": 81,
-      "referenceCalled": 603,
+      "minimumFunctionPct": 85,
+      "referenceCalled": 637,
       "referenceTotal": 741
     },
     "Chat": {
@@ -35,7 +35,7 @@
     },
     "Light and environment": {
       "minimumFunctionPct": 88,
-      "referenceCalled": 1856,
+      "referenceCalled": 1855,
       "referenceTotal": 2092
     },
     "Sync": {
@@ -45,12 +45,12 @@
     },
     "Shell and shared browser utilities": {
       "minimumFunctionPct": 89,
-      "referenceCalled": 2866,
+      "referenceCalled": 2865,
       "referenceTotal": 3211
     },
     "Wallet and providers": {
       "minimumFunctionPct": 90,
-      "referenceCalled": 1112,
+      "referenceCalled": 1113,
       "referenceTotal": 1234
     },
     "Agents": {
@@ -65,7 +65,7 @@
     },
     "Wearables and body": {
       "minimumFunctionPct": 92,
-      "referenceCalled": 1542,
+      "referenceCalled": 1541,
       "referenceTotal": 1670
     },
     "Import and export": {
