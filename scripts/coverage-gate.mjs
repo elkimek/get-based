@@ -53,3 +53,28 @@ export function enforceFunctionCoverage(actualFunctionPct, gate) {
     margin: actual - gate.minimum,
   };
 }
+
+// Validate every feature independently so a global increase cannot mask a loss
+// in a smaller feature. Missing/new groups require an explicit baseline review.
+export function enforceFeatureCoverage(features, baseline) {
+  const floors = baseline?.features;
+  if (!floors || typeof floors !== 'object' || Array.isArray(floors) || !Object.keys(floors).length) {
+    throw new Error('Feature coverage baseline is required.');
+  }
+  if (!Array.isArray(features)) throw new Error('Measured feature coverage is required.');
+  const seen = new Set();
+  const results = features.map(feature => {
+    const { name, fnTotal, fnCalled } = feature;
+    if (seen.has(name)) throw new Error(`Duplicate coverage feature: ${name}`);
+    seen.add(name);
+    if (!Object.hasOwn(floors, name)) throw new Error(`Missing coverage baseline for feature: ${name}`);
+    if (!Number.isSafeInteger(fnTotal) || fnTotal <= 0 || !Number.isSafeInteger(fnCalled)
+      || fnCalled < 0 || fnCalled > fnTotal) throw new Error(`Invalid function counts for feature: ${name}`);
+    const minimum = parsePercentage(floors[name].minimumFunctionPct, `Feature ${name} minimumFunctionPct`);
+    return { name, ...enforceFunctionCoverage(100 * fnCalled / fnTotal, { minimum, source: `feature: ${name}` }) };
+  });
+  for (const name of Object.keys(floors)) {
+    if (!seen.has(name)) throw new Error(`Missing measured coverage feature: ${name}`);
+  }
+  return results;
+}

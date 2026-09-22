@@ -14,7 +14,7 @@ evidence. A high global percentage cannot replace the following assertions.
 | Notes and agent proposals | Do not announce success before commit; preserve records and drafts on failed writes; interrupted proposal application remains non-actionable until reviewed | `tests/notes-safety.test.js`, `tests/agent-draft-persistence.test.js`, corresponding focused browser specs |
 | Manual biometrics | Writes, tombstones, and migration metadata stay with the originating profile; failed deletion intent preserves wearable rows | `tests/manual-profile-boundaries.test.js`, `tests/manual-heart-rate-deletion.test.js`, `tests/playwright/manual-profile-persistence.spec.js` |
 | Light context | Read total vitamin D from canonical entries with units; do not substitute D3 or retain another profile's values | `tests/lab-vitamin-d-context.test.js`, `tests/test-light-ai-renders.js` |
-| Knowledge and voice | Actual model inference, meaningful search ordering and cached reload; actual speech round trip | Both selected WASM scenarios passed locally; manual CI workflow is prepared but unrun |
+| Knowledge and voice | Actual model inference, meaningful search ordering and cached reload; actual speech round trip | Both selected WASM scenarios passed in release-evidence CI on PR #1637 head `82f025da` |
 
 These behavioral tests remain independently failing assertions in CI, regardless
 of aggregate coverage. Keep local runs limited to the affected rows.
@@ -27,12 +27,26 @@ The `production-coverage` artifact retains all file results, 17 feature groups,
 unmapped collector ranges, commit SHA and working-tree status. Feature groups are
 filename-based review aids, not architectural boundaries or branch coverage.
 
-The existing 79.50% function floor is unchanged. The expanded denominator and
-function identity correction mean old percentages are not directly comparable.
-On the first full CI measurement, inspect unmapped ranges and uncovered critical
-functions before proposing measured feature floors. Do not invent thresholds,
-lower the floor to make CI green, or claim the narrow local sample is a baseline.
-CI may require further test work to satisfy the unchanged floor.
+The global 79.50% function floor remains unchanged. The retained complete CI
+report from [run 35620728573](https://github.com/elkimek/get-based/actions/runs/35620728573)
+measured 88.24% function execution and 82.99% source-byte coverage on PR #1637
+head `82f025da` (synthetic merge commit `86131497`). These are execution metrics,
+not proof that all behaviors or branches are protected.
+
+`scripts/coverage-baseline.json` records the source run, head, report commit and
+called/total counts for every feature. Each feature floor is its measured function
+percentage rounded down to a whole percentage point. All 17 groups must be present;
+missing, duplicate, newly unbaselined or malformed groups fail closed. Another
+feature's improvement cannot compensate for a regression. Review changes to feature
+classification and baselines explicitly; do not lower floors just to pass CI.
+
+Collector mapping accepts exact AST name spans only for Istanbul and recognizes
+an indented closing-brace line boundary. The original report had 270 unmapped
+executed ranges; these rules recognize 216 of those ranges when interpreted as
+Istanbul locations. This is diagnostic replay, not a new whole-project measurement:
+some functions were already counted from another collector. The remaining ranges
+stay visible and excluded rather than being attributed by broad overlap. Fresh
+combined CI must establish the new measured result.
 
 ## Real integration boundary
 
@@ -44,7 +58,8 @@ Dispatch deliberately authorizes model downloads on the CI runner. It is not
 proof of WebGPU, larger Whisper tiers, provider billing or live CLI compatibility.
 Those remain separate release evidence requiring appropriate hardware/accounts.
 The two individual small WASM scenarios were run locally in the follow-on goal.
-No workflow dispatch, larger voice model or GPU weight download was performed.
+The release-evidence workflow subsequently passed both WASM scenarios on PR #1637.
+Larger voice models, GPU execution and paid providers remain separate acceptance.
 
 ## Critical branch floors
 
@@ -58,7 +73,7 @@ and retains its summary artifact. A negative run containing only journal tests
 fails the proposal and note floors, demonstrating missing tests cannot pass.
 The bounded-config regression prevents inheritance of the broad test include glob.
 These are selected critical module gates, not complete per-feature global floors.
-Global feature rebaselining still requires the first exact-revision full CI report.
+The separate feature floors above use the retained complete CI report.
 
 ## Security triage and remediation: CodeQL alert 120
 
@@ -74,8 +89,8 @@ replaces implicit reuse on a configured-port conflict with an actionable conflic
 message; stop the other process or select another port. Eight focused lifecycle
 tests pass, including no fetch/token disclosure on conflict and normal startup.
 
-GitHub has not rescanned this local change. The remote alert was not dismissed or
-suppressed, and is not described as closed. Other same-user filesystem/process
+GitHub reports alert 120 as fixed as of 2026-09-22 05:10:44 UTC after the merge;
+it was not dismissed or suppressed. Other same-user filesystem/process
 trust assumptions remain; removing this probe is not a complete local-host threat
 model or an authenticated transport redesign.
 

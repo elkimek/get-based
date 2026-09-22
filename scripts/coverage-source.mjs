@@ -35,12 +35,17 @@ export function sourceFunctions(source, file = 'source.js') {
     if (ts.isFunctionLike(node) && node.body) {
       let body = node.body;
       while (ts.isParenthesizedExpression(body)) body = body.expression;
+      const closingLineStart = source.lastIndexOf('\n', body.end - 2) + 1;
+      const indentedClosingBrace = ts.isBlock(body)
+        && /^[ \t\r]*$/.test(source.slice(closingLineStart, body.end - 1));
       functions.push({
         start: node.getStart(ast), end: node.end,
         bodyStart: body.getStart(ast), bodyEnd: body.end,
+        nameStart: node.name?.getStart(ast), nameEnd: node.name?.end,
         // Istanbul's block location ends before the closing brace; expression
         // bodies can omit surrounding parentheses. V8 includes the full end.
-        collectorEnds: [...new Set([node.end, body.end, ...(ts.isBlock(body) ? [body.end - 1] : [])])],
+        collectorEnds: [...new Set([node.end, body.end, ...(ts.isBlock(body) ? [body.end - 1] : []),
+          ...(indentedClosingBrace ? [closingLineStart] : [])])],
         name: node.name?.getText(ast) || '(anonymous)',
       });
     }
@@ -50,10 +55,13 @@ export function sourceFunctions(source, file = 'source.js') {
   return functions;
 }
 
-export function matchSourceFunction(functions, start, end) {
+export function matchSourceFunction(functions, start, end, collector = 'v8') {
   // Require the end of the actual function/body. General overlap can mistake
   // a containing script or outer function for a nested callback.
-  return functions.filter(fn => fn.collectorEnds.includes(end) && start >= fn.start && start <= fn.bodyStart)
+  return functions.filter(fn => (fn.collectorEnds.includes(end) && start >= fn.start && start <= fn.bodyStart)
+    // Istanbul can map an inline function only to its declaration name. This
+    // exact AST span is safe; never accept arbitrary signature/body overlap.
+    || (collector === 'istanbul' && start === fn.nameStart && end === fn.nameEnd))
     .sort((a, b) => b.start - a.start)[0] || null;
 }
 

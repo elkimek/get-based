@@ -1,7 +1,97 @@
 {
   "minimumFunctionPct": 79.5,
-  "referenceFunctionPct": 80.68,
-  "referenceCommit": "b634cb58",
-  "measuredAt": "2026-07-26",
-  "metric": "combined Vitest/Node and Playwright V8 function coverage"
+  "referenceFunctionPct": 88.24370531551135,
+  "referenceCommit": "861314971a12e0c711320ed9269e7221c0ad4316",
+  "measuredAt": "2026-09-21",
+  "metric": "combined Vitest/Node and Playwright V8 function coverage",
+  "referenceHead": "82f025da171751bbdb90c936db17d9356f4aedee",
+  "referenceRun": "https://github.com/elkimek/get-based/actions/runs/35620728573",
+  "featureFloorPolicy": "Round the retained combined CI function percentage down to a whole percentage point. Mapping corrections may raise execution counts; no thresholds are reduced.",
+  "features": {
+    "PWA runtime": {
+      "minimumFunctionPct": 56,
+      "referenceCalled": 25,
+      "referenceTotal": 44
+    },
+    "Server and companion": {
+      "minimumFunctionPct": 64,
+      "referenceCalled": 516,
+      "referenceTotal": 804
+    },
+    "Knowledge and voice": {
+      "minimumFunctionPct": 79,
+      "referenceCalled": 582,
+      "referenceTotal": 732
+    },
+    "Chat": {
+      "minimumFunctionPct": 84,
+      "referenceCalled": 880,
+      "referenceTotal": 1047
+    },
+    "Nutrition": {
+      "minimumFunctionPct": 86,
+      "referenceCalled": 755,
+      "referenceTotal": 875
+    },
+    "Light and environment": {
+      "minimumFunctionPct": 88,
+      "referenceCalled": 1855,
+      "referenceTotal": 2092
+    },
+    "Sync": {
+      "minimumFunctionPct": 89,
+      "referenceCalled": 773,
+      "referenceTotal": 867
+    },
+    "Shell and shared browser utilities": {
+      "minimumFunctionPct": 89,
+      "referenceCalled": 2865,
+      "referenceTotal": 3211
+    },
+    "Wallet and providers": {
+      "minimumFunctionPct": 90,
+      "referenceCalled": 1111,
+      "referenceTotal": 1234
+    },
+    "Agents": {
+      "minimumFunctionPct": 90,
+      "referenceCalled": 164,
+      "referenceTotal": 182
+    },
+    "Genetics": {
+      "minimumFunctionPct": 90,
+      "referenceCalled": 187,
+      "referenceTotal": 207
+    },
+    "Wearables and body": {
+      "minimumFunctionPct": 92,
+      "referenceCalled": 1541,
+      "referenceTotal": 1670
+    },
+    "Import and export": {
+      "minimumFunctionPct": 92,
+      "referenceCalled": 1130,
+      "referenceTotal": 1218
+    },
+    "Profile and storage": {
+      "minimumFunctionPct": 92,
+      "referenceCalled": 702,
+      "referenceTotal": 755
+    },
+    "Biology scores": {
+      "minimumFunctionPct": 96,
+      "referenceCalled": 575,
+      "referenceTotal": 597
+    },
+    "Labs and markers": {
+      "minimumFunctionPct": 96,
+      "referenceCalled": 523,
+      "referenceTotal": 540
+    },
+    "Shared contracts": {
+      "minimumFunctionPct": 100,
+      "referenceCalled": 10,
+      "referenceTotal": 10
+    }
+  }
 }

@@ -61,6 +61,24 @@ describe('source function identity', () => {
     const start = source.lastIndexOf('{');
     expect(matchSourceFunction(functions, start, source.lastIndexOf('}') + 1)).toEqual(functions[1]);
   });
+  it('matches a closing-brace line boundary without accepting arbitrary body ranges', () => {
+    const source = 'class A {\n  run() {\n    return 1;\n  }\n  other() { return 2; }\n}';
+    const functions = sourceFunctions(source);
+    const start = source.indexOf('{', source.indexOf('run()'));
+    const end = source.indexOf('  }');
+    expect(matchSourceFunction(functions, start, end, 'istanbul')).toEqual(functions[0]);
+    expect(matchSourceFunction(functions, start, source.indexOf('return 1') + 8, 'istanbul')).toBeNull();
+    expect(matchSourceFunction(functions, 0, end, 'istanbul')).toBeNull();
+  });
+  it('accepts only an exact Istanbul declaration name, never a V8 range or sibling', () => {
+    const source = 'function same() { return 1; } const b = { same() { return 2; } };';
+    const functions = sourceFunctions(source);
+    const start = source.lastIndexOf('same');
+    expect(matchSourceFunction(functions, start, start + 4, 'istanbul')).toEqual(functions[1]);
+    expect(matchSourceFunction(functions, start, start + 4)).toBeNull();
+    expect(matchSourceFunction(functions, start, start + 3, 'istanbul')).toBeNull();
+    expect(matchSourceFunction(functions, 0, 0, 'istanbul')).toBeNull();
+  });
   it('maps real V8 execution to only the called same-named method', async () => {
     const source = '(() => { const a = { run() { return 1; } }; const b = { run() { return 2; } }; return b.run(); })();';
     // A separate process avoids stopping Vitest's own V8 coverage collector.

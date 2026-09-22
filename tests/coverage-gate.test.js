@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   enforceFunctionCoverage,
+  enforceFeatureCoverage,
   resolveCoverageMinimum,
 } from '../scripts/coverage-gate.mjs';
 import {
@@ -112,5 +113,25 @@ describe('browser coverage model', () => {
 
     expect(isTopLevelScriptFunction(topLevel, 0, 100)).toBe(true);
     expect(isTopLevelScriptFunction(anonymousCallback, 1, 100)).toBe(false);
+  });
+});
+
+describe('per-feature coverage gates', () => {
+  const baseline = { features: { Chat: { minimumFunctionPct: 80 }, Sync: { minimumFunctionPct: 90 } } };
+  const features = [{ name: 'Chat', fnCalled: 8, fnTotal: 10 }, { name: 'Sync', fnCalled: 9, fnTotal: 10 }];
+  it('passes exactly at each floor using counts, not a supplied percentage', () => {
+    expect(enforceFeatureCoverage(features.map(f => ({ ...f, fnPct: 0 })), baseline)).toHaveLength(2);
+  });
+  it('fails a feature regression even when another feature improves', () => {
+    expect(() => enforceFeatureCoverage([{ ...features[0], fnCalled: 10 }, { ...features[1], fnCalled: 8 }], baseline)).toThrow('feature: Sync');
+  });
+  it('rejects missing, duplicated and newly unbaselined feature groups', () => {
+    expect(() => enforceFeatureCoverage(features.slice(0, 1), baseline)).toThrow('Missing measured');
+    expect(() => enforceFeatureCoverage([...features, features[0]], baseline)).toThrow('Duplicate');
+    expect(() => enforceFeatureCoverage([...features, { ...features[0], name: 'New' }], baseline)).toThrow('Missing coverage baseline');
+    expect(() => enforceFeatureCoverage(features, {})).toThrow('baseline is required');
+  });
+  it.each([0, -1, NaN, 1.5])('rejects invalid denominators: %s', fnTotal => {
+    expect(() => enforceFeatureCoverage([{ ...features[0], fnTotal }], baseline)).toThrow('Invalid function counts');
   });
 });

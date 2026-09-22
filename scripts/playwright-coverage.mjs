@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url';
 import { execFileSync } from 'node:child_process';
 import { chromium } from 'playwright';
 import { runBrowserScript } from '../tests/playwright/browser-script-runner.js';
-import { enforceFunctionCoverage, resolveCoverageMinimum } from './coverage-gate.mjs';
+import { enforceFunctionCoverage, enforceFeatureCoverage, resolveCoverageMinimum } from './coverage-gate.mjs';
 import { isProductionSource, productionSources, sourceFunctions, matchSourceFunction, summarizeFeatures } from './coverage-source.mjs';
 import { renderCoverageMarkdown, renderCoverageHtml } from './coverage-report.mjs';
 import {
@@ -183,9 +183,9 @@ function addCoveredRanges(metrics, ranges) {
   }
 }
 
-function addFunction(metrics, key, name, called) {
+function addFunction(metrics, key, name, called, collector = 'v8') {
   const [start, end] = key.split(':').map(Number);
-  const sourceFunction = matchSourceFunction(metrics.functionIndex, start, end);
+  const sourceFunction = matchSourceFunction(metrics.functionIndex, start, end, collector);
   const targetKey = sourceFunction ? `${sourceFunction.start}:${sourceFunction.end}` : key;
   const existing = metrics.functions.get(targetKey);
   if (existing) {
@@ -282,7 +282,7 @@ function readVitestCoverageModel() {
     for (const [id, fn] of Object.entries(fileCoverage.fnMap || {})) {
       if (!fn.name) continue;
       const range = locToRange(source, fn.loc, offsets) || locToRange(source, fn.decl, offsets) || { start: 0, end: 0 };
-      addFunction(metrics, `${range.start}:${range.end}`, fn.name, (fileCoverage.f?.[id] || 0) > 0);
+      addFunction(metrics, `${range.start}:${range.end}`, fn.name, (fileCoverage.f?.[id] || 0) > 0, 'istanbul');
     }
   }
 
@@ -394,6 +394,8 @@ function enforceCoverageGate(report) {
     envValue: process.env.COVERAGE_MIN,
   });
   const result = enforceFunctionCoverage(report.globalFnPct, gate);
+  const features = enforceFeatureCoverage(summarizeFeatures(report.rows), baseline);
+  console.log(`Feature coverage gates passed: ${features.length} features.`);
   console.log(
     `Coverage ratchet passed: ${result.actual.toFixed(2)}% functions `
     + `>= ${result.minimum.toFixed(2)}% (${gate.source}; +${result.margin.toFixed(2)}pt).`,
