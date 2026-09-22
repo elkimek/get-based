@@ -362,29 +362,70 @@ export function buildForkSourceNotice() {
   return `<div class="chat-fork-notice" role="note"><span>Forked from <strong>${escapeHTML(source.name || 'conversation')}</strong></span><button type="button" ${chatMessageActionAttrs('switch-fork-source', { threadId: source.id })}>View original</button></div>`;
 }
 
-export function regenerateLastMessage() {
-  if (state.chatHistory.length < 2) return;
-  if (isChatRuntimeStreaming()) return;
-  const callbacks = getChatRegenerateCallbacks();
-  if (!callbacks) return;
-  const { renderChatMessages, sendChatMessage } = callbacks;
+let regenerationPending = false;
 
-  const lastUserMsg = state.chatHistory[state.chatHistory.length - 2];
-  if (!lastUserMsg || lastUserMsg.joined || lastUserMsg.role !== 'user') return;
-  if (lastUserMsg.hasImages && !restoreMessageAttachments(lastUserMsg)) {
-    showNotification(
-      'The original images are no longer available. Attach them again to retry this response.',
-      'info',
-      6000,
-    );
-    return;
-  }
-  state.chatHistory.pop();
-  setChatInputValue(lastUserMsg.content === '(image)' ? '' : lastUserMsg.content);
-  state.chatHistory.pop();
-  void saveChatHistory();
-  renderChatMessages();
-  sendChatMessage();
+export function regenerateLastMessage() {
+  if (regenerationPending || state.chatHistory.length < 2 || isChatRuntimeStreaming()) return undefined;
+  const callbacks = getChatRegenerateCallbacks();
+  if (!callbacks) return undefined;
+  const history = state.chatHistory;
+  const length = history.length;
+  const lastUserMsg = history[length - 2];
+  const lastResponse = history[length - 1];
+  if (!lastUserMsg || lastUserMsg.joined || lastUserMsg.role !== 'user'
+    || lastResponse?.role !== 'assistant') return undefined;
+  const profile = state.currentProfile;
+  const threadId = state.currentThreadId;
+  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
+  const draft = input?.value;
+  const prefix = history.slice(0, -2);
+  let removed = false;
+  regenerationPending = true;
+  return (async () => {
+    try {
+      // Keep the original turn durable until Send accepts the replacement.
+      if (!await saveChatHistory()) {
+        showNotification('Could not save this conversation. Retry was cancelled to protect your messages.', 'error', 6000);
+        return;
+      }
+      if (profile !== state.currentProfile || threadId !== state.currentThreadId
+        || history !== state.chatHistory || history.length !== length
+        || history[length - 2] !== lastUserMsg || history[length - 1] !== lastResponse
+        || isChatRuntimeStreaming() || input?.value !== draft) return;
+      if (lastUserMsg.hasImages && !restoreMessageAttachments(lastUserMsg)) {
+        showNotification(
+          'The original images are no longer available. Attach them again to retry this response.',
+          'info', 6000,
+        );
+        return;
+      }
+      setChatInputValue(lastUserMsg.content === '(image)' ? '' : lastUserMsg.content);
+      await callbacks.sendChatMessage({ prepareRetry: () => {
+        // Send calls this only after approval and route validation. Navigation
+        // during consent must never persist a temporarily shortened transcript.
+        if (profile !== state.currentProfile || threadId !== state.currentThreadId
+          || history !== state.chatHistory || history.length !== length
+          || history[length - 2] !== lastUserMsg || history[length - 1] !== lastResponse) return false;
+        state.chatHistory.pop();
+        state.chatHistory.pop();
+        removed = true;
+        callbacks.renderChatMessages();
+        return true;
+      } });
+    } catch {
+      showNotification('The response could not be retried. Review the conversation and try again.', 'error', 6000);
+    } finally {
+      // Consent refusal, unavailable backends and synchronous send failures can
+      // leave the replacement untouched. Restore only our own unchanged prefix.
+      if (removed && profile === state.currentProfile && threadId === state.currentThreadId
+        && history === state.chatHistory && history.length === prefix.length
+        && prefix.every((message, index) => history[index] === message)) {
+        history.push(lastUserMsg, lastResponse);
+        callbacks.renderChatMessages();
+      }
+      regenerationPending = false;
+    }
+  })();
 }
 
 export function copyMessage(msgIndex) {

@@ -275,32 +275,34 @@ test('chat action browser coverage handles copy and regenerate branches', async 
       previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
         isChatStreaming: () => true,
         renderChatMessages: () => { renderCount += 1; },
-        sendChatMessage: () => { sendCount += 1; },
+        sendChatMessage: ({ prepareRetry }) => { prepareRetry(); sendCount += 1; state.chatHistory.push({ role: 'user', content: input.value }); },
       });
       state.currentThreadId = null;
       state.chatHistory = [
         { role: 'user', content: 'Streaming guard' },
         { role: 'assistant', content: 'Still streaming' },
       ];
-      chatActions.regenerateLastMessage();
+      await chatActions.regenerateLastMessage();
       outcomes.regenerateSkipsWhileStreaming = renderCount === 0
         && sendCount === 0
         && state.chatHistory.length === 2;
 
       chatRuntime.configureChatRuntimeCallbacks({ isChatStreaming: () => false });
+      state.currentThreadId = saved.currentThreadId || 'retry-browser-test';
       state.chatHistory = [
         { role: 'assistant', content: 'Earlier assistant' },
         { role: 'user', content: 'Repeat this prompt' },
         { role: 'assistant', content: 'Regenerate me' },
       ];
-      chatActions.regenerateLastMessage();
+      await chatActions.regenerateLastMessage();
       outcomes.regeneratePopsLastPairAndResends =
         renderCount === 1
         && sendCount === 1
         && input.value === 'Repeat this prompt'
-        && state.chatHistory.length === 1
+        && state.chatHistory.length === 2
         && state.chatHistory[0].content === 'Earlier assistant';
     } finally {
+      if (!saved.currentThreadId) localStorage.removeItem(chatThreads.getChatThreadKey('retry-browser-test'));
       state.chatHistory = saved.chatHistory;
       state.currentThreadId = saved.currentThreadId;
       if (previousChatRuntime) chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);

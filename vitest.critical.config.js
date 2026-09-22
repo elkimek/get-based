@@ -8,6 +8,9 @@ export default defineConfig({
   test: {
     ...base.test,
     include: [
+      'tests/chat-history-reliability.test.js',
+      'tests/chat-message-edit-reliability.test.js',
+      'tests/chat-retry-reliability.test.js',
       'tests/hermes-gateway-client.test.js',
       'tests/hermes-gateway-lifecycle.test.js',
       'tests/hermes-gateway-registry.test.js',
@@ -49,6 +52,8 @@ export default defineConfig({
       ...base.test.coverage,
       enabled: true,
       include: [
+        'js/chat-history.js',
+        'js/chat-message-edit.js',
         'lib/hermes-gateway-client.js',
         'server/compat-proxy-server.js',
         'server/agent-host-server.js',
@@ -72,6 +77,8 @@ export default defineConfig({
       reportsDirectory: 'tests/.critical-coverage',
       reporter: ['json-summary', 'json', 'text'],
       thresholds: {
+        'js/chat-history.js': { lines: 99, functions: 88, branches: 92, statements: 96 },
+        'js/chat-message-edit.js': { lines: 98, functions: 83, branches: 91, statements: 97 },
         'lib/hermes-gateway-client.js': { lines: 99, functions: 94, branches: 82, statements: 98 },
         'server/compat-proxy-server.js': { lines: 89, functions: 95, branches: 80, statements: 90 },
         'server/agent-host-server.js': { lines: 100, functions: 100, branches: 92, statements: 100 },

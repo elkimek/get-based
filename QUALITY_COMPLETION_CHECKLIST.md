@@ -1,3 +1,73 @@
+# Chat persistence and retry reliability — 2026-09-22
+
+## Verified starting point
+
+PR [#1642](https://github.com/elkimek/get-based/pull/1642) merged as
+`1ab14cc2e9ae326596a038a3b131362763cf07a6`. Final reviewed head was
+`e5ac54cc500ff73e80b01b869b32f10421a126b3`; [CI run 35716944371](https://github.com/elkimek/get-based/actions/runs/35716944371)
+measured 14,469/16,125 production functions (89.7302%), including 719/835
+server functions (86.1078%). All 17 feature gates and 21 critical module floors
+passed. Greptile's three findings were resolved before the authorized merge.
+
+## Current combined batch
+
+99 new regression cases accumulated locally before the initial publication:
+
+- 35 history cases: malformed and missing storage, write blocking/recovery,
+  read/write/index failures, stale load/save results, message/personality snapshots,
+  overlapping writes, confirmation/navigation races, clear rollback and pending
+  save/clear ordering. Writes to the same conversation are serialized in this
+  runtime; index metadata describes the persisted snapshot and failed saves
+  report false. Clearing waits for pending writes and excludes competing saves.
+- 23 retry cases: failed persistence, duplicate actions, changed profile/thread/
+  history/tail, streaming, unavailable attachments, new drafts, refused/failed
+  sends and restoration without overwriting accepted replacement messages.
+  Retry preserves the original turn until Send passes approval and route checks.
+- 35 edit/fork cases: eligibility, missing DOM, cancellation, whitespace,
+  trimmed submissions, failed sends preserving edited text, duplicate submits,
+  stale profile/thread/message identity, keyboard actions and destination draft
+  restoration after a fork. Editing is scoped to the original profile and message.
+- Six new real-browser scenarios: message/index storage failures prevent provider
+  requests; refused retry consent preserves the response; duplicate clicks while
+  saving do not duplicate messages; new drafts survive an earlier send; navigation
+  during retry consent cannot persist a shortened original transcript.
+
+Send now waits for successful persistence before contacting the provider and
+clearing the submitted composer state. On failure it restores the conversation
+in memory and preserves the normal prompt/attachments for retry. New composer
+input or attachments added during persistence are retained.
+
+## Focused local verification
+
+- 131 relevant unit cases across six suites passed (93 newly added).
+- 16 relevant Chromium scenarios passed across chat actions, editing/forking and
+  send/profile boundaries (six newly added); provider and consent boundaries use
+  synthetic responses. No paid requests or downloaded models.
+- Three selected legacy chat wrappers passed; 146 unrelated wrappers skipped.
+- Browser check-JS TypeScript, strict-null, quality guards, architecture checks
+  and production budgets passed. No exhaustive local browser/coverage matrix.
+- Independent history coverage: 99.32% lines, 88.23% functions, 92.20% branches,
+  96.68% statements. New floors: 99/88/92/96 respectively.
+- Independent edit coverage: 98.52% lines, 83.33% functions, 91.66% branches,
+  97.36% statements. New floors: 98/83/91/97 respectively.
+- Critical CI collection now lists 39 explicit suites and 23 enforced modules.
+  Existing floors and the complete production denominator remain in place.
+- Production output measured 5,382,509 decoded bytes. Total-output allowance
+  increases from 5,381,000 to 5,384,000 for these guards, retaining the established
+  path-relocation margin. Startup remains 1,261,837 bytes in two files; startup
+  and file-count limits are unchanged.
+
+## Acceptance still required
+
+The local measurements above are scoped, not a new project-wide percentage.
+The combined PR still requires exact-head Actions, the complete production
+coverage artifact with all 17 feature gates and 23 critical floors, and full
+Greptile review with actionable findings resolved. Verify clean provenance and
+synthetic merge parents. Browser/storage mocks do not prove live providers or
+hardware integration. Per-runtime serialization is not a cross-tab transaction.
+
+---
+
 # Proxy and gateway failure handling — 2026-09-22
 
 ## Verified starting point

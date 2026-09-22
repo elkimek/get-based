@@ -12,7 +12,7 @@ import { state } from './state.js';
 import { createForkedThread } from './chat-threads.js';
 import { showNotification } from './utils.js';
 
-/** @type {{ threadId: string, messageIndex: number, submittedValue: string | null } | null} */
+/** @type {{ profile: string, threadId: string, messageIndex: number, message: any, submittedValue: string | null } | null} */
 let editSession = null;
 
 const messageEditDeps = {
@@ -58,7 +58,8 @@ function resizeEditTextarea(textarea) {
   textarea.classList.toggle('is-scrollable', textarea.scrollHeight > 240);
 }
 
-function renderInlineEditor() {
+/** @param {string} [draft] */
+function renderInlineEditor(draft) {
   if (!editSession) return false;
   const message = state.chatHistory[editSession.messageIndex];
   const bubble = document.getElementById(`chat-msg-${editSession.messageIndex}`);
@@ -72,7 +73,7 @@ function renderInlineEditor() {
   const textarea = document.createElement('textarea');
   textarea.className = 'chat-message-edit-input';
   textarea.id = 'chat-message-edit-input';
-  textarea.value = String(message.content || '');
+  textarea.value = draft ?? String(message.content || '');
   textarea.rows = 3;
   textarea.setAttribute('aria-describedby', 'chat-message-edit-hint');
 
@@ -107,6 +108,7 @@ function renderInlineEditor() {
 
 /** @param {number} messageIndex */
 export function beginChatMessageEdit(messageIndex) {
+  if (editSession?.submittedValue != null) return false;
   const message = state.chatHistory[messageIndex];
   if (!message || message.role !== 'user' || !state.currentThreadId) return false;
   if (messageIndex !== getLatestUserMessageIndex()) {
@@ -122,11 +124,15 @@ export function beginChatMessageEdit(messageIndex) {
     return false;
   }
   editSession = {
+    profile: state.currentProfile,
+    message,
     threadId: state.currentThreadId,
     messageIndex,
     submittedValue: null,
   };
-  return renderInlineEditor();
+  if (renderInlineEditor()) return true;
+  editSession = null;
+  return false;
 }
 
 export function cancelChatMessageEdit() {
@@ -150,7 +156,7 @@ export async function submitChatMessageEdit() {
   const textarea = /** @type {HTMLTextAreaElement | null} */ (
     document.getElementById('chat-message-edit-input')
   );
-  if (!session || !textarea) return false;
+  if (!session || !textarea || session.submittedValue != null) return false;
   const value = textarea.value.trim();
   if (!value) {
     textarea.focus();
@@ -177,7 +183,10 @@ export async function submitChatMessageEdit() {
       submit.disabled = false;
       submit.textContent = 'Send again';
     }
-    renderInlineEditor();
+    if (session.profile !== state.currentProfile || session.threadId !== state.currentThreadId
+      || session.message !== state.chatHistory[session.messageIndex]) {
+      cancelChatMessageEdit();
+    } else renderInlineEditor(value);
   }
   return editSession !== session;
 }
@@ -189,7 +198,9 @@ export async function submitChatMessageEdit() {
 export function prepareChatMessageEditSend() {
   const session = editSession;
   if (!session || session.submittedValue == null) return null;
-  if (session.threadId !== state.currentThreadId
+  if (session.profile !== state.currentProfile
+    || session.message !== state.chatHistory[session.messageIndex]
+    || session.threadId !== state.currentThreadId
     || session.messageIndex !== getLatestUserMessageIndex()) {
     cancelChatMessageEdit();
     return false;
@@ -202,6 +213,7 @@ export function prepareChatMessageEditSend() {
 
 /** @param {number} messageIndex */
 export async function forkChatFromMessage(messageIndex) {
+  const profile = state.currentProfile;
   const sourceThreadId = state.currentThreadId;
   const message = state.chatHistory[messageIndex];
   if (!sourceThreadId || !message || message.hidden || message.joined) return false;
@@ -216,8 +228,9 @@ export async function forkChatFromMessage(messageIndex) {
     messageIndex,
     state.chatHistory.slice(0, messageIndex + 1),
   );
-  if (!thread) return false;
+  if (!thread || profile !== state.currentProfile || state.currentThreadId !== thread.id) return false;
   await clearChatDraft(thread.id);
+  if (profile !== state.currentProfile || state.currentThreadId !== thread.id) return false;
   resetChatComposer({ clearDraft: false, focus: true });
   showNotification('Forked into a new chat. The original conversation is unchanged.', 'success', 5000);
   return true;
@@ -225,7 +238,7 @@ export async function forkChatFromMessage(messageIndex) {
 
 if (typeof document !== 'undefined') {
   document.addEventListener('chat-thread-changed', () => {
-    if (!editSession || editSession.threadId === state.currentThreadId) return;
+    if (!editSession || (editSession.profile === state.currentProfile && editSession.threadId === state.currentThreadId)) return;
     editSession = null;
     setComposerEditState(false);
   });
