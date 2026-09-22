@@ -12,9 +12,9 @@ QUALITY_REMAINING_SURFACE.md; no complete functional-coverage claim is made.
 
 ## Current combined batch
 
-104 new regression cases: 101 accumulated before publication and three review regressions:
+107 new regression cases: 101 accumulated before publication and six review regressions:
 
-- 41 identity-vault cases exercise open/block/timeout/late-success failures,
+- 43 identity-vault cases exercise open/block/timeout/late-success failures,
   transaction commit/abort, malformed records, inaccessible storage, invalidation
   during reads/writes and external commit-token changes.
 - 27 profile-cleanup cases exercise deletion failures and retries, delayed
@@ -22,7 +22,7 @@ QUALITY_REMAINING_SURFACE.md; no complete functional-coverage claim is made.
   preservation; six use the default database operations with fake IndexedDB.
 - 32 sync cleanup/handoff cases exercise metadata retention, dirty markers,
   exclusive OPFS cleanup locks, inaccessible/busy stores and legacy invalidation.
-- Four Chromium scenarios use real IndexedDB for invalidated reads/writes and
+- Five Chromium scenarios use real IndexedDB for invalidated reads/writes and
   persistence after reload without putting the recovery words in localStorage.
 
 The vault now rechecks the commit token before returning an identity and before
@@ -33,8 +33,8 @@ fixing them. This does not claim cross-tab atomicity across IndexedDB/localStora
 ## Focused local evidence
 
 - 122 relevant unit cases initially passed; the review follow-up adds two unit
-  cases, with all 46 directly affected vault cases passing (100 new unit cases total).
-- Four new Chromium scenarios plus the existing real v7/v8 identity handoff passed.
+  cases, with all 48 directly affected vault cases passing (102 new unit cases total).
+- Five new Chromium scenarios plus the existing real v7/v8 identity handoff passed.
 - Independent floors now cover 28 modules across 50 explicit critical suites.
   Existing floors are unchanged. Measurements (lines/functions/branches/statements):
   vault 94.50/88.88/88.52/93.16; profile cleanup 100/100/88.63/98.68;
@@ -53,6 +53,14 @@ fails closed. Per-instance revision checks still reject invalidated queued work.
 A two-tab real-browser regression verifies both writes settle and retain the same
 readable final identity. Two unit cases cover unavailable locks and invalidation
 while queued. Vault coverage is now 94.89/90/89.39/93.65; old floors remain intact.
+
+The second review identified queued invalidation deleting a record after another
+context published a token. Invalidation now clears/verifies the token again while
+holding the write lock before physical deletion; failure to clear rejects without
+deleting that record. A real two-tab case and two unit cases reproduce the ordering
+and failure path. CI also caught optional storage-method narrowing across the lock
+callback; bound validated methods resolve it. The strict-null gate, 48 affected
+unit cases, six Chromium scenarios, quality and existing output budgets pass.
 
 ## Acceptance required
 

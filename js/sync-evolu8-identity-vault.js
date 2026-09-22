@@ -154,6 +154,8 @@ export function createEvolu8IdentityVault({
     if (!indexedDb || typeof storage?.setItem !== 'function' || typeof storage?.getItem !== 'function') {
       throw new Error('Evolu 8 identity vault storage is unavailable');
     }
+    const publishToken = storage.setItem.bind(storage);
+    const readToken = storage.getItem.bind(storage);
     const startedRevision = ++revision;
     return withWriteLock(async () => {
       if (revision !== startedRevision) throw new Error('Evolu 8 identity vault write was invalidated or superseded');
@@ -169,8 +171,8 @@ export function createEvolu8IdentityVault({
       if (revision !== startedRevision || readCommitToken(storage) !== previousToken) {
         throw new Error('Evolu 8 identity vault write was invalidated or superseded');
       }
-      storage.setItem(EVOLU8_IDENTITY_TOKEN_KEY, token);
-      if (storage.getItem(EVOLU8_IDENTITY_TOKEN_KEY) !== token) {
+      publishToken(EVOLU8_IDENTITY_TOKEN_KEY, token);
+      if (readToken(EVOLU8_IDENTITY_TOKEN_KEY) !== token) {
         throw new Error('Evolu 8 identity vault commit was not retained');
       }
     });
@@ -181,14 +183,22 @@ export function createEvolu8IdentityVault({
     if (typeof storage?.removeItem !== 'function' || typeof storage?.getItem !== 'function') {
       throw new Error('Evolu 8 identity vault cannot be invalidated');
     }
-    storage.removeItem(EVOLU8_IDENTITY_TOKEN_KEY);
-    if (storage.getItem(EVOLU8_IDENTITY_TOKEN_KEY) !== null) {
-      throw new Error('Evolu 8 identity vault invalidation was not retained');
-    }
+    const removeToken = storage.removeItem.bind(storage);
+    const readToken = storage.getItem.bind(storage);
+    const clearToken = () => {
+      removeToken(EVOLU8_IDENTITY_TOKEN_KEY);
+      if (readToken(EVOLU8_IDENTITY_TOKEN_KEY) !== null) {
+        throw new Error('Evolu 8 identity vault invalidation was not retained');
+      }
+    };
+    clearToken();
     if (!indexedDb) return Promise.resolve();
-    return Promise.resolve().then(() => withWriteLock(
-      () => accessVault(indexedDb, 'readwrite', store => store.delete(RECORD_KEY)),
-    )).catch(() => {});
+    return Promise.resolve().then(() => withWriteLock(async () => {
+      // A writer ahead of this deletion may have published since the synchronous
+      // invalidation. Clear again under the lock before deleting its record.
+      clearToken();
+      await accessVault(indexedDb, 'readwrite', store => store.delete(RECORD_KEY)).catch(() => {});
+    }));
   };
 
   return { invalidate, read, write };

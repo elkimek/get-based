@@ -116,3 +116,13 @@ it('rejects a queued write invalidated before acquiring the lock',async()=>{
  // Finish the separately queued deletion by denying storage access.
  indexedDb.open.mockImplementation(()=>{throw Error('unavailable');});acquire();await deletion;
 });
+it('clears a newly published token again when queued invalidation acquires its lock',async()=>{
+ let acquire;const isolated=createEvolu8IdentityVault({storage,indexedDb,lockManager:{request:(_name,operation)=>new Promise((resolve,reject)=>{acquire=()=>Promise.resolve().then(operation).then(resolve,reject);})}});
+ const pending=isolated.invalidate();await Promise.resolve();values.set(KEY,'published-ahead-of-delete');acquire();await Promise.resolve();await Promise.resolve();
+ expect(values.has(KEY)).toBe(false);request.onerror();await pending;expect(storage.removeItem).toHaveBeenCalledTimes(2);
+});
+it('does not delete the durable record if locked token invalidation is not retained',async()=>{
+ let acquire;const isolated=createEvolu8IdentityVault({storage,indexedDb,lockManager:{request:(_name,operation)=>new Promise((resolve,reject)=>{acquire=()=>Promise.resolve().then(operation).then(resolve,reject);})}});
+ const pending=isolated.invalidate();const outcome=expect(pending).rejects.toThrow('invalidation was not retained');await Promise.resolve();values.set(KEY,'new-token');storage.removeItem.mockImplementation(()=>{});
+ acquire();await outcome;expect(indexedDb.open).not.toHaveBeenCalled();expect(values.get(KEY)).toBe('new-token');
+});

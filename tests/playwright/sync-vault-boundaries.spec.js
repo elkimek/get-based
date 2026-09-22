@@ -50,3 +50,19 @@ test('two tabs serialize durable writes and retain a readable final identity',as
   expect(identities[0]).toEqual({ownerId:'tab-b',mnemonic:'synthetic tab-b'});expect(identities[1]).toEqual(identities[0]);
  } finally {await page.evaluate(()=>window.releaseVaultLock?.());await second.close();}
 });
+test('a queued cross-tab invalidation clears a token published ahead of its deletion',async({page,context})=>{
+ await context.route('**/sync-vault-second-harness',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><title>Vault invalidator</title>'}));
+ const second=await context.newPage();await second.goto('/sync-vault-second-harness');
+ try {
+  await page.evaluate(async()=>{
+   let acquired;const ready=new Promise(r=>{acquired=r;});window.heldLock=navigator.locks.request('getbased-evolu8-identity-write',()=>new Promise(resolve=>{window.releaseVaultLock=resolve;acquired();}));await ready;
+   const {createEvolu8IdentityVault}=await import('/js/sync-evolu8-identity-vault.js');
+   window.concurrentWrite=createEvolu8IdentityVault().write({ownerId:'queued-owner',mnemonic:'synthetic queued identity'});
+  });
+  await expect.poll(()=>page.evaluate(async()=>(await navigator.locks.query()).pending.filter(x=>x.name==='getbased-evolu8-identity-write').length)).toBe(1);
+  await second.evaluate(async()=>{const {createEvolu8IdentityVault}=await import('/js/sync-evolu8-identity-vault.js');window.pendingInvalidation=createEvolu8IdentityVault().invalidate();});
+  await expect.poll(()=>page.evaluate(async()=>(await navigator.locks.query()).pending.filter(x=>x.name==='getbased-evolu8-identity-write').length)).toBe(2);
+  await page.evaluate(()=>window.releaseVaultLock());await page.evaluate(()=>window.concurrentWrite);await second.evaluate(()=>window.pendingInvalidation);
+  for(const tab of [page,second])expect(await tab.evaluate(async()=>{const {createEvolu8IdentityVault,EVOLU8_IDENTITY_TOKEN_KEY}=await import('/js/sync-evolu8-identity-vault.js');return {token:localStorage.getItem(EVOLU8_IDENTITY_TOKEN_KEY),identity:await createEvolu8IdentityVault().read()};})).toEqual({token:null,identity:null});
+ } finally {await page.evaluate(()=>window.releaseVaultLock?.());await second.close();}
+});
