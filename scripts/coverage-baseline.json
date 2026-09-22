@@ -1,27 +1,27 @@
 {
-  "minimumFunctionPct": 79.5,
-  "referenceFunctionPct": 88.24370531551135,
-  "referenceCommit": "861314971a12e0c711320ed9269e7221c0ad4316",
-  "measuredAt": "2026-09-21",
+  "minimumFunctionPct": 88,
+  "referenceFunctionPct": 88.85506616139654,
+  "referenceCommit": "565171599e57bfb18d3d23f3f912d88c1978e6ca",
+  "measuredAt": "2026-09-22",
   "metric": "combined Vitest/Node and Playwright V8 function coverage",
-  "referenceHead": "82f025da171751bbdb90c936db17d9356f4aedee",
-  "referenceRun": "https://github.com/elkimek/get-based/actions/runs/35620728573",
+  "referenceHead": "0ebfa8235e4d8aeff2dadbcf3046a95f9ee5027a",
+  "referenceRun": "https://github.com/elkimek/get-based/actions/runs/35694525579",
   "featureFloorPolicy": "Round the retained combined CI function percentage down to a whole percentage point. Mapping corrections may raise execution counts; no thresholds are reduced.",
   "features": {
     "PWA runtime": {
-      "minimumFunctionPct": 56,
-      "referenceCalled": 25,
+      "minimumFunctionPct": 88,
+      "referenceCalled": 39,
       "referenceTotal": 44
     },
     "Server and companion": {
-      "minimumFunctionPct": 64,
-      "referenceCalled": 516,
-      "referenceTotal": 804
+      "minimumFunctionPct": 72,
+      "referenceCalled": 584,
+      "referenceTotal": 807
     },
     "Knowledge and voice": {
-      "minimumFunctionPct": 79,
-      "referenceCalled": 582,
-      "referenceTotal": 732
+      "minimumFunctionPct": 81,
+      "referenceCalled": 603,
+      "referenceTotal": 741
     },
     "Chat": {
       "minimumFunctionPct": 84,
@@ -30,12 +30,12 @@
     },
     "Nutrition": {
       "minimumFunctionPct": 86,
-      "referenceCalled": 755,
+      "referenceCalled": 756,
       "referenceTotal": 875
     },
     "Light and environment": {
       "minimumFunctionPct": 88,
-      "referenceCalled": 1855,
+      "referenceCalled": 1856,
       "referenceTotal": 2092
     },
     "Sync": {
@@ -45,12 +45,12 @@
     },
     "Shell and shared browser utilities": {
       "minimumFunctionPct": 89,
-      "referenceCalled": 2865,
+      "referenceCalled": 2866,
       "referenceTotal": 3211
     },
     "Wallet and providers": {
       "minimumFunctionPct": 90,
-      "referenceCalled": 1111,
+      "referenceCalled": 1112,
       "referenceTotal": 1234
     },
     "Agents": {
@@ -65,12 +65,12 @@
     },
     "Wearables and body": {
       "minimumFunctionPct": 92,
-      "referenceCalled": 1541,
+      "referenceCalled": 1542,
       "referenceTotal": 1670
     },
     "Import and export": {
       "minimumFunctionPct": 92,
-      "referenceCalled": 1130,
+      "referenceCalled": 1131,
       "referenceTotal": 1218
     },
     "Profile and storage": {

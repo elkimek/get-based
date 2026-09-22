@@ -32,3 +32,32 @@ describe('Companion listener recovery', () => {
     expect(server.listenerCount('listening')).toBe(0);
   });
 });
+
+
+it('cleans up when publishing the recovered port throws', async () => {
+  const server = new EventEmitter();
+  server.listen = vi.fn();
+  const failure = new Error('port publication failed');
+  await expect(recoverCompanionListener(server, {
+    host: '127.0.0.1', port: 8324, lastPort: 8326,
+    onPort: () => { throw failure; },
+  })).rejects.toBe(failure);
+  expect(server.listen).not.toHaveBeenCalled();
+  expect(server.listenerCount('error')).toBe(0);
+  expect(server.listenerCount('listening')).toBe(0);
+});
+
+it('retries synchronously occupied ports without removing unrelated listeners', async () => {
+  const server = new EventEmitter();
+  const existing = vi.fn();
+  server.on('listening', existing);
+  server.listen = vi.fn(port => {
+    if (port === 8324) throw Object.assign(new Error('busy'), { code: 'EADDRINUSE' });
+    queueMicrotask(() => server.emit('listening'));
+  });
+  await recoverCompanionListener(server, { host: '127.0.0.1', port: 8324, lastPort: 8325, onPort: vi.fn() });
+  expect(server.listen.mock.calls.map(([port]) => port)).toEqual([8324, 8325]);
+  expect(existing).toHaveBeenCalledOnce();
+  expect(server.listeners('listening')).toEqual([existing]);
+  expect(server.listenerCount('error')).toBe(0);
+});

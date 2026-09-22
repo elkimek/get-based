@@ -292,11 +292,12 @@ self.addEventListener('message', async event => {
       return;
     }
     if (message.type === 'dispose') {
-      await synthesizer?.model?.dispose?.();
+      const previousSynthesizer = synthesizer;
       synthesizer = null;
       activeModel = '';
       activeBackend = '';
       activeFallbackReason = '';
+      await previousSynthesizer?.model?.dispose?.();
       self.postMessage({ type: 'disposed', id, kind: 'tts' });
       return;
     }

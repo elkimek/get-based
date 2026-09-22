@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 784 |
-| Internal import edges | 3315 |
+| Modules | 785 |
+| Internal import edges | 3316 |
 | Dynamic internal edges | 113 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1517,9 +1517,10 @@ Node-only policy and transport code shared by hosted runtimes.
 
 </details>
 
-<details><summary><code>companion</code> family — 5 modules</summary>
+<details><summary><code>companion</code> family — 6 modules</summary>
 
 - [`lib/companion-existing.js`](lib/companion-existing.js) → no in-scope imports
+- [`lib/companion-http.js`](lib/companion-http.js) → no in-scope imports
 - [`lib/companion-install.js`](lib/companion-install.js) → [`lib/linux-companion-install.js`](lib/linux-companion-install.js), [`lib/macos-companion-install.js`](lib/macos-companion-install.js), [`lib/windows-companion-install.js`](lib/windows-companion-install.js)
 - [`lib/companion-listener.js`](lib/companion-listener.js) → no in-scope imports
 - [`lib/companion-management.js`](lib/companion-management.js) → no in-scope imports
@@ -1634,7 +1635,7 @@ Standalone loopback companion for installed CLI agents.
 
 <details><summary><code>agent</code> family — 1 module</summary>
 
-- [`server/agent-host-server.js`](server/agent-host-server.js) → [`lib/acp-agent-client.js`](lib/acp-agent-client.js), [`lib/agent-host-service.js`](lib/agent-host-service.js), [`lib/agent-host-storage.js`](lib/agent-host-storage.js), [`lib/claude-agent-client.js`](lib/claude-agent-client.js), [`lib/codex-agent-isolation.js`](lib/codex-agent-isolation.js), [`lib/codex-app-server-client.js`](lib/codex-app-server-client.js), [`lib/companion-listener.js`](lib/companion-listener.js), [`lib/companion-runtime-control.js`](lib/companion-runtime-control.js), [`lib/hermes-gateway-client.js`](lib/hermes-gateway-client.js), [`lib/local-agent-registry.js`](lib/local-agent-registry.js), [`lib/openclaw-agent-client.js`](lib/openclaw-agent-client.js)
+- [`server/agent-host-server.js`](server/agent-host-server.js) → [`lib/acp-agent-client.js`](lib/acp-agent-client.js), [`lib/agent-host-service.js`](lib/agent-host-service.js), [`lib/agent-host-storage.js`](lib/agent-host-storage.js), [`lib/claude-agent-client.js`](lib/claude-agent-client.js), [`lib/codex-agent-isolation.js`](lib/codex-agent-isolation.js), [`lib/codex-app-server-client.js`](lib/codex-app-server-client.js), [`lib/companion-http.js`](lib/companion-http.js), [`lib/companion-listener.js`](lib/companion-listener.js), [`lib/companion-runtime-control.js`](lib/companion-runtime-control.js), [`lib/hermes-gateway-client.js`](lib/hermes-gateway-client.js), [`lib/local-agent-registry.js`](lib/local-agent-registry.js), [`lib/openclaw-agent-client.js`](lib/openclaw-agent-client.js)
 
 </details>
 

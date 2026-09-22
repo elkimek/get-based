@@ -1,3 +1,73 @@
+# Runtime coverage hardening — 2026-09-22
+
+## Verified starting point
+
+PR [#1638](https://github.com/elkimek/get-based/pull/1638) merged as
+`c5a2d73d341a11103aeffb38502d1e817dcc3bca`. Its final head was
+`0ebfa8235e4d8aeff2dadbcf3046a95f9ee5027a`.
+[Final CI](https://github.com/elkimek/get-based/actions/runs/35694525579)
+passed 727 Chromium cases (9 skipped) and measured 14,303/16,097 production
+functions (88.8551%); all 17 feature gates passed. Greptile reviewed that head
+with no outstanding actionable findings. This supersedes the historical
+pending-CI notes below.
+
+The retained report's synthetic merge commit is
+`565171599e57bfb18d3d23f3f912d88c1978e6ca`, not the eventual squash commit.
+The baseline preserves this provenance. This batch raises the global minimum
+79.5 → 88, PWA 56 → 88, server/companion 64 → 72, and knowledge/voice 79 → 81.
+All updated floors pass against the retained complete report; no thresholds
+are reduced and no new whole-project percentage is claimed from local tests.
+
+## Current batch
+
+- 51 new behavior cases: 20 TTS worker protocol/model lifecycle, 17 companion
+  HTTP boundary (including real loopback transport), 12 update-failure cases,
+  and two listener recovery cases.
+- Fixed stale model reuse after failed disposal and late disposal clearing a
+  replacement model. Fixed listener handler leakage when port publication throws.
+  Focused negative checks failed against each old implementation, then passed
+  with the fixes restored.
+- Extracted the existing companion HTTP adapter without changing its request
+  limits, headers, response/error semantics or abort propagation, allowing direct
+  tests without starting installed agents or touching real agent credentials.
+- Expanded independent branch/function/line/statement gates from three to eleven
+  runtime modules. The explicit local suite contains 15 files; it is not the
+  exhaustive project coverage suite.
+- Pinned OpenRouter catalog responses in two additional mobile nutrition scenarios
+  so provider refreshes cannot race their seeded model choices.
+
+## Measurement audit and limits
+
+The previous report counted the TTS worker as 0/20. Browser page V8 coverage does
+not establish dedicated-worker coverage, and existing voice tests predominantly
+mocked the worker caller. The new direct worker harness attributes real module
+execution through Vitest while stubbing only the external model package. It
+measures 90% functions, 95.91% branches and 99.28% lines in the focused suite.
+This is new behavior coverage, not a relaxed collector mapping rule. It does not
+prove actual model quality, model downloads or physical GPU compatibility.
+
+The previous companion entrypoint was 0/32. Its extracted HTTP boundary is now
+covered directly, including a real socket test; bootstrap discovery, installed
+agent lifecycle and process-signal orchestration remain separate integration
+boundaries. We neither remove these from the production denominator nor mark
+subprocess execution as covered without attributable evidence.
+
+The retained report still has 54 unmapped executed collector ranges across 34
+files, including zero-length synthetic entries. They remain excluded rather
+than being matched speculatively. This batch makes no collector identity changes.
+
+## Verification
+
+- 248 focused cases in the expanded critical suite, enforcing all eleven modules.
+- 33 additional coverage-gate/configuration/bundle checks.
+- Two changed Chromium mobile nutrition scenarios.
+- CheckJs, server types, strict-null ratchet, architecture checks, all 17 static
+  quality guards and production budgets.
+- Final combined coverage and review on the new PR head remain CI acceptance.
+  No exhaustive local matrix, model download, merge or deployment was performed.
+
+---
+
 # Original quality review — acceptance tracker
 
 PR [#1637](https://github.com/elkimek/get-based/pull/1637) merged on 2026-09-22

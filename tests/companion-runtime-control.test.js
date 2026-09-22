@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import { describe, expect, it, vi } from 'vitest';
+import { existsSync, readFileSync } from 'node:fs';
 import { createCompanionRuntimeController } from '../lib/companion-runtime-control.js';
 import { GETBASED_COMPANION_VERSION } from '../shared/agent-host-protocol.js';
 
@@ -169,5 +170,77 @@ describe('running companion controls', () => {
     await expect(controller.handle('uninstall', { origin: 'https://getbased.health' }))
       .resolves.toMatchObject({ uninstalled: true, runtimeMode: 'temporary' });
     expect(uninstallImpl).toHaveBeenCalledWith(expect.objectContaining({ platform: 'linux', stopService: false }));
+  });
+});
+
+
+describe('companion update failure boundaries', () => {
+  function setup(response, overrides = {}) {
+    const installImpl = vi.fn();
+    const controller = createCompanionRuntimeController({
+      appServer: { restart: vi.fn(), initialize: vi.fn() }, bundlePath: '/tmp/unused.mjs',
+      env: { GETBASED_COMPANION_SERVICE: '1' }, installImpl,
+      fetchImpl: vi.fn().mockResolvedValue(response), ...overrides,
+    });
+    return { controller, installImpl, update: () => controller.handle('update', { origin: 'https://app.test' }) };
+  }
+  it.each([
+    ['HTTP failure', () => new Response('error', { status: 503 }), 'HTTP 503'],
+    ['declared oversize', () => new Response('small', { headers: { 'content-length': '250001' } }), 'large'],
+    ['streamed oversize', () => new Response('x'.repeat(250001)), 'large'],
+    ['missing body', () => new Response(null), 'empty'],
+    ['empty body', () => new Response(''), 'empty'],
+    ['invalid signature', () => new Response('untrusted code'), 'not a getbased'],
+    ['ambiguous version', () => new Response(VALID_BUNDLE + 'const GETBASED_COMPANION_VERSION = "100.0.0";\n'), 'verify'],
+  ])('rejects %s before installing or changing runtime state', async (_label, response, message) => {
+    const f = setup(response());
+    await expect(f.update()).rejects.toThrow(message);
+    expect(f.installImpl).not.toHaveBeenCalled();
+    expect(f.controller.getInfo()).toMatchObject({ restartRequired: false, runtimeMode: 'installed' });
+  });
+  it('cancels an oversized stream rather than downloading the remaining data', async () => {
+    const cancel = vi.fn();
+    const response = new Response(new ReadableStream({
+      start(controller) { controller.enqueue(new Uint8Array(250001)); }, cancel,
+    }));
+    const f = setup(response);
+    await expect(f.update()).rejects.toThrow('large');
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(f.installImpl).not.toHaveBeenCalled();
+  });
+  it('propagates transport failures without publishing an update', async () => {
+    const f = setup(null, { fetchImpl: vi.fn().mockRejectedValue(new Error('offline')) });
+    await expect(f.update()).rejects.toThrow('offline');
+    expect(f.installImpl).not.toHaveBeenCalled();
+    expect(f.controller.getInfo().restartRequired).toBe(false);
+  });
+  it('removes the temporary bundle after installation failure and permits retry', async () => {
+    let temporary;
+    const installImpl = vi.fn(({ bundlePath }) => {
+      temporary = bundlePath;
+      expect(readFileSync(bundlePath, 'utf8')).toBe(VALID_BUNDLE);
+      throw new Error('disk full');
+    });
+    const f = setup(null, { installImpl, fetchImpl: async () => new Response(VALID_BUNDLE) });
+    await expect(f.update()).rejects.toThrow('disk full');
+    expect(existsSync(temporary)).toBe(false);
+    expect(f.controller.getInfo().restartRequired).toBe(false);
+    installImpl.mockImplementation(({ bundlePath }) => { temporary = bundlePath; });
+    await expect(f.update()).resolves.toMatchObject({ pendingUpdateVersion: '99.0.0' });
+    expect(existsSync(temporary)).toBe(false);
+  });
+  it('preserves a pending update when a later download fails', async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(new Response(VALID_BUNDLE)).mockRejectedValueOnce(new Error('offline'));
+    const f = setup(null, { fetchImpl });
+    await f.update();
+    await expect(f.update()).rejects.toThrow('offline');
+    expect(f.controller.getInfo()).toMatchObject({ restartRequired: true, pendingUpdateVersion: '99.0.0' });
+    expect(f.installImpl).toHaveBeenCalledOnce();
+  });
+  it('does not initialize a client whose restart failed', async () => {
+    const appServer = { restart: vi.fn().mockRejectedValue(new Error('restart failed')), initialize: vi.fn() };
+    const f = setup(null, { appServer });
+    await expect(f.controller.handle('restart', { origin: '' })).rejects.toThrow('restart failed');
+    expect(appServer.initialize).not.toHaveBeenCalled();
   });
 });
