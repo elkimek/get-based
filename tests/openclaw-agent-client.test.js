@@ -1,9 +1,9 @@
 // @vitest-environment node
 
 import { EventEmitter } from 'node:events';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, writeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildOpenClawTurnConfig, extractOpenClawResult, normalizeOpenClawModelCatalog, OpenClawAgentClient,
@@ -196,4 +196,31 @@ it.each(['not-json', { models: [] }, { models: [{ key: 'missing', available: fal
     expect(spawnImpl).toHaveBeenCalledTimes(2);
     expect(readdirSync(cwd)).toEqual([]);
   })();
+});
+
+it.each(['isolated', 'gateway'])('preserves explicit ambient include roots in %s mode', async mode => {
+  const cwd = fixture(), ambientPath = join(cwd, 'ambient.json');
+  writeFileSync(ambientPath, '{}');
+  const spawnImpl = vi.fn((_command, _args, options) => fakeChild({ ok: true, status: 'ok', final: 'done' }, options.stdio));
+  const client = new OpenClawAgentClient({ command: 'fixture', cwd, spawnImpl, mode, env: {
+    HOME: cwd, OPENCLAW_CONFIG_PATH: ambientPath,
+    OPENCLAW_INCLUDE_ROOTS: ['', cwd, cwd].join(delimiter),
+  } });
+  client.modelCatalogPromise = Promise.resolve(normalizeOpenClawModelCatalog(modelPayload));
+  await client.prompt({ prompt: [], instructions: '', mcpConfig: {}, allowedToolNames: [], onEvent: vi.fn() });
+  const env = spawnImpl.mock.calls[0][2].env;
+  expect(env.OPENCLAW_INCLUDE_ROOTS).toBe(cwd);
+  expect(env.OPENCLAW_CONFIG_PATH).toBe(mode === 'gateway' ? ambientPath : undefined);
+  expect(readFileSync(ambientPath, 'utf8')).toBe('{}');
+  expect(readdirSync(cwd)).toEqual(['ambient.json']);
+});
+it('rejects cancellation arriving after exit while reading the result', async () => {
+  const cwd = fixture(), controller = new AbortController();
+  const client = new OpenClawAgentClient({ command: 'fixture', cwd, env: { HOME: cwd },
+    spawnImpl: (_command, _args, options) => fakeChild({}, options.stdio),
+  });
+  const read = client.readBoundedOutput.bind(client);
+  client.readBoundedOutput = async path => { controller.abort(); return read(path); };
+  await expect(client.runCommand([], controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
+  expect(readdirSync(cwd)).toEqual([]);
 });

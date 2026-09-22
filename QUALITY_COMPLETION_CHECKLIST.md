@@ -14,9 +14,9 @@ Optional model/release jobs were skipped; these were not acceptance evidence.
 
 ## Current local batch
 
-73 new regression cases across CLI protocol and cancellation, private-file
+76 new regression cases across CLI protocol and cancellation, private-file
 creation races, child-process failures, real Node subprocesses and compatibility
-proxy transport. The seven focused suites contain 86 cases including 13 existing
+proxy transport. The seven focused suites contain 89 cases including 13 existing
 ones. No installed model CLI, credentials, model downloads or hardware are used.
 
 - Both one-shot adapters reject pre-cancelled work without spawning and settle
@@ -43,7 +43,7 @@ ones. No installed model CLI, credentials, model downloads or hardware are used.
 | --- | ---: | ---: | ---: | ---: |
 | Process lifecycle | 91.66% | 100% | 100% | 100% |
 | Claude adapter | 100% | 91.35% | 100% | 100% |
-| OpenClaw adapter | 90.32% | 84.93% | 96.85% | 93.25% |
+| OpenClaw adapter | 90.32% | 86.74% | 99.21% | 95.09% |
 
 Added independent floors for these three modules, preserving every existing
 critical floor. The bounded critical configuration now lists 23 suites and 15
@@ -55,10 +55,17 @@ retained complete PR #1639 report. All 17 feature floors were revalidated agains
 that report, and its head/run/synthetic-merge provenance is retained. These floor
 changes reflect the merged batch, not a new whole-project local measurement.
 
-Local verification: 86 focused cases with scoped coverage, 61 related host,
+Local verification: 89 focused cases with scoped coverage, 61 related host,
 bundle and coverage-policy cases, server typecheck, strict-null ratchet,
 architecture generation/check, 17 static quality gates, production size budgets
 and diff whitespace checks passed. No exhaustive local browser/coverage run.
+
+The initial CI run passed all 369 critical cases but uncovered incidental local
+coverage of OpenClaw ambient configuration and late cancellation. Three explicit
+fixtures now cover those paths deterministically (76 new cases total); all 79
+relevant CLI cases pass together. Coverage floors remain unchanged. Greptile
+reviewed all 16 files on the initial head with zero comments; the revised head
+still needs its own acceptance.
 
 ## Remaining acceptance and limits
 
