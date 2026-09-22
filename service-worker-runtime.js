@@ -139,10 +139,13 @@ function installServiceWorkerRuntime({
 
   /**
    * @param {RequestInfo | URL} request
+   * @param {FetchEvent} event
    */
-  function fetchAndCache(request) {
+  function fetchAndCache(request, event) {
     return fetch(request).then((response) => {
-      void cacheResponse(request, response);
+      // Keep the worker alive until the offline copy is durable, while still
+      // returning the network response immediately to the page.
+      event.waitUntil(cacheResponse(request, response));
       return response;
     });
   }
@@ -230,7 +233,7 @@ function installServiceWorkerRuntime({
       || (url.pathname === '/version.js' && !isProduction)
     ) {
       event.respondWith(
-        fetchAndCache(event.request).catch(() => matchCurrentCache(event.request))
+        fetchAndCache(event.request, event).catch(() => matchCurrentCache(event.request))
       );
       return;
     }
@@ -243,7 +246,7 @@ function installServiceWorkerRuntime({
     if (event.request.mode === 'navigate') {
       if (!isProduction) {
         event.respondWith(
-          fetchAndCache(event.request).catch(() => cachedAppShell())
+          fetchAndCache(event.request, event).catch(() => cachedAppShell())
         );
         return;
       }
@@ -251,9 +254,9 @@ function installServiceWorkerRuntime({
         matchCurrentCache(event.request).then((cached) => {
           if (cached) return cached;
           if (url.pathname === '/app' || url.pathname === '/app/' || url.pathname === '/index.html') {
-            return cachedAppShell().then((shell) => shell || fetchAndCache(event.request));
+            return cachedAppShell().then((shell) => shell || fetchAndCache(event.request, event));
           }
-          return fetchAndCache(event.request).catch(() => cachedAppShell());
+          return fetchAndCache(event.request, event).catch(() => cachedAppShell());
         })
       );
       return;
@@ -263,13 +266,13 @@ function installServiceWorkerRuntime({
     // caches; production uses the atomic versioned cache first.
     if (!isProduction) {
       event.respondWith(
-        fetchAndCache(event.request).catch(() => matchCurrentCache(event.request))
+        fetchAndCache(event.request, event).catch(() => matchCurrentCache(event.request))
       );
       return;
     }
 
     event.respondWith(
-      matchCurrentCache(event.request).then((cached) => cached || fetchAndCache(event.request))
+      matchCurrentCache(event.request).then((cached) => cached || fetchAndCache(event.request, event))
     );
   });
 }

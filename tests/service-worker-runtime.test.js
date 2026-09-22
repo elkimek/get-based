@@ -61,6 +61,7 @@ function makeWaitEvent() {
 function makeFetchEvent(url, init = {}) {
   let responsePromise = null;
   return {
+    ...makeWaitEvent(),
     request: new Request(url, init),
     respondWith: (promise) => { responsePromise = Promise.resolve(promise); },
     response: () => responsePromise,
@@ -368,6 +369,64 @@ describe('service worker runtime cache behavior', () => {
     listeners.get('fetch')(event);
     expect(await (await event.response()).text()).toBe('installed-html');
     expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it('keeps a network cache write alive without delaying the response', async () => {
+    const { cache, listeners } = await loadServiceWorker({ hostname: 'app.getbased.health' });
+    let finishWrite;
+    cache.put.mockImplementation(() => new Promise(resolve => { finishWrite = resolve; }));
+    const event = makeFetchEvent('https://app.getbased.health/new-module.js');
+    listeners.get('fetch')(event);
+    expect(await (await event.response()).text()).toContain('network:');
+    await vi.waitFor(() => expect(cache.put).toHaveBeenCalledOnce());
+    let finished = false;
+    const lifetime = event.done().then(() => { finished = true; });
+    await Promise.resolve();
+    expect(finished).toBe(false);
+    finishWrite();
+    await lifetime;
+    expect(finished).toBe(true);
+  });
+
+  it('returns a successful network response even when offline cache storage is full', async () => {
+    const { cache, listeners } = await loadServiceWorker({ hostname: 'app.getbased.health' });
+    cache.put.mockRejectedValue(new DOMException('quota exceeded', 'QuotaExceededError'));
+    const event = makeFetchEvent('https://app.getbased.health/new-module.js');
+    listeners.get('fetch')(event);
+    expect((await event.response()).status).toBe(200);
+    await expect(event.done()).resolves.toEqual([undefined]);
+    expect(cache.put).toHaveBeenCalledOnce();
+  });
+
+  it.each([206, 404, 500])('does not cache partial or failed HTTP responses (%s)', async status => {
+    const { cache, listeners } = await loadServiceWorker({ hostname: 'app.getbased.health' });
+    globalThis.fetch = vi.fn(async () => new Response('network body', { status }));
+    const event = makeFetchEvent('https://app.getbased.health/new-module.js');
+    listeners.get('fetch')(event);
+    expect((await event.response()).status).toBe(status);
+    await event.done();
+    expect(cache.put).not.toHaveBeenCalled();
+  });
+
+  it('does not claim clients when stale-cache cleanup fails', async () => {
+    const { listeners, caches, self } = await loadServiceWorker({ hostname: 'app.getbased.health' });
+    caches.delete.mockRejectedValue(new Error('cache unavailable'));
+    const event = makeWaitEvent();
+    listeners.get('activate')(event);
+    await expect(event.done()).rejects.toThrow('cache unavailable');
+    expect(self.clients.claim).not.toHaveBeenCalled();
+  });
+
+  it('validates source URLs when update messages omit origin', async () => {
+    const { listeners, self } = await loadServiceWorker();
+    const message = listeners.get('message');
+    for (const url of ['not a URL', 'https://evil.example/page']) {
+      message({ data: { type: 'SKIP_WAITING' }, source: { url } });
+    }
+    message({ data: { type: 'SKIP_WAITING' } });
+    expect(self.skipWaiting).not.toHaveBeenCalled();
+    message({ data: { type: 'SKIP_WAITING' }, source: { url: 'https://preview.getbased.health/app' } });
+    expect(self.skipWaiting).toHaveBeenCalledOnce();
   });
 
   it('uses plain versioned cache names on production hosts', async () => {

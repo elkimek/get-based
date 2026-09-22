@@ -40,3 +40,37 @@ records all relevant provenance rather than relabeling that report as a main run
 - No exhaustive local browser or coverage matrix was run.
 
 Fresh CI and review for the continuation remain required before its acceptance.
+
+## Larger local batch — 2026-09-22 (not pushed)
+
+The user requested larger slices before invoking remote CI. Subsequent work stays
+local in `codex/coverage-mapping-hardening`; the published PR head does not include
+this batch yet.
+
+- Added 20 companion RPC failure-boundary cases across Codex and ACP: failed
+  serialization, synchronous and callback write errors, stdin error events,
+  timeouts/late replies, process replacement, initialization retry, shutdown and
+  malformed protocol input. Nine cases failed before the transport fixes.
+- Fixed pending-request/timer leaks on failed writes and handled stdin errors
+  without allowing events from replaced processes to affect the active client.
+- Service-worker network cache writes now extend the fetch event lifetime while
+  returning the network response promptly. Added seven cases covering write
+  completion, quota errors, partial/error responses, activation failures and
+  update-message origins.
+- Fixed both Greptile findings locally: percentages must parse in full, and feature
+  floors cannot be lower than their rounded recorded reference counts. Missing or
+  invalid reference counts are rejected; deliberate tightening remains allowed.
+- 57 focused runtime tests passed with coverage restricted to three changed
+  modules. The separate gate/source tests also pass (31 and 22 cases). No global
+  coverage result is inferred from these selected tests.
+
+| Selected module | Function execution | Branches | Lines |
+| --- | ---: | ---: | ---: |
+| Service-worker runtime | 94.73% | 84.09% | 96.52% |
+| ACP client | 85.10% | 80.95% | 95.41% |
+| Codex app-server client | 86.95% | 77.50% | 96.19% |
+
+The existing Chromium cold offline relaunch scenario passed (one spec, 2.7s).
+Server and service-worker typechecks, all 17 quality guards, production output
+budgets and diff whitespace checks passed. No full local suite was run, no
+threshold was reduced, and no push was made for this batch.

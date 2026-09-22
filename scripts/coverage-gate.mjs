@@ -1,5 +1,6 @@
 function parsePercentage(value, label) {
-  const percentage = Number.parseFloat(String(value));
+  const text = typeof value === 'number' || typeof value === 'string' ? String(value).trim() : '';
+  const percentage = /^(?:\d+(?:\.\d*)?|\.\d+)$/.test(text) ? Number(text) : NaN;
   if (!Number.isFinite(percentage) || percentage <= 0 || percentage > 100) {
     throw new Error(`${label} must be a number greater than 0 and at most 100.`);
   }
@@ -70,7 +71,17 @@ export function enforceFeatureCoverage(features, baseline) {
     if (!Object.hasOwn(floors, name)) throw new Error(`Missing coverage baseline for feature: ${name}`);
     if (!Number.isSafeInteger(fnTotal) || fnTotal <= 0 || !Number.isSafeInteger(fnCalled)
       || fnCalled < 0 || fnCalled > fnTotal) throw new Error(`Invalid function counts for feature: ${name}`);
-    const minimum = parsePercentage(floors[name].minimumFunctionPct, `Feature ${name} minimumFunctionPct`);
+    const floor = floors[name];
+    if (!floor || typeof floor !== 'object') throw new Error(`Invalid coverage baseline for feature: ${name}`);
+    const minimum = parsePercentage(floor.minimumFunctionPct, `Feature ${name} minimumFunctionPct`);
+    const { referenceCalled, referenceTotal } = floor;
+    if (!Number.isSafeInteger(referenceTotal) || referenceTotal <= 0
+      || !Number.isSafeInteger(referenceCalled) || referenceCalled < 0 || referenceCalled > referenceTotal) {
+      throw new Error(`Invalid reference function counts for feature: ${name}`);
+    }
+    if (minimum < Math.floor(100 * referenceCalled / referenceTotal)) {
+      throw new Error(`Feature ${name} floor is below its rounded reference measurement.`);
+    }
     return { name, ...enforceFunctionCoverage(100 * fnCalled / fnTotal, { minimum, source: `feature: ${name}` }) };
   });
   for (const name of Object.keys(floors)) {

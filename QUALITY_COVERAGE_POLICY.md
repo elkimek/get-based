@@ -35,7 +35,9 @@ not proof that all behaviors or branches are protected.
 
 `scripts/coverage-baseline.json` records the source run, head, report commit and
 called/total counts for every feature. Each feature floor is its measured function
-percentage rounded down to a whole percentage point. All 17 groups must be present;
+percentage rounded down to a whole percentage point. Retained reference counts
+are validated; floors below that rounded measurement fail. Deliberately tighter
+floors are allowed. Percentage values must parse in full. All 17 groups must be present;
 missing, duplicate, newly unbaselined or malformed groups fail closed. Another
 feature's improvement cannot compensate for a regression. Review changes to feature
 classification and baselines explicitly; do not lower floors just to pass CI.
