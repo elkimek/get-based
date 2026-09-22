@@ -2010,6 +2010,16 @@ test('AI Settings can route meal photos to Opus without changing the Grok chat m
 });
 
 test('the meal editor switches visual models directly and returns from AI Settings without losing the draft', async ({ page }) => {
+  // Opening AI Settings refreshes this catalog. Keep that response consistent
+  // with the seeded fixture instead of racing the live provider's model list.
+  await page.route('https://openrouter.ai/api/v1/models**', route => route.fulfill({
+    json: { data: [
+      { id: 'x-ai/grok-4.6', name: 'Grok 4.6' },
+      { id: 'google/gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
+      { id: 'anthropic/claude-sonnet-5', name: 'Claude Sonnet 5' },
+      { id: 'anthropic/claude-opus-5', name: 'Claude Opus 5' },
+    ].map(model => ({ ...model, architecture: { input_modalities: ['text', 'image'] } })) },
+  }));
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(async () => {
     const api = await import('/js/api.js');
