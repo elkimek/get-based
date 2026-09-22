@@ -176,9 +176,14 @@ server.on('error', error => {
 let shutdownPromise;
 async function shutdown() {
   if (!shutdownPromise) shutdownPromise = (async () => {
-    if (server.listening) await new Promise(resolve => server.close(() => resolve()));
-    await Promise.all(runtimeClients.map(client => client.close?.()));
-    rmSync(workspaceRoot, { recursive: true, force: true });
+    // Stop accepting connections immediately, but let clients settle active
+    // requests before waiting for those connections to finish draining.
+    const listenerClosed = server.listening
+      ? new Promise(resolve => server.close(() => resolve())) : Promise.resolve();
+    try {
+      await Promise.allSettled(runtimeClients.map(async client => { await client.close?.(); }));
+      await listenerClosed;
+    } finally { rmSync(workspaceRoot, { recursive: true, force: true }); }
   })();
   return shutdownPromise;
 }

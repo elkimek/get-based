@@ -205,28 +205,39 @@ export function createProfileShareServer(options = {}) {
 
 export async function startProfileShareServer() {
   const { server, store } = createProfileShareServer();
-  store.check?.();
-  await maintainProfileShareStorage(store).catch(() => {});
-  const maintenanceTimer = setInterval(() => {
-    maintainProfileShareStorage(store).catch(() => {});
-  }, MAINTENANCE_INTERVAL_MS);
-  maintenanceTimer.unref();
-
   const host = process.env.PROFILE_SHARE_BIND || DEFAULT_BIND_HOST;
   const port = boundedInteger(process.env.PROFILE_SHARE_PORT, DEFAULT_PORT, 1, 65_535);
-  await new Promise((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(port, host, () => resolve(undefined));
-  });
+  let maintenanceTimer;
+  try {
+    store.check?.();
+    await maintainProfileShareStorage(store).catch(() => {});
+    maintenanceTimer = setInterval(() => {
+      maintainProfileShareStorage(store).catch(() => {});
+    }, MAINTENANCE_INTERVAL_MS);
+    maintenanceTimer.unref();
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(port, host, () => resolve(undefined));
+    });
+  } catch (error) {
+    clearInterval(maintenanceTimer);
+    try { store.close?.(); } catch {}
+    throw error;
+  }
   process.stdout.write(`Encrypted profile-share service listening on ${host}:${port}\n`);
+  let shuttingDown = false;
   const shutdown = signal => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     process.stdout.write(`Encrypted profile-share service stopping after ${signal}\n`);
     clearInterval(maintenanceTimer);
+    const shutdownTimer = setTimeout(() => process.exit(1), 10_000);
+    shutdownTimer.unref();
     server.close(() => {
+      clearTimeout(shutdownTimer);
       try { store.close?.(); } catch {}
       process.exit(0);
     });
-    setTimeout(() => process.exit(1), 10_000).unref();
   };
   process.once('SIGINT', () => shutdown('SIGINT'));
   process.once('SIGTERM', () => shutdown('SIGTERM'));

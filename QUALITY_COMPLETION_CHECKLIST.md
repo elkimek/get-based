@@ -1,3 +1,87 @@
+# Server lifecycle and storage boundaries — 2026-09-22
+
+## Verified starting point
+
+PR [#1640](https://github.com/elkimek/get-based/pull/1640) merged as
+`d50db4b038a6d90965a4541cb1800a912e63d60c`. Its final reviewed head was
+`4502455fbaa77b7198acd3ddfdac985e03eca3d8`.
+[Final CI](https://github.com/elkimek/get-based/actions/runs/35706359198)
+passed 2,325 unit cases, 372 critical cases and 727 Chromium cases (9 skipped).
+All 17 feature gates passed; Greptile reviewed all 16 files with zero comments.
+The complete report measured 14,368/16,109 functions (89.1924%), including
+75.2137% server/companion functions. Its clean synthetic merge was
+`89a33d53c785e8c4508be9504b642bbf4e766161`, whose parents were verified to
+include that exact head. This supersedes the older pending acceptance below.
+
+## Current combined batch
+
+107 new regression cases accumulated locally before publication:
+
+- 29 companion bootstrap cases exercise adapter wiring, authentication states,
+  allowed origins, port validation/retry, runtime recovery and shutdown. Shutdown
+  previously waited for HTTP draining before closing the clients needed to finish
+  those requests. It now begins listener closure, settles all client closes, then
+  waits for draining and removes the workspace. A failed client close no longer
+  skips other clients or workspace cleanup.
+- 23 development-host lifecycle cases cover disabled/unavailable discovery,
+  refresh, partial readiness banners, invalid ports, legacy CRLF output and
+  shutdown. The previous parser could publish port 83 from the first fragment of
+  port 8325 and disclose the bearer token for that incomplete endpoint. It now
+  accepts only a complete, bounded readiness line with a valid port. Late output
+  cannot revive availability after child failure/exit or explicit close; close
+  is idempotent.
+- 18 real loopback profile-share HTTP cases cover declared/chunked body limits,
+  disconnects, malformed origins, trusted identity selection, masked handler/body
+  errors and response privacy headers.
+- 13 profile-share startup cases cover configuration, health-check/listen failure,
+  maintenance errors and shutdown. Startup failures now close the owned store and
+  cancel maintenance. Concurrent signals share one shutdown, and successful
+  closure cancels the forced-exit timer.
+- 24 real SQLite storage cases cover cancellation, path validation, host disk
+  reserve, UTF-8 size limits, conflict classification, persistence, private file
+  permissions, pagination and daily keyed identities. A SQLite trigger forces
+  failure on the second deletion, proving rollback restores the earlier deletion.
+
+Negative checks reproduced seven discovery failures, three companion shutdown
+failures (including two unhandled rejections), and three profile-share startup
+failures before the corresponding fixes.
+
+## Focused verification
+
+121 cases across eight directly relevant suites pass with scoped coverage; 91
+related service, listener, runtime-control, bundle, share-transition and coverage
+policy cases also pass. Server typecheck, strict-null, architecture generation,
+17 quality guards, production budgets and diff whitespace checks pass. Only
+focused local tests were run; the full browser and combined matrix belongs to CI.
+
+| Module | Functions | Branches | Lines | Statements |
+| --- | ---: | ---: | ---: | ---: |
+| Companion entrypoint | 100% | 92.75% | 100% | 100% |
+| Development host | 100% | 92.04% | 98.86% | 97.22% |
+| Profile-share server | 96.87% | 86.02% | 95.12% | 94.44% |
+| SQLite store | 100% | 84.81% | 98.14% | 95.68% |
+
+Four new independently enforced module floors bring the critical configuration
+to 19 source modules across 31 explicit suites. Existing floors are preserved.
+The server/companion feature minimum increases 72 → 75 using the retained #1640
+complete report, not this batch's scoped measurement. All 17 feature floors were
+revalidated against that report and its exact provenance is recorded.
+
+## Pending acceptance and limits
+
+This batch requires its own exact-head Actions result, retained complete coverage
+artifact, all 17 feature gates, and full Greptile review with findings resolved.
+There are no collector matching changes or new denominator exclusions. The 55
+unmapped ranges in the retained report remain excluded.
+
+Bootstrap/startup tests execute the real orchestration with mocked process,
+agent-client and listener boundaries. They establish orchestration behavior,
+not installed CLI compatibility, operating-system service integration or hardware
+inference. HTTP and storage tests use real loopback sockets and small isolated
+SQLite files. Do not infer 100% functional correctness from function coverage.
+
+---
+
 # Companion transport and CLI coverage — 2026-09-22
 
 ## Verified starting point

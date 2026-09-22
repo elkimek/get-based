@@ -8,6 +8,14 @@ export default defineConfig({
   test: {
     ...base.test,
     include: [
+      'tests/agent-host-bootstrap.test.js',
+      'tests/dev-agent-host.test.js',
+      'tests/dev-agent-host-lifecycle.test.js',
+      'tests/profile-share-server.test.js',
+      'tests/profile-share-http-failures.test.js',
+      'tests/profile-share-startup.test.js',
+      'tests/profile-share-sqlite-store.test.js',
+      'tests/profile-share-storage-failures.test.js',
       'tests/agent-process-lifecycle.test.js',
       'tests/agent-subprocess-lifecycle.test.js',
       'tests/agent-one-shot-failures.test.js',
@@ -36,6 +44,10 @@ export default defineConfig({
       ...base.test.coverage,
       enabled: true,
       include: [
+        'server/agent-host-server.js',
+        'lib/dev-agent-host.js',
+        'server/profile-share-server.js',
+        'lib/profile-share-sqlite-store.js',
         'js/agent-draft-claims.js', 'js/agent-drafts.js', 'js/notes.js',
         'js/voice-player.js',
         'js/voice-local-tts-worker.js',
@@ -53,6 +65,10 @@ export default defineConfig({
       reportsDirectory: 'tests/.critical-coverage',
       reporter: ['json-summary', 'json', 'text'],
       thresholds: {
+        'server/agent-host-server.js': { lines: 100, functions: 100, branches: 92, statements: 100 },
+        'lib/dev-agent-host.js': { lines: 96, functions: 100, branches: 90, statements: 94 },
+        'server/profile-share-server.js': { lines: 95, functions: 96, branches: 86, statements: 94 },
+        'lib/profile-share-sqlite-store.js': { lines: 98, functions: 100, branches: 84, statements: 95 },
         'lib/agent-process-lifecycle.js': { lines: 100, functions: 91, branches: 100, statements: 100 },
         'lib/claude-agent-client.js': { lines: 100, functions: 100, branches: 91, statements: 100 },
         'lib/openclaw-agent-client.js': { lines: 96, functions: 90, branches: 84, statements: 93 },
