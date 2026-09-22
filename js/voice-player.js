@@ -1,7 +1,8 @@
 // @ts-check
 // voice-player.js — one-at-a-time blob playback with URL and abort cleanup.
 
-function abortError(reason = undefined) {
+/** @param {unknown} [reason] */
+function abortError(reason) {
   return reason instanceof Error
     ? reason
     : new DOMException('Speech playback stopped', 'AbortError');
@@ -709,7 +710,9 @@ export class VoicePlayer {
       if (internalController.signal.aborted) {
         throw abortError(internalController.signal.reason);
       }
-      if (!receivedSamples || !lastPlayback) {
+      // schedule() assigns this promise from a nested callback.
+      const finalPlayback = /** @type {Promise<void> | null} */ (lastPlayback);
+      if (!receivedSamples || !finalPlayback) {
         throw new Error('Kokoro returned an empty audio stream.');
       }
       // stop() clears onended handlers, so cancellation must also settle the
@@ -721,7 +724,7 @@ export class VoicePlayer {
           reject(abortError(signal.reason));
         };
         signal.addEventListener('abort', onAbort, { once: true });
-        lastPlayback.then(value => {
+        finalPlayback.then(value => {
           signal.removeEventListener('abort', onAbort);
           resolve(value);
         }, error => {

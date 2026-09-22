@@ -116,3 +116,12 @@ and diff checks pass. No exhaustive local suite or model download was run.
 Fresh whole-project CI coverage and complete review of the combined head are the
 remaining acceptance gate. Do not extrapolate the selected local coverage samples
 to a new project score, or treat older PR checks as evidence for this batch.
+
+## CI correction after the combined push
+
+The first combined-head CI stopped at the strict-null gate with two voice-player
+diagnostics that the non-strict CheckJs run did not detect. The correction declares
+the optional abort reason as unknown and snapshots/narrows the final PCM promise
+before entering its callback. No baseline was changed. The strict-null gate now
+passes with zero diagnostics, and both focused voice files pass all 51 tests.
+Fresh CI and Greptile acceptance still remain pending.
