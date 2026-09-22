@@ -74,3 +74,24 @@ The existing Chromium cold offline relaunch scenario passed (one spec, 2.7s).
 Server and service-worker typechecks, all 17 quality guards, production output
 budgets and diff whitespace checks passed. No full local suite was run, no
 threshold was reduced, and no push was made for this batch.
+
+## Local voice playback continuation — 2026-09-22 (not pushed)
+
+Added 12 failure-path tests for HTML playback errors/abort, asynchronous decoding
+and replacement, activation cancellation, source-start failure, and PCM cancellation
+after the producer finishes. The new regressions exposed and now protect four fixes:
+
+- Synchronous HTML `play()` failure releases listeners, player state and blob URLs.
+- A stopped or replaced Web Audio decode cannot start later or trigger an obsolete
+  HTML fallback when decoding rejects.
+- A failed Web Audio `start()` disconnects the source before fallback.
+- Stop/abort settles PCM playback even after generation ends, stopping and
+  disconnecting only sources owned by that playback session.
+
+Both relevant voice test files pass: 45 cases, including 33 existing voice runtime
+regressions. CheckJs, all 17 quality guards, production budgets and whitespace
+checks pass. No model download, paid inference, whole-project coverage run or push
+was performed. These mock-based failure tests verify lifecycle behavior, not
+physical audio-device quality or complete browser compatibility.
+
+Selected voice-player coverage: 77.1% functions, 68.51% branches, 90.48% lines. These values come only from the two selected voice test files.
