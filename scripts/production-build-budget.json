@@ -4,7 +4,7 @@
     "startupJavaScriptFiles": 2,
     "startupDecodedBytes": 1264000,
     "outputJavaScriptFiles": 165,
-    "outputDecodedBytes": 5384000
+    "outputDecodedBytes": 5385000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -78,7 +78,8 @@
     "persistenceHardeningOutputDecodedBytes": 5378608,
     "persistenceHardeningMeasuredCommit": "3b2aa362ff761e9b6fb0c208ebc3f3d595a92622",
     "chatReliabilityOutputDecodedBytes": 5382509,
-    "chatReliabilityMeasuredBaseCommit": "1ab14cc2e9ae326596a038a3b131362763cf07a6"
+    "chatReliabilityMeasuredBaseCommit": "1ab14cc2e9ae326596a038a3b131362763cf07a6",
+    "chatReliabilityReviewOutputDecodedBytes": 5383517
   },
   "referenceCommit": "331112b1",
   "measuredAt": "2026-09-22"

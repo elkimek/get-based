@@ -186,3 +186,88 @@ test('switching conversations during retry consent cannot persist a shortened or
   });
   expect(result).toEqual({ stored: [{ role: 'user', content: 'Original question' }, { role: 'assistant', content: 'Original reply' }], requested: false, destination: [] });
 });
+
+for (const approved of [false, true]) {
+  test(`retry consent ${approved ? 'approval' : 'refusal'} preserves an unrelated composer draft and attachments`, async ({ page }) => {
+    const result = await page.evaluate(async approved => {
+      const { state } = await import('/js/state.js');
+      const images = await import('/js/chat-images.js');
+      const original = { role: 'user', content: 'Original prompt', hasImages: true };
+      state.chatHistory = [original, { role: 'assistant', content: 'Original reply' }];
+      images.rememberMessageAttachments(original, [{ name: 'original.png', mediaType: 'image/png', base64: 'AA==' }]);
+      images.getPendingAttachments().push({ name: 'draft.png', mediaType: 'image/png', base64: 'AQ==' });
+      document.getElementById('chat-input').value = 'Unrelated draft';
+      globalThis.__auditApproval = async () => approved;
+      globalThis.__auditReply = async () => ({ text: 'Retried reply', finishReason: 'stop' });
+      await (await import('/js/chat-actions.js')).regenerateLastMessage();
+      return { input: document.getElementById('chat-input').value, attachments: images.getPendingAttachments().map(a => a.name), last: state.chatHistory.at(-1).content };
+    }, approved);
+    expect(result).toEqual({ input: 'Unrelated draft', attachments: ['draft.png'], last: approved ? 'Retried reply' : 'Original reply' });
+  });
+}
+
+test('new attachments stay queued while submitted attachments are consumed after saving', async ({ page }) => {
+  await page.evaluate(async () => {
+    const images = await import('/js/chat-images.js');
+    images.getPendingAttachments().push({ name: 'submitted.png', mediaType: 'image/png', base64: 'AA==' });
+    globalThis.__auditBeforeSave = () => new Promise(resolve => { globalThis.__auditFinishSave = resolve; });
+    globalThis.__auditSending = (await import('/js/chat-send.js')).sendChatMessage();
+  });
+  await page.waitForFunction(() => Boolean(globalThis.__auditFinishSave));
+  await page.evaluate(async () => {
+    (await import('/js/chat-images.js')).getPendingAttachments().push({ name: 'new.png', mediaType: 'image/png', base64: 'AQ==' });
+    globalThis.__auditBeforeSave = undefined; globalThis.__auditFinishSave();
+  });
+  await page.waitForFunction(() => Boolean(globalThis.__auditRequest));
+  const names = await page.evaluate(async () => {
+    globalThis.__auditFinishReply({ text: 'Reply', finishReason: 'stop' }); await globalThis.__auditSending;
+    return (await import('/js/chat-images.js')).getPendingAttachments().map(a => a.name);
+  });
+  expect(names).toEqual(['new.png']);
+});
+
+test('failed edited-send persistence preserves the revision and the original durable conversation', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const history = await import('/js/chat-history.js');
+    const edit = await import('/js/chat-message-edit.js');
+    const threads = await import('/js/chat-threads.js');
+    const crypto = await import('/js/crypto.js');
+    state.chatHistory = [{ role: 'user', content: 'Original question' }, { role: 'assistant', content: 'Original reply' }];
+    await history.saveChatHistory();
+    (await import('/js/chat-render.js')).renderChatMessages();
+    edit.beginChatMessageEdit(0); document.getElementById('chat-message-edit-input').value = 'My revision';
+    const originalSet = Storage.prototype.setItem; const indexKey = threads.getChatThreadsKey();
+    Storage.prototype.setItem = function (key, value) { if (key === indexKey) throw new Error('Synthetic index quota'); return originalSet.call(this, key, value); };
+    try {
+      await edit.submitChatMessageEdit();
+      return { requested: Boolean(globalThis.__auditRequest), draft: document.getElementById('chat-message-edit-input')?.value,
+        stored: JSON.parse(await crypto.encryptedGetItem(threads.getChatThreadKey(state.currentThreadId))), history: state.chatHistory };
+    } finally { Storage.prototype.setItem = originalSet; }
+  });
+  const original = [{ role: 'user', content: 'Original question' }, { role: 'assistant', content: 'Original reply' }];
+  expect(result).toEqual({ requested: false, draft: 'My revision', stored: original, history: original });
+});
+
+for (const failure of ['body', 'index']) {
+  test(`a failed fork ${failure} write keeps the source conversation and composer`, async ({ page }) => {
+    const result = await page.evaluate(async failure => {
+      const { state } = await import('/js/state.js');
+      const threads = await import('/js/chat-threads.js');
+      state.chatHistory = [{ role: 'user', content: 'Source question' }, { role: 'assistant', content: 'Source reply' }];
+      await (await import('/js/chat-history.js')).saveChatHistory();
+      document.getElementById('chat-input').value = 'My draft';
+      const originalSet = Storage.prototype.setItem; const indexKey = threads.getChatThreadsKey();
+      Storage.prototype.setItem = function (key, value) {
+        if (failure === 'index' ? key === indexKey : key.startsWith('labcharts-audit-a-chat-t_') && key !== 'labcharts-audit-a-chat-t_t_a') throw new Error('Synthetic fork quota');
+        return originalSet.call(this, key, value);
+      };
+      try {
+        const forked = await (await import('/js/chat-message-edit.js')).forkChatFromMessage(1);
+        return { forked, id: state.currentThreadId, count: state.chatThreads.length, input: document.getElementById('chat-input').value,
+          forkKeys: Object.keys(localStorage).filter(key => key.startsWith('labcharts-audit-a-chat-t_') && key !== 'labcharts-audit-a-chat-t_t_a') };
+      } finally { Storage.prototype.setItem = originalSet; }
+    }, failure);
+    expect(result).toEqual({ forked: false, id: 't_a', count: 1, input: 'My draft', forkKeys: [] });
+  });
+}

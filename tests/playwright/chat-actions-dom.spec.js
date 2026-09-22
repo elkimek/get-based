@@ -275,7 +275,7 @@ test('chat action browser coverage handles copy and regenerate branches', async 
       previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
         isChatStreaming: () => true,
         renderChatMessages: () => { renderCount += 1; },
-        sendChatMessage: ({ prepareRetry }) => { prepareRetry(); sendCount += 1; state.chatHistory.push({ role: 'user', content: input.value }); },
+        sendChatMessage: ({ prepareRetry, retry }) => { prepareRetry(); sendCount += 1; state.chatHistory.push({ role: 'user', content: retry.content }); },
       });
       state.currentThreadId = null;
       state.chatHistory = [
@@ -298,7 +298,7 @@ test('chat action browser coverage handles copy and regenerate branches', async 
       outcomes.regeneratePopsLastPairAndResends =
         renderCount === 1
         && sendCount === 1
-        && input.value === 'Repeat this prompt'
+        && state.chatHistory.at(-1).content === 'Repeat this prompt'
         && state.chatHistory.length === 2
         && state.chatHistory[0].content === 'Earlier assistant';
     } finally {

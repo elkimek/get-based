@@ -6,14 +6,14 @@ vi.mock('../js/utils.js', () => ({ escapeHTML: value => value, showNotification:
 vi.mock('../js/chat-runtime.js', () => ({ isChatRuntimeStreaming: m.streaming, getChatRegenerateCallbacks: m.callbacks }));
 vi.mock('../js/emf-runtime.js', () => ({ openEMFAssessmentEditor: vi.fn() }));
 vi.mock('../js/chat-composer.js', () => ({ setChatInputValue: m.input }));
-vi.mock('../js/chat-images.js', () => ({ restoreMessageAttachments: m.restore }));
+vi.mock('../js/chat-images.js', () => ({ getMessageAttachments: m.restore }));
 vi.mock('../js/agent-drafts.js', () => ({ applyAgentDraft: vi.fn(), renderAgentDraftCards: () => '' }));
 vi.mock('../js/agent-draft-claims.js', () => ({ claimAgentDraft: vi.fn() }));
 import { state } from '../js/state.js';
 import { regenerateLastMessage } from '../js/chat-actions.js';
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 beforeEach(() => {
-  vi.resetAllMocks(); document.body.innerHTML = ''; m.send.mockImplementation(({ prepareRetry }) => { prepareRetry(); state.chatHistory.push({ role: 'user', content: 'Replacement' }); }); m.save.mockResolvedValue(true); m.restore.mockReturnValue(true); m.streaming.mockReturnValue(false);
+  vi.resetAllMocks(); document.body.innerHTML = ''; m.send.mockImplementation(({ prepareRetry }) => { prepareRetry(); state.chatHistory.push({ role: 'user', content: 'Replacement' }); }); m.save.mockResolvedValue(true); m.restore.mockReturnValue([{ name: "original.png" }]); m.streaming.mockReturnValue(false);
   m.callbacks.mockReturnValue({ renderChatMessages: m.render, sendChatMessage: m.send });
   state.currentProfile = 'profile'; state.currentThreadId = 'thread';
   state.chatHistory = [{ role: 'user', content: 'Question' }, { role: 'assistant', content: 'Original response' }];
@@ -26,7 +26,7 @@ it.each([false, 'reject'])('preserves the original response when persistence fai
 it('persists before removing messages or initiating a paid retry', async () => {
   const gate = deferred(); m.save.mockReturnValueOnce(gate.promise); const retry = regenerateLastMessage();
   expect(state.chatHistory).toHaveLength(2); expect(m.send).not.toHaveBeenCalled();
-  gate.resolve(true); await retry; expect(state.chatHistory).toEqual([{ role: 'user', content: 'Replacement' }]); expect(m.input).toHaveBeenCalledWith('Question'); expect(m.send).toHaveBeenCalledOnce();
+  gate.resolve(true); await retry; expect(state.chatHistory).toEqual([{ role: 'user', content: 'Replacement' }]); expect(m.send.mock.calls[0][0].retry.content).toBe('Question'); expect(m.input).not.toHaveBeenCalled(); expect(m.send).toHaveBeenCalledOnce();
 });
 it('ignores duplicate retry clicks while saving', async () => {
   const gate = deferred(); m.save.mockReturnValueOnce(gate.promise);
@@ -52,12 +52,12 @@ it.each(['empty', 'streaming', 'callbacks', 'joined', 'wrong-role'])('does nothi
   await regenerateLastMessage(); expect(m.save).not.toHaveBeenCalled(); expect(m.send).not.toHaveBeenCalled();
 });
 it('preserves messages when original image attachments cannot be restored', async () => {
-  state.chatHistory[0].hasImages = true; m.restore.mockReturnValue(false); const before = [...state.chatHistory];
+  state.chatHistory[0].hasImages = true; m.restore.mockReturnValue([]); const before = [...state.chatHistory];
   await regenerateLastMessage(); expect(state.chatHistory).toEqual(before); expect(m.send).not.toHaveBeenCalled(); expect(m.notify).toHaveBeenCalled();
 });
 it('restores image-only input without inserting its placeholder as text', async () => {
   state.chatHistory[0].hasImages = true; state.chatHistory[0].content = '(image)';
-  await regenerateLastMessage(); expect(m.restore).toHaveBeenCalledOnce(); expect(m.input).toHaveBeenCalledWith(''); expect(m.send).toHaveBeenCalledOnce();
+  await regenerateLastMessage(); expect(m.restore).toHaveBeenCalledOnce(); expect(m.send.mock.calls[0][0].retry.content).toBe(''); expect(m.input).not.toHaveBeenCalled(); expect(m.send).toHaveBeenCalledOnce();
 });
 
 it.each(['refused', 'throw', 'reject'])('restores the original turn when Send is %s before accepting a replacement', async mode => {

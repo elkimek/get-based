@@ -341,9 +341,10 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
       chatOnboardingSrc.includes('export function startOnboardingLabImport'),
     'Provider quiz and onboarding handlers should be extracted from chat.js');
   assert('sendChatMessage guards no provider', (() => {
-    const fnStart = chatSendSrc.indexOf('export async function sendChatMessage()');
+    const fnStart = chatSendSrc.indexOf('export async function sendChatMessage(');
     const fnBody = chatSendSrc.substring(fnStart, fnStart + 300);
-    return fnBody.includes('if (!hasChatResponseBackend())');
+    return fnStart >= 0 && fnBody.includes('if (!hasChatResponseBackend())')
+      && fnBody.includes('renderChatMessages()');
   })(), 'sendChatMessage should check for provider and re-render setup guide');
 
   // CSS checks — provider quiz (new) + setup button (legacy, still used)

@@ -20,8 +20,7 @@ import {
 } from './chat-message-action-attrs.js';
 import { getChatRegenerateCallbacks, isChatRuntimeStreaming } from './chat-runtime.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
-import { setChatInputValue } from './chat-composer.js';
-import { restoreMessageAttachments } from './chat-images.js';
+import { getMessageAttachments } from './chat-images.js';
 import { applyAgentDraft, renderAgentDraftCards } from './agent-drafts.js';
 import { claimAgentDraft } from './agent-draft-claims.js';
 import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
@@ -392,15 +391,17 @@ export function regenerateLastMessage() {
         || history !== state.chatHistory || history.length !== length
         || history[length - 2] !== lastUserMsg || history[length - 1] !== lastResponse
         || isChatRuntimeStreaming() || input?.value !== draft) return;
-      if (lastUserMsg.hasImages && !restoreMessageAttachments(lastUserMsg)) {
+      const attachments = lastUserMsg.hasImages ? getMessageAttachments(lastUserMsg) : [];
+      if (lastUserMsg.hasImages && !attachments.length) {
         showNotification(
           'The original images are no longer available. Attach them again to retry this response.',
           'info', 6000,
         );
         return;
       }
-      setChatInputValue(lastUserMsg.content === '(image)' ? '' : lastUserMsg.content);
-      await callbacks.sendChatMessage({ prepareRetry: () => {
+      await callbacks.sendChatMessage({
+        retry: { content: lastUserMsg.content === '(image)' ? '' : lastUserMsg.content, attachments },
+        prepareRetry: () => {
         // Send calls this only after approval and route validation. Navigation
         // during consent must never persist a temporarily shortened transcript.
         if (profile !== state.currentProfile || threadId !== state.currentThreadId

@@ -109,15 +109,27 @@ export async function saveChatHistory() {
   const isCurrent = () => key === getChatThreadKey(state.currentThreadId) && history === state.chatHistory;
   const previous = pendingHistoryWrites.get(key);
   const saving = (async () => {
+    let committed = false;
+    let bodyWritten = false;
+    let previousRaw = null;
+    let writtenRaw = null;
+    let thread = null;
+    const previousMetadata = {};
+    const writtenMetadata = {};
     try {
       if (previous) await previous;
       if (!isCurrent()) return false;
       const previousValue = await encryptedGetItem(key);
       if (!isCurrent()) return false;
+      previousRaw = localStorage.getItem(key);
       await encryptedSetItem(key, value);
+      bodyWritten = true;
+      writtenRaw = localStorage.getItem(key);
       if (!isCurrent()) return false;
-      const thread = state.chatThreads.find(t => t.id === state.currentThreadId);
+      thread = state.chatThreads.find(t => t.id === state.currentThreadId);
       if (thread) {
+        const fields = ['updatedAt', 'messagesUpdatedAt', 'messageCount', 'personality', 'personalityName', 'personalityIcon'];
+        for (const field of fields) previousMetadata[field] = thread[field];
         if (previousValue !== value || thread.messageCount !== messageCount) {
           thread.updatedAt = new Date().toISOString();
           thread.messagesUpdatedAt = thread.updatedAt;
@@ -126,14 +138,37 @@ export async function saveChatHistory() {
         thread.personality = personality;
         thread.personalityName = p.name;
         thread.personalityIcon = p.icon;
+        for (const field of fields) writtenMetadata[field] = thread[field];
         const saved = await saveChatThreadIndex();
-        if (!saved || !isCurrent()) return false;
+        if (!saved) return false;
+        committed = true;
+        if (!isCurrent()) return false;
         renderThreadList();
       }
+      committed = true;
       return true;
     } catch {
       if (isCurrent()) showNotification('Could not save this conversation. Your messages are still available here; try again.', 'error', 6000);
       return false;
+    } finally {
+      if (!committed && bodyWritten) {
+        // Restore exact stored bytes, including encryption, without depending on
+        // the currently selected profile/key. The next queued write waits here.
+        try {
+          if (localStorage.getItem(key) === writtenRaw) {
+            if (previousRaw === null) localStorage.removeItem(key);
+            else localStorage.setItem(key, previousRaw);
+          } else throw new Error('Conversation changed during rollback');
+        } catch {
+          blockChatHistoryWrites(key);
+          if (isCurrent()) notifyChatHistoryBlocked(key);
+        }
+        if (thread) for (const field of Object.keys(writtenMetadata)) {
+          if (thread[field] !== writtenMetadata[field]) continue;
+          if (previousMetadata[field] === undefined) delete thread[field];
+          else thread[field] = previousMetadata[field];
+        }
+      }
     }
   })();
   pendingHistoryWrites.set(key, saving);

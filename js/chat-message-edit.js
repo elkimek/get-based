@@ -193,7 +193,7 @@ export async function submitChatMessageEdit() {
 
 /**
  * Called immediately before Send mutates chat history.
- * @returns {{ edited: true } | null | false}
+ * @returns {{ edited: true, restore: () => void } | null | false}
  */
 export function prepareChatMessageEditSend() {
   const session = editSession;
@@ -208,7 +208,12 @@ export function prepareChatMessageEditSend() {
   state.chatHistory = state.chatHistory.slice(0, session.messageIndex);
   editSession = null;
   setComposerEditState(false);
-  return { edited: true };
+  return { edited: true, restore: () => {
+    if (session.profile !== state.currentProfile || session.threadId !== state.currentThreadId
+      || session.message !== state.chatHistory[session.messageIndex] || editSession) return;
+    editSession = session;
+    setComposerEditState(true);
+  } };
 }
 
 /** @param {number} messageIndex */

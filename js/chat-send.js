@@ -12,7 +12,7 @@ import {
 } from './api.js';
 import { buildVisionContent, formatImageBlock } from './image-utils.js';
 import {
-  clearAttachments, configureChatImages, getPendingAttachments, hasPendingAttachments,
+  consumeAttachments, configureChatImages, getPendingAttachments, hasPendingAttachments,
   rememberMessageAttachments,
 } from './chat-images.js';
 import {
@@ -240,8 +240,8 @@ export function setSendButtonMode(btn, mode) {
 // ═══════════════════════════════════════════════
 // SEND MESSAGE
 // ═══════════════════════════════════════════════
-/** @param {{ prepareRetry?: (() => boolean) | null }} [options] */
-export async function sendChatMessage({ prepareRetry = null } = {}) {
+/** @param {{ prepareRetry?: (() => boolean) | null, retry?: { content: string, attachments: any[] } | null }} [options] */
+export async function sendChatMessage({ prepareRetry = null, retry = null } = {}) {
   const useCodexAgent = isCodexChatBackend();
   if (!hasChatResponseBackend()) {
     renderChatMessages(); // Re-render to show setup guide
@@ -265,9 +265,9 @@ export async function sendChatMessage({ prepareRetry = null } = {}) {
   if (!input || !sendBtn || !container) return;
   const inputValue = input.value;
   const pendingEditText = getPendingChatMessageEditText();
-  const isEditedRetry = pendingEditText != null;
-  const text = (pendingEditText ?? input.value).trim();
-  const hasImages = !isEditedRetry && hasPendingAttachments();
+  const isEditedRetry = !retry && pendingEditText != null;
+  const text = (retry?.content ?? pendingEditText ?? input.value).trim();
+  const hasImages = retry ? retry.attachments.length > 0 : !isEditedRetry && hasPendingAttachments();
   if (!text && !hasImages) return;
   const revision = ++chatSendRevision;
   const profile = state.currentProfile;
@@ -292,7 +292,7 @@ export async function sendChatMessage({ prepareRetry = null } = {}) {
     || (useCodexAgent ? _msgAgentId !== getAgentHostAgent() || _msgAgentTarget !== getAgentHostTarget() : _msgProvider !== getAIProvider())) return;
 
   // Capture attachments before clearing (they're ephemeral)
-  const attachments = hasImages ? [...getPendingAttachments()] : [];
+  const attachments = retry ? retry.attachments : hasImages ? [...getPendingAttachments()] : [];
 
   // Ensure we have a thread
   if (!state.currentThreadId) {
@@ -303,7 +303,7 @@ export async function sendChatMessage({ prepareRetry = null } = {}) {
   if (!canSaveChatHistory()) return;
   const previousHistory = state.chatHistory.slice();
   if (prepareRetry && !prepareRetry()) return;
-  const editPreparation = prepareChatMessageEditSend();
+  const editPreparation = retry ? null : prepareChatMessageEditSend();
   if (editPreparation === false) return;
 
   const discussionState = text && !hasImages ? getCurrentDiscussionState() : null;
@@ -331,15 +331,14 @@ export async function sendChatMessage({ prepareRetry = null } = {}) {
     if (state.chatHistory === sendingHistory && sendingHistory.at(-1) === userMsg) {
       sendingHistory.splice(0, sendingHistory.length, ...previousHistory);
       renderChatMessages();
+      if (editPreparation) editPreparation.restore();
     }
     showNotification('Your message could not be saved, so it was not sent. Please try again.', 'error', 6000);
     return;
   }
-  if (!editPreparation) {
+  if (!editPreparation && !retry) {
     if (input.value === inputValue) resetChatComposer();
-    const pendingAttachments = getPendingAttachments();
-    if (pendingAttachments.length === attachments.length
-      && pendingAttachments.every((attachment, index) => attachment === attachments[index])) clearAttachments();
+    consumeAttachments(attachments);
   }
 
   if (isFirstMessage) {

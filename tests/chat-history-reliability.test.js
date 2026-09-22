@@ -151,3 +151,33 @@ it('does not write a queued snapshot after its history has been replaced', async
   const gate = deferred(); m.set.mockReturnValueOnce(gate.promise); const first = saveChatHistory(); await vi.waitFor(() => expect(m.set).toHaveBeenCalled());
   const second = saveChatHistory(); state.chatHistory = []; gate.resolve(); await first; expect(await second).toBe(false); expect(m.set).toHaveBeenCalledOnce();
 });
+it.each([null, 'encrypted-original'])('compensates a failed index write by restoring exact original body bytes: %s', async previous => {
+  const key = `${state.currentProfile}:thread`; if (previous !== null) localStorage.setItem(key, previous);
+  const metadata = { ...state.chatThreads[0] };
+  m.set.mockImplementation(async (_key, value) => localStorage.setItem(key, value)); m.index.mockResolvedValue(false);
+  expect(await saveChatHistory()).toBe(false); expect(localStorage.getItem(key)).toBe(previous); expect(state.chatThreads[0]).toEqual(metadata);
+});
+it('a later queued save follows completed rollback and persists the newer snapshot', async () => {
+  const key = `${state.currentProfile}:thread`; localStorage.setItem(key, 'original');
+  m.set.mockImplementation(async (_key, value) => localStorage.setItem(key, value)); const gate = deferred(); m.index.mockReturnValueOnce(gate.promise);
+  const first = saveChatHistory(); await vi.waitFor(() => expect(m.index).toHaveBeenCalled());
+  state.chatHistory.push({ role: 'assistant', content: 'New' }); const second = saveChatHistory(); gate.resolve(false);
+  expect(await first).toBe(false); expect(await second).toBe(true); expect(JSON.parse(localStorage.getItem(key))).toHaveLength(2);
+});
+it('blocks additional writes if compensation is refused by storage', async () => {
+  const key = `${state.currentProfile}:thread`; localStorage.setItem(key, 'original');
+  m.set.mockImplementation(async (_key, value) => localStorage.setItem(key, value));
+  m.index.mockImplementation(async () => { vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('denied'); }); return false; });
+  try { expect(await saveChatHistory()).toBe(false); expect(canSaveChatHistory()).toBe(false); }
+  finally { vi.restoreAllMocks(); }
+});
+it('does not overwrite a different writer while compensating an index failure', async () => {
+  const key = `${state.currentProfile}:thread`; localStorage.setItem(key, 'original');
+  m.set.mockImplementation(async (_key, value) => localStorage.setItem(key, value));
+  m.index.mockImplementation(async () => { localStorage.setItem(key, 'external update'); return false; });
+  expect(await saveChatHistory()).toBe(false); expect(localStorage.getItem(key)).toBe('external update'); expect(canSaveChatHistory()).toBe(false);
+});
+it('does not roll back metadata changed by another operation while the index save was pending', async () => {
+  m.index.mockImplementation(async () => { state.chatThreads[0].personality = 'newer'; return false; });
+  expect(await saveChatHistory()).toBe(false); expect(state.chatThreads[0].personality).toBe('newer'); expect(state.chatThreads[0].updatedAt).toBe('old');
+});

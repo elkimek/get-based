@@ -333,6 +333,14 @@ export function clearAttachments(threadId = state.currentThreadId) {
   renderAttachmentPreview();
 }
 
+/** Remove only the submitted objects, retaining attachments added during a save. */
+export function consumeAttachments(attachments) {
+  const draft = currentAttachmentDraft({ create: false });
+  const submitted = new Set(attachments);
+  pendingAttachmentsByThread.set(attachmentDraftKey(), draft.filter(attachment => !submitted.has(attachment)));
+  refreshAttachmentDraft();
+}
+
 export function deleteAttachmentDraft(threadId) {
   pendingAttachmentsByThread.delete(attachmentDraftKey(threadId));
   if (threadId === state.currentThreadId) refreshAttachmentDraft();
@@ -348,10 +356,13 @@ export function rememberMessageAttachments(message, attachments) {
   sentMessageAttachments.set(message, attachments.map(attachment => ({ ...attachment })));
 }
 
+export function getMessageAttachments(message) {
+  const attachments = message && typeof message === 'object' ? sentMessageAttachments.get(message) : null;
+  return attachments ? attachments.map(attachment => ({ ...attachment })) : [];
+}
+
 export function restoreMessageAttachments(message) {
-  const attachments = message && typeof message === 'object'
-    ? sentMessageAttachments.get(message)
-    : null;
+  const attachments = getMessageAttachments(message);
   if (!attachments?.length) return false;
   pendingAttachmentsByThread.set(
     attachmentDraftKey(),

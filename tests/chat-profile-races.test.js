@@ -90,12 +90,25 @@ describe('chat operations stay within their originating profile', () => {
     const write = deferred();
     vi.mocked(encryptedSetItem).mockReturnValueOnce(write.promise);
     const pending = saveChatHistory();
+    await vi.waitFor(() => expect(encryptedSetItem).toHaveBeenCalledTimes(1));
     switchProfile('profile-b');
     const expected = structuredClone(state.chatThreads);
     write.resolve();
     await pending;
     expect(state.chatThreads).toEqual(expected);
     expect(encryptedSetItem).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not start an old history write after navigation during its read', async () => {
+    const read = deferred();
+    vi.mocked(encryptedGetItem).mockReturnValueOnce(read.promise);
+    const pending = saveChatHistory();
+    switchProfile('profile-b');
+    const expected = structuredClone(state.chatThreads);
+    read.resolve('[]');
+    expect(await pending).toBe(false);
+    expect(encryptedSetItem).not.toHaveBeenCalled();
+    expect(state.chatThreads).toEqual(expected);
   });
 
   it('does not signal chat sync for a different profile after an index write', async () => {

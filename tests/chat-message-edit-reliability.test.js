@@ -41,7 +41,7 @@ it('does not submit whitespace-only edits', async () => {
 });
 it('submits trimmed text and replaces only the latest turn when accepted', async () => {
   begin('  Revised  '); let text;
-  m.send.mockImplementation(() => { text = edit.getPendingChatMessageEditText(); expect(edit.prepareChatMessageEditSend()).toEqual({ edited: true }); });
+  m.send.mockImplementation(() => { text = edit.getPendingChatMessageEditText(); expect(edit.prepareChatMessageEditSend()).toMatchObject({ edited: true }); });
   expect(await edit.submitChatMessageEdit()).toBe(true); expect(text).toBe('Revised'); expect(state.chatHistory.map(m => m.content)).toEqual(['First', 'Reply']);
 });
 it.each(['refused', 'rejected'])('keeps the edited text available after Send is %s', async mode => {
@@ -110,4 +110,21 @@ it('ordinary Enter does not submit the editor', () => {
 it('does not replace an edit session while its send is pending', async () => {
   begin(); const gate = deferred(); m.send.mockReturnValueOnce(gate.promise); const sending = edit.submitChatMessageEdit();
   expect(edit.beginChatMessageEdit(2)).toBe(false); gate.resolve(); await sending; expect(document.getElementById('chat-message-edit-input').value).toBe('Revised');
+});
+it('restores the edit session and submitted text after the prepared send is rolled back', async () => {
+  begin('Keep my revision');
+  m.send.mockImplementation(() => {
+    const original = state.chatHistory.slice(); const prepared = edit.prepareChatMessageEditSend();
+    state.chatHistory.splice(0, state.chatHistory.length, ...original); prepared.restore();
+  });
+  expect(await edit.submitChatMessageEdit()).toBe(false); expect(edit.hasPendingChatMessageEdit()).toBe(true);
+  expect(document.getElementById('chat-message-edit-input').value).toBe('Keep my revision'); expect(state.chatHistory[2].content).toBe('Latest');
+});
+it.each(['profile', 'message'])('does not restore a failed edit into a changed %s', async scope => {
+  begin(); m.send.mockImplementation(() => {
+    const original = state.chatHistory.slice(); const prepared = edit.prepareChatMessageEditSend(); state.chatHistory = original;
+    if (scope === 'profile') state.currentProfile = 'other'; else state.chatHistory[2] = { role: 'user', content: 'Newer message' };
+    prepared.restore();
+  });
+  await edit.submitChatMessageEdit(); expect(edit.hasPendingChatMessageEdit()).toBe(false);
 });

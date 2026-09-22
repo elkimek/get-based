@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 786 |
-| Internal import edges | 3318 |
+| Internal import edges | 3317 |
 | Dynamic internal edges | 113 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -310,7 +310,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>chat</code> family — 61 modules</summary>
 
-- [`js/chat-actions.js`](js/chat-actions.js) → [`js/agent-draft-claims.js`](js/agent-draft-claims.js), [`js/agent-drafts.js`](js/agent-drafts.js), [`js/chat-composer.js`](js/chat-composer.js), [`js/chat-history.js`](js/chat-history.js), [`js/chat-icons.js`](js/chat-icons.js), [`js/chat-images.js`](js/chat-images.js), [`js/chat-message-action-attrs.js`](js/chat-message-action-attrs.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/cli-agent-brand-assets.js`](js/cli-agent-brand-assets.js), [`js/emf-runtime.js`](js/emf-runtime.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/chat-actions.js`](js/chat-actions.js) → [`js/agent-draft-claims.js`](js/agent-draft-claims.js), [`js/agent-drafts.js`](js/agent-drafts.js), [`js/chat-history.js`](js/chat-history.js), [`js/chat-icons.js`](js/chat-icons.js), [`js/chat-images.js`](js/chat-images.js), [`js/chat-message-action-attrs.js`](js/chat-message-action-attrs.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/cli-agent-brand-assets.js`](js/cli-agent-brand-assets.js), [`js/emf-runtime.js`](js/emf-runtime.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/chat-attestation.js`](js/chat-attestation.js) → [`js/utils.js`](js/utils.js)
 - [`js/chat-backend-selection.js`](js/chat-backend-selection.js) → [`js/agent-chat-settings.js`](js/agent-chat-settings.js), [`js/agent-model-catalog.js`](js/agent-model-catalog.js), [`js/api.js`](js/api.js)
 - [`js/chat-composer.js`](js/chat-composer.js) → [`js/chat-draft-storage.js`](js/chat-draft-storage.js), [`js/state.js`](js/state.js)

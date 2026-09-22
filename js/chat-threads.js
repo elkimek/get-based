@@ -322,17 +322,29 @@ export async function createForkedThread(sourceThreadId, sourceMessageIndex, mes
     forkedFromMessageIndex: sourceMessageIndex,
     ...(source.projectName ? { projectName: source.projectName } : {}),
   };
-  state.chatThreads.unshift(thread);
-  const saved = await saveChatThreadIndex();
-  if (profile !== state.currentProfile) return null;
-  if (!saved) {
-    state.chatThreads = state.chatThreads.filter(item => item.id !== id);
+  const originThreadId = state.currentThreadId;
+  const key = getChatThreadKey(id);
+  // Publish the index only after the complete fork body is durable. No active
+  // conversation/composer state changes until both writes have succeeded.
+  try { await encryptedSetItem(key, JSON.stringify(history)); }
+  catch {
+    if (profile === state.currentProfile) showNotification('Could not save the forked conversation.', 'error');
     return null;
   }
+  if (profile !== state.currentProfile || originThreadId !== state.currentThreadId) {
+    localStorage.removeItem(key);
+    return null;
+  }
+  state.chatThreads.unshift(thread);
+  const saved = await saveChatThreadIndex();
+  if (!saved) {
+    if (profile === state.currentProfile) state.chatThreads = state.chatThreads.filter(item => item.id !== id);
+    localStorage.removeItem(key);
+    return null;
+  }
+  if (profile !== state.currentProfile || originThreadId !== state.currentThreadId) return null;
   applyThreadContext(thread);
   state.chatHistory = history;
-  await chatThreadDeps.saveChatHistory();
-  if (profile !== state.currentProfile || state.currentThreadId !== id) return null;
   chatThreadDeps.renderChatMessages();
   chatThreadDeps.updateChatHeaderTitle();
   chatThreadDeps.updatePersonalityBar();
