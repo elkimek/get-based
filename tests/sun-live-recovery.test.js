@@ -90,3 +90,18 @@ it('a paused session resumes with a fresh request after discarding pending weath
   session.paused = false; await vi.advanceTimersByTimeAsync(1000);
   expect(deps.fetchAtmosphere).toHaveBeenCalledTimes(2); expect(active.liveDosesFor(session).atm.uvIndex).toBe(3);
 });
+it.each(['location', 'bodyExposure', 'updatedAt', 'sunDefaults'])('rejects live weather after in-place synchronized %s changes', async field => {
+  const wait = deferred(); deps.fetchAtmosphere.mockReturnValue(wait.promise); active.ensureActiveTicker();
+  if (field === 'sunDefaults') state.importedData.sunDefaults = { fitzpatrick: 'VI' };
+  else session[field] = { location: { lat: 1, lon: 2 }, bodyExposure: { fraction: 0.8 }, updatedAt: 1234 }[field];
+  wait.resolve({ uvIndex: 99 }); await vi.advanceTimersByTimeAsync(0);
+  expect(deps.computeChannelDoses).not.toHaveBeenCalled();
+});
+it.each(['replacement', 'in-place edit'])('starts weather for a %s without waiting for the obsolete provider', async mode => {
+  const wait = deferred(); deps.fetchAtmosphere.mockReturnValueOnce(wait.promise); active.ensureActiveTicker();
+  if (mode === 'replacement') { session = { ...session }; sessions = [session]; }
+  else session.location = { lat: 1, lon: 2 };
+  await vi.advanceTimersByTimeAsync(1000); expect(deps.fetchAtmosphere).toHaveBeenCalledTimes(2);
+  expect(active.liveDosesFor(session).atm.uvIndex).toBe(3);
+  wait.resolve({ uvIndex: 99 }); await vi.advanceTimersByTimeAsync(0); expect(active.liveDosesFor(session).atm.uvIndex).toBe(3);
+});

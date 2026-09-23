@@ -56,7 +56,7 @@ it('clears partial computed fields when the dose engine throws', async () => {
 it('stopping an already stopped session preserves its original duration and dose boundary', async () => {
   const snapshot = structuredClone(session);
   expect(await store.stopSession(session.id)).toBe(session);
-  expect(session).toEqual(snapshot); expect(deps.commitCurrentSlice).not.toHaveBeenCalled(); expect(saveImportedData).not.toHaveBeenCalled();
+  expect(session).toEqual(snapshot); expect(deps.commitCurrentSlice).not.toHaveBeenCalled(); expect(saveImportedData).toHaveBeenCalledTimes(1);
 });
 it('a duration edit invalidates older weather before its replacement calculation', async () => {
   const wait = deferred(); deps.fetchAtmosphere.mockReturnValueOnce(wait.promise);
@@ -240,4 +240,21 @@ it('an asynchronous analysis failure does not leak a rejected background promise
 it('a malformed imported time reports calculation failure without fetching weather', async () => {
   session.startedAt = 'bad date'; expect(await store.hydrateSession(session.id)).toBeNull();
   expect(session.calculationStatus).toBe('calculation-error'); expect(deps.fetchAtmosphere).not.toHaveBeenCalled();
+});
+it('a repeated stop retries failed persistence without changing the end time', async () => {
+  session.endedAt = null; saveImportedData.mockResolvedValueOnce(false);
+  await expect(store.stopSession(session.id)).rejects.toThrow('could not be saved');
+  const end = session.endedAt; vi.setSystemTime(Date.now() + 60000);
+  await store.stopSession(session.id);
+  expect(saveImportedData).toHaveBeenCalledTimes(2); expect(session.endedAt).toBe(end); expect(deps.commitCurrentSlice).toHaveBeenCalledTimes(1);
+});
+it.each(['location', 'durationMin', 'bodyExposure', 'updatedAt', 'sunDefaults'])('discards in-place synchronized %s changes during weather fetch', async field => {
+  const wait = deferred(); deps.fetchAtmosphere.mockReturnValue(wait.promise);
+  const pending = store.hydrateSession(session.id); await vi.waitFor(() => expect(deps.fetchAtmosphere).toHaveBeenCalled());
+  const { adoptProfileData } = await import('../js/profile-data-writes.js'); const replacement = structuredClone(state.importedData);
+  if (field === 'sunDefaults') replacement.sunDefaults = { fitzpatrick: 'VI' };
+  else replacement.sunSessions[0][field] = { location: { lat: 1, lon: 2 }, durationMin: 30, bodyExposure: { fraction: 0.8 }, updatedAt: 1234 }[field];
+  adoptProfileData(state.importedData, replacement); expect(state.importedData.sunSessions[0]).toBe(session);
+  saveImportedData.mockClear(); wait.resolve({ uvIndex: 99 });
+  expect(await pending).toBeNull(); expect(deps.computeChannelDoses).not.toHaveBeenCalled(); expect(saveImportedData).not.toHaveBeenCalled();
 });

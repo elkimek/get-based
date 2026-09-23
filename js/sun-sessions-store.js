@@ -12,10 +12,10 @@ import { requestSunSessionAnalysis } from './light-sun-analysis-runtime.js';
 import { BODY_REGIONS } from './sun-body-silhouette.js';
 import {
   EXPOSURE_PRESETS,
-  POSTURE_MULTIPLIERS,
-  SURFACE_ALBEDO,
   _normalizePSMTier,
   photosensitiveMedScale,
+  sunSessionInputKey,
+  sunSessionExposure,
 } from './sun-session-model.js';
 import { createUniqueId } from './unique-id.js';
 
@@ -111,9 +111,9 @@ export async function startSession({ exposurePreset = 'face_hands', regions, eye
   // An empty array means "the user picked nothing" — silently substituting
   // a face_hands preset would record a phantom exposure.
   if (Array.isArray(regions)) {
-    if (regions.length === 0) throw new Error('startSession: regions array was empty — pick at least one region or pass exposurePreset instead');
+    if (regions.length === 0) throw new Error('Empty regions: pick a body region or pass exposurePreset');
     regionsArr = normalizedRegionList(regions);
-    if (regionsArr.length === 0) throw new Error('startSession: regions array contained no recognized body regions');
+    if (regionsArr.length === 0) throw new Error('No recognized body regions');
     fraction = bodyFractionForRegions(regionsArr);
     preset = { key: 'detailed' };
   } else {
@@ -149,7 +149,10 @@ export async function startSession({ exposurePreset = 'face_hands', regions, eye
 export async function stopSession(id) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess) return null;
-  if (sess.endedAt) return sess;
+  if (sess.endedAt) {
+    await persistSessionChanges();
+    return sess;
+  }
   const now = Date.now();
   if (!sess.paused) storeDeps.commitCurrentSlice(sess);
   if (sess.paused && Number.isFinite(sess.pausedAt)) {
@@ -270,6 +273,13 @@ function bodyFractionForRegions(regions) {
   }, 0);
 }
 
+async function persistExposureEdit(sess) {
+  markSessionEdited(sess);
+  storeDeps.setLiveState(sess.id, { ratePerMin: null });
+  await persistSessionChanges();
+  return sess;
+}
+
 export async function markSessionRotated(id) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess || sess.endedAt) return null;
@@ -277,10 +287,7 @@ export async function markSessionRotated(id) {
   if (sess.bodyExposure.rotatedSides) return sess;
   storeDeps.commitCurrentSlice(sess);
   sess.bodyExposure.rotatedSides = true;
-  markSessionEdited(sess);
-  storeDeps.setLiveState(id, { ratePerMin: null });
-  await persistSessionChanges();
-  return sess;
+  return persistExposureEdit(sess);
 }
 
 export async function setSessionSunscreen(id, spf) {
@@ -291,10 +298,7 @@ export async function setSessionSunscreen(id, spf) {
   storeDeps.commitCurrentSlice(sess);
   if (!sess.bodyExposure) sess.bodyExposure = {};
   sess.bodyExposure.sunscreenSPF = nextSpf || null;
-  markSessionEdited(sess);
-  storeDeps.setLiveState(id, { ratePerMin: null });
-  await persistSessionChanges();
-  return sess;
+  return persistExposureEdit(sess);
 }
 
 export async function setSessionCoverage(id, regions) {
@@ -307,10 +311,7 @@ export async function setSessionCoverage(id, regions) {
   sess.bodyExposure.regions = nextRegions;
   sess.bodyExposure.fraction = fraction;
   sess.bodyExposure.preset = nextRegions.length === 0 ? 'covered' : 'detailed';
-  markSessionEdited(sess);
-  storeDeps.setLiveState(id, { ratePerMin: null });
-  await persistSessionChanges();
-  return sess;
+  return persistExposureEdit(sess);
 }
 
 // Edit fields on a saved session. Bumps `updatedAt` so the cross-device
@@ -534,7 +535,9 @@ export async function hydrateSession(id, coords = {}) {
   const ownsSession = sessionOwnership(sess);
   const request = {};
   _hydrateRequests.set(sess, request);
-  const isCurrent = () => ownsSession() && _hydrateRequests.get(sess) === request;
+  let inputKey;
+  const isCurrent = () => ownsSession() && _hydrateRequests.get(sess) === request
+    && sunSessionInputKey(sess, state.importedData) === inputKey;
   const {
     fetchAtmosphere,
     reconstructSpectrum,
@@ -544,7 +547,9 @@ export async function hydrateSession(id, coords = {}) {
     retinalUVdose,
     solarZenithAngle,
   } = storeDeps;
-  const segmented = await finalizeSegmentedSession(sess, fractionOfMED);
+  const segmentedWork = finalizeSegmentedSession(sess, fractionOfMED);
+  inputKey = sunSessionInputKey(sess, state.importedData);
+  const segmented = await segmentedWork;
   if (!isCurrent()) return null;
   if (segmented) {
     runSessionAnalysis(segmented);
@@ -595,33 +600,16 @@ export async function hydrateSession(id, coords = {}) {
       aod: atm?.airQuality?.aod ?? null,
       targetUVI: atm.uvIndex ?? null,
     });
-    const bodyModifiers = {
-      glassBetween: !!sess.bodyExposure?.glassBetween,
-      sunscreenSPF: sess.bodyExposure?.sunscreenSPF || 0,
-    };
-    // Apply posture + surface-albedo multipliers to body fraction so
-    // hydrated doses match the live engine's accounting.
-    const baseFraction = sess.bodyExposure?.fraction ?? 0;
-    const postureMult = POSTURE_MULTIPLIERS[sess.posture] ?? 1.0;
-    const albedoMult = 1 + (SURFACE_ALBEDO[sess.surfaceAlbedo] ?? 0) * 0.5;
-    const skinIrradianceMultiplier = Math.max(0, Math.min(2, postureMult * albedoMult));
-    const modeledEyeExposure = bodyModifiers.glassBetween && sess.eyeExposure?.mode === 'direct'
-      ? { ...sess.eyeExposure, mode: 'glass-window' }
-      : sess.eyeExposure;
+    const exposure = sunSessionExposure(sess);
     sess.doses = computeChannelDoses({
       spectrum,
       durationMin: sess.durationMin,
-      bodyExposureFraction: baseFraction,
-      skinIrradianceMultiplier,
-      eyeExposure: modeledEyeExposure,
-      bodyModifiers,
+      ...exposure,
     });
     const sed = erythemalSED({
       spectrum,
       durationMin: sess.durationMin,
-      bodyExposureFraction: baseFraction,
-      skinIrradianceMultiplier,
-      bodyModifiers,
+      ...exposure,
     });
     // Read from one of two places, in priority order:
     //   1. sunDefaults.fitzpatrick (Light setup card)
@@ -630,9 +618,9 @@ export async function hydrateSession(id, coords = {}) {
     // has not configured a skin type. The UI marks this as an assumption.
     const ocularActinicUV = retinalUVdose({
       spectrum,
-      eyeExposure: modeledEyeExposure,
+      eyeExposure: exposure.eyeExposure,
       zenithDeg: zenith,
-      glassBetween: bodyModifiers.glassBetween,
+      glassBetween: exposure.bodyModifiers.glassBetween,
     });
     sess.safety = sessionSafety(sed, ocularActinicUV, fractionOfMED);
     // Stamp the engine version so rehydrateStaleSessions can detect

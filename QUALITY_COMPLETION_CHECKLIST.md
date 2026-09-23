@@ -6,8 +6,8 @@ and merged with the user-authorized administrator override as
 
 ## Current combined batch
 
-127 new regression cases: 74 session-store, 26 live-runtime, 23 session-format
-unit cases and four Chromium integration scenarios. These cover stale weather
+141 new regression cases: 80 session-store, 32 live-runtime, 23 session-format
+unit cases and six Chromium integration scenarios. These cover stale weather
 completion/rejection after profile changes, deletion, reset and replacement;
 concurrent hydration, failed persistence and retry; pause/resume/duplicate stop;
 partial calculation failures; live ticker ownership and cleanup; and preserved
@@ -34,15 +34,15 @@ or weakened to accommodate the changes.
 
 ## Focused local verification
 
-- 123 new unit cases plus the critical-config guard pass.
-- All four new browser scenarios and three directly affected existing scenarios
+- 135 new unit cases plus the critical-config guard pass.
+- All six new browser scenarios and three directly affected existing scenarios
   pass, including real persistence across reload and profile/deletion races.
-- Scoped coverage: store lines 95.80%, branches 89.40%, functions 78.12%,
-  statements 94.44%; session format lines/functions 100%, branches 90.81%,
+- Scoped coverage: store lines 95.72%, branches 89.34%, functions 78.46%,
+  statements 94.33%; session format lines/functions 100%, branches 90.81%,
   statements 97.53%. Default no-op callbacks remain in the denominator.
 - Critical configuration adds the three suites and two independently enforced
   modules: 53 explicit suites, 30 module floors. CI owns the complete run.
-- Existing shipped-behavior checks: 132 passed; existing audit checks: 378 passed.
+- Existing sun-domain checks: 117 passed; shipped-behavior checks: 132 passed; existing audit checks: 378 passed.
 - CheckJS, strict-null, architecture, quality guardrails and production budgets
   are checked without exhaustive local browser or coverage matrices.
 
@@ -56,6 +56,17 @@ weather-provider availability, physical exposure estimates, or complete workflow
 coverage. Remaining surface areas continue below and in QUALITY_REMAINING_SURFACE.md.
 
 ---
+
+## Review corrections combined before the next push
+
+Greptile identified failed-stop retry, in-place synchronization and inherited
+pending-state gaps. All three have focused regressions. Repeated stops retry the
+save without changing time or committing a second slice. A shared calculation-input
+snapshot detects in-place changes that preserve object identity. Obsolete pending
+state is cleared on the next live tick, allowing a replacement to request weather
+without waiting for the old provider. Browser tests use actual `adoptProfileData`
+and durable profile storage. Shared exposure construction preserves the original
+formulas and bundle budget. These changes add 14 cases to the initial 127.
 
 ## Historical evidence from preceding batches
 

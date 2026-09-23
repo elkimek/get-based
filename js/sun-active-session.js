@@ -4,7 +4,7 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette } from './sun-body-silhouette.js';
-import { POSTURE_MULTIPLIERS, SURFACE_ALBEDO } from './sun-session-model.js';
+import { sunSessionInputKey, sunSessionExposure } from './sun-session-model.js';
 import { renderChannelChips } from './sun-session-ui.js';
 import { setSunChannelChipsExpanded } from './sun-session-actions.js';
 import { activeElapsedMs as _activeElapsedMs, formatElapsed as _formatElapsed, plainStopSummary, _renderUVIPreflightBanner, _buildStartSessionToast } from './sun-active-session-format.js';
@@ -283,7 +283,15 @@ function activeSessionOwnership(sess) {
     && activeDeps.getSessions().includes(sess);
 }
 
-function _getLiveState(id) { return _liveState.get(id) || null; }
+function _getLiveState(id) {
+  const live = _liveState.get(id);
+  const request = _snapshotRequests.get(id);
+  if ((live?.ownsSession && !live.ownsSession()) || (request && !request.isCurrent())) {
+    clearSunLiveState(id);
+    return null;
+  }
+  return live || null;
+}
 export function setSunLiveState(id, patch) {
   const cur = _liveState.get(id) || {};
   if (patch.ratePerMin === null) {
@@ -299,11 +307,12 @@ async function _snapshotActiveRate(sess) {
   if (cur && cur.ratePerMin) return cur;
   if (cur && cur.pending) return null;
   const ownsSession = activeSessionOwnership(sess);
-  const request = {};
+  const inputKey = sunSessionInputKey(sess, state.importedData);
+  const request = { isCurrent: () => ownsSession() && !sess.endedAt && !sess.paused
+    && sunSessionInputKey(sess, state.importedData) === inputKey };
   _snapshotRequests.set(sess.id, request);
-  const isCurrent = () => ownsSession() && !sess.endedAt && !sess.paused
-    && _snapshotRequests.get(sess.id) === request;
-  setSunLiveState(sess.id, { pending: true });
+  const isCurrent = () => request.isCurrent() && _snapshotRequests.get(sess.id) === request;
+  setSunLiveState(sess.id, { pending: true, ownsSession });
   try {
     const {
       fractionOfMED,
@@ -392,11 +401,7 @@ function _rateAtInstant(sess, instantMs, snapshotAtmosphere = null, coords = ses
   }
   atmAtT = activeDeps.applyAtmOverrides(atmAtT);
 
-  const baseFraction = sess.bodyExposure?.fraction ?? 0;
-  const postureMult = POSTURE_MULTIPLIERS[sess.posture] ?? 1.0;
-  const albedoMult = 1 + (SURFACE_ALBEDO[sess.surfaceAlbedo] ?? 0) * 0.5;
-  const skinIrradianceMultiplier = Math.max(0, Math.min(2, postureMult * albedoMult));
-
+  const exposure = sunSessionExposure(sess);
   const zenith = solarZenithAngle(when, coords.lat, coords.lon);
   const spectrum = reconstructSpectrum({
     zenithDeg: zenith,
@@ -406,33 +411,21 @@ function _rateAtInstant(sess, instantMs, snapshotAtmosphere = null, coords = ses
     aod: atmAtT?.airQuality?.aod ?? null,
     targetUVI: atmAtT.uvIndex ?? null,
   });
-  const bodyModifiers = {
-    glassBetween: !!sess.bodyExposure?.glassBetween,
-    sunscreenSPF: sess.bodyExposure?.sunscreenSPF || 0,
-  };
-  const modeledEyeExposure = bodyModifiers.glassBetween && sess.eyeExposure?.mode === 'direct'
-    ? { ...sess.eyeExposure, mode: 'glass-window' }
-    : sess.eyeExposure;
   const rate = computeChannelDoses({
     spectrum,
     durationMin: 1,
-    bodyExposureFraction: baseFraction,
-    skinIrradianceMultiplier,
-    eyeExposure: modeledEyeExposure,
-    bodyModifiers,
+    ...exposure,
   });
   const sedPerMin = erythemalSED({
     spectrum,
     durationMin: 1,
-    bodyExposureFraction: baseFraction,
-    skinIrradianceMultiplier,
-    bodyModifiers,
+    ...exposure,
   });
   const retinalUVPerMin = activeDeps.ocularActinicUVdose({
     spectrum,
-    eyeExposure: { ...(modeledEyeExposure || {}), durationSec: 60 },
+    eyeExposure: { ...(exposure.eyeExposure || {}), durationSec: 60 },
     zenithDeg: zenith,
-    glassBetween: bodyModifiers.glassBetween,
+    glassBetween: exposure.bodyModifiers.glassBetween,
   });
   return { rate, sedPerMin, retinalUVPerMin, zenith };
 }

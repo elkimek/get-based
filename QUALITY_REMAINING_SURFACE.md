@@ -2,7 +2,7 @@
 
 The previous sync boundary batch merged as PR #1646. The new batch covers session
 ownership across delayed weather/persistence, failed computation/save retries,
-live timer cancellation, pause/resume and stop idempotency. It adds 127 cases;
+live timer cancellation, pause/resume and stop idempotency. It adds 141 cases;
 whole-project impact remains pending CI rather than extrapolated from scoped tests.
 
 Still separate: broader Light page event/navigation coverage, wallet/provider

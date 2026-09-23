@@ -93,3 +93,30 @@ export const SURFACE_ALBEDO = {
   water: 0.25,
   snow: 0.80,
 };
+
+// Snapshot calculation inputs, not derived outputs. Same-ID sync adoption can
+// mutate a record in place without changing its object identity.
+export function sunSessionInputKey(session, data) {
+  return JSON.stringify([
+    ...['id', 'updatedAt', 'startedAt', 'endedAt', 'durationMin', 'location',
+      'bodyExposure', 'eyeExposure', 'posture', 'surfaceAlbedo', 'exposureSegments',
+      'accumulatedPausedMs', 'paused', 'pausedAt'].map(key => session[key]),
+    data?.sunDefaults, data?.lightCircadian?.skinType,
+  ]);
+}
+
+// The live ticker and completed-session replay use identical exposure inputs.
+export function sunSessionExposure(sess) {
+  const bodyModifiers = {
+    glassBetween: !!sess.bodyExposure?.glassBetween,
+    sunscreenSPF: sess.bodyExposure?.sunscreenSPF || 0,
+  };
+  return {
+    bodyExposureFraction: sess.bodyExposure?.fraction ?? 0,
+    skinIrradianceMultiplier: Math.max(0, Math.min(2,
+      (POSTURE_MULTIPLIERS[sess.posture] ?? 1) * (1 + (SURFACE_ALBEDO[sess.surfaceAlbedo] ?? 0) * 0.5))),
+    bodyModifiers,
+    eyeExposure: bodyModifiers.glassBetween && sess.eyeExposure?.mode === 'direct'
+      ? { ...sess.eyeExposure, mode: 'glass-window' } : sess.eyeExposure,
+  };
+}

@@ -72,3 +72,41 @@ test('live runtime reset discards pending weather and a restarted ticker recover
   });
   expect(result).toEqual({ stale: null, current: 3, calls: 2 });
 });
+
+test('in-place sync adoption cannot be overwritten by older weather', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const [{ state }, store, { adoptProfileData }, { saveImportedData }, { encryptedGetItem }] = await Promise.all([
+      import('/js/state.js'), import('/js/sun-sessions-store.js?recovery-browser'), import('/js/profile-data-writes.js'), import('/js/data.js'), import('/js/crypto.js'),
+    ]);
+    const id = await store.logCompletedSession({ startedAt: Date.now() - 600000, endedAt: Date.now(), durationMin: 10, location: { lat: 50, lon: 14 } });
+    const original = store.getSessions()[0]; let release, entered; const started = new Promise(resolve => { entered = resolve; });
+    store.configureSunSessionsStore({ fetchAtmosphere: () => { entered(); return new Promise(resolve => { release = resolve; }); } });
+    const pending = store.hydrateSession(id); await started;
+    const incoming = structuredClone(state.importedData); incoming.sunSessions[0].location = { lat: 1, lon: 2 }; incoming.sunSessions[0].updatedAt = Date.now();
+    adoptProfileData(state.importedData, incoming); const sameIdentity = original === store.getSessions()[0]; await saveImportedData();
+    release({ uvIndex: 99 }); const stale = await pending;
+    const saved = JSON.parse(await encryptedGetItem('labcharts-sun-recovery-imported')).sunSessions[0];
+    return { sameIdentity, stale, location: saved.location, doses: saved.doses };
+  });
+  expect(result).toEqual({ sameIdentity: true, stale: null, location: { lat: 1, lon: 2 }, doses: null });
+});
+
+test('a replacement live record obtains weather while its predecessor remains stalled', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const active = await import('/js/sun-active-session.js?replacement-browser');
+    let sess = { id: 'replacement', startedAt: Date.now() - 10000, location: { lat: 50, lon: 14 } };
+    let release, calls = 0;
+    active.configureSunActiveSession({ getSessions: () => [sess], getActiveSession: () => sess,
+      fetchAtmosphere: () => { calls++; return calls === 1 ? new Promise(resolve => { release = resolve; }) : Promise.resolve({ uvIndex: 3 }); },
+      reconstructSpectrum: () => ({}), computeChannelDoses: () => ({ vitamin_d: 1 }), solarZenithAngle: () => 40,
+    });
+    try {
+      active.ensureActiveTicker(); sess = { ...sess, location: { lat: 1, lon: 2 } };
+      for (let n = 0; n < 100 && calls < 2; n++) await new Promise(resolve => setTimeout(resolve, 50));
+      const recovered = active.liveDosesFor(sess)?.atm?.uvIndex;
+      release({ uvIndex: 99 }); await Promise.resolve();
+      return { calls, recovered, afterOld: active.liveDosesFor(sess)?.atm?.uvIndex };
+    } finally { active.resetSunActiveSessionState(); }
+  });
+  expect(result).toEqual({ calls: 2, recovered: 3, afterOld: 3 });
+});
