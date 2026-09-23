@@ -9,6 +9,7 @@ export default defineConfig({
     ...base.test,
     include: [
       'tests/cycle-import-recovery.test.js',
+      'tests/cycle-import-preview-recovery.test.js',
       'tests/cycle-import-storage-recovery.test.js',
       'tests/cycle-import-phase1.test.js',
       'tests/nutrition-editor-navigation.test.js',

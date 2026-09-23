@@ -1,3 +1,18 @@
+# Cycle preview ownership extension — same local batch
+
+The batch now contains 52 new cases: the 35 mutation/storage cases below plus
+17 preview/file/confirmation cases. Eight initial UI regressions reproduced
+wrong-profile confirmation/deletion, duplicate writes, late stylesheet preview,
+and late history navigation. Preview identity and data ownership now survive
+consent, file reads, stylesheet loading and commit; replaced previews resolve,
+failed/declined confirmations remain retryable, and delayed history reopening
+checks ownership. These tests exercise the actual UI handlers with deterministic
+persistence/runtime doubles. Two real browser import scenarios also pass again.
+CheckJS and strict-null gates are rerun for the UI extension. Critical allowlist
+is now 58 suites, 32 modules; production remains below unchanged limits at
+5254.8 KiB (before the final stale-preview settlement adjustment).
+This is one local batch; no additional CI was triggered.
+
 # Cycle import recovery batch — local, pending predecessor acceptance
 
 Branch `codex/cycle-import-recovery`, based on PR1649 head193c1218.
