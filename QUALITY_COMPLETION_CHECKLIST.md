@@ -1,3 +1,12 @@
+## PWA CI readiness correction
+
+At head602d567e, the Chromium two-tab update test reached build-b but exceeded
+its five-second app-ready assertion for the second tab. The failure trace did
+not report a startup exception; the original focused scenario passed locally.
+The test now gives async profile hydration the same bounded30-second lifecycle
+budget as activation and checks restored lab entries in both tabs. This changes
+only test synchronization and assertions, not production startup or coverage floors.
+
 # PR1650 review correction — generic CSV ownership
 
 Greptile identified an additional generic text-file entry path that captured the

@@ -121,11 +121,15 @@ test('failed update preserves the installed app; retry updates two tabs without 
     await expect(other.locator('#version-update-banner')).toContainText('Reload');
     expect(await other.evaluate(() => window.APP_BUILD_ID)).toBe('build-a');
     await other.locator('[data-version-update-action="apply"]').click();
-    await expect.poll(() => other.evaluate(() => window.APP_BUILD_ID).catch(() => null)).toBe('build-b');
-    await expect(page.locator('html[data-app-ready]')).toBeAttached();
-    await expect(other.locator('html[data-app-ready]')).toBeAttached();
+    await expect.poll(() => other.evaluate(() => window.APP_BUILD_ID).catch(() => null), { timeout: 30_000 }).toBe('build-b');
+    // Build ID is stamped before async profile hydration finishes. Give both
+    // offline reloads the same bounded lifecycle budget as worker activation.
+    await expect(page.locator('html[data-app-ready]')).toBeAttached({ timeout: 30_000 });
+    await expect(other.locator('html[data-app-ready]')).toBeAttached({ timeout: 30_000 });
     expect(await page.evaluate(() => localStorage.getItem('pwa-retained-data'))).toBe('retained');
     expect(await page.evaluate(async () => (await import('/js/state.js')).state.importedData.entries))
+      .toEqual([{ date: '2026-09-01', markers: { 'biochemistry.glucose': 5.8 } }]);
+    expect(await other.evaluate(async () => (await import('/js/state.js')).state.importedData.entries))
       .toEqual([{ date: '2026-09-01', markers: { 'biochemistry.glucose': 5.8 } }]);
     // WebKit can transiently reject CacheStorage reads while activation settles.
     // Retry the read, while still requiring exactly the new build's cache.
