@@ -1,6 +1,7 @@
 # CI test workflow. Runs on every PR + push to main.
 #
-# Runs the full ./run-tests.sh battery:
+# PRs run affected tests without repository-wide coverage. Main, manual runs,
+# and explicit release verification run the full ./run-tests.sh battery:
 #   - Node-side tests (native-dialog guard, lens-local-utils, dev-server
 #     origin guard)
 #   - Playwright-driven web-app suite
@@ -16,6 +17,11 @@ on:
     branches: [main]
   workflow_dispatch:
   workflow_call:
+    inputs:
+      full_suite:
+        description: 'Run complete regression and coverage for release evidence'
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -24,9 +30,14 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      CI_SCOPE_FULL: ${{ github.event_name != 'pull_request' || inputs.full_suite == true }}
+      CI_TEST_PLAN: /tmp/getbased-pr-test-plan.json
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -35,6 +46,17 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Select affected PR tests
+        id: scope
+        if: env.CI_SCOPE_FULL != 'true'
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node scripts/pr-test-scope.mjs --base "$PR_BASE_SHA" --output "$CI_TEST_PLAN"
+
+      - name: Run affected unit tests
+        if: env.CI_SCOPE_FULL != 'true'
+        run: node scripts/pr-test-scope.mjs --run unit --output "$CI_TEST_PLAN"
 
       - name: Run typecheck
         run: npm run typecheck
@@ -61,9 +83,11 @@ jobs:
         run: npm run quality
 
       - name: Enforce critical behavior branch coverage
+        if: env.CI_SCOPE_FULL == 'true'
         run: npm run test:critical-coverage
 
       - name: Cache Playwright browsers
+        if: env.CI_SCOPE_FULL == 'true' || steps.scope.outputs.browser == 'true' || steps.scope.outputs.firefox == 'true' || steps.scope.outputs.pwa == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ms-playwright
@@ -71,8 +95,17 @@ jobs:
           restore-keys: |
             playwright-browsers-${{ runner.os }}-
 
-      - name: Install Playwright browsers
+      - name: Install full browser engines
+        if: env.CI_SCOPE_FULL == 'true' || steps.scope.outputs.pwa == 'true'
         run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Install affected Chromium engine
+        if: env.CI_SCOPE_FULL != 'true' && steps.scope.outputs.pwa != 'true' && steps.scope.outputs.browser == 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install affected Firefox engine
+        if: env.CI_SCOPE_FULL != 'true' && steps.scope.outputs.pwa != 'true' && steps.scope.outputs.firefox == 'true'
+        run: npx playwright install --with-deps firefox
 
       - name: Resolve catalog file (fetch from private source if creds set, else use stub)
         env:
@@ -81,16 +114,31 @@ jobs:
         run: node scripts/fetch-catalog.mjs
 
       - name: Run Firefox smoke suite
+        if: env.CI_SCOPE_FULL == 'true'
         run: npm run test:firefox
 
       - name: Verify PWA offline and update lifecycle across browser engines
+        if: env.CI_SCOPE_FULL == 'true'
         run: npm run test:pwa
 
+      - name: Run affected Chromium tests
+        if: env.CI_SCOPE_FULL != 'true' && steps.scope.outputs.browser == 'true'
+        run: node scripts/pr-test-scope.mjs --run browser --output "$CI_TEST_PLAN"
+
+      - name: Run affected Firefox tests
+        if: env.CI_SCOPE_FULL != 'true' && steps.scope.outputs.firefox == 'true'
+        run: node scripts/pr-test-scope.mjs --run firefox --output "$CI_TEST_PLAN"
+
+      - name: Run affected PWA tests
+        if: env.CI_SCOPE_FULL != 'true' && steps.scope.outputs.pwa == 'true'
+        run: node scripts/pr-test-scope.mjs --run pwa --output "$CI_TEST_PLAN"
+
       - name: Run test suite with coverage ratchet
+        if: env.CI_SCOPE_FULL == 'true'
         run: COVERAGE=1 SKIP_TYPECHECK=1 ./run-tests.sh
 
       - name: Retain complete production coverage
-        if: always()
+        if: always() && env.CI_SCOPE_FULL == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: production-coverage
@@ -103,6 +151,14 @@ jobs:
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Retain affected-test plan
+        if: always() && env.CI_SCOPE_FULL != 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: affected-test-plan
+          path: /tmp/getbased-pr-test-plan.json
+          retention-days: 7
 
       - name: Smoke the deployed production APIs
         if: github.event_name == 'push'

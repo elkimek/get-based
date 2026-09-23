@@ -19,6 +19,28 @@ evidence. A high global percentage cannot replace the following assertions.
 These behavioral tests remain independently failing assertions in CI, regardless
 of aggregate coverage. Keep local runs limited to the affected rows.
 
+## Test execution scope
+
+Pull requests run the affected suites selected by `scripts/pr-test-scope.mjs`,
+without whole-project coverage. The plan is retained as a CI artifact and its
+counts and broader-scope reasons appear in the job summary. Main-branch pushes,
+manual test runs, and explicit release verification retain the full regression
+suite, critical branch floors, and combined production-coverage gates. A passing
+selective PR check does not establish a new whole-project coverage measurement.
+
+Selection follows literal imports and file references, including transitive
+consumers, deleted-module references, changed tests, and individual legacy test
+cases. Provider catalog modules have an explicit feature-suite boundary because
+following their `api.js` barrel through startup would select almost every UI
+suite. Keep that boundary current when adding provider or model-selector flows.
+Shared dependencies or test harness changes deliberately select broader affected
+suites. A runtime module with no selected test coverage blocks selection until
+its test references or explicit scope are added; unrelated tests cannot mask it.
+
+The automatic runner is GitHub Actions-only. Local verification must use explicit
+relevant files or cases, with coverage disabled unless specifically needed; see
+`AGENTS.md`. Never run the planned CI matrix locally just because it is listed.
+
 ## Measurement policy
 
 The combined collector inventories first-party production roots, including

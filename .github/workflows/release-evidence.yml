@@ -13,6 +13,8 @@ jobs:
   regression:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-release-evidence')
     uses: ./.github/workflows/test.yml
+    with:
+      full_suite: true
   real-models:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-release-evidence')
     strategy:

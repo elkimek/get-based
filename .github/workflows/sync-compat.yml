@@ -11,7 +11,34 @@ permissions:
   contents: read
 
 jobs:
+  scope:
+    name: Select sync compatibility scope
+    runs-on: ubuntu-latest
+    outputs:
+      sync: ${{ steps.scope.outputs.sync }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        if: github.event_name == 'pull_request'
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install planner dependencies
+        if: github.event_name == 'pull_request'
+        run: npm ci
+      - name: Select affected sync tests
+        id: scope
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node scripts/pr-test-scope.mjs --base "$PR_BASE_SHA" --output /tmp/getbased-sync-test-plan.json
+
   transport:
+    needs: scope
+    if: github.event_name != 'pull_request' || needs.scope.outputs.sync == 'true'
     name: Transport (${{ matrix.evolu-client }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -109,6 +136,8 @@ jobs:
           retention-days: 7
 
   browsers:
+    needs: scope
+    if: github.event_name != 'pull_request' || needs.scope.outputs.sync == 'true'
     name: Evolu 8 (${{ matrix.browser }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
