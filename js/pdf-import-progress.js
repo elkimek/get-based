@@ -8,6 +8,7 @@ import { escapeHTML } from './utils.js';
 const STEP_START_PCT = [5, 8, 12, 15, 95];
 /** @type {{ running: boolean, pct: number, failed: boolean, done: boolean, fileName: string, batch: { current: number, total: number } | null }} */
 const importStatus = { running: false, pct: 0, failed: false, done: false, fileName: '', batch: null };
+export const importDispatch = { busy: false };
 let statusDismissTimer = null;
 let progressBarVisible = false;
 let progressObserver = null;

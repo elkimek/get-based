@@ -37,6 +37,7 @@ import {
 } from './pdf-import-persistence.js';
 import {
   hideImportProgress,
+  importDispatch,
   isImportRunning,
   showBatchImportProgress,
   updateImportProgressPct,
@@ -396,25 +397,27 @@ export async function classifyImportFiles(files) {
 // DROP ZONE
 export function setupDropZone() {
   const dropZone = document.getElementById("drop-zone");
-  if (!dropZone) return;
-  dropZone.addEventListener("click", () => { if (isImportRunning()) return; document.getElementById('pdf-input')?.click(); });
-  dropZone.addEventListener("dragover", e => { e.preventDefault(); if (!isImportRunning()) dropZone.classList.add("drag-over"); });
+  if (!dropZone || dropZone.dataset.lazyDropZoneBound === 'true') return;
+  dropZone.dataset.lazyDropZoneBound = 'true';
+  dropZone.addEventListener("click", () => { if (importDispatch.busy || isImportRunning()) return; document.getElementById('pdf-input')?.click(); });
+  dropZone.addEventListener("dragover", e => { e.preventDefault(); if (!importDispatch.busy && !isImportRunning()) dropZone.classList.add("drag-over"); });
   dropZone.addEventListener("dragleave", e => { e.preventDefault(); dropZone.classList.remove("drag-over"); });
   dropZone.addEventListener("drop", async e => {
     e.preventDefault(); dropZone.classList.remove("drag-over");
-    if (isImportRunning()) { showNotification("Import already in progress", "info"); return; }
+    if (importDispatch.busy || isImportRunning()) { showNotification("Import already in progress", "info"); return; }
     const files = Array.from(e.dataTransfer?.files || []);
     if (files.length === 0) return;
-    const ownerProfile = state.currentProfile, ownerData = state.importedData;
-    const { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, cycleFiles = [], unsupportedCount } = await classifyImportFiles(files);
-    if (state.currentProfile !== ownerProfile || state.importedData !== ownerData) return;
-    if (unsupportedCount > 0 && jsonFiles.length === 0 && pdfFiles.length === 0 && imageFiles.length === 0 && dnaFiles.length === 0 && textFiles.length === 0 && cycleFiles.length === 0) {
-      showNotification("Unsupported file type. Use PDF, Excel, text, image, JSON, DNA raw data, or an Apple Health, Drip, Natural Cycles, or Clue export.", "error");
-      return;
-    }
-    for (const f of jsonFiles) { if (state.currentProfile !== ownerProfile) return; await pdfImportDeps.importDataJSON(f); }
-    if (cycleFiles.length > 0) { for (const f of cycleFiles) { if (state.currentProfile !== ownerProfile) return; await handleCycleImportFile(f); } }
-    if (dnaFiles.length > 0) {
+    importDispatch.busy = true;
+    try {
+      const ownerProfile = state.currentProfile, ownerData = state.importedData;
+      const { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, cycleFiles = [], unsupportedCount } = await classifyImportFiles(files);
+      if (state.currentProfile !== ownerProfile || state.importedData !== ownerData) return;
+      if (unsupportedCount > 0 && [jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, cycleFiles].every(files => !files.length)) {
+        showNotification("Unsupported file type. Use PDF, Excel, text, image, JSON, DNA raw data, or an Apple Health, Drip, Natural Cycles, or Clue export.", "error");
+        return;
+      }
+      for (const f of jsonFiles) { if (state.currentProfile !== ownerProfile) return; await pdfImportDeps.importDataJSON(f); }
+      for (const f of cycleFiles) { if (state.currentProfile !== ownerProfile) return; await handleCycleImportFile(f); }
       for (const f of dnaFiles) {
         if (state.currentProfile !== ownerProfile) return;
         const headerData = state.importedData, header = await f.slice(0, 1500).text();
@@ -426,12 +429,12 @@ export function setupDropZone() {
         else if (fmt === '23andme-y') { showNotification('Y-chromosome DNA files are not supported', 'info'); }
         else if (handleDNAFile) await handleDNAFile(f);
       }
-    }
-    if (textFiles.length > 0) { for (const f of textFiles) { if (state.currentProfile !== ownerProfile) return; await handleTextFile(f); } }
-    if (imageFiles.length > 0) { for (const f of imageFiles) { if (state.currentProfile !== ownerProfile) return; await handleImageFile(f); } }
-    if (state.currentProfile !== ownerProfile) return;
-    if (pdfFiles.length === 1) await handlePDFFile(pdfFiles[0]);
-    else if (pdfFiles.length > 1) await handleBatchPDFs(pdfFiles);
+      for (const f of textFiles) { if (state.currentProfile !== ownerProfile) return; await handleTextFile(f); }
+      for (const f of imageFiles) { if (state.currentProfile !== ownerProfile) return; await handleImageFile(f); }
+      if (state.currentProfile !== ownerProfile) return;
+      if (pdfFiles.length === 1) await handlePDFFile(pdfFiles[0]);
+      else if (pdfFiles.length > 1) await handleBatchPDFs(pdfFiles);
+    } finally { importDispatch.busy = false; }
   });
 }
 

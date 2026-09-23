@@ -1,7 +1,7 @@
 // @ts-check
 // import-drop-zone-runtime.js - Browser runtime adapters for drop-zone imports.
 
-import { isImportRunning } from './pdf-import-progress.js';
+import { importDispatch, isImportRunning } from './pdf-import-progress.js';
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { showNotification } from './utils.js';
 import { importDataJSON } from './export-loader.js';
@@ -48,7 +48,7 @@ function requireDnaModuleFunction(name) {
 
 export function isDropZoneImportRunning() {
   if (!getRuntimeWindow()) return false;
-  return Boolean(importDropZoneRuntimeDeps.isImportRunning());
+  return importDispatch.busy || Boolean(importDropZoneRuntimeDeps.isImportRunning());
 }
 
 export function openDropZoneFilePicker() {
