@@ -83,13 +83,13 @@ describe('Biology Scores integrity', () => {
       expect(call).toHaveBeenCalledTimes(1);
     } finally { configureBiologyScoreAIDeps(previous); }
   });
-  it.each(['Too long. '.repeat(30), 'An unfinished summary…', 'An unfinished thought', 'not JSON'])('repairs invalid AI card content once instead of truncating it (%s)', async bad => {
-    const valid = { summary: 'The markers broadly agree. Check the collection dates.', explanation: '## Context\nInterpret the markers together.' };
-    const call = vi.fn().mockResolvedValueOnce({ text: bad === 'not JSON' ? bad : JSON.stringify({ ...valid, summary: bad }) }).mockResolvedValueOnce({ text: JSON.stringify(valid) });
+  it.each(['Too long. '.repeat(30), 'An unfinished summary…', 'An unfinished thought'])('keeps usable paid answers despite cosmetic noncompliance (%s)', async summary => {
+    const answer = { summary, explanation: '## Context\nInterpret the markers together.' };
+    const call = vi.fn(async () => ({ text: JSON.stringify(answer) }));
     const previous = configureBiologyScoreAIDeps({ callClaudeAPI: call, hasAIProvider: () => true, isAIPaused: () => false });
     try {
-      expect(await generateBiologyScoreAIAnswer(score(thyroid(), 'thyroidCoherence'))).toEqual({ summary: valid.summary, text: valid.explanation });
-      expect(call).toHaveBeenCalledTimes(2);
+      expect(await generateBiologyScoreAIAnswer(score(thyroid(), 'thyroidCoherence'))).toMatchObject({ summary: summary.trim(), text: answer.explanation });
+      expect(call).toHaveBeenCalledTimes(1);
     } finally { configureBiologyScoreAIDeps(previous); }
   });
   it('bounds malformed gateway retries and preserves the previous explanation', async () => {
@@ -98,8 +98,8 @@ describe('Biology Scores integrity', () => {
     const call = vi.fn(async () => ({ text: 'invalid' }));
     const previous = configureBiologyScoreAIDeps({ callClaudeAPI: call, hasAIProvider: () => true, isAIPaused: () => false });
     try {
-      await expect(generateBiologyScoreAIAnswer(s)).rejects.toThrow('complete short summary');
-      expect(call).toHaveBeenCalledTimes(2);
+      await expect(generateBiologyScoreAIAnswer(s)).rejects.toThrow('incomplete');
+      expect(call).toHaveBeenCalledTimes(1);
       expect(renderScoreAIAnswer(s)).toContain('Saved earlier.');
       expect(renderScoreAISummary(s)).not.toContain('Saved earlier.');
       expect(renderScoreAISummary(s)).toContain('Refresh to add a short, complete insight.');
@@ -336,20 +336,20 @@ describe('Biology Scores integrity', () => {
     expect(biologyAIRecords(bounded)).toHaveLength(MAX_BIOLOGY_AI_VARIANTS);
     expect(biologyAIRecords(bounded).every(r => !r.variants || r === bounded)).toBe(true);
   });
-  it('generates a shared batch and repairs only missing entries', async () => {
+  it('generates a shared batch and reports missing entries without paid repair', async () => {
     const all = scores(thyroid()).slice(0, 3);
     const answer = { summary: 'The pattern needs context. Check collection dates.', explanation: '## Context\nUse the supplied core markers.' };
     const call = vi.fn().mockResolvedValueOnce({ text: JSON.stringify({ [all[0].id]: answer, [all[1].id]: answer }) }).mockResolvedValueOnce({ text: JSON.stringify({ [all[2].id]: answer }) });
     const previous = configureBiologyScoreAIDeps({ callClaudeAPI: call, hasAIProvider: () => true, isAIPaused: () => false });
     try {
       const result = await generateBiologyScoreAIAnswers(all, { automatic: true });
-      expect(Object.keys(result.answers)).toHaveLength(3);
-      expect(result.failedIds).toEqual([]);
+      expect(Object.keys(result.answers)).toHaveLength(2);
+      expect(result.failedIds).toEqual([all[2].id]);
       expect(call.mock.calls[0][0].consentKind).toBe('automatic-insight');
-      expect(Object.keys(call.mock.calls[1][0].jsonSchema.properties)).toEqual([all[2].id]);
+      expect(call).toHaveBeenCalledTimes(1);
     } finally { configureBiologyScoreAIDeps(previous); }
   });
-  it('retains successful batch answers if the targeted repair fails', async () => {
+  it('retains successful batch answers without retrying the missing response', async () => {
     const all = scores(thyroid()).slice(0, 2);
     const answer = { summary: 'The markers need context.', explanation: '## Context\nCheck collection dates.' };
     const call = vi.fn().mockResolvedValueOnce({ text: JSON.stringify({ [all[0].id]: answer }) }).mockRejectedValueOnce(new Error('Gateway disconnected'));

@@ -413,3 +413,13 @@ describe('stream stall guard', () => {
     expect(result.finishReason).toBe('stop');
   });
 });
+
+it('honors an explicit feature token ceiling for thinking models without changing chat defaults', async () => {
+  const limits = [];
+  const fetchImpl = async (_url, options) => {
+    limits.push(JSON.parse(options.body).max_tokens);
+    return new Response(JSON.stringify({ choices: [{ message: { content: 'Complete answer' }, finish_reason: 'stop' }] }));
+  };
+  for (const strictTokenLimit of [true, false]) await callOpenAICompatibleAPI('https://example.test', 'test-key', 'claude-opus-5.5', 'Routstr', { messages: [{ role: 'user', content: 'Explain' }], maxTokens: 900, strictTokenLimit }, {}, { fetchImpl });
+  expect(limits).toEqual([900, 16384]);
+});

@@ -23,7 +23,7 @@ import {
   renderScoreDetail,
   groupBiologyScores,
 } from './biology-score-render.js';
-import { getScoreAIMaterialKey, hasCurrentScoreAIAssessment, getScoreAIRequestKey, renderScoreAIAnswer, renderScoreAISummary, writeScoreAIAnswer, writeScoreAIAnswers, pendingScoreExplanations, setScoreExplanationError } from './biology-score-sections.js';
+import { getScoreAIMaterialKey, hasCurrentScoreAIAssessment, getScoreAIRequestKey, renderScoreAIAnswer, renderScoreAISummary, writeScoreAIAnswer, writeScoreAIAnswers, retryUnsavedScoreAIAnswers, pendingScoreExplanations, setScoreExplanationError } from './biology-score-sections.js';
 import { TIER1_BIOLOGY_SCORE_DEFINITIONS } from './biology-score-tier1-definitions.js';
 import { TIER2_BIOLOGY_SCORE_DEFINITIONS } from './biology-score-tier2-definitions.js';
 import { computeThyroidCoherence } from './biology-score-thyroid.js';
@@ -103,6 +103,12 @@ function installBiologyScoreDelegates() {
       answer?.setAttribute('tabindex', '-1');
       if (answer instanceof HTMLElement) answer.focus({ preventScroll: true });
       answer?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    } else if (action === 'retry-save-score-insights') {
+      event.preventDefault();
+      void retrySavedBiologyInsights().catch(err => showBiologyScoresNotification(err.message, 'error'));
+    } else if (action === 'update-score-insights') {
+      event.preventDefault();
+      void loadBiologyScoreInsights({ force: true });
     } else if (action === 'interpret-score-ai') {
       event.preventDefault();
       runEmbeddedScoreAI(el).catch((err) => {
@@ -195,11 +201,24 @@ function refreshScoreAIView(current) {
   replaceScoreMarkup(currentTeaser, renderScoreAISummary(current));
 }
 
+async function retrySavedBiologyInsights() {
+  const profileId = state.currentProfile;
+  const ids = await retryUnsavedScoreAIAnswers(profileId);
+  if (!ids.length) return ids;
+  if (state.currentProfile !== profileId) return [];
+  const scores = computeBiologyScoreAssessments(getBiologyScoresActiveData());
+  for (const score of scores.filter(s => ids.includes(s.id))) setScoreExplanationError(assessmentRequestKeys(score, profileId));
+  reconcileBiologyScoreAIPanels();
+  alignBiologyScoreCards();
+  return ids;
+}
+
 async function runEmbeddedScoreAI(el) {
   const scoreId = el.dataset.biologyScoreId;
-  if (scoreId === 'biologicalCoherence') return loadBiologyScoreInsights({ force: true });
   if (!scoreId) return;
   const originProfile = state.currentProfile;
+  const recovered = await retrySavedBiologyInsights();
+  if (recovered?.includes(scoreId)) { reconcileBiologyScoreAIPanels(); return; }
   await prepareBiologyScoresContext();
   if (state.currentProfile !== originProfile) return;
   invalidateActiveDataCache();
@@ -207,7 +226,7 @@ async function runEmbeddedScoreAI(el) {
   const score = computeBiologyScoreAssessments(rawData).find(item => item.id === scoreId);
   if (!score) throw new Error('Score not found');
   const profileId = state.currentProfile;
-  const imported = state.importedData;
+  const imported = structuredClone(state.importedData);
   const requestKey = getScoreAIRequestKey(score, profileId);
   if (pendingScoreExplanations.has(requestKey)) return;
   const requestKeys = assessmentRequestKeys(score, profileId);
@@ -252,6 +271,7 @@ export function loadBiologyScoreInsights({ force = false } = {}) {
   // Match the ready context used by chat before comparing saved fingerprints.
   // A cold Light runtime must not look like new biological evidence.
   const pending = Promise.resolve().then(async () => {
+    await retryUnsavedScoreAIAnswers(profileId);
     await prepareBiologyScoresContext();
     if (state.currentProfile !== profileId) return;
     if (!force && !canAutomaticallyExplainBiologyScores()) return;
@@ -268,22 +288,25 @@ export function loadBiologyScoreInsights({ force = false } = {}) {
 
 // Existing scoring helpers read range settings from state. Capture each view
 // synchronously and restore both settings before any render, write or await.
-export function computeBiologyScoreView(data, view) {
+export function computeBiologyScoreView(data, view, options = {}) {
   const previous = { rangeMode: state.rangeMode, dateRangeFilter: state.dateRangeFilter };
   try {
     Object.assign(state, view);
-    return computeBiologyScores(filterDatesByRange(data, { fallbackToAll: false }));
+    return computeBiologyScores(filterDatesByRange(data, { fallbackToAll: false }), options);
   } finally { Object.assign(state, previous); }
 }
 
 // One comparison-aware answer covers all standard views. Repeated evidence
 // is described once; this does not make eight independent AI assessments.
 export function computeBiologyScoreAssessments(data) {
-  const current = computeBiologyScoreView(data, { rangeMode: state.rangeMode, dateRangeFilter: state.dateRangeFilter });
+  // Profile context describes the whole assessment across lab date filters.
+  // Capture live rollups once so all views use the same context snapshot.
+  const options = { profileContext: getBiologyProfileContext() };
+  const current = computeBiologyScoreView(data, { rangeMode: state.rangeMode, dateRangeFilter: state.dateRangeFilter }, options);
   const groups = new Map(current.map(score => [score.id, { ...score, aiViews: [] }]));
   for (const dateRangeFilter of ['all', '1y', '6m', '3m']) {
     for (const rangeMode of ['optimal', 'reference']) {
-      for (const score of computeBiologyScoreView(data, { rangeMode, dateRangeFilter })) {
+      for (const score of computeBiologyScoreView(data, { rangeMode, dateRangeFilter }, options)) {
         const group = groups.get(score.id);
         const material = getScoreAIMaterialKey(score);
         const label = `${rangeMode} / ${dateRangeFilter}`;
@@ -304,14 +327,14 @@ function loadPreparedBiologyScoreInsights(profileId, force) {
   invalidateActiveDataCache();
   const data = getBiologyScoresActiveData();
   const scores = computeBiologyScoreAssessments(data);
+  const originData = structuredClone(state.importedData);
   const requested = scores.filter(score => {
     if (assessmentRequestKeys(score, profileId).some(key => pendingScoreExplanations.has(key))) return false;
     if (!score.aiViews.some(view => (view.score.historicalSnapshot || view.score).available?.length)) return false;
-    if (force) return true;
     // Legacy per-view answers stay usable. A filter change must not purchase
     // an upgrade: explicit Refresh creates the combined interpretation.
     if (hasCurrentScoreAIAssessment(score)) return false;
-    return !automaticAttempts.has(getScoreAIRequestKey(score, profileId));
+    return force || !automaticAttempts.has(getScoreAIRequestKey(score, profileId));
   });
   if (!requested.length) {
     reconcileBiologyScoreAIPanels();
@@ -339,7 +362,7 @@ function loadPreparedBiologyScoreInsights(profileId, force) {
         shouldContinue: () => state.currentProfile === profileId,
         onBatch: async (group, result) => {
           const records = group.filter(score => result.answers[score.id]).map(score => ({ score, answer: result.answers[score.id], materialFingerprint: materials.get(score.id) }));
-          if (records.length) await writeScoreAIAnswers(records, profileId);
+          if (records.length) await writeScoreAIAnswers(records, profileId, originData);
           for (const score of group) {
             const keys = assessmentRequestKeys(score, profileId);
             keys.forEach(key => pendingScoreExplanations.delete(key));

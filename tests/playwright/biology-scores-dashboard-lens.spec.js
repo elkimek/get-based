@@ -460,7 +460,7 @@ test('background telemetry does not discard AI and a real input edit preserves a
 });
 
 
-test('automatic shared insights survive reload and backups; refresh scopes stay explicit', async ({ page }) => {
+test('requested insights survive reload and backups; bulk updates reuse completed answers', async ({ page }) => {
   test.setTimeout(60000);
   // Exercise startup maintenance overlapping a slower device's first render.
   const cdp = await page.context().newCDPSession(page);
@@ -470,7 +470,7 @@ test('automatic shared insights survive reload and backups; refresh scopes stay 
   await page.exposeFunction('recordBiologyAIRequest', ids => calls.push(ids));
   const installProvider = async () => page.evaluate(async () => {
     (await import('/js/biology-score-ai.js')).configureBiologyScoreAIDeps({
-      automaticEnabled: () => true, hasAIProvider: () => true, isAIPaused: () => false,
+      automaticEnabled: () => false, hasAIProvider: () => true, isAIPaused: () => false,
       callClaudeAPI: async request => {
         const ids = Object.keys(request.jsonSchema.properties);
         await globalThis.recordBiologyAIRequest(ids);
@@ -485,18 +485,22 @@ test('automatic shared insights survive reload and backups; refresh scopes stay 
     await setProfileSex(state.currentProfile, state.profileSex);
     await setProfileDob(state.currentProfile, state.profileDob);
     state.importedData.biologyScoreAI = {};
-    // Persisted Light context used to make six scores look different on F5:
-    // AI captured one fingerprint before the lazy rollup hooks were installed.
+    // Keep evidence stable for this storage/reuse test. Hydration readiness is
+    // covered separately; recalculating old Light sessions changes real context.
+    state.importedData.sunSessions = []; state.importedData.deviceSessions = [];
     state.importedData.sunDefaults = { completedAt: Date.now() };
     await (await import('/js/data.js')).saveImportedData();
   });
   await installProvider();
   await page.evaluate(async () => (await import('/js/views.js')).navigate('biology-scores'));
+  await page.evaluate(async () => (await import('/js/biology-scores.js')).loadBiologyScoreInsights({ force: true }));
   const first = page.locator('#biology-score-metabolicFlexibility [data-biology-score-ai-summary]');
   // The 6x CPU slowdown also delays lazy context preparation before inference.
   await expect(first).toContainText('The core markers show a mixed pattern.', { timeout: 30000 });
-  expect(calls).toHaveLength(1);
-  expect(calls[0].length).toBeGreaterThan(10);
+  const initialCalls = calls.length;
+  expect(initialCalls).toBeGreaterThan(1);
+  expect(calls.every(ids => ids.length <= 4)).toBe(true);
+  expect(new Set(calls.flat()).size).toBe(calls.flat().length);
   const exported = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     const { buildFullBackupSnapshot, parseBackupSnapshot, serializeBackupSnapshot } = await import('/js/backup.js');
@@ -522,15 +526,15 @@ test('automatic shared insights survive reload and backups; refresh scopes stay 
   await expect(first).toContainText('The core markers show a mixed pattern.');
   await expect(first).not.toContainText('refresh needed');
   await expect(page.locator('.biology-score-ai-teaser-label').filter({ hasText: 'refresh needed' })).toHaveCount(0);
-  expect(calls).toHaveLength(1);
+  expect(calls).toHaveLength(initialCalls);
   await first.getByRole('button').click();
   await expect(first.getByRole('button')).toBeEnabled();
-  expect(calls).toHaveLength(2);
-  expect(calls[1]).toEqual(['summary', 'explanation']);
+  expect(calls).toHaveLength(initialCalls + 1);
+  expect(calls.at(-1)).toEqual(['summary', 'explanation']);
   await page.locator('#biology-score-biologicalCoherence [data-biology-score-ai-summary] button').click();
   await expect(first.getByRole('button')).toBeEnabled();
-  expect(calls).toHaveLength(3);
-  expect(calls[2]).toEqual(calls[0]);
+  await page.evaluate(async () => (await import('/js/biology-scores.js')).loadBiologyScoreInsights({ force: true }));
+  expect(calls).toHaveLength(initialCalls + 1);
 });
 
 test('one refresh survives a harmless same-profile object replacement', async ({ page }) => {
@@ -939,9 +943,10 @@ test('bounded comparison assessment survives range switching, reload and JSON re
     await (await import('/js/biology-scores.js')).loadBiologyScoreInsights();
   });
   const warmedCalls = calls.length;
-  // This multi-window fixture needs two bounded groups. Each score is assessed
+  // This multi-window fixture uses bounded groups. Each score is assessed
   // once; its explanation remains shared across all date/range views.
-  expect(warmedCalls).toBe(2);
+  expect(warmedCalls).toBeGreaterThan(1);
+  expect(calls.every(ids => ids.length <= 4)).toBe(true);
   expect(new Set(calls.flat()).size).toBe(calls.flat().length);
   const checkViews = async () => page.evaluate(async () => {
     const { state } = await import('/js/state.js');

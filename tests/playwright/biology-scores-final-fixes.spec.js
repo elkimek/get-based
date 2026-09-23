@@ -332,3 +332,74 @@ test('failed import rollback keeps its baseline and accepts subsequent peer upda
   })).toEqual({ note: 'Unsaved note before failed import', peer: true });
   await other.close();
 });
+
+test('failed AI checkpoint exposes a save-only retry and preserves the paid answer', async ({ page }) => {
+  await prepareDemoProfile(page); await installAI(page, 'manual');
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.importedData.biologyScoreAI = {};
+    await (await import('/js/data.js')).saveImportedData();
+    (await import('/js/utils.js')).dismissAnalyticsConsent();
+    (await import('/js/views.js')).navigate('biology-scores');
+    const originalPut = IDBObjectStore.prototype.put;
+    globalThis.restoreBiologyStorage = () => { IDBObjectStore.prototype.put = originalPut; };
+    const key = `labcharts-${state.currentProfile}-imported`;
+    IDBObjectStore.prototype.put = function(value, name) {
+      const request = originalPut.call(this, value, name);
+      if (name === key) this.transaction.abort();
+      return request;
+    };
+    await (await import('/js/biology-scores.js')).loadBiologyScoreInsights({ force: true });
+  });
+  const overview = page.locator('#biology-score-biologicalCoherence .biology-score-ai-teaser-action');
+  await expect(overview).toHaveText('Retry saving');
+  const before = await page.evaluate(() => globalThis.biologyAuditCalls.length);
+  expect(before).toBe(1);
+  await page.evaluate(() => globalThis.restoreBiologyStorage());
+  await overview.click();
+  await expect(overview).toHaveText('Update missing insights');
+  expect(await page.evaluate(() => globalThis.biologyAuditCalls.length)).toBe(before);
+  expect(await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const { encryptedGetItem } = await import('/js/crypto.js');
+    const data = JSON.parse(await encryptedGetItem(`labcharts-${state.currentProfile}-imported`));
+    return Object.keys(data.biologyScoreAI);
+  })).toHaveLength(4);
+});
+
+test('context review button saves a completed answer to its original profile after switching', async ({ page }) => {
+  await prepareDemoProfile(page);
+  const origin = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const profile = await import('/js/profile.js');
+    await profile.saveProfiles([...profile.getProfiles(), { id: 'context-second', name: 'Second profile' }]);
+    await (await import('/js/data.js')).saveImportedData();
+    globalThis.contextReviewCalls = 0;
+    (await import('/js/biology-score-context-ai.js')).configureBiologyScoreContextAIDeps({
+      hasAIProvider: () => true, isAIPaused: () => false,
+      callClaudeAPI: async () => {
+        globalThis.contextReviewCalls++;
+        await new Promise(resolve => globalThis.finishContextReview = resolve);
+        return { text: '{"summary":"Paid review for original profile","suggestions":[null]}' };
+      },
+    });
+    (await import('/js/utils.js')).dismissAnalyticsConsent();
+    (await import('/js/views.js')).navigate('biology-scores');
+    return state.currentProfile;
+  });
+  await page.getByText('Profile & collection context', { exact: true }).click();
+  await page.locator('[data-biology-score-action="analyze-context-ai"]').click();
+  await page.waitForFunction(() => globalThis.contextReviewCalls === 1);
+  await page.evaluate(async () => {
+    await (await import('/js/profile.js')).loadProfile('context-second');
+    globalThis.finishContextReview();
+  });
+  await expect.poll(() => page.evaluate(async origin => {
+    const saved = await (await import('/js/crypto.js')).encryptedGetItem(`labcharts-${origin}-imported`);
+    return JSON.parse(saved)?.biologyScoreContextAI?.summary;
+  }, origin)).toBe('Paid review for original profile');
+  expect(await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return { profile: state.currentProfile, review: state.importedData.biologyScoreContextAI || null, calls: globalThis.contextReviewCalls };
+  })).toEqual({ profile: 'context-second', review: null, calls: 1 });
+});

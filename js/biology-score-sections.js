@@ -3,6 +3,7 @@
 import { queueBiologyScoreWrite, biologyAIRecords, mergeBiologyScoreAIRecords } from './biology-score-persistence.js';
 import { saveImportedDataForProfile } from './data.js';
 import { BIOLOGY_SCORE_VERSION } from './biology-score-contract.js';
+import { getEncryptionEnabled } from './crypto.js';
 import { resolveScoreTone } from './biology-score-engine.js';
 import { canonicalRange } from './biology-score-inputs.js';
 import { state } from './state.js';
@@ -128,24 +129,9 @@ export function getScoreAIMaterialKey(score) {
     available: order(score.available), missing: order(score.missing) }));
 }
 
-function cleanupLegacyScoreAIAnswerCache() {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    const keys = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key?.startsWith('biology-score-ai-answer:')) keys.push(key);
-    }
-    // Test shims may not implement length/key; cover direct enumerable stores too.
-    for (const key of Object.keys(localStorage)) {
-      if (key.startsWith('biology-score-ai-answer:')) keys.push(key);
-    }
-    for (const key of new Set(keys)) localStorage.removeItem(key);
-  } catch {}
-}
-
+// Legacy global cache entries cannot safely be assigned to a profile. Do not
+// erase them while rendering another profile; only explicit data cleanup may.
 export function readScoreAIAnswer(score) {
-  cleanupLegacyScoreAIAnswerCache();
   const profileAnswer = state.importedData?.biologyScoreAI?.[score.id];
   const material = getScoreAIMaterialKey(score);
   const matching = biologyAIRecords(profileAnswer).find(record => answerMatches(record, material));
@@ -176,27 +162,42 @@ export function renderScoreAISummary(score) {
   const value = Number.isFinite(presented.score) ? presented.score : ['stale', 'mixed-dates'].includes(presented.recencyStatus) ? presented.rawScore : null;
   const tone = presented.tone || resolveScoreTone(value);
   const color = !record?.text || !Number.isFinite(value) ? 'var(--text-muted)' : ['excellent', 'good'].includes(tone) ? 'var(--green)' : tone === 'strained' ? 'var(--yellow)' : 'var(--red)';
+  const overview = score.id === 'biologicalCoherence';
+  const retry = overview && hasUnsavedScoreAIAnswers();
+  const action = retry ? 'retry-save-score-insights' : overview ? 'update-score-insights' : 'interpret-score-ai';
+  const label = demo ? 'Use AI' : retry ? 'Retry saving' : overview ? 'Update missing insights' : record?.text ? 'Refresh' : 'Explain score';
   return `<span class="biology-score-ai-teaser" data-biology-score-ai-summary="${escapeAttr(score.id)}" aria-busy="${processing}">
     <span class="biology-score-ai-teaser-label" role="status" aria-live="polite" aria-atomic="true" aria-label="${processing ? 'Assessing markers' : stale ? 'refresh needed' : demo ? 'Demo insight, generated locally without AI' : record?.text ? 'Saved interpretation' : 'Interpretation not generated'}">${processing ? processingDot() : `<span class="biology-score-ai-dot" style="background:${color}" aria-hidden="true"></span>`}${processing ? 'Assessing' : stale ? 'refresh needed' : demo ? 'Demo insight' : ''}</span>
     <span class="biology-score-ai-teaser-text">${processing && !summary ? loadingSkeleton() : escapeHTML(summary || (record?.text ? 'Refresh to add a short, complete insight. Your full explanation is saved.' : ''))}</span>
-    <button type="button" class="biology-score-ai-teaser-action" ${processing ? 'disabled' : ''} data-biology-score-action="interpret-score-ai" data-biology-score-id="${escapeAttr(score.id)}" aria-label="${demo ? `Use AI to explain ${score.id === 'biologicalCoherence' ? 'all Biology Scores' : escapeAttr(score.title)}` : score.id === 'biologicalCoherence' ? 'Refresh all Biology Score insights' : `${record?.text ? 'Refresh' : 'Explain'} ${escapeAttr(score.title)}`}">${demo ? 'Use AI' : score.id === 'biologicalCoherence' ? (record?.text ? 'Refresh all' : 'Explain all') : record?.text ? 'Refresh' : 'Explain score'}</button>
+    <button type="button" class="biology-score-ai-teaser-action" ${processing ? 'disabled' : ''} data-biology-score-action="${action}" data-biology-score-id="${escapeAttr(score.id)}" aria-label="${label} — ${escapeAttr(overview ? 'Biology Scores' : score.title)}">${label}</button>
     ${stale ? `<span class="biology-score-ai-refresh-reason">${escapeHTML(refreshReason)}</span>` : ''}
     <span class="biology-score-ai-error" role="status">${escapeHTML(scoreExplanationErrors.get(getScoreAIRequestKey(score)) || '')}</span>
   </span>`;
 }
 
+// Failed durable saves remain retryable without another provider request. This
+// recovery buffer is deliberately memory-only, never a plaintext disk cache.
+const unsavedAnswers = new Map();
+export function hasUnsavedScoreAIAnswers(profileId = state.currentProfile) { return unsavedAnswers.has(profileId); }
+export async function retryUnsavedScoreAIAnswers(profileId = state.currentProfile) {
+  const pending = unsavedAnswers.get(profileId);
+  if (!pending) return [];
+  const ids = [...pending.records.keys()];
+  await writeScoreAIAnswers([...pending.records.values()], profileId, pending.baseData);
+  return ids;
+}
+
 // Serialize AI writes so two independent refreshes cannot overwrite each other.
-export function writeScoreAIAnswers(records, expectedProfile = state.currentProfile) {
+export function writeScoreAIAnswers(records, expectedProfile = state.currentProfile, expectedData = state.importedData) {
   const write = async () => {
-    if (state.currentProfile !== expectedProfile || !state.importedData) throw new Error('Profile changed during explanation. No answer was saved.');
-    cleanupLegacyScoreAIAnswerCache();
+    if (!expectedData || (state.currentProfile !== expectedProfile && !getProfiles().some(p => p.id === expectedProfile))) throw new Error('Profile changed or was removed. No answer was saved.');
     // Sync/hydration may replace the object without changing the profile. Merge
     // into its latest data instead of rejecting that harmless identity change.
-    const baseData = structuredClone(state.importedData);
+    const baseData = structuredClone(state.currentProfile === expectedProfile ? state.importedData : expectedData);
     const snapshot = structuredClone(baseData);
     const updates = {};
     for (const { score, answer, materialFingerprint } of records) {
-      const content = typeof answer === 'string' ? { text: answer } : { text: answer.text, summary: answer.summary };
+      const content = typeof answer === 'string' ? { text: answer } : { text: answer.text, summary: answer.summary, ...(answer.generation ? { generation: answer.generation } : {}) };
       updates[score.id] = mergeBiologyScoreAIRecords(updates[score.id] || snapshot.biologyScoreAI?.[score.id], {
         fingerprint: materialFingerprint, materialFingerprint, ...content, updatedAt: Date.now(),
         ...(score.aiViews ? { coveredMaterials: score.aiViews.map(view => view.material) } : {}),
@@ -204,17 +205,28 @@ export function writeScoreAIAnswers(records, expectedProfile = state.currentProf
     }
     snapshot.biologyScoreAI = { ...snapshot.biologyScoreAI, ...updates };
     const saved = await saveImportedDataForProfile(expectedProfile, snapshot, { reason: 'biology-score-ai', immediate: true, forceProfileScope: true, baseData });
-    if (!saved) throw new Error('Could not save the explanation. Please try again.');
+    if (!saved) throw new Error('Could not save the explanation. Retry saving without another AI charge before leaving this page.');
     if (state.currentProfile === expectedProfile) {
       state.importedData.biologyScoreAI ||= {};
       for (const [id, update] of Object.entries(updates)) state.importedData.biologyScoreAI[id] = mergeBiologyScoreAIRecords(state.importedData.biologyScoreAI[id], update);
     }
   };
-  return queueBiologyScoreWrite(write);
+  return queueBiologyScoreWrite(write).then(() => {
+    const pending = unsavedAnswers.get(expectedProfile);
+    for (const record of records) {
+      pending?.records.delete(record.score.id);
+    }
+    if (pending && !pending.records.size) unsavedAnswers.delete(expectedProfile);
+  }).catch(error => {
+    const pending = unsavedAnswers.get(expectedProfile) || { records: new Map(), baseData: structuredClone(expectedData) };
+    for (const record of records) pending.records.set(record.score.id, record);
+    unsavedAnswers.set(expectedProfile, pending);
+    throw error;
+  });
 }
 
-export function writeScoreAIAnswer(score, answer, expectedProfile = state.currentProfile, _expectedData = state.importedData, materialFingerprint = getScoreAIMaterialKey(score)) {
-  return writeScoreAIAnswers([{ score, answer, materialFingerprint }], expectedProfile);
+export function writeScoreAIAnswer(score, answer, expectedProfile = state.currentProfile, expectedData = state.importedData, materialFingerprint = getScoreAIMaterialKey(score)) {
+  return writeScoreAIAnswers([{ score, answer, materialFingerprint }], expectedProfile, expectedData);
 }
 
 export function scoreAIAnswerNeedsRefresh(score) {
@@ -235,9 +247,16 @@ export function renderScoreAIAnswer(score) {
         ${demo ? '<h4>Demo explanation</h4>' : score.id === 'biologicalCoherence' ? '' : '<h4>AI interpretation</h4>'}
         ${processing ? `<span class="biology-score-ai-processing" role="status">${processingDot()}Assessing markers</span>` : ''}
       </div>
-      <button type="button" class="dashboard-action-btn dashboard-action-btn-secondary" ${processing ? 'disabled' : ''} data-biology-score-action="interpret-score-ai" data-biology-score-id="${escapeAttr(score.id)}">${demo ? 'Explain with AI' : score.id === 'biologicalCoherence' ? 'Refresh all insights' : cached ? 'Refresh explanation' : 'Explain score'}</button>
+      <button type="button" class="dashboard-action-btn dashboard-action-btn-secondary" ${processing ? 'disabled' : ''} data-biology-score-action="interpret-score-ai" data-biology-score-id="${escapeAttr(score.id)}">${demo ? 'Explain with AI' : cached ? 'Refresh explanation' : 'Explain score'}</button>
     </div>
     ${stale ? `<p class="biology-score-ai-stale">${escapeHTML(refreshReason)} Refresh to use the latest inputs.</p>` : ''}
+    ${recordProvenance(cachedRecord)}
     <div class="biology-score-ai-answer" data-biology-score-ai-answer="${escapeAttr(score.id)}">${cached ? renderMarkdown(cached) : processing ? loadingSkeleton() : 'Explain the main signal, the context that matters, and what to check next.'}</div>
   </section>`;
+}
+
+function recordProvenance(record) {
+  if (!record?.updatedAt || record.source === 'demo') return '';
+  const source = record.generation?.modelId;
+  return `<p class="biology-scores-note">Saved ${escapeHTML(new Date(record.updatedAt).toLocaleString())}${source ? ` · ${escapeHTML(source)}` : ''}. Saved with your profile for sync and backups. ${getEncryptionEnabled() ? 'Local encryption is enabled.' : 'Local encryption is off; enable it in Settings → Data protection.'}</p>`;
 }

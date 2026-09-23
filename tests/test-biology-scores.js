@@ -940,11 +940,11 @@ localStorage.setItem(legacyBiologyAIKey, 'legacy plaintext health answer');
 const savedBiologyScoreAI = state.importedData.biologyScoreAI;
 state.importedData.biologyScoreAI = {};
 await writeScoreAIAnswer(byId.thyroidCoherence, '**sensitive thyroid** interpretation');
-assert('Biology Score AI answers persist only in encrypted/profile data, not plaintext localStorage',
-  localStorage.getItem(legacyBiologyAIKey) == null
+assert('New Biology Score AI answers use profile storage without deleting unknown legacy answers',
+  localStorage.getItem(legacyBiologyAIKey) === 'legacy plaintext health answer'
   && localStorage.getItem(Object.values(state.importedData.biologyScoreAI || {})[0]?.fingerprint || '') == null,
   JSON.stringify({ legacy: localStorage.getItem(legacyBiologyAIKey), stored: localStorage.getItem(Object.values(state.importedData.biologyScoreAI || {})[0]?.fingerprint || '') }));
-assert('Biology Score AI render reads profile-scoped answer after legacy cleanup and renders markdown emphasis',
+assert('Biology Score AI render reads profile-scoped answer without reading an unscoped legacy cache and renders markdown emphasis',
   renderScoreAIAnswer(byId.thyroidCoherence).includes('<strong>sensitive thyroid</strong> interpretation'),
   renderScoreAIAnswer(byId.thyroidCoherence));
 const changedThyroidForAI = { ...byId.thyroidCoherence, score: Math.max(0, byId.thyroidCoherence.score - 7) };
@@ -982,7 +982,7 @@ assert('refreshing a stale Biology Score AI explanation removes the stale warnin
   biologyScoresSrc.slice(biologyScoresSrc.indexOf('async function runEmbeddedScoreAI'), biologyScoresSrc.indexOf('async function runEmbeddedScoreAI') + 900));
 assert('refreshing a Biology Score uses the combined assessment while retaining truthful date filtering',
   biologyScoresSrc.includes('computeBiologyScoreAssessments(rawData).find(item => item.id === scoreId)')
-  && biologyScoresSrc.includes('computeBiologyScores(filterDatesByRange(data, { fallbackToAll: false }))')
+  && biologyScoresSrc.includes('computeBiologyScores(filterDatesByRange(data, { fallbackToAll: false }), options)')
   && biologyScoresSrc.includes("for (const dateRangeFilter of ['all', '1y', '6m', '3m'])"),
   'Single-score refresh should cover all supported views without an all-history fallback.');
 state.importedData.biologyScoreAI = savedBiologyScoreAI;

@@ -109,7 +109,7 @@ function temperatureControlRejected(res, errorText) {
     && /temperature[^\n]{0,120}(?:not supported|unsupported|not permitted|not allowed|invalid|fixed)|(?:not supported|unsupported|invalid)[^\n]{0,120}temperature/i.test(errorText);
 }
 
-export async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { system, messages, maxTokens, onStream, signal, requestTimeoutMs, requestRetries, jsonMode, jsonSchema, forceNonStream, temperature, reasoningEffort }, extraHeaders = {}, { useProxy = true, extraBody = {}, fetchImpl = null, firstReadStallMs = 0 } = /** @type {OpenAICompatibleTransportOptions} */ ({})) {
+export async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { system, messages, maxTokens, onStream, signal, requestTimeoutMs, requestRetries, jsonMode, jsonSchema, forceNonStream, temperature, reasoningEffort, strictTokenLimit }, extraHeaders = {}, { useProxy = true, extraBody = {}, fetchImpl = null, firstReadStallMs = 0 } = /** @type {OpenAICompatibleTransportOptions} */ ({})) {
   const apiMessages = [];
   if (system) apiMessages.push({ role: 'system', content: system });
   for (const msg of messages) apiMessages.push({ role: msg.role, content: msg.content });
@@ -117,7 +117,7 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
   // Thinking models burn reasoning tokens against max_tokens, so low caps need
   // extra room while still constraining total output.
   const isThinkingModel = /deepseek-r1|kimi-k|qwq|qwen3(?:[.\-:]|$)|glm-[45]|claude-.*sonnet|claude-.*opus|(?:^|[/:_.-])cloud(?:$|[/:_.-])/i.test(model);
-  const effectiveMaxTokens = isThinkingModel && providerName !== 'Local AI'
+  const effectiveMaxTokens = isThinkingModel && !strictTokenLimit && providerName !== 'Local AI'
     ? Math.max(maxTokens || 4096, 16384)
     : (maxTokens || 4096);
   const tokenLimitField = needsMaxCompletionTokens(model) ? 'max_completion_tokens' : 'max_tokens';

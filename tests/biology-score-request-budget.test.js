@@ -68,27 +68,27 @@ it('reproduces the Companion rejection and sends complete bounded comparison gro
   }
 });
 
-it('still uses one call for a profile that fits and one call for a single-score refresh', async () => {
+it('bounds score count and output even when the whole profile fits the input limit', async () => {
   const scores = computeBiologyScoreAssessments(getActiveData()); const call = vi.fn(validResponse); configure(call);
-  expect((await generateBiologyScoreAIAnswers(scores)).failedIds).toEqual([]); expect(call).toHaveBeenCalledTimes(1);
+  expect((await generateBiologyScoreAIAnswers(scores)).failedIds).toEqual([]); expect(call.mock.calls.length).toBeGreaterThan(1);
+  for (const [options] of call.mock.calls) {
+    expect(Object.keys(options.jsonSchema.properties).length).toBeLessThanOrEqual(4);
+    expect(options.maxTokens).toBeLessThanOrEqual(2800);
+    expect(options).toMatchObject({ requestRetries: 0, reasoningEffort: 'low', strictTokenLimit: true });
+  }
+  const before = call.mock.calls.length;
   call.mockResolvedValueOnce({ text: JSON.stringify(answer) });
-  await generateBiologyScoreAIAnswer(scores[1]); expect(call).toHaveBeenCalledTimes(2);
+  await generateBiologyScoreAIAnswer(scores[1]); expect(call).toHaveBeenCalledTimes(before + 1);
 });
 
-it('preserves other groups when a request fails and repairs only invalid score entries', async () => {
-  const scores = profileAcrossDates(); let repairId;
-  const call = vi.fn(async options => {
-    const ids = Object.keys(options.jsonSchema.properties);
-    if (call.mock.calls.length === 1) throw new Error('Gateway disconnected');
-    if (!repairId) { repairId = ids[0]; const result = JSON.parse(validResponse(options).text); delete result[repairId]; return { text: JSON.stringify(result) }; }
-    return validResponse(options);
-  });
+it('stops purchasing more groups after a provider failure without automatically retrying', async () => {
+  const scores = profileAcrossDates();
+  const call = vi.fn(async () => { throw new Error('Gateway disconnected'); });
   configure(call); const result = await generateBiologyScoreAIAnswers(scores);
-  const failed = Object.keys(call.mock.calls[0][0].jsonSchema.properties);
-  expect(result.failedIds).toEqual(failed); expect(result.errors[failed[0]]).toBe('Gateway disconnected');
-  expect(Object.keys(result.answers)).toHaveLength(scores.length - failed.length);
-  expect(Object.keys(call.mock.calls[2][0].jsonSchema.properties)).toEqual([repairId]);
-  expect(call.mock.calls.slice(1).every(([options]) => !failed.some(id => options.jsonSchema.properties[id]))).toBe(true);
+  expect(result.failedIds).toEqual(scores.map(score => score.id));
+  expect(result.errors[scores[0].id]).toBe('Gateway disconnected');
+  expect(Object.keys(result.answers)).toHaveLength(0);
+  expect(call).toHaveBeenCalledTimes(1);
 });
 
 it('isolates an individually oversized score without truncation or blocking other scores', async () => {
@@ -115,14 +115,15 @@ it('checkpoints each group before requesting the next and stops on a profile cha
   expect(result.failedIds.every(id => result.errors[id].includes('Profile changed'))).toBe(true);
 });
 
-it('reports an unsuccessful checkpoint as unsaved while retaining other successful groups', async () => {
+it('stops purchasing further groups if the first checkpoint cannot be saved', async () => {
   const scores = profileAcrossDates(); let count = 0;
   const call = vi.fn(validResponse); configure(call);
   const result = await generateBiologyScoreAIAnswers(scores, {
     onBatch: async () => { if (++count === 1) throw new Error('Could not save the explanation.'); },
   });
   const unsaved = Object.keys(call.mock.calls[0][0].jsonSchema.properties);
-  expect(result.failedIds).toEqual(unsaved);
+  expect(result.failedIds).toEqual(scores.map(score => score.id));
   expect(unsaved.every(id => !result.answers[id] && result.errors[id].includes('Could not save'))).toBe(true);
-  expect(Object.keys(result.answers).length).toBe(scores.length - unsaved.length);
+  expect(Object.keys(result.answers).length).toBe(0);
+  expect(call).toHaveBeenCalledTimes(1);
 });
