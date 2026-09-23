@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 786 |
-| Internal import edges | 3319 |
+| Modules | 787 |
+| Internal import edges | 3324 |
 | Dynamic internal edges | 113 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -65,8 +65,8 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
 | [`js/utils.js`](js/utils.js) | 289 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 78 |
-| [`js/state.js`](js/state.js) | 196 | [`js/chat-send.js`](js/chat-send.js) | 42 |
-| [`js/caught-error.js`](js/caught-error.js) | 88 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
+| [`js/state.js`](js/state.js) | 197 | [`js/chat-send.js`](js/chat-send.js) | 42 |
+| [`js/caught-error.js`](js/caught-error.js) | 89 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 81 | [`js/settings.js`](js/settings.js) | 30 |
 | [`js/data.js`](js/data.js) | 79 | [`js/sync-configure.js`](js/sync-configure.js) | 28 |
 | [`js/profile.js`](js/profile.js) | 50 | [`js/pdf-import.js`](js/pdf-import.js) | 27 |
@@ -460,13 +460,14 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>cycle</code> family — 9 modules</summary>
+<details><summary><code>cycle</code> family — 10 modules</summary>
 
 - [`js/cycle-draw-phases.js`](js/cycle-draw-phases.js) → no in-scope imports
 - [`js/cycle-import-adapters.js`](js/cycle-import-adapters.js) → [`js/cycle-summary.js`](js/cycle-summary.js)
 - [`js/cycle-import-file.js`](js/cycle-import-file.js) → [`js/caught-error.js`](js/caught-error.js)
 - [`js/cycle-import-loader.js`](js/cycle-import-loader.js) → [`js/cycle-import.js`](js/cycle-import.js) *(dynamic)*, [`js/cycle-summary.js`](js/cycle-summary.js), [`js/utils.js`](js/utils.js)
-- [`js/cycle-import.js`](js/cycle-import.js) → [`js/caught-error.js`](js/caught-error.js), [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/cycle-import-adapters.js`](js/cycle-import-adapters.js), [`js/cycle-import-file.js`](js/cycle-import-file.js), [`js/cycle-runtime.js`](js/cycle-runtime.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/cycle-summary.js`](js/cycle-summary.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/tour.js`](js/tour.js), [`js/utils.js`](js/utils.js), [`js/wearables-apple-health.js`](js/wearables-apple-health.js) *(dynamic)*
+- [`js/cycle-import-mutations.js`](js/cycle-import-mutations.js) → [`js/caught-error.js`](js/caught-error.js), [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/cycle-runtime.js`](js/cycle-runtime.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/cycle-summary.js`](js/cycle-summary.js), [`js/data-merge.js`](js/data-merge.js), [`js/data.js`](js/data.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js)
+- [`js/cycle-import.js`](js/cycle-import.js) → [`js/caught-error.js`](js/caught-error.js), [`js/cycle-import-adapters.js`](js/cycle-import-adapters.js), [`js/cycle-import-file.js`](js/cycle-import-file.js), [`js/cycle-import-mutations.js`](js/cycle-import-mutations.js), [`js/cycle-runtime.js`](js/cycle-runtime.js), [`js/cycle-summary.js`](js/cycle-summary.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/tour.js`](js/tour.js), [`js/utils.js`](js/utils.js), [`js/wearables-apple-health.js`](js/wearables-apple-health.js) *(dynamic)*
 - [`js/cycle-runtime.js`](js/cycle-runtime.js) → [`js/utils.js`](js/utils.js)
 - [`js/cycle-store.js`](js/cycle-store.js) → no in-scope imports
 - [`js/cycle-summary.js`](js/cycle-summary.js) → no in-scope imports

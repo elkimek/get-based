@@ -1,3 +1,12 @@
+# Additional concrete gap found during completion audit
+
+Cycle import/delete failure recovery was not proven by existing success-path
+coverage. The next local batch adds 35 cases and fixes four reproduced ownership
+and rollback failures, with real IndexedDB restoration checks. See the completion
+checklist for focused evidence. PR1649 acceptance remains independent; do not
+mark the overall goal complete before this recovery batch is accepted and the
+remaining-surface audit is finished.
+
 # Active autonomous remaining-surface batch — 2026-09-23
 
 PR #1648 merged as `1bda34a8002d9c9099354b0d7a221c7a5600ec1b` after exact-head

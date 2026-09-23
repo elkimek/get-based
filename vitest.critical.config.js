@@ -8,6 +8,9 @@ export default defineConfig({
   test: {
     ...base.test,
     include: [
+      'tests/cycle-import-recovery.test.js',
+      'tests/cycle-import-storage-recovery.test.js',
+      'tests/cycle-import-phase1.test.js',
       'tests/nutrition-editor-navigation.test.js',
       'tests/sun-session-recovery.test.js',
       'tests/sun-live-recovery.test.js',
@@ -67,6 +70,7 @@ export default defineConfig({
       ...base.test.coverage,
       enabled: true,
       include: [
+        'js/cycle-import-mutations.js',
         'js/nutrition-editor-navigation.js',
         'js/sun-sessions-store.js',
         'js/sun-active-session-format.js',
@@ -100,6 +104,7 @@ export default defineConfig({
       reportsDirectory: 'tests/.critical-coverage',
       reporter: ['json-summary', 'json', 'text'],
       thresholds: {
+        'js/cycle-import-mutations.js': { lines: 97, functions: 95, branches: 83, statements: 92 },
         'js/nutrition-editor-navigation.js': { lines: 100, functions: 100, branches: 84, statements: 97 },
         'js/sun-sessions-store.js': { lines: 95, functions: 77, branches: 88, statements: 94 },
         'js/sun-active-session-format.js': { lines: 100, functions: 100, branches: 90, statements: 97 },

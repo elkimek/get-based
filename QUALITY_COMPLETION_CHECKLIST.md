@@ -1,3 +1,31 @@
+# Cycle import recovery batch — local, pending predecessor acceptance
+
+Branch `codex/cycle-import-recovery`, based on PR1649 head193c1218.
+Adds 35 regressions (32 mutation-boundary cases and three real IndexedDB store
+rollback cases). Four initial regressions reproduced cross-profile import/delete
+mutation, failed-save rollback into replacement data, and swallowed snapshot-read
+failure. Mutation operations now serialize, reject stale owner/data before
+mutation, restore only their original data, and scope durable rollback to the
+origin profile with a mutation baseline. Read errors fail closed. Rollback of a
+reused import restores all of its previous rows, including dates outside the new
+input, preserving unrelated import batches.
+
+Persistence logic is extracted into `cycle-import-mutations.js` while preserving
+the public facade. The service-worker list and module graph include it. A new
+independent gate sets 97% lines, 95% functions, 83% branches and 92% statements;
+selected measurement was 97.72/95.45/83.22/92.01 before the final fail-closed count
+read simplification. There are now 57 explicit critical suites and 32 modules.
+
+Verification: 35 new cases and 25 existing cycle cases pass, as does the critical
+config guard. Two real browser workflows (Drip import/commit/history, profile-sex
+consent) pass; 78 existing cycle checks, CheckJS, strict-null zero diagnostics,
+17 quality guards, architecture and original production limits pass. Production
+output is 5253.8 KiB. No exhaustive local suite, hardware/model or real-provider
+work was performed. This batch is local and must be rebased after PR1649 merges,
+then receive its own exact-head CI, artifact and review acceptance.
+
+---
+
 # PR1649 chat fixture timing correction
 
 Head fe7ebb93 passed Greptile 5/5 and preliminary gates, including the corrected
