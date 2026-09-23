@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 786 |
-| Internal import edges | 3318 |
+| Internal import edges | 3319 |
 | Dynamic internal edges | 113 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -64,7 +64,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 288 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 78 |
+| [`js/utils.js`](js/utils.js) | 289 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 78 |
 | [`js/state.js`](js/state.js) | 196 | [`js/chat-send.js`](js/chat-send.js) | 42 |
 | [`js/caught-error.js`](js/caught-error.js) | 88 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 81 | [`js/settings.js`](js/settings.js) | 30 |
@@ -1125,7 +1125,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>sun</code> family — 34 modules</summary>
 
-- [`js/sun-active-session-format.js`](js/sun-active-session-format.js) → no in-scope imports
+- [`js/sun-active-session-format.js`](js/sun-active-session-format.js) → [`js/utils.js`](js/utils.js)
 - [`js/sun-active-session.js`](js/sun-active-session.js) → [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/sun-active-session-format.js`](js/sun-active-session-format.js), [`js/sun-body-silhouette.js`](js/sun-body-silhouette.js), [`js/sun-session-actions.js`](js/sun-session-actions.js), [`js/sun-session-model.js`](js/sun-session-model.js), [`js/sun-session-ui.js`](js/sun-session-ui.js), [`js/utils.js`](js/utils.js)
 - [`js/sun-ai-analysis.js`](js/sun-ai-analysis.js) → [`js/ai-action-delegates.js`](js/ai-action-delegates.js), [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/ai-verdict-engine.js`](js/ai-verdict-engine.js), [`js/sun-defaults.js`](js/sun-defaults.js), [`js/sun-uvdata.js`](js/sun-uvdata.js), [`js/sun.js`](js/sun.js), [`js/utils.js`](js/utils.js)
 - [`js/sun-body-silhouette-runtime.js`](js/sun-body-silhouette-runtime.js) → [`js/profile.js`](js/profile.js)

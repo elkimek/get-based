@@ -8,6 +8,9 @@ export default defineConfig({
   test: {
     ...base.test,
     include: [
+      'tests/sun-session-recovery.test.js',
+      'tests/sun-live-recovery.test.js',
+      'tests/sun-session-format.test.js',
       'tests/sync-identity-vault-failures.test.js',
       'tests/sync-evolu8-identity-vault.test.js',
       'tests/profile-cleanup-failures.test.js',
@@ -63,6 +66,8 @@ export default defineConfig({
       ...base.test.coverage,
       enabled: true,
       include: [
+        'js/sun-sessions-store.js',
+        'js/sun-active-session-format.js',
         'js/sync-evolu8-identity-vault.js',
         'js/profile-storage-cleanup.js',
         'js/sync-disable-cleanup.js',
@@ -93,6 +98,8 @@ export default defineConfig({
       reportsDirectory: 'tests/.critical-coverage',
       reporter: ['json-summary', 'json', 'text'],
       thresholds: {
+        'js/sun-sessions-store.js': { lines: 95, functions: 77, branches: 88, statements: 94 },
+        'js/sun-active-session-format.js': { lines: 100, functions: 100, branches: 90, statements: 97 },
         'js/sync-evolu8-identity-vault.js': { lines: 94, functions: 88, branches: 88, statements: 93 },
         'js/profile-storage-cleanup.js': { lines: 100, functions: 100, branches: 88, statements: 98 },
         'js/sync-disable-cleanup.js': { lines: 100, functions: 100, branches: 100, statements: 100 },

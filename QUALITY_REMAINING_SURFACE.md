@@ -1,3 +1,16 @@
+# Current investigation: sun session recovery (2026-09-23)
+
+The previous sync boundary batch merged as PR #1646. The new batch covers session
+ownership across delayed weather/persistence, failed computation/save retries,
+live timer cancellation, pause/resume and stop idempotency. It adds 127 cases;
+whole-project impact remains pending CI rather than extrapolated from scoped tests.
+
+Still separate: broader Light page event/navigation coverage, wallet/provider
+recovery, nutrition editor/comparison failures, shell/chat event dispatch and
+import/export rollback. This batch does not claim those areas are complete.
+
+The table below is a historical prioritization snapshot, not current coverage.
+
 # Remaining coverage surface after PR #1645
 
 Evidence: production artifact 10696256536 from CI run 35731140675,

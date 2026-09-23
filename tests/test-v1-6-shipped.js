@@ -694,7 +694,7 @@ const _origProfileSex = state ? state.profileSex : null;
       sunActiveSrc.indexOf('function _plainStopSummary')
     );
     assert('sun-active-session.js: start flow uses one consolidated start-session toast helper',
-      /function _buildStartSessionToast/.test(sunActiveSrc) &&
+      /function _buildStartSessionToast/.test(fetchSrc('js/sun-active-session-format.js')) &&
       /showNotification\(_buildStartSessionToast\(/.test(startHandler));
     assert('sun-active-session.js: start flow no longer emits photosensitizer warning toast',
       !/photosensitizer active/.test(startHandler));

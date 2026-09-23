@@ -1,3 +1,64 @@
+# Sun session recovery and coverage — 2026-09-23
+
+PR #1646 was verified against head `e20352c80f8755012d37eb1977245ec223930f63`
+and merged with the user-authorized administrator override as
+`7732d5da1f3d6be590c312920116e9cb53f31561`. This batch starts from that merge.
+
+## Current combined batch
+
+127 new regression cases: 74 session-store, 26 live-runtime, 23 session-format
+unit cases and four Chromium integration scenarios. These cover stale weather
+completion/rejection after profile changes, deletion, reset and replacement;
+concurrent hydration, failed persistence and retry; pause/resume/duplicate stop;
+partial calculation failures; live ticker ownership and cleanup; and preserved
+uncertainty labels in session summaries. Fourteen store and eighteen live-runtime
+regressions were observed failing before their production corrections.
+
+Store requests now verify profile, data, record identity and generation before
+continuing after asynchronous boundaries. Newer requests supersede older weather;
+queued work is keyed by record rather than a reusable id. Live requests similarly
+cannot recreate cleared state or release another request's pending flag. Missing
+location and failed weather can retry. Already-stopped sessions retain their
+original end time. False storage results are failures, partial calculation errors
+clear derived values, and failed final saves remain eligible for recovery.
+
+This is not transaction rollback: synchronous in-memory edits can remain after a
+failed save. The tests assert failure reporting and lack of success-side analysis,
+not an invented guarantee that every failed write undoes every local mutation.
+
+The added checks exceeded the existing production byte budget at first. Duplicate
+live-rate and stored-safety calculations were consolidated without changing the
+formulas; preflight formatting moved into the existing format module to keep the
+runtime below its module-size cap. No budget or existing coverage floor was raised
+or weakened to accommodate the changes.
+
+## Focused local verification
+
+- 123 new unit cases plus the critical-config guard pass.
+- All four new browser scenarios and three directly affected existing scenarios
+  pass, including real persistence across reload and profile/deletion races.
+- Scoped coverage: store lines 95.80%, branches 89.40%, functions 78.12%,
+  statements 94.44%; session format lines/functions 100%, branches 90.81%,
+  statements 97.53%. Default no-op callbacks remain in the denominator.
+- Critical configuration adds the three suites and two independently enforced
+  modules: 53 explicit suites, 30 module floors. CI owns the complete run.
+- Existing shipped-behavior checks: 132 passed; existing audit checks: 378 passed.
+- CheckJS, strict-null, architecture, quality guardrails and production budgets
+  are checked without exhaustive local browser or coverage matrices.
+
+## Acceptance still required
+
+The new PR must pass exact-head CI, all 17 feature and 30 critical gates, and full
+Greptile review. Whole-project coverage changes are unknown until its artifact is
+available. No collector policy changed; new cases and deduplication can change the
+function denominator. Synthetic weather/math dependencies do not prove real
+weather-provider availability, physical exposure estimates, or complete workflow
+coverage. Remaining surface areas continue below and in QUALITY_REMAINING_SURFACE.md.
+
+---
+
+## Historical evidence from preceding batches
+
 # Sync identity and cleanup boundaries — 2026-09-22
 
 ## Verified starting point

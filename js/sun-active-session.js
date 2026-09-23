@@ -7,7 +7,7 @@ import { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette } from './sun-bo
 import { POSTURE_MULTIPLIERS, SURFACE_ALBEDO } from './sun-session-model.js';
 import { renderChannelChips } from './sun-session-ui.js';
 import { setSunChannelChipsExpanded } from './sun-session-actions.js';
-import { activeElapsedMs as _activeElapsedMs, formatElapsed as _formatElapsed, plainStopSummary } from './sun-active-session-format.js';
+import { activeElapsedMs as _activeElapsedMs, formatElapsed as _formatElapsed, plainStopSummary, _renderUVIPreflightBanner, _buildStartSessionToast } from './sun-active-session-format.js';
 
 /**
  * @typedef {object} SunActiveSessionDeps
@@ -65,8 +65,11 @@ export { _formatElapsed };
 export async function quickLogSunSession() {
   const active = activeDeps.getActiveSession();
   if (active) {
+    const isCurrent = activeSessionOwnership(active);
     await activeDeps.stopSession(active.id);
+    if (!isCurrent()) return false;
     await hydrateSunSessionFromProfileCoords(active.id);
+    if (!isCurrent()) return false;
     const sess = activeDeps.getSessions().find(s => s.id === active.id);
     const dur = Math.round(sess?.durationMin || 0);
     const summary = _plainStopSummary(sess, dur);
@@ -87,51 +90,6 @@ async function _fetchCurrentUVI() {
     const overridden = activeDeps.applyAtmOverrides(atm);
     return overridden?.uvIndex ?? null;
   } catch (e) { return null; }
-}
-
-function _estimateMedMinutes(uvi, fitzpatrick, psmTier) {
-  if (!Number.isFinite(uvi) || uvi <= 0) return null;
-  const fitzMED = { I: 200, II: 250, III: 300, IV: 450, V: 600, VI: 1000 };
-  const baseMED = fitzMED[fitzpatrick] ?? fitzMED.III;
-  const med = baseMED * (activeDeps.photosensitiveMedScale(psmTier) || 1.0);
-  const irradiance = uvi * 25; // 1 UVI unit = 25 mW/m² CIE-erythemal irradiance.
-  const seconds = (med * 1000) / irradiance;
-  return Math.round(seconds / 60);
-}
-
-function _renderUVIPreflightBanner(uvi, fitzpatrick, psmTier, fitzpatrickAssumed = false) {
-  if (!Number.isFinite(uvi)) return '';
-  const psmHigh = psmTier === 'moderate' || psmTier === 'severe';
-  const fairSkin = fitzpatrick === 'I' || fitzpatrick === 'II';
-  if (uvi < 8 && !psmHigh && !fairSkin) return '';
-  if (uvi < 5 && !psmHigh) return '';
-  const medMin = _estimateMedMinutes(uvi, fitzpatrick, psmTier);
-  let cls = 'sun-uvi-warn';
-  let icon = '☀';
-  let title = '';
-  if (uvi >= 11) { cls = 'sun-uvi-extreme'; icon = '⚠'; title = `Extreme UV (UVI ${uvi.toFixed(1)})`; }
-  else if (uvi >= 8) { cls = 'sun-uvi-veryhigh'; title = `Very high UV (UVI ${uvi.toFixed(1)})`; }
-  else { title = `UV ${uvi.toFixed(1)} — burn risk elevated ${psmHigh ? 'by photosensitizer' : 'for fair skin'}`; }
-  const medLine = medMin
-    ? `${fitzpatrickAssumed ? 'Conservative Type I assumption because skin type is unset' : `Fitzpatrick ${fitzpatrick} base-MED model`}: ~${medMin} min to the modeled base MED under current UVI—not a safe exposure time.`
-    : '';
-  const medicationLine = psmTier !== 'none'
-    ? ' Medication effects are not included because a drug-specific burn threshold cannot be inferred; follow the label or clinician.'
-    : '';
-  return `<div class="${cls}"><strong>${icon} ${escapeHTML(title)}</strong> ${escapeHTML(medLine + medicationLine)} Use shade, clothing, and suitable sun protection; shorten or skip the session when warnings apply.</div>`;
-}
-
-function _buildStartSessionToast({ regionCount, uvi, psmTier, eyeMode }) {
-  const parts = [`Outdoor session started · ${regionCount} region${regionCount === 1 ? '' : 's'} exposed`];
-  const notes = [];
-  if (Number.isFinite(uvi) && uvi >= 11) notes.push(`extreme UV ${uvi.toFixed(1)}`);
-  else if (Number.isFinite(uvi) && uvi >= 8) notes.push(`high UV ${uvi.toFixed(1)}`);
-  const tier = activeDeps.normalizePSMTier(psmTier);
-  if (tier === 'unknown') notes.push('sunlight warnings not reviewed');
-  else if (tier !== 'none') notes.push(`${tier} photosensitivity caution`);
-  if (eyeMode === 'direct') notes.push('eyes uncovered');
-  if (notes.length) parts.push(`${notes.join(' + ')} · keep it short`);
-  return parts.join(' · ');
 }
 
 export async function openStartSunSessionDialog() {
@@ -267,7 +225,7 @@ export async function openStartSunSessionDialog() {
     latestPreflightUvi = uvi;
     const banner = overlay.querySelector('#sun-start-uvi-banner');
     if (!(banner instanceof HTMLElement)) return;
-    const html = _renderUVIPreflightBanner(uvi, fitz, psm, !configuredFitz);
+    const html = _renderUVIPreflightBanner(uvi, fitz, psm, !configuredFitz, activeDeps.photosensitiveMedScale);
     if (html) {
       banner.innerHTML = html;
       banner.hidden = false;
@@ -295,7 +253,7 @@ export async function openStartSunSessionDialog() {
       uvi: latestPreflightUvi,
       psmTier: state.importedData?.sunDefaults?.photosensitiveMeds,
       eyeMode: modeledEyeMode,
-    }), 'success', 4500);
+    }, activeDeps.normalizePSMTier), 'success', 4500);
     activeDeps.refreshSurfaces();
     ensureActiveTicker();
     return id;
@@ -313,33 +271,51 @@ function _plainStopSummary(session, durationMin) {
 
 let _activeTicker = null;
 const _liveState = new Map();
+const _snapshotRequests = new Map();
+let _activeGeneration = 0;
+
+function activeSessionOwnership(sess) {
+  const data = state.importedData;
+  const profile = state.currentProfile;
+  const generation = _activeGeneration;
+  return () => generation === _activeGeneration
+    && state.importedData === data && state.currentProfile === profile
+    && activeDeps.getSessions().includes(sess);
+}
 
 function _getLiveState(id) { return _liveState.get(id) || null; }
 export function setSunLiveState(id, patch) {
   const cur = _liveState.get(id) || {};
+  if (patch.ratePerMin === null) {
+    _snapshotRequests.delete(id);
+    cur.pending = false;
+  }
   _liveState.set(id, Object.assign(cur, patch));
 }
-export function clearSunLiveState(id) { _liveState.delete(id); }
+export function clearSunLiveState(id) { _liveState.delete(id); _snapshotRequests.delete(id); }
 
 async function _snapshotActiveRate(sess) {
   const cur = _getLiveState(sess.id);
   if (cur && cur.ratePerMin) return cur;
   if (cur && cur.pending) return null;
+  const ownsSession = activeSessionOwnership(sess);
+  const request = {};
+  _snapshotRequests.set(sess.id, request);
+  const isCurrent = () => ownsSession() && !sess.endedAt && !sess.paused
+    && _snapshotRequests.get(sess.id) === request;
   setSunLiveState(sess.id, { pending: true });
   try {
     const {
-      reconstructSpectrum,
-      computeChannelDoses,
-      erythemalSED,
       fractionOfMED,
-      solarZenithAngle,
       fetchAtmosphere,
     } = activeDeps;
     const coords = sess.location || activeDeps.getSunCoords();
     if (!coords) return null;
     const now = new Date();
     let atm = await fetchAtmosphere({ lat: coords.lat, lon: coords.lon, isoTime: now.toISOString() });
+    if (!isCurrent()) return null;
     atm = activeDeps.applyAtmOverrides(atm);
+    if (!atm) return null;
     const priorAtm = _getLiveState(sess.id)?.atm;
     if (priorAtm && Number.isFinite(priorAtm.uvIndex) && Number.isFinite(atm?.uvIndex)) {
       const primarySrc = (s) => String(s || '').split('+')[0];
@@ -353,41 +329,9 @@ async function _snapshotActiveRate(sess) {
         atm = { ...priorAtm, _sourceFlipBlocked: { from: priorAtm.source, to: atm.source, attemptedUvi: atm.uvIndex, at: Date.now() } };
       }
     }
-    const zenith = solarZenithAngle(now, coords.lat, coords.lon);
-    const spectrum = reconstructSpectrum({
-      zenithDeg: zenith,
-      ozoneDU: atm.ozoneDU ?? 300,
-      altitudeM: coords.altitudeM ?? 0,
-      cloudCover: (atm.cloudCover ?? 0) / 100,
-      aod: atm?.airQuality?.aod ?? null,
-      targetUVI: atm.uvIndex ?? null,
-    });
-    const liveBodyModifiers = {
-      glassBetween: !!sess.bodyExposure?.glassBetween,
-      sunscreenSPF: sess.bodyExposure?.sunscreenSPF || 0,
-    };
-    const modeledEyeExposure = liveBodyModifiers.glassBetween && sess.eyeExposure?.mode === 'direct'
-      ? { ...sess.eyeExposure, mode: 'glass-window' }
-      : sess.eyeExposure;
-    const ratePerMin = computeChannelDoses({
-      spectrum,
-      durationMin: 1,
-      bodyExposureFraction: sess.bodyExposure?.fraction ?? 0,
-      skinIrradianceMultiplier: Math.max(0, Math.min(2,
-        (POSTURE_MULTIPLIERS[sess.posture] ?? 1.0)
-        * (1 + (SURFACE_ALBEDO[sess.surfaceAlbedo] ?? 0) * 0.5))),
-      eyeExposure: modeledEyeExposure,
-      bodyModifiers: liveBodyModifiers,
-    });
-    const sedPerMin = erythemalSED({
-      spectrum,
-      durationMin: 1,
-      bodyExposureFraction: sess.bodyExposure?.fraction ?? 0,
-      skinIrradianceMultiplier: Math.max(0, Math.min(2,
-        (POSTURE_MULTIPLIERS[sess.posture] ?? 1.0)
-        * (1 + (SURFACE_ALBEDO[sess.surfaceAlbedo] ?? 0) * 0.5))),
-      bodyModifiers: liveBodyModifiers,
-    });
+    const snapshot = _rateAtInstant(sess, now.getTime(), atm, coords);
+    if (!snapshot) return null;
+    const { rate: ratePerMin, sedPerMin, zenith } = snapshot;
     const lcSkin = state.importedData?.lightCircadian?.skinType;
     const lcRoman = lcSkin && activeDeps.skinTypeToFitzpatrick(lcSkin);
     const configuredFitzpatrick = state.importedData?.sunDefaults?.fitzpatrick || lcRoman || null;
@@ -409,15 +353,21 @@ async function _snapshotActiveRate(sess) {
     });
     return _getLiveState(sess.id);
   } catch (e) {
-    globalThis.console?.warn?.('snapshotActiveRate failed', e);
-    setSunLiveState(sess.id, { pending: false });
+    if (isCurrent()) globalThis.console?.warn?.('snapshotActiveRate failed', e);
     return null;
+  } finally {
+    // Never let an old rejection clear the replacement request's pending flag.
+    if (_snapshotRequests.get(sess.id) === request) {
+      _snapshotRequests.delete(sess.id);
+      const live = _getLiveState(sess.id);
+      if (live) live.pending = false;
+    }
   }
 }
 
-function _rateAtInstant(sess, instantMs) {
-  const live = _getLiveState(sess?.id);
-  if (!live || !live.atm) return null;
+function _rateAtInstant(sess, instantMs, snapshotAtmosphere = null, coords = sess.location) {
+  const atmosphere = snapshotAtmosphere || _getLiveState(sess?.id)?.atm;
+  if (!atmosphere || !coords) return null;
   const {
     reconstructSpectrum,
     computeChannelDoses,
@@ -426,19 +376,17 @@ function _rateAtInstant(sess, instantMs) {
     interpolateAtmosphere,
   } = activeDeps;
 
-  const coords = sess.location;
-  if (!coords) return null;
   const when = new Date(instantMs);
   const isoTime = when.toISOString();
-  let atmAtT = live.atm;
-  if (interpolateAtmosphere) {
-    const interp = interpolateAtmosphere(live.atm, isoTime);
+  let atmAtT = atmosphere;
+  if (!snapshotAtmosphere && interpolateAtmosphere) {
+    const interp = interpolateAtmosphere(atmosphere, isoTime);
     if (interp) {
       atmAtT = {
-        ...live.atm,
-        uvIndex: interp.uvIndex ?? live.atm.uvIndex,
-        cloudCover: interp.cloudCover ?? live.atm.cloudCover,
-        temperatureC: interp.temperatureC ?? live.atm.temperatureC,
+        ...atmosphere,
+        uvIndex: interp.uvIndex ?? atmosphere.uvIndex,
+        cloudCover: interp.cloudCover ?? atmosphere.cloudCover,
+        temperatureC: interp.temperatureC ?? atmosphere.temperatureC,
       };
     }
   }
@@ -486,7 +434,7 @@ function _rateAtInstant(sess, instantMs) {
     zenithDeg: zenith,
     glassBetween: bodyModifiers.glassBetween,
   });
-  return { rate, sedPerMin, retinalUVPerMin };
+  return { rate, sedPerMin, retinalUVPerMin, zenith };
 }
 
 function _integrateSlice(sess, startMs, endMs) {
@@ -759,7 +707,7 @@ function _refreshLiveChannelSurfaces() {
 }
 
 export function ensureActiveTicker() {
-  if (_activeTicker) return;
+  if (_activeTicker || !activeDeps.getActiveSession()) return;
   _tickActiveCards();
   _activeTicker = setInterval(_tickActiveCards, 1000);
 }
@@ -773,8 +721,10 @@ export async function hydrateSunSessionFromProfileCoords(id) {
   if (!coords) return;
   const sess = activeDeps.getSessions().find(s => s.id === id);
   if (!sess) return;
+  const isCurrent = activeSessionOwnership(sess);
   sess.location = { lat: coords.lat, lon: coords.lon, altitudeM: 0, source: coords.source };
   await activeDeps.saveImportedData();
+  if (!isCurrent()) return;
   await activeDeps.hydrateSession(id);
 }
 
@@ -792,6 +742,8 @@ function _jargonPrefix(key) {
 }
 
 export function resetSunActiveSessionState() {
+  _activeGeneration++;
+  _snapshotRequests.clear();
   if (_activeTicker) { clearInterval(_activeTicker); _activeTicker = null; }
   _liveState.clear();
   _lastChannelRefreshAt = 0;
