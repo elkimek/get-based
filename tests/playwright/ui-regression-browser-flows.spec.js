@@ -10,6 +10,13 @@ const UI_REGRESSION_BROWSER_TESTS = [
 
 for (const [name, path] of UI_REGRESSION_BROWSER_TESTS) {
   test(name, { timeout: 60_000 }, async ({ page }) => {
+    if (path === 'tests/test-chat-panel-ux.js') {
+      // Opening awaits lazy stylesheets; exceed the old fixture's 50 ms sleep.
+      await page.route('**/css/chat-panel-open.css*', async route => {
+        await new Promise(resolve => setTimeout(resolve, 150));
+        await route.continue();
+      });
+    }
     await runBrowserScript(page, path);
   });
 }

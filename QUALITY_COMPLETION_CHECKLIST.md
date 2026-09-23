@@ -1,3 +1,13 @@
+# PR1649 chat fixture timing correction
+
+Head fe7ebb93 passed Greptile 5/5 and preliminary gates, including the corrected
+wallet fixture, but the full browser run failed one chat accessibility assertion
+(756 passed). The fixture slept 50 ms instead of awaiting lazy stylesheet loading
+in openChatPanel. All fixture opens now await completion. A 150 ms stylesheet
+route reproduces the exact original failure; the corrected fixture passes twice
+with all 29 assertions. Production code is unchanged. Final-head acceptance remains
+required.
+
 # PR1649 CI fixture correction
 
 Head ce09aac4 passed Greptile 5/5 and all preliminary/critical gates, but the

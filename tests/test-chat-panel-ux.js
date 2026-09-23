@@ -59,9 +59,7 @@ return (async function() {
     // ─── 4. openChatPanel does NOT lock body scroll ───────────
     {
       const beforeOverflow = document.body.style.overflow;
-      openChatPanel();
-      // Skip the chat-render await — only check side effects.
-      await new Promise(r => setTimeout(r, 50));
+      await openChatPanel();
       const afterOverflow = document.body.style.overflow;
       assert('opening chat does not set body.style.overflow',
         afterOverflow === '' || afterOverflow === beforeOverflow,
@@ -115,8 +113,7 @@ return (async function() {
 
       // Set localStorage = true → opening should add the class.
       localStorage.setItem('labcharts-chat-fullscreen', 'true');
-      openChatPanel();
-      await new Promise(r => setTimeout(r, 50));
+      await openChatPanel();
       assert('opening chat with localStorage=true applies fullscreen',
         panel.classList.contains('chat-panel-fullscreen'));
       closeChatPanel();
@@ -125,8 +122,7 @@ return (async function() {
       // explicitly remove if previously set, since we use toggle(force)).
       panel.classList.add('chat-panel-fullscreen'); // simulate stale
       localStorage.setItem('labcharts-chat-fullscreen', 'false');
-      openChatPanel();
-      await new Promise(r => setTimeout(r, 50));
+      await openChatPanel();
       assert('opening chat with localStorage=false explicitly removes fullscreen class',
         !panel.classList.contains('chat-panel-fullscreen'));
       closeChatPanel();
@@ -155,14 +151,12 @@ return (async function() {
     // ─── 10. Toggle persists across panel close+reopen ────────
     {
       const panel = document.getElementById('chat-panel');
-      openChatPanel();
-      await new Promise(r => setTimeout(r, 50));
+      await openChatPanel();
       toggleChatFullscreen(); // ON
       await new Promise(r => setTimeout(r, 50));
       closeChatPanel();
       panel.classList.remove('chat-panel-fullscreen'); // simulate fresh DOM
-      openChatPanel();
-      await new Promise(r => setTimeout(r, 50));
+      await openChatPanel();
       assert('reopening chat after fullscreen-on restores fullscreen',
         panel.classList.contains('chat-panel-fullscreen'));
       closeChatPanel();
@@ -173,8 +167,7 @@ return (async function() {
       localStorage.removeItem('labcharts-chat-fullscreen');
       document.body.classList.remove('chat-open', 'chat-fullscreen');
 
-      openChatPanel();
-      await new Promise(r => setTimeout(r, 50));
+      await openChatPanel();
       assert('opening chat adds body.chat-open',
         document.body.classList.contains('chat-open'));
       assert('opening chat with fullscreen=false does not add body.chat-fullscreen',
@@ -199,7 +192,7 @@ return (async function() {
       const main = document.querySelector('.main, #main-content');
       if (main) {
         const beforePadding = parseFloat(getComputedStyle(main).paddingRight);
-        openChatPanel();
+        await openChatPanel();
         await new Promise(r => setTimeout(r, 400)); // wait past 0.3s transition
         const afterPadding = parseFloat(getComputedStyle(main).paddingRight);
         assert('opening chat increases main padding-right (dashboard shifts left)',
