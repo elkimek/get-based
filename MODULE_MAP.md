@@ -10,8 +10,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 788 |
-| Internal import edges | 3330 |
-| Dynamic internal edges | 114 |
+| Internal import edges | 3331 |
+| Dynamic internal edges | 115 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -195,7 +195,7 @@ Native browser modules shipped with the static application.
 - [`js/biology-score-ai.js`](js/biology-score-ai.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/api.js`](js/api.js), [`js/biology-score-ai-protocol.js`](js/biology-score-ai-protocol.js) *(dynamic)*, [`js/biology-score-coverage-planner.js`](js/biology-score-coverage-planner.js), [`js/biology-score-panel-policy.js`](js/biology-score-panel-policy.js), [`js/profile-load-safety.js`](js/profile-load-safety.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`shared/agent-host-protocol.js`](shared/agent-host-protocol.js)
 - [`js/biology-score-blood-flow.js`](js/biology-score-blood-flow.js) → [`js/biology-score-engine.js`](js/biology-score-engine.js)
 - [`js/biology-score-coherence.js`](js/biology-score-coherence.js) → [`js/biology-score-contract.js`](js/biology-score-contract.js), [`js/biology-score-engine.js`](js/biology-score-engine.js)
-- [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/api.js`](js/api.js), [`js/biology-score-ai.js`](js/biology-score-ai.js), [`js/biology-score-persistence.js`](js/biology-score-persistence.js), [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/lab-context.js`](js/lab-context.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/profile-data-writes.js`](js/profile-data-writes.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/supplement-context.js`](js/supplement-context.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/utils.js`](js/utils.js)
+- [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/api.js`](js/api.js), [`js/biology-score-ai-protocol.js`](js/biology-score-ai-protocol.js) *(dynamic)*, [`js/biology-score-ai.js`](js/biology-score-ai.js), [`js/biology-score-persistence.js`](js/biology-score-persistence.js), [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/health-goals-utils.js`](js/health-goals-utils.js), [`js/lab-context.js`](js/lab-context.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/profile-data-writes.js`](js/profile-data-writes.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/supplement-context.js`](js/supplement-context.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/utils.js`](js/utils.js)
 - [`js/biology-score-contract.js`](js/biology-score-contract.js) → [`js/biology-score-mappings.js`](js/biology-score-mappings.js)
 - [`js/biology-score-copy.js`](js/biology-score-copy.js) → no in-scope imports
 - [`js/biology-score-coverage-planner.js`](js/biology-score-coverage-planner.js) → [`js/biology-score-engine.js`](js/biology-score-engine.js)
