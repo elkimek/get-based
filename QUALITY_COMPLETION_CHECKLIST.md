@@ -1,3 +1,13 @@
+# PR1650 review correction — generic CSV ownership
+
+Greptile identified an additional generic text-file entry path that captured the
+profile only after file.text(). Two real-browser regressions reproduced both
+profile switching and same-profile data replacement. handleTextFile now captures
+both identities before reading and rejects stale completion before either cycle
+preview or lab parsing. Both new cases, the existing text/CSV/spreadsheet/image
+runtime scenario, CheckJS and original production budgets pass (5254.9 KiB).
+The combined batch now adds 54 cases. Final-head CI and review are still required.
+
 # Final local cycle-batch verification
 
 The combined batch has 52 new regression cases. All 77 cycle unit cases (52 new,

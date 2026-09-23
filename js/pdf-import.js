@@ -777,6 +777,7 @@ export async function handleImageFile(file) {
 // TEXT FILE IMPORT
 // ═══════════════════════════════════════════════
 export async function handleTextFile(file) {
+  const profileId = state.currentProfile, importedData = state.importedData;
   const isXlsx = isXlsxFile(file);
   const isCsv = isCsvTextFile(file);
   let text = '';
@@ -787,6 +788,7 @@ export async function handleTextFile(file) {
     showNotification(isXlsx ? `Could not read Excel workbook: ${message}` : `Could not read text file: ${message}`, 'error');
     return;
   }
+  if (state.currentProfile !== profileId || state.importedData !== importedData) return;
   const fileKind = isXlsx ? 'Excel workbook' : isCsv ? 'CSV' : 'Text file';
   if (!text.trim()) { showNotification(`${fileKind} is empty`, "error"); return; }
   if (isCsv && await maybeHandleCycleTextImport(file, text)) return;
