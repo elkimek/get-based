@@ -1001,6 +1001,7 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
       });
       const delegates = await import(`/js/provider-wallet-delegates.js?walletDelegateCoverage=${Date.now()}`);
       delegates.installRoutstrWalletDelegates({
+        reload: () => calls.push(['reload']),
         doRoutstrWalletFund: amount => calls.push(['fund', amount]),
         rsWalletFundCustomInput: () => calls.push(['fundCustomInput']),
         recoverPendingWalletFunding: () => calls.push(['recoverFunding']),
@@ -1069,6 +1070,7 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
       await new Promise(resolve => setTimeout(resolve, 0));
 
       return {
+        successfulRecoveryReloads: calls.filter(item => item[0] === 'reload').length === 2,
         fundPreset: calls.some(item => item[0] === 'fund' && item[1] === 100),
         customInput: calls.some(item => item[0] === 'fundCustomInput'),
         recoverFunding: calls.some(item => item[0] === 'recoverFunding'),

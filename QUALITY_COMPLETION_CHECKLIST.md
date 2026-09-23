@@ -1,3 +1,13 @@
+# PR1649 CI fixture correction
+
+Head ce09aac4 passed Greptile 5/5 and all preliminary/critical gates, but the
+full browser run had one wallet-delegate fixture failure (756 passed). Successful
+recoveries intentionally reload the page; those reloads raced the fixture's final
+assertions. The action now has an injectable reload callback with the unchanged
+production default. The fixture asserts both successful recovery reload requests
+without navigating away. Two focused repetitions pass; all 36 source guards,
+CheckJS and original production budgets pass. New-head CI/review required.
+
 # PR1649 review correction
 
 Greptile identified a late encrypted comparison write that could resurrect

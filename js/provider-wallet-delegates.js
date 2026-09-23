@@ -8,7 +8,7 @@ import { walletRuntime } from './provider-wallet-runtime.js';
 const WALLET_ROOTS = '#ai-provider-panel, #routstr-wallet-fund-area, #routstr-node-picker, #routstr-node-actions, #routstr-wallet-actions, #routstr-mint-edit';
 
 let routstrWalletDelegatesInstalled = false;
-let walletActions = {};
+let walletActions = { reload: () => globalThis.location?.reload?.() };
 
 export function installRoutstrWalletDelegates(actions = {}) {
   Object.assign(walletActions, actions);
@@ -142,7 +142,7 @@ async function _recoverPendingDeposit(el) {
     await walletRuntime.cashuReceiveToken?.(el.dataset.token || '');
     await walletRuntime.cashuClearPendingDeposit?.();
     showNotification('Recovered!', 'success');
-    globalThis.location?.reload?.();
+    _call('reload');
   } catch (e) {
     showNotification(getErrorMessage(e), 'error');
   }
@@ -154,7 +154,7 @@ async function _recoverPendingWithdraw(el) {
     if (el.dataset.clearPendingWithdraw !== 'false') await walletRuntime.cashuClearPendingWithdraw?.();
     // Token recovery does not authorize deletion of a node's credential.
     showNotification('Recovered!', 'success');
-    globalThis.location?.reload?.();
+    _call('reload');
   } catch (e) {
     showNotification(getErrorMessage(e), 'error');
   }
