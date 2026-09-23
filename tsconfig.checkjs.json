@@ -70,6 +70,7 @@
     "js/analytics-bootstrap.js",
     "js/biology-score-ai-context.js",
     "js/biology-score-ai.js",
+    "js/biology-score-ai-protocol.js",
     "js/biology-score-blood-flow.js",
     "js/biology-score-coherence.js",
     "js/biology-score-context-ai.js",
