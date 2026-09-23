@@ -14,6 +14,7 @@ import {
 } from './import-drop-zone-runtime.js';
 
 let importInputBound = false;
+let selectionGeneration = 0;
 
 /** @param {{ target: { files: File[] | FileList | null, value: string } }} e */
 export async function handleImportInputChange(e) {
@@ -23,10 +24,12 @@ export async function handleImportInputChange(e) {
   }
   if (!e.target.files || e.target.files.length === 0) return;
 
+  const generation = ++selectionGeneration;
   const files = Array.from(e.target.files);
   const profileId = state.currentProfile, importedData = state.importedData;
   e.target.value = '';
-  const isCurrent = () => state.currentProfile === profileId && state.importedData === importedData;
+  const ownsSelection = () => generation === selectionGeneration && state.currentProfile === profileId;
+  const isCurrent = () => ownsSelection() && state.importedData === importedData;
   let importMod;
   try {
     importMod = await loadImportUI();
@@ -44,22 +47,22 @@ export async function handleImportInputChange(e) {
     return;
   }
 
-  for (const f of jsonFiles) { if (state.currentProfile !== profileId) return; await importJSONFileRuntime(f); }
-  if (cycleFiles.length > 0) { for (const f of cycleFiles) { if (state.currentProfile !== profileId) return; await importMod.handleCycleImportFile(f); } }
+  for (const f of jsonFiles) { if (!ownsSelection()) return; await importJSONFileRuntime(f); }
+  if (cycleFiles.length > 0) { for (const f of cycleFiles) { if (!ownsSelection()) return; await importMod.handleCycleImportFile(f); } }
   if (dnaFiles.length > 0) {
     for (const f of dnaFiles) {
-      if (state.currentProfile !== profileId) return;
+      if (!ownsSelection()) return;
       const headerData = state.importedData, header = await f.slice(0, 1500).text();
-      if (state.currentProfile !== profileId || state.importedData !== headerData) return;
+      if (!ownsSelection() || state.importedData !== headerData) return;
       const fmt = detectImportDNAFileRuntime(header);
       if ((fmt === 'mtdna' || fmt === '23andme-mito') && hasImportMtDNAHandlerRuntime()) await handleImportMtDNAFileRuntime(f);
       else if (fmt === '23andme-y') { showImportNotificationRuntime('Y-chromosome DNA files are not supported', 'info'); }
       else await handleImportDNAFileRuntime(f);
     }
   }
-  if (textFiles.length > 0) { for (const f of textFiles) { if (state.currentProfile !== profileId) return; await importMod.handleTextFile(f); } }
-  if (imageFiles.length > 0) { for (const f of imageFiles) { if (state.currentProfile !== profileId) return; await importMod.handleImageFile(f); } }
-  if (state.currentProfile !== profileId) return;
+  if (textFiles.length > 0) { for (const f of textFiles) { if (!ownsSelection()) return; await importMod.handleTextFile(f); } }
+  if (imageFiles.length > 0) { for (const f of imageFiles) { if (!ownsSelection()) return; await importMod.handleImageFile(f); } }
+  if (!ownsSelection()) return;
   if (pdfFiles.length === 1) await importMod.handlePDFFile(pdfFiles[0]);
   else if (pdfFiles.length > 1) await importMod.handleBatchPDFs(pdfFiles);
 }

@@ -289,3 +289,33 @@ describe('mixed selection boundaries', () => {
     expect(target.value).toBe('new selection');
   });
 });
+
+describe('overlapping picker invocations', () => {
+  beforeEach(async () => {
+    vi.resetAllMocks();
+    const { state } = await import('../js/state.js');
+    state.currentProfile = 'origin'; state.importedData = {};
+    mocks.loadImportUI.mockResolvedValue(mocks.importModule);
+    mocks.importModule.classifyImportFiles.mockImplementation(async files => importBuckets({ textFiles: files }));
+  });
+  it.each(['load', 'classify', 'header', 'between-files'])('supersedes an older selection during %s', async boundary => {
+    let release, entered;
+    const pending = new Promise(resolve => { release = resolve; });
+    const started = new Promise(resolve => { entered = resolve; });
+    const older = makeFile('older.csv'), newer = makeFile('newer.csv'), remaining = makeFile('remaining.csv');
+    if (boundary === 'load') mocks.loadImportUI.mockImplementationOnce(async () => { entered(); await pending; return mocks.importModule; });
+    if (boundary === 'classify') mocks.importModule.classifyImportFiles.mockImplementationOnce(async () => { entered(); await pending; return importBuckets({ textFiles: [older] }); });
+    if (boundary === 'header') {
+      older.slice = () => ({ text: async () => { entered(); await pending; return '#AncestryDNA'; } });
+      mocks.importModule.classifyImportFiles.mockResolvedValueOnce(importBuckets({ dnaFiles: [older] }));
+    }
+    if (boundary === 'between-files') mocks.importModule.handleTextFile.mockImplementationOnce(async () => { entered(); await pending; });
+    const oldTask = runInput(boundary === 'between-files' ? [older, remaining] : [older]);
+    await started;
+    await runInput([newer]);
+    release(); await oldTask;
+    expect(mocks.importModule.handleTextFile.mock.calls.map(([file]) => file.name))
+      .toEqual(boundary === 'between-files' ? ['older.csv', 'newer.csv'] : ['newer.csv']);
+    expect(mocks.handleDropZoneDNAFile).not.toHaveBeenCalled();
+  });
+});

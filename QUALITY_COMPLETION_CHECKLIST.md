@@ -1,3 +1,12 @@
+## Picker overlap review correction
+
+Greptile identified same-profile overlapping picker invocations. Four new cases
+reproduced stale dispatch during lazy load, classification, DNA header reads and
+between files. A selection generation now supersedes older invocations at each
+of those boundaries while retaining intentional JSON data replacement behavior.
+All32 relevant unit cases and CheckJS pass; production budget remains5255.8KiB.
+The batch now adds27 regressions; final-head CI/review remain pending.
+
 ## Accepted predecessor and publication boundary
 
 PR #1650 merged as b115f47e after exact head fb1d8e55 passed CI35849078628
