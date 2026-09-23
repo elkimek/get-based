@@ -1,3 +1,13 @@
+# Import entry boundary batch pending acceptance
+
+A further concrete ownership gap was reproduced before lazy import loading and
+file classification. The local batch covers picker and both drop-zone routes,
+DNA header waits, newer picker selections, profile changes between selected files,
+and intentional same-profile JSON replacement. Twenty new unit regressions and
+three Chromium entry scenarios pass. PR1650 predecessor acceptance is independent;
+this batch still needs publication, exact-head CI and complete review after the
+predecessor merges. Do not infer whole-project coverage from these local tests.
+
 # Current batch status
 
 PR1649 is merged and accepted against exact head193c1218. The cycle recovery

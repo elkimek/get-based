@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 787 |
-| Internal import edges | 3324 |
+| Internal import edges | 3326 |
 | Dynamic internal edges | 113 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -65,7 +65,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
 | [`js/utils.js`](js/utils.js) | 289 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 78 |
-| [`js/state.js`](js/state.js) | 197 | [`js/chat-send.js`](js/chat-send.js) | 42 |
+| [`js/state.js`](js/state.js) | 199 | [`js/chat-send.js`](js/chat-send.js) | 42 |
 | [`js/caught-error.js`](js/caught-error.js) | 89 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 81 | [`js/settings.js`](js/settings.js) | 30 |
 | [`js/data.js`](js/data.js) | 79 | [`js/sync-configure.js`](js/sync-configure.js) | 28 |
@@ -642,8 +642,8 @@ Native browser modules shipped with the static application.
 - [`js/import-benchmarks.js`](js/import-benchmarks.js) → [`js/api.js`](js/api.js), [`js/data.js`](js/data.js), [`js/local-ai-discovery.js`](js/local-ai-discovery.js), [`js/state.js`](js/state.js), [`js/unique-id.js`](js/unique-id.js)
 - [`js/import-commit-validation.js`](js/import-commit-validation.js) → [`js/lab-entry.js`](js/lab-entry.js), [`js/pdf-import-unit-conversions.js`](js/pdf-import-unit-conversions.js), [`js/schema.js`](js/schema.js)
 - [`js/import-drop-zone-runtime.js`](js/import-drop-zone-runtime.js) → [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/export-loader.js`](js/export-loader.js), [`js/pdf-import-progress.js`](js/pdf-import-progress.js), [`js/utils.js`](js/utils.js)
-- [`js/import-drop-zone.js`](js/import-drop-zone.js) → [`js/import-drop-zone-runtime.js`](js/import-drop-zone-runtime.js), [`js/import-loader.js`](js/import-loader.js)
-- [`js/import-file-input.js`](js/import-file-input.js) → [`js/import-drop-zone-runtime.js`](js/import-drop-zone-runtime.js), [`js/import-loader.js`](js/import-loader.js)
+- [`js/import-drop-zone.js`](js/import-drop-zone.js) → [`js/import-drop-zone-runtime.js`](js/import-drop-zone-runtime.js), [`js/import-loader.js`](js/import-loader.js), [`js/state.js`](js/state.js)
+- [`js/import-file-input.js`](js/import-file-input.js) → [`js/import-drop-zone-runtime.js`](js/import-drop-zone-runtime.js), [`js/import-loader.js`](js/import-loader.js), [`js/state.js`](js/state.js)
 - [`js/import-loader.js`](js/import-loader.js) → [`js/health-data-loader.js`](js/health-data-loader.js), [`js/import-review-draft.js`](js/import-review-draft.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import-review.js`](js/pdf-import-review.js) *(dynamic)*, [`js/pdf-import.js`](js/pdf-import.js) *(dynamic)*
 - [`js/import-marker-map-modal.js`](js/import-marker-map-modal.js) → [`js/adapters.js`](js/adapters.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import-marker-mapping.js`](js/pdf-import-marker-mapping.js), [`js/schema.js`](js/schema.js), [`js/utils.js`](js/utils.js)
 - [`js/import-reference-benchmark.js`](js/import-reference-benchmark.js) → [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/import-loader.js`](js/import-loader.js), [`js/pdf-import-ai-utils.js`](js/pdf-import-ai-utils.js), [`js/pdf-import-marker-mapping.js`](js/pdf-import-marker-mapping.js), [`js/schema.js`](js/schema.js)

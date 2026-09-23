@@ -1,3 +1,19 @@
+## Import entry ownership batch — local verification
+
+The picker and both drop-zone entry paths now retain the originating profile
+and data identity while loading and classifying files. They stop dispatch after
+a profile change, and DNA header reads also reject replacement data. The picker
+captures its FileList immediately and clears only its own selection, so an older
+completion cannot erase a newer selection. Intentional same-profile JSON imports
+can still replace data and continue through the selected batch.
+
+Verification: 20 new unit cases (28 relevant cases total) and three actual Chromium
+entry-path scenarios passed. CheckJS, zero-diagnostic strict-null, architecture
+(787 modules, zero cycles), all 17 quality guards and the unchanged production budget (5255.9 KiB total JS)
+passed. These are behavior
+regressions, not coverage-collector changes. Full CI coverage and review remain
+required before acceptance; no external providers or models were exercised.
+
 ## PWA CI readiness correction
 
 At head602d567e, the Chromium two-tab update test reached build-b but exceeded

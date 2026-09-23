@@ -381,7 +381,6 @@ Return ONLY valid JSON in this exact format, no other text:
 
 // ═══════════════════════════════════════════════
 // FILE CLASSIFICATION
-// ═══════════════════════════════════════════════
 export async function isPdfByMagic(file) {
   return isPdfFileByMagic(file);
 }
@@ -393,10 +392,8 @@ export async function classifyImportFiles(files) {
     isCycleImportFile,
   });
 }
-
 // ═══════════════════════════════════════════════
 // DROP ZONE
-// ═══════════════════════════════════════════════
 export function setupDropZone() {
   const dropZone = document.getElementById("drop-zone");
   if (!dropZone) return;
@@ -408,16 +405,20 @@ export function setupDropZone() {
     if (isImportRunning()) { showNotification("Import already in progress", "info"); return; }
     const files = Array.from(e.dataTransfer?.files || []);
     if (files.length === 0) return;
+    const ownerProfile = state.currentProfile, ownerData = state.importedData;
     const { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, cycleFiles = [], unsupportedCount } = await classifyImportFiles(files);
+    if (state.currentProfile !== ownerProfile || state.importedData !== ownerData) return;
     if (unsupportedCount > 0 && jsonFiles.length === 0 && pdfFiles.length === 0 && imageFiles.length === 0 && dnaFiles.length === 0 && textFiles.length === 0 && cycleFiles.length === 0) {
       showNotification("Unsupported file type. Use PDF, Excel, text, image, JSON, DNA raw data, or an Apple Health, Drip, Natural Cycles, or Clue export.", "error");
       return;
     }
-    for (const f of jsonFiles) await pdfImportDeps.importDataJSON(f);
-    if (cycleFiles.length > 0) { for (const f of cycleFiles) await handleCycleImportFile(f); }
+    for (const f of jsonFiles) { if (state.currentProfile !== ownerProfile) return; await pdfImportDeps.importDataJSON(f); }
+    if (cycleFiles.length > 0) { for (const f of cycleFiles) { if (state.currentProfile !== ownerProfile) return; await handleCycleImportFile(f); } }
     if (dnaFiles.length > 0) {
       for (const f of dnaFiles) {
-        const header = await f.slice(0, 1500).text();
+        if (state.currentProfile !== ownerProfile) return;
+        const headerData = state.importedData, header = await f.slice(0, 1500).text();
+        if (state.currentProfile !== ownerProfile || state.importedData !== headerData) return;
         const fmt = getDnaModuleFunction('detectDNAFile')?.(header) || null;
         const handleMtDNAFile = getDnaModuleFunction('handleMtDNAFile');
         const handleDNAFile = getDnaModuleFunction('handleDNAFile');
@@ -426,8 +427,9 @@ export function setupDropZone() {
         else if (handleDNAFile) await handleDNAFile(f);
       }
     }
-    if (textFiles.length > 0) { for (const f of textFiles) await handleTextFile(f); }
-    if (imageFiles.length > 0) { for (const f of imageFiles) await handleImageFile(f); }
+    if (textFiles.length > 0) { for (const f of textFiles) { if (state.currentProfile !== ownerProfile) return; await handleTextFile(f); } }
+    if (imageFiles.length > 0) { for (const f of imageFiles) { if (state.currentProfile !== ownerProfile) return; await handleImageFile(f); } }
+    if (state.currentProfile !== ownerProfile) return;
     if (pdfFiles.length === 1) await handlePDFFile(pdfFiles[0]);
     else if (pdfFiles.length > 1) await handleBatchPDFs(pdfFiles);
   });
