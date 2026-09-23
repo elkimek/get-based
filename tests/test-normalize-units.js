@@ -404,7 +404,7 @@ const { normalizeToSI: normalizeImportedValueToSI } = await import('../js/pdf-im
   // ═══════════════════════════════════════
   console.log('%c 20. assessTextQuality — source verification ', 'font-weight:bold;color:#f59e0b');
 
-  assert('assessTextQuality is an export', src.includes('export function assessTextQuality'));
+  assert('assessTextQuality is an export', typeof assessTextQuality === 'function');
   assert('assessTextQuality stays module-only', !('assessTextQuality' in window));
   assert('word split on whitespace', fileUtilsSrc.includes("split(/\\s+/)"));
   assert('alpha regex includes Latin Extended', fileUtilsSrc.includes('\\u00C0-\\u024F'));

@@ -172,7 +172,6 @@ assert('buildVisionContent used in sendChatMessage', chatSendSrc.includes('build
 const pdfSrc = await fetchWithRetry('js/pdf-import.js');
 const pdfFileHandlersSrc = await fetchWithRetry('js/pdf-import-file-handlers.js');
 const pdfFileUtilsSrc = await fetchWithRetry('js/pdf-import-file-utils.js');
-assert('assessTextQuality in pdf-import', pdfSrc.includes('export function assessTextQuality'));
 assert('extractPDFImages in pdf-import', pdfSrc.includes('export async function extractPDFImages'));
 assert('parseLabPDFWithAIImages in pdf-import', pdfSrc.includes('export async function parseLabPDFWithAIImages'));
 assert('handleImageFile in pdf-import', pdfSrc.includes('export async function handleImageFile'));
