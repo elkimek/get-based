@@ -150,10 +150,11 @@ export async function fetchPpqModels(key) {
     localStorage.setItem('labcharts-ppq-private-vision-models', JSON.stringify(privateVisionIds));
     localStorage.setItem('labcharts-ppq-models', JSON.stringify(models));
     localStorage.setItem('labcharts-ppq-private-models', JSON.stringify(privateModels));
-    if (!localStorage.getItem('labcharts-ppq-model')
-      && !localStorage.getItem('labcharts-ppq-model-regular') && models.length) {
-      const claude = findPreferredModel(models, PPQ_DEFAULT_CANDIDATES);
-      if (claude) setPpqModel(claude.id);
+    if (!localStorage.getItem('labcharts-ppq-model') && models.length) {
+      const saved = localStorage.getItem('labcharts-ppq-model-regular');
+      const preferred = models.find(model => model.id === saved)
+        || findPreferredModel(models, PPQ_DEFAULT_CANDIDATES);
+      if (preferred) setPpqModel(preferred.id);
     }
     syncPpqModelSelection(models, privateModels);
     notifyAIModelCatalogChanged();

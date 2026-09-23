@@ -114,12 +114,12 @@ const OPENROUTER_RECOMMENDED = [
 ];
 const OPENROUTER_DEFAULT_CANDIDATES = ['openai/gpt-6-astra', 'openai/gpt-6-sol', 'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.6'];
 
-// Routstr uses bare model IDs (no provider prefix, dots: claude-sonnet-4.6)
-const ROUTSTR_RECOMMENDED = ['claude-fable-5.1', 'claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-5.5', 'claude-opus-4.7', 'gpt-6-astra', 'openai/gpt-6-astra', 'gpt-6-sol', 'openai/gpt-6-sol', 'gpt-5.5', 'gpt-5.4', 'gemini-3.8-flash', 'google/gemini-3.8-flash', 'gemini-3.7-flash', 'google/gemini-3.7-flash', 'gemini-3.6-flash', 'google/gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'glm-5.3-flash', 'z-ai/glm-5.3-flash', 'kimi-k3', 'moonshotai/kimi-k3', 'x-ai/grok-4.3', 'grok-4.3', 'grok-4'];
+// Bare prefixes also match namespaced IDs through modelStartsWithRecommended.
+const ROUTSTR_RECOMMENDED = ['claude-fable-5.1', 'claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-5.5', 'claude-opus-4.7', 'gpt-6-astra', 'gpt-6-sol', 'gpt-5.5', 'gpt-5.4', 'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'glm-5.3-flash', 'kimi-k3', 'grok-4'];
 const ROUTSTR_PRIVATE_RECOMMENDED = ['tinfoil-gemma4-31b', 'tinfoil-kimi-k2-6', 'tinfoil-deepseek-v4-pro', 'tinfoil-glm-5-3-flash'];
 
-// PPQ uses bare model IDs for regular routing and private/ IDs for Tinfoil TEE models.
-const PPQ_RECOMMENDED = ['claude-fable-5.1', 'claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-5.5', 'claude-opus-4.7', 'gpt-6-astra', 'openai/gpt-6-astra', 'gpt-6-sol', 'openai/gpt-6-sol', 'gpt-5.5', 'gpt-5.4', 'gemini-3.8-flash', 'google/gemini-3.8-flash', 'gemini-3.7-flash', 'google/gemini-3.7-flash', 'gemini-3.6-flash', 'google/gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'z-ai/glm-5.3-flash', 'glm-5.3-flash', 'moonshotai/kimi-k3', 'kimi-k3', 'x-ai/grok-4.3', 'grok-4'];
+// PPQ shares regular recommendations with Routstr and uses private/ IDs for Tinfoil TEE models.
+const PPQ_RECOMMENDED = ROUTSTR_RECOMMENDED;
 const PPQ_PRIVATE_RECOMMENDED = ['private/kimi-k3', 'private/kimi-k2-6', 'private/glm-5-3-flash'];
 
 function normalizedModelId(modelId) {

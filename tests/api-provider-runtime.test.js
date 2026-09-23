@@ -197,6 +197,23 @@ describe('API provider runtime behavior', () => {
     }
   });
 
+  it('restores valid regular choices and ignores stale per-mode keys when initializing defaults', async () => {
+    localStorage.setItem('labcharts-routstr-node', 'https://node.example.com/');
+    for (const [provider, fetchModels] of [['ppq', fetchPpqModels], ['routstr', fetchRoutstrModels]]) {
+      const models = ['claude-sonnet-4.6', 'gpt-6-sol', 'gpt-6-astra'].map(id => ({ id, enabled: true }));
+      for (const [saved, expected] of [
+        ['removed-model', 'gpt-6-astra'],
+        ['gpt-6-sol', 'gpt-6-sol'],
+      ]) {
+        localStorage.removeItem(`labcharts-${provider}-model`);
+        localStorage.setItem(`labcharts-${provider}-model-regular`, saved);
+        fetch.mockResolvedValueOnce(jsonResponse({ data: models }));
+        await fetchModels();
+        expect(localStorage.getItem(`labcharts-${provider}-model`)).toBe(expected);
+      }
+    }
+  });
+
   it('filters OpenRouter models, caches pricing and vision metadata, and fetches fuzzy pricing', async () => {
     const catalogChanged = vi.fn();
     window.addEventListener('labcharts-ai-settings-local-changed', catalogChanged, { once: true });

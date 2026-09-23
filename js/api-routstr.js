@@ -85,10 +85,11 @@ export async function fetchRoutstrModels() {
     localStorage.setItem('labcharts-routstr-vision-models', JSON.stringify(visionIds));
     localStorage.setItem('labcharts-routstr-models', JSON.stringify(models));
     localStorage.setItem('labcharts-routstr-private-models', JSON.stringify(privateModels));
-    if (!localStorage.getItem('labcharts-routstr-model')
-      && !localStorage.getItem('labcharts-routstr-model-regular') && models.length) {
-      const claude = findPreferredModel(models, ROUTSTR_DEFAULT_CANDIDATES);
-      if (claude) setRoutstrModel(claude.id);
+    if (!localStorage.getItem('labcharts-routstr-model') && models.length) {
+      const saved = localStorage.getItem('labcharts-routstr-model-regular');
+      const preferred = models.find(model => model.id === saved)
+        || findPreferredModel(models, ROUTSTR_DEFAULT_CANDIDATES);
+      if (preferred) setRoutstrModel(preferred.id);
     }
     syncRoutstrModelSelection(models, privateModels);
     notifyAIModelCatalogChanged();
