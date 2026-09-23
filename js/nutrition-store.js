@@ -333,14 +333,16 @@ export async function getLocalNutritionSummary(profileId) {
   return decryptPayload(profileId, encrypted);
 }
 
-export async function setLocalNutritionComparison(profileId, comparison) {
-  if (comparison == null) {
-    await deleteMeta(profileId, COMPARISON_META);
-    return null;
-  }
-  const encrypted = await encryptPayload(profileId, comparison);
-  await writeMeta(profileId, COMPARISON_META, encrypted);
-  return comparison;
+export function setLocalNutritionComparison(profileId, comparison) {
+  return queueNutritionOperation(async () => {
+    if (comparison == null) {
+      await deleteMeta(profileId, COMPARISON_META);
+      return null;
+    }
+    const encrypted = await encryptPayload(profileId, comparison);
+    await writeMeta(profileId, COMPARISON_META, encrypted);
+    return comparison;
+  });
 }
 
 export async function getLocalNutritionComparison(profileId) {

@@ -1,9 +1,18 @@
+# PR1649 review correction
+
+Greptile identified a late encrypted comparison write that could resurrect
+cleared history. A regression reproduced the deleted snapshot returning.
+Comparison writes and deletes now share the existing nutrition operation queue,
+which also recovers after a rejected operation. Two new tests cover clear ordering
+and retry after encryption failure. All 49 relevant storage cases, CheckJS and
+unchanged production budgets pass. Final-head CI and review remain required.
+
 # Remaining recovery batch — 2026-09-23
 
 Base: merged PR #1648, `1bda34a8002d9c9099354b0d7a221c7a5600ec1b`.
-This batch adds 61 cases: 19 editor drafts, 18 comparison recovery, nine
+This batch adds 63 cases: 19 editor drafts, 18 comparison recovery, nine
 comparison rendering/presentation, nine wallet journals, three import ownership,
-and three Light navigation browser races. Ten existing-code failures were first
+three Light navigation browser races and two comparison persistence-order cases. Ten existing-code failures were first
 reproduced across comparison and import boundaries. Clearing comparison history
 also uses the common cancellation path.
 

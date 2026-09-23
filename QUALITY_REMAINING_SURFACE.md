@@ -5,7 +5,7 @@ CI, all 17 feature gates, all 30 critical floors and Greptile 5/5. The user
 authorized subsequent administrator merges for this coverage effort after the
 same acceptance checks. Branch: `codex/remaining-recovery-coverage`.
 
-Local work in progress: 58 new unit regressions and three new Chromium navigation races, including nine wallet journal
+Local work in progress: 60 new unit regressions and three new Chromium navigation races, including nine wallet journal
 integrity cases (partial/missing signatures, amount/keyset mismatch, ordering,
 unsupported runtime and malformed journal). All retain original local proofs and
 the journal on failure; valid recovery is verified after transient response faults.

@@ -90,3 +90,28 @@ it('storage permission rejection remains non-fatal', async () => {
 it('missing persistence API remains non-fatal', async () => {
   vi.stubGlobal('navigator',{}); await expect(requestPersistentNutritionStorage()).resolves.toBe(false);
 });
+it('orders comparison deletion after an already-started encrypted write', async () => {
+  await setLocalNutritionComparison(profile,{winner:'initial'});
+  const original = crypto.subtle.encrypt.bind(crypto.subtle);
+  let release;
+  const gate = new Promise(resolve => { release=resolve; });
+  const encrypt = vi.spyOn(crypto.subtle,'encrypt').mockImplementationOnce(async (...args) => { await gate; return original(...args); });
+  const write = setLocalNutritionComparison(profile,{winner:'late'});
+  await vi.waitFor(() => expect(encrypt).toHaveBeenCalledOnce());
+  const clear = setLocalNutritionComparison(profile,null);
+  // Let the storage transaction finish if it is incorrectly allowed past the write.
+  await new Promise(resolve => setTimeout(resolve,20));
+  release(); await Promise.all([write,clear]);
+  await expect(getLocalNutritionComparison(profile)).resolves.toBeNull();
+});
+it('allows comparison deletion and later saves after an encrypted write fails', async () => {
+  await setLocalNutritionComparison(profile,{winner:'initial'});
+  vi.spyOn(crypto.subtle,'encrypt').mockRejectedValueOnce(new Error('Encryption failed'));
+  const failed = setLocalNutritionComparison(profile,{winner:'failed'});
+  const rejected = expect(failed).rejects.toThrow('Encryption failed');
+  const clear = setLocalNutritionComparison(profile,null);
+  await rejected; await clear;
+  await expect(getLocalNutritionComparison(profile)).resolves.toBeNull();
+  await setLocalNutritionComparison(profile,{winner:'retry'});
+  await expect(getLocalNutritionComparison(profile)).resolves.toEqual({winner:'retry'});
+});
