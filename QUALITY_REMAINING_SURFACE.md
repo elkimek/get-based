@@ -1,3 +1,10 @@
+# Current batch status
+
+PR1649 is merged and accepted against exact head193c1218. The cycle recovery
+batch now has 52 new cases (including 17 preview/file/consent cases) and is based
+on squash0425cb4e. Local checks pass; complete new-head CI and review remain
+pending. Historical investigation notes follow.
+
 # Additional concrete gap found during completion audit
 
 Cycle import/delete failure recovery was not proven by existing success-path

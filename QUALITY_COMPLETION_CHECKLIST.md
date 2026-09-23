@@ -8,8 +8,13 @@ Production total: 5254.8 KiB. Scoped mutation coverage from the three relevant
 suites is 97.72% lines, 95.45% functions, 84.51% branches and 92.48% statements,
 above the independent 97/95/83/92 floors. No full local matrix was run.
 These are behavioral additions and ownership fixes, not collector corrections.
-Still pending: predecessor PR1649 acceptance/merge, rebase, and this batch's own
-complete CI coverage and Greptile review before authorized merging.
+PR1649 merged as 0425cb4e after head193c1218 passed CI35843836228 (757 browser
+scenarios, nine skipped), all 17 feature gates, 31 critical floors and Greptile5/5.
+Clean artifact merge b028c91e has parents1bda34a8/193c1218; function execution
+coverage is 14577/16157 (90.22096%), up from14553/16158 (90.06684%).
+The local batch was rebased onto that identical squash tree; range-diff confirms
+all three local patches are unchanged. This batch's own exact-head CI coverage
+and Greptile review remain pending before authorized merging.
 
 # Cycle preview ownership extension — same local batch
 
