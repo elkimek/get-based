@@ -1,3 +1,16 @@
+# Final local cycle-batch verification
+
+The combined batch has 52 new regression cases. All 77 cycle unit cases (52 new,
+25 existing) pass across four suites, plus the configuration guard, 78 existing
+cycle checks and two relevant Chromium workflows. Final CheckJS, strict-null,
+17 quality guards, architecture and original production budgets pass.
+Production total: 5254.8 KiB. Scoped mutation coverage from the three relevant
+suites is 97.72% lines, 95.45% functions, 84.51% branches and 92.48% statements,
+above the independent 97/95/83/92 floors. No full local matrix was run.
+These are behavioral additions and ownership fixes, not collector corrections.
+Still pending: predecessor PR1649 acceptance/merge, rebase, and this batch's own
+complete CI coverage and Greptile review before authorized merging.
+
 # Cycle preview ownership extension — same local batch
 
 The batch now contains 52 new cases: the 35 mutation/storage cases below plus
