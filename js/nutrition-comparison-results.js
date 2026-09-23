@@ -7,7 +7,7 @@ import { NUTRIENT_DEFINITIONS } from './nutrition-nutrient-registry.js';
 import { actionAttrs, formatNumber, hasFiniteNumber } from './nutrition-render.js';
 import { escapeAttr, escapeHTML } from './utils.js';
 
-function comparisonTotalWeight(analysis) {
+export function comparisonTotalWeight(analysis) {
   const quantities = (analysis?.components || []).map(item => Number(item?.quantityG)).filter(Number.isFinite);
   return quantities.length ? quantities.reduce((sum, value) => sum + value, 0) : null;
 }
@@ -62,14 +62,9 @@ function renderDetailedNutrientComparison(analysis, reference, isReference, refe
 }
 
 function renderComparisonMetric(label, value, unit, digits = 0, reference = null, isReference = false) {
-  const difference = relativeDifference(value, reference);
-  const relative = isReference && hasFiniteNumber(value)
-    ? '<small class="is-reference">Reference</small>'
-    : difference === null
-      ? ''
-      : Math.abs(difference) < 0.05
-        ? '<small class="is-close">Same</small>'
-        : `<small class="${Math.abs(difference) <= 10 ? 'is-close' : Math.abs(difference) >= 30 ? 'is-far' : ''}">${difference > 0 ? '+' : '−'}${formatNumber(Math.abs(difference), 1)}%</small>`;
+  const difference = comparisonDifference(value, reference, isReference);
+  const relative = difference.label === '—' ? ''
+    : `<small class="${difference.tone.trim()}">${escapeHTML(difference.label)}</small>`;
   return `<div><span>${escapeHTML(label)}</span><strong>${hasFiniteNumber(value) ? `${formatNumber(value, digits)} ${escapeHTML(unit)}` : '—'}</strong>${relative}</div>`;
 }
 
@@ -172,4 +167,40 @@ export function renderNutritionComparisonResults(options = {}) {
       <div class="nutrition-comparison-card-actions">${renderRemoveComparisonButton(run)}${isReference ? '<span>Model baseline</span>' : `<button type="button" class="nutrition-text-btn" ${actionAttrs('set-comparison-reference', { index: run.originalIndex })}>Use as baseline</button>`}<button type="button" class="import-btn import-btn-secondary" ${actionAttrs('use-comparison', { index: run.originalIndex })}>Use this estimate</button></div>
     </article>`;
   }).join('');
+}
+
+function setComparisonPresentation(active) {
+  const workspace = document.getElementById('nutrition-model-comparison');
+  const modal = document.getElementById('detail-modal');
+  const enabled = Boolean(active && workspace && !workspace.hidden);
+  workspace?.classList.toggle('is-presentation', enabled);
+  modal?.classList.toggle('nutrition-comparison-presentation', enabled);
+  document.body?.classList.toggle('nutrition-comparison-presenting', enabled);
+  const button = /** @type {HTMLButtonElement | null} */ (document.querySelector('[data-nutrition-action="toggle-comparison-presentation"]'));
+  if (button) {
+    button.setAttribute('aria-pressed', String(enabled));
+    button.setAttribute('aria-label', enabled ? 'Exit full-screen comparison' : 'Open full-screen comparison');
+    button.title = enabled ? 'Exit full-screen comparison' : 'Open full-screen comparison';
+    const label = button.querySelector('[data-nutrition-presentation-label]');
+    if (label) label.textContent = enabled ? 'Exit full screen' : 'Full screen';
+  }
+  if (enabled) workspace?.scrollTo({ top: 0 });
+  return enabled;
+}
+
+export function toggleComparisonPresentation() {
+  const workspace = document.getElementById('nutrition-model-comparison');
+  if (!workspace || workspace.hidden) return false;
+  return setComparisonPresentation(!workspace.classList.contains('is-presentation'));
+}
+
+export function exitComparisonPresentation() {
+  const workspace = document.getElementById('nutrition-model-comparison');
+  const modal = document.getElementById('detail-modal');
+  const wasActive = workspace?.classList.contains('is-presentation')
+    || modal?.classList.contains('nutrition-comparison-presentation')
+    || document.body?.classList.contains('nutrition-comparison-presenting');
+  if (!wasActive) return false;
+  setComparisonPresentation(false);
+  return true;
 }

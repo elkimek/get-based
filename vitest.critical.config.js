@@ -8,6 +8,7 @@ export default defineConfig({
   test: {
     ...base.test,
     include: [
+      'tests/nutrition-editor-navigation.test.js',
       'tests/sun-session-recovery.test.js',
       'tests/sun-live-recovery.test.js',
       'tests/sun-session-format.test.js',
@@ -66,6 +67,7 @@ export default defineConfig({
       ...base.test.coverage,
       enabled: true,
       include: [
+        'js/nutrition-editor-navigation.js',
         'js/sun-sessions-store.js',
         'js/sun-active-session-format.js',
         'js/sync-evolu8-identity-vault.js',
@@ -98,6 +100,7 @@ export default defineConfig({
       reportsDirectory: 'tests/.critical-coverage',
       reporter: ['json-summary', 'json', 'text'],
       thresholds: {
+        'js/nutrition-editor-navigation.js': { lines: 100, functions: 100, branches: 84, statements: 97 },
         'js/sun-sessions-store.js': { lines: 95, functions: 77, branches: 88, statements: 94 },
         'js/sun-active-session-format.js': { lines: 100, functions: 100, branches: 90, statements: 97 },
         'js/sync-evolu8-identity-vault.js': { lines: 94, functions: 88, branches: 88, statements: 93 },

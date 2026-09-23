@@ -923,3 +923,69 @@ describe('Cashu wallet runtime behavior', () => {
     await expect(readIdbMeta('pendingWithdraw')).resolves.toBeNull();
   });
 });
+
+describe('recovery journal response integrity', () => {
+  async function interruptedSend() {
+    const stub = installCashuStub({durableOps:true});
+    const wallet = await loadWallet();
+    await wallet.setMintUrl('https://mint.getbased.test/Bitcoin');
+    await wallet.receiveToken('cashu-token');
+    stub.failEncodeOnce = true;
+    await expect(wallet.sendAsToken(4)).rejects.toThrow('codec failed after swap');
+    return {wallet, store:await import('../js/cashu-wallet-store.js'), rows:await readIdbStore('proofs'), journal:await readIdbMeta('pendingSwap')};
+  }
+  it.each(['missing-output','missing-signature','wrong-keyset','wrong-amount'])('preserves recoverable value after %s', async fault => {
+    const {store,rows,journal} = await interruptedSend();
+    const original = globalThis.cashuts.Mint.prototype.restore;
+    const restore = vi.spyOn(globalThis.cashuts.Mint.prototype,'restore').mockImplementation(async function(request) {
+      const response = await original.call(this,request);
+      response.outputs = response.outputs.map(output => ({...output}));
+      response.signatures = response.signatures.map(signature => ({...signature}));
+      if (fault === 'missing-output') { response.outputs.pop(); response.signatures.pop(); }
+      if (fault === 'missing-signature') response.signatures.pop();
+      if (fault === 'wrong-keyset') response.signatures[0].id = 'unrelated-keyset';
+      if (fault === 'wrong-amount') response.signatures[0].amount = 999;
+      return response;
+    });
+    try {
+      await expect(store._recoverPendingSwapUnlocked()).rejects.toThrow();
+      expect(await readIdbStore('proofs')).toEqual(rows);
+      expect(await readIdbMeta('pendingSwap')).toEqual(journal);
+    } finally { restore.mockRestore(); }
+    await expect(store._recoverPendingSwapUnlocked()).resolves.toMatchObject({recovered:10,pending:false});
+    expect(await readIdbMeta('pendingSwap')).toBeNull();
+  });
+  it('matches restored signatures by blinded output rather than response order', async () => {
+    const {store} = await interruptedSend();
+    const original = globalThis.cashuts.Mint.prototype.restore;
+    const restore = vi.spyOn(globalThis.cashuts.Mint.prototype,'restore').mockImplementation(async function(request) {
+      const response = await original.call(this,request);
+      return {outputs:[...response.outputs].reverse(),signatures:[...response.signatures].reverse()};
+    });
+    try { await expect(store._recoverPendingSwapUnlocked()).resolves.toMatchObject({recovered:10,pending:false}); }
+    finally { restore.mockRestore(); }
+    expect((await readIdbStore('proofs')).map(row => row.amount).sort((a,b) => a-b)).toEqual([4,6]);
+  });
+  it('retains an unsupported recovery journal without modifying proofs', async () => {
+    const {store,rows,journal} = await interruptedSend();
+    const outputData = globalThis.cashuts.OutputData;
+    globalThis.cashuts.OutputData = undefined;
+    try { await expect(store._recoverPendingSwapUnlocked()).rejects.toThrow('cannot restore'); }
+    finally { globalThis.cashuts.OutputData = outputData; }
+    expect(await readIdbStore('proofs')).toEqual(rows);
+    expect(await readIdbMeta('pendingSwap')).toEqual(journal);
+  });
+  it.each([
+    ['unsafe mint', {mint:'javascript:alert(1)'}],
+    ['absent outputs', {outputs:null}],
+    ['empty outputs', {outputs:[]}],
+  ])('retains the journal and local proofs for %s', async (_label, mutation) => {
+    const {store,rows,journal} = await interruptedSend();
+    const corrupted = {...journal,...mutation};
+    await store._setMeta('pendingSwap',corrupted);
+    await expect(store._recoverPendingSwapUnlocked()).rejects.toThrow('malformed');
+    expect(await readIdbStore('proofs')).toEqual(rows);
+    expect(await readIdbMeta('pendingSwap')).toEqual(corrupted);
+  });
+
+});

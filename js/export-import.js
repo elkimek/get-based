@@ -107,7 +107,7 @@ export function importDataJSON(file) {
     const reader = new FileReader();
     reader.onerror = () => resolve();
     reader.onload = async () => {
-      let rollback = null, rollbackProfile = null;
+      let rollback = null, rollbackProfile = null, rollbackData = null;
       try {
         const json = JSON.parse(/** @type {string} */ (reader.result));
         // Guard: demo data should never be silently imported into a non-demo profile
@@ -141,6 +141,7 @@ export function importDataJSON(file) {
         }
         rollback = JSON.stringify(state.importedData);
         rollbackProfile = state.currentProfile;
+        rollbackData = state.importedData;
         let count = 0;
         const importTs = Date.now();
         for (const entry of json.entries || []) {
@@ -550,9 +551,10 @@ export function importDataJSON(file) {
         if (!saved) throw new Error('The imported data could not be saved. Please retry.');
         rollback = null;
         if (json.chat) {
-          await _importChatData(state.currentProfile, json.chat);
+          await _importChatData(rollbackProfile, json.chat);
         }
-        const mealCount = await _importNutritionData(state.currentProfile, json.nutrition);
+        const mealCount = await _importNutritionData(rollbackProfile, json.nutrition);
+        if (state.currentProfile !== rollbackProfile || state.importedData !== rollbackData) return;
         // Demo-load completion: clear the loading sentinel (dashboard
         // empty-state renderer keys off this flag while data is en route).
         clearDemoLoadingProfile(state.currentProfile);
@@ -561,7 +563,7 @@ export function importDataJSON(file) {
         const mealMsg = mealCount ? ` and ${mealCount} meal${mealCount === 1 ? '' : 's'}` : '';
         showNotification(`Imported ${count} date entr${count === 1 ? 'y' : 'ies'}${mealMsg}${profileMsg}`, 'success');
       } catch (err) {
-        if (rollback && state.currentProfile === rollbackProfile) { adoptProfileData(state.importedData, JSON.parse(rollback)); invalidateActiveDataCache(); }
+        if (rollback && state.currentProfile === rollbackProfile && state.importedData === rollbackData) { adoptProfileData(state.importedData, JSON.parse(rollback)); invalidateActiveDataCache(); }
         clearDemoLoadingProfile();
         showNotification('Could not import JSON: ' + getErrorMessage(err), 'error');
       } finally {

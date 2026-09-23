@@ -130,6 +130,31 @@ describe('JSON restore runtime', () => {
     expect(runtime.showNotification).toHaveBeenCalledWith(expect.stringContaining('could not be saved'), 'error');
   });
 
+  it('keeps chat restoration bound to the origin when navigation occurs during save', async () => {
+    let release;
+    runtime.saveImportedData.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+    const pending = importDataJSON(new File([JSON.stringify({entries:[],chat:{threads:[],messages:{},personality:'portable'}})], 'origin.json'));
+    await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+    runtime.state.currentProfile = 'destination';
+    runtime.state.importedData = {entries:[],notes:[{text:'Destination'}]};
+    release(true); await pending;
+    expect(localStorage.getItem('labcharts-destination-chatPersonality')).toBeNull();
+    expect(localStorage.getItem('labcharts-profile-1-chatPersonality')).toBe('portable');
+    expect(runtime.refreshImportRuntimeShell).not.toHaveBeenCalled();
+  });
+  it.each([false, 'reject'])('does not roll back replacement data after a failed save (%s)', async failure => {
+    let release, reject;
+    runtime.saveImportedData.mockImplementationOnce(() => new Promise((resolve, fail) => { release = resolve; reject = fail; }));
+    const pending = importDataJSON(new File([JSON.stringify({entries:[{date:'2026-01-10',markers:{glucose:120}}]})], 'failed.json'));
+    await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+    const replacement = {entries:[],notes:[{text:'Newly loaded data'}]};
+    runtime.state.importedData = replacement;
+    if (failure === 'reject') reject(new Error('Storage failed')); else release(false);
+    await pending;
+    expect(runtime.state.importedData).toEqual({entries:[],notes:[{text:'Newly loaded data'}]});
+    expect(runtime.showNotification.mock.calls.some(([,kind]) => kind === 'success')).toBe(false);
+  });
+
   it('restores a persona-only chat backup without requiring a conversation thread', async () => {
     const backup = {
       entries: [],

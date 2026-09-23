@@ -1,3 +1,24 @@
+# Remaining recovery batch — 2026-09-23
+
+Base: merged PR #1648, `1bda34a8002d9c9099354b0d7a221c7a5600ec1b`.
+This batch adds 61 cases: 19 editor drafts, 18 comparison recovery, nine
+comparison rendering/presentation, nine wallet journals, three import ownership,
+and three Light navigation browser races. Ten existing-code failures were first
+reproduced across comparison and import boundaries. Clearing comparison history
+also uses the common cancellation path.
+
+Focused verification includes the affected unit suites, the new three-scenario
+Light spec, one real nutrition comparison/editor workflow and one import
+round-trip scenario. CheckJS, strict-null, architecture and quality checks pass;
+production budgets are unchanged and pass after sharing duplicate comparison
+formatting. Editor navigation is independently floored at 100% lines/functions,
+84% branches and 97% statements (54 critical suites, 31 modules).
+
+Acceptance pending: exact-head CI, complete artifact and 17 feature gates,
+31 critical floors and Greptile. No full local matrix was run.
+
+---
+
 # Sun session recovery and coverage — 2026-09-23
 
 PR #1646 was verified against head `e20352c80f8755012d37eb1977245ec223930f63`

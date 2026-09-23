@@ -9,8 +9,9 @@ import { escapeHTML, isDebugMode, showNotification } from './utils.js';
 import { getErrorMessage } from './caught-error.js';
 import { getLocalNutritionComparison, setLocalNutritionComparison } from './nutrition-store.js';
 import { NUTRIENT_DEFINITIONS } from './nutrition-nutrient-registry.js';
-import { renderNutritionComparisonResults } from './nutrition-comparison-results.js';
+import { comparisonTotalWeight, exitComparisonPresentation, renderNutritionComparisonResults } from './nutrition-comparison-results.js';
 import { state } from './state.js';
+export { exitComparisonPresentation, toggleComparisonPresentation } from './nutrition-comparison-results.js';
 
 let comparisonRunning = false;
 let comparisonRuns = [];
@@ -263,10 +264,12 @@ function populateManualComparisonReference(reference) {
 export async function restoreNutritionComparison() {
   if (!isDebugMode()) return false;
   const profileId = state.currentProfile;
+  const data = state.importedData;
+  const executionId = comparisonExecutionId;
   let snapshot;
   try { snapshot = await getLocalNutritionComparison(profileId); }
   catch { return false; }
-  if (profileId !== state.currentProfile) return false;
+  if (profileId !== state.currentProfile || data !== state.importedData || executionId !== comparisonExecutionId) return false;
   if (snapshot?.version !== 1 || !Array.isArray(snapshot.runs) || !snapshot.runs.length) return false;
   comparisonRuns = snapshot.runs.slice(0, 4).flatMap(run => {
     const provider = String(run?.route?.provider || '');
@@ -307,18 +310,12 @@ export async function clearSavedNutritionComparison() {
   if (comparisonPersistenceTimer) clearTimeout(comparisonPersistenceTimer);
   comparisonPersistenceTimer = 0;
   const profileId = comparisonProfileId || state.currentProfile;
+  const executionId = comparisonExecutionId;
+  const runs = comparisonRuns;
   await setLocalNutritionComparison(profileId, null);
-  comparisonRuns = [];
-  comparisonSharedImages = [];
-  comparisonPreparedPhotos = [];
-  comparisonRunContext = null;
-  comparisonReferenceRunIndex = null;
-  comparisonManualReference = {};
-  comparisonSavedAt = '';
-  comparisonIsRestored = false;
-  comparisonProfileId = '';
+  if (profileId !== state.currentProfile || executionId !== comparisonExecutionId || runs !== comparisonRuns) return;
   comparisonPersistenceDirty = false;
-  comparisonPersistenceRevision = 0;
+  resetNutritionComparison();
   populateManualComparisonReference({});
   renderComparisonResults();
   updateComparisonControls();
@@ -345,11 +342,6 @@ function selectedComparisonReferenceRun() {
 function currentComparisonReference() {
   const selected = selectedComparisonReferenceRun();
   return selected ? comparisonReferenceFromAnalysis(selected.result.analysis) : manualComparisonReference();
-}
-
-function comparisonTotalWeight(analysis) {
-  const quantities = (analysis?.components || []).map(item => Number(item?.quantityG)).filter(Number.isFinite);
-  return quantities.length ? quantities.reduce((sum, value) => sum + value, 0) : null;
 }
 
 function comparisonIsForeign(profileId = comparisonProfileId) {
@@ -472,42 +464,6 @@ export function rememberNutritionComparisonWorkspace() {
   comparisonManualReference = readManualComparisonReference();
 }
 
-function setComparisonPresentation(active) {
-  const workspace = document.getElementById('nutrition-model-comparison');
-  const modal = document.getElementById('detail-modal');
-  const enabled = Boolean(active && workspace && !workspace.hidden);
-  workspace?.classList.toggle('is-presentation', enabled);
-  modal?.classList.toggle('nutrition-comparison-presentation', enabled);
-  document.body?.classList.toggle('nutrition-comparison-presenting', enabled);
-  const button = /** @type {HTMLButtonElement | null} */ (document.querySelector('[data-nutrition-action="toggle-comparison-presentation"]'));
-  if (button) {
-    button.setAttribute('aria-pressed', String(enabled));
-    button.setAttribute('aria-label', enabled ? 'Exit full-screen comparison' : 'Open full-screen comparison');
-    button.title = enabled ? 'Exit full-screen comparison' : 'Open full-screen comparison';
-    const label = button.querySelector('[data-nutrition-presentation-label]');
-    if (label) label.textContent = enabled ? 'Exit full screen' : 'Full screen';
-  }
-  if (enabled) workspace?.scrollTo({ top: 0 });
-  return enabled;
-}
-
-export function toggleComparisonPresentation() {
-  const workspace = document.getElementById('nutrition-model-comparison');
-  if (!workspace || workspace.hidden) return false;
-  return setComparisonPresentation(!workspace.classList.contains('is-presentation'));
-}
-
-export function exitComparisonPresentation() {
-  const workspace = document.getElementById('nutrition-model-comparison');
-  const modal = document.getElementById('detail-modal');
-  const wasActive = workspace?.classList.contains('is-presentation')
-    || modal?.classList.contains('nutrition-comparison-presentation')
-    || document.body?.classList.contains('nutrition-comparison-presenting');
-  if (!wasActive) return false;
-  setComparisonPresentation(false);
-  return true;
-}
-
 function createComparisonRun(model) {
   return {
     route: { provider: model.provider, model: model.model },
@@ -600,7 +556,11 @@ export async function runModelComparison() {
   const pendingModels = selectedModels.filter(model => !existing.has(comparisonRouteKey(model.provider, model.model)));
   const append = comparisonRuns.length > 0 && !comparisonIsRestored && comparisonPreparedPhotos.length > 0 && !!comparisonRunContext && pendingModels.length > 0;
   const models = append ? pendingModels : selectedModels;
+  const profileId = state.currentProfile;
+  const data = state.importedData;
+  const preparationId = comparisonExecutionId;
   const files = await comparisonDeps.analysisFiles();
+  if (comparisonRunning || preparationId !== comparisonExecutionId || profileId !== state.currentProfile || data !== state.importedData) return;
   if ((!append && (models.length < 2 || models.length > 4)) || (append && comparisonRuns.length + models.length > 4)) {
     showNotification(append ? 'Remove a result before adding another model.' : 'Choose between two and four vision models.', 'info');
     return;
@@ -776,7 +736,10 @@ export async function useComparisonEstimate(index) {
     image: comparisonSharedImages[0] || null,
     images: comparisonSharedImages,
   };
+  const executionId = comparisonExecutionId;
+  const data = state.importedData;
   await comparisonDeps.beforeApplyAnalysis();
+  if (executionId !== comparisonExecutionId || data !== state.importedData || !comparisonRuns.includes(run)) return;
   if (comparisonIsForeign(profileId)) return;
   comparisonDeps.applyAnalysis(result, { quiet: true });
   comparisonDeps.setStatus(`${run.modelLabel} estimate loaded. Review it and choose a meal occasion before saving.`, 'success');

@@ -1,3 +1,29 @@
+# Active autonomous remaining-surface batch — 2026-09-23
+
+PR #1648 merged as `1bda34a8002d9c9099354b0d7a221c7a5600ec1b` after exact-head
+CI, all 17 feature gates, all 30 critical floors and Greptile 5/5. The user
+authorized subsequent administrator merges for this coverage effort after the
+same acceptance checks. Branch: `codex/remaining-recovery-coverage`.
+
+Local work in progress: 58 new unit regressions and three new Chromium navigation races, including nine wallet journal
+integrity cases (partial/missing signatures, amount/keyset mismatch, ordering,
+unsupported runtime and malformed journal). All retain original local proofs and
+the journal on failure; valid recovery is verified after transient response faults.
+These use only deterministic mint fixtures, no real funds or network. Three
+import regressions reproduced cross-profile chat restore and rollback into
+replacement data during failed saves; both paths now retain origin ownership. Nutrition: 19 editor draft-navigation, 17 comparison-recovery
+and nine result/presentation cases pass. Seven comparison tests reproduced late
+file-loading/profile/reset, late restoration, stale clearing and stale estimate
+application failures; ownership checks now reject those stale continuations.
+Clearing comparison history now cancels pending requests. Presentation helpers moved into the existing results module to retain the runtime
+module size limit. Related lifecycle/scoring checks and CheckJS also pass. This is not final acceptance or a claim that
+the comparison lifecycle is fully covered. Continue comparison races and durable
+failure handling, then broader Light navigation, wallet/provider recovery,
+shell/chat dispatch and import/export recovery. Batch related changes before
+publishing; focused tests only locally.
+
+---
+
 # Current investigation: sun session recovery (2026-09-23)
 
 The previous sync boundary batch merged as PR #1646. The new batch covers session
