@@ -572,6 +572,7 @@ test('processing uses shared gray dots, preserves saved text, and survives navig
           const ids = Object.keys(request.jsonSchema.properties);
           resolve({ text: JSON.stringify(ids.includes('summary') ? answer : Object.fromEntries(ids.map(id => [id, answer]))) });
         };
+        if (globalThis.finishRemainingBiologyBatches) globalThis.finishBiologyProcessing(false);
       }),
     });
     (await import('/js/views.js')).navigate('biology-scores');
@@ -633,7 +634,7 @@ test('processing uses shared gray dots, preserves saved text, and survives navig
   await page.setViewportSize({ width: 390, height: 900 });
   await overview.scrollIntoViewIfNeeded();
   await page.screenshot({ path: '/tmp/biology-processing-mobile.png' });
-  await page.evaluate(() => globalThis.finishBiologyProcessing(false));
+  await page.evaluate(() => { globalThis.finishRemainingBiologyBatches = true; globalThis.finishBiologyProcessing(false); });
   await expect(page.locator('[data-biology-score-ai-summary][aria-busy="true"]')).toHaveCount(0);
 });
 

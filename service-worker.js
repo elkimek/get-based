@@ -356,7 +356,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/lens-library.js',
   '/js/biology-scores-runtime.js',
   '/js/biology-scores.js',
-  '/js/biology-score-ai.js', '/js/biology-score-ai-context.js',
+  '/js/biology-score-ai.js', '/js/biology-score-ai-context.js', '/js/biology-score-ai-protocol.js',
   '/js/biology-score-context-ai.js', '/js/biology-score-copy.js',
   '/js/biology-score-coverage-planner.js', '/js/biology-score-engine.js',
   '/js/biology-score-inputs.js', '/js/biology-score-dates.js',

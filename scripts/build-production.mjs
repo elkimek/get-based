@@ -194,6 +194,9 @@ export async function buildProduction({ outputRoot = ROOT } = {}) {
       assetFileNames: 'bundle-[name]-[hash][extname]',
       manualChunks(id) {
         if (LAZY_SYNC_CHUNK_MODULES.has(stripRetryQuery(id))) return 'sync-reconciliation';
+        // Native ESM loads this small protocol on demand. In production, keep
+        // it with its callers to avoid adding a separate network chunk.
+        if (stripRetryQuery(id) === path.join(ROOT, 'js', 'biology-score-ai-protocol.js')) return 'startup';
         return initialModules.has(id) ? 'startup' : undefined;
       },
     },

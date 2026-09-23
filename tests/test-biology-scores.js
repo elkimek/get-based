@@ -1088,6 +1088,7 @@ const biologyScoreShellFiles = [
   '/js/biology-scores-runtime.js',
   '/js/biology-scores.js',
   '/js/biology-score-ai.js',
+  '/js/biology-score-ai-protocol.js',
   '/js/biology-score-ai-context.js',
   '/js/biology-score-context-ai.js',
   '/js/biology-score-copy.js',
