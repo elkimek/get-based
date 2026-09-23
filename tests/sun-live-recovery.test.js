@@ -105,3 +105,11 @@ it.each(['replacement', 'in-place edit'])('starts weather for a %s without waiti
   expect(active.liveDosesFor(session).atm.uvIndex).toBe(3);
   wait.resolve({ uvIndex: 99 }); await vi.advanceTimersByTimeAsync(0); expect(active.liveDosesFor(session).atm.uvIndex).toBe(3);
 });
+it('an explicitly installed live rate supersedes pending weather and preserves paused totals', async () => {
+  const wait = deferred(); deps.fetchAtmosphere.mockReturnValueOnce(wait.promise); active.ensureActiveTicker();
+  active.setSunLiveState(session.id, { ratePerMin: { vitamin_d: 1 }, committedDoses: { vitamin_d: 4 }, committedSED: 1, committedRetinalUV: 2, atm: { uvIndex: 3 }, pending: false });
+  session.paused = true;
+  expect(active.liveDosesFor(session)).toMatchObject({ paused: true, doses: { vitamin_d: 4 }, retinalUV: 2 });
+  session.paused = false; wait.resolve({ uvIndex: 99 }); await vi.advanceTimersByTimeAsync(0);
+  expect(active.liveDosesFor(session).atm.uvIndex).toBe(3);
+});

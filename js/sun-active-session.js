@@ -294,7 +294,7 @@ function _getLiveState(id) {
 }
 export function setSunLiveState(id, patch) {
   const cur = _liveState.get(id) || {};
-  if (patch.ratePerMin === null) {
+  if ('ratePerMin' in patch) {
     _snapshotRequests.delete(id);
     cur.pending = false;
   }

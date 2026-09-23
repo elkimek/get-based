@@ -6,7 +6,7 @@ and merged with the user-authorized administrator override as
 
 ## Current combined batch
 
-141 new regression cases: 80 session-store, 32 live-runtime, 23 session-format
+142 new regression cases: 80 session-store, 33 live-runtime, 23 session-format
 unit cases and six Chromium integration scenarios. These cover stale weather
 completion/rejection after profile changes, deletion, reset and replacement;
 concurrent hydration, failed persistence and retry; pause/resume/duplicate stop;
@@ -34,7 +34,7 @@ or weakened to accommodate the changes.
 
 ## Focused local verification
 
-- 135 new unit cases plus the critical-config guard pass.
+- 136 new unit cases plus the critical-config guard pass.
 - All six new browser scenarios and three directly affected existing scenarios
   pass, including real persistence across reload and profile/deletion races.
 - Scoped coverage: store lines 95.72%, branches 89.34%, functions 78.46%,
@@ -67,6 +67,19 @@ state is cleared on the next live tick, allowing a replacement to request weathe
 without waiting for the old provider. Browser tests use actual `adoptProfileData`
 and durable profile storage. Shared exposure construction preserves the original
 formulas and bundle budget. These changes add 14 cases to the initial 127.
+
+## Full-CI correction
+
+Head b7e55b80 passed all critical floors and Greptile reviewed all 14 files at
+5/5 with all three threads resolved. Its full browser run had one failure and
+753 passes: the existing Light/Sun start/pause scenario installed a complete rate
+while earlier weather was pending. The stale pending request subsequently erased
+paused committed totals. The failure reproduced in isolation, and a new unit
+regression reproduced the same behavior. Installing any explicit rate now
+supersedes its pending request, rather than only clearing requests for null rates.
+The focused live suite passes 33 cases; the failing browser case plus six recovery
+scenarios pass. Strict-null and unchanged production budgets pass. New-head full
+CI and review are required; b7e55b80 is not final acceptance.
 
 ## Historical evidence from preceding batches
 
