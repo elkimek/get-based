@@ -297,9 +297,10 @@ assert('file input shares import browser-runtime adapter with drop zone',
   !/\bwindow(?:\.|\s*\[)/.test(importFileInputSrc) &&
   importDropZoneRuntimeSrc.includes('export function isDropZoneImportRunning'),
   'file-picker import path should not keep a parallel set of window global lookups');
-assert('Import UI lazy-load failure notifies from file input and clears selection',
-  /try\s*{\s*importMod\s*=\s*await loadImportUI\(\);[\s\S]{0,320}catch\s*\(err\)\s*{[\s\S]{0,320}Could not load import UI\. Reload the app to finish updating, then try again\.[\s\S]{0,120}e\.target\.value\s*=\s*''/.test(importFileInputSrc),
-  'file-picker import path should fail loudly and clear stale selection');
+assert('Import UI lazy-load failure notifies after clearing the initiating selection',
+  /const files = Array\.from\(e\.target\.files\);[\s\S]{0,160}e\.target\.value\s*=\s*''[\s\S]*?importMod\s*=\s*await loadImportUI\(\);/.test(importFileInputSrc)
+  && /catch\s*\(err\)\s*{[\s\S]{0,320}Could not load import UI\. Reload the app to finish updating, then try again\./.test(importFileInputSrc),
+  'file-picker should clear its selection before awaiting and report load failures without clearing newer selections');
 assert('Import UI lazy-load failure notifies from drop zone',
   /try\s*{\s*importMod\s*=\s*await loadImportUI\(\);[\s\S]{0,320}catch\s*\(err\)\s*{[\s\S]{0,320}Could not load import UI\. Reload the app to finish updating, then try again\./.test(importDropZoneSrc),
   'drop-zone import path should fail loudly');
