@@ -38,8 +38,8 @@ suites. A runtime module with no selected test coverage blocks selection until
 its test references or explicit scope are added; unrelated tests cannot mask it.
 
 The automatic runner is GitHub Actions-only. Local verification must use explicit
-relevant files or cases, with coverage disabled unless specifically needed; see
-`AGENTS.md`. Never run the planned CI matrix locally just because it is listed.
+relevant files or cases, with coverage disabled unless specifically needed.
+Never run the planned CI matrix locally just because it is listed.
 
 ## Measurement policy
 
