@@ -91,8 +91,8 @@ describe('API provider runtime behavior', () => {
     expect(modelMetadataIsAvailable({ id: 'offline', status: 'offline' })).toBe(false);
   });
 
-  it('promotes Astra after a PPQ catalog refresh while falling back to Sol and excluding Nano', async () => {
-    const sol = { id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol' };
+  it('shows Sol alongside Astra after a PPQ catalog refresh and excludes Nano', async () => {
+    const sol = { id: 'gpt-6-sol', name: 'GPT-6 Sol' };
     const astra = { id: 'gpt-6-astra', name: 'GPT-6 Astra' };
     const nano = { id: 'gpt-5.4-nano', name: 'GPT-5.4 Nano' };
     fetch.mockResolvedValueOnce(jsonResponse({ data: [nano, sol, { ...astra, enabled: false }] }));
@@ -103,7 +103,7 @@ describe('API provider runtime behavior', () => {
 
     fetch.mockResolvedValueOnce(jsonResponse({ data: [nano, sol, astra] }));
     const refreshed = await fetchPpqModels();
-    expect(selectLatestRecommendedModels('ppq', refreshed)).toEqual([astra]);
+    expect(selectLatestRecommendedModels('ppq', refreshed)).toEqual([astra, sol]);
     expect(getPpqModel()).toBe(sol.id);
   });
 
@@ -121,12 +121,79 @@ describe('API provider runtime behavior', () => {
   it('uses Sol as the catalog fallback across providers and never recommends GPT Nano or Mini', () => {
     for (const provider of ['openrouter', 'routstr', 'ppq', 'custom', 'venice']) {
       const prefix = provider === 'venice' ? 'openai-' : 'openai/';
-      const sol = { id: prefix + 'gpt-5.6-sol' };
+      const sol = { id: prefix + 'gpt-6-sol' };
       const astra = { id: prefix + 'gpt-6-astra' };
       const catalog = [sol, { id: prefix + 'gpt-5.4-nano' }, { id: prefix + 'gpt-5.4-mini' }];
       expect(selectLatestRecommendedModels(provider, catalog)).toEqual([sol]);
-      expect(selectLatestRecommendedModels(provider, [...catalog, astra])).toEqual([astra]);
+      expect(selectLatestRecommendedModels(provider, [...catalog, astra])).toEqual([sol, astra]);
       for (const model of catalog.slice(1)) expect(isRecommendedModel(provider, model.id)).toBe(false);
+    }
+  });
+
+  it('replaces Opus 5 and Sol 5.6 recommendations with the new releases across provider ID formats', () => {
+    for (const provider of ['openrouter', 'venice', 'routstr', 'ppq', 'custom']) {
+      const prefixes = provider === 'openrouter' ? ['anthropic/']
+        : provider === 'venice' ? [''] : ['', 'anthropic/'];
+      for (const prefix of prefixes) {
+        for (const version of ['5.5', '5-5']) {
+          const opus = { id: prefix + 'claude-opus-' + version };
+          const oldOpus = { id: prefix + 'claude-opus-5' };
+          expect(isRecommendedModel(provider, opus.id)).toBe(true);
+          expect(isRecommendedModel(provider, oldOpus.id)).toBe(false);
+          expect(isRecommendedModel(provider, oldOpus.id + '-20260701')).toBe(false);
+          expect(selectLatestRecommendedModels(provider, [oldOpus, opus])).toEqual([opus]);
+        }
+      }
+      const gptPrefix = provider === 'venice' ? 'openai-' : 'openai/';
+      expect(isRecommendedModel(provider, gptPrefix + 'gpt-5.6-sol')).toBe(false);
+      expect(isRecommendedModel(provider, gptPrefix + 'gpt-6-luna')).toBe(false);
+      expect(isRecommendedModel(provider, gptPrefix + 'gpt-6-sol-mini')).toBe(false);
+      if (provider !== 'venice') expect(needsMaxCompletionTokens(gptPrefix + 'gpt-6-sol')).toBe(true);
+    }
+  });
+
+  it('discovers the new releases, selects Sol without Astra, and preserves an existing model choice', async () => {
+    localStorage.setItem('labcharts-routstr-node', 'https://node.example.com/');
+    for (const [provider, fetchModels, prefixes] of [
+      ['openrouter', fetchOpenRouterModels, ['namespaced']],
+      ['ppq', fetchPpqModels, ['bare', 'namespaced']],
+      ['routstr', fetchRoutstrModels, ['bare', 'namespaced']],
+    ]) {
+      for (const format of prefixes) {
+        localStorage.removeItem(`labcharts-${provider}-model`);
+        const sol = { id: (format === 'namespaced' ? 'openai/' : '') + 'gpt-6-sol', enabled: true };
+        const opus = { id: (format === 'namespaced' ? 'anthropic/' : '') + 'claude-opus-5.5', enabled: true };
+        const oldSol = { id: (format === 'namespaced' ? 'openai/' : '') + 'gpt-5.6-sol', enabled: true };
+        const unavailable = { ...opus, id: opus.id + '-20260922', enabled: false };
+        const rows = [oldSol, unavailable, sol, opus];
+        fetch.mockResolvedValueOnce(jsonResponse({ data: rows }));
+        const models = await fetchModels();
+        expect(models).toEqual(expect.arrayContaining([sol, opus, oldSol]));
+        expect(models).not.toContainEqual(unavailable);
+        expect(selectLatestRecommendedModels(provider, models).map(model => model.id).sort())
+          .toEqual([sol.id, opus.id].sort());
+        expect(localStorage.getItem(`labcharts-${provider}-model`)).toBe(sol.id);
+
+        localStorage.setItem(`labcharts-${provider}-model`, oldSol.id);
+        fetch.mockResolvedValueOnce(jsonResponse({ data: rows }));
+        await fetchModels();
+        expect(localStorage.getItem(`labcharts-${provider}-model`)).toBe(oldSol.id);
+      }
+    }
+  });
+
+  it('prefers Grok 4.7 over 4.6 only when offered by the provider or selected node', () => {
+    for (const provider of ['openrouter', 'venice', 'routstr', 'ppq', 'custom']) {
+      const prefixes = provider === 'openrouter' ? ['x-ai/']
+        : provider === 'venice' ? [''] : ['', 'x-ai/'];
+      for (const prefix of prefixes) {
+        const separator = provider === 'venice' ? '-' : '.';
+        const oldGrok = { id: prefix + 'grok-4' + separator + '6' };
+        const newGrok = { id: prefix + 'grok-4' + separator + '7' };
+        expect(selectLatestRecommendedModels(provider, [oldGrok, newGrok])).toEqual([newGrok]);
+        expect(selectLatestRecommendedModels(provider, [newGrok, oldGrok])).toEqual([newGrok]);
+        expect(selectLatestRecommendedModels(provider, [oldGrok])).toEqual([oldGrok]);
+      }
     }
   });
 
@@ -700,14 +767,14 @@ describe('API provider runtime behavior', () => {
         id: prefix + 'gpt-5.6-' + tier,
       }));
       expect(isRecommendedModel(provider, astra.id)).toBe(true);
-      for (const model of oldModels) expect(isRecommendedModel(provider, model.id)).toBe(model.id.endsWith('-sol'));
+      for (const model of oldModels) expect(isRecommendedModel(provider, model.id)).toBe(false);
       expect(selectLatestRecommendedModels(provider, [
         ...oldModels, { id: prefix + 'gpt-5.4' }, astra,
       ])).toEqual([astra]);
     }
     for (const provider of ['routstr', 'ppq', 'custom']) {
       expect(isRecommendedModel(provider, 'openai/gpt-6-astra')).toBe(true);
-      expect(isRecommendedModel(provider, 'openai/gpt-5.6-sol')).toBe(true);
+      expect(isRecommendedModel(provider, 'openai/gpt-6-sol')).toBe(true);
     }
     expect(needsMaxCompletionTokens('openai/gpt-5.4')).toBe(true);
     expect(needsMaxCompletionTokens('o3-mini')).toBe(true);
@@ -717,9 +784,9 @@ describe('API provider runtime behavior', () => {
     expect(isRecommendedModel('openrouter', 'anthropic/claude-fable-5')).toBe(false);
     expect(isRecommendedModel('openrouter', 'anthropic/claude-sonnet-5')).toBe(true);
     expect(isRecommendedModel('openrouter', 'anthropic/claude-sonnet-4.6')).toBe(true);
-    expect(isRecommendedModel('openrouter', 'anthropic/claude-opus-5')).toBe(true);
+    expect(isRecommendedModel('openrouter', 'anthropic/claude-opus-5.5')).toBe(true);
     expect(isRecommendedModel('openrouter', 'anthropic/claude-opus-4.8')).toBe(false);
-    expect(isRecommendedModel('openrouter', 'openai/gpt-5.6-sol')).toBe(true);
+    expect(isRecommendedModel('openrouter', 'openai/gpt-6-sol')).toBe(true);
     expect(isRecommendedModel('openrouter', 'openai/gpt-5.6-terra')).toBe(false);
     expect(isRecommendedModel('openrouter', 'openai/gpt-5.6-luna')).toBe(false);
     expect(isRecommendedModel('openrouter', 'openai/gpt-5.5')).toBe(false);
@@ -739,13 +806,13 @@ describe('API provider runtime behavior', () => {
     expect(isRecommendedModel('venice', 'claude-fable-5-1')).toBe(true);
     expect(isRecommendedModel('venice', 'claude-fable-5')).toBe(false);
     expect(isRecommendedModel('venice', 'claude-sonnet-5')).toBe(true);
-    expect(isRecommendedModel('venice', 'claude-opus-5')).toBe(true);
+    expect(isRecommendedModel('venice', 'claude-opus-5.5')).toBe(true);
     expect(isRecommendedModel('venice', 'claude-opus-4-8')).toBe(false);
     expect(isRecommendedModel('venice', 'openai-gpt-55')).toBe(true);
-    expect(isRecommendedModel('venice', 'openai-gpt-56-sol')).toBe(true);
+    expect(isRecommendedModel('venice', 'openai-gpt-56-sol')).toBe(false);
     expect(isRecommendedModel('venice', 'openai-gpt-56-terra')).toBe(false);
     expect(isRecommendedModel('venice', 'openai-gpt-56-luna')).toBe(false);
-    expect(isRecommendedModel('venice', 'openai-gpt-5.6-sol')).toBe(true);
+    expect(isRecommendedModel('venice', 'openai-gpt-6-sol')).toBe(true);
     expect(isRecommendedModel('venice', 'openai-gpt-51')).toBe(false);
     expect(isRecommendedModel('venice', 'gemini-3-5-flash')).toBe(true);
     expect(isRecommendedModel('venice', 'z-ai-glm-5-3-flash')).toBe(true);
@@ -765,7 +832,7 @@ describe('API provider runtime behavior', () => {
     expect(isRecommendedModel('routstr', 'claude-fable-5')).toBe(false);
     expect(isRecommendedModel('routstr', 'claude-sonnet-5')).toBe(true);
     expect(isRecommendedModel('routstr', 'claude-sonnet-4.6')).toBe(true);
-    expect(isRecommendedModel('routstr', 'claude-opus-5')).toBe(true);
+    expect(isRecommendedModel('routstr', 'claude-opus-5.5')).toBe(true);
     expect(isRecommendedModel('routstr', 'claude-opus-4.8')).toBe(false);
     expect(isRecommendedModel('routstr', 'x-ai/grok-4.3')).toBe(true);
     expect(isRecommendedModel('routstr', 'z-ai/glm-5.3-flash')).toBe(true);
@@ -786,7 +853,7 @@ describe('API provider runtime behavior', () => {
     expect(isRecommendedModel('ppq', 'anthropic/claude-fable-5.1')).toBe(true);
     expect(isRecommendedModel('ppq', 'claude-fable-5')).toBe(false);
     expect(isRecommendedModel('ppq', 'claude-sonnet-5')).toBe(true);
-    expect(isRecommendedModel('ppq', 'claude-opus-5')).toBe(true);
+    expect(isRecommendedModel('ppq', 'claude-opus-5.5')).toBe(true);
     expect(isRecommendedModel('ppq', 'claude-opus-4.8')).toBe(false);
     expect(isRecommendedModel('ppq', 'x-ai/grok-4.3')).toBe(true);
     expect(isRecommendedModel('ppq', 'google/gemini-3.5-flash')).toBe(true);
@@ -809,7 +876,7 @@ describe('API provider runtime behavior', () => {
     expect(isRecommendedModel('custom', 'anthropic/claude-fable-5.1')).toBe(true);
     expect(isRecommendedModel('custom', 'claude-fable-5')).toBe(false);
     expect(isRecommendedModel('custom', 'claude-sonnet-5')).toBe(true);
-    expect(isRecommendedModel('custom', 'anthropic/claude-opus-5')).toBe(true);
+    expect(isRecommendedModel('custom', 'anthropic/claude-opus-5.5')).toBe(true);
     expect(isRecommendedModel('custom', 'anthropic/claude-opus-4.8')).toBe(false);
     expect(isRecommendedModel('custom', 'gemini-3.5-flash')).toBe(true);
     expect(isRecommendedModel('custom', 'z-ai/glm-5.3-flash')).toBe(true);

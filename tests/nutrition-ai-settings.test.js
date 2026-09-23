@@ -259,7 +259,7 @@ describe('meal-photo model routing', () => {
       'anthropic/claude-sonnet-4.6',
       'anthropic/claude-sonnet-5',
       'anthropic/claude-opus-4.6',
-      'anthropic/claude-opus-5',
+      'anthropic/claude-opus-5.5',
       'moonshotai/kimi-k3-fastapi',
       'moonshotai/kimi-k3',
     ];
@@ -267,7 +267,7 @@ describe('meal-photo model routing', () => {
     localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify(ids));
 
     expect(listNutritionVisionModels().filter(model => model.provider === 'openrouter').map(model => model.model)).toEqual([
-      'anthropic/claude-opus-5',
+      'anthropic/claude-opus-5.5',
       'anthropic/claude-sonnet-5',
       'moonshotai/kimi-k3',
     ]);

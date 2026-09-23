@@ -15,7 +15,7 @@ async function mockMobileNutritionCatalog(page) {
   await page.route('https://openrouter.ai/api/v1/models**', route => route.fulfill({
     json: { data: [
       { id: 'openai/gpt-5.6-sol', name: 'Vision A' },
-      { id: 'anthropic/claude-opus-5', name: 'Vision B' },
+      { id: 'anthropic/claude-opus-5.5', name: 'Vision B' },
     ].map(model => ({ ...model, architecture: { input_modalities: ['text', 'image'] } })) },
   }));
 }
@@ -96,11 +96,11 @@ test('Venice meal analysis supports a correction-aware recalculation with visibl
     localStorage.setItem('labcharts-openrouter-model', 'x-ai/grok-4.6');
     localStorage.setItem('labcharts-openrouter-models', JSON.stringify([
       { id: 'x-ai/grok-4.6', name: 'Grok 4.6' },
-      { id: 'anthropic/claude-opus-5', name: 'Claude Opus 5' },
+      { id: 'anthropic/claude-opus-5.5', name: 'Claude Opus 5.5' },
     ]));
     localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify([
       'x-ai/grok-4.6',
-      'anthropic/claude-opus-5',
+      'anthropic/claude-opus-5.5',
     ]));
     localStorage.setItem('labcharts-venice-models', JSON.stringify([
       { id: 'claude-opus-4.8', name: 'Claude Opus 4.8' },
@@ -497,7 +497,7 @@ test('Debug mode compares meal models against local reference data and can use t
     localStorage.setItem('labcharts-openrouter-model', 'openai/gpt-5.6-sol');
     localStorage.setItem('labcharts-openrouter-models', JSON.stringify([
       { id: 'openai/gpt-5.6-sol', name: 'Meal Close' },
-      { id: 'anthropic/claude-opus-5', name: 'Meal Confident' },
+      { id: 'anthropic/claude-opus-5.5', name: 'Meal Confident' },
       { id: 'anthropic/claude-sonnet-5', name: 'Vision Sonnet' },
       { id: 'anthropic/claude-opus-4.8', name: 'Legacy Opus' },
       { id: 'google/gemini-3.5-flash', name: 'Vision Gemini' },
@@ -508,12 +508,12 @@ test('Debug mode compares meal models against local reference data and can use t
       { id: 'x-ai/grok-4.6', name: 'Vision Grok' },
     ]));
     localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify([
-      'openai/gpt-5.6-sol', 'anthropic/claude-opus-5', 'anthropic/claude-opus-4.8',
+      'openai/gpt-5.6-sol', 'anthropic/claude-opus-5.5', 'anthropic/claude-opus-4.8',
       'google/gemini-3.5-flash', 'google/gemini-3.7-flash', 'moonshotai/kimi-k3', 'x-ai/grok-4.6',
     ]));
     localStorage.setItem('labcharts-openrouter-pricing', JSON.stringify({
       'openai/gpt-5.6-sol': { input: 4, output: 20 },
-      'anthropic/claude-opus-5': { input: 5, output: 25 },
+      'anthropic/claude-opus-5.5': { input: 5, output: 25 },
       'google/gemini-3.7-flash': { input: 0.5, output: 2 },
     }));
     localStorage.setItem('labcharts-venice-models', JSON.stringify([
@@ -567,7 +567,7 @@ test('Debug mode compares meal models against local reference data and can use t
   await page.evaluate(async () => (await import('/js/nutrition-comparison-ui.js')).refreshComparisonModelPicker());
   await expect(page.locator('[data-nutrition-comparison-search]')).toHaveValue('venice');
   await expect(page.locator('.nutrition-comparison-model:visible')).toHaveCount(1);
-  await page.locator('[data-nutrition-comparison-search]').fill('openrouter anthropic/claude-opus-5');
+  await page.locator('[data-nutrition-comparison-search]').fill('openrouter anthropic/claude-opus-5.5');
   await expect(page.locator('.nutrition-comparison-model:visible')).toHaveCount(1);
   await expect(page.locator('.nutrition-comparison-model:visible')).toContainText('Meal Confident');
   await page.locator('[data-nutrition-comparison-search]').fill('model-that-does-not-exist');
@@ -656,7 +656,7 @@ test('Debug mode compares meal models against local reference data and can use t
   await expect(page.getByRole('button', { name: 'Open full-screen comparison' })).toBeVisible();
   await expect(page.locator('.nutrition-comparison-reference-banner')).toContainText('Known values active.');
   await expect(page.locator('#nutrition-comparison-progress')).toContainText('Comparison ready');
-  await expect.poll(() => [...requestedModels].sort()).toEqual(['openai/gpt-5.6-sol', 'anthropic/claude-opus-5'].sort());
+  await expect.poll(() => [...requestedModels].sort()).toEqual(['openai/gpt-5.6-sol', 'anthropic/claude-opus-5.5'].sort());
   expect(peakConcurrentRequests).toBeGreaterThanOrEqual(2);
 
   const detailedComparison = page.locator('.nutrition-comparison-card').first().locator('.nutrition-comparison-detailed');
@@ -730,7 +730,7 @@ test('Debug mode compares meal models against local reference data and can use t
   await expect(failedGemini).toContainText('Rate limited. Please wait a moment and try again.');
   await expect(failedGemini.getByRole('button', { name: 'Retry this model' })).toBeVisible();
   await expect.poll(() => [...requestedModels].sort()).toEqual([
-    'openai/gpt-5.6-sol', 'anthropic/claude-opus-5',
+    'openai/gpt-5.6-sol', 'anthropic/claude-opus-5.5',
     'google/gemini-3.7-flash', 'moonshotai/kimi-k3',
   ].sort());
   expect(peakConcurrentRequests).toBeGreaterThanOrEqual(2);
@@ -744,8 +744,8 @@ test('Debug mode compares meal models against local reference data and can use t
   await page.locator('#nutrition-run-comparison').click();
   await expect(page.locator('.nutrition-comparison-card')).toHaveCount(3);
   await expect.poll(() => [...requestedModels].sort()).toEqual([
-    'openai/gpt-5.6-sol', 'anthropic/claude-opus-5',
-    'google/gemini-3.7-flash', 'moonshotai/kimi-k3', 'anthropic/claude-opus-5',
+    'openai/gpt-5.6-sol', 'anthropic/claude-opus-5.5',
+    'google/gemini-3.7-flash', 'moonshotai/kimi-k3', 'anthropic/claude-opus-5.5',
   ].sort());
   await geminiChoice.locator('input').check();
   await expect(page.locator('#nutrition-run-comparison')).toHaveText('Add 1 model result');
@@ -754,9 +754,9 @@ test('Debug mode compares meal models against local reference data and can use t
   await expect(page.locator('#nutrition-comparison-progress')).toContainText('Comparison ready');
   await expect(page.locator('#nutrition-comparison-results')).toHaveAttribute('data-result-count', '4');
   await expect.poll(() => [...requestedModels].sort()).toEqual([
-    'openai/gpt-5.6-sol', 'anthropic/claude-opus-5',
+    'openai/gpt-5.6-sol', 'anthropic/claude-opus-5.5',
     'google/gemini-3.7-flash', 'moonshotai/kimi-k3',
-    'anthropic/claude-opus-5', 'google/gemini-3.7-flash',
+    'anthropic/claude-opus-5.5', 'google/gemini-3.7-flash',
   ].sort());
   await page.setViewportSize({ width: 1100, height: 768 });
   const presentationButton = page.getByRole('button', { name: 'Open full-screen comparison' });
@@ -848,10 +848,10 @@ test('a running benchmark can close, cancel one model, and never cross profiles'
     localStorage.setItem('labcharts-openrouter-model', 'openai/gpt-5.6-sol');
     localStorage.setItem('labcharts-openrouter-models', JSON.stringify([
       { id: 'openai/gpt-5.6-sol', name: 'Model One' },
-      { id: 'anthropic/claude-opus-5', name: 'Model Two' },
+      { id: 'anthropic/claude-opus-5.5', name: 'Model Two' },
     ]));
     localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify([
-      'openai/gpt-5.6-sol', 'anthropic/claude-opus-5',
+      'openai/gpt-5.6-sol', 'anthropic/claude-opus-5.5',
     ]));
     api.setAIProvider('openrouter');
     (await import('/js/nutrition-ai-settings.js')).setNutritionAIRoute({ provider: 'openrouter', model: 'openai/gpt-5.6-sol' });
@@ -1939,7 +1939,7 @@ test('AI Settings can route meal photos to Opus without changing the Grok chat m
     json: { data: [
       { id: 'z-ai/glm-5.3', name: 'Z.ai: GLM 5.3', architecture: { input_modalities: ['text'] } },
       { id: 'x-ai/grok-4.6', name: 'Grok 4.6', architecture: { input_modalities: ['text', 'image'] } },
-      { id: 'anthropic/claude-opus-5', name: 'Claude Opus 5', architecture: { input_modalities: ['text', 'image'] } },
+      { id: 'anthropic/claude-opus-5.5', name: 'Claude Opus 5.5', architecture: { input_modalities: ['text', 'image'] } },
       { id: 'anthropic/claude-opus-4.8', name: 'Legacy Opus', architecture: { input_modalities: ['text', 'image'] } },
       { id: 'anthropic/claude-sonnet-5', name: 'Text-only Sonnet', architecture: { input_modalities: ['text'] } },
     ] },
@@ -1955,13 +1955,13 @@ test('AI Settings can route meal photos to Opus without changing the Grok chat m
     localStorage.setItem('labcharts-openrouter-models', JSON.stringify([
       { id: 'z-ai/glm-5.3', name: 'GLM 5.3' },
       { id: 'x-ai/grok-4.6', name: 'Grok 4.6' },
-      { id: 'anthropic/claude-opus-5', name: 'Claude Opus 5' },
+      { id: 'anthropic/claude-opus-5.5', name: 'Claude Opus 5.5' },
       { id: 'anthropic/claude-opus-4.8', name: 'Legacy Opus' },
       { id: 'anthropic/claude-sonnet-5', name: 'Text-only Sonnet' },
     ]));
     localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify([
       'x-ai/grok-4.6',
-      'anthropic/claude-opus-5',
+      'anthropic/claude-opus-5.5',
       'anthropic/claude-opus-4.8',
     ]));
     localStorage.setItem('labcharts-venice-models', JSON.stringify([
@@ -1998,26 +1998,26 @@ test('AI Settings can route meal photos to Opus without changing the Grok chat m
   await expect(page.locator('[data-settings-action="set-nutrition-ai-route"] option').first()).not.toBeDisabled();
   const inherited = await page.evaluate(async () => (await import('/js/nutrition-ai-settings.js')).getMealAISelection());
   expect(inherited).toMatchObject({ provider: 'openrouter', model: 'x-ai/grok-4.6', usesChatModel: true });
-  await page.locator('#openrouter-model-select').selectOption('anthropic/claude-opus-5');
-  await expect(page.locator('[data-settings-action="set-nutrition-ai-route"] option').first()).toContainText('Claude Opus 5');
+  await page.locator('#openrouter-model-select').selectOption('anthropic/claude-opus-5.5');
+  await expect(page.locator('[data-settings-action="set-nutrition-ai-route"] option').first()).toContainText('Claude Opus 5.5');
   await page.locator('#openrouter-model-select').selectOption('x-ai/grok-4.6');
   await expect(page.locator('[data-settings-action="set-nutrition-ai-route"] option').first()).toContainText('Grok 4.6');
   await page.locator('[data-settings-action="switch-ai-provider"][data-provider="venice"]').click();
   await expect(page.locator('#nutrition-ai-model-settings')).toContainText('Only models with confirmed image input are shown');
   await expect(page.locator('[data-settings-action="set-nutrition-ai-route"]')).toContainText('Venice Vision');
-  await expect(page.locator('[data-settings-action="set-nutrition-ai-route"]')).not.toContainText('Claude Opus 5');
+  await expect(page.locator('[data-settings-action="set-nutrition-ai-route"]')).not.toContainText('Claude Opus 5.5');
   await page.locator('[data-settings-action="switch-ai-provider"][data-provider="openrouter"]').click();
   const openRouterSelector = page.locator('[data-settings-action="set-nutrition-ai-route"]');
   await expect(page.locator('#nutrition-ai-model-settings')).toContainText('Only models with confirmed image input are shown');
   await expect(openRouterSelector).not.toContainText('Venice Vision');
-  await openRouterSelector.selectOption(JSON.stringify({ provider: 'openrouter', model: 'anthropic/claude-opus-5' }));
+  await openRouterSelector.selectOption(JSON.stringify({ provider: 'openrouter', model: 'anthropic/claude-opus-5.5' }));
 
   const result = await page.evaluate(async () => ({
     chatModel: (await import('/js/api.js')).getOpenRouterModel(),
     mealRoute: (await import('/js/nutrition-ai-settings.js')).getNutritionAIRoute(),
   }));
   expect(result.chatModel).toBe('x-ai/grok-4.6');
-  expect(result.mealRoute).toEqual({ provider: 'openrouter', model: 'anthropic/claude-opus-5' });
+  expect(result.mealRoute).toEqual({ provider: 'openrouter', model: 'anthropic/claude-opus-5.5' });
 });
 
 test('the meal editor switches visual models directly and returns from AI Settings without losing the draft', async ({ page }) => {
@@ -2028,7 +2028,7 @@ test('the meal editor switches visual models directly and returns from AI Settin
       { id: 'x-ai/grok-4.6', name: 'Grok 4.6' },
       { id: 'google/gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
       { id: 'anthropic/claude-sonnet-5', name: 'Claude Sonnet 5' },
-      { id: 'anthropic/claude-opus-5', name: 'Claude Opus 5' },
+      { id: 'anthropic/claude-opus-5.5', name: 'Claude Opus 5.5' },
     ].map(model => ({ ...model, architecture: { input_modalities: ['text', 'image'] } })) },
   }));
   await page.goto('/app', { waitUntil: 'load' });
@@ -2060,7 +2060,7 @@ test('the meal editor switches visual models directly and returns from AI Settin
       { id: 'x-ai/grok-4.6', name: 'Grok 4.6' },
       { id: 'google/gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
       { id: 'anthropic/claude-sonnet-5', name: 'Claude Sonnet 5' },
-      { id: 'anthropic/claude-opus-5', name: 'Claude Opus 5' },
+      { id: 'anthropic/claude-opus-5.5', name: 'Claude Opus 5.5' },
     ];
     localStorage.setItem('labcharts-openrouter-models', JSON.stringify(models));
     localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify(models.map(model => model.id)));
@@ -2068,26 +2068,26 @@ test('the meal editor switches visual models directly and returns from AI Settin
       'google/gemini-3.7-flash': { input: 0.5, output: 2 },
       'x-ai/grok-4.6': { input: 2, output: 7 },
       'anthropic/claude-sonnet-5': { input: 3, output: 15 },
-      'anthropic/claude-opus-5': { input: 5, output: 25 },
+      'anthropic/claude-opus-5.5': { input: 5, output: 25 },
     }));
     window.dispatchEvent(new CustomEvent('labcharts-ai-settings-local-changed'));
   });
   await expect(mealSelector).toContainText('Claude Sonnet 5');
-  await expect(mealSelector).toContainText('Claude Opus 5');
+  await expect(mealSelector).toContainText('Claude Opus 5.5');
   await expect(mealSelector.locator('option:checked')).toContainText('Grok 4.6');
   await page.locator('#nutrition-meal-name').fill('Draft rice bowl');
   await page.locator('[data-nutrition-action="open-ai-settings"]').click();
   await expect(page.locator('#settings-modal-overlay')).toBeVisible();
   await expect(page.locator('#modal-overlay')).toBeVisible();
-  await page.locator('#openrouter-model-select').selectOption('anthropic/claude-opus-5');
-  await expect(page.locator('[data-settings-action="set-nutrition-ai-route"] option').first()).toHaveText(/^Follow chat assistant — (Anthropic: )?Claude Opus 5$/);
+  await page.locator('#openrouter-model-select').selectOption('anthropic/claude-opus-5.5');
+  await expect(page.locator('[data-settings-action="set-nutrition-ai-route"] option').first()).toHaveText(/^Follow chat assistant — (Anthropic: )?Claude Opus 5\.5$/);
   await page.locator('#settings-modal .modal-close').click();
 
   await expect(page.locator('#settings-modal-overlay')).not.toBeVisible();
   await expect(page.locator('#modal-overlay')).toBeVisible();
   await expect(page.locator('#nutrition-meal-name')).toHaveValue('Draft rice bowl');
-  await expect(page.locator('[data-nutrition-model-route] option').first()).toHaveText(/^Follow chat assistant · (Anthropic: )?Claude Opus 5$/);
-  await expect(mealSelector.locator('option:checked')).toContainText('Claude Opus 5');
+  await expect(page.locator('[data-nutrition-model-route] option').first()).toHaveText(/^Follow chat assistant · (Anthropic: )?Claude Opus 5\.5$/);
+  await expect(mealSelector.locator('option:checked')).toContainText('Claude Opus 5.5');
   await page.locator('[data-nutrition-model-route]').selectOption(JSON.stringify({ provider: 'openrouter', model: 'x-ai/grok-4.6' }));
   await expect(page.locator('[data-nutrition-model-route] option:checked')).toContainText('Grok 4.6');
   const result = await page.evaluate(async () => ({
@@ -2095,7 +2095,7 @@ test('the meal editor switches visual models directly and returns from AI Settin
     mealRoute: (await import('/js/nutrition-ai-settings.js')).getNutritionAIRoute(),
   }));
   expect(result).toEqual({
-    mainModel: 'anthropic/claude-opus-5',
+    mainModel: 'anthropic/claude-opus-5.5',
     mealRoute: { provider: 'openrouter', model: 'x-ai/grok-4.6' },
   });
 });
@@ -2112,9 +2112,9 @@ test('nutrition review, Debug comparison, targets, and drink logging fit a narro
     localStorage.setItem('labcharts-openrouter-model', 'openai/gpt-5.6-sol');
     localStorage.setItem('labcharts-openrouter-models', JSON.stringify([
       { id: 'openai/gpt-5.6-sol', name: 'Vision A' },
-      { id: 'anthropic/claude-opus-5', name: 'Vision B' },
+      { id: 'anthropic/claude-opus-5.5', name: 'Vision B' },
     ]));
-    localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify(['openai/gpt-5.6-sol', 'anthropic/claude-opus-5']));
+    localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify(['openai/gpt-5.6-sol', 'anthropic/claude-opus-5.5']));
     api.setAIProvider('openrouter');
     await (await import('/js/nutrition.js')).openNutritionEditor();
   });
