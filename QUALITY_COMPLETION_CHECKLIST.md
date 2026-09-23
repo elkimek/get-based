@@ -1,3 +1,12 @@
+## Accepted predecessor and publication boundary
+
+PR #1650 merged as b115f47e after exact head fb1d8e55 passed CI35849078628
+and Greptile5/5 with its finding resolved. The clean artifact7532d4b8 has parents
+0425cb4e/fb1d8e55. All17 feature gates and32 critical floors pass; global function
+execution is14596/16165 (90.29384%), previously14577/16157 (90.22096%).
+This import-entry batch is rebased onto that squash and adds23 behavioral
+regressions. Its own CI artifact and full review remain required before merging.
+
 ## Import entry ownership batch — local verification
 
 The picker and both drop-zone entry paths now retain the originating profile
