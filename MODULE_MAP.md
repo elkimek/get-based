@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 788 |
-| Internal import edges | 3332 |
+| Internal import edges | 3333 |
 | Dynamic internal edges | 115 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -644,7 +644,7 @@ Native browser modules shipped with the static application.
 - [`js/import-commit-validation.js`](js/import-commit-validation.js) → [`js/lab-entry.js`](js/lab-entry.js), [`js/pdf-import-unit-conversions.js`](js/pdf-import-unit-conversions.js), [`js/schema.js`](js/schema.js)
 - [`js/import-drop-zone-runtime.js`](js/import-drop-zone-runtime.js) → [`js/dna-runtime-bridge.js`](js/dna-runtime-bridge.js), [`js/export-loader.js`](js/export-loader.js), [`js/pdf-import-progress.js`](js/pdf-import-progress.js), [`js/utils.js`](js/utils.js)
 - [`js/import-drop-zone.js`](js/import-drop-zone.js) → [`js/import-drop-zone-runtime.js`](js/import-drop-zone-runtime.js), [`js/import-loader.js`](js/import-loader.js), [`js/pdf-import-progress.js`](js/pdf-import-progress.js), [`js/state.js`](js/state.js)
-- [`js/import-file-input.js`](js/import-file-input.js) → [`js/import-drop-zone-runtime.js`](js/import-drop-zone-runtime.js), [`js/import-loader.js`](js/import-loader.js), [`js/state.js`](js/state.js)
+- [`js/import-file-input.js`](js/import-file-input.js) → [`js/import-drop-zone-runtime.js`](js/import-drop-zone-runtime.js), [`js/import-loader.js`](js/import-loader.js), [`js/pdf-import-progress.js`](js/pdf-import-progress.js), [`js/state.js`](js/state.js)
 - [`js/import-loader.js`](js/import-loader.js) → [`js/health-data-loader.js`](js/health-data-loader.js), [`js/import-review-draft.js`](js/import-review-draft.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import-review.js`](js/pdf-import-review.js) *(dynamic)*, [`js/pdf-import.js`](js/pdf-import.js) *(dynamic)*
 - [`js/import-marker-map-modal.js`](js/import-marker-map-modal.js) → [`js/adapters.js`](js/adapters.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/pdf-import-marker-mapping.js`](js/pdf-import-marker-mapping.js), [`js/schema.js`](js/schema.js), [`js/utils.js`](js/utils.js)
 - [`js/import-reference-benchmark.js`](js/import-reference-benchmark.js) → [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/import-benchmarks.js`](js/import-benchmarks.js), [`js/import-loader.js`](js/import-loader.js), [`js/pdf-import-ai-utils.js`](js/pdf-import-ai-utils.js), [`js/pdf-import-marker-mapping.js`](js/pdf-import-marker-mapping.js), [`js/schema.js`](js/schema.js)

@@ -382,9 +382,7 @@ Return ONLY valid JSON in this exact format, no other text:
 
 // ═══════════════════════════════════════════════
 // FILE CLASSIFICATION
-export async function isPdfByMagic(file) {
-  return isPdfFileByMagic(file);
-}
+export const isPdfByMagic = isPdfFileByMagic;
 
 export async function classifyImportFiles(files) {
   return classifyImportFileBuckets(files, {
@@ -441,9 +439,7 @@ export function setupDropZone() {
 // ═══════════════════════════════════════════════
 // PDF IMAGE FALLBACK (scanned/image-heavy PDFs)
 // ═══════════════════════════════════════════════
-export function assessTextQuality(text) {
-  return assessImportedTextQuality(text);
-}
+export const assessTextQuality = assessImportedTextQuality;
 
 export async function extractPDFImages(file, maxPages = 8) {
   return extractPdfImagesFromFile(file, maxPages);

@@ -36,6 +36,8 @@ vi.mock('../js/import-drop-zone-runtime.js', () => ({
   showDropZoneImportNotification: mocks.showDropZoneImportNotification,
 }));
 
+const { importDispatch } = await import('../js/pdf-import-progress.js');
+
 const { handleImportInputChange } = await import('../js/import-file-input.js');
 
 function importBuckets(overrides = {}) {
@@ -99,6 +101,7 @@ describe('import file input runtime routing', () => {
       'Could not load import UI. Reload the app to finish updating, then try again.',
       'error',
     );
+    expect(importDispatch.busy).toBe(false);
     errorLog.mockRestore();
   });
 
@@ -287,18 +290,20 @@ describe('mixed selection boundaries', () => {
     mocks.importModule.handleTextFile.mockImplementationOnce(async () => { target.value = 'new selection'; throw new Error('read failed'); });
     await expect(handleImportInputChange({ target })).rejects.toThrow('read failed');
     expect(target.value).toBe('new selection');
+    expect(importDispatch.busy).toBe(false);
   });
 });
 
 describe('overlapping picker invocations', () => {
   beforeEach(async () => {
     vi.resetAllMocks();
+    mocks.isDropZoneImportRunning.mockImplementation(() => importDispatch.busy);
     const { state } = await import('../js/state.js');
     state.currentProfile = 'origin'; state.importedData = {};
     mocks.loadImportUI.mockResolvedValue(mocks.importModule);
     mocks.importModule.classifyImportFiles.mockImplementation(async files => importBuckets({ textFiles: files }));
   });
-  it.each(['load', 'classify', 'header', 'between-files'])('supersedes an older selection during %s', async boundary => {
+  it.each(['load', 'classify', 'header', 'between-files'])('rejects a second selection during %s and unlocks afterwards', async boundary => {
     let release, entered;
     const pending = new Promise(resolve => { release = resolve; });
     const started = new Promise(resolve => { entered = resolve; });
@@ -312,10 +317,25 @@ describe('overlapping picker invocations', () => {
     if (boundary === 'between-files') mocks.importModule.handleTextFile.mockImplementationOnce(async () => { entered(); await pending; });
     const oldTask = runInput(boundary === 'between-files' ? [older, remaining] : [older]);
     await started;
-    await runInput([newer]);
+    expect(importDispatch.busy).toBe(true);
+    expect((await runInput([newer])).value).toBe('');
+    expect(mocks.loadImportUI).toHaveBeenCalledTimes(1);
     release(); await oldTask;
+    expect(importDispatch.busy).toBe(false);
     expect(mocks.importModule.handleTextFile.mock.calls.map(([file]) => file.name))
-      .toEqual(boundary === 'between-files' ? ['older.csv', 'newer.csv'] : ['newer.csv']);
-    expect(mocks.handleDropZoneDNAFile).not.toHaveBeenCalled();
+      .toEqual(boundary === 'between-files' ? ['older.csv', 'remaining.csv'] : boundary === 'header' ? [] : ['older.csv']);
+    if (boundary === 'header') expect(mocks.handleDropZoneDNAFile).toHaveBeenCalledExactlyOnceWith(older);
+    else expect(mocks.handleDropZoneDNAFile).not.toHaveBeenCalled();
+    await runInput([newer]);
+    expect(mocks.importModule.handleTextFile).toHaveBeenLastCalledWith(newer);
+    expect(importDispatch.busy).toBe(false);
   });
+});
+
+it('releases the picker lock when classification rejects', async () => {
+  mocks.isDropZoneImportRunning.mockImplementation(() => importDispatch.busy);
+  mocks.loadImportUI.mockResolvedValue(mocks.importModule);
+  mocks.importModule.classifyImportFiles.mockRejectedValueOnce(new Error('classification failed'));
+  await expect(runInput([makeFile('bad.csv')])).rejects.toThrow('classification failed');
+  expect(importDispatch.busy).toBe(false);
 });
