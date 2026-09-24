@@ -47,7 +47,7 @@
     "test:critical-coverage": "vitest run --config vitest.critical.config.js"
   },
   "devDependencies": {
-    "@cashu/cashu-ts": "4.9.0",
+    "@cashu/cashu-ts": "4.10.1",
     "@evolu/common": "8.7.0",
     "@evolu/web": "3.1.0",
     "@noble/curves": "2.2.0",
