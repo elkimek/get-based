@@ -286,6 +286,41 @@ describe('Google Health adapter and OAuth', () => {
     expect(new URL(sleepRelay.url).searchParams.get('filter')).toContain('sleep.interval.civil_end_time');
   });
 
+  it.each([
+    ['heart-rate', 14, [
+      ['2026-01-01', '2026-01-15'],
+      ['2026-01-15', '2026-01-29'],
+      ['2026-01-29', '2026-02-12'],
+      ['2026-02-12', '2026-02-26'],
+      ['2026-02-26', '2026-03-12'],
+      ['2026-03-12', '2026-03-26'],
+      ['2026-03-26', '2026-04-02'],
+    ]],
+    ['steps', 90, [
+      ['2026-01-01', '2026-04-01'],
+      ['2026-04-01', '2026-04-02'],
+    ]],
+  ])('keeps %s rollup requests within API duration limits across a 91-day range', async (type, limit, ranges) => {
+    globalThis.fetch = googleProxyFetch();
+    await fetchGoogleHealthDailyRange('access-secret', '2026-01-01', '2026-04-01');
+
+    const requests = globalThis.fetch.mock.calls
+      .map(([, init]) => JSON.parse(init.body))
+      .filter(relay => relay.url.endsWith(`/dataTypes/${type}/dataPoints:dailyRollUp`));
+
+    // End dates are exclusive: these exact boundaries cover every requested
+    // day once, including the final partial chunk and month transitions.
+    expect(requests.map(relay => relay.body.range)).toEqual(ranges.map(([start, end]) => ({
+      start: { date: _googleHealthInternals.civilDate(start) },
+      end: { date: _googleHealthInternals.civilDate(end) },
+    })));
+    for (const request of requests) {
+      expect(request.body.windowSizeDays).toBe(1);
+      expect(request.body.pageSize).toBe(limit);
+      expect(request.body.windowSizeDays * request.body.pageSize).toBeLessThanOrEqual(limit);
+    }
+  });
+
   it('reads account identity and chunks API ranges within Google limits', async () => {
     globalThis.fetch = googleProxyFetch();
     await expect(fetchGoogleHealthPersonalInfo('access-secret')).resolves.toEqual({

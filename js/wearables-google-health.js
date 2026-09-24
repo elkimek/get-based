@@ -122,9 +122,10 @@ function chunks(startDate, endDate, maximumDays) {
   return ranges;
 }
 
-async function fetchDailyRollups(type, accessToken, startDate, endDate, sourceFamily, maximumDays = 90) {
+async function fetchDailyRollups(type, accessToken, startDate, endDate, sourceFamily, maximumDays) {
+  const limitDays = maximumDays ?? (type === 'heart-rate' ? 14 : 90);
   const out = [];
-  for (const range of chunks(startDate, endDate, maximumDays)) {
+  for (const range of chunks(startDate, endDate, limitDays)) {
     let pageToken = '';
     do {
       const body = {
@@ -133,7 +134,7 @@ async function fetchDailyRollups(type, accessToken, startDate, endDate, sourceFa
           end: { date: civilDate(addDaysIso(range.end, 1)) },
         },
         windowSizeDays: 1,
-        pageSize: 10000,
+        pageSize: limitDays,
         dataSourceFamily: `users/me/dataSourceFamilies/${sourceFamily}`,
         ...(pageToken ? { pageToken } : {}),
       };
