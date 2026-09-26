@@ -40,9 +40,22 @@ export async function getOpenRouterBalance() {
 function openRouterMandatoryReasoningEffort(modelId) {
   const model = readStoredArray('labcharts-openrouter-models')
     .find(candidate => candidate?.id === modelId);
-  if (model?.reasoning?.mandatory !== true) return null;
-  const supported = Array.isArray(model.reasoning.supported_efforts)
-    ? model.reasoning.supported_efforts
+  const reasoning = model?.reasoning;
+  // Two OpenRouter-reported states both mean "this request will run with
+  // reasoning active whether or not a reasoning field is sent," and a caller
+  // asking for 'none' can't actually get it either way:
+  //   - mandatory: true       - reasoning can never be turned off.
+  //   - default_enabled: true - reasoning is on by default; verified live
+  //     for anthropic/claude-sonnet-5 (mandatory: false, default_enabled:
+  //     true, supported_efforts has no 'none'/off value at all) that
+  //     omitting the reasoning field does NOT disable it.
+  // Only the `mandatory` case was handled before, so a default-enabled-but-
+  // not-mandatory model (Sonnet 5) fell through to the "just omit the
+  // field" branch, which still left temperature unfixed - see the
+  // temperature note below.
+  if (reasoning?.mandatory !== true && reasoning?.default_enabled !== true) return null;
+  const supported = Array.isArray(reasoning.supported_efforts)
+    ? reasoning.supported_efforts
     : [];
   const effort = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max']
     .find(candidate => supported.includes(candidate));
