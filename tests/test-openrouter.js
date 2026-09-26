@@ -378,6 +378,60 @@ assert('Chat setup guide has delegated startOpenRouterOAuth action',
   chatOnboardingSrc.includes('data-chat-onboarding-action') &&
   chatOnboardingSrc.includes('start-openrouter-oauth'));
 
+// ─── 14. reasoningEffort 'none' sentinel is not sent as a literal effort ───
+// Regression test for a request that 404'd with OpenRouter's "No endpoints
+// found that can handle the requested parameters": jsonMode forces
+// `provider.require_parameters: true`, and the 'none' sentinel used by
+// callers (e.g. pdf-import.js) to mean "no reasoning field at all" used to
+// leak through as `reasoning: { effort: 'none' }` for any model that isn't
+// specifically flagged mandatory-reasoning — eliminating every endpoint that
+// doesn't declare reasoning support, i.e. most non-reasoning models.
+console.log('\n14. reasoningEffort "none" sentinel handling');
+{
+  const oldKey2 = localStorage.getItem('labcharts-openrouter-key');
+  await api.saveOpenRouterKey('sk-or-none-sentinel-test');
+  localStorage.removeItem('labcharts-openrouter-models'); // no mandatory-reasoning entries cached
+
+  const originalFetch = globalThis.fetch;
+  let capturedBody = null;
+  globalThis.fetch = async (_url, requestInit) => {
+    capturedBody = JSON.parse(requestInit.body);
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 1, completion_tokens: 1 },
+      }),
+    };
+  };
+  try {
+    await api.callOpenRouterAPI({
+      modelOverride: 'openai/gpt-4o-mini', // not flagged mandatory-reasoning
+      messages: [{ role: 'user', content: 'test' }],
+      jsonMode: true,
+      reasoningEffort: 'none',
+      temperature: 0,
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert('request captured', capturedBody !== null);
+  assert('reasoningEffort "none" does not leak into the request as `reasoning`',
+    !('reasoning' in (capturedBody || {})),
+    `reasoning=${JSON.stringify(capturedBody?.reasoning)}`);
+  assert('reasoningEffort "none" does not leak in as `reasoning_effort` either',
+    !('reasoning_effort' in (capturedBody || {})),
+    `reasoning_effort=${JSON.stringify(capturedBody?.reasoning_effort)}`);
+  assert('require_parameters is still set for jsonMode requests',
+    capturedBody?.provider?.require_parameters === true);
+
+  if (oldKey2) localStorage.setItem('labcharts-openrouter-key', oldKey2);
+  else localStorage.removeItem('labcharts-openrouter-key');
+  cryptoModule.updateKeyCache('labcharts-openrouter-key', oldKey2);
+}
+
 providerStorageRuntime.configureApiProviderStorageRuntimeDeps(previousProviderStorageRuntime);
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

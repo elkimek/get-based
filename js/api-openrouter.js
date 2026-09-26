@@ -52,13 +52,22 @@ function openRouterMandatoryReasoningEffort(modelId) {
 export async function callOpenRouterAPI(opts) {
   const key = getOpenRouterKey();
   const modelId = String(opts?.modelOverride || getOpenRouterModel());
-  const mandatoryReasoning = opts?.reasoningEffort === 'none'
+  const reasoningEffortNone = opts?.reasoningEffort === 'none';
+  const mandatoryReasoning = reasoningEffortNone
     ? openRouterMandatoryReasoningEffort(modelId)
     : null;
   let requestOpts = opts;
-  if (mandatoryReasoning) {
+  // 'none' is a caller-side sentinel meaning "no reasoning field at all," not
+  // a real OpenRouter effort tier. It must always be resolved away here —
+  // otherwise it survives as the literal string 'none' and gets sent as
+  // `reasoning: { effort: 'none' }`. Combined with `require_parameters: true`
+  // (set below whenever jsonMode is on), that eliminates every endpoint that
+  // doesn't declare `reasoning`/`reasoning_effort` support — which is most
+  // non-reasoning models, so structured requests 404 with "No endpoints
+  // found" regardless of which model is selected.
+  if (reasoningEffortNone) {
     requestOpts = { ...opts };
-    if (mandatoryReasoning.effort) requestOpts.reasoningEffort = mandatoryReasoning.effort;
+    if (mandatoryReasoning?.effort) requestOpts.reasoningEffort = mandatoryReasoning.effort;
     else delete requestOpts.reasoningEffort;
   }
   if (isAppExtensionAICredentialOwned('openrouter')) {
