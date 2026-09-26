@@ -378,6 +378,182 @@ assert('Chat setup guide has delegated startOpenRouterOAuth action',
   chatOnboardingSrc.includes('data-chat-onboarding-action') &&
   chatOnboardingSrc.includes('start-openrouter-oauth'));
 
+// ─── 14. reasoningEffort 'none' sentinel is not sent as a literal effort ───
+// Regression test for a request that 404'd with OpenRouter's "No endpoints
+// found that can handle the requested parameters": jsonMode forces
+// `provider.require_parameters: true`, and the 'none' sentinel used by
+// callers (e.g. pdf-import.js) to mean "no reasoning field at all" used to
+// leak through as `reasoning: { effort: 'none' }` for any model that isn't
+// specifically flagged mandatory-reasoning — eliminating every endpoint that
+// doesn't declare reasoning support, i.e. most non-reasoning models.
+console.log('\n14. reasoningEffort "none" sentinel handling');
+{
+  const oldKey2 = localStorage.getItem('labcharts-openrouter-key');
+  await api.saveOpenRouterKey('sk-or-none-sentinel-test');
+  localStorage.removeItem('labcharts-openrouter-models'); // no mandatory-reasoning entries cached
+
+  const originalFetch = globalThis.fetch;
+  let capturedBody = null;
+  globalThis.fetch = async (_url, requestInit) => {
+    capturedBody = JSON.parse(requestInit.body);
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 1, completion_tokens: 1 },
+      }),
+    };
+  };
+  try {
+    await api.callOpenRouterAPI({
+      modelOverride: 'openai/gpt-4o-mini', // not flagged mandatory-reasoning
+      messages: [{ role: 'user', content: 'test' }],
+      jsonMode: true,
+      reasoningEffort: 'none',
+      temperature: 0,
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert('request captured', capturedBody !== null);
+  assert('reasoningEffort "none" does not leak into the request as `reasoning`',
+    !('reasoning' in (capturedBody || {})),
+    `reasoning=${JSON.stringify(capturedBody?.reasoning)}`);
+  assert('reasoningEffort "none" does not leak in as `reasoning_effort` either',
+    !('reasoning_effort' in (capturedBody || {})),
+    `reasoning_effort=${JSON.stringify(capturedBody?.reasoning_effort)}`);
+  assert('require_parameters is still set for jsonMode requests',
+    capturedBody?.provider?.require_parameters === true);
+
+  if (oldKey2) localStorage.setItem('labcharts-openrouter-key', oldKey2);
+  else localStorage.removeItem('labcharts-openrouter-key');
+  cryptoModule.updateKeyCache('labcharts-openrouter-key', oldKey2);
+}
+
+// ─── 15. temperature dropped for mandatory-reasoning models ───
+// Regression test verified live against OpenRouter's real API for
+// anthropic/claude-sonnet-5: jsonMode + temperature: 0, with no reasoning
+// field, still 404s "No endpoints found" — models with always-on extended
+// thinking don't declare `temperature` in supported_parameters at all, so
+// require_parameters rejects every endpoint once temperature is present,
+// regardless of the reasoning leak fixed in section 14. pdf-import.js sends
+// a hardcoded temperature: 0 unconditionally, so this hits any
+// mandatory-reasoning model.
+console.log('\n15. temperature handling for mandatory-reasoning models');
+{
+  const oldKey3 = localStorage.getItem('labcharts-openrouter-key');
+  await api.saveOpenRouterKey('sk-or-temp-drop-test');
+  const MANDATORY_MODEL_ID = 'test/mandatory-reasoning-model';
+  localStorage.setItem('labcharts-openrouter-models', JSON.stringify([
+    { id: MANDATORY_MODEL_ID, reasoning: { mandatory: true, supported_efforts: ['high'] } },
+  ]));
+
+  const originalFetch = globalThis.fetch;
+  let capturedBody = null;
+  globalThis.fetch = async (_url, requestInit) => {
+    capturedBody = JSON.parse(requestInit.body);
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 1, completion_tokens: 1 },
+      }),
+    };
+  };
+  try {
+    await api.callOpenRouterAPI({
+      modelOverride: MANDATORY_MODEL_ID,
+      messages: [{ role: 'user', content: 'test' }],
+      jsonMode: true,
+      reasoningEffort: 'none',
+      temperature: 0,
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert('request captured', capturedBody !== null);
+  assert('mandatory model still gets a real reasoning effort',
+    capturedBody?.reasoning?.effort === 'high',
+    `reasoning=${JSON.stringify(capturedBody?.reasoning)}`);
+  assert('temperature is dropped for mandatory-reasoning models',
+    !('temperature' in (capturedBody || {})),
+    `temperature=${JSON.stringify(capturedBody?.temperature)}`);
+
+  localStorage.removeItem('labcharts-openrouter-models');
+  if (oldKey3) localStorage.setItem('labcharts-openrouter-key', oldKey3);
+  else localStorage.removeItem('labcharts-openrouter-key');
+  cryptoModule.updateKeyCache('labcharts-openrouter-key', oldKey3);
+}
+
+// ─── 16. default-enabled (non-mandatory) reasoning also forces a real effort ───
+// Regression test for the actual anthropic/claude-sonnet-5 shape, fetched
+// live from OpenRouter's /api/v1/models: { mandatory: false,
+// default_enabled: true, supported_efforts: ["max","xhigh","high","medium",
+// "low"] } — no 'none'/off value at all. Section 15's fixture only covered
+// mandatory: true (e.g. anthropic/claude-opus-5.5, which already worked).
+// Before this fix, a model with default_enabled but not mandatory fell
+// through to the "just omit reasoningEffort" branch, leaving temperature: 0
+// in the request - verified live to still 404 "No endpoints found" for
+// claude-sonnet-5 even with the reasoning leak (section 14) fixed.
+console.log('\n16. default-enabled (non-mandatory) reasoning handling');
+{
+  const oldKey4 = localStorage.getItem('labcharts-openrouter-key');
+  await api.saveOpenRouterKey('sk-or-default-enabled-test');
+  const SONNET5_LIKE_ID = 'test/default-enabled-reasoning-model';
+  localStorage.setItem('labcharts-openrouter-models', JSON.stringify([
+    {
+      id: SONNET5_LIKE_ID,
+      reasoning: {
+        mandatory: false,
+        default_enabled: true,
+        supported_efforts: ['max', 'xhigh', 'high', 'medium', 'low'],
+      },
+    },
+  ]));
+
+  const originalFetch = globalThis.fetch;
+  let capturedBody = null;
+  globalThis.fetch = async (_url, requestInit) => {
+    capturedBody = JSON.parse(requestInit.body);
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 1, completion_tokens: 1 },
+      }),
+    };
+  };
+  try {
+    await api.callOpenRouterAPI({
+      modelOverride: SONNET5_LIKE_ID,
+      messages: [{ role: 'user', content: 'test' }],
+      jsonMode: true,
+      reasoningEffort: 'none',
+      temperature: 0,
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert('request captured', capturedBody !== null);
+  assert('default-enabled model gets a real reasoning effort, not "none"',
+    capturedBody?.reasoning?.effort === 'low',
+    `reasoning=${JSON.stringify(capturedBody?.reasoning)}`);
+  assert('temperature is dropped for default-enabled reasoning models',
+    !('temperature' in (capturedBody || {})),
+    `temperature=${JSON.stringify(capturedBody?.temperature)}`);
+
+  localStorage.removeItem('labcharts-openrouter-models');
+  if (oldKey4) localStorage.setItem('labcharts-openrouter-key', oldKey4);
+  else localStorage.removeItem('labcharts-openrouter-key');
+  cryptoModule.updateKeyCache('labcharts-openrouter-key', oldKey4);
+}
+
 providerStorageRuntime.configureApiProviderStorageRuntimeDeps(previousProviderStorageRuntime);
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);
