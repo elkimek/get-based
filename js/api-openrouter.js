@@ -70,31 +70,34 @@ export async function callOpenRouterAPI(opts) {
     ? openRouterMandatoryReasoningEffort(modelId)
     : null;
   let requestOpts = opts;
-  // 'none' is a caller-side sentinel meaning "no reasoning field at all," not
-  // a real OpenRouter effort tier. It must always be resolved away here —
-  // otherwise it survives as the literal string 'none' and gets sent as
-  // `reasoning: { effort: 'none' }`. Combined with `require_parameters: true`
-  // (set below whenever jsonMode is on), that eliminates every endpoint that
-  // doesn't declare `reasoning`/`reasoning_effort` support — which is most
-  // non-reasoning models, so structured requests 404 with "No endpoints
-  // found" regardless of which model is selected.
-  if (reasoningEffortNone) {
+  if (reasoningEffortNone && mandatoryReasoning?.effort) {
+    // Models that can't actually drop reasoning (mandatory, or default-on
+    // with no off value - see openRouterMandatoryReasoningEffort) need a
+    // real supported effort substituted regardless of jsonMode - an
+    // existing test already covers this for a plain chat call.
+    requestOpts = { ...opts, reasoningEffort: mandatoryReasoning.effort };
+    // These models also don't expose a tunable temperature — Anthropic's
+    // endpoints for them don't declare `temperature` in supported_parameters
+    // at all. Verified live: with require_parameters true, jsonMode +
+    // temperature: 0 alone 404s "No endpoints found" for
+    // anthropic/claude-sonnet-5; dropping temperature (or dropping
+    // require_parameters) succeeds. Callers like pdf-import.js send a
+    // hardcoded temperature: 0 for deterministic extraction, which is
+    // meaningless for these models anyway since it's never honored.
+    delete requestOpts.temperature;
+  } else if (reasoningEffortNone && opts?.jsonMode) {
+    // 'none' is a caller-side sentinel meaning "no reasoning field at all,"
+    // not a real OpenRouter effort tier. For structured (jsonMode) requests
+    // it must be resolved away here rather than left to reach the server -
+    // jsonMode sets `provider.require_parameters: true` below, which turns
+    // an unsupported parameter into an unrecoverable 404 "No endpoints
+    // found" from OpenRouter's routing layer, not the 400/422 that
+    // reasoningControlRejected (api-openai-compatible.js) can retry past.
+    // Plain chat requests (no jsonMode) keep relying on that existing
+    // 400-driven retry for the same 'none' leak — an existing test expects
+    // exactly that recovery path, so it's left alone here.
     requestOpts = { ...opts };
-    if (mandatoryReasoning?.effort) {
-      requestOpts.reasoningEffort = mandatoryReasoning.effort;
-      // Models with always-on extended thinking (mandatory reasoning) don't
-      // expose a tunable temperature — Anthropic's endpoints for these
-      // don't declare `temperature` in supported_parameters at all.
-      // Verified live: with require_parameters true, jsonMode +
-      // temperature: 0 alone 404s "No endpoints found" for
-      // anthropic/claude-sonnet-5; dropping temperature (or dropping
-      // require_parameters) succeeds. Callers like pdf-import.js send a
-      // hardcoded temperature: 0 for deterministic extraction, which is
-      // meaningless for these models anyway since it's never honored.
-      delete requestOpts.temperature;
-    } else {
-      delete requestOpts.reasoningEffort;
-    }
+    delete requestOpts.reasoningEffort;
   }
   if (isAppExtensionAICredentialOwned('openrouter')) {
     const authorized = await authorizeAppExtensionAIRequest({
