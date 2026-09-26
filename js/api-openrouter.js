@@ -67,8 +67,21 @@ export async function callOpenRouterAPI(opts) {
   // found" regardless of which model is selected.
   if (reasoningEffortNone) {
     requestOpts = { ...opts };
-    if (mandatoryReasoning?.effort) requestOpts.reasoningEffort = mandatoryReasoning.effort;
-    else delete requestOpts.reasoningEffort;
+    if (mandatoryReasoning?.effort) {
+      requestOpts.reasoningEffort = mandatoryReasoning.effort;
+      // Models with always-on extended thinking (mandatory reasoning) don't
+      // expose a tunable temperature — Anthropic's endpoints for these
+      // don't declare `temperature` in supported_parameters at all.
+      // Verified live: with require_parameters true, jsonMode +
+      // temperature: 0 alone 404s "No endpoints found" for
+      // anthropic/claude-sonnet-5; dropping temperature (or dropping
+      // require_parameters) succeeds. Callers like pdf-import.js send a
+      // hardcoded temperature: 0 for deterministic extraction, which is
+      // meaningless for these models anyway since it's never honored.
+      delete requestOpts.temperature;
+    } else {
+      delete requestOpts.reasoningEffort;
+    }
   }
   if (isAppExtensionAICredentialOwned('openrouter')) {
     const authorized = await authorizeAppExtensionAIRequest({

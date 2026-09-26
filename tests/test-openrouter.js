@@ -432,6 +432,63 @@ console.log('\n14. reasoningEffort "none" sentinel handling');
   cryptoModule.updateKeyCache('labcharts-openrouter-key', oldKey2);
 }
 
+// ─── 15. temperature dropped for mandatory-reasoning models ───
+// Regression test verified live against OpenRouter's real API for
+// anthropic/claude-sonnet-5: jsonMode + temperature: 0, with no reasoning
+// field, still 404s "No endpoints found" — models with always-on extended
+// thinking don't declare `temperature` in supported_parameters at all, so
+// require_parameters rejects every endpoint once temperature is present,
+// regardless of the reasoning leak fixed in section 14. pdf-import.js sends
+// a hardcoded temperature: 0 unconditionally, so this hits any
+// mandatory-reasoning model.
+console.log('\n15. temperature handling for mandatory-reasoning models');
+{
+  const oldKey3 = localStorage.getItem('labcharts-openrouter-key');
+  await api.saveOpenRouterKey('sk-or-temp-drop-test');
+  const MANDATORY_MODEL_ID = 'test/mandatory-reasoning-model';
+  localStorage.setItem('labcharts-openrouter-models', JSON.stringify([
+    { id: MANDATORY_MODEL_ID, reasoning: { mandatory: true, supported_efforts: ['high'] } },
+  ]));
+
+  const originalFetch = globalThis.fetch;
+  let capturedBody = null;
+  globalThis.fetch = async (_url, requestInit) => {
+    capturedBody = JSON.parse(requestInit.body);
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 1, completion_tokens: 1 },
+      }),
+    };
+  };
+  try {
+    await api.callOpenRouterAPI({
+      modelOverride: MANDATORY_MODEL_ID,
+      messages: [{ role: 'user', content: 'test' }],
+      jsonMode: true,
+      reasoningEffort: 'none',
+      temperature: 0,
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert('request captured', capturedBody !== null);
+  assert('mandatory model still gets a real reasoning effort',
+    capturedBody?.reasoning?.effort === 'high',
+    `reasoning=${JSON.stringify(capturedBody?.reasoning)}`);
+  assert('temperature is dropped for mandatory-reasoning models',
+    !('temperature' in (capturedBody || {})),
+    `temperature=${JSON.stringify(capturedBody?.temperature)}`);
+
+  localStorage.removeItem('labcharts-openrouter-models');
+  if (oldKey3) localStorage.setItem('labcharts-openrouter-key', oldKey3);
+  else localStorage.removeItem('labcharts-openrouter-key');
+  cryptoModule.updateKeyCache('labcharts-openrouter-key', oldKey3);
+}
+
 providerStorageRuntime.configureApiProviderStorageRuntimeDeps(previousProviderStorageRuntime);
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);
