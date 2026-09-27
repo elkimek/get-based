@@ -10,7 +10,6 @@ const METADATA_TTL_MS = 60000;
 export function getOpenRouterRequestModel(modelId, cachedModels) {
   const fresh = refreshedModels.get(modelId);
   if (fresh && fresh.expires > Date.now()) return fresh.model;
-  refreshedModels.delete(modelId);
   return cachedModels.find(model => model?.id === modelId);
 }
 
@@ -24,9 +23,11 @@ export function shapeOpenRouterRequest(opts, model) {
     delete shaped.reasoningEffort;
   } else if (shaped.reasoningEffort === 'none'
       && (reasoning?.mandatory === true || (efforts && !efforts.includes('none')))) {
-    // Default-on is not mandatory. Preserve a supported Off selection; use
-    // the least supported effort only when this model cannot accept `none`.
-    const effort = EFFORTS.find(value => efforts?.includes(value));
+    // An effort allowlist without `none` does not make thinking mandatory.
+    // Optional models (e.g. Sonnet 5) use the separate enabled switch.
+    const optional = reasoning?.mandatory === false;
+    const effort = optional ? 'none' : EFFORTS.find(value => efforts?.includes(value));
+    if (optional) shaped.reasoningEnabled = false;
     if (effort) shaped.reasoningEffort = effort;
     else delete shaped.reasoningEffort;
   }
@@ -64,7 +65,8 @@ function reshapeBody(body, model) {
   if (shaped.temperature === undefined) delete next.temperature;
   if (body.reasoning && typeof body.reasoning === 'object') {
     next.reasoning = { ...body.reasoning };
-    if (shaped.reasoningEffort === undefined) delete next.reasoning.effort;
+    if (shaped.reasoningEnabled === false) next.reasoning.enabled = false;
+    if (shaped.reasoningEnabled === false || shaped.reasoningEffort === undefined) delete next.reasoning.effort;
     else next.reasoning.effort = shaped.reasoningEffort;
     if (!Object.keys(next.reasoning).length) delete next.reasoning;
   }
@@ -72,7 +74,6 @@ function reshapeBody(body, model) {
 }
 
 export function createOpenRouterRequestFetch(opts) {
-  let refreshed = false;
   let recoveryModel = null;
   return async (url, init) => {
     const send = request => {
@@ -88,17 +89,16 @@ export function createOpenRouterRequestFetch(opts) {
     const response = await send(init);
     // Only this routing error establishes that no inference ran. Never
     // weaken schema/provider/privacy restrictions or retry arbitrary 404s.
-    if (refreshed || response.status !== 404
+    if (recoveryModel || response.status !== 404
         || !/No endpoints found that can handle the requested parameters/i.test(await response.clone().text())) {
       return response;
     }
-    refreshed = true;
     const body = JSON.parse(init.body);
     const model = await refreshRequestModel(body.model, init.signal);
     if (!model) return response;
     const next = reshapeBody(body, model);
     if (JSON.stringify(next) === JSON.stringify(body)) return response;
     recoveryModel = model;
-    return send({ ...init, body: JSON.stringify(next) });
+    return send(init);
   };
 }

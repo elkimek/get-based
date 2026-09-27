@@ -521,8 +521,8 @@ console.log('\n16. default-enabled (non-mandatory) reasoning handling');
   }
 
   assert('request captured', capturedBody !== null);
-  assert('default-enabled model gets a real reasoning effort, not "none"',
-    capturedBody?.reasoning?.effort === 'low',
+  assert('optional reasoning is explicitly disabled without an unsupported effort',
+    capturedBody?.reasoning?.enabled === false && !('effort' in capturedBody.reasoning),
     `reasoning=${JSON.stringify(capturedBody?.reasoning)}`);
   assert('temperature is dropped for default-enabled reasoning models',
     !('temperature' in (capturedBody || {})),

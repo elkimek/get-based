@@ -38,7 +38,7 @@ const cases = [
   ['non-reasoning', { supported_parameters: ['temperature', 'response_format'] }, undefined, 0],
   ['Sonnet-style', { supported_parameters: ['reasoning', 'response_format'], reasoning: {
     mandatory: false, default_enabled: true, supported_efforts: ['max', 'xhigh', 'high', 'medium', 'low'],
-  } }, 'low', undefined],
+  } }, false, undefined],
   ['Grok-style Off', { supported_parameters: params, reasoning: {
     mandatory: false, default_enabled: true, supported_efforts: ['high', 'medium', 'low', 'none'],
   } }, 'none', 0],
@@ -66,7 +66,7 @@ describe.each([false, true])('OpenRouter jsonMode=%s', jsonMode => {
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     const body = bodyAt(0);
     if (effort === undefined) expect(body).not.toHaveProperty('reasoning');
-    else expect(body.reasoning).toEqual({ effort });
+    else expect(body.reasoning).toEqual(effort === false ? { enabled: false } : { effort });
     expect(body).not.toHaveProperty('reasoning_effort');
     if (temperature === undefined) expect(body).not.toHaveProperty('temperature');
     else expect(body.temperature).toBe(temperature);
@@ -122,7 +122,7 @@ it.each(['missing', 'stale', 'malformed'])('refreshes %s metadata after the spec
   expect(lookup[1]).not.toHaveProperty('body');
   expect(lookup[1]).not.toHaveProperty('headers');
   const before = bodyAt(0), after = bodyAt(2);
-  expect(after.reasoning).toEqual({ effort: 'low' });
+  expect(after.reasoning).toEqual({ enabled: false });
   expect(after).not.toHaveProperty('temperature');
   expect(after.provider).toEqual(before.provider);
   expect(after.provider).toMatchObject({ require_parameters: true, zdr: true, only: ['test-provider'], allow_fallbacks: false });
@@ -133,7 +133,7 @@ it.each(['missing', 'stale', 'malformed'])('refreshes %s metadata after the spec
   // Reuse fresh capabilities without another failed inference attempt.
   await callOpenRouterAPI(request(id));
   expect(globalThis.fetch).toHaveBeenCalledTimes(4);
-  expect(bodyAt(3).reasoning).toEqual({ effort: 'low' });
+  expect(bodyAt(3).reasoning).toEqual({ enabled: false });
 });
 
 it('refreshes a non-reasoning model without discarding temperature', async () => {

@@ -4,7 +4,7 @@
     "startupJavaScriptFiles": 2,
     "startupDecodedBytes": 1264000,
     "outputJavaScriptFiles": 166,
-    "outputDecodedBytes": 5385000
+    "outputDecodedBytes": 5385500
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -81,7 +81,7 @@
     "chatReliabilityMeasuredBaseCommit": "1ab14cc2e9ae326596a038a3b131362763cf07a6",
     "chatReliabilityReviewOutputDecodedBytes": 5383517,
     "openRouterCapabilityRecoveryOutputJavaScriptFiles": 166,
-    "openRouterCapabilityRecoveryReason": "One shared lazy request helper avoids duplicating recovery in normal and retry provider modules; startup and byte limits unchanged."
+    "openRouterCapabilityRecoveryReason": "One shared lazy helper avoids duplicated recovery; allow 500 additional output bytes for explicit optional-reasoning control. Startup limits unchanged."
   },
   "referenceCommit": "331112b1",
   "measuredAt": "2026-09-22"

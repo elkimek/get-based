@@ -65,7 +65,7 @@ for (const coldCache of [false, true]) {
     expect(bodies.at(-2).stream).toBe(true);
     expect(bodies.at(-1)).not.toHaveProperty('stream');
     for (const body of bodies.slice(coldCache ? 1 : 0)) {
-      expect(body.reasoning).toEqual({ effort: 'low' });
+      expect(body.reasoning).toEqual({ enabled: false });
       expect(body).not.toHaveProperty('temperature');
       expect(body.provider.require_parameters).toBe(true);
       expect(body.response_format.type).toBe('json_schema');
