@@ -3,7 +3,7 @@
   "maximums": {
     "startupJavaScriptFiles": 2,
     "startupDecodedBytes": 1264000,
-    "outputJavaScriptFiles": 165,
+    "outputJavaScriptFiles": 166,
     "outputDecodedBytes": 5385000
   },
   "reference": {
@@ -79,7 +79,9 @@
     "persistenceHardeningMeasuredCommit": "3b2aa362ff761e9b6fb0c208ebc3f3d595a92622",
     "chatReliabilityOutputDecodedBytes": 5382509,
     "chatReliabilityMeasuredBaseCommit": "1ab14cc2e9ae326596a038a3b131362763cf07a6",
-    "chatReliabilityReviewOutputDecodedBytes": 5383517
+    "chatReliabilityReviewOutputDecodedBytes": 5383517,
+    "openRouterCapabilityRecoveryOutputJavaScriptFiles": 166,
+    "openRouterCapabilityRecoveryReason": "One shared lazy request helper avoids duplicating recovery in normal and retry provider modules; startup and byte limits unchanged."
   },
   "referenceCommit": "331112b1",
   "measuredAt": "2026-09-22"

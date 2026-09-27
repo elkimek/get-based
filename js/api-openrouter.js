@@ -8,6 +8,7 @@ import {
 } from './api-provider-storage.js';
 import { getApiLocationOriginRuntime } from './api-runtime.js';
 import { callOpenAICompatibleAPI } from './api-openai-compatible.js';
+import { createOpenRouterRequestFetch, getOpenRouterRequestModel, shapeOpenRouterRequest } from './api-openrouter-request.js';
 import {
   authorizeAppExtensionAIRequest,
   callAppExtensionAIProvider,
@@ -37,68 +38,11 @@ export async function getOpenRouterBalance() {
   }
 }
 
-function openRouterMandatoryReasoningEffort(modelId) {
-  const model = readStoredArray('labcharts-openrouter-models')
-    .find(candidate => candidate?.id === modelId);
-  const reasoning = model?.reasoning;
-  // Two OpenRouter-reported states both mean "this request will run with
-  // reasoning active whether or not a reasoning field is sent," and a caller
-  // asking for 'none' can't actually get it either way:
-  //   - mandatory: true       - reasoning can never be turned off.
-  //   - default_enabled: true - reasoning is on by default; verified live
-  //     for anthropic/claude-sonnet-5 (mandatory: false, default_enabled:
-  //     true, supported_efforts has no 'none'/off value at all) that
-  //     omitting the reasoning field does NOT disable it.
-  // Only the `mandatory` case was handled before, so a default-enabled-but-
-  // not-mandatory model (Sonnet 5) fell through to the "just omit the
-  // field" branch, which still left temperature unfixed - see the
-  // temperature note below.
-  if (reasoning?.mandatory !== true && reasoning?.default_enabled !== true) return null;
-  const supported = Array.isArray(reasoning.supported_efforts)
-    ? reasoning.supported_efforts
-    : [];
-  const effort = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max']
-    .find(candidate => supported.includes(candidate));
-  return { effort };
-}
-
 export async function callOpenRouterAPI(opts) {
   const key = getOpenRouterKey();
   const modelId = String(opts?.modelOverride || getOpenRouterModel());
-  const reasoningEffortNone = opts?.reasoningEffort === 'none';
-  const mandatoryReasoning = reasoningEffortNone
-    ? openRouterMandatoryReasoningEffort(modelId)
-    : null;
-  let requestOpts = opts;
-  if (reasoningEffortNone && mandatoryReasoning?.effort) {
-    // Models that can't actually drop reasoning (mandatory, or default-on
-    // with no off value - see openRouterMandatoryReasoningEffort) need a
-    // real supported effort substituted regardless of jsonMode - an
-    // existing test already covers this for a plain chat call.
-    requestOpts = { ...opts, reasoningEffort: mandatoryReasoning.effort };
-    // These models also don't expose a tunable temperature — Anthropic's
-    // endpoints for them don't declare `temperature` in supported_parameters
-    // at all. Verified live: with require_parameters true, jsonMode +
-    // temperature: 0 alone 404s "No endpoints found" for
-    // anthropic/claude-sonnet-5; dropping temperature (or dropping
-    // require_parameters) succeeds. Callers like pdf-import.js send a
-    // hardcoded temperature: 0 for deterministic extraction, which is
-    // meaningless for these models anyway since it's never honored.
-    delete requestOpts.temperature;
-  } else if (reasoningEffortNone && opts?.jsonMode) {
-    // 'none' is a caller-side sentinel meaning "no reasoning field at all,"
-    // not a real OpenRouter effort tier. For structured (jsonMode) requests
-    // it must be resolved away here rather than left to reach the server -
-    // jsonMode sets `provider.require_parameters: true` below, which turns
-    // an unsupported parameter into an unrecoverable 404 "No endpoints
-    // found" from OpenRouter's routing layer, not the 400/422 that
-    // reasoningControlRejected (api-openai-compatible.js) can retry past.
-    // Plain chat requests (no jsonMode) keep relying on that existing
-    // 400-driven retry for the same 'none' leak — an existing test expects
-    // exactly that recovery path, so it's left alone here.
-    requestOpts = { ...opts };
-    delete requestOpts.reasoningEffort;
-  }
+  const model = getOpenRouterRequestModel(modelId, readStoredArray('labcharts-openrouter-models'));
+  const requestOpts = shapeOpenRouterRequest(opts, model);
   if (isAppExtensionAICredentialOwned('openrouter')) {
     const authorized = await authorizeAppExtensionAIRequest({
       provider: 'openrouter',
@@ -147,7 +91,7 @@ export async function callOpenRouterAPI(opts) {
       'OpenRouter',
       transportOpts,
       { 'HTTP-Referer': getApiLocationOriginRuntime(), 'X-Title': 'getbased' },
-      { extraBody }
+      { extraBody, fetchImpl: createOpenRouterRequestFetch(requestOpts) }
     );
   } catch (error) {
     const mapped = mapAppExtensionAIProviderError({ provider: 'openrouter', error });

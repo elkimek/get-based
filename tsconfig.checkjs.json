@@ -43,6 +43,7 @@
     "js/local-ai-lifecycle.js",
     "js/api-venice.js",
     "js/api-openrouter.js",
+    "js/api-openrouter-request.js",
     "js/api-openrouter-oauth.js",
     "js/api-routstr.js",
     "js/routstr-model-cache.js",

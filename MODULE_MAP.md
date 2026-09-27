@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 788 |
-| Internal import edges | 3333 |
+| Modules | 789 |
+| Internal import edges | 3335 |
 | Dynamic internal edges | 115 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -138,14 +138,15 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>api</code> family — 14 modules</summary>
+<details><summary><code>api</code> family — 15 modules</summary>
 
 - [`js/api-custom.js`](js/api-custom.js) → [`js/api-models.js`](js/api-models.js), [`js/api-openai-compatible.js`](js/api-openai-compatible.js), [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/caught-error.js`](js/caught-error.js)
 - [`js/api-local.js`](js/api-local.js) → [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/local-ai-discovery.js`](js/local-ai-discovery.js), [`js/local-ai-lifecycle.js`](js/local-ai-lifecycle.js), [`js/local-ai-provider-registry.js`](js/local-ai-provider-registry.js)
 - [`js/api-models.js`](js/api-models.js) → [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/caught-error.js`](js/caught-error.js), [`js/local-ai-provider-shared.js`](js/local-ai-provider-shared.js), [`js/schema.js`](js/schema.js)
 - [`js/api-openai-compatible.js`](js/api-openai-compatible.js) → [`js/api-models.js`](js/api-models.js), [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/api-runtime.js`](js/api-runtime.js), [`js/api-transport.js`](js/api-transport.js), [`js/caught-error.js`](js/caught-error.js), [`js/local-ai-provider-shared.js`](js/local-ai-provider-shared.js), [`js/utils.js`](js/utils.js)
 - [`js/api-openrouter-oauth.js`](js/api-openrouter-oauth.js) → [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/api-runtime.js`](js/api-runtime.js)
-- [`js/api-openrouter.js`](js/api-openrouter.js) → [`js/api-openai-compatible.js`](js/api-openai-compatible.js), [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/api-runtime.js`](js/api-runtime.js), [`js/app-extension-runtime.js`](js/app-extension-runtime.js)
+- [`js/api-openrouter-request.js`](js/api-openrouter-request.js) → [`js/api-transport.js`](js/api-transport.js)
+- [`js/api-openrouter.js`](js/api-openrouter.js) → [`js/api-openai-compatible.js`](js/api-openai-compatible.js), [`js/api-openrouter-request.js`](js/api-openrouter-request.js), [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/api-runtime.js`](js/api-runtime.js), [`js/app-extension-runtime.js`](js/app-extension-runtime.js)
 - [`js/api-ppq.js`](js/api-ppq.js) → [`js/api-models.js`](js/api-models.js), [`js/api-openai-compatible.js`](js/api-openai-compatible.js), [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/caught-error.js`](js/caught-error.js)
 - [`js/api-provider-storage-runtime.js`](js/api-provider-storage-runtime.js) → [`js/chat-runtime.js`](js/chat-runtime.js)
 - [`js/api-provider-storage.js`](js/api-provider-storage.js) → [`js/api-provider-storage-runtime.js`](js/api-provider-storage-runtime.js), [`js/app-extension-runtime.js`](js/app-extension-runtime.js), [`js/crypto-key-cache.js`](js/crypto-key-cache.js), [`js/routstr-session.js`](js/routstr-session.js)

@@ -98,7 +98,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/local-ai-provider-registry.js',
   '/js/local-ai-lifecycle.js',
   '/js/api-venice.js',
-  '/js/api-openrouter.js',
+  '/js/api-openrouter.js', '/js/api-openrouter-request.js',
   '/js/api-openrouter-oauth.js',
   '/js/api-routstr.js',
   '/js/routstr-model-cache.js',
