@@ -95,7 +95,8 @@ export async function callOpenRouterAPI(opts) {
       { extraBody, fetchImpl }
     );
     if (fetchImpl.temperatureControlFallback) {
-      result.diagnostics = { ...result.diagnostics, temperatureControlFallback: true };
+      result.diagnostics = { structuredOutputFallback: false, reasoningControlFallback: false,
+        ...result.diagnostics, temperatureControlFallback: true };
     }
     return result;
   } catch (error) {

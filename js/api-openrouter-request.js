@@ -26,7 +26,8 @@ export function shapeOpenRouterRequest(opts, model) {
       && (reasoning?.mandatory === true || (efforts && !efforts.includes('none')))) {
     // An effort allowlist without `none` does not make thinking mandatory.
     // Optional models (e.g. Sonnet 5) use the separate enabled switch.
-    const optional = reasoning?.mandatory === false;
+    // Only an explicit mandatory flag justifies overriding an Off selection.
+    const optional = reasoning?.mandatory !== true;
     const effort = optional ? 'none' : EFFORTS.find(value => efforts?.includes(value));
     if (optional) shaped.reasoningEnabled = false;
     else delete shaped.reasoningEnabled;

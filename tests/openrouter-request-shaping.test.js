@@ -50,6 +50,7 @@ const cases = [
   ['mandatory null efforts', { supported_parameters: params, reasoning: { mandatory: true, supported_efforts: null } }, undefined, 0],
   ['optional null efforts', { supported_parameters: params, reasoning: { default_enabled: true, supported_efforts: null } }, 'none', 0],
   ['optional no efforts', { supported_parameters: params, reasoning: { default_enabled: true } }, 'none', 0],
+  ['unknown mandatory with limited efforts', { supported_parameters: params, reasoning: { supported_efforts: ['high', 'low'] } }, false, 0],
   ['default-off accepts Off', { supported_parameters: params, reasoning: { default_enabled: false, supported_efforts: ['low', 'none'] } }, 'none', 0],
   ['mandatory overrides conflicting Off', { supported_parameters: params, reasoning: { mandatory: true, supported_efforts: ['low', 'none'] } }, 'low', 0],
   ['unknown parameters', { reasoning: { mandatory: true, supported_efforts: ['high'] } }, 'high', 0],
@@ -254,6 +255,21 @@ it('keeps endpoint fallback through a subsequent schema validation retry', async
   }
 });
 
+it('keeps Off when a metadata refresh omits the mandatory flag', async () => {
+  const id = 'test/off-refresh-unknown-mandatory';
+  const reasoning = { supported_efforts: ['high', 'low'] };
+  localStorage.setItem('labcharts-openrouter-models', JSON.stringify([{ id, supported_parameters: params,
+    reasoning: { ...reasoning, mandatory: false } }]));
+  globalThis.fetch.mockReset().mockResolvedValueOnce(routingError())
+    .mockResolvedValueOnce(catalogResponse([{ id, supported_parameters: params, reasoning }]))
+    .mockResolvedValueOnce(response());
+  await callOpenRouterAPI(request(id));
+  expect(globalThis.fetch).toHaveBeenCalledTimes(3);
+  expect(bodyAt(0).reasoning).toEqual({ enabled: false });
+  expect(bodyAt(2).reasoning).toEqual({ enabled: false });
+  expect(bodyAt(2)).not.toHaveProperty('temperature');
+});
+
 it('bounds routing recovery to one changed retry', async () => {
   const id = 'test/bounded-retry';
   globalThis.fetch.mockReset().mockResolvedValueOnce(routingError())
@@ -342,7 +358,7 @@ it('keeps refreshed capabilities through subsequent structured-output validation
   const id = 'test/refresh-then-schema-fallback';
   globalThis.fetch.mockReset().mockResolvedValueOnce(routingError())
     .mockResolvedValueOnce(catalogResponse([{ id, supported_parameters: ['reasoning', 'response_format'],
-      reasoning: { supported_efforts: ['low', 'high'] } }]))
+      reasoning: { mandatory: true, supported_efforts: ['low', 'high'] } }]))
     .mockResolvedValueOnce(response(400, 'response_format json_schema unsupported'))
     .mockResolvedValueOnce(response());
   const result = await callOpenRouterAPI(request(id));
