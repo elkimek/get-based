@@ -81,6 +81,12 @@ for (const model of [sonnet, gemini]) {
 }
 
 test('chat Off selection reaches OpenRouter unchanged for a default-on model', async ({ page }) => {
+  // This exercises a returning user's picker; the delayed welcome tour would
+  // otherwise race the click and cover the controls on slower CI runners.
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-default-emptyTour', 'completed');
+    localStorage.setItem('labcharts-default-tour', 'completed');
+  });
   let outgoing;
   await page.route('https://openrouter.ai/api/v1/chat/completions', async route => {
     outgoing = route.request().postDataJSON();
