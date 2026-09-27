@@ -21,13 +21,15 @@ export function shapeOpenRouterRequest(opts, model) {
   if (parameters && !parameters.includes('temperature')) delete shaped.temperature;
   if (parameters && !parameters.includes('reasoning') && !parameters.includes('reasoning_effort')) {
     delete shaped.reasoningEffort;
-  } else if (shaped.reasoningEffort === 'none'
+    delete shaped.reasoningEnabled;
+  } else if ((shaped.reasoningEffort === 'none' || shaped.reasoningEnabled === false)
       && (reasoning?.mandatory === true || (efforts && !efforts.includes('none')))) {
     // An effort allowlist without `none` does not make thinking mandatory.
     // Optional models (e.g. Sonnet 5) use the separate enabled switch.
     const optional = reasoning?.mandatory === false;
     const effort = optional ? 'none' : EFFORTS.find(value => efforts?.includes(value));
     if (optional) shaped.reasoningEnabled = false;
+    else delete shaped.reasoningEnabled;
     if (effort) shaped.reasoningEffort = effort;
     else delete shaped.reasoningEffort;
   }
@@ -59,13 +61,15 @@ async function refreshRequestModel(modelId, signal) {
 function reshapeBody(body, model) {
   const shaped = shapeOpenRouterRequest({
     reasoningEffort: body.reasoning?.effort,
+    reasoningEnabled: body.reasoning?.enabled,
     temperature: body.temperature,
   }, model);
   const next = { ...body };
   if (shaped.temperature === undefined) delete next.temperature;
   if (body.reasoning && typeof body.reasoning === 'object') {
     next.reasoning = { ...body.reasoning };
-    if (shaped.reasoningEnabled === false) next.reasoning.enabled = false;
+    if (shaped.reasoningEnabled === undefined) delete next.reasoning.enabled;
+    else next.reasoning.enabled = shaped.reasoningEnabled;
     if (shaped.reasoningEnabled === false || shaped.reasoningEffort === undefined) delete next.reasoning.effort;
     else next.reasoning.effort = shaped.reasoningEffort;
     if (!Object.keys(next.reasoning).length) delete next.reasoning;
@@ -106,10 +110,10 @@ export function createOpenRouterRequestFetch(opts) {
     recoveryModel = model;
     if (JSON.stringify(next) !== JSON.stringify(body)) response = await send(init);
     // The catalog is a union across providers: Gemini can advertise temperature
-    // while the eligible Vertex endpoints do not support it. For structured
-    // extraction, retry once with default sampling, keeping the schema,
+    // while the eligible Vertex endpoints do not support it. Retry both chat
+    // and structured requests once with default sampling, keeping the schema,
     // reasoning, token limit and all provider/privacy restrictions unchanged.
-    if (opts.jsonMode && next.temperature !== undefined && await routingRejected(response)) {
+    if (next.temperature !== undefined && await routingRejected(response)) {
       requestFetch.temperatureControlFallback = true;
       return send(init);
     }

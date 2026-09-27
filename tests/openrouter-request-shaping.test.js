@@ -178,8 +178,8 @@ it.each(['unchanged', 'missing', 'failed', 'invalid-json', 'network'])('preserve
   expect(globalThis.fetch).toHaveBeenCalledTimes(2);
 });
 
-it.each([false, true])('recovers endpoint-specific temperature rejection with cold cache=%s', async coldCache => {
-  const id = `test/vertex-temperature-${coldCache}`;
+it.each([[false, false], [false, true], [true, false], [true, true]])('recovers endpoint-specific temperature rejection with cold cache=%s, jsonMode=%s', async (coldCache, jsonMode) => {
+  const id = `test/vertex-temperature-${coldCache}-${jsonMode}`;
   const model = { id, supported_parameters: params, reasoning: { mandatory: true, supported_efforts: ['high', 'medium', 'low'] } };
   if (!coldCache) localStorage.setItem('labcharts-openrouter-models', JSON.stringify([model]));
   configureAppExtension({ id: 'restricted-routing', ai: { getRequestOptions: () => ({
@@ -190,7 +190,7 @@ it.each([false, true])('recovers endpoint-specific temperature rejection with co
     const body = JSON.parse(init.body);
     return body.temperature !== undefined || body.reasoning?.effort === 'none' ? routingError() : response();
   });
-  const result = await callOpenRouterAPI(request(id, { maxTokens: 16384 }));
+  const result = await callOpenRouterAPI(request(id, { maxTokens: 16384, jsonMode }));
   expect(result.diagnostics.temperatureControlFallback).toBe(true);
   const attempts = globalThis.fetch.mock.calls.filter(([, init]) => init.body).map(([, init]) => JSON.parse(init.body));
   expect(attempts).toHaveLength(coldCache ? 3 : 2);
@@ -198,7 +198,7 @@ it.each([false, true])('recovers endpoint-specific temperature rejection with co
   expect(last).not.toHaveProperty('temperature');
   expect(last.reasoning).toEqual({ effort: 'low' });
   expect(last.max_tokens).toBe(16384);
-  expect(last.provider).toEqual({ only: ['google-vertex'], zdr: true, data_collection: 'deny', allow_fallbacks: false, require_parameters: true });
+  expect(last.provider).toEqual({ only: ['google-vertex'], zdr: true, data_collection: 'deny', allow_fallbacks: false, ...(jsonMode ? { require_parameters: true } : {}) });
   expect(last.response_format).toEqual(attempts[0].response_format);
   expect(last.messages).toEqual(attempts[0].messages);
   const lookup = globalThis.fetch.mock.calls.find(([url]) => url.endsWith('/models'));
@@ -212,11 +212,28 @@ it.each([false, true])('bounds endpoint fallback and preserves an explicit reaso
   localStorage.setItem('labcharts-openrouter-models', JSON.stringify([model]));
   globalThis.fetch.mockImplementation(async url => url.endsWith('/models') ? catalogResponse([model]) : routingError());
   await expect(callOpenRouterAPI(request(id, { jsonMode, reasoningEffort: 'high' }))).rejects.toThrow('404');
-  expect(globalThis.fetch).toHaveBeenCalledTimes(jsonMode ? 3 : 2);
-  if (jsonMode) {
-    expect(bodyAt(2).reasoning).toEqual({ effort: 'high' });
-    expect(bodyAt(2)).not.toHaveProperty('temperature');
-  }
+  expect(globalThis.fetch).toHaveBeenCalledTimes(3);
+  expect(bodyAt(2).reasoning).toEqual({ effort: 'high' });
+  expect(bodyAt(2)).not.toHaveProperty('temperature');
+});
+
+it.each([
+  ['mandatory effort', { supported_parameters: params, reasoning: { mandatory: true, supported_efforts: ['high', 'low'] } }, { effort: 'low' }],
+  ['mandatory default', { supported_parameters: params, reasoning: { mandatory: true } }, undefined],
+  ['no reasoning', { supported_parameters: ['temperature', 'response_format'] }, undefined],
+])('removes a stale disable switch when refreshed capabilities require %s', async (name, fresh, expected) => {
+  const id = `test/stale-disabled-${name}`;
+  localStorage.setItem('labcharts-openrouter-models', JSON.stringify([{ id, supported_parameters: params,
+    reasoning: { mandatory: false, supported_efforts: ['high', 'low'] } }]));
+  globalThis.fetch.mockReset().mockResolvedValueOnce(routingError())
+    .mockResolvedValueOnce(catalogResponse([{ id, ...fresh }]))
+    .mockResolvedValueOnce(response());
+  await callOpenRouterAPI(request(id, { temperature: undefined }));
+  expect(bodyAt(0).reasoning).toEqual({ enabled: false });
+  expect(globalThis.fetch).toHaveBeenCalledTimes(3);
+  expect(bodyAt(2).reasoning).toEqual(expected);
+  expect(bodyAt(2).response_format).toEqual(bodyAt(0).response_format);
+  expect(bodyAt(2).messages).toEqual(bodyAt(0).messages);
 });
 
 it('keeps endpoint fallback through a subsequent schema validation retry', async () => {
