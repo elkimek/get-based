@@ -75,30 +75,46 @@ function reshapeBody(body, model) {
 
 export function createOpenRouterRequestFetch(opts) {
   let recoveryModel = null;
-  return async (url, init) => {
+  let recoveryAttempted = false;
+  const routingRejected = async response => response.status === 404
+    && /No endpoints found that can handle the requested parameters/i.test(await response.clone().text());
+  const requestFetch = async (url, init) => {
     const send = request => {
       // The shared transport may subsequently retry a rejected schema or
       // effort. Keep fresh capability shaping on those attempts as well.
       if (recoveryModel) request = { ...request, body: JSON.stringify(reshapeBody(JSON.parse(request.body), recoveryModel)) };
+      if (requestFetch.temperatureControlFallback) {
+        const body = JSON.parse(request.body);
+        delete body.temperature;
+        request = { ...request, body: JSON.stringify(body) };
+      }
       return fetchWithRetry(url, request, {
         retries: Number.isInteger(opts.requestRetries) ? Math.max(0, opts.requestRetries) : 2,
         requestTimeoutMs: opts.requestTimeoutMs,
         useProxy: false,
       });
     };
-    const response = await send(init);
+    let response = await send(init);
     // Only this routing error establishes that no inference ran. Never
     // weaken schema/provider/privacy restrictions or retry arbitrary 404s.
-    if (recoveryModel || response.status !== 404
-        || !/No endpoints found that can handle the requested parameters/i.test(await response.clone().text())) {
-      return response;
-    }
+    if (recoveryAttempted || !await routingRejected(response)) return response;
+    recoveryAttempted = true;
     const body = JSON.parse(init.body);
     const model = await refreshRequestModel(body.model, init.signal);
     if (!model) return response;
     const next = reshapeBody(body, model);
-    if (JSON.stringify(next) === JSON.stringify(body)) return response;
     recoveryModel = model;
-    return send(init);
+    if (JSON.stringify(next) !== JSON.stringify(body)) response = await send(init);
+    // The catalog is a union across providers: Gemini can advertise temperature
+    // while the eligible Vertex endpoints do not support it. For structured
+    // extraction, retry once with default sampling, keeping the schema,
+    // reasoning, token limit and all provider/privacy restrictions unchanged.
+    if (opts.jsonMode && next.temperature !== undefined && await routingRejected(response)) {
+      requestFetch.temperatureControlFallback = true;
+      return send(init);
+    }
+    return response;
   };
+  requestFetch.temperatureControlFallback = false;
+  return requestFetch;
 }

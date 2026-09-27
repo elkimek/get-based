@@ -174,8 +174,67 @@ it.each(['unchanged', 'missing', 'failed', 'invalid-json', 'network'])('preserve
   globalThis.fetch.mockReset().mockResolvedValueOnce(routingError());
   if (state === 'network') globalThis.fetch.mockRejectedValueOnce(new TypeError('Failed to fetch'));
   else globalThis.fetch.mockResolvedValueOnce(next);
-  await expect(callOpenRouterAPI(request(id))).rejects.toThrow('404');
+  await expect(callOpenRouterAPI(request(id, state === 'unchanged' ? { temperature: undefined } : {}))).rejects.toThrow('404');
   expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+});
+
+it.each([false, true])('recovers endpoint-specific temperature rejection with cold cache=%s', async coldCache => {
+  const id = `test/vertex-temperature-${coldCache}`;
+  const model = { id, supported_parameters: params, reasoning: { mandatory: true, supported_efforts: ['high', 'medium', 'low'] } };
+  if (!coldCache) localStorage.setItem('labcharts-openrouter-models', JSON.stringify([model]));
+  configureAppExtension({ id: 'restricted-routing', ai: { getRequestOptions: () => ({
+    provider: { only: ['google-vertex'], zdr: true, data_collection: 'deny', allow_fallbacks: false },
+  }) } });
+  globalThis.fetch.mockImplementation(async (url, init) => {
+    if (url.endsWith('/models')) return catalogResponse([model]);
+    const body = JSON.parse(init.body);
+    return body.temperature !== undefined || body.reasoning?.effort === 'none' ? routingError() : response();
+  });
+  const result = await callOpenRouterAPI(request(id, { maxTokens: 16384 }));
+  expect(result.diagnostics.temperatureControlFallback).toBe(true);
+  const attempts = globalThis.fetch.mock.calls.filter(([, init]) => init.body).map(([, init]) => JSON.parse(init.body));
+  expect(attempts).toHaveLength(coldCache ? 3 : 2);
+  const last = attempts.at(-1);
+  expect(last).not.toHaveProperty('temperature');
+  expect(last.reasoning).toEqual({ effort: 'low' });
+  expect(last.max_tokens).toBe(16384);
+  expect(last.provider).toEqual({ only: ['google-vertex'], zdr: true, data_collection: 'deny', allow_fallbacks: false, require_parameters: true });
+  expect(last.response_format).toEqual(attempts[0].response_format);
+  expect(last.messages).toEqual(attempts[0].messages);
+  const lookup = globalThis.fetch.mock.calls.find(([url]) => url.endsWith('/models'));
+  expect(lookup[1]).not.toHaveProperty('headers');
+  expect(lookup[1]).not.toHaveProperty('body');
+});
+
+it.each([false, true])('bounds endpoint fallback and preserves an explicit reasoning choice, jsonMode=%s', async jsonMode => {
+  const id = `test/endpoint-bounded-${jsonMode}`;
+  const model = { id, supported_parameters: params, reasoning: { supported_efforts: ['high'] } };
+  localStorage.setItem('labcharts-openrouter-models', JSON.stringify([model]));
+  globalThis.fetch.mockImplementation(async url => url.endsWith('/models') ? catalogResponse([model]) : routingError());
+  await expect(callOpenRouterAPI(request(id, { jsonMode, reasoningEffort: 'high' }))).rejects.toThrow('404');
+  expect(globalThis.fetch).toHaveBeenCalledTimes(jsonMode ? 3 : 2);
+  if (jsonMode) {
+    expect(bodyAt(2).reasoning).toEqual({ effort: 'high' });
+    expect(bodyAt(2)).not.toHaveProperty('temperature');
+  }
+});
+
+it('keeps endpoint fallback through a subsequent schema validation retry', async () => {
+  const id = 'test/endpoint-schema-fallback';
+  const model = { id, supported_parameters: params, reasoning: { supported_efforts: ['none'] } };
+  localStorage.setItem('labcharts-openrouter-models', JSON.stringify([model]));
+  globalThis.fetch.mockReset().mockResolvedValueOnce(routingError())
+    .mockResolvedValueOnce(catalogResponse([model]))
+    .mockResolvedValueOnce(response(400, 'response_format json_schema unsupported'))
+    .mockResolvedValueOnce(response());
+  const result = await callOpenRouterAPI(request(id));
+  expect(result.diagnostics).toMatchObject({ temperatureControlFallback: true, structuredOutputFallback: true });
+  expect(globalThis.fetch).toHaveBeenCalledTimes(4);
+  for (const index of [2, 3]) {
+    expect(bodyAt(index)).not.toHaveProperty('temperature');
+    expect(bodyAt(index).reasoning).toEqual({ effort: 'none' });
+    expect(bodyAt(index).provider.require_parameters).toBe(true);
+  }
 });
 
 it('bounds routing recovery to one changed retry', async () => {

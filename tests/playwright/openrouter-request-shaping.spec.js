@@ -4,17 +4,20 @@ const sonnet = { id: 'anthropic/claude-sonnet-5', supported_parameters: ['reason
   reasoning: { mandatory: false, default_enabled: true, supported_efforts: ['high', 'medium', 'low'] } };
 const grok = { id: 'x-ai/grok-4.3', name: 'Grok 4.3', supported_parameters: ['reasoning', 'temperature', 'response_format'],
   reasoning: { mandatory: false, default_enabled: true, supported_efforts: ['high', 'medium', 'low', 'none'] } };
+const gemini = { id: 'google/gemini-3.8-flash', supported_parameters: ['reasoning', 'temperature', 'response_format', 'structured_outputs'],
+  reasoning: { mandatory: true, default_enabled: true, supported_efforts: ['high', 'medium', 'low'] } };
 const lab = { testType: 'blood', date: '2026-09-01', markers: [
   { rawName: 'Glucose', value: 5.2, mappedKey: 'biochemistry.glucose', unit: 'mmol/l', refMin: 3.9, refMax: 5.6 },
 ] };
 
-for (const coldCache of [false, true]) {
-  test(`Sonnet structured import and benchmark work with ${coldCache ? 'missing' : 'cached'} capabilities`, async ({ page }) => {
+for (const model of [sonnet, gemini]) {
+ for (const coldCache of [false, true]) {
+  test(`${model.id} structured import and benchmark work with ${coldCache ? 'missing' : 'cached'} capabilities`, async ({ page }) => {
     const bodies = [];
     let catalogLookups = 0;
     await page.route('https://openrouter.ai/api/v1/models', async route => {
       catalogLookups++;
-      await route.fulfill({ json: { data: [sonnet] } });
+      await route.fulfill({ json: { data: [model] } });
     });
     await page.route('https://openrouter.ai/api/v1/chat/completions', async route => {
       const body = route.request().postDataJSON();
@@ -55,23 +58,26 @@ for (const coldCache of [false, true]) {
         captureRawModelOutput: true, deterministicBenchmark: true,
       });
       return { imported, benchmark, progress };
-    }, { model: sonnet, coldCache });
+    }, { model, coldCache });
     expect(parsed.imported.markers).toEqual(expect.arrayContaining([expect.objectContaining({ value: 5.2 })]));
     expect(parsed.imported.date).toBe('2026-09-01');
     expect(parsed.benchmark.benchmarkRawModelResult.markers[0].value).toBe(5.2);
     expect(parsed.progress.length).toBeGreaterThan(0);
-    expect(bodies).toHaveLength(coldCache ? 3 : 2);
-    expect(catalogLookups).toBe(coldCache ? 1 : 0);
-    expect(bodies.at(-2).stream).toBe(true);
-    expect(bodies.at(-1)).not.toHaveProperty('stream');
-    for (const body of bodies.slice(coldCache ? 1 : 0)) {
-      expect(body.reasoning).toEqual({ enabled: false });
+    expect(bodies).toHaveLength((coldCache ? 3 : 2) + (model === gemini ? 2 : 0));
+    expect(catalogLookups).toBe(model === gemini ? 2 : coldCache ? 1 : 0);
+    const accepted = bodies.filter(body => body.temperature === undefined && body.reasoning?.effort !== 'none');
+    expect(accepted).toHaveLength(2);
+    expect(accepted[0].stream).toBe(true);
+    expect(accepted[1]).not.toHaveProperty('stream');
+    for (const body of accepted) {
+      expect(body.reasoning).toEqual(model === gemini ? { effort: 'low' } : { enabled: false });
       expect(body).not.toHaveProperty('temperature');
       expect(body.provider.require_parameters).toBe(true);
       expect(body.response_format.type).toBe('json_schema');
       expect(body.response_format.json_schema.schema.properties).toHaveProperty('markers');
     }
   });
+ }
 }
 
 test('chat Off selection reaches OpenRouter unchanged for a default-on model', async ({ page }) => {

@@ -84,15 +84,20 @@ export async function callOpenRouterAPI(opts) {
     });
     if (extensionCall.handled) return extensionCall.result;
     if (!key) throw new Error('No OpenRouter API key configured. Add your key in Settings.');
-    return await callOpenAICompatibleAPI(
+    const fetchImpl = createOpenRouterRequestFetch(requestOpts);
+    const result = await callOpenAICompatibleAPI(
       'https://openrouter.ai/api/v1/chat/completions',
       key,
       modelId,
       'OpenRouter',
       { ...requestOpts, reasoningEffort: undefined },
       { 'HTTP-Referer': getApiLocationOriginRuntime(), 'X-Title': 'getbased' },
-      { extraBody, fetchImpl: createOpenRouterRequestFetch(requestOpts) }
+      { extraBody, fetchImpl }
     );
+    if (fetchImpl.temperatureControlFallback) {
+      result.diagnostics = { ...result.diagnostics, temperatureControlFallback: true };
+    }
+    return result;
   } catch (error) {
     const mapped = mapAppExtensionAIProviderError({ provider: 'openrouter', error });
     if (mapped instanceof Error) throw mapped;
