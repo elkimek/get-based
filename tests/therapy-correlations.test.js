@@ -273,3 +273,25 @@ it('rejects duplicate ingredient snapshots and malformed history without guessin
   expect(therapyExposure(history, '2026-02-01').value).toBeNull();
   expect(prepareTherapyHistory({ periods: [null] }, today).invalid).toBe(true);
 });
+
+it.each([null, undefined, ''])('keeps a TMG period with end=%s ongoing through today', end => {
+  const tmg = { id: 'tmg-ongoing', name: 'TMG Powder', timesPerDay: 1, schedule: { mode: 'daily', timesPerDay: 1 },
+    ingredients: [{ name: 'Trimethylglycine (TMG)', amountValue: 500, amountUnit: 'mg' }],
+    periods: [{ start: '2026-03-24', end }],
+  };
+  const today = '2026-09-28';
+  const referenceOnly = prepareTherapyHistory(tmg, today);
+  expect(referenceOnly.invalid).toBe(false);
+  expect(referenceOnly.currentDoses[0].value).toBe(500);
+  expect(therapyExposure(referenceOnly, today)).toMatchObject({ usage: 1, value: null });
+  expect(therapySegments(referenceOnly, '2026-03-24', today).every(s => s.usage === 1)).toBe(true);
+  tmg.periods[0].ingredientDoses = [{ ingredient: 'Trimethylglycine (TMG)', value: 500, unit: 'mg', basis: 'day', source: 'ingredient' }];
+  const snapshot = structuredClone(tmg);
+  const linked = prepareTherapyHistory(tmg, today);
+  expect(linked.invalid).toBe(false);
+  expect(therapyExposure(linked, today)).toMatchObject({ usage: 1, value: 500 });
+  const segments = therapySegments(linked, '2026-03-24', today);
+  expect(segments.every(s => s.value === 500)).toBe(true);
+  expect(segments.at(-1).end).toBe(correlationDay(today) + 1);
+  expect(tmg).toEqual(snapshot);
+});
