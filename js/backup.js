@@ -136,7 +136,7 @@ const GLOBAL_SETTINGS_KEYS = [
 
 const PER_PROFILE_PREF_SUFFIXES = [
   'units', 'rangeMode', 'suppOverlay', 'noteOverlay', 'phaseOverlay',
-  'chatPersonality', 'chatPersonalityCustom', 'chatPersonalityDeleted', 'chatRailOpen'
+  'correlation-workspace', 'chatPersonality', 'chatPersonalityCustom', 'chatPersonalityDeleted', 'chatRailOpen'
 ];
 
 async function restoreBackupSettings(backup) {

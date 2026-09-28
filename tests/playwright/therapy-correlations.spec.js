@@ -716,3 +716,52 @@ test('does not confirm a stale ingredient amount after the record changes', asyn
   await expect(page.locator('.corr-use-timeline')).toHaveCount(1);
   expect(await page.evaluate(async () => (await import('/js/state.js')).state.importedData.supplements[0].periods)).toEqual([{ start: '2026-03-24', end: null }]);
 });
+
+test('restores the correlation workspace after reload and keeps each profile separate', async ({ page }) => {
+  await fixture(page);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.currentProfile = 'workspace-alice';
+    await (await import('/js/data.js')).saveImportedData();
+  });
+  await select(page, 'LDL', 'lipids.ldl');
+  await select(page, 'Example supplement', 'dose-demo', 'toggle-therapy');
+  await page.locator('#corr-rangePreset-custom').click();
+  await page.locator('#corr-start').fill('2026-01-01');
+  await page.locator('#corr-start').dispatchEvent('change');
+  await page.locator('#corr-end').fill('2026-06-30');
+  await page.locator('#corr-end').dispatchEvent('change');
+  await page.locator('#corr-layout-lanes').click();
+  await page.locator('.corr-jump > summary').click();
+  await page.locator('#corr-inspect').fill('2026-03-10');
+  await page.locator('#corr-inspect').dispatchEvent('change');
+  await page.getByRole('button', { name: 'Data', exact: true }).click();
+  await expect.poll(() => page.evaluate(async () => {
+    const { encryptedGetItem } = await import('/js/crypto.js');
+    return JSON.parse(await encryptedGetItem('labcharts-workspace-alice-correlation-workspace'))?.view?.tab;
+  })).toBe('data');
+  await page.reload();
+  await page.evaluate(async () => {
+    await (await import('/js/profile.js')).loadProfile('workspace-alice');
+    (await import('/js/compare-correlations.js')).showCorrelations();
+  });
+  await expect(page.getByRole('button', { name: 'Remove LDL Cholesterol', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Remove Example supplement', exact: true })).toBeVisible();
+  await expect(page.locator('#corr-start')).toHaveValue('2026-01-01');
+  await expect(page.locator('#corr-end')).toHaveValue('2026-06-30');
+  await expect(page.getByRole('button', { name: 'Data', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Timeline', exact: true }).click();
+  await expect(page.locator('#corr-layout-lanes')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#corr-inspect-label')).toHaveText('2026-03-10');
+  await page.evaluate(async () => {
+    await (await import('/js/profile.js')).loadProfile('workspace-bob');
+    (await import('/js/compare-correlations.js')).showCorrelations();
+  });
+  await expect(page.locator('.corr-chip')).toHaveCount(0);
+  await page.evaluate(async () => {
+    await (await import('/js/profile.js')).loadProfile('workspace-alice');
+    (await import('/js/compare-correlations.js')).showCorrelations();
+  });
+  await expect(page.locator('.corr-chip')).toHaveCount(2);
+  await expect(page.locator('#corr-layout-lanes')).toHaveAttribute('aria-pressed', 'true');
+});

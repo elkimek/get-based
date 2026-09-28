@@ -1,5 +1,6 @@
 // @ts-check
 import { state } from './state.js';
+import { saveCorrelationWorkspace } from './correlation-workspace-store.js';
 import { escapeHTML, formatValue } from './utils.js';
 import { getChartColors } from './theme.js';
 import { createChartRuntime } from './charts-runtime.js';
@@ -165,6 +166,12 @@ export function renderCorrelationWorkspace(selection, container, refresh) {
     });
   });
 
+  const workspaceProfile = state.currentProfile;
+  container.querySelector('.corr-analysis-disclosure').addEventListener('toggle', event => {
+    if (!container.isConnected || !container.contains(/** @type {Node} */ (event.target)) || state.currentProfile !== workspaceProfile) return;
+    state.correlationView.analysisOpen = /** @type {HTMLDetailsElement} */ (event.target).open;
+    void saveCorrelationWorkspace();
+  });
   const updateSetting = (key, value) => { state.correlationView.analysisOpen = container.querySelector('.corr-analysis-disclosure').hasAttribute('open'); if (key === 'pair') state.correlationView.pairKey = pairs[Number(value)]?.pairKey; state.correlationView = { ...state.correlationView, [key]: value }; refresh(); };
   container.querySelectorAll('[data-corr-setting]').forEach(el => el.addEventListener('change', () => updateSetting(el.getAttribute('data-corr-setting'), /** @type {HTMLInputElement} */ (el).value)));
   container.querySelectorAll('[data-corr-choice]').forEach(el => el.addEventListener('click', () => {
@@ -219,7 +226,7 @@ export function renderCorrelationWorkspace(selection, container, refresh) {
   }
   container.querySelector('#corr-inspect').addEventListener('change', e => {
     const day = correlationDay(/** @type {HTMLInputElement} */ (e.target).value);
-    if (day !== null) { state.correlationView.inspectDate = correlationDate(day); inspect(day); }
+    if (day !== null) { state.correlationView.inspectDate = correlationDate(day); inspect(day); void saveCorrelationWorkspace(); }
   });
   if (tab === 'timeline') groups.forEach((items, index) => {
     const tracks = [...container.querySelectorAll('.corr-timeline-panel')][index].querySelectorAll('[data-corr-track]');
@@ -265,7 +272,7 @@ export function renderCorrelationWorkspace(selection, container, refresh) {
         responsive: true, maintainAspectRatio: false, animation: false,
         layout: { padding: { left: 0, right: normalized || axes.size > 1 ? 0 : 65 } },
         onHover: event => { if (!state.correlationView.inspectDate && event.x >= chart.chartArea.left && event.x <= chart.chartArea.right) inspect(pointerDay(event), false); },
-        onClick: event => { const day = pointerDay(event); if (Number.isFinite(day)) { state.correlationView.inspectDate = correlationDate(day); inspect(day); } },
+        onClick: event => { const day = pointerDay(event); if (Number.isFinite(day)) { state.correlationView.inspectDate = correlationDate(day); inspect(day); void saveCorrelationWorkspace(); } },
         plugins: { legend: { display: false }, tooltip: { callbacks: { title: points => points.length ? correlationDate(Math.floor(points[0].parsed.x)) : '', label: p => `${p.dataset.label}: ${p.raw.label || formatValue(p.raw.rawValue ?? p.parsed.y)}` } } },
         scales: {
           x: { type: 'linear', min: start, max: end, afterBuildTicks: axis => { const count = axis.chart.width < 480 ? 3 : 5; axis.ticks = Array.from({ length: count }, (_, i) => ({ value: Math.round(start + (end - 1 - start) * i / (count - 1)) })); }, title: { display: true, text: 'Calendar date', color: colors.tickColor }, ticks: { color: colors.tickColor, maxTicksLimit: 4, includeBounds: false, callback: v => correlationDate(Math.round(Number(v))) }, grid: { color: colors.gridColor } },

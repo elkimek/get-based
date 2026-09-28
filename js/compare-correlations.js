@@ -2,6 +2,7 @@
 // compare-correlations.js - Compare Dates and Correlations views
 
 import { state } from './state.js';
+import { saveCorrelationWorkspace } from './correlation-workspace-store.js';
 import { getSupplementRecordId } from './supplement-medication-domain.js';
 import { CORRELATION_PRESETS, CHIP_COLORS, MARKER_SCHEMA } from './schema.js';
 import { escapeHTML, escapeAttr, getStatus, formatValue } from './utils.js';
@@ -386,6 +387,10 @@ export function showCorrelations(data) {
   const main = document.getElementById("main-content");
   if (!main) return;
   if (!data) data = getActiveData();
+  const before = JSON.stringify([state.selectedCorrelationMarkers, state.selectedCorrelationSupplements]);
+  state.selectedCorrelationMarkers = state.selectedCorrelationMarkers.filter(key => { const [category, marker] = key.split('.'); return !!data.categories[category]?.markers[marker]; });
+  state.selectedCorrelationSupplements = state.selectedCorrelationSupplements.filter(id => (state.importedData.supplements || []).some(record => getSupplementRecordId(record) === id));
+  if (JSON.stringify([state.selectedCorrelationMarkers, state.selectedCorrelationSupplements]) !== before) void saveCorrelationWorkspace();
   let html = `<div class="category-header"><h2>Correlations</h2>
     <p>Compare biomarker trends with recorded supplement and medication doses</p></div>`;
   html += `<div class="correlation-controls">
@@ -549,6 +554,7 @@ export function toggleCorrelationTherapy(id) {
 }
 
 export function renderCorrelationChart() {
+  void saveCorrelationWorkspace();
   const focused = document.activeElement?.id;
   const data = getActiveData();
   const container = document.getElementById("corr-chart-container");

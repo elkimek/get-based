@@ -106,6 +106,7 @@ export function configureCryptoProfileDeps(deps = {}) {
 // SENSITIVE KEY PATTERNS
 // ═══════════════════════════════════════════════
 const SENSITIVE_PATTERNS = [
+  /^labcharts-.+-correlation-workspace$/,
   /^labcharts-.+-imported$/,
   /^labcharts-.+-imported-corrupt$/,
   /^labcharts-.+-chat$/,

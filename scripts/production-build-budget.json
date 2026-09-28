@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "maximums": {
     "startupJavaScriptFiles": 2,
-    "startupDecodedBytes": 1272000,
+    "startupDecodedBytes": 1276000,
     "outputJavaScriptFiles": 167,
-    "outputDecodedBytes": 5431000
+    "outputDecodedBytes": 5434000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -98,7 +98,10 @@
     "correlationPresetsAndInspectionOutputDecodedBytes": 5425938,
     "correlationPresetsAndInspectionMeasuredBaseCommit": "0d41bb5e",
     "correlationDoseConfirmationOutputDecodedBytes": 5429533,
-    "correlationDoseConfirmationMeasuredBaseCommit": "043d4f3e"
+    "correlationDoseConfirmationMeasuredBaseCommit": "043d4f3e",
+    "correlationWorkspacePersistenceStartupDecodedBytes": 1274312,
+    "correlationWorkspacePersistenceOutputDecodedBytes": 5432097,
+    "correlationWorkspacePersistenceMeasuredBaseCommit": "c0a0a478"
   },
   "referenceCommit": "331112b1",
   "measuredAt": "2026-09-28"

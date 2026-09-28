@@ -2,6 +2,7 @@
 import { rememberProfileData } from './profile-data-writes.js';
 import { readProfileForLoad } from './profile-load-safety.js';
 import { state, resetCorrelationSelection } from './state.js';
+import { restoreCorrelationWorkspace } from './correlation-workspace-store.js';
 import { COUNTRY_LATITUDES, LATITUDE_BANDS } from './constants.js';
 import { isDebugMode, showConfirmDialog, showNotification } from './utils.js';
 import { encryptedSetItem, encryptedGetItem, getEncryptionEnabled, isUnlocked } from './crypto.js';
@@ -337,6 +338,7 @@ export async function loadProfile(profileId) {
   state.profileSex = getProfileSex(profileId);
   state.profileDob = getProfileDob(profileId);
   resetCorrelationSelection();
+  await restoreCorrelationWorkspace(profileId);
   state.chatHistory = [];
   state.chatThreads = [];
   state.currentThreadId = null;

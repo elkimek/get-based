@@ -1,0 +1,75 @@
+import { beforeEach, expect, it, vi } from 'vitest';
+const storage = vi.hoisted(() => ({ get: vi.fn(), set: vi.fn(), notify: vi.fn() }));
+vi.mock('../js/crypto.js', () => ({ encryptedGetItem: storage.get, encryptedSetItem: storage.set }));
+vi.mock('../js/utils.js', () => ({ showNotification: storage.notify }));
+import { state, resetCorrelationSelection } from '../js/state.js';
+import { normalizeCorrelationWorkspace, saveCorrelationWorkspace, restoreCorrelationWorkspace } from '../js/correlation-workspace-store.js';
+let values;
+beforeEach(() => {
+  values = new Map();
+  storage.get.mockReset().mockImplementation(async key => values.get(key) ?? null);
+  storage.set.mockReset().mockImplementation(async (key, value) => { values.set(key, value); });
+  storage.notify.mockClear();
+  state.currentProfile = 'alice';
+  resetCorrelationSelection();
+});
+it('restores selection and view separately for each profile, including an intentionally empty selection', async () => {
+  state.selectedCorrelationMarkers = ['biochemistry.glucose', 'diabetes.hba1c'];
+  state.selectedCorrelationSupplements = ['tmg'];
+  state.correlationView = { rangePreset: 'custom', start: '2026-03-24', end: '2026-09-28', grouping: 'combined', layout: 'overlay', tab: 'data', pairKey: '["biochemistry.glucose","tmg"]', hidden: ['diabetes.hba1c'], inspectDate: '2026-05-22', ingredients: { tmg: 'TMG' }, analysisOpen: true };
+  const expected = structuredClone(state.correlationView);
+  await saveCorrelationWorkspace();
+  state.currentProfile = 'bob'; resetCorrelationSelection();
+  await restoreCorrelationWorkspace('bob');
+  expect(state.selectedCorrelationMarkers).toEqual([]);
+  state.selectedCorrelationMarkers = ['lipids.ldl'];
+  await saveCorrelationWorkspace();
+  state.currentProfile = 'alice'; resetCorrelationSelection();
+  await restoreCorrelationWorkspace('alice');
+  expect(state.selectedCorrelationMarkers).toEqual(['biochemistry.glucose', 'diabetes.hba1c']);
+  expect(state.selectedCorrelationSupplements).toEqual(['tmg']);
+  expect(state.correlationView).toEqual(expected);
+  resetCorrelationSelection(); await saveCorrelationWorkspace();
+  await restoreCorrelationWorkspace('alice');
+  expect(state.selectedCorrelationMarkers).toEqual([]);
+});
+it('serializes rapid saves and captures the initiating profile', async () => {
+  let release;
+  storage.set.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+  state.selectedCorrelationMarkers = ['first'];
+  const first = saveCorrelationWorkspace();
+  await Promise.resolve();
+  state.selectedCorrelationMarkers = ['latest'];
+  const latest = saveCorrelationWorkspace();
+  state.currentProfile = 'bob';
+  expect(storage.set).toHaveBeenCalledTimes(1);
+  release(); await first; await latest;
+  expect(JSON.parse(storage.set.mock.calls[1][1]).markers).toEqual(['latest']);
+  expect(storage.set.mock.calls.every(([key]) => key === 'labcharts-alice-correlation-workspace')).toBe(true);
+});
+it('ignores a late restore after switching profiles', async () => {
+  let release;
+  storage.get.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+  const pending = restoreCorrelationWorkspace('alice');
+  await Promise.resolve();
+  state.currentProfile = 'bob'; state.selectedCorrelationMarkers = ['bob-marker'];
+  release(JSON.stringify({ version: 1, markers: ['alice-marker'] }));
+  await pending;
+  expect(state.selectedCorrelationMarkers).toEqual(['bob-marker']);
+});
+it('bounds and validates saved settings and handles unsupported or malformed records', async () => {
+  const cleaned = normalizeCorrelationWorkspace({ markers: ['a', 'a', 42], therapies: ['t'], view: { layout: 'garbage', tab: 'data', hidden: ['a', 'missing'], chart: {}, ingredients: { t: 'TMG', missing: 'no' } } });
+  expect(cleaned).toEqual({ version: 1, markers: ['a'], therapies: ['t'], view: { tab: 'data', hidden: ['a'], ingredients: { t: 'TMG' } } });
+  expect(normalizeCorrelationWorkspace({ markers: Array.from({ length: 20 }, (_, i) => String(i)), therapies: ['x'] }).markers).toHaveLength(8);
+  storage.get.mockResolvedValueOnce('{bad json'); await restoreCorrelationWorkspace('alice');
+  expect(storage.notify).toHaveBeenCalled();
+  storage.get.mockResolvedValueOnce('{"version":99,"markers":["old"]}'); await restoreCorrelationWorkspace('alice');
+  expect(state.selectedCorrelationMarkers).toEqual([]);
+});
+it('reports failed saves and allows the next edit to retry', async () => {
+  storage.set.mockRejectedValueOnce(new Error('quota'));
+  await saveCorrelationWorkspace();
+  expect(storage.notify).toHaveBeenCalled();
+  state.selectedCorrelationMarkers = ['retry']; await saveCorrelationWorkspace();
+  expect(JSON.parse(values.get('labcharts-alice-correlation-workspace')).markers).toEqual(['retry']);
+});

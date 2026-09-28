@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 790 |
-| Internal import edges | 3347 |
+| Modules | 791 |
+| Internal import edges | 3354 |
 | Dynamic internal edges | 120 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -64,15 +64,15 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 290 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 78 |
-| [`js/state.js`](js/state.js) | 200 | [`js/chat-send.js`](js/chat-send.js) | 42 |
+| [`js/utils.js`](js/utils.js) | 291 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 78 |
+| [`js/state.js`](js/state.js) | 201 | [`js/chat-send.js`](js/chat-send.js) | 42 |
 | [`js/caught-error.js`](js/caught-error.js) | 89 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 81 | [`js/settings.js`](js/settings.js) | 30 |
 | [`js/data.js`](js/data.js) | 79 | [`js/sync-configure.js`](js/sync-configure.js) | 28 |
 | [`js/profile.js`](js/profile.js) | 51 | [`js/pdf-import.js`](js/pdf-import.js) | 27 |
 | [`js/api.js`](js/api.js) | 46 | [`js/wearables-connect.js`](js/wearables-connect.js) | 27 |
-| [`js/schema.js`](js/schema.js) | 39 | [`js/lab-context.js`](js/lab-context.js) | 24 |
-| [`js/crypto.js`](js/crypto.js) | 38 | [`js/export.js`](js/export.js) | 23 |
+| [`js/crypto.js`](js/crypto.js) | 39 | [`js/lab-context.js`](js/lab-context.js) | 24 |
+| [`js/schema.js`](js/schema.js) | 39 | [`js/export.js`](js/export.js) | 23 |
 | [`js/ai-feature-routing.js`](js/ai-feature-routing.js) | 36 | [`js/views.js`](js/views.js) | 22 |
 | [`js/data-merge.js`](js/data-merge.js) | 34 | [`js/biology-scores.js`](js/biology-scores.js) | 20 |
 | [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js) | 23 | [`js/chat-render.js`](js/chat-render.js) | 20 |
@@ -416,7 +416,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>compare</code> family — 1 module</summary>
 
-- [`js/compare-correlations.js`](js/compare-correlations.js) → [`js/charts-runtime.js`](js/charts-runtime.js), [`js/data.js`](js/data.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/supplements.js`](js/supplements.js) *(dynamic)*, [`js/therapy-correlation-view.js`](js/therapy-correlation-view.js) *(dynamic)*, [`js/therapy-correlations.js`](js/therapy-correlations.js) *(dynamic)*, [`js/utils.js`](js/utils.js)
+- [`js/compare-correlations.js`](js/compare-correlations.js) → [`js/charts-runtime.js`](js/charts-runtime.js), [`js/correlation-workspace-store.js`](js/correlation-workspace-store.js), [`js/data.js`](js/data.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/supplements.js`](js/supplements.js) *(dynamic)*, [`js/therapy-correlation-view.js`](js/therapy-correlation-view.js) *(dynamic)*, [`js/therapy-correlations.js`](js/therapy-correlations.js) *(dynamic)*, [`js/utils.js`](js/utils.js)
 
 </details>
 
@@ -444,6 +444,12 @@ Native browser modules shipped with the static application.
 - [`js/context-cards-runtime.js`](js/context-cards-runtime.js) → [`js/data-merge.js`](js/data-merge.js), [`js/state.js`](js/state.js)
 - [`js/context-cards.js`](js/context-cards.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/context-card-dashboard-ai.js`](js/context-card-dashboard-ai.js), [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js), [`js/context-card-health-dots.js`](js/context-card-health-dots.js), [`js/context-card-lifestyle-editors.js`](js/context-card-lifestyle-editors.js), [`js/context-card-medical-history-editor.js`](js/context-card-medical-history-editor.js), [`js/context-card-summaries.js`](js/context-card-summaries.js), [`js/context-cards-runtime.js`](js/context-cards-runtime.js), [`js/data.js`](js/data.js), [`js/emf-runtime.js`](js/emf-runtime.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/nutrition-context-card-extensions.js`](js/nutrition-context-card-extensions.js), [`js/nutrition-context.js`](js/nutrition-context.js) *(dynamic)*, [`js/recommendations-runtime.js`](js/recommendations-runtime.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/context-source-registry.js`](js/context-source-registry.js) → [`js/state.js`](js/state.js)
+
+</details>
+
+<details><summary><code>correlation</code> family — 1 module</summary>
+
+- [`js/correlation-workspace-store.js`](js/correlation-workspace-store.js) → [`js/crypto.js`](js/crypto.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 
 </details>
 
@@ -982,7 +988,7 @@ Native browser modules shipped with the static application.
 - [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js) → [`js/blob-storage.js`](js/blob-storage.js), [`js/crypto.js`](js/crypto.js), [`js/cycle-store.js`](js/cycle-store.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/wearables-store.js`](js/wearables-store.js)
 - [`js/profile-storage-key.js`](js/profile-storage-key.js) → no in-scope imports
 - [`js/profile-sync-policy.js`](js/profile-sync-policy.js) → no in-scope imports
-- [`js/profile.js`](js/profile.js) → [`js/constants.js`](js/constants.js), [`js/crypto.js`](js/crypto.js), [`js/profile-data-migrations.js`](js/profile-data-migrations.js), [`js/profile-data-writes.js`](js/profile-data-writes.js), [`js/profile-list-store.js`](js/profile-list-store.js), [`js/profile-load-safety.js`](js/profile-load-safety.js), [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/profile-sync-policy.js`](js/profile-sync-policy.js), [`js/proxy-runtime.js`](js/proxy-runtime.js), [`js/state.js`](js/state.js), [`js/unique-id.js`](js/unique-id.js), [`js/unit-profiles.js`](js/unit-profiles.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
+- [`js/profile.js`](js/profile.js) → [`js/constants.js`](js/constants.js), [`js/correlation-workspace-store.js`](js/correlation-workspace-store.js), [`js/crypto.js`](js/crypto.js), [`js/profile-data-migrations.js`](js/profile-data-migrations.js), [`js/profile-data-writes.js`](js/profile-data-writes.js), [`js/profile-list-store.js`](js/profile-list-store.js), [`js/profile-load-safety.js`](js/profile-load-safety.js), [`js/profile-storage-cleanup.js`](js/profile-storage-cleanup.js), [`js/profile-storage-key.js`](js/profile-storage-key.js), [`js/profile-sync-policy.js`](js/profile-sync-policy.js), [`js/proxy-runtime.js`](js/proxy-runtime.js), [`js/state.js`](js/state.js), [`js/unique-id.js`](js/unique-id.js), [`js/unit-profiles.js`](js/unit-profiles.js), [`js/url-safety.js`](js/url-safety.js), [`js/utils.js`](js/utils.js)
 
 </details>
 
@@ -1277,7 +1283,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>therapy</code> family — 2 modules</summary>
 
-- [`js/therapy-correlation-view.js`](js/therapy-correlation-view.js) → [`js/charts-runtime.js`](js/charts-runtime.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/supplements.js`](js/supplements.js) *(dynamic)*, [`js/theme.js`](js/theme.js), [`js/therapy-correlations.js`](js/therapy-correlations.js), [`js/utils.js`](js/utils.js)
+- [`js/therapy-correlation-view.js`](js/therapy-correlation-view.js) → [`js/charts-runtime.js`](js/charts-runtime.js), [`js/correlation-workspace-store.js`](js/correlation-workspace-store.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/supplements.js`](js/supplements.js) *(dynamic)*, [`js/theme.js`](js/theme.js), [`js/therapy-correlations.js`](js/therapy-correlations.js), [`js/utils.js`](js/utils.js)
 - [`js/therapy-correlations.js`](js/therapy-correlations.js) → [`js/lab-date-range.js`](js/lab-date-range.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js)
 
 </details>

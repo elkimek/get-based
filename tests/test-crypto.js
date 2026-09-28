@@ -110,6 +110,7 @@ console.log('2. Sensitive key detection');
 assert('labcharts-default-imported is sensitive', cryptoModule.isSensitiveKey('labcharts-default-imported'));
 assert('labcharts-abc123-imported is sensitive', cryptoModule.isSensitiveKey('labcharts-abc123-imported'));
 assert('labcharts-default-imported-corrupt is sensitive', cryptoModule.isSensitiveKey('labcharts-default-imported-corrupt'));
+assert('correlation workspace selections are sensitive', cryptoModule.isSensitiveKey('labcharts-default-correlation-workspace'));
 assert('labcharts-default-chat is sensitive', cryptoModule.isSensitiveKey('labcharts-default-chat'));
 assert('custom persona instructions are sensitive', cryptoModule.isSensitiveKey('labcharts-default-chatPersonalityCustom'));
 assert('custom persona deletion history is sensitive', cryptoModule.isSensitiveKey('labcharts-default-chatPersonalityDeleted'));
@@ -736,7 +737,10 @@ try {
 // ═══════════════════════════════════════════════
 console.log('27. buildBackupSnapshot');
 try {
+  const workspaceKey = `labcharts-${profileModule.getProfiles()[0].id}-correlation-workspace`;
+  await cryptoModule.encryptedSetItem(workspaceKey, JSON.stringify({ version: 1, markers: ['biochemistry.glucose'] }));
   const snapshot = backupModule.buildBackupSnapshot();
+  assert('Backup preserves the correlation workspace', snapshot.profiles.some(p => p.keys['correlation-workspace'] === localStorage.getItem(workspaceKey)));
   // The profile registry is seeded at test startup, so a falsy return
   // means a runtime error, not an empty profile list — assert the object
   // type directly rather than letting a falsy value pass silently.
