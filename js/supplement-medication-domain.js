@@ -330,3 +330,55 @@ export function recordSupplementSchedule(previous, periods, schedule, today = lo
   }
   return result;
 }
+
+// Effective timesPerDay for an ingredient: row override wins, else the supp-level default.
+export function effectiveTimesPerDay(ing, supp) {
+  if (ing && (ing.timesPerDay === 0 || ing.timesPerDay)) return Number(ing.timesPerDay);
+  if (supp?.schedule?.mode === 'prn') return null;
+  if (supp?.schedule && (supp.schedule.timesPerDay === 0 || supp.schedule.timesPerDay)) return Number(supp.schedule.timesPerDay);
+  if (supp && (supp.timesPerDay === 0 || supp.timesPerDay)) return Number(supp.timesPerDay);
+  return null;
+}
+
+// Compute daily total when amount is parseable and there's an effective timesPerDay.
+export function ingredientDailyTotal(ing, supp) {
+  const times = effectiveTimesPerDay(ing, supp);
+  if (!ing || !times) return null;
+  const parsed = getIngredientQuantity(ing);
+  if (!parsed) return null;
+  const total = parsed.value * times;
+  if (!isFinite(total)) return null;
+  return { value: total, unit: parsed.unit, times };
+}
+
+
+/** Current ingredient totals are a reference, never a historical dose by default. */
+export function getSupplementDailyDoses(record) {
+  if (!['daily', 'multiple'].includes(record?.schedule?.mode || 'daily')) return [];
+  const ingredients = record?.ingredients || [];
+  return ingredients.flatMap(ingredient => {
+    const name = ingredient.name?.trim();
+    if (!name || ingredients.filter(i => i.name?.trim().toLowerCase() === name.toLowerCase()).length !== 1) return [];
+    const total = ingredientDailyTotal(ingredient, record);
+    if (!total || total.value <= 0 || !SUPPLEMENT_UNIT_OPTIONS.some(u => u.value === total.unit && u.value && u.value !== '%')) return [];
+    return [{ value: total.value, unit: total.unit, basis: 'day', ingredient: name, source: 'ingredient' }];
+  });
+}
+
+/** Once explicitly linked, ingredient edits create dated changes instead of rewriting history. */
+export function recordIngredientDoseChange(entry, today = localDateKey()) {
+  const open = entry.periods.find(p => !p.end && p.start <= today);
+  if (open?.dose?.source !== 'ingredient') return;
+  const next = getSupplementDailyDoses(entry).find(d => d.ingredient === open.dose.ingredient);
+  if (next && next.value === open.dose.value && next.unit === open.dose.unit && next.basis === open.dose.basis) return;
+  let target = open;
+  if (open.start < today) {
+    const yesterday = new Date(`${today}T12:00:00`);
+    yesterday.setDate(yesterday.getDate() - 1);
+    target = { ...open, start: today, end: null, schedule: { ...entry.schedule } };
+    open.end = localDateKey(yesterday);
+    entry.periods.push(target);
+  }
+  if (next) target.dose = next;
+  else delete target.dose;
+}

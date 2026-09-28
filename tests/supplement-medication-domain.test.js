@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   SUPPLEMENT_RECORD_VERSION,
+  getSupplementDailyDoses,
+  recordIngredientDoseChange,
   createSupplementRecordId,
   getCurrentSupplements,
   getInactiveSupplements,
@@ -137,5 +139,45 @@ describe('dated schedule edits', () => {
     expect(supplementDoseText({ value: 500, unit: 'mg', basis: 'day' })).toBe('500 mg/day');
     expect(supplementDoseText({ text: '500 mg with food', value: 500, unit: 'mg' })).toBe('500 mg with food');
     expect(supplementDoseText('2 tablets')).toBe('2 tablets');
+  });
+});
+
+
+describe('ingredient dose references and confirmed history', () => {
+  const record = { name: 'TMG', timesPerDay: 1, ingredients: [{ name: 'TMG', amountValue: 500, amountUnit: 'mg' }] };
+  it('uses the same daily quantity and frequency override as the ingredient panel without combining ingredients', () => {
+    expect(getSupplementDailyDoses(record)).toEqual([{ ingredient: 'TMG', value: 500, unit: 'mg', basis: 'day', source: 'ingredient' }]);
+    expect(getSupplementDailyDoses({ ...record, timesPerDay: 4 })[0].value).toBe(2000);
+    expect(getSupplementDailyDoses({ ...record, timesPerDay: 4, ingredients: [{ ...record.ingredients[0], timesPerDay: 2 }] })[0].value).toBe(1000);
+    expect(getSupplementDailyDoses({ ...record, ingredients: [...record.ingredients, { name: 'B12', amount: '25 mcg' }] })).toHaveLength(2);
+  });
+  it('rejects unknown frequency, PRN, intermittent schedules, concentrations and ambiguous ingredient names', () => {
+    expect(getSupplementDailyDoses({ ...record, timesPerDay: undefined })).toEqual([]);
+    for (const mode of ['prn', 'interval', 'selected-days']) expect(getSupplementDailyDoses({ ...record, schedule: { mode } })).toEqual([]);
+    expect(getSupplementDailyDoses({ ...record, ingredients: [{ name: 'TMG', amount: '50%' }] })).toEqual([]);
+    expect(getSupplementDailyDoses({ ...record, ingredients: [...record.ingredients, ...record.ingredients] })).toEqual([]);
+  });
+  it('splits a confirmed ingredient dose at the date of an edit and keeps older doses intact', () => {
+    const entry = { ...record, timesPerDay: 4, schedule: { mode: 'daily', timesPerDay: 4 }, periods: [
+      { start: '2026-01-01', end: null, dose: getSupplementDailyDoses(record)[0] },
+    ] };
+    recordIngredientDoseChange(entry, '2026-09-28');
+    expect(entry.periods).toHaveLength(2);
+    expect(entry.periods[0]).toMatchObject({ end: '2026-09-27', dose: { value: 500 } });
+    expect(entry.periods[1]).toMatchObject({ start: '2026-09-28', end: null, dose: { value: 2000, basis: 'day' } });
+    recordIngredientDoseChange(entry, '2026-09-28');
+    expect(entry.periods).toHaveLength(2);
+    entry.ingredients = [];
+    recordIngredientDoseChange(entry, '2026-09-28');
+    expect(entry.periods[1].dose).toBeUndefined();
+    expect(entry.periods[0].dose.value).toBe(500);
+  });
+  it('does not backfill unconfirmed or manually specified historical doses', () => {
+    for (const dose of [undefined, '250 mg/day']) {
+      const entry = { ...record, periods: [{ start: '2026-01-01', end: null, dose }] };
+      const before = structuredClone(entry);
+      recordIngredientDoseChange(entry, '2026-09-28');
+      expect(entry).toEqual(before);
+    }
   });
 });

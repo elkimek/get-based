@@ -9,7 +9,8 @@ import { profileStorageKey } from './profile.js';
 import { escapeHTML, hashString, isDebugMode } from './utils.js';
 import { getMarkerStorageDotKey } from './marker-placement.js';
 import {
-  getIngredientQuantity,
+  effectiveTimesPerDay,
+  ingredientDailyTotal,
   getSupplementRecordId,
   getSupplementPeriods,
   parseSupplementQuantity,
@@ -24,25 +25,7 @@ export function parseAmount(str) {
   return parsed ? { value: parsed.value, unit: parsed.unit } : null;
 }
 
-// Effective timesPerDay for an ingredient: row override wins, else the supp-level default.
-export function effectiveTimesPerDay(ing, supp) {
-  if (ing && (ing.timesPerDay === 0 || ing.timesPerDay)) return Number(ing.timesPerDay);
-  if (supp?.schedule?.mode === 'prn') return null;
-  if (supp?.schedule && (supp.schedule.timesPerDay === 0 || supp.schedule.timesPerDay)) return Number(supp.schedule.timesPerDay);
-  if (supp && (supp.timesPerDay === 0 || supp.timesPerDay)) return Number(supp.timesPerDay);
-  return null;
-}
-
-// Compute daily total when amount is parseable and there's an effective timesPerDay.
-export function ingredientDailyTotal(ing, supp) {
-  const times = effectiveTimesPerDay(ing, supp);
-  if (!ing || !times) return null;
-  const parsed = getIngredientQuantity(ing);
-  if (!parsed) return null;
-  const total = parsed.value * times;
-  if (!isFinite(total)) return null;
-  return { value: total, unit: parsed.unit, times };
-}
+export { effectiveTimesPerDay, ingredientDailyTotal } from './supplement-medication-domain.js';
 
 export function formatSupplementTotal(total) {
   if (!total) return '';

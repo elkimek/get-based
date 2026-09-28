@@ -176,3 +176,23 @@ describe('interpretation boundaries', () => {
     expect(exposure.label).toContain('4 uses/day');
   });
 });
+
+
+it('shows current ingredients separately while keeping unknown past doses excluded', () => {
+  const history = prepareTherapyHistory({ name: 'TMG', timesPerDay: 1,
+    ingredients: [{ name: 'TMG', amountValue: 500, amountUnit: 'mg' }],
+    periods: [{ start: '2026-01-01', end: null }],
+  }, today);
+  expect(history.currentDoses[0].quantity).toMatchObject({ value: 500, basis: 'day', ingredient: 'TMG' });
+  expect(compare({ history })).toMatchObject({ n: 0, r: null, groups: [] });
+  expect(therapyExposure(history, '2026-01-10').value).toBeNull();
+});
+
+it('does not pool different ingredients just because both use mg/day', () => {
+  const history = prepareTherapyHistory({ ...record, periods: [
+    { start: '2026-01-01', end: '2026-02-28', dose: { value: 500, unit: 'mg', basis: 'day', ingredient: 'TMG' } },
+    { start: '2026-03-01', end: null, dose: { value: 2000, unit: 'mg', basis: 'day', ingredient: 'Inositol' } },
+  ] }, today);
+  expect(compare({ history }).r).toBeNull();
+  expect(history.mixedUnits).toBe(true);
+});

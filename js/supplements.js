@@ -30,6 +30,7 @@ import {
   localDateKey,
   normalizeSupplementUnit,
   recordSupplementSchedule,
+  recordIngredientDoseChange,
 } from './supplement-medication-domain.js';
 import {
   aggregateSupplementContaminants,
@@ -38,6 +39,8 @@ import {
   isSupplementQualityIncludedInAI,
 } from './supplement-quality.js';
 import {
+  applyIngredientDoseToPeriod,
+  choosePeriodIngredientDose,
   addIngredientRow,
   addPeriodRow,
   addQualityTestRow,
@@ -346,6 +349,7 @@ export function saveSupplement(index) {
   const servingUnit = normalizeSupplementUnit(getFieldValue('supp-serving-unit'));
   if (isFinite(servingValue) || servingUnit) entry.servingSize = { ...(isFinite(servingValue) ? { value: servingValue } : {}), ...(servingUnit ? { unit: servingUnit } : {}) };
   else delete entry.servingSize;
+  recordIngredientDoseChange(entry);
   const latestDose = entry.periods[entry.periods.length - 1]?.dose;
   if (latestDose) entry.currentDose = latestDose; else delete entry.currentDose;
   if (pendingImport?.draft?.source?.reviewed) {
@@ -475,6 +479,8 @@ export async function deleteSupplement(index) {
 }
 
 initSupplementActionDelegates({
+  applyIngredientDoseToPeriod,
+  choosePeriodIngredientDose,
   openEditor: openSupplementsEditor,
   toggleAccordion: toggleSuppAccordion,
   toggleAddForm: showAddSuppForm,

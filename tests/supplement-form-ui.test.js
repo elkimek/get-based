@@ -2,7 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { collectQualityTests } from '../js/supplement-form-ui.js';
+import { collectPeriods, collectQualityTests } from '../js/supplement-form-ui.js';
 import { state } from '../js/state.js';
 
 function installQualityRow(resultText) {
@@ -81,4 +81,16 @@ describe('supplement quality-result form collection', () => {
       provenance: { source: 'coa' },
     });
   });
+});
+
+
+it('retains the ingredient identity when a confirmed historical amount is corrected manually', () => {
+  state.importedData = { supplements: [{ name: 'TMG', periods: [{ start: '2026-01-01', end: null,
+    dose: { value: 500, unit: 'mg', basis: 'day', ingredient: 'TMG', source: 'ingredient' },
+  }] }] };
+  document.body.innerHTML = `<div id="supp-form-panel" data-edit-index="0"></div><div id="supp-periods">
+    <div class="supp-period-row" data-original-index="0"><input class="supp-period-start" value="2026-01-01">
+    <input class="supp-period-end" value=""><input class="supp-period-dose" value="250 mg/day"></div></div>`;
+  expect(collectPeriods()[0].dose).toEqual({ text: '250 mg/day', ingredient: 'TMG' });
+  document.body.innerHTML = '';
 });

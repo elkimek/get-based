@@ -352,8 +352,8 @@ export function showCorrelations(data) {
     html += `<button class="corr-preset-btn" ${compareActionAttrs('apply-preset', { index: i })}>${CORRELATION_PRESETS[i].label}</button>`;
   }
   html += `</div><p class="corr-help">Choose two biomarkers, or one biomarker and a supplement or medication. Discontinued items are included.</p>
-    <label class="corr-lag-control" for="corr-lag">Match labs to the recorded dose
-      <select id="corr-lag" ${compareChangeAttrs('set-lag')}>${CORRELATION_LAGS.map(days => `<option value="${days}"${state.correlationLagDays === days ? ' selected' : ''}>${days ? `${days} days earlier` : 'on the same date'}</option>`).join('')}</select>
+    <label class="corr-lag-control" for="corr-lag">Compare lab results with doses recorded
+      <select id="corr-lag" ${compareChangeAttrs('set-lag')}>${CORRELATION_LAGS.map(days => `<option value="${days}"${state.correlationLagDays === days ? ' selected' : ''}>${days ? `${days} days earlier` : 'on the test date'}</option>`).join('')}</select>
     </label></div>`;
   html += `<div class="corr-chart-container" id="corr-chart-container" style="display:none">
     <h3><span id="corr-chart-title">Normalized Comparison (% of Reference Range)</span>

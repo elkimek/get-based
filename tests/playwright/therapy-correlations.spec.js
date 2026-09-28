@@ -1,7 +1,7 @@
 import { expect, test } from './coverage-fixture.js';
 
 async function fixture(page) {
-  await page.route('**/dose-correlation-fixture', route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><html><head><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/css/category-views.css"><style>body { display:block; padding:20px; } #main-content { margin:0; padding:0; max-width:1000px; width:100%; } </style></head><body><main id="main-content"></main><div id="modal-overlay"><div id="detail-modal"></div></div></body></html>` }));
+  await page.route('**/dose-correlation-fixture', route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><html><head><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/css/category-views.css"><link rel="stylesheet" href="/css/context-profile.css"><link rel="stylesheet" href="/css/modal-shared.css"><style>body { display:block; padding:20px; } #main-content { margin:0; padding:0; max-width:1000px; width:100%; } </style></head><body><main id="main-content"></main><div id="modal-overlay" class="modal-overlay"><div id="detail-modal" class="modal"></div></div></body></html>` }));
   await page.goto('/dose-correlation-fixture');
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
@@ -151,4 +151,56 @@ test('draws unknown-dose usage and pauses without treating product strength as i
   expect(result.last).toBeGreaterThan(Date.parse('2026-07-01') / 86400000);
   await expect(page.locator('.corr-therapy-card')).toContainText('No lab measurements have usable numeric dose information');
   await page.screenshot({ path: '/tmp/getbased-unknown-dose-chart.png', fullPage: true });
+});
+
+
+test('shows current ingredient dose and lets the user confirm its period before using it historically', async ({ page }) => {
+  await fixture(page);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.importedData.supplements[0] = { id: 'dose-demo', name: 'Example supplement', type: 'supplement',
+      timesPerDay: 1, schedule: { mode: 'daily', timesPerDay: 1 },
+      ingredients: [{ name: 'TMG', amountValue: 500, amountUnit: 'mg', amount: '500 mg' }],
+      periods: [{ start: '2026-01-01', end: null }],
+    };
+  });
+  await select(page, 'LDL', 'lipids.ldl');
+  await select(page, 'Example supplement', 'dose-demo', 'toggle-therapy');
+  await expect(page.locator('.corr-therapy-card')).toContainText('Current ingredient dose: TMG: 500 mg/day');
+  await expect(page.locator('.corr-therapy-card')).toContainText('No lab measurements have usable numeric dose information');
+  const reference = await page.evaluate(async () => {
+    const chart = (await import('/js/state.js')).state.chartInstances['correlation-therapy-0'];
+    return chart.data.datasets.find(d => d.pointStyle === 'rectRot');
+  });
+  expect(reference.data).toHaveLength(1);
+  expect(reference.data[0].y).toBe(500);
+  await page.screenshot({ path: '/tmp/getbased-current-ingredient-dose.png', fullPage: true });
+  await page.evaluate(async () => (await import('/js/supplements.js')).openSupplementsEditor(0));
+  await page.getByRole('button', { name: 'Use current ingredient dose', exact: true }).click();
+  const choice = page.getByRole('combobox', { name: 'Confirm ingredient dose for these period dates' });
+  await choice.selectOption({ label: 'TMG: 500 mg/day' });
+  await expect(page.locator('.supp-period-dose')).toHaveValue('500 mg/day');
+  await page.getByRole('button', { name: 'Update', exact: true }).click();
+  // An ingredient edit now creates a dose step from today, preserving the confirmed history.
+  await page.locator('.supp-ing-amount').fill('2000');
+  await page.getByRole('button', { name: 'Update', exact: true }).click();
+  const periods = await page.evaluate(async () => (await import('/js/state.js')).state.importedData.supplements[0].periods);
+  expect(periods).toHaveLength(2);
+  expect(periods[0].dose).toMatchObject({ ingredient: 'TMG', value: 500, basis: 'day' });
+  expect(periods[1].dose).toMatchObject({ ingredient: 'TMG', value: 2000, basis: 'day' });
+  await page.evaluate(async () => {
+    document.getElementById('modal-overlay').classList.remove('show');
+    (await import('/js/compare-correlations.js')).showCorrelations();
+  });
+  await expect.poll(() => page.evaluate(async () => {
+    const chart = (await import('/js/state.js')).state.chartInstances['correlation-therapy-0'];
+    return chart?.data.datasets.find(d => d.yAxisID === 'dose')?.data.map(p => p.y).filter(v => v !== null);
+  })).toContain(2000);
+  await expect(page.locator('.corr-therapy-card')).toContainText('Confirmed amounts appear in the historical dose line');
+  await expect(page.locator('.corr-therapy-card')).not.toContainText('date is unconfirmed');
+  await page.screenshot({ path: '/tmp/getbased-confirmed-ingredient-step.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(async () => (await import('/js/supplements.js')).openSupplementsEditor(0));
+  await expect.poll(() => page.evaluate(() => { const modal = document.getElementById('detail-modal'); return modal.scrollWidth <= modal.clientWidth + 1; })).toBe(true);
+  await page.screenshot({ path: '/tmp/getbased-ingredient-editor-mobile.png', fullPage: true });
 });

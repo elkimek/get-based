@@ -34,6 +34,8 @@ export interface SupplementRecord {
 }
 
 export interface SupplementDose {
+  ingredient?: string;
+  source?: 'ingredient';
   basis?: 'dose' | 'day';
   value?: number;
   unit?: string;

@@ -55,6 +55,8 @@ function hasNestedInteractiveTarget(actionEl, target) {
  *   removeIngredient: (btn: Element) => void,
  *   addQualityTest: () => void,
  *   removeQualityTest: (btn: Element) => void,
+ *   applyIngredientDoseToPeriod: (button: Element) => void,
+ *   choosePeriodIngredientDose: (select: HTMLSelectElement) => void,
  *   addPeriod: () => void,
  *   removePeriod: (btn: Element) => void,
  *   fetchUrl: () => Promise<void> | void,
@@ -113,6 +115,9 @@ function makeClickHandler(actions) {
         break;
       case 'remove-quality-test':
         actions.removeQualityTest(actionEl);
+        break;
+      case 'use-ingredient-dose':
+        actions.applyIngredientDoseToPeriod(actionEl);
         break;
       case 'add-period':
         actions.addPeriod();
@@ -196,8 +201,9 @@ function makeInputHandler(actions) {
  */
 function makeChangeHandler(actions) {
   return event => {
-    const target = closestSuppElement(event.target, '#supp-label-input, .supp-ing-unit');
+    const target = closestSuppElement(event.target, '#supp-label-input, .supp-ing-unit, .supp-period-ingredient-choice');
     if (target instanceof HTMLInputElement) void actions.scanLabel(target);
+    else if (target instanceof HTMLSelectElement && target.classList.contains('supp-period-ingredient-choice')) actions.choosePeriodIngredientDose(target);
     else if (target instanceof HTMLSelectElement) actions.updateIngredientUnit(target);
   };
 }
