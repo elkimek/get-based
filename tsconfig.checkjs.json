@@ -742,6 +742,9 @@
     "js/biology-score-panel-policy.js",
     "js/biology-score-persistence.js",
     "js/data-custom-markers.js",
-    "js/profile-data-writes.js"
+    "js/profile-data-writes.js",
+    "js/correlation-workspace-store.js",
+    "js/therapy-correlation-view.js",
+    "js/therapy-correlations.js"
   ]
 }

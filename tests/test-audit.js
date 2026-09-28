@@ -1194,7 +1194,7 @@ assert('Focus card context-aware system prompt', focusCardSrc.includes("this per
 assert('Focus card disables reasoning for its small token cap', /reasoningEffort:\s*'none'/.test(focusCardSrc));
 assert('Focus card surfaces the failure reason', focusCardSrc.includes('escapeHTML(reason)'));
 
-assert('askAIAboutMarker uses marker.refMin/refMax', chatMarkerPromptsSrc.includes('${marker.refMin}') && chatMarkerPromptsSrc.includes('${marker.refMax}'));
+assert('askAIAboutMarker uses the effective dated range', chatMarkerPromptsSrc.includes('getEffectiveRangeForDate(marker, latestIdx)') && chatMarkerPromptsSrc.includes('getEffectiveRangeLabelForDate(marker, latestIdx)') && chatMarkerPromptsSrc.includes('lr.min') && chatMarkerPromptsSrc.includes('lr.max'));
 assert('askAIAboutMarker has trend direction', chatMarkerPromptsSrc.includes("Trend: ${dir}"));
 
 assert('Health dots JSON.parse has try-catch', ctxHealthDotsSrc.includes('try { return JSON.parse(jsonMatch[0])'));

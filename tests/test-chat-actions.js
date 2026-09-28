@@ -511,7 +511,7 @@ assert('sendChatMessage exits when blocked thread creation refuses a thread',
 assert('chat.js imports marker prompt helpers', chatSrc.includes("from './chat-marker-prompts.js'"), 'found');
 assert('chat-marker-prompts.js exports marker and correlation prompts',
   chatMarkerPromptsSrc.includes('export function askAIAboutMarker') &&
-    chatMarkerPromptsSrc.includes('export function askAIAboutCorrelations'),
+    /export\s+(?:async\s+)?function askAIAboutCorrelations/.test(chatMarkerPromptsSrc),
   'found');
 assert('chat marker prompts create a fresh thread when current thread has history',
   chatMarkerPromptsSrc.includes('state.chatHistory.length > 0') &&
@@ -519,7 +519,7 @@ assert('chat marker prompts create a fresh thread when current thread has histor
   'found');
 assert('chat marker prompts name the target thread from the source',
   chatMarkerPromptsSrc.includes('renameThread(state.currentThreadId, threadName)') &&
-    chatMarkerPromptsSrc.includes('Correlations: ${names.join'),
+    chatMarkerPromptsSrc.includes("openSourcePrompt(therapyCorrelationPrompt(selection), 'Biomarker and dose exploration')"),
   'found');
 assert('renderChatMessages calls buildActionBar', chatRenderSrc.includes('buildActionBar(i)'), 'found');
 assert('API messages tag other personas', chatPromptContextSrc.includes('Response from') && chatPromptContextSrc.includes('personalityName'), 'tags messages from different personas');
