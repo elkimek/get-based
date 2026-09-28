@@ -452,11 +452,6 @@
   color: var(--text-muted);
   font-size: 10px;
 }
-.date-range-filter {
-  display: flex; gap: 4px; background: var(--bg-secondary); padding: 3px;
-  border-radius: var(--radius-sm); border: 1px solid var(--border);
-  width: fit-content;
-}
 .dashboard-lab-date-range {
   display: flex; align-items: center; justify-content: space-between;
   flex-wrap: wrap; gap: 12px; margin-bottom: 20px; padding: 12px 16px;
@@ -468,13 +463,6 @@
   margin: 4px 0 0; font-size: 12px; line-height: 1.5; color: var(--text-secondary);
 }
 .dashboard-lab-date-range .date-range-filter { flex-shrink: 0; }
-.range-btn {
-  padding: 6px 12px; border-radius: 6px; border: none; background: transparent;
-  color: var(--text-secondary); font-size: 12px; cursor: pointer;
-  font-weight: 600; transition: all 0.15s; font-family: inherit;
-}
-.range-btn.active { background: var(--accent-gradient); color: white; }
-.range-btn:hover:not(.active) { background: var(--bg-hover); }
 .db-insights-list { display: grid; gap: 10px; }
 .db-insight {
   width: 100%; padding: 14px 16px; border-radius: var(--radius-sm);

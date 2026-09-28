@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 790 |
-| Internal import edges | 3344 |
+| Internal import edges | 3346 |
 | Dynamic internal edges | 119 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -75,7 +75,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/crypto.js`](js/crypto.js) | 38 | [`js/export.js`](js/export.js) | 23 |
 | [`js/ai-feature-routing.js`](js/ai-feature-routing.js) | 36 | [`js/views.js`](js/views.js) | 22 |
 | [`js/data-merge.js`](js/data-merge.js) | 34 | [`js/biology-scores.js`](js/biology-scores.js) | 20 |
-| [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js) | 22 | [`js/chat-render.js`](js/chat-render.js) | 20 |
+| [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js) | 23 | [`js/chat-render.js`](js/chat-render.js) | 20 |
 | [`js/chat-runtime.js`](js/chat-runtime.js) | 21 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
 | [`js/utils-runtime.js`](js/utils-runtime.js) | 21 | [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | 20 |
 | [`js/constants.js`](js/constants.js) | 20 | [`js/marker-schema/index.js`](js/marker-schema/index.js) | 20 |
@@ -1277,8 +1277,8 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>therapy</code> family — 2 modules</summary>
 
-- [`js/therapy-correlation-view.js`](js/therapy-correlation-view.js) → [`js/charts-runtime.js`](js/charts-runtime.js), [`js/state.js`](js/state.js), [`js/theme.js`](js/theme.js), [`js/therapy-correlations.js`](js/therapy-correlations.js), [`js/utils.js`](js/utils.js)
-- [`js/therapy-correlations.js`](js/therapy-correlations.js) → [`js/marker-placement.js`](js/marker-placement.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js)
+- [`js/therapy-correlation-view.js`](js/therapy-correlation-view.js) → [`js/charts-runtime.js`](js/charts-runtime.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/theme.js`](js/theme.js), [`js/therapy-correlations.js`](js/therapy-correlations.js), [`js/utils.js`](js/utils.js)
+- [`js/therapy-correlations.js`](js/therapy-correlations.js) → [`js/lab-date-range.js`](js/lab-date-range.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js)
 
 </details>
 

@@ -410,9 +410,10 @@ export function showCorrelations(data) {
     html += `<button class="corr-preset-btn" ${compareActionAttrs('apply-preset', { index: i })}>${CORRELATION_PRESETS[i].label}</button>`;
   }
   html += `</details><p class="corr-help">Choose two biomarkers, or a biomarker and a treatment.</p>
-    <label class="corr-lag-control" for="corr-lag">Compare lab results with doses recorded
+    <details class="corr-advanced"${state.correlationLagDays ? ' open' : ''}><summary>Advanced analysis</summary>
+    <label class="corr-lag-control" for="corr-lag">Dose timing relative to lab test
       <select id="corr-lag" ${compareChangeAttrs('set-lag')}>${CORRELATION_LAGS.map(days => `<option value="${days}"${state.correlationLagDays === days ? ' selected' : ''}>${days ? `${days} days earlier` : 'on the test date'}</option>`).join('')}</select>
-    </label></div>`;
+    </label><p class="corr-help">Pairs each result with the dose on that earlier date, not an average over the interval. The timeline keeps its actual dates.</p></details></div>`;
   html += `<div class="corr-chart-container" id="corr-chart-container" style="display:none">
     <h3><span id="corr-chart-title">Explore selected data</span>
       <button class="corr-ask-ai-btn" ${compareActionAttrs('ask-ai-correlations')} title="Ask AI about these correlations">Ask AI</button>

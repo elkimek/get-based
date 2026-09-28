@@ -2,6 +2,7 @@
 // Read-only preparation shared by correlation charts, tables and AI prompts.
 import { CORRELATION_LAGS, getSupplementDailyDoses, getSupplementPeriods, getSupplementRecordId, localDateKey, normalizeSupplementUnit, parseSupplementQuantity } from './supplement-medication-domain.js';
 import { getMarkerStorageDotKey } from './marker-placement.js';
+import { getLabDateRangeBounds } from './lab-date-range.js';
 
 const DAY = 86400000;
 export { CORRELATION_LAGS } from './supplement-medication-domain.js';
@@ -177,8 +178,10 @@ export function prepareTherapyComparison({ history, marker, markerKey, dates, en
 }
 
 export function prepareCorrelationSelection(data, importedData, markerKeys, therapyIds, lagDays = 0, options = {}) {
-  const start = correlationDay(options.start) !== null ? options.start : '';
-  const end = correlationDay(options.end) !== null ? options.end : '';
+  const bounds = ['3m', '6m', '1y'].includes(options.rangePreset)
+    ? getLabDateRangeBounds([], options.rangePreset, new Date(`${localDateKey()}T12:00:00Z`), { fallbackToAll: false }) : null;
+  const start = bounds?.min || (correlationDay(options.start) !== null ? options.start : '');
+  const end = bounds?.max || (correlationDay(options.end) !== null ? options.end : '');
   const rangeError = start && end && start > end ? 'Start date must be on or before end date.' : '';
   const indexes = data.dates.flatMap((date, i) => !rangeError && (!start || date >= start) && (!end || date <= end) ? [i] : []);
   const dates = indexes.map(i => data.dates[i]);

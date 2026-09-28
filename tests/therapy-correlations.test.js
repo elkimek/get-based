@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   correlationDay, parseCorrelationDose, prepareTherapyHistory, therapyExposure,
   therapySegments, prepareTherapyComparison, prepareCorrelationSelection, therapyCorrelationPrompt,
@@ -294,4 +294,22 @@ it.each([null, undefined, ''])('keeps a TMG period with end=%s ongoing through t
   expect(segments.every(s => s.value === 500)).toBe(true);
   expect(segments.at(-1).end).toBe(correlationDay(today) + 1);
   expect(tmg).toEqual(snapshot);
+});
+
+
+it('uses calendar-month presets through today with no silent all-data fallback', () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-05-31T12:00:00Z'));
+  try {
+    const data = { dates: ['2025-01-01', '2026-02-27', '2026-02-28', '2026-05-31'], categories: { test: { markers: { marker: { ...marker, values: [1, 2, 3, 4] } } } } };
+    for (const [rangePreset, start] of [['3m', '2026-02-28'], ['6m', '2025-11-30'], ['1y', '2025-05-31']]) {
+      const selection = prepareCorrelationSelection(data, { supplements: [record] }, ['test.marker'], ['sm_test'], 0, { rangePreset });
+      expect(selection.range).toEqual({ start, end: '2026-05-31' });
+      expect(selection.markers[0].rows.every(r => r.date >= start)).toBe(true);
+      expect(therapyCorrelationPrompt(selection)).not.toContain('2025-01-01');
+    }
+    const empty = prepareCorrelationSelection({ ...data, dates: ['2025-01-01'] }, {}, ['test.marker'], [], 0, { rangePreset: '3m' });
+    expect(empty.markers[0].rows).toEqual([]);
+    expect(empty.range.start).toBe('2026-02-28');
+  } finally { vi.useRealTimers(); }
 });

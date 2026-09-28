@@ -197,3 +197,20 @@ select optgroup {
   .ie-remove { min-height: 44px; }
   .view-btn { min-height: 44px; padding: 8px 16px; }
 }
+
+/* Shared date-range and segmented view controls. */
+.date-range-filter {
+  display: flex; gap: 4px; background: var(--bg-secondary); padding: 3px;
+  border-radius: var(--radius-sm); border: 1px solid var(--border);
+  width: fit-content;
+}
+.range-btn {
+  padding: 6px 12px; border-radius: 6px; border: none; background: transparent;
+  color: var(--text-secondary); font-size: 12px; cursor: pointer;
+  font-weight: 600; transition: all 0.15s; font-family: inherit;
+}
+.range-btn.active { background: var(--accent-gradient); color: white; }
+.range-btn:hover:not(.active) { background: var(--bg-hover); }
+
+.range-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.range-btn:disabled { opacity: .5; cursor: default; }
