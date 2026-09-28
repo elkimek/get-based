@@ -218,14 +218,13 @@ describe('JSON restore runtime', () => {
     expect(runtime.saveImportedDataForProfile).toHaveBeenCalledWith(
       'profile-1',
       expect.objectContaining({ diet: { type: 'whole-food' } }),
-      { forceProfileScope: true, baseData: {} },
+      { forceProfileScope: true, expectedData: null },
     );
     expect(JSON.parse(localStorage.getItem('profile-1:imported')))
       .toMatchObject({ diet: { type: 'whole-food' } });
   });
 
-  it('merges later profile writes against their original baseline after another tab edits them', async () => {
-    const { mergeProfileMutation } = await import('../js/profile-data-writes.js');
+  it('stops before overwriting a later profile changed after bundle preflight', async () => {
     const profiles = [{ id: 'profile-1', name: 'Primary' }, { id: 'profile-2', name: 'Second' }];
     runtime.getProfiles.mockReturnValueOnce(profiles);
     const before = { entries: [{ date: '2026-01-01', markers: { glucose: 90 } }],
@@ -239,18 +238,16 @@ describe('JSON restore runtime', () => {
       localStorage.setItem('profile-2:imported', JSON.stringify(latest));
       return true;
     }).mockImplementationOnce(async (id, data, options) => {
-      expect(options.baseData).toEqual(before);
-      const committed = mergeProfileMutation(options.baseData, data, JSON.parse(localStorage.getItem(`${id}:imported`)));
-      localStorage.setItem(`${id}:imported`, JSON.stringify(committed));
-      return true;
+      expect(options.expectedData).toBe(JSON.stringify(before));
+      return localStorage.getItem(`${id}:imported`) === options.expectedData;
     });
     const backup = { type: 'database', profiles: profiles.map(p => ({ ...p,
       data: { entries: [{ date: '2026-01-01', markers: { insulin: 6 } }] } })) };
     await importDataJSON(new File([JSON.stringify(backup)], 'concurrent.json'));
     const restored = JSON.parse(localStorage.getItem('profile-2:imported'));
-    expect(restored.entries[0].markers).toEqual({ glucose: 90, hba1c: 5, insulin: 6 });
+    expect(restored.entries[0].markers).toEqual({ glucose: 90, hba1c: 5 });
     expect(restored.supplements).toEqual(latest.supplements);
-    expect(runtime.showNotification).toHaveBeenLastCalledWith('Imported 2 profiles (0 new, 2 merged)', 'success');
+    expect(runtime.showNotification).toHaveBeenLastCalledWith(expect.stringContaining('Saved profiles: 1. Import stopped'), 'error');
   });
 
   it('reports saved profiles if a later bundle write cannot be combined safely', async () => {

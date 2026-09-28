@@ -281,6 +281,8 @@ function persistProfileSnapshot(profileId, source, options) {
       if (isProfileReadBlocked(profileId)) return false;
       const key = profileStorageKey(profileId, 'imported');
       const previous = await encryptedGetItem(key);
+      // Explicit restores must retry if their reviewed snapshot changed.
+      if (options.expectedData !== undefined && previous !== options.expectedData) throw new ProfileWriteConflict('Stale import');
       const latest = base && previous != null ? JSON.parse(previous) : {};
       persisted = base ? mergeProfileMutation(base, intent, latest) : intent;
       // Concurrent assessments of the same score may cover different views.

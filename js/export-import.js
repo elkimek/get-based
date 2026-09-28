@@ -607,9 +607,8 @@ async function _importDatabaseBundle(json) {
   // Resolve every conflict, then validate every snapshot before the first write.
   for (const p of plans) if (p.key && await encryptedGetItem(p.key) !== p.raw) throw new Error('Profile changed. Retry import.');
   try {
-    for (const { bp, existing, importData, current, replaceRegimens } of plans) {
+    for (const { bp, existing, importData, raw, current, replaceRegimens } of plans) {
       if (existing) {
-        const baseData = structuredClone(current);
         // Clear delete intents before metadata queues sync for this restored profile.
         _reviveImportedProfileSyncIdentity(existing.id);
         if (!firstImportedId) firstImportedId = existing.id;
@@ -735,9 +734,9 @@ async function _importDatabaseBundle(json) {
         }
         // Save
         const persisted = await saveImportedDataForProfile(existing.id, current, {
-          forceProfileScope: true, baseData,
+          forceProfileScope: true, expectedData: raw,
         });
-        if (!persisted) throw new Error('Profile could not be saved.');
+        if (!persisted) throw new Error('Could not save.');
         merged++;
         if (bp.chat) await _importChatData(existing.id, bp.chat);
         await _importNutritionData(existing.id, bp.nutrition);
@@ -754,7 +753,7 @@ async function _importDatabaseBundle(json) {
         const persisted = await saveImportedDataForProfile(id, importData, {
           forceProfileScope: true,
         });
-        if (!persisted) throw new Error('Profile could not be saved.');
+        if (!persisted) throw new Error('Could not save.');
         created++;
         if (bp.chat) await _importChatData(id, bp.chat);
         await _importNutritionData(id, bp.nutrition);
