@@ -218,10 +218,48 @@ describe('JSON restore runtime', () => {
     expect(runtime.saveImportedDataForProfile).toHaveBeenCalledWith(
       'profile-1',
       expect.objectContaining({ diet: { type: 'whole-food' } }),
-      { forceProfileScope: true },
+      { forceProfileScope: true, baseData: {} },
     );
     expect(JSON.parse(localStorage.getItem('profile-1:imported')))
       .toMatchObject({ diet: { type: 'whole-food' } });
+  });
+
+  it('merges later profile writes against their original baseline after another tab edits them', async () => {
+    const { mergeProfileMutation } = await import('../js/profile-data-writes.js');
+    const profiles = [{ id: 'profile-1', name: 'Primary' }, { id: 'profile-2', name: 'Second' }];
+    runtime.getProfiles.mockReturnValueOnce(profiles);
+    const before = { entries: [{ date: '2026-01-01', markers: { glucose: 90 } }],
+      supplements: [{ id: 'tmg', name: 'TMG', startDate: '2026-03-24', dosage: '500 mg' }] };
+    localStorage.setItem('profile-2:imported', JSON.stringify(before));
+    const latest = structuredClone(before);
+    latest.entries[0].markers.hba1c = 5;
+    latest.supplements[0].dosage = '2000 mg';
+    runtime.saveImportedDataForProfile.mockImplementationOnce(async (id, data) => {
+      localStorage.setItem(`${id}:imported`, JSON.stringify(data));
+      localStorage.setItem('profile-2:imported', JSON.stringify(latest));
+      return true;
+    }).mockImplementationOnce(async (id, data, options) => {
+      expect(options.baseData).toEqual(before);
+      const committed = mergeProfileMutation(options.baseData, data, JSON.parse(localStorage.getItem(`${id}:imported`)));
+      localStorage.setItem(`${id}:imported`, JSON.stringify(committed));
+      return true;
+    });
+    const backup = { type: 'database', profiles: profiles.map(p => ({ ...p,
+      data: { entries: [{ date: '2026-01-01', markers: { insulin: 6 } }] } })) };
+    await importDataJSON(new File([JSON.stringify(backup)], 'concurrent.json'));
+    const restored = JSON.parse(localStorage.getItem('profile-2:imported'));
+    expect(restored.entries[0].markers).toEqual({ glucose: 90, hba1c: 5, insulin: 6 });
+    expect(restored.supplements).toEqual(latest.supplements);
+    expect(runtime.showNotification).toHaveBeenLastCalledWith('Imported 2 profiles (0 new, 2 merged)', 'success');
+  });
+
+  it('reports saved profiles if a later bundle write cannot be combined safely', async () => {
+    runtime.getProfiles.mockReturnValueOnce([{ id: 'profile-1' }, { id: 'profile-2' }]);
+    runtime.saveImportedDataForProfile.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    const backup = { type: 'database', profiles: ['profile-1', 'profile-2'].map(id => ({ id, data: { diet: { type: 'imported' } } })) };
+    await importDataJSON(new File([JSON.stringify(backup)], 'conflict.json'));
+    expect(runtime.showNotification).toHaveBeenLastCalledWith(expect.stringContaining('Saved profiles: 1. Import stopped'), 'error');
+    expect(runtime.showNotification.mock.calls.some(([, kind]) => kind === 'success')).toBe(false);
   });
 
   it('restores Biology Score insights from JSON and keeps newer local interpretations', async () => {
