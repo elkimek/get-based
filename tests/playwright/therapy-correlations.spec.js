@@ -173,6 +173,10 @@ test('shows current ingredient dose and lets the user confirm its period before 
   await expect(page.locator('.corr-current-dose')).toContainText('Saved dose today');
   await expect(page.locator('.corr-current-dose')).toContainText('TMG');
   await expect(page.locator('.corr-current-dose')).toContainText('500 mg/day');
+  await expect(page.locator('.corr-dose-notice')).toContainText('Saved today: TMG 500 mg/day');
+  await expect(page.locator('.corr-dose-notice')).toContainText('Confirm when this amount applied');
+  await expect(page.locator('#corr-grouping')).toBeDisabled();
+  await expect(page.locator('#corr-layout-status')).toContainText('Only one pair');
   await expect(page.locator('.corr-therapy-card')).toContainText('No lab measurements have usable numeric dose information');
   const presentation = await page.evaluate(async () => {
     const chart = (await import('/js/state.js')).state.chartInstances['correlation-therapy-0'];
@@ -182,7 +186,7 @@ test('shows current ingredient dose and lets the user confirm its period before 
   expect(presentation.scales.some(key => key.startsWith('current-') || key === 'usage')).toBe(false);
   await expect(page.locator('.corr-stat')).toContainText('Confirm dose dates');
   await page.screenshot({ path: '/tmp/getbased-current-ingredient-dose.png', fullPage: true });
-  await page.getByRole('button', { name: 'Review dose dates', exact: true }).click();
+  await page.getByRole('button', { name: 'Set dose dates', exact: true }).click();
   await page.getByRole('button', { name: 'Use current ingredient dose', exact: true }).click();
   const choice = page.getByRole('combobox', { name: 'Confirm ingredient dose for these period dates' });
   await choice.selectOption({ label: 'TMG: 500 mg/day' });
@@ -202,6 +206,7 @@ test('shows current ingredient dose and lets the user confirm its period before 
     const chart = (await import('/js/state.js')).state.chartInstances['correlation-therapy-0'];
     return chart?.data.datasets.find(d => d.yAxisID === 'dose')?.data.map(p => p.y).filter(v => v !== null);
   })).toContain(2000);
+  await expect(page.locator('.corr-dose-notice')).toHaveCount(0);
   await expect(page.locator('.corr-current-dose')).toContainText('Recorded since');
   await expect(page.locator('.corr-current-dose')).not.toContainText('Start date not confirmed');
   await page.screenshot({ path: '/tmp/getbased-confirmed-ingredient-step.png', fullPage: true });
@@ -409,9 +414,8 @@ test('combines different marker units on two axes without empty supplement plots
   await select(page, 'Glucose', 'biochemistry.glucose');
   await select(page, 'HbA1c', 'diabetes.hba1c');
   await select(page, 'Example supplement', 'dose-demo', 'toggle-therapy');
-  await select(page, 'Example medication', 'prn-demo', 'toggle-therapy');
   await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(1);
-  await expect(page.locator('.corr-use-timeline')).toHaveCount(2);
+  await expect(page.locator('.corr-use-timeline')).toHaveCount(1);
   const snapshot = (await chartSnapshot(page))[0];
   expect(snapshot.datasets).toHaveLength(2);
   expect(snapshot.datasets.map(d => d.axis)).toEqual(['y', 'y2']);
@@ -424,9 +428,18 @@ test('combines different marker units on two axes without empty supplement plots
   expect(axes).toEqual([{ title: 'mmol/l', side: 'left' }, { title: 'mmol/mol', side: 'right' }]);
   await expect(page.locator('#corr-workspace-plots')).toContainText('Left: Glucose');
   await expect(page.locator('#corr-workspace-plots')).toContainText('Right: HbA1c');
+  await expect(page.locator('#corr-layout-status')).toContainText('Combined selection · 1 chart');
+  await page.locator('#corr-grouping').selectOption('separate');
+  await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(2);
+  await expect(page.locator('#corr-layout-status')).toContainText('Separate pairs · 2 charts');
+  const separate = await chartSnapshot(page);
+  expect(separate.map(c => c.datasets.map(d => d.label))).toEqual([['Glucose (mmol/l)'], ['HbA1c (mmol/mol)']]);
+  await expect(page.locator('.corr-pair-panel h4')).toHaveText(['Glucose + Example supplement', 'HbA1c + Example supplement']);
+  await page.locator('#corr-grouping').selectOption('combined');
+  await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(1);
   await page.locator('#corr-layout').selectOption('lanes');
   await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(2);
-  await expect(page.locator('.corr-use-timeline')).toHaveCount(2);
+  await expect(page.locator('.corr-use-timeline')).toHaveCount(1);
   await page.locator('#corr-layout').selectOption('overlay');
   await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(1);
   await page.setViewportSize({ width: 320, height: 900 });
@@ -436,7 +449,7 @@ test('combines different marker units on two axes without empty supplement plots
   await page.locator('[data-corr-series="biochemistry.glucose"]').click();
   await page.locator('[data-corr-series="diabetes.hba1c"]').click();
   await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(0);
-  await expect(page.locator('.corr-use-timeline')).toHaveCount(2);
+  await expect(page.locator('.corr-use-timeline')).toHaveCount(1);
   expect(await chartSnapshot(page)).toHaveLength(0);
   expect(errors).toEqual([]);
 });

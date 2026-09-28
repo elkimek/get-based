@@ -889,3 +889,7 @@
 /* Keep chips reachable while suggestions are open, including empty results. */
 .corr-options { position: static; }
 .corr-presets summary { cursor: pointer; font-size: 12px; color: var(--text-secondary); padding: 5px 0; }
+
+.corr-dose-notice { border-left: 3px solid var(--accent-light); padding: 12px 16px; margin: 14px 0; background: var(--bg-secondary); font-size: 13px; overflow-wrap: anywhere; }
+.corr-dose-notice p { color: var(--text-secondary); line-height: 1.5; margin: 8px 0; }
+.corr-pair-panel + .corr-pair-panel { border-top: 1px solid var(--border); padding-top: 18px; }
