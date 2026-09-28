@@ -4,7 +4,7 @@
     "startupJavaScriptFiles": 2,
     "startupDecodedBytes": 1276000,
     "outputJavaScriptFiles": 167,
-    "outputDecodedBytes": 5434000
+    "outputDecodedBytes": 5435000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -101,7 +101,9 @@
     "correlationDoseConfirmationMeasuredBaseCommit": "043d4f3e",
     "correlationWorkspacePersistenceStartupDecodedBytes": 1274312,
     "correlationWorkspacePersistenceOutputDecodedBytes": 5432097,
-    "correlationWorkspacePersistenceMeasuredBaseCommit": "c0a0a478"
+    "correlationWorkspacePersistenceMeasuredBaseCommit": "c0a0a478",
+    "correlationsReleaseNotesOutputDecodedBytes": 5434317,
+    "correlationsReleaseNotesMeasuredBaseCommit": "6598bee5"
   },
   "referenceCommit": "331112b1",
   "measuredAt": "2026-09-28"
