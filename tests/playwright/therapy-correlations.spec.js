@@ -765,3 +765,129 @@ test('restores the correlation workspace after reload and keeps each profile sep
   await expect(page.locator('.corr-chip')).toHaveCount(2);
   await expect(page.locator('#corr-layout-lanes')).toHaveAttribute('aria-pressed', 'true');
 });
+
+test('clearing the final marker saves an empty workspace instead of restoring an old selection', async ({ page }) => {
+  await fixture(page);
+  await page.evaluate(async () => {
+    (await import('/js/state.js')).state.currentProfile = 'empty-workspace-review';
+    await (await import('/js/data.js')).saveImportedData();
+  });
+  await select(page, 'LDL', 'lipids.ldl');
+  await page.getByRole('button', { name: 'Remove LDL Cholesterol', exact: true }).click();
+  await expect.poll(() => page.evaluate(async () => JSON.parse(await (await import('/js/crypto.js')).encryptedGetItem('labcharts-empty-workspace-review-correlation-workspace'))?.markers)).toEqual([]);
+  await page.reload();
+  await page.evaluate(async () => {
+    await (await import('/js/profile.js')).loadProfile('empty-workspace-review');
+    (await import('/js/compare-correlations.js')).showCorrelations();
+  });
+  await expect(page.locator('.corr-chip')).toHaveCount(0);
+  await expect(page.locator('#corr-chart-container')).toBeHidden();
+});
+
+test('re-added items are visible and analysis views do not expand the timeline', async ({ page }) => {
+  await fixture(page);
+  await select(page, 'LDL', 'lipids.ldl');
+  await select(page, 'Example supplement', 'dose-demo', 'toggle-therapy');
+  await expect(page.locator('#corr-grouping')).toBeHidden();
+  await expect(page.locator('#corr-selection-status')).toHaveClass(/sr-only/);
+  await page.locator('[data-corr-series="lipids.ldl"]').click();
+  await page.getByRole('button', { name: 'Remove LDL Cholesterol', exact: true }).click();
+  await select(page, 'LDL', 'lipids.ldl');
+  await expect(page.locator('[data-corr-series="lipids.ldl"]')).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('[data-corr-series="dose-demo"]').click();
+  await page.getByRole('button', { name: 'Remove Example supplement', exact: true }).click();
+  await select(page, 'Example supplement', 'dose-demo', 'toggle-therapy');
+  await expect(page.locator('[data-corr-series="dose-demo"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.corr-analysis-disclosure')).not.toHaveAttribute('open');
+  for (const name of ['Data', 'Scatter']) {
+    await page.getByRole('button', { name, exact: true }).click();
+    await expect(page.locator('.corr-analysis-disclosure > summary')).toBeHidden();
+    if (name === 'Data') {
+      await expect(page.locator('th').filter({ hasText: /^Dose date$/ })).toHaveCount(0);
+      await expect(page.locator('#corr-pair-detail table').last()).toBeVisible();
+    } else await expect(page.locator('#corr-scatter')).toBeVisible();
+    await page.getByRole('button', { name: 'Timeline', exact: true }).click();
+    await expect(page.locator('.corr-analysis-disclosure')).not.toHaveAttribute('open');
+  }
+});
+
+test('dose-change boundary tooltips agree with the inspector and pinned dates can be released', async ({ page }) => {
+  await fixture(page);
+  await select(page, 'LDL', 'lipids.ldl');
+  await select(page, 'Example supplement', 'dose-demo', 'toggle-therapy');
+  await expect.poll(() => page.evaluate(async () => !!(await import('/js/state.js')).state.chartInstances['correlation-therapy-0'])).toBe(true);
+  const label = await page.evaluate(async () => {
+    const chart = (await import('/js/state.js')).state.chartInstances['correlation-therapy-0'];
+    const dataset = chart.data.datasets[1];
+    const raw = dataset.data.find(p => p.x === Date.parse('2026-03-01') / 86400000 && p.y === 500);
+    return chart.options.plugins.tooltip.callbacks.label({ dataset, raw, parsed: { x: raw.x, y: raw.y } });
+  });
+  expect(label).toContain('2000');
+  expect(label).not.toContain('500');
+  await page.locator('.corr-jump > summary').click();
+  await page.locator('#corr-inspect').fill('2026-03-01');
+  await page.locator('#corr-inspect').dispatchEvent('change');
+  await expect(page.locator('#corr-readout')).toContainText('2000');
+  await page.getByRole('button', { name: 'Unpin date', exact: true }).click();
+  await expect(page.locator('#corr-unpin')).toBeHidden();
+  const target = await page.evaluate(async () => {
+    const c = (await import('/js/state.js')).state.chartInstances['correlation-therapy-0'];
+    const rect = c.canvas.getBoundingClientRect();
+    return { x: rect.x + c.scales.x.getPixelForValue(Date.parse('2026-05-15') / 86400000), y: rect.y + c.chartArea.top + 30 };
+  });
+  await page.mouse.move(target.x, target.y);
+  await expect(page.locator('#corr-inspect-label')).toHaveText('2026-05-15');
+  await expect(page.locator('#corr-readout')).toContainText('Recorded break');
+});
+
+
+test('a matched marker prevents a false no-matching-labs notice for the treatment', async ({ page }) => {
+  await fixture(page);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.importedData.entries[0].markers['biochemistry.glucose'] = 5;
+    (await import('/js/data.js')).invalidateActiveDataCache();
+    (await import('/js/compare-correlations.js')).showCorrelations();
+  });
+  await select(page, 'LDL', 'lipids.ldl');
+  await select(page, 'Glucose', 'biochemistry.glucose');
+  await select(page, 'Example supplement', 'dose-demo', 'toggle-therapy');
+  await expect(page.locator('.corr-dose-notice')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Remove LDL Cholesterol', exact: true }).click();
+  await expect(page.locator('.corr-dose-notice')).toContainText('no lab results match those dates');
+});
+
+
+test('full app startup restores the saved correlation workspace after F5', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-default-emptyTour', 'completed');
+    localStorage.setItem('labcharts-default-tour', 'completed');
+  });
+  await page.goto('/app');
+  await expect(page.locator('html')).toHaveAttribute('data-app-ready', '');
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.importedData.entries = [
+      { date: '2026-01-10', markers: { 'biochemistry.glucose': 5, 'lipids.ldl': 2 } },
+      { date: '2026-05-10', markers: { 'biochemistry.glucose': 4.5, 'lipids.ldl': 3 } },
+    ];
+    if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Fixture save failed');
+    (await import('/js/data.js')).invalidateActiveDataCache();
+  });
+  await page.getByRole('button', { name: 'Correlations', exact: true }).click();
+  await select(page, 'Glucose', 'biochemistry.glucose');
+  await select(page, 'LDL', 'lipids.ldl');
+  await page.getByRole('button', { name: '1Y', exact: true }).click();
+  await page.getByRole('button', { name: 'Aligned lanes', exact: true }).click();
+  await expect.poll(() => page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const raw = await (await import('/js/crypto.js')).encryptedGetItem(`labcharts-${state.currentProfile}-correlation-workspace`);
+    return JSON.parse(raw)?.view.layout;
+  })).toBe('lanes');
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-app-ready', '');
+  await expect(page.locator('.corr-chip')).toHaveCount(2);
+  await expect(page.getByRole('button', { name: '1Y', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Aligned lanes', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(2);
+});

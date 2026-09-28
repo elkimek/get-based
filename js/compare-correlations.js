@@ -112,10 +112,10 @@ function finishCorrelationSearch(option) {
   search.value = '';
   search.focus();
   closeCorrelationDropdown();
-  correlationNotice('Added. Search for another item.');
+  correlationNotice('Added. Search for another item.', true);
 }
 
-function correlationNotice(text) { const el = document.getElementById('corr-selection-status'); if (el) el.textContent = text; }
+function correlationNotice(text, announceOnly = false) { const el = document.getElementById('corr-selection-status'); if (el) { el.textContent = text; el.classList.toggle('sr-only', announceOnly); } }
 function closeCorrelationDropdown() {
   document.getElementById('corr-options')?.classList.remove('show');
   const search = document.getElementById('corr-search');
@@ -482,17 +482,14 @@ export function filterCorrelationOptions() {
 export function toggleCorrelationMarker(key) {
   const idx = state.selectedCorrelationMarkers.indexOf(key);
   if (idx !== -1) state.selectedCorrelationMarkers.splice(idx, 1);
-  else if (state.selectedCorrelationMarkers.length + state.selectedCorrelationSupplements.length < 8) state.selectedCorrelationMarkers.push(key);
+  else if (state.selectedCorrelationMarkers.length + state.selectedCorrelationSupplements.length < 8) {
+    state.selectedCorrelationMarkers.push(key);
+    state.correlationView.hidden = (state.correlationView.hidden || []).filter(id => id !== key);
+  }
   renderCorrelationChips();
   populateCorrelationOptions();
   closeCorrelationDropdown();
-  if (canRenderCorrelation()) renderCorrelationChart();
-  else {
-    const container = document.getElementById("corr-chart-container");
-    if (container) container.style.display = "none";
-    destroyTherapyCorrelationCharts();
-    if (state.chartInstances["correlation"]) { state.chartInstances["correlation"].destroy(); delete state.chartInstances["correlation"]; }
-  }
+  renderCorrelationChart();
 }
 
 function availablePresetMarkers(preset, data) {
@@ -509,6 +506,7 @@ export function applyCorrelationPreset(idx) {
   const available = availablePresetMarkers(CORRELATION_PRESETS[idx], data);
   if (!available.length) { correlationNotice('No markers from this preset are available in your data.'); return; }
   state.selectedCorrelationMarkers = available.slice(0, 8 - state.selectedCorrelationSupplements.length);
+  state.correlationView.hidden = (state.correlationView.hidden || []).filter(id => !state.selectedCorrelationMarkers.includes(id));
   state.correlationView.pair = '0';
   delete state.correlationView.pairKey;
   correlationNotice(`Preset: ${state.selectedCorrelationMarkers.length}/${CORRELATION_PRESETS[idx].markers.length} markers selected. Treatments kept.${available.length > state.selectedCorrelationMarkers.length ? ' Selection limited to 8 items.' : ''}`);
@@ -546,7 +544,10 @@ function canRenderCorrelation() {
 export function toggleCorrelationTherapy(id) {
   const index = state.selectedCorrelationSupplements.indexOf(id);
   if (index >= 0) state.selectedCorrelationSupplements.splice(index, 1);
-  else if (state.selectedCorrelationMarkers.length + state.selectedCorrelationSupplements.length < 8) state.selectedCorrelationSupplements.push(id);
+  else if (state.selectedCorrelationMarkers.length + state.selectedCorrelationSupplements.length < 8) {
+    state.selectedCorrelationSupplements.push(id);
+    state.correlationView.hidden = (state.correlationView.hidden || []).filter(hiddenId => hiddenId !== id);
+  }
   renderCorrelationChips();
   populateCorrelationOptions();
   closeCorrelationDropdown();

@@ -2,6 +2,7 @@
 // startup-profile.js - profile migration, active-profile load, and UI state
 
 import { state } from './state.js';
+import { restoreCorrelationWorkspace } from './correlation-workspace-store.js';
 import { rememberProfileData } from './profile-data-writes.js';
 import {
   saveProfiles,
@@ -100,6 +101,8 @@ export async function initializeProfileData() {
   }
   // Empty profiles also need a baseline before the first unsaved edit.
   rememberProfileData(state.importedData);
+  // Initial boot uses this path rather than loadProfile; restore before routing.
+  await restoreCorrelationWorkspace(state.currentProfile);
   // Profile switches already hydrate this local-only aggregate. Initial boot
   // must do the same before Dashboard/Body render or a hard refresh makes
   // saved meals appear to have vanished until the nutrition editor is opened.

@@ -928,3 +928,7 @@
 .corr-confirm-dose summary { cursor: pointer; color: var(--accent-light); }
 .corr-confirm-dose > div { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 6px 0; }
 .corr-confirm-status:empty { display: none; }
+
+.corr-analysis-disclosure:not([data-analysis-tab="timeline"]) { border: 0; padding-top: 0; }
+.corr-analysis-disclosure:not([data-analysis-tab="timeline"]) > summary,
+.corr-analysis-disclosure[data-analysis-tab="data"] #corr-pair-detail details > summary { display: none; }
