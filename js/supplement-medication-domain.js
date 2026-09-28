@@ -398,3 +398,19 @@ export function recordIngredientDoseChange(entry, today = localDateKey(), savedR
   if (next.length === 1) target.dose = { ...next[0] };
   else delete target.dose;
 }
+
+
+/** Explicitly link current ingredient totals to one existing, undosed period. */
+export function confirmIngredientDosePeriod(record, periodIndex) {
+  const periods = getSupplementPeriods(record);
+  const period = periods[periodIndex];
+  const doses = getSupplementDailyDoses(record);
+  const validDate = date => isSafeDate(date) && new Date(`${date}T12:00:00Z`).toISOString().slice(0, 10) === date;
+  if (!period || period.dose || period.ingredientDoses?.length || !doses.length) return null;
+  if (periods.some(p => !p || !validDate(p.start) || (p.end && (!validDate(p.end) || p.end < p.start)))) return null;
+  const ordered = [...periods].sort((a, b) => a.start.localeCompare(b.start));
+  if (ordered.some((p, i) => i > 0 && (!ordered[i - 1].end || ordered[i - 1].end >= p.start))) return null;
+  return { ...record, updatedAt: Date.now(), periods: periods.map((p, i) => i === periodIndex
+    ? { ...p, end: p.end || null, ingredientDoses: doses, ...(doses.length === 1 ? { dose: doses[0] } : {}), schedule: { mode: 'daily' } }
+    : { ...p }) };
+}

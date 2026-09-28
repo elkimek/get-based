@@ -183,7 +183,7 @@ test('shows current ingredient dose and lets the user confirm its period before 
   expect(presentation.scales.some(key => key.startsWith('current-') || key === 'usage')).toBe(false);
   await expect(page.locator('.corr-stat')).toContainText('Confirm dose dates');
   await page.screenshot({ path: '/tmp/getbased-current-ingredient-dose.png', fullPage: true });
-  await page.getByRole('button', { name: 'Review dose dates', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit supplement', exact: true }).click();
   await page.getByRole('button', { name: 'Use ingredients for these dates', exact: true }).click();
   await expect(page.locator('.supp-period-dose')).toHaveValue('500 mg/day');
   await page.getByRole('button', { name: 'Update', exact: true }).click();
@@ -645,4 +645,74 @@ test('correcting a continuous period does not recreate today or lose confirmed i
   });
   expect(saved.periods[0]).toMatchObject({ start: '2026-03-24', end: null, ingredientDoses: [{ value: 500, basis: 'day' }] });
   expect(saved.exposure.value).toBe(500);
+});
+
+test('confirms an existing ongoing dose directly from the chart and persists it without extra periods', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-09-28T12:00:00Z'));
+  await fixture(page);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.currentProfile = 'dose-confirmation-test';
+    state.importedData.supplements[0] = { id: 'dose-demo', name: 'TMG Powder', timesPerDay: 1,
+      ingredients: [{ name: 'TMG', amount: '500 mg' }], periods: [{ start: '2026-03-24', end: null }] };
+    await (await import('/js/data.js')).saveImportedData();
+  });
+  await select(page, 'LDL', 'lipids.ldl');
+  await select(page, 'TMG', 'dose-demo', 'toggle-therapy');
+  await expect(page.locator('.corr-use-timeline')).toHaveCount(1);
+  await page.locator('.corr-confirm-dose > summary').click();
+  await expect(page.locator('.corr-confirm-dose')).toContainText('TMG: 500 mg/day');
+  await expect(page.locator('.corr-confirm-dose')).toContainText('2026-03-24 → ongoing');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.locator('.corr-dose-notice').screenshot({ path: '/tmp/correlation-dose-confirmation.png' });
+  await page.getByRole('button', { name: 'Confirm & save this period', exact: true }).click();
+  await expect(page.locator('.corr-use-timeline')).toHaveCount(0);
+  await expect(page.locator('.corr-dose-notice')).toHaveCount(0);
+  await expect.poll(async () => (await chartSnapshot(page))[0]?.datasets[1]?.data.map(p => p.y) || []).toContain(500);
+  const saved = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const { profileStorageKey } = await import('/js/profile.js');
+    const { encryptedGetItem } = await import('/js/crypto.js');
+    return { live: state.importedData.supplements[0], stored: JSON.parse(await encryptedGetItem(profileStorageKey(state.currentProfile, 'imported'))) };
+  });
+  expect(saved.live.periods).toHaveLength(1);
+  expect(saved.live.periods[0]).toMatchObject({ start: '2026-03-24', end: null, dose: { value: 500, basis: 'day' } });
+  expect(saved.stored.supplements[0].periods).toEqual(saved.live.periods);
+  await page.reload();
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const { profileStorageKey } = await import('/js/profile.js');
+    const { encryptedGetItem } = await import('/js/crypto.js');
+    state.currentProfile = 'dose-confirmation-test';
+    state.importedData = JSON.parse(await encryptedGetItem(profileStorageKey(state.currentProfile, 'imported')));
+    (await import('/js/data.js')).invalidateActiveDataCache();
+    (await import('/js/compare-correlations.js')).showCorrelations();
+  });
+  await select(page, 'LDL', 'lipids.ldl');
+  await select(page, 'TMG', 'dose-demo', 'toggle-therapy');
+  await expect(page.locator('.corr-use-timeline')).toHaveCount(0);
+  await expect.poll(async () => (await chartSnapshot(page))[0]?.datasets[1]?.data.map(p => p.y) || []).toContain(500);
+});
+
+
+test('does not confirm a stale ingredient amount after the record changes', async ({ page }) => {
+  await fixture(page);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.currentProfile = 'dose-stale-test';
+    state.importedData.supplements[0] = { id: 'dose-demo', name: 'TMG Powder', timesPerDay: 1,
+      ingredients: [{ name: 'TMG', amount: '500 mg' }], periods: [{ start: '2026-03-24', end: null }] };
+    await (await import('/js/data.js')).saveImportedData();
+  });
+  await select(page, 'LDL', 'lipids.ldl');
+  await select(page, 'TMG', 'dose-demo', 'toggle-therapy');
+  await page.locator('.corr-confirm-dose > summary').click();
+  await page.evaluate(async () => {
+    (await import('/js/state.js')).state.importedData.supplements[0].ingredients[0].amount = '2000 mg';
+  });
+  await page.getByRole('button', { name: 'Confirm & save this period', exact: true }).click();
+  await expect(page.locator('.corr-confirm-status')).toContainText('Dose dates were not saved');
+  await expect(page.locator('.corr-use-timeline')).toHaveCount(1);
+  expect(await page.evaluate(async () => (await import('/js/state.js')).state.importedData.supplements[0].periods)).toEqual([{ start: '2026-03-24', end: null }]);
 });

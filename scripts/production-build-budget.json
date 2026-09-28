@@ -4,7 +4,7 @@
     "startupJavaScriptFiles": 2,
     "startupDecodedBytes": 1272000,
     "outputJavaScriptFiles": 167,
-    "outputDecodedBytes": 5427000
+    "outputDecodedBytes": 5431000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -96,7 +96,9 @@
     "ingredientRegimenSnapshotsMeasuredBaseCommit": "fe9905e3",
     "correlationPresetsAndInspectionStartupDecodedBytes": 1271273,
     "correlationPresetsAndInspectionOutputDecodedBytes": 5425938,
-    "correlationPresetsAndInspectionMeasuredBaseCommit": "0d41bb5e"
+    "correlationPresetsAndInspectionMeasuredBaseCommit": "0d41bb5e",
+    "correlationDoseConfirmationOutputDecodedBytes": 5429533,
+    "correlationDoseConfirmationMeasuredBaseCommit": "043d4f3e"
   },
   "referenceCommit": "331112b1",
   "measuredAt": "2026-09-28"

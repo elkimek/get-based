@@ -260,3 +260,30 @@ it('does not split corrected dates on repeated saves when the current ingredient
   expect(edited.periods).toHaveLength(2);
   expect(edited.periods[1]).toMatchObject({ start: '2026-09-29', dose: { value: 2000 } });
 });
+
+import { confirmIngredientDosePeriod } from '../js/supplement-medication-domain.js';
+describe('explicit dose-date confirmation', () => {
+  const record = { id: 'tmg', name: 'TMG', timesPerDay: 1, ingredients: [{ name: 'TMG', amount: '500 mg' }], periods: [{ start: '2026-03-24', end: null }] };
+  it('confirms only the chosen period without changing its dates or the source record', () => {
+    const before = structuredClone(record);
+    const confirmed = confirmIngredientDosePeriod(record, 0);
+    expect(confirmed.periods).toHaveLength(1);
+    expect(confirmed.periods[0]).toMatchObject({ start: '2026-03-24', end: null, dose: { value: 500, basis: 'day' }, schedule: { mode: 'daily' } });
+    expect(record).toEqual(before);
+    expect(confirmIngredientDosePeriod(confirmed, 0)).toBeNull();
+  });
+  it('does not overwrite a dose or guess invalid, overlapping or PRN history', () => {
+    for (const periods of [[{ start: '2026-02-30', end: null }], [{ start: '2026-03-24', end: '2026-03-01' }], [{ start: '2026-03-24', end: null }, { start: '2026-04-01', end: null }], [{ start: '2026-03-24', end: null, dose: '250 mg' }]]) {
+      expect(confirmIngredientDosePeriod({ ...record, periods }, 0)).toBeNull();
+    }
+    expect(confirmIngredientDosePeriod({ ...record, schedule: { mode: 'prn' } }, 0)).toBeNull();
+    expect(confirmIngredientDosePeriod({ ...record, timesPerDay: null }, 0)).toBeNull();
+  });
+  it('preserves other dose periods and all ingredients of the confirmed period', () => {
+    const other = { start: '2026-01-01', end: '2026-02-28', dose: '250 mg' };
+    const confirmed = confirmIngredientDosePeriod({ ...record, ingredients: [...record.ingredients, { name: 'B12', amount: '25 mcg' }], periods: [other, ...record.periods] }, 1);
+    expect(confirmed.periods[0]).toEqual(other);
+    expect(confirmed.periods[1].ingredientDoses.map(d => d.value)).toEqual([500, 25]);
+    expect(confirmed.periods[1].dose).toBeUndefined();
+  });
+});

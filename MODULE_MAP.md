@@ -10,8 +10,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 790 |
-| Internal import edges | 3346 |
-| Dynamic internal edges | 119 |
+| Internal import edges | 3347 |
+| Dynamic internal edges | 120 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -1277,7 +1277,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>therapy</code> family — 2 modules</summary>
 
-- [`js/therapy-correlation-view.js`](js/therapy-correlation-view.js) → [`js/charts-runtime.js`](js/charts-runtime.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/theme.js`](js/theme.js), [`js/therapy-correlations.js`](js/therapy-correlations.js), [`js/utils.js`](js/utils.js)
+- [`js/therapy-correlation-view.js`](js/therapy-correlation-view.js) → [`js/charts-runtime.js`](js/charts-runtime.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/supplements.js`](js/supplements.js) *(dynamic)*, [`js/theme.js`](js/theme.js), [`js/therapy-correlations.js`](js/therapy-correlations.js), [`js/utils.js`](js/utils.js)
 - [`js/therapy-correlations.js`](js/therapy-correlations.js) → [`js/lab-date-range.js`](js/lab-date-range.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js)
 
 </details>

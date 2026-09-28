@@ -923,3 +923,8 @@
 .corr-dose-notice > span { flex: 1 1 220px; }
 .corr-pair-analysis { margin: 0; }
 .corr-therapy-card { padding: 0; border: 0; }
+
+.corr-confirm-dose { flex: 1 0 100%; order: 2; }
+.corr-confirm-dose summary { cursor: pointer; color: var(--accent-light); }
+.corr-confirm-dose > div { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 6px 0; }
+.corr-confirm-status:empty { display: none; }

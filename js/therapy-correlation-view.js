@@ -3,7 +3,7 @@ import { state } from './state.js';
 import { escapeHTML, formatValue } from './utils.js';
 import { getChartColors } from './theme.js';
 import { createChartRuntime } from './charts-runtime.js';
-import { localDateKey } from './supplement-medication-domain.js';
+import { localDateKey, getSupplementPeriods } from './supplement-medication-domain.js';
 import { correlationDay, correlationDate, therapyExposure, therapySegments } from './therapy-correlations.js';
 
 export function destroyTherapyCorrelationCharts() {
@@ -127,7 +127,8 @@ export function renderCorrelationWorkspace(selection, container, refresh) {
   ${tab === 'timeline' ? missingDoses.map(s => {
     const first = s.history.periods.find(p => p.quantity)?.start;
     const message = s.history.invalid ? 'Usage dates overlap or are invalid.' : s.history.mixedUnits ? 'Historical dose units or amount bases differ.' : first && !numeric(s) ? `Dose history begins ${first}; no compatible dose falls in this range.` : first && numeric(s) ? `Dose history starts ${first}; no lab results match those dates.` : s.history.currentDoses.length ? `Current amount: ${s.history.currentDoses.map(d => textDose(d)).join(', ')}. Confirm its dates to plot past doses.` : 'No numeric dose recorded for this range.';
-    return `<div class="corr-dose-notice"><span><strong>${esc(s.name)}</strong> · ${esc(message)}</span><button type="button" class="corr-review-dose" data-compare-action="review-therapy" data-compare-key="${esc(s.id)}">Review dose dates</button></div>`;
+    const unconfirmed = !s.history.invalid && s.history.currentDoses.length ? getSupplementPeriods(s.history.record).flatMap((p, i) => !p.dose && !p.ingredientDoses?.length ? [{ ...p, index: i }] : []) : [];
+    return `<div class="corr-dose-notice"><span><strong>${esc(s.name)}</strong> · ${esc(message)}</span>${unconfirmed.length ? `<details class="corr-confirm-dose"><summary>Confirm dose dates</summary><p>Use ${esc(s.history.currentDoses.map(d => `${d.ingredient}: ${textDose(d)}`).join('; '))} throughout the selected period. Save only if the amount stayed the same.</p>${unconfirmed.map(p => `<div><span>${esc(p.start)} → ${esc(p.end || 'ongoing')}</span><button type="button" class="corr-review-dose" data-corr-confirm-dose="${esc(s.id)}" data-corr-period="${p.index}">Confirm &amp; save this period</button></div>`).join('')}<p class="corr-confirm-status" role="status"></p></details>` : ''}<button type="button" class="corr-review-dose" data-compare-action="review-therapy" data-compare-key="${esc(s.id)}">${unconfirmed.length ? 'Edit supplement' : 'Review dose dates'}</button></div>`;
   }).join('') : ''}
   <div id="corr-workspace-plots"${tab !== 'timeline' || selection.rangeError ? ' hidden' : ''}>${groups.map((g, i) => `<section class="corr-timeline-panel${grouping === 'separate' ? ' corr-pair-panel' : ''}"><h4${grouping === 'combined' && !lanes ? ' class="sr-only"' : ''}>${g.map(s => esc(s.name)).join(' + ')}</h4>${g.some(numeric) ? `<p class="corr-scale-label">${relative(g) ? 'Relative trends · each series scaled 0–100 · actual values on hover' : [...axesFor(g).values()].map(a => `${a.position === 'left' ? 'Left' : 'Right'}: ${esc(a.unit)}`).join(' · ')}</p><div class="corr-dose-chart${lanes ? ' corr-lane-chart' : ''}"><canvas id="corr-workspace-chart-${i}" role="img" aria-label="${esc(g.map(s => s.name).join(' and '))} over calendar time"></canvas></div>` : ''}${g.filter(s => s.kind === 'dose' && !numeric(s)).map(s => `<div class="corr-use-timeline" data-corr-track="${esc(s.id)}"><div class="corr-use-heading">${esc(s.name)} · Recorded use <span>Not a dose scale</span></div><div class="corr-use-track"></div></div>`).join('')}</section>`).join('') || '<p>No visible series. Turn a series on above.</p>'}</div>
   <div class="corr-inspector"${tab !== 'timeline' || selection.rangeError ? ' hidden' : ''}><div class="corr-date-heading"><strong>Values on <time id="corr-inspect-label">${correlationDate(cursor)}</time></strong><details class="corr-jump"><summary>Jump to date</summary><label class="sr-only" for="corr-inspect">Jump to date</label><input type="date" id="corr-inspect" value="${correlationDate(cursor)}" min="${correlationDate(start)}" max="${correlationDate(end - 1)}"></details></div><div id="corr-readout" aria-live="polite"></div></div>
@@ -142,6 +143,27 @@ export function renderCorrelationWorkspace(selection, container, refresh) {
   </div></div>
   </details>
   ${current ? `<details class="corr-history"><summary>Dose history</summary><div class="corr-current-references">${current}</div></details>` : ''}`;
+
+  container.querySelectorAll('[data-corr-confirm-dose]').forEach(el => {
+    const button = /** @type {HTMLButtonElement} */ (el);
+    const history = selection.histories.find(h => h.id === button.dataset.corrConfirmDose);
+    const expected = JSON.stringify(history.record);
+    const profile = state.currentProfile;
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      const status = button.closest('.corr-confirm-dose').querySelector('.corr-confirm-status');
+      status.textContent = 'Saving dose dates…';
+      try {
+        const { saveSupplementIngredientPeriod } = await import('./supplements.js');
+        if (state.currentProfile !== profile || !container.contains(button)) return;
+        const saved = await saveSupplementIngredientPeriod(history.id, Number(button.dataset.corrPeriod), expected);
+        if (state.currentProfile !== profile || !container.contains(button)) return;
+        if (saved) refresh();
+        else status.textContent = 'Dose dates were not saved. Review the latest record and try again.';
+      } catch { status.textContent = 'Could not save dose dates. Please try again.'; }
+      finally { button.disabled = false; }
+    });
+  });
 
   const updateSetting = (key, value) => { state.correlationView.analysisOpen = container.querySelector('.corr-analysis-disclosure').hasAttribute('open'); if (key === 'pair') state.correlationView.pairKey = pairs[Number(value)]?.pairKey; state.correlationView = { ...state.correlationView, [key]: value }; refresh(); };
   container.querySelectorAll('[data-corr-setting]').forEach(el => el.addEventListener('change', () => updateSetting(el.getAttribute('data-corr-setting'), /** @type {HTMLInputElement} */ (el).value)));

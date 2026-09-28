@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { bindDetailModalSyncRefresh, escapeHTML, showConfirmDialog, showNotification } from './utils.js';
-import { saveImportedData } from './data.js';
+import { saveImportedData, saveImportedDataForProfile } from './data.js';
 import {
   appendImportedArrayItem,
   deleteImportedArrayItem,
@@ -24,6 +24,7 @@ import {
 import {
   SUPPLEMENT_RECORD_VERSION,
   createSupplementRecordId,
+  confirmIngredientDosePeriod,
   getSupplementPeriods,
   getSupplementRecordId,
   getSupplementStatus,
@@ -509,3 +510,21 @@ initSupplementActionDelegates({
   updateAllIngredientTotals: updateAllIngTotals,
   updateIngredientUnit,
 });
+
+
+/** Commit only the dated ingredient confirmation the user just previewed. */
+export async function saveSupplementIngredientPeriod(id, periodIndex, expectedRecord) {
+  const profile = state.currentProfile;
+  const records = state.importedData.supplements || [];
+  const index = records.findIndex(record => getSupplementRecordId(record) === id);
+  if (!profile || index < 0 || records.filter(record => getSupplementRecordId(record) === id).length !== 1
+      || JSON.stringify(records[index]) !== expectedRecord) return false;
+  const confirmed = confirmIngredientDosePeriod(records[index], periodIndex);
+  if (!confirmed) return false;
+  const baseData = structuredClone(state.importedData);
+  const snapshot = structuredClone(baseData);
+  replaceImportedArrayItem(snapshot, 'supplements', index, confirmed);
+  const saved = await saveImportedDataForProfile(profile, snapshot, { baseData });
+  if (saved && state.currentProfile === profile) showNotification('Dose dates saved', 'success');
+  return saved;
+}
