@@ -498,12 +498,12 @@ export function importDataJSON(file) {
         if (json.supplements && Array.isArray(json.supplements)) {
           const supplements = ensureImportedArray(state.importedData, 'supplements');
           for (const s of json.supplements) {
-            if (!s.name || !s.startDate) continue;
+            if (!s?.name || !s.startDate) continue;
             const exists = supplements.some(x => x.name === s.name && x.startDate === s.startDate);
             if (!exists) {
-              const entry = { name: s.name, dosage: s.dosage || '', startDate: s.startDate, endDate: s.endDate || null, type: s.type || 'supplement', note: s.note || '' };
-              if (s.ingredients) entry.ingredients = s.ingredients;
-              if (s.periods && s.periods.length > 1) entry.periods = s.periods;
+              // Preserve the complete regimen, including a single ongoing period and future schema fields.
+              const entry = { ...s, name: s.name, dosage: s.dosage || '', startDate: s.startDate, endDate: s.endDate || null, type: s.type || 'supplement', note: s.note || '' };
+              delete entry.sourceUrl;
               if (s.sourceUrl) {
                 try {
                   const sourceUrl = new URL(s.sourceUrl);

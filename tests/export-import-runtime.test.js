@@ -459,4 +459,39 @@ describe('JSON restore runtime', () => {
       'success',
     );
   });
+  it('preserves ingredient frequency, identity and a single ongoing dose period from a client export', async () => {
+    const dose = { ingredient: 'TMG', value: 500, unit: 'mg', basis: 'day', source: 'ingredient' };
+    const tmg = { id: 'sm_import_tmg', schemaVersion: 2, name: 'TMG Powder', type: 'supplement',
+      startDate: '2026-03-24', endDate: null, dosage: 'scoop', note: '', timesPerDay: 1,
+      schedule: { mode: 'daily', timesPerDay: 1 }, lifecycle: { state: 'active' },
+      ingredients: [{ name: 'TMG', amountValue: 500, amountUnit: 'mg' }],
+      periods: [{ start: '2026-03-24', end: null, dose, ingredientDoses: [dose], schedule: { mode: 'daily' } }],
+      currentDose: dose, sourceUrl: 'https://example.test/tmg', brand: 'Test',
+      servingSize: { value: 1, unit: 'scoop' }, importProvenance: { reviewed: true }, futureField: { keep: true },
+    };
+    await importDataJSON(new File([JSON.stringify({ version: 2, entries: [{ date: '2026-05-22', markers: { 'biochemistry.glucose': 4.56 } }], supplements: [tmg] })], 'regimen.json'));
+    const imported = runtime.state.importedData.supplements.find(s => s.id === tmg.id);
+    expect(imported).toEqual(tmg);
+    const { prepareTherapyHistory, therapyExposure } = await import('../js/therapy-correlations.js');
+    const history = prepareTherapyHistory(imported, '2026-09-28');
+    expect(history.currentDoses[0]).toMatchObject({ value: 500, confirmedSince: '2026-03-24' });
+    expect(therapyExposure(history, '2026-09-28')).toMatchObject({ value: 500, usage: 1 });
+  });
+
+  it('keeps an unlinked daily regimen intact without inventing historical dose dates', async () => {
+    const tmg = { id: 'sm_unlinked', name: 'Unlinked TMG', startDate: '2026-03-24', timesPerDay: 1,
+      ingredients: [{ name: 'TMG', amount: '500 mg' }], periods: [{ start: '2026-03-24', end: null }],
+      sourceUrl: 'javascript:alert(1)',
+    };
+    await importDataJSON(new File([JSON.stringify({ entries: [{ date: '2026-05-22', markers: { 'biochemistry.glucose': 4.56 } }], supplements: [tmg] })], 'unlinked.json'));
+    const imported = runtime.state.importedData.supplements.find(s => s.id === tmg.id);
+    expect(imported.timesPerDay).toBe(1);
+    expect(imported.periods).toEqual(tmg.periods);
+    expect(imported.sourceUrl).toBeUndefined();
+    const { prepareTherapyHistory, therapyExposure } = await import('../js/therapy-correlations.js');
+    const history = prepareTherapyHistory(imported, '2026-09-28');
+    expect(history.currentDoses[0].value).toBe(500);
+    expect(therapyExposure(history, '2026-09-28').value).toBeNull();
+  });
+
 });
