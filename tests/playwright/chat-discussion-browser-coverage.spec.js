@@ -689,7 +689,7 @@ test('chat marker and correlation prompt handoffs prefill chat threads from brow
 
       state.selectedCorrelationMarkers = ['iron.ferritin', 'iron.transferrin'];
       markerPrompts.askAIAboutCorrelations();
-      const correlationReady = await waitFor(() => input.value.includes('Explain these exploratory associations'));
+      const correlationReady = await waitFor(() => input.value.includes('Explore dose/lab associations'));
       const correlationPrompt = input.value;
       outcomes.correlationPromptPrefillsNamesValuesAndThread =
         correlationReady

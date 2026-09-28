@@ -55,7 +55,6 @@ import { updateChatNudge } from './chat-nudge.js';
 import { configureChatRuntimeCallbacks } from './chat-runtime.js';
 import { closeClientList, configureClientListRuntime, openClientList, openProfileLocationEditor } from './client-list.js';
 import { configureClientListRuntimeDeps } from './client-list-runtime.js';
-import { configureCompareCorrelationViews } from './compare-correlations.js';
 import {
   configureContextCardsRuntimeCallbacks,
   recordContextCardChange as recordChange,
@@ -120,6 +119,7 @@ import {
 } from './settings-loader.js';
 import { closeRestoreMnemonicDialog, closeSyncSetup } from './settings-sync-panel.js';
 import {
+  configureCompareCorrelationViews,
   clearDashboardWidgets,
   configureDashboardViewFactory,
   getInitialView,

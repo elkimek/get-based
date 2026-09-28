@@ -10,6 +10,8 @@ import { getActiveData } from './data.js';
 import { formatRangeBounds, getEffectiveRangeForDate, resolveMarkerRangeContext } from './marker-analysis.js';
 import { ensureChartJs } from './health-data-loader.js';
 import { hasChartRuntime } from './charts-runtime.js';
+import { prepareCorrelationSelection } from './therapy-correlations.js';
+import { destroyTherapyCorrelationCharts, renderCorrelationWorkspace } from './therapy-correlation-view.js';
 
 /** @type {{ askAIAboutCorrelations: () => void, renderTableColgroup: (cols: string[]) => string, renderScrollableTableShell: (...args: any[]) => string, renderCategoryGlyph: (...args: any[]) => string }} */
 const compareCorrelationDeps = {
@@ -375,14 +377,6 @@ export function renderCompareTable(data, idx1, idx2) {
 
 // Correlations
 
-/** @type {(typeof import('./therapy-correlations.js') & typeof import('./therapy-correlation-view.js')) | null} */
-let therapyModules = null;
-let therapyLoad = null;
-
-function destroyTherapyCorrelationCharts() {
-  therapyModules?.destroyTherapyCorrelationCharts();
-}
-
 export function showCorrelations(data) {
   const main = document.getElementById("main-content");
   if (!main) return;
@@ -570,21 +564,18 @@ export function renderCorrelationChart() {
   }
   container.style.display = "block";
   const results = document.getElementById('corr-therapy-results');
-  if (!therapyModules || !hasChartRuntime()) {
+  if (!hasChartRuntime()) {
     if (results) results.innerHTML = '<p class="corr-help">Preparing comparison…</p>';
-    if (!therapyLoad) therapyLoad = Promise.all([import('./therapy-correlations.js'), import('./therapy-correlation-view.js'), ensureChartJs()])
-      .then(([model, view]) => { therapyModules = { ...model, ...view }; })
-      .catch(error => { therapyLoad = null; throw error; });
     const profile = state.currentProfile;
-    therapyLoad.then(() => {
+    ensureChartJs().then(() => {
       if (profile === state.currentProfile && document.getElementById('corr-therapy-results') === results) renderCorrelationChart();
     }).catch(() => {
       if (document.getElementById('corr-therapy-results') === results && results) results.innerHTML = '<p class="corr-help">Comparison could not load. Reselect an item to retry.</p>';
     });
     return;
   }
-  const selection = therapyModules.prepareCorrelationSelection(data, state.importedData, state.selectedCorrelationMarkers, state.selectedCorrelationSupplements, 0, state.correlationView);
-  therapyModules.renderCorrelationWorkspace(selection, results, renderCorrelationChart);
+  const selection = prepareCorrelationSelection(data, state.importedData, state.selectedCorrelationMarkers, state.selectedCorrelationSupplements, 0, state.correlationView);
+  renderCorrelationWorkspace(selection, results, renderCorrelationChart);
   if (focused?.startsWith('corr-')) document.getElementById(focused)?.focus({ preventScroll: true });
 }
 

@@ -287,3 +287,11 @@ describe('explicit dose-date confirmation', () => {
     expect(confirmed.periods[1].dose).toBeUndefined();
   });
 });
+
+
+it.each([{ mode: 'selected-days', daysOfWeek: [1, 3] }, { mode: 'interval', intervalDays: 3 }, { mode: 'prn' }])('ingredient confirmation preserves the dated schedule %j', schedule => {
+  const record = { name: 'TMG', timesPerDay: 1, schedule: { mode: 'daily' }, ingredients: [{ name: 'TMG', amount: '500 mg' }], periods: [{ start: '2026-01-05', end: null, schedule }] };
+  const result = confirmIngredientDosePeriod(record, 0);
+  expect(result.periods[0].schedule).toEqual(schedule);
+  expect(result.periods[0].dose.value).toBe(500);
+});

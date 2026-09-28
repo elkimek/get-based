@@ -2,7 +2,8 @@
 // chat-marker-prompts.js — marker and correlation prompts that open chat
 
 import { state } from './state.js';
-import { formatValue, getStatus } from './utils.js';
+import { CONTEXT_SOURCE_IDS, isContextSourceEnabled } from './context-source-registry.js';
+import { formatValue, getStatus, showNotification } from './utils.js';
 import { getActiveData } from './data.js';
 import { getEffectiveRangeForDate, getEffectiveRangeLabelForDate, getLatestValueIndex } from './marker-analysis.js';
 import { openChatPanel } from './chat-panel.js';
@@ -10,8 +11,10 @@ import { createNewThread, ensureActiveThread, loadChatThreads, renameThread } fr
 import { loadChatHistory, saveChatHistory } from './chat-history.js';
 import { closeChatModalRuntime } from './chat-runtime.js';
 
-async function openSourcePrompt(prompt, threadName, { closeModal = false } = {}) {
+/** @param {string} prompt @param {string} threadName @param {{closeModal?: boolean, canOpen?: () => boolean}} [options] */
+async function openSourcePrompt(prompt, threadName, { closeModal = false, canOpen = () => true } = {}) {
   const profile = state.currentProfile;
+  if (!canOpen()) return;
   if (closeModal) closeChatModalRuntime();
   const threadsLoaded = await loadChatThreads();
   if (threadsLoaded === false || state.currentProfile !== profile) return;
@@ -23,6 +26,7 @@ async function openSourcePrompt(prompt, threadName, { closeModal = false } = {})
     if (state.currentProfile !== profile) return;
     createNewThread();
   }
+  if (!canOpen()) return;
   renameThread(state.currentThreadId, threadName);
   await openChatPanel(prompt);
 }
@@ -79,11 +83,22 @@ export function askAIAboutMarker(markerId) {
   void openSourcePrompt(prompt, marker.name, { closeModal: true });
 }
 
+function correlationSourcesAllowed(includeTherapies) {
+  return isContextSourceEnabled(CONTEXT_SOURCE_IDS.LAB_MARKERS)
+    && (!includeTherapies || isContextSourceEnabled(CONTEXT_SOURCE_IDS.SUPPLEMENTS_MEDS));
+}
+
 export async function askAIAboutCorrelations() {
   if (state.selectedCorrelationMarkers.length < 1) return;
+  if (!correlationSourcesAllowed(state.selectedCorrelationSupplements.length > 0)) { showNotification('Enable selected sources in AI Context.', 'info'); return; }
   const profile = state.currentProfile;
   const { prepareCorrelationSelection, therapyCorrelationPrompt } = await import('./therapy-correlations.js');
   if (profile !== state.currentProfile) return;
+  const includeTherapies = state.selectedCorrelationSupplements.length > 0;
+  const canOpen = () => correlationSourcesAllowed(includeTherapies);
   const selection = prepareCorrelationSelection(getActiveData(), state.importedData, state.selectedCorrelationMarkers, state.selectedCorrelationSupplements, 0, state.correlationView);
-  if (!selection.rangeError && (selection.comparisons.length || selection.markerPairs.length)) void openSourcePrompt(therapyCorrelationPrompt(selection), 'Biomarker and dose exploration');
+  if (selection.rangeError || !(selection.comparisons.length || selection.markerPairs.length)) return;
+  const prompt = therapyCorrelationPrompt(selection);
+  if (!prompt) { showNotification('Too much data for AI. Select fewer items or a shorter date range.', 'info'); return; }
+  void openSourcePrompt(prompt, 'Biomarker and dose exploration', { canOpen });
 }

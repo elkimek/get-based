@@ -856,6 +856,7 @@ function installMarkerPromptMocks() {
   vi.doMock('../js/utils.js', () => ({
     formatValue: deps.formatValue,
     getStatus: deps.getStatus,
+    showNotification: vi.fn(),
   }));
   vi.doMock('../js/data.js', () => ({ getActiveData: deps.getActiveData }));
   vi.doMock('../js/marker-analysis.js', () => ({
@@ -967,8 +968,30 @@ describe('chat marker prompt runtime behavior', () => {
     expect(payload.markers[0].rows.map(r => r.value)).toEqual([88, 92]);
     expect(payload.markerPairs[0].n).toBe(1);
     expect(payload.lagDays).toBe(0);
-    expect(prompt).toContain('not evidence of treatment effects');
+    expect(prompt).toContain('Do not infer adherence, daily intake or causality');
     expect(prompt).not.toContain('missing.marker');
+  });
+
+  it.each(['supplements-meds', 'lab-markers'])('blocks correlation AI when %s is disabled', async source => {
+    const deps = installMarkerPromptMocks();
+    deps.state.selectedCorrelationMarkers = ['test.a'];
+    deps.state.selectedCorrelationSupplements = ['treatment'];
+    deps.state.importedData.contextSourceSettings = { [source]: false };
+    await (await import('../js/chat-marker-prompts.js')).askAIAboutCorrelations();
+    expect(deps.getActiveData).not.toHaveBeenCalled();
+    expect(deps.openChatPanel).not.toHaveBeenCalled();
+  });
+
+  it('rechecks captured treatment permission after async chat preparation', async () => {
+    const deps = installMarkerPromptMocks();
+    deps.state.selectedCorrelationMarkers = ['test.a'];
+    deps.state.selectedCorrelationSupplements = ['treatment'];
+    deps.state.importedData.supplements = [{ id: 'treatment', name: 'Private therapy', periods: [{ start: '2026-01-01', end: null, dose: '500 mg', schedule: { mode: 'daily' } }] }];
+    deps.getActiveData.mockReturnValue({ dates: ['2026-02-01'], categories: { test: { markers: { a: { name: 'A', unit: 'mg', values: [1] } } } } });
+    deps.loadChatThreads.mockImplementation(async () => { deps.state.importedData.contextSourceSettings = { 'supplements-meds': false }; deps.state.selectedCorrelationSupplements = []; });
+    await (await import('../js/chat-marker-prompts.js')).askAIAboutCorrelations();
+    await vi.waitFor(() => expect(deps.loadChatThreads).toHaveBeenCalled());
+    expect(deps.openChatPanel).not.toHaveBeenCalled();
   });
 
   it('does not carry a prepared correlation prompt into a different profile', async () => {

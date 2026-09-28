@@ -102,3 +102,11 @@ it('clearing an ingredient frequency override restores the regimen frequency', (
   expect(collectIngredients()[0].timesPerDay).toBeUndefined();
   document.body.innerHTML = '';
 });
+
+
+it.each([{ mode: 'selected-days', daysOfWeek: [1] }, { mode: 'interval', intervalDays: 3 }, { mode: 'prn' }])('the editor preserves historical schedule when applying ingredient doses: %j', schedule => {
+  state.importedData = { supplements: [{ periods: [{ start: '2026-01-05', end: null, schedule }] }] };
+  document.body.innerHTML = `<div id="supp-form-panel" data-edit-index="0"></div><div id="supp-periods"><div class="supp-period-row" data-original-index="0"><input class="supp-period-start" value="2026-01-05"><input class="supp-period-end" value=""><input class="supp-period-dose" value="500 mg/day"></div></div>`;
+  document.querySelector('.supp-period-row').setAttribute('data-ingredient-doses', JSON.stringify([{ ingredient: 'TMG', value: 500, unit: 'mg', basis: 'day' }]));
+  expect(collectPeriods()[0]).toMatchObject({ schedule, dose: { value: 500 } });
+});

@@ -519,7 +519,7 @@ assert('chat marker prompts create a fresh thread when current thread has histor
   'found');
 assert('chat marker prompts name the target thread from the source',
   chatMarkerPromptsSrc.includes('renameThread(state.currentThreadId, threadName)') &&
-    chatMarkerPromptsSrc.includes("openSourcePrompt(therapyCorrelationPrompt(selection), 'Biomarker and dose exploration')"),
+    chatMarkerPromptsSrc.includes("openSourcePrompt(prompt, 'Biomarker and dose exploration', { canOpen })"),
   'found');
 assert('renderChatMessages calls buildActionBar', chatRenderSrc.includes('buildActionBar(i)'), 'found');
 assert('API messages tag other personas', chatPromptContextSrc.includes('Response from') && chatPromptContextSrc.includes('personalityName'), 'tags messages from different personas');

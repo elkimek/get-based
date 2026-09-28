@@ -210,7 +210,7 @@ export function collectPeriods() {
       if (dose === (doses.length === 1 ? supplementDoseText(doses[0]) : '')) {
         period.ingredientDoses = doses;
         if (doses.length === 1) period.dose = doses[0]; else delete period.dose;
-        period.schedule = { mode: 'daily' };
+        period.schedule = previous?.schedule ? { ...previous.schedule } : { mode: 'daily' };
         periods.push(period);
         continue;
       }

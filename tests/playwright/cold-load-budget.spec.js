@@ -71,6 +71,7 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
     transferSize: entry.transferSize,
     decodedBodySize: entry.decodedBodySize,
   })));
+  expect(entries.some(entry => new URL(entry.name).pathname === '/js/compare-correlations.js')).toBe(false);
   expect(entries.some(entry => (
     new URL(entry.name).pathname === '/js/biology-score-ai-protocol.js'
   ))).toBe(false);

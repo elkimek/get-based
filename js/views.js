@@ -46,23 +46,56 @@ import {
   openMobileDashboardSearch,
   mobileDashboardJump,
 } from './mobile-dashboard.js';
-import {
-  configureCompareCorrelationViews,
-  showCompare,
-  setCompareDate1,
-  setCompareDate2,
-  updateCompare,
-  swapCompareDates,
-  renderCompareTable,
-  showCorrelations,
-  populateCorrelationOptions,
-  showCorrelationDropdown,
-  filterCorrelationOptions,
-  toggleCorrelationMarker,
-  applyCorrelationPreset,
-  renderCorrelationChips,
-  renderCorrelationChart,
-} from './compare-correlations.js';
+/** @typedef {typeof import('./compare-correlations.js')} CompareModule */
+/** @type {CompareModule | null} */
+let compareModule = null;
+/** @type {Promise<CompareModule> | null} */
+let comparePromise = null;
+/** @type {NonNullable<Parameters<CompareModule['configureCompareCorrelationViews']>[0]>} */
+const compareDeps = {};
+export function configureCompareCorrelationViews(deps) {
+  Object.assign(compareDeps, deps);
+  compareModule?.configureCompareCorrelationViews(deps);
+}
+function loadCompareModule() {
+  return comparePromise ||= import('./compare-correlations.js').then(module => {
+    module.configureCompareCorrelationViews(compareDeps);
+    compareModule = module;
+    return module;
+  }).catch(error => { comparePromise = null; throw error; });
+}
+function showCompare(data) {
+  return showPreparedRoute('compare', 'Compare', () => !!compareModule, loadCompareModule,
+    () => compareModule?.showCompare(data));
+}
+function showCorrelations(data) {
+  return showPreparedRoute('correlations', 'Correlations', () => !!compareModule, loadCompareModule,
+    () => compareModule?.showCorrelations(data));
+}
+/** @param {Parameters<CompareModule['setCompareDate1']>} args */
+const setCompareDate1 = (...args) => compareModule?.setCompareDate1(...args);
+/** @param {Parameters<CompareModule['setCompareDate2']>} args */
+const setCompareDate2 = (...args) => compareModule?.setCompareDate2(...args);
+/** @param {Parameters<CompareModule['updateCompare']>} args */
+const updateCompare = (...args) => compareModule?.updateCompare(...args);
+/** @param {Parameters<CompareModule['swapCompareDates']>} args */
+const swapCompareDates = (...args) => compareModule?.swapCompareDates(...args);
+/** @param {Parameters<CompareModule['renderCompareTable']>} args */
+const renderCompareTable = (...args) => compareModule?.renderCompareTable(...args);
+/** @param {Parameters<CompareModule['populateCorrelationOptions']>} args */
+const populateCorrelationOptions = (...args) => compareModule?.populateCorrelationOptions(...args);
+/** @param {Parameters<CompareModule['showCorrelationDropdown']>} args */
+const showCorrelationDropdown = (...args) => compareModule?.showCorrelationDropdown(...args);
+/** @param {Parameters<CompareModule['filterCorrelationOptions']>} args */
+const filterCorrelationOptions = (...args) => compareModule?.filterCorrelationOptions(...args);
+/** @param {Parameters<CompareModule['toggleCorrelationMarker']>} args */
+const toggleCorrelationMarker = (...args) => compareModule?.toggleCorrelationMarker(...args);
+/** @param {Parameters<CompareModule['applyCorrelationPreset']>} args */
+const applyCorrelationPreset = (...args) => compareModule?.applyCorrelationPreset(...args);
+/** @param {Parameters<CompareModule['renderCorrelationChips']>} args */
+const renderCorrelationChips = (...args) => compareModule?.renderCorrelationChips(...args);
+/** @param {Parameters<CompareModule['renderCorrelationChart']>} args */
+const renderCorrelationChart = (...args) => compareModule?.renderCorrelationChart(...args);
 import {
   fetchCustomMarkerDescription,
   showDetailModal,

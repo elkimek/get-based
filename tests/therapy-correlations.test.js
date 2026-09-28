@@ -9,9 +9,9 @@ const record = {
   id: 'sm_test', name: 'Recorded treatment', type: 'medication',
   schedule: { mode: 'daily', timesPerDay: 4 },
   periods: [
-    { start: '2026-01-01', end: '2026-02-28', dose: '500 mg' },
-    { start: '2026-03-01', end: '2026-04-30', dose: '2,000 mg' },
-    { start: '2026-06-01', end: null, dose: '1 g' },
+    { start: '2026-01-01', end: '2026-02-28', dose: '500 mg', schedule: { mode: 'daily' } },
+    { start: '2026-03-01', end: '2026-04-30', dose: '2,000 mg', schedule: { mode: 'daily' } },
+    { start: '2026-06-01', end: null, dose: '1 g', schedule: { mode: 'daily' } },
   ],
 };
 const dates = ['2026-01-10', '2026-01-20', '2026-02-10', '2026-03-10', '2026-03-20', '2026-04-10'];
@@ -62,7 +62,7 @@ describe('historical dose and pause alignment', () => {
     expect(therapyExposure(history, '2026-02-10')).toMatchObject({ usage: 0, value: null });
     expect(therapyExposure(history, '2026-03-10')).toMatchObject({ usage: 1, value: null });
     expect(compare({ history })).toMatchObject({ n: 0, r: null, groups: [] });
-    const prn = prepareTherapyHistory({ ...record, schedule: { mode: 'prn' } }, today);
+    const prn = prepareTherapyHistory({ ...record, periods: record.periods.map(p => ({ ...p, schedule: { mode: 'prn' } })), schedule: { mode: 'daily' } }, today);
     expect(therapyExposure(prn, '2026-01-10')).toMatchObject({ usage: 1, value: null });
     const invalid = prepareTherapyHistory({ ...record, periods: [{ start: 'invalid' }] }, today);
     expect(therapyExposure(invalid, '2026-01-10')).toMatchObject({ usage: null, value: null });
@@ -73,7 +73,7 @@ describe('historical dose and pause alignment', () => {
     expect(therapyExposure(history, '2026-01-10').value).toBeNull();
   });
   it('does not infer PRN intake and honors a historical schedule over the current one', () => {
-    const history = prepareTherapyHistory({ ...record, schedule: { mode: 'prn' } }, today);
+    const history = prepareTherapyHistory({ ...record, periods: record.periods.map(p => ({ ...p, schedule: { mode: 'prn' } })), schedule: { mode: 'daily' } }, today);
     expect(therapyExposure(history, '2026-02-01').value).toBeNull();
     const dated = prepareTherapyHistory({ ...record, schedule: { mode: 'prn' }, periods: [{ ...record.periods[0], schedule: { mode: 'daily' } }] }, today);
     expect(therapyExposure(dated, '2026-02-01').value).toBe(500);
@@ -251,8 +251,8 @@ it('never interpolates missing same-date marker pairs or includes conflicting dr
 it('resolves a selected ingredient from dated regimen snapshots without mixing ingredients or rewriting history', () => {
   const dose = (ingredient, value, unit = 'mg') => ({ ingredient, value, unit, basis: 'day', source: 'ingredient' });
   const record = { id: 'combo', name: 'Combination', schedule: { mode: 'daily', timesPerDay: 1 }, ingredients: [{ name: 'A', amount: '2000 mg' }, { name: 'B', amount: '25 mcg' }], periods: [
-    { start: '2026-01-01', end: '2026-02-28', ingredientDoses: [dose('A', 500), dose('B', 25, 'mcg')] },
-    { start: '2026-03-01', end: null, ingredientDoses: [dose('A', 2000), dose('B', 25, 'mcg')] },
+    { start: '2026-01-01', end: '2026-02-28', schedule: { mode: 'daily' }, ingredientDoses: [dose('A', 500), dose('B', 25, 'mcg')] },
+    { start: '2026-03-01', end: null, schedule: { mode: 'daily' }, ingredientDoses: [dose('A', 2000), dose('B', 25, 'mcg')] },
   ] };
   const before = structuredClone(record);
   const a = prepareTherapyHistory(record, today, 'A');
@@ -286,6 +286,7 @@ it.each([null, undefined, ''])('keeps a TMG period with end=%s ongoing through t
   expect(therapyExposure(referenceOnly, today)).toMatchObject({ usage: 1, value: null });
   expect(therapySegments(referenceOnly, '2026-03-24', today).every(s => s.usage === 1)).toBe(true);
   tmg.periods[0].ingredientDoses = [{ ingredient: 'Trimethylglycine (TMG)', value: 500, unit: 'mg', basis: 'day', source: 'ingredient' }];
+  tmg.periods[0].schedule = { mode: 'daily' };
   const snapshot = structuredClone(tmg);
   const linked = prepareTherapyHistory(tmg, today);
   expect(linked.invalid).toBe(false);
@@ -317,7 +318,7 @@ it('uses calendar-month presets through today with no silent all-data fallback',
 
 it('keeps every pair available and gives AI the active pair, original values and all dated ingredient snapshots', () => {
   const dose = (ingredient, value) => ({ ingredient, value, unit: 'mg', basis: 'day', source: 'ingredient' });
-  const product = { id: 'combo', name: 'Combined supplement', ingredients: [{ name: 'A', amount: '500 mg' }, { name: 'B', amount: '25 mg' }], timesPerDay: 1, periods: [{ start: '2026-01-01', end: null, ingredientDoses: [dose('A', 500), dose('B', 25)] }] };
+  const product = { id: 'combo', name: 'Combined supplement', ingredients: [{ name: 'A', amount: '500 mg' }, { name: 'B', amount: '25 mg' }], timesPerDay: 1, periods: [{ start: '2026-01-01', end: null, schedule: { mode: 'daily' }, ingredientDoses: [dose('A', 500), dose('B', 25)] }] };
   const data = { dates, categories: { test: { markers: { marker, other: { ...marker, name: 'Other', unit: '%', values: [31, 32, 33, 34, 35, 36] } } } } };
   const pairKey = JSON.stringify(['test.marker', 'test.other']);
   const options = { pairKey, layout: 'overlay', tab: 'data', hidden: ['test.other'], ingredients: { combo: 'B' }, start: dates[1], end: dates[4] };
@@ -334,5 +335,20 @@ it('keeps every pair available and gives AI the active pair, original values and
   expect(payload.comparisons[0].rows.every(r => r.exposure.value === 25)).toBe(true);
   expect(payload.markers[1].key).toBe('test.other');
   expect(payload.markers[1].rows.map(r => r.value)).toEqual([32, 33, 34, 35]);
-  expect(prompt).toContain('use original values');
+  expect(prompt).toContain('using raw values');
+});
+
+
+it('does not reinterpret missing historical schedules when the current schedule changes', () => {
+  const periods = [{ start: '2026-01-01', end: null, dose: '500 mg' }];
+  const exposures = ['daily', 'prn', 'selected-days', 'interval'].map(mode => therapyExposure(prepareTherapyHistory({ ...record, periods, schedule: { mode } }, today), '2026-02-01'));
+  for (const exposure of exposures) expect(exposure).toEqual(exposures[0]);
+  expect(exposures[0]).toMatchObject({ value: null, usage: 1, label: 'Historical schedule unavailable' });
+});
+
+it('bounds oversized AI handoffs instead of silently omitting selected history', () => {
+  const selection = prepareCorrelationSelection({ dates, categories: { test: { markers: { marker } } } }, { supplements: [record] }, ['test.marker'], ['sm_test']);
+  expect(therapyCorrelationPrompt(selection).length).toBeLessThan(60000);
+  selection.markers[0].rows[0].sources = [{ source: 'x'.repeat(60000) }];
+  expect(therapyCorrelationPrompt(selection)).toBeNull();
 });

@@ -499,7 +499,7 @@ export function importDataJSON(file) {
           const supplements = ensureImportedArray(state.importedData, 'supplements');
           for (const s of json.supplements) {
             if (!s?.name || !s.startDate) continue;
-            const exists = supplements.some(x => x.name === s.name && x.startDate === s.startDate);
+            const exists = supplements.some(x => (s.id && x.id === s.id) || (x.name === s.name && x.startDate === s.startDate));
             if (!exists) {
               // Preserve the complete regimen, including a single ongoing period and future schema fields.
               const entry = { ...s, name: s.name, dosage: s.dosage || '', startDate: s.startDate, endDate: s.endDate || null, type: s.type || 'supplement', note: s.note || '' };
@@ -630,7 +630,7 @@ async function _importDatabaseBundle(json) {
         const supplements = ensureImportedArray(current, 'supplements');
         for (const s of importData.supplements) {
           if (!s.name || !s.startDate) continue;
-          if (!supplements.some(x => x.name === s.name && x.startDate === s.startDate)) appendImportedArrayItem(current, 'supplements', s);
+          if (!supplements.some(x => (s.id && x.id === s.id) || (x.name === s.name && x.startDate === s.startDate))) appendImportedArrayItem(current, 'supplements', s);
         }
       }
       // Health goals: deduplicate by text

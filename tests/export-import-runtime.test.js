@@ -478,6 +478,18 @@ describe('JSON restore runtime', () => {
     expect(therapyExposure(history, '2026-09-28')).toMatchObject({ value: 500, usage: 1 });
   });
 
+  it('does not append an edited import with an existing supplement identity', async () => {
+    const saved = { id: 'stable-id', name: 'Original', startDate: '2026-01-01', periods: [{ start: '2026-01-01', end: null }] };
+    runtime.state.importedData.supplements = [saved];
+    const edited = { ...saved, name: 'Renamed', startDate: '2026-02-01' };
+    const added = { ...edited, id: 'new-id', name: 'New' };
+    await importDataJSON(new File([JSON.stringify({ entries: [{ date: '2026-05-22', markers: { 'biochemistry.glucose': 4.56 } }], supplements: [edited, added, { ...added, name: 'Duplicate' }] })], 'identities.json'));
+    expect(runtime.state.importedData.supplements).toHaveLength(2);
+    expect(runtime.state.importedData.supplements[0]).toEqual(saved);
+    expect(runtime.state.importedData.supplements[1].id).toBe('new-id');
+    expect(runtime.saveImportedData).toHaveBeenCalled();
+  });
+
   it('keeps an unlinked daily regimen intact without inventing historical dose dates', async () => {
     const tmg = { id: 'sm_unlinked', name: 'Unlinked TMG', startDate: '2026-03-24', timesPerDay: 1,
       ingredients: [{ name: 'TMG', amount: '500 mg' }], periods: [{ start: '2026-03-24', end: null }],

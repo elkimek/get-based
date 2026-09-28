@@ -12,11 +12,11 @@ async function fixture(page) {
       entries: dates.map((date, i) => ({ date, markers: { 'lipids.ldl': values[i] }, sourceFile: `lab-${date}.pdf` })),
       supplements: [
         { id: 'dose-demo', name: 'Example supplement', type: 'supplement', schedule: { mode: 'daily', timesPerDay: 1 }, periods: [
-          { start: '2026-01-01', end: '2026-02-28', dose: '500 mg' },
-          { start: '2026-03-01', end: '2026-04-30', dose: '2000 mg' },
-          { start: '2026-06-01', end: null, dose: '1000 mg' },
+          { start: '2026-01-01', end: '2026-02-28', dose: '500 mg', schedule: { mode: 'daily' } },
+          { start: '2026-03-01', end: '2026-04-30', dose: '2000 mg', schedule: { mode: 'daily' } },
+          { start: '2026-06-01', end: null, dose: '1000 mg', schedule: { mode: 'daily' } },
         ] },
-        { id: 'prn-demo', name: 'Example medication', type: 'medication', schedule: { mode: 'prn' }, periods: [{ start: '2026-01-01', end: '2026-04-30', dose: '20 mg' }] },
+        { id: 'prn-demo', name: 'Example medication', type: 'medication', schedule: { mode: 'prn' }, periods: [{ start: '2026-01-01', end: '2026-04-30', dose: '20 mg', schedule: { mode: 'prn' } }] },
       ], notes: [], customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [],
     };
     state.selectedCorrelationMarkers = [];
@@ -276,7 +276,7 @@ test('combines two dose series, preserves state across layouts, and inspects rea
   await fixture(page);
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
-    state.importedData.supplements[1] = { id: 'prn-demo', name: 'Example medication', type: 'medication', periods: [{ start: '2026-02-01', end: null, dose: '250 mg' }] };
+    state.importedData.supplements[1] = { id: 'prn-demo', name: 'Example medication', type: 'medication', periods: [{ start: '2026-02-01', end: null, dose: '250 mg', schedule: { mode: 'daily' } }] };
   });
   await select(page, 'LDL', 'lipids.ldl');
   await select(page, 'Example supplement', 'dose-demo', 'toggle-therapy');
@@ -337,7 +337,7 @@ test('keeps one relative chart for incompatible dose bases and supports keyboard
   await fixture(page);
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
-    state.importedData.supplements[1] = { id: 'prn-demo', name: 'Example medication', type: 'medication', periods: [{ start: '2026-02-01', end: null, dose: '250 mg/day' }] };
+    state.importedData.supplements[1] = { id: 'prn-demo', name: 'Example medication', type: 'medication', periods: [{ start: '2026-02-01', end: null, dose: '250 mg/day', schedule: { mode: 'daily' } }] };
   });
   const search = page.locator('#corr-search');
   await search.fill('LDL');
@@ -568,7 +568,7 @@ test('glucose, HbA1c and numeric TMG stay on one chart with raw values preserved
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     state.importedData.entries = ['2026-01-10', '2026-02-10', '2026-03-10'].map((date, i) => ({ date, markers: { 'biochemistry.glucose': [4.4, 5.2, 5][i], 'diabetes.hba1c': [31, 34, 33][i] } }));
-    state.importedData.supplements[0] = { id: 'dose-demo', name: 'TMG Powder', periods: [{ start: '2026-01-01', end: '2026-02-28', dose: '500 mg/day' }, { start: '2026-03-01', end: null, dose: '2000 mg/day' }] };
+    state.importedData.supplements[0] = { id: 'dose-demo', name: 'TMG Powder', periods: [{ start: '2026-01-01', end: '2026-02-28', dose: '500 mg/day', schedule: { mode: 'daily' } }, { start: '2026-03-01', end: null, dose: '2000 mg/day', schedule: { mode: 'daily' } }] };
     (await import('/js/data.js')).invalidateActiveDataCache();
     (await import('/js/compare-correlations.js')).showCorrelations();
   });

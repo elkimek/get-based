@@ -415,6 +415,6 @@ export function confirmIngredientDosePeriod(record, periodIndex) {
   const ordered = [...periods].sort((a, b) => a.start.localeCompare(b.start));
   if (ordered.some((p, i) => i > 0 && (!ordered[i - 1].end || ordered[i - 1].end >= p.start))) return null;
   return { ...record, updatedAt: Date.now(), periods: periods.map((p, i) => i === periodIndex
-    ? { ...p, end: p.end || null, ingredientDoses: doses, ...(doses.length === 1 ? { dose: doses[0] } : {}), schedule: { mode: 'daily' } }
+    ? { ...p, end: p.end || null, ingredientDoses: doses, ...(doses.length === 1 ? { dose: doses[0] } : {}), schedule: p.schedule ? { ...p.schedule } : { mode: 'daily' } }
     : { ...p }) };
 }
