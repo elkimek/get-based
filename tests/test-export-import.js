@@ -484,8 +484,8 @@ return (async function() {
   // _importDatabaseBundle merge logic
   assert('Bundle import matches by id first', exportImportSrc.includes('profiles.find(p => p.id === bp.id)'));
   assert('Bundle import falls back to name match', exportImportSrc.includes('profiles.find(p => p.name === bp.name)'));
-  assert('Bundle import clears stale sync deletion state before merging',
-    /if \(existing\) \{[\s\S]{0,500}_reviveImportedProfileSyncIdentity\(existing\.id\)/.test(exportImportSrc));
+  assert('Bundle import revives sync identity only after its guarded save succeeds',
+    /expectedData: raw, skipSync: true,[\s\S]{0,80}if \(!persisted\) throw[\s\S]{0,220}_reviveImportedProfileSyncIdentity\(existing\.id\)/.test(exportImportSrc));
   assert('Bundle import republishes the complete post-write profile state',
     exportImportSrc.includes('saveImportedDataForProfile(existing.id, current, {') &&
     exportImportSrc.includes('forceProfileScope: true'));

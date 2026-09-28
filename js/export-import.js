@@ -609,15 +609,6 @@ async function _importDatabaseBundle(json) {
   try {
     for (const { bp, existing, importData, raw, current, replaceRegimens } of plans) {
       if (existing) {
-        // Clear delete intents before metadata queues sync for this restored profile.
-        _reviveImportedProfileSyncIdentity(existing.id);
-        if (!firstImportedId) firstImportedId = existing.id;
-        const meta = {};
-        for (const field of ['name', 'sex', 'dob', 'location', 'notes', 'avatar', 'pinned']) if (bp[field]) meta[field] = bp[field];
-        if (Array.isArray(bp.tags) && bp.tags.length) meta.tags = bp.tags;
-        if (bp.status && bp.status !== 'active') meta.status = bp.status;
-        if (bp.height) { meta.height = bp.height; meta.heightUnit = bp.heightUnit || 'cm'; }
-        if (Object.keys(meta).length) await updateProfileMeta(existing.id, meta);
         // Entries: date-keyed upsert
         if (Array.isArray(importData.entries)) {
           const entries = ensureImportedArray(current, 'entries');
@@ -734,10 +725,19 @@ async function _importDatabaseBundle(json) {
         }
         // Save
         const persisted = await saveImportedDataForProfile(existing.id, current, {
-          forceProfileScope: true, expectedData: raw,
+          forceProfileScope: true, expectedData: raw, skipSync: true,
         });
         if (!persisted) throw new Error('Could not save.');
         merged++;
+        // Clear delete intents before metadata queues sync for this restored profile.
+        _reviveImportedProfileSyncIdentity(existing.id);
+        if (!firstImportedId) firstImportedId = existing.id;
+        const meta = {};
+        for (const field of ['name', 'sex', 'dob', 'location', 'notes', 'avatar', 'pinned']) if (bp[field]) meta[field] = bp[field];
+        if (Array.isArray(bp.tags) && bp.tags.length) meta.tags = bp.tags;
+        if (bp.status && bp.status !== 'active') meta.status = bp.status;
+        if (bp.height) { meta.height = bp.height; meta.heightUnit = bp.heightUnit || 'cm'; }
+        await updateProfileMeta(existing.id, meta);
         if (bp.chat) await _importChatData(existing.id, bp.chat);
         await _importNutritionData(existing.id, bp.nutrition);
       } else {

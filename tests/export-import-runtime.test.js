@@ -193,13 +193,21 @@ describe('JSON restore runtime', () => {
     expect(runtime.refreshImportRuntimeShell).toHaveBeenCalledWith({ chat: true });
   });
 
-  it('revives an existing profile before merging a database bundle into it', async () => {
+  it('revives and syncs an existing profile only after the guarded bundle save succeeds', async () => {
     localStorage.setItem('labcharts-profile-delete-intent-profile-1', '{"at":1}');
     localStorage.setItem('labcharts-tombstone-pending-profile-1', '{"at":2}');
+    const { updateProfileMeta } = await import('../js/profile.js');
     runtime.saveImportedDataForProfile.mockImplementationOnce(async (profileId, importedData) => {
+      expect(localStorage.getItem('labcharts-profile-delete-intent-profile-1')).toBe('{"at":1}');
+      expect(localStorage.getItem('labcharts-tombstone-pending-profile-1')).toBe('{"at":2}');
+      expect(updateProfileMeta).not.toHaveBeenCalled();
+      await runtime.encryptedSetItem(`${profileId}:imported`, JSON.stringify(importedData));
+      return true;
+    });
+    updateProfileMeta.mockImplementationOnce(async () => {
       expect(localStorage.getItem('labcharts-profile-delete-intent-profile-1')).toBeNull();
       expect(localStorage.getItem('labcharts-tombstone-pending-profile-1')).toBeNull();
-      await runtime.encryptedSetItem(`${profileId}:imported`, JSON.stringify(importedData));
+      expect(JSON.parse(localStorage.getItem('profile-1:imported')).diet.type).toBe('whole-food');
       return true;
     });
     const backup = {
@@ -218,7 +226,7 @@ describe('JSON restore runtime', () => {
     expect(runtime.saveImportedDataForProfile).toHaveBeenCalledWith(
       'profile-1',
       expect.objectContaining({ diet: { type: 'whole-food' } }),
-      { forceProfileScope: true, expectedData: null },
+      { forceProfileScope: true, expectedData: null, skipSync: true },
     );
     expect(JSON.parse(localStorage.getItem('profile-1:imported')))
       .toMatchObject({ diet: { type: 'whole-food' } });
@@ -230,6 +238,8 @@ describe('JSON restore runtime', () => {
     const before = { entries: [{ date: '2026-01-01', markers: { glucose: 90 } }],
       supplements: [{ id: 'tmg', name: 'TMG', startDate: '2026-03-24', dosage: '500 mg' }] };
     localStorage.setItem('profile-2:imported', JSON.stringify(before));
+    localStorage.setItem('labcharts-profile-delete-intent-profile-2', '{"at":1}');
+    localStorage.setItem('labcharts-tombstone-pending-profile-2', '{"at":2}');
     const latest = structuredClone(before);
     latest.entries[0].markers.hba1c = 5;
     latest.supplements[0].dosage = '2000 mg';
@@ -247,6 +257,10 @@ describe('JSON restore runtime', () => {
     const restored = JSON.parse(localStorage.getItem('profile-2:imported'));
     expect(restored.entries[0].markers).toEqual({ glucose: 90, hba1c: 5 });
     expect(restored.supplements).toEqual(latest.supplements);
+    const { updateProfileMeta } = await import('../js/profile.js');
+    expect(updateProfileMeta).toHaveBeenCalledExactlyOnceWith('profile-1', { name: 'Primary' });
+    expect(localStorage.getItem('labcharts-profile-delete-intent-profile-2')).toBe('{"at":1}');
+    expect(localStorage.getItem('labcharts-tombstone-pending-profile-2')).toBe('{"at":2}');
     expect(runtime.showNotification).toHaveBeenLastCalledWith(expect.stringContaining('Saved profiles: 1. Import stopped'), 'error');
   });
 
@@ -256,6 +270,8 @@ describe('JSON restore runtime', () => {
     const backup = { type: 'database', profiles: ['profile-1', 'profile-2'].map(id => ({ id, data: { diet: { type: 'imported' } } })) };
     await importDataJSON(new File([JSON.stringify(backup)], 'conflict.json'));
     expect(runtime.showNotification).toHaveBeenLastCalledWith(expect.stringContaining('Saved profiles: 1. Import stopped'), 'error');
+    const { updateProfileMeta } = await import('../js/profile.js');
+    expect(updateProfileMeta).toHaveBeenCalledExactlyOnceWith('profile-1', {});
     expect(runtime.showNotification.mock.calls.some(([, kind]) => kind === 'success')).toBe(false);
   });
 
