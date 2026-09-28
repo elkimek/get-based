@@ -818,3 +818,20 @@
   .compare-swap-btn { min-height: 44px; }
   .chart-layers-row { min-height: 44px; }
 }
+
+/* Recorded-dose comparisons */
+.corr-help { color: var(--text-muted); font-size: 13px; line-height: 1.6; margin: 12px 0; }
+.corr-lag-control { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px; }
+.corr-lag-control select { color: var(--text-primary); background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+.corr-therapy-card { border-top: 1px solid var(--border); padding: 20px 0; min-width: 0; }
+.corr-therapy-card h4 { margin: 0 0 10px; font-size: 16px; overflow-wrap: anywhere; }
+.corr-stat { color: var(--text-secondary); font-size: 13px; line-height: 1.6; }
+.corr-dose-chart { height: 300px; position: relative; }
+.corr-data-scroll { overflow-x: auto; max-width: 100%; margin: 12px 0; }
+.corr-data-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+.corr-data-table th, .corr-data-table td { padding: 10px; border-bottom: 1px solid var(--border); min-width: 90px; }
+.corr-data-table th { color: var(--text-muted); font-weight: 500; }
+.corr-data-table caption { text-align: left; color: var(--text-muted); padding: 8px 0; }
+.corr-therapy-card summary { cursor: pointer; padding: 12px 0; font-size: 13px; }
+.corr-period-list { color: var(--text-secondary); font-size: 12px; line-height: 1.8; }
+.corr-chip button.chip-remove { border: 0; background: transparent; color: inherit; padding: 0 3px; }

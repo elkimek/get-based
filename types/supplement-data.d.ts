@@ -8,7 +8,7 @@ export interface SupplementRecord {
   note?: string;
   startDate?: string;
   endDate?: string | null;
-  periods?: Array<{ start: string; end: string | null; endReason?: string; dose?: SupplementDose; [key: string]: unknown }>;
+  periods?: Array<{ start: string; end: string | null; endReason?: string; dose?: string | SupplementDose; schedule?: SupplementRecord['schedule']; [key: string]: unknown }>;
   schedule?: {
     mode?: string;
     details?: string;
@@ -26,7 +26,7 @@ export interface SupplementRecord {
   timesPerDay?: number;
   sourceUrl?: string;
   servingSize?: { value?: number; unit?: string };
-  currentDose?: SupplementDose;
+  currentDose?: string | SupplementDose;
   importProvenance?: Record<string, unknown>;
   labelWarnings?: string[];
   updatedAt?: number;
@@ -34,6 +34,7 @@ export interface SupplementRecord {
 }
 
 export interface SupplementDose {
+  basis?: 'dose' | 'day';
   value?: number;
   unit?: string;
   text?: string;

@@ -17,3 +17,15 @@ describe('Compare and correlations DOM boundaries', () => {
     expect(() => showCorrelations({ categories: null })).not.toThrow();
   });
 });
+
+import { state, resetCorrelationSelection } from '../js/state.js';
+
+it('clears marker, therapy and lag selection together for a profile change', () => {
+  state.selectedCorrelationMarkers = ['lipids.ldl'];
+  state.selectedCorrelationSupplements = ['private-profile-item'];
+  state.correlationLagDays = 30;
+  resetCorrelationSelection();
+  expect(state.selectedCorrelationMarkers).toEqual([]);
+  expect(state.selectedCorrelationSupplements).toEqual([]);
+  expect(state.correlationLagDays).toBe(0);
+});

@@ -1,7 +1,7 @@
 // @ts-check
 import { rememberProfileData } from './profile-data-writes.js';
 import { readProfileForLoad } from './profile-load-safety.js';
-import { state } from './state.js';
+import { state, resetCorrelationSelection } from './state.js';
 import { COUNTRY_LATITUDES, LATITUDE_BANDS } from './constants.js';
 import { isDebugMode, showConfirmDialog, showNotification } from './utils.js';
 import { encryptedSetItem, encryptedGetItem, getEncryptionEnabled, isUnlocked } from './crypto.js';
@@ -336,7 +336,7 @@ export async function loadProfile(profileId) {
   state.phaseOverlayMode = savedPhaseOverlay === 'on' ? 'on' : 'off';
   state.profileSex = getProfileSex(profileId);
   state.profileDob = getProfileDob(profileId);
-  state.selectedCorrelationMarkers = [];
+  resetCorrelationSelection();
   state.chatHistory = [];
   state.chatThreads = [];
   state.currentThreadId = null;

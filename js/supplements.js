@@ -29,6 +29,7 @@ import {
   getSupplementStatus,
   localDateKey,
   normalizeSupplementUnit,
+  recordSupplementSchedule,
 } from './supplement-medication-domain.js';
 import {
   aggregateSupplementContaminants,
@@ -328,6 +329,7 @@ export function saveSupplement(index) {
   if (scheduleMode !== 'prn' && isFinite(timesPerDay) && timesPerDay > 0) entry.timesPerDay = timesPerDay;
   else delete entry.timesPerDay;
   entry.schedule.timesPerDay = entry.timesPerDay ?? null;
+  entry.periods = recordSupplementSchedule(previous, entry.periods, entry.schedule);
   if (sourceUrl) entry.sourceUrl = sourceUrl.toString(); else delete entry.sourceUrl;
   for (const [field, id] of [['brand','supp-brand'],['genericName','supp-generic-name'],['dosageForm','supp-dosage-form'],['route','supp-route'],['labelDirections','supp-label-directions'],['reason','supp-reason'],['prescriber','supp-prescriber']]) {
     const value = getFieldValue(id).trim();
@@ -344,7 +346,7 @@ export function saveSupplement(index) {
   const servingUnit = normalizeSupplementUnit(getFieldValue('supp-serving-unit'));
   if (isFinite(servingValue) || servingUnit) entry.servingSize = { ...(isFinite(servingValue) ? { value: servingValue } : {}), ...(servingUnit ? { unit: servingUnit } : {}) };
   else delete entry.servingSize;
-  const latestDose = sorted[sorted.length - 1]?.dose;
+  const latestDose = entry.periods[entry.periods.length - 1]?.dose;
   if (latestDose) entry.currentDose = latestDose; else delete entry.currentDose;
   if (pendingImport?.draft?.source?.reviewed) {
     const draft = pendingImport.draft;
@@ -420,7 +422,7 @@ export function restartSupplement(index) {
   const periods = getSupplementPeriods(previous).map(period => ({ ...period }));
   const latest = periods[periods.length - 1];
   if (latest?.end === today) latest.end = null;
-  else periods.push({ start: today, end: null, ...(previous.currentDose ? { dose: previous.currentDose } : {}) });
+  else periods.push({ start: today, end: null, ...(previous.currentDose ? { dose: previous.currentDose } : {}), ...(previous.schedule ? { schedule: { ...previous.schedule } } : {}) });
   replaceImportedArrayItem(state.importedData, 'supplements', index, {
     ...previous, periods, startDate: periods[0]?.start || today, endDate: null,
     lifecycle: { ...(previous.lifecycle || {}), state: 'active', changedAt: Date.now() }, updatedAt: Date.now(),

@@ -414,7 +414,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/light-channel-view-ui-hooks.js',
   '/js/light-sessions-view.js',
   '/js/light-sessions-view-hooks.js',
-  '/js/compare-correlations.js',
+  '/js/compare-correlations.js', '/js/therapy-correlations.js', '/js/therapy-correlation-view.js',
   '/js/mobile-dashboard.js',
   '/js/views.js',
   '/js/recommendations-runtime.js',

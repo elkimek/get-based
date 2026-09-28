@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 788 |
-| Internal import edges | 3333 |
-| Dynamic internal edges | 115 |
+| Modules | 790 |
+| Internal import edges | 3344 |
+| Dynamic internal edges | 118 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -64,8 +64,8 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.js`](js/utils.js) | 289 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 78 |
-| [`js/state.js`](js/state.js) | 199 | [`js/chat-send.js`](js/chat-send.js) | 42 |
+| [`js/utils.js`](js/utils.js) | 290 | [`js/app-shell-hooks.js`](js/app-shell-hooks.js) | 78 |
+| [`js/state.js`](js/state.js) | 200 | [`js/chat-send.js`](js/chat-send.js) | 42 |
 | [`js/caught-error.js`](js/caught-error.js) | 89 | [`js/app-light-sun-modules.js`](js/app-light-sun-modules.js) | 36 |
 | [`js/modal-lifecycle.js`](js/modal-lifecycle.js) | 81 | [`js/settings.js`](js/settings.js) | 30 |
 | [`js/data.js`](js/data.js) | 79 | [`js/sync-configure.js`](js/sync-configure.js) | 28 |
@@ -75,10 +75,10 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/crypto.js`](js/crypto.js) | 38 | [`js/export.js`](js/export.js) | 23 |
 | [`js/ai-feature-routing.js`](js/ai-feature-routing.js) | 36 | [`js/views.js`](js/views.js) | 22 |
 | [`js/data-merge.js`](js/data-merge.js) | 34 | [`js/biology-scores.js`](js/biology-scores.js) | 20 |
-| [`js/chat-runtime.js`](js/chat-runtime.js) | 21 | [`js/chat-render.js`](js/chat-render.js) | 20 |
-| [`js/utils-runtime.js`](js/utils-runtime.js) | 21 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
-| [`js/constants.js`](js/constants.js) | 20 | [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | 20 |
-| [`js/marker-analysis.js`](js/marker-analysis.js) | 20 | [`js/marker-schema/index.js`](js/marker-schema/index.js) | 20 |
+| [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js) | 22 | [`js/chat-render.js`](js/chat-render.js) | 20 |
+| [`js/chat-runtime.js`](js/chat-runtime.js) | 21 | [`js/dashboard-view-composition.js`](js/dashboard-view-composition.js) | 20 |
+| [`js/utils-runtime.js`](js/utils-runtime.js) | 21 | [`js/marker-detail-modal-impl.js`](js/marker-detail-modal-impl.js) | 20 |
+| [`js/constants.js`](js/constants.js) | 20 | [`js/marker-schema/index.js`](js/marker-schema/index.js) | 20 |
 
 ## Existing cyclic components
 
@@ -338,7 +338,7 @@ Native browser modules shipped with the static application.
 - [`js/chat-images.js`](js/chat-images.js) → [`js/ai-execution-routing.js`](js/ai-execution-routing.js), [`js/api.js`](js/api.js), [`js/chat-backend-selection.js`](js/chat-backend-selection.js), [`js/chat-message-action-attrs.js`](js/chat-message-action-attrs.js), [`js/image-utils.js`](js/image-utils.js), [`js/import-file-input.js`](js/import-file-input.js), [`js/modal-lifecycle.js`](js/modal-lifecycle.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
 - [`js/chat-layout.js`](js/chat-layout.js) → no in-scope imports
 - [`js/chat-loader.js`](js/chat-loader.js) → [`js/app-ai-interaction-modules.js`](js/app-ai-interaction-modules.js) *(dynamic)*
-- [`js/chat-marker-prompts.js`](js/chat-marker-prompts.js) → [`js/chat-history.js`](js/chat-history.js), [`js/chat-panel.js`](js/chat-panel.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/data.js`](js/data.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
+- [`js/chat-marker-prompts.js`](js/chat-marker-prompts.js) → [`js/chat-history.js`](js/chat-history.js), [`js/chat-panel.js`](js/chat-panel.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/data.js`](js/data.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/state.js`](js/state.js), [`js/therapy-correlations.js`](js/therapy-correlations.js) *(dynamic)*, [`js/utils.js`](js/utils.js)
 - [`js/chat-message-action-attrs.js`](js/chat-message-action-attrs.js) → [`js/utils.js`](js/utils.js)
 - [`js/chat-message-avatars.js`](js/chat-message-avatars.js) → [`js/cli-agent-brand-assets.js`](js/cli-agent-brand-assets.js), [`js/state.js`](js/state.js)
 - [`js/chat-message-edit.js`](js/chat-message-edit.js) → [`js/chat-composer.js`](js/chat-composer.js), [`js/chat-message-action-attrs.js`](js/chat-message-action-attrs.js), [`js/chat-runtime.js`](js/chat-runtime.js), [`js/chat-threads.js`](js/chat-threads.js), [`js/state.js`](js/state.js), [`js/utils.js`](js/utils.js)
@@ -416,7 +416,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>compare</code> family — 1 module</summary>
 
-- [`js/compare-correlations.js`](js/compare-correlations.js) → [`js/charts-runtime.js`](js/charts-runtime.js), [`js/data.js`](js/data.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/theme.js`](js/theme.js), [`js/utils.js`](js/utils.js)
+- [`js/compare-correlations.js`](js/compare-correlations.js) → [`js/charts-runtime.js`](js/charts-runtime.js), [`js/data.js`](js/data.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/theme.js`](js/theme.js), [`js/therapy-correlation-view.js`](js/therapy-correlation-view.js) *(dynamic)*, [`js/therapy-correlations.js`](js/therapy-correlations.js) *(dynamic)*, [`js/utils.js`](js/utils.js)
 
 </details>
 
@@ -1272,6 +1272,13 @@ Native browser modules shipped with the static application.
 - [`js/theme-bootstrap.js`](js/theme-bootstrap.js) → no in-scope imports
 - [`js/theme-runtime.js`](js/theme-runtime.js) → [`js/settings-runtime-bridge.js`](js/settings-runtime-bridge.js)
 - [`js/theme.js`](js/theme.js) → [`js/theme-runtime.js`](js/theme-runtime.js) *(dynamic)*, [`js/utils.js`](js/utils.js)
+
+</details>
+
+<details><summary><code>therapy</code> family — 2 modules</summary>
+
+- [`js/therapy-correlation-view.js`](js/therapy-correlation-view.js) → [`js/charts-runtime.js`](js/charts-runtime.js), [`js/state.js`](js/state.js), [`js/theme.js`](js/theme.js), [`js/therapy-correlations.js`](js/therapy-correlations.js), [`js/utils.js`](js/utils.js)
+- [`js/therapy-correlations.js`](js/therapy-correlations.js) → [`js/marker-placement.js`](js/marker-placement.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js)
 
 </details>
 

@@ -2,6 +2,7 @@
 // compare-correlations.js - Compare Dates and Correlations views
 
 import { state } from './state.js';
+import { getSupplementRecordId, CORRELATION_LAGS } from './supplement-medication-domain.js';
 import { CORRELATION_PRESETS, CHIP_COLORS } from './schema.js';
 import { escapeHTML, escapeAttr, getStatus, formatValue } from './utils.js';
 import { getChartColors } from './theme.js';
@@ -86,6 +87,9 @@ function handleCompareClick(event) {
   } else if (action === 'toggle-marker') {
     event.preventDefault();
     if (actionEl.dataset.compareKey) toggleCorrelationMarker(actionEl.dataset.compareKey);
+  } else if (action === 'toggle-therapy') {
+    event.preventDefault();
+    if (actionEl.dataset.compareKey) toggleCorrelationTherapy(actionEl.dataset.compareKey);
   } else if (action === 'ask-ai-correlations') {
     event.preventDefault();
     compareCorrelationDeps.askAIAboutCorrelations();
@@ -103,7 +107,14 @@ function handleCompareKeydown(event) {
 
 function handleCompareChange(event) {
   const actionEl = closestCompareTarget(event, '[data-compare-change-action]');
-  if (!actionEl || actionEl.dataset.compareChangeAction !== 'set-date') return;
+  if (!actionEl) return;
+  if (actionEl.dataset.compareChangeAction === 'set-lag') {
+    const lag = Number(/** @type {HTMLSelectElement} */ (actionEl).value);
+    state.correlationLagDays = CORRELATION_LAGS.includes(lag) ? lag : 0;
+    renderCorrelationChart();
+    return;
+  }
+  if (actionEl.dataset.compareChangeAction !== 'set-date') return;
   const value = 'value' in actionEl ? String(actionEl.value) : '';
   if (actionEl.dataset.compareIndex === '1') setCompareDate1(value);
   else if (actionEl.dataset.compareIndex === '2') setCompareDate2(value);
@@ -311,17 +322,25 @@ export function renderCompareTable(data, idx1, idx2) {
 
 // Correlations
 
+/** @type {(typeof import('./therapy-correlations.js') & typeof import('./therapy-correlation-view.js')) | null} */
+let therapyModules = null;
+let therapyLoad = null;
+
+function destroyTherapyCorrelationCharts() {
+  therapyModules?.destroyTherapyCorrelationCharts();
+}
+
 export function showCorrelations(data) {
   const main = document.getElementById("main-content");
   if (!main) return;
   if (!data) data = getActiveData();
   let html = `<div class="category-header"><h2>Correlations</h2>
-    <p>Compare biomarkers across categories on a normalized scale</p></div>`;
+    <p>Compare biomarker trends with recorded supplement and medication doses</p></div>`;
   html += `<div class="correlation-controls">
-    <h3>Select Biomarkers (2\u20138)</h3>
+    <h3>Select biomarkers, supplements &amp; medications (up to 8)</h3>
     <div class="corr-select-row">
       <div class="corr-dropdown">
-        <input type="text" class="corr-search" id="corr-search" placeholder="Search biomarkers..."
+        <input type="text" class="corr-search" id="corr-search" aria-label="Search biomarkers, supplements and medications" placeholder="Search biomarkers, supplements, medications..."
           ${compareInputAttrs('filter-options')} ${compareFocusAttrs('show-dropdown')}>
         <div class="corr-options" id="corr-options"></div>
       </div>
@@ -332,16 +351,19 @@ export function showCorrelations(data) {
   for (let i = 0; i < CORRELATION_PRESETS.length; i++) {
     html += `<button class="corr-preset-btn" ${compareActionAttrs('apply-preset', { index: i })}>${CORRELATION_PRESETS[i].label}</button>`;
   }
-  html += `</div></div>`;
+  html += `</div><p class="corr-help">Choose two biomarkers, or one biomarker and a supplement or medication. Discontinued items are included.</p>
+    <label class="corr-lag-control" for="corr-lag">Match labs to the recorded dose
+      <select id="corr-lag" ${compareChangeAttrs('set-lag')}>${CORRELATION_LAGS.map(days => `<option value="${days}"${state.correlationLagDays === days ? ' selected' : ''}>${days ? `${days} days earlier` : 'on the same date'}</option>`).join('')}</select>
+    </label></div>`;
   html += `<div class="corr-chart-container" id="corr-chart-container" style="display:none">
-    <h3>Normalized Comparison (% of Reference Range)
+    <h3><span id="corr-chart-title">Normalized Comparison (% of Reference Range)</span>
       <button class="corr-ask-ai-btn" ${compareActionAttrs('ask-ai-correlations')} title="Ask AI about these correlations">Ask AI</button>
     </h3>
-    <div class="corr-chart"><canvas id="chart-correlation"></canvas></div></div>`;
+    <div class="corr-chart" id="corr-marker-chart"><canvas id="chart-correlation"></canvas></div><div id="corr-therapy-results"></div></div>`;
   main.innerHTML = html;
   populateCorrelationOptions(data);
   renderCorrelationChips();
-  if (state.selectedCorrelationMarkers.length >= 2) renderCorrelationChart();
+  if (canRenderCorrelation()) renderCorrelationChart();
 }
 
 export function populateCorrelationOptions(data) {
@@ -360,11 +382,18 @@ export function populateCorrelationOptions(data) {
         ${escapeHTML(marker.name)} <span class="opt-cat">${escapeHTML(cat.label)}</span></div>`;
     }
   }
+  for (const therapy of state.importedData.supplements || []) {
+    const id = getSupplementRecordId(therapy);
+    if (!id) continue;
+    const category = therapy.type === 'medication' ? 'Medication' : 'Supplement';
+    const selected = state.selectedCorrelationSupplements.includes(id);
+    html += `<div class="corr-option ${selected ? 'selected' : ''}" data-key="${escapeAttr(id)}" data-name="${escapeAttr(therapy.name || '')}" data-cat="${category}" role="button" tabindex="0" ${compareActionAttrs('toggle-therapy', { key: id })}>${escapeHTML(therapy.name || 'Unnamed item')} <span class="opt-cat">${category} · ${escapeHTML(therapy.startDate || therapy.periods?.[0]?.start || 'undated')}</span></div>`;
+  }
   container.innerHTML = html;
 }
 
 export function showCorrelationDropdown() {
-  document.getElementById("corr-options")?.classList.add("show");
+  filterCorrelationOptions();
 }
 
 export function filterCorrelationOptions() {
@@ -382,22 +411,27 @@ export function filterCorrelationOptions() {
 export function toggleCorrelationMarker(key) {
   const idx = state.selectedCorrelationMarkers.indexOf(key);
   if (idx !== -1) state.selectedCorrelationMarkers.splice(idx, 1);
-  else if (state.selectedCorrelationMarkers.length < 8) state.selectedCorrelationMarkers.push(key);
+  else if (state.selectedCorrelationMarkers.length + state.selectedCorrelationSupplements.length < 8) state.selectedCorrelationMarkers.push(key);
   renderCorrelationChips();
   populateCorrelationOptions();
-  if (state.selectedCorrelationMarkers.length >= 2) renderCorrelationChart();
+  document.getElementById('corr-options')?.classList.remove('show');
+  if (canRenderCorrelation()) renderCorrelationChart();
   else {
     const container = document.getElementById("corr-chart-container");
     if (container) container.style.display = "none";
+    destroyTherapyCorrelationCharts();
     if (state.chartInstances["correlation"]) { state.chartInstances["correlation"].destroy(); delete state.chartInstances["correlation"]; }
   }
 }
 
 export function applyCorrelationPreset(idx) {
+  if (!CORRELATION_PRESETS[idx]) return;
+  state.selectedCorrelationSupplements = [];
   state.selectedCorrelationMarkers = [...CORRELATION_PRESETS[idx].markers];
   renderCorrelationChips();
   populateCorrelationOptions();
-  if (state.selectedCorrelationMarkers.length >= 2) renderCorrelationChart();
+  document.getElementById('corr-options')?.classList.remove('show');
+  if (canRenderCorrelation()) renderCorrelationChart();
 }
 
 export function renderCorrelationChips() {
@@ -413,14 +447,60 @@ export function renderCorrelationChips() {
     html += `<span class="corr-chip" style="background:${color}20;border-color:${color};color:${color}">
       ${escapeHTML(marker.name)} <span class="chip-remove" ${compareActionAttrs('toggle-marker', { key })}>&times;</span></span>`;
   });
+  for (const id of state.selectedCorrelationSupplements) {
+    const therapy = (state.importedData.supplements || []).find(s => getSupplementRecordId(s) === id);
+    if (!therapy) continue;
+    html += `<span class="corr-chip">${escapeHTML(therapy.name)} <button type="button" class="chip-remove" aria-label="Remove ${escapeAttr(therapy.name)}" ${compareActionAttrs('toggle-therapy', { key: id })}>&times;</button></span>`;
+  }
   container.innerHTML = html;
+}
+
+function canRenderCorrelation() {
+  return state.selectedCorrelationMarkers.length >= 2 || (state.selectedCorrelationMarkers.length >= 1 && state.selectedCorrelationSupplements.length >= 1);
+}
+
+export function toggleCorrelationTherapy(id) {
+  const index = state.selectedCorrelationSupplements.indexOf(id);
+  if (index >= 0) state.selectedCorrelationSupplements.splice(index, 1);
+  else if (state.selectedCorrelationMarkers.length + state.selectedCorrelationSupplements.length < 8) state.selectedCorrelationSupplements.push(id);
+  renderCorrelationChips();
+  populateCorrelationOptions();
+  document.getElementById('corr-options')?.classList.remove('show');
+  renderCorrelationChart();
 }
 
 export function renderCorrelationChart() {
   const data = getActiveData();
   const container = document.getElementById("corr-chart-container");
   if (!container) return;
+  destroyTherapyCorrelationCharts();
+  if (!canRenderCorrelation()) {
+    container.style.display = 'none';
+    if (state.chartInstances.correlation) { state.chartInstances.correlation.destroy(); delete state.chartInstances.correlation; }
+    return;
+  }
   container.style.display = "block";
+  const hasTherapies = state.selectedCorrelationSupplements.length > 0;
+  const markerChart = document.getElementById('corr-marker-chart');
+  if (markerChart) markerChart.style.display = hasTherapies ? 'none' : '';
+  const title = document.getElementById('corr-chart-title');
+  if (title) title.textContent = hasTherapies ? 'Dose and biomarker comparison' : 'Normalized Comparison (% of Reference Range)';
+  const results = document.getElementById('corr-therapy-results');
+  if (hasTherapies && !therapyModules) {
+    if (results) results.innerHTML = '<p class="corr-help">Preparing dose history…</p>';
+    if (!therapyLoad) therapyLoad = Promise.all([import('./therapy-correlations.js'), import('./therapy-correlation-view.js')])
+      .then(([model, view]) => { therapyModules = { ...model, ...view }; })
+      .catch(error => { therapyLoad = null; throw error; });
+    therapyLoad.then(() => {
+      if (document.getElementById('corr-therapy-results') === results) renderCorrelationChart();
+    }).catch(() => {
+      if (document.getElementById('corr-therapy-results') === results && results) results.innerHTML = '<p class="corr-help">Dose history could not load. Reselect an item to retry.</p>';
+    });
+    return;
+  }
+  const selection = hasTherapies ? therapyModules.prepareCorrelationSelection(data, state.importedData, state.selectedCorrelationMarkers, state.selectedCorrelationSupplements, state.correlationLagDays) : null;
+  if (selection) therapyModules.renderTherapyCorrelationResults(selection, results);
+  else if (results) results.innerHTML = '';
   if (state.chartInstances["correlation"]) { state.chartInstances["correlation"].destroy(); delete state.chartInstances["correlation"]; }
   const canvas = /** @type {HTMLCanvasElement | null} */ (document.getElementById("chart-correlation"));
   if (!canvas) return;
@@ -430,6 +510,7 @@ export function renderCorrelationChart() {
     }).catch(() => {});
     return;
   }
+  if (selection) { therapyModules.drawTherapyCorrelationCharts(selection); return; }
   const datasets = [];
   state.selectedCorrelationMarkers.forEach((key, i) => {
     const [catKey, markerKey] = key.split('.');

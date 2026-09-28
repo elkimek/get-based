@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "maximums": {
     "startupJavaScriptFiles": 2,
-    "startupDecodedBytes": 1264000,
-    "outputJavaScriptFiles": 165,
-    "outputDecodedBytes": 5385000
+    "startupDecodedBytes": 1270000,
+    "outputJavaScriptFiles": 167,
+    "outputDecodedBytes": 5404000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -79,8 +79,12 @@
     "persistenceHardeningMeasuredCommit": "3b2aa362ff761e9b6fb0c208ebc3f3d595a92622",
     "chatReliabilityOutputDecodedBytes": 5382509,
     "chatReliabilityMeasuredBaseCommit": "1ab14cc2e9ae326596a038a3b131362763cf07a6",
-    "chatReliabilityReviewOutputDecodedBytes": 5383517
+    "chatReliabilityReviewOutputDecodedBytes": 5383517,
+    "doseCorrelationsStartupDecodedBytes": 1268080,
+    "doseCorrelationsOutputJavaScriptFiles": 167,
+    "doseCorrelationsOutputDecodedBytes": 5402446,
+    "doseCorrelationsMeasuredBaseCommit": "4887b0b300a248a5b04f6a2309c094e2f240188f"
   },
   "referenceCommit": "331112b1",
-  "measuredAt": "2026-09-22"
+  "measuredAt": "2026-09-28"
 }

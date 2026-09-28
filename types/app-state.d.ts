@@ -94,6 +94,8 @@ export interface AppState {
   unitSystem: string;
   showAltUnits: boolean;
   selectedCorrelationMarkers: string[];
+  selectedCorrelationSupplements: string[];
+  correlationLagDays: number;
   currentProfile: string;
   nutritionSummary: Record<string, any> | null;
   profiles: any[] | null;

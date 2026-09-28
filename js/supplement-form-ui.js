@@ -8,6 +8,7 @@ import { suppActionAttrs } from './supplement-action-delegates.js';
 import { formatSupplementTotal, ingredientDailyTotal } from './supplement-impact.js';
 import {
   SUPPLEMENT_UNIT_OPTIONS,
+  supplementDoseText,
   formatSupplementAmount,
   getIngredientQuantity,
   getSupplementPeriods,
@@ -144,7 +145,7 @@ export function periodRowHtml(idx, period = {}, showRemove = true, originalIndex
     <input type="date" class="supp-period-start" aria-label="Period start" value="${escapeHTML(period.start || '')}">
     <span class="supp-period-arrow">&rarr;</span>
     <input type="date" class="supp-period-end" aria-label="Period end" value="${escapeHTML(period.end || '')}" placeholder="ongoing">
-    <input type="text" class="supp-period-dose" aria-label="Dose or strength during period" placeholder="Dose / strength" value="${escapeHTML(period.dose || '')}">
+    <input type="text" class="supp-period-dose" aria-label="Dose or strength during period" placeholder="Dose / strength" value="${escapeHTML(supplementDoseText(period.dose))}">
     <button class="supp-period-remove" ${suppActionAttrs('remove-period')} title="Remove"${showRemove ? '' : ' style="display:none"'}>&times;</button>
   </div>`;
 }
@@ -180,7 +181,7 @@ export function collectPeriods() {
       ? getSupplementPeriods(state.importedData.supplements?.[supplementIndex])?.[previousIndex] : null;
     if (!start) continue;
     const period = { ...(previous && typeof previous === 'object' ? previous : {}), start, end };
-    if (dose) period.dose = dose;
+    if (dose) period.dose = previous?.dose && supplementDoseText(previous.dose) === dose ? previous.dose : dose;
     else delete period.dose;
     periods.push(period);
   }

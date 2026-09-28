@@ -9,6 +9,8 @@ export const state = {
   unitSystem: 'EU',
   showAltUnits: false,
   selectedCorrelationMarkers: [],
+  selectedCorrelationSupplements: [],
+  correlationLagDays: 0,
   currentProfile: 'default',
   nutritionSummary: null,
   profiles: null,
@@ -26,3 +28,10 @@ export const state = {
   compareDate1: null,
   compareDate2: null,
 };
+
+/** Clear profile-scoped comparison controls when switching profiles. */
+export function resetCorrelationSelection() {
+  state.selectedCorrelationMarkers = [];
+  state.selectedCorrelationSupplements = [];
+  state.correlationLagDays = 0;
+}

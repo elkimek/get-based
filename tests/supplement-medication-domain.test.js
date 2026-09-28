@@ -109,3 +109,33 @@ describe('supplement and medication domain', () => {
     expect(second).not.toBe(first);
   });
 });
+
+import { recordSupplementSchedule, supplementDoseText } from '../js/supplement-medication-domain.js';
+
+describe('dated schedule edits', () => {
+  const periods = [{ start: '2026-01-01', end: null, dose: '500 mg' }];
+  const previous = { periods, schedule: { mode: 'daily', timesPerDay: 1 } };
+  it('keeps earlier dose periods when frequency changes and records the new schedule today', () => {
+    const result = recordSupplementSchedule(previous, periods, { mode: 'multiple', timesPerDay: 4 }, '2026-03-01');
+    expect(result).toEqual([
+      { start: '2026-01-01', end: '2026-02-28', dose: '500 mg' },
+      { start: '2026-03-01', end: null, dose: '500 mg', schedule: { mode: 'multiple', timesPerDay: 4 } },
+    ]);
+    expect(periods[0].end).toBeNull();
+    expect(result[0].schedule).toBeUndefined();
+  });
+  it('does not invent historical snapshots on an unchanged save', () => {
+    expect(recordSupplementSchedule(previous, periods, { timesPerDay: 1, mode: 'daily' }, '2026-03-01')).toEqual(periods);
+  });
+  it('snapshots new periods and same-day changes without creating overlapping dates', () => {
+    const today = [{ start: '2026-03-01', end: null, dose: '2000 mg' }];
+    const result = recordSupplementSchedule(previous, today, previous.schedule, '2026-03-01');
+    expect(result).toHaveLength(1);
+    expect(result[0].schedule).toEqual(previous.schedule);
+  });
+  it('retains structured dose rendering and explicit daily basis', () => {
+    expect(supplementDoseText({ value: 500, unit: 'mg', basis: 'day' })).toBe('500 mg/day');
+    expect(supplementDoseText({ text: '500 mg with food', value: 500, unit: 'mg' })).toBe('500 mg with food');
+    expect(supplementDoseText('2 tablets')).toBe('2 tablets');
+  });
+});

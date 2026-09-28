@@ -76,7 +76,15 @@ export function askAIAboutMarker(markerId) {
   void openSourcePrompt(prompt, marker.name, { closeModal: true });
 }
 
-export function askAIAboutCorrelations() {
+export async function askAIAboutCorrelations() {
+  if (state.selectedCorrelationSupplements.length && state.selectedCorrelationMarkers.length) {
+    const profile = state.currentProfile;
+    const { prepareCorrelationSelection, therapyCorrelationPrompt } = await import('./therapy-correlations.js');
+    if (profile !== state.currentProfile) return;
+    const selection = prepareCorrelationSelection(getActiveData(), state.importedData, state.selectedCorrelationMarkers, state.selectedCorrelationSupplements, state.correlationLagDays);
+    if (selection.comparisons.length) void openSourcePrompt(therapyCorrelationPrompt(selection), 'Dose and biomarker correlations');
+    return;
+  }
   if (state.selectedCorrelationMarkers.length < 2) return;
   const data = getActiveData();
   const parts = state.selectedCorrelationMarkers.map(key => {

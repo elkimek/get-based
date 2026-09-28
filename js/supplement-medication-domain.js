@@ -4,6 +4,7 @@
 import { createUniqueId } from './unique-id.js';
 
 export const SUPPLEMENT_RECORD_VERSION = 2;
+export const CORRELATION_LAGS = [0, 7, 14, 30, 60, 90];
 
 export const SUPPLEMENT_UNIT_OPTIONS = [
   { value: '', label: 'No unit' },
@@ -299,4 +300,33 @@ export function migrateSupplementMedicationRecords(data) {
     if (supplement.schemaVersion === undefined) supplement.schemaVersion = SUPPLEMENT_RECORD_VERSION;
   }
   return data;
+}
+
+/** Render both existing free-text doses and structured imported doses losslessly. */
+export function supplementDoseText(dose) {
+  if (typeof dose === 'string') return dose;
+  if (!dose || typeof dose !== 'object') return '';
+  if (typeof dose.text === 'string') return dose.text;
+  return dose.value != null ? `${dose.value}${dose.unit ? ` ${dose.unit}` : ''}${dose.basis === 'day' ? '/day' : ''}` : '';
+}
+
+/** Save today's schedule without projecting it into older historical periods. */
+export function recordSupplementSchedule(previous, periods, schedule, today = localDateKey()) {
+  const result = periods.map(period => ({ ...period }));
+  const signature = value => JSON.stringify([
+    value?.mode || 'daily', value?.timesPerDay ?? null, value?.details || '',
+    value?.daysOfWeek || [], value?.intervalDays ?? null, value?.maxPerDay ?? null,
+  ]);
+  const previousSchedule = previous?.schedule || { mode: Number(previous?.timesPerDay) > 1 ? 'multiple' : 'daily', timesPerDay: previous?.timesPerDay ?? null };
+  const changed = previous && signature(previousSchedule) !== signature(schedule);
+  const open = result.find(period => !period.end && period.start <= today);
+  if (open && changed && open.start < today) {
+    const yesterday = new Date(`${today}T12:00:00`);
+    yesterday.setDate(yesterday.getDate() - 1);
+    open.end = localDateKey(yesterday);
+    result.push({ start: today, end: null, ...(open.dose ? { dose: open.dose } : {}), schedule: { ...schedule } });
+  } else if (open?.start === today) {
+    open.schedule = { ...schedule };
+  }
+  return result;
 }
