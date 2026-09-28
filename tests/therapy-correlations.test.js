@@ -194,7 +194,8 @@ it('does not pool different ingredients just because both use mg/day', () => {
     { start: '2026-03-01', end: null, dose: { value: 2000, unit: 'mg', basis: 'day', ingredient: 'Inositol' } },
   ] }, today);
   expect(compare({ history }).r).toBeNull();
-  expect(history.mixedUnits).toBe(true);
+  expect(history.selectedIngredient).toBe('TMG');
+  expect(history.periods[1].quantity).toBeNull();
 });
 
 
@@ -244,4 +245,31 @@ it('never interpolates missing same-date marker pairs or includes conflicting dr
   expect(selection.markerPairs[0].n).toBe(4);
   expect(selection.markerPairs[0].rows[1].reason).toBe('No measurement on this date');
   expect(selection.markerPairs[0].rows[0].reason).toContain('Conflicting');
+});
+
+
+it('resolves a selected ingredient from dated regimen snapshots without mixing ingredients or rewriting history', () => {
+  const dose = (ingredient, value, unit = 'mg') => ({ ingredient, value, unit, basis: 'day', source: 'ingredient' });
+  const record = { id: 'combo', name: 'Combination', schedule: { mode: 'daily', timesPerDay: 1 }, ingredients: [{ name: 'A', amount: '2000 mg' }, { name: 'B', amount: '25 mcg' }], periods: [
+    { start: '2026-01-01', end: '2026-02-28', ingredientDoses: [dose('A', 500), dose('B', 25, 'mcg')] },
+    { start: '2026-03-01', end: null, ingredientDoses: [dose('A', 2000), dose('B', 25, 'mcg')] },
+  ] };
+  const before = structuredClone(record);
+  const a = prepareTherapyHistory(record, today, 'A');
+  const b = prepareTherapyHistory(record, today, 'B');
+  expect(a.ingredientOptions).toEqual(['A', 'B']);
+  expect(therapyExposure(a, '2026-01-10').value).toBe(500);
+  expect(therapyExposure(a, '2026-03-10').value).toBe(2000);
+  expect(therapyExposure(b, '2026-03-10').value).toBe(0.025);
+  expect(b.currentDoses.every(d => d.confirmedSince)).toBe(true);
+  expect(compare({ history: a }).r).toBe(1);
+  expect(record).toEqual(before);
+});
+
+
+it('rejects duplicate ingredient snapshots and malformed history without guessing a dose', () => {
+  const duplicate = { ingredient: 'A', value: 500, unit: 'mg', basis: 'day', source: 'ingredient' };
+  const history = prepareTherapyHistory({ periods: [{ start: '2026-01-01', end: null, ingredientDoses: [duplicate, { ...duplicate, value: 2000 }] }] }, today);
+  expect(therapyExposure(history, '2026-02-01').value).toBeNull();
+  expect(prepareTherapyHistory({ periods: [null] }, today).invalid).toBe(true);
 });

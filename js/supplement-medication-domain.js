@@ -326,12 +326,13 @@ export function recordSupplementSchedule(previous, periods, schedule, today = lo
   ]);
   const previousSchedule = previous?.schedule || { mode: Number(previous?.timesPerDay) > 1 ? 'multiple' : 'daily', timesPerDay: previous?.timesPerDay ?? null };
   const changed = previous && signature(previousSchedule) !== signature(schedule);
-  const open = result.find(period => !period.end && period.start <= today);
+  const open = result.find(period => period.start <= today && (!period.end || period.end >= today));
   if (open && changed && open.start < today) {
     const yesterday = new Date(`${today}T12:00:00`);
     yesterday.setDate(yesterday.getDate() - 1);
+    const next = { ...open, start: today, schedule: { ...schedule } };
     open.end = localDateKey(yesterday);
-    result.push({ start: today, end: null, ...(open.dose ? { dose: open.dose } : {}), schedule: { ...schedule } });
+    result.push(next);
   } else if (open?.start === today) {
     open.schedule = { ...schedule };
   }
@@ -372,20 +373,24 @@ export function getSupplementDailyDoses(record) {
   });
 }
 
-/** Once explicitly linked, ingredient edits create dated changes instead of rewriting history. */
+/** Snapshot the saved regimen from today; earlier unknown amounts stay unknown. */
 export function recordIngredientDoseChange(entry, today = localDateKey()) {
-  const open = entry.periods.find(p => !p.end && p.start <= today);
-  if (open?.dose?.source !== 'ingredient') return;
-  const next = getSupplementDailyDoses(entry).find(d => d.ingredient === open.dose.ingredient);
-  if (next && next.value === open.dose.value && next.unit === open.dose.unit && next.basis === open.dose.basis) return;
+  const open = entry.periods.find(p => p.start <= today && (!p.end || p.end >= today));
+  if (!open || (open.dose && open.dose.source !== 'ingredient' && !Array.isArray(open.ingredientDoses))) return;
+  const next = getSupplementDailyDoses(entry);
+  const previous = Array.isArray(open.ingredientDoses) ? open.ingredientDoses : open.dose?.source === 'ingredient' ? [open.dose] : [];
+  const signature = doses => JSON.stringify(doses.map(d => [d.ingredient, d.value, d.unit, d.basis]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))));
+  if (signature(next) === signature(previous)) return;
   let target = open;
   if (open.start < today) {
     const yesterday = new Date(`${today}T12:00:00`);
     yesterday.setDate(yesterday.getDate() - 1);
-    target = { ...open, start: today, end: null, schedule: { ...entry.schedule } };
+    target = { ...open, start: today };
     open.end = localDateKey(yesterday);
     entry.periods.push(target);
   }
-  if (next) target.dose = next;
+  target.schedule = { ...entry.schedule };
+  target.ingredientDoses = next;
+  if (next.length === 1) target.dose = { ...next[0] };
   else delete target.dose;
 }

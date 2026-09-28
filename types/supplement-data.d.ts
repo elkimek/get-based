@@ -8,7 +8,7 @@ export interface SupplementRecord {
   note?: string;
   startDate?: string;
   endDate?: string | null;
-  periods?: Array<{ start: string; end: string | null; endReason?: string; dose?: string | SupplementDose; schedule?: SupplementRecord['schedule']; [key: string]: unknown }>;
+  periods?: Array<{ start: string; end: string | null; endReason?: string; dose?: string | SupplementDose; ingredientDoses?: SupplementDose[]; schedule?: SupplementRecord['schedule']; [key: string]: unknown }>;
   schedule?: {
     mode?: string;
     details?: string;

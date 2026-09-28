@@ -893,3 +893,6 @@
 .corr-dose-notice { border-left: 3px solid var(--accent-light); padding: 12px 16px; margin: 14px 0; background: var(--bg-secondary); font-size: 13px; overflow-wrap: anywhere; }
 .corr-dose-notice p { color: var(--text-secondary); line-height: 1.5; margin: 8px 0; }
 .corr-pair-panel + .corr-pair-panel { border-top: 1px solid var(--border); padding-top: 18px; }
+
+.corr-ingredient-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 12px 0; font-size: 13px; }
+.corr-ingredient-picker select { max-width: 100%; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); padding: 8px; border-radius: 6px; }

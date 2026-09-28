@@ -39,12 +39,17 @@ export function parseCorrelationDose(raw) {
   return result;
 }
 
-export function prepareTherapyHistory(record, today = localDateKey()) {
+export function prepareTherapyHistory(record, today = localDateKey(), ingredient = '') {
   const raw = getSupplementPeriods(record);
+  const snapshots = p => Array.isArray(p?.ingredientDoses) ? p.ingredientDoses : p?.dose?.ingredient ? [p.dose] : [];
+  const ingredientOptions = [...new Set(raw.flatMap(p => snapshots(p).map(d => d?.ingredient)).filter(name => typeof name === 'string' && name))];
+  const selectedIngredient = ingredientOptions.includes(ingredient) ? ingredient : ingredientOptions[0] || '';
+  const ingredientDose = (p, name) => { const matches = snapshots(p).filter(d => d?.ingredient === name); return matches.length === 1 ? matches[0] : undefined; };
+  const selectedDose = p => Array.isArray(p.ingredientDoses) || p.dose?.ingredient ? ingredientDose(p, selectedIngredient) : p.dose;
   const periods = raw.filter(p => p && correlationDay(p.start) !== null
     && (p.end === null || p.end === undefined || p.end === '' || correlationDay(p.end) !== null)
     && (!p.end || p.end >= p.start))
-    .map(p => ({ ...p, end: p.end || null, quantity: parseCorrelationDose(p.dose) }))
+    .map(p => ({ ...p, dose: selectedDose(p), end: p.end || null, quantity: parseCorrelationDose(selectedDose(p)) }))
     .sort((a, b) => a.start.localeCompare(b.start));
   const invalid = periods.length !== raw.length || !periods.length
     || periods.some((p, i) => i > 0 && (!periods[i - 1].end || periods[i - 1].end >= p.start));
@@ -57,11 +62,11 @@ export function prepareTherapyHistory(record, today = localDateKey()) {
   if (periods.some(p => !p.schedule)) warnings.push('Historical frequency is not saved for every period. Recorded dose is not verified daily intake.');
   const currentDoses = getSupplementDailyDoses(record).map(dose => {
     const quantity = parseCorrelationDose(dose);
-    const confirmed = !invalid && periods.find(p => p.start <= today && (!p.end || today <= p.end)
-      && p.quantity?.key === quantity?.key && p.quantity?.value === quantity?.value);
+    const confirmed = !invalid && raw.find(p => p.start <= today && (!p.end || today <= p.end)
+      && (() => { const q = parseCorrelationDose(ingredientDose(p, dose.ingredient)); return q?.key === quantity?.key && q?.value === quantity?.value; })());
     return { ...dose, quantity, confirmedSince: confirmed ? confirmed.start : null };
   }).filter(d => d.quantity);
-  return { currentDoses, id: getSupplementRecordId(record), name: record.name || 'Unnamed item', type: record.type || 'supplement', record, periods, invalid, quantity, mixedUnits: keys.length > 1, today, warnings };
+  return { currentDoses, ingredientOptions, selectedIngredient, id: getSupplementRecordId(record), name: record.name || 'Unnamed item', type: record.type || 'supplement', record, periods, invalid, quantity, mixedUnits: keys.length > 1, today, warnings };
 }
 
 export function therapyExposure(history, date) {
@@ -181,7 +186,7 @@ export function prepareCorrelationSelection(data, importedData, markerKeys, ther
   // Duplicate legacy IDs are ambiguous; never select an arbitrary matching record.
   const histories = therapyIds.flatMap(id => {
     const matching = records.filter(s => getSupplementRecordId(s) === id);
-    return matching.length === 1 ? [prepareTherapyHistory(matching[0])] : [];
+    return matching.length === 1 ? [prepareTherapyHistory(matching[0], localDateKey(), options.ingredients?.[id])] : [];
   });
   for (const history of histories) {
     const others = records.filter(s => getSupplementRecordId(s) !== history.id && getSupplementPeriods(s).some(p =>

@@ -173,7 +173,7 @@ describe('ingredient dose references and confirmed history', () => {
     expect(entry.periods[0].dose.value).toBe(500);
   });
   it('does not backfill unconfirmed or manually specified historical doses', () => {
-    for (const dose of [undefined, '250 mg/day']) {
+    for (const dose of ['250 mg/day']) {
       const entry = { ...record, periods: [{ start: '2026-01-01', end: null, dose }] };
       const before = structuredClone(entry);
       recordIngredientDoseChange(entry, '2026-09-28');
@@ -195,4 +195,53 @@ it.each(['1.2.3 mg', '0.50.0 g', '1,,2 mg', '1.500 g'])('rejects malformed quant
 
 it('preserves unambiguous structured precision even when its display text could be mistaken for grouping', () => {
   expect(parseCorrelationDose({ value: 1.005, unit: 'mg', text: '1.005 mg' }).value).toBe(1.005);
+});
+
+
+it('starts an ingredient regimen today without backfilling an existing unknown period', () => {
+  const entry = { ingredients: [{ name: 'TMG', amount: '500 mg' }], timesPerDay: 1, schedule: { mode: 'daily', timesPerDay: 1 }, periods: [{ start: '2026-01-01', end: null }] };
+  recordIngredientDoseChange(entry, '2026-09-28');
+  expect(entry.periods[0]).toEqual({ start: '2026-01-01', end: '2026-09-27' });
+  expect(entry.periods[1]).toMatchObject({ start: '2026-09-28', dose: { ingredient: 'TMG', value: 500, basis: 'day' } });
+  const before = structuredClone(entry);
+  recordIngredientDoseChange(entry, '2026-09-28');
+  expect(entry).toEqual(before);
+});
+
+it('keeps all ingredient snapshots distinct through frequency changes, pauses and restarting', () => {
+  const entry = { ingredients: [{ name: 'A', amount: '500 mg' }, { name: 'B', amount: '25 mcg', timesPerDay: 2 }], timesPerDay: 1, schedule: { mode: 'daily', timesPerDay: 1 }, periods: [{ start: '2026-01-01', end: null }] };
+  recordIngredientDoseChange(entry, '2026-01-01');
+  expect(entry.periods[0].dose).toBeUndefined();
+  expect(entry.periods[0].ingredientDoses.map(d => d.value)).toEqual([500, 50]);
+  const original = structuredClone(entry.periods[0].ingredientDoses);
+  entry.schedule.timesPerDay = 4;
+  recordIngredientDoseChange(entry, '2026-02-01');
+  expect(entry.periods[0].ingredientDoses).toEqual(original);
+  expect(entry.periods[1].ingredientDoses.map(d => d.value)).toEqual([2000, 50]);
+  entry.periods[1].end = '2026-02-15';
+  recordIngredientDoseChange(entry, '2026-03-01');
+  expect(entry.periods).toHaveLength(2);
+  entry.periods.push({ start: '2026-04-01', end: null });
+  recordIngredientDoseChange(entry, '2026-04-01');
+  expect(entry.periods[2].ingredientDoses.map(d => d.value)).toEqual([2000, 50]);
+});
+
+it('does not turn an as-needed regimen into a numeric dose', () => {
+  const entry = { ingredients: [{ name: 'TMG', amount: '500 mg' }], timesPerDay: 1, schedule: { mode: 'prn' }, periods: [{ start: '2026-01-01', end: null }] };
+  recordIngredientDoseChange(entry, '2026-01-01');
+  expect(entry.periods[0].dose).toBeUndefined();
+  expect(entry.periods).toHaveLength(1);
+});
+
+
+it('preserves a planned end date when a finite daily regimen changes', () => {
+  const previous = { schedule: { mode: 'daily', timesPerDay: 1 } };
+  const entry = { ingredients: [{ name: 'A', amount: '500 mg' }], schedule: previous.schedule, periods: [{ start: '2026-01-01', end: '2026-03-01' }] };
+  recordIngredientDoseChange(entry, '2026-01-01');
+  entry.schedule = { mode: 'daily', timesPerDay: 2 };
+  entry.periods = recordSupplementSchedule(previous, entry.periods, entry.schedule, '2026-02-01');
+  recordIngredientDoseChange(entry, '2026-02-01');
+  expect(entry.periods).toHaveLength(2);
+  expect(entry.periods[0]).toMatchObject({ end: '2026-01-31', dose: { value: 500 } });
+  expect(entry.periods[1]).toMatchObject({ start: '2026-02-01', end: '2026-03-01', dose: { value: 1000 } });
 });

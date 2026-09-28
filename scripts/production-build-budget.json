@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "maximums": {
     "startupJavaScriptFiles": 2,
-    "startupDecodedBytes": 1270000,
+    "startupDecodedBytes": 1271000,
     "outputJavaScriptFiles": 167,
-    "outputDecodedBytes": 5422000
+    "outputDecodedBytes": 5424000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -90,7 +90,10 @@
     "unifiedTherapyPresentationOutputDecodedBytes": 5409196,
     "correlationWorkspaceMeasuredBaseCommit": "6aa9b43e",
     "correlationChartGuidanceOutputDecodedBytes": 5421666,
-    "correlationChartGuidanceMeasuredBaseCommit": "4fefc1f6"
+    "correlationChartGuidanceMeasuredBaseCommit": "4fefc1f6",
+    "ingredientRegimenSnapshotsStartupDecodedBytes": 1270179,
+    "ingredientRegimenSnapshotsOutputDecodedBytes": 5423020,
+    "ingredientRegimenSnapshotsMeasuredBaseCommit": "fe9905e3"
   },
   "referenceCommit": "331112b1",
   "measuredAt": "2026-09-28"

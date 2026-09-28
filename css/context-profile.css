@@ -707,3 +707,5 @@
 
 .supp-period-ingredient-choice { width: 100%; min-width: 0; grid-column: 1 / -1; padding: 6px; color: var(--text-primary); background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; }
 .supp-period-row > .supp-ingredient-add { grid-column: 1 / 4; font-size: 11px; }
+
+.supp-period-dose-summary { grid-column: 1 / -1; flex-basis: 100%; color: var(--text-secondary); overflow-wrap: anywhere; }

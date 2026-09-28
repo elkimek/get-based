@@ -56,7 +56,6 @@ function hasNestedInteractiveTarget(actionEl, target) {
  *   addQualityTest: () => void,
  *   removeQualityTest: (btn: Element) => void,
  *   applyIngredientDoseToPeriod: (button: Element) => void,
- *   choosePeriodIngredientDose: (select: HTMLSelectElement) => void,
  *   addPeriod: () => void,
  *   removePeriod: (btn: Element) => void,
  *   fetchUrl: () => Promise<void> | void,
@@ -203,7 +202,6 @@ function makeChangeHandler(actions) {
   return event => {
     const target = closestSuppElement(event.target, '#supp-label-input, .supp-ing-unit, .supp-period-ingredient-choice');
     if (target instanceof HTMLInputElement) void actions.scanLabel(target);
-    else if (target instanceof HTMLSelectElement && target.classList.contains('supp-period-ingredient-choice')) actions.choosePeriodIngredientDose(target);
     else if (target instanceof HTMLSelectElement) actions.updateIngredientUnit(target);
   };
 }

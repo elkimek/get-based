@@ -40,7 +40,6 @@ import {
 } from './supplement-quality.js';
 import {
   applyIngredientDoseToPeriod,
-  choosePeriodIngredientDose,
   addIngredientRow,
   addPeriodRow,
   addQualityTestRow,
@@ -427,10 +426,12 @@ export function restartSupplement(index) {
   const latest = periods[periods.length - 1];
   if (latest?.end === today) latest.end = null;
   else periods.push({ start: today, end: null, ...(previous.currentDose ? { dose: previous.currentDose } : {}), ...(previous.schedule ? { schedule: { ...previous.schedule } } : {}) });
-  replaceImportedArrayItem(state.importedData, 'supplements', index, {
+  const entry = {
     ...previous, periods, startDate: periods[0]?.start || today, endDate: null,
     lifecycle: { ...(previous.lifecycle || {}), state: 'active', changedAt: Date.now() }, updatedAt: Date.now(),
-  });
+  };
+  recordIngredientDoseChange(entry);
+  replaceImportedArrayItem(state.importedData, 'supplements', index, entry);
   saveImportedData();
   showNotification('Item restarted. Review the current dose and schedule.', 'success');
   refreshSupplementSurfaces(index);
@@ -455,7 +456,7 @@ export function beginSupplementDoseChange(index) {
   const doseInputs = document.querySelectorAll('#supp-periods .supp-period-dose');
   const latestDose = doseInputs[doseInputs.length - 1];
   if (latestDose instanceof HTMLElement) latestDose.focus();
-  showNotification('A new period starts today. Enter the new dose and save.', 'info');
+  showNotification('A new period starts today. Update ingredient amounts or enter an explicit dose, then save.', 'info');
 }
 
 export async function deleteSupplement(index) {
@@ -480,7 +481,6 @@ export async function deleteSupplement(index) {
 
 initSupplementActionDelegates({
   applyIngredientDoseToPeriod,
-  choosePeriodIngredientDose,
   openEditor: openSupplementsEditor,
   toggleAccordion: toggleSuppAccordion,
   toggleAddForm: showAddSuppForm,

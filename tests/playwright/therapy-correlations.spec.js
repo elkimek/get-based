@@ -187,9 +187,7 @@ test('shows current ingredient dose and lets the user confirm its period before 
   await expect(page.locator('.corr-stat')).toContainText('Confirm dose dates');
   await page.screenshot({ path: '/tmp/getbased-current-ingredient-dose.png', fullPage: true });
   await page.getByRole('button', { name: 'Set dose dates', exact: true }).click();
-  await page.getByRole('button', { name: 'Use current ingredient dose', exact: true }).click();
-  const choice = page.getByRole('combobox', { name: 'Confirm ingredient dose for these period dates' });
-  await choice.selectOption({ label: 'TMG: 500 mg/day' });
+  await page.getByRole('button', { name: 'Use ingredients for these dates', exact: true }).click();
   await expect(page.locator('.supp-period-dose')).toHaveValue('500 mg/day');
   await page.getByRole('button', { name: 'Update', exact: true }).click();
   // An ingredient edit now creates a dose step from today, preserving the confirmed history.
@@ -213,7 +211,9 @@ test('shows current ingredient dose and lets the user confirm its period before 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(async () => (await import('/js/supplements.js')).openSupplementsEditor(0));
   await expect.poll(() => page.evaluate(() => { const modal = document.getElementById('detail-modal'); return modal.scrollWidth <= modal.clientWidth + 1; })).toBe(true);
-  await page.screenshot({ path: '/tmp/getbased-ingredient-editor-mobile.png', fullPage: true });
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.locator('.supp-period-dose-summary').first().scrollIntoViewIfNeeded();
+  await page.locator('#detail-modal').screenshot({ path: '/tmp/getbased-ingredient-editor-mobile.png' });
 });
 
 
@@ -452,4 +452,48 @@ test('combines different marker units on two axes without empty supplement plots
   await expect(page.locator('.corr-use-timeline')).toHaveCount(1);
   expect(await chartSnapshot(page)).toHaveLength(0);
   expect(errors).toEqual([]);
+});
+
+
+test('saving an unlinked ingredient regimen starts history today and keeps ingredient selection consistent', async ({ page }) => {
+  await fixture(page);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.importedData.supplements[0] = { id: 'dose-demo', name: 'Example supplement', timesPerDay: 1,
+      schedule: { mode: 'daily', timesPerDay: 1 }, ingredients: [{ name: 'TMG', amount: '500 mg' }, { name: 'B12', amount: '25 mcg' }],
+      periods: [{ start: '2026-01-01', end: null }],
+    };
+    (await import('/js/supplements.js')).openSupplementsEditor(0);
+  });
+  await page.getByRole('button', { name: 'Update', exact: true }).click();
+  const saved = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const { localDateKey } = await import('/js/supplement-medication-domain.js');
+    return { today: localDateKey(), periods: state.importedData.supplements[0].periods };
+  });
+  expect(saved.periods).toHaveLength(2);
+  expect(saved.periods[0].dose).toBeUndefined();
+  expect(saved.periods[0].ingredientDoses).toBeUndefined();
+  expect(saved.periods[1].start).toBe(saved.today);
+  expect(saved.periods[1].ingredientDoses.map(d => d.value)).toEqual([500, 25]);
+  await page.locator('#supp-times').fill('4');
+  await page.getByRole('button', { name: 'Update', exact: true }).click();
+  const periods = await page.evaluate(async () => (await import('/js/state.js')).state.importedData.supplements[0].periods);
+  expect(periods).toHaveLength(2);
+  expect(periods[1].ingredientDoses.map(d => d.value)).toEqual([2000, 100]);
+  await page.evaluate(() => document.getElementById('modal-overlay').classList.remove('show'));
+  await select(page, 'LDL', 'lipids.ldl');
+  await select(page, 'Example supplement', 'dose-demo', 'toggle-therapy');
+  await expect(page.locator('[data-corr-ingredient="dose-demo"]')).toHaveValue('TMG');
+  expect((await chartSnapshot(page))[0].datasets[1].data.map(p => p.y)).toContain(2000);
+  await page.locator('[data-corr-ingredient="dose-demo"]').selectOption('B12');
+  const dose = (await chartSnapshot(page))[0].datasets[1];
+  expect(dose.label).toContain('B12');
+  expect(dose.data.map(p => p.y)).toContain(0.1);
+  expect(dose.data.map(p => p.y)).not.toContain(2000);
+  await page.locator('#corr-inspect').fill(saved.today);
+  await page.locator('#corr-inspect').dispatchEvent('change');
+  await expect(page.locator('#corr-readout')).toContainText('B12');
+  await page.getByRole('button', { name: 'Data', exact: true }).click();
+  await expect(page.locator('#corr-pair-detail')).toContainText('Dose not recorded');
 });

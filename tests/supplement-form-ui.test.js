@@ -2,7 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { collectPeriods, collectQualityTests } from '../js/supplement-form-ui.js';
+import { collectIngredients, collectPeriods, collectQualityTests } from '../js/supplement-form-ui.js';
 import { state } from '../js/state.js';
 
 function installQualityRow(resultText) {
@@ -92,5 +92,13 @@ it('retains the ingredient identity when a confirmed historical amount is correc
     <div class="supp-period-row" data-original-index="0"><input class="supp-period-start" value="2026-01-01">
     <input class="supp-period-end" value=""><input class="supp-period-dose" value="250 mg/day"></div></div>`;
   expect(collectPeriods()[0].dose).toEqual({ text: '250 mg/day', ingredient: 'TMG' });
+  document.body.innerHTML = '';
+});
+
+
+it('clearing an ingredient frequency override restores the regimen frequency', () => {
+  state.importedData = { supplements: [{ ingredients: [{ name: 'TMG', amount: '500 mg', timesPerDay: 2 }] }] };
+  document.body.innerHTML = `<div id="supp-form-panel" data-edit-index="0"></div><div id="supp-ingredients"><div class="supp-ingredient-row" data-original-index="0"><input class="supp-ing-name" value="TMG"><input class="supp-ing-amount" value="500"><input class="supp-ing-unit" value="mg"><input class="supp-ing-times" value=""></div></div>`;
+  expect(collectIngredients()[0].timesPerDay).toBeUndefined();
   document.body.innerHTML = '';
 });
