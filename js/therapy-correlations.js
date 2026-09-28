@@ -1,6 +1,6 @@
 // @ts-check
 // Read-only preparation shared by correlation charts, tables and AI prompts.
-import { CORRELATION_LAGS, getSupplementDailyDoses, getSupplementPeriods, getSupplementRecordId, localDateKey, normalizeSupplementUnit } from './supplement-medication-domain.js';
+import { CORRELATION_LAGS, getSupplementDailyDoses, getSupplementPeriods, getSupplementRecordId, localDateKey, normalizeSupplementUnit, parseSupplementQuantity } from './supplement-medication-domain.js';
 import { getMarkerStorageDotKey } from './marker-placement.js';
 
 const DAY = 86400000;
@@ -23,10 +23,7 @@ export function parseCorrelationDose(raw) {
     : typeof raw === 'string' ? raw.trim() : '';
   const match = text.match(/^(\d+(?:[.,]\d+)*|\d{1,3}(?:[ \u00a0]\d{3})+(?:[.,]\d+)?)\s*(mcg|µg|μg|ug|mg|g|ml|iu|cfu|mmol|meq|units?|capsules?|tablets?|drops?|scoops?|sprays?|patch(?:es)?)(?:\s*(\/day|per day|daily|\/dose|per dose))?$/i);
   if (!match) return null;
-  let number = match[1].replace(/[ \u00a0]/g, '');
-  if (/^[1-9]\d{0,2}(,\d{3})+$/.test(number)) number = number.replace(/,/g, '');
-  else if ((number.match(/,/g) || []).length === 1 && !number.includes('.')) number = number.replace(',', '.');
-  const value = Number(number);
+  const value = typeof structured?.value === 'number' ? structured.value : parseSupplementQuantity(`${match[1].replace(/\u00a0/g, ' ')} ${match[2]}`)?.value;
   if (!Number.isFinite(value) || value <= 0) return null;
   const originalUnit = normalizeSupplementUnit(match[2].toLowerCase());
   const mass = { g: 1000, mg: 1, mcg: 0.001 }[originalUnit];
@@ -35,7 +32,7 @@ export function parseCorrelationDose(raw) {
   if (!Number.isFinite(value * (mass || 1))) return null;
   const ingredient = typeof structured?.ingredient === 'string' ? structured.ingredient.trim() : '';
   const result = { ingredient, value: value * (mass || 1), unit, basis, text, key: `${unit}:${basis}${ingredient ? `:${ingredient.toLowerCase()}` : ''}` };
-  if (structured?.text && typeof structured.value === 'number' && structured.unit) {
+  if (structured?.text && structured.text.trim() !== text && typeof structured.value === 'number' && structured.unit) {
     const fromText = parseCorrelationDose(structured.text);
     if (!fromText || fromText.value !== result.value || fromText.unit !== result.unit || fromText.basis !== result.basis) return null;
   }
@@ -75,11 +72,25 @@ export function therapyExposure(history, date) {
   const period = history.periods.find(p => p.start <= date && (!p.end || date <= p.end));
   if (period) {
     const quantity = period.quantity;
-    const mode = period.schedule?.mode || history.record.schedule?.mode;
+    const mode = period.schedule?.mode;
     const doseText = (typeof period.dose === 'string' ? period.dose.trim() : quantity?.text || period.dose?.text?.trim()) || 'Dose not recorded';
     const label = (quantity?.ingredient ? `${quantity.ingredient}: ` : '') + doseText + (period.schedule?.timesPerDay ? ` · schedule: ${period.schedule.timesPerDay} uses/day` : '');
     const base = { date, periodStart: period.start, daysSinceChange: day - correlationDay(period.start), label, status: 'recorded', usage: 1 };
-    if (mode === 'prn') return { ...unknown('As-needed use; actual intake unknown'), ...base, label: `${label} · as needed; actual intake unknown`, status: 'unknown' };
+    if (mode === 'prn' || (!mode && history.record.schedule?.mode === 'prn')) return { ...unknown('As-needed use; actual intake unknown'), ...base, label: `${label} · as needed; actual intake unknown`, status: 'unknown' };
+    const intermittent = ['selected-days', 'interval'];
+    if ((!mode && intermittent.includes(history.record.schedule?.mode)) || (mode && !['daily', 'multiple', ...intermittent].includes(mode)))
+      return { ...unknown('Historical schedule unavailable'), usage: 1 };
+    if (intermittent.includes(mode)) {
+      const schedule = period.schedule;
+      const weekdays = schedule.daysOfWeek;
+      const interval = schedule.intervalDays;
+      const valid = mode === 'selected-days'
+        ? Array.isArray(weekdays) && weekdays.length > 0 && weekdays.every(d => Number.isInteger(d) && d >= 0 && d <= 6)
+        : Number.isInteger(interval) && interval > 0;
+      if (!valid) return { ...unknown('Historical schedule is incomplete'), usage: 1 };
+      const expected = mode === 'selected-days' ? weekdays.includes(new Date(day * DAY).getUTCDay()) : (day - correlationDay(period.start)) % interval === 0;
+      if (!expected) return { ...base, value: quantity ? 0 : null, unit: quantity?.unit || '', basis: quantity?.basis || '', key: quantity?.key || '', label: 'Scheduled off-day (intake not verified)', status: 'scheduled-off', usage: 0 };
+    }
     if (!quantity) return { ...unknown(label), ...base, status: 'unknown' };
     return { ...base, value: quantity.value, unit: quantity.unit, basis: quantity.basis, key: quantity.key, ingredient: quantity.ingredient };
   }
@@ -97,13 +108,19 @@ export function therapySegments(history, startDate, endDate) {
   for (const p of history.periods) {
     cuts.add(correlationDay(p.start));
     if (p.end) cuts.add(correlationDay(p.end) + 1);
+    if (['selected-days', 'interval'].includes(p.schedule?.mode)) {
+      const from = Math.max(start, correlationDay(p.start));
+      const to = Math.min(end, correlationDay(p.end || history.today));
+      if (to - from > 50000) return [{ start, end: end + 1, value: null, usage: null, label: 'Select a shorter date range to inspect this schedule' }];
+      for (let d = from; d <= to; d++) cuts.add(d);
+    }
   }
   cuts.add(correlationDay(history.today) + 1);
   const sorted = [...cuts].filter(d => d >= start && d <= end + 1).sort((a, b) => a - b);
   return sorted.slice(0, -1).map((day, i) => ({ start: day, end: sorted[i + 1], ...therapyExposure(history, correlationDate(day)) }));
 }
 
-function pearson(rows) {
+export function pearson(rows) {
   const mx = rows.reduce((sum, r) => sum + r.exposure.value, 0) / rows.length;
   const my = rows.reduce((sum, r) => sum + r.value, 0) / rows.length;
   let xy = 0, xx = 0, yy = 0;
@@ -154,7 +171,12 @@ export function prepareTherapyComparison({ history, marker, markerKey, dates, en
   return { therapyId: history.id, therapyName: history.name, markerName: marker.name, markerKey, unit: marker.unit || '', lagDays: lag, rows, baseline, groups: summaries, n: eligible.length, r, unavailable, warnings: history.warnings };
 }
 
-export function prepareCorrelationSelection(data, importedData, markerKeys, therapyIds, lagDays = 0) {
+export function prepareCorrelationSelection(data, importedData, markerKeys, therapyIds, lagDays = 0, options = {}) {
+  const start = correlationDay(options.start) !== null ? options.start : '';
+  const end = correlationDay(options.end) !== null ? options.end : '';
+  const rangeError = start && end && start > end ? 'Start date must be on or before end date.' : '';
+  const indexes = data.dates.flatMap((date, i) => !rangeError && (!start || date >= start) && (!end || date <= end) ? [i] : []);
+  const dates = indexes.map(i => data.dates[i]);
   const records = importedData.supplements || [];
   // Duplicate legacy IDs are ambiguous; never select an arbitrary matching record.
   const histories = therapyIds.flatMap(id => {
@@ -166,17 +188,32 @@ export function prepareCorrelationSelection(data, importedData, markerKeys, ther
       correlationDay(p?.start) !== null && history.periods.some(h => p.start <= (h.end || history.today) && h.start <= (p.end || history.today))));
     if (others.length) history.warnings.push(`Other recorded treatments overlap: ${others.map(s => s.name).join(', ')}. Their individual contributions cannot be separated here.`);
   }
-  const comparisons = histories.flatMap(history => markerKeys.flatMap(key => {
+  const markers = markerKeys.flatMap(key => {
     const [category, name] = key.split('.');
-    const marker = data.categories?.[category]?.markers?.[name];
-    return marker && !marker.singlePoint ? [prepareTherapyComparison({ history, marker, markerKey: key, dates: data.dates, entries: importedData.entries || [], lagDays })] : [];
+    const original = data.categories?.[category]?.markers?.[name];
+    if (!original || original.singlePoint) return [];
+    const marker = { ...original, values: indexes.map(i => original.values[i]) };
+    const emptyHistory = prepareTherapyHistory({ periods: [] });
+    const rows = prepareTherapyComparison({ history: emptyHistory, marker, markerKey: key, dates, entries: importedData.entries || [] }).rows
+      .map(row => ({ date: row.date, value: row.value, conflict: row.conflict, sources: row.sources, reason: row.conflict ? 'Conflicting results on the same date' : row.date > emptyHistory.today ? 'Future measurement' : '' }));
+    return [{ key, ...marker, rows }];
+  });
+  const comparisons = histories.flatMap(history => markers.map(marker => prepareTherapyComparison({ history, marker, markerKey: marker.key, dates, entries: importedData.entries || [], lagDays })));
+  const markerPairs = markers.flatMap((y, i) => markers.slice(i + 1).map(x => {
+    const rows = y.rows.map(row => {
+      const other = x.rows.find(r => r.date === row.date);
+      return { ...row, exposureDate: row.date, exposure: { value: other?.value ?? null, label: other ? `${other.value} ${x.unit}` : 'No measurement on this date', unit: x.unit, basis: 'marker' }, reason: row.reason || other?.reason || (!other ? 'No measurement on this date' : ''), sources: [...row.sources, ...(other?.sources || [])] };
+    });
+    const eligible = rows.filter(r => !r.reason);
+    const r = eligible.length >= 6 ? pearson(eligible) : null;
+    return { markerName: y.name, markerKey: y.key, xMarkerKey: x.key, therapyName: x.name, unit: y.unit, xUnit: x.unit, rows, n: eligible.length, r, unavailable: eligible.length < 6 ? 'At least 6 paired measurements are needed' : 'No variation in paired values', warnings: [], groups: [], baseline: null };
   }));
-  return { histories, comparisons, lagDays: CORRELATION_LAGS.includes(lagDays) ? lagDays : 0 };
+  return { histories, markers, comparisons, markerPairs, range: { start, end }, rangeError, lagDays: CORRELATION_LAGS.includes(lagDays) ? lagDays : 0 };
 }
 
 export function therapyCorrelationPrompt(selection) {
   return 'Explain these exploratory associations between recorded doses and lab measurements. This is observational history, not evidence of treatment effects. Do not infer adherence, daily intake, causality, or recommend medication changes. A chosen lag is an alignment assumption, not a validated biological response time. Discuss sparse observations, time trends, carryover, unknown historical schedules, and overlapping treatments. Do not substitute different observations or silently include excluded rows.\n\n'
-    + JSON.stringify({ lagDays: selection.lagDays,
+    + JSON.stringify({ lagDays: selection.lagDays, range: selection.range, rangeError: selection.rangeError, markers: selection.markers?.map(m => ({ name: m.name, unit: m.unit, rows: m.rows })), markerPairs: selection.markerPairs,
       histories: selection.histories.map(h => ({ name: h.name, type: h.type, currentDoseReference: { doses: h.currentDoses, referenceOnly: true, excludedFromCorrelation: true }, periods: h.periods.map(p => ({ start: p.start, end: p.end, dose: p.dose, schedule: p.schedule })), warnings: h.warnings })),
       comparisons: selection.comparisons,
     }, null, 2);

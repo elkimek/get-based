@@ -48,17 +48,19 @@ test('selects historical therapies and renders real dose increases, pauses and d
   expect(chart.type).toBe('linear');
   expect(chart.doses).toEqual([null, 500, 2000, 0, 1000]);
   expect(chart.max - chart.min).toBeGreaterThan(190);
-  await page.locator('summary').click();
-  await expect(page.locator('details')).toContainText('lab-2026-01-10.pdf');
-  await expect(page.locator('details')).toContainText('Before first recorded use');
-  await expect(page.locator('details')).toContainText('Recorded break / stopped');
+  await page.locator('#corr-pair-detail summary').click();
+  await expect(page.locator('#corr-pair-detail details')).toContainText('lab-2026-01-10.pdf');
+  await expect(page.locator('#corr-pair-detail details')).toContainText('Before first recorded use');
+  await expect(page.locator('#corr-pair-detail details')).toContainText('Recorded break / stopped');
   await page.locator('#corr-lag').selectOption('30');
   await expect(page.locator('#corr-therapy-results')).toContainText('30 days earlier');
   const lag = await page.evaluate(async () => {
     const chart = (await import('/js/state.js')).state.chartInstances['correlation-therapy-0'];
     return chart.data.datasets[1].label;
   });
-  expect(lag).toContain('shifted 30 days');
+  expect(lag).not.toContain('shifted');
+  const points = await page.evaluate(async () => (await import('/js/state.js')).state.chartInstances['correlation-therapy-0'].data.datasets[1].data);
+  expect(points.find(p => p.y === 2000).x).toBe(Date.parse('2026-03-01') / 86400000);
   await page.screenshot({ path: '/tmp/getbased-dose-correlations-desktop.png', fullPage: true });
   expect(errors).toEqual([]);
 });
@@ -69,8 +71,8 @@ test('keeps PRN exposure unknown and remains usable on a narrow screen', async (
   await select(page, 'LDL', 'lipids.ldl');
   await select(page, 'Example medication', 'prn-demo', 'toggle-therapy');
   await expect(page.locator('.corr-stat')).toContainText('Coefficient unavailable');
-  await page.locator('summary').click();
-  await expect(page.locator('details')).toContainText('actual intake unknown');
+  await page.locator('#corr-pair-detail summary').click();
+  await expect(page.locator('#corr-pair-detail details')).toContainText('actual intake unknown');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: '/tmp/getbased-dose-correlations-mobile.png', fullPage: true });
   await page.getByRole('button', { name: 'Remove Example medication', exact: true }).click();
@@ -238,7 +240,7 @@ test('keeps a combination product together and shows only confirmed dose series 
   expect(view.doses).toContain(null);
   expect(Math.abs(view.trackLeft - view.plotLeft)).toBeLessThan(2);
   expect(view.width).toBeLessThanOrEqual(view.viewport);
-  await expect(page.locator('details')).not.toHaveAttribute('open');
+  await expect(page.locator('#corr-pair-detail details')).not.toHaveAttribute('open');
   await page.screenshot({ path: '/tmp/getbased-dose-unified-mobile.png', fullPage: true });
 });
 
@@ -258,8 +260,134 @@ test('clears accepted searches and restores focus for the next marker or supplem
   await page.locator('.corr-option[data-compare-key="prn-demo"]').press('Enter');
   await expect(search).toHaveValue('');
   await expect(search).toBeFocused();
-  await expect(page.locator('.corr-therapy-card')).toHaveCount(2);
+  await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(1);
+  await expect(page.locator('#corr-pair option')).toHaveCount(2);
   await search.fill('unfinished query');
   await page.getByRole('button', { name: 'Remove Example medication', exact: true }).click();
   await expect(search).toHaveValue('unfinished query');
+});
+
+async function chartSnapshot(page) {
+  return page.evaluate(async () => Object.entries((await import('/js/state.js')).state.chartInstances)
+    .filter(([key]) => key.startsWith('correlation-therapy-')).map(([key, c]) => ({ key, min: c.options.scales.x.min, max: c.options.scales.x.max, datasets: c.data.datasets.map(d => ({ label: d.label, data: d.data, axis: d.yAxisID })) })));
+}
+
+test('combines two dose series, preserves state across layouts, and inspects real dates without interpolation', async ({ page }) => {
+  await fixture(page);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.importedData.supplements[1] = { id: 'prn-demo', name: 'Example medication', type: 'medication', periods: [{ start: '2026-02-01', end: null, dose: '250 mg' }] };
+  });
+  await select(page, 'LDL', 'lipids.ldl');
+  await select(page, 'Example supplement', 'dose-demo', 'toggle-therapy');
+  await select(page, 'Example medication', 'prn-demo', 'toggle-therapy');
+  await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(1);
+  expect((await chartSnapshot(page))[0].datasets).toHaveLength(3);
+  await page.locator('#corr-inspect').fill('2026-01-15');
+  await page.locator('#corr-inspect').dispatchEvent('change');
+  await expect(page.locator('#corr-readout')).toContainText('No measurement on this date');
+  await expect(page.locator('#corr-readout')).toContainText('500 mg per dose');
+  await expect(page.locator('#corr-readout')).toContainText('Before first recorded use');
+  await page.locator('#corr-grouping').selectOption('separate');
+  await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(2);
+  const separate = await chartSnapshot(page);
+  expect(separate[0].min).toBe(separate[1].min);
+  expect(separate[0].max).toBe(separate[1].max);
+  await page.locator('#corr-grouping').selectOption('combined');
+  await page.locator('#corr-layout').selectOption('lanes');
+  await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(3);
+  const areas = await page.evaluate(async () => Object.values((await import('/js/state.js')).state.chartInstances).map(c => c.chartArea));
+  expect(Math.max(...areas.map(a => a.left)) - Math.min(...areas.map(a => a.left))).toBeLessThan(2);
+  expect(Math.max(...areas.map(a => a.right)) - Math.min(...areas.map(a => a.right))).toBeLessThan(2);
+  await expect(page.locator('#corr-inspect')).toHaveValue('2026-01-15');
+  await page.locator('#corr-layout').selectOption('overlay');
+  await page.locator('#corr-start').fill('2026-03-01');
+  await page.locator('#corr-start').dispatchEvent('change');
+  await page.locator('#corr-end').fill('2026-04-30');
+  await page.locator('#corr-end').dispatchEvent('change');
+  await expect(page.locator('.corr-stat')).toContainText('3 matched to numeric doses');
+  expect((await chartSnapshot(page))[0].min).toBe(Date.parse('2026-03-01') / 86400000);
+  await page.getByRole('button', { name: 'Scatter', exact: true }).click();
+  await expect(page.locator('#corr-scatter')).toBeVisible();
+  expect((await chartSnapshot(page))[0].datasets[0].data).toHaveLength(3);
+  await page.getByRole('button', { name: 'Data', exact: true }).click();
+  await expect(page.locator('#corr-pair-detail details')).toHaveAttribute('open', '');
+  await expect(page.locator('#corr-pair-detail')).not.toContainText('lab-2026-01-10.pdf');
+  await page.getByRole('button', { name: 'Timeline', exact: true }).click();
+  await page.locator('[data-corr-series="prn-demo"]').click();
+  expect((await chartSnapshot(page))[0].datasets).toHaveLength(2);
+  await expect(page.locator('#corr-pair option')).toHaveCount(2);
+  await page.locator('#corr-start').fill('2026-05-01');
+  await page.locator('#corr-start').dispatchEvent('change');
+  await expect(page.getByRole('alert')).toContainText('Start date');
+  expect(await chartSnapshot(page)).toHaveLength(0);
+  await page.getByRole('button', { name: 'All time', exact: true }).click();
+  await expect(page.locator('#corr-start')).toHaveValue('');
+  await page.locator('#corr-end').fill('2020-01-01');
+  await page.locator('#corr-end').dispatchEvent('change');
+  expect((await chartSnapshot(page))[0].max).toBe(Date.parse('2020-01-02') / 86400000);
+});
+
+test('uses aligned lanes for incompatible dose bases and supports keyboard search and removal', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await fixture(page);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.importedData.supplements[1] = { id: 'prn-demo', name: 'Example medication', type: 'medication', periods: [{ start: '2026-02-01', end: null, dose: '250 mg/day' }] };
+  });
+  const search = page.locator('#corr-search');
+  await search.fill('LDL');
+  await search.press('ArrowDown');
+  await expect(search).toHaveAttribute('aria-activedescendant', /corr-option-/);
+  await search.press('Enter');
+  await expect(search).toHaveValue('');
+  await expect(search).toHaveAttribute('aria-expanded', 'false');
+  await search.fill('does not exist');
+  await expect(page.locator('#corr-no-results')).toBeVisible();
+  await search.press('Escape');
+  await expect(page.locator('#corr-options')).toBeHidden();
+  await select(page, 'Example supplement', 'dose-demo', 'toggle-therapy');
+  await select(page, 'Example medication', 'prn-demo', 'toggle-therapy');
+  await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(3);
+  await expect(page.locator('#corr-therapy-results')).toContainText('units or dose bases differ');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('button', { name: 'Remove LDL Cholesterol', exact: true }).press('Enter');
+  await expect(search).toBeFocused();
+  await expect(page.locator('#corr-chart-container')).toBeHidden();
+});
+
+test('plots raw marker values on calendar dates even without reference ranges', async ({ page }) => {
+  await fixture(page);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const { invalidateActiveDataCache } = await import('/js/data.js');
+    state.importedData.entries.forEach((e, i) => { e.markers['lipids.hdl'] = 1 + i / 10; });
+    invalidateActiveDataCache();
+    const data = (await import('/js/data.js')).getActiveData();
+    for (const marker of [data.categories.lipids.markers.ldl, data.categories.lipids.markers.hdl]) { marker.refMin = null; marker.refMax = null; }
+    const { showCorrelations } = await import('/js/compare-correlations.js');
+    showCorrelations();
+  });
+  await select(page, 'LDL', 'lipids.ldl');
+  await select(page, 'HDL', 'lipids.hdl');
+  await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(1);
+  const snapshot = (await chartSnapshot(page))[0];
+  expect(snapshot.datasets[0].data.map(p => p.y)).toEqual([2, 2.2, 2.3, 2.1, 3.5, 3.6, 3.4, 2.5, 2.8]);
+  expect(snapshot.datasets[0].data[1].x - snapshot.datasets[0].data[0].x).toBe(40);
+  expect(snapshot.datasets[0].data[2].x - snapshot.datasets[0].data[1].x).toBe(10);
+  await page.getByRole('button', { name: 'Scatter', exact: true }).click();
+  expect((await chartSnapshot(page))[0].datasets[0].data).toHaveLength(9);
+});
+
+test('does not combine incompatible historical dose quantities in a scatter axis', async ({ page }) => {
+  await fixture(page);
+  await page.evaluate(async () => {
+    (await import('/js/state.js')).state.importedData.supplements[0].periods[1].dose = '2000 IU';
+  });
+  await select(page, 'LDL', 'lipids.ldl');
+  await select(page, 'Example supplement', 'dose-demo', 'toggle-therapy');
+  await page.getByRole('button', { name: 'Scatter', exact: true }).click();
+  await expect(page.locator('#corr-scatter')).toBeHidden();
+  await expect(page.locator('#corr-therapy-results')).toContainText('Scatter unavailable');
+  expect(await chartSnapshot(page)).toEqual([]);
 });

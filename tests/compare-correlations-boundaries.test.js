@@ -24,8 +24,10 @@ it('clears marker, therapy and lag selection together for a profile change', () 
   state.selectedCorrelationMarkers = ['lipids.ldl'];
   state.selectedCorrelationSupplements = ['private-profile-item'];
   state.correlationLagDays = 30;
+  state.correlationView = { start: '2026-01-01', hidden: ['private-profile-item'], layout: 'lanes' };
   resetCorrelationSelection();
   expect(state.selectedCorrelationMarkers).toEqual([]);
   expect(state.selectedCorrelationSupplements).toEqual([]);
   expect(state.correlationLagDays).toBe(0);
+  expect(state.correlationView).toEqual({});
 });

@@ -11,6 +11,7 @@ export const state = {
   selectedCorrelationMarkers: [],
   selectedCorrelationSupplements: [],
   correlationLagDays: 0,
+  correlationView: {},
   currentProfile: 'default',
   nutritionSummary: null,
   profiles: null,
@@ -34,4 +35,5 @@ export function resetCorrelationSelection() {
   state.selectedCorrelationMarkers = [];
   state.selectedCorrelationSupplements = [];
   state.correlationLagDays = 0;
+  state.correlationView = {};
 }

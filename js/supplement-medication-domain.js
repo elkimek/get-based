@@ -236,9 +236,12 @@ export function normalizeSupplementUnit(rawUnit) {
 export function parseSupplementQuantity(raw) {
   if (typeof raw !== 'string' || !raw.trim()) return null;
   const text = raw.trim();
-  const match = text.match(/^([+-]?(?:\d{1,3}(?:[ ,.]\d{3})+|\d+)(?:[.,]\d+)?)\s*([^\d\s].*?)?$/u);
+  const match = text.match(/^([+-]?(?:\d{1,3}(?:[ ,.]\d{3})+|\d+)(?:[.,]\d+)?)\s*([^\d\s.,].*?)?$/u);
   if (!match) return null;
   let numeric = match[1].replace(/\s/g, '');
+  // Older imports may use a dot for grouping. A nonzero single group of
+  // three decimal digits is ambiguous without locale/structured metadata.
+  if (/^[1-9]\d{0,2}\.\d{3}$/.test(numeric)) return null;
   const commaCount = (numeric.match(/,/g) || []).length;
   const dotCount = (numeric.match(/\./g) || []).length;
   if (commaCount && dotCount) {
@@ -246,11 +249,15 @@ export function parseSupplementQuantity(raw) {
     numeric = numeric.replace(decimal === ',' ? /\./g : /,/g, '').replace(decimal, '.');
   } else if (commaCount === 1 && !dotCount) {
     const [, tail = ''] = numeric.split(',');
-    numeric = tail.length === 3 && /^\d{1,3},\d{3}$/.test(numeric)
+    numeric = tail.length === 3 && /^[1-9]\d{0,2},\d{3}$/.test(numeric)
       ? numeric.replace(',', '') : numeric.replace(',', '.');
-  } else if (dotCount > 1 || (dotCount === 1 && /^\d{1,3}\.\d{3}$/.test(numeric))) {
+  } else if (dotCount > 1) {
+    // A single dot is decimal, including 0.500. Repeated separators must
+    // form complete thousands groups; never turn malformed text into a dose.
+    if (!/^[1-9]\d{0,2}(\.\d{3})+$/.test(numeric)) return null;
     numeric = numeric.replace(/\./g, '');
   } else if (commaCount > 1) {
+    if (!/^[1-9]\d{0,2}(,\d{3})+$/.test(numeric)) return null;
     numeric = numeric.replace(/,/g, '');
   }
   const value = Number(numeric);

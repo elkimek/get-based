@@ -67,7 +67,7 @@ assert('compare click delegate routes all rendered actions',
   && compareSrc.includes("action === 'ask-ai-correlations'"));
 
 assert('compare keydown delegate activates non-native action elements',
-  /function handleCompareKeydown\(event\)[\s\S]{0,400}event\.preventDefault\(\);[\s\S]{0,80}actionEl\.click\(\);/.test(compareSrc)
+  /event\.preventDefault\(\);\s*actionEl\.click\(\);/.test(compareSrc.split('function handleCompareKeydown(event) {')[1]?.split('function handleCompareChange')[0] || '')
   && compareSrc.includes("['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA'].includes(actionEl.tagName)"));
 
 console.log(`\nCompare correlations delegated actions tests: ${pass} passed, ${fail} failed`);

@@ -4,7 +4,7 @@
     "startupJavaScriptFiles": 2,
     "startupDecodedBytes": 1270000,
     "outputJavaScriptFiles": 167,
-    "outputDecodedBytes": 5410000
+    "outputDecodedBytes": 5421000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -87,7 +87,8 @@
     "ingredientDoseReferencesStartupDecodedBytes": 1268943,
     "ingredientDoseReferencesOutputDecodedBytes": 5408186,
     "unifiedTherapyPresentationStartupDecodedBytes": 1269686,
-    "unifiedTherapyPresentationOutputDecodedBytes": 5409196
+    "unifiedTherapyPresentationOutputDecodedBytes": 5409196,
+    "correlationWorkspaceMeasuredBaseCommit": "6aa9b43e"
   },
   "referenceCommit": "331112b1",
   "measuredAt": "2026-09-28"

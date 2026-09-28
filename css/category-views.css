@@ -859,3 +859,33 @@
 .corr-use-key > span { display: inline-flex; gap: 5px; align-items: center; }
 .corr-use-key i { display: inline-block; width: 12px; height: 10px; box-sizing: border-box; }
 @media (max-width: 600px) { .corr-current-dose li { flex-direction: column; gap: 0; } .corr-current-dose li > span:last-child { text-align: left; } .corr-current-heading { flex-wrap: wrap; } }
+
+/* Correlation exploration workspace */
+.corr-option-active { background: var(--bg-hover); outline: 2px solid var(--accent); outline-offset: -2px; }
+#corr-no-results { padding: 12px; font-size: 13px; color: var(--text-secondary); }
+.corr-workspace-tools, .corr-workspace-tabs, .corr-series { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+.corr-workspace-tools { align-items: end; }
+.corr-workspace-tools label, .corr-pair-analysis > label, .corr-inspector > label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--text-secondary); min-width: 0; }
+.corr-workspace-tools input, .corr-workspace-tools select, .corr-pair-analysis select, .corr-inspector input { border: 1px solid var(--border); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); padding: 8px; font: inherit; min-width: 0; max-width: 100%; }
+.corr-workspace-tools button, .corr-workspace-tabs button { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; font: inherit; cursor: pointer; }
+.corr-workspace-tabs button[aria-pressed="true"] { background: var(--text-primary); color: var(--bg-primary); }
+.corr-series button { display: inline-flex; align-items: center; gap: 8px; background: transparent; border: 0; color: var(--text-primary); font: inherit; font-size: 12px; cursor: pointer; padding: 6px 0; overflow-wrap: anywhere; text-align: left; }
+.corr-series button[aria-pressed="false"] { text-decoration: line-through; opacity: .6; }
+.corr-series i { width: 18px; flex-shrink: 0; border-top: 3px solid; }
+.corr-timeline-panel { min-width: 0; margin: 18px 0; }
+.corr-timeline-panel h4 { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+.corr-lane-chart { height: 210px; }
+.corr-inspector { padding: 14px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.corr-inspector > label { max-width: 190px; }
+#corr-readout { display: flex; flex-wrap: wrap; gap: 14px 24px; margin-top: 14px; font-size: 12px; }
+#corr-readout > div { display: flex; flex-direction: column; gap: 5px; max-width: 100%; overflow-wrap: anywhere; }
+#corr-readout span { color: var(--text-secondary); }
+.corr-pair-analysis { margin: 20px 0; min-width: 0; }
+.corr-pair-analysis > label { max-width: 640px; }
+.corr-current-references { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+.corr-current-references .corr-current-dose { margin: 0; min-width: 0; }
+.corr-workspace-tools [hidden], #corr-therapy-results [hidden] { display: none !important; }
+@media (max-width: 600px) { .corr-chart-container, .correlation-controls { padding: 12px; } .corr-workspace-tools > label { flex: 1 1 140px; } .corr-workspace-tools input, .corr-workspace-tools select, .corr-pair-analysis select, .corr-inspector input, .corr-search { font-size: 16px; } .corr-workspace-tabs button, .corr-series button { min-height: 44px; } }
+/* Keep chips reachable while suggestions are open, including empty results. */
+.corr-options { position: static; }
+.corr-presets summary { cursor: pointer; font-size: 12px; color: var(--text-secondary); padding: 5px 0; }

@@ -181,3 +181,18 @@ describe('ingredient dose references and confirmed history', () => {
     }
   });
 });
+
+import { parseCorrelationDose } from '../js/therapy-correlations.js';
+it.each(['0.500 g', '0,500 g', '2,000 mg', '1 000 mg'])('uses the same quantity interpretation for current ingredients and dated doses: %s', raw => {
+  const ingredient = parseSupplementQuantity(raw);
+  const history = parseCorrelationDose(raw);
+  expect(history.value).toBe(ingredient.value * (ingredient.unit === 'g' ? 1000 : 1));
+});
+it.each(['1.2.3 mg', '0.50.0 g', '1,,2 mg', '1.500 g'])('rejects malformed quantities consistently: %s', raw => {
+  expect(parseSupplementQuantity(raw)).toBeNull();
+  expect(parseCorrelationDose(raw)).toBeNull();
+});
+
+it('preserves unambiguous structured precision even when its display text could be mistaken for grouping', () => {
+  expect(parseCorrelationDose({ value: 1.005, unit: 'mg', text: '1.005 mg' }).value).toBe(1.005);
+});

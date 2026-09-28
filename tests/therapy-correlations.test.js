@@ -205,3 +205,43 @@ it.each(['', '   '])('excludes empty historical dose %j even when other periods 
   expect(comparison.rows.slice(3).every(r => r.reason === 'Dose not recorded')).toBe(true);
   expect(comparison.groups.every(g => typeof g.dose === 'number')).toBe(true);
 });
+
+it('expands historical weekday and interval schedules without using today’s schedule as historical fact', () => {
+  const monday = prepareTherapyHistory({ periods: [{ start: '2026-01-05', end: null, dose: '500 mg', schedule: { mode: 'selected-days', daysOfWeek: [1] } }] }, today);
+  expect(therapyExposure(monday, '2026-01-05').value).toBe(500);
+  expect(therapyExposure(monday, '2026-01-06')).toMatchObject({ value: 0, status: 'scheduled-off' });
+  expect(therapySegments(monday, '2026-01-05', '2026-01-12').map(s => s.value)).toEqual([500, 0, 0, 0, 0, 0, 0, 500]);
+  const interval = prepareTherapyHistory({ periods: [{ start: '2026-01-05', dose: '500 mg', schedule: { mode: 'interval', intervalDays: 3 } }] }, today);
+  expect(therapyExposure(interval, '2026-01-08').value).toBe(500);
+  expect(therapyExposure(interval, '2026-01-09').value).toBe(0);
+  const missing = prepareTherapyHistory({ schedule: { mode: 'selected-days', daysOfWeek: [1] }, periods: [{ start: '2026-01-05', dose: '500 mg' }] }, today);
+  expect(therapyExposure(missing, '2026-01-05').value).toBeNull();
+  const invalid = prepareTherapyHistory({ periods: [{ start: '2026-01-05', dose: '500 mg', schedule: { mode: 'selected-days', daysOfWeek: [] } }] }, today);
+  expect(therapyExposure(invalid, '2026-01-05').value).toBeNull();
+});
+
+it('filters the same observations for pairs, marker plots, provenance and AI without altering history', () => {
+  const data = { dates, categories: { test: { markers: { marker, other: { ...marker, name: 'Other', values: [2, 2, 2, 8, 8, 8] } } } } };
+  const imported = { supplements: [record], entries: [] };
+  const selection = prepareCorrelationSelection(data, imported, ['test.marker', 'test.other'], ['sm_test'], 7, { start: '2026-03-01', end: '2026-03-31' });
+  expect(selection.markers[0].rows.map(r => r.date)).toEqual(['2026-03-10', '2026-03-20']);
+  expect(selection.comparisons[0].n).toBe(2);
+  expect(selection.markerPairs[0].n).toBe(2);
+  expect(selection.histories[0].periods).toHaveLength(3);
+  const prompt = therapyCorrelationPrompt(selection);
+  const payload = JSON.parse(prompt.slice(prompt.indexOf('{')));
+  expect(payload.range).toEqual(selection.range);
+  expect(payload.comparisons).toEqual(selection.comparisons);
+  expect(payload.markers[0].rows).toEqual(selection.markers[0].rows);
+  const invalid = prepareCorrelationSelection(data, imported, ['test.marker'], ['sm_test'], 0, { start: '2026-04-01', end: '2026-01-01' });
+  expect(invalid.rangeError).toContain('Start date');
+  expect(invalid.comparisons[0].n).toBe(0);
+});
+
+it('never interpolates missing same-date marker pairs or includes conflicting draws', () => {
+  const data = { dates, categories: { test: { markers: { marker, other: { ...marker, name: 'Other', values: [2, null, 2, 8, 8, 8] } } } } };
+  const selection = prepareCorrelationSelection(data, { entries: [{ date: dates[0], markers: { 'test.other': 2 } }, { date: dates[0], markers: { 'test.other': 3 } }] }, ['test.marker', 'test.other'], []);
+  expect(selection.markerPairs[0].n).toBe(4);
+  expect(selection.markerPairs[0].rows[1].reason).toBe('No measurement on this date');
+  expect(selection.markerPairs[0].rows[0].reason).toContain('Conflicting');
+});

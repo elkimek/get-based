@@ -193,223 +193,44 @@ test('compare dates browser contract renders date controls table and updates sta
   }
 });
 
-test('correlations browser contract filters markers toggles chips and builds chart config', async ({ page }) => {
+test('correlations presets keep treatments, use available markers, enforce limits and delegate AI', async ({ page }) => {
   await openBlankPage(page);
-
-  const results = await page.evaluate(async ({ compareUrl }) => {
-    const compare = await import(compareUrl);
-    const [dataModule, stateModule, schemaModule] = await Promise.all([
-      import('/js/data.js'),
-      import('/js/state.js'),
-      import('/js/schema.js'),
-    ]);
-    const { state } = stateModule;
-    const outcomes = {};
-    const originalImportedData = state.importedData;
-    const originalSelected = [...state.selectedCorrelationMarkers];
-    const originalCharts = state.chartInstances;
-    const originalChart = window.Chart;
-    const chartCaptures = [];
-    let destroyCount = 0;
-    let savedCompareDeps = null;
-
-    function ChartStub(canvas, config) {
-      chartCaptures.push({ canvas, config });
-      return {
-        canvas,
-        config,
-        data: config.data,
-        options: config.options,
-        destroy() { destroyCount += 1; },
-      };
-    }
-
-    try {
-      window.Chart = ChartStub;
-      state.importedData = {
-        entries: [
-          {
-            date: '2026-01-01',
-            markers: {
-              'lipids.cholesterol': 4.5,
-              'lipids.hdl': 1.2,
-              'lipids.ldl': 2.8,
-              'lipids.triglycerides': 1.1,
-              'proteins.hsCRP': 1.0,
-              'vitamins.vitaminD': 70,
-              'electrolytes.calciumTotal': 2.30,
-            },
-          },
-          {
-            date: '2026-02-01',
-            markers: {
-              'lipids.cholesterol': 4.2,
-              'lipids.hdl': 1.5,
-              'lipids.ldl': 2.3,
-              'lipids.triglycerides': 0.9,
-              'proteins.hsCRP': 0.8,
-              'vitamins.vitaminD': 82,
-              'electrolytes.calciumTotal': 2.35,
-            },
-          },
-          {
-            date: '2026-03-01',
-            markers: {
-              'lipids.cholesterol': 5.1,
-              'lipids.hdl': 1.1,
-              'lipids.ldl': 3.4,
-              'lipids.triglycerides': 1.7,
-              'proteins.hsCRP': 2.4,
-              'vitamins.vitaminD': 96,
-              'electrolytes.calciumTotal': 2.42,
-            },
-          },
-        ],
-        notes: [],
-        supplements: [],
-        customMarkers: {},
-        markerNotes: {},
-        markerValueNotes: {},
-        changeHistory: [],
-      };
-      state.selectedCorrelationMarkers = [];
-      state.chartInstances = {};
-      dataModule.invalidateActiveDataCache();
-
-      compare.showCorrelations();
-      const activeData = dataModule.getActiveData();
-      const ldlMarker = activeData.categories.lipids.markers.ldl;
-      const expectedLdlPct = ((2.3 - ldlMarker.refMin) / (ldlMarker.refMax - ldlMarker.refMin)) * 100;
-      const optionCount = document.querySelectorAll('.corr-option').length;
-      const dropdown = document.getElementById('corr-options');
-      const search = document.getElementById('corr-search');
-      let askCount = 0;
-      savedCompareDeps = compare.configureCompareCorrelationViews({
-        askAIAboutCorrelations: () => { askCount += 1; },
-      });
-      outcomes.correlationControlsEmitDelegatedAttributesOnly =
-        document.querySelectorAll('#main-content [onclick], #main-content [onchange], #main-content [oninput], #main-content [onfocus]').length === 0
-        && search?.getAttribute('data-compare-input-action') === 'filter-options'
-        && search?.getAttribute('data-compare-focus-action') === 'show-dropdown'
-        && document.querySelector('.corr-preset-btn')?.getAttribute('data-compare-action') === 'apply-preset'
-        && document.querySelector('.corr-ask-ai-btn')?.getAttribute('data-compare-action') === 'ask-ai-correlations'
-        && document.querySelector('.corr-option')?.getAttribute('data-compare-action') === 'toggle-marker';
-      dropdown?.classList.remove('show');
-      search?.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
-      outcomes.showCorrelationDropdownOpensOptions = dropdown?.classList.contains('show') === true;
-      dropdown?.classList.remove('show');
-      search.value = 'vitamin';
-      search.dispatchEvent(new Event('input', { bubbles: true }));
-      const vitaminOption = Array.from(document.querySelectorAll('.corr-option'))
-        .find(option => option.dataset.key === 'vitamins.vitaminD');
-      const glucoseOption = Array.from(document.querySelectorAll('.corr-option'))
-        .find(option => option.dataset.key === 'biochemistry.glucose');
-      outcomes.searchDropdownFiltersByMarkerOrCategory =
-        optionCount > 20
-        && document.getElementById('corr-options')?.classList.contains('show') === true
-        && vitaminOption?.style.display === ''
-        && glucoseOption?.style.display === 'none';
-      search.value = '';
-      search.dispatchEvent(new Event('input', { bubbles: true }));
-
-      const ldlOption = document.querySelector('[data-compare-key="lipids.ldl"]');
-      ldlOption?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-      outcomes.delegatedKeyboardOptionRendersChipWithoutChart =
-        state.selectedCorrelationMarkers.join(',') === 'lipids.ldl'
-        && document.querySelectorAll('.corr-chip').length === 1
-        && document.getElementById('corr-chart-container')?.style.display === 'none'
-        && chartCaptures.length === 0;
-
-      document.querySelector('[data-compare-key="proteins.hsCRP"]')?.click();
-      const firstChart = chartCaptures.at(-1);
-      const firstDataset = firstChart?.config?.data?.datasets?.[0];
-      const tooltipLabel = firstChart?.config?.options?.plugins?.tooltip?.callbacks?.label({
-        dataset: firstDataset,
-        dataIndex: 1,
-        parsed: { y: firstDataset?.data?.[1] },
-      });
-      const yTickLabel = firstChart?.config?.options?.scales?.y?.ticks?.callback?.(1.000000000000009);
-      outcomes.secondMarkerBuildsNormalizedChart =
-        state.selectedCorrelationMarkers.length === 2
-        && document.getElementById('corr-chart-container')?.style.display === 'block'
-        && firstChart?.canvas?.id === 'chart-correlation'
-        && firstChart.config.type === 'line'
-        && firstChart.config.data.labels.join('|') === 'Jan 2026|Feb 2026|Mar 2026'
-        && firstChart.config.data.datasets.length === 2
-        && firstDataset.label === 'LDL Cholesterol'
-        && Math.abs(firstDataset.data[1] - expectedLdlPct) < 0.001
-        && String(tooltipLabel).includes('LDL Cholesterol')
-        && String(tooltipLabel).includes('mmol')
-        && yTickLabel === '1%'
-        && firstChart.config.options.plugins.refBand.refMin === 0
-        && firstChart.config.options.plugins.refBand.refMax === 100
-        && firstChart.config.plugins.length === 3;
-
-      const lipidPresetIndex = schemaModule.CORRELATION_PRESETS.findIndex(p => p.label === 'Lipid Panel');
-      Array.from(document.querySelectorAll('.corr-preset-btn'))[lipidPresetIndex]?.click();
-      const presetChart = chartCaptures.at(-1);
-      outcomes.presetRendersFourChipsAndRefreshesChart =
-        lipidPresetIndex !== -1
-        && state.selectedCorrelationMarkers.join('|') === 'lipids.cholesterol|lipids.hdl|lipids.ldl|lipids.triglycerides'
-        && document.querySelectorAll('.corr-chip').length === 4
-        && presetChart?.config?.data?.datasets?.length === 4
-        && presetChart.config.data.datasets.some(dataset => dataset.label === 'Triglycerides');
-
-      document.querySelector('[data-compare-key="lipids.hdl"].chip-remove')?.click();
-      document.querySelector('[data-compare-key="lipids.ldl"].chip-remove')?.click();
-      document.querySelector('[data-compare-key="lipids.triglycerides"].chip-remove')?.click();
-      outcomes.removingBelowTwoHidesChartAndDestroysInstance =
-        state.selectedCorrelationMarkers.join('|') === 'lipids.cholesterol'
-        && document.getElementById('corr-chart-container')?.style.display === 'none'
-        && destroyCount >= 1
-        && state.chartInstances.correlation === undefined;
-
-      document.querySelector('.corr-ask-ai-btn')?.click();
-      outcomes.askAiButtonUsesDelegatedAction = askCount === 1;
-
-      state.selectedCorrelationMarkers = [
-        'lipids.cholesterol',
-        'lipids.hdl',
-        'lipids.ldl',
-        'lipids.triglycerides',
-        'proteins.hsCRP',
-        'vitamins.vitaminD',
-        'electrolytes.calciumTotal',
-        'biochemistry.glucose',
-      ];
-      compare.toggleCorrelationMarker('hormones.testosterone');
-      outcomes.selectionLimitStopsNinthMarker =
-        state.selectedCorrelationMarkers.length === 8
-        && !state.selectedCorrelationMarkers.includes('hormones.testosterone');
-    } finally {
-      if (savedCompareDeps) compare.configureCompareCorrelationViews(savedCompareDeps);
-      if (originalChart === undefined) delete window.Chart;
-      else window.Chart = originalChart;
-      state.importedData = originalImportedData;
-      state.selectedCorrelationMarkers = originalSelected;
-      state.chartInstances = originalCharts;
-      dataModule.invalidateActiveDataCache();
-      document.getElementById('main-content').innerHTML = '';
-    }
-
-    return outcomes;
-  }, {
-    compareUrl: moduleUrl('/js/compare-correlations.js'),
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const { invalidateActiveDataCache } = await import('/js/data.js');
+    const compare = await import('/js/compare-correlations.js');
+    state.importedData = { entries: ['2026-01-01', '2026-02-01'].map(date => ({ date, markers: { 'lipids.cholesterol': 4.5, 'lipids.hdl': 1.2, 'lipids.ldl': 2.8, 'lipids.triglycerides': 1.1, 'proteins.hsCRP': 1, 'vitamins.vitaminD': 70, 'electrolytes.calciumTotal': 2.3, 'biochemistry.glucose': 4.5 } })), supplements: [{ id: 'preset-therapy', name: 'Preset therapy', periods: [{ start: '2026-01-01', dose: '500 mg' }] }], notes: [], customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [] };
+    state.selectedCorrelationMarkers = [];
+    state.selectedCorrelationSupplements = [];
+    state.correlationView = {};
+    invalidateActiveDataCache();
+    compare.configureCompareCorrelationViews({ askAIAboutCorrelations: () => { document.getElementById('main-content').dataset.asked = 'yes'; } });
+    compare.showCorrelations();
   });
-
-  const expectedOutcomeKeys = [
-    'correlationControlsEmitDelegatedAttributesOnly',
-    'showCorrelationDropdownOpensOptions',
-    'searchDropdownFiltersByMarkerOrCategory',
-    'delegatedKeyboardOptionRendersChipWithoutChart',
-    'secondMarkerBuildsNormalizedChart',
-    'presetRendersFourChipsAndRefreshesChart',
-    'removingBelowTwoHidesChartAndDestroysInstance',
-    'askAiButtonUsesDelegatedAction',
-    'selectionLimitStopsNinthMarker',
-  ];
-  expect(Object.keys(results)).toEqual(expectedOutcomeKeys);
-  for (const [name, passed] of Object.entries(results)) {
-    expect(passed, name).toBe(true);
+  await page.locator('#corr-search').fill('Preset therapy');
+  await page.locator('.corr-option[data-compare-key="preset-therapy"]').click();
+  await page.getByText('Marker presets', { exact: true }).click();
+  await page.getByRole('button', { name: 'Lipid Panel', exact: true }).click();
+  await expect(page.locator('.corr-chip')).toHaveCount(5);
+  await expect(page.getByRole('button', { name: 'Remove Preset therapy', exact: true })).toBeVisible();
+  await expect(page.locator('#corr-workspace-chart-0')).toBeAttached();
+  await page.locator('.corr-ask-ai-btn').click();
+  await expect(page.locator('#main-content')).toHaveAttribute('data-asked', 'yes');
+  for (const key of ['proteins.hsCRP', 'vitamins.vitaminD', 'electrolytes.calciumTotal']) {
+    await page.locator('#corr-search').fill('');
+    await page.locator('#corr-search').focus();
+    await page.locator(`.corr-option[data-compare-key="${key}"]`).click();
   }
+  await expect(page.locator('.corr-chip')).toHaveCount(8);
+  await page.locator('#corr-search').fill('glucose');
+  await page.locator('.corr-option[data-compare-key="biochemistry.glucose"]').click();
+  await expect(page.locator('#corr-selection-status')).toContainText('Up to 8');
+  await expect(page.locator('#corr-search')).toHaveValue('glucose');
+  await expect(page.locator('.corr-chip')).toHaveCount(8);
+  await page.locator('#corr-search').press('Escape');
+  await page.getByRole('button', { name: 'Remove Preset therapy', exact: true }).click();
+  expect(await page.locator('#main-content [onclick], #main-content [onchange], #main-content [oninput]').count()).toBe(0);
+  await page.getByRole('button', { name: 'Liver Enzymes', exact: true }).click();
+  await expect(page.locator('#corr-chart-container')).toBeHidden();
+  await expect(page.locator('#corr-selection-status')).toContainText('0 available markers');
 });

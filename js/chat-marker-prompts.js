@@ -4,7 +4,7 @@
 import { state } from './state.js';
 import { formatValue, getStatus } from './utils.js';
 import { getActiveData } from './data.js';
-import { getEffectiveRange, getEffectiveRangeForDate, getEffectiveRangeLabelForDate, getLatestValueIndex } from './marker-analysis.js';
+import { getEffectiveRangeForDate, getEffectiveRangeLabelForDate, getLatestValueIndex } from './marker-analysis.js';
 import { openChatPanel } from './chat-panel.js';
 import { createNewThread, ensureActiveThread, loadChatThreads, renameThread } from './chat-threads.js';
 import { loadChatHistory, saveChatHistory } from './chat-history.js';
@@ -77,32 +77,10 @@ export function askAIAboutMarker(markerId) {
 }
 
 export async function askAIAboutCorrelations() {
-  if (state.selectedCorrelationSupplements.length && state.selectedCorrelationMarkers.length) {
-    const profile = state.currentProfile;
-    const { prepareCorrelationSelection, therapyCorrelationPrompt } = await import('./therapy-correlations.js');
-    if (profile !== state.currentProfile) return;
-    const selection = prepareCorrelationSelection(getActiveData(), state.importedData, state.selectedCorrelationMarkers, state.selectedCorrelationSupplements, state.correlationLagDays);
-    if (selection.comparisons.length) void openSourcePrompt(therapyCorrelationPrompt(selection), 'Dose and biomarker correlations');
-    return;
-  }
-  if (state.selectedCorrelationMarkers.length < 2) return;
-  const data = getActiveData();
-  const parts = state.selectedCorrelationMarkers.map(key => {
-    const [catKey, markerKey] = key.split('.');
-    const marker = data.categories[catKey]?.markers[markerKey];
-    if (!marker) return null;
-    const valuesText = marker.values
-      .map((v, i) => v !== null ? `${data.dates[i]}: ${formatValue(v)} ${marker.unit}` : null)
-      .filter(Boolean).join(', ');
-    const mr = getEffectiveRange(marker);
-    const latestIdx = getLatestValueIndex(marker.values);
-    const status = latestIdx !== -1 ? getStatus(marker.values[latestIdx], mr.min, mr.max) : 'no data';
-    return `- ${marker.name}: ${valuesText} (ref: ${marker.refMin}\u2013${marker.refMax} ${marker.unit}${marker.optimalMin != null ? `, optimal: ${marker.optimalMin}\u2013${marker.optimalMax}` : ''}, status: ${status})`;
-  }).filter(Boolean);
-  const names = state.selectedCorrelationMarkers.map(key => {
-    const [catKey, markerKey] = key.split('.');
-    return data.categories[catKey]?.markers[markerKey]?.name || key;
-  });
-  const prompt = `Analyze the correlation between these biomarkers: ${names.join(', ')}.\n\nHere are my values:\n${parts.join('\n')}\n\nHow do these markers relate to each other? Are there any patterns, imbalances, or concerns based on their combined trends?`;
-  void openSourcePrompt(prompt, `Correlations: ${names.join(' + ')}`);
+  if (state.selectedCorrelationMarkers.length < 1) return;
+  const profile = state.currentProfile;
+  const { prepareCorrelationSelection, therapyCorrelationPrompt } = await import('./therapy-correlations.js');
+  if (profile !== state.currentProfile) return;
+  const selection = prepareCorrelationSelection(getActiveData(), state.importedData, state.selectedCorrelationMarkers, state.selectedCorrelationSupplements, state.correlationLagDays, state.correlationView);
+  if (!selection.rangeError && (selection.comparisons.length || selection.markerPairs.length)) void openSourcePrompt(therapyCorrelationPrompt(selection), 'Biomarker and dose exploration');
 }

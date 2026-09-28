@@ -3,7 +3,7 @@ import { state } from './state.js';
 import { escapeHTML, formatValue } from './utils.js';
 import { getChartColors } from './theme.js';
 import { createChartRuntime } from './charts-runtime.js';
-import { correlationDay, correlationDate, therapySegments } from './therapy-correlations.js';
+import { correlationDay, correlationDate, therapyExposure, therapySegments } from './therapy-correlations.js';
 
 export function destroyTherapyCorrelationCharts() {
   for (const key of Object.keys(state.chartInstances)) {
@@ -17,17 +17,14 @@ function doseLabel(value, unit, basis) {
   return `${Number(value.toPrecision(8))} ${unit}${basis === 'day' ? '/day' : ' (recorded dose)'}`;
 }
 
-export function renderTherapyCorrelationResults(selection, container) {
-  destroyTherapyCorrelationCharts();
+function renderTherapyCorrelationResults(selection, container) {
   if (!container) return;
   if (!selection.comparisons.length) {
     container.innerHTML = '<p class="corr-help">Select at least one biomarker and one supplement or medication. Items with duplicate record IDs need their history corrected before comparison.</p>';
     return;
   }
-  container.innerHTML = `<p class="corr-help">Associations do not establish cause and effect. ${selection.lagDays ? `Lab results are paired with the dose recorded ${selection.lagDays} days earlier.` : 'Lab results are paired with the dose recorded on the same date.'}</p>`
-    + selection.comparisons.map((comparison, index) => {
+  container.innerHTML = selection.comparisons.map((comparison, index) => {
       const history = selection.histories.find(h => h.id === comparison.therapyId);
-      const current = history.currentDoses.map(d => `<li><span><span class="corr-ingredient-label">Active ingredient</span>${escapeHTML(d.ingredient)}</span><span><strong>${escapeHTML(doseLabel(d.value, d.unit, 'day'))}</strong><small>${d.confirmedSince ? `Recorded since ${escapeHTML(d.confirmedSince)}` : 'Start date not confirmed'}</small></span></li>`).join('');
       const needsDates = history.currentDoses.some(d => !d.confirmedSince);
       const status = comparison.r !== null ? `Exploratory Pearson r = ${comparison.r.toFixed(2)}`
         : !comparison.n && needsDates ? 'Confirm dose dates to check which lab results can be compared.'
@@ -37,11 +34,7 @@ export function renderTherapyCorrelationResults(selection, container) {
       const periods = history.periods.map(p => `<li>${escapeHTML(p.start)} → ${escapeHTML(p.end || 'ongoing')}: ${escapeHTML(typeof p.dose === 'string' ? p.dose : p.quantity?.text || 'Dose not recorded')}</li>`).join('');
       return `<section class="corr-therapy-card" aria-labelledby="corr-therapy-title-${index}">
         <h4 id="corr-therapy-title-${index}">${escapeHTML(comparison.markerName)} × ${escapeHTML(comparison.therapyName)}</h4>
-        ${current ? `<div class="corr-current-dose"><div class="corr-current-heading"><strong>Saved dose today</strong><button type="button" class="corr-review-dose" data-compare-action="review-therapy" data-compare-key="${escapeHTML(history.id)}">Review dose dates</button></div><ul>${current}</ul>${needsDates ? '<p>These amounts belong to this product. They are not assigned to earlier dates until you confirm when they applied.</p>' : ''}</div>` : ''}
         <p class="corr-stat">${escapeHTML(status)} <span>${comparison.rows.length} lab results · ${comparison.n} matched to numeric doses</span></p>
-        <div class="corr-dose-chart"><canvas id="corr-dose-chart-${index}" role="img" aria-label="${escapeHTML(comparison.markerName)} measurements${history.quantity ? ` and ${escapeHTML(comparison.therapyName)} recorded doses` : ''}; usage periods are in the separate strip below"></canvas></div>
-        <div class="corr-use-timeline" id="corr-use-timeline-${index}"><div class="corr-use-heading">Recorded use <span>Same dates as the chart · not a dose scale</span></div><div class="corr-use-track"></div><div class="corr-use-key"><span><i class="corr-use-recorded"></i>Recorded use</span><span><i class="corr-use-paused"></i>Break / stopped</span><span><i class="corr-use-unknown"></i>Unknown</span></div></div>
-        <p class="corr-help">${history.quantity ? `The purple step line shows dated doses${history.quantity.ingredient ? ` of ${escapeHTML(history.quantity.ingredient)}` : ''}; its height follows the dose axis.` : 'No numeric dose history to plot yet. Recorded use is shown in the strip; the saved amount above is a current reference.'}${selection.lagDays ? ` Dose history and the strip are shifted ${selection.lagDays} days forward to align with lab results.` : ''}</p>
         <details><summary>Data &amp; limitations · ${comparison.rows.filter(r => r.reason).length} lab results excluded from dose correlation</summary>
           ${comparison.warnings.length ? `<ul class="corr-help">${comparison.warnings.map(w => `<li>${escapeHTML(w)}</li>`).join('')}</ul>` : ''}
           ${comparison.baseline ? `<p class="corr-help">Before first recorded use: ${comparison.baseline.n} measurements, mean ${escapeHTML(formatValue(comparison.baseline.mean))} ${escapeHTML(comparison.unit)}. Prior intake is unknown; these measurements are not assigned a zero dose.</p>` : ''}
@@ -54,61 +47,160 @@ export function renderTherapyCorrelationResults(selection, container) {
     }).join('');
 }
 
-export function drawTherapyCorrelationCharts(selection) {
+
+const esc = escapeHTML;
+const darkStyles = ['#38bdf8', '#a78bfa', '#fbbf24', '#34d399', '#fb7185', '#22d3ee', '#e879f9', '#a3e635'];
+const amountUnit = q => q ? `${q.unit}${q.basis === 'day' ? '/day' : q.basis === 'marker' ? '' : ' per dose'}` : '';
+const textDose = q => `${formatValue(q.value)} ${amountUnit(q)}`;
+const field = (key, label, choices, value) => `<label>${label}<select data-corr-setting="${key}" id="corr-${key}">${choices.map(([v, t]) => `<option value="${v}"${v === value ? ' selected' : ''}>${t}</option>`).join('')}</select></label>`;
+
+export function renderCorrelationWorkspace(selection, container, refresh) {
+  destroyTherapyCorrelationCharts();
+  const styles = document.documentElement.dataset.theme === 'light' ? ['#007da8', '#7651b9', '#a45300', '#007f5b', '#b52c4b', '#007786', '#963dad', '#567500'] : darkStyles;
+  const view = state.correlationView;
+  const grouping = view.grouping || 'combined', layout = view.layout || 'overlay', tab = view.tab || 'timeline';
+  const pairs = selection.comparisons.length ? selection.comparisons : selection.markerPairs;
+  const pairIndex = Math.min(Math.max(0, Number(view.pair) || 0), Math.max(0, pairs.length - 1));
+  const pair = pairs[pairIndex];
+  const scatterRows = pair?.rows.filter(r => !r.reason) || [];
+  const scatterCompatible = new Set(scatterRows.map(r => r.exposure.key || 'marker')).size <= 1;
+  const hidden = new Set(view.hidden || []);
+  const series = [
+    ...selection.markers.map((m, i) => ({ id: m.key, name: m.name, unit: m.unit || 'Unit unavailable', kind: 'marker', marker: m, color: styles[i % styles.length], index: i })),
+    ...selection.histories.map((h, i) => ({ id: h.id, name: h.name, unit: amountUnit(h.quantity), kind: 'dose', history: h, color: styles[(selection.markers.length + i) % styles.length], index: selection.markers.length + i })),
+  ];
+  const days = selection.markers.flatMap(m => m.rows.map(r => correlationDay(r.date)));
+  for (const h of selection.histories) if (!h.invalid) for (const p of h.periods) {
+    if (p.start <= h.today) days.push(correlationDay(p.start), correlationDay(p.end && p.end < h.today ? p.end : h.today));
+  }
+  const fallback = correlationDay(selection.histories[0]?.today || new Date().toISOString().slice(0, 10));
+  const requestedEnd = correlationDay(selection.range.end);
+  const naturalStart = days.length ? Math.min(...days) : fallback;
+  const start = correlationDay(selection.range.start) ?? Math.min(naturalStart, requestedEnd ?? naturalStart);
+  const last = requestedEnd ?? Math.max(start, days.length ? Math.max(...days) : fallback);
+  const end = Math.max(start + 1, last + 1);
+  let cursor = Math.min(end - 1, Math.max(start, correlationDay(view.inspectDate) ?? (selection.markers[0]?.rows.length ? correlationDay(selection.markers[0].rows.at(-1).date) : last)));
+  const visible = series.filter(s => !hidden.has(s.id));
+  const compatible = items => new Set(items.filter(s => s.kind === 'marker').map(s => s.unit)).size <= 1
+    && new Set(items.filter(s => s.kind === 'dose' && s.unit).map(s => s.unit)).size <= 1;
+  let groups;
+  if (grouping === 'separate') {
+    groups = pairs.map(p => visible.filter(s => s.id === p.markerKey || s.id === p.therapyId || s.id === p.xMarkerKey));
+  } else groups = [visible];
+  const lanes = layout === 'lanes' || groups.some(g => !compatible(g));
+  if (lanes) groups = grouping === 'combined' ? visible.map(s => [s]) : groups.flatMap(g => g.map(s => [s]));
+  groups = groups.filter(g => g.length);
+  const current = selection.histories.map(h => `<section class="corr-current-dose"><div class="corr-current-heading"><strong>${esc(h.name)} · Saved dose today</strong><button type="button" class="corr-review-dose" data-compare-action="review-therapy" data-compare-key="${esc(h.id)}">Review dose dates</button></div>${h.currentDoses.length ? `<ul>${h.currentDoses.map(d => `<li><span><span class="corr-ingredient-label">Active ingredient</span>${esc(d.ingredient)}</span><span><strong>${esc(textDose(d))}</strong><small>${d.confirmedSince ? `Recorded since ${esc(d.confirmedSince)}` : 'Start date not confirmed'}</small></span></li>`).join('')}</ul><p>These amounts belong to this product. They are not assigned to earlier dates until you confirm when they applied.</p>` : '<p>No current daily ingredient amount is available.</p>'}${h.record.ingredients?.length > 1 ? '<p>History compares the ingredient or dose explicitly saved for each period, not the total of this product’s ingredients.</p>' : ''}</section>`).join('');
+  container.innerHTML = `<div class="corr-workspace-tools">
+    ${field('grouping', 'Chart grouping', [['combined', 'Combined'], ['separate', 'Separate pairs']], grouping)}
+    ${field('layout', 'Display', [['overlay', 'Overlay · compatible units'], ['lanes', 'Aligned lanes']], layout)}
+    <label>From<input id="corr-start" type="date" data-corr-setting="start" value="${esc(selection.range.start)}"></label>
+    <label>To<input id="corr-end" type="date" data-corr-setting="end" value="${esc(selection.range.end)}"></label>
+    <button type="button" data-corr-reset>All time</button>
+  </div>
+  <p class="corr-help">${!selection.histories.length ? 'Markers are paired only on matching lab dates. ' : selection.lagDays ? `Lab results are paired with doses ${selection.lagDays} days earlier. ` : 'Lab results are paired with doses on the test date. '}History stays on its actual dates. Recorded use does not confirm intake; associations do not establish cause and effect.</p>
+  ${selection.rangeError ? `<p role="alert">${esc(selection.rangeError)}</p>` : ''}
+  <div class="corr-workspace-tabs" aria-label="Analysis view">${['timeline', 'scatter', 'data'].map(t => `<button type="button" id="corr-tab-${t}" data-corr-tab="${t}" aria-pressed="${t === tab}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div>
+  <div class="corr-series" aria-label="Visible series"${tab !== 'timeline' ? ' hidden' : ''}>${series.map(s => `<button type="button" data-corr-series="${esc(s.id)}" aria-pressed="${!hidden.has(s.id)}"><i style="border-color:${s.color};border-top-style:${s.index % 2 ? 'dashed' : 'solid'}"></i>${esc(s.name)}${s.unit ? ` · ${esc(s.unit)}` : ' · dose unknown'}</button>`).join('')}</div>
+  <p class="corr-help"${tab !== 'timeline' ? ' hidden' : ''}>Series buttons change visibility only. Analysis includes all selected items in this date range.</p>
+  <div id="corr-workspace-plots"${tab !== 'timeline' || selection.rangeError ? ' hidden' : ''}>${groups.map((g, i) => `<section class="corr-timeline-panel"><h4>${g.map(s => esc(s.name)).join(' + ')}</h4><div class="corr-dose-chart${lanes ? ' corr-lane-chart' : ''}"><canvas id="corr-workspace-chart-${i}" role="img" aria-label="${esc(g.map(s => s.name).join(' and '))} over calendar time"></canvas></div>${g.filter(s => s.kind === 'dose').map(s => `<div class="corr-use-timeline" data-corr-track="${esc(s.id)}"><div class="corr-use-heading">${esc(s.name)} · Recorded use <span>Not a dose scale</span></div><div class="corr-use-track"></div></div>`).join('')}</section>`).join('') || '<p>No visible series. Turn a series on above.</p>'}</div>
+  <p class="corr-help"${tab !== 'timeline' ? ' hidden' : ''}>${lanes ? 'Aligned lanes share the same calendar. Each lane has its own labeled scale.' : 'Markers use the left axis; doses use the right. Heights across axes are not comparable.'} Points are measured lab results; connecting lines are visual guides. Dose steps show dated records, gaps mean unknown, and zero means a recorded break or scheduled off-day.</p>
+  ${layout === 'overlay' && lanes ? '<p class="corr-help">Aligned lanes are used because the selected units or dose bases differ.</p>' : ''}
+  ${selection.histories.length && tab === 'timeline' ? '<div class="corr-use-key"><span><i class="corr-use-recorded"></i>Recorded use</span><span><i class="corr-use-paused"></i>Break / scheduled off-day</span><span><i class="corr-use-unknown"></i>Unknown history</span></div>' : ''}
+  <div class="corr-inspector"${tab !== 'timeline' || selection.rangeError ? ' hidden' : ''}><label>Inspect date<input type="date" id="corr-inspect" value="${correlationDate(cursor)}" min="${correlationDate(start)}" max="${correlationDate(end - 1)}"></label><div id="corr-readout" aria-live="polite"></div></div>
+  <div class="corr-pair-analysis"><label>Analysis pair<select id="corr-pair" data-corr-setting="pair">${pairs.map((p, i) => `<option value="${i}"${i === pairIndex ? ' selected' : ''}>${esc(p.markerName)} × ${esc(p.therapyName)}</option>`).join('')}</select></label>
+    <p class="corr-help">${pair ? `${pair.n} eligible · ${pair.rows.length - pair.n} excluded${pair.therapyId ? ` · ${pair.groups?.length || 0} dose levels` : ''}. ` : 'No pairs available. '}Coefficients are exploratory; repeated observations, time trends and overlapping treatments can affect them.</p>
+    ${tab === 'scatter' && !scatterCompatible ? '<p role="status">Scatter unavailable: these rows use different dose units, bases or ingredients. They cannot share one numeric dose axis.</p>' : ''}
+    <div class="corr-dose-chart"${tab !== 'scatter' || selection.rangeError || !scatterCompatible ? ' hidden' : ''}><canvas id="corr-scatter" role="img" aria-label="Paired observations; excluded rows are not plotted"></canvas></div>
+    <div id="corr-pair-detail"></div>
+  </div>
+  <div class="corr-current-references">${current}</div>`;
+
+  for (const id of ['corr-grouping', 'corr-layout']) container.querySelector(`#${id}`).disabled = tab !== 'timeline';
+  const updateSetting = (key, value) => { state.correlationView = { ...state.correlationView, [key]: value }; refresh(); };
+  container.querySelectorAll('[data-corr-setting]').forEach(el => el.addEventListener('change', () => updateSetting(el.getAttribute('data-corr-setting'), /** @type {HTMLInputElement} */ (el).value)));
+  container.querySelector('[data-corr-reset]').addEventListener('click', () => { state.correlationView = { ...view, start: '', end: '' }; refresh(); });
+  container.querySelectorAll('[data-corr-tab]').forEach(el => el.addEventListener('click', () => updateSetting('tab', el.getAttribute('data-corr-tab'))));
+  container.querySelectorAll('[data-corr-series]').forEach(el => el.addEventListener('click', () => {
+    const id = el.getAttribute('data-corr-series');
+    if (hidden.has(id)) hidden.delete(id); else hidden.add(id);
+    updateSetting('hidden', [...hidden]);
+  }));
+  const detail = container.querySelector('#corr-pair-detail');
+  if (pair?.therapyId) {
+    renderTherapyCorrelationResults({ ...selection, comparisons: [pair] }, detail);
+    if (tab === 'data') detail.querySelector('details')?.setAttribute('open', '');
+  } else if (pair) {
+    detail.innerHTML = `<p class="corr-stat">${pair.r === null ? esc(pair.unavailable) : `Exploratory Pearson r = ${pair.r.toFixed(2)}`}</p><details${tab === 'data' ? ' open' : ''}><summary>Data &amp; limitations</summary><div class="corr-data-scroll" tabindex="0"><table class="corr-data-table"><thead><tr><th>Lab date</th><th>${esc(pair.markerName)} (${esc(pair.unit)})</th><th>${esc(pair.therapyName)} (${esc(pair.xUnit)})</th><th>Status</th><th>Source</th></tr></thead><tbody>${pair.rows.map(r => `<tr><td>${r.date}</td><td>${formatValue(r.value)}</td><td>${r.exposure.value === null ? '—' : formatValue(r.exposure.value)}</td><td>${esc(r.reason || 'Included')}</td><td>${esc(r.sources.map(s => s.id || s.source || s.date).join(', '))}</td></tr>`).join('')}</tbody></table></div><p class="corr-help">Only same-date measurements are paired. Missing values are not interpolated. Correlation does not establish causation.</p></details>`;
+  }
+  if (selection.rangeError) return;
   const colors = getChartColors();
-  selection.comparisons.forEach((comparison, index) => {
-    const canvas = /** @type {HTMLCanvasElement | null} */ (document.getElementById(`corr-dose-chart-${index}`));
-    if (!canvas || !comparison.rows.length) return;
-    const history = selection.histories.find(h => h.id === comparison.therapyId);
-    const days = comparison.rows.map(r => correlationDay(r.date));
-    if (!history.invalid) for (const p of history.periods) {
-      if (p.start > history.today) continue;
-      days.push(correlationDay(p.start) + selection.lagDays, correlationDay(p.end && p.end < history.today ? p.end : history.today) + selection.lagDays);
-    }
-    if (history.currentDoses.length) days.push(correlationDay(history.today));
-    const start = Math.min(...days), end = Math.max(start, ...days) + 1;
-    const segments = therapySegments(history, correlationDate(start - selection.lagDays), correlationDate(end - selection.lagDays));
-    const dosePoints = segments.flatMap(s => [
-      { x: s.start + selection.lagDays, y: history.quantity ? s.value : null, label: s.label },
-      { x: s.end + selection.lagDays, y: history.quantity ? s.value : null, label: s.label },
-    ]);
-    const hasDose = dosePoints.some(p => p.y !== null);
-    const shifted = selection.lagDays ? ` · shifted ${selection.lagDays} days` : '';
-    const timeline = document.getElementById(`corr-use-timeline-${index}`);
-    const track = timeline?.querySelector('.corr-use-track');
-    if (track) track.innerHTML = segments.filter(s => s.start + selection.lagDays < end).map(s => {
-      const from = Math.max(start, s.start + selection.lagDays), to = Math.min(end, s.end + selection.lagDays);
-      const status = s.usage === 1 ? 'recorded' : s.usage === 0 ? 'paused' : 'unknown';
-      const label = `${correlationDate(s.start)} to ${correlationDate(s.end - 1)}: ${s.usage === 1 ? 'Recorded use' : s.usage === 0 ? 'Break / stopped' : 'Unknown history'}. ${s.label}`;
-      return `<span class="corr-use-segment corr-use-${status}" role="img" tabindex="0" aria-label="${escapeHTML(label)}" title="${escapeHTML(label)}" style="left:${(from - start) / (end - start) * 100}%;width:${(to - from) / (end - start) * 100}%"></span>`;
+  const charts = [];
+  function inspect(day, announce = true) {
+    cursor = Math.min(end - 1, Math.max(start, day));
+    const date = correlationDate(cursor);
+    const input = /** @type {HTMLInputElement} */ (container.querySelector('#corr-inspect'));
+    input.value = date;
+    const readout = container.querySelector('#corr-readout');
+    readout.setAttribute('aria-live', announce ? 'polite' : 'off');
+    readout.innerHTML = visible.map(s => {
+      const row = s.marker?.rows.find(r => r.date === date);
+      const exposure = s.history ? therapyExposure(s.history, date) : null;
+      const value = s.kind === 'marker' ? row ? row.reason || `${formatValue(row.value)} ${s.unit}` : 'No measurement on this date'
+        : exposure.value === null ? exposure.label : `${textDose(exposure)} · ${exposure.label}`;
+      return `<div><strong>${esc(s.name)}</strong><span>${esc(value)}</span></div>`;
     }).join('');
-    const chart = createChartRuntime(canvas, {
-      type: 'line',
-      plugins: [{ id: 'therapy-use-alignment', afterLayout: chart => {
-        if (!timeline) return;
-        timeline.style.setProperty('--corr-plot-left', `${chart.chartArea.left}px`);
-        timeline.style.setProperty('--corr-plot-right', `${chart.width - chart.chartArea.right}px`);
+    charts.forEach(c => c.draw());
+  }
+  container.querySelector('#corr-inspect').addEventListener('change', e => {
+    const day = correlationDay(/** @type {HTMLInputElement} */ (e.target).value);
+    if (day !== null) { state.correlationView.inspectDate = correlationDate(day); inspect(day); }
+  });
+  if (tab === 'timeline') groups.forEach((items, index) => {
+    const tracks = [...container.querySelectorAll('.corr-timeline-panel')][index].querySelectorAll('[data-corr-track]');
+    const datasets = items.flatMap(s => {
+      const common = { label: `${s.name}${s.kind === 'dose' ? ' dose' : ''} (${s.unit})`, borderColor: s.color, backgroundColor: s.color, borderDash: s.index % 2 ? [7, 4] : [], borderWidth: 2, tension: 0, spanGaps: false, yAxisID: s.kind === 'dose' ? 'dose' : 'y', pointRadius: s.kind === 'dose' ? 0 : 4, pointStyle: s.index % 2 ? 'rectRot' : 'circle' };
+      if (s.marker) return [{ ...common, data: s.marker.rows.map(r => ({ x: correlationDay(r.date), y: r.reason ? null : r.value })) }];
+      const segments = therapySegments(s.history, correlationDate(start), correlationDate(end - 1));
+      const track = [...tracks].find(t => t.getAttribute('data-corr-track') === s.id)?.querySelector('.corr-use-track');
+      if (track) track.innerHTML = segments.map(seg => `<span class="corr-use-segment corr-use-${seg.usage === 1 ? 'recorded' : seg.usage === 0 ? 'paused' : 'unknown'}" style="left:${(seg.start - start) / (end - start) * 100}%;width:${(seg.end - seg.start) / (end - start) * 100}%" role="img" tabindex="0" aria-label="${esc(`${correlationDate(seg.start)} through ${correlationDate(seg.end - 1)}: ${seg.label}`)}" title="${esc(seg.label)}"></span>`).join('');
+      const points = segments.flatMap(seg => [{ x: seg.start, y: s.history.quantity ? seg.value : null, label: seg.label }, { x: seg.end, y: s.history.quantity ? seg.value : null, label: seg.label }]);
+      return points.some(p => p.y !== null) ? [{ ...common, data: points, stepped: 'after' }] : [];
+    });
+    const hasDose = datasets.some(d => d.yAxisID === 'dose');
+    const markerUnit = items.find(s => s.kind === 'marker')?.unit;
+    const doseUnit = items.find(s => s.kind === 'dose' && s.unit)?.unit;
+    const chart = createChartRuntime(container.querySelector(`#corr-workspace-chart-${index}`), {
+      type: 'line', data: { datasets },
+      plugins: [{ id: 'correlation-calendar-cursor', afterLayout: c => {
+        tracks.forEach(t => { t.style.setProperty('--corr-plot-left', `${c.chartArea.left}px`); t.style.setProperty('--corr-plot-right', `${c.width - c.chartArea.right}px`); });
+      }, afterDraw: c => {
+        const x = c.scales.x.getPixelForValue(cursor), a = c.chartArea, ctx = c.ctx;
+        ctx.save(); ctx.strokeStyle = colors.tickColor; ctx.setLineDash([3, 4]); ctx.beginPath(); ctx.moveTo(x, a.top); ctx.lineTo(x, a.bottom); ctx.stroke(); ctx.restore();
       } }],
-      data: { datasets: [
-        { label: `${comparison.markerName} (${comparison.unit})`, data: comparison.rows.map(r => ({ x: correlationDay(r.date), y: r.conflict || r.date > history.today ? null : r.value })), yAxisID: 'y', borderColor: '#38bdf8', backgroundColor: '#38bdf8', pointRadius: 4, tension: 0, spanGaps: false },
-        ...(hasDose ? [{ label: `${history.name} dose (${history.quantity.unit}${history.quantity.basis === 'day' ? '/day' : ' per dose'})${shifted}`, data: dosePoints, yAxisID: 'dose', borderColor: '#a78bfa', backgroundColor: '#a78bfa', pointRadius: 0, borderWidth: 2, stepped: 'after', spanGaps: false }] : []),
-      ] },
       options: {
         responsive: true, maintainAspectRatio: false, animation: false,
-        plugins: {
-          legend: { labels: { color: colors.legendColor, boxWidth: 12 } },
-          tooltip: { callbacks: {
-            title: items => items.length ? correlationDate(Math.floor(items[0].parsed.x)) : '',
-            label: item => item.datasetIndex > 0 ? item.raw.label : `${comparison.markerName}: ${formatValue(item.parsed.y)} ${comparison.unit}`,
-          } },
-        },
+        layout: { padding: { left: markerUnit || hasDose ? 0 : 65, right: markerUnit && hasDose ? 0 : 65 } },
+        onHover: event => { if (event.x >= chart.chartArea.left && event.x <= chart.chartArea.right) inspect(Math.floor(chart.scales.x.getValueForPixel(event.x)), false); },
+        onClick: event => { const day = Math.floor(chart.scales.x.getValueForPixel(event.x)); if (Number.isFinite(day)) { state.correlationView.inspectDate = correlationDate(day); inspect(day); } },
+        plugins: { legend: { display: false }, tooltip: { callbacks: { title: points => points.length ? correlationDate(Math.floor(points[0].parsed.x)) : '', label: p => `${p.dataset.label}: ${p.raw.label || formatValue(p.parsed.y)}` } } },
         scales: {
-          x: { type: 'linear', min: start, max: end, ticks: { color: colors.tickColor, maxTicksLimit: 5, includeBounds: false, callback: value => correlationDate(Math.round(Number(value))) }, grid: { color: colors.gridColor } },
-          y: { position: 'left', title: { display: true, text: comparison.unit, color: colors.tickColor }, ticks: { color: colors.tickColor }, grid: { color: colors.gridColor } },
-          dose: { position: 'right', beginAtZero: true, display: hasDose, title: { display: true, text: history.quantity ? `${history.quantity.unit}${history.quantity.basis === 'day' ? '/day' : ' per recorded dose'}` : '', color: colors.tickColor }, ticks: { color: colors.tickColor }, grid: { drawOnChartArea: false } },
+          x: { type: 'linear', min: start, max: end, afterBuildTicks: axis => { const count = axis.chart.width < 480 ? 3 : 5; axis.ticks = Array.from({ length: count }, (_, i) => ({ value: Math.round(start + (end - 1 - start) * i / (count - 1)) })); }, title: { display: true, text: 'Calendar date', color: colors.tickColor }, ticks: { color: colors.tickColor, maxTicksLimit: 4, includeBounds: false, callback: v => correlationDate(Math.round(Number(v))) }, grid: { color: colors.gridColor } },
+          y: { display: !!markerUnit, position: 'left', afterFit: axis => { axis.width = axis.options.display ? 65 : 0; }, title: { display: true, text: markerUnit || '', color: colors.tickColor }, ticks: { color: colors.tickColor }, grid: { color: colors.gridColor } },
+          dose: { display: hasDose, position: markerUnit ? 'right' : 'left', beginAtZero: true, afterFit: axis => { axis.width = axis.options.display ? 65 : 0; }, title: { display: true, text: doseUnit || '', color: colors.tickColor }, ticks: { color: colors.tickColor }, grid: { drawOnChartArea: !markerUnit, color: colors.gridColor } },
         },
       },
     });
-    if (chart) state.chartInstances[`correlation-therapy-${index}`] = chart;
+    if (chart) { state.chartInstances[`correlation-therapy-${index}`] = chart; charts.push(chart); }
   });
+  if (tab === 'scatter' && pair && scatterCompatible) {
+    const eligible = scatterRows;
+    const unit = eligible.length ? amountUnit(eligible[0].exposure) : pair.xUnit || '';
+    const chart = createChartRuntime(container.querySelector('#corr-scatter'), {
+      type: 'scatter', data: { datasets: [{ label: `${pair.markerName} × ${pair.therapyName}`, data: eligible.map(r => ({ x: r.exposure.value, y: r.value, date: r.date, exposureDate: r.exposureDate })), backgroundColor: styles[0], pointRadius: 5 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { title: p => p.length ? `${p[0].raw.date} · paired date ${p[0].raw.exposureDate}` : '' } } }, scales: { x: { title: { display: true, text: `${pair.therapyName} (${unit})`, color: colors.tickColor }, ticks: { color: colors.tickColor }, grid: { color: colors.gridColor } }, y: { title: { display: true, text: `${pair.markerName} (${pair.unit})`, color: colors.tickColor }, ticks: { color: colors.tickColor }, grid: { color: colors.gridColor } } } },
+    });
+    if (chart) state.chartInstances['correlation-therapy-scatter'] = chart;
+  }
+  inspect(cursor);
 }

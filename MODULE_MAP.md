@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 790 |
-| Internal import edges | 3345 |
+| Internal import edges | 3344 |
 | Dynamic internal edges | 119 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -416,7 +416,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>compare</code> family — 1 module</summary>
 
-- [`js/compare-correlations.js`](js/compare-correlations.js) → [`js/charts-runtime.js`](js/charts-runtime.js), [`js/data.js`](js/data.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/supplements.js`](js/supplements.js) *(dynamic)*, [`js/theme.js`](js/theme.js), [`js/therapy-correlation-view.js`](js/therapy-correlation-view.js) *(dynamic)*, [`js/therapy-correlations.js`](js/therapy-correlations.js) *(dynamic)*, [`js/utils.js`](js/utils.js)
+- [`js/compare-correlations.js`](js/compare-correlations.js) → [`js/charts-runtime.js`](js/charts-runtime.js), [`js/data.js`](js/data.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/schema.js`](js/schema.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/supplements.js`](js/supplements.js) *(dynamic)*, [`js/therapy-correlation-view.js`](js/therapy-correlation-view.js) *(dynamic)*, [`js/therapy-correlations.js`](js/therapy-correlations.js) *(dynamic)*, [`js/utils.js`](js/utils.js)
 
 </details>
 
