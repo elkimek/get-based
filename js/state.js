@@ -10,7 +10,6 @@ export const state = {
   showAltUnits: false,
   selectedCorrelationMarkers: [],
   selectedCorrelationSupplements: [],
-  correlationLagDays: 0,
   correlationView: {},
   currentProfile: 'default',
   nutritionSummary: null,
@@ -34,6 +33,5 @@ export const state = {
 export function resetCorrelationSelection() {
   state.selectedCorrelationMarkers = [];
   state.selectedCorrelationSupplements = [];
-  state.correlationLagDays = 0;
   state.correlationView = {};
 }

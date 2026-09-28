@@ -81,6 +81,6 @@ export async function askAIAboutCorrelations() {
   const profile = state.currentProfile;
   const { prepareCorrelationSelection, therapyCorrelationPrompt } = await import('./therapy-correlations.js');
   if (profile !== state.currentProfile) return;
-  const selection = prepareCorrelationSelection(getActiveData(), state.importedData, state.selectedCorrelationMarkers, state.selectedCorrelationSupplements, state.correlationLagDays, state.correlationView);
+  const selection = prepareCorrelationSelection(getActiveData(), state.importedData, state.selectedCorrelationMarkers, state.selectedCorrelationSupplements, 0, state.correlationView);
   if (!selection.rangeError && (selection.comparisons.length || selection.markerPairs.length)) void openSourcePrompt(therapyCorrelationPrompt(selection), 'Biomarker and dose exploration');
 }

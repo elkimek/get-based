@@ -230,7 +230,10 @@ test('correlations presets keep treatments, use available markers, enforce limit
   await page.locator('#corr-search').press('Escape');
   await page.getByRole('button', { name: 'Remove Preset therapy', exact: true }).click();
   expect(await page.locator('#main-content [onclick], #main-content [onchange], #main-content [oninput]').count()).toBe(0);
-  await page.getByRole('button', { name: 'Liver Enzymes', exact: true }).click();
-  await expect(page.locator('#corr-chart-container')).toBeHidden();
-  await expect(page.locator('#corr-selection-status')).toContainText('0 available markers');
+  await expect(page.getByRole('button', { name: 'Liver Enzymes', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Liver Enzymes', exact: true })).toContainText('0/4 available');
+  await expect(page.locator('.corr-chip')).toHaveCount(7);
+  await page.getByRole('button', { name: 'Blood Sugar', exact: true }).click();
+  await expect(page.locator('.corr-chip')).toHaveCount(1);
+  await expect(page.locator('.corr-chip')).toContainText('Glucose');
 });

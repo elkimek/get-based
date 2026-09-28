@@ -821,8 +821,6 @@
 
 /* Recorded-dose comparisons */
 .corr-help { color: var(--text-muted); font-size: 13px; line-height: 1.6; margin: 12px 0; }
-.corr-lag-control { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px; }
-.corr-lag-control select { color: var(--text-primary); background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
 .corr-therapy-card { border-top: 1px solid var(--border); padding: 20px 0; min-width: 0; }
 .corr-therapy-card h4 { margin: 0 0 10px; font-size: 16px; overflow-wrap: anywhere; }
 .corr-stat { color: var(--text-secondary); font-size: 13px; line-height: 1.6; }
@@ -865,8 +863,8 @@
 #corr-no-results { padding: 12px; font-size: 13px; color: var(--text-secondary); }
 .corr-workspace-tools, .corr-workspace-tabs, .corr-series { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
 .corr-workspace-tools { align-items: end; }
-.corr-workspace-tools label, .corr-pair-analysis > label, .corr-inspector > label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--text-secondary); min-width: 0; }
-.corr-workspace-tools input, .corr-workspace-tools select, .corr-pair-analysis select, .corr-inspector input { border: 1px solid var(--border); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); padding: 8px; font: inherit; min-width: 0; max-width: 100%; }
+.corr-workspace-tools label, .corr-inspector > label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--text-secondary); min-width: 0; }
+.corr-workspace-tools input, .corr-workspace-tools select, .corr-inspector input { border: 1px solid var(--border); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); padding: 8px; font: inherit; min-width: 0; max-width: 100%; }
 .corr-workspace-tabs button { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; font: inherit; cursor: pointer; }
 .corr-workspace-tabs button[aria-pressed="true"] { background: var(--accent-gradient); color: white; }
 .corr-series button { display: inline-flex; align-items: center; gap: 8px; background: transparent; border: 0; color: var(--text-primary); font: inherit; font-size: 12px; cursor: pointer; padding: 6px 0; overflow-wrap: anywhere; text-align: left; }
@@ -881,11 +879,10 @@
 #corr-readout > div { display: flex; flex-direction: column; gap: 5px; max-width: 100%; overflow-wrap: anywhere; }
 #corr-readout span { color: var(--text-secondary); }
 .corr-pair-analysis { margin: 20px 0; min-width: 0; }
-.corr-pair-analysis > label { max-width: 640px; }
 .corr-current-references { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
 .corr-current-references .corr-current-dose { margin: 0; min-width: 0; }
 .corr-workspace-tools [hidden], #corr-therapy-results [hidden] { display: none !important; }
-@media (max-width: 600px) { .corr-chart-container, .correlation-controls { padding: 12px; } .corr-workspace-tools > label { flex: 1 1 140px; } .corr-workspace-tools input, .corr-workspace-tools select, .corr-pair-analysis select, .corr-inspector input, .corr-search { font-size: 16px; } .corr-workspace-tabs button, .corr-series button { min-height: 44px; } }
+@media (max-width: 600px) { .corr-chart-container, .correlation-controls { padding: 12px; } .corr-workspace-tools > label { flex: 1 1 140px; } .corr-workspace-tools input, .corr-workspace-tools select, .corr-inspector input, .corr-search { font-size: 16px; } .corr-workspace-tabs button, .corr-series button { min-height: 44px; } }
 /* Keep chips reachable while suggestions are open, including empty results. */
 .corr-options { position: static; }
 .corr-presets summary { cursor: pointer; font-size: 12px; color: var(--text-secondary); padding: 5px 0; }
@@ -900,9 +897,19 @@
 .corr-control { display: flex; flex-direction: column; gap: 6px; min-width: 0; font-size: 12px; color: var(--text-secondary); }
 .corr-control .date-range-filter { flex-wrap: wrap; max-width: 100%; }
 .corr-custom-dates { display: flex; flex-wrap: wrap; gap: 10px; }
-.corr-advanced { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
-.corr-advanced summary { cursor: pointer; color: var(--text-secondary); font-size: 13px; }
-.corr-advanced .corr-lag-control { margin-top: 12px; }
-.corr-lag-control select, .corr-ingredient-picker select, .corr-pair-analysis select { background-color: var(--select-surface); border-radius: var(--radius-sm); padding: 10px 12px; font: inherit; max-width: 100%; }
-.corr-lag-control select:focus-visible, .corr-ingredient-picker select:focus-visible, .corr-pair-analysis select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-@media (max-width: 600px) { .corr-control .range-btn { min-height: 44px; } .corr-custom-dates > label { flex: 1 1 120px; } .corr-lag-control select, .corr-ingredient-picker select { font-size: 16px; } }
+.corr-ingredient-picker select { background-color: var(--select-surface); border-radius: var(--radius-sm); padding: 10px 12px; font: inherit; max-width: 100%; }
+.corr-ingredient-picker select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 600px) { .corr-control .range-btn { min-height: 44px; } .corr-custom-dates > label { flex: 1 1 120px; } .corr-ingredient-picker select { font-size: 16px; } }
+
+.corr-date-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 13px; }
+.corr-jump summary { color: var(--accent-light); cursor: pointer; font-size: 12px; }
+.corr-jump input { display: block; margin-top: 8px; }
+.corr-pair-tabs { display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px 10px; }
+.corr-pair-tabs button { flex: 0 0 auto; max-width: 280px; white-space: normal; text-align: left; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-secondary); color: var(--text-secondary); padding: 10px 12px; font: inherit; font-size: 12px; cursor: pointer; }
+.corr-pair-tabs button[aria-selected="true"] { background: var(--accent-gradient); color: white; }
+.corr-pair-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.corr-preset-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 8px; }
+.corr-preset-grid .corr-preset-btn { display: flex; flex-direction: column; gap: 6px; padding: 12px; margin: 0; text-align: left; border-radius: var(--radius-sm); }
+.corr-preset-btn span { font-size: 11px; line-height: 1.5; }
+.corr-preset-btn small { color: var(--text-muted); }
+.corr-preset-btn:disabled { opacity: .5; cursor: default; }

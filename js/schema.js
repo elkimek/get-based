@@ -346,13 +346,20 @@ export function convertSIToInputUnit(dotKey, siValue, targetUnit) {
 export const CORRELATION_PRESETS = [
   { label: "Testosterone vs SHBG", markers: ["hormones.testosterone", "hormones.shbg"] },
   { label: "LDL vs hs-CRP", markers: ["lipids.ldl", "proteins.hsCRP"] },
-  { label: "HbA1c vs Insulin vs HOMA-IR", markers: ["diabetes.hba1c", "diabetes.insulin", "diabetes.homaIR"] },
+  { label: "Blood Sugar", markers: ["biochemistry.glucose", "diabetes.hba1c", "diabetes.insulin", "diabetes.fructosamine"] },
   { label: "Liver Enzymes", markers: ["biochemistry.ast", "biochemistry.alt", "biochemistry.alp", "biochemistry.ggt"] },
-  { label: "Iron Panel", markers: ["iron.iron", "iron.ferritin", "iron.transferrin"] },
+  { label: "Iron Panel", markers: ["iron.iron", "iron.ferritin", "iron.transferrin", "iron.transferrinSat", "hematology.hemoglobin"] },
   { label: "Lipid Panel", markers: ["lipids.cholesterol", "lipids.hdl", "lipids.ldl", "lipids.triglycerides"] },
   { label: "Vitamin D vs Calcium", markers: ["vitamins.vitaminD", "electrolytes.calciumTotal"] },
   { label: "TSH vs T3 vs T4", markers: ["thyroid.tsh", "thyroid.ft3", "thyroid.ft4"] },
-  { label: "LH vs FSH vs Estradiol", markers: ["hormones.lh", "hormones.fsh", "hormones.estradiol"] }
+  { label: "LH vs FSH vs Estradiol", markers: ["hormones.lh", "hormones.fsh", "hormones.estradiol"] },
+  { label: "Kidney Function", markers: ["biochemistry.creatinine", "biochemistry.cystatinC", "biochemistry.egfr", "urinalysis.albuminCreatinineRatio"] },
+  { label: "Blood Count", markers: ["hematology.hemoglobin", "hematology.mcv", "hematology.rdwcv", "hematology.wbc", "hematology.platelets"] },
+  { label: "B12 & Folate", markers: ["vitamins.vitaminB12", "vitamins.activeB12", "vitamins.folate", "vitamins.methylmalonicAcid", "hematology.mcv"] },
+  { label: "Vitamin D & Bone Minerals", markers: ["vitamins.vitaminD", "electrolytes.calciumTotal", "electrolytes.phosphorus", "hormones.pth"] },
+  { label: "Electrolytes", markers: ["electrolytes.sodium", "electrolytes.potassium", "electrolytes.chloride", "biochemistry.bicarbonate", "electrolytes.magnesium"] },
+  { label: "ApoB & Lipids", markers: ["lipids.apoB", "lipids.ldl", "lipids.nonHdl", "lipids.triglycerides", "lipids.hdl"] },
+  { label: "Inflammation", markers: ["proteins.hsCRP", "proteins.crp", "proteins.esr", "hematology.wbc"] }
 ];
 export const CHIP_COLORS = ['#4f8cff','#34d399','#f87171','#fbbf24','#a78bfa','#f472b6','#38bdf8','#fb923c'];
 

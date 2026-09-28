@@ -41,7 +41,7 @@ function renderTherapyCorrelationResults(selection, container) {
           ${comparison.baseline ? `<p class="corr-help">Before first recorded use: ${comparison.baseline.n} measurements, mean ${escapeHTML(formatValue(comparison.baseline.mean))} ${escapeHTML(comparison.unit)}. Prior intake is unknown; these measurements are not assigned a zero dose.</p>` : ''}
           ${groups ? `<div class="corr-data-scroll" tabindex="0" role="region" aria-label="Marker averages by recorded dose"><table class="corr-data-table"><caption>Descriptive averages by recorded dose; measurements may be months apart.</caption><thead><tr><th>Dose</th><th>Measurements</th><th>Mean marker value</th><th>Lab dates</th></tr></thead><tbody>${groups}</tbody></table></div>` : '<p class="corr-help">No lab measurements have usable numeric dose information.</p>'}
           <div class="corr-data-scroll" tabindex="0" role="region" aria-label="Measurements and exclusions"><table class="corr-data-table"><thead><tr><th>Lab date</th><th>Marker value</th><th>Dose date</th><th>Recorded dose / status</th><th>Days since change</th><th>Analysis status</th><th>Source entry</th></tr></thead><tbody>${rows || '<tr><td colspan="7">No measurements for this marker.</td></tr>'}</tbody></table></div>
-          <p class="corr-help">Recorded use does not confirm intake. A lag does not account for carryover or establish a biological response time. Days since change refers to the start of the dose period or break at the chosen dose date. Conflicting same-date results are excluded; identical repeated results count once. Unknown dose is a gap, not zero. End dates include that whole day. Breaks represent no recorded use, not a biological washout.</p>
+          <p class="corr-help">Recorded use does not confirm intake. Days since change refers to the start of the dose period or break at the chosen dose date. Conflicting same-date results are excluded; identical repeated results count once. Unknown dose is a gap, not zero. End dates include that whole day. Breaks represent no recorded use, not a biological washout.</p>
           <ul class="corr-period-list">${periods}</ul>
         </details>
       </section>`;
@@ -120,7 +120,7 @@ export function renderCorrelationWorkspace(selection, container, refresh) {
   </div>
   ${!selection.markers.some(m => m.rows.length) && !selection.rangeError ? '<p class="corr-dose-notice" role="status">No lab results in this date range. Choose a wider range to include earlier measurements.</p>' : ''}
   <p id="corr-layout-status" class="corr-help" role="status"${tab !== 'timeline' ? ' hidden' : ''}>${grouping === 'combined' ? 'Combined selection' : 'Separate pairs'} · ${plotCount} ${plotCount === 1 ? 'chart' : 'charts'}. ${pairs.length === 1 ? 'Only one pair is selected, so both grouping options show the same data.' : grouping === 'separate' ? 'Each pair has its own panel below; scroll to see the remaining pairs.' : 'All visible series share this view.'}</p>
-  <p class="corr-help">${!selection.histories.length ? 'Markers are paired only on matching lab dates. ' : selection.lagDays ? `Lab results are paired with doses ${selection.lagDays} days earlier. ` : 'Lab results are paired with doses on the test date. '}History stays on its actual dates. Recorded use does not confirm intake; associations do not establish cause and effect.</p>
+  <p class="corr-help">${!selection.histories.length ? 'Markers are paired only on matching lab dates. ' : 'Lab results are paired with doses on the test date. '}History stays on its actual dates. Recorded use does not confirm intake; associations do not establish cause and effect.</p>
   ${selection.rangeError ? `<p role="alert">${esc(selection.rangeError)}</p>` : ''}
   <div class="corr-workspace-tabs" aria-label="Analysis view">${['timeline', 'scatter', 'data'].map(t => `<button type="button" id="corr-tab-${t}" data-corr-tab="${t}" aria-pressed="${t === tab}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div>
   ${selection.histories.filter(h => h.ingredientOptions.length > 1).map(h => `<label class="corr-ingredient-picker">Dose ingredient · ${esc(h.name)}<select data-corr-ingredient="${esc(h.id)}">${h.ingredientOptions.map(name => `<option value="${esc(name)}"${name === h.selectedIngredient ? ' selected' : ''}>${esc(name)}</option>`).join('')}</select></label>`).join('')}
@@ -128,16 +128,17 @@ export function renderCorrelationWorkspace(selection, container, refresh) {
   <p class="corr-help"${tab !== 'timeline' ? ' hidden' : ''}>Series buttons change visibility only. Analysis includes all selected items in this date range.</p>
   ${tab === 'timeline' ? missingDoses.map(s => `<section class="corr-dose-notice"><strong>${esc(s.name)} · No dose line in this date range</strong>${s.history.currentDoses.length ? `<p>Saved today: ${s.history.currentDoses.map(d => `${esc(d.ingredient)} ${esc(textDose(d))}`).join('; ')}.</p>` : ''}<p>${s.history.currentDoses.some(d => !d.confirmedSince) ? 'Confirm when this amount applied. Each dose change needs its own dated record.' : 'A dose line needs compatible numeric amounts on dated records. Review missing amounts, units and schedules.'} The bar shows recorded use, not dose.</p><button type="button" class="corr-review-dose" data-compare-action="review-therapy" data-compare-key="${esc(s.id)}">Set dose dates</button></section>`).join('') : ''}
   <div id="corr-workspace-plots"${tab !== 'timeline' || selection.rangeError ? ' hidden' : ''}>${groups.map((g, i) => `<section class="corr-timeline-panel${grouping === 'separate' ? ' corr-pair-panel' : ''}"><h4>${g.map(s => esc(s.name)).join(' + ')}</h4>${g.some(numeric) ? `<p class="corr-help">${[...axesFor(g)].map(([key, axis]) => `${axis.position === 'left' ? 'Left' : 'Right'}: ${g.filter(s => numeric(s) && scaleKey(s) === key).map(s => esc(s.name)).join(', ')} (${esc(axis.unit)})`).join(' · ')}</p><div class="corr-dose-chart${lanes ? ' corr-lane-chart' : ''}"><canvas id="corr-workspace-chart-${i}" role="img" aria-label="${esc(g.map(s => s.name).join(' and '))} over calendar time"></canvas></div>` : ''}${g.filter(s => s.kind === 'dose').map(s => `<div class="corr-use-timeline" data-corr-track="${esc(s.id)}"><div class="corr-use-heading">${esc(s.name)} · Recorded use <span>Not a dose scale</span></div><div class="corr-use-track"></div></div>`).join('')}</section>`).join('') || '<p>No visible series. Turn a series on above.</p>'}</div>
+  <div class="corr-inspector"${tab !== 'timeline' || selection.rangeError ? ' hidden' : ''}><div class="corr-date-heading"><strong>Values on <time id="corr-inspect-label">${correlationDate(cursor)}</time></strong><details class="corr-jump"><summary>Jump to date</summary><label class="sr-only" for="corr-inspect">Jump to date</label><input type="date" id="corr-inspect" value="${correlationDate(cursor)}" min="${correlationDate(start)}" max="${correlationDate(end - 1)}"></details></div><p class="corr-help">Point to or click the timeline to inspect a date.</p><div id="corr-readout" aria-live="polite"></div></div>
   <p class="corr-help"${tab !== 'timeline' ? ' hidden' : ''}>${lanes ? 'Aligned lanes share the same calendar. Each lane has its own labeled scale.' : 'Axes use original units; heights on different axes are not comparable.'} Points are lab results; lines are visual guides. Dose steps follow dated records. Gaps mean unknown; zero marks a recorded break or scheduled off-day.</p>
-  ${layout === 'overlay' && lanes ? '<p class="corr-help">Aligned lanes are used because the selected units or dose bases differ and need more than two scales. Hide a series to fit the remaining data in one chart.</p>' : ''}
+  ${tab === 'timeline' && layout === 'overlay' && lanes ? '<p class="corr-help">Aligned lanes are used because the selected units or dose bases differ and need more than two scales. Hide a series to fit the remaining data in one chart.</p>' : ''}
   ${selection.histories.length && tab === 'timeline' ? '<div class="corr-use-key"><span><i class="corr-use-recorded"></i>Recorded use</span><span><i class="corr-use-paused"></i>Break / scheduled off-day</span><span><i class="corr-use-unknown"></i>Unknown history</span></div>' : ''}
-  <div class="corr-inspector"${tab !== 'timeline' || selection.rangeError ? ' hidden' : ''}><label>Inspect date<input type="date" id="corr-inspect" value="${correlationDate(cursor)}" min="${correlationDate(start)}" max="${correlationDate(end - 1)}"></label><div id="corr-readout" aria-live="polite"></div></div>
-  <div class="corr-pair-analysis"><label>Analysis pair<select id="corr-pair" data-corr-setting="pair">${pairs.map((p, i) => `<option value="${i}"${i === pairIndex ? ' selected' : ''}>${esc(p.markerName)} × ${esc(p.therapyName)}</option>`).join('')}</select></label>
+  <div class="corr-pair-analysis">${pairs.length > 1 ? `<div class="corr-pair-tabs" role="tablist" aria-label="Comparison">${pairs.map((p, i) => `<button type="button" role="tab" id="corr-pair-${i}" data-corr-pair="${i}" aria-selected="${i === pairIndex}" aria-controls="corr-analysis-panel" tabindex="${i === pairIndex ? 0 : -1}">${esc(p.markerName)} × ${esc(p.therapyName)}</button>`).join('')}</div>` : ''}
+  <div id="corr-analysis-panel"${pairs.length > 1 ? ` role="tabpanel" aria-labelledby="corr-pair-${pairIndex}" tabindex="0"` : ''}>
     <p class="corr-help">${pair ? `${pair.n} eligible · ${pair.rows.length - pair.n} excluded${pair.therapyId ? ` · ${pair.groups?.length || 0} dose levels` : ''}. ` : 'No pairs available. '}Coefficients are exploratory; repeated observations, time trends and overlapping treatments can affect them.</p>
     ${tab === 'scatter' && !scatterCompatible ? '<p role="status">Scatter unavailable: these rows use different dose units, bases or ingredients. They cannot share one numeric dose axis.</p>' : ''}
     <div class="corr-dose-chart"${tab !== 'scatter' || selection.rangeError || !scatterCompatible ? ' hidden' : ''}><canvas id="corr-scatter" role="img" aria-label="Paired observations; excluded rows are not plotted"></canvas></div>
     <div id="corr-pair-detail"></div>
-  </div>
+  </div></div>
   <div class="corr-current-references">${current}</div>`;
 
   const updateSetting = (key, value) => { state.correlationView = { ...state.correlationView, [key]: value }; refresh(); };
@@ -147,6 +148,17 @@ export function renderCorrelationWorkspace(selection, container, refresh) {
     if (key === 'rangePreset') state.correlationView = { ...view, start: value === 'custom' ? selection.range.start : '', end: value === 'custom' ? selection.range.end : '' };
     updateSetting(key, value);
   }));
+  container.querySelectorAll('[data-corr-pair]').forEach(el => {
+    el.addEventListener('click', () => updateSetting('pair', el.getAttribute('data-corr-pair')));
+    el.addEventListener('keydown', event => {
+      const e = /** @type {KeyboardEvent} */ (event);
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+      e.preventDefault();
+      const next = e.key === 'Home' ? 0 : e.key === 'End' ? pairs.length - 1 : (pairIndex + (e.key === 'ArrowRight' ? 1 : -1) + pairs.length) % pairs.length;
+      updateSetting('pair', String(next));
+      container.querySelector(`#corr-pair-${next}`)?.focus();
+    });
+  });
   container.querySelectorAll('[data-corr-tab]').forEach(el => el.addEventListener('click', () => updateSetting('tab', el.getAttribute('data-corr-tab'))));
   container.querySelectorAll('[data-corr-series]').forEach(el => el.addEventListener('click', () => {
     const id = el.getAttribute('data-corr-series');
@@ -169,6 +181,7 @@ export function renderCorrelationWorkspace(selection, container, refresh) {
     const date = correlationDate(cursor);
     const input = /** @type {HTMLInputElement} */ (container.querySelector('#corr-inspect'));
     input.value = date;
+    container.querySelector('#corr-inspect-label').textContent = date;
     const readout = container.querySelector('#corr-readout');
     readout.setAttribute('aria-live', announce ? 'polite' : 'off');
     readout.innerHTML = visible.map(s => {
@@ -204,6 +217,11 @@ export function renderCorrelationWorkspace(selection, container, refresh) {
       title: { display: true, text: axis.unit, color: colors.tickColor },
       ticks: { color: colors.tickColor }, grid: { drawOnChartArea: axis.position === 'left', color: colors.gridColor },
     };
+    const pointerDay = event => {
+      const day = chart.scales.x.getValueForPixel(event.x);
+      const nearby = items.flatMap(s => s.marker?.rows.map(r => correlationDay(r.date)) || []).sort((a, b) => Math.abs(a - day) - Math.abs(b - day))[0];
+      return nearby != null && Math.abs(chart.scales.x.getPixelForValue(nearby) - event.x) <= 8 ? nearby : Math.round(day);
+    };
     const chart = createChartRuntime(container.querySelector(`#corr-workspace-chart-${index}`), {
       type: 'line', data: { datasets },
       plugins: [{ id: 'correlation-calendar-cursor', afterLayout: c => {
@@ -215,8 +233,8 @@ export function renderCorrelationWorkspace(selection, container, refresh) {
       options: {
         responsive: true, maintainAspectRatio: false, animation: false,
         layout: { padding: { left: 0, right: axes.size > 1 ? 0 : 65 } },
-        onHover: event => { if (event.x >= chart.chartArea.left && event.x <= chart.chartArea.right) inspect(Math.floor(chart.scales.x.getValueForPixel(event.x)), false); },
-        onClick: event => { const day = Math.floor(chart.scales.x.getValueForPixel(event.x)); if (Number.isFinite(day)) { state.correlationView.inspectDate = correlationDate(day); inspect(day); } },
+        onHover: event => { if (event.x >= chart.chartArea.left && event.x <= chart.chartArea.right) inspect(pointerDay(event), false); },
+        onClick: event => { const day = pointerDay(event); if (Number.isFinite(day)) { state.correlationView.inspectDate = correlationDate(day); inspect(day); } },
         plugins: { legend: { display: false }, tooltip: { callbacks: { title: points => points.length ? correlationDate(Math.floor(points[0].parsed.x)) : '', label: p => `${p.dataset.label}: ${p.raw.label || formatValue(p.parsed.y)}` } } },
         scales: {
           x: { type: 'linear', min: start, max: end, afterBuildTicks: axis => { const count = axis.chart.width < 480 ? 3 : 5; axis.ticks = Array.from({ length: count }, (_, i) => ({ value: Math.round(start + (end - 1 - start) * i / (count - 1)) })); }, title: { display: true, text: 'Calendar date', color: colors.tickColor }, ticks: { color: colors.tickColor, maxTicksLimit: 4, includeBounds: false, callback: v => correlationDate(Math.round(Number(v))) }, grid: { color: colors.gridColor } },

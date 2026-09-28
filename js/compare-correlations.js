@@ -2,8 +2,8 @@
 // compare-correlations.js - Compare Dates and Correlations views
 
 import { state } from './state.js';
-import { getSupplementRecordId, CORRELATION_LAGS } from './supplement-medication-domain.js';
-import { CORRELATION_PRESETS, CHIP_COLORS } from './schema.js';
+import { getSupplementRecordId } from './supplement-medication-domain.js';
+import { CORRELATION_PRESETS, CHIP_COLORS, MARKER_SCHEMA } from './schema.js';
 import { escapeHTML, escapeAttr, getStatus, formatValue } from './utils.js';
 import { getActiveData } from './data.js';
 import { formatRangeBounds, getEffectiveRangeForDate, resolveMarkerRangeContext } from './marker-analysis.js';
@@ -166,12 +166,6 @@ function handleCompareKeydown(event) {
 function handleCompareChange(event) {
   const actionEl = closestCompareTarget(event, '[data-compare-change-action]');
   if (!actionEl) return;
-  if (actionEl.dataset.compareChangeAction === 'set-lag') {
-    const lag = Number(/** @type {HTMLSelectElement} */ (actionEl).value);
-    state.correlationLagDays = CORRELATION_LAGS.includes(lag) ? lag : 0;
-    renderCorrelationChart();
-    return;
-  }
   if (actionEl.dataset.compareChangeAction !== 'set-date') return;
   const value = 'value' in actionEl ? String(actionEl.value) : '';
   if (actionEl.dataset.compareIndex === '1') setCompareDate1(value);
@@ -405,15 +399,14 @@ export function showCorrelations(data) {
     </div>
     <div class="corr-chips" id="corr-chips"></div>
     <p class="corr-help" id="corr-selection-status" role="status"></p>
-    <details class="corr-presets"><summary>Marker presets</summary><p class="corr-help">Replace markers; keep treatments.</p>`;
+    <details class="corr-presets"><summary>Marker presets</summary><p class="corr-help">Explore related markers already in your data. Replaces markers; keeps treatments.</p><div class="corr-preset-grid">`;
   for (let i = 0; i < CORRELATION_PRESETS.length; i++) {
-    html += `<button class="corr-preset-btn" ${compareActionAttrs('apply-preset', { index: i })}>${CORRELATION_PRESETS[i].label}</button>`;
+    const preset = CORRELATION_PRESETS[i];
+    const available = availablePresetMarkers(preset, data).length;
+    const names = preset.markers.map(key => { const [cat, name] = key.split('.'); return MARKER_SCHEMA[cat]?.markers[name]?.name || name; }).join(', ');
+    html += `<button class="corr-preset-btn" aria-label="${escapeAttr(preset.label)}" ${compareActionAttrs('apply-preset', { index: i })}${available ? '' : ' disabled'}><strong>${escapeHTML(preset.label)}</strong><span>${escapeHTML(names)}</span><small>${available}/${preset.markers.length} available</small></button>`;
   }
-  html += `</details><p class="corr-help">Choose two biomarkers, or a biomarker and a treatment.</p>
-    <details class="corr-advanced"${state.correlationLagDays ? ' open' : ''}><summary>Advanced analysis</summary>
-    <label class="corr-lag-control" for="corr-lag">Dose timing relative to lab test
-      <select id="corr-lag" ${compareChangeAttrs('set-lag')}>${CORRELATION_LAGS.map(days => `<option value="${days}"${state.correlationLagDays === days ? ' selected' : ''}>${days ? `${days} days earlier` : 'on the test date'}</option>`).join('')}</select>
-    </label><p class="corr-help">Pairs each result with the dose on that earlier date, not an average over the interval. The timeline keeps its actual dates.</p></details></div>`;
+  html += `</div></details><p class="corr-help">Choose two biomarkers, or a biomarker and a treatment.</p></div>`;
   html += `<div class="corr-chart-container" id="corr-chart-container" style="display:none">
     <h3><span id="corr-chart-title">Explore selected data</span>
       <button class="corr-ask-ai-btn" ${compareActionAttrs('ask-ai-correlations')} title="Ask AI about these correlations">Ask AI</button>
@@ -497,14 +490,22 @@ export function toggleCorrelationMarker(key) {
   }
 }
 
+function availablePresetMarkers(preset, data) {
+  return preset.markers.filter(key => {
+    const [cat, name] = key.split('.');
+    const marker = data.categories[cat]?.markers[name];
+    return !marker?.singlePoint && marker?.values.some(v => typeof v === 'number' && Number.isFinite(v));
+  });
+}
+
 export function applyCorrelationPreset(idx) {
   if (!CORRELATION_PRESETS[idx]) return;
   const data = getActiveData();
-  state.selectedCorrelationMarkers = CORRELATION_PRESETS[idx].markers.filter(key => {
-    const [cat, name] = key.split('.');
-    return data.categories[cat]?.markers[name]?.values.some(v => typeof v === 'number' && Number.isFinite(v));
-  }).slice(0, 8 - state.selectedCorrelationSupplements.length);
-  correlationNotice(`Preset: ${state.selectedCorrelationMarkers.length} available markers. Treatments kept.`);
+  const available = availablePresetMarkers(CORRELATION_PRESETS[idx], data);
+  if (!available.length) { correlationNotice('No markers from this preset are available in your data.'); return; }
+  state.selectedCorrelationMarkers = available.slice(0, 8 - state.selectedCorrelationSupplements.length);
+  state.correlationView.pair = '0';
+  correlationNotice(`Preset: ${state.selectedCorrelationMarkers.length}/${CORRELATION_PRESETS[idx].markers.length} markers selected. Treatments kept.${available.length > state.selectedCorrelationMarkers.length ? ' Selection limited to 8 items.' : ''}`);
   renderCorrelationChips();
   populateCorrelationOptions();
   closeCorrelationDropdown();
@@ -572,7 +573,7 @@ export function renderCorrelationChart() {
     });
     return;
   }
-  const selection = therapyModules.prepareCorrelationSelection(data, state.importedData, state.selectedCorrelationMarkers, state.selectedCorrelationSupplements, state.correlationLagDays, state.correlationView);
+  const selection = therapyModules.prepareCorrelationSelection(data, state.importedData, state.selectedCorrelationMarkers, state.selectedCorrelationSupplements, 0, state.correlationView);
   therapyModules.renderCorrelationWorkspace(selection, results, renderCorrelationChart);
   if (focused?.startsWith('corr-')) document.getElementById(focused)?.focus({ preventScroll: true });
 }

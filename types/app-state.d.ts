@@ -95,7 +95,6 @@ export interface AppState {
   showAltUnits: boolean;
   selectedCorrelationMarkers: string[];
   selectedCorrelationSupplements: string[];
-  correlationLagDays: number;
   correlationView: { rangePreset?: string; ingredients?: Record<string, string>; grouping?: string; layout?: string; start?: string; end?: string; tab?: string; pair?: string; inspectDate?: string; hidden?: string[] };
   currentProfile: string;
   nutritionSummary: Record<string, any> | null;
