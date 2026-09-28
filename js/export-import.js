@@ -589,19 +589,30 @@ export function importDataJSON(file) {
 async function _importDatabaseBundle(json) {
   const profiles = getProfiles();
   let created = 0, merged = 0, firstImportedId = null;
+  const plans = [];
   for (const bp of json.profiles) {
     if (!bp.name && !bp.id) continue;
     // Match by id first, then by name
     let existing = profiles.find(p => p.id === bp.id);
     if (!existing && bp.name) existing = profiles.find(p => p.name === bp.name);
     const importData = bp.data || {};
+    if (existing && plans.some(p => p.existing?.id === existing.id)) throw new Error('Duplicate profile in bundle.');
+    const key = existing ? profileStorageKey(existing.id, 'imported') : '';
+    const raw = key ? await encryptedGetItem(key) : null;
+    let current;
+    try { current = raw ? JSON.parse(raw) : {}; } catch { current = {}; }
+    const replaceRegimens = await confirmRegimenImport(current, importData.supplements);
+    plans.push({ bp, existing, importData, key, raw, current, replaceRegimens });
+  }
+  // Resolve every conflict, then validate every snapshot before the first write.
+  for (const p of plans) if (p.key && await encryptedGetItem(p.key) !== p.raw) throw new Error('Profile changed. Retry import.');
+  for (const { bp, existing, importData, current, replaceRegimens } of plans) {
     if (existing) {
       // A portable import that targets an existing identity is an explicit
       // decision to keep that profile. Retire any durable delete intent before
       // metadata updates queue sync, or the restored data remains blocked and
       // the next pull can delete it again.
       _reviveImportedProfileSyncIdentity(existing.id);
-      // Merge into existing profile — update metadata from bundle
       if (!firstImportedId) firstImportedId = existing.id;
       const meta = {};
       if (bp.name) meta.name = bp.name;
@@ -615,12 +626,6 @@ async function _importDatabaseBundle(json) {
       if (bp.pinned) meta.pinned = bp.pinned;
       if (bp.height) { meta.height = bp.height; meta.heightUnit = bp.heightUnit || 'cm'; }
       if (Object.keys(meta).length) await updateProfileMeta(existing.id, meta);
-      const storageKey = profileStorageKey(existing.id, 'imported');
-      const raw = await encryptedGetItem(storageKey);
-      let current;
-      try { current = raw ? JSON.parse(raw) : {}; } catch { current = {}; }
-      const replaceRegimens = await confirmRegimenImport(current, importData.supplements);
-      if (await encryptedGetItem(storageKey) !== raw) throw new Error('Profile changed. Retry import.');
       // Entries: date-keyed upsert
       if (Array.isArray(importData.entries)) {
         const entries = ensureImportedArray(current, 'entries');
@@ -744,7 +749,6 @@ async function _importDatabaseBundle(json) {
       await _importNutritionData(existing.id, bp.nutrition);
       merged++;
     } else {
-      // Create new profile
       const id = await createProfile(bp.name || 'Imported', {
         sex: bp.sex || null, dob: bp.dob || null,
         location: bp.location || { country: '', zip: '' },
@@ -754,7 +758,6 @@ async function _importDatabaseBundle(json) {
       });
       if (!firstImportedId) firstImportedId = id;
       if (bp.pinned) await updateProfileMeta(id, { pinned: true });
-      // Write data
       const persisted = await saveImportedDataForProfile(id, importData, {
         forceProfileScope: true,
       });

@@ -205,10 +205,10 @@ export function showCompare(data) {
   if (!main) return;
   if (!data) data = getActiveData();
   let html = `<div class="category-header"><h2>Compare Dates</h2>
-    <p>Side-by-side comparison of biomarker values between two collection dates</p></div>`;
+<p>Side-by-side comparison of biomarker values between two collection dates</p></div>`;
   if (data.dates.length < 2) {
     html += `<div class="empty-state"><div class="empty-state-icon">\u2194</div>
-      <h3>Not Enough Data</h3><p>Import at least 2 lab result dates to compare values side by side.</p></div>`;
+<h3>Not Enough Data</h3><p>Import at least 2 lab result dates to compare values side by side.</p></div>`;
     main.innerHTML = html;
     return;
   }
@@ -219,14 +219,14 @@ export function showCompare(data) {
     return `<option value="${d}">${label}</option>`;
   };
   html += `<div class="compare-controls">
-    <label class="compare-date-field" for="compare-select-1"><span>Date 1:</span>
-      <select id="compare-select-1" ${compareChangeAttrs('set-date', { index: '1' })}>${data.dates.map(d => fmtOpt(d)).join('')}</select>
-    </label>
-    <button class="compare-swap-btn" ${compareActionAttrs('swap-dates')} title="Swap dates" aria-label="Swap dates">\u21C4</button>
-    <label class="compare-date-field" for="compare-select-2"><span>Date 2:</span>
-      <select id="compare-select-2" ${compareChangeAttrs('set-date', { index: '2' })}>${data.dates.map(d => fmtOpt(d)).join('')}</select>
-    </label>
-  </div>`;
+<label class="compare-date-field" for="compare-select-1"><span>Date 1:</span>
+<select id="compare-select-1" ${compareChangeAttrs('set-date', { index: '1' })}>${data.dates.map(d => fmtOpt(d)).join('')}</select>
+</label>
+<button class="compare-swap-btn" ${compareActionAttrs('swap-dates')} title="Swap dates" aria-label="Swap dates">\u21C4</button>
+<label class="compare-date-field" for="compare-select-2"><span>Date 2:</span>
+<select id="compare-select-2" ${compareChangeAttrs('set-date', { index: '2' })}>${data.dates.map(d => fmtOpt(d)).join('')}</select>
+</label>
+</div>`;
   html += `<div id="compare-results"></div>`;
   main.innerHTML = html;
   const select1 = /** @type {HTMLSelectElement | null} */ (document.getElementById('compare-select-1'));
@@ -274,11 +274,11 @@ function compareRangeContextSignature(context) {
 function renderCompareRangeLines(context) {
   const showUsedBadge = context.displayedRanges.length > 1;
   return context.displayedRanges.map(range => `
-    <span class="compare-range-line${range.usedForStatus ? ' compare-range-line-used' : ''}">
-      <span class="compare-range-label">${escapeHTML(range.label)}</span>
-      <span class="compare-range-bounds">${escapeHTML(formatRangeBounds(range))}</span>
-      ${showUsedBadge && range.usedForStatus ? '<span class="compare-range-used">used</span>' : ''}
-    </span>`).join('');
+<span class="compare-range-line${range.usedForStatus ? ' compare-range-line-used' : ''}">
+<span class="compare-range-label">${escapeHTML(range.label)}</span>
+<span class="compare-range-bounds">${escapeHTML(formatRangeBounds(range))}</span>
+${showUsedBadge && range.usedForStatus ? '<span class="compare-range-used">used</span>' : ''}
+</span>`).join('');
 }
 
 function renderCompareRangeCell(context1, context2, date1Label, date2Label) {
@@ -286,15 +286,15 @@ function renderCompareRangeCell(context1, context2, date1Label, date2Label) {
     return `<div class="compare-range-stack">${renderCompareRangeLines(context1)}</div>`;
   }
   return `<div class="compare-range-stack compare-range-stack-dated">
-    <div class="compare-range-date-group">
-      <span class="compare-range-date">${escapeHTML(date1Label)}</span>
-      ${renderCompareRangeLines(context1)}
-    </div>
-    <div class="compare-range-date-group">
-      <span class="compare-range-date">${escapeHTML(date2Label)}</span>
-      ${renderCompareRangeLines(context2)}
-    </div>
-  </div>`;
+<div class="compare-range-date-group">
+<span class="compare-range-date">${escapeHTML(date1Label)}</span>
+${renderCompareRangeLines(context1)}
+</div>
+<div class="compare-range-date-group">
+<span class="compare-range-date">${escapeHTML(date2Label)}</span>
+${renderCompareRangeLines(context2)}
+</div>
+</div>`;
 }
 
 function normalizedDistanceOutsideRange(value, range) {
@@ -334,8 +334,8 @@ export function renderCompareTable(data, idx1, idx2) {
     'gb-col-delta',
   ]);
   const headHtml = `<tr>
-    <th>Biomarker</th><th>Unit</th><th>Ranges</th>
-    <th>${escapeHTML(d1Label)}</th><th>${escapeHTML(d2Label)}</th><th>Delta</th><th>% Change</th></tr>`;
+<th>Biomarker</th><th>Unit</th><th>Ranges</th>
+<th>${escapeHTML(d1Label)}</th><th>${escapeHTML(d2Label)}</th><th>Delta</th><th>% Change</th></tr>`;
   let bodyHtml = '';
   for (const [catKey, cat] of Object.entries(data.categories)) {
     if (cat.singlePoint) continue;
@@ -358,14 +358,14 @@ export function renderCompareTable(data, idx1, idx2) {
       }
       const rangeCell = renderCompareRangeCell(rangeContext1, rangeContext2, d1Label, d2Label);
       rows.push(`<tr>
-        <td class="marker-name">${escapeHTML(marker.name)}</td>
-        <td style="color:var(--text-muted);font-size:12px">${escapeHTML(marker.unit)}</td>
-        <td class="compare-ranges-cell">${rangeCell}</td>
-        <td class="value-cell val-${s1}" style="font-weight:600">${v1 !== null ? formatValue(v1) : '\u2014'}</td>
-        <td class="value-cell val-${s2}" style="font-weight:600">${v2 !== null ? formatValue(v2) : '\u2014'}</td>
-        <td class="${directionClass}" style="font-weight:600">${delta !== null ? (delta > 0 ? '+' : '') + formatValue(delta) : '\u2014'}</td>
-        <td class="${directionClass}" style="font-weight:600">${pctChange !== null ? (pctChange > 0 ? '+' : '') + pctChange.toFixed(1) + '%' : '\u2014'}</td>
-      </tr>`);
+<td class="marker-name">${escapeHTML(marker.name)}</td>
+<td style="color:var(--text-muted);font-size:12px">${escapeHTML(marker.unit)}</td>
+<td class="compare-ranges-cell">${rangeCell}</td>
+<td class="value-cell val-${s1}" style="font-weight:600">${v1 !== null ? formatValue(v1) : '\u2014'}</td>
+<td class="value-cell val-${s2}" style="font-weight:600">${v2 !== null ? formatValue(v2) : '\u2014'}</td>
+<td class="${directionClass}" style="font-weight:600">${delta !== null ? (delta > 0 ? '+' : '') + formatValue(delta) : '\u2014'}</td>
+<td class="${directionClass}" style="font-weight:600">${pctChange !== null ? (pctChange > 0 ? '+' : '') + pctChange.toFixed(1) + '%' : '\u2014'}</td>
+</tr>`);
     }
     if (rows.length > 0) {
       bodyHtml += `<tr class="cat-row"><td colspan="7"><span class="compare-category-label">${renderCategoryGlyph(catKey, cat.label)}<span>${escapeHTML(cat.label)}</span></span></td></tr>`;
@@ -386,19 +386,19 @@ export function showCorrelations(data) {
   state.selectedCorrelationSupplements = state.selectedCorrelationSupplements.filter(id => (state.importedData.supplements || []).some(record => getSupplementRecordId(record) === id));
   if (JSON.stringify([state.selectedCorrelationMarkers, state.selectedCorrelationSupplements]) !== before) void saveCorrelationWorkspace();
   let html = `<div class="category-header"><h2>Correlations</h2>
-    <p>Compare biomarker trends with recorded supplement and medication doses</p></div>`;
+<p>Compare biomarker trends with recorded supplement and medication doses</p></div>`;
   html += `<div class="correlation-controls">
-    <h3>Select biomarkers, supplements &amp; medications (up to 8)</h3>
-    <div class="corr-select-row">
-      <div class="corr-dropdown">
-        <input type="text" class="corr-search" id="corr-search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="corr-options" aria-label="Search biomarkers, supplements and medications" placeholder="Search your data..."
-          ${compareInputAttrs('filter-options')} ${compareFocusAttrs('show-dropdown')}>
-        <div class="corr-options" id="corr-options" role="listbox" aria-label="Available items" aria-multiselectable="true"></div>
-      </div>
-    </div>
-    <div class="corr-chips" id="corr-chips"></div>
-    <p class="corr-help" id="corr-selection-status" role="status"></p>
-    <details class="corr-presets"><summary>Marker presets</summary><p class="corr-help">Explore related markers already in your data. Replaces markers; keeps treatments.</p><div class="corr-preset-grid">`;
+<h3>Select biomarkers, supplements &amp; medications (up to 8)</h3>
+<div class="corr-select-row">
+<div class="corr-dropdown">
+<input type="text" class="corr-search" id="corr-search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="corr-options" aria-label="Search biomarkers, supplements and medications" placeholder="Search your data..."
+${compareInputAttrs('filter-options')} ${compareFocusAttrs('show-dropdown')}>
+<div class="corr-options" id="corr-options" role="listbox" aria-label="Available items" aria-multiselectable="true"></div>
+</div>
+</div>
+<div class="corr-chips" id="corr-chips"></div>
+<p class="corr-help" id="corr-selection-status" role="status"></p>
+<details class="corr-presets"><summary>Marker presets</summary><p class="corr-help">Explore related markers already in your data. Replaces markers; keeps treatments.</p><div class="corr-preset-grid">`;
   for (let i = 0; i < CORRELATION_PRESETS.length; i++) {
     const preset = CORRELATION_PRESETS[i];
     const available = availablePresetMarkers(preset, data).length;
@@ -407,10 +407,10 @@ export function showCorrelations(data) {
   }
   html += `</div></details><p class="corr-help" id="corr-selection-help">Choose two biomarkers, or a biomarker and a treatment.</p></div>`;
   html += `<div class="corr-chart-container" id="corr-chart-container" style="display:none">
-    <h3><span id="corr-chart-title">Explore selected data</span>
-      <button class="corr-ask-ai-btn" ${compareActionAttrs('ask-ai-correlations')} title="Ask AI about these correlations">Ask AI</button>
-    </h3>
-    <div id="corr-therapy-results"></div></div>`;
+<h3><span id="corr-chart-title">Explore selected data</span>
+<button class="corr-ask-ai-btn" ${compareActionAttrs('ask-ai-correlations')} title="Ask AI about these correlations">Ask AI</button>
+</h3>
+<div id="corr-therapy-results"></div></div>`;
   main.innerHTML = html;
   populateCorrelationOptions(data);
   renderCorrelationChips();
@@ -432,7 +432,7 @@ export function populateCorrelationOptions(data) {
       html += `<div class="corr-option ${selected ? 'selected' : ''}"
         data-key="${escapeAttr(fullKey)}" data-name="${escapeHTML(marker.name)}" data-cat="${escapeHTML(cat.label)}"
         role="option" aria-selected="${selected}" tabindex="-1" ${compareActionAttrs('toggle-marker', { key: fullKey })}>
-        ${escapeHTML(marker.name)} <span class="opt-cat">${escapeHTML(cat.label)} · ${count} results</span></div>`;
+${escapeHTML(marker.name)} <span class="opt-cat">${escapeHTML(cat.label)} · ${count} results</span></div>`;
     }
   }
   for (const therapy of state.importedData.supplements || []) {
@@ -521,7 +521,7 @@ export function renderCorrelationChips() {
     if (!marker) return;
     const color = CHIP_COLORS[i % CHIP_COLORS.length];
     html += `<span class="corr-chip" style="background:${color}20;border-color:${color};color:${color}">
-      ${escapeHTML(marker.name)} <button type="button" class="chip-remove" aria-label="Remove ${escapeAttr(marker.name)}" ${compareActionAttrs('toggle-marker', { key })}>&times;</button></span>`;
+${escapeHTML(marker.name)} <button type="button" class="chip-remove" aria-label="Remove ${escapeAttr(marker.name)}" ${compareActionAttrs('toggle-marker', { key })}>&times;</button></span>`;
   });
   for (const id of state.selectedCorrelationSupplements) {
     const therapy = (state.importedData.supplements || []).find(s => getSupplementRecordId(s) === id);

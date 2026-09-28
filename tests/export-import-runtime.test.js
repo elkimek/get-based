@@ -549,6 +549,26 @@ describe('JSON restore runtime', () => {
     expect(JSON.parse(localStorage.getItem('profile-1:imported'))).toEqual({ ...saved, note: 'Concurrent edit' });
   });
 
+  it('preflights every bundle conflict before saving or updating any profile', async () => {
+    runtime.getProfiles.mockReturnValueOnce([{ id: 'profile-1', name: 'First' }, { id: 'profile-2', name: 'Second' }]);
+    const first = { supplements: [{ id: 'a', name: 'First regimen', startDate: '2026-03-24' }] };
+    const second = { supplements: [{ id: 'b', name: 'Second regimen', startDate: '2026-03-24' }] };
+    localStorage.setItem('profile-1:imported', JSON.stringify(first));
+    localStorage.setItem('profile-2:imported', JSON.stringify(second));
+    runtime.showConfirmDialog.mockResolvedValueOnce(true).mockImplementationOnce(async () => {
+      localStorage.setItem('profile-2:imported', JSON.stringify({ ...second, note: 'Concurrent change' }));
+      return true;
+    });
+    const profiles = [first, second].map((data, index) => ({ id: `profile-${index + 1}`, name: 'Renamed profile', data: { supplements: [{ ...data.supplements[0], note: 'Imported change' }] } }));
+    await importDataJSON(new File([JSON.stringify({ type: 'database', profiles })], 'two-profiles.json'));
+    expect(runtime.saveImportedDataForProfile).not.toHaveBeenCalled();
+    const { updateProfileMeta, createProfile } = await import('../js/profile.js');
+    expect(updateProfileMeta).not.toHaveBeenCalled();
+    expect(createProfile).not.toHaveBeenCalled();
+    expect(JSON.parse(localStorage.getItem('profile-1:imported'))).toEqual(first);
+    expect(JSON.parse(localStorage.getItem('profile-2:imported'))).toEqual({ ...second, note: 'Concurrent change' });
+  });
+
   it('keeps an unlinked daily regimen intact without inventing historical dose dates', async () => {
     const tmg = { id: 'sm_unlinked', name: 'Unlinked TMG', startDate: '2026-03-24', timesPerDay: 1,
       ingredients: [{ name: 'TMG', amount: '500 mg' }], periods: [{ start: '2026-03-24', end: null }],
