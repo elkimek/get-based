@@ -36,24 +36,29 @@ import {
 
 const MAX_PORTABLE_JSON_BYTES = 512 * 1024 * 1024;
 
-// A restore replaces a matching stable identity with the imported snapshot.
+// Merge supplied fields by stable ID; keep missing fields and newer local records.
 // Legacy records without a matching ID retain name/date deduplication.
 function importSupplements(target, records) {
   if (!Array.isArray(records)) return;
   const supplements = ensureImportedArray(target, 'supplements');
+  let older = 0;
   for (const s of records) {
     if (!s?.name || !s.startDate) continue;
     const index = s.id ? supplements.findIndex(x => x.id === s.id) : -1;
     if (index < 0 && supplements.some(x => x.name === s.name && x.startDate === s.startDate)) continue;
-    const entry = { ...s, dosage: s.dosage || '', endDate: s.endDate || null, type: s.type || 'supplement', note: s.note || '' };
+    const saved = supplements[index];
+    if ((Number(saved?.updatedAt) || 0) > (Number(s.updatedAt) || 0)) { older++; continue; }
+    const entry = { dosage: '', endDate: null, type: 'supplement', note: '', ...saved, ...s };
+    const sourceUrl = entry.sourceUrl;
     delete entry.sourceUrl;
     try {
-      const url = new URL(s.sourceUrl);
+      const url = new URL(sourceUrl);
       if (url.protocol === 'http:' || url.protocol === 'https:') entry.sourceUrl = url.toString();
     } catch {}
     if (index >= 0) replaceImportedArrayItem(target, 'supplements', index, entry);
     else appendImportedArrayItem(target, 'supplements', entry);
   }
+  if (older) showNotification(`Kept ${older} newer saved regimen(s).`, 'info');
 }
 
 async function _importNutritionData(profileId, nutrition) {

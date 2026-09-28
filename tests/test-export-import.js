@@ -112,7 +112,7 @@ return (async function() {
   assert('JSON and database bundle imports restore nutritionTargets',
     exportImportSrc.includes('state.importedData.nutritionTargets = json.nutritionTargets')
       && exportImportSrc.includes('current.nutritionTargets = importData.nutritionTargets'));
-  assert('Supplement import preserves safe sourceUrl', exportImportSrc.includes('entry.sourceUrl = sourceUrl.toString()'));
+  assert('Supplement import preserves safe sourceUrl', exportImportSrc.includes("if (url.protocol === 'http:' || url.protocol === 'https:') entry.sourceUrl = url.toString()"));
   // Light & Sun stack — earlier export schema dropped these silently;
   // import learned them in v1.6.x but export hadn't followed suit.
   assert('Client export includes sunSessions', exportSrc.includes('sunSessions: data.sunSessions'));

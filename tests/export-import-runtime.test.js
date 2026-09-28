@@ -497,6 +497,28 @@ describe('JSON restore runtime', () => {
     expect(records[2]).toMatchObject({ id: 'new-id', name: 'Latest name', periods: edited.periods });
   });
 
+  it.each(['profile', 'database'])('preserves omitted regimen fields and rejects older snapshots in a %s import', async format => {
+    const saved = { id: 'stable', name: 'TMG', startDate: '2026-03-24', updatedAt: 200,
+      periods: [{ start: '2026-03-24', end: null, dose: '500 mg', schedule: { mode: 'daily' } }],
+      ingredients: [{ name: 'TMG', amount: '500 mg' }], schedule: { mode: 'daily' },
+      lifecycle: { state: 'active' }, sourceUrl: 'https://example.test/tmg', futureField: { keep: true } };
+    runtime.state.importedData.supplements = [saved];
+    localStorage.setItem('profile-1:imported', JSON.stringify(runtime.state.importedData));
+    async function restore(record) {
+      const data = { entries: [{ date: '2026-05-22', markers: { glucose: 90 } }], supplements: [record] };
+      const backup = format === 'profile' ? data : { type: 'database', profiles: [{ id: 'profile-1', name: 'Primary', data }] };
+      await importDataJSON(new File([JSON.stringify(backup)], 'partial.json'));
+      return format === 'profile' ? runtime.state.importedData.supplements : JSON.parse(localStorage.getItem('profile-1:imported')).supplements;
+    }
+    const older = await restore({ ...saved, updatedAt: 100, periods: [], ingredients: [], schedule: { mode: 'prn' }, lifecycle: { state: 'ended' } });
+    expect(older).toEqual([saved]);
+    const undated = await restore({ id: saved.id, name: 'Old export', startDate: saved.startDate, periods: [], ingredients: [] });
+    expect(undated).toEqual([saved]);
+    expect(runtime.showNotification).toHaveBeenCalledWith('Kept 1 newer saved regimen(s).', 'info');
+    const partial = await restore({ id: saved.id, name: 'Renamed TMG', startDate: saved.startDate, note: 'Updated note', updatedAt: 300 });
+    expect(partial).toEqual([{ dosage: '', endDate: null, type: 'supplement', ...saved, name: 'Renamed TMG', note: 'Updated note', updatedAt: 300 }]);
+  });
+
   it('keeps an unlinked daily regimen intact without inventing historical dose dates', async () => {
     const tmg = { id: 'sm_unlinked', name: 'Unlinked TMG', startDate: '2026-03-24', timesPerDay: 1,
       ingredients: [{ name: 'TMG', amount: '500 mg' }], periods: [{ start: '2026-03-24', end: null }],

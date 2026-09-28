@@ -155,7 +155,7 @@ test('encrypted profile loading preserves a complete ongoing ingredient regimen 
     id: 'sm_shared_regimen', name: 'TMG Powder', dosage: 'scoop', type: 'supplement', note: '', schemaVersion: 2,
     startDate: '2026-03-24', endDate: null, timesPerDay: 1, schedule: { mode: 'daily', timesPerDay: 1 },
     ingredients: [{ name: 'TMG', amountValue: 500, amountUnit: 'mg' }],
-    periods: [{ start: '2026-03-24', end: null, ingredientDoses: [{ ingredient: 'TMG', value: 500, unit: 'mg', basis: 'day', source: 'ingredient' }] }],
+    periods: [{ start: '2026-03-24', end: null, schedule: { mode: 'daily', timesPerDay: 1 }, ingredientDoses: [{ ingredient: 'TMG', value: 500, unit: 'mg', basis: 'day', source: 'ingredient' }] }],
     lifecycle: { state: 'active' }, sourceUrl: 'https://example.test/tmg',
   };
   const envelope = await page.evaluate(async source => {

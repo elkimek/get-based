@@ -332,9 +332,9 @@ function showPreparedRoute(route, label, isReady, prepare, render, args = []) {
   if (content) renderDeferredRouteStatus(content, `Loading ${label}…`, { busy: true });
 
   return prepare()
-    .then(() => {
+    .then(async () => {
       if (state.currentView !== route) return false;
-      render(...args);
+      if (await render(...args) === false || state.currentView !== route) return false;
       // A prepared Dashboard renders its mobile shell after createNavigate's
       // initial nav sync. Reconcile again so the temporary lens tab bar is
       // removed instead of remaining beside the Dashboard-owned tab bar.
