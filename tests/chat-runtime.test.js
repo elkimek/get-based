@@ -831,6 +831,7 @@ function installMarkerPromptMocks() {
   const state = {
     currentProfile: 'profile-test', importedData: { entries: [], supplements: [] }, selectedCorrelationSupplements: [], correlationView: {},
     currentThreadId: 'thread-marker',
+    chatThreads: [{ id: 'thread-marker' }],
     chatHistory: [],
     markerRegistry: {},
     selectedCorrelationMarkers: [],
@@ -992,6 +993,22 @@ describe('chat marker prompt runtime behavior', () => {
     await (await import('../js/chat-marker-prompts.js')).askAIAboutCorrelations();
     await vi.waitFor(() => expect(deps.loadChatThreads).toHaveBeenCalled());
     expect(deps.openChatPanel).not.toHaveBeenCalled();
+  });
+
+  it.each(['loadChatHistory', 'saveChatHistory'])('does not create a thread when permission changes during %s', async operation => {
+    const deps = installMarkerPromptMocks();
+    deps.state.selectedCorrelationMarkers = ['test.a', 'test.b'];
+    deps.state.chatHistory = [{ role: 'user', content: 'Existing conversation' }];
+    deps.getActiveData.mockReturnValue({ dates: ['2026-02-01'], categories: { test: { markers: {
+      a: { name: 'A', unit: 'mg', values: [1] }, b: { name: 'B', unit: 'mg', values: [2] },
+    } } } });
+    deps[operation].mockImplementation(async () => { deps.state.importedData.contextSourceSettings = { 'lab-markers': false }; });
+    await (await import('../js/chat-marker-prompts.js')).askAIAboutCorrelations();
+    await vi.waitFor(() => expect(deps[operation]).toHaveBeenCalled());
+    expect(deps.createNewThread).not.toHaveBeenCalled();
+    expect(deps.renameThread).not.toHaveBeenCalled();
+    expect(deps.openChatPanel).not.toHaveBeenCalled();
+    expect(deps.state.currentThreadId).toBe('thread-marker');
   });
 
   it('does not carry a prepared correlation prompt into a different profile', async () => {

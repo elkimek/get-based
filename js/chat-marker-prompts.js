@@ -17,16 +17,17 @@ async function openSourcePrompt(prompt, threadName, { closeModal = false, canOpe
   if (!canOpen()) return;
   if (closeModal) closeChatModalRuntime();
   const threadsLoaded = await loadChatThreads();
-  if (threadsLoaded === false || state.currentProfile !== profile) return;
-  ensureActiveThread();
-  await loadChatHistory();
-  if (state.currentProfile !== profile) return;
-  if (state.chatHistory.length > 0) {
-    await saveChatHistory();
-    if (state.currentProfile !== profile) return;
-    createNewThread();
-  }
-  if (!canOpen()) return;
+  if (threadsLoaded === false || state.currentProfile !== profile || !canOpen()) return;
+  if (state.chatThreads.length) {
+    ensureActiveThread();
+    await loadChatHistory();
+    if (state.currentProfile !== profile || !canOpen()) return;
+    if (state.chatHistory.length > 0) {
+      await saveChatHistory();
+      if (state.currentProfile !== profile || !canOpen()) return;
+      createNewThread();
+    }
+  } else ensureActiveThread();
   renameThread(state.currentThreadId, threadName);
   await openChatPanel(prompt);
 }

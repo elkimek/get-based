@@ -36,6 +36,26 @@ import {
 
 const MAX_PORTABLE_JSON_BYTES = 512 * 1024 * 1024;
 
+// A restore replaces a matching stable identity with the imported snapshot.
+// Legacy records without a matching ID retain name/date deduplication.
+function importSupplements(target, records) {
+  if (!Array.isArray(records)) return;
+  const supplements = ensureImportedArray(target, 'supplements');
+  for (const s of records) {
+    if (!s?.name || !s.startDate) continue;
+    const index = s.id ? supplements.findIndex(x => x.id === s.id) : -1;
+    if (index < 0 && supplements.some(x => x.name === s.name && x.startDate === s.startDate)) continue;
+    const entry = { ...s, dosage: s.dosage || '', endDate: s.endDate || null, type: s.type || 'supplement', note: s.note || '' };
+    delete entry.sourceUrl;
+    try {
+      const url = new URL(s.sourceUrl);
+      if (url.protocol === 'http:' || url.protocol === 'https:') entry.sourceUrl = url.toString();
+    } catch {}
+    if (index >= 0) replaceImportedArrayItem(target, 'supplements', index, entry);
+    else appendImportedArrayItem(target, 'supplements', entry);
+  }
+}
+
 async function _importNutritionData(profileId, nutrition) {
   if (!nutrition) return 0;
   const { restoreNutritionArchive } = await import('./nutrition-store.js');
@@ -494,26 +514,7 @@ export function importDataJSON(file) {
             else { appendImportedArrayItem(state.importedData, 'chatSummaries', s); }
           }
         }
-        // Import supplements
-        if (json.supplements && Array.isArray(json.supplements)) {
-          const supplements = ensureImportedArray(state.importedData, 'supplements');
-          for (const s of json.supplements) {
-            if (!s?.name || !s.startDate) continue;
-            const exists = supplements.some(x => (s.id && x.id === s.id) || (x.name === s.name && x.startDate === s.startDate));
-            if (!exists) {
-              // Preserve the complete regimen, including a single ongoing period and future schema fields.
-              const entry = { ...s, name: s.name, dosage: s.dosage || '', startDate: s.startDate, endDate: s.endDate || null, type: s.type || 'supplement', note: s.note || '' };
-              delete entry.sourceUrl;
-              if (s.sourceUrl) {
-                try {
-                  const sourceUrl = new URL(s.sourceUrl);
-                  if (sourceUrl.protocol === 'http:' || sourceUrl.protocol === 'https:') entry.sourceUrl = sourceUrl.toString();
-                } catch {}
-              }
-              appendImportedArrayItem(state.importedData, 'supplements', entry);
-            }
-          }
-        }
+        importSupplements(state.importedData, json.supplements);
         // Import notes
         if (json.notes && Array.isArray(json.notes)) {
           const notes = ensureImportedArray(state.importedData, 'notes');
@@ -625,14 +626,7 @@ async function _importDatabaseBundle(json) {
           if (!notes.some(x => x.date === n.date && x.text === n.text)) appendImportedArrayItem(current, 'notes', n);
         }
       }
-      // Supplements: deduplicate by name+startDate
-      if (Array.isArray(importData.supplements)) {
-        const supplements = ensureImportedArray(current, 'supplements');
-        for (const s of importData.supplements) {
-          if (!s.name || !s.startDate) continue;
-          if (!supplements.some(x => (s.id && x.id === s.id) || (x.name === s.name && x.startDate === s.startDate))) appendImportedArrayItem(current, 'supplements', s);
-        }
-      }
+      importSupplements(current, importData.supplements);
       // Health goals: deduplicate by text
       if (Array.isArray(importData.healthGoals)) {
         const healthGoals = ensureImportedArray(current, 'healthGoals');

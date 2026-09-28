@@ -478,16 +478,23 @@ describe('JSON restore runtime', () => {
     expect(therapyExposure(history, '2026-09-28')).toMatchObject({ value: 500, usage: 1 });
   });
 
-  it('does not append an edited import with an existing supplement identity', async () => {
+  it.each(['profile', 'database'])('restores updated regimens by stable identity in a %s import', async format => {
     const saved = { id: 'stable-id', name: 'Original', startDate: '2026-01-01', periods: [{ start: '2026-01-01', end: null }] };
-    runtime.state.importedData.supplements = [saved];
-    const edited = { ...saved, name: 'Renamed', startDate: '2026-02-01' };
+    const unrelated = { ...saved, id: 'unrelated', name: 'Keep me' };
+    runtime.state.importedData.supplements = [saved, unrelated];
+    localStorage.setItem('profile-1:imported', JSON.stringify(runtime.state.importedData));
+    const edited = { ...saved, name: 'Renamed', startDate: '2026-02-01', sourceUrl: 'javascript:alert(1)',
+      periods: [{ start: '2026-02-01', end: '2026-03-01', dose: '500 mg' }, { start: '2026-03-02', end: null, dose: '2000 mg' }] };
     const added = { ...edited, id: 'new-id', name: 'New' };
-    await importDataJSON(new File([JSON.stringify({ entries: [{ date: '2026-05-22', markers: { 'biochemistry.glucose': 4.56 } }], supplements: [edited, added, { ...added, name: 'Duplicate' }] })], 'identities.json'));
-    expect(runtime.state.importedData.supplements).toHaveLength(2);
-    expect(runtime.state.importedData.supplements[0]).toEqual(saved);
-    expect(runtime.state.importedData.supplements[1].id).toBe('new-id');
-    expect(runtime.saveImportedData).toHaveBeenCalled();
+    const data = { entries: [{ date: '2026-05-22', markers: { 'biochemistry.glucose': 4.56 } }], supplements: [edited, added, { ...added, name: 'Latest name' }] };
+    const backup = format === 'profile' ? data : { type: 'database', profiles: [{ id: 'profile-1', name: 'Primary', data }] };
+    await importDataJSON(new File([JSON.stringify(backup)], 'identities.json'));
+    const records = format === 'profile' ? runtime.state.importedData.supplements : JSON.parse(localStorage.getItem('profile-1:imported')).supplements;
+    expect(records).toHaveLength(3);
+    expect(records[0]).toMatchObject({ id: saved.id, name: edited.name, startDate: edited.startDate, periods: edited.periods });
+    expect(records[0].sourceUrl).toBeUndefined();
+    expect(records[1]).toEqual(unrelated);
+    expect(records[2]).toMatchObject({ id: 'new-id', name: 'Latest name', periods: edited.periods });
   });
 
   it('keeps an unlinked daily regimen intact without inventing historical dose dates', async () => {
