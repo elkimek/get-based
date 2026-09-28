@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 737,
-  "sinkCount": 552,
+  "scannedFiles": 740,
+  "sinkCount": 561,
   "files": {
     "js/backup.js": {
       "count": 1,
@@ -193,10 +193,11 @@
       }
     },
     "js/compare-correlations.js": {
-      "count": 7,
-      "digest": "67f21dc0bf97c735b4a594181c36a9e07d93924c1ce5de699a5fd8153de145de",
+      "count": 10,
+      "digest": "0e2c190f2c9a1c62b5153a7d8d34ac576e0459faada3c851cd2e6c4121e59787",
       "kinds": {
-        "innerHTML": 7
+        "innerHTML": 9,
+        "insertAdjacentHTML": 1
       }
     },
     "js/context-card-dashboard-ai-impl.js": {
@@ -927,6 +928,13 @@
       "digest": "ece2624909b55150e3bafbcc2ca2ffa7bbe1906fac6f1f35603f9125e74b687d",
       "kinds": {
         "innerHTML": 3
+      }
+    },
+    "js/therapy-correlation-view.js": {
+      "count": 6,
+      "digest": "8514565ef4d11985b7f88dc650f48d7e1b254f02ca3fe55b34daf6bd3899ceab",
+      "kinds": {
+        "innerHTML": 6
       }
     },
     "js/tour.js": {

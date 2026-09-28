@@ -70,15 +70,18 @@ describe('charts runtime adapter', () => {
   it('keeps Chart.js construction behind the runtime adapter', () => {
     const chartConsumers = [
       readFileSync(new URL('../js/category-view-renderers.js', import.meta.url), 'utf8'),
-      readFileSync(new URL('../js/compare-correlations.js', import.meta.url), 'utf8'),
+      readFileSync(new URL('../js/therapy-correlation-view.js', import.meta.url), 'utf8'),
       readFileSync(new URL('../js/wearables-bp-detail-chart.js', import.meta.url), 'utf8'),
     ];
 
     for (const src of chartConsumers) {
       expect(src).toContain("from './charts-runtime.js'");
       expect(src).toContain('createChartRuntime');
-      expect(src).toContain('hasChartRuntime');
       expect(src).not.toContain('window.Chart');
     }
+    const controller = readFileSync(new URL('../js/compare-correlations.js', import.meta.url), 'utf8');
+    for (const src of [chartConsumers[0], chartConsumers[2], controller]) expect(src).toContain('hasChartRuntime');
+    expect(controller).toContain('ensureChartJs');
+    expect(controller).not.toContain('window.Chart');
   });
 });

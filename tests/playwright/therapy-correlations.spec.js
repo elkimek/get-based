@@ -891,3 +891,23 @@ test('full app startup restores the saved correlation workspace after F5', async
   await expect(page.getByRole('button', { name: 'Aligned lanes', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(2);
 });
+
+
+test('treatment names and report sources are rendered as text, not HTML', async ({ page }) => {
+  await fixture(page);
+  const payload = '<img src=x onerror="document.body.dataset.injected=1">';
+  await page.evaluate(async payload => {
+    const { state } = await import('/js/state.js');
+    state.importedData.supplements[0].name = `Example supplement ${payload}`;
+    for (const entry of state.importedData.entries) entry.sourceFile = payload;
+    (await import('/js/data.js')).invalidateActiveDataCache();
+    (await import('/js/compare-correlations.js')).showCorrelations();
+  }, payload);
+  await select(page, 'LDL', 'lipids.ldl');
+  await select(page, 'Example supplement', 'dose-demo', 'toggle-therapy');
+  await expect(page.locator('.corr-chip').last()).toContainText(payload);
+  await page.getByRole('button', { name: 'Data', exact: true }).click();
+  await expect(page.locator('#corr-pair-detail')).toContainText(payload);
+  await expect(page.locator('#main-content img')).toHaveCount(0);
+  await expect(page.locator('body')).not.toHaveAttribute('data-injected');
+});

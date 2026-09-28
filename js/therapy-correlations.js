@@ -77,11 +77,13 @@ export function therapyExposure(history, date) {
   if (history.invalid) return unknown('Invalid or overlapping periods');
   const period = history.periods.find(p => p.start <= date && (!p.end || date <= p.end));
   if (period) {
+    const periodStart = correlationDay(period.start);
+    if (periodStart === null) return unknown('Invalid period start');
     const quantity = period.quantity;
     const mode = period.schedule?.mode;
     const doseText = (typeof period.dose === 'string' ? period.dose.trim() : quantity?.text || period.dose?.text?.trim()) || 'Dose not recorded';
     const label = (quantity?.ingredient ? `${quantity.ingredient}: ` : '') + doseText + (period.schedule?.timesPerDay ? ` · schedule: ${period.schedule.timesPerDay} uses/day` : '');
-    const base = { date, periodStart: period.start, daysSinceChange: day - correlationDay(period.start), label, status: 'recorded', usage: 1 };
+    const base = { date, periodStart: period.start, daysSinceChange: day - periodStart, label, status: 'recorded', usage: 1 };
     if (mode === 'prn' || (!mode && history.record.schedule?.mode === 'prn')) return { ...unknown('As-needed use; actual intake unknown'), ...base, label: `${label} · as needed; actual intake unknown`, status: 'unknown' };
     const intermittent = ['selected-days', 'interval'];
     if ((!mode && intermittent.includes(history.record.schedule?.mode)) || (mode && !['daily', 'multiple', ...intermittent].includes(mode)))
@@ -94,7 +96,7 @@ export function therapyExposure(history, date) {
         ? Array.isArray(weekdays) && weekdays.length > 0 && weekdays.every(d => Number.isInteger(d) && d >= 0 && d <= 6)
         : Number.isInteger(interval) && interval > 0;
       if (!valid) return { ...unknown('Historical schedule is incomplete'), usage: 1 };
-      const expected = mode === 'selected-days' ? weekdays.includes(new Date(day * DAY).getUTCDay()) : (day - correlationDay(period.start)) % interval === 0;
+      const expected = mode === 'selected-days' ? weekdays.includes(new Date(day * DAY).getUTCDay()) : (day - periodStart) % interval === 0;
       if (!expected) return { ...base, value: quantity ? 0 : null, unit: quantity?.unit || '', basis: quantity?.basis || '', key: quantity?.key || '', label: 'Scheduled off-day (intake not verified)', status: 'scheduled-off', usage: 0 };
     }
     if (!quantity) return { ...unknown(label), ...base, status: 'unknown' };
@@ -102,7 +104,9 @@ export function therapyExposure(history, date) {
   }
   const previous = history.periods.filter(p => p.end && p.end < date).at(-1);
   if (!previous) return unknown('Before first recorded use');
-  const start = correlationDay(previous.end) + 1;
+  const previousEnd = correlationDay(previous.end);
+  if (previousEnd === null) return unknown('Invalid period end');
+  const start = previousEnd + 1;
   return { date, value: history.quantity ? 0 : null, unit: history.quantity?.unit || '', basis: history.quantity?.basis || '', key: history.quantity?.key || '', label: 'Recorded break / stopped', periodStart: correlationDate(start), daysSinceChange: day - start, status: 'paused', usage: 0 };
 }
 
@@ -112,16 +116,19 @@ export function therapySegments(history, startDate, endDate) {
   if (start === null || end === null || start > end) return [];
   const cuts = new Set([start, end + 1]);
   for (const p of history.periods) {
-    cuts.add(correlationDay(p.start));
-    if (p.end) cuts.add(correlationDay(p.end) + 1);
+    const periodStart = correlationDay(p.start), periodEnd = correlationDay(p.end || history.today);
+    if (periodStart === null || periodEnd === null) continue;
+    cuts.add(periodStart);
+    if (p.end) cuts.add(periodEnd + 1);
     if (['selected-days', 'interval'].includes(p.schedule?.mode)) {
-      const from = Math.max(start, correlationDay(p.start));
-      const to = Math.min(end, correlationDay(p.end || history.today));
+      const from = Math.max(start, periodStart);
+      const to = Math.min(end, periodEnd);
       if (to - from > 50000) return [{ start, end: end + 1, value: null, usage: null, label: 'Select a shorter date range to inspect this schedule' }];
       for (let d = from; d <= to; d++) cuts.add(d);
     }
   }
-  cuts.add(correlationDay(history.today) + 1);
+  const today = correlationDay(history.today);
+  if (today !== null) cuts.add(today + 1);
   const sorted = [...cuts].filter(d => d >= start && d <= end + 1).sort((a, b) => a - b);
   return sorted.slice(0, -1).map((day, i) => ({ start: day, end: sorted[i + 1], ...therapyExposure(history, correlationDate(day)) }));
 }
@@ -144,10 +151,11 @@ export function prepareTherapyComparison({ history, marker, markerKey, dates, en
   const storageKey = getMarkerStorageDotKey(marker, markerKey.replace('.', '_')) || markerKey;
   const rows = dates.flatMap((date, index) => {
     const value = marker.values?.[index];
-    if (typeof value !== 'number' || !Number.isFinite(value) || correlationDay(date) === null) return [];
+    const day = correlationDay(date);
+    if (typeof value !== 'number' || !Number.isFinite(value) || day === null) return [];
     const sources = entries.filter(e => e.date === date && Object.hasOwn(e.markers || {}, storageKey));
     const conflict = new Set(sources.map(e => e.markers[storageKey])).size > 1;
-    const exposureDate = correlationDate(correlationDay(date) - lag);
+    const exposureDate = correlationDate(day - lag);
     const exposure = therapyExposure(history, exposureDate);
     const reason = date > history.today ? 'Future measurement' : conflict ? 'Conflicting results on the same date' : exposure.value === null ? exposure.label : '';
     return [{ date, value, exposureDate, exposure, reason, sources: sources.map(e => ({ id: e.id || '', date: e.date, source: e.markerSources?.[storageKey]?.file || e.sourceFile || e.lab || '' })), conflict }];

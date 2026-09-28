@@ -78,13 +78,14 @@ export function renderCorrelationWorkspace(selection, container, refresh) {
   for (const h of selection.histories) if (!h.invalid) for (const p of h.periods) {
     if (p.start <= h.today) days.push(correlationDay(p.start), correlationDay(p.end && p.end < h.today ? p.end : h.today));
   }
-  const fallback = correlationDay(localDateKey());
+  const validDays = days.filter(day => day !== null);
+  const fallback = /** @type {number} */ (correlationDay(localDateKey()));
   const requestedEnd = correlationDay(selection.range.end);
-  const naturalStart = days.length ? Math.min(...days) : fallback;
+  const naturalStart = validDays.length ? Math.min(...validDays) : fallback;
   const start = correlationDay(selection.range.start) ?? Math.min(naturalStart, requestedEnd ?? naturalStart);
-  const last = requestedEnd ?? Math.max(start, fallback, days.length ? Math.max(...days) : fallback);
+  const last = requestedEnd ?? Math.max(start, fallback, validDays.length ? Math.max(...validDays) : fallback);
   const end = Math.max(start + 1, last + 1);
-  let cursor = Math.min(end - 1, Math.max(start, correlationDay(view.inspectDate) ?? (selection.markers[0]?.rows.length ? correlationDay(selection.markers[0].rows.at(-1).date) : last)));
+  let cursor = Math.min(end - 1, Math.max(start, correlationDay(view.inspectDate) ?? (correlationDay(selection.markers[0]?.rows.at(-1)?.date) ?? last)));
   const segmentsById = new Map(selection.histories.map(h => [h.id, therapySegments(h, correlationDate(start), correlationDate(end - 1))]));
   const numeric = s => s.kind === 'marker' || (s.history.quantity && segmentsById.get(s.id).some(seg => seg.value !== null));
   const scaleKey = s => `${s.kind}:${s.unit === 'Unit unavailable' ? s.id : s.unit}`;
@@ -153,8 +154,9 @@ export function renderCorrelationWorkspace(selection, container, refresh) {
     const expected = JSON.stringify(history.record);
     const profile = state.currentProfile;
     button.addEventListener('click', async () => {
+      const status = button.closest('.corr-confirm-dose')?.querySelector('.corr-confirm-status');
+      if (!status) return;
       button.disabled = true;
-      const status = button.closest('.corr-confirm-dose').querySelector('.corr-confirm-status');
       status.textContent = 'Saving dose dates…';
       try {
         const { saveSupplementIngredientPeriod } = await import('./supplements.js');
@@ -222,7 +224,7 @@ export function renderCorrelationWorkspace(selection, container, refresh) {
       const row = s.marker?.rows.find(r => r.date === date);
       const exposure = s.history ? therapyExposure(s.history, date) : null;
       const value = s.kind === 'marker' ? row ? row.reason || `${formatValue(row.value)} ${s.unit}` : 'No measurement on this date'
-        : exposure.value === null ? exposure.label : exposure.status === 'recorded' ? `${s.history.ingredientOptions.length > 1 && 'ingredient' in exposure && exposure.ingredient ? `${exposure.ingredient}: ` : ''}${textDose(exposure)}` : `${textDose(exposure)} · ${exposure.label}`;
+        : !exposure ? 'No recorded dose' : exposure.value === null ? exposure.label : exposure.status === 'recorded' ? `${s.history.ingredientOptions.length > 1 && 'ingredient' in exposure && exposure.ingredient ? `${exposure.ingredient}: ` : ''}${textDose(exposure)}` : `${textDose(exposure)} · ${exposure.label}`;
       return `<div><strong>${esc(s.name)}</strong><span>${esc(value)}</span></div>`;
     }).join('');
     charts.forEach(c => c.draw());

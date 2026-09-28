@@ -373,7 +373,11 @@ export function getSupplementDailyDoses(record) {
   });
 }
 
-/** Snapshot the saved regimen from today; earlier unknown amounts stay unknown. */
+/** Snapshot the saved regimen from today; earlier unknown amounts stay unknown.
+ * @param {any} entry
+ * @param {string} today
+ * @param {import('../types/supplement-data.js').SupplementRecord | null} savedRecord
+ */
 export function recordIngredientDoseChange(entry, today = localDateKey(), savedRecord = null) {
   const open = entry.periods.find(p => p.start <= today && (!p.end || p.end >= today));
   if (!open || (open.dose && open.dose.source !== 'ingredient' && !Array.isArray(open.ingredientDoses))) return;

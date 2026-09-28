@@ -24,9 +24,7 @@ import {
   clearLocalProfileDeleteIntent, isDemoProfileId, markLocalProfileDeleteIntent,
   queueEligibleProfileSync,
 } from './profile-sync-policy.js';
-
 export { migrateProfileData, profileStorageKey };
-
 /** @type {Record<string, (...args: any[]) => any>} */
 const profileDeps = {
   deleteProfileFromRelay: async () => {},
@@ -37,7 +35,6 @@ const profileDeps = {
   showConfirmDialog,
   showNotification,
 };
-
 export function configureProfileDeps(deps = {}) {
   const previous = { ...profileDeps };
   const previousStoreDeps = configureProfileListStoreDeps(deps);
