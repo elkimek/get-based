@@ -54,7 +54,7 @@ export function prepareTherapyHistory(record, today = localDateKey()) {
   const quantity = keys.length === 1 ? periods.find(p => p.quantity)?.quantity : null;
   const warnings = [];
   if (invalid) warnings.push('Invalid or overlapping usage periods: numeric comparisons are unavailable until the history is corrected.');
-  if (periods.some(p => !p.quantity)) warnings.push('Some periods have no unambiguous numeric dose; those periods remain unknown.');
+  if (periods.some(p => !p.quantity)) warnings.push('Some periods have no unambiguous numeric dose; dose amounts remain unknown for those periods.');
   if (keys.length > 1) warnings.push('Dose units or amount bases differ; they are not pooled into one coefficient.');
   if (periods.some(p => !p.schedule)) warnings.push('Historical frequency is not saved for every period. Recorded dose is not verified daily intake.');
   return { id: getSupplementRecordId(record), name: record.name || 'Unnamed item', type: record.type || 'supplement', record, periods, invalid, quantity, mixedUnits: keys.length > 1, today, warnings };
@@ -62,7 +62,7 @@ export function prepareTherapyHistory(record, today = localDateKey()) {
 
 export function therapyExposure(history, date) {
   const day = correlationDay(date);
-  const unknown = (reason) => ({ date, value: null, unit: '', basis: '', label: reason, periodStart: '', daysSinceChange: null, key: '', status: 'unknown' });
+  const unknown = (reason) => ({ date, value: null, unit: '', basis: '', label: reason, periodStart: '', daysSinceChange: null, key: '', status: 'unknown', usage: null });
   if (day === null || date > history.today) return unknown('Outside recorded history');
   if (history.invalid) return unknown('Invalid or overlapping periods');
   const period = history.periods.find(p => p.start <= date && (!p.end || date <= p.end));
@@ -71,7 +71,7 @@ export function therapyExposure(history, date) {
     const mode = period.schedule?.mode || history.record.schedule?.mode;
     const doseText = typeof period.dose === 'string' ? period.dose : quantity?.text || period.dose?.text || 'Dose not recorded';
     const label = doseText + (period.schedule?.timesPerDay ? ` · schedule: ${period.schedule.timesPerDay} uses/day` : '');
-    const base = { date, periodStart: period.start, daysSinceChange: day - correlationDay(period.start), label, status: 'recorded' };
+    const base = { date, periodStart: period.start, daysSinceChange: day - correlationDay(period.start), label, status: 'recorded', usage: 1 };
     if (mode === 'prn') return { ...unknown('As-needed use; actual intake unknown'), ...base, label: `${label} · as needed; actual intake unknown`, status: 'unknown' };
     if (!quantity) return { ...unknown(label), ...base, status: 'unknown' };
     return { ...base, value: quantity.value, unit: quantity.unit, basis: quantity.basis, key: quantity.key };
@@ -79,7 +79,7 @@ export function therapyExposure(history, date) {
   const previous = history.periods.filter(p => p.end && p.end < date).at(-1);
   if (!previous) return unknown('Before first recorded use');
   const start = correlationDay(previous.end) + 1;
-  return { date, value: history.quantity ? 0 : null, unit: history.quantity?.unit || '', basis: history.quantity?.basis || '', key: history.quantity?.key || '', label: 'Recorded break / stopped', periodStart: correlationDate(start), daysSinceChange: day - start, status: 'paused' };
+  return { date, value: history.quantity ? 0 : null, unit: history.quantity?.unit || '', basis: history.quantity?.basis || '', key: history.quantity?.key || '', label: 'Recorded break / stopped', periodStart: correlationDate(start), daysSinceChange: day - start, status: 'paused', usage: 0 };
 }
 
 /** Piecewise segments, including unknown gaps. Boundaries are calendar days, not lab indexes. */

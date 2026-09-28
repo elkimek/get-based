@@ -115,3 +115,40 @@ test('the real editor saves dose and frequency changes without overwriting prior
   expect(result.restarted.periods).toHaveLength(2);
   expect(result.restarted.periods[1].end).toBeNull();
 });
+
+
+test('draws unknown-dose usage and pauses without treating product strength as intake', async ({ page }) => {
+  await fixture(page);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const record = state.importedData.supplements[0];
+    record.currentDose = '2000 mg';
+    record.ingredients = [{ amount: '500 mg' }];
+    record.periods = [
+      { start: '2026-01-01', end: '2026-02-28' },
+      { start: '2026-07-01', end: null },
+    ];
+  });
+  await select(page, 'LDL', 'lipids.ldl');
+  await select(page, 'Example supplement', 'dose-demo', 'toggle-therapy');
+  await expect(page.locator('.corr-stat')).toContainText('Coefficient unavailable');
+  await expect.poll(() => page.evaluate(async () => !!(await import('/js/state.js')).state.chartInstances['correlation-therapy-0'])).toBe(true);
+  const result = await page.evaluate(async () => {
+    const chart = (await import('/js/state.js')).state.chartInstances['correlation-therapy-0'];
+    const dataset = chart.data.datasets[1];
+    return { label: dataset.label, axis: dataset.yAxisID, values: [...new Set(dataset.data.map(p => p.y))],
+      dash: dataset.borderDash, doseAxis: chart.options.scales.dose.display,
+      usageAxis: chart.options.scales.usage.display, last: chart.options.scales.x.max,
+      visiblePoints: chart.getDatasetMeta(1).data.filter(p => !p.skip).length };
+  });
+  expect(result.label).toContain('recorded regimen (dose unavailable)');
+  expect(result.axis).toBe('usage');
+  expect(result.values).toEqual([null, 1, 0]);
+  expect(result.dash).toEqual([6, 4]);
+  expect(result.doseAxis).toBe(false);
+  expect(result.usageAxis).toBe(true);
+  expect(result.visiblePoints).toBeGreaterThan(2);
+  expect(result.last).toBeGreaterThan(Date.parse('2026-07-01') / 86400000);
+  await expect(page.locator('.corr-therapy-card')).toContainText('No lab measurements have usable numeric dose information');
+  await page.screenshot({ path: '/tmp/getbased-unknown-dose-chart.png', fullPage: true });
+});

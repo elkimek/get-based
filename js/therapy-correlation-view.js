@@ -34,7 +34,7 @@ export function renderTherapyCorrelationResults(selection, container) {
         <h4 id="corr-therapy-title-${index}">${escapeHTML(comparison.markerName)} × ${escapeHTML(comparison.therapyName)}</h4>
         <p class="corr-stat">${comparison.r === null ? `Coefficient unavailable: ${escapeHTML(comparison.unavailable)}.` : `Exploratory Pearson r = ${comparison.r.toFixed(2)} · ${comparison.n} measurements. This is not a confidence or treatment-effect score.`}</p>
         <div class="corr-dose-chart"><canvas id="corr-dose-chart-${index}" role="img" aria-label="${escapeHTML(comparison.markerName)} measurements and ${escapeHTML(comparison.therapyName)} dose history; values are in the data table below"></canvas></div>
-        ${history.quantity ? '' : '<p class="corr-help">A numeric dose line needs compatible, explicit doses. Recorded periods remain available below.</p>'}
+        <p class="corr-help">Solid purple shows recorded numeric doses when available. Dashed purple shows recorded regimen periods and breaks when dose amounts cannot be plotted; it does not represent dose or confirmed intake. Unknown history stays blank.</p>
         ${comparison.warnings.length ? `<ul class="corr-help">${comparison.warnings.map(w => `<li>${escapeHTML(w)}</li>`).join('')}</ul>` : ''}
         ${comparison.baseline ? `<p class="corr-help">Before first recorded use: ${comparison.baseline.n} measurements, mean ${escapeHTML(formatValue(comparison.baseline.mean))} ${escapeHTML(comparison.unit)}. Prior intake is unknown; these measurements are not assigned a zero dose.</p>` : ''}
         ${groups ? `<div class="corr-data-scroll" tabindex="0" role="region" aria-label="Marker averages by recorded dose"><table class="corr-data-table"><caption>Descriptive averages by recorded dose; measurements may be months apart.</caption><thead><tr><th>Dose</th><th>Measurements</th><th>Mean marker value</th><th>Lab dates</th></tr></thead><tbody>${groups}</tbody></table></div>` : '<p class="corr-help">No lab measurements have usable numeric dose information.</p>'}
@@ -53,18 +53,31 @@ export function drawTherapyCorrelationCharts(selection) {
     const canvas = /** @type {HTMLCanvasElement | null} */ (document.getElementById(`corr-dose-chart-${index}`));
     if (!canvas || !comparison.rows.length) return;
     const history = selection.histories.find(h => h.id === comparison.therapyId);
-    const first = comparison.rows[0].date, last = comparison.rows.at(-1).date;
-    const start = correlationDay(first), end = Math.max(start + 1, correlationDay(last));
+    const days = comparison.rows.map(r => correlationDay(r.date));
+    if (!history.invalid) for (const p of history.periods) {
+      if (p.start > history.today) continue;
+      days.push(correlationDay(p.start) + selection.lagDays, correlationDay(p.end && p.end < history.today ? p.end : history.today) + selection.lagDays);
+    }
+    const start = Math.min(...days), end = Math.max(start + 1, ...days);
     const segments = therapySegments(history, correlationDate(start - selection.lagDays), correlationDate(end - selection.lagDays));
     const dosePoints = segments.flatMap(s => [
       { x: s.start + selection.lagDays, y: history.quantity ? s.value : null, label: s.label },
       { x: s.end + selection.lagDays, y: history.quantity ? s.value : null, label: s.label },
     ]);
+    const hasDose = dosePoints.some(p => p.y !== null);
+    const usagePoints = segments.flatMap(s => {
+      const y = !hasDose || !history.quantity || s.value === null ? s.usage : null;
+      const label = `${s.usage === 0 ? 'Recorded break / stopped' : 'Recorded regimen'} · ${s.label}`;
+      return [{ x: s.start + selection.lagDays, y, label }, { x: s.end + selection.lagDays, y, label }];
+    });
+    const hasUsage = usagePoints.some(p => p.y !== null);
+    const shifted = selection.lagDays ? ` · shifted ${selection.lagDays} days` : '';
     const chart = createChartRuntime(canvas, {
       type: 'line',
       data: { datasets: [
         { label: `${comparison.markerName} (${comparison.unit})`, data: comparison.rows.map(r => ({ x: correlationDay(r.date), y: r.conflict || r.date > history.today ? null : r.value })), yAxisID: 'y', borderColor: '#38bdf8', backgroundColor: '#38bdf8', pointRadius: 4, tension: 0, spanGaps: false },
-        { label: `${history.name}: ${history.quantity?.unit || 'dose'}${history.quantity?.basis === 'day' ? '/day' : ' (recorded dose)'}${selection.lagDays ? ` · shifted ${selection.lagDays} days` : ''}`, data: dosePoints, yAxisID: 'dose', borderColor: '#a78bfa', backgroundColor: '#a78bfa', pointRadius: 0, borderWidth: 2, stepped: 'after', spanGaps: false },
+        ...(hasDose ? [{ label: `${history.name}: ${history.quantity.unit}${history.quantity.basis === 'day' ? '/day' : ' (recorded dose)'}${shifted}`, data: dosePoints, yAxisID: 'dose', borderColor: '#a78bfa', backgroundColor: '#a78bfa', pointRadius: 0, borderWidth: 2, stepped: 'after', spanGaps: false }] : []),
+        ...(hasUsage ? [{ label: `${history.name}: recorded regimen (dose unavailable)${shifted}`, data: usagePoints, yAxisID: 'usage', borderColor: '#a78bfa', backgroundColor: '#a78bfa', borderDash: [6, 4], pointRadius: 0, borderWidth: 3, stepped: 'after', spanGaps: false }] : []),
       ] },
       options: {
         responsive: true, maintainAspectRatio: false, animation: false,
@@ -72,13 +85,14 @@ export function drawTherapyCorrelationCharts(selection) {
           legend: { labels: { color: colors.legendColor, boxWidth: 12 } },
           tooltip: { callbacks: {
             title: items => items.length ? correlationDate(Math.floor(items[0].parsed.x)) : '',
-            label: item => item.datasetIndex === 1 ? item.raw.label : `${comparison.markerName}: ${formatValue(item.parsed.y)} ${comparison.unit}`,
+            label: item => item.datasetIndex > 0 ? item.raw.label : `${comparison.markerName}: ${formatValue(item.parsed.y)} ${comparison.unit}`,
           } },
         },
         scales: {
           x: { type: 'linear', min: start, max: end, ticks: { color: colors.tickColor, maxTicksLimit: 5, callback: value => correlationDate(Math.round(Number(value))) }, grid: { color: colors.gridColor } },
           y: { position: 'left', title: { display: true, text: comparison.unit, color: colors.tickColor }, ticks: { color: colors.tickColor }, grid: { color: colors.gridColor } },
-          dose: { position: 'right', beginAtZero: true, display: !!history.quantity, title: { display: true, text: history.quantity ? `${history.quantity.unit}${history.quantity.basis === 'day' ? '/day' : ' per recorded dose'}` : '', color: colors.tickColor }, ticks: { color: colors.tickColor }, grid: { drawOnChartArea: false } },
+          usage: { position: 'right', display: hasUsage, min: -0.2, max: 1.2, title: { display: true, text: 'Recorded regimen', color: colors.tickColor }, ticks: { color: colors.tickColor, stepSize: 1, callback: value => value === 1 ? 'Recorded' : value === 0 ? 'Break' : '' }, grid: { drawOnChartArea: false } },
+          dose: { position: 'right', beginAtZero: true, display: hasDose, title: { display: true, text: history.quantity ? `${history.quantity.unit}${history.quantity.basis === 'day' ? '/day' : ' per recorded dose'}` : '', color: colors.tickColor }, ticks: { color: colors.tickColor }, grid: { drawOnChartArea: false } },
         },
       },
     });

@@ -52,6 +52,21 @@ describe('historical dose and pause alignment', () => {
     const history = prepareTherapyHistory({ ...record, currentDose: '2000 mg', ingredients: [{ amount: '500 mg' }], periods: [{ start: '2026-01-01', end: null }] }, today);
     expect(therapyExposure(history, '2026-02-01').value).toBeNull();
   });
+  it('keeps recorded usage separate from unknown dose and from unknown history', () => {
+    const history = prepareTherapyHistory({ ...record, periods: [
+      { start: '2026-01-01', end: '2026-01-31' },
+      { start: '2026-03-01', end: null },
+    ] }, today);
+    expect(therapyExposure(history, '2025-12-31')).toMatchObject({ usage: null, value: null });
+    expect(therapyExposure(history, '2026-01-10')).toMatchObject({ usage: 1, value: null });
+    expect(therapyExposure(history, '2026-02-10')).toMatchObject({ usage: 0, value: null });
+    expect(therapyExposure(history, '2026-03-10')).toMatchObject({ usage: 1, value: null });
+    expect(compare({ history })).toMatchObject({ n: 0, r: null, groups: [] });
+    const prn = prepareTherapyHistory({ ...record, schedule: { mode: 'prn' } }, today);
+    expect(therapyExposure(prn, '2026-01-10')).toMatchObject({ usage: 1, value: null });
+    const invalid = prepareTherapyHistory({ ...record, periods: [{ start: 'invalid' }] }, today);
+    expect(therapyExposure(invalid, '2026-01-10')).toMatchObject({ usage: null, value: null });
+  });
   it('supports legacy dates without pretending legacy personal directions are period doses', () => {
     const history = prepareTherapyHistory({ name: 'Legacy', dosage: '500 mg', startDate: '2026-01-01', endDate: '2026-01-31' }, today);
     expect(history.periods).toHaveLength(1);
