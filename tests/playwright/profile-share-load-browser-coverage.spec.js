@@ -179,3 +179,30 @@ test('encrypted profile loading preserves a complete ongoing ingredient regimen 
   expect(result.current).toMatchObject({ value: 500, confirmedSince: '2026-03-24' });
   expect(result.exposure).toMatchObject({ value: 500, usage: 1 });
 });
+
+
+test('regimen import offers keep or replace without guessing from device clocks', async ({ page }) => {
+  await page.route('**/regimen-conflict-fixture', route => route.fulfill({ contentType: 'text/html', body: '<html><body><main id="main-content"></main><div id="notification-container"></div></body></html>' }));
+  await page.goto('/regimen-conflict-fixture');
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.currentProfile = 'regimen-conflict-test';
+    state.importedData = { entries: [], supplements: [{ id: 'tmg', name: 'TMG', startDate: '2026-03-24', updatedAt: 200,
+      ingredients: [{ name: 'TMG', amount: '500 mg' }], sourceUrl: 'https://example.test/tmg',
+      periods: [{ start: '2026-03-24', end: null, dose: '500 mg', schedule: { mode: 'daily' } }] }] };
+  });
+  for (const replace of [false, true]) {
+    const importing = page.evaluate(async () => {
+      const { importDataJSON } = await import('/js/export-import.js');
+      await importDataJSON(new File([JSON.stringify({ entries: [{ date: '2026-05-22', markers: { 'biochemistry.glucose': 4.56 } }], supplements: [{ id: 'tmg', name: 'TMG', startDate: '2026-03-24', updatedAt: 100,
+        periods: [{ start: '2026-03-24', end: null, dose: '2000 mg', schedule: { mode: 'daily' } }] }] })], 'regimen.json'));
+      return (await import('/js/state.js')).state.importedData.supplements[0];
+    });
+    await expect(page.getByRole('alertdialog', { name: 'Conflicting regimens' })).toContainText('remove omitted fields');
+    await page.getByRole('button', { name: replace ? 'Use imported' : 'Keep saved', exact: true }).click();
+    const record = await importing;
+    expect(record.periods[0].dose).toBe(replace ? '2000 mg' : '500 mg');
+    expect(record.sourceUrl).toBe(replace ? undefined : 'https://example.test/tmg');
+    expect(Boolean(record.ingredients)).toBe(!replace);
+  }
+});

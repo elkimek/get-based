@@ -16,6 +16,7 @@ const runtime = vi.hoisted(() => ({
   }),
   setSelectedNodeUrl: vi.fn(),
   showNotification: vi.fn(),
+  showConfirmDialog: vi.fn(async () => true),
   state: { currentProfile: 'profile-1', importedData: {} },
 }));
 
@@ -23,6 +24,7 @@ vi.mock('../js/state.js', () => ({ state: runtime.state }));
 vi.mock('../js/utils.js', () => ({
   isDebugMode: () => false,
   showNotification: runtime.showNotification,
+  showConfirmDialog: runtime.showConfirmDialog,
 }));
 vi.mock('../js/data.js', () => ({
   saveImportedData: runtime.saveImportedData,
@@ -85,6 +87,7 @@ describe('JSON restore runtime', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     runtime.saveImportedData.mockResolvedValue(true);
+    runtime.showConfirmDialog.mockResolvedValue(true);
     localStorage.clear();
     runtime.encryptedGetItem.mockImplementation(async key => localStorage.getItem(key));
     runtime.encryptedSetItem.mockImplementation(async (key, value) => localStorage.setItem(key, value));
@@ -497,7 +500,7 @@ describe('JSON restore runtime', () => {
     expect(records[2]).toMatchObject({ id: 'new-id', name: 'Latest name', periods: edited.periods });
   });
 
-  it.each(['profile', 'database'])('preserves omitted regimen fields and rejects older snapshots in a %s import', async format => {
+  it.each(['profile', 'database'])('asks before replacing a conflicting regimen in a %s import', async format => {
     const saved = { id: 'stable', name: 'TMG', startDate: '2026-03-24', updatedAt: 200,
       periods: [{ start: '2026-03-24', end: null, dose: '500 mg', schedule: { mode: 'daily' } }],
       ingredients: [{ name: 'TMG', amount: '500 mg' }], schedule: { mode: 'daily' },
@@ -510,13 +513,40 @@ describe('JSON restore runtime', () => {
       await importDataJSON(new File([JSON.stringify(backup)], 'partial.json'));
       return format === 'profile' ? runtime.state.importedData.supplements : JSON.parse(localStorage.getItem('profile-1:imported')).supplements;
     }
-    const older = await restore({ ...saved, updatedAt: 100, periods: [], ingredients: [], schedule: { mode: 'prn' }, lifecycle: { state: 'ended' } });
-    expect(older).toEqual([saved]);
-    const undated = await restore({ id: saved.id, name: 'Old export', startDate: saved.startDate, periods: [], ingredients: [] });
-    expect(undated).toEqual([saved]);
-    expect(runtime.showNotification).toHaveBeenCalledWith('Kept 1 newer saved regimen(s).', 'info');
-    const partial = await restore({ id: saved.id, name: 'Renamed TMG', startDate: saved.startDate, note: 'Updated note', updatedAt: 300 });
-    expect(partial).toEqual([{ dosage: '', endDate: null, type: 'supplement', ...saved, name: 'Renamed TMG', note: 'Updated note', updatedAt: 300 }]);
+    const incoming = { id: saved.id, name: 'Updated TMG', startDate: saved.startDate,
+      updatedAt: 100, periods: [{ start: saved.startDate, end: null, dose: '2000 mg' }] };
+    runtime.showConfirmDialog.mockResolvedValueOnce(false);
+    expect(await restore(incoming)).toEqual([saved]);
+    expect(runtime.showConfirmDialog).toHaveBeenCalledWith(expect.stringContaining('remove omitted fields'), expect.objectContaining({ confirmLabel: 'Use imported', cancelLabel: 'Keep saved' }));
+    const applied = await restore(incoming);
+    expect(applied).toEqual([{ dosage: '', endDate: null, type: 'supplement', note: '', ...incoming }]);
+    expect(applied[0].ingredients).toBeUndefined();
+    expect(applied[0].sourceUrl).toBeUndefined();
+    const undated = { id: saved.id, name: incoming.name, startDate: saved.startDate, periods: saved.periods };
+    expect((await restore(undated))[0].periods).toEqual(saved.periods);
+  });
+
+  it('aborts a profile import if data changes while resolving regimen conflicts', async () => {
+    runtime.state.importedData.supplements = [{ id: 'stable', name: 'TMG', startDate: '2026-03-24' }];
+    runtime.showConfirmDialog.mockImplementationOnce(async () => {
+      runtime.state.importedData.supplements[0].note = 'Concurrent edit';
+      return true;
+    });
+    await importDataJSON(new File([JSON.stringify({ entries: [], supplements: [{ id: 'stable', name: 'Changed', startDate: '2026-03-24' }] })], 'conflict.json'));
+    expect(runtime.state.importedData.supplements[0]).toMatchObject({ name: 'TMG', note: 'Concurrent edit' });
+    expect(runtime.saveImportedData).not.toHaveBeenCalled();
+  });
+
+  it('preserves concurrent stored edits while a bundle conflict is open', async () => {
+    const saved = { supplements: [{ id: 'stable', name: 'TMG', startDate: '2026-03-24' }] };
+    localStorage.setItem('profile-1:imported', JSON.stringify(saved));
+    runtime.showConfirmDialog.mockImplementationOnce(async () => {
+      localStorage.setItem('profile-1:imported', JSON.stringify({ ...saved, note: 'Concurrent edit' }));
+      return true;
+    });
+    await importDataJSON(new File([JSON.stringify({ type: 'database', profiles: [{ id: 'profile-1', data: { supplements: [{ ...saved.supplements[0], name: 'Changed' }] } }] })], 'bundle.json'));
+    expect(runtime.saveImportedDataForProfile).not.toHaveBeenCalled();
+    expect(JSON.parse(localStorage.getItem('profile-1:imported'))).toEqual({ ...saved, note: 'Concurrent edit' });
   });
 
   it('keeps an unlinked daily regimen intact without inventing historical dose dates', async () => {

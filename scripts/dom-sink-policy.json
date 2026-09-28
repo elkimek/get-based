@@ -3,7 +3,7 @@
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
   "scannedFiles": 740,
-  "sinkCount": 561,
+  "sinkCount": 560,
   "files": {
     "js/backup.js": {
       "count": 1,
@@ -931,10 +931,10 @@
       }
     },
     "js/therapy-correlation-view.js": {
-      "count": 6,
-      "digest": "8514565ef4d11985b7f88dc650f48d7e1b254f02ca3fe55b34daf6bd3899ceab",
+      "count": 5,
+      "digest": "c7f7360bb9a9c1e6f77b89855e2cab323f89c1945f91daa7ebc5cce52c3c91da",
       "kinds": {
-        "innerHTML": 6
+        "innerHTML": 5
       }
     },
     "js/tour.js": {

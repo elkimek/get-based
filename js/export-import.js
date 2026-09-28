@@ -5,7 +5,7 @@ import { mergeBiologyScoreAIRecords } from './biology-score-persistence.js';
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { adoptProfileData } from './profile-data-writes.js';
-import { showNotification, isDebugMode } from './utils.js';
+import { showNotification, showConfirmDialog, isDebugMode } from './utils.js';
 import { saveImportedData, saveImportedDataForProfile, invalidateActiveDataCache } from './data.js';
 import { getProfiles, profileStorageKey, createProfile, updateProfileMeta, loadProfile, migrateProfileData } from './profile.js';
 import { encryptedGetItem, encryptedSetItem, getEncryptionEnabled } from './crypto.js';
@@ -36,19 +36,22 @@ import {
 
 const MAX_PORTABLE_JSON_BYTES = 512 * 1024 * 1024;
 
-// Merge supplied fields by stable ID; keep missing fields and newer local records.
-// Legacy records without a matching ID retain name/date deduplication.
-function importSupplements(target, records) {
+async function confirmRegimenImport(target, records) {
+  const conflicts = (Array.isArray(records) ? records : []).filter(s => s?.id && target.supplements?.some(x => x.id === s.id && JSON.stringify(x) !== JSON.stringify(s)));
+  return !conflicts.length || showConfirmDialog(`Replace saved regimens (${conflicts.map(s => s.name).join(', ')})? Imported versions replace dose history and remove omitted fields. Other data imports either way.`, {
+    confirmLabel: 'Use imported', cancelLabel: 'Keep saved', ariaLabel: 'Conflicting regimens',
+  });
+}
+
+function importSupplements(target, records, replace) {
   if (!Array.isArray(records)) return;
   const supplements = ensureImportedArray(target, 'supplements');
-  let older = 0;
   for (const s of records) {
     if (!s?.name || !s.startDate) continue;
     const index = s.id ? supplements.findIndex(x => x.id === s.id) : -1;
     if (index < 0 && supplements.some(x => x.name === s.name && x.startDate === s.startDate)) continue;
-    const saved = supplements[index];
-    if ((Number(saved?.updatedAt) || 0) > (Number(s.updatedAt) || 0)) { older++; continue; }
-    const entry = { dosage: '', endDate: null, type: 'supplement', note: '', ...saved, ...s };
+    if (index >= 0 && !replace) continue;
+    const entry = { dosage: '', endDate: null, type: 'supplement', note: '', ...s };
     const sourceUrl = entry.sourceUrl;
     delete entry.sourceUrl;
     try {
@@ -58,7 +61,6 @@ function importSupplements(target, records) {
     if (index >= 0) replaceImportedArrayItem(target, 'supplements', index, entry);
     else appendImportedArrayItem(target, 'supplements', entry);
   }
-  if (older) showNotification(`Kept ${older} newer saved regimen(s).`, 'info');
 }
 
 async function _importNutritionData(profileId, nutrition) {
@@ -167,6 +169,10 @@ export function importDataJSON(file) {
         rollback = JSON.stringify(state.importedData);
         rollbackProfile = state.currentProfile;
         rollbackData = state.importedData;
+        const replaceRegimens = await confirmRegimenImport(rollbackData, json.supplements);
+        if (state.currentProfile !== rollbackProfile || JSON.stringify(state.importedData) !== rollback) {
+          showNotification('Profile changed. Retry import.', 'info'); return;
+        }
         let count = 0;
         const importTs = Date.now();
         for (const entry of json.entries || []) {
@@ -519,7 +525,7 @@ export function importDataJSON(file) {
             else { appendImportedArrayItem(state.importedData, 'chatSummaries', s); }
           }
         }
-        importSupplements(state.importedData, json.supplements);
+        importSupplements(state.importedData, json.supplements, replaceRegimens);
         // Import notes
         if (json.notes && Array.isArray(json.notes)) {
           const notes = ensureImportedArray(state.importedData, 'notes');
@@ -613,6 +619,8 @@ async function _importDatabaseBundle(json) {
       const raw = await encryptedGetItem(storageKey);
       let current;
       try { current = raw ? JSON.parse(raw) : {}; } catch { current = {}; }
+      const replaceRegimens = await confirmRegimenImport(current, importData.supplements);
+      if (await encryptedGetItem(storageKey) !== raw) throw new Error('Profile changed. Retry import.');
       // Entries: date-keyed upsert
       if (Array.isArray(importData.entries)) {
         const entries = ensureImportedArray(current, 'entries');
@@ -631,7 +639,7 @@ async function _importDatabaseBundle(json) {
           if (!notes.some(x => x.date === n.date && x.text === n.text)) appendImportedArrayItem(current, 'notes', n);
         }
       }
-      importSupplements(current, importData.supplements);
+      importSupplements(current, importData.supplements, replaceRegimens);
       // Health goals: deduplicate by text
       if (Array.isArray(importData.healthGoals)) {
         const healthGoals = ensureImportedArray(current, 'healthGoals');

@@ -854,7 +854,7 @@ test('a matched marker prevents a false no-matching-labs notice for the treatmen
   await select(page, 'Example supplement', 'dose-demo', 'toggle-therapy');
   await expect(page.locator('.corr-dose-notice')).toHaveCount(0);
   await page.getByRole('button', { name: 'Remove LDL Cholesterol', exact: true }).click();
-  await expect(page.locator('.corr-dose-notice')).toContainText('no lab results match those dates');
+  await expect(page.locator('.corr-dose-notice')).toContainText('no matching lab dates');
 });
 
 
