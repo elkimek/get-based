@@ -80,20 +80,33 @@ export function renderCorrelationWorkspace(selection, container, refresh) {
   const last = requestedEnd ?? Math.max(start, days.length ? Math.max(...days) : fallback);
   const end = Math.max(start + 1, last + 1);
   let cursor = Math.min(end - 1, Math.max(start, correlationDay(view.inspectDate) ?? (selection.markers[0]?.rows.length ? correlationDay(selection.markers[0].rows.at(-1).date) : last)));
+  const segmentsById = new Map(selection.histories.map(h => [h.id, therapySegments(h, correlationDate(start), correlationDate(end - 1))]));
+  const numeric = s => s.kind === 'marker' || (s.history.quantity && segmentsById.get(s.id).some(seg => seg.value !== null));
+  const scaleKey = s => `${s.kind}:${s.unit === 'Unit unavailable' ? s.id : s.unit}`;
+  const axesFor = items => {
+    const axes = new Map();
+    for (const s of items.filter(numeric)) if (!axes.has(scaleKey(s))) {
+      const base = s.kind === 'marker' ? 'y' : 'dose';
+      axes.set(scaleKey(s), { id: [...axes.values()].some(a => a.id === base) ? `${base}2` : base, unit: s.unit, kind: s.kind, position: axes.size ? 'right' : 'left' });
+    }
+    return axes;
+  };
   const visible = series.filter(s => !hidden.has(s.id));
-  const compatible = items => new Set(items.filter(s => s.kind === 'marker').map(s => s.unit)).size <= 1
-    && new Set(items.filter(s => s.kind === 'dose' && s.unit).map(s => s.unit)).size <= 1;
-  let groups;
-  if (grouping === 'separate') {
-    groups = pairs.map(p => visible.filter(s => s.id === p.markerKey || s.id === p.therapyId || s.id === p.xMarkerKey));
-  } else groups = [visible];
-  const lanes = layout === 'lanes' || groups.some(g => !compatible(g));
-  if (lanes) groups = grouping === 'combined' ? visible.map(s => [s]) : groups.flatMap(g => g.map(s => [s]));
+  let groups = grouping === 'separate'
+    ? pairs.map(p => visible.filter(s => s.id === p.markerKey || s.id === p.therapyId || s.id === p.xMarkerKey)) : [visible];
+  const lanes = layout === 'lanes' || groups.some(g => axesFor(g).size > 2);
+  if (lanes) groups = groups.flatMap(g => {
+    const plots = g.filter(numeric).map(s => [s]);
+    const tracks = g.filter(s => !numeric(s));
+    if (!plots.length) return [tracks];
+    plots[0].push(...tracks);
+    return plots;
+  });
   groups = groups.filter(g => g.length);
   const current = selection.histories.map(h => `<section class="corr-current-dose"><div class="corr-current-heading"><strong>${esc(h.name)} · Saved dose today</strong><button type="button" class="corr-review-dose" data-compare-action="review-therapy" data-compare-key="${esc(h.id)}">Review dose dates</button></div>${h.currentDoses.length ? `<ul>${h.currentDoses.map(d => `<li><span><span class="corr-ingredient-label">Active ingredient</span>${esc(d.ingredient)}</span><span><strong>${esc(textDose(d))}</strong><small>${d.confirmedSince ? `Recorded since ${esc(d.confirmedSince)}` : 'Start date not confirmed'}</small></span></li>`).join('')}</ul><p>These amounts belong to this product. They are not assigned to earlier dates until you confirm when they applied.</p>` : '<p>No current daily ingredient amount is available.</p>'}${h.record.ingredients?.length > 1 ? '<p>History compares the ingredient or dose explicitly saved for each period, not the total of this product’s ingredients.</p>' : ''}</section>`).join('');
   container.innerHTML = `<div class="corr-workspace-tools">
     ${field('grouping', 'Chart grouping', [['combined', 'Combined'], ['separate', 'Separate pairs']], grouping)}
-    ${field('layout', 'Display', [['overlay', 'Overlay · compatible units'], ['lanes', 'Aligned lanes']], layout)}
+    ${field('layout', 'Display', [['overlay', 'Single chart'], ['lanes', 'Aligned lanes']], layout)}
     <label>From<input id="corr-start" type="date" data-corr-setting="start" value="${esc(selection.range.start)}"></label>
     <label>To<input id="corr-end" type="date" data-corr-setting="end" value="${esc(selection.range.end)}"></label>
     <button type="button" data-corr-reset>All time</button>
@@ -103,9 +116,9 @@ export function renderCorrelationWorkspace(selection, container, refresh) {
   <div class="corr-workspace-tabs" aria-label="Analysis view">${['timeline', 'scatter', 'data'].map(t => `<button type="button" id="corr-tab-${t}" data-corr-tab="${t}" aria-pressed="${t === tab}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div>
   <div class="corr-series" aria-label="Visible series"${tab !== 'timeline' ? ' hidden' : ''}>${series.map(s => `<button type="button" data-corr-series="${esc(s.id)}" aria-pressed="${!hidden.has(s.id)}"><i style="border-color:${s.color};border-top-style:${s.index % 2 ? 'dashed' : 'solid'}"></i>${esc(s.name)}${s.unit ? ` · ${esc(s.unit)}` : ' · dose unknown'}</button>`).join('')}</div>
   <p class="corr-help"${tab !== 'timeline' ? ' hidden' : ''}>Series buttons change visibility only. Analysis includes all selected items in this date range.</p>
-  <div id="corr-workspace-plots"${tab !== 'timeline' || selection.rangeError ? ' hidden' : ''}>${groups.map((g, i) => `<section class="corr-timeline-panel"><h4>${g.map(s => esc(s.name)).join(' + ')}</h4><div class="corr-dose-chart${lanes ? ' corr-lane-chart' : ''}"><canvas id="corr-workspace-chart-${i}" role="img" aria-label="${esc(g.map(s => s.name).join(' and '))} over calendar time"></canvas></div>${g.filter(s => s.kind === 'dose').map(s => `<div class="corr-use-timeline" data-corr-track="${esc(s.id)}"><div class="corr-use-heading">${esc(s.name)} · Recorded use <span>Not a dose scale</span></div><div class="corr-use-track"></div></div>`).join('')}</section>`).join('') || '<p>No visible series. Turn a series on above.</p>'}</div>
-  <p class="corr-help"${tab !== 'timeline' ? ' hidden' : ''}>${lanes ? 'Aligned lanes share the same calendar. Each lane has its own labeled scale.' : 'Markers use the left axis; doses use the right. Heights across axes are not comparable.'} Points are measured lab results; connecting lines are visual guides. Dose steps show dated records, gaps mean unknown, and zero means a recorded break or scheduled off-day.</p>
-  ${layout === 'overlay' && lanes ? '<p class="corr-help">Aligned lanes are used because the selected units or dose bases differ.</p>' : ''}
+  <div id="corr-workspace-plots"${tab !== 'timeline' || selection.rangeError ? ' hidden' : ''}>${groups.map((g, i) => `<section class="corr-timeline-panel"><h4>${g.map(s => esc(s.name)).join(' + ')}</h4>${g.some(numeric) ? `<p class="corr-help">${[...axesFor(g)].map(([key, axis]) => `${axis.position === 'left' ? 'Left' : 'Right'}: ${g.filter(s => numeric(s) && scaleKey(s) === key).map(s => esc(s.name)).join(', ')} (${esc(axis.unit)})`).join(' · ')}</p><div class="corr-dose-chart${lanes ? ' corr-lane-chart' : ''}"><canvas id="corr-workspace-chart-${i}" role="img" aria-label="${esc(g.map(s => s.name).join(' and '))} over calendar time"></canvas></div>` : ''}${g.filter(s => s.kind === 'dose').map(s => `<div class="corr-use-timeline" data-corr-track="${esc(s.id)}"><div class="corr-use-heading">${esc(s.name)} · Recorded use <span>Not a dose scale</span></div><div class="corr-use-track"></div></div>`).join('')}</section>`).join('') || '<p>No visible series. Turn a series on above.</p>'}</div>
+  <p class="corr-help"${tab !== 'timeline' ? ' hidden' : ''}>${lanes ? 'Aligned lanes share the same calendar. Each lane has its own labeled scale.' : 'Axis labels show each series’ original units. Heights across different axes are not comparable.'} Points are measured lab results; connecting lines are visual guides. Dose steps show dated records, gaps mean unknown, and zero means a recorded break or scheduled off-day.</p>
+  ${layout === 'overlay' && lanes ? '<p class="corr-help">Aligned lanes are used because the selected units or dose bases differ and need more than two scales. Hide a series to fit the remaining data in one chart.</p>' : ''}
   ${selection.histories.length && tab === 'timeline' ? '<div class="corr-use-key"><span><i class="corr-use-recorded"></i>Recorded use</span><span><i class="corr-use-paused"></i>Break / scheduled off-day</span><span><i class="corr-use-unknown"></i>Unknown history</span></div>' : ''}
   <div class="corr-inspector"${tab !== 'timeline' || selection.rangeError ? ' hidden' : ''}><label>Inspect date<input type="date" id="corr-inspect" value="${correlationDate(cursor)}" min="${correlationDate(start)}" max="${correlationDate(end - 1)}"></label><div id="corr-readout" aria-live="polite"></div></div>
   <div class="corr-pair-analysis"><label>Analysis pair<select id="corr-pair" data-corr-setting="pair">${pairs.map((p, i) => `<option value="${i}"${i === pairIndex ? ' selected' : ''}>${esc(p.markerName)} × ${esc(p.therapyName)}</option>`).join('')}</select></label>
@@ -158,18 +171,24 @@ export function renderCorrelationWorkspace(selection, container, refresh) {
   });
   if (tab === 'timeline') groups.forEach((items, index) => {
     const tracks = [...container.querySelectorAll('.corr-timeline-panel')][index].querySelectorAll('[data-corr-track]');
+    const axes = axesFor(items);
     const datasets = items.flatMap(s => {
-      const common = { label: `${s.name}${s.kind === 'dose' ? ' dose' : ''} (${s.unit})`, borderColor: s.color, backgroundColor: s.color, borderDash: s.index % 2 ? [7, 4] : [], borderWidth: 2, tension: 0, spanGaps: false, yAxisID: s.kind === 'dose' ? 'dose' : 'y', pointRadius: s.kind === 'dose' ? 0 : 4, pointStyle: s.index % 2 ? 'rectRot' : 'circle' };
+      const common = { label: `${s.name}${s.kind === 'dose' ? ' dose' : ''} (${s.unit})`, borderColor: s.color, backgroundColor: s.color, borderDash: s.index % 2 ? [7, 4] : [], borderWidth: 2, tension: 0, spanGaps: false, yAxisID: axes.get(scaleKey(s))?.id, pointRadius: s.kind === 'dose' ? 0 : 4, pointStyle: s.index % 2 ? 'rectRot' : 'circle' };
       if (s.marker) return [{ ...common, data: s.marker.rows.map(r => ({ x: correlationDay(r.date), y: r.reason ? null : r.value })) }];
-      const segments = therapySegments(s.history, correlationDate(start), correlationDate(end - 1));
+      const segments = segmentsById.get(s.id);
       const track = [...tracks].find(t => t.getAttribute('data-corr-track') === s.id)?.querySelector('.corr-use-track');
       if (track) track.innerHTML = segments.map(seg => `<span class="corr-use-segment corr-use-${seg.usage === 1 ? 'recorded' : seg.usage === 0 ? 'paused' : 'unknown'}" style="left:${(seg.start - start) / (end - start) * 100}%;width:${(seg.end - seg.start) / (end - start) * 100}%" role="img" tabindex="0" aria-label="${esc(`${correlationDate(seg.start)} through ${correlationDate(seg.end - 1)}: ${seg.label}`)}" title="${esc(seg.label)}"></span>`).join('');
       const points = segments.flatMap(seg => [{ x: seg.start, y: s.history.quantity ? seg.value : null, label: seg.label }, { x: seg.end, y: s.history.quantity ? seg.value : null, label: seg.label }]);
       return points.some(p => p.y !== null) ? [{ ...common, data: points, stepped: 'after' }] : [];
     });
-    const hasDose = datasets.some(d => d.yAxisID === 'dose');
-    const markerUnit = items.find(s => s.kind === 'marker')?.unit;
-    const doseUnit = items.find(s => s.kind === 'dose' && s.unit)?.unit;
+    if (!datasets.length) return;
+    const numericScales = { y: { display: false, position: 'left' }, dose: { display: false, position: 'right' } };
+    for (const axis of axes.values()) numericScales[axis.id] = {
+      display: true, position: axis.position, beginAtZero: axis.kind === 'dose',
+      afterFit: a => { a.width = 65; },
+      title: { display: true, text: axis.unit, color: colors.tickColor },
+      ticks: { color: colors.tickColor }, grid: { drawOnChartArea: axis.position === 'left', color: colors.gridColor },
+    };
     const chart = createChartRuntime(container.querySelector(`#corr-workspace-chart-${index}`), {
       type: 'line', data: { datasets },
       plugins: [{ id: 'correlation-calendar-cursor', afterLayout: c => {
@@ -180,14 +199,13 @@ export function renderCorrelationWorkspace(selection, container, refresh) {
       } }],
       options: {
         responsive: true, maintainAspectRatio: false, animation: false,
-        layout: { padding: { left: markerUnit || hasDose ? 0 : 65, right: markerUnit && hasDose ? 0 : 65 } },
+        layout: { padding: { left: 0, right: axes.size > 1 ? 0 : 65 } },
         onHover: event => { if (event.x >= chart.chartArea.left && event.x <= chart.chartArea.right) inspect(Math.floor(chart.scales.x.getValueForPixel(event.x)), false); },
         onClick: event => { const day = Math.floor(chart.scales.x.getValueForPixel(event.x)); if (Number.isFinite(day)) { state.correlationView.inspectDate = correlationDate(day); inspect(day); } },
         plugins: { legend: { display: false }, tooltip: { callbacks: { title: points => points.length ? correlationDate(Math.floor(points[0].parsed.x)) : '', label: p => `${p.dataset.label}: ${p.raw.label || formatValue(p.parsed.y)}` } } },
         scales: {
           x: { type: 'linear', min: start, max: end, afterBuildTicks: axis => { const count = axis.chart.width < 480 ? 3 : 5; axis.ticks = Array.from({ length: count }, (_, i) => ({ value: Math.round(start + (end - 1 - start) * i / (count - 1)) })); }, title: { display: true, text: 'Calendar date', color: colors.tickColor }, ticks: { color: colors.tickColor, maxTicksLimit: 4, includeBounds: false, callback: v => correlationDate(Math.round(Number(v))) }, grid: { color: colors.gridColor } },
-          y: { display: !!markerUnit, position: 'left', afterFit: axis => { axis.width = axis.options.display ? 65 : 0; }, title: { display: true, text: markerUnit || '', color: colors.tickColor }, ticks: { color: colors.tickColor }, grid: { color: colors.gridColor } },
-          dose: { display: hasDose, position: markerUnit ? 'right' : 'left', beginAtZero: true, afterFit: axis => { axis.width = axis.options.display ? 65 : 0; }, title: { display: true, text: doseUnit || '', color: colors.tickColor }, ticks: { color: colors.tickColor }, grid: { drawOnChartArea: !markerUnit, color: colors.gridColor } },
+          ...numericScales,
         },
       },
     });

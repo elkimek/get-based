@@ -391,3 +391,52 @@ test('does not combine incompatible historical dose quantities in a scatter axis
   await expect(page.locator('#corr-therapy-results')).toContainText('Scatter unavailable');
   expect(await chartSnapshot(page)).toEqual([]);
 });
+
+test('combines different marker units on two axes without empty supplement plots', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await fixture(page);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.importedData.entries.forEach((e, i) => {
+      e.markers['biochemistry.glucose'] = 4.2 + i / 10;
+      e.markers['diabetes.hba1c'] = 32 + (i % 3) * 2 + Math.floor(i / 3);
+    });
+    state.importedData.supplements.forEach(s => { s.periods = [{ start: '2026-03-01', end: null, dose: '' }]; });
+    (await import('/js/data.js')).invalidateActiveDataCache();
+    (await import('/js/compare-correlations.js')).showCorrelations();
+  });
+  await select(page, 'Glucose', 'biochemistry.glucose');
+  await select(page, 'HbA1c', 'diabetes.hba1c');
+  await select(page, 'Example supplement', 'dose-demo', 'toggle-therapy');
+  await select(page, 'Example medication', 'prn-demo', 'toggle-therapy');
+  await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(1);
+  await expect(page.locator('.corr-use-timeline')).toHaveCount(2);
+  const snapshot = (await chartSnapshot(page))[0];
+  expect(snapshot.datasets).toHaveLength(2);
+  expect(snapshot.datasets.map(d => d.axis)).toEqual(['y', 'y2']);
+  expect(snapshot.datasets[0].data[0].y).toBe(4.2);
+  expect(snapshot.datasets[1].data[0].y).toBe(32);
+  const axes = await page.evaluate(async () => {
+    const c = (await import('/js/state.js')).state.chartInstances['correlation-therapy-0'];
+    return ['y', 'y2'].map(id => ({ title: c.options.scales[id].title.text, side: c.options.scales[id].position }));
+  });
+  expect(axes).toEqual([{ title: 'mmol/l', side: 'left' }, { title: 'mmol/mol', side: 'right' }]);
+  await expect(page.locator('#corr-workspace-plots')).toContainText('Left: Glucose');
+  await expect(page.locator('#corr-workspace-plots')).toContainText('Right: HbA1c');
+  await page.locator('#corr-layout').selectOption('lanes');
+  await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(2);
+  await expect(page.locator('.corr-use-timeline')).toHaveCount(2);
+  await page.locator('#corr-layout').selectOption('overlay');
+  await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(1);
+  await page.setViewportSize({ width: 320, height: 900 });
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.setViewportSize({ width: 1200, height: 1000 });
+  await page.screenshot({ path: '/tmp/getbased-two-marker-chart.png', fullPage: true });
+  await page.locator('[data-corr-series="biochemistry.glucose"]').click();
+  await page.locator('[data-corr-series="diabetes.hba1c"]').click();
+  await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(0);
+  await expect(page.locator('.corr-use-timeline')).toHaveCount(2);
+  expect(await chartSnapshot(page)).toHaveLength(0);
+  expect(errors).toEqual([]);
+});
