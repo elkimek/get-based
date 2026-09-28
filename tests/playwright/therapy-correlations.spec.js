@@ -241,3 +241,25 @@ test('keeps a combination product together and shows only confirmed dose series 
   await expect(page.locator('details')).not.toHaveAttribute('open');
   await page.screenshot({ path: '/tmp/getbased-dose-unified-mobile.png', fullPage: true });
 });
+
+
+test('clears accepted searches and restores focus for the next marker or supplement', async ({ page }) => {
+  await fixture(page);
+  const search = page.locator('#corr-search');
+  await select(page, 'LDL', 'lipids.ldl');
+  await expect(search).toHaveValue('');
+  await expect(search).toBeFocused();
+  await expect(page.locator('#corr-options')).not.toHaveClass(/show/);
+  await search.pressSequentially('Example supplement');
+  await page.locator('.corr-option[data-compare-key="dose-demo"]').click();
+  await expect(search).toHaveValue('');
+  await expect(search).toBeFocused();
+  await search.pressSequentially('Example medication');
+  await page.locator('.corr-option[data-compare-key="prn-demo"]').press('Enter');
+  await expect(search).toHaveValue('');
+  await expect(search).toBeFocused();
+  await expect(page.locator('.corr-therapy-card')).toHaveCount(2);
+  await search.fill('unfinished query');
+  await page.getByRole('button', { name: 'Remove Example medication', exact: true }).click();
+  await expect(search).toHaveValue('unfinished query');
+});

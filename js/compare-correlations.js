@@ -84,12 +84,16 @@ function handleCompareClick(event) {
     event.preventDefault();
     const index = Number.parseInt(actionEl.dataset.compareIndex || '', 10);
     if (Number.isInteger(index)) applyCorrelationPreset(index);
-  } else if (action === 'toggle-marker') {
+  } else if (action === 'toggle-marker' || action === 'toggle-therapy') {
     event.preventDefault();
-    if (actionEl.dataset.compareKey) toggleCorrelationMarker(actionEl.dataset.compareKey);
-  } else if (action === 'toggle-therapy') {
-    event.preventDefault();
-    if (actionEl.dataset.compareKey) toggleCorrelationTherapy(actionEl.dataset.compareKey);
+    const key = actionEl.dataset.compareKey;
+    if (key) {
+      const marker = action === 'toggle-marker';
+      const selected = marker ? state.selectedCorrelationMarkers : state.selectedCorrelationSupplements;
+      const added = !selected.includes(key);
+      (marker ? toggleCorrelationMarker : toggleCorrelationTherapy)(key);
+      if (added && selected.includes(key)) finishCorrelationSearch(actionEl);
+    }
   } else if (action === 'review-therapy') {
     event.preventDefault();
     if (actionEl.dataset.compareKey) void reviewCorrelationTherapy(actionEl.dataset.compareKey);
@@ -97,6 +101,15 @@ function handleCompareClick(event) {
     event.preventDefault();
     compareCorrelationDeps.askAIAboutCorrelations();
   }
+}
+
+function finishCorrelationSearch(option) {
+  if (!option.classList.contains('corr-option')) return;
+  const search = document.getElementById('corr-search');
+  if (!(search instanceof HTMLInputElement)) return;
+  search.value = '';
+  search.focus();
+  document.getElementById('corr-options')?.classList.remove('show');
 }
 
 async function reviewCorrelationTherapy(id) {
