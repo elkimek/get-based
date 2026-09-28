@@ -124,6 +124,7 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
     await page.addScriptTag({
       type: 'module',
       content: `
+        import { state } from '/js/state.js';
         import { mergePulledImportedData, persistPulledImportedData } from '/js/sync-pull-merge.js?${helperBust}';
         import { refreshActiveProfileAfterPull } from '/js/sync-pull-active-refresh.js?${helperBust}';
         import * as syncMessenger from '/js/sync-messenger.js';
@@ -133,6 +134,7 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
         import * as personaStorage from '/js/chat-personality-storage.js';
         import * as cryptoStore from '/js/crypto.js';
         import { getRoutstrKey } from '/js/api-provider-storage.js';
+        window.__syncE2EState = state;
         window.__syncE2EMergePulledImportedData = mergePulledImportedData;
         window.__syncE2EPersistPulledImportedData = persistPulledImportedData;
         window.__syncE2ERefreshActiveProfileAfterPull = refreshActiveProfileAfterPull;
@@ -146,7 +148,7 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
       `,
     });
     await page.waitForFunction(
-      () => typeof window.__syncE2EMergePulledImportedData === 'function'
+      () => !!window.__syncE2EState && typeof window.__syncE2EMergePulledImportedData === 'function'
         && typeof window.__syncE2EPersistPulledImportedData === 'function'
         && typeof window.__syncE2ERefreshActiveProfileAfterPull === 'function'
         && typeof window.__syncE2EMessenger?.disableMessengerTokenLocal === 'function'
@@ -188,15 +190,15 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
 }
 
 async function getImportedData(page) {
-  return page.evaluate(async () => {
-    const { state } = await import('/js/state.js');
+  return page.evaluate(() => {
+    const state = window.__syncE2EState;
     return JSON.parse(JSON.stringify(state.importedData));
   });
 }
 
 async function pullRemoteImportedData(page, remoteImportedData) {
   return page.evaluate(async ({ profileId, remote }) => {
-    const { state } = await import('/js/state.js');
+    const state = window.__syncE2EState;
     const result = await window.__syncE2EMergePulledImportedData(profileId, JSON.parse(JSON.stringify(remote)), {
       debug: () => {},
     });
@@ -219,8 +221,10 @@ async function pullRemoteImportedData(page, remoteImportedData) {
 }
 
 async function applyMergedImportedData(page, mergedImportedData, remoteBroughtNewRows = true) {
-  return page.evaluate(async ({ profileId, merged, remoteBroughtNewRows: broughtRows }) => {
-    const { state } = await import('/js/state.js');
+  // Reuse the module installed above; this refresh is synchronous. Avoid a
+  // redundant dynamic-import promise being collected by Chromium/CDP in CI.
+  return page.evaluate(({ profileId, merged, remoteBroughtNewRows: broughtRows }) => {
+    const state = window.__syncE2EState;
     window.__syncE2ERefreshActiveProfileAfterPull({
       profileId,
       merged: JSON.parse(JSON.stringify(merged)),
