@@ -11,13 +11,16 @@ import { loadChatHistory, saveChatHistory } from './chat-history.js';
 import { closeChatModalRuntime } from './chat-runtime.js';
 
 async function openSourcePrompt(prompt, threadName, { closeModal = false } = {}) {
+  const profile = state.currentProfile;
   if (closeModal) closeChatModalRuntime();
   const threadsLoaded = await loadChatThreads();
-  if (threadsLoaded === false) return;
+  if (threadsLoaded === false || state.currentProfile !== profile) return;
   ensureActiveThread();
   await loadChatHistory();
+  if (state.currentProfile !== profile) return;
   if (state.chatHistory.length > 0) {
     await saveChatHistory();
+    if (state.currentProfile !== profile) return;
     createNewThread();
   }
   renameThread(state.currentThreadId, threadName);

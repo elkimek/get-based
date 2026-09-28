@@ -48,6 +48,7 @@ test('selects historical therapies and renders real dose increases, pauses and d
   expect(chart.type).toBe('linear');
   expect(chart.doses).toEqual([null, 500, 2000, 0, 1000]);
   expect(chart.max - chart.min).toBeGreaterThan(190);
+  await page.locator('.corr-analysis-disclosure > summary').click();
   await page.locator('#corr-pair-detail summary').click();
   await expect(page.locator('#corr-pair-detail details')).toContainText('lab-2026-01-10.pdf');
   await expect(page.locator('#corr-pair-detail details')).toContainText('Before first recorded use');
@@ -66,9 +67,10 @@ test('keeps PRN exposure unknown and remains usable on a narrow screen', async (
   await select(page, 'LDL', 'lipids.ldl');
   await select(page, 'Example medication', 'prn-demo', 'toggle-therapy');
   await expect(page.locator('.corr-stat')).toContainText('Coefficient unavailable');
+  await page.locator('.corr-analysis-disclosure > summary').click();
   await page.locator('#corr-pair-detail summary').click();
   await expect(page.locator('#corr-pair-detail details')).toContainText('actual intake unknown');
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: '/tmp/getbased-dose-correlations-mobile.png', fullPage: true });
   await page.getByRole('button', { name: 'Remove Example medication', exact: true }).click();
   await expect(page.locator('#corr-chart-container')).toBeHidden();
@@ -165,11 +167,11 @@ test('shows current ingredient dose and lets the user confirm its period before 
   });
   await select(page, 'LDL', 'lipids.ldl');
   await select(page, 'Example supplement', 'dose-demo', 'toggle-therapy');
-  await expect(page.locator('.corr-current-dose')).toContainText('Saved dose today');
+  await expect(page.locator('.corr-current-dose')).toContainText('Example supplement');
   await expect(page.locator('.corr-current-dose')).toContainText('TMG');
   await expect(page.locator('.corr-current-dose')).toContainText('500 mg/day');
-  await expect(page.locator('.corr-dose-notice')).toContainText('Saved today: TMG 500 mg/day');
-  await expect(page.locator('.corr-dose-notice')).toContainText('Confirm when this amount applied');
+  await expect(page.locator('.corr-dose-notice')).toContainText('Current amount: 500 mg/day');
+  await expect(page.locator('.corr-dose-notice')).toContainText('Confirm its dates');
   await expect(page.locator('#corr-grouping-separate')).toBeDisabled();
   await expect(page.locator('#corr-layout-status')).toContainText('Only one pair');
   await expect(page.locator('.corr-therapy-card')).toContainText('No lab measurements have usable numeric dose information');
@@ -181,7 +183,7 @@ test('shows current ingredient dose and lets the user confirm its period before 
   expect(presentation.scales.some(key => key.startsWith('current-') || key === 'usage')).toBe(false);
   await expect(page.locator('.corr-stat')).toContainText('Confirm dose dates');
   await page.screenshot({ path: '/tmp/getbased-current-ingredient-dose.png', fullPage: true });
-  await page.getByRole('button', { name: 'Set dose dates', exact: true }).click();
+  await page.getByRole('button', { name: 'Review dose dates', exact: true }).click();
   await page.getByRole('button', { name: 'Use ingredients for these dates', exact: true }).click();
   await expect(page.locator('.supp-period-dose')).toHaveValue('500 mg/day');
   await page.getByRole('button', { name: 'Update', exact: true }).click();
@@ -226,19 +228,17 @@ test('keeps a combination product together and shows only confirmed dose series 
   await expect(page.locator('.corr-therapy-card')).toHaveCount(1);
   await expect(page.locator('.corr-current-dose li')).toHaveCount(2);
   await expect(page.locator('.corr-current-dose')).toContainText('25 mcg/day');
-  await expect(page.locator('.corr-current-dose')).toContainText('These amounts belong to this product');
   const view = await page.evaluate(async () => {
     const chart = (await import('/js/state.js')).state.chartInstances['correlation-therapy-0'];
     return { labels: chart.data.datasets.map(d => d.label), axes: Object.keys(chart.scales),
       doses: chart.data.datasets[1].data.map(p => p.y),
-      trackLeft: document.querySelector('.corr-use-track').getBoundingClientRect().left,
-      plotLeft: chart.canvas.getBoundingClientRect().left + chart.chartArea.left,
+      tracks: document.querySelectorAll('.corr-use-track').length,
       width: document.documentElement.scrollWidth, viewport: innerWidth };
   });
   expect(view.labels).toEqual(['LDL Cholesterol (mmol/l)', 'Example supplement dose (mg per dose)']);
   expect(view.axes).toEqual(['x', 'y', 'dose']);
   expect(view.doses).toContain(null);
-  expect(Math.abs(view.trackLeft - view.plotLeft)).toBeLessThan(2);
+  expect(view.tracks).toBe(0);
   expect(view.width).toBeLessThanOrEqual(view.viewport);
   await expect(page.locator('#corr-pair-detail details')).not.toHaveAttribute('open');
   await page.screenshot({ path: '/tmp/getbased-dose-unified-mobile.png', fullPage: true });
@@ -261,7 +261,7 @@ test('clears accepted searches and restores focus for the next marker or supplem
   await expect(search).toHaveValue('');
   await expect(search).toBeFocused();
   await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(1);
-  await expect(page.getByRole('tablist', { name: 'Comparison' }).getByRole('tab')).toHaveCount(2);
+  await expect(page.locator('.corr-pair-tabs [role=tab]')).toHaveCount(2);
   await search.fill('unfinished query');
   await page.getByRole('button', { name: 'Remove Example medication', exact: true }).click();
   await expect(search).toHaveValue('unfinished query');
@@ -307,7 +307,7 @@ test('combines two dose series, preserves state across layouts, and inspects rea
   await page.locator('#corr-start').dispatchEvent('change');
   await page.locator('#corr-end').fill('2026-04-30');
   await page.locator('#corr-end').dispatchEvent('change');
-  await expect(page.locator('.corr-stat')).toContainText('3 matched to numeric doses');
+  await expect(page.locator('#corr-analysis-panel')).toContainText('3 paired');
   expect((await chartSnapshot(page))[0].min).toBe(Date.parse('2026-03-01') / 86400000);
   await page.getByRole('button', { name: 'Scatter', exact: true }).click();
   await expect(page.locator('#corr-scatter')).toBeVisible();
@@ -318,7 +318,7 @@ test('combines two dose series, preserves state across layouts, and inspects rea
   await page.getByRole('button', { name: 'Timeline', exact: true }).click();
   await page.locator('[data-corr-series="prn-demo"]').click();
   expect((await chartSnapshot(page))[0].datasets).toHaveLength(2);
-  await expect(page.getByRole('tablist', { name: 'Comparison' }).getByRole('tab')).toHaveCount(2);
+  await expect(page.locator('.corr-pair-tabs [role=tab]')).toHaveCount(2);
   await page.locator('#corr-start').fill('2026-05-01');
   await page.locator('#corr-start').dispatchEvent('change');
   await expect(page.getByRole('alert')).toContainText('Start date');
@@ -332,7 +332,7 @@ test('combines two dose series, preserves state across layouts, and inspects rea
   expect((await chartSnapshot(page))[0].max).toBe(Date.parse('2020-01-02') / 86400000);
 });
 
-test('uses aligned lanes for incompatible dose bases and supports keyboard search and removal', async ({ page }) => {
+test('keeps one relative chart for incompatible dose bases and supports keyboard search and removal', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await fixture(page);
   await page.evaluate(async () => {
@@ -352,9 +352,9 @@ test('uses aligned lanes for incompatible dose bases and supports keyboard searc
   await expect(page.locator('#corr-options')).toBeHidden();
   await select(page, 'Example supplement', 'dose-demo', 'toggle-therapy');
   await select(page, 'Example medication', 'prn-demo', 'toggle-therapy');
-  await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(3);
-  await expect(page.locator('#corr-therapy-results')).toContainText('units or dose bases differ');
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(1);
+  await expect(page.locator('#corr-therapy-results')).toContainText('Relative trends');
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('button', { name: 'Remove LDL Cholesterol', exact: true }).press('Enter');
   await expect(search).toBeFocused();
   await expect(page.locator('#corr-chart-container')).toBeHidden();
@@ -425,15 +425,15 @@ test('combines different marker units on two axes without empty supplement plots
     return ['y', 'y2'].map(id => ({ title: c.options.scales[id].title.text, side: c.options.scales[id].position }));
   });
   expect(axes).toEqual([{ title: 'mmol/l', side: 'left' }, { title: 'mmol/mol', side: 'right' }]);
-  await expect(page.locator('#corr-workspace-plots')).toContainText('Left: Glucose');
-  await expect(page.locator('#corr-workspace-plots')).toContainText('Right: HbA1c');
+  await expect(page.locator('#corr-workspace-plots')).toContainText('Left: mmol/l');
+  await expect(page.locator('#corr-workspace-plots')).toContainText('Right: mmol/mol');
   await expect(page.locator('#corr-layout-status')).toContainText('Combined selection · 1 chart');
   await page.locator('#corr-grouping-separate').click();
-  await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(2);
-  await expect(page.locator('#corr-layout-status')).toContainText('Separate pairs · 2 charts');
+  await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(3);
+  await expect(page.locator('#corr-layout-status')).toContainText('Separate pairs · 3 charts');
   const separate = await chartSnapshot(page);
-  expect(separate.map(c => c.datasets.map(d => d.label))).toEqual([['Glucose (mmol/l)'], ['HbA1c (mmol/mol)']]);
-  await expect(page.locator('.corr-pair-panel h4')).toHaveText(['Glucose + Example supplement', 'HbA1c + Example supplement']);
+  expect(separate.map(c => c.datasets.map(d => d.label))).toEqual([['Glucose (mmol/l)'], ['HbA1c (mmol/mol)'], ['Glucose (mmol/l)', 'HbA1c (mmol/mol)']]);
+  await expect(page.locator('.corr-pair-panel h4')).toHaveText(['Glucose + Example supplement', 'HbA1c + Example supplement', 'Glucose + HbA1c']);
   await page.locator('#corr-grouping-combined').click();
   await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(1);
   await page.locator('#corr-layout-lanes').click();
@@ -454,7 +454,7 @@ test('combines different marker units on two axes without empty supplement plots
 });
 
 
-test('saving an unlinked ingredient regimen starts history today and keeps ingredient selection consistent', async ({ page }) => {
+test('only changed ingredient regimens start history today and ingredient selection stays consistent', async ({ page }) => {
   await fixture(page);
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
@@ -470,11 +470,9 @@ test('saving an unlinked ingredient regimen starts history today and keeps ingre
     const { localDateKey } = await import('/js/supplement-medication-domain.js');
     return { today: localDateKey(), periods: state.importedData.supplements[0].periods };
   });
-  expect(saved.periods).toHaveLength(2);
+  expect(saved.periods).toHaveLength(1);
   expect(saved.periods[0].dose).toBeUndefined();
   expect(saved.periods[0].ingredientDoses).toBeUndefined();
-  expect(saved.periods[1].start).toBe(saved.today);
-  expect(saved.periods[1].ingredientDoses.map(d => d.value)).toEqual([500, 25]);
   await page.locator('#supp-times').fill('4');
   await page.getByRole('button', { name: 'Update', exact: true }).click();
   const periods = await page.evaluate(async () => (await import('/js/state.js')).state.importedData.supplements[0].periods);
@@ -511,7 +509,7 @@ test('uses today-based presets across timeline, data and scatter without hiding 
   await expect(page.getByRole('status').filter({ hasText: 'No lab results' })).toBeVisible();
   expect((await chartSnapshot(page))[0].min).toBe(Date.parse('2026-06-28') / 86400000);
   await page.getByRole('button', { name: '6M', exact: true }).click();
-  await expect(page.locator('.corr-stat')).toContainText('3 matched to numeric doses');
+  await expect(page.locator('#corr-analysis-panel')).toContainText('3 paired');
   await page.getByRole('button', { name: 'Data', exact: true }).click();
   await expect(page.locator('#corr-pair-detail')).not.toContainText('lab-2026-03-20.pdf');
   await expect(page.locator('#corr-pair-detail')).toContainText('lab-2026-04-10.pdf');
@@ -524,7 +522,7 @@ test('uses today-based presets across timeline, data and scatter without hiding 
   await page.getByRole('button', { name: 'All', exact: true }).click();
   expect((await chartSnapshot(page))[0].min).toBe(Date.parse('2025-12-01') / 86400000);
   await expect(page.getByText('Advanced analysis', { exact: true })).toHaveCount(0);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: '/tmp/getbased-correlation-controls-mobile.png', fullPage: true });
 });
 
@@ -546,13 +544,14 @@ test('inspects actual chart dates and switches comparison tabs with the keyboard
   await expect(page.locator('#corr-readout')).toContainText('2000 mg');
   await expect(page.locator('#corr-readout')).toContainText('3.50 mmol/l');
   await select(page, 'Example medication', 'prn-demo', 'toggle-therapy');
-  const tabs = page.getByRole('tablist', { name: 'Comparison' }).getByRole('tab');
+  const tabs = page.locator('.corr-pair-tabs [role=tab]');
   await expect(tabs).toHaveCount(2);
+  await page.locator('.corr-analysis-disclosure > summary').click();
   await tabs.first().focus();
   await tabs.first().press('ArrowRight');
   await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
   await expect(tabs.nth(1)).toBeFocused();
-  await expect(page.getByRole('tabpanel')).toContainText('LDL Cholesterol × Example medication');
+  await expect(page.getByRole('tabpanel').locator('.corr-therapy-card')).toHaveAttribute('aria-label', 'LDL Cholesterol × Example medication');
   await page.getByRole('button', { name: 'Data', exact: true }).click();
   await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('#corr-pair-detail')).toContainText('actual intake unknown');
@@ -560,4 +559,90 @@ test('inspects actual chart dates and switches comparison tabs with the keyboard
   await tabs.nth(1).press('Home');
   await expect(tabs.first()).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('#corr-pair-detail')).toContainText('2000');
+});
+
+
+test('glucose, HbA1c and numeric TMG stay on one chart with raw values preserved everywhere', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-09-28T12:00:00Z'));
+  await fixture(page);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.importedData.entries = ['2026-01-10', '2026-02-10', '2026-03-10'].map((date, i) => ({ date, markers: { 'biochemistry.glucose': [4.4, 5.2, 5][i], 'diabetes.hba1c': [31, 34, 33][i] } }));
+    state.importedData.supplements[0] = { id: 'dose-demo', name: 'TMG Powder', periods: [{ start: '2026-01-01', end: '2026-02-28', dose: '500 mg/day' }, { start: '2026-03-01', end: null, dose: '2000 mg/day' }] };
+    (await import('/js/data.js')).invalidateActiveDataCache();
+    (await import('/js/compare-correlations.js')).showCorrelations();
+  });
+  await select(page, 'Glucose', 'biochemistry.glucose');
+  await select(page, 'HbA1c', 'diabetes.hba1c');
+  await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(1);
+  await select(page, 'TMG', 'dose-demo', 'toggle-therapy');
+  await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(1);
+  await expect(page.locator('.corr-scale-label')).toContainText('Relative trends');
+  const chart = await page.evaluate(async () => {
+    const c = (await import('/js/state.js')).state.chartInstances['correlation-therapy-0'];
+    const d = c.data.datasets[0];
+    return { data: c.data.datasets.map(d => d.data), label: c.options.plugins.tooltip.callbacks.label({ dataset: d, raw: d.data[0], parsed: { y: d.data[0].y } }) };
+  });
+  expect(chart.data).toHaveLength(3);
+  expect(chart.data[0].map(p => p.rawValue)).toEqual([4.4, 5.2, 5]);
+  [0, 100, 75].forEach((value, i) => expect(chart.data[0][i].y).toBeCloseTo(value));
+  expect(chart.data[2].filter(p => p.rawValue !== null).map(p => p.rawValue)).toContain(2000);
+  expect(chart.label).toContain('4.40');
+  await expect(page.locator('.corr-use-timeline')).toHaveCount(0);
+  await expect(page.locator('.corr-analysis-disclosure')).not.toHaveAttribute('open');
+  await expect(page.locator('#corr-readout')).toContainText('2000 mg/day');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: '/tmp/correlations-audit-mobile.png', fullPage: true });
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.evaluate(() => document.documentElement.dataset.theme = 'light');
+  await page.locator('#corr-layout-lanes').click();
+  await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(3);
+  await page.locator('#corr-layout-overlay').click();
+  await expect(page.locator('#corr-workspace-plots canvas')).toHaveCount(1);
+  await page.screenshot({ path: '/tmp/correlations-audit-light.png', fullPage: true });
+  await page.getByRole('button', { name: 'Data', exact: true }).click();
+  const tabs = page.getByRole('tablist', { name: 'Comparison' }).getByRole('tab');
+  await expect(tabs).toHaveCount(3);
+  await page.getByRole('tab', { name: 'Glucose × HbA1c', exact: true }).click();
+  await expect(page.locator('#corr-pair-detail')).toContainText('4.40');
+  await expect(page.locator('#corr-pair-detail')).toContainText('31');
+  await page.getByRole('button', { name: 'Timeline', exact: true }).click();
+  await page.locator('[data-corr-series="diabetes.hba1c"]').click();
+  await expect(page.locator('.corr-scale-label')).not.toContainText('Relative trends');
+  expect((await chartSnapshot(page))[0].datasets[0].data.map(p => p.y)).toEqual([4.4, 5.2, 5]);
+});
+
+
+test('correcting a continuous period does not recreate today or lose confirmed ingredient history', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-09-28T12:00:00Z'));
+  await fixture(page);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const dose = { ingredient: 'TMG', value: 500, unit: 'mg', basis: 'day', source: 'ingredient' };
+    state.importedData.supplements[0] = { id: 'dose-demo', name: 'TMG Powder', timesPerDay: 1,
+      schedule: { mode: 'daily', timesPerDay: 1 }, ingredients: [{ name: 'TMG', amount: '500 mg' }],
+      periods: [{ start: '2026-03-24', end: '2026-09-27' }, { start: '2026-09-28', end: null, dose, ingredientDoses: [dose] }],
+    };
+    (await import('/js/supplements.js')).openSupplementsEditor(0);
+  });
+  await page.locator('.supp-period-remove').nth(1).click();
+  await page.locator('.supp-period-end').fill('');
+  await page.getByRole('button', { name: 'Update', exact: true }).click();
+  await expect(page.locator('.supp-period-row')).toHaveCount(1);
+  await expect(page.locator('.supp-period-end')).toHaveValue('');
+  // A second unchanged save must also leave the correction alone.
+  await page.getByRole('button', { name: 'Update', exact: true }).click();
+  await expect(page.locator('.supp-period-row')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Use ingredients for these dates', exact: true }).click();
+  await page.getByRole('button', { name: 'Update', exact: true }).click();
+  await expect(page.locator('.supp-period-row')).toHaveCount(1);
+  const saved = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const { prepareTherapyHistory, therapyExposure } = await import('/js/therapy-correlations.js');
+    const record = state.importedData.supplements[0];
+    return { periods: record.periods, exposure: therapyExposure(prepareTherapyHistory(record, '2026-09-28'), '2026-05-22') };
+  });
+  expect(saved.periods[0]).toMatchObject({ start: '2026-03-24', end: null, ingredientDoses: [{ value: 500, basis: 'day' }] });
+  expect(saved.exposure.value).toBe(500);
 });

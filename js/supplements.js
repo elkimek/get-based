@@ -348,7 +348,7 @@ export function saveSupplement(index) {
   const servingUnit = normalizeSupplementUnit(getFieldValue('supp-serving-unit'));
   if (isFinite(servingValue) || servingUnit) entry.servingSize = { ...(isFinite(servingValue) ? { value: servingValue } : {}), ...(servingUnit ? { unit: servingUnit } : {}) };
   else delete entry.servingSize;
-  recordIngredientDoseChange(entry);
+  recordIngredientDoseChange(entry, localDateKey(), previous);
   const latestDose = entry.periods[entry.periods.length - 1]?.dose;
   if (latestDose) entry.currentDose = latestDose; else delete entry.currentDose;
   if (pendingImport?.draft?.source?.reviewed) {
@@ -430,7 +430,7 @@ export function restartSupplement(index) {
     ...previous, periods, startDate: periods[0]?.start || today, endDate: null,
     lifecycle: { ...(previous.lifecycle || {}), state: 'active', changedAt: Date.now() }, updatedAt: Date.now(),
   };
-  recordIngredientDoseChange(entry);
+  recordIngredientDoseChange(entry, localDateKey(), previous);
   replaceImportedArrayItem(state.importedData, 'supplements', index, entry);
   saveImportedData();
   showNotification('Item restarted. Review the current dose and schedule.', 'success');

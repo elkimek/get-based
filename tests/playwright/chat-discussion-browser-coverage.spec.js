@@ -689,15 +689,15 @@ test('chat marker and correlation prompt handoffs prefill chat threads from brow
 
       state.selectedCorrelationMarkers = ['iron.ferritin', 'iron.transferrin'];
       markerPrompts.askAIAboutCorrelations();
-      const correlationReady = await waitFor(() => input.value.includes('Analyze the correlation between these biomarkers'));
+      const correlationReady = await waitFor(() => input.value.includes('Explain these exploratory associations'));
       const correlationPrompt = input.value;
       outcomes.correlationPromptPrefillsNamesValuesAndThread =
         correlationReady
-        && correlationPrompt.includes('Ferritin, Transferrin')
-        && correlationPrompt.includes('- Ferritin:')
-        && correlationPrompt.includes('- Transferrin:')
-        && correlationPrompt.includes('status: normal')
-        && state.chatThreads.some(thread => thread.name === 'Correlations: Ferritin + Transferrin');
+        && correlationPrompt.includes('Ferritin')
+        && correlationPrompt.includes('2026-05-01')
+        && correlationPrompt.includes('Transferrin')
+        && correlationPrompt.includes('markerPairs')
+        && state.chatThreads.some(thread => thread.name === 'Biomarker and dose exploration');
     } finally {
       state.currentProfile = original.currentProfile;
       state.importedData = original.importedData;

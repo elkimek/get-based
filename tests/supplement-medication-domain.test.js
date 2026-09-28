@@ -245,3 +245,18 @@ it('preserves a planned end date when a finite daily regimen changes', () => {
   expect(entry.periods[0]).toMatchObject({ end: '2026-01-31', dose: { value: 500 } });
   expect(entry.periods[1]).toMatchObject({ start: '2026-02-01', end: '2026-03-01', dose: { value: 1000 } });
 });
+
+
+it('does not split corrected dates on repeated saves when the current ingredient amount has not changed', () => {
+  const previous = { ingredients: [{ name: 'TMG', amount: '500 mg' }], timesPerDay: 1, schedule: { mode: 'daily', timesPerDay: 1 }, periods: [{ start: '2026-03-24', end: '2026-09-27' }, { start: '2026-09-28', end: null, dose: { value: 500, unit: 'mg', basis: 'day', ingredient: 'TMG', source: 'ingredient' } }] };
+  const edited = { ...previous, periods: [{ start: '2026-03-24', end: null }] };
+  recordIngredientDoseChange(edited, '2026-09-28', previous);
+  expect(edited.periods).toEqual([{ start: '2026-03-24', end: null }]);
+  const saved = structuredClone(edited);
+  recordIngredientDoseChange(edited, '2026-09-29', saved);
+  expect(edited.periods).toEqual(saved.periods);
+  edited.ingredients = [{ name: 'TMG', amount: '2000 mg' }];
+  recordIngredientDoseChange(edited, '2026-09-29', saved);
+  expect(edited.periods).toHaveLength(2);
+  expect(edited.periods[1]).toMatchObject({ start: '2026-09-29', dose: { value: 2000 } });
+});

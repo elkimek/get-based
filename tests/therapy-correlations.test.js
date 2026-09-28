@@ -313,3 +313,26 @@ it('uses calendar-month presets through today with no silent all-data fallback',
     expect(empty.range.start).toBe('2026-02-28');
   } finally { vi.useRealTimers(); }
 });
+
+
+it('keeps every pair available and gives AI the active pair, original values and all dated ingredient snapshots', () => {
+  const dose = (ingredient, value) => ({ ingredient, value, unit: 'mg', basis: 'day', source: 'ingredient' });
+  const product = { id: 'combo', name: 'Combined supplement', ingredients: [{ name: 'A', amount: '500 mg' }, { name: 'B', amount: '25 mg' }], timesPerDay: 1, periods: [{ start: '2026-01-01', end: null, ingredientDoses: [dose('A', 500), dose('B', 25)] }] };
+  const data = { dates, categories: { test: { markers: { marker, other: { ...marker, name: 'Other', unit: '%', values: [31, 32, 33, 34, 35, 36] } } } } };
+  const pairKey = JSON.stringify(['test.marker', 'test.other']);
+  const options = { pairKey, layout: 'overlay', tab: 'data', hidden: ['test.other'], ingredients: { combo: 'B' }, start: dates[1], end: dates[4] };
+  const selection = prepareCorrelationSelection(data, { supplements: [product] }, ['test.marker', 'test.other'], ['combo'], 0, options);
+  expect(selection.pairs).toHaveLength(3);
+  expect(selection.activePairKey).toBe(pairKey);
+  expect(selection.pairs.find(p => p.pairKey === pairKey).xMarkerKey).toBe('test.other');
+  const prompt = therapyCorrelationPrompt(selection);
+  const payload = JSON.parse(prompt.slice(prompt.indexOf('{')));
+  expect(payload.activePairKey).toBe(pairKey);
+  expect(payload.view).toEqual({ layout: 'overlay', tab: 'data', hiddenSeries: ['test.other'] });
+  expect(payload.histories[0]).toMatchObject({ id: 'combo', selectedIngredient: 'B', periods: [{ ingredientDoses: product.periods[0].ingredientDoses }] });
+  expect(payload.markers[0].rows.map(r => r.value)).toEqual([1, 1, 4, 4]);
+  expect(payload.comparisons[0].rows.every(r => r.exposure.value === 25)).toBe(true);
+  expect(payload.markers[1].key).toBe('test.other');
+  expect(payload.markers[1].rows.map(r => r.value)).toEqual([32, 33, 34, 35]);
+  expect(prompt).toContain('use original values');
+});

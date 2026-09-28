@@ -913,3 +913,13 @@
 .corr-preset-btn span { font-size: 11px; line-height: 1.5; }
 .corr-preset-btn small { color: var(--text-muted); }
 .corr-preset-btn:disabled { opacity: .5; cursor: default; }
+
+.corr-method, .corr-history, .corr-analysis-disclosure { border-top: 1px solid var(--border); margin-top: 12px; padding-top: 10px; }
+.corr-method summary, .corr-history summary, .corr-analysis-disclosure > summary { cursor: pointer; color: var(--text-secondary); font-size: 12px; }
+.corr-method p { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+.corr-analysis-disclosure[open] > summary { margin-bottom: 12px; }
+.corr-scale-label { color: var(--text-secondary); font-size: 12px; margin: 4px 0 10px; }
+.corr-dose-notice { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.corr-dose-notice > span { flex: 1 1 220px; }
+.corr-pair-analysis { margin: 0; }
+.corr-therapy-card { padding: 0; border: 0; }

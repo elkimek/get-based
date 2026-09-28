@@ -829,6 +829,7 @@ describe('chat discussion round request runtime behavior', () => {
 
 function installMarkerPromptMocks() {
   const state = {
+    currentProfile: 'profile-test', importedData: { entries: [], supplements: [] }, selectedCorrelationSupplements: [], correlationView: {},
     currentThreadId: 'thread-marker',
     chatHistory: [],
     markerRegistry: {},
@@ -959,13 +960,27 @@ describe('chat marker prompt runtime behavior', () => {
     mod.askAIAboutCorrelations();
 
     await vi.waitFor(() => expect(deps.openChatPanel).toHaveBeenCalled());
-    expect(deps.renameThread).toHaveBeenCalledWith('thread-marker', 'Correlations: Glucose + Cortisol + missing.marker');
+    expect(deps.renameThread).toHaveBeenCalledWith('thread-marker', 'Biomarker and dose exploration');
     const prompt = deps.openChatPanel.mock.calls[0][0];
-    expect(prompt).toContain('Analyze the correlation between these biomarkers: Glucose, Cortisol, missing.marker.');
-    expect(prompt).toContain('- Glucose: 2026-01-01: v88 mg/dL, 2026-02-01: v92 mg/dL');
-    expect(prompt).toContain('optimal: 80–90');
-    expect(prompt).toContain('- Cortisol: 2026-01-01: v12 ug/dL');
-    expect(prompt).not.toContain('- missing.marker');
+    const payload = JSON.parse(prompt.slice(prompt.indexOf('{')));
+    expect(payload.markers.map(m => m.name)).toEqual(['Glucose', 'Cortisol']);
+    expect(payload.markers[0].rows.map(r => r.value)).toEqual([88, 92]);
+    expect(payload.markerPairs[0].n).toBe(1);
+    expect(payload.lagDays).toBe(0);
+    expect(prompt).toContain('not evidence of treatment effects');
+    expect(prompt).not.toContain('missing.marker');
+  });
+
+  it('does not carry a prepared correlation prompt into a different profile', async () => {
+    const deps = installMarkerPromptMocks();
+    deps.state.selectedCorrelationMarkers = ['test.a', 'test.b'];
+    deps.getActiveData.mockReturnValue({ dates: ['2026-01-01'], categories: { test: { markers: { a: { name: 'A', unit: 'mg', values: [1] }, b: { name: 'B', unit: 'mg', values: [2] } } } } });
+    deps.loadChatThreads.mockImplementation(async () => { deps.state.currentProfile = 'other'; });
+    const mod = await import('../js/chat-marker-prompts.js');
+    await mod.askAIAboutCorrelations();
+    await vi.waitFor(() => expect(deps.loadChatThreads).toHaveBeenCalled());
+    expect(deps.openChatPanel).not.toHaveBeenCalled();
+    expect(deps.renameThread).not.toHaveBeenCalled();
   });
 
   it('does not open prompt panels for unknown markers or too few selected correlations', async () => {

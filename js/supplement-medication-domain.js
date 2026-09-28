@@ -374,13 +374,17 @@ export function getSupplementDailyDoses(record) {
 }
 
 /** Snapshot the saved regimen from today; earlier unknown amounts stay unknown. */
-export function recordIngredientDoseChange(entry, today = localDateKey()) {
+export function recordIngredientDoseChange(entry, today = localDateKey(), savedRecord = null) {
   const open = entry.periods.find(p => p.start <= today && (!p.end || p.end >= today));
   if (!open || (open.dose && open.dose.source !== 'ingredient' && !Array.isArray(open.ingredientDoses))) return;
   const next = getSupplementDailyDoses(entry);
   const previous = Array.isArray(open.ingredientDoses) ? open.ingredientDoses : open.dose?.source === 'ingredient' ? [open.dose] : [];
   const signature = doses => JSON.stringify(doses.map(d => [d.ingredient, d.value, d.unit, d.basis]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))));
   if (signature(next) === signature(previous)) return;
+  // Unchanged ingredients must not recreate a period removed during a date
+  // correction, including on subsequent saves. Earlier dates need confirmation.
+  if (savedRecord && open.start < today
+      && signature(next) === signature(getSupplementDailyDoses(savedRecord))) return;
   let target = open;
   if (open.start < today) {
     const yesterday = new Date(`${today}T12:00:00`);

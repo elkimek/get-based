@@ -406,7 +406,7 @@ export function showCorrelations(data) {
     const names = preset.markers.map(key => { const [cat, name] = key.split('.'); return MARKER_SCHEMA[cat]?.markers[name]?.name || name; }).join(', ');
     html += `<button class="corr-preset-btn" aria-label="${escapeAttr(preset.label)}" ${compareActionAttrs('apply-preset', { index: i })}${available ? '' : ' disabled'}><strong>${escapeHTML(preset.label)}</strong><span>${escapeHTML(names)}</span><small>${available}/${preset.markers.length} available</small></button>`;
   }
-  html += `</div></details><p class="corr-help">Choose two biomarkers, or a biomarker and a treatment.</p></div>`;
+  html += `</div></details><p class="corr-help" id="corr-selection-help">Choose two biomarkers, or a biomarker and a treatment.</p></div>`;
   html += `<div class="corr-chart-container" id="corr-chart-container" style="display:none">
     <h3><span id="corr-chart-title">Explore selected data</span>
       <button class="corr-ask-ai-btn" ${compareActionAttrs('ask-ai-correlations')} title="Ask AI about these correlations">Ask AI</button>
@@ -505,6 +505,7 @@ export function applyCorrelationPreset(idx) {
   if (!available.length) { correlationNotice('No markers from this preset are available in your data.'); return; }
   state.selectedCorrelationMarkers = available.slice(0, 8 - state.selectedCorrelationSupplements.length);
   state.correlationView.pair = '0';
+  delete state.correlationView.pairKey;
   correlationNotice(`Preset: ${state.selectedCorrelationMarkers.length}/${CORRELATION_PRESETS[idx].markers.length} markers selected. Treatments kept.${available.length > state.selectedCorrelationMarkers.length ? ' Selection limited to 8 items.' : ''}`);
   renderCorrelationChips();
   populateCorrelationOptions();
@@ -553,6 +554,8 @@ export function renderCorrelationChart() {
   const container = document.getElementById("corr-chart-container");
   if (!container) return;
   destroyTherapyCorrelationCharts();
+  const selectionHelp = document.getElementById('corr-selection-help');
+  if (selectionHelp) selectionHelp.hidden = canRenderCorrelation();
   if (!canRenderCorrelation()) {
     container.style.display = 'none';
     if (state.chartInstances.correlation) { state.chartInstances.correlation.destroy(); delete state.chartInstances.correlation; }
