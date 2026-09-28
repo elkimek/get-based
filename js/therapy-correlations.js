@@ -76,7 +76,7 @@ export function therapyExposure(history, date) {
   if (period) {
     const quantity = period.quantity;
     const mode = period.schedule?.mode || history.record.schedule?.mode;
-    const doseText = typeof period.dose === 'string' ? period.dose : quantity?.text || period.dose?.text || 'Dose not recorded';
+    const doseText = (typeof period.dose === 'string' ? period.dose.trim() : quantity?.text || period.dose?.text?.trim()) || 'Dose not recorded';
     const label = (quantity?.ingredient ? `${quantity.ingredient}: ` : '') + doseText + (period.schedule?.timesPerDay ? ` · schedule: ${period.schedule.timesPerDay} uses/day` : '');
     const base = { date, periodStart: period.start, daysSinceChange: day - correlationDay(period.start), label, status: 'recorded', usage: 1 };
     if (mode === 'prn') return { ...unknown('As-needed use; actual intake unknown'), ...base, label: `${label} · as needed; actual intake unknown`, status: 'unknown' };

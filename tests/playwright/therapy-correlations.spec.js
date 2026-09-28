@@ -135,19 +135,21 @@ test('draws unknown-dose usage and pauses without treating product strength as i
   await expect.poll(() => page.evaluate(async () => !!(await import('/js/state.js')).state.chartInstances['correlation-therapy-0'])).toBe(true);
   const result = await page.evaluate(async () => {
     const chart = (await import('/js/state.js')).state.chartInstances['correlation-therapy-0'];
-    const dataset = chart.data.datasets[1];
-    return { label: dataset.label, axis: dataset.yAxisID, values: [...new Set(dataset.data.map(p => p.y))],
-      dash: dataset.borderDash, doseAxis: chart.options.scales.dose.display,
-      usageAxis: chart.options.scales.usage.display, last: chart.options.scales.x.max,
-      visiblePoints: chart.getDatasetMeta(1).data.filter(p => !p.skip).length };
+    const track = document.querySelector('.corr-use-track');
+    return { labels: chart.data.datasets.map(d => d.label), doseAxis: chart.options.scales.dose.display,
+      last: chart.options.scales.x.max,
+      recorded: track.querySelectorAll('.corr-use-recorded').length,
+      paused: track.querySelectorAll('.corr-use-paused').length,
+      unknown: track.querySelectorAll('.corr-use-unknown').length,
+      trackLeft: track.getBoundingClientRect().left,
+      plotLeft: chart.canvas.getBoundingClientRect().left + chart.chartArea.left };
   });
-  expect(result.label).toContain('recorded regimen (dose unavailable)');
-  expect(result.axis).toBe('usage');
-  expect(result.values).toEqual([null, 1, 0]);
-  expect(result.dash).toEqual([6, 4]);
+  expect(result.labels).toEqual(['LDL Cholesterol (mmol/l)']);
   expect(result.doseAxis).toBe(false);
-  expect(result.usageAxis).toBe(true);
-  expect(result.visiblePoints).toBeGreaterThan(2);
+  expect(result.recorded).toBe(2);
+  expect(result.paused).toBe(1);
+  expect(result.unknown).toBe(1);
+  expect(Math.abs(result.trackLeft - result.plotLeft)).toBeLessThan(2);
   expect(result.last).toBeGreaterThan(Date.parse('2026-07-01') / 86400000);
   await expect(page.locator('.corr-therapy-card')).toContainText('No lab measurements have usable numeric dose information');
   await page.screenshot({ path: '/tmp/getbased-unknown-dose-chart.png', fullPage: true });
@@ -166,16 +168,19 @@ test('shows current ingredient dose and lets the user confirm its period before 
   });
   await select(page, 'LDL', 'lipids.ldl');
   await select(page, 'Example supplement', 'dose-demo', 'toggle-therapy');
-  await expect(page.locator('.corr-therapy-card')).toContainText('Current ingredient dose: TMG: 500 mg/day');
+  await expect(page.locator('.corr-current-dose')).toContainText('Saved dose today');
+  await expect(page.locator('.corr-current-dose')).toContainText('TMG');
+  await expect(page.locator('.corr-current-dose')).toContainText('500 mg/day');
   await expect(page.locator('.corr-therapy-card')).toContainText('No lab measurements have usable numeric dose information');
-  const reference = await page.evaluate(async () => {
+  const presentation = await page.evaluate(async () => {
     const chart = (await import('/js/state.js')).state.chartInstances['correlation-therapy-0'];
-    return chart.data.datasets.find(d => d.pointStyle === 'rectRot');
+    return { labels: chart.data.datasets.map(d => d.label), scales: Object.keys(chart.scales) };
   });
-  expect(reference.data).toHaveLength(1);
-  expect(reference.data[0].y).toBe(500);
+  expect(presentation.labels).toEqual(['LDL Cholesterol (mmol/l)']);
+  expect(presentation.scales.some(key => key.startsWith('current-') || key === 'usage')).toBe(false);
+  await expect(page.locator('.corr-stat')).toContainText('Confirm dose dates');
   await page.screenshot({ path: '/tmp/getbased-current-ingredient-dose.png', fullPage: true });
-  await page.evaluate(async () => (await import('/js/supplements.js')).openSupplementsEditor(0));
+  await page.getByRole('button', { name: 'Review dose dates', exact: true }).click();
   await page.getByRole('button', { name: 'Use current ingredient dose', exact: true }).click();
   const choice = page.getByRole('combobox', { name: 'Confirm ingredient dose for these period dates' });
   await choice.selectOption({ label: 'TMG: 500 mg/day' });
@@ -190,17 +195,49 @@ test('shows current ingredient dose and lets the user confirm its period before 
   expect(periods[1].dose).toMatchObject({ ingredient: 'TMG', value: 2000, basis: 'day' });
   await page.evaluate(async () => {
     document.getElementById('modal-overlay').classList.remove('show');
-    (await import('/js/compare-correlations.js')).showCorrelations();
   });
   await expect.poll(() => page.evaluate(async () => {
     const chart = (await import('/js/state.js')).state.chartInstances['correlation-therapy-0'];
     return chart?.data.datasets.find(d => d.yAxisID === 'dose')?.data.map(p => p.y).filter(v => v !== null);
   })).toContain(2000);
-  await expect(page.locator('.corr-therapy-card')).toContainText('Confirmed amounts appear in the historical dose line');
-  await expect(page.locator('.corr-therapy-card')).not.toContainText('date is unconfirmed');
+  await expect(page.locator('.corr-current-dose')).toContainText('Recorded since');
+  await expect(page.locator('.corr-current-dose')).not.toContainText('Start date not confirmed');
   await page.screenshot({ path: '/tmp/getbased-confirmed-ingredient-step.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(async () => (await import('/js/supplements.js')).openSupplementsEditor(0));
   await expect.poll(() => page.evaluate(() => { const modal = document.getElementById('detail-modal'); return modal.scrollWidth <= modal.clientWidth + 1; })).toBe(true);
   await page.screenshot({ path: '/tmp/getbased-ingredient-editor-mobile.png', fullPage: true });
+});
+
+
+test('keeps a combination product together and shows only confirmed dose series in the legend', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await fixture(page);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const record = state.importedData.supplements[0];
+    record.ingredients = [{ name: 'Ingredient A', amount: '500 mg', timesPerDay: 1 }, { name: 'Ingredient B', amount: '25 mcg', timesPerDay: 1 }];
+    record.periods[1].dose = '';
+  });
+  await select(page, 'LDL', 'lipids.ldl');
+  await select(page, 'Example supplement', 'dose-demo', 'toggle-therapy');
+  await expect(page.locator('.corr-therapy-card')).toHaveCount(1);
+  await expect(page.locator('.corr-current-dose li')).toHaveCount(2);
+  await expect(page.locator('.corr-current-dose')).toContainText('25 mcg/day');
+  await expect(page.locator('.corr-current-dose')).toContainText('These amounts belong to this product');
+  const view = await page.evaluate(async () => {
+    const chart = (await import('/js/state.js')).state.chartInstances['correlation-therapy-0'];
+    return { labels: chart.data.datasets.map(d => d.label), axes: Object.keys(chart.scales),
+      doses: chart.data.datasets[1].data.map(p => p.y),
+      trackLeft: document.querySelector('.corr-use-track').getBoundingClientRect().left,
+      plotLeft: chart.canvas.getBoundingClientRect().left + chart.chartArea.left,
+      width: document.documentElement.scrollWidth, viewport: innerWidth };
+  });
+  expect(view.labels).toEqual(['LDL Cholesterol (mmol/l)', 'Example supplement dose (mg per dose)']);
+  expect(view.axes).toEqual(['x', 'y', 'dose']);
+  expect(view.doses).toContain(null);
+  expect(Math.abs(view.trackLeft - view.plotLeft)).toBeLessThan(2);
+  expect(view.width).toBeLessThanOrEqual(view.viewport);
+  await expect(page.locator('details')).not.toHaveAttribute('open');
+  await page.screenshot({ path: '/tmp/getbased-dose-unified-mobile.png', fullPage: true });
 });

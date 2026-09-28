@@ -196,3 +196,12 @@ it('does not pool different ingredients just because both use mg/day', () => {
   expect(compare({ history }).r).toBeNull();
   expect(history.mixedUnits).toBe(true);
 });
+
+
+it.each(['', '   '])('excludes empty historical dose %j even when other periods have numeric doses', dose => {
+  const history = prepareTherapyHistory({ ...record, periods: record.periods.map((p, i) => i === 1 ? { ...p, dose } : p) }, today);
+  const comparison = compare({ history });
+  expect(comparison.n).toBe(3);
+  expect(comparison.rows.slice(3).every(r => r.reason === 'Dose not recorded')).toBe(true);
+  expect(comparison.groups.every(g => typeof g.dose === 'number')).toBe(true);
+});

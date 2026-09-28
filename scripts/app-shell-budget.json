@@ -25,7 +25,8 @@
     "directProviderReasoningDecodedBytes": 18337504,
     "doseCorrelationsResources": 350,
     "doseCorrelationsDecodedBytes": 18308544,
-    "ingredientDoseReferencesDecodedBytes": 18314598
+    "ingredientDoseReferencesDecodedBytes": 18314598,
+    "unifiedTherapyPresentationDecodedBytes": 18318068
   },
   "referenceCommit": "331112b1",
   "measuredAt": "2026-09-28"

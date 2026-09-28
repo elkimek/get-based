@@ -90,10 +90,31 @@ function handleCompareClick(event) {
   } else if (action === 'toggle-therapy') {
     event.preventDefault();
     if (actionEl.dataset.compareKey) toggleCorrelationTherapy(actionEl.dataset.compareKey);
+  } else if (action === 'review-therapy') {
+    event.preventDefault();
+    if (actionEl.dataset.compareKey) void reviewCorrelationTherapy(actionEl.dataset.compareKey);
   } else if (action === 'ask-ai-correlations') {
     event.preventDefault();
     compareCorrelationDeps.askAIAboutCorrelations();
   }
+}
+
+async function reviewCorrelationTherapy(id) {
+  const profile = state.currentProfile;
+  const results = document.getElementById('corr-therapy-results');
+  const { openSupplementsEditor } = await import('./supplements.js');
+  if (state.currentProfile !== profile || document.getElementById('corr-therapy-results') !== results) return;
+  const records = state.importedData.supplements || [];
+  if (records.filter(record => getSupplementRecordId(record) === id).length !== 1) return;
+  openSupplementsEditor(records.findIndex(record => getSupplementRecordId(record) === id));
+  const overlay = document.getElementById('modal-overlay');
+  if (!overlay) return;
+  const observer = new MutationObserver(() => {
+    if (overlay.classList.contains('show')) return;
+    observer.disconnect();
+    if (state.currentProfile === profile && document.getElementById('corr-therapy-results') === results) renderCorrelationChart();
+  });
+  observer.observe(overlay, { attributes: true, attributeFilter: ['class'] });
 }
 
 function handleCompareKeydown(event) {

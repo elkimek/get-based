@@ -85,7 +85,9 @@
     "doseCorrelationsOutputDecodedBytes": 5402446,
     "doseCorrelationsMeasuredBaseCommit": "4887b0b300a248a5b04f6a2309c094e2f240188f",
     "ingredientDoseReferencesStartupDecodedBytes": 1268943,
-    "ingredientDoseReferencesOutputDecodedBytes": 5408186
+    "ingredientDoseReferencesOutputDecodedBytes": 5408186,
+    "unifiedTherapyPresentationStartupDecodedBytes": 1269686,
+    "unifiedTherapyPresentationOutputDecodedBytes": 5409196
   },
   "referenceCommit": "331112b1",
   "measuredAt": "2026-09-28"
