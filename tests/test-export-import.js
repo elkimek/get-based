@@ -494,8 +494,8 @@ return (async function() {
   assert('Bundle import deduplicates notes', exportImportSrc.includes('notes.some(x => x.date === n.date && x.text === n.text)'));
   assert('Bundle import deduplicates supplements', exportImportSrc.includes('supplements.some(x => x.name === s.name && x.startDate === s.startDate)'));
   assert('Bundle import merges health goals', exportImportSrc.includes('healthGoals.some(x => x.text === g.text)'));
-  assert('Bundle import merges custom markers', exportImportSrc.includes("!current.customMarkers[key]"));
-  assert('Bundle import merges ref overrides', exportImportSrc.includes("!current.refOverrides[key]"));
+  assert('Bundle import merges custom markers', /for \(const field of \[\'customMarkers\', \'refOverrides\',[\s\S]{0,350}if \(!current\[field\]\[k\]\)/.test(exportImportSrc));
+  assert('Bundle import merges ref overrides', /for \(const field of \[\'customMarkers\', \'refOverrides\',[\s\S]{0,350}current\[field\]\[k\] = v/.test(exportImportSrc));
   assert('Bundle import replaces context fields', exportImportSrc.includes("for (const field of ['diagnoses', 'diet', 'exercise'"));
   assert('Bundle import caps changeHistory at 200', exportImportSrc.includes("trimImportedArray(current, 'changeHistory', 200)"));
   assert('Bundle import merges chat summaries', exportImportSrc.includes('chatSummaries.findIndex'));

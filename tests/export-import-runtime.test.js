@@ -10,6 +10,7 @@ const runtime = vi.hoisted(() => ({
   getProfiles: vi.fn(() => [{ id: 'profile-1', name: 'Primary' }]),
   refreshImportRuntimeShell: vi.fn(async () => {}),
   saveImportedData: vi.fn(),
+  onProfileSaved: vi.fn(),
   saveImportedDataForProfile: vi.fn(async (profileId, importedData) => {
     await runtime.encryptedSetItem(`${profileId}:imported`, JSON.stringify(importedData));
     return true;
@@ -26,6 +27,7 @@ vi.mock('../js/utils.js', () => ({
   showNotification: runtime.showNotification,
   showConfirmDialog: runtime.showConfirmDialog,
 }));
+vi.mock('../js/sync-save-hooks.js', () => ({ onProfileSaved: runtime.onProfileSaved }));
 vi.mock('../js/data.js', () => ({
   saveImportedData: runtime.saveImportedData,
   invalidateActiveDataCache: vi.fn(),
@@ -37,7 +39,7 @@ vi.mock('../js/profile.js', () => ({
   loadProfile: vi.fn(async () => {}),
   migrateProfileData: vi.fn(),
   profileStorageKey: (id, kind) => `${id}:${kind}`,
-  updateProfileMeta: vi.fn(),
+  updateProfileMeta: vi.fn(async () => true),
 }));
 vi.mock('../js/crypto.js', () => ({
   encryptedGetItem: runtime.encryptedGetItem,
@@ -259,6 +261,7 @@ describe('JSON restore runtime', () => {
     expect(restored.supplements).toEqual(latest.supplements);
     const { updateProfileMeta } = await import('../js/profile.js');
     expect(updateProfileMeta).toHaveBeenCalledExactlyOnceWith('profile-1', { name: 'Primary' });
+    expect(runtime.onProfileSaved).toHaveBeenCalledExactlyOnceWith('profile-1', JSON.parse(localStorage.getItem('profile-1:imported')));
     expect(localStorage.getItem('labcharts-profile-delete-intent-profile-2')).toBe('{"at":1}');
     expect(localStorage.getItem('labcharts-tombstone-pending-profile-2')).toBe('{"at":2}');
     expect(runtime.showNotification).toHaveBeenLastCalledWith(expect.stringContaining('Saved profiles: 1. Import stopped'), 'error');
@@ -273,6 +276,28 @@ describe('JSON restore runtime', () => {
     const { updateProfileMeta } = await import('../js/profile.js');
     expect(updateProfileMeta).toHaveBeenCalledExactlyOnceWith('profile-1', {});
     expect(runtime.showNotification.mock.calls.some(([, kind]) => kind === 'success')).toBe(false);
+  });
+
+  it.each(['reject', 'false'])('queues committed restore data when metadata saving fails (%s)', async failure => {
+    const { updateProfileMeta } = await import('../js/profile.js');
+    if (failure === 'reject') updateProfileMeta.mockRejectedValueOnce(new Error('Storage full'));
+    else updateProfileMeta.mockResolvedValueOnce(false);
+    localStorage.setItem('labcharts-profile-delete-intent-profile-1', '{"at":1}');
+    const backup = { type: 'database', profiles: [{ id: 'profile-1', name: 'Renamed', data: { diet: { type: 'restored' } } }] };
+    await importDataJSON(new File([JSON.stringify(backup)], 'metadata-failure.json'));
+    const committed = JSON.parse(localStorage.getItem('profile-1:imported'));
+    expect(committed.diet.type).toBe('restored');
+    expect(runtime.onProfileSaved).toHaveBeenCalledExactlyOnceWith('profile-1', committed);
+    expect(localStorage.getItem('labcharts-profile-delete-intent-profile-1')).toBeNull();
+    expect(runtime.showNotification).toHaveBeenLastCalledWith(expect.stringContaining('Saved profiles: 1. Import stopped'), 'error');
+    expect(runtime.showNotification.mock.calls.some(([, kind]) => kind === 'success')).toBe(false);
+  });
+
+  it.each(['customMarkers', 'refOverrides'])('preserves existing %s definitions while adding imported ones', async field => {
+    localStorage.setItem('profile-1:imported', JSON.stringify({ [field]: { saved: { unit: 'mg' } } }));
+    const backup = { type: 'database', profiles: [{ id: 'profile-1', data: { [field]: { saved: { unit: 'g' }, added: { unit: 'mmol/L' } } } }] };
+    await importDataJSON(new File([JSON.stringify(backup)], 'definitions.json'));
+    expect(JSON.parse(localStorage.getItem('profile-1:imported'))[field]).toEqual({ saved: { unit: 'mg' }, added: { unit: 'mmol/L' } });
   });
 
   it('restores Biology Score insights from JSON and keeps newer local interpretations', async () => {

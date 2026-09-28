@@ -4,6 +4,7 @@
 import { mergeBiologyScoreAIRecords } from './biology-score-persistence.js';
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
+import { onProfileSaved } from './sync-save-hooks.js';
 import { adoptProfileData } from './profile-data-writes.js';
 import { showNotification, showConfirmDialog, isDebugMode } from './utils.js';
 import { saveImportedData, saveImportedDataForProfile, invalidateActiveDataCache } from './data.js';
@@ -636,20 +637,6 @@ async function _importDatabaseBundle(json) {
             if (!healthGoals.some(x => x.text === g.text)) appendImportedArrayItem(current, 'healthGoals', g);
           }
         }
-        // Custom markers: merge (don't overwrite existing)
-        if (importData.customMarkers && typeof importData.customMarkers === 'object') {
-          if (!current.customMarkers) current.customMarkers = {};
-          for (const [key, def] of Object.entries(importData.customMarkers)) {
-            if (!current.customMarkers[key]) current.customMarkers[key] = def;
-          }
-        }
-        // Ref overrides: merge (don't overwrite existing)
-        if (importData.refOverrides && typeof importData.refOverrides === 'object') {
-          if (!current.refOverrides) current.refOverrides = {};
-          for (const [key, ovr] of Object.entries(importData.refOverrides)) {
-            if (!current.refOverrides[key]) current.refOverrides[key] = ovr;
-          }
-        }
         // Context fields: replace if present in bundle
         for (const field of ['diagnoses', 'diet', 'exercise', 'sleepRest', 'lightCircadian', 'stress', 'loveLife', 'environment', 'menstrualCycle', 'emfAssessment', 'genetics', 'biometrics']) {
           if (importData[field] != null) current[field] = importData[field];
@@ -705,8 +692,8 @@ async function _importDatabaseBundle(json) {
           }
           sortImportedArray(current, 'importSnapshots', (a, b) => (b.importedAt || 0) - (a.importedAt || 0));
         }
-        // Display overrides: merge labels/icons/manualValues (don't overwrite existing)
-        for (const field of ['categoryLabels', 'categoryIcons', 'markerLabels', 'markerPlacements', 'manualValues']) {
+        // Marker definitions and display overrides: preserve existing values.
+        for (const field of ['customMarkers', 'refOverrides', 'categoryLabels', 'categoryIcons', 'markerLabels', 'markerPlacements', 'manualValues']) {
           if (importData[field] && typeof importData[field] === 'object') {
             if (!current[field]) current[field] = {};
             for (const [k, v] of Object.entries(importData[field])) {
@@ -737,7 +724,8 @@ async function _importDatabaseBundle(json) {
         if (Array.isArray(bp.tags) && bp.tags.length) meta.tags = bp.tags;
         if (bp.status && bp.status !== 'active') meta.status = bp.status;
         if (bp.height) { meta.height = bp.height; meta.heightUnit = bp.heightUnit || 'cm'; }
-        await updateProfileMeta(existing.id, meta);
+        try { if (!await updateProfileMeta(existing.id, meta)) throw new Error('Metadata save failed.'); }
+        finally { onProfileSaved(existing.id, current); }
         if (bp.chat) await _importChatData(existing.id, bp.chat);
         await _importNutritionData(existing.id, bp.nutrition);
       } else {
