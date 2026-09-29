@@ -352,3 +352,14 @@ it.each(['entry deletion', 'supplement deletion', 'edit', 'none'])('checks impor
     expect((await read()).supplements).toEqual(imported.supplements);
   }
 });
+
+it('does not mistake nested object key order after adoption for a concurrent period edit', () => {
+  const persisted = { supplements: [{ id: 'dose-order', periods: [{ start: '2026-01-01', dose: { text: '75 mg/day', ingredient: 'Example' } }] }] };
+  const live = { supplements: [{ id: 'dose-order', periods: [{ start: '2026-01-01', dose: { ingredient: 'Example', text: '75 mg/day' } }] }] };
+  const intent = structuredClone(live);
+  intent.supplements[0].periods[0].dose.text = '100 mg/day';
+  expect(mergeProfileMutation(live, intent, persisted)).toEqual(intent);
+  const peer = structuredClone(persisted);
+  peer.supplements[0].periods[0].dose.text = '90 mg/day';
+  expect(() => mergeProfileMutation(live, intent, peer)).toThrow(/Concurrent edits/);
+});

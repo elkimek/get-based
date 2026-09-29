@@ -94,11 +94,11 @@ export function formatLabDateAge(date, now = Date.now()) {
 
 export function buildLabContext(/** @type {LabContextOptions} */ { skipGroupFilter, ignoreContextToggles, queryText, nutritionHistoryLabel } = {}) {
   const supplementContextMode = resolveSupplementContextMode(queryText, state.importedData.supplements || []);
-  const fp = getLabContextFingerprint() + (skipGroupFilter ? ':all' : '') + (ignoreContextToggles ? ':ignore-context-toggles' : '') + `:supplements-${supplementContextMode}:nutrition-history-${nutritionHistoryLabel || 'routine'}:day-${localDateKey(Date.now())}`;
-  return getOrBuildLabContext(fp, () => _buildLabContextInner({ skipGroupFilter, ignoreContextToggles, nutritionHistoryLabel, supplementContextMode }));
+  const fp = getLabContextFingerprint() + (skipGroupFilter ? ':all' : '') + (ignoreContextToggles ? ':ignore-context-toggles' : '') + `:supplements-${supplementContextMode}:${JSON.stringify(queryText || '')}:nutrition-history-${nutritionHistoryLabel || 'routine'}:day-${localDateKey(Date.now())}`;
+  return getOrBuildLabContext(fp, () => _buildLabContextInner({ skipGroupFilter, ignoreContextToggles, nutritionHistoryLabel, supplementContextMode, queryText }));
 }
 
-function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilter, ignoreContextToggles, nutritionHistoryLabel, supplementContextMode = 'compact' } = {}) {
+function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilter, ignoreContextToggles, nutritionHistoryLabel, supplementContextMode = 'compact', queryText } = {}) {
   const data = getActiveData();
   const includeLabMarkers = ignoreContextToggles || isLabMarkersContextEnabled();
   const hasImportedLabData = data.dates.length > 0 || Object.values(data.categories).some(c => c.singleDate);
@@ -332,15 +332,16 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
   // ── 7. Supplements & Medications ──
   const allSupps = state.importedData.supplements || [];
-  const relevantSupps = data?.dates?.length
-    ? getSupplementsOverlappingRange(allSupps, data.dates[0], data.dates[data.dates.length - 1])
-    : getCurrentSupplements(allSupps);
+  const relevantSupps = [...new Set([...getCurrentSupplements(allSupps), ...(data?.dates?.length
+    ? getSupplementsOverlappingRange(allSupps, data.dates[0], data.dates[data.dates.length - 1]) : [])])];
   const supps = supplementContextMode === 'detail' ? allSupps : relevantSupps;
   if (includeSupplementsMeds && allSupps.length > 0) {
     ctx += `[section:supplements]\n## Supplements & Medications\n`;
     ctx += buildSupplementAIContext(supps, {
       mode: supplementContextMode,
+      queryText,
       inventorySupplements: allSupps,
+      historyRange: data?.dates?.length ? { start: data.dates[0], end: data.dates[data.dates.length - 1] } : undefined,
     });
     const mitochondrialEvidence = buildMitochondrialEvidenceContext(supps);
     if (mitochondrialEvidence) ctx += `\n${mitochondrialEvidence}`;

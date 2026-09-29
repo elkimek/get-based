@@ -77,6 +77,43 @@ test('keeps PRN exposure unknown and remains usable on a narrow screen', async (
   expect(await page.evaluate(async () => Object.keys((await import('/js/state.js')).state.chartInstances).filter(key => key.startsWith('correlation-therapy-')))).toEqual([]);
 });
 
+test('Change dose can recreate a deleted draft period and saves the new dose with history intact', async ({ page }) => {
+  await fixture(page);
+  const today = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const { localDateKey } = await import('/js/supplement-medication-domain.js');
+    state.importedData.supplements = [{ id: 'dose-retry', name: 'Dose retry', type: 'supplement',
+      timesPerDay: 1, schedule: { mode: 'daily', timesPerDay: 1 },
+      periods: [{ start: '2026-01-01', end: null, dose: '500 mg/day' }], currentDose: '500 mg/day' }];
+    await (await import('/js/data.js')).saveImportedData();
+    (await import('/js/supplements.js')).openSupplementsEditor(0);
+    return localDateKey();
+  });
+  const rows = page.locator('#supp-periods .supp-period-row');
+  const changeDose = page.getByRole('button', { name: 'New dose from today', exact: true });
+  await changeDose.click();
+  await expect(rows).toHaveCount(2);
+  await rows.last().locator('[data-supp-action="remove-period"]').click();
+  await expect(rows).toHaveCount(1);
+  await changeDose.click();
+  await expect(rows).toHaveCount(2);
+  await expect(rows.last().locator('.supp-period-start')).toHaveValue(today);
+  await expect(rows.last().locator('.supp-period-dose')).toBeFocused();
+  await rows.last().locator('.supp-period-dose').fill('1000 mg/day');
+  await changeDose.click();
+  await expect(rows).toHaveCount(2);
+  await expect(rows.last().locator('.supp-period-dose')).toBeFocused();
+  await expect(rows.last().locator('.supp-period-dose')).toHaveValue('1000 mg/day');
+  await page.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await expect(page.locator('#supp-form-panel button:disabled')).toHaveCount(0);
+  const saved = await page.evaluate(async () => (await import('/js/state.js')).state.importedData.supplements[0]);
+  expect(saved.periods).toHaveLength(2);
+  expect(saved.periods[0]).toMatchObject({ start: '2026-01-01', dose: '500 mg/day' });
+  expect(saved.periods[0].end < today).toBe(true);
+  expect(saved.periods[1]).toMatchObject({ start: today, end: null, dose: '1000 mg/day' });
+  expect(saved.currentDose).toBe('1000 mg/day');
+});
+
 test('the real editor saves dose and frequency changes without overwriting prior periods', async ({ page }) => {
   await fixture(page);
   const result = await page.evaluate(async () => {
@@ -85,21 +122,23 @@ test('the real editor saves dose and frequency changes without overwriting prior
     const { localDateKey } = await import('/js/supplement-medication-domain.js');
     const today = localDateKey();
     state.importedData.supplements = [{ id: 'editor-demo', name: 'Editor example', type: 'medication', timesPerDay: 1, schedule: { mode: 'daily', timesPerDay: 1 }, periods: [{ start: '2026-01-01', end: null, dose: '500 mg' }], currentDose: '500 mg' }];
+    await (await import('/js/data.js')).saveImportedData();
     supplements.openSupplementsEditor(0);
     supplements.beginSupplementDoseChange(0);
     document.querySelectorAll('.supp-period-dose')[1].value = '2000 mg';
-    supplements.saveSupplement(0);
+    await supplements.saveSupplement(0);
     const changed = structuredClone(state.importedData.supplements[0]);
     // A separate older open period lets a frequency-only edit exercise splitting.
     state.importedData.supplements[0] = { ...changed, periods: [{ start: '2026-01-01', end: null, dose: '500 mg' }], currentDose: '500 mg' };
+    await (await import('/js/data.js')).saveImportedData();
     supplements.openSupplementsEditor(0);
     document.getElementById('supp-times').value = '4';
     document.getElementById('supp-schedule-mode').value = 'multiple';
-    supplements.saveSupplement(0);
+    await supplements.saveSupplement(0);
     const frequency = structuredClone(state.importedData.supplements[0]);
-    supplements.pauseSupplement(0);
+    await supplements.pauseSupplement(0);
     const paused = structuredClone(state.importedData.supplements[0]);
-    supplements.restartSupplement(0);
+    await supplements.restartSupplement(0);
     return { today, changed, frequency, paused, restarted: state.importedData.supplements[0] };
   });
   expect(result.changed.periods).toHaveLength(2);
@@ -183,13 +222,17 @@ test('shows current ingredient dose and lets the user confirm its period before 
   expect(presentation.scales.some(key => key.startsWith('current-') || key === 'usage')).toBe(false);
   await expect(page.locator('.corr-stat')).toContainText('Confirm dose dates');
   await page.screenshot({ path: '/tmp/getbased-current-ingredient-dose.png', fullPage: true });
+  await page.evaluate(async () => (await import('/js/data.js')).saveImportedData());
   await page.getByRole('button', { name: 'Edit supplement', exact: true }).click();
-  await page.getByRole('button', { name: 'Use ingredients for these dates', exact: true }).click();
+  await page.getByRole('button', { name: 'Use ingredient totals', exact: true }).click();
   await expect(page.locator('.supp-period-dose')).toHaveValue('500 mg/day');
-  await page.getByRole('button', { name: 'Update', exact: true }).click();
+  await page.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await expect(page.locator('#supp-form-panel button:disabled')).toHaveCount(0);
   // An ingredient edit now creates a dose step from today, preserving the confirmed history.
   await page.locator('.supp-ing-amount').fill('2000');
-  await page.getByRole('button', { name: 'Update', exact: true }).click();
+  await page.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await expect(page.locator('#supp-form-panel button:disabled')).toHaveCount(0);
+  await expect(page.locator('#supp-form-panel button:disabled')).toHaveCount(0);
   const periods = await page.evaluate(async () => (await import('/js/state.js')).state.importedData.supplements[0].periods);
   expect(periods).toHaveLength(2);
   expect(periods[0].dose).toMatchObject({ ingredient: 'TMG', value: 500, basis: 'day' });
@@ -462,9 +505,11 @@ test('only changed ingredient regimens start history today and ingredient select
       schedule: { mode: 'daily', timesPerDay: 1 }, ingredients: [{ name: 'TMG', amount: '500 mg' }, { name: 'B12', amount: '25 mcg' }],
       periods: [{ start: '2026-01-01', end: null }],
     };
+    await (await import('/js/data.js')).saveImportedData();
     (await import('/js/supplements.js')).openSupplementsEditor(0);
   });
-  await page.getByRole('button', { name: 'Update', exact: true }).click();
+  await page.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await expect(page.locator('#supp-form-panel button:disabled')).toHaveCount(0);
   const saved = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     const { localDateKey } = await import('/js/supplement-medication-domain.js');
@@ -474,7 +519,9 @@ test('only changed ingredient regimens start history today and ingredient select
   expect(saved.periods[0].dose).toBeUndefined();
   expect(saved.periods[0].ingredientDoses).toBeUndefined();
   await page.locator('#supp-times').fill('4');
-  await page.getByRole('button', { name: 'Update', exact: true }).click();
+  await page.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await expect(page.locator('#supp-form-panel button:disabled')).toHaveCount(0);
+  await expect(page.locator('#supp-form-panel button:disabled')).toHaveCount(0);
   const periods = await page.evaluate(async () => (await import('/js/state.js')).state.importedData.supplements[0].periods);
   expect(periods).toHaveLength(2);
   expect(periods[1].ingredientDoses.map(d => d.value)).toEqual([2000, 100]);
@@ -624,18 +671,22 @@ test('correcting a continuous period does not recreate today or lose confirmed i
       schedule: { mode: 'daily', timesPerDay: 1 }, ingredients: [{ name: 'TMG', amount: '500 mg' }],
       periods: [{ start: '2026-03-24', end: '2026-09-27' }, { start: '2026-09-28', end: null, dose, ingredientDoses: [dose] }],
     };
+    await (await import('/js/data.js')).saveImportedData();
     (await import('/js/supplements.js')).openSupplementsEditor(0);
   });
   await page.locator('.supp-period-remove').nth(1).click();
   await page.locator('.supp-period-end').fill('');
-  await page.getByRole('button', { name: 'Update', exact: true }).click();
+  await page.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await expect(page.locator('#supp-form-panel button:disabled')).toHaveCount(0);
   await expect(page.locator('.supp-period-row')).toHaveCount(1);
   await expect(page.locator('.supp-period-end')).toHaveValue('');
   // A second unchanged save must also leave the correction alone.
-  await page.getByRole('button', { name: 'Update', exact: true }).click();
+  await page.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await expect(page.locator('#supp-form-panel button:disabled')).toHaveCount(0);
   await expect(page.locator('.supp-period-row')).toHaveCount(1);
-  await page.getByRole('button', { name: 'Use ingredients for these dates', exact: true }).click();
-  await page.getByRole('button', { name: 'Update', exact: true }).click();
+  await page.getByRole('button', { name: 'Use ingredient totals', exact: true }).click();
+  await page.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await expect(page.locator('#supp-form-panel button:disabled')).toHaveCount(0);
   await expect(page.locator('.supp-period-row')).toHaveCount(1);
   const saved = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');

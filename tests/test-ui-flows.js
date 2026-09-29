@@ -408,7 +408,7 @@ return (async function() {
   if (sourceInput) sourceInput.value = 'https://www.example.com/products/a?x=1';
 
   // Save
-  supplements.saveSupplement(-1);
+  await supplements.saveSupplement(-1);
   await wait(50);
 
   // Verify data saved
@@ -463,7 +463,7 @@ return (async function() {
   const invalidSourceInput = document.getElementById('supp-url');
   if (invalidSourceInput) invalidSourceInput.value = 'javascript:alert(1)';
   const beforeInvalidSuppCount = (S.importedData.supplements || []).length;
-  supplements.saveSupplement(-1);
+  await supplements.saveSupplement(-1);
   await wait(50);
   assert('Invalid supplement URL is rejected', (S.importedData.supplements || []).length === beforeInvalidSuppCount);
   assert('Invalid URL supplement not saved', !S.importedData.supplements?.some(s => s.name === '__UI_TEST_BAD_URL__'));

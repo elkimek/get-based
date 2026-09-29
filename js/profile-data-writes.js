@@ -5,7 +5,11 @@ import { DELTA_ARRAY_CONFIG } from './sync-delta-surface-config.js';
 const baselines = new WeakMap();
 const queues = new Map();
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
-const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+// Live adoption preserves object identities and can change property insertion order.
+// Compare JSON values, not that incidental order, when detecting concurrent edits.
+const canonicalJSON = value => JSON.stringify(value, (_key, item) => object(item)
+  ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item);
+const equal = (a, b) => canonicalJSON(a) === canonicalJSON(b);
 export class ProfileWriteConflict extends Error {}
 
 export function rememberProfileData(data, persisted = data) {

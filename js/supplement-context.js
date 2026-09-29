@@ -2,7 +2,7 @@
 // supplement-context.js — Token-bounded supplement/medication context for AI features.
 
 import { effectiveTimesPerDay, ingredientDailyTotal } from './supplement-impact.js';
-import { getSupplementPeriods, getSupplementStatus } from './supplement-medication-domain.js';
+import { getSupplementPeriods, getSupplementStatus, localDateKey, supplementDoseText } from './supplement-medication-domain.js';
 import {
   aggregateSupplementContaminants,
   formatContaminantMass,
@@ -17,7 +17,9 @@ export const SUPPLEMENT_CONTEXT_LIMITS = Object.freeze({
   biology: 4500,
 });
 
-const DETAIL_QUERY_RE = /(?:\bsupplements?\b|\bmedications?\b|\bmedicines?\b|\bdrugs?\b|\bvitamins?\b|\bpills?\b|capsul|softgel|tablet|excipient|filler|inactive ingredient|other ingredient|capsule material|capsule shell|coating|allergen|certificate of analysis|\bcoa\b|quality test|laboratory test|heavy metal|contaminant|cadmium|mercury|arsenic|\blead\b|doplněk|doplňky|l[eé]k|kapsl|pomocn[áeé]|plniv|obal kapsle|těžk[ée] kov|kontamin|laboratorn)/iu;
+const DETAIL_QUERY_RE = /(?:\binteraction|\bside effects?\b|\blabel\b|\bwarnings?\b|\bindication\b|why.+(?:taking|take)|(?:stop|paus).+(?:taking|take)|\bdos(?:e|es|age)\b|\bregimen\b|\bsupplements?\b|\bmedications?\b|\bmedicines?\b|\bdrugs?\b|\bvitamins?\b|\bpills?\b|capsul|softgel|tablet|excipient|filler|inactive ingredient|other ingredient|capsule material|capsule shell|coating|allergen|certificate of analysis|\bcoa\b|quality test|laboratory test|heavy metal|contaminant|cadmium|mercury|arsenic|\blead\b|doplněk|doplňky|l[eé]k|kapsl|pomocn[áeé]|plniv|obal kapsle|těžk[ée] kov|kontamin|laboratorn)/iu;
+const PRESCRIBER_QUERY_RE = /(?:prescrib|prescription|clinician|doctor|předepis|předeps|lékař)/iu;
+const SOURCE_QUERY_RE = /(?:\bsource\b|\blink\b|\burl\b|provenance|import|manufacturer|\bbrand\b|bought|purchase|\bbuy\b|where.+from|zdroj|odkaz|výrobce|koupil)/iu;
 const MATERIAL_HINT_RE = /(?:capsul|softgel|shell|gelatin|cellulos|hypromellos|hpmc|pullulan|coating|allergen|soy|soya|milk|lactose|gluten|wheat|peanut|sesame|kapsl|obal|želatin|celul[oó]z)/iu;
 
 /** @param {unknown} value @param {number} [max] */
@@ -74,7 +76,8 @@ function searchableTerms(supplement) {
 export function resolveSupplementContextMode(queryText, supplements) {
   const query = normalized(queryText);
   if (!query) return 'compact';
-  if (DETAIL_QUERY_RE.test(query)) return 'detail';
+  if (DETAIL_QUERY_RE.test(query) || PRESCRIBER_QUERY_RE.test(query)
+      || (SOURCE_QUERY_RE.test(query) && /(?:link|url|provenance|import|manufacturer|brand|bought|purchase|buy|sources|zdroj|odkaz|výrobce|koupil)/iu.test(query))) return 'detail';
   for (const supplement of Array.isArray(supplements) ? supplements : []) {
     if (searchableTerms(supplement).some(term => query.includes(term))) return 'detail';
   }
@@ -84,6 +87,11 @@ export function resolveSupplementContextMode(queryText, supplements) {
 /** @param {any} ingredient @param {any} supplement */
 function ingredientLabel(ingredient, supplement) {
   const name = clean(ingredient?.name, 120) || 'Unnamed active ingredient';
+  const amount = clean(ingredient?.amount, 50) || clean(`${ingredient?.amountValue ?? ''} ${ingredient?.amountUnit || ''}`, 50);
+  if (getSupplementPeriods(supplement).some(period => period.dose || period.ingredientDoses?.length) || getSupplementStatus(supplement) !== 'active'
+      || !['daily', 'multiple'].includes(supplement?.schedule?.mode || 'daily')) {
+    return `${name}${amount ? ` ${amount} per label serving` : ''}`;
+  }
   const total = ingredientDailyTotal(ingredient, supplement);
   const times = effectiveTimesPerDay(ingredient, supplement);
   if (total) return `${name} ${clean(ingredient.amount, 50) || clean(`${ingredient.amountValue ?? ''} ${ingredient.amountUnit || ''}`, 50)} × ${times}/day = ${total.value}${total.unit ? ` ${clean(total.unit, 24)}` : ''}/day`;
@@ -109,18 +117,88 @@ function compactOtherIngredients(values, limit) {
 function scheduleLabel(supplement) {
   const schedule = supplement?.schedule || {};
   const mode = clean(schedule.mode, 40);
-  const times = Number(supplement?.timesPerDay ?? schedule.timesPerDay);
-  if (mode === 'prn') return 'as needed (PRN; exposure not assumed)';
-  if (Number.isFinite(times) && times > 0) return `${mode || 'daily'}, ${times}×/day`;
-  return mode || '';
+  const times = Number(schedule.timesPerDay ?? supplement?.timesPerDay);
+  if (mode === 'prn') return `as needed (PRN; exposure not assumed)${schedule.maxPerDay != null ? `; maximum ${clean(schedule.maxPerDay, 20)}/day` : ''}${schedule.details ? `; ${clean(schedule.details, 100)}` : ''}`;
+  const weekdays = (schedule.daysOfWeek || []).map(day => typeof day === 'number' ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day] || day : day);
+  const details = clean([weekdays.length ? `weekdays ${weekdays.join(', ')}` : '', schedule.intervalDays ? `every ${schedule.intervalDays} days` : '', schedule.details].filter(Boolean).join('; '), 200);
+  return [Number.isFinite(times) && times > 0 ? `${mode || 'daily'}, ${times}×/day` : mode, details].filter(Boolean).join('; ');
 }
 
-/** @param {any} supplement */
-function periodLabel(supplement) {
+/** Dated doses take precedence over current product strength and undated directions. */
+function periodDose(period) {
+  const text = dose => `${supplementDoseText(dose)}${dose?.basis === 'dose' && !dose?.text ? '/dose' : ''}`;
+  if (period?.dose) return `${period.dose.ingredient ? `${clean(period.dose.ingredient, 80)}: ` : ''}${clean(text(period.dose), 180)}`;
+  if (period?.ingredientDoses?.length) return period.ingredientDoses.slice(0, 12)
+    .map(dose => `${clean(dose.ingredient, 80)}: ${clean(text(dose), 100)}`).join(', ')
+    + (period.ingredientDoses.length > 12 ? ` (+${period.ingredientDoses.length - 12} more stored)` : '');
+  return 'dose not recorded';
+}
+
+function datedDoseContext(supplement, limit, { detail = false, historyRange = null } = {}) {
+  const today = localDateKey();
+  const status = getSupplementStatus(supplement);
   const periods = getSupplementPeriods(supplement).filter(period => clean(period?.start, 12));
-  if (!periods.length) return getSupplementStatus(supplement);
-  const rendered = periods.map(period => `${clean(period.start, 12)}→${clean(period.end, 12) || 'ongoing'}`);
-  return `${getSupplementStatus(supplement)}; ${rendered.length > 1 ? `cycling ${rendered.join(', ')}` : rendered[0]}`;
+  const current = status === 'active' ? periods.find(period => period.start <= today && (!period.end || period.end >= today)) : null;
+  const currentDose = current
+    ? `${periodDose(current)} (${clean(current.start, 12)}→${clean(current.end, 12) || 'ongoing'})`
+    : `none (${status})`;
+  const next = periods.filter(period => period.start > today).sort((a, b) => String(a.start).localeCompare(String(b.start)))[0];
+  const relevant = detail ? periods : periods.filter(period => period === current || period === next
+    || (historyRange && period.start <= historyRange.end && (!period.end || period.end >= historyRange.start)));
+  const shown = [...relevant].sort((a, b) => String(b.start).localeCompare(String(a.start))).slice(0, limit);
+  const history = shown.map(period => {
+    const phase = period.start > today ? 'planned' : period === current ? 'current' : 'past';
+    const schedule = period.schedule ? scheduleLabel({ schedule: period.schedule }) : '';
+    return `${clean(period.start, 12)}→${clean(period.end, 12) || 'ongoing'} [${phase}]: ${periodDose(period)}${schedule ? `; schedule: ${schedule}` : ''}${detail && period.endReason ? `; ended: ${clean(period.endReason, 140)}` : ''}`;
+  });
+  return { status, asOf: today, currentDose, doseHistory: history, omittedPeriods: Math.max(0, periods.length - shown.length) };
+}
+
+function productMetadata(supplement, { detail = false, queryText = '' } = {}) {
+  const provenance = supplement?.importProvenance || {};
+  const urls = [supplement?.sourceUrl, provenance.url, ...(Array.isArray(provenance.evidence) ? provenance.evidence.map(item => item?.url) : [])];
+  const sourceLinks = [...new Set(urls.flatMap(value => {
+    try { const url = new URL(String(value)); return ['http:', 'https:'].includes(url.protocol) && url.href.length <= 1000 ? [url.toString()] : []; }
+    catch { return []; }
+  }))];
+  const fields = {
+    genericName: clean(supplement?.genericName, 100),
+    dosageForm: clean(supplement?.dosageForm, 50),
+    undatedDoseSnapshot: !getSupplementPeriods(supplement).some(period => period.dose || period.ingredientDoses?.length) && supplement?.currentDose
+      ? clean(periodDose({ dose: supplement.currentDose }), 180) : '',
+    labelServing: clean([supplement?.servingSize?.value, supplement?.servingSize?.unit].filter(value => value != null && value !== '').join(' '), 80),
+    ...(detail ? {
+      brand: clean(supplement?.brand, 80), reason: clean(supplement?.reason, 200),
+      stopOrPauseReason: clean(supplement?.lifecycle?.reason, 180),
+      labelDirections: clean(supplement?.labelDirections, 300),
+      labelWarnings: (Array.isArray(supplement?.labelWarnings) ? supplement.labelWarnings : []).slice(0, 8).map(value => clean(value, 200)),
+    } : {}),
+    ...(detail && PRESCRIBER_QUERY_RE.test(queryText) ? { prescriber: clean(supplement?.prescriber, 100) } : {}),
+    ...(detail && SOURCE_QUERY_RE.test(queryText) ? { sourceLinks: sourceLinks.slice(0, 3), importSource: clean(provenance.kind, 80) } : {}),
+  };
+  return Object.fromEntries(Object.entries(fields).filter(([, value]) => Array.isArray(value) ? value.length : value));
+}
+
+/** Put a specifically requested product before limits are applied. */
+function prioritizeProducts(supplements, queryText = '') {
+  const query = normalized(queryText);
+  return [...supplements].sort((a, b) => {
+    const rank = item => query && searchableTerms(item).some(term => query.includes(term)) ? 0 : getSupplementStatus(item) === 'active' ? 1 : 2;
+    return rank(a) - rank(b);
+  });
+}
+
+function contaminantContextProducts(supplements) {
+  return supplements.map(supplement => {
+    const today = localDateKey();
+    const current = getSupplementPeriods(supplement).find(period => period.start <= today && (!period.end || period.end >= today));
+    const schedule = current?.schedule || supplement.schedule || {};
+    const daily = getSupplementStatus(supplement) === 'active' && ['daily', 'multiple'].includes(schedule.mode || 'daily')
+      && (!current?.dose || current.dose.source === 'ingredient');
+    return { ...supplement, qualityTests: contextQualityTests(supplement),
+      timesPerDay: daily ? schedule.timesPerDay ?? supplement.timesPerDay : null,
+      schedule: { ...schedule, timesPerDay: daily ? schedule.timesPerDay ?? supplement.timesPerDay : null } };
+  });
 }
 
 /** @param {any[]} tests */
@@ -168,40 +246,48 @@ function fitContext(text, maxChars) {
  * Render a context section body. All underlying records remain untouched; only
  * this prompt projection is bounded.
  * @param {any[]} supplements
- * @param {{ mode?: 'compact'|'detail', maxChars?: number, inventorySupplements?: any[] }} [options]
+ * @param {{ mode?: 'compact'|'detail', maxChars?: number, inventorySupplements?: any[], queryText?: string, historyRange?: { start: string, end: string } }} [options]
  */
 export function buildSupplementAIContext(supplements, options = {}) {
   const mode = options.mode === 'detail' ? 'detail' : 'compact';
   const maxChars = Math.max(500, Number(options.maxChars) || SUPPLEMENT_CONTEXT_LIMITS[mode]);
-  const source = Array.isArray(supplements) ? supplements : [];
+  const source = prioritizeProducts(Array.isArray(supplements) ? supplements : [], options.queryText);
   const productLimit = mode === 'detail' ? 24 : 12;
   const activeLimit = mode === 'detail' ? 20 : 8;
-  const inactiveLimit = mode === 'detail' ? 20 : 5;
-  const lines = [
+  const detail = mode === 'detail';
+  const lines = detail ? [
     'Source-reported product and lot data below are not personal clinical laboratory results.',
+    'Dated dose history overrides product-label amounts and undated directions. Do not project current ingredient totals onto earlier periods; missing doses remain unknown. Current saved records supersede older chat descriptions.',
+    'This is a bounded summary: long text and large inventories may be shortened. Source links identify provenance, not verified contents. PRN limits and label directions do not establish actual intake.',
     'Safety boundary: keep ND/NQ distinct from zero. Do not call an exposure high or unsafe unless its basis converts to personal daily intake and an applicable route- and jurisdiction-specific reference is available.',
-  ];
+  ] : ['Dated doses override label amounts and undated directions. Missing historical doses remain unknown. Saved records supersede older chat descriptions. PRN limits are not actual intake. Extra product details are available on relevant questions.'];
 
   for (const supplement of source.slice(0, productLimit)) {
     const name = clean(supplement?.name, 120) || 'Unnamed product';
-    const identity = [clean(supplement?.type, 30) || 'supplement', clean(supplement?.brand, 80), clean(supplement?.dosageForm, 50), clean(supplement?.route, 40)].filter(Boolean).join(', ');
+    const identity = [clean(supplement?.type, 30) || 'supplement', detail ? clean(supplement?.brand, 80) : '', clean(supplement?.dosageForm, 50), clean(supplement?.route, 40)].filter(Boolean).join(', ');
     const regimen = [clean(supplement?.dosage, 160), scheduleLabel(supplement)].filter(Boolean).join('; ');
-    lines.push(`- ${name} [${identity}; ${periodLabel(supplement)}]${regimen ? ` | personal regimen: ${regimen}` : ''}${supplement?.note || supplement?.notes ? ` | note: ${clean(supplement.note || supplement.notes, mode === 'detail' ? 320 : 140)}` : ''}`);
+    const dated = datedDoseContext(supplement, detail ? 24 : 6, { detail, historyRange: options.historyRange });
+    lines.push(`- ${name} [${identity}; ${dated.status}] | current recorded dose as of ${dated.asOf}: ${dated.currentDose}`);
+    if (dated.doseHistory.length) lines.push(`  dated dose history (newest first): ${dated.doseHistory.join(' | ')}${dated.omittedPeriods ? ` (+${dated.omittedPeriods} other periods stored)` : ''}`);
+    const metadata = productMetadata(supplement, { detail, queryText: options.queryText });
+    if (Object.keys(metadata).length) lines.push(`  product facts: ${JSON.stringify(metadata)}`);
+    if (regimen) lines.push(`  undated directions/current schedule (not historical dose): ${regimen}`);
+    if (detail && (supplement?.note || supplement?.notes)) lines.push(`  note: ${clean(supplement.note || supplement.notes, mode === 'detail' ? 320 : 140)}`);
 
     const ingredients = Array.isArray(supplement?.ingredients) ? supplement.ingredients : [];
     if (ingredients.length) {
       const shown = ingredients.slice(0, activeLimit).map(ingredient => ingredientLabel(ingredient, supplement));
-      lines.push(`  active ingredients: ${shown.join(', ')}${ingredients.length > activeLimit ? ` (+${ingredients.length - activeLimit} more stored)` : ''}`);
+      lines.push(`  product-label active ingredients (calculated totals are not confirmed historical doses): ${shown.join(', ')}${ingredients.length > activeLimit ? ` (+${ingredients.length - activeLimit} more stored)` : ''}`);
     }
 
     const inactive = (Array.isArray(supplement?.inactiveIngredients) ? supplement.inactiveIngredients : []).map(inactiveName).filter(Boolean);
-    if (inactive.length) {
-      const shown = compactOtherIngredients(inactive, inactiveLimit);
+    if (detail && inactive.length) {
+      const shown = compactOtherIngredients(inactive, 20);
       lines.push(`  other label ingredients (excipients/fillers/coatings/capsule materials): ${shown.join(', ')}${inactive.length > shown.length ? ` (+${inactive.length - shown.length} more stored)` : ''}`);
     }
 
     const allTests = Array.isArray(supplement?.qualityTests) ? supplement.qualityTests : [];
-    const tests = contextQualityTests(supplement);
+    const tests = detail ? contextQualityTests(supplement) : [];
     if (tests.length) {
       const contaminantCount = tests.filter(test => test?.category === 'contaminant').length;
       const otherSummary = nonContaminantSummary(tests);
@@ -209,14 +295,14 @@ export function buildSupplementAIContext(supplements, options = {}) {
       const failures = tests.filter(test => clean(test?.status, 30).toLowerCase() === 'fail');
       if (failures.length) lines.push(`  explicit source failures: ${failures.slice(0, 8).map(test => `${clean(test.analyte, 100)}: ${formatSupplementQualityResult(test)}`).join('; ')}${failures.length > 8 ? ` (+${failures.length - 8} more stored)` : ''}`);
       if (mode === 'detail') {
-        const shown = tests.slice(0, 24).map(test => `${clean(test.category, 40) || 'other'} — ${clean(test.analyte, 100)}: ${formatSupplementQualityResult(test)}${test?.limitText ? `; source limit ${clean(test.limitText, 100)}` : ''}${test?.method ? `; method ${clean(test.method, 100)}` : ''}`);
+        const shown = tests.slice(0, 24).map(test => `${clean(test.category, 40) || 'other'} — ${clean(test.analyte, 100)}: ${formatSupplementQualityResult(test)}${test?.limitText ? `; source limit ${clean(test.limitText, 100)}` : ''}${test?.method ? `; method ${clean(test.method, 100)}` : ''}${test?.declaredText ? `; label claim ${clean(test.declaredText, 100)}` : ''}`);
         lines.push(`  detailed source quality results: ${shown.join('; ')}${tests.length > shown.length ? ` (+${tests.length - shown.length} more stored)` : ''}`);
       }
     }
   }
   if (source.length > productLimit) lines.push(`- +${source.length - productLimit} more therapy records stored outside this prompt projection.`);
 
-  const contextSupplements = source.map(supplement => ({ ...supplement, qualityTests: contextQualityTests(supplement) }));
+  const contextSupplements = detail ? contaminantContextProducts(source) : [];
   const contaminants = aggregateSupplementContaminants(contextSupplements);
   if (contaminants.length) {
     const limit = mode === 'detail' ? 30 : 12;
@@ -238,35 +324,38 @@ export function buildSupplementAIContext(supplements, options = {}) {
 
 /**
  * JSON-safe compact records for specialized AI tasks such as Biology Scores.
- * Methods and full COA inventories are deliberately excluded.
+ * Descriptive metadata and quality inventories are reserved for relevant chat questions.
  * @param {any[]} supplements
- * @param {{ maxChars?: number }} [options]
+ * @param {{ maxChars?: number, historyRange?: { start: string, end: string } }} [options]
  */
 export function buildCompactSupplementContextRecords(supplements, options = {}) {
-  const source = Array.isArray(supplements) ? supplements : [];
+  const source = prioritizeProducts(Array.isArray(supplements) ? supplements : []);
   const maxChars = Math.max(400, Number(options.maxChars) || SUPPLEMENT_CONTEXT_LIMITS.biology);
   const output = [];
   let included = 0;
   for (const supplement of source.slice(0, 40)) {
-    const tests = contextQualityTests(supplement);
-    const inactive = (Array.isArray(supplement?.inactiveIngredients) ? supplement.inactiveIngredients : []).map(inactiveName).filter(Boolean);
     const record = {
       name: clean(supplement?.name, 100),
+      ...datedDoseContext(supplement, 6, { historyRange: options.historyRange }),
+      ...productMetadata(supplement),
       type: clean(supplement?.type, 30),
       genericName: clean(supplement?.genericName, 80),
       route: clean(supplement?.route, 30),
       regimen: clean([supplement?.dosage, scheduleLabel(supplement)].filter(Boolean).join('; '), 180),
-      note: clean(supplement?.note || supplement?.notes, 240),
       activeIngredients: (Array.isArray(supplement?.ingredients) ? supplement.ingredients : []).slice(0, 6).map(ingredient => ingredientLabel(ingredient, supplement)),
-      otherLabelIngredients: compactOtherIngredients(inactive, 4),
-      qualitySummary: {
-        total: tests.length,
-        contaminants: tests.filter(test => test?.category === 'contaminant').slice(0, 4).map(test => `${clean(test.analyte, 80)}: ${formatSupplementQualityResult(test)}`),
-        failures: tests.filter(test => clean(test?.status, 30).toLowerCase() === 'fail').slice(0, 4).map(test => clean(test?.analyte, 80)),
-      },
+      omittedActiveIngredients: Math.max(0, (supplement?.ingredients?.length || 0) - 6),
     };
-    const candidate = [...output, record];
-    if (JSON.stringify(candidate).length > maxChars) break;
+    const remainingAfter = source.length - included - 1;
+    const marker = remainingAfter > 0 ? [{ moreTherapyRecordsStored: remainingAfter }] : [];
+    if (JSON.stringify([...output, record, ...marker]).length > maxChars) {
+      // A single large record must not hide even its identity and current dose.
+      const brief = { name: record.name, type: record.type, status: record.status, asOf: record.asOf,
+        currentDose: record.currentDose, furtherDetailsStored: true };
+      if (JSON.stringify([...output, brief, ...marker]).length > maxChars) break;
+      output.push(brief);
+      included += 1;
+      continue;
+    }
     output.push(record);
     included += 1;
   }

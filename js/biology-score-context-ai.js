@@ -144,10 +144,11 @@ function bodySummary(imported) {
 
 function supplementsSummary(imported, data) {
   if (!Array.isArray(imported?.supplements)) return [];
-  const relevant = data?.dates?.length
-    ? getSupplementsOverlappingRange(imported.supplements, data.dates[0], data.dates[data.dates.length - 1])
-    : getCurrentSupplements(imported.supplements);
-  return buildCompactSupplementContextRecords(relevant);
+  const relevant = [...new Set([...getCurrentSupplements(imported.supplements), ...(data?.dates?.length
+    ? getSupplementsOverlappingRange(imported.supplements, data.dates[0], data.dates[data.dates.length - 1]) : [])])];
+  return buildCompactSupplementContextRecords(relevant, {
+    historyRange: data?.dates?.length ? { start: data.dates[0], end: data.dates[data.dates.length - 1] } : undefined,
+  });
 }
 
 function supplementInventoryFingerprint(imported) {

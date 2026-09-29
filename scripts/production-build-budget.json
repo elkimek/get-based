@@ -4,7 +4,7 @@
     "startupJavaScriptFiles": 2,
     "startupDecodedBytes": 1276000,
     "outputJavaScriptFiles": 167,
-    "outputDecodedBytes": 5435000
+    "outputDecodedBytes": 5452500
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -103,8 +103,19 @@
     "correlationWorkspacePersistenceOutputDecodedBytes": 5432097,
     "correlationWorkspacePersistenceMeasuredBaseCommit": "c0a0a478",
     "correlationsReleaseNotesOutputDecodedBytes": 5434317,
-    "correlationsReleaseNotesMeasuredBaseCommit": "6598bee5"
+    "correlationsReleaseNotesMeasuredBaseCommit": "6598bee5",
+    "supplementEditorUsabilityMeasuredBaseCommit": "ba6b27ea28e9101879bfdb2c5ac48f5bcc5ad9d2",
+    "supplementEditorUsabilityOutputDecodedBytes": 5446483,
+    "supplementEditorUsabilityStartupDecodedBytes": 1257110,
+    "supplementDoseContextOutputDecodedBytes": 5448240,
+    "supplementDoseContextStartupDecodedBytes": 1258867,
+    "supplementDoseContextMeasuredBaseCommit": "ba6b27ea28e9101879bfdb2c5ac48f5bcc5ad9d2",
+    "supplementContextCompletenessOutputDecodedBytes": 5450981,
+    "supplementContextCompletenessStartupDecodedBytes": 1261608,
+    "supplementContextCompletenessMeasuredBaseCommit": "ba6b27ea28e9101879bfdb2c5ac48f5bcc5ad9d2",
+    "supplementLeanContextStartupDecodedBytes": 1262357,
+    "supplementLeanContextOutputDecodedBytes": 5451730
   },
   "referenceCommit": "331112b1",
-  "measuredAt": "2026-09-28"
+  "measuredAt": "2026-09-29"
 }

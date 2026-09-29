@@ -324,19 +324,19 @@
 .supp-form .note-editor-actions button { max-width: 100%; }
 .supp-form-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
 .supp-form-section-title {
-  margin: 16px 0 9px; padding-bottom: 5px; border-bottom: 1px solid var(--border);
+  margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
   color: var(--text-primary); font-size: 12px; font-weight: 700;
 }
-.supp-label-hint { font-weight: 400; color: var(--text-muted); }
-.supp-form-help { margin-top: 5px; color: var(--text-muted); font-size: 10px; line-height: 1.45; }
-.supp-form-row { display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; min-width: 0; max-width: 100%; }
+.supp-label-hint { margin-inline-start: 5px; font-weight: 400; color: var(--text-muted); }
+.supp-form-help { margin: 8px 0 12px; color: var(--text-muted); font-size: 11px; line-height: 1.5; }
+.supp-form-row { display: flex; gap: 16px 12px; margin-bottom: 16px; flex-wrap: wrap; min-width: 0; max-width: 100%; }
 .supp-form-field { flex: 1 1 150px; min-width: 0; max-width: 100%; }
 .modal .supp-form-row { flex-wrap: wrap; }
 .modal .supp-form-field { min-width: min(140px, 100%); }
 .supp-form-field-compact { flex: 0 0 100px; }
 .supp-form-field-wide { flex: 2 1 220px; }
 .supp-form-field label {
-  display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; font-weight: 500;
+  display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.5; font-weight: 500;
 }
 .supp-form-field input,
 .supp-form-field select,
@@ -351,7 +351,7 @@
 .supp-form-field textarea { resize: vertical; line-height: 1.45; }
 .supp-form-field select { cursor: pointer; }
 .supp-form-field select option { background: var(--select-popup-surface); }
-.supp-ingredient-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; flex-wrap: wrap; min-width: 0; max-width: 100%; }
+.supp-ingredient-row { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; min-width: 0; max-width: 100%; }
 .supp-ingredient-row .supp-ing-name { flex: 3 1 140px; min-width: 110px; }
 .supp-ingredient-row .supp-ing-amount { flex: 1 1 80px; min-width: 70px; }
 .supp-ingredient-row .supp-ing-unit { flex: 0 0 105px; min-width: 90px; }
@@ -387,7 +387,7 @@
 .supp-ingredient-add { background: none; border: 1px dashed var(--border-color); color: var(--text-muted); font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer; }
 .supp-ingredient-add:hover { border-color: var(--accent); color: var(--accent); }
 .supp-ingredient-add:disabled { opacity: 0.5; cursor: wait; }
-.supp-period-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; align-items: center; min-width: 0; max-width: 100%; }
+.supp-period-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; align-items: center; min-width: 0; max-width: 100%; }
 .supp-period-row input[type="date"] { flex: 1 1 0; min-width: 0; max-width: 100%; font-size: 12px; padding: 5px 8px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); }
 .supp-period-row .supp-period-dose { flex: 1.4 1 130px; min-width: 100px; font-size: 12px; padding: 5px 8px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); }
 .supp-period-row input[type="date"]:focus { border-color: var(--accent); outline: none; }
@@ -395,7 +395,7 @@
 .supp-period-arrow { color: var(--text-muted); font-size: 12px; flex-shrink: 0; }
 .supp-period-remove { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
 .supp-period-remove:hover { color: var(--danger, #ef4444); background: rgba(239, 68, 68, 0.1); }
-.supp-period-actions { display: flex; gap: 6px; margin-top: 4px; }
+.supp-period-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
 .supp-period-add { background: none; border: 1px dashed var(--border-color); color: var(--text-muted); font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer; }
 .supp-period-add:hover { border-color: var(--accent); color: var(--accent); }
 .supp-import-review {
@@ -709,3 +709,14 @@
 .supp-period-row > .supp-ingredient-add { grid-column: 1 / 4; font-size: 11px; }
 
 .supp-period-dose-summary { grid-column: 1 / -1; flex-basis: 100%; color: var(--text-secondary); overflow-wrap: anywhere; }
+
+/* Keep the open supplement editor usable on narrow screens. */
+.supp-list-dose { margin-top: 4px; font-size: 12px; color: var(--text-primary); }
+@media (max-width: 600px) {
+  #detail-modal:has(.supp-form) { width: 100%; padding: 16px; }
+  #detail-modal:has(.supp-form) > h3:first-of-type { margin: -16px -16px 16px; padding: 18px 48px 16px 16px; font-size: 20px; }
+  .supp-form input, .supp-form select, .supp-form textarea,
+  .supp-form .supp-period-row input, .supp-form .supp-ingredient-row input,
+  .supp-form .supp-ingredient-row select { font-size: 16px; min-height: 44px; }
+  .supp-form button { min-height: 44px; }
+}
