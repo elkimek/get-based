@@ -198,8 +198,9 @@ const { computeSupplementImpact, computeAllImpacts, parseAmount, ingredientDaily
   assert('AI prompt uses computed total with supp-level fallback', impactSrc.includes('ingredientDailyTotal(ing, s)') && impactSrc.includes('effectiveTimesPerDay'));
   assert('Outer ×/day form field exists', suppFormSrc.includes('id="supp-times"'));
   assert('Row placeholder is just ×/day (no "inherit N" jargon)', suppFormSrc.includes('placeholder="×/day"'));
-  assert('Outer label reads "Uses/day" and distinguishes PRN maximums',
-    suppFormSrc.includes('<label>Uses/day</label>') && suppFormSrc.includes('<label>PRN max/day</label>'));
+  assert('Personal servings/day and PRN maximums have distinct associated labels',
+    suppFormSrc.includes('<label for="supp-times">Servings/day</label>')
+      && suppFormSrc.includes('<label for="supp-max-per-day">PRN max/day</label>'));
   assert('Saves supp.timesPerDay when provided', suppSrc.includes('entry.timesPerDay = timesPerDay'));
   const labContextSrc = read('js/lab-context.js');
   const supplementContextSrc = read('js/supplement-context.js');
