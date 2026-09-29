@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 791 |
-| Internal import edges | 3356 |
+| Internal import edges | 3357 |
 | Dynamic internal edges | 119 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1177,7 +1177,7 @@ Native browser modules shipped with the static application.
 - [`js/supplement-dashboard.js`](js/supplement-dashboard.js) → [`js/state.js`](js/state.js), [`js/supplement-action-delegates.js`](js/supplement-action-delegates.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/supplement-warnings.js`](js/supplement-warnings.js), [`js/utils.js`](js/utils.js)
 - [`js/supplement-form-ui.js`](js/supplement-form-ui.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/state.js`](js/state.js), [`js/supplement-action-delegates.js`](js/supplement-action-delegates.js), [`js/supplement-impact.js`](js/supplement-impact.js), [`js/supplement-import-draft.js`](js/supplement-import-draft.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/supplement-quality.js`](js/supplement-quality.js), [`js/utils.js`](js/utils.js)
 - [`js/supplement-impact.js`](js/supplement-impact.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/caught-error.js`](js/caught-error.js), [`js/data.js`](js/data.js), [`js/marker-placement.js`](js/marker-placement.js), [`js/profile.js`](js/profile.js), [`js/state.js`](js/state.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/utils.js`](js/utils.js)
-- [`js/supplement-import-controller.js`](js/supplement-import-controller.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/image-utils.js`](js/image-utils.js), [`js/proxy-runtime.js`](js/proxy-runtime.js), [`js/supplement-action-delegates.js`](js/supplement-action-delegates.js), [`js/supplement-form-ui.js`](js/supplement-form-ui.js), [`js/supplement-import-draft.js`](js/supplement-import-draft.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/supplement-quality.js`](js/supplement-quality.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
+- [`js/supplement-import-controller.js`](js/supplement-import-controller.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/api.js`](js/api.js), [`js/caught-error.js`](js/caught-error.js), [`js/context-card-editor-ui.js`](js/context-card-editor-ui.js), [`js/image-utils.js`](js/image-utils.js), [`js/proxy-runtime.js`](js/proxy-runtime.js), [`js/supplement-action-delegates.js`](js/supplement-action-delegates.js), [`js/supplement-form-ui.js`](js/supplement-form-ui.js), [`js/supplement-import-draft.js`](js/supplement-import-draft.js), [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js), [`js/supplement-quality.js`](js/supplement-quality.js), [`js/utils-runtime.js`](js/utils-runtime.js), [`js/utils.js`](js/utils.js)
 - [`js/supplement-import-draft.js`](js/supplement-import-draft.js) → [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js)
 - [`js/supplement-medication-domain.js`](js/supplement-medication-domain.js) → [`js/unique-id.js`](js/unique-id.js)
 - [`js/supplement-quality.js`](js/supplement-quality.js) → no in-scope imports

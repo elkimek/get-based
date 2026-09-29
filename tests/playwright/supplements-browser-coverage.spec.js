@@ -276,8 +276,12 @@ test('supplements browser coverage handles editor ingredients imports sync and A
         && addRowFocusedLastName;
 
       document.getElementById('supp-url').value = ' https://example.test/products/magnesium ';
+      outcomes.importReviewStylesAreLazy = !document.querySelector('link[data-context-editor-stylesheet]');
       await supplements.fetchSupplementFromURL();
       await waitUntil(() => !!document.querySelector('.supp-import-review'), 'URL import review staged');
+      outcomes.importReviewStylesLoaded = !!document.querySelector('link[data-context-editor-stylesheet]')?.sheet
+        && getComputedStyle(document.querySelector('.supp-import-review')).borderTopStyle === 'solid'
+        && getComputedStyle(document.querySelector('.supp-import-review-header')).display === 'flex';
       const formUntouchedBeforeReview = (document.getElementById('supp-name')?.value || '') === '';
       document.querySelector('[data-supp-action="apply-import"]')?.click();
       await waitUntil(() => (document.getElementById('supp-name')?.value || '') === 'Magnesium Complex', 'URL import fields populated');

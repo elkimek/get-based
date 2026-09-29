@@ -4,6 +4,7 @@
 import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, isDebugMode, showNotification } from './utils.js';
 import { getAIProvider } from './api.js';
+import { loadContextEditorStylesheet } from './context-card-editor-ui.js';
 import { callAssistantFeatureAI, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { buildVisionContent, formatImageBlock, isValidImageType, resizeImage } from './image-utils.js';
 import { suppActionAttrs } from './supplement-action-delegates.js';
@@ -118,6 +119,7 @@ export async function scanSupplementLabel(input) {
   const progressId = startImportProgress(document.querySelector('.supp-scan-label'), 'Preparing label photos…');
   let completed = false;
   try {
+    await loadContextEditorStylesheet();
     const provider = getAIProvider();
     const imageBlocks = [];
     for (const file of files) {
@@ -363,6 +365,7 @@ export async function fetchSupplementFromURL() {
   const progressId = startImportProgress(document.querySelector('.supp-url-fetch'), 'Reading product page…');
   let completed = false;
   try {
+    await loadContextEditorStylesheet();
     const isLocal = ['localhost', '127.0.0.1'].includes(getUtilsRuntimeHostname());
     let html;
     if (isLocal) {
