@@ -176,6 +176,20 @@ const medication = () => ({
 });
 
 describe('complete therapy facts and conservative exposure', () => {
+  it.each([
+    ['What is the source of my therapy?', true],
+    ['What is the source of my treatment?', true],
+    ['What is the source of my fatigue?', false],
+    ['What is the source of my poor sleep?', false],
+  ])('only expands therapy provenance for relevant source queries: %s', (queryText, includeSource) => {
+    const records = [medication()];
+    const mode = resolveSupplementContextMode(queryText, records);
+    expect(mode).toBe(includeSource ? 'detail' : 'compact');
+    const context = buildSupplementAIContext(records, { mode, queryText });
+    expect(context.includes('https://example.org/medicine')).toBe(includeSource);
+    expect(context).not.toContain('Example clinician');
+  });
+
   it('separates essential facts, descriptive detail and requested metadata without mutating storage', () => {
     const record = medication();
     const before = structuredClone(record);

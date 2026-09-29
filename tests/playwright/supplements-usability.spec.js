@@ -478,7 +478,7 @@ test('saved medication facts reach the appropriate context tier, respecting excl
     setSupplementsMedsContextEnabled(true);
     const compact = buildChatLabContext('How am I doing?');
     const detail = buildChatSystemPrompt({ basePrompt: 'Test assistant', labContext: buildChatLabContext('Tell me about Context medicine') });
-    const source = buildChatLabContext('Show the source link for Context medicine');
+    const source = buildChatLabContext('What is the source of my therapy?');
     const prescriber = buildChatLabContext('Who prescribed Context medicine?');
     await biology.generateBiologyScoreContextReview(dataModule.getActiveData());
     const biologyIncluded = biologyPrompt;

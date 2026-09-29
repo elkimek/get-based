@@ -77,7 +77,7 @@ export function resolveSupplementContextMode(queryText, supplements) {
   const query = normalized(queryText);
   if (!query) return 'compact';
   if (DETAIL_QUERY_RE.test(query) || PRESCRIBER_QUERY_RE.test(query)
-      || (SOURCE_QUERY_RE.test(query) && /(?:link|url|provenance|import|manufacturer|brand|bought|purchase|buy|sources|zdroj|odkaz|výrobce|koupil)/iu.test(query))) return 'detail';
+      || (SOURCE_QUERY_RE.test(query) && /(?:link|url|provenance|import|manufacturer|brand|bought|purchase|buy|sources|\b(?:therap(?:y|ies)|treatments?)\b|zdroj|odkaz|výrobce|koupil)/iu.test(query))) return 'detail';
   for (const supplement of Array.isArray(supplements) ? supplements : []) {
     if (searchableTerms(supplement).some(term => query.includes(term))) return 'detail';
   }
