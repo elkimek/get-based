@@ -363,6 +363,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
     'hematology.wbc', 'hematology.rbc', 'hematology.mcv', 'hematology.mch',
     'hematology.platelets', 'hematology.mpv', 'hematology.pdw', 'hematology.pct',
     'hematology.reticulocytes', 'hematology.reticulocytesPct', 'hematology.immatureGranulocytes',
+    'hematology.immatureGranulocytesPct',
     'differential.neutrophils', 'differential.lymphocytes',
     'differential.monocytes', 'differential.eosinophils', 'differential.basophils',
     // eGFR (ml/s vs ml/min is display convention, not a conversion)

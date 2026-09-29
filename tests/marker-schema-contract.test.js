@@ -93,9 +93,9 @@ describe('marker schema compatibility contract', () => {
       .digest('hex');
 
     expect(Object.keys(facadeMarkerSchema)).toEqual(EXPECTED_CATEGORIES);
-    expect(dotKeys).toHaveLength(197);
+    expect(dotKeys).toHaveLength(198);
     expect(new Set(dotKeys).size).toBe(dotKeys.length);
-    expect(checksum).toBe('27aab9c150320026d41437872d73c8fe01f166ba5140c29f27fb6b4a28cf41b0');
+    expect(checksum).toBe('411dc2890a8d248a6249dac90e72a323c26ff459cadbed552f8fa5361f7e6017');
   });
 
   it('leaves canonical stored dotKeys intact across existing profile migration', () => {
@@ -161,6 +161,7 @@ describe('marker schema compatibility contract', () => {
     expect(unaccounted).toEqual([]);
     expect(contextual).toEqual([
       'biochemistry.egfrCombined',
+      'hematology.immatureGranulocytesPct',
       'bodyComposition.leanMass',
       'bodyComposition.fatMass',
       'bodyComposition.androidFatPct',

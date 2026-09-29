@@ -18,6 +18,9 @@ export const HEMATOLOGY_CATEGORY = {
     pct: { name: "Plateletcrit", unit: "%", refMin: 0.15, refMax: 0.40, desc: "The percentage of blood volume occupied by platelets; analogous to hematocrit but for platelets, reflecting total platelet mass." },
     reticulocytes: { name: "Reticulocytes #", unit: "10^9/l", refMin: 30, refMax: 100, desc: "Absolute count of newly produced red blood cells; shows bone-marrow response to anemia, blood loss, or treatment." },
     reticulocytesPct: { name: "Reticulocytes %", unit: "%", refMin: 0.5, refMax: 2.5, desc: "Proportion of circulating red cells that are newly produced; interpret with anemia severity and the absolute reticulocyte count." },
-    immatureGranulocytes: { name: "Immature Granulocytes #", unit: "10^9/l", refMin: 0, refMax: 0.10, desc: "Early granulocyte forms in peripheral blood; elevations can accompany infection, inflammation, marrow stress, or pregnancy." }
+    immatureGranulocytes: { name: "Immature Granulocytes #", unit: "10^9/l", refMin: 0, refMax: 0.10, desc: "Early granulocyte forms in peripheral blood; elevations can accompany infection, inflammation, marrow stress, or pregnancy." },
+    // IG intervals depend on population and laboratory; do not generalize a report's 0-2% interval.
+    // Outpatient age-stratified evidence: https://pubmed.ncbi.nlm.nih.gov/21466364/
+    immatureGranulocytesPct: { name: "Immature Granulocytes %", unit: "%", refMin: null, refMax: null, rangePolicy: "contextual", desc: "Proportion of white blood cells that are immature granulocytes. Interpret alongside the absolute count and the reporting laboratory's reference interval; age, analyzer, pregnancy, and clinical context affect interpretation." }
   }
 };

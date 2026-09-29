@@ -9,6 +9,7 @@ import {
 import { SPECIALTY_MARKER_DEFS } from './adapters.js';
 import { renameLabEntryMarker } from './lab-entry.js';
 import {
+  preserveExactStandardCustomRanges,
   repairCanonicalMarkerAliases,
   repairNamedStandardMarkerAliases,
 } from './profile-marker-alias-migrations.js';
@@ -659,26 +660,6 @@ function _repairNewlyStandardizedImports(data) {
 }
 
 /**
- * Drop stale custom definitions whose key and unit already exactly match a
- * current built-in. Values need no rewrite because the dot key is canonical.
- * A differing unit remains custom unless an import snapshot proves how to
- * convert it safely.
- *
- * @param {ProfileData} data
- * @returns {void}
- */
-function _adoptExactStandardCustomMarkers(data) {
-  if (!data.customMarkers || typeof data.customMarkers !== 'object') return;
-  for (const [key, definition] of Object.entries(data.customMarkers)) {
-    const [catKey, markerKey] = key.split('.');
-    const standard = MARKER_SCHEMA[catKey]?.markers?.[markerKey];
-    if (!standard) continue;
-    if (normalizeClinicalUnit(definition?.unit) !== normalizeClinicalUnit(standard.unit)) continue;
-    delete data.customMarkers[key];
-  }
-}
-
-/**
  * @param {any} entry
  * @param {any} snap
  * @param {string} oldKey
@@ -780,6 +761,24 @@ function _repairSpadiaFattyAcidKeys(data) {
 }
 
 /**
+ * Drop custom definitions whose key and unit already match a built-in.
+ * Differing units remain custom unless snapshot-backed repair proves conversion.
+ *
+ * @param {ProfileData} data
+ * @returns {void}
+ */
+function _adoptExactStandardCustomMarkers(data) {
+  if (!data.customMarkers || typeof data.customMarkers !== 'object') return;
+  for (const [key, definition] of Object.entries(data.customMarkers)) {
+    const [catKey, markerKey] = key.split('.');
+    const standard = MARKER_SCHEMA[catKey]?.markers?.[markerKey];
+    if (!standard) continue;
+    if (normalizeClinicalUnit(definition?.unit) !== normalizeClinicalUnit(standard.unit)) continue;
+    delete data.customMarkers[key];
+  }
+}
+
+/**
  * @param {ProfileData} data
  * @returns {void}
  */
@@ -789,6 +788,7 @@ export function repairProfileMarkerData(data) {
   _repairCalculatedRatioAliases(data);
   _repairUnitSuffixedStandardMarkers(data);
   _repairSnapshotBackedReferenceUnits(data);
+  preserveExactStandardCustomRanges(data);
   _repairNewlyStandardizedImports(data);
   _adoptExactStandardCustomMarkers(data);
   _repairFractionStoredPercentImports(data);

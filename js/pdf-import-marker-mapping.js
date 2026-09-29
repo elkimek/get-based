@@ -139,6 +139,40 @@ function _suggestDifferentialPercentImportKey(marker) {
   return `differential.${stem}Pct`;
 }
 
+// A relative ("%"/"pct") row must not stay on the matching absolute-count
+// marker just because the report/label lacks the `Pct` suffix. When the row
+// carries a percent hint and the resolved marker has a `<marker>Pct` sibling,
+// prefer that sibling. This covers count markers such as immature granulocytes
+// and reticulocytes that are reported both as a share and as a count.
+function _preferImportPercentSiblingKey(key, marker, refLookup, existingKeys) {
+  if (typeof key !== 'string' || !key || /pct$/i.test(key)) return key;
+  const rawName = marker?.rawName || marker?.suggestedName || '';
+  const unit = normalizeUnitStr(marker?.unit || '');
+  // Preserve the existing precedence: an explicit absolute hint (`#`, `abs`,
+  // `absolute`, or a `10^9` unit) wins over a percent hint, matching
+  // _suggestDifferentialPercentImportKey and _resolveStandardBloodImportKey.
+  if (_hasImportAbsoluteHint(rawName, unit)) return key;
+  const compactBase = _compactImportLabel(rawName).replace(/#/g, '');
+  if (!_hasImportPercentHint(rawName, unit, compactBase)) return key;
+  const dotIndex = key.indexOf('.');
+  if (dotIndex <= 0) return key;
+  const siblingKey = `${key.slice(0, dotIndex)}.${key.slice(dotIndex + 1)}Pct`;
+  return _hasImportReferenceKey(siblingKey, refLookup, existingKeys) ? siblingKey : key;
+}
+
+// The inverse of the helper above: a row with an explicit absolute hint (`#`,
+// `abs`, `absolute`, or a `10^9` unit) must not stay on a `<marker>Pct`
+// sibling just because its label also spells out "percent" (the alias table
+// strips the parenthetical, so name resolution can select the percent key).
+// When the base count marker exists, prefer it.
+function _preferImportAbsoluteHintKey(key, marker, refLookup, existingKeys) {
+  if (typeof key !== 'string' || !key || !key.endsWith('Pct')) return key;
+  const rawName = marker?.rawName || marker?.suggestedName || '';
+  const unit = normalizeUnitStr(marker?.unit || '');
+  if (!_hasImportAbsoluteHint(rawName, unit)) return key;
+  const baseKey = key.slice(0, -3);
+  return _hasImportReferenceKey(baseKey, refLookup, existingKeys) ? baseKey : key;
+}
 
 export function _cleanImportedMarkerDisplayName(value) {
   const cleaned = _stripImportLabelUnits(_stripImportSpecimenPrefix(value))
@@ -417,6 +451,8 @@ const BLOOD_IMPORT_ALIASES = new Map([
   ['reticulocytespercent', 'hematology.reticulocytesPct'],
   ['nezralegranulocyty', 'hematology.immatureGranulocytes'],
   ['immaturegranulocytes', 'hematology.immatureGranulocytes'],
+  ['nezralegranulocytyprocenta', 'hematology.immatureGranulocytesPct'],
+  ['immaturegranulocytespercent', 'hematology.immatureGranulocytesPct'],
   ['homocystein', 'coagulation.homocysteine'],
   ['pt', 'coagulation.pt'],
   ['prothrombintime', 'coagulation.pt'],
@@ -629,9 +665,13 @@ export function reconcileImportMarkerMappings(markers, options = {}) {
       && typeof marker.suggestedKey === 'string'
       && _SAFE_MARKER_KEY.test(marker.suggestedKey)
       && !standardCats.has(marker.suggestedKey.split('.')[0]);
-    const resolvedKey = preferredSuggestedKey
+    let resolvedKey = preferredSuggestedKey
       ? (exactSuggestedKey || exactMappedKey)
       : (aliasKey || existingCustomKey);
+    if (testType === 'blood' && resolvedKey && !preferredSuggestedKey) {
+      resolvedKey = _preferImportAbsoluteHintKey(resolvedKey, marker, refLookup, existingKeys);
+      resolvedKey = _preferImportPercentSiblingKey(resolvedKey, marker, refLookup, existingKeys);
+    }
     if (resolvedKey) {
       marker.mappedKey = resolvedKey;
       marker.matched = true;

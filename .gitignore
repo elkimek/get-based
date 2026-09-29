@@ -33,4 +33,7 @@ test-screenshots/
 deploy/profile-share/.env
 deploy/profile-share/data/
 
+# macOS metadata
+.DS_Store
+
 /tests/.critical-coverage/

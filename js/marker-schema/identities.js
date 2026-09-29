@@ -156,6 +156,7 @@ const IDENTITY_ROWS = [
   ['reticulocytes', 'hematology.reticulocytes'],
   ['reticulocytesPct', 'hematology.reticulocytesPct'],
   ['immatureGranulocytes', 'hematology.immatureGranulocytes'],
+  ['immatureGranulocytesPct', 'hematology.immatureGranulocytesPct'],
   ['neutrophils', 'differential.neutrophils'],
   ['lymphocytes', 'differential.lymphocytes'],
   ['monocytes', 'differential.monocytes'],

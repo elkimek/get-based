@@ -3,7 +3,7 @@
   "scenario": "Production service-worker app-shell precache during PWA installation",
   "maximums": {
     "resources": 350,
-    "decodedBytes": 18369500
+    "decodedBytes": 18372500
   },
   "reference": {
     "resources": 277,
@@ -35,7 +35,8 @@
     "supplementDoseContextMeasuredBaseCommit": "ba6b27ea28e9101879bfdb2c5ac48f5bcc5ad9d2",
     "supplementContextCompletenessDecodedBytes": 18367718,
     "supplementContextCompletenessMeasuredBaseCommit": "ba6b27ea28e9101879bfdb2c5ac48f5bcc5ad9d2",
-    "supplementLeanContextDecodedBytes": 18368467
+    "supplementLeanContextDecodedBytes": 18368467,
+    "immatureGranulocytesPctSafetyDecodedBytes": 18370648
   },
   "referenceCommit": "331112b1",
   "measuredAt": "2026-09-29"

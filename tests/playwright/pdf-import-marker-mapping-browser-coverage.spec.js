@@ -87,3 +87,52 @@ test('pdf import marker mapping browser coverage handles percent hints and urine
     expect(passed, name).toBe(true);
   }
 });
+
+test('IG percentage and count remain distinct through import validation and migrated display', async ({ page }) => {
+  await openIsolatedMarkerMappingPage(page);
+  const result = await page.evaluate(async () => {
+    const [{ reconcileImportMarkerMappings }, { prepareImportCommit }, { migrateProfileData }, { state }, { getActiveData, invalidateActiveDataCache }, { getStatus }] = await Promise.all([
+      import('/js/pdf-import-marker-mapping.js'),
+      import('/js/import-commit-validation.js'),
+      import('/js/profile-data-migrations.js'),
+      import('/js/state.js'),
+      import('/js/data.js'),
+      import('/js/utils.js'),
+    ]);
+    const key = 'hematology.immatureGranulocytesPct';
+    const absoluteKey = 'hematology.immatureGranulocytes';
+    const markers = [
+      { rawName: 'Immature Granulocytes', value: 1.2, unit: '%', mappedKey: absoluteKey, matched: true, refMin: 0.1, refMax: 0.9 },
+      { rawName: 'Immature Granulocytes (abs)', value: 0.04, unit: '10^9/l', mappedKey: absoluteKey, matched: true },
+    ];
+    reconcileImportMarkerMappings(markers);
+    const commit = prepareImportCommit({ date: '2026-07-01', markers }, new Set());
+    state.importedData = migrateProfileData({
+      entries: [{ date: '2026-07-01', markers: { [key]: 1.2, [absoluteKey]: 0.04 } }],
+      customMarkers: { [key]: { name: 'IG %', unit: '%', refMin: 0.1, refMax: 0.9 } },
+      refOverrides: { [key]: { optimalMax: 0.5 } },
+      importSnapshots: [{ id: 'report-1', date: '2026-07-01', markers: [{ ...markers[0] }] }],
+    });
+    invalidateActiveDataCache();
+    const adopted = getActiveData().categories.hematology.markers.immatureGranulocytesPct;
+    const adoptedRange = { min: adopted.refMin, max: adopted.refMax };
+    const adoptedStatus = getStatus(1.2, adopted.refMin, adopted.refMax);
+    state.importedData = { entries: [{ date: '2026-07-01', markers: { [key]: 1.2 } }] };
+    invalidateActiveDataCache();
+    const withoutLabRange = getActiveData().categories.hematology.markers.immatureGranulocytesPct;
+    return {
+      error: commit.error,
+      keys: markers.map(marker => marker.mappedKey),
+      values: markers.map(marker => marker.value),
+      adoptedRange,
+      adoptedStatus,
+      withoutLabRange: { min: withoutLabRange.refMin, max: withoutLabRange.refMax },
+    };
+  });
+  expect(result.error).toBeNull();
+  expect(result.keys).toEqual(['hematology.immatureGranulocytesPct', 'hematology.immatureGranulocytes']);
+  expect(result.values).toEqual([1.2, 0.04]);
+  expect(result.adoptedRange).toEqual({ min: 0.1, max: 0.9 });
+  expect(result.adoptedStatus).toBe('high');
+  expect(result.withoutLabRange).toEqual({ min: null, max: null });
+});

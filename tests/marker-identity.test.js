@@ -27,7 +27,7 @@ describe('stable built-in marker identity contract', () => {
     const identityDotKeys = BUILTIN_MARKER_IDENTITIES.map(identity => identity.currentDotKey);
     const ids = BUILTIN_MARKER_IDENTITIES.map(identity => identity.id);
 
-    expect(BUILTIN_MARKER_IDENTITIES).toHaveLength(197);
+    expect(BUILTIN_MARKER_IDENTITIES).toHaveLength(198);
     expect(new Set(ids).size).toBe(ids.length);
     expect(new Set(identityDotKeys).size).toBe(identityDotKeys.length);
     expect(new Set(identityDotKeys)).toEqual(new Set(schemaDotKeys));
@@ -41,7 +41,7 @@ describe('stable built-in marker identity contract', () => {
 
     // Adding combined eGFR extends the identity set; existing ids are unchanged.
     // A marker move changes currentDotKey, not this checksum or its marker id.
-    expect(checksum).toBe('918a640da43256aefb258f91c9cce35fbd18835dac4ed41a1da0227a88079855');
+    expect(checksum).toBe('80f03ee8f254682428f44ec6417e80b5e4782793fcf52da5d16889e3327fe04c');
   });
 
   it('keeps authored and generated identity catalogs aligned and immutable at runtime', () => {

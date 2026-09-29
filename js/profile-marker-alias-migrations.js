@@ -1,7 +1,7 @@
 // @ts-check
 // profile-marker-alias-migrations.js — canonical and named built-in alias repairs
 
-import { BUILTIN_MARKER_DOT_KEY_ALIASES, MARKER_SCHEMA } from './schema.js';
+import { BUILTIN_MARKER_DOT_KEY_ALIASES, MARKER_SCHEMA, normalizeClinicalUnit } from './schema.js';
 import { SPECIALTY_MARKER_DEFS } from './adapters.js';
 import { renameLabEntryMarker } from './lab-entry.js';
 
@@ -98,5 +98,33 @@ export function repairNamedStandardMarkerAliases(data) {
     if (data.markerLabels?.[fullKey] && !data.markerLabels[target]) data.markerLabels[target] = data.markerLabels[fullKey];
     if (data.markerLabels) delete data.markerLabels[fullKey];
     if (data.customMarkers) delete data.customMarkers[fullKey];
+  }
+}
+
+/**
+ * Preserve canonical-unit custom ranges before snapshot repair or adoption can
+ * remove their definitions. Merge missing bounds independently: an optimal-only
+ * override must not suppress the reference range, and explicit null bounds win.
+ *
+ * @param {ProfileData} data
+ * @returns {void}
+ */
+export function preserveExactStandardCustomRanges(data) {
+  for (const [key, definition] of Object.entries(data.customMarkers || {})) {
+    const [catKey, markerKey] = key.split('.');
+    const standard = MARKER_SCHEMA[catKey]?.markers?.[markerKey];
+    if (!standard || normalizeClinicalUnit(definition?.unit) !== normalizeClinicalUnit(standard.unit)) continue;
+    const range = {};
+    for (const field of ['refMin', 'refMax']) {
+      if (!Object.prototype.hasOwnProperty.call(definition, field)) continue;
+      const raw = definition[field];
+      if (raw === null) range[field] = null;
+      else if ((typeof raw === 'number' || (typeof raw === 'string' && raw.trim())) && Number.isFinite(Number(raw))) range[field] = Number(raw);
+    }
+    if (!Object.entries(range).some(([field, value]) => value !== standard[field])) continue;
+    const override = data.refOverrides?.[key] || {};
+    const missing = Object.fromEntries(Object.entries(range).filter(([field]) => !Object.prototype.hasOwnProperty.call(override, field)));
+    if (Object.keys(missing).length === 0) continue;
+    data.refOverrides = { ...(data.refOverrides || {}), [key]: { ...override, ...missing } };
   }
 }

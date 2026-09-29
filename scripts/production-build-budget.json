@@ -4,7 +4,7 @@
     "startupJavaScriptFiles": 2,
     "startupDecodedBytes": 1276000,
     "outputJavaScriptFiles": 167,
-    "outputDecodedBytes": 5452500
+    "outputDecodedBytes": 5455000
   },
   "reference": {
     "startupJavaScriptFiles": 2,
@@ -114,7 +114,9 @@
     "supplementContextCompletenessStartupDecodedBytes": 1261608,
     "supplementContextCompletenessMeasuredBaseCommit": "ba6b27ea28e9101879bfdb2c5ac48f5bcc5ad9d2",
     "supplementLeanContextStartupDecodedBytes": 1262357,
-    "supplementLeanContextOutputDecodedBytes": 5451730
+    "supplementLeanContextOutputDecodedBytes": 5451730,
+    "immatureGranulocytesPctSafetyStartupDecodedBytes": 1263533,
+    "immatureGranulocytesPctSafetyOutputDecodedBytes": 5453761
   },
   "referenceCommit": "331112b1",
   "measuredAt": "2026-09-29"
