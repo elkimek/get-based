@@ -479,6 +479,7 @@ test('saved medication facts reach the appropriate context tier, respecting excl
     const compact = buildChatLabContext('How am I doing?');
     const detail = buildChatSystemPrompt({ basePrompt: 'Test assistant', labContext: buildChatLabContext('Tell me about Context medicine') });
     const source = buildChatLabContext('What is the source of my therapy?');
+    const unrelatedSource = buildChatLabContext('What is the source of my fatigue while on therapy?');
     const prescriber = buildChatLabContext('Who prescribed Context medicine?');
     await biology.generateBiologyScoreContextReview(dataModule.getActiveData());
     const biologyIncluded = biologyPrompt;
@@ -487,9 +488,9 @@ test('saved medication facts reach the appropriate context tier, respecting excl
     await biology.generateBiologyScoreContextReview(dataModule.getActiveData());
     const biologyDisabled = biologyPrompt;
     setSupplementsMedsContextEnabled(true);
-    return { compact, detail, source, prescriber, biologyIncluded, disabled, biologyDisabled, restored: buildChatLabContext('How am I doing?') };
+    return { compact, detail, source, unrelatedSource, prescriber, biologyIncluded, disabled, biologyDisabled, restored: buildChatLabContext('How am I doing?') };
   });
-  for (const context of [result.compact, result.detail, result.source, result.prescriber, result.biologyIncluded, result.restored]) {
+  for (const context of [result.compact, result.detail, result.source, result.unrelatedSource, result.prescriber, result.biologyIncluded, result.restored]) {
     for (const fact of ['Context medicine', 'Example generic', '2 tablet', 'maximum 3/day', 'Only when needed', '10 mg/dose']) expect(context).toContain(fact);
     expect(context).not.toContain('SecretAnalyte');
     expect(context).not.toContain('SecretResult');
@@ -497,13 +498,13 @@ test('saved medication facts reach the appropriate context tier, respecting excl
   }
   for (const fact of ['Corrected indication', 'Source directions', 'Source warning', 'Tablet coating', 'different lot', 'ND']) {
     expect(result.detail).toContain(fact);
-    for (const context of [result.compact, result.biologyIncluded, result.restored]) expect(context).not.toContain(fact);
+    for (const context of [result.compact, result.unrelatedSource, result.biologyIncluded, result.restored]) expect(context).not.toContain(fact);
   }
   expect(result.source).toContain('https://example.org/medicine');
   expect(result.source).not.toContain('Example clinician');
   expect(result.prescriber).toContain('Example clinician');
   expect(result.prescriber).not.toContain('https://example.org/medicine');
-  for (const context of [result.compact, result.detail, result.biologyIncluded, result.restored]) {
+  for (const context of [result.compact, result.detail, result.unrelatedSource, result.biologyIncluded, result.restored]) {
     expect(context).not.toContain('Example clinician');
     expect(context).not.toContain('https://example.org/medicine');
   }

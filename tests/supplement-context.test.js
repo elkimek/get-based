@@ -179,8 +179,10 @@ describe('complete therapy facts and conservative exposure', () => {
   it.each([
     ['What is the source of my therapy?', true],
     ['What is the source of my treatment?', true],
+    ['Show the source for Example medicine', true],
     ['What is the source of my fatigue?', false],
     ['What is the source of my poor sleep?', false],
+    ['What is the source of my fatigue while on therapy?', false],
   ])('only expands therapy provenance for relevant source queries: %s', (queryText, includeSource) => {
     const records = [medication()];
     const mode = resolveSupplementContextMode(queryText, records);
@@ -188,6 +190,14 @@ describe('complete therapy facts and conservative exposure', () => {
     const context = buildSupplementAIContext(records, { mode, queryText });
     expect(context.includes('https://example.org/medicine')).toBe(includeSource);
     expect(context).not.toContain('Example clinician');
+  });
+
+  it('does not add provenance merely because a symptom-source question names a medicine', () => {
+    const records = [medication()];
+    const queryText = 'What is the source of my fatigue while taking Example medicine?';
+    const mode = resolveSupplementContextMode(queryText, records);
+    expect(mode).toBe('detail');
+    expect(buildSupplementAIContext(records, { mode, queryText })).not.toContain('https://example.org/medicine');
   });
 
   it('separates essential facts, descriptive detail and requested metadata without mutating storage', () => {

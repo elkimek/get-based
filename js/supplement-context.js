@@ -19,7 +19,7 @@ export const SUPPLEMENT_CONTEXT_LIMITS = Object.freeze({
 
 const DETAIL_QUERY_RE = /(?:\binteraction|\bside effects?\b|\blabel\b|\bwarnings?\b|\bindication\b|why.+(?:taking|take)|(?:stop|paus).+(?:taking|take)|\bdos(?:e|es|age)\b|\bregimen\b|\bsupplements?\b|\bmedications?\b|\bmedicines?\b|\bdrugs?\b|\bvitamins?\b|\bpills?\b|capsul|softgel|tablet|excipient|filler|inactive ingredient|other ingredient|capsule material|capsule shell|coating|allergen|certificate of analysis|\bcoa\b|quality test|laboratory test|heavy metal|contaminant|cadmium|mercury|arsenic|\blead\b|doplněk|doplňky|l[eé]k|kapsl|pomocn[áeé]|plniv|obal kapsle|těžk[ée] kov|kontamin|laboratorn)/iu;
 const PRESCRIBER_QUERY_RE = /(?:prescrib|prescription|clinician|doctor|předepis|předeps|lékař)/iu;
-const SOURCE_QUERY_RE = /(?:\bsource\b|\blink\b|\burl\b|provenance|import|manufacturer|\bbrand\b|bought|purchase|\bbuy\b|where.+from|zdroj|odkaz|výrobce|koupil)/iu;
+const SOURCE_QUERY_RE = /(?:\blinks?\b|\burls?\b|provenance|import|manufacturer|\bbrand\b|bought|purchase|\bbuy\b|zdroj|odkaz|výrobce|koupil)/iu;
 const MATERIAL_HINT_RE = /(?:capsul|softgel|shell|gelatin|cellulos|hypromellos|hpmc|pullulan|coating|allergen|soy|soya|milk|lactose|gluten|wheat|peanut|sesame|kapsl|obal|želatin|celul[oó]z)/iu;
 
 /** @param {unknown} value @param {number} [max] */
@@ -77,11 +77,20 @@ export function resolveSupplementContextMode(queryText, supplements) {
   const query = normalized(queryText);
   if (!query) return 'compact';
   if (DETAIL_QUERY_RE.test(query) || PRESCRIBER_QUERY_RE.test(query)
-      || (SOURCE_QUERY_RE.test(query) && /(?:link|url|provenance|import|manufacturer|brand|bought|purchase|buy|sources|\b(?:therap(?:y|ies)|treatments?)\b|zdroj|odkaz|výrobce|koupil)/iu.test(query))) return 'detail';
+      || requestsSupplementSources(query, supplements)) return 'detail';
   for (const supplement of Array.isArray(supplements) ? supplements : []) {
     if (searchableTerms(supplement).some(term => query.includes(term))) return 'detail';
   }
   return 'compact';
+}
+
+/** Match the object of a source question, not unrelated words elsewhere in it. */
+function requestsSupplementSources(queryText, supplements = []) {
+  const query = normalized(queryText);
+  if (SOURCE_QUERY_RE.test(query)) return true;
+  const subject = query.match(/\bsources?\s+(?:(?:of|for)\s+)?(?:(?:my|the|this|these|our|saved|original)\s+)*(.*)/u)?.[1] || '';
+  return /^(?:therap(?:y|ies)|treatments?|supplements?|medications?|medicines?|products?|drugs?)\b/u.test(subject)
+    || supplements.some(supplement => searchableTerms(supplement).some(term => subject.startsWith(term)));
 }
 
 /** @param {any} ingredient @param {any} supplement */
@@ -175,7 +184,7 @@ function productMetadata(supplement, { detail = false, queryText = '' } = {}) {
       labelWarnings: (Array.isArray(supplement?.labelWarnings) ? supplement.labelWarnings : []).slice(0, 8).map(value => clean(value, 200)),
     } : {}),
     ...(detail && PRESCRIBER_QUERY_RE.test(queryText) ? { prescriber: clean(supplement?.prescriber, 100) } : {}),
-    ...(detail && SOURCE_QUERY_RE.test(queryText) ? { sourceLinks: sourceLinks.slice(0, 3), importSource: clean(provenance.kind, 80) } : {}),
+    ...(detail && requestsSupplementSources(queryText, [supplement]) ? { sourceLinks: sourceLinks.slice(0, 3), importSource: clean(provenance.kind, 80) } : {}),
   };
   return Object.fromEntries(Object.entries(fields).filter(([, value]) => Array.isArray(value) ? value.length : value));
 }
