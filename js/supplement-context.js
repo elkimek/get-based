@@ -134,6 +134,7 @@ function periodDose(period) {
   return 'dose not recorded';
 }
 
+/** @param {any} supplement @param {number} limit @param {{ detail?: boolean, historyRange?: { start: string, end: string } | null }} [options] */
 function datedDoseContext(supplement, limit, { detail = false, historyRange = null } = {}) {
   const today = localDateKey();
   const status = getSupplementStatus(supplement);

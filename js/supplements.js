@@ -578,7 +578,7 @@ export function beginSupplementDoseChange(index) {
     return;
   }
   const end = openRow?.querySelector('.supp-period-end');
-  const previousEnd = getElementValue(end);
+  const previousEnd = getElementValue(end ?? null);
   const doseInput = openRow?.querySelector('.supp-period-dose');
   const originalIndex = Number.parseInt(openRow?.getAttribute('data-original-index') || '', 10);
   const original = getSupplementPeriods(previous)[originalIndex];

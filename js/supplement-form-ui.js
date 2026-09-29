@@ -217,6 +217,7 @@ export function applyIngredientDoseToPeriod(button) {
 
 const draftDoseSplits = new WeakMap();
 
+/** @param {any} [period] @param {Element | null} [splitRow] @param {string} [previousEnd] */
 export function addPeriodRow(period = {}, splitRow = null, previousEnd = '') {
   const container = document.getElementById('supp-periods');
   if (!container) return;
