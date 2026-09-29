@@ -109,6 +109,12 @@ function finishImportProgress(id, success) {
   }, success ? 2500 : 6000);
 }
 
+function loadImportReviewStyles() {
+  return loadContextEditorStylesheet().catch(error => {
+    if (isDebugMode()) console.warn('[supplementImportStyles]', error);
+  });
+}
+
 export async function scanSupplementLabel(input) {
   const files = Array.from(input.files || []).slice(0, 4);
   input.value = '';
@@ -119,7 +125,7 @@ export async function scanSupplementLabel(input) {
   const progressId = startImportProgress(document.querySelector('.supp-scan-label'), 'Preparing label photos…');
   let completed = false;
   try {
-    await loadContextEditorStylesheet();
+    await loadImportReviewStyles();
     const provider = getAIProvider();
     const imageBlocks = [];
     for (const file of files) {
@@ -365,7 +371,7 @@ export async function fetchSupplementFromURL() {
   const progressId = startImportProgress(document.querySelector('.supp-url-fetch'), 'Reading product page…');
   let completed = false;
   try {
-    await loadContextEditorStylesheet();
+    await loadImportReviewStyles();
     const isLocal = ['localhost', '127.0.0.1'].includes(getUtilsRuntimeHostname());
     let html;
     if (isLocal) {

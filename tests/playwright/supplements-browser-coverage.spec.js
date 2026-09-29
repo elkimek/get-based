@@ -15,7 +15,8 @@ function expectAll(outcomes) {
   expect(failed).toEqual([]);
 }
 
-test('supplements browser coverage handles editor ingredients imports sync and AI handoff', async ({ page }) => {
+async function exerciseSupplementEditor(page, stylesFail = false) {
+  if (stylesFail) await page.route('**/css/context-editor.css*', route => route.abort());
   await page.addInitScript(seedCompletedTour);
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(() => {
@@ -26,7 +27,7 @@ test('supplements browser coverage handles editor ingredients imports sync and A
     document.getElementById('sync-setup-overlay')?.remove();
   });
 
-  const outcomes = await page.evaluate(async () => {
+  const outcomes = await page.evaluate(async stylesFail => {
     const [{ state }, data, supplements, supplementsRuntime] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
@@ -279,7 +280,9 @@ test('supplements browser coverage handles editor ingredients imports sync and A
       outcomes.importReviewStylesAreLazy = !document.querySelector('link[data-context-editor-stylesheet]');
       await supplements.fetchSupplementFromURL();
       await waitUntil(() => !!document.querySelector('.supp-import-review'), 'URL import review staged');
-      outcomes.importReviewStylesLoaded = !!document.querySelector('link[data-context-editor-stylesheet]')?.sheet
+      outcomes.importReviewStylesLoaded = stylesFail
+        ? !document.querySelector('link[data-context-editor-stylesheet]')
+        : !!document.querySelector('link[data-context-editor-stylesheet]')?.sheet
         && getComputedStyle(document.querySelector('.supp-import-review')).borderTopStyle === 'solid'
         && getComputedStyle(document.querySelector('.supp-import-review-header')).display === 'flex';
       const formUntouchedBeforeReview = (document.getElementById('supp-name')?.value || '') === '';
@@ -482,9 +485,17 @@ test('supplements browser coverage handles editor ingredients imports sync and A
     }
 
     return outcomes;
-  });
+  }, stylesFail);
 
   expectAll(outcomes);
+}
+
+test('supplements browser coverage handles editor ingredients imports sync and AI handoff', async ({ page }) => {
+  await exerciseSupplementEditor(page);
+});
+
+test('supplement URL and photo imports survive a failed review stylesheet download', async ({ page }) => {
+  await exerciseSupplementEditor(page, true);
 });
 
 test('review link reads a BrainMarket composition table without AI JSON truncation', async ({ page }) => {
