@@ -5,13 +5,14 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { CompanionServiceExecutor, CompanionServiceCommand } from '../lib/companion-install-support.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   installLinuxCompanion, LINUX_COMPANION_SERVICE, resolveLinuxCompanionPaths,
   runLinuxCompanionServiceCommand, uninstallLinuxCompanion,
 } from '../lib/linux-companion-install.js';
 
-const roots = [];
+const roots: string[] = [];
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'getbased-companion-install-'));
@@ -45,7 +46,7 @@ afterEach(() => {
 describe('Linux companion installer', () => {
   it('installs only user-owned runtime files and enables a systemd user service', () => {
     const setup = fixture();
-    const systemctl = vi.fn();
+    const systemctl = vi.fn<CompanionServiceExecutor>();
     const result = installLinuxCompanion({
       ...setup, nodePath: process.execPath, platform: 'linux', execFileSyncImpl: systemctl,
     });
@@ -70,7 +71,7 @@ describe('Linux companion installer', () => {
 
   it('can register automatic startup without launching a duplicate bridge', () => {
     const setup = fixture();
-    const systemctl = vi.fn();
+    const systemctl = vi.fn<CompanionServiceExecutor>();
     installLinuxCompanion({
       ...setup, nodePath: process.execPath, platform: 'linux', startService: false, execFileSyncImpl: systemctl,
     });
@@ -131,7 +132,7 @@ describe('Linux companion installer', () => {
 
   it('uninstalls the exact service runtime while preserving separate pairing state', () => {
     const setup = fixture();
-    const systemctl = vi.fn();
+    const systemctl = vi.fn<CompanionServiceExecutor>();
     const result = installLinuxCompanion({
       ...setup, nodePath: process.execPath, platform: 'linux', execFileSyncImpl: systemctl,
     });
@@ -148,9 +149,9 @@ describe('Linux companion installer', () => {
   });
 
   it('supports start, stop, restart, and status controls', () => {
-    const systemctl = vi.fn();
+    const systemctl = vi.fn<CompanionServiceExecutor>();
     for (const command of ['start', 'stop', 'restart', 'status']) {
-      runLinuxCompanionServiceCommand(/** @type {'start'|'stop'|'restart'|'status'} */ (command), {
+      runLinuxCompanionServiceCommand((command as CompanionServiceCommand), {
         execFileSyncImpl: systemctl,
       });
     }

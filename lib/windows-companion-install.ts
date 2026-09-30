@@ -1,4 +1,3 @@
-// @ts-check
 // Windows Task Scheduler installer for the single-file getbased Companion.
 
 import { execFileSync } from 'node:child_process';
@@ -7,11 +6,12 @@ import {
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { win32 } from 'node:path';
-import { LOCAL_AGENT_SPECS, isLocalAgentSpecEnabled, resolveLocalAgentCommand } from './local-agent-registry.js';
+import type { CompanionInstallOptions, CompanionLocationOptions, CompanionServiceOptions, CompanionServiceCommand, CompanionLaunch, CompanionServiceSource } from './companion-install-support.js';
+import { prepareCompanionAgentCommands } from './companion-install-support.js';
 
 export const WINDOWS_COMPANION_TASK = 'getbased Companion';
 
-function requireWindowsAbsolutePath(value, label) {
+function requireWindowsAbsolutePath(value: unknown, label: string) {
   const normalized = win32.resolve(String(value || ''));
   if (!value || !win32.isAbsolute(String(value)) || /^[A-Za-z]:\\?$/.test(normalized)) {
     throw new Error(`${label} must be a specific absolute path.`);
@@ -19,8 +19,7 @@ function requireWindowsAbsolutePath(value, label) {
   return normalized;
 }
 
-/** @param {{env?: NodeJS.ProcessEnv, homeDirectory?: string}} [options] */
-export function resolveWindowsCompanionPaths(options = {}) {
+export function resolveWindowsCompanionPaths(options: CompanionLocationOptions = {}) {
   const env = options.env || process.env;
   const homeDirectory = requireWindowsAbsolutePath(options.homeDirectory || env.USERPROFILE || homedir(), 'Home directory');
   const localAppData = requireWindowsAbsolutePath(env.LOCALAPPDATA || win32.join(homeDirectory, 'AppData', 'Local'), 'LOCALAPPDATA');
@@ -34,21 +33,19 @@ export function resolveWindowsCompanionPaths(options = {}) {
   });
 }
 
-function vbsString(value) {
+function vbsString(value: string) {
   return `"${String(value).replaceAll('"', '""').replace(/[\r\n]/g, '')}"`;
 }
 
-/** @param {{nodePath: string, bundlePath: string, codexCommand?: string, sourceCodexHome?: string, pathValue?: string, agentCommands?: Record<string, string>}} options */
-export function renderWindowsCompanionRunner(options) {
+export function renderWindowsCompanionRunner(options: CompanionServiceSource & { pathValue?: string }) {
   const command = `"${options.nodePath}" "${options.bundlePath}" run`;
   const commands = options.agentCommands || (options.codexCommand ? { GETBASED_CODEX_COMMAND: options.codexCommand } : {});
   const commandEnvironment = Object.entries(commands).map(([name, value]) => `shell.Environment("Process")(${vbsString(name)}) = ${vbsString(value)}\r\n`).join('');
   return `Set shell = CreateObject("WScript.Shell")\r\nshell.Environment("Process")("GETBASED_COMPANION_SERVICE") = "1"\r\n${commandEnvironment}${options.sourceCodexHome ? `shell.Environment("Process")("GETBASED_SOURCE_CODEX_HOME") = ${vbsString(options.sourceCodexHome)}\r\n` : ''}${options.pathValue ? `shell.Environment("Process")("PATH") = ${vbsString(options.pathValue)}\r\n` : ''}shell.Run ${vbsString(command)}, 0, True\r\n`;
 }
 
-/** @param {{nodePath: string, bundlePath: string}} options */
-export function renderWindowsCompanionLauncher(options) {
-  const batchPath = value => {
+export function renderWindowsCompanionLauncher(options: CompanionLaunch) {
+  const batchPath = (value: string) => {
     if (/["\r\n\0]/.test(value)) throw new Error('Invalid Windows launcher path.');
     return `"${value.replaceAll('%', '%%')}"`;
   };
@@ -56,7 +53,7 @@ export function renderWindowsCompanionLauncher(options) {
   return `@echo off\r\nsetlocal DisableDelayedExpansion\r\n${batchPath(options.nodePath)} ${batchPath(options.bundlePath)} %*\r\n`;
 }
 
-function findWindowsExecutable(command, env) {
+function findWindowsExecutable(command: string, env: NodeJS.ProcessEnv) {
   if (win32.isAbsolute(command) && existsSync(command)) return win32.resolve(command);
   const extensions = ['', ...String(env.PATHEXT || '.EXE;.CMD;.BAT').split(';').map(value => value.toLowerCase())];
   for (const directory of String(env.PATH || '').split(';').filter(Boolean)) {
@@ -68,10 +65,7 @@ function findWindowsExecutable(command, env) {
   return '';
 }
 
-/**
- * @param {{bundlePath: string, env?: NodeJS.ProcessEnv, homeDirectory?: string, nodePath?: string, platform?: NodeJS.Platform, dryRun?: boolean, startService?: boolean, execFileSyncImpl?: typeof execFileSync}} options
- */
-export function installWindowsCompanion(options) {
+export function installWindowsCompanion(options: CompanionInstallOptions) {
   if ((options.platform || process.platform) !== 'win32') throw new Error('This companion installer requires Windows.');
   const env = options.env || process.env;
   const bundlePath = requireWindowsAbsolutePath(options.bundlePath, 'Companion bundle');
@@ -79,14 +73,7 @@ export function installWindowsCompanion(options) {
   const nodePath = findWindowsExecutable(options.nodePath || process.execPath, env);
   if (!nodePath) throw new Error('Node.js was not found. Install Node.js 20 or newer first.');
   const homeDirectory = requireWindowsAbsolutePath(options.homeDirectory || env.USERPROFILE || homedir(), 'Home directory');
-  const agentCommands = Object.fromEntries(LOCAL_AGENT_SPECS.filter(spec => isLocalAgentSpecEnabled(spec, env)).flatMap(spec => {
-    const command = resolveLocalAgentCommand(spec, { env, platform: 'win32', homeDirectory });
-    return command ? [[spec.env, command]] : [];
-  }));
-  if (!Object.keys(agentCommands).length) throw new Error('No supported CLI agent was found. Install Codex, OpenCode, Hermes, Grok, or OpenClaw first.');
-  if (String(env.GETBASED_ENABLE_CLAUDE_AGENT || '').trim().toLowerCase() === 'api-console') {
-    agentCommands.GETBASED_ENABLE_CLAUDE_AGENT = 'api-console';
-  }
+  const agentCommands = prepareCompanionAgentCommands(env, 'win32', homeDirectory);
   const codexCommand = agentCommands.GETBASED_CODEX_COMMAND || '';
   const sourceCodexHome = requireWindowsAbsolutePath(env.GETBASED_SOURCE_CODEX_HOME || env.CODEX_HOME || win32.join(homeDirectory, '.codex'), 'Codex home');
   const paths = resolveWindowsCompanionPaths({ env, homeDirectory });
@@ -114,8 +101,7 @@ export function installWindowsCompanion(options) {
   return { ...paths, nodePath, codexCommand, runnerSource, installed: true };
 }
 
-/** @param {{env?: NodeJS.ProcessEnv, homeDirectory?: string, stopService?: boolean, execFileSyncImpl?: typeof execFileSync}} [options] */
-export function uninstallWindowsCompanion(options = {}) {
+export function uninstallWindowsCompanion(options: CompanionServiceOptions = {}) {
   const env = options.env || process.env;
   const paths = resolveWindowsCompanionPaths({ env, homeDirectory: options.homeDirectory });
   if (win32.basename(paths.runtimeDirectory) !== 'companion') throw new Error('Refusing an unsafe runtime path.');
@@ -130,8 +116,7 @@ export function uninstallWindowsCompanion(options = {}) {
   return paths;
 }
 
-/** @param {'start'|'stop'|'restart'|'status'} command @param {{env?: NodeJS.ProcessEnv, execFileSyncImpl?: typeof execFileSync}} [options] */
-export function runWindowsCompanionServiceCommand(command, options = {}) {
+export function runWindowsCompanionServiceCommand(command: CompanionServiceCommand, options: CompanionServiceOptions = {}) {
   if (!['start', 'stop', 'restart', 'status'].includes(command)) throw new Error('Unsupported companion service command.');
   const env = options.env || process.env;
   const run = options.execFileSyncImpl || execFileSync;

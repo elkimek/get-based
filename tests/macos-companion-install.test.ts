@@ -5,13 +5,14 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { CompanionServiceExecutor } from '../lib/companion-install-support.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   installMacOSCompanion, MACOS_COMPANION_LABEL, resolveMacOSCompanionPaths,
   runMacOSCompanionServiceCommand, uninstallMacOSCompanion,
 } from '../lib/macos-companion-install.js';
 
-const roots = [];
+const roots: string[] = [];
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'getbased-macos-companion-'));
   roots.push(root);
@@ -28,7 +29,7 @@ function fixture() {
   writeFileSync(join(codexHome, 'auth.json'), '{}');
   chmodSync(codexCommand, 0o755);
   return {
-    homeDirectory, bundlePath, nodePath: process.execPath, platform: /** @type {const} */ ('darwin'), uid: 501,
+    homeDirectory, bundlePath, nodePath: process.execPath, platform: ('darwin' as const), uid: 501,
     env: { PATH: binDirectory, GETBASED_CODEX_COMMAND: codexCommand, GETBASED_SOURCE_CODEX_HOME: codexHome },
   };
 }
@@ -38,7 +39,7 @@ afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: 
 describe('macOS companion installer', () => {
   it('installs a user LaunchAgent and supports lifecycle controls', () => {
     const setup = fixture();
-    const launchctl = vi.fn();
+    const launchctl = vi.fn<CompanionServiceExecutor>();
     const result = installMacOSCompanion({ ...setup, execFileSyncImpl: launchctl });
     expect(result.installed).toBe(true);
     expect(readFileSync(result.serviceFile, 'utf8')).toContain(`<string>${MACOS_COMPANION_LABEL}</string>`);
@@ -59,7 +60,7 @@ describe('macOS companion installer', () => {
 
   it('can write a LaunchAgent without starting a duplicate bridge', () => {
     const setup = fixture();
-    const launchctl = vi.fn();
+    const launchctl = vi.fn<CompanionServiceExecutor>();
     const result = installMacOSCompanion({ ...setup, startService: false, execFileSyncImpl: launchctl });
     expect(existsSync(result.serviceFile)).toBe(true);
     expect(launchctl).not.toHaveBeenCalled();

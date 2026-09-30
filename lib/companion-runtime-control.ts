@@ -1,4 +1,5 @@
-// @ts-check
+import type { CompanionRuntimeOptions } from './companion-install-support.js';
+import type { HostControlAction } from './agent-host-turn-state.js';
 // Authenticated companion management used by the loopback control endpoint.
 
 import { chmodSync, rmSync, writeFileSync } from 'node:fs';
@@ -17,8 +18,7 @@ function companionBundleUrl() {
   return 'https://app.getbased.health/getbased-companion.mjs';
 }
 
-/** @param {Response} response */
-async function readVerifiedBundle(response) {
+async function readVerifiedBundle(response: Response) {
   if (!response.ok) throw new Error(`Could not download the companion update (HTTP ${response.status}).`);
   const declaredBytes = Number(response.headers.get('Content-Length') || 0);
   if (Number.isFinite(declaredBytes) && declaredBytes > MAX_COMPANION_BUNDLE_BYTES) {
@@ -26,7 +26,7 @@ async function readVerifiedBundle(response) {
   }
   const reader = response.body?.getReader();
   if (!reader) throw new Error('The companion update is empty.');
-  const chunks = [];
+  const chunks: Uint8Array[] = [];
   let total = 0;
   try {
     while (true) {
@@ -50,40 +50,23 @@ async function readVerifiedBundle(response) {
   return bytes;
 }
 
-/** Read the release version as data; never evaluate downloaded code. @param {Buffer} bytes */
-function bundleVersion(bytes) {
+// Read the release version as data; never evaluate downloaded code.
+function bundleVersion(bytes: Buffer) {
   const matches = [...bytes.toString('utf8').matchAll(/^\s*(?:(?:export\s+)?(?:const|let|var)\s+)?GETBASED_COMPANION_VERSION\s*=\s*["'](\d+\.\d+\.\d+)["'];?\s*$/gm)];
   if (matches.length !== 1) throw new Error('Could not verify the Companion update version. Nothing was installed.');
-  return matches[0][1];
+  return matches[0]![1]!;
 }
 
-/** @param {string} candidate @param {string} current */
-function newerVersion(candidate, current) {
+function newerVersion(candidate: string, current: string) {
   const next = candidate.split('.').map(Number);
   const previous = current.split('.').map(Number);
   for (let index = 0; index < 3; index++) {
-    if (next[index] !== previous[index]) return next[index] > previous[index];
+    if (next[index] !== previous[index]) return next[index]! > previous[index]!;
   }
   return false;
 }
 
-/**
- * @param {{
- *   appServer: {restart: () => Promise<unknown>, initialize: () => Promise<unknown>},
- *   bundlePath: string,
- *   env?: NodeJS.ProcessEnv,
- *   platform?: NodeJS.Platform,
- *   fetchImpl?: typeof fetch,
- *   installImpl?: typeof installCompanion,
- *   uninstallImpl?: typeof uninstallCompanion,
- *   serviceCommandImpl?: typeof runCompanionServiceCommand,
- *   scheduleImpl?: (callback: () => void, delay: number) => unknown,
- *   stopRuntime?: () => Promise<void>,
- *   recoverRuntime?: () => Promise<void>,
- *   exitRuntime?: () => void,
- * }} options
- */
-export function createCompanionRuntimeController(options) {
+export function createCompanionRuntimeController(options: CompanionRuntimeOptions) {
   const env = options.env || process.env;
   const platform = options.platform || process.platform;
   const fetchImpl = options.fetchImpl || fetch;
@@ -105,8 +88,7 @@ export function createCompanionRuntimeController(options) {
     platform,
   });
 
-  /** @param {'install'|'restart'|'restart-companion'|'update'|'uninstall'} action @param {{origin: string}} _context */
-  async function handle(action, _context) {
+  async function handle(action: HostControlAction, _context: { origin: string }) {
     if (action === 'restart') {
       await options.appServer.restart();
       await options.appServer.initialize();
@@ -124,7 +106,7 @@ export function createCompanionRuntimeController(options) {
           // its listener before the installed service takes over the port.
           const handoff = String(env.GETBASED_COMPANION_SERVICE || '').trim() !== '1' && options.stopRuntime;
           if (handoff) {
-            await options.stopRuntime();
+            await options.stopRuntime!();
             listenerStopped = true;
           }
           serviceCommandImpl('restart', { env, platform });

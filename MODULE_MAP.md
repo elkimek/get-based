@@ -9,7 +9,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 811 |
+| Modules | 812 |
 | Internal import edges | 3414 |
 | Dynamic internal edges | 119 |
 | Modules participating in cycles | 0 |
@@ -1574,14 +1574,15 @@ Node-only policy and transport code shared by hosted runtimes.
 
 </details>
 
-<details><summary><code>companion</code> family — 6 modules</summary>
+<details><summary><code>companion</code> family — 7 modules</summary>
 
 - [`lib/companion-existing.ts`](lib/companion-existing.ts) → no in-scope imports
 - [`lib/companion-http.ts`](lib/companion-http.ts) → no in-scope imports
-- [`lib/companion-install.js`](lib/companion-install.js) → [`lib/linux-companion-install.js`](lib/linux-companion-install.js), [`lib/macos-companion-install.js`](lib/macos-companion-install.js), [`lib/windows-companion-install.js`](lib/windows-companion-install.js)
+- [`lib/companion-install-support.ts`](lib/companion-install-support.ts) → [`lib/local-agent-registry.ts`](lib/local-agent-registry.ts)
+- [`lib/companion-install.ts`](lib/companion-install.ts) → [`lib/linux-companion-install.ts`](lib/linux-companion-install.ts), [`lib/macos-companion-install.ts`](lib/macos-companion-install.ts), [`lib/windows-companion-install.ts`](lib/windows-companion-install.ts)
 - [`lib/companion-listener.ts`](lib/companion-listener.ts) → no in-scope imports
 - [`lib/companion-management.ts`](lib/companion-management.ts) → no in-scope imports
-- [`lib/companion-runtime-control.js`](lib/companion-runtime-control.js) → [`lib/companion-install.js`](lib/companion-install.js), [`shared/agent-host-protocol.ts`](shared/agent-host-protocol.ts)
+- [`lib/companion-runtime-control.ts`](lib/companion-runtime-control.ts) → [`lib/companion-install.ts`](lib/companion-install.ts), [`shared/agent-host-protocol.ts`](shared/agent-host-protocol.ts)
 
 </details>
 
@@ -1608,7 +1609,7 @@ Node-only policy and transport code shared by hosted runtimes.
 
 <details><summary><code>linux</code> family — 1 module</summary>
 
-- [`lib/linux-companion-install.js`](lib/linux-companion-install.js) → [`lib/local-agent-registry.ts`](lib/local-agent-registry.ts)
+- [`lib/linux-companion-install.ts`](lib/linux-companion-install.ts) → [`lib/companion-install-support.ts`](lib/companion-install-support.ts)
 
 </details>
 
@@ -1620,7 +1621,7 @@ Node-only policy and transport code shared by hosted runtimes.
 
 <details><summary><code>macos</code> family — 1 module</summary>
 
-- [`lib/macos-companion-install.js`](lib/macos-companion-install.js) → [`lib/linux-companion-install.js`](lib/linux-companion-install.js), [`lib/local-agent-registry.ts`](lib/local-agent-registry.ts)
+- [`lib/macos-companion-install.ts`](lib/macos-companion-install.ts) → [`lib/companion-install-support.ts`](lib/companion-install-support.ts)
 
 </details>
 
@@ -1681,7 +1682,7 @@ Node-only policy and transport code shared by hosted runtimes.
 
 <details><summary><code>windows</code> family — 1 module</summary>
 
-- [`lib/windows-companion-install.js`](lib/windows-companion-install.js) → [`lib/local-agent-registry.ts`](lib/local-agent-registry.ts)
+- [`lib/windows-companion-install.ts`](lib/windows-companion-install.ts) → [`lib/companion-install-support.ts`](lib/companion-install-support.ts)
 
 </details>
 
@@ -1711,7 +1712,7 @@ Standalone loopback companion for installed CLI agents.
 
 <details><summary><code>agent</code> family — 1 module</summary>
 
-- [`server/agent-host-server.js`](server/agent-host-server.js) → [`lib/acp-agent-client.ts`](lib/acp-agent-client.ts), [`lib/agent-host-service.ts`](lib/agent-host-service.ts), [`lib/agent-host-storage.ts`](lib/agent-host-storage.ts), [`lib/claude-agent-client.ts`](lib/claude-agent-client.ts), [`lib/codex-agent-isolation.ts`](lib/codex-agent-isolation.ts), [`lib/codex-app-server-client.ts`](lib/codex-app-server-client.ts), [`lib/companion-http.ts`](lib/companion-http.ts), [`lib/companion-listener.ts`](lib/companion-listener.ts), [`lib/companion-runtime-control.js`](lib/companion-runtime-control.js), [`lib/hermes-gateway-client.js`](lib/hermes-gateway-client.js), [`lib/local-agent-registry.ts`](lib/local-agent-registry.ts), [`lib/openclaw-agent-client.ts`](lib/openclaw-agent-client.ts)
+- [`server/agent-host-server.js`](server/agent-host-server.js) → [`lib/acp-agent-client.ts`](lib/acp-agent-client.ts), [`lib/agent-host-service.ts`](lib/agent-host-service.ts), [`lib/agent-host-storage.ts`](lib/agent-host-storage.ts), [`lib/claude-agent-client.ts`](lib/claude-agent-client.ts), [`lib/codex-agent-isolation.ts`](lib/codex-agent-isolation.ts), [`lib/codex-app-server-client.ts`](lib/codex-app-server-client.ts), [`lib/companion-http.ts`](lib/companion-http.ts), [`lib/companion-listener.ts`](lib/companion-listener.ts), [`lib/companion-runtime-control.ts`](lib/companion-runtime-control.ts), [`lib/hermes-gateway-client.js`](lib/hermes-gateway-client.js), [`lib/local-agent-registry.ts`](lib/local-agent-registry.ts), [`lib/openclaw-agent-client.ts`](lib/openclaw-agent-client.ts)
 
 </details>
 
@@ -1721,7 +1722,7 @@ Install and control the Linux user-level agent companion.
 
 <details><summary><code>getbased</code> family — 1 module</summary>
 
-- [`bin/getbased-companion.js`](bin/getbased-companion.js) → [`lib/agent-mcp-bridge.ts`](lib/agent-mcp-bridge.ts), [`lib/companion-existing.ts`](lib/companion-existing.ts), [`lib/companion-install.js`](lib/companion-install.js), [`server/agent-host-server.js`](server/agent-host-server.js) *(dynamic)*
+- [`bin/getbased-companion.js`](bin/getbased-companion.js) → [`lib/agent-mcp-bridge.ts`](lib/agent-mcp-bridge.ts), [`lib/companion-existing.ts`](lib/companion-existing.ts), [`lib/companion-install.ts`](lib/companion-install.ts), [`server/agent-host-server.js`](server/agent-host-server.js) *(dynamic)*
 
 </details>
 

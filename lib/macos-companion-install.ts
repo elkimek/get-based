@@ -1,36 +1,22 @@
-// @ts-check
 // macOS LaunchAgent installer for the single-file getbased Companion bundle.
 
 import { execFileSync } from 'node:child_process';
 import {
-  chmodSync, copyFileSync, existsSync, mkdirSync, rmSync, unlinkSync, writeFileSync,
+  existsSync, rmSync, unlinkSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
-import { findExecutable } from './linux-companion-install.js';
-import { LOCAL_AGENT_SPECS, isLocalAgentSpecEnabled, resolveLocalAgentCommand } from './local-agent-registry.js';
+import { basename, dirname, join } from 'node:path';
+import type { CompanionInstallOptions, CompanionLocationOptions, CompanionServiceOptions, CompanionServiceCommand, CompanionServiceSource } from './companion-install-support.js';
+import { prepareCompanionAgentCommands, requireSafeAbsolutePath, installPosixCompanionFiles, findExecutable } from './companion-install-support.js';
 
 export const MACOS_COMPANION_LABEL = 'health.getbased.companion';
 
-function requireSafeAbsolutePath(value, label) {
-  const normalized = resolve(String(value || ''));
-  if (!value || !isAbsolute(String(value)) || normalized === '/') {
-    throw new Error(`${label} must be a specific absolute path.`);
-  }
-  return normalized;
-}
-
-function xml(value) {
+function xml(value: string) {
   return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;');
 }
 
-function shellQuote(value) {
-  return `'${String(value).replaceAll("'", "'\\''").replace(/[\r\n]/g, '')}'`;
-}
-
-/** @param {{env?: NodeJS.ProcessEnv, homeDirectory?: string}} [options] */
-export function resolveMacOSCompanionPaths(options = {}) {
+export function resolveMacOSCompanionPaths(options: CompanionLocationOptions = {}) {
   const homeDirectory = requireSafeAbsolutePath(options.homeDirectory || homedir(), 'Home directory');
   const runtimeDirectory = join(homeDirectory, 'Library', 'Application Support', 'getbased', 'companion');
   return Object.freeze({
@@ -42,10 +28,7 @@ export function resolveMacOSCompanionPaths(options = {}) {
   });
 }
 
-/**
- * @param {{nodePath: string, bundlePath: string, codexCommand?: string, sourceCodexHome?: string, pathValue: string, logFile: string, agentCommands?: Record<string, string>}} options
- */
-export function renderMacOSCompanionService(options) {
+export function renderMacOSCompanionService(options: CompanionServiceSource & { pathValue: string; logFile: string }) {
   const commands = options.agentCommands || (options.codexCommand ? { GETBASED_CODEX_COMMAND: options.codexCommand } : {});
   const commandEnvironment = Object.entries(commands).map(([name, value]) => `    <key>${xml(name)}</key><string>${xml(value)}</string>\n`).join('');
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -71,14 +54,7 @@ ${commandEnvironment}${options.sourceCodexHome ? `    <key>GETBASED_SOURCE_CODEX
 `;
 }
 
-function launcherSource(nodePath, bundlePath) {
-  return `#!/bin/sh\nexec ${shellQuote(nodePath)} ${shellQuote(bundlePath)} "$@"\n`;
-}
-
-/**
- * @param {{bundlePath: string, env?: NodeJS.ProcessEnv, homeDirectory?: string, nodePath?: string, platform?: NodeJS.Platform, uid?: number, dryRun?: boolean, startService?: boolean, execFileSyncImpl?: typeof execFileSync}} options
- */
-export function installMacOSCompanion(options) {
+export function installMacOSCompanion(options: CompanionInstallOptions) {
   if ((options.platform || process.platform) !== 'darwin') {
     throw new Error('This companion installer requires macOS.');
   }
@@ -88,31 +64,17 @@ export function installMacOSCompanion(options) {
   const nodePath = findExecutable(options.nodePath || process.execPath, env.PATH || '');
   if (!nodePath) throw new Error('Node.js was not found. Install Node.js 20 or newer first.');
   const homeDirectory = requireSafeAbsolutePath(options.homeDirectory || homedir(), 'Home directory');
-  const agentCommands = Object.fromEntries(LOCAL_AGENT_SPECS.filter(spec => isLocalAgentSpecEnabled(spec, env)).flatMap(spec => {
-    const command = resolveLocalAgentCommand(spec, { env, platform: 'darwin', homeDirectory });
-    return command ? [[spec.env, command]] : [];
-  }));
-  if (!Object.keys(agentCommands).length) throw new Error('No supported CLI agent was found. Install Codex, OpenCode, Hermes, Grok, or OpenClaw first.');
-  if (String(env.GETBASED_ENABLE_CLAUDE_AGENT || '').trim().toLowerCase() === 'api-console') {
-    agentCommands.GETBASED_ENABLE_CLAUDE_AGENT = 'api-console';
-  }
+  const agentCommands = prepareCompanionAgentCommands(env, 'darwin', homeDirectory);
   const codexCommand = agentCommands.GETBASED_CODEX_COMMAND || '';
   const sourceCodexHome = requireSafeAbsolutePath(env.GETBASED_SOURCE_CODEX_HOME || env.CODEX_HOME || join(homeDirectory, '.codex'), 'Codex home');
   const paths = resolveMacOSCompanionPaths({ env, homeDirectory });
   const serviceSource = renderMacOSCompanionService({
     nodePath, bundlePath: paths.installedBundle, codexCommand, sourceCodexHome, agentCommands,
-    pathValue: env.PATH || dirname(Object.values(agentCommands)[0]), logFile: paths.logFile,
+    pathValue: env.PATH || dirname(Object.values(agentCommands)[0]!), logFile: paths.logFile,
   });
   if (options.dryRun) return { ...paths, nodePath, codexCommand, serviceSource, installed: false };
 
-  mkdirSync(paths.runtimeDirectory, { recursive: true, mode: 0o700 });
-  mkdirSync(dirname(paths.serviceFile), { recursive: true, mode: 0o700 });
-  mkdirSync(dirname(paths.launcher), { recursive: true, mode: 0o755 });
-  copyFileSync(bundlePath, paths.installedBundle);
-  chmodSync(paths.installedBundle, 0o700);
-  writeFileSync(paths.serviceFile, serviceSource, { mode: 0o600 });
-  writeFileSync(paths.launcher, launcherSource(nodePath, paths.installedBundle), { mode: 0o755 });
-  chmodSync(paths.launcher, 0o755);
+  installPosixCompanionFiles(paths, bundlePath, serviceSource, nodePath);
 
   const run = options.execFileSyncImpl || execFileSync;
   if (options.startService !== false) {
@@ -124,8 +86,7 @@ export function installMacOSCompanion(options) {
   return { ...paths, nodePath, codexCommand, serviceSource, installed: true };
 }
 
-/** @param {{env?: NodeJS.ProcessEnv, homeDirectory?: string, uid?: number, stopService?: boolean, execFileSyncImpl?: typeof execFileSync}} [options] */
-export function uninstallMacOSCompanion(options = {}) {
+export function uninstallMacOSCompanion(options: CompanionServiceOptions = {}) {
   const env = options.env || process.env;
   const paths = resolveMacOSCompanionPaths({ env, homeDirectory: options.homeDirectory });
   if (basename(paths.runtimeDirectory) !== 'companion') throw new Error('Refusing an unsafe runtime path.');
@@ -139,8 +100,7 @@ export function uninstallMacOSCompanion(options = {}) {
   return paths;
 }
 
-/** @param {'start'|'stop'|'restart'|'status'} command @param {{env?: NodeJS.ProcessEnv, homeDirectory?: string, uid?: number, execFileSyncImpl?: typeof execFileSync}} [options] */
-export function runMacOSCompanionServiceCommand(command, options = {}) {
+export function runMacOSCompanionServiceCommand(command: CompanionServiceCommand, options: CompanionServiceOptions = {}) {
   if (!['start', 'stop', 'restart', 'status'].includes(command)) throw new Error('Unsupported companion service command.');
   const env = options.env || process.env;
   const run = options.execFileSyncImpl || execFileSync;

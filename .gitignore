@@ -246,3 +246,9 @@ deploy/profile-share/data/
 /lib/companion-management.js
 /lib/agent-host-turn-state.js
 /lib/companion-existing.js
+/lib/linux-companion-install.js
+/lib/macos-companion-install.js
+/lib/windows-companion-install.js
+/lib/companion-install.js
+/lib/companion-runtime-control.js
+/lib/companion-install-support.js

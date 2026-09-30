@@ -270,6 +270,13 @@ before callbacks and result identity. ACP session binding and fresh Codex thread
 policy construction share their previously duplicated paths. Management HTML
 and existing-instance detection retain their complete emitted runtime behavior.
 
+Companion installation and update controls now use native platform and injected
+I/O contracts. CLI preparation, POSIX validation, executable resolution and file
+installation share exact common operations; systemd, LaunchAgent and scheduled
+task commands remain explicit. macOS no longer imports its executable resolver
+from the Linux installer. Four existing platform/update suites are checked as
+native TypeScript with their original cases and assertions retained.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

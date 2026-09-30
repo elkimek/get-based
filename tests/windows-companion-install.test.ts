@@ -1,5 +1,6 @@
 // @vitest-environment node
 
+import type { CompanionServiceExecutor } from '../lib/companion-install-support.js';
 import { describe, expect, it, vi } from 'vitest';
 import {
   renderWindowsCompanionLauncher, renderWindowsCompanionRunner, resolveWindowsCompanionPaths,
@@ -43,7 +44,7 @@ describe('Windows companion installer', () => {
   });
 
   it('maps lifecycle commands to the current-user scheduled task', () => {
-    const schtasks = vi.fn();
+    const schtasks = vi.fn<CompanionServiceExecutor>();
     runWindowsCompanionServiceCommand('start', { execFileSyncImpl: schtasks });
     runWindowsCompanionServiceCommand('stop', { execFileSyncImpl: schtasks });
     runWindowsCompanionServiceCommand('restart', { execFileSyncImpl: schtasks });

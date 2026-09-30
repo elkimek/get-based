@@ -1,4 +1,4 @@
-// @ts-check
+import type { CompanionInstallOptions, CompanionServiceOptions, CompanionServiceCommand } from './companion-install-support.js';
 // Platform dispatcher for getbased Companion installation and lifecycle.
 
 import {
@@ -11,16 +11,14 @@ import {
   installWindowsCompanion, runWindowsCompanionServiceCommand, uninstallWindowsCompanion,
 } from './windows-companion-install.js';
 
-/** @param {NodeJS.Platform} [platform] */
-export function companionPlatformName(platform = process.platform) {
+export function companionPlatformName(platform: NodeJS.Platform = process.platform) {
   if (platform === 'darwin') return 'macOS';
   if (platform === 'win32') return 'Windows';
   if (platform === 'linux') return 'Linux';
   return platform;
 }
 
-/** @param {{bundlePath: string, dryRun?: boolean, platform?: NodeJS.Platform} & Record<string, any>} options */
-export function installCompanion(options) {
+export function installCompanion(options: CompanionInstallOptions) {
   const platform = options.platform || process.platform;
   if (platform === 'linux') return installLinuxCompanion({ ...options, platform });
   if (platform === 'darwin') return installMacOSCompanion({ ...options, platform });
@@ -28,20 +26,18 @@ export function installCompanion(options) {
   throw new Error(`Automatic companion installation is not available on ${companionPlatformName(platform)}.`);
 }
 
-/** @param {({platform?: NodeJS.Platform} & Record<string, any>)} [options] */
-export function uninstallCompanion(options = {}) {
+export function uninstallCompanion(options: CompanionServiceOptions = {}) {
   const platform = options.platform || process.platform;
-  if (platform === 'linux') return uninstallLinuxCompanion(/** @type {any} */ (options));
-  if (platform === 'darwin') return uninstallMacOSCompanion(/** @type {any} */ (options));
-  if (platform === 'win32') return uninstallWindowsCompanion(/** @type {any} */ (options));
+  if (platform === 'linux') return uninstallLinuxCompanion((options));
+  if (platform === 'darwin') return uninstallMacOSCompanion((options));
+  if (platform === 'win32') return uninstallWindowsCompanion((options));
   throw new Error(`Automatic companion removal is not available on ${companionPlatformName(platform)}.`);
 }
 
-/** @param {'start'|'stop'|'restart'|'status'} command @param {({platform?: NodeJS.Platform} & Record<string, any>)} [options] */
-export function runCompanionServiceCommand(command, options = {}) {
+export function runCompanionServiceCommand(command: CompanionServiceCommand, options: CompanionServiceOptions = {}) {
   const platform = options.platform || process.platform;
-  if (platform === 'linux') return runLinuxCompanionServiceCommand(command, /** @type {any} */ (options));
-  if (platform === 'darwin') return runMacOSCompanionServiceCommand(command, /** @type {any} */ (options));
-  if (platform === 'win32') return runWindowsCompanionServiceCommand(command, /** @type {any} */ (options));
+  if (platform === 'linux') return runLinuxCompanionServiceCommand(command, (options));
+  if (platform === 'darwin') return runMacOSCompanionServiceCommand(command, (options));
+  if (platform === 'win32') return runWindowsCompanionServiceCommand(command, (options));
   throw new Error(`Companion service controls are not available on ${companionPlatformName(platform)}.`);
 }

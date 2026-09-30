@@ -1,15 +1,19 @@
 // @vitest-environment node
 
+import type { CompanionRuntimeOptions } from '../lib/companion-install-support.js';
 import { describe, expect, it, vi } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { createCompanionRuntimeController } from '../lib/companion-runtime-control.js';
 import { GETBASED_COMPANION_VERSION } from '../shared/agent-host-protocol.js';
 
+type InstallImpl = NonNullable<CompanionRuntimeOptions['installImpl']>;
+type RuntimeFetch = NonNullable<CompanionRuntimeOptions['fetchImpl']>;
+
 const VALID_BUNDLE = '#!/usr/bin/env node\nconst title = "getbased Companion"; const service = "getbased-agent-host";\nconst GETBASED_COMPANION_VERSION = "99.0.0";\n';
 
 describe('running companion controls', () => {
   it('installs automatic startup from a temporary connection without starting a duplicate host', async () => {
-    const installImpl = vi.fn(() => ({ installed: true }));
+    const installImpl = vi.fn<InstallImpl>(() => ({ installed: true }));
     const appServer = { restart: vi.fn(), initialize: vi.fn() };
     const controller = createCompanionRuntimeController({
       appServer, bundlePath: '/tmp/getbased-companion.mjs', env: {}, platform: 'linux', installImpl,
@@ -36,7 +40,7 @@ describe('running companion controls', () => {
 
   it('schedules an installed companion service restart after the response can be sent', async () => {
     const serviceCommandImpl = vi.fn();
-    let scheduled;
+    let scheduled!: () => unknown;
     const controller = createCompanionRuntimeController({
       appServer: { restart: vi.fn(), initialize: vi.fn() },
       bundlePath: '/tmp/getbased-companion.mjs',
@@ -61,8 +65,8 @@ describe('running companion controls', () => {
   });
 
   it('hands an installed terminal runtime over without two listeners', async () => {
-    const order = [];
-    let scheduled;
+    const order: string[] = [];
+    let scheduled!: () => unknown;
     const controller = createCompanionRuntimeController({
       appServer: { restart: vi.fn(), initialize: vi.fn() }, bundlePath: '/tmp/getbased-companion.mjs',
       env: {}, installImpl: vi.fn(), scheduleImpl: callback => { scheduled = callback; },
@@ -78,9 +82,9 @@ describe('running companion controls', () => {
     expect(order).toEqual(['stop-listener', 'start-service', 'exit']);
   });
 
-  it.each(['linux', 'darwin', 'win32'])('restores the terminal listener after a failed %s service handoff', async platform => {
-    let scheduled;
-    const order = [];
+  it.each(['linux', 'darwin', 'win32'] as const)('restores the terminal listener after a failed %s service handoff', async platform => {
+    let scheduled!: () => unknown;
+    const order: string[] = [];
     const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     try {
       const controller = createCompanionRuntimeController({
@@ -102,8 +106,8 @@ describe('running companion controls', () => {
   });
 
   it('updates only from the fixed official endpoint, never from a calling page', async () => {
-    const installImpl = vi.fn(() => ({ installed: true }));
-    const fetchImpl = vi.fn(async () => new Response(VALID_BUNDLE, { status: 200 }));
+    const installImpl = vi.fn<InstallImpl>(() => ({ installed: true }));
+    const fetchImpl = vi.fn<RuntimeFetch>(async () => new Response(VALID_BUNDLE, { status: 200 }));
     const controller = createCompanionRuntimeController({
       appServer: { restart: vi.fn(), initialize: vi.fn() },
       bundlePath: '/tmp/getbased-companion.mjs',
@@ -122,7 +126,7 @@ describe('running companion controls', () => {
   });
 
   it.each([GETBASED_COMPANION_VERSION, '1.0.0'])('does not install the same or an older release (%s)', async version => {
-    const installImpl = vi.fn();
+    const installImpl = vi.fn<InstallImpl>();
     const controller = createCompanionRuntimeController({
       appServer: { restart: vi.fn(), initialize: vi.fn() }, bundlePath: '/tmp/getbased-companion.mjs',
       env: { GETBASED_COMPANION_SERVICE: '1' }, installImpl,
@@ -134,7 +138,7 @@ describe('running companion controls', () => {
   });
 
   it('installs a newer release once and preserves the pending restart across status checks', async () => {
-    const installImpl = vi.fn();
+    const installImpl = vi.fn<InstallImpl>();
     const controller = createCompanionRuntimeController({
       appServer: { restart: vi.fn(), initialize: vi.fn() }, bundlePath: '/tmp/getbased-companion.mjs',
       env: { GETBASED_COMPANION_SERVICE: '1' }, installImpl,
@@ -148,7 +152,7 @@ describe('running companion controls', () => {
   });
 
   it('rejects an update without a verifiable version before installing anything', async () => {
-    const installImpl = vi.fn();
+    const installImpl = vi.fn<InstallImpl>();
     const controller = createCompanionRuntimeController({
       appServer: { restart: vi.fn(), initialize: vi.fn() }, bundlePath: '/tmp/getbased-companion.mjs',
       env: { GETBASED_COMPANION_SERVICE: '1' }, installImpl,
@@ -175,16 +179,16 @@ describe('running companion controls', () => {
 
 
 describe('companion update failure boundaries', () => {
-  function setup(response, overrides = {}) {
-    const installImpl = vi.fn();
+  function setup(response: Response | null, overrides: Partial<CompanionRuntimeOptions> = {}) {
+    const installImpl = vi.fn<InstallImpl>();
     const controller = createCompanionRuntimeController({
       appServer: { restart: vi.fn(), initialize: vi.fn() }, bundlePath: '/tmp/unused.mjs',
       env: { GETBASED_COMPANION_SERVICE: '1' }, installImpl,
-      fetchImpl: vi.fn().mockResolvedValue(response), ...overrides,
+      fetchImpl: vi.fn<RuntimeFetch>().mockResolvedValue(response as Response), ...overrides,
     });
     return { controller, installImpl, update: () => controller.handle('update', { origin: 'https://app.test' }) };
   }
-  it.each([
+  it.each<[string, () => Response, string]>([
     ['HTTP failure', () => new Response('error', { status: 503 }), 'HTTP 503'],
     ['declared oversize', () => new Response('small', { headers: { 'content-length': '250001' } }), 'large'],
     ['streamed oversize', () => new Response('x'.repeat(250001)), 'large'],
@@ -215,8 +219,8 @@ describe('companion update failure boundaries', () => {
     expect(f.controller.getInfo().restartRequired).toBe(false);
   });
   it('removes the temporary bundle after installation failure and permits retry', async () => {
-    let temporary;
-    const installImpl = vi.fn(({ bundlePath }) => {
+    let temporary!: string;
+    const installImpl = vi.fn<InstallImpl>(({ bundlePath }) => {
       temporary = bundlePath;
       expect(readFileSync(bundlePath, 'utf8')).toBe(VALID_BUNDLE);
       throw new Error('disk full');
@@ -230,7 +234,7 @@ describe('companion update failure boundaries', () => {
     expect(existsSync(temporary)).toBe(false);
   });
   it('preserves a pending update when a later download fails', async () => {
-    const fetchImpl = vi.fn().mockResolvedValueOnce(new Response(VALID_BUNDLE)).mockRejectedValueOnce(new Error('offline'));
+    const fetchImpl = vi.fn<RuntimeFetch>().mockResolvedValueOnce(new Response(VALID_BUNDLE)).mockRejectedValueOnce(new Error('offline'));
     const f = setup(null, { fetchImpl });
     await f.update();
     await expect(f.update()).rejects.toThrow('offline');
