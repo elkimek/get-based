@@ -1,4 +1,4 @@
-// @ts-check
+import type { EventEmitter } from 'node:events';
 
 import { errorCode } from './error-utils.js';
 import { isAllowedProxyUrl, PROXY_MAX_RESPONSE_BYTES } from './proxy-policy.js';
@@ -7,7 +7,20 @@ import {
   readResponseTextWithCap,
 } from './proxy-upstream.js';
 
-export function handleDevFetchPage(req, res, target, options) {
+type DevPageRequest = Pick<EventEmitter, 'once' | 'removeListener'>;
+interface DevPageResponse extends DevPageRequest {
+  headersSent: boolean;
+  destroyed: boolean;
+  writeHead: (status: number, headers: Record<string, string>) => unknown;
+  end: (body?: string) => unknown;
+}
+
+export function handleDevFetchPage<RequestSource extends DevPageRequest>(
+  req: RequestSource,
+  res: DevPageResponse,
+  target: unknown,
+  options: { corsHeaders: (req: RequestSource) => Record<string, string> },
+) {
   const corsHeaders = options.corsHeaders;
   if (!isAllowedProxyUrl(target)) {
     res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });

@@ -119,6 +119,20 @@ and deployment configurations. JSON replies share a response helper that preserv
 serialization before CORS and optional-header evaluation; focused tests check that
 ordering and rejected origins. Environment bounds share their original parser.
 
+`lib/oauth-token-form.ts` now owns OAuth grant validation and ordered form
+construction for both hosted and local proxies. Provider handlers retain their
+original environment gates, endpoint labels and Polar authentication encodings.
+The local proxy matched its original calls, form bytes, CORS, statuses and errors
+in 2,600 differential scenarios. Native TypeScript regression tests retain wire
+bytes, raw-value coercion and getter order. The local page fetcher and browser
+proxy routing also use named contracts.
+
+The wearable registry now checks canonical metric identifiers, provider mapping
+fields, OAuth configuration and visibility metadata against shared types without
+changing catalog values or ordering. Companion HTTP and listener recovery expose
+only the methods they consume. Their strict TypeScript suites cover real loopback
+requests, declared and streamed caps, disconnects, port fallback and cleanup.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

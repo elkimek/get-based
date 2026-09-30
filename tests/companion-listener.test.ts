@@ -5,8 +5,8 @@ import { recoverCompanionListener } from '../lib/companion-listener.js';
 
 describe('Companion listener recovery', () => {
   it('retries occupied ports then removes listeners on success', async () => {
-    const server = new EventEmitter();
-    server.listen = vi.fn(port => queueMicrotask(() => {
+    const server = Object.assign(new EventEmitter(), { listen: vi.fn<(port: number, host: string) => void>() });
+    server.listen = vi.fn((port: number) => queueMicrotask(() => {
       if (port < 8326) server.emit('error', Object.assign(new Error('busy'), { code: 'EADDRINUSE' }));
       else server.emit('listening');
     }));
@@ -18,7 +18,7 @@ describe('Companion listener recovery', () => {
   });
 
   it.each(['EADDRINUSE', 'EACCES', 'throw'])('rejects and cleans up after %s', async code => {
-    const server = new EventEmitter();
+    const server = Object.assign(new EventEmitter(), { listen: vi.fn<(port: number, host: string) => void>() });
     const error = Object.assign(new Error('cannot listen'), { code });
     server.listen = vi.fn(() => {
       if (code === 'throw') throw error;
@@ -35,8 +35,8 @@ describe('Companion listener recovery', () => {
 
 
 it('cleans up when publishing the recovered port throws', async () => {
-  const server = new EventEmitter();
-  server.listen = vi.fn();
+  const server = Object.assign(new EventEmitter(), { listen: vi.fn<(port: number, host: string) => void>() });
+  server.listen = vi.fn<(port: number, host: string) => void>();
   const failure = new Error('port publication failed');
   await expect(recoverCompanionListener(server, {
     host: '127.0.0.1', port: 8324, lastPort: 8326,
@@ -48,10 +48,10 @@ it('cleans up when publishing the recovered port throws', async () => {
 });
 
 it('retries synchronously occupied ports without removing unrelated listeners', async () => {
-  const server = new EventEmitter();
+  const server = Object.assign(new EventEmitter(), { listen: vi.fn<(port: number, host: string) => void>() });
   const existing = vi.fn();
   server.on('listening', existing);
-  server.listen = vi.fn(port => {
+  server.listen = vi.fn((port: number) => {
     if (port === 8324) throw Object.assign(new Error('busy'), { code: 'EADDRINUSE' });
     queueMicrotask(() => server.emit('listening'));
   });

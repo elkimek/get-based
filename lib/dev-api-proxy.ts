@@ -1,4 +1,7 @@
-// @ts-check
+import { createOAuthTokenForm } from './oauth-token-form.js';
+import type { OAuthGrant, OAuthTokenFields, OAuthTokenFormSpec } from './oauth-token-form.js';
+import type { IncomingMessage, ServerResponse, ClientRequest } from 'node:http';
+import type { ProxyValidation } from './proxy-policy.js';
 
 import http from 'node:http';
 import https from 'node:https';
@@ -10,6 +13,16 @@ import {
   normalizeProxyMethod,
   sanitizeProxyHeaders,
 } from './proxy-policy.js';
+
+type DevCorsHeaders = (req: IncomingMessage) => Record<string, string>;
+interface DevProxyOptions {
+  corsHeaders: DevCorsHeaders;
+  env?: Record<string, string | undefined>;
+}
+interface PostalRow {
+  address?: { postcode?: unknown } | null;
+  name?: unknown; lat?: unknown; lon?: unknown; display_name?: unknown;
+}
 
 // Used only to recognize an operator's explicit UVDATA_UPSTREAM choice and
 // select the private POST contract. Merely running the public source never
@@ -23,24 +36,24 @@ export const WEARABLE_CLIENT_ID_VARS = [
   ['WHOOP_CLIENT_ID', 'whoop'],
   ['FITBIT_CLIENT_ID', 'fitbit'],
   ['GOOGLE_HEALTH_CLIENT_ID', 'google_health'],
-];
+] as const;
 
-function errorMessage(error) {
+function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-export function collectWearableOverrides(env) {
-  const out = {};
+export function collectWearableOverrides(env: unknown) {
+  const out: Record<string, string> = {};
   if (!env || typeof env !== 'object') return out;
   for (const [key, id] of WEARABLE_CLIENT_ID_VARS) {
-    const value = env[key];
+    const value = (env as Record<string, unknown>)[key];
     if (typeof value === 'string' && value.trim()) out[id] = value.trim();
   }
   return out;
 }
 
-export function collectWearableConfigured(env) {
-  const hasEnv = key => typeof env?.[key] === 'string' && env[key].trim();
+export function collectWearableConfigured(env: Record<string, unknown> | null | undefined) {
+  const hasEnv = (key: string) => typeof env?.[key] === 'string' && (env[key] as string).trim();
   return {
     google_health: env?.GOOGLE_HEALTH_ENABLED === 'true'
       && Boolean(hasEnv('GOOGLE_HEALTH_CLIENT_ID') && hasEnv('GOOGLE_HEALTH_CLIENT_SECRET')),
@@ -67,25 +80,28 @@ const DEV_PROXY_OPERATION_FIELDS = new Map([
   ['google_health_token_refresh', 'google-health-refresh'],
 ]);
 
-export function classifyDevProxyOperation(payload) {
+export function classifyDevProxyOperation(payload: unknown): ProxyValidation<{ operation: string }> {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     return { ok: false, error: 'Proxy request body must be an object' };
   }
-  const requested = [];
+  const requested: string[] = [];
   for (const [field, operation] of DEV_PROXY_OPERATION_FIELDS) {
-    if (field === 'wearable_runtime_config' ? payload[field] === true : Boolean(payload[field])) {
+    if (field === 'wearable_runtime_config' ? (payload as Record<string, unknown>)[field] === true : Boolean((payload as Record<string, unknown>)[field])) {
       requested.push(operation);
     }
   }
-  if (payload.meteo === 'cams') requested.push('cams');
-  if (payload.meteo === 'postal_geocode') requested.push('postal-geocode');
-  if (requested.length > 1 || (requested.length === 1 && payload.url)) {
+  if ((payload as Record<string, unknown>).meteo === 'cams') requested.push('cams');
+  if ((payload as Record<string, unknown>).meteo === 'postal_geocode') requested.push('postal-geocode');
+  if (requested.length > 1 || (requested.length === 1 && (payload as Record<string, unknown>).url)) {
     return { ok: false, error: 'Proxy request must select exactly one operation' };
   }
   return { ok: true, operation: requested[0] || 'generic' };
 }
 
-export function _sendCappedProxyResponse(req, res, proxyRes, corsHeaders) {
+export function _sendCappedProxyResponse(
+  req: IncomingMessage, res: ServerResponse, proxyRes: IncomingMessage,
+  corsHeaders: DevCorsHeaders,
+) {
   const contentType = proxyRes.headers?.['content-type'] || 'application/json';
   const contentLength = parseInt(proxyRes.headers?.['content-length'] || '0', 10);
   const proxyCorsHeaders = {
@@ -94,7 +110,7 @@ export function _sendCappedProxyResponse(req, res, proxyRes, corsHeaders) {
     'Access-Control-Allow-Headers': 'Content-Type',
   };
   let finished = false;
-  const fail = (message) => {
+  const fail = (message: string) => {
     if (finished) return;
     finished = true;
     try { proxyRes.destroy?.(); } catch {}
@@ -105,7 +121,7 @@ export function _sendCappedProxyResponse(req, res, proxyRes, corsHeaders) {
     fail('Proxy response exceeds size cap');
     return;
   }
-  const chunks = [];
+  const chunks: Buffer[] = [];
   let responseBytes = 0;
   proxyRes.on('data', chunk => {
     if (finished) return;
@@ -128,20 +144,29 @@ export function _sendCappedProxyResponse(req, res, proxyRes, corsHeaders) {
   proxyRes.on('close', () => { if (!finished) fail('Upstream response interrupted'); });
 }
 
-function writeJson(req, res, corsHeaders, status, body) {
+function writeJson(
+  req: IncomingMessage, res: ServerResponse, corsHeaders: DevCorsHeaders,
+  status: number, body: unknown,
+) {
   if (res.writableEnded || res.destroyed) return;
   res.writeHead(status, { 'Content-Type': 'application/json', ...corsHeaders(req) });
   res.end(typeof body === 'string' ? body : JSON.stringify(body));
 }
 
-function boundUpstreamTimeout(upstream, req, res, corsHeaders) {
+function boundUpstreamTimeout(
+  upstream: ClientRequest, req: IncomingMessage, res: ServerResponse,
+  corsHeaders: DevCorsHeaders,
+) {
   upstream.setTimeout?.(180_000, () => {
     writeJson(req, res, corsHeaders, 504, { error: 'Proxy upstream timed out' });
     upstream.destroy();
   });
 }
 
-function handleDevPostalGeocode(payload, req, res, corsHeaders) {
+function handleDevPostalGeocode(
+  payload: Record<string, unknown>, req: IncomingMessage,
+  res: ServerResponse, corsHeaders: DevCorsHeaders,
+) {
   const country = typeof payload.country === 'string' ? payload.country.trim() : '';
   const postalCode = typeof payload.postalCode === 'string' ? payload.postalCode.trim() : '';
   if (!country || !postalCode || country.length > 80 || postalCode.length > 24
@@ -158,7 +183,7 @@ function handleDevPostalGeocode(payload, req, res, corsHeaders) {
   });
   const endpoint = `https://nominatim.openstreetmap.org/search?${qs.toString()}`;
   let finished = false;
-  const fail = (status, message) => {
+  const fail = (status: number, message: string) => {
     if (finished) return;
     finished = true;
     writeJson(req, res, corsHeaders, status, { error: message });
@@ -169,7 +194,7 @@ function handleDevPostalGeocode(payload, req, res, corsHeaders) {
       'User-Agent': 'getbased-health-location-proxy/1.0 (+https://getbased.health)',
     },
   }, upstreamRes => {
-    const chunks = [];
+    const chunks: Buffer[] = [];
     let bytes = 0;
     upstreamRes.on('data', chunk => {
       if (finished) return;
@@ -188,8 +213,8 @@ function handleDevPostalGeocode(payload, req, res, corsHeaders) {
         return;
       }
       try {
-        const json = JSON.parse(Buffer.concat(chunks, bytes).toString('utf8'));
-        const results = Array.isArray(json) ? json : [];
+        const json: unknown = JSON.parse(Buffer.concat(chunks, bytes).toString('utf8'));
+        const results: (PostalRow | null)[] = Array.isArray(json) ? json : [];
         const normalizedPostal = postalCode.replace(/\s+/g, '').toLowerCase();
         const match = results.find(item => String(item?.address?.postcode || item?.name || '').replace(/\s+/g, '').toLowerCase() === normalizedPostal)
           || results[0];
@@ -205,7 +230,7 @@ function handleDevPostalGeocode(payload, req, res, corsHeaders) {
           longitude: Math.round(longitude * 10) / 10,
           accuracyKm: 11,
           timezone: null,
-          label: typeof match.display_name === 'string' ? match.display_name : `${postalCode}, ${country}`,
+          label: typeof match!.display_name === 'string' ? match!.display_name : `${postalCode}, ${country}`,
           source: 'postal-area',
           resolvedAt: Date.now(),
           attribution: '© OpenStreetMap contributors',
@@ -222,7 +247,10 @@ function handleDevPostalGeocode(payload, req, res, corsHeaders) {
   });
 }
 
-function proxyOAuthToken(req, res, corsHeaders, endpoint, form, errorPrefix, headers = {}) {
+function proxyOAuthToken(
+  req: IncomingMessage, res: ServerResponse, corsHeaders: DevCorsHeaders,
+  endpoint: string, form: URLSearchParams, errorPrefix: string, headers: Record<string, string> = {},
+) {
   const tokenReq = https.request(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...headers },
@@ -237,7 +265,29 @@ function proxyOAuthToken(req, res, corsHeaders, endpoint, form, errorPrefix, hea
   tokenReq.end();
 }
 
-export function handleDevApiProxy(req, res, options) {
+type DevOAuthTokenSpec = OAuthTokenFormSpec & {
+  endpoint: string;
+  errorPrefix: string;
+  basicAuth?: boolean;
+};
+
+function relayDevOAuthToken(
+  payload: Record<string, unknown>, grant: OAuthGrant,
+  req: IncomingMessage, res: ServerResponse, corsHeaders: DevCorsHeaders, spec: DevOAuthTokenSpec,
+) {
+  const result = createOAuthTokenForm(payload[`${spec.provider}_token_${grant}`] as OAuthTokenFields, grant, spec);
+  if (!result.ok) {
+    writeJson(req, res, corsHeaders, 400, { error: result.error });
+    return;
+  }
+  const headers = spec.basicAuth ? {
+    Accept: 'application/json;charset=UTF-8',
+    Authorization: `Basic ${Buffer.from(`${result.clientId}:${spec.secret}`).toString('base64')}`,
+  } : {};
+  proxyOAuthToken(req, res, corsHeaders, spec.endpoint, result.form, spec.errorPrefix, headers);
+}
+
+export function handleDevApiProxy(req: IncomingMessage, res: ServerResponse, options: DevProxyOptions) {
   const corsHeaders = options.corsHeaders;
   const env = options.env ?? process.env;
 
@@ -269,7 +319,7 @@ export function handleDevApiProxy(req, res, options) {
   req.on('end', () => {
     if (aborted) return;
     try {
-      const payload = JSON.parse(body);
+      const payload: Record<string, unknown> = JSON.parse(body);
       const classified = classifyDevProxyOperation(payload);
       if (!classified.ok) {
         writeJson(req, res, corsHeaders, 400, { error: classified.error });
@@ -296,23 +346,11 @@ export function handleDevApiProxy(req, res, options) {
           writeJson(req, res, corsHeaders, 500, { error: 'OURA_CLIENT_SECRET not set — export it before `node dev-server.js`' });
           return;
         }
-        let form;
-        if (operation === 'oura-exchange') {
-          const { code, redirect_uri, client_id } = payload.oura_token_exchange;
-          if (!code || !redirect_uri || !client_id) {
-            writeJson(req, res, corsHeaders, 400, '{"error":"oura_token_exchange requires code, redirect_uri, client_id"}');
-            return;
-          }
-          form = new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri, client_id, client_secret: secret });
-        } else {
-          const { refresh_token, client_id } = payload.oura_token_refresh;
-          if (!refresh_token || !client_id) {
-            writeJson(req, res, corsHeaders, 400, '{"error":"oura_token_refresh requires refresh_token, client_id"}');
-            return;
-          }
-          form = new URLSearchParams({ grant_type: 'refresh_token', refresh_token, client_id, client_secret: secret });
-        }
-        proxyOAuthToken(req, res, corsHeaders, 'https://api.ouraring.com/oauth/token', form, 'Token endpoint unreachable');
+        relayDevOAuthToken(payload, operation === 'oura-exchange' ? 'exchange' : 'refresh', req, res, corsHeaders, {
+          provider: 'oura', secret,
+          endpoint: 'https://api.ouraring.com/oauth/token',
+          errorPrefix: 'Token endpoint unreachable',
+        });
         return;
       }
 
@@ -323,38 +361,11 @@ export function handleDevApiProxy(req, res, options) {
           writeJson(req, res, corsHeaders, 503, { error: 'Ultrahuman is disabled on this deployment' });
           return;
         }
-        let form;
-        if (operation === 'ultrahuman-exchange') {
-          const { code, redirect_uri, client_id: requestedClientId } = payload.ultrahuman_token_exchange;
-          if (!code || !redirect_uri || !requestedClientId) {
-            writeJson(req, res, corsHeaders, 400, '{"error":"ultrahuman_token_exchange requires code, redirect_uri, client_id"}');
-            return;
-          }
-          if (requestedClientId !== clientId) {
-            writeJson(req, res, corsHeaders, 400, { error: 'Ultrahuman client_id does not match this deployment' });
-            return;
-          }
-          form = new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri, client_id: clientId, client_secret: secret });
-        } else {
-          const { refresh_token, client_id: requestedClientId } = payload.ultrahuman_token_refresh;
-          if (!refresh_token || !requestedClientId) {
-            writeJson(req, res, corsHeaders, 400, '{"error":"ultrahuman_token_refresh requires refresh_token, client_id"}');
-            return;
-          }
-          if (requestedClientId !== clientId) {
-            writeJson(req, res, corsHeaders, 400, { error: 'Ultrahuman client_id does not match this deployment' });
-            return;
-          }
-          form = new URLSearchParams({ grant_type: 'refresh_token', refresh_token, client_id: clientId, client_secret: secret });
-        }
-        proxyOAuthToken(
-          req,
-          res,
-          corsHeaders,
-          'https://partner.ultrahuman.com/api/partners/oauth/token',
-          form,
-          'Ultrahuman token endpoint unreachable',
-        );
+        relayDevOAuthToken(payload, operation === 'ultrahuman-exchange' ? 'exchange' : 'refresh', req, res, corsHeaders, {
+          provider: 'ultrahuman', secret,
+          endpoint: 'https://partner.ultrahuman.com/api/partners/oauth/token',
+          errorPrefix: 'Ultrahuman token endpoint unreachable', clientId, clientMismatch: 'Ultrahuman client_id does not match this deployment',
+        });
         return;
       }
 
@@ -365,44 +376,12 @@ export function handleDevApiProxy(req, res, options) {
           writeJson(req, res, corsHeaders, 503, { error: 'WHOOP is disabled on this deployment' });
           return;
         }
-        let form;
-        if (operation === 'whoop-exchange') {
-          const { code, redirect_uri, client_id: requestedClientId } = payload.whoop_token_exchange;
-          if (!code || !redirect_uri || !requestedClientId) {
-            writeJson(req, res, corsHeaders, 400, '{"error":"whoop_token_exchange requires code, redirect_uri, client_id"}');
-            return;
-          }
-          if (requestedClientId !== clientId) {
-            writeJson(req, res, corsHeaders, 400, { error: 'WHOOP client_id does not match this deployment' });
-            return;
-          }
-          form = new URLSearchParams({
-            grant_type: 'authorization_code', code, redirect_uri,
-            client_id: clientId, client_secret: secret,
-          });
-        } else {
-          const { refresh_token, client_id: requestedClientId } = payload.whoop_token_refresh;
-          if (!refresh_token || !requestedClientId) {
-            writeJson(req, res, corsHeaders, 400, '{"error":"whoop_token_refresh requires refresh_token, client_id"}');
-            return;
-          }
-          if (requestedClientId !== clientId) {
-            writeJson(req, res, corsHeaders, 400, { error: 'WHOOP client_id does not match this deployment' });
-            return;
-          }
-          form = new URLSearchParams({
-            grant_type: 'refresh_token', refresh_token,
-            client_id: clientId, client_secret: secret, scope: 'offline',
-          });
-        }
-        proxyOAuthToken(
-          req,
-          res,
-          corsHeaders,
-          'https://api.prod.whoop.com/oauth/oauth2/token',
-          form,
-          'WHOOP token endpoint unreachable',
-        );
+        relayDevOAuthToken(payload, operation === 'whoop-exchange' ? 'exchange' : 'refresh', req, res, corsHeaders, {
+          provider: 'whoop', secret,
+          endpoint: 'https://api.prod.whoop.com/oauth/oauth2/token',
+          errorPrefix: 'WHOOP token endpoint unreachable', clientId, clientMismatch: 'WHOOP client_id does not match this deployment', scope: 'offline',
+          refreshFields: ['grant_type', 'refresh_token', 'client_id', 'client_secret', 'scope'],
+        });
         return;
       }
 
@@ -412,43 +391,14 @@ export function handleDevApiProxy(req, res, options) {
           writeJson(req, res, corsHeaders, 500, { error: 'WITHINGS_CLIENT_SECRET not set — export it before `node dev-server.js`' });
           return;
         }
-        let form;
-        if (operation === 'withings-exchange') {
-          const { code, redirect_uri, client_id } = payload.withings_token_exchange;
-          if (!code || !redirect_uri || !client_id) {
-            writeJson(req, res, corsHeaders, 400, '{"error":"withings_token_exchange requires code, redirect_uri, client_id"}');
-            return;
-          }
-          form = new URLSearchParams({
-            action: 'requesttoken',
-            grant_type: 'authorization_code',
-            client_id,
-            client_secret: secret,
-            code,
-            redirect_uri,
-          });
-        } else {
-          const { refresh_token, client_id } = payload.withings_token_refresh;
-          if (!refresh_token || !client_id) {
-            writeJson(req, res, corsHeaders, 400, '{"error":"withings_token_refresh requires refresh_token, client_id"}');
-            return;
-          }
-          form = new URLSearchParams({
-            action: 'requesttoken',
-            grant_type: 'refresh_token',
-            client_id,
-            client_secret: secret,
-            refresh_token,
-          });
-        }
-        proxyOAuthToken(
-          req,
-          res,
-          corsHeaders,
-          'https://wbsapi.withings.net/v2/oauth2',
-          form,
-          'Withings token endpoint unreachable',
-        );
+        relayDevOAuthToken(payload, operation === 'withings-exchange' ? 'exchange' : 'refresh', req, res, corsHeaders, {
+          provider: 'withings', secret,
+          endpoint: 'https://wbsapi.withings.net/v2/oauth2',
+          errorPrefix: 'Withings token endpoint unreachable',
+          action: 'requesttoken',
+          exchangeFields: ['action', 'grant_type', 'client_id', 'client_secret', 'code', 'redirect_uri'],
+          refreshFields: ['action', 'grant_type', 'client_id', 'client_secret', 'refresh_token'],
+        });
         return;
       }
 
@@ -458,35 +408,12 @@ export function handleDevApiProxy(req, res, options) {
           writeJson(req, res, corsHeaders, 500, { error: 'POLAR_CLIENT_SECRET not set — add it to .env.local before `node dev-server.js`' });
           return;
         }
-        let form;
-        let clientId;
-        if (operation === 'polar-exchange') {
-          const { code, redirect_uri, client_id } = payload.polar_token_exchange;
-          if (!code || !redirect_uri || !client_id) {
-            writeJson(req, res, corsHeaders, 400, '{"error":"polar_token_exchange requires code, redirect_uri, client_id"}');
-            return;
-          }
-          clientId = client_id;
-          form = new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri });
-        } else {
-          const { refresh_token, client_id } = payload.polar_token_refresh;
-          if (!refresh_token || !client_id) {
-            writeJson(req, res, corsHeaders, 400, '{"error":"polar_token_refresh requires refresh_token, client_id"}');
-            return;
-          }
-          clientId = client_id;
-          form = new URLSearchParams({ grant_type: 'refresh_token', refresh_token });
-        }
-        const authorization = `Basic ${Buffer.from(`${clientId}:${secret}`).toString('base64')}`;
-        proxyOAuthToken(
-          req,
-          res,
-          corsHeaders,
-          'https://polarremote.com/v2/oauth2/token',
-          form,
-          'Polar token endpoint unreachable',
-          { Accept: 'application/json;charset=UTF-8', Authorization: authorization },
-        );
+        relayDevOAuthToken(payload, operation === 'polar-exchange' ? 'exchange' : 'refresh', req, res, corsHeaders, {
+          provider: 'polar', secret,
+          endpoint: 'https://polarremote.com/v2/oauth2/token',
+          errorPrefix: 'Polar token endpoint unreachable', basicAuth: true,
+          exchangeFields: ['grant_type', 'code', 'redirect_uri'], refreshFields: ['grant_type', 'refresh_token'],
+        });
         return;
       }
 
@@ -497,30 +424,11 @@ export function handleDevApiProxy(req, res, options) {
           writeJson(req, res, corsHeaders, 503, { error: 'Google Health is disabled — set GOOGLE_HEALTH_ENABLED=true and configure both Google OAuth credentials' });
           return;
         }
-        let form;
-        if (operation === 'google-health-exchange') {
-          const { code, redirect_uri, client_id } = payload.google_health_token_exchange;
-          if (!code || !redirect_uri || !client_id) {
-            writeJson(req, res, corsHeaders, 400, '{"error":"google_health_token_exchange requires code, redirect_uri, client_id"}');
-            return;
-          }
-          form = new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri, client_id, client_secret: secret });
-        } else {
-          const { refresh_token, client_id } = payload.google_health_token_refresh;
-          if (!refresh_token || !client_id) {
-            writeJson(req, res, corsHeaders, 400, '{"error":"google_health_token_refresh requires refresh_token, client_id"}');
-            return;
-          }
-          form = new URLSearchParams({ grant_type: 'refresh_token', refresh_token, client_id, client_secret: secret });
-        }
-        proxyOAuthToken(
-          req,
-          res,
-          corsHeaders,
-          'https://oauth2.googleapis.com/token',
-          form,
-          'Google OAuth token endpoint unreachable',
-        );
+        relayDevOAuthToken(payload, operation === 'google-health-exchange' ? 'exchange' : 'refresh', req, res, corsHeaders, {
+          provider: 'google_health', secret,
+          endpoint: 'https://oauth2.googleapis.com/token',
+          errorPrefix: 'Google Health token endpoint unreachable',
+        });
         return;
       }
 
@@ -544,7 +452,7 @@ export function handleDevApiProxy(req, res, options) {
           writeJson(req, res, corsHeaders, 400, { error: normalized.error });
           return;
         }
-        const upstreamHeaders = { Accept: 'application/json' };
+        const upstreamHeaders: Record<string, string> = { Accept: 'application/json' };
         if (bearer) upstreamHeaders.Authorization = `Bearer ${bearer}`;
         let requestBody = '';
         let upstreamUrl;
@@ -584,10 +492,10 @@ export function handleDevApiProxy(req, res, options) {
             writeJson(req, res, corsHeaders, 502, { error: 'CAMS response exceeds size cap' });
             return;
           }
-          const chunks = [];
+          const chunks: Buffer[] = [];
           let bytesPiped = 0;
           let finished = false;
-          const fail = message => {
+          const fail = (message: string) => {
             if (finished) return;
             finished = true;
             try { camsRes.destroy(); } catch {}

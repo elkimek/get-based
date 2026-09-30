@@ -147,3 +147,10 @@ deploy/profile-share/data/
 /api/proxy.js
 /lib/runtime-env.js
 /lib/proxy-response.js
+/lib/dev-url-fetch.js
+/lib/dev-api-proxy.js
+/lib/oauth-token-form.js
+/js/wearable-adapters.js
+/js/proxy-runtime.js
+/lib/companion-http.js
+/lib/companion-listener.js

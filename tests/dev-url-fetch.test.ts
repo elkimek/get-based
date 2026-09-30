@@ -17,23 +17,25 @@ function makeRequest() {
   return new EventEmitter();
 }
 
-function makeResponse() {
-  const response = new EventEmitter();
-  response.status = null;
-  response.headers = null;
-  response.body = '';
-  response.headersSent = false;
-  response.destroyed = false;
-  response.writeHead = (status, headers) => {
-    response.status = status;
-    response.headers = headers;
-    response.headersSent = true;
-  };
-  response.end = body => {
-    response.body = String(body || '');
-  };
-  return response;
+class DevPageTestResponse extends EventEmitter {
+  status: number | null = null;
+  headers: Record<string, string> | null = null;
+  body = '';
+  headersSent = false;
+  destroyed = false;
+  writeHead(status: number, headers: Record<string, string>) {
+    this.status = status;
+    this.headers = headers;
+    this.headersSent = true;
+  }
+  end(body?: string) {
+    this.body = String(body || '');
+  }
 }
+
+function makeResponse() { return new DevPageTestResponse(); }
+const fetchMock = vi.mocked(fetchWithValidatedRedirects);
+const readMock = vi.mocked(readResponseTextWithCap);
 
 const options = {
   corsHeaders: () => ({ 'Access-Control-Allow-Origin': 'http://localhost:8000' }),
@@ -54,9 +56,9 @@ describe('dev URL fetch guard', () => {
   });
 
   it('uses the shared DNS-pinned redirect guard and response cap', async () => {
-    const upstream = { status: 206 };
-    fetchWithValidatedRedirects.mockResolvedValue(upstream);
-    readResponseTextWithCap.mockResolvedValue('<html>safe</html>');
+    const upstream = new Response(null, { status: 206 });
+    fetchMock.mockResolvedValue(upstream);
+    readMock.mockResolvedValue('<html>safe</html>');
     const response = makeResponse();
 
     handleDevFetchPage(makeRequest(), response, 'https://example.com/product', options);
@@ -72,8 +74,8 @@ describe('dev URL fetch guard', () => {
   });
 
   it('returns a stable public error when the response exceeds its cap', async () => {
-    fetchWithValidatedRedirects.mockResolvedValue({ status: 200 });
-    readResponseTextWithCap.mockRejectedValue(
+    fetchMock.mockResolvedValue(new Response(null));
+    readMock.mockRejectedValue(
       createErrorWithCode('PROXY_RESPONSE_TOO_LARGE', 'internal cap detail'),
     );
     const response = makeResponse();

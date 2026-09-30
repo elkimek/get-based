@@ -1,4 +1,3 @@
-// @ts-check
 // Runtime routing for the narrow compatibility proxy.
 //
 // Official getbased deployments send only the fixed, policy-classified
@@ -9,11 +8,8 @@ import { isOfficialGetbasedHost } from './url-safety.js';
 
 export const HOSTED_PROXY_API_URL = 'https://integrations.getbased.health/api/proxy';
 
-/**
- * @param {Location | { hostname?: string } | undefined} [locationLike]
- */
-export function getProxyApiUrl(locationLike = globalThis.location) {
-  if (isOfficialGetbasedHost(/** @type {Location} */ (locationLike))) {
+export function getProxyApiUrl(locationLike: { hostname?: unknown } | null = globalThis.location) {
+  if (isOfficialGetbasedHost(locationLike)) {
     return HOSTED_PROXY_API_URL;
   }
   return '/api/proxy';

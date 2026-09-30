@@ -1,19 +1,31 @@
 import { EventEmitter } from 'node:events';
 import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 import { createCompanionRequestHandler } from '../lib/companion-http.js';
 
-function setup({ method = 'POST', url = '/v1/chat', headers = {}, chunks = [], response = new Response('ok'), handleRequest } = {}) {
+type CompanionService = (request: Request) => Promise<Response>;
+interface HttpFixtureOptions {
+  method?: string;
+  url?: string;
+  headers?: Record<string, string | string[] | undefined>;
+  chunks?: readonly (string | Uint8Array)[];
+  response?: Response;
+  handleRequest?: Mock<CompanionService>;
+}
+
+function setup({ method = 'POST', url = '/v1/chat', headers = {}, chunks = [], response = new Response('ok'), handleRequest }: HttpFixtureOptions = {}) {
   const incoming = Object.assign(new EventEmitter(), {
     method, url, headers, destroy: vi.fn(),
     async *[Symbol.asyncIterator]() { yield* chunks; },
   });
   const outgoing = Object.assign(new EventEmitter(), {
-    headersSent: false, writableEnded: false, write: vi.fn(),
-    writeHead: vi.fn(function () { this.headersSent = true; }),
-    end: vi.fn(function () { this.writableEnded = true; }),
+    headersSent: false, writableEnded: false, write: vi.fn<(chunk: Uint8Array) => void>(),
+    writeHead: vi.fn(function (this: { headersSent: boolean }) { this.headersSent = true; }),
+    end: vi.fn(function (this: { writableEnded: boolean }) { this.writableEnded = true; }),
   });
-  const service = handleRequest || vi.fn().mockResolvedValue(response);
+  const service = handleRequest || vi.fn<CompanionService>().mockResolvedValue(response);
   const getPort = vi.fn(() => 8325);
   const handler = createCompanionRequestHandler({ handleRequest: service, host: '127.0.0.1', getPort, maxRequestBytes: 8, maxImageRequestBytes: 16 });
   return { incoming, outgoing, service, run: () => handler(incoming, outgoing) };
@@ -23,21 +35,21 @@ describe('companion HTTP boundary', () => {
   it('preserves headers, body and the current fallback port', async () => {
     const f = setup({ headers: { authorization: 'Bearer local', 'x-multi': ['a', 'b'], ignored: undefined }, chunks: [Buffer.from('ab'), Buffer.from('cd')] });
     await f.run();
-    const request = f.service.mock.calls[0][0];
+    const request = f.service.mock.calls[0]![0];
     expect(request.url).toBe('http://127.0.0.1:8325/v1/chat');
     expect(request.headers.get('authorization')).toBe('Bearer local');
     expect(request.headers.get('x-multi')).toBe('a, b');
     expect(request.headers.has('ignored')).toBe(false);
     expect(await request.text()).toBe('abcd');
     expect(f.outgoing.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
-    expect(Buffer.from(f.outgoing.write.mock.calls[0][0]).toString()).toBe('ok');
+    expect(Buffer.from(f.outgoing.write.mock.calls[0]![0]).toString()).toBe('ok');
     expect(f.outgoing.end).toHaveBeenCalledOnce();
   });
   it.each(['GET', 'HEAD'])('%s never consumes an incoming body', async method => {
     const f = setup({ method, response: new Response(null, { status: 204 }) });
     f.incoming[Symbol.asyncIterator] = () => { throw new Error('unexpected read'); };
     await f.run();
-    expect(f.service.mock.calls[0][0].body).toBeNull();
+    expect(f.service.mock.calls[0]![0].body).toBeNull();
     expect(f.outgoing.write).not.toHaveBeenCalled();
     expect(f.outgoing.writeHead).toHaveBeenCalledWith(204, expect.any(Object));
     expect(f.outgoing.end).toHaveBeenCalledOnce();
@@ -74,21 +86,22 @@ describe('companion HTTP boundary', () => {
     expect(f.service).toHaveBeenCalledOnce();
   });
   it.each(['aborted', 'close'])('propagates client %s to the service abort signal', async event => {
-    let request, release;
-    const f = setup({ handleRequest: vi.fn(async value => { request = value; return new Promise(resolve => { release = resolve; }); }) });
+    let request: Request | undefined;
+    let release: ((response: Response) => void) | undefined;
+    const f = setup({ handleRequest: vi.fn(async (value: Request) => { request = value; return new Promise<Response>(resolve => { release = resolve; }); }) });
     const pending = f.run();
     await vi.waitFor(() => expect(request).toBeDefined());
     (event === 'aborted' ? f.incoming : f.outgoing).emit(event);
-    expect(request.signal.aborted).toBe(true);
-    release(new Response(null, { status: 204 }));
+    expect(request!.signal.aborted).toBe(true);
+    release!(new Response(null, { status: 204 }));
     await pending;
   });
   it('does not cancel successful requests on normal response close', async () => {
     const f = setup(); await f.run(); f.outgoing.emit('close');
-    expect(f.service.mock.calls[0][0].signal.aborted).toBe(false);
+    expect(f.service.mock.calls[0]![0].signal.aborted).toBe(false);
   });
   it('masks internal service failures', async () => {
-    const f = setup({ handleRequest: vi.fn().mockRejectedValue(new Error('private token')) });
+    const f = setup({ handleRequest: vi.fn<CompanionService>().mockRejectedValue(new Error('private token')) });
     await f.run();
     expect(f.outgoing.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
     expect(f.outgoing.end).toHaveBeenCalledWith('{"error":"internal_error"}');
@@ -103,16 +116,16 @@ describe('companion HTTP boundary', () => {
 
 
 it('serves a real loopback HTTP request through the extracted adapter', async () => {
-  let port;
-  const service = vi.fn(async request => new Response(await request.text(), {
-    headers: { 'x-companion-test': request.headers.get('x-client-test') },
+  let port: number | undefined;
+  const service = vi.fn(async (request: Request) => new Response(await request.text(), {
+    headers: { 'x-companion-test': request.headers.get('x-client-test')! },
   }));
   const server = createServer(createCompanionRequestHandler({
-    handleRequest: service, host: '127.0.0.1', getPort: () => port, maxRequestBytes: 8, maxImageRequestBytes: 16,
+    handleRequest: service, host: '127.0.0.1', getPort: () => port!, maxRequestBytes: 8, maxImageRequestBytes: 16,
   }));
   try {
-    await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
-    port = server.address().port;
+    await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
+    port = (server.address() as AddressInfo).port;
     const response = await fetch(`http://127.0.0.1:${port}/v1/chat`, {
       method: 'POST', headers: { 'x-client-test': 'preserved' }, body: 'boundary',
     });
@@ -126,6 +139,6 @@ it('serves a real loopback HTTP request through the extracted adapter', async ()
     expect(service).toHaveBeenCalledOnce();
   } finally {
     server.closeAllConnections();
-    await new Promise(resolve => server.close(resolve));
+    await new Promise<void>(resolve => server.close(resolve as () => void));
   }
 });

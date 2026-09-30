@@ -1,3 +1,5 @@
+import { createOAuthTokenForm } from '../lib/oauth-token-form.js';
+import type { OAuthTokenFields, OAuthTokenFormSpec } from '../lib/oauth-token-form.js';
 import { proxyJsonResponse } from '../lib/proxy-response.js';
 import type { ProxyCaller, ProxyRelayRequest } from '../lib/proxy-policy.js';
 import type { ProxyRequestOptions } from '../lib/proxy-network.js';
@@ -330,7 +332,9 @@ export async function handler(req: Request) {
 // platform can leave the invocation open until timeout.
 export default { fetch: handler };
 
-function proxyUpstreamErrorResponse(req: ProxyCaller, error: unknown, fallback = 'Upstream request failed') {
+function proxyUpstreamErrorResponse(
+  req: ProxyCaller, error: unknown, fallback = 'Upstream request failed',
+) {
   const code = (error as { code?: unknown } | null | undefined)?.code;
   const dnsBlocked = code === 'PROXY_DNS_BLOCKED';
   const timedOut = code === 'PROXY_UPSTREAM_TIMEOUT';
@@ -348,7 +352,9 @@ function proxyUpstreamErrorResponse(req: ProxyCaller, error: unknown, fallback =
   return proxyJsonResponse(req, dnsBlocked ? 403 : (timedOut ? 504 : 502), { error: message });
 }
 
-async function relayGuardedText(url: string, options: ProxyRequestOptions, req: ProxyRelayRequest, fallback: string) {
+async function relayGuardedText(
+  url: string, options: ProxyRequestOptions, req: ProxyRelayRequest, fallback: string,
+) {
   try {
     const response = await fetchWithValidatedRedirects(url, options, { signal: req.signal });
     const body = await readResponseTextWithCap(
@@ -367,60 +373,25 @@ async function relayGuardedText(url: string, options: ProxyRequestOptions, req: 
   }
 }
 
-// OAuth values retain the native URLSearchParams string-conversion contract.
-type OAuthFormConstructor = new (values: Record<string, unknown>) => URLSearchParams;
-interface OAuthTokenFields { code?: unknown; redirect_uri?: unknown; client_id?: unknown; refresh_token?: unknown }
+type OAuthTokenRelaySpec = OAuthTokenFormSpec & {
+  endpoint: string;
+  fallback: string;
+  basicAuth?: boolean;
+};
 
-
-type OAuthFormField = 'action' | 'grant_type' | 'code' | 'redirect_uri' | 'client_id' | 'client_secret' | 'refresh_token' | 'scope';
-interface OAuthTokenRelayBase {
-  provider: 'oura' | 'withings' | 'ultrahuman' | 'whoop' | 'polar' | 'google_health';
-  secret: string; endpoint: string; fallback: string;
-  action?: string; scope?: string; basicAuth?: boolean;
-  exchangeFields?: readonly OAuthFormField[]; refreshFields?: readonly OAuthFormField[];
-}
-
-type OAuthTokenRelaySpec = OAuthTokenRelayBase & (
-  | { clientId: string; clientMismatch: string }
-  | { clientId?: never; clientMismatch?: never }
-);
-
-// Provider specs retain field order as well as endpoint and authentication differences.
-function relayOAuthTokenRequest(payload: Record<string, unknown>, req: ProxyRelayRequest, spec: OAuthTokenRelaySpec) {
-  const exchangeOperation = `${spec.provider}_token_exchange`, refreshOperation = `${spec.provider}_token_refresh`;
-  let values: Record<string, unknown>, clientId: unknown, fields: readonly OAuthFormField[];
-  if (payload[exchangeOperation]) {
-    const { code, redirect_uri, client_id } = payload[exchangeOperation] as OAuthTokenFields;
-    if (!code || !redirect_uri || !client_id) {
-      return proxyJsonResponse(req, 400, { error: `${exchangeOperation} requires code, redirect_uri, client_id` });
-    }
-    if (spec.clientId !== undefined && client_id !== spec.clientId) {
-      return proxyJsonResponse(req, 400, { error: spec.clientMismatch });
-    }
-    clientId = spec.clientId ?? client_id;
-    values = { grant_type: 'authorization_code', code, redirect_uri, client_id: clientId, client_secret: spec.secret };
-    fields = spec.exchangeFields || ['grant_type', 'code', 'redirect_uri', 'client_id', 'client_secret'];
-  } else {
-    const { refresh_token, client_id } = payload[refreshOperation] as OAuthTokenFields;
-    if (!refresh_token || !client_id) {
-      return proxyJsonResponse(req, 400, { error: `${refreshOperation} requires refresh_token, client_id` });
-    }
-    if (spec.clientId !== undefined && client_id !== spec.clientId) {
-      return proxyJsonResponse(req, 400, { error: spec.clientMismatch });
-    }
-    clientId = spec.clientId ?? client_id;
-    values = { grant_type: 'refresh_token', refresh_token, client_id: clientId, client_secret: spec.secret };
-    fields = spec.refreshFields || ['grant_type', 'refresh_token', 'client_id', 'client_secret'];
-  }
-  values.action = spec.action;
-  values.scope = spec.scope;
-  const form = new (URLSearchParams as OAuthFormConstructor)(Object.fromEntries(fields.map(field => [field, values[field]])));
+// Configuration gates stay in each provider handler; both proxy runtimes share the form contract.
+function relayOAuthTokenRequest(
+  payload: Record<string, unknown>, req: ProxyRelayRequest, spec: OAuthTokenRelaySpec,
+) {
+  const grant = payload[`${spec.provider}_token_exchange`] ? 'exchange' : 'refresh';
+  const result = createOAuthTokenForm(payload[`${spec.provider}_token_${grant}`] as OAuthTokenFields, grant, spec);
+  if (!result.ok) return proxyJsonResponse(req, 400, { error: result.error });
   const headers: Record<string, string> = { 'Content-Type': 'application/x-www-form-urlencoded' };
   if (spec.basicAuth) {
     headers.Accept = 'application/json;charset=UTF-8';
-    headers.Authorization = 'Basic ' + btoa(`${clientId}:${spec.secret}`);
+    headers.Authorization = 'Basic ' + btoa(`${result.clientId}:${spec.secret}`);
   }
-  return relayGuardedText(spec.endpoint, { method: 'POST', headers, body: form.toString() }, req, spec.fallback);
+  return relayGuardedText(spec.endpoint, { method: 'POST', headers, body: result.form.toString() }, req, spec.fallback);
 }
 
 // ─── Oura token handler ────────────────────────────────────────────
@@ -436,7 +407,9 @@ async function handleOuraTokenRequest(payload: Record<string, unknown>, req: Pro
   }
 
   return relayOAuthTokenRequest(payload, req, {
-    provider: 'oura', secret, endpoint: 'https://api.ouraring.com/oauth/token', fallback: 'Oura token endpoint unavailable',
+    provider: 'oura', secret,
+    endpoint: 'https://api.ouraring.com/oauth/token',
+    fallback: 'Oura token endpoint unavailable',
   });
 }
 
@@ -455,7 +428,9 @@ async function handleWithingsTokenRequest(payload: Record<string, unknown>, req:
   }
 
   return relayOAuthTokenRequest(payload, req, {
-    provider: 'withings', secret, endpoint: 'https://wbsapi.withings.net/v2/oauth2', fallback: 'Withings token endpoint unavailable',
+    provider: 'withings', secret,
+    endpoint: 'https://wbsapi.withings.net/v2/oauth2',
+    fallback: 'Withings token endpoint unavailable',
     action: 'requesttoken',
     exchangeFields: ['action', 'grant_type', 'client_id', 'client_secret', 'code', 'redirect_uri'],
     refreshFields: ['action', 'grant_type', 'client_id', 'client_secret', 'refresh_token'],
@@ -472,7 +447,9 @@ async function handleUltrahumanTokenRequest(payload: Record<string, unknown>, re
   }
 
   return relayOAuthTokenRequest(payload, req, {
-    provider: 'ultrahuman', secret, endpoint: 'https://partner.ultrahuman.com/api/partners/oauth/token', fallback: 'Ultrahuman token endpoint unavailable',
+    provider: 'ultrahuman', secret,
+    endpoint: 'https://partner.ultrahuman.com/api/partners/oauth/token',
+    fallback: 'Ultrahuman token endpoint unavailable',
     clientId, clientMismatch: 'Ultrahuman client_id does not match this deployment',
     exchangeFields: ['grant_type', 'client_id', 'client_secret', 'code', 'redirect_uri'],
     refreshFields: ['grant_type', 'client_id', 'client_secret', 'refresh_token'],
@@ -489,8 +466,11 @@ async function handleWhoopTokenRequest(payload: Record<string, unknown>, req: Pr
   }
 
   return relayOAuthTokenRequest(payload, req, {
-    provider: 'whoop', secret, endpoint: 'https://api.prod.whoop.com/oauth/oauth2/token', fallback: 'WHOOP token endpoint unavailable',
-    clientId, clientMismatch: 'WHOOP client_id does not match this deployment', scope: 'offline',
+    provider: 'whoop', secret,
+    endpoint: 'https://api.prod.whoop.com/oauth/oauth2/token',
+    fallback: 'WHOOP token endpoint unavailable',
+    clientId, clientMismatch: 'WHOOP client_id does not match this deployment',
+    scope: 'offline',
     refreshFields: ['grant_type', 'refresh_token', 'client_id', 'client_secret', 'scope'],
   });
 }
@@ -505,7 +485,9 @@ async function handlePolarTokenRequest(payload: Record<string, unknown>, req: Pr
   }
 
   return relayOAuthTokenRequest(payload, req, {
-    provider: 'polar', secret, endpoint: 'https://polarremote.com/v2/oauth2/token', fallback: 'Polar token endpoint unavailable', basicAuth: true,
+    provider: 'polar', secret,
+    endpoint: 'https://polarremote.com/v2/oauth2/token',
+    fallback: 'Polar token endpoint unavailable', basicAuth: true,
     exchangeFields: ['grant_type', 'code', 'redirect_uri'], refreshFields: ['grant_type', 'refresh_token'],
   });
 }
@@ -523,6 +505,8 @@ async function handleGoogleHealthTokenRequest(payload: Record<string, unknown>, 
   }
 
   return relayOAuthTokenRequest(payload, req, {
-    provider: 'google_health', secret, endpoint: 'https://oauth2.googleapis.com/token', fallback: 'Google OAuth token endpoint unavailable',
+    provider: 'google_health', secret,
+    endpoint: 'https://oauth2.googleapis.com/token',
+    fallback: 'Google OAuth token endpoint unavailable',
   });
 }

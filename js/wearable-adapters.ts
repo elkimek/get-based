@@ -1,4 +1,3 @@
-// @ts-check
 // wearable-adapters.js — Canonical wearable-metric registry + vendor adapters
 //
 // Contract: the rest of the app reads **canonical** metric ids (hrv_rmssd,
@@ -14,22 +13,60 @@
 //
 import { isOfficialGetbasedHost } from './url-safety.js';
 
-// Shape — adapter:
-//   id              stable lowercase slug; persisted in L1 rows, L2 sources
-//   displayName     human label ("Oura", "WHOOP", "Apple Health")
-//   authType        'pat' | 'oauth' | 'file-import'
-//   authDocsUrl     optional — where the user creates the credential
-//   apiHost         optional — vendor API host; browser-direct where supported,
-//                   otherwise available only through a self-hosted deployment
-//   metrics         { canonicalId: { endpoint, field, transform? } }
-//   accountInfo     optional — endpoint + field to verify credential + show identity
-//
-// Shape — canonical metric:
-//   id              slug used across L1/L2/AI
-//   label           top-row label on card ("HRV")
-//   sub             optional sub-label ("RMSSD", "score")
-//   unit            'ms' | 'bpm' | '%' | '°C' | 'mg/dL' | ''
-//   worseWhen       'up' | 'down' | 'either'  — semantic colour for delta badges
+export interface CanonicalWearableMetric {
+  id: string;
+  label: string;
+  sub: string;
+  unit: string;
+  worseWhen: 'up' | 'down' | 'either';
+  ariaLabel?: string;
+}
+
+export interface WearableOAuthConfig {
+  clientId: string;
+  redirectUris: string[];
+  scopes: string[];
+  pkce?: boolean;
+}
+
+export interface WearableMetricMapping {
+  endpoint?: string;
+  field?: string;
+  measType?: number;
+  transform?: 'sec→min';
+  manual?: true;
+  hkType?: string;
+  window?: 'day';
+}
+
+export interface WearableAdapter {
+  id: string;
+  displayName: string;
+  label?: string; // Optional report metadata; built-in adapters currently omit it.
+  authType: 'pat' | 'oauth2' | 'file-import' | 'manual';
+  authDocsUrl?: string;
+  selfHostDocsUrl?: string;
+  manageAccessUrl?: string;
+  apiHost?: string | null;
+  oauth?: WearableOAuthConfig;
+  metrics: Partial<Record<CanonicalWearableMetricId, WearableMetricMapping>>;
+  accountInfo?: { endpoint: string; identityField: string };
+  beta?: boolean;
+  betaHidden?: boolean;
+  selfHostOnly?: boolean;
+  hostConfiguredOnly?: boolean;
+  experimentalSelfHost?: boolean;
+  legacyMigrationOnly?: boolean;
+  replacementAdapterId?: string;
+  deprecationNotice?: string;
+  integrationKind?: 'aggregator';
+  dataMode?: 'reconciled';
+  privacyNotice?: string;
+}
+
+type WearableOAuthReference = Pick<WearableAdapter, 'id'> & Partial<Pick<WearableAdapter, 'oauth' | 'authType' | 'hostConfiguredOnly' | 'selfHostOnly'>>;
+type WearableAdapterInput = string | WearableOAuthReference | null | undefined;
+type WearableLocation = { hostname?: unknown } | null;
 
 export const CANONICAL_METRICS = {
   // Sleep-window: rMSSD computed during the main sleep period (gold-standard
@@ -94,7 +131,9 @@ export const CANONICAL_METRICS = {
   sleep_breathing_rate: { id: 'sleep_breathing_rate', label: 'Breathing',   sub: 'sleep', unit: 'rpm', worseWhen: 'up'     },
   sleep_snoring_min:    { id: 'sleep_snoring_min',    label: 'Snoring',     sub: '',      unit: 'min', worseWhen: 'up'     },
   sleep_breath_disturb: { id: 'sleep_breath_disturb', label: 'Apnea',       sub: 'level', unit: '',    worseWhen: 'up'     }, // breathing-disturbances intensity 0-100 (Withings + Oura BDI)
-};
+} satisfies Record<string, CanonicalWearableMetric>;
+
+export type CanonicalWearableMetricId = keyof typeof CANONICAL_METRICS;
 
 // For most wearable metrics, 0 is a sentinel for "no measurement" — the
 // vendor emits 0 when the device wasn't worn, signal was lost, or the
@@ -115,9 +154,9 @@ const ZERO_IS_LEGITIMATE_METRICS = new Set([
   'sleep_snoring_min', 'sleep_awake_min',
   'activity_score',
 ]);
-export function isMetricValueMeaningful(metricId, v) {
+export function isMetricValueMeaningful(metricId: unknown, v: unknown) {
   if (typeof v !== 'number' || !isFinite(v)) return false;
-  if (ZERO_IS_LEGITIMATE_METRICS.has(metricId)) return true;
+  if (ZERO_IS_LEGITIMATE_METRICS.has(metricId as string)) return true;
   return v > 0;
 }
 
@@ -172,7 +211,7 @@ export const DEFAULT_METRIC_ORDER = [
   'vo2max',
 ];
 
-export const ADAPTERS = [
+export const ADAPTERS: WearableAdapter[] = [
   {
     id: 'oura',
     displayName: 'Oura',
@@ -554,7 +593,7 @@ export const ADAPTERS = [
 // HELPERS
 // ─────────────────────────────────────────────────────────
 
-export function adapterById(id) {
+export function adapterById(id: unknown) {
   return ADAPTERS.find(a => a.id === id) || null;
 }
 
@@ -573,10 +612,10 @@ export function adapterById(id) {
 // requires an explicit server-computed `configured` flag: Connect is enabled
 // only when that deployment opts in and has both its own client ID and secret.
 
-const _oauthOverrides = Object.create(null);
-const _oauthConfigured = Object.create(null);
+const _oauthOverrides: Record<string, string> = Object.create(null);
+const _oauthConfigured: Record<string, boolean> = Object.create(null);
 
-export function applyOAuthOverrides(overrides) {
+export function applyOAuthOverrides(overrides: unknown) {
   if (!overrides || typeof overrides !== 'object') return;
   for (const [id, clientId] of Object.entries(overrides)) {
     if (typeof clientId === 'string' && clientId.trim()) {
@@ -585,20 +624,20 @@ export function applyOAuthOverrides(overrides) {
   }
 }
 
-export function applyOAuthConfigured(configured) {
+export function applyOAuthConfigured(configured: unknown) {
   if (!configured || typeof configured !== 'object') return;
   for (const [id, value] of Object.entries(configured)) {
     if (typeof value === 'boolean') _oauthConfigured[id] = value;
   }
 }
 
-export function getOAuthClientId(adapterOrId) {
+export function getOAuthClientId(adapterOrId: WearableAdapterInput) {
   const adapter = typeof adapterOrId === 'string' ? adapterById(adapterOrId) : adapterOrId;
   if (!adapter) return null;
   return _oauthOverrides[adapter.id] || adapter.oauth?.clientId || null;
 }
 
-export function isOAuthAdapterConfigured(adapterOrId) {
+export function isOAuthAdapterConfigured(adapterOrId: WearableAdapterInput) {
   const adapter = typeof adapterOrId === 'string' ? adapterById(adapterOrId) : adapterOrId;
   if (!adapter || adapter.authType !== 'oauth2') return false;
   const clientId = getOAuthClientId(adapter);
@@ -610,7 +649,7 @@ export function isOAuthAdapterConfigured(adapterOrId) {
   return true;
 }
 
-export function isWearableRelayUnavailable(adapterOrId, locationLike = globalThis.location) {
+export function isWearableRelayUnavailable(adapterOrId: WearableAdapterInput, locationLike: WearableLocation = globalThis.location) {
   const adapter = typeof adapterOrId === 'string' ? adapterById(adapterOrId) : adapterOrId;
   return Boolean(adapter?.selfHostOnly && isOfficialGetbasedHost(locationLike));
 }
@@ -621,7 +660,7 @@ export function _resetOAuthOverrides() {
   for (const k of Object.keys(_oauthConfigured)) delete _oauthConfigured[k];
 }
 
-export function isWearableDeveloperHost(locationLike = globalThis.location) {
+export function isWearableDeveloperHost(locationLike: WearableLocation = globalThis.location) {
   const hostname = String(locationLike?.hostname || '').toLowerCase();
   return hostname === 'localhost'
     || hostname === '127.0.0.1'
@@ -634,7 +673,7 @@ export function isWearableDeveloperHost(locationLike = globalThis.location) {
 // self-host integrations are visible on configured deployments and localhost,
 // but remain hidden on an unconfigured hosted deployment. Connected sources
 // always stay manageable. The localStorage escape hatch remains for maintainers.
-export function visibleAdapters(connectedIds = [], locationLike = globalThis.location) {
+export function visibleAdapters(connectedIds: readonly string[] = [], locationLike: WearableLocation = globalThis.location) {
   const escape = (() => {
     try { return localStorage.getItem('labcharts-show-beta-wearables') === 'true'; }
     catch { return false; }
@@ -649,19 +688,19 @@ export function visibleAdapters(connectedIds = [], locationLike = globalThis.loc
   // Preserve independent direct integrations as the first-class/default
   // path. Google Health (the Fitbit/Pixel successor and optional hub) follows
   // those providers, ahead of manual and file-import tools.
-  const rank = adapter => adapter.integrationKind === 'aggregator'
+  const rank = (adapter: WearableAdapter) => adapter.integrationKind === 'aggregator'
     ? 1
     : (adapter.authType === 'manual' || adapter.authType === 'file-import' ? 2 : 0);
   return visible.sort((a, b) => rank(a) - rank(b));
 }
 
-export function adapterSupportsMetric(adapterId, metricId) {
+export function adapterSupportsMetric(adapterId: unknown, metricId: string) {
   const a = adapterById(adapterId);
-  return !!a?.metrics?.[metricId];
+  return !!a?.metrics?.[metricId as CanonicalWearableMetricId];
 }
 
 // Return the list of canonical metrics any given adapter can deliver.
-export function adapterMetricIds(adapterId) {
+export function adapterMetricIds(adapterId: unknown) {
   const a = adapterById(adapterId);
   if (!a) return [];
   return Object.keys(a.metrics || {});
@@ -669,17 +708,17 @@ export function adapterMetricIds(adapterId) {
 
 // Union of canonical metrics across a set of connected source ids (preserving
 // DEFAULT_METRIC_ORDER, then appending any extras in registry order).
-export function metricsForSources(sourceIds) {
-  const set = new Set();
+export function metricsForSources(sourceIds: readonly string[]) {
+  const set = new Set<string>();
   for (const sid of sourceIds) for (const m of adapterMetricIds(sid)) set.add(m);
-  const ordered = [];
+  const ordered: string[] = [];
   for (const id of DEFAULT_METRIC_ORDER) if (set.has(id)) ordered.push(id);
   for (const id of set) if (!ordered.includes(id)) ordered.push(id);
   return ordered;
 }
 
-export function canonicalMetric(id) {
-  return CANONICAL_METRICS[id] || null;
+export function canonicalMetric(id: string) {
+  return CANONICAL_METRICS[id as CanonicalWearableMetricId] || null;
 }
 
 // ─────────────────────────────────────────────────────────
@@ -697,7 +736,7 @@ export function isoDay(d = new Date()) {
   return `${y}-${m}-${day}`;
 }
 
-export function daysAgoIso(n) {
+export function daysAgoIso(n: number) {
   const d = new Date();
   d.setDate(d.getDate() - n);
   return isoDay(d);
