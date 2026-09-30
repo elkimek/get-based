@@ -112,3 +112,11 @@ deploy/profile-share/data/
 /js/chat-discussion-callbacks.js
 /js/voice-catalog-storage.js
 /js/voice-provider-catalog.js
+/js/voice-model-catalog.js
+/js/agent-model-catalog.js
+/js/deployment-policy.js
+/tests/helpers/browser-storage.js
+/js/constants.js
+/js/cli-agent-brand-assets.js
+/lib/agent-process-lifecycle.js
+/scripts/pr-test-scope.mjs

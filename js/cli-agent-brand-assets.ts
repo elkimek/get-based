@@ -1,8 +1,9 @@
-// @ts-check
+export type AIOutputIdentity = Partial<Record<'agentId' | 'provider' | 'modelId' | 'model' | 'modelDisplay' | 'error' | 'stopped' | 'truncated', unknown>>;
+
 
 // Small, identification-only marks for locally installed CLI agents.
 // Sources and trademark constraints are recorded in brands/CLI_AGENTS.md.
-const CLI_AGENT_BRAND_ASSETS = Object.freeze({
+const CLI_AGENT_BRAND_ASSETS: Readonly<Record<string, string>> = Object.freeze({
   codex: '/brands/cli-agent-codex.svg',
   claude: '/brands/cli-agent-claude.svg',
   opencode: '/brands/cli-agent-opencode.svg',
@@ -11,21 +12,18 @@ const CLI_AGENT_BRAND_ASSETS = Object.freeze({
   openclaw: '/brands/cli-agent-openclaw.svg',
 });
 
-/** @param {string} agentId */
-export function getCLIAgentBrandAsset(agentId) {
+export function getCLIAgentBrandAsset(agentId: string): string {
   return CLI_AGENT_BRAND_ASSETS[agentId] || '';
 }
 
-/** @param {string} agentId */
-export function renderCLIAgentBrandIcon(agentId) {
+export function renderCLIAgentBrandIcon(agentId: string): string {
   const asset = getCLIAgentBrandAsset(agentId);
   return asset ? `<img src="${asset}" alt="" draggable="false">` : '<span class="local-agent-icon-fallback">CLI</span>';
 }
 
 // Call only for known AI output. This visible attribution is not a watermark,
 // provider attestation, or a claim that imported content has been verified.
-/** @param {{agentId?: unknown, provider?: unknown, modelId?: unknown, model?: unknown, modelDisplay?: unknown, error?: unknown}} [identity] */
-export function getAIOutputAttribution(identity = {}) {
+export function getAIOutputAttribution(identity: AIOutputIdentity = {}): string {
   // Error records contain application/provider diagnostics, not model output.
   // Stopped or truncated responses remain normal output and retain attribution.
   if (identity.error) return '';

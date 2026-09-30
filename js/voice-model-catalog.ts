@@ -1,4 +1,11 @@
-// @ts-check
+export interface LocalVoiceModel {
+  id: string; label: string; language: string; downloadMB: number; license: string; notes: string;
+  optionLabel?: string; multilingual?: boolean; dtype?: string; gpuDownloadMB?: number;
+}
+export interface LocalSttModel extends LocalVoiceModel { optionLabel: string; multilingual: boolean; dtype: string; }
+export interface LocalTtsModel extends LocalVoiceModel { gpuDownloadMB: number; }
+export interface LocalVoice { id: string; name: string; language: string; gender: string; quality: string; }
+
 // voice-model-catalog.js — pinned browser-local voice models and voices.
 
 export const VOICE_RUNTIME_VERSION = '2';
@@ -12,7 +19,7 @@ export const LOCAL_VOICE_BACKENDS = Object.freeze([
 // Compatibility export for callers outside the Voice settings panel.
 export const LOCAL_STT_BACKENDS = LOCAL_VOICE_BACKENDS;
 
-export const LOCAL_STT_MODELS = Object.freeze([
+export const LOCAL_STT_MODELS: readonly [LocalSttModel, ...LocalSttModel[]] = Object.freeze([
   {
     id: 'onnx-community/whisper-small',
     label: 'Whisper Small · Recommended',
@@ -48,7 +55,7 @@ export const LOCAL_STT_MODELS = Object.freeze([
   },
 ]);
 
-export const LOCAL_TTS_MODELS = Object.freeze([
+export const LOCAL_TTS_MODELS: readonly [LocalTtsModel, ...LocalTtsModel[]] = Object.freeze([
   {
     id: 'onnx-community/Kokoro-82M-v1.0-ONNX',
     label: 'Kokoro 82M',
@@ -60,7 +67,7 @@ export const LOCAL_TTS_MODELS = Object.freeze([
   },
 ]);
 
-export const KOKORO_VOICES = Object.freeze([
+export const KOKORO_VOICES: readonly [LocalVoice, ...LocalVoice[]] = Object.freeze([
   { id: 'af_heart', name: 'Heart', language: 'en-US', gender: 'Female', quality: 'A' },
   { id: 'af_bella', name: 'Bella', language: 'en-US', gender: 'Female', quality: 'A-' },
   { id: 'af_nicole', name: 'Nicole', language: 'en-US', gender: 'Female', quality: 'B-' },
@@ -98,16 +105,16 @@ export const VOICE_LANGUAGES = Object.freeze([
   { id: 'zh', label: 'Chinese' },
 ]);
 
-export function getLocalVoice(voiceId) {
+export function getLocalVoice(voiceId?: string): LocalVoice {
   return KOKORO_VOICES.find(voice => voice.id === voiceId) || KOKORO_VOICES[0];
 }
 
-export function getLocalModel(kind, modelId) {
+export function getLocalModel(kind: string, modelId?: string): LocalVoiceModel {
   const models = kind === 'tts' ? LOCAL_TTS_MODELS : LOCAL_STT_MODELS;
   return models.find(model => model.id === modelId) || models[0];
 }
 
-export function getLocalModelStorageCopy(kind, modelId, backend = 'auto') {
+export function getLocalModelStorageCopy(kind: string, modelId: string | undefined, backend = 'auto'): string {
   const model = getLocalModel(kind, modelId);
   if (kind !== 'tts') {
     return `One shared CPU/GPU file · about ${model.downloadMB} MB · ${model.license}`;
@@ -121,7 +128,7 @@ export function getLocalModelStorageCopy(kind, modelId, backend = 'auto') {
   return `Optimized weights · about ${model.downloadMB} MB on CPU or ${model.gpuDownloadMB} MB on GPU`;
 }
 
-export function resolveLocalSttLanguage(modelId, language = 'auto') {
+export function resolveLocalSttLanguage(modelId: string | undefined, language = 'auto'): string {
   const model = getLocalModel('stt', modelId);
   return model.multilingual ? String(language || 'auto') : 'en';
 }

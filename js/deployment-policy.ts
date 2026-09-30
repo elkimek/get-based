@@ -1,4 +1,6 @@
-// @ts-check
+export interface DeploymentOperator { name: string; privacyUrl: string; termsUrl: string; }
+type DeploymentConfiguration = { operator?: Partial<Record<keyof DeploymentOperator, unknown>> };
+
 // deployment-policy.js — operator identity and supplementary policy metadata.
 
 import { isOfficialGetbasedHost } from './url-safety.js';
@@ -9,7 +11,7 @@ const OFFICIAL_OPERATOR = Object.freeze({
   termsUrl: 'https://getbased.health/terms',
 });
 
-function cleanUrl(value) {
+function cleanUrl(value: unknown): string {
   const raw = String(value || '').trim();
   if (!raw) return '';
   try {
@@ -20,13 +22,13 @@ function cleanUrl(value) {
   }
 }
 
-function metaContent(name) {
+function metaContent(name: string): string {
   if (typeof document === 'undefined') return '';
   return String(document.querySelector(`meta[name="${name}"]`)?.getAttribute('content') || '').trim();
 }
 
-function configuredOperator() {
-  const runtime = /** @type {any} */ (globalThis).GETBASED_DEPLOYMENT_CONFIG?.operator || {};
+function configuredOperator(): DeploymentOperator {
+  const runtime = (globalThis as typeof globalThis & { GETBASED_DEPLOYMENT_CONFIG?: DeploymentConfiguration }).GETBASED_DEPLOYMENT_CONFIG?.operator || {};
   return {
     name: String(runtime.name || metaContent('getbased-operator-name') || '').trim(),
     privacyUrl: cleanUrl(runtime.privacyUrl || metaContent('getbased-operator-privacy-url')),
@@ -39,13 +41,13 @@ function configuredOperator() {
  * intentionally applied only on an official getbased host; independent
  * self-hosts never fall back to getbased policies.
  */
-export function getDeploymentOperatorPolicy(locationLike = globalThis.location) {
+export function getDeploymentOperatorPolicy(locationLike: { hostname?: unknown } | null = globalThis.location) {
   const configured = configuredOperator();
   if (configured.name || configured.privacyUrl || configured.termsUrl) return configured;
   return isOfficialGetbasedHost(locationLike) ? { ...OFFICIAL_OPERATOR } : configured;
 }
 
-export function getSupplementaryDeploymentPolicy(locationLike = globalThis.location) {
+export function getSupplementaryDeploymentPolicy(locationLike: { hostname?: unknown } | null = globalThis.location) {
   const policy = getDeploymentOperatorPolicy(locationLike);
   return policy.name || policy.privacyUrl || policy.termsUrl ? policy : null;
 }

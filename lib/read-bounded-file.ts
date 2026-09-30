@@ -1,6 +1,11 @@
 // Read one already-open descriptor, preserving both size bounds and short reads.
 
-export async function readBoundedFile(handle: import('node:fs/promises').FileHandle, limit: number, message: string): Promise<string> {
+export interface BoundedReadableFile {
+  stat(): Promise<{ isFile(): boolean; size: number }>;
+  read(buffer: Buffer, offset: number, length: number, position: number): Promise<{ bytesRead: number }>;
+}
+
+export async function readBoundedFile(handle: BoundedReadableFile, limit: number, message: string): Promise<string> {
   const info = await handle.stat();
   if (!info.isFile() || info.size > limit) throw new Error(message);
   const chunks: Buffer[] = [];

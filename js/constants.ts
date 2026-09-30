@@ -1,4 +1,8 @@
-// @ts-check
+export interface ChatPersonality {
+  id: string; name: string; icon: string; description: string; greeting: string; promptAddition: string | null;
+}
+export interface CountryCentroid { lat: number; lon: number; }
+
 // constants.js — Option arrays, chat personalities, system prompt, country data
 
 export const HAPLOGROUP_LIST = [
@@ -189,7 +193,7 @@ export const PERIOD_SYMPTOMS = [
 ];
 
 // ── Country/Latitude data ──
-export const COUNTRY_LATITUDES = {
+export const COUNTRY_LATITUDES: Record<string, number> = {
   // Tropical (<25°)
   'singapore':0,'malaysia':0,'indonesia':0,'thailand':0,'philippines':0,'colombia':0,'ecuador':0,'peru':0,'venezuela':0,'kenya':0,'nigeria':0,'ghana':0,'cameroon':0,'tanzania':0,'uganda':0,'costa rica':0,'panama':0,'cuba':0,'dominican republic':0,'jamaica':0,'puerto rico':0,'hawaii':0,'india':0,'vietnam':0,'myanmar':0,'cambodia':0,'sri lanka':0,'bangladesh':0,'brazil':0,
   // Subtropical (25-40°)
@@ -211,7 +215,7 @@ export const LATITUDE_BANDS = ['<25° latitude (tropical)', '25-40° (subtropica
 // (device-OS-tz dependent → up to ±15° lon swing → ~hour solar-time error).
 // Coverage matches COUNTRY_LATITUDES; unknown countries fall back to the
 // band-centroid lat + Greenwich (lon=0) — better than a tz-derived guess.
-export const COUNTRY_CENTROIDS = {
+export const COUNTRY_CENTROIDS: Record<string, CountryCentroid> = {
   // Tropical
   'singapore':{lat:1.3,lon:103.8},'malaysia':{lat:4.2,lon:101.9},'indonesia':{lat:-2.5,lon:118.0},'thailand':{lat:15.9,lon:101.0},'philippines':{lat:13.0,lon:122.0},'colombia':{lat:4.6,lon:-74.1},'ecuador':{lat:-1.8,lon:-78.2},'peru':{lat:-9.2,lon:-75.0},'venezuela':{lat:6.4,lon:-66.6},'kenya':{lat:-0.0,lon:37.9},'nigeria':{lat:9.1,lon:8.7},'ghana':{lat:7.9,lon:-1.0},'cameroon':{lat:7.4,lon:12.4},'tanzania':{lat:-6.4,lon:34.9},'uganda':{lat:1.4,lon:32.3},'costa rica':{lat:9.7,lon:-83.8},'panama':{lat:8.5,lon:-80.8},'cuba':{lat:21.5,lon:-77.8},'dominican republic':{lat:18.7,lon:-70.2},'jamaica':{lat:18.1,lon:-77.3},'puerto rico':{lat:18.2,lon:-66.6},'hawaii':{lat:21.1,lon:-157.5},'india':{lat:20.6,lon:78.96},'vietnam':{lat:14.1,lon:108.3},'myanmar':{lat:21.9,lon:95.9},'cambodia':{lat:12.6,lon:104.9},'sri lanka':{lat:7.9,lon:80.8},'bangladesh':{lat:23.7,lon:90.4},'brazil':{lat:-14.2,lon:-51.9},
   // Subtropical
@@ -234,7 +238,7 @@ export const IMPORT_STEPS = [
 ];
 
 // ── Chat personalities & system prompt ──
-export const CHAT_PERSONALITIES = [
+export const CHAT_PERSONALITIES: ChatPersonality[] = [
   {
     id: 'default',
     name: 'AI Lab Analyst',

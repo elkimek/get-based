@@ -1,11 +1,11 @@
 import { expect, it, vi } from 'vitest';
 import { readBoundedFile } from '../lib/read-bounded-file.js';
 
-function descriptor(text, { step = 3, reportedSize = Buffer.byteLength(text), isFile = true } = {}) {
+function descriptor(text: string, { step = 3, reportedSize = Buffer.byteLength(text), isFile = true } = {}) {
   const bytes = Buffer.from(text);
   return {
     stat: vi.fn(async () => ({ isFile: () => isFile, size: reportedSize })),
-    read: vi.fn(async (buffer, offset, length, position) => {
+    read: vi.fn(async (buffer: Buffer, offset: number, length: number, position: number) => {
       const size = Math.min(step, length, bytes.length - position);
       bytes.copy(buffer, offset, position, position + size);
       return { bytesRead: size };
@@ -26,7 +26,7 @@ it('accepts the exact cap and an empty file', async () => {
 it('rejects growth past the cap even when stat reported a small size', async () => {
   const handle = descriptor('1234567890', { reportedSize: 1 });
   await expect(readBoundedFile(handle, 5, 'oversized')).rejects.toThrow('oversized');
-  expect(handle.read.mock.calls.at(-1)[2]).toBe(3);
+  expect(handle.read.mock.calls.at(-1)![2]).toBe(3);
 });
 it('rejects oversized files and non-files without reading', async () => {
   for (const handle of [descriptor('123456'), descriptor('', { isFile: false })]) {

@@ -28,6 +28,7 @@
     "lib/**/*.ts",
     "shared/**/*.ts",
     "scripts/**/*.ts",
+    "scripts/**/*.mts",
     "api/**/*.ts",
     "server/**/*.ts",
     "tests/helpers/**/*.ts"

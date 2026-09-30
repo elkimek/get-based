@@ -56,11 +56,30 @@ describe('TypeScript migration boundaries', () => {
     expect(plan.uncovered).toEqual([]);
   });
 
+  it.each([['mts', 'mjs'], ['cts', 'cjs']] as const)('follows %s imports at unchanged %s runtime paths', (sourceExtension, runtimeExtension) => {
+    const sources = new Map([
+      [`scripts/planner.${sourceExtension}`, 'export const value: number = 1;'],
+      [`scripts/consumer.${sourceExtension}`, `import { value } from './planner.${runtimeExtension}';`],
+      ['tests/consumer.test.ts', `import '../scripts/consumer.${runtimeExtension}';`],
+    ]);
+    const plan = createTestPlan(sources, [`scripts/planner.${sourceExtension}`]);
+    expect(plan.unit).toEqual(['tests/consumer.test.ts']);
+    expect(plan.uncovered).toEqual([]);
+  });
+
+  it('retains shared-runtime browser scope for a TypeScript startup file', () => {
+    const sources = new Map([
+      ['js/startup.ts', 'export const ready = true;'],
+      ['tests/playwright/startup.spec.ts', "test('loads', () => {});"],
+    ]);
+    expect(createTestPlan(sources, ['js/startup.ts']).browser).toEqual(['tests/playwright/startup.spec.ts']);
+  });
+
   it('retains every field in the original agent tool JSON contracts', () => {
     const contract = { catalog: getAgentToolCatalog(), codex: getCodexDynamicTools() };
     expect(createHash('sha256').update(JSON.stringify(contract)).digest('hex')).toBe('91d5ca6b12033a5b2838397b958c9200d25ac95125154295ea6db33f9ca287fa');
-    contract.catalog[0].name = 'caller mutation';
-    expect(getAgentToolCatalog()[0].name).toBe('getbased_lab_context');
+    contract.catalog[0]!.name = 'caller mutation';
+    expect(getAgentToolCatalog()[0]!.name).toBe('getbased_lab_context');
   });
 
   it('measures physical and nonblank lines consistently across file endings', () => {

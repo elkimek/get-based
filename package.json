@@ -47,6 +47,7 @@
     "test:critical-coverage": "vitest run --config vitest.critical.config.js",
     "typescript:build": "node scripts/build-typescript.ts",
     "typecheck:migration": "tsc -p tsconfig.migration.json --noEmit",
+    "typecheck:migration-tests": "tsc -p tsconfig.migration-tests.json",
     "migration:progress": "node scripts/migration-progress.js",
     "migration:check": "node scripts/migration-progress.js --check",
     "pretest": "npm run typescript:build",

@@ -1,3 +1,5 @@
+import { ensureBrowserStorage } from './helpers/browser-storage.js';
+
 // Vitest setup — runs before every test file.
 //
 // Two shims so that the existing node-side test files (which were
@@ -25,73 +27,8 @@ if (typeof globalThis.window === 'undefined') {
 // per-profile config; the real implementation is browser-only. A
 // Map-backed shim is enough for tests that exercise read/write API
 // surfaces without caring about cross-tab persistence.
-function _makeStorage() {
-  const store = new Map();
-  return {
-    getItem: (k) => (store.has(k) ? store.get(k) : null),
-    setItem: (k, v) => { store.set(k, String(v)); },
-    removeItem: (k) => { store.delete(k); },
-    clear: () => { store.clear(); },
-    get length() { return store.size; },
-    key: (i) => Array.from(store.keys())[i] ?? null,
-  };
-}
-// Node 22+ may expose a built-in localStorage that is unusable when
-// --localstorage-file is missing (empty object, no getItem, or a getter
-// that throws on access). Prefer our in-memory shim whenever the Storage
-// API is absent or throws.
-function _readGlobalStorage(name) {
-  try {
-    return globalThis[name];
-  } catch {
-    return null;
-  }
-}
-function _needsStorageShim(storage) {
-  if (!storage) return true;
-  try {
-    if (
-      typeof storage.getItem !== 'function' ||
-      typeof storage.setItem !== 'function' ||
-      typeof storage.removeItem !== 'function' ||
-      typeof storage.clear !== 'function' ||
-      typeof storage.key !== 'function'
-    ) {
-      return true;
-    }
-    storage.getItem('__storage_shim_probe__');
-    return false;
-  } catch {
-    return true;
-  }
-}
-function _installStorageShim(name) {
-  const shim = _makeStorage();
-  const replacement = {
-    configurable: true,
-    writable: true,
-    enumerable: true,
-    value: shim,
-  };
-  try {
-    Object.defineProperty(globalThis, name, replacement);
-    return;
-  } catch {
-    // Accessor-only or non-configurable properties reject defineProperty
-    // in some engines; fall through to assignment when allowed.
-  }
-  try {
-    globalThis[name] = shim;
-  } catch {
-    // Non-configurable accessor — native storage cannot be replaced.
-  }
-}
-function _ensureStorage(name) {
-  if (!_needsStorageShim(_readGlobalStorage(name))) return;
-  _installStorageShim(name);
-}
-_ensureStorage('localStorage');
-_ensureStorage('sessionStorage');
+ensureBrowserStorage('localStorage');
+ensureBrowserStorage('sessionStorage');
 
 // CSS.escape is a browser global used by js/ai-verdict-engine.js when
 // building scroll anchors. Tiny polyfill covers the chars used in

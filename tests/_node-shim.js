@@ -1,3 +1,5 @@
+import { ensureBrowserStorage } from './helpers/browser-storage.js';
+
 // Shared Node-side browser-global shim for the legacy test suite.
 //
 // Tests originally written to run via `node tests/foo.js` need a
@@ -18,80 +20,15 @@
 //
 // The Vitest setup file (_vitest-setup.js) is a near-superset of this
 // — it adds `process.exit` interception and a richer document stub —
-// but the duplication is intentional so tests still run standalone
-// via `node tests/foo.js`. Keep the two in sync if you extend either.
+// and both reuse helpers/browser-storage.ts so standalone tests and Vitest
+// apply the same storage availability and replacement rules.
 
 if (typeof globalThis.window === 'undefined') {
   globalThis.window = globalThis;
 }
 
-function _makeStorage() {
-  const store = new Map();
-  return {
-    getItem: (k) => (store.has(k) ? store.get(k) : null),
-    setItem: (k, v) => { store.set(k, String(v)); },
-    removeItem: (k) => { store.delete(k); },
-    clear: () => { store.clear(); },
-    get length() { return store.size; },
-    key: (i) => Array.from(store.keys())[i] ?? null,
-  };
-}
-// Node 22+ may expose a built-in localStorage that is unusable when
-// --localstorage-file is missing (empty object, no getItem, or a getter
-// that throws on access). Prefer our in-memory shim whenever the Storage
-// API is absent or throws.
-function _readGlobalStorage(name) {
-  try {
-    return globalThis[name];
-  } catch {
-    return null;
-  }
-}
-function _needsStorageShim(storage) {
-  if (!storage) return true;
-  try {
-    if (
-      typeof storage.getItem !== 'function' ||
-      typeof storage.setItem !== 'function' ||
-      typeof storage.removeItem !== 'function' ||
-      typeof storage.clear !== 'function' ||
-      typeof storage.key !== 'function'
-    ) {
-      return true;
-    }
-    storage.getItem('__storage_shim_probe__');
-    return false;
-  } catch {
-    return true;
-  }
-}
-function _installStorageShim(name) {
-  const shim = _makeStorage();
-  const replacement = {
-    configurable: true,
-    writable: true,
-    enumerable: true,
-    value: shim,
-  };
-  try {
-    Object.defineProperty(globalThis, name, replacement);
-    return;
-  } catch {
-    // Accessor-only or non-configurable properties reject defineProperty
-    // in some engines; fall through to assignment when allowed.
-  }
-  try {
-    globalThis[name] = shim;
-  } catch {
-    // Non-configurable accessor — native storage cannot be replaced.
-  }
-}
-function _ensureStorage(name) {
-  if (!_needsStorageShim(_readGlobalStorage(name))) return;
-  _installStorageShim(name);
-}
-_ensureStorage('localStorage');
-_ensureStorage('sessionStorage');
+ensureBrowserStorage('localStorage');
+ensureBrowserStorage('sessionStorage');
 
 if (typeof globalThis.addEventListener !== 'function') {
   const _listeners = new Map();

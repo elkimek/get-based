@@ -22,7 +22,7 @@ export interface ModelReasoningSource {
     supportsReasoningEffort?: unknown;
     supportsReasoning?: unknown;
   } | null;
-  model_spec?: { capabilities?: { supportedReasoningEfforts?: unknown; supportsReasoningEffort?: unknown } | null } | null;
+  model_spec?: { capabilities?: { supportsReasoning?: unknown; supportedReasoningEfforts?: unknown; supportsReasoningEffort?: unknown } | null } | null;
 }
 export interface ModelReasoningCapabilities { efforts: string[]; defaultEffort: string; }
 

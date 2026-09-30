@@ -74,6 +74,18 @@ legacy suites. Assertion expressions remain in the individual tests; counters,
 truthiness, evaluation order, detail coercion and each suite's message separators
 retain their original behavior. The consolidation preserved 6,959 assertion calls.
 
+Authored TypeScript tests are checked with the same strict options through
+`npm run typecheck:migration-tests`. Its no-emit configuration allows imports
+from remaining JavaScript tooling while those tools are being migrated. Runtime
+implementation checking remains separate and never enables `allowJs`.
+
+Model catalogs, deployment metadata, CLI attribution and child-process lifecycle
+now have named contracts. Process observation and bounded-file reads accept only
+the methods they actually use. The test storage availability/replacement logic is
+shared by standalone Node suites and Vitest without changing either harness's
+other browser-global behavior. The affected-test planner is authored as
+`scripts/pr-test-scope.mts`; its emitted CLI remains at the original `.mjs` path.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

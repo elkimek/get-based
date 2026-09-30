@@ -1,4 +1,9 @@
-// @ts-check
+export interface AgentReasoningEffort { reasoningEffort: string; description: string; }
+export interface AgentModel {
+  id: string; model: string; displayName: string; description: string; isDefault: boolean;
+  defaultReasoningEffort: string; supportedReasoningEfforts: AgentReasoningEffort[]; inputModalities: string[];
+}
+
 // Cached, capability-bearing model catalog reported by a local CLI adapter.
 
 export const AGENT_MODEL_CATALOG_KEY = 'labcharts-agent-model-catalog-v1';
@@ -20,47 +25,45 @@ const REASONING_EFFORT_RANK = new Map([
   ['adaptive', 80],
 ]);
 
-/** @param {unknown} value */
-function boundedString(value, maxLength) {
+function boundedString(value: unknown, maxLength: number): string {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
 }
 
-/** @param {unknown} value */
-function normalizeInputModalities(value) {
+function normalizeInputModalities(value: unknown): string[] {
   // Be conservative when an older or third-party adapter omits capabilities:
   // sending an image is allowed only when the companion declares support.
   const source = Array.isArray(value) ? value : ['text'];
   return [...new Set(source.map(item => boundedString(item, 24)).filter(Boolean))];
 }
 
-/** @param {unknown} value */
-function normalizeEfforts(value) {
+function normalizeEfforts(value: unknown): AgentReasoningEffort[] {
   if (!Array.isArray(value)) return [];
-  return value.filter(item => item && typeof item === 'object').map(item => ({
-    reasoningEffort: boundedString(/** @type {any} */ (item).reasoningEffort, 40),
-    description: boundedString(/** @type {any} */ (item).description, 240),
+  return (value as unknown[]).filter(item => item && typeof item === 'object').map(item => ({
+    reasoningEffort: boundedString((item as Record<string, unknown>).reasoningEffort, 40),
+    description: boundedString((item as Record<string, unknown>).description, 240),
   })).filter(item => item.reasoningEffort).sort((left, right) => (
     reasoningEffortRank(left.reasoningEffort) - reasoningEffortRank(right.reasoningEffort)
   ));
 }
 
-function reasoningEffortRank(value) {
+function reasoningEffortRank(value: unknown): number {
   return REASONING_EFFORT_RANK.get(String(value || '').trim().toLowerCase()) ?? 1_000;
 }
 
 /** Keep every provider's effort scale consistent from least to most reasoning. */
-export function sortReasoningEffortValues(values) {
+export function sortReasoningEffortValues<T>(values: T[]): T[];
+export function sortReasoningEffortValues(values: unknown): unknown[];
+export function sortReasoningEffortValues(values: unknown): unknown[] {
   if (!Array.isArray(values)) return [];
-  return values.map((value, index) => ({ value, index })).sort((left, right) => {
+  return (values as unknown[]).map((value, index) => ({ value, index })).sort((left, right) => {
     const byRank = reasoningEffortRank(left.value) - reasoningEffortRank(right.value);
     return byRank || left.index - right.index;
   }).map(item => item.value);
 }
 
-/** @param {unknown} value */
-function normalizeModel(value) {
+function normalizeModel(value: unknown): AgentModel | null {
   if (!value || typeof value !== 'object') return null;
-  const row = /** @type {any} */ (value);
+  const row = value as Record<string, unknown>;
   if (row.available === false || row.enabled === false || row.disabled === true
     || row.unavailable === true || row.missing === true
     || ['disabled', 'offline', 'removed', 'unavailable'].includes(String(row.status || '').trim().toLowerCase())) return null;
@@ -78,13 +81,11 @@ function normalizeModel(value) {
   };
 }
 
-/** @param {ReturnType<typeof normalizeModel>} model @returns {model is NonNullable<ReturnType<typeof normalizeModel>>} */
-function isNormalizedModel(model) {
+function isNormalizedModel(model: AgentModel | null): model is AgentModel {
   return model !== null;
 }
 
-/** @param {unknown} models @param {string} [agentId] @param {string} [targetId] */
-export function cacheAgentModelCatalog(models, agentId = '', targetId = 'local') {
+export function cacheAgentModelCatalog(models: unknown, agentId = '', targetId = 'local'): AgentModel[] {
   const normalized = Array.isArray(models) ? models.map(normalizeModel).filter(isNormalizedModel).slice(0, 500) : [];
   localStorage.setItem(AGENT_MODEL_CATALOG_KEY, JSON.stringify(normalized));
   const owner = boundedString(agentId, 40);
@@ -101,8 +102,7 @@ export function cacheAgentModelCatalog(models, agentId = '', targetId = 'local')
   return normalized;
 }
 
-/** @param {string} [agentId] @param {string} [targetId] */
-export function getCachedAgentModelCatalog(agentId = '', targetId = 'local') {
+export function getCachedAgentModelCatalog(agentId = '', targetId = 'local'): AgentModel[] {
   const expectedOwner = boundedString(agentId, 40);
   if (expectedOwner && localStorage.getItem(AGENT_MODEL_CATALOG_AGENT_KEY) !== expectedOwner) return [];
   const expectedTarget = boundedString(targetId, 80) || 'local';
@@ -116,8 +116,7 @@ export function getCachedAgentModelCatalog(agentId = '', targetId = 'local') {
   }
 }
 
-/** @param {string} [modelId] @param {ReturnType<typeof getCachedAgentModelCatalog>} [models] */
-export function resolveAgentModel(modelId = '', models = getCachedAgentModelCatalog()) {
+export function resolveAgentModel(modelId = '', models: AgentModel[] = getCachedAgentModelCatalog()): AgentModel | null {
   const requested = boundedString(modelId, 160);
   if (requested) return models.find(model => model.id === requested || model.model === requested) || null;
   return models.find(model => model.isDefault)
@@ -125,14 +124,12 @@ export function resolveAgentModel(modelId = '', models = getCachedAgentModelCata
     || null;
 }
 
-/** @param {string} modelId @param {string} modality @param {ReturnType<typeof getCachedAgentModelCatalog>} [models] */
-export function agentModelSupports(modelId, modality, models = getCachedAgentModelCatalog()) {
+export function agentModelSupports(modelId: string, modality: string, models: AgentModel[] = getCachedAgentModelCatalog()): boolean {
   const model = resolveAgentModel(modelId, models);
   return !!model && model.inputModalities.includes(modality);
 }
 
-/** @param {string} modelId @param {ReturnType<typeof getCachedAgentModelCatalog>} [models] */
-export function getAgentModelDisplay(modelId, models = getCachedAgentModelCatalog()) {
+export function getAgentModelDisplay(modelId: string, models: AgentModel[] = getCachedAgentModelCatalog()): string {
   const model = resolveAgentModel(modelId, models);
   return model?.displayName || modelId || 'CLI default';
 }

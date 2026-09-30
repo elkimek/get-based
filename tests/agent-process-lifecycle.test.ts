@@ -1,7 +1,9 @@
 import { EventEmitter } from 'node:events';
+import type { Mock } from 'vitest';
 import { expect, it, vi } from 'vitest';
 import { observeAgentProcess, assertAgentNotAborted } from '../lib/agent-process-lifecycle.js';
-function child() { return Object.assign(new EventEmitter(), { stdin: new EventEmitter(), kill: vi.fn() }); }
+type MockProcess = EventEmitter & { stdin?: EventEmitter; kill: Mock<(signal: 'SIGTERM') => void> };
+function child(): MockProcess { return Object.assign(new EventEmitter(), { stdin: new EventEmitter(), kill: vi.fn<(signal: 'SIGTERM') => void>() }); }
 it.each([0, 2, null])('reports process exit %s without killing an exited child', async code => {
   const process = child(), observer = observeAgentProcess(process);
   process.emit('exit', code);
@@ -11,7 +13,7 @@ it.each([0, 2, null])('reports process exit %s without killing an exited child',
 it.each(['process', 'stdin'])('observes %s errors before a caller starts awaiting', async kind => {
   const process = child(), observer = observeAgentProcess(process);
   const failure = new Error('pipe failure');
-  (kind === 'stdin' ? process.stdin : process).emit('error', failure);
+  (kind === 'stdin' ? process.stdin! : process).emit('error', failure);
   await Promise.resolve();
   await expect(observer.completion).rejects.toBe(failure);
   observer.dispose(); expect(process.kill).toHaveBeenCalledOnce();
