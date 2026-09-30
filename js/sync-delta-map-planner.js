@@ -28,6 +28,7 @@ const CLEARED_VALUE_MAPS = new Set([
 // is real intent that must propagate.
 export async function _planKeyedMapDelta(profileId, mapName, mapObj) {
   const plannedAt = Date.now();
+  /** @type {Partial<import('./sync-delta-surface-config.js').MapIdentityConfig>} */
   const cfg = DELTA_MAP_CONFIG[mapName] || {};
   // keyIdFn: derive itemId from raw key. Default = identity-with-allowlist
   // (rejects unsafe keys including __proto__); custom fns may sanitize

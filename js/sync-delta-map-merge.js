@@ -26,6 +26,7 @@ export async function mergeMapRowsIntoImported(imported, arrayName, arrRows) {
     writeMap(curMap);
   }
   // Same keyIdFn as push so synth-id maps verify correctly.
+  /** @type {Partial<import('./sync-delta-surface-config.js').MapIdentityConfig>} */
   const mapCfg = DELTA_MAP_CONFIG[arrayName] || {};
   const rawKeyIdFn = typeof mapCfg.keyIdFn === 'function'
     ? mapCfg.keyIdFn

@@ -459,9 +459,6 @@
     "js/wearables.js",
     "types/**/*.d.ts",
     "js/**/*.ts",
-    "lib/**/*.ts",
-    "shared/**/*.ts",
-    "api/**/*.ts",
-    "server/**/*.ts"
+    "shared/**/*.ts"
   ]
 }

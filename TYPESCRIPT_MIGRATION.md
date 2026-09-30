@@ -51,6 +51,19 @@ TypeScript 6.0.3, temporarily used only by existing AST tools and the original
 JavaScript debt ratchet. Removing that transitional tooling dependency remains
 part of completing the migration; it is not evidence of a fully migrated project.
 
+## Shared contracts
+
+`js/marker-schema/types.ts` defines the built-in authoring catalog contract;
+category modules validate it with `satisfies` while retaining their inferred keys.
+`js/marker-schema/index.ts` composes the catalog in its original order. The
+runtime catalog generator continues producing the same marker and identity data.
+
+`js/runtime-callbacks.ts` handles the shared Notes and Supplements callback
+configuration contract: omitted slots remain intact, explicitly invalid callbacks
+clear their slots, inherited and unknown keys are ignored, and callers receive an
+independent snapshot for restoration. Feature adapters expose their own named,
+typed actions. Adapters with different configuration semantics remain separate.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

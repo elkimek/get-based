@@ -6,8 +6,11 @@
   },
   "include": [
     "api/**/*.js",
+    "api/**/*.ts",
     "lib/**/*.js",
+    "lib/**/*.ts",
     "server/**/*.js",
+    "server/**/*.ts",
     "dev-server.js"
   ]
 }

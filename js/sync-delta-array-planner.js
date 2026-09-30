@@ -20,6 +20,7 @@ import { getPlannerItemRows } from './sync-delta-planner-context.js';
  */
 export async function _planArrayDelta(profileId, arrayName, items, { explicitTombstoneIds = [] } = {}) {
   const plannedAt = Date.now();
+  /** @type {Partial<import('./sync-delta-surface-config.js').ArrayIdentityConfig>} */
   const cfg = DELTA_ARRAY_CONFIG[arrayName] || {};
   const itemIdFn = typeof cfg.itemIdFn === 'function' ? cfg.itemIdFn : (it => (it && typeof it.id === 'string' ? it.id : null));
   const prev = _readDeltaSnapshot(profileId, arrayName);

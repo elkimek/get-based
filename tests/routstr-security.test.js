@@ -9,20 +9,28 @@ import { getRoutstrSessionKey, saveRoutstrSessionKey } from '../js/routstr-sessi
 import { validateLightningInvoice, verifyRoutstrAnnouncement, bytesHex, tokenAccountKey } from '../js/routstr-validation.js';
 import { schnorr, sha256 } from '../vendor/routstr-crypto.js';
 import { applyAISettings } from '../js/sync-apply.js';
+import { configureSyncRuntimeCallbacks } from '../js/sync-runtime.js';
 import { discoverNodes, setSelectedNodeUrl, clearNodeCache } from '../js/nostr-discovery.js';
 
 const MINT = 'https://mint.getbased.test/Bitcoin';
 const NODE = 'https://node.test';
 const realFetch = globalThis.fetch;
 let stub;
+let previousSyncRuntimeCallbacks;
 beforeEach(() => {
+  // Credential sync owns no UI in this suite. Prevent deferred wallet-panel
+  // imports from issuing balance reads during a later inference assertion.
+  previousSyncRuntimeCallbacks = configureSyncRuntimeCallbacks({ refreshRoutstrBalance: () => false });
   localStorage.clear(); sessionStorage.clear(); clearKeyCache(); clearNodeCache();
   globalThis.indexedDB = new IDBFactory();
   configureApiProviderStorageRuntimeDeps({ encryptedSetItem: encryptedSetCredentialItem });
   stub = installCashuStub();
   globalThis.fetch = vi.fn(async () => { throw new Error('Unexpected network request'); });
 });
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); globalThis.fetch = realFetch; });
+afterEach(() => {
+  configureSyncRuntimeCallbacks(previousSyncRuntimeCallbacks);
+  vi.restoreAllMocks(); vi.unstubAllGlobals(); globalThis.fetch = realFetch;
+});
 async function funded(amount = 100) {
   const wallet = await loadWallet();
   await wallet.setMintUrl(MINT);

@@ -32,6 +32,7 @@ export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows, o
   if (!Array.isArray(curArr)) { curArr = []; writeArr(curArr); }
   // Same itemId derivation push side used. For arrays without `.id`
   // (composite-keyed like changeHistory) this matches the synth-id path.
+  /** @type {Partial<import('./sync-delta-surface-config.js').ArrayIdentityConfig>} */
   const cfg = DELTA_ARRAY_CONFIG[arrayName] || {};
   const rawItemIdFn = typeof cfg.itemIdFn === 'function' ? cfg.itemIdFn : (it => (it && typeof it.id === 'string' ? it.id : null));
   const itemIdFn = (it) => { const id = rawItemIdFn(it); return _isAllowlistSafeId(id) ? id : null; };

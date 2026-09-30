@@ -157,7 +157,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/pii.js',
   '/js/charts-runtime.js',
   '/js/charts.js',
-  '/js/notes-runtime.js',
+  '/js/notes-runtime.js', '/js/runtime-callbacks.js',
   '/js/notes.js',
   '/js/supplement-action-delegates.js',
   '/js/supplement-dashboard.js',
