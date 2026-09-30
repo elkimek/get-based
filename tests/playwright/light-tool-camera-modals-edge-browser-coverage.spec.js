@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?lightToolCameraModalsEdgeCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('lightToolCameraModalsEdgeCoverage');
 
 test('light tool camera modals cover camera fallback calibration flicker cct spectrum and glass paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?lensHardwareCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('lensHardwareCoverage');
 
 test('hardware browser contract detects GPUs and ranks model options', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

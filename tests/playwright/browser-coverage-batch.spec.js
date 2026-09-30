@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?coverageBatch=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('coverageBatch');
 
 test('feedback modal browser contract builds and submits GitHub issue URLs', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

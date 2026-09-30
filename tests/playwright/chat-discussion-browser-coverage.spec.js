@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?chatDiscussionCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('chatDiscussionCoverage');
 
 test('chat discussion state reopens ended current thread in browser', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

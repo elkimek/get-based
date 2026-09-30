@@ -85,14 +85,19 @@ assert('startup-oauth-callbacks.js forwards state to exchangeOpenRouterCode',
 
 // ─── 4. Wearable OAuth pending-state expiry ───
 console.log('\n4. Wearable OAuth expiry');
+const oauthStateSrc = read('js/wearable-oauth-state.js');
 const adapters = ['oura', 'polar', 'ultrahuman', 'whoop', 'withings', 'fitbit', 'google-health'];
 for (const id of adapters) {
   const src = read(`js/wearables-${id}-auth.js`);
   assert(`${id}-auth: expiry check present`,
-    src.includes("Date.now() - pending.startedAt > 10 * 60 * 1000"),
+    src.includes("from './wearable-oauth-state.js'")
+      && src.includes('consumeOAuthCallbackState(urlParams, STATE_KEY,')
+      && oauthStateSrc.includes("typeof pending.startedAt === 'number'")
+      && oauthStateSrc.includes('Date.now() - pending.startedAt > 10 * 60 * 1000'),
     'reject any pending state older than 10 minutes');
   assert(`${id}-auth: expiry returns ok:false`,
-    src.includes("error: 'OAuth flow expired"));
+    src.includes('if (state.ok === false)') && src.includes('return state;')
+      && oauthStateSrc.includes("return { ok: false, error: 'OAuth flow expired"));
 }
 
 // ─── 5. dev-server CORS reflection helper ───

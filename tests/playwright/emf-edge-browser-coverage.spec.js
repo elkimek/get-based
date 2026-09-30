@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?emfEdgeCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('emfEdgeCoverage');
 
 async function openIsolatedEMFPage(page) {
   await page.route('**/emf-edge-browser-coverage', route => route.fulfill({

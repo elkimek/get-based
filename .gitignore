@@ -154,3 +154,15 @@ deploy/profile-share/data/
 /js/proxy-runtime.js
 /lib/companion-http.js
 /lib/companion-listener.js
+/js/wearables-oura-auth.js
+/js/wearables-withings-auth.js
+/js/wearables-whoop-auth.js
+/js/wearables-ultrahuman-auth.js
+/js/wearables-polar-auth.js
+/js/wearables-fitbit-auth.js
+/js/wearables-google-health-auth.js
+/js/wearable-oauth-types.js
+/js/wearables-withings-errors.js
+/js/wearable-oauth-state.js
+/js/wearable-oauth-tokens.js
+/tests/helpers/browser-module-url.js

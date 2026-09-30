@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?chatUiCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('chatUiCoverage');
 
 test('chat image attachments cover previews handlers and lightbox controls', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

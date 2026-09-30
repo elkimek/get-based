@@ -1,12 +1,11 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const axeScriptPath = require.resolve('axe-core/axe.min.js');
 
-function moduleUrl(path) {
-  return `${path}?contextCardsCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('contextCardsCoverage');
 
 function expectAll(outcomes) {
   for (const [name, passed] of Object.entries(outcomes)) {

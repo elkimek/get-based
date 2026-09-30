@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?setupOnboardingCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('setupOnboardingCoverage');
 
 test('Light setup overlay covers location refresh, score, save, edit, and skip paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

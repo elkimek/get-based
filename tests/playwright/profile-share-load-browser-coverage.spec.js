@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?profileShareLoadCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('profileShareLoadCoverage');
 
 async function openIsolatedShareLoadPage(page) {
   await page.route('**/profile-share-load-browser-coverage', route => route.fulfill({

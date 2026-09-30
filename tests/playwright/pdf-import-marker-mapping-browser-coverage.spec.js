@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?pdfImportMarkerMappingCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('pdfImportMarkerMappingCoverage');
 
 async function openIsolatedMarkerMappingPage(page) {
   await page.route('**/pdf-import-marker-mapping-browser-coverage', route => route.fulfill({

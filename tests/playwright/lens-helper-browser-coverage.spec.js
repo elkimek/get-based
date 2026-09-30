@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?lensHelperCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('lensHelperCoverage');
 
 async function openIsolatedLensHelperPage(page) {
   await page.route('**/lens-helper-browser-coverage', route => route.fulfill({

@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?lightSessionsViewEdgeCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('lightSessionsViewEdgeCoverage');
 
 test('light sessions view edge coverage handles empty and compact device history states', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

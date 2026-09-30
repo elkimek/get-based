@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?healthDataLoaderCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('healthDataLoaderCoverage');
 
 async function openBlankPage(page, path) {
   await page.route(`**${path}`, route => route.fulfill({

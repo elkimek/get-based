@@ -1,10 +1,9 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 test.setTimeout(30_000);
 
-function moduleUrl(path) {
-  return `${path}?startupHelpersCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('startupHelpersCoverage');
 
 async function openStartupFixture(page, dependencyRoutes) {
   await page.route('**/startup-helpers-browser-coverage', route => route.fulfill({

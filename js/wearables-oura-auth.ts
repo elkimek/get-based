@@ -1,4 +1,16 @@
-// @ts-check
+import {
+  pickWearableRedirectUri,
+  consumeOAuthCallbackState,
+  isPendingOAuthCallback,
+  randomOAuthState as randomState,
+} from './wearable-oauth-state.js';
+import { normalizeOAuthTokenResponse, refreshWearableConnection } from './wearable-oauth-tokens.js';
+import type {
+  OAuthAuthorizeOptions, OAuthBeginOptions, OAuthRefreshOptions,
+  OAuthTokenBody, OAuthConnection, OAuthCallbackResult,
+  OAuthQuery, OAuthLocation, OAuthError,
+} from './wearable-oauth-types.js';
+
 // wearables-oura-auth.js — Oura OAuth2 server-side flow (browser side)
 //
 // Flow: authorize redirect → code in URL on return → /api/proxy exchanges the
@@ -21,7 +33,6 @@ import {
 const AUTHORIZE_URL = 'https://cloud.ouraring.com/oauth/authorize';
 const PROXY_URL = getProxyApiUrl();
 const STATE_KEY = 'oura-oauth-pending';            // sessionStorage — CSRF state
-const REFRESH_LEAD_MS = 5 * 60 * 1000;             // refresh 5 min before expiry
 const REFRESH_LOCK_KEY = 'oura-oauth-refresh';     // navigator.locks name
 
 // Default scope set — matches the minimum we need for the v1 dashboard strip.
@@ -37,35 +48,19 @@ const REFRESH_LOCK_KEY = 'oura-oauth-refresh';     // navigator.locks name
 //   heart_health → daily_cardiovascular_age
 export const DEFAULT_OURA_SCOPES = ['personal', 'daily', 'heartrate', 'session', 'spo2', 'stress', 'heart_health'];
 
-// ─────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────
-
-function randomState() {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
-}
-
 // The redirect_uri must exactly match what's registered in the Oura developer
 // portal. We pick the registered URI that matches the current origin + path.
-export function pickRedirectUri(registeredUris, locationLike = getWearableAuthLocation()) {
-  const origin = locationLike?.origin;
-  if (!origin) throw new Error('No registered Oura redirect URI matches current origin unknown');
-  // Prefer exact match on origin + pathname; fall back to origin match alone.
-  const hrefBase = origin + locationLike.pathname;
-  const exact = registeredUris.find(u => u === hrefBase || u === hrefBase + '/');
-  if (exact) return exact;
-  const byOrigin = registeredUris.find(u => u.startsWith(origin));
-  if (byOrigin) return byOrigin;
-  throw new Error(`No registered Oura redirect URI matches current origin ${origin}`);
+export function pickRedirectUri(
+  registeredUris: readonly string[], locationLike: OAuthLocation = getWearableAuthLocation(),
+) {
+  return pickWearableRedirectUri(registeredUris, locationLike, 'Oura');
 }
 
 // ─────────────────────────────────────────────────────────
 // Authorize — kicks off the flow
 // ─────────────────────────────────────────────────────────
 
-export function buildAuthorizeUrl({ clientId, redirectUri, scopes = DEFAULT_OURA_SCOPES, state }) {
+export function buildAuthorizeUrl({ clientId, redirectUri, scopes = DEFAULT_OURA_SCOPES, state }: OAuthAuthorizeOptions) {
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
@@ -76,7 +71,7 @@ export function buildAuthorizeUrl({ clientId, redirectUri, scopes = DEFAULT_OURA
   return `${AUTHORIZE_URL}?${params.toString()}`;
 }
 
-export function beginOAuth({ clientId, registeredUris, scopes = DEFAULT_OURA_SCOPES, profileId = null }) {
+export function beginOAuth({ clientId, registeredUris, scopes = DEFAULT_OURA_SCOPES, profileId = null }: OAuthBeginOptions) {
   const state = randomState();
   const redirectUri = pickRedirectUri(registeredUris);
   sessionStorage.setItem(STATE_KEY, JSON.stringify({
@@ -93,33 +88,16 @@ export function beginOAuth({ clientId, registeredUris, scopes = DEFAULT_OURA_SCO
 
 // Returns { ok, tokens, redirectUri, error } — redirectUri is returned so the
 // caller can clean the URL, caller decides what to do with tokens.
-export async function completeOAuthCallback(urlParams) {
-  const code = urlParams.get('code');
-  const returnedState = urlParams.get('state');
-  const errorParam = urlParams.get('error');
-  if (errorParam) return { ok: false, error: errorParam + (urlParams.get('error_description') ? `: ${urlParams.get('error_description')}` : '') };
-  if (!code || !returnedState) return { ok: false, error: 'Missing code or state in callback' };
-
-  const pendingRaw = sessionStorage.getItem(STATE_KEY);
-  if (!pendingRaw) return { ok: false, error: 'No pending Oura OAuth state (link may have been opened in a different tab)' };
-  // Consume state NOW — before any logic that can branch. Prevents a failed
-  // CSRF attempt from being retried against the same stored state.
-  sessionStorage.removeItem(STATE_KEY);
-  let pending;
-  try { pending = JSON.parse(pendingRaw); } catch { return { ok: false, error: 'Corrupt pending state' }; }
-  if (pending.state !== returnedState) return { ok: false, error: 'State mismatch — possible CSRF, aborting' };
-  // Reject stale pending states. 10 minutes covers a slow second-factor on
-  // the provider's auth page; longer than that and the user almost certainly
-  // closed and reopened.
-  if (typeof pending.startedAt === 'number' && Date.now() - pending.startedAt > 10 * 60 * 1000) {
-    return { ok: false, error: 'OAuth flow expired — please try connecting again' };
-  }
+export async function completeOAuthCallback(urlParams: OAuthQuery): Promise<OAuthCallbackResult> {
+  const state = consumeOAuthCallbackState(urlParams, STATE_KEY, 'Oura');
+  if (state.ok === false) return state;
+  const { code, pending } = state;
 
   // Oura's edge (CloudFront in front of cloud.ouraring.com) intermittently
   // 5xx's the /oauth/token endpoint. The auth code is single-use and short-
   // lived, so we retry quickly — 3 tries, exponential backoff — before
   // surfacing the failure to the user.
-  let exchangeRes = null, body;
+  let exchangeRes: Response | null = null, body: OAuthTokenBody | null | undefined;
   for (let attempt = 0; attempt < 3; attempt++) {
     exchangeRes = await fetch(PROXY_URL, {
       method: 'POST',
@@ -148,26 +126,22 @@ export async function completeOAuthCallback(urlParams) {
   }
   return {
     ok: true,
-    tokens: normalizeTokenResponse(body),
+    tokens: normalizeTokenResponse(body!),
     redirectUri: pending.redirectUri,
     profileId: pending.profileId,
   };
 }
 
 // Is the current page load a pending Oura OAuth callback?
-export function isOuraCallback(urlParams) {
-  if (!urlParams.get('state')) return false;
-  const pendingRaw = sessionStorage.getItem(STATE_KEY);
-  if (!pendingRaw) return false;
-  try { return JSON.parse(pendingRaw).state === urlParams.get('state'); }
-  catch { return false; }
+export function isOuraCallback(urlParams: OAuthQuery) {
+  return isPendingOAuthCallback(urlParams, STATE_KEY);
 }
 
 // ─────────────────────────────────────────────────────────
 // Refresh
 // ─────────────────────────────────────────────────────────
 
-export async function refreshTokens({ clientId, refreshToken }) {
+export async function refreshTokens({ clientId, refreshToken }: OAuthRefreshOptions) {
   const res = await fetch(PROXY_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -175,25 +149,17 @@ export async function refreshTokens({ clientId, refreshToken }) {
       oura_token_refresh: { refresh_token: refreshToken, client_id: clientId },
     }),
   });
-  const body = await res.json().catch(() => ({}));
+  const body: OAuthTokenBody = await res.json().catch(() => ({}));
   if (!res.ok) {
-    /** @type {Error & { status?: number }} */
-    const err = new Error(body?.error || body?.error_description || `Refresh failed (${res.status})`);
+        const err: OAuthError = new Error((body?.error || body?.error_description || `Refresh failed (${res.status})`) as string);
     err.status = res.status;
     throw err;
   }
   return normalizeTokenResponse(body);
 }
 
-function normalizeTokenResponse(body) {
-  const expiresIn = typeof body.expires_in === 'number' ? body.expires_in : 86400;
-  return {
-    accessToken: body.access_token,
-    refreshToken: body.refresh_token,
-    expiresAt: Date.now() + (expiresIn * 1000),
-    scope: body.scope || '',
-    tokenType: body.token_type || 'bearer',
-  };
+function normalizeTokenResponse(body: OAuthTokenBody) {
+  return normalizeOAuthTokenResponse(body, { expiresIn: 86400, tokenType: 'bearer' });
 }
 
 // ─────────────────────────────────────────────────────────
@@ -203,42 +169,14 @@ function normalizeTokenResponse(body) {
 // Serialised per-tab so two concurrent API calls don't both try to refresh
 // the same (single-use) refresh token. Across tabs we rely on the connection
 // record being updated in importedData and picked up on next read.
-export async function withFreshToken(connection, clientId, refreshedWrite, readLatest) {
-  const needsRefresh = !connection.accessToken || !connection.expiresAt || (connection.expiresAt - Date.now()) < REFRESH_LEAD_MS;
-  if (!needsRefresh) return connection;
-
-  // Cross-tab lock where available; otherwise just proceed (worst case: both
-  // tabs refresh, Oura rotates the refresh token and the older tab 401s on
-  // next call and recovers by reading the newly-stored connection).
-  const run = async () => {
-    // Re-read latest connection inside the lock — cross-tab race guard. If
-    // another tab already refreshed while we waited for the lock, use ITS
-    // rotated refresh_token; ours (captured pre-lock) is now invalidated.
-    const latest = (readLatest?.() ?? connection);
-    if (latest.expiresAt && (latest.expiresAt - Date.now()) >= REFRESH_LEAD_MS) return latest;
-    if (!latest.refreshToken) {
-      /** @type {Error & { code?: string }} */
-      const e = new Error('No refresh token stored — user must reconnect');
-      e.code = 'needs-reauth';
-      throw e;
-    }
-    const fresh = await refreshTokens({ clientId, refreshToken: latest.refreshToken });
-    // Oura rotates refresh tokens on refresh — persist both.
-    const updated = {
-      ...latest,
-      accessToken: fresh.accessToken,
-      refreshToken: fresh.refreshToken || latest.refreshToken,
-      expiresAt: fresh.expiresAt,
-      scope: fresh.scope || latest.scope,
-    };
-    await refreshedWrite(updated);
-    return updated;
-  };
-
-  if (navigator.locks && typeof navigator.locks.request === 'function') {
-    return navigator.locks.request(REFRESH_LOCK_KEY, { mode: 'exclusive' }, run);
-  }
-  return run();
+export async function withFreshToken(
+  connection: OAuthConnection, clientId: string | null,
+  refreshedWrite: (updated: OAuthConnection) => Promise<unknown> | unknown,
+  readLatest?: (() => OAuthConnection | null | undefined),
+) {
+  return refreshWearableConnection(connection, clientId, refreshedWrite, readLatest, {
+    lockKey: REFRESH_LOCK_KEY, refreshTokens,
+  });
 }
 
 exposeWearableAuthDebug('_ouraAuth', { buildAuthorizeUrl, completeOAuthCallback, isOuraCallback, refreshTokens, withFreshToken }, Boolean(isDebugMode?.()));

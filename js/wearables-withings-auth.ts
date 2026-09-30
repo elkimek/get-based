@@ -1,10 +1,22 @@
-// @ts-check
+import {
+  pickWearableRedirectUri,
+  consumeOAuthCallbackState,
+  isPendingOAuthCallback,
+  randomOAuthState as randomState,
+} from './wearable-oauth-state.js';
+import { normalizeOAuthTokenResponse, refreshWearableConnection } from './wearable-oauth-tokens.js';
+import type {
+  OAuthAuthorizeOptions, OAuthBeginOptions, OAuthRefreshOptions,
+  OAuthTokenBody, OAuthConnection, OAuthCallbackResult,
+  OAuthQuery, OAuthLocation, OAuthError,
+} from './wearable-oauth-types.js';
+
 // wearables-withings-auth.js — Withings OAuth2 server-side flow
 //
 // Withings's OAuth2 is LIKE Oura's but with two non-standard twists:
 //   1. The token endpoint is `https://wbsapi.withings.net/v2/oauth2`
-//      (not /oauth/token), and every POST carries `action=requesttoken`
-//      (or `action=requesttoken2` for refresh) in the form body.
+//      (not /oauth/token). Both exchange and refresh use `action=requesttoken`;
+//      `grant_type` distinguishes the two requests.
 //   2. Responses wrap the real payload in `{ status: 0, body: {…} }` —
 //      status 0 means success; any other integer is an error code.
 //
@@ -19,12 +31,11 @@ import {
   getWearableAuthLocation,
   redirectWearableAuth,
 } from './wearables-auth-runtime.js';
-import { withingsErrorMessage } from './wearables-withings.js';
+import { withingsErrorMessage } from './wearables-withings-errors.js';
 
 const AUTHORIZE_URL = 'https://account.withings.com/oauth2_user/authorize2';
 const PROXY_URL     = getProxyApiUrl();
 const STATE_KEY     = 'withings-oauth-pending';
-const REFRESH_LEAD_MS  = 5 * 60 * 1000;
 const REFRESH_LOCK_KEY = 'withings-oauth-refresh';
 // Withings authorization codes must be exchanged promptly. Never let a
 // stalled proxy hold the startup sequence open until the hosting platform's
@@ -34,24 +45,13 @@ const TOKEN_REQUEST_TIMEOUT_MS = 20_000;
 
 export const DEFAULT_WITHINGS_SCOPES = ['user.info', 'user.metrics', 'user.activity', 'user.sleepevents'];
 
-function randomState() {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+export function pickRedirectUri(
+  registeredUris: readonly string[], locationLike: OAuthLocation = getWearableAuthLocation(),
+) {
+  return pickWearableRedirectUri(registeredUris, locationLike, 'Withings');
 }
 
-export function pickRedirectUri(registeredUris, locationLike = getWearableAuthLocation()) {
-  const origin = locationLike?.origin;
-  if (!origin) throw new Error('No registered Withings redirect URI matches current origin unknown');
-  const hrefBase = origin + locationLike.pathname;
-  const exact = registeredUris.find(u => u === hrefBase || u === hrefBase + '/');
-  if (exact) return exact;
-  const byOrigin = registeredUris.find(u => u.startsWith(origin));
-  if (byOrigin) return byOrigin;
-  throw new Error(`No registered Withings redirect URI matches current origin ${origin}`);
-}
-
-export function buildAuthorizeUrl({ clientId, redirectUri, scopes = DEFAULT_WITHINGS_SCOPES, state }) {
+export function buildAuthorizeUrl({ clientId, redirectUri, scopes = DEFAULT_WITHINGS_SCOPES, state }: OAuthAuthorizeOptions) {
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
@@ -62,7 +62,7 @@ export function buildAuthorizeUrl({ clientId, redirectUri, scopes = DEFAULT_WITH
   return `${AUTHORIZE_URL}?${params.toString()}`;
 }
 
-export function beginOAuth({ clientId, registeredUris, scopes = DEFAULT_WITHINGS_SCOPES, profileId = null }) {
+export function beginOAuth({ clientId, registeredUris, scopes = DEFAULT_WITHINGS_SCOPES, profileId = null }: OAuthBeginOptions) {
   const state = randomState();
   const redirectUri = pickRedirectUri(registeredUris);
   sessionStorage.setItem(STATE_KEY, JSON.stringify({
@@ -73,16 +73,15 @@ export function beginOAuth({ clientId, registeredUris, scopes = DEFAULT_WITHINGS
   redirectWearableAuth(url);
 }
 
-async function withingsTokenRequest(payload) {
+async function withingsTokenRequest(payload: Record<string, unknown>) {
   // AbortController predates AbortSignal.timeout across supported browsers.
   // Build the deadline explicitly so older engines cannot silently fall back
   // to the unbounded request that originally blocked the startup sequence.
   // Keep the deadline around response parsing too: fetch() resolves when
   // headers arrive, while a stalled JSON body can otherwise block forever.
   const controller = new AbortController();
-  let timeout;
-  /** @type {Promise<never>} */
-  const deadline = new Promise((_resolve, reject) => {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_resolve, reject) => {
     timeout = setTimeout(() => {
       const error = new DOMException('Withings token request timed out', 'TimeoutError');
       controller.abort(error);
@@ -96,7 +95,7 @@ async function withingsTokenRequest(payload) {
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
-    let body;
+    let body: OAuthTokenBody;
     try {
       body = await response.json();
     } catch (error) {
@@ -112,11 +111,10 @@ async function withingsTokenRequest(payload) {
   }
 }
 
-function withingsTokenRequestError(error, operation) {
+function withingsTokenRequestError(error: unknown, operation: string) {
   const name = error instanceof Error ? error.name : '';
   const timedOut = name === 'TimeoutError' || name === 'AbortError';
-  /** @type {Error & { code?: string, status?: number }} */
-  const wrapped = new Error(timedOut
+  const wrapped: OAuthError = new Error(timedOut
     ? `Withings ${operation} timed out — please connect Withings again`
     : `Withings ${operation} failed — check your connection and try again`);
   wrapped.code = timedOut ? 'timeout' : 'network';
@@ -124,25 +122,10 @@ function withingsTokenRequestError(error, operation) {
   return wrapped;
 }
 
-export async function completeOAuthCallback(urlParams) {
-  const code = urlParams.get('code');
-  const returnedState = urlParams.get('state');
-  const errorParam = urlParams.get('error');
-  if (errorParam) return { ok: false, error: errorParam + (urlParams.get('error_description') ? `: ${urlParams.get('error_description')}` : '') };
-  if (!code || !returnedState) return { ok: false, error: 'Missing code or state in callback' };
-
-  const pendingRaw = sessionStorage.getItem(STATE_KEY);
-  if (!pendingRaw) return { ok: false, error: 'No pending Withings OAuth state (link may have been opened in a different tab)' };
-  sessionStorage.removeItem(STATE_KEY);
-  let pending;
-  try { pending = JSON.parse(pendingRaw); } catch { return { ok: false, error: 'Corrupt pending state' }; }
-  if (pending.state !== returnedState) return { ok: false, error: 'State mismatch — possible CSRF, aborting' };
-  // Reject stale pending states. 10 minutes covers a slow second-factor on
-  // the provider's auth page; longer than that and the user almost certainly
-  // closed and reopened.
-  if (typeof pending.startedAt === 'number' && Date.now() - pending.startedAt > 10 * 60 * 1000) {
-    return { ok: false, error: 'OAuth flow expired — please try connecting again' };
-  }
+export async function completeOAuthCallback(urlParams: OAuthQuery): Promise<OAuthCallbackResult> {
+  const state = consumeOAuthCallbackState(urlParams, STATE_KEY, 'Withings');
+  if (state.ok === false) return state;
+  const { code, pending } = state;
 
   let tokenResult;
   try {
@@ -158,8 +141,7 @@ export async function completeOAuthCallback(urlParams) {
   }
   const { response: res, body } = tokenResult;
   if (!res.ok) return { ok: false, error: body?.error || body?.error_description || `Token exchange failed (${res.status})` };
-  // Withings wraps successful responses in `{status: 0, body: {...}}` —
-  // the proxy unwraps so we receive the plain token object.
+  // Accept both `{status: 0, body: {...}}` and plain token responses.
   if (body?.status !== undefined && body.status !== 0) {
     return { ok: false, error: `Withings error ${body.status}: ${body.error || 'unknown'}` };
   }
@@ -171,15 +153,11 @@ export async function completeOAuthCallback(urlParams) {
   };
 }
 
-export function isWithingsCallback(urlParams) {
-  if (!urlParams.get('state')) return false;
-  const pendingRaw = sessionStorage.getItem(STATE_KEY);
-  if (!pendingRaw) return false;
-  try { return JSON.parse(pendingRaw).state === urlParams.get('state'); }
-  catch { return false; }
+export function isWithingsCallback(urlParams: OAuthQuery) {
+  return isPendingOAuthCallback(urlParams, STATE_KEY);
 }
 
-export async function refreshTokens({ clientId, refreshToken }) {
+export async function refreshTokens({ clientId, refreshToken }: OAuthRefreshOptions) {
   let tokenResult;
   try {
     tokenResult = await withingsTokenRequest({
@@ -190,14 +168,12 @@ export async function refreshTokens({ clientId, refreshToken }) {
   }
   const { response: res, body } = tokenResult;
   if (!res.ok) {
-    /** @type {Error & { status?: number }} */
-    const err = new Error(body?.error || body?.error_description || `Refresh failed (${res.status})`);
+        const err: OAuthError = new Error((body?.error || body?.error_description || `Refresh failed (${res.status})`) as string);
     err.status = res.status; throw err;
   }
   if (body?.status !== undefined && body.status !== 0) {
     const mapped = withingsErrorMessage(body.status);
-    /** @type {Error & { status?: number, withingsCode?: number }} */
-    const err = new Error(mapped
+    const err: OAuthError = new Error(mapped
       ? `Withings ${body.status}: ${mapped}`
       : `Withings refresh error ${body.status}: ${body.error || 'unknown'}`);
     const authDead = new Set([100, 101, 102, 243, 245, 283, 284]);
@@ -208,49 +184,18 @@ export async function refreshTokens({ clientId, refreshToken }) {
   return normalizeTokenResponse(body.body || body);
 }
 
-function normalizeTokenResponse(body) {
-  // Withings fields: access_token, refresh_token, userid, scope, expires_in,
-  // token_type.  expires_in defaults to 10800 (3 hours) — refresh early.
-  const expiresIn = typeof body.expires_in === 'number' ? body.expires_in : 10800;
-  return {
-    accessToken: body.access_token,
-    refreshToken: body.refresh_token,
-    expiresAt: Date.now() + (expiresIn * 1000),
-    scope: body.scope || '',
-    tokenType: body.token_type || 'Bearer',
-    userId: body.userid || null,
-  };
+function normalizeTokenResponse(body: OAuthTokenBody) {
+  return normalizeOAuthTokenResponse(body, { expiresIn: 10800, tokenType: 'Bearer', userId: 'withings' });
 }
 
-export async function withFreshToken(connection, clientId, refreshedWrite, readLatest) {
-  const needsRefresh = !connection.accessToken || !connection.expiresAt || (connection.expiresAt - Date.now()) < REFRESH_LEAD_MS;
-  if (!needsRefresh) return connection;
-
-  const run = async () => {
-    const latest = (readLatest?.() ?? connection);
-    if (latest.expiresAt && (latest.expiresAt - Date.now()) >= REFRESH_LEAD_MS) return latest;
-    if (!latest.refreshToken) {
-      /** @type {Error & { code?: string }} */
-      const e = new Error('No refresh token stored — user must reconnect');
-      e.code = 'needs-reauth'; throw e;
-    }
-    const fresh = await refreshTokens({ clientId, refreshToken: latest.refreshToken });
-    const updated = {
-      ...latest,
-      accessToken: fresh.accessToken,
-      refreshToken: fresh.refreshToken || latest.refreshToken, // Withings rotates, prefer fresh
-      expiresAt: fresh.expiresAt,
-      scope: fresh.scope || latest.scope,
-      userId: fresh.userId || latest.userId,
-    };
-    await refreshedWrite(updated);
-    return updated;
-  };
-
-  if (navigator.locks && typeof navigator.locks.request === 'function') {
-    return navigator.locks.request(REFRESH_LOCK_KEY, { mode: 'exclusive' }, run);
-  }
-  return run();
+export async function withFreshToken(
+  connection: OAuthConnection, clientId: string | null,
+  refreshedWrite: (updated: OAuthConnection) => Promise<unknown> | unknown,
+  readLatest?: (() => OAuthConnection | null | undefined),
+) {
+  return refreshWearableConnection(connection, clientId, refreshedWrite, readLatest, {
+    lockKey: REFRESH_LOCK_KEY, refreshTokens, updateUserId: true,
+  });
 }
 
 exposeWearableAuthDebug('_withingsAuth', { buildAuthorizeUrl, completeOAuthCallback, isWithingsCallback, refreshTokens, withFreshToken }, Boolean(isDebugMode?.()));

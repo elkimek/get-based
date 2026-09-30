@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?settingsSyncSetupCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('settingsSyncSetupCoverage');
 
 async function openIsolatedSyncSetupPage(page) {
   await page.route('**/settings-sync-setup-browser-coverage', route => route.fulfill({

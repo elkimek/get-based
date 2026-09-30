@@ -6,7 +6,7 @@ import {
 } from '../js/wearables-withings-auth.js';
 
 const realFetch = globalThis.fetch;
-let savedAbortSignalTimeoutDescriptor;
+let savedAbortSignalTimeoutDescriptor: PropertyDescriptor | undefined;
 
 function storePendingCallback() {
   sessionStorage.setItem('withings-oauth-pending', JSON.stringify({
@@ -29,7 +29,7 @@ afterEach(() => {
   if (savedAbortSignalTimeoutDescriptor) {
     Object.defineProperty(AbortSignal, 'timeout', savedAbortSignalTimeoutDescriptor);
   } else {
-    delete AbortSignal.timeout;
+    delete (AbortSignal as Partial<typeof AbortSignal>).timeout;
   }
   vi.restoreAllMocks();
 });
@@ -41,11 +41,11 @@ describe('Withings OAuth proxy failures', () => {
       configurable: true,
       value: undefined,
     });
-    let requestSignal;
+    let requestSignal: AbortSignal | null | undefined;
     globalThis.fetch = vi.fn((_url, init) => {
-      requestSignal = init.signal;
-      return new Promise((_resolve, reject) => {
-        init.signal.addEventListener('abort', () => reject(init.signal.reason), { once: true });
+      requestSignal = init!.signal;
+      return new Promise<Response>((_resolve, reject) => {
+        init!.signal!.addEventListener('abort', () => reject(init!.signal!.reason), { once: true });
       });
     });
     storePendingCallback();
@@ -57,7 +57,7 @@ describe('Withings OAuth proxy failures', () => {
     const result = await resultPromise;
 
     expect(requestSignal).toBeInstanceOf(AbortSignal);
-    expect(requestSignal.aborted).toBe(true);
+    expect(requestSignal!.aborted).toBe(true);
     expect(result).toEqual({
       ok: false,
       error: 'Withings token exchange timed out — please connect Withings again',
@@ -82,11 +82,9 @@ describe('Withings OAuth proxy failures', () => {
 
   it('keeps the callback deadline active while the response body is pending', async () => {
     vi.useFakeTimers();
-    globalThis.fetch = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      json: () => new Promise(() => {}),
-    }));
+    const response = new Response('{}', { status: 200 });
+    vi.spyOn(response, 'json').mockImplementation(() => new Promise<never>(() => {}));
+    globalThis.fetch = vi.fn(async () => response);
     storePendingCallback();
 
     const resultPromise = completeOAuthCallback(

@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?chatSummaryCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('chatSummaryCoverage');
 
 async function openIsolatedSummaryPage(page) {
   await page.route('**/chat-summary-browser-coverage', route => route.fulfill({

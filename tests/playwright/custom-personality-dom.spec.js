@@ -1,3 +1,4 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 test.beforeEach(async ({ page }) => {
@@ -7,9 +8,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-function moduleUrl(path) {
-  return `${path}?customPersonalityCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('customPersonalityCoverage');
 
 test('custom personality DOM renders editor controls and delegated discuss action', async ({ page }) => {
   const expectedOutcomeKeys = [

@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?sunBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('sunBrowserCoverage');
 
 const FORMER_SUN_GLOBALS = [
   'SUN_ENGINE_VERSION', '_refreshSunSurfaces', 'quickLogSunSession', 'startSession', 'stopSession',

@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?reportExportCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('reportExportCoverage');
 
 test('report builder modal delegates presets categories AI state and preview export', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

@@ -16,6 +16,9 @@
 // /v2/heart use `startdateymd`/`enddateymd`. Everything is day-granular on
 // our side — we reduce intra-day samples before writing to L1.
 
+import { withingsErrorMessage } from './wearables-withings-errors.js';
+export { withingsErrorMessage } from './wearables-withings-errors.js';
+
 import { getErrorMessage, getErrorStatus } from './caught-error.js';
 import { getProxyApiUrl } from './proxy-runtime.js';
 import { isDebugMode } from './utils.js';
@@ -73,67 +76,6 @@ const SLEEP_DATA_FIELDS = [
   'hr_average', 'hr_min', 'hr_max', 'rr_average',
   'sleep_score', 'snoring', 'breathing_disturbances_intensity',
 ].join(',');
-
-// Withings status codes → friendly messages. Source: Withings Developer
-// documentation error-code table (https://developer.withings.com/api-reference/#section/Response-status).
-// We surface the most common ones; unmapped codes fall through to the raw number.
-const WITHINGS_ERROR_MESSAGES = {
-  100: 'Access token invalid or expired — reconnect Withings',
-  101: 'Access token missing from request',
-  102: 'Access token expired — refresh required',
-  200: 'Invalid service — endpoint not recognised',
-  201: 'Invalid parameters — likely an app bug, please report',
-  214: 'Missing required parameter',
-  215: 'Invalid email',
-  216: 'Invalid username or password',
-  217: 'Invalid MAC address',
-  219: 'User not found',
-  220: 'Incorrect hash',
-  221: 'Invalid email or user already exists',
-  223: 'Invalid or expired reset token',
-  225: 'Operation not permitted for this user',
-  227: 'Subscription required for this operation',
-  230: 'Invalid signature — app credentials may be wrong',
-  232: 'This feature is disabled for your account',
-  233: 'Invalid request — action not recognised',
-  234: 'Too many attempts — please wait and try again',
-  235: 'Invalid date',
-  236: 'Password too short',
-  237: 'Invalid model',
-  238: 'Operation not permitted',
-  239: 'Invalid device type',
-  240: 'Device already exists',
-  241: 'Invalid MAC address',
-  242: 'Device not found',
-  243: 'Session has expired — reconnect Withings',
-  244: 'Invalid session',
-  245: 'Invalid code — reconnect Withings',
-  246: 'Too many login attempts — please wait',
-  247: 'Invalid group',
-  248: 'Invalid user agent',
-  250: 'Developer account not associated with this app',
-  251: 'Invalid grant — authorization code may be expired or already used',
-  283: 'Token has already been used — reconnect Withings',
-  284: 'Token not found — reconnect Withings',
-  286: 'Notification is still valid',
-  293: 'Rate limit exceeded — please wait a few minutes',
-  294: 'Invalid scope — missing permission for this data',
-  302: 'Invalid authorization token',
-  303: 'Invalid authorization scope',
-  305: 'Invalid IP',
-  342: 'Signature mismatch',
-  343: 'Too many requests — rate limited',
-  400: 'Bad request',
-  500: 'Withings server error — please try again',
-  503: 'Withings service unavailable — please try again',
-  601: 'Too many requests — rate limited',
-};
-
-export function withingsErrorMessage(code) {
-  const n = Number(code);
-  if (!Number.isFinite(n)) return null;
-  return WITHINGS_ERROR_MESSAGES[n] || null;
-}
 
 async function withingsPOST(action, accessToken, params = {}) {
   // Withings accepts either x-www-form-urlencoded body OR query string. Form

@@ -133,6 +133,22 @@ changing catalog values or ordering. Companion HTTP and listener recovery expose
 only the methods they consume. Their strict TypeScript suites cover real loopback
 requests, declared and streamed caps, disconnects, port fallback and cleanup.
 
+All seven wearable OAuth modules now use strict TypeScript contracts. Shared
+state helpers retain redirect selection, nonce sizes, callback query reads,
+consume-before-parse CSRF handling and expiry checks. A synchronous refresh
+coordinator retains existing async wrappers, lock names, rotated-token writes,
+Polar's no-refresh path and Google's additional lock/credential checks. Token
+normalization retains each provider's raw fields, defaults and user-ID handling.
+The original and consolidated implementations matched 3,115 scenarios, including
+storage/getter/fetch traces, object identity, property order and promise turns.
+Withings deadline regressions are also authored as strict TypeScript. Its error
+catalog is shared directly, removing the auth module's dependency on data fetching.
+
+Browser suites share a strict TypeScript cache-URL factory. Eighty-seven identical
+helpers were removed; their namespaces, URL bytes, clock/random evaluation order
+and callable shape matched in 1,566 differential scenarios. Suite assertions and
+coverage cases retain their original scope.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

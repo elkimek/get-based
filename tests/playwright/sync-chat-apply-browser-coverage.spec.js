@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?syncChatApplyCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('syncChatApplyCoverage');
 
 test('sync chat apply covers browser storage merge tombstone lock and encryption paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

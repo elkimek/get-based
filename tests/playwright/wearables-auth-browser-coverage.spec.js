@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?wearablesAuthCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('wearablesAuthCoverage');
 
 test('confidential wearable OAuth modules cover callback refresh and token guards', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?backupBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('backupBrowserCoverage');
 
 test('backup browser coverage exercises export import auto backup and folder states', async ({ page }) => {
   let backupCycleRequests = 0;

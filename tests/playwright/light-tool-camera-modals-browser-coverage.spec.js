@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?lightToolCameraModalsCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('lightToolCameraModalsCoverage');
 
 test('light tool camera modals cover ambient sensor lux and darkness success paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

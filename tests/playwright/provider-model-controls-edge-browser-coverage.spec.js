@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?providerModelControlsEdgeCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('providerModelControlsEdgeCoverage');
 
 test('provider model controls edge coverage handles pricing updates guards and manual validation', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

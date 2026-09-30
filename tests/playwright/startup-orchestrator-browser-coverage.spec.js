@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?startupOrchestratorCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('startupOrchestratorCoverage');
 
 async function openStartupOrchestratorPage(page) {
   await page.route('**/startup-orchestrator-browser-coverage', route => route.fulfill({

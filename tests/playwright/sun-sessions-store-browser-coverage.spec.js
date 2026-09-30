@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?sunSessionsStoreCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('sunSessionsStoreCoverage');
 
 test('sun sessions store browser coverage exercises lifecycle edits hydration and deletion', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

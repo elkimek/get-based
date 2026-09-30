@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?syncDiagnoseIdentityActionsCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('syncDiagnoseIdentityActionsCoverage');
 
 test('sync diagnose identity actions cover rotate modal and apply paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

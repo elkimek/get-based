@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?geneticsStylesheetCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('geneticsStylesheetCoverage');
 
 async function openGeneticsLoaderPage(page, path) {
   await page.route(`**${path}`, route => route.fulfill({

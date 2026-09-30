@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?chatOnboardingCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('chatOnboardingCoverage');
 
 test('chat onboarding provider import and profile helpers cover browser paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

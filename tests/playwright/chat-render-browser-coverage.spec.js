@@ -1,8 +1,7 @@
+import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
-function moduleUrl(path) {
-  return `${path}?chatRenderCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+const moduleUrl = createModuleUrl('chatRenderCoverage');
 
 test('chat render browser coverage handles lens sources and rich transcript UI', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
