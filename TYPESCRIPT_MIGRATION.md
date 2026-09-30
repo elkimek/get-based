@@ -168,6 +168,25 @@ expired state without exchanging credentials. New runtime helpers are included
 in the offline cache graph. DOM inventory updates preserve all reviewed sink
 fingerprints and counts.
 
+
+The Oura, Withings and Google Health data layers are also strict native TypeScript;
+all seven OAuth providers and data adapters now have typed wire and canonical-row
+contracts. Before consolidation, the three additional emitted runtime syntax trees
+matched their originals. Google reconciled metric families share date attribution
+and assignment through typed provider aliases/readers; Withings shares the existing
+base-row constructor while retaining additional fields and order. A 297-scenario
+comparison matched request bytes, property reads, errors, dates and conversions,
+including missing data, pagination, denied scopes and raw numeric coercion.
+
+Twenty-four runtime suites share descriptor-safe global snapshots and restoration;
+21 also share the identical setter. Custom storage and application-state cleanup
+stays in each suite. The extraction matched 480 scenarios involving accessors,
+hidden/read-only/fixed descriptors, duplicate/mutated keys and repeated restoration.
+The existing nine-case Google Health adapter/OAuth integration suite is authored
+and checked as strict TypeScript. Its existing three-case privacy/source-precedence
+suite remains intact in a separate JavaScript file while its storage and summary
+implementations are awaiting migration; no cases or assertions were removed.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

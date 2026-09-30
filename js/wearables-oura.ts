@@ -1,4 +1,25 @@
-// @ts-check
+import type { WearableDailyRow, WearableErrorBody, WearableRequestError, WearableQuery, WearableQueryConstructor } from './wearable-data-types.js';
+
+type OuraMetric = 'hrv_rmssd' | 'rhr' | 'hrv_day' | 'hr_day' | 'sleep_score' | 'readiness_score'
+  | 'activity_score' | 'steps' | 'stress_high_min' | 'resilience_level' | 'cardio_age'
+  | 'spo2_avg' | 'body_temp_delta' | 'glucose_avg' | 'sleep_breath_disturb' | 'vo2max';
+type OuraDailyRow = WearableDailyRow<'oura', OuraMetric> & { sleep_start_at?: string; sleep_end_at?: string };
+interface OuraTimeSeries { items?: unknown[] }
+interface OuraRecord {
+  day?: string; total_sleep_duration?: number; duration?: number;
+  bedtime_start?: unknown; start_datetime?: unknown; start?: unknown;
+  bedtime_end?: unknown; end_datetime?: unknown; end?: unknown;
+  average_hrv?: unknown; lowest_heart_rate?: unknown; hrv_samples?: unknown;
+  hrv?: OuraTimeSeries | null; heart_rate?: OuraTimeSeries | null;
+  score?: unknown; temperature_deviation?: unknown;
+  spo2_percentage?: number | { average?: unknown } | null;
+  breathing_disturbance_index?: unknown; steps?: unknown; stress_high?: unknown;
+  level?: unknown; vascular_age?: unknown; vo2_max?: unknown;
+  source?: unknown; bpm?: unknown; timestamp?: unknown;
+}
+interface OuraPage { data?: OuraRecord[]; next_token?: string | null }
+interface OuraProfile { email?: unknown; age?: unknown; weight?: unknown; height?: unknown; biological_sex?: unknown }
+
 // wearables-oura.js — Oura API data-layer (OAuth2 server-side flow)
 //
 // Pure data-layer: talks to Oura's /v2/usercollection/* endpoints via the
@@ -21,8 +42,8 @@ const PROXY_URL = getProxyApiUrl();
 // Transport
 // ─────────────────────────────────────────────────────────
 
-async function ouraGET(path, accessToken, params = {}) {
-  const qs = new URLSearchParams(params).toString();
+async function ouraGET<T>(path: string, accessToken: string, params: WearableQuery = {}): Promise<T> {
+  const qs = new (URLSearchParams as unknown as WearableQueryConstructor)(params).toString();
   const url = `${OURA_API}/${path.replace(/^\//, '')}${qs ? '?' + qs : ''}`;
   const res = await fetch(PROXY_URL, {
     method: 'POST',
@@ -34,11 +55,10 @@ async function ouraGET(path, accessToken, params = {}) {
     }),
   });
   if (!res.ok) {
-    let err;
+    let err: WearableErrorBody | null;
     try { err = await res.json(); } catch { err = { error: res.statusText }; }
     const msg = err?.detail || err?.error || res.statusText || 'Oura request failed';
-    /** @type {Error & { status?: number }} */
-    const e = new Error(msg);
+    const e: WearableRequestError = new Error(msg as string);
     e.status = res.status;
     throw e;
   }
@@ -47,13 +67,13 @@ async function ouraGET(path, accessToken, params = {}) {
 
 // Collect every page of a paginated collection endpoint. Oura returns
 // `{ data: [...], next_token }` — we loop until next_token is null/empty.
-async function ouraCollect(path, accessToken, params) {
-  const all = [];
-  let nextToken = null;
+async function ouraCollect(path: string, accessToken: string, params: WearableQuery): Promise<OuraRecord[]> {
+  const all: OuraRecord[] = [];
+  let nextToken: string | null = null;
   let pages = 0;
   do {
-    const p = nextToken ? { ...params, next_token: nextToken } : params;
-    const page = await ouraGET(path, accessToken, p);
+    const p: WearableQuery = nextToken ? { ...params, next_token: nextToken } : params;
+    const page: OuraPage = await ouraGET<OuraPage>(path, accessToken, p);
     if (Array.isArray(page?.data)) all.push(...page.data);
     nextToken = page?.next_token || null;
     pages++;
@@ -65,8 +85,8 @@ async function ouraCollect(path, accessToken, params) {
 // Heartrate endpoint caps the time range at 30 days per request — anything
 // larger gets a 400 "Timerange ... has to be less than or equal to 30 days".
 // Walk the requested window in 30-day chunks and concatenate.
-async function ouraCollectHeartrate(accessToken, startDt, endDt) {
-  const out = [];
+async function ouraCollectHeartrate(accessToken: string, startDt: string, endDt: string): Promise<OuraRecord[]> {
+  const out: OuraRecord[] = [];
   const startMs = Date.parse(startDt);
   const endMs   = Date.parse(endDt);
   if (!isFinite(startMs) || !isFinite(endMs) || endMs <= startMs) return out;
@@ -93,9 +113,9 @@ async function ouraCollectHeartrate(accessToken, startDt, endDt) {
 // Account info (replaces the PAT-era verifyOuraPAT)
 // ─────────────────────────────────────────────────────────
 
-export async function fetchOuraPersonalInfo(accessToken) {
+export async function fetchOuraPersonalInfo(accessToken: string) {
   try {
-    const info = await ouraGET('v2/usercollection/personal_info', accessToken);
+    const info = await ouraGET<OuraProfile>('v2/usercollection/personal_info', accessToken);
     return {
       ok: true,
       account: {
@@ -118,8 +138,8 @@ export async function fetchOuraPersonalInfo(accessToken) {
 // Pick the longest sleep session per day — Oura's /sleep endpoint returns
 // one row per sleep period (nap + main). HRV/HR for the "main" night is
 // the most useful signal.
-function bestSessionPerDay(sessions) {
-  const byDay = new Map();
+function bestSessionPerDay(sessions: readonly OuraRecord[]) {
+  const byDay = new Map<string, OuraRecord>();
   for (const s of sessions) {
     const day = s?.day;
     if (!day) continue;
@@ -130,9 +150,9 @@ function bestSessionPerDay(sessions) {
   return byDay;
 }
 
-function meanOrNull(arr) {
+function meanOrNull(arr: unknown) {
   if (!Array.isArray(arr) || arr.length === 0) return null;
-  const nums = arr.map(v => (typeof v === 'object' && v !== null) ? v.value : v).filter(v => typeof v === 'number' && isFinite(v));
+  const nums = arr.map((v: unknown) => (typeof v === 'object' && v !== null) ? (v as { value?: unknown }).value : v).filter((v): v is number => typeof v === 'number' && isFinite(v));
   if (nums.length === 0) return null;
   return nums.reduce((a, b) => a + b, 0) / nums.length;
 }
@@ -142,16 +162,16 @@ function meanOrNull(arr) {
 // indicate "no measurement" (e.g. movement / poor signal) and must be
 // excluded from the mean — counting them as zero would drag a 45 ms HRV
 // down to 20 ms. Returns null when no valid samples exist.
-function timeSeriesMean(obj) {
+function timeSeriesMean(obj: OuraTimeSeries | null | undefined) {
   if (!obj || !Array.isArray(obj.items) || obj.items.length === 0) return null;
-  const nums = obj.items.filter(v => typeof v === 'number' && isFinite(v) && v > 0);
+  const nums = obj.items.filter((v): v is number => typeof v === 'number' && isFinite(v) && v > 0);
   if (nums.length === 0) return null;
   return nums.reduce((a, b) => a + b, 0) / nums.length;
 }
 
-function timeSeriesMin(obj) {
+function timeSeriesMin(obj: OuraTimeSeries | null | undefined) {
   if (!obj || !Array.isArray(obj.items) || obj.items.length === 0) return null;
-  const nums = obj.items.filter(v => typeof v === 'number' && isFinite(v) && v > 0);
+  const nums = obj.items.filter((v): v is number => typeof v === 'number' && isFinite(v) && v > 0);
   if (nums.length === 0) return null;
   return Math.min(...nums);
 }
@@ -161,7 +181,7 @@ function timeSeriesMin(obj) {
 // nonsense for these metrics, and `??` doesn't catch it because 0 is not
 // nullish — so it flows through to L1 and pollutes the chart as a real
 // reading. Treat ≤ 0 as missing so the next fallback can run.
-function gtZero(v) {
+function gtZero(v: unknown) {
   return typeof v === 'number' && isFinite(v) && v > 0 ? v : null;
 }
 
@@ -169,11 +189,11 @@ function gtZero(v) {
 // Each row is keyed by date; missing metrics are null (not omitted) so consumers
 // can see "no spo2 today" vs "spo2 not yet fetched."
 // Resilience `level` is a string enum; map to 1-5 so baseline/trend math works.
-const RESILIENCE_LEVEL_TO_NUM = {
+const RESILIENCE_LEVEL_TO_NUM: Record<string, number> = {
   limited: 1, adequate: 2, solid: 3, strong: 4, exceptional: 5,
 };
 
-export async function fetchOuraDailyRange(accessToken, startDate, endDate) {
+export async function fetchOuraDailyRange(accessToken: string, startDate: string, endDate: string) {
   const params = { start_date: startDate, end_date: endDate };
   // Fetch collections in parallel — independent endpoints. New (daily_activity,
   // daily_stress, daily_resilience, daily_cardiovascular_age) are covered by
@@ -206,8 +226,8 @@ export async function fetchOuraDailyRange(accessToken, startDate, endDate) {
 
   const sleepByDay = bestSessionPerDay(sleepSessions);
 
-  const byDate = new Map();
-  function ensureRow(day) {
+  const byDate = new Map<string, OuraDailyRow>();
+  function ensureRow(day: string): OuraDailyRow {
     if (!byDate.has(day)) {
       byDate.set(day, {
         source: 'oura', date: day,
@@ -220,7 +240,7 @@ export async function fetchOuraDailyRange(accessToken, startDate, endDate) {
         sleep_breath_disturb: null, vo2max: null,
       });
     }
-    return byDate.get(day);
+    return byDate.get(day)!;
   }
 
   for (const [day, s] of sleepByDay) {
@@ -293,7 +313,7 @@ export async function fetchOuraDailyRange(accessToken, startDate, endDate) {
   for (const d of vo2maxSamples) {
     if (!d?.day) continue;
     const raw = (d.vo2_max && typeof d.vo2_max === 'object')
-      ? (d.vo2_max.value ?? d.vo2_max.vo2_max)
+      ? ((d.vo2_max as { value?: unknown }).value ?? (d.vo2_max as { vo2_max?: unknown }).vo2_max)
       : d.vo2_max;
     const v = gtZero(raw);
     if (v != null) ensureRow(d.day).vo2max = v;
@@ -304,14 +324,14 @@ export async function fetchOuraDailyRange(accessToken, startDate, endDate) {
   // sedentary window we want; mean across awake samples per day = hr_day.
   // Oura v2 does not expose daytime rMSSD samples in this stream, so hrv_day
   // stays null for now (documented in the public wearables internals guide).
-  const hrDayBuckets = new Map(); // day → number[]
+  const hrDayBuckets = new Map<string, number[]>(); // day → number[]
   for (const sample of (heartrateSamples || [])) {
     if (sample?.source !== 'awake') continue;
     if (typeof sample?.bpm !== 'number' || !isFinite(sample.bpm) || sample.bpm <= 0) continue;
     const day = String(sample?.timestamp || '').slice(0, 10);
     if (!day) continue;
     if (!hrDayBuckets.has(day)) hrDayBuckets.set(day, []);
-    hrDayBuckets.get(day).push(sample.bpm);
+    hrDayBuckets.get(day)!.push(sample.bpm);
   }
   for (const [day, bpms] of hrDayBuckets) {
     if (bpms.length === 0) continue;
@@ -337,6 +357,6 @@ export { isoDay, daysAgoIso } from './wearable-adapters.js';
 // Debug
 // ─────────────────────────────────────────────────────────
 
-function logDebug(where, err) {
-  if (isDebugMode?.()) console.warn(`[oura] ${where} failed:`, err?.message || err);
+function logDebug(where: string, err: unknown) {
+  if (isDebugMode?.()) console.warn(`[oura] ${where} failed:`, (err as { message?: unknown } | null)?.message || err);
 }

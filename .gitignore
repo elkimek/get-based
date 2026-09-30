@@ -173,3 +173,7 @@ deploy/profile-share/data/
 /js/wearables-polar.js
 /js/wearable-daily-row.js
 /tests/helpers/browser-blank-page.js
+/js/wearables-oura.js
+/js/wearables-withings.js
+/js/wearables-google-health.js
+/tests/helpers/runtime-globals.js

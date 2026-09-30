@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { setRuntimeValue, captureRuntimeGlobals } from './helpers/runtime-globals.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-sync-pull-active-refresh-runtime.js - Active sync pull refresh runtime adapter behavior.
 
@@ -14,7 +15,6 @@ import {
   refreshPulledChatRuntime,
 } from '../js/sync-pull-active-refresh-runtime.js';
 
-
 const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
 
 console.log('=== Sync Pull Active Refresh Runtime Tests ===\n');
@@ -24,24 +24,7 @@ const runtimeKeys = [
   'CustomEvent',
   'dispatchEvent',
 ];
-const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
-
-function setRuntimeValue(key, value) {
-  Object.defineProperty(globalThis, key, {
-    configurable: true,
-    writable: true,
-    enumerable: true,
-    value,
-  });
-}
-
-function restoreRuntime() {
-  for (const key of runtimeKeys) {
-    const descriptor = savedDescriptors.get(key);
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else delete globalThis[key];
-  }
-}
+const restoreRuntime = captureRuntimeGlobals(runtimeKeys);
 
 const calls = [];
 const previousDeps = configureSyncPullActiveRefreshDeps({

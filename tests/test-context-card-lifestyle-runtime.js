@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { setRuntimeValue, captureRuntimeGlobals } from './helpers/runtime-globals.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-context-card-lifestyle-runtime.js - Lifestyle context runtime adapter behavior.
 
@@ -20,7 +21,6 @@ import {
 import { configureContextCardsRuntimeCallbacks } from '../js/context-cards-runtime.js';
 import { configureChatRuntimeCallbacks } from '../js/chat-runtime.js';
 
-
 const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
 
 console.log('=== Context Card Lifestyle Runtime Tests ===\n');
@@ -30,24 +30,7 @@ const runtimeKeys = [
   '__lifestyleContextDelegatesBound',
   'setTimeout',
 ];
-const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
-
-function setRuntimeValue(key, value) {
-  Object.defineProperty(globalThis, key, {
-    configurable: true,
-    writable: true,
-    enumerable: true,
-    value,
-  });
-}
-
-function restoreRuntime() {
-  for (const key of runtimeKeys) {
-    const descriptor = savedDescriptors.get(key);
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else delete globalThis[key];
-  }
-}
+const restoreRuntime = captureRuntimeGlobals(runtimeKeys);
 
 try {
   const calls = [];

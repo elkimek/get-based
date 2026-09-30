@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { setRuntimeValue, captureRuntimeGlobals } from './helpers/runtime-globals.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Biology Scores runtime adapter behavior.
 
@@ -19,15 +20,12 @@ import {
 
 const originalBiologyScoresRuntimeDeps = configureBiologyScoresRuntimeDeps();
 
-
-
-
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
 console.log('=== Biology Scores Runtime Tests ===');
 
 const runtimeKeys = ['window'];
-const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+const restoreRuntimeGlobals = captureRuntimeGlobals(runtimeKeys);
 const savedAIStorage = {
   provider: localStorage.getItem('labcharts-ai-provider'),
   paused: localStorage.getItem('labcharts-ai-paused'),
@@ -35,21 +33,8 @@ const savedAIStorage = {
   openrouterCachedKey: getCachedKey('labcharts-openrouter-key'),
 };
 
-function setRuntimeValue(key, value) {
-  Object.defineProperty(globalThis, key, {
-    configurable: true,
-    writable: true,
-    enumerable: true,
-    value,
-  });
-}
-
 function restoreRuntime() {
-  for (const key of runtimeKeys) {
-    const descriptor = savedDescriptors.get(key);
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else delete globalThis[key];
-  }
+  restoreRuntimeGlobals();
   if (savedAIStorage.provider == null) localStorage.removeItem('labcharts-ai-provider');
   else localStorage.setItem('labcharts-ai-provider', savedAIStorage.provider);
   if (savedAIStorage.paused == null) localStorage.removeItem('labcharts-ai-paused');

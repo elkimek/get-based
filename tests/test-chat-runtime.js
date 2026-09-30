@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { setRuntimeValue, captureRuntimeGlobals } from './helpers/runtime-globals.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Chat shared browser adapter behavior.
 
@@ -19,9 +20,6 @@ import {
 } from '../js/chat-runtime.js';
 import { configureContextCardsRuntimeCallbacks } from '../js/context-cards-runtime.js';
 
-
-
-
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
 console.log('=== Chat Runtime Tests ===');
@@ -37,24 +35,7 @@ const runtimeKeys = [
   '_routstrAttestation',
   '_veniceAttestation',
 ];
-const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
-
-function setRuntimeValue(key, value) {
-  Object.defineProperty(globalThis, key, {
-    configurable: true,
-    writable: true,
-    enumerable: true,
-    value,
-  });
-}
-
-function restoreRuntime() {
-  for (const key of runtimeKeys) {
-    const descriptor = savedDescriptors.get(key);
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else delete globalThis[key];
-  }
-}
+const restoreRuntime = captureRuntimeGlobals(runtimeKeys);
 
 try {
   const calls = [];

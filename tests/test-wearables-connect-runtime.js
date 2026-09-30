@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { setRuntimeValue, captureRuntimeGlobals } from './helpers/runtime-globals.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-wearables-connect-runtime.js - Wearables connect runtime adapter behavior.
 
@@ -16,7 +17,6 @@ import {
 
 const originalWearablesConnectRuntimeDeps = configureWearablesConnectRuntimeDeps();
 
-
 const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
 
 console.log('=== Wearables Connect Runtime Tests ===\n');
@@ -27,24 +27,7 @@ const runtimeKeys = [
   'history',
   'addEventListener',
 ];
-const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
-
-function setRuntimeValue(key, value) {
-  Object.defineProperty(globalThis, key, {
-    configurable: true,
-    writable: true,
-    enumerable: true,
-    value,
-  });
-}
-
-function restoreRuntime() {
-  for (const key of runtimeKeys) {
-    const descriptor = savedDescriptors.get(key);
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else delete globalThis[key];
-  }
-}
+const restoreRuntime = captureRuntimeGlobals(runtimeKeys);
 
 try {
   const calls = [];

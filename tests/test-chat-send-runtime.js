@@ -1,3 +1,4 @@
+import { setRuntimeValue, captureRuntimeGlobals } from './helpers/runtime-globals.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-chat-send-runtime.js - Chat send browser adapter behavior.
 
@@ -11,7 +12,6 @@ import {
 } from '../js/chat-send-runtime.js';
 import { configureRecommendationModuleBridge } from '../js/recommendations-runtime.js';
 
-
 const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
 
 console.log('=== Chat Send Runtime Tests ===\n');
@@ -22,24 +22,7 @@ const runtimeKeys = [
   '_routstrAttestation',
   '_veniceAttestation',
 ];
-const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
-
-function setRuntimeValue(key, value) {
-  Object.defineProperty(globalThis, key, {
-    configurable: true,
-    writable: true,
-    enumerable: true,
-    value,
-  });
-}
-
-function restoreRuntime() {
-  for (const key of runtimeKeys) {
-    const descriptor = savedDescriptors.get(key);
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else delete globalThis[key];
-  }
-}
+const restoreRuntime = captureRuntimeGlobals(runtimeKeys);
 
 try {
   const calls = [];

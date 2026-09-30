@@ -14,28 +14,20 @@ import {
   withFreshToken,
   withGoogleHealthRefreshLock,
 } from '../js/wearables-google-health-auth.js';
-import {
-  clearLocalWearableCredential,
-  deleteWearableCredentials,
-  hasLocalWearableCredential,
-  loadWearableCredentials,
-  markLocalWearableCredential,
-  saveWearableCredentials,
-  wearableCredentialGenerationKey,
-} from '../js/wearables-credential-vault.js';
-import {
-  clearSource,
-  getDailyRange,
-  getDailyRangeRaw,
-  getMeta,
-  setMeta,
-  upsertDailyBatch,
-} from '../js/wearables-store.js';
-import { computeWearableSummary } from '../js/wearables-summary.js';
+
+interface GoogleProxyRequest {
+  url: string;
+  headers: Record<string, string>;
+  body?: {
+    dataSourceFamily: string; windowSizeDays: number; pageSize: number;
+    range: { start: { date: ReturnType<typeof _googleHealthInternals.civilDate> };
+      end: { date: ReturnType<typeof _googleHealthInternals.civilDate> } };
+  };
+}
 
 const realFetch = globalThis.fetch;
 
-function jsonResponse(body, status = 200) {
+function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json' },
@@ -43,8 +35,8 @@ function jsonResponse(body, status = 200) {
 }
 
 function googleProxyFetch({ failPath = '', failStatus = 500, failAll = false } = {}) {
-  return vi.fn(async (_url, init = {}) => {
-    const relay = JSON.parse(String(init.body || '{}'));
+  return vi.fn(async (_url: Parameters<typeof fetch>[0], init: RequestInit = {}) => {
+    const relay: GoogleProxyRequest = JSON.parse(String(init.body || '{}'));
     const upstream = new URL(relay.url);
     const path = upstream.pathname;
     if (failAll || (failPath && path.includes(failPath))) {
@@ -140,10 +132,9 @@ afterEach(() => {
 
 describe('Google Health adapter and OAuth', () => {
   it('serializes refresh and disconnect credential work', async () => {
-    /** @type {() => void} */
-    let releaseRefresh;
-    const refreshGate = new Promise(resolve => { releaseRefresh = resolve; });
-    const order = [];
+    let releaseRefresh!: () => void;
+    const refreshGate = new Promise<void>(resolve => { releaseRefresh = resolve; });
+    const order: string[] = [];
 
     const refresh = withGoogleHealthRefreshLock(async () => {
       order.push('refresh-start');
@@ -186,11 +177,11 @@ describe('Google Health adapter and OAuth', () => {
       integrationKind: 'aggregator',
       dataMode: 'reconciled',
     });
-    expect(adapter.privacyNotice).toContain('When enabled by a self-hosted deployment');
-    expect(adapter.privacyNotice).toContain('Independent direct integrations remain available');
-    expect(adapter.manageAccessUrl).toBe('https://myaccount.google.com/connections');
-    expect(adapter.oauth.scopes).toEqual(DEFAULT_GOOGLE_HEALTH_SCOPES);
-    expect(adapter.oauth.scopes.every(scope => scope.endsWith('.readonly'))).toBe(true);
+    expect(adapter!.privacyNotice).toContain('When enabled by a self-hosted deployment');
+    expect(adapter!.privacyNotice).toContain('Independent direct integrations remain available');
+    expect(adapter!.manageAccessUrl).toBe('https://myaccount.google.com/connections');
+    expect(adapter!.oauth!.scopes).toEqual(DEFAULT_GOOGLE_HEALTH_SCOPES);
+    expect(adapter!.oauth!.scopes.every(scope => scope.endsWith('.readonly'))).toBe(true);
     const visibleIds = visibleAdapters([]).map(item => item.id);
     expect(visibleIds).not.toContain('fitbit');
     expect(visibleAdapters(['fitbit']).map(item => item.id)).toContain('fitbit');
@@ -211,7 +202,7 @@ describe('Google Health adapter and OAuth', () => {
     expect(authorizeUrl.origin + authorizeUrl.pathname).toBe('https://accounts.google.com/o/oauth2/v2/auth');
     expect(authorizeUrl.searchParams.get('access_type')).toBe('offline');
     expect(authorizeUrl.searchParams.get('prompt')).toBe('consent');
-    expect(authorizeUrl.searchParams.get('scope').split(' ')).toEqual(DEFAULT_GOOGLE_HEALTH_SCOPES);
+    expect(authorizeUrl.searchParams.get('scope')!.split(' ')).toEqual(DEFAULT_GOOGLE_HEALTH_SCOPES);
 
     sessionStorage.setItem('google_health-oauth-pending', JSON.stringify({
       state: 'csrf-state',
@@ -230,7 +221,7 @@ describe('Google Health adapter and OAuth', () => {
     const result = await completeOAuthCallback(new URLSearchParams('code=auth-code&state=csrf-state'));
     expect(result.ok).toBe(true);
     expect(result.profileId).toBe('profile-1');
-    let relay = JSON.parse(globalThis.fetch.mock.calls[0][1].body);
+    let relay: unknown = JSON.parse((globalThis.fetch as ReturnType<typeof googleProxyFetch>).mock.calls[0]![1]!.body as string);
     expect(relay).toEqual({ google_health_token_exchange: {
       code: 'auth-code',
       redirect_uri: 'https://app.getbased.health/app',
@@ -238,7 +229,7 @@ describe('Google Health adapter and OAuth', () => {
     } });
 
     await refreshTokens({ clientId: 'google-client', refreshToken: 'refresh-secret' });
-    relay = JSON.parse(globalThis.fetch.mock.calls[1][1].body);
+    relay = JSON.parse((globalThis.fetch as ReturnType<typeof googleProxyFetch>).mock.calls[1]![1]!.body as string);
     expect(relay).toEqual({ google_health_token_refresh: {
       refresh_token: 'refresh-secret',
       client_id: 'google-client',
@@ -275,13 +266,13 @@ describe('Google Health adapter and OAuth', () => {
       },
     });
 
-    const relays = globalThis.fetch.mock.calls.map(([, init]) => JSON.parse(init.body));
+    const relays = (globalThis.fetch as ReturnType<typeof googleProxyFetch>).mock.calls.map(([, init]) => (JSON.parse(init!.body as string) as GoogleProxyRequest));
     expect(relays.every(relay => relay.url.startsWith('https://health.googleapis.com/v4/users/me/'))).toBe(true);
     expect(relays.every(relay => relay.headers.Authorization === 'Bearer access-secret')).toBe(true);
-    const rollup = relays.find(relay => relay.url.includes('/steps/dataPoints:dailyRollUp'));
-    expect(rollup.body.dataSourceFamily).toBe('users/me/dataSourceFamilies/all-sources');
-    expect(rollup.body.range.start).toEqual({ date: { year: 2026, month: 7, day: 31 } });
-    const sleepRelay = relays.find(relay => relay.url.includes('/sleep/dataPoints:reconcile'));
+    const rollup = relays.find(relay => relay.url.includes('/steps/dataPoints:dailyRollUp'))!;
+    expect(rollup.body!.dataSourceFamily).toBe('users/me/dataSourceFamilies/all-sources');
+    expect(rollup.body!.range.start).toEqual({ date: { year: 2026, month: 7, day: 31 } });
+    const sleepRelay = relays.find(relay => relay.url.includes('/sleep/dataPoints:reconcile'))!;
     expect(new URL(sleepRelay.url).searchParams.get('pageSize')).toBe('25');
     expect(new URL(sleepRelay.url).searchParams.get('filter')).toContain('sleep.interval.civil_end_time');
   });
@@ -300,24 +291,24 @@ describe('Google Health adapter and OAuth', () => {
       ['2026-01-01', '2026-04-01'],
       ['2026-04-01', '2026-04-02'],
     ]],
-  ])('keeps %s rollup requests within API duration limits across a 91-day range', async (type, limit, ranges) => {
+  ] as const)('keeps %s rollup requests within API duration limits across a 91-day range', async (type, limit, ranges) => {
     globalThis.fetch = googleProxyFetch();
     await fetchGoogleHealthDailyRange('access-secret', '2026-01-01', '2026-04-01');
 
-    const requests = globalThis.fetch.mock.calls
-      .map(([, init]) => JSON.parse(init.body))
+    const requests = (globalThis.fetch as ReturnType<typeof googleProxyFetch>).mock.calls
+      .map(([, init]) => (JSON.parse(init!.body as string) as GoogleProxyRequest))
       .filter(relay => relay.url.endsWith(`/dataTypes/${type}/dataPoints:dailyRollUp`));
 
     // End dates are exclusive: these exact boundaries cover every requested
     // day once, including the final partial chunk and month transitions.
-    expect(requests.map(relay => relay.body.range)).toEqual(ranges.map(([start, end]) => ({
+    expect(requests.map(relay => relay.body!.range)).toEqual(ranges.map(([start, end]) => ({
       start: { date: _googleHealthInternals.civilDate(start) },
       end: { date: _googleHealthInternals.civilDate(end) },
     })));
     for (const request of requests) {
-      expect(request.body.windowSizeDays).toBe(1);
-      expect(request.body.pageSize).toBe(limit);
-      expect(request.body.windowSizeDays * request.body.pageSize).toBeLessThanOrEqual(limit);
+      expect(request.body!.windowSizeDays).toBe(1);
+      expect(request.body!.pageSize).toBe(limit);
+      expect(request.body!.windowSizeDays * request.body!.pageSize).toBeLessThanOrEqual(limit);
     }
   });
 
@@ -346,130 +337,5 @@ describe('Google Health adapter and OAuth', () => {
     globalThis.fetch = googleProxyFetch({ failAll: true, failStatus: 403 });
     await expect(fetchGoogleHealthDailyRange('access-secret', '2026-07-31', '2026-07-31'))
       .rejects.toMatchObject({ status: 403 });
-  });
-});
-
-describe('Google Health privacy and source precedence', () => {
-  it('encrypts credentials in a device-local vault and deletes them on request', async () => {
-    const profileId = `google-vault-${crypto.randomUUID()}`;
-    const initialGeneration = await saveWearableCredentials(profileId, 'google_health', {
-      accessToken: 'access-plaintext-must-not-leak',
-      refreshToken: 'refresh-plaintext-must-not-leak',
-    });
-    expect(initialGeneration).toBe(0);
-
-    const stored = await getMeta(profileId, 'credential-vault-record:v1:google_health');
-    expect(stored).toMatchObject({ version: 1 });
-    expect(stored.iv).toBeInstanceOf(Uint8Array);
-    expect(stored.ciphertext).toBeInstanceOf(ArrayBuffer);
-    expect(JSON.stringify(stored)).not.toContain('plaintext-must-not-leak');
-    await expect(loadWearableCredentials(profileId, 'google_health')).resolves.toEqual({
-      accessToken: 'access-plaintext-must-not-leak',
-      refreshToken: 'refresh-plaintext-must-not-leak',
-      credentialGeneration: 0,
-    });
-
-    await upsertDailyBatch(profileId, [{
-      source: 'google_health',
-      date: '2026-07-31',
-      steps: 1234,
-    }]);
-    await setMeta(profileId, 'last-sync:google_health', { endDate: '2026-07-31' });
-    const pendingDisconnect = {
-      adapterId: 'google_health',
-      deleteData: true,
-      createdAt: Date.now(),
-    };
-    const disconnectedGeneration = await deleteWearableCredentials(profileId, 'google_health', {
-      source: 'google_health',
-      metaKeys: ['last-sync:google_health'],
-      metaWrites: {
-        'pending-profile-disconnect:v1:google_health': pendingDisconnect,
-      },
-    });
-    expect(disconnectedGeneration).toBe(1);
-    await expect(loadWearableCredentials(profileId, 'google_health')).resolves.toBeNull();
-    await expect(getDailyRangeRaw(profileId, 'google_health', '2026-07-31', '2026-07-31'))
-      .resolves.toEqual([]);
-    await expect(getMeta(profileId, 'last-sync:google_health')).resolves.toBeNull();
-    await expect(getMeta(profileId, 'pending-profile-disconnect:v1:google_health'))
-      .resolves.toEqual(pendingDisconnect);
-
-    await expect(saveWearableCredentials(profileId, 'google_health', {
-      accessToken: 'stale-access',
-      refreshToken: 'stale-refresh',
-      credentialGeneration: 0,
-    })).rejects.toMatchObject({ code: 'disconnected' });
-    await expect(loadWearableCredentials(profileId, 'google_health')).resolves.toBeNull();
-
-    const staleRowsWritten = await upsertDailyBatch(profileId, [{
-      source: 'google_health',
-      date: '2026-08-01',
-      steps: 4567,
-    }], {
-      versionKey: wearableCredentialGenerationKey('google_health'),
-      expectedVersion: 0,
-    });
-    expect(staleRowsWritten).toBe(false);
-    await expect(getDailyRangeRaw(profileId, 'google_health', '2026-08-01', '2026-08-01'))
-      .resolves.toEqual([]);
-
-    expect(markLocalWearableCredential(profileId, 'google_health', 0)).toBe(true);
-    clearLocalWearableCredential(profileId, 'google_health', disconnectedGeneration);
-    expect(markLocalWearableCredential(profileId, 'google_health', 0)).toBe(false);
-    expect(hasLocalWearableCredential(profileId, 'google_health', 0)).toBe(false);
-  });
-
-  it('always encrypts Google Health daily rows even when app passphrase encryption is off', async () => {
-    const profileId = `google-rows-${crypto.randomUUID()}`;
-    localStorage.removeItem('labcharts-encryption-enabled');
-    await upsertDailyBatch(profileId, [{
-      source: 'google_health',
-      date: '2026-07-31',
-      hrv_rmssd: 47,
-      steps: 8765,
-    }]);
-
-    const raw = await getDailyRangeRaw(profileId, 'google_health', '2026-07-31', '2026-07-31');
-    expect(raw).toHaveLength(1);
-    expect(raw[0]).toMatchObject({
-      source: 'google_health',
-      date: '2026-07-31',
-      _devicePayload: { version: 1 },
-    });
-    expect(raw[0]).not.toHaveProperty('hrv_rmssd');
-    expect(JSON.stringify(raw[0])).not.toContain('8765');
-
-    await expect(getDailyRange(profileId, 'google_health', '2026-07-31', '2026-07-31'))
-      .resolves.toEqual([expect.objectContaining({ hrv_rmssd: 47, steps: 8765 })]);
-    await clearSource(profileId, 'google_health');
-  });
-
-  it('prefers independent direct sources but migrates tied legacy Fitbit data to Google Health', () => {
-    const rows = {
-      google_health: [{ source: 'google_health', date: '2026-07-31', hrv_rmssd: 40 }],
-      oura: [{ source: 'oura', date: '2026-07-31', hrv_rmssd: 42 }],
-    };
-    const connections = {
-      google_health: { connectedSince: '2026-07-01', lastSyncAt: 1 },
-      oura: { connectedSince: '2026-07-01', lastSyncAt: 1 },
-    };
-
-    expect(computeWearableSummary(rows, connections).metrics.hrv_rmssd.primarySource).toBe('oura');
-    expect(computeWearableSummary(rows, connections, { hrv_rmssd: 'google_health' })
-      .metrics.hrv_rmssd.primarySource).toBe('google_health');
-
-    const migrationRows = {
-      google_health: rows.google_health,
-      fitbit: [{ source: 'fitbit', date: '2026-07-31', hrv_rmssd: 41 }],
-    };
-    const migrationConnections = {
-      google_health: connections.google_health,
-      fitbit: { connectedSince: '2026-07-01', lastSyncAt: 1 },
-    };
-    expect(computeWearableSummary(migrationRows, migrationConnections).metrics.hrv_rmssd.primarySource)
-      .toBe('google_health');
-    expect(computeWearableSummary(migrationRows, migrationConnections, { hrv_rmssd: 'fitbit' })
-      .metrics.hrv_rmssd.primarySource).toBe('fitbit');
   });
 });

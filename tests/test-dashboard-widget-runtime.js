@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { setRuntimeValue, captureRuntimeGlobals } from './helpers/runtime-globals.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-dashboard-widget-runtime.js - Dashboard widget runtime adapter behavior.
 
@@ -27,7 +28,6 @@ import { configureDnaModuleBridge } from '../js/dna-runtime-bridge.js';
 import { configureSettingsModuleBridge } from '../js/settings-runtime-bridge.js';
 import { configureWearablesModuleBridge } from '../js/wearables-runtime.js';
 
-
 const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
 
 console.log('=== Dashboard Widget Runtime Tests ===\n');
@@ -38,7 +38,7 @@ const runtimeKeys = [
   '_snpTableCache',
   'triggerDNAFilePicker',
 ];
-const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+const restoreRuntime = captureRuntimeGlobals(runtimeKeys);
 const savedImportedData = state.importedData;
 let previousWearablesModule = null;
 let previousSettingsModule = null;
@@ -46,23 +46,6 @@ const originalDashboardWidgetRuntimeDeps = configureDashboardWidgetRuntimeDeps()
 const previousDnaBridge = configureDnaModuleBridge({
   buildSnpAIInterpretationPrompt: (rsid, stored) => `Help me interpret my ${stored?.gene} ${stored?.variant} (${rsid}) result using broader relevant knowledge beyond this catalog.`,
 });
-
-function setRuntimeValue(key, value) {
-  Object.defineProperty(globalThis, key, {
-    configurable: true,
-    writable: true,
-    enumerable: true,
-    value,
-  });
-}
-
-function restoreRuntime() {
-  for (const key of runtimeKeys) {
-    const descriptor = savedDescriptors.get(key);
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else delete globalThis[key];
-  }
-}
 
 try {
   const calls = [];

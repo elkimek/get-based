@@ -1,4 +1,28 @@
-// @ts-check
+import type { WearableDailyRow, WearableRequestError } from './wearable-data-types.js';
+
+interface CivilDate { year?: unknown; month?: unknown; day?: unknown; date?: CivilDate | null }
+interface GoogleSampleTime { civilTime?: CivilDate | null; physicalTime?: unknown }
+interface GoogleMetricData {
+  date?: CivilDate | null;
+  deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds?: unknown;
+  averageHeartRateVariabilityMilliseconds?: unknown; beatsPerMinute?: unknown;
+  averagePercentage?: unknown; breathsPerMinute?: unknown; nightlyTemperatureCelsius?: unknown;
+  baselineTemperatureCelsius?: unknown; vo2Max?: unknown;
+  metadata?: { nap?: unknown };
+  interval?: { civilEndTime?: CivilDate | null; endTime?: unknown };
+  summary?: { minutesInSleepPeriod?: unknown; minutesAsleep?: unknown; minutesAwake?: unknown;
+    stagesSummary?: { minutes?: unknown; type?: unknown }[] };
+}
+interface GooglePoint {
+  civilStartTime?: CivilDate | null;
+  steps?: { countSum?: unknown }; heartRate?: { beatsPerMinuteAvg?: unknown };
+  weight?: { weightGramsAvg?: unknown }; bodyFat?: { bodyFatPercentageAvg?: unknown };
+  [key: string]: unknown;
+}
+interface GoogleHealthPage { rollupDataPoints?: GooglePoint[]; dataPoints?: GooglePoint[]; nextPageToken?: string | null }
+interface GoogleIdentity { healthUserId?: unknown; legacyUserId?: unknown }
+interface GoogleErrorBody { error?: unknown; error_description?: unknown; message?: unknown }
+
 // wearables-google-health.js — Google Health API v4 data normalization
 //
 // This adapter reads Google's reconciled stream. It is intentionally a
@@ -19,51 +43,55 @@ const CANONICAL_FIELDS = [
   'spo2_avg', 'body_temp_delta', 'vo2max',
   'sleep_total_min', 'sleep_deep_min', 'sleep_light_min',
   'sleep_rem_min', 'sleep_awake_min', 'sleep_breathing_rate',
+] as const;
+
+type GoogleDailyRow = WearableDailyRow<'google_health', typeof CANONICAL_FIELDS[number]> & {
+  _provenance: { provider: 'google_health'; stream: 'reconciled'; dataSourceFamily: string };
+};
+
+type GoogleReconciledMetricBatch = readonly [
+  points: GooglePoint[], camel: string, snake: string,
+  field: typeof CANONICAL_FIELDS[number], readValue: (data: GoogleMetricData | null) => number | null,
 ];
 
-function asNumber(value) {
+function asNumber(value: unknown) {
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 }
 
-function addDaysIso(date, days) {
+function addDaysIso(date: string, days: number) {
   const value = new Date(`${date}T00:00:00Z`);
   value.setUTCDate(value.getUTCDate() + days);
   return value.toISOString().slice(0, 10);
 }
 
-function civilDate(date) {
+function civilDate(date: string) {
   const [year, month, day] = date.split('-').map(Number);
   return { year, month, day };
 }
 
-function isoFromCivil(value) {
+function isoFromCivil(value: CivilDate | null | undefined) {
   const date = value?.date || value;
   if (!date?.year || !date?.month || !date?.day) return null;
   return `${String(date.year).padStart(4, '0')}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
 }
 
-function dateFromSampleTime(sampleTime) {
+function dateFromSampleTime(sampleTime: GoogleSampleTime | null | undefined) {
   return isoFromCivil(sampleTime?.civilTime)
     || (typeof sampleTime?.physicalTime === 'string' ? sampleTime.physicalTime.slice(0, 10) : null);
 }
 
-function dateFromSleep(sleep) {
+function dateFromSleep(sleep: GoogleMetricData | null | undefined) {
   return isoFromCivil(sleep?.interval?.civilEndTime)
     || (typeof sleep?.interval?.endTime === 'string' ? sleep.interval.endTime.slice(0, 10) : null);
 }
 
-function pointData(point, camel, snake) {
-  return point?.[camel] || point?.[snake] || null;
+function pointData(point: GooglePoint | null, camel: string, snake: string): GoogleMetricData | null {
+  return (point?.[camel] as GoogleMetricData | null | undefined) || (point?.[snake] as GoogleMetricData | null | undefined) || null;
 }
 
-/**
- * @param {string} path
- * @param {string} accessToken
- * @param {{ method?: string, body?: unknown }} [options]
- */
-async function googleHealthRequest(path, accessToken, { method = 'GET', body = null } = {}) {
-  const headers = {
+async function googleHealthRequest<T>(path: string, accessToken: string, { method = 'GET', body = null }: { method?: string; body?: unknown } = {}): Promise<T> {
+  const headers: Record<string, string> = {
     Authorization: `Bearer ${accessToken}`,
     Accept: 'application/json',
   };
@@ -78,24 +106,23 @@ async function googleHealthRequest(path, accessToken, { method = 'GET', body = n
       ...(body != null ? { body } : {}),
     }),
   });
-  const payload = await res.json().catch(() => ({}));
+  const payload: GoogleErrorBody & T = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const message = payload?.error?.message
+    const message = (payload?.error as { message?: unknown } | null)?.message
       || payload?.error_description
       || payload?.message
       || payload?.error
       || `Google Health request failed (${res.status})`;
-    /** @type {Error & { status?: number }} */
-    const error = new Error(typeof message === 'string' ? message : `Google Health request failed (${res.status})`);
+    const error: WearableRequestError = new Error(typeof message === 'string' ? message : `Google Health request failed (${res.status})`);
     error.status = res.status;
     throw error;
   }
   return payload;
 }
 
-export async function fetchGoogleHealthPersonalInfo(accessToken) {
+export async function fetchGoogleHealthPersonalInfo(accessToken: string) {
   try {
-    const identity = await googleHealthRequest('identity', accessToken);
+    const identity = await googleHealthRequest<GoogleIdentity>('identity', accessToken);
     const healthUserId = identity?.healthUserId || null;
     return {
       ok: true,
@@ -110,8 +137,8 @@ export async function fetchGoogleHealthPersonalInfo(accessToken) {
   }
 }
 
-function chunks(startDate, endDate, maximumDays) {
-  const ranges = [];
+function chunks(startDate: string, endDate: string, maximumDays: number) {
+  const ranges: { start: string; end: string }[] = [];
   let start = startDate;
   while (start <= endDate) {
     const candidate = addDaysIso(start, maximumDays - 1);
@@ -122,9 +149,9 @@ function chunks(startDate, endDate, maximumDays) {
   return ranges;
 }
 
-async function fetchDailyRollups(type, accessToken, startDate, endDate, sourceFamily, maximumDays) {
+async function fetchDailyRollups(type: string, accessToken: string, startDate: string, endDate: string, sourceFamily: string, maximumDays?: number): Promise<GooglePoint[]> {
   const limitDays = maximumDays ?? (type === 'heart-rate' ? 14 : 90);
-  const out = [];
+  const out: GooglePoint[] = [];
   for (const range of chunks(startDate, endDate, limitDays)) {
     let pageToken = '';
     do {
@@ -138,7 +165,7 @@ async function fetchDailyRollups(type, accessToken, startDate, endDate, sourceFa
         dataSourceFamily: `users/me/dataSourceFamilies/${sourceFamily}`,
         ...(pageToken ? { pageToken } : {}),
       };
-      const payload = await googleHealthRequest(
+      const payload: GoogleHealthPage = await googleHealthRequest<GoogleHealthPage>(
         `dataTypes/${type}/dataPoints:dailyRollUp`,
         accessToken,
         { method: 'POST', body },
@@ -150,8 +177,8 @@ async function fetchDailyRollups(type, accessToken, startDate, endDate, sourceFa
   return out;
 }
 
-async function fetchReconciled(type, filterForRange, accessToken, startDate, endDate, sourceFamily, pageSize = 10000) {
-  const out = [];
+async function fetchReconciled(type: string, filterForRange: (start: string, end: string) => string, accessToken: string, startDate: string, endDate: string, sourceFamily: string, pageSize = 10000): Promise<GooglePoint[]> {
+  const out: GooglePoint[] = [];
   for (const range of chunks(startDate, endDate, 90)) {
     let pageToken = '';
     do {
@@ -161,7 +188,7 @@ async function fetchReconciled(type, filterForRange, accessToken, startDate, end
         dataSourceFamily: `users/me/dataSourceFamilies/${sourceFamily}`,
       });
       if (pageToken) params.set('pageToken', pageToken);
-      const payload = await googleHealthRequest(
+      const payload: GoogleHealthPage = await googleHealthRequest<GoogleHealthPage>(
         `dataTypes/${type}/dataPoints:reconcile?${params.toString()}`,
         accessToken,
       );
@@ -172,7 +199,7 @@ async function fetchReconciled(type, filterForRange, accessToken, startDate, end
   return out;
 }
 
-async function safeMetric(label, request, authorizationState) {
+async function safeMetric(label: string, request: () => Promise<GooglePoint[]>, authorizationState: { denied: number }): Promise<GooglePoint[]> {
   try { return await request(); }
   catch (error) {
     const status = getErrorStatus(error);
@@ -187,15 +214,15 @@ async function safeMetric(label, request, authorizationState) {
   }
 }
 
-function dailyFilter(field, startDate, endDate) {
+function dailyFilter(field: string, startDate: string, endDate: string) {
   return `${field}.date >= "${startDate}" AND ${field}.date < "${addDaysIso(endDate, 1)}"`;
 }
 
-function sleepFilter(startDate, endDate) {
+function sleepFilter(startDate: string, endDate: string) {
   return `sleep.interval.civil_end_time >= "${startDate}" AND sleep.interval.civil_end_time < "${addDaysIso(endDate, 1)}"`;
 }
 
-function emptyRow(date, sourceFamily) {
+function emptyRow(date: string, sourceFamily: string): GoogleDailyRow {
   return {
     source: SOURCE,
     date,
@@ -218,7 +245,7 @@ function emptyRow(date, sourceFamily) {
   };
 }
 
-export async function fetchGoogleHealthDailyRange(accessToken, startDate, endDate, options = {}) {
+export async function fetchGoogleHealthDailyRange(accessToken: string, startDate: string, endDate: string, options: { dataSourceFamily?: string } = {}) {
   const sourceFamily = options.dataSourceFamily || DEFAULT_SOURCE_FAMILY;
   const endExclusive = addDaysIso(endDate, 1);
   const authorizationState = { denied: 0 };
@@ -237,17 +264,16 @@ export async function fetchGoogleHealthDailyRange(accessToken, startDate, endDat
     safeMetric('sleep', () => fetchReconciled('sleep', sleepFilter, accessToken, startDate, endDate, sourceFamily, 25), authorizationState),
   ]);
   if (authorizationState.denied === metricRequestCount) {
-    /** @type {Error & { status?: number }} */
-    const error = new Error('Google Health access was not granted for any requested health data.');
+    const error: WearableRequestError = new Error('Google Health access was not granted for any requested health data.');
     error.status = 403;
     throw error;
   }
 
-  const byDate = new Map();
-  const ensure = date => {
+  const byDate = new Map<string, GoogleDailyRow>();
+  const ensure = (date: string | null) => {
     if (!date || date < startDate || date >= endExclusive) return null;
     if (!byDate.has(date)) byDate.set(date, emptyRow(date, sourceFamily));
-    return byDate.get(date);
+    return byDate.get(date)!;
   };
 
   for (const point of steps) {
@@ -271,46 +297,30 @@ export async function fetchGoogleHealthDailyRange(accessToken, startDate, endDat
     if (row && value != null) row.body_fat_pct = value;
   }
 
-  for (const point of hrv) {
-    const data = pointData(point, 'dailyHeartRateVariability', 'daily_heart_rate_variability');
-    const row = ensure(isoFromCivil(data?.date));
-    const value = asNumber(data?.deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds)
-      ?? asNumber(data?.averageHeartRateVariabilityMilliseconds);
-    if (row && value != null) row.hrv_rmssd = value;
-  }
-  for (const point of rhr) {
-    const data = pointData(point, 'dailyRestingHeartRate', 'daily_resting_heart_rate');
-    const row = ensure(isoFromCivil(data?.date));
-    const value = asNumber(data?.beatsPerMinute);
-    if (row && value != null) row.rhr = value;
-  }
-  for (const point of oxygen) {
-    const data = pointData(point, 'dailyOxygenSaturation', 'daily_oxygen_saturation');
-    const row = ensure(isoFromCivil(data?.date));
-    const value = asNumber(data?.averagePercentage);
-    if (row && value != null) row.spo2_avg = value;
-  }
-  for (const point of respiratory) {
-    const data = pointData(point, 'dailyRespiratoryRate', 'daily_respiratory_rate');
-    const row = ensure(isoFromCivil(data?.date));
-    const value = asNumber(data?.breathsPerMinute);
-    if (row && value != null) row.sleep_breathing_rate = value;
-  }
-  for (const point of temperature) {
-    const data = pointData(point, 'dailySleepTemperatureDerivations', 'daily_sleep_temperature_derivations');
-    const row = ensure(isoFromCivil(data?.date));
-    const nightly = asNumber(data?.nightlyTemperatureCelsius);
-    const baseline = asNumber(data?.baselineTemperatureCelsius);
-    if (row && nightly != null && baseline != null) row.body_temp_delta = nightly - baseline;
-  }
-  for (const point of vo2max) {
-    const data = pointData(point, 'dailyVo2Max', 'daily_vo2_max');
-    const row = ensure(isoFromCivil(data?.date));
-    const value = asNumber(data?.vo2Max);
-    if (row && value != null) row.vo2max = value;
+  const reconciledMetrics: readonly GoogleReconciledMetricBatch[] = [
+    [hrv, 'dailyHeartRateVariability', 'daily_heart_rate_variability', 'hrv_rmssd', data =>
+      asNumber(data?.deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds)
+        ?? asNumber(data?.averageHeartRateVariabilityMilliseconds)],
+    [rhr, 'dailyRestingHeartRate', 'daily_resting_heart_rate', 'rhr', data => asNumber(data?.beatsPerMinute)],
+    [oxygen, 'dailyOxygenSaturation', 'daily_oxygen_saturation', 'spo2_avg', data => asNumber(data?.averagePercentage)],
+    [respiratory, 'dailyRespiratoryRate', 'daily_respiratory_rate', 'sleep_breathing_rate', data => asNumber(data?.breathsPerMinute)],
+    [temperature, 'dailySleepTemperatureDerivations', 'daily_sleep_temperature_derivations', 'body_temp_delta', data => {
+      const nightly = asNumber(data?.nightlyTemperatureCelsius);
+      const baseline = asNumber(data?.baselineTemperatureCelsius);
+      return nightly != null && baseline != null ? nightly - baseline : null;
+    }],
+    [vo2max, 'dailyVo2Max', 'daily_vo2_max', 'vo2max', data => asNumber(data?.vo2Max)],
+  ];
+  for (const [points, camel, snake, field, readValue] of reconciledMetrics) {
+    for (const point of points) {
+      const data = pointData(point, camel, snake);
+      const row = ensure(isoFromCivil(data?.date));
+      const value = readValue(data);
+      if (row && value != null) row[field] = value;
+    }
   }
 
-  const sleepByDate = new Map();
+  const sleepByDate = new Map<string, { data: GoogleMetricData; duration: number }>();
   for (const point of sleep) {
     const data = pointData(point, 'sleep', 'sleep');
     if (!data || data?.metadata?.nap) continue;
@@ -324,7 +334,7 @@ export async function fetchGoogleHealthDailyRange(accessToken, startDate, endDat
     const row = ensure(date);
     if (!row) continue;
     const summary = selected.data?.summary || {};
-    const stageMinutes = new Map();
+    const stageMinutes = new Map<string, number>();
     for (const stage of (summary.stagesSummary || [])) {
       const value = asNumber(stage?.minutes);
       if (value != null) stageMinutes.set(String(stage?.type || '').toUpperCase(), value);
@@ -333,9 +343,9 @@ export async function fetchGoogleHealthDailyRange(accessToken, startDate, endDat
     const awake = asNumber(summary.minutesAwake);
     if (total != null) row.sleep_total_min = total;
     if (awake != null) row.sleep_awake_min = awake;
-    if (stageMinutes.has('DEEP')) row.sleep_deep_min = stageMinutes.get('DEEP');
-    if (stageMinutes.has('LIGHT')) row.sleep_light_min = stageMinutes.get('LIGHT');
-    if (stageMinutes.has('REM')) row.sleep_rem_min = stageMinutes.get('REM');
+    if (stageMinutes.has('DEEP')) row.sleep_deep_min = stageMinutes.get('DEEP')!;
+    if (stageMinutes.has('LIGHT')) row.sleep_light_min = stageMinutes.get('LIGHT')!;
+    if (stageMinutes.has('REM')) row.sleep_rem_min = stageMinutes.get('REM')!;
   }
 
   return [...byDate.values()]

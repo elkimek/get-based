@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { setRuntimeValue, captureRuntimeGlobals } from './helpers/runtime-globals.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-sun-runtime.js - Sun session browser adapter behavior.
 
@@ -22,7 +23,6 @@ import {
 
 const originalSunRuntimeDeps = configureSunRuntimeDeps();
 
-
 const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
 
 console.log('=== Sun Runtime Tests ===\n');
@@ -32,25 +32,8 @@ const runtimeKeys = [
   'navigator',
   'addEventListener',
 ];
-const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+const restoreRuntime = captureRuntimeGlobals(runtimeKeys);
 const savedImportedData = state.importedData;
-
-function setRuntimeValue(key, value) {
-  Object.defineProperty(globalThis, key, {
-    configurable: true,
-    writable: true,
-    enumerable: true,
-    value,
-  });
-}
-
-function restoreRuntime() {
-  for (const key of runtimeKeys) {
-    const descriptor = savedDescriptors.get(key);
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else delete globalThis[key];
-  }
-}
 
 try {
   const calls = [];

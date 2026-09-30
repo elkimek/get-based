@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { setRuntimeValue, captureRuntimeGlobals } from './helpers/runtime-globals.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-sun-defaults-runtime.js - Light setup browser adapter behavior.
 
@@ -14,7 +15,6 @@ import {
   requestSunSetupPreciseLocationRuntime,
 } from '../js/sun-defaults-runtime.js';
 
-
 const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
 
 console.log('=== Sun Defaults Runtime Tests ===\n');
@@ -23,25 +23,8 @@ const runtimeKeys = [
   'window',
   'getProfileLocation',
 ];
-const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+const restoreRuntime = captureRuntimeGlobals(runtimeKeys);
 const originalSunDefaultsRuntimeDeps = configureSunDefaultsRuntimeDeps();
-
-function setRuntimeValue(key, value) {
-  Object.defineProperty(globalThis, key, {
-    configurable: true,
-    writable: true,
-    enumerable: true,
-    value,
-  });
-}
-
-function restoreRuntime() {
-  for (const key of runtimeKeys) {
-    const descriptor = savedDescriptors.get(key);
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else delete globalThis[key];
-  }
-}
 
 try {
   const calls = [];

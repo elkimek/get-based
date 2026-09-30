@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { captureRuntimeGlobals } from './helpers/runtime-globals.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-marker-detail-runtime.js - Marker detail runtime adapter behavior.
 
@@ -24,24 +25,15 @@ import { configureDnaModuleBridge } from '../js/dna-runtime-bridge.js';
 import { configureRecommendationModuleBridge } from '../js/recommendations-runtime.js';
 import { configureWearablesModuleBridge } from '../js/wearables-runtime.js';
 
-
 const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
 
 console.log('=== Marker Detail Runtime Tests ===\n');
 
 const runtimeKeys = ['window'];
-const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+const restoreRuntime = captureRuntimeGlobals(runtimeKeys);
 let previousWearablesModule = null;
 const previousDnaBridge = configureDnaModuleBridge({ getRelevantSNPs: null });
 const originalMarkerDetailRuntimeDeps = configureMarkerDetailRuntime();
-
-function restoreRuntime() {
-  for (const key of runtimeKeys) {
-    const descriptor = savedDescriptors.get(key);
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else delete globalThis[key];
-  }
-}
 
 try {
   const calls = [];

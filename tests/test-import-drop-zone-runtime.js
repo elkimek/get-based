@@ -1,3 +1,4 @@
+import { setRuntimeValue, captureRuntimeGlobals } from './helpers/runtime-globals.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-import-drop-zone-runtime.js - Import drop-zone browser adapter behavior.
 
@@ -15,7 +16,6 @@ import {
 } from '../js/import-drop-zone-runtime.js';
 import { configureDnaModuleBridge } from '../js/dna-runtime-bridge.js';
 
-
 const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
 
 console.log('=== Import Drop Zone Runtime Tests ===\n');
@@ -25,30 +25,13 @@ const runtimeKeys = [
   'document',
   'showNotification',
 ];
-const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+const restoreRuntime = captureRuntimeGlobals(runtimeKeys);
 const originalImportRuntimeDeps = configureImportDropZoneRuntimeDeps();
 const previousDnaBridge = configureDnaModuleBridge({
   detectDNAFile: null,
   handleMtDNAFile: null,
   handleDNAFile: null,
 });
-
-function setRuntimeValue(key, value) {
-  Object.defineProperty(globalThis, key, {
-    configurable: true,
-    writable: true,
-    enumerable: true,
-    value,
-  });
-}
-
-function restoreRuntime() {
-  for (const key of runtimeKeys) {
-    const descriptor = savedDescriptors.get(key);
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else delete globalThis[key];
-  }
-}
 
 try {
   const calls = [];

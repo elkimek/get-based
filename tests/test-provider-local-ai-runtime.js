@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { setRuntimeValue, captureRuntimeGlobals } from './helpers/runtime-globals.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-provider-local-ai-runtime.js - Local AI settings runtime adapter behavior.
 
@@ -10,7 +11,6 @@ import {
 } from '../js/provider-local-ai-runtime.js';
 import { configureSettingsModuleBridge } from '../js/settings-runtime-bridge.js';
 
-
 const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
 
 console.log('=== Provider Local AI Runtime Tests ===\n');
@@ -20,24 +20,7 @@ const runtimeKeys = [
   '_lastOllamaModelDetails',
   '_lastIsOllamaServer',
 ];
-const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
-
-function setRuntimeValue(key, value) {
-  Object.defineProperty(globalThis, key, {
-    configurable: true,
-    writable: true,
-    enumerable: true,
-    value,
-  });
-}
-
-function restoreRuntime() {
-  for (const key of runtimeKeys) {
-    const descriptor = savedDescriptors.get(key);
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else delete globalThis[key];
-  }
-}
+const restoreRuntime = captureRuntimeGlobals(runtimeKeys);
 
 try {
   const privacyCalls = [];

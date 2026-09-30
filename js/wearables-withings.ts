@@ -1,4 +1,20 @@
-// @ts-check
+import { createBasicWearableRow } from './wearable-daily-row.js';
+import type { BasicWearableMetric, WearableDailyRow, WearableErrorBody, WearableRequestError, WearableQuery, WearableQueryConstructor } from './wearable-data-types.js';
+
+type WithingsMetric = BasicWearableMetric | 'body_fat_pct' | 'fat_mass_kg' | 'muscle_mass_kg' | 'lean_mass_kg'
+  | 'bone_mass_kg' | 'water_mass_kg' | 'pwv' | 'vascular_age' | 'cardio_fitness' | 'visceral_fat'
+  | 'nerve_health_score' | 'body_temp' | 'skin_temp' | 'sleep_total_min' | 'sleep_deep_min'
+  | 'sleep_light_min' | 'sleep_rem_min' | 'sleep_awake_min' | 'sleep_hr_avg' | 'sleep_breathing_rate'
+  | 'sleep_snoring_min' | 'sleep_breath_disturb';
+type WithingsDailyRow = WearableDailyRow<'withings', WithingsMetric>;
+interface WithingsBody {
+  userid?: unknown; updatetime?: number;
+  measuregrps?: { date?: number; measures?: { type: number; value: number; unit: number }[] }[];
+  series?: { date?: string; data?: Record<string, unknown> }[];
+}
+interface WithingsPayload { status?: unknown; error?: unknown; body?: WithingsBody | null }
+type WithingsRequestError = WearableRequestError & { withingsCode?: unknown };
+
 // wearables-withings.js — Withings data layer
 //
 // BETA. Withings's REST API quirks:
@@ -33,7 +49,7 @@ const PROXY_URL    = getProxyApiUrl();
 // no rows). Scale pulse (type 11) is a daytime spot reading at the moment
 // of standing — NOT resting heart rate — so it routes to hr_day; rhr
 // comes from sleep summary's hr_min below.
-const MEAS_TYPES = {
+const MEAS_TYPES: Record<number, WithingsMetric> = {
   1:   'weight',             // kg
   5:   'lean_mass_kg',       // kg (fat-free mass)
   6:   'body_fat_pct',       // %
@@ -56,7 +72,7 @@ const MEAS_TYPES = {
 
 // /v2/sleep getsleepsummary fields → canonical. Some need unit conversion
 // from seconds to minutes (Withings' default for *duration fields).
-const SLEEP_FIELDS = {
+const SLEEP_FIELDS: Record<string, { key?: WithingsMetric; canonical?: WithingsMetric; secToMin?: boolean }> = {
   sleep_score:          { key: 'sleep_score' },
   hr_min:               { canonical: 'rhr' },
   hr_average:           { canonical: 'sleep_hr_avg' },
@@ -77,10 +93,10 @@ const SLEEP_DATA_FIELDS = [
   'sleep_score', 'snoring', 'breathing_disturbances_intensity',
 ].join(',');
 
-async function withingsPOST(action, accessToken, params = {}) {
+async function withingsPOST(action: string, accessToken: string, params: WearableQuery = {}): Promise<WithingsBody> {
   // Withings accepts either x-www-form-urlencoded body OR query string. Form
   // body is the documented path; the deployment proxy forwards it verbatim.
-  const form = new URLSearchParams({ action, ...params });
+  const form = new (URLSearchParams as unknown as WearableQueryConstructor)({ action, ...params });
   const url = `${WITHINGS_API}/${normalisePath(action)}`;
   const res = await fetch(PROXY_URL, {
     method: 'POST',
@@ -95,20 +111,18 @@ async function withingsPOST(action, accessToken, params = {}) {
     }),
   });
   if (!res.ok) {
-    let err; try { err = await res.json(); } catch { err = { error: res.statusText }; }
-    /** @type {Error & { status?: number }} */
-    const e = new Error(err?.error || err?.detail || res.statusText || 'Withings request failed');
+    let err: WearableErrorBody | null; try { err = await res.json(); } catch { err = { error: res.statusText }; }
+    const e: WearableRequestError = new Error((err?.error || err?.detail || res.statusText || 'Withings request failed') as string);
     e.status = res.status; throw e;
   }
-  const payload = await res.json();
+  const payload: WithingsPayload | null = await res.json();
   if (payload?.status !== 0) {
     const code = payload?.status;
     const mapped = withingsErrorMessage(code);
     const msg = mapped
       ? `Withings ${code}: ${mapped}`
       : `Withings status ${code}: ${payload?.error || 'unknown'}`;
-    /** @type {Error & { status?: number, withingsCode?: number }} */
-    const e = new Error(msg);
+    const e: WithingsRequestError = new Error(msg);
     // Codes 100, 101, 102, 243, 283, 284 all mean "token dead — reconnect"
     // → surface as 401 so the auth-refresh middleware retries once.
     const authDead = new Set([100, 101, 102, 243, 245, 283, 284]);
@@ -116,12 +130,12 @@ async function withingsPOST(action, accessToken, params = {}) {
     e.withingsCode = code;
     throw e;
   }
-  return payload.body || {};
+  return payload!.body || {};
 }
 
 // Withings clusters endpoints into groups; the action tells the server which
 // resource to hit. The path prefix is the group.
-function normalisePath(action) {
+function normalisePath(action: string) {
   if (action === 'getmeas' || action === 'getsubscription') return 'measure';
   if (action === 'getsleep' || action === 'getsleepsummary') return 'v2/sleep';
   if (action === 'getheartlist' || action === 'get') return 'v2/heart';
@@ -129,7 +143,7 @@ function normalisePath(action) {
   return 'measure';
 }
 
-export async function fetchWithingsPersonalInfo(accessToken) {
+export async function fetchWithingsPersonalInfo(accessToken: string) {
   // Withings doesn't have a clean /user endpoint; we best-effort by pulling a
   // short-range measure window and stamping a connection identity. This avoids
   // failing the connect flow just because profile info is sparse.
@@ -147,7 +161,7 @@ export async function fetchWithingsPersonalInfo(accessToken) {
   }
 }
 
-export async function fetchWithingsDailyRange(accessToken, startDate, endDate, lastSyncUnix = null) {
+export async function fetchWithingsDailyRange(accessToken: string, startDate: string, endDate: string, lastSyncUnix: number | null = null) {
   const startUnix = Math.floor(new Date(startDate + 'T00:00:00Z').getTime() / 1000);
   const endUnix   = Math.floor(new Date(endDate + 'T23:59:59Z').getTime() / 1000);
 
@@ -161,7 +175,7 @@ export async function fetchWithingsDailyRange(accessToken, startDate, endDate, l
   // filters client-side, and omitting the param makes us forward-compatible
   // with new Withings measTypes (instead of silently dropping them until
   // the constant is updated).
-  const measParams = lastSyncUnix
+  const measParams: WearableQuery = lastSyncUnix
     ? { lastupdate: String(Math.floor(lastSyncUnix / 1000)), category: '1' }
     : { startdate: String(startUnix), enddate: String(endUnix), category: '1' };
 
@@ -169,26 +183,18 @@ export async function fetchWithingsDailyRange(accessToken, startDate, endDate, l
   // Heartrate list is per-device and noisy; deferring to a follow-up.
   const [meas, sleep] = await Promise.all([
     withingsPOST('getmeas', accessToken, measParams)
-      .catch(e => { logDebug('getmeas', e); return {}; }),
+      .catch((e): WithingsBody => { logDebug('getmeas', e); return {}; }),
     withingsPOST('getsleepsummary', accessToken, {
       startdateymd: startDate, enddateymd: endDate,
       data_fields: SLEEP_DATA_FIELDS,
-    }).catch(e => { logDebug('getsleepsummary', e); return {}; }),
+    }).catch((e): WithingsBody => { logDebug('getsleepsummary', e); return {}; }),
   ]);
 
-  const byDate = new Map();
-  function ensureRow(day) {
+  const byDate = new Map<string, WithingsDailyRow>();
+  function ensureRow(day: string): WithingsDailyRow {
     if (!byDate.has(day)) {
       byDate.set(day, {
-        source: 'withings', date: day,
-        hrv_rmssd: null, hrv_sdnn: null, rhr: null,
-        hrv_day: null, hr_day: null,
-        sleep_score: null, readiness_score: null,
-        activity_score: null, steps: null,
-        strain: null,
-        stress_high_min: null, resilience_level: null, cardio_age: null,
-        weight: null, bp_systolic: null, bp_diastolic: null,
-        spo2_avg: null, body_temp_delta: null, glucose_avg: null,
+        ...createBasicWearableRow('withings', day),
         // Withings full-coverage canonicals (one slot per registered metric).
         body_fat_pct: null, fat_mass_kg: null,
         muscle_mass_kg: null, lean_mass_kg: null,
@@ -202,7 +208,7 @@ export async function fetchWithingsDailyRange(accessToken, startDate, endDate, l
         sleep_snoring_min: null, sleep_breath_disturb: null,
       });
     }
-    return byDate.get(day);
+    return byDate.get(day)!;
   }
 
   // Body measures — Withings returns grouped samples; each group has a date +
@@ -249,6 +255,6 @@ export async function fetchWithingsDailyRange(accessToken, startDate, endDate, l
   return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function logDebug(where, err) {
-  if (isDebugMode?.()) console.warn(`[withings] ${where} failed:`, err?.message || err);
+function logDebug(where: string, err: unknown) {
+  if (isDebugMode?.()) console.warn(`[withings] ${where} failed:`, (err as { message?: unknown } | null)?.message || err);
 }

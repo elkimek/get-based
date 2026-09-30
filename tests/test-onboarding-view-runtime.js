@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { captureRuntimeGlobals } from './helpers/runtime-globals.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-onboarding-view-runtime.js - Dashboard onboarding runtime adapter behavior.
 
@@ -17,7 +18,6 @@ import {
 } from '../js/onboarding-view-runtime.js';
 import { configureChatRuntimeCallbacks } from '../js/chat-runtime.js';
 
-
 const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
 
 console.log('=== Onboarding View Runtime Tests ===\n');
@@ -25,15 +25,7 @@ console.log('=== Onboarding View Runtime Tests ===\n');
 const runtimeKeys = [
   'window',
 ];
-const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
-
-function restoreRuntime() {
-  for (const key of runtimeKeys) {
-    const descriptor = savedDescriptors.get(key);
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else delete globalThis[key];
-  }
-}
+const restoreRuntime = captureRuntimeGlobals(runtimeKeys);
 
 try {
   const calls = [];
