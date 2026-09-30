@@ -1,10 +1,24 @@
-// @ts-check
 // api-transport.js - Shared AI API fetch retry and stream timeout helpers
 
 import { getErrorMessage, getErrorName } from './caught-error.js';
 import { getProxyApiUrl } from './proxy-runtime.js';
 import { isDebugMode } from './utils.js';
 import { HOSTED_PLAINTEXT_RELAY_MESSAGE, isOfficialGetbasedHost } from './url-safety.js';
+
+export interface ApiStreamReader<T> {
+  read(): Promise<ReadableStreamReadResult<T>>;
+  cancel(): unknown;
+}
+export type ApiRequestOptions = RequestInit & { signal: AbortSignal };
+export type ApiRequestFetch = (url: RequestInfo | URL, options: ApiRequestOptions) => Promise<Response>;
+export interface ApiRetryOptions {
+  retries?: number;
+  useProxy?: boolean;
+  requestTimeoutMs?: number;
+  proxyFetch?: ApiRequestFetch;
+  directFetch?: ApiRequestFetch;
+  debug?: () => boolean;
+}
 
 // Mid-stream stall timeout. Streaming SSE / NDJSON readers can hang
 // indefinitely on `reader.read()` if the network drops between chunks
@@ -19,8 +33,8 @@ export const STREAM_STALL_TIMEOUT_MS = 30000;
 // guard would misread as a dead connection. Connection-level failures are
 // still caught by the initial-response timeout, and the user can always Stop.
 export const LOCAL_AI_FIRST_TOKEN_STALL_MS = 900000;
-export function readWithStallTimeout(reader, label = 'AI stream', timeoutMs = STREAM_STALL_TIMEOUT_MS) {
-  return new Promise((resolve, reject) => {
+export function readWithStallTimeout<T>(reader: ApiStreamReader<T>, label = 'AI stream', timeoutMs = STREAM_STALL_TIMEOUT_MS) {
+  return new Promise<ReadableStreamReadResult<T>>((resolve, reject) => {
     const timer = setTimeout(() => {
       try { reader.cancel(); } catch (e) {}
       reject(new Error(`${label} stalled — no data for ${Math.round(timeoutMs / 1000)}s. Check your connection, tap Stop in the chat header, then try again.`));
@@ -40,12 +54,12 @@ export function readWithStallTimeout(reader, label = 'AI stream', timeoutMs = ST
 export const FETCH_REQUEST_TIMEOUT_MS = 60000;
 export const AI_IMPORT_REQUEST_TIMEOUT_MS = 180000;
 
-export function createProxyFetch(shouldUseProxy) {
-  return function proxyFetch(url, options) {
+export function createProxyFetch(shouldUseProxy: () => boolean) {
+  return function proxyFetch(url: RequestInfo | URL, options: RequestInit) {
     if (!shouldUseProxy()) return fetch(url, options);
     if (isOfficialGetbasedHost()) return Promise.reject(new Error(HOSTED_PLAINTEXT_RELAY_MESSAGE));
     // Extract headers (minus Content-Type which the proxy sets) and body.
-    const { 'Content-Type': _ct, ...fwdHeaders } = options.headers || {};
+    const { 'Content-Type': _ct, ...fwdHeaders } = (options.headers as Record<string, unknown> | null | undefined) || {};
     const proxyBody = {
       url,
       headers: fwdHeaders,
@@ -56,11 +70,11 @@ export function createProxyFetch(shouldUseProxy) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(proxyBody),
       signal: options.signal,
-    });
+    } as RequestInit);
   };
 }
 
-export function createInitialResponseTimeout(options, requestTimeoutMs) {
+export function createInitialResponseTimeout(options: RequestInit, requestTimeoutMs: number) {
   const timeoutMs = Number.isFinite(requestTimeoutMs) && requestTimeoutMs > 0 ? requestTimeoutMs : FETCH_REQUEST_TIMEOUT_MS;
   const timeoutController = new AbortController();
   const timeoutId = setTimeout(() => {
@@ -79,7 +93,7 @@ export function createInitialResponseTimeout(options, requestTimeoutMs) {
     // the "hang on flaky network" regression this code is meant to
     // prevent. Don't trust the .any check alone.
     const ctl = new AbortController();
-    const fwd = (sig) => sig.addEventListener('abort', () => ctl.abort(sig.reason), { once: true });
+    const fwd = (sig: AbortSignal) => sig.addEventListener('abort', () => ctl.abort(sig.reason), { once: true });
     if (options.signal.aborted) ctl.abort(options.signal.reason);
     else fwd(options.signal);
     if (timeoutSig.aborted) ctl.abort(timeoutSig.reason);
@@ -93,8 +107,8 @@ export function createInitialResponseTimeout(options, requestTimeoutMs) {
 }
 
 export async function fetchWithRetry(
-  url,
-  options,
+  url: RequestInfo | URL,
+  options: RequestInit,
   {
     retries = 2,
     useProxy = true,
@@ -102,7 +116,7 @@ export async function fetchWithRetry(
     proxyFetch = fetch,
     directFetch = fetch,
     debug = isDebugMode,
-  } = {},
+  }: ApiRetryOptions = {},
 ) {
   const fetchFn = useProxy ? proxyFetch : directFetch;
   for (let i = 0; i <= retries; i++) {

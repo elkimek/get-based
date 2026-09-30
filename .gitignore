@@ -258,3 +258,9 @@ deploy/profile-share/data/
 /server/agent-host-server.js
 /bin/getbased-companion.js
 /scripts/build-companion-bundle.mjs
+
+# Native AI transport and runtime foundations
+/js/api-transport.js
+/js/api-runtime.js
+/js/local-ai-provider-shared.js
+/js/local-ai-provider-ollama.js

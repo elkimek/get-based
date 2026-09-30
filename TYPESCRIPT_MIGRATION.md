@@ -284,6 +284,14 @@ values retain their original checks and coercions. Gateway RPC shutdown shares
 the existing live-map settlement operation. The original streaming, registry,
 connection, bootstrap and distribution cases remain executable native tests.
 
+AI retry and timeout transport, browser location/dialog adapters, local model
+normalization and Ollama discovery/context/inference/unload now have native
+contracts. Response headers still end the initial-response timer; caller abort
+and stream stall protection remain active. Raw model/event fields retain their
+existing checks and coercions. Retry/stall unit cases are separate from the
+remaining provider integration graph; validation retry tables and shared Venice
+setup retain every original fixture value, operation and assertion.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

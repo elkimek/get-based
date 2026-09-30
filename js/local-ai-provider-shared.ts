@@ -1,23 +1,34 @@
-// @ts-check
 // Shared normalization helpers for Local AI provider adapters.
 
 import { extractModelReasoningMetadata } from './reasoning-capabilities.js';
 
+import type { ModelReasoningSource } from './reasoning-capabilities.js';
+
+export interface LocalAiDiscoveryError extends Record<string, unknown> { kind: string }
+export interface LocalAiModel extends Record<string, unknown> { name: unknown; vramAllocated?: unknown }
+interface OpenAIModelView extends Omit<ModelReasoningSource, 'capabilities'> {
+  id?: unknown; size?: unknown; vram_required?: unknown; input_modalities?: unknown; modalities?: unknown;
+  capabilities?: ModelReasoningSource['capabilities'] & { vision?: unknown };
+  vision?: unknown; type?: unknown; loaded?: unknown; quantization?: string | { name?: unknown } | null;
+  quant?: unknown; parameter_size?: unknown; owned_by?: unknown; format?: unknown;
+  context_length?: unknown; max_context_length?: unknown; size_vram?: unknown;
+}
+interface OllamaMetricsView { eval_count?: unknown; eval_duration?: unknown; load_duration?: unknown; prompt_eval_duration?: unknown; thinking_count?: unknown }
+
 export const LOCAL_AI_DISCOVERY_TIMEOUT_MS = 3000;
 
-export function normalizeLocalAiBaseUrl(url) {
+export function normalizeLocalAiBaseUrl(url: unknown) {
   return String(url || '').replace(/\/+$/, '');
 }
 
-export function createLocalAiHeaders(apiKey, { json = false } = {}) {
-  /** @type {Record<string, string>} */
-  const headers = {};
+export function createLocalAiHeaders(apiKey: unknown, { json = false } = {}) {
+  const headers: Record<string, string> = {};
   if (json) headers['Content-Type'] = 'application/json';
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
   return headers;
 }
 
-export function redactApiSecretText(value, secrets = []) {
+export function redactApiSecretText(value: unknown, secrets: unknown[] = []) {
   let text = String(value ?? '');
   for (const secret of secrets) {
     const candidate = String(secret || '');
@@ -29,25 +40,17 @@ export function redactApiSecretText(value, secrets = []) {
     .replace(/\bcashu[A-Za-z0-9._~+/=-]{8,}/gi, '[redacted]');
 }
 
-/**
- * @param {string} kind
- * @param {Record<string, any>} [detail]
- */
-export function localAiDiscoveryError(kind, detail = {}) {
+export function localAiDiscoveryError(kind: string, detail: Record<string, unknown> = {}) {
   return { kind, ...detail };
 }
 
-export function localAiFetchFailure(error) {
-  const name = String(error?.name || '');
-  const message = String(error?.message || 'Request failed');
+export function localAiFetchFailure(error: unknown) {
+  const name = String((error as { name?: unknown } | null | undefined)?.name || '');
+  const message = String((error as { message?: unknown } | null | undefined)?.message || 'Request failed');
   return localAiDiscoveryError(name === 'TimeoutError' || name === 'AbortError' ? 'timeout' : 'network', { message });
 }
 
-/**
- * @param {string} [provider]
- * @param {Record<string, any> | null} [error]
- */
-export function unavailableLocalAiResult(provider = 'unknown', error = null) {
+export function unavailableLocalAiResult(provider = 'unknown', error: LocalAiDiscoveryError | null = null) {
   return {
     available: false,
     provider,
@@ -59,7 +62,7 @@ export function unavailableLocalAiResult(provider = 'unknown', error = null) {
   };
 }
 
-export function localAiResult(provider, modelDetails, { runningStatusKnown = false } = {}) {
+export function localAiResult(provider: string, modelDetails: LocalAiModel[] | null | undefined, { runningStatusKnown = false } = {}) {
   const details = (Array.isArray(modelDetails) ? modelDetails : []).filter(model => model?.name);
   return {
     available: true,
@@ -72,30 +75,30 @@ export function localAiResult(provider, modelDetails, { runningStatusKnown = fal
   };
 }
 
-export function isCloudModel(modelName) {
+export function isCloudModel(modelName: unknown) {
   return /(?:^|[/:_.-])cloud(?:$|[/:_.-])/i.test(String(modelName || ''));
 }
 
-export function isLikelyEmbeddingModel(modelName) {
+export function isLikelyEmbeddingModel(modelName: unknown) {
   return /(?:^|[/:_.-])(?:embed(?:ding)?|nomic-embed|mxbai-embed|all-minilm|bge(?:-m3)?|e5)(?:$|[/:_.-])/i.test(String(modelName || ''));
 }
 
-function isPrivateIPv4(host) {
+function isPrivateIPv4(host: string) {
   const parts = host.split('.').map(Number);
   if (parts.length !== 4 || parts.some(part => !Number.isInteger(part) || part < 0 || part > 255)) return false;
   return parts[0] === 10
     || parts[0] === 127
     || (parts[0] === 169 && parts[1] === 254)
-    || (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31)
+    || (parts[0] === 172 && parts[1]! >= 16 && parts[1]! <= 31)
     || (parts[0] === 192 && parts[1] === 168);
 }
 
-export function isLocalAiLoopbackHost(host) {
+export function isLocalAiLoopbackHost(host: unknown) {
   const normalized = String(host || '').trim().toLowerCase().replace(/^\[|\]$/g, '');
   return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '::1';
 }
 
-export function isLocalAiLoopbackUrl(url) {
+export function isLocalAiLoopbackUrl(url: string) {
   try {
     return isLocalAiLoopbackHost(new URL(url).hostname);
   } catch {
@@ -103,7 +106,7 @@ export function isLocalAiLoopbackUrl(url) {
   }
 }
 
-export function getLocalAiExecutionLocation(url, modelName = '') {
+export function getLocalAiExecutionLocation(url: string, modelName: unknown = '') {
   if (isCloudModel(modelName)) return 'cloud';
   try {
     const host = new URL(url).hostname.toLowerCase();
@@ -115,7 +118,7 @@ export function getLocalAiExecutionLocation(url, modelName = '') {
   }
 }
 
-const QUANT_BPW = {
+const QUANT_BPW: Record<string, number> = {
   q2: 0.3,
   q3: 0.4,
   q4: 0.55,
@@ -128,20 +131,20 @@ const QUANT_BPW = {
   int8: 1.0,
 };
 
-function parseNameMetadata(id) {
+function parseNameMetadata(id: string) {
   const paramMatch = id.match(/[\-:](\d+\.?\d*)[bB]/);
   const quantMatch = id.match(/(Q\d+_K(?:_[A-Z]+)?|Q\d+|fp16|fp32|int[48])/i);
-  const params = paramMatch ? parseFloat(paramMatch[1]) : 0;
-  const quantKey = quantMatch ? quantMatch[1].toLowerCase().replace(/_.*/, '') : '';
+  const params = paramMatch ? parseFloat(paramMatch[1]!) : 0;
+  const quantKey = quantMatch ? quantMatch[1]!.toLowerCase().replace(/_.*/, '') : '';
   const bpw = QUANT_BPW[quantKey] || 0.55;
   return {
     params,
-    quantLevel: quantMatch ? quantMatch[1] : '',
+    quantLevel: quantMatch ? quantMatch[1]! : '',
     estimatedSize: params > 0 ? Math.round(params * bpw * 1e9) : 0,
   };
 }
 
-export function parseOpenAICompatibleModel(model, baseUrl) {
+export function parseOpenAICompatibleModel(model: OpenAIModelView | null | undefined, baseUrl: string) {
   const id = typeof model?.id === 'string' ? model.id : '';
   const parsed = parseNameMetadata(id);
   const reportedSize = Number(model?.size || model?.vram_required) || 0;
@@ -181,7 +184,7 @@ export function parseOpenAICompatibleModel(model, baseUrl) {
   };
 }
 
-export function ollamaPerformanceDiagnostics(event) {
+export function ollamaPerformanceDiagnostics(event: OllamaMetricsView | null | undefined) {
   const outputTokens = Number(event?.eval_count) || 0;
   const evalDurationNs = Number(event?.eval_duration) || 0;
   const loadDurationNs = Number(event?.load_duration) || 0;

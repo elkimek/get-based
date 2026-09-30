@@ -1,4 +1,3 @@
-// @ts-check
 // Ollama native discovery, lifecycle, context management, and inference adapter.
 
 import { getErrorMessage } from './caught-error.js';
@@ -15,6 +14,49 @@ import {
   redactApiSecretText,
   unavailableLocalAiResult,
 } from './local-ai-provider-shared.js';
+
+import type { LocalAiModel } from './local-ai-provider-shared.js';
+
+interface LocalAiDiscoveryOptions { baseUrl: string; apiKey?: string; timeoutMs?: number }
+interface OllamaModelView {
+  name?: unknown; model?: unknown; capabilities?: unknown; size?: unknown; context_length?: unknown; size_vram?: unknown;
+  details?: { parameter_size?: unknown; quantization_level?: unknown; family?: unknown; format?: unknown; context_length?: unknown } | null;
+}
+interface OllamaEventView {
+  done_reason?: unknown; done?: unknown; error?: unknown; message?: { content?: unknown } | null;
+  prompt_eval_count?: unknown; eval_count?: unknown; eval_duration?: unknown; load_duration?: unknown;
+  prompt_eval_duration?: unknown; thinking_count?: unknown;
+}
+interface LocalAiMessage { role?: unknown; content?: unknown }
+interface LocalAiMessageBlock {
+  type?: unknown; text?: unknown; source?: { data?: unknown } | null; image_url?: { url?: string } | null;
+}
+export interface OllamaInferenceOptions {
+  preferNativeContext?: boolean;
+  jsonMode?: boolean;
+  jsonSchema?: unknown;
+  temperature?: number;
+  reasoningEffort?: string;
+  system?: unknown;
+  messages: LocalAiMessage[];
+  onStream?: (text: string) => unknown;
+  signal?: AbortSignal;
+  requestTimeoutMs?: number;
+}
+interface OllamaInferenceContext {
+  config: { url: string; apiKey?: string };
+  model: string;
+  opts: OllamaInferenceOptions;
+  plan?: { maxTokens?: number } | null;
+  contextLength?: number;
+  nativeContextOverride?: boolean;
+}
+interface OllamaContextOptions {
+  opts: OllamaInferenceOptions;
+  modelDetail: LocalAiModel | null | undefined;
+  requiredContext: number;
+  roundContextLength(required: number, maximum: number): number;
+}
 
 export const ollamaProviderAdapter = Object.freeze({
   id: 'ollama',
@@ -35,11 +77,11 @@ export const ollamaProviderAdapter = Object.freeze({
   unload: unloadOllamaModel,
 });
 
-function indexRunningOllamaModels(rawModels) {
-  const index = new Map();
+function indexRunningOllamaModels(rawModels: (OllamaModelView | null | undefined)[]) {
+  const index = new Map<unknown, OllamaModelView>();
   for (const model of rawModels) {
     const name = model?.name || model?.model;
-    if (name) index.set(name, model);
+    if (name) index.set(name, model!);
   }
   return index;
 }
@@ -48,9 +90,9 @@ export async function discoverOllamaProvider({
   baseUrl,
   apiKey = '',
   timeoutMs = LOCAL_AI_DISCOVERY_TIMEOUT_MS,
-}) {
+}: LocalAiDiscoveryOptions) {
   const headers = createLocalAiHeaders(apiKey);
-  const request = path => fetch(`${baseUrl}${path}`, {
+  const request = (path: string) => fetch(`${baseUrl}${path}`, {
     headers,
     signal: AbortSignal.timeout(timeoutMs),
   });
@@ -68,19 +110,19 @@ export async function discoverOllamaProvider({
     }));
   }
   try {
-    const tagsData = await tagsResult.value.json();
-    const raw = Array.isArray(tagsData.models) ? tagsData.models : [];
-    let runningRaw = [];
+    const tagsData = await tagsResult.value.json() as { models?: unknown };
+    const raw = Array.isArray(tagsData.models) ? tagsData.models as (OllamaModelView | null | undefined)[] : [];
+    let runningRaw: (OllamaModelView | null | undefined)[] = [];
     const runningStatusKnown = runningResult.status === 'fulfilled' && runningResult.value.ok;
     if (runningStatusKnown) {
-      const runningData = await runningResult.value.json();
-      runningRaw = Array.isArray(runningData.models) ? runningData.models : [];
+      const runningData = await runningResult.value.json() as { models?: unknown };
+      runningRaw = Array.isArray(runningData.models) ? runningData.models as (OllamaModelView | null | undefined)[] : [];
     }
     const runningIndex = indexRunningOllamaModels(runningRaw);
     const modelDetails = raw.map(model => {
       const name = model?.name || model?.model;
       const running = runningIndex.get(name);
-      const capabilities = Array.isArray(model?.capabilities) ? model.capabilities : [];
+      const capabilities = Array.isArray(model?.capabilities) ? model.capabilities as unknown[] : [];
       const supportsThinking = capabilities.includes('thinking');
       const gptOss = /(?:^|[/_.:-])gpt[-_.]?oss(?:$|[/_.:-])/i.test(String(name || ''));
       return {
@@ -114,7 +156,7 @@ export async function discoverOllamaProvider({
   }
 }
 
-export function prepareOllamaNativeRequest({ opts, modelDetail, requiredContext, roundContextLength }) {
+export function prepareOllamaNativeRequest({ opts, modelDetail, requiredContext, roundContextLength }: OllamaContextOptions) {
   if (!opts.preferNativeContext || modelDetail?.source !== 'ollama') return null;
   const currentContext = Number(modelDetail.contextLength) || 0;
   const maxContext = Number(modelDetail.maxContextLength) || 0;
@@ -131,8 +173,8 @@ export function prepareOllamaNativeRequest({ opts, modelDetail, requiredContext,
   };
 }
 
-function normalizeOllamaMessages(system, messages) {
-  const output = [];
+function normalizeOllamaMessages(system: unknown, messages: LocalAiMessage[]) {
+  const output: { role?: unknown; content: unknown; images?: unknown[] }[] = [];
   if (system) output.push({ role: 'system', content: system });
   for (const message of Array.isArray(messages) ? messages : []) {
     if (!Array.isArray(message?.content)) {
@@ -140,8 +182,8 @@ function normalizeOllamaMessages(system, messages) {
       continue;
     }
     let text = '';
-    const images = [];
-    for (const block of message.content) {
+    const images: unknown[] = [];
+    for (const block of message.content as (LocalAiMessageBlock | null | undefined)[]) {
       if (block?.type === 'text') text += block.text || '';
       else if (block?.type === 'image' && block.source?.data) images.push(block.source.data);
       else if (block?.type === 'image_url' && block.image_url?.url) {
@@ -149,15 +191,15 @@ function normalizeOllamaMessages(system, messages) {
         if (match) images.push(match[1]);
       }
     }
-    const ollamaMessage = { role: message.role, content: text };
+    const ollamaMessage: { role?: unknown; content: string; images?: unknown[] } = { role: message.role, content: text };
     if (images.length > 0) ollamaMessage.images = images;
     output.push(ollamaMessage);
   }
   return output;
 }
 
-function localAiCorsError(error) {
-  if (!(error instanceof TypeError) && !/Failed to fetch|Load failed|NetworkError/.test(error?.message || '')) return null;
+function localAiCorsError(error: unknown) {
+  if (!(error instanceof TypeError) && !/Failed to fetch|Load failed|NetworkError/.test(((error as { message?: unknown } | null | undefined)?.message || '') as string)) return null;
   const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent || '';
   const origin = typeof location !== 'undefined' ? location.origin : 'the getbased origin';
   const hint = /Mac/i.test(ua) ? `Set OLLAMA_ORIGINS to ${origin} and restart Ollama.`
@@ -166,11 +208,11 @@ function localAiCorsError(error) {
   return new Error(`Cannot reach Ollama - CORS may be blocking the request. ${hint}`);
 }
 
-function isTokenLimitFinish(reason) {
+function isTokenLimitFinish(reason: unknown) {
   return /^(?:length|max_tokens|token_limit)$/i.test(String(reason || ''));
 }
 
-function normalizedOllamaResult(text, event, diagnostics = {}) {
+function normalizedOllamaResult(text: string, event: OllamaEventView | null | undefined, diagnostics: Record<string, unknown> = {}) {
   const finishReason = event?.done_reason || null;
   return {
     text,
@@ -188,23 +230,23 @@ function normalizedOllamaResult(text, event, diagnostics = {}) {
   };
 }
 
-function ollamaStructuredOutputRejected(response, errorText) {
+function ollamaStructuredOutputRejected(response: Response, errorText: string) {
   return (response.status === 400 || response.status === 422)
     && /format|schema|structured output/i.test(errorText);
 }
 
-function ollamaReasoningControlRejected(response, errorText) {
+function ollamaReasoningControlRejected(response: Response, errorText: string) {
   return (response.status === 400 || response.status === 422)
     && /think|reasoning/i.test(errorText);
 }
 
-async function requestOllamaChat(config, opts, body) {
+async function requestOllamaChat(config: OllamaInferenceContext['config'], opts: OllamaInferenceOptions, body: Record<string, unknown>) {
   const requestInit = {
     method: 'POST',
     headers: createLocalAiHeaders(config.apiKey, { json: true }),
     body: JSON.stringify(body),
     signal: opts.signal,
-  };
+  } as RequestInit;
   const timeoutState = createInitialResponseTimeout(requestInit, opts.requestTimeoutMs || FETCH_REQUEST_TIMEOUT_MS);
   try {
     return await fetch(`${String(config.url || '').replace(/\/+$/, '')}/api/chat`, timeoutState.fetchOptions);
@@ -217,24 +259,22 @@ async function requestOllamaChat(config, opts, body) {
   }
 }
 
-export async function inferWithOllamaNativeProvider({ config, model, opts, plan, contextLength = 0, nativeContextOverride = false }) {
-  const options = {};
+export async function inferWithOllamaNativeProvider({ config, model, opts, plan, contextLength = 0, nativeContextOverride = false }: OllamaInferenceContext) {
+  const options: Record<string, number> = {};
   if (plan?.maxTokens) options.num_predict = plan.maxTokens;
   if (contextLength > 0) options.num_ctx = contextLength;
   if (opts.jsonMode || opts.temperature === 0) options.temperature = 0;
-  /** @type {Record<string, any>} */
-  const body = {
+  const body: Record<string, unknown> = {
     model,
     messages: normalizeOllamaMessages(opts.system, opts.messages),
     stream: !!opts.onStream,
     ...(Object.keys(options).length ? { options } : {}),
   };
   if (opts.jsonMode) body.format = opts.jsonSchema || 'json';
-  if (opts.jsonMode || ['none', 'off'].includes(opts.reasoningEffort)) body.think = false;
-  else if (['low', 'medium', 'high'].includes(opts.reasoningEffort)) body.think = opts.reasoningEffort;
+  if (opts.jsonMode || ['none', 'off'].includes(opts.reasoningEffort!)) body.think = false;
+  else if (['low', 'medium', 'high'].includes(opts.reasoningEffort!)) body.think = opts.reasoningEffort;
   else if (opts.reasoningEffort === 'on') body.think = true;
-  /** @type {Response | null} */
-  let response = null;
+  let response: Response | null = null;
   let structuredOutputFallback = false;
   let reasoningControlFallback = false;
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -255,9 +295,9 @@ export async function inferWithOllamaNativeProvider({ config, model, opts, plan,
   }
   if (!response) throw new Error('Ollama request ended without a response.');
   if (!response.ok) {
-    let detail = '';
+    let detail: unknown = '';
     try {
-      const errorBody = await response.json();
+      const errorBody = await response.json() as { error?: unknown };
       detail = errorBody.error || JSON.stringify(errorBody);
     } catch {}
     throw new Error(`Ollama API error (${response.status})${detail ? `: ${redactApiSecretText(detail, [config.apiKey])}` : ''}`);
@@ -270,7 +310,7 @@ export async function inferWithOllamaNativeProvider({ config, model, opts, plan,
     reasoningControlFallback,
   };
   if (!opts.onStream) {
-    const data = await response.json();
+    const data = await response.json() as OllamaEventView;
     const text = String(data.message?.content || '').trim();
     if (!text) throw new Error('Ollama returned no final response content.');
     return normalizedOllamaResult(text, data, requestDiagnostics);
@@ -281,17 +321,17 @@ export async function inferWithOllamaNativeProvider({ config, model, opts, plan,
   const decoder = new TextDecoder();
   let buffer = '';
   let fullText = '';
-  let finalEvent = null;
+  let finalEvent: OllamaEventView | null = null;
   let receivedFirstToken = false;
-  const handleNdjsonLine = (line, boundary) => {
+  const handleNdjsonLine = (line: string, boundary: boolean) => {
     if (!line.trim()) return;
     try {
-      const event = JSON.parse(line);
+      const event = JSON.parse(line) as OllamaEventView;
       if (event.error) throw new Error(redactApiSecretText(event.error, [config.apiKey]));
       if (event.message?.content) {
         receivedFirstToken = true;
         fullText += event.message.content;
-        opts.onStream(fullText);
+        opts.onStream!(fullText);
       }
       if (event.done === true) finalEvent = event;
     } catch (parseError) {
@@ -320,7 +360,7 @@ export async function inferWithOllamaNativeProvider({ config, model, opts, plan,
   return normalizedOllamaResult(fullText, finalEvent, requestDiagnostics);
 }
 
-export async function unloadOllamaModel({ baseUrl, apiKey = '', model, timeoutMs = 5000 }) {
+export async function unloadOllamaModel({ baseUrl, apiKey = '', model, timeoutMs = 5000 }: LocalAiDiscoveryOptions & { model: string }) {
   if (!model) return false;
   const response = await fetch(`${baseUrl}/api/generate`, {
     method: 'POST',

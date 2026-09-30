@@ -1,81 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { callOpenAICompatibleAPI } from '../js/api-openai-compatible.js';
-import { fetchWithRetry } from '../js/api-transport.js';
 
 afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('fetchWithRetry request timeout lifecycle', () => {
-  it('clears the initial-response timeout after headers arrive', async () => {
-    vi.useFakeTimers();
-    let capturedSignal;
-    const response = await fetchWithRetry(
-      'https://api.example.test/stream',
-      { method: 'POST', headers: {} },
-      {
-        retries: 0,
-        requestTimeoutMs: 1000,
-        useProxy: false,
-        directFetch: async (_url, options) => {
-          capturedSignal = options.signal;
-          return new Response('stream body', { status: 200 });
-        },
-        debug: () => false,
-      },
-    );
-
-    expect(response.status).toBe(200);
-    expect(capturedSignal.aborted).toBe(false);
-    await vi.advanceTimersByTimeAsync(5000);
-    expect(capturedSignal.aborted).toBe(false);
-  });
-
-  it('keeps the caller stop signal active after headers arrive', async () => {
-    vi.useFakeTimers();
-    const caller = new AbortController();
-    let capturedSignal;
-    await fetchWithRetry(
-      'https://api.example.test/stream',
-      { method: 'POST', headers: {}, signal: caller.signal },
-      {
-        retries: 0,
-        requestTimeoutMs: 1000,
-        useProxy: false,
-        directFetch: async (_url, options) => {
-          capturedSignal = options.signal;
-          return new Response('stream body', { status: 200 });
-        },
-        debug: () => false,
-      },
-    );
-
-    caller.abort(new DOMException('Stopped', 'AbortError'));
-    expect(capturedSignal.aborted).toBe(true);
-  });
-
-  it('still rejects when response headers exceed the timeout', async () => {
-    vi.useFakeTimers();
-    const pending = fetchWithRetry(
-      'https://api.example.test/slow-headers',
-      { method: 'POST', headers: {} },
-      {
-        retries: 0,
-        requestTimeoutMs: 1000,
-        useProxy: false,
-        directFetch: async (_url, options) => new Promise((_resolve, reject) => {
-          options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });
-        }),
-        debug: () => false,
-      },
-    );
-
-    const rejection = expect(pending).rejects.toThrow('request timed out after 1s');
-    await vi.advanceTimersByTimeAsync(1001);
-    await rejection;
-  });
-});
 
 describe('custom secure fetch request timeout lifecycle', () => {
   it('sends schema-constrained JSON output to cloud-compatible vision models', async () => {
@@ -116,107 +46,66 @@ describe('custom secure fetch request timeout lifecycle', () => {
     });
   });
 
-  it('retries without temperature when a compatible provider does not support the control', async () => {
+  const validationRetries = [
+    {
+      name: 'retries without temperature when a compatible provider does not support the control',
+      endpoint: 'https://provider.example.test/v1/chat/completions', model: 'fixed-temperature-model', provider: 'Custom',
+      error: { error: { message: 'temperature is not supported for this model' } },
+      reply: { choices: [{ message: { content: '{"mealName":"Soup"}' }, finish_reason: 'stop' }] },
+      options: { messages: [{ role: 'user', content: 'analyze' }], forceNonStream: true, temperature: 0 },
+      diagnostics: { temperatureControlFallback: true },
+      assertRequests(bodies) {
+        expect(bodies).toHaveLength(2);
+        expect(bodies[0].temperature).toBe(0);
+        expect(bodies[1]).not.toHaveProperty('temperature');
+      },
+    },
+    {
+      name: 'retries without structured output when Venice rejects its translated schema',
+      endpoint: 'https://api.venice.ai/api/v1/chat/completions', model: 'claude-opus-4.8', provider: 'Venice',
+      error: { error: { message: "output_config.format.schema: For 'anyOf', 'minimum' is not supported" } },
+      reply: { choices: [{ message: { content: '{"mealName":"Soup"}' }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 5 } },
+      options: { messages: [{ role: 'user', content: 'analyze' }], forceNonStream: true, jsonMode: true, jsonSchema: { type: 'object' } },
+      diagnostics: { structuredOutputFallback: true },
+      assertRequests(bodies) {
+        expect(bodies).toHaveLength(2);
+        expect(bodies[0]).toHaveProperty('response_format');
+        expect(bodies[1]).not.toHaveProperty('response_format');
+      },
+    },
+    {
+      name: 'recognizes the Gemini any_of sibling-field rejection and retries without the schema',
+      endpoint: 'https://api.venice.ai/api/v1/chat/completions', model: 'gemini-3-7-flash', provider: 'Venice',
+      error: { error: { message: 'Unable to submit request because one or more response schemas specified other fields alongside any_of. When using any_of, it must be the only field set.' } },
+      reply: { choices: [{ message: { content: '{"mealName":"Soup"}' }, finish_reason: 'stop' }] },
+      options: { messages: [{ role: 'user', content: 'analyze' }], forceNonStream: true, jsonMode: true, jsonSchema: { type: 'object' } },
+      diagnostics: { structuredOutputFallback: true },
+      assertRequests(bodies) {
+        expect(bodies).toHaveLength(2);
+        expect(bodies[0]).toHaveProperty('response_format');
+        expect(bodies[1]).not.toHaveProperty('response_format');
+      },
+    },
+  ];
+
+  it.each(validationRetries)('$name', async contract => {
     const bodies = [];
     const compatibleFetch = vi.fn(async (_url, options) => {
       bodies.push(JSON.parse(options.body));
       if (bodies.length === 1) {
-        return new Response(JSON.stringify({ error: { message: 'temperature is not supported for this model' } }), {
+        return new Response(JSON.stringify(contract.error), {
           status: 400,
           headers: { 'Content-Type': 'application/json' },
         });
       }
-      return new Response(JSON.stringify({
-        choices: [{ message: { content: '{"mealName":"Soup"}' }, finish_reason: 'stop' }],
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify(contract.reply), { status: 200, headers: { 'Content-Type': 'application/json' } });
     });
 
     await expect(callOpenAICompatibleAPI(
-      'https://provider.example.test/v1/chat/completions',
-      'test-key',
-      'fixed-temperature-model',
-      'Custom',
-      {
-        messages: [{ role: 'user', content: 'analyze' }],
-        forceNonStream: true,
-        temperature: 0,
-      },
-      {},
-      { useProxy: false, fetchImpl: compatibleFetch },
-    )).resolves.toMatchObject({ diagnostics: { temperatureControlFallback: true } });
-
-    expect(bodies).toHaveLength(2);
-    expect(bodies[0].temperature).toBe(0);
-    expect(bodies[1]).not.toHaveProperty('temperature');
-  });
-
-  it('retries without structured output when Venice rejects its translated schema', async () => {
-    const bodies = [];
-    const compatibleFetch = vi.fn(async (_url, options) => {
-      bodies.push(JSON.parse(options.body));
-      if (bodies.length === 1) {
-        return new Response(JSON.stringify({
-          error: { message: "output_config.format.schema: For 'anyOf', 'minimum' is not supported" },
-        }), { status: 400, headers: { 'Content-Type': 'application/json' } });
-      }
-      return new Response(JSON.stringify({
-        choices: [{ message: { content: '{"mealName":"Soup"}' }, finish_reason: 'stop' }],
-        usage: { prompt_tokens: 10, completion_tokens: 5 },
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-    });
-
-    await expect(callOpenAICompatibleAPI(
-      'https://api.venice.ai/api/v1/chat/completions',
-      'test-key',
-      'claude-opus-4.8',
-      'Venice',
-      {
-        messages: [{ role: 'user', content: 'analyze' }],
-        forceNonStream: true,
-        jsonMode: true,
-        jsonSchema: { type: 'object' },
-      },
-      {},
-      { useProxy: false, fetchImpl: compatibleFetch },
-    )).resolves.toMatchObject({ diagnostics: { structuredOutputFallback: true } });
-
-    expect(bodies).toHaveLength(2);
-    expect(bodies[0]).toHaveProperty('response_format');
-    expect(bodies[1]).not.toHaveProperty('response_format');
-  });
-
-  it('recognizes the Gemini any_of sibling-field rejection and retries without the schema', async () => {
-    const bodies = [];
-    const compatibleFetch = vi.fn(async (_url, options) => {
-      bodies.push(JSON.parse(options.body));
-      if (bodies.length === 1) {
-        return new Response(JSON.stringify({
-          error: { message: 'Unable to submit request because one or more response schemas specified other fields alongside any_of. When using any_of, it must be the only field set.' },
-        }), { status: 400, headers: { 'Content-Type': 'application/json' } });
-      }
-      return new Response(JSON.stringify({
-        choices: [{ message: { content: '{"mealName":"Soup"}' }, finish_reason: 'stop' }],
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-    });
-
-    await expect(callOpenAICompatibleAPI(
-      'https://api.venice.ai/api/v1/chat/completions',
-      'test-key',
-      'gemini-3-7-flash',
-      'Venice',
-      {
-        messages: [{ role: 'user', content: 'analyze' }],
-        forceNonStream: true,
-        jsonMode: true,
-        jsonSchema: { type: 'object' },
-      },
-      {},
-      { useProxy: false, fetchImpl: compatibleFetch },
-    )).resolves.toMatchObject({ diagnostics: { structuredOutputFallback: true } });
-
-    expect(bodies).toHaveLength(2);
-    expect(bodies[0]).toHaveProperty('response_format');
-    expect(bodies[1]).not.toHaveProperty('response_format');
+      contract.endpoint, 'test-key', contract.model, contract.provider, contract.options,
+      {}, { useProxy: false, fetchImpl: compatibleFetch },
+    )).resolves.toMatchObject({ diagnostics: contract.diagnostics });
+    contract.assertRequests(bodies);
   });
 
   it('does not abort a PPQ/Routstr-style decrypted stream after headers arrive', async () => {
@@ -342,30 +231,7 @@ describe('custom secure fetch request timeout lifecycle', () => {
 });
 
 describe('stream stall guard', () => {
-  it('gives the first read a longer stall window and reverts to the default afterwards', async () => {
-    const { readWithStallTimeout, STREAM_STALL_TIMEOUT_MS } = await import('../js/api-transport.js');
-    vi.useFakeTimers();
-    const neverResolves = () => new Promise(() => {});
 
-    // Default window: rejects at STREAM_STALL_TIMEOUT_MS.
-    const defaultReader = { read: neverResolves, cancel: vi.fn() };
-    const defaultRead = readWithStallTimeout(defaultReader, 'Test stream');
-    const defaultRejection = expect(defaultRead).rejects.toThrow(/stalled — no data for 30s/);
-    await vi.advanceTimersByTimeAsync(STREAM_STALL_TIMEOUT_MS + 1);
-    await defaultRejection;
-    expect(defaultReader.cancel).toHaveBeenCalled();
-
-    // Extended first-read window: still pending after the default deadline.
-    const { LOCAL_AI_FIRST_TOKEN_STALL_MS } = await import('../js/api-transport.js');
-    const slowReader = { read: neverResolves, cancel: vi.fn() };
-    const pending = readWithStallTimeout(slowReader, 'Test stream', LOCAL_AI_FIRST_TOKEN_STALL_MS);
-    const pendingRejection = expect(pending).rejects.toThrow(new RegExp(`no data for ${LOCAL_AI_FIRST_TOKEN_STALL_MS / 1000}s`));
-    await vi.advanceTimersByTimeAsync(STREAM_STALL_TIMEOUT_MS + 1);
-    expect(slowReader.cancel).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(LOCAL_AI_FIRST_TOKEN_STALL_MS);
-    await pendingRejection;
-    expect(slowReader.cancel).toHaveBeenCalled();
-  });
 
   it('applies the first-read allowance to Local AI streams then guards subsequent reads', async () => {
     const { LOCAL_AI_FIRST_TOKEN_STALL_MS, STREAM_STALL_TIMEOUT_MS } = await import('../js/api-transport.js');

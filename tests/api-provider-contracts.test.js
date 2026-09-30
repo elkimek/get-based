@@ -177,6 +177,16 @@ function baseChatOptions(overrides = {}) {
   };
 }
 
+function configureVeniceE2EEFixture(key, model) {
+  setAIProvider('venice');
+  updateKeyCache('labcharts-venice-key', key);
+  setVeniceE2EE(true);
+  setVeniceModel(model);
+  localStorage.setItem('labcharts-venice-models', '[]');
+  localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: model }]));
+  localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+}
+
 beforeEach(() => {
   configureAppExtension(null);
   localStorage.clear();
@@ -1538,13 +1548,7 @@ describe('AI provider request contracts', () => {
   it('retries transient Venice E2EE attestation gateway failures before sending the completion', async () => {
     vi.useFakeTimers();
     try {
-      setAIProvider('venice');
-      updateKeyCache('labcharts-venice-key', 'sk-venice-attestation-retry');
-      setVeniceE2EE(true);
-      setVeniceModel('e2ee-retry-contract');
-      localStorage.setItem('labcharts-venice-models', '[]');
-      localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-retry-contract' }]));
-      localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+      configureVeniceE2EEFixture('sk-venice-attestation-retry', 'e2ee-retry-contract');
       veniceE2EEMocks.createSession
         .mockRejectedValueOnce(new Error('TEE attestation failed (502)'))
         .mockRejectedValueOnce(new Error('GPU attestation failed: NRAS rejected the GPU evidence (503)'))
@@ -1597,13 +1601,7 @@ describe('AI provider request contracts', () => {
   });
 
   it('fails closed when client-side Venice DCAP verification is rejected', async () => {
-    setAIProvider('venice');
-    updateKeyCache('labcharts-venice-key', 'sk-venice-dcap-rejected');
-    setVeniceE2EE(true);
-    setVeniceModel('e2ee-dcap-rejected');
-    localStorage.setItem('labcharts-venice-models', '[]');
-    localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-dcap-rejected' }]));
-    localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+    configureVeniceE2EEFixture('sk-venice-dcap-rejected', 'e2ee-dcap-rejected');
     veniceE2EEMocks.createSession.mockRejectedValueOnce(
       new Error('Attestation verification failed: Full DCAP verification did not complete successfully')
     );
@@ -1617,13 +1615,7 @@ describe('AI provider request contracts', () => {
   });
 
   it('fails closed when NVIDIA NRAS verification is rejected', async () => {
-    setAIProvider('venice');
-    updateKeyCache('labcharts-venice-key', 'sk-venice-nras-rejected');
-    setVeniceE2EE(true);
-    setVeniceModel('e2ee-nras-rejected');
-    localStorage.setItem('labcharts-venice-models', '[]');
-    localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-nras-rejected' }]));
-    localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+    configureVeniceE2EEFixture('sk-venice-nras-rejected', 'e2ee-nras-rejected');
     veniceE2EEMocks.createSession.mockRejectedValueOnce(
       new Error('Attestation verification failed: GPU attestation did not complete successfully')
     );
@@ -1639,13 +1631,7 @@ describe('AI provider request contracts', () => {
   it('reports a persistent Venice E2EE attestation outage after bounded retries', async () => {
     vi.useFakeTimers();
     try {
-      setAIProvider('venice');
-      updateKeyCache('labcharts-venice-key', 'sk-venice-attestation-down');
-      setVeniceE2EE(true);
-      setVeniceModel('e2ee-down-contract');
-      localStorage.setItem('labcharts-venice-models', '[]');
-      localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-down-contract' }]));
-      localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+      configureVeniceE2EEFixture('sk-venice-attestation-down', 'e2ee-down-contract');
       veniceE2EEMocks.createSession.mockRejectedValue(new Error('TEE attestation failed (502)'));
 
       const expectation = expect(callClaudeAPI(baseChatOptions())).rejects.toThrow(
@@ -1663,13 +1649,7 @@ describe('AI provider request contracts', () => {
 
   it('surfaces redacted Venice E2EE SSE provider errors', async () => {
     const secret = 'sk-venice-stream-secret';
-    setAIProvider('venice');
-    updateKeyCache('labcharts-venice-key', secret);
-    setVeniceE2EE(true);
-    setVeniceModel('e2ee-contract-model');
-    localStorage.setItem('labcharts-venice-models', '[]');
-    localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-contract-model' }]));
-    localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+    configureVeniceE2EEFixture(secret, 'e2ee-contract-model');
     globalThis.fetch = vi.fn(async () => streamResponse([
       `data: {"error":{"message":"provider echoed ${secret}"}}\n\n`,
     ]));
@@ -1701,13 +1681,7 @@ describe('AI provider request contracts', () => {
   });
 
   it('rejects a Venice E2EE streaming response without a body', async () => {
-    setAIProvider('venice');
-    updateKeyCache('labcharts-venice-key', 'sk-venice-no-stream');
-    setVeniceE2EE(true);
-    setVeniceModel('e2ee-no-stream-contract');
-    localStorage.setItem('labcharts-venice-models', '[]');
-    localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-no-stream-contract' }]));
-    localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+    configureVeniceE2EEFixture('sk-venice-no-stream', 'e2ee-no-stream-contract');
     globalThis.fetch = vi.fn(async () => new Response(null, { status: 200 }));
 
     await expect(callClaudeAPI({
@@ -1724,13 +1698,7 @@ describe('AI provider request contracts', () => {
   });
 
   it('returns encrypted Venice reasoning when a reasoning model emits no final content', async () => {
-    setAIProvider('venice');
-    updateKeyCache('labcharts-venice-key', 'sk-venice-reasoning');
-    setVeniceE2EE(true);
-    setVeniceModel('e2ee-glm-5-2-p');
-    localStorage.setItem('labcharts-venice-models', '[]');
-    localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-glm-5-2-p' }]));
-    localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+    configureVeniceE2EEFixture('sk-venice-reasoning', 'e2ee-glm-5-2-p');
     globalThis.fetch = vi.fn(async () => streamResponse([
       'data: {"choices":[{"delta":{"reasoning_content":"encrypted-reasoning"}}]}\n\n',
       'data: {"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":20,"completion_tokens":12}}\n\n',
@@ -1762,13 +1730,7 @@ describe('AI provider request contracts', () => {
   });
 
   it('reports an empty Venice E2EE stream instead of silently rendering a blank answer', async () => {
-    setAIProvider('venice');
-    updateKeyCache('labcharts-venice-key', 'sk-venice-empty');
-    setVeniceE2EE(true);
-    setVeniceModel('e2ee-empty-contract');
-    localStorage.setItem('labcharts-venice-models', '[]');
-    localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-empty-contract' }]));
-    localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+    configureVeniceE2EEFixture('sk-venice-empty', 'e2ee-empty-contract');
     globalThis.fetch = vi.fn(async () => streamResponse([
       'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n',
       'data: [DONE]\n\n',
@@ -1783,13 +1745,7 @@ describe('AI provider request contracts', () => {
   });
 
   it('allows long Venice reasoning streams to reach their final answer', async () => {
-    setAIProvider('venice');
-    updateKeyCache('labcharts-venice-key', 'sk-venice-runaway');
-    setVeniceE2EE(true);
-    setVeniceModel('e2ee-glm-runaway');
-    localStorage.setItem('labcharts-venice-models', '[]');
-    localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-glm-runaway' }]));
-    localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+    configureVeniceE2EEFixture('sk-venice-runaway', 'e2ee-glm-runaway');
     const reasoningEvents = Array.from({ length: 160 }, (_, index) =>
       `data: {"choices":[{"delta":{"reasoning_content":"encrypted-r${index}"}}]}\n\n`
     );

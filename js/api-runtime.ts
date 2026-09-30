@@ -1,18 +1,19 @@
-// @ts-check
 // api-runtime.js - Browser runtime adapters for AI provider orchestration.
+
+interface ApiBrowserRuntime { location?: { origin?: string; pathname?: string; href: string } }
+interface ApiRuntimeCallbacks { showInsufficientBalanceDialog: () => unknown }
 
 function getApiRuntime() {
   return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
+    ? (window as unknown as ApiBrowserRuntime)
     : null;
 }
 
-/** @type {{ showInsufficientBalanceDialog: Function }} */
-const apiRuntimeCallbacks = {
+const apiRuntimeCallbacks: ApiRuntimeCallbacks = {
   showInsufficientBalanceDialog: () => false,
 };
 
-export function configureApiRuntimeCallbacks(callbacks = {}) {
+export function configureApiRuntimeCallbacks(callbacks: Partial<ApiRuntimeCallbacks> = {}) {
   const previous = { ...apiRuntimeCallbacks };
   if ('showInsufficientBalanceDialog' in callbacks) {
     apiRuntimeCallbacks.showInsufficientBalanceDialog = typeof callbacks.showInsufficientBalanceDialog === 'function'
@@ -30,11 +31,7 @@ export function getApiLocationPathnameRuntime() {
   return getApiRuntime()?.location?.pathname || '';
 }
 
-/**
- * @param {string} url
- * @returns {boolean}
- */
-export function setApiLocationHrefRuntime(url) {
+export function setApiLocationHrefRuntime(url: string) {
   const runtime = getApiRuntime();
   if (!runtime?.location) return false;
   runtime.location.href = url;

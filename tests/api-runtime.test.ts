@@ -15,7 +15,7 @@ const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
 afterEach(() => {
   configureApiRuntimeCallbacks({ showInsufficientBalanceDialog: () => false });
   if (savedWindow) Object.defineProperty(globalThis, 'window', savedWindow);
-  else delete globalThis.window;
+  else delete (globalThis as { window?: unknown }).window;
 });
 
 describe('api runtime adapter', () => {
@@ -44,7 +44,7 @@ describe('api runtime adapter', () => {
   });
 
   it('no-ops safely when a browser runtime is missing', () => {
-    delete globalThis.window;
+    delete (globalThis as { window?: unknown }).window;
     configureApiRuntimeCallbacks({ showInsufficientBalanceDialog: () => false });
 
     expect(getApiLocationOriginRuntime()).toBe('');
