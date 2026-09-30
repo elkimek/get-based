@@ -1,5 +1,11 @@
-// @ts-check
 // Loopback HTTP boundary between the getbased PWA and Codex app-server.
+
+import type {
+  AgentHostServiceOptions, HostAgent, HostRoute, HostUpload, ActiveHostTurn,
+  PendingHostTool, McpSession, McpContext, CodexHostMessage, CodexNotificationParams,
+  CodexThreadResult, CodexTurnResult, HostControlAction,
+} from './agent-host-turn-state.js';
+import { cancelPendingHostTools } from './agent-host-turn-state.js';
 
 import { randomUUID } from 'node:crypto';
 import { unlink, writeFile } from 'node:fs/promises';
@@ -21,28 +27,13 @@ import {
 
 export { getAgentHostToolSpecs, isAllowedAgentHostOrigin } from './agent-host-boundary.js';
 
-/**
- * @typedef {{
- *   appServer: import('./codex-app-server-client.js').CodexAppServerClient | any | null,
- *   token: string,
- *   workspaceRoot: string,
- *   toolTimeoutMs?: number,
- *   allowedOrigins?: string[],
- *   runtimeInfo?: () => {version?: string, runtimeMode?: string, platform?: string},
- *   controlHandler?: (action: 'install'|'restart'|'restart-companion'|'update'|'uninstall', context: {origin: string}) => Promise<Record<string, unknown>>,
- *   agents?: Array<{id: string, name: string, description: string, version?: string, status?: string, message?: string, compatible?: boolean, protocol: 'codex'|'acp'|'claude'|'openclaw', client: any, routes?: any[], routeProvider?: {listRoutes: () => Promise<any[]>, resolve: (id: string) => Promise<any>}}>,
- *   bundlePath?: string,
- * }} AgentHostServiceOptions
- */
-
-/** @param {AgentHostServiceOptions} options */
-export function createAgentHostService(options) {
+export function createAgentHostService(options: AgentHostServiceOptions) {
   const { appServer, token, workspaceRoot } = options;
   const configuredAgents = options.agents?.length ? options.agents : [{
     id: 'codex', name: 'Codex CLI', description: 'OpenAI official CLI',
-    status: 'available', compatible: true, protocol: /** @type {const} */ ('codex'), client: appServer,
+    status: 'available', compatible: true, protocol: ('codex' as const), client: appServer,
   }];
-  const agents = new Map(configuredAgents.filter(agent => agent?.id && agent.client).map(agent => [agent.id, agent]));
+  const agents = new Map((configuredAgents.filter(agent => agent?.id && agent.client) as HostAgent[]).map(agent => [agent.id, agent]));
   const instanceId = randomUUID();
   const startedAt = new Date().toISOString();
   const toolTimeoutMs = options.toolTimeoutMs || DEFAULT_TOOL_TIMEOUT_MS;
@@ -50,22 +41,15 @@ export function createAgentHostService(options) {
   const allowedOrigins = (options.allowedOrigins || []).map(origin => {
     try { return new URL(origin).origin; } catch { return ''; }
   }).filter(Boolean);
-  /** @type {Map<string, {threadId: string, timer: ReturnType<typeof setTimeout>, respond: (result: any) => void}>} */
-  const pendingTools = new Map();
-  /** @type {Map<string, {path: string, mediaType: string, timer: ReturnType<typeof setTimeout>}>} */
-  const pendingUploads = new Map();
-  /** @type {Map<string, {origin: string, expiresAt: number}>} */
-  const discoverySessions = new Map();
-  /** @type {Map<string, {agentId: string, threadId: string, turnId: string, send: (event: unknown) => void, cleanup: () => void}>} */
-  const activeTurns = new Map();
-  const startingOrActiveTurns = new Set();
-  /** @type {Map<string, {activeKey: string, tools: any[]} >} */
-  const mcpSessions = new Map();
-  /** @type {Map<string, {token: string, session: {activeKey: string, tools: any[]}}>} */
-  const sessionMcp = new Map();
+  const pendingTools = new Map<string, PendingHostTool>();
+  const pendingUploads = new Map<string, HostUpload>();
+  const discoverySessions = new Map<string, { origin: string; expiresAt: number }>();
+  const activeTurns = new Map<string, ActiveHostTurn>();
+  const startingOrActiveTurns = new Set<string>();
+  const mcpSessions = new Map<string, McpSession>();
+  const sessionMcp = new Map<string, McpContext>();
 
-  /** @param {any} route */
-  const publicRoute = route => ({
+  const publicRoute = (route: HostRoute) => ({
     id: String(route.id || '').slice(0, 80),
     label: String(route.label || route.id || '').slice(0, 140),
     description: String(route.description || '').slice(0, 300),
@@ -79,38 +63,36 @@ export function createAgentHostService(options) {
     supportsTextFeatureJobs: route.supportsTextFeatureJobs === true,
   });
 
-  /** @param {any} agent */
-  async function listExecutionTargets(agent) {
+  async function listExecutionTargets(agent: HostAgent) {
     const local = {
       id: 'local', label: 'Local CLI', description: 'Run a separate, restricted getbased session on this computer.',
       kind: 'local', status: 'available', supportsLocalTools: true, supportsFeatureJobs: true,
       client: agent.client, protocol: agent.protocol,
     };
     const staticRoutes = Array.isArray(agent.routes) ? agent.routes : [];
-    let dynamicRoutes = [];
+    let dynamicRoutes: HostRoute[] = [];
     try { dynamicRoutes = agent.routeProvider ? await agent.routeProvider.listRoutes() : []; }
     catch { dynamicRoutes = []; }
     return [local, ...staticRoutes, ...dynamicRoutes].filter(route => route?.id);
   }
 
-  /** @param {any} agent @param {string} targetId */
-  async function resolveExecutionTarget(agent, targetId) {
+  async function resolveExecutionTarget(agent: HostAgent, targetId: string): Promise<HostAgent> {
     if (!targetId || targetId === 'local') return {
       ...agent, target: { id: 'local', kind: 'local', supportsLocalTools: true, supportsFeatureJobs: true },
     };
-    let route = (Array.isArray(agent.routes) ? agent.routes : []).find(item => item?.id === targetId);
+    let route: HostRoute | null | undefined = (Array.isArray(agent.routes) ? agent.routes : []).find(item => item?.id === targetId);
     if (!route && agent.routeProvider) route = await agent.routeProvider.resolve(targetId);
     if (!route) throw new Error('This execution target is no longer available.');
-    if (route.status === 'unavailable' || !route.client) throw new Error(route.message || 'This execution target is not ready.');
+    if (route.status === 'unavailable' || !route.client) throw new Error((route.message || 'This execution target is not ready.') as string);
     return {
       ...agent,
       client: route.client,
       protocol: route.protocol || agent.protocol,
       target: route,
-    };
+    } as HostAgent;
   }
 
-  function createDiscoverySession(origin) {
+  function createDiscoverySession(origin: string) {
     const now = Date.now();
     for (const [key, session] of discoverySessions) {
       if (session.expiresAt <= now) discoverySessions.delete(key);
@@ -126,7 +108,7 @@ export function createAgentHostService(options) {
     return { token: sessionToken, expiresAt: new Date(expiresAt).toISOString() };
   }
 
-  function isAuthorized(receivedToken, origin) {
+  function isAuthorized(receivedToken: string, origin: string | null) {
     // The installation token is used only by the same-machine dev server and
     // explicit companion diagnostics. Hosted discovery receives a short-lived,
     // origin-bound token instead.
@@ -140,28 +122,20 @@ export function createAgentHostService(options) {
     return !!origin && session.origin === origin;
   }
 
-  /** @param {Array<{path: string, mediaType: string, timer: ReturnType<typeof setTimeout>}>} uploads */
-  function cleanupUploads(uploads) {
+  function cleanupUploads(uploads: HostUpload[]) {
     for (const upload of uploads) {
       clearTimeout(upload.timer);
       void unlink(upload.path).catch(() => {});
     }
   }
 
-  /** @param {string} threadId @param {string} [message] */
-  function cancelPendingTools(threadId, message = 'Error: The agent turn ended before this tool completed.') {
-    for (const [responseId, pending] of pendingTools) {
-      if (pending.threadId !== threadId) continue;
-      clearTimeout(pending.timer);
-      pendingTools.delete(responseId);
-      try { pending.respond({ success: false, contentItems: [{ type: 'inputText', text: message }] }); }
-      catch { /* adapter already closed */ }
-    }
+  function cancelPendingTools(threadId: string, message = 'Error: The agent turn ended before this tool completed.') {
+    cancelPendingHostTools(() => pendingTools, () => threadId, () => ({ success: false, contentItems: [{ type: 'inputText', text: message }] }));
   }
-  function handleServerRequest(request) {
+  function handleServerRequest(request: CodexHostMessage) {
     const method = String(request?.method || '');
     if (method !== 'item/tool/call') {
-      appServer.respond(request.id, declinedResult(method));
+      appServer!.respond(request.id as string | number, declinedResult(method));
       return;
     }
     const params = isRecord(request.params) ? request.params : {};
@@ -170,7 +144,7 @@ export function createAgentHostService(options) {
     const turnId = String(params.turnId || '');
     const active = activeTurns.get(threadId);
     if (!active || active.turnId !== turnId || !isAllowedAgentTool(tool)) {
-      appServer.respond(request.id, {
+      appServer!.respond(request.id as string | number, {
         success: false,
         contentItems: [{ type: 'inputText', text: 'Error: This getbased tool is not available.' }],
       });
@@ -179,13 +153,13 @@ export function createAgentHostService(options) {
     const responseId = randomUUID();
     const timer = setTimeout(() => {
       pendingTools.delete(responseId);
-      appServer.respond(request.id, {
+      appServer!.respond(request.id as string | number, {
         success: false,
         contentItems: [{ type: 'inputText', text: 'Error: getbased tool response timed out.' }],
       });
     }, toolTimeoutMs);
     pendingTools.set(responseId, {
-      threadId, timer, respond: result => appServer.respond(request.id, result),
+      threadId, timer, respond: result => appServer!.respond(request.id as string | number, result),
     });
     active.send({
       type: 'tool_call',
@@ -197,8 +171,8 @@ export function createAgentHostService(options) {
     });
   }
 
-  function handleNotification(notification) {
-    const params = isRecord(notification?.params) ? notification.params : {};
+  function handleNotification(notification: CodexHostMessage) {
+    const params = (isRecord(notification?.params) ? notification.params : {}) as CodexNotificationParams;
     const threadId = String(params.threadId || '');
     const active = activeTurns.get(threadId);
     if (!active) return;
@@ -259,8 +233,7 @@ export function createAgentHostService(options) {
     ...(options.runtimeInfo?.() || {}),
   });
 
-  /** @param {Request} request @param {Record<string, string>} [cors] */
-  async function executeControl(request, cors = {}) {
+  async function executeControl(request: Request, cors: Record<string, string> = {}) {
     let body;
     try { body = await readJson(request); } catch (error) {
       return jsonResponse({ error: cleanError(error) }, 400, cors);
@@ -279,7 +252,7 @@ export function createAgentHostService(options) {
     if (!options.controlHandler) return jsonResponse({ error: 'companion_control_unavailable' }, 501, cors);
     try {
       const result = await options.controlHandler(
-        /** @type {'install'|'restart'|'restart-companion'|'update'|'uninstall'} */ (action),
+        (action as HostControlAction),
         { origin: request.headers.get('Origin') || '' },
       );
       return jsonResponse({ ...statusPayload(), ...result }, 200, cors);
@@ -292,8 +265,7 @@ export function createAgentHostService(options) {
     allowParentOrigin: isAllowedCompanionManagementParent,
   });
 
-  /** @param {Request} request */
-  async function handleRequest(request) {
+  async function handleRequest(request: Request) {
     const managementResponse = await manage(request);
     if (managementResponse) return managementResponse;
     const cors = corsHeaders(request, allowedOrigins);
@@ -381,8 +353,8 @@ export function createAgentHostService(options) {
     }
     if (url.pathname === '/v1/uploads' && request.method === 'POST') {
       if (paused) return jsonResponse({ error: 'companion_paused' }, 503, cors);
-      const mediaType = String(request.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
-      const extension = IMAGE_EXTENSIONS[mediaType];
+      const mediaType = String(request.headers.get('Content-Type') || '').split(';')[0]!.trim().toLowerCase();
+      const extension = IMAGE_EXTENSIONS[mediaType as keyof typeof IMAGE_EXTENSIONS];
       if (!extension) return jsonResponse({ error: 'unsupported_image_type' }, 415, cors);
       const declaredSize = Number(request.headers.get('Content-Length') || 0);
       if (Number.isFinite(declaredSize) && declaredSize > MAX_IMAGE_BYTES) return jsonResponse({ error: 'image_too_large' }, 413, cors);
@@ -426,7 +398,7 @@ export function createAgentHostService(options) {
         const refresh = url.searchParams.get('refresh') === 'true';
         if (routedAgent.protocol === 'codex') {
           await routedAgent.client.initialize();
-          const result = await routedAgent.client.request('model/list', { limit: 100, includeHidden: false });
+          const result = await routedAgent.client.request<{data?: unknown} | null>('model/list', { limit: 100, includeHidden: false });
           catalog = result?.data;
         } else catalog = await routedAgent.client.getModelCatalog({
           ...(selectedModel ? { model: selectedModel } : {}),
@@ -440,13 +412,13 @@ export function createAgentHostService(options) {
 
     const responseMatch = url.pathname.match(/^\/v1\/responses\/([0-9a-f-]+)$/i);
     if (responseMatch && request.method === 'POST') {
-      const pending = pendingTools.get(responseMatch[1]);
+      const pending = pendingTools.get(responseMatch[1]!);
       if (!pending) return jsonResponse({ error: 'unknown_tool_response' }, 404, cors);
       let body;
       try { body = await readJson(request); } catch (error) {
         return jsonResponse({ error: cleanError(error) }, 400, cors);
       }
-      pendingTools.delete(responseMatch[1]);
+      pendingTools.delete(responseMatch[1]!);
       clearTimeout(pending.timer);
       pending.respond(sanitizeToolResult(body));
       return jsonResponse({ ok: true }, 200, cors);
@@ -498,7 +470,7 @@ export function createAgentHostService(options) {
     const purpose = body.purpose === 'feature' ? 'feature' : 'chat';
     if (purpose === 'chat' && dynamicTools.length === 0) return jsonResponse({ error: 'no_allowed_tools' }, 400, cors);
     if (purpose === 'feature' && routedAgent.target?.supportsFeatureJobs === false
-      && !(routedAgent.target?.supportsTextFeatureJobs === true && !body.imageUploadIds?.length && dynamicTools.length === 0)) {
+      && !(routedAgent.target?.supportsTextFeatureJobs === true && !(body.imageUploadIds as { length?: unknown } | null | undefined)?.length && dynamicTools.length === 0)) {
       return jsonResponse({ error: 'This gateway supports text explanations only. Choose Local CLI for image imports or tool-enabled feature jobs.' }, 400, cors);
     }
     let outputSchema;
@@ -506,9 +478,9 @@ export function createAgentHostService(options) {
       return jsonResponse({ error: cleanError(error) }, 400, cors);
     }
     const history = sanitizeHistory(body.history);
-    const uploadIds = Array.isArray(body.imageUploadIds)
+    const uploadIds = (Array.isArray(body.imageUploadIds)
       ? [...new Set(body.imageUploadIds.map(String))].slice(0, MAX_IMAGES_PER_TURN)
-      : [];
+      : []) as string[];
     if (Array.isArray(body.imageUploadIds) && body.imageUploadIds.length > MAX_IMAGES_PER_TURN) {
       return jsonResponse({ error: 'too_many_images' }, 400, cors);
     }
@@ -522,7 +494,7 @@ export function createAgentHostService(options) {
       return jsonResponse({ error: 'thread_turn_already_active' }, 409, cors);
     }
     startingOrActiveTurns.add(reservationKey);
-    const turnUploads = uploadIds.map(id => pendingUploads.get(id)).filter(Boolean);
+    const turnUploads = uploadIds.map(id => pendingUploads.get(id)).filter(Boolean) as HostUpload[];
     for (const id of uploadIds) pendingUploads.delete(id);
     let cleanedUp = false;
     const cleanupTurnUploads = () => {
@@ -534,16 +506,16 @@ export function createAgentHostService(options) {
     };
 
     const encoder = new TextEncoder();
-    let streamController;
+    let streamController: ReadableStreamDefaultController<Uint8Array>;
     let closed = false;
     let handleStreamCancel = () => {};
-    const stream = new ReadableStream({
+    const stream = new ReadableStream<Uint8Array>({
       start(controller) { streamController = controller; },
       cancel() { closed = true; handleStreamCancel(); },
     });
     let threadIdForAbort = '';
     let turnIdForAbort = '';
-    const send = event => {
+    const send = (event: unknown) => {
       if (closed) return;
       try { streamController.enqueue(encoder.encode(`${JSON.stringify(event)}\n`)); } catch { closed = true; }
       if (isRecord(event) && (event.type === 'done' || event.type === 'error')) close();
@@ -577,7 +549,7 @@ export function createAgentHostService(options) {
       if (threadIdForAbort) {
         activeTurns.delete(threadIdForAbort);
         cancelPendingTools(threadIdForAbort, 'Error: The Codex turn was cancelled.');
-        void appServer.request('turn/interrupt', { threadId: threadIdForAbort, turnId: turnIdForAbort }).catch(() => {});
+        void appServer!.request('turn/interrupt', { threadId: threadIdForAbort, turnId: turnIdForAbort }).catch(() => {});
       }
       cleanupTurnUploads();
       close();
@@ -586,21 +558,20 @@ export function createAgentHostService(options) {
 
     void (async () => {
       let threadId = '';
+      const threadPolicy = () => ({
+        model, cwd: workspaceRoot, sandbox: 'read-only', approvalPolicy: 'never',
+        approvalsReviewer: 'user', runtimeWorkspaceRoots: [],
+      });
       try {
-        await appServer.initialize();
+        await appServer!.initialize();
         if (closed) return;
         let threadResult;
         let resumed = false;
         if (requestedThreadId) {
           try {
-            threadResult = await appServer.request('thread/resume', {
+            threadResult = await appServer!.request<CodexThreadResult | null>('thread/resume', {
               threadId: requestedThreadId,
-              model,
-              cwd: workspaceRoot,
-              sandbox: 'read-only',
-              approvalPolicy: 'never',
-              approvalsReviewer: 'user',
-              runtimeWorkspaceRoots: [],
+              ...threadPolicy(),
               baseInstructions: AGENT_BASE_INSTRUCTIONS,
               developerInstructions: requestedInstructions || null,
             });
@@ -610,13 +581,8 @@ export function createAgentHostService(options) {
           }
         }
         if (!threadResult) {
-          threadResult = await appServer.request('thread/start', {
-            model,
-            cwd: workspaceRoot,
-            sandbox: 'read-only',
-            approvalPolicy: 'never',
-            approvalsReviewer: 'user',
-            runtimeWorkspaceRoots: [],
+          threadResult = await appServer!.request<CodexThreadResult | null>('thread/start', {
+            ...threadPolicy(),
             environments: [],
             dynamicTools,
             baseInstructions: AGENT_BASE_INSTRUCTIONS,
@@ -629,7 +595,7 @@ export function createAgentHostService(options) {
         threadId = String(threadResult?.thread?.id || '');
         if (!threadId) throw new Error('Codex did not return a thread ID.');
         if (!resumed && history.length) {
-          await appServer.request('thread/inject_items', {
+          await appServer!.request('thread/inject_items', {
             threadId,
             items: history.map(item => ({
               type: 'message',
@@ -639,7 +605,7 @@ export function createAgentHostService(options) {
           });
         }
         if (closed) return;
-        const turnResult = await appServer.request('turn/start', {
+        const turnResult = await appServer!.request<CodexTurnResult | null>('turn/start', {
           threadId,
           input: [
             ...turnUploads.map(upload => ({ type: 'localImage', path: upload.path })),
@@ -655,7 +621,7 @@ export function createAgentHostService(options) {
         const turnId = String(turnResult?.turn?.id || '');
         if (!turnId) throw new Error('Codex did not return a turn ID.');
         if (closed) {
-          await appServer.request('turn/interrupt', { threadId, turnId }).catch(() => {});
+          await appServer!.request('turn/interrupt', { threadId, turnId }).catch(() => {});
           return;
         }
         threadIdForAbort = threadId;

@@ -241,3 +241,8 @@ deploy/profile-share/data/
 /lib/agent-mcp-bridge.js
 /lib/local-agent-registry.js
 /lib/dev-agent-host.js
+/lib/agent-host-external-turn.js
+/lib/agent-host-service.js
+/lib/companion-management.js
+/lib/agent-host-turn-state.js
+/lib/companion-existing.js

@@ -1,7 +1,6 @@
-// @ts-check
 // A temporary bootstrap must not create a second bridge beside a login service.
-/** @param {{env?: NodeJS.ProcessEnv, fetchImpl?: typeof fetch}} [options] */
-export async function findExistingCompanion(options = {}) {
+export type CompanionHealthFetch = (url: string, options: RequestInit) => Promise<Response>;
+export async function findExistingCompanion(options: { env?: NodeJS.ProcessEnv; fetchImpl?: CompanionHealthFetch } = {}) {
   const env = options.env || process.env;
   const fetchImpl = options.fetchImpl || fetch;
   const explicit = String(env.GETBASED_AGENT_HOST_PORT || '').trim();
@@ -14,7 +13,7 @@ export async function findExistingCompanion(options = {}) {
       const response = await fetchImpl(`${endpoint}/health`, { redirect: 'error', signal: AbortSignal.timeout(300) });
       if (!response.ok || !response.body) continue;
       const reader = response.body.getReader();
-      const chunks = [];
+      const chunks: Uint8Array[] = [];
       let size = 0;
       try {
         while (true) {
@@ -25,7 +24,7 @@ export async function findExistingCompanion(options = {}) {
           chunks.push(value);
         }
       } finally { await reader.cancel(); }
-      const data = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      const data = JSON.parse(Buffer.concat(chunks).toString('utf8')) as { ok?: unknown; service?: unknown };
       if (data.ok === true && data.service === 'getbased-agent-host') return { endpoint };
     } catch { /* An unrelated or unavailable listener is not a Companion. */ }
   }

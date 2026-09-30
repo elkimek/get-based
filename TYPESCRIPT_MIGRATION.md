@@ -263,6 +263,13 @@ and Windows launcher paths. Seven existing foundation/lifecycle suites are
 checked as native TypeScript, with executable assertions retained. The compatibility
 service build includes the shared source graph required by the native library modules.
 
+The companion's HTTP turn service now connects typed Codex, ACP and stream
+adapter contracts to uploads, discovery credentials, MCP sessions, active turns
+and pending tool replies. Shared cancellation preserves live map reads, deletion
+before callbacks and result identity. ACP session binding and fresh Codex thread
+policy construction share their previously duplicated paths. Management HTML
+and existing-instance detection retain their complete emitted runtime behavior.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

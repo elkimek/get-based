@@ -89,7 +89,7 @@ const agentAdapters = detectedAgents.map(agent => {
     label: 'Personal gateway · default agent',
     description: 'Use the default agent, memory, sessions, and tools configured in your OpenClaw gateway.',
     kind: 'gateway', status: 'available', supportsLocalTools: false, supportsFeatureJobs: false,
-    protocol: 'openclaw',
+    protocol: /** @type {const} */ ('openclaw'),
     client: new OpenClawAgentClient({
       command: agent.command, args: agent.args, cwd: workspaceRoot, env: localAgentEnvironment, mode: 'gateway',
     }),

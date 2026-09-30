@@ -1,12 +1,13 @@
-// @ts-check
 // Turn normalization shared by ACP harnesses and Claude Agent.
+
+import type { ExternalAgentTurnOptions, McpContext, ACPUpdateEnvelope } from './agent-host-turn-state.js';
+import { cancelPendingHostTools } from './agent-host-turn-state.js';
 
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
-/** @param {any} event @param {(event: any) => void} send */
-function relayACPUpdate(event, send) {
-  const update = event?.params?.update || {};
+function relayACPUpdate(event: unknown, send: (event: unknown) => void) {
+  const update = (event as ACPUpdateEnvelope | null | undefined)?.params?.update || {};
   const kind = String(update.sessionUpdate || update.type || '');
   const content = update.content || update.message?.content;
   if (kind === 'agent_message_chunk' && content?.type === 'text' && typeof content.text === 'string') {
@@ -19,15 +20,11 @@ function relayACPUpdate(event, send) {
   }
 }
 
-/**
- * Starts an external adapter turn and returns a cancellation callback.
- * @param {any} options
- */
-export function startExternalAgentTurn(options) {
+export function startExternalAgentTurn(options: ExternalAgentTurnOptions) {
   const abortController = new AbortController();
   let activeKey = options.requestedActiveKey;
   let temporaryKey = '';
-  let mcpContext = null;
+  let mcpContext: McpContext | null | undefined = null;
   let reusableACPSession = false;
   const localToolsEnabled = options.agent.target?.supportsLocalTools !== false;
   const cancelledToolResult = {
@@ -39,12 +36,7 @@ export function startExternalAgentTurn(options) {
     if (released) return;
     released = true;
     if (activeKey) options.activeTurns.delete(activeKey);
-    for (const [responseId, pending] of options.pendingTools) {
-      if (pending.threadId !== activeKey) continue;
-      clearTimeout(pending.timer);
-      options.pendingTools.delete(responseId);
-      try { pending.respond(cancelledToolResult); } catch { /* adapter already closed */ }
-    }
+    cancelPendingHostTools(() => options.pendingTools, () => activeKey, () => cancelledToolResult);
   };
   const throwIfAborted = () => {
     if (!abortController.signal.aborted) return;
@@ -54,6 +46,14 @@ export function startExternalAgentTurn(options) {
   };
   void (async () => {
     let sessionId = options.requestedThreadId;
+    const bindSession = () => {
+      activeKey = `${options.agentId}:${options.targetId || 'local'}:${sessionId}`;
+      if (mcpContext && temporaryKey !== activeKey) {
+        options.sessionMcp.delete(temporaryKey);
+        options.sessionMcp.set(activeKey, mcpContext);
+      }
+      if (mcpContext) mcpContext.session.activeKey = activeKey;
+    };
     try {
       temporaryKey = `${options.agentId}:${options.targetId || 'local'}:${sessionId || randomUUID()}`;
       if (localToolsEnabled) {
@@ -114,12 +114,7 @@ export function startExternalAgentTurn(options) {
             ? `\n\nEarlier visible conversation:\n${options.history.map(item => `${item.role}: ${item.content}`).join('\n\n')}` : '';
           textPrompt = `${instructionText}${recoveredHistory}\n\nUser request:\n${options.prompt}${schemaText}`;
         }
-        activeKey = `${options.agentId}:${options.targetId || 'local'}:${sessionId}`;
-        if (mcpContext && temporaryKey !== activeKey) {
-          options.sessionMcp.delete(temporaryKey);
-          options.sessionMcp.set(activeKey, mcpContext);
-        }
-        if (mcpContext) mcpContext.session.activeKey = activeKey;
+        bindSession();
         await options.agent.client.configureSession(
           sessionId,
           session.configOptions,
@@ -137,16 +132,11 @@ export function startExternalAgentTurn(options) {
           prompt: [{ type: 'text', text: textPrompt }, ...images.map(image => ({ type: 'image', data: image.data, mimeType: image.mediaType }))],
           onNotification: event => relayACPUpdate(event, options.send),
         });
-        options.send({ type: 'done', finishReason: String(result?.stopReason || 'stop') });
+        options.send({ type: 'done', finishReason: String((result as { stopReason?: unknown } | null | undefined)?.stopReason || 'stop') });
       } else {
         throwIfAborted();
         sessionId ||= randomUUID();
-        activeKey = `${options.agentId}:${options.targetId || 'local'}:${sessionId}`;
-        if (mcpContext && temporaryKey !== activeKey) {
-          options.sessionMcp.delete(temporaryKey);
-          options.sessionMcp.set(activeKey, mcpContext);
-        }
-        if (mcpContext) mcpContext.session.activeKey = activeKey;
+        bindSession();
         options.activeTurns.set(activeKey, { agentId: options.agentId, threadId: sessionId, turnId: activeKey, send: options.send, cleanup: options.cleanup });
         let sentSession = false;
         let sentDone = false;

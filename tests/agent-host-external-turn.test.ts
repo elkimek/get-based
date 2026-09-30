@@ -1,9 +1,17 @@
 // @vitest-environment node
 
+import type { ACPAgentClient } from '../lib/acp-agent-client.js';
+import type { AgentTurnOptions } from '../lib/agent-turn-types.js';
+import type { ExternalAgentTurnOptions } from '../lib/agent-host-turn-state.js';
+import type { Mock } from 'vitest';
 import { describe, expect, it, vi } from 'vitest';
 import { startExternalAgentTurn } from '../lib/agent-host-external-turn.js';
 
-function turnOptions(agent) {
+type TurnFixture = Omit<ExternalAgentTurnOptions, 'send' | 'close' | 'cleanup'> & { send: Mock<(event: unknown) => void>; close: Mock<() => void>; cleanup: Mock<() => void> };
+type ACPPrompt = Parameters<ACPAgentClient['prompt']>[0];
+type ObservedACPPrompt = ACPPrompt & { prompt: { type: string; text?: string }[] };
+
+function turnOptions(agent: { id: string } & Record<string, unknown>) {
   return {
     agent,
     agentId: agent.id,
@@ -28,9 +36,9 @@ function turnOptions(agent) {
     effort: '',
     send: vi.fn(),
     close: vi.fn(),
-    cleanError: error => error instanceof Error ? error.message : String(error),
-    createHandle: sessionId => `handle:${sessionId}`,
-  };
+    cleanError: (error: unknown) => error instanceof Error ? error.message : String(error),
+    createHandle: (sessionId: string) => `handle:${sessionId}`,
+  } as unknown as TurnFixture;
 }
 
 describe('external agent turn lifecycle', () => {
@@ -38,23 +46,23 @@ describe('external agent turn lifecycle', () => {
     const client = {
       ensureSession: vi.fn(async () => ({ sessionId: 'fresh-session', configOptions: [] })),
       configureSession: vi.fn(async () => []),
-      prompt: vi.fn(async () => ({ stopReason: 'stop' })),
+      prompt: vi.fn<(options: ObservedACPPrompt) => Promise<{ stopReason: string }>>(async () => ({ stopReason: 'stop' })),
     };
     const options = turnOptions({ id: 'opencode', protocol: 'acp', name: 'OpenCode', client });
     options.requestedThreadId = 'stale-session';
     options.history = [{ role: 'user', content: 'Earlier question' }, { role: 'assistant', content: 'Earlier answer' }];
     startExternalAgentTurn(options);
     await vi.waitFor(() => expect(options.close).toHaveBeenCalled());
-    expect(client.prompt.mock.calls[0][0].prompt[0].text).toContain('Earlier question');
-    expect(client.prompt.mock.calls[0][0].prompt[0].text).toContain('Earlier answer');
+    expect(client.prompt.mock.calls[0]![0]!.prompt[0]!.text).toContain('Earlier question');
+    expect(client.prompt.mock.calls[0]![0]!.prompt[0]!.text).toContain('Earlier answer');
     expect(options.send).toHaveBeenCalledWith(expect.objectContaining({ type: 'session', resumed: false }));
   });
   it('does not start a prompt when the browser cancels during ACP session setup', async () => {
-    let finishSession;
+    let finishSession!: (value: { sessionId: string; configOptions: unknown[] }) => void;
     const agent = {
       id: 'opencode', protocol: 'acp', name: 'OpenCode',
       client: {
-        ensureSession: vi.fn(() => new Promise(resolve => { finishSession = resolve; })),
+        ensureSession: vi.fn(() => new Promise<{ sessionId: string; configOptions: unknown[] }>(resolve => { finishSession = resolve; })),
         configureSession: vi.fn(),
         prompt: vi.fn(),
       },
@@ -80,8 +88,8 @@ describe('external agent turn lifecycle', () => {
       client: {
         ensureSession: vi.fn(async () => ({ sessionId: 'session-1', configOptions: [] })),
         configureSession: vi.fn(async () => []),
-        prompt: vi.fn(({ signal }) => new Promise((resolve, reject) => {
-          signal.addEventListener('abort', () => {
+        prompt: vi.fn(({ signal }: ACPPrompt) => new Promise((_resolve, reject) => {
+          signal!.addEventListener('abort', () => {
             const error = new Error('cancelled');
             error.name = 'AbortError';
             reject(error);
@@ -121,8 +129,8 @@ describe('external agent turn lifecycle', () => {
   it('replays visible history when continuing a one-shot OpenClaw conversation', async () => {
     const agent = {
       id: 'openclaw', protocol: 'openclaw', name: 'OpenClaw',
-      client: { prompt: vi.fn(async ({ sessionId, onEvent }) => {
-        onEvent({ type: 'session', sessionId, model: 'openai/gpt-5.6-sol' });
+      client: { prompt: vi.fn(async ({ sessionId, onEvent }: AgentTurnOptions) => {
+        onEvent({ type: 'session', sessionId: sessionId!, model: 'openai/gpt-5.6-sol' });
         onEvent({ type: 'done', finishReason: 'stop' });
       }) },
     };
@@ -141,8 +149,8 @@ describe('external agent turn lifecycle', () => {
         type: 'text', text: expect.stringContaining('Earlier visible conversation:'),
       })],
     }));
-    expect(agent.client.prompt.mock.calls[0][0].prompt[0].text).toContain('Earlier question');
-    expect(agent.client.prompt.mock.calls[0][0].prompt[0].text).toContain('Earlier answer');
+    expect(agent.client.prompt.mock.calls[0]![0]!.prompt[0]!.text).toContain('Earlier question');
+    expect(agent.client.prompt.mock.calls[0]![0]!.prompt[0]!.text).toContain('Earlier answer');
     expect(options.mcpSessions.size).toBe(0);
   });
 
@@ -150,8 +158,8 @@ describe('external agent turn lifecycle', () => {
     const agent = {
       id: 'openclaw', protocol: 'openclaw', name: 'OpenClaw',
       target: { id: 'gateway-main', kind: 'gateway', supportsLocalTools: false },
-      client: { prompt: vi.fn(async ({ sessionId, onEvent }) => {
-        onEvent({ type: 'session', sessionId, model: 'openai/gpt-5.6-sol' });
+      client: { prompt: vi.fn(async ({ sessionId, onEvent }: AgentTurnOptions) => {
+        onEvent({ type: 'session', sessionId: sessionId!, model: 'openai/gpt-5.6-sol' });
         onEvent({ type: 'done', finishReason: 'stop' });
       }) },
     };
@@ -170,7 +178,7 @@ describe('external agent turn lifecycle', () => {
       mcpConfig: { mcpServers: {} },
       prompt: [expect.objectContaining({ type: 'text', text: 'Hello' })],
     }));
-    expect(agent.client.prompt.mock.calls[0][0].prompt[0].text).not.toContain('Earlier visible conversation:');
+    expect(agent.client.prompt.mock.calls[0]![0]!.prompt[0]!.text).not.toContain('Earlier visible conversation:');
     expect(options.mcpSessions.size).toBe(0);
     expect(options.sessionMcp.size).toBe(0);
   });

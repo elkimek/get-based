@@ -1,14 +1,17 @@
-// @ts-check
 // Local management UI, optionally framed by an approved getbased origin. Never exports installation secrets.
 import { randomUUID } from 'node:crypto';
 
-/** @param {{status: () => any, control: (request: Request) => Promise<Response>, now?: () => number, allowParentOrigin?: (origin: string) => boolean}} options */
-export function createCompanionManagement(options) {
+export interface CompanionManagementOptions {
+  status(): unknown;
+  control(request: Request): Promise<Response>;
+  now?: () => number;
+  allowParentOrigin?: (origin: string) => boolean;
+}
+
+export function createCompanionManagement(options: CompanionManagementOptions) {
   const now = options.now || Date.now;
-  /** @type {Map<string, {origin: string, expires: number}>} */
-  const sessions = new Map();
-  /** @param {Request} request */
-  return async function handle(request) {
+  const sessions = new Map<string, { origin: string; expires: number }>();
+  return async function handle(request: Request) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith('/manage')) return null;
     const headers = {
@@ -31,11 +34,11 @@ export function createCompanionManagement(options) {
       }
       if (request.headers.get('Sec-Fetch-Mode') !== 'navigate'
         || request.headers.get('Sec-Fetch-Dest') !== (embedded ? 'iframe' : 'document')) return deny();
-      while (sessions.size >= 8) sessions.delete(sessions.keys().next().value);
+      while (sessions.size >= 8) sessions.delete(sessions.keys().next().value!);
       const key = randomUUID();
       const nonce = randomUUID();
       sessions.set(key, { origin: url.origin, expires: now() + 15 * 60_000 });
-      const pageHeaders = { ...headers };
+      const pageHeaders: Record<string, string> = { ...headers };
       if (embedded) {
         delete pageHeaders['X-Frame-Options'];
         pageHeaders['Cross-Origin-Resource-Policy'] = 'cross-origin';
@@ -63,8 +66,7 @@ export function createCompanionManagement(options) {
   };
 }
 
-/** @param {string} key @param {string} nonce @param {boolean} embedded @param {boolean} light @param {string} parentOrigin */
-function managementHTML(key, nonce, embedded, light, parentOrigin) {
+function managementHTML(key: string, nonce: string, embedded: boolean, light: boolean, parentOrigin: string) {
   return `<!doctype html><html lang="en" data-theme="${light ? 'light' : 'dark'}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>getbased Companion</title><style nonce="${nonce}">
 *{box-sizing:border-box}
