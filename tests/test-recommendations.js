@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createSourceFetch } from './helpers/source-fetch.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-recommendations.js — Verify supplement & lifestyle recommendation module
 //
@@ -14,7 +15,6 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
 function fetchWithRetry(rel) { return Promise.resolve(read(rel)); }
 
-
 const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== Supplement & Lifestyle Recommendations Tests ===\n');
@@ -27,14 +27,7 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
 // Original test reads data/light-device-presets.json via fetchWithRetry —
 // pass through fs read.
 const _realFetch = globalThis.fetch;
-  globalThis.fetch = async (url, opts) => {
-  if (typeof url === 'string' && !/^https?:/.test(url)) {
-    const rel = url.replace(/^\//, '');
-    try { return new Response(read(rel), { status: 200 }); }
-    catch (_) { return new Response('', { status: 404 }); }
-  }
-  return _realFetch(url, opts);
-};
+  globalThis.fetch = createSourceFetch(read, _realFetch);
   const recSrc = await fetchWithRetry('js/recommendations.js');
   const recProductsSrc = await fetchWithRetry('js/recommendations-products.js');
   const recRuntimeSrc = await fetchWithRetry('js/recommendations-runtime.js');

@@ -1,3 +1,4 @@
+import { createExpectAll } from '../helpers/browser-outcomes.js';
 import { expect, test } from './coverage-fixture.js';
 
 function seedCompletedTour() {
@@ -6,12 +7,7 @@ function seedCompletedTour() {
   localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
 }
 
-function expectAll(outcomes) {
-  const failed = Object.entries(outcomes)
-    .filter(([, value]) => value !== true)
-    .map(([key, value]) => `${key}: ${JSON.stringify(value)}`);
-  expect(failed).toEqual([]);
-}
+const expectAll = createExpectAll(expect, 'collect');
 
 async function waitForInitialView(page) {
   await page.waitForFunction(async () => {

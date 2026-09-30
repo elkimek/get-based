@@ -1,14 +1,10 @@
+import { createExpectAll } from '../helpers/browser-outcomes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('syncTombstonesCoverage');
 
-function expectAll(outcomes) {
-  const failed = Object.entries(outcomes)
-    .filter(([, value]) => value !== true)
-    .map(([key, value]) => `${key}: ${JSON.stringify(value)}`);
-  expect(failed).toEqual([]);
-}
+const expectAll = createExpectAll(expect, 'collect');
 
 test('sync tombstones browser coverage exercises default dependency callbacks', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

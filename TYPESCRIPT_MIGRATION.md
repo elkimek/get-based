@@ -205,6 +205,23 @@ rolling windows and gate results. The pure runtime module is precached for offli
 use. Legacy metadata readers now declare their existing shapes and nullability;
 the strict-null ratchet stays at zero and DOM sink fingerprints remain unchanged.
 
+Wearable display conversion, formatting, settings grouping and hosted relay consent
+now use strict native TypeScript, together with their original unit suites. Both
+emitted runtime syntax trees match their originals; provider/profile scoping,
+explicit unticked consent, withdrawal, keyboard dismissal and prompt serialization
+retain their behavior. Existing DOM sink fingerprints and production assets remain
+unchanged.
+
+Twenty-four browser suites share a typed outcome reporter while preserving their
+collected, individual hard or individual soft assertion behavior. Reporting matched
+1,008 differential scenarios, including property reads, circular values, serialization
+failures and assertion exceptions. Seven runtime suites share a window descriptor
+shim; 35 comparisons retain enumerability, accessors and fixed-property failures.
+Ten legacy suites share typed relative-source fetch routing. The two original
+response/read evaluation orders remain explicit; 4,680 comparisons retain URL
+routing, 404 fallback, constructor/getter failures, remote failures and promise turns.
+All 41 affected Chromium cases and all 3,383 unit tests pass.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

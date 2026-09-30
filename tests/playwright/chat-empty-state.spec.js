@@ -1,10 +1,7 @@
+import { createExpectAll } from '../helpers/browser-outcomes.js';
 import { expect, test } from './coverage-fixture.js';
 
-function expectAll(outcomes) {
-  for (const [name, passed] of Object.entries(outcomes)) {
-    expect(passed, name).toBe(true);
-  }
-}
+const expectAll = createExpectAll(expect, 'individual');
 
 test('chat empty-state delegated actions update scoped profile UI', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

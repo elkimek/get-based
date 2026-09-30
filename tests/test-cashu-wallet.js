@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createSourceFetch } from './helpers/source-fetch.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-cashu-wallet.js — Cashu wallet module, Nostr discovery, integration
 // points. Module exports, wallet security/proof-management/recovery/
@@ -24,15 +25,7 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), '
 function fetchWithRetry(rel) { return Promise.resolve(read(rel)); }
 
 const _realFetch = globalThis.fetch;
-globalThis.fetch = async (url, opts) => {
-  if (typeof url === 'string' && !/^https?:/.test(url)) {
-    const rel = url.replace(/^\//, '');
-    try { return new Response(read(rel), { status: 200 }); }
-    catch (_) { return new Response('', { status: 404 }); }
-  }
-  return _realFetch(url, opts);
-};
-
+globalThis.fetch = createSourceFetch(read, _realFetch);
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
 

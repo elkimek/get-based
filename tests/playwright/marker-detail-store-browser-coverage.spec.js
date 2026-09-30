@@ -1,3 +1,4 @@
+import { createExpectAll } from '../helpers/browser-outcomes.js';
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -7,12 +8,7 @@ const openBlankPage = createBlankPage({
   path: "/marker-detail-store-browser-coverage", body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
 });
 
-function expectAll(outcomes) {
-  const failed = Object.entries(outcomes)
-    .filter(([, value]) => value !== true)
-    .map(([key, value]) => `${key}: ${JSON.stringify(value)}`);
-  expect(failed).toEqual([]);
-}
+const expectAll = createExpectAll(expect, 'collect');
 
 test('marker detail store browser coverage persists manual values notes ranges and tombstones', async ({ page }) => {
   await openBlankPage(page);

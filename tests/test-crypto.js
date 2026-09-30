@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createSourceFetch } from './helpers/source-fetch.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-crypto.js — encryption, backup, and cross-tab sync verification.
 // Module/window exports, sensitive-key detection, Web Crypto PBKDF2/AES-GCM
@@ -25,15 +26,7 @@ function fetchWithRetry(rel) { return Promise.resolve(read(rel)); }
 
 // fs-backed fetch shim for the source-inspection sweep's `fetch('X')` reads.
 const _realFetch = globalThis.fetch;
-globalThis.fetch = async (url, opts) => {
-  if (typeof url === 'string' && !/^https?:/.test(url)) {
-    const rel = url.replace(/^\//, '');
-    try { return new Response(read(rel), { status: 200 }); }
-    catch (_) { return new Response('', { status: 404 }); }
-  }
-  return _realFetch(url, opts);
-};
-
+globalThis.fetch = createSourceFetch(read, _realFetch);
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
 

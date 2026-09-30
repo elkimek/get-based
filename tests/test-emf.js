@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createSourceFetch } from './helpers/source-fetch.js';
 // test-emf.js — EMF assessment: SBM-2015 thresholds, getEMFSeverity tiers,
 // EMF affiliate catalog (meters / mitigations / coupon / UTM / region
 // resolution), EMF chat-context detection, mitigation-in-text detection.
@@ -189,14 +190,7 @@ assert('50. renderEMFMitigationRecs exported', typeof recsMod.renderEMFMitigatio
 // fetch shim so the relative path resolves in Node. (fs/path/url imports
 // are grouped at the top of the file.)
 const _realFetch = globalThis.fetch;
-globalThis.fetch = async (url, opts) => {
-  if (typeof url === 'string' && !/^https?:/.test(url)) {
-    const rel = url.replace(/^\//, '');
-    try { return new Response(read(rel), { status: 200 }); }
-    catch (_) { return new Response('', { status: 404 }); }
-  }
-  return _realFetch(url, opts);
-};
+globalThis.fetch = createSourceFetch(read, _realFetch);
 
 // Post-consolidation: data lives in unified recommendations.json catalog
 const emfCat = await recsMod.loadEMFCatalog();

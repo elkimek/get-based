@@ -19,3 +19,12 @@ export function captureRuntimeGlobals(runtimeKeys: readonly PropertyKey[]): () =
     }
   };
 }
+
+/** Install a window shim while retaining the existing enumerability. */
+export function setRuntimeWindow(runtime: unknown): void {
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    writable: true,
+    value: runtime,
+  });
+}

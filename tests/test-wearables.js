@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createSourceFetch } from './helpers/source-fetch.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-wearables.js — Wearable adapter registry + L1 store + L2 summary + AI
 // context. Adapter shape, IndexedDB CRUD (via fake-indexeddb), summary math,
@@ -29,15 +30,7 @@ const fetchCssBundle = async () => (await Promise.all(
 // reads JSON/XML fixtures via fetch — install an fs-backed fetch shim so the
 // relative URLs resolve in Node (same pattern as test-recommendations).
 const _realFetch = globalThis.fetch;
-globalThis.fetch = async (url, opts) => {
-  if (typeof url === 'string' && !/^https?:/.test(url)) {
-    const rel = url.replace(/^\//, '');
-    try { return new Response(read(rel), { status: 200 }); }
-    catch (_) { return new Response('', { status: 404 }); }
-  }
-  return _realFetch(url, opts);
-};
-
+globalThis.fetch = createSourceFetch(read, _realFetch);
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
 

@@ -1,13 +1,10 @@
+import { createExpectAll } from '../helpers/browser-outcomes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('sunSessionUiCoverage');
 
-function expectAll(outcomes) {
-  for (const [name, passed] of Object.entries(outcomes)) {
-    expect(passed, name).toBe(true);
-  }
-}
+const expectAll = createExpectAll(expect, 'individual');
 
 test('sun session UI covers alternate list detail and chip rendering paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

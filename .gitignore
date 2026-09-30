@@ -182,3 +182,7 @@ deploy/profile-share/data/
 /js/wearables-credential-vault.js
 /js/wearables-whoop-storage.js
 /js/wearables-summary-model.js
+/js/wearables-formatters.js
+/js/wearables-settings-groups.js
+/tests/helpers/browser-outcomes.js
+/tests/helpers/source-fetch.js

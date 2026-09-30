@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createSourceFetch } from './helpers/source-fetch.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-dna-recommendations.js — Verify DNA-aware supplement recommendation integration
 //
@@ -14,7 +15,6 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
 function fetchWithRetry(rel) { return Promise.resolve(read(rel)); }
 
-
 const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== DNA-Aware Supplement Recommendations Tests ===\n');
@@ -26,14 +26,7 @@ const recommendationsModule = await import('../js/recommendations.js');
 // Original test reads data/*.json via fetch(...).then(r => r.json()) —
 // install a fetch shim that resolves relative URLs through fs.
 const _realFetch = globalThis.fetch;
-globalThis.fetch = async (url, opts) => {
-  if (typeof url === 'string' && !/^https?:/.test(url)) {
-    const rel = url.replace(/^\//, '');
-    try { return new Response(read(rel), { status: 200 }); }
-    catch (_) { return new Response('', { status: 404 }); }
-  }
-  return _realFetch(url, opts);
-};
+globalThis.fetch = createSourceFetch(read, _realFetch);
 
 const recSrc = await fetchWithRetry('js/recommendations.js');
 const dnaSrc = await fetchWithRetry('js/dna.js');

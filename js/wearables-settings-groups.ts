@@ -1,5 +1,16 @@
-// @ts-check
 // Presentation grouping and provider-scoped consent UI for Settings → Wearables.
+
+interface GroupingAdapter {
+  id: string;
+  authType?: unknown;
+  hostConfiguredOnly?: unknown;
+  experimentalSelfHost?: unknown;
+  integrationKind?: unknown;
+}
+interface HostedWearableConsentRecord extends Record<string, unknown> {
+  version?: unknown;
+  approvals?: Record<string, Record<string, unknown> | null>;
+}
 
 export const WEARABLE_GROUP_COPY = Object.freeze({
   connected: {
@@ -20,21 +31,14 @@ export const WEARABLE_GROUP_COPY = Object.freeze({
   },
 });
 
-/** @type {Readonly<Record<string, number>>} */
-const SELF_HOST_ADAPTER_ORDER = Object.freeze({
+const SELF_HOST_ADAPTER_ORDER: Readonly<Record<string, number>> = Object.freeze({
   google_health: 0,
   whoop: 1,
   ultrahuman: 2,
 });
 
-/**
- * @param {Array<any>} adapters
- * @param {object} connected
- * @param {(adapter: any) => boolean} needsAttention
- */
-export function groupWearableAdapters(adapters, connected, needsAttention) {
-  /** @type {Record<string, Array<any>>} */
-  const grouped = { connected: [], available: [], self_host: [], local: [] };
+export function groupWearableAdapters<T extends GroupingAdapter>(adapters: readonly T[], connected: object, needsAttention: (adapter: T) => unknown) {
+  const grouped: Record<keyof typeof WEARABLE_GROUP_COPY, T[]> = { connected: [], available: [], self_host: [], local: [] };
   const registryIndex = new Map(adapters.map((adapter, index) => [adapter.id, index]));
 
   for (const adapter of adapters) {
@@ -60,17 +64,16 @@ export function groupWearableAdapters(adapters, connected, needsAttention) {
 
   return Object.entries(grouped)
     .filter(([, items]) => items.length)
-    .map(([id, items]) => ({ id, items, ...WEARABLE_GROUP_COPY[id] }));
+    .map(([id, items]) => ({ id, items, ...WEARABLE_GROUP_COPY[id as keyof typeof WEARABLE_GROUP_COPY] }));
 }
 
 export const HOSTED_WEARABLE_CONSENT_VERSION = '2026-08-22';
 export const HOSTED_WEARABLE_CONSENT_KEY = 'labcharts-hosted-wearable-consent';
 
-const sessionApprovals = new Set();
-/** @type {Promise<boolean> | null} */
-let activeConsentPrompt = null;
+const sessionApprovals = new Set<string>();
+let activeConsentPrompt: Promise<boolean> | null = null;
 
-function consentScope(profileId, adapterId) {
+function consentScope(profileId: unknown, adapterId: unknown) {
   const profile = String(profileId || '').trim();
   const provider = String(adapterId || '').trim().toLowerCase();
   return profile && provider ? `${encodeURIComponent(profile)}:${provider}` : '';
@@ -78,8 +81,8 @@ function consentScope(profileId, adapterId) {
 
 function readConsentRecord() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(HOSTED_WEARABLE_CONSENT_KEY) || 'null');
-    return parsed && typeof parsed === 'object' ? parsed : null;
+    const parsed: unknown = JSON.parse(localStorage.getItem(HOSTED_WEARABLE_CONSENT_KEY) || 'null');
+    return parsed && typeof parsed === 'object' ? parsed as HostedWearableConsentRecord : null;
   } catch {
     return null;
   }
@@ -89,7 +92,7 @@ export function getHostedWearableConsentRecord() {
   return readConsentRecord();
 }
 
-export function hasHostedWearableRelayConsent(profileId, adapterId) {
+export function hasHostedWearableRelayConsent(profileId: unknown, adapterId: unknown) {
   const scope = consentScope(profileId, adapterId);
   if (!scope) return false;
   if (sessionApprovals.has(scope)) return true;
@@ -98,7 +101,7 @@ export function hasHostedWearableRelayConsent(profileId, adapterId) {
     && record?.approvals?.[scope]?.accepted === true;
 }
 
-function storeApproval(profileId, adapterId, providerName) {
+function storeApproval(profileId: unknown, adapterId: unknown, providerName?: unknown) {
   const scope = consentScope(profileId, adapterId);
   if (!scope) return;
   sessionApprovals.add(scope);
@@ -130,7 +133,7 @@ function storeApproval(profileId, adapterId, providerName) {
   globalThis.dispatchEvent?.(new Event('hosted-wearable-consent-changed'));
 }
 
-export function withdrawHostedWearableRelayConsent(profileId, adapterId) {
+export function withdrawHostedWearableRelayConsent(profileId: unknown, adapterId: unknown) {
   const scope = consentScope(profileId, adapterId);
   if (!scope) return;
   sessionApprovals.delete(scope);
@@ -155,7 +158,7 @@ export function withdrawHostedWearableRelayConsent(profileId, adapterId) {
   globalThis.dispatchEvent?.(new Event('hosted-wearable-consent-changed'));
 }
 
-function showConsentPrompt(profileId, adapterId, providerName) {
+function showConsentPrompt(profileId: unknown, adapterId: unknown, providerName?: unknown) {
   if (typeof document === 'undefined' || !document.body) return Promise.resolve(false);
   document.getElementById('wearable-relay-consent-overlay')?.remove();
 
@@ -190,8 +193,8 @@ function showConsentPrompt(profileId, adapterId, providerName) {
   const purpose = overlay.querySelector('#wearable-relay-consent-purpose');
   const withdrawal = overlay.querySelector('#wearable-relay-consent-withdrawal');
   const statement = overlay.querySelector('#wearable-relay-consent-statement');
-  const approve = /** @type {HTMLButtonElement | null} */ (
-    overlay.querySelector('[data-wearable-relay-consent-action="approve"]')
+  const approve = (
+    overlay.querySelector<HTMLButtonElement>('[data-wearable-relay-consent-action="approve"]')
   );
   if (title) title.textContent = `Connect ${provider}`;
   if (description) {
@@ -210,13 +213,13 @@ function showConsentPrompt(profileId, adapterId, providerName) {
 
   document.body.appendChild(overlay);
   document.body.classList.add('wearable-relay-consent-visible');
-  const checkbox = /** @type {HTMLInputElement | null} */ (
-    overlay.querySelector('#wearable-relay-consent-checkbox')
+  const checkbox = (
+    overlay.querySelector<HTMLInputElement>('#wearable-relay-consent-checkbox')
   );
 
-  return new Promise(resolve => {
+  return new Promise<boolean>(resolve => {
     let settled = false;
-    const finish = granted => {
+    const finish = (granted: boolean) => {
       if (settled) return;
       settled = true;
       document.removeEventListener('keydown', onKey);
@@ -224,7 +227,7 @@ function showConsentPrompt(profileId, adapterId, providerName) {
       document.body.classList.remove('wearable-relay-consent-visible');
       resolve(granted);
     };
-    const onKey = event => {
+    const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       event.preventDefault();
       finish(false);
@@ -249,7 +252,7 @@ function showConsentPrompt(profileId, adapterId, providerName) {
   });
 }
 
-export async function requestHostedWearableRelayConsent(profileId, adapterId, providerName) {
+export async function requestHostedWearableRelayConsent(profileId: unknown, adapterId: unknown, providerName?: unknown) {
   if (hasHostedWearableRelayConsent(profileId, adapterId)) return true;
   if (activeConsentPrompt) {
     await activeConsentPrompt;

@@ -1,3 +1,4 @@
+import { createExpectAll } from '../helpers/browser-outcomes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -11,11 +12,7 @@ function seedCompletedTour() {
   localStorage.setItem('labcharts-ollama-model', 'llama3.2');
 }
 
-function expectAll(outcomes) {
-  for (const [name, passed] of Object.entries(outcomes)) {
-    expect(passed, name).toBe(true);
-  }
-}
+const expectAll = createExpectAll(expect, 'individual');
 
 test('light devices browser coverage handles store mutations UI wrappers and picker flows', async ({ page }) => {
   await page.addInitScript(seedCompletedTour);

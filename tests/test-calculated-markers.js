@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createSourceFetch } from './helpers/source-fetch.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-calculated-markers.js — biological ages and clinical/wellness derived markers
 //
@@ -11,17 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const _ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const _realFetch = globalThis.fetch;
-globalThis.fetch = async (url, opts) => {
-  if (typeof url === 'string' && !/^https?:/.test(url)) {
-    const rel = url.replace(/^\//, '');
-    try {
-      const body = fs.readFileSync(path.join(_ROOT, rel), 'utf-8');
-      return new Response(body, { status: 200 });
-    } catch (_) { return new Response('', { status: 404 }); }
-  }
-  return _realFetch(url, opts);
-};
-
+globalThis.fetch = createSourceFetch(rel => fs.readFileSync(path.join(_ROOT, rel), 'utf-8'), _realFetch, true);
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
 

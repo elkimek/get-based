@@ -1,13 +1,10 @@
+import { createExpectAll } from '../helpers/browser-outcomes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('recommendationsCoverage');
 
-function expectAll(outcomes) {
-  for (const [name, passed] of Object.entries(outcomes)) {
-    expect.soft(passed, name).toBe(true);
-  }
-}
+const expectAll = createExpectAll(expect, 'soft');
 
 const MOCK_CATALOG = {
   vendors: {

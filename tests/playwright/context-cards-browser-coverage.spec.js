@@ -1,3 +1,4 @@
+import { createExpectAll } from '../helpers/browser-outcomes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 import { createRequire } from 'node:module';
@@ -7,11 +8,7 @@ const axeScriptPath = require.resolve('axe-core/axe.min.js');
 
 const moduleUrl = createModuleUrl('contextCardsCoverage');
 
-function expectAll(outcomes) {
-  for (const [name, passed] of Object.entries(outcomes)) {
-    expect(passed, name).toBe(true);
-  }
-}
+const expectAll = createExpectAll(expect, 'individual');
 
 test('context cards browser coverage exercises notes save dots and tips', async ({ page }) => {
   await page.addInitScript({ path: axeScriptPath });

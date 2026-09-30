@@ -1,3 +1,4 @@
+import { createExpectAll } from '../helpers/browser-outcomes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -19,12 +20,7 @@ const FORMER_SUN_GLOBALS = [
   'CHANNEL_DISPLAY', 'channelTier', 'weeklyChannelTier', 'tierLabel', 'formatChannelUnit', 'tierDots',
 ];
 
-function expectAll(outcomes) {
-  const failed = Object.entries(outcomes)
-    .filter(([, value]) => value !== true)
-    .map(([key, value]) => `${key}: ${JSON.stringify(value)}`);
-  expect(failed).toEqual([]);
-}
+const expectAll = createExpectAll(expect, 'collect');
 
 test('sun session model browser coverage exercises safety defaults and caveats', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

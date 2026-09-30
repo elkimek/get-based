@@ -1,3 +1,4 @@
+import { createExpectAll } from '../helpers/browser-outcomes.js';
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -8,11 +9,7 @@ const openBlankPage = createBlankPage({
   body: '<!doctype html><html><body></body></html>',
 });
 
-function expectAll(outcomes) {
-  for (const [name, passed] of Object.entries(outcomes)) {
-    expect.soft(passed, name).toBe(true);
-  }
-}
+const expectAll = createExpectAll(expect, 'soft');
 
 test('mitochondrial evidence browser coverage exercises loading lookup matching and context bounds', async ({ page }) => {
   test.setTimeout(30_000);

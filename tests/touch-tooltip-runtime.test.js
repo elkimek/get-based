@@ -1,3 +1,4 @@
+import { setRuntimeWindow } from './helpers/runtime-globals.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 
@@ -9,14 +10,6 @@ import {
 } from '../js/touch-tooltip-runtime.js';
 
 const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
-
-function setRuntimeWindow(runtime) {
-  Object.defineProperty(globalThis, 'window', {
-    configurable: true,
-    writable: true,
-    value: runtime,
-  });
-}
 
 afterEach(() => {
   if (savedWindow) Object.defineProperty(globalThis, 'window', savedWindow);

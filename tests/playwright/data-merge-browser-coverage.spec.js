@@ -1,13 +1,10 @@
+import { createExpectAll } from '../helpers/browser-outcomes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('dataMergeCoverage');
 
-function expectAll(outcomes) {
-  for (const [name, passed] of Object.entries(outcomes)) {
-    expect(passed, name).toBe(true);
-  }
-}
+const expectAll = createExpectAll(expect, 'individual');
 
 test('data merge browser coverage covers timestamps lab entries and tombstone merge paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

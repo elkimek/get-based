@@ -1,3 +1,4 @@
+import { setRuntimeWindow } from './helpers/runtime-globals.js';
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -12,14 +13,6 @@ import {
 
 const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
 const originalRuntimeDeps = configureAIVerdictRuntimeDeps();
-
-function setRuntimeWindow(runtime) {
-  Object.defineProperty(globalThis, 'window', {
-    configurable: true,
-    writable: true,
-    value: runtime,
-  });
-}
 
 afterEach(() => {
   configureAIVerdictRuntimeDeps(originalRuntimeDeps);

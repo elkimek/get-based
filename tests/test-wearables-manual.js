@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createSourceFetch } from './helpers/source-fetch.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-wearables-manual.js — manual entry as a first-class wearable source.
 // Module exports, the 'manual' adapter registry entry, logManualMetric /
@@ -28,15 +29,7 @@ const fetchCssBundle = async () => (await Promise.all(
 // Source-inspection sweep uses `await fetch('js/X').then(r => r.text())` —
 // fs-backed fetch shim so the relative URLs resolve in Node.
 const _realFetch = globalThis.fetch;
-globalThis.fetch = async (url, opts) => {
-  if (typeof url === 'string' && !/^https?:/.test(url)) {
-    const rel = url.replace(/^\//, '');
-    try { return new Response(read(rel), { status: 200 }); }
-    catch (_) { return new Response('', { status: 404 }); }
-  }
-  return _realFetch(url, opts);
-};
-
+globalThis.fetch = createSourceFetch(read, _realFetch);
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
 

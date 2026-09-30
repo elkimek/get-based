@@ -15,9 +15,9 @@ const PROFILE_A = 'profile-a';
 const PROFILE_B = 'profile-b';
 
 function consentControls() {
-  const checkbox = document.getElementById('wearable-relay-consent-checkbox');
-  const approve = document.querySelector('[data-wearable-relay-consent-action="approve"]');
-  const cancel = document.querySelector('[data-wearable-relay-consent-action="cancel"]');
+  const checkbox = document.getElementById('wearable-relay-consent-checkbox') as HTMLInputElement;
+  const approve = document.querySelector<HTMLButtonElement>('[data-wearable-relay-consent-action="approve"]')!;
+  const cancel = document.querySelector<HTMLButtonElement>('[data-wearable-relay-consent-action="cancel"]')!;
   return { checkbox, approve, cancel };
 }
 
@@ -36,10 +36,10 @@ describe('hosted wearable relay consent', () => {
     const pending = requestHostedWearableRelayConsent(PROFILE_A, 'withings', 'Withings');
     const overlay = document.getElementById('wearable-relay-consent-overlay');
     expect(overlay).not.toBeNull();
-    expect(overlay.textContent).toContain('getbased s.r.o.');
-    expect(overlay.textContent).toContain('account details and health readings you choose');
-    expect(overlay.textContent).toContain('Encrypted sync and cloud AI are separate choices');
-    expect(overlay.textContent).toContain('Disconnect Withings to stop imports');
+    expect(overlay!.textContent).toContain('getbased s.r.o.');
+    expect(overlay!.textContent).toContain('account details and health readings you choose');
+    expect(overlay!.textContent).toContain('Encrypted sync and cloud AI are separate choices');
+    expect(overlay!.textContent).toContain('Disconnect Withings to stop imports');
 
     const { checkbox, approve } = consentControls();
     expect(checkbox.checked).toBe(false);
@@ -55,8 +55,8 @@ describe('hosted wearable relay consent', () => {
     expect(hasHostedWearableRelayConsent(PROFILE_B, 'withings')).toBe(false);
     expect(hasHostedWearableRelayConsent(PROFILE_A, 'polar')).toBe(false);
     const record = getHostedWearableConsentRecord();
-    const approval = record.approvals[`${encodeURIComponent(PROFILE_A)}:withings`];
-    expect(record.version).toBe(HOSTED_WEARABLE_CONSENT_VERSION);
+    const approval = record!.approvals![`${encodeURIComponent(PROFILE_A)}:withings`];
+    expect(record!.version).toBe(HOSTED_WEARABLE_CONSENT_VERSION);
     expect(approval).toMatchObject({
       accepted: true,
       profileId: PROFILE_A,
@@ -64,7 +64,7 @@ describe('hosted wearable relay consent', () => {
       recipient: 'Withings',
       controller: 'getbased s.r.o.',
     });
-    expect(approval.acceptedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(approval!.acceptedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
   it('does not save approval when the user declines', async () => {

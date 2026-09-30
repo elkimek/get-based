@@ -1,3 +1,4 @@
+import { setRuntimeWindow } from './helpers/runtime-globals.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 
@@ -13,14 +14,6 @@ import {
 const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
 const savedCustomEvent = Object.getOwnPropertyDescriptor(globalThis, 'CustomEvent');
 const defaultRuntimeDeps = configureSunBodySilhouetteRuntimeDeps();
-
-function setRuntimeWindow(runtime) {
-  Object.defineProperty(globalThis, 'window', {
-    configurable: true,
-    writable: true,
-    value: runtime,
-  });
-}
 
 afterEach(() => {
   configureSunBodySilhouetteRuntimeDeps(defaultRuntimeDeps);
