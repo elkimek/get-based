@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static guards for delegated AI verdict controls.
 
 import fs from 'fs';
@@ -56,18 +57,10 @@ const sources = Object.fromEntries(targetFiles.map(file => [
 const combined = Object.values(sources).join('\n');
 const inlineHandlerRe = /\bon(?:click|keydown|submit|change|input)=/;
 
-let passed = 0;
-let failed = 0;
 
-function assert(name, condition, detail = '') {
-  if (condition) {
-    passed++;
-    console.log(`  PASS: ${name}`);
-  } else {
-    failed++;
-    console.log(`  FAIL: ${name}${detail ? ` -- ${detail}` : ''}`);
-  }
-}
+
+
+const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
 console.log('=== AI Action Delegates ===');
 
@@ -141,5 +134,5 @@ unregisterDay();
 assert('unregister only removes the matching registered handler',
   getRegisteredAIActionHandler('refresh-day') === null);
 
-console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
-if (failed > 0) process.exit(1);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+if (legacyAssertions.fail > 0) process.exit(1);

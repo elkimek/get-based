@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static guards for light camera modal close controls.
 
 import fs from 'fs';
@@ -20,18 +21,10 @@ const modalSrc = [
 const cameraSrc = fs.readFileSync(path.join(root, 'js/light-tool-camera.js'), 'utf8');
 const src = `${facadeSrc}\n${runtimeSrc}\n${modalSrc}\n${cameraSrc}`;
 
-let passed = 0;
-let failed = 0;
 
-function assert(name, condition, detail = '') {
-  if (condition) {
-    passed++;
-    console.log(`  PASS: ${name}`);
-  } else {
-    failed++;
-    console.log(`  FAIL: ${name}${detail ? ` -- ${detail}` : ''}`);
-  }
-}
+
+
+const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
 function countNeedle(needle) {
   return src.split(needle).length - 1;
@@ -75,5 +68,5 @@ for (const action of closeActions) {
 assert('light camera close delegates are installed for each modal',
   modalSrc.split('installLightToolModalDelegates(overlay);').length - 1 === 6);
 
-console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
-if (failed > 0) process.exit(1);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+if (legacyAssertions.fail > 0) process.exit(1);

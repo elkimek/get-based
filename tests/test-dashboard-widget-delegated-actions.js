@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static dashboard widget delegated-action source guards.
 
 import fs from 'fs';
@@ -19,18 +20,10 @@ const biometricOverviewSrc = renderersSrc.slice(
   renderersSrc.indexOf('function getDashboardGenomeImpact'),
 );
 
-let passed = 0;
-let failed = 0;
 
-function assert(name, condition, detail = '') {
-  if (condition) {
-    passed++;
-    console.log(`  PASS: ${name}`);
-  } else {
-    failed++;
-    console.log(`  FAIL: ${name}${detail ? ` -- ${detail}` : ''}`);
-  }
-}
+
+
+const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
 console.log('=== Dashboard Widget Delegated Actions ===');
 
@@ -153,5 +146,5 @@ assert('dashboard organize mode disables dense grid packing',
     compositionSrc.includes(`${name}: (...args) => dashboardWidgetControls.${name}(...args)`));
 });
 
-console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
-if (failed > 0) process.exit(1);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+if (legacyAssertions.fail > 0) process.exit(1);

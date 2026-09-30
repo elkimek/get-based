@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-secondary-unit-conversions.js - behavioral tests for the expanded normalizeToSI()
 // and the SECONDARY_UNIT_CONVERSIONS registry.
 //
@@ -14,11 +15,8 @@
 
 import './_node-shim.js';
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' - ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
 
 console.log('=== Secondary Unit Conversion Behavioral Tests ===\n');
 
@@ -172,5 +170,5 @@ for (const [key, list] of Object.entries(SECONDARY_UNIT_CONVERSIONS)) {
 assert('no unit/factor conflicts within any marker', conflicts === 0, `${conflicts} conflicts`);
 
 // ═══════════════════════════════════════════════
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-if (fail > 0) process.exit(1);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+if (legacyAssertions.fail > 0) process.exit(1);

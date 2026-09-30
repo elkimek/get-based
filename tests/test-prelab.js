@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-prelab.js — Verify pre-lab onboarding: context cards → test recommendations
 //
 // Static source inspection only — fs.readFileSync instead of fetch.
@@ -14,11 +15,8 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/context-editor.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-channels.css', 'css/light-devices.css', 'css/light-conditions-now.css', 'css/light-setup.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-panel-open.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css', 'css/chat-redesign-open.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== Pre-Lab Onboarding Tests ===\n');
 
@@ -458,5 +456,5 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
   // ═══════════════════════════════════════
   // Results
   // ═══════════════════════════════════════
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

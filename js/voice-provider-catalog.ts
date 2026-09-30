@@ -1,4 +1,3 @@
-// @ts-check
 // voice-provider-catalog.js — provider metadata and capability discovery.
 
 export const VOICE_PROVIDERS = Object.freeze([
@@ -71,14 +70,14 @@ export const VOICE_PROVIDERS = Object.freeze([
   },
 ]);
 
-export function getVoiceProviderDefinition(providerId) {
+export function getVoiceProviderDefinition(providerId: string) {
   const definition = VOICE_PROVIDERS.find(provider => provider.id === providerId)
     || VOICE_PROVIDERS.find(provider => provider.id === 'browser-local');
   if (!definition) throw new Error('The built-in voice provider is unavailable.');
   return definition;
 }
 
-export function getVoiceProvidersFor(kind) {
+export function getVoiceProvidersFor(kind: string) {
   const capability = kind === 'tts' ? 'tts' : 'stt';
   return VOICE_PROVIDERS.filter(provider => provider.capabilities[capability]);
 }

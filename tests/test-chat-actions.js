@@ -653,7 +653,7 @@ assert('chat discussion live stream restores persona label after thread switch',
   're-entering the origin thread mid-stream should show whose response is streaming');
 assert('chat-discussion.js typewriter callback degrades safely',
   !chatDiscussionCallbacksSrc.includes('Chat discussion typewriter callback not configured') &&
-    /function createDiscussionTypewriter[\s\S]{0,180}update\(\) \{\}[\s\S]{0,80}stop\(\) \{\}/.test(chatDiscussionCallbacksSrc),
+    /function createDiscussionTypewriter[\s\S]{0,180}update\(\)\s*\{\s*\}[\s\S]{0,80}stop\(\)\s*\{\s*\}/.test(chatDiscussionCallbacksSrc),
   'fallback typewriter should no-op instead of throwing before cleanup');
 assert('chat.js imports onboarding helpers', chatSrc.includes("from './chat-onboarding.js'"), 'found');
 assert('chat-onboarding.js owns onboarding handlers',

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-lens-multi-query.js — Multi-query rewrite + RRF chunk fusion.
 //
 // Covers the orchestration helpers that close the vocabulary-gap recall
@@ -17,11 +18,8 @@
 // install the browser shims inline.
 import './_node-shim.js';
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== Lens multi-query tests ===\n');
 
@@ -115,5 +113,5 @@ const C = { source: 'docC.md', text: 'gamma-text' };
   lens.saveLensConfig({ multiQuery: before.multiQuery });
 }
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

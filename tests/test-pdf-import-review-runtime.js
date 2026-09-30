@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-pdf-import-review-runtime.js - Import review browser-runtime adapter coverage.
 
 import './_node-shim.js';
@@ -19,11 +20,8 @@ import {
   takeBatchImportResolve,
 } from '../js/pdf-import-review-runtime.js';
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' - ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
 
 const RUNTIME_FIELDS = [
   '_pendingImport',
@@ -149,5 +147,5 @@ try {
   restoreDescriptor(globalThis, 'window', originalWindowDescriptor);
 }
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-if (fail) process.exit(1);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+if (legacyAssertions.fail) process.exit(1);

@@ -1,3 +1,4 @@
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-category-customization-runtime.js - Category customization browser adapter behavior.
 
 import './_node-shim.js';
@@ -11,11 +12,8 @@ import {
 
 const originalCategoryCustomizationRuntimeDeps = configureCategoryCustomizationRuntimeDeps();
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' - ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
 
 console.log('=== Category Customization Runtime Tests ===\n');
 
@@ -126,5 +124,5 @@ try {
   else delete globalThis.window;
 }
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

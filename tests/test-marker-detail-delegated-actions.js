@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static marker-detail delegated-action source guards.
 
 import fs from 'fs';
@@ -19,18 +20,10 @@ const runtimeSrc = fs.readFileSync(path.join(root, 'js/marker-detail-runtime.js'
 const dashboardSrc = fs.readFileSync(path.join(root, 'js/dashboard-view-composition.js'), 'utf8');
 const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 
-let passed = 0;
-let failed = 0;
 
-function assert(name, condition, detail = '') {
-  if (condition) {
-    passed++;
-    console.log(`  PASS: ${name}`);
-  } else {
-    failed++;
-    console.log(`  FAIL: ${name}${detail ? ` -- ${detail}` : ''}`);
-  }
-}
+
+
+const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
 console.log('=== Marker Detail Delegated Actions ===');
 
@@ -192,5 +185,5 @@ assert('marker-detail-modal only creates recommendation placeholders when render
       !modalSrc.includes(`onclick="event.preventDefault();event.stopPropagation();${fnName}`));
 });
 
-console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
-if (failed > 0) process.exit(1);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+if (legacyAssertions.fail > 0) process.exit(1);

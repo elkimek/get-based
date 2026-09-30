@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static sidebar nav delegated-action source guards.
 
 import fs from 'fs';
@@ -11,18 +12,10 @@ const appShellHooksSrc = fs.readFileSync(path.join(root, 'js/app-shell-hooks.js'
 const navSrc = fs.readFileSync(path.join(root, 'js/nav.js'), 'utf8');
 const navRuntimeSrc = fs.readFileSync(path.join(root, 'js/nav-runtime.js'), 'utf8');
 
-let passed = 0;
-let failed = 0;
 
-function assert(name, condition, detail = '') {
-  if (condition) {
-    passed++;
-    console.log(`  PASS: ${name}`);
-  } else {
-    failed++;
-    console.log(`  FAIL: ${name}${detail ? ` -- ${detail}` : ''}`);
-  }
-}
+
+
+const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
 console.log('=== Sidebar Nav Delegated Actions ===');
 
@@ -100,5 +93,5 @@ assert('mobile sidebar controls tolerate missing sidebar DOM',
   /export function toggleMobileSidebar[^{]*\{[\s\S]{0,250}if \(!sidebar\) \{[\s\S]{0,120}closeModalOverlay\('sidebar-backdrop'/.test(navSrc) &&
     navSrc.includes("document.getElementById('sidebar-nav')?.classList.remove('mobile-open')"));
 
-console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
-if (failed > 0) process.exit(1);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+if (legacyAssertions.fail > 0) process.exit(1);

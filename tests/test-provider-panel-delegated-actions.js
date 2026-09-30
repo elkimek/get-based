@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static provider panel delegated-action source guards.
 
 import fs from 'fs';
@@ -15,18 +16,10 @@ const panelsSrc = fs.readFileSync(path.join(root, 'js/provider-panels.js'), 'utf
 const ppqSrc = fs.readFileSync(path.join(root, 'js/provider-ppq-panels.js'), 'utf8');
 const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 
-let passed = 0;
-let failed = 0;
 
-function assert(name, condition, detail = '') {
-  if (condition) {
-    passed++;
-    console.log(`  PASS: ${name}`);
-  } else {
-    failed++;
-    console.log(`  FAIL: ${name}${detail ? ` -- ${detail}` : ''}`);
-  }
-}
+
+
+const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
 console.log('=== Provider Panel Delegated Actions ===');
 
@@ -167,5 +160,5 @@ assert('provider panels avoid generic settings and view runtime bridges',
     !panelsSrc.includes("from './views-runtime-bridge.js'") &&
     !panelsSrc.includes('providerPanelRuntime'));
 
-console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
-if (failed > 0) process.exit(1);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+if (legacyAssertions.fail > 0) process.exit(1);

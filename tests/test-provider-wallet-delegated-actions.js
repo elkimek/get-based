@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static provider wallet delegated-action source guards.
 
 import fs from 'fs';
@@ -13,18 +14,10 @@ const walletUiSrc = walletPanelSrc + '\n' + walletPanelRendererSrc;
 const walletDelegatesSrc = fs.readFileSync(path.join(root, 'js/provider-wallet-delegates.js'), 'utf8');
 const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 
-let passed = 0;
-let failed = 0;
 
-function assert(name, condition, detail = '') {
-  if (condition) {
-    passed++;
-    console.log(`  PASS: ${name}`);
-  } else {
-    failed++;
-    console.log(`  FAIL: ${name}${detail ? ` -- ${detail}` : ''}`);
-  }
-}
+
+
+const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
 console.log('=== Provider Wallet Delegated Actions ===');
 
@@ -88,5 +81,5 @@ assert('deposit recovery awaits pending-deposit clear before reload',
 assert('withdraw recovery awaits pending-withdraw clear before reload',
   /async function _recoverPendingWithdraw[\s\S]*await walletRuntime\.cashuReceiveToken\?\.\([\s\S]*if \(el\.dataset\.clearPendingWithdraw !== 'false'\) await walletRuntime\.cashuClearPendingWithdraw\?\.\([\s\S]*_call\('reload'\)/.test(walletDelegatesSrc));
 
-console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
-if (failed > 0) process.exit(1);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+if (legacyAssertions.fail > 0) process.exit(1);

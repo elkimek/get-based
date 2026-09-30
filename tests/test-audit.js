@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-audit.js — Pre-release audit fixes. Source-inspection across data.js,
 // views.js, chat.js, markdown.js, utils.js, schema.js, api.js, export.js,
 // pdf-import.js, nav.js, main.js, cycle.js, context-cards.js, charts.js,
@@ -24,11 +25,8 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), '
 const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/context-editor.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-channels.css', 'css/light-devices.css', 'css/light-conditions-now.css', 'css/light-setup.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-panel-open.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css', 'css/chat-redesign-open.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== Pre-Release Audit Tests ===\n');
 
@@ -1203,5 +1201,5 @@ assert('Health dots JSON.parse has try-catch', ctxHealthDotsSrc.includes('try { 
 assert('WBC rule at position 5 (before Skip non-numeric)', pdfSrc.indexOf('differential WBC') < pdfSrc.indexOf('Skip non-numeric'));
 assert('PDF import includes filename in user message', pdfSrc.includes("(file: ' + fileName"));
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

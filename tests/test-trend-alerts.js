@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-trend-alerts.js — Trend detection, alerts, and status logic
 //
 // Run: node tests/test-trend-alerts.js  (or via npm test)
@@ -19,11 +20,8 @@ const dashboardCssSrc = [
   read('css/dashboard-data.css'),
 ].join('\n');
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== Trend Alerts & Status Tests ===\n');
 
@@ -796,5 +794,5 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
   // =======================================
   // Summary
   // =======================================
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

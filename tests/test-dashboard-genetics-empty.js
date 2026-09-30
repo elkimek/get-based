@@ -1,15 +1,13 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-dashboard-genetics-empty.js — Genetics empty-state CTA (v1.3.28)
 //
 // Run: node tests/test-dashboard-genetics-empty.js  (or via npm test)
 
 import './_node-shim.js';
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== Genetics empty-state CTA tests ===\n');
 
@@ -70,5 +68,5 @@ const contextCards = await import('../js/context-cards.js');
     state.importedData.genetics = savedGenetics;
   }
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

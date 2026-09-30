@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-wearables.js — Wearable adapter registry + L1 store + L2 summary + AI
 // context. Adapter shape, IndexedDB CRUD (via fake-indexeddb), summary math,
 // L2 write gate, AI-context builders, 7 vendor OAuth/PKCE modules, Apple
@@ -37,11 +38,8 @@ globalThis.fetch = async (url, opts) => {
   return _realFetch(url, opts);
 };
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== Wearables Tests ===\n');
 
@@ -1404,7 +1402,7 @@ try {
     delete window.__WEARABLES_TEST;
   }
 } catch (e) {
-  fail++;
+  legacyAssertions.fail++;
   console.log('  FAIL: IDB encryption round-trip block crashed — ' + (e?.message || e));
 }
 
@@ -2407,5 +2405,5 @@ assert('Settings render still shows Oura row',
   /data-adapter-id="oura"|connectAdapter\('oura'\)|adapter\.id === 'oura'/i.test(settingsHtml) ||
   /Oura/.test(settingsHtml));
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

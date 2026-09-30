@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-dna-illumina-and-valence.js — covers everything shipped 2026-04-24:
 //   - Illumina GenomeStudio (DNAEra) format support + probe-name prefix strip
 //   - CETP TaqIB (rs708272) strand fix (forward-strand G/A keys)
@@ -32,11 +33,8 @@ globalThis.fetch = async (url, opts) => {
   return _realFetch(url, opts);
 };
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== DNA: Illumina + valence + recalibration ===\n');
 
@@ -395,5 +393,5 @@ state.importedData.genetics = sortOrig;
 // ═══════════════════════════════════════
 // Results
 // ═══════════════════════════════════════
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

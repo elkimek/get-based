@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-coverage-stragglers.js — Targeted probes for the 1-function-each
 // gaps left after the AI-verdict + vendor-personalInfo sweeps.
 //
@@ -41,11 +42,8 @@ globalThis.fetch = async (url, opts) => {
   return _realFetch(url, opts);
 };
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== Coverage Stragglers ===\n');
 
@@ -329,5 +327,5 @@ console.log('10. dna worker.onerror');
   }
 }
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

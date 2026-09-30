@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-lighting-hardware-caveats.js — Guards against the load-bearing
 // flicker/TRIAC caveat block being silently dropped from any AI-analysis
 // surface. Without these caveats the model may overstate what a camera
@@ -19,11 +20,8 @@ import { LIGHTING_HARDWARE_CAVEATS, LIGHTING_HARDWARE_CAVEATS_TEXT } from '../js
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== Lighting Hardware Caveats Tests ===\n');
 
@@ -88,5 +86,5 @@ for (const relPath of importers) {
   assert(`${relPath} actually uses the imported caveats (spread or _TEXT splice)`, usesConst);
 }
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

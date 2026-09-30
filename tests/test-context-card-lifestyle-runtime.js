@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-context-card-lifestyle-runtime.js - Lifestyle context runtime adapter behavior.
 
 import fs from 'fs';
@@ -19,11 +20,8 @@ import {
 import { configureContextCardsRuntimeCallbacks } from '../js/context-cards-runtime.js';
 import { configureChatRuntimeCallbacks } from '../js/chat-runtime.js';
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' - ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
 
 console.log('=== Context Card Lifestyle Runtime Tests ===\n');
 
@@ -139,5 +137,5 @@ try {
   restoreRuntime();
 }
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

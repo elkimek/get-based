@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-adapters.js — Adapter registry: structure, fatty acids, OAT, metabolomix, cross-adapter
 //
 // Static source inspection only — switched from HTTP fetch to fs.readFileSync
@@ -18,11 +19,8 @@ import { normalizeProductScopedAdapterMarkers } from '../js/pdf-import-organic-a
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== Adapter Registry Tests ===\n');
 
@@ -293,5 +291,5 @@ const organicNormalizationSrc = read('js/pdf-import-organic-acid-normalization.j
   assert('Imports MARKER_SCHEMA', adaptersSrc.includes("import { MARKER_SCHEMA } from './schema.js'"));
   assert('Imports isDebugMode', adaptersSrc.includes("import { isDebugMode } from './utils.js'"));
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

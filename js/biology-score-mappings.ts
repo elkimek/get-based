@@ -1,6 +1,8 @@
+import type { ScoreInput } from './biology-score-types.js';
+
 // biology-score-mappings.js — audit metadata for non-generic Biology Scores.
 
-export const CUSTOM_BIOLOGY_SCORE_MAPPINGS = {
+export const CUSTOM_BIOLOGY_SCORE_MAPPINGS: Record<string, ScoreInput[]> = {
   thyroidCoherence: [
     { key: 'tsh', label: 'TSH', weight: 1.0, paths: 'thyroid.tsh' },
     { key: 'ft3', label: 'Free T3', weight: 1.3, paths: 'thyroid.ft3' },

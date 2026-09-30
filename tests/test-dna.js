@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-dna.js — DNA adapter: parser, storage, context assembly.
 // Format detection, per-vendor parsers (Ancestry / 23andMe / CSV / MyHeritage
 // Low-pass WGS), genotype reversal + strand-flip handling, findGenotypeInfo,
@@ -37,11 +38,8 @@ globalThis.fetch = async (url, opts) => {
   return _realFetch(url, opts);
 };
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== DNA Adapter Tests ===\n');
 
@@ -690,5 +688,5 @@ state.importedData.genetics = origGenetics;
 // ═══════════════════════════════════════
 // Results
 // ═══════════════════════════════════════
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

@@ -64,6 +64,16 @@ clear their slots, inherited and unknown keys are ignored, and callers receive a
 independent snapshot for restoration. Feature adapters expose their own named,
 typed actions. Adapters with different configuration semantics remain separate.
 
+`js/biology-score-types.ts` shares named score input and definition contracts
+across the catalog, computation contract and planner. All original weights,
+paths, core groups, route rules and evidence labels are retained. Panel route
+keys are checked against the catalog by `tests/biology-score-contract.test.ts`.
+
+`tests/helpers/legacy-assertions.ts` replaces repeated reporting harnesses in 125
+legacy suites. Assertion expressions remain in the individual tests; counters,
+truthiness, evaluation order, detail coercion and each suite's message separators
+retain their original behavior. The consolidation preserved 6,959 assertion calls.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

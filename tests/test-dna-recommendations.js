@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-dna-recommendations.js — Verify DNA-aware supplement recommendation integration
 //
 // Run: node tests/test-dna-recommendations.js  (or via npm test)
@@ -13,11 +14,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
 function fetchWithRetry(rel) { return Promise.resolve(read(rel)); }
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== DNA-Aware Supplement Recommendations Tests ===\n');
 
@@ -288,5 +286,5 @@ assert('_renderRecSection signature unchanged (slotKey, opts)', /function _rende
 // Results
 // ═══════════════════════════════════════
 const skipNote = skipped ? ` (${skipped} skipped — stub catalog)` : '';
-console.log(`\nResults: ${pass} passed, ${fail} failed${skipNote}, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed${skipNote}, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-sun-spectrum.js — Bird-Riordan reconstruction + action-spectrum convolution.
 //
 // Node-side. js/sun-spectrum.js is dependency-free pure math, so it runs
@@ -28,11 +29,8 @@ import {
   pbmJoulesPerCm2,
 } from '../js/sun-spectrum.js';
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== Sun Spectrum Tests ===\n');
 
@@ -766,5 +764,5 @@ assert('FX6b — saturation cap holds even with rotatedSides=true',
   vitaminDIU(_bigAu, 'II', _uvi30, true) === 20000,
   `got ${vitaminDIU(_bigAu, 'II', _uvi30, true)} IU (expected 20000)`);
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

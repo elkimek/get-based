@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static source guards for modules migrated to shared modal overlay helpers.
 
 import fs from 'fs';
@@ -83,18 +84,10 @@ const knowledgeBaseModalSrc = lensKnowledgeBaseUiSrc.slice(
   lensKnowledgeBaseUiSrc.indexOf('function _kbModalKeydown')
 );
 
-let passed = 0;
-let failed = 0;
 
-function assert(name, condition, detail = '') {
-  if (condition) {
-    passed++;
-    console.log(`  PASS: ${name}`);
-  } else {
-    failed++;
-    console.log(`  FAIL: ${name}${detail ? ` -- ${detail}` : ''}`);
-  }
-}
+
+
+const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
 console.log('=== Modal Lifecycle Integrations ===');
 
@@ -424,5 +417,5 @@ assert('PII diff and review overlays use shared overlay lifecycle helpers',
     !piiReviewSrc.includes('overlay.remove()') &&
     !piiReviewSrc.includes("this.closest('.pii-warning-overlay').remove()"));
 
-console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
-if (failed > 0) process.exit(1);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+if (legacyAssertions.fail > 0) process.exit(1);

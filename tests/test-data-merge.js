@@ -1,15 +1,13 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-data-merge.js — per-array union-by-id sync merge: additions, edit
 // conflict resolution, tombstones (no resurrection of deleted rows), nested
 // paths inside lightEnvironment, single-object LWW preservation.
 //
 // Run: node tests/test-data-merge.js  (or via npm test — wrapped by _vitest-legacy.test.js)
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== Data Merge Tests ===\n');
 
@@ -1237,5 +1235,5 @@ const { DELTA_ARRAY_CONFIG } = await import('../js/sync-delta-surface-config.js'
   assert('ordinary changeHistory cap eviction still avoids tombstones',
     !cappedHistory._deleted?.changeHistory);
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

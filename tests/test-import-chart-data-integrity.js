@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-import-chart-data-integrity.js - import normalization must preserve
 // chart semantics for markers whose imported unit labels look like percent.
 //
@@ -28,11 +29,8 @@ globalThis.getComputedStyle = () => ({
   getPropertyValue: prop => chartColorValues[prop] || '#000000',
 });
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' - ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
 
 const approx = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
 
@@ -273,5 +271,5 @@ try {
   else globalThis.getComputedStyle = savedGetComputedStyle;
 }
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-if (fail > 0) process.exit(1);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+if (legacyAssertions.fail > 0) process.exit(1);

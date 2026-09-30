@@ -101,3 +101,14 @@ deploy/profile-share/data/
 /js/marker-schema/urinalysis.js
 /js/marker-schema/vitamins.js
 /js/blob-storage.js
+/tests/helpers/legacy-assertions.js
+/js/biology-score-types.js
+/js/biology-score-mappings.js
+/js/biology-score-tier1-definitions.js
+/js/biology-score-tier2-definitions.js
+/js/biology-score-contract.js
+/js/biology-score-copy.js
+/js/cycle-draw-phases.js
+/js/chat-discussion-callbacks.js
+/js/voice-catalog-storage.js
+/js/voice-provider-catalog.js

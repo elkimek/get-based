@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Settings delegated-action source guards.
 
 import fs from 'fs';
@@ -24,18 +25,10 @@ const appShellCss = fs.readFileSync(path.join(root, 'css/app-shell.css'), 'utf8'
 const settingsCss = fs.readFileSync(path.join(root, 'css/settings.css'), 'utf8');
 const settingsSurfaceSrc = `${src}\n${displaySrc}\n${eventTargetSrc}\n${privacySrc}\n${settingsDataSrc}\n${voiceSrc}\n${tweaksSrc}`;
 
-let passed = 0;
-let failed = 0;
 
-function assert(name, condition, detail = '') {
-  if (condition) {
-    passed++;
-    console.log(`  PASS: ${name}`);
-  } else {
-    failed++;
-    console.log(`  FAIL: ${name}${detail ? ` -- ${detail}` : ''}`);
-  }
-}
+
+
+const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
 function matchBlock(label, pattern, source = src) {
   const m = source.match(pattern);
@@ -218,5 +211,5 @@ assert('Legacy Sun data-source window handlers are removed',
     && !privacySrc.includes('window._saveMeteoSelfhost')
     && !privacySrc.includes('window._toggleMeteoRounding'));
 
-console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
-if (failed > 0) process.exit(1);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+if (legacyAssertions.fail > 0) process.exit(1);

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-sync-modal-refresh.js — shared sync-applied modal refresh guards.
 //
 // Run: node tests/test-sync-modal-refresh.js
@@ -13,11 +14,8 @@ const { refreshActiveProfileAfterPull } = await import('../js/sync-pull-active-r
 const { configureSyncPullActiveRefreshDeps } = await import('../js/sync-pull-active-refresh-runtime.js');
 const { createNavigate } = await import('../js/views-router.js');
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== Sync Modal Refresh Tests ===\n');
 
@@ -431,5 +429,5 @@ try {
   else delete window.pageYOffset;
 }
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail ? 1 : 0);

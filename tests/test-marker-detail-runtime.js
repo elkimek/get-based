@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-marker-detail-runtime.js - Marker detail runtime adapter behavior.
 
 import './_node-shim.js';
@@ -23,11 +24,8 @@ import { configureDnaModuleBridge } from '../js/dna-runtime-bridge.js';
 import { configureRecommendationModuleBridge } from '../js/recommendations-runtime.js';
 import { configureWearablesModuleBridge } from '../js/wearables-runtime.js';
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' - ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
 
 console.log('=== Marker Detail Runtime Tests ===\n');
 
@@ -172,5 +170,5 @@ try {
   restoreRuntime();
 }
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

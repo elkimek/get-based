@@ -1,9 +1,10 @@
-// @ts-check
+import type { ScoreDefinition, ScoreInput } from './biology-score-types.js';
+
 // Shared panel contract: computation, marker lists, and the lab planner use this source.
 import { CUSTOM_BIOLOGY_SCORE_MAPPINGS } from './biology-score-mappings.js';
 export const BIOLOGY_SCORE_VERSION = '2026-09-16.3';
 
-const GROUPS = {
+const GROUPS: Record<string, Record<string, string>> = {
   metabolicFlexibility: { glucose: 'glucoseInsulin', insulin: 'glucoseInsulin', homaIR: 'glucoseInsulin', tgHdlRatio: 'lipidHandling', tag: 'lipidHandling', hdl: 'lipidHandling' },
   cardiovascularLipoprotein: { apoB: 'atherogenicParticles', apoBA1Ratio: 'atherogenicParticles', ldl: 'atherogenicParticles', nonHdl: 'atherogenicParticles', apoA1: 'hdlContext', cholHdlRatio: 'hdlContext' },
   fluidFiltrationCoherence: { egfr: 'filtration', creatinine: 'filtration', cystatinC: 'filtration', gfrCystatin: 'filtration', egfrCombined: 'filtration', bunCreatRatio: 'filtration' },
@@ -15,16 +16,16 @@ const GROUPS = {
   cellularEnergyCoherence: { succinate: 'tca', fumarate: 'tca', malate: 'tca', oxoglutarate: 'tca', aconitate: 'tca', methylglutaconic: 'tca', ethylmalonic: 'fattyAcidOxidation', methylsuccinic: 'fattyAcidOxidation', adipic: 'fattyAcidOxidation', suberic: 'fattyAcidOxidation', sebacic: 'fattyAcidOxidation' },
   ironHandling: { iron: 'transport', transferrin: 'transport', tibc: 'transport', transferrinSat: 'transport', hgb: 'redCells', mch: 'redCells', mcv: 'redCells' },
 };
-const ANCHORS = {
+const ANCHORS: Record<string, string[]> = {
   cellularEnergyCoherence: ['lactate', 'pyruvate'],
   stressResilience: ['cortisol', 'dheaS'],
   gutImmuneSignal: ['calprotectin'],
   nerveMuscleSignal: ['ck', 'activeB12', 'b12', 'homocysteine'],
 };
 
-export function getScoreInputs(def) {
+export function getScoreInputs(def: Pick<ScoreDefinition, 'id'> & Partial<Pick<ScoreDefinition, 'inputs'>>): ScoreInput[] {
   return (def.inputs || CUSTOM_BIOLOGY_SCORE_MAPPINGS[def.id] || []).map(original => {
-    const input = { ...original };
+    const input: ScoreInput = { ...original };
     if (def.id === 'metabolicFlexibility' && ['glucose', 'insulin', 'homaIR', 'tgHdlRatio'].includes(input.key)) input.fastingRequired = true;
     input.evidenceGroup = GROUPS[def.id]?.[input.key] || input.coreGroup || input.key;
     if (['activeB12', 'b12'].includes(input.key)) input.evidenceGroup = 'b12Status';

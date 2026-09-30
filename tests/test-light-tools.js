@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-light-tools.js — Pure helpers re-exported by light-tools.js:
 // computeRowBanding (flicker FFT), cameraLockStatusLine, saveMeasurement
 // persistence + spectrum auto-fill, getMeasurementsForRoom, deleteMeasurement.
@@ -8,11 +9,8 @@
 import './_node-shim.js';
 import fs from 'node:fs';
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== Light Tools Tests ===\n');
 
@@ -414,5 +412,5 @@ const tools = await import('../js/light-tools.js');
   // Restore
   state.importedData = orig;
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

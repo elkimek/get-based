@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-cycle-tour.js — Cycle tour feature tests
 //
 // Run: node tests/test-cycle-tour.js  (or via npm test)
@@ -14,11 +15,8 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), '
 const CSS_FILES = ['styles.css', 'css/cycle.css'];
 const readCycleCss = () => CSS_FILES.map(read).join('\n');
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== Cycle Tour Tests ===\n');
 
@@ -141,5 +139,5 @@ const tour = await import('../js/tour.js');
   assert('SW uses importScripts for version', swSrc.includes("importScripts('/version.js')"));
   assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

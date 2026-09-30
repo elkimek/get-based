@@ -1,6 +1,15 @@
-// @ts-check
 
-/** @typedef {'menstrual' | 'follicular' | 'ovulatory' | 'luteal'} CyclePhase */
+export type CyclePhase = 'menstrual' | 'follicular' | 'ovulatory' | 'luteal';
+
+export interface RecordedDrawPhase {
+  cycleDay: number | null;
+  phase: CyclePhase;
+  phaseName: string;
+  phaseDetailName: string;
+  confidence: 'recorded' | 'medium';
+  basedOnStartDate: null;
+  source: 'recorded' | 'predicted';
+}
 
 const PHASE_NAMES = Object.freeze({
   menstrual: 'Menstrual',
@@ -9,7 +18,7 @@ const PHASE_NAMES = Object.freeze({
   luteal: 'Luteal',
 });
 
-const PHASE_DETAIL_NAMES = Object.freeze({
+const PHASE_DETAIL_NAMES: Readonly<Record<string, string>> = Object.freeze({
   early_follicular: 'Early follicular',
   late_follicular: 'Late follicular',
   periovulatory: 'Periovulatory',
@@ -18,8 +27,7 @@ const PHASE_DETAIL_NAMES = Object.freeze({
   late_luteal: 'Late luteal',
 });
 
-/** @param {unknown} value */
-function normalizePhaseLabel(value) {
+function normalizePhaseLabel(value: unknown): string {
   return String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
 }
 
@@ -27,13 +35,10 @@ function normalizePhaseLabel(value) {
  * Prefer explicit per-draw cycle context imported from a lab report or entered
  * by the user. Returning null lets the caller fall back to profile prediction.
  *
- * @param {Record<string, unknown> | null | undefined} context
- * @returns {{ cycleDay: number | null, phase: CyclePhase, phaseName: string, phaseDetailName: string, confidence: string, basedOnStartDate: null, source: 'recorded' | 'predicted' } | null}
  */
-export function getRecordedDrawPhase(context) {
+export function getRecordedDrawPhase(context: Record<string, unknown> | null | undefined): RecordedDrawPhase | null {
   const normalizedPhase = normalizePhaseLabel(context?.cyclePhase);
-  /** @type {CyclePhase | null} */
-  const phase = normalizedPhase.includes('menstrual') || normalizedPhase === 'menses' ? 'menstrual'
+  const phase: CyclePhase | null = normalizedPhase.includes('menstrual') || normalizedPhase === 'menses' ? 'menstrual'
     : normalizedPhase.includes('follicular') ? 'follicular'
     : normalizedPhase.includes('ovulat') ? 'ovulatory'
     : normalizedPhase.includes('luteal') ? 'luteal'

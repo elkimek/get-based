@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-wearables-bp-merge.js — BP renders as one paired card (sys/dia).
 // Covers: strip-render filter (dia hidden when sys present), reorder-mode
 // filter symmetry, renderCard pairing format, edge case (dia-only surfaces),
@@ -21,11 +22,8 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== BP Card Merge Tests ===\n');
 
@@ -98,5 +96,5 @@ const manualSrc = read('js/wearables-manual.js');
 assert('MANUAL_METRICS still lists both bp_systolic and bp_diastolic separately',
   /MANUAL_METRICS\s*=\s*\['weight', 'bp_systolic', 'bp_diastolic', 'rhr'\]/.test(manualSrc));
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

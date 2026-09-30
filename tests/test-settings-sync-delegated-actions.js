@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Settings sync delegated-action source guards.
 
 import fs from 'fs';
@@ -13,18 +14,10 @@ const restoreUiSrc = fs.readFileSync(path.join(root, 'js/settings-sync-restore-u
 const syncUiSrc = `${src}\n${renderSrc}\n${restoreUiSrc}`;
 const agentSrc = fs.readFileSync(path.join(root, 'js/settings-agent-access-panel.js'), 'utf8');
 
-let passed = 0;
-let failed = 0;
 
-function assert(name, condition, detail = '') {
-  if (condition) {
-    passed++;
-    console.log(`  PASS: ${name}`);
-  } else {
-    failed++;
-    console.log(`  FAIL: ${name}${detail ? ` -- ${detail}` : ''}`);
-  }
-}
+
+
+const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
 console.log('=== Settings Sync Delegated Actions ===');
 
@@ -136,5 +129,5 @@ assert('Legacy Settings sync actions stay module-only',
     && !src.includes('window.toggleSync')
     && !src.includes('window.toggleMessenger'));
 
-console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
-if (failed > 0) process.exit(1);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+if (legacyAssertions.fail > 0) process.exit(1);

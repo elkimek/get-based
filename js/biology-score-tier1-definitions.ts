@@ -1,3 +1,5 @@
+import type { ScoreDefinition } from './biology-score-types.js';
+
 // biology-score-tier1-definitions.js — additional getbased-native Biology Score definitions.
 
 export const TIER1_BIOLOGY_SCORE_DEFINITIONS = [
@@ -69,4 +71,4 @@ export const TIER1_BIOLOGY_SCORE_DEFINITIONS = [
       { key: 'egfr', label: 'eGFR', weight: 0.35, paths: ['biochemistry.egfr', 'biochemistry.eGFR'] },
     ],
   },
-];
+] satisfies ScoreDefinition[];

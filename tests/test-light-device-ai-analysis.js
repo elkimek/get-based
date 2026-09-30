@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-light-device-ai-analysis.js — fingerprint determinism, prompt-context
 // shape, render state machine, engine cfg adapter coverage for the
 // per-device-session AI verdict.
@@ -7,11 +8,8 @@
 
 import './_node-shim.js';
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== Light Device AI Analysis Tests ===\n');
 
@@ -380,5 +378,5 @@ const {
   else localStorage.removeItem('labcharts-ai-paused');
   state.importedData = origImported;
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

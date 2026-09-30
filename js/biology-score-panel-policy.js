@@ -59,6 +59,7 @@ function sameDrawPair(data, inputs, kind) {
 
 export function resolveScorePanel(data, def) {
   let inputs = getScoreInputs(def);
+  // Built-in route keys are catalog invariants; covered by the score contract tests.
   const hits = new Map();
   const extra = [];
   let panelLabel = '', panelRoute = '';
@@ -72,7 +73,7 @@ export function resolveScorePanel(data, def) {
       { id: 'microbial', label: 'Exploratory urine metabolites', keys: ['arabinose', 'hphpa'], kind: 'urine' },
     ];
     const candidates = routes.map(route => ({ ...route, pair: sameDrawPair(data, route.keys.map(key => inputs.find(i => i.key === key)), route.kind),
-      latest: route.keys.map(key => getMarkerHit(data, inputs.find(i => i.key === key).paths)?.date || '').sort().at(-1) }));
+      latest: route.keys.map(key => getMarkerHit(data, (/** @type {import('./biology-score-types.js').ScoreInput} */ (inputs.find(i => i.key === key))).paths)?.date || '').sort().at(-1) }));
     // Prefer the newest complete route. An unmatched newer sample stays visible below.
     const selected = candidates.filter(r => r.pair).sort((a, b) => b.pair[0].date.localeCompare(a.pair[0].date))[0]
       || candidates.slice().sort((a, b) => b.latest.localeCompare(a.latest))[0];
@@ -87,7 +88,7 @@ export function resolveScorePanel(data, def) {
     selected.pair?.forEach((hit, index) => {
       const key = selected.keys[index];
       hits.set(key, hit);
-      const input = inputs.find(i => i.key === key);
+      const input = /** @type {import('./biology-score-types.js').ScoreInput} */ (inputs.find(i => i.key === key));
       const recent = getMarkerHit(data, input.paths);
       if (recent && recent.date > hit.date) extra.push({ input: { ...input, key: `${key}Unpaired`, label: `${input.label} (newer unpaired result)`, core: false, coreGroup: '',
         contextOnly: 'A newer result without a matching panel partner; retained for comparison.' }, hit: recent });

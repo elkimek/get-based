@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-wearables-sync-flow.js — orchestration end-to-end. Mocks the proxy
 // fetch + a fake connection record, drives the actual backfillWearable /
 // incrementalSyncWearable / syncWearableSummary / disconnectWearable paths,
@@ -33,11 +34,8 @@ globalThis.fetch = async (url, opts) => {
   return _nodeFetch(url, opts);
 };
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== Wearables Sync-Flow Tests ===\n');
 
@@ -432,5 +430,5 @@ state.currentProfile = origCurrentProfile;
 state.importedData = origState;
 try { const { deleteWearablesDB } = await import('../js/wearables-store.js'); await deleteWearablesDB(TEST_PROFILE_ID); } catch {}
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

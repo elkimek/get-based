@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-blob-storage.js — IDB-backed key/value store + the localStorage→IDB
 // migration path that runs on first read of an `*-imported` key.
 //
@@ -9,11 +10,8 @@
 
 import './_node-shim.js';
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== Blob Storage Tests ===\n');
 
@@ -101,5 +99,5 @@ assert('non-blob value is in localStorage', localStorage.getItem(lsKey) === 'pla
 assert('non-blob value NOT in IDB', (await getBlob(lsKey)) === null);
 localStorage.removeItem(lsKey);
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

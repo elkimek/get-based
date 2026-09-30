@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-theme-runtime.js - Theme browser-runtime adapter coverage.
 
 import './_node-shim.js';
@@ -9,11 +10,8 @@ import {
 } from '../js/theme-runtime.js';
 import { configureSettingsModuleBridge } from '../js/settings-runtime-bridge.js';
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' - ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
 
 const RUNTIME_FIELDS = [
   'CustomEvent',
@@ -108,5 +106,5 @@ try {
   restoreDescriptor(globalThis, 'window', originalWindowDescriptor);
 }
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-if (fail) process.exit(1);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+if (legacyAssertions.fail) process.exit(1);

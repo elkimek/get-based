@@ -1,6 +1,8 @@
+import type { ScoreCopy } from './biology-score-types.js';
+
 // Biology Score questions. Core and additional panels come from the shared input contract.
 
-export const BIOLOGY_SCORE_COPY = {
+export const BIOLOGY_SCORE_COPY: Record<string, ScoreCopy> = {
   metabolicFlexibility: { scopeLabel: 'Fasting glucose–insulin pattern', question: 'How do fasting glucose, insulin and lipid patterns fit together?' },
   thyroidCoherence: { question: 'How do TSH, Free T4 and Free T3 fit together, and what context could explain disagreement?' },
   cardiovascularLipoprotein: { scopeLabel: 'ApoB particle pattern', question: 'What do these markers show about cholesterol-carrying particles?' },
@@ -21,6 +23,6 @@ export const BIOLOGY_SCORE_COPY = {
   nerveMuscleSignal: { question: 'How do muscle-stress and B-vitamin markers fit together?' },
 };
 
-export function getBiologyScoreCopy(scoreId) {
+export function getBiologyScoreCopy(scoreId: string): ScoreCopy {
   return BIOLOGY_SCORE_COPY[scoreId] || {};
 }

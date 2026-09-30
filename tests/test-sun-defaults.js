@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-sun-defaults.js — Onboarding defaults: Fitzpatrick mapping, OTT score
 // boundaries, option-list shapes, getSunDefaults / saveSunDefaults round-trip,
 // isOnboardingComplete gate.
@@ -11,11 +12,8 @@ import { JSDOM } from 'jsdom';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-let pass = 0, fail = 0;
-function assert(name, condition, detail) {
-  if (condition) { pass++; console.log(`  PASS: ${name}`); }
-  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
-}
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== Sun Defaults Tests ===\n');
 
@@ -426,5 +424,5 @@ installLightSetupDelegates(delegateDom.window.document);
   if (state.importedData) state.importedData.sunDefaults = stashedSunDefaults;
   } // end if (!SKIP_SECTION_8)
 
-console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);
