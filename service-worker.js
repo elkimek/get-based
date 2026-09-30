@@ -603,7 +603,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/wearables-google-health-auth.js',
   '/js/wearables-credential-vault.js',
   '/js/wearables-apple-health-runtime.js',
-  '/js/wearables-apple-health.js',
+  '/js/wearables-apple-health.js', '/js/wearables-apple-health-parser.js',
   '/js/wearables-manual.js',
   '/js/brand-assets.js',
   '/js/modal-lifecycle.js',

@@ -222,6 +222,24 @@ response/read evaluation orders remain explicit; 4,680 comparisons retain URL
 routing, 404 fallback, constructor/getter failures, remote failures and promise turns.
 All 41 affected Chromium cases and all 3,383 unit tests pass.
 
+`js/wearables-apple-health-parser.ts` now owns strict streaming/in-memory record
+parsing, unit normalization and canonical day aggregation. The import orchestrator
+retains ZIP loading, storage writes, profile metadata, summary persistence and cycle
+review, and re-exports the original parser functions. Before simplification, all
+eight extracted parser declarations and the complete typed runtime-hook module
+matched the original runtime syntax trees. Eight repeated rounded-mean aggregators
+now share an ordered loop. The original and native parsers matched 1,746 scenarios
+covering units, day/night windows, source totals, malformed records, UTF-8 chunk
+boundaries and progress. Six native regressions require Unicode source identity,
+canonical rounding and error propagation across arbitrary chunk boundaries.
+
+ZIP access and injected cycle parse/preview callbacks now have native contracts.
+The original runtime regression script is checked as TypeScript; all eight original
+assertion call sites remain, with seven executing on the successful path. The parser
+is included in the offline cache graph. All 3,389 unit tests, four focused Chromium
+cases, native/legacy type gates, zero strict-null debt, production budgets and
+unchanged DOM sink fingerprints pass.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

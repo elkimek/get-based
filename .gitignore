@@ -186,3 +186,5 @@ deploy/profile-share/data/
 /js/wearables-settings-groups.js
 /tests/helpers/browser-outcomes.js
 /tests/helpers/source-fetch.js
+/js/wearables-apple-health-parser.js
+/js/wearables-apple-health-runtime.js
