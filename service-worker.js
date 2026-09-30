@@ -175,7 +175,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/cycle-import-loader.js',
   '/js/cycle-import.js',
   '/js/cycle-import-mutations.js',
-  '/js/cycle-store.js',
+  '/js/transaction-completion.js', '/js/cycle-store.js',
   '/js/cycle-summary.js',
   '/js/cycle.js',
   '/js/cycle-draw-phases.js',

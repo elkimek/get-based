@@ -113,6 +113,7 @@ export function buildCycleImportPlan(parsed, mc = state.importedData.menstrualCy
   };
 }
 
+/** @param {import('./cycle-store.js').StoredCycleObservation[] | null} [rawRowsOverride] */
 async function applyRawObservationCounts(mc, profileId, sourceHint = null, rawRowsOverride = null) {
   const upgraded = upgradeMenstrualCycleProfile(mc);
   if (!upgraded?.coverage) return upgraded;

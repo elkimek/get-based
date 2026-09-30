@@ -13,6 +13,7 @@
 // Compound key [source, date] — multiple sources coexist per day (Oura +
 // WHOOP + Apple Health on the same 2026-04-22 is three distinct rows).
 
+import { transactionCompletion as txPromise } from './transaction-completion.js';
 import type { DeviceLocalEnvelope, PassphraseEnvelope, StoredWearableRow, WearableDeleteOptions, WearablesStoreCryptoDeps, WearableVersionGuard } from './wearable-storage-types.js';
 
 import { queueManualRowWrite } from './wearables-manual-lock.js';
@@ -150,14 +151,6 @@ export function resetWearablesDB(profileId?: string | null) {
 // Row CRUD
 // ─────────────────────────────────────────────────────────
 
-function txPromise(tx: IDBTransaction) {
-  const complete = new Promise<void>((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error || new Error('Transaction aborted'));
-  });
-  return complete;
-}
 
 // Field-level AES-GCM envelope around the non-key fields of an L1 row when
 // encryption-at-rest is enabled. Compound key fields (`source`, `date`) stay
