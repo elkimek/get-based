@@ -1,9 +1,8 @@
-// @ts-check
 // touch-tooltip-runtime.js - Browser runtime adapters for app tooltips.
 
-function getTouchTooltipRuntime() {
+function getTouchTooltipRuntime(): Window | null {
   return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
+    ? (window)
     : null;
 }
 
@@ -23,15 +22,12 @@ export function isTouchTooltipTouchRuntime() {
 
 export function getTouchTooltipViewportRuntime() {
   const runtime = getTouchTooltipRuntime();
-  const width = Number.isFinite(runtime?.innerWidth) ? runtime.innerWidth : 1024;
-  const height = Number.isFinite(runtime?.innerHeight) ? runtime.innerHeight : 768;
+  const width = Number.isFinite(runtime?.innerWidth) ? runtime!.innerWidth : 1024;
+  const height = Number.isFinite(runtime?.innerHeight) ? runtime!.innerHeight : 768;
   return { width, height };
 }
 
-/**
- * @param {{ onScroll?: EventListener, onResize?: EventListener }} listeners
- */
-export function addTouchTooltipWindowListenersRuntime({ onScroll, onResize } = {}) {
+export function addTouchTooltipWindowListenersRuntime({ onScroll, onResize }: { onScroll?: EventListener; onResize?: EventListener } = {}) {
   const runtime = getTouchTooltipRuntime();
   if (!runtime || typeof runtime.addEventListener !== 'function') return false;
   if (typeof onScroll === 'function') runtime.addEventListener('scroll', onScroll, true);

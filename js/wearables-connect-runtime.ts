@@ -1,22 +1,17 @@
-// @ts-check
 // wearables-connect-runtime.js - Browser runtime adapters for wearable connect orchestration.
 
-/** @type {{ navigate: ((route: string) => void) | null }} */
-const wearablesConnectRuntimeDeps = { navigate: null };
+import { configureRuntimeCallbacks } from './runtime-callbacks.js';
+export interface WearablesConnectRuntimeDeps { navigate: ((route: string) => void) | null }
 
-export function configureWearablesConnectRuntimeDeps(deps = {}) {
-  const previous = { ...wearablesConnectRuntimeDeps };
-  if ('navigate' in deps) {
-    wearablesConnectRuntimeDeps.navigate = typeof deps.navigate === 'function'
-      ? /** @type {(route: string) => void} */ (deps.navigate)
-      : null;
-  }
-  return previous;
+const wearablesConnectRuntimeDeps: WearablesConnectRuntimeDeps = { navigate: null };
+
+export function configureWearablesConnectRuntimeDeps(deps: Partial<WearablesConnectRuntimeDeps> = {}) {
+  return configureRuntimeCallbacks(wearablesConnectRuntimeDeps, deps, 'inherited');
 }
 
-function getRuntimeWindow() {
+function getRuntimeWindow(): Window | null {
   return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
+    ? (window)
     : null;
 }
 
@@ -35,8 +30,7 @@ export function navigateWearablesDashboardAfterConnectRuntime() {
   wearablesConnectRuntimeDeps.navigate?.('dashboard');
 }
 
-/** @param {EventListenerOrEventListenerObject} handler */
-export function addWearablesBeforeUnloadRuntime(handler) {
+export function addWearablesBeforeUnloadRuntime(handler: EventListenerOrEventListenerObject) {
   const runtime = getRuntimeWindow();
   if (!runtime || typeof runtime.addEventListener !== 'function') return false;
   runtime.addEventListener('beforeunload', handler);

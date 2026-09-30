@@ -1,6 +1,7 @@
 // @ts-check
 // cycle-runtime.js - Explicit application callbacks for Cycle views.
 
+import { configureRuntimeCallbacks } from './runtime-callbacks.js';
 import { showNotification } from './utils.js';
 
 const CYCLE_STYLESHEET_URL = new URL('../css/cycle.css', import.meta.url).href;
@@ -134,23 +135,7 @@ export async function loadCycleStylesheetForAction() {
  * @param {{ closeModal?: (() => void) | null, loadImportStylesheet?: (() => Promise<unknown>) | null, navigate?: ((category: string) => void) | null, openEditor?: (() => void) | null, renderProfileButton?: (() => void) | null }} deps
  */
 export function configureCycleRuntimeDeps(deps = {}) {
-  const previous = { ...cycleRuntimeDeps };
-  if (Object.hasOwn(deps, 'closeModal')) {
-    cycleRuntimeDeps.closeModal = typeof deps.closeModal === 'function' ? deps.closeModal : null;
-  }
-  if (Object.hasOwn(deps, 'loadImportStylesheet')) {
-    cycleRuntimeDeps.loadImportStylesheet = typeof deps.loadImportStylesheet === 'function' ? deps.loadImportStylesheet : null;
-  }
-  if (Object.hasOwn(deps, 'navigate')) {
-    cycleRuntimeDeps.navigate = typeof deps.navigate === 'function' ? deps.navigate : null;
-  }
-  if (Object.hasOwn(deps, 'openEditor')) {
-    cycleRuntimeDeps.openEditor = typeof deps.openEditor === 'function' ? deps.openEditor : null;
-  }
-  if (Object.hasOwn(deps, 'renderProfileButton')) {
-    cycleRuntimeDeps.renderProfileButton = typeof deps.renderProfileButton === 'function' ? deps.renderProfileButton : null;
-  }
-  return previous;
+  return configureRuntimeCallbacks(cycleRuntimeDeps, deps);
 }
 
 export function closeCycleModalRuntime() {

@@ -1,6 +1,7 @@
 // @ts-check
 // dashboard-widget-runtime.js - Browser runtime adapters for dashboard widget controls and renderers.
 
+import { configureRuntimeCallbacks } from './runtime-callbacks.js';
 import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
@@ -18,23 +19,7 @@ const dashboardWidgetRuntimeDeps = {
 };
 
 export function configureDashboardWidgetRuntimeDeps(deps = {}) {
-  const previous = { ...dashboardWidgetRuntimeDeps };
-  if ('navigate' in deps) {
-    dashboardWidgetRuntimeDeps.navigate = typeof deps.navigate === 'function'
-      ? /** @type {(route: string) => unknown} */ (deps.navigate)
-      : null;
-  }
-  if ('openChatPanel' in deps) {
-    dashboardWidgetRuntimeDeps.openChatPanel = typeof deps.openChatPanel === 'function'
-      ? /** @type {(prompt?: string) => unknown} */ (deps.openChatPanel)
-      : null;
-  }
-  if ('showDetailModal' in deps) {
-    dashboardWidgetRuntimeDeps.showDetailModal = typeof deps.showDetailModal === 'function'
-      ? /** @type {(id: string) => unknown} */ (deps.showDetailModal)
-      : null;
-  }
-  return previous;
+  return configureRuntimeCallbacks(dashboardWidgetRuntimeDeps, deps, 'inherited');
 }
 
 /** @type {Record<string, Function | null>} */

@@ -1,6 +1,7 @@
 // @ts-check
 // context-card-lifestyle-runtime.js - Browser runtime adapters for lifestyle context editors.
 
+import { configureRuntimeCallbacks } from './runtime-callbacks.js';
 import { openContextModalRuntime } from './context-cards-runtime.js';
 import { updateChatHeaderModelRuntime } from './chat-runtime.js';
 
@@ -12,28 +13,7 @@ const lifestyleRuntimeDeps = {
 };
 
 export function configureContextCardLifestyleRuntimeDeps(deps = {}) {
-  const previous = { ...lifestyleRuntimeDeps };
-  if ('closeModal' in deps) {
-    lifestyleRuntimeDeps.closeModal = typeof deps.closeModal === 'function'
-      ? /** @type {() => unknown} */ (deps.closeModal)
-      : null;
-  }
-  if ('navigate' in deps) {
-    lifestyleRuntimeDeps.navigate = typeof deps.navigate === 'function'
-      ? /** @type {(category?: string) => unknown} */ (deps.navigate)
-      : null;
-  }
-  if ('openChatPanel' in deps) {
-    lifestyleRuntimeDeps.openChatPanel = typeof deps.openChatPanel === 'function'
-      ? /** @type {() => unknown} */ (deps.openChatPanel)
-      : null;
-  }
-  if ('useChatPrompt' in deps) {
-    lifestyleRuntimeDeps.useChatPrompt = typeof deps.useChatPrompt === 'function'
-      ? /** @type {(prompt: string) => unknown} */ (deps.useChatPrompt)
-      : null;
-  }
-  return previous;
+  return configureRuntimeCallbacks(lifestyleRuntimeDeps, deps, 'inherited');
 }
 
 function getRuntimeWindow() {

@@ -1,6 +1,7 @@
 // @ts-check
 // biology-scores-runtime.js - Browser runtime adapters for Biology Scores UI hooks.
 
+import { configureRuntimeCallbacks } from './runtime-callbacks.js';
 import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { getActiveData } from './data.js';
 import { showNotification } from './utils.js';
@@ -16,39 +17,7 @@ const biologyScoresRuntimeDeps = {
 };
 
 export function configureBiologyScoresRuntimeDeps(deps = {}) {
-  const previous = { ...biologyScoresRuntimeDeps };
-  if ('prepareContext' in deps) biologyScoresRuntimeDeps.prepareContext = typeof deps.prepareContext === 'function' ? /** @type {() => Promise<unknown>} */ (deps.prepareContext) : null;
-  if ('getActiveData' in deps) {
-    biologyScoresRuntimeDeps.getActiveData = typeof deps.getActiveData === 'function'
-      ? /** @type {typeof getActiveData} */ (deps.getActiveData)
-      : null;
-  }
-  if ('navigate' in deps) {
-    biologyScoresRuntimeDeps.navigate = typeof deps.navigate === 'function'
-      ? /** @type {(route: string) => unknown} */ (deps.navigate)
-      : null;
-  }
-  if ('openChatPanel' in deps) {
-    biologyScoresRuntimeDeps.openChatPanel = typeof deps.openChatPanel === 'function'
-      ? /** @type {(prompt?: string) => unknown} */ (deps.openChatPanel)
-      : null;
-  }
-  if ('showDetailModal' in deps) {
-    biologyScoresRuntimeDeps.showDetailModal = typeof deps.showDetailModal === 'function'
-      ? /** @type {(markerId: string) => unknown} */ (deps.showDetailModal)
-      : null;
-  }
-  if ('showNotification' in deps) {
-    biologyScoresRuntimeDeps.showNotification = typeof deps.showNotification === 'function'
-      ? /** @type {typeof showNotification} */ (deps.showNotification)
-      : null;
-  }
-  if ('useChatPrompt' in deps) {
-    biologyScoresRuntimeDeps.useChatPrompt = typeof deps.useChatPrompt === 'function'
-      ? /** @type {(prompt: string) => unknown} */ (deps.useChatPrompt)
-      : null;
-  }
-  return previous;
+  return configureRuntimeCallbacks(biologyScoresRuntimeDeps, deps, 'inherited');
 }
 
 function getRuntimeWindow() {

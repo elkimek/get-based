@@ -1,8 +1,6 @@
-// @ts-check
 // modal-trigger-memory.js — shared focus restoration for modal shells
 
-/** @type {(Element & { focus: () => void }) | null} */
-let modalLastTrigger = null;
+let modalLastTrigger: (Element & { focus: () => void }) | null = null;
 
 export function rememberModalTrigger() {
   if (typeof document === 'undefined') {
@@ -14,9 +12,9 @@ export function rememberModalTrigger() {
     modalLastTrigger = null;
     return;
   }
-  const focusableEl = /** @type {Element & { focus?: unknown }} */ (el);
+  const focusableEl = el as Element & { focus?: unknown };
   modalLastTrigger = typeof focusableEl.focus === 'function'
-    ? /** @type {Element & { focus: () => void }} */ (focusableEl)
+    ? (focusableEl as Element & { focus: () => void })
     : null;
 }
 

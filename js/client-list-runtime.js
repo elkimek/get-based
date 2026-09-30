@@ -1,6 +1,7 @@
 // @ts-check
 // client-list-runtime.js - Browser runtime adapters for client-list UI shell hooks.
 
+import { configureRuntimeCallbacks } from './runtime-callbacks.js';
 import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { getDnaModuleFunction, getDnaModuleValue } from './dna-runtime-bridge.js';
 import { showNotification } from './utils.js';
@@ -12,23 +13,7 @@ const clientListRuntimeDeps = {
 };
 
 export function configureClientListRuntimeDeps(deps = {}) {
-  const previous = { ...clientListRuntimeDeps };
-  if ('navigate' in deps) {
-    clientListRuntimeDeps.navigate = typeof deps.navigate === 'function'
-      ? /** @type {(route: string) => void} */ (deps.navigate)
-      : null;
-  }
-  if ('renderProfileButton' in deps) {
-    clientListRuntimeDeps.renderProfileButton = typeof deps.renderProfileButton === 'function'
-      ? /** @type {() => void} */ (deps.renderProfileButton)
-      : null;
-  }
-  if ('showNotification' in deps) {
-    clientListRuntimeDeps.showNotification = typeof deps.showNotification === 'function'
-      ? /** @type {typeof showNotification} */ (deps.showNotification)
-      : null;
-  }
-  return previous;
+  return configureRuntimeCallbacks(clientListRuntimeDeps, deps, 'inherited');
 }
 
 export function getClientHaplogroupList() {

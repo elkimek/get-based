@@ -17,7 +17,7 @@ import {
 
 const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
 
-function setRuntimeWindow(runtime) {
+function setRuntimeWindow(runtime: Record<string, unknown>) {
   Object.defineProperty(globalThis, 'window', {
     configurable: true,
     writable: true,
@@ -30,7 +30,7 @@ afterEach(() => {
   if (savedWindow) {
     Object.defineProperty(globalThis, 'window', savedWindow);
   } else {
-    delete globalThis.window;
+    delete (globalThis as { window?: Window }).window;
   }
 });
 
@@ -40,7 +40,7 @@ describe('utils runtime adapter', () => {
     const removeEventListener = vi.fn();
     const style = { display: 'block', visibility: 'visible', opacity: '1' };
     const getComputedStyle = vi.fn(() => style);
-    const el = { id: 'nudge' };
+    const el = Object.assign(document.createElement('div'), { id: 'nudge' });
     const listener = vi.fn();
     setRuntimeWindow({ addEventListener, removeEventListener, getComputedStyle });
 
@@ -54,12 +54,12 @@ describe('utils runtime adapter', () => {
   });
 
   it('delegates app version reads and runtime export registration', () => {
-    const runtime = { APP_VERSION: '1.2.3' };
+    const runtime: { APP_VERSION: string; openExample?: () => string } = { APP_VERSION: '1.2.3' };
     setRuntimeWindow(runtime);
 
     expect(getAppVersionRuntime()).toBe('1.2.3');
     expect(registerUtilsRuntimeExports({ openExample: () => 'ok' })).toBe(true);
-    expect(runtime.openExample()).toBe('ok');
+    expect(runtime.openExample!()).toBe('ok');
   });
 
   it('delegates hostname reads and named runtime values', () => {
@@ -74,10 +74,12 @@ describe('utils runtime adapter', () => {
   });
 
   it('delegates runtime event dispatch and window opening', () => {
-    const dispatchEvent = vi.fn();
+    const dispatchEvent = vi.fn<(event: { type: string; detail?: unknown }) => void>();
     const open = vi.fn(() => ({ document: {} }));
     class CustomEventStub {
-      constructor(name, options) {
+      type: string;
+      detail: unknown;
+      constructor(name: string, options?: { detail?: unknown }) {
         this.type = name;
         this.detail = options?.detail;
       }
@@ -85,14 +87,14 @@ describe('utils runtime adapter', () => {
     setRuntimeWindow({ CustomEvent: CustomEventStub, dispatchEvent, open });
 
     expect(dispatchUtilsRuntimeEvent('demo-event', { ok: true })).toBe(true);
-    expect(dispatchEvent.mock.calls[0][0]).toMatchObject({ type: 'demo-event', detail: { ok: true } });
+    expect(dispatchEvent.mock.calls[0]![0]).toMatchObject({ type: 'demo-event', detail: { ok: true } });
     expect(openUtilsRuntimeWindow('/demo', '_blank')).toMatchObject({ document: {} });
     expect(open).toHaveBeenCalledWith('/demo', '_blank');
   });
 
   it('schedules callbacks after the next paint when requestAnimationFrame is available', () => {
     vi.useFakeTimers();
-    const requestAnimationFrame = vi.fn(callback => {
+    const requestAnimationFrame = vi.fn((callback: () => void) => {
       callback();
       return 1;
     });
@@ -118,7 +120,7 @@ describe('utils runtime adapter', () => {
   });
 
   it('uses safe fallbacks when browser runtime hooks are missing', () => {
-    delete globalThis.window;
+    delete (globalThis as { window?: Window }).window;
 
     expect(hasUtilsRuntime()).toBe(false);
     expect(getAppVersionRuntime('fallback-version')).toBe('fallback-version');
@@ -127,9 +129,9 @@ describe('utils runtime adapter', () => {
     expect(registerUtilsRuntimeExports({ openExample: () => 'ok' })).toBe(false);
     expect(dispatchUtilsRuntimeEvent('demo-event')).toBe(false);
     expect(openUtilsRuntimeWindow('/demo')).toBeNull();
-    expect(addUtilsRuntimeListener('labcharts-sync-applied', vi.fn())).toBe(false);
-    expect(removeUtilsRuntimeListener('labcharts-sync-applied', vi.fn())).toBe(false);
-    expect(getUtilsElementStyleRuntime({})).toBeNull();
+    expect(addUtilsRuntimeListener('labcharts-sync-applied', vi.fn<EventListener>())).toBe(false);
+    expect(removeUtilsRuntimeListener('labcharts-sync-applied', vi.fn<EventListener>())).toBe(false);
+    expect(getUtilsElementStyleRuntime(document.createElement('div'))).toBeNull();
   });
 
   it('keeps browser globals behind scoped adapters without a generic view bridge', () => {

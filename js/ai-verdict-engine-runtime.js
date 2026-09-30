@@ -1,19 +1,14 @@
 // @ts-check
 // ai-verdict-engine-runtime.js - Browser runtime adapters for AI verdicts.
 
+import { configureRuntimeCallbacks } from './runtime-callbacks.js';
 const aiVerdictRuntimeDeps = {
   refreshSunSurfaces: /** @type {null | ((anchor: string | null) => any)} */ (null),
 };
 
 /** @param {{ refreshSunSurfaces?: ((anchor: string | null) => any) | null }} deps */
 export function configureAIVerdictRuntimeDeps(deps = {}) {
-  const previous = { ...aiVerdictRuntimeDeps };
-  if ('refreshSunSurfaces' in deps) {
-    aiVerdictRuntimeDeps.refreshSunSurfaces = typeof deps.refreshSunSurfaces === 'function'
-      ? deps.refreshSunSurfaces
-      : null;
-  }
-  return previous;
+  return configureRuntimeCallbacks(aiVerdictRuntimeDeps, deps, 'inherited');
 }
 
 function getAIVerdictRuntime() {

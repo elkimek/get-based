@@ -1,6 +1,7 @@
 // @ts-check
 // settings-runtime.js - Browser runtime adapters for Settings and Tweaks flows.
 
+import { configureRuntimeCallbacks } from './runtime-callbacks.js';
 import { getMeteoConfig, saveMeteoConfig } from './sun-uvdata-config.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 
@@ -27,18 +28,7 @@ const settingsRuntimeDeps = {
  * }} [deps]
  */
 export function configureSettingsRuntimeDeps(deps = {}) {
-  const previous = { ...settingsRuntimeDeps };
-  if ('getMeteoConfig' in deps) {
-    settingsRuntimeDeps.getMeteoConfig = typeof deps.getMeteoConfig === 'function'
-      ? deps.getMeteoConfig
-      : null;
-  }
-  if ('saveMeteoConfig' in deps) {
-    settingsRuntimeDeps.saveMeteoConfig = typeof deps.saveMeteoConfig === 'function'
-      ? deps.saveMeteoConfig
-      : null;
-  }
-  return previous;
+  return configureRuntimeCallbacks(settingsRuntimeDeps, deps, 'inherited');
 }
 
 function getRuntimeWindow() {

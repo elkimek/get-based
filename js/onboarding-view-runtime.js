@@ -1,6 +1,7 @@
 // @ts-check
 // onboarding-view-runtime.js - Browser runtime adapters for dashboard onboarding hooks.
 
+import { configureRuntimeCallbacks } from './runtime-callbacks.js';
 import { renderChatMessagesRuntime } from './chat-runtime.js';
 
 const onboardingViewRuntimeDeps = {
@@ -12,33 +13,7 @@ const onboardingViewRuntimeDeps = {
 };
 
 export function configureOnboardingViewRuntimeDeps(deps = {}) {
-  const previous = { ...onboardingViewRuntimeDeps };
-  if (Object.prototype.hasOwnProperty.call(deps, 'buildSidebar')) {
-    onboardingViewRuntimeDeps.buildSidebar = typeof deps.buildSidebar === 'function'
-      ? deps.buildSidebar
-      : null;
-  }
-  if (Object.prototype.hasOwnProperty.call(deps, 'createNewThread')) {
-    onboardingViewRuntimeDeps.createNewThread = typeof deps.createNewThread === 'function'
-      ? deps.createNewThread
-      : null;
-  }
-  if (Object.prototype.hasOwnProperty.call(deps, 'navigate')) {
-    onboardingViewRuntimeDeps.navigate = typeof deps.navigate === 'function'
-      ? deps.navigate
-      : null;
-  }
-  if (Object.prototype.hasOwnProperty.call(deps, 'openChatPanel')) {
-    onboardingViewRuntimeDeps.openChatPanel = typeof deps.openChatPanel === 'function'
-      ? deps.openChatPanel
-      : null;
-  }
-  if (Object.prototype.hasOwnProperty.call(deps, 'toggleChatPanel')) {
-    onboardingViewRuntimeDeps.toggleChatPanel = typeof deps.toggleChatPanel === 'function'
-      ? deps.toggleChatPanel
-      : null;
-  }
-  return previous;
+  return configureRuntimeCallbacks(onboardingViewRuntimeDeps, deps);
 }
 
 /** @param {unknown} data */

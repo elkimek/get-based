@@ -128,3 +128,11 @@ deploy/profile-share/data/
 /js/light-device-view-formatters.js
 /js/marker-detail-history.js
 /js/voice-text.js
+/js/wearables-auth-runtime.js
+/js/touch-tooltip-runtime.js
+/js/modal-trigger-memory.js
+/js/sync-diagnose-runtime.js
+/js/wearables-connect-runtime.js
+/js/wearables-detail-runtime.js
+/js/emf-runtime.js
+/js/sun-active-session-format.js

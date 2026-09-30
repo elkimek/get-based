@@ -1,6 +1,7 @@
 // @ts-check
 // wearables-apple-health-runtime.js - Browser runtime adapters for Apple Health import hooks.
 
+import { configureRuntimeCallbacks } from './runtime-callbacks.js';
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -17,14 +18,7 @@ const appleHealthRuntimeDeps = {
  * @param {{ parseCycleBlob?: ((blob: Blob, fileName: string, onProgress: ((event: any) => void) | null) => Promise<any>) | null, showCyclePreview?: ((parsed: any) => Promise<any>) | null }} deps
  */
 export function configureAppleHealthRuntimeDeps(deps = {}) {
-  const previous = { ...appleHealthRuntimeDeps };
-  if (Object.hasOwn(deps, 'parseCycleBlob')) {
-    appleHealthRuntimeDeps.parseCycleBlob = typeof deps.parseCycleBlob === 'function' ? deps.parseCycleBlob : null;
-  }
-  if (Object.hasOwn(deps, 'showCyclePreview')) {
-    appleHealthRuntimeDeps.showCyclePreview = typeof deps.showCyclePreview === 'function' ? deps.showCyclePreview : null;
-  }
-  return previous;
+  return configureRuntimeCallbacks(appleHealthRuntimeDeps, deps);
 }
 
 export function getAppleHealthJSZip() {

@@ -1,25 +1,30 @@
-// @ts-check
 // emf-runtime.js - module-only lazy access to the EMF assessment feature.
 
 import { showNotification } from './utils.js';
 
+export interface EMFEditorOptions {
+  returnLabel?: string;
+  onReturn?: (() => void) | null;
+}
+export interface EMFModule {
+  configureEMFRuntimeDeps: (deps?: Partial<EMFRuntimeDeps>) => unknown;
+  openEMFAssessmentEditor: (options?: EMFEditorOptions) => unknown;
+  closeEMFInterpretation: () => unknown;
+}
+export interface EMFRuntimeDeps {
+  closeModal: (() => void) | null;
+  loadModule: () => Promise<EMFModule>;
+  loadStylesheet: () => Promise<HTMLLinkElement>;
+}
+
 const EMF_STYLESHEET_URL = new URL('../css/emf.css', import.meta.url).href;
 
-/** @typedef {{
- * configureEMFRuntimeDeps: (deps?: object) => unknown,
- * openEMFAssessmentEditor: (options?: { returnLabel?: string, onReturn?: (() => void) | null }) => unknown,
- * closeEMFInterpretation: () => unknown,
- * }} EMFModule */
-
-/** @type {Promise<EMFModule> | null} */
-let emfModulePromise = null;
-/** @type {EMFModule | null} */
-let emfModule = null;
-/** @type {Promise<HTMLLinkElement> | null} */
-let emfStylesheetPromise = null;
+let emfModulePromise: Promise<EMFModule> | null = null;
+let emfModule: EMFModule | null = null;
+let emfStylesheetPromise: Promise<HTMLLinkElement> | null = null;
 let useEMFStylesheetRetryUrl = false;
 
-function rejectUnconfiguredEMFModuleLoad() {
+function rejectUnconfiguredEMFModuleLoad(): never {
   throw new Error('EMF module loader is not configured.');
 }
 
@@ -30,8 +35,7 @@ function emfStylesheetUrl() {
   return retryUrl.href;
 }
 
-/** @returns {Promise<HTMLLinkElement>} */
-export function loadEMFStylesheet() {
+export function loadEMFStylesheet(): Promise<HTMLLinkElement> {
   if (!emfStylesheetPromise) {
     if (typeof document === 'undefined') {
       return Promise.reject(new Error('EMF stylesheet requires a document'));
@@ -40,7 +44,7 @@ export function loadEMFStylesheet() {
     link.rel = 'stylesheet';
     link.href = emfStylesheetUrl();
     link.dataset.emfStylesheet = '';
-    emfStylesheetPromise = new Promise((resolve, reject) => {
+    emfStylesheetPromise = new Promise<HTMLLinkElement>((resolve, reject) => {
       link.addEventListener('load', () => resolve(link), { once: true });
       link.addEventListener('error', () => {
         reject(new Error('EMF stylesheet could not be loaded'));
@@ -58,13 +62,13 @@ export function loadEMFStylesheet() {
   return emfStylesheetPromise;
 }
 
-const emfRuntimeDeps = {
-  closeModal: /** @type {null | (() => void)} */ (null),
-  loadModule: /** @type {() => Promise<EMFModule>} */ (rejectUnconfiguredEMFModuleLoad),
+const emfRuntimeDeps: EMFRuntimeDeps = {
+  closeModal: (null),
+  loadModule: (rejectUnconfiguredEMFModuleLoad),
   loadStylesheet: loadEMFStylesheet,
 };
 
-export function configureEMFRuntimeDeps(deps = {}) {
+export function configureEMFRuntimeDeps(deps: Partial<EMFRuntimeDeps> = {}) {
   const previous = { ...emfRuntimeDeps };
   if (Object.hasOwn(deps, 'closeModal')) {
     emfRuntimeDeps.closeModal = typeof deps.closeModal === 'function' ? deps.closeModal : null;
@@ -101,7 +105,7 @@ export async function loadEMFModule() {
   return await emfModulePromise;
 }
 
-export async function openEMFAssessmentEditor(options = {}) {
+export async function openEMFAssessmentEditor(options: EMFEditorOptions = {}) {
   try {
     const [mod] = await Promise.all([
       loadEMFModule(),

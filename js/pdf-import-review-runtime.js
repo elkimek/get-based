@@ -1,6 +1,7 @@
 // @ts-check
 // pdf-import-review-runtime.js - Browser runtime adapters for import review state.
 
+import { configureRuntimeCallbacks } from './runtime-callbacks.js';
 import { updateHeaderDates } from './data.js';
 
 /** @param {string | undefined} raw */
@@ -24,28 +25,7 @@ const pdfImportReviewRuntimeDeps = {
 };
 
 export function configurePdfImportReviewRuntimeDeps(deps = {}) {
-  const previous = { ...pdfImportReviewRuntimeDeps };
-  if ('buildSidebar' in deps) {
-    pdfImportReviewRuntimeDeps.buildSidebar = typeof deps.buildSidebar === 'function'
-      ? /** @type {() => void} */ (deps.buildSidebar)
-      : null;
-  }
-  if ('confirmImport' in deps) {
-    pdfImportReviewRuntimeDeps.confirmImport = typeof deps.confirmImport === 'function'
-      ? /** @type {() => unknown} */ (deps.confirmImport)
-      : null;
-  }
-  if ('navigate' in deps) {
-    pdfImportReviewRuntimeDeps.navigate = typeof deps.navigate === 'function'
-      ? /** @type {(route: string) => void} */ (deps.navigate)
-      : null;
-  }
-  if ('updateHeaderDates' in deps) {
-    pdfImportReviewRuntimeDeps.updateHeaderDates = typeof deps.updateHeaderDates === 'function'
-      ? /** @type {typeof updateHeaderDates} */ (deps.updateHeaderDates)
-      : null;
-  }
-  return previous;
+  return configureRuntimeCallbacks(pdfImportReviewRuntimeDeps, deps, 'inherited');
 }
 
 export function clearPendingImportRuntime() {

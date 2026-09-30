@@ -58,11 +58,16 @@ category modules validate it with `satisfies` while retaining their inferred key
 `js/marker-schema/index.ts` composes the catalog in its original order. The
 runtime catalog generator continues producing the same marker and identity data.
 
-`js/runtime-callbacks.ts` handles the shared Notes and Supplements callback
-configuration contract: omitted slots remain intact, explicitly invalid callbacks
-clear their slots, inherited and unknown keys are ignored, and callers receive an
-independent snapshot for restoration. Feature adapters expose their own named,
-typed actions. Adapters with different configuration semantics remain separate.
+`js/runtime-callbacks.ts` handles callback configuration for Notes, Supplements
+and 18 other feature adapters. Omitted slots remain intact, explicitly invalid
+callbacks clear their slots, unknown keys are ignored, and callers receive an
+independent snapshot for restoration. Own-key configuration is the default;
+adapters that originally accepted inherited keys request that behavior explicitly.
+Validation still reads a functional getter twice, and a throwing getter preserves
+preceding assignments. The consolidation matched the original state, snapshots,
+exceptions and proxy access traces in 430 differential scenarios. Feature adapters
+expose their own named actions. Different fallback and invalid-value policies
+remain separate.
 
 `js/biology-score-types.ts` shares named score input and definition contracts
 across the catalog, computation contract and planner. All original weights,
@@ -91,6 +96,12 @@ privacy-safe diagnostics and marker/device display helpers now use native strict
 TypeScript contracts. External browser libraries are described by the methods the
 app consumes. Type-only conversions preserve the emitted runtime syntax trees;
 modal and voice browser regressions verify their DOM and scheduling behavior.
+
+Wearable OAuth and chart adapters, tooltip browser hooks, modal trigger memory,
+EMF lazy loading and Sun session display helpers have named TypeScript contracts.
+Session math, warning text, retry URLs, focus restoration and scheduling operations
+are unchanged. Utility, privacy and session formatting tests are also authored and
+checked as strict TypeScript.
 
 ## Remaining work
 

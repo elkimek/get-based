@@ -1,6 +1,7 @@
 // @ts-check
 // category-customization-runtime.js - Browser runtime hooks for category customization.
 
+import { configureRuntimeCallbacks } from './runtime-callbacks.js';
 import { showPromptDialog } from './utils.js';
 
 /**
@@ -23,23 +24,7 @@ const categoryCustomizationRuntimeDeps = {
  * @returns {CategoryCustomizationRuntimeDeps}
  */
 export function configureCategoryCustomizationRuntimeDeps(deps = {}) {
-  const previous = { ...categoryCustomizationRuntimeDeps };
-  if ('buildSidebar' in deps) {
-    categoryCustomizationRuntimeDeps.buildSidebar = typeof deps.buildSidebar === 'function'
-      ? deps.buildSidebar
-      : null;
-  }
-  if ('navigate' in deps) {
-    categoryCustomizationRuntimeDeps.navigate = typeof deps.navigate === 'function'
-      ? deps.navigate
-      : null;
-  }
-  if ('showPromptDialog' in deps) {
-    categoryCustomizationRuntimeDeps.showPromptDialog = typeof deps.showPromptDialog === 'function'
-      ? /** @type {typeof showPromptDialog} */ (deps.showPromptDialog)
-      : null;
-  }
-  return previous;
+  return configureRuntimeCallbacks(categoryCustomizationRuntimeDeps, deps, 'inherited');
 }
 
 /**

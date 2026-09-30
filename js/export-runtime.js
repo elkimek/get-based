@@ -1,6 +1,7 @@
 // @ts-check
 // export-runtime.js - Browser runtime adapters for export/import flows.
 
+import { configureRuntimeCallbacks } from './runtime-callbacks.js';
 import { encryptedGetItem } from './crypto.js';
 import { state } from './state.js';
 
@@ -64,44 +65,7 @@ const exportImportRuntimeDeps = {
 
 /** @param {Partial<ExportImportRuntimeDeps>} [deps] */
 export function configureExportImportRuntimeDeps(deps = {}) {
-  const previous = { ...exportImportRuntimeDeps };
-  if ('buildSidebar' in deps) {
-    exportImportRuntimeDeps.buildSidebar = typeof deps.buildSidebar === 'function' ? deps.buildSidebar : null;
-  }
-  if ('ensureActiveThread' in deps) {
-    exportImportRuntimeDeps.ensureActiveThread = typeof deps.ensureActiveThread === 'function'
-      ? deps.ensureActiveThread
-      : null;
-  }
-  if ('loadChatThreads' in deps) {
-    exportImportRuntimeDeps.loadChatThreads = typeof deps.loadChatThreads === 'function'
-      ? deps.loadChatThreads
-      : null;
-  }
-  if ('navigate' in deps) {
-    exportImportRuntimeDeps.navigate = typeof deps.navigate === 'function' ? deps.navigate : null;
-  }
-  if ('refreshChatPersonalities' in deps) {
-    exportImportRuntimeDeps.refreshChatPersonalities = typeof deps.refreshChatPersonalities === 'function'
-      ? deps.refreshChatPersonalities
-      : null;
-  }
-  if ('renderProfileButton' in deps) {
-    exportImportRuntimeDeps.renderProfileButton = typeof deps.renderProfileButton === 'function'
-      ? deps.renderProfileButton
-      : null;
-  }
-  if ('renderThreadList' in deps) {
-    exportImportRuntimeDeps.renderThreadList = typeof deps.renderThreadList === 'function'
-      ? deps.renderThreadList
-      : null;
-  }
-  if ('updateHeaderDates' in deps) {
-    exportImportRuntimeDeps.updateHeaderDates = typeof deps.updateHeaderDates === 'function'
-      ? deps.updateHeaderDates
-      : null;
-  }
-  return previous;
+  return configureRuntimeCallbacks(exportImportRuntimeDeps, deps, 'inherited');
 }
 
 function getRuntimeWindow() {

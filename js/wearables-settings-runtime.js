@@ -1,6 +1,7 @@
 // @ts-check
 // wearables-settings-runtime.js - Browser runtime adapters for wearable settings hooks.
 
+import { configureRuntimeCallbacks } from './runtime-callbacks.js';
 import { showConfirmDialog } from './utils.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 
@@ -11,18 +12,7 @@ const wearableSettingsRuntimeDeps = {
 };
 
 export function configureWearableSettingsRuntimeDeps(deps = {}) {
-  const previous = { ...wearableSettingsRuntimeDeps };
-  if ('navigate' in deps) {
-    wearableSettingsRuntimeDeps.navigate = typeof deps.navigate === 'function'
-      ? /** @type {(route: string) => void} */ (deps.navigate)
-      : null;
-  }
-  if ('showConfirmDialog' in deps) {
-    wearableSettingsRuntimeDeps.showConfirmDialog = typeof deps.showConfirmDialog === 'function'
-      ? /** @type {typeof showConfirmDialog} */ (deps.showConfirmDialog)
-      : null;
-  }
-  return previous;
+  return configureRuntimeCallbacks(wearableSettingsRuntimeDeps, deps, 'inherited');
 }
 
 export function closeWearableSettingsModal() {

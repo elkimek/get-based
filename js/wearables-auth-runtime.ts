@@ -1,9 +1,8 @@
-// @ts-check
 // wearables-auth-runtime.js - Browser runtime adapters for wearable OAuth modules.
 
-function getRuntimeWindow() {
+function getRuntimeWindow(): (Window & typeof globalThis & Record<string, unknown>) | null {
   return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
+    ? (window as Window & typeof globalThis & Record<string, unknown>)
     : null;
 }
 
@@ -11,20 +10,14 @@ export function getWearableAuthLocation() {
   return getRuntimeWindow()?.location || null;
 }
 
-/** @param {string} url */
-export function redirectWearableAuth(url) {
+export function redirectWearableAuth(url: string) {
   const location = getWearableAuthLocation();
   if (!location) return false;
   location.href = url;
   return true;
 }
 
-/**
- * @param {string} name
- * @param {Record<string, unknown>} api
- * @param {boolean} enabled
- */
-export function exposeWearableAuthDebug(name, api, enabled = false) {
+export function exposeWearableAuthDebug(name: string, api: Record<string, unknown>, enabled = false) {
   if (!enabled) return false;
   const runtime = getRuntimeWindow();
   if (!runtime) return false;

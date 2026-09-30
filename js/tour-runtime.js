@@ -1,18 +1,13 @@
 // @ts-check
 // tour-runtime.js - Browser runtime adapters for guided tour hooks.
 
+import { configureRuntimeCallbacks } from './runtime-callbacks.js';
 const tourRuntimeDeps = {
   openChatPanel: /** @type {null | (() => unknown)} */ (null),
 };
 
 export function configureTourRuntimeDeps(deps = {}) {
-  const previous = { ...tourRuntimeDeps };
-  if (Object.prototype.hasOwnProperty.call(deps, 'openChatPanel')) {
-    tourRuntimeDeps.openChatPanel = typeof deps.openChatPanel === 'function'
-      ? deps.openChatPanel
-      : null;
-  }
-  return previous;
+  return configureRuntimeCallbacks(tourRuntimeDeps, deps);
 }
 
 function getRuntimeWindow() {
