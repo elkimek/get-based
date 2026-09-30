@@ -1,15 +1,12 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('startupOAuthCoverage');
 
-async function openBlankPage(page) {
-  await page.route('**/startup-oauth-browser-coverage**', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
-  }));
-  await page.goto('/startup-oauth-browser-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/startup-oauth-browser-coverage", routePattern: "**/startup-oauth-browser-coverage**", body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
+});
 
 test('startup OAuth browser coverage handles OpenRouter and wearable callback routing', async ({ page }) => {
   await openBlankPage(page);

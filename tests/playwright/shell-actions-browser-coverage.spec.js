@@ -1,16 +1,12 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('shellActionsCoverage');
 
-async function openBlankPage(page) {
-  await page.route('**/shell-actions-browser-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
-  }));
-  await page.goto('/shell-actions-browser-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/shell-actions-browser-coverage", status: 200, body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
+});
 
 test('shell action delegates cover shell chat file input and keyboard actions', async ({ page }) => {
   await openBlankPage(page);

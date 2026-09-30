@@ -1,12 +1,9 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
-async function openBlankPage(page, path) {
-  await page.route(`**${path}`, route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><head><title>DNA coverage</title></head><body></body></html>',
-  }));
-  await page.goto(path, { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  body: '<!doctype html><html><head><title>DNA coverage</title></head><body></body></html>',
+});
 
 test('DNA parser browser coverage exercises real File, Worker, and context paths', async ({ page }) => {
   await openBlankPage(page, '/dna-parser-browser-coverage');

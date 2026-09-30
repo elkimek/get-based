@@ -1,14 +1,11 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = (path) => `${path}?chartsBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-async function openBlankPage(page) {
-  await page.route('**/charts-browser-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><head></head><body><main id="fixture"></main></body></html>',
-  }));
-  await page.goto('/charts-browser-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/charts-browser-coverage", body: '<!doctype html><html><head></head><body><main id="fixture"></main></body></html>',
+});
 
 test('charts browser coverage exercises annotation supplement and theme callbacks', async ({ page }) => {
   await openBlankPage(page);

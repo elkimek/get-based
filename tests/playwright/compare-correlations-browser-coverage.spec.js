@@ -1,13 +1,11 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('compareCorrelationsCoverage');
 
-async function openBlankPage(page) {
-  await page.route('**/compare-correlations-browser-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: `<!doctype html><html><head><style>
+const openBlankPage = createBlankPage({
+  path: "/compare-correlations-browser-coverage", status: 200, body: `<!doctype html><html><head><style>
       :root {
         --bg-card: #111827;
         --text-primary: #f8fafc;
@@ -24,9 +22,7 @@ async function openBlankPage(page) {
       }
       .corr-chart { height: 240px; }
     </style></head><body><main id="main-content"></main></body></html>`,
-  }));
-  await page.goto('/compare-correlations-browser-coverage', { waitUntil: 'load' });
-}
+});
 
 test('compare dates browser contract renders date controls table and updates state', async ({ page }) => {
   await openBlankPage(page);

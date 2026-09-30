@@ -1,15 +1,11 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = (path) => `${path}?lightEnvEveningBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-async function openBlankPage(page) {
-  await page.route('**/light-env-evening-browser-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: '<!doctype html><html><head></head><body><main id="fixture"></main></body></html>',
-  }));
-  await page.goto('/light-env-evening-browser-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/light-env-evening-browser-coverage", status: 200, body: '<!doctype html><html><head></head><body><main id="fixture"></main></body></html>',
+});
 
 test('light environment evening browser coverage normalizes canonical and legacy room fields', async ({ page }) => {
   await openBlankPage(page);

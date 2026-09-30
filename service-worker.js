@@ -582,7 +582,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/nutrition-request-lifecycle.js',
   '/js/nutrition-targets.js',
   '/js/nutrition.js',
-  '/js/wearable-oauth-state.js', '/js/wearable-oauth-tokens.js', '/js/wearables-withings-errors.js', '/js/wearables-summary.js',
+  '/js/wearable-oauth-state.js', '/js/wearable-oauth-tokens.js', '/js/wearables-withings-errors.js', '/js/wearables-summary.js', '/js/wearable-daily-row.js',
   '/js/wearables-connect-runtime.js',
   '/js/wearables-connect-loader.js',
   '/js/wearables-connect.js',

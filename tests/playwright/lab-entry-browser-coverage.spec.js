@@ -1,15 +1,11 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = path => `${path}?labEntryBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-async function openBlankPage(page) {
-  await page.route('**/lab-entry-browser-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
-  }));
-  await page.goto('/lab-entry-browser-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/lab-entry-browser-coverage", status: 200, body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
+});
 
 test('lab entry browser coverage exercises marker helpers and imported-data mutations', async ({ page }) => {
   const expectedOutcomeKeys = [

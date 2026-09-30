@@ -1,17 +1,11 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = (path) => `${path}?lightEnvModelBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-async function openBlankPage(page) {
-  await page.route('**/light-env-model-browser-coverage', route => {
-    return route.fulfill({
-      status: 200,
-      contentType: 'text/html',
-      body: '<!doctype html><html><head></head><body><main id="fixture"></main></body></html>',
-    });
-  });
-  await page.goto('/light-env-model-browser-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/light-env-model-browser-coverage", status: 200, body: '<!doctype html><html><head></head><body><main id="fixture"></main></body></html>',
+});
 
 test('light environment model browser coverage scores picker room screen and burden paths', async ({ page }) => {
   await openBlankPage(page);

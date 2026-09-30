@@ -1,17 +1,11 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = (path) => `${path}?recommendationActionsBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-async function openBlankPage(page) {
-  await page.route('**/recommendation-actions-browser-coverage', route => {
-    return route.fulfill({
-      status: 200,
-      contentType: 'text/html',
-      body: '<!doctype html><html><head></head><body><main id="fixture"></main></body></html>',
-    });
-  });
-  await page.goto('/recommendation-actions-browser-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/recommendation-actions-browser-coverage", status: 200, body: '<!doctype html><html><head></head><body><main id="fixture"></main></body></html>',
+});
 
 test('recommendation actions browser coverage handles detail modal discussion and state actions', async ({ page }) => {
   await openBlankPage(page);

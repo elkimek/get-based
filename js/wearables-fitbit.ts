@@ -1,4 +1,6 @@
-// @ts-check
+import { createBasicWearableRow } from './wearable-daily-row.js';
+import type { BasicWearableDailyRow, WearableErrorBody, WearableRequestError } from './wearable-data-types.js';
+
 // wearables-fitbit.js — Fitbit Web API data layer
 //
 // Fitbit has a hard 150 req/hour per user rate limit. A naive per-day
@@ -21,10 +23,24 @@ import { getErrorMessage, getErrorStatus } from './caught-error.js';
 import { getProxyApiUrl } from './proxy-runtime.js';
 import { isDebugMode } from './utils.js';
 
+interface FitbitSleep {
+  dateOfSleep?: string; isMainSleep?: unknown; duration?: number; efficiency?: unknown;
+}
+interface FitbitSpO2 { dateTime?: string; value?: { avg?: unknown } }
+interface FitbitPayload {
+  user?: { email?: unknown; fullName?: unknown; displayName?: unknown };
+  hrv?: { dateTime?: string; value?: { deepRmssd?: unknown; dailyRmssd?: unknown; rmssdMilliseconds?: unknown } }[];
+  'activities-heart'?: { dateTime?: string; value?: { restingHeartRate?: unknown } }[];
+  'activities-steps'?: { dateTime?: string; value?: unknown }[];
+  sleep?: FitbitSleep[];
+  tempSkin?: { dateTime?: string; value?: { nightlyRelative?: unknown } }[];
+  weight?: { date?: string; weight?: unknown }[];
+}
+
 const FITBIT_API = 'https://api.fitbit.com';
 const PROXY_URL = getProxyApiUrl();
 
-async function fbGET(path, accessToken) {
+async function fbGET<T>(path: string, accessToken: string): Promise<T> {
   const url = `${FITBIT_API}/${path.replace(/^\//, '')}`;
   const res = await fetch(PROXY_URL, {
     method: 'POST',
@@ -35,17 +51,16 @@ async function fbGET(path, accessToken) {
     }),
   });
   if (!res.ok) {
-    let err; try { err = await res.json(); } catch { err = { error: res.statusText }; }
-    const msg = err?.errors?.[0]?.message || err?.detail || err?.message || err?.error || res.statusText || 'Fitbit request failed';
-    /** @type {Error & { status?: number }} */
-    const e = new Error(msg); e.status = res.status; throw e;
+    let err: WearableErrorBody | null; try { err = await res.json(); } catch { err = { error: res.statusText }; }
+    const msg = err?.errors?.[0]?.message || err?.detail || (err as { message?: unknown } | null)?.message || err?.error || res.statusText || 'Fitbit request failed';
+    const e: WearableRequestError = new Error(msg as string); e.status = res.status; throw e;
   }
   return res.json();
 }
 
-export async function fetchFitbitPersonalInfo(accessToken) {
+export async function fetchFitbitPersonalInfo(accessToken: string) {
   try {
-    const info = await fbGET('1/user/-/profile.json', accessToken);
+    const info = await fbGET<FitbitPayload>('1/user/-/profile.json', accessToken);
     const u = info?.user || {};
     return { ok: true, account: { email: u.email || null, fullName: u.fullName || u.displayName || null } };
   } catch (e) {
@@ -53,36 +68,26 @@ export async function fetchFitbitPersonalInfo(accessToken) {
   }
 }
 
-export async function fetchFitbitDailyRange(accessToken, startDate, endDate) {
+export async function fetchFitbitDailyRange(accessToken: string, startDate: string, endDate: string) {
   // Seven range-reads in parallel, one per metric family. Each endpoint
   // degrades to null on failure so we don't lose the rest of the backfill.
   const [hrv, hr, steps, sleep, spo2, skinTemp, weight] = await Promise.all([
-    fbGET(`1/user/-/hrv/date/${startDate}/${endDate}.json`,                       accessToken).catch(e => { logDebug('hrv',       e); return null; }),
-    fbGET(`1/user/-/activities/heart/date/${startDate}/${endDate}.json`,          accessToken).catch(e => { logDebug('hr',        e); return null; }),
-    fbGET(`1/user/-/activities/steps/date/${startDate}/${endDate}.json`,          accessToken).catch(e => { logDebug('steps',     e); return null; }),
-    fbGET(`1.2/user/-/sleep/date/${startDate}/${endDate}.json`,                   accessToken).catch(e => { logDebug('sleep',     e); return null; }),
-    fbGET(`1/user/-/spo2/date/${startDate}/${endDate}.json`,                      accessToken).catch(e => { logDebug('spo2',      e); return null; }),
-    fbGET(`1/user/-/temp/skin/date/${startDate}/${endDate}.json`,                 accessToken).catch(e => { logDebug('temp',      e); return null; }),
-    fbGET(`1/user/-/body/log/weight/date/${startDate}/${endDate}.json`,           accessToken).catch(e => { logDebug('weight',    e); return null; }),
+    fbGET<FitbitPayload>(`1/user/-/hrv/date/${startDate}/${endDate}.json`,                       accessToken).catch(e => { logDebug('hrv',       e); return null; }),
+    fbGET<FitbitPayload>(`1/user/-/activities/heart/date/${startDate}/${endDate}.json`,          accessToken).catch(e => { logDebug('hr',        e); return null; }),
+    fbGET<FitbitPayload>(`1/user/-/activities/steps/date/${startDate}/${endDate}.json`,          accessToken).catch(e => { logDebug('steps',     e); return null; }),
+    fbGET<FitbitPayload>(`1.2/user/-/sleep/date/${startDate}/${endDate}.json`,                   accessToken).catch(e => { logDebug('sleep',     e); return null; }),
+    fbGET<FitbitSpO2[]>(`1/user/-/spo2/date/${startDate}/${endDate}.json`,                      accessToken).catch(e => { logDebug('spo2',      e); return null; }),
+    fbGET<FitbitPayload>(`1/user/-/temp/skin/date/${startDate}/${endDate}.json`,                 accessToken).catch(e => { logDebug('temp',      e); return null; }),
+    fbGET<FitbitPayload>(`1/user/-/body/log/weight/date/${startDate}/${endDate}.json`,           accessToken).catch(e => { logDebug('weight',    e); return null; }),
   ]);
 
   // Build row skeletons first so days with partial data still get a row.
-  const byDate = new Map();
-  function ensureRow(day) {
+  const byDate = new Map<string, BasicWearableDailyRow<'fitbit'>>();
+  function ensureRow(day: string): BasicWearableDailyRow<'fitbit'> {
     if (!byDate.has(day)) {
-      byDate.set(day, {
-        source: 'fitbit', date: day,
-        hrv_rmssd: null, hrv_sdnn: null, rhr: null,
-        hrv_day: null, hr_day: null,
-        sleep_score: null, readiness_score: null,
-        activity_score: null, steps: null,
-        strain: null,
-        stress_high_min: null, resilience_level: null, cardio_age: null,
-        weight: null, bp_systolic: null, bp_diastolic: null,
-        spo2_avg: null, body_temp_delta: null, glucose_avg: null,
-      });
+      byDate.set(day, createBasicWearableRow('fitbit', day));
     }
-    return byDate.get(day);
+    return byDate.get(day)!;
   }
 
   // HRV: `hrv` is an array of { dateTime, value: { dailyRmssd, deepRmssd? } }.
@@ -122,7 +127,7 @@ export async function fetchFitbitDailyRange(accessToken, startDate, endDate) {
 
   // Sleep: `sleep` is an array of sleep logs (multiple per day possible —
   // naps + main sleep). Pick main sleep per day, fall back to first.
-  const sleepsByDay = new Map();
+  const sleepsByDay = new Map<string, FitbitSleep>();
   for (const s of (sleep?.sleep || [])) {
     if (!s?.dateOfSleep) continue;
     // Prefer `isMainSleep: true`; else keep the longest duration of the day.
@@ -151,7 +156,7 @@ export async function fetchFitbitDailyRange(accessToken, startDate, endDate) {
 
   // Weight log: `weight` is an array of { date, weight, ... }. Multiple per
   // day possible — take the most recent.
-  const weightByDay = new Map();
+  const weightByDay = new Map<string, number>();
   for (const w of (weight?.weight || [])) {
     if (!w?.date || typeof w.weight !== 'number') continue;
     weightByDay.set(w.date, w.weight);  // last-write-wins; Fitbit returns in insertion order
@@ -161,9 +166,9 @@ export async function fetchFitbitDailyRange(accessToken, startDate, endDate) {
   }
 
   // Drop any row that ended up all-null despite being in our skeleton map.
-  const rows = [];
+  const rows: BasicWearableDailyRow<'fitbit'>[] = [];
   for (const row of byDate.values()) {
-    const hasAny = ['hrv_rmssd','rhr','sleep_score','steps','spo2_avg','body_temp_delta','weight']
+    const hasAny = (['hrv_rmssd','rhr','sleep_score','steps','spo2_avg','body_temp_delta','weight'] as const)
       .some(k => row[k] != null);
     if (hasAny) rows.push(row);
   }
@@ -171,6 +176,6 @@ export async function fetchFitbitDailyRange(accessToken, startDate, endDate) {
   return rows;
 }
 
-function logDebug(where, err) {
-  if (isDebugMode?.()) console.warn(`[fitbit] ${where} range failed:`, err?.message || err, err?.status);
+function logDebug(where: string, err: unknown) {
+  if (isDebugMode?.()) console.warn(`[fitbit] ${where} range failed:`, (err as { message?: unknown } | null)?.message || err, (err as { status?: unknown } | null)?.status);
 }

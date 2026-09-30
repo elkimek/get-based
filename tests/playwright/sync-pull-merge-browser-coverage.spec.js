@@ -1,16 +1,12 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('syncPullMergeCoverage');
 
-async function openBlankPage(page) {
-  await page.route('**/sync-pull-merge-browser-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: '<!doctype html><html><head><title>Sync pull merge coverage</title></head><body></body></html>',
-  }));
-  await page.goto('/sync-pull-merge-browser-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/sync-pull-merge-browser-coverage", status: 200, body: '<!doctype html><html><head><title>Sync pull merge coverage</title></head><body></body></html>',
+});
 
 test('sync pull merge browser coverage exercises row recovery merge persistence and profile updates', async ({ page }) => {
   await openBlankPage(page);

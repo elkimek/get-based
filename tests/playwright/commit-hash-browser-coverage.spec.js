@@ -1,15 +1,11 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = (path) => `${path}?commitHashBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-async function openBlankPage(page) {
-  await page.route('**/commit-hash-browser-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: '<!doctype html><html><head></head><body><main id="fixture"></main></body></html>',
-  }));
-  await page.goto('/commit-hash-browser-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/commit-hash-browser-coverage", status: 200, body: '<!doctype html><html><head></head><body><main id="fixture"></main></body></html>',
+});
 
 test('commit hash browser coverage hydrates the same-origin deployment receipt and cache', async ({ page }) => {
   await openBlankPage(page);

@@ -1,13 +1,9 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
-async function openBlankPage(page, path) {
-  await page.route(`**${path}`, route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><main id="main-content"></main></body></html>',
-  }));
-  await page.goto(path, { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  status: 200, body: '<!doctype html><html><body><main id="main-content"></main></body></html>',
+});
 
 function syntheticProfileShareModule() {
   return `

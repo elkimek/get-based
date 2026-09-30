@@ -1,14 +1,11 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = (path) => `${path}?markerDetailStoreBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-async function openBlankPage(page) {
-  await page.route('**/marker-detail-store-browser-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
-  }));
-  await page.goto('/marker-detail-store-browser-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/marker-detail-store-browser-coverage", body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
+});
 
 function expectAll(outcomes) {
   const failed = Object.entries(outcomes)

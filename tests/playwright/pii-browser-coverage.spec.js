@@ -1,14 +1,11 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = (path) => `${path}?piiBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-async function openBlankPage(page, path) {
-  await page.route(`**${path}`, route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><div id="notification-container"></div></body></html>',
-  }));
-  await page.goto(path, { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  body: '<!doctype html><html><body><div id="notification-container"></div></body></html>',
+});
 
 test('PII browser coverage exercises config probes regex obfuscation and diff helpers', async ({ page }) => {
   await openBlankPage(page, '/pii-browser-coverage');

@@ -1,14 +1,11 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = (path) => `${path}?apiProviderCallsCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-async function openBlankPage(page) {
-  await page.route('**/api-provider-calls-browser-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><head></head><body><main id="fixture"></main></body></html>',
-  }));
-  await page.goto('/api-provider-calls-browser-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/api-provider-calls-browser-coverage", body: '<!doctype html><html><head></head><body><main id="fixture"></main></body></html>',
+});
 
 test('api provider browser coverage exercises OAuth and provider call wrappers', async ({ page }) => {
   await openBlankPage(page);

@@ -1,4 +1,6 @@
-// @ts-check
+import { createBasicWearableRow } from './wearable-daily-row.js';
+import type { BasicWearableDailyRow, WearableErrorBody, WearableRequestError } from './wearable-data-types.js';
+
 // wearables-polar.js — Polar AccessLink data layer
 //
 // BETA. AccessLink has two unusual quirks that shape this module:
@@ -23,10 +25,34 @@ import { getErrorMessage, getErrorStatus } from './caught-error.js';
 import { getProxyApiUrl } from './proxy-runtime.js';
 import { isDebugMode } from './utils.js';
 
+interface PolarSleep {
+  nights?: { date?: string; 'calendar-date'?: string; 'sleep-score'?: unknown;
+    'heart-rate-samples'?: { min?: unknown } }[];
+}
+interface PolarProfile { 'first-name'?: unknown; 'last-name'?: unknown }
+interface PolarTransaction {
+  'transaction-id'?: string | number;
+  'activity-log'?: string[];
+  activities?: string[];
+  exercises?: string[];
+}
+interface PolarActivity {
+  date?: string; created?: string; 'active-steps'?: unknown;
+  'heart-rate'?: { average?: unknown };
+}
+interface PolarExercise {
+  'start-time'?: string; 'heart-rate-variability-avg'?: unknown;
+  'heart-rate'?: { average?: unknown };
+}
+export interface PolarPendingTransaction {
+  kind: 'activity' | 'exercise'; userId: string | number; id: string | number;
+}
+export type PolarDailyRows = BasicWearableDailyRow<'polar'>[] & { readonly _polarTransactions?: PolarPendingTransaction[] };
+
 const POLAR_API   = 'https://www.polaraccesslink.com';
 const PROXY_URL   = getProxyApiUrl();
 
-async function polarGET(url, accessToken) {
+async function polarGET(url: string, accessToken: string): Promise<unknown> {
   const res = await fetch(PROXY_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -39,9 +65,8 @@ async function polarGET(url, accessToken) {
     }),
   });
   if (!res.ok) {
-    let err; try { err = await res.json(); } catch { err = { error: res.statusText }; }
-    /** @type {Error & { status?: number }} */
-    const e = new Error(err?.error || err?.detail || res.statusText || 'Polar request failed');
+    let err: WearableErrorBody | null; try { err = await res.json(); } catch { err = { error: res.statusText }; }
+    const e: WearableRequestError = new Error((err?.error || err?.detail || res.statusText || 'Polar request failed') as string);
     e.status = res.status; throw e;
   }
   // Polar returns 204 on empty transactions — no body. Normalize to null.
@@ -50,7 +75,7 @@ async function polarGET(url, accessToken) {
   try { return JSON.parse(text); } catch { return text; }
 }
 
-async function polarSend(url, method, accessToken, body) {
+async function polarSend(url: string, method: string, accessToken: string, body?: unknown): Promise<unknown> {
   const res = await fetch(PROXY_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -65,9 +90,8 @@ async function polarSend(url, method, accessToken, body) {
     }),
   });
   if (!res.ok) {
-    let err; try { err = await res.json(); } catch { err = { error: res.statusText }; }
-    /** @type {Error & { status?: number }} */
-    const e = new Error(err?.error || err?.detail || res.statusText || `Polar ${method} failed`);
+    let err: WearableErrorBody | null; try { err = await res.json(); } catch { err = { error: res.statusText }; }
+    const e: WearableRequestError = new Error((err?.error || err?.detail || res.statusText || `Polar ${method} failed`) as string);
     e.status = res.status; throw e;
   }
   const text = await res.text();
@@ -80,7 +104,7 @@ async function polarSend(url, method, accessToken, body) {
 // ─────────────────────────────────────────────────────────
 // Must run once per connection before any data fetch works. Idempotent from
 // the caller's POV — 409 is treated as success (already registered).
-export async function registerPolarUser(accessToken, memberId) {
+export async function registerPolarUser(accessToken: string, memberId: string) {
   try {
     const out = await polarSend(`${POLAR_API}/v3/users`, 'POST', accessToken, { 'member-id': memberId });
     return { ok: true, user: out, alreadyRegistered: false };
@@ -90,12 +114,12 @@ export async function registerPolarUser(accessToken, memberId) {
   }
 }
 
-export async function fetchPolarPersonalInfo(accessToken, userId) {
+export async function fetchPolarPersonalInfo(accessToken: string, userId: string | number | null) {
   // Personal info is optional from our perspective — connect flow already has
   // userId from the token grant. Best-effort.
   if (!userId) return { ok: false, error: 'No userId on connection' };
   try {
-    const info = await polarGET(`${POLAR_API}/v3/users/${encodeURIComponent(userId)}`, accessToken);
+    const info = await polarGET(`${POLAR_API}/v3/users/${encodeURIComponent(userId)}`, accessToken) as PolarProfile | null;
     return { ok: true, account: {
       email: null,
       userId: String(userId),
@@ -114,43 +138,32 @@ export async function fetchPolarPersonalInfo(accessToken, userId) {
 // listed items, maps to canonical daily rows in [startDate, endDate].
 // DOES NOT commit the transaction — the caller must do that after a
 // successful L1 write, via commitPolarTransactions().
-export async function fetchPolarDailyRange(accessToken, startDate, endDate, connection = {}) {
+export async function fetchPolarDailyRange(accessToken: string, startDate: string, endDate: string, connection: { userId?: string | number | null } = {}): Promise<PolarDailyRows> {
   const userId = connection.userId;
   if (!userId) {
-    /** @type {Error & { code?: string }} */
-    const e = new Error('Polar connection missing userId — reconnect to obtain one');
+    const e: Error & { code?: string } = new Error('Polar connection missing userId — reconnect to obtain one');
     e.code = 'needs-reauth'; throw e;
   }
 
-  const byDate = new Map();
-  function ensureRow(day) {
+  const byDate = new Map<string, BasicWearableDailyRow<'polar'>>();
+  function ensureRow(day: string): BasicWearableDailyRow<'polar'> {
     if (!byDate.has(day)) {
-      byDate.set(day, {
-        source: 'polar', date: day,
-        hrv_rmssd: null, hrv_sdnn: null, rhr: null,
-        hrv_day: null, hr_day: null,
-        sleep_score: null, readiness_score: null,
-        activity_score: null, steps: null,
-        strain: null,
-        stress_high_min: null, resilience_level: null, cardio_age: null,
-        weight: null, bp_systolic: null, bp_diastolic: null,
-        spo2_avg: null, body_temp_delta: null, glucose_avg: null,
-      });
+      byDate.set(day, createBasicWearableRow('polar', day));
     }
-    return byDate.get(day);
+    return byDate.get(day)!;
   }
   // Sleep endpoint is windowed by the API itself, so we filter sleep rows
   // to the requested range. Activity/exercise come from one-shot transactions
   // and we accept every dated item — see notes on the transaction blocks.
-  function inRange(day) {
+  function inRange(day: string) {
     return day >= startDate && day <= endDate;
   }
 
-  const pendingTransactions = [];
+  const pendingTransactions: PolarPendingTransaction[] = [];
 
   // ── 1. Sleep (no transaction model — straight GET) ───────────────
   try {
-    const sleep = await polarGET(`${POLAR_API}/v3/users/${encodeURIComponent(userId)}/nights/sleep`, accessToken);
+    const sleep = await polarGET(`${POLAR_API}/v3/users/${encodeURIComponent(userId)}/nights/sleep`, accessToken) as PolarSleep | null;
     for (const n of (sleep?.nights || [])) {
       const day = n?.date || n?.['calendar-date'];
       if (!day || !inRange(day)) continue;
@@ -165,12 +178,12 @@ export async function fetchPolarDailyRange(accessToken, startDate, endDate, conn
     const actTx = await polarSend(
       `${POLAR_API}/v3/users/${encodeURIComponent(userId)}/activity-transactions`,
       'POST', accessToken
-    );
+    ) as PolarTransaction | null;
     if (actTx?.['transaction-id']) {
       pendingTransactions.push({ kind: 'activity', userId, id: actTx['transaction-id'] });
       for (const itemUrl of (actTx['activity-log'] || actTx?.activities || [])) {
         try {
-          const item = await polarGET(itemUrl, accessToken);
+          const item = await polarGET(itemUrl, accessToken) as PolarActivity | null;
           const day = item?.date || item?.['created']?.slice(0, 10);
           // No inRange() filter here. Polar transactions are exactly-once —
           // committing without writing means the data is gone forever from
@@ -181,7 +194,7 @@ export async function fetchPolarDailyRange(accessToken, startDate, endDate, conn
           // care about, and L1 upserts dedupe so duplicates are harmless.
           if (!day) continue;
           const row = ensureRow(day);
-          if (row.steps == null && typeof item['active-steps'] === 'number') row.steps = item['active-steps'];
+          if (row.steps == null && typeof item!['active-steps'] === 'number') row.steps = item!['active-steps'];
           if (row.hr_day == null && typeof item?.['heart-rate']?.average === 'number') row.hr_day = item['heart-rate'].average;
         } catch (e) { logDebug('activity-item', e); }
       }
@@ -193,12 +206,12 @@ export async function fetchPolarDailyRange(accessToken, startDate, endDate, conn
     const exTx = await polarSend(
       `${POLAR_API}/v3/users/${encodeURIComponent(userId)}/exercise-transactions`,
       'POST', accessToken
-    );
+    ) as PolarTransaction | null;
     if (exTx?.['transaction-id']) {
       pendingTransactions.push({ kind: 'exercise', userId, id: exTx['transaction-id'] });
       for (const itemUrl of (exTx?.exercises || [])) {
         try {
-          const ex = await polarGET(itemUrl, accessToken);
+          const ex = await polarGET(itemUrl, accessToken) as PolarExercise | null;
           const day = (ex?.['start-time'] || '').slice(0, 10);
           // No inRange() filter — same exactly-once concern as the activity
           // transaction above. Drop the workout from THIS sync's window
@@ -230,7 +243,7 @@ export async function fetchPolarDailyRange(accessToken, startDate, endDate, conn
 // to L1. Any failure here means we'll see duplicate rows next sync — that's
 // fine because L1 upserts dedupe by (source, date); the only real cost is one
 // extra network round-trip the next time.
-export async function commitPolarTransactions(accessToken, pendingTransactions) {
+export async function commitPolarTransactions(accessToken: string, pendingTransactions?: readonly PolarPendingTransaction[] | null) {
   if (!pendingTransactions?.length) return { ok: true, committed: 0 };
   let committed = 0;
   for (const { kind, userId, id } of pendingTransactions) {
@@ -246,6 +259,6 @@ export async function commitPolarTransactions(accessToken, pendingTransactions) 
   return { ok: true, committed };
 }
 
-function logDebug(where, err) {
-  if (isDebugMode?.()) console.warn(`[polar] ${where} failed:`, err?.message || err);
+function logDebug(where: string, err: unknown) {
+  if (isDebugMode?.()) console.warn(`[polar] ${where} failed:`, (err as { message?: unknown } | null)?.message || err);
 }

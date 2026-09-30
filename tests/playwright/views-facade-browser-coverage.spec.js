@@ -1,18 +1,14 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = path => `${path}?viewsFacadeCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-async function openBlankPage(page) {
-  await page.route('**/views-facade-browser-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: `<!doctype html><html><body>
+const openBlankPage = createBlankPage({
+  path: "/views-facade-browser-coverage", status: 200, body: `<!doctype html><html><body>
       <div id="notification-container"></div>
       <main id="main-content"></main>
     </body></html>`,
-  }));
-  await page.goto('/views-facade-browser-coverage', { waitUntil: 'load' });
-}
+});
 
 test('views facade browser coverage exercises genome lens picker filters and quick pins', async ({ page }) => {
   await openBlankPage(page);

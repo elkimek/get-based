@@ -1,15 +1,11 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = path => `${path}?apiProviderStorageCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-async function openBlankPage(page) {
-  await page.route('**/api-provider-storage-browser-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><div id="notification-container"></div></body></html>',
-  }));
-  await page.goto('/api-provider-storage-browser-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/api-provider-storage-browser-coverage", status: 200, body: '<!doctype html><html><body><div id="notification-container"></div></body></html>',
+});
 
 test('api provider storage browser coverage handles provider gates and model caches', async ({ page }) => {
   await openBlankPage(page);

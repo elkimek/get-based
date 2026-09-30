@@ -1,15 +1,11 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = path => `${path}?viewsRouterCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-async function openBlankPage(page) {
-  await page.route('**/views-router-browser-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
-  }));
-  await page.goto('/views-router-browser-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/views-router-browser-coverage", status: 200, body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
+});
 
 test('views router browser coverage exercises route state and scroll restoration', async ({ page }) => {
   await openBlankPage(page);

@@ -166,3 +166,10 @@ deploy/profile-share/data/
 /js/wearable-oauth-state.js
 /js/wearable-oauth-tokens.js
 /tests/helpers/browser-module-url.js
+/js/wearable-data-types.js
+/js/wearables-whoop.js
+/js/wearables-ultrahuman.js
+/js/wearables-fitbit.js
+/js/wearables-polar.js
+/js/wearable-daily-row.js
+/tests/helpers/browser-blank-page.js

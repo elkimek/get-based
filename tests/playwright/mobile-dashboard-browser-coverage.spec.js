@@ -1,14 +1,11 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = (path) => `${path}?mobileDashboardCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-async function openBlankPage(page) {
-  await page.route('**/mobile-dashboard-browser-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><head></head><body><main id="main-content"></main><input id="sidebar-search"></body></html>',
-  }));
-  await page.goto('/mobile-dashboard-browser-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/mobile-dashboard-browser-coverage", body: '<!doctype html><html><head></head><body><main id="main-content"></main><input id="sidebar-search"></body></html>',
+});
 
 test('mobile dashboard browser coverage exercises defaults breakpoint search and jumps', async ({ page }) => {
   await openBlankPage(page);

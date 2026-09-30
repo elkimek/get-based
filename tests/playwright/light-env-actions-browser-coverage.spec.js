@@ -1,14 +1,11 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = (path) => `${path}?lightEnvActionsCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-async function openBlankPage(page) {
-  await page.route('**/light-env-actions-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
-  }));
-  await page.goto('/light-env-actions-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/light-env-actions-coverage", body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
+});
 
 function expectAll(outcomes) {
   const failed = Object.entries(outcomes)

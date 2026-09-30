@@ -1,16 +1,12 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('healthDataLoaderCoverage');
 
-async function openBlankPage(page, path) {
-  await page.route(`**${path}`, route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><main id="main-content"></main></body></html>',
-  }));
-  await page.goto(path, { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  status: 200, body: '<!doctype html><html><body><main id="main-content"></main></body></html>',
+});
 
 test('Health and Data modules stay cold and single-flight their first load', async ({ page }) => {
   const moduleNames = [

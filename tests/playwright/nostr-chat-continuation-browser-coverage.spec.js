@@ -1,15 +1,12 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('nostrChatContinuationCoverage');
 
-async function openBlankPage(page) {
-  await page.route('**/nostr-chat-continuation-browser-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
-  }));
-  await page.goto('/nostr-chat-continuation-browser-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/nostr-chat-continuation-browser-coverage", body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
+});
 
 test('nostr discovery browser coverage handles relay parsing cache health and selected node guards', async ({ page }) => {
   await openBlankPage(page);

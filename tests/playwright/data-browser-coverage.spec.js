@@ -1,9 +1,8 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
-async function openBlankPage(page) {
-  await page.route('**/data-browser-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: `<!doctype html><html><head></head><body>
+const openBlankPage = createBlankPage({
+  path: "/data-browser-coverage", body: `<!doctype html><html><head></head><body>
       <button class="nav-item active" data-category="metabolic"></button>
       <div id="header-dates"></div>
       <div id="header-range-toggle"></div>
@@ -13,9 +12,7 @@ async function openBlankPage(page) {
       </div></div>
       <main id="fixture"></main>
     </body></html>`,
-  }));
-  await page.goto('/data-browser-coverage', { waitUntil: 'load' });
-}
+});
 
 test('data browser coverage exercises display toggles range refresh and helpers', async ({ page }) => {
   await openBlankPage(page);

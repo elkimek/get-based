@@ -1,16 +1,12 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('syncPullRefreshCoverage');
 
-async function openBlankPage(page) {
-  await page.route('**/sync-pull-refresh-browser-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: '<!doctype html><html><head><title>Sync pull refresh coverage</title></head><body><div id="notification-container"></div></body></html>',
-  }));
-  await page.goto('/sync-pull-refresh-browser-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/sync-pull-refresh-browser-coverage", status: 200, body: '<!doctype html><html><head><title>Sync pull refresh coverage</title></head><body><div id="notification-container"></div></body></html>',
+});
 
 test('sync pull refresh browser coverage exercises active refresh and stale hash cleanup paths', async ({ page }) => {
   await openBlankPage(page);

@@ -1,3 +1,4 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 import fs from 'fs';
 
@@ -5,14 +6,9 @@ const moduleUrl = path => `${path}?syncEnvironmentCoverage=${Date.now()}-${Math.
 const syncEnvironmentSource = fs.readFileSync(new URL('../../js/sync-environment.js', import.meta.url), 'utf8');
 const utilsRuntimeSource = fs.readFileSync(new URL('../../js/utils-runtime.js', import.meta.url), 'utf8');
 
-async function openBlankPage(page, path) {
-  await page.route(`**${path}`, route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
-  }));
-  await page.goto(path, { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  status: 200, body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
+});
 
 async function openOnionPage(page) {
   await page.route('**/sync-environment-onion-coverage', route => route.fulfill({

@@ -1,4 +1,5 @@
-// @ts-check
+import type { WearableDailyRow, WearableErrorBody, WearableRequestError, WearableQuery, WearableQueryConstructor } from './wearable-data-types.js';
+
 // wearables-whoop.js — WHOOP data layer
 //
 // BETA. WHOOP's API is a clean REST JSON API with cursor pagination. Data
@@ -15,11 +16,29 @@ import { getErrorMessage, getErrorStatus } from './caught-error.js';
 import { getProxyApiUrl } from './proxy-runtime.js';
 import { isDebugMode } from './utils.js';
 
+
+type WhoopMetric = 'hrv_rmssd' | 'rhr' | 'hrv_day' | 'hr_day' | 'sleep_score' | 'readiness_score'
+  | 'activity_score' | 'steps' | 'strain' | 'stress_high_min' | 'resilience_level' | 'cardio_age'
+  | 'spo2_avg' | 'body_temp_delta' | 'glucose_avg';
+type WhoopDailyRow = WearableDailyRow<'whoop', WhoopMetric>;
+type WhoopScore = Partial<Record<'hrv_rmssd_milli' | 'resting_heart_rate' | 'recovery_score'
+  | 'strain' | 'average_heart_rate' | 'sleep_performance_percentage', unknown>>;
+interface WhoopRecord {
+  id?: string | number;
+  cycle_id?: string | number;
+  sleep_id?: string | number;
+  start?: string;
+  created_at?: string;
+  score?: WhoopScore | null;
+}
+interface WhoopPage { records?: WhoopRecord[]; next_token?: string | null }
+interface WhoopProfile { email?: unknown; first_name?: unknown; last_name?: unknown }
+
 const WHOOP_API = 'https://api.prod.whoop.com';
 const PROXY_URL = getProxyApiUrl();
 
-async function whoopGET(path, accessToken, params = {}) {
-  const qs = new URLSearchParams(params).toString();
+async function whoopGET<T>(path: string, accessToken: string, params: WearableQuery = {}): Promise<T> {
+  const qs = new (URLSearchParams as unknown as WearableQueryConstructor)(params).toString();
   const url = `${WHOOP_API}/${path.replace(/^\//, '')}${qs ? '?' + qs : ''}`;
   const res = await fetch(PROXY_URL, {
     method: 'POST',
@@ -30,22 +49,21 @@ async function whoopGET(path, accessToken, params = {}) {
     }),
   });
   if (!res.ok) {
-    let err;
+    let err: WearableErrorBody | null;
     try { err = await res.json(); } catch { err = { error: res.statusText }; }
-    const msg = err?.detail || err?.message || err?.error || res.statusText || 'WHOOP request failed';
-    /** @type {Error & { status?: number }} */
-    const e = new Error(msg); e.status = res.status; throw e;
+    const msg = err?.detail || (err as { message?: unknown } | null)?.message || err?.error || res.statusText || 'WHOOP request failed';
+    const e: WearableRequestError = new Error(msg as string); e.status = res.status; throw e;
   }
   return res.json();
 }
 
-async function whoopCollect(path, accessToken, params) {
-  const all = [];
-  let nextToken = null;
+async function whoopCollect(path: string, accessToken: string, params: WearableQuery): Promise<WhoopRecord[]> {
+  const all: WhoopRecord[] = [];
+  let nextToken: string | null = null;
   let pages = 0;
   do {
-    const p = nextToken ? { ...params, nextToken } : params;
-    const page = await whoopGET(path, accessToken, p);
+    const p: WearableQuery = nextToken ? { ...params, nextToken } : params;
+    const page: WhoopPage = await whoopGET<WhoopPage>(path, accessToken, p);
     if (Array.isArray(page?.records)) all.push(...page.records);
     nextToken = page?.next_token || null;
     pages++;
@@ -54,9 +72,9 @@ async function whoopCollect(path, accessToken, params) {
   return all;
 }
 
-export async function fetchWhoopPersonalInfo(accessToken) {
+export async function fetchWhoopPersonalInfo(accessToken: string) {
   try {
-    const info = await whoopGET('developer/v2/user/profile/basic', accessToken);
+    const info = await whoopGET<WhoopProfile>('developer/v2/user/profile/basic', accessToken);
     return { ok: true, account: { email: info?.email || null, firstName: info?.first_name || null, lastName: info?.last_name || null } };
   } catch (e) {
     return { ok: false, error: getErrorMessage(e), status: getErrorStatus(e) };
@@ -65,14 +83,14 @@ export async function fetchWhoopPersonalInfo(accessToken) {
 
 // WHOOP keys time windows as ISO timestamps, not dates. Convert YYYY-MM-DD
 // to ISO boundaries in UTC so the bracket matches day-granularity reads.
-function isoFloor(dayStr) { return dayStr + 'T00:00:00.000Z'; }
-function isoCeil(dayStr)  { return dayStr + 'T23:59:59.999Z'; }
+function isoFloor(dayStr: string) { return dayStr + 'T00:00:00.000Z'; }
+function isoCeil(dayStr: string)  { return dayStr + 'T23:59:59.999Z'; }
 
 // WHOOP cycles/recoveries are keyed by `start` (ISO). Map to the calendar
 // day in UTC for canonical-row alignment; caller can re-bucket if needed.
-function dayFromIso(iso) { return (iso || '').slice(0, 10); }
+function dayFromIso(iso: string | undefined) { return (iso || '').slice(0, 10); }
 
-export async function fetchWhoopDailyRange(accessToken, startDate, endDate) {
+export async function fetchWhoopDailyRange(accessToken: string, startDate: string, endDate: string) {
   const params = { start: isoFloor(startDate), end: isoCeil(endDate), limit: 25 };
 
   const [cycles, recoveries, sleeps] = await Promise.all([
@@ -85,19 +103,17 @@ export async function fetchWhoopDailyRange(accessToken, startDate, endDate) {
   // `cycle_id`/`sleep_id` instead of the v1 embedded `cycle`/`sleep` objects.
   // Join against the fetched collections to recover the onset timestamps
   // used for day attribution below.
-  /** @type {Map<number|string, string>} */
-  const cycleStartById = new Map();
+  const cycleStartById = new Map<string | number | undefined, string>();
   for (const c of cycles) {
     if (c?.id != null && c?.start) cycleStartById.set(c.id, c.start);
   }
-  /** @type {Map<number|string, string>} */
-  const sleepStartById = new Map();
+  const sleepStartById = new Map<string | number | undefined, string>();
   for (const s of sleeps) {
     if (s?.id != null && s?.start) sleepStartById.set(s.id, s.start);
   }
 
-  const byDate = new Map();
-  function ensureRow(day) {
+  const byDate = new Map<string, WhoopDailyRow>();
+  function ensureRow(day: string): WhoopDailyRow {
     if (!byDate.has(day)) {
       byDate.set(day, {
         source: 'whoop', date: day,
@@ -110,7 +126,7 @@ export async function fetchWhoopDailyRange(accessToken, startDate, endDate) {
         spo2_avg: null, body_temp_delta: null, glucose_avg: null,
       });
     }
-    return byDate.get(day);
+    return byDate.get(day)!;
   }
 
   for (const r of recoveries) {
@@ -152,6 +168,6 @@ export async function fetchWhoopDailyRange(accessToken, startDate, endDate) {
   return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function logDebug(where, err) {
-  if (isDebugMode?.()) console.warn(`[whoop] ${where} failed:`, err?.message || err);
+function logDebug(where: string, err: unknown) {
+  if (isDebugMode?.()) console.warn(`[whoop] ${where} failed:`, (err as { message?: unknown } | null)?.message || err);
 }

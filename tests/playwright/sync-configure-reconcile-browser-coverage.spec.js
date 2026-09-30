@@ -1,15 +1,11 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = path => `${path}?syncConfigureReconcileCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-async function openBlankPage(page, path) {
-  await page.route(`**${path}`, route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><div id="notification-container"></div><div id="sync-indicator-slot"></div></body></html>',
-  }));
-  await page.goto(path, { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  status: 200, body: '<!doctype html><html><body><div id="notification-container"></div><div id="sync-indicator-slot"></div></body></html>',
+});
 
 test('sync configure browser coverage seeds local profiles through identity restore', async ({ page }) => {
   await openBlankPage(page, '/sync-configure-seed-browser-coverage');

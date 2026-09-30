@@ -1,14 +1,11 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = (path) => `${path}?sunSessionActionsCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-async function openBlankPage(page) {
-  await page.route('**/sun-session-actions-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><main id="fixture"></main><section id="outside"></section></body></html>',
-  }));
-  await page.goto('/sun-session-actions-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/sun-session-actions-coverage", body: '<!doctype html><html><body><main id="fixture"></main><section id="outside"></section></body></html>',
+});
 
 function expectAll(outcomes) {
   const failed = Object.entries(outcomes)

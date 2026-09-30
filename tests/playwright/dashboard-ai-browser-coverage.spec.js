@@ -1,15 +1,12 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('dashboardAiCoverage');
 
-async function openBlankPage(page) {
-  await page.route('**/dashboard-ai-browser-coverage**', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
-  }));
-  await page.goto('/dashboard-ai-browser-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/dashboard-ai-browser-coverage", routePattern: "**/dashboard-ai-browser-coverage**", body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
+});
 
 test('dashboard AI browser coverage exercises CTA rendering picker routing and DNA input', async ({ page }) => {
   await openBlankPage(page);

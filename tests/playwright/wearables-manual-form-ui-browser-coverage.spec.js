@@ -1,15 +1,11 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = path => `${path}?wearablesManualFormUiCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-async function openBlankPage(page) {
-  await page.route('**/wearables-manual-form-ui-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
-  }));
-  await page.goto('/wearables-manual-form-ui-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/wearables-manual-form-ui-coverage", status: 200, body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
+});
 
 test('wearables manual form ui browser coverage handles chips notes and input values', async ({ page }) => {
   await openBlankPage(page);

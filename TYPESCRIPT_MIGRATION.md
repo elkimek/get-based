@@ -149,6 +149,25 @@ helpers were removed; their namespaces, URL bytes, clock/random evaluation order
 and callable shape matched in 1,566 differential scenarios. Suite assertions and
 coverage cases retain their original scope.
 
+
+WHOOP, Ultrahuman, Fitbit and Polar data normalization now use strict native
+TypeScript. Wire fields remain opaque until the existing numeric checks; canonical
+rows constrain metric names and preserve missing-value semantics. Three providers
+share an independent row constructor with the original field order. Polar retains
+raw non-JSON responses, non-enumerable pending transactions, retroactive records
+and deferred commit behavior. Before consolidation, all four emitted runtime
+syntax trees matched the originals; 84 provider comparisons also matched requests,
+errors, dates, measurements and transaction descriptors/commit calls.
+
+Fifty-four browser suites share a typed blank-page factory while retaining their
+exact HTML, wildcard route patterns, optional HTTP statuses and callable shape.
+The original and shared setups matched 1,512 scenarios, including getter order,
+callback identity, failures and promise turns. Security source checks now follow
+the shared OAuth expiry guard; native tests require all seven providers to consume
+expired state without exchanging credentials. New runtime helpers are included
+in the offline cache graph. DOM inventory updates preserve all reviewed sink
+fingerprints and counts.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

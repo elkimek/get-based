@@ -1,22 +1,18 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('chatHistoryDiagnoseCoverage');
 
-async function openBlankPage(page, path) {
-  await page.route(`**${path}`, route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: `<!doctype html><html><body>
+const openBlankPage = createBlankPage({
+  status: 200, body: `<!doctype html><html><body>
       <div id="notification-container"></div>
       <div id="chat-thread-list"></div>
       <div id="chat-saved-summaries"></div>
       <div class="chat-header-title"></div>
       <button class="chat-summary-btn" type="button"></button>
     </body></html>`,
-  }));
-  await page.goto(path, { waitUntil: 'load' });
-}
+});
 
 test('chat history browser coverage saves loads clears and updates thread state', async ({ page }) => {
   await openBlankPage(page, '/chat-history-browser-coverage');

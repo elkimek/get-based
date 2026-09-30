@@ -1,17 +1,11 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = (path) => `${path}?chartCardRecsBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-async function openBlankPage(page) {
-  await page.route('**/chart-card-recs-browser-coverage', route => {
-    return route.fulfill({
-      status: 200,
-      contentType: 'text/html',
-      body: '<!doctype html><html><head></head><body><main id="fixture"></main></body></html>',
-    });
-  });
-  await page.goto('/chart-card-recs-browser-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/chart-card-recs-browser-coverage", status: 200, body: '<!doctype html><html><head></head><body><main id="fixture"></main></body></html>',
+});
 
 test('chart card recommendation browser coverage handles badges reorder clicks and nudges', async ({ page }) => {
   await page.route('**/js/utils.js', route => {

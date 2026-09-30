@@ -1,14 +1,11 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = (path) => `${path}?browserHelperCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-async function openBlankPage(page) {
-  await page.route('**/browser-helper-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><head></head><body><main id="fixture"></main></body></html>',
-  }));
-  await page.goto('/browser-helper-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/browser-helper-coverage", body: '<!doctype html><html><head></head><body><main id="fixture"></main></body></html>',
+});
 
 test('browser helper coverage exercises url safety marker keys markdown legal lens brand assets and health goals', async ({ page }) => {
   await openBlankPage(page);

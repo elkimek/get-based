@@ -1,15 +1,11 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = path => `${path}?categoryViewRendererCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-async function openBlankPage(page) {
-  await page.route('**/category-view-renderers-browser-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: '<!doctype html><html><head><link rel="stylesheet" href="/css/category-views.css"></head><body><main id="fixture"></main></body></html>',
-  }));
-  await page.goto('/category-view-renderers-browser-coverage', { waitUntil: 'load' });
-}
+const openBlankPage = createBlankPage({
+  path: "/category-view-renderers-browser-coverage", status: 200, body: '<!doctype html><html><head><link rel="stylesheet" href="/css/category-views.css"></head><body><main id="fixture"></main></body></html>',
+});
 
 test('category view renderers browser coverage exercises chart table heatmap and fatty-acid markup', async ({ page }) => {
   await openBlankPage(page);
