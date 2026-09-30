@@ -1,27 +1,30 @@
-// @ts-check
-// cycle-import-file.js - cycle export file detection and ZIP context helpers.
+// cycle-import-file.ts - cycle export file detection and ZIP context helpers.
 
 import { getErrorMessage } from './caught-error.js';
 
-const appWindow = /** @type {Window & typeof globalThis & { JSZip?: any }} */ (
-  typeof window !== 'undefined' ? window : {}
-);
+const appWindow = (typeof window !== 'undefined' ? window : {}) as { JSZip?: CycleZipReader };
 
-/**
- * @typedef {{
- *   file: File,
- *   kind: string,
- *   text: string | null,
- *   archive: any,
- *   entries: any[],
- * }} CycleFileContext
- */
+export interface CycleZipEntry {
+  name?: string;
+  dir?: boolean;
+  async(type: 'blob'): Promise<Blob>;
+  async(type: 'string' | 'text'): Promise<string>;
+}
+interface CycleZipArchive { files?: Record<string, CycleZipEntry> }
+interface CycleZipReader { loadAsync(file: File): Promise<CycleZipArchive> }
+export interface CycleFileContext {
+  file: File;
+  kind: string;
+  text: string | null;
+  archive: CycleZipArchive | null;
+  entries: CycleZipEntry[];
+}
 
-let jszipLoad = null;
+let jszipLoad: Promise<CycleZipReader> | null = null;
 function loadJSZip() {
   if (appWindow.JSZip) return Promise.resolve(appWindow.JSZip);
   if (jszipLoad) return jszipLoad;
-  jszipLoad = new Promise((resolve, reject) => {
+  jszipLoad = new Promise<CycleZipReader>((resolve, reject) => {
     const script = document.createElement('script');
     script.src = '/vendor/jszip.min.js';
     script.onload = () => appWindow.JSZip ? resolve(appWindow.JSZip) : reject(new Error('JSZip failed to load'));
@@ -34,7 +37,7 @@ function loadJSZip() {
   return jszipLoad;
 }
 
-export function cycleFileKind(file) {
+export function cycleFileKind(file: { name?: unknown; type?: string } | null | undefined) {
   const name = String(file?.name || '').toLowerCase();
   if (name.endsWith('.zip') || /zip/.test(file?.type || '')) return 'zip';
   if (name.endsWith('.xml') || /xml/.test(file?.type || '')) return 'xml';
@@ -43,10 +46,9 @@ export function cycleFileKind(file) {
   return 'text';
 }
 
-export async function buildCycleFileContext(file) {
+export async function buildCycleFileContext(file: File) {
   const kind = cycleFileKind(file);
-  /** @type {CycleFileContext} */
-  const context = { file, kind, text: null, archive: null, entries: [] };
+  const context: CycleFileContext = { file, kind, text: null, archive: null, entries: [] };
   if (kind === 'zip') {
     const JSZip = await loadJSZip();
     try {
@@ -65,17 +67,17 @@ export async function buildCycleFileContext(file) {
   return context;
 }
 
-export function appleHealthArchiveEntry(context) {
+export function appleHealthArchiveEntry(context: CycleFileContext) {
   return context.entries.find(entry => {
     const name = String(entry.name || '').toLowerCase();
     return name === 'export.xml' || name === 'apple_health_export/export.xml';
   }) || null;
 }
 
-export function clueArchiveEntries(context) {
+export function clueArchiveEntries(context: CycleFileContext) {
   return context.entries.filter(entry => /(?:\.json|\.cluedata)$/i.test(entry.name || '') || /clue/i.test(entry.name || ''));
 }
 
-export function naturalCyclesArchiveEntries(context) {
+export function naturalCyclesArchiveEntries(context: CycleFileContext) {
   return context.entries.filter(entry => /\.csv$/i.test(entry.name || ''));
 }

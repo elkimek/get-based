@@ -1,20 +1,35 @@
-// @ts-check
-// cycle-import-adapters.js - source-specific cycle export parsers.
+// cycle-import-adapters.ts - source-specific cycle export parsers.
 
+import type { CycleFlow } from './cycle-summary.js';
 import { normalizeCycleFlow, stitchCyclePeriodsFromObservations } from './cycle-summary.js';
+
+export interface CycleImportObservation extends Record<string, unknown> {
+  source: string;
+  date: string;
+  bleeding?: { flow?: CycleFlow | null; excluded?: boolean; intermenstrual?: boolean };
+  cervicalMucus?: { quality?: string; excluded?: boolean };
+  symptoms?: string[];
+  note?: string;
+  bbtC?: number;
+  bbtExcluded?: boolean;
+  ovulationTest?: string;
+  importId?: string;
+}
+interface RawClueDay extends Record<string, unknown> { note?: { value?: unknown } | null }
+type RawClueRoot = Record<string, unknown>;
 
 const TRUE_VALUES = new Set(['true', '1', 'yes', 'y', 'positive', 'present', 'period']);
 const FALSE_VALUES = new Set(['false', '0', 'no', 'n', 'negative', 'none', '']);
 
-function normalizeKey(value) {
+function normalizeKey(value: unknown) {
   return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
-function normalizeToken(value) {
+function normalizeToken(value: unknown) {
   return normalizeKey(value).replace(/\s+/g, '_');
 }
 
-function booleanValue(value) {
+function booleanValue(value: unknown) {
   if (value === true || value === false) return value;
   const token = normalizeToken(value);
   if (TRUE_VALUES.has(token)) return true;
@@ -22,7 +37,7 @@ function booleanValue(value) {
   return null;
 }
 
-function isoDate(value) {
+function isoDate(value: unknown) {
   if (value == null || value === '') return null;
   if (typeof value === 'number' && Number.isFinite(value)) {
     const ms = value > 1e12 ? value : value * 1000;
@@ -44,8 +59,8 @@ function isoDate(value) {
   return Number.isFinite(parsed.getTime()) ? parsed.toISOString().slice(0, 10) : null;
 }
 
-function parseTemperature(value) {
-  const raw = typeof value === 'object' && value ? value.value ?? value.temperature : value;
+function parseTemperature(value: unknown) {
+  const raw = typeof value === 'object' && value ? (value as { value?: unknown; temperature?: unknown }).value ?? (value as { temperature?: unknown }).temperature : value;
   const n = Number(String(raw ?? '').replace(',', '.').match(/-?\d+(?:\.\d+)?/)?.[0]);
   if (!Number.isFinite(n)) return null;
   if (n > 80 && n < 110) return Math.round(((n - 32) * 5 / 9) * 100) / 100;
@@ -53,10 +68,10 @@ function parseTemperature(value) {
   return null;
 }
 
-function flowValue(value, fallbackForTrue = 'moderate') {
+function flowValue(value: unknown, fallbackForTrue: CycleFlow = 'moderate') {
   if (value === true) return fallbackForTrue;
   if (value === false || value == null) return null;
-  const raw = normalizeToken(typeof value === 'object' ? value.value ?? value.flow : value);
+  const raw = normalizeToken(typeof value === 'object' ? (value as { value?: unknown; flow?: unknown }).value ?? (value as { flow?: unknown }).flow : value);
   if (!raw || FALSE_VALUES.has(raw)) return null;
   if (TRUE_VALUES.has(raw)) return fallbackForTrue;
   if (raw.includes('spot')) return 'spotting';
@@ -64,7 +79,7 @@ function flowValue(value, fallbackForTrue = 'moderate') {
   return normalizeCycleFlow(raw) || (raw.includes('bleed') || raw.includes('menstru') ? fallbackForTrue : null);
 }
 
-function resultImportId(source, fileName) {
+function resultImportId(source: string, fileName: string) {
   const base = String(fileName || source || 'cycle-import')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
@@ -73,20 +88,20 @@ function resultImportId(source, fileName) {
   return `${source}-${Date.now()}-${base}`;
 }
 
-function addUnique(values, next) {
+function addUnique(values: string[], next: unknown) {
   for (const value of Array.isArray(next) ? next : [next]) {
     const label = String(value || '').trim();
     if (label && !values.includes(label)) values.push(label);
   }
 }
 
-function mergeObservation(map, source, patch) {
+function mergeObservation(map: Map<string, CycleImportObservation>, source: string, patch: CycleImportObservation | null | undefined) {
   if (!patch?.date) return;
   const existing = map.get(patch.date) || { source, date: patch.date };
   const next = { ...existing, ...patch, source, date: patch.date };
   if (existing.bleeding || patch.bleeding) next.bleeding = { ...(existing.bleeding || {}), ...(patch.bleeding || {}) };
   if (existing.cervicalMucus || patch.cervicalMucus) next.cervicalMucus = { ...(existing.cervicalMucus || {}), ...(patch.cervicalMucus || {}) };
-  const symptoms = [];
+  const symptoms: string[] = [];
   addUnique(symptoms, existing.symptoms || []);
   addUnique(symptoms, patch.symptoms || []);
   if (symptoms.length) next.symptoms = symptoms;
@@ -94,15 +109,15 @@ function mergeObservation(map, source, patch) {
   map.set(patch.date, next);
 }
 
-export function mergeCycleImportObservations(source, groups) {
-  const byDate = new Map();
+export function mergeCycleImportObservations(source: string, groups: readonly (readonly CycleImportObservation[] | null | undefined)[] | null | undefined) {
+  const byDate = new Map<string, CycleImportObservation>();
   for (const rows of groups || []) {
     for (const row of rows || []) mergeObservation(byDate, source, row);
   }
   return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function finalizeImport(source, sourceLabel, fileName, observations, emptyPeriodWarning) {
+function finalizeImport(source: string, sourceLabel: string, fileName: string, observations: CycleImportObservation[], emptyPeriodWarning: string) {
   const merged = mergeCycleImportObservations(source, [observations]);
   if (!merged.length) return null;
   const importId = resultImportId(source, fileName);
@@ -126,16 +141,16 @@ function finalizeImport(source, sourceLabel, fileName, observations, emptyPeriod
   };
 }
 
-function delimiterFor(text) {
+function delimiterFor(text: string) {
   const firstLine = String(text || '').split(/\r?\n/, 1)[0] || '';
   const counts = [',', ';', '\t'].map(delimiter => ({ delimiter, count: firstLine.split(delimiter).length }));
   return counts.sort((a, b) => b.count - a.count)[0]?.delimiter || ',';
 }
 
-export function parseDelimitedRows(text) {
+export function parseDelimitedRows(text: string) {
   const delimiter = delimiterFor(text);
-  const rows = [];
-  let row = [];
+  const rows: string[][] = [];
+  let row: string[] = [];
   let cell = '';
   let quoted = false;
   for (let i = 0; i < String(text || '').length; i++) {
@@ -155,20 +170,20 @@ export function parseDelimitedRows(text) {
   return rows;
 }
 
-function findHeader(headers, patterns) {
+function findHeader(headers: string[], patterns: RegExp[]) {
   return headers.findIndex(header => patterns.some(pattern => pattern.test(header)));
 }
 
-function humanLabel(value) {
+function humanLabel(value: unknown) {
   const text = String(value || '').replace(/[_-]+/g, ' ').trim();
-  return text ? text[0].toUpperCase() + text.slice(1) : '';
+  return text ? text[0]!.toUpperCase() + text.slice(1) : '';
 }
 
-function headerIndex(headers, name) {
+function headerIndex(headers: string[], name: string) {
   return headers.indexOf(normalizeKey(name));
 }
 
-const DRIP_SYMPTOM_LABELS = {
+const DRIP_SYMPTOM_LABELS: Record<string, string> = {
   'pain cramps': 'Cramps',
   'pain ovulationpain': 'Ovulation pain',
   'pain headache': 'Headache',
@@ -189,19 +204,19 @@ const DRIP_SYMPTOM_LABELS = {
   'mood other': 'Other mood',
 };
 
-function parseDripFlow(value, nativeDripScale = false) {
+function parseDripFlow(value: unknown, nativeDripScale = false) {
   const raw = String(value || '').trim().toLowerCase();
   if (!raw || raw === 'false' || raw === 'no') return null;
-  if (nativeDripScale && /^[0-3]$/.test(raw)) return ['spotting', 'light', 'moderate', 'heavy'][Number(raw)];
+  if (nativeDripScale && /^[0-3]$/.test(raw)) return (['spotting', 'light', 'moderate', 'heavy'] as const)[Number(raw)]!;
   if (raw === '0') return null;
-  if (/^[1-4]$/.test(raw)) return ['spotting', 'light', 'moderate', 'heavy'][Number(raw) - 1];
+  if (/^[1-4]$/.test(raw)) return (['spotting', 'light', 'moderate', 'heavy'] as const)[Number(raw) - 1]!;
   return flowValue(raw);
 }
 
-export function parseDripCycleCsv(text, fileName = 'drip.csv') {
+export function parseDripCycleCsv(text: string, fileName = 'drip.csv') {
   const csv = parseDelimitedRows(text);
   if (csv.length < 2) return null;
-  const headers = csv[0].map(normalizeKey);
+  const headers = csv[0]!.map(normalizeKey);
   const dateIdx = findHeader(headers, [/^date$/, /^day$/, /^datum$/]);
   const nativeDripSchema = headerIndex(headers, 'bleeding.value') >= 0;
   const flowIdx = nativeDripSchema
@@ -224,7 +239,7 @@ export function parseDripCycleCsv(text, fileName = 'drip.csv') {
     : findHeader(headers, [/^note$/, /^comment$/]);
   if (dateIdx === -1 || flowIdx === -1) return null;
 
-  const observations = [];
+  const observations: CycleImportObservation[] = [];
   for (const cols of csv.slice(1)) {
     const date = isoDate(cols[dateIdx]);
     if (!date) continue;
@@ -244,7 +259,7 @@ export function parseDripCycleCsv(text, fileName = 'drip.csv') {
       .filter(Boolean);
     const mucusQuality = mucusParts.join(' / ');
     const mucusExcluded = mucusExcludeIdx >= 0 && booleanValue(cols[mucusExcludeIdx]) === true;
-    const row = {
+    const row: CycleImportObservation = {
       source: 'drip',
       date,
       ...(flow ? { bleeding: { flow, excluded: bleedingExcluded } } : {}),
@@ -269,10 +284,10 @@ export function parseDripCycleCsv(text, fileName = 'drip.csv') {
 const NATURAL_CYCLES_FILE_RE = /natural.?cycles|tracking.?data|daily.?entr|cycle.?data/i;
 const NATURAL_CYCLES_SPECIFIC_HEADERS = [/fertility status/, /red day/, /green day/, /cycle day/, /measurement device/, /lh test/];
 
-export function looksLikeNaturalCyclesCsv(text, fileName = '') {
+export function looksLikeNaturalCyclesCsv(text: string, fileName = '') {
   const rows = parseDelimitedRows(text);
   if (rows.length < 2) return false;
-  const headers = rows[0].map(normalizeKey);
+  const headers = rows[0]!.map(normalizeKey);
   const hasDate = findHeader(headers, [/^date$/, /^day$/, /^calendar date$/, /^measurement date$/]) >= 0;
   const hasTemperature = findHeader(headers, [/^temperature(?: c| f)?$/, /^bbt$/, /^basal body temperature$/]) >= 0;
   const hasPeriod = findHeader(headers, [/^period$/, /^period flow$/, /^menstruation$/, /^bleeding$/, /^spotting$/]) >= 0;
@@ -280,7 +295,7 @@ export function looksLikeNaturalCyclesCsv(text, fileName = '') {
   return sourceHint && hasDate && (hasTemperature || hasPeriod);
 }
 
-const NATURAL_SYMPTOM_COLUMNS = {
+const NATURAL_SYMPTOM_COLUMNS: Record<string, string> = {
   cramps: 'Cramps',
   headache: 'Headache',
   migraine: 'Migraine',
@@ -292,10 +307,10 @@ const NATURAL_SYMPTOM_COLUMNS = {
   'back pain': 'Backache',
 };
 
-export function parseNaturalCyclesCsv(text, fileName = 'tracking_data.csv') {
+export function parseNaturalCyclesCsv(text: string, fileName = 'tracking_data.csv') {
   if (!looksLikeNaturalCyclesCsv(text, fileName)) return null;
   const rows = parseDelimitedRows(text);
-  const headers = rows[0].map(normalizeKey);
+  const headers = rows[0]!.map(normalizeKey);
   const dateIdx = findHeader(headers, [/^date$/, /^day$/, /^calendar date$/, /^measurement date$/]);
   const temperatureIdx = findHeader(headers, [/^temperature(?: c| f)?$/, /^bbt$/, /^basal body temperature$/, /^temperature value$/]);
   const temperatureExcludedIdx = findHeader(headers, [/^temperature excluded$/, /^exclude temperature$/, /^excluded temperature$/, /^disturbed temperature$/]);
@@ -306,7 +321,7 @@ export function parseNaturalCyclesCsv(text, fileName = 'tracking_data.csv') {
   const ovulationIdx = findHeader(headers, [/^lh test$/, /^lh result$/, /^ovulation test$/, /^ovulation test result$/]);
   const symptomsIdx = findHeader(headers, [/^symptoms?$/, /^trackers?$/]);
   const noteIdx = findHeader(headers, [/^notes?$/, /^comment$/]);
-  const observations = [];
+  const observations: CycleImportObservation[] = [];
 
   for (const cols of rows.slice(1)) {
     const date = isoDate(cols[dateIdx]);
@@ -330,7 +345,7 @@ export function parseNaturalCyclesCsv(text, fileName = 'tracking_data.csv') {
     const mucus = mucusIdx >= 0 ? String(cols[mucusIdx] || '').trim() : '';
     const ovulation = ovulationIdx >= 0 ? normalizeToken(cols[ovulationIdx]) : '';
     const note = noteIdx >= 0 ? String(cols[noteIdx] || '').trim() : '';
-    const observation = {
+    const observation: CycleImportObservation = {
       source: 'natural_cycles',
       date,
       ...(flow ? { bleeding: { flow, excluded: spottingOnly, ...(spottingOnly ? { intermenstrual: true } : {}) } } : {}),
@@ -354,8 +369,8 @@ export function parseNaturalCyclesCsv(text, fileName = 'tracking_data.csv') {
   );
 }
 
-export function parseNaturalCyclesCsvBundle(files, archiveName = 'natural-cycles-export.zip') {
-  const parsed = [];
+export function parseNaturalCyclesCsvBundle(files: readonly { text: string; name?: string | undefined }[] | null | undefined, archiveName = 'natural-cycles-export.zip') {
+  const parsed: NonNullable<ReturnType<typeof parseNaturalCyclesCsv>>[] = [];
   for (const file of files || []) {
     const result = parseNaturalCyclesCsv(file.text, file.name);
     if (result) parsed.push(result);
@@ -376,13 +391,13 @@ const CLUE_DAILY_KEYS = new Set([
   'cervical_fluid', 'cervical_mucus', 'mucus', 'ovulation_test', 'lh_test', 'note',
 ]);
 
-function clueDailyRows(root) {
-  const candidates = [root?.data, root?.trackingData, root?.tracking_data, root?.days, root?.records];
-  return candidates.find(value => Array.isArray(value)) || (Array.isArray(root) ? root : []);
+function clueDailyRows(root: unknown) {
+  const candidates = [(root as RawClueRoot | null | undefined)?.data, (root as RawClueRoot | null | undefined)?.trackingData, (root as RawClueRoot | null | undefined)?.tracking_data, (root as RawClueRoot | null | undefined)?.days, (root as RawClueRoot | null | undefined)?.records];
+  return (candidates.find(value => Array.isArray(value)) || (Array.isArray(root) ? root : [])) as RawClueDay[];
 }
 
-export function looksLikeClueCycleJson(value) {
-  let root = value;
+export function looksLikeClueCycleJson(value: unknown) {
+  let root = value as RawClueRoot | string | null | undefined;
   if (typeof root === 'string') {
     try { root = JSON.parse(root); } catch { return false; }
   }
@@ -396,7 +411,7 @@ export function looksLikeClueCycleJson(value) {
   });
 }
 
-const CLUE_SYMPTOM_LABELS = {
+const CLUE_SYMPTOM_LABELS: Record<string, string> = {
   cramps: 'Cramps',
   ovulation_pain: 'Ovulation pain',
   headache: 'Headache',
@@ -418,18 +433,18 @@ const CLUE_SYMPTOM_LABELS = {
   high_energy: 'Energetic',
 };
 
-function clueValues(value) {
+function clueValues(value: unknown): unknown[] {
   if (Array.isArray(value)) return value;
   if (value && typeof value === 'object') {
-    if (Array.isArray(value.values)) return value.values;
-    if (value.value != null) return [value.value];
+    if (Array.isArray((value as { values?: unknown }).values)) return (value as { values: unknown[] }).values;
+    if ((value as { value?: unknown }).value != null) return [(value as { value?: unknown }).value];
     return Object.entries(value).filter(([, active]) => booleanValue(active) === true).map(([key]) => key);
   }
   return value == null || value === '' ? [] : [value];
 }
 
-function clueSymptoms(day) {
-  const symptoms = [];
+function clueSymptoms(day: RawClueDay) {
+  const symptoms: string[] = [];
   for (const key of ['pain', 'mood', 'energy', 'cravings']) {
     for (const value of clueValues(day[key])) {
       const token = normalizeToken(value);
@@ -440,7 +455,7 @@ function clueSymptoms(day) {
   return symptoms;
 }
 
-function clueDailyObservation(day) {
+function clueDailyObservation(day: RawClueDay) {
   const date = isoDate(day?.day ?? day?.date ?? day?.timestamp ?? day?.created_at ?? day?.startDate);
   if (!date) return null;
   const flow = flowValue(day.period ?? day.bleeding ?? day.menstrual_flow ?? day.flow);
@@ -452,7 +467,7 @@ function clueDailyObservation(day) {
   const ovulationRaw = day.ovulation_test ?? day.lh_test ?? day.ovulationTest;
   const ovulation = clueValues(ovulationRaw).map(normalizeToken).find(Boolean) || '';
   const note = String(day.note?.value ?? day.note ?? day.notes ?? '').trim();
-  const observation = {
+  const observation: CycleImportObservation = {
     source: 'clue',
     date,
     ...((flow || spottingOnly) ? { bleeding: { flow: spottingOnly ? 'spotting' : flow, excluded: spottingOnly, ...(spottingOnly ? { intermenstrual: true } : {}) } } : {}),
@@ -467,13 +482,13 @@ function clueDailyObservation(day) {
     : null;
 }
 
-export function parseClueCycleJson(value, fileName = 'clue-data.json') {
-  let root = value;
+export function parseClueCycleJson(value: unknown, fileName = 'clue-data.json') {
+  let root = value as RawClueRoot | string | null | undefined;
   if (typeof root === 'string') {
     try { root = JSON.parse(root); } catch { return null; }
   }
   if (!looksLikeClueCycleJson(root)) return null;
-  const observations = clueDailyRows(root).map(clueDailyObservation).filter(Boolean);
+  const observations = clueDailyRows(root).map(clueDailyObservation).filter(Boolean) as CycleImportObservation[];
   return finalizeImport(
     'clue',
     'Clue',

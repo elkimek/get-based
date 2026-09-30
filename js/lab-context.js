@@ -438,7 +438,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     }
     if (mc.conditions) ctx += ` Conditions: ${mc.conditions}.`;
     ctx += '\n';
-    const coverage = mc.coverage || {};
+    const coverage = mc.coverage;
     if (coverage.periodCount || coverage.firstDate || coverage.lastDate) {
       const sourceNames = Object.keys(coverage.sources || {});
       const sourceText = sourceNames.length ? `, sources: ${sourceNames.join(', ')}` : '';
@@ -447,7 +447,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
       if (coverage.firstDate || coverage.lastDate) ctx += `, ${coverage.firstDate || '?'} to ${coverage.lastDate || '?'}`;
       ctx += `${sourceText}.\n`;
     }
-    const summary = mc.historySummary || {};
+    const summary = mc.historySummary;
     if (summary.recent12?.avgCycle || summary.recent12?.range || summary.recent12?.heavyRate != null) {
       const parts = [];
       if (summary.recent12.avgCycle) parts.push(`avg ${summary.recent12.avgCycle}d`);

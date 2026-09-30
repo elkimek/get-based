@@ -497,7 +497,7 @@ export async function handleCycleImportFile(file) {
     const appleHealthEntry = context.kind === 'zip' ? appleHealthArchiveEntry(context) : null;
     if (context.kind === 'xml' || appleHealthEntry) {
       importLabel = 'Apple Health';
-      const xmlBlob = context.kind === 'xml' ? context.file : await appleHealthEntry.async('blob');
+      const xmlBlob = context.kind === 'xml' ? context.file : await /** @type {import('./cycle-import-file.js').CycleZipEntry} */ (appleHealthEntry).async('blob');
       const { importAppleHealthFile } = await import('./wearables-apple-health.js');
       if (!isCurrent()) return false;
       showNotification('Importing Apple Health data...', 'info', 1600);
