@@ -1,7 +1,10 @@
-// @ts-check
 // Minimal Node adapter for the shared compatibility proxy Request handler.
 // It deliberately has no request/access logging: wearable payloads can contain
 // health data and OAuth credentials and must remain transient in memory.
+
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
+import { boundedInteger, requestUrl } from '../lib/node-request-routing.js';
 
 import { createServer } from 'node:http';
 import { resolve as resolvePath } from 'node:path';
@@ -13,47 +16,23 @@ const DEFAULT_BIND_HOST = '0.0.0.0';
 const DEFAULT_PORT = 8787;
 const DEFAULT_REQUEST_TIMEOUT_MS = 190_000;
 
-function boundedInteger(value, fallback, min, max) {
-  const parsed = Number.parseInt(String(value || ''), 10);
-  return Number.isFinite(parsed) && parsed >= min && parsed <= max ? parsed : fallback;
-}
-
-function firstForwardedValue(value) {
-  return String(value || '').split(',')[0].trim();
-}
-
-/** @param {import('node:http').IncomingMessage} incoming */
-function requestUrl(incoming) {
-  const forwardedProto = firstForwardedValue(incoming.headers['x-forwarded-proto']);
-  const protocol = forwardedProto === 'https' ? 'https' : 'http';
-  const forwardedHost = firstForwardedValue(incoming.headers['x-forwarded-host']);
-  const host = forwardedHost || firstForwardedValue(incoming.headers.host) || 'localhost';
-  return new URL(incoming.url || '/', `${protocol}://${host}`).toString();
-}
-
-/** @param {import('node:http').IncomingMessage} incoming */
-function webRequest(incoming) {
+function webRequest(incoming: IncomingMessage) {
   const method = String(incoming.method || 'GET').toUpperCase();
   const controller = new AbortController();
   incoming.once('aborted', () => controller.abort(new Error('Client disconnected')));
-  /** @type {RequestInit & { duplex?: 'half' }} */
-  const init = {
+  const init: RequestInit & { duplex?: 'half' } = {
     method,
-    headers: /** @type {HeadersInit} */ (incoming.headers),
+    headers: (incoming.headers as HeadersInit),
     signal: controller.signal,
   };
   if (method !== 'GET' && method !== 'HEAD') {
-    init.body = /** @type {BodyInit} */ (Readable.toWeb(incoming));
+    init.body = (Readable.toWeb(incoming) as unknown as BodyInit);
     init.duplex = 'half';
   }
   return new Request(requestUrl(incoming), init);
 }
 
-/**
- * @param {import('node:http').ServerResponse} outgoing
- * @param {Response} response
- */
-async function writeWebResponse(outgoing, response) {
+async function writeWebResponse(outgoing: ServerResponse, response: Response) {
   outgoing.statusCode = response.status;
   response.headers.forEach((value, name) => outgoing.setHeader(name, value));
   if (!response.body) {
@@ -61,13 +40,13 @@ async function writeWebResponse(outgoing, response) {
     return;
   }
   try {
-    await pipeline(Readable.fromWeb(response.body), outgoing);
+    await pipeline(Readable.fromWeb(response.body as NodeReadableStream<Uint8Array>), outgoing);
   } catch {
     if (!outgoing.destroyed) outgoing.destroy();
   }
 }
 
-function jsonResponse(status, body) {
+function jsonResponse(status: number, body: unknown) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
@@ -77,10 +56,7 @@ function jsonResponse(status, body) {
   });
 }
 
-/**
- * @param {{ proxyHandler?: (request: Request) => Promise<Response> | Response }} [options]
- */
-export function createCompatProxyServer(options = {}) {
+export function createCompatProxyServer(options: { proxyHandler?: (request: Request) => Promise<Response> | Response } = {}) {
   let proxyHandler = options.proxyHandler;
   const resolveProxyHandler = async () => {
     if (proxyHandler) return proxyHandler;
@@ -129,13 +105,13 @@ export async function startCompatProxyServer() {
   const server = createCompatProxyServer();
   const host = process.env.COMPAT_PROXY_BIND || DEFAULT_BIND_HOST;
   const port = boundedInteger(process.env.COMPAT_PROXY_PORT, DEFAULT_PORT, 1, 65_535);
-  await new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
     server.listen(port, host, () => resolve(undefined));
   });
   process.stdout.write(`Compatibility relay listening on ${host}:${port}\n`);
   let stopping = false;
-  const shutdown = signal => {
+  const shutdown = (signal: string) => {
     if (stopping) return;
     stopping = true;
     process.stdout.write(`Compatibility relay stopping after ${signal}\n`);

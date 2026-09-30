@@ -1,6 +1,10 @@
-// @ts-check
 // Minimal Node adapter for the SQLite-backed encrypted profile-share service.
 // It never logs request URLs, identifiers, headers, bodies, or responses.
+
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { ProfileShareObjectStore, ProfileShareHandler } from '../lib/profile-share-service.js';
+
+import { boundedInteger, requestUrl } from '../lib/node-request-routing.js';
 
 import { createServer } from 'node:http';
 import { resolve as resolvePath } from 'node:path';
@@ -11,6 +15,15 @@ import {
   maintainProfileShareStorage,
 } from '../lib/profile-share-service.js';
 import { createSqliteProfileShareStore } from '../lib/profile-share-sqlite-store.js';
+
+export interface ServerOptions {
+  store?: ProfileShareObjectStore & {
+    check?: () => void;
+    close?: () => void;
+  };
+  handler?: ProfileShareHandler;
+  maxRequestBytes?: number;
+}
 
 const DEFAULT_BIND_HOST = '0.0.0.0';
 const DEFAULT_PORT = 8790;
@@ -24,30 +37,11 @@ const UNTRUSTED_CLIENT_IDENTITY_HEADERS = new Set([
   'cf-connecting-ip',
 ]);
 
-function boundedInteger(value, fallback, min, max) {
-  const parsed = Number.parseInt(String(value || ''), 10);
-  return Number.isFinite(parsed) && parsed >= min && parsed <= max ? parsed : fallback;
-}
-
-function firstForwardedValue(value) {
-  return String(value || '').split(',')[0].trim();
-}
-
-function lastForwardedValue(value) {
+function lastForwardedValue(value: unknown) {
   return String(value || '').split(',').map(item => item.trim()).filter(Boolean).at(-1) || '';
 }
 
-/** @param {import('node:http').IncomingMessage} incoming */
-function requestUrl(incoming) {
-  const forwardedProto = firstForwardedValue(incoming.headers['x-forwarded-proto']);
-  const protocol = forwardedProto === 'https' ? 'https' : 'http';
-  const forwardedHost = firstForwardedValue(incoming.headers['x-forwarded-host']);
-  const host = forwardedHost || firstForwardedValue(incoming.headers.host) || 'localhost';
-  return new URL(incoming.url || '/', `${protocol}://${host}`).toString();
-}
-
-/** @param {import('node:http').IncomingMessage} incoming */
-function trustedHeaders(incoming) {
+function trustedHeaders(incoming: IncomingMessage) {
   const headers = new Headers();
   for (const [name, value] of Object.entries(incoming.headers)) {
     if (value == null || UNTRUSTED_CLIENT_IDENTITY_HEADERS.has(name.toLowerCase())) continue;
@@ -65,23 +59,19 @@ function trustedHeaders(incoming) {
 
 class RequestTooLargeError extends Error {}
 
-/**
- * @param {import('node:http').IncomingMessage} incoming
- * @param {number} maxBytes
- */
-async function readRequestBody(incoming, maxBytes) {
+async function readRequestBody(incoming: IncomingMessage, maxBytes: number) {
   const declared = Number.parseInt(String(incoming.headers['content-length'] || ''), 10);
   if (Number.isFinite(declared) && declared > maxBytes) throw new RequestTooLargeError();
-  return new Promise((resolve, reject) => {
-    const chunks = [];
+  return new Promise<Buffer<ArrayBuffer>>((resolve, reject) => {
+    const chunks: Buffer[] = [];
     let total = 0;
     let settled = false;
-    const finish = (callback, value) => {
+    const finish = <T>(callback: (value: T) => unknown, value: T) => {
       if (settled) return;
       settled = true;
       callback(value);
     };
-    incoming.on('data', chunk => {
+    incoming.on('data', (chunk: string | Uint8Array) => {
       if (settled) return;
       const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
       total += bytes.byteLength;
@@ -98,14 +88,9 @@ async function readRequestBody(incoming, maxBytes) {
   });
 }
 
-/**
- * @param {import('node:http').IncomingMessage} incoming
- * @param {number} maxBytes
- */
-async function webRequest(incoming, maxBytes) {
+async function webRequest(incoming: IncomingMessage, maxBytes: number) {
   const method = String(incoming.method || 'GET').toUpperCase();
-  /** @type {RequestInit} */
-  const init = {
+  const init: RequestInit = {
     method,
     headers: trustedHeaders(incoming),
   };
@@ -116,11 +101,7 @@ async function webRequest(incoming, maxBytes) {
   return new Request(requestUrl(incoming), init);
 }
 
-/**
- * @param {import('node:http').ServerResponse} outgoing
- * @param {Response} response
- */
-async function writeWebResponse(outgoing, response) {
+async function writeWebResponse(outgoing: ServerResponse, response: Response) {
   outgoing.statusCode = response.status;
   response.headers.forEach((value, name) => outgoing.setHeader(name, value));
   outgoing.setHeader('X-Content-Type-Options', 'nosniff');
@@ -130,7 +111,7 @@ async function writeWebResponse(outgoing, response) {
   outgoing.end(body);
 }
 
-function jsonResponse(status, body) {
+function jsonResponse(status: number, body: unknown) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
@@ -140,14 +121,7 @@ function jsonResponse(status, body) {
   });
 }
 
-/**
- * @param {{
- *   store?: import('../lib/profile-share-service.js').ProfileShareObjectStore & { check?: () => void, close?: () => void },
- *   handler?: typeof handleProfileShareRequest,
- *   maxRequestBytes?: number,
- * }} [options]
- */
-export function createProfileShareServer(options = {}) {
+export function createProfileShareServer(options: ServerOptions = {}) {
   const store = options.store || createSqliteProfileShareStore({
     databasePath: process.env.PROFILE_SHARE_SQLITE_PATH || '',
     rateLimitHmacKey: process.env.PROFILE_SHARE_RATE_LIMIT_KEY || '',
@@ -207,7 +181,7 @@ export async function startProfileShareServer() {
   const { server, store } = createProfileShareServer();
   const host = process.env.PROFILE_SHARE_BIND || DEFAULT_BIND_HOST;
   const port = boundedInteger(process.env.PROFILE_SHARE_PORT, DEFAULT_PORT, 1, 65_535);
-  let maintenanceTimer;
+  let maintenanceTimer: ReturnType<typeof setInterval> | undefined;
   try {
     store.check?.();
     await maintainProfileShareStorage(store).catch(() => {});
@@ -215,7 +189,7 @@ export async function startProfileShareServer() {
       maintainProfileShareStorage(store).catch(() => {});
     }, MAINTENANCE_INTERVAL_MS);
     maintenanceTimer.unref();
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       server.once('error', reject);
       server.listen(port, host, () => resolve(undefined));
     });
@@ -226,7 +200,7 @@ export async function startProfileShareServer() {
   }
   process.stdout.write(`Encrypted profile-share service listening on ${host}:${port}\n`);
   let shuttingDown = false;
-  const shutdown = signal => {
+  const shutdown = (signal: string) => {
     if (shuttingDown) return;
     shuttingDown = true;
     process.stdout.write(`Encrypted profile-share service stopping after ${signal}\n`);

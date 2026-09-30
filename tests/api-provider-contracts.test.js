@@ -1,3 +1,4 @@
+import { jsonResponse } from './helpers/http-responses.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const createTinfoilSecureFetchMock = vi.hoisted(() => vi.fn());
@@ -112,12 +113,7 @@ function clearProviderKeyCaches() {
   for (const key of PROVIDER_KEY_CACHE_KEYS) updateKeyCache(key, '');
 }
 
-function jsonResponse(body, init = {}) {
-  return new Response(JSON.stringify(body), {
-    status: init.status || 200,
-    headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
-  });
-}
+
 
 function chatCompletionResponse(text = 'contract ok') {
   return jsonResponse({

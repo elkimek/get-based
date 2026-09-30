@@ -4,9 +4,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 const mocks=vi.hoisted(()=>({statfs:vi.fn()}));
-vi.mock('node:fs',async original=>{const real=await original();return {...real,statfsSync:(...args)=>mocks.statfs(...args)??real.statfsSync(...args)};});
+vi.mock('node:fs',async original=>{const real=await original<typeof import('node:fs')>();return {...real,statfsSync:(...args: Parameters<typeof import('node:fs').statfsSync>)=>mocks.statfs(...args)??real.statfsSync(...args)};});
 import { createSqliteProfileShareStore, ProfileShareStoreConflictError } from '../lib/profile-share-sqlite-store.js';
-const resources=[];
+const resources: (() => void)[]=[];
 function fixture(){
  const directory=mkdtempSync(join(tmpdir(),'getbased-store-failure-'));
  const settings={databasePath:join(directory,'shares.sqlite'),rateLimitHmacKey:'fixture-private-key-with-more-than-32-characters',maxDatabaseBytes:67108864};

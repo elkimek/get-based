@@ -1,3 +1,4 @@
+import { jsonResponse } from './helpers/http-responses.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const realFetch = globalThis.fetch;
@@ -5,12 +6,7 @@ const realCaches = globalThis.caches;
 const realImportScripts = globalThis.importScripts;
 const realSelf = globalThis.self;
 
-function jsonResponse(body, init = {}) {
-  return new Response(JSON.stringify(body), {
-    status: init.status || 200,
-    headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
-  });
-}
+
 
 function cacheKey(request) {
   if (typeof request === 'string') return request;

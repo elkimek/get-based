@@ -1,3 +1,4 @@
+import type { ProfileShareObjectStore, ProfileShareHandler } from '../lib/profile-share-service.js';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -13,12 +14,12 @@ function request(method = 'GET', id = 'abcdefghijklmnopqrstuvwx') {
   return new Request(`https://app.getbased.health/api/share?id=${id}`, { method });
 }
 
-function handlerFor(legacyHandler, now) {
+function handlerFor(legacyHandler: ProfileShareHandler, now: string) {
   return createProfileShareTransitionHandler({
     upstreamUrl: UPSTREAM,
     startedAt: STARTED_AT,
     legacyBlobUntil: LEGACY_UNTIL,
-    legacyStore: /** @type {any} */ ({}),
+    legacyStore: {} as ProfileShareObjectStore,
     legacyHandler,
     now: () => Date.parse(now),
   });
@@ -87,7 +88,7 @@ describe('profile-share bounded transition', () => {
   it('fails closed on partial transition configuration', async () => {
     const handler = createProfileShareTransitionHandler({
       upstreamUrl: UPSTREAM,
-      legacyStore: /** @type {any} */ ({}),
+      legacyStore: {} as ProfileShareObjectStore,
     });
     const response = await handler(request());
     expect(response.status).toBe(503);

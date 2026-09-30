@@ -1,7 +1,8 @@
-// @ts-check
 // Node-only persistent object store for encrypted profile-share envelopes.
 // The schema is deliberately generic so the runtime-neutral service can keep
 // its existing atomic share, TTL, cleanup, and rate-marker behavior.
+
+import type { ProfileShareObjectStore } from './profile-share-service.js';
 
 import { createHmac } from 'node:crypto';
 import {
@@ -12,6 +13,18 @@ import {
 import { dirname, isAbsolute } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
+interface SqliteStoreSettings {
+  databasePath: string;
+  rateLimitHmacKey: string;
+  maxDatabaseBytes?: number | string | undefined;
+}
+export interface SqliteProfileShareStore extends ProfileShareObjectStore {
+  check(): void;
+  close(): void;
+  databasePath: string;
+  hashRateLimitSubject(subject: string): string;
+}
+
 const DEFAULT_MAX_DATABASE_BYTES = 512 * 1024 * 1024;
 const MIN_MAX_DATABASE_BYTES = 64 * 1024 * 1024;
 const MAX_MAX_DATABASE_BYTES = 4 * 1024 * 1024 * 1024;
@@ -20,6 +33,7 @@ const MIN_FREE_BYTES = 256 * 1024 * 1024;
 const PATHNAME_RE = /^[A-Za-z0-9._/-]{1,512}$/;
 
 export class ProfileShareStoreConflictError extends Error {
+  declare code: string;
   constructor(message = 'Profile-share object already exists.') {
     super(message);
     this.name = 'ProfileShareStoreConflictError';
@@ -27,12 +41,12 @@ export class ProfileShareStoreConflictError extends Error {
   }
 }
 
-function boundedInteger(value, fallback, min, max) {
+function boundedInteger(value: unknown, fallback: number, min: number, max: number) {
   const parsed = Number.parseInt(String(value ?? ''), 10);
   return Number.isSafeInteger(parsed) && parsed >= min && parsed <= max ? parsed : fallback;
 }
 
-function validatePathname(pathname) {
+function validatePathname(pathname: unknown) {
   const normalized = String(pathname || '');
   if (!PATHNAME_RE.test(normalized) || normalized.includes('..')) {
     throw new Error('Invalid profile-share storage pathname.');
@@ -40,16 +54,16 @@ function validatePathname(pathname) {
   return normalized;
 }
 
-function throwIfAborted(signal) {
+function throwIfAborted(signal: AbortSignal | null | undefined) {
   if (signal?.aborted) throw signal.reason || new Error('Profile-share storage operation aborted.');
 }
 
-function sqliteConflict(error) {
+function sqliteConflict(error: unknown) {
   return error instanceof ProfileShareStoreConflictError
-    || /unique constraint|primary key|already exists/i.test(String(error?.message || ''));
+    || /unique constraint|primary key|already exists/i.test(String((error as { message?: unknown } | null)?.message || ''));
 }
 
-function beginTransaction(database) {
+function beginTransaction(database: DatabaseSync) {
   database.exec('BEGIN IMMEDIATE');
   let finished = false;
   return {
@@ -66,19 +80,7 @@ function beginTransaction(database) {
   };
 }
 
-/**
- * @param {{
- *   databasePath: string,
- *   rateLimitHmacKey: string,
- *   maxDatabaseBytes?: number | string,
- * }} settings
- * @returns {import('./profile-share-service.js').ProfileShareObjectStore & {
- *   check: () => void,
- *   close: () => void,
- *   databasePath: string,
- * }}
- */
-export function createSqliteProfileShareStore(settings) {
+export function createSqliteProfileShareStore(settings: SqliteStoreSettings): SqliteProfileShareStore {
   const databasePath = String(settings?.databasePath || '').trim();
   if (!databasePath || !isAbsolute(databasePath)) {
     throw new Error('PROFILE_SHARE_SQLITE_PATH must be an absolute path.');
@@ -150,7 +152,7 @@ export function createSqliteProfileShareStore(settings) {
   );
   const pageCountStatement = database.prepare('PRAGMA page_count');
 
-  function ensureWriteCapacity(bodyBytes) {
+  function ensureWriteCapacity(bodyBytes: number) {
     const pageCount = Number(pageCountStatement.get()?.page_count) || 0;
     if ((pageCount * pageSize) + bodyBytes > maxDatabaseBytes) {
       throw new Error('Profile-share storage capacity reached.');

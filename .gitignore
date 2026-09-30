@@ -202,3 +202,24 @@ deploy/profile-share/data/
 /js/transaction-completion.js
 
 /js/backup-cycle.js
+
+/lib/vercel-blob-rest.js
+
+/lib/profile-share-service.js
+
+/lib/profile-share-transition.js
+
+/lib/profile-share-vercel-blob-store.js
+
+/lib/profile-share-sqlite-store.js
+
+/server/profile-share-server.js
+
+/api/share.js
+
+/api/commit.js
+
+/tests/helpers/http-responses.js
+
+/lib/node-request-routing.js
+/server/compat-proxy-server.js

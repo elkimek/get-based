@@ -1,22 +1,24 @@
+import type { Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createCompatProxyServer } from '../server/compat-proxy-server.js';
 
-const servers = new Set();
+const servers = new Set<Server>();
 
 afterEach(async () => {
   for (const server of servers) server.closeAllConnections();
-  await Promise.all(Array.from(servers, server => new Promise(resolve => server.close(resolve))));
+  await Promise.all(Array.from(servers, server => new Promise<Error | undefined>(resolve => server.close(resolve))));
   servers.clear();
 });
 
-async function listen(server) {
+async function listen(server: Server) {
   servers.add(server);
-  await new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
     server.listen(0, '127.0.0.1', resolve);
   });
-  return server.address().port;
+  return (server.address() as AddressInfo).port;
 }
 
 describe('compatibility proxy Node adapter', () => {
@@ -63,7 +65,7 @@ describe('compatibility proxy Node adapter', () => {
 
 
 it('cancels the upstream request and response when the browser disconnects mid-stream', async () => {
-  let signal;
+  let signal: AbortSignal | undefined;
   const cancel = vi.fn();
   const port = await listen(createCompatProxyServer({ proxyHandler: request => {
     signal = request.signal;
@@ -72,10 +74,10 @@ it('cancels the upstream request and response when the browser disconnects mid-s
     }));
   } }));
   const response = await fetch(`http://127.0.0.1:${port}/api/proxy`);
-  const reader = response.body.getReader();
-  expect((await reader.read()).value.byteLength).toBeGreaterThan(0);
+  const reader = response.body!.getReader();
+  expect((await reader.read()).value!.byteLength).toBeGreaterThan(0);
   await reader.cancel();
-  await vi.waitFor(() => expect(signal.aborted).toBe(true));
+  await vi.waitFor(() => expect(signal!.aborted).toBe(true));
   await vi.waitFor(() => expect(cancel).toHaveBeenCalledOnce());
 });
 

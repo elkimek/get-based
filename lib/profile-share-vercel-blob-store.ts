@@ -1,5 +1,6 @@
-// @ts-check
 // Private Vercel Blob adapter for the runtime-neutral profile-share service.
+
+import type { ProfileShareObjectStore } from './profile-share-service.js';
 
 import {
   BlobNotFoundError,
@@ -11,11 +12,7 @@ import {
   putBlob,
 } from './vercel-blob-rest.js';
 
-/**
- * @param {string | undefined} token
- * @returns {import('./profile-share-service.js').ProfileShareObjectStore | null}
- */
-export function createVercelBlobProfileShareStore(token) {
+export function createVercelBlobProfileShareStore(token: string | undefined): ProfileShareObjectStore | null {
   const options = blobStoreOptions(token);
   if (!options) return null;
   return {

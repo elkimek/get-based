@@ -8,7 +8,7 @@ import { createVercelBlobProfileShareStore } from '../lib/profile-share-vercel-b
 
 export const config = { runtime: 'edge' };
 
-export function createVercelProfileShareHandler(env = process.env) {
+export function createVercelProfileShareHandler(env: NodeJS.ProcessEnv = process.env) {
   const legacyStore = createVercelBlobProfileShareStore(env.BLOB_READ_WRITE_TOKEN);
   return createProfileShareTransitionHandler({
     upstreamUrl: env.GETBASED_PROFILE_SHARE_UPSTREAM_URL,
@@ -19,6 +19,6 @@ export function createVercelProfileShareHandler(env = process.env) {
   });
 }
 
-export default function handler(req) {
+export default function handler(req: Request) {
   return createVercelProfileShareHandler()(req);
 }

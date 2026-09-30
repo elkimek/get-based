@@ -1,19 +1,41 @@
-// @ts-check
 // Bounded bridge from the legacy same-origin profile-share endpoint to a
 // standalone service. It preserves still-live encrypted links without copying
 // their opaque envelopes or leaving an indefinite storage fallback.
 
+import type { ProfileShareObjectStore, ProfileShareHandler } from './profile-share-service.js';
+
 import { handleProfileShareRequest } from './profile-share-service.js';
+
+interface TransitionConfig {
+  upstreamUrl?: string | undefined;
+  startedAt?: string | undefined;
+  legacyBlobUntil?: string | undefined;
+}
+interface TransitionSettings extends TransitionConfig {
+  legacyStore: ProfileShareObjectStore | null;
+  now?: () => number;
+  legacyHandler?: ProfileShareHandler;
+}
+type TransitionState = {
+  mode: 'legacy';
+} | {
+  mode: 'invalid';
+} | {
+  mode: 'transition';
+  upstreamUrl: string;
+  startedAt: number;
+  legacyBlobUntil: number;
+};
 
 const MAX_LEGACY_WINDOW_MS = 31 * 24 * 60 * 60 * 1000;
 const JSON_HEADERS = { 'Cache-Control': 'no-store', 'Content-Type': 'application/json' };
 
-function isExactLoopback(url) {
+function isExactLoopback(url: URL) {
   return url.protocol === 'http:'
     && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
 }
 
-function normalizeUpstream(value) {
+function normalizeUpstream(value: unknown) {
   try {
     const url = new URL(String(value || ''));
     if ((url.protocol !== 'https:' && !isExactLoopback(url))
@@ -24,16 +46,13 @@ function normalizeUpstream(value) {
   }
 }
 
-/**
- * @param {{upstreamUrl?: string, startedAt?: string, legacyBlobUntil?: string}} settings
- */
-export function resolveProfileShareTransition(settings) {
+export function resolveProfileShareTransition(settings: TransitionConfig | null | undefined): TransitionState {
   const values = [settings?.upstreamUrl, settings?.startedAt, settings?.legacyBlobUntil]
     .map(value => String(value || '').trim());
   if (values.every(value => !value)) return { mode: 'legacy' };
   const upstreamUrl = normalizeUpstream(values[0]);
-  const startedAt = Date.parse(values[1]);
-  const legacyBlobUntil = Date.parse(values[2]);
+  const startedAt = Date.parse(values[1]!);
+  const legacyBlobUntil = Date.parse(values[2]!);
   if (!upstreamUrl
       || !Number.isFinite(startedAt)
       || !Number.isFinite(legacyBlobUntil)
@@ -51,7 +70,7 @@ function unavailableResponse() {
   });
 }
 
-function redirectToUpstream(req, upstreamUrl) {
+function redirectToUpstream(req: Request, upstreamUrl: string) {
   const source = new URL(req.url);
   const target = new URL(upstreamUrl);
   target.search = source.search;
@@ -65,7 +84,7 @@ function redirectToUpstream(req, upstreamUrl) {
   });
 }
 
-async function legacyRecordMissing(req, response) {
+async function legacyRecordMissing(req: Request, response: Response) {
   if (req.method === 'GET') return response.status === 404;
   if (req.method !== 'DELETE' || response.status !== 200) return false;
   try {
@@ -75,21 +94,11 @@ async function legacyRecordMissing(req, response) {
   }
 }
 
-/**
- * @param {{
- *   upstreamUrl?: string,
- *   startedAt?: string,
- *   legacyBlobUntil?: string,
- *   legacyStore: import('./profile-share-service.js').ProfileShareObjectStore | null,
- *   now?: () => number,
- *   legacyHandler?: typeof handleProfileShareRequest,
- * }} settings
- */
-export function createProfileShareTransitionHandler(settings) {
+export function createProfileShareTransitionHandler(settings: TransitionSettings) {
   const transition = resolveProfileShareTransition(settings);
   const now = settings.now || Date.now;
   const legacyHandler = settings.legacyHandler || handleProfileShareRequest;
-  return async function profileShareTransitionHandler(req) {
+  return async function profileShareTransitionHandler(req: Request) {
     if (transition.mode === 'invalid') return unavailableResponse();
     const currentTime = now();
     if (transition.mode === 'legacy' || currentTime < transition.startedAt) {

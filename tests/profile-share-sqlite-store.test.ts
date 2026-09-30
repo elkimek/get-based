@@ -9,10 +9,10 @@ import {
 } from '../lib/profile-share-sqlite-store.js';
 import { maintainProfileShareStorage } from '../lib/profile-share-service.js';
 
-const cleanups = [];
+const cleanups: (() => void)[] = [];
 
 afterEach(() => {
-  while (cleanups.length) cleanups.pop()();
+  while (cleanups.length) cleanups.pop()!();
 });
 
 function makeStore() {

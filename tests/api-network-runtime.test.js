@@ -1,3 +1,4 @@
+import { jsonResponse } from './helpers/http-responses.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../lib/proxy-network.js', () => ({
@@ -49,12 +50,7 @@ const ENV_KEYS = [
 
 let savedEnv;
 
-function jsonResponse(body, init = {}) {
-  return new Response(JSON.stringify(body), {
-    status: init.status || 200,
-    headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
-  });
-}
+
 
 async function responseJson(response) {
   return JSON.parse(await response.text());

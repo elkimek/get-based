@@ -1,13 +1,16 @@
 **
 !package.json
 !package-lock.json
+!tsconfig.migration.json
 !api/
 !api/**
 !lib/
 !lib/**
 !server/
 !server/compat-proxy-server.js
+!server/compat-proxy-server.ts
 !server/profile-share-server.js
+!server/profile-share-server.ts
 !scripts/
 !scripts/vendor-packages/
 !scripts/vendor-packages/**

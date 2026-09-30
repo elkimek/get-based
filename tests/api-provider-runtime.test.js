@@ -1,3 +1,4 @@
+import { jsonResponse } from './helpers/http-responses.js';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 
@@ -44,12 +45,7 @@ const realFetch = globalThis.fetch;
 const realLocation = globalThis.location;
 let previousApiRuntimeCallbacks;
 
-function jsonResponse(body, init = {}) {
-  return new Response(JSON.stringify(body), {
-    status: init.status || 200,
-    headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
-  });
-}
+
 
 function sha256Base64Url(value) {
   return createHash('sha256').update(value).digest('base64url');

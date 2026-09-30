@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 807 |
-| Internal import edges | 3408 |
+| Modules | 808 |
+| Internal import edges | 3410 |
 | Dynamic internal edges | 119 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -24,10 +24,11 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | browser | `js/` | browser, shared |
 | shared | `shared/` | shared |
 | serverless | `api/` | serverless, server-shared |
-| compat-server | `server/compat-proxy-server.js` | serverless |
+| compat-server | `server/compat-proxy-server.js` | serverless, server-routing |
+| server-routing | `lib/node-request-routing.js` |  |
 | server-shared | `lib/` | server-shared, shared |
 | local-server | `dev-server.js` | server-shared |
-| standalone-server | `server/profile-share-server.js` | server-shared |
+| standalone-server | `server/profile-share-server.js` | server-shared, server-routing |
 | agent-companion | `server/agent-host-server.js` | server-shared, shared |
 | companion-cli | `bin/getbased-companion.js` | server-shared, agent-companion |
 | service-worker | `service-worker.js`, `service-worker-runtime.js` | service-worker |
@@ -1495,7 +1496,7 @@ Hosted request handlers shared by Vercel and Node deployment entry points.
 
 <details><summary><code>commit</code> family — 1 module</summary>
 
-- [`api/commit.js`](api/commit.js) → no in-scope imports
+- [`api/commit.ts`](api/commit.ts) → no in-scope imports
 
 </details>
 
@@ -1513,7 +1514,7 @@ Hosted request handlers shared by Vercel and Node deployment entry points.
 
 <details><summary><code>share</code> family — 1 module</summary>
 
-- [`api/share.js`](api/share.js) → [`lib/profile-share-service.js`](lib/profile-share-service.js), [`lib/profile-share-transition.js`](lib/profile-share-transition.js), [`lib/profile-share-vercel-blob-store.js`](lib/profile-share-vercel-blob-store.js)
+- [`api/share.ts`](api/share.ts) → [`lib/profile-share-service.ts`](lib/profile-share-service.ts), [`lib/profile-share-transition.ts`](lib/profile-share-transition.ts), [`lib/profile-share-vercel-blob-store.ts`](lib/profile-share-vercel-blob-store.ts)
 
 </details>
 
@@ -1523,7 +1524,17 @@ Standalone Node compatibility-relay entry point.
 
 <details><summary><code>compat</code> family — 1 module</summary>
 
-- [`server/compat-proxy-server.js`](server/compat-proxy-server.js) → [`api/proxy.ts`](api/proxy.ts) *(dynamic)*
+- [`server/compat-proxy-server.ts`](server/compat-proxy-server.ts) → [`api/proxy.ts`](api/proxy.ts) *(dynamic)*, [`lib/node-request-routing.ts`](lib/node-request-routing.ts)
+
+</details>
+
+## server-routing modules
+
+Pure forwarded-origin and integer parsing shared by the standalone HTTP adapters.
+
+<details><summary><code>node</code> family — 1 module</summary>
+
+- [`lib/node-request-routing.ts`](lib/node-request-routing.ts) → no in-scope imports
 
 </details>
 
@@ -1625,10 +1636,10 @@ Node-only policy and transport code shared by hosted runtimes.
 
 <details><summary><code>profile</code> family — 4 modules</summary>
 
-- [`lib/profile-share-service.js`](lib/profile-share-service.js) → no in-scope imports
-- [`lib/profile-share-sqlite-store.js`](lib/profile-share-sqlite-store.js) → no in-scope imports
-- [`lib/profile-share-transition.js`](lib/profile-share-transition.js) → [`lib/profile-share-service.js`](lib/profile-share-service.js)
-- [`lib/profile-share-vercel-blob-store.js`](lib/profile-share-vercel-blob-store.js) → [`lib/vercel-blob-rest.js`](lib/vercel-blob-rest.js)
+- [`lib/profile-share-service.ts`](lib/profile-share-service.ts) → no in-scope imports
+- [`lib/profile-share-sqlite-store.ts`](lib/profile-share-sqlite-store.ts) → no in-scope imports
+- [`lib/profile-share-transition.ts`](lib/profile-share-transition.ts) → [`lib/profile-share-service.ts`](lib/profile-share-service.ts)
+- [`lib/profile-share-vercel-blob-store.ts`](lib/profile-share-vercel-blob-store.ts) → [`lib/vercel-blob-rest.ts`](lib/vercel-blob-rest.ts)
 
 </details>
 
@@ -1656,7 +1667,7 @@ Node-only policy and transport code shared by hosted runtimes.
 
 <details><summary><code>vercel</code> family — 1 module</summary>
 
-- [`lib/vercel-blob-rest.js`](lib/vercel-blob-rest.js) → no in-scope imports
+- [`lib/vercel-blob-rest.ts`](lib/vercel-blob-rest.ts) → no in-scope imports
 
 </details>
 
@@ -1682,7 +1693,7 @@ Operator-deployed profile-share service entry point.
 
 <details><summary><code>profile</code> family — 1 module</summary>
 
-- [`server/profile-share-server.js`](server/profile-share-server.js) → [`lib/profile-share-service.js`](lib/profile-share-service.js), [`lib/profile-share-sqlite-store.js`](lib/profile-share-sqlite-store.js)
+- [`server/profile-share-server.ts`](server/profile-share-server.ts) → [`lib/node-request-routing.ts`](lib/node-request-routing.ts), [`lib/profile-share-service.ts`](lib/profile-share-service.ts), [`lib/profile-share-sqlite-store.ts`](lib/profile-share-sqlite-store.ts)
 
 </details>
 

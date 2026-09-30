@@ -240,6 +240,14 @@ is included in the offline cache graph. All 3,389 unit tests, four focused Chrom
 cases, native/legacy type gates, zero strict-null debt, production budgets and
 unchanged DOM sink fingerprints pass.
 
+The encrypted profile-share backend now has native object-store and request-handler
+contracts. The service owns envelope validation, rate limits and bounded expiry
+cleanup; private Vercel REST storage, SQLite persistence and the Node HTTP adapter
+remain separate. Both service Docker recipes compile the canonical TypeScript in
+a build stage before copying runtime files, so a fresh clone can build without
+pre-generated JavaScript. The SQLite, HTTP, transition and startup regression
+suites are checked as native TypeScript, with their original assertions retained.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

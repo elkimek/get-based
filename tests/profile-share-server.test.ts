@@ -1,3 +1,5 @@
+import type { AddressInfo } from 'node:net';
+import type { ServerOptions } from '../server/profile-share-server.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -6,13 +8,13 @@ import { join } from 'node:path';
 import { createSqliteProfileShareStore } from '../lib/profile-share-sqlite-store.js';
 import { createProfileShareServer } from '../server/profile-share-server.js';
 
-const resources = [];
+const resources: (() => Promise<void>)[] = [];
 
 afterEach(async () => {
-  while (resources.length) await resources.pop()();
+  while (resources.length) await resources.pop()!();
 });
 
-async function sha256Hex(value) {
+async function sha256Hex(value: string) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 }
@@ -28,7 +30,7 @@ function validEnvelope() {
   };
 }
 
-async function makeServer(options = {}) {
+async function makeServer(options: ServerOptions = {}) {
   const directory = mkdtempSync(join(tmpdir(), 'getbased-profile-share-server-'));
   const store = createSqliteProfileShareStore({
     databasePath: join(directory, 'shares.sqlite'),
@@ -36,20 +38,20 @@ async function makeServer(options = {}) {
     maxDatabaseBytes: 64 * 1024 * 1024,
   });
   const { server } = createProfileShareServer({ store, ...options });
-  await new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
     server.listen(0, '127.0.0.1', resolve);
   });
-  const port = server.address().port;
+  const port = (server.address() as AddressInfo).port;
   resources.push(async () => {
-    await new Promise(resolve => server.close(resolve));
+    await new Promise<Error | undefined>(resolve => server.close(resolve));
     store.close();
     rmSync(directory, { recursive: true, force: true });
   });
   return { port, store };
 }
 
-function endpoint(port, query = '') {
+function endpoint(port: number, query = '') {
   return `http://127.0.0.1:${port}/api/share${query}`;
 }
 
@@ -63,8 +65,8 @@ const forwardedHeaders = {
 
 describe('SQLite profile-share Node adapter', () => {
   it('strips caller-controlled rate-limit identities and injects the proxy address', async () => {
-    let receivedHeaders;
-    const handler = async request => {
+    let receivedHeaders: Record<string, string> | undefined;
+    const handler = async (request: Request) => {
       receivedHeaders = Object.fromEntries(request.headers);
       return new Response('{}', { status: 200 });
     };
@@ -123,7 +125,7 @@ describe('SQLite profile-share Node adapter', () => {
 
     const rateMarkers = await store.list({ prefix: 'profile-share-rate/v2/', limit: 100 });
     expect(rateMarkers.blobs).toHaveLength(1);
-    expect(rateMarkers.blobs[0].pathname).not.toContain('198.51.100.22');
+    expect(rateMarkers.blobs[0]!.pathname).not.toContain('198.51.100.22');
 
     const denied = await fetch(endpoint(port, `?id=${id}`), {
       method: 'DELETE',
