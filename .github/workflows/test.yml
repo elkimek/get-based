@@ -61,6 +61,9 @@ jobs:
       - name: Run typecheck
         run: npm run typecheck
 
+      - name: Check migrated TypeScript with strict options
+        run: npm run typecheck:migration
+
       - name: Run full-app checkJs
         run: npm run typecheck:checkjs
 

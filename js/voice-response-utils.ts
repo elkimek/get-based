@@ -1,7 +1,6 @@
-// @ts-check
 // voice-response-utils.js — readable bounded error extraction for voice clients.
 
-export function voiceErrorText(value, depth = 0) {
+export function voiceErrorText(value: unknown, depth = 0): string {
   if (depth > 4 || value == null) return '';
   if (typeof value === 'string') return value.trim();
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
@@ -10,14 +9,14 @@ export function voiceErrorText(value, depth = 0) {
   }
   if (typeof value === 'object') {
     for (const key of ['message', 'detail', 'error', 'reason', 'description']) {
-      const result = voiceErrorText(value[key], depth + 1);
+      const result = voiceErrorText((value as Record<string, unknown>)[key], depth + 1);
       if (result) return result;
     }
   }
   return '';
 }
 
-export async function voiceResponseError(response, fallback) {
+export async function voiceResponseError(response: Response, fallback: string): Promise<string> {
   const text = await response.text().catch(() => '');
   try {
     return voiceErrorText(JSON.parse(text)) || fallback;
@@ -26,7 +25,7 @@ export async function voiceResponseError(response, fallback) {
   }
 }
 
-export async function expectVoiceResponseOk(response, fallback) {
+export async function expectVoiceResponseOk(response: Response, fallback: string): Promise<Response> {
   if (response.ok) return response;
   throw new Error(await voiceResponseError(response, `${fallback} (${response.status})`));
 }

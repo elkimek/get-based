@@ -18,6 +18,7 @@ function postalAbortReason(signal) {
     : new DOMException('Postal lookup aborted', 'AbortError');
 }
 
+/** @returns {Promise<void>} */
 function waitForPostalThrottle(waitMs, signal) {
   if (!waitMs) return Promise.resolve();
   if (signal?.aborted) return Promise.reject(postalAbortReason(signal));

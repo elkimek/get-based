@@ -4,15 +4,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import ts from 'typescript';
+import ts from 'typescript-api';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LEGACY = 'tests/_vitest-legacy.test.js';
 const SOURCE = /\.(?:[cm]?js|ts|json|html|css|yml|yaml)$/;
-const isUnit = file => file.startsWith('tests/') && file.endsWith('.test.js') && file !== LEGACY;
-const isBrowser = file => /^tests\/playwright\/.*\.spec\.js$/.test(file);
-const isFirefox = file => /^tests\/firefox\/.*\.spec\.js$/.test(file);
-const isPwa = file => /^tests\/pwa\/.*\.spec\.js$/.test(file);
+const isUnit = file => file.startsWith('tests/') && /\.test\.[jt]s$/.test(file) && file !== LEGACY;
+const isBrowser = file => /^tests\/playwright\/.*\.spec\.[jt]s$/.test(file);
+const isFirefox = file => /^tests\/firefox\/.*\.spec\.[jt]s$/.test(file);
+const isPwa = file => /^tests\/pwa\/.*\.spec\.[jt]s$/.test(file);
 const escapeRegex = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // Explicit edges cover UI-only tests that exercise these catalogs through DOM
@@ -28,11 +28,11 @@ export function fileReferences(file, source, knownFiles) {
       clean.replace(/^\//, ''),
       path.posix.normalize(path.posix.join(path.posix.dirname(file), clean)),
     ];
-    for (const candidate of candidates) {
+    for (const candidate of candidates.flatMap(candidate => [candidate.replace(/\.mjs$/, '.mts').replace(/\.js$/, '.ts'), candidate])) {
       if (candidate !== file && knownFiles.has(candidate)) refs.add(candidate);
     }
   };
-  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true,  /\.[cm]?ts$/.test(file) ? ts.ScriptKind.TS : ts.ScriptKind.JS);
   const visit = node => {
     if (ts.isStringLiteralLike(node)) add(node.text);
     ts.forEachChild(node, visit);
@@ -110,7 +110,7 @@ export function createTestPlan(sources, changedFiles) {
   // An unknown runtime change must never silently produce an empty green check.
   const selected = new Set([...plan.unit, ...plan.legacy, ...plan.browser, ...plan.firefox, ...plan.pwa]);
   plan.uncovered = changedFiles.filter(file => {
-    if (!/^(js\/|lib\/|api\/|server\/|scripts\/).*\.[cm]?js$/.test(file)) return false;
+    if (!/^(js\/|lib\/|api\/|server\/|scripts\/).*\.[cm]?[jt]s$/.test(file)) return false;
     if (MODEL_SOURCES.has(file)) return ![...selected].some(test => MODEL_TESTS.test(test));
     const visited = new Set([file]);
     const pending = [file];

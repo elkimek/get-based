@@ -178,6 +178,7 @@ async function shutdown() {
   if (!shutdownPromise) shutdownPromise = (async () => {
     // Stop accepting connections immediately, but let clients settle active
     // requests before waiting for those connections to finish draining.
+    /** @type {Promise<void>} */
     const listenerClosed = server.listening
       ? new Promise(resolve => server.close(() => resolve())) : Promise.resolve();
     try {

@@ -37,3 +37,28 @@ deploy/profile-share/data/
 .DS_Store
 
 /tests/.critical-coverage/
+
+# TypeScript compiler output beside canonical source
+/js/caught-error.js
+/lib/error-utils.js
+/shared/agent-host-protocol.js
+/shared/agent-tool-contract.js
+/scripts/build-typescript.js
+/scripts/source-files.js
+/scripts/migration-progress.js
+/js/profile-storage-key.js
+/js/crypto-key-cache.js
+/js/profile-load-safety.js
+/js/unique-id.js
+/js/chat-stream-status.js
+/js/sync-delta-id.js
+/js/chat-model-preferences.js
+/js/agent-chat-context.js
+/js/chat-render-range.js
+/js/voice-response-utils.js
+/js/lens-url.js
+/js/url-safety.js
+/js/biology-score-dates.js
+/js/category-order.js
+/js/lab-date-range.js
+/js/voice-settings-schema.js

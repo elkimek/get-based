@@ -1,4 +1,5 @@
-// @ts-check
+export interface ExternalUrlPolicy { requireHttps?: boolean; allowLocalhost?: boolean }
+
 // Shared SSRF-style validation for user-supplied URLs that the browser
 // will fetch directly (mint URLs, Routstr nodes, self-host UV data, etc.).
 //
@@ -12,14 +13,14 @@
 // legitimately need a local target (lens external-server, Ollama custom
 // provider) pass { allowLocalhost: true } and accept that risk explicitly.
 
-export function canonicalRoutstrUrl(raw) {
+export function canonicalRoutstrUrl(raw: unknown): string {
   if (!isValidExternalUrl(raw)) throw new Error('Expected a public HTTPS endpoint');
-  const url = new URL(raw);
+  const url = new URL(raw as string);
   if (url.username || url.password || url.search || url.hash) throw new Error('Endpoint must not contain credentials, a query, or a fragment');
   return url.href.replace(/\/+$/, '');
 }
 
-export function isOfficialGetbasedHost(locationLike = globalThis.location) {
+export function isOfficialGetbasedHost(locationLike: { hostname?: unknown } | null = globalThis.location): boolean {
   const hostname = String(locationLike?.hostname || '').toLowerCase().replace(/\.$/, '');
   return hostname === 'getbased.health'
     || hostname.endsWith('.getbased.health')
@@ -33,9 +34,9 @@ export const HOSTED_PLAINTEXT_RELAY_MESSAGE =
 export const SELF_HOSTED_WEARABLE_MESSAGE =
   'This experimental wearable integration requires a user-controlled deployment with its own OAuth application and same-origin proxy.';
 
-export function isValidExternalUrl(raw, { requireHttps = true, allowLocalhost = false } = {}) {
+export function isValidExternalUrl(raw: unknown, { requireHttps = true, allowLocalhost = false }: ExternalUrlPolicy = {}): boolean {
   let u;
-  try { u = new URL(raw); } catch { return false; }
+  try { u = new URL(raw as string); } catch { return false; }
   if (u.protocol !== 'https:' && u.protocol !== 'http:') return false;
   if (requireHttps && u.protocol !== 'https:') return false;
 
@@ -56,7 +57,7 @@ export function isValidExternalUrl(raw, { requireHttps = true, allowLocalhost = 
       if (o.length > 1 && o[0] === '0') return false;            // leading-zero octal trick
       if (+o > 255) return false;
     }
-    const o = octets.map(Number);
+    const o = octets.map(Number) as [number, number, number, number];
     if (!allowLocalhost && o[0] === 127) return false;          // 127.0.0.0/8
     if (!allowLocalhost && o[0] === 0) return false;            // 0.0.0.0/8
     if (o[0] === 10) return false;                              // 10.0.0.0/8
@@ -85,8 +86,8 @@ export function isValidExternalUrl(raw, { requireHttps = true, allowLocalhost = 
       const tail = host.slice(7);
       const groups = tail.split(':');
       if (groups.length === 2 && groups.every(g => /^[0-9a-f]{1,4}$/.test(g))) {
-        const g0 = parseInt(groups[0], 16);
-        const g1 = parseInt(groups[1], 16);
+        const g0 = parseInt(groups[0]!, 16);
+        const g1 = parseInt(groups[1]!, 16);
         const a = (g0 >> 8) & 0xff;
         const b = g0 & 0xff;
         const c = (g1 >> 8) & 0xff;
@@ -97,8 +98,8 @@ export function isValidExternalUrl(raw, { requireHttps = true, allowLocalhost = 
     // 6to4 = 2002:WWXX:YYZZ::/48, with WWXX:YYZZ encoding an IPv4 address.
     const sixToFour = /^2002:([0-9a-f]{1,4}):([0-9a-f]{1,4})(?::|$)/.exec(host);
     if (sixToFour) {
-      const g0 = parseInt(sixToFour[1], 16);
-      const g1 = parseInt(sixToFour[2], 16);
+      const g0 = parseInt(sixToFour[1]!, 16);
+      const g1 = parseInt(sixToFour[2]!, 16);
       const a = (g0 >> 8) & 0xff;
       const b = g0 & 0xff;
       const c = (g1 >> 8) & 0xff;

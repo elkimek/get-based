@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import ts from 'typescript-api';
+import { runtimePath } from '../scripts/source-files.js';
 // test-quality-guardrails.js — pin dependency-free quality guardrails.
 
 import fs from 'node:fs';
@@ -46,6 +48,8 @@ function collectYamlFiles(dir) {
 const workflowFiles = collectYamlFiles(path.join(ROOT, '.github'));
 const tsConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.json'), 'utf8'));
 const checkJsConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.checkjs.json'), 'utf8'));
+const checkedBrowserFiles = new Set(ts.parseJsonConfigFileContent(checkJsConfig, ts.sys, ROOT).fileNames
+  .map(file => runtimePath(path.relative(ROOT, file).replaceAll(path.sep, '/'))));
 const serverCheckJsConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.server.json'), 'utf8'));
 const serviceWorkerCheckJsConfig = JSON.parse(
   fs.readFileSync(path.join(ROOT, 'tsconfig.service-worker.json'), 'utf8'),
@@ -60,7 +64,7 @@ assert('package.json exposes architecture build and check commands',
   pkg.scripts?.['architecture:build'] === 'node scripts/architecture-map.mjs --write' &&
     pkg.scripts?.['architecture:check'] === 'node scripts/architecture-map.mjs --check');
 assert('architecture tooling parses ESM with TypeScript and enforces cycle growth',
-  architectureSrc.includes("from 'typescript'") &&
+  architectureSrc.includes("from 'typescript-api'") &&
     architectureSrc.includes('stronglyConnectedComponents') &&
     architectureSrc.includes('new modules entered dependency cycles') &&
     architectureSrc.includes('new computed dynamic import cannot be checked statically'));
@@ -323,7 +327,7 @@ const highValueCheckJsModules = [
   'js/wearables-strip-actions.js',
 ];
 const missingHighValueCheckJsModules = highValueCheckJsModules
-  .filter(file => !checkJsConfig.include?.includes(file));
+  .filter(file => !checkedBrowserFiles.has(file));
 assert('checkJs includes high-coupling browser modules',
   missingHighValueCheckJsModules.length === 0,
   missingHighValueCheckJsModules.length ? `missing: ${missingHighValueCheckJsModules.join(', ')}` : '');
@@ -366,7 +370,7 @@ const domainUiCheckJsModules = [
   'js/sun-uvdata.js',
 ];
 const missingDomainUiCheckJsModules = domainUiCheckJsModules
-  .filter(file => !checkJsConfig.include?.includes(file));
+  .filter(file => !checkedBrowserFiles.has(file));
 assert('checkJs includes domain and UI modules',
   missingDomainUiCheckJsModules.length === 0,
   missingDomainUiCheckJsModules.length ? `missing: ${missingDomainUiCheckJsModules.join(', ')}` : '');
@@ -397,7 +401,7 @@ const broadSurfaceCheckJsModules = [
   'js/wearables-detail-modal.js',
 ];
 const missingBroadSurfaceCheckJsModules = broadSurfaceCheckJsModules
-  .filter(file => !checkJsConfig.include?.includes(file));
+  .filter(file => !checkedBrowserFiles.has(file));
 assert('checkJs includes broad UI surface modules',
   missingBroadSurfaceCheckJsModules.length === 0,
   missingBroadSurfaceCheckJsModules.length ? `missing: ${missingBroadSurfaceCheckJsModules.join(', ')}` : '');
@@ -432,7 +436,7 @@ const healthDomainCheckJsModules = [
   'js/sun-sessions-store.js',
 ];
 const missingHealthDomainCheckJsModules = healthDomainCheckJsModules
-  .filter(file => !checkJsConfig.include?.includes(file));
+  .filter(file => !checkedBrowserFiles.has(file));
 assert('checkJs includes health domain modules',
   missingHealthDomainCheckJsModules.length === 0,
   missingHealthDomainCheckJsModules.length ? `missing: ${missingHealthDomainCheckJsModules.join(', ')}` : '');
@@ -470,7 +474,7 @@ const uiWorkflowCheckJsModules = [
   'js/lens-url.js',
 ];
 const missingUiWorkflowCheckJsModules = uiWorkflowCheckJsModules
-  .filter(file => !checkJsConfig.include?.includes(file));
+  .filter(file => !checkedBrowserFiles.has(file));
 assert('checkJs includes UI workflow modules',
   missingUiWorkflowCheckJsModules.length === 0,
   missingUiWorkflowCheckJsModules.length ? `missing: ${missingUiWorkflowCheckJsModules.join(', ')}` : '');
@@ -510,7 +514,7 @@ const lightWorkflowCheckJsModules = [
   'js/light-tools-ui-hooks.js',
 ];
 const missingLightWorkflowCheckJsModules = lightWorkflowCheckJsModules
-  .filter(file => !checkJsConfig.include?.includes(file));
+  .filter(file => !checkedBrowserFiles.has(file));
 assert('checkJs includes light workflow modules',
   missingLightWorkflowCheckJsModules.length === 0,
   missingLightWorkflowCheckJsModules.length ? `missing: ${missingLightWorkflowCheckJsModules.join(', ')}` : '');
@@ -540,7 +544,7 @@ const wearablesWorkflowCheckJsModules = [
   'js/wearables-withings.js',
 ];
 const missingWearablesWorkflowCheckJsModules = wearablesWorkflowCheckJsModules
-  .filter(file => !checkJsConfig.include?.includes(file));
+  .filter(file => !checkedBrowserFiles.has(file));
 assert('checkJs includes wearables workflow modules',
   missingWearablesWorkflowCheckJsModules.length === 0,
   missingWearablesWorkflowCheckJsModules.length ? `missing: ${missingWearablesWorkflowCheckJsModules.join(', ')}` : '');
@@ -579,7 +583,7 @@ const chatWorkflowCheckJsModules = [
   'js/chat.js',
 ];
 const missingChatWorkflowCheckJsModules = chatWorkflowCheckJsModules
-  .filter(file => !checkJsConfig.include?.includes(file));
+  .filter(file => !checkedBrowserFiles.has(file));
 assert('checkJs includes chat workflow modules',
   missingChatWorkflowCheckJsModules.length === 0,
   missingChatWorkflowCheckJsModules.length ? `missing: ${missingChatWorkflowCheckJsModules.join(', ')}` : '');
@@ -614,7 +618,7 @@ const startupAppShellCheckJsModules = [
   'js/views-router.js',
 ];
 const missingStartupAppShellCheckJsModules = startupAppShellCheckJsModules
-  .filter(file => !checkJsConfig.include?.includes(file));
+  .filter(file => !checkedBrowserFiles.has(file));
 assert('checkJs includes startup and app-shell modules',
   missingStartupAppShellCheckJsModules.length === 0,
   missingStartupAppShellCheckJsModules.length ? `missing: ${missingStartupAppShellCheckJsModules.join(', ')}` : '');
@@ -633,7 +637,7 @@ const pdfReportCheckJsModules = [
   'js/pdfjs-loader.js',
 ];
 const missingPdfReportCheckJsModules = pdfReportCheckJsModules
-  .filter(file => !checkJsConfig.include?.includes(file));
+  .filter(file => !checkedBrowserFiles.has(file));
 assert('checkJs includes PDF import and report modules',
   missingPdfReportCheckJsModules.length === 0,
   missingPdfReportCheckJsModules.length ? `missing: ${missingPdfReportCheckJsModules.join(', ')}` : '');
@@ -642,7 +646,7 @@ const appJsModules = fs.readdirSync(path.join(ROOT, 'js'))
   .map(file => `js/${file}`)
   .sort();
 const missingAppCheckJsModules = appJsModules
-  .filter(file => !checkJsConfig.include?.includes(file));
+  .filter(file => !checkedBrowserFiles.has(file));
 assert('checkJs includes every app JS module',
   missingAppCheckJsModules.length === 0,
   missingAppCheckJsModules.length ? `missing: ${missingAppCheckJsModules.join(', ')}` : '');

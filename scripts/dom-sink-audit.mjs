@@ -4,7 +4,8 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import ts from 'typescript';
+import ts from 'typescript-api';
+import { sourcePath, runtimePath, walkSourceFiles } from './source-files.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_ROOT = path.join(ROOT, 'js');
@@ -38,7 +39,7 @@ export function scanDomSinks(source, fileName = 'source.js') {
     source,
     ts.ScriptTarget.Latest,
     true,
-    ts.ScriptKind.JS,
+    /\.[cm]?ts$/.test(fileName) ? ts.ScriptKind.TS : ts.ScriptKind.JS,
   );
   const sinks = [];
 
@@ -80,16 +81,7 @@ export function scanDomSinks(source, fileName = 'source.js') {
 }
 
 function listJavaScriptFiles(directory = SOURCE_ROOT) {
-  const files = [];
-  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-    const absolute = path.join(directory, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...listJavaScriptFiles(absolute));
-    } else if (entry.isFile() && entry.name.endsWith('.js') && !/^bundle-.*\.js$/.test(entry.name)) {
-      files.push(absolute);
-    }
-  }
-  return files.sort();
+  return walkSourceFiles(directory).filter(file => !/^bundle-.*\.js$/.test(path.basename(file)));
 }
 
 function sinkDigest(sinks) {
@@ -104,8 +96,8 @@ export function createDomSinkPolicy() {
   const sinkFiles = {};
   let sinkCount = 0;
   for (const absolute of files) {
-    const relative = path.relative(ROOT, absolute).split(path.sep).join('/');
-    const sinks = scanDomSinks(fs.readFileSync(absolute, 'utf8'), relative);
+    const relative = runtimePath(path.relative(ROOT, absolute).split(path.sep).join('/'));
+    const sinks = scanDomSinks(fs.readFileSync(absolute, 'utf8'), absolute);
     if (!sinks.length) continue;
     sinkCount += sinks.length;
     sinkFiles[relative] = {
@@ -150,7 +142,7 @@ export function auditDomSinks(policy = JSON.parse(fs.readFileSync(POLICY_PATH, '
     } else if (!actual) {
       failures.push(`stale sink policy entry: ${file}`);
     } else if (expected.count !== actual.count || expected.digest !== actual.digest) {
-      const details = scanDomSinks(fs.readFileSync(path.join(ROOT, file), 'utf8'), file)
+      const details = scanDomSinks(fs.readFileSync(sourcePath(path.join(ROOT, file)), 'utf8'), sourcePath(file))
         .map(sink => `${sink.kind}@${sink.line}: ${sink.source.slice(0, 140)}`)
         .join('\n    ');
       failures.push(`reviewed sink surface changed in ${file}\n    ${details}`);

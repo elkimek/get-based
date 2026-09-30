@@ -154,7 +154,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
     && chatDiscussionRoundViewSrc.includes('createChatThinkingIndicator')
     && chatThinkingStatusSrc.includes("element.setAttribute('aria-hidden', 'true')")
     && chatMarkupSrc.includes('id="chat-stream-status" role="status" aria-live="polite" aria-atomic="true"')
-    && chatStreamStatusSrc.includes('if (status) status.textContent = message;'));
+    &&  /if\s*\(status\)\s*status\.textContent = message;/.test(chatStreamStatusSrc));
 
   // ─── 9. Progress bar ARIA ───
   assert('import-progress-bar declares role=progressbar',

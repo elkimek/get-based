@@ -66,7 +66,7 @@ function cleanLocalAiServerUrl(value) {
 export function getOllamaConfig() {
   const defaults = { url: 'http://localhost:11434', model: 'llama3.2', mode: 'ollama', apiKey: '' };
   try {
-    const config = { ...defaults, ...JSON.parse(getCachedKey('labcharts-ollama')) };
+    const config = { ...defaults, ...JSON.parse(getCachedKey('labcharts-ollama') ?? 'null') };
     config.url = cleanLocalAiServerUrl(config.url) || defaults.url;
     return config;
   }

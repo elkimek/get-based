@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "skipLibCheck": true,
+    "noEmitOnError": true
+  },
+  "include": ["js/**/*.ts", "lib/**/*.ts", "shared/**/*.ts", "scripts/**/*.ts", "api/**/*.ts", "server/**/*.ts"],
+  "exclude": ["**/*.d.ts", "scripts/vendor-packages", "scripts/vendor-entries"]
+}

@@ -103,7 +103,7 @@ export const _wireBackdropClose = wireBackdropClose;
 /**
  * @param {Element} overlay
  * @param {Function} [closeFn]
- * @param {object} [options]
+ * @param {{initialFocus?: string | HTMLElement, focusDelay?: number, showClass?: string, scrollLock?: boolean, autoFocus?: boolean, focusTrapOptions?: {autoFocus?: boolean, closeOnEscape?: boolean, onEscape?: Function}}} [options]
  */
 export function openAppendedModalOverlay(overlay, closeFn, options = {}) {
   try { wireBackdropClose(overlay, closeFn); } catch (_) {}

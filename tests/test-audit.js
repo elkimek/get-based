@@ -13,6 +13,7 @@
 // *source-inspection* asserts (guard wiring present) stay here.
 
 import './_node-shim.js';
+import { walkSourceFiles } from '../scripts/source-files.js';
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -672,10 +673,10 @@ assert('DNA controls use delegated actions',
 const _domSinkAuditSource = read('scripts/dom-sink-audit.mjs');
 const _domSinkPolicy = JSON.parse(read('scripts/dom-sink-policy.json'));
 assert(
-  `all ${_domSinkPolicy.scannedFiles} production JS modules are included in DOM sink discovery`,
+  `all ${_domSinkPolicy.scannedFiles} production JS/TS modules are included in DOM sink discovery`,
   _domSinkPolicy.scannedFiles > 100
     && _domSinkAuditSource.includes("const SOURCE_ROOT = path.join(ROOT, 'js')")
-    && _domSinkAuditSource.includes("entry.name.endsWith('.js')"),
+    && walkSourceFiles(path.join(ROOT, 'js')).length === _domSinkPolicy.scannedFiles,
 );
 assert(
   `${_domSinkPolicy.sinkCount} HTML-writing sinks retain committed reviewed fingerprints`,

@@ -21,6 +21,16 @@ file covers code ownership and dependency rules that must change with the app.
   `getbased-docs` as well.
 - Never hand-edit `MODULE_MAP.md`. CI regenerates it and fails if it is stale.
 
+## TypeScript migration source contract
+
+Canonical TypeScript modules compile with TypeScript 7 to ignored JavaScript
+siblings at existing runtime URLs. Run `npm run typescript:build` after source
+edits; `npm ci`, normal development/test and production commands compile first.
+Source inventories and this generated module map prefer `.ts`; runtime coverage
+uses emitted JavaScript offsets consistently across Node and browsers. The full
+migration objective and fixed LOC baseline are in
+[`TYPESCRIPT_MIGRATION.md`](TYPESCRIPT_MIGRATION.md).
+
 ## Runtime topology
 
 getbased is a static browser application. Local development loads

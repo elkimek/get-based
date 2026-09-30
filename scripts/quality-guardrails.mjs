@@ -4,6 +4,8 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stripTypeScriptTypes } from 'node:module';
+import { sourcePath, runtimePath, walkSourceFiles } from './source-files.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASELINE_PATH = path.join(ROOT, 'scripts', 'quality-baseline.json');
@@ -66,20 +68,20 @@ function readBaseline() {
   return JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
 }
 
-function walkFiles(dir, extensions = new Set(['.js'])) {
+function walkFiles(dir, extensions = new Set(['.js', '.ts'])) {
   const files = [];
   if (!fs.existsSync(dir)) return files;
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.name === 'node_modules' || entry.name === '.git') continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) files.push(...walkFiles(full, extensions));
-    else if (entry.isFile() && extensions.has(path.extname(entry.name))) files.push(full);
+    else if (entry.isFile() && extensions.has(path.extname(entry.name)) && sourcePath(full) === full) files.push(full);
   }
   return files;
 }
 
 function repoRel(file) {
-  return path.relative(ROOT, file).replaceAll(path.sep, '/');
+  return runtimePath(path.relative(ROOT, file).replaceAll(path.sep, '/'));
 }
 
 function countMatches(source, re) {
@@ -93,7 +95,7 @@ function countSourceLines(source) {
 }
 
 function collectAppMetrics() {
-  const files = walkFiles(APP_JS_DIR, new Set(['.js']));
+  const files = walkFiles(APP_JS_DIR, new Set(['.js', '.ts']));
   let inlineEventAttributes = 0;
   let windowReferences = 0;
   let windowGlobalAssignments = 0;
@@ -116,7 +118,7 @@ function collectAppMetrics() {
     inlineEventAttributes += countMatches(source, INLINE_EVENT_RE);
     windowReferences += countMatches(source, WINDOW_REF_RE);
     windowGlobalAssignments += windowAssignmentCount;
-    if (!file.endsWith('-window-bindings.js')) legacyWindowGlobalAssignments += windowAssignmentCount;
+    if (!runtimePath(file).endsWith('-window-bindings.js')) legacyWindowGlobalAssignments += windowAssignmentCount;
     viewRuntimeBridgeLookups += viewRuntimeLookupCount;
     if (viewRuntimeLookupCount > 0) viewRuntimeBridgeConsumers++;
     if (labStateCount > 0) labStateAppFiles++;
@@ -144,7 +146,7 @@ function collectAppMetrics() {
 }
 
 function collectTestMetrics() {
-  const files = walkFiles(TEST_JS_DIR, new Set(['.js']));
+  const files = walkFiles(TEST_JS_DIR, new Set(['.js', '.ts']));
   let labStateTestFiles = 0;
   for (const file of files) {
     if (repoRel(file) === LAB_STATE_GUARDRAIL_TEST_FILE) continue;
@@ -156,9 +158,9 @@ function collectTestMetrics() {
 
 function collectOversizedProductionFiles() {
   const files = [
-    ...walkFiles(APP_JS_DIR, new Set(['.js'])),
-    ...SERVER_JS_DIRS.flatMap(dir => walkFiles(dir, new Set(['.js']))),
-    ...ROOT_PRODUCTION_JS_FILES.filter(file => fs.existsSync(file)),
+    ...walkFiles(APP_JS_DIR, new Set(['.js', '.ts'])),
+    ...SERVER_JS_DIRS.flatMap(dir => walkFiles(dir, new Set(['.js', '.ts']))),
+    ...ROOT_PRODUCTION_JS_FILES.map(sourcePath).filter(file => fs.existsSync(file)),
   ];
   return files
     .map(file => ({ file: repoRel(file), lines: countSourceLines(fs.readFileSync(file, 'utf8')) }))
@@ -169,7 +171,7 @@ function collectOversizedProductionFiles() {
 function collectPrivacyConsoleViolations() {
   const violations = [];
   for (const relativeFile of PRIVACY_CRITICAL_LOG_FILES) {
-    const source = fs.readFileSync(path.join(ROOT, relativeFile), 'utf8');
+    const source = fs.readFileSync(sourcePath(path.join(ROOT, relativeFile)), 'utf8');
     const matches = [...source.matchAll(CONSOLE_REFERENCE_RE)];
     if (matches.length > 0) {
       violations.push({ file: relativeFile, count: matches.length });
@@ -181,7 +183,7 @@ function collectPrivacyConsoleViolations() {
 function collectRecoveryPhraseDiagnosticViolations() {
   const violations = [];
   for (const relativeFile of SYNC_DIAGNOSTIC_FILES) {
-    const source = fs.readFileSync(path.join(ROOT, relativeFile), 'utf8');
+    const source = fs.readFileSync(sourcePath(path.join(ROOT, relativeFile)), 'utf8');
     const matches = [...source.matchAll(RECOVERY_PHRASE_FRAGMENT_RE)];
     if (matches.length > 0) {
       violations.push({ file: relativeFile, count: matches.length });
@@ -193,7 +195,7 @@ function collectRecoveryPhraseDiagnosticViolations() {
 function collectUnboundedSyncDiagnosticErrors() {
   const violations = [];
   for (const relativeFile of SYNC_DIAGNOSTIC_FILES) {
-    const source = fs.readFileSync(path.join(ROOT, relativeFile), 'utf8');
+    const source = fs.readFileSync(sourcePath(path.join(ROOT, relativeFile)), 'utf8');
     const matches = [...source.matchAll(UNBOUNDED_SYNC_DIAGNOSTIC_ERROR_RE)];
     if (matches.length > 0) {
       violations.push({ file: relativeFile, count: matches.length });
@@ -221,31 +223,38 @@ function collectMutableWorkflowActionRefs() {
 }
 
 function collectSyntaxFiles() {
-  const files = [];
-  const exts = new Set(['.js', '.mjs']);
-  for (const dir of SYNTAX_DIRS) files.push(...walkFiles(path.join(ROOT, dir), exts));
-  for (const entry of fs.readdirSync(ROOT, { withFileTypes: true })) {
-    if (entry.isFile() && exts.has(path.extname(entry.name))) files.push(path.join(ROOT, entry.name));
-  }
-  return [...new Set(files)].sort();
+  return [...new Set([
+    ...SYNTAX_DIRS.flatMap(dir => walkSourceFiles(path.join(ROOT, dir))),
+    ...fs.readdirSync(ROOT, { withFileTypes: true })
+      .filter(entry => entry.isFile() && /\.[cm]?[jt]s$/.test(entry.name))
+      .map(entry => sourcePath(path.join(ROOT, entry.name))),
+  ])].sort();
 }
 
 function syntaxCheck(files) {
   const errors = [];
   for (const file of files) {
     try {
-      execFileSync(process.execPath, ['--check', file], {
-        cwd: ROOT,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
+      if (/\.[cm]?ts$/.test(file)) {
+        execFileSync(process.execPath, ['--input-type=module', '--check'], {
+          cwd: ROOT, encoding: 'utf8',
+          input: stripTypeScriptTypes(fs.readFileSync(file, 'utf8')),
+          stdio: ['pipe', 'pipe', 'pipe'],
+        });
+      } else {
+        execFileSync(process.execPath, ['--check', file], {
+          cwd: ROOT,
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'pipe'],
+        });
+      }
     } catch (err) {
       const output = `${err.stdout || ''}${err.stderr || ''}`.trim();
       errors.push(`${repoRel(file)}${output ? `\n${output}` : ''}`);
     }
   }
-  if (errors.length) fail('all JS/MJS files parse with node --check', errors.slice(0, 5).join('\n\n'));
-  else pass(`all JS/MJS files parse with node --check (${files.length} files)`);
+  if (errors.length) fail('all JS/TS source files parse with node --check', errors.slice(0, 5).join('\n\n'));
+  else pass(`all JS/TS source files parse with node --check (${files.length} files)`);
 }
 
 function compareBudget(name, actual, baseline) {

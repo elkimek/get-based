@@ -15,7 +15,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: [
-      'tests/**/*.test.js',
+      'tests/**/*.test.{js,ts}',
     ],
     // Belt-and-suspenders: the `include` glob already excludes vendored
     // and built code by virtue of being scoped to `tests/`, but a future

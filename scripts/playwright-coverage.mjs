@@ -262,7 +262,7 @@ function readVitestCoverageModel() {
   const model = new Map();
   // Include never-imported runtime modules in the denominator, independently
   // of collector behavior or test discovery.
-  for (const file of productionSources(repoRoot)) getFileMetrics(model, file, sourceForFile(file).length);
+  for (const file of productionSources(repoRoot, { runtime: true })) getFileMetrics(model, file, sourceForFile(file).length);
 
   for (const [coveragePath, fileCoverage] of Object.entries(coverage)) {
     const file = canonicalFile(fileCoverage.path || coveragePath);

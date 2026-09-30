@@ -1,11 +1,11 @@
-// @ts-check
-const failedReads = new Set();
+const failedReads = new Set<string>();
 
-export function isProfileReadBlocked(profileId) {
+export function isProfileReadBlocked(profileId: string): boolean {
   return failedReads.has(profileId);
 }
 
-export async function readProfileForLoad(profileId, read, notify) {
+export async function readProfileForLoad<T>(profileId: string, read: () => T | Promise<T>,
+  notify: (message: string, severity: string, duration: number) => unknown): Promise<T> {
   try {
     const value = await read();
     failedReads.delete(profileId);

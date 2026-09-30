@@ -1,19 +1,12 @@
-// @ts-check
 // Every chat route receives the same bounded, user-enabled baseline context.
 // Local CLI sessions can additionally query exact detail through bounded tools;
 // personal gateways cannot because no local tool credential crosses them.
 
-/** @param {unknown} target */
-export function isPersonalAgentTarget(target) {
+export function isPersonalAgentTarget(target: unknown): boolean {
   return String(target || '').trim() !== '' && String(target || '').trim() !== 'local';
 }
 
-/**
- * @param {string} instructions
- * @param {string} labContext
- * @param {string} target
- */
-export function buildAgentChatInstructions(instructions, labContext, target) {
+export function buildAgentChatInstructions(instructions: string, labContext: string, target: string): string {
   const context = String(labContext || '').trim();
   const routeNote = isPersonalAgentTarget(target)
     ? 'The local getbased tool bridge is not attached to this personal gateway. Use this snapshot and say when more exact getbased data is needed.'

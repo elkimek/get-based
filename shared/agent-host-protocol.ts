@@ -1,4 +1,3 @@
-// @ts-check
 // Runtime-neutral version and capability contract for the loopback companion.
 
 export const AGENT_HOST_PROTOCOL_VERSION = 5;
@@ -25,21 +24,18 @@ export const AGENT_HOST_CAPABILITIES = Object.freeze({
 
 export const AGENT_HOST_CAPABILITY_LIST = Object.freeze(Object.values(AGENT_HOST_CAPABILITIES));
 
-/** @param {unknown} value */
-export function normalizeAgentHostCapabilities(value) {
+export function normalizeAgentHostCapabilities(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return [...new Set(value.map(item => String(item || '').trim().slice(0, 80)).filter(Boolean))];
 }
 
-/** @param {unknown} status @param {string[]} required */
-export function agentHostSupportsCapabilities(status, required = []) {
+export function agentHostSupportsCapabilities(status: unknown, required: readonly string[] = []): boolean {
   if (!status || typeof status !== 'object') return required.length === 0;
-  const capabilities = new Set(normalizeAgentHostCapabilities(/** @type {any} */ (status).capabilities));
+  const capabilities = new Set(normalizeAgentHostCapabilities('capabilities' in status ? status.capabilities : undefined));
   return required.every(capability => capabilities.has(capability));
 }
 
-/** @param {unknown} value */
-export function normalizeAgentHostProtocolVersion(value) {
+export function normalizeAgentHostProtocolVersion(value: unknown): number {
   const version = Number(value);
   return Number.isInteger(version) && version > 0 ? version : 0;
 }
@@ -54,7 +50,6 @@ const MANAGEMENT_PARENT_ORIGINS = new Set([
   'http://127.0.0.1:8000', 'http://localhost:8000',
 ]);
 
-/** @param {string} origin */
-export function isAllowedCompanionManagementParent(origin) {
+export function isAllowedCompanionManagementParent(origin: string): boolean {
   return MANAGEMENT_PARENT_ORIGINS.has(origin);
 }

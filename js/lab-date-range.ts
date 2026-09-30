@@ -1,36 +1,21 @@
-// @ts-check
 // lab-date-range.js - Shared visible bounds for lab timeline charts and filters.
 
-const RANGE_MONTHS = {
+const RANGE_MONTHS: Record<string, number> = {
   '3m': 3,
   '6m': 6,
   '1y': 12,
 };
 
-/**
- * @param {unknown} value
- * @returns {value is string}
- */
-function isIsoDate(value) {
+function isIsoDate(value: unknown): value is string {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   return !Number.isNaN(new Date(`${value}T00:00:00Z`).getTime());
 }
 
-/**
- * @param {Date} date
- * @returns {string}
- */
-function isoDate(date) {
+function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-/**
- * Subtract whole calendar months while clamping end-of-month dates.
- * @param {Date} date
- * @param {number} months
- * @returns {Date}
- */
-function subtractUtcMonths(date, months) {
+function subtractUtcMonths(date: Date, months: number): Date {
   const result = new Date(date.getTime());
   const day = result.getUTCDate();
   result.setUTCDate(1);
@@ -40,22 +25,10 @@ function subtractUtcMonths(date, months) {
   return result;
 }
 
-/**
- * Resolve the shared x-axis window for lab timelines.
- * Rolling ranges span their calendar cutoff through today. "All" spans the
- * earliest real lab date through today, preserving post-lab annotation space
- * without adding a synthetic null datapoint. When a rolling range contains no
- * dates, the default mirrors filterDatesByRange's existing all-data fallback.
- *
- * @param {unknown} dates
- * @param {string} [range]
- * @param {Date} [now]
- * @param {{ fallbackToAll?: boolean }} [options]
- * @returns {{ min: string, max: string } | null}
- */
-export function getLabDateRangeBounds(dates, range = 'all', now = new Date(), options = {}) {
+export function getLabDateRangeBounds(dates: unknown, range = 'all', now = new Date(),
+  options: { fallbackToAll?: boolean } = {}): { min: string; max: string } | null {
   const validDates = Array.isArray(dates)
-    ? [...new Set(dates.filter(isIsoDate))].sort()
+    ? [...new Set((dates as unknown[]).filter(isIsoDate))].sort()
     : [];
   const today = isoDate(now);
   const months = RANGE_MONTHS[range];
@@ -70,8 +43,8 @@ export function getLabDateRangeBounds(dates, range = 'all', now = new Date(), op
   }
 
   if (validDates.length === 0) return null;
-  const earliest = validDates[0];
-  const latest = validDates[validDates.length - 1];
+  const earliest = validDates[0]!;
+  const latest = validDates[validDates.length - 1]!;
   const max = latest > today ? latest : today;
   if (earliest < max) return { min: earliest, max };
   return { min: isoDate(subtractUtcMonths(new Date(`${earliest}T12:00:00Z`), 1)), max };

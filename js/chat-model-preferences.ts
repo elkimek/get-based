@@ -1,21 +1,20 @@
-// @ts-check
 // Per-model chat reasoning preferences for direct and local AI providers.
 // CLI-backed selections use agent-chat-settings so Settings and Chat share the
 // same source of truth.
 
 const CHAT_REASONING_KEY_PREFIX = 'labcharts-chat-reasoning-effort-v1';
 
-function preferenceKey(provider, modelId) {
+function preferenceKey(provider: unknown, modelId: unknown): string {
   const cleanProvider = String(provider || '').trim().slice(0, 80) || 'unknown';
   const cleanModel = String(modelId || '').trim().slice(0, 200) || 'default';
   return `${CHAT_REASONING_KEY_PREFIX}:${encodeURIComponent(cleanProvider)}:${encodeURIComponent(cleanModel)}`;
 }
 
-export function getDirectChatReasoningEffort(provider, modelId) {
+export function getDirectChatReasoningEffort(provider: unknown, modelId: unknown): string {
   return (localStorage.getItem(preferenceKey(provider, modelId)) || '').trim().slice(0, 40);
 }
 
-export function setDirectChatReasoningEffort(provider, modelId, effort) {
+export function setDirectChatReasoningEffort(provider: unknown, modelId: unknown, effort: unknown): string {
   const key = preferenceKey(provider, modelId);
   const value = String(effort || '').trim().slice(0, 40);
   if (value) localStorage.setItem(key, value);

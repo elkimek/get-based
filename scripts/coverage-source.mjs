@@ -1,35 +1,35 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import ts from 'typescript';
+import ts from 'typescript-api';
+import { isSourceFile, sourcePath, runtimePath, walkSourceFiles } from './source-files.js';
 
 export const COVERAGE_ROOTS = ['js', 'api', 'lib', 'server', 'shared', 'bin'];
 export const COVERAGE_FILES = ['dev-server.js', 'service-worker.js', 'service-worker-runtime.js', 'version.js'];
+// Collect executable JS offsets from the same artifacts in Node and browsers.
+// Inventories can separately expose their canonical TypeScript sources.
 export const COVERAGE_INCLUDE = [...COVERAGE_ROOTS.map(root => `${root}/**/*.{js,mjs}`), ...COVERAGE_FILES];
 
 export function isProductionSource(file) {
-  return COVERAGE_FILES.includes(file)
-    || (COVERAGE_ROOTS.includes(file.split('/')[0]) && /\.m?js$/.test(file));
+  return COVERAGE_FILES.includes(file.replace(/\.[cm]?ts$/, '.js'))
+    || (COVERAGE_ROOTS.includes(file.split('/')[0]) && isSourceFile(file));
 }
 
-export function productionSources(root) {
-  const files = COVERAGE_FILES.filter(file => fs.existsSync(path.join(root, file)));
-  function visit(relative) {
-    if (!fs.existsSync(path.join(root, relative))) return;
-    for (const entry of fs.readdirSync(path.join(root, relative), { withFileTypes: true })) {
-      const file = `${relative}/${entry.name}`;
-      if (entry.isDirectory()) visit(file);
-      else if (entry.isFile() && isProductionSource(file)) files.push(file);
-    }
-  }
-  COVERAGE_ROOTS.forEach(visit);
-  return files.sort();
+export function productionSources(root, { runtime = false } = {}) {
+  return [...new Set([
+    ...COVERAGE_FILES.map(file => sourcePath(path.join(root, file))).filter(file => fs.existsSync(file)),
+    ...COVERAGE_ROOTS.flatMap(directory => walkSourceFiles(path.join(root, directory))),
+  ])].map(file => {
+    const target = runtime ? runtimePath(file) : file;
+    if (!fs.existsSync(target)) throw new Error(`Missing emitted runtime ${target}; run npm run typescript:build`);
+    return path.relative(root, target).replaceAll(path.sep, '/');
+  }).sort();
 }
 
 // Both Istanbul and V8 must map to a source function, never to its display name.
 // Istanbul often reports only the body; V8 includes the signature. AST identity
 // preserves separate same-named methods, nested functions and anonymous callbacks.
 export function sourceFunctions(source, file = 'source.js') {
-  const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, /\.[cm]?ts$/.test(file) ? ts.ScriptKind.TS : ts.ScriptKind.JS);
   const functions = [];
   function visit(node) {
     if (ts.isFunctionLike(node) && node.body) {

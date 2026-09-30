@@ -1,4 +1,3 @@
-// @ts-check
 // unique-id.js — Collision-resistant identifiers for locally created records.
 
 function cryptoRandomHex() {
@@ -14,14 +13,6 @@ function cryptoRandomHex() {
   throw new Error('Web Crypto is unavailable; cannot create a collision-resistant identifier');
 }
 
-/**
- * Create a collision-resistant identifier using Web Crypto. Failing closed
- * avoids persisting IDs that could collide across separate runtimes.
- *
- * @param {string} [prefix]
- * @returns {string}
- * @throws {Error} When Web Crypto is unavailable.
- */
-export function createUniqueId(prefix = '') {
+export function createUniqueId(prefix = ''): string {
   return `${prefix}${cryptoRandomHex()}`;
 }

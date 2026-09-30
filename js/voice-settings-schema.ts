@@ -1,4 +1,3 @@
-// @ts-check
 // voice-settings-schema.js — authoritative keys and persistence scopes.
 
 export const VOICE_SETTINGS_SCHEMA = Object.freeze({
