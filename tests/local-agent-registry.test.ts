@@ -51,7 +51,7 @@ describe('local CLI process resolution', () => {
   });
 
   it('finds the official self-contained OpenClaw install outside PATH on every supported platform', () => {
-    const directory = name => ({ name, isDirectory: () => true });
+    const directory = (name: string) => ({ name, isDirectory: () => true });
     expect(findBundledOpenClawExecutable({
       env: { HOME: '/home/alex', PATH: '' }, platform: 'linux',
       readdirSyncImpl: () => [directory('node-v24.19.0')],

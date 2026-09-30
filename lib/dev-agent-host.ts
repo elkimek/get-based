@@ -1,32 +1,57 @@
-// @ts-check
 // Automatic local-agent companion lifecycle for the development server.
 
+import type { ChildProcessByStdio, SpawnOptionsWithStdioTuple } from 'node:child_process';
+import type { Readable } from 'node:stream';
 import { execFileSync, spawn as spawnChild } from 'node:child_process';
 import { join } from 'node:path';
 import { prepareAgentHostStorage } from './agent-host-storage.js';
 import {
   detectLocalAgents, findBundledOpenClawExecutable, isLocalAgentSpecEnabled, publicAgentDescriptors,
-  normalizeAgentVersion, readCommandJson,
+  normalizeAgentVersion, readCommandJson, LOCAL_AGENT_SPECS,
 } from './local-agent-registry.js';
 import {
   AGENT_HOST_CAPABILITY_LIST, AGENT_HOST_PROTOCOL_VERSION, GETBASED_COMPANION_VERSION,
 } from '../shared/agent-host-protocol.js';
 
-const LOCAL_CLI_SPECS = [
-  { id: 'codex', command: 'codex', env: 'GETBASED_CODEX_COMMAND', name: 'Codex CLI', description: 'OpenAI official CLI', compatible: true },
-  { id: 'claude', command: 'claude', env: 'GETBASED_CLAUDE_COMMAND', name: 'Claude Agent', description: 'Anthropic agent · API/Console billing only', compatible: true },
-  { id: 'opencode', command: 'opencode', env: 'GETBASED_OPENCODE_COMMAND', name: 'OpenCode', description: 'Open-source multi-model agent CLI', compatible: true },
-  { id: 'hermes', command: 'hermes', env: 'GETBASED_HERMES_COMMAND', name: 'Hermes Agent', description: 'Nous Research agent CLI', compatible: true },
-  { id: 'grok', command: 'grok', env: 'GETBASED_GROK_COMMAND', name: 'Grok Build', description: 'SpaceXAI coding agent CLI', compatible: true },
-  { id: 'openclaw', command: 'openclaw', env: 'GETBASED_OPENCLAW_COMMAND', name: 'OpenClaw', description: 'Open-source personal AI assistant', compatible: true },
-];
+export type DevAgentSpawner = (command: string, args: readonly string[], options: SpawnOptionsWithStdioTuple<'ignore', 'pipe', 'pipe'>) => ChildProcessByStdio<null, Readable, Readable>;
+export interface DevAgentHostOptions {
+  root: string;
+  env?: NodeJS.ProcessEnv;
+  execFileSyncImpl?: typeof execFileSync;
+  spawnImpl?: DevAgentSpawner;
+  prepareStorage?: typeof prepareAgentHostStorage;
+  platform?: NodeJS.Platform;
+}
+interface DevHostInfo {
+  protocolVersion?: number;
+  capabilities?: readonly string[];
+  companionVersion?: string;
+  runtimeMode?: string;
+  platform?: NodeJS.Platform;
+}
 
-function detectLocalClis(execImpl, env, platform = process.platform) {
+export interface DevAgentDescriptor extends DevHostInfo, Omit<ReturnType<typeof publicAgentDescriptors>[number], 'protocol'> {
+  protocol?: ReturnType<typeof publicAgentDescriptors>[number]['protocol'];
+  endpoint?: string;
+  token?: string;
+}
+export interface DevAgentHostController {
+  describe(): { agents: DevAgentDescriptor[] };
+  refresh(): { agents: DevAgentDescriptor[] };
+  close(): void;
+}
+
+// POSIX development probes commands directly; Windows resolves npm launchers first.
+const LOCAL_CLI_SPECS = LOCAL_AGENT_SPECS.map(({ id, command, env, name, description }) => ({
+  id, command, env, name, description, compatible: true,
+}));
+
+function detectLocalClis(execImpl: typeof execFileSync, env: NodeJS.ProcessEnv, platform: NodeJS.Platform = process.platform) {
   if (platform === 'win32') {
     return publicAgentDescriptors(detectLocalAgents({ env, platform, execFileSyncImpl: execImpl }));
   }
   return LOCAL_CLI_SPECS.flatMap(spec => {
-    if (!isLocalAgentSpecEnabled(/** @type {any} */ (spec), env)) return [];
+    if (!isLocalAgentSpecEnabled(spec, env)) return [];
     const configured = String(env[spec.env] || '').trim();
     const command = configured || (spec.id === 'openclaw'
       ? findBundledOpenClawExecutable({ env, platform }) || spec.command
@@ -39,7 +64,7 @@ function detectLocalClis(execImpl, env, platform = process.platform) {
       let message = '';
       if (spec.id === 'claude') {
         try {
-          const auth = readCommandJson(() => execImpl(command, ['auth', 'status', '--json'], {
+          const auth = readCommandJson<{ loggedIn?: unknown } | null>(() => execImpl(command, ['auth', 'status', '--json'], {
             encoding: 'utf8', env, timeout: 5_000, stdio: ['ignore', 'pipe', 'ignore'],
           }));
           if (auth?.loggedIn !== true) {
@@ -56,17 +81,7 @@ function detectLocalClis(execImpl, env, platform = process.platform) {
   });
 }
 
-/**
- * @param {{
- *   root: string,
- *   env?: NodeJS.ProcessEnv,
- *   execFileSyncImpl?: typeof execFileSync,
- *   spawnImpl?: typeof spawnChild,
- *   prepareStorage?: typeof prepareAgentHostStorage,
- *   platform?: NodeJS.Platform,
- * }} options
- */
-export function startDevAgentHost(options) {
+export function startDevAgentHost(options: DevAgentHostOptions): DevAgentHostController {
   const env = options.env || process.env;
   if (String(env.GETBASED_AUTO_AGENT_HOST || '').trim() === '0') {
     return { describe: () => ({ agents: [] }), refresh: () => ({ agents: [] }), close() {} };
@@ -106,7 +121,7 @@ export function startDevAgentHost(options) {
   let endpoint = `http://127.0.0.1:${port}`;
   let status = 'starting';
   let message = '';
-  let hostInfo = {};
+  let hostInfo: DevHostInfo = {};
   let ended = false;
   let closed = false;
   let stdoutBuffer = '';
@@ -132,7 +147,7 @@ export function startDevAgentHost(options) {
     for (const line of lines) {
       const listening = line.trim().match(/^(?:getbased Companion|getbased Agent Host) listening at (http:\/\/127\.0\.0\.1:(\d+))$/);
       if (!listening || Number(listening[2]) < 1 || Number(listening[2]) > 65535) continue;
-      endpoint = listening[1];
+      endpoint = listening[1]!;
       hostInfo = {
         protocolVersion: AGENT_HOST_PROTOCOL_VERSION,
         capabilities: AGENT_HOST_CAPABILITY_LIST,

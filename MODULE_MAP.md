@@ -1550,11 +1550,11 @@ Node-only policy and transport code shared by hosted runtimes.
 
 <details><summary><code>agent</code> family — 7 modules</summary>
 
-- [`lib/agent-host-boundary.js`](lib/agent-host-boundary.js) → [`shared/agent-tool-contract.ts`](shared/agent-tool-contract.ts)
+- [`lib/agent-host-boundary.ts`](lib/agent-host-boundary.ts) → [`shared/agent-tool-contract.ts`](shared/agent-tool-contract.ts)
 - [`lib/agent-host-external-turn.js`](lib/agent-host-external-turn.js) → no in-scope imports
-- [`lib/agent-host-service.js`](lib/agent-host-service.js) → [`lib/agent-host-boundary.js`](lib/agent-host-boundary.js), [`lib/agent-host-external-turn.js`](lib/agent-host-external-turn.js), [`lib/companion-management.js`](lib/companion-management.js), [`shared/agent-host-protocol.ts`](shared/agent-host-protocol.ts)
-- [`lib/agent-host-storage.js`](lib/agent-host-storage.js) → no in-scope imports
-- [`lib/agent-mcp-bridge.js`](lib/agent-mcp-bridge.js) → no in-scope imports
+- [`lib/agent-host-service.js`](lib/agent-host-service.js) → [`lib/agent-host-boundary.ts`](lib/agent-host-boundary.ts), [`lib/agent-host-external-turn.js`](lib/agent-host-external-turn.js), [`lib/companion-management.js`](lib/companion-management.js), [`shared/agent-host-protocol.ts`](shared/agent-host-protocol.ts)
+- [`lib/agent-host-storage.ts`](lib/agent-host-storage.ts) → no in-scope imports
+- [`lib/agent-mcp-bridge.ts`](lib/agent-mcp-bridge.ts) → no in-scope imports
 - [`lib/agent-process-lifecycle.ts`](lib/agent-process-lifecycle.ts) → no in-scope imports
 - [`lib/agent-turn-types.ts`](lib/agent-turn-types.ts) → no in-scope imports
 
@@ -1568,7 +1568,7 @@ Node-only policy and transport code shared by hosted runtimes.
 
 <details><summary><code>codex</code> family — 2 modules</summary>
 
-- [`lib/codex-agent-isolation.js`](lib/codex-agent-isolation.js) → no in-scope imports
+- [`lib/codex-agent-isolation.ts`](lib/codex-agent-isolation.ts) → no in-scope imports
 - [`lib/codex-app-server-client.ts`](lib/codex-app-server-client.ts) → [`lib/rpc-client-state.ts`](lib/rpc-client-state.ts)
 
 </details>
@@ -1586,7 +1586,7 @@ Node-only policy and transport code shared by hosted runtimes.
 
 <details><summary><code>dev</code> family — 4 modules</summary>
 
-- [`lib/dev-agent-host.js`](lib/dev-agent-host.js) → [`lib/agent-host-storage.js`](lib/agent-host-storage.js), [`lib/local-agent-registry.js`](lib/local-agent-registry.js), [`shared/agent-host-protocol.ts`](shared/agent-host-protocol.ts)
+- [`lib/dev-agent-host.ts`](lib/dev-agent-host.ts) → [`lib/agent-host-storage.ts`](lib/agent-host-storage.ts), [`lib/local-agent-registry.ts`](lib/local-agent-registry.ts), [`shared/agent-host-protocol.ts`](shared/agent-host-protocol.ts)
 - [`lib/dev-api-proxy.ts`](lib/dev-api-proxy.ts) → [`lib/oauth-token-form.ts`](lib/oauth-token-form.ts), [`lib/proxy-policy.ts`](lib/proxy-policy.ts)
 - [`lib/dev-catalog.js`](lib/dev-catalog.js) → no in-scope imports
 - [`lib/dev-url-fetch.ts`](lib/dev-url-fetch.ts) → [`lib/error-utils.ts`](lib/error-utils.ts), [`lib/proxy-policy.ts`](lib/proxy-policy.ts), [`lib/proxy-upstream.ts`](lib/proxy-upstream.ts)
@@ -1607,19 +1607,19 @@ Node-only policy and transport code shared by hosted runtimes.
 
 <details><summary><code>linux</code> family — 1 module</summary>
 
-- [`lib/linux-companion-install.js`](lib/linux-companion-install.js) → [`lib/local-agent-registry.js`](lib/local-agent-registry.js)
+- [`lib/linux-companion-install.js`](lib/linux-companion-install.js) → [`lib/local-agent-registry.ts`](lib/local-agent-registry.ts)
 
 </details>
 
 <details><summary><code>local</code> family — 1 module</summary>
 
-- [`lib/local-agent-registry.js`](lib/local-agent-registry.js) → no in-scope imports
+- [`lib/local-agent-registry.ts`](lib/local-agent-registry.ts) → no in-scope imports
 
 </details>
 
 <details><summary><code>macos</code> family — 1 module</summary>
 
-- [`lib/macos-companion-install.js`](lib/macos-companion-install.js) → [`lib/linux-companion-install.js`](lib/linux-companion-install.js), [`lib/local-agent-registry.js`](lib/local-agent-registry.js)
+- [`lib/macos-companion-install.js`](lib/macos-companion-install.js) → [`lib/linux-companion-install.js`](lib/linux-companion-install.js), [`lib/local-agent-registry.ts`](lib/local-agent-registry.ts)
 
 </details>
 
@@ -1680,7 +1680,7 @@ Node-only policy and transport code shared by hosted runtimes.
 
 <details><summary><code>windows</code> family — 1 module</summary>
 
-- [`lib/windows-companion-install.js`](lib/windows-companion-install.js) → [`lib/local-agent-registry.js`](lib/local-agent-registry.js)
+- [`lib/windows-companion-install.js`](lib/windows-companion-install.js) → [`lib/local-agent-registry.ts`](lib/local-agent-registry.ts)
 
 </details>
 
@@ -1690,7 +1690,7 @@ Local development server entry point.
 
 <details><summary><code>dev</code> family — 1 module</summary>
 
-- [`dev-server.js`](dev-server.js) → [`lib/dev-agent-host.js`](lib/dev-agent-host.js), [`lib/dev-api-proxy.ts`](lib/dev-api-proxy.ts), [`lib/dev-catalog.js`](lib/dev-catalog.js), [`lib/dev-url-fetch.ts`](lib/dev-url-fetch.ts), [`lib/proxy-policy.ts`](lib/proxy-policy.ts)
+- [`dev-server.js`](dev-server.js) → [`lib/dev-agent-host.ts`](lib/dev-agent-host.ts), [`lib/dev-api-proxy.ts`](lib/dev-api-proxy.ts), [`lib/dev-catalog.js`](lib/dev-catalog.js), [`lib/dev-url-fetch.ts`](lib/dev-url-fetch.ts), [`lib/proxy-policy.ts`](lib/proxy-policy.ts)
 
 </details>
 
@@ -1710,7 +1710,7 @@ Standalone loopback companion for installed CLI agents.
 
 <details><summary><code>agent</code> family — 1 module</summary>
 
-- [`server/agent-host-server.js`](server/agent-host-server.js) → [`lib/acp-agent-client.ts`](lib/acp-agent-client.ts), [`lib/agent-host-service.js`](lib/agent-host-service.js), [`lib/agent-host-storage.js`](lib/agent-host-storage.js), [`lib/claude-agent-client.ts`](lib/claude-agent-client.ts), [`lib/codex-agent-isolation.js`](lib/codex-agent-isolation.js), [`lib/codex-app-server-client.ts`](lib/codex-app-server-client.ts), [`lib/companion-http.ts`](lib/companion-http.ts), [`lib/companion-listener.ts`](lib/companion-listener.ts), [`lib/companion-runtime-control.js`](lib/companion-runtime-control.js), [`lib/hermes-gateway-client.js`](lib/hermes-gateway-client.js), [`lib/local-agent-registry.js`](lib/local-agent-registry.js), [`lib/openclaw-agent-client.ts`](lib/openclaw-agent-client.ts)
+- [`server/agent-host-server.js`](server/agent-host-server.js) → [`lib/acp-agent-client.ts`](lib/acp-agent-client.ts), [`lib/agent-host-service.js`](lib/agent-host-service.js), [`lib/agent-host-storage.ts`](lib/agent-host-storage.ts), [`lib/claude-agent-client.ts`](lib/claude-agent-client.ts), [`lib/codex-agent-isolation.ts`](lib/codex-agent-isolation.ts), [`lib/codex-app-server-client.ts`](lib/codex-app-server-client.ts), [`lib/companion-http.ts`](lib/companion-http.ts), [`lib/companion-listener.ts`](lib/companion-listener.ts), [`lib/companion-runtime-control.js`](lib/companion-runtime-control.js), [`lib/hermes-gateway-client.js`](lib/hermes-gateway-client.js), [`lib/local-agent-registry.ts`](lib/local-agent-registry.ts), [`lib/openclaw-agent-client.ts`](lib/openclaw-agent-client.ts)
 
 </details>
 
@@ -1720,7 +1720,7 @@ Install and control the Linux user-level agent companion.
 
 <details><summary><code>getbased</code> family — 1 module</summary>
 
-- [`bin/getbased-companion.js`](bin/getbased-companion.js) → [`lib/agent-mcp-bridge.js`](lib/agent-mcp-bridge.js), [`lib/companion-existing.js`](lib/companion-existing.js), [`lib/companion-install.js`](lib/companion-install.js), [`server/agent-host-server.js`](server/agent-host-server.js) *(dynamic)*
+- [`bin/getbased-companion.js`](bin/getbased-companion.js) → [`lib/agent-mcp-bridge.ts`](lib/agent-mcp-bridge.ts), [`lib/companion-existing.js`](lib/companion-existing.js), [`lib/companion-install.js`](lib/companion-install.js), [`server/agent-host-server.js`](server/agent-host-server.js) *(dynamic)*
 
 </details>
 

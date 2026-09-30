@@ -1,4 +1,3 @@
-// @ts-check
 // Private, stable Agent Host state: pairing token and isolated Codex home.
 
 import { randomBytes } from 'node:crypto';
@@ -8,12 +7,19 @@ import {
 import { homedir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
 
+export interface AgentHostStorageOptions {
+  env?: NodeJS.ProcessEnv;
+  randomToken?: () => string;
+  platform?: NodeJS.Platform;
+  homeDirectory?: string;
+  requireCodexAuth?: boolean;
+}
+
 const MIN_TOKEN_LENGTH = 16;
 const MAX_TOKEN_LENGTH = 256;
 const SAFE_CODEX_CONFIG = '[analytics]\nenabled = false\n';
 
-/** @param {string} token */
-function validateToken(token) {
+function validateToken(token: string) {
   const normalized = token.trim();
   if (normalized.length < MIN_TOKEN_LENGTH || normalized.length > MAX_TOKEN_LENGTH || /[\r\n]/.test(normalized)) {
     throw new Error('Agent Host token must contain 16–256 characters on one line.');
@@ -21,8 +27,7 @@ function validateToken(token) {
   return normalized;
 }
 
-/** @param {NodeJS.ProcessEnv} source @param {NodeJS.Platform} platform @param {string} homeDirectory */
-function defaultDataDirectory(source, platform, homeDirectory) {
+function defaultDataDirectory(source: NodeJS.ProcessEnv, platform: NodeJS.Platform, homeDirectory: string) {
   if (source.GETBASED_AGENT_HOST_DATA_DIR) {
     if (!isAbsolute(source.GETBASED_AGENT_HOST_DATA_DIR)) {
       throw new Error('GETBASED_AGENT_HOST_DATA_DIR must be an absolute path.');
@@ -36,8 +41,7 @@ function defaultDataDirectory(source, platform, homeDirectory) {
   return join(dataRoot, 'getbased-agent-host');
 }
 
-/** @param {string} sourceAuth @param {string} targetAuth */
-function refreshCodexAuth(sourceAuth, targetAuth) {
+function refreshCodexAuth(sourceAuth: string, targetAuth: string) {
   if (!existsSync(sourceAuth)) {
     if (!existsSync(targetAuth)) throw new Error('Codex login was not found. Run `codex login` first.');
     return;
@@ -47,10 +51,7 @@ function refreshCodexAuth(sourceAuth, targetAuth) {
   chmodSync(targetAuth, 0o600);
 }
 
-/**
- * @param {{env?: NodeJS.ProcessEnv, randomToken?: () => string, platform?: NodeJS.Platform, homeDirectory?: string, requireCodexAuth?: boolean}} [options]
- */
-export function prepareAgentHostStorage(options = {}) {
+export function prepareAgentHostStorage(options: AgentHostStorageOptions = {}) {
   const env = options.env || process.env;
   const homeDirectory = options.homeDirectory || homedir();
   const dataDirectory = defaultDataDirectory(env, options.platform || process.platform, homeDirectory);
@@ -77,12 +78,12 @@ export function prepareAgentHostStorage(options = {}) {
     try {
       token = validateToken(readFileSync(tokenPath, 'utf8'));
     } catch (error) {
-      if (/** @type {NodeJS.ErrnoException} */ (error).code !== 'ENOENT') throw error;
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
       token = validateToken(options.randomToken?.() || randomBytes(32).toString('base64url'));
       try {
         writeFileSync(tokenPath, `${token}\n`, { mode: 0o600, flag: 'wx' });
       } catch (writeError) {
-        if (/** @type {NodeJS.ErrnoException} */ (writeError).code !== 'EEXIST') throw writeError;
+        if ((writeError as NodeJS.ErrnoException).code !== 'EEXIST') throw writeError;
         token = validateToken(readFileSync(tokenPath, 'utf8'));
       }
     }

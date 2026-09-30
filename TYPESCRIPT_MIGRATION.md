@@ -255,6 +255,13 @@ remain opaque unless a caller declares a protocol-specific view. Pending-request
 shutdown keeps live iteration and reads the current map again before clearing;
 ACP retains numeric reply-ID coercion and a distinct close error per request.
 
+Companion validation, private state, process isolation, MCP forwarding and CLI
+resolution now have native contracts. Untrusted JSON stays opaque until the
+existing field checks and coercions. Development discovery consumes the same
+CLI definitions as the standalone companion, while retaining its POSIX probing
+and Windows launcher paths. Seven existing foundation/lifecycle suites are
+checked as native TypeScript, with executable assertions retained.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

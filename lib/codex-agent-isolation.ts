@@ -1,4 +1,3 @@
-// @ts-check
 // Builds the fail-closed Codex process configuration used by Agent Host.
 
 export const DISABLED_CODEX_FEATURES = Object.freeze([
@@ -39,10 +38,8 @@ export function buildIsolatedCodexArgs() {
   return args;
 }
 
-/** @param {NodeJS.ProcessEnv} [source] @param {string} [codexHome] */
-export function buildIsolatedCodexEnvironment(source = process.env, codexHome = '') {
-  /** @type {NodeJS.ProcessEnv} */
-  const result = {};
+export function buildIsolatedCodexEnvironment(source: NodeJS.ProcessEnv = process.env, codexHome = '') {
+  const result: NodeJS.ProcessEnv = {};
   for (const key of SAFE_ENVIRONMENT_KEYS) {
     if (typeof source[key] === 'string') result[key] = source[key];
   }

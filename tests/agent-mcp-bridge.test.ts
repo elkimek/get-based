@@ -4,11 +4,13 @@ import { PassThrough } from 'node:stream';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { runAgentMCPBridge } from '../lib/agent-mcp-bridge.js';
 
+interface BridgeReply { result: { serverInfo: { name: string }; tools: { name: string }[] } }
+
 describe('getbased MCP bridge', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('exposes only the host-provided catalog and relays calls', async () => {
-    vi.stubGlobal('fetch', vi.fn(async (url, options) => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string, options: { headers: { Authorization: string }; body: string }) => {
       expect(options.headers.Authorization).toBe('Bearer 1234567890123456');
       if (String(url).endsWith('/internal/mcp/tools')) return Response.json({ tools: [{
         name: 'getbased_lab_context', description: 'Read labs', inputSchema: { type: 'object' },
@@ -30,10 +32,10 @@ describe('getbased MCP bridge', () => {
       JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'getbased_lab_context', arguments: {} } }),
     ].join('\n'));
     await running;
-    const messages = rendered.trim().split('\n').map(JSON.parse);
+    const messages = rendered.trim().split('\n').map(JSON.parse as unknown as (value: string, index: number) => BridgeReply);
     expect(messages).toHaveLength(3);
-    expect(messages[0].result.serverInfo.name).toBe('getbased');
-    expect(messages[1].result.tools[0].name).toBe('getbased_lab_context');
-    expect(messages[2].result).toEqual({ content: [{ type: 'text', text: 'ApoB 80' }], isError: false });
+    expect(messages[0]!.result.serverInfo.name).toBe('getbased');
+    expect(messages[1]!.result.tools[0]!.name).toBe('getbased_lab_context');
+    expect(messages[2]!.result).toEqual({ content: [{ type: 'text', text: 'ApoB 80' }], isError: false });
   });
 });

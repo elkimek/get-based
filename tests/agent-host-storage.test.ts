@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { prepareAgentHostStorage } from '../lib/agent-host-storage.js';
 
-const fixtureRoots = [];
+const fixtureRoots: string[] = [];
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'getbased-agent-storage-test-'));

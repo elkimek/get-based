@@ -1,11 +1,37 @@
-// @ts-check
 // Cross-platform discovery metadata for CLI harnesses supported by the companion.
 
 import { execFileSync } from 'node:child_process';
 import { delimiter, isAbsolute, posix, win32 } from 'node:path';
 import { accessSync, constants, existsSync, readFileSync, readdirSync } from 'node:fs';
 
-export const LOCAL_AGENT_SPECS = Object.freeze([
+export interface LocalAgentSpec {
+  id: string;
+  command: string;
+  env: string;
+  name: string;
+  description: string;
+  protocol: 'codex' | 'claude' | 'acp' | 'openclaw';
+  args?: readonly string[];
+}
+export interface LocalAgentDiscoveryOptions {
+  env?: NodeJS.ProcessEnv;
+  platform?: NodeJS.Platform;
+  homeDirectory?: string;
+  existsSyncImpl?: typeof existsSync;
+  readdirSyncImpl?: (path: string, options: { withFileTypes: true }) => { name: string; isDirectory(): boolean }[];
+  execFileSyncImpl?: typeof execFileSync;
+  readFileSyncImpl?: typeof readFileSync | undefined;
+  nodePath?: string | undefined;
+}
+export interface DetectedLocalAgent extends Omit<LocalAgentSpec, 'args'> {
+  args: string[];
+  version: string;
+  compatible: boolean;
+  status: string;
+  message?: string;
+}
+
+export const LOCAL_AGENT_SPECS: readonly Readonly<LocalAgentSpec>[] = Object.freeze([
   Object.freeze({ id: 'codex', command: 'codex', env: 'GETBASED_CODEX_COMMAND', name: 'Codex CLI', description: 'OpenAI official CLI', protocol: 'codex' }),
   Object.freeze({ id: 'claude', command: 'claude', env: 'GETBASED_CLAUDE_COMMAND', name: 'Claude Agent', description: 'Anthropic agent · API/Console billing only', protocol: 'claude' }),
   Object.freeze({ id: 'opencode', command: 'opencode', env: 'GETBASED_OPENCODE_COMMAND', name: 'OpenCode', description: 'Open-source multi-model agent CLI', protocol: 'acp', args: Object.freeze(['acp', '--pure']) }),
@@ -14,47 +40,34 @@ export const LOCAL_AGENT_SPECS = Object.freeze([
   Object.freeze({ id: 'openclaw', command: 'openclaw', env: 'GETBASED_OPENCLAW_COMMAND', name: 'OpenClaw', description: 'Open-source personal AI assistant', protocol: 'openclaw' }),
 ]);
 
-/**
- * Anthropic does not permit third-party products to route claude.ai Free,
- * Pro, or Max credentials without prior approval. Keep the adapter dormant in
- * production bundles unless a self-hosting operator explicitly opts into the
- * API/Console-billed integration.
- * @param {typeof LOCAL_AGENT_SPECS[number]} spec
- * @param {NodeJS.ProcessEnv} [env]
- */
-export function isLocalAgentSpecEnabled(spec, env = process.env) {
+// Claude remains dormant unless a self-hosting operator opts into API/Console billing.
+// Anthropic requires approval for third-party use of claude.ai Free/Pro/Max credentials.
+export function isLocalAgentSpecEnabled(spec: Pick<LocalAgentSpec, 'id'>, env: NodeJS.ProcessEnv = process.env) {
   return spec.id !== 'claude'
     || String(env.GETBASED_ENABLE_CLAUDE_AGENT || '').trim().toLowerCase() === 'api-console';
 }
 
-/**
- * Some status commands intentionally exit non-zero when the reported state is
- * negative while still returning valid JSON on stdout. Preserve that useful
- * response instead of turning it into an indeterminate probe failure.
- * @param {() => unknown} execute
- */
-export function readCommandJson(execute) {
+// Negative status commands may exit non-zero with valid JSON on stdout.
+export function readCommandJson<T = unknown>(execute: () => unknown): T {
   let output;
   try { output = execute(); }
   catch (error) {
     output = error && typeof error === 'object' && 'stdout' in error
-      ? /** @type {{stdout?: unknown}} */ (error).stdout
+      ? error.stdout
       : '';
     if (!output) throw error;
   }
-  return JSON.parse(String(output || '{}'));
+  return JSON.parse(String(output || '{}')) as T;
 }
 
-/** @param {string} agentId @param {unknown} value */
-export function normalizeAgentVersion(agentId, value) {
-  const version = String(value || '').trim().split('\n')[0].slice(0, 120);
+export function normalizeAgentVersion(agentId: string, value: unknown) {
+  const version = String(value || '').trim().split('\n')[0]!.slice(0, 120);
   return agentId === 'claude'
     ? version.replace(/\s*\(Claude Code\)\s*/gi, ' ').trim()
     : version;
 }
 
-/** @param {string} command @param {NodeJS.ProcessEnv} env @param {NodeJS.Platform} platform */
-export function findAgentExecutable(command, env = process.env, platform = process.platform) {
+export function findAgentExecutable(command: string, env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform) {
   const absolute = platform === 'win32' ? win32.isAbsolute(command) : isAbsolute(command);
   if (absolute) {
     try { accessSync(command, constants.X_OK); return command; } catch { return ''; }
@@ -71,13 +84,9 @@ export function findAgentExecutable(command, env = process.env, platform = proce
   return '';
 }
 
-/**
- * OpenClaw's self-contained installer intentionally does not require its
- * wrapper to be on the shell PATH. Probe only its documented user-owned
- * install locations; explicit GETBASED_OPENCLAW_COMMAND always wins.
- * @param {{env?: NodeJS.ProcessEnv, platform?: NodeJS.Platform, homeDirectory?: string, existsSyncImpl?: typeof existsSync, readdirSyncImpl?: typeof readdirSync}} [options]
- */
-export function findBundledOpenClawExecutable(options = {}) {
+// Probe documented user-owned installs: the official wrapper need not be on PATH.
+// An explicit GETBASED_OPENCLAW_COMMAND takes precedence in resolveLocalAgentCommand.
+export function findBundledOpenClawExecutable(options: LocalAgentDiscoveryOptions = {}) {
   const env = options.env || process.env;
   const platform = options.platform || process.platform;
   const pathApi = platform === 'win32' ? win32 : posix;
@@ -94,7 +103,7 @@ export function findBundledOpenClawExecutable(options = {}) {
       : pathApi.join(homeDirectory, '.openclaw', 'bin', executableName));
   }
   const toolsDirectory = pathApi.join(absolutePrefix || pathApi.join(homeDirectory, '.openclaw'), 'tools');
-  let versions = [];
+  let versions: string[] = [];
   try {
     versions = (options.readdirSyncImpl || readdirSync)(toolsDirectory, { withFileTypes: true })
       .filter(entry => entry.isDirectory() && /^node-v/i.test(entry.name))
@@ -109,8 +118,7 @@ export function findBundledOpenClawExecutable(options = {}) {
   return candidates.find(candidate => exists(candidate)) || '';
 }
 
-/** @param {typeof LOCAL_AGENT_SPECS[number]} spec @param {{env?: NodeJS.ProcessEnv, platform?: NodeJS.Platform, homeDirectory?: string}} [options] */
-export function resolveLocalAgentCommand(spec, options = {}) {
+export function resolveLocalAgentCommand(spec: LocalAgentSpec, options: LocalAgentDiscoveryOptions = {}) {
   const env = options.env || process.env;
   const platform = options.platform || process.platform;
   const configured = String(env[spec.env] || '').trim();
@@ -119,15 +127,8 @@ export function resolveLocalAgentCommand(spec, options = {}) {
     || (spec.id === 'openclaw' ? findBundledOpenClawExecutable({ ...options, env, platform }) : '');
 }
 
-/**
- * Resolve the standard npm Windows `.cmd` launcher to its JavaScript entry
- * point. This keeps every argument in an argv array instead of invoking a
- * command shell, where a custom personality or schema could become syntax.
- * @param {string} command
- * @param {string} source
- * @param {string} [nodePath]
- */
-export function resolveWindowsNodeShim(command, source, nodePath = process.execPath) {
+// Resolve npm Windows launchers to a Node argv array; never invoke a command shell.
+export function resolveWindowsNodeShim(command: string, source: string, nodePath = process.execPath) {
   const matches = [...String(source).matchAll(/["']%dp0%[\\/]([^"'\r\n]+\.(?:cjs|mjs|js))["']\s+%\*/gi)];
   const relative = matches.at(-1)?.[1]?.replaceAll('/', '\\') || '';
   if (!relative) throw new Error('The Windows CLI launcher is not a supported Node command shim.');
@@ -140,20 +141,18 @@ export function resolveWindowsNodeShim(command, source, nodePath = process.execP
   return { command: nodePath, args: [script] };
 }
 
-/** @param {string} command @param {{platform?: NodeJS.Platform, nodePath?: string, readFileSyncImpl?: typeof readFileSync}} [options] */
-export function resolveAgentLaunch(command, options = {}) {
+export function resolveAgentLaunch(command: string, options: LocalAgentDiscoveryOptions = {}) {
   const platform = options.platform || process.platform;
   if (platform !== 'win32' || !/\.(?:cmd|bat)$/i.test(command)) return { command, args: [] };
   const source = String((options.readFileSyncImpl || readFileSync)(command, 'utf8'));
   return resolveWindowsNodeShim(command, source, options.nodePath || process.execPath);
 }
 
-/** @param {{env?: NodeJS.ProcessEnv, platform?: NodeJS.Platform, execFileSyncImpl?: typeof execFileSync, readFileSyncImpl?: typeof readFileSync, nodePath?: string}} [options] */
-export function detectLocalAgents(options = {}) {
+export function detectLocalAgents(options: LocalAgentDiscoveryOptions = {}): DetectedLocalAgent[] {
   const env = options.env || process.env;
   const platform = options.platform || process.platform;
   const run = options.execFileSyncImpl || execFileSync;
-  return LOCAL_AGENT_SPECS.flatMap(spec => {
+  return LOCAL_AGENT_SPECS.flatMap<DetectedLocalAgent>(spec => {
     if (!isLocalAgentSpecEnabled(spec, env)) return [];
     const command = resolveLocalAgentCommand(spec, { env, platform });
     if (!command) return [];
@@ -164,7 +163,7 @@ export function detectLocalAgents(options = {}) {
       });
     } catch (error) {
       return [{
-        ...spec, args: [...('args' in spec ? spec.args : [])], command, version: '', compatible: false,
+        ...spec, args: [...('args' in spec ? spec.args! : [])], command, version: '', compatible: false,
         status: 'unavailable', message: error instanceof Error ? error.message : 'This CLI launcher is not supported.',
       }];
     }
@@ -178,7 +177,7 @@ export function detectLocalAgents(options = {}) {
     let message = '';
     if (spec.id === 'claude') {
       try {
-        const auth = readCommandJson(() => run(launch.command, [...launch.args, 'auth', 'status', '--json'], {
+        const auth = readCommandJson<{ loggedIn?: unknown } | null>(() => run(launch.command, [...launch.args, 'auth', 'status', '--json'], {
           encoding: 'utf8', env, timeout: 5_000, stdio: ['ignore', 'pipe', 'ignore'],
         }));
         if (auth?.loggedIn !== true) {
@@ -191,25 +190,20 @@ export function detectLocalAgents(options = {}) {
       }
     }
     return [{
-      ...spec, args: [...launch.args, ...('args' in spec ? spec.args : [])], command: launch.command,
+      ...spec, args: [...launch.args, ...('args' in spec ? spec.args! : [])], command: launch.command,
       version, compatible: true, status, ...(message ? { message } : {}),
     }];
   });
 }
 
-/** @param {ReturnType<typeof detectLocalAgents>} agents */
-export function publicAgentDescriptors(agents) {
+export function publicAgentDescriptors(agents: DetectedLocalAgent[]) {
   return agents.map(({ id, name, description, version, compatible, status, message, protocol }) => ({
     id, name, description, version, compatible, status, protocol, ...(message ? { message } : {}),
   }));
 }
 
-/**
- * Keep normal CLI login/config discovery while preventing unrelated process
- * secrets from becoming visible to an agent's built-in tools.
- * @param {NodeJS.ProcessEnv} [source]
- */
-export function buildLocalAgentEnvironment(source = process.env) {
+// Preserve login/config discovery without exposing unrelated process secrets.
+export function buildLocalAgentEnvironment(source: NodeJS.ProcessEnv = process.env) {
   const exact = new Set([
     'HOME', 'USER', 'LOGNAME', 'SHELL', 'PATH', 'LANG', 'TMPDIR', 'TEMP', 'TMP',
     'USERPROFILE', 'APPDATA', 'LOCALAPPDATA', 'SystemRoot', 'ComSpec', 'PATHEXT',

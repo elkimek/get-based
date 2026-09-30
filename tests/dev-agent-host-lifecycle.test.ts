@@ -1,27 +1,28 @@
+import type { DevAgentHostOptions } from '../lib/dev-agent-host.js';
 import { EventEmitter } from 'node:events';
-import { describe, expect, it, vi } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { startDevAgentHost } from '../lib/dev-agent-host.js';
 
-function fixture(overrides = {}) {
-  const child = Object.assign(new EventEmitter(), { stdout: new EventEmitter(), stderr: new EventEmitter(), exitCode: null, signalCode: null, kill: vi.fn() });
-  const execFileSyncImpl = vi.fn(command => { if (command === 'codex') return 'codex 1.0'; throw new Error('missing'); });
+function fixture(overrides: Partial<DevAgentHostOptions> = {}) {
+  const child = Object.assign(new EventEmitter(), { stdout: new EventEmitter(), stderr: new EventEmitter(), exitCode: null as number | string | null, signalCode: null as number | string | null, kill: vi.fn() });
+  const execFileSyncImpl = vi.fn((command: string) => { if (command === 'codex') return 'codex 1.0'; throw new Error('missing'); });
   const prepareStorage = vi.fn(() => ({ token: 'private-token' }));
-  const spawnImpl = vi.fn(() => child);
-  const controller = startDevAgentHost({ root: '/fixture', env: { GETBASED_OPENCLAW_COMMAND: 'missing-openclaw' }, platform: 'linux', execFileSyncImpl, prepareStorage, spawnImpl, ...overrides });
+  const spawnImpl = vi.fn<(...args: Parameters<NonNullable<DevAgentHostOptions['spawnImpl']>>) => typeof child>(() => child);
+  const controller = startDevAgentHost({ root: '/fixture', env: { GETBASED_OPENCLAW_COMMAND: 'missing-openclaw' }, platform: 'linux', execFileSyncImpl, prepareStorage, spawnImpl, ...overrides } as unknown as DevAgentHostOptions);
   return { child, controller, execFileSyncImpl, prepareStorage, spawnImpl };
 }
 const banner = 'getbased Companion listening at http://127.0.0.1:8325\n';
-const state = f => f.controller.describe().agents[0];
+const state = (f: ReturnType<typeof fixture>) => f.controller.describe().agents[0]!;
 it('disabled discovery never probes, prepares or spawns', () => {
   const f = fixture({ env: { GETBASED_AUTO_AGENT_HOST: ' 0 ' } });
   expect(f.controller.describe()).toEqual({ agents: [] }); expect(f.controller.refresh()).toEqual({ agents: [] }); f.controller.close();
   expect(f.execFileSyncImpl).not.toHaveBeenCalled(); expect(f.prepareStorage).not.toHaveBeenCalled(); expect(f.spawnImpl).not.toHaveBeenCalled();
 });
 it('empty discovery can refresh descriptors without unexpectedly spawning', () => {
-  const exec = vi.fn(() => { throw new Error('missing'); }); const f = fixture({ execFileSyncImpl: exec });
+  const exec = vi.fn<(command: string) => string>(() => { throw new Error('missing'); }); const f = fixture({ execFileSyncImpl: exec as unknown as NonNullable<DevAgentHostOptions['execFileSyncImpl']> });
   expect(f.controller.describe().agents).toEqual([]);
-  exec.mockImplementation(command => { if(command === 'codex')return 'codex 1.1'; throw new Error('missing'); });
-  expect(f.controller.refresh().agents[0].version).toBe('codex 1.1'); f.controller.close(); expect(f.spawnImpl).not.toHaveBeenCalled();
+  exec.mockImplementation((command: string) => { if(command === 'codex')return 'codex 1.1'; throw new Error('missing'); });
+  expect(f.controller.refresh().agents[0]!.version).toBe('codex 1.1'); f.controller.close(); expect(f.spawnImpl).not.toHaveBeenCalled();
 });
 it.each([new Error('storage denied'), 'denied'])('keeps unavailable storage fail-closed on refresh: %s', failure => {
   const f = fixture({ prepareStorage: () => { throw failure; } });
@@ -31,8 +32,8 @@ it.each([new Error('storage denied'), 'denied'])('keeps unavailable storage fail
 });
 it('disables watch and preserves configured strict port', () => {
   const f = fixture({ env: { GETBASED_AGENT_HOST_WATCH: '0', GETBASED_AGENT_HOST_PORT: '9001' } });
-  expect(f.spawnImpl.mock.calls[0][1]).toEqual(['/fixture/server/agent-host-server.js']);
-  expect(f.spawnImpl.mock.calls[0][2].env).toMatchObject({ GETBASED_AGENT_HOST_PORT: '9001', GETBASED_AGENT_HOST_STRICT_PORT: '1' }); f.controller.close();
+  expect(f.spawnImpl.mock.calls[0]![1]).toEqual(['/fixture/server/agent-host-server.js']);
+  expect(f.spawnImpl.mock.calls[0]![2].env).toMatchObject({ GETBASED_AGENT_HOST_PORT: '9001', GETBASED_AGENT_HOST_STRICT_PORT: '1' }); f.controller.close();
 });
 it.each([10, 51, 60])('recognizes a readiness banner split at byte %s', split => {
   const f = fixture(); f.child.stdout.emit('data', banner.slice(0, split)); f.child.stdout.emit('data', banner.slice(split));
@@ -52,11 +53,11 @@ it('close is idempotent while SIGTERM is pending', () => {
   const f = fixture(); f.controller.close(); f.controller.close(); expect(f.child.kill).toHaveBeenCalledExactlyOnceWith('SIGTERM');
 });
 it.each(['exitCode', 'signalCode'])('does not kill a terminated child with %s', property => {
-  const f = fixture(); f.child[property] = property === 'exitCode' ? 0 : 'SIGTERM'; f.controller.close(); expect(f.child.kill).not.toHaveBeenCalled();
+  const f = fixture(); f.child[property as 'exitCode' | 'signalCode'] = property === 'exitCode' ? 0 : 'SIGTERM'; f.controller.close(); expect(f.child.kill).not.toHaveBeenCalled();
 });
 it('updates discovered versions without spawning another child', () => {
   const f = fixture(); f.child.stdout.emit('data', banner);
-  f.execFileSyncImpl.mockImplementation(command => { if(command === 'codex')return 'codex 2.0'; throw new Error('missing'); });
+  f.execFileSyncImpl.mockImplementation((command: string) => { if(command === 'codex')return 'codex 2.0'; throw new Error('missing'); });
   expect(f.controller.refresh().agents[0]).toMatchObject({ version: 'codex 2.0', status: 'available' });
   expect(f.spawnImpl).toHaveBeenCalledOnce(); f.controller.close();
 });
@@ -73,8 +74,8 @@ it('recovers after an oversized unterminated diagnostic line', () => {
   expect(state(f).endpoint).toBe('http://127.0.0.1:8325'); f.controller.close();
 });
 it('reports unverifiable Claude authentication without exposing a ready status', () => {
-  const f = fixture({env:{GETBASED_ENABLE_CLAUDE_AGENT:'api-console'},execFileSyncImpl:(command,args)=>{
+  const f = fixture({env:{GETBASED_ENABLE_CLAUDE_AGENT:'api-console'},execFileSyncImpl:((command: string,args: string[])=>{
     if(command==='claude'&&args[0]==='--version')return 'Claude 2.1';throw new Error('auth unavailable');
-  }});
+  }) as unknown as NonNullable<DevAgentHostOptions['execFileSyncImpl']>});
   f.child.stdout.emit('data',banner); expect(state(f)).toMatchObject({status:'login_required',message:expect.stringContaining('could not be verified')}); f.controller.close();
 });

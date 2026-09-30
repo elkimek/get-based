@@ -1,7 +1,7 @@
-// @ts-check
 // Pure validation, authentication, and serialization rules for the loopback host.
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import type { AgentToolDefinition } from '../shared/agent-tool-contract.js';
 import { getCodexDynamicTools } from '../shared/agent-tool-contract.js';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' };
@@ -33,10 +33,10 @@ const OFFICIAL_AGENT_HOSTS = new Set([
 ]);
 
 export function getAgentHostToolSpecs() {
-  return Object.values(HOST_TOOL_SPECS).map(spec => JSON.parse(JSON.stringify(spec)));
+  return Object.values(HOST_TOOL_SPECS).map(spec => (JSON.parse(JSON.stringify(spec)) as AgentToolDefinition));
 }
 
-export function isAllowedAgentTool(name) {
+export function isAllowedAgentTool(name: string) {
   return ALLOWED_TOOLS.has(name);
 }
 
@@ -55,13 +55,11 @@ The local getbased dynamic-tool bridge is not attached to this remote gateway. U
 Do not diagnose, prescribe, or present a response as a substitute for medical care. Clearly flag urgent symptoms and clinically important uncertainty.
 The gateway may expose its own tools. Follow its existing approval policy; do not bypass approval or claim that an action completed when it did not.`;
 
-/** @param {unknown} value */
-export function isRecord(value) {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
-/** @param {unknown} value */
-export function cleanError(value) {
+export function cleanError(value: unknown) {
   // CLI/OS errors may contain paths, credentials, prompt text or a stack.
   // Only return application-owned constants, never serialize arbitrary errors.
   const message = value instanceof Error ? value.message : '';
@@ -72,25 +70,22 @@ export function cleanError(value) {
   return 'The agent request failed. Check the Companion and selected agent, then try again.';
 }
 
-/** @param {unknown} value */
-export function jsonResponse(value, status = 200, headers = {}) {
+export function jsonResponse(value: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(value), { status, headers: { ...JSON_HEADERS, ...headers } });
 }
 
-/** @param {string} received @param {string} expected */
-export function tokenMatches(received, expected) {
+export function tokenMatches(received: string, expected: string) {
   if (!received || !expected) return false;
   const left = Buffer.from(received);
   const right = Buffer.from(expected);
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
-/** @param {string} payload @param {string} token */
-function signThreadId(payload, token) {
+function signThreadId(payload: string, token: string) {
   return createHmac('sha256', token).update(payload).digest('base64url');
 }
 
-export function createThreadHandle(threadId, token, agent = 'codex', instanceId = '', target = 'local') {
+export function createThreadHandle(threadId: string, token: string, agent = 'codex', instanceId = '', target = 'local') {
   if (agent === 'codex' && target === 'local' && /^[A-Za-z0-9-]{1,128}$/.test(threadId)) {
     return `v1.${threadId}.${signThreadId(threadId, token)}`;
   }
@@ -104,29 +99,28 @@ export function createThreadHandle(threadId, token, agent = 'codex', instanceId 
   return `v3.${payload}.${signThreadId(`${instanceId}.${payload}`, token)}`;
 }
 
-export function readThreadHandle(handle, token, instanceId = '') {
+export function readThreadHandle(handle: string, token: string, instanceId = '') {
   const legacy = handle.match(/^v1\.([A-Za-z0-9-]{1,128})\.([A-Za-z0-9_-]{43})$/);
-  if (legacy && tokenMatches(legacy[2], signThreadId(legacy[1], token))) {
-    return { agent: 'codex', target: 'local', threadId: legacy[1] };
+  if (legacy && tokenMatches(legacy[2]!, signThreadId(legacy[1]!, token))) {
+    return { agent: 'codex', target: 'local', threadId: legacy[1]! };
   }
   const routed = handle.match(/^v4\.([a-z0-9-]{1,40})\.([A-Za-z0-9_-]{1,160})\.([A-Za-z0-9_-]{1,300})\.([A-Za-z0-9_-]{43})$/);
-  if (routed && tokenMatches(routed[4], signThreadId(`${instanceId}.${routed[1]}.${routed[2]}.${routed[3]}`, token))) {
+  if (routed && tokenMatches(routed[4]!, signThreadId(`${instanceId}.${routed[1]}.${routed[2]}.${routed[3]}`, token))) {
     try {
-      const target = Buffer.from(routed[2], 'base64url').toString('utf8').slice(0, 80);
-      const threadId = Buffer.from(routed[3], 'base64url').toString('utf8').slice(0, 200);
-      return target && threadId ? { agent: routed[1], target, threadId } : null;
+      const target = Buffer.from(routed[2]!, 'base64url').toString('utf8').slice(0, 80);
+      const threadId = Buffer.from(routed[3]!, 'base64url').toString('utf8').slice(0, 200);
+      return target && threadId ? { agent: routed[1]!, target, threadId } : null;
     } catch { return null; }
   }
   const current = handle.match(/^v3\.([a-z0-9-]{1,40})\.([A-Za-z0-9_-]{1,300})\.([A-Za-z0-9_-]{43})$/);
-  if (!current || !tokenMatches(current[3], signThreadId(`${instanceId}.${current[1]}.${current[2]}`, token))) return null;
+  if (!current || !tokenMatches(current[3]!, signThreadId(`${instanceId}.${current[1]}.${current[2]}`, token))) return null;
   try {
-    const threadId = Buffer.from(current[2], 'base64url').toString('utf8').slice(0, 200);
-    return threadId ? { agent: current[1], target: 'local', threadId } : null;
+    const threadId = Buffer.from(current[2]!, 'base64url').toString('utf8').slice(0, 200);
+    return threadId ? { agent: current[1]!, target: 'local', threadId } : null;
   } catch { return null; }
 }
 
-/** @param {string|null} origin */
-export function isAllowedAgentHostOrigin(origin, additionalOrigins = []) {
+export function isAllowedAgentHostOrigin(origin: string | null, additionalOrigins: string[] = []) {
   if (!origin) return true;
   let url;
   try { url = new URL(origin); } catch { return false; }
@@ -135,8 +129,7 @@ export function isAllowedAgentHostOrigin(origin, additionalOrigins = []) {
   return additionalOrigins.includes(url.origin);
 }
 
-/** @param {string|null} origin */
-export function isLoopbackOrigin(origin) {
+export function isLoopbackOrigin(origin: string | null) {
   if (!origin) return true;
   try {
     const url = new URL(origin);
@@ -144,8 +137,7 @@ export function isLoopbackOrigin(origin) {
   } catch { return false; }
 }
 
-/** @param {Request} request @param {string[]} additionalOrigins */
-export function corsHeaders(request, additionalOrigins) {
+export function corsHeaders(request: Request, additionalOrigins: string[]): Record<string, string> {
   const origin = request.headers.get('Origin');
   if (!origin || !isAllowedAgentHostOrigin(origin, additionalOrigins)) return {};
   return {
@@ -160,30 +152,27 @@ export function corsHeaders(request, additionalOrigins) {
   };
 }
 
-/** @param {Request} request */
-export async function readJson(request) {
+export async function readJson(request: Request) {
   const length = Number(request.headers.get('Content-Length') || 0);
   if (Number.isFinite(length) && length > MAX_BODY_BYTES) throw new Error('request_too_large');
   const text = await request.text();
   if (text.length > MAX_BODY_BYTES) throw new Error('request_too_large');
-  const parsed = JSON.parse(text || '{}');
+  const parsed: unknown = JSON.parse(text || '{}');
   if (!isRecord(parsed)) throw new Error('invalid_request');
   return parsed;
 }
 
-/** @param {unknown} specs */
-export function sanitizeDynamicTools(specs) {
+export function sanitizeDynamicTools(specs: unknown) {
   if (!Array.isArray(specs)) return [];
   const names = [...new Set(specs.filter(isRecord).map(spec => String(spec.name || '')).filter(name => ALLOWED_TOOLS.has(name)))];
-  return names.map(name => JSON.parse(JSON.stringify(HOST_TOOL_SPECS[name])));
+  return names.map(name => (JSON.parse(JSON.stringify(HOST_TOOL_SPECS[name])) as AgentToolDefinition));
 }
 
-/** @param {unknown} result */
-export function sanitizeToolResult(result) {
+export function sanitizeToolResult(result: unknown) {
   if (!isRecord(result)) {
     return { success: false, contentItems: [{ type: 'inputText', text: 'Error: Invalid getbased tool response.' }] };
   }
-  const normalized = /** @type {Record<string, any>} */ (result);
+  const normalized = result;
   if (typeof normalized.success !== 'boolean' || !Array.isArray(normalized.contentItems)) {
     return { success: false, contentItems: [{ type: 'inputText', text: 'Error: Invalid getbased tool response.' }] };
   }
@@ -193,14 +182,13 @@ export function sanitizeToolResult(result) {
   return { success: normalized.success, contentItems };
 }
 
-export function declinedResult(method) {
+export function declinedResult(method: string) {
   if (method === 'item/tool/requestUserInput') return { answers: {} };
   if (method === 'mcpServer/elicitation/request') return { action: 'decline', content: null };
   return { decision: 'decline' };
 }
 
-/** @param {Uint8Array} bytes @param {string} mediaType */
-export function hasImageSignature(bytes, mediaType) {
+export function hasImageSignature(bytes: Uint8Array, mediaType: string) {
   if (mediaType === 'image/jpeg') return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
   if (mediaType === 'image/png') return bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
   if (mediaType === 'image/gif') return String.fromCharCode(...bytes.slice(0, 4)) === 'GIF8';
@@ -211,8 +199,7 @@ export function hasImageSignature(bytes, mediaType) {
   return false;
 }
 
-/** @param {unknown} value */
-export function sanitizeHistory(value) {
+export function sanitizeHistory(value: unknown) {
   if (!Array.isArray(value)) return [];
   let remaining = 60_000;
   return value.slice(-30).flatMap(item => {
@@ -223,20 +210,18 @@ export function sanitizeHistory(value) {
   });
 }
 
-/** @param {unknown} value */
-export function sanitizeOutputSchema(value) {
+export function sanitizeOutputSchema(value: unknown) {
   if (!isRecord(value)) return null;
   const serialized = JSON.stringify(value);
   if (serialized.length > 60_000) throw new Error('output_schema_too_large');
-  return JSON.parse(serialized);
+  return JSON.parse(serialized) as Record<string, unknown>;
 }
 
-/** @param {unknown} value */
-export function sanitizeModelCatalog(value) {
-  return Array.isArray(value) ? value.filter(entry => isRecord(entry)
+export function sanitizeModelCatalog(value: unknown) {
+  return Array.isArray(value) ? (value.filter(entry => isRecord(entry)
     && entry.available !== false && entry.enabled !== false && entry.disabled !== true
     && entry.unavailable !== true && entry.missing !== true
-    && !['disabled', 'offline', 'removed', 'unavailable'].includes(String(entry.status || '').trim().toLowerCase())).map(entry => ({
+    && !['disabled', 'offline', 'removed', 'unavailable'].includes(String(entry.status || '').trim().toLowerCase())) as Record<string, unknown>[]).map(entry => ({
     id: String(entry.id || entry.model || '').slice(0, 160),
     model: String(entry.model || entry.id || '').slice(0, 160),
     displayName: String(entry.displayName || entry.model || entry.id || '').slice(0, 180),
@@ -244,7 +229,7 @@ export function sanitizeModelCatalog(value) {
     isDefault: entry.isDefault === true,
     defaultReasoningEffort: String(entry.defaultReasoningEffort || '').slice(0, 40),
     inputModalities: Array.isArray(entry.inputModalities)
-      ? [...new Set(entry.inputModalities.map(item => String(item || '').slice(0, 24)).filter(Boolean))]
+      ? [...new Set(entry.inputModalities.map((item: unknown) => String(item || '').slice(0, 24)).filter(Boolean))]
       : ['text'],
     supportedReasoningEfforts: Array.isArray(entry.supportedReasoningEfforts)
       ? entry.supportedReasoningEfforts.filter(isRecord).map(item => ({

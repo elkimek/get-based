@@ -235,3 +235,9 @@ deploy/profile-share/data/
 /lib/openclaw-agent-client.js
 
 /lib/agent-turn-types.js
+/lib/agent-host-storage.js
+/lib/agent-host-boundary.js
+/lib/codex-agent-isolation.js
+/lib/agent-mcp-bridge.js
+/lib/local-agent-registry.js
+/lib/dev-agent-host.js

@@ -1,11 +1,14 @@
 // @vitest-environment node
 
+import type { DevAgentHostOptions, DevAgentSpawner } from '../lib/dev-agent-host.js';
 import { EventEmitter } from 'node:events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { startDevAgentHost } from '../lib/dev-agent-host.js';
 
+type DevChildFixture = Omit<ReturnType<DevAgentSpawner>, 'stdout' | 'stderr' | 'exitCode' | 'signalCode'> & { stdout: EventEmitter; stderr: EventEmitter; exitCode: number | null; signalCode: NodeJS.Signals | null };
+
 function fakeChild() {
-  const child = new EventEmitter();
+  const child = new EventEmitter() as unknown as DevChildFixture;
   child.stdout = new EventEmitter();
   child.stderr = new EventEmitter();
   child.exitCode = null;
@@ -31,13 +34,13 @@ describe('development agent discovery', () => {
     const controller = startDevAgentHost({
       root: '/workspace',
       env: { PATH: '/usr/bin' },
-      execFileSyncImpl: vi.fn(command => {
+      execFileSyncImpl: vi.fn((command: string) => {
         if (command === 'codex') return 'codex-cli 0.150.1\n';
         throw new Error('missing');
       }),
       prepareStorage: vi.fn(() => ({ token: 'private-token' })),
       spawnImpl,
-    });
+    } as unknown as DevAgentHostOptions);
 
     expect(controller.describe()).toEqual({ agents: [expect.objectContaining({
       id: 'codex', compatible: true, status: 'starting', token: '',
@@ -71,23 +74,23 @@ describe('development agent discovery', () => {
     const controller = startDevAgentHost({
       root: '/workspace',
       env: { GETBASED_OPENCLAW_COMMAND: 'openclaw' },
-      execFileSyncImpl: vi.fn(command => {
+      execFileSyncImpl: vi.fn((command: string) => {
         const version = versions.get(String(command));
         if (!version) throw new Error('missing');
         return version;
       }),
       prepareStorage: vi.fn(() => ({ token: 'private-token' })),
       spawnImpl: vi.fn(() => child),
-    });
+    } as unknown as DevAgentHostOptions);
 
     expect(controller.describe().agents.map(agent => agent.id)).toEqual(['codex', 'opencode', 'hermes', 'grok', 'openclaw']);
     expect(controller.describe().agents.map(agent => agent.compatible)).toEqual([true, true, true, true, true]);
   });
 
   it('keeps Claude Agent dormant unless API/Console use is explicitly enabled', () => {
-    const discover = env => startDevAgentHost({
+    const discover = (env: NodeJS.ProcessEnv) => startDevAgentHost({
       root: '/workspace', env,
-      execFileSyncImpl: vi.fn((command, args) => {
+      execFileSyncImpl: vi.fn((command: string, args: string[]) => {
         if (command !== 'claude') throw new Error('missing');
         if (args[0] === '--version') return 'Claude CLI 2.1.0';
         if (args[0] === 'auth') return JSON.stringify({ loggedIn: true });
@@ -95,7 +98,7 @@ describe('development agent discovery', () => {
       }),
       prepareStorage: vi.fn(() => ({ token: 'private-token' })),
       spawnImpl: vi.fn(() => fakeChild()),
-    });
+    } as unknown as DevAgentHostOptions);
 
     expect(discover({}).describe().agents).toEqual([]);
     const enabled = discover({ GETBASED_ENABLE_CLAUDE_AGENT: 'api-console' });
@@ -109,7 +112,7 @@ describe('development agent discovery', () => {
   it('reports a non-zero logged-out Claude status as sign-in required', () => {
     const controller = startDevAgentHost({
       root: '/workspace', env: { GETBASED_ENABLE_CLAUDE_AGENT: 'api-console' },
-      execFileSyncImpl: vi.fn((command, args) => {
+      execFileSyncImpl: vi.fn((command: string, args: string[]) => {
         if (command !== 'claude') throw new Error('missing');
         if (args[0] === '--version') return 'Claude CLI 2.1.0';
         if (args[0] === 'auth') throw Object.assign(new Error('Command failed'), {
@@ -119,7 +122,7 @@ describe('development agent discovery', () => {
       }),
       prepareStorage: vi.fn(() => ({ token: 'private-token' })),
       spawnImpl: vi.fn(() => fakeChild()),
-    });
+    } as unknown as DevAgentHostOptions);
 
     expect(controller.describe().agents).toEqual([expect.objectContaining({
       id: 'claude', name: 'Claude Agent', status: 'login_required',
@@ -130,7 +133,7 @@ describe('development agent discovery', () => {
 
   it('honors an explicit CLI path during development discovery', () => {
     const child = fakeChild();
-    const run = vi.fn(command => {
+    const run = vi.fn((command: string) => {
       if (command === '/opt/custom/codex') return 'codex-cli custom';
       throw new Error('missing');
     });
@@ -140,7 +143,7 @@ describe('development agent discovery', () => {
       execFileSyncImpl: run,
       prepareStorage: vi.fn(() => ({ token: 'private-token' })),
       spawnImpl: vi.fn(() => child),
-    });
+    } as unknown as DevAgentHostOptions);
 
     expect(controller.describe().agents).toEqual([expect.objectContaining({
       id: 'codex', version: 'codex-cli custom',
@@ -155,20 +158,20 @@ describe('development agent discovery', () => {
     const controller = startDevAgentHost({
       root: '/workspace',
       env: { GETBASED_AGENT_HOST_PORT: '8324' },
-      execFileSyncImpl: vi.fn(command => {
+      execFileSyncImpl: vi.fn((command: string) => {
         if (command === 'codex') return 'codex-cli 0.150.1';
         throw new Error('missing');
       }),
       prepareStorage: vi.fn(() => ({ token: 'private-token' })),
       spawnImpl: vi.fn(() => child),
-    });
+    } as unknown as DevAgentHostOptions);
 
     child.stderr.emit('data', 'listen EADDRINUSE: address already in use 127.0.0.1:8324');
     expect(controller.describe().agents[0]).toMatchObject({ status: 'unavailable', token: '' });
     expect(globalThis.fetch).not.toHaveBeenCalled();
     child.emit('exit', 1);
-    expect(controller.describe().agents[0].status).toBe('unavailable');
-    expect(controller.describe().agents[0].message).toContain('already in use');
+    expect(controller.describe().agents[0]!.status).toBe('unavailable');
+    expect(controller.describe().agents[0]!.message).toContain('already in use');
     controller.close();
   });
 
@@ -176,13 +179,13 @@ describe('development agent discovery', () => {
     const child = fakeChild();
     const controller = startDevAgentHost({
       root: '/workspace', env: {},
-      execFileSyncImpl: vi.fn(command => {
+      execFileSyncImpl: vi.fn((command: string) => {
         if (command === 'codex') return 'codex-cli 0.150.1';
         throw new Error('missing');
       }),
       prepareStorage: vi.fn(() => ({ token: 'private-token' })),
       spawnImpl: vi.fn(() => child),
-    });
+    } as unknown as DevAgentHostOptions);
 
     child.stderr.emit('data', 'listen EADDRINUSE: address already in use 127.0.0.1:8324');
     expect(controller.describe().agents[0]).toMatchObject({ status: 'starting', endpoint: 'http://127.0.0.1:8324' });

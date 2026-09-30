@@ -1,12 +1,25 @@
-// @ts-check
 // Tiny stdio MCP server that forwards only approved getbased tool calls to the
 // loopback companion. The per-session token never reaches the browser.
 
 import { createInterface } from 'node:readline';
 
+export interface AgentMCPBridgeOptions {
+  endpoint?: string;
+  token?: string;
+  input?: NodeJS.ReadableStream;
+  output?: NodeJS.WritableStream;
+}
+
+// Fields remain opaque until their existing protocol-specific coercions.
+interface MCPMessage {
+  id?: unknown;
+  method?: unknown;
+  params?: { protocolVersion?: unknown; name?: unknown; arguments?: unknown } | null;
+}
+
 const MAX_MESSAGE_BYTES = 1_100_000;
 
-function cleanEndpoint(value) {
+function cleanEndpoint(value: unknown) {
   const url = new URL(String(value || ''));
   if (url.protocol !== 'http:' || !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)) {
     throw new Error('The getbased MCP bridge requires a loopback endpoint.');
@@ -14,22 +27,21 @@ function cleanEndpoint(value) {
   return url.origin;
 }
 
-/** @param {{endpoint?: string, token?: string, input?: NodeJS.ReadableStream, output?: NodeJS.WritableStream}} [options] */
-export async function runAgentMCPBridge(options = {}) {
+export async function runAgentMCPBridge(options: AgentMCPBridgeOptions = {}) {
   const endpoint = cleanEndpoint(options.endpoint || process.env.GETBASED_MCP_ENDPOINT);
   const token = String(options.token || process.env.GETBASED_MCP_TOKEN || '').trim();
   if (token.length < 16 || /[\r\n]/.test(token)) throw new Error('The getbased MCP bridge token is invalid.');
   const input = options.input || process.stdin;
   const output = options.output || process.stdout;
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-  const send = value => output.write(`${JSON.stringify(value)}\n`);
-  const request = async (path, body) => {
+  const send = (value: unknown) => output.write(`${JSON.stringify(value)}\n`);
+  const request = async (path: string, body?: unknown): Promise<unknown> => {
     const response = await fetch(`${endpoint}${path}`, {
       method: body === undefined ? 'GET' : 'POST', headers,
       body: body === undefined ? undefined : JSON.stringify(body),
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(String(payload?.error || `getbased returned HTTP ${response.status}`));
+    } as RequestInit);
+    const payload: unknown = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(String((payload as { error?: unknown } | null)?.error || `getbased returned HTTP ${response.status}`));
     return payload;
   };
 
@@ -37,7 +49,7 @@ export async function runAgentMCPBridge(options = {}) {
   for await (const line of lines) {
     if (!line.trim()) continue;
     if (Buffer.byteLength(line) > MAX_MESSAGE_BYTES) continue;
-    let message;
+    let message: MCPMessage | null;
     try { message = JSON.parse(line); } catch { continue; }
     if (!message || typeof message !== 'object' || !Object.hasOwn(message, 'id')) continue;
     try {
@@ -58,7 +70,7 @@ export async function runAgentMCPBridge(options = {}) {
     } catch (error) {
       send({
         jsonrpc: '2.0', id: message.id,
-        error: { code: Number(/** @type {any} */ (error)?.code || -32603), message: error instanceof Error ? error.message : String(error) },
+        error: { code: Number((error as { code?: unknown } | null)?.code || -32603), message: error instanceof Error ? error.message : String(error) },
       });
     }
   }
