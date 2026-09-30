@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { isSourceFile, sourcePath } from './source-files.js';
 
 type Counts = { lines: number; nonblank: number };
-type Baseline = { commit: string; minimumReduction: number; totals: Counts; files: Record<string, Counts> };
+type Baseline = { commit: string; minimumReduction: number; totals: Counts };
 const script = fileURLToPath(import.meta.url);
 const root = path.resolve(path.dirname(script), '..');
 const extensions = new Set(['.js', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.css', '.html', '.py', '.sh']);

@@ -10,7 +10,7 @@ modules does not satisfy this objective.
 ## Baseline and completion gates
 
 The baseline is commit `371c00da0195c33f4c1d42e3c63b85c25746b086`.
-`scripts/typescript-migration-baseline.json` records the original file inventory:
+`scripts/typescript-migration-baseline.json` records the original code totals by source group:
 421,094 physical lines and 391,896 nonblank lines. The scope includes first-party
 runtime, tests, build tools, types, styles, HTML, Python and shell; vendor code,
 external documentation and generated JavaScript siblings are excluded. The same
