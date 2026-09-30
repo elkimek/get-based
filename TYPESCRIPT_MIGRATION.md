@@ -103,6 +103,11 @@ Session math, warning text, retry URLs, focus restoration and scheduling operati
 are unchanged. Utility, privacy and session formatting tests are also authored and
 checked as strict TypeScript.
 
+Light setup catalogs now check their Fitzpatrick and photosensitivity keys.
+`js/sun-session-model.ts` owns the shared exposure input and calculation-snapshot
+contracts used by session display. Live and completed session calculations retain
+their original fields, ordering, coefficients, defaults and safety labels.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

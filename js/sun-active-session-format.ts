@@ -1,6 +1,7 @@
 import { escapeHTML } from './utils.js';
+import type { SunSessionExposureInput } from './sun-session-model.js';
 
-export interface SunSessionSummaryInput {
+export interface SunSessionSummaryInput extends SunSessionExposureInput {
   startedAt?: number | null;
   accumulatedPausedMs?: number | null;
   paused?: boolean;
@@ -8,7 +9,6 @@ export interface SunSessionSummaryInput {
   safety?: { fitzpatrick?: string | null; medFraction?: number | null } | null;
   atmosphere?: { uvIndex?: number | null } | null;
   doses?: { vitamin_d?: number | null } | null;
-  bodyExposure?: { fraction?: number | null; rotatedSides?: boolean; glassBetween?: boolean } | null;
 }
 type VitaminDEstimate = (dose: number, fitzpatrick: string, uvi: number | null | undefined,
   rotatedSides: boolean, genetics: Record<string, unknown> | null) => number;
@@ -36,7 +36,10 @@ export function activeElapsedMs(session: SunSessionSummaryInput | null | undefin
   return Math.max(0, now - (session?.startedAt || now) - (session?.accumulatedPausedMs || 0) - currentPause);
 }
 
-export function plainStopSummary(session: SunSessionSummaryInput | null | undefined, durationMin: number, options: SunStopSummaryOptions = {}) {
+export function plainStopSummary(
+  session: SunSessionSummaryInput | null | undefined, durationMin: number,
+  options: SunStopSummaryOptions = {},
+) {
   if (!session) return `Session saved — ${durationMin} min`;
   const parts = [`Saved · ${durationMin} min outside`];
   const fitzpatrick = session.safety?.fitzpatrick || 'I';
@@ -64,7 +67,10 @@ export function plainStopSummary(session: SunSessionSummaryInput | null | undefi
   return parts.join(' · ');
 }
 
-function _estimateMedMinutes(uvi: number | null | undefined, fitzpatrick: string, psmTier: string, photosensitiveMedScale: PhotosensitiveMedScale) {
+function _estimateMedMinutes(
+  uvi: number | null | undefined, fitzpatrick: string, psmTier: string,
+  photosensitiveMedScale: PhotosensitiveMedScale,
+) {
   if (!Number.isFinite(uvi) || uvi! <= 0) return null;
   const fitzMED: Record<string, number> = { I: 200, II: 250, III: 300, IV: 450, V: 600, VI: 1000 };
   const baseMED = fitzMED[fitzpatrick] ?? fitzMED.III!;
@@ -74,7 +80,10 @@ function _estimateMedMinutes(uvi: number | null | undefined, fitzpatrick: string
   return Math.round(seconds / 60);
 }
 
-export function _renderUVIPreflightBanner(uvi: number | null | undefined, fitzpatrick: string, psmTier: string, fitzpatrickAssumed: boolean, photosensitiveMedScale: PhotosensitiveMedScale) {
+export function _renderUVIPreflightBanner(
+  uvi: number | null | undefined, fitzpatrick: string, psmTier: string,
+  fitzpatrickAssumed: boolean, photosensitiveMedScale: PhotosensitiveMedScale,
+) {
   if (!Number.isFinite(uvi)) return '';
   const psmHigh = psmTier === 'moderate' || psmTier === 'severe';
   const fairSkin = fitzpatrick === 'I' || fitzpatrick === 'II';

@@ -1,8 +1,10 @@
-// @ts-check
+import type { PhotosensitivityTier } from './sun-session-model.js';
+
 // sun-defaults-model.js — Light setup option catalogs and pure mappings.
 
 // Maps the stored Fitzpatrick Roman numeral to the context-card skin label.
-export const FITZPATRICK_ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
+export const FITZPATRICK_ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'] as const;
+export type Fitzpatrick = typeof FITZPATRICK_ROMAN[number];
 
 export const FITZPATRICK_OPTIONS = [
   { key: 'I',   label: 'I — always burns, never tans (very fair, red/blond hair, freckles)' },
@@ -11,7 +13,7 @@ export const FITZPATRICK_OPTIONS = [
   { key: 'IV',  label: 'IV — rarely burns, tans easily (olive/Mediterranean)' },
   { key: 'V',   label: 'V — very rarely burns, tans deeply (brown)' },
   { key: 'VI',  label: 'VI — rarely burns, deeply pigmented (UV damage is still possible)' },
-];
+] satisfies Array<{ key: Fitzpatrick; label: string }>;
 
 export const FITZPATRICK_DESCRIPTOR = [
   'always burns, never tans',
@@ -47,7 +49,7 @@ export const PHOTOSENSITIVE_OPTIONS = [
   { key: 'mild', label: 'Possible warning', sub: 'A product may increase sunlight sensitivity' },
   { key: 'moderate', label: 'Known warning', sub: 'A label or clinician advises sun precautions' },
   { key: 'severe', label: 'Prior reaction', sub: 'Prior phototoxic/photoallergic reaction or strict avoidance advice' },
-];
+] satisfies Array<{ key: PhotosensitivityTier; label: string; sub: string }>;
 
 // Each "yes" records a timing or spectrum-context pattern. This is an
 // educational context map, not a validated clinical scale: several items have
@@ -87,26 +89,26 @@ export const OTT_QUESTIONS = [
     why: 'Outdoor light is usually far brighter than indoor light. This cutoff is a simple habit screen, not a biological threshold or diagnosis.' },
 ];
 
-export function photosensitiveTierOf(raw) {
+export function photosensitiveTierOf(raw: unknown) {
   if (raw === true) return 'moderate';
   if (raw === false) return 'none';
   if (raw == null || raw === '') return 'unknown';
   return String(raw);
 }
 
-export function fitzpatrickToSkinTypeIndex(fitzpatrick) {
-  return Math.max(0, FITZPATRICK_ROMAN.indexOf(fitzpatrick));
+export function fitzpatrickToSkinTypeIndex(fitzpatrick: unknown) {
+  return Math.max(0, FITZPATRICK_ROMAN.indexOf(fitzpatrick as Fitzpatrick));
 }
 
-export function skinTypeToFitzpatrick(skinType) {
+export function skinTypeToFitzpatrick(skinType: string | null | undefined) {
   if (!skinType) return null;
   const match = skinType.match(/^(I{1,3}|IV|VI?)\b/);
-  return match ? match[1] : null;
+  return match ? match[1]! : null;
 }
 
 // Higher scores mean more context patterns selected. The tiers only organize
 // the educational review; they are not a health, risk, or alignment grade.
-export function ottScoreToLabel(score) {
+export function ottScoreToLabel(score: unknown) {
   if (typeof score !== 'number') return { label: '—', tier: 0 };
   if (score === 0) return { label: 'no patterns selected', tier: 0 };
   if (score <= 3) return { label: 'a few patterns to explore', tier: 1 };

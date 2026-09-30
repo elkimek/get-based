@@ -136,3 +136,5 @@ deploy/profile-share/data/
 /js/wearables-detail-runtime.js
 /js/emf-runtime.js
 /js/sun-active-session-format.js
+/js/sun-session-model.js
+/js/sun-defaults-model.js

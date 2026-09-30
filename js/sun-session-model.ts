@@ -1,8 +1,25 @@
-// @ts-check
 // sun-session-model.js — shared Sun session option and safety model.
 //
 // Keep these constants out of UI/store modules so the active-session ticker,
 // persisted session store, and public sun.js facade all use one source.
+
+export type PhotosensitivityTier = 'unknown' | 'none' | 'mild' | 'moderate' | 'severe';
+export interface SunSessionExposureInput {
+  bodyExposure?: {
+    fraction?: number | null;
+    glassBetween?: boolean;
+    sunscreenSPF?: number | null;
+    rotatedSides?: boolean;
+  } | null;
+  posture?: string | null;
+  surfaceAlbedo?: string | null;
+  eyeExposure?: { mode?: string | null; [key: string]: unknown } | null;
+}
+type SessionInputField = 'id' | 'updatedAt' | 'startedAt' | 'endedAt' | 'durationMin' | 'location'
+  | 'bodyExposure' | 'eyeExposure' | 'posture' | 'surfaceAlbedo' | 'exposureSegments'
+  | 'accumulatedPausedMs' | 'paused' | 'pausedAt';
+export type SunSessionInputSnapshot = Partial<Record<SessionInputField, unknown>>;
+export interface SunSessionProfileSnapshot { sunDefaults?: unknown; lightCircadian?: { skinType?: unknown } | null }
 
 // Photosensitizing medication flags. Drug, dose, formulation, reaction type,
 // and individual response differ too much for a universal MED multiplier.
@@ -14,11 +31,11 @@ export const PHOTOSENSITIVE_MED_TIERS = [
   { key: 'mild',     label: 'Possible',  medScale: null, examples: 'a medicine or topical product with a possible sunlight warning' },
   { key: 'moderate', label: 'Known warning', medScale: null, examples: 'a medicine labeled for photosensitivity or sun precautions' },
   { key: 'severe',   label: 'Prior reaction / strong warning', medScale: null, examples: 'a prior phototoxic/photoallergic reaction or clinician-directed strict avoidance' },
-];
+] satisfies Array<{ key: PhotosensitivityTier; label: string; medScale: number | null; examples: string }>;
 
 // Map tier key to a multiplier. Non-numeric caution tiers intentionally
 // return null so callers keep the base estimate and explain the uncertainty.
-export function photosensitiveMedScale(tier) {
+export function photosensitiveMedScale(tier: unknown) {
   const t = PHOTOSENSITIVE_MED_TIERS.find(x => x.key === tier);
   return t ? t.medScale : null;
 }
@@ -26,11 +43,11 @@ export function photosensitiveMedScale(tier) {
 // Normalize legacy boolean photosensitiveMeds storage into a tier key.
 // boolean true → 'moderate' for legacy caution display; it no longer implies
 // a universal numeric threshold reduction.
-export function _normalizePSMTier(raw) {
+export function _normalizePSMTier(raw: unknown): PhotosensitivityTier {
   if (raw === true) return 'moderate';
   if (raw === false) return 'none';
   if (raw == null || raw === '') return 'unknown';
-  if (typeof raw === 'string' && PHOTOSENSITIVE_MED_TIERS.some(t => t.key === raw)) return raw;
+  if (typeof raw === 'string' && PHOTOSENSITIVE_MED_TIERS.some(t => t.key === raw)) return raw as PhotosensitivityTier;
   return 'unknown';
 }
 
@@ -68,7 +85,7 @@ export const POSTURE_OPTIONS = [
 // Posture orientation multipliers on bodyExposureFraction. Lying-supine
 // makes the front of the body nearly horizontal at noon; lying-prone same
 // for back. These are rough but match the hydrated-session dose path.
-export const POSTURE_MULTIPLIERS = {
+export const POSTURE_MULTIPLIERS: Readonly<Record<string, number>> = {
   standing: 1.0,
   sitting: 0.85,
   'lying-supine': 1.4,
@@ -86,7 +103,7 @@ export const SURFACE_OPTIONS = [
 ];
 
 // Surface albedo (UV reflectance). 0.25 = sand/water; 0.80 = fresh snow.
-export const SURFACE_ALBEDO = {
+export const SURFACE_ALBEDO: Readonly<Record<string, number>> = {
   grass: 0.03,
   concrete: 0.10,
   sand: 0.25,
@@ -96,17 +113,19 @@ export const SURFACE_ALBEDO = {
 
 // Snapshot calculation inputs, not derived outputs. Same-ID sync adoption can
 // mutate a record in place without changing its object identity.
-export function sunSessionInputKey(session, data) {
+export function sunSessionInputKey(
+  session: SunSessionInputSnapshot, data: SunSessionProfileSnapshot | null | undefined,
+) {
   return JSON.stringify([
-    ...['id', 'updatedAt', 'startedAt', 'endedAt', 'durationMin', 'location',
+    ...(['id', 'updatedAt', 'startedAt', 'endedAt', 'durationMin', 'location',
       'bodyExposure', 'eyeExposure', 'posture', 'surfaceAlbedo', 'exposureSegments',
-      'accumulatedPausedMs', 'paused', 'pausedAt'].map(key => session[key]),
+      'accumulatedPausedMs', 'paused', 'pausedAt'] as const).map(key => session[key]),
     data?.sunDefaults, data?.lightCircadian?.skinType,
   ]);
 }
 
 // The live ticker and completed-session replay use identical exposure inputs.
-export function sunSessionExposure(sess) {
+export function sunSessionExposure(sess: SunSessionExposureInput) {
   const bodyModifiers = {
     glassBetween: !!sess.bodyExposure?.glassBetween,
     sunscreenSPF: sess.bodyExposure?.sunscreenSPF || 0,
@@ -114,7 +133,7 @@ export function sunSessionExposure(sess) {
   return {
     bodyExposureFraction: sess.bodyExposure?.fraction ?? 0,
     skinIrradianceMultiplier: Math.max(0, Math.min(2,
-      (POSTURE_MULTIPLIERS[sess.posture] ?? 1) * (1 + (SURFACE_ALBEDO[sess.surfaceAlbedo] ?? 0) * 0.5))),
+      (POSTURE_MULTIPLIERS[sess.posture!] ?? 1) * (1 + (SURFACE_ALBEDO[sess.surfaceAlbedo!] ?? 0) * 0.5))),
     bodyModifiers,
     eyeExposure: bodyModifiers.glassBetween && sess.eyeExposure?.mode === 'direct'
       ? { ...sess.eyeExposure, mode: 'glass-window' } : sess.eyeExposure,
