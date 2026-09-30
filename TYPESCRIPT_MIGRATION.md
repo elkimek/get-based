@@ -260,7 +260,8 @@ resolution now have native contracts. Untrusted JSON stays opaque until the
 existing field checks and coercions. Development discovery consumes the same
 CLI definitions as the standalone companion, while retaining its POSIX probing
 and Windows launcher paths. Seven existing foundation/lifecycle suites are
-checked as native TypeScript, with executable assertions retained.
+checked as native TypeScript, with executable assertions retained. The compatibility
+service build includes the shared source graph required by the native library modules.
 
 ## Remaining work
 

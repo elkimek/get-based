@@ -8,6 +8,7 @@ RUN npm ci --ignore-scripts
 COPY tsconfig.migration.json ./
 COPY api ./api
 COPY lib ./lib
+COPY shared ./shared
 COPY server/compat-proxy-server.ts ./server/
 RUN ./node_modules/.bin/tsc -p tsconfig.migration.json
 
@@ -23,6 +24,7 @@ RUN npm ci --omit=dev --ignore-scripts \
 
 COPY --from=build /app/api ./api
 COPY --from=build /app/lib ./lib
+COPY --from=build /app/shared ./shared
 COPY --from=build /app/server/compat-proxy-server.js ./server/compat-proxy-server.js
 
 USER node
