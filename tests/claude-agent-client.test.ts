@@ -1,5 +1,7 @@
 // @vitest-environment node
 
+import type { ChildProcessWithoutNullStreams } from 'node:child_process';
+import type { AgentUsage } from '../lib/agent-turn-types.js';
 import { EventEmitter } from 'node:events';
 import { existsSync, readFileSync } from 'node:fs';
 import { PassThrough } from 'node:stream';
@@ -12,7 +14,7 @@ describe('Claude Agent adapter', () => {
     const models = getClaudeModelCatalog();
     expect(models.map(model => model.id)).toEqual(expect.arrayContaining(['sonnet', 'opus', 'fable']));
     expect(models[0]).toMatchObject({ inputModalities: ['text', 'image'] });
-    expect(models[0].supportedReasoningEfforts.map(item => item.reasoningEffort))
+    expect(models[0]!.supportedReasoningEfforts.map(item => item.reasoningEffort))
       .toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
   });
 
@@ -27,20 +29,20 @@ describe('Claude Agent adapter', () => {
   });
 
   it('keeps MCP credentials and custom instructions out of process arguments', async () => {
-    let capturedArgs = [];
+    let capturedArgs: readonly string[] = [];
     let mcpPath = '';
     let promptPath = '';
-    const spawnImpl = vi.fn((command, args) => {
+    const spawnImpl = vi.fn((command: string, args: readonly string[]) => {
       capturedArgs = args;
-      mcpPath = args[args.indexOf('--mcp-config') + 1];
-      promptPath = args[args.indexOf('--system-prompt-file') + 1];
+      mcpPath = args[args.indexOf('--mcp-config') + 1]!;
+      promptPath = args[args.indexOf('--system-prompt-file') + 1]!;
       expect(command).toBe('node');
       expect(args.slice(0, 2)).toEqual(['C:\\cli\\claude.js', '-p']);
       expect(JSON.parse(readFileSync(mcpPath, 'utf8'))).toMatchObject({
         mcpServers: { getbased: { env: { GETBASED_MCP_TOKEN: 'private-mcp-token' } } },
       });
       expect(readFileSync(promptPath, 'utf8')).toBe('Custom & private instructions');
-      const child = new EventEmitter();
+      const child = new EventEmitter() as ChildProcessWithoutNullStreams & { stdout: PassThrough };
       child.stdin = new PassThrough();
       child.stdout = new PassThrough();
       child.stderr = new PassThrough();
@@ -78,11 +80,11 @@ describe('Claude event protocol boundaries', () => {
     expect(extractClaudeStreamEvent({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 42 } } }))
       .toEqual({ type: 'text_delta', delta: '' });
   });
-  it.each([{}, { input_tokens: 4, output_tokens: 9 }])('reports usage with defaults for missing counters: %j', usage => {
+  it.each([{}, { input_tokens: 4, output_tokens: 9 }])('reports usage with defaults for missing counters: %j', (usage: AgentUsage) => {
     expect(extractClaudeStreamEvent({ type: 'stream_event', event: { type: 'message_delta', usage } }))
       .toEqual({ type: 'usage', inputTokens: usage.input_tokens || 0, outputTokens: usage.output_tokens || 0 });
   });
-  it.each([{ result: 'denied' }, { error: 'denied' }, {}])('reports an error result without success text: %j', details => {
+  it.each([{ result: 'denied' }, { error: 'denied' }, {}])('reports an error result without success text: %j', (details: { result?: unknown; error?: unknown }) => {
     expect(extractClaudeStreamEvent({ type: 'result', is_error: true, ...details }))
       .toMatchObject({ type: 'error', message: details.result || details.error || '', resultText: '', finishReason: '' });
   });

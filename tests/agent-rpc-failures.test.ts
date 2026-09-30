@@ -1,4 +1,13 @@
 // @vitest-environment node
+import type { ChildProcessWithoutNullStreams } from 'node:child_process';
+import type { Mock } from 'vitest';
+type FixtureChild = ChildProcessWithoutNullStreams & {
+  stdin: PassThrough;
+  stdout: PassThrough;
+  stderr: PassThrough;
+  kill: Mock<ChildProcessWithoutNullStreams['kill']>;
+};
+
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -9,28 +18,28 @@ function childProcess() {
   return Object.assign(new EventEmitter(), {
     stdin: new PassThrough(), stdout: new PassThrough(), stderr: new PassThrough(),
     exitCode: null, signalCode: null, kill: vi.fn(),
-  });
+  }) as FixtureChild;
 }
-const clients = [];
+const clients: (CodexAppServerClient | ACPAgentClient)[] = [];
 afterEach(async () => {
   for (const client of clients.splice(0)) await client.close();
   vi.useRealTimers();
 });
-function setup(kind, children = [childProcess()]) {
+function setup(kind: string, children = [childProcess()]) {
   const spawnImpl = vi.fn();
   for (const child of children) spawnImpl.mockReturnValueOnce(child);
   const client = kind === 'codex'
     ? new CodexAppServerClient({ spawnImpl, requestTimeoutMs: 100 })
     : new ACPAgentClient({ id: 'opencode', command: 'opencode', args: ['acp'], cwd: '/tmp', spawnImpl, requestTimeoutMs: 100 });
   clients.push(client);
-  return { client, child: children[0], spawnImpl };
+  return { client, child: children[0]!, spawnImpl };
 }
 
 describe.each(['codex', 'acp'])('%s RPC failure boundaries', kind => {
   it('cleans up pending entries and timers when request serialization fails', async () => {
     vi.useFakeTimers();
     const { client, child } = setup(kind);
-    const params = {}; params.self = params;
+    const params: { self?: unknown } = {}; params.self = params;
     await expect(client.request('ping', params)).rejects.toThrow();
     expect(client.pending.size).toBe(0);
     expect(vi.getTimerCount()).toBe(0);
@@ -49,7 +58,7 @@ describe.each(['codex', 'acp'])('%s RPC failure boundaries', kind => {
   it('rejects callback write failures instead of waiting for timeout', async () => {
     vi.useFakeTimers();
     const { client, child } = setup(kind);
-    child.stdin.write = vi.fn((_data, callback) => { callback(new Error('broken pipe')); return false; });
+    child.stdin.write = vi.fn((_data: unknown, callback: (error: Error) => void) => { callback(new Error('broken pipe')); return false; }) as unknown as typeof child.stdin.write;
     const pending = client.request('ping', {});
     const outcome = pending.then(() => 'resolved', error => error.message);
     await Promise.resolve();
@@ -130,12 +139,12 @@ describe.each(['codex', 'acp'])('%s RPC failure boundaries', kind => {
 
   it('ignores a late write callback after a successful response', async () => {
     const { client, child } = setup(kind);
-    let callback;
-    child.stdin.write = vi.fn((_data, done) => { callback = done; return true; });
+    let callback: ((error: Error) => void) | undefined;
+    child.stdin.write = vi.fn((_data: unknown, done: (error: Error) => void) => { callback = done; return true; }) as unknown as typeof child.stdin.write;
     const request = client.request('ping', {});
     child.stdout.write('{"id":1,"result":"accepted"}\n');
     await expect(request).resolves.toBe('accepted');
-    expect(() => callback(new Error('late failure'))).not.toThrow();
+    expect(() => callback!(new Error('late failure'))).not.toThrow();
     expect(client.pending.size).toBe(0);
   });
 
@@ -172,7 +181,7 @@ describe.each(['codex', 'acp'])('%s RPC failure boundaries', kind => {
     const { client, child } = setup(kind);
     const pending = client.request('ping', {}).catch(error => error);
     child.emit('exit', null, 'SIGTERM');
-    expect((await pending).message).toContain('signal SIGTERM');
+    expect((await pending as Error).message).toContain('signal SIGTERM');
     expect(() => child.emit('exit', null, 'SIGTERM')).not.toThrow();
     expect(client.child).toBeNull();
   });

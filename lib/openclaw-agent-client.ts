@@ -1,5 +1,9 @@
-// @ts-check
 // Restricted, one-shot OpenClaw adapter for the getbased companion.
+
+import type { ChildProcess } from 'node:child_process';
+import type { FileHandle } from 'node:fs/promises';
+import type { ObservedAgentProcess } from './agent-process-lifecycle.js';
+import type { AgentTurnOptions, AgentMcpConfig, AgentPromptBlock, ProcessAdapterOptions, ProcessAdapterState, FileAgentSpawner } from './agent-turn-types.js';
 
 import { assertAgentNotAborted, observeAgentProcess } from './agent-process-lifecycle.js';
 import { spawn as spawnChild } from 'node:child_process';
@@ -9,21 +13,30 @@ import { open, unlink, writeFile } from 'node:fs/promises';
 import { delimiter, dirname, isAbsolute, join } from 'node:path';
 import { readBoundedFile } from './read-bounded-file.js';
 
+interface OpenClawPayload extends Record<string, unknown> {
+  models?: (Record<string, unknown> | null)[] | null;
+  payloads?: ({ text?: unknown } | null)[] | null;
+  usage?: { input?: unknown; output?: unknown } | null;
+}
+interface OpenClawClientOptions extends ProcessAdapterOptions<FileAgentSpawner> {
+  mode?: 'isolated' | 'gateway';
+  gatewayAgentId?: string;
+}
+type OpenClawModelCatalog = ReturnType<typeof normalizeOpenClawModelCatalog>;
+
 const OPENCLAW_REASONING_EFFORTS = Object.freeze([
   'off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra', 'adaptive',
 ]);
 const MAX_OUTPUT_BYTES = 4 * 1024 * 1024;
 
-/** @param {unknown} value @param {number} [max] */
-function cleanText(value, max = 500) {
+function cleanText(value: unknown, max = 500) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
 
-/** @param {any} payload */
-export function normalizeOpenClawModelCatalog(payload) {
+export function normalizeOpenClawModelCatalog(payload: OpenClawPayload | null | undefined) {
   if (!Array.isArray(payload?.models)) return [];
-  return payload.models.filter(model => model && typeof model === 'object'
-    && model.available !== false && model.missing !== true).flatMap(model => {
+  return (payload.models.filter(model => model && typeof model === 'object'
+    && model.available !== false && model.missing !== true) as Record<string, unknown>[]).flatMap(model => {
     const id = cleanText(model.key || model.id, 160);
     if (!id) return [];
     const tags = Array.isArray(model.tags) ? model.tags.map(value => cleanText(value, 40)) : [];
@@ -43,11 +56,10 @@ export function normalizeOpenClawModelCatalog(payload) {
   }).slice(0, 500);
 }
 
-/** @param {any} payload */
-export function extractOpenClawResult(payload) {
+export function extractOpenClawResult(payload: OpenClawPayload | null | undefined) {
   if (!payload || typeof payload !== 'object') throw new Error('OpenClaw returned an invalid response.');
   if (payload.ok !== true || payload.status !== 'ok') {
-    throw new Error(cleanText(payload.error?.message || payload.error, 1_000) || 'OpenClaw could not complete the request.');
+    throw new Error(cleanText((payload.error as { message?: unknown } | null | undefined)?.message || payload.error, 1_000) || 'OpenClaw could not complete the request.');
   }
   const payloadText = Array.isArray(payload.payloads)
     ? payload.payloads.map(item => cleanText(item?.text, MAX_OUTPUT_BYTES)).filter(Boolean).join('\n\n') : '';
@@ -63,8 +75,7 @@ export function extractOpenClawResult(payload) {
   };
 }
 
-/** @param {any[]} prompt */
-function promptText(prompt) {
+function promptText(prompt: AgentPromptBlock[]) {
   const blocks = Array.isArray(prompt) ? prompt : [];
   if (blocks.some(block => block?.type === 'image')) {
     throw new Error('OpenClaw image input is not available through its headless CLI yet. Choose a vision-capable provider for this image.');
@@ -72,8 +83,7 @@ function promptText(prompt) {
   return blocks.filter(block => block?.type === 'text').map(block => String(block.text || '')).join('\n\n').trim();
 }
 
-/** @param {NodeJS.ProcessEnv} env */
-export function resolveOpenClawAmbientConfig(env = process.env) {
+export function resolveOpenClawAmbientConfig(env: NodeJS.ProcessEnv = process.env) {
   const explicit = cleanText(env.OPENCLAW_CONFIG_PATH, 4_096);
   if (explicit && isAbsolute(explicit)) return explicit;
   const home = cleanText(env.OPENCLAW_HOME || env.HOME || env.USERPROFILE, 4_096);
@@ -84,8 +94,7 @@ export function resolveOpenClawAmbientConfig(env = process.env) {
   return join(home, profile && profile !== 'default' ? `.openclaw-${profile}` : '.openclaw', 'openclaw.json');
 }
 
-/** @param {any} mcpConfig @param {string[]} allowedToolNames @param {string} [ambientConfigPath] */
-export function buildOpenClawTurnConfig(mcpConfig, allowedToolNames = [], ambientConfigPath = '') {
+export function buildOpenClawTurnConfig(mcpConfig: AgentMcpConfig | null | undefined, allowedToolNames: string[] = [], ambientConfigPath = '') {
   const source = mcpConfig?.mcpServers?.getbased || {};
   const include = [...new Set(allowedToolNames.map(value => cleanText(value, 160)).filter(Boolean))];
   return {
@@ -103,9 +112,14 @@ export function buildOpenClawTurnConfig(mcpConfig, allowedToolNames = [], ambien
   };
 }
 
+export interface OpenClawAgentClient extends ProcessAdapterState<ChildProcess, FileAgentSpawner> {}
+
 export class OpenClawAgentClient {
-  /** @param {{command: string, args?: string[], cwd: string, env?: NodeJS.ProcessEnv, spawnImpl?: typeof spawnChild, mode?: 'isolated'|'gateway', gatewayAgentId?: string}} options */
-  constructor(options) {
+  declare mode: 'isolated' | 'gateway';
+  declare gatewayAgentId: string;
+  declare modelCatalogPromise: Promise<OpenClawModelCatalog> | null;
+  declare ambientConfigPath: string;
+  constructor(options: OpenClawClientOptions) {
     this.command = options.command;
     this.args = options.args || [];
     this.cwd = options.cwd;
@@ -120,31 +134,29 @@ export class OpenClawAgentClient {
     this.ambientConfigPath = ambientConfigPath && existsSync(ambientConfigPath) ? ambientConfigPath : '';
   }
 
-  /** @param {string} path */
-  async readBoundedOutput(path) {
+  async readBoundedOutput(path: string) {
     const handle = await open(path, 'r');
     try {
       return await readBoundedFile(handle, MAX_OUTPUT_BYTES, 'OpenClaw response exceeded the companion limit.');
     } finally { await handle.close(); }
   }
 
-  /** @param {string[]} args @param {AbortSignal | undefined} signal @param {string[]} [privatePaths] */
-  async runCommand(args, signal, privatePaths = []) {
+  async runCommand(args: string[], signal: AbortSignal | undefined, privatePaths: string[] = []) {
     assertAgentNotAborted(signal);
     const privateId = randomUUID();
     const stdoutPath = join(this.cwd, `openclaw-stdout-${privateId}.json`);
     const stderrPath = join(this.cwd, `openclaw-stderr-${privateId}.txt`);
     const cleanup = () => Promise.all([stdoutPath, stderrPath, ...privatePaths].map(path => unlink(path).catch(() => {})));
-    let stdoutHandle;
-    let stderrHandle;
-    let child;
-    let lifecycle;
+    let stdoutHandle: FileHandle | undefined;
+    let stderrHandle: FileHandle | undefined;
+    let child: ChildProcess | undefined;
+    let lifecycle: ObservedAgentProcess | undefined;
     try {
       const opened = await Promise.allSettled([
         open(stdoutPath, 'wx', 0o600), open(stderrPath, 'wx', 0o600),
       ]);
-      stdoutHandle = opened[0].status === 'fulfilled' ? opened[0].value : undefined;
-      stderrHandle = opened[1].status === 'fulfilled' ? opened[1].value : undefined;
+      stdoutHandle = opened[0]!.status === 'fulfilled' ? opened[0]!.value : undefined;
+      stderrHandle = opened[1]!.status === 'fulfilled' ? opened[1]!.value : undefined;
       for (const result of opened) if (result.status === 'rejected') throw result.reason;
       if (!stdoutHandle || !stderrHandle) throw new Error('Could not open agent output files.');
       assertAgentNotAborted(signal);
@@ -199,18 +211,14 @@ export class OpenClawAgentClient {
     return catalog;
   }
 
-  /** @param {{refresh?: boolean}} [options] */
-  async getModelCatalog(options = {}) {
+  async getModelCatalog(options: { refresh?: boolean } = {}) {
     if (options.refresh) this.modelCatalogPromise = null;
     if (!this.modelCatalogPromise) this.modelCatalogPromise = this.loadModelCatalog()
       .catch(error => { this.modelCatalogPromise = null; throw error; });
     return this.modelCatalogPromise;
   }
 
-  /**
-   * @param {{sessionId?: string, prompt: any[], model?: string, effort?: string, instructions: string, outputSchema?: any, mcpConfig: any, allowedToolNames: string[], signal?: AbortSignal, onEvent: (event: any) => void}} options
-   */
-  async prompt(options) {
+  async prompt(options: AgentTurnOptions) {
     assertAgentNotAborted(options.signal);
     const catalog = await this.getModelCatalog();
     const model = cleanText(options.model, 160)

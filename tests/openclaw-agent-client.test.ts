@@ -1,5 +1,7 @@
 // @vitest-environment node
 
+import type { ChildProcess } from 'node:child_process';
+import type { FileAgentSpawnOptions } from '../lib/agent-turn-types.js';
 import { EventEmitter } from 'node:events';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, writeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -9,7 +11,7 @@ import {
   buildOpenClawTurnConfig, extractOpenClawResult, normalizeOpenClawModelCatalog, OpenClawAgentClient,
 } from '../lib/openclaw-agent-client.js';
 
-const roots = [];
+const roots: string[] = [];
 it('refreshes OpenClaw models without restarting active turns', async () => {
   const client = new OpenClawAgentClient({ command: 'openclaw', cwd: '/tmp' });
   client.loadModelCatalog = vi.fn(async () => []);
@@ -27,12 +29,12 @@ function fixture() {
   return cwd;
 }
 
-function fakeChild(payload, stdio, code = 0, stderrText = '') {
-  const child = new EventEmitter();
+function fakeChild(payload: unknown, stdio: FileAgentSpawnOptions['stdio'], code = 0, stderrText = '') {
+  const child = new EventEmitter() as ChildProcess;
   child.kill = vi.fn();
   setImmediate(() => {
-    if (payload !== undefined) writeSync(stdio[1], typeof payload === 'string' ? payload : JSON.stringify(payload));
-    if (stderrText) writeSync(stdio[2], stderrText);
+    if (payload !== undefined) writeSync(stdio![1], typeof payload === 'string' ? payload : JSON.stringify(payload));
+    if (stderrText) writeSync(stdio![2], stderrText);
     child.emit('exit', code);
   });
   return child;
@@ -53,7 +55,7 @@ describe('OpenClaw agent adapter', () => {
     expect(catalog[0]).toMatchObject({
       id: 'openai/gpt-5.6-sol', displayName: 'GPT-5.6 Sol', isDefault: true, inputModalities: ['text'],
     });
-    expect(catalog[0].supportedReasoningEfforts.map(item => item.reasoningEffort))
+    expect(catalog[0]!.supportedReasoningEfforts.map(item => item.reasoningEffort))
       .toEqual(['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra', 'adaptive']);
   });
 
@@ -73,7 +75,7 @@ describe('OpenClaw agent adapter', () => {
 
   it('reads the OpenClaw catalog through its stable JSON command', async () => {
     const cwd = fixture();
-    const spawnImpl = vi.fn((command, args, options) => fakeChild(modelPayload, options.stdio));
+    const spawnImpl = vi.fn((_command: string, _args: readonly string[], options: FileAgentSpawnOptions) => fakeChild(modelPayload, options.stdio));
     const client = new OpenClawAgentClient({ command: 'node', args: ['C:\\cli\\openclaw.js'], cwd, env: { HOME: cwd }, spawnImpl });
     await expect(client.getModelCatalog()).resolves.toHaveLength(2);
     expect(spawnImpl).toHaveBeenCalledWith('node', ['C:\\cli\\openclaw.js', 'models', 'list', '--json'], expect.objectContaining({
@@ -83,11 +85,11 @@ describe('OpenClaw agent adapter', () => {
 
   it('keeps health context and MCP credentials out of argv and cleans private files', async () => {
     const cwd = fixture();
-    let observedConfig;
+    let observedConfig: unknown;
     let observedPrompt = '';
-    const spawnImpl = vi.fn((command, args, spawnOptions) => {
-      const configPath = args[args.indexOf('--config') + 1];
-      const promptPath = args[args.indexOf('--message-file') + 1];
+    const spawnImpl = vi.fn((_command: string, args: readonly string[], spawnOptions: FileAgentSpawnOptions) => {
+      const configPath = args[args.indexOf('--config') + 1]!;
+      const promptPath = args[args.indexOf('--message-file') + 1]!;
       observedConfig = JSON.parse(readFileSync(configPath, 'utf8'));
       observedPrompt = readFileSync(promptPath, 'utf8');
       return fakeChild({
@@ -108,7 +110,7 @@ describe('OpenClaw agent adapter', () => {
       } } }, onEvent,
     });
 
-    const argv = spawnImpl.mock.calls[0][1];
+    const argv = spawnImpl.mock.calls[0]![1];
     expect(argv).toEqual(expect.arrayContaining([
       'agent', 'exec', '--code-mode', 'direct', '--json', '--model', 'openai/gpt-5.6-sol', '--thinking', 'xhigh',
     ]));
@@ -132,9 +134,9 @@ describe('OpenClaw agent adapter', () => {
   it('routes a personal-agent turn through the configured gateway without a temporary config overlay', async () => {
     const cwd = fixture();
     let observedPrompt = '';
-    const spawnImpl = vi.fn((command, args, spawnOptions) => {
+    const spawnImpl = vi.fn((_command: string, args: readonly string[], spawnOptions: FileAgentSpawnOptions) => {
       if (args[0] === 'models') return fakeChild(modelPayload, spawnOptions.stdio);
-      const promptPath = args[args.indexOf('--message-file') + 1];
+      const promptPath = args[args.indexOf('--message-file') + 1]!;
       observedPrompt = readFileSync(promptPath, 'utf8');
       return fakeChild({
         ok: true, status: 'ok', final: 'From my personal agent.', provider: 'openai', model: 'gpt-5.6-sol',
@@ -151,7 +153,7 @@ describe('OpenClaw agent adapter', () => {
       instructions: 'Keep your configured identity.', prompt: [{ type: 'text', text: 'Who is there?' }],
       outputSchema: null, mcpConfig: {}, allowedToolNames: [], onEvent: vi.fn(),
     });
-    const [command, args, options] = spawnImpl.mock.calls[0];
+    const [command, args, options] = spawnImpl.mock.calls[0]!;
     expect(command).toBe('/opt/openclaw');
     expect(args).toEqual(expect.arrayContaining([
       'agent', '--agent', 'main', '--session-id', 'getbased-personal-session', '--message-file', expect.any(String),
@@ -159,7 +161,7 @@ describe('OpenClaw agent adapter', () => {
     ]));
     expect(args).not.toContain('exec');
     expect(args).not.toContain('--config');
-    expect(options.env.OPENCLAW_CONFIG_PATH).toBe('/private/openclaw.json');
+    expect(options.env!.OPENCLAW_CONFIG_PATH).toBe('/private/openclaw.json');
     expect(observedPrompt).toContain('Keep your configured identity.');
     expect(observedPrompt).toContain('Who is there?');
     expect(readdirSync(cwd)).toEqual([]);
@@ -186,8 +188,8 @@ describe('OpenClaw agent adapter', () => {
 it.each(['not-json', { models: [] }, { models: [{ key: 'missing', available: false }] }])('clears a failed model discovery cache and permits retry: %j', failure => {
   const cwd = fixture();
   const spawnImpl = vi.fn()
-    .mockImplementationOnce((_command, _args, options) => fakeChild(failure, options.stdio))
-    .mockImplementationOnce((_command, _args, options) => fakeChild(modelPayload, options.stdio));
+    .mockImplementationOnce((_command: string, _args: readonly string[], options: FileAgentSpawnOptions) => fakeChild(failure, options.stdio))
+    .mockImplementationOnce((_command: string, _args: readonly string[], options: FileAgentSpawnOptions) => fakeChild(modelPayload, options.stdio));
   const client = new OpenClawAgentClient({ command: 'fixture', cwd, env: { HOME: cwd }, spawnImpl });
   return (async () => {
     await expect(client.getModelCatalog()).rejects.toThrow();
@@ -198,17 +200,17 @@ it.each(['not-json', { models: [] }, { models: [{ key: 'missing', available: fal
   })();
 });
 
-it.each(['isolated', 'gateway'])('preserves explicit ambient include roots in %s mode', async mode => {
+it.each(['isolated', 'gateway'] as const)('preserves explicit ambient include roots in %s mode', async mode => {
   const cwd = fixture(), ambientPath = join(cwd, 'ambient.json');
   writeFileSync(ambientPath, '{}');
-  const spawnImpl = vi.fn((_command, _args, options) => fakeChild({ ok: true, status: 'ok', final: 'done' }, options.stdio));
+  const spawnImpl = vi.fn((_command: string, _args: readonly string[], options: FileAgentSpawnOptions) => fakeChild({ ok: true, status: 'ok', final: 'done' }, options.stdio));
   const client = new OpenClawAgentClient({ command: 'fixture', cwd, spawnImpl, mode, env: {
     HOME: cwd, OPENCLAW_CONFIG_PATH: ambientPath,
     OPENCLAW_INCLUDE_ROOTS: ['', cwd, cwd].join(delimiter),
   } });
   client.modelCatalogPromise = Promise.resolve(normalizeOpenClawModelCatalog(modelPayload));
   await client.prompt({ prompt: [], instructions: '', mcpConfig: {}, allowedToolNames: [], onEvent: vi.fn() });
-  const env = spawnImpl.mock.calls[0][2].env;
+  const env = spawnImpl.mock.calls[0]![2].env!;
   expect(env.OPENCLAW_INCLUDE_ROOTS).toBe(cwd);
   expect(env.OPENCLAW_CONFIG_PATH).toBe(mode === 'gateway' ? ambientPath : undefined);
   expect(readFileSync(ambientPath, 'utf8')).toBe('{}');
@@ -217,7 +219,7 @@ it.each(['isolated', 'gateway'])('preserves explicit ambient include roots in %s
 it('rejects cancellation arriving after exit while reading the result', async () => {
   const cwd = fixture(), controller = new AbortController();
   const client = new OpenClawAgentClient({ command: 'fixture', cwd, env: { HOME: cwd },
-    spawnImpl: (_command, _args, options) => fakeChild({}, options.stdio),
+    spawnImpl: (_command: string, _args: readonly string[], options: FileAgentSpawnOptions) => fakeChild({}, options.stdio),
   });
   const read = client.readBoundedOutput.bind(client);
   client.readBoundedOutput = async path => { controller.abort(); return read(path); };

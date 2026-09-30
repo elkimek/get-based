@@ -1,12 +1,13 @@
 // @vitest-environment node
 
+import type { ChildProcessWithoutNullStreams } from 'node:child_process';
 import { describe, expect, it, vi } from 'vitest';
 import { ACPAgentClient, normalizeACPModelCatalog } from '../lib/acp-agent-client.js';
 
 describe('ACP agent model catalogs', () => {
   it('rejects a removed model rather than silently using a different one', async () => {
     const client = new ACPAgentClient({ id: 'hermes', command: 'hermes', args: [], cwd: '/tmp' });
-    client.request = vi.fn();
+    client.request = vi.fn() as typeof client.request;
     await expect(client.configureSession('s', [], 'removed', '', {
       currentModelId: 'available', availableModels: [{ modelId: 'available' }],
     })).rejects.toThrow('model is unavailable');
@@ -18,26 +19,26 @@ describe('ACP agent model catalogs', () => {
     client.initialize = vi.fn(async () => ({}));
     client.request = vi.fn(async () => ({ sessionId: 'catalog', models: {
       currentModelId: 'a', availableModels: [{ modelId: 'a' }],
-    } }));
+    } })) as typeof client.request;
     await client.getModelCatalog();
     await client.getModelCatalog();
     expect(client.request).toHaveBeenCalledTimes(1);
     await client.getModelCatalog({ refresh: true });
     expect(client.request).toHaveBeenCalledTimes(2);
-    expect(client.request.mock.calls.map(([method]) => method)).toEqual(['session/new', 'session/new']);
+    expect((client.request as ReturnType<typeof vi.fn>).mock.calls.map(([method]) => method)).toEqual(['session/new', 'session/new']);
   });
 
   it('grants only active-turn Grok MCP tools once and denies unrelated permissions', async () => {
     const client = new ACPAgentClient({ id: 'grok', command: 'grok', args: [], cwd: '/tmp' });
     const write = vi.fn();
     const controller = new AbortController();
-    client.child = { stdin: { write } };
+    client.child = { stdin: { write } } as unknown as ChildProcessWithoutNullStreams;
     const permission = (tool = 'getbased__getbased_lab_context', sessionId = 'turn', variant = 'UseTool') => {
       client.handleLine(JSON.stringify({ id: 1, method: 'session/request_permission', params: {
         sessionId, toolCall: { title: 'getbased__getbased_lab_context', rawInput: { variant, tool_name: tool } },
         options: [{ optionId: 'always', kind: 'allow_always' }, { optionId: 'once', kind: 'allow_once' }],
       } }));
-      return JSON.parse(write.mock.lastCall[0]).result.outcome;
+      return JSON.parse(write.mock.lastCall![0]).result.outcome;
     };
     client.request = vi.fn(async () => {
       expect(permission()).toEqual({ outcome: 'selected', optionId: 'once' });
@@ -48,7 +49,7 @@ describe('ACP agent model catalogs', () => {
       controller.abort();
       expect(permission()).toEqual({ outcome: 'cancelled' });
       return { stopReason: 'end_turn' };
-    });
+    }) as typeof client.request;
     expect(permission()).toEqual({ outcome: 'cancelled' });
     await client.prompt({ sessionId: 'turn', prompt: [], allowedToolNames: ['getbased_lab_context'], signal: controller.signal, onNotification() {} });
     expect(permission()).toEqual({ outcome: 'cancelled' });
@@ -98,7 +99,7 @@ describe('ACP agent model catalogs', () => {
     });
 
     const client = new ACPAgentClient({ id: 'opencode', command: 'opencode', args: ['acp'], cwd: '/tmp' });
-    client.request = vi.fn(async () => ({ configOptions: [] }));
+    client.request = vi.fn(async () => ({ configOptions: [] })) as typeof client.request;
     await client.configureSession('session-1', [{
       id: 'effort', category: 'thought_level', currentValue: 'medium', options: [],
     }], '', 'high');
@@ -109,7 +110,7 @@ describe('ACP agent model catalogs', () => {
 
   it('uses the ACP model extension for Hermes session-local model choices', async () => {
     const client = new ACPAgentClient({ id: 'hermes', command: 'hermes', args: ['acp'], cwd: '/tmp' });
-    client.request = vi.fn(async () => ({}));
+    client.request = vi.fn(async () => ({})) as typeof client.request;
     await client.configureSession('session-2', [], 'openai-codex:gpt-5.6-terra', '', {
       currentModelId: 'openai-codex:gpt-5.6-sol',
       availableModels: [
@@ -124,11 +125,11 @@ describe('ACP agent model catalogs', () => {
   it('starts a fresh session when an ACP session can no longer be loaded', async () => {
     const client = new ACPAgentClient({ id: 'opencode', command: 'opencode', args: ['acp'], cwd: '/tmp/current' });
     client.initialize = vi.fn(async () => ({ agentCapabilities: { loadSession: true } }));
-    client.request = vi.fn(async method => {
+    client.request = vi.fn(async (method: string) => {
       if (method === 'session/load') throw new Error('Previous workspace no longer exists.');
       if (method === 'session/new') return { sessionId: 'fresh-session', configOptions: [] };
       throw new Error(`Unexpected request: ${method}`);
-    });
+    }) as typeof client.request;
 
     await expect(client.ensureSession({ requestedSessionId: 'stale-session', mcpServers: [] }))
       .resolves.toMatchObject({ sessionId: 'fresh-session' });
@@ -143,7 +144,7 @@ describe('ACP agent model catalogs', () => {
   it('reuses one private catalog session across per-model option refreshes', async () => {
     const client = new ACPAgentClient({ id: 'opencode', command: 'opencode', args: ['acp'], cwd: '/tmp/current' });
     client.initialize = vi.fn(async () => ({ agentCapabilities: { promptCapabilities: { image: true } } }));
-    client.request = vi.fn(async (method, params) => {
+    client.request = vi.fn(async (method: string, params: unknown) => {
       if (method === 'session/new') return {
         sessionId: 'catalog-session',
         configOptions: [{ id: 'model', category: 'model', currentValue: 'model-a', options: [
@@ -151,17 +152,17 @@ describe('ACP agent model catalogs', () => {
         ] }],
       };
       if (method === 'session/set_config_option') return {
-        configOptions: [{ id: 'model', category: 'model', currentValue: params.value, options: [
+        configOptions: [{ id: 'model', category: 'model', currentValue: (params as { value?: unknown }).value, options: [
           { value: 'model-a', name: 'Model A' }, { value: 'model-b', name: 'Model B' },
         ] }],
       };
       throw new Error(`Unexpected request: ${method}`);
-    });
+    }) as typeof client.request;
 
     await client.loadModelCatalog({ model: 'model-a' });
     await client.loadModelCatalog({ model: 'model-b' });
 
-    expect(client.request.mock.calls.filter(([method]) => method === 'session/new')).toHaveLength(1);
+    expect((client.request as ReturnType<typeof vi.fn>).mock.calls.filter(([method]) => method === 'session/new')).toHaveLength(1);
     expect(client.request).toHaveBeenCalledWith('session/set_config_option', {
       sessionId: 'catalog-session', configId: 'model', value: 'model-b',
     });

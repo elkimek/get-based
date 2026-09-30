@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 808 |
-| Internal import edges | 3410 |
+| Modules | 810 |
+| Internal import edges | 3412 |
 | Dynamic internal edges | 119 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1544,11 +1544,11 @@ Node-only policy and transport code shared by hosted runtimes.
 
 <details><summary><code>acp</code> family — 1 module</summary>
 
-- [`lib/acp-agent-client.js`](lib/acp-agent-client.js) → no in-scope imports
+- [`lib/acp-agent-client.ts`](lib/acp-agent-client.ts) → [`lib/rpc-client-state.ts`](lib/rpc-client-state.ts)
 
 </details>
 
-<details><summary><code>agent</code> family — 6 modules</summary>
+<details><summary><code>agent</code> family — 7 modules</summary>
 
 - [`lib/agent-host-boundary.js`](lib/agent-host-boundary.js) → [`shared/agent-tool-contract.ts`](shared/agent-tool-contract.ts)
 - [`lib/agent-host-external-turn.js`](lib/agent-host-external-turn.js) → no in-scope imports
@@ -1556,19 +1556,20 @@ Node-only policy and transport code shared by hosted runtimes.
 - [`lib/agent-host-storage.js`](lib/agent-host-storage.js) → no in-scope imports
 - [`lib/agent-mcp-bridge.js`](lib/agent-mcp-bridge.js) → no in-scope imports
 - [`lib/agent-process-lifecycle.ts`](lib/agent-process-lifecycle.ts) → no in-scope imports
+- [`lib/agent-turn-types.ts`](lib/agent-turn-types.ts) → no in-scope imports
 
 </details>
 
 <details><summary><code>claude</code> family — 1 module</summary>
 
-- [`lib/claude-agent-client.js`](lib/claude-agent-client.js) → [`lib/agent-process-lifecycle.ts`](lib/agent-process-lifecycle.ts)
+- [`lib/claude-agent-client.ts`](lib/claude-agent-client.ts) → [`lib/agent-process-lifecycle.ts`](lib/agent-process-lifecycle.ts)
 
 </details>
 
 <details><summary><code>codex</code> family — 2 modules</summary>
 
 - [`lib/codex-agent-isolation.js`](lib/codex-agent-isolation.js) → no in-scope imports
-- [`lib/codex-app-server-client.js`](lib/codex-app-server-client.js) → no in-scope imports
+- [`lib/codex-app-server-client.ts`](lib/codex-app-server-client.ts) → [`lib/rpc-client-state.ts`](lib/rpc-client-state.ts)
 
 </details>
 
@@ -1630,7 +1631,7 @@ Node-only policy and transport code shared by hosted runtimes.
 
 <details><summary><code>openclaw</code> family — 1 module</summary>
 
-- [`lib/openclaw-agent-client.js`](lib/openclaw-agent-client.js) → [`lib/agent-process-lifecycle.ts`](lib/agent-process-lifecycle.ts), [`lib/read-bounded-file.ts`](lib/read-bounded-file.ts)
+- [`lib/openclaw-agent-client.ts`](lib/openclaw-agent-client.ts) → [`lib/agent-process-lifecycle.ts`](lib/agent-process-lifecycle.ts), [`lib/read-bounded-file.ts`](lib/read-bounded-file.ts)
 
 </details>
 
@@ -1656,6 +1657,12 @@ Node-only policy and transport code shared by hosted runtimes.
 <details><summary><code>read</code> family — 1 module</summary>
 
 - [`lib/read-bounded-file.ts`](lib/read-bounded-file.ts) → no in-scope imports
+
+</details>
+
+<details><summary><code>rpc</code> family — 1 module</summary>
+
+- [`lib/rpc-client-state.ts`](lib/rpc-client-state.ts) → no in-scope imports
 
 </details>
 
@@ -1703,7 +1710,7 @@ Standalone loopback companion for installed CLI agents.
 
 <details><summary><code>agent</code> family — 1 module</summary>
 
-- [`server/agent-host-server.js`](server/agent-host-server.js) → [`lib/acp-agent-client.js`](lib/acp-agent-client.js), [`lib/agent-host-service.js`](lib/agent-host-service.js), [`lib/agent-host-storage.js`](lib/agent-host-storage.js), [`lib/claude-agent-client.js`](lib/claude-agent-client.js), [`lib/codex-agent-isolation.js`](lib/codex-agent-isolation.js), [`lib/codex-app-server-client.js`](lib/codex-app-server-client.js), [`lib/companion-http.ts`](lib/companion-http.ts), [`lib/companion-listener.ts`](lib/companion-listener.ts), [`lib/companion-runtime-control.js`](lib/companion-runtime-control.js), [`lib/hermes-gateway-client.js`](lib/hermes-gateway-client.js), [`lib/local-agent-registry.js`](lib/local-agent-registry.js), [`lib/openclaw-agent-client.js`](lib/openclaw-agent-client.js)
+- [`server/agent-host-server.js`](server/agent-host-server.js) → [`lib/acp-agent-client.ts`](lib/acp-agent-client.ts), [`lib/agent-host-service.js`](lib/agent-host-service.js), [`lib/agent-host-storage.js`](lib/agent-host-storage.js), [`lib/claude-agent-client.ts`](lib/claude-agent-client.ts), [`lib/codex-agent-isolation.js`](lib/codex-agent-isolation.js), [`lib/codex-app-server-client.ts`](lib/codex-app-server-client.ts), [`lib/companion-http.ts`](lib/companion-http.ts), [`lib/companion-listener.ts`](lib/companion-listener.ts), [`lib/companion-runtime-control.js`](lib/companion-runtime-control.js), [`lib/hermes-gateway-client.js`](lib/hermes-gateway-client.js), [`lib/local-agent-registry.js`](lib/local-agent-registry.js), [`lib/openclaw-agent-client.ts`](lib/openclaw-agent-client.ts)
 
 </details>
 

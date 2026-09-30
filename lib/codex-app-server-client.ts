@@ -1,44 +1,41 @@
-// @ts-check
 // Minimal JSON-RPC client for the local `codex app-server` process.
+
+import type { ChildProcessWithoutNullStreams } from 'node:child_process';
+import type { RpcClientOptions, RpcClientState } from './rpc-client-state.js';
+import { rejectPendingRequests } from './rpc-client-state.js';
 
 import { EventEmitter } from 'node:events';
 import { spawn as spawnChild } from 'node:child_process';
 import { createInterface } from 'node:readline';
 
+interface RpcError { message?: unknown; code?: unknown }
+
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 
 export class CodexAppServerError extends Error {
-  constructor(message, code = 'codex_app_server_error') {
+  declare code: string;
+  constructor(message: string, code = 'codex_app_server_error') {
     super(message);
     this.name = 'CodexAppServerError';
     this.code = code;
   }
 }
 
-/** @param {unknown} value */
-function isRecord(value) {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
-/** @param {unknown} value */
-function errorMessage(value) {
+function errorMessage(value: unknown) {
   if (value instanceof Error) return value.message;
   if (typeof value === 'string') return value;
   return 'Codex app-server request failed.';
 }
 
+export interface CodexAppServerClient extends RpcClientState<unknown, unknown> {}
+
 export class CodexAppServerClient extends EventEmitter {
-  /**
-   * @param {{
-   *   command?: string,
-   *   args?: string[],
-   *   cwd?: string,
-   *   env?: NodeJS.ProcessEnv,
-   *   requestTimeoutMs?: number,
-   *   spawnImpl?: typeof spawnChild,
-   * }} [options]
-   */
-  constructor(options = {}) {
+
+  constructor(options: RpcClientOptions = {}) {
     super();
     this.command = options.command || 'codex';
     this.args = options.args || ['app-server'];
@@ -46,12 +43,9 @@ export class CodexAppServerClient extends EventEmitter {
     this.env = options.env;
     this.requestTimeoutMs = options.requestTimeoutMs || DEFAULT_REQUEST_TIMEOUT_MS;
     this.spawnImpl = options.spawnImpl || spawnChild;
-    /** @type {import('node:child_process').ChildProcessWithoutNullStreams | null} */
     this.child = null;
     this.nextRequestId = 1;
-    /** @type {Map<number | string, {resolve: (value: any) => void, reject: (reason?: any) => void, timer: ReturnType<typeof setTimeout>}>} */
     this.pending = new Map();
-    /** @type {Promise<any> | null} */
     this.initializePromise = null;
     this.closed = false;
   }
@@ -64,7 +58,7 @@ export class CodexAppServerClient extends EventEmitter {
       env: this.env,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
-    this.child = /** @type {import('node:child_process').ChildProcessWithoutNullStreams} */ (child);
+    this.child = (child as ChildProcessWithoutNullStreams);
     const lines = createInterface({ input: this.child.stdout, crlfDelay: Infinity });
     lines.on('line', line => { if (this.child === child) this.handleLine(line); });
     this.child.stderr.on('data', chunk => this.emit('diagnostic', String(chunk)));
@@ -78,10 +72,9 @@ export class CodexAppServerClient extends EventEmitter {
     });
   }
 
-  /** @param {string} line */
-  handleLine(line) {
+  handleLine(line: string) {
     if (!line.trim()) return;
-    let message;
+    let message: unknown;
     try {
       message = JSON.parse(line);
     } catch {
@@ -90,12 +83,12 @@ export class CodexAppServerClient extends EventEmitter {
     }
     if (!isRecord(message)) return;
     if (Object.hasOwn(message, 'id') && !Object.hasOwn(message, 'method')) {
-      const pending = this.pending.get(/** @type {any} */ (message).id);
+      const pending = this.pending.get(message.id);
       if (!pending) return;
-      this.pending.delete(/** @type {any} */ (message).id);
+      this.pending.delete(message.id);
       clearTimeout(pending.timer);
       if (Object.hasOwn(message, 'error')) {
-        const rpcError = /** @type {any} */ (message).error;
+        const rpcError = message.error as RpcError | null | undefined;
         pending.reject(new CodexAppServerError(
           typeof rpcError?.message === 'string' ? rpcError.message : 'Codex app-server request failed.',
           typeof rpcError?.code === 'string' || typeof rpcError?.code === 'number'
@@ -103,47 +96,36 @@ export class CodexAppServerClient extends EventEmitter {
             : 'rpc_error',
         ));
       } else {
-        pending.resolve(/** @type {any} */ (message).result);
+        pending.resolve(message.result);
       }
       return;
     }
-    if (typeof /** @type {any} */ (message).method !== 'string') return;
+    if (typeof message.method !== 'string') return;
     if (Object.hasOwn(message, 'id')) this.emit('serverRequest', message);
     else this.emit('notification', message);
   }
 
-  /** @param {unknown} reason */
-  handleExit(reason) {
+  handleExit(reason: unknown) {
     if (!this.child) return;
     this.child = null;
     this.initializePromise = null;
-    for (const pending of this.pending.values()) {
-      clearTimeout(pending.timer);
-      pending.reject(reason);
-    }
-    this.pending.clear();
+    rejectPendingRequests(() => this.pending, () => reason);
     this.emit('exit', reason);
   }
 
-  /**
-   * @param {string} method
-   * @param {unknown} [params]
-   * @param {{timeoutMs?: number}} [options]
-   */
-  request(method, params = {}, options = {}) {
+  request<T = unknown>(method: string, params: unknown = {}, options: { timeoutMs?: number } = {}): Promise<T> {
     this.start();
     const child = this.child;
     if (!child) return Promise.reject(new CodexAppServerError('Codex app-server is unavailable.', 'process_unavailable'));
     const id = this.nextRequestId++;
-    return new Promise((resolve, reject) => {
+    return new Promise<unknown>((resolve, reject) => {
       const timeoutMs = options.timeoutMs || this.requestTimeoutMs;
       const timer = setTimeout(() => {
         this.pending.delete(id);
         reject(new CodexAppServerError(`Codex app-server ${method} timed out.`, 'request_timeout'));
       }, timeoutMs);
       this.pending.set(id, { resolve, reject, timer });
-      /** @param {unknown} error */
-      const rejectWrite = error => {
+      const rejectWrite = (error: unknown) => {
         if (!error) return;
         const pending = this.pending.get(id);
         if (!pending) return;
@@ -156,17 +138,15 @@ export class CodexAppServerClient extends EventEmitter {
       } catch (error) {
         rejectWrite(error);
       }
-    });
+    }) as Promise<T>;
   }
 
-  /** @param {number|string} id @param {unknown} result */
-  respond(id, result) {
+  respond(id: number | string, result: unknown) {
     if (!this.child) throw new CodexAppServerError('Codex app-server is unavailable.', 'process_unavailable');
     this.child.stdin.write(`${JSON.stringify({ id, result })}\n`);
   }
 
-  /** @param {string} method @param {unknown} [params] */
-  notify(method, params = {}) {
+  notify(method: string, params: unknown = {}) {
     if (!this.child) throw new CodexAppServerError('Codex app-server is unavailable.', 'process_unavailable');
     this.child.stdin.write(`${JSON.stringify({ method, params })}\n`);
   }
@@ -203,11 +183,7 @@ export class CodexAppServerClient extends EventEmitter {
     this.child = null;
     if (!child) return;
     const error = new CodexAppServerError('Codex app-server client closed.', 'client_closed');
-    for (const pending of this.pending.values()) {
-      clearTimeout(pending.timer);
-      pending.reject(error);
-    }
-    this.pending.clear();
+    rejectPendingRequests(() => this.pending, () => error);
     child.stdin.end();
     if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
   }

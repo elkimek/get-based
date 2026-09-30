@@ -1,5 +1,16 @@
 // @vitest-environment node
 
+import type { ChildProcessWithoutNullStreams } from 'node:child_process';
+import type { Mock } from 'vitest';
+type FixtureChild = Omit<ChildProcessWithoutNullStreams, 'exitCode' | 'signalCode'> & {
+  exitCode: number | null;
+  signalCode: NodeJS.Signals | null;
+  stdin: PassThrough;
+  stdout: PassThrough;
+  stderr: PassThrough;
+  kill: Mock<ChildProcessWithoutNullStreams['kill']>;
+};
+
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
@@ -7,7 +18,7 @@ import { CodexAppServerClient } from '../lib/codex-app-server-client.js';
 import { ACPAgentClient } from '../lib/acp-agent-client.js';
 
 function fakeChild() {
-  const child = new EventEmitter();
+  const child = new EventEmitter() as FixtureChild;
   child.stdin = new PassThrough();
   child.stdout = new PassThrough();
   child.stderr = new PassThrough();
@@ -36,8 +47,8 @@ describe('CodexAppServerClient', () => {
   });
   it('performs the experimental initialize handshake', async () => {
     const child = fakeChild();
-    const writes = [];
-    child.stdin.on('data', chunk => writes.push(...String(chunk).trim().split('\n').map(JSON.parse)));
+    const writes: unknown[] = [];
+    child.stdin.on('data', chunk => writes.push(...String(chunk).trim().split('\n').map(JSON.parse as unknown as (value: string, index: number) => unknown)));
     const client = new CodexAppServerClient({ spawnImpl: () => child });
     const initialized = client.initialize();
     await vi.waitFor(() => expect(writes).toHaveLength(1));

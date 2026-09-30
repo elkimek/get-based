@@ -248,6 +248,13 @@ a build stage before copying runtime files, so a fresh clone can build without
 pre-generated JavaScript. The SQLite, HTTP, transition and startup regression
 suites are checked as native TypeScript, with their original assertions retained.
 
+Companion process adapters now use native contracts for Codex JSON-RPC, ACP,
+Claude stream events and OpenClaw file output. Shared state interfaces erase at
+compile time, retaining constructor assignments and object layout. RPC results
+remain opaque unless a caller declares a protocol-specific view. Pending-request
+shutdown keeps live iteration and reads the current map again before clearing;
+ACP retains numeric reply-ID coercion and a distinct close error per request.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

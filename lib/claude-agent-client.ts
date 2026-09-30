@@ -1,5 +1,10 @@
-// @ts-check
 // Restricted, non-interactive Claude Agent adapter for the getbased companion.
+
+import type { ChildProcessWithoutNullStreams } from 'node:child_process';
+import type { Interface } from 'node:readline';
+import type { ObservedAgentProcess } from './agent-process-lifecycle.js';
+import type { RpcProcessSpawner } from './rpc-client-state.js';
+import type { AgentUsage, AgentTurnEvent, AgentTurnOptions, ProcessAdapterOptions, ProcessAdapterState } from './agent-turn-types.js';
 
 import { assertAgentNotAborted, observeAgentProcess } from './agent-process-lifecycle.js';
 import { randomUUID } from 'node:crypto';
@@ -7,6 +12,11 @@ import { spawn as spawnChild } from 'node:child_process';
 import { unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
+
+interface ClaudeMessage extends Record<string, unknown> {
+  event?: { type?: unknown; delta?: { type?: unknown; text?: unknown } | null; usage?: AgentUsage | null } | null;
+  usage?: AgentUsage | null;
+}
 
 const CLAUDE_MODELS = Object.freeze([
   Object.freeze({ id: 'sonnet', model: 'sonnet', displayName: 'Sonnet (latest)', isDefault: true }),
@@ -24,11 +34,9 @@ export function getClaudeModelCatalog() {
   }));
 }
 
-/** @param {unknown} value */
-function text(value) { return typeof value === 'string' ? value : ''; }
+function text(value: unknown) { return typeof value === 'string' ? value : ''; }
 
-/** @param {any} message */
-export function extractClaudeStreamEvent(message) {
+export function extractClaudeStreamEvent(message: ClaudeMessage | null | undefined): AgentTurnEvent | null {
   if (message?.type === 'system' && message?.subtype === 'init') {
     return { type: 'session', sessionId: text(message.session_id), model: text(message.model) };
   }
@@ -54,9 +62,10 @@ export function extractClaudeStreamEvent(message) {
   return null;
 }
 
+export interface ClaudeAgentClient extends ProcessAdapterState<ChildProcessWithoutNullStreams, RpcProcessSpawner> {}
+
 export class ClaudeAgentClient {
-  /** @param {{command: string, args?: string[], cwd: string, env?: NodeJS.ProcessEnv, spawnImpl?: typeof spawnChild}} options */
-  constructor(options) {
+  constructor(options: ProcessAdapterOptions<RpcProcessSpawner>) {
     this.command = options.command;
     this.args = options.args || [];
     this.cwd = options.cwd;
@@ -68,10 +77,7 @@ export class ClaudeAgentClient {
 
   async getModelCatalog() { return getClaudeModelCatalog(); }
 
-  /**
-   * @param {{sessionId?: string, prompt: any[], model?: string, effort?: string, instructions: string, outputSchema?: any, mcpConfig: any, allowedToolNames: string[], signal?: AbortSignal, onEvent: (event: any) => void}} options
-   */
-  async prompt(options) {
+  async prompt(options: AgentTurnOptions) {
     assertAgentNotAborted(options.signal);
     const sessionId = options.sessionId || randomUUID();
     const privateId = randomUUID();
@@ -80,9 +86,9 @@ export class ClaudeAgentClient {
     const cleanup = () => Promise.all([
       unlink(mcpConfigPath).catch(() => {}), unlink(systemPromptPath).catch(() => {}),
     ]);
-    let lifecycle;
-    let child;
-    let lines;
+    let lifecycle: ObservedAgentProcess | undefined;
+    let child: ChildProcessWithoutNullStreams | undefined;
+    let lines: Interface | undefined;
     try {
       const writes = await Promise.allSettled([
         writeFile(mcpConfigPath, JSON.stringify(options.mcpConfig), { mode: 0o600, flag: 'wx' }),
@@ -116,7 +122,7 @@ export class ClaudeAgentClient {
       const input = { type: 'user', message: { role: 'user', content: options.prompt } };
       child.stdin.end(`${JSON.stringify(input)}\n`);
       const readOutput = async () => {
-        for await (const line of lines) {
+        for await (const line of lines!) {
           if (!line.trim()) continue;
           let message;
           try { message = JSON.parse(line); } catch { continue; }

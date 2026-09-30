@@ -1,24 +1,77 @@
-// @ts-check
 // Minimal Agent Client Protocol v1 client for local CLI harnesses.
+
+import type { ChildProcessWithoutNullStreams } from 'node:child_process';
+import type { RpcClientOptions, RpcClientState } from './rpc-client-state.js';
+import { rejectPendingRequests } from './rpc-client-state.js';
 
 import { EventEmitter } from 'node:events';
 import { spawn as spawnChild } from 'node:child_process';
 import { createInterface } from 'node:readline';
 
+interface ACPClientOptions extends RpcClientOptions {
+  id: string;
+  command: string;
+  args: string[];
+  cwd: string;
+}
+interface ACPConfigOption extends Record<string, unknown> {
+  id?: unknown;
+  category?: unknown;
+  currentValue?: unknown;
+  options?: unknown;
+}
+interface ACPModelState extends Record<string, unknown> {
+  availableModels?: unknown;
+  currentModelId?: unknown;
+}
+interface ACPMetadata extends ACPWireResult {
+  modelState?: ACPModelState | null;
+  'x.ai/sessionConfig'?: { options?: unknown } | null;
+}
+interface ACPWireResult extends Record<string, unknown> {
+  protocolVersion?: unknown;
+  configOptions?: (ACPConfigOption | null | undefined)[] | null;
+  models?: ACPModelState | null;
+  sessionId?: unknown;
+  _meta?: ACPMetadata | null;
+  agentCapabilities?: {
+    sessionCapabilities?: { resume?: unknown } | null;
+    loadSession?: unknown;
+    promptCapabilities?: { image?: unknown } | null;
+  } | null;
+}
+interface ACPPermissionParams {
+  sessionId?: string;
+  toolCall?: { rawInput?: { variant?: unknown; tool_name?: string } | null } | null;
+  options?: ({ kind?: unknown; optionId?: unknown } | null)[] | null;
+}
+interface ACPNotification extends Record<string, unknown> {
+  params?: ACPPermissionParams | null;
+}
+interface CatalogOption {
+  id: string;
+  name: string;
+  description: string;
+  meta: Record<string, unknown>;
+  selected: boolean;
+}
+type ModelCatalog = ReturnType<typeof normalizeACPModelCatalog>;
+type SessionOptions = (ACPConfigOption | null | undefined)[];
+type CatalogRequest = { model?: string; refresh?: boolean };
+
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 const PROMPT_TIMEOUT_MS = 10 * 60_000;
 const MAX_TRACKED_SESSIONS = 128;
 
-function isRecord(value) {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
-function cleanText(value, max = 200) {
+function cleanText(value: unknown, max = 200) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
 
-/** @param {unknown} value */
-function flattenOptions(value) {
+function flattenOptions(value: unknown): CatalogOption[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap(entry => {
     if (!isRecord(entry)) return [];
@@ -38,8 +91,7 @@ function flattenOptions(value) {
   });
 }
 
-/** @param {any} result */
-export function normalizeACPModelCatalog(result) {
+export function normalizeACPModelCatalog(result: ACPWireResult | null | undefined) {
   const configOptions = Array.isArray(result?.configOptions) ? result.configOptions.filter(isRecord) : [];
   const modelConfig = configOptions.find(option => option.category === 'model' || option.id === 'model');
   const thoughtConfig = configOptions.find(option => option.category === 'thought_level'
@@ -84,11 +136,21 @@ export function normalizeACPModelCatalog(result) {
   });
 }
 
+export interface ACPAgentClient extends RpcClientState<number, ACPWireResult | null | undefined> {
+  cwd: string;
+}
+
 export class ACPAgentClient extends EventEmitter {
-  /**
-   * @param {{id: string, command: string, args: string[], cwd: string, env?: NodeJS.ProcessEnv, spawnImpl?: typeof spawnChild, requestTimeoutMs?: number}} options
-   */
-  constructor(options) {
+  declare id: string;
+  declare initializeResult: ACPWireResult | null | undefined;
+  declare modelCatalogPromise: Promise<ModelCatalog> | null;
+  declare sessions: Set<string>;
+  declare sessionCatalogs: Map<string, SessionOptions>;
+  declare sessionModelStates: Map<string, ACPModelState | null>;
+  declare catalogSessionId: string;
+  declare turnToolPermissions: Map<string | undefined, Set<string | undefined>>;
+
+  constructor(options: ACPClientOptions) {
     super();
     this.id = options.id;
     this.command = options.command;
@@ -97,14 +159,10 @@ export class ACPAgentClient extends EventEmitter {
     this.env = options.env;
     this.spawnImpl = options.spawnImpl || spawnChild;
     this.requestTimeoutMs = options.requestTimeoutMs || DEFAULT_REQUEST_TIMEOUT_MS;
-    /** @type {import('node:child_process').ChildProcessWithoutNullStreams | null} */
     this.child = null;
     this.nextRequestId = 1;
-    /** @type {Map<number, {resolve: (value: any) => void, reject: (reason?: any) => void, timer: ReturnType<typeof setTimeout>}>} */
     this.pending = new Map();
-    /** @type {Promise<any> | null} */
     this.initializePromise = null;
-    /** @type {any} */
     this.initializeResult = null;
     this.modelCatalogPromise = null;
     this.closed = false;
@@ -112,7 +170,6 @@ export class ACPAgentClient extends EventEmitter {
     this.sessionCatalogs = new Map();
     this.sessionModelStates = new Map();
     this.catalogSessionId = '';
-    /** @type {Map<string, Set<string>>} */
     this.turnToolPermissions = new Map();
   }
 
@@ -124,7 +181,7 @@ export class ACPAgentClient extends EventEmitter {
       env: this.env,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
-    this.child = /** @type {import('node:child_process').ChildProcessWithoutNullStreams} */ (child);
+    this.child = (child as ChildProcessWithoutNullStreams);
     createInterface({ input: this.child.stdout, crlfDelay: Infinity }).on('line', line => {
       if (this.child === child) this.handleLine(line);
     });
@@ -137,10 +194,9 @@ export class ACPAgentClient extends EventEmitter {
     )); });
   }
 
-  /** @param {string} line */
-  handleLine(line) {
+  handleLine(line: string) {
     if (!line.trim()) return;
-    let message;
+    let message: unknown;
     try { message = JSON.parse(line); } catch {
       this.emit('protocolError', new Error(`${this.id} returned invalid ACP JSON.`));
       return;
@@ -157,9 +213,9 @@ export class ACPAgentClient extends EventEmitter {
     }
     if (typeof message.method !== 'string') return;
     if (Object.hasOwn(message, 'id')) {
-      let result = null;
+      let result: { outcome: { outcome: string; optionId?: unknown } } | null = null;
       if (message.method === 'session/request_permission') {
-        const params = message.params;
+        const params = message.params as ACPPermissionParams | null | undefined;
         const input = params?.toolCall?.rawInput;
         // Grok asks for permission around MCP calls. Authorize only this
         // turn's declared tools, never a display title or an always-allow grant.
@@ -177,7 +233,7 @@ export class ACPAgentClient extends EventEmitter {
     this.emit('notification', message);
   }
 
-  handleExit(error) {
+  handleExit(error: unknown) {
     if (!this.child) return;
     this.child = null;
     this.initializePromise = null;
@@ -188,27 +244,21 @@ export class ACPAgentClient extends EventEmitter {
     this.sessionModelStates.clear();
     this.turnToolPermissions.clear();
     this.catalogSessionId = '';
-    for (const pending of this.pending.values()) {
-      clearTimeout(pending.timer);
-      pending.reject(error);
-    }
-    this.pending.clear();
+    rejectPendingRequests(() => this.pending, () => error);
     this.emit('exit', error);
   }
 
-  /** @param {string} method @param {unknown} params @param {{timeoutMs?: number}} [options] */
-  request(method, params, options = {}) {
+  request<T = unknown>(method: string, params: unknown, options: { timeoutMs?: number } = {}): Promise<T> {
     this.start();
     if (!this.child) return Promise.reject(new Error(`${this.id} ACP process is unavailable.`));
     const id = this.nextRequestId++;
-    return new Promise((resolve, reject) => {
+    return new Promise<unknown>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
         reject(new Error(`${this.id} ACP ${method} timed out.`));
       }, options.timeoutMs || this.requestTimeoutMs);
       this.pending.set(id, { resolve, reject, timer });
-      /** @param {unknown} error */
-      const rejectWrite = error => {
+      const rejectWrite = (error: unknown) => {
         if (!error) return;
         const pending = this.pending.get(id);
         if (!pending) return;
@@ -217,15 +267,15 @@ export class ACPAgentClient extends EventEmitter {
         pending.reject(error);
       };
       try {
-        this.child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`, rejectWrite);
+        this.child!.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`, rejectWrite);
       } catch (error) {
         rejectWrite(error);
       }
-    });
+    }) as Promise<T>;
   }
 
   initialize() {
-    if (!this.initializePromise) this.initializePromise = this.request('initialize', {
+    if (!this.initializePromise) this.initializePromise = this.request<ACPWireResult | null | undefined>('initialize', {
       protocolVersion: 1,
       clientCapabilities: { session: { configOptions: { boolean: {} } } },
       clientInfo: { name: 'getbased', title: 'getbased', version: '1.0.0' },
@@ -240,8 +290,7 @@ export class ACPAgentClient extends EventEmitter {
     return this.initializePromise;
   }
 
-  /** @param {string} sessionId @param {any} result */
-  rememberSession(sessionId, result) {
+  rememberSession(sessionId: string, result: ACPWireResult | null | undefined) {
     if (!this.sessions.has(sessionId)) {
       while (this.sessions.size >= MAX_TRACKED_SESSIONS) {
         const oldest = this.sessions.values().next().value;
@@ -256,8 +305,7 @@ export class ACPAgentClient extends EventEmitter {
     this.sessionModelStates.set(sessionId, result?.models || result?._meta?.modelState || null);
   }
 
-  /** @param {{requestedSessionId?: string, mcpServers: any[]}} options */
-  async ensureSession(options) {
+  async ensureSession(options: { requestedSessionId?: string | undefined; mcpServers: unknown[] }) {
     const initialized = await this.initialize();
     const requested = cleanText(options.requestedSessionId, 200);
     if (requested && this.sessions.has(requested)) {
@@ -273,7 +321,7 @@ export class ACPAgentClient extends EventEmitter {
         : capabilities?.loadSession ? 'session/load' : '';
       if (method) {
         try {
-          const result = await this.request(method, {
+          const result = await this.request<ACPWireResult | null | undefined>(method, {
             sessionId: requested, cwd: this.cwd, mcpServers: options.mcpServers,
           });
           this.rememberSession(requested, result);
@@ -289,7 +337,7 @@ export class ACPAgentClient extends EventEmitter {
         }
       }
     }
-    const result = await this.request('session/new', { cwd: this.cwd, mcpServers: options.mcpServers });
+    const result = await this.request<ACPWireResult | null | undefined>('session/new', { cwd: this.cwd, mcpServers: options.mcpServers });
     const sessionId = cleanText(result?.sessionId, 200);
     if (!sessionId) throw new Error(`${this.id} did not return an ACP session ID.`);
     this.rememberSession(sessionId, result);
@@ -301,11 +349,10 @@ export class ACPAgentClient extends EventEmitter {
     };
   }
 
-  /** @param {string} sessionId @param {any[]} configOptions @param {string} model @param {string} effort @param {any} [modelState] */
-  async configureSession(sessionId, configOptions, model, effort, modelState = null) {
+  async configureSession(sessionId: string, configOptions: SessionOptions, model: string, effort: string, modelState: ACPModelState | null = null) {
     let modelOption = configOptions.find(item => item?.category === 'model' || item?.id === 'model');
     if (model && modelOption?.id && modelOption.currentValue !== model) {
-      const result = await this.request('session/set_config_option', {
+      const result = await this.request<ACPWireResult | null | undefined>('session/set_config_option', {
         sessionId, configId: modelOption.id, value: model,
       });
       if (Array.isArray(result?.configOptions)) {
@@ -328,7 +375,7 @@ export class ACPAgentClient extends EventEmitter {
     const effortOption = configOptions.find(item => item?.category === 'thought_level'
       || item?.id === 'thought_level' || item?.id === 'reasoning_effort' || item?.id === 'effort');
     if (effort && effortOption?.id && effortOption.currentValue !== effort) {
-      const result = await this.request('session/set_config_option', {
+      const result = await this.request<ACPWireResult | null | undefined>('session/set_config_option', {
         sessionId, configId: effortOption.id, value: effort,
       });
       if (Array.isArray(result?.configOptions)) {
@@ -339,11 +386,10 @@ export class ACPAgentClient extends EventEmitter {
     return configOptions;
   }
 
-  /** @param {{sessionId: string, prompt: any[], allowedToolNames?: string[], onNotification: (message: any) => void, signal?: AbortSignal}} options */
-  async prompt(options) {
+  async prompt(options: { sessionId: string; prompt: unknown[]; allowedToolNames?: string[]; onNotification: (message: ACPNotification) => void; signal?: AbortSignal }) {
     const permissions = new Set((options.allowedToolNames || []).map(name => `getbased__${name}`));
     this.turnToolPermissions.set(options.sessionId, permissions);
-    const listener = message => {
+    const listener = (message: ACPNotification) => {
       if (message?.params?.sessionId === options.sessionId) options.onNotification(message);
     };
     this.on('notification', listener);
@@ -365,8 +411,7 @@ export class ACPAgentClient extends EventEmitter {
     }
   }
 
-  /** @param {{model?: string, refresh?: boolean}} [options] */
-  async loadModelCatalog(options = {}) {
+  async loadModelCatalog(options: CatalogRequest = {}) {
     const selectedModel = cleanText(options.model, 160);
     const initialized = await this.initialize();
     const supportsImages = initialized?.agentCapabilities?.promptCapabilities?.image === true;
@@ -391,8 +436,7 @@ export class ACPAgentClient extends EventEmitter {
     return catalog.map(model => ({ ...model, inputModalities: supportsImages ? ['text', 'image'] : ['text'] }));
   }
 
-  /** @param {{model?: string, refresh?: boolean}} [options] */
-  async getModelCatalog(options = {}) {
+  async getModelCatalog(options: CatalogRequest = {}) {
     const selectedModel = cleanText(options.model, 160);
     if (options.refresh) this.modelCatalogPromise = null;
     if (selectedModel) return this.loadModelCatalog(options);
@@ -420,11 +464,7 @@ export class ACPAgentClient extends EventEmitter {
     this.turnToolPermissions.clear();
     this.catalogSessionId = '';
     if (!child) return;
-    for (const pending of this.pending.values()) {
-      clearTimeout(pending.timer);
-      pending.reject(new Error(`${this.id} ACP client closed.`));
-    }
-    this.pending.clear();
+    rejectPendingRequests(() => this.pending, () => new Error(`${this.id} ACP client closed.`));
     child.stdin.end();
     if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
   }

@@ -223,3 +223,15 @@ deploy/profile-share/data/
 
 /lib/node-request-routing.js
 /server/compat-proxy-server.js
+
+/lib/codex-app-server-client.js
+
+/lib/acp-agent-client.js
+
+/lib/rpc-client-state.js
+
+/lib/claude-agent-client.js
+
+/lib/openclaw-agent-client.js
+
+/lib/agent-turn-types.js
