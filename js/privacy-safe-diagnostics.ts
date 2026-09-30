@@ -1,4 +1,3 @@
-// @ts-check
 // privacy-safe-diagnostics.js — Metadata-only debug logging for PII workflows.
 
 import { isDebugMode } from './utils.js';
@@ -51,11 +50,9 @@ const TOKEN_VALUES = new Map([
  * Reduce diagnostic input to a small, non-content-bearing metadata object.
  * Unknown keys, objects, arrays, filenames, and free-form strings are dropped.
  *
- * @param {Record<string, unknown>} [details]
  */
-export function sanitizePrivacyDiagnostic(details = {}) {
-  /** @type {Record<string, number | string>} */
-  const safe = {};
+export function sanitizePrivacyDiagnostic(details: Record<string, unknown> = {}): Readonly<Record<string, number | string>> {
+  const safe: Record<string, number | string> = {};
   for (const [key, value] of Object.entries(details)) {
     if (NUMERIC_FIELDS.has(key)) {
       if (typeof value === 'number' && Number.isFinite(value) && value >= 0) safe[key] = value;
@@ -70,10 +67,8 @@ export function sanitizePrivacyDiagnostic(details = {}) {
 /**
  * Emit a metadata-only diagnostic when the user explicitly enabled debug mode.
  *
- * @param {string} event
- * @param {Record<string, unknown>} [details]
  */
-export function logPrivacyDiagnostic(event, details = {}) {
+export function logPrivacyDiagnostic(event: string, details: Record<string, unknown> = {}): Readonly<Record<string, number | string>> | null {
   if (!isDebugMode()) return null;
   const safeEvent = DIAGNOSTIC_EVENTS.has(event) ? event : 'event';
   const safeDetails = sanitizePrivacyDiagnostic(details);

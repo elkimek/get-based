@@ -1,14 +1,13 @@
-// @ts-check
 // voice-text.js — normalize rendered assistant Markdown into natural speech.
 
 const MAX_SPEECH_CHARACTERS = 24_000;
 
-function splitTableRow(line) {
+function splitTableRow(line: unknown): string[] {
   let value = String(line || '').trim();
   if (value.startsWith('|')) value = value.slice(1);
   if (value.endsWith('|') && !value.endsWith('\\|')) value = value.slice(0, -1);
 
-  const cells = [];
+  const cells: string[] = [];
   let cell = '';
   let escaped = false;
   for (const character of value) {
@@ -29,18 +28,18 @@ function splitTableRow(line) {
   return cells;
 }
 
-function isTableDivider(line) {
+function isTableDivider(line: unknown): boolean {
   const cells = splitTableRow(line);
   return cells.length > 1 && cells.every(cell => /^:?-{3,}:?$/.test(cell));
 }
 
 const TABLE_OMISSION_NOTICE = 'See the table in the message for details.';
 
-function narrateMarkdownTables(value) {
+function narrateMarkdownTables(value: unknown): string {
   const lines = String(value || '').split(/\r?\n/);
-  const output = [];
+  const output: string[] = [];
   for (let index = 0; index < lines.length; index += 1) {
-    const headerLine = lines[index];
+    const headerLine = lines[index]!;
     const dividerLine = lines[index + 1];
     if (!headerLine?.includes('|') || !dividerLine || !isTableDivider(dividerLine)) {
       output.push(headerLine);
@@ -48,7 +47,7 @@ function narrateMarkdownTables(value) {
     }
 
     index += 2;
-    while (index < lines.length && lines[index].includes('|') && lines[index].trim()) {
+    while (index < lines.length && lines[index]!.includes('|') && lines[index]!.trim()) {
       index += 1;
     }
     output.push(TABLE_OMISSION_NOTICE);
@@ -57,7 +56,7 @@ function narrateMarkdownTables(value) {
   return output.join('\n');
 }
 
-export function normalizeSpeechText(value) {
+export function normalizeSpeechText(value: unknown): string {
   let text = narrateMarkdownTables(value);
   if (!text.trim()) return '';
 
@@ -98,11 +97,11 @@ export function normalizeSpeechText(value) {
   return text;
 }
 
-export function splitSpeechText(value, maxCharacters = 3500) {
+export function splitSpeechText(value: unknown, maxCharacters: unknown = 3500): string[] {
   const text = normalizeSpeechText(value);
   if (!text) return [];
   const limit = Math.max(200, Number(maxCharacters) || 3500);
-  const chunks = [];
+  const chunks: string[] = [];
   let remaining = text;
   while (remaining.length > limit) {
     const candidate = remaining.slice(0, limit + 1);

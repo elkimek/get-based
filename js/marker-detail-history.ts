@@ -1,16 +1,17 @@
-// @ts-check
+import type { LabEntry, MarkerProvenance } from '../types/lab-data.js';
+
 // marker-detail-history.js — per-result collection context and provenance
 
 import { escapeHTML } from './utils.js';
 
-export function buildMarkerHistoryMetadata(entry, source, rawDate) {
-  const collectionContextParts = [];
+export function buildMarkerHistoryMetadata(entry: Pick<LabEntry, 'context' | 'sourceFile'> | null | undefined, source: MarkerProvenance | null | undefined, rawDate: unknown): { collectionContextHtml: string; sourceHtml: string } {
+  const collectionContextParts: string[] = [];
   if (entry?.context?.sampleTime) collectionContextParts.push(`Collected ${entry.context.sampleTime}`);
   if (entry?.context?.fasting === true) collectionContextParts.push('fasting');
   else if (entry?.context?.fasting === false) collectionContextParts.push('not fasting');
   const rawPhase = String(entry?.context?.cyclePhase || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
   const rawPhaseDetail = String(entry?.context?.cyclePhaseDetail || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
-  const phaseLabels = {
+  const phaseLabels: Record<string, string> = {
     menstrual: 'Menstrual', follicular: 'Follicular', ovulatory: 'Ovulatory', luteal: 'Luteal',
     early_follicular: 'Early follicular', late_follicular: 'Late follicular', periovulatory: 'Periovulatory',
     early_luteal: 'Early luteal', mid_luteal: 'Mid-luteal', late_luteal: 'Late luteal',

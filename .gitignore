@@ -120,3 +120,11 @@ deploy/profile-share/data/
 /js/cli-agent-brand-assets.js
 /lib/agent-process-lifecycle.js
 /scripts/pr-test-scope.mjs
+/js/utils-runtime.js
+/js/modal-lifecycle.js
+/js/utils.js
+/js/privacy-safe-diagnostics.js
+/js/category-glyphs.js
+/js/light-device-view-formatters.js
+/js/marker-detail-history.js
+/js/voice-text.js

@@ -698,6 +698,7 @@ configureChatThreadProjects({
   createNewThread,
   renderThreadList,
   saveChatThreadIndex,
+  /** @param {Parameters<typeof showPromptDialog>} args */
   showPromptDialog: (...args) => chatThreadDeps.showPromptDialog(...args),
 });
 installChatThreadDelegates();

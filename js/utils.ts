@@ -1,4 +1,18 @@
-// @ts-check
+export interface DetachedModalSyncRefreshOptions {
+  overlay?: HTMLElement; id?: string; opener?: (id?: string) => void; exists?: (id?: string) => boolean;
+  bodySelector?: string; restoreSelector?: string;
+}
+export interface ModalSyncRefreshContext { overlay: HTMLElement | null; modal: HTMLElement | null; itemId?: string; scrollTop?: number; }
+export interface ModalSyncRefreshOptions {
+  overlay?: HTMLElement; overlayId?: string; overlaySelector?: string; modalId?: string; modalSelector?: string; kind?: string;
+  refresh?: (context: ModalSyncRefreshContext) => void; getItemId?: (context: ModalSyncRefreshContext) => string;
+  scrollSelector?: string; getScrollElement?: (context: ModalSyncRefreshContext) => HTMLElement | null | undefined; preserveScroll?: boolean;
+}
+export interface ConfirmDialogOptions { confirmLabel?: string; cancelLabel?: string; tone?: 'danger' | 'primary'; ariaLabel?: string; }
+export interface PromptDialogOptions { defaultValue?: string; okLabel?: string; cancelLabel?: string; placeholder?: string; inputType?: string; allowEmpty?: boolean; }
+export type MarkerStatus = 'missing' | 'normal' | 'low' | 'high';
+export interface MarkerTrend { arrow: string; cls: string; label: string; }
+
 // utils.js — Pure utility functions, notifications, dialogs
 
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
@@ -17,62 +31,23 @@ import {
 /// supplement notes, marker names, PDF-parsed labels, custom personality
 /// fields, etc. The regex below handles all five in one pass so every
 /// existing caller becomes safe without touching call sites.
-const _ESCAPE_HTML_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const _ESCAPE_HTML_MAP: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
-/**
- * @typedef {Object} DetachedModalSyncRefreshOptions
- * @property {HTMLElement} [overlay]
- * @property {string} [id]
- * @property {(id?: string) => void} [opener]
- * @property {(id?: string) => boolean} [exists]
- * @property {string} [bodySelector]
- * @property {string} [restoreSelector]
- */
-
-/**
- * @typedef {Object} ModalSyncRefreshContext
- * @property {HTMLElement | null} overlay
- * @property {HTMLElement | null} modal
- * @property {string} [itemId]
- * @property {number} [scrollTop]
- */
-
-/**
- * @typedef {Object} ModalSyncRefreshOptions
- * @property {HTMLElement} [overlay]
- * @property {string} [overlayId]
- * @property {string} [overlaySelector]
- * @property {string} [modalId]
- * @property {string} [modalSelector]
- * @property {string} [kind]
- * @property {(context: ModalSyncRefreshContext) => void} [refresh]
- * @property {(context: ModalSyncRefreshContext) => string} [getItemId]
- * @property {string} [scrollSelector]
- * @property {(context: ModalSyncRefreshContext) => HTMLElement | null | undefined} [getScrollElement]
- * @property {boolean} [preserveScroll]
- */
-
-export function escapeHTML(str) {
+export function escapeHTML(str: unknown): string {
   if (str === null || str === undefined) return '';
-  return String(str).replace(/[&<>"']/g, (c) => _ESCAPE_HTML_MAP[c]);
+  return String(str).replace(/[&<>"']/g, (c) => _ESCAPE_HTML_MAP[c]!);
 }
 
-export function hashString(str) {
+export function hashString(str: string): string {
   let hash = 5381;
   for (let i = 0; i < str.length; i++) hash = ((hash << 5) + hash) + str.charCodeAt(i);
   return (hash >>> 0).toString(36);
 }
 
-/**
- * @template {Element} T
- * @param {ParentNode} root
- * @param {string} selector
- * @returns {T}
- */
-export function queryRequired(root, selector) {
+export function queryRequired<T extends Element = Element>(root: ParentNode, selector: string): T {
   const el = root.querySelector(selector);
   if (!el) throw new Error(`Missing required element: ${selector}`);
-  return /** @type {T} */ (el);
+  return (el as T);
 }
 
 // Marker keys are interpolated into inline-onclick JS string literals
@@ -83,7 +58,7 @@ export function queryRequired(root, selector) {
 // input unchanged when safe, or null when not (callers should skip
 // rendering that element rather than coerce to a wrong id).
 const _PROTO_PARTS = new Set(['__proto__', 'constructor', 'prototype']);
-export function safeMarkerId(id) {
+export function safeMarkerId(id: unknown): string | null {
   if (typeof id !== 'string' || id.length === 0 || id.length > 128) return null;
   if (!/^[a-zA-Z0-9_.]+$/.test(id)) return null;
   // Reject the whole id matching a proto name (would pollute when used
@@ -100,7 +75,7 @@ export function safeMarkerId(id) {
 // enter `state.importedData`. Returns the cleaned key, or null when the
 // shape is wrong (no dot, empty part) or either part collides with a
 // prototype-pollution name. Keep in sync with safeMarkerId's allowlist.
-export function sanitizeMarkerKey(fullKey) {
+export function sanitizeMarkerKey(fullKey: unknown): string | null {
   if (typeof fullKey !== 'string') return null;
   const dotIdx = fullKey.indexOf('.');
   if (dotIdx < 1 || dotIdx >= fullKey.length - 1) return null;
@@ -111,34 +86,31 @@ export function sanitizeMarkerKey(fullKey) {
   return `${cat}.${mk}`;
 }
 
-export function hasDirtyFormFields(root) {
+export function hasDirtyFormFields(root: ParentNode | null | undefined): boolean {
   if (!root || !root.querySelectorAll) return false;
-  const fields = root.querySelectorAll('input, textarea, select');
+  const fields = root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input, textarea, select');
   for (const field of fields) {
     if (!field || field.disabled) continue;
     if (field.tagName === 'SELECT') {
-      const options = Array.from(field.options || []);
+      const options = Array.from((field as HTMLSelectElement).options || []);
       if (options.some(opt => opt.selected !== opt.defaultSelected)) return true;
       continue;
     }
     if (field.type === 'checkbox' || field.type === 'radio') {
-      if (field.checked !== field.defaultChecked) return true;
+      if ((field as HTMLInputElement).checked !== (field as HTMLInputElement).defaultChecked) return true;
       continue;
     }
-    if (field.value !== field.defaultValue) return true;
+    if (field.value !== (field as HTMLInputElement | HTMLTextAreaElement).defaultValue) return true;
   }
   return false;
 }
 
-export function bindSyncAppliedRefresh(refresh) {
+export function bindSyncAppliedRefresh(refresh?: EventListener | null): () => void {
   if (!hasUtilsRuntime() || typeof refresh !== 'function') return () => {};
   addUtilsRuntimeListener('labcharts-sync-applied', refresh);
   return () => removeUtilsRuntimeListener('labcharts-sync-applied', refresh);
 }
 
-/**
- * @param {DetachedModalSyncRefreshOptions} [options]
- */
 export function bindDetachedModalSyncRefresh({
   overlay,
   id,
@@ -146,7 +118,7 @@ export function bindDetachedModalSyncRefresh({
   exists,
   bodySelector = '.modal-body',
   restoreSelector = '.modal-overlay.show .sun-detail-modal .modal-body',
-} = {}) {
+}: DetachedModalSyncRefreshOptions = {}) {
   if (!hasUtilsRuntime() || typeof document === 'undefined' || !overlay || typeof opener !== 'function') return;
   let detached = false;
   const nativeRemove = overlay.remove.bind(overlay);
@@ -155,7 +127,7 @@ export function bindDetachedModalSyncRefresh({
     detached = true;
     removeUtilsRuntimeListener('labcharts-sync-applied', onSync);
   };
-  const restoreScroll = scrollTop => {
+  const restoreScroll = (scrollTop: number) => {
     const nextBodies = document.querySelectorAll(restoreSelector);
     const nextBody = nextBodies[nextBodies.length - 1];
     if (nextBody) nextBody.scrollTop = scrollTop;
@@ -181,10 +153,6 @@ export function bindDetachedModalSyncRefresh({
   addUtilsRuntimeListener('labcharts-sync-applied', onSync);
 }
 
-/**
- * @param {ModalSyncRefreshOptions} [options]
- * @returns {() => void}
- */
 export function bindModalSyncRefresh({
   overlay: directOverlay,
   overlayId,
@@ -197,37 +165,34 @@ export function bindModalSyncRefresh({
   scrollSelector,
   getScrollElement,
   preserveScroll = true,
-} = {}) {
+}: ModalSyncRefreshOptions = {}) {
   if (!hasUtilsRuntime() || typeof document === 'undefined' || typeof refresh !== 'function') {
     return () => {};
   }
-  /** @returns {HTMLElement | null} */
-  const findOverlay = () => {
+    const findOverlay = () => {
     if (directOverlay) return directOverlay;
     if (overlayId) return document.getElementById(overlayId);
     if (overlaySelector && typeof document.querySelector === 'function') {
-      return /** @type {HTMLElement | null} */ (document.querySelector(overlaySelector));
+      return (document.querySelector(overlaySelector) as HTMLElement | null);
     }
     return null;
   };
-  /** @param {HTMLElement | null} overlay @returns {HTMLElement | null} */
-  const findModal = (overlay) => {
+    const findModal = (overlay: HTMLElement | null) => {
     if (modalId) return document.getElementById(modalId);
-    if (modalSelector && overlay?.querySelector) return /** @type {HTMLElement | null} */ (overlay.querySelector(modalSelector));
+    if (modalSelector && overlay?.querySelector) return (overlay.querySelector(modalSelector) as HTMLElement | null);
     return overlay || null;
   };
-  /** @param {{ overlay: HTMLElement | null, modal: HTMLElement | null }} context @returns {HTMLElement | null} */
-  const resolveScrollElement = ({ overlay, modal }) => {
+    const resolveScrollElement = ({ overlay, modal }: ModalSyncRefreshContext) => {
     if (!preserveScroll) return null;
     if (typeof getScrollElement === 'function') return getScrollElement({ overlay, modal }) || null;
     if (scrollSelector) {
-      return /** @type {HTMLElement | null} */ (overlay?.querySelector?.(scrollSelector))
-        || /** @type {HTMLElement | null} */ (modal?.querySelector?.(scrollSelector))
+      return (overlay?.querySelector?.(scrollSelector) as HTMLElement | null)
+        || (modal?.querySelector?.(scrollSelector) as HTMLElement | null)
         || null;
     }
     return modal || overlay || null;
   };
-  const isDetachedDirectOverlay = (overlay) => {
+  const isDetachedDirectOverlay = (overlay: HTMLElement | null) => {
     if (!directOverlay || !overlay || typeof document.body?.contains !== 'function') return false;
     try {
       return !document.body.contains(overlay);
@@ -235,7 +200,7 @@ export function bindModalSyncRefresh({
       return false;
     }
   };
-  const restoreScroll = (scrollTop) => {
+  const restoreScroll = (scrollTop: number) => {
     if (!Number.isFinite(scrollTop)) return;
     const overlay = findOverlay();
     const modal = findModal(overlay);
@@ -275,7 +240,7 @@ export function bindModalSyncRefresh({
   return detach;
 }
 
-export function bindDetailModalSyncRefresh(kind, refresh) {
+export function bindDetailModalSyncRefresh(kind: string, refresh: (context: ModalSyncRefreshContext) => void): () => void {
   return bindModalSyncRefresh({
     overlayId: 'modal-overlay',
     modalId: 'detail-modal',
@@ -284,7 +249,7 @@ export function bindDetailModalSyncRefresh(kind, refresh) {
   });
 }
 
-export function getStatus(value, refMin, refMax) {
+export function getStatus(value: number | null | undefined, refMin?: number | null, refMax?: number | null): MarkerStatus {
   if (value === null || value === undefined) return "missing";
   if (refMin == null && refMax == null) return "normal";
   if (refMin != null && value < refMin) return "low";
@@ -292,7 +257,7 @@ export function getStatus(value, refMin, refMax) {
   return "normal";
 }
 
-export function getRangePosition(value, refMin, refMax) {
+export function getRangePosition(value: number | null | undefined, refMin?: number | null, refMax?: number | null): number | null {
   if (value === null || value === undefined) return null;
   if (refMin == null || refMax == null || refMax === refMin) return 50;
   return ((value - refMin) / (refMax - refMin)) * 100;
@@ -302,11 +267,11 @@ export function getRangePosition(value, refMin, refMax) {
 // rise / fall. Tight enough that natural lab variability still trips the
 // arrow; loose enough that a single decimal-place rounding doesn't.
 const STABLE_TREND_PCT = 2;
-export function getTrend(values, refMin, refMax) {
+export function getTrend(values: readonly (number | null | undefined)[], refMin?: number | null, refMax?: number | null): MarkerTrend {
   const nn = values.filter(v=>v!==null && v!==undefined);
   if (nn.length<2) return {arrow:"\u2014",cls:"trend-stable",label:"No previous result"};
-  const prev = nn[nn.length-2];
-  const curr = nn[nn.length-1];
+  const prev = nn[nn.length-2]!;
+  const curr = nn[nn.length-1]!;
   if (prev === 0) {
     if (curr === 0) return {arrow:"Stable",cls:"trend-stable",label:"Stable versus previous result"};
     return {arrow:"Changed",cls:"trend-stable",label:"Changed versus previous result; percentage unavailable because the previous value was zero"};
@@ -327,7 +292,7 @@ export function getTrend(values, refMin, refMax) {
   return {arrow, cls:`trend-${dir} trend-${quality}`, label};
 }
 
-export function formatValue(v) {
+export function formatValue(v: number | null | undefined): string {
   if (v===null||v===undefined) return "\u2014";
   if (Number.isInteger(v)) return v.toString();
   if (Math.abs(v)>=100) return v.toFixed(0);
@@ -344,27 +309,26 @@ export function formatValue(v) {
 //   monthYear \u2014 "Apr 2026" (focus card, group separators)
 //   spoken   \u2014 "April 29" (wearables strip, accessibility-first)
 // Accepts ISO 'YYYY-MM-DD' or any Date-parseable string.
-export function formatDate(iso, style = 'short') {
+export function formatDate(iso: string | null | undefined, style = 'short'): string {
   if (!iso) return '';
   // Append time so the date doesn't shift to the prior day in negative-UTC
   // timezones \u2014 the bug all the inline call sites were quietly working
   // around individually.
   const d = iso.length === 10 ? new Date(iso + 'T00:00:00') : new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  /** @type {Intl.DateTimeFormatOptions} */
-  const opts = style === 'long'      ? { month: 'long',  day: 'numeric', year: 'numeric' }
+  const opts: Intl.DateTimeFormatOptions = style === 'long'      ? { month: 'long',  day: 'numeric', year: 'numeric' }
              : style === 'monthYear' ? { month: 'short', year: 'numeric' }
              : style === 'spoken'    ? { month: 'long',  day: 'numeric' }
              : /* short */             { month: 'short', day: 'numeric' };
   return d.toLocaleDateString('en-US', opts);
 }
 
-export function linearRegression(points) {
+export function linearRegression(points: readonly number[]): { slope: number; intercept: number; r2: number } {
   const n = points.length;
   let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
   for (let i = 0; i < n; i++) {
-    sumX += i; sumY += points[i];
-    sumXY += i * points[i]; sumX2 += i * i; sumY2 += points[i] * points[i];
+    sumX += i; sumY += points[i]!;
+    sumXY += i * points[i]!; sumX2 += i * i; sumY2 += points[i]! * points[i]!;
   }
   const denom = n * sumX2 - sumX * sumX;
   if (denom === 0) return { slope: 0, intercept: points[0] || 0, r2: 0 };
@@ -377,22 +341,21 @@ export function linearRegression(points) {
 }
 
 export function isDebugMode() { return localStorage.getItem('labcharts-debug') === 'true'; }
-export function setDebugMode(on) { localStorage.setItem('labcharts-debug', on ? 'true' : 'false'); }
+export function setDebugMode(on: boolean): void { localStorage.setItem('labcharts-debug', on ? 'true' : 'false'); }
 export function isPIIReviewEnabled() { return localStorage.getItem('labcharts-pii-review') !== 'false'; }
-export function setPIIReviewEnabled(on) { localStorage.setItem('labcharts-pii-review', on ? 'true' : 'false'); }
+export function setPIIReviewEnabled(on: boolean): void { localStorage.setItem('labcharts-pii-review', on ? 'true' : 'false'); }
 // Analytics is cookieless and enabled by default. The historical storage key
 // remains an explicit opt-out: `analytics-disabled=true` suppresses Umami on
 // the next page load.
 const ANALYTICS_CONSENT_ACTION_ATTR = 'data-analytics-consent-action';
-/** @type {ReturnType<typeof setTimeout> | null} */
-let analyticsConsentRetryTimer = null;
+let analyticsConsentRetryTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function isAnalyticsEnabled() { return localStorage.getItem('labcharts-analytics-disabled') !== 'true'; }
-export function setAnalyticsEnabled(on) { localStorage.setItem('labcharts-analytics-disabled', on ? 'false' : 'true'); }
+export function setAnalyticsEnabled(on: boolean): void { localStorage.setItem('labcharts-analytics-disabled', on ? 'false' : 'true'); }
 function hasSeenAnalyticsConsent() { return localStorage.getItem('labcharts-analytics-consent-seen') === '1'; }
 function markAnalyticsConsentSeen() { localStorage.setItem('labcharts-analytics-consent-seen', '1'); }
 
-function isVisibleBlockingElement(el) {
+function isVisibleBlockingElement(el: Element): boolean {
   const style = getUtilsElementStyleRuntime(el);
   if (style && (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0')) return false;
   const rect = el.getBoundingClientRect?.();
@@ -424,11 +387,11 @@ function scheduleAnalyticsConsentRetry() {
   }, 1200);
 }
 
-function handleAnalyticsConsentActionClick(event) {
-  const target = event.target;
+function handleAnalyticsConsentActionClick(event: MouseEvent): void {
+  const target = event.target as Element | null;
   if (!target || typeof target.closest !== 'function') return;
   const actionEl = target.closest(`[${ANALYTICS_CONSENT_ACTION_ATTR}]`);
-  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  if (!actionEl || !(event.currentTarget as Element | null)?.contains?.(actionEl)) return;
   const action = actionEl.getAttribute(ANALYTICS_CONSENT_ACTION_ATTR);
   if (action === 'dismiss') {
     event.preventDefault();
@@ -496,14 +459,14 @@ export function dismissAnalyticsConsentAndDisable() {
   showNotification('Cookieless usage stats turned off. You can change this anytime in Settings → Privacy.', 'info', 4000);
 }
 
-export function showNotification(message, type, duration) {
+export function showNotification(message: unknown, type?: string, duration?: number): void {
   type = type || "info";
   const container = document.getElementById("notification-container");
   if (!container) return;
   const toast = document.createElement("div");
   toast.className = `notification-toast ${type}`;
   if (type === 'error') toast.setAttribute('role', 'alert');
-  const icons = { success: "\u2713", error: "\u2717", info: "\u2139" };
+  const icons: Record<string, string> = { success: "\u2713", error: "\u2717", info: "\u2139" };
   const iconSpan = document.createElement('span');
   iconSpan.textContent = icons[type] || "\u2139";
   toast.appendChild(iconSpan);
@@ -515,12 +478,8 @@ export function showNotification(message, type, duration) {
   }, duration || 3000);
 }
 
-/**
- * @param {string} message
- * @param {{ confirmLabel?: string, cancelLabel?: string, tone?: 'danger' | 'primary', ariaLabel?: string }} [options]
- */
-export function showConfirmDialog(message, options = {}) {
-  return new Promise((resolve) => {
+export function showConfirmDialog(message: string, options: ConfirmDialogOptions = {}): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
     const confirmLabel = options.confirmLabel || 'Confirm';
     const cancelLabel = options.cancelLabel || 'Cancel';
     const confirmTone = options.tone === 'primary' ? 'primary' : 'danger';
@@ -538,8 +497,8 @@ export function showConfirmDialog(message, options = {}) {
       <button class="confirm-btn confirm-btn-cancel" id="confirm-cancel">${escapeHTML(cancelLabel)}</button>
       <button class="confirm-btn confirm-btn-${confirmTone}" id="confirm-ok">${escapeHTML(confirmLabel)}</button>
     </div></div>`;
-    const ok = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#confirm-ok'));
-    const cancel = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#confirm-cancel'));
+    const ok = (overlay.querySelector('#confirm-ok') as HTMLButtonElement | null);
+    const cancel = (overlay.querySelector('#confirm-cancel') as HTMLButtonElement | null);
     if (!ok || !cancel) {
       resolve(false);
       return;
@@ -552,14 +511,14 @@ export function showConfirmDialog(message, options = {}) {
       overlay.onclick = previousOnclick;
       delete overlay.dataset.escapeOwner;
     };
-    const close = (result) => {
+    const close = (result: boolean) => {
       if (settled) return;
       settled = true;
       closeModalOverlay(overlay);
       cleanup();
       resolve(result);
     };
-    const onKey = (e) => {
+    const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
         close(false);
@@ -588,8 +547,8 @@ export function showConfirmDialog(message, options = {}) {
 /// confirm-dialog CSS so both dialogs look consistent; resolves to the
 /// trimmed string on OK, or null on Cancel / Esc / backdrop-click. Callers
 /// that need to distinguish empty OK from cancel can pass allowEmpty.
-export function showPromptDialog(message, { defaultValue = '', okLabel = 'OK', cancelLabel = 'Cancel', placeholder = '', inputType = 'text', allowEmpty = false } = {}) {
-  return new Promise((resolve) => {
+export function showPromptDialog(message: string, { defaultValue = '', okLabel = 'OK', cancelLabel = 'Cancel', placeholder = '', inputType = 'text', allowEmpty = false }: PromptDialogOptions = {}): Promise<string | null> {
+  return new Promise<string | null>((resolve) => {
     let overlay = document.getElementById('prompt-dialog-overlay');
     if (!overlay) {
       overlay = document.createElement('div');
@@ -608,9 +567,9 @@ export function showPromptDialog(message, { defaultValue = '', okLabel = 'OK', c
         <button class="confirm-btn confirm-btn-primary" id="prompt-ok">${escapeHTML(okLabel)}</button>
       </div></div>`;
 
-    const input = /** @type {HTMLInputElement | null} */ (overlay.querySelector('#prompt-dialog-input'));
-    const ok = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#prompt-ok'));
-    const cancel = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#prompt-cancel'));
+    const input = (overlay.querySelector('#prompt-dialog-input') as HTMLInputElement | null);
+    const ok = (overlay.querySelector('#prompt-ok') as HTMLButtonElement | null);
+    const cancel = (overlay.querySelector('#prompt-cancel') as HTMLButtonElement | null);
     if (!input || !ok || !cancel) {
       resolve(null);
       return;
@@ -618,7 +577,7 @@ export function showPromptDialog(message, { defaultValue = '', okLabel = 'OK', c
     let settled = false;
     const previousOnclick = overlay.onclick;
 
-    const close = (value) => {
+    const close = (value: string | null) => {
       if (settled) return;
       settled = true;
       closeModalOverlay(overlay);
@@ -630,7 +589,7 @@ export function showPromptDialog(message, { defaultValue = '', okLabel = 'OK', c
       const trimmed = input.value.trim();
       return allowEmpty ? trimmed : (trimmed || null);
     };
-    const onKey = (e) => {
+    const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { e.preventDefault(); close(null); }
       else if (e.key === 'Enter') { e.preventDefault(); close(readValue()); }
     };
@@ -645,15 +604,10 @@ export function showPromptDialog(message, { defaultValue = '', okLabel = 'OK', c
   });
 }
 
-/**
- * @template T
- * @param {T} obj
- * @returns {obj is NonNullable<T>}
- */
-export function hasCardContent(obj) {
+export function hasCardContent<T>(obj: T): obj is NonNullable<T> {
   if (!obj) return false;
-  for (const [key, val] of Object.entries(obj)) {
-    if (key === 'note') { if (val?.trim()) return true; }
+  for (const [key, val] of Object.entries(obj as Record<string, unknown>)) {
+    if (key === 'note') { if ((val as { trim(): unknown } | null | undefined)?.trim()) return true; }
     else if (Array.isArray(val)) { if (val.length > 0) return true; }
     else if (val != null && val !== '') return true;
   }
@@ -667,14 +621,14 @@ export function hasCardContent(obj) {
 /// escapeAttr for attribute contexts continue to work and read clearly.
 export const escapeAttr = escapeHTML;
 
-const _scriptLoadPromises = new Map();
+const _scriptLoadPromises = new Map<string, Promise<HTMLScriptElement>>();
 
-export function loadScriptOnce(src) {
+export function loadScriptOnce(src?: string | null): Promise<HTMLScriptElement> {
   if (!src) return Promise.reject(new Error('Missing script src'));
   const existing = Array.from(document.scripts || []).find(s => s.getAttribute('src') === src);
   if (existing?.dataset.loaded === 'true') return Promise.resolve(existing);
-  if (_scriptLoadPromises.has(src)) return _scriptLoadPromises.get(src);
-  const p = new Promise((resolve, reject) => {
+  if (_scriptLoadPromises.has(src)) return _scriptLoadPromises.get(src)!;
+  const p = new Promise<HTMLScriptElement>((resolve, reject) => {
     const script = existing || document.createElement('script');
     script.src = src;
     script.async = true;

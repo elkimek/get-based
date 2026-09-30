@@ -196,7 +196,7 @@ export function configureSyncModules({ enableSync } = {}) {
     isEvoluReady: isSyncEvoluReady,
     syncNow,
     debug: dbg,
-    /** @param {...any} args */
+    /** @param {Parameters<typeof showNotification>} args */
     notify: (...args) => {
       try { showNotification(...args); } catch {}
     },

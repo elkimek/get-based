@@ -86,6 +86,12 @@ shared by standalone Node suites and Vitest without changing either harness's
 other browser-global behavior. The affected-test planner is authored as
 `scripts/pr-test-scope.mts`; its emitted CLI remains at the original `.mjs` path.
 
+Core utilities, modal focus/scroll lifecycle, browser utility adapters, speech text,
+privacy-safe diagnostics and marker/device display helpers now use native strict
+TypeScript contracts. External browser libraries are described by the methods the
+app consumes. Type-only conversions preserve the emitted runtime syntax trees;
+modal and voice browser regressions verify their DOM and scheduling behavior.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

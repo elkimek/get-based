@@ -1,16 +1,17 @@
-// @ts-check
+export interface DeviceChannelDisplay { label?: string; what?: string; icon?: string; }
+
 
 import { escapeAttr, escapeHTML, formatDate } from './utils.js';
 
-export function localDeviceSessionStamp(timestamp) {
+export function localDeviceSessionStamp(timestamp: number | string | Date): { date: string; time: string } {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return { date: 'Date unavailable', time: '' };
   const localKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   return { date: formatDate(localKey), time: date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) };
 }
 
-export function deviceBasisLabel(basis) {
-  const labels = {
+export function deviceBasisLabel(basis: unknown): string {
+  const labels: Record<string, string> = {
     'measured-spectrometer': 'spectrometer measurement',
     'measured-total-spectrometer': 'total spectrometer measurement',
     'measured-radiometer': 'radiometer measurement',
@@ -19,10 +20,10 @@ export function deviceBasisLabel(basis) {
     'curated-estimate': 'curated estimate',
     unknown: 'source not recorded',
   };
-  return labels[basis] || String(basis || 'source not recorded').replaceAll('-', ' ');
+  return labels[basis as string] || String(basis || 'source not recorded').replaceAll('-', ' ');
 }
 
-export function safeHttpUrl(value) {
+export function safeHttpUrl(value: unknown): string | null {
   try {
     const parsed = new URL(String(value || ''));
     return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : null;
@@ -31,14 +32,14 @@ export function safeHttpUrl(value) {
   }
 }
 
-export function formatWavelengthSummary(peaks) {
+export function formatWavelengthSummary(peaks: unknown): string {
   if (!Array.isArray(peaks) || peaks.length === 0) return '';
   const sorted = peaks.slice().sort((a, b) => a - b);
   if (sorted.length <= 3) return sorted.join(' / ') + ' nm';
   return `${sorted[0]}–${sorted[sorted.length - 1]} nm (${sorted.length} bands)`;
 }
 
-export function renderDeviceChannelChips(channelKeys, channelDisplay) {
+export function renderDeviceChannelChips(channelKeys: unknown, channelDisplay: Record<string, DeviceChannelDisplay>): string {
   if (!Array.isArray(channelKeys) || channelKeys.length === 0) return '';
   const order = ['vitamin_d', 'pomc', 'no_cv', 'violet_eye', 'circadian', 'nir_solar', 'pbm_red', 'pbm_nir'];
   const present = new Set(channelKeys);
@@ -51,7 +52,7 @@ export function renderDeviceChannelChips(channelKeys, channelDisplay) {
   }).join('');
 }
 
-export function relativeTimeShort(timestamp) {
+export function relativeTimeShort(timestamp: number | null | undefined): string {
   if (!timestamp) return 'never';
   const days = Math.floor((Date.now() - timestamp) / (24 * 3600 * 1000));
   if (days <= 0) return 'today';
