@@ -277,6 +277,13 @@ task commands remain explicit. macOS no longer imports its executable resolver
 from the Linux installer. Four existing platform/update suites are checked as
 native TypeScript with their original cases and assertions retained.
 
+The standalone companion runtime graph, CLI entry point and distribution builder
+are now native TypeScript. Hermes gateway requests, sessions, event payloads,
+registry profiles and credential-owned clients have explicit contracts; raw wire
+values retain their original checks and coercions. Gateway RPC shutdown shares
+the existing live-map settlement operation. The original streaming, registry,
+connection, bootstrap and distribution cases remain executable native tests.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

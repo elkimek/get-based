@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 812 |
-| Internal import edges | 3414 |
+| Internal import edges | 3415 |
 | Dynamic internal edges | 119 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1603,7 +1603,7 @@ Node-only policy and transport code shared by hosted runtimes.
 
 <details><summary><code>hermes</code> family — 1 module</summary>
 
-- [`lib/hermes-gateway-client.js`](lib/hermes-gateway-client.js) → [`lib/read-bounded-file.ts`](lib/read-bounded-file.ts)
+- [`lib/hermes-gateway-client.ts`](lib/hermes-gateway-client.ts) → [`lib/read-bounded-file.ts`](lib/read-bounded-file.ts), [`lib/rpc-client-state.ts`](lib/rpc-client-state.ts)
 
 </details>
 
@@ -1712,7 +1712,7 @@ Standalone loopback companion for installed CLI agents.
 
 <details><summary><code>agent</code> family — 1 module</summary>
 
-- [`server/agent-host-server.js`](server/agent-host-server.js) → [`lib/acp-agent-client.ts`](lib/acp-agent-client.ts), [`lib/agent-host-service.ts`](lib/agent-host-service.ts), [`lib/agent-host-storage.ts`](lib/agent-host-storage.ts), [`lib/claude-agent-client.ts`](lib/claude-agent-client.ts), [`lib/codex-agent-isolation.ts`](lib/codex-agent-isolation.ts), [`lib/codex-app-server-client.ts`](lib/codex-app-server-client.ts), [`lib/companion-http.ts`](lib/companion-http.ts), [`lib/companion-listener.ts`](lib/companion-listener.ts), [`lib/companion-runtime-control.ts`](lib/companion-runtime-control.ts), [`lib/hermes-gateway-client.js`](lib/hermes-gateway-client.js), [`lib/local-agent-registry.ts`](lib/local-agent-registry.ts), [`lib/openclaw-agent-client.ts`](lib/openclaw-agent-client.ts)
+- [`server/agent-host-server.ts`](server/agent-host-server.ts) → [`lib/acp-agent-client.ts`](lib/acp-agent-client.ts), [`lib/agent-host-service.ts`](lib/agent-host-service.ts), [`lib/agent-host-storage.ts`](lib/agent-host-storage.ts), [`lib/claude-agent-client.ts`](lib/claude-agent-client.ts), [`lib/codex-agent-isolation.ts`](lib/codex-agent-isolation.ts), [`lib/codex-app-server-client.ts`](lib/codex-app-server-client.ts), [`lib/companion-http.ts`](lib/companion-http.ts), [`lib/companion-listener.ts`](lib/companion-listener.ts), [`lib/companion-runtime-control.ts`](lib/companion-runtime-control.ts), [`lib/hermes-gateway-client.ts`](lib/hermes-gateway-client.ts), [`lib/local-agent-registry.ts`](lib/local-agent-registry.ts), [`lib/openclaw-agent-client.ts`](lib/openclaw-agent-client.ts)
 
 </details>
 
@@ -1722,7 +1722,7 @@ Install and control the Linux user-level agent companion.
 
 <details><summary><code>getbased</code> family — 1 module</summary>
 
-- [`bin/getbased-companion.js`](bin/getbased-companion.js) → [`lib/agent-mcp-bridge.ts`](lib/agent-mcp-bridge.ts), [`lib/companion-existing.ts`](lib/companion-existing.ts), [`lib/companion-install.ts`](lib/companion-install.ts), [`server/agent-host-server.js`](server/agent-host-server.js) *(dynamic)*
+- [`bin/getbased-companion.ts`](bin/getbased-companion.ts) → [`lib/agent-mcp-bridge.ts`](lib/agent-mcp-bridge.ts), [`lib/companion-existing.ts`](lib/companion-existing.ts), [`lib/companion-install.ts`](lib/companion-install.ts), [`server/agent-host-server.ts`](server/agent-host-server.ts) *(dynamic)*
 
 </details>
 

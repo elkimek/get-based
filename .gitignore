@@ -252,3 +252,9 @@ deploy/profile-share/data/
 /lib/companion-install.js
 /lib/companion-runtime-control.js
 /lib/companion-install-support.js
+
+# Native companion gateway and entry points
+/lib/hermes-gateway-client.js
+/server/agent-host-server.js
+/bin/getbased-companion.js
+/scripts/build-companion-bundle.mjs

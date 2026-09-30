@@ -1,4 +1,3 @@
-// @ts-check
 // Authenticated Hermes Desktop gateway adapter. Credentials never cross the
 // companion's loopback boundary; the browser sees only opaque execution IDs.
 
@@ -8,6 +7,69 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { readBoundedFile } from './read-bounded-file.js';
 
+import type { AgentTurnOptions } from './agent-turn-types.js';
+import type { HostRoute } from './agent-host-turn-state.js';
+import type { PendingRpcRequest } from './rpc-client-state.js';
+import { rejectPendingRequests } from './rpc-client-state.js';
+import type { FileHandle } from 'node:fs/promises';
+
+export interface HermesGatewaySocket {
+  readyState: number;
+  addEventListener(type: 'message', listener: (event: { data: unknown }) => void): void;
+  addEventListener(type: 'open' | 'error' | 'close', listener: () => void, options?: { once?: boolean }): void;
+  send(data: string): void;
+  close(): void;
+}
+export type HermesGatewayFetch = (url: URL, options: RequestInit) => Promise<Response>;
+export interface HermesGatewayOptions {
+  baseUrl: string;
+  token: string;
+  profile?: string;
+  label?: string;
+  WebSocketImpl?: (new (url: string) => HermesGatewaySocket) | undefined;
+  fetchImpl?: HermesGatewayFetch | undefined;
+}
+export interface HermesGatewayProviderOptions extends Pick<HermesGatewayOptions, 'WebSocketImpl' | 'fetchImpl'> {
+  platform?: NodeJS.Platform;
+  env?: NodeJS.ProcessEnv;
+  registryPath?: string;
+}
+export type HermesGatewayPromptOptions = Pick<AgentTurnOptions,
+  'sessionId' | 'prompt' | 'model' | 'effort' | 'outputSchema' | 'signal' | 'onEvent'
+> & Partial<Pick<AgentTurnOptions, 'instructions'>>;
+interface HermesSession { runtimeSessionId: string; model: string; effort: string }
+interface HermesEvent {
+  type: string;
+  session_id?: unknown;
+  payload?: { text?: unknown; name?: unknown; title?: unknown; message?: unknown; error?: unknown;
+    usage?: { input_tokens?: unknown; input?: unknown; output_tokens?: unknown; output?: unknown } | null } | null;
+}
+interface HermesReply { session_id?: unknown; confirm_required?: unknown; confirm_message?: unknown; warning?: unknown; value?: unknown }
+interface HermesFrame { id?: unknown; error?: { message?: unknown } | null; result?: unknown; method?: unknown; params?: HermesEvent | null }
+interface HermesModel { id?: unknown; model?: unknown; name?: unknown; display_name?: unknown }
+interface HermesProvider { authenticated?: unknown; slug?: unknown; id?: unknown; models?: unknown; unavailable_models?: unknown; name?: unknown }
+interface HermesCatalog { provider?: unknown; model?: unknown; providers?: unknown }
+interface HermesProfile { name?: unknown; display_name?: unknown; description?: unknown; is_default?: unknown }
+interface HermesConnection { kind?: unknown; id?: unknown; label?: unknown; url?: unknown; authMode?: unknown; token?: { encoding?: unknown; value?: unknown } | null }
+export interface HermesGatewayRoute extends HostRoute { client?: HermesGatewayClient | null | undefined }
+type ModelCatalog = ReturnType<typeof normalizeHermesGatewayModelCatalog>;
+
+// Declaration merging types constructor assignments without changing own-property order.
+export interface HermesGatewayClient {
+  baseUrl: string; token: string; profile: string; label: string;
+  WebSocketImpl: new (url: string) => HermesGatewaySocket;
+  fetchImpl: HermesGatewayFetch;
+  socket: HermesGatewaySocket | null;
+  connectPromise: Promise<void> | null;
+  cancelHandshake: ((error: unknown) => void) | null;
+  turnFailures: Set<(error: unknown) => void>;
+  nextId: number;
+  pending: Map<unknown, PendingRpcRequest>;
+  listeners: Set<(event: HermesEvent) => void>;
+  sessions: Map<string, HermesSession>;
+  modelCatalogPromise: Promise<ModelCatalog> | null;
+}
+
 const REQUEST_TIMEOUT_MS = 30_000;
 const PROMPT_TIMEOUT_MS = 10 * 60_000;
 const REGISTRY_MAX_BYTES = 1_000_000;
@@ -15,26 +77,22 @@ const HERMES_REASONING_EFFORTS = Object.freeze([
   'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra',
 ]);
 
-/** @param {unknown} value @param {number} [max] */
-function cleanText(value, max = 300) {
+function cleanText(value: unknown, max = 300) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
 
-/** @param {string} value */
-function routeHash(value) {
+function routeHash(value: string) {
   return createHash('sha256').update(value).digest('hex').slice(0, 16);
 }
 
-/** @param {NodeJS.Platform} platform @param {NodeJS.ProcessEnv} env */
-export function hermesDesktopRegistryPath(platform = process.platform, env = process.env) {
+export function hermesDesktopRegistryPath(platform: NodeJS.Platform = process.platform, env = process.env) {
   const home = cleanText(env.HOME || env.USERPROFILE || homedir(), 4_096);
   if (platform === 'win32') return join(cleanText(env.APPDATA, 4_096) || join(home, 'AppData', 'Roaming'), 'Hermes', 'connections.json');
   if (platform === 'darwin') return join(home, 'Library', 'Application Support', 'Hermes', 'connections.json');
   return join(cleanText(env.XDG_CONFIG_HOME, 4_096) || join(home, '.config'), 'Hermes', 'connections.json');
 }
 
-/** @param {unknown} value */
-export function normalizeHermesGatewayBaseUrl(value) {
+export function normalizeHermesGatewayBaseUrl(value: unknown) {
   let url;
   try { url = new URL(cleanText(value, 2_048)); } catch { throw new Error('Hermes gateway URL is invalid.'); }
   const loopback = ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname);
@@ -46,8 +104,7 @@ export function normalizeHermesGatewayBaseUrl(value) {
   return url.toString().replace(/\/$/, '');
 }
 
-/** @param {string} baseUrl @param {string} token */
-export function buildHermesGatewayWebSocketUrl(baseUrl, token) {
+export function buildHermesGatewayWebSocketUrl(baseUrl: string, token: string) {
   const url = new URL(normalizeHermesGatewayBaseUrl(baseUrl));
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   url.pathname = `${url.pathname.replace(/\/$/, '')}/api/ws`;
@@ -55,18 +112,17 @@ export function buildHermesGatewayWebSocketUrl(baseUrl, token) {
   return url.toString();
 }
 
-/** @param {any} payload */
-export function normalizeHermesGatewayModelCatalog(payload) {
-  const currentProvider = cleanText(payload?.provider, 80);
-  const currentModel = cleanText(payload?.model, 160);
-  const providers = Array.isArray(payload?.providers) ? payload.providers : [];
+export function normalizeHermesGatewayModelCatalog(payload: unknown) {
+  const currentProvider = cleanText((payload as HermesCatalog | null | undefined)?.provider, 80);
+  const currentModel = cleanText((payload as HermesCatalog | null | undefined)?.model, 160);
+  const providers = Array.isArray((payload as HermesCatalog | null | undefined)?.providers) ? (payload as HermesCatalog).providers as (HermesProvider | null | undefined)[] : [];
   const rows = [];
   for (const provider of providers) {
     if (!provider || typeof provider !== 'object' || provider.authenticated === false) continue;
     const slug = cleanText(provider.slug || provider.id, 80);
     if (!slug) continue;
-    const models = Array.isArray(provider.models) ? provider.models : [];
-    const unavailable = new Set((Array.isArray(provider.unavailable_models) ? provider.unavailable_models : [])
+    const models = Array.isArray(provider.models) ? provider.models as (string | HermesModel | null | undefined)[] : [];
+    const unavailable = new Set((Array.isArray(provider.unavailable_models) ? provider.unavailable_models as unknown[] : [])
       .map(item => cleanText(item, 160)).filter(Boolean));
     for (const item of models) {
       const rawId = cleanText(typeof item === 'string' ? item : item?.id || item?.model, 160);
@@ -89,8 +145,7 @@ export function normalizeHermesGatewayModelCatalog(payload) {
   return rows.slice(0, 500);
 }
 
-/** @param {string} model */
-function splitHermesModel(model) {
+function splitHermesModel(model: string) {
   const separator = model.indexOf(':');
   return separator > 0
     ? { provider: model.slice(0, separator), model: model.slice(separator + 1) }
@@ -98,8 +153,7 @@ function splitHermesModel(model) {
 }
 
 export class HermesGatewayClient {
-  /** @param {{baseUrl: string, token: string, profile?: string, label?: string, WebSocketImpl?: typeof WebSocket, fetchImpl?: typeof fetch}} options */
-  constructor(options) {
+  constructor(options: HermesGatewayOptions) {
     this.baseUrl = normalizeHermesGatewayBaseUrl(options.baseUrl);
     this.token = options.token;
     this.profile = cleanText(options.profile, 100) || 'default';
@@ -121,14 +175,14 @@ export class HermesGatewayClient {
     if (this.socket?.readyState === 1) return;
     if (this.connectPromise) return this.connectPromise;
     if (!this.WebSocketImpl) throw new Error('This companion runtime cannot open a Hermes gateway WebSocket.');
-    const connection = new Promise((resolve, reject) => {
+    const connection = new Promise<void>((resolve, reject) => {
       const socket = new this.WebSocketImpl(buildHermesGatewayWebSocketUrl(this.baseUrl, this.token));
       let settled = false;
       const cleanupHandshake = () => {
         clearTimeout(timer);
         if (this.cancelHandshake === failHandshake) this.cancelHandshake = null;
       };
-      const failHandshake = error => {
+      const failHandshake = (error: unknown) => {
         if (settled) return;
         settled = true;
         cleanupHandshake();
@@ -163,20 +217,14 @@ export class HermesGatewayClient {
     return tracked;
   }
 
-  /** @param {Error} error */
-  rejectActiveWork(error) {
-    for (const call of this.pending.values()) {
-      clearTimeout(call.timer);
-      call.reject(error);
-    }
-    this.pending.clear();
+  rejectActiveWork(error: Error) {
+    rejectPendingRequests(() => this.pending, () => error);
     for (const reject of this.turnFailures) reject(error);
   }
 
-  /** @param {unknown} raw */
-  handleMessage(raw) {
+  handleMessage(raw: unknown) {
     let frame;
-    try { frame = JSON.parse(typeof raw === 'string' ? raw : String(raw)); } catch { return; }
+    try { frame = JSON.parse(typeof raw === 'string' ? raw : String(raw)) as HermesFrame | null; } catch { return; }
     if (frame?.id !== undefined && frame?.id !== null) {
       const call = this.pending.get(frame.id);
       if (!call) return;
@@ -191,25 +239,24 @@ export class HermesGatewayClient {
     }
   }
 
-  /** @param {string} method @param {Record<string, unknown>} [params] @param {number} [timeoutMs] @param {AbortSignal} [signal] */
-  async request(method, params = {}, timeoutMs = REQUEST_TIMEOUT_MS, signal) {
+  async request<T = unknown>(method: string, params: Record<string, unknown> = {}, timeoutMs = REQUEST_TIMEOUT_MS, signal?: AbortSignal) {
     signal?.throwIfAborted();
     await this.connect();
     signal?.throwIfAborted();
     const socket = this.socket;
     if (!socket || socket.readyState !== 1) throw new Error(`${this.label} is not connected.`);
     const id = `gb${this.nextId++}`;
-    return new Promise((resolve, reject) => {
+    return new Promise<T>((resolve, reject) => {
       const cleanup = () => {
         clearTimeout(timer);
         this.pending.delete(id);
         signal?.removeEventListener('abort', abort);
       };
-      const fail = error => { cleanup(); reject(error); };
-      const abort = () => fail(signal.reason);
+      const fail = (error: unknown) => { cleanup(); reject(error); };
+      const abort = () => fail(signal!.reason);
       const timer = setTimeout(() => fail(new Error(`Hermes gateway ${method} timed out.`)), timeoutMs);
       this.pending.set(id, {
-        resolve: value => { cleanup(); resolve(value); }, reject: fail, timer,
+        resolve: value => { cleanup(); resolve(value as T); }, reject: fail, timer,
       });
       signal?.addEventListener('abort', abort, { once: true });
       try { socket.send(JSON.stringify({ jsonrpc: '2.0', id, method, params })); }
@@ -217,7 +264,6 @@ export class HermesGatewayClient {
     });
   }
 
-  /** @param {boolean} [refresh] */
   async loadModelCatalog(refresh = false) {
     const url = new URL(`${this.baseUrl}/api/model/options`);
     url.searchParams.set('profile', this.profile);
@@ -233,8 +279,7 @@ export class HermesGatewayClient {
     return catalog;
   }
 
-  /** @param {{refresh?: boolean}} [options] */
-  async getModelCatalog(options = {}) {
+  async getModelCatalog(options: { refresh?: boolean } = {}) {
     if (options.refresh) this.modelCatalogPromise = null;
     if (!this.modelCatalogPromise) {
       const pending = this.loadModelCatalog(options.refresh === true).catch(error => {
@@ -246,10 +291,9 @@ export class HermesGatewayClient {
     return this.modelCatalogPromise;
   }
 
-  /** @param {string} externalSessionId @param {string} model @param {string} effort */
-  async createSession(externalSessionId, model, effort) {
+  async createSession(externalSessionId: string, model: string, effort: string) {
     const selected = splitHermesModel(model);
-    const created = await this.request('session.create', {
+    const created = await this.request<HermesReply | null | undefined>('session.create', {
       source: 'tool', close_on_disconnect: false, profile: this.profile,
       title: 'getbased',
       ...(selected.model ? { model: selected.model } : {}),
@@ -263,21 +307,20 @@ export class HermesGatewayClient {
     return state;
   }
 
-  /** @param {{runtimeSessionId: string, model: string, effort: string}} state @param {string} model @param {string} effort */
-  async configureSession(state, model, effort) {
+  async configureSession(state: HermesSession, model: string, effort: string) {
     if (model && model !== state.model) {
-      const result = await this.request('config.set', {
+      const result = await this.request<HermesReply | null | undefined>('config.set', {
         key: 'model', value: model, session_id: state.runtimeSessionId,
       });
       if (result?.confirm_required) {
-        throw new Error(result.confirm_message || result.warning || 'Confirm this Hermes model change in Hermes Desktop, then retry in getbased.');
+        throw new Error((result.confirm_message || result.warning || 'Confirm this Hermes model change in Hermes Desktop, then retry in getbased.') as string);
       }
       state.model = model;
     }
     if (effort !== state.effort) {
       let effectiveEffort = effort;
       if (!effectiveEffort) {
-        const inherited = await this.request('config.get', { key: 'reasoning', profile: this.profile });
+        const inherited = await this.request<HermesReply | null | undefined>('config.get', { key: 'reasoning', profile: this.profile });
         effectiveEffort = cleanText(inherited?.value, 40) || 'medium';
       }
       await this.request('config.set', {
@@ -287,10 +330,7 @@ export class HermesGatewayClient {
     }
   }
 
-  /**
-   * @param {{sessionId?: string, prompt: any[], model?: string, effort?: string, instructions?: string, outputSchema?: any, signal?: AbortSignal, onEvent: (event: any) => void}} options
-   */
-  async prompt(options) {
+  async prompt(options: HermesGatewayPromptOptions) {
     options.signal?.throwIfAborted();
     if ((options.prompt || []).some(block => block?.type === 'image')) {
       throw new Error('Remote Hermes image input is not available through the safe gateway connection yet. Choose the local Hermes target for images.');
@@ -315,10 +355,10 @@ export class HermesGatewayClient {
     options.onEvent({ type: 'session', sessionId: externalSessionId, model: options.model || 'Hermes' });
     let emittedText = false;
     let complete = false;
-    let resolveTurn;
-    let rejectTurn;
-    const turnDone = new Promise((resolve, reject) => { resolveTurn = resolve; rejectTurn = reject; });
-    const processEvent = event => {
+    let resolveTurn!: () => void;
+    let rejectTurn!: (error: unknown) => void;
+    const turnDone = new Promise<void>((resolve, reject) => { resolveTurn = resolve; rejectTurn = reject; });
+    const processEvent = (event: HermesEvent) => {
       if (event.session_id !== runtimeSessionId) return;
       const payload = event.payload || {};
       if (event.type === 'message.delta' && typeof payload.text === 'string') {
@@ -338,7 +378,7 @@ export class HermesGatewayClient {
         rejectTurn(new Error(`Your Hermes agent needs input in Hermes Desktop (${event.type.replace('.', ' ')}). Complete it there, then retry in getbased.`));
       } else if (event.type === 'error') rejectTurn(new Error(cleanText(payload.message || payload.error, 500) || 'Hermes gateway turn failed.'));
     };
-    const listener = event => {
+    const listener = (event: HermesEvent) => {
       try { processEvent(event); } catch (error) { rejectTurn(error); }
     };
     this.listeners.add(listener);
@@ -383,37 +423,30 @@ export class HermesGatewayClient {
   async close() { await this.restart(); }
 }
 
-/**
- * Reads Hermes Desktop's connection registry and returns a provider that keeps
- * credential envelopes private. Unsupported safeStorage/OAuth/SSH entries are
- * visible as unavailable instead of being silently copied into the browser.
- * @param {{platform?: NodeJS.Platform, env?: NodeJS.ProcessEnv, fetchImpl?: typeof fetch, WebSocketImpl?: typeof WebSocket, registryPath?: string}} [options]
- */
-export function createHermesGatewayRouteProvider(options = {}) {
+export function createHermesGatewayRouteProvider(options: HermesGatewayProviderOptions = {}) {
   const registryPath = options.registryPath || hermesDesktopRegistryPath(options.platform, options.env);
-  const clients = new Map();
-  const clientOwners = new Map();
-  const knownProfiles = new Map();
+  const clients = new Map<string, HermesGatewayClient>();
+  const clientOwners = new Map<string, string>();
+  const knownProfiles = new Map<string, { baseUrl: string; token: string; profiles: HermesProfile[] }>();
   let closed = false;
   let refreshQueue = Promise.resolve();
 
   async function readRegistry() {
-    let handle;
+    let handle: FileHandle | undefined;
     try {
       handle = await open(registryPath, 'r');
-      const parsed = JSON.parse(await readBoundedFile(handle, REGISTRY_MAX_BYTES, 'Hermes registry exceeds the companion limit.'));
+      const parsed = JSON.parse(await readBoundedFile(handle, REGISTRY_MAX_BYTES, 'Hermes registry exceeds the companion limit.')) as { connections?: unknown } | null;
       return parsed && typeof parsed === 'object' ? parsed : null;
     } catch { return null; } finally { await handle?.close(); }
   }
 
   async function refreshRoutes() {
     if (closed) throw new Error('Hermes gateway provider is closed.');
-    const retained = new Set();
-    const retainedProfiles = new Set();
+    const retained = new Set<string>();
+    const retainedProfiles = new Set<string>();
     const registry = await readRegistry();
-    /** @type {Array<{id: string, status: string, message?: string, client?: HermesGatewayClient, [key: string]: unknown}>} */
-    const routes = [];
-    for (const connection of Array.isArray(registry?.connections) ? registry.connections : []) {
+    const routes: HermesGatewayRoute[] = [];
+    for (const connection of Array.isArray(registry?.connections) ? registry.connections as (HermesConnection | null | undefined)[] : []) {
       if (!connection || connection.kind !== 'remote') continue;
       const connectionId = cleanText(connection.id, 120);
       const label = cleanText(connection.label, 100) || 'Remote Hermes';
@@ -427,7 +460,7 @@ export function createHermesGatewayRouteProvider(options = {}) {
         ? cleanText(connection.token.value, 4_096) : '';
       const previous = knownProfiles.get(connectionId);
       if (previous && (previous.baseUrl !== baseUrl || previous.token !== token)) knownProfiles.delete(connectionId);
-      let profiles = [{ name: 'default', display_name: '', description: '', is_default: true }];
+      let profiles: HermesProfile[] = [{ name: 'default', display_name: '', description: '', is_default: true }];
       let status = 'available';
       let message = '';
       let probeFailed = false;
@@ -443,9 +476,9 @@ export function createHermesGatewayRouteProvider(options = {}) {
             headers: { 'X-Hermes-Session-Token': token },
           });
           if (!response.ok) throw new Error('gateway rejected the profile request');
-          const payload = await response.json();
-          const discovered = Array.isArray(payload?.profiles) ? payload.profiles.filter(item => cleanText(item?.name, 100)) : [];
-          if (discovered.length) profiles = discovered;
+          const payload = await response.json() as { profiles?: unknown } | null;
+          const discovered = Array.isArray(payload?.profiles) ? (payload.profiles as (HermesProfile | null | undefined)[]).filter(item => cleanText(item?.name, 100)) : [];
+          if (discovered.length) profiles = discovered as HermesProfile[];
           knownProfiles.set(connectionId, { baseUrl, token, profiles });
         } catch {
           status = 'unavailable';
@@ -467,7 +500,7 @@ export function createHermesGatewayRouteProvider(options = {}) {
       for (const profile of profiles) {
         const profileName = cleanText(profile.name, 100) || 'default';
         const id = `gateway-${routeHash(`${connectionId}:${profileName}`)}`;
-        let client = clients.get(id);
+        let client: HermesGatewayClient | null | undefined = clients.get(id);
         if (client && (client.baseUrl !== baseUrl || client.token !== token)) {
           await client.close();
           clients.delete(id);
@@ -485,7 +518,7 @@ export function createHermesGatewayRouteProvider(options = {}) {
         }
         if (client && status === 'available') retained.add(id);
         const profileLabel = cleanText(profile.display_name, 100) || profileName;
-        const route = {
+        const route: HermesGatewayRoute = {
           id, label: `${profileLabel} · ${label}`,
           description: cleanText(profile.description, 240) || `Personal Hermes profile on ${label}`,
           kind: 'gateway', status, message, profile: profileName, gatewayLabel: label,
@@ -516,10 +549,10 @@ export function createHermesGatewayRouteProvider(options = {}) {
 
   return {
     listRoutes,
-    async resolve(routeId) {
+    async resolve(routeId: string) {
       const route = (await listRoutes()).find(item => item.id === routeId);
       if (!route) throw new Error('This Hermes execution target is no longer registered in Hermes Desktop.');
-      if (route.status === 'unavailable' || !route.client) throw new Error(route.message || 'This Hermes gateway cannot be used by the companion.');
+      if (route.status === 'unavailable' || !route.client) throw new Error((route.message || 'This Hermes gateway cannot be used by the companion.') as string);
       return route;
     },
     async close() {

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// @ts-check
+
+import type { CompanionServiceCommand } from '../lib/companion-install-support.js';
 
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
@@ -21,8 +22,7 @@ Usage:
   getbased-companion uninstall            Remove the service and runtime
 `;
 
-/** @param {string[]} args @param {{bundlePath?: string}} [options] */
-export async function main(args, options = {}) {
+export async function main(args: string[], options: { bundlePath?: string } = {}) {
   const command = args[0] || 'help';
   if (command === 'mcp-bridge') {
     await runAgentMCPBridge();
@@ -62,7 +62,7 @@ export async function main(args, options = {}) {
     return;
   }
   if (['start', 'stop', 'restart', 'status'].includes(command)) {
-    runCompanionServiceCommand(/** @type {'start'|'stop'|'restart'|'status'} */ (command));
+    runCompanionServiceCommand(command as CompanionServiceCommand);
     return;
   }
   throw new Error(`Unknown command: ${command}\n\n${HELP}`);

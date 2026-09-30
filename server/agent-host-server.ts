@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-// @ts-check
+
+import type { AgentHostServiceOptions, HostRoute } from '../lib/agent-host-turn-state.js';
+import type { DetectedLocalAgent } from '../lib/local-agent-registry.js';
 
 import { createServer } from 'node:http';
 import { createCompanionRequestHandler } from '../lib/companion-http.js';
@@ -21,6 +23,8 @@ import { recoverCompanionListener } from '../lib/companion-listener.js';
 import { buildLocalAgentEnvironment, detectLocalAgents } from '../lib/local-agent-registry.js';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
+
+type CompanionAdapter = NonNullable<AgentHostServiceOptions['agents']>[number] & DetectedLocalAgent;
 
 const host = '127.0.0.1';
 const configuredPort = String(process.env.GETBASED_AGENT_HOST_PORT || '').trim();
@@ -56,10 +60,9 @@ if (!detectedAgents.length) {
   process.stderr.write('getbased Companion did not find Codex, OpenCode, Hermes, Grok, or OpenClaw on this computer.\n');
   process.exit(1);
 }
-/** @type {CodexAppServerClient | null} */
-let appServer = null;
-const agentAdapters = detectedAgents.map(agent => {
-  let client = null;
+let appServer: CodexAppServerClient | null = null;
+const agentAdapters = detectedAgents.map<CompanionAdapter>(agent => {
+  let client: CodexAppServerClient | ACPAgentClient | ClaudeAgentClient | OpenClawAgentClient | null = null;
   let status = agent.status;
   let message = agent.message;
   if (agent.compatible === false) {
@@ -84,12 +87,12 @@ const agentAdapters = detectedAgents.map(agent => {
   } else if (agent.protocol === 'openclaw' && status === 'available') {
     client = new OpenClawAgentClient({ command: agent.command, args: agent.args, cwd: workspaceRoot, env: localAgentEnvironment });
   }
-  const routes = agent.id === 'openclaw' && client ? [{
+  const routes: HostRoute[] = agent.id === 'openclaw' && client ? [{
     id: 'gateway-default',
     label: 'Personal gateway · default agent',
     description: 'Use the default agent, memory, sessions, and tools configured in your OpenClaw gateway.',
     kind: 'gateway', status: 'available', supportsLocalTools: false, supportsFeatureJobs: false,
-    protocol: /** @type {const} */ ('openclaw'),
+    protocol: ('openclaw' as const),
     client: new OpenClawAgentClient({
       command: agent.command, args: agent.args, cwd: workspaceRoot, env: localAgentEnvironment, mode: 'gateway',
     }),
@@ -97,7 +100,7 @@ const agentAdapters = detectedAgents.map(agent => {
   return {
     ...agent, status, message, client, routes,
     ...(agent.id === 'hermes' && hermesRouteProvider ? { routeProvider: hermesRouteProvider } : {}),
-  };
+  } as CompanionAdapter;
 });
 const invokedPath = resolve(process.argv[1] || '');
 const bundlePath = invokedPath.endsWith('getbased-companion.mjs')
@@ -110,15 +113,15 @@ const runtimeClients = [
   ...agentAdapters.map(agent => agent.client),
   ...agentAdapters.flatMap(agent => (agent.routes || []).map(route => route.client)),
   hermesRouteProvider,
-].filter(Boolean);
+].filter(Boolean) as { restart?: () => unknown; close?: () => unknown }[];
 const runtimeController = createCompanionRuntimeController({
   appServer: {
-    async restart() { await Promise.all(runtimeClients.map(client => /** @type {any} */ (client).restart?.())); },
+    async restart() { await Promise.all(runtimeClients.map(client => client.restart?.())); },
     async initialize() {},
   },
   bundlePath,
   // Keep agent clients and their workspace intact until the service starts.
-  stopRuntime: () => new Promise((resolve, reject) => {
+  stopRuntime: () => new Promise<void>((resolve, reject) => {
     server.close(error => error ? reject(error) : resolve());
   }),
   recoverRuntime: async () => {
@@ -162,7 +165,7 @@ server.on('error', error => {
   // Recovery owns its retries and error settlement; do not destroy the retained
   // clients/workspace through the normal startup failure path.
   if (recoveringListener) return;
-  if (/** @type {NodeJS.ErrnoException} */ (error).code === 'EADDRINUSE' && port < lastPort) {
+  if ((error as NodeJS.ErrnoException).code === 'EADDRINUSE' && port < lastPort) {
     port += 1;
     process.stderr.write(`getbased Companion port busy; trying http://${host}:${port}\n`);
     listen();
@@ -172,15 +175,13 @@ server.on('error', error => {
   void shutdown().finally(() => { process.exitCode = 1; });
 });
 
-/** @type {Promise<void>|undefined} */
-let shutdownPromise;
+let shutdownPromise: Promise<void> | undefined;
 async function shutdown() {
   if (!shutdownPromise) shutdownPromise = (async () => {
     // Stop accepting connections immediately, but let clients settle active
     // requests before waiting for those connections to finish draining.
-    /** @type {Promise<void>} */
     const listenerClosed = server.listening
-      ? new Promise(resolve => server.close(() => resolve())) : Promise.resolve();
+      ? new Promise<void>(resolve => server.close(() => resolve())) : Promise.resolve();
     try {
       await Promise.allSettled(runtimeClients.map(async client => { await client.close?.(); }));
       await listenerClosed;

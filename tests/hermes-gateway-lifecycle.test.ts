@@ -1,24 +1,26 @@
 // @vitest-environment node
+import type { AgentPromptBlock, AgentTurnEvent } from '../lib/agent-turn-types.js';
+import type { HermesGatewayOptions, HermesGatewayPromptOptions, HermesGatewaySocket } from '../lib/hermes-gateway-client.js';
 import { EventEmitter } from 'node:events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HermesGatewayClient } from '../lib/hermes-gateway-client.js';
 
-class Socket extends EventEmitter {
-  static instances = [];
+class Socket extends EventEmitter implements HermesGatewaySocket {
+  static instances: Socket[] = [];
   readyState = 0;
-  frames = [];
+  frames: { id: string; method: string; params: Record<string, unknown> }[] = [];
   constructor() { super(); Socket.instances.push(this); }
-  addEventListener(type, fn, options) { options?.once ? this.once(type, fn) : this.on(type, fn); }
+  addEventListener(type: string, fn: (event: { data: unknown }) => void, options?: { once?: boolean }) { options?.once ? this.once(type, fn) : this.on(type, fn); }
   open() { this.readyState = 1; this.emit('open'); }
-  send(raw) { this.frames.push(JSON.parse(raw)); }
-  reply(frame, result = {}) { this.emit('message', { data: JSON.stringify({ id: frame.id, result }) }); }
-  event(type, payload = {}, session_id = 'runtime') {
+  send(raw: string) { this.frames.push(JSON.parse(raw)); }
+  reply(frame: { id: string }, result: unknown = {}) { this.emit('message', { data: JSON.stringify({ id: frame.id, result }) }); }
+  event(type: string, payload: unknown = {}, session_id = 'runtime') {
     this.emit('message', { data: JSON.stringify({ method: 'event', params: { type, payload, session_id } }) });
   }
   close() { this.readyState = 3; this.emit('close'); }
 }
-const clients = [];
-function client(options = {}) {
+const clients: HermesGatewayClient[] = [];
+function client(options: Partial<HermesGatewayOptions> = {}) {
   const instance = new HermesGatewayClient({ baseUrl: 'https://gateway.example', token: 'secret', WebSocketImpl: Socket, ...options });
   clients.push(instance);
   return instance;
@@ -26,7 +28,7 @@ function client(options = {}) {
 async function connected() {
   const instance = client();
   const connecting = instance.connect();
-  const socket = Socket.instances.at(-1);
+  const socket = Socket.instances.at(-1)!;
   socket.open();
   await connecting;
   return { instance, socket };
@@ -40,7 +42,7 @@ describe('Hermes connection lifecycle', () => {
     const instance = client();
     const first = instance.connect(); const second = instance.connect();
     expect(Socket.instances).toHaveLength(1);
-    Socket.instances[0].open();
+    Socket.instances[0]!.open();
     await Promise.all([first, second]); await instance.connect();
     expect(Socket.instances).toHaveLength(1);
     expect(vi.getTimerCount()).toBe(0);
@@ -48,37 +50,37 @@ describe('Hermes connection lifecycle', () => {
   it.each(['close', 'error'])('rejects a handshake immediately on %s and allows retry', async event => {
     const instance = client();
     const result = expect(instance.connect()).rejects.toThrow(event === 'close' ? 'closed' : 'reached');
-    Socket.instances[0].emit(event);
+    Socket.instances[0]!.emit(event);
     await result;
     expect(vi.getTimerCount()).toBe(0);
-    const retry = instance.connect(); Socket.instances[1].open(); await retry;
+    const retry = instance.connect(); Socket.instances[1]!.open(); await retry;
   });
   it('times out the handshake and ignores a late open', async () => {
     const instance = client();
     const result = expect(instance.connect()).rejects.toThrow('did not accept');
     await vi.advanceTimersByTimeAsync(10_000); await result;
-    Socket.instances[0].open();
+    Socket.instances[0]!.open();
     expect(instance.socket).toBeNull();
   });
   it('cancels a handshake on restart without clearing the replacement handshake', async () => {
     const instance = client();
     const result = expect(instance.connect()).rejects.toThrow('closed');
-    const old = Socket.instances[0];
+    const old = Socket.instances[0]!;
     await instance.restart();
     const replacement = instance.connect();
     await result;
     old.open();
     const shared = instance.connect();
     expect(Socket.instances).toHaveLength(2);
-    Socket.instances[1].open(); await Promise.all([replacement, shared]);
+    Socket.instances[1]!.open(); await Promise.all([replacement, shared]);
     expect(instance.socket).toBe(Socket.instances[1]);
   });
   it('ignores stale close and message events after reconnecting', async () => {
     const { instance, socket: old } = await connected();
     old.close();
-    const pending = instance.request('health'); const socket = Socket.instances[1];
+    const pending = instance.request('health'); const socket = Socket.instances[1]!;
     socket.open(); await flush();
-    const frame = socket.frames[0];
+    const frame = socket.frames[0]!;
     old.reply(frame, { stale: true }); old.emit('close');
     expect(instance.pending.size).toBe(1);
     socket.reply(frame, { fresh: true });
@@ -101,7 +103,7 @@ describe('Hermes connection lifecycle', () => {
     const { instance, socket } = await connected();
     const result = expect(instance.request('health', {}, 25)).rejects.toThrow('health timed out');
     await vi.advanceTimersByTimeAsync(25); await result;
-    socket.reply(socket.frames[0]); expect(instance.pending.size).toBe(0);
+    socket.reply(socket.frames[0]!); expect(instance.pending.size).toBe(0);
   });
   it('cleans up a synchronous send failure', async () => {
     const { instance, socket } = await connected();
@@ -114,17 +116,17 @@ describe('Hermes connection lifecycle', () => {
     const result = expect(instance.request('health')).rejects.toThrow('denied'); await flush();
     for (const data of ['{', 'null', '{}', '{"id":"unknown"}']) socket.emit('message', { data });
     expect(instance.pending.size).toBe(1);
-    socket.emit('message', { data: JSON.stringify({ id: socket.frames[0].id, error: { message: 'denied' } }) });
+    socket.emit('message', { data: JSON.stringify({ id: socket.frames[0]!.id, error: { message: 'denied' } }) });
     await result;
   });
 });
 
-async function turn(options = {}) {
+async function turn(options: Partial<HermesGatewayPromptOptions> = {}) {
   const { instance, socket } = await connected();
   instance.sessions.set('chat', { runtimeSessionId: 'runtime', model: '', effort: '' });
-  const events = [];
+  const events: AgentTurnEvent[] = [];
   const promise = instance.prompt({ sessionId: 'chat', prompt: [{ type: 'text', text: 'Hello' }], onEvent: event => events.push(event), ...options });
-  const outcome = promise.then(value => ({ value }), error => ({ error }));
+  const outcome = promise.then(value => ({ value }), error => ({ error })) as Promise<{ value?: { sessionId: string }; error?: Error }>;
   await flush();
   return { instance, socket, events, outcome };
 }
@@ -137,36 +139,36 @@ describe('Hermes turn failures', () => {
   it('stops after cancellation during handshake without creating a session', async () => {
     const instance = client(); const controller = new AbortController();
     const result = expect(instance.prompt({ prompt: [{ type: 'text', text: 'Hello' }], signal: controller.signal, onEvent: vi.fn() })).rejects.toHaveProperty('name', 'AbortError');
-    controller.abort(); Socket.instances[0].open(); await result;
-    expect(Socket.instances[0].frames).toEqual([]);
+    controller.abort(); Socket.instances[0]!.open(); await result;
+    expect(Socket.instances[0]!.frames).toEqual([]);
   });
   it.each(['close', 'restart'])('rejects a streaming turn immediately on %s', async mode => {
     const { instance, socket, outcome } = await turn();
-    socket.reply(socket.frames[0]); await flush();
+    socket.reply(socket.frames[0]!); await flush();
     if (mode === 'close') socket.close(); else await instance.restart();
-    expect((await outcome).error.message).toContain('closed');
+    expect((await outcome).error!.message).toContain('closed');
     expect(instance.listeners.size).toBe(0); expect(instance.turnFailures.size).toBe(0);
     expect(vi.getTimerCount()).toBe(0);
   });
   it.each(['approval.request', 'clarify.request', 'sudo.request', 'secret.request', 'error'])('settles %s before submission acknowledgment', async type => {
     const { socket, outcome, instance } = await turn();
     socket.event(type, { message: 'upstream failed' });
-    expect((await outcome).error.message).toContain(type === 'error' ? 'upstream failed' : 'needs input');
+    expect((await outcome).error!.message).toContain(type === 'error' ? 'upstream failed' : 'needs input');
     expect(instance.listeners.size).toBe(0); expect(instance.pending.size).toBe(0);
     expect(vi.getTimerCount()).toBe(0);
-    socket.reply(socket.frames[0]);
+    socket.reply(socket.frames[0]!);
   });
   it('rejects consumer callback failures and cleans the turn listener', async () => {
     const { instance, socket, outcome } = await turn({ onEvent: event => { if (event.type === 'text_delta') throw new Error('consumer failed'); } });
-    socket.reply(socket.frames[0]); socket.event('message.delta', { text: 'Hi' });
-    expect((await outcome).error.message).toBe('consumer failed');
+    socket.reply(socket.frames[0]!); socket.event('message.delta', { text: 'Hi' });
+    expect((await outcome).error!.message).toBe('consumer failed');
     expect(instance.listeners.size).toBe(0);
   });
   it('interrupts cancellation before submission acknowledgment', async () => {
     const controller = new AbortController();
     const { socket, outcome, instance } = await turn({ signal: controller.signal });
     controller.abort();
-    expect((await outcome).error.name).toBe('AbortError');
+    expect((await outcome).error!.name).toBe('AbortError');
     await flush();
     expect(socket.frames.map(frame => frame.method)).toEqual(['prompt.submit', 'session.interrupt']);
     for (const frame of socket.frames) socket.reply(frame);
@@ -174,14 +176,14 @@ describe('Hermes turn failures', () => {
   });
   it('times out a turn even after the submit RPC succeeds', async () => {
     const { socket, outcome, instance } = await turn();
-    socket.reply(socket.frames[0]);
+    socket.reply(socket.frames[0]!);
     await vi.advanceTimersByTimeAsync(600_000);
-    expect((await outcome).error.message).toContain('turn timed out');
+    expect((await outcome).error!.message).toContain('turn timed out');
     expect(instance.listeners.size).toBe(0);
   });
   it('ignores other sessions and emits fallback text, tools and usage', async () => {
     const { socket, outcome, events } = await turn();
-    socket.reply(socket.frames[0]); socket.event('error', {}, 'other');
+    socket.reply(socket.frames[0]!); socket.event('error', {}, 'other');
     for (const type of ['tool.start', 'tool.progress', 'tool.complete']) socket.event(type, { name: 'search' });
     socket.event('message.complete', { text: 'Final', usage: { input: 4, output: 2 } });
     expect((await outcome).value).toEqual({ sessionId: 'chat' });
@@ -205,8 +207,8 @@ describe('Hermes catalog failures', () => {
     await expect(instance.getModelCatalog()).rejects.toThrow();
   });
   it('does not let an old failed load evict a refreshed catalog', async () => {
-    let rejectOld;
-    const models = [{ id: 'model' }];
+    let rejectOld!: (error: Error) => void;
+    const models = [{ id: 'model' }] as Awaited<ReturnType<HermesGatewayClient['loadModelCatalog']>>;
     const instance = client();
     const load = vi.spyOn(instance, 'loadModelCatalog').mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectOld = reject; })).mockResolvedValue(models);
     const old = expect(instance.getModelCatalog()).rejects.toThrow('old load');
@@ -217,7 +219,8 @@ describe('Hermes catalog failures', () => {
   });
 });
 
-it.each([[], [{ type: 'image', data: 'x' }]])('rejects unsupported or empty prompt %j before opening a socket', async prompt => {
+// Preserve the original spread-row fixtures, including the missing prompt argument.
+it.each([[], [{ type: 'image', data: 'x' }]] as unknown as [AgentPromptBlock[]][])('rejects unsupported or empty prompt %j before opening a socket', async prompt => {
   await expect(client().prompt({ prompt, onEvent: vi.fn() })).rejects.toThrow(); expect(Socket.instances).toHaveLength(0);
 });
 it('does not mutate the selected model when gateway confirmation is required', async () => {
@@ -237,7 +240,7 @@ it('uses inherited default reasoning when the profile returns no value', async (
 });
 it('completes an empty reply and preserves schema instructions', async () => {
   const { socket, outcome, events } = await turn({ instructions: 'Use schema', outputSchema: { type: 'object' } });
-  expect(socket.frames[0].params.text).toContain('Return only JSON matching this schema: {"type":"object"}');
-  socket.reply(socket.frames[0]); socket.event('message.complete');
-  expect((await outcome).value).toEqual({ sessionId: 'chat' }); expect(events.at(-1).type).toBe('done');
+  expect(socket.frames[0]!.params.text).toContain('Return only JSON matching this schema: {"type":"object"}');
+  socket.reply(socket.frames[0]!); socket.event('message.complete');
+  expect((await outcome).value).toEqual({ sessionId: 'chat' }); expect(events.at(-1)!.type).toBe('done');
 });

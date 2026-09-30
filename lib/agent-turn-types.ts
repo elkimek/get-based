@@ -28,6 +28,7 @@ export interface AgentUsage extends Record<string, unknown> {
 export type AgentTurnEvent =
   | { type: 'session'; sessionId: string; model: string }
   | { type: 'text_delta'; delta: string }
+  | { type: 'activity'; activity: 'tool'; status: string; query: string }
   | { type: 'usage'; inputTokens: number; outputTokens: number }
   | { type: 'error' | 'done'; message?: string; resultText?: string; finishReason?: string; sessionId?: string; usage?: AgentUsage | null };
 

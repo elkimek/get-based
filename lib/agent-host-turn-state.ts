@@ -8,7 +8,7 @@ type ACPHostClient = Pick<ACPAgentClient, 'ensureSession' | 'configureSession' |
 type StreamHostClient = Pick<ClaudeAgentClient, 'prompt'> & { getModelCatalog(options?: { model?: string; refresh?: boolean }): Promise<unknown> };
 type HostConnection = { protocol: 'codex'; client: CodexHostClient }
   | { protocol: 'acp'; client: ACPHostClient }
-  | { protocol: 'claude' | 'openclaw'; client: StreamHostClient };
+  | { protocol: 'claude' | 'openclaw' | 'hermes-gateway'; client: StreamHostClient };
 type HostProtocol = HostConnection['protocol'];
 interface HostAgentMetadata {
   id: string;
@@ -16,7 +16,7 @@ interface HostAgentMetadata {
   description: string;
   version?: string;
   status?: string;
-  message?: string;
+  message?: string | undefined;
   compatible?: boolean;
   routes?: HostRoute[];
   routeProvider?: { listRoutes(): Promise<HostRoute[]>; resolve(id: string): Promise<HostRoute | null | undefined> };
@@ -34,7 +34,7 @@ export interface HostRoute {
   supportsFeatureJobs?: unknown;
   supportsTextFeatureJobs?: unknown;
   protocol?: HostProtocol | null;
-  client?: HostConnection['client'] | null;
+  client?: HostConnection['client'] | null | undefined;
 }
 export type HostAgent = HostAgentMetadata & HostConnection & { target?: HostRoute };
 export type HostControlAction = 'install' | 'restart' | 'restart-companion' | 'update' | 'uninstall';

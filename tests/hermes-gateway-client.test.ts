@@ -1,4 +1,6 @@
 // @vitest-environment node
+import type { AgentTurnEvent } from '../lib/agent-turn-types.js';
+import type { HermesGatewayFetch, HermesGatewaySocket } from '../lib/hermes-gateway-client.js';
 
 import { EventEmitter } from 'node:events';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -14,22 +16,24 @@ import {
   normalizeHermesGatewayModelCatalog,
 } from '../lib/hermes-gateway-client.js';
 
-const roots = [];
+const roots: string[] = [];
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
 
-class FakeWebSocket extends EventEmitter {
-  static urls = [];
-  static frames = [];
-  constructor(url) {
+class FakeWebSocket extends EventEmitter implements HermesGatewaySocket {
+  declare url: string;
+  declare readyState: number;
+  static urls: string[] = [];
+  static frames: { method: string; params?: Record<string, unknown> }[] = [];
+  constructor(url: string) {
     super();
     this.url = url;
     this.readyState = 0;
     FakeWebSocket.urls.push(url);
     queueMicrotask(() => { this.readyState = 1; this.emit('open', {}); });
   }
-  addEventListener(type, handler) { this.on(type, handler); }
-  removeEventListener(type, handler) { this.off(type, handler); }
-  send(raw) {
+  addEventListener(type: string, handler: (event: { data: unknown }) => void) { this.on(type, handler); }
+  removeEventListener(type: string, handler: (event: { data: unknown }) => void) { this.off(type, handler); }
+  send(raw: string) {
     const frame = JSON.parse(raw);
     FakeWebSocket.frames.push(frame);
     if (frame.method === 'session.create') {
@@ -76,7 +80,7 @@ describe('Hermes personal gateway adapter', () => {
       id: 'openai-codex:gpt-5.6-sol', isDefault: true, inputModalities: ['text'],
     });
     expect(catalog.map(model => model.id)).not.toContain('openai-codex:gpt-5.6-luna');
-    expect(catalog[0].supportedReasoningEfforts.map(item => item.reasoningEffort))
+    expect(catalog[0]!.supportedReasoningEfforts.map(item => item.reasoningEffort))
       .toEqual(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra']);
   });
 
@@ -88,7 +92,7 @@ describe('Hermes personal gateway adapter', () => {
       id: 'homelab', kind: 'remote', label: 'Homelab', url: 'https://hermes.example',
       authMode: 'token', token: { encoding: 'plain', value: 'desktop-secret-token' },
     }] }));
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ profiles: [{
+    const fetchImpl = vi.fn<HermesGatewayFetch>(async () => new Response(JSON.stringify({ profiles: [{
       name: 'omer', display_name: 'Omer', description: 'Personal assistant',
     }] }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
     const provider = createHermesGatewayRouteProvider({ registryPath, fetchImpl, WebSocketImpl: FakeWebSocket });
@@ -97,15 +101,15 @@ describe('Hermes personal gateway adapter', () => {
       id: expect.stringMatching(/^gateway-/), label: 'Omer · Homelab', profile: 'omer', status: 'available',
     })]);
     expect(JSON.stringify(routes)).not.toContain('desktop-secret-token');
-    await expect(provider.resolve(routes[0].id)).resolves.toHaveProperty('client');
-    expect(fetchImpl.mock.calls[0][1].headers).toEqual({ 'X-Hermes-Session-Token': 'desktop-secret-token' });
-    expect(fetchImpl.mock.calls[0][1].redirect).toBe('error');
+    await expect(provider.resolve(routes[0]!.id)).resolves.toHaveProperty('client');
+    expect(fetchImpl.mock.calls[0]![1].headers).toEqual({ 'X-Hermes-Session-Token': 'desktop-secret-token' });
+    expect(fetchImpl.mock.calls[0]![1].redirect).toBe('error');
   });
 
   it('creates a profile-scoped session and streams the personal reply', async () => {
     FakeWebSocket.urls = [];
     FakeWebSocket.frames = [];
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify(modelPayload), {
+    const fetchImpl = vi.fn<HermesGatewayFetch>(async () => new Response(JSON.stringify(modelPayload), {
       status: 200, headers: { 'Content-Type': 'application/json' },
     }));
     const client = new HermesGatewayClient({
@@ -114,8 +118,8 @@ describe('Hermes personal gateway adapter', () => {
     });
     await expect(client.getModelCatalog()).resolves.toHaveLength(2);
     await expect(client.getModelCatalog({ refresh: true })).resolves.toHaveLength(2);
-    expect(String(fetchImpl.mock.calls.at(-1)[0])).toContain('refresh=true');
-    const events = [];
+    expect(String(fetchImpl.mock.calls.at(-1)![0])).toContain('refresh=true');
+    const events: AgentTurnEvent[] = [];
     await client.prompt({
       sessionId: 'getbased-chat-1', model: 'openai-codex:gpt-5.6-sol', effort: 'high', instructions: 'Keep your identity.',
       prompt: [{ type: 'text', text: 'Who is there?' }], onEvent: event => events.push(event),
