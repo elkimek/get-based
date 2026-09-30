@@ -108,6 +108,17 @@ Light setup catalogs now check their Fitzpatrick and photosensitivity keys.
 contracts used by session display. Live and completed session calculations retain
 their original fields, ordering, coefficients, defaults and safety labels.
 
+Proxy policy, DNS pinning, bounded upstream transport, distributed rate limiting,
+CAMS relay and postal geocoding now use strict TypeScript contracts. Minimal
+transport interfaces describe injectable dependencies without changing abort,
+redirect, byte-cap, cleanup or atomic lease behavior. OAuth providers share form
+construction while retaining deployment gates, required fields, field order,
+client matching and authentication differences. A differential comparison with
+the original implementation matched 2,112 scenarios, including malformed fields
+and deployment configurations. JSON replies share a response helper that preserves
+serialization before CORS and optional-header evaluation; focused tests check that
+ordering and rejected origins. Environment bounds share their original parser.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

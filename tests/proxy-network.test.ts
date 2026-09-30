@@ -6,6 +6,7 @@ import {
   fetchWithPinnedProxyDns,
   resolveProxyAddresses,
 } from '../lib/proxy-network.js';
+import type { PinnedProxyLookup, ProxyDispatcher, ProxyFetch, ProxyRequestOptions } from '../lib/proxy-network.js';
 
 describe('proxy DNS pinning transport', () => {
   it('pins the exact static transport used by the last healthy Node 24 deployment', () => {
@@ -80,7 +81,7 @@ describe('proxy DNS pinning transport', () => {
   });
 
   it('does not fetch blocked resolutions and binds public fetches to the pinned lookup', async () => {
-    const blockedFetch = vi.fn();
+    const blockedFetch = vi.fn<ProxyFetch>();
     await expect(fetchWithPinnedProxyDns('https://attacker.example/private', {}, {
       lookup: vi.fn(async () => [{ address: '10.0.0.8', family: 4 }]),
       fetch: blockedFetch,
@@ -89,8 +90,8 @@ describe('proxy DNS pinning transport', () => {
 
     const close = vi.fn(async () => {});
     const destroy = vi.fn(async () => {});
-    let pinnedLookup;
-    const fetch = vi.fn(async (_url, init) => {
+    let pinnedLookup: PinnedProxyLookup | undefined;
+    const fetch = vi.fn(async (_url: string, init: ProxyRequestOptions & { dispatcher: ProxyDispatcher }) => {
       expect(init.dispatcher).toEqual({ close, destroy });
       return new Response(JSON.stringify({ ok: true }), {
         headers: { 'Content-Type': 'application/json' },
@@ -111,7 +112,7 @@ describe('proxy DNS pinning transport', () => {
     expect(close).toHaveBeenCalledOnce();
     expect(destroy).not.toHaveBeenCalled();
     const pinned = await new Promise((resolve, reject) => {
-      pinnedLookup('models.example.com', {}, (error, address, family) => {
+      pinnedLookup!('models.example.com', {}, (error, address, family) => {
         if (error) reject(error);
         else resolve({ address, family });
       });
@@ -124,15 +125,15 @@ describe('proxy DNS pinning transport', () => {
     await expect(fetchWithPinnedProxyDns('https://models.example.com/v1/list', {}, {
       lookup: vi.fn(async () => [{ address: '93.184.216.34', family: 4 }]),
       fetch: vi.fn(async () => { throw new Error('offline'); }),
-      createDispatcher: () => ({ close: vi.fn(), destroy }),
+      createDispatcher: () => ({ close: vi.fn<() => undefined>(), destroy }),
     })).rejects.toThrow('offline');
     expect(destroy).toHaveBeenCalledOnce();
   });
 
   it('honors an upstream abort while DNS resolution is still pending', async () => {
     const controller = new AbortController();
-    const fetch = vi.fn();
-    const pendingLookup = vi.fn(() => new Promise(() => {}));
+    const fetch = vi.fn<ProxyFetch>();
+    const pendingLookup = vi.fn(() => new Promise<never>(() => {}));
     const request = fetchWithPinnedProxyDns('https://slow.example.com/v1/list', {
       signal: controller.signal,
     }, {

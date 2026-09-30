@@ -1,3 +1,7 @@
+import { proxyJsonResponse } from '../lib/proxy-response.js';
+import type { ProxyCaller, ProxyRelayRequest } from '../lib/proxy-policy.js';
+import type { ProxyRequestOptions } from '../lib/proxy-network.js';
+
 // Dedicated CAMS operation shared by the hosted and self-hosted proxy entrypoint.
 // The official route is pinned, authenticated, privacy-rounded, and POST-only.
 
@@ -14,16 +18,13 @@ import { errorCode } from '../lib/error-utils.js';
 
 export const DEFAULT_UVDATA_UPSTREAM = 'https://uvdata.getbased.health';
 
-function errorResponse(req, status, error) {
-  return new Response(JSON.stringify({ error }), {
-    status,
-    headers: { ...proxyCorsHeaders(req), 'Content-Type': 'application/json' },
-  });
+function errorResponse(req: ProxyCaller, status: number, error: string) {
+  return proxyJsonResponse(req, status, { error });
 }
 
-function upstreamError(req, error) {
+function upstreamError(req: ProxyCaller, error: unknown) {
   const code = errorCode(error);
-  const messages = new Map([
+  const messages = new Map<string, readonly [string, number]>([
     ['PROXY_DNS_BLOCKED', ['URL not allowed', 403]],
     ['PROXY_UPSTREAM_TIMEOUT', ['CAMS upstream timed out', 504]],
     ['PROXY_REDIRECT_BLOCKED', ['CAMS redirect target not allowed', 502]],
@@ -31,16 +32,13 @@ function upstreamError(req, error) {
     ['PROXY_CROSS_ORIGIN_BODY_REDIRECT', ['Cross-origin CAMS redirects are not allowed', 502]],
     ['PROXY_RESPONSE_TOO_LARGE', ['CAMS response exceeds size cap', 502]],
   ]);
-  const [message, status] = messages.get(code) || ['CAMS upstream unavailable', 502];
+  const [message, status] = messages.get(code) || ['CAMS upstream unavailable', 502] as const;
   return errorResponse(req, status, message);
 }
 
-/**
- * @param {Record<string, any>} payload
- * @param {Request} req
- * @param {{ operatedHost?: boolean }} [options]
- */
-export async function handleCamsRelay(payload, req, { operatedHost = false } = {}) {
+export async function handleCamsRelay(
+  payload: Record<string, unknown>, req: ProxyRelayRequest, { operatedHost = false }: { operatedHost?: boolean } = {},
+) {
   const configured = typeof process !== 'undefined' && process.env?.UVDATA_UPSTREAM
     ? process.env.UVDATA_UPSTREAM.replace(/\/+$/, '')
     : '';
@@ -60,10 +58,10 @@ export async function handleCamsRelay(payload, req, { operatedHost = false } = {
   });
   if (!normalized.ok) return errorResponse(req, 400, normalized.error);
 
-  const headers = { Accept: 'application/json' };
+  const headers: Record<string, string> = { Accept: 'application/json' };
   if (bearer) headers.Authorization = `Bearer ${bearer}`;
-  let url;
-  let fetchOptions;
+  let url: string;
+  let fetchOptions: ProxyRequestOptions;
   if (operatedHost) {
     const body = {
       latitude: normalized.latitude,

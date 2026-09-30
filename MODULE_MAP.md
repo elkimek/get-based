@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 794 |
-| Internal import edges | 3377 |
+| Modules | 796 |
+| Internal import edges | 3382 |
 | Dynamic internal edges | 119 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1474,7 +1474,7 @@ Hosted request handlers shared by Vercel and Node deployment entry points.
 
 <details><summary><code>cams</code> family — 1 module</summary>
 
-- [`api/cams-relay.js`](api/cams-relay.js) → [`lib/error-utils.ts`](lib/error-utils.ts), [`lib/proxy-policy.js`](lib/proxy-policy.js), [`lib/proxy-upstream.js`](lib/proxy-upstream.js)
+- [`api/cams-relay.ts`](api/cams-relay.ts) → [`lib/error-utils.ts`](lib/error-utils.ts), [`lib/proxy-policy.ts`](lib/proxy-policy.ts), [`lib/proxy-response.ts`](lib/proxy-response.ts), [`lib/proxy-upstream.ts`](lib/proxy-upstream.ts)
 
 </details>
 
@@ -1486,13 +1486,13 @@ Hosted request handlers shared by Vercel and Node deployment entry points.
 
 <details><summary><code>postal</code> family — 1 module</summary>
 
-- [`api/postal-geocode.js`](api/postal-geocode.js) → [`lib/proxy-upstream.js`](lib/proxy-upstream.js)
+- [`api/postal-geocode.ts`](api/postal-geocode.ts) → [`lib/proxy-upstream.ts`](lib/proxy-upstream.ts)
 
 </details>
 
 <details><summary><code>proxy</code> family — 1 module</summary>
 
-- [`api/proxy.js`](api/proxy.js) → [`api/cams-relay.js`](api/cams-relay.js), [`api/postal-geocode.js`](api/postal-geocode.js), [`lib/error-utils.ts`](lib/error-utils.ts), [`lib/proxy-policy.js`](lib/proxy-policy.js), [`lib/proxy-rate-limit.js`](lib/proxy-rate-limit.js) *(dynamic)*, [`lib/proxy-upstream.js`](lib/proxy-upstream.js)
+- [`api/proxy.ts`](api/proxy.ts) → [`api/cams-relay.ts`](api/cams-relay.ts), [`api/postal-geocode.ts`](api/postal-geocode.ts), [`lib/error-utils.ts`](lib/error-utils.ts), [`lib/proxy-policy.ts`](lib/proxy-policy.ts), [`lib/proxy-rate-limit.ts`](lib/proxy-rate-limit.ts) *(dynamic)*, [`lib/proxy-response.ts`](lib/proxy-response.ts), [`lib/proxy-upstream.ts`](lib/proxy-upstream.ts)
 
 </details>
 
@@ -1508,7 +1508,7 @@ Standalone Node compatibility-relay entry point.
 
 <details><summary><code>compat</code> family — 1 module</summary>
 
-- [`server/compat-proxy-server.js`](server/compat-proxy-server.js) → [`api/proxy.js`](api/proxy.js) *(dynamic)*
+- [`server/compat-proxy-server.js`](server/compat-proxy-server.js) → [`api/proxy.ts`](api/proxy.ts) *(dynamic)*
 
 </details>
 
@@ -1560,9 +1560,9 @@ Node-only policy and transport code shared by hosted runtimes.
 <details><summary><code>dev</code> family — 4 modules</summary>
 
 - [`lib/dev-agent-host.js`](lib/dev-agent-host.js) → [`lib/agent-host-storage.js`](lib/agent-host-storage.js), [`lib/local-agent-registry.js`](lib/local-agent-registry.js), [`shared/agent-host-protocol.ts`](shared/agent-host-protocol.ts)
-- [`lib/dev-api-proxy.js`](lib/dev-api-proxy.js) → [`lib/proxy-policy.js`](lib/proxy-policy.js)
+- [`lib/dev-api-proxy.js`](lib/dev-api-proxy.js) → [`lib/proxy-policy.ts`](lib/proxy-policy.ts)
 - [`lib/dev-catalog.js`](lib/dev-catalog.js) → no in-scope imports
-- [`lib/dev-url-fetch.js`](lib/dev-url-fetch.js) → [`lib/error-utils.ts`](lib/error-utils.ts), [`lib/proxy-policy.js`](lib/proxy-policy.js), [`lib/proxy-upstream.js`](lib/proxy-upstream.js)
+- [`lib/dev-url-fetch.js`](lib/dev-url-fetch.js) → [`lib/error-utils.ts`](lib/error-utils.ts), [`lib/proxy-policy.ts`](lib/proxy-policy.ts), [`lib/proxy-upstream.ts`](lib/proxy-upstream.ts)
 
 </details>
 
@@ -1611,18 +1611,25 @@ Node-only policy and transport code shared by hosted runtimes.
 
 </details>
 
-<details><summary><code>proxy</code> family — 4 modules</summary>
+<details><summary><code>proxy</code> family — 5 modules</summary>
 
-- [`lib/proxy-network.js`](lib/proxy-network.js) → [`lib/error-utils.ts`](lib/error-utils.ts), [`lib/proxy-policy.js`](lib/proxy-policy.js)
-- [`lib/proxy-policy.js`](lib/proxy-policy.js) → no in-scope imports
-- [`lib/proxy-rate-limit.js`](lib/proxy-rate-limit.js) → no in-scope imports
-- [`lib/proxy-upstream.js`](lib/proxy-upstream.js) → [`lib/error-utils.ts`](lib/error-utils.ts), [`lib/proxy-network.js`](lib/proxy-network.js), [`lib/proxy-policy.js`](lib/proxy-policy.js)
+- [`lib/proxy-network.ts`](lib/proxy-network.ts) → [`lib/error-utils.ts`](lib/error-utils.ts), [`lib/proxy-policy.ts`](lib/proxy-policy.ts)
+- [`lib/proxy-policy.ts`](lib/proxy-policy.ts) → no in-scope imports
+- [`lib/proxy-rate-limit.ts`](lib/proxy-rate-limit.ts) → [`lib/runtime-env.ts`](lib/runtime-env.ts)
+- [`lib/proxy-response.ts`](lib/proxy-response.ts) → [`lib/proxy-policy.ts`](lib/proxy-policy.ts)
+- [`lib/proxy-upstream.ts`](lib/proxy-upstream.ts) → [`lib/error-utils.ts`](lib/error-utils.ts), [`lib/proxy-network.ts`](lib/proxy-network.ts), [`lib/proxy-policy.ts`](lib/proxy-policy.ts), [`lib/runtime-env.ts`](lib/runtime-env.ts)
 
 </details>
 
 <details><summary><code>read</code> family — 1 module</summary>
 
 - [`lib/read-bounded-file.ts`](lib/read-bounded-file.ts) → no in-scope imports
+
+</details>
+
+<details><summary><code>runtime</code> family — 1 module</summary>
+
+- [`lib/runtime-env.ts`](lib/runtime-env.ts) → no in-scope imports
 
 </details>
 
@@ -1644,7 +1651,7 @@ Local development server entry point.
 
 <details><summary><code>dev</code> family — 1 module</summary>
 
-- [`dev-server.js`](dev-server.js) → [`lib/dev-agent-host.js`](lib/dev-agent-host.js), [`lib/dev-api-proxy.js`](lib/dev-api-proxy.js), [`lib/dev-catalog.js`](lib/dev-catalog.js), [`lib/dev-url-fetch.js`](lib/dev-url-fetch.js), [`lib/proxy-policy.js`](lib/proxy-policy.js)
+- [`dev-server.js`](dev-server.js) → [`lib/dev-agent-host.js`](lib/dev-agent-host.js), [`lib/dev-api-proxy.js`](lib/dev-api-proxy.js), [`lib/dev-catalog.js`](lib/dev-catalog.js), [`lib/dev-url-fetch.js`](lib/dev-url-fetch.js), [`lib/proxy-policy.ts`](lib/proxy-policy.ts)
 
 </details>
 

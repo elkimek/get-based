@@ -1,4 +1,5 @@
-// @ts-check
+import { readBoundedEnvInteger } from './runtime-env.js';
+
 // Shared proxy abuse control. Hosted Vercel deployments can use a dedicated
 // Vercel Blob store so the limit spans function instances. The single-process
 // Node relay and explicitly opted-in deployments use a bounded in-process
@@ -10,6 +11,13 @@ import {
   list as listBlobs,
   put as putBlob,
 } from '@vercel/blob';
+import type { ProxyCaller } from './proxy-policy.js';
+
+export type ProxyRateLimitResult =
+  | { limited: boolean; retryAfterSeconds: number; scope: 'distributed' | 'instance'; unavailable?: false }
+  | { limited: false; unavailable: true; retryAfterSeconds: number; scope: 'unavailable' };
+interface RateLimitBucket { count: number; resetAt: number }
+
 
 const DEFAULT_PROXY_RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_PROXY_RATE_LIMIT_MAX = 300;
@@ -18,16 +26,9 @@ const MAX_LOCAL_RATE_LIMIT_BUCKETS = 4_096;
 const DISTRIBUTED_RATE_LIMIT_TIMEOUT_MS = 5_000;
 const RATE_LIMIT_PREFIX = 'proxy-rate/v2/';
 const RATE_LIMIT_CLEANUP_PREFIX = 'proxy-rate-cleanup/v2/';
-const localRateLimitBuckets = new Map();
+const localRateLimitBuckets = new Map<string, RateLimitBucket>();
 
-function readBoundedEnvInteger(name, fallback, min, max) {
-  const raw = typeof process !== 'undefined' ? process.env?.[name] : undefined;
-  if (!raw) return fallback;
-  const value = Number.parseInt(raw, 10);
-  return Number.isFinite(value) && value >= min && value <= max ? value : fallback;
-}
-
-function getProxyRateLimitSubject(req) {
+function getProxyRateLimitSubject(req: Pick<ProxyCaller, 'headers'>) {
   const forwarded = req.headers.get('x-vercel-forwarded-for')
     || req.headers.get('x-forwarded-for')
     || '';
@@ -38,48 +39,49 @@ function getProxyRateLimitSubject(req) {
   return String(ip).slice(0, 128);
 }
 
-async function sha256Hex(value) {
+async function sha256Hex(value: unknown) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(value || '')));
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-function windowStartFor(now, windowMs) {
+function windowStartFor(now: number, windowMs: number) {
   return Math.floor(now / windowMs) * windowMs;
 }
 
-function windowPrefix(subjectHash, windowStart) {
+function windowPrefix(subjectHash: string, windowStart: number) {
   return `${RATE_LIMIT_PREFIX}${windowStart}/${subjectHash}/`;
 }
 
-function markerPath(subjectHash, windowStart, slot) {
+function markerPath(subjectHash: string, windowStart: number, slot: number) {
   return `${windowPrefix(subjectHash, windowStart)}${slot}.json`;
 }
 
-function randomSlot(maxRequests) {
+function randomSlot(maxRequests: number) {
   const bytes = new Uint32Array(1);
   crypto.getRandomValues(bytes);
-  return bytes[0] % maxRequests;
+  return bytes[0]! % maxRequests;
 }
 
-function isSlotConflict(error) {
+function isSlotConflict(error: unknown) {
   return error instanceof BlobPreconditionFailedError
-    || /precondition|already exists|overwrite/i.test(String(error?.message || ''));
+    || /precondition|already exists|overwrite/i.test(String((error as { message?: unknown } | null | undefined)?.message || ''));
 }
 
-function cleanupLeasePath(windowStart) {
+function cleanupLeasePath(windowStart: number) {
   return `${RATE_LIMIT_CLEANUP_PREFIX}${windowStart}.json`;
 }
 
-function markerWindowStart(pathname, prefix) {
+function markerWindowStart(pathname: unknown, prefix: string) {
   const relative = String(pathname || '').slice(prefix.length);
   return Number(relative.split('/')[0]?.replace(/\.json$/, ''));
 }
 
-async function deleteExpiredPrefix(prefix, currentWindowStart, token, abortSignal) {
-  let cursor;
+async function deleteExpiredPrefix(prefix: string, currentWindowStart: number, token: string, abortSignal: AbortSignal) {
+  let cursor: string | undefined;
   do {
-    const page = await listBlobs({ prefix, cursor, limit: 1_000, token, abortSignal });
-    const stale = [];
+    // The SDK omits an undefined cursor from its query; preserve the original options object.
+    const page = await listBlobs({ prefix, cursor, limit: 1_000, token, abortSignal } as Parameters<typeof listBlobs>[0]);
+    const stale: string[] = [];
     for (const blob of page.blobs || []) {
       const windowStart = markerWindowStart(blob.pathname, prefix);
       if (Number.isFinite(windowStart) && windowStart < currentWindowStart) {
@@ -91,7 +93,7 @@ async function deleteExpiredPrefix(prefix, currentWindowStart, token, abortSigna
   } while (cursor);
 }
 
-async function cleanupExpiredMarkers(currentWindowStart, token, abortSignal) {
+async function cleanupExpiredMarkers(currentWindowStart: number, token: string, abortSignal: AbortSignal) {
   const completionPath = cleanupLeasePath(currentWindowStart);
   const completion = await listBlobs({
     prefix: completionPath,
@@ -135,13 +137,13 @@ async function cleanupExpiredMarkers(currentWindowStart, token, abortSignal) {
 }
 
 async function enforceDistributedRateLimit(
-  subject,
-  now,
-  windowMs,
-  maxRequests,
-  token,
-  abortSignal,
-) {
+  subject: string,
+  now: number,
+  windowMs: number,
+  maxRequests: number,
+  token: string,
+  abortSignal: AbortSignal,
+): Promise<ProxyRateLimitResult> {
   const subjectHash = await sha256Hex(subject);
   const windowStart = windowStartFor(now, windowMs);
   const resetAt = windowStart + windowMs;
@@ -156,7 +158,7 @@ async function enforceDistributedRateLimit(
     token,
     abortSignal,
   });
-  const occupied = new Set();
+  const occupied = new Set<number>();
   for (const blob of page.blobs || []) {
     const match = String(blob.pathname || '').slice(prefix.length).match(/^(\d+)\.json$/);
     if (match) occupied.add(Number(match[1]));
@@ -201,7 +203,7 @@ async function enforceDistributedRateLimit(
   };
 }
 
-function enforceLocalRateLimit(subject, now, windowMs, maxRequests) {
+function enforceLocalRateLimit(subject: string, now: number, windowMs: number, maxRequests: number): ProxyRateLimitResult {
   let bucket = localRateLimitBuckets.get(subject);
   if (!bucket || bucket.resetAt <= now) {
     bucket = { count: 0, resetAt: now + windowMs };
@@ -224,7 +226,9 @@ function enforceLocalRateLimit(subject, now, windowMs, maxRequests) {
   };
 }
 
-export async function enforceProxyRateLimit(req, { allowInstanceFallback = false } = {}) {
+export async function enforceProxyRateLimit(
+  req: Pick<ProxyCaller, 'headers'>, { allowInstanceFallback = false }: { allowInstanceFallback?: boolean } = {},
+): Promise<ProxyRateLimitResult> {
   const now = Date.now();
   const windowMs = readBoundedEnvInteger(
     'PROXY_RATE_LIMIT_WINDOW_MS',

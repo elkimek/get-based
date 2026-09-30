@@ -1,9 +1,11 @@
-// @ts-check
+import { readBoundedEnvInteger } from './runtime-env.js';
+
 // Shared upstream lifecycle for every server-side proxy branch. Redirect
 // validation, DNS pinning, cancellation, timeouts, and byte caps belong here
 // so secret-bearing relays cannot accidentally bypass the generic safeguards.
 
 import { fetchWithPinnedProxyDns } from './proxy-network.js';
+import type { ProxyRequestOptions } from './proxy-network.js';
 import { createErrorWithCode } from './error-utils.js';
 import { isAllowedProxyUrl } from './proxy-policy.js';
 
@@ -13,14 +15,7 @@ const DEFAULT_PROXY_UPSTREAM_TIMEOUT_MS = 180_000;
 
 export const PROXY_MAX_CREDENTIAL_RESPONSE_BYTES = 256 * 1024;
 
-function readBoundedEnvInteger(name, fallback, min, max) {
-  const raw = typeof process !== 'undefined' ? process.env?.[name] : undefined;
-  if (!raw) return fallback;
-  const value = Number.parseInt(raw, 10);
-  return Number.isFinite(value) && value >= min && value <= max ? value : fallback;
-}
-
-function proxyRuntimeError(code, message) {
+function proxyRuntimeError(code: string, message: string) {
   return createErrorWithCode(code, message);
 }
 
@@ -32,7 +27,7 @@ function responseTooLargeError() {
   return proxyRuntimeError('PROXY_RESPONSE_TOO_LARGE', 'Proxy response exceeds size cap');
 }
 
-function redirectRequestOptions(status, options) {
+function redirectRequestOptions(status: number, options: ProxyRequestOptions): ProxyRequestOptions {
   const method = String(options.method || 'GET').toUpperCase();
   if (status !== 303 && !((status === 301 || status === 302) && method === 'POST')) {
     return options;
@@ -44,7 +39,7 @@ function redirectRequestOptions(status, options) {
   return { ...options, method: 'GET', headers, body: undefined };
 }
 
-function stripProxyCredentialHeaders(options) {
+function stripProxyCredentialHeaders(options: ProxyRequestOptions) {
   const headers = { ...(options.headers || {}) };
   for (const name of Object.keys(headers)) {
     if (['api-key', 'authorization', 'x-api-key', 'xi-api-key'].includes(name.toLowerCase())) {
@@ -54,13 +49,13 @@ function stripProxyCredentialHeaders(options) {
   return { ...options, headers };
 }
 
-async function discardResponseBody(response) {
+async function discardResponseBody(response: Pick<ProxyTextSource, 'body'>) {
   try {
     await response.body?.cancel?.();
   } catch {}
 }
 
-function createUpstreamLifecycle(externalSignal) {
+function createUpstreamLifecycle(externalSignal: AbortSignal | null | undefined) {
   const timeoutMs = readBoundedEnvInteger(
     'PROXY_UPSTREAM_TIMEOUT_MS',
     DEFAULT_PROXY_UPSTREAM_TIMEOUT_MS,
@@ -85,7 +80,7 @@ function createUpstreamLifecycle(externalSignal) {
 
   return {
     signal: controller.signal,
-    mapError(error) {
+    mapError(error: unknown) {
       if (timedOut) {
         return proxyRuntimeError('PROXY_UPSTREAM_TIMEOUT', 'Proxy upstream timed out');
       }
@@ -100,13 +95,13 @@ function createUpstreamLifecycle(externalSignal) {
       clearTimeout(timeout);
       externalSignal?.removeEventListener?.('abort', abortFromCaller);
     },
-    abort(reason) {
+    abort(reason: unknown) {
       if (!controller.signal.aborted) controller.abort(reason);
     },
   };
 }
 
-function bindResponseLifecycle(response, lifecycle) {
+function bindResponseLifecycle(response: Response, lifecycle: ReturnType<typeof createUpstreamLifecycle>) {
   if (!response.body?.getReader || typeof ReadableStream !== 'function') {
     lifecycle.settle();
     return response;
@@ -118,7 +113,7 @@ function bindResponseLifecycle(response, lifecycle) {
     settled = true;
     lifecycle.settle();
   };
-  const body = new ReadableStream({
+  const body = new ReadableStream<Uint8Array>({
     async pull(controller) {
       try {
         const { done, value } = await reader.read();
@@ -154,10 +149,10 @@ function bindResponseLifecycle(response, lifecycle) {
 // Credentialed/body-bearing cross-origin redirects are constrained so API
 // secrets and request payloads never migrate to a new host. Safe GET redirects
 // remain supported for ordinary product pages that canonicalize to `www`.
-export async function fetchWithValidatedRedirects(initialUrl, initialOptions = {}, {
+export async function fetchWithValidatedRedirects(initialUrl: string | URL, initialOptions: ProxyRequestOptions = {}, {
   signal: externalSignal,
   maxRedirects = PROXY_MAX_REDIRECTS,
-} = /** @type {{ signal?: AbortSignal, maxRedirects?: number }} */ ({})) {
+}: { signal?: AbortSignal | undefined; maxRedirects?: number | undefined } = {}) {
   const lifecycle = createUpstreamLifecycle(externalSignal);
   const redirectLimit = Number.isInteger(maxRedirects) && maxRedirects >= 0
     ? Math.min(maxRedirects, PROXY_MAX_REDIRECTS)
@@ -222,7 +217,9 @@ export async function fetchWithValidatedRedirects(initialUrl, initialOptions = {
   }
 }
 
-export async function readRequestTextWithCap(request, maxBytes) {
+interface ProxyTextSource { headers: Pick<Headers, 'get'>; body?: ReadableStream<Uint8Array> | null; text?: () => Promise<string> }
+
+export async function readRequestTextWithCap(request: ProxyTextSource, maxBytes: number) {
   const contentLength = Number.parseInt(request.headers.get('content-length') || '0', 10);
   if (Number.isFinite(contentLength) && contentLength > maxBytes) {
     try {
@@ -232,7 +229,7 @@ export async function readRequestTextWithCap(request, maxBytes) {
   }
   const reader = request.body?.getReader?.();
   if (!reader) {
-    const body = await request.text();
+    const body = await request.text!();
     if (new TextEncoder().encode(body).length > maxBytes) throw requestTooLargeError();
     return body;
   }
@@ -255,7 +252,7 @@ export async function readRequestTextWithCap(request, maxBytes) {
   return body + decoder.decode();
 }
 
-export async function readResponseTextWithCap(response, maxBytes) {
+export async function readResponseTextWithCap(response: ProxyTextSource, maxBytes: number) {
   const contentLength = Number.parseInt(response.headers.get('content-length') || '0', 10);
   if (Number.isFinite(contentLength) && contentLength > maxBytes) {
     await discardResponseBody(response);
@@ -263,7 +260,7 @@ export async function readResponseTextWithCap(response, maxBytes) {
   }
   const reader = response.body?.getReader?.();
   if (!reader) {
-    const body = await response.text();
+    const body = await response.text!();
     if (new TextEncoder().encode(body).length > maxBytes) throw responseTooLargeError();
     return body;
   }
@@ -286,11 +283,11 @@ export async function readResponseTextWithCap(response, maxBytes) {
   return body + decoder.decode();
 }
 
-export function capReadableStream(body, maxBytes) {
+export function capReadableStream(body: ReadableStream<Uint8Array> | null | undefined, maxBytes: number) {
   if (!body?.getReader || typeof ReadableStream !== 'function') return body;
   const reader = body.getReader();
   let bytes = 0;
-  return new ReadableStream({
+  return new ReadableStream<Uint8Array>({
     async pull(controller) {
       try {
         const { done, value } = await reader.read();

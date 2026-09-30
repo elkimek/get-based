@@ -1,28 +1,42 @@
-// @ts-check
+import type { ProxyRelayRequest } from '../lib/proxy-policy.js';
+import type { ProxyRequestOptions } from '../lib/proxy-network.js';
+
 
 import { fetchWithValidatedRedirects, readResponseTextWithCap } from '../lib/proxy-upstream.js';
+
+export interface PostalGeocodeResult {
+  latitude: number; longitude: number; accuracyKm: number; timezone: null;
+  label: string; source: 'postal-area'; resolvedAt: number; attribution: string;
+}
+interface NominatimRow {
+  address?: { postcode?: unknown } | null;
+  name?: unknown; lat?: unknown; lon?: unknown; display_name?: unknown;
+}
+export interface PostalGeocodeHelpers {
+  corsHeaders: (req: ProxyRelayRequest) => Record<string, string>;
+  proxyUpstreamErrorResponse: (req: ProxyRelayRequest, error: unknown, fallback: string) => Response;
+}
 
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const CACHE_MAX = 512;
 const DEFAULT_QUEUE_MAX = 8;
-const cache = new Map();
-let requestQueue = Promise.resolve();
+const cache = new Map<string, { cachedAt: number; value: PostalGeocodeResult }>();
+let requestQueue: Promise<void> = Promise.resolve();
 let lastRequestStartedAt = 0;
 let queuedRequests = 0;
 
 class PostalQueueFullError extends Error {}
 
-function postalAbortReason(signal) {
+function postalAbortReason(signal: AbortSignal | undefined) {
   return signal?.reason instanceof Error
     ? signal.reason
     : new DOMException('Postal lookup aborted', 'AbortError');
 }
 
-/** @returns {Promise<void>} */
-function waitForPostalThrottle(waitMs, signal) {
+function waitForPostalThrottle(waitMs: number, signal: AbortSignal | undefined): Promise<void> {
   if (!waitMs) return Promise.resolve();
   if (signal?.aborted) return Promise.reject(postalAbortReason(signal));
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     const timer = setTimeout(() => {
       signal?.removeEventListener?.('abort', onAbort);
       resolve();
@@ -36,11 +50,11 @@ function waitForPostalThrottle(waitMs, signal) {
   });
 }
 
-function settlePostalRequestForCaller(pending, signal, releaseSlot) {
+function settlePostalRequestForCaller<T>(pending: Promise<T>, signal: AbortSignal | undefined, releaseSlot: () => void) {
   if (!signal?.addEventListener) return pending.finally(releaseSlot);
-  return new Promise((resolve, reject) => {
+  return new Promise<T>((resolve, reject) => {
     let settled = false;
-    const finish = (callback, value) => {
+    const finish = <V>(callback: (value: V) => void, value: V) => {
       if (settled) return;
       settled = true;
       signal.removeEventListener('abort', onAbort);
@@ -64,7 +78,7 @@ function postalQueueMax() {
     : DEFAULT_QUEUE_MAX;
 }
 
-function fetchPostalGeocodeUpstream(url, options, signal) {
+function fetchPostalGeocodeUpstream(url: string, options: ProxyRequestOptions, signal: AbortSignal | undefined) {
   if (signal?.aborted) throw postalAbortReason(signal);
   if (queuedRequests >= postalQueueMax()) {
     throw new PostalQueueFullError('Postal lookup queue is full');
@@ -89,12 +103,9 @@ function fetchPostalGeocodeUpstream(url, options, signal) {
   return settlePostalRequestForCaller(pending, signal, releaseSlot);
 }
 
-/**
- * @param {Record<string, any>} payload
- * @param {any} req
- * @param {{ corsHeaders: (req: any) => Record<string, string>, proxyUpstreamErrorResponse: (req: any, error: unknown, fallback: string) => Response }} helpers
- */
-export async function handlePostalGeocode(payload, req, helpers) {
+export async function handlePostalGeocode(
+  payload: Record<string, unknown>, req: ProxyRelayRequest, helpers: PostalGeocodeHelpers,
+) {
   const country = typeof payload.country === 'string' ? payload.country.trim() : '';
   const postalCode = typeof payload.postalCode === 'string' ? payload.postalCode.trim() : '';
   const responseHeaders = () => ({ ...helpers.corsHeaders(req), 'Content-Type': 'application/json' });
@@ -122,8 +133,8 @@ export async function handlePostalGeocode(payload, req, helpers) {
     if (!upstream.ok) {
       return new Response(JSON.stringify({ error: 'Location lookup unavailable' }), { status: upstream.status, headers: responseHeaders() });
     }
-    const results = JSON.parse(text);
-    const rows = Array.isArray(results) ? results : [];
+    const results: unknown = JSON.parse(text);
+    const rows: (NominatimRow | null)[] = Array.isArray(results) ? results : [];
     const normalizedPostal = postalCode.replace(/\s+/g, '').toLowerCase();
     const match = rows.find(item => String(item?.address?.postcode || item?.name || '').replace(/\s+/g, '').toLowerCase() === normalizedPostal) || rows[0];
     const latitude = Number(match?.lat);
@@ -131,18 +142,18 @@ export async function handlePostalGeocode(payload, req, helpers) {
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
       return new Response(JSON.stringify({ error: 'Location not found' }), { status: 404, headers: responseHeaders() });
     }
-    const value = {
+    const value: PostalGeocodeResult = {
       latitude: Math.round(latitude * 10) / 10,
       longitude: Math.round(longitude * 10) / 10,
       accuracyKm: 11,
       timezone: null,
-      label: typeof match.display_name === 'string' ? match.display_name : `${postalCode}, ${country}`,
+      label: typeof match!.display_name === 'string' ? match!.display_name : `${postalCode}, ${country}`,
       source: 'postal-area',
       resolvedAt: Date.now(),
       attribution: '© OpenStreetMap contributors',
     };
     cache.set(cacheKey, { cachedAt: Date.now(), value });
-    while (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value);
+    while (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value!);
     return new Response(JSON.stringify(value), { status: 200, headers: { ...responseHeaders(), 'Cache-Control': 'no-store' } });
   } catch (error) {
     if (error instanceof PostalQueueFullError) {

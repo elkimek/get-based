@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../lib/proxy-network.js', () => ({
-  fetchWithPinnedProxyDns: (url, options) => globalThis.fetch(url, options),
+  fetchWithPinnedProxyDns: (url: string, options: RequestInit) => globalThis.fetch(url, options),
 }));
 
 import {
@@ -20,7 +20,7 @@ describe('proxy upstream body boundaries', () => {
   it('cancels an oversized streaming request before buffering the remaining body', async () => {
     let pulls = 0;
     let cancelled = false;
-    const body = new ReadableStream({
+    const body = new ReadableStream<Uint8Array>({
       pull(controller) {
         pulls++;
         if (pulls === 1) controller.enqueue(new TextEncoder().encode('12345678'));
@@ -45,7 +45,7 @@ describe('proxy upstream body boundaries', () => {
 
   it('counts response bytes while streaming and cancels when the cap is crossed', async () => {
     let cancelled = false;
-    const response = new Response(new ReadableStream({
+    const response = new Response(new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(new Uint8Array(6));
         controller.enqueue(new Uint8Array(6));
@@ -65,7 +65,7 @@ describe('proxy upstream body boundaries', () => {
 
   it('preserves UTF-8 characters split across request chunks', async () => {
     const encoded = new TextEncoder().encode('{"value":"🙂"}');
-    const body = new ReadableStream({
+    const body = new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(encoded.slice(0, 12));
         controller.enqueue(encoded.slice(12));

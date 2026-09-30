@@ -1,22 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const blobMock = vi.hoisted(() => {
-  const store = new Map();
+  const store = new Map<string, string>();
   return {
     store,
-    list: vi.fn(async ({ prefix = '', limit = 1000 } = {}) => ({
+    list: vi.fn(async ({ prefix = '', limit = 1000 }: { prefix?: string; limit?: number; abortSignal?: AbortSignal } = {}) => ({
       blobs: Array.from(store.keys())
         .filter(pathname => pathname.startsWith(prefix))
         .slice(0, limit)
         .map(pathname => ({ pathname })),
       hasMore: false,
     })),
-    put: vi.fn(async (pathname, body) => {
+    put: vi.fn(async (pathname: string, body: string, _options?: { abortSignal?: AbortSignal }) => {
       if (store.has(pathname)) throw new Error('already exists');
       store.set(pathname, body);
       return { pathname, url: `https://blob.example.com/${pathname}` };
     }),
-    del: vi.fn(async (pathnames) => {
+    del: vi.fn(async (pathnames: string | string[]) => {
       for (const pathname of Array.isArray(pathnames) ? pathnames : [pathnames]) {
         store.delete(pathname);
       }
@@ -25,7 +25,7 @@ const blobMock = vi.hoisted(() => {
 });
 
 vi.mock('@vercel/blob', async importOriginal => {
-  const actual = await importOriginal();
+  const actual = await importOriginal<typeof import('@vercel/blob')>();
   return {
     ...actual,
     list: blobMock.list,
@@ -44,7 +44,7 @@ const ENV_KEYS = [
   'PROXY_RATE_LIMIT_WINDOW_MS',
   'VERCEL',
 ];
-let savedEnv;
+let savedEnv: Record<string, string | undefined>;
 
 function rateRequest(ip = '203.0.113.90') {
   return new Request('https://getbased.health/api/proxy', {
@@ -55,7 +55,7 @@ function rateRequest(ip = '203.0.113.90') {
   });
 }
 
-function vercelRateRequest(vercelIp, forwardedIp) {
+function vercelRateRequest(vercelIp: string, forwardedIp: string) {
   return new Request('https://getbased.health/api/proxy', {
     headers: {
       origin: 'https://app.getbased.health',
@@ -108,8 +108,8 @@ describe('proxy distributed rate limit', () => {
     const requestMarkers = Array.from(blobMock.store.keys())
       .filter(path => path.startsWith('proxy-rate/v2/'));
     expect(requestMarkers).toHaveLength(2);
-    expect(blobMock.list.mock.calls[0][0].abortSignal).toBeInstanceOf(AbortSignal);
-    expect(blobMock.put.mock.calls[0][2].abortSignal).toBeInstanceOf(AbortSignal);
+    expect(blobMock.list.mock.calls[0]![0]!.abortSignal).toBeInstanceOf(AbortSignal);
+    expect(blobMock.put.mock.calls[0]![2]!.abortSignal).toBeInstanceOf(AbortSignal);
     expect(Array.from(blobMock.store.keys()).join('|')).not.toContain('203.0.113.90');
     expect(Array.from(blobMock.store.keys()).join('|')).not.toContain('app.getbased.health');
   });

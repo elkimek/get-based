@@ -1,3 +1,7 @@
+import { proxyJsonResponse } from '../lib/proxy-response.js';
+import type { ProxyCaller, ProxyRelayRequest } from '../lib/proxy-policy.js';
+import type { ProxyRequestOptions } from '../lib/proxy-network.js';
+
 // Privacy-scoped compatibility proxy. A getbased-operated deployment accepts
 // only the fixed product operations classified below. User-owned deployments
 // retain the generic same-origin path for integrations they operate themselves.
@@ -26,8 +30,7 @@ import { handlePostalGeocode } from './postal-geocode.js';
 import { handleCamsRelay } from './cams-relay.js';
 
 const HOSTED_PUBLIC_PAGE_MAX_BYTES = 2 * 1024 * 1024;
-/** @type {Promise<typeof import('../lib/proxy-rate-limit.js')> | null} */
-let proxyRateLimitModulePromise = null;
+let proxyRateLimitModulePromise: Promise<typeof import('../lib/proxy-rate-limit.js')> | null = null;
 
 // The distributed limiter pulls in Vercel's Node-only Blob client. Keep that
 // dependency outside the entrypoint's initialization path so preflight,
@@ -38,7 +41,7 @@ function loadProxyRateLimit() {
   return proxyRateLimitModulePromise;
 }
 
-export async function handler(req) {
+export async function handler(req: Request) {
   const operatedHost = isGetbasedOperatedRelayHost(req);
   // Treat Origin as a server-side browser boundary, not merely a response
   // decoration. It prevents another website from driving this credentialed
@@ -55,17 +58,11 @@ export async function handler(req) {
   }
 
   if (!isAllowedProxyCallerOrigin(req)) {
-    return new Response(JSON.stringify({ error: 'Origin not allowed.' }), {
-      status: 403,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
+    return proxyJsonResponse(req, 403, { error: 'Origin not allowed.' });
   }
 
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed. Use POST with {url, headers, body?, method?}' }), {
-      status: 405,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
+    return proxyJsonResponse(req, 405, { error: 'Method not allowed. Use POST with {url, headers, body?, method?}' });
   }
 
   let rateLimit;
@@ -73,64 +70,34 @@ export async function handler(req) {
     const { enforceProxyRateLimit } = await loadProxyRateLimit();
     rateLimit = await enforceProxyRateLimit(req, { allowInstanceFallback: !operatedHost });
   } catch {
-    return new Response(JSON.stringify({
+    return proxyJsonResponse(req, 503, {
       error: 'Proxy rate limit is temporarily unavailable.',
-    }), {
-      status: 503,
-      headers: {
-        ...corsHeaders(req),
-        'Content-Type': 'application/json',
-        'Retry-After': '60',
-      },
-    });
+    }, () => ({ 'Retry-After': '60' }));
   }
   if (rateLimit.unavailable) {
-    return new Response(JSON.stringify({
+    return proxyJsonResponse(req, 503, {
       error: 'Proxy rate limit is not configured for this hosted deployment.',
-    }), {
-      status: 503,
-      headers: {
-        ...corsHeaders(req),
-        'Content-Type': 'application/json',
-        'Retry-After': String(rateLimit.retryAfterSeconds),
-      },
-    });
+    }, () => ({ 'Retry-After': String(rateLimit.retryAfterSeconds) }));
   }
   if (rateLimit.limited) {
-    return new Response(JSON.stringify({
+    return proxyJsonResponse(req, 429, {
       error: 'Too many proxy requests. Try again later.',
       retryAfterSeconds: rateLimit.retryAfterSeconds,
-    }), {
-      status: 429,
-      headers: {
-        ...corsHeaders(req),
-        'Content-Type': 'application/json',
-        'Retry-After': String(rateLimit.retryAfterSeconds),
-      },
-    });
+    }, () => ({ 'Retry-After': String(rateLimit.retryAfterSeconds) }));
   }
 
-  let payload;
+  let payload: Record<string, unknown>;
   try {
     const rawBody = await readRequestTextWithCap(req, PROXY_MAX_REQUEST_BYTES);
     payload = JSON.parse(rawBody);
   } catch (error) {
     if (errorCode(error) === 'PROXY_REQUEST_TOO_LARGE') {
-      return new Response(JSON.stringify({ error: 'Proxy request body too large' }), {
-        status: 413,
-        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
+      return proxyJsonResponse(req, 413, { error: 'Proxy request body too large' });
     }
-    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
-      status: 400,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
+    return proxyJsonResponse(req, 400, { error: 'Invalid JSON body' });
   }
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    return new Response(JSON.stringify({ error: 'Proxy payload must be an object' }), {
-      status: 400,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
+    return proxyJsonResponse(req, 400, { error: 'Proxy payload must be an object' });
   }
 
   const selectedOperations = [
@@ -152,19 +119,13 @@ export async function handler(req) {
     Object.prototype.hasOwnProperty.call(payload, 'url'),
   ].filter(Boolean).length;
   if (selectedOperations !== 1) {
-    return new Response(JSON.stringify({ error: 'Proxy request must select exactly one operation' }), {
-      status: 400,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
+    return proxyJsonResponse(req, 400, { error: 'Proxy request must select exactly one operation' });
   }
 
   if (operatedHost && payload.meteo === 'postal_geocode') {
-    return new Response(JSON.stringify({
+    return proxyJsonResponse(req, 403, {
       code: 'HOSTED_LOCATION_RELAY_DISABLED',
       error: 'The hosted app does not accept plaintext location relay requests.',
-    }), {
-      status: 403,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
     });
   }
   const selfHostOnlyOperation = [
@@ -176,22 +137,16 @@ export async function handler(req) {
     'google_health_token_refresh',
   ].find(field => payload[field]);
   if (operatedHost && selfHostOnlyOperation) {
-    return new Response(JSON.stringify({
+    return proxyJsonResponse(req, 403, {
       code: 'SELF_HOST_ONLY_PROVIDER',
       error: 'This provider is available only on a user-controlled deployment configured with its own OAuth application.',
-    }), {
-      status: 403,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
     });
   }
   const operatedOAuthError = operatedHost ? validateOperatedOAuthPayload(payload) : '';
   if (operatedOAuthError) {
-    return new Response(JSON.stringify({
+    return proxyJsonResponse(req, 400, {
       code: 'HOSTED_OAUTH_REQUEST_BLOCKED',
       error: operatedOAuthError,
-    }), {
-      status: 400,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
     });
   }
 
@@ -203,7 +158,7 @@ export async function handler(req) {
   // ID reach the browser.
   if (payload.wearable_runtime_config) {
     const env = (typeof process !== 'undefined' && process.env) ? process.env : {};
-    const overrides = {};
+    const overrides: Record<string, string> = {};
     for (const [key, id] of [
       ['OURA_CLIENT_ID', 'oura'],
       ['WITHINGS_CLIENT_ID', 'withings'],
@@ -212,12 +167,12 @@ export async function handler(req) {
       ['WHOOP_CLIENT_ID', 'whoop'],
       ['FITBIT_CLIENT_ID', 'fitbit'],
       ['GOOGLE_HEALTH_CLIENT_ID', 'google_health'],
-    ]) {
+    ] as const) {
       if (operatedHost && ['ultrahuman', 'whoop', 'google_health'].includes(id)) continue;
       const v = env[key];
       if (typeof v === 'string' && v.trim()) overrides[id] = v.trim();
     }
-    const hasEnv = key => typeof env[key] === 'string' && env[key].trim();
+    const hasEnv = (key: string) => typeof env[key] === 'string' && env[key].trim();
     const configured = {
       google_health: !operatedHost && env.GOOGLE_HEALTH_ENABLED === 'true'
         && Boolean(hasEnv('GOOGLE_HEALTH_CLIENT_ID') && hasEnv('GOOGLE_HEALTH_CLIENT_SECRET')),
@@ -226,10 +181,7 @@ export async function handler(req) {
       whoop: !operatedHost && env.WHOOP_ENABLED === 'true'
         && Boolean(hasEnv('WHOOP_CLIENT_ID') && hasEnv('WHOOP_CLIENT_SECRET')),
     };
-    return new Response(JSON.stringify({ overrides, configured }), {
-      status: 200,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
+    return proxyJsonResponse(req, 200, { overrides, configured });
   }
 
   // ─── Oura OAuth2 server-side flow ───────────────────────────────
@@ -292,24 +244,15 @@ export async function handler(req) {
   const { url, headers, body, method: upstreamMethod } = payload;
 
   if (!url || !isAllowedProxyUrl(url)) {
-    return new Response(JSON.stringify({ error: 'URL not allowed' }), {
-      status: 403,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
+    return proxyJsonResponse(req, 403, { error: 'URL not allowed' });
   }
   const fetchMethod = normalizeProxyMethod(upstreamMethod);
   if (!fetchMethod) {
-    return new Response(JSON.stringify({ error: 'Proxy method not allowed' }), {
-      status: 405,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
+    return proxyJsonResponse(req, 405, { error: 'Proxy method not allowed' });
   }
   const safeHeaders = sanitizeProxyHeaders(headers);
   if (!safeHeaders.ok) {
-    return new Response(JSON.stringify({ error: safeHeaders.error }), {
-      status: 400,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
+    return proxyJsonResponse(req, 400, { error: safeHeaders.error });
   }
   let hostedOperation = '';
   if (operatedHost) {
@@ -321,12 +264,9 @@ export async function handler(req) {
       purpose: payload.proxy_purpose,
     });
     if (!hostedRequest.ok) {
-      return new Response(JSON.stringify({
+      return proxyJsonResponse(req, 403, {
         code: 'HOSTED_PROXY_OPERATION_BLOCKED',
         error: hostedRequest.error,
-      }), {
-        status: 403,
-        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
       });
     }
     hostedOperation = hostedRequest.operation;
@@ -336,7 +276,7 @@ export async function handler(req) {
     const reqHeaders = { ...safeHeaders.headers };
     const hasCT = Object.keys(reqHeaders).some(k => k.toLowerCase() === 'content-type');
     if (fetchMethod !== 'GET' && !hasCT) reqHeaders['Content-Type'] = 'application/json';
-    const fetchOpts = {
+    const fetchOpts: ProxyRequestOptions = {
       method: fetchMethod,
       headers: reqHeaders,
     };
@@ -352,10 +292,7 @@ export async function handler(req) {
     if (hostedOperation === 'public-page'
         && !/^(?:text\/(?:html|plain)|application\/(?:xhtml\+xml|json))(?:;|$)/i.test(contentType)) {
       try { await upstreamRes.body?.cancel?.(); } catch {}
-      return new Response(JSON.stringify({ error: 'Product URL did not return a readable public page' }), {
-        status: 415,
-        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
+      return proxyJsonResponse(req, 415, { error: 'Product URL did not return a readable public page' });
     }
 
     if (!isStream) {
@@ -393,8 +330,8 @@ export async function handler(req) {
 // platform can leave the invocation open until timeout.
 export default { fetch: handler };
 
-function proxyUpstreamErrorResponse(req, error, fallback = 'Upstream request failed') {
-  const code = error?.code;
+function proxyUpstreamErrorResponse(req: ProxyCaller, error: unknown, fallback = 'Upstream request failed') {
+  const code = (error as { code?: unknown } | null | undefined)?.code;
   const dnsBlocked = code === 'PROXY_DNS_BLOCKED';
   const timedOut = code === 'PROXY_UPSTREAM_TIMEOUT';
   const knownMessages = new Map([
@@ -407,14 +344,11 @@ function proxyUpstreamErrorResponse(req, error, fallback = 'Upstream request fai
     ? 'URL not allowed'
     : timedOut
       ? 'Proxy upstream timed out'
-      : knownMessages.get(code) || fallback;
-  return new Response(JSON.stringify({ error: message }), {
-    status: dnsBlocked ? 403 : (timedOut ? 504 : 502),
-    headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-  });
+      : knownMessages.get(code as string) || fallback;
+  return proxyJsonResponse(req, dnsBlocked ? 403 : (timedOut ? 504 : 502), { error: message });
 }
 
-async function relayGuardedText(url, options, req, fallback) {
+async function relayGuardedText(url: string, options: ProxyRequestOptions, req: ProxyRelayRequest, fallback: string) {
   try {
     const response = await fetchWithValidatedRedirects(url, options, { signal: req.signal });
     const body = await readResponseTextWithCap(
@@ -433,50 +367,77 @@ async function relayGuardedText(url, options, req, fallback) {
   }
 }
 
+// OAuth values retain the native URLSearchParams string-conversion contract.
+type OAuthFormConstructor = new (values: Record<string, unknown>) => URLSearchParams;
+interface OAuthTokenFields { code?: unknown; redirect_uri?: unknown; client_id?: unknown; refresh_token?: unknown }
+
+
+type OAuthFormField = 'action' | 'grant_type' | 'code' | 'redirect_uri' | 'client_id' | 'client_secret' | 'refresh_token' | 'scope';
+interface OAuthTokenRelayBase {
+  provider: 'oura' | 'withings' | 'ultrahuman' | 'whoop' | 'polar' | 'google_health';
+  secret: string; endpoint: string; fallback: string;
+  action?: string; scope?: string; basicAuth?: boolean;
+  exchangeFields?: readonly OAuthFormField[]; refreshFields?: readonly OAuthFormField[];
+}
+
+type OAuthTokenRelaySpec = OAuthTokenRelayBase & (
+  | { clientId: string; clientMismatch: string }
+  | { clientId?: never; clientMismatch?: never }
+);
+
+// Provider specs retain field order as well as endpoint and authentication differences.
+function relayOAuthTokenRequest(payload: Record<string, unknown>, req: ProxyRelayRequest, spec: OAuthTokenRelaySpec) {
+  const exchangeOperation = `${spec.provider}_token_exchange`, refreshOperation = `${spec.provider}_token_refresh`;
+  let values: Record<string, unknown>, clientId: unknown, fields: readonly OAuthFormField[];
+  if (payload[exchangeOperation]) {
+    const { code, redirect_uri, client_id } = payload[exchangeOperation] as OAuthTokenFields;
+    if (!code || !redirect_uri || !client_id) {
+      return proxyJsonResponse(req, 400, { error: `${exchangeOperation} requires code, redirect_uri, client_id` });
+    }
+    if (spec.clientId !== undefined && client_id !== spec.clientId) {
+      return proxyJsonResponse(req, 400, { error: spec.clientMismatch });
+    }
+    clientId = spec.clientId ?? client_id;
+    values = { grant_type: 'authorization_code', code, redirect_uri, client_id: clientId, client_secret: spec.secret };
+    fields = spec.exchangeFields || ['grant_type', 'code', 'redirect_uri', 'client_id', 'client_secret'];
+  } else {
+    const { refresh_token, client_id } = payload[refreshOperation] as OAuthTokenFields;
+    if (!refresh_token || !client_id) {
+      return proxyJsonResponse(req, 400, { error: `${refreshOperation} requires refresh_token, client_id` });
+    }
+    if (spec.clientId !== undefined && client_id !== spec.clientId) {
+      return proxyJsonResponse(req, 400, { error: spec.clientMismatch });
+    }
+    clientId = spec.clientId ?? client_id;
+    values = { grant_type: 'refresh_token', refresh_token, client_id: clientId, client_secret: spec.secret };
+    fields = spec.refreshFields || ['grant_type', 'refresh_token', 'client_id', 'client_secret'];
+  }
+  values.action = spec.action;
+  values.scope = spec.scope;
+  const form = new (URLSearchParams as OAuthFormConstructor)(Object.fromEntries(fields.map(field => [field, values[field]])));
+  const headers: Record<string, string> = { 'Content-Type': 'application/x-www-form-urlencoded' };
+  if (spec.basicAuth) {
+    headers.Accept = 'application/json;charset=UTF-8';
+    headers.Authorization = 'Basic ' + btoa(`${clientId}:${spec.secret}`);
+  }
+  return relayGuardedText(spec.endpoint, { method: 'POST', headers, body: form.toString() }, req, spec.fallback);
+}
+
 // ─── Oura token handler ────────────────────────────────────────────
 // Payloads:
 //   { oura_token_exchange: { code, redirect_uri, client_id } }
 //   { oura_token_refresh:  { refresh_token, client_id } }
 // client_id is sent from the browser (public value) so the proxy stays
 // provider-agnostic — the secret is the only thing kept server-side.
-async function handleOuraTokenRequest(payload, req) {
+async function handleOuraTokenRequest(payload: Record<string, unknown>, req: ProxyRelayRequest) {
   const secret = typeof process !== 'undefined' ? process.env?.OURA_CLIENT_SECRET : undefined;
   if (!secret) {
-    return new Response(JSON.stringify({ error: 'OURA_CLIENT_SECRET not configured on this deployment' }), {
-      status: 500, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
+    return proxyJsonResponse(req, 500, { error: 'OURA_CLIENT_SECRET not configured on this deployment' });
   }
 
-  let form;
-  if (payload.oura_token_exchange) {
-    const { code, redirect_uri, client_id } = payload.oura_token_exchange;
-    if (!code || !redirect_uri || !client_id) {
-      return new Response(JSON.stringify({ error: 'oura_token_exchange requires code, redirect_uri, client_id' }), {
-        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
-    }
-    form = new URLSearchParams({
-      grant_type: 'authorization_code',
-      code, redirect_uri, client_id, client_secret: secret,
-    });
-  } else {
-    const { refresh_token, client_id } = payload.oura_token_refresh;
-    if (!refresh_token || !client_id) {
-      return new Response(JSON.stringify({ error: 'oura_token_refresh requires refresh_token, client_id' }), {
-        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
-    }
-    form = new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token, client_id, client_secret: secret,
-    });
-  }
-
-  return relayGuardedText('https://api.ouraring.com/oauth/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: form.toString(),
-  }, req, 'Oura token endpoint unavailable');
+  return relayOAuthTokenRequest(payload, req, {
+    provider: 'oura', secret, endpoint: 'https://api.ouraring.com/oauth/token', fallback: 'Oura token endpoint unavailable',
+  });
 }
 
 // ─── Withings token handler ────────────────────────────────────────
@@ -487,248 +448,81 @@ async function handleOuraTokenRequest(payload, req) {
 // `action=requesttoken` in the body — same action for both the initial
 // authorization-code exchange and refresh-token rotation (validated end-to-end
 // in v1.22.0 → v1.31.0). The grant_type field distinguishes the two flows.
-async function handleWithingsTokenRequest(payload, req) {
+async function handleWithingsTokenRequest(payload: Record<string, unknown>, req: ProxyRelayRequest) {
   const secret = typeof process !== 'undefined' ? process.env?.WITHINGS_CLIENT_SECRET : undefined;
   if (!secret) {
-    return new Response(JSON.stringify({ error: 'WITHINGS_CLIENT_SECRET not configured on this deployment' }), {
-      status: 500, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
+    return proxyJsonResponse(req, 500, { error: 'WITHINGS_CLIENT_SECRET not configured on this deployment' });
   }
 
-  let form;
-  if (payload.withings_token_exchange) {
-    const { code, redirect_uri, client_id } = payload.withings_token_exchange;
-    if (!code || !redirect_uri || !client_id) {
-      return new Response(JSON.stringify({ error: 'withings_token_exchange requires code, redirect_uri, client_id' }), {
-        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
-    }
-    form = new URLSearchParams({
-      action: 'requesttoken',
-      grant_type: 'authorization_code',
-      client_id, client_secret: secret,
-      code, redirect_uri,
-    });
-  } else {
-    const { refresh_token, client_id } = payload.withings_token_refresh;
-    if (!refresh_token || !client_id) {
-      return new Response(JSON.stringify({ error: 'withings_token_refresh requires refresh_token, client_id' }), {
-        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
-    }
-    form = new URLSearchParams({
-      action: 'requesttoken',
-      grant_type: 'refresh_token',
-      client_id, client_secret: secret,
-      refresh_token,
-    });
-  }
-
-  return relayGuardedText('https://wbsapi.withings.net/v2/oauth2', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: form.toString(),
-  }, req, 'Withings token endpoint unavailable');
+  return relayOAuthTokenRequest(payload, req, {
+    provider: 'withings', secret, endpoint: 'https://wbsapi.withings.net/v2/oauth2', fallback: 'Withings token endpoint unavailable',
+    action: 'requesttoken',
+    exchangeFields: ['action', 'grant_type', 'client_id', 'client_secret', 'code', 'redirect_uri'],
+    refreshFields: ['action', 'grant_type', 'client_id', 'client_secret', 'refresh_token'],
+  });
 }
 
 // ─── Ultrahuman token handler ──────────────────────────────────────
-async function handleUltrahumanTokenRequest(payload, req) {
+async function handleUltrahumanTokenRequest(payload: Record<string, unknown>, req: ProxyRelayRequest) {
   const env = typeof process !== 'undefined' ? process.env || {} : {};
   const clientId = typeof env.ULTRAHUMAN_CLIENT_ID === 'string' ? env.ULTRAHUMAN_CLIENT_ID.trim() : '';
   const secret = env.ULTRAHUMAN_CLIENT_SECRET;
   if (env.ULTRAHUMAN_ENABLED !== 'true' || !clientId || typeof secret !== 'string' || !secret.trim()) {
-    return new Response(JSON.stringify({ error: 'Ultrahuman is disabled on this deployment' }), {
-      status: 503, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
+    return proxyJsonResponse(req, 503, { error: 'Ultrahuman is disabled on this deployment' });
   }
 
-  let form;
-  if (payload.ultrahuman_token_exchange) {
-    const { code, redirect_uri, client_id: requestedClientId } = payload.ultrahuman_token_exchange;
-    if (!code || !redirect_uri || !requestedClientId) {
-      return new Response(JSON.stringify({ error: 'ultrahuman_token_exchange requires code, redirect_uri, client_id' }), {
-        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
-    }
-    if (requestedClientId !== clientId) {
-      return new Response(JSON.stringify({ error: 'Ultrahuman client_id does not match this deployment' }), {
-        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
-    }
-    form = new URLSearchParams({
-      grant_type: 'authorization_code',
-      client_id: clientId, client_secret: secret, code, redirect_uri,
-    });
-  } else {
-    const { refresh_token, client_id: requestedClientId } = payload.ultrahuman_token_refresh;
-    if (!refresh_token || !requestedClientId) {
-      return new Response(JSON.stringify({ error: 'ultrahuman_token_refresh requires refresh_token, client_id' }), {
-        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
-    }
-    if (requestedClientId !== clientId) {
-      return new Response(JSON.stringify({ error: 'Ultrahuman client_id does not match this deployment' }), {
-        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
-    }
-    form = new URLSearchParams({
-      grant_type: 'refresh_token',
-      client_id: clientId, client_secret: secret, refresh_token,
-    });
-  }
-
-  return relayGuardedText('https://partner.ultrahuman.com/api/partners/oauth/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: form.toString(),
-  }, req, 'Ultrahuman token endpoint unavailable');
+  return relayOAuthTokenRequest(payload, req, {
+    provider: 'ultrahuman', secret, endpoint: 'https://partner.ultrahuman.com/api/partners/oauth/token', fallback: 'Ultrahuman token endpoint unavailable',
+    clientId, clientMismatch: 'Ultrahuman client_id does not match this deployment',
+    exchangeFields: ['grant_type', 'client_id', 'client_secret', 'code', 'redirect_uri'],
+    refreshFields: ['grant_type', 'client_id', 'client_secret', 'refresh_token'],
+  });
 }
 
 // ─── WHOOP token handler ──────────────────────────────────────────
-async function handleWhoopTokenRequest(payload, req) {
+async function handleWhoopTokenRequest(payload: Record<string, unknown>, req: ProxyRelayRequest) {
   const env = typeof process !== 'undefined' ? process.env || {} : {};
   const clientId = typeof env.WHOOP_CLIENT_ID === 'string' ? env.WHOOP_CLIENT_ID.trim() : '';
   const secret = env.WHOOP_CLIENT_SECRET;
   if (env.WHOOP_ENABLED !== 'true' || !clientId || typeof secret !== 'string' || !secret.trim()) {
-    return new Response(JSON.stringify({ error: 'WHOOP is disabled on this deployment' }), {
-      status: 503, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
+    return proxyJsonResponse(req, 503, { error: 'WHOOP is disabled on this deployment' });
   }
 
-  let form;
-  if (payload.whoop_token_exchange) {
-    const { code, redirect_uri, client_id: requestedClientId } = payload.whoop_token_exchange;
-    if (!code || !redirect_uri || !requestedClientId) {
-      return new Response(JSON.stringify({ error: 'whoop_token_exchange requires code, redirect_uri, client_id' }), {
-        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
-    }
-    if (requestedClientId !== clientId) {
-      return new Response(JSON.stringify({ error: 'WHOOP client_id does not match this deployment' }), {
-        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
-    }
-    form = new URLSearchParams({
-      grant_type: 'authorization_code', code, redirect_uri,
-      client_id: clientId, client_secret: secret,
-    });
-  } else {
-    const { refresh_token, client_id: requestedClientId } = payload.whoop_token_refresh;
-    if (!refresh_token || !requestedClientId) {
-      return new Response(JSON.stringify({ error: 'whoop_token_refresh requires refresh_token, client_id' }), {
-        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
-    }
-    if (requestedClientId !== clientId) {
-      return new Response(JSON.stringify({ error: 'WHOOP client_id does not match this deployment' }), {
-        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
-    }
-    form = new URLSearchParams({
-      grant_type: 'refresh_token', refresh_token,
-      client_id: clientId, client_secret: secret, scope: 'offline',
-    });
-  }
-
-  return relayGuardedText('https://api.prod.whoop.com/oauth/oauth2/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: form.toString(),
-  }, req, 'WHOOP token endpoint unavailable');
+  return relayOAuthTokenRequest(payload, req, {
+    provider: 'whoop', secret, endpoint: 'https://api.prod.whoop.com/oauth/oauth2/token', fallback: 'WHOOP token endpoint unavailable',
+    clientId, clientMismatch: 'WHOOP client_id does not match this deployment', scope: 'offline',
+    refreshFields: ['grant_type', 'refresh_token', 'client_id', 'client_secret', 'scope'],
+  });
 }
 
 // ─── Polar token handler ───────────────────────────────────────────
 // Polar AccessLink requires HTTP Basic auth (base64 of client_id:client_secret)
 // on every token call. Single place that reads POLAR_CLIENT_SECRET.
-async function handlePolarTokenRequest(payload, req) {
+async function handlePolarTokenRequest(payload: Record<string, unknown>, req: ProxyRelayRequest) {
   const secret = typeof process !== 'undefined' ? process.env?.POLAR_CLIENT_SECRET : undefined;
   if (!secret) {
-    return new Response(JSON.stringify({ error: 'POLAR_CLIENT_SECRET not configured on this deployment' }), {
-      status: 500, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
+    return proxyJsonResponse(req, 500, { error: 'POLAR_CLIENT_SECRET not configured on this deployment' });
   }
 
-  let form, clientId;
-  if (payload.polar_token_exchange) {
-    const { code, redirect_uri, client_id } = payload.polar_token_exchange;
-    if (!code || !redirect_uri || !client_id) {
-      return new Response(JSON.stringify({ error: 'polar_token_exchange requires code, redirect_uri, client_id' }), {
-        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
-    }
-    clientId = client_id;
-    form = new URLSearchParams({
-      grant_type: 'authorization_code',
-      code, redirect_uri,
-    });
-  } else {
-    const { refresh_token, client_id } = payload.polar_token_refresh;
-    if (!refresh_token || !client_id) {
-      return new Response(JSON.stringify({ error: 'polar_token_refresh requires refresh_token, client_id' }), {
-        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
-    }
-    clientId = client_id;
-    form = new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token,
-    });
-  }
-
-  const basicAuth = 'Basic ' + btoa(`${clientId}:${secret}`);
-  return relayGuardedText('https://polarremote.com/v2/oauth2/token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Accept': 'application/json;charset=UTF-8',
-      'Authorization': basicAuth,
-    },
-    body: form.toString(),
-  }, req, 'Polar token endpoint unavailable');
+  return relayOAuthTokenRequest(payload, req, {
+    provider: 'polar', secret, endpoint: 'https://polarremote.com/v2/oauth2/token', fallback: 'Polar token endpoint unavailable', basicAuth: true,
+    exchangeFields: ['grant_type', 'code', 'redirect_uri'], refreshFields: ['grant_type', 'refresh_token'],
+  });
 }
 
 // ─── Google Health token handler ─────────────────────────────────
 // Payloads:
 //   { google_health_token_exchange: { code, redirect_uri, client_id } }
 //   { google_health_token_refresh:  { refresh_token, client_id } }
-async function handleGoogleHealthTokenRequest(payload, req) {
+async function handleGoogleHealthTokenRequest(payload: Record<string, unknown>, req: ProxyRelayRequest) {
   const env = typeof process !== 'undefined' ? process.env : {};
   const secret = env?.GOOGLE_HEALTH_CLIENT_SECRET;
   const clientId = env?.GOOGLE_HEALTH_CLIENT_ID;
   if (env?.GOOGLE_HEALTH_ENABLED !== 'true' || !secret || !clientId) {
-    return new Response(JSON.stringify({ error: 'Google Health is disabled on this deployment' }), {
-      status: 503, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-    });
+    return proxyJsonResponse(req, 503, { error: 'Google Health is disabled on this deployment' });
   }
 
-  let form;
-  if (payload.google_health_token_exchange) {
-    const { code, redirect_uri, client_id } = payload.google_health_token_exchange;
-    if (!code || !redirect_uri || !client_id) {
-      return new Response(JSON.stringify({ error: 'google_health_token_exchange requires code, redirect_uri, client_id' }), {
-        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
-    }
-    form = new URLSearchParams({
-      grant_type: 'authorization_code',
-      code, redirect_uri, client_id, client_secret: secret,
-    });
-  } else {
-    const { refresh_token, client_id } = payload.google_health_token_refresh;
-    if (!refresh_token || !client_id) {
-      return new Response(JSON.stringify({ error: 'google_health_token_refresh requires refresh_token, client_id' }), {
-        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
-      });
-    }
-    form = new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token, client_id, client_secret: secret,
-    });
-  }
-
-  return relayGuardedText('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: form.toString(),
-  }, req, 'Google OAuth token endpoint unavailable');
+  return relayOAuthTokenRequest(payload, req, {
+    provider: 'google_health', secret, endpoint: 'https://oauth2.googleapis.com/token', fallback: 'Google OAuth token endpoint unavailable',
+  });
 }

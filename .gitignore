@@ -138,3 +138,12 @@ deploy/profile-share/data/
 /js/sun-active-session-format.js
 /js/sun-session-model.js
 /js/sun-defaults-model.js
+/lib/proxy-policy.js
+/lib/proxy-network.js
+/lib/proxy-upstream.js
+/lib/proxy-rate-limit.js
+/api/cams-relay.js
+/api/postal-geocode.js
+/api/proxy.js
+/lib/runtime-env.js
+/lib/proxy-response.js

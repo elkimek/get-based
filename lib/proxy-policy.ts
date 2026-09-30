@@ -1,5 +1,20 @@
-// @ts-check
 // Shared proxy safety policy for Vercel, the standalone Node relay, and local development.
+
+export interface ProxyCaller { url: string; headers: Pick<Headers, 'get'> }
+export type ProxyRelayRequest = ProxyCaller & Pick<Request, 'signal'>;
+export type ProxyValidation<T extends object> =
+  | ({ ok: true; error?: never } & T)
+  | ({ ok: false; error: string } & { [K in keyof T]?: never });
+export interface CamsRelayCoordinates { latitude: number; longitude: number; time: string }
+export type HostedProxyOperation = 'nvidia-nras-attestation' | 'oura-data' | 'polar-data'
+  | 'withings-data' | 'fitbit-data' | 'fitbit-oauth' | 'public-page';
+export interface HostedProxyRequest {
+  url: string;
+  method: string | null;
+  headers?: Record<string, unknown> | null;
+  body?: unknown;
+  purpose?: unknown;
+}
 
 export const PROXY_ALLOWED_URL_PREFIXES = [
   'https://openrouter.ai/',
@@ -71,8 +86,7 @@ const PROXY_BLOCKED_HEADER_NAMES = new Set([
   'upgrade',
 ]);
 
-/** @param {Request} req */
-export function isGetbasedOperatedRelayHost(req) {
+export function isGetbasedOperatedRelayHost(req: ProxyCaller) {
   const productionUrl = typeof process !== 'undefined'
     ? String(process.env?.VERCEL_PROJECT_PRODUCTION_URL || '').toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '')
     : '';
@@ -80,11 +94,11 @@ export function isGetbasedOperatedRelayHost(req) {
   // Preview functions. It distinguishes our Preview URLs from an unrelated
   // self-hoster whose project also happens to be deployed on vercel.app.
   if (productionUrl === 'get-based.vercel.app') return true;
-  const hostnames = [];
+  const hostnames: string[] = [];
   try { hostnames.push(new URL(req.url).hostname); } catch {}
   for (const header of ['host', 'x-forwarded-host']) {
     const value = req.headers.get(header);
-    if (value) hostnames.push(String(value).split(',')[0].trim().split(':')[0]);
+    if (value) hostnames.push(String(value).split(',')[0]!.trim().split(':')[0]!);
   }
   return hostnames.some(value => {
     const hostname = String(value || '').toLowerCase().replace(/\.$/, '');
@@ -94,8 +108,7 @@ export function isGetbasedOperatedRelayHost(req) {
   });
 }
 
-/** @param {Request} req */
-export function isAllowedProxyCallerOrigin(req) {
+export function isAllowedProxyCallerOrigin(req: ProxyCaller) {
   const origin = req.headers.get('origin') || '';
   if (!origin) return false;
   try {
@@ -107,10 +120,9 @@ export function isAllowedProxyCallerOrigin(req) {
   }
 }
 
-/** @param {Request} req */
-export function proxyCorsHeaders(req) {
+export function proxyCorsHeaders(req: ProxyCaller) {
   const origin = req.headers.get('origin') || '';
-  const headers = {
+  const headers: Record<string, string> = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Cache-Control': 'no-store',
@@ -120,9 +132,8 @@ export function proxyCorsHeaders(req) {
   return headers;
 }
 
-/** @param {Record<string, any>} payload */
-export function validateOperatedOAuthPayload(payload) {
-  for (const provider of ['oura', 'withings', 'polar']) {
+export function validateOperatedOAuthPayload(payload: Record<string, unknown>) {
+  for (const provider of ['oura', 'withings', 'polar'] as const) {
     for (const mode of ['exchange', 'refresh']) {
       const request = payload[`${provider}_token_${mode}`];
       if (!request) continue;
@@ -135,10 +146,10 @@ export function validateOperatedOAuthPayload(payload) {
       if (!Object.keys(request).every(key => allowedKeys.has(key))) {
         return 'Hosted OAuth request contains unsupported fields.';
       }
-      if (request.client_id !== OFFICIAL_WEARABLE_CLIENT_IDS[provider]) {
+      if ((request as Record<string, unknown>).client_id !== OFFICIAL_WEARABLE_CLIENT_IDS[provider]) {
         return 'Hosted OAuth client_id does not match the official application.';
       }
-      if (mode === 'exchange' && !OFFICIAL_WEARABLE_REDIRECT_URIS.has(request.redirect_uri)) {
+      if (mode === 'exchange' && !OFFICIAL_WEARABLE_REDIRECT_URIS.has((request as Record<string, unknown>).redirect_uri as string)) {
         return 'Hosted OAuth redirect_uri is not registered for the official application.';
       }
     }
@@ -149,10 +160,10 @@ export function validateOperatedOAuthPayload(payload) {
 /**
  * Validate the dedicated CAMS envelope. A getbased-operated relay forces the
  * privacy grid even if a hostile client sends more precise coordinates.
- * @param {Record<string, any>} payload
- * @param {{ forcePrivacyRounding?: boolean }} [options]
  */
-export function normalizeCamsRelayPayload(payload, { forcePrivacyRounding = false } = {}) {
+export function normalizeCamsRelayPayload(
+  payload: Record<string, unknown>, { forcePrivacyRounding = false }: { forcePrivacyRounding?: boolean } = {},
+): ProxyValidation<CamsRelayCoordinates> {
   const allowedKeys = new Set(['meteo', 'latitude', 'longitude', 'time']);
   if (!Object.keys(payload).every(key => allowedKeys.has(key))) {
     return { ok: false, error: 'CAMS request contains unsupported fields' };
@@ -169,7 +180,7 @@ export function normalizeCamsRelayPayload(payload, { forcePrivacyRounding = fals
       || (time && !Number.isFinite(Date.parse(time)))) {
     return { ok: false, error: 'Invalid CAMS time' };
   }
-  const round = value => {
+  const round = (value: number) => {
     const rounded = Math.round(value * 10) / 10;
     return Object.is(rounded, -0) ? 0 : rounded;
   };
@@ -181,7 +192,7 @@ export function normalizeCamsRelayPayload(payload, { forcePrivacyRounding = fals
   };
 }
 
-export function isProxyHostBlocked(host) {
+export function isProxyHostBlocked(host: string | null | undefined): boolean {
   if (!host) return true;
   const h = host.startsWith('[') && host.endsWith(']') ? host.slice(1, -1) : host;
   if (h === 'localhost' || h === '127.0.0.1' || h === '::1') return true;
@@ -202,13 +213,13 @@ export function isProxyHostBlocked(host) {
     if (/^fc[0-9a-f]{2}:/.test(lower) || /^fd[0-9a-f]{2}:/.test(lower)) return true;
     if (/^fe[89ab][0-9a-f]:/.test(lower)) return true;
     const v4Embed = lower.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
-    if (v4Embed) return isProxyHostBlocked(v4Embed[1]);
+    if (v4Embed) return isProxyHostBlocked(v4Embed[1]!);
     if (lower.startsWith('::ffff:')) {
       const tail = lower.slice(7);
       const groups = tail.split(':');
       if (groups.length === 2 && groups.every(g => /^[0-9a-f]{1,4}$/.test(g))) {
-        const g0 = parseInt(groups[0], 16);
-        const g1 = parseInt(groups[1], 16);
+        const g0 = parseInt(groups[0]!, 16);
+        const g1 = parseInt(groups[1]!, 16);
         const a = (g0 >> 8) & 0xff;
         const b = g0 & 0xff;
         const c = (g1 >> 8) & 0xff;
@@ -218,8 +229,8 @@ export function isProxyHostBlocked(host) {
     }
     const sixToFour = /^2002:([0-9a-f]{1,4}):([0-9a-f]{1,4})(?::|$)/.exec(lower);
     if (sixToFour) {
-      const g0 = parseInt(sixToFour[1], 16);
-      const g1 = parseInt(sixToFour[2], 16);
+      const g0 = parseInt(sixToFour[1]!, 16);
+      const g1 = parseInt(sixToFour[2]!, 16);
       const a = (g0 >> 8) & 0xff;
       const b = g0 & 0xff;
       const c = (g1 >> 8) & 0xff;
@@ -231,12 +242,12 @@ export function isProxyHostBlocked(host) {
   const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
   if (!m) return false;
   for (let i = 1; i <= 4; i++) {
-    const octet = m[i];
+    const octet = m[i]!;
     if (octet.length > 1 && octet[0] === '0') return true;
     const n = +octet;
     if (n > 255) return true;
   }
-  const a = +m[1], b = +m[2];
+  const a = +m[1]!, b = +m[2]!;
   if (a === 10) return true;
   if (a === 127) return true;
   if (a === 169 && b === 254) return true;
@@ -247,7 +258,7 @@ export function isProxyHostBlocked(host) {
   return false;
 }
 
-export function isAllowedProxyUrl(url) {
+export function isAllowedProxyUrl(url: unknown): url is string {
   if (typeof url !== 'string') return false;
   try {
     const u = new URL(url);
@@ -261,18 +272,18 @@ export function isAllowedProxyUrl(url) {
   }
 }
 
-export function normalizeProxyMethod(method) {
+export function normalizeProxyMethod(method: unknown) {
   const normalized = String(method || 'POST').trim().toUpperCase();
   return PROXY_ALLOWED_METHODS.has(normalized) ? normalized : null;
 }
 
-export function sanitizeProxyHeaders(headers = {}) {
+export function sanitizeProxyHeaders(headers: unknown = {}): ProxyValidation<{ headers: Record<string, string> }> {
   if (headers == null) return { ok: true, headers: {} };
   if (typeof headers !== 'object' || Array.isArray(headers)) {
     return { ok: false, error: 'Proxy headers must be an object' };
   }
-  const out = {};
-  for (const [rawName, rawValue] of Object.entries(headers)) {
+  const out: Record<string, string> = {};
+  for (const [rawName, rawValue] of Object.entries(headers as Record<string, unknown>)) {
     if (rawValue == null) continue;
     const name = String(rawName || '').trim();
     const lower = name.toLowerCase();
@@ -304,25 +315,25 @@ const HOSTED_OURA_PATHS = new Set([
   '/v2/usercollection/heartrate',
 ]);
 
-function lowerCaseHeaders(headers) {
+function lowerCaseHeaders(headers: Record<string, unknown> | null | undefined) {
   return Object.fromEntries(Object.entries(headers || {}).map(([name, value]) => [name.toLowerCase(), value]));
 }
 
-function onlyHeaderNames(headers, allowed) {
+function onlyHeaderNames(headers: Record<string, unknown>, allowed: ReadonlySet<string>) {
   return Object.keys(headers).every(name => allowed.has(name));
 }
 
-function hasBearerAuthorization(headers) {
+function hasBearerAuthorization(headers: Record<string, unknown>) {
   return typeof headers.authorization === 'string'
     && /^Bearer [^\s\r\n]{1,8192}$/.test(headers.authorization);
 }
 
-function hasNoBody(body) {
+function hasNoBody(body: unknown) {
   return body == null || body === '';
 }
 
-function hasOnlyQueryKeys(url, allowed) {
-  const seen = new Set();
+function hasOnlyQueryKeys(url: Pick<URL, 'searchParams'>, allowed: ReadonlySet<string>) {
+  const seen = new Set<string>();
   for (const [key, value] of url.searchParams) {
     if (!allowed.has(key) || seen.has(key) || value.length > 4096) return false;
     seen.add(key);
@@ -330,14 +341,14 @@ function hasOnlyQueryKeys(url, allowed) {
   return true;
 }
 
-function isHostedOuraQuery(url) {
+function isHostedOuraQuery(url: URL) {
   const allowed = url.pathname === '/v2/usercollection/heartrate'
     ? new Set(['start_datetime', 'end_datetime', 'next_token'])
     : new Set(['start_date', 'end_date', 'next_token']);
   return hasOnlyQueryKeys(url, allowed) && !url.hash;
 }
 
-function isHostedWithingsBody(url, body) {
+function isHostedWithingsBody(url: URL, body: string) {
   if (url.search || url.hash) return false;
   const expectedAction = new Map([
     ['/measure', 'getmeas'],
@@ -353,7 +364,7 @@ function isHostedWithingsBody(url, body) {
   return [...params.values()].every(value => value.length <= 4096);
 }
 
-function isHostedFitbitTokenBody(body) {
+function isHostedFitbitTokenBody(body: string) {
   const params = new URLSearchParams(body);
   const grantType = params.get('grant_type');
   const allowed = grantType === 'authorization_code'
@@ -362,17 +373,17 @@ function isHostedFitbitTokenBody(body) {
       ? new Set(['grant_type', 'refresh_token', 'client_id'])
       : null;
   if (!allowed || !hasOnlyQueryKeys({ searchParams: params }, allowed)) return false;
-  if (![...allowed].every(key => params.has(key) && params.get(key).length > 0 && params.get(key).length <= 8192)) return false;
+  if (![...allowed].every(key => params.has(key) && params.get(key)!.length > 0 && params.get(key)!.length <= 8192)) return false;
   if (params.get('client_id') !== '23VBN8') return false;
   if (grantType === 'authorization_code' && !new Set([
     'https://app.getbased.health',
     'https://getbased.health/app',
     'https://beta.getbased.health/',
-  ]).has(params.get('redirect_uri'))) return false;
+  ]).has(params.get('redirect_uri')!)) return false;
   return true;
 }
 
-function isHostedPolarRequest(url, method, headers, body) {
+function isHostedPolarRequest(url: URL, method: string | null, headers: Record<string, unknown>, body: unknown) {
   if (url.origin !== 'https://www.polaraccesslink.com' || url.search || url.hash) return false;
   const segment = '[A-Za-z0-9._~-]+';
   const apiHeaders = new Set(['accept', 'authorization', 'content-type']);
@@ -380,12 +391,12 @@ function isHostedPolarRequest(url, method, headers, body) {
 
   if (method === 'POST' && url.pathname === '/v3/users') {
     try {
-      const parsed = typeof body === 'string' ? JSON.parse(body) : body;
+      const parsed: unknown = typeof body === 'string' ? JSON.parse(body) : body;
       return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
         && Object.keys(parsed).length === 1
-        && typeof parsed['member-id'] === 'string'
-        && parsed['member-id'].length > 0
-        && parsed['member-id'].length <= 255;
+        && typeof (parsed as Record<string, unknown>)['member-id'] === 'string'
+        && (parsed as { 'member-id': string })['member-id'].length > 0
+        && (parsed as { 'member-id': string })['member-id'].length <= 255;
     } catch {
       return false;
     }
@@ -409,7 +420,9 @@ function isHostedPolarRequest(url, method, headers, body) {
  * admitted. Arbitrary authenticated or body-bearing forwarding is reserved
  * for infrastructure controlled by a self-hoster.
  */
-export function classifyHostedProxyRequest({ url: rawUrl, method, headers: rawHeaders, body, purpose }) {
+export function classifyHostedProxyRequest(
+  { url: rawUrl, method, headers: rawHeaders, body, purpose }: HostedProxyRequest,
+): ProxyValidation<{ operation: HostedProxyOperation }> {
   let url;
   try { url = new URL(rawUrl); } catch { return { ok: false, error: 'Hosted proxy URL is invalid' }; }
   const headers = lowerCaseHeaders(rawHeaders);
