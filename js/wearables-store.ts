@@ -1,4 +1,3 @@
-// @ts-check
 // wearables-store.js — L1 IndexedDB for raw wearable daily rows
 //
 // Per-profile database so wearable history doesn't leak across profiles.
@@ -14,6 +13,8 @@
 // Compound key [source, date] — multiple sources coexist per day (Oura +
 // WHOOP + Apple Health on the same 2026-04-22 is three distinct rows).
 
+import type { DeviceLocalEnvelope, PassphraseEnvelope, StoredWearableRow, WearableDeleteOptions, WearablesStoreCryptoDeps, WearableVersionGuard } from './wearable-storage-types.js';
+
 import { queueManualRowWrite } from './wearables-manual-lock.js';
 
 const DB_PREFIX = 'labcharts-wearables-';
@@ -25,29 +26,18 @@ const ALWAYS_DEVICE_ENCRYPTED_SOURCES = new Set(['google_health', 'whoop']);
 const deviceLocalEncoder = new TextEncoder();
 const deviceLocalDecoder = new TextDecoder();
 
-const _dbPromises = new Map();
+const _dbPromises = new Map<string, Promise<IDBDatabase>>();
 
-/**
- * @typedef {{
- *   getEncryptionEnabled: () => boolean,
- *   encryptObject: (value: any) => Promise<any>,
- *   isEncryptedObject: (value: any) => boolean,
- *   decryptObject: (value: any) => Promise<any>,
- * }} WearablesStoreCryptoDeps
- */
-
-/** @type {WearablesStoreCryptoDeps} */
-const wearablesStoreCryptoDeps = {
+const wearablesStoreCryptoDeps: WearablesStoreCryptoDeps = {
   getEncryptionEnabled: () => {
     try { return localStorage.getItem('labcharts-encryption-enabled') === 'true'; } catch { return false; }
   },
   encryptObject: async () => null,
-  isEncryptedObject: value => !!(value && typeof value === 'object' && value._enc === 'v1'),
+  isEncryptedObject: value => !!(value && typeof value === 'object' && (value as PassphraseEnvelope)._enc === 'v1'),
   decryptObject: async () => null,
 };
 
-/** @param {Partial<WearablesStoreCryptoDeps>} [deps] */
-export function configureWearablesStoreCrypto(deps = {}) {
+export function configureWearablesStoreCrypto(deps: Partial<WearablesStoreCryptoDeps> = {}) {
   const previous = { ...wearablesStoreCryptoDeps };
   if (typeof deps.getEncryptionEnabled === 'function') wearablesStoreCryptoDeps.getEncryptionEnabled = deps.getEncryptionEnabled;
   if (typeof deps.encryptObject === 'function') wearablesStoreCryptoDeps.encryptObject = deps.encryptObject;
@@ -56,14 +46,14 @@ export function configureWearablesStoreCrypto(deps = {}) {
   return previous;
 }
 
-function isDeviceLocalAesKey(value) {
+function isDeviceLocalAesKey(value: unknown): value is CryptoKey {
   return !!(value
     && typeof value === 'object'
-    && value.type === 'secret'
-    && value.algorithm?.name === 'AES-GCM');
+    && (value as Partial<CryptoKey>).type === 'secret'
+    && (value as Partial<CryptoKey>).algorithm?.name === 'AES-GCM');
 }
 
-async function withDeviceLocalKeyLock(profileId, callback) {
+async function withDeviceLocalKeyLock<T>(profileId: string, callback: () => T | PromiseLike<T>) {
   const locks = globalThis.navigator?.locks;
   if (locks && typeof locks.request === 'function') {
     return locks.request(`getbased-wearable-device-key:${profileId}`, { mode: 'exclusive' }, callback);
@@ -71,7 +61,7 @@ async function withDeviceLocalKeyLock(profileId, callback) {
   return callback();
 }
 
-async function getOrCreateDeviceLocalKey(profileId) {
+async function getOrCreateDeviceLocalKey(profileId: string) {
   return withDeviceLocalKeyLock(profileId, async () => {
     const existing = await getMeta(profileId, DEVICE_LOCAL_KEY_META);
     if (isDeviceLocalAesKey(existing)) return existing;
@@ -89,7 +79,7 @@ async function getOrCreateDeviceLocalKey(profileId) {
 // Always-on, device-local encryption used for restricted provider data and all
 // wearable credentials. The non-extractable key remains in this profile's
 // wearable IndexedDB and is deliberately excluded from backup/sync paths.
-export async function encryptWearableDeviceLocalValue(profileId, value) {
+export async function encryptWearableDeviceLocalValue(profileId: string, value: unknown): Promise<DeviceLocalEnvelope> {
   const key = await getOrCreateDeviceLocalKey(profileId);
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const plaintext = deviceLocalEncoder.encode(JSON.stringify(value));
@@ -97,7 +87,7 @@ export async function encryptWearableDeviceLocalValue(profileId, value) {
   return { version: 1, iv, ciphertext };
 }
 
-export async function decryptWearableDeviceLocalValue(profileId, envelope) {
+export async function decryptWearableDeviceLocalValue(profileId: string, envelope: DeviceLocalEnvelope | null | undefined): Promise<Record<string, unknown> | null> {
   if (envelope?.version !== 1 || !envelope.iv || !envelope.ciphertext) return null;
   const key = await getMeta(profileId, DEVICE_LOCAL_KEY_META);
   if (!isDeviceLocalAesKey(key)) return null;
@@ -107,22 +97,22 @@ export async function decryptWearableDeviceLocalValue(profileId, envelope) {
       key,
       envelope.ciphertext,
     );
-    const parsed = JSON.parse(deviceLocalDecoder.decode(plaintext));
-    return parsed && typeof parsed === 'object' ? parsed : null;
+    const parsed: unknown = JSON.parse(deviceLocalDecoder.decode(plaintext));
+    return parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : null;
   } catch {
     return null;
   }
 }
 
-function dbNameFor(profileId) {
+function dbNameFor(profileId?: string | null) {
   // Fall back to 'default' so a missing profile id still gets a valid db name.
   return DB_PREFIX + (profileId || 'default');
 }
 
-export function openWearablesDB(profileId) {
+export function openWearablesDB(profileId?: string | null) {
   const name = dbNameFor(profileId);
-  if (_dbPromises.has(name)) return _dbPromises.get(name);
-  const p = new Promise((resolve, reject) => {
+  if (_dbPromises.has(name)) return _dbPromises.get(name)!;
+  const p = new Promise<IDBDatabase>((resolve, reject) => {
     if (typeof indexedDB === 'undefined') {
       reject(new Error('IndexedDB not available'));
       return;
@@ -152,7 +142,7 @@ export function openWearablesDB(profileId) {
 
 // Evict the cached promise so a subsequent open reconnects — useful after
 // close() or when Safari evicts storage.
-export function resetWearablesDB(profileId) {
+export function resetWearablesDB(profileId?: string | null) {
   _dbPromises.delete(dbNameFor(profileId));
 }
 
@@ -160,9 +150,8 @@ export function resetWearablesDB(profileId) {
 // Row CRUD
 // ─────────────────────────────────────────────────────────
 
-function txPromise(tx) {
-  /** @type {Promise<void>} */
-  const complete = new Promise((resolve, reject) => {
+function txPromise(tx: IDBTransaction) {
+  const complete = new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error || new Error('Transaction aborted'));
@@ -181,7 +170,7 @@ function txPromise(tx) {
 // silently degrading the at-rest guarantee. Callers can catch and queue
 // the write; better than landing cleartext rows in an "encrypted at rest"
 // IDB without telling anyone.
-async function _encryptRowIfEnabled(row) {
+async function _encryptRowIfEnabled(row: StoredWearableRow): Promise<StoredWearableRow> {
   if (!wearablesStoreCryptoDeps.getEncryptionEnabled()) return row;
   // Already-encrypted rows (e.g. from a backup-restore RAW path) pass through
   // untouched. Note: when encryption is OFF we DON'T hit this branch because
@@ -195,15 +184,14 @@ async function _encryptRowIfEnabled(row) {
     // silently writing cleartext. The error propagates up to the adapter
     // sync orchestrator, which logs + shows a toast asking the user to
     // unlock. Better than silent downgrade.
-    /** @type {Error & { code?: string }} */
-    const e = new Error('Wearable storage is encrypted; unlock with your passphrase before syncing.');
+    const e: Error & { code?: string } = new Error('Wearable storage is encrypted; unlock with your passphrase before syncing.');
     e.code = 'session-locked';
     throw e;
   }
   return { source, date, _payload: env };
 }
 
-async function _prepareRowForStorage(profileId, row) {
+async function _prepareRowForStorage(profileId: string, row: StoredWearableRow): Promise<StoredWearableRow> {
   let prepared = row;
   if (ALWAYS_DEVICE_ENCRYPTED_SOURCES.has(row?.source) && !row?._devicePayload) {
     const { source, date, _payload, ...rest } = row;
@@ -223,7 +211,7 @@ async function _prepareRowForStorage(profileId, row) {
   return _encryptRowIfEnabled(prepared);
 }
 
-async function _decryptRowIfWrapped(profileId, row) {
+async function _decryptRowIfWrapped(profileId: string, row: StoredWearableRow | null): Promise<StoredWearableRow | null> {
   if (!row) return row;
   let unwrapped = row;
   if (row._payload) {
@@ -249,7 +237,7 @@ async function _decryptRowIfWrapped(profileId, row) {
   return unwrapped;
 }
 
-export async function upsertDaily(profileId, row) {
+export async function upsertDaily(profileId: string, row: StoredWearableRow) {
   if (!row || !row.source || !row.date) throw new Error('upsertDaily requires {source, date}');
   const stamped = { importedAt: Date.now(), ...row };
   const towrite = await _prepareRowForStorage(profileId, stamped);
@@ -263,7 +251,7 @@ export async function upsertDaily(profileId, row) {
 // the last metric field on a row is cleared — otherwise stub rows pile up
 // in IDB and sources.coverageDays over-counts. Idempotent (silent on
 // missing key).
-export async function deleteDaily(profileId, source, date) {
+export async function deleteDaily(profileId: string, source: string, date: string) {
   const db = await openWearablesDB(profileId);
   const tx = db.transaction(STORE_DAILY, 'readwrite');
   tx.objectStore(STORE_DAILY).delete([source, date]);
@@ -278,28 +266,23 @@ export async function deleteDaily(profileId, source, date) {
 // new for weight but does for sleep) must not blank the fields it didn't
 // fetch. Special-cased: `source`, `date`, `importedAt`, `tags` always come
 // from the incoming row. Mirrors `_mergeManualRow` semantics.
-function _mergeRow(existing, incoming) {
+function _mergeRow(existing: StoredWearableRow | null, incoming: StoredWearableRow): StoredWearableRow {
   if (!existing) return incoming;
   const out = { ...existing };
   for (const [k, v] of Object.entries(incoming)) {
-    if (k === 'source' || k === 'date') { out[k] = v; continue; }
-    if (k === 'importedAt') { out[k] = v; continue; }
-    if (k === 'tags') { out[k] = v; continue; }
+    if (k === 'source' || k === 'date') { out[k] = v as string; continue; }
+    if (k === 'importedAt') { out[k] = v as string; continue; }
+    if (k === 'tags') { out[k] = v as string; continue; }
     if (v === null || v === undefined) continue; // preserve existing
     out[k] = v;
   }
   return out;
 }
 
-/**
- * @param {string} profileId
- * @param {any[]} rows
- * @param {{ versionKey: string, expectedVersion: number } | null} [versionGuard]
- */
-export async function upsertDailyBatch(profileId, rows, versionGuard = null) {
+export async function upsertDailyBatch(profileId: string, rows: readonly (StoredWearableRow | null | undefined)[], versionGuard: WearableVersionGuard | null = null) {
   if (!rows || rows.length === 0) return false;
   const stamp = Date.now();
-  const cleaned = rows.filter(r => r && r.source && r.date);
+  const cleaned = rows.filter(r => r && r.source && r.date) as StoredWearableRow[];
   if (cleaned.length === 0) return false;
   const db = await openWearablesDB(profileId);
 
@@ -311,14 +294,14 @@ export async function upsertDailyBatch(profileId, rows, versionGuard = null) {
   // because (a) wearable syncs are serialized via _syncing/_pulling
   // guards upstream, (b) we're protecting against the much more common
   // partial-fetch overwrite.
-  const existingRows = await new Promise((resolve, reject) => {
+  const existingRows = await new Promise<Map<string, StoredWearableRow>>((resolve, reject) => {
     const tx = db.transaction(STORE_DAILY, 'readonly');
     const store = tx.objectStore(STORE_DAILY);
-    const out = new Map();
+    const out = new Map<string, StoredWearableRow>();
     let pending = cleaned.length;
     if (pending === 0) return resolve(out);
     for (const incoming of cleaned) {
-      const req = store.get([incoming.source, incoming.date]);
+      const req: IDBRequest<StoredWearableRow | undefined> = store.get([incoming.source, incoming.date]);
       req.onsuccess = () => {
         if (req.result) out.set(`${incoming.source}|${incoming.date}`, req.result);
         if (--pending === 0) resolve(out);
@@ -328,7 +311,7 @@ export async function upsertDailyBatch(profileId, rows, versionGuard = null) {
   });
 
   // Decrypt existing rows + build merged payloads (await-friendly outside tx)
-  const towrite = [];
+  const towrite: StoredWearableRow[] = [];
   for (const incoming of cleaned) {
     const key = `${incoming.source}|${incoming.date}`;
     const existing = existingRows.get(key);
@@ -347,10 +330,10 @@ export async function upsertDailyBatch(profileId, rows, versionGuard = null) {
   let written = !versionGuard;
   const putRows = () => { for (const row of towrite) dailyStore.put(row); };
   if (versionGuard) {
-    const request = tx.objectStore(STORE_META).get(versionGuard.versionKey);
+    const request: IDBRequest<{ v?: unknown } | undefined> = tx.objectStore(STORE_META).get(versionGuard.versionKey);
     request.onsuccess = () => {
       const rawVersion = request.result?.v;
-      const version = Number.isSafeInteger(rawVersion) ? rawVersion : 0;
+      const version = Number.isSafeInteger(rawVersion) ? rawVersion as number : 0;
       if (version !== versionGuard.expectedVersion) return;
       putRows();
       written = true;
@@ -362,11 +345,11 @@ export async function upsertDailyBatch(profileId, rows, versionGuard = null) {
   return written;
 }
 
-export async function getDaily(profileId, source, date) {
+export async function getDaily(profileId: string, source: string, date: string) {
   const db = await openWearablesDB(profileId);
-  const raw = await new Promise((resolve, reject) => {
+  const raw = await new Promise<StoredWearableRow | null>((resolve, reject) => {
     const tx = db.transaction(STORE_DAILY, 'readonly');
-    const req = tx.objectStore(STORE_DAILY).get([source, date]);
+    const req: IDBRequest<StoredWearableRow | undefined> = tx.objectStore(STORE_DAILY).get([source, date]);
     req.onsuccess = () => resolve(req.result || null);
     req.onerror = () => reject(req.error);
   });
@@ -381,17 +364,13 @@ export async function getDaily(profileId, source, date) {
   return _decryptRowIfWrapped(profileId, raw);
 }
 
-// Raw range read — returns rows AS STORED in IDB without decrypt. Used by
-// the backup snapshot path so encrypted rows survive the round-trip
-// AS-WRAPPERS instead of being decrypted into the snapshot in plaintext
-// (which would silently downgrade the at-rest encryption guarantee).
-export async function getDailyRangeRaw(profileId, source, startDate, endDate) {
-  const db = await openWearablesDB(profileId);
-  return new Promise((resolve, reject) => {
+// One cursor implementation keeps raw backup and decrypted range boundaries aligned.
+function readDailyRange(db: IDBDatabase, source: string, startDate: string, endDate: string) {
+  return new Promise<StoredWearableRow[]>((resolve, reject) => {
     const tx = db.transaction(STORE_DAILY, 'readonly');
     const store = tx.objectStore(STORE_DAILY);
     const keyRange = IDBKeyRange.bound([source, startDate], [source, endDate]);
-    const rows = [];
+    const rows: StoredWearableRow[] = [];
     const req = store.openCursor(keyRange);
     req.onsuccess = () => {
       const cursor = req.result;
@@ -402,28 +381,37 @@ export async function getDailyRangeRaw(profileId, source, startDate, endDate) {
   });
 }
 
-export async function getAllDailyRaw(profileId) {
+// Raw range read — returns rows AS STORED in IDB without decrypt. Used by
+// the backup snapshot path so encrypted rows survive the round-trip
+// AS-WRAPPERS instead of being decrypted into the snapshot in plaintext
+// (which would silently downgrade the at-rest encryption guarantee).
+export async function getDailyRangeRaw(profileId: string, source: string, startDate: string, endDate: string) {
   const db = await openWearablesDB(profileId);
-  return new Promise((resolve, reject) => {
+  return readDailyRange(db, source, startDate, endDate);
+}
+
+export async function getAllDailyRaw(profileId: string) {
+  const db = await openWearablesDB(profileId);
+  return new Promise<StoredWearableRow[]>((resolve, reject) => {
     const tx = db.transaction(STORE_DAILY, 'readonly');
-    const req = tx.objectStore(STORE_DAILY).getAll();
+    const req: IDBRequest<StoredWearableRow[]> = tx.objectStore(STORE_DAILY).getAll();
     req.onsuccess = () => resolve(req.result || []);
     req.onerror = () => reject(req.error);
   });
 }
 
 // Read all sources without returning encrypted envelopes or connection credentials.
-export async function getDailyForReport(profileId, startDate = null, endDate = null) {
+export async function getDailyForReport(profileId: string, startDate: string | null = null, endDate: string | null = null) {
   const raw = (await getAllDailyRaw(profileId)).filter(row => (!startDate || row.date >= startDate) && (!endDate || row.date <= endDate));
   const rows = await Promise.all(raw.map(row => _decryptRowIfWrapped(profileId, row)));
-  return { rows: rows.filter(Boolean), unavailable: rows.filter(row => !row).length };
+  return { rows: rows.filter(Boolean) as StoredWearableRow[], unavailable: rows.filter(row => !row).length };
 }
 
 // Raw write — accepts rows AS-IS without re-encrypting. Used by the
 // backup-restore path so wrapped rows go back into IDB untouched. Restricted
 // provider sources are excluded because their device key never leaves the
 // source device.
-export async function upsertDailyBatchRaw(profileId, rows) {
+export async function upsertDailyBatchRaw(profileId: string, rows: readonly (StoredWearableRow | null | undefined)[]) {
   if (!rows || rows.length === 0) return;
   const write = async () => {
     const db = await openWearablesDB(profileId);
@@ -445,21 +433,9 @@ export async function upsertDailyBatchRaw(profileId, rows) {
 
 // Inclusive range query for ONE source. ISO dates; lexicographic order matches
 // chronological because format is YYYY-MM-DD.
-export async function getDailyRange(profileId, source, startDate, endDate) {
+export async function getDailyRange(profileId: string, source: string, startDate: string, endDate: string) {
   const db = await openWearablesDB(profileId);
-  const raws = await new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_DAILY, 'readonly');
-    const store = tx.objectStore(STORE_DAILY);
-    const keyRange = IDBKeyRange.bound([source, startDate], [source, endDate]);
-    const rows = [];
-    const req = store.openCursor(keyRange);
-    req.onsuccess = () => {
-      const cursor = req.result;
-      if (cursor) { rows.push(cursor.value); cursor.continue(); }
-      else resolve(rows);
-    };
-    req.onerror = () => reject(req.error);
-  });
+  const raws = await readDailyRange(db, source, startDate, endDate);
   // Upgrade legacy restricted-provider rows before returning their plaintext
   // view. Plaintext rows from unrestricted sources pass through untouched;
   // encrypted rows unwrap. Any single-row decrypt failure (session locked / corrupt)
@@ -478,9 +454,9 @@ export async function getDailyRange(profileId, source, startDate, endDate) {
 }
 
 // Count rows for a given source (fast sanity check, also used by Safari-eviction recovery).
-export async function countSource(profileId, source) {
+export async function countSource(profileId: string, source: string) {
   const db = await openWearablesDB(profileId);
-  return new Promise((resolve, reject) => {
+  return new Promise<number>((resolve, reject) => {
     const tx = db.transaction(STORE_DAILY, 'readonly');
     const idx = tx.objectStore(STORE_DAILY).index('by_source');
     const req = idx.count(IDBKeyRange.only(source));
@@ -490,7 +466,7 @@ export async function countSource(profileId, source) {
 }
 
 // Wipe every row for a source — used by "disconnect wearable" action.
-export async function clearSource(profileId, source) {
+export async function clearSource(profileId: string, source: string) {
   const db = await openWearablesDB(profileId);
   const tx = db.transaction(STORE_DAILY, 'readwrite');
   const idx = tx.objectStore(STORE_DAILY).index('by_source');
@@ -506,12 +482,12 @@ export async function clearSource(profileId, source) {
 // Meta KV (last-sync cursors, token fingerprints, one-off flags)
 // ─────────────────────────────────────────────────────────
 
-export async function getMeta(profileId, key) {
+export async function getMeta<T = unknown>(profileId: string, key: string) {
   const db = await openWearablesDB(profileId);
   const tx = db.transaction(STORE_META, 'readonly');
   const done = txPromise(tx);
-  const value = await new Promise((resolve, reject) => {
-    const req = tx.objectStore(STORE_META).get(key);
+  const value = await new Promise<T | null>((resolve, reject) => {
+    const req: IDBRequest<{ v: T } | undefined> = tx.objectStore(STORE_META).get(key);
     req.onsuccess = () => resolve(req.result ? req.result.v : null);
     req.onerror = () => reject(req.error);
   });
@@ -519,14 +495,14 @@ export async function getMeta(profileId, key) {
   return value;
 }
 
-export async function setMeta(profileId, key, value) {
+export async function setMeta(profileId: string, key: string, value: unknown) {
   const db = await openWearablesDB(profileId);
   const tx = db.transaction(STORE_META, 'readwrite');
   tx.objectStore(STORE_META).put({ k: key, v: value, updatedAt: Date.now() });
   return txPromise(tx);
 }
 
-export async function deleteMeta(profileId, key) {
+export async function deleteMeta(profileId: string, key: string) {
   const db = await openWearablesDB(profileId);
   const tx = db.transaction(STORE_META, 'readwrite');
   tx.objectStore(STORE_META).delete(key);
@@ -535,31 +511,31 @@ export async function deleteMeta(profileId, key) {
 
 // Version-guarded meta operations use one IndexedDB transaction so separate
 // tabs remain ordered even when the Web Locks API is unavailable.
-export async function getMetaVersioned(profileId, key, versionKey) {
+export async function getMetaVersioned<T = unknown>(profileId: string, key: string, versionKey: string) {
   const db = await openWearablesDB(profileId);
   const tx = db.transaction(STORE_META, 'readonly');
   const done = txPromise(tx);
   const store = tx.objectStore(STORE_META);
-  const read = request => new Promise((resolve, reject) => {
+  const read = <V = unknown>(request: IDBRequest<{ v?: V } | undefined>) => new Promise<V | null>((resolve, reject) => {
     request.onsuccess = () => resolve(request.result?.v ?? null);
     request.onerror = () => reject(request.error);
   });
-  const [value, rawVersion] = await Promise.all([read(store.get(key)), read(store.get(versionKey))]);
+  const [value, rawVersion] = await Promise.all([read<T>(store.get(key)), read(store.get(versionKey))]);
   await done;
-  return { value, version: Number.isSafeInteger(rawVersion) ? rawVersion : 0 };
+  return { value, version: Number.isSafeInteger(rawVersion) ? rawVersion as number : 0 };
 }
 
-export async function setMetaVersioned(profileId, key, value, versionKey, expectedVersion = null) {
+export async function setMetaVersioned(profileId: string, key: string, value: unknown, versionKey: string, expectedVersion: number | null = null) {
   const db = await openWearablesDB(profileId);
   const tx = db.transaction(STORE_META, 'readwrite');
   const done = txPromise(tx);
   const store = tx.objectStore(STORE_META);
   let saved = false;
   let version = 0;
-  const request = store.get(versionKey);
+  const request: IDBRequest<{ v?: unknown } | undefined> = store.get(versionKey);
   request.onsuccess = () => {
     const rawVersion = request.result?.v;
-    version = Number.isSafeInteger(rawVersion) ? rawVersion : 0;
+    version = Number.isSafeInteger(rawVersion) ? rawVersion as number : 0;
     if (expectedVersion !== null && version !== expectedVersion) return;
     store.put({ k: key, v: value, updatedAt: Date.now() });
     saved = true;
@@ -574,22 +550,18 @@ export async function setMetaVersioned(profileId, key, value, versionKey, expect
  * with guarded restricted-provider writes means either the stale write lands first
  * and is then deleted, or the version bump lands first and rejects it.
  *
- * @param {string} profileId
- * @param {string} key
- * @param {string} versionKey
- * @param {{ source?: string | null, metaKeys?: string[], metaWrites?: Record<string, any> }} [options]
  */
-export async function bumpMetaVersionAndDelete(profileId, key, versionKey, options = {}) {
+export async function bumpMetaVersionAndDelete(profileId: string, key: string, versionKey: string, options: WearableDeleteOptions = {}) {
   const db = await openWearablesDB(profileId);
   const source = options.source || null;
   const tx = db.transaction(source ? [STORE_META, STORE_DAILY] : STORE_META, 'readwrite');
   const done = txPromise(tx);
   const store = tx.objectStore(STORE_META);
   let version = 1;
-  const request = store.get(versionKey);
+  const request: IDBRequest<{ v?: unknown } | undefined> = store.get(versionKey);
   request.onsuccess = () => {
     const rawVersion = request.result?.v;
-    version = (Number.isSafeInteger(rawVersion) ? rawVersion : 0) + 1;
+    version = (Number.isSafeInteger(rawVersion) ? rawVersion as number : 0) + 1;
     store.put({ k: versionKey, v: version, updatedAt: Date.now() });
     store.delete(key);
     for (const metaKey of options.metaKeys || []) store.delete(metaKey);
@@ -612,7 +584,7 @@ export async function bumpMetaVersionAndDelete(profileId, key, versionKey, optio
 
 // Delete the entire wearable database for this profile — used by the nuke
 // path in Settings → Data and by deleteProfile.
-export async function deleteWearablesDB(profileId) {
+export async function deleteWearablesDB(profileId?: string | null) {
   // Close the cached connection first — a held-open connection blocks
   // indexedDB.deleteDatabase. Without this, the delete fires `onblocked`
   // and the actual disk-level removal waits until every tab closes.
@@ -622,8 +594,7 @@ export async function deleteWearablesDB(profileId) {
     try { (await cached)?.close?.(); } catch { /* connection might be in error state */ }
   }
   resetWearablesDB(profileId);
-  /** @type {Promise<void>} */
-  const deleted = new Promise((resolve, reject) => {
+  const deleted = new Promise<void>((resolve, reject) => {
     const req = indexedDB.deleteDatabase(name);
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);

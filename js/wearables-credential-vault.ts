@@ -1,4 +1,3 @@
-// @ts-check
 // wearables-credential-vault.js — always-encrypted, device-local app secrets
 //
 // Every wearable connection is treated as sensitive. The normal wearable
@@ -9,6 +8,10 @@
 // Neither the key nor the encrypted token envelope is included in profile
 // sync or backups. Moving to another browser therefore requires reconnecting,
 // which is preferable to copying a reusable health-data credential.
+
+import type { DeviceLocalEnvelope, WearableDeleteOptions } from './wearable-storage-types.js';
+
+interface CredentialInput { accessToken?: unknown; refreshToken?: unknown; credentialGeneration?: unknown }
 
 import {
   bumpMetaVersionAndDelete,
@@ -28,17 +31,17 @@ export const VAULTED_CREDENTIAL_ADAPTERS = new Set([
   'oura', 'whoop', 'withings', 'ultrahuman', 'fitbit', 'google_health', 'polar',
 ]);
 
-export function usesWearableCredentialVault(adapterId) {
+export function usesWearableCredentialVault(adapterId: string) {
   return VAULTED_CREDENTIAL_ADAPTERS.has(adapterId);
 }
 
-function vaultBytesToBase64(bytes) {
+function vaultBytesToBase64(bytes: Uint8Array) {
   let binary = '';
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary);
 }
 
-function vaultBytesFromBase64(value) {
+function vaultBytesFromBase64(value: string) {
   const binary = atob(value);
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
@@ -48,7 +51,7 @@ function vaultBytesFromBase64(value) {
 // General app credentials share the proven non-extractable wearable vault
 // primitive but use a dedicated device-local profile database. Including the
 // storage key inside the authenticated payload prevents envelope substitution.
-export async function encryptDeviceCredential(storageKey, plaintext) {
+export async function encryptDeviceCredential(storageKey: string, plaintext: unknown) {
   const envelope = await encryptWearableDeviceLocalValue(APP_CREDENTIAL_PROFILE_ID, {
     storageKey,
     plaintext: String(plaintext),
@@ -56,15 +59,15 @@ export async function encryptDeviceCredential(storageKey, plaintext) {
   return `d1:${vaultBytesToBase64(envelope.iv)}:${vaultBytesToBase64(new Uint8Array(envelope.ciphertext))}`;
 }
 
-export async function decryptDeviceCredential(storageKey, value) {
+export async function decryptDeviceCredential(storageKey: string, value: unknown) {
   if (typeof value !== 'string' || !value.startsWith('d1:')) return null;
   const parts = value.split(':');
   if (parts.length !== 3) return null;
   try {
     const decrypted = await decryptWearableDeviceLocalValue(APP_CREDENTIAL_PROFILE_ID, {
       version: 1,
-      iv: vaultBytesFromBase64(parts[1]),
-      ciphertext: vaultBytesFromBase64(parts[2]),
+      iv: vaultBytesFromBase64(parts[1]!),
+      ciphertext: vaultBytesFromBase64(parts[2]!),
     });
     return decrypted?.storageKey === storageKey && typeof decrypted.plaintext === 'string'
       ? decrypted.plaintext
@@ -75,29 +78,28 @@ export async function decryptDeviceCredential(storageKey, value) {
 }
 
 export function wearableCredentialDisconnectedError(displayName = 'Wearable') {
-  /** @type {Error & { code?: string }} */
-  const error = new Error(`${displayName} is disconnected.`);
+  const error: Error & { code?: string } = new Error(`${displayName} is disconnected.`);
   error.code = 'disconnected';
   return error;
 }
 
-function recordKey(adapterId) {
+function recordKey(adapterId: string) {
   return `${RECORD_PREFIX}${adapterId}`;
 }
 
-function generationKey(adapterId) {
+function generationKey(adapterId: string) {
   return `${GENERATION_PREFIX}${adapterId}`;
 }
 
-export function wearableCredentialGenerationKey(adapterId) {
+export function wearableCredentialGenerationKey(adapterId: string) {
   return generationKey(adapterId);
 }
 
-function normalizedGeneration(value) {
-  return Number.isSafeInteger(value) && value >= 0 ? value : 0;
+function normalizedGeneration(value: unknown): number {
+  return Number.isSafeInteger(value) && (value as number) >= 0 ? value as number : 0;
 }
 
-export function hasLocalWearableCredential(profileId, adapterId, generation, fallback = false) {
+export function hasLocalWearableCredential(profileId: string, adapterId: string, generation: unknown, fallback = false) {
   try {
     const expected = normalizedGeneration(generation);
     const marker = localStorage.getItem(`${LOCAL_MARKER_PREFIX}${profileId}:${adapterId}`);
@@ -107,7 +109,7 @@ export function hasLocalWearableCredential(profileId, adapterId, generation, fal
   } catch { return fallback; }
 }
 
-export function markLocalWearableCredential(profileId, adapterId, generation) {
+export function markLocalWearableCredential(profileId: string, adapterId: string, generation: unknown) {
   const next = normalizedGeneration(generation);
   const generationKeyName = `${LOCAL_GENERATION_PREFIX}${profileId}:${adapterId}`;
   const rawCurrent = Number(localStorage.getItem(generationKeyName));
@@ -118,7 +120,7 @@ export function markLocalWearableCredential(profileId, adapterId, generation) {
   return true;
 }
 
-export function clearLocalWearableCredential(profileId, adapterId, generation) {
+export function clearLocalWearableCredential(profileId: string, adapterId: string, generation: unknown) {
   const next = normalizedGeneration(generation);
   const generationKeyName = `${LOCAL_GENERATION_PREFIX}${profileId}:${adapterId}`;
   const rawCurrent = Number(localStorage.getItem(generationKeyName));
@@ -128,13 +130,12 @@ export function clearLocalWearableCredential(profileId, adapterId, generation) {
 }
 
 function staleCredentialWriteError() {
-  /** @type {Error & { code?: string }} */
-  const error = new Error('Connection was removed while credentials were being refreshed.');
+  const error: Error & { code?: string } = new Error('Connection was removed while credentials were being refreshed.');
   error.code = 'disconnected';
   return error;
 }
 
-async function withVaultLock(profileId, callback) {
+async function withVaultLock<T>(profileId: string, callback: () => T | PromiseLike<T>) {
   const locks = globalThis.navigator?.locks;
   if (locks && typeof locks.request === 'function') {
     return locks.request(`getbased-wearable-credential-vault:${profileId}`, { mode: 'exclusive' }, callback);
@@ -142,7 +143,7 @@ async function withVaultLock(profileId, callback) {
   return callback();
 }
 
-export async function saveWearableCredentials(profileId, adapterId, credentials) {
+export async function saveWearableCredentials(profileId: string, adapterId: string, credentials: CredentialInput) {
   if (!profileId || !adapterId) throw new Error('Credential vault requires a profile and adapter.');
   if (!credentials?.accessToken && !credentials?.refreshToken) {
     throw new Error('Credential vault requires an access or refresh token.');
@@ -153,7 +154,7 @@ export async function saveWearableCredentials(profileId, adapterId, credentials)
       refreshToken: credentials.refreshToken || null,
     });
     const expectedGeneration = Number.isSafeInteger(credentials.credentialGeneration)
-      ? credentials.credentialGeneration
+      ? credentials.credentialGeneration as number
       : null;
     const result = await setMetaVersioned(profileId, recordKey(adapterId), {
       ...encrypted,
@@ -163,9 +164,9 @@ export async function saveWearableCredentials(profileId, adapterId, credentials)
   });
 }
 
-export async function loadWearableCredentials(profileId, adapterId) {
+export async function loadWearableCredentials(profileId: string, adapterId: string) {
   if (!profileId || !adapterId) return null;
-  const snapshot = await getMetaVersioned(profileId, recordKey(adapterId), generationKey(adapterId));
+  const snapshot = await getMetaVersioned<DeviceLocalEnvelope>(profileId, recordKey(adapterId), generationKey(adapterId));
   const parsed = await decryptWearableDeviceLocalValue(profileId, snapshot.value);
   if (!parsed) return null;
   return {
@@ -175,7 +176,7 @@ export async function loadWearableCredentials(profileId, adapterId) {
   };
 }
 
-export async function deleteWearableCredentials(profileId, adapterId, options = {}) {
+export async function deleteWearableCredentials(profileId: string, adapterId: string, options: WearableDeleteOptions = {}): Promise<number | void> {
   if (!profileId || !adapterId) return;
   return withVaultLock(profileId, () => bumpMetaVersionAndDelete(
     profileId,

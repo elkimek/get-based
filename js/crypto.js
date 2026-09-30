@@ -452,6 +452,7 @@ export async function encryptedGetItem(key) {
     raw = localStorage.getItem(key);
   }
   if (raw == null) return null;
+  /** @type {string | null} */
   let plaintext = raw;
   if (isDeviceCredentialValue(raw)) {
     plaintext = await decryptDeviceCredential(key, raw);

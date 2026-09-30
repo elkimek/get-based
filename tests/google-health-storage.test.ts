@@ -16,7 +16,8 @@ import {
   setMeta,
   upsertDailyBatch,
 } from '../js/wearables-store.js';
-import { computeWearableSummary } from '../js/wearables-summary.js';
+import { computeWearableSummary } from '../js/wearables-summary-model.js';
+import type { DeviceLocalEnvelope } from '../js/wearable-storage-types.js';
 
 const realFetch = globalThis.fetch;
 
@@ -38,10 +39,10 @@ describe('Google Health privacy and source precedence', () => {
     });
     expect(initialGeneration).toBe(0);
 
-    const stored = await getMeta(profileId, 'credential-vault-record:v1:google_health');
+    const stored = await getMeta<DeviceLocalEnvelope>(profileId, 'credential-vault-record:v1:google_health');
     expect(stored).toMatchObject({ version: 1 });
-    expect(stored.iv).toBeInstanceOf(Uint8Array);
-    expect(stored.ciphertext).toBeInstanceOf(ArrayBuffer);
+    expect(stored!.iv).toBeInstanceOf(Uint8Array);
+    expect(stored!.ciphertext).toBeInstanceOf(ArrayBuffer);
     expect(JSON.stringify(stored)).not.toContain('plaintext-must-not-leak');
     await expect(loadWearableCredentials(profileId, 'google_health')).resolves.toEqual({
       accessToken: 'access-plaintext-must-not-leak',
@@ -135,9 +136,9 @@ describe('Google Health privacy and source precedence', () => {
       oura: { connectedSince: '2026-07-01', lastSyncAt: 1 },
     };
 
-    expect(computeWearableSummary(rows, connections).metrics.hrv_rmssd.primarySource).toBe('oura');
+    expect(computeWearableSummary(rows, connections).metrics.hrv_rmssd!.primarySource).toBe('oura');
     expect(computeWearableSummary(rows, connections, { hrv_rmssd: 'google_health' })
-      .metrics.hrv_rmssd.primarySource).toBe('google_health');
+      .metrics.hrv_rmssd!.primarySource).toBe('google_health');
 
     const migrationRows = {
       google_health: rows.google_health,
@@ -147,9 +148,9 @@ describe('Google Health privacy and source precedence', () => {
       google_health: connections.google_health,
       fitbit: { connectedSince: '2026-07-01', lastSyncAt: 1 },
     };
-    expect(computeWearableSummary(migrationRows, migrationConnections).metrics.hrv_rmssd.primarySource)
+    expect(computeWearableSummary(migrationRows, migrationConnections).metrics.hrv_rmssd!.primarySource)
       .toBe('google_health');
     expect(computeWearableSummary(migrationRows, migrationConnections, { hrv_rmssd: 'fitbit' })
-      .metrics.hrv_rmssd.primarySource).toBe('fitbit');
+      .metrics.hrv_rmssd!.primarySource).toBe('fitbit');
   });
 });

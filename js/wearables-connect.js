@@ -552,7 +552,7 @@ export async function incrementalSyncWearable(adapterId, { force = false } = {})
   if (!connectionHasCredentials(adapterId, conn)) return { skipped: true, reason: 'not-connected' };
   const profileId = getActiveProfileId();
 
-  const lastSync = await getMeta(profileId, `last-sync:${adapterId}`);
+  const lastSync = /** @type {{ endDate?: string, at?: number } | null} */ (await getMeta(profileId, `last-sync:${adapterId}`));
   const fallbackStart = daysAgoIso(7);
   // Always use AT LEAST a 7-day sync range. When `lastSync.endDate` is already
   // today (because the user synced earlier the same day), the previous

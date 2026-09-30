@@ -53,7 +53,7 @@ export async function clearPendingWearableDisconnect(profileId, adapterId) {
 export async function recoverPendingWearableDisconnect(profileId, importedData) {
   if (!profileId || !importedData || typeof importedData !== 'object') return false;
   const adapterId = 'google_health';
-  const pending = await getMeta(profileId, pendingWearableDisconnectMetaKey(adapterId)).catch(() => null);
+  const pending = /** @type {{ adapterId?: unknown, deleteData?: unknown } | null} */ (await getMeta(profileId, pendingWearableDisconnectMetaKey(adapterId)).catch(() => null));
   if (!pending || pending.adapterId !== adapterId) return false;
   applyWearableDisconnectToProfile(importedData, adapterId, {
     deleteData: pending.deleteData !== false,

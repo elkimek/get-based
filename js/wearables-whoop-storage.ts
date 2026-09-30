@@ -1,4 +1,3 @@
-// @ts-check
 // wearables-whoop-storage.js — device-only protection for WHOOP profile data
 //
 // Raw WHOOP rows already live in the wearable L1 database. A smaller amount
@@ -9,12 +8,40 @@
 // normal runtime shape is restored transparently after reads, whether or not
 // the remaining profile blob also has optional passphrase protection.
 
+import type { DeviceLocalEnvelope, StoredWearableRow } from './wearable-storage-types.js';
+interface WearableProfileSummary extends Record<string, unknown> {
+  sources?: Record<string, unknown>;
+  metrics?: Record<string, { primarySource?: unknown } | null>;
+}
+interface WearableProfileEvent extends Record<string, unknown> { type?: unknown; source?: unknown; ts?: unknown }
+interface WearableProfileData extends Record<string, unknown> {
+  wearableConnections?: Record<string, unknown>;
+  wearableSummary?: WearableProfileSummary;
+  wearablePrimaryOverride?: Record<string, unknown>;
+  changeHistory?: WearableProfileEvent[];
+}
+interface ProtectedWhoopData extends Record<string, unknown> {
+  version: number;
+  connection?: unknown;
+  summary?: { source?: unknown; metrics?: WearableProfileSummary['metrics'] };
+  primaryOverride?: Record<string, unknown>;
+  changeHistory?: WearableProfileEvent[];
+}
+interface WhoopStorageDeps {
+  encryptWearableDeviceLocalValue: (profileId: string, value: unknown) => Promise<DeviceLocalEnvelope>;
+  decryptWearableDeviceLocalValue: (profileId: string, envelope: DeviceLocalEnvelope | null) => Promise<Record<string, unknown> | null>;
+  openWearablesDB: (profileId: string) => Promise<IDBDatabase>;
+  getMeta: (profileId: string, key: string) => Promise<unknown>;
+  setMeta: (profileId: string, key: string, value: unknown) => Promise<void>;
+  deleteMeta: (profileId: string, key: string) => Promise<void>;
+}
+
 export const WHOOP_PROFILE_DATA_META = 'whoop-profile-data:v1';
 const DEVICE_PROTECTED_WEARABLE_MARKER = '_deviceProtectedWearableProfile';
 const DEVICE_PROTECTED_WEARABLE_VERSION = 'v1';
 const WHOOP_SOURCE_TOKEN = '"whoop"';
 const WHOOP_STORAGE_MARKER_TOKEN = `"${DEVICE_PROTECTED_WEARABLE_MARKER}"`;
-const migratedSourcesByDatabase = new WeakMap();
+const migratedSourcesByDatabase = new WeakMap<IDBDatabase, Set<string>>();
 
 export const WHOOP_CONNECT_DISCLOSURE = `WHOOP will let getbased read your basic profile plus physiological cycle, recovery, sleep, and workout data. No write access is requested.
 
@@ -24,30 +51,30 @@ By continuing, you authorize this deployment to access and store those WHOOP rea
 
 Disconnecting deletes this device's WHOOP credentials, imported rows, and derived source data. Revoke the app in WHOOP to stop access granted to this developer application.`;
 
-function isRecord(value) {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
-function parseImportedValue(value) {
+function parseImportedValue(value: unknown) {
   if (typeof value !== 'string') return null;
   try {
-    const parsed = JSON.parse(value);
-    return isRecord(parsed) ? parsed : null;
+    const parsed: unknown = JSON.parse(value);
+    return isRecord(parsed) ? parsed as WearableProfileData : null;
   } catch {
     return null;
   }
 }
 
-function profileIdForImportedStorageKey(key) {
+function profileIdForImportedStorageKey(key: string) {
   if (key === 'labcharts-imported') return 'default';
   return key.match(/^labcharts-(.+)-imported$/)?.[1] || null;
 }
 
-function splitWhoopProfileData(importedData) {
+function splitWhoopProfileData(importedData: WearableProfileData) {
   const hadMarker = importedData?.[DEVICE_PROTECTED_WEARABLE_MARKER] === DEVICE_PROTECTED_WEARABLE_VERSION;
   const sanitized = { ...importedData };
   delete sanitized[DEVICE_PROTECTED_WEARABLE_MARKER];
-  const protectedData = { version: 1 };
+  const protectedData: ProtectedWhoopData = { version: 1 };
   let found = false;
 
   if (isRecord(importedData.wearableConnections)
@@ -101,7 +128,7 @@ function splitWhoopProfileData(importedData) {
   return { found, hadMarker, protectedData, sanitized };
 }
 
-function mergeWhoopProfileData(importedData, protectedData) {
+function mergeWhoopProfileData(importedData: WearableProfileData, protectedData: ProtectedWhoopData | null) {
   const hydrated = { ...importedData };
   delete hydrated[DEVICE_PROTECTED_WEARABLE_MARKER];
   if (!isRecord(protectedData) || protectedData.version !== 1) return hydrated;
@@ -145,27 +172,27 @@ function mergeWhoopProfileData(importedData, protectedData) {
   return hydrated;
 }
 
-async function saveProtectedData(profileId, protectedData, deps) {
+async function saveProtectedData(profileId: string, protectedData: ProtectedWhoopData, deps: Pick<WhoopStorageDeps, 'encryptWearableDeviceLocalValue' | 'setMeta'>) {
   const envelope = await deps.encryptWearableDeviceLocalValue(profileId, protectedData);
   await deps.setMeta(profileId, WHOOP_PROFILE_DATA_META, envelope);
 }
 
-export async function migrateRestrictedProviderRows(profileId, source, deps) {
+export async function migrateRestrictedProviderRows(profileId: string, source: string, deps: Pick<WhoopStorageDeps, 'openWearablesDB' | 'encryptWearableDeviceLocalValue'>) {
   const db = await deps.openWearablesDB(profileId);
   let migratedSources = migratedSourcesByDatabase.get(db);
   if (!migratedSources) {
-    migratedSources = new Set();
+    migratedSources = new Set<string>();
     migratedSourcesByDatabase.set(db, migratedSources);
   }
   if (migratedSources.has(source)) return;
 
-  const rows = await new Promise((resolve, reject) => {
+  const rows = await new Promise<StoredWearableRow[]>((resolve, reject) => {
     const tx = db.transaction('daily-metrics', 'readonly');
-    const request = tx.objectStore('daily-metrics').index('by_source').getAll(IDBKeyRange.only(source));
+    const request: IDBRequest<StoredWearableRow[]> = tx.objectStore('daily-metrics').index('by_source').getAll(IDBKeyRange.only(source));
     request.onsuccess = () => resolve(request.result || []);
     request.onerror = () => reject(request.error);
   });
-  const candidates = [];
+  const candidates: { original: StoredWearableRow; wrapped: StoredWearableRow }[] = [];
   for (const row of rows || []) {
     if (!row || row._devicePayload || row._payload) continue;
     const { source, date, ...rest } = row;
@@ -188,7 +215,7 @@ export async function migrateRestrictedProviderRows(profileId, source, deps) {
   const tx = db.transaction('daily-metrics', 'readwrite');
   const store = tx.objectStore('daily-metrics');
   for (const candidate of candidates) {
-    const request = store.get([candidate.original.source, candidate.original.date]);
+    const request: IDBRequest<StoredWearableRow | undefined> = store.get([candidate.original.source, candidate.original.date]);
     request.onsuccess = () => {
       const current = request.result;
       if (!current || current._devicePayload || current._payload) return;
@@ -196,7 +223,7 @@ export async function migrateRestrictedProviderRows(profileId, source, deps) {
       store.put(candidate.wrapped);
     };
   }
-  await new Promise((resolve, reject) => {
+  await new Promise<Event>((resolve, reject) => {
     tx.oncomplete = resolve;
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error || new Error('Transaction aborted'));
@@ -208,7 +235,7 @@ export async function migrateRestrictedProviderRows(profileId, source, deps) {
  * Split WHOOP-specific fields out of an imported profile value before the
  * remaining profile blob is persisted (with or without a passphrase).
  */
-async function protectWhoopImportedValue(profileId, value, deps) {
+async function protectWhoopImportedValue(profileId: string, value: string, deps: WhoopStorageDeps) {
   const parsed = parseImportedValue(value);
   if (!parsed) return value;
   const split = splitWhoopProfileData(parsed);
@@ -217,7 +244,7 @@ async function protectWhoopImportedValue(profileId, value, deps) {
   return JSON.stringify(split.sanitized);
 }
 
-async function protectWhoopStorageValue(key, value, deps) {
+async function protectWhoopStorageValue(key: string, value: string, deps: WhoopStorageDeps) {
   const profileId = profileIdForImportedStorageKey(key);
   return profileId ? protectWhoopImportedValue(profileId, value, deps) : value;
 }
@@ -227,7 +254,7 @@ async function protectWhoopStorageValue(key, value, deps) {
  * into the device-only envelope on first read and a sanitized replacement is
  * returned so the caller can rewrite the imported blob immediately.
  */
-async function hydrateWhoopImportedValue(profileId, value, deps) {
+async function hydrateWhoopImportedValue(profileId: string, value: string, deps: WhoopStorageDeps) {
   const parsed = parseImportedValue(value);
   if (!parsed) return { value, storedValue: value, migrated: false };
   const split = splitWhoopProfileData(parsed);
@@ -244,7 +271,7 @@ async function hydrateWhoopImportedValue(profileId, value, deps) {
   if (!split.hadMarker) return { value, storedValue: value, migrated: false };
 
   const envelope = await deps.getMeta(profileId, WHOOP_PROFILE_DATA_META);
-  const protectedData = await deps.decryptWearableDeviceLocalValue(profileId, envelope);
+  const protectedData = await deps.decryptWearableDeviceLocalValue(profileId, envelope as DeviceLocalEnvelope | null) as ProtectedWhoopData | null;
   return {
     value: JSON.stringify(mergeWhoopProfileData(split.sanitized, protectedData)),
     storedValue: value,
@@ -252,20 +279,20 @@ async function hydrateWhoopImportedValue(profileId, value, deps) {
   };
 }
 
-async function hydrateWhoopStorageValue(key, value, deps) {
+async function hydrateWhoopStorageValue(key: string, value: string, deps: WhoopStorageDeps) {
   const profileId = profileIdForImportedStorageKey(key);
   return profileId
     ? hydrateWhoopImportedValue(profileId, value, deps)
     : { value, storedValue: value, migrated: false };
 }
 
-export async function transformWhoopStorageValue(key, value, mode, encrypted = false, deps = {}) {
+export async function transformWhoopStorageValue<T>(key: string, value: T, mode: string, encrypted = false, deps: Partial<WhoopStorageDeps> = {}): Promise<{ value: T | string; storedValue: T | string; migrated: boolean }> {
   const unchanged = { value, storedValue: value, migrated: false };
   if (typeof value !== 'string'
       || (!value.includes(WHOOP_SOURCE_TOKEN) && !value.includes(WHOOP_STORAGE_MARKER_TOKEN))) return unchanged;
   if (mode === 'hydrate') {
     if (encrypted && !value.includes(WHOOP_STORAGE_MARKER_TOKEN)) return unchanged;
-    return hydrateWhoopStorageValue(key, value, deps);
+    return hydrateWhoopStorageValue(key, value, deps as WhoopStorageDeps);
   }
-  return { ...unchanged, value: await protectWhoopStorageValue(key, value, deps) };
+  return { ...unchanged, value: await protectWhoopStorageValue(key, value, deps as WhoopStorageDeps) };
 }

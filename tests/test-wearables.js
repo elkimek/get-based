@@ -1675,7 +1675,7 @@ assert('Encryption envelope leaves source + date plaintext',
   /const\s*\{\s*source,\s*date,\s*_payload,\s*\.\.\.rest\s*\}\s*=\s*row/.test(storeSrcV29) &&
   /\{\s*source,\s*date,\s*_payload:\s*env\s*\}/.test(storeSrcV29));
 assert('Read-side returns null on decrypt failure (no nested-envelope re-write hazard)',
-  /if \(!decrypted\) return null/.test(storeSrcV29));
+  /if\s*\(!decrypted\)\s+return null/.test(storeSrcV29));
 assert('WHOOP and Google Health rows use an always-on device-local encryption envelope',
   /ALWAYS_DEVICE_ENCRYPTED_SOURCES\s*=\s*new Set\(\['google_health',\s*'whoop'\]\)/.test(storeSrcV29)
   && /_devicePayload:\s*await encryptWearableDeviceLocalValue/.test(storeSrcV29)
@@ -1749,9 +1749,10 @@ assert('deleteWearablesDB closes the cached connection before deleting',
 
 // P2: coverageDays counts non-null rows only (was rows.length).
 const summarySrc = await fetch('/js/wearables-summary.js').then(r => r.text());
+const summaryModelSrc = await fetch('/js/wearables-summary-model.js').then(r => r.text());
 assert('coverageDays counts rows with at least one finite metric value (not bare stubs)',
-  /coverageDays:\s*nonEmpty/.test(summarySrc) &&
-  /hasAnyValue\s*=\s*Object\.entries\(row\)\.some/.test(summarySrc));
+  /coverageDays:\s*nonEmpty/.test(summaryModelSrc) &&
+  /hasAnyValue\s*=\s*Object\.entries\(row\)\.some/.test(summaryModelSrc));
 assert('wearable summary persistence is injected without importing the data domain',
   summarySrc.includes('export function configureWearableSummary') &&
   summarySrc.includes('wearableSummaryDeps.saveImportedData()') &&

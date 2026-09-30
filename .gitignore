@@ -177,3 +177,8 @@ deploy/profile-share/data/
 /js/wearables-withings.js
 /js/wearables-google-health.js
 /tests/helpers/runtime-globals.js
+/js/wearable-storage-types.js
+/js/wearables-store.js
+/js/wearables-credential-vault.js
+/js/wearables-whoop-storage.js
+/js/wearables-summary-model.js

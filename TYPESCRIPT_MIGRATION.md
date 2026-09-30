@@ -184,8 +184,26 @@ stays in each suite. The extraction matched 480 scenarios involving accessors,
 hidden/read-only/fixed descriptors, duplicate/mutated keys and repeated restoration.
 The existing nine-case Google Health adapter/OAuth integration suite is authored
 and checked as strict TypeScript. Its existing three-case privacy/source-precedence
-suite remains intact in a separate JavaScript file while its storage and summary
-implementations are awaiting migration; no cases or assertions were removed.
+suite is also strict TypeScript, using the native storage and pure summary contracts;
+no original cases or assertions were removed.
+
+Wearable row storage, the device-local credential vault and WHOOP profile protection
+now use strict native TypeScript. Opaque provider and persisted fields cross named
+row, envelope, crypto and version-guard contracts. The emitted storage modules
+initially matched their original runtime syntax trees. Their identical range cursors
+now share one synchronous helper; expanding its two call sites reproduces the
+original complete storage syntax tree. Transaction completion, two-phase merging,
+non-extractable key storage, restricted-row rechecks and atomic generation revocation
+retain their behavior. Six native regressions abort transactions after successful
+put requests and require rejection plus preservation of existing rows and metadata.
+
+`js/wearables-summary-model.ts` owns pure summary derivation and significance gates.
+The existing orchestrator re-exports those functions and retains profile persistence,
+change history and meal-timing effects. All ten extracted function syntax trees match
+the originals; 2,880 differential comparisons match source precedence, sparse values,
+rolling windows and gate results. The pure runtime module is precached for offline
+use. Legacy metadata readers now declare their existing shapes and nullability;
+the strict-null ratchet stays at zero and DOM sink fingerprints remain unchanged.
 
 ## Remaining work
 
