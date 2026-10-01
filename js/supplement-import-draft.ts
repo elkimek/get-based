@@ -1,4 +1,3 @@
-// @ts-check
 // supplement-import-draft.js — Validated, review-before-apply extraction drafts.
 
 import {
@@ -7,40 +6,56 @@ import {
   parseSupplementQuantity,
 } from './supplement-medication-domain.js';
 
-/**
- * @typedef {{ value: number, unit: string }} ParsedPageQuantity
- * @typedef {{
- *   name: string,
- *   amountValue: number | null,
- *   amountUnit: string,
- *   basis: string,
- *   confidence: number | null,
- * }} ImportedIngredient
- */
+type RawRecord = Record<string, unknown>;
+interface SourceView { kind?: unknown; url?: unknown; deterministicFields?: unknown; reviewed?: unknown; evidence?: unknown }
+export interface ImportedSource { kind: string; url: string; deterministicFields: string[]; reviewed: boolean }
+export interface AggregateImportSource extends ImportedSource { evidence: ImportedSource[] }
+interface ParsedPageQuantity { value: number; unit: string }
+export interface ImportedIngredient {
+  name: string; amountValue: number | null; amountUnit: string; basis: string; confidence: number | null;
+  amount?: string; sourceKinds?: string[];
+}
+export interface NormalizedImportedIngredient extends ImportedIngredient { amount: string; sourceKinds: string[] }
+export interface ImportedQualityTest {
+  category: string; analyte: string; canonicalAnalyte: string; resultText: string; comparator: string;
+  value: number | null; unit: string; basis: string; declaredText: string; limitText: string;
+  method: string; status: string; confidence: number | null; sourceKinds: string[];
+}
+interface ImportServingSize { value: number | null; unit: string }
+export interface SupplementImportDraft extends Record<string, unknown> {
+  product: string; genericName: string; brand: string; type: string; dosageForm: string; route: string;
+  servingSize: ImportServingSize; labelDirections: string; ingredients: NormalizedImportedIngredient[];
+  inactiveIngredients: string[]; qualityTests: ImportedQualityTest[]; warnings: string[]; confidence: number | null;
+  fieldSources: Record<string, string>; source: AggregateImportSource;
+}
+export interface SupplementImportResult { draft: SupplementImportDraft; issues: string[] }
+interface PageFacts extends Record<string, unknown> {
+  product?: string; brand?: string; type?: string; dosageForm?: string; servingSize?: ImportServingSize;
+  labelDirections?: string; ingredients?: ImportedIngredient[]; inactiveIngredients?: string[];
+  qualityTests?: ImportedQualityTest[]; warnings?: string[]; confidence?: number | null;
+}
+export interface SupplementPageExtraction { facts: PageFacts; deterministicFields: string[]; evidenceText: string }
+
 
 const EMPTYISH = /^(?:n\/?a|none|unknown|not\s+(?:specified|found|available|provided))$/i;
 
-/** @param {unknown} value */
-function cleanString(value) {
+function cleanString(value: unknown) {
   if (typeof value !== 'string') return '';
   const clean = value.trim().replace(/\s+/g, ' ');
   return !clean || EMPTYISH.test(clean) ? '' : clean;
 }
 
-/** @param {unknown} value */
-function cleanConfidence(value) {
+function cleanConfidence(value: unknown) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return null;
   return Math.max(0, Math.min(1, numeric));
 }
 
-/** @param {unknown} value */
-function uniqueStrings(value) {
+function uniqueStrings(value: unknown) {
   return [...new Set((Array.isArray(value) ? value : []).map(cleanString).filter(Boolean))];
 }
 
-/** @param {unknown} value */
-export function supplementImportIngredientKey(value) {
+export function supplementImportIngredientKey(value: unknown) {
   return cleanString(value)
     .normalize('NFKD')
     // Fold Latin accents for cross-source matching without stripping marks
@@ -52,8 +67,7 @@ export function supplementImportIngredientKey(value) {
     .normalize('NFC');
 }
 
-/** @param {any} source */
-function normalizeSource(source = {}) {
+function normalizeSource(source: SourceView = {}): ImportedSource {
   return {
     kind: cleanString(source.kind) || 'ai',
     url: cleanString(source.url),
@@ -62,24 +76,24 @@ function normalizeSource(source = {}) {
   };
 }
 
-/** @param {any} raw @param {string} sourceKind */
-function normalizeIngredient(raw, sourceKind) {
+function normalizeIngredient(raw: unknown, sourceKind: string): NormalizedImportedIngredient | null {
   if (!raw || typeof raw !== 'object') return null;
-  const name = cleanString(raw.name || raw.ingredient || raw.activeIngredient);
+  const input = raw as RawRecord;
+  const name = cleanString(input.name || input.ingredient || input.activeIngredient);
   if (!name) return null;
-  const amountRaw = cleanString(raw.amount || raw.amountRaw);
+  const amountRaw = cleanString(input.amount || input.amountRaw);
   const parsed = parseSupplementQuantity(amountRaw);
-  const numeric = Number(raw.amountValue ?? raw.value);
+  const numeric = Number(input.amountValue ?? input.value);
   const amountValue = Number.isFinite(numeric) ? numeric : parsed?.value ?? null;
-  const amountUnit = normalizeSupplementUnit(raw.amountUnit || raw.unit || parsed?.unit || '');
+  const amountUnit = normalizeSupplementUnit(input.amountUnit || input.unit || parsed?.unit || '');
   return {
     name,
     amountValue,
     amountUnit,
     amount: amountValue != null ? formatSupplementAmount(amountValue, amountUnit) : amountRaw,
-    basis: cleanString(raw.basis || raw.amountBasis || 'per serving'),
-    confidence: cleanConfidence(raw.confidence),
-    sourceKinds: uniqueStrings([...(raw.sourceKinds || []), sourceKind]),
+    basis: cleanString(input.basis || input.amountBasis || 'per serving'),
+    confidence: cleanConfidence(input.confidence),
+    sourceKinds: uniqueStrings([...(input.sourceKinds as Iterable<unknown> || []), sourceKind]),
   };
 }
 
@@ -91,56 +105,53 @@ const IMPORT_FACT_FIELDS = [
 const QUALITY_CATEGORIES = new Set(['contaminant', 'potency', 'microbiology', 'identity', 'other']);
 const QUALITY_STATUSES = new Set(['pass', 'fail', 'not-detected', 'not-quantified', 'negative', 'reported', 'unknown']);
 
-/** @param {unknown} value */
-function normalizeInactiveIngredient(value) {
-  const objectValue = value && typeof value === 'object' ? /** @type {any} */ (value) : {};
+function normalizeInactiveIngredient(value: unknown) {
+  const objectValue: RawRecord = value && typeof value === 'object' ? value as RawRecord : {};
   const name = cleanString(typeof value === 'string' ? value : objectValue.name || objectValue.ingredient);
   return name || null;
 }
 
-/** @param {any} raw @param {string} sourceKind */
-function normalizeQualityTest(raw, sourceKind) {
+function normalizeQualityTest(raw: unknown, sourceKind: string): ImportedQualityTest | null {
   if (typeof raw === 'string') {
     const [name, ...resultParts] = raw.split(/\s*:\s*/u);
     raw = { analyte: name, resultText: resultParts.join(': ') };
   }
   if (!raw || typeof raw !== 'object') return null;
-  const analyte = cleanString(raw.analyte || raw.name || raw.test || raw.substance);
+  const input = raw as RawRecord;
+  const analyte = cleanString(input.analyte || input.name || input.test || input.substance);
   if (!analyte) return null;
-  const resultText = cleanString(raw.resultText || raw.result || raw.measured || raw.valueText);
+  const resultText = cleanString(input.resultText || input.result || input.measured || input.valueText);
   const quantityText = resultText.replace(/^(?:≤|<=|>=|<|>|=)\s*/u, '');
   const parsed = parseSupplementQuantity(quantityText);
-  const numeric = Number(raw.value ?? raw.amountValue);
+  const numeric = Number(input.value ?? input.amountValue);
   const value = Number.isFinite(numeric) ? numeric : parsed?.value ?? null;
-  const category = cleanString(raw.category).toLowerCase();
-  const status = cleanString(raw.status).toLowerCase();
+  const category = cleanString(input.category).toLowerCase();
+  const status = cleanString(input.status).toLowerCase();
   return {
     category: QUALITY_CATEGORIES.has(category) ? category : 'other',
     analyte,
-    canonicalAnalyte: cleanString(raw.canonicalAnalyte || raw.canonicalName) || analyte,
-    resultText: resultText || (value != null ? formatSupplementAmount(value, raw.unit || parsed?.unit || '') : ''),
-    comparator: cleanString(raw.comparator),
+    canonicalAnalyte: cleanString(input.canonicalAnalyte || input.canonicalName) || analyte,
+    resultText: resultText || (value != null ? formatSupplementAmount(value, input.unit || parsed?.unit || '') : ''),
+    comparator: cleanString(input.comparator),
     value,
-    unit: normalizeSupplementUnit(raw.unit || raw.amountUnit || parsed?.unit || ''),
-    basis: cleanString(raw.basis || raw.per || raw.matrix),
-    declaredText: cleanString(raw.declaredText || raw.declared || raw.labelClaim),
-    limitText: cleanString(raw.limitText || raw.limit || raw.specification),
-    method: cleanString(raw.method),
+    unit: normalizeSupplementUnit(input.unit || input.amountUnit || parsed?.unit || ''),
+    basis: cleanString(input.basis || input.per || input.matrix),
+    declaredText: cleanString(input.declaredText || input.declared || input.labelClaim),
+    limitText: cleanString(input.limitText || input.limit || input.specification),
+    method: cleanString(input.method),
     status: QUALITY_STATUSES.has(status) ? status : 'unknown',
-    confidence: cleanConfidence(raw.confidence),
-    sourceKinds: uniqueStrings([...(raw.sourceKinds || []), sourceKind]),
+    confidence: cleanConfidence(input.confidence),
+    sourceKinds: uniqueStrings([...(input.sourceKinds as Iterable<unknown> || []), sourceKind]),
   };
 }
 
-/** @param {any} test */
-function qualityTestKey(test) {
+function qualityTestKey(test: ImportedQualityTest | null | undefined) {
   return [test?.category, supplementImportIngredientKey(test?.canonicalAnalyte || test?.analyte), supplementImportIngredientKey(test?.basis)]
     .filter(Boolean).join('|');
 }
 
-/** @param {any} draft */
-function collectDraftIssues(draft) {
-  const issues = [];
+function collectDraftIssues(draft: SupplementImportDraft) {
+  const issues: string[] = [];
   if (!draft.product) issues.push('Product name was not found.');
   if (!draft.ingredients.length) issues.push('No active ingredients were found.');
   for (const ingredient of draft.ingredients) {
@@ -150,17 +161,15 @@ function collectDraftIssues(draft) {
   return issues;
 }
 
-/** @param {any} draft */
-function draftEvidence(draft) {
+function draftEvidence(draft: { source?: SourceView | null } | null | undefined) {
   const evidence = Array.isArray(draft?.source?.evidence) && draft.source.evidence.length
     ? draft.source.evidence : draft?.source ? [draft.source] : [];
   return evidence.map(normalizeSource);
 }
 
-/** @param {any[]} sources */
-function mergeEvidence(sources) {
-  const merged = [];
-  const positions = new Map();
+function mergeEvidence(sources: SourceView[]) {
+  const merged: ImportedSource[] = [];
+  const positions = new Map<string, number>();
   for (const rawSource of sources) {
     const source = normalizeSource(rawSource);
     const key = `${source.kind.toLowerCase()}|${source.url}`;
@@ -170,7 +179,7 @@ function mergeEvidence(sources) {
       merged.push(source);
       continue;
     }
-    const existing = merged[position];
+    const existing = merged[position]!;
     merged[position] = {
       ...existing,
       deterministicFields: uniqueStrings([
@@ -184,8 +193,7 @@ function mergeEvidence(sources) {
   return merged;
 }
 
-/** @param {any[]} evidence */
-function aggregateSource(evidence) {
+function aggregateSource(evidence: ImportedSource[]): AggregateImportSource {
   const kinds = uniqueStrings(evidence.map(source => source.kind));
   return {
     kind: kinds.join(' + ') || 'ai',
@@ -196,23 +204,20 @@ function aggregateSource(evidence) {
   };
 }
 
-/** @param {unknown} left @param {unknown} right */
-function sameFact(left, right) {
+function sameFact(left: unknown, right: unknown) {
   if (typeof left === 'string' && typeof right === 'string') {
     return cleanString(left).toLowerCase() === cleanString(right).toLowerCase();
   }
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-/** @param {any} ingredient */
-function ingredientAmountLabel(ingredient) {
+function ingredientAmountLabel(ingredient: ImportedIngredient) {
   return ingredient.amountValue != null
     ? formatSupplementAmount(ingredient.amountValue, ingredient.amountUnit)
     : ingredient.amount || 'amount not found';
 }
 
-/** @param {unknown} value */
-function pageText(value) {
+function pageText(value: unknown) {
   return typeof value === 'string'
     ? value.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim()
     : '';
@@ -222,8 +227,7 @@ function pageText(value) {
 // relying on \b, whose word semantics do not work at CJK/Cyrillic boundaries.
 const PAGE_QUANTITY_RE = /([+-]?(?:\d{1,3}(?:[ ,.\u00a0]\d{3})+|\d+)(?:[.,]\d+)?)\s*((?:(?:billion|milliard|miliard)\s+)?CFU|マイクログラム|ミリリットル|ミリグラム|마이크로그램|밀리그램|밀리리터|अंतरराष्ट्रीय इकाई|माइक्रोग्राम|मिलीग्राम|मिलीलीटर|میكروغرام|ميكروغرام|国际单位|國際單位|国際単位|毫克|微克|毫升|มิลลิกรัม|ไมโครกรัม|มิลลิลิตร|мкг|мг|мл|м\.?е\.?|ед\.?|кое|ملغ|مجم|مكغ|מק["״]?ג|מ["״]?ג|גרם|מ["״]?ל|국제단위|그램|ग्राम|mcg|[µμ]g|ug|mg|mL|ml|IU|I\.U\.|mmol|mEq|CFU|units?|克|グラム|г|غ|مل|%)(?=$|[\s)\](*,/;:†‡（])/iu;
 
-/** @param {string} text @returns {ParsedPageQuantity | null} */
-function parsePageQuantity(text) {
+function parsePageQuantity(text: string): ParsedPageQuantity | null {
   const clean = pageText(text);
   const knownUnit = clean.match(PAGE_QUANTITY_RE);
   if (knownUnit) return parseSupplementQuantity(`${knownUnit[1]} ${knownUnit[2]}`);
@@ -231,11 +235,7 @@ function parsePageQuantity(text) {
   return parseSupplementQuantity(withoutFootnotes);
 }
 
-/**
- * @param {{ value?: number, unit?: string } | null | undefined} amount
- * @returns {amount is ParsedPageQuantity}
- */
-function isCredibleIngredientQuantity(amount) {
+function isCredibleIngredientQuantity(amount: { value?: number; unit?: string } | null | undefined): amount is ParsedPageQuantity {
   const unit = pageText(amount?.unit || '');
   if (!unit || !/[\p{L}%]/u.test(unit) || /^\./u.test(unit)) return false;
   // Administration/package forms describe counts, not active-ingredient
@@ -244,8 +244,7 @@ function isCredibleIngredientQuantity(amount) {
   return !/(?:capsul|softgel|tablet|caplet|serving|dose|pieces?|count|bottles?|kapsl|dáv|davk|balen|kus|kapsuł|sztuk|gélul|comprim|cápsul|compresse|капсул|таблет|доз|штук|カプセル|錠|粒|片)$/iu.test(unit);
 }
 
-/** @param {string} text @param {string} [basis] @returns {ImportedIngredient | null} */
-function ingredientFromText(text, basis = 'per serving') {
+function ingredientFromText(text: string, basis = 'per serving'): ImportedIngredient | null {
   const clean = pageText(text);
   const quantityMatch = clean.match(PAGE_QUANTITY_RE);
   const amount = parsePageQuantity(clean);
@@ -265,20 +264,18 @@ function ingredientFromText(text, basis = 'per serving') {
   };
 }
 
-/** @param {unknown} value @param {any[]} output */
-function collectJsonLdObjects(value, output) {
+function collectJsonLdObjects(value: unknown, output: RawRecord[]) {
   if (Array.isArray(value)) {
     for (const item of value) collectJsonLdObjects(item, output);
     return;
   }
   if (!value || typeof value !== 'object') return;
-  output.push(value);
-  if (Array.isArray(value['@graph'])) collectJsonLdObjects(value['@graph'], output);
+  output.push(value as RawRecord);
+  if (Array.isArray((value as RawRecord)['@graph'])) collectJsonLdObjects((value as RawRecord)['@graph'], output);
 }
 
-/** @param {Document} document */
-function jsonLdProduct(document) {
-  const objects = [];
+function jsonLdProduct(document: Document) {
+  const objects: RawRecord[] = [];
   for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
     try { collectJsonLdObjects(JSON.parse(script.textContent || ''), objects); }
     catch { /* malformed publisher JSON is left for the text/AI fallback */ }
@@ -288,23 +285,22 @@ function jsonLdProduct(document) {
     || null;
 }
 
-/** @param {any} value */
-function structuredBrand(value) {
+function structuredBrand(value: unknown) {
   if (typeof value === 'string') return pageText(value);
-  if (value && typeof value === 'object') return pageText(value.name || value.value);
+  if (value && typeof value === 'object') return pageText((value as RawRecord).name || (value as RawRecord).value);
   return '';
 }
 
-/** @param {any} raw @param {string} basis @returns {ImportedIngredient | null} */
-function structuredIngredient(raw, basis) {
+function structuredIngredient(raw: unknown, basis: string): ImportedIngredient | null {
   if (typeof raw === 'string') return ingredientFromText(raw, basis);
   if (!raw || typeof raw !== 'object') return null;
-  const name = pageText(raw.name || raw.ingredient || raw.propertyID || raw.activeIngredient);
+  const input = raw as RawRecord;
+  const name = pageText(input.name || input.ingredient || input.propertyID || input.activeIngredient);
   if (!name || /(?:serving|dose|direction|package|count|weight|flavo|color|size)/iu.test(name)) return null;
-  const value = raw.amount ?? raw.value ?? raw.dose ?? raw.quantity;
+  const value = input.amount ?? input.value ?? input.dose ?? input.quantity;
   if (value && typeof value === 'object') {
-    const amountValue = Number(value.value ?? value.amount);
-    const amountUnit = normalizeSupplementUnit(value.unitText || value.unitCode || value.unit || '');
+    const amountValue = Number((value as RawRecord).value ?? (value as RawRecord).amount);
+    const amountUnit = normalizeSupplementUnit((value as RawRecord).unitText || (value as RawRecord).unitCode || (value as RawRecord).unit || '');
     if (Number.isFinite(amountValue)) {
       return { name, amountValue, amountUnit, basis, confidence: 1 };
     }
@@ -319,12 +315,10 @@ function structuredIngredient(raw, basis) {
   };
 }
 
-/** @param {any} product @returns {ImportedIngredient[]} */
-function jsonLdIngredients(product) {
+function jsonLdIngredients(product: RawRecord | null | undefined): ImportedIngredient[] {
   if (!product) return [];
   const basis = pageText(product.servingSize || product.doseSchedule || 'per serving');
-  /** @type {any[]} */
-  const candidates = [];
+  const candidates: unknown[] = [];
   for (const field of ['activeIngredient', 'activeIngredients', 'ingredient', 'ingredients', 'hasPart']) {
     const value = product[field];
     if (Array.isArray(value)) candidates.push(...value);
@@ -344,21 +338,19 @@ function jsonLdIngredients(product) {
   });
 }
 
-/** @param {string} text @returns {{ value: number | null, unit: string }} */
-function servingFromText(text) {
+function servingFromText(text: string): ImportServingSize {
   const match = pageText(text).match(/(?:per|in|ve|v|na)\s*(\d+(?:[.,]\d+)?)\s*(softgels?|capsules?|caps?|kapsl\p{L}*|tablets?|tablet\p{L}*|drops?|kapek|ml|mL|scoops?|odměr\p{L}*)/iu);
   if (!match) return { value: null, unit: '' };
-  const rawUnit = match[2].toLowerCase();
+  const rawUnit = match[2]!.toLowerCase();
   const unit = /softgel|caps|kapsl/.test(rawUnit) ? 'capsule'
     : /tablet/.test(rawUnit) ? 'tablet'
       : /drop|kapek/.test(rawUnit) ? 'drop'
         : /scoop|odměr/.test(rawUnit) ? 'scoop'
           : /ml/.test(rawUnit) ? 'mL' : '';
-  return { value: Number(match[1].replace(',', '.')), unit };
+  return { value: Number(match[1]!.replace(',', '.')), unit };
 }
 
-/** @param {Element} table */
-function supplementTableScore(table) {
+function supplementTableScore(table: Element) {
   const header = pageText(Array.from(table.querySelectorAll('thead th, tr:first-child th'))
     .map(cell => cell.textContent || '').join(' '));
   let context = '';
@@ -387,8 +379,7 @@ function supplementTableScore(table) {
   return score;
 }
 
-/** @param {Document} document @param {RegExp} labelPattern */
-function textAfterPageLabel(document, labelPattern) {
+function textAfterPageLabel(document: Document, labelPattern: RegExp) {
   const labels = Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,strong,b'));
   const label = labels.find(element => labelPattern.test(
     pageText(element.textContent || '').replace(/[:\s]+$/u, ''),
@@ -409,12 +400,9 @@ function textAfterPageLabel(document, labelPattern) {
  * Put likely label facts before navigation and marketing copy for the AI
  * fallback. Quantities are a language-neutral signal, and original text is
  * preserved so names and directions can remain in the source script.
- * @param {Document} document
- * @param {string} title
- * @param {string} bodyText
  */
-function prioritizedPageEvidence(document, title, bodyText) {
-  const snippets = [];
+function prioritizedPageEvidence(document: Document, title: string, bodyText: string) {
+  const snippets: string[] = [];
   const seen = new Set();
   let length = 0;
   // Tables compactly preserve labels, measured values, limits, and assay
@@ -444,24 +432,22 @@ function prioritizedPageEvidence(document, title, bodyText) {
  * Extract verified facts directly from product-page markup. This avoids asking
  * a model to recreate clean ingredient tables as JSON and gives the AI path a
  * deterministic fallback when a storefront already publishes structured data.
- * @param {string} html
- * @param {typeof DOMParser} [Parser]
  */
-export function extractSupplementPageFacts(html, Parser = globalThis.DOMParser) {
+export function extractSupplementPageFacts(html: unknown, Parser = globalThis.DOMParser): SupplementPageExtraction {
   if (typeof html !== 'string' || !html.trim() || typeof Parser !== 'function') {
     return { facts: {}, deterministicFields: [], evidenceText: '' };
   }
   const document = new Parser().parseFromString(html, 'text/html');
   const product = jsonLdProduct(document);
   const heading = document.querySelector('h1');
-  const cleanHeading = /** @type {Element | null} */ (heading?.cloneNode(true) || null);
+  const cleanHeading = (heading?.cloneNode(true) || null) as Element | null;
   if (cleanHeading) {
     cleanHeading.querySelectorAll('.product-appendix, .appendix').forEach(element => element.remove());
   }
   const title = pageText(cleanHeading?.textContent || '')
     || pageText(product?.name)
     || pageText(document.querySelector('meta[property="og:title"]')?.getAttribute('content') || '').split(/\s+[|–—]\s+/u)[0]
-    || pageText(document.title).split(/\s+[|–—]\s+/u)[0];
+    || pageText(document.title).split(/\s+[|–—]\s+/u)[0]!;
   const brand = structuredBrand(product?.brand || product?.manufacturer) || pageText(
     document.querySelector('[itemprop="brand"] [itemprop="name"]')?.getAttribute('content')
       || document.querySelector('meta[itemprop="brand"]')?.getAttribute('content')
@@ -475,8 +461,7 @@ export function extractSupplementPageFacts(html, Parser = globalThis.DOMParser) 
   const selectedTables = tables.filter(candidate => candidate.score >= 16).map(candidate => candidate.table);
   const ingredients = jsonLdIngredients(product);
   const seen = new Set(ingredients.map(ingredient => supplementImportIngredientKey(ingredient.name)));
-  /** @type {{ value: number | null, unit: string }} */
-  let servingSize = { value: null, unit: '' };
+  let servingSize: ImportServingSize = { value: null, unit: '' };
   for (const selectedTable of selectedTables) {
     const headerCells = Array.from(selectedTable.querySelectorAll('thead th, tr:first-child th'));
     const basis = pageText(headerCells[0]?.textContent || '') || 'per serving';
@@ -546,7 +531,7 @@ export function extractSupplementPageFacts(html, Parser = globalThis.DOMParser) 
   const type = /(?:doplněk stravy|výživový doplnok|dietary supplement|supplement facts)/iu.test(bodyText)
     ? 'supplement'
     : /(?:drug facts|prescription only|léčivý přípravek|liek)/iu.test(bodyText) ? 'medication' : '';
-  const facts = {
+  const facts: PageFacts = {
     product: title,
     brand,
     type,
@@ -563,7 +548,7 @@ export function extractSupplementPageFacts(html, Parser = globalThis.DOMParser) 
     const value = facts[field];
     if (field === 'ingredients') return ingredients.some(ingredient => ingredient.amountValue != null);
     return field === 'servingSize'
-      ? value?.value != null || !!value?.unit
+      ? (value as { value?: unknown; unit?: unknown } | null | undefined)?.value != null || !!(value as { unit?: unknown } | null | undefined)?.unit
       : !!value && (!Array.isArray(value) || value.length > 0);
   });
   return { facts, deterministicFields, evidenceText: prioritizedPageEvidence(document, title, bodyText) };
@@ -571,52 +556,51 @@ export function extractSupplementPageFacts(html, Parser = globalThis.DOMParser) 
 
 /**
  * Accepts both the old extraction shape and the v2 strict schema.
- * @param {any} parsed
- * @param {{ kind?: string, url?: string, deterministicFields?: string[] }} [source]
  */
-export function normalizeSupplementImportDraft(parsed, source = {}) {
+export function normalizeSupplementImportDraft(parsed: unknown, source: SourceView = {}): SupplementImportResult {
   if (!parsed || typeof parsed !== 'object') throw new Error('Extraction did not return an object');
+  const input = parsed as RawRecord;
   const importSource = normalizeSource(source);
-  const rawIngredients = Array.isArray(parsed.ingredients)
-    ? parsed.ingredients
-    : Array.isArray(parsed) ? parsed : [];
-  const inactiveIngredients = (Array.isArray(parsed.inactiveIngredients) ? parsed.inactiveIngredients : [])
-    .map(normalizeInactiveIngredient).filter(Boolean);
-  const qualityTests = (Array.isArray(parsed.qualityTests) ? parsed.qualityTests : [])
-    .map(raw => normalizeQualityTest(raw, importSource.kind)).filter(Boolean);
+  const rawIngredients = (Array.isArray(input.ingredients)
+    ? input.ingredients
+    : Array.isArray(parsed) ? parsed : []) as unknown[];
+  const inactiveIngredients = ((Array.isArray(input.inactiveIngredients) ? input.inactiveIngredients : []) as unknown[])
+    .map(normalizeInactiveIngredient).filter(Boolean) as string[];
+  const qualityTests = ((Array.isArray(input.qualityTests) ? input.qualityTests : []) as unknown[])
+    .map(raw => normalizeQualityTest(raw, importSource.kind)).filter(Boolean) as ImportedQualityTest[];
   const nonActiveKeys = new Set([
     ...inactiveIngredients.map(supplementImportIngredientKey),
   ]);
   const ingredients = rawIngredients.map(raw => normalizeIngredient(raw, importSource.kind)).filter(ingredient =>
     ingredient && !nonActiveKeys.has(supplementImportIngredientKey(ingredient.name))
-  );
-  const serving = parsed.servingSize && typeof parsed.servingSize === 'object'
-    ? parsed.servingSize : {};
+  ) as NormalizedImportedIngredient[];
+  const serving = (input.servingSize && typeof input.servingSize === 'object'
+    ? input.servingSize : {}) as RawRecord;
   const servingValue = Number(serving.value ?? serving.quantity);
-  const draft = {
-    product: cleanString(parsed.product || parsed.name),
-    genericName: cleanString(parsed.genericName || parsed.activeName),
-    brand: cleanString(parsed.brand),
-    type: parsed.type === 'medication' ? 'medication' : parsed.type === 'supplement' ? 'supplement' : '',
-    dosageForm: cleanString(parsed.dosageForm || parsed.form),
-    route: cleanString(parsed.route),
+  const draft: SupplementImportDraft = {
+    product: cleanString(input.product || input.name),
+    genericName: cleanString(input.genericName || input.activeName),
+    brand: cleanString(input.brand),
+    type: input.type === 'medication' ? 'medication' : input.type === 'supplement' ? 'supplement' : '',
+    dosageForm: cleanString(input.dosageForm || input.form),
+    route: cleanString(input.route),
     servingSize: {
       value: Number.isFinite(servingValue) ? servingValue : null,
       unit: normalizeSupplementUnit(serving.unit || serving.form || ''),
     },
-    labelDirections: cleanString(parsed.labelDirections || parsed.directions || parsed.dosage),
+    labelDirections: cleanString(input.labelDirections || input.directions || input.dosage),
     ingredients,
     inactiveIngredients: uniqueStrings(inactiveIngredients),
     qualityTests,
-    warnings: Array.isArray(parsed.warnings) ? parsed.warnings.map(cleanString).filter(Boolean) : [],
-    confidence: cleanConfidence(parsed.confidence),
+    warnings: Array.isArray(input.warnings) ? (input.warnings as unknown[]).map(cleanString).filter(Boolean) : [],
+    confidence: cleanConfidence(input.confidence),
     fieldSources: {},
     source: aggregateSource([{ ...importSource, reviewed: false }]),
   };
   for (const field of IMPORT_FACT_FIELDS) {
     const value = draft[field];
     const hasValue = field === 'servingSize'
-      ? value?.value != null || !!value?.unit
+      ? (value as { value?: unknown; unit?: unknown } | null | undefined)?.value != null || !!(value as { unit?: unknown } | null | undefined)?.unit
       : !!value && (!Array.isArray(value) || value.length > 0);
     if (hasValue) draft.fieldSources[field] = importSource.kind;
   }
@@ -628,15 +612,17 @@ export function normalizeSupplementImportDraft(parsed, source = {}) {
  * win conflicts, missing values are filled, and distinct ingredients are
  * unioned. Conflicts remain visible for manual resolution instead of one
  * source silently replacing the other.
- * @param {{ draft: any, issues: string[] } | null} current
- * @param {{ draft: any, issues: string[] }} incoming
  */
-export function mergeSupplementImportDrafts(current, incoming) {
+function copySourceRecords<T extends { sourceKinds: string[] }>(records: T[]) {
+  return records.map(record => ({ ...record, sourceKinds: uniqueStrings(record.sourceKinds) }));
+}
+
+export function mergeSupplementImportDrafts(current: SupplementImportResult | null | undefined, incoming: SupplementImportResult): SupplementImportResult {
   if (!current?.draft) return incoming;
   const base = current.draft;
   const next = incoming.draft;
-  const conflicts = [];
-  const merged = {
+  const conflicts: string[] = [];
+  const merged: SupplementImportDraft = {
     ...base,
     fieldSources: { ...(base.fieldSources || {}) },
   };
@@ -644,7 +630,7 @@ export function mergeSupplementImportDrafts(current, incoming) {
     product: 'Product name', genericName: 'Generic / active name', brand: 'Brand',
     type: 'Type', dosageForm: 'Form', route: 'Route', labelDirections: 'Label directions',
   };
-  for (const field of Object.keys(labels)) {
+  for (const field of Object.keys(labels) as Array<keyof typeof labels>) {
     if (!merged[field] && next[field]) {
       merged[field] = next[field];
       merged.fieldSources[field] = next.fieldSources?.[field] || next.source.kind;
@@ -653,22 +639,19 @@ export function mergeSupplementImportDrafts(current, incoming) {
     }
   }
 
-  merged.servingSize = { ...(base.servingSize || {}) };
-  for (const field of ['value', 'unit']) {
+  merged.servingSize = { ...(base.servingSize || {}) } as ImportServingSize;
+  for (const field of ['value', 'unit'] as const) {
     const baseValue = merged.servingSize[field];
     const nextValue = next.servingSize?.[field];
     if ((baseValue == null || baseValue === '') && nextValue != null && nextValue !== '') {
-      merged.servingSize[field] = nextValue;
+      (merged.servingSize as unknown as Record<string, unknown>)[field] = nextValue;
       merged.fieldSources.servingSize = next.fieldSources?.servingSize || next.source.kind;
     } else if (baseValue != null && baseValue !== '' && nextValue != null && nextValue !== '' && !sameFact(baseValue, nextValue)) {
       conflicts.push(`Serving size differs between sources; existing value kept. Confirm it in the form.`);
     }
   }
 
-  merged.ingredients = (base.ingredients || []).map(ingredient => ({
-    ...ingredient,
-    sourceKinds: uniqueStrings(ingredient.sourceKinds),
-  }));
+  merged.ingredients = copySourceRecords(base.ingredients || []);
   const ingredientPositions = new Map(merged.ingredients.map((ingredient, index) => [
     supplementImportIngredientKey(ingredient.name), index,
   ]));
@@ -680,7 +663,7 @@ export function mergeSupplementImportDrafts(current, incoming) {
       merged.ingredients.push({ ...incomingIngredient });
       continue;
     }
-    const existing = merged.ingredients[position];
+    const existing = merged.ingredients[position]!;
     const nextAmount = ingredientAmountLabel(incomingIngredient);
     const existingAmount = ingredientAmountLabel(existing);
     const mergedIngredient = {
@@ -724,10 +707,7 @@ export function mergeSupplementImportDrafts(current, incoming) {
     ]).join(' + ');
   }
 
-  merged.qualityTests = (base.qualityTests || []).map(test => ({
-    ...test,
-    sourceKinds: uniqueStrings(test.sourceKinds),
-  }));
+  merged.qualityTests = copySourceRecords(base.qualityTests || []);
   const qualityPositions = new Map(merged.qualityTests.map((test, index) => [qualityTestKey(test), index]));
   for (const incomingTest of next.qualityTests || []) {
     const key = qualityTestKey(incomingTest);
@@ -737,7 +717,7 @@ export function mergeSupplementImportDrafts(current, incoming) {
       merged.qualityTests.push({ ...incomingTest });
       continue;
     }
-    const existing = merged.qualityTests[position];
+    const existing = merged.qualityTests[position]!;
     const existingResult = cleanString(existing.resultText);
     const incomingResult = cleanString(incomingTest.resultText);
     if (existingResult && incomingResult && existingResult !== incomingResult) {
@@ -764,8 +744,7 @@ export function mergeSupplementImportDrafts(current, incoming) {
   };
 }
 
-/** @param {string} text */
-export function parseSupplementImportJson(text) {
+export function parseSupplementImportJson(text: unknown): unknown {
   if (typeof text !== 'string') throw new Error('Extraction returned no text');
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1];
   const source = (fenced || text).trim().replace(/^\uFEFF/, '');

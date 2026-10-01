@@ -441,7 +441,7 @@ export async function fetchSupplementFromURL() {
     }
     for (const field of deterministicFields) {
       const value = pageFacts[field];
-      if (value && (!Array.isArray(value) || value.length)) parsed[field] = value;
+      if (value && (!Array.isArray(value) || value.length)) (/** @type {Record<string, unknown>} */ (parsed))[field] = value;
     }
     updateImportProgress(progressId, 4, 'Preparing selective review…');
     stageParsedSupplement(parsed, source);

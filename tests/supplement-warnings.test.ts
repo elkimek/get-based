@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFile } from 'node:fs/promises';
+import type { MitoEvidenceView } from '../js/supplement-warnings.js';
 
-function evidence(overrides = {}) {
+interface CatalogAuditEntry extends Record<string, unknown> {
+  name?: string; evidence: MitoEvidenceView[]; _meta: { schemaVersion: number };
+}
+
+function evidence(overrides: MitoEvidenceView = {}) {
   return {
     id: 'fixture-12345678',
     direction: 'adverse',
@@ -17,7 +22,7 @@ function evidence(overrides = {}) {
   };
 }
 
-function compound(name, aliases, evidenceItem) {
+function compound(name: string, aliases: string[], evidenceItem: MitoEvidenceView) {
   return {
     name,
     aliases,
@@ -26,7 +31,7 @@ function compound(name, aliases, evidenceItem) {
   };
 }
 
-async function loadWith(data) {
+async function loadWith(data: unknown) {
   vi.resetModules();
   vi.stubGlobal('fetch', vi.fn(async () => ({
     ok: true,
@@ -44,11 +49,11 @@ afterEach(() => {
 
 describe('mitochondrial primary-study evidence', () => {
   it('keeps the shipped catalog claim-level, scoped, and structurally auditable', async () => {
-    const data = JSON.parse(await readFile(new URL('../data/mito-compounds.json', import.meta.url), 'utf8'));
+    const data = JSON.parse(await readFile(new URL('../data/mito-compounds.json', import.meta.url), 'utf8')) as CatalogAuditEntry[];
     const entries = data.filter(entry => entry.name);
     const evidenceItems = entries.flatMap(entry => entry.evidence);
 
-    expect(data[0]._meta.schemaVersion).toBe(2);
+    expect(data[0]!._meta.schemaVersion).toBe(2);
     expect(entries).toHaveLength(29);
     expect(evidenceItems).toHaveLength(30);
     expect(new Set(evidenceItems.map(item => item.id)).size).toBe(evidenceItems.length);
@@ -100,15 +105,15 @@ describe('mitochondrial primary-study evidence', () => {
     expect(matches.every(match => match.productNames.includes('Multilingual combination'))).toBe(true);
 
     const issueUrl = new URL(module.mitochondrialEvidenceIssueUrl({
-      ...matches[0],
+      ...matches[0]!,
       productNames: ['Private medication name'],
       dosage: 'private dose',
     }));
     const issueBody = issueUrl.searchParams.get('body') || '';
     expect(issueUrl.pathname).toBe('/elkimek/get-based/issues/new');
     expect(issueUrl.searchParams.get('labels')).toBe('enhancement');
-    expect(issueBody).toContain(`PMID ${matches[0].pmid}`);
-    expect(issueBody).toContain(matches[0].summary);
+    expect(issueBody).toContain(`PMID ${matches[0]!.pmid}`);
+    expect(issueBody).toContain(matches[0]!.summary);
     expect(issueBody).toContain('public GitHub issue');
     expect(issueBody).not.toContain('Private medication name');
     expect(issueBody).not.toContain('private dose');
@@ -122,7 +127,7 @@ describe('mitochondrial primary-study evidence', () => {
   });
 
   it('keeps formulation-specific evidence from matching a broader nutrient family', async () => {
-    const data = JSON.parse(await readFile(new URL('../data/mito-compounds.json', import.meta.url), 'utf8'));
+    const data = JSON.parse(await readFile(new URL('../data/mito-compounds.json', import.meta.url), 'utf8')) as CatalogAuditEntry[];
     const module = await loadWith(data);
 
     expect(module.lookupMitoCompound('magnesium chloride 300 mg')?.name).toBe('Magnesium chloride');
@@ -176,8 +181,8 @@ describe('mitochondrial primary-study evidence', () => {
 
     expect(matches).toHaveLength(2);
     expect(groups).toHaveLength(1);
-    expect(groups[0].compound).toBe('Coenzyme Q10');
-    expect(groups[0].evidence.map(item => item.scopeLabel)).toEqual([
+    expect(groups[0]!.compound).toBe('Coenzyme Q10');
+    expect(groups[0]!.evidence.map(item => item.scopeLabel)).toEqual([
       'Ubiquinol only',
       'Simvastatin users',
     ]);

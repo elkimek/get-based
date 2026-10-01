@@ -1,21 +1,39 @@
-// @ts-check
 // supplement-warnings.js — claim-level mitochondrial evidence for tracked therapies
 
-/** @type {Array<any> | null} */
-let _mitoData = null;
-/** @type {Promise<Array<any> | null> | null} */
-let _mitoDataLoad = null;
+interface MitoCatalogView extends Record<string, unknown> {
+  name?: unknown; aliases?: unknown; evidence?: unknown; _meta?: { schemaVersion?: unknown } | null;
+}
+export interface MitoEvidenceView extends Record<string, unknown> {
+  id?: unknown; direction?: unknown; summary?: unknown; studyType?: unknown; studyLabel?: unknown;
+  model?: unknown; exposure?: unknown; limitations?: unknown; pmid?: unknown; title?: unknown;
+  scopeLabel?: unknown; compound?: unknown; name?: unknown;
+}
+export interface MitoCompoundView extends MitoCatalogView { aliases: unknown[]; evidence: MitoEvidenceView[] }
+export interface MitoEvidenceMatch extends MitoEvidenceView {
+  type: string; compound: unknown; match: unknown; category: unknown; productNames: string[];
+  matchedTerms: unknown[]; matchedField: string; url: string; searchUrl: string;
+}
+interface MitoGroupItemView extends MitoEvidenceView {
+  productNames?: Iterable<unknown> | null; matchedTerms?: Iterable<unknown> | null;
+}
+export interface MitoEvidenceGroup {
+  compound: string; category: unknown; productNames: unknown[]; matchedTerms: unknown[]; evidence: MitoGroupItemView[];
+}
+interface SupplementCandidateView { name?: unknown; genericName?: unknown; ingredients?: unknown }
 
-function isVerifiedV2Entry(entry) {
+let _mitoData: MitoCompoundView[] | null = null;
+let _mitoDataLoad: Promise<MitoCompoundView[] | null> | null = null;
+
+function isVerifiedV2Entry(entry: MitoCatalogView | null | undefined): entry is MitoCompoundView {
   return Boolean(
     entry?.name
     && Array.isArray(entry.aliases)
     && entry.aliases.length
     && Array.isArray(entry.evidence)
     && entry.evidence.length
-    && entry.evidence.every(item => (
+    && (entry.evidence as Array<MitoEvidenceView | null | undefined>).every(item => (
       item?.id
-      && ['adverse', 'mechanism', 'beneficial', 'mixed', 'null'].includes(item?.direction)
+      && ['adverse', 'mechanism', 'beneficial', 'mixed', 'null'].includes(item?.direction as string)
       && item?.summary
       && item?.studyType
       && item?.studyLabel
@@ -38,7 +56,7 @@ export function preloadMitoCompoundData() {
     _mitoDataLoad = fetch('data/mito-compounds.json')
       .then(async res => {
         if (!res.ok) return null;
-        const data = await res.json();
+        const data = await res.json() as Array<MitoCatalogView | null | undefined>;
         if (!Array.isArray(data)) return null;
         const schemaVersion = data.find(entry => entry?._meta)?._meta?.schemaVersion;
         // Never render a stale v1 cache: its entry-level citations were not
@@ -54,7 +72,7 @@ export function preloadMitoCompoundData() {
   return _mitoDataLoad;
 }
 
-function normalizeCompoundText(value) {
+function normalizeCompoundText(value: unknown) {
   return String(value || '')
     .normalize('NFKC')
     .toLowerCase()
@@ -63,7 +81,7 @@ function normalizeCompoundText(value) {
     .trim();
 }
 
-function candidateContainsAlias(candidate, alias) {
+function candidateContainsAlias(candidate: unknown, alias: unknown) {
   const normalizedCandidate = normalizeCompoundText(candidate);
   const normalizedAlias = normalizeCompoundText(alias);
   if (!normalizedCandidate || !normalizedAlias) return false;
@@ -79,21 +97,21 @@ function candidateContainsAlias(candidate, alias) {
  * Punctuation-aware token matching works with non-Latin text and avoids the
  * ASCII-only behavior of regular-expression word boundaries.
  */
-export function lookupMitoCompounds(name) {
+export function lookupMitoCompounds(name: unknown) {
   if (!_mitoData) return [];
   return _mitoData.filter(entry => entry.aliases.some(alias => candidateContainsAlias(name, alias)));
 }
 
 /** Backwards-compatible singular lookup for existing callers. */
-export function lookupMitoCompound(name) {
+export function lookupMitoCompound(name: unknown) {
   return lookupMitoCompounds(name)[0] || null;
 }
 
-export function pubmedUrl(pmid) {
+export function pubmedUrl(pmid: unknown) {
   return `https://pubmed.ncbi.nlm.nih.gov/${Number(pmid)}/`;
 }
 
-export function pubmedSearchUrl(searchTerms) {
+export function pubmedSearchUrl(searchTerms: unknown) {
   return `https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(String(searchTerms || '').replace(/\+/g, ' '))}`;
 }
 
@@ -102,7 +120,7 @@ export function pubmedSearchUrl(searchTerms) {
  * product names, doses, schedules, notes, and other user data are intentionally
  * excluded from the issue body.
  */
-export function mitochondrialEvidenceIssueUrl(item) {
+export function mitochondrialEvidenceIssueUrl(item: MitoEvidenceView | null | undefined) {
   const compound = String(item?.compound || item?.name || 'Unknown compound').trim();
   const pmid = Number(item?.pmid);
   const sourceUrl = Number.isInteger(pmid) ? pubmedUrl(pmid) : 'PMID unavailable';
@@ -148,16 +166,16 @@ const studyPriority = {
   isolated_mitochondria: 7,
 };
 
-function evidencePriority(item) {
-  return studyPriority[item.studyType] ?? 99;
+function evidencePriority(item: MitoEvidenceView) {
+  return studyPriority[item.studyType as keyof typeof studyPriority] ?? 99;
 }
 
-function supplementCandidates(supplement) {
+function supplementCandidates(supplement: SupplementCandidateView | null | undefined) {
   const candidates = [
     { value: supplement?.genericName, field: 'generic name' },
     { value: supplement?.name, field: 'product name' },
     ...(Array.isArray(supplement?.ingredients)
-      ? supplement.ingredients.map(ingredient => ({ value: ingredient?.name, field: 'active ingredient' }))
+      ? (supplement.ingredients as Array<{ name?: unknown } | null | undefined>).map(ingredient => ({ value: ingredient?.name, field: 'active ingredient' }))
       : []),
   ];
   return candidates.filter(candidate => normalizeCompoundText(candidate.value));
@@ -168,16 +186,15 @@ function supplementCandidates(supplement) {
  * The historical function name is retained for callers, but returned records
  * are evidence matches rather than clinical warnings.
  */
-export function scanSupplementsForWarnings(supplements) {
+export function scanSupplementsForWarnings(supplements: unknown) {
   if (!Array.isArray(supplements) || supplements.length === 0) return [];
   if (!_mitoData) {
     void preloadMitoCompoundData();
     return [];
   }
 
-  /** @type {Map<string, any>} */
-  const matches = new Map();
-  for (const supplement of supplements) {
+  const matches = new Map<string, MitoEvidenceMatch>();
+  for (const supplement of supplements as Array<SupplementCandidateView | null | undefined>) {
     const productName = String(supplement?.name || 'Tracked item').trim();
     for (const candidate of supplementCandidates(supplement)) {
       for (const compound of lookupMitoCompounds(candidate.value)) {
@@ -209,7 +226,7 @@ export function scanSupplementsForWarnings(supplements) {
   return [...matches.values()].sort((a, b) => (
     evidencePriority(a) - evidencePriority(b)
     || (a.direction === 'adverse' ? -1 : 0) - (b.direction === 'adverse' ? -1 : 0)
-    || a.compound.localeCompare(b.compound)
+    || (a.compound as string).localeCompare(b.compound as string)
   ));
 }
 
@@ -220,11 +237,10 @@ export const scanSupplementsForMitochondrialEvidence = scanSupplementsForWarning
  * A compound occupies one top-level row while every study retains its own
  * direction, scope, PMID, exposure, and limitation.
  */
-export function groupMitochondrialEvidenceMatches(matches) {
+export function groupMitochondrialEvidenceMatches(matches: unknown) {
   if (!Array.isArray(matches) || !matches.length) return [];
-  /** @type {Map<string, any>} */
-  const groups = new Map();
-  for (const item of matches) {
+  const groups = new Map<string, MitoEvidenceGroup>();
+  for (const item of matches as MitoGroupItemView[]) {
     const compound = String(item?.compound || '').trim();
     if (!compound) continue;
     let group = groups.get(compound);
@@ -249,12 +265,12 @@ export function groupMitochondrialEvidenceMatches(matches) {
   return [...groups.values()];
 }
 
-export function mitochondrialDirectionLabel(direction, studyType) {
+export function mitochondrialDirectionLabel(direction: unknown, studyType: unknown) {
   if (direction === 'null') return 'No effect detected';
   if (direction === 'mixed') return 'Mixed finding';
   if (direction === 'mechanism') return 'Mechanism, not harm';
   if (direction === 'beneficial') return 'Potential benefit';
-  if (direction === 'adverse' && ['human_trial', 'human_observational'].includes(studyType)) {
+  if (direction === 'adverse' && ['human_trial', 'human_observational'].includes(studyType as string)) {
     return 'Human caution signal';
   }
   return 'Adverse lab signal';
@@ -265,7 +281,7 @@ export function mitochondrialDirectionLabel(direction, studyType) {
  * is intentionally capped so it cannot crowd out the user's actual regimen.
  */
 export function buildMitochondrialEvidenceContext(
-  supplements,
+  supplements: unknown,
   { maxItems = 4, maxEvidence = 6, maxChars = 1800 } = {},
 ) {
   const matches = scanSupplementsForWarnings(supplements);
@@ -274,7 +290,7 @@ export function buildMitochondrialEvidenceContext(
 
   const header = 'Mitochondrial primary-study matches (evidence summaries, not personalized clinical conclusions):\n';
   const guardrail = 'Interpretation constraint: the catalog is deliberately incomplete, so no match is not evidence of no effect. Treat cell, animal, tissue, and isolated-mitochondria findings as mechanistic only. Do not infer benefit or harm at the user\'s dose, and do not advise stopping prescription medication from these matches.\n';
-  const selectedGroups = [];
+  const selectedGroups: MitoEvidenceGroup[] = [];
   let selectedEvidenceCount = 0;
   for (const group of groups.slice(0, maxItems)) {
     const available = maxEvidence - selectedEvidenceCount;
@@ -289,7 +305,7 @@ export function buildMitochondrialEvidenceContext(
     const blocks = selectedGroups.map(group => {
       const products = group.productNames.length ? `; tracked as ${group.productNames.join(', ')}` : '';
       if (group.evidence.length === 1) {
-        const item = group.evidence[0];
+        const item = group.evidence[0]!;
         const scope = item.scopeLabel ? `; scope: ${item.scopeLabel}` : '';
         return `- ${group.compound} [${item.studyLabel}; ${mitochondrialDirectionLabel(item.direction, item.studyType)}${scope}${products}]: ${item.summary} Exposure: ${item.exposure} Limitation: ${item.limitations} PMID ${item.pmid}.\n`;
       }
@@ -309,7 +325,7 @@ export function buildMitochondrialEvidenceContext(
   };
 
   while (selectedGroups.length && renderContext().length > maxChars) {
-    const lastGroup = selectedGroups[selectedGroups.length - 1];
+    const lastGroup = selectedGroups[selectedGroups.length - 1]!;
     lastGroup.evidence.pop();
     if (!lastGroup.evidence.length) selectedGroups.pop();
   }
@@ -317,7 +333,7 @@ export function buildMitochondrialEvidenceContext(
 }
 
 /** Retained for compatibility with any older renderers. */
-export function humanizeEffect(effect, { showContext = false } = {}) {
+export function humanizeEffect(effect: { summary?: unknown; a?: unknown; f?: unknown; t?: unknown } | null | undefined, { showContext = false } = {}) {
   if (effect?.summary) return effect.summary;
   const action = String(effect?.a || 'affects');
   const target = String(effect?.f || 'mitochondrial function');

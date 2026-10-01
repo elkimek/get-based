@@ -204,7 +204,7 @@ function contaminantContextProducts(supplements) {
     const current = getSupplementPeriods(supplement).find(period => period.start <= today && (!period.end || period.end >= today));
     const schedule = current?.schedule || supplement.schedule || {};
     const daily = getSupplementStatus(supplement) === 'active' && ['daily', 'multiple'].includes(schedule.mode || 'daily')
-      && (!current?.dose || current.dose.source === 'ingredient');
+      && (!current?.dose || (/** @type {import('../types/supplement-data.js').SupplementDose} */ (/** @type {unknown} */ (current.dose))).source === 'ingredient');
     return { ...supplement, qualityTests: contextQualityTests(supplement),
       timesPerDay: daily ? schedule.timesPerDay ?? supplement.timesPerDay : null,
       schedule: { ...schedule, timesPerDay: daily ? schedule.timesPerDay ?? supplement.timesPerDay : null } };

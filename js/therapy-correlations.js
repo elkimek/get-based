@@ -53,8 +53,8 @@ export function prepareTherapyHistory(record, today = localDateKey(), ingredient
     .map(p => ({ ...p, dose: selectedDose(p), end: p.end || null, quantity: parseCorrelationDose(selectedDose(p)) }))
     .sort((a, b) => a.start.localeCompare(b.start));
   const invalid = periods.length !== raw.length || !periods.length
-    || periods.some((p, i) => i > 0 && (!periods[i - 1].end || periods[i - 1].end >= p.start));
-  const keys = [...new Set(periods.filter(p => p.quantity).map(p => p.quantity.key))];
+    || periods.some((p, i) => i > 0 && (!periods[i - 1].end || (/** @type {string} */ (periods[i - 1].end)) >= p.start));
+  const keys = [...new Set(periods.filter(p => p.quantity).map(p => (/** @type {NonNullable<ReturnType<typeof parseCorrelationDose>>} */ (p.quantity)).key))];
   const quantity = keys.length === 1 ? periods.find(p => p.quantity)?.quantity : null;
   const warnings = [];
   if (invalid) warnings.push('Correct invalid or overlapping periods before comparing doses.');

@@ -449,3 +449,9 @@ deploy/profile-share/data/
 /tests/helpers/lmstudio-fixtures.js
 
 /js/backup.js
+
+/js/supplement-medication-domain.js
+
+/js/supplement-warnings.js
+
+/js/supplement-import-draft.js
