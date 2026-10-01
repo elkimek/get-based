@@ -292,6 +292,15 @@ existing checks and coercions. Retry/stall unit cases are separate from the
 remaining provider integration graph; validation retry tables and shared Venice
 setup retain every original fixture value, operation and assertion.
 
+Application state and the trusted edition extension boundary now use native
+TypeScript. Shared rendering, action, notification and sync-key operations retain
+their original receiver, exception, Promise and authorization behavior. The five
+extension unit cases are native; two credential-storage integration cases still
+exercise the remaining crypto graph. The secondary clinical unit registry uses
+typed factories and shared definitions for enzyme, cholesterol, protein-mass and
+cell-count units; all 83 entries retain exact values, order and independent mutable
+arrays and records. Existing canonical-unit import and conversion checks remain.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

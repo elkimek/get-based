@@ -1,8 +1,7 @@
-// @ts-check
 // state.js — Centralized mutable application state
 
-/** @type {import('../types/app-state.js').AppState} */
-export const state = {
+import type { AppState } from '../types/app-state.js';
+export const state: AppState = {
   chartInstances: {},
   markerRegistry: {},
   importedData: { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, diet: null, exercise: null, sleepRest: null, lightCircadian: null, stress: null, loveLife: null, environment: null, interpretiveLens: '', contextNotes: '', menstrualCycle: null, emfAssessment: null, genetics: null, customMarkers: {}, markerPlacements: {}, markerNotes: {}, markerValueNotes: {}, biologyScoreAI: {}, contextSourceSettings: {}, nutritionContextDays: 30, nutritionTargets: null, nutritionMeals: [], changeHistory: [], importSnapshots: [] },

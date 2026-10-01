@@ -264,3 +264,8 @@ deploy/profile-share/data/
 /js/api-runtime.js
 /js/local-ai-provider-shared.js
 /js/local-ai-provider-ollama.js
+
+# Native application and extension foundations
+/js/state.js
+/js/secondary-unit-conversions.js
+/js/app-extension-runtime.js

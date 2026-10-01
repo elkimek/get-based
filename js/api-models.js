@@ -326,7 +326,7 @@ export async function fetchOpenRouterModels(key) {
   try {
     let extensionPolicy = getAppExtensionAIModelPolicy({ provider: 'openrouter' });
     if (extensionPolicy?.enforced && !Array.isArray(extensionPolicy.allowlist)) return [];
-    if (extensionPolicy?.enforced && extensionPolicy.allowlist.length === 0) {
+    if (extensionPolicy?.enforced && /** @type {string[]} */ (extensionPolicy.allowlist).length === 0) {
       await refreshAppExtensionAI({ reason: 'model-policy', provider: 'openrouter' });
       extensionPolicy = getAppExtensionAIModelPolicy({ provider: 'openrouter' });
     }
