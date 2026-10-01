@@ -91,9 +91,9 @@ import {
 const settingsWindow = /** @type {SettingsWindow} */ (window);
 /**
  * @typedef {{
- *   clearAllData: () => Promise<void> | void,
- *   exportAllDataJSON: () => Promise<void> | void,
- *   exportClientJSON: (profileId?: string | null) => Promise<void> | void,
+ *   clearAllData: () => void,
+ *   exportAllDataJSON: () => void,
+ *   exportClientJSON: (profileId?: string | null) => void,
  *   getActiveProfileId: () => string | null,
  *   navigate: (view: string) => void,
  *   openFeedbackModal: () => void,

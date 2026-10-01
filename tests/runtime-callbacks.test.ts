@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { configureRuntimeCallbacks, configureRuntimeDependencies, configureValidRuntimeCallbacks } from '../js/runtime-callbacks.js';
+import { configureRuntimeCallbacks, configureRuntimeDependencies, configureValidRuntimeCallbacks, configureRuntimeFunctions } from '../js/runtime-callbacks.js';
 
 interface Callbacks {
   close: (() => void) | null;
@@ -149,4 +149,42 @@ it('retains null-first validation reads and partial updates when validated hook 
   expect(() => configureValidRuntimeCallbacks(callbacks, updates)).toThrow('validated hook getter failure');
   expect(trace).toEqual(['close', 'close', 'close', 'navigate']);
   expect(callbacks).toEqual({ close: replacement, navigate: null });
+});
+
+it('patches explicit fields in adapter order even when a slot was deleted', () => {
+  const first = vi.fn(), second = vi.fn(), extra = vi.fn();
+  const callbacks: Record<string, (() => unknown) | null> = { extra, second: null, first: null };
+  delete callbacks.first;
+  const trace: string[] = [];
+  const updates = Object.defineProperties({}, {
+    first: { get: () => { trace.push('first'); return first; } },
+    second: { get: () => { trace.push('second'); return second; } },
+    extra: { get: () => { throw new Error('unselected hook must not be read'); } },
+  });
+  const previous = configureRuntimeFunctions(callbacks, updates, ['first', 'second']);
+  expect(trace).toEqual(['first', 'first', 'second', 'second']);
+  expect(callbacks).toEqual({ extra, second, first });
+  expect(previous).toEqual({ extra, second: null });
+});
+
+it('retains own-null validation and each getter read with explicit field selection', () => {
+  const initial = vi.fn(), replacement = vi.fn();
+  const callbacks: Record<string, (() => unknown) | null> = { first: initial, second: null };
+  let reads = 0;
+  const updates = Object.defineProperty(Object.create({ second: replacement }), 'first', {
+    get: () => { reads++; return reads < 3 ? replacement : null; },
+  });
+  const previous = configureValidRuntimeCallbacks(callbacks, updates, ['first', 'second']);
+  expect(reads).toBe(3);
+  expect(callbacks).toEqual({ first: null, second: null });
+  expect(previous).toEqual({ first: initial, second: null });
+});
+
+it('accepts inherited functions without clearing null or invalid overrides', () => {
+  const initial = vi.fn(), replacement = vi.fn();
+  const callbacks: Record<string, (() => unknown) | null> = { first: initial, second: initial };
+  const updates: Partial<typeof callbacks> = Object.create({ first: replacement });
+  updates.second = null;
+  configureRuntimeFunctions(callbacks, updates, ['first', 'second']);
+  expect(callbacks).toEqual({ first: replacement, second: initial });
 });

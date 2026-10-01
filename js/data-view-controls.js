@@ -1,3 +1,4 @@
+import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
 // @ts-check
 // Browser controls for data views, chart layers, and display preferences.
 
@@ -35,31 +36,12 @@ const dataViewCoreDeps = {
 
 /** @param {Partial<DataRuntimeDeps>} [deps] */
 export function configureDataRuntimeDeps(deps = {}) {
-  const previous = { ...dataRuntimeDeps };
-  if (Object.hasOwn(deps, 'buildSidebar') && (deps.buildSidebar === null || typeof deps.buildSidebar === 'function')) {
-    dataRuntimeDeps.buildSidebar = deps.buildSidebar;
-  }
-  if (Object.hasOwn(deps, 'navigate') && (deps.navigate === null || typeof deps.navigate === 'function')) {
-    dataRuntimeDeps.navigate = deps.navigate;
-  }
-  if (Object.hasOwn(deps, 'showDetailModal') && (deps.showDetailModal === null || typeof deps.showDetailModal === 'function')) {
-    dataRuntimeDeps.showDetailModal = deps.showDetailModal;
-  }
-  return previous;
+  return configureValidRuntimeCallbacks(dataRuntimeDeps, deps, ["buildSidebar","navigate","showDetailModal"]);
 }
 
 /** @param {Partial<DataViewCoreDeps>} [deps] */
 export function configureDataViewCoreDependencies(deps = {}) {
-  const previous = { ...dataViewCoreDeps };
-  if (Object.hasOwn(deps, 'getActiveData')
-    && (deps.getActiveData === null || typeof deps.getActiveData === 'function')) {
-    dataViewCoreDeps.getActiveData = deps.getActiveData;
-  }
-  if (Object.hasOwn(deps, 'invalidateActiveDataCache')
-    && (deps.invalidateActiveDataCache === null || typeof deps.invalidateActiveDataCache === 'function')) {
-    dataViewCoreDeps.invalidateActiveDataCache = deps.invalidateActiveDataCache;
-  }
-  return previous;
+  return configureValidRuntimeCallbacks(dataViewCoreDeps, deps, ["getActiveData","invalidateActiveDataCache"]);
 }
 
 function getActiveData() {

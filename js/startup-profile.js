@@ -1,3 +1,4 @@
+import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // @ts-check
 // startup-profile.js - profile migration, active-profile load, and UI state
 
@@ -23,11 +24,7 @@ const startupProfileDeps = {
 };
 
 export function configureStartupProfileDeps(deps = {}) {
-  const previous = { ...startupProfileDeps };
-  if (typeof deps.hydrateNutritionSummary === 'function') {
-    startupProfileDeps.hydrateNutritionSummary = deps.hydrateNutritionSummary;
-  }
-  return previous;
+  return configureRuntimeFunctions(startupProfileDeps, deps, ["hydrateNutritionSummary"]);
 }
 
 configureCryptoProfileDeps({ migrateProfileData });

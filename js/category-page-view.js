@@ -1,3 +1,4 @@
+import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
 // @ts-check
 // category-page-view.js — category route orchestration and view-mode switching
 
@@ -34,12 +35,7 @@ const categoryPageViewDeps = {
 
 /** @param {Partial<typeof categoryPageViewDeps>} [deps] */
 export function configureCategoryPageViewDeps(deps = {}) {
-  const previous = { ...categoryPageViewDeps };
-  if (Object.hasOwn(deps, 'renameCategory')
-      && (deps.renameCategory === null || typeof deps.renameCategory === 'function')) {
-    categoryPageViewDeps.renameCategory = deps.renameCategory;
-  }
-  return previous;
+  return configureValidRuntimeCallbacks(categoryPageViewDeps, deps, ["renameCategory"]);
 }
 
 const CATEGORY_PAGE_ACTION_ATTR = 'data-category-page-action';

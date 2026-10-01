@@ -1,3 +1,4 @@
+import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
 // @ts-check
 // export.js — JSON export/import, report facade, clear all data
 
@@ -122,14 +123,7 @@ const exportRuntimeDeps = {
 
 /** @param {Partial<typeof exportRuntimeDeps>} [deps] */
 export function configureExportRuntimeDeps(deps = {}) {
-  const previous = { ...exportRuntimeDeps };
-  if (Object.hasOwn(deps, 'buildSidebar') && (deps.buildSidebar === null || typeof deps.buildSidebar === 'function')) {
-    exportRuntimeDeps.buildSidebar = deps.buildSidebar;
-  }
-  if (Object.hasOwn(deps, 'navigate') && (deps.navigate === null || typeof deps.navigate === 'function')) {
-    exportRuntimeDeps.navigate = deps.navigate;
-  }
-  return previous;
+  return configureValidRuntimeCallbacks(exportRuntimeDeps, deps, ["buildSidebar","navigate"]);
 }
 
 // ═══════════════════════════════════════════════

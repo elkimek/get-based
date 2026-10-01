@@ -6,10 +6,10 @@ import { closeModalOverlay } from './modal-lifecycle.js';
 import { showClientListNotification } from './client-list-runtime.js';
 
 /** @typedef {{
- *   exportAllDataJSON: () => Promise<void> | void,
- *   exportClientJSON: (profileId: string, includeChat?: boolean) => Promise<void> | void,
- *   importDataJSON: (file: File) => Promise<void> | void,
- *   loadDemoData: (sex?: string) => Promise<void> | void,
+ *   exportAllDataJSON: () => void,
+ *   exportClientJSON: (profileId: string, includeChat?: boolean) => void,
+ *   importDataJSON: (file: File) => void,
+ *   loadDemoData: (sex?: string) => void,
  *   openProfileShareModal: (profileId?: string) => void,
  * }} ClientListRuntime */
 

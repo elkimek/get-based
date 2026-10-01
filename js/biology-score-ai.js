@@ -1,3 +1,4 @@
+import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // @ts-check
 // biology-score-ai.js — embedded AI interpretation for deterministic Biology Scores.
 
@@ -32,12 +33,7 @@ const biologyScoreAIDeps = {
 };
 
 export function configureBiologyScoreAIDeps(deps = {}) {
-  const previous = { ...biologyScoreAIDeps };
-  if (typeof deps.callClaudeAPI === 'function') biologyScoreAIDeps.callClaudeAPI = deps.callClaudeAPI;
-  if (typeof deps.hasAIProvider === 'function') biologyScoreAIDeps.hasAIProvider = deps.hasAIProvider;
-  if (typeof deps.isAIPaused === 'function') biologyScoreAIDeps.isAIPaused = deps.isAIPaused;
-  if (typeof deps.automaticEnabled === 'function') biologyScoreAIDeps.automaticEnabled = deps.automaticEnabled;
-  return previous;
+  return configureRuntimeFunctions(biologyScoreAIDeps, deps, ["callClaudeAPI","hasAIProvider","isAIPaused","automaticEnabled"]);
 }
 
 /** @param {number | string | null | undefined} value */

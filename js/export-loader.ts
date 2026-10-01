@@ -1,33 +1,48 @@
-// @ts-check
 // export-loader.js - cold-safe lazy facade for export, import, demo, and report actions
 
 import { createRetryingModuleLoader, invokeCachedModule } from './retrying-module-loader.js';
 import { showNotification } from './utils.js';
 
-/** @typedef {typeof import('./export.js')} ExportFacadeModule */
+interface ExportFacadeLoaderDeps {
+  buildSidebar: (() => unknown) | null;
+  navigate: ((route: string) => unknown) | null;
+}
+interface ExportFacadeActions {
+  clearAllData(): unknown;
+  closeReportBuilder(): unknown;
+  exportAllDataJSON(): unknown;
+  exportClientJSON(profileId: string, includeChat?: boolean): unknown;
+  importDataJSON(file: File): unknown;
+  loadDemoData(sex?: string): unknown;
+  openReportBuilder(presetId?: string): unknown;
+}
+interface ExportFacadeModule extends ExportFacadeActions {
+  configureExportRuntimeDeps(deps: ExportFacadeLoaderDeps): unknown;
+  [name: string]: unknown;
+}
 
-const exportFacadeModuleLoader = createRetryingModuleLoader(
-  retry => retry ? loadExportFacadeRetryModule() : import('./export.js'),
+const exportFacadeModuleLoader = createRetryingModuleLoader<ExportFacadeModule>(
+  retry => retry ? loadExportFacadeRetryModule() : import('./export.js' as string),
   module => {
     return applyExportFacadeLoaderDeps(module);
   },
 );
 
-const exportFacadeLoaderDeps = {
-  buildSidebar: /** @type {AnyFunction | null} */ (null),
-  navigate: /** @type {AnyFunction | null} */ (null),
+const exportFacadeLoaderDeps: ExportFacadeLoaderDeps = {
+  buildSidebar: null,
+  navigate: null,
 };
 
-function applyExportFacadeLoaderDeps(module) {
+function applyExportFacadeLoaderDeps(module: ExportFacadeModule) {
   module.configureExportRuntimeDeps(exportFacadeLoaderDeps);
   return module;
 }
 
-export function configureExportFacadeLoaderDeps(deps = {}) {
+export function configureExportFacadeLoaderDeps(deps: Partial<ExportFacadeLoaderDeps> | null = {}) {
   const previous = { ...exportFacadeLoaderDeps };
-  for (const key of Object.keys(exportFacadeLoaderDeps)) {
+  for (const key of (Object.keys(exportFacadeLoaderDeps) as Array<keyof ExportFacadeLoaderDeps>)) {
     const value = deps?.[key];
-    if (value === null || typeof value === 'function') exportFacadeLoaderDeps[key] = value;
+    if (value === null || typeof value === 'function') (exportFacadeLoaderDeps as Record<keyof ExportFacadeLoaderDeps, unknown>)[key] = value;
   }
   if (exportFacadeModuleLoader.promise) {
     void exportFacadeModuleLoader.promise.then(applyExportFacadeLoaderDeps).catch(() => {});
@@ -39,30 +54,23 @@ export function isExportFacadeModuleLoaded() {
   return exportFacadeModuleLoader.module !== null;
 }
 
-/** @returns {Promise<ExportFacadeModule>} */
 function loadExportFacadeRetryModule() {
-  // @ts-expect-error TypeScript resolves only the query-free source path.
-  return import('./export.js?lazy-retry=1');
+  return import('./export.js?lazy-retry=1' as string);
 }
 
-/** @returns {Promise<ExportFacadeModule>} */
 export function loadExportFacadeModule() {
   return exportFacadeModuleLoader.load();
 }
 
-/**
- * @param {keyof ExportFacadeModule} name
- * @param {any[]} args
- */
-function runExportFacadeAction(name, args) {
-  const run = (/** @type {ExportFacadeModule} */ module) => {
+function runExportFacadeAction<K extends keyof ExportFacadeActions>(name: K, args: Parameters<ExportFacadeActions[K]>) {
+  const run = (module: ExportFacadeModule): unknown => {
     const action = module[name];
     if (typeof action !== 'function') {
       throw new Error(`Export action ${String(name)} is unavailable`);
     }
     return Reflect.apply(action, module, args);
   };
-  const reportFailure = error => {
+  const reportFailure = (error: unknown) => {
     console.error(`[export] Could not run ${String(name)}:`, error);
     showNotification('Data export tools could not be loaded. Try again.', 'error');
     return false;
@@ -83,22 +91,18 @@ export function exportAllDataJSON() {
   return runExportFacadeAction('exportAllDataJSON', []);
 }
 
-/** @param {string} profileId @param {boolean} [includeChat] */
-export function exportClientJSON(profileId, includeChat = false) {
+export function exportClientJSON(profileId: string, includeChat = false) {
   return runExportFacadeAction('exportClientJSON', [profileId, includeChat]);
 }
 
-/** @param {File} file */
-export function importDataJSON(file) {
+export function importDataJSON(file: File) {
   return runExportFacadeAction('importDataJSON', [file]);
 }
 
-/** @param {string} [sex] */
 export function loadDemoData(sex = 'male') {
   return runExportFacadeAction('loadDemoData', [sex]);
 }
 
-/** @param {string} [presetId] */
-export function openReportBuilder(presetId) {
+export function openReportBuilder(presetId?: string) {
   return runExportFacadeAction('openReportBuilder', [presetId]);
 }

@@ -1,3 +1,4 @@
+import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // @ts-check
 // marker-detail-placement.js — Marker category placement form and persistence.
 
@@ -28,9 +29,7 @@ const placementMutationProfiles = new Map();
 
 /** @param {{ showDetailModal?: (id: string) => any }} [runtime] */
 export function configureMarkerDetailPlacement(runtime = {}) {
-  const previous = { ...placementRuntime };
-  if (typeof runtime.showDetailModal === 'function') placementRuntime.showDetailModal = runtime.showDetailModal;
-  return previous;
+  return configureRuntimeFunctions(placementRuntime, runtime, ["showDetailModal"]);
 }
 
 /** @param {unknown} value @returns {value is Record<string, any>} */

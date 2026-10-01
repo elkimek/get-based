@@ -1,3 +1,4 @@
+import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // @ts-check
 // sync-payload.js - outbound/inbound wire payload helpers for Evolu sync
 
@@ -41,9 +42,7 @@ const syncPayloadDeps = {
 
 /** @param {{ getProfiles?: () => any[] }} [deps] */
 export function configureSyncPayload(deps = {}) {
-  const previous = { ...syncPayloadDeps };
-  if (typeof deps.getProfiles === 'function') syncPayloadDeps.getProfiles = deps.getProfiles;
-  return previous;
+  return configureRuntimeFunctions(syncPayloadDeps, deps, ["getProfiles"]);
 }
 
 import { isPhase2CutoverEnabled } from './sync-delta-snapshot.js';

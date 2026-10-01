@@ -1,3 +1,4 @@
+import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // @ts-check
 // context-cards.js - dashboard context card module surface and shared lifecycle
 
@@ -96,11 +97,7 @@ const contextCardRuntimeDeps = {
 };
 
 export function configureContextCardRuntimeDeps(deps = {}) {
-  const previous = { ...contextCardRuntimeDeps };
-  if (typeof deps.openEMFAssessmentEditor === 'function') {
-    contextCardRuntimeDeps.openEMFAssessmentEditor = deps.openEMFAssessmentEditor;
-  }
-  return previous;
+  return configureRuntimeFunctions(contextCardRuntimeDeps, deps, ["openEMFAssessmentEditor"]);
 }
 
 function contextCardActionAttrs(action, attrs = {}) {

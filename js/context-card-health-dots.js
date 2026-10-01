@@ -1,3 +1,4 @@
+import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // @ts-check
 // context-card-health-dots.js - AI health-dot scoring for dashboard context cards
 
@@ -34,14 +35,7 @@ const contextHealthDotDeps = {
 };
 
 export function configureContextCardHealthDots(deps = {}) {
-  const previous = { ...contextHealthDotDeps };
-  if (typeof deps.buildLabContext === 'function') {
-    contextHealthDotDeps.buildLabContext = deps.buildLabContext;
-  }
-  if (typeof deps.isActiveDemoProfile === 'function') {
-    contextHealthDotDeps.isActiveDemoProfile = deps.isActiveDemoProfile;
-  }
-  return previous;
+  return configureRuntimeFunctions(contextHealthDotDeps, deps, ["buildLabContext","isActiveDemoProfile"]);
 }
 
 export function isActiveDemoContextProfile() {

@@ -1,3 +1,4 @@
+import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // @ts-check
 // shell-actions.js - delegated actions for static index.html controls
 
@@ -40,32 +41,20 @@ const shellChatThreadDeps = {
 };
 
 export function configureShellImportDeps(deps = {}) {
-  const previous = { ...shellImportDeps };
-  if (typeof deps.handleImportStatusClick === 'function') shellImportDeps.handleImportStatusClick = deps.handleImportStatusClick;
-  if (typeof deps.isImportRunning === 'function') shellImportDeps.isImportRunning = deps.isImportRunning;
-  return previous;
+  return configureRuntimeFunctions(shellImportDeps, deps, ["handleImportStatusClick","isImportRunning"]);
 }
 
 export function configureShellFeedbackDeps(deps = {}) {
-  const previous = { ...shellFeedbackDeps };
-  if (typeof deps.openFeedbackModal === 'function') shellFeedbackDeps.openFeedbackModal = deps.openFeedbackModal;
-  return previous;
+  return configureRuntimeFunctions(shellFeedbackDeps, deps, ["openFeedbackModal"]);
 }
 
 export function configureShellProfileShareDeps(deps = {}) {
-  const previous = { ...shellProfileShareDeps };
-  if (typeof deps.openProfileShareModal === 'function') {
-    shellProfileShareDeps.openProfileShareModal = deps.openProfileShareModal;
-  }
-  return previous;
+  return configureRuntimeFunctions(shellProfileShareDeps, deps, ["openProfileShareModal"]);
 }
 
 /** @param {Partial<typeof shellNavDeps>} [deps] */
 export function configureShellNavDeps(deps = {}) {
-  const previous = { ...shellNavDeps };
-  if (typeof deps.closeMobileSidebar === 'function') shellNavDeps.closeMobileSidebar = deps.closeMobileSidebar;
-  if (typeof deps.toggleMobileSidebar === 'function') shellNavDeps.toggleMobileSidebar = deps.toggleMobileSidebar;
-  return previous;
+  return configureRuntimeFunctions(shellNavDeps, deps, ["closeMobileSidebar","toggleMobileSidebar"]);
 }
 
 /** @param {Partial<typeof shellChatActionDeps>} [deps] */
@@ -80,13 +69,7 @@ export function configureShellChatActionDeps(deps = {}) {
 }
 
 export function configureShellChatThreadDeps(deps = {}) {
-  const previous = { ...shellChatThreadDeps };
-  if (typeof deps.createThreadProject === 'function') shellChatThreadDeps.createThreadProject = deps.createThreadProject;
-  if (typeof deps.createNewThread === 'function') shellChatThreadDeps.createNewThread = deps.createNewThread;
-  if (typeof deps.filterThreadList === 'function') shellChatThreadDeps.filterThreadList = deps.filterThreadList;
-  if (typeof deps.setChatThreadSort === 'function') shellChatThreadDeps.setChatThreadSort = deps.setChatThreadSort;
-  if (typeof deps.toggleThreadRail === 'function') shellChatThreadDeps.toggleThreadRail = deps.toggleThreadRail;
-  return previous;
+  return configureRuntimeFunctions(shellChatThreadDeps, deps, ["createThreadProject","createNewThread","filterThreadList","setChatThreadSort","toggleThreadRail"]);
 }
 
 function shellRuntime() {

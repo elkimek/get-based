@@ -1,3 +1,4 @@
+import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // @ts-check
 // chat-composer.js — growing message input and per-conversation draft state
 
@@ -18,11 +19,7 @@ const composerDeps = {
 
 /** @param {Partial<typeof composerDeps>} [deps] */
 export function configureChatComposer(deps = {}) {
-  const previous = { ...composerDeps };
-  if (typeof deps.updateSendButtonState === 'function') {
-    composerDeps.updateSendButtonState = deps.updateSendButtonState;
-  }
-  return previous;
+  return configureRuntimeFunctions(composerDeps, deps, ["updateSendButtonState"]);
 }
 
 function getChatInput() {

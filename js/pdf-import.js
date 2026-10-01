@@ -1,3 +1,4 @@
+import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // @ts-check
 // pdf-import.js — PDF parsing pipeline, import preview, drop zone, batch import
 
@@ -82,12 +83,7 @@ configurePdfImportFileHandlers({
 });
 
 export function configurePdfImportDeps(deps = {}) {
-  const previous = { ...pdfImportDeps };
-  if (typeof deps.importDataJSON === 'function') pdfImportDeps.importDataJSON = deps.importDataJSON;
-  if (typeof deps.loadDemoData === 'function') pdfImportDeps.loadDemoData = deps.loadDemoData;
-  if (typeof deps.maybeShowEncryptionNudge === 'function') pdfImportDeps.maybeShowEncryptionNudge = deps.maybeShowEncryptionNudge;
-  if (typeof deps.startOpenRouterOAuth === 'function') pdfImportDeps.startOpenRouterOAuth = deps.startOpenRouterOAuth;
-  return previous;
+  return configureRuntimeFunctions(pdfImportDeps, deps, ["importDataJSON","loadDemoData","maybeShowEncryptionNudge","startOpenRouterOAuth"]);
 }
 
 export { buildMarkerReference, reconcileImportMarkerMappings } from './pdf-import-marker-mapping.js';

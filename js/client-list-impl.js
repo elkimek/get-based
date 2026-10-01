@@ -25,10 +25,10 @@ const CLIENT_LIST_STYLESHEET_URL = new URL('../css/client-list.css', import.meta
 
 /**
  * @typedef {{
- *   exportAllDataJSON: () => Promise<void> | void,
- *   exportClientJSON: (profileId: string, includeChat?: boolean) => Promise<void> | void,
- *   importDataJSON: (file: File) => Promise<void> | void,
- *   loadDemoData: (sex?: string) => Promise<void> | void,
+ *   exportAllDataJSON: () => void,
+ *   exportClientJSON: (profileId: string, includeChat?: boolean) => void,
+ *   importDataJSON: (file: File) => void,
+ *   loadDemoData: (sex?: string) => void,
  *   openProfileShareModal: (profileId?: string) => void,
  * }} ClientListRuntime
  */

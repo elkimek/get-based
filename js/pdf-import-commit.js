@@ -1,3 +1,4 @@
+import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // @ts-check
 // pdf-import-commit.js - Import commit, snapshot deletion, and re-review actions.
 
@@ -43,9 +44,7 @@ import { annotateImportedRatioUnitConventions } from './pdf-import-ratio-units.j
 const pdfImportCommitDeps = { maybeShowEncryptionNudge };
 
 export function configurePdfImportCommitDeps(deps = {}) {
-  const previous = { ...pdfImportCommitDeps };
-  if (typeof deps.maybeShowEncryptionNudge === 'function') pdfImportCommitDeps.maybeShowEncryptionNudge = deps.maybeShowEncryptionNudge;
-  return previous;
+  return configureRuntimeFunctions(pdfImportCommitDeps, deps, ["maybeShowEncryptionNudge"]);
 }
 
 let _batchMode = false;

@@ -1,3 +1,4 @@
+import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // @ts-check
 // profile-list-store.js — Durable, serialized storage for profile metadata.
 
@@ -30,14 +31,7 @@ const profileListStoreDeps = {
 const profileSnapshotOrigins = new WeakMap();
 
 export function configureProfileListStoreDeps(deps = {}) {
-  const previous = { ...profileListStoreDeps };
-  if (typeof deps.encryptedSetItem === 'function') {
-    profileListStoreDeps.encryptedSetItem = deps.encryptedSetItem;
-  }
-  if (typeof deps.showNotification === 'function') {
-    profileListStoreDeps.showNotification = deps.showNotification;
-  }
-  return previous;
+  return configureRuntimeFunctions(profileListStoreDeps, deps, ["encryptedSetItem","showNotification"]);
 }
 
 /** @param {StoredProfileRecord} profile */

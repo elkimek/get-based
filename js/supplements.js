@@ -318,6 +318,7 @@ async function commitSupplementMutation(mutate) {
   }
 }
 
+/** @returns {Promise<boolean | void>} */
 export async function saveSupplement(index) {
   if (supplementFormRecordChanged()) {
     showNotification('This record changed elsewhere. Copy any unsaved edits, then close and reopen it before saving.', 'error');

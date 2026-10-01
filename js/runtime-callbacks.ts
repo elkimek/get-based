@@ -31,13 +31,24 @@ export function configureRuntimeDependencies<T extends { [K in keyof T]: ((...ar
 
 /** Accept own function/null overrides, leaving invalid values and inherited slots untouched. */
 export function configureValidRuntimeCallbacks<T extends { [K in keyof T]: ((...args: never[]) => unknown) | null }>(
-  current: T, updates: Partial<T> = {},
+  current: T, updates: Partial<T> = {}, fields?: ReadonlyArray<keyof T>,
 ): T {
   const previous = { ...current };
-  for (const key of Object.keys(current) as Array<keyof T>) {
+  for (const key of (fields || Object.keys(current)) as ReadonlyArray<keyof T>) {
     if (Object.hasOwn(updates, key) && (updates[key] === null || typeof updates[key] === 'function')) {
       current[key] = updates[key] as T[typeof key];
     }
+  }
+  return previous;
+}
+
+/** Accept callable overrides in the original field order, including inherited functions. */
+export function configureRuntimeFunctions<T extends { [K in keyof T]: ((...args: never[]) => unknown) | null }>(
+  current: T, updates: Partial<T> = {}, fields?: ReadonlyArray<keyof T>,
+): T {
+  const previous = { ...current };
+  for (const key of (fields || Object.keys(current)) as ReadonlyArray<keyof T>) {
+    if (typeof updates[key] === 'function') current[key] = updates[key] as T[typeof key];
   }
   return previous;
 }

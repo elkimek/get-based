@@ -1,3 +1,4 @@
+import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // @ts-check
 // chat-empty-state.js — chat empty states and onboarding message HTML
 
@@ -40,11 +41,7 @@ const chatEmptyStateDeps = {
 };
 
 export function configureChatEmptyStateDeps(deps = {}) {
-  const previous = { ...chatEmptyStateDeps };
-  if (typeof deps.closeChatPanel === 'function') chatEmptyStateDeps.closeChatPanel = deps.closeChatPanel;
-  if (typeof deps.openChatProviderQuiz === 'function') chatEmptyStateDeps.openChatProviderQuiz = deps.openChatProviderQuiz;
-  if (typeof deps.setOnboardingFocus === 'function') chatEmptyStateDeps.setOnboardingFocus = deps.setOnboardingFocus;
-  return previous;
+  return configureRuntimeFunctions(chatEmptyStateDeps, deps, ["closeChatPanel","openChatProviderQuiz","setOnboardingFocus"]);
 }
 
 /**

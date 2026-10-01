@@ -1,3 +1,4 @@
+import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
 // @ts-check
 // crypto.js — Encryption at rest, backup/restore, cross-tab sync
 
@@ -88,18 +89,7 @@ function buildCryptoSidebar() {
 
 /** @param {Partial<CryptoProfileDeps>} [deps] */
 export function configureCryptoProfileDeps(deps = {}) {
-  const previous = { ...cryptoProfileDeps };
-  if (Object.hasOwn(deps, 'buildSidebar') && (deps.buildSidebar === null || typeof deps.buildSidebar === 'function')) {
-    cryptoProfileDeps.buildSidebar = deps.buildSidebar;
-  }
-  if (Object.hasOwn(deps, 'invalidateData') && (deps.invalidateData === null || typeof deps.invalidateData === 'function')) cryptoProfileDeps.invalidateData = deps.invalidateData;
-  if (Object.hasOwn(deps, 'migrateProfileData') && (deps.migrateProfileData === null || typeof deps.migrateProfileData === 'function')) {
-    cryptoProfileDeps.migrateProfileData = deps.migrateProfileData;
-  }
-  if (Object.hasOwn(deps, 'navigate') && (deps.navigate === null || typeof deps.navigate === 'function')) {
-    cryptoProfileDeps.navigate = deps.navigate;
-  }
-  return previous;
+  return configureValidRuntimeCallbacks(cryptoProfileDeps, deps, ["buildSidebar","invalidateData","migrateProfileData","navigate"]);
 }
 
 // ═══════════════════════════════════════════════

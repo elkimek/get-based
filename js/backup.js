@@ -1,3 +1,4 @@
+import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // @ts-check
 // backup.js — Backup/restore, auto-backup (IndexedDB), folder backup (File System Access API)
 import { getErrorMessage, getErrorName } from './caught-error.js';
@@ -44,12 +45,7 @@ function getBackupRuntimeDeps() {
 
 export function configureBackupRuntimeDeps(deps = {}) {
   const runtimeDeps = getBackupRuntimeDeps();
-  const previous = { ...runtimeDeps };
-  if (typeof deps.encryptedGetItem === 'function') runtimeDeps.encryptedGetItem = deps.encryptedGetItem;
-  if (typeof deps.encryptedSetItem === 'function') runtimeDeps.encryptedSetItem = deps.encryptedSetItem;
-  if (typeof deps.getEncryptionEnabled === 'function') runtimeDeps.getEncryptionEnabled = deps.getEncryptionEnabled;
-  if (typeof deps.isCredentialKey === 'function') runtimeDeps.isCredentialKey = deps.isCredentialKey;
-  return previous;
+  return configureRuntimeFunctions(runtimeDeps, deps, ["encryptedGetItem","encryptedSetItem","getEncryptionEnabled","isCredentialKey"]);
 }
 const getEncryptionEnabled = () => Boolean(getBackupRuntimeDeps().getEncryptionEnabled());
 const isEncryptedValue = (v) => typeof v === 'string' && v.startsWith('v1:');

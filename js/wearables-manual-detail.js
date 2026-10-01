@@ -1,3 +1,4 @@
+import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // @ts-check
 // Manual-entry form and mutation owner for the wearable detail modal.
 
@@ -31,10 +32,7 @@ const detailDeps = {
 };
 
 export function configureWearableManualDetailDeps(deps = {}) {
-  const previous = { ...detailDeps };
-  if (typeof deps.closeDetail === 'function') detailDeps.closeDetail = deps.closeDetail;
-  if (typeof deps.openDetail === 'function') detailDeps.openDetail = deps.openDetail;
-  return previous;
+  return configureRuntimeFunctions(detailDeps, deps, ["closeDetail","openDetail"]);
 }
 
 function actionAttrs(action) {

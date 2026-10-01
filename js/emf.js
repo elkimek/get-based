@@ -1,3 +1,4 @@
+import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // @ts-check
 // emf.js — Baubiologie EMF Assessment sub-module
 // Room-by-room EMF measurements with SBM-2015 severity ratings
@@ -49,10 +50,7 @@ const emfRuntimeDeps = {
 };
 
 export function configureEMFAIDeps(deps = {}) {
-  const previous = { ...emfAIDeps };
-  if (typeof deps.callClaudeAPI === 'function') emfAIDeps.callClaudeAPI = deps.callClaudeAPI;
-  if (typeof deps.hasAIProvider === 'function') emfAIDeps.hasAIProvider = deps.hasAIProvider;
-  return previous;
+  return configureRuntimeFunctions(emfAIDeps, deps, ["callClaudeAPI","hasAIProvider"]);
 }
 
 export function configureEMFRuntimeDeps(deps = {}) {

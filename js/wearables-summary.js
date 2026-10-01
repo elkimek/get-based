@@ -1,3 +1,4 @@
+import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // @ts-check
 // wearables-summary.js — L2 summary derivation + change gate
 //
@@ -27,11 +28,7 @@ const wearableSummaryDeps = {
 
 /** @param {{ saveImportedData?: () => any }} [deps] */
 export function configureWearableSummary(deps = {}) {
-  const previous = { ...wearableSummaryDeps };
-  if (typeof deps.saveImportedData === 'function') {
-    wearableSummaryDeps.saveImportedData = deps.saveImportedData;
-  }
-  return previous;
+  return configureRuntimeFunctions(wearableSummaryDeps, deps, ["saveImportedData"]);
 }
 
 // ─────────────────────────────────────────────────────────

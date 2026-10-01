@@ -1,3 +1,4 @@
+import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // @ts-check
 // sync.js — Evolu sync layer public entry point (opt-in, E2E encrypted)
 // Stores importedData + profile metadata per profile as a JSON blob.
@@ -74,11 +75,7 @@ const syncLifecycleDeps = {
  * }} [deps]
  */
 export function configureSyncLifecycleDeps(deps = {}) {
-  const previous = { ...syncLifecycleDeps };
-  if (typeof deps.enableSync === 'function') syncLifecycleDeps.enableSync = deps.enableSync;
-  if (typeof deps.disableSync === 'function') syncLifecycleDeps.disableSync = deps.disableSync;
-  if (typeof deps.pauseSync === 'function') syncLifecycleDeps.pauseSync = deps.pauseSync;
-  return previous;
+  return configureRuntimeFunctions(syncLifecycleDeps, deps, ["enableSync","disableSync","pauseSync"]);
 }
 
 /** @param {...any} args */

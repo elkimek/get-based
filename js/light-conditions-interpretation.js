@@ -1,3 +1,4 @@
+import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
 // @ts-check
 // light-conditions-interpretation.js — Pure UV, sun, atmosphere, and timing interpretation.
 
@@ -7,12 +8,7 @@ const interpretationDeps = {
 };
 
 export function configureLightConditionsInterpretation(deps = {}) {
-  const previous = { ...interpretationDeps };
-  if (Object.hasOwn(deps, 'solarZenithAngle')
-      && (deps.solarZenithAngle === null || typeof deps.solarZenithAngle === 'function')) {
-    interpretationDeps.solarZenithAngle = deps.solarZenithAngle;
-  }
-  return previous;
+  return configureValidRuntimeCallbacks(interpretationDeps, deps, ["solarZenithAngle"]);
 }
 
 export function _solarZenithAngle(date, coords) {

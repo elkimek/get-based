@@ -1,3 +1,4 @@
+import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // @ts-check
 // context-card-dashboard-ai-impl.js - lazy AI context modal and DNA picker implementation
 
@@ -48,10 +49,7 @@ export function configureDashboardAISyncSetup(handler = showSyncSetupModal) {
 }
 
 export function configureDashboardAIDataProtectionDeps(deps = {}) {
-  const previous = { ...dashboardAIDataProtectionDeps };
-  if (typeof deps.pickFolderForBackup === 'function') dashboardAIDataProtectionDeps.pickFolderForBackup = deps.pickFolderForBackup;
-  if (typeof deps.showEnableEncryptionModal === 'function') dashboardAIDataProtectionDeps.showEnableEncryptionModal = deps.showEnableEncryptionModal;
-  return previous;
+  return configureRuntimeFunctions(dashboardAIDataProtectionDeps, deps, ["pickFolderForBackup","showEnableEncryptionModal"]);
 }
 
 // Programmatic DNA file picker. Mirrors the chat onboarding hidden-file-input

@@ -1,38 +1,29 @@
-// @ts-check
+import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // nav-runtime.js - Browser runtime hooks for sidebar navigation.
 
 import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { openReportBuilder } from './export-loader.js';
 import { openContextModalRuntime } from './context-cards-runtime.js';
 
-const navRuntimeDeps = {
+interface NavRuntimeDeps {
+  navigate(route: string): unknown;
+  openEMFAssessmentEditor(): unknown;
+  openCreateMarkerModal(): unknown;
+  openReportBuilder(): unknown;
+}
+
+const navRuntimeDeps: NavRuntimeDeps = {
   navigate: (_route) => {},
   openEMFAssessmentEditor,
   openCreateMarkerModal: () => {},
   openReportBuilder,
 };
 
-export function configureNavRuntime(deps = {}) {
-  const previous = { ...navRuntimeDeps };
-  if (typeof deps.openEMFAssessmentEditor === 'function') {
-    navRuntimeDeps.openEMFAssessmentEditor = deps.openEMFAssessmentEditor;
-  }
-  if (typeof deps.navigate === 'function') {
-    navRuntimeDeps.navigate = deps.navigate;
-  }
-  if (typeof deps.openCreateMarkerModal === 'function') {
-    navRuntimeDeps.openCreateMarkerModal = deps.openCreateMarkerModal;
-  }
-  if (typeof deps.openReportBuilder === 'function') {
-    navRuntimeDeps.openReportBuilder = deps.openReportBuilder;
-  }
-  return previous;
+export function configureNavRuntime(deps: Partial<NavRuntimeDeps> = {}) {
+  return configureRuntimeFunctions(navRuntimeDeps, deps, ["openEMFAssessmentEditor","navigate","openCreateMarkerModal","openReportBuilder"]);
 }
 
-/**
- * @param {string} route
- */
-export function navigateFromNavRuntime(route) {
+export function navigateFromNavRuntime(route: string) {
   navRuntimeDeps.navigate(route);
 }
 
