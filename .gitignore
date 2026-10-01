@@ -447,3 +447,5 @@ deploy/profile-share/data/
 /js/local-ai-provider-lmstudio.js
 
 /tests/helpers/lmstudio-fixtures.js
+
+/js/backup.js

@@ -1,5 +1,4 @@
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
-// @ts-check
 // backup.js — Backup/restore, auto-backup (IndexedDB), folder backup (File System Access API)
 import { getErrorMessage, getErrorName } from './caught-error.js';
 import { showNotification, showConfirmDialog, escapeAttr, escapeHTML } from './utils.js';
@@ -12,8 +11,40 @@ import { getDailyRangeRaw, upsertDailyBatchRaw } from './wearables-store.js';
 import { VOICE_BACKUP_KEYS } from './voice-settings-schema.js';
 export { parseBackupSnapshot, serializeBackupSnapshot } from './backup-serialization.js';
 
-/** @type {Promise<typeof import('./backup-cycle.js')> | null} */
-let backupCycleModuleLoad = null;
+import type { StoredWearableRow } from './wearable-storage-types.js';
+import type { RawChatBackup } from './backup-chat-storage.js';
+
+export interface BackupRuntimeDeps {
+  encryptedGetItem(key: string): Promise<string | null>;
+  encryptedSetItem(key: string, value: string): Promise<void>;
+  getEncryptionEnabled(): boolean;
+  isCredentialKey(key: string): boolean;
+}
+interface PermissionOptions { mode?: 'read' | 'readwrite' }
+interface BackupDirectory extends AsyncIterable<[string, unknown]> {
+  name: string;
+  queryPermission(options: PermissionOptions): Promise<PermissionState>;
+  requestPermission(options: PermissionOptions): Promise<PermissionState>;
+  getFileHandle(name: string, options: { create: boolean }): Promise<FileSystemFileHandle>;
+  removeEntry(name: string): Promise<void>;
+}
+interface BackupWindow { showDirectoryPicker?: (options?: PermissionOptions) => Promise<BackupDirectory> }
+interface ClosestActionTarget { closest?: (selector: string) => Element | null }
+type BackupActionRoot = Node & { [BACKUP_ACTION_DELEGATE_KEY]?: unknown };
+interface ProfileListEntry { id: string; name?: unknown }
+interface BackupProfile extends RawChatBackup { name: unknown }
+type WearableBackup = Record<string, Record<string, StoredWearableRow[]>>;
+type BackupRestoreView = Record<string, unknown>;
+export interface BackupSnapshot extends BackupRestoreView {
+  format: 'labcharts-backup'; version: 1; createdAt: string; encrypted: boolean;
+  encryptionSalt: string | null; settings: Record<string, string>; profileList: string;
+  profiles: BackupProfile[]; wearableIDB: WearableBackup | null;
+  cycleIDB: Awaited<ReturnType<typeof import('./backup-cycle.js').collectCycleBackup>>['observations'] | null;
+  cycleImportMeta: Awaited<ReturnType<typeof import('./backup-cycle.js').collectCycleBackup>>['importMeta'] | null;
+}
+export interface AutoBackupRecord { id?: IDBValidKey; createdAt: string; encrypted: boolean; snapshot: BackupSnapshot }
+
+let backupCycleModuleLoad: Promise<typeof import('./backup-cycle.js')> | null = null;
 
 function loadBackupCycleModule() {
   if (!backupCycleModuleLoad) {
@@ -27,13 +58,11 @@ function loadBackupCycleModule() {
 
 // Crypto imports this module for backup UI helpers, so inject the two crypto
 // operations backup needs instead of coupling the modules through globals.
-const appWindow = /** @type {Window & typeof globalThis & { showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite' }) => Promise<any> }} */ (typeof window !== 'undefined' ? window : {});
+const appWindow = (typeof window !== 'undefined' ? window : {}) as BackupWindow;
 
-/** @typedef {{ encryptedGetItem: (key: string) => Promise<string | null>, encryptedSetItem: (key: string, value: string) => Promise<void>, getEncryptionEnabled: () => boolean, isCredentialKey: (key: string) => boolean }} BackupRuntimeDeps */
 // `var` is intentional: the profile → crypto cycle can configure backup
 // while this module is still initializing, before lexical bindings are ready.
-/** @type {BackupRuntimeDeps | undefined} */
-var backupRuntimeDeps;
+var backupRuntimeDeps: BackupRuntimeDeps | undefined;
 
 function getBackupRuntimeDeps() {
   if (!backupRuntimeDeps) {
@@ -43,32 +72,30 @@ function getBackupRuntimeDeps() {
   return backupRuntimeDeps;
 }
 
-export function configureBackupRuntimeDeps(deps = {}) {
+export function configureBackupRuntimeDeps(deps: Partial<BackupRuntimeDeps> = {}) {
   const runtimeDeps = getBackupRuntimeDeps();
   return configureRuntimeFunctions(runtimeDeps, deps, ["encryptedGetItem","encryptedSetItem","getEncryptionEnabled","isCredentialKey"]);
 }
 const getEncryptionEnabled = () => Boolean(getBackupRuntimeDeps().getEncryptionEnabled());
-const isEncryptedValue = (v) => typeof v === 'string' && v.startsWith('v1:');
+const isEncryptedValue = (v: unknown) => typeof v === 'string' && v.startsWith('v1:');
 const backupActionDelegateRoots = new WeakSet();
 const BACKUP_ACTION_DELEGATE_KEY = Symbol.for('getbased.backupActionDelegatesInstalled');
 const BACKUP_ACTION_ATTR = 'data-backup-action';
 const BACKUP_ACTION_SELECTOR = `[${BACKUP_ACTION_ATTR}]`;
 
-function backupActionAttrs(action) {
+function backupActionAttrs(action: string) {
   return `${BACKUP_ACTION_ATTR}="${escapeAttr(action)}"`;
 }
 
-function closestBackupAction(target) {
-  return /** @type {HTMLElement | null} */ (
-    target && typeof target.closest === 'function'
+function closestBackupAction(target: ClosestActionTarget | null) {
+  return (target && typeof target.closest === 'function'
       ? target.closest(BACKUP_ACTION_SELECTOR)
-      : null
-  );
+      : null) as HTMLElement | null;
 }
 
-function handleBackupActionClick(event) {
-  const actionEl = closestBackupAction(event.target);
-  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+function handleBackupActionClick(event: Event) {
+  const actionEl = closestBackupAction(event.target as ClosestActionTarget | null);
+  if (!actionEl || !(event.currentTarget as Node | null)?.contains?.(actionEl)) return;
   const action = actionEl.getAttribute(BACKUP_ACTION_ATTR);
   if (action === 'pick-folder') pickFolderForBackup();
   else if (action === 'reauthorize-folder') reauthorizeFolderBackup();
@@ -78,7 +105,7 @@ function handleBackupActionClick(event) {
   event.stopPropagation();
 }
 
-export function installBackupActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+export function installBackupActionDelegates(root: BackupActionRoot | null = typeof document !== 'undefined' ? document : null) {
   if (!root || backupActionDelegateRoots.has(root) || root[BACKUP_ACTION_DELEGATE_KEY]) return;
   backupActionDelegateRoots.add(root);
   Object.defineProperty(root, BACKUP_ACTION_DELEGATE_KEY, { value: true, configurable: true });
@@ -91,7 +118,7 @@ if (typeof document !== 'undefined') installBackupActionDelegates();
 // for any key. Big-blob `-imported` keys live in IndexedDB now; everything
 // else stays in localStorage. Backup needs the raw form so the encrypted
 // envelope (if any) round-trips unchanged through restore.
-async function readRawStoredItem(key) {
+async function readRawStoredItem(key: string) {
   if (shouldUseBlob(key)) {
     const blob = await getBlob(key);
     if (blob != null) return blob;
@@ -101,13 +128,13 @@ async function readRawStoredItem(key) {
   return localStorage.getItem(key);
 }
 
-async function writeRawStoredItem(key, value) {
+async function writeRawStoredItem(key: string, value: unknown) {
   if (shouldUseBlob(key)) {
     await setBlob(key, value);
     // Best-effort cleanup of any pre-IDB localStorage residue for this key.
     try { localStorage.removeItem(key); } catch {}
   } else {
-    localStorage.setItem(key, value);
+    localStorage.setItem(key, value as string);
   }
 }
 
@@ -135,7 +162,42 @@ const PER_PROFILE_PREF_SUFFIXES = [
   'correlation-workspace', 'chatPersonality', 'chatPersonalityCustom', 'chatPersonalityDeleted', 'chatRailOpen'
 ];
 
-async function restoreBackupSettings(backup) {
+function collectLocalProfileKeys(p: Pick<ProfileListEntry, 'id'>) {
+  const keys: Record<string, string> = {};
+  const imported = localStorage.getItem(profileStorageKey(p.id, 'imported'));
+  if (imported) keys.imported = imported;
+  const chat = localStorage.getItem(`labcharts-${p.id}-chat`);
+  if (chat) keys.chat = chat;
+  const threadIndex = localStorage.getItem(`labcharts-${p.id}-chat-threads`);
+  if (threadIndex) {
+    keys['chat-threads'] = threadIndex;
+    try {
+      const threads = JSON.parse(threadIndex) as Array<{ id: unknown }>;
+      for (const t of threads) {
+        const tk = `labcharts-${p.id}-chat-t_${t.id}`;
+        const tv = localStorage.getItem(tk);
+        if (tv !== null) keys[`chat-t_${t.id}`] = tv;
+      }
+    } catch {}
+  }
+  for (const suffix of PER_PROFILE_PREF_SUFFIXES) {
+    const v = localStorage.getItem(`labcharts-${p.id}-${suffix}`);
+    if (v !== null) keys[suffix] = v;
+  }
+  return keys;
+}
+
+function restoreBackupEncryptionSettings(backup: BackupRestoreView) {
+  if (backup.encrypted && backup.encryptionSalt) {
+    localStorage.setItem('labcharts-encryption-enabled', 'true');
+    localStorage.setItem('labcharts-encryption-salt', (backup.encryptionSalt as string));
+  } else {
+    localStorage.removeItem('labcharts-encryption-enabled');
+    localStorage.removeItem('labcharts-encryption-salt');
+  }
+}
+
+async function restoreBackupSettings(backup: BackupRestoreView) {
   if (!backup.settings || typeof backup.settings !== 'object') return;
   const deps = getBackupRuntimeDeps();
   for (const [key, value] of Object.entries(backup.settings)) {
@@ -149,8 +211,8 @@ async function restoreBackupSettings(backup) {
 // `labcharts-wearables-${profileId}`) — read raw daily rows for every
 // connected source so backups can round-trip the full 90 days of HRV/sleep/
 // RHR + manual entries. Returns { profileId: { source: rows[] } }.
-async function collectWearableIDB(profileIds) {
-  const out = {};
+async function collectWearableIDB(profileIds: Iterable<string>) {
+  const out: WearableBackup = {};
   for (const pid of profileIds) {
     // CRITICAL: read RAW (no decrypt). When encryption-at-rest is on, the
     // rows on disk are AES-GCM-wrapped envelopes. getDailyRange would
@@ -160,7 +222,7 @@ async function collectWearableIDB(profileIds) {
     // These keys are non-exportable, so omit those rows rather than creating
     // undecryptable or downgraded backups; reconnecting can fetch them again.
     const KNOWN_SOURCES = ['oura', 'fitbit', 'withings', 'ultrahuman', 'polar', 'apple_health', 'manual'];
-    const perProfile = {};
+    const perProfile: Record<string, StoredWearableRow[]> = {};
     for (const src of KNOWN_SOURCES) {
       const srcRows = await getDailyRangeRaw(pid, src, '2000-01-01', '2099-12-31');
       if (Array.isArray(srcRows) && srcRows.length > 0) perProfile[src] = srcRows;
@@ -170,11 +232,11 @@ async function collectWearableIDB(profileIds) {
   return out;
 }
 
-async function restoreWearableIDB(payload) {
+async function restoreWearableIDB(payload: unknown) {
   if (!payload || typeof payload !== 'object') return;
   let failures = 0;
   for (const [pid, sources] of Object.entries(payload)) {
-    for (const [, rows] of Object.entries(sources)) {
+    for (const [, rows] of Object.entries(sources as Record<string, unknown>)) {
       if (!Array.isArray(rows) || rows.length === 0) continue;
       // RAW write — preserve wrappers from an encrypted backup. If the
       // destination has encryption disabled, the wrappers stay unreadable
@@ -188,7 +250,7 @@ async function restoreWearableIDB(payload) {
   if (failures) throw new Error(`${failures} wearable source(s) could not be restored.`);
 }
 
-async function restoreBackupSideStores(backup) {
+async function restoreBackupSideStores(backup: BackupRestoreView) {
   // Wait for every dependent restore to settle. A partial restore must never
   // trigger a success notification or an automatic reload.
   const results = await Promise.allSettled([
@@ -202,79 +264,37 @@ async function restoreBackupSideStores(backup) {
   }
 }
 
-export function buildBackupSnapshot() {
+export function buildBackupSnapshot(): BackupSnapshot | null {
   const profiles = localStorage.getItem('labcharts-profiles');
   if (!profiles) return null;
 
-  let profileList;
+  let profileList: ProfileListEntry[];
   try {
     profileList = JSON.parse(isEncryptedValue(profiles) ? '[]' : profiles);
   } catch {
     profileList = [];
   }
 
-  const backupProfiles = [];
+  const backupProfiles: BackupProfile[] = [];
   if (profileList.length > 0) {
     for (const p of profileList) {
-      /** @type {Record<string, string>} */
-      const keys = {};
-      const imported = localStorage.getItem(profileStorageKey(p.id, 'imported'));
-      if (imported) keys.imported = imported;
-      const chat = localStorage.getItem(`labcharts-${p.id}-chat`);
-      if (chat) keys.chat = chat;
-      const threadIndex = localStorage.getItem(`labcharts-${p.id}-chat-threads`);
-      if (threadIndex) {
-        keys['chat-threads'] = threadIndex;
-        try {
-          const threads = JSON.parse(threadIndex);
-          for (const t of threads) {
-            const tk = `labcharts-${p.id}-chat-t_${t.id}`;
-            const tv = localStorage.getItem(tk);
-            if (tv !== null) keys[`chat-t_${t.id}`] = tv;
-          }
-        } catch {}
-      }
-      for (const suffix of PER_PROFILE_PREF_SUFFIXES) {
-        const v = localStorage.getItem(`labcharts-${p.id}-${suffix}`);
-        if (v !== null) keys[suffix] = v;
-      }
+      const keys = collectLocalProfileKeys(p);
       backupProfiles.push({ profileId: p.id, name: p.name, keys });
     }
   } else {
-    const profileIds = new Set();
+    const profileIds = new Set<string>();
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       const match = key && key.match(/^labcharts-(.+)-imported$/);
-      if (match) profileIds.add(match[1]);
+      if (match) profileIds.add(match[1]!);
     }
     for (const pid of profileIds) {
-      /** @type {Record<string, string>} */
-      const keys = {};
-      const imported = localStorage.getItem(profileStorageKey(pid, 'imported'));
-      if (imported) keys.imported = imported;
-      const chat = localStorage.getItem(`labcharts-${pid}-chat`);
-      if (chat) keys.chat = chat;
-      const threadIndex = localStorage.getItem(`labcharts-${pid}-chat-threads`);
-      if (threadIndex) {
-        keys['chat-threads'] = threadIndex;
-        try {
-          const threads = JSON.parse(threadIndex);
-          for (const t of threads) {
-            const tk = `labcharts-${pid}-chat-t_${t.id}`;
-            const tv = localStorage.getItem(tk);
-            if (tv !== null) keys[`chat-t_${t.id}`] = tv;
-          }
-        } catch {}
-      }
-      for (const suffix of PER_PROFILE_PREF_SUFFIXES) {
-        const v = localStorage.getItem(`labcharts-${pid}-${suffix}`);
-        if (v !== null) keys[suffix] = v;
-      }
+      const keys = collectLocalProfileKeys({ id: pid });
       backupProfiles.push({ profileId: pid, name: pid, keys });
     }
   }
 
-  const settings = {};
+  const settings: Record<string, string> = {};
   for (const k of GLOBAL_SETTINGS_KEYS) {
     // Device-key envelopes are not portable; only passphrase-encrypted backups include credentials.
     if (!getEncryptionEnabled() && getBackupRuntimeDeps().isCredentialKey(k)) continue;
@@ -291,9 +311,9 @@ export function buildBackupSnapshot() {
     settings,
     profileList: profiles,
     profiles: backupProfiles,
-    wearableIDB: /** @type {Record<string, any> | null} */ (null), // populated async by augmentBackupWithWearables
-    cycleIDB: /** @type {Record<string, any> | null} */ (null),
-    cycleImportMeta: /** @type {Record<string, any> | null} */ (null),
+    wearableIDB: null, // populated async by augmentBackupWithWearables
+    cycleIDB: null,
+    cycleImportMeta: null,
   };
 }
 
@@ -313,7 +333,7 @@ export async function buildFullBackupSnapshot() {
   // Always enumerate the decrypted profile index: localStorage may contain
   // only a legacy subset while other profiles have already migrated to IDB.
   if (snap.profileList && isEncryptedValue(snap.profileList)) {
-    let profileList = null;
+    let profileList: ProfileListEntry[] | null = null;
     try {
       const decrypted = await getBackupRuntimeDeps().encryptedGetItem('labcharts-profiles');
       if (decrypted) profileList = JSON.parse(decrypted);
@@ -323,28 +343,7 @@ export async function buildFullBackupSnapshot() {
     }
     snap.profiles = [];
     for (const p of profileList) {
-      /** @type {Record<string, string>} */
-      const keys = {};
-      const imported = localStorage.getItem(profileStorageKey(p.id, 'imported'));
-      if (imported) keys.imported = imported;
-      const chat = localStorage.getItem(`labcharts-${p.id}-chat`);
-      if (chat) keys.chat = chat;
-      const threadIndex = localStorage.getItem(`labcharts-${p.id}-chat-threads`);
-      if (threadIndex) {
-        keys['chat-threads'] = threadIndex;
-        try {
-          const threads = JSON.parse(threadIndex);
-          for (const t of threads) {
-            const tk = `labcharts-${p.id}-chat-t_${t.id}`;
-            const tv = localStorage.getItem(tk);
-            if (tv !== null) keys[`chat-t_${t.id}`] = tv;
-          }
-        } catch {}
-      }
-      for (const suffix of PER_PROFILE_PREF_SUFFIXES) {
-        const v = localStorage.getItem(`labcharts-${p.id}-${suffix}`);
-        if (v !== null) keys[suffix] = v;
-      }
+      const keys = collectLocalProfileKeys(p);
       snap.profiles.push({ profileId: p.id, name: p.name, keys });
     }
   }
@@ -380,7 +379,7 @@ export async function exportEncryptedBackup() {
     return;
   }
 
-  const blob = new Blob([serializeBackupSnapshot(backup)], { type: 'application/json' });
+  const blob = new Blob([serializeBackupSnapshot(backup)!], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -393,7 +392,7 @@ export async function exportEncryptedBackup() {
   showNotification('Backup exported successfully', 'success');
 }
 
-export function importEncryptedBackup(file) {
+export function importEncryptedBackup(file: Blob) {
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {
@@ -404,29 +403,23 @@ export function importEncryptedBackup(file) {
       }
       // Decoding restores byte arrays, not a validated backup schema. Keep the
       // legacy field reads and coercions explicit at this import boundary.
-      const backup = /** @type {Record<string, unknown>} */ (parseBackupSnapshot(result));
+      const backup = parseBackupSnapshot(result) as BackupRestoreView;
       if (backup.format !== 'labcharts-backup' || !backup.profileList) {
         showNotification('Invalid backup file format', 'error');
         return;
       }
 
-      const profileCount = backup.profiles ? /** @type {{ length: number }} */ (backup.profiles).length : 0;
+      const profileCount = backup.profiles ? (backup.profiles as { length: number }).length : 0;
       const encMsg = backup.encrypted ? ' This backup is encrypted \u2014 you\'ll need the same passphrase.' : '';
 
       if (await showConfirmDialog(
-        `Restore backup from ${new Date(/** @type {string | number} */ (backup.createdAt)).toLocaleDateString()}? This will overwrite ${profileCount} profile(s).${encMsg}`
+        `Restore backup from ${new Date((backup.createdAt as string | number)).toLocaleDateString()}? This will overwrite ${profileCount} profile(s).${encMsg}`
       )) {
-        if (backup.encrypted && backup.encryptionSalt) {
-          localStorage.setItem('labcharts-encryption-enabled', 'true');
-          localStorage.setItem('labcharts-encryption-salt', /** @type {string} */ (backup.encryptionSalt));
-        } else {
-          localStorage.removeItem('labcharts-encryption-enabled');
-          localStorage.removeItem('labcharts-encryption-salt');
-        }
+        restoreBackupEncryptionSettings(backup);
 
         await restoreBackupSettings(backup);
 
-        localStorage.setItem('labcharts-profiles', /** @type {string} */ (backup.profileList));
+        localStorage.setItem('labcharts-profiles', (backup.profileList as string));
 
         // Restore each profile's keys. Big-blob keys (`-imported`)
         // route to IndexedDB; everything else stays in localStorage.
@@ -434,7 +427,7 @@ export function importEncryptedBackup(file) {
         // each so the wearable restore + reload only fires after all
         // profile keys are actually written.
         if (backup.profiles) {
-          for (const p of /** @type {Array<{ profileId: unknown, keys: Record<string, unknown> }>} */ (backup.profiles)) {
+          for (const p of (backup.profiles as Array<{ profileId: unknown; keys: Record<string, unknown> }>)) {
             for (const [suffix, value] of Object.entries(p.keys)) {
               const key = `labcharts-${p.profileId}-${suffix}`;
               await writeRawStoredItem(key, value);
@@ -462,11 +455,11 @@ const BACKUP_STORE = 'snapshots';
 const FOLDER_HANDLE_STORE = 'folder-handle';
 export const MAX_SNAPSHOTS = 5;
 const AUTO_BACKUP_COOLDOWN = 300000; // 5 minutes
-let _autoBackupTimer = null;
-let _dbPromise = null;
+let _autoBackupTimer: ReturnType<typeof setTimeout> | null = null;
+let _dbPromise: Promise<IDBDatabase> | null = null;
 
 // Folder backup state
-let _folderHandle = null;
+let _folderHandle: BackupDirectory | null = null;
 let _folderPermissionLost = false;
 let _folderWriteInProgress = false;
 
@@ -533,7 +526,7 @@ export function scheduleAutoBackup() {
   }, AUTO_BACKUP_COOLDOWN);
 }
 
-export async function getAutoBackupSnapshots() {
+export async function getAutoBackupSnapshots(): Promise<AutoBackupRecord[]> {
   try {
     const db = await openBackupDB();
     const tx = db.transaction(BACKUP_STORE, 'readonly');
@@ -546,12 +539,12 @@ export async function getAutoBackupSnapshots() {
   } catch { return []; }
 }
 
-export async function restoreAutoBackup(id) {
+export async function restoreAutoBackup(id: IDBValidKey) {
   const db = await openBackupDB();
   const tx = db.transaction(BACKUP_STORE, 'readonly');
   const store = tx.objectStore(BACKUP_STORE);
   const req = store.get(id);
-  const record = await new Promise((resolve, reject) => {
+  const record = await new Promise<AutoBackupRecord | null | undefined>((resolve, reject) => {
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
@@ -562,19 +555,13 @@ export async function restoreAutoBackup(id) {
   const backup = record.snapshot;
 
   if (await showConfirmDialog(
-    `Restore auto-backup from ${new Date(/** @type {string | number} */ (backup.createdAt)).toLocaleString()}? This will overwrite all current data.`
+    `Restore auto-backup from ${new Date((backup.createdAt as string | number)).toLocaleString()}? This will overwrite all current data.`
   )) {
-    if (backup.encrypted && backup.encryptionSalt) {
-      localStorage.setItem('labcharts-encryption-enabled', 'true');
-      localStorage.setItem('labcharts-encryption-salt', /** @type {string} */ (backup.encryptionSalt));
-    } else {
-      localStorage.removeItem('labcharts-encryption-enabled');
-      localStorage.removeItem('labcharts-encryption-salt');
-    }
+    restoreBackupEncryptionSettings(backup);
     await restoreBackupSettings(backup);
-    localStorage.setItem('labcharts-profiles', /** @type {string} */ (backup.profileList));
+    localStorage.setItem('labcharts-profiles', (backup.profileList as string));
     if (backup.profiles) {
-      for (const p of /** @type {Array<{ profileId: unknown, keys: Record<string, unknown> }>} */ (backup.profiles)) {
+      for (const p of (backup.profiles as Array<{ profileId: unknown; keys: Record<string, unknown> }>)) {
         for (const [suffix, value] of Object.entries(p.keys)) {
           await writeRawStoredItem(`labcharts-${p.profileId}-${suffix}`, value);
         }
@@ -597,14 +584,14 @@ function isFolderBackupSupported() {
   return typeof appWindow.showDirectoryPicker === 'function';
 }
 
-async function saveFolderHandle(handle) {
+async function saveFolderHandle(handle: BackupDirectory) {
   const db = await openBackupDB();
   const tx = db.transaction(FOLDER_HANDLE_STORE, 'readwrite');
   tx.objectStore(FOLDER_HANDLE_STORE).put(handle, 'handle');
   await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
 }
 
-async function loadFolderHandle() {
+async function loadFolderHandle(): Promise<BackupDirectory | null> {
   const db = await openBackupDB();
   const tx = db.transaction(FOLDER_HANDLE_STORE, 'readonly');
   const req = tx.objectStore(FOLDER_HANDLE_STORE).get('handle');
@@ -652,14 +639,14 @@ export async function initFolderBackup() {
 
 export async function pickFolderForBackup() {
   if (!isFolderBackupSupported()) return;
-  const pickDirectory = /** @type {(options?: { mode?: 'read' | 'readwrite' }) => Promise<any>} */ (appWindow.showDirectoryPicker);
+  const pickDirectory = appWindow.showDirectoryPicker!;
   try {
     const handle = await pickDirectory.call(appWindow, { mode: 'readwrite' });
     const testFile = await handle.getFileHandle('getbased-backup-latest.json', { create: true });
     const snapshot = await buildFullBackupSnapshot();
     if (snapshot) {
       const writable = await testFile.createWritable();
-      await writable.write(serializeBackupSnapshot(snapshot));
+      await writable.write(serializeBackupSnapshot(snapshot)!);
       await writable.close();
     }
     await saveFolderHandle(handle);
@@ -722,7 +709,7 @@ async function writeFolderBackup() {
     }
     const snapshot = await buildFullBackupSnapshot();
     if (!snapshot) return;
-    const json = serializeBackupSnapshot(snapshot);
+    const json = serializeBackupSnapshot(snapshot)!;
     const latestFile = await _folderHandle.getFileHandle('getbased-backup-latest.json', { create: true });
     const w1 = await latestFile.createWritable();
     await w1.write(json);
@@ -735,7 +722,7 @@ async function writeFolderBackup() {
     await w2.write(json);
     await w2.close();
     const MAX_FOLDER_SNAPSHOTS = 30;
-    const backupFiles = [];
+    const backupFiles: string[] = [];
     for await (const [name] of _folderHandle) {
       if (name.startsWith('getbased-backup-') && name.endsWith('.json') && name !== 'getbased-backup-latest.json') {
         backupFiles.push(name);
