@@ -60,7 +60,6 @@ const LEGACY_TESTS = [
   // Batch 3 — more pure-logic ports.
   './test-lens-multi-query.js',
   './test-adapters.js',
-  './test-biostarks-adapter.js',
   './test-trend-alerts.js',
   './test-supplement-impact.js',
   // Batch 4 — more pure-logic ports.

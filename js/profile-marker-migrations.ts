@@ -1,4 +1,6 @@
-// @ts-check
+import type { AdapterMarkerDefinition } from './adapters.js';
+import type { LabEntryDraft } from './lab-entry.js';
+import type { ProfileMarkerData, ProfileMarkerMetadata, ProfileImportMarker, ProfileImportSnapshot } from './profile-marker-alias-migrations.js';
 // profile-marker-migrations.js - Marker alias, unit-suffix, and specialty import repairs.
 
 import {
@@ -9,57 +11,28 @@ import {
 import { SPECIALTY_MARKER_DEFS } from './adapters.js';
 import { renameLabEntryMarker } from './lab-entry.js';
 import {
+  normalizeProfileMarkerLabel as _normalizeProfileMarkerLabel,
+  remapGlobalProfileMarkerMetadata,
   preserveExactStandardCustomRanges,
   repairCanonicalMarkerAliases,
   repairNamedStandardMarkerAliases,
 } from './profile-marker-alias-migrations.js';
 import { ensureProductFattyAcidCustomMarker, repairSnapshotBackedProductFattyAcidMetadata } from './profile-fatty-acid-migrations.js';
 
-/** @typedef {Record<string, any>} ProfileData */
-
-/**
- * @param {string | null | undefined} value
- * @returns {string}
- */
-function _normalizeProfileMarkerLabel(value) {
-  return String(value || '')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[\u00b5\u03bc]/g, 'u')
-    .replace(/\s*[\(\[]\s*[^)\]]*(?:u?kat|mmol|umol|nmol|pmol|mol|mg|ug|ng|pg|g\s*\/\s*l|m\s*u|iu\s*\/\s*l|u\s*\/\s*l|10\s*\^?\s*\d+|arb\.?\s*j\.?|fl|%)[^)\]]*[\)\]]\s*/gi, ' ')
-    .replace(/\s+(?:u?kat|mmol|umol|nmol|pmol|mol|mg|ug|ng|pg|g|m\s*u|iu|u|10\s*\^?\s*\d+|arb\.?\s*j\.?|fl|%)\s*(?:\/\s*[a-z0-9^]+)?\s*$/i, ' ')
-    .replace(/[^a-zA-Z0-9#]+/g, '')
-    .toLowerCase();
-}
-
-/**
- * @param {string | null | undefined} value
- * @returns {string}
- */
-function _stripProfileMarkerUnitSuffix(value) {
+function _stripProfileMarkerUnitSuffix(value: unknown) {
   return String(value || '').replace(/(?:u?katl|mmoll|umoll|nmoll|pmoll|mgl|ugl|ngl|gl|iul|ul|percent)$/i, '');
 }
 
-/**
- * @param {string | null | undefined} value
- * @returns {boolean}
- */
-function _hasProfileMarkerUnitDecoration(value) {
+function _hasProfileMarkerUnitDecoration(value: unknown) {
   const raw = String(value || '');
   if (!raw) return false;
   if (_stripProfileMarkerUnitSuffix(raw) !== raw) return true;
   return /\s*[\(\[]\s*[^)\]]*(?:u?kat|mmol|umol|nmol|pmol|mol|mg|ug|ng|pg|g\s*\/\s*l|m\s*u|iu\s*\/\s*l|u\s*\/\s*l|10\s*\^?\s*\d+|arb\.?\s*j\.?|fl|%)[^)\]]*[\)\]]\s*/i.test(raw.replace(/[\u00b5\u03bc]/g, 'u'));
 }
 
-/**
- * @returns {Map<string, string>}
- */
 function _buildProfileStandardMarkerLookup() {
-  const lookup = new Map();
-  /**
-   * @param {string} label
-   * @param {string} key
-   */
-  const add = (label, key) => {
+  const lookup = new Map<string, string>();
+    const add = (label: unknown, key: string) => {
     const normalized = _normalizeProfileMarkerLabel(label);
     if (normalized && !lookup.has(normalized)) lookup.set(normalized, key);
     const suffixStripped = _normalizeProfileMarkerLabel(_stripProfileMarkerUnitSuffix(label));
@@ -76,8 +49,7 @@ function _buildProfileStandardMarkerLookup() {
   return lookup;
 }
 
-/** @type {ReadonlyArray<readonly [string, readonly string[]]>} */
-const CALCULATED_RATIO_PROFILE_ALIASES = Object.freeze([
+const CALCULATED_RATIO_PROFILE_ALIASES: ReadonlyArray<readonly [string, readonly string[]]> = Object.freeze([
   ['calculatedRatios.tgHdlRatio', ['tghdl', 'tghdlratio', 'triglyceridehdlratio', 'triglyceridestohdlratio']],
   ['calculatedRatios.ldlHdlRatio', ['ldlhdl', 'ldlhdlratio', 'ldltohdlratio']],
   ['calculatedRatios.apoBapoAIRatio', ['apobapoai', 'apobapoairatio', 'apobapoa1', 'apobapoa1ratio']],
@@ -103,14 +75,12 @@ const CALCULATED_RATIO_PROFILE_ALIASES = Object.freeze([
  * arbitrary/custom categories and onto the one canonical calculated-ratio key.
  * Existing canonical values win when both keys occur on the same draw.
  *
- * @param {ProfileData} data
- * @returns {void}
  */
-function _repairCalculatedRatioAliases(data) {
-  const lookup = new Map();
+function _repairCalculatedRatioAliases(data: ProfileMarkerData) {
+  const lookup = new Map<string, string>();
   for (const [target, aliases] of CALCULATED_RATIO_PROFILE_ALIASES) {
     const markerKey = target.split('.')[1];
-    const schemaMarker = MARKER_SCHEMA.calculatedRatios?.markers?.[markerKey];
+    const schemaMarker = MARKER_SCHEMA.calculatedRatios?.markers?.[markerKey!];
     for (const label of [markerKey, schemaMarker?.name, ...aliases]) {
       const normalized = _normalizeProfileMarkerLabel(label);
       if (normalized && !lookup.has(normalized)) lookup.set(normalized, target);
@@ -131,7 +101,7 @@ function _repairCalculatedRatioAliases(data) {
   for (const oldKey of candidates) {
     const [catKey, markerKey] = oldKey.split('.');
     if (!markerKey || SPECIALTY_MARKER_DEFS[oldKey]) continue;
-    if (MARKER_SCHEMA[catKey]?.markers?.[markerKey]) continue;
+    if (MARKER_SCHEMA[catKey!]?.markers?.[markerKey!]) continue;
     const definition = data.customMarkers?.[oldKey] || {};
     const target = lookup.get(_normalizeProfileMarkerLabel(definition?.name))
       || lookup.get(_normalizeProfileMarkerLabel(markerKey));
@@ -157,23 +127,19 @@ function _repairCalculatedRatioAliases(data) {
   }
 }
 
-/**
- * @param {ProfileData} data
- * @returns {void}
- */
-function _repairUnitSuffixedStandardMarkers(data) {
+function _repairUnitSuffixedStandardMarkers(data: ProfileMarkerData) {
   if (!data.entries?.length) return;
   const lookup = _buildProfileStandardMarkerLookup();
   const candidates = new Set(Object.keys(data.customMarkers || {}));
   for (const entry of data.entries) {
     for (const key of Object.keys(entry.markers || {})) candidates.add(key);
   }
-  const toDelete = [];
+  const toDelete: string[] = [];
   for (const fullKey of candidates) {
     const def = data.customMarkers?.[fullKey] || {};
     const [catKey, markerKey] = fullKey.split('.');
     if (!markerKey || SPECIALTY_MARKER_DEFS[fullKey]) continue;
-    if (MARKER_SCHEMA[catKey]?.markers?.[markerKey]) continue;
+    if (MARKER_SCHEMA[catKey!]?.markers?.[markerKey!]) continue;
     const looksUnitSuffixed = _hasProfileMarkerUnitDecoration(def?.name) || _hasProfileMarkerUnitDecoration(markerKey);
     if (!looksUnitSuffixed) continue;
     const target = lookup.get(_normalizeProfileMarkerLabel(def?.name))
@@ -185,7 +151,7 @@ function _repairUnitSuffixedStandardMarkers(data) {
     for (const entry of data.entries) {
       renameLabEntryMarker(entry, fullKey, target, { stamp: false });
     }
-    const remapByPrefix = (obj) => {
+    const remapByPrefix = (obj: ProfileMarkerMetadata | null | undefined) => {
       if (!obj) return;
       const prefix = fullKey + ':';
       for (const key of Object.keys(obj)) {
@@ -197,24 +163,13 @@ function _repairUnitSuffixedStandardMarkers(data) {
     };
     remapByPrefix(data.manualValues);
     remapByPrefix(data.markerValueNotes);
-    if (data.refOverrides?.[fullKey]) {
-      if (!data.refOverrides[target]) data.refOverrides[target] = data.refOverrides[fullKey];
-      delete data.refOverrides[fullKey];
-    }
-    if (data.markerNotes?.[fullKey] && !data.markerNotes[target]) data.markerNotes[target] = data.markerNotes[fullKey];
-    if (data.markerNotes) delete data.markerNotes[fullKey];
-    if (data.markerLabels?.[fullKey] && !data.markerLabels[target]) data.markerLabels[target] = data.markerLabels[fullKey];
-    if (data.markerLabels) delete data.markerLabels[fullKey];
+    remapGlobalProfileMarkerMetadata(data, fullKey, target);
     if (data.customMarkers?.[fullKey]) toDelete.push(fullKey);
   }
-  for (const key of toDelete) delete data.customMarkers[key];
+  for (const key of toDelete) delete data.customMarkers![key];
 }
 
-/**
- * @param {string | null | undefined} value
- * @returns {boolean}
- */
-function _hasPositiveSpadiaLabel(value) {
+function _hasPositiveSpadiaLabel(value: unknown) {
   const compact = _normalizeProfileMarkerLabel(value);
   if (!compact.includes('spadia')) return false;
   const text = String(value || '').toLowerCase();
@@ -230,11 +185,7 @@ const FRACTION_STORED_PERCENT_MARKERS = new Set([
   'differential.basophilsPct',
 ]);
 
-/**
- * @param {string | null | undefined} value
- * @returns {boolean}
- */
-function _isProfilePercentUnit(value) {
+function _isProfilePercentUnit(value: unknown) {
   const normalized = String(value || '')
     .toLowerCase()
     .replace(/\s/g, '')
@@ -242,31 +193,19 @@ function _isProfilePercentUnit(value) {
   return normalized === '%' || normalized === 'pct' || normalized === 'percent' || normalized === 'percentage';
 }
 
-/**
- * @param {string | null | undefined} value
- * @returns {boolean}
- */
-function _isSpadiaFattyAcidSource(value) {
+function _isSpadiaFattyAcidSource(value: unknown) {
   const compact = _normalizeProfileMarkerLabel(value);
   return _hasPositiveSpadiaLabel(value) && (compact.includes('fattyacid') || compact.includes('mastnekyseliny'));
 }
 
-/**
- * @param {any} marker
- * @returns {boolean}
- */
-function _isSpadiaFattyAcidMarkerMetadata(marker) {
+function _isSpadiaFattyAcidMarkerMetadata(marker: ProfileImportMarker | null | undefined) {
   const key = marker?.mappedKey || marker?.suggestedKey || '';
   if (key.startsWith('spadiaFA.')) return true;
   const group = _normalizeProfileMarkerLabel(marker?.suggestedGroup || '');
   return _hasPositiveSpadiaLabel(marker?.suggestedCategoryLabel || '') && (!group || group.includes('fattyacid') || group.includes('mastnekyseliny'));
 }
 
-/**
- * @param {any} snap
- * @returns {boolean}
- */
-function _hasFattyAcidSnapshotMarker(snap) {
+function _hasFattyAcidSnapshotMarker(snap: ProfileImportSnapshot | null | undefined) {
   return Array.isArray(snap?.markers) && snap.markers.some(marker => {
     const key = marker?.mappedKey || marker?.suggestedKey || '';
     if (_fattyAcidMarkerPart(key) || key.startsWith('spadiaFA.')) return true;
@@ -275,12 +214,8 @@ function _hasFattyAcidSnapshotMarker(snap) {
   });
 }
 
-/**
- * @param {any} snap
- * @returns {string}
- */
-function _snapshotSourceText(snap) {
-  const parts = [];
+function _snapshotSourceText(snap: ProfileImportSnapshot | null | undefined) {
+  const parts: unknown[] = [];
   if (snap?.fileName) parts.push(snap.fileName);
   if (snap?.sourceFile) parts.push(snap.sourceFile);
   if (Array.isArray(snap?.sourceFiles)) parts.push(...snap.sourceFiles);
@@ -293,11 +228,7 @@ function _snapshotSourceText(snap) {
   return parts.join(' ');
 }
 
-/**
- * @param {any} snap
- * @returns {boolean}
- */
-function _isSpadiaFattyAcidSnapshot(snap) {
+function _isSpadiaFattyAcidSnapshot(snap: ProfileImportSnapshot | null | undefined) {
   const fileText = `${snap?.fileName || ''} ${snap?.sourceFile || ''} ${Array.isArray(snap?.sourceFiles) ? snap.sourceFiles.join(' ') : ''}`;
   if (_isSpadiaFattyAcidSource(fileText)) return true;
   const productText = `${snap?.labName || ''} ${snap?.productLabel || ''}`;
@@ -308,12 +239,8 @@ function _isSpadiaFattyAcidSnapshot(snap) {
   return Array.isArray(snap?.markers) && snap.markers.some(_isSpadiaFattyAcidMarkerMetadata);
 }
 
-/**
- * @param {any} entry
- * @returns {string}
- */
-function _entrySourceText(entry) {
-  const parts = [];
+function _entrySourceText(entry: LabEntryDraft | null | undefined) {
+  const parts: unknown[] = [];
   if (entry?.sourceFile) parts.push(entry.sourceFile);
   if (Array.isArray(entry?.sourceFiles)) parts.push(...entry.sourceFiles);
   if (entry?.markerSources && typeof entry.markerSources === 'object') {
@@ -324,21 +251,14 @@ function _entrySourceText(entry) {
   return parts.join(' ');
 }
 
-/**
- * @param {ProfileData} data
- * @param {string} oldKey
- * @param {string} nextKey
- * @param {string | null} [date]
- * @returns {void}
- */
-function _copyDateScopedProfileMarkerData(data, oldKey, nextKey, date = null) {
-  const copyExact = (obj, scopedDate) => {
+function _copyDateScopedProfileMarkerData(data: ProfileMarkerData, oldKey: string, nextKey: string, date: unknown = null) {
+  const copyExact = (obj: ProfileMarkerMetadata | null | undefined, scopedDate: unknown) => {
     if (!obj) return;
     const from = `${oldKey}:${scopedDate}`;
     const to = `${nextKey}:${scopedDate}`;
     if (obj[from] !== undefined && obj[to] === undefined) obj[to] = obj[from];
   };
-  const copyAll = (obj) => {
+  const copyAll = (obj: ProfileMarkerMetadata | null | undefined) => {
     if (!obj) return;
     const prefix = `${oldKey}:`;
     for (const key of Object.keys(obj)) {
@@ -360,18 +280,12 @@ function _copyDateScopedProfileMarkerData(data, oldKey, nextKey, date = null) {
   }
 }
 
-/**
- * @param {ProfileData} data
- * @param {string} oldKey
- * @param {string | null} [date]
- * @returns {void}
- */
-function _deleteDateScopedProfileMarkerData(data, oldKey, date = null) {
-  const deleteExact = (obj, scopedDate) => {
+function _deleteDateScopedProfileMarkerData(data: ProfileMarkerData, oldKey: string, date: unknown = null) {
+  const deleteExact = (obj: ProfileMarkerMetadata | null | undefined, scopedDate: unknown) => {
     if (!obj) return;
     delete obj[`${oldKey}:${scopedDate}`];
   };
-  const deleteAll = (obj) => {
+  const deleteAll = (obj: ProfileMarkerMetadata | null | undefined) => {
     if (!obj) return;
     const prefix = `${oldKey}:`;
     for (const key of Object.keys(obj)) {
@@ -391,70 +305,39 @@ function _deleteDateScopedProfileMarkerData(data, oldKey, date = null) {
   }
 }
 
-/**
- * @param {ProfileData} data
- * @param {string} oldKey
- * @param {string} nextKey
- * @returns {void}
- */
-function _copyGlobalProfileMarkerData(data, oldKey, nextKey) {
+function _copyGlobalProfileMarkerData(data: ProfileMarkerData, oldKey: string, nextKey: string) {
   if (data.refOverrides?.[oldKey] && !data.refOverrides[nextKey]) data.refOverrides[nextKey] = data.refOverrides[oldKey];
   if (data.markerNotes?.[oldKey] && !data.markerNotes[nextKey]) data.markerNotes[nextKey] = data.markerNotes[oldKey];
   if (data.markerLabels?.[oldKey] && !data.markerLabels[nextKey]) data.markerLabels[nextKey] = data.markerLabels[oldKey];
 }
 
-/**
- * @param {ProfileData} data
- * @param {string} oldKey
- * @returns {void}
- */
-function _deleteGlobalProfileMarkerData(data, oldKey) {
+function _deleteGlobalProfileMarkerData(data: ProfileMarkerData, oldKey: string) {
   if (data.refOverrides) delete data.refOverrides[oldKey];
   if (data.markerNotes) delete data.markerNotes[oldKey];
   if (data.markerLabels) delete data.markerLabels[oldKey];
 }
 
-/**
- * @param {ProfileData} data
- * @param {string} key
- * @returns {boolean}
- */
-function _profileHasStructuralMarkerKey(data, key) {
+function _profileHasStructuralMarkerKey(data: ProfileMarkerData, key: string) {
   if (data.entries?.some(entry => entry.markers && Object.prototype.hasOwnProperty.call(entry.markers, key))) return true;
   if (data.importSnapshots?.some(snap => Array.isArray(snap.markers) && snap.markers.some(m => m?.mappedKey === key || m?.suggestedKey === key))) return true;
   return false;
 }
 
-/**
- * @param {ProfileData} data
- * @param {string} key
- * @param {string | null | undefined} date
- * @returns {boolean}
- */
-function _profileHasStructuralMarkerKeyOnDate(data, key, date) {
+function _profileHasStructuralMarkerKeyOnDate(data: ProfileMarkerData, key: string, date: unknown) {
   if (!date) return _profileHasStructuralMarkerKey(data, key);
   if (data.entries?.some(entry => entry.date === date && entry.markers && Object.prototype.hasOwnProperty.call(entry.markers, key))) return true;
   if (data.importSnapshots?.some(snap => (!snap?.date || snap.date === date) && Array.isArray(snap.markers) && snap.markers.some(m => m?.mappedKey === key || m?.suggestedKey === key))) return true;
   return false;
 }
 
-/**
- * @param {string | null | undefined} key
- * @returns {string | null}
- */
-function _fattyAcidMarkerPart(key) {
+function _fattyAcidMarkerPart(key: string | null | undefined) {
   const prefix = 'fattyAcids.';
   if (!key?.startsWith(prefix)) return null;
   const markerPart = key.slice(prefix.length);
   return markerPart && !markerPart.includes('.') ? markerPart : null;
 }
 
-/**
- * @param {any} a
- * @param {any} b
- * @returns {boolean}
- */
-function _profileMarkerValuesMatch(a, b) {
+function _profileMarkerValuesMatch(a: unknown, b: unknown) {
   if (a === b) return true;
   const aNum = Number(a);
   const bNum = Number(b);
@@ -467,10 +350,18 @@ function _profileMarkerValuesMatch(a, b) {
  * retain the raw range and unit, so exact snapshot matches can be repaired
  * without guessing or touching genuinely manual ranges.
  *
- * @param {ProfileData} data
- * @returns {void}
  */
-function _repairSnapshotBackedReferenceUnits(data) {
+/** Each repair keeps its own field-pair array, in the original mutation order. */
+function profileRangeFields(): [string, string][] {
+  return [
+    ['refMin', 'refMin'],
+    ['refMax', 'refMax'],
+    ['labRefMin', 'refMin'],
+    ['labRefMax', 'refMax'],
+  ];
+}
+
+function _repairSnapshotBackedReferenceUnits(data: ProfileMarkerData) {
   if (!Array.isArray(data.importSnapshots) || !data.refOverrides) return;
   for (const snapshot of data.importSnapshots) {
     if (!Array.isArray(snapshot?.markers)) continue;
@@ -478,12 +369,7 @@ function _repairSnapshotBackedReferenceUnits(data) {
       const key = marker?.mappedKey || marker?.suggestedKey || '';
       const override = data.refOverrides[key];
       if (!key || !override || !marker?.unit) continue;
-      const rangeFields = [
-        ['refMin', 'refMin'],
-        ['refMax', 'refMax'],
-        ['labRefMin', 'refMin'],
-        ['labRefMax', 'refMax'],
-      ];
+      const rangeFields: [string, string][] = profileRangeFields();
       for (const [overrideField, markerField] of rangeFields) {
         const activeReferenceField = overrideField === 'refMin' || overrideField === 'refMax';
         if (activeReferenceField && override.refSource !== 'import') continue;
@@ -498,18 +384,14 @@ function _repairSnapshotBackedReferenceUnits(data) {
   }
 }
 
-/**
- * @param {any} marker
- * @returns {{ key: string, canonicalValue: number, dividedValue: number | null, wholePercentValue: number | null } | null}
- */
-function _fractionStoredPercentSnapshotMarker(marker) {
+function _fractionStoredPercentSnapshotMarker(marker: ProfileImportMarker | null | undefined) {
   const key = marker?.mappedKey || marker?.suggestedKey || '';
   if (!FRACTION_STORED_PERCENT_MARKERS.has(key)) return null;
   if (!_isProfilePercentUnit(marker?.unit)) return null;
   const value = Number(marker?.value);
   if (!Number.isFinite(value) || value < 0 || value > 100) return null;
   const [catKey, markerKey] = key.split('.');
-  const schemaRefMax = Number(MARKER_SCHEMA[catKey]?.markers?.[markerKey]?.refMax);
+  const schemaRefMax = Number(MARKER_SCHEMA[catKey!]?.markers?.[markerKey!]?.refMax);
   const markerRefMax = Number(marker?.refMax);
   const snapshotRangeUsesWholePercent = Number.isFinite(markerRefMax) && markerRefMax > 1;
   const valueLooksCanonical = Number.isFinite(schemaRefMax) && value <= schemaRefMax;
@@ -523,25 +405,14 @@ function _fractionStoredPercentSnapshotMarker(marker) {
   };
 }
 
-/**
- * @param {ProfileData} data
- * @param {string} key
- * @param {any} marker
- * @returns {void}
- */
-function _repairFractionStoredPercentRefOverride(data, key, marker) {
+function _repairFractionStoredPercentRefOverride(data: ProfileMarkerData, key: string, marker: ProfileImportMarker | null | undefined) {
   const override = data.refOverrides?.[key];
   if (!override || !_isProfilePercentUnit(marker?.unit)) return;
-  const pairs = [
-    ['refMin', 'refMin'],
-    ['refMax', 'refMax'],
-    ['labRefMin', 'refMin'],
-    ['labRefMax', 'refMax'],
-  ];
+  const pairs: [string, string][] = profileRangeFields();
   const markerRefMax = Number(marker?.refMax);
   const snapshotRangeUsesWholePercent = Number.isFinite(markerRefMax) && markerRefMax > 1;
   const [catKey, markerKey] = key.split('.');
-  const schemaRefMax = Number(MARKER_SCHEMA[catKey]?.markers?.[markerKey]?.refMax);
+  const schemaRefMax = Number(MARKER_SCHEMA[catKey!]?.markers?.[markerKey!]?.refMax);
   for (const [overrideField, markerField] of pairs) {
     const raw = Number(marker?.[markerField]);
     if (!Number.isFinite(raw) || raw < 0 || raw > 100) continue;
@@ -557,11 +428,7 @@ function _repairFractionStoredPercentRefOverride(data, key, marker) {
   }
 }
 
-/**
- * @param {ProfileData} data
- * @returns {void}
- */
-function _repairFractionStoredPercentImports(data) {
+function _repairFractionStoredPercentImports(data: ProfileMarkerData) {
   if (!Array.isArray(data.importSnapshots) || !Array.isArray(data.entries)) return;
   for (const snap of data.importSnapshots) {
     if (!Array.isArray(snap?.markers)) continue;
@@ -587,8 +454,8 @@ function _repairFractionStoredPercentImports(data) {
         if (wholePercentValue != null && _profileMarkerValuesMatch(entry.markers[key], wholePercentValue)) entry.markers[key] = canonicalValue;
       }
       _repairFractionStoredPercentRefOverride(data, key, marker);
-      if (data.customMarkers?.[key] && MARKER_SCHEMA[key.split('.')[0]]?.markers?.[key.split('.')[1]]) {
-        delete data.customMarkers[key];
+      if (data.customMarkers?.[key] && MARKER_SCHEMA[key.split('.')[0]!]?.markers?.[key.split('.')[1]!]) {
+        delete data.customMarkers![key];
       }
     }
   }
@@ -599,17 +466,15 @@ function _repairFractionStoredPercentImports(data) {
  * key became part of the standard schema. Import snapshots retain the original
  * value and unit, so only exact raw-value matches are safe to canonicalize.
  *
- * @param {ProfileData} data
- * @returns {void}
  */
-function _repairNewlyStandardizedImports(data) {
+function _repairNewlyStandardizedImports(data: ProfileMarkerData) {
   if (!Array.isArray(data.importSnapshots) || !Array.isArray(data.entries)) return;
   const legacyCustomKeys = new Set(Object.keys(data.customMarkers || {}).filter(key => {
     const [catKey, markerKey] = key.split('.');
-    return !!MARKER_SCHEMA[catKey]?.markers?.[markerKey];
+    return !!MARKER_SCHEMA[catKey!]?.markers?.[markerKey!];
   }));
   if (legacyCustomKeys.size === 0) return;
-  const snapshotBackedKeys = new Set();
+  const snapshotBackedKeys = new Set<string>();
 
   for (const snap of data.importSnapshots) {
     if (!Array.isArray(snap?.markers)) continue;
@@ -640,12 +505,7 @@ function _repairNewlyStandardizedImports(data) {
 
       const override = data.refOverrides?.[key];
       if (override) {
-        const rangeFields = [
-          ['refMin', 'refMin'],
-          ['refMax', 'refMax'],
-          ['labRefMin', 'refMin'],
-          ['labRefMax', 'refMax'],
-        ];
+        const rangeFields: [string, string][] = profileRangeFields();
         for (const [overrideField, markerField] of rangeFields) {
           const rawRange = Number(marker?.[markerField]);
           if (!Number.isFinite(rawRange) || !_profileMarkerValuesMatch(override[overrideField], rawRange)) continue;
@@ -656,17 +516,10 @@ function _repairNewlyStandardizedImports(data) {
     }
   }
 
-  for (const key of snapshotBackedKeys) delete data.customMarkers[key];
+  for (const key of snapshotBackedKeys) delete data.customMarkers![key];
 }
 
-/**
- * @param {any} entry
- * @param {any} snap
- * @param {string} oldKey
- * @param {any} marker
- * @returns {boolean}
- */
-function _entryMatchesSpadiaSnapshotMarker(entry, snap, oldKey, marker) {
+function _entryMatchesSpadiaSnapshotMarker(entry: LabEntryDraft, snap: ProfileImportSnapshot, oldKey: string, marker: ProfileImportMarker) {
   if (!entry?.markers || !Object.prototype.hasOwnProperty.call(entry.markers, oldKey)) return false;
   if (snap?.id && entry.markerSources?.[oldKey]?.snapshotId === snap.id) return true;
   if (_isSpadiaFattyAcidSource(_entrySourceText(entry))) return true;
@@ -676,14 +529,7 @@ function _entryMatchesSpadiaSnapshotMarker(entry, snap, oldKey, marker) {
   return !entry.date;
 }
 
-/**
- * @param {ProfileData} data
- * @param {any} entry
- * @param {string} oldKey
- * @param {string} nextKey
- * @returns {boolean}
- */
-function _remapSpadiaFattyAcidEntry(data, entry, oldKey, nextKey) {
+function _remapSpadiaFattyAcidEntry(data: ProfileMarkerData, entry: LabEntryDraft, oldKey: string, nextKey: string) {
   if (!renameLabEntryMarker(entry, oldKey, nextKey, { stamp: false })) return false;
   ensureProductFattyAcidCustomMarker(data, oldKey, nextKey);
   if (entry.date) {
@@ -695,13 +541,9 @@ function _remapSpadiaFattyAcidEntry(data, entry, oldKey, nextKey) {
   return true;
 }
 
-/**
- * @param {ProfileData} data
- * @returns {void}
- */
-function _repairSpadiaFattyAcidKeys(data) {
-  const renamedKeys = new Map();
-  const remapKey = (oldKey) => {
+function _repairSpadiaFattyAcidKeys(data: ProfileMarkerData) {
+  const renamedKeys = new Map<string, string>();
+  const remapKey = (oldKey: string) => {
     const markerPart = _fattyAcidMarkerPart(oldKey);
     return markerPart ? `spadiaFA.${markerPart}` : null;
   };
@@ -729,7 +571,7 @@ function _repairSpadiaFattyAcidKeys(data) {
       if (!nextKey) continue;
       const markerPart = nextKey.slice('spadiaFA.'.length);
       const genericKey = oldKey || `fattyAcids.${markerPart}`;
-      const def = SPECIALTY_MARKER_DEFS[genericKey] || {};
+      const def: Partial<AdapterMarkerDefinition> = SPECIALTY_MARKER_DEFS[genericKey] || {};
       marker.mappedKey = nextKey;
       marker.suggestedKey = null;
       marker.suggestedName = marker.suggestedName || def.name || marker.rawName;
@@ -764,25 +606,19 @@ function _repairSpadiaFattyAcidKeys(data) {
  * Drop custom definitions whose key and unit already match a built-in.
  * Differing units remain custom unless snapshot-backed repair proves conversion.
  *
- * @param {ProfileData} data
- * @returns {void}
  */
-function _adoptExactStandardCustomMarkers(data) {
+function _adoptExactStandardCustomMarkers(data: ProfileMarkerData) {
   if (!data.customMarkers || typeof data.customMarkers !== 'object') return;
   for (const [key, definition] of Object.entries(data.customMarkers)) {
     const [catKey, markerKey] = key.split('.');
-    const standard = MARKER_SCHEMA[catKey]?.markers?.[markerKey];
+    const standard = MARKER_SCHEMA[catKey!]?.markers?.[markerKey!];
     if (!standard) continue;
     if (normalizeClinicalUnit(definition?.unit) !== normalizeClinicalUnit(standard.unit)) continue;
-    delete data.customMarkers[key];
+    delete data.customMarkers![key];
   }
 }
 
-/**
- * @param {ProfileData} data
- * @returns {void}
- */
-export function repairProfileMarkerData(data) {
+export function repairProfileMarkerData(data: ProfileMarkerData) {
   repairCanonicalMarkerAliases(data);
   repairNamedStandardMarkerAliases(data);
   _repairCalculatedRatioAliases(data);

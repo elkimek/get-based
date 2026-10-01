@@ -1,4 +1,28 @@
-// @ts-check
+/** Specialty report definitions retain printed-unit ranges and product identity. */
+export type AdapterMarkerDefinition = {
+  name: string; unit: string; refMin: number | null; refMax: number | null;
+  categoryLabel: string; icon: string; group: string; singlePoint?: boolean;
+};
+export interface AdapterParsedMarker {
+  rawName: string;
+  suggestedName?: string | null;
+  mappedKey?: string | null;
+  suggestedKey?: string | null;
+  suggestedCategoryLabel?: string | null;
+  suggestedGroup?: string | null;
+  unit?: string | null;
+}
+export interface AdapterProduct { prefix: string; label: string; group?: string; kind?: string }
+export interface ParserAdapter {
+  id: string;
+  testTypes: string[];
+  markers: Record<string, AdapterMarkerDefinition>;
+  /** The lazy importer guarantees product-specific keys for this adapter. */
+  productScoped?: boolean;
+  detect?: (fileName?: string | null, pdfText?: string | null) => AdapterProduct | null;
+  normalize?: (markers: AdapterParsedMarker[], fileName?: string | null, pdfText?: string | null, product?: AdapterProduct | null) => void;
+}
+
 // adapters.js — Parser adapter registry for specialty lab products
 //
 // Each adapter provides a marker map and optional detection/normalization
@@ -7,16 +31,6 @@
 // 2. Detect products from filename/text content
 // 3. Post-process AI output (normalize keys, deduplicate, skip calculated)
 //
-// Adapter interface:
-//   id:         unique string identifier
-//   testTypes:  array of testType values this adapter handles
-//   productScoped: true when the lazy import normalizer guarantees product-specific keys
-//   products:   optional array of { patterns, prefix, label } for product detection
-//   markers:    object of "category.markerKey" → { name, unit, refMin, refMax, categoryLabel, icon, group, singlePoint? }
-//   detect:     optional (fileName, text) → { prefix, label } | null
-//   normalize:  optional (markers, fileName, text, detectedProduct) → void (mutates markers array)
-//   config:     { group, singlePoint } defaults for this adapter
-
 import { MARKER_SCHEMA } from './schema.js';
 import { isDebugMode } from './utils.js';
 
@@ -25,7 +39,7 @@ import { isDebugMode } from './utils.js';
 // profiles keep working, but new imports are normalized to product-specific
 // categories below (Metabolomix+, Mosaic OAT/MOAT, or a lab-scoped OAT).
 // ═══════════════════════════════════════════════
-const OAT_MARKERS = {
+const OAT_MARKERS: Record<string, AdapterMarkerDefinition> = {
   "oatMicrobial.citramalic": { name: "Citramalic Acid", unit: "mmol/mol creatinine", refMin: 0.11, refMax: 2, categoryLabel: "OAT: Microbial Overgrowth", icon: "\uD83E\uDDA0", group: "OAT" },
   "oatMicrobial.hydroxymethylfuroic": { name: "5-Hydroxymethyl-2-furoic Acid", unit: "mmol/mol creatinine", refMin: null, refMax: 18, categoryLabel: "OAT: Microbial Overgrowth", icon: "\uD83E\uDDA0", group: "OAT" },
   "oatMicrobial.oxoglutaric3": { name: "3-Oxoglutaric Acid", unit: "mmol/mol creatinine", refMin: null, refMax: 0.11, categoryLabel: "OAT: Microbial Overgrowth", icon: "\uD83E\uDDA0", group: "OAT" },
@@ -197,7 +211,7 @@ const OAT_MARKERS = {
 // Fatty Acids Adapter — product-specific (Spadia, ZinZino, OmegaQuant)
 // ═══════════════════════════════════════════════
 const FA_SUMMARY_MARKER = { unit: "wt %", refMin: null, refMax: null, categoryLabel: "Fatty Acids", icon: "\uD83D\uDC1F", group: "Fatty Acids" };
-const FA_MARKERS = {
+const FA_MARKERS: Record<string, AdapterMarkerDefinition> = {
   "fattyAcids.palmiticC16": { name: "Palmitic Acid C16:0", unit: "%", refMin: 28.1, refMax: 30.1, categoryLabel: "Fatty Acids", icon: "\uD83D\uDC1F", group: "Fatty Acids" },
   "fattyAcids.stearicC18": { name: "Stearic Acid C18:0", unit: "%", refMin: 12.5, refMax: 13.8, categoryLabel: "Fatty Acids", icon: "\uD83D\uDC1F", group: "Fatty Acids" },
   "fattyAcids.oleicC18_1": { name: "Oleic Acid C18:1", unit: "%", refMin: 20.9, refMax: 23.4, categoryLabel: "Fatty Acids", icon: "\uD83D\uDC1F", group: "Fatty Acids" },
@@ -242,7 +256,7 @@ const FA_PRODUCTS = [
   { patterns: ['spadia'], prefix: 'spadiaFA', label: 'Spadia' },
 ];
 
-function _detectFAProduct(fileName, pdfText) {
+function _detectFAProduct(fileName?: string | null, pdfText?: string | null) {
   const fnLower = (fileName || '').toLowerCase();
   const textLower = (pdfText || '').slice(0, 3000).toLowerCase();
   for (const p of FA_PRODUCTS) {
@@ -253,7 +267,7 @@ function _detectFAProduct(fileName, pdfText) {
   return null;
 }
 
-function _normalizeFAMarkers(markers, fileName, pdfText, detectedProduct) {
+function _normalizeFAMarkers(markers: AdapterParsedMarker[], fileName?: string | null, pdfText?: string | null, detectedProduct?: AdapterProduct | null) {
   const standardCats = new Set(Object.keys(MARKER_SCHEMA));
   let product = detectedProduct || _detectFAProduct(fileName, pdfText);
   // Fallback: derive from first non-generic suggestedGroup the AI returned
@@ -270,7 +284,7 @@ function _normalizeFAMarkers(markers, fileName, pdfText, detectedProduct) {
     // Never rewrite markers already matched to standard schema categories
     if (m.mappedKey) {
       const catKey = m.mappedKey.split('.')[0];
-      if (standardCats.has(catKey)) {
+      if (standardCats.has(catKey!)) {
         if (isDebugMode()) console.log(`[FA Normalize] Skipping ${m.mappedKey} — standard category`);
         continue;
       }
@@ -290,7 +304,7 @@ function _normalizeFAMarkers(markers, fileName, pdfText, detectedProduct) {
 // Metabolomix+ Adapter — Genova Diagnostics combined panel
 // OAT + amino acids + elements + optional FA bloodspot add-on
 // ═══════════════════════════════════════════════
-function _detectMetabolomix(fileName, pdfText) {
+function _detectMetabolomix(fileName?: string | null, pdfText?: string | null) {
   const haystack = `${fileName || ''}\n${String(pdfText || '').slice(0, 6000)}`.toLowerCase();
   const explicitProduct = /\bmetabolomix\s*\+?/i.test(haystack);
   const officialCode = /\b3200\b/.test(haystack) && /genova/.test(haystack);
@@ -299,7 +313,7 @@ function _detectMetabolomix(fileName, pdfText) {
     : null;
 }
 
-function _detectMosaicOAT(fileName, pdfText) {
+function _detectMosaicOAT(fileName?: string | null, pdfText?: string | null) {
   const haystack = `${fileName || ''}\n${String(pdfText || '').slice(0, 6000)}`.toLowerCase();
   const hasMosaicLab = /mosaic\s*(?:diagnostics|dx)|mosaicdx|great plains laborator|\bmdx[_ -]/i.test(haystack);
   if (!hasMosaicLab) return null;
@@ -315,7 +329,7 @@ function _detectMosaicOAT(fileName, pdfText) {
 // ═══════════════════════════════════════════════
 // BioStarks Adapter — dried blood spot (amino acids, fatty acids, minerals, vitamins, hormones, metabolism)
 // ═══════════════════════════════════════════════
-const BIOSTARKS_MARKERS = {
+const BIOSTARKS_MARKERS: Record<string, AdapterMarkerDefinition> = {
   // Amino Acids (12) — blood serum, µmol/L
   "biostarksAmino.arginine": { name: "Arginine", unit: "µmol/L", refMin: 59, refMax: 180, categoryLabel: "BioStarks: Amino Acids", icon: "\uD83E\uDDEC", group: "BioStarks" },
   "biostarksAmino.asparagine": { name: "Asparagine", unit: "µmol/L", refMin: 29, refMax: 110, categoryLabel: "BioStarks: Amino Acids", icon: "\uD83E\uDDEC", group: "BioStarks" },
@@ -348,7 +362,7 @@ const BIOSTARKS_MARKERS = {
 
 const BIOSTARKS_PATTERNS = ['biostarks', 'bio starks', 'bio-starks'];
 
-function _detectBiostarks(fileName, pdfText) {
+function _detectBiostarks(fileName?: string | null, pdfText?: string | null) {
   const fnLower = (fileName || '').toLowerCase();
   const textLower = (pdfText || '').slice(0, 3000).toLowerCase();
   for (const pat of BIOSTARKS_PATTERNS) {
@@ -357,12 +371,12 @@ function _detectBiostarks(fileName, pdfText) {
   return null;
 }
 
-function _normalizeBiostarks(markers) {
+function _normalizeBiostarks(markers: AdapterParsedMarker[]) {
   const standardCats = new Set(Object.keys(MARKER_SCHEMA));
   const biostarksKeys = new Set(Object.keys(BIOSTARKS_MARKERS));
 
   // Name → adapter key lookup (exact + aliases)
-  const nameLookup = new Map();
+  const nameLookup = new Map<string, string>();
   for (const [key, def] of Object.entries(BIOSTARKS_MARKERS)) {
     nameLookup.set(def.name.toLowerCase(), key);
   }
@@ -415,7 +429,7 @@ function _normalizeBiostarks(markers) {
     // lookalike generic/OAT categories just because the AI found a standard name.
     const match = nameLookup.get(name);
     if (match) {
-      const def = BIOSTARKS_MARKERS[match];
+      const def = BIOSTARKS_MARKERS[match]!;
       m.mappedKey = null;
       m.suggestedKey = match;
       m.suggestedCategoryLabel = def.categoryLabel;
@@ -429,7 +443,7 @@ function _normalizeBiostarks(markers) {
     // the old unit-based mineral guard as a fallback for variant RBC labels.
     if (m.mappedKey) {
       const catKey = m.mappedKey.split('.')[0];
-      if (standardCats.has(catKey)) {
+      if (standardCats.has(catKey!)) {
         const unit = (m.unit || '').toLowerCase();
         if (unit.includes('ghb') || unit.includes('g hb')) {
           const markerPart = m.mappedKey.split('.')[1];
@@ -452,7 +466,7 @@ function _normalizeBiostarks(markers) {
 // ═══════════════════════════════════════════════
 // Gut/Stool Adapter — GI barrier + inflammatory stool markers
 // ═══════════════════════════════════════════════
-const GUT_STOOL_MARKERS = {
+const GUT_STOOL_MARKERS: Record<string, AdapterMarkerDefinition> = {
   "stool.calprotectin": { name: "Calprotectin", unit: "µg/g", refMin: null, refMax: 50, categoryLabel: "Stool / Gut Barrier", icon: "🧫", group: "Gut" },
   "stool.zonulin": { name: "Zonulin", unit: "ng/ml", refMin: null, refMax: 60, categoryLabel: "Stool / Gut Barrier", icon: "🧫", group: "Gut" },
   "stool.secretoryIgA": { name: "Secretory IgA", unit: "µg/g", refMin: 510, refMax: 2040, categoryLabel: "Stool / Gut Barrier", icon: "🧫", group: "Gut" },
@@ -461,7 +475,7 @@ const GUT_STOOL_MARKERS = {
 // ═══════════════════════════════════════════════
 // Adapter Registry
 // ═══════════════════════════════════════════════
-const ADAPTERS = [
+const ADAPTERS: ParserAdapter[] = [
   {
     id: 'fattyAcids',
     testTypes: ['fattyAcids'],
@@ -510,7 +524,7 @@ const ADAPTERS = [
 
 /** Get all adapter markers merged into a single object (for buildMarkerReference) */
 export function getAllAdapterMarkers() {
-  const all = {};
+  const all: Record<string, AdapterMarkerDefinition> = {};
   for (const adapter of ADAPTERS) {
     Object.assign(all, adapter.markers);
   }
@@ -518,12 +532,12 @@ export function getAllAdapterMarkers() {
 }
 
 /** Find an adapter by testType */
-export function getAdapterByTestType(testType) {
+export function getAdapterByTestType(testType: string) {
   return ADAPTERS.find(a => a.testTypes.includes(testType)) || null;
 }
 
 /** Detect product from filename/text across all adapters */
-export function detectProduct(fileName, pdfText) {
+export function detectProduct(fileName?: string | null, pdfText?: string | null) {
   for (const adapter of ADAPTERS) {
     if (adapter.detect) {
       const result = adapter.detect(fileName, pdfText);
@@ -534,7 +548,7 @@ export function detectProduct(fileName, pdfText) {
 }
 
 /** Run adapter normalization on parsed markers (post-AI) */
-export function normalizeWithAdapter(adapter, markers, fileName, pdfText, detectedProduct) {
+export function normalizeWithAdapter(adapter: ParserAdapter | null | undefined, markers: AdapterParsedMarker[], fileName?: string | null, pdfText?: string | null, detectedProduct?: AdapterProduct | null) {
   if (adapter?.normalize) {
     adapter.normalize(markers, fileName, pdfText, detectedProduct);
   }

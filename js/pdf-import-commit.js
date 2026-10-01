@@ -347,6 +347,7 @@ export async function confirmImport() {
     const productBaseDef = catKey === 'spadiaFA'
       ? SPECIALTY_MARKER_DEFS[`fattyAcids.${markerKey}`]
       : null;
+    /** @type {Partial<import('./adapters.js').AdapterMarkerDefinition>} */
     const def = exactSpecialtyDef || productBaseDef || {};
     if (schemaMarker && !exactSpecialtyDef) continue;
     const existing = state.importedData.customMarkers[m.mappedKey];

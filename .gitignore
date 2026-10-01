@@ -297,3 +297,9 @@ deploy/profile-share/data/
 /js/lab-entry.js
 /js/data-merge-lab-entries.js
 /js/data-merge.js
+
+# Native specialty adapter and profile marker repair graph
+/js/adapters.js
+/js/profile-fatty-acid-migrations.js
+/js/profile-marker-alias-migrations.js
+/js/profile-marker-migrations.js

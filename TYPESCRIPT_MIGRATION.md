@@ -340,6 +340,15 @@ freshness ties, marker provenance, insulin aliases and HOMA-IR arithmetic retain
 their complete executable behavior. Four delegated-action source suites share
 the assertion harness as native tests with every original assertion retained.
 
+Specialty parser adapters and the complete marker-repair graph now use native
+TypeScript. The 225 legacy catalog entries retain their values and identities.
+Canonical/named aliases and unit-suffix repairs share label normalization and
+global metadata remapping; reference repairs share fresh field-pair arrays.
+Snapshot matching, manual-range protection, urine compatibility, percent storage
+conventions and product-scoped fatty-acid provenance remain explicit. The original
+60 BioStarks assertions are retained in a strict native suite; profile migration
+integration still checks the remaining profile graph.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,
