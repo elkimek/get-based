@@ -1,18 +1,32 @@
-// @ts-check
 // Quality-test display and conservative cross-product contaminant aggregation.
+
+export interface QualityTestView extends Record<string, unknown> {
+  category?: unknown; analyte?: unknown; canonicalAnalyte?: unknown; resultText?: unknown;
+  comparator?: unknown; value?: unknown; unit?: unknown; basis?: unknown; status?: unknown; includeInAIContext?: unknown;
+}
+export interface QualitySupplementView extends Record<string, unknown> {
+  name?: unknown; ingredients?: Array<{ name?: unknown } | null> | null; qualityTests?: QualityTestView[] | null;
+  qualityEvidenceScope?: unknown; timesPerDay?: unknown; schedule?: { mode?: unknown; timesPerDay?: unknown } | null;
+  servingSize?: { value?: unknown; unit?: unknown } | null;
+}
+type QualityTestInput = QualityTestView | null | undefined;
+type QualitySupplementInput = QualitySupplementView | null | undefined;
+export interface ContaminantDailyMass { mcgPerDay: number; upperBound: boolean }
+export interface ContaminantGroup {
+  analyte: string; entries: Array<{ product: unknown; test: QualityTestView; daily: ContaminantDailyMass | null }>;
+  exactMcgPerDay: number; upperMcgPerDay: number;
+}
 
 const MASS_TO_MCG = new Map([
   ['mcg', 1], ['µg', 1], ['μg', 1], ['ug', 1],
   ['mg', 1000], ['g', 1_000_000],
 ]);
 
-/** @param {unknown} value */
-function clean(value) {
+function clean(value: unknown) {
   return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
 }
 
-/** @param {unknown} value */
-export function supplementQualityKey(value) {
+export function supplementQualityKey(value: unknown) {
   return clean(value)
     .normalize('NFKD')
     .replace(/([\p{Script=Latin}])\p{M}+/gu, '$1')
@@ -26,10 +40,8 @@ export function supplementQualityKey(value) {
  * A passing potency row commonly repeats an active Supplement Facts row. Keep
  * the source result stored, but treat it as verification rather than a second
  * health exposure unless the user explicitly opts it into AI context.
- * @param {any} test
- * @param {any} supplement
  */
-export function isActiveIngredientPotencyTest(test, supplement) {
+export function isActiveIngredientPotencyTest(test: QualityTestInput, supplement: QualitySupplementInput) {
   if (test?.category !== 'potency') return false;
   const testKeys = [test?.analyte, test?.canonicalAnalyte].map(supplementQualityKey).filter(Boolean);
   const ingredientKeys = (Array.isArray(supplement?.ingredients) ? supplement.ingredients : [])
@@ -41,29 +53,25 @@ export function isActiveIngredientPotencyTest(test, supplement) {
   }));
 }
 
-/** @param {any} test @param {any} supplement */
-export function isInformationalActiveIngredientPotencyTest(test, supplement) {
+export function isInformationalActiveIngredientPotencyTest(test: QualityTestInput, supplement: QualitySupplementInput) {
   return isActiveIngredientPotencyTest(test, supplement)
     && clean(test?.status).toLowerCase() !== 'fail';
 }
 
-/** @param {any} test @param {any} supplement */
-export function isSupplementQualityIncludedInAI(test, supplement) {
+export function isSupplementQualityIncludedInAI(test: QualityTestInput, supplement: QualitySupplementInput) {
   if (typeof test?.includeInAIContext === 'boolean') return test.includeInAIContext;
   return !isInformationalActiveIngredientPotencyTest(test, supplement);
 }
 
-/** @param {any} supplement */
-export function supplementQualityEvidenceScope(supplement) {
+export function supplementQualityEvidenceScope(supplement: QualitySupplementInput) {
   const scope = clean(supplement?.qualityEvidenceScope);
   if (['matching-lot', 'different-lot', 'general-specification'].includes(scope)) return scope;
   return 'unknown';
 }
 
-/** @param {any} test */
-export function formatSupplementQualityResult(test) {
+export function formatSupplementQualityResult(test: QualityTestInput) {
   let result = clean(test?.resultText)
-    || (Number.isFinite(Number(test?.value)) ? `${test?.comparator || ''}${test.value}${test?.unit ? ` ${test.unit}` : ''}` : '')
+    || (Number.isFinite(Number(test?.value)) ? `${test?.comparator || ''}${test!.value}${test?.unit ? ` ${test.unit}` : ''}` : '')
     || clean(test?.status)
     || 'Result not reported';
   const unit = clean(test?.unit);
@@ -75,8 +83,7 @@ export function formatSupplementQualityResult(test) {
   return `${result}${detail ? ` · ${detail}` : ''}`;
 }
 
-/** @param {number} mcg */
-export function formatContaminantMass(mcg) {
+export function formatContaminantMass(mcg: number) {
   if (!Number.isFinite(mcg)) return '';
   if (Math.abs(mcg) >= 1000) return `${Number((mcg / 1000).toPrecision(4))} mg/day`;
   return `${Number(mcg.toPrecision(4))} mcg/day`;
@@ -86,10 +93,8 @@ export function formatContaminantMass(mcg) {
  * Return a daily mass only when the source result is a compatible mass per
  * serving/unit and the user supplied a personal daily frequency. ND/NQ,
  * concentrations, PRN use, and missing schedules intentionally remain null.
- * @param {any} test
- * @param {any} supplement
  */
-export function contaminantDailyMass(test, supplement) {
+export function contaminantDailyMass(test: QualityTestInput, supplement: QualitySupplementInput) {
   if (test?.category !== 'contaminant') return null;
   if (supplementQualityEvidenceScope(supplement) !== 'matching-lot') return null;
   const status = clean(test.status).toLowerCase();
@@ -101,7 +106,7 @@ export function contaminantDailyMass(test, supplement) {
   if (supplement?.schedule?.mode === 'prn') return null;
 
   const basis = clean(test.basis).toLowerCase();
-  let dailyMultiplier = null;
+  let dailyMultiplier: number | null = null;
   if (/\bper\s+serving\b/u.test(basis)) {
     dailyMultiplier = timesPerDay;
   } else if (/\bper\s+(?:capsule|tablet|softgel|drop|scoop|spray|patch)\b/u.test(basis)) {
@@ -122,17 +127,16 @@ export function contaminantDailyMass(test, supplement) {
 
 /**
  * Group source-reported contaminant tests across the supplied products.
- * @param {any[]} supplements
  */
-export function aggregateSupplementContaminants(supplements) {
-  const groups = new Map();
+export function aggregateSupplementContaminants(supplements: QualitySupplementView[]) {
+  const groups = new Map<string, ContaminantGroup>();
   for (const supplement of Array.isArray(supplements) ? supplements : []) {
     for (const test of Array.isArray(supplement?.qualityTests) ? supplement.qualityTests : []) {
       if (test?.category !== 'contaminant' || !clean(test.analyte)) continue;
       const canonicalAnalyte = clean(test.canonicalAnalyte) || clean(test.analyte);
       const key = supplementQualityKey(canonicalAnalyte);
       if (!groups.has(key)) groups.set(key, { analyte: canonicalAnalyte, entries: [], exactMcgPerDay: 0, upperMcgPerDay: 0 });
-      const group = groups.get(key);
+      const group = groups.get(key)!;
       const daily = contaminantDailyMass(test, supplement);
       group.entries.push({ product: supplement.name || 'Unnamed product', test, daily });
       if (daily?.upperBound) group.upperMcgPerDay += daily.mcgPerDay;
