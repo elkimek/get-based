@@ -202,7 +202,6 @@ const LEGACY_TESTS = [
   './test-provider-panel-delegated-actions.js',
   './test-chat-empty-state-delegated-actions.js',
   './test-modal-lifecycle-integrations.js',
-  './test-quality-guardrails.js',
   './test-chat-threads.js',
   './test-wearables-bp-merge.js',
   // Batch 32 — test-wearables (~549 asserts: registry, IDB CRUD via

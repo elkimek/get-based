@@ -7,6 +7,13 @@ import { fileURLToPath } from 'node:url';
 import { stripTypeScriptTypes } from 'node:module';
 import { sourcePath, runtimePath, walkSourceFiles } from './source-files.js';
 
+type QualityBaseline = Record<
+  'inlineEventAttributes' | 'windowReferences' | 'windowGlobalAssignments' |
+  'legacyWindowGlobalAssignments' | 'viewRuntimeBridgeConsumers' | 'viewRuntimeBridgeLookups' |
+  'labStateAppFiles' | 'labStateTestFiles' | 'largeJsFilesOver800Lines' |
+  'nearCapJsFilesAtLeast790Lines' | 'maxJsFileLines', number>;
+interface ProcessOutputError { stdout?: unknown; stderr?: unknown }
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASELINE_PATH = path.join(ROOT, 'scripts', 'quality-baseline.json');
 const GITHUB_AUTOMATION_DIR = path.join(ROOT, '.github');
@@ -28,7 +35,7 @@ const WINDOW_GLOBAL_ASSIGN_RE = /Object\.assign\(\s*window\b/g;
 const VIEW_RUNTIME_LOOKUP_RE = /\bgetViewRuntimeFunction\s*\(/g;
 const LAB_STATE_RE = /\b_labState\b/g;
 const VIEW_RUNTIME_BRIDGE_FILE = 'js/views-runtime-bridge.js';
-const LAB_STATE_GUARDRAIL_TEST_FILE = 'tests/test-quality-guardrails.js';
+const LAB_STATE_GUARDRAIL_TEST_FILE = 'tests/quality-guardrails.test.js';
 const PRIVACY_CRITICAL_LOG_FILES = [
   'js/pdf-import.js',
   'js/pdf-import-file-handlers.js',
@@ -55,22 +62,22 @@ const NEAR_CAP_FILE_LINE_LIMIT = 790;
 let passed = 0;
 let failed = 0;
 
-function pass(message) {
+function pass(message: string) {
   passed++;
   console.log(`  PASS: ${message}`);
 }
 
-function fail(message, detail = '') {
+function fail(message: string, detail = '') {
   failed++;
   console.log(`  FAIL: ${message}${detail ? ` — ${detail}` : ''}`);
 }
 
-function readBaseline() {
-  return JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
+function readBaseline(): QualityBaseline {
+  return JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8')) as QualityBaseline;
 }
 
-function walkFiles(dir, extensions = new Set(['.js', '.ts'])) {
-  const files = [];
+function walkFiles(dir: string, extensions = new Set(['.js', '.ts'])): string[] {
+  const files: string[] = [];
   if (!fs.existsSync(dir)) return files;
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.name === 'node_modules' || entry.name === '.git') continue;
@@ -81,15 +88,15 @@ function walkFiles(dir, extensions = new Set(['.js', '.ts'])) {
   return files;
 }
 
-function repoRel(file) {
+function repoRel(file: string) {
   return runtimePath(path.relative(ROOT, file).replaceAll(path.sep, '/'));
 }
 
-function countMatches(source, re) {
+function countMatches(source: string, re: RegExp) {
   return (source.match(re) || []).length;
 }
 
-function countSourceLines(source) {
+function countSourceLines(source: string) {
   if (!source) return 0;
   const lines = source.split('\n').length;
   return source.endsWith('\n') ? lines - 1 : lines;
@@ -169,44 +176,32 @@ function collectOversizedProductionFiles() {
     .sort((a, b) => b.lines - a.lines);
 }
 
-function collectPrivacyConsoleViolations() {
+function collectSourceViolations(files: readonly string[], pattern: RegExp) {
   const violations = [];
-  for (const relativeFile of PRIVACY_CRITICAL_LOG_FILES) {
+  for (const relativeFile of files) {
     const source = fs.readFileSync(sourcePath(path.join(ROOT, relativeFile)), 'utf8');
-    const matches = [...source.matchAll(CONSOLE_REFERENCE_RE)];
+    const matches = [...source.matchAll(pattern)];
     if (matches.length > 0) {
       violations.push({ file: relativeFile, count: matches.length });
     }
   }
   return violations;
+}
+
+function collectPrivacyConsoleViolations() {
+  return collectSourceViolations(PRIVACY_CRITICAL_LOG_FILES, CONSOLE_REFERENCE_RE);
 }
 
 function collectRecoveryPhraseDiagnosticViolations() {
-  const violations = [];
-  for (const relativeFile of SYNC_DIAGNOSTIC_FILES) {
-    const source = fs.readFileSync(sourcePath(path.join(ROOT, relativeFile)), 'utf8');
-    const matches = [...source.matchAll(RECOVERY_PHRASE_FRAGMENT_RE)];
-    if (matches.length > 0) {
-      violations.push({ file: relativeFile, count: matches.length });
-    }
-  }
-  return violations;
+  return collectSourceViolations(SYNC_DIAGNOSTIC_FILES, RECOVERY_PHRASE_FRAGMENT_RE);
 }
 
 function collectUnboundedSyncDiagnosticErrors() {
-  const violations = [];
-  for (const relativeFile of SYNC_DIAGNOSTIC_FILES) {
-    const source = fs.readFileSync(sourcePath(path.join(ROOT, relativeFile)), 'utf8');
-    const matches = [...source.matchAll(UNBOUNDED_SYNC_DIAGNOSTIC_ERROR_RE)];
-    if (matches.length > 0) {
-      violations.push({ file: relativeFile, count: matches.length });
-    }
-  }
-  return violations;
+  return collectSourceViolations(SYNC_DIAGNOSTIC_FILES, UNBOUNDED_SYNC_DIAGNOSTIC_ERROR_RE);
 }
 
 function collectMutableWorkflowActionRefs() {
-  const violations = [];
+  const violations: Array<{ file: string; line: number; uses: string }> = [];
   const workflowFiles = walkFiles(GITHUB_AUTOMATION_DIR, new Set(['.yml', '.yaml']));
   for (const file of workflowFiles) {
     const lines = fs.readFileSync(file, 'utf8').split('\n');
@@ -232,7 +227,7 @@ function collectSyntaxFiles() {
   ])].sort();
 }
 
-function syntaxCheck(files) {
+function syntaxCheck(files: string[]) {
   const errors = [];
   for (const file of files) {
     try {
@@ -250,7 +245,7 @@ function syntaxCheck(files) {
         });
       }
     } catch (err) {
-      const output = `${err.stdout || ''}${err.stderr || ''}`.trim();
+      const output = `${(err as ProcessOutputError).stdout || ''}${(err as ProcessOutputError).stderr || ''}`.trim();
       errors.push(`${repoRel(file)}${output ? `\n${output}` : ''}`);
     }
   }
@@ -258,7 +253,7 @@ function syntaxCheck(files) {
   else pass(`all JS/TS source files parse with node --check (${files.length} files)`);
 }
 
-function compareBudget(name, actual, baseline) {
+function compareBudget(name: string, actual: number, baseline: number) {
   if (actual <= baseline) pass(`${name} stays within baseline (${actual}/${baseline})`);
   else fail(`${name} stays within baseline`, `${actual} > ${baseline}`);
 }

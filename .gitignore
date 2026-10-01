@@ -439,3 +439,5 @@ deploy/profile-share/data/
 /js/marker-terminology/*.js
 /js/marker-terminology.js
 /scripts/build-marker-terminology.mjs
+
+/scripts/quality-guardrails.mjs
