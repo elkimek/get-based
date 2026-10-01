@@ -1,4 +1,4 @@
-import type { OAuthLocation, OAuthPendingState, OAuthQuery } from './wearable-oauth-types.js';
+import type { OAuthAuthorizeOptions, OAuthBeginOptions, OAuthLocation, OAuthPendingState, OAuthQuery } from './wearable-oauth-types.js';
 
 type OAuthCallbackState =
   | { ok: false; error: string; code?: never; pending?: never }
@@ -55,4 +55,35 @@ export function isPendingOAuthCallback(urlParams: OAuthQuery, stateKey: string):
   if (!pendingRaw) return false;
   try { return JSON.parse(pendingRaw).state === urlParams.get('state'); }
   catch { return false; }
+}
+
+
+/** Build a code-flow URL with provider-owned defaults and scope delimiter. */
+export function buildWearableAuthorizeUrl(
+  authorizeUrl: string, { clientId, redirectUri, scopes, state }: Required<OAuthAuthorizeOptions>, scopeSeparator = ' ',
+): string {
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: scopes.join(scopeSeparator),
+    state,
+  });
+  return `${authorizeUrl}?${params.toString()}`;
+}
+
+/** Pin the initiating profile and CSRF state before redirecting. */
+export function beginWearableOAuth(
+  { clientId, registeredUris, scopes, profileId }: Required<OAuthBeginOptions>, stateKey: string,
+  pickRedirectUri: (registeredUris: readonly string[]) => string,
+  buildAuthorizeUrl: (options: OAuthAuthorizeOptions) => string, redirectWearableAuth: (url: string) => unknown,
+): void {
+  const state = randomOAuthState();
+  const redirectUri = pickRedirectUri(registeredUris);
+  sessionStorage.setItem(stateKey, JSON.stringify({
+    state, redirectUri, startedAt: Date.now(), clientId,
+    profileId,
+  }));
+  const url = buildAuthorizeUrl({ clientId, redirectUri, scopes, state });
+  redirectWearableAuth(url);
 }

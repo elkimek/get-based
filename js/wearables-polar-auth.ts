@@ -2,7 +2,8 @@ import {
   pickWearableRedirectUri,
   consumeOAuthCallbackState,
   isPendingOAuthCallback,
-  randomOAuthState as randomState,
+  beginWearableOAuth,
+  buildWearableAuthorizeUrl,
 } from './wearable-oauth-state.js';
 import { normalizeOAuthTokenResponse, refreshWearableConnection } from './wearable-oauth-tokens.js';
 import type {
@@ -49,25 +50,11 @@ export function pickRedirectUri(
 }
 
 export function buildAuthorizeUrl({ clientId, redirectUri, scopes = DEFAULT_POLAR_SCOPES, state }: OAuthAuthorizeOptions) {
-  const params = new URLSearchParams({
-    client_id: clientId,
-    redirect_uri: redirectUri,
-    response_type: 'code',
-    scope: scopes.join(' '),
-    state,
-  });
-  return `${AUTHORIZE_URL}?${params.toString()}`;
+  return buildWearableAuthorizeUrl(AUTHORIZE_URL, { clientId, redirectUri, scopes, state });
 }
 
 export function beginOAuth({ clientId, registeredUris, scopes = DEFAULT_POLAR_SCOPES, profileId = null }: OAuthBeginOptions) {
-  const state = randomState();
-  const redirectUri = pickRedirectUri(registeredUris);
-  sessionStorage.setItem(STATE_KEY, JSON.stringify({
-    state, redirectUri, startedAt: Date.now(), clientId,
-    profileId,
-  }));
-  const url = buildAuthorizeUrl({ clientId, redirectUri, scopes, state });
-  redirectWearableAuth(url);
+  beginWearableOAuth({ clientId, registeredUris, scopes, profileId }, STATE_KEY, pickRedirectUri, buildAuthorizeUrl, redirectWearableAuth);
 }
 
 export async function completeOAuthCallback(urlParams: OAuthQuery): Promise<OAuthCallbackResult> {

@@ -326,6 +326,12 @@ geolocation options, failures and browser-absent behavior in a strict native sui
 Camera measurement writers declare tool/value/options without widening callers
 or changing delegated-close identity and event containment checks.
 
+Oura, Polar, Ultrahuman, Whoop and Withings share typed authorization URL and
+startup operations in the existing OAuth-state module. Provider scopes, delimiter,
+redirect selection, profile pinning, CSRF generation, storage ordering and public
+sync/async behavior remain explicit at their boundaries. Callback parsing, token
+exchange and refresh contracts retain their original provider-specific paths.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,
