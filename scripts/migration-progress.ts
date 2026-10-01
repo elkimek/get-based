@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { isSourceFile, sourcePath } from './source-files.js';
+import { isSourceFile } from './source-files.js';
 
 type Counts = { lines: number; nonblank: number };
 type Baseline = { commit: string; minimumReduction: number; totals: Counts };
@@ -16,15 +16,20 @@ export function countLines(source: string): Counts {
   return { lines: lines.length, nonblank: lines.filter(line => line.trim()).length };
 }
 
-export function migrationProgress() {
-  const baseline = JSON.parse(fs.readFileSync(path.join(root, 'scripts/typescript-migration-baseline.json'), 'utf8')) as Baseline;
-  const inventory = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: root, encoding: 'utf8' }).split('\0');
-  const files = [...new Set(inventory)].filter(file => {
+/** Count every Git-inventoried authored file; ignored compiler output never enters this inventory. */
+export function migrationSourceFiles(root: string, inventory: readonly string[]): string[] {
+  return [...new Set(inventory)].filter(file => {
     const absolute = path.join(root, file);
     return file && !/^(vendor|docs|dist-docs)\//.test(file)
       && extensions.has(path.extname(file))
-      && fs.existsSync(absolute) && sourcePath(absolute) === absolute;
+      && fs.existsSync(absolute);
   });
+}
+
+export function migrationProgress() {
+  const baseline = JSON.parse(fs.readFileSync(path.join(root, 'scripts/typescript-migration-baseline.json'), 'utf8')) as Baseline;
+  const inventory = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: root, encoding: 'utf8' }).split('\0');
+  const files = migrationSourceFiles(root, inventory);
   const totals = files.reduce((sum, file) => {
     const counts = countLines(fs.readFileSync(path.join(root, file), 'utf8'));
     return { lines: sum.lines + counts.lines, nonblank: sum.nonblank + counts.nonblank };

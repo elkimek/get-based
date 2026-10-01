@@ -4,7 +4,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { sourcePath, runtimePath, walkSourceFiles } from '../scripts/source-files.js';
-import { countLines } from '../scripts/migration-progress.js';
+import { countLines, migrationSourceFiles } from '../scripts/migration-progress.js';
 import { productionSources } from '../scripts/coverage-source.mjs';
 import { parseModuleSpecifiers } from '../scripts/architecture-map.mjs';
 import { createTestPlan } from '../scripts/pr-test-scope.mjs';
@@ -28,6 +28,20 @@ describe('TypeScript migration boundaries', () => {
       expect(productionSources(root, { runtime: true })).toEqual(['js/contract.js']);
       fs.unlinkSync(emitted);
       expect(() => productionSources(root, { runtime: true })).toThrow('Missing emitted runtime');
+    } finally { fs.rmSync(root, { recursive: true }); }
+  });
+
+  it('counts both authored siblings and excludes emitted files absent from the Git inventory', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'getbased-migration-siblings-'));
+    const authored = ['tests/integration.test.js', 'tests/integration.test.ts', 'js/native.ts'];
+    try {
+      for (const file of [...authored, 'js/native.js', 'vendor/dependency.js']) {
+        const target = path.join(root, file);
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        fs.writeFileSync(target, 'export const value = 1;');
+      }
+      expect(migrationSourceFiles(root, [...authored, authored[0]!, 'vendor/dependency.js', 'missing.js']))
+        .toEqual(authored);
     } finally { fs.rmSync(root, { recursive: true }); }
   });
 

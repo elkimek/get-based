@@ -374,6 +374,11 @@ immediate execution. Every original recommendation runtime assertion is retained
 in a strict native suite; focused timer regressions cover exceptions and fallback
 behavior. Catalog data, strand resolution, references and public copy are unchanged.
 
+Git inventory determines which authored files contribute to the LOC measure.
+Ignored emitted siblings are absent; retained authored JS/TS siblings both count.
+Pure marker identity tests use a separate filename from their retained profile
+integration suite. A regression verifies that both authored suites are measured.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,
