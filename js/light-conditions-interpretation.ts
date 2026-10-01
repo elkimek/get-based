@@ -1,17 +1,30 @@
 import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
-// @ts-check
 // light-conditions-interpretation.js — Pure UV, sun, atmosphere, and timing interpretation.
 
-/** @type {{ solarZenithAngle: null | ((date: Date, lat: number, lon: number) => number) }} */
-const interpretationDeps = {
+type NumericReading = number | null | undefined;
+export interface SolarCoordinates { lat: number; lon: number; }
+export type AirQualityReadings = Partial<Record<
+  'pm25' | 'pm10' | 'no2' | 'surfaceOzoneUgM3' | 'european_aqi' |
+  'european_aqi_pm2_5' | 'european_aqi_pm10' | 'european_aqi_nitrogen_dioxide' |
+  'european_aqi_ozone' | 'european_aqi_sulphur_dioxide', NumericReading>>;
+export interface AtmosphereReadings {
+  uvIndex?: NumericReading; cloudCover?: NumericReading; ozoneDU?: NumericReading;
+  validAt?: string | number | Date | null | undefined;
+  daily?: { uvIndexMax?: NumericReading } | null | undefined;
+  airQuality?: AirQualityReadings | null | undefined;
+}
+interface InterpretationDeps {
+  solarZenithAngle: ((date: Date, lat: number, lon: number) => number) | null;
+}
+const interpretationDeps: InterpretationDeps = {
   solarZenithAngle: null,
 };
 
-export function configureLightConditionsInterpretation(deps = {}) {
+export function configureLightConditionsInterpretation(deps: Partial<InterpretationDeps> = {}) {
   return configureValidRuntimeCallbacks(interpretationDeps, deps, ["solarZenithAngle"]);
 }
 
-export function _solarZenithAngle(date, coords) {
+export function _solarZenithAngle(date: Date, coords: SolarCoordinates | null | undefined) {
   if (!coords || typeof interpretationDeps.solarZenithAngle !== 'function') return null;
   try {
     return interpretationDeps.solarZenithAngle(date, coords.lat, coords.lon);
@@ -23,18 +36,18 @@ export function _solarZenithAngle(date, coords) {
 // Current-condition interpretation follows the WHO UVI protection bands.
 // UVI is erythema-weighted, so this widget deliberately does not infer
 // vitamin-D synthesis or a personal burn time from the scalar value.
-export function _uviConditionLabel(uvi) {
+export function _uviConditionLabel(uvi: NumericReading) {
   if (!Number.isFinite(uvi)) return '';
-  if (uvi < 1) return 'Very low UV';
-  if (uvi < 3) return 'Low UV';
-  if (uvi < 6) return 'Moderate UV · protection recommended';
-  if (uvi < 8) return 'High UV · protection needed';
-  if (uvi < 11) return 'Very high UV · extra protection';
+  if (uvi! < 1) return 'Very low UV';
+  if (uvi! < 3) return 'Low UV';
+  if (uvi! < 6) return 'Moderate UV · protection recommended';
+  if (uvi! < 8) return 'High UV · protection needed';
+  if (uvi! < 11) return 'Very high UV · extra protection';
   return 'Extreme UV · avoid unprotected exposure';
 }
 
 // Format minutes as "Xh Ym" / "Xm" / "<1m"
-export function _fmtMinutes(minutes) {
+export function _fmtMinutes(minutes: NumericReading) {
   if (minutes == null) return '—';
   if (minutes < 1) return '<1 min';
   if (minutes < 60) return `${minutes} min`;
@@ -45,7 +58,7 @@ export function _fmtMinutes(minutes) {
 
 // Sun-position headline — what the sun's doing, in plain English. Used
 // as the value cell instead of bare degrees.
-export function _sunPositionLabel(elevationDegrees) {
+export function _sunPositionLabel(elevationDegrees: NumericReading) {
   if (elevationDegrees == null) return '—';
   if (elevationDegrees < 0) return 'Sun set';
   if (elevationDegrees < 5) return 'At horizon';
@@ -58,7 +71,7 @@ export function _sunPositionLabel(elevationDegrees) {
 
 // Sun-position sub — geometry-only context. Actual UVI also depends on
 // clouds, ozone, aerosols, altitude, and reflection.
-export function _sunPositionSub(elevationDegrees) {
+export function _sunPositionSub(elevationDegrees: NumericReading) {
   if (elevationDegrees == null || elevationDegrees < 0) return 'solar UV potential absent';
   if (elevationDegrees < 5) return 'solar UV potential minimal';
   const ratio = 1 / Math.tan(elevationDegrees * Math.PI / 180);
@@ -78,11 +91,11 @@ export function _sunPositionSub(elevationDegrees) {
 // Returns { firstUVA: <Date>, lastUVA: <Date> } for the day, or nulls if
 // the sun never rises high enough (polar winter) or coords unavailable.
 //
-export function _computeUvaWindow(coords, dateLike, offsetSeconds = 0) {
+export function _computeUvaWindow(coords: SolarCoordinates | null | undefined, dateLike?: string | number | Date | null, offsetSeconds: unknown = 0) {
   if (!coords || typeof interpretationDeps.solarZenithAngle !== 'function') {
     return { firstUVA: null, lastUVA: null };
   }
-  const baseDate = dateLike ? new Date(dateLike) : new Date();
+  const baseDate = dateLike ? new Date(dateLike as string | number) : new Date();
   const offsetMs = (Number(offsetSeconds) || 0) * 1000;
   const localDate = new Date(baseDate.getTime() + offsetMs);
   const dayStartMs = Date.UTC(
@@ -92,8 +105,8 @@ export function _computeUvaWindow(coords, dateLike, offsetSeconds = 0) {
   ) - offsetMs;
   const SAMPLE_STEP_MIN = 1;
   const ELEVATION_THRESHOLD_DEG = 5;
-  let firstUVA = null;
-  let lastUVA = null;
+  let firstUVA: Date | null = null;
+  let lastUVA: Date | null = null;
   for (let minute = 0; minute < 24 * 60; minute += SAMPLE_STEP_MIN) {
     const time = new Date(dayStartMs + minute * 60_000);
     const zenith = _solarZenithAngle(time, coords);
@@ -110,7 +123,7 @@ export function _computeUvaWindow(coords, dateLike, offsetSeconds = 0) {
 export const SHADOW_RULE_HINT = 'Shadow rule: when your shadow is shorter than you, UV is high (strong sunburn risk). When shadow is longer than you, UV is weak. Used by dermatology orgs as a no-meter outdoor heuristic.';
 
 // Friendly cloud-cover narrative — "Overcast" / "Partly cloudy" / "Clear sky".
-export function _cloudNarrative(percent) {
+export function _cloudNarrative(percent: NumericReading) {
   if (percent == null) return null;
   if (percent < 10) return 'Clear sky';
   if (percent < 30) return 'Mostly clear';
@@ -119,22 +132,22 @@ export function _cloudNarrative(percent) {
   return 'Overcast';
 }
 
-export function _europeanAQCategory(index) {
+export function _europeanAQCategory(index: NumericReading) {
   if (!Number.isFinite(index)) return null;
-  if (index <= 20) return { cls: 'good', label: 'Good', score: 0 };
-  if (index <= 40) return { cls: 'good', label: 'Fair', score: 1 };
-  if (index <= 60) return { cls: 'moderate', label: 'Moderate', score: 2 };
-  if (index <= 80) return { cls: 'unhealthy-sensitive', label: 'Poor', score: 3 };
-  if (index <= 100) return { cls: 'unhealthy', label: 'Very poor', score: 4 };
+  if (index! <= 20) return { cls: 'good', label: 'Good', score: 0 };
+  if (index! <= 40) return { cls: 'good', label: 'Fair', score: 1 };
+  if (index! <= 60) return { cls: 'moderate', label: 'Moderate', score: 2 };
+  if (index! <= 80) return { cls: 'unhealthy-sensitive', label: 'Poor', score: 3 };
+  if (index! <= 100) return { cls: 'unhealthy', label: 'Very poor', score: 4 };
   return { cls: 'hazardous', label: 'Extremely poor', score: 5 };
 }
 
 // Trust the provider's consolidated European AQI and component indices.
 // Raw instantaneous concentrations are not reclassified locally because
 // the official pollutant bands use specific rolling-average windows.
-export function _aggregateAQ(airQuality, fallbackEaqi) {
+export function _aggregateAQ(airQuality: AirQualityReadings | null | undefined, fallbackEaqi?: NumericReading) {
   const index = Number.isFinite(airQuality?.european_aqi)
-    ? airQuality.european_aqi : fallbackEaqi;
+    ? airQuality!.european_aqi : fallbackEaqi;
   const category = _europeanAQCategory(index);
   if (!category) return null;
   const components = [
@@ -145,18 +158,18 @@ export function _aggregateAQ(airQuality, fallbackEaqi) {
     ['SO₂', airQuality?.european_aqi_sulphur_dioxide],
   ].filter(([, value]) => Number.isFinite(value));
   components.sort((a, b) => Number(b[1]) - Number(a[1]));
-  return { ...category, index, why: components[0]?.[0] || 'EAQI' };
+  return { ...category, index: index!, why: components[0]?.[0] || 'EAQI' };
 }
 
-export function _fmtTime(iso) {
+export function _fmtTime(iso: string | null | undefined) {
   if (!iso) return '—';
   const match = iso.match(/T(\d{2}:\d{2})/);
-  return match ? match[1] : iso;
+  return match ? match[1]! : iso;
 }
 
 export const SMOG_HINT = 'Ground-level ozone (O₃) is an air pollutant. The displayed category uses the provider-computed European AQI ozone component; the µg/m³ value is context, not a category inferred from one instantaneous reading.';
 
-export function _humanProviderLabel(source) {
+export function _humanProviderLabel(source: string | null | undefined) {
   if (!source) return 'unknown';
   const normalized = source.replace(/_stale$/, '');
   if (normalized.includes('cams') && normalized.includes('open_meteo')) return 'CAMS + Open-Meteo';
@@ -171,17 +184,17 @@ export function _humanProviderLabel(source) {
 
 // Check the atmosphere response for plausibility — flag suspicious values
 // that suggest a parser bug, a stale provider, or a cosmic-ray bit-flip.
-export function _sanityCheckAtmosphere(atm, coords) {
-  const warnings = [];
+export function _sanityCheckAtmosphere(atm: AtmosphereReadings, coords: SolarCoordinates | null | undefined) {
+  const warnings: string[] = [];
   if (atm.uvIndex != null) {
     if (atm.uvIndex < 0) warnings.push(`UVI is ${atm.uvIndex} (should be ≥ 0)`);
     if (atm.uvIndex > 16) warnings.push(`UVI is ${atm.uvIndex} (extreme — typical max ~12-13)`);
     const peak = atm.daily?.uvIndexMax;
-    if (Number.isFinite(peak) && peak > 0 && atm.uvIndex > peak * 1.2) {
-      warnings.push(`UVI ${atm.uvIndex.toFixed(1)} exceeds today's forecast peak (${peak.toFixed(1)}) — likely stale data, try Refresh`);
+    if (Number.isFinite(peak) && peak! > 0 && atm.uvIndex > peak! * 1.2) {
+      warnings.push(`UVI ${atm.uvIndex.toFixed(1)} exceeds today's forecast peak (${peak!.toFixed(1)}) — likely stale data, try Refresh`);
     }
     if (coords) {
-      const zenith = _solarZenithAngle(new Date(atm.validAt || Date.now()), coords);
+      const zenith = _solarZenithAngle(new Date((atm.validAt || Date.now()) as string | number), coords);
       if (zenith != null && zenith > 95 && atm.uvIndex > 0.3) {
         warnings.push(`UVI ${atm.uvIndex} reported but sun is ${Math.round(zenith - 90)}° below horizon`);
       }
@@ -208,12 +221,12 @@ export function _sanityCheckAtmosphere(atm, coords) {
 }
 
 // Format elapsed milliseconds as mm:ss (under 1hr) or h:mm:ss (above).
-export function _formatElapsedShort(ms) {
+export function _formatElapsedShort(ms: number) {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
-  const pad = value => String(value).padStart(2, '0');
+  const pad = (value: number) => String(value).padStart(2, '0');
   if (hours > 0) return `${hours}:${pad(minutes)}:${pad(seconds)}`;
   return `${minutes}:${pad(seconds)}`;
 }

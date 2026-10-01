@@ -426,3 +426,5 @@ deploy/profile-share/data/
 /js/profile-data-writes.js
 /js/nav-runtime.js
 /js/export-loader.js
+
+/js/light-conditions-interpretation.js

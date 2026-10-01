@@ -1,8 +1,9 @@
 import { jsonResponse } from './helpers/http-responses.js';
+import type { Mock } from 'vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../lib/proxy-network.js', () => ({
-  fetchWithPinnedProxyDns: (url, options) => globalThis.fetch(url, options),
+  fetchWithPinnedProxyDns: (url: Parameters<typeof fetch>[0], options?: RequestInit) => globalThis.fetch(url, options),
 }));
 
 import commitHandler from '../api/commit.js';
@@ -14,6 +15,8 @@ import {
 import { fetchWithValidatedRedirects } from '../lib/proxy-upstream.js';
 import shareHandler from '../api/share.js';
 
+// The relay supplies string URLs and plain header objects to fetch.
+type CapturedFetchCall = [url: string, init: RequestInit & { headers: Record<string, string>; body?: string }];
 const realFetch = globalThis.fetch;
 const ENV_KEYS = [
   'BLOB_READ_WRITE_TOKEN',
@@ -48,15 +51,15 @@ const ENV_KEYS = [
   'VERCEL_PROJECT_PRODUCTION_URL',
 ];
 
-let savedEnv;
+let savedEnv: Record<string, string | undefined>;
 
 
 
-async function responseJson(response) {
+async function responseJson(response: Response): Promise<unknown> {
   return JSON.parse(await response.text());
 }
 
-function makeShareRequest(method, body, { id, origin = 'https://app.getbased.health', rawBody } = {}) {
+function makeShareRequest(method: string, body: unknown, { id, origin = 'https://app.getbased.health', rawBody }: { id?: string; origin?: string | null; rawBody?: string } = {}) {
   const url = new URL('https://getbased.health/api/share');
   if (id) url.searchParams.set('id', id);
   const headers = new Headers();
@@ -66,17 +69,17 @@ function makeShareRequest(method, body, { id, origin = 'https://app.getbased.hea
     method,
     headers,
     body: rawBody !== undefined ? rawBody : body === undefined ? undefined : JSON.stringify(body),
-  });
+  } as RequestInit);
 }
 
-function makeProxyRequest(body, {
+function makeProxyRequest(body: unknown, {
   method = 'POST',
   origin = 'https://app.getbased.health',
   rawBody,
   clientIp,
   requestUrl = 'https://health.example.net/api/proxy',
   signal,
-} = {}) {
+}: { method?: string; origin?: string | null; rawBody?: string; clientIp?: string; requestUrl?: string; signal?: AbortSignal } = {}) {
   const headers = new Headers();
   if (origin) headers.set('origin', origin);
   if (clientIp) headers.set('x-forwarded-for', clientIp);
@@ -86,15 +89,15 @@ function makeProxyRequest(body, {
     headers,
     body: rawBody !== undefined ? rawBody : body === undefined ? undefined : JSON.stringify(body),
     signal,
-  });
+  } as RequestInit);
 }
 
-async function sha256Hex(value) {
+async function sha256Hex(value: unknown) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(value || '')));
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-function validEnvelope(overrides = {}) {
+function validEnvelope(overrides: Record<string, unknown> = {}) {
   return {
     schema: 'getbased-profile-share',
     version: 1,
@@ -106,18 +109,27 @@ function validEnvelope(overrides = {}) {
   };
 }
 
+
+async function expectOAuthRelay(body: unknown, upstream: string, form: Record<string, string>) {
+  const response = await proxyHandler(makeProxyRequest(body));
+  expect(response.status).toBe(201);
+  const [url, init] = (globalThis.fetch as Mock<typeof fetch>).mock.calls.at(-1) as CapturedFetchCall;
+  expect(url).toBe(upstream);
+  expect(Object.fromEntries(new URLSearchParams(init.body))).toMatchObject(form);
+}
+
 function installBlobStoreMock({
   conflictRateLimit = false,
   failDelete = false,
   failMaintenanceList = false,
 } = {}) {
-  const store = new Map();
-  const uploadedAtByPath = new Map();
-  const apiCalls = [];
-  const directCalls = [];
+  const store = new Map<string, string>();
+  const uploadedAtByPath = new Map<string, string>();
+  const apiCalls: Array<{ href: string; method: string; init: RequestInit }> = [];
+  const directCalls: Array<{ href: string; pathname: string; init: RequestInit }> = [];
 
-  globalThis.fetch = vi.fn(async (url, init = {}) => {
-    const href = typeof url === 'string' ? url : url.url;
+  globalThis.fetch = vi.fn<typeof fetch>(async (url, init = {}) => {
+    const href = typeof url === 'string' ? url : (url as Request).url;
     if (href.startsWith('https://vercel.com/api/blob')) {
       const parsed = new URL(href);
       const method = String(init.method || 'GET').toUpperCase();
@@ -163,11 +175,11 @@ function installBlobStoreMock({
       }
 
       if (method === 'PUT') {
-        const pathname = parsed.searchParams.get('pathname');
+        const pathname = parsed.searchParams.get('pathname')!;
         if (conflictRateLimit && pathname?.startsWith('profile-share-rate/v2/')) {
           return jsonResponse({ error: { code: 'precondition_failed', message: 'slot exists' } }, { status: 412 });
         }
-        if (init.headers?.['x-allow-overwrite'] === '0' && store.has(pathname)) {
+        if ((init.headers as Record<string, string> | undefined)?.['x-allow-overwrite'] === '0' && store.has(pathname)) {
           return jsonResponse({ error: { code: 'precondition_failed', message: 'already exists' } }, { status: 412 });
         }
         store.set(pathname, String(init.body || ''));
@@ -265,9 +277,9 @@ describe('profile share API runtime behavior', () => {
     expect(store.has(sharePath)).toBe(true);
     expect(apiCalls.some(call => call.href.includes('profile-share-rate%2Fv2%2F'))).toBe(true);
     expect(apiCalls.every(call => (
-      call.init.headers?.['x-api-version'] === '12'
-      && call.init.headers?.['x-vercel-blob-store-id'] === 'store123'
-      && call.init.headers?.authorization === 'Bearer vercel_blob_rw_store123_secret'
+      (call.init.headers as Record<string, string>)?.['x-api-version'] === '12'
+      && (call.init.headers as Record<string, string>)?.['x-vercel-blob-store-id'] === 'store123'
+      && (call.init.headers as Record<string, string>)?.authorization === 'Bearer vercel_blob_rw_store123_secret'
     ))).toBe(true);
     const sharePut = apiCalls.find(call => (
       call.method === 'PUT'
@@ -354,12 +366,12 @@ describe('profile share API runtime behavior', () => {
       error: 'Too many profile share links created. Try again later.',
       retryAfterSeconds: expect.any(Number),
     });
-    const rateLimitPuts = globalThis.fetch.mock.calls.filter(([url, init]) => (
+    const rateLimitPuts = (globalThis.fetch as Mock<typeof fetch>).mock.calls.filter(([url, init]) => (
       String(url).includes('profile-share-rate%2Fv2%2F')
       && String(init?.method || '').toUpperCase() === 'PUT'
     ));
     expect(rateLimitPuts).toHaveLength(20);
-    expect(globalThis.fetch.mock.calls.some(([url]) => (
+    expect((globalThis.fetch as Mock<typeof fetch>).mock.calls.some(([url]) => (
       String(url).includes('profile-share-maintenance%2Fv2%2F')
       || String(url).includes('profile-share-expiry%2Fv1%2F')
     ))).toBe(false);
@@ -525,7 +537,7 @@ describe('profile share API runtime behavior', () => {
     expect(Array.from(store.keys()).filter(path => path === `profile-shares/v2/${id}.json`)).toHaveLength(1);
 
     const loaded = await shareHandler(makeShareRequest('GET', undefined, { id }));
-    const loadedBody = await responseJson(loaded);
+    const loadedBody = await responseJson(loaded) as { envelope: { ciphertext: string } };
     expect(loaded.status).toBe(200);
     const winningToken = loadedBody.envelope.ciphertext === firstEnvelope.ciphertext
       ? firstToken
@@ -671,7 +683,7 @@ describe('profile share API runtime behavior', () => {
 
     expect(first.status).toBe(201);
     expect(stalePaths.filter(path => store.has(path))).toHaveLength(1);
-    const firstState = JSON.parse(store.get('profile-share-maintenance-state/v1/cursors.json'));
+    const firstState = JSON.parse(store.get('profile-share-maintenance-state/v1/cursors.json')!);
     expect(firstState.shares).toMatch(/^profile-share-expiry\/v1\//);
 
     nowSpy.mockReturnValue(now + hourMs);
@@ -683,7 +695,7 @@ describe('profile share API runtime behavior', () => {
 
     expect(second.status).toBe(201);
     expect(stalePaths.filter(path => store.has(path))).toEqual([]);
-    const secondState = JSON.parse(store.get('profile-share-maintenance-state/v1/cursors.json'));
+    const secondState = JSON.parse(store.get('profile-share-maintenance-state/v1/cursors.json')!);
     expect(secondState.shares).toBe('');
   });
 
@@ -848,7 +860,7 @@ describe('AI proxy runtime behavior', () => {
   });
 
   it('enforces the operated-host provider boundary before contacting upstreams', async () => {
-    globalThis.fetch = vi.fn(async url => {
+    globalThis.fetch = vi.fn<typeof fetch>(async url => {
       if (String(url).includes('shop.example')) {
         return new Response('<html><body>product</body></html>', {
           headers: { 'Content-Type': 'text/html; charset=utf-8' },
@@ -913,7 +925,7 @@ describe('AI proxy runtime behavior', () => {
       clientIp: '203.0.113.210',
       requestUrl: 'https://app.getbased.health/api/proxy',
     };
-    globalThis.fetch = vi.fn(async () => jsonResponse({ uv: 4.2 }));
+    globalThis.fetch = vi.fn<typeof fetch>(async () => jsonResponse({ uv: 4.2 }));
 
     const unconfigured = await proxyHandler(makeProxyRequest({
       meteo: 'cams', latitude: 50.0755, longitude: 14.4378,
@@ -932,17 +944,17 @@ describe('AI proxy runtime behavior', () => {
     expect(relayed.status).toBe(200);
     expect(await responseJson(relayed)).toEqual({ uv: 4.2 });
 
-    const [url, init] = globalThis.fetch.mock.calls.at(-1);
+    const [url, init] = (globalThis.fetch as Mock<typeof fetch>).mock.calls.at(-1) as CapturedFetchCall;
     expect(String(url)).toBe('https://uvdata.getbased.health/v1/uv');
     expect(init.method).toBe('POST');
     expect(init.headers.Authorization).toBe('Bearer uv-secret');
-    expect(JSON.parse(init.body)).toEqual({
+    expect(JSON.parse(init.body!)).toEqual({
       latitude: 50.1,
       longitude: 14.4,
       time: '2026-06-06T12:00:00Z',
     });
 
-    globalThis.fetch = vi.fn(async () => new Response(null, {
+    globalThis.fetch = vi.fn<typeof fetch>(async () => new Response(null, {
       status: 307,
       headers: { Location: 'https://uvdata.getbased.health/other' },
     }));
@@ -955,7 +967,7 @@ describe('AI proxy runtime behavior', () => {
     });
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
 
-    globalThis.fetch = vi.fn();
+    globalThis.fetch = vi.fn<typeof fetch>();
     const extraField = await proxyHandler(makeProxyRequest({
       meteo: 'cams', latitude: 50.1, longitude: 14.4, url: 'https://example.com',
     }, { ...hosted, clientIp: '203.0.113.211' }));
@@ -964,7 +976,7 @@ describe('AI proxy runtime behavior', () => {
   });
 
   it('blocks SSRF targets and forwards allowed custom HTTPS endpoints', async () => {
-    globalThis.fetch = vi.fn(async () => jsonResponse({ ok: true }, {
+    globalThis.fetch = vi.fn<typeof fetch>(async () => jsonResponse({ ok: true }, {
       status: 202,
       headers: { 'Content-Type': 'application/json' },
     }));
@@ -1008,7 +1020,7 @@ describe('AI proxy runtime behavior', () => {
       signal: expect.any(AbortSignal),
     });
 
-    globalThis.fetch = vi.fn(async () => {
+    globalThis.fetch = vi.fn<typeof fetch>(async () => {
       throw new Error('offline');
     });
     const failed = await proxyHandler(makeProxyRequest({
@@ -1020,7 +1032,7 @@ describe('AI proxy runtime behavior', () => {
   });
 
   it('revalidates redirect targets and never forwards credentials across origins', async () => {
-    globalThis.fetch = vi.fn(async () => new Response(null, {
+    globalThis.fetch = vi.fn<typeof fetch>(async () => new Response(null, {
       status: 302,
       headers: { Location: 'https://169.254.169.254/latest/meta-data/' },
     }));
@@ -1035,7 +1047,7 @@ describe('AI proxy runtime behavior', () => {
     });
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
 
-    globalThis.fetch = vi.fn(async () => new Response(null, {
+    globalThis.fetch = vi.fn<typeof fetch>(async () => new Response(null, {
       status: 307,
       headers: { Location: 'https://collector.example.net/capture' },
     }));
@@ -1050,7 +1062,7 @@ describe('AI proxy runtime behavior', () => {
     });
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
 
-    globalThis.fetch = vi.fn(async (url) => {
+    globalThis.fetch = vi.fn<typeof fetch>(async (url) => {
       if (url === 'https://shop.example.com/product') {
         return new Response(null, {
           status: 301,
@@ -1069,11 +1081,11 @@ describe('AI proxy runtime behavior', () => {
     expect(safePageRedirect.status).toBe(200);
     expect(await safePageRedirect.text()).toContain('product');
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
-    const [pageRedirectUrl, pageRedirectInit] = globalThis.fetch.mock.calls[1];
+    const [pageRedirectUrl, pageRedirectInit] = (globalThis.fetch as Mock<typeof fetch>).mock.calls[1] as CapturedFetchCall;
     expect(pageRedirectUrl).toBe('https://www.example.com/product');
     expect(pageRedirectInit.headers).not.toHaveProperty('x-api-key');
 
-    globalThis.fetch = vi.fn(async url => {
+    globalThis.fetch = vi.fn<typeof fetch>(async url => {
       if (url === 'https://api.elevenlabs.io/v2/voices') {
         return new Response(null, {
           status: 301,
@@ -1088,10 +1100,10 @@ describe('AI proxy runtime behavior', () => {
     );
     expect(await responseJson(voiceRedirect)).toEqual({ voices: [] });
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
-    const [, voiceRedirectInit] = globalThis.fetch.mock.calls[1];
+    const [, voiceRedirectInit] = (globalThis.fetch as Mock<typeof fetch>).mock.calls[1] as CapturedFetchCall;
     expect(voiceRedirectInit.headers).not.toHaveProperty('xi-api-key');
 
-    globalThis.fetch = vi.fn(async (url) => {
+    globalThis.fetch = vi.fn<typeof fetch>(async (url) => {
       if (url === 'https://custom.example.com/v1/chat') {
         return new Response(null, {
           status: 303,
@@ -1108,7 +1120,7 @@ describe('AI proxy runtime behavior', () => {
     expect(sameOriginRedirect.status).toBe(200);
     expect(await responseJson(sameOriginRedirect)).toEqual({ redirected: true });
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
-    const [redirectUrl, redirectInit] = globalThis.fetch.mock.calls[1];
+    const [redirectUrl, redirectInit] = (globalThis.fetch as Mock<typeof fetch>).mock.calls[1] as CapturedFetchCall;
     expect(redirectUrl).toBe('https://custom.example.com/v1/result');
     expect(redirectInit).toMatchObject({
       method: 'GET',
@@ -1117,7 +1129,7 @@ describe('AI proxy runtime behavior', () => {
     });
     expect(redirectInit.body).toBeUndefined();
 
-    globalThis.fetch = vi.fn(async () => new Response(null, {
+    globalThis.fetch = vi.fn<typeof fetch>(async () => new Response(null, {
       status: 302,
       headers: { Location: '/v1/loop' },
     }));
@@ -1134,8 +1146,8 @@ describe('AI proxy runtime behavior', () => {
 
   it('bounds upstream header waits and throttles repeated clients', async () => {
     process.env.PROXY_UPSTREAM_TIMEOUT_MS = '10';
-    globalThis.fetch = vi.fn((_url, init) => new Promise((_resolve, reject) => {
-      init.signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+    globalThis.fetch = vi.fn<typeof fetch>((_url, init) => new Promise((_resolve, reject) => {
+      init!.signal!.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
     }));
     const timedOut = await proxyHandler(makeProxyRequest({
       url: 'https://slow.example.com/v1/chat',
@@ -1148,7 +1160,7 @@ describe('AI proxy runtime behavior', () => {
     delete process.env.PROXY_UPSTREAM_TIMEOUT_MS;
     process.env.PROXY_RATE_LIMIT_MAX = '2';
     process.env.PROXY_RATE_LIMIT_WINDOW_MS = '1000';
-    globalThis.fetch = vi.fn(async () => jsonResponse({ ok: true }));
+    globalThis.fetch = vi.fn<typeof fetch>(async () => jsonResponse({ ok: true }));
     const request = () => proxyHandler(makeProxyRequest({
       url: 'https://models.example.com/v1/chat',
     }, { clientIp: '203.0.113.81' }));
@@ -1166,9 +1178,9 @@ describe('AI proxy runtime behavior', () => {
 
   it('keeps the timeout active while an upstream response body is stalled', async () => {
     process.env.PROXY_UPSTREAM_TIMEOUT_MS = '10';
-    globalThis.fetch = vi.fn(async (_url, init) => new Response(new ReadableStream({
+    globalThis.fetch = vi.fn<typeof fetch>(async (_url, init) => new Response(new ReadableStream({
       start(controller) {
-        init.signal.addEventListener('abort', () => {
+        init!.signal!.addEventListener('abort', () => {
           controller.error(new Error('aborted'));
         }, { once: true });
       },
@@ -1187,7 +1199,7 @@ describe('AI proxy runtime behavior', () => {
   });
 
   it('streams responses to completion and propagates downstream cancellation', async () => {
-    globalThis.fetch = vi.fn(async () => new Response(
+    globalThis.fetch = vi.fn<typeof fetch>(async () => new Response(
       'data: {"ok":true}\n\n',
       { headers: { 'Content-Type': 'text/event-stream' } },
     ));
@@ -1200,7 +1212,7 @@ describe('AI proxy runtime behavior', () => {
     expect(await completed.text()).toBe('data: {"ok":true}\n\n');
 
     let upstreamCancelled = false;
-    globalThis.fetch = vi.fn(async () => new Response(new ReadableStream({
+    globalThis.fetch = vi.fn<typeof fetch>(async () => new Response(new ReadableStream({
       start(controller) {
         controller.enqueue(new TextEncoder().encode('data: first\n\n'));
       },
@@ -1213,7 +1225,7 @@ describe('AI proxy runtime behavior', () => {
     const cancellable = await proxyHandler(makeProxyRequest({
       url: 'https://stream.example.com/v1/chat',
     }, { clientIp: '203.0.113.87' }));
-    const reader = cancellable.body.getReader();
+    const reader = cancellable.body!.getReader();
     expect((await reader.read()).done).toBe(false);
     await reader.cancel('client stopped reading');
 
@@ -1222,9 +1234,9 @@ describe('AI proxy runtime behavior', () => {
 
   it('propagates timeout and byte-cap errors through the streaming response path', async () => {
     process.env.PROXY_UPSTREAM_TIMEOUT_MS = '10';
-    globalThis.fetch = vi.fn(async (_url, init) => new Response(new ReadableStream({
+    globalThis.fetch = vi.fn<typeof fetch>(async (_url, init) => new Response(new ReadableStream({
       start(controller) {
-        init.signal.addEventListener('abort', () => {
+        init!.signal!.addEventListener('abort', () => {
           controller.error(new Error('aborted'));
         }, { once: true });
       },
@@ -1241,7 +1253,7 @@ describe('AI proxy runtime behavior', () => {
 
     delete process.env.PROXY_UPSTREAM_TIMEOUT_MS;
     let upstreamCancelled = false;
-    globalThis.fetch = vi.fn(async () => new Response(new ReadableStream({
+    globalThis.fetch = vi.fn<typeof fetch>(async () => new Response(new ReadableStream({
       start(controller) {
         controller.enqueue(new Uint8Array(PROXY_MAX_RESPONSE_BYTES + 1));
       },
@@ -1262,7 +1274,7 @@ describe('AI proxy runtime behavior', () => {
   });
 
   it('preserves provider-compatible headers for proxied custom API calls', async () => {
-    globalThis.fetch = vi.fn(async () => jsonResponse({ ok: true }));
+    globalThis.fetch = vi.fn<typeof fetch>(async () => jsonResponse({ ok: true }));
 
     const modelList = await proxyHandler(makeProxyRequest({
       url: 'https://custom.example.com/v1/models',
@@ -1321,7 +1333,7 @@ describe('AI proxy runtime behavior', () => {
   });
 
   it('constrains the generic proxy envelope before forwarding upstream', async () => {
-    globalThis.fetch = vi.fn(async () => jsonResponse({ ok: true }));
+    globalThis.fetch = vi.fn<typeof fetch>(async () => jsonResponse({ ok: true }));
 
     const badMethod = await proxyHandler(makeProxyRequest({
       url: 'https://models.example.com/v1/delete',
@@ -1345,7 +1357,7 @@ describe('AI proxy runtime behavior', () => {
     expect(oversizedRequest.status).toBe(413);
     expect(await responseJson(oversizedRequest)).toEqual({ error: 'Proxy request body too large' });
 
-    globalThis.fetch = vi.fn(async () => new Response('{}', {
+    globalThis.fetch = vi.fn<typeof fetch>(async () => new Response('{}', {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
@@ -1361,7 +1373,7 @@ describe('AI proxy runtime behavior', () => {
       error: 'Proxy response exceeds size cap',
     });
 
-    globalThis.fetch = vi.fn(async () => jsonResponse({ ok: true }));
+    globalThis.fetch = vi.fn<typeof fetch>(async () => jsonResponse({ ok: true }));
     const put = await proxyHandler(makeProxyRequest({
       url: 'https://www.polaraccesslink.com/v3/users/u/activity-transactions/t',
       method: 'PUT',
@@ -1393,54 +1405,38 @@ describe('AI proxy runtime behavior', () => {
     process.env.WHOOP_ENABLED = 'true';
     process.env.POLAR_CLIENT_SECRET = 'polar-secret';
     process.env.GOOGLE_HEALTH_CLIENT_SECRET = 'google-secret';
-    globalThis.fetch = vi.fn(async (url) => jsonResponse({ url }, {
+    globalThis.fetch = vi.fn<typeof fetch>(async (url) => jsonResponse({ url }, {
       status: 201,
       headers: { 'Content-Type': 'application/json' },
     }));
 
-    const oura = await proxyHandler(makeProxyRequest({
+    await expectOAuthRelay({
       oura_token_exchange: { code: 'oura-code', redirect_uri: 'https://app/cb', client_id: 'oura-client' },
-    }));
-    expect(oura.status).toBe(201);
-    let [url, init] = globalThis.fetch.mock.calls.at(-1);
-    expect(url).toBe('https://api.ouraring.com/oauth/token');
-    expect(Object.fromEntries(new URLSearchParams(init.body))).toMatchObject({
+    }, 'https://api.ouraring.com/oauth/token', {
       grant_type: 'authorization_code',
       code: 'oura-code',
       client_secret: 'oura-secret',
     });
 
-    const withings = await proxyHandler(makeProxyRequest({
+    await expectOAuthRelay({
       withings_token_refresh: { refresh_token: 'withings-refresh', client_id: 'withings-client' },
-    }));
-    expect(withings.status).toBe(201);
-    [url, init] = globalThis.fetch.mock.calls.at(-1);
-    expect(url).toBe('https://wbsapi.withings.net/v2/oauth2');
-    expect(Object.fromEntries(new URLSearchParams(init.body))).toMatchObject({
+    }, 'https://wbsapi.withings.net/v2/oauth2', {
       action: 'requesttoken',
       grant_type: 'refresh_token',
       client_secret: 'withings-secret',
     });
 
-    const ultrahuman = await proxyHandler(makeProxyRequest({
+    await expectOAuthRelay({
       ultrahuman_token_exchange: { code: 'ultra-code', redirect_uri: 'https://app/cb', client_id: 'ultra-client' },
-    }));
-    expect(ultrahuman.status).toBe(201);
-    [url, init] = globalThis.fetch.mock.calls.at(-1);
-    expect(url).toBe('https://partner.ultrahuman.com/api/partners/oauth/token');
-    expect(Object.fromEntries(new URLSearchParams(init.body))).toMatchObject({
+    }, 'https://partner.ultrahuman.com/api/partners/oauth/token', {
       grant_type: 'authorization_code',
       client_id: 'ultra-client',
       client_secret: 'ultrahuman-secret',
     });
 
-    const whoop = await proxyHandler(makeProxyRequest({
+    await expectOAuthRelay({
       whoop_token_refresh: { refresh_token: 'whoop-refresh', client_id: 'whoop-client' },
-    }));
-    expect(whoop.status).toBe(201);
-    [url, init] = globalThis.fetch.mock.calls.at(-1);
-    expect(url).toBe('https://api.prod.whoop.com/oauth/oauth2/token');
-    expect(Object.fromEntries(new URLSearchParams(init.body))).toMatchObject({
+    }, 'https://api.prod.whoop.com/oauth/oauth2/token', {
       grant_type: 'refresh_token',
       refresh_token: 'whoop-refresh',
       client_id: 'whoop-client',
@@ -1460,7 +1456,7 @@ describe('AI proxy runtime behavior', () => {
       polar_token_refresh: { refresh_token: 'polar-refresh', client_id: 'polar-client' },
     }));
     expect(polar.status).toBe(201);
-    [url, init] = globalThis.fetch.mock.calls.at(-1);
+    const [url, init] = (globalThis.fetch as Mock<typeof fetch>).mock.calls.at(-1) as CapturedFetchCall;
     expect(url).toBe('https://polarremote.com/v2/oauth2/token');
     expect(init.headers.Authorization).toBe(`Basic ${btoa('polar-client:polar-secret')}`);
     expect(Object.fromEntries(new URLSearchParams(init.body))).toMatchObject({
@@ -1480,17 +1476,13 @@ describe('AI proxy runtime behavior', () => {
 
     process.env.GOOGLE_HEALTH_CLIENT_ID = 'google-client';
     process.env.GOOGLE_HEALTH_ENABLED = 'true';
-    const googleHealth = await proxyHandler(makeProxyRequest({
+    await expectOAuthRelay({
       google_health_token_exchange: {
         code: 'google-code',
         redirect_uri: 'https://app/cb',
         client_id: 'google-client',
       },
-    }));
-    expect(googleHealth.status).toBe(201);
-    [url, init] = globalThis.fetch.mock.calls.at(-1);
-    expect(url).toBe('https://oauth2.googleapis.com/token');
-    expect(Object.fromEntries(new URLSearchParams(init.body))).toMatchObject({
+    }, 'https://oauth2.googleapis.com/token', {
       grant_type: 'authorization_code',
       code: 'google-code',
       client_id: 'google-client',
@@ -1500,7 +1492,7 @@ describe('AI proxy runtime behavior', () => {
 
   it('applies redirect, timeout, and response-size guardrails to secret-bearing OAuth relays', async () => {
     process.env.OURA_CLIENT_SECRET = 'oura-secret';
-    globalThis.fetch = vi.fn(async () => new Response(null, {
+    globalThis.fetch = vi.fn<typeof fetch>(async () => new Response(null, {
       status: 307,
       headers: { Location: 'https://collector.example.com/capture' },
     }));
@@ -1519,7 +1511,7 @@ describe('AI proxy runtime behavior', () => {
     });
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
 
-    globalThis.fetch = vi.fn(async () => new Response('{}', {
+    globalThis.fetch = vi.fn<typeof fetch>(async () => new Response('{}', {
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': String(300 * 1024),
@@ -1559,7 +1551,7 @@ describe('AI proxy runtime behavior', () => {
     expect(await responseJson(badCoords)).toEqual({ error: 'Invalid latitude/longitude' });
 
     process.env.UVDATA_BEARER = 'uv-secret';
-    globalThis.fetch = vi.fn(async () => jsonResponse({ uv: 4.2 }, {
+    globalThis.fetch = vi.fn<typeof fetch>(async () => jsonResponse({ uv: 4.2 }, {
       headers: { 'Content-Type': 'application/json' },
     }));
 
@@ -1571,11 +1563,11 @@ describe('AI proxy runtime behavior', () => {
     }));
     expect(relayed.status).toBe(200);
     expect(await responseJson(relayed)).toEqual({ uv: 4.2 });
-    const [url, init] = globalThis.fetch.mock.calls.at(-1);
+    const [url, init] = (globalThis.fetch as Mock<typeof fetch>).mock.calls.at(-1) as CapturedFetchCall;
     expect(url).toBe('https://uv.example.com/base/uv?latitude=50.1&longitude=14.4&time=2026-06-06T12%3A00%3A00Z');
     expect(init.headers.Authorization).toBe('Bearer uv-secret');
 
-    globalThis.fetch = vi.fn(async () => new Response('{}', {
+    globalThis.fetch = vi.fn<typeof fetch>(async () => new Response('{}', {
       status: 200,
       headers: { 'content-length': String(300 * 1024) },
     }));
@@ -1596,7 +1588,7 @@ describe('AI proxy runtime behavior', () => {
     }, { clientIp: '203.0.113.91' }));
     expect(missingPostal.status).toBe(400);
 
-    globalThis.fetch = vi.fn(async (url, init) => jsonResponse([{
+    globalThis.fetch = vi.fn<typeof fetch>(async (_url, _init) => jsonResponse([{
       lat: '50.087451',
       lon: '14.420671',
       name: '110 00',
@@ -1617,7 +1609,7 @@ describe('AI proxy runtime behavior', () => {
       source: 'postal-area',
       attribution: '© OpenStreetMap contributors',
     });
-    const [url, init] = globalThis.fetch.mock.calls.at(-1);
+    const [url, init] = (globalThis.fetch as Mock<typeof fetch>).mock.calls.at(-1) as CapturedFetchCall;
     expect(url).toContain('https://nominatim.openstreetmap.org/search?');
     expect(url).toContain('postalcode=110+00');
     expect(init.headers['User-Agent']).toContain('getbased-health-location-proxy');
@@ -1625,8 +1617,8 @@ describe('AI proxy runtime behavior', () => {
 
   it('bounds the shared postal-geocode queue before admitting more cache misses', async () => {
     process.env.PROXY_POSTAL_QUEUE_MAX = '1';
-    let releaseFirst;
-    globalThis.fetch = vi.fn(() => new Promise(resolve => { releaseFirst = resolve; }));
+    let releaseFirst: (response: Response) => void;
+    globalThis.fetch = vi.fn<typeof fetch>(() => new Promise(resolve => { releaseFirst = resolve; }));
     const first = proxyHandler(makeProxyRequest({
       meteo: 'postal_geocode',
       country: 'Czechia',
@@ -1644,7 +1636,7 @@ describe('AI proxy runtime behavior', () => {
     expect(await responseJson(overflow)).toEqual({ error: 'Location lookup busy. Try again shortly.' });
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
 
-    releaseFirst(jsonResponse([{
+    releaseFirst!(jsonResponse([{
       lat: '50.0755',
       lon: '14.4378',
       name: '120 00',
@@ -1656,8 +1648,8 @@ describe('AI proxy runtime behavior', () => {
 
   it('releases postal queue capacity when a throttled request disconnects', async () => {
     process.env.PROXY_POSTAL_QUEUE_MAX = '1';
-    globalThis.fetch = vi.fn(async url => {
-      const postalCode = new URL(url).searchParams.get('postalcode');
+    globalThis.fetch = vi.fn<typeof fetch>(async url => {
+      const postalCode = new URL(url as string).searchParams.get('postalcode');
       return jsonResponse([{
         lat: '50.0755',
         lon: '14.4378',
@@ -1697,8 +1689,8 @@ describe('AI proxy runtime behavior', () => {
   it('strips the CAMS bearer before following an allowed cross-origin redirect', async () => {
     process.env.UVDATA_UPSTREAM = 'https://uv.example.com';
     process.env.UVDATA_BEARER = 'uv-secret';
-    globalThis.fetch = vi.fn(async (url) => {
-      if (url.startsWith('https://uv.example.com/uv?')) {
+    globalThis.fetch = vi.fn<typeof fetch>(async (url) => {
+      if ((url as string).startsWith('https://uv.example.com/uv?')) {
         return new Response(null, {
           status: 302,
           headers: { Location: 'https://uv-cdn.example.com/result' },
@@ -1716,7 +1708,7 @@ describe('AI proxy runtime behavior', () => {
     expect(relayed.status).toBe(200);
     expect(await responseJson(relayed)).toEqual({ uv: 3.1 });
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
-    const [redirectUrl, redirectInit] = globalThis.fetch.mock.calls[1];
+    const [redirectUrl, redirectInit] = (globalThis.fetch as Mock<typeof fetch>).mock.calls[1] as CapturedFetchCall;
     expect(redirectUrl).toBe('https://uv-cdn.example.com/result');
     expect(redirectInit.headers).not.toHaveProperty('Authorization');
   });
@@ -1724,13 +1716,13 @@ describe('AI proxy runtime behavior', () => {
 
 describe('commit API runtime behavior', () => {
   it('returns 404 outside Vercel and commit metadata when Vercel env vars exist', async () => {
-    const missing = await commitHandler(new Request('https://getbased.health/api/commit'));
+    const missing = await (commitHandler as (_request: Request) => ReturnType<typeof commitHandler>)(new Request('https://getbased.health/api/commit'));
     expect(missing.status).toBe(404);
     expect(await missing.text()).toBe('not-on-vercel');
 
     process.env.VERCEL_GIT_COMMIT_SHA = 'abcdef1234567890';
     process.env.VERCEL_GIT_COMMIT_REF = 'main';
-    const found = await commitHandler(new Request('https://getbased.health/api/commit'));
+    const found = await (commitHandler as (_request: Request) => ReturnType<typeof commitHandler>)(new Request('https://getbased.health/api/commit'));
     expect(found.status).toBe(200);
     expect(found.headers.get('Cache-Control')).toBe('public, max-age=60');
     expect(await responseJson(found)).toEqual({
