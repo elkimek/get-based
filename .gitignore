@@ -292,3 +292,8 @@ deploy/profile-share/data/
 /js/sun-runtime.js
 /js/light-tool-camera-modal-runtime.js
 /js/context-card-dashboard-ai-runtime.js
+
+# Native lab mutation and merge foundations
+/js/lab-entry.js
+/js/data-merge-lab-entries.js
+/js/data-merge.js

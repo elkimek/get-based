@@ -1,4 +1,22 @@
-// @ts-check
+import type { LabEntryDraft } from './lab-entry.js';
+import type { LabMergeData } from './data-merge-lab-entries.js';
+
+type SyncRecord = Record<string, unknown>;
+type TimestampMeta = Record<string, Record<string, unknown> | null | undefined>;
+interface MergeData extends LabMergeData {
+  genetics?: SyncRecord | null;
+  _deletedAt?: TimestampMeta | null;
+  _deletedClearedAt?: TimestampMeta | null;
+}
+type OptionalMergeData = MergeData | null | undefined;
+type MetaKey = '_deletedAt' | '_deletedClearedAt';
+type PathValue<Data, Path> = Path extends `${infer First}.${infer Rest}`
+  ? First extends keyof NonNullable<Data> ? PathValue<NonNullable<Data>[First], Rest> : unknown
+  : Path extends keyof NonNullable<Data> ? NonNullable<Data>[Path] : unknown;
+type PathArrayItem<Data, Path> = [Extract<NonNullable<PathValue<Data, Path>>, readonly unknown[]>] extends [never]
+  ? unknown : Extract<NonNullable<PathValue<Data, Path>>, readonly unknown[]>[number];
+type Tombstones = ReadonlySet<unknown> | Iterable<unknown> | null | undefined;
+
 // data-merge.js — per-array record merge for cross-device sync.
 
 import { DELTA_ARRAY_CONFIG } from './sync-delta-surface-config.js';
@@ -93,7 +111,7 @@ export const TOMBSTONE_ARRAY_PATHS = [
 // v4 cutover pull (which bypasses mergeImportedData's natural cap step).
 // Keep entries here in sync with consumer-side caps.
 export const COMPOSITE_KEYED_ARRAYS = [
-  { path: 'changeHistory', key: (e) => getConfiguredArrayItemId('changeHistory', e), cap: 200 },
+  { path: 'changeHistory', key: (e: SyncRecord) => getConfiguredArrayItemId('changeHistory', e), cap: 200 },
 ];
 
 const LOCAL_WINS_MAP_FIELDS = [
@@ -112,14 +130,14 @@ const LOCAL_WINS_MAP_FIELDS = [
 const TOMBSTONE_META_KEY = '_deletedAt';
 const TOMBSTONE_CLEAR_META_KEY = '_deletedClearedAt';
 
-function mergePlainMap(localMap, remoteMap) {
+function mergePlainMap(localMap: unknown, remoteMap: unknown) {
   const hasLocal = localMap && typeof localMap === 'object' && !Array.isArray(localMap);
   const hasRemote = remoteMap && typeof remoteMap === 'object' && !Array.isArray(remoteMap);
   if (!hasLocal && !hasRemote) return undefined;
   return { ...(hasRemote ? remoteMap : {}), ...(hasLocal ? localMap : {}) };
 }
 
-function preserveLocalGeneticsSnps(local, remote, out) {
+function preserveLocalGeneticsSnps(local: MergeData, remote: MergeData, out: MergeData) {
   const localSnps = local?.genetics?.snps;
   const remoteGenetics = remote?.genetics;
   if (!localSnps || typeof localSnps !== 'object' || Array.isArray(localSnps)) return;
@@ -134,9 +152,9 @@ function preserveLocalGeneticsSnps(local, remote, out) {
 // Get/set helpers for the dotted path.
 // Exported so sync.js can plan deltas at nested paths (e.g.
 // `lightEnvironment.rooms`) without re-implementing the walk.
-const _hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+const _hasOwn = (obj: object, key: PropertyKey) => Object.prototype.hasOwnProperty.call(obj, key);
 
-function _isSafePathSegment(segment) {
+function _isSafePathSegment(segment: unknown) {
   return (
     typeof segment === 'string'
     && segment !== ''
@@ -146,13 +164,13 @@ function _isSafePathSegment(segment) {
   );
 }
 
-function _splitSafePath(path) {
+function _splitSafePath(path: unknown) {
   if (typeof path !== 'string') return null;
   const parts = path.split('.');
   return parts.every(_isSafePathSegment) ? parts : null;
 }
 
-function _defineDataProperty(obj, key, value) {
+function _defineDataProperty(obj: object, key: unknown, value: unknown) {
   if (
     typeof key !== 'string'
     || key === '__proto__'
@@ -174,74 +192,74 @@ function _defineDataProperty(obj, key, value) {
   }
 }
 
-export function getAt(obj, path) {
+export function getAt<Data, Path>(obj: Data, path: Path): PathValue<Data, Path> | undefined {
   if (!obj) return undefined;
   const parts = _splitSafePath(path);
   if (!parts) return undefined;
-  let cur = obj;
+  let cur: unknown = obj;
   for (const p of parts) {
     if (cur == null || typeof cur !== 'object') return undefined;
     if (!_hasOwn(cur, p)) return undefined;
-    cur = cur[p];
+    cur = (cur as SyncRecord)[p];
   }
-  return cur;
+  return cur as PathValue<Data, Path>;
 }
 // Reject any path segment that would walk Object.prototype. setAt currently
 // receives allowlisted importedData paths, but future caller mistakes should
 // fail closed instead of creating attacker-controlled prototype properties.
-export function setAt(obj, path, value) {
+export function setAt(obj: unknown, path: unknown, value: unknown) {
   const parts = _splitSafePath(path);
   if (!parts || !obj || typeof obj !== 'object') return false;
-  let cur = obj;
+  let cur: unknown = obj;
   for (let i = 0; i < parts.length - 1; i++) {
     const p = parts[i];
-    const existing = _hasOwn(cur, p) ? cur[p] : undefined;
+    const existing = _hasOwn(cur as object, p!) ? (cur as SyncRecord)[p!] : undefined;
     if (existing == null || typeof existing !== 'object') {
-      if (!_defineDataProperty(cur, p, {})) return false;
+      if (!_defineDataProperty(cur as object, p, {})) return false;
     }
-    cur = cur[p];
+    cur = (cur as SyncRecord)[p!];
   }
-  return _defineDataProperty(cur, parts[parts.length - 1], value);
+  return _defineDataProperty(cur as object, parts[parts.length - 1], value);
 }
 
-function naturalItemId(path, item) {
+function naturalItemId(path: string, item: unknown) {
   const itemIdFn = DELTA_ARRAY_CONFIG[path]?.itemIdFn;
   if (typeof itemIdFn !== 'function') return null;
-  const id = itemIdFn(item);
+  const id = itemIdFn(item as SyncRecord | null | undefined);
   return _isAllowlistSafeId(id) ? id : null;
 }
 
-export function getConfiguredArrayItemId(path, item) {
+export function getConfiguredArrayItemId(path: string, item: unknown) {
   const naturalId = naturalItemId(path, item);
   if (naturalId) return naturalId;
-  return item && typeof item.id === 'string' && _isAllowlistSafeId(item.id)
-    ? item.id
+  return item && typeof (item as { id?: unknown }).id === 'string' && _isAllowlistSafeId((item as { id: string }).id)
+    ? (item as { id: string }).id
     : null;
 }
 
-export function recordArrayItemTombstone(importedData, arrayPath, item, { force = false } = {}) {
+export function recordArrayItemTombstone(importedData: OptionalMergeData, arrayPath: string, item: unknown, { force = false } = {}) {
   if (DELTA_ARRAY_CONFIG[arrayPath]?.noTombstones && !force) return null;
   const id = getConfiguredArrayItemId(arrayPath, item);
   if (id) recordTombstone(importedData, arrayPath, id);
   return id;
 }
 
-export function ensureImportedArray(importedData, arrayPath) {
+export function ensureImportedArray<Data, Path extends string>(importedData: Data, arrayPath: Path): PathArrayItem<Data, Path>[] {
   if (!importedData || typeof importedData !== 'object') return [];
   const existing = getAt(importedData, arrayPath);
   if (Array.isArray(existing)) return existing;
-  const next = [];
+  const next: PathArrayItem<Data, Path>[] = [];
   setAt(importedData, arrayPath, next);
   return next;
 }
 
-export function restoreImportedArray(importedData, arrayPath, items) {
+export function restoreImportedArray<Data, Path extends string>(importedData: Data, arrayPath: Path, items: unknown): PathArrayItem<Data, Path>[] {
   const next = Array.isArray(items) ? items.slice() : [];
   setAt(importedData, arrayPath, next);
   return next;
 }
 
-function tombstoneChangedArrayIdentity(importedData, arrayPath, previousItem, nextItem) {
+function tombstoneChangedArrayIdentity(importedData: OptionalMergeData, arrayPath: string, previousItem: unknown, nextItem: unknown) {
   const previousId = getConfiguredArrayItemId(arrayPath, previousItem);
   if (!previousId) return null;
   const nextId = getConfiguredArrayItemId(arrayPath, nextItem);
@@ -249,13 +267,13 @@ function tombstoneChangedArrayIdentity(importedData, arrayPath, previousItem, ne
   return recordArrayItemTombstone(importedData, arrayPath, previousItem);
 }
 
-export function appendImportedArrayItem(importedData, arrayPath, item) {
+export function appendImportedArrayItem<Data, Path extends string, Item>(importedData: Data, arrayPath: Path, item: Item): Item {
   const arr = ensureImportedArray(importedData, arrayPath);
   arr.push(item);
   return item;
 }
 
-export function replaceImportedArrayItem(importedData, arrayPath, index, nextItem) {
+export function replaceImportedArrayItem<Data extends OptionalMergeData, Path extends string, Item>(importedData: Data, arrayPath: Path, index: number, nextItem: Item) {
   const arr = ensureImportedArray(importedData, arrayPath);
   if (!Number.isInteger(index) || index < 0 || index >= arr.length) return null;
   const previousItem = arr[index];
@@ -264,7 +282,7 @@ export function replaceImportedArrayItem(importedData, arrayPath, index, nextIte
   return { previousItem, nextItem, tombstonedId };
 }
 
-export function deleteImportedArrayItem(importedData, arrayPath, index) {
+export function deleteImportedArrayItem<Data extends OptionalMergeData, Path extends string>(importedData: Data, arrayPath: Path, index: number) {
   const arr = getAt(importedData, arrayPath);
   if (!Array.isArray(arr)) return null;
   if (!Number.isInteger(index) || index < 0 || index >= arr.length) return null;
@@ -273,11 +291,11 @@ export function deleteImportedArrayItem(importedData, arrayPath, index) {
   return { removedItem, tombstonedId };
 }
 
-export function deleteImportedArrayItems(importedData, arrayPath, predicate, { forceTombstones = false } = {}) {
+export function deleteImportedArrayItems<Data extends OptionalMergeData, Path extends string>(importedData: Data, arrayPath: Path, predicate: (item: PathArrayItem<Data, Path>, index: number, array: PathArrayItem<Data, Path>[]) => unknown, { forceTombstones = false } = {}): PathArrayItem<Data, Path>[] {
   const arr = getAt(importedData, arrayPath);
   if (!Array.isArray(arr) || typeof predicate !== 'function') return [];
-  const kept = [];
-  const removed = [];
+  const kept: PathArrayItem<Data, Path>[] = [];
+  const removed: PathArrayItem<Data, Path>[] = [];
   arr.forEach((item, index) => {
     if (predicate(item, index, arr)) {
       recordArrayItemTombstone(importedData, arrayPath, item, { force: forceTombstones });
@@ -290,7 +308,7 @@ export function deleteImportedArrayItems(importedData, arrayPath, predicate, { f
   return removed;
 }
 
-export function clearImportedArray(importedData, arrayPath) {
+export function clearImportedArray<Data extends OptionalMergeData, Path extends string>(importedData: Data, arrayPath: Path): PathArrayItem<Data, Path>[] {
   const arr = getAt(importedData, arrayPath);
   if (!Array.isArray(arr)) return [];
   const removed = arr.slice();
@@ -299,14 +317,14 @@ export function clearImportedArray(importedData, arrayPath) {
   return removed;
 }
 
-export function sortImportedArray(importedData, arrayPath, compareFn) {
+export function sortImportedArray<Data, Path extends string>(importedData: Data, arrayPath: Path, compareFn: (a: PathArrayItem<Data, Path>, b: PathArrayItem<Data, Path>) => number): PathArrayItem<Data, Path>[] {
   const arr = getAt(importedData, arrayPath);
   if (!Array.isArray(arr) || typeof compareFn !== 'function') return [];
   arr.sort(compareFn);
   return arr;
 }
 
-export function trimImportedArray(importedData, arrayPath, maxLength, opts = {}) {
+export function trimImportedArray<Data extends OptionalMergeData, Path extends string>(importedData: Data, arrayPath: Path, maxLength: number, opts: { keep?: string } = {}): PathArrayItem<Data, Path>[] {
   const arr = getAt(importedData, arrayPath);
   if (!Array.isArray(arr) || !Number.isInteger(maxLength) || maxLength < 0 || arr.length <= maxLength) return [];
   const keep = opts.keep === 'first' ? 'first' : 'last';
@@ -318,12 +336,12 @@ export function trimImportedArray(importedData, arrayPath, maxLength, opts = {})
   return removed;
 }
 
-function unionByItemId(localArr, remoteArr, tombstones, itemIdFn) {
+function unionByItemId(localArr: unknown, remoteArr: unknown, tombstones: Tombstones, itemIdFn: (item: SyncRecord) => unknown) {
   const tomb = tombstones instanceof Set ? tombstones : new Set(tombstones || []);
-  const byId = new Map();
-  const noId = [];
+  const byId = new Map<string, SyncRecord>();
+  const noId: SyncRecord[] = [];
 
-  function consider(item) {
+  function consider(item: SyncRecord | null | undefined) {
     if (!item || typeof item !== 'object') return;
     const id = itemIdFn(item);
     if (typeof id !== 'string') {
@@ -346,7 +364,7 @@ function unionByItemId(localArr, remoteArr, tombstones, itemIdFn) {
 
 // Union two arrays by record `id`. Records lacking an `id` are kept from
 // both sides (no dedup possible). Tombstones is a Set of ids to drop.
-export function unionById(localArr, remoteArr, tombstones) {
+export function unionById(localArr: unknown, remoteArr: unknown, tombstones: Tombstones) {
   return unionByItemId(localArr, remoteArr, tombstones, item => (
     item && typeof item.id === 'string' ? item.id : null
   ));
@@ -358,17 +376,17 @@ export function unionById(localArr, remoteArr, tombstones) {
 // Capped so a tampered remote payload can't ship 10⁶ fabricated ids and bloat
 // every device's localStorage / pull cost.
 const TOMBSTONE_CAP_PER_PATH = 5000;
-function readMetaAt(importedData, metaKey, path, id) {
+function readMetaAt(importedData: OptionalMergeData, metaKey: MetaKey, path: string, id: string): number {
   const n = importedData?.[metaKey]?.[path]?.[id];
-  return Number.isFinite(n) ? n : 0;
+  return Number.isFinite(n) ? n as number : 0;
 }
 
-function readPathMeta(importedData, metaKey, path) {
+function readPathMeta(importedData: OptionalMergeData, metaKey: MetaKey, path: string) {
   const meta = importedData?.[metaKey]?.[path];
   return meta && typeof meta === 'object' && !Array.isArray(meta) ? meta : {};
 }
 
-function ensurePathMeta(importedData, metaKey, path) {
+function ensurePathMeta(importedData: MergeData, metaKey: MetaKey, path: string) {
   if (!importedData[metaKey] || typeof importedData[metaKey] !== 'object' || Array.isArray(importedData[metaKey])) {
     importedData[metaKey] = {};
   }
@@ -378,19 +396,19 @@ function ensurePathMeta(importedData, metaKey, path) {
   return importedData[metaKey][path];
 }
 
-function deletePathMeta(importedData, metaKey, path, id) {
+function deletePathMeta(importedData: OptionalMergeData, metaKey: MetaKey, path: string, id: string) {
   const root = importedData?.[metaKey];
   const meta = root?.[path];
   if (!meta || typeof meta !== 'object') return;
   delete meta[id];
   if (Object.keys(meta).length === 0) delete root[path];
-  if (Object.keys(root).length === 0) delete importedData[metaKey];
+  if (Object.keys(root).length === 0) delete importedData![metaKey];
 }
 
-function mergeTombstoneState(path, local, remote) {
+function mergeTombstoneState(path: string, local: OptionalMergeData, remote: OptionalMergeData) {
   const localT = local?._deleted?.[path];
   const remoteT = remote?._deleted?.[path];
-  const ids = new Set();
+  const ids = new Set<string>();
   if (Array.isArray(localT))  for (const id of localT)  if (typeof id === 'string') ids.add(id);
   if (Array.isArray(remoteT)) for (const id of remoteT) if (typeof id === 'string') ids.add(id);
 
@@ -399,9 +417,9 @@ function mergeTombstoneState(path, local, remote) {
     ...Object.keys(readPathMeta(remote, TOMBSTONE_CLEAR_META_KEY, path)),
   ].filter(id => typeof id === 'string' && id));
 
-  const tombstones = [];
-  const tombstoneMeta = Object.create(null);
-  const clearMeta = Object.create(null);
+  const tombstones: string[] = [];
+  const tombstoneMeta: Record<string, number> = Object.create(null);
+  const clearMeta: Record<string, number> = Object.create(null);
 
   for (const id of ids) {
     const tombAt = Math.max(
@@ -440,7 +458,7 @@ function mergeTombstoneState(path, local, remote) {
     .filter(([, ts]) => Number.isFinite(ts) && ts > 0)
     .sort((a, b) => b[1] - a[1])
     .slice(0, TOMBSTONE_CAP_PER_PATH);
-  const cappedClearMeta = Object.create(null);
+  const cappedClearMeta: Record<string, number> = Object.create(null);
   for (const [id, ts] of clearEntries) cappedClearMeta[id] = ts;
 
   return { tombstones: cappedTombstones, tombstoneMeta, clearMeta: cappedClearMeta };
@@ -450,7 +468,7 @@ function mergeTombstoneState(path, local, remote) {
 // prototype chain or shadow built-ins. The merge only writes to keys
 // that pass this filter.
 const SAFE_PATH_RE = /^[a-zA-Z][a-zA-Z0-9_.]*$/;
-function isSafeArrayPath(path) {
+function isSafeArrayPath(path: unknown) {
   if (typeof path !== 'string' || !SAFE_PATH_RE.test(path)) return false;
   if (path === '__proto__' || path === 'constructor' || path === 'prototype') return false;
   return true;
@@ -461,13 +479,15 @@ function isSafeArrayPath(path) {
 // neither input is mutated. Single-object subtrees (everything not listed in
 // ID_KEYED_ARRAYS) come from `remote` (LWW), preserving the v1 behavior for
 // scalars / configs / id-less arrays.
-export function mergeImportedData(local, remote) {
+export function mergeImportedData<Data extends MergeData>(local: Data, remote: Data): Data;
+export function mergeImportedData<Data extends MergeData>(local: Data | null | undefined, remote: Data | null | undefined): Data | null | undefined;
+export function mergeImportedData<Data extends MergeData>(local: Data | null | undefined, remote: Data | null | undefined): Data | null | undefined {
   if (!remote || typeof remote !== 'object') return local;
   if (!local  || typeof local  !== 'object') return remote;
 
   // Start from a shallow clone of remote — picks up new keys + LWW for
   // non-id-keyed scalars and arrays.
-  const out = { ...remote };
+  const out: MergeData = { ...remote };
   preserveLocalGeneticsSnps(local, remote, out);
 
   const mergedEntries = mergeLabEntriesByDate(local.entries, remote.entries);
@@ -483,9 +503,9 @@ export function mergeImportedData(local, remote) {
   // / `constructor` keys from a tampered remote payload, and (b) unbounded
   // accumulation of unrelated keys. mergeTombstoneState itself caps each
   // path's tombstone list at TOMBSTONE_CAP_PER_PATH to limit DoS bloat.
-  const mergedDel = Object.create(null); // null-prototype so __proto__ key cannot mutate the chain
-  const mergedDeletedAt = Object.create(null);
-  const mergedDeletedClearedAt = Object.create(null);
+  const mergedDel: Record<string, string[]> = Object.create(null); // null-prototype so __proto__ key cannot mutate the chain
+  const mergedDeletedAt: TimestampMeta = Object.create(null);
+  const mergedDeletedClearedAt: TimestampMeta = Object.create(null);
   for (const path of TOMBSTONE_ARRAY_PATHS) {
     if (!isSafeArrayPath(path)) continue; // guard against future tombstone path additions
     const merged = mergeTombstoneState(path, local, remote);
@@ -501,7 +521,7 @@ export function mergeImportedData(local, remote) {
   else delete out[TOMBSTONE_CLEAR_META_KEY];
 
   if (Array.isArray(out.entries) && Array.isArray(mergedDel.entries) && mergedDel.entries.length) {
-    const deletedDates = new Set(mergedDel.entries);
+    const deletedDates = new Set<unknown>(mergedDel.entries);
     out.entries = out.entries.filter(entry => !deletedDates.has(entry?.date));
   }
 
@@ -546,10 +566,10 @@ export function mergeImportedData(local, remote) {
     const localArr  = getAt(local,  path);
     const remoteArr = getAt(remote, path);
     if (!Array.isArray(localArr) && !Array.isArray(remoteArr)) continue;
-    const seen = new Map(); // composite-key → entry
-    const noKey = []; // entries that can't produce a key — kept as-is
+    const seen = new Map<string, SyncRecord>(); // composite-key → entry
+    const noKey: SyncRecord[] = []; // entries that can't produce a key — kept as-is
     const tomb = new Set(mergedDel[path] || []);
-    function consume(arr) {
+    function consume(arr: unknown) {
       if (!Array.isArray(arr)) return;
       for (const e of arr) {
         if (!e || typeof e !== 'object') continue;
@@ -585,7 +605,7 @@ export function mergeImportedData(local, remote) {
     setAt(out, path, merged);
   }
 
-  return out;
+  return out as Data;
 }
 
 // True iff `local` has anything `remote` doesn't reflect — used after a
@@ -606,11 +626,11 @@ export function mergeImportedData(local, remote) {
 // Order-independent — uses Sets / pickTimestamp, not JSON-string
 // comparison, so different merge insertion orders across devices don't
 // trigger a rebroadcast loop.
-export function localHasRowsRemoteLacks(local, remote) {
+export function localHasRowsRemoteLacks(local: OptionalMergeData, remote: OptionalMergeData) {
   if (!local || typeof local !== 'object') return false;
   if (!remote || typeof remote !== 'object') return true; // no remote, all local is news
   if (Array.isArray(local.entries)) {
-    const remoteEntries = new Map();
+    const remoteEntries = new Map<unknown, LabEntryDraft>();
     if (Array.isArray(remote.entries)) {
       for (const entry of remote.entries) {
         if (entry?.date) remoteEntries.set(entry.date, entry);
@@ -629,7 +649,7 @@ export function localHasRowsRemoteLacks(local, remote) {
       const localMarkerTombs = getLabEntryMarkerTombstones(entry);
       const remoteMarkerTombs = getLabEntryMarkerTombstones(remoteEntry);
       for (const [key, ts] of Object.entries(localMarkerTombs)) {
-        if (Number.isFinite(ts) && ts > (normalizeTimestamp(remoteMarkerTombs[key]) || 0)) return true;
+        if (Number.isFinite(ts) && (ts as number) > (normalizeTimestamp(remoteMarkerTombs[key]) || 0)) return true;
       }
       if (compareRecordFreshness(entry, remoteEntry) > 0) return true;
     }
@@ -637,8 +657,8 @@ export function localHasRowsRemoteLacks(local, remote) {
   for (const field of LOCAL_WINS_MAP_FIELDS) {
     const localMap = local[field];
     if (!localMap || typeof localMap !== 'object' || Array.isArray(localMap)) continue;
-    const remoteMap = remote[field] && typeof remote[field] === 'object' && !Array.isArray(remote[field])
-      ? remote[field]
+    const remoteMap: SyncRecord = remote[field] && typeof remote[field] === 'object' && !Array.isArray(remote[field])
+      ? remote[field] as SyncRecord
       : {};
     for (const [key, value] of Object.entries(localMap)) {
       if (!Object.prototype.hasOwnProperty.call(remoteMap, key)) return true;
@@ -649,7 +669,7 @@ export function localHasRowsRemoteLacks(local, remote) {
     const lArr = getAt(local, path);
     const rArr = getAt(remote, path);
     if (!Array.isArray(lArr)) continue;
-    const remoteById = new Map();
+    const remoteById = new Map<string, SyncRecord>();
     if (Array.isArray(rArr)) {
       for (const item of rArr) {
         if (item && typeof item.id === 'string') remoteById.set(item.id, item);
@@ -671,7 +691,7 @@ export function localHasRowsRemoteLacks(local, remote) {
     const lArr = getAt(local, path);
     const rArr = getAt(remote, path);
     if (!Array.isArray(lArr)) continue;
-    const remoteById = new Map();
+    const remoteById = new Map<string, SyncRecord>();
     if (Array.isArray(rArr)) {
       for (const item of rArr) {
         const id = naturalItemId(path, item);
@@ -707,7 +727,7 @@ export function localHasRowsRemoteLacks(local, remote) {
     const localClears = readPathMeta(local, TOMBSTONE_CLEAR_META_KEY, path);
     for (const [id, ts] of Object.entries(localClears)) {
       if (typeof id === 'string' && Number.isFinite(ts)
-        && ts > readMetaAt(remote, TOMBSTONE_CLEAR_META_KEY, path, id)) {
+        && (ts as number) > readMetaAt(remote, TOMBSTONE_CLEAR_META_KEY, path, id)) {
         return true;
       }
     }
@@ -719,7 +739,7 @@ export function localHasRowsRemoteLacks(local, remote) {
 // Callers (delete sites in sun.js, light-devices.js, pdf-import.js, etc.)
 // should run this BEFORE the array.filter() that removes the row, so the
 // tombstone survives even if the row is gone before the next sync push.
-export function recordTombstone(importedData, arrayPath, id) {
+export function recordTombstone(importedData: OptionalMergeData, arrayPath: string, id: unknown) {
   if (!importedData || typeof importedData !== 'object') return;
   if (typeof id !== 'string' || !id) return;
   if (!importedData._deleted || typeof importedData._deleted !== 'object') {
@@ -735,7 +755,7 @@ export function recordTombstone(importedData, arrayPath, id) {
   deletePathMeta(importedData, TOMBSTONE_CLEAR_META_KEY, arrayPath, id);
 }
 
-export function clearTombstone(importedData, arrayPath, id) {
+export function clearTombstone(importedData: OptionalMergeData, arrayPath: string, id: unknown) {
   if (!importedData || typeof importedData !== 'object') return;
   if (typeof id !== 'string' || !id) return;
   ensurePathMeta(importedData, TOMBSTONE_CLEAR_META_KEY, arrayPath)[id] = Date.now();

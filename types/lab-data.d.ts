@@ -4,6 +4,7 @@ export interface MarkerProvenance {
   snapshotId?: string | null;
   file?: string | null;
   at?: number | string;
+  derivedFrom?: readonly string[];
 }
 
 export interface LabCollectionContext {
@@ -17,7 +18,7 @@ export interface LabEntry {
   date: string;
   markers: Record<string, number | null>;
   markerSources?: Record<string, MarkerProvenance | null>;
-  collectionContextSources?: Record<string, MarkerProvenance | null>;
+  collectionContextSources?: Record<string, string>;
   context?: LabCollectionContext;
   deletedMarkers?: Record<string, number>;
   updatedAt?: number | string;

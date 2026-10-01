@@ -332,6 +332,14 @@ redirect selection, profile pinning, CSRF generation, storage ordering and publi
 sync/async behavior remain explicit at their boundaries. Callback parsing, token
 exchange and refresh contracts retain their original provider-specific paths.
 
+Lab-entry mutation, per-date reconciliation and cross-device array/map merge now
+use strict native TypeScript. Timestamp parsing has one implementation; generic
+dotted-path APIs preserve caller row types. Collection-context provenance declares
+the snapshot ID strings actually persisted by the existing setter. Tombstones,
+freshness ties, marker provenance, insulin aliases and HOMA-IR arithmetic retain
+their complete executable behavior. Four delegated-action source suites share
+the assertion harness as native tests with every original assertion retained.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

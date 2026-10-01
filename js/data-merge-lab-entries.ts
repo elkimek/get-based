@@ -1,14 +1,25 @@
-// @ts-check
 // data-merge-lab-entries.js — Lab-entry freshness and reconciliation.
 
 import {
   LAB_ENTRY_MARKER_TOMBSTONES,
+  normalizeTimestamp,
   getLabEntryMarkerTombstoneAt,
   getLabEntryMarkerTombstones,
   getLabEntryMarkerValueTimestamp,
   labEntryMarkerAffectsHOMAIR,
   recalculateLabEntryHOMAIR,
 } from './lab-entry.js';
+import type { LabEntryDraft, LabMarkerSource } from './lab-entry.js';
+export { normalizeTimestamp } from './lab-entry.js';
+
+export interface LabMergeData {
+  entries?: LabEntryDraft[] | null;
+  _deleted?: Record<string, readonly unknown[] | null | undefined> | null;
+  [key: string]: unknown;
+}
+
+type OptionalLabEntry = LabEntryDraft | null | undefined;
+
 
 export const FRESH_LOCAL_LAB_ENTRY_TTL_MS = 2 * 60 * 1000;
 
@@ -26,27 +37,19 @@ const TIMESTAMP_FIELDS = [
   'at',
 ];
 
-export function normalizeTimestamp(value) {
-  if (Number.isFinite(value)) return value;
-  if (typeof value === 'string' && value.trim()) {
-    const parsed = Date.parse(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return null;
-}
 
 // Pick a comparable timestamp for conflict resolution. Higher wins. Tries
 // the most recently-edited signal first, then creation/capture fields that
 // several synced array surfaces use. Returns 0 if nothing recognizable is
 // present so older/foreign records can still merge without throwing.
-export function pickTimestamp(rec) {
+export function pickTimestamp(rec: unknown) {
   if (!rec || typeof rec !== 'object') return 0;
   for (const field of TIMESTAMP_FIELDS) {
-    const ts = normalizeTimestamp(rec[field]);
+    const ts = normalizeTimestamp((rec as Record<string, unknown>)[field]);
     if (ts !== null) return ts;
   }
-  if (typeof rec.date === 'string') {
-    const parsed = Date.parse(rec.date);
+  if (typeof (rec as Record<string, unknown>).date === 'string') {
+    const parsed = Date.parse((rec as { date: string }).date);
     return Number.isFinite(parsed) ? parsed : 0;
   }
   return 0;
@@ -56,7 +59,7 @@ export function pickTimestamp(rec) {
 // is newer than `b`, negative means older, zero means no winner. Callers
 // intentionally treat zero as "keep the local/current record" so a stale
 // pull cannot undo a just-saved local edit when timestamps tie or are absent.
-export function compareRecordFreshness(a, b) {
+export function compareRecordFreshness(a: unknown, b: unknown) {
   const aTs = pickTimestamp(a);
   const bTs = pickTimestamp(b);
   if (aTs > bTs) return 1;
@@ -64,17 +67,17 @@ export function compareRecordFreshness(a, b) {
   return 0;
 }
 
-export function pickFresherRecord(current, candidate) {
+export function pickFresherRecord<T, U>(current: T, candidate: U): T | U {
   return compareRecordFreshness(candidate, current) > 0 ? candidate : current;
 }
 
-export function hasExplicitTimestamp(rec) {
+export function hasExplicitTimestamp(rec: unknown) {
   if (!rec || typeof rec !== 'object') return false;
-  return TIMESTAMP_FIELDS.some(field => normalizeTimestamp(rec[field]) !== null);
+  return TIMESTAMP_FIELDS.some(field => normalizeTimestamp((rec as Record<string, unknown>)[field]) !== null);
 }
 
-function mergeSourceFiles(a, b) {
-  const files = [];
+function mergeSourceFiles(a: LabEntryDraft, b: LabEntryDraft) {
+  const files: unknown[] = [];
   for (const item of [a?.sourceFiles, a?.sourceFile, b?.sourceFiles, b?.sourceFile]) {
     if (Array.isArray(item)) {
       for (const file of item) if (file && !files.includes(file)) files.push(file);
@@ -85,16 +88,19 @@ function mergeSourceFiles(a, b) {
   return files;
 }
 
-export function mergeLabEntry(existing, incoming) {
+export function mergeLabEntry(existing: OptionalLabEntry, incoming: LabEntryDraft): LabEntryDraft;
+export function mergeLabEntry(existing: LabEntryDraft, incoming: OptionalLabEntry): LabEntryDraft;
+export function mergeLabEntry(existing: OptionalLabEntry, incoming: OptionalLabEntry): OptionalLabEntry;
+export function mergeLabEntry(existing: OptionalLabEntry, incoming: OptionalLabEntry) {
   if (!existing || typeof existing !== 'object') return incoming;
   if (!incoming || typeof incoming !== 'object') return existing;
   const existingTs = pickTimestamp(existing);
   const incomingTs = pickTimestamp(incoming);
   const incomingWins = incomingTs >= existingTs;
   const base = incomingWins ? { ...existing, ...incoming } : { ...incoming, ...existing };
-  const markers = {};
-  const markerSources = {};
-  const markerTombstones = {};
+  const markers: Record<string, unknown> = {};
+  const markerSources: Record<string, LabMarkerSource | null | undefined> = {};
+  const markerTombstones: Record<string, number> = {};
   const existingMarkers = existing.markers && typeof existing.markers === 'object' ? existing.markers : {};
   const incomingMarkers = incoming.markers && typeof incoming.markers === 'object' ? incoming.markers : {};
   const existingSources = existing.markerSources && typeof existing.markerSources === 'object' ? existing.markerSources : {};
@@ -172,13 +178,13 @@ export function mergeLabEntry(existing, incoming) {
   return base;
 }
 
-export function mergeLabEntriesByDate(localEntries, remoteEntries) {
+export function mergeLabEntriesByDate(localEntries: unknown, remoteEntries: unknown) {
   const hasLocal = Array.isArray(localEntries);
   const hasRemote = Array.isArray(remoteEntries);
   if (!hasLocal && !hasRemote) return undefined;
-  const byDate = new Map();
-  const noDate = [];
-  function consume(entries) {
+  const byDate = new Map<string, LabEntryDraft>();
+  const noDate: LabEntryDraft[] = [];
+  function consume(entries: unknown) {
     if (!Array.isArray(entries)) return;
     for (const entry of entries) {
       if (!entry || typeof entry !== 'object') continue;
@@ -197,14 +203,14 @@ export function mergeLabEntriesByDate(localEntries, remoteEntries) {
   return [...byDate.values(), ...noDate].sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
 }
 
-function isFreshLocalLabEntry(entry, now) {
+function isFreshLocalLabEntry(entry: OptionalLabEntry, now: number): entry is LabEntryDraft & { date: string; updatedAt: number } {
   if (!entry || typeof entry !== 'object') return false;
   if (typeof entry.date !== 'string' || !entry.date) return false;
   if (!Number.isFinite(entry.updatedAt)) return false;
-  return entry.updatedAt <= now + 1000 && now - entry.updatedAt <= FRESH_LOCAL_LAB_ENTRY_TTL_MS;
+  return (entry.updatedAt as number) <= now + 1000 && now - (entry.updatedAt as number) <= FRESH_LOCAL_LAB_ENTRY_TTL_MS;
 }
 
-export function preserveFreshLocalLabEntries(merged, local, now = Date.now()) {
+export function preserveFreshLocalLabEntries(merged: LabMergeData | null | undefined, local: LabMergeData | null | undefined, now = Date.now()) {
   if (!merged || typeof merged !== 'object') return false;
   if (!local || typeof local !== 'object' || !Array.isArray(local.entries)) return false;
   const freshLocalEntries = local.entries.filter(entry => isFreshLocalLabEntry(entry, now));
@@ -212,7 +218,7 @@ export function preserveFreshLocalLabEntries(merged, local, now = Date.now()) {
 
   if (!Array.isArray(merged.entries)) merged.entries = [];
   const deletedEntryDates = new Set(Array.isArray(merged._deleted?.entries) ? merged._deleted.entries : []);
-  const byDate = new Map();
+  const byDate = new Map<string, number>();
   for (let i = 0; i < merged.entries.length; i++) {
     const date = merged.entries[i]?.date;
     if (typeof date === 'string' && date) byDate.set(date, i);
