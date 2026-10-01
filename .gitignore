@@ -269,3 +269,12 @@ deploy/profile-share/data/
 /js/state.js
 /js/secondary-unit-conversions.js
 /js/app-extension-runtime.js
+
+# Native schema and canonical-unit foundations
+/js/schema.js
+/js/schema-environment.js
+/js/marker-schema.js
+/js/unit-profiles.js
+/js/pdf-import-unit-conversions.js
+/js/marker-range-suggestions.js
+/scripts/build-marker-schema.mjs

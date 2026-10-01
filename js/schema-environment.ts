@@ -1,4 +1,3 @@
-// @ts-check
 // schema-environment.js - cycle phase ranges and EMF threshold definitions
 
 // Assay-specific phase reference ranges for naturally cycling premenopausal
@@ -15,7 +14,13 @@
 // - Labcorp 004309 FSH: https://www.labcorp.com/tests/004309/follicle-stimulating-hormone-fsh
 // Estradiol pg/mL and progesterone ng/mL source values are converted using the
 // same factors as UNIT_CONVERSIONS and rounded to avoid false precision.
-export const PHASE_RANGES = {
+export interface PhaseRange { min: number; max: number; label: string; source: string }
+export interface AgeRange { minAge: number; maxAge: number; min: number; max: number; label: string }
+export type ContextRanges = Record<string, { male?: AgeRange[]; female?: AgeRange[]; all?: AgeRange[] }>;
+export interface EMFTier { max: number; label: string; color: string }
+export interface EMFThreshold { name: string; unit: string; sleeping: EMFTier[]; daytime: EMFTier[] }
+
+export const PHASE_RANGES: Record<string, Record<string, PhaseRange>> = {
   'hormones.estradiol': {
     menstrual:  { min: 46,  max: 609,  label: 'Predicted menstrual range', source: 'Labcorp 004515 (Roche cobas ECLIA)' },
     follicular: { min: 46,  max: 609,  label: 'Predicted follicular range', source: 'Labcorp 004515 (Roche cobas ECLIA)' },
@@ -52,7 +57,7 @@ export const PHASE_RANGES = {
 // - Mayo Clinic Laboratories AMH1 (AMH; ng/mL converted to pmol/L)
 // - Bidlingmaier et al., JCEM 2014 / Mayo IGF1S (IGF-1; ng/mL = µg/L)
 // - Mayo Clinic Laboratories NFLP (plasma NfL, current assay-specific limits)
-export const CONTEXT_REFERENCE_RANGES = {
+export const CONTEXT_REFERENCE_RANGES: ContextRanges = {
   'hormones.dheaS': {
     male: [
       { minAge: 18, maxAge: 31, min: 2.848, max: 19.75, label: 'Age/sex assay range (18–30)' },
@@ -146,7 +151,7 @@ export const CONTEXT_REFERENCE_RANGES = {
 // Contextual wellness/low-risk bands with enough evidence to alter the optional
 // optimal view. These are not treatment targets. The older-men testosterone
 // band comes from an observational cohort (PMID 24257908), not a TRT guideline.
-export const CONTEXT_OPTIMAL_RANGES = {
+export const CONTEXT_OPTIMAL_RANGES: ContextRanges = {
   'hormones.testosterone': {
     male: [
       { minAge: 70, maxAge: 90, min: 9.8, max: 15.8, label: 'Lower-mortality cohort band (70–89)' },
@@ -154,86 +159,45 @@ export const CONTEXT_OPTIMAL_RANGES = {
   },
 };
 
+function emfTiers(first: number, second: number, third: number): EMFTier[] {
+  return [
+    { max: first, label: 'No concern', color: 'green' },
+    { max: second, label: 'Slight concern', color: 'yellow' },
+    { max: third, label: 'Severe concern', color: 'orange' },
+    { max: Infinity, label: 'Extreme concern', color: 'red' },
+  ];
+}
+
 // SBM-2015 — Building Biology EMF Thresholds (sleeping areas)
-export const SBM_2015_THRESHOLDS = {
+export const SBM_2015_THRESHOLDS: Record<string, EMFThreshold> = {
   acElectric: {
     name: 'AC Electric Fields', unit: 'V/m',
-    sleeping: [
-      { max: 1,        label: 'No concern',      color: 'green'  },
-      { max: 5,        label: 'Slight concern',   color: 'yellow' },
-      { max: 50,       label: 'Severe concern',   color: 'orange' },
-      { max: Infinity, label: 'Extreme concern',  color: 'red'    }
-    ],
-    daytime: [
-      { max: 3,        label: 'No concern',      color: 'green'  },
-      { max: 10,       label: 'Slight concern',   color: 'yellow' },
-      { max: 50,       label: 'Severe concern',   color: 'orange' },
-      { max: Infinity, label: 'Extreme concern',  color: 'red'    }
-    ]
+    sleeping: emfTiers(1, 5, 50),
+    daytime: emfTiers(3, 10, 50)
   },
   acMagnetic: {
     name: 'AC Magnetic Fields', unit: 'nT',
-    sleeping: [
-      { max: 20,       label: 'No concern',      color: 'green'  },
-      { max: 100,      label: 'Slight concern',   color: 'yellow' },
-      { max: 500,      label: 'Severe concern',   color: 'orange' },
-      { max: Infinity, label: 'Extreme concern',  color: 'red'    }
-    ],
-    daytime: [
-      { max: 50,       label: 'No concern',      color: 'green'  },
-      { max: 200,      label: 'Slight concern',   color: 'yellow' },
-      { max: 1000,     label: 'Severe concern',   color: 'orange' },
-      { max: Infinity, label: 'Extreme concern',  color: 'red'    }
-    ]
+    sleeping: emfTiers(20, 100, 500),
+    daytime: emfTiers(50, 200, 1000)
   },
   rfMicrowave: {
     name: 'RF/Microwave Radiation', unit: 'µW/m²',
-    sleeping: [
-      { max: 0.1,      label: 'No concern',      color: 'green'  },
-      { max: 10,       label: 'Slight concern',   color: 'yellow' },
-      { max: 1000,     label: 'Severe concern',   color: 'orange' },
-      { max: Infinity, label: 'Extreme concern',  color: 'red'    }
-    ],
-    daytime: [
-      { max: 1,        label: 'No concern',      color: 'green'  },
-      { max: 50,       label: 'Slight concern',   color: 'yellow' },
-      { max: 1000,     label: 'Severe concern',   color: 'orange' },
-      { max: Infinity, label: 'Extreme concern',  color: 'red'    }
-    ]
+    sleeping: emfTiers(0.1, 10, 1000),
+    daytime: emfTiers(1, 50, 1000)
   },
   dirtyElectricity: {
     name: 'Dirty Electricity', unit: 'GS',
-    sleeping: [
-      { max: 25,       label: 'No concern',      color: 'green'  },
-      { max: 50,       label: 'Slight concern',   color: 'yellow' },
-      { max: 200,      label: 'Severe concern',   color: 'orange' },
-      { max: Infinity, label: 'Extreme concern',  color: 'red'    }
-    ],
-    daytime: [
-      { max: 50,       label: 'No concern',      color: 'green'  },
-      { max: 100,      label: 'Slight concern',   color: 'yellow' },
-      { max: 300,      label: 'Severe concern',   color: 'orange' },
-      { max: Infinity, label: 'Extreme concern',  color: 'red'    }
-    ]
+    sleeping: emfTiers(25, 50, 200),
+    daytime: emfTiers(50, 100, 300)
   },
   dcMagnetic: {
     name: 'DC Magnetic Field Deviation', unit: 'µT',
-    sleeping: [
-      { max: 1,        label: 'No concern',      color: 'green'  },
-      { max: 5,        label: 'Slight concern',   color: 'yellow' },
-      { max: 20,       label: 'Severe concern',   color: 'orange' },
-      { max: Infinity, label: 'Extreme concern',  color: 'red'    }
-    ],
-    daytime: [
-      { max: 2,        label: 'No concern',      color: 'green'  },
-      { max: 10,       label: 'Slight concern',   color: 'yellow' },
-      { max: 20,       label: 'Severe concern',   color: 'orange' },
-      { max: Infinity, label: 'Extreme concern',  color: 'red'    }
-    ]
+    sleeping: emfTiers(1, 5, 20),
+    daytime: emfTiers(2, 10, 20)
   }
 };
 
-export function getEMFSeverity(type, value, sleeping = true) {
+export function getEMFSeverity(type: string, value: number | null | undefined, sleeping = true) {
   const def = SBM_2015_THRESHOLDS[type];
   if (!def || value == null) return null;
   const tiers = sleeping ? def.sleeping : def.daytime;

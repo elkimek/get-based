@@ -35,7 +35,7 @@ describe('schema-wide unit profiles', () => {
   it('keeps explicit ANZ overrides attached to real schema markers', () => {
     for (const dotKey of Object.keys(ANZ_UNIT_OVERRIDES)) {
       const [categoryKey, markerKey] = dotKey.split('.');
-      expect(MARKER_SCHEMA[categoryKey]?.markers?.[markerKey], dotKey).toBeTruthy();
+      expect(MARKER_SCHEMA[categoryKey!]?.markers?.[markerKey!], dotKey).toBeTruthy();
       expect(resolveMarkerUnitProfile(dotKey, 'ANZ').conversion, dotKey).toBeTruthy();
     }
   });

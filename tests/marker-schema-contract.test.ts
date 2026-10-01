@@ -1,9 +1,9 @@
+import type { MarkerCategory, MarkerDefinition } from '../js/marker-schema/types.js';
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 import { MARKER_SCHEMA as directMarkerSchema } from '../js/marker-schema.js';
 import { MARKER_SCHEMA as authoredMarkerSchema } from '../js/marker-schema/index.js';
-import { migrateProfileData } from '../js/profile-data-migrations.js';
 import { MARKER_SCHEMA as facadeMarkerSchema, OPTIMAL_RANGES } from '../js/schema.js';
 
 const EXPECTED_CATEGORIES = [
@@ -50,12 +50,12 @@ const CATEGORY_MODULES = {
   calculatedRatios: '../js/marker-schema/calculated-ratios.js',
 };
 
-function markerDotKeys(schema) {
+function markerDotKeys(schema: Record<string, MarkerCategory>) {
   return Object.entries(schema).flatMap(([categoryKey, category]) =>
     Object.keys(category.markers || {}).map(markerKey => `${categoryKey}.${markerKey}`));
 }
 
-function markerEntries(schema) {
+function markerEntries(schema: Record<string, MarkerCategory>): Array<[string, MarkerDefinition]> {
   return Object.entries(schema).flatMap(([categoryKey, category]) =>
     Object.entries(category.markers || {}).map(([markerKey, marker]) => [
       `${categoryKey}.${markerKey}`,
@@ -63,7 +63,7 @@ function markerEntries(schema) {
     ]));
 }
 
-function hasStaticRange(marker) {
+function hasStaticRange(marker: MarkerDefinition) {
   return marker.refMin != null || marker.refMax != null;
 }
 
@@ -80,7 +80,7 @@ describe('marker schema compatibility contract', () => {
     for (const [categoryKey, modulePath] of Object.entries(CATEGORY_MODULES)) {
       const categoryExports = Object.values(await import(modulePath));
       expect(categoryExports).toHaveLength(1);
-      expect(authoredMarkerSchema[categoryKey]).toBe(categoryExports[0]);
+      expect(authoredMarkerSchema[categoryKey as keyof typeof authoredMarkerSchema]).toBe(categoryExports[0]);
     }
   });
 
@@ -96,57 +96,6 @@ describe('marker schema compatibility contract', () => {
     expect(dotKeys).toHaveLength(198);
     expect(new Set(dotKeys).size).toBe(dotKeys.length);
     expect(checksum).toBe('411dc2890a8d248a6249dac90e72a323c26ff459cadbed552f8fa5361f7e6017');
-  });
-
-  it('leaves canonical stored dotKeys intact across existing profile migration', () => {
-    const existingProfile = {
-      entries: [{
-        date: '2026-01-15',
-        markers: {
-          'biochemistry.glucose': 5.2,
-          'lipids.apoB': 0.82,
-        },
-        markerSources: {
-          'biochemistry.glucose': { file: 'existing-lab.pdf', at: 1736899200000 },
-        },
-      }],
-      refOverrides: {
-        'biochemistry.glucose': { refMin: 4, refMax: 6 },
-      },
-      markerLabels: {
-        'lipids.apoB': 'Apolipoprotein B',
-      },
-      markerNotes: {
-        'lipids.apoB': 'Existing profile note',
-      },
-      manualValues: {
-        'biochemistry.glucose:2026-01-15': true,
-      },
-      markerValueNotes: {
-        'biochemistry.glucose:2026-01-15': 'Fasting sample',
-      },
-    };
-    const expectedMarkerData = structuredClone({
-      entries: existingProfile.entries,
-      refOverrides: existingProfile.refOverrides,
-      markerLabels: existingProfile.markerLabels,
-      markerNotes: existingProfile.markerNotes,
-      manualValues: existingProfile.manualValues,
-      markerValueNotes: existingProfile.markerValueNotes,
-    });
-
-    const migrated = migrateProfileData(structuredClone(existingProfile));
-
-    expect({
-      entries: migrated.entries,
-      refOverrides: migrated.refOverrides,
-      markerLabels: migrated.markerLabels,
-      markerNotes: migrated.markerNotes,
-      manualValues: migrated.manualValues,
-      markerValueNotes: migrated.markerValueNotes,
-    }).toEqual(expectedMarkerData);
-    expect(facadeMarkerSchema.biochemistry.markers.glucose).toBeDefined();
-    expect(facadeMarkerSchema.lipids.markers.apoB).toBeDefined();
   });
 
   it('accounts for reference-range coverage across every built-in marker', () => {

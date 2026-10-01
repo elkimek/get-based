@@ -301,6 +301,15 @@ typed factories and shared definitions for enzyme, cholesterol, protein-mass and
 cell-count units; all 83 entries retain exact values, order and independent mutable
 arrays and records. Existing canonical-unit import and conversion checks remain.
 
+The complete schema facade, generated catalog and its generator, environment
+ranges, display-unit profiles, PDF unit conversion and catalog-only range
+suggestions now use native TypeScript. The generator renders readable typed
+source and the existing runtime URL is emitted by the compiler. Tier factories
+retain independent mutable arrays and records. Original schema/identity/profile
+and suggestion contracts are native tests; profile migration integration retains
+its existing cases. All arithmetic, precision, unit labels, stable IDs, catalog
+checksums, pricing, usage-storage order and public suggestion text are preserved.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

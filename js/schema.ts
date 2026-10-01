@@ -1,5 +1,13 @@
-// @ts-check
-// schema.js — Compatibility facade, unit conversions, pricing, optimal ranges
+// Compatibility facade, canonical unit conversions, pricing and reference policies.
+
+export type PrimaryUnitConversion =
+  | { factor: number; usUnit: string; type: 'multiply' }
+  | { type: 'hba1c'; factor?: never; usUnit?: never };
+export interface ClinicalImportContext { refMax?: unknown; ratioUnitConvention?: unknown; [key: string]: unknown }
+export interface ModelPrice { input: number; output: number; approx?: boolean }
+export interface ModelUsage { totalCost: number; totalInputTokens: number; totalOutputTokens: number; requestCount: number }
+export interface OptimalRange { optimalMin: number | null; optimalMax: number | null; optimalMin_f?: number | null; optimalMax_f?: number | null }
+
 
 import { MARKER_SCHEMA } from './marker-schema.js';
 import { SECONDARY_UNIT_CONVERSIONS } from './secondary-unit-conversions.js';
@@ -32,7 +40,7 @@ export {
 // ═══════════════════════════════════════════════
 // UNIT CONVERSIONS (EU SI → US conventional)
 // ═══════════════════════════════════════════════
-export const UNIT_CONVERSIONS = {
+export const UNIT_CONVERSIONS: Record<string, PrimaryUnitConversion> = {
   'biochemistry.glucose': { factor: 18.018, usUnit: 'mg/dl', type: 'multiply' },
   'biochemistry.urea': { factor: 2.801, usUnit: 'mg/dl', type: 'multiply' },
   'biochemistry.creatinine': { factor: 0.01131, usUnit: 'mg/dl', type: 'multiply' },
@@ -166,8 +174,8 @@ export const UNIT_CONVERSIONS = {
 
 export { SECONDARY_UNIT_CONVERSIONS };
 
-/** Normalize clinical unit spellings for import and migration comparisons. @param {unknown} unit */
-export function normalizeClinicalUnit(unit) {
+/** Normalize clinical unit spellings for import and migration comparisons. */
+export function normalizeClinicalUnit(unit: unknown) {
   return String(unit || '')
     .normalize('NFKC').toLowerCase().replace(/\s/g, '')
     .replace(/[\u00b5\u03bc]/g, 'u')
@@ -175,16 +183,14 @@ export function normalizeClinicalUnit(unit) {
     .replace(/^ug\/l$/, 'ng/ml');
 }
 
-function isPercentClinicalUnit(unit) {
+function isPercentClinicalUnit(unit: unknown) {
   const normalized = normalizeClinicalUnit(unit);
   return ['%', 'pct', 'percent', 'percentage'].includes(normalized);
 }
 
-function isFractionStoredPercentMarker(key) {
+function isFractionStoredPercentMarker(key: string) {
   const [catKey, markerKey] = String(key || '').split('.');
-  const marker = /** @type {{unit?: string, refMax?: number} | undefined} */ (
-    MARKER_SCHEMA[catKey]?.markers?.[markerKey]
-  );
+  const marker = MARKER_SCHEMA[catKey!]?.markers?.[markerKey!];
   const conversion = UNIT_CONVERSIONS[key];
   return !!marker && (marker.unit || '') === '' && marker.refMax != null && marker.refMax <= 1
     && conversion?.type === 'multiply'
@@ -192,14 +198,14 @@ function isFractionStoredPercentMarker(key) {
 }
 
 function normalizeFractionStoredPercentValue(
-  key,
-  value,
-  unit,
-  context = /** @type {Record<string, any> | null} */ (null),
+  key: string,
+  value: number,
+  unit: unknown,
+  context: ClinicalImportContext | null = null,
 ) {
   if (!isFractionStoredPercentMarker(key) || !isPercentClinicalUnit(unit)) return null;
   const [catKey, markerKey] = String(key || '').split('.');
-  const schemaRefMax = Number(MARKER_SCHEMA[catKey]?.markers?.[markerKey]?.refMax);
+  const schemaRefMax = Number(MARKER_SCHEMA[catKey!]?.markers?.[markerKey!]?.refMax);
   const reportRefMax = Number(context?.refMax);
   const hasWholePercentRange = reportRefMax > 1 && reportRefMax > schemaRefMax
     && !(Number.isFinite(schemaRefMax) && value <= schemaRefMax);
@@ -209,12 +215,8 @@ function normalizeFractionStoredPercentValue(
 
 /**
  * Convert an imported or legacy marker value to the schema's canonical SI unit.
- * @param {string} key
- * @param {any} value
- * @param {unknown} unit
- * @param {Record<string, any> | null} [context]
  */
-export function normalizeToSI(key, value, unit, context = null) {
+export function normalizeToSI(key: string, value: number | null | undefined, unit: unknown, context: ClinicalImportContext | null = null) {
   if (value == null || isNaN(value)) return null;
   // Hematocrit: schema stores as % (40–50) but some labs report as fraction l/l (0.40–0.50).
   if (key === 'hematology.hematocrit' && value < 1.5) return parseFloat((value * 100).toFixed(1));
@@ -251,7 +253,7 @@ export function normalizeToSI(key, value, unit, context = null) {
   const fallbackConversion = UNIT_CONVERSIONS[key];
   if (fallbackConversion?.type === 'multiply' && fallbackConversion.factor > 1) {
     const [catKey, markerKey] = key.split('.');
-    const marker = MARKER_SCHEMA[catKey]?.markers?.[markerKey];
+    const marker = MARKER_SCHEMA[catKey!]?.markers?.[markerKey!];
     if (marker?.refMax != null && value > marker.refMax * fallbackConversion.factor * 0.3) {
       return parseFloat((value / fallbackConversion.factor).toPrecision(6));
     }
@@ -262,7 +264,7 @@ export function normalizeToSI(key, value, unit, context = null) {
 // Returns the converted {value, unit} in the *other* unit system for dual-display,
 // or null when no conversion exists. `displayValue` is what the user currently sees
 // (state.unitSystem-dependent); `isUSMode` is the current display mode flag.
-export function getAlternateUnit(dotKey, displayValue, isUSMode) {
+export function getAlternateUnit(dotKey: string, displayValue: number | null | undefined, isUSMode: boolean) {
   const conv = UNIT_CONVERSIONS[dotKey];
   if (!conv || displayValue == null || !Number.isFinite(displayValue)) return null;
   const dot = dotKey.indexOf('.');
@@ -292,7 +294,7 @@ export function getAlternateUnit(dotKey, displayValue, isUSMode) {
 // Used by manual-entry's per-field unit picker. Handles the SI unit, the primary
 // US-conventional unit (UNIT_CONVERSIONS), and any secondary clinical unit
 // (SECONDARY_UNIT_CONVERSIONS, e.g. mg/L for Lp(a) or g/L for cholesterol).
-export function convertUserInputToSI(dotKey, value, inputUnit) {
+export function convertUserInputToSI(dotKey: string, value: number, inputUnit: string) {
   if (!Number.isFinite(value)) return value;
   const dot = dotKey.indexOf('.');
   if (dot < 0) return value;
@@ -318,7 +320,7 @@ export function convertUserInputToSI(dotKey, value, inputUnit) {
 // Inverse of convertUserInputToSI: express a canonical-SI value in `targetUnit`
 // (SI / primary US / secondary clinical). Used by manual entry's range sanity
 // check so the "did you mean?" warning compares in the unit the user is typing.
-export function convertSIToInputUnit(dotKey, siValue, targetUnit) {
+export function convertSIToInputUnit(dotKey: string, siValue: number, targetUnit: string) {
   if (!Number.isFinite(siValue)) return siValue;
   const dot = dotKey.indexOf('.');
   if (dot < 0) return siValue;
@@ -367,7 +369,7 @@ export const CHIP_COLORS = ['#4f8cff','#34d399','#f87171','#fbbf24','#a78bfa','#
 // now lives in js/adapters.js as part of the parser adapter registry.
 
 // ── Model pricing ($/M tokens) ──
-export const MODEL_PRICING = {
+export const MODEL_PRICING: Record<string, Record<string, ModelPrice>> = {
   venice: {
     'claude-opus-4-6':      { input: 6.00,  output: 30.00 },
     'claude-opus-4-5':      { input: 6.00,  output: 30.00 },
@@ -410,28 +412,28 @@ export const MODEL_PRICING = {
   },
   custom: {},
 };
-export function getModelPricing(provider, modelId) {
+export function getModelPricing(provider: string, modelId: string | null | undefined) {
   // OpenRouter/Routstr: check dynamic API-sourced pricing first
   if ((provider === 'openrouter' || provider === 'routstr' || provider === 'ppq' || provider === 'venice') && modelId) {
     const cacheKey = provider === 'ppq' ? 'labcharts-ppq-pricing' : provider === 'venice' ? 'labcharts-venice-pricing' : provider === 'routstr' ? 'labcharts-routstr-pricing' : 'labcharts-openrouter-pricing';
-    const cached = JSON.parse(localStorage.getItem(cacheKey) || '{}');
-    if (cached[modelId]) return cached[modelId];
+    const cached = JSON.parse(localStorage.getItem(cacheKey) || '{}') as Record<string, ModelPrice>;
+    if (cached[modelId]) return cached[modelId]!;
   }
   if (!MODEL_PRICING[provider]) return { input: 0, output: 0 };
   const table = MODEL_PRICING[provider];
   const stripped = (modelId || '').replace(/-\d{8}$/, '');
-  if (table[stripped]) return table[stripped];
+  if (table[stripped]) return table[stripped]!;
   const prefix = Object.keys(table).filter(k => k !== '_default' && stripped.startsWith(k)).sort((a, b) => b.length - a.length)[0];
-  if (prefix) return table[prefix];
+  if (prefix) return table[prefix]!;
   const fallback = table['_default'] || { input: 0, output: 0 };
   return { ...fallback, approx: true };
 }
-export function calculateCost(provider, modelId, inputTokens, outputTokens) {
+export function calculateCost(provider: string, modelId: string | null | undefined, inputTokens: number | null | undefined, outputTokens: number | null | undefined) {
   if (provider === 'custom') return -1;
   const p = getModelPricing(provider, modelId);
   return (p.input * (inputTokens || 0) + p.output * (outputTokens || 0)) / 1_000_000;
 }
-export function formatCost(usd) {
+export function formatCost(usd: number) {
   if (usd < 0) return 'N/A';
   if (usd === 0) return 'Free';
   if (usd < 0.0001) return '<$0.0001';
@@ -442,7 +444,7 @@ export function formatCost(usd) {
 // ── AI Usage Tracking ──────────────────────────────
 const _emptyUsage = () => ({ totalCost: 0, totalInputTokens: 0, totalOutputTokens: 0, requestCount: 0 });
 
-export function trackUsage(provider, modelId, inputTokens, outputTokens) {
+export function trackUsage(provider: string, modelId: string | null | undefined, inputTokens: number | null | undefined, outputTokens: number | null | undefined) {
   try {
     const cost = calculateCost(provider, modelId, inputTokens || 0, outputTokens || 0);
     const inp = inputTokens || 0, out = outputTokens || 0;
@@ -451,26 +453,26 @@ export function trackUsage(provider, modelId, inputTokens, outputTokens) {
     // Per-profile
     const pid = state.currentProfile || 'default';
     const pKey = `labcharts-${pid}-usage`;
-    const pu = JSON.parse(localStorage.getItem(pKey) || 'null') || _emptyUsage();
+    const pu = (JSON.parse(localStorage.getItem(pKey) || 'null') as ModelUsage | null) || _emptyUsage();
     pu.totalCost += cost; pu.totalInputTokens += inp; pu.totalOutputTokens += out; pu.requestCount++;
     localStorage.setItem(pKey, JSON.stringify(pu));
 
     // Global
-    const gu = JSON.parse(localStorage.getItem('labcharts-global-usage') || 'null') || _emptyUsage();
+    const gu = (JSON.parse(localStorage.getItem('labcharts-global-usage') || 'null') as ModelUsage | null) || _emptyUsage();
     gu.totalCost += cost; gu.totalInputTokens += inp; gu.totalOutputTokens += out; gu.requestCount++;
     localStorage.setItem('labcharts-global-usage', JSON.stringify(gu));
   } catch(e) { /* usage tracking is non-critical — never break chat/import */ }
 }
 
-export function getProfileUsage(profileId) {
-  return JSON.parse(localStorage.getItem(`labcharts-${profileId || 'default'}-usage`) || 'null') || _emptyUsage();
+export function getProfileUsage(profileId: string | null | undefined) {
+  return (JSON.parse(localStorage.getItem(`labcharts-${profileId || 'default'}-usage`) || 'null') as ModelUsage | null) || _emptyUsage();
 }
 
 export function getGlobalUsage() {
-  return JSON.parse(localStorage.getItem('labcharts-global-usage') || 'null') || _emptyUsage();
+  return (JSON.parse(localStorage.getItem('labcharts-global-usage') || 'null') as ModelUsage | null) || _emptyUsage();
 }
 
-export function resetProfileUsage(profileId) {
+export function resetProfileUsage(profileId: string | null | undefined) {
   localStorage.removeItem(`labcharts-${profileId || 'default'}-usage`);
 }
 
@@ -483,7 +485,7 @@ export function resetProfileUsage(profileId) {
 // Sources: CKD Prognosis Consortium, ASH/Blood 2015, Harris & von Schacky 2004,
 // Lancet non-HDL pooled analysis, PMC8844108 (IGF-1), PMC10324141 (sodium),
 // PMC10866328 (thyroid/CVD), PMC11078084 (albumin), Gilbert syndrome studies.
-export const OPTIMAL_RANGES = {
+export const OPTIMAL_RANGES: Record<string, OptimalRange> = {
   // Biochemistry
   'biochemistry.glucose': { optimalMin: 4.0, optimalMax: 5.0 },
   'biochemistry.urea': { optimalMin: 4.6, optimalMax: 6.4 },

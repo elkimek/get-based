@@ -1,4 +1,3 @@
-// @ts-check
 // unit-profiles.js — complete marker display-unit profiles over canonical storage
 
 import {
@@ -8,6 +7,14 @@ import {
   convertSIToInputUnit,
   convertUserInputToSI,
 } from './schema.js';
+
+import type { PrimaryUnitConversion } from './schema.js';
+import type { SecondaryUnitConversion } from './secondary-unit-conversions.js';
+
+type ProjectionValue = number | null | undefined;
+type ProfileConversion = (PrimaryUnitConversion & { unit: string; source: string }) | SecondaryUnitConversion;
+export interface CanonicalScoringSnapshot extends Record<string, unknown> { dateIndices?: Record<string, number> }
+export interface MarkerScoringSource extends Record<string, unknown> { canonicalScoring?: CanonicalScoringSnapshot }
 
 export const UNIT_PROFILE_IDS = Object.freeze(['EU', 'ANZ', 'US']);
 
@@ -27,7 +34,7 @@ const RCPA_ENDOCRINE_SOURCE = 'RCPA Harmonisation of Endocrine Dynamic Testing (
  *
  * Factor convention: display value = canonical value * factor.
  */
-export const ANZ_UNIT_OVERRIDES = Object.freeze({
+export const ANZ_UNIT_OVERRIDES: Readonly<Record<string, ProfileConversion>> = Object.freeze({
   // Enzyme activity is conventionally reported in U/L rather than µkat/L.
   'biochemistry.ast': { factor: 60, unit: 'U/L', type: 'multiply', source: RCPA_CHEMICAL_PATHOLOGY_SOURCE },
   'biochemistry.alt': { factor: 60, unit: 'U/L', type: 'multiply', source: RCPA_CHEMICAL_PATHOLOGY_SOURCE },
@@ -65,27 +72,27 @@ export const ANZ_UNIT_OVERRIDES = Object.freeze({
   'tumorMarkers.afp': { factor: 1, unit: 'kIU/L', type: 'multiply', source: RCPA_CHEMICAL_PATHOLOGY_SOURCE },
 });
 
-export function normalizeUnitProfile(value) {
+export function normalizeUnitProfile(value: unknown) {
   const profile = String(value || '').trim().toUpperCase();
   return profile === 'US' || profile === 'ANZ' ? profile : 'EU';
 }
 
-export function getUnitProfileLabel(value) {
+export function getUnitProfileLabel(value: unknown) {
   return UNIT_PROFILE_LABELS[normalizeUnitProfile(value)];
 }
 
-export function usesImperialMeasurements(value) {
+export function usesImperialMeasurements(value: unknown) {
   return normalizeUnitProfile(value) === 'US';
 }
 
-function schemaMarker(dotKey) {
+function schemaMarker(dotKey: unknown) {
   if (typeof dotKey !== 'string') return null;
   const dot = dotKey.indexOf('.');
   if (dot < 1 || dot === dotKey.length - 1) return null;
   return MARKER_SCHEMA[dotKey.slice(0, dot)]?.markers?.[dotKey.slice(dot + 1)] || null;
 }
 
-function formatAnzIdentityUnit(unit) {
+function formatAnzIdentityUnit(unit: unknown) {
   if (!unit) return '';
   return String(unit)
     .replace(/^ml(?=\/|$)/, 'mL')
@@ -94,7 +101,7 @@ function formatAnzIdentityUnit(unit) {
     .replace(/\/l(?=$|\s)/g, '/L');
 }
 
-function usProfileConversion(dotKey) {
+function usProfileConversion(dotKey: string) {
   const conversion = UNIT_CONVERSIONS[dotKey];
   if (!conversion) return null;
   return {
@@ -104,16 +111,11 @@ function usProfileConversion(dotKey) {
   };
 }
 
-/**
- * @param {string} dotKey
- * @param {string} unitProfile
- * @param {string | null} [canonicalUnit]
- */
-export function resolveMarkerUnitProfile(dotKey, unitProfile, canonicalUnit = null) {
+export function resolveMarkerUnitProfile(dotKey: string, unitProfile: unknown, canonicalUnit: string | null = null) {
   const profile = normalizeUnitProfile(unitProfile);
   const marker = schemaMarker(dotKey);
   const storedUnit = canonicalUnit ?? marker?.unit ?? '';
-  let conversion = null;
+  let conversion: ProfileConversion | null = null;
   if (profile === 'US') {
     conversion = usProfileConversion(dotKey);
   } else if (profile === 'ANZ' && marker) {
@@ -131,7 +133,7 @@ export function resolveMarkerUnitProfile(dotKey, unitProfile, canonicalUnit = nu
   };
 }
 
-function convertCanonicalWithDefinition(value, conversion) {
+function convertCanonicalWithDefinition<T extends ProjectionValue>(value: T, conversion: ProfileConversion | null) {
   if (value == null || !Number.isFinite(value) || !conversion) return value;
   if (conversion.type === 'multiply') {
     if (conversion.factor === 1) return value;
@@ -143,7 +145,7 @@ function convertCanonicalWithDefinition(value, conversion) {
   return value;
 }
 
-function convertDisplayWithDefinition(value, conversion) {
+function convertDisplayWithDefinition<T extends ProjectionValue>(value: T, conversion: ProfileConversion | null) {
   if (value == null || !Number.isFinite(value) || !conversion) return value;
   if (conversion.type === 'multiply') {
     if (conversion.factor === 1) return value;
@@ -155,29 +157,17 @@ function convertDisplayWithDefinition(value, conversion) {
   return value;
 }
 
-/**
- * @param {string} dotKey
- * @param {number | null | undefined} value
- * @param {string} unitProfile
- * @param {string | null} [canonicalUnit]
- */
-export function convertCanonicalToDisplay(dotKey, value, unitProfile, canonicalUnit = null) {
+export function convertCanonicalToDisplay<T extends ProjectionValue>(dotKey: string, value: T, unitProfile: unknown, canonicalUnit: string | null = null) {
   const resolved = resolveMarkerUnitProfile(dotKey, unitProfile, canonicalUnit);
   return convertCanonicalWithDefinition(value, resolved.conversion);
 }
 
-/**
- * @param {string} dotKey
- * @param {number | null | undefined} value
- * @param {string} unitProfile
- * @param {string | null} [canonicalUnit]
- */
-export function convertDisplayToCanonical(dotKey, value, unitProfile, canonicalUnit = null) {
+export function convertDisplayToCanonical<T extends ProjectionValue>(dotKey: string, value: T, unitProfile: unknown, canonicalUnit: string | null = null) {
   const resolved = resolveMarkerUnitProfile(dotKey, unitProfile, canonicalUnit);
   return convertDisplayWithDefinition(value, resolved.conversion);
 }
 
-function comparableUnit(unit) {
+function comparableUnit(unit: unknown) {
   return String(unit || '')
     .trim()
     .replace(/\u03bc/g, 'µ')
@@ -186,7 +176,7 @@ function comparableUnit(unit) {
     .toLowerCase();
 }
 
-function conversionForInputUnit(dotKey, unit) {
+function conversionForInputUnit(dotKey: string, unit: unknown) {
   const comparable = comparableUnit(unit);
   const us = usProfileConversion(dotKey);
   if (us && comparable === comparableUnit(us.unit)) return us;
@@ -198,14 +188,7 @@ function conversionForInputUnit(dotKey, unit) {
   return null;
 }
 
-/**
- * @param {string} dotKey
- * @param {number} value
- * @param {string} inputUnit
- * @param {string} unitProfile
- * @param {string | null} [canonicalUnit]
- */
-export function convertUnitInputToCanonical(dotKey, value, inputUnit, unitProfile, canonicalUnit = null) {
+export function convertUnitInputToCanonical(dotKey: string, value: number, inputUnit: string, unitProfile: unknown, canonicalUnit: string | null = null) {
   const resolved = resolveMarkerUnitProfile(dotKey, unitProfile, canonicalUnit);
   if (!inputUnit || comparableUnit(inputUnit) === comparableUnit(resolved.canonicalUnit)) return value;
   if (comparableUnit(inputUnit) === comparableUnit(resolved.unit)) {
@@ -216,14 +199,7 @@ export function convertUnitInputToCanonical(dotKey, value, inputUnit, unitProfil
   return convertUserInputToSI(dotKey, value, inputUnit);
 }
 
-/**
- * @param {string} dotKey
- * @param {number} value
- * @param {string} targetUnit
- * @param {string} unitProfile
- * @param {string | null} [canonicalUnit]
- */
-export function convertCanonicalToInputUnit(dotKey, value, targetUnit, unitProfile, canonicalUnit = null) {
+export function convertCanonicalToInputUnit(dotKey: string, value: number, targetUnit: string, unitProfile: unknown, canonicalUnit: string | null = null) {
   const resolved = resolveMarkerUnitProfile(dotKey, unitProfile, canonicalUnit);
   if (!targetUnit || comparableUnit(targetUnit) === comparableUnit(resolved.canonicalUnit)) return value;
   if (comparableUnit(targetUnit) === comparableUnit(resolved.unit)) {
@@ -234,13 +210,7 @@ export function convertCanonicalToInputUnit(dotKey, value, targetUnit, unitProfi
   return convertSIToInputUnit(dotKey, value, targetUnit);
 }
 
-/**
- * @param {string} dotKey
- * @param {number | null | undefined} displayValue
- * @param {string} unitProfile
- * @param {string | null} [canonicalUnit]
- */
-export function getAlternateUnitForProfile(dotKey, displayValue, unitProfile, canonicalUnit = null) {
+export function getAlternateUnitForProfile(dotKey: string, displayValue: ProjectionValue, unitProfile: unknown, canonicalUnit: string | null = null) {
   if (displayValue == null || !Number.isFinite(displayValue)) return null;
   const resolved = resolveMarkerUnitProfile(dotKey, unitProfile, canonicalUnit);
   const canonicalValue = convertDisplayWithDefinition(displayValue, resolved.conversion);
@@ -255,12 +225,7 @@ export function getAlternateUnitForProfile(dotKey, displayValue, unitProfile, ca
   };
 }
 
-/**
- * @param {string} dotKey
- * @param {string} unitProfile
- * @param {string | null} [canonicalUnit]
- */
-export function getMarkerInputUnits(dotKey, unitProfile, canonicalUnit = null) {
+export function getMarkerInputUnits(dotKey: string, unitProfile: unknown, canonicalUnit: string | null = null) {
   const resolved = resolveMarkerUnitProfile(dotKey, unitProfile, canonicalUnit);
   const units = [resolved.unit, resolved.canonicalUnit];
   const usUnit = usProfileConversion(dotKey)?.unit;
@@ -279,9 +244,9 @@ export function getMarkerInputUnits(dotKey, unitProfile, canonicalUnit = null) {
   });
 }
 
-export function auditUnitProfileCoverage(unitProfile) {
+export function auditUnitProfileCoverage(unitProfile: unknown) {
   const profile = normalizeUnitProfile(unitProfile);
-  const resolved = [];
+  const resolved: Array<ReturnType<typeof resolveMarkerUnitProfile>> = [];
   for (const [categoryKey, category] of Object.entries(MARKER_SCHEMA)) {
     for (const [markerKey, marker] of Object.entries(category.markers || {})) {
       resolved.push(resolveMarkerUnitProfile(`${categoryKey}.${markerKey}`, profile, marker.unit));
@@ -292,7 +257,7 @@ export function auditUnitProfileCoverage(unitProfile) {
 
 // Preserve original precision for downstream score consumers before rounding a display projection.
 // Date lookup survives timeframe filtering of the displayed marker arrays.
-export function captureCanonicalScoring(marker, dates = []) {
+export function captureCanonicalScoring(marker: MarkerScoringSource, dates: string[] = []) {
   const keys = ['unit', 'values', 'refMin', 'refMax', 'optimalMin', 'optimalMax', 'phaseRefRanges', 'phaseLabels', 'contextRefRanges', 'contextRangeLabels', 'contextOptimalRanges', 'contextOptimalRangeLabels'];
   marker.canonicalScoring = Object.fromEntries(keys.filter(key => marker[key] !== undefined).map(key => [key, structuredClone(marker[key])]));
   marker.canonicalScoring.dateIndices = Object.fromEntries(dates.map((date, index) => [date, index]));

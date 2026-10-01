@@ -1,4 +1,4 @@
-// @ts-check
+import type { OptimalRange } from './schema.js';
 // Public, privacy-safe GitHub range suggestion links for built-in markers.
 
 import {
@@ -9,7 +9,7 @@ import {
 } from './schema.js';
 import { convertCanonicalToDisplay, getUnitProfileLabel, resolveMarkerUnitProfile } from './unit-profiles.js';
 
-function formatRange(min, max, unit) {
+function formatRange(min: number | null | undefined, max: number | null | undefined, unit: string) {
   if (min == null && max == null) return 'Not set';
   return `${min ?? '–'} to ${max ?? '–'}${unit ? ` ${unit}` : ''}`;
 }
@@ -17,11 +17,8 @@ function formatRange(min, max, unit) {
 /**
  * Build a public issue from catalog data only. The current user's result,
  * profile, age, sex, lab, dates, and imported ranges are never included.
- * @param {string} dotKey
- * @param {string} [unitProfile]
- * @returns {string | null}
  */
-export function markerRangeSuggestionIssueUrl(dotKey, unitProfile = 'EU') {
+export function markerRangeSuggestionIssueUrl(dotKey: string, unitProfile = 'EU') {
   if (typeof dotKey !== 'string') return null;
   const separator = dotKey.indexOf('.');
   if (separator <= 0) return null;
@@ -31,14 +28,14 @@ export function markerRangeSuggestionIssueUrl(dotKey, unitProfile = 'EU') {
   if (!marker) return null;
 
   const { unit } = resolveMarkerUnitProfile(dotKey, unitProfile, marker.unit);
-  const displayRange = (min, max) => {
-    const convert = value => {
+  const displayRange = (min: number | null | undefined, max: number | null | undefined) => {
+    const convert = (value: number | null | undefined) => {
       const converted = convertCanonicalToDisplay(dotKey, value, unitProfile, marker.unit);
       return converted == null ? converted : Number(converted.toPrecision(4));
     };
     return formatRange(convert(min), convert(max), unit);
   };
-  const optimal = OPTIMAL_RANGES[dotKey] || {};
+  const optimal: Partial<OptimalRange> = OPTIMAL_RANGES[dotKey] || {};
   const femaleReference = marker.refMin_f !== undefined || marker.refMax_f !== undefined
     ? displayRange(marker.refMin_f !== undefined ? marker.refMin_f : marker.refMin, marker.refMax_f !== undefined ? marker.refMax_f : marker.refMax)
     : 'Same as default / not separately set';

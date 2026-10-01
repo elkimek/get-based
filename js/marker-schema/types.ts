@@ -16,6 +16,7 @@ export interface MarkerCategory {
   markers: Record<string, MarkerDefinition>;
   group?: string;
   calculated?: boolean;
+  singlePoint?: boolean;
 }
 export type MarkerIdentityRow = [
   identityKey: string, currentDotKey: string,

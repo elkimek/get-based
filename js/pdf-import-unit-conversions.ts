@@ -1,4 +1,3 @@
-// @ts-check
 // pdf-import-unit-conversions.js — import review units and value conversion
 
 import {
@@ -9,7 +8,7 @@ import {
 } from './schema.js';
 import { SECONDARY_UNIT_CONVERSIONS } from './secondary-unit-conversions.js';
 
-function isPercentImportUnit(unit) {
+function isPercentImportUnit(unit: unknown) {
   const norm = normalizeUnitStr(String(unit || ''));
   return norm === '%' || norm === 'pct' || norm === 'percent' || norm === 'percentage';
 }
@@ -23,7 +22,7 @@ export const GENERIC_IMPORT_UNITS = [
   'g/mol', 'fL', 'pg', 'mm/h',
 ];
 
-function normalizeGenericImportUnit(unit) {
+function normalizeGenericImportUnit(unit: unknown) {
   return normalizeUnitStr(String(unit || ''))
     .replace(/^mcg\//, 'ug/')
     .replace(/^cells\//, '/')
@@ -50,12 +49,12 @@ const GENERIC_UNIT_FACTORS = new Map([
   ['ukat/l', { group: 'activity', factor: 60 }],
 ]);
 
-function getSchemaUnitForMarker(key) {
+function getSchemaUnitForMarker(key: string) {
   const [catKey, markerKey] = String(key || '').split('.');
-  return MARKER_SCHEMA[catKey]?.markers?.[markerKey]?.unit || '';
+  return MARKER_SCHEMA[catKey!]?.markers?.[markerKey!]?.unit || '';
 }
 
-function isRecognizedUnitForMarker(key, unit) {
+function isRecognizedUnitForMarker(key: string, unit: unknown) {
   if (!key) return false;
   if (!unit) return true;
   const aiUnit = normalizeUnitStr(unit);
@@ -76,11 +75,11 @@ function isRecognizedUnitForMarker(key, unit) {
   return false;
 }
 
-export function getValidUnitsForMarker(key) {
+export function getValidUnitsForMarker(key: string) {
   if (!key) return [];
   const [catKey, markerKey] = key.split('.');
-  const schema = MARKER_SCHEMA[catKey]?.markers?.[markerKey];
-  const units = [];
+  const schema = MARKER_SCHEMA[catKey!]?.markers?.[markerKey!];
+  const units: string[] = [];
   if (schema?.unit) units.push(schema.unit);
   const conv = UNIT_CONVERSIONS[key];
   if (conv?.usUnit) units.push(conv.usUnit);
@@ -93,7 +92,7 @@ export function getValidUnitsForMarker(key) {
   return [...new Set(units)];
 }
 
-export function convertSIToImportUnit(key, value, unit) {
+export function convertSIToImportUnit(key: string, value: number | null | undefined, unit: unknown) {
   if (value == null || isNaN(value)) return null;
   if (!key || !unit) return value;
   const aiUnit = normalizeUnitStr(unit);
@@ -122,7 +121,7 @@ export function convertSIToImportUnit(key, value, unit) {
   return null;
 }
 
-export function convertImportValueUnit(key, value, fromUnit, toUnit) {
+export function convertImportValueUnit(key: string, value: number | null | undefined, fromUnit: unknown, toUnit: unknown) {
   if (value == null || isNaN(value)) return null;
   if (!key) return null;
   if (normalizeUnitStr(fromUnit || '') === normalizeUnitStr(toUnit || '')) return value;
@@ -131,7 +130,7 @@ export function convertImportValueUnit(key, value, fromUnit, toUnit) {
   return convertSIToImportUnit(key, siValue, toUnit);
 }
 
-export function convertGenericImportValueUnit(value, fromUnit, toUnit) {
+export function convertGenericImportValueUnit(value: number | null | undefined, fromUnit: unknown, toUnit: unknown) {
   if (value == null || isNaN(value)) return null;
   const from = normalizeGenericImportUnit(fromUnit);
   const to = normalizeGenericImportUnit(toUnit);

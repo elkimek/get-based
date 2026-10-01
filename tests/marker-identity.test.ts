@@ -1,3 +1,5 @@
+import type { BuiltinMarkerIdentity } from '../js/marker-schema.js';
+import type { MarkerCategory } from '../js/marker-schema/types.js';
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
@@ -13,10 +15,9 @@ import {
   resolveBuiltinMarkerDotKey,
 } from '../js/marker-schema.js';
 import { BUILTIN_MARKER_IDENTITY_DEFINITIONS } from '../js/marker-schema/index.js';
-import { migrateProfileData } from '../js/profile-data-migrations.js';
 import * as schemaFacade from '../js/schema.js';
 
-function markerDotKeys(schema) {
+function markerDotKeys(schema: Record<string, MarkerCategory>) {
   return Object.entries(schema).flatMap(([categoryKey, category]) =>
     Object.keys(category.markers || {}).map(markerKey => `${categoryKey}.${markerKey}`));
 }
@@ -45,7 +46,7 @@ describe('stable built-in marker identity contract', () => {
   });
 
   it('keeps authored and generated identity catalogs aligned and immutable at runtime', () => {
-    const byId = identities => [...identities].sort((a, b) => a.id.localeCompare(b.id));
+    const byId = (identities: readonly BuiltinMarkerIdentity[]) => [...identities].sort((a, b) => a.id.localeCompare(b.id));
     expect(byId(BUILTIN_MARKER_IDENTITIES)).toEqual(byId(BUILTIN_MARKER_IDENTITY_DEFINITIONS));
     expect(Object.isFrozen(BUILTIN_MARKER_IDENTITIES)).toBe(true);
     expect(BUILTIN_MARKER_IDENTITIES.every(identity =>
@@ -102,80 +103,6 @@ describe('stable built-in marker identity contract', () => {
     expect(schemaFacade.getBuiltinMarkerId).toBe(getBuiltinMarkerId);
     expect(schemaFacade.getBuiltinMarkerDotKey).toBe(getBuiltinMarkerDotKey);
     expect(schemaFacade.resolveBuiltinMarkerDotKey).toBe(resolveBuiltinMarkerDotKey);
-  });
-
-  it('keeps existing legacy dotKey migration behavior on the shared alias table', () => {
-    const legacyProfile = {
-      entries: [{
-        date: '2026-01-15',
-        markers: {
-          'hormones.cPeptide': 1.1,
-          'lipids.lpa': 42,
-          'lipids.totalCholesterol': 4.8,
-          'lipids.hdlCholesterol': 1.4,
-          'lipids.cholHdlRatio': 3.4,
-          'hormones.insulin': 7.2,
-          'diabetes.insulin_d': 7.2,
-        },
-      }],
-      customMarkers: {
-        'hormones.cPeptide': { name: 'C-peptide' },
-        'lipids.lpa': { name: 'Lp(a)' },
-      },
-      markerNotes: { 'lipids.lpa': 'Inherited note' },
-      markerLabels: {
-        'lipids.totalCholesterol': 'Total cholesterol',
-        'hormones.insulin:2026-01-15': 'Fasting insulin',
-      },
-      refOverrides: {
-        'lipids.hdlCholesterol': { refMin: 1 },
-        'hormones.insulin:2026-01-15': { refMin: 2.6, refMax: 24.9, refSource: 'import' },
-      },
-      manualValues: { 'hormones.cPeptide:2026-01-15': true },
-      markerValueNotes: { 'lipids.cholHdlRatio:2026-01-15': 'Calculated by lab' },
-      markerPlacements: { 'gb:marker:insulin_d': { categoryKey: 'biochemistry' } },
-      importSnapshots: [{
-        id: 'legacy-alias-snapshot',
-        date: '2026-01-15',
-        markers: [
-          { mappedKey: 'hormones.insulin', suggestedKey: null, matched: true },
-          { mappedKey: null, suggestedKey: 'lipids.cholHdlRatio', matched: false },
-        ],
-      }],
-    };
-
-    const migrated = migrateProfileData(structuredClone(legacyProfile));
-    const markers = migrated.entries[0].markers;
-
-    expect(markers).toMatchObject({
-      'diabetes.cPeptide': 1.1,
-      'lipids.lpA': 42,
-      'lipids.cholesterol': 4.8,
-      'lipids.hdl': 1.4,
-      'calculatedRatios.cholHdlRatio': 3.4,
-      'diabetes.insulin': 7.2,
-    });
-    expect(Object.keys(markers).some(key => key in BUILTIN_MARKER_DOT_KEY_ALIASES)).toBe(false);
-    expect(migrated.customMarkers['hormones.cPeptide']).toBeUndefined();
-    expect(migrated.customMarkers['lipids.lpa']).toBeUndefined();
-    expect(migrated.markerNotes['lipids.lpA']).toBe('Inherited note');
-    expect(migrated.markerLabels['lipids.cholesterol']).toBe('Total cholesterol');
-    expect(migrated.markerLabels['diabetes.insulin:2026-01-15']).toBe('Fasting insulin');
-    expect(migrated.markerLabels['hormones.insulin:2026-01-15']).toBeUndefined();
-    expect(migrated.refOverrides['lipids.hdl']).toEqual({ refMin: 1 });
-    expect(migrated.refOverrides['diabetes.insulin:2026-01-15'])
-      .toEqual({ refMin: 2.6, refMax: 24.9, refSource: 'import' });
-    expect(migrated.refOverrides['hormones.insulin:2026-01-15']).toBeUndefined();
-    expect(migrated.manualValues['diabetes.cPeptide:2026-01-15']).toBe(true);
-    expect(migrated.markerValueNotes['calculatedRatios.cholHdlRatio:2026-01-15'])
-      .toBe('Calculated by lab');
-    expect(migrated.markerPlacements).toEqual({
-      'gb:marker:insulin': { categoryKey: 'biochemistry' },
-    });
-    expect(migrated.importSnapshots[0].markers).toMatchObject([
-      { mappedKey: 'diabetes.insulin', suggestedKey: null, matched: true },
-      { mappedKey: 'calculatedRatios.cholHdlRatio', suggestedKey: null, matched: true },
-    ]);
   });
 
   it('reserves a separate opaque identity namespace for future custom-marker adoption', () => {
