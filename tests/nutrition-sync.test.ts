@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { mergeImportedData } from '../js/data-merge.js';
 import { sanitizeNutritionProfileData } from '../js/nutrition-sync-sanitize.js';
 import { DELTA_ARRAYS, DELTA_SCALARS } from '../js/sync-delta-surfaces.js';
-import { stripNutritionMealsFromBlob } from '../js/sync-payload.js';
+import { stripNutritionMealsFromBlob } from '../js/sync-payload-codec.js';
 
 describe('meal cross-device sync surface', () => {
   it('admits meal rows, targets, and the AI timeframe to per-row sync while stripping full photos', () => {
@@ -33,15 +33,15 @@ describe('meal cross-device sync surface', () => {
           thumbnailUrl: `data:image/jpeg;base64,${'QUJD'.repeat(60_000)}`,
         }],
       }],
-    });
+    }) as { nutritionMeals: Array<{ images: unknown; responseCheckIn: unknown; components: unknown }> };
 
-    expect(safe.nutritionMeals[0].images).toEqual([
+    expect(safe.nutritionMeals[0]!.images).toEqual([
       { thumbnailUrl: 'data:image/jpeg;base64,VEhVTUI=' },
     ]);
-    expect(safe.nutritionMeals[0].responseCheckIn).toEqual({
+    expect(safe.nutritionMeals[0]!.responseCheckIn).toEqual({
       satiety2h: 3, energy2h: 2, recordedAt: '2026-08-24T14:30:00.000Z',
     });
-    expect(safe.nutritionMeals[0].components).toEqual([expect.objectContaining({
+    expect(safe.nutritionMeals[0]!.components).toEqual([expect.objectContaining({
       name: 'Chicken breast',
       nutrientsPer100g: { proteinG: 31, sodiumMg: 74 },
       foodData: { sourceName: 'USDA FoodData Central', dataset: 'FNDDS 2021-2023', fdcId: 101 },

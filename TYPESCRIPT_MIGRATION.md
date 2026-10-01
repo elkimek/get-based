@@ -444,6 +444,17 @@ Original cache/routing operations and asset ordering matched their pre-migration
 ASTs. Chromium offline cold launch, offline lazy features and failed-update retry
 passed; these checks do not establish whole-project parity.
 
+Meal thumbnail sanitization, photo provenance, intake/response math and editor
+draft navigation now use strict native TypeScript. Both persistence boundaries
+share component cleanup while preserving their different primitive/array guards.
+The wire codec owns outbound redaction alongside inbound decoding; the existing
+payload module retains its public exports and assembly order. Stored meals admit
+id/date fields while imported metadata stays opaque, separately from the authored
+meal schema. Four original suites are native with unchanged executable assertions.
+Durable regressions cover exact image limits, caller identity, enumeration order
+and redaction; 915 differential scenarios matched original outcomes and traces.
+The 36 targeted Chromium nutrition/persistence/request cases also passed.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, remaining workers,

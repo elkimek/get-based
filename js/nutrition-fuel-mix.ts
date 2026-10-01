@@ -1,4 +1,17 @@
-// @ts-check
+interface FuelNutrients { carbohydrateG?: unknown; fatG?: unknown; }
+interface FuelMeal {
+  nutrients?: FuelNutrients | null;
+  source?: { kind?: unknown } | null;
+  responseCheckIn?: { satiety2h?: unknown; energy2h?: unknown } | null;
+}
+interface FuelObservation { overlapScore: number; satiety2h: number | null; energy2h: number | null; }
+interface FuelPeriod {
+  fuelOverlap?: { available?: unknown; carbEnergyPercent?: unknown; completeMeals?: unknown; totalMeals?: unknown } | null;
+  dailyAverages?: { energyKcal?: unknown; fiberG?: unknown } | null;
+  nutrientCoverage?: { energyKcal?: { completeDays?: unknown }; fiberG?: { completeDays?: unknown } } | null;
+}
+interface FuelTargets { configured?: unknown; carbohydrateG?: unknown; fatG?: unknown; energyKcal?: unknown; fiberG?: unknown; }
+
 // nutrition-fuel-mix.js — transparent dietary carb/fat overlap estimates.
 //
 // This module describes logged intake. It does not estimate substrate oxidation,
@@ -8,18 +21,18 @@ export const CARBOHYDRATE_KCAL_PER_GRAM = 4;
 export const FAT_KCAL_PER_GRAM = 9;
 export const FUEL_RESPONSE_MINIMUM = 6;
 
-function finiteNonNegative(value) {
+function finiteNonNegative(value: unknown) {
   if (value === null || value === undefined || value === '') return null;
   const number = Number(value);
   return Number.isFinite(number) && number >= 0 ? number : null;
 }
 
-function rounded(value, digits = 1) {
+function rounded(value: number, digits = 1) {
   const factor = 10 ** digits;
   return Math.round(value * factor) / factor;
 }
 
-export function fuelDirection(carbEnergyFraction) {
+export function fuelDirection(carbEnergyFraction: unknown) {
   const fraction = Number(carbEnergyFraction);
   if (!Number.isFinite(fraction)) return 'Unknown mix';
   if (fraction >= 0.8) return 'Carb-dominant';
@@ -29,7 +42,7 @@ export function fuelDirection(carbEnergyFraction) {
   return 'Fat-dominant';
 }
 
-function ratioLabel(carbEnergyKcal, fatEnergyKcal) {
+function ratioLabel(carbEnergyKcal: number, fatEnergyKcal: number) {
   if (carbEnergyKcal <= 0) return 'Fat energy only';
   if (fatEnergyKcal <= 0) return 'Carb energy only';
   const ratio = carbEnergyKcal / fatEnergyKcal;
@@ -43,9 +56,8 @@ function ratioLabel(carbEnergyKcal, fatEnergyKcal) {
  * timing, hormones, circulating substrates, and oxidation are intentionally not
  * inferred by this intake-only index.
  *
- * @param {Record<string, any>} nutrients
  */
-export function calculateFuelOverlap(nutrients = {}) {
+export function calculateFuelOverlap(nutrients: FuelNutrients | null | undefined = {}) {
   const carbohydrateG = finiteNonNegative(nutrients?.carbohydrateG);
   const fatG = finiteNonNegative(nutrients?.fatG);
   if (carbohydrateG === null || fatG === null) return null;
@@ -72,7 +84,7 @@ export function calculateFuelOverlap(nutrients = {}) {
   };
 }
 
-function isVolumeOnlyDrink(meal) {
+function isVolumeOnlyDrink(meal: FuelMeal | null | undefined) {
   return ['manual-water', 'manual-beverage'].includes(String(meal?.source?.kind || ''));
 }
 
@@ -81,10 +93,9 @@ function isVolumeOnlyDrink(meal) {
  * each meal first avoids treating separated carb-only and fat-only meals as one
  * balanced mixed meal merely because their multi-day totals happen to match.
  *
- * @param {Array<any>} meals
  */
-export function summarizeFuelOverlap(meals = []) {
-  const foodMeals = (Array.isArray(meals) ? meals : []).filter(meal => !isVolumeOnlyDrink(meal));
+export function summarizeFuelOverlap(meals: unknown = []) {
+  const foodMeals = (Array.isArray(meals) ? meals as Array<FuelMeal | null | undefined> : []).filter(meal => !isVolumeOnlyDrink(meal));
   const knownMeals = foodMeals.filter(meal => finiteNonNegative(meal?.nutrients?.carbohydrateG) !== null
     && finiteNonNegative(meal?.nutrients?.fatG) !== null);
   const mixes = knownMeals.map(meal => calculateFuelOverlap(meal?.nutrients)).filter(Boolean);
@@ -125,26 +136,26 @@ export function summarizeFuelOverlap(meals = []) {
   };
 }
 
-function average(values) {
+function average(values: number[]) {
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
 }
 
-function responseLevel(value) {
+function responseLevel(value: unknown) {
   const number = Number(value);
   return Number.isInteger(number) && number >= 1 && number <= 3 ? number : null;
 }
 
-function responseComparison(observations, key) {
+function responseComparison(observations: FuelObservation[], key: 'satiety2h' | 'energy2h') {
   const eligible = observations.filter(item => responseLevel(item?.[key]) !== null);
   if (eligible.length < FUEL_RESPONSE_MINIMUM) return null;
   const ordered = [...eligible].sort((a, b) => a.overlapScore - b.overlapScore);
   const groupSize = Math.floor(ordered.length / 2);
   const lower = ordered.slice(0, groupSize);
   const higher = ordered.slice(-groupSize);
-  const overlapRange = higher[higher.length - 1].overlapScore - lower[0].overlapScore;
+  const overlapRange = higher[higher.length - 1]!.overlapScore - lower[0]!.overlapScore;
   if (overlapRange < 20) return { available: false, reason: 'variation', observations: eligible.length, overlapRange };
-  const lowerAverage = average(lower.map(item => item[key]));
-  const higherAverage = average(higher.map(item => item[key]));
+  const lowerAverage = average(lower.map(item => item[key]!));
+  const higherAverage = average(higher.map(item => item[key]!));
   const difference = Number(higherAverage) - Number(lowerAverage);
   return {
     available: true,
@@ -162,10 +173,9 @@ function responseComparison(observations, key) {
  * and higher-overlap meals. This is an exploratory within-person association,
  * not a causal or metabolic claim.
  *
- * @param {Array<any>} meals
  */
-export function summarizeFuelResponses(meals = []) {
-  const observations = (Array.isArray(meals) ? meals : []).flatMap(meal => {
+export function summarizeFuelResponses(meals: unknown = []) {
+  const observations = (Array.isArray(meals) ? meals as Array<FuelMeal | null | undefined> : []).flatMap(meal => {
     const mix = calculateFuelOverlap(meal?.nutrients);
     const satiety2h = responseLevel(meal?.responseCheckIn?.satiety2h);
     const energy2h = responseLevel(meal?.responseCheckIn?.energy2h);
@@ -188,10 +198,8 @@ export function summarizeFuelResponses(meals = []) {
  * The five-point band is a product tolerance around a personal plan, not a
  * biological optimum.
  *
- * @param {any} period
- * @param {any} targets
  */
-export function assessFuelStrategy(period = {}, targets = {}) {
+export function assessFuelStrategy(period: FuelPeriod | null | undefined = {}, targets: FuelTargets | null | undefined = {}) {
   const mix = period?.fuelOverlap;
   const configured = targets?.configured === true;
   const targetMix = configured ? calculateFuelOverlap({
@@ -201,7 +209,7 @@ export function assessFuelStrategy(period = {}, targets = {}) {
   const planDelta = mix?.available && targetMix
     ? Math.round(Number(mix.carbEnergyPercent) - Number(targetMix.carbEnergyPercent))
     : null;
-  const actions = [];
+  const actions: Array<{ kind: string; title: string; text: string }> = [];
   const completeMeals = Number(mix?.completeMeals || 0);
   const totalMeals = Number(mix?.totalMeals || 0);
   if (totalMeals && (completeMeals < 3 || completeMeals / totalMeals < 0.7)) {

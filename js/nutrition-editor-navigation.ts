@@ -1,9 +1,7 @@
-// @ts-check
 // nutrition-editor-navigation.js — entry-method tabs and logger-to-history handoff.
 
 const ACTION_ATTR = 'data-nutrition-action';
-/** @type {{content: DocumentFragment, className: string, scrollTop: number, dismissProtected: boolean, hasDraft: boolean}|null} */
-let suspendedEditor = null;
+let suspendedEditor: { content: DocumentFragment; className: string; scrollTop: number; dismissProtected: boolean; hasDraft: boolean } | null = null;
 
 export function hasSuspendedNutritionEditor() {
   return !!suspendedEditor;
@@ -13,8 +11,8 @@ export function suspendedNutritionEditorHasDraft() {
   return suspendedEditor?.hasDraft === true;
 }
 
-function editorHasDraft(modal) {
-  const photo = /** @type {HTMLInputElement | null} */ (modal.querySelector('#nutrition-photo-input'));
+function editorHasDraft(modal: HTMLElement) {
+  const photo = (modal.querySelector('#nutrition-photo-input') as HTMLInputElement | null);
   if (photo?.files?.length) return true;
   const selectors = [
     '#nutrition-meal-name', '#nutrition-meal-type', '#nutrition-note', '#nutrition-known-details',
@@ -74,13 +72,13 @@ export function setManualEntryMode({ focus = true } = {}) {
     button.setAttribute('aria-selected', String(selected));
   });
   if (focus) {
-    const mealName = /** @type {HTMLInputElement | null} */ (document.getElementById('nutrition-meal-name'));
+    const mealName = (document.getElementById('nutrition-meal-name') as HTMLInputElement | null);
     mealName?.scrollIntoView({ block: 'center' });
     mealName?.focus({ preventScroll: true });
   }
 }
 
-export function enhanceNutritionEditorNavigation(modal, { manualDefault = false } = {}) {
+export function enhanceNutritionEditorNavigation(modal: HTMLElement, { manualDefault = false } = {}) {
   const tabs = modal.querySelector('.nutrition-capture-tabs');
   if (tabs) {
     tabs.setAttribute('role', 'tablist');

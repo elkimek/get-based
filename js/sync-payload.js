@@ -6,6 +6,7 @@ import {
 } from './sync-payload-collectors.js';
 import {
   _bytesToBase64, _gzipString,
+  stripWearableCredentials, stripGeneticsSnpsFromBlob, stripNutritionMealsFromBlob, stripLocalOnlyProfileData,
 } from './sync-payload-codec.js';
 import { selectSyncedProfile } from './sync-profile-fields.js';
 import { sanitizeNutritionProfileData } from './nutrition-sync-sanitize.js';
@@ -17,6 +18,7 @@ export {
 export {
   _base64ToBytes, _bytesToBase64, _gzipString, _gunzipToStringCapped,
   _PER_ROW_DECOMPRESSED_CAP_BYTES, MAX_SYNC_PAYLOAD_BYTES, parseSyncPayload,
+  stripWearableCredentials, stripGeneticsSnpsFromBlob, stripNutritionMealsFromBlob, stripLocalOnlyProfileData,
 } from './sync-payload-codec.js';
 
 /** @param {any[]} rows @param {string} profileId */
@@ -89,46 +91,4 @@ export async function buildSyncPayload(profileId, importedData, remoteChatData) 
     }
   }
   return inner;
-}
-
-/** @param {any} importedData */
-export function stripWearableCredentials(importedData) {
-  if (!importedData?.wearableConnections) return importedData;
-  const { wearableConnections, ...rest } = importedData;
-  return rest;
-}
-
-// Strip `genetics.snps` from the legacy blob payload so the only carrier
-// for SNP membership is the per-key `genetics.snps` delta map path.
-/** @param {any} importedData */
-export function stripGeneticsSnpsFromBlob(importedData) {
-  if (!importedData?.genetics || typeof importedData.genetics !== 'object') return importedData;
-  const { snps, ...geneticsMetadata } = importedData.genetics;
-  return { ...importedData, genetics: geneticsMetadata };
-}
-
-// Meal records already have a dedicated per-meal delta surface. Keeping them
-// in the v3 compatibility blob as well would append every historical thumbnail
-// again whenever any unrelated profile field changes. New meal-aware clients
-// rebuild nutritionMeals from itemRow state after the blob merge.
-/** @param {any} importedData */
-export function stripNutritionMealsFromBlob(importedData) {
-  if (!importedData || typeof importedData !== 'object' || !('nutritionMeals' in importedData)) return importedData;
-  const { nutritionMeals: _nutritionMeals, ...rest } = importedData;
-  return rest;
-}
-
-// Runtime benchmarks are meaningful only on the device that executed them:
-// hardware, loaded model state, and timing do not transfer across devices.
-// Keep their records out of both legacy blob sync and v4 delta sync.
-/** @param {any} importedData */
-export function stripLocalOnlyProfileData(importedData) {
-  if (!importedData || typeof importedData !== 'object') return importedData;
-  if (!('importBenchmarks' in importedData) && !('deletedImportBenchmarkIds' in importedData)) return importedData;
-  const {
-    importBenchmarks: _importBenchmarks,
-    deletedImportBenchmarkIds: _deletedImportBenchmarkIds,
-    ...rest
-  } = importedData;
-  return rest;
 }

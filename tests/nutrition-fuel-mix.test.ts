@@ -103,7 +103,7 @@ describe('dietary carb-fat overlap', () => {
   });
 
   it('waits for repeated, varied check-ins before showing a personal association', () => {
-    const meal = (carbPercent, satiety2h, energy2h) => ({
+    const meal = (carbPercent: number, satiety2h: number, energy2h: number) => ({
       nutrients: {
         carbohydrateG: carbPercent / 4,
         fatG: (100 - carbPercent) / 9,

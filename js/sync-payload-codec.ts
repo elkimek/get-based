@@ -98,3 +98,42 @@ export async function parseSyncPayload(dataJson: unknown): Promise<ParsedSyncPay
   }
   throw new Error('Invalid sync payload: unknown shape');
 }
+
+// Pure outbound redaction shares the wire codec, independent of storage/UI.
+export function stripWearableCredentials(importedData: unknown) {
+  if (!(importedData as Record<string, unknown> | null | undefined)?.wearableConnections) return importedData;
+  const { wearableConnections, ...rest } = importedData as Record<string, unknown>;
+  return rest;
+}
+
+// Strip `genetics.snps` from the legacy blob payload so the only carrier
+// for SNP membership is the per-key `genetics.snps` delta map path.
+export function stripGeneticsSnpsFromBlob(importedData: unknown) {
+  if (!(importedData as Record<string, unknown> | null | undefined)?.genetics || typeof (importedData as Record<string, unknown>).genetics !== 'object') return importedData;
+  const { snps, ...geneticsMetadata } = (importedData as Record<string, unknown>).genetics as Record<string, unknown>;
+  return { ...importedData as Record<string, unknown>, genetics: geneticsMetadata };
+}
+
+// Meal records already have a dedicated per-meal delta surface. Keeping them
+// in the v3 compatibility blob as well would append every historical thumbnail
+// again whenever any unrelated profile field changes. New meal-aware clients
+// rebuild nutritionMeals from itemRow state after the blob merge.
+export function stripNutritionMealsFromBlob(importedData: unknown) {
+  if (!importedData || typeof importedData !== 'object' || !('nutritionMeals' in importedData)) return importedData;
+  const { nutritionMeals: _nutritionMeals, ...rest } = importedData as Record<string, unknown>;
+  return rest;
+}
+
+// Runtime benchmarks are meaningful only on the device that executed them:
+// hardware, loaded model state, and timing do not transfer across devices.
+// Keep their records out of both legacy blob sync and v4 delta sync.
+export function stripLocalOnlyProfileData(importedData: unknown) {
+  if (!importedData || typeof importedData !== 'object') return importedData;
+  if (!('importBenchmarks' in importedData) && !('deletedImportBenchmarkIds' in importedData)) return importedData;
+  const {
+    importBenchmarks: _importBenchmarks,
+    deletedImportBenchmarkIds: _deletedImportBenchmarkIds,
+    ...rest
+  } = importedData as Record<string, unknown>;
+  return rest;
+}

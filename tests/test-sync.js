@@ -1913,7 +1913,7 @@ await import('../js/settings.js');
 
   // Push side: stripWearableCredentials removes wearableConnections from the payload
   assert('buildSyncPayload strips wearableConnections', syncPayloadSrc.includes('stripWearableCredentials(importedData)'));
-  assert('stripWearableCredentials drops wearableConnections key', syncPayloadSrc.includes('{ wearableConnections, ...rest } = importedData'));
+  assert('stripWearableCredentials drops wearableConnections key', syncPayloadCodecSrc.includes('{ wearableConnections, ...rest } = importedData'));
 
   // Pull side: must re-inject local wearableConnections into incoming blob so it isn't clobbered.
   // The stripped remote payload arrives with no wearableConnections; without this preserve step
@@ -3048,15 +3048,15 @@ await import('../js/settings.js');
 
   // Push-side strip: function exists + is called inside buildSyncPayload
   assert('stripGeneticsSnpsFromBlob defined',
-    /function stripGeneticsSnpsFromBlob\(/.test(syncPayloadSrc));
+    /function stripGeneticsSnpsFromBlob\(/.test(syncPayloadCodecSrc));
   assert('buildSyncPayload calls stripGeneticsSnpsFromBlob on importedData',
     /buildSyncPayload[\s\S]{0,3000}stripGeneticsSnpsFromBlob\(/.test(syncPayloadSrc));
   // Implementation uses rest-spread destructuring (`{ snps, ...rest }`)
   // rather than `delete` — both achieve the same semantic, but the
   // destructure also avoids mutating the caller's object. Match either.
   assert('stripGeneticsSnpsFromBlob removes .snps but keeps top-level genetics',
-    /stripGeneticsSnpsFromBlob[\s\S]{0,400}\{\s*snps,\s*\.\.\.[a-zA-Z_]+\s*\}\s*=\s*importedData\.genetics/.test(syncPayloadSrc)
-    || /stripGeneticsSnpsFromBlob[\s\S]{0,400}delete[\s\S]{0,80}\.snps/.test(syncPayloadSrc));
+    /stripGeneticsSnpsFromBlob[\s\S]{0,400}\{\s*snps,\s*\.\.\.[a-zA-Z_]+\s*\}\s*=\s*importedData\.genetics/.test(syncPayloadCodecSrc)
+    || /stripGeneticsSnpsFromBlob[\s\S]{0,400}delete[\s\S]{0,80}\.snps/.test(syncPayloadCodecSrc));
 
   // Push-side scalar plan: `genetics` scalar payload carries metadata
   // only (snps stripped from the {v: ...} wrapper).

@@ -6,6 +6,11 @@
 // AI request is being prepared and are stripped again at this storage boundary.
 // A non-extractable AES key encrypts every local cached meal payload.
 
+/**
+ * Reader expectations for existing storage consumers, not a validation result.
+ * @typedef {Record<string, unknown> & {id?: string, eatenAt?: string, updatedAt?: string, createdAt?: string, name?: string, reviewed?: unknown, images?: unknown, image?: unknown}} MealReader
+ */
+
 import { state } from './state.js';
 import { computeNutritionSummary, mergeNutritionOperationSurface, NUTRITION_SUMMARY_VERSION } from './nutrition-summary.js';
 import { getDailyRange } from './wearables-store.js';
@@ -240,9 +245,10 @@ function createMealId() {
   return `meal-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/** @returns {MealReader & {id: string, eatenAt: string, updatedAt: string}} */
 function normalizeMeal(meal, { preserveUpdatedAt = false } = {}) {
   const now = new Date().toISOString();
-  const sanitized = sanitizeNutritionMeal(meal);
+  const sanitized = /** @type {MealReader | null | undefined} */ (sanitizeNutritionMeal(meal));
   const eatenAt = new Date(sanitized?.eatenAt || now);
   if (!Number.isFinite(eatenAt.getTime())) throw new Error('A valid meal date is required.');
   const suppliedUpdatedAt = new Date(sanitized?.updatedAt || '');
@@ -377,8 +383,8 @@ export async function deleteNutritionDB(profileId) {
 }
 
 export async function buildNutritionArchive(profileId) {
-  const meals = (await listNutritionMeals(profileId, { limit: 10000 }))
-    .map(sanitizeNutritionMeal);
+  const meals = /** @type {MealReader[]} */ ((await listNutritionMeals(profileId, { limit: 10000 }))
+    .map(sanitizeNutritionMeal));
   return {
     version: 1,
     exportedAt: new Date().toISOString(),
@@ -487,12 +493,12 @@ function mealFreshness(meal) {
 }
 
 function canonicalNutritionMeals(meals) {
-  return (Array.isArray(meals) ? meals : [])
-    .map(sanitizeNutritionMeal)
+  return /** @type {import('./nutrition-sync-sanitize.js').StoredNutritionMeal[]} */ (/** @type {MealReader[]} */ ((Array.isArray(meals) ? meals : [])
+    .map(sanitizeNutritionMeal))
     .filter(meal => meal && typeof meal.id === 'string' && meal.id
-      && Number.isFinite(Date.parse(meal.eatenAt || '')))
+      && Number.isFinite(Date.parse(meal.eatenAt || ''))))
     .sort((a, b) => {
-      const dateOrder = Date.parse(b.eatenAt) - Date.parse(a.eatenAt);
+      const dateOrder = Date.parse(/** @type {string} */ (b.eatenAt)) - Date.parse(/** @type {string} */ (a.eatenAt));
       return dateOrder || String(a.id).localeCompare(String(b.id));
     });
 }
@@ -707,7 +713,7 @@ async function saveProfileMeal(profileId, importedData, meal) {
   }
 
   const byId = new Map(canonicalNutritionMeals(importedData.nutritionMeals).map(item => [item.id, item]));
-  byId.set(saved.id, sanitizeNutritionMeal(saved));
+  byId.set(saved.id, /** @type {import('./nutrition-sync-sanitize.js').StoredNutritionMeal} */ (sanitizeNutritionMeal(saved)));
   importedData.nutritionMeals = canonicalNutritionMeals([...byId.values()]);
   clearTombstone(importedData, 'nutritionMeals', saved.id);
   let persistedData = null;

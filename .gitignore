@@ -378,3 +378,9 @@ deploy/profile-share/data/
 /version.js
 /scripts/service-worker-source.js
 /tests/helpers/classic-service-worker.js
+
+# Native meal persistence, provenance, intake and draft navigation
+/js/nutrition-sync-sanitize.js
+/js/nutrition-photo-provenance.js
+/js/nutrition-editor-navigation.js
+/js/nutrition-fuel-mix.js
