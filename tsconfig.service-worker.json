@@ -1,15 +1,5 @@
 {
-  "description": "checkJs coverage for the classic service worker entry point and runtime.",
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "checkJs": true,
-    "lib": ["ES2022", "WebWorker"],
-    "module": "ES2022",
-    "moduleResolution": "Bundler"
-  },
-  "include": [
-    "types/service-worker-globals.d.ts",
-    "service-worker.js",
-    "service-worker-runtime.js"
-  ]
+  "description": "Strict native TypeScript coverage for the classic service-worker graph.",
+  "extends": "./tsconfig.worker-migration.json",
+  "compilerOptions": { "noEmit": true }
 }

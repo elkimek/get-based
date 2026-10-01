@@ -54,6 +54,7 @@ const serverCheckJsConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig
 const serviceWorkerCheckJsConfig = JSON.parse(
   fs.readFileSync(path.join(ROOT, 'tsconfig.service-worker.json'), 'utf8'),
 );
+const workerMigrationConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.worker-migration.json'), 'utf8'));
 const strictNullRatchetSrc = fs.readFileSync(path.join(ROOT, 'scripts', 'strict-null-ratchet.mjs'), 'utf8');
 const strictNullBaseline = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts', 'strict-null-baseline.json'), 'utf8'));
 const appEventListenersSrc = fs.readFileSync(path.join(ROOT, 'js', 'app-event-listeners.js'), 'utf8');
@@ -203,12 +204,16 @@ assert('server checkJs covers every production API, shared server module, and th
     serverCheckJsConfig.include?.includes('api/**/*.js') &&
     serverCheckJsConfig.include?.includes('lib/**/*.js') &&
     serverCheckJsConfig.include?.includes('dev-server.js'));
-assert('service-worker checkJs uses WebWorker types and covers both classic scripts',
+assert('service-worker strict native checks use WebWorker types and cover the complete classic graph',
   pkg.scripts?.['typecheck:service-worker'] === 'tsc -p tsconfig.service-worker.json' &&
-    serviceWorkerCheckJsConfig.compilerOptions?.checkJs === true &&
-    serviceWorkerCheckJsConfig.compilerOptions?.lib?.includes('WebWorker') &&
-    serviceWorkerCheckJsConfig.include?.includes('service-worker.js') &&
-    serviceWorkerCheckJsConfig.include?.includes('service-worker-runtime.js'));
+    serviceWorkerCheckJsConfig.extends === './tsconfig.worker-migration.json' &&
+    workerMigrationConfig.extends === './tsconfig.migration.json' &&
+    workerMigrationConfig.compilerOptions?.lib?.includes('WebWorker') &&
+    workerMigrationConfig.compilerOptions?.moduleDetection === 'legacy' &&
+    workerMigrationConfig.include?.includes('service-worker.ts') &&
+    workerMigrationConfig.include?.includes('service-worker-runtime.ts') &&
+    workerMigrationConfig.include?.includes('service-worker-assets.ts') &&
+    workerMigrationConfig.include?.includes('version.ts'));
 assert('strict-null debt is ratcheted globally and per file',
   pkg.scripts?.['typecheck:strict-null'] === 'node scripts/strict-null-ratchet.mjs' &&
     strictNullRatchetSrc.includes('strictNullChecks: true') &&

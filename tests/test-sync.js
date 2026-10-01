@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-sync.js — Verify sync module exports, payload format, settings UI
 //
@@ -141,7 +142,7 @@ await import('../js/settings.js');
   const modalSharedCssSrc = await fetchWithRetry('css/modal-shared.css');
   const settingsCssSrc = await fetchWithRetry('css/settings.css');
   const themeExtraSrc = await fetchWithRetry('themes-extra.css');
-  const serviceWorkerSrc = await fetchWithRetry('service-worker.js');
+  const serviceWorkerSrc = await readServiceWorkerSource(relative => fetchWithRetry(relative));
   const utilsSrc = await fetchWithRetry('js/utils.js');
   const sunSessionUISrc = await fetchWithRetry('js/sun-session-ui.js');
   const lightDevicesSrc = await fetchWithRetry('js/light-devices.js');

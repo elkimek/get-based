@@ -1,3 +1,4 @@
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { setRuntimeWindow } from './helpers/runtime-globals.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -61,7 +62,7 @@ describe('api runtime adapter', () => {
     const apiSrc = readFileSync(new URL('../js/api.js', import.meta.url), 'utf8');
     const appShellHooksSrc = readFileSync(new URL('../js/app-shell-hooks.js', import.meta.url), 'utf8');
     const startupOAuthSrc = readFileSync(new URL('../js/startup-oauth-callbacks.js', import.meta.url), 'utf8');
-    const swSrc = readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
+    const swSrc = readServiceWorkerSource(relative => readFileSync(new URL('../' + relative, import.meta.url), 'utf8'));
 
     expect(apiRuntimeSrc).not.toContain("from './provider-panels.js'");
     expect(apiRuntimeSrc).not.toContain("import('./provider-panels.js')");

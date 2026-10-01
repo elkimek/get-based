@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { captureRuntimeGlobals } from './helpers/runtime-globals.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-onboarding-view-runtime.js - Dashboard onboarding runtime adapter behavior.
@@ -96,7 +97,7 @@ try {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const onboardingSrc = fs.readFileSync(path.join(root, 'js/onboarding-view.js'), 'utf8');
   const onboardingRuntimeSrc = fs.readFileSync(path.join(root, 'js/onboarding-view-runtime.js'), 'utf8');
-  const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
+  const swSrc = readServiceWorkerSource(relative => fs.readFileSync(path.join(root, relative), 'utf8'));
   assert('onboarding view delegates browser globals through runtime adapter',
     onboardingSrc.includes("from './onboarding-view-runtime.js'") &&
       !/\bwindow(?:\.|\s*\[)/.test(onboardingSrc) &&

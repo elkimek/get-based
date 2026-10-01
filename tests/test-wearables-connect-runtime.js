@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { setRuntimeValue, captureRuntimeGlobals } from './helpers/runtime-globals.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-wearables-connect-runtime.js - Wearables connect runtime adapter behavior.
@@ -75,7 +76,7 @@ try {
   const connectRuntimeSrc = fs.readFileSync(path.join(root, 'js/wearables-connect-runtime.js'), 'utf8');
   const settingsRuntimeSrc = fs.readFileSync(path.join(root, 'js/wearables-settings-runtime.js'), 'utf8');
   const appShellHooksSrc = fs.readFileSync(path.join(root, 'js/app-shell-hooks.js'), 'utf8');
-  const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
+  const swSrc = readServiceWorkerSource(relative => fs.readFileSync(path.join(root, relative), 'utf8'));
   assert('wearables connect delegates browser globals through runtime adapter',
     connectSrc.includes("from './wearables-connect-runtime.js'") &&
       !/\bwindow(?:\.|\s*\[)/.test(connectSrc) &&

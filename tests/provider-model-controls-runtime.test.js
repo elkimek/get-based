@@ -1,3 +1,4 @@
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 
@@ -58,7 +59,7 @@ describe('provider model controls runtime adapter', () => {
 
   it('keeps provider-model-controls.js browser globals behind the adapter', () => {
     const controlsSrc = readFileSync(new URL('../js/provider-model-controls.js', import.meta.url), 'utf8');
-    const swSrc = readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
+    const swSrc = readServiceWorkerSource(relative => readFileSync(new URL('../' + relative, import.meta.url), 'utf8'));
 
     expect(controlsSrc).toContain("from './provider-model-controls-runtime.js'");
     expect(/\bwindow(?:\.|\s*\[)/.test(controlsSrc)).toBe(false);

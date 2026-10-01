@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static sun-session UI delegated-action source guards.
 
@@ -17,7 +18,7 @@ const uiHookSrc = fs.readFileSync(path.join(root, 'js/sun-session-ui-hooks.js'),
 const lightSunAiHooksSrc = fs.readFileSync(path.join(root, 'js/light-sun-ai-hooks.js'), 'utf8');
 const appLightSunSrc = fs.readFileSync(path.join(root, 'js/app-light-sun-modules.js'), 'utf8');
 const appUiShellSrc = fs.readFileSync(path.join(root, 'js/app-ui-shell-modules.js'), 'utf8');
-const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
+const swSrc = readServiceWorkerSource(relative => fs.readFileSync(path.join(root, relative), 'utf8'));
 
 
 

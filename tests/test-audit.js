@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-audit.js — Pre-release audit fixes. Source-inspection across data.js,
 // views.js, chat.js, markdown.js, utils.js, schema.js, api.js, export.js,
@@ -62,7 +63,7 @@ assert('SW registration bypasses cached import scripts for version detection',
   serviceWorkerUpdateSrc.includes("updateViaCache: 'none'"));
 assert('SW has explicit dev-host offline test opt-in',
   serviceWorkerUpdateSrc.includes('dev-sw=1') && serviceWorkerUpdateSrc.includes('shouldRegisterServiceWorker'));
-const swAuditSrc = read('service-worker.js');
+const swAuditSrc = readServiceWorkerSource(relative => read(relative));
 assert('SW uses importScripts for version', swAuditSrc.includes("importScripts('/version.js')"));
 assert('SW CACHE_NAME uses semver', swAuditSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 assert('SW treats app.getbased.health as production host', swAuditSrc.includes("'app.getbased.health'"));

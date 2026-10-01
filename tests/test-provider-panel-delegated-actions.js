@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static provider panel delegated-action source guards.
 
@@ -14,7 +15,7 @@ const modelControlsSrc = fs.readFileSync(path.join(root, 'js/provider-model-cont
 const delegatesSrc = fs.readFileSync(path.join(root, 'js/provider-panel-delegates.js'), 'utf8');
 const panelsSrc = fs.readFileSync(path.join(root, 'js/provider-panels.js'), 'utf8');
 const ppqSrc = fs.readFileSync(path.join(root, 'js/provider-ppq-panels.js'), 'utf8');
-const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
+const swSrc = readServiceWorkerSource(relative => fs.readFileSync(path.join(root, relative), 'utf8'));
 
 
 

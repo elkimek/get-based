@@ -1,3 +1,4 @@
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { setRuntimeWindow } from './helpers/runtime-globals.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -71,7 +72,7 @@ describe('startup maintenance runtime adapter', () => {
 
   it('keeps startup-maintenance.js browser globals behind the adapter', () => {
     const startupSrc = readFileSync(new URL('../js/startup-maintenance.js', import.meta.url), 'utf8');
-    const swSrc = readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
+    const swSrc = readServiceWorkerSource(relative => readFileSync(new URL('../' + relative, import.meta.url), 'utf8'));
 
     expect(startupSrc).toContain("from './startup-maintenance-runtime.js'");
     expect(startupSrc).toContain("import('./light-devices.js')");

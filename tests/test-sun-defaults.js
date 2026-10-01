@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-sun-defaults.js — Onboarding defaults: Fitzpatrick mapping, OTT score
 // boundaries, option-list shapes, getSunDefaults / saveSunDefaults round-trip,
@@ -34,7 +35,7 @@ const appLightSunSrc = fs.readFileSync(path.join(root, 'js/app-light-sun-modules
 const aiSaveHooksSrc = fs.readFileSync(path.join(root, 'js/light-ai-save-hooks.js'), 'utf8');
 const onboardingAiSrc = fs.readFileSync(path.join(root, 'js/sun-onboarding-ai.js'), 'utf8');
 const globalsSrc = fs.readFileSync(path.join(root, 'types/globals.d.ts'), 'utf8');
-const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
+const swSrc = readServiceWorkerSource(relative => fs.readFileSync(path.join(root, relative), 'utf8'));
 const originalDelegateDomGlobals = {
   document: globalThis.document,
   HTMLElement: globalThis.HTMLElement,

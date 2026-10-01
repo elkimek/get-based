@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static Light Environment delegated-action source guards.
 
@@ -18,7 +19,7 @@ const appLightSunSrc = fs.readFileSync(path.join(root, 'js/app-light-sun-modules
 const envShellHooksSrc = fs.readFileSync(path.join(root, 'js/light-env-shell-hooks.js'), 'utf8');
 const lightSunLoaderSrc = fs.readFileSync(path.join(root, 'js/light-sun-loader.js'), 'utf8');
 const navSrc = fs.readFileSync(path.join(root, 'js/nav.js'), 'utf8');
-const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
+const swSrc = readServiceWorkerSource(relative => fs.readFileSync(path.join(root, relative), 'utf8'));
 const envUiSrc = `${envSrc}\n${screenSrc}`;
 
 

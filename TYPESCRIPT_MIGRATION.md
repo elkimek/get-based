@@ -432,9 +432,21 @@ opaque extension retention. A 1,210-scenario comparison matched the original
 normalizer's values, errors and property-read order. Deletion clocks, clear/edit
 conflicts, missing-body recovery, caps and storage ordering remain unchanged.
 
+The complete classic service-worker graph is now authored in TypeScript: bootstrap,
+cache-routing runtime, version assignment and ordered asset manifest. Development
+loads the manifest with `importScripts`; production inlines it and omits its separate
+URL, retaining the existing 350-resource budget. Strict WebWorker checking covers
+all four scripts. TypeScript 7 always emits strict mode; the build removes only its
+leading generated directive from these classic outputs to retain their original
+execution mode. A VM regression checks the actual emitted runtime. Source checks
+follow the real bootstrap and manifest rather than an incomplete bootstrap alone.
+Original cache/routing operations and asset ordering matched their pre-migration
+ASTs. Chromium offline cold launch, offline lazy features and failed-update retry
+passed; these checks do not establish whole-project parity.
+
 ## Remaining work
 
-Migrate the remaining browser features, server/API and companion code, workers,
+Migrate the remaining browser features, server/API and companion code, remaining workers,
 build tools, test harnesses and test cases; consolidate repeated contracts,
 runtime dependency plumbing, schemas and fixtures; remove transitional JS/type
 infrastructure once all sources are strict TypeScript. Verify persistence,

@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 813 |
-| Internal import edges | 3446 |
+| Modules | 814 |
+| Internal import edges | 3447 |
 | Dynamic internal edges | 119 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -31,7 +31,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | standalone-server | `server/profile-share-server.js` | server-shared, server-routing |
 | agent-companion | `server/agent-host-server.js` | server-shared, shared |
 | companion-cli | `bin/getbased-companion.js` | server-shared, agent-companion |
-| service-worker | `service-worker.js`, `service-worker-runtime.js` | service-worker |
+| service-worker | `service-worker.js`, `service-worker-runtime.js`, `service-worker-assets.js` | service-worker |
 
 ### Facade-only implementation modules
 
@@ -1731,9 +1731,10 @@ Install and control the Linux user-level agent companion.
 
 Classic service worker entry point and cache-routing runtime.
 
-<details><summary><code>service</code> family — 2 modules</summary>
+<details><summary><code>service</code> family — 3 modules</summary>
 
-- [`service-worker-runtime.js`](service-worker-runtime.js) → no in-scope imports
-- [`service-worker.js`](service-worker.js) → [`service-worker-runtime.js`](service-worker-runtime.js)
+- [`service-worker-assets.ts`](service-worker-assets.ts) → no in-scope imports
+- [`service-worker-runtime.ts`](service-worker-runtime.ts) → no in-scope imports
+- [`service-worker.ts`](service-worker.ts) → [`service-worker-assets.ts`](service-worker-assets.ts), [`service-worker-runtime.ts`](service-worker-runtime.ts)
 
 </details>

@@ -4,7 +4,7 @@ import ts from 'typescript-api';
 import { isSourceFile, sourcePath, runtimePath, walkSourceFiles } from './source-files.js';
 
 export const COVERAGE_ROOTS = ['js', 'api', 'lib', 'server', 'shared', 'bin'];
-export const COVERAGE_FILES = ['dev-server.js', 'service-worker.js', 'service-worker-runtime.js', 'version.js'];
+export const COVERAGE_FILES = ['dev-server.js', 'service-worker.js', 'service-worker-runtime.js', 'service-worker-assets.js', 'version.js'];
 // Collect executable JS offsets from the same artifacts in Node and browsers.
 // Inventories can separately expose their canonical TypeScript sources.
 export const COVERAGE_INCLUDE = [...COVERAGE_ROOTS.map(root => `${root}/**/*.{js,mjs}`), ...COVERAGE_FILES];

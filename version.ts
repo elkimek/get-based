@@ -1,3 +1,4 @@
+interface WorkerGlobalScope { APP_VERSION: string; }
 // version.js — Single source of truth for app version (semver)
 // Classic script (not ES module) so it works in both browser and service worker.
 // Browser: <script src="version.js"> sets global APP_VERSION

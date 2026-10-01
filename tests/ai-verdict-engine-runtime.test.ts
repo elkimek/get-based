@@ -1,3 +1,4 @@
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { setRuntimeWindow } from './helpers/runtime-globals.js';
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -67,7 +68,7 @@ describe('ai verdict engine runtime adapter', () => {
 
   it('keeps counted ai verdict browser globals behind the adapter', () => {
     const engineSrc = readFileSync(new URL('../js/ai-verdict-engine.js', import.meta.url), 'utf8');
-    const swSrc = readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
+    const swSrc = readServiceWorkerSource(relative => readFileSync(new URL('../' + relative, import.meta.url), 'utf8'));
 
     expect(engineSrc).toContain("from './ai-verdict-engine-runtime.js'");
     expect(/\bwindow(?:\.|\s*\[)/.test(engineSrc)).toBe(false);

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Light channel view delegated-action and dependency wiring guards.
 
@@ -13,7 +14,7 @@ const hooksSrc = fs.readFileSync(path.join(root, 'js/light-channel-view-hooks.js
 const uiHooksSrc = fs.readFileSync(path.join(root, 'js/light-channel-view-ui-hooks.js'), 'utf8');
 const lightSunModulesSrc = fs.readFileSync(path.join(root, 'js/app-light-sun-modules.js'), 'utf8');
 const uiShellModulesSrc = fs.readFileSync(path.join(root, 'js/app-ui-shell-modules.js'), 'utf8');
-const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
+const swSrc = readServiceWorkerSource(relative => fs.readFileSync(path.join(root, relative), 'utf8'));
 
 
 

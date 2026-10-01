@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { setRuntimeValue, captureRuntimeGlobals } from './helpers/runtime-globals.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-context-card-lifestyle-runtime.js - Lifestyle context runtime adapter behavior.
@@ -104,7 +105,7 @@ try {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const editorSrc = fs.readFileSync(path.join(root, 'js/context-card-lifestyle-editors-impl.js'), 'utf8');
   const runtimeSrc = fs.readFileSync(path.join(root, 'js/context-card-lifestyle-runtime.js'), 'utf8');
-  const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
+  const swSrc = readServiceWorkerSource(relative => fs.readFileSync(path.join(root, relative), 'utf8'));
   assert('lifestyle editor delegates browser globals through runtime adapter',
     editorSrc.includes("from './context-card-lifestyle-runtime.js'") &&
       !/\bwindow(?:\.|\s*\[)/.test(editorSrc) &&

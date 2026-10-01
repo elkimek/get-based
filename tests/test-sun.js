@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-sun.js — Sun session orchestration: lifecycle, hydration, rolling
 // totals, vit-D IU accumulation, MED carry-over.
@@ -656,7 +657,7 @@ const {
   const runtimeSrc = await fs.readFile(new URL('../js/sun-runtime.js', import.meta.url), 'utf8');
   const appLightSunSrc = await fs.readFile(new URL('../js/app-light-sun-modules.js', import.meta.url), 'utf8');
   const aiHooksSrc = await fs.readFile(new URL('../js/light-sun-ai-hooks.js', import.meta.url), 'utf8');
-  const swSrc = await fs.readFile(new URL('../service-worker.js', import.meta.url), 'utf8');
+  const swSrc = await readServiceWorkerSource(relative => fs.readFile(new URL('../' + relative, import.meta.url), 'utf8'));
   assert('Sun session model owns shared option/safety constants',
     sunSrc.includes("from './sun-session-model.js'") &&
     modelSrc.includes('export const EXPOSURE_PRESETS') &&

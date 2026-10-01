@@ -18,6 +18,7 @@ const ROOT_PRODUCTION_JS_FILES = [
   path.join(ROOT, 'dev-server.js'),
   path.join(ROOT, 'service-worker.js'),
   path.join(ROOT, 'service-worker-runtime.js'),
+  path.join(ROOT, 'service-worker-assets.js'),
   path.join(ROOT, 'version.js'),
 ];
 const TEST_JS_DIR = path.join(ROOT, 'tests');

@@ -1,3 +1,4 @@
+import { executeClassicServiceWorker } from './helpers/classic-service-worker.js';
 import { jsonResponse } from './helpers/http-responses.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -95,8 +96,7 @@ async function loadServiceWorker({ hostname = 'preview.getbased.health', fetchIm
   });
 
   vi.resetModules();
-  await import('../service-worker-runtime.js');
-  await import('../service-worker.js');
+  executeClassicServiceWorker(self, () => { self.APP_VERSION = '9.9.9'; });
   return { cache, caches, listeners, matches, opened, progressClient, self };
 }
 

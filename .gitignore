@@ -370,3 +370,11 @@ deploy/profile-share/data/
 /js/chat-storage-safety.js
 /js/chat-personality-merge.js
 /js/sync-chat-merge.js
+
+# Native classic worker scripts and build-source reader
+/service-worker.js
+/service-worker-runtime.js
+/service-worker-assets.js
+/version.js
+/scripts/service-worker-source.js
+/tests/helpers/classic-service-worker.js

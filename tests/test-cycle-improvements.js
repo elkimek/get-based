@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 // test-cycle-improvements.js — Browser test for cycle improvements
 //
 // Run: node tests/test-cycle-improvements.js  (or via npm test)
@@ -343,7 +344,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
         && !cycleSrc.includes('getViewRuntimeFunction'));
 
     // Service worker cache version
-    const swSrc = read('service-worker.js');
+    const swSrc = readServiceWorkerSource(relative => read(relative));
     assert('SW uses importScripts for version', swSrc.includes("importScripts('/version.js'"));
     assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));
   }

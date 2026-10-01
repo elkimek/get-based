@@ -1,3 +1,4 @@
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -27,7 +28,7 @@ describe('production startup build', () => {
   it('pins the same build identity into the app and worker without changing the release version', async () => {
     const version = await fs.readFile(path.join(outputRoot, 'version.js'), 'utf8');
     const source = await fs.readFile('version.js', 'utf8');
-    const worker = await fs.readFile(path.join(outputRoot, 'service-worker.js'), 'utf8');
+    const worker = await readServiceWorkerSource(relative => fs.readFile(path.join(outputRoot, relative), 'utf8'));
     const id = version.match(/APP_BUILD_ID = '([a-f0-9]{64})'/)?.[1];
     expect(id).toBeTruthy();
     expect(worker).toContain(`const BUILD_ID = '${id}';`);
@@ -43,7 +44,7 @@ describe('production startup build', () => {
       expect(versionAfter.match(/APP_VERSION = '[^']+'/)?.[0]).toBe(versionBefore.match(/APP_VERSION = '[^']+'/)?.[0]);
       expect(versionAfter).not.toBe(versionBefore);
       const id = versionAfter.match(/APP_BUILD_ID = '([^']+)'/)?.[1];
-      expect(await fs.readFile(path.join(nextRoot, 'service-worker.js'), 'utf8')).toContain(`const BUILD_ID = '${id}';`);
+      expect(await readServiceWorkerSource(relative => fs.readFile(path.join(nextRoot, relative), 'utf8'))).toContain(`const BUILD_ID = '${id}';`);
     } finally {
       vi.unstubAllEnvs();
       await fs.rm(nextRoot, { recursive: true, force: true });
@@ -104,7 +105,7 @@ describe('production startup build', () => {
   });
 
   it('pre-caches every generated lazy chunk for installed offline use', async () => {
-    const serviceWorker = await fs.readFile(path.join(outputRoot, 'service-worker.js'), 'utf8');
+    const serviceWorker = await readServiceWorkerSource(relative => fs.readFile(path.join(outputRoot, relative), 'utf8'));
     const serviceWorkerRuntime = await fs.readFile(
       path.join(outputRoot, 'service-worker-runtime.js'),
       'utf8',
@@ -143,7 +144,7 @@ describe('production startup build', () => {
       .filter(fileName => /^bundle-.*\.js$/.test(fileName));
     const generatedSource = (await Promise.all(generatedFiles.map(fileName =>
       fs.readFile(path.join(outputRoot, 'js', fileName), 'utf8')))).join('\n');
-    const serviceWorker = await fs.readFile(path.join(outputRoot, 'service-worker.js'), 'utf8');
+    const serviceWorker = await readServiceWorkerSource(relative => fs.readFile(path.join(outputRoot, relative), 'utf8'));
 
     expect(generatedSource).toContain('../vendor/evolu/evolu-bundle.js');
     expect(generatedSource).toContain('../vendor/evolu8/evolu-bundle.js');

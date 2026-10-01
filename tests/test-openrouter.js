@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-openrouter.js — OpenRouter as 4th AI provider. Source inspection of
 // api.js / schema.js / provider-panels.js / chat.js / pdf-import.js /
@@ -216,7 +217,7 @@ assert('pdf-import uses getActiveModelId for model resolution', pdfSrc.includes(
 
 // ─── 6. service-worker.js ───
 console.log('\n6. service-worker.js');
-const swSrc = read('service-worker.js');
+const swSrc = readServiceWorkerSource(relative => read(relative));
 assert('SW uses importScripts for version', swSrc.includes("importScripts('/version.js')"));
 assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 assert('SW bypasses openrouter.ai', swSrc.includes('openrouter.ai'));

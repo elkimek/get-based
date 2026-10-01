@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-custom-api.js — Custom API as 6th AI provider. Source inspection of
 // api.js / settings.js / provider-panels.js / pdf-import.js / service-worker
@@ -269,7 +270,7 @@ assert('pdf-import preflight handles custom in tryAutoSwitchModel', pdfPreflight
 
 // ─── 16. Service worker bypass ───
 console.log('\n16. Service worker');
-const swSrc = `${read('service-worker.js')}\n${read('service-worker-runtime.js')}`;
+const swSrc = `${readServiceWorkerSource(relative => read(relative))}\n${read('service-worker-runtime.js')}`;
 assert('SW bypasses cross-origin GETs by origin',
   swSrc.includes('url.origin === scope.location.origin') &&
   swSrc.includes("event.request.method !== 'GET' || !sameOrigin"));

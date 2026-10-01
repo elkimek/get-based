@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-cycle-tour.js — Cycle tour feature tests
 //
@@ -135,7 +136,7 @@ const tour = await import('../js/tour.js');
 
   // --- 15. Service worker cache version ---
   console.log('%c[15] Service worker cache', 'font-weight:bold');
-  const swSrc = read('/service-worker.js');
+  const swSrc = readServiceWorkerSource(relative => read('/' + relative));
   assert('SW uses importScripts for version', swSrc.includes("importScripts('/version.js')"));
   assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 

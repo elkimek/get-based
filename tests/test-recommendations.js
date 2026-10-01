@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createSourceFetch } from './helpers/source-fetch.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-recommendations.js — Verify supplement & lifestyle recommendation module
@@ -50,7 +51,7 @@ const _realFetch = globalThis.fetch;
   const settingsSrc = await fetchWithRetry('js/settings.js');
   const settingsDisplaySrc = await fetchWithRetry('js/settings-display-panel.js');
   const chatSystemPromptSrc = await fetchWithRetry('js/chat-system-prompt.js');
-  const swSrc = await fetchWithRetry('service-worker.js');
+  const swSrc = await readServiceWorkerSource(relative => fetchWithRetry(relative));
 
   // ═══════════════════════════════════════
   // 1. Module structure

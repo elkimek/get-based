@@ -64,7 +64,7 @@
     {
       "name": "service-worker",
       "description": "Classic service worker entry point and cache-routing runtime.",
-      "roots": ["service-worker.js", "service-worker-runtime.js"],
+      "roots": ["service-worker.js", "service-worker-runtime.js", "service-worker-assets.js"],
       "mayImport": ["service-worker"]
     }
   ],

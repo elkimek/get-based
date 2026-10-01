@@ -1,3 +1,4 @@
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { setRuntimeWindow } from './helpers/runtime-globals.js';
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -116,7 +117,7 @@ describe('api provider storage runtime adapter', () => {
     const runtimeSrc = readFileSync(new URL('../js/api-provider-storage-runtime.js', import.meta.url), 'utf8');
     const cryptoSrc = readFileSync(new URL('../js/crypto.js', import.meta.url), 'utf8');
     const appShellHooksSrc = readFileSync(new URL('../js/app-shell-hooks.js', import.meta.url), 'utf8');
-    const swSrc = readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
+    const swSrc = readServiceWorkerSource(relative => readFileSync(new URL('../' + relative, import.meta.url), 'utf8'));
 
     expect(storageSrc).toContain("from './api-provider-storage-runtime.js'");
     expect(storageSrc).toContain("from './crypto-key-cache.js'");

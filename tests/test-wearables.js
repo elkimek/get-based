@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createSourceFetch } from './helpers/source-fetch.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-wearables.js — Wearable adapter registry + L1 store + L2 summary + AI
@@ -1936,7 +1937,7 @@ console.log('17y. P1 Audit Fixes');
 
 // SW cache: wearables-manual.js was missing — would 404 offline for users
 // with manual entries.
-const swSrc = await fetch('/service-worker.js').then(r => r.text());
+const swSrc = await readServiceWorkerSource(relative => fetch('/' + relative).then(r => r.text()));
 assert('Service-worker static cache lists wearables-manual.js',
   /\/js\/wearables-manual\.js/.test(swSrc));
 assert('Service-worker static cache lists WHOOP device-protected profile storage',

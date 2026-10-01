@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static provider wallet delegated-action source guards.
 
@@ -12,7 +13,7 @@ const walletPanelSrc = fs.readFileSync(path.join(root, 'js/provider-wallet-panel
 const walletPanelRendererSrc = fs.readFileSync(path.join(root, 'js/provider-wallet-panel-renderers.js'), 'utf8');
 const walletUiSrc = walletPanelSrc + '\n' + walletPanelRendererSrc;
 const walletDelegatesSrc = fs.readFileSync(path.join(root, 'js/provider-wallet-delegates.js'), 'utf8');
-const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
+const swSrc = readServiceWorkerSource(relative => fs.readFileSync(path.join(root, relative), 'utf8'));
 
 
 

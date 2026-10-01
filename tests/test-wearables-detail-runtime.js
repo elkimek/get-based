@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { setRuntimeValue, captureRuntimeGlobals } from './helpers/runtime-globals.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-wearables-detail-runtime.js - Wearable detail modal runtime adapter behavior.
@@ -94,7 +95,7 @@ try {
   const detailSrc = fs.readFileSync(path.join(root, 'js/wearables-detail-modal.js'), 'utf8');
   const runtimeSrc = fs.readFileSync(path.join(root, 'js/wearables-detail-runtime.js'), 'utf8');
   const appShellHooksSrc = fs.readFileSync(path.join(root, 'js/app-shell-hooks.js'), 'utf8');
-  const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
+  const swSrc = readServiceWorkerSource(relative => fs.readFileSync(path.join(root, relative), 'utf8'));
   assert('wearable detail modal delegates browser globals through runtime adapter',
     detailSrc.includes("from './wearables-detail-runtime.js'") &&
       !/\bwindow(?:\.|\s*\[)/.test(detailSrc) &&

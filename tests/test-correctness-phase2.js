@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 // test-correctness-phase2.js — regression tests for v1.5.1 correctness pass.
 // Covers: per-profile sync debouncer, lab-context fingerprint, lens LRU,
 // SW precache list, Polar OAuth callback, profile-swap guard, cycle clamp,
@@ -60,7 +61,7 @@ assert('cacheGet re-inserts on hit',
 
 // ─── 4. Service worker precaches dynamic modules ───
 console.log('\n4. SW precache');
-const swSrc = `${read('service-worker.js')}\n${read('service-worker-runtime.js')}`;
+const swSrc = `${readServiceWorkerSource(relative => read(relative))}\n${read('service-worker-runtime.js')}`;
 const indexSrc = read('index.html');
 const startupUiSrc = read('js/startup-ui.js');
 const legalConsentBootstrapSrc = read('js/legal-consent-bootstrap.js');
@@ -274,7 +275,7 @@ assert('SW has offline navigation fallback for /app',
   swSrc.includes("matchCurrentCache('/index.html')"),
   'installed PWA start_url=/app needs a cached document while offline');
 assert('SW does not cache HTTP error responses',
-  /if \(response\.status === 206 \|\| !response\.ok\) return Promise\.resolve\(\);/.test(swSrc),
+  /if \(response\.status === 206 \|\| !response\.ok\)\s*return Promise\.resolve\(\);/.test(swSrc),
   'transient 4xx/5xx responses must not overwrite a valid cached app shell');
 assert('SW handles same-origin localhost app shell while bypassing cross-origin Local AI',
   /const sameOrigin\s*=\s*url\.origin === scope\.location\.origin/.test(swSrc) &&

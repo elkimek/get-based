@@ -1,19 +1,16 @@
-/**
- * @typedef {Object} ServiceWorkerRuntimeConfig
- * @property {ServiceWorkerGlobalScope} scope
- * @property {string} [buildId]
- * @property {string[]} appShell
- * @property {boolean} isProduction
- * @property {() => Promise<string>} resolveCacheName
- * @property {(url: URL, sameOrigin: boolean) => boolean} shouldUseNetworkOnly
- */
+interface ServiceWorkerRuntimeConfig {
+  scope: ServiceWorkerGlobalScope;
+  buildId?: string | undefined;
+  appShell: readonly string[];
+  isProduction: boolean;
+  resolveCacheName: () => Promise<string>;
+  shouldUseNetworkOnly: (url: URL, sameOrigin: boolean) => boolean;
+}
+interface ServiceWorkerGlobalScope {
+  GetBasedServiceWorkerRuntime?: { install: typeof installServiceWorkerRuntime };
+  GetBasedServiceWorkerAssets?: readonly string[];
+}
 
-/**
- * Install the cache lifecycle and request-routing handlers for the service
- * worker entry point.
- *
- * @param {ServiceWorkerRuntimeConfig} config
- */
 function installServiceWorkerRuntime({
   scope,
   buildId = '',
@@ -21,7 +18,7 @@ function installServiceWorkerRuntime({
   isProduction,
   resolveCacheName,
   shouldUseNetworkOnly,
-}) {
+}: ServiceWorkerRuntimeConfig) {
   // Store successful responses one-by-one instead of using Cache.addAll(). If a
   // large install is interrupted, the next install attempt can resume from the
   // entries already written. The install still rejects when any required entry
@@ -31,12 +28,7 @@ function installServiceWorkerRuntime({
   const PRECACHE_PROGRESS_MESSAGE = 'PRECACHE_PROGRESS';
   let lastPrecacheProgressPercent = -1;
 
-  /**
-   * @param {number} completed
-   * @param {number} total
-   * @param {{ force?: boolean }} [options]
-   */
-  async function reportPrecacheProgress(completed, total, { force = false } = {}) {
+  async function reportPrecacheProgress(completed: number, total: number, { force = false }: { force?: boolean } = {}) {
     const percent = total > 0 ? Math.floor((completed / total) * 100) : 0;
     if (!force && percent <= lastPrecacheProgressPercent) return;
     lastPrecacheProgressPercent = percent;
@@ -50,23 +42,16 @@ function installServiceWorkerRuntime({
     }
   }
 
-  /**
-   * @param {unknown} error
-   */
-  function errorMessage(error) {
+  function errorMessage(error: unknown) {
     if (error instanceof Error && error.message) return error.message;
     if (typeof error === 'string' && error) return error;
     return 'network error';
   }
 
-  /**
-   * @param {Cache} cache
-   * @param {string} url
-   */
-  async function cacheAppShellEntry(cache, url) {
+  async function cacheAppShellEntry(cache: Cache, url: string) {
     if (await cache.match(url)) return;
 
-    let lastError = null;
+    let lastError: unknown = null;
     for (let attempt = 1; attempt <= PRECACHE_ATTEMPTS; attempt += 1) {
       try {
         const response = await fetch(url, { cache: 'reload' });
@@ -81,20 +66,16 @@ function installServiceWorkerRuntime({
     throw new Error(`Failed to precache ${url}: ${errorMessage(lastError)}`);
   }
 
-  /**
-   * @param {Cache} cache
-   */
-  async function precacheAppShell(cache) {
+  async function precacheAppShell(cache: Cache) {
     let nextIndex = 0;
     let cachedCount = 0;
-    /** @type {string[]} */
-    const failures = [];
+    const failures: string[] = [];
     lastPrecacheProgressPercent = -1;
     await reportPrecacheProgress(0, appShell.length, { force: true });
 
     async function cacheNextEntries() {
       while (nextIndex < appShell.length) {
-        const url = appShell[nextIndex];
+        const url = appShell[nextIndex]!;
         nextIndex += 1;
         try {
           await cacheAppShellEntry(cache, url);
@@ -115,11 +96,7 @@ function installServiceWorkerRuntime({
     }
   }
 
-  /**
-   * @param {RequestInfo | URL} request
-   * @param {Response} response
-   */
-  function cacheResponse(request, response) {
+  function cacheResponse(request: RequestInfo | URL, response: Response) {
     if (response.status === 206 || !response.ok) return Promise.resolve();
     const clone = response.clone();
     return resolveCacheName()
@@ -128,20 +105,13 @@ function installServiceWorkerRuntime({
       .catch(() => {});
   }
 
-  /**
-   * @param {RequestInfo | URL} request
-   */
-  function matchCurrentCache(request) {
+  function matchCurrentCache(request: RequestInfo | URL) {
     return resolveCacheName()
       .then((name) => caches.open(name))
       .then((cache) => cache.match(request));
   }
 
-  /**
-   * @param {RequestInfo | URL} request
-   * @param {FetchEvent} event
-   */
-  function fetchAndCache(request, event) {
+  function fetchAndCache(request: RequestInfo | URL, event: FetchEvent) {
     return fetch(request).then((response) => {
       // Keep the worker alive until the offline copy is durable, while still
       // returning the network response immediately to the page.
@@ -179,10 +149,7 @@ function installServiceWorkerRuntime({
     })());
   });
 
-  /**
-   * @param {ExtendableMessageEvent} event
-   */
-  function isSameOriginMessage(event) {
+  function isSameOriginMessage(event: ExtendableMessageEvent) {
     try {
       const source = event.source;
       const sourceUrl = source && 'url' in source ? source.url : '';
@@ -194,7 +161,7 @@ function installServiceWorkerRuntime({
   }
 
   scope.addEventListener('message', (event) => {
-    if (event.data?.type === 'SKIP_WAITING' && isSameOriginMessage(event)) {
+    if ((event.data as { type?: unknown } | null | undefined)?.type === 'SKIP_WAITING' && isSameOriginMessage(event)) {
       void scope.skipWaiting();
     }
   });
@@ -233,7 +200,7 @@ function installServiceWorkerRuntime({
       || (url.pathname === '/version.js' && !isProduction)
     ) {
       event.respondWith(
-        fetchAndCache(event.request, event).catch(() => matchCurrentCache(event.request))
+        fetchAndCache(event.request, event).catch(() => matchCurrentCache(event.request)) as Promise<Response>
       );
       return;
     }
@@ -246,7 +213,7 @@ function installServiceWorkerRuntime({
     if (event.request.mode === 'navigate') {
       if (!isProduction) {
         event.respondWith(
-          fetchAndCache(event.request, event).catch(() => cachedAppShell())
+          fetchAndCache(event.request, event).catch(() => cachedAppShell()) as Promise<Response>
         );
         return;
       }
@@ -256,8 +223,8 @@ function installServiceWorkerRuntime({
           if (url.pathname === '/app' || url.pathname === '/app/' || url.pathname === '/index.html') {
             return cachedAppShell().then((shell) => shell || fetchAndCache(event.request, event));
           }
-          return fetchAndCache(event.request, event).catch(() => cachedAppShell());
-        })
+          return fetchAndCache(event.request, event).catch(() => cachedAppShell()) as Promise<Response>;
+        }) as Promise<Response>
       );
       return;
     }
@@ -266,7 +233,7 @@ function installServiceWorkerRuntime({
     // caches; production uses the atomic versioned cache first.
     if (!isProduction) {
       event.respondWith(
-        fetchAndCache(event.request, event).catch(() => matchCurrentCache(event.request))
+        fetchAndCache(event.request, event).catch(() => matchCurrentCache(event.request)) as Promise<Response>
       );
       return;
     }
@@ -277,12 +244,7 @@ function installServiceWorkerRuntime({
   });
 }
 
-/** @type {ServiceWorkerGlobalScope & typeof globalThis & {
- *   GetBasedServiceWorkerRuntime?: {
- *     install: typeof installServiceWorkerRuntime
- *   }
- * }} */
-const serviceWorkerRuntimeScope = /** @type {any} */ (self);
+const serviceWorkerRuntimeScope = self as ServiceWorkerGlobalScope & typeof globalThis;
 
 serviceWorkerRuntimeScope.GetBasedServiceWorkerRuntime = Object.freeze({
   install: installServiceWorkerRuntime,

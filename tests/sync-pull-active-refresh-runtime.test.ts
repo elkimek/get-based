@@ -1,3 +1,4 @@
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { expect, it } from 'vitest';
 import { setRuntimeValue, captureRuntimeGlobals } from './helpers/runtime-globals.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
@@ -118,7 +119,7 @@ it('retains sync-pull-active-refresh-runtime adapter behavior', async () => {
 
     const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
     const refreshSrc = fs.readFileSync(path.join(root, 'js/sync-pull-active-refresh.js'), 'utf8');
-    const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
+    const swSrc = readServiceWorkerSource(relative => fs.readFileSync(path.join(root, relative), 'utf8'));
     assert('sync pull active refresh delegates browser globals through runtime adapter',
       refreshSrc.includes("from './sync-pull-active-refresh-runtime.js'") &&
         !/\bwindow(?:\.|\s*\[)/.test(refreshSrc) &&

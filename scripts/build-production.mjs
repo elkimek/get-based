@@ -14,6 +14,7 @@ import {
   summarizeAppShell,
 } from './app-shell-budget.mjs';
 import { buildCompanionBundle } from './build-companion-bundle.mjs';
+import { inlineServiceWorkerAssets } from './service-worker-source.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MAIN_ENTRY = path.join(ROOT, 'js', 'main.js');
@@ -232,10 +233,11 @@ export async function buildProduction({ outputRoot = ROOT } = {}) {
     lazyJavaScriptFiles: chunks.length - startupFiles.size,
   };
 
-  const [indexSource, serviceWorkerSource, serviceWorkerRuntimeSource] = await Promise.all([
+  const [indexSource, serviceWorkerSource, serviceWorkerRuntimeSource, serviceWorkerAssetsSource] = await Promise.all([
     fs.readFile(path.join(ROOT, 'index.html'), 'utf8'),
     fs.readFile(path.join(ROOT, 'service-worker.js'), 'utf8'),
     fs.readFile(path.join(ROOT, 'service-worker-runtime.js'), 'utf8'),
+    fs.readFile(path.join(ROOT, 'service-worker-assets.js'), 'utf8'),
   ]);
   const builtIndex = replaceMarkedSection(
     indexSource,
@@ -253,7 +255,9 @@ export async function buildProduction({ outputRoot = ROOT } = {}) {
     .map(chunk => `  '/js/${chunk.fileName}',`)
     .sort();
   const builtServiceWorker = replaceMarkedSection(
-    pruneSourceModuleAppShell(serviceWorkerSource).replace(/const BUILD_ID = '[^']*';/, `const BUILD_ID = '${buildId}';`),
+    pruneSourceModuleAppShell(inlineServiceWorkerAssets(serviceWorkerSource, serviceWorkerAssetsSource))
+      .replace(/\s*'\/service-worker-assets\.js',/, '')
+      .replace(/const BUILD_ID = '[^']*';/, `const BUILD_ID = '${buildId}';`),
     SW_BUNDLES_START,
     SW_BUNDLES_END,
     bundleAssetLines,

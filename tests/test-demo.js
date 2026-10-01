@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-demo.js — Verify demo data onboarding redesign
 //
@@ -163,7 +164,7 @@ function invalidContextOptions(demoJson) {
 
   // ── 6. Service worker ──
   console.log('\n6. service-worker.js — Cache version');
-  const swSrc = read('service-worker.js');
+  const swSrc = readServiceWorkerSource(relative => read(relative));
   assert('SW uses importScripts for version', swSrc.includes("importScripts('/version.js'"));
   assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 

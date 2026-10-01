@@ -1,3 +1,4 @@
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { setRuntimeWindow } from './helpers/runtime-globals.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -53,7 +54,7 @@ describe('touch tooltip runtime adapter', () => {
 
   it('keeps touch-tooltip.js browser globals behind the adapter', () => {
     const tooltipSrc = readFileSync(new URL('../js/touch-tooltip.js', import.meta.url), 'utf8');
-    const swSrc = readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
+    const swSrc = readServiceWorkerSource(relative => readFileSync(new URL('../' + relative, import.meta.url), 'utf8'));
 
     expect(tooltipSrc).toContain("from './touch-tooltip-runtime.js'");
     expect(/\bwindow(?:\.|\s*\[)/.test(tooltipSrc)).toBe(false);

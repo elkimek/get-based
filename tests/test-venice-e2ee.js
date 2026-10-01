@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 // test-venice-e2ee.js — Venice E2EE crypto and integration tests
 //
 // Run: node tests/test-venice-e2ee.js  (or via npm test)
@@ -31,7 +32,7 @@ const apiSrc = read('js/api.js');
 const apiVeniceSrc = read('js/api-venice.js');
 const apiModelsSrc = read('js/api-models.js');
 const apiProviderStorageSrc = read('js/api-provider-storage.js');
-const serviceWorkerSrc = read('service-worker.js');
+const serviceWorkerSrc = readServiceWorkerSource(relative => read(relative));
 assert('isE2EEModel exported through api.js', apiSrc.includes('isE2EEModel,'));
 assert('e2ee prefix detection', apiProviderStorageSrc.includes("modelId.startsWith('e2ee-')"));
 assert('callVeniceAPI has E2EE import', apiVeniceSrc.includes("import('../vendor/venice-e2ee.js')"));

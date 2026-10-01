@@ -1,3 +1,4 @@
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 // verify-modules.js — Browser/static verification for modularized app
 // Browser console: fetch('tests/verify-modules.js').then(r=>r.text()).then(s=>Function(s)())
 // Static Node check: node tests/verify-modules.js
@@ -188,7 +189,7 @@
     const root = path.resolve(path.dirname(scriptPath), '..');
     const [indexHtml, sw, checkJsConfigText, appUiShellModules] = await Promise.all([
       fs.readFile(path.join(root, 'index.html'), 'utf8'),
-      fs.readFile(path.join(root, 'service-worker.js'), 'utf8'),
+      readServiceWorkerSource(relative => fs.readFile(path.join(root, relative), 'utf8')),
       fs.readFile(path.join(root, 'tsconfig.checkjs.json'), 'utf8'),
       fs.readFile(path.join(root, 'js', 'app-ui-shell-modules.js'), 'utf8'),
     ]);
@@ -1348,7 +1349,7 @@
   // ═══════════════════════════════════════════════
   // 20. SERVICE WORKER — cache version check
   // ═══════════════════════════════════════════════
-  fetch('service-worker.js').then(r => r.text()).then(sw => {
+  readServiceWorkerSource(relative => fetch(relative).then(r => r.text())).then(sw => {
     assertServiceWorkerCache(sw);
     printResults();
   });

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createSourceFetch } from './helpers/source-fetch.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-cashu-wallet.js — Cashu wallet module, Nostr discovery, integration
@@ -65,7 +66,7 @@ const cryptoSrc = await fetchWithRetry('js/crypto.js');
 const backupSrc = await fetchWithRetry('js/backup.js');
 const exportSrc = await fetchWithRetry('js/export.js');
 const exportRuntimeSrc = await fetchWithRetry('js/export-runtime.js');
-const swSrc = await fetchWithRetry('service-worker.js');
+const swSrc = await readServiceWorkerSource(relative => fetchWithRetry(relative));
 const tinfoilSecureSrc = await fetchWithRetry('js/tinfoil-secure-fetch.js');
 const ppqTeeSrc = await fetchWithRetry('vendor/ppq-private-tee.js');
 const vendorManifest = JSON.parse(await fetchWithRetry('vendor/browser-vendors.json'));

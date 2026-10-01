@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createSourceFetch } from './helpers/source-fetch.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-crypto.js — encryption, backup, and cross-tab sync verification.
@@ -270,7 +271,7 @@ if (typeof BroadcastChannel !== 'undefined') {
 // ═══════════════════════════════════════════════
 console.log('8. Service worker');
 try {
-  const swText = read('service-worker.js');
+  const swText = readServiceWorkerSource(relative => read(relative));
   assert('Service worker contains /js/crypto.js', swText.includes('/js/crypto.js'));
   assert('Service worker contains /js/crypto-ui.js', swText.includes('/js/crypto-ui.js'));
   assert('Service worker contains /js/data-wipe.js', swText.includes('/js/data-wipe.js'));
@@ -487,7 +488,7 @@ try {
   const appShellHooksSrc = await fetchWithRetry('js/app-shell-hooks.js');
   const exportSrc = await fetchWithRetry('js/export.js');
   const exportRuntimeSrc = await fetchWithRetry('js/export-runtime.js');
-  const swSrc = await fetchWithRetry('service-worker.js');
+  const swSrc = await readServiceWorkerSource(relative => fetchWithRetry(relative));
   assert('loadProfile is async', src.includes('async function loadProfile'));
   assert('saveProfiles is async', src.includes('async function saveProfiles'));
   assert('initProfilesCache exists', src.includes('async function initProfilesCache'));

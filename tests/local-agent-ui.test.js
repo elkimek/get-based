@@ -1,3 +1,4 @@
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 // @vitest-environment node
 
 import { readFileSync } from 'node:fs';
@@ -45,7 +46,7 @@ describe('local agent selection UI', () => {
   });
 
   it('maps every supported CLI to a local vendor mark', () => {
-    const serviceWorker = read('service-worker.js');
+    const serviceWorker = readServiceWorkerSource(relative => read(relative));
     for (const agent of ['codex', 'claude', 'opencode', 'hermes', 'grok', 'openclaw']) {
       expect(getCLIAgentBrandAsset(agent)).toBe(`/brands/cli-agent-${agent}.svg`);
       expect(renderCLIAgentBrandIcon(agent)).toContain(`src="/brands/cli-agent-${agent}.svg"`);
@@ -61,7 +62,7 @@ describe('local agent selection UI', () => {
 
   it('uses current provider identification assets and publishes their provenance', () => {
     const settings = read('js/settings.js');
-    const serviceWorker = read('service-worker.js');
+    const serviceWorker = readServiceWorkerSource(relative => read(relative));
     const expectedHashes = {
       openrouter: '5b49593d44e6aa41011be377e182cd89e57473f1948e0dfb128f99a92adfc68d',
       routstr: '56fb66f3083ac0de62d933121df1506708292739465e3119421400284f544f4f',

@@ -13,7 +13,9 @@ function readRepoFile(url) {
 }
 
 function appShellEntries() {
-  const source = readRepoFile('/service-worker.js');
+  const bootstrap = readRepoFile('/service-worker.js');
+  expect(bootstrap).toContain("importScripts('/service-worker-assets.js');");
+  const source = readRepoFile('/service-worker-assets.js');
   const body = source.match(/const APP_SHELL = \[([\s\S]*?)\n\];/)?.[1] || '';
   return [...body.matchAll(/'([^']+)'\s*,/g)].map((match) => match[1]);
 }

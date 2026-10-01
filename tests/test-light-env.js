@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-light-env.js — Light Environment math + CRUD: rooms, screens,
 // computeRoomSeverity, computeScreenStatus, computeIndoorBurden,
@@ -791,7 +792,7 @@ const {
     !globalsSrc.includes('openLightEnvironmentAssessment') &&
     !globalsSrc.includes('closeLightEnvironmentAssessment') &&
     !globalsSrc.includes('refreshLightEnvironmentAssessment'));
-  const swSrc = await fs.readFile(new URL('../service-worker.js', import.meta.url), 'utf8');
+  const swSrc = await readServiceWorkerSource(relative => fs.readFile(new URL('../' + relative, import.meta.url), 'utf8'));
   const cssSrc = [
     await fs.readFile(new URL('../css/light-sun.css', import.meta.url), 'utf8'),
     await fs.readFile(new URL('../css/light-env.css', import.meta.url), 'utf8'),

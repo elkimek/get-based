@@ -111,7 +111,7 @@ The architecture checker currently enforces these coarse runtime boundaries:
 | `server/compat-proxy-server.js` compatibility server | Standalone Node compatibility-relay entry point | `api/` |
 | `server/profile-share-server.js` standalone server | Operator-deployed profile-share entry point | `lib/` |
 | `dev-server.js` local-server | Local development entry point | `lib/` |
-| `service-worker*.js` | Offline manifest and cache-routing runtime | service-worker scripts |
+| `service-worker*.ts` | Classic bootstrap, ordered offline manifest and cache-routing runtime; emitted at existing `.js` URLs | service-worker scripts |
 
 Relative ESM imports and classic-worker `importScripts()` dependencies are
 tracked. Data files and explicitly vendored browser libraries are recorded as

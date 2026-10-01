@@ -1,3 +1,4 @@
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { setRuntimeWindow } from './helpers/runtime-globals.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -84,7 +85,7 @@ describe('sun body silhouette runtime adapter', () => {
 
   it('keeps sun-body-silhouette.js browser globals behind the adapter', () => {
     const silhouetteSrc = readFileSync(new URL('../js/sun-body-silhouette.js', import.meta.url), 'utf8');
-    const swSrc = readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
+    const swSrc = readServiceWorkerSource(relative => readFileSync(new URL('../' + relative, import.meta.url), 'utf8'));
 
     expect(silhouetteSrc).toContain("from './sun-body-silhouette-runtime.js'");
     expect(/\bwindow(?:\.|\s*\[)/.test(silhouetteSrc)).toBe(false);

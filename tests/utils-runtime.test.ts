@@ -1,3 +1,4 @@
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { existsSync, readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -137,7 +138,7 @@ describe('utils runtime adapter', () => {
   it('keeps browser globals behind scoped adapters without a generic view bridge', () => {
     const utilsSrc = readFileSync(new URL('../js/utils.js', import.meta.url), 'utf8');
     const runtimeSrc = readFileSync(new URL('../js/utils-runtime.js', import.meta.url), 'utf8');
-    const swSrc = readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
+    const swSrc = readServiceWorkerSource(relative => readFileSync(new URL('../' + relative, import.meta.url), 'utf8'));
 
     expect(utilsSrc).toContain("from './utils-runtime.js'");
     expect(/\bwindow(?:\.|\s*\[)/.test(utilsSrc)).toBe(false);

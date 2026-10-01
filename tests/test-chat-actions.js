@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 // test-chat-actions.js — Chat action buttons + context summary. Module-surface
 // checks, getContextSummary() shape, buildActionBar() HTML output (Regenerate
 // only on last AI msg, Copy always, context toggle, area counts), backward
@@ -345,7 +346,7 @@ assert('settings.js NO longer has data-sources attribute', !settingsSrc.includes
 
 // ─── Section 15: Service worker bypass ───
 console.log('Section 15: Service worker');
-const swSrc = read('service-worker.js');
+const swSrc = readServiceWorkerSource(relative => read(relative));
 assert('SW bypasses OpenRouter', swSrc.includes('openrouter.ai'), 'found');
 assert('SW bypasses Venice', swSrc.includes('api.venice.ai'), 'found');
 assert('SW bypasses Routstr', swSrc.includes('api.routstr.com'), 'found');

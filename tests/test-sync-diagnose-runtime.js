@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { setRuntimeValue, captureRuntimeGlobals } from './helpers/runtime-globals.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-sync-diagnose-runtime.js - Sync Diagnose runtime adapter behavior.
@@ -49,7 +50,7 @@ try {
   const cutoverSrc = fs.readFileSync(path.join(root, 'js/sync-diagnose-cutover-actions.js'), 'utf8');
   const relaySrc = fs.readFileSync(path.join(root, 'js/sync-diagnose-relay-actions.js'), 'utf8');
   const identitySrc = fs.readFileSync(path.join(root, 'js/sync-diagnose-identity-actions.js'), 'utf8');
-  const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
+  const swSrc = readServiceWorkerSource(relative => fs.readFileSync(path.join(root, relative), 'utf8'));
   assert('sync diagnose action modules delegate browser globals through runtime adapter',
     cutoverSrc.includes("from './sync-diagnose-runtime.js'") &&
       relaySrc.includes("from './sync-diagnose-runtime.js'") &&

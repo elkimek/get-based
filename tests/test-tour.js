@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-tour.js — Guided tour (spotlight walkthrough). Source-inspection of
 // tour.js (structure, TOUR_STEPS content, target-not-found skip logic,
@@ -233,7 +234,7 @@ assert('Tour button in Display tab panel', /tab-panel="display"[\s\S]*?Guided To
 // ═══════════════════════════════════════
 console.log('22. Service Worker');
 
-const swSrc = read('service-worker.js');
+const swSrc = readServiceWorkerSource(relative => read(relative));
 
 assert('SW APP_SHELL includes /js/tour.js', swSrc.includes("'/js/tour.js'"));
 assert('SW APP_SHELL includes /js/tour-runtime.js', swSrc.includes("'/js/tour-runtime.js'"));

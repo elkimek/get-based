@@ -1,3 +1,4 @@
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { setRuntimeWindow } from './helpers/runtime-globals.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -53,7 +54,7 @@ describe('charts runtime adapter', () => {
 
   it('keeps charts.js browser globals behind the adapter', () => {
     const chartsSrc = readFileSync(new URL('../js/charts.js', import.meta.url), 'utf8');
-    const swSrc = readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
+    const swSrc = readServiceWorkerSource(relative => readFileSync(new URL('../' + relative, import.meta.url), 'utf8'));
 
     expect(chartsSrc).toContain("from './charts-runtime.js'");
     expect(/\bwindow(?:\.|\s*\[)/.test(chartsSrc)).toBe(false);

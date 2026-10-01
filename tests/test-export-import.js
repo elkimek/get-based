@@ -2,6 +2,7 @@
 // Run: fetch('tests/test-export-import.js').then(r=>r.text()).then(s=>Function(s)())
 
 return (async function() {
+  const { readServiceWorkerSource } = await import('/scripts/service-worker-source.js');
   let pass = 0, fail = 0;
   function assert(name, condition, detail) {
     if (condition) { pass++; console.log(`  ✓ ${name}`); }
@@ -72,7 +73,7 @@ return (async function() {
   const reportBuilderSrc = await fetch('/js/export-report-builder.js').then(r => r.text());
   const reportSrc = `${reportCoreSrc}\n${reportHtmlSrc}\n${reportBuilderSrc}`;
   const modalSharedSrc = await fetch('/css/modal-shared.css').then(r => r.text());
-  const serviceWorkerSrc = await fetch('/service-worker.js').then(r => r.text());
+  const serviceWorkerSrc = await readServiceWorkerSource(relative => fetch('/' + relative).then(r => r.text()));
 
   // exportClientJSON produces v2 client export with profile metadata
   assert('Client export sets version: 2', exportSrc.includes('version: 2, exportedAt:'));

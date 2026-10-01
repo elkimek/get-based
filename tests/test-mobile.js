@@ -1,3 +1,4 @@
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 // test-mobile.js — Browser-based verification of mobile responsiveness fixes
 // Run: fetch('tests/test-mobile.js').then(r=>r.text()).then(s=>Function(s)())
 return (async function() {
@@ -210,7 +211,7 @@ ${await fetchWithRetry('css/chat-redesign-open.css')}`;
 
   // ═══ Section 13: Service worker cache version ═══
   console.log('%c[13] Service Worker', 'font-weight:bold');
-  const swMobileEntrySrc = await fetchWithRetry('service-worker.js');
+  const swMobileEntrySrc = await readServiceWorkerSource(relative => fetchWithRetry(relative));
   const swMobileRuntimeSrc = await fetchWithRetry('service-worker-runtime.js');
   const swMobileSrc = `${swMobileEntrySrc}\n${swMobileRuntimeSrc}`;
   assert('SW uses importScripts for version', swMobileSrc.includes("importScripts('/version.js')"));

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-custom-personality.js — Multiple Custom Personalities. Window-export
 // checks, pickPersonaIcon determinism, getCustomPersonalities array storage +
@@ -212,7 +213,7 @@ assert('PER_PROFILE_PREF_SUFFIXES has chatPersonalityCustom', backupSrc.includes
 
 // ── 16. Service worker cache version ──
 console.log('16. Service worker version');
-const swSrc = read('service-worker.js');
+const swSrc = readServiceWorkerSource(relative => read(relative));
 assert('SW uses importScripts for version', swSrc.includes("importScripts('/version.js')"));
 assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 assert('custom personality storage module is precached', swSrc.includes("'/js/chat-personality-storage.js'"));

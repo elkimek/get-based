@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-ppq-provider.js - PPQ provider panel extraction and export checks
 //
@@ -22,7 +23,7 @@ const providerPanels = await import('../js/provider-panels.js');
 
 const panelsSrc = read('js/provider-panels.js');
 const ppqSrc = read('js/provider-ppq-panels.js');
-const swSrc = read('service-worker.js');
+const swSrc = readServiceWorkerSource(relative => read(relative));
 const apiSrc = read('js/api.js');
 const apiOpenAICompatibleSrc = read('js/api-openai-compatible.js');
 const apiPpqSrc = read('js/api-ppq.js');

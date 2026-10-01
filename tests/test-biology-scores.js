@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 // test-biology-scores.js — composite biology score engine smoke tests.
 
 import './_node-shim.js';
@@ -1083,7 +1084,7 @@ setGeneticsPriorityInAIContext(true);
 state.importedData = savedContextAIState.importedData;
 configureBiologyScoreContextAIDeps(restoreContextAIDeps);
 
-const swSrc = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
+const swSrc = readServiceWorkerSource(relative => fs.readFileSync(path.join(ROOT, relative), 'utf8'));
 const biologyScoreShellFiles = [
   '/js/biology-scores-runtime.js',
   '/js/biology-scores.js',

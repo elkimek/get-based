@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-light-tools.js — Pure helpers re-exported by light-tools.js:
 // computeRowBanding (flicker FFT), cameraLockStatusLine, saveMeasurement
@@ -34,7 +35,7 @@ const tools = await import('../js/light-tools.js');
       fs.readFileSync(new URL('../js/light-env-editor.js', import.meta.url), 'utf8'),
     ].join('\n');
     const globalsSrc = fs.readFileSync(new URL('../types/globals.d.ts', import.meta.url), 'utf8');
-    const swSrc = fs.readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
+    const swSrc = readServiceWorkerSource(relative => fs.readFileSync(new URL('../' + relative, import.meta.url), 'utf8'));
     const lightToolCameraSrc = fs.readFileSync(new URL('../js/light-tool-camera.js', import.meta.url), 'utf8');
     const lightToolCameraModalsSrc = [
       'light-tool-camera-modals.js',

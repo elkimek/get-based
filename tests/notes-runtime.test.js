@@ -1,3 +1,4 @@
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -55,7 +56,7 @@ describe('notes runtime adapter', () => {
     const notesSrc = readFileSync(new URL('../js/notes.js', import.meta.url), 'utf8');
     const runtimeSrc = readFileSync(new URL('../js/notes-runtime.js', import.meta.url), 'utf8');
     const appShellHooksSrc = readFileSync(new URL('../js/app-shell-hooks.js', import.meta.url), 'utf8');
-    const swSrc = readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
+    const swSrc = readServiceWorkerSource(relative => readFileSync(new URL('../' + relative, import.meta.url), 'utf8'));
 
     expect(notesSrc).toContain("from './notes-runtime.js'");
     expect(notesSrc).toContain("from './dashboard-widget-runtime.js'");
