@@ -365,6 +365,15 @@ and UI integration cases retain their existing fixtures and assertions. Legacy
 IDs, collision resolution, slot reservation, metadata, normalized-value matching
 and history replacement/capping retain their executable behavior.
 
+The recommendation module bridge and strand-aware genotype lookup now use native
+TypeScript. Named module hooks expose their actual catalog/render/detection
+contracts; generic genotype maps retain caller value types. Recommendation,
+Biology Scores and tour task facades share one timer operation, preserving
+browser receiver binding, inherited hooks, getter reads, global fallback and
+immediate execution. Every original recommendation runtime assertion is retained
+in a strict native suite; focused timer regressions cover exceptions and fallback
+behavior. Catalog data, strand resolution, references and public copy are unchanged.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

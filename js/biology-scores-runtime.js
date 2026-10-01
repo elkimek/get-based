@@ -1,7 +1,7 @@
 // @ts-check
 // biology-scores-runtime.js - Browser runtime adapters for Biology Scores UI hooks.
 
-import { configureRuntimeCallbacks } from './runtime-callbacks.js';
+import { configureRuntimeCallbacks, scheduleRuntimeTask } from './runtime-callbacks.js';
 import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { getActiveData } from './data.js';
 import { showNotification } from './utils.js';
@@ -20,11 +20,6 @@ export function configureBiologyScoresRuntimeDeps(deps = {}) {
   return configureRuntimeCallbacks(biologyScoresRuntimeDeps, deps, 'inherited');
 }
 
-function getRuntimeWindow() {
-  return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
-    : null;
-}
 
 /** @param {string} route */
 export function navigateBiologyScoresRoute(route = 'biology-scores') {
@@ -83,15 +78,7 @@ export function openBiologyScoreMarkerDetail(markerId) {
  * @param {number} delayMs
  */
 export function scheduleBiologyScoresTask(callback, delayMs = 0) {
-  const runtime = getRuntimeWindow();
-  const schedule = runtime && typeof runtime.setTimeout === 'function'
-    ? runtime.setTimeout.bind(runtime)
-    : (typeof setTimeout === 'function' ? setTimeout : null);
-  if (!schedule) {
-    callback();
-    return null;
-  }
-  return schedule(callback, delayMs);
+  return scheduleRuntimeTask(callback, delayMs);
 }
 
 export async function prepareBiologyScoresContext() {

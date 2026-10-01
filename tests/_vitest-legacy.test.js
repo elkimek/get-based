@@ -181,7 +181,6 @@ const LEGACY_TESTS = [
   './test-chat-runtime.js',
   './test-chat-render-runtime.js',
   './test-chat-send-runtime.js',
-  './test-recommendations-runtime.js',
   './test-context-card-lifestyle-runtime.js',
   './test-import-drop-zone-runtime.js',
   './test-sync-diagnose-runtime.js',

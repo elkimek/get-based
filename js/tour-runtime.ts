@@ -1,6 +1,6 @@
 // tour-runtime.js - Browser runtime adapters for guided tour hooks.
 
-import { configureRuntimeCallbacks } from './runtime-callbacks.js';
+import { configureRuntimeCallbacks, scheduleRuntimeTask } from './runtime-callbacks.js';
 const tourRuntimeDeps: { openChatPanel: (() => unknown) | null } = {
   openChatPanel: null,
 };
@@ -52,13 +52,5 @@ export function openTourChatPanel() {
 }
 
 export function scheduleTourTask(callback: () => void, delayMs = 0): number | ReturnType<typeof setTimeout> | null {
-  const runtime = getRuntimeWindow();
-  const schedule = runtime && typeof runtime.setTimeout === 'function'
-    ? runtime.setTimeout.bind(runtime)
-    : (typeof setTimeout === 'function' ? setTimeout : null);
-  if (!schedule) {
-    callback();
-    return null;
-  }
-  return schedule(callback, delayMs);
+  return scheduleRuntimeTask(callback, delayMs);
 }

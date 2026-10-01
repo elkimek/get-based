@@ -313,3 +313,7 @@ deploy/profile-share/data/
 /js/marker-placement.js
 /js/profile-import-provenance.js
 /js/context-cards-runtime.js
+
+# Native recommendation bridge, genotype lookup and shared timers
+/js/recommendations-runtime.js
+/js/dna-genotype.js

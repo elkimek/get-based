@@ -39,3 +39,16 @@ export function configureValidRuntimeCallbacks<T extends { [K in keyof T]: ((...
   }
   return previous;
 }
+
+/** Schedule with the browser receiver, then global timers, then immediate execution. */
+export function scheduleRuntimeTask(callback: () => void, delayMs = 0): number | ReturnType<typeof setTimeout> | null {
+  const runtime = typeof window !== 'undefined' ? window : null;
+  const schedule = runtime && typeof runtime.setTimeout === 'function'
+    ? runtime.setTimeout.bind(runtime)
+    : (typeof setTimeout === 'function' ? setTimeout : null);
+  if (!schedule) {
+    callback();
+    return null;
+  }
+  return schedule(callback, delayMs);
+}
