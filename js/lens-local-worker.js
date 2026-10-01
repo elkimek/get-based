@@ -424,7 +424,7 @@ function _libraryModelKey(libOrId) {
 async function openOpfs() {
   const root = await navigator.storage.getDirectory();
   _rootDir = await root.getDirectoryHandle(OPFS_SUBDIR, { create: true });
-  _libraryRegistry = new LensLocalLibraryRegistry(_rootDir, MODELS, DEFAULT_MODEL_KEY);
+  _libraryRegistry = new LensLocalLibraryRegistry(/** @type {import('./lens-local-library-registry.js').LibraryDirectory} */ (/** @type {unknown} */ (_rootDir)), MODELS, DEFAULT_MODEL_KEY);
 
   // Request persistent storage so the browser doesn't evict our data under
   // disk pressure. Silent if already granted; origins on localhost usually

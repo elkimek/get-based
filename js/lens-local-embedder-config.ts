@@ -1,9 +1,8 @@
-// @ts-check
 // Embedding-model catalog, benchmark corpus, and deterministic test vectors.
 
 // Each model entry names the transformers.js model ID, its output dimension,
 // a tier hint for the UI, and an approximate quantized download size.
-export const MODELS = {
+export const MODELS: Record<string, { id: string; label: string; dim: number; tier: number; downloadMB: number; language: string; notes: string }> = {
   'all-minilm': {
     id: 'Xenova/all-MiniLM-L6-v2',
     label: 'MiniLM',
@@ -57,7 +56,7 @@ export const BENCHMARK_TEXTS = [
 
 // Text-hash → unit-normalized vector. This mirrors the shape returned by a
 // transformers.js feature-extraction pipeline without loading model weights.
-export function createMockEmbedding(text, dim) {
+export function createMockEmbedding(text: unknown, dim: number) {
   const out = new Float32Array(dim);
   let hash = 2166136261;
   const source = String(text);
@@ -69,8 +68,8 @@ export function createMockEmbedding(text, dim) {
     out[i] = ((hash | 0) / 2147483647);
   }
   let norm = 0;
-  for (let i = 0; i < dim; i++) norm += out[i] * out[i];
+  for (let i = 0; i < dim; i++) norm += out[i]! * out[i]!;
   norm = Math.sqrt(norm) || 1;
-  for (let i = 0; i < dim; i++) out[i] /= norm;
+  for (let i = 0; i < dim; i++) out[i]! /= norm;
   return { data: out };
 }

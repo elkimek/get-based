@@ -710,20 +710,20 @@ Native browser modules shipped with the static application.
 
 - [`js/lens-actions.js`](js/lens-actions.js) → [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/lens-cache.js`](js/lens-cache.js) → [`js/utils.ts`](js/utils.ts)
-- [`js/lens-knowledge-base-ui.js`](js/lens-knowledge-base-ui.js) → [`js/caught-error.ts`](js/caught-error.ts), [`js/lens-actions.js`](js/lens-actions.js), [`js/lens-library.js`](js/lens-library.js), [`js/lens-local-parsers.js`](js/lens-local-parsers.js) *(dynamic)*, [`js/lens-local.js`](js/lens-local.js) *(dynamic)*, [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/lens-knowledge-base-ui.js`](js/lens-knowledge-base-ui.js) → [`js/caught-error.ts`](js/caught-error.ts), [`js/lens-actions.js`](js/lens-actions.js), [`js/lens-library.js`](js/lens-library.js), [`js/lens-local-parsers.js`](js/lens-local-parsers.js) *(dynamic)*, [`js/lens-local.ts`](js/lens-local.ts) *(dynamic)*, [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/lens-library.js`](js/lens-library.js) → [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/lens-local-embedder-config.js`](js/lens-local-embedder-config.js) → no in-scope imports
-- [`js/lens-local-ingest.js`](js/lens-local-ingest.js) → [`js/lens-local-utils.ts`](js/lens-local-utils.ts)
-- [`js/lens-local-library-registry.js`](js/lens-local-library-registry.js) → [`js/caught-error.ts`](js/caught-error.ts), [`js/lens-local-store.js`](js/lens-local-store.js), [`js/unique-id.ts`](js/unique-id.ts)
+- [`js/lens-local-embedder-config.ts`](js/lens-local-embedder-config.ts) → no in-scope imports
+- [`js/lens-local-ingest.ts`](js/lens-local-ingest.ts) → [`js/lens-local-utils.ts`](js/lens-local-utils.ts)
+- [`js/lens-local-library-registry.ts`](js/lens-local-library-registry.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/lens-local-store.ts`](js/lens-local-store.ts), [`js/unique-id.ts`](js/unique-id.ts)
 - [`js/lens-local-parsers.js`](js/lens-local-parsers.js) → [`js/pdfjs-loader.js`](js/pdfjs-loader.js), [`js/utils-runtime.ts`](js/utils-runtime.ts)
-- [`js/lens-local-store.js`](js/lens-local-store.js) → no in-scope imports
+- [`js/lens-local-store.ts`](js/lens-local-store.ts) → no in-scope imports
 - [`js/lens-local-utils.ts`](js/lens-local-utils.ts) → no in-scope imports
-- [`js/lens-local-worker.js`](js/lens-local-worker.js) → [`js/caught-error.ts`](js/caught-error.ts), [`js/lens-local-embedder-config.js`](js/lens-local-embedder-config.js), [`js/lens-local-ingest.js`](js/lens-local-ingest.js), [`js/lens-local-library-registry.js`](js/lens-local-library-registry.js), [`js/lens-local-store.js`](js/lens-local-store.js), [`js/lens-local-utils.ts`](js/lens-local-utils.ts)
-- [`js/lens-local.js`](js/lens-local.js) → no in-scope imports
+- [`js/lens-local-worker.js`](js/lens-local-worker.js) → [`js/caught-error.ts`](js/caught-error.ts), [`js/lens-local-embedder-config.ts`](js/lens-local-embedder-config.ts), [`js/lens-local-ingest.ts`](js/lens-local-ingest.ts), [`js/lens-local-library-registry.ts`](js/lens-local-library-registry.ts), [`js/lens-local-store.ts`](js/lens-local-store.ts), [`js/lens-local-utils.ts`](js/lens-local-utils.ts)
+- [`js/lens-local.ts`](js/lens-local.ts) → no in-scope imports
 - [`js/lens-page-shell.js`](js/lens-page-shell.js) → [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/dashboard-widget-copy.js`](js/dashboard-widget-copy.js), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/profile.js`](js/profile.js), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/lens-pages.js`](js/lens-pages.js) → [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js), [`js/biology-scores.js`](js/biology-scores.js), [`js/data.js`](js/data.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/profile-context.js`](js/profile-context.js), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/lens-url.ts`](js/lens-url.ts) → no in-scope imports
-- [`js/lens.js`](js/lens.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/caught-error.ts`](js/caught-error.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/crypto.js`](js/crypto.js), [`js/lens-cache.js`](js/lens-cache.js), [`js/lens-knowledge-base-ui.js`](js/lens-knowledge-base-ui.js) *(dynamic)*, [`js/lens-local.js`](js/lens-local.js) *(dynamic)*, [`js/lens-url.ts`](js/lens-url.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/lens.js`](js/lens.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/caught-error.ts`](js/caught-error.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/crypto.js`](js/crypto.js), [`js/lens-cache.js`](js/lens-cache.js), [`js/lens-knowledge-base-ui.js`](js/lens-knowledge-base-ui.js) *(dynamic)*, [`js/lens-local.ts`](js/lens-local.ts) *(dynamic)*, [`js/lens-url.ts`](js/lens-url.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 

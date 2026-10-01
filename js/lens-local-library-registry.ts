@@ -1,4 +1,3 @@
-// @ts-check
 // Lens Local library-registry lifecycle and OPFS recovery.
 
 import { getErrorMessage } from './caught-error.js';
@@ -21,8 +20,27 @@ import {
   writeBinaryTo,
 } from './lens-local-store.js';
 
+import type { CorpusManifest, LibraryRecord, OpfsDirectory } from './lens-local-store.js';
+export interface LibraryDirectory extends OpfsDirectory {
+  getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<LibraryDirectory>;
+  removeEntry(name: string, options?: { recursive?: boolean }): Promise<void>;
+  entries?: () => AsyncIterable<[string, { kind: 'file' } | (LibraryDirectory & { kind: 'directory' })]>;
+}
+type ModelCatalog = Record<string, { id: string; dim: number }>;
+
+function registryEntry(library: LibraryRecord) {
+  return { id: library.id, name: library.name, createdAt: library.createdAt, model: library.model };
+}
+
 export class LensLocalLibraryRegistry {
-  constructor(rootDir, models, defaultModelKey) {
+  declare rootDir: LibraryDirectory;
+  declare models: ModelCatalog;
+  declare defaultModelKey: string;
+  declare libraries: LibraryRecord[];
+  declare activeId: string | null;
+  declare revision: number;
+  declare failNextPersistForTest: boolean;
+  constructor(rootDir: LibraryDirectory, models: ModelCatalog, defaultModelKey: string) {
     this.rootDir = rootDir;
     this.models = models;
     this.defaultModelKey = defaultModelKey;
@@ -36,7 +54,7 @@ export class LensLocalLibraryRegistry {
     this.failNextPersistForTest = true;
   }
 
-  modelKey(libOrId) {
+  modelKey(libOrId: string | Pick<LibraryRecord, 'model'> | null | undefined) {
     const lib = typeof libOrId === 'string'
       ? this.libraries.find((item) => item.id === libOrId)
       : libOrId;
@@ -99,13 +117,8 @@ export class LensLocalLibraryRegistry {
 
     const recoveredLibraries = await this.discoverDirectories();
     if (recoveredLibraries.length > 0) {
-      this.libraries = recoveredLibraries.map((lib) => ({
-        id: lib.id,
-        name: lib.name,
-        createdAt: lib.createdAt,
-        model: lib.model,
-      }));
-      this.activeId = this.libraries.find((lib) => lib.id === 'default')?.id || this.libraries[0].id;
+      this.libraries = recoveredLibraries.map((lib) => registryEntry(lib));
+      this.activeId = this.libraries.find((lib) => lib.id === 'default')?.id || this.libraries[0]!.id;
       console.warn(`[lens-local] Recovered ${this.libraries.length} library registry entries from OPFS directories.`);
       await this.persist();
       return;
@@ -117,7 +130,7 @@ export class LensLocalLibraryRegistry {
     await this.persist();
   }
 
-  async activate(libraryId) {
+  async activate(libraryId: string) {
     if (!this.libraries.some((lib) => lib.id === libraryId)) {
       throw new Error(`No library with id "${libraryId}"`);
     }
@@ -127,7 +140,7 @@ export class LensLocalLibraryRegistry {
     return true;
   }
 
-  async create(name, modelKey) {
+  async create(name: unknown, modelKey?: string) {
     const label = String(name || '').trim() || 'Untitled library';
     const id = createUniqueId('lib-');
     const model = (modelKey && this.models[modelKey]) ? modelKey : this.defaultModelKey;
@@ -138,7 +151,7 @@ export class LensLocalLibraryRegistry {
     return library;
   }
 
-  async rename(libraryId, name) {
+  async rename(libraryId: string, name: unknown) {
     const library = this.libraries.find((lib) => lib.id === libraryId);
     if (!library) throw new Error(`No library with id "${libraryId}"`);
     const nextName = String(name || '').trim() || library.name;
@@ -149,7 +162,7 @@ export class LensLocalLibraryRegistry {
     return nextName;
   }
 
-  async delete(libraryId) {
+  async delete(libraryId: string) {
     const index = this.libraries.findIndex((lib) => lib.id === libraryId);
     if (index === -1) throw new Error(`No library with id "${libraryId}"`);
     const wasActive = libraryId === this.activeId;
@@ -160,7 +173,7 @@ export class LensLocalLibraryRegistry {
       nextLibraries = [this.defaultLibrary()];
       nextActiveId = 'default';
     } else if (wasActive) {
-      nextActiveId = nextLibraries[0].id;
+      nextActiveId = nextLibraries[0]!.id;
     }
 
     await this.persistState(nextLibraries, nextActiveId);
@@ -178,7 +191,7 @@ export class LensLocalLibraryRegistry {
     return this.persistState(this.libraries, this.activeId);
   }
 
-  async persistState(libraries, activeId) {
+  async persistState(libraries: LibraryRecord[], activeId: string | null) {
     if (this.failNextPersistForTest) {
       this.failNextPersistForTest = false;
       throw new Error('Test registry persist failure');
@@ -220,7 +233,7 @@ export class LensLocalLibraryRegistry {
     return null;
   }
 
-  async readRegistryFile(name) {
+  async readRegistryFile(name: string) {
     try {
       const text = await readOpfsFileFrom(this.rootDir, name);
       return normaliseLibraryRegistry(JSON.parse(text));
@@ -232,11 +245,11 @@ export class LensLocalLibraryRegistry {
   async discoverDirectories() {
     if (!this.rootDir || typeof this.rootDir.entries !== 'function') return [];
 
-    const libraries = [];
+    const libraries: Array<LibraryRecord & { manifest: CorpusManifest | null }> = [];
     for await (const [id, handle] of this.rootDir.entries()) {
       if (handle?.kind !== 'directory' || !isSafeLibraryId(id)) continue;
 
-      let manifest = null;
+      let manifest: CorpusManifest | null = null;
       try {
         manifest = await readLatestCorpusManifest(handle);
       } catch {}
@@ -265,7 +278,7 @@ export class LensLocalLibraryRegistry {
     if (discovered.length === 0) return { changed: false };
 
     const byId = new Map(discovered.map((lib) => [lib.id, lib]));
-    const next = [];
+    const next: LibraryRecord[] = [];
     let changed = false;
 
     for (const lib of this.libraries) {
@@ -286,12 +299,7 @@ export class LensLocalLibraryRegistry {
 
     if (recoverOrphans) {
       for (const disk of byId.values()) {
-        next.push({
-          id: disk.id,
-          name: disk.name,
-          createdAt: disk.createdAt,
-          model: disk.model,
-        });
+        next.push(registryEntry(disk));
         changed = true;
       }
     }
@@ -299,7 +307,7 @@ export class LensLocalLibraryRegistry {
     if (next.length > 0) {
       this.libraries = next;
       if (!this.libraries.some((lib) => lib.id === this.activeId)) {
-        this.activeId = this.libraries[0].id;
+        this.activeId = this.libraries[0]!.id;
         changed = true;
       }
     }

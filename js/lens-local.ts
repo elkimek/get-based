@@ -1,4 +1,3 @@
-// @ts-check
 // js/lens-local.js — browser-side lens engine, main-thread API.
 //
 // Implements the same surface as js/lens.js's queryLens(query) so the chat
@@ -14,23 +13,58 @@
 // Single worker per tab, lazily initialised on first call. Messages queue
 // so a query issued during an ingest waits its turn rather than racing.
 
-/** @type {Worker | null} */
-let _worker = null;
-/** @type {Promise<any> | null} */
-let _ready = null;
-/** @type {{ type: string, resolve: (value: any) => void, reject: (reason?: any) => void } | null} */
-let _inflight = null;
-/** @type {Set<(msg: any) => void>} */
-const _progressSubs = new Set();
+import type { MODELS } from './lens-local-embedder-config.js';
+import type { LibraryRecord } from './lens-local-store.js';
+import type { IngestProgress, LensInputFile, buildLocalIngestTransaction } from './lens-local-ingest.js';
 
-/** @returns {Worker} */
+type IngestStats = Awaited<ReturnType<typeof buildLocalIngestTransaction>>['stats'];
+interface ReadyReply {
+  type: 'ready'; numChunks: number; numDocs: number; libraries: LibraryRecord[]; activeId: string;
+  activeName: string; activeModel: string; models: typeof MODELS;
+  embedder?: { backend: string; modelKey: string; modelId: string; dim: number; msPerEmbed: number; tier: number; tierLabel: string } | null;
+}
+interface StatsReply {
+  type: 'stats_result'; total_chunks: number; documents: Array<{ source: string; chunks: number }>;
+  dim: number; model: string; backend: string; ms_per_embed: number | null;
+}
+export interface LensQueryChunk { text: string; source: string; score: number }
+interface ReplyPayloads {
+  init: ReadyReply; activate_library: ReadyReply;
+  ingest: { type: 'ingest_done'; stats: IngestStats };
+  query: { type: 'query_result'; chunks: LensQueryChunk[] }; stats: StatsReply;
+  delete: { type: 'delete_done'; deleted_chunks: number }; clear: { type: 'clear_done' };
+  list_libraries: { type: 'libraries_list'; libraries: LibraryRecord[]; activeId: string };
+  create_library: { type: 'library_created'; id: string; name: string; model: string; libraries: LibraryRecord[] };
+  rename_library: { type: 'library_renamed'; id: string; name: string; libraries: LibraryRecord[] };
+  delete_library: { type: 'library_deleted'; libraries: LibraryRecord[]; activeId: string; numChunks: number; numDocs: number };
+}
+type WorkerReply = ReplyPayloads[keyof ReplyPayloads] | ({ type: 'progress' } & IngestProgress) | { type: 'error'; message: string };
+
+let _worker: Worker | null = null;
+interface LocalLens extends Omit<ReadyReply, 'type'> {
+  ingest(files: LensInputFile[]): Promise<IngestStats>;
+  abort(): void;
+  query(text: unknown, topK?: number): Promise<LensQueryChunk[]>;
+  getStats(): Promise<Omit<StatsReply, 'type'>>;
+  deleteDocument(source: unknown): Promise<number>;
+  clear(): Promise<void>;
+  listLibraries(): Promise<Omit<ReplyPayloads['list_libraries'], 'type'>>;
+  activateLibrary(libraryId: unknown): Promise<Omit<ReadyReply, 'type' | 'activeModel' | 'models' | 'embedder'>>;
+  createLibrary(name: unknown, model?: string): Promise<Omit<ReplyPayloads['create_library'], 'type'>>;
+  renameLibrary(libraryId: unknown, name: unknown): Promise<Omit<ReplyPayloads['rename_library'], 'type'>>;
+  deleteLibrary(libraryId: unknown): Promise<Omit<ReplyPayloads['delete_library'], 'type'>>;
+}
+let _ready: Promise<LocalLens> | null = null;
+let _inflight: { type: string; resolve(value: unknown): void; reject(reason?: unknown): void } | null = null;
+const _progressSubs = new Set<(progress: IngestProgress & { type: 'progress' }) => void>();
+
 function ensureWorker() {
   if (_worker) return _worker;
   _worker = new Worker(new URL('./lens-local-worker.js', import.meta.url), {
     type: 'module',
   });
-  _worker.addEventListener('message', (e) => {
-    const msg = e.data || {};
+  _worker.addEventListener('message', (e: MessageEvent<WorkerReply>) => {
+    const msg = (e.data || {}) as WorkerReply;
     switch (msg.type) {
       case 'progress':
         for (const fn of _progressSubs) { try { fn(msg); } catch {} }
@@ -70,18 +104,13 @@ function ensureWorker() {
 // Simple serial queue — enforces one request at a time. transformers.js
 // doesn't tolerate reentrant inference calls, and OPFS writes can race
 // against each other, so strict serialization is the safe default.
-/** @type {Promise<any>} */
-let _queue = Promise.resolve();
-/**
- * @param {{ type: string, [key: string]: any }} msg
- * @returns {Promise<any>}
- */
-function send(msg) {
-  _queue = _queue.then(() => new Promise((resolve, reject) => {
+let _queue: Promise<unknown> = Promise.resolve();
+function send<Type extends keyof ReplyPayloads>(msg: { type: Type } & Record<string, unknown>): Promise<ReplyPayloads[Type]> {
+  _queue = _queue.then(() => new Promise<unknown>((resolve, reject) => {
     _inflight = { type: msg.type, resolve, reject };
     ensureWorker().postMessage(msg);
   }));
-  return _queue;
+  return _queue as Promise<ReplyPayloads[Type]>;
 }
 
 // localStorage shadow of the current corpus chunk count. hasLens() in
@@ -92,7 +121,7 @@ function send(msg) {
 // next init will overwrite.
 const CORPUS_COUNT_KEY = 'labcharts-lens-local-count';
 
-function writeCachedCount(n) {
+function writeCachedCount(n: unknown) {
   try { localStorage.setItem(CORPUS_COUNT_KEY, String(Number(n) || 0)); } catch {}
 }
 
@@ -130,7 +159,7 @@ export async function openLocalLens() {
       models: ready.models || {},
 
       // Corpus ops — all scope to the active library.
-      ingest: async (files) => {
+      ingest: async (files: LensInputFile[]) => {
         const r = await send({ type: 'ingest', files });
         const s = await send({ type: 'stats' });
         writeCachedCount(s.total_chunks);
@@ -140,7 +169,7 @@ export async function openLocalLens() {
       // it can interrupt an in-flight ingest; the worker polls the flag
       // between batches and discards the pending transaction.
       abort: () => { try { ensureWorker().postMessage({ type: 'abort' }); } catch {} },
-      query: (text, topK = 10) => send({ type: 'query', text, topK }).then((r) => r.chunks),
+      query: (text: unknown, topK = 10) => send({ type: 'query', text, topK }).then((r) => r.chunks),
       getStats: async () => {
         const r = await send({ type: 'stats' });
         writeCachedCount(r.total_chunks);
@@ -153,7 +182,7 @@ export async function openLocalLens() {
           ms_per_embed: r.ms_per_embed,
         };
       },
-      deleteDocument: async (source) => {
+      deleteDocument: async (source: unknown) => {
         const deleted = await send({ type: 'delete', source }).then((r) => r.deleted_chunks);
         const s = await send({ type: 'stats' });
         writeCachedCount(s.total_chunks);
@@ -169,7 +198,7 @@ export async function openLocalLens() {
         const r = await send({ type: 'list_libraries' });
         return { libraries: r.libraries, activeId: r.activeId };
       },
-      activateLibrary: async (libraryId) => {
+      activateLibrary: async (libraryId: unknown) => {
         const r = await send({ type: 'activate_library', libraryId });
         writeCachedCount(r.numChunks);
         return {
@@ -180,15 +209,15 @@ export async function openLocalLens() {
           numDocs: r.numDocs,
         };
       },
-      createLibrary: async (name, model) => {
+      createLibrary: async (name: unknown, model?: string) => {
         const r = await send({ type: 'create_library', name, model });
         return { id: r.id, name: r.name, model: r.model, libraries: r.libraries };
       },
-      renameLibrary: async (libraryId, name) => {
+      renameLibrary: async (libraryId: unknown, name: unknown) => {
         const r = await send({ type: 'rename_library', libraryId, name });
         return { id: r.id, name: r.name, libraries: r.libraries };
       },
-      deleteLibrary: async (libraryId) => {
+      deleteLibrary: async (libraryId: unknown) => {
         const r = await send({ type: 'delete_library', libraryId });
         writeCachedCount(r.numChunks);
         return {
@@ -207,7 +236,7 @@ export async function openLocalLens() {
 /// Emits { stage: 'start', total } once, then repeated
 /// { stage: 'embed', index, total, source } during the embed pass, then
 /// { stage: 'saving', total } at the final non-cancellable commit boundary.
-export function subscribeProgress(fn) {
+export function subscribeProgress(fn: (progress: IngestProgress & { type: 'progress' }) => void) {
   _progressSubs.add(fn);
   return () => _progressSubs.delete(fn);
 }
@@ -216,7 +245,7 @@ export function subscribeProgress(fn) {
 /// shape (or null if not configured) so chat.js doesn't need to know
 /// which backend answered. sourceName reflects the ACTIVE library's name
 /// so chat citations show which collection the excerpts came from.
-export async function queryLensLocal(queryHint, opts = {}) {
+export async function queryLensLocal(queryHint: unknown, opts: { topK?: number; floor?: unknown } = {}) {
   const hint = String(queryHint || '').trim();
   if (!hint) return null;
   const lens = await openLocalLens();

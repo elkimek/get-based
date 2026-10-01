@@ -1,5 +1,27 @@
-// @ts-check
 // Shared OPFS and library-registry helpers for the browser-side Lens worker.
+
+// Structural OPFS capabilities used here, including the worker-only sync handle.
+export interface OpfsSyncHandle {
+  getSize(): number; read(bytes: Uint8Array<ArrayBuffer>, options: { at: number }): number;
+  truncate(size: number): void; write(bytes: Uint8Array<ArrayBufferLike>, options: { at: number }): number;
+  flush(): void; close(): void;
+}
+export interface OpfsDirectory {
+  getFileHandle(name: string, options?: { create?: boolean }): Promise<{ createSyncAccessHandle(): Promise<OpfsSyncHandle> }>;
+}
+export interface LibraryRecord { id: string; name: string; createdAt: number; model: string | undefined }
+interface LibraryRecordView { id?: unknown; name?: unknown; createdAt?: unknown; model?: unknown }
+interface RegistryView { libraries?: unknown; activeId?: unknown; revision?: unknown; updatedAt?: unknown }
+export interface LibraryRegistry { activeId: string; libraries: LibraryRecord[]; revision: number; updatedAt: number }
+export interface CorpusDocument { source: string; chunks: number; hash?: string; [key: string]: unknown }
+export interface CorpusChunk { source: string; text: string; [key: string]: unknown }
+export interface CorpusManifest extends Record<string, unknown> {
+  dim: number; numChunks: number; modelId?: unknown; indexedAt?: unknown; docs: CorpusDocument[];
+  storage?: { schemaVersion: number; revision: number; vectorsChecksum: string; chunksChecksum: string };
+}
+export interface CorpusState { manifest: CorpusManifest; vectors: Float32Array; chunks: CorpusChunk[] }
+export type CorpusSlot = 'a' | 'b';
+type CorpusSnapshot = { slot: CorpusSlot | null; revision: number; state: CorpusState; legacy: boolean };
 
 export const OPFS_SUBDIR = 'lens-local';
 export const FILE_MANIFEST = 'manifest.json';
@@ -15,12 +37,12 @@ const CORPUS_SLOT_FILES = {
   b: { manifest: 'manifest.b.json', vectors: 'vectors.b.bin', chunks: 'chunks.b.json' },
 };
 
-export function normaliseLibraryRegistry(registry) {
+export function normaliseLibraryRegistry(registry: RegistryView | null | undefined): LibraryRegistry | null {
   if (!registry || !Array.isArray(registry.libraries)) return null;
 
   const seen = new Set();
-  const libraries = [];
-  for (const raw of registry.libraries) {
+  const libraries: LibraryRecord[] = [];
+  for (const raw of registry.libraries as Array<LibraryRecordView | null | undefined>) {
     const lib = normaliseLibraryRecord(raw);
     if (!lib || seen.has(lib.id)) continue;
     seen.add(lib.id);
@@ -29,7 +51,7 @@ export function normaliseLibraryRegistry(registry) {
   if (libraries.length === 0) return null;
 
   let activeId = typeof registry.activeId === 'string' ? registry.activeId : '';
-  if (!libraries.some((lib) => lib.id === activeId)) activeId = libraries[0].id;
+  if (!libraries.some((lib) => lib.id === activeId)) activeId = libraries[0]!.id;
   const revisionNumber = Number(registry.revision);
   const updatedAtNumber = Number(registry.updatedAt);
   return {
@@ -40,14 +62,14 @@ export function normaliseLibraryRegistry(registry) {
   };
 }
 
-export function sameLibraryRegistry(a, b) {
+export function sameLibraryRegistry(a: LibraryRegistry | null | undefined, b: LibraryRegistry | null | undefined) {
   if (!a || !b) return false;
   return a.revision === b.revision
     && a.activeId === b.activeId
     && JSON.stringify(a.libraries) === JSON.stringify(b.libraries);
 }
 
-export function normaliseLibraryRecord(raw, fallbackId = '') {
+export function normaliseLibraryRecord(raw: LibraryRecordView | null | undefined, fallbackId = '') {
   const id = String(raw?.id || fallbackId || '').trim();
   if (!isSafeLibraryId(id)) return null;
   const name = String(raw?.name || '').trim() || fallbackLibraryName(id);
@@ -59,11 +81,11 @@ export function normaliseLibraryRecord(raw, fallbackId = '') {
   return { id, name, createdAt, model };
 }
 
-export function isSafeLibraryId(id) {
+export function isSafeLibraryId(id: unknown) {
   return /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(String(id || ''));
 }
 
-export function fallbackLibraryName(id) {
+export function fallbackLibraryName(id: unknown) {
   if (id === 'default') return DEFAULT_LIBRARY_NAME;
   const label = String(id || '')
     .replace(/^lib[-_]?/, '')
@@ -72,7 +94,7 @@ export function fallbackLibraryName(id) {
   return label || 'Recovered library';
 }
 
-export function modelKeyFromManifest(manifest, models) {
+export function modelKeyFromManifest(manifest: CorpusManifest | null | undefined, models: Record<string, { id: string; dim: number }> | null | undefined) {
   if (!manifest || typeof manifest !== 'object') return '';
   for (const [key, spec] of Object.entries(models || {})) {
     if (manifest.modelId === spec.id && Number(manifest.dim) === spec.dim) return key;
@@ -83,7 +105,7 @@ export function modelKeyFromManifest(manifest, models) {
 /// Read a text file from a specific directory handle. Thin wrapper over
 /// readBinaryFrom that UTF-8-decodes. Used for manifest.json + chunks.json
 /// + _libraries.json.
-export async function readOpfsFileFrom(dir, name) {
+export async function readOpfsFileFrom(dir: OpfsDirectory, name: string) {
   const bytes = await readBinaryFrom(dir, name);
   return new TextDecoder().decode(new Uint8Array(bytes));
 }
@@ -92,7 +114,7 @@ export async function readOpfsFileFrom(dir, name) {
 /// view backed by a scratch Uint8Array; we copy into a fresh buffer so the
 /// caller can safely use .buffer without worrying about byteOffset on a
 /// subarray view.
-export async function readBinaryFrom(dir, name) {
+export async function readBinaryFrom(dir: OpfsDirectory, name: string) {
   const handle = await dir.getFileHandle(name);
   const sync = await handle.createSyncAccessHandle();
   try {
@@ -110,7 +132,7 @@ export async function readBinaryFrom(dir, name) {
 /// Write and flush one file in a specific directory. This operation alone is
 /// not a multi-file transaction; writeCorpusSnapshot provides that guarantee
 /// by writing an inactive generation and committing its manifest last.
-export async function writeBinaryTo(dir, name, bytes) {
+export async function writeBinaryTo(dir: OpfsDirectory, name: string, bytes: Uint8Array<ArrayBufferLike>) {
   const handle = await dir.getFileHandle(name, { create: true });
   const sync = await handle.createSyncAccessHandle();
   try {
@@ -122,29 +144,28 @@ export async function writeBinaryTo(dir, name, bytes) {
   }
 }
 
-function checksumBytes(bytes) {
+function checksumBytes(bytes: Uint8Array) {
   let fnv = 2166136261;
   let djb = 5381;
   for (let i = 0; i < bytes.length; i++) {
-    fnv = Math.imul(fnv ^ bytes[i], 16777619);
-    djb = Math.imul(djb, 33) ^ bytes[i];
+    fnv = Math.imul(fnv ^ bytes[i]!, 16777619);
+    djb = Math.imul(djb, 33) ^ bytes[i]!;
   }
   return `${bytes.length}:${(fnv >>> 0).toString(36)}:${(djb >>> 0).toString(36)}`;
 }
 
-function corpusSlotFiles(slot) {
+function corpusSlotFiles(slot: string) {
   return slot === 'b' ? CORPUS_SLOT_FILES.b : CORPUS_SLOT_FILES.a;
 }
 
-/** @template T @param {T | null} value @returns {value is T} */
-function isPresent(value) {
+function isPresent<T>(value: T | null): value is T {
   return value !== null;
 }
 
-async function readCorpusSlotManifest(dir, slot) {
+async function readCorpusSlotManifest(dir: OpfsDirectory, slot: CorpusSlot) {
   try {
     const files = corpusSlotFiles(slot);
-    const manifest = JSON.parse(await readOpfsFileFrom(dir, files.manifest));
+    const manifest = JSON.parse(await readOpfsFileFrom(dir, files.manifest)) as CorpusManifest;
     const storage = manifest?.storage;
     if (storage?.schemaVersion !== CORPUS_SNAPSHOT_SCHEMA) return null;
     if (!Number.isInteger(storage.revision) || storage.revision <= 0) return null;
@@ -155,16 +176,17 @@ async function readCorpusSlotManifest(dir, slot) {
   }
 }
 
+function readCorpusSlots(dir: OpfsDirectory) {
+  return Promise.all([readCorpusSlotManifest(dir, 'a'), readCorpusSlotManifest(dir, 'b')]);
+}
+
 /**
  * Return the newest parseable snapshot manifest, falling back to the legacy
  * single-manifest layout for registry recovery. Full checksum validation is
  * performed by readLatestCorpusSnapshot before a corpus is used.
  */
-export async function readLatestCorpusManifest(dir) {
-  const candidates = (await Promise.all([
-    readCorpusSlotManifest(dir, 'a'),
-    readCorpusSlotManifest(dir, 'b'),
-  ])).filter(isPresent).sort((a, b) => b.revision - a.revision);
+export async function readLatestCorpusManifest(dir: OpfsDirectory): Promise<CorpusManifest | null> {
+  const candidates = (await readCorpusSlots(dir)).filter(isPresent).sort((a, b) => b.revision - a.revision);
   if (candidates[0]) return candidates[0].manifest;
   try { return JSON.parse(await readOpfsFileFrom(dir, FILE_MANIFEST)); }
   catch { return null; }
@@ -176,14 +198,9 @@ export async function readLatestCorpusManifest(dir) {
  * last. A torn write therefore invalidates only the inactive slot; the prior
  * generation remains available.
  *
- * @param {FileSystemDirectoryHandle} dir
- * @param {{ dim?: number, modelId?: string }} [expected]
  */
-export async function readLatestCorpusSnapshot(dir, expected = {}) {
-  const manifests = (await Promise.all([
-    readCorpusSlotManifest(dir, 'a'),
-    readCorpusSlotManifest(dir, 'b'),
-  ])).filter(isPresent).sort((a, b) => b.revision - a.revision);
+export async function readLatestCorpusSnapshot(dir: OpfsDirectory, expected: { dim?: number; modelId?: string } = {}): Promise<CorpusSnapshot | null> {
+  const manifests = (await readCorpusSlots(dir)).filter(isPresent).sort((a, b) => b.revision - a.revision);
 
   for (const candidate of manifests) {
     try {
@@ -194,8 +211,8 @@ export async function readLatestCorpusSnapshot(dir, expected = {}) {
       const chunkBuffer = await readBinaryFrom(dir, files.chunks);
       const vectorBytes = new Uint8Array(vectorBuffer);
       const chunkBytes = new Uint8Array(chunkBuffer);
-      if (checksumBytes(vectorBytes) !== manifest.storage.vectorsChecksum) continue;
-      if (checksumBytes(chunkBytes) !== manifest.storage.chunksChecksum) continue;
+      if (checksumBytes(vectorBytes) !== manifest.storage!.vectorsChecksum) continue;
+      if (checksumBytes(chunkBytes) !== manifest.storage!.chunksChecksum) continue;
       if (vectorBytes.byteLength % Float32Array.BYTES_PER_ELEMENT !== 0) continue;
       const vectors = new Float32Array(vectorBuffer);
       const chunks = JSON.parse(new TextDecoder().decode(chunkBytes));
@@ -208,7 +225,7 @@ export async function readLatestCorpusSnapshot(dir, expected = {}) {
   }
 
   try {
-    const manifest = JSON.parse(await readOpfsFileFrom(dir, FILE_MANIFEST));
+    const manifest = JSON.parse(await readOpfsFileFrom(dir, FILE_MANIFEST)) as CorpusManifest;
     if (expected.dim !== undefined && manifest.dim !== expected.dim) return null;
     if (expected.modelId !== undefined && manifest.modelId !== expected.modelId) return null;
     const vectorBuffer = await readBinaryFrom(dir, FILE_VECTORS);
@@ -226,11 +243,8 @@ export async function readLatestCorpusSnapshot(dir, expected = {}) {
  * Persist a complete corpus to the inactive generation slot. The returned
  * state becomes canonical only after the manifest commit record is flushed.
  *
- * @param {FileSystemDirectoryHandle} dir
- * @param {{ manifest: any, vectors: Float32Array, chunks: any[] }} state
- * @param {{ activeSlot?: string | null, revision?: number, writeBytes?: typeof writeBinaryTo }} [options]
  */
-export async function writeCorpusSnapshot(dir, state, options = {}) {
+export async function writeCorpusSnapshot(dir: OpfsDirectory, state: CorpusState, options: { activeSlot?: string | null; revision?: number; writeBytes?: typeof writeBinaryTo } = {}) {
   const slot = options.activeSlot === 'a' ? 'b' : 'a';
   const files = corpusSlotFiles(slot);
   const revision = Math.max(0, Number(options.revision) || 0) + 1;

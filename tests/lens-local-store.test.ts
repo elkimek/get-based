@@ -5,13 +5,15 @@ import {
   writeBinaryTo,
   writeCorpusSnapshot,
 } from '../js/lens-local-store.js';
+import type { OpfsSyncHandle } from '../js/lens-local-store.js';
 
 class MemoryFile {
+  declare bytes: Uint8Array<ArrayBuffer>;
   constructor() {
     this.bytes = new Uint8Array(0);
   }
 
-  async createSyncAccessHandle() {
+  async createSyncAccessHandle(): Promise<OpfsSyncHandle> {
     const file = this;
     return {
       getSize: () => file.bytes.byteLength,
@@ -39,20 +41,21 @@ class MemoryFile {
 }
 
 class MemoryDirectory {
+  declare files: Map<string, MemoryFile>;
   constructor() {
     this.files = new Map();
   }
 
-  async getFileHandle(name, options = {}) {
+  async getFileHandle(name: string, options: { create?: boolean } = {}) {
     if (!this.files.has(name)) {
       if (!options.create) throw new Error(`Missing file: ${name}`);
       this.files.set(name, new MemoryFile());
     }
-    return this.files.get(name);
+    return this.files.get(name)!;
   }
 }
 
-function corpus(label, values) {
+function corpus(label: string, values: number[]) {
   return {
     manifest: {
       numChunks: values.length / 2,

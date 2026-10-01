@@ -429,8 +429,8 @@ export function createLensKnowledgeBaseUi(deps) {
                 ? 'Multilingual-E5'
                 : s.model;
         const backendLabel = s.backend === 'webgpu' ? 'WebGPU' : 'CPU';
-        const speed = Number.isFinite(s.ms_per_embed) && s.ms_per_embed > 0
-          ? ` · about ${Math.max(1, Math.round(1000 / s.ms_per_embed))} excerpts/s`
+        const speed = Number.isFinite(s.ms_per_embed) && /** @type {number} */ (s.ms_per_embed) > 0
+          ? ` · about ${Math.max(1, Math.round(1000 / /** @type {number} */ (s.ms_per_embed)))} excerpts/s`
           : '';
         stats.innerHTML = `<span class="kb-stats-dot" aria-hidden="true"></span>${s.total_chunks.toLocaleString()} excerpt${s.total_chunks !== 1 ? 's' : ''} from ${s.documents.length} document${s.documents.length !== 1 ? 's' : ''} · <span title="${escapeAttr(s.model)}">${escapeHTML(modelLabel)} on ${escapeHTML(backendLabel)}${speed}</span>`;
         if (s.backend !== 'webgpu' && /bge-base/i.test(s.model)) {

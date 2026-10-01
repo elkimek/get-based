@@ -1,7 +1,15 @@
-// @ts-check
 // Pure transactional ingest planning for the browser Knowledge Base worker.
 
 import { chunkText } from './lens-local-utils.js';
+
+import type { CorpusChunk, CorpusState } from './lens-local-store.js';
+export interface LensInputFile { name?: string; text?: string }
+export type LensEmbedder = (input: string | string[] | undefined, options: { pooling: 'mean'; normalize: true }) => Promise<{ data?: ArrayLike<number> | null } | null | undefined>;
+export type IngestProgress = { stage: 'start' | 'saving'; total: number } | { stage: 'embed'; total: number; index: number; source: string };
+export interface IngestOptions {
+  files: LensInputFile[]; embedder: LensEmbedder; backend: string; dim: number; current: CorpusState;
+  postProgress(progress: IngestProgress): void; yieldTask(): Promise<void>; isAbortRequested(): boolean;
+}
 
 const CHUNK_SIZE = 800;
 const CHUNK_OVERLAP = 50;
@@ -12,39 +20,29 @@ const CHUNK_MIN = 50;
  * owns the persistence boundary and commits `nextState` only after all model
  * calls succeed. Returning null leaves the existing library untouched.
  *
- * @param {{
- *   files: Array<{name?: string, text?: string}>,
- *   embedder: Function,
- *   backend: string,
- *   dim: number,
- *   current: {vectors: Float32Array, chunks: Array<{source:string,text:string}>, manifest: any},
- *   postProgress: (progress: any) => void,
- *   yieldTask: () => Promise<void>,
- *   isAbortRequested: () => boolean,
- * }} options
  */
-export async function buildLocalIngestTransaction(options) {
+export async function buildLocalIngestTransaction(options: IngestOptions) {
   const { files, embedder, backend, dim, current, postProgress, yieldTask, isAbortRequested } = options;
 
   // A browser picker exposes names, not stable paths. Matching names are the
   // same logical document; duplicate names in one selection use the last file.
-  const uniqueFiles = new Map();
+  const uniqueFiles = new Map<string, { name: string; text: string; hash: string }>();
   for (const file of files) {
     const name = String(file.name || 'Untitled document');
     const text = String(file.text || '');
     uniqueFiles.set(name, { name, text, hash: contentFingerprint(text) });
   }
 
-  const skipped = [];
-  const changedFiles = [];
+  const skipped: string[] = [];
+  const changedFiles: Array<{ name: string; text: string; hash: string }> = [];
   for (const file of uniqueFiles.values()) {
     const existing = current.manifest.docs.find((doc) => doc.source === file.name);
     if (existing?.hash && existing.hash === file.hash) skipped.push(file.name);
     else changedFiles.push(file);
   }
 
-  const allChunks = [];
-  const changedWithChunks = [];
+  const allChunks: CorpusChunk[] = [];
+  const changedWithChunks: typeof changedFiles = [];
   for (const file of changedFiles) {
     const pieces = chunkText(file.text, CHUNK_SIZE, CHUNK_OVERLAP, CHUNK_MIN);
     // Empty input should not accidentally erase an existing document.
@@ -90,7 +88,7 @@ export async function buildLocalIngestTransaction(options) {
       stage: 'embed',
       index: indexed,
       total: allChunks.length,
-      source: allChunks[end - 1].source,
+      source: allChunks[end - 1]!.source,
     });
   }
   // Catch Stop indexing sent while the final model invocation was running.
@@ -116,18 +114,18 @@ export async function buildLocalIngestTransaction(options) {
   for (const chunk of current.chunks) if (!replacedSources.has(chunk.source)) keptCount += 1;
 
   const mergedVectors = new Float32Array((keptCount + allChunks.length) * dim);
-  const mergedChunks = new Array(keptCount + allChunks.length);
+  const mergedChunks = new Array<CorpusChunk>(keptCount + allChunks.length);
   let writeIndex = 0;
   for (let i = 0; i < current.chunks.length; i++) {
-    if (replacedSources.has(current.chunks[i].source)) continue;
+    if (replacedSources.has(current.chunks[i]!.source)) continue;
     mergedVectors.set(current.vectors.subarray(i * dim, (i + 1) * dim), writeIndex * dim);
-    mergedChunks[writeIndex] = current.chunks[i];
+    mergedChunks[writeIndex] = current.chunks[i]!;
     writeIndex += 1;
   }
   mergedVectors.set(newVectors, writeIndex * dim);
-  for (let i = 0; i < allChunks.length; i++) mergedChunks[writeIndex + i] = allChunks[i];
+  for (let i = 0; i < allChunks.length; i++) mergedChunks[writeIndex + i] = allChunks[i]!;
 
-  const perDocument = new Map();
+  const perDocument = new Map<string, number>();
   for (const chunk of allChunks) perDocument.set(chunk.source, (perDocument.get(chunk.source) || 0) + 1);
   const nextManifest = {
     ...current.manifest,
@@ -151,10 +149,10 @@ export async function buildLocalIngestTransaction(options) {
   };
 }
 
-async function embedTexts(embedder, texts, dim) {
+async function embedTexts(embedder: LensEmbedder, texts: string[], dim: number): Promise<ArrayLike<number>> {
   const input = texts.length === 1 ? texts[0] : texts;
   const out = await embedder(input, { pooling: 'mean', normalize: true });
-  if (out?.data?.length === texts.length * dim) return out.data;
+  if (out?.data?.length === texts.length * dim) return out!.data!;
 
   // Compatibility for older/custom wrappers that only accept one string.
   const vectors = new Float32Array(texts.length * dim);
@@ -168,7 +166,7 @@ async function embedTexts(embedder, texts, dim) {
   return vectors;
 }
 
-function contentFingerprint(text) {
+function contentFingerprint(text: string) {
   let fnv = 2166136261;
   let djb = 5381;
   for (let i = 0; i < text.length; i++) {
