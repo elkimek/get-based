@@ -1,7 +1,7 @@
 // @ts-check
 // context-card-lifestyle-editors.js - cold-safe facade for lifestyle context card editors
 
-import { createRetryingModuleLoader } from './retrying-module-loader.js';
+import { createRetryingModuleLoader, invokeCachedModule } from './retrying-module-loader.js';
 import { state } from './state.js';
 import { scanDietForContaminants } from './food-contaminants.js';
 import { doesNutritionContextOverrideTypicalMeals } from './context-card-summaries.js';
@@ -83,20 +83,11 @@ function runLifestyleContextEditorAction(name, args, shouldLoad = true) {
     return Reflect.apply(action, module, args);
   };
   if (!lifestyleContextEditorsModuleLoader.module && !shouldLoad) return undefined;
-  try {
-    if (lifestyleContextEditorsModuleLoader.module) return run(lifestyleContextEditorsModuleLoader.module);
-    return loadLifestyleContextEditors()
-      .then(run)
-      .catch(err => {
-        console.error(`[context-cards] Could not run ${String(name)}:`, err);
-        showNotification('Context editor could not be loaded. Try again.', 'error');
-        return false;
-      });
-  } catch (err) {
+  return invokeCachedModule(lifestyleContextEditorsModuleLoader, loadLifestyleContextEditors, run, (err, phase) => {
     console.error(`[context-cards] Could not run ${String(name)}:`, err);
-    if (shouldLoad) showNotification('Context editor could not be loaded. Try again.', 'error');
-    return shouldLoad ? false : undefined;
-  }
+    if (shouldLoad || phase === 'async') showNotification('Context editor could not be loaded. Try again.', 'error');
+    return shouldLoad || phase === 'async' ? false : undefined;
+  });
 }
 
 function closestColdDietContaminantsBadge(target) {

@@ -54,3 +54,34 @@ export function scheduleRuntimeTask(callback: () => void, delayMs = 0): number |
   }
   return schedule(callback, delayMs);
 }
+
+export type ModuleBridgeFunction = (...args: unknown[]) => unknown;
+
+/** Snapshot new keys before applying own entries; null removes an existing slot. */
+export function configureModuleBridge(
+  bridge: Record<string, unknown>, updates: Record<string, unknown> = {},
+  policy: 'functions' | 'values' = 'functions',
+) {
+  const previous = { ...bridge };
+  for (const name of Object.keys(updates)) {
+    if (!(name in previous)) previous[name] = null;
+  }
+  for (const [name, value] of Object.entries(updates)) {
+    if (policy === 'values') {
+      if (value === null) delete bridge[name];
+      else bridge[name] = value;
+    } else if (typeof value === 'function') {
+      bridge[name] = value;
+    } else if (value === null) {
+      delete bridge[name];
+    }
+  }
+  return previous;
+}
+
+/** Keep both original property-key reads when the selected slot is callable. */
+export function getModuleBridgeFunction(bridge: Record<string, unknown>, name: string) {
+  return typeof bridge[name] === 'function'
+    ? bridge[name] as ModuleBridgeFunction
+    : null;
+}

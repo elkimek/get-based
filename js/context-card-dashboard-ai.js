@@ -1,7 +1,7 @@
 // @ts-check
 // context-card-dashboard-ai.js - cold-safe AI context and data protection facade
 
-import { createRetryingModuleLoader } from './retrying-module-loader.js';
+import { createRetryingModuleLoader, invokeCachedModule } from './retrying-module-loader.js';
 import { getFolderBackupState, pickFolderForBackup } from './backup.js';
 import { getEncryptionEnabled, showEnableEncryptionModal } from './crypto.js';
 import { getLensSummary, openKnowledgeBaseModal } from './lens.js';
@@ -67,20 +67,11 @@ function runDashboardAIAction(name) {
     }
     return Reflect.apply(action, module, []);
   };
-  try {
-    if (dashboardAIModuleLoader.module) return run(dashboardAIModuleLoader.module);
-    return loadDashboardAIModule()
-      .then(run)
-      .catch(err => {
-        console.error(`[context-cards] Could not run ${String(name)}:`, err);
-        showNotification('Dashboard context tools could not be loaded. Try again.', 'error');
-        return false;
-      });
-  } catch (err) {
+  return invokeCachedModule(dashboardAIModuleLoader, loadDashboardAIModule, run, (err) => {
     console.error(`[context-cards] Could not run ${String(name)}:`, err);
     showNotification('Dashboard context tools could not be loaded. Try again.', 'error');
     return false;
-  }
+  });
 }
 
 export function triggerDNAFilePicker() {

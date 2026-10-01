@@ -1,6 +1,8 @@
 // @ts-check
 // wearables-runtime.js - Browser runtime adapters for wearable dashboard hooks.
 
+import { configureModuleBridge, getModuleBridgeFunction } from './runtime-callbacks.js';
+
 import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { showNotification } from './utils.js';
@@ -38,26 +40,12 @@ const wearableModuleBridge = Object.create(null);
 
 /** @param {Record<string, unknown>} api */
 export function configureWearablesModuleBridge(api = {}) {
-  /** @type {Record<string, ((...args: any[]) => any) | null>} */
-  const previous = { ...wearableModuleBridge };
-  for (const name of Object.keys(api)) {
-    if (!(name in previous)) previous[name] = null;
-  }
-  for (const [name, value] of Object.entries(api)) {
-    if (typeof value === 'function') {
-      wearableModuleBridge[name] = /** @type {(...args: any[]) => any} */ (value);
-    } else if (value === null) {
-      delete wearableModuleBridge[name];
-    }
-  }
-  return previous;
+  return configureModuleBridge(wearableModuleBridge, api);
 }
 
 /** @param {string} name */
 export function getWearablesModuleFunction(name) {
-  return typeof wearableModuleBridge[name] === 'function'
-    ? wearableModuleBridge[name]
-    : null;
+  return getModuleBridgeFunction(wearableModuleBridge, name);
 }
 
 export function isWearablesModuleLoaded() {

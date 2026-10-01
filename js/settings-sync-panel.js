@@ -1,7 +1,7 @@
 // @ts-check
 // settings-sync-panel.js — cold-safe Settings sync-panel facade
 
-import { createRetryingModuleLoader } from './retrying-module-loader.js';
+import { createRetryingModuleLoader, invokeCachedModule } from './retrying-module-loader.js';
 import {
   applyPendingTombstone,
   listPendingTombstones,
@@ -90,20 +90,11 @@ function runSettingsSyncPanelAction(name, args, shouldLoad = true) {
     return Reflect.apply(action, module, args);
   };
   if (!settingsSyncPanelModuleLoader.module && !shouldLoad) return undefined;
-  try {
-    if (settingsSyncPanelModuleLoader.module) return run(settingsSyncPanelModuleLoader.module);
-    return loadSettingsSyncPanelModule()
-      .then(run)
-      .catch(err => {
-        console.error(`[settings-sync] Could not run ${String(name)}:`, err);
-        showNotification('Sync settings could not be loaded. Try again.', 'error');
-        return false;
-      });
-  } catch (err) {
+  return invokeCachedModule(settingsSyncPanelModuleLoader, loadSettingsSyncPanelModule, run, (err, phase) => {
     console.error(`[settings-sync] Could not run ${String(name)}:`, err);
-    if (shouldLoad) showNotification('Sync settings could not be loaded. Try again.', 'error');
-    return shouldLoad ? false : undefined;
-  }
+    if (shouldLoad || phase === 'async') showNotification('Sync settings could not be loaded. Try again.', 'error');
+    return shouldLoad || phase === 'async' ? false : undefined;
+  });
 }
 
 export function renderSyncSection() {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createRetryingModuleLoader } from '../js/retrying-module-loader.js';
+import { createRetryingModuleLoader, invokeCachedModule } from '../js/retrying-module-loader.js';
 
 describe('independent first-use module caches', () => {
   it('shares the pending promise and publishes the module before initialization', async () => {
@@ -53,5 +53,50 @@ describe('independent first-use module caches', () => {
     expect(first.module).toBeNull();
     expect(flags).toEqual([false, false]);
     expect(await second.load()).toBe('other module');
+  });
+});
+
+describe('resident and cold action dispatch', () => {
+  it('keeps resident mutation synchronous and returns its exact value', () => {
+    const module = { count: 0 };
+    const result = { marker: 'caller result' };
+    expect(invokeCachedModule({ module }, () => { throw new Error('must stay warm'); }, value => {
+      value.count++;
+      return result;
+    }, () => { throw new Error('unexpected report'); })).toBe(result);
+    expect(module.count).toBe(1);
+  });
+
+  it('keeps a resident rejected Promise intact while reporting a cold rejection', async () => {
+    const error = new Error('action rejected');
+    const rejected = Promise.reject(error);
+    const reports: unknown[] = [];
+    const report = (failure: unknown, phase: string) => { reports.push([failure, phase]); return false; };
+    const resident = invokeCachedModule({ module: {} }, () => Promise.resolve({}), () => rejected, report);
+    expect(resident).toBe(rejected);
+    await expect(resident).rejects.toBe(error);
+    expect(reports).toEqual([]);
+    await expect(invokeCachedModule({ module: null }, () => Promise.resolve({}), () => Promise.reject(error), report)).resolves.toBe(false);
+    expect(reports).toEqual([[error, 'async']]);
+  });
+
+  it('propagates synchronous cold-load failures for facades that load outside their catch', async () => {
+    const error = new Error('cold load failed');
+    const reports: unknown[] = [];
+    const report = (failure: unknown, phase: string) => { reports.push([failure, phase]); return false; };
+    expect(() => invokeCachedModule({ module: null }, () => { throw error; }, value => value, report, 'propagate')).toThrow(error);
+    expect(reports).toEqual([]);
+    await expect(invokeCachedModule({ module: null }, () => Promise.reject(error), value => value, report, 'propagate')).resolves.toBe(false);
+    expect(reports).toEqual([[error, 'async']]);
+  });
+
+  it.each(['load', 'action'] as const)('reports a synchronous %s error immediately', where => {
+    const error = new Error(where);
+    const report = (failure: unknown, phase: string) => {
+      expect(failure).toBe(error);
+      expect(phase).toBe('sync');
+      return undefined;
+    };
+    expect(invokeCachedModule({ module: where === 'action' ? {} : null }, () => { throw error; }, () => { throw error; }, report)).toBeUndefined();
   });
 });

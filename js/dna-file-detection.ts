@@ -1,8 +1,7 @@
-// @ts-check
 // dna-file-detection.js - lightweight DNA file classification shared by lazy import flows.
 
 // Detect DNA file by checking the first few lines of text content.
-export function detectDNAFile(text) {
+export function detectDNAFile(text: unknown) {
   const first = String(text || '').slice(0, 1500);
   if (first.startsWith('#AncestryDNA')) return 'ancestry';
   // MyHeritage's Low-pass WGS export (2025+ format) prepends a
@@ -43,7 +42,7 @@ export function detectDNAFile(text) {
   if (/^rsid\tchromosome\tposition\tgenotype/i.test(firstNonComment)) return '23andme';
 
   const dataLines = first.split(/\r?\n/).filter(line => line.trim() && !line.startsWith('#'));
-  if (dataLines.length > 0 && /^rs\d+\t\d+\t\d+\t[ACGT\-]{1,2}$/i.test(dataLines[0].trim())) return '23andme';
+  if (dataLines.length > 0 && /^rs\d+\t\d+\t\d+\t[ACGT\-]{1,2}$/i.test(dataLines[0]!.trim())) return '23andme';
   if (
     dataLines.length > 0
     && dataLines.length < 200
@@ -55,7 +54,7 @@ export function detectDNAFile(text) {
 }
 
 // Check if a dropped/selected file looks like a DNA raw data file by name.
-export function isDNAFile(file) {
+export function isDNAFile(file: { readonly name?: unknown } | null | undefined) {
   if (!file) return false;
   const name = String(file.name || '').toLowerCase();
   if (name.includes('ancestrydna')) return true;
@@ -70,7 +69,7 @@ export function isDNAFile(file) {
 }
 
 // Content-based DNA detection reads only the first 1500 bytes.
-export async function isDNAFileByContent(file) {
+export async function isDNAFileByContent(file: Pick<Blob, 'slice'>) {
   try {
     const header = await file.slice(0, 1500).text();
     return detectDNAFile(header) !== null;

@@ -474,6 +474,22 @@ version/storage gates. Every archive item and sanitizer/event operation is
 preserved. Original and consolidated loaders matched in 128 scenarios covering
 request failures, getters, callback receivers, dependency reads and cache identity.
 
+Nine facades now share typed resident/cold action dispatch. Resident calls retain
+synchronous effects and their exact returned Promise; cold failures retain each
+facade's console, notification and fallback policy. Client-list and marker-detail
+keep propagating synchronous cold-load failures because their original loads sat
+outside the catch boundary. Durable tests cover this distinction.
+
+Settings, Wearables and DNA bridge configuration share the existing callback
+module while retaining independent registries, snapshot restoration, own-entry
+enumeration, getter order and null deletion. Settings and DNA bridges are fully
+native TypeScript; DNA's known file classifiers derive their signatures from its
+native filename/content detection module. Other unconverted DNA actions expose
+opaque results at the bridge boundary. The original DNA lookup reads its key
+once, while Settings and Wearables retain their original two callable-key reads.
+All executable DNA classifier and bridge operations matched original ASTs;
+279 dispatch/bridge scenarios matched original values, errors and traces.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, remaining workers,

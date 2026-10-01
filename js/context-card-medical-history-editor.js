@@ -1,7 +1,7 @@
 // @ts-check
 // context-card-medical-history-editor.js - cold-safe Medical History editor facade
 
-import { createRetryingModuleLoader } from './retrying-module-loader.js';
+import { createRetryingModuleLoader, invokeCachedModule } from './retrying-module-loader.js';
 import { selectCtxOption } from './context-card-editor-ui.js';
 import { showConfirmDialog, showNotification } from './utils.js';
 
@@ -68,20 +68,11 @@ function runMedicalHistoryEditorAction(name, args, shouldLoad = true) {
     return Reflect.apply(action, module, args);
   };
   if (!medicalHistoryEditorModuleLoader.module && !shouldLoad) return undefined;
-  try {
-    if (medicalHistoryEditorModuleLoader.module) return run(medicalHistoryEditorModuleLoader.module);
-    return loadMedicalHistoryEditor()
-      .then(run)
-      .catch(err => {
-        console.error(`[context-cards] Could not run ${String(name)}:`, err);
-        showNotification('Medical history editor could not be loaded. Try again.', 'error');
-        return false;
-      });
-  } catch (err) {
+  return invokeCachedModule(medicalHistoryEditorModuleLoader, loadMedicalHistoryEditor, run, (err, phase) => {
     console.error(`[context-cards] Could not run ${String(name)}:`, err);
-    if (shouldLoad) showNotification('Medical history editor could not be loaded. Try again.', 'error');
-    return shouldLoad ? false : undefined;
-  }
+    if (shouldLoad || phase === 'async') showNotification('Medical history editor could not be loaded. Try again.', 'error');
+    return shouldLoad || phase === 'async' ? false : undefined;
+  });
 }
 
 const MEDICAL_HISTORY_ROOT = '#detail-modal';

@@ -1,7 +1,7 @@
 // @ts-check
 // marker-detail-modal.js — lightweight public entry point for marker detail UI
 
-import { createRetryingModuleLoader } from './retrying-module-loader.js';
+import { createRetryingModuleLoader, invokeCachedModule } from './retrying-module-loader.js';
 import { state } from './state.js';
 import { closeSuggestionsOnClickOutside } from './health-data-loader.js';
 import { installMarkerDetailActionDelegates } from './marker-detail-actions.js';
@@ -76,26 +76,14 @@ function reportMarkerDetailActionError(name, err) {
  * @param {any[]} args
  */
 function runMarkerDetailAction(name, args) {
-  if (markerDetailModuleLoader.module) {
-    try {
-      const action = markerDetailModuleLoader.module[name];
-      if (typeof action !== 'function') {
-        throw new Error(`Marker detail action ${String(name)} is unavailable`);
-      }
-      return Reflect.apply(action, markerDetailModuleLoader.module, args);
-    } catch (err) {
-      return reportMarkerDetailActionError(name, err);
+  const run = (/** @type {MarkerDetailModule} */ module) => {
+    const action = module[name];
+    if (typeof action !== 'function') {
+      throw new Error(`Marker detail action ${String(name)} is unavailable`);
     }
-  }
-  return loadMarkerDetailModule()
-    .then(module => {
-      const action = module[name];
-      if (typeof action !== 'function') {
-        throw new Error(`Marker detail action ${String(name)} is unavailable`);
-      }
-      return Reflect.apply(action, module, args);
-    })
-    .catch(err => reportMarkerDetailActionError(name, err));
+    return Reflect.apply(action, module, args);
+  };
+  return invokeCachedModule(markerDetailModuleLoader, loadMarkerDetailModule, run, err => reportMarkerDetailActionError(name, err), 'propagate');
 }
 
 export function fetchCustomMarkerDescription(...args) {

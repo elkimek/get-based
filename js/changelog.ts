@@ -1,5 +1,5 @@
 type ChangelogModule = typeof import('./changelog-impl.js');
-import { createRetryingModuleLoader } from './retrying-module-loader.js';
+import { createRetryingModuleLoader, invokeCachedModule } from './retrying-module-loader.js';
 // changelog.js — cold-safe What's New version gate and lazy modal facade
 
 import { closeModalOverlay } from './modal-lifecycle.js';
@@ -46,31 +46,17 @@ export function loadChangelogModule() {
 
 export function openChangelog(showAll: unknown) {
   const open = (module: ChangelogModule) => module.openChangelog(showAll);
-  try {
-    if (changelogModuleLoader.module) return open(changelogModuleLoader.module);
-    return loadChangelogModule()
-      .then(open)
-      .catch(err => {
-        console.error('[changelog] Could not open release notes:', err);
-        showNotification('Release notes could not be loaded. Try again.', 'error');
-        return false;
-      });
-  } catch (err) {
+  return invokeCachedModule(changelogModuleLoader, loadChangelogModule, open, (err: unknown) => {
     console.error('[changelog] Could not open release notes:', err);
     showNotification('Release notes could not be loaded. Try again.', 'error');
     return false;
-  }
+  });
 }
-
-/** Extract major.minor from a semver string (e.g. '1.0.1' → '1.0') */
 
 export function closeChangelog() {
   closeModalOverlay('changelog-modal-overlay');
   markChangelogSeen();
 }
-
-// Compare two semver strings — returns true when `a` is strictly newer
-// than `b`. Tolerant of missing parts (treats "1.7" as "1.7.0").
 
 export function maybeShowChangelog() {
   if (document.getElementById('legal-consent-overlay')) return;

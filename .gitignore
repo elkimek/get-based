@@ -397,3 +397,9 @@ deploy/profile-share/data/
 /js/changelog-impl.js
 /js/changelog-current.js
 /js/changelog-state.js
+
+/js/settings-runtime-bridge.js
+
+/js/dna-runtime-bridge.js
+
+/js/dna-file-detection.js

@@ -1,7 +1,7 @@
 // @ts-check
 // export-loader.js - cold-safe lazy facade for export, import, demo, and report actions
 
-import { createRetryingModuleLoader } from './retrying-module-loader.js';
+import { createRetryingModuleLoader, invokeCachedModule } from './retrying-module-loader.js';
 import { showNotification } from './utils.js';
 
 /** @typedef {typeof import('./export.js')} ExportFacadeModule */
@@ -67,12 +67,7 @@ function runExportFacadeAction(name, args) {
     showNotification('Data export tools could not be loaded. Try again.', 'error');
     return false;
   };
-  try {
-    if (exportFacadeModuleLoader.module) return run(exportFacadeModuleLoader.module);
-    return loadExportFacadeModule().then(run).catch(reportFailure);
-  } catch (error) {
-    return reportFailure(error);
-  }
+  return invokeCachedModule(exportFacadeModuleLoader, loadExportFacadeModule, run, reportFailure);
 }
 
 export function clearAllData() {

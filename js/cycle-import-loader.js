@@ -1,7 +1,7 @@
 // @ts-check
 // cycle-import-loader.js - cold-safe Cycle import runtime facade
 
-import { createRetryingModuleLoader } from './retrying-module-loader.js';
+import { createRetryingModuleLoader, invokeCachedModule } from './retrying-module-loader.js';
 import { upgradeMenstrualCycleProfile } from './cycle-summary.js';
 import { escapeAttr, escapeHTML, showNotification } from './utils.js';
 
@@ -110,20 +110,11 @@ function runCycleImportAction(name, args) {
     }
     return Reflect.apply(action, module, args);
   };
-  try {
-    if (cycleImportModuleLoader.module) return run(cycleImportModuleLoader.module);
-    return loadCycleImportModule()
-      .then(run)
-      .catch(error => {
-        console.error(`[cycle-import] Could not run ${String(name)}:`, error);
-        showNotification('Cycle import tools could not be loaded. Try again.', 'error');
-        return false;
-      });
-  } catch (error) {
+  return invokeCachedModule(cycleImportModuleLoader, loadCycleImportModule, run, (error) => {
     console.error(`[cycle-import] Could not run ${String(name)}:`, error);
     showNotification('Cycle import tools could not be loaded. Try again.', 'error');
     return false;
-  }
+  });
 }
 
 /**

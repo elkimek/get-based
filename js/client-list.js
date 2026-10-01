@@ -1,7 +1,7 @@
 // @ts-check
 // client-list.js — lightweight public entry point for the Client List modal
 
-import { createRetryingModuleLoader } from './retrying-module-loader.js';
+import { createRetryingModuleLoader, invokeCachedModule } from './retrying-module-loader.js';
 import { closeModalOverlay } from './modal-lifecycle.js';
 import { showClientListNotification } from './client-list-runtime.js';
 
@@ -79,26 +79,14 @@ function reportClientListActionError(name, err) {
  * @param {any[]} args
  */
 function runClientListAction(name, args) {
-  if (clientListModuleLoader.module) {
-    try {
-      const action = clientListModuleLoader.module[name];
-      if (typeof action !== 'function') {
-        throw new Error(`Client List action ${String(name)} is unavailable`);
-      }
-      return Reflect.apply(action, clientListModuleLoader.module, args);
-    } catch (err) {
-      return reportClientListActionError(name, err);
+  const run = (/** @type {ClientListModule} */ module) => {
+    const action = module[name];
+    if (typeof action !== 'function') {
+      throw new Error(`Client List action ${String(name)} is unavailable`);
     }
-  }
-  return loadClientListModule()
-    .then(module => {
-      const action = module[name];
-      if (typeof action !== 'function') {
-        throw new Error(`Client List action ${String(name)} is unavailable`);
-      }
-      return Reflect.apply(action, module, args);
-    })
-    .catch(err => reportClientListActionError(name, err));
+    return Reflect.apply(action, module, args);
+  };
+  return invokeCachedModule(clientListModuleLoader, loadClientListModule, run, err => reportClientListActionError(name, err), 'propagate');
 }
 
 export function openClientList(...args) {
