@@ -432,3 +432,5 @@ deploy/profile-share/data/
 /js/sun-uvdata-atmosphere.js
 
 /js/sun-uvdata-client-types.js
+
+/js/backup-serialization.js

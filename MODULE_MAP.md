@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 817 |
-| Internal import edges | 3506 |
+| Internal import edges | 3507 |
 | Dynamic internal edges | 119 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -178,8 +178,8 @@ Native browser modules shipped with the static application.
 
 - [`js/backup-chat-storage.ts`](js/backup-chat-storage.ts) → no in-scope imports
 - [`js/backup-cycle.ts`](js/backup-cycle.ts) → [`js/cycle-store.ts`](js/cycle-store.ts)
-- [`js/backup-serialization.js`](js/backup-serialization.js) → no in-scope imports
-- [`js/backup.js`](js/backup.js) → [`js/backup-chat-storage.ts`](js/backup-chat-storage.ts), [`js/backup-cycle.ts`](js/backup-cycle.ts) *(dynamic)*, [`js/backup-serialization.js`](js/backup-serialization.js), [`js/blob-storage.ts`](js/blob-storage.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/sync-backup-restore-state.ts`](js/sync-backup-restore-state.ts), [`js/utils.ts`](js/utils.ts), [`js/voice-settings-schema.ts`](js/voice-settings-schema.ts), [`js/wearables-store.ts`](js/wearables-store.ts)
+- [`js/backup-serialization.ts`](js/backup-serialization.ts) → [`js/sync-payload-codec.ts`](js/sync-payload-codec.ts)
+- [`js/backup.js`](js/backup.js) → [`js/backup-chat-storage.ts`](js/backup-chat-storage.ts), [`js/backup-cycle.ts`](js/backup-cycle.ts) *(dynamic)*, [`js/backup-serialization.ts`](js/backup-serialization.ts), [`js/blob-storage.ts`](js/blob-storage.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/sync-backup-restore-state.ts`](js/sync-backup-restore-state.ts), [`js/utils.ts`](js/utils.ts), [`js/voice-settings-schema.ts`](js/voice-settings-schema.ts), [`js/wearables-store.ts`](js/wearables-store.ts)
 
 </details>
 

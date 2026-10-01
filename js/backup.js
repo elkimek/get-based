@@ -402,21 +402,23 @@ export function importEncryptedBackup(file) {
         showNotification('Invalid backup file format', 'error');
         return;
       }
-      const backup = parseBackupSnapshot(result);
+      // Decoding restores byte arrays, not a validated backup schema. Keep the
+      // legacy field reads and coercions explicit at this import boundary.
+      const backup = /** @type {Record<string, unknown>} */ (parseBackupSnapshot(result));
       if (backup.format !== 'labcharts-backup' || !backup.profileList) {
         showNotification('Invalid backup file format', 'error');
         return;
       }
 
-      const profileCount = backup.profiles ? backup.profiles.length : 0;
+      const profileCount = backup.profiles ? /** @type {{ length: number }} */ (backup.profiles).length : 0;
       const encMsg = backup.encrypted ? ' This backup is encrypted \u2014 you\'ll need the same passphrase.' : '';
 
       if (await showConfirmDialog(
-        `Restore backup from ${new Date(backup.createdAt).toLocaleDateString()}? This will overwrite ${profileCount} profile(s).${encMsg}`
+        `Restore backup from ${new Date(/** @type {string | number} */ (backup.createdAt)).toLocaleDateString()}? This will overwrite ${profileCount} profile(s).${encMsg}`
       )) {
         if (backup.encrypted && backup.encryptionSalt) {
           localStorage.setItem('labcharts-encryption-enabled', 'true');
-          localStorage.setItem('labcharts-encryption-salt', backup.encryptionSalt);
+          localStorage.setItem('labcharts-encryption-salt', /** @type {string} */ (backup.encryptionSalt));
         } else {
           localStorage.removeItem('labcharts-encryption-enabled');
           localStorage.removeItem('labcharts-encryption-salt');
@@ -424,7 +426,7 @@ export function importEncryptedBackup(file) {
 
         await restoreBackupSettings(backup);
 
-        localStorage.setItem('labcharts-profiles', backup.profileList);
+        localStorage.setItem('labcharts-profiles', /** @type {string} */ (backup.profileList));
 
         // Restore each profile's keys. Big-blob keys (`-imported`)
         // route to IndexedDB; everything else stays in localStorage.
@@ -432,7 +434,7 @@ export function importEncryptedBackup(file) {
         // each so the wearable restore + reload only fires after all
         // profile keys are actually written.
         if (backup.profiles) {
-          for (const p of backup.profiles) {
+          for (const p of /** @type {Array<{ profileId: unknown, keys: Record<string, unknown> }>} */ (backup.profiles)) {
             for (const [suffix, value] of Object.entries(p.keys)) {
               const key = `labcharts-${p.profileId}-${suffix}`;
               await writeRawStoredItem(key, value);
@@ -560,19 +562,19 @@ export async function restoreAutoBackup(id) {
   const backup = record.snapshot;
 
   if (await showConfirmDialog(
-    `Restore auto-backup from ${new Date(backup.createdAt).toLocaleString()}? This will overwrite all current data.`
+    `Restore auto-backup from ${new Date(/** @type {string | number} */ (backup.createdAt)).toLocaleString()}? This will overwrite all current data.`
   )) {
     if (backup.encrypted && backup.encryptionSalt) {
       localStorage.setItem('labcharts-encryption-enabled', 'true');
-      localStorage.setItem('labcharts-encryption-salt', backup.encryptionSalt);
+      localStorage.setItem('labcharts-encryption-salt', /** @type {string} */ (backup.encryptionSalt));
     } else {
       localStorage.removeItem('labcharts-encryption-enabled');
       localStorage.removeItem('labcharts-encryption-salt');
     }
     await restoreBackupSettings(backup);
-    localStorage.setItem('labcharts-profiles', backup.profileList);
+    localStorage.setItem('labcharts-profiles', /** @type {string} */ (backup.profileList));
     if (backup.profiles) {
-      for (const p of backup.profiles) {
+      for (const p of /** @type {Array<{ profileId: unknown, keys: Record<string, unknown> }>} */ (backup.profiles)) {
         for (const [suffix, value] of Object.entries(p.keys)) {
           await writeRawStoredItem(`labcharts-${p.profileId}-${suffix}`, value);
         }
