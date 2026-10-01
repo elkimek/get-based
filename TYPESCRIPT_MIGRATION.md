@@ -390,6 +390,21 @@ sync integration cases are unchanged. Tombstones, freshness ties, provenance,
 prototype-pollution checks, nested-path handling, caps and wire versions retain
 their executable behavior.
 
+
+Push-side array/map/scalar planners, snapshot advancement, the row-merge facade,
+the delta application facade and profile delta orchestration now use strict
+native TypeScript. One wire-row constructor replaces repeated insert/update
+construction. Independently scoped query access now also supplies the merge and
+application facades; forwarding snapshots retain actual provider references.
+Deletion, resurrection, compression timing, SNP hydration, mutation ordering,
+partial-failure retries and same-millisecond snapshot protection retain their
+executable behavior. Repeated audit narratives now state the current invariants
+concisely. Five original planner/profile-delta tests are native and share their
+unchanged fake-client operations with remaining sync integration tests. New
+regressions cover provider-reference snapshots and retry after partial mutation
+failure. Three legacy source checks normalize compiler whitespace while keeping
+their original patterns and bounds.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

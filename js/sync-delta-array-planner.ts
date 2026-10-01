@@ -1,4 +1,6 @@
-// @ts-check
+import { createDeltaWrite } from './sync-delta-row-codec.js';
+import type { ArrayIdentityConfig, SyncIdentityRecord } from './sync-delta-surface-config.js';
+import type { DeltaPlan, DeltaPlannedOperation } from './sync-delta-row-codec.js';
 // sync-delta-array-planner.js - Push-side array delta planner.
 
 import { _bytesToBase64, _gzipString } from './sync-payload-codec.js';
@@ -9,23 +11,21 @@ import {
 import { _readDeltaSnapshot } from './sync-delta-snapshot.js';
 import { getPlannerItemRows } from './sync-delta-planner-context.js';
 
+interface ArrayDeltaOptions { explicitTombstoneIds?: readonly unknown[] | undefined }
+
 // Push the diff between the current array state and the last-pushed
 // snapshot. Returns the candidate-new snapshot (caller commits it from
 // onComplete after the blob push lands successfully).
-/**
- * @param {string} profileId
- * @param {string} arrayName
- * @param {any[]} items
- * @param {{ explicitTombstoneIds?: string[] }} [options]
- */
-export async function _planArrayDelta(profileId, arrayName, items, { explicitTombstoneIds = [] } = {}) {
+export async function _planArrayDelta(
+  profileId: string, arrayName: string, items: unknown,
+  { explicitTombstoneIds = [] }: ArrayDeltaOptions = {},
+): Promise<DeltaPlan> {
   const plannedAt = Date.now();
-  /** @type {Partial<import('./sync-delta-surface-config.js').ArrayIdentityConfig>} */
-  const cfg = DELTA_ARRAY_CONFIG[arrayName] || {};
-  const itemIdFn = typeof cfg.itemIdFn === 'function' ? cfg.itemIdFn : (it => (it && typeof it.id === 'string' ? it.id : null));
+  const cfg: Partial<ArrayIdentityConfig> = DELTA_ARRAY_CONFIG[arrayName] || {};
+  const itemIdFn: (it: SyncIdentityRecord) => string | null = typeof cfg.itemIdFn === 'function' ? cfg.itemIdFn : (it => (it && typeof it.id === 'string' ? it.id : null));
   const prev = _readDeltaSnapshot(profileId, arrayName);
-  const next = {};
-  const ops = []; // collected pending evolu mutations
+  const next: DeltaPlan['next'] = {};
+  const ops: DeltaPlannedOperation[] = []; // collected pending evolu mutations
 
   // Index existing itemRow rows for this (profile, array) so we can
   // reuse their `id` on update instead of creating phantom duplicates.
@@ -37,14 +37,14 @@ export async function _planArrayDelta(profileId, arrayName, items, { explicitTom
   // deletion and must reach per-row sync even after the v4 blob cutover.
   const explicitTombstones = new Set(
     (Array.isArray(explicitTombstoneIds) ? explicitTombstoneIds : [])
-      .filter(id => _isAllowlistSafeId(id)),
+      .filter((id): id is string => _isAllowlistSafeId(id)),
   );
 
   // Build [item, itemId] tuples, dropping anything whose derived itemId
   // fails _isAllowlistSafeId (covers regex + proto-pollution rejection).
   const tuples = Array.isArray(items)
-    ? items.map(it => [it, itemIdFn(it)])
-      .filter(([, id]) => _isAllowlistSafeId(id) && !explicitTombstones.has(id))
+    ? items.map<[unknown, string | null]>(it => [it, itemIdFn(it as SyncIdentityRecord)])
+      .filter(([, id]) => _isAllowlistSafeId(id) && !explicitTombstones.has(id!)) as [unknown, string][]
     : [];
   for (const [item, itemId] of tuples) {
     const json = JSON.stringify(item);
@@ -52,47 +52,23 @@ export async function _planArrayDelta(profileId, arrayName, items, { explicitTom
     next[itemId] = hash;
     if (prev[itemId] === hash) continue; // unchanged - skip push
 
-    // Compress payload the same way buildSyncPayload does - itemRow.payload
-    // is a NonEmptyString, gzip+base64 envelope keeps small items tiny.
+    // Match the blob wire codec; compression failure retains plain JSON.
     let payload = json;
     if (typeof CompressionStream !== 'undefined' && json.length > 256) {
       try { payload = `GZ|v1|${_bytesToBase64(await _gzipString(json))}`; } catch {}
     }
     const existing = rowByItemId.get(itemId);
     const syncedAt = new Date().toISOString();
-    // v1.7.11 audit fix: when the existing row is tombstoned (user deleted
-    // the item, then re-added it), evolu.update without isDeleted leaves
-    // the LWW register stuck at 1 - peers keep seeing it as a delete.
-    // Explicitly set isDeleted to null so the resurrect wins LWW.
+    // Clear the LWW deletion register when reusing a tombstoned row.
     const resurrect = existing?.isDeleted ? { isDeleted: null } : {};
-    if (existing) {
-      ops.push({ kind: 'update', args: { id: existing.id, profileId, arrayName, itemId, payload, syncedAt, ...resurrect } });
-    } else {
-      ops.push({ kind: 'insert', args: { profileId, arrayName, itemId, payload, syncedAt } });
-    }
+    ops.push(createDeltaWrite(existing, { profileId, arrayName, itemId: itemId, payload, syncedAt }, resurrect));
   }
 
-  // Tombstones: items that were in the prev snapshot but no longer in
-  // the array. Skip if the row is already tombstoned, or if no row
-  // exists yet (could just be a snapshot/local-storage drift on a
-  // fresh device; safer to no-op than to push a phantom delete).
-  // Skipped entirely for arrays flagged noTombstones - capped lists where
-  // local eviction is expected and a tombstone would destroy data on a
-  // peer whose window happens to still include the item.
-  //
-  // Tombstone-storm guard (mirrors _planKeyedMapDelta): if the array went
-  // from N>=20 items to <50% of that in a single push, refuse to emit
-  // tombstones. A drop that large is almost always a transient state
-  // issue (mid-import, mid-pull-merge, in-progress reset) rather than
-  // the user genuinely deleting half their data. Letting it through
-  // would propagate a wipe to peers via the relay. Concrete cases this
-  // protects: sunSessions / deviceSessions / lightAudits / lightMeasurements
-  // / entries - all user-owned, append-mostly, and rarely halve in normal
-  // use. Logged at warn so debug mode surfaces when it fires; the user
-  // can still genuinely empty an array (do it in two steps or via
-  // explicit clear-data flows that bypass the planner).
-  const queuedTombstones = new Set();
-  const queueTombstone = (itemId) => {
+  // Missing rows: safer to no-op than to push a phantom delete.
+  // Infer deletions only for existing live rows. Capped surfaces suppress eviction
+  // tombstones; a sudden loss of half a large snapshot is treated as transient.
+  const queuedTombstones = new Set<string>();
+  const queueTombstone = (itemId: string) => {
     if (queuedTombstones.has(itemId)) return;
     const row = rowByItemId.get(itemId);
     if (!row || row.isDeleted) return;

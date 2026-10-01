@@ -1945,8 +1945,10 @@ await import('../js/settings.js');
     /changeHistory:[\s\S]{0,1200}noTombstones:\s*true/.test(deltaSearchSrc));
   assert('_planArrayDelta consults DELTA_ARRAY_CONFIG[arrayName]',
     /_planArrayDelta[\s\S]{0,400}DELTA_ARRAY_CONFIG\[arrayName\]/.test(deltaSearchSrc));
+  // Compiler indentation must not change these executable source contracts.
+  const deltaSyntaxSearchSrc = deltaSearchSrc.replace(/\s+/g, ' ');
   assert('_planArrayDelta suppresses inferred tombstones but carries explicit privacy deletions',
-    /for \(const itemId of explicitTombstones\) queueTombstone\(itemId\);[\s\S]{0,200}if \(!cfg\.noTombstones\)/.test(deltaSearchSrc)
+    /for \(const itemId of explicitTombstones\) queueTombstone\(itemId\);[\s\S]{0,200}if \(!cfg\.noTombstones\)/.test(deltaSyntaxSearchSrc)
       && /if \(!cfg\.noTombstones\)[\s\S]{0,1400}queueTombstone\(prevId\)/.test(deltaSearchSrc));
   assert('planProfileDeltas passes explicit blob tombstones into the array planner',
     /importedData\._deleted\?\.\[arrayName\][\s\S]{0,300}_planArrayDelta\([^)]*explicitTombstoneIds/.test(syncPushDeltasSrc));
@@ -2636,7 +2638,7 @@ await import('../js/settings.js');
 
   // Snapshot-poisoning fix
   assert('_applyArrayDelta returns boolean success',
-    /function _applyArrayDelta[\s\S]{0,800}let allOk\s*=\s*true[\s\S]{0,400}return allOk/.test(deltaSearchSrc));
+    /function _applyArrayDelta[\s\S]{0,800}let allOk\s*=\s*true[\s\S]{0,400}return allOk/.test(deltaSyntaxSearchSrc));
   assert('onComplete advances snapshot only when _applyArrayDelta returned true',
     /const allOk\s*=\s*_applyArrayDelta\(arrayName,\s*plan\)[\s\S]{0,200}if \(allOk\)[\s\S]{0,500}_writeDeltaSnapshot/.test(deltaSearchSrc));
   assert('onComplete logs partial-failure ratio',
@@ -2885,7 +2887,7 @@ await import('../js/settings.js');
   assert('onComplete passes plan.plannedAt to _writeDeltaSnapshot',
     /_writeDeltaSnapshot\(profileId,\s*arrayName,\s*plan\.next,\s*plan\.plannedAt\)/.test(deltaSearchSrc));
   assert('onComplete tracks wrote vs allOk separately (skip-clobber count)',
-    /const wrote = _writeDeltaSnapshot[\s\S]{0,200}if \(wrote\) snapshotsAdvanced\+\+/.test(deltaSearchSrc));
+    /const wrote = _writeDeltaSnapshot[\s\S]{0,200}if \(wrote\) snapshotsAdvanced\+\+/.test(deltaSyntaxSearchSrc));
 
   // Live: round-trip the gate. Set a snapshot with a future plannedAt,
   // then try to write with a stale plannedAt — must be refused.

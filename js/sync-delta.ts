@@ -1,4 +1,6 @@
-// @ts-check
+import { createDeltaQueryAccess } from './sync-delta-observability-context.js';
+import type { DeltaMutationClient, DeltaQueryOptions } from './sync-delta-observability-context.js';
+import type { DeltaOperation } from './sync-delta-telemetry.js';
 // sync-delta.js — Evolu per-row delta facade, apply wiring, and compatibility re-exports.
 
 import { getErrorMessage } from './caught-error.js';
@@ -17,37 +19,23 @@ export {
 } from './sync-delta-observability.js';
 export { _mergeItemRowsIntoImported } from './sync-delta-merge.js';
 
-/** @type {() => any} */
-let _getEvolu = () => null;
-/** @type {() => any} */
-let _getItemRowQuery = () => null;
+const deltaQueryAccess = createDeltaQueryAccess<DeltaMutationClient>();
 
-/** @param {{ getEvolu?: () => any, getItemRowQuery?: () => any }} [deps] */
-export function configureSyncDelta({ getEvolu, getItemRowQuery } = {}) {
-  if (typeof getEvolu === 'function') _getEvolu = getEvolu;
-  if (typeof getItemRowQuery === 'function') _getItemRowQuery = getItemRowQuery;
-  const deps = {
-    getEvolu: _getEvolu,
-    getItemRowQuery: _getItemRowQuery,
-  };
+export function configureSyncDelta({ getEvolu, getItemRowQuery }: DeltaQueryOptions<DeltaMutationClient> = {}) {
+  deltaQueryAccess.configure({ getEvolu, getItemRowQuery });
+  const deps = deltaQueryAccess.providers();
   configureSyncDeltaPlanners(deps);
   configureSyncDeltaObservability(deps);
   configureSyncDeltaMerge(deps);
 }
 
 function _currentEvolu() {
-  try { return _getEvolu?.() || null; } catch { return null; }
+  return deltaQueryAccess.currentEvolu();
 }
 
-// Apply the planned ops via Evolu. Called from pushProfile's onComplete
-// after the fat-blob push lands.
-//
-// v1.7.12 audit fix: returns true only when every op succeeded. The
-// caller (`onComplete`) skips the snapshot advance when this returns
-// false — a partial failure used to silently advance the snapshot,
-// poisoning future pushes (next push thought the failed items were
-// already shipped to the relay and skipped them).
-export function _applyArrayDelta(arrayName, plan) {
+// Apply after the blob commits. A partial failure keeps the snapshot unchanged
+// so failed rows are retried on the next push. Continue queuing remaining ops.
+export function _applyArrayDelta(arrayName: string, plan: { ops: readonly DeltaOperation[] }) {
   const evolu = _currentEvolu();
   if (!evolu) return false;
   let allOk = true;

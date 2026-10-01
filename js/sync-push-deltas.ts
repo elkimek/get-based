@@ -1,5 +1,8 @@
-// @ts-check
 // sync-push-deltas.js - Push-side delta planning and post-commit application.
+
+import type { DeltaImportedData, DeltaPlan } from './sync-delta-row-codec.js';
+
+export interface NamedDeltaPlan { arrayName: string; plan: DeltaPlan }
 
 import { getErrorMessage } from './caught-error.js';
 import { getAt } from './data-merge.js';
@@ -9,18 +12,15 @@ import {
   _planScalarDelta, _recordPushTelemetry, _writeDeltaSnapshot,
 } from './sync-delta.js';
 
-export async function planProfileDeltas(profileId, importedData) {
-  const deltaPlans = [];
+export async function planProfileDeltas(profileId: string, importedData: DeltaImportedData | null | undefined) {
+  const deltaPlans: NamedDeltaPlan[] = [];
   let deltaOpCount = 0;
   if (!importedData || typeof importedData !== 'object') {
     return { deltaPlans, deltaOpCount };
   }
 
-  // Phase 1 of CRDT-delta refactor: plan per-array deltas BEFORE the
-  // blob update so the diff is computed against the same importedData
-  // snapshot we're about to ship. Apply runs from onComplete so a
-  // wedged blob push doesn't strand the snapshot pointer past the
-  // unmerged delta.
+  // Plan against the same local view as the blob. Commit rows and snapshots only
+  // from onComplete so an incomplete blob write remains eligible for retry.
   for (const arrayName of DELTA_ARRAYS) {
     // arrayName may be a dotted path (`lightEnvironment.rooms`); the
     // planner reads via getAt so flat and nested paths share the
@@ -42,10 +42,7 @@ export async function planProfileDeltas(profileId, importedData) {
     }
   }
 
-  // Keyed-map shapes (markerNotes etc) - same itemRow table, different
-  // enumeration. Tagged with the same arrayName field on the row so
-  // telemetry + the diagnose UI render them uniformly with the array
-  // arrays.
+  // Keyed maps share itemRow storage and surface names with the array path.
   for (const mapName of DELTA_MAPS) {
     // Dotted-path support (e.g. `genetics.snps`) - same getAt walk
     // as the array planner. Flat names hit the obvious top-level.
@@ -61,10 +58,7 @@ export async function planProfileDeltas(profileId, importedData) {
     }
   }
 
-  // Scalars (menstrualCycle / context cards / DNA / etc) - one row
-  // per scalar. Without this loop, Phase 2 (drop blob writes) would
-  // silently stop syncing all 18 scalar fields. Same plan/apply
-  // contract so telemetry + cap watchdog cover them uniformly.
+  // Singleton and nested fields must also survive the blob-free cutover.
   for (const scalarName of DELTA_SCALARS) {
     // Dotted-path scalars (e.g. `lightEnvironment.burdenAI`) read via
     // getAt so a nested singleton can ride the scalar planner without
@@ -72,14 +66,9 @@ export async function planProfileDeltas(profileId, importedData) {
     let value = scalarName.includes('.')
       ? getAt(importedData, scalarName)
       : importedData[scalarName];
-    // Strip nested fields that ride a DELTA_MAPS dotted path so the
-    // scalar carries only metadata, not a stale copy of the per-key
-    // map. Without this, the relay's `genetics` scalar row keeps
-    // re-applying the old whole-snps blob on every pull, beating
-    // the per-row genetics.snps merge that's actually the source
-    // of truth for SNP membership.
+    // SNP membership belongs to per-key rows; genetics carries metadata only.
     if (scalarName === 'genetics' && value && typeof value === 'object' && !Array.isArray(value)) {
-      const { snps, ...metadata } = value;
+      const { snps, ...metadata } = value as Record<string, unknown>;
       value = metadata;
     }
     try {
@@ -96,35 +85,25 @@ export async function planProfileDeltas(profileId, importedData) {
   return { deltaPlans, deltaOpCount };
 }
 
-export function applyCommittedDeltas(profileId, dataJson, deltaPlans, deltaOpCount, debug) {
+export function applyCommittedDeltas(
+  profileId: string, dataJson: string | null | undefined,
+  deltaPlans: readonly NamedDeltaPlan[], deltaOpCount: number, debug: unknown,
+) {
   const _debug = typeof debug === 'function' ? debug : () => {};
-  // Phase 1 of CRDT-delta refactor: apply the planned per-array
-  // deltas now that the blob committed. Snapshot is committed only
-  // after the per-row mutations are queued - failure to apply a
-  // delta will retry on the next push since the snapshot still
-  // reflects what was last successfully reflected to the relay.
+  // Advance a surface snapshot only after all its row mutations succeed.
   if (deltaPlans.length > 0) {
     let snapshotsAdvanced = 0;
     for (const { arrayName, plan } of deltaPlans) {
-      // v1.7.12 audit fix: only advance the snapshot when every op in
-      // the plan succeeded. A partial failure (e.g. one row's evolu.insert
-      // throwing on duplicate-id) used to advance the snapshot anyway,
-      // so the next push diff'd against state that didn't match the
-      // relay; failed items got silently skipped forever.
+      // A failed row must remain eligible for the next diff.
       const allOk = _applyArrayDelta(arrayName, plan);
       if (allOk) {
-        // v1.7.16: thread plannedAt so a stale onComplete (push A
-        // arriving after push B has already written its snapshot)
-        // doesn't clobber the fresher view.
+        // A delayed completion cannot overwrite a fresher committed snapshot.
         const wrote = _writeDeltaSnapshot(profileId, arrayName, plan.next, plan.plannedAt);
         if (wrote) snapshotsAdvanced++;
       }
     }
     _debug(`Applied ${deltaOpCount} delta ops across ${deltaPlans.length} array(s) - ${snapshotsAdvanced}/${deltaPlans.length} snapshots advanced`);
   }
-  // Phase 1 telemetry: record blob size + per-array delta breakdown.
-  // Always recorded - even when deltaPlans is empty (a no-delta push
-  // is a valid signal: the user is online but didn't change anything,
-  // and the still-shipped blob is pure overhead Phase 2 will remove).
+  // Empty plans still measure the overhead of shipping an unchanged blob.
   _recordPushTelemetry(profileId, (dataJson || '').length, deltaPlans);
 }

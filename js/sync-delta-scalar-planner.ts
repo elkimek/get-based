@@ -1,4 +1,5 @@
-// @ts-check
+import { createDeltaWrite } from './sync-delta-row-codec.js';
+import type { DeltaPlan, DeltaPlannedOperation } from './sync-delta-row-codec.js';
 // sync-delta-scalar-planner.js - Push-side singleton scalar delta planner.
 
 import { _bytesToBase64, _gzipString } from './sync-payload-codec.js';
@@ -6,23 +7,16 @@ import { _djb2 } from './sync-delta-registry.js';
 import { _readDeltaSnapshot } from './sync-delta-snapshot.js';
 import { getPlannerItemRows } from './sync-delta-planner-context.js';
 
-// Scalar planner. Singleton-shape fields (menstrualCycle, context cards,
-// DNA, etc) - one itemRow per scalar, itemId = the scalar's field name.
-// Payload is `{v: value}` for symmetry with the map shape (and so the
-// pull side can defensively check `parsed` is an object before reading).
-// Tombstones emit when the scalar transitions from non-null to null/undefined
-// (real user intent: "I cleared this card"); they don't emit on initial
-// load when the scalar has always been null (no prev snapshot row exists).
-export async function _planScalarDelta(profileId, scalarName, scalarValue) {
+// Singleton fields use their field name as itemId and `{v: value}` on the wire.
+// A clear emits a tombstone only after a previously pushed value.
+export async function _planScalarDelta(profileId: string, scalarName: string, scalarValue: unknown): Promise<DeltaPlan> {
   const plannedAt = Date.now();
   const prev = _readDeltaSnapshot(profileId, scalarName);
-  const next = {};
-  const ops = [];
+  const next: DeltaPlan['next'] = {};
+  const ops: DeltaPlannedOperation[] = [];
 
   const matching = getPlannerItemRows(profileId, scalarName);
-  // Only one row per scalar; if multiples slipped in (e.g. a v1.7.5-era
-  // race), use the most-recently-synced as canonical so the next update
-  // overwrites that one and the others naturally fade.
+  // Repair old duplicate rows by updating the most recently synced row.
   const canonical = matching.length === 0
     ? null
     : matching.slice().sort((a, b) => String(b.syncedAt || '').localeCompare(String(a.syncedAt || '')))[0];
@@ -43,16 +37,9 @@ export async function _planScalarDelta(profileId, scalarName, scalarValue) {
         try { payload = `GZ|v1|${_bytesToBase64(await _gzipString(json))}`; } catch {}
       }
       const syncedAt = new Date().toISOString();
-      // v1.7.11 audit fix: resurrect after delete (object->null->object).
-      // canonical may be tombstoned if the user previously cleared the
-      // scalar; reusing its id without isDeleted: null leaves the LWW
-      // register stuck at 1 and peers keep treating the scalar as null.
+      // Clear the LWW deletion register when reusing a tombstoned row.
       const resurrect = canonical?.isDeleted ? { isDeleted: null } : {};
-      if (canonical) {
-        ops.push({ kind: 'update', args: { id: canonical.id, profileId, arrayName: scalarName, itemId: scalarName, payload, syncedAt, ...resurrect } });
-      } else {
-        ops.push({ kind: 'insert', args: { profileId, arrayName: scalarName, itemId: scalarName, payload, syncedAt } });
-      }
+      ops.push(createDeltaWrite(canonical, { profileId, arrayName: scalarName, itemId: scalarName, payload, syncedAt }, resurrect));
     }
   } else if (prev[scalarName] && canonical && !canonical.isDeleted) {
     // non-null -> null transition. Conservative tombstone - only emit if

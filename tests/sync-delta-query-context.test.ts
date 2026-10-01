@@ -62,3 +62,22 @@ it('finishes destructuring before changing providers and isolates throwing/falsy
   expect(access.currentEvolu()).toBeNull();
   expect(access.currentItemRowQuery()).toBeNull();
 });
+
+it('snapshots actual callback references without reading providers and retains forwarded snapshots', () => {
+  const access = createDeltaQueryAccess();
+  let calls = 0;
+  const getEvolu = () => { calls++; return { getQueryRows: () => [] }; };
+  const getItemRowQuery = () => { calls++; return 'original'; };
+  access.configure({ getEvolu, getItemRowQuery });
+  const forwarded = access.providers();
+  expect(forwarded.getEvolu).toBe(getEvolu);
+  expect(forwarded.getItemRowQuery).toBe(getItemRowQuery);
+  expect(calls).toBe(0);
+  access.configure({ getItemRowQuery: () => 'replacement' });
+  expect(access.currentItemRowQuery()).toBe('replacement');
+  expect(forwarded.getItemRowQuery()).toBe('original');
+  expect(calls).toBe(1);
+  const independent = createDeltaQueryAccess();
+  independent.configure(forwarded);
+  expect(independent.currentItemRowQuery()).toBe('original');
+});

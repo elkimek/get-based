@@ -331,3 +331,14 @@ deploy/profile-share/data/
 /js/sync-delta-scalar-merge.js
 /js/sync-delta-merge-shapes.js
 /js/sync-delta-planner-context.js
+
+# Native sync planning, snapshot, merge and application facades
+/js/sync-delta-array-planner.js
+/js/sync-delta-map-planner.js
+/js/sync-delta-scalar-planner.js
+/js/sync-delta-snapshot.js
+/js/sync-delta-planners.js
+/js/sync-delta-merge.js
+/js/sync-delta.js
+/tests/helpers/sync-runtime-fixture.js
+/js/sync-push-deltas.js
