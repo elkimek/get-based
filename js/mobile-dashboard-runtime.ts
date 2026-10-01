@@ -1,22 +1,20 @@
-// @ts-check
 // mobile-dashboard-runtime.js - Browser runtime adapters for mobile dashboard shell hooks.
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
+    ? window
     : null;
 }
 
-function finitePositiveNumber(value) {
+function finitePositiveNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
 }
 
-function finiteNumber(value) {
+function finiteNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-/** @param {string} query */
-export function isMobileDashboardRuntimeViewport(query) {
+export function isMobileDashboardRuntimeViewport(query: string) {
   const runtime = getRuntimeWindow();
   return Boolean(runtime && typeof runtime.matchMedia === 'function' && runtime.matchMedia(query).matches);
 }
@@ -34,35 +32,21 @@ export function getMobileDashboardVisualBottomOffset() {
   return Math.max(0, Math.ceil(layoutHeight - visualBottom));
 }
 
-/**
- * @param {string} type
- * @param {EventListenerOrEventListenerObject} listener
- * @param {AddEventListenerOptions | boolean} [options]
- */
-export function addMobileDashboardWindowListener(type, listener, options) {
+export function addMobileDashboardWindowListener(type: string, listener: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) {
   const runtime = getRuntimeWindow();
   if (runtime && typeof runtime.addEventListener === 'function') {
     runtime.addEventListener(type, listener, options);
   }
 }
 
-/**
- * @param {string} type
- * @param {EventListenerOrEventListenerObject} listener
- * @param {AddEventListenerOptions | boolean} [options]
- */
-export function addMobileDashboardVisualViewportListener(type, listener, options) {
+export function addMobileDashboardVisualViewportListener(type: string, listener: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) {
   const visualViewport = getRuntimeWindow()?.visualViewport;
   if (visualViewport && typeof visualViewport.addEventListener === 'function') {
     visualViewport.addEventListener(type, listener, options);
   }
 }
 
-/**
- * @param {string} query
- * @param {(event?: any) => void} listener
- */
-export function addMobileDashboardBreakpointListener(query, listener) {
+export function addMobileDashboardBreakpointListener(query: string, listener: (event?: MediaQueryListEvent) => void) {
   const runtime = getRuntimeWindow();
   if (!runtime || typeof runtime.matchMedia !== 'function') return false;
   const media = runtime.matchMedia(query);

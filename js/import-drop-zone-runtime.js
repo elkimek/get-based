@@ -1,6 +1,7 @@
 // @ts-check
 // import-drop-zone-runtime.js - Browser runtime adapters for drop-zone imports.
 
+import { configureRuntimeDependencies } from './runtime-callbacks.js';
 import { importDispatch, isImportRunning } from './pdf-import-progress.js';
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { showNotification } from './utils.js';
@@ -13,15 +14,7 @@ const importDropZoneRuntimeDeps = {
 };
 
 export function configureImportDropZoneRuntimeDeps(deps = {}) {
-  const previous = { ...importDropZoneRuntimeDeps };
-  if (typeof deps.importDataJSON === 'function') importDropZoneRuntimeDeps.importDataJSON = deps.importDataJSON;
-  if (typeof deps.isImportRunning === 'function') importDropZoneRuntimeDeps.isImportRunning = deps.isImportRunning;
-  if ('showNotification' in deps) {
-    importDropZoneRuntimeDeps.showNotification = typeof deps.showNotification === 'function'
-      ? /** @type {typeof showNotification} */ (deps.showNotification)
-      : null;
-  }
-  return previous;
+  return configureRuntimeDependencies(importDropZoneRuntimeDeps, deps, ['showNotification']);
 }
 
 function getRuntimeWindow() {

@@ -1,19 +1,24 @@
-// @ts-check
+interface AIVerdictRuntime extends Pick<Window, 'dispatchEvent'> {
+  CustomEvent?: typeof CustomEvent;
+  DISABLE_AI_VERDICTS?: unknown;
+  _aiConcurrencyCap?: unknown;
+}
+interface AIVerdictRuntimeDeps { refreshSunSurfaces: ((anchor: string | null) => unknown) | null }
+
 // ai-verdict-engine-runtime.js - Browser runtime adapters for AI verdicts.
 
 import { configureRuntimeCallbacks } from './runtime-callbacks.js';
-const aiVerdictRuntimeDeps = {
-  refreshSunSurfaces: /** @type {null | ((anchor: string | null) => any)} */ (null),
+const aiVerdictRuntimeDeps: AIVerdictRuntimeDeps = {
+  refreshSunSurfaces: null,
 };
 
-/** @param {{ refreshSunSurfaces?: ((anchor: string | null) => any) | null }} deps */
-export function configureAIVerdictRuntimeDeps(deps = {}) {
+export function configureAIVerdictRuntimeDeps(deps: Partial<AIVerdictRuntimeDeps> = {}) {
   return configureRuntimeCallbacks(aiVerdictRuntimeDeps, deps, 'inherited');
 }
 
 function getAIVerdictRuntime() {
   return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
+    ? (window as unknown as AIVerdictRuntime)
     : null;
 }
 
@@ -25,18 +30,12 @@ export function isAIVerdictEngineDisabledRuntime() {
   return getAIVerdictRuntime()?.DISABLE_AI_VERDICTS === true;
 }
 
-/**
- * @param {number} fallback
- */
 export function getAIVerdictConcurrencyCapRuntime(fallback = 2) {
   const cap = getAIVerdictRuntime()?._aiConcurrencyCap;
   return Number.isFinite(cap) ? Number(cap) : fallback;
 }
 
-/**
- * @param {string | null} anchor
- */
-export function refreshSunSurfacesRuntime(anchor) {
+export function refreshSunSurfacesRuntime(anchor: string | null) {
   const refreshSunSurfaces = aiVerdictRuntimeDeps.refreshSunSurfaces;
   if (typeof refreshSunSurfaces !== 'function') return false;
   try {

@@ -19,7 +19,7 @@ afterEach(() => {
   if (savedWindow) {
     Object.defineProperty(globalThis, 'window', savedWindow);
   } else {
-    delete globalThis.window;
+    delete (globalThis as { window?: unknown }).window;
   }
 });
 
@@ -36,7 +36,8 @@ describe('ai verdict engine runtime adapter', () => {
     const refreshSunSurfaces = vi.fn();
     const dispatchEvent = vi.fn();
     class TestCustomEvent {
-      constructor(type) {
+      declare type: string;
+      constructor(type: string) {
         this.type = type;
       }
     }
@@ -54,7 +55,7 @@ describe('ai verdict engine runtime adapter', () => {
   });
 
   it('uses safe fallbacks when browser runtime hooks are missing', () => {
-    delete globalThis.window;
+    delete (globalThis as { window?: unknown }).window;
     configureAIVerdictRuntimeDeps({ refreshSunSurfaces: null });
 
     expect(hasAIVerdictRuntime()).toBe(false);

@@ -1,6 +1,7 @@
 // @ts-check
 // views-router-runtime.js - Browser runtime adapters for routing scroll/window hooks.
 
+import { configureRuntimeDependencies } from './runtime-callbacks.js';
 import { syncImportStatusFab } from './pdf-import-progress.js';
 
 const viewsRouterRuntimeDeps = {
@@ -10,19 +11,7 @@ const viewsRouterRuntimeDeps = {
 };
 
 export function configureViewsRouterRuntimeDeps(deps = {}) {
-  const previous = { ...viewsRouterRuntimeDeps };
-  if ('closeMobileSidebar' in deps) {
-    viewsRouterRuntimeDeps.closeMobileSidebar = typeof deps.closeMobileSidebar === 'function'
-      ? /** @type {() => void} */ (deps.closeMobileSidebar)
-      : null;
-  }
-  if ('navigate' in deps) {
-    viewsRouterRuntimeDeps.navigate = typeof deps.navigate === 'function'
-      ? /** @type {(view: string) => void} */ (deps.navigate)
-      : null;
-  }
-  if (typeof deps.syncImportStatusFab === 'function') viewsRouterRuntimeDeps.syncImportStatusFab = deps.syncImportStatusFab;
-  return previous;
+  return configureRuntimeDependencies(viewsRouterRuntimeDeps, deps, ['closeMobileSidebar', 'navigate']);
 }
 
 function getRuntimeWindow() {

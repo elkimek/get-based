@@ -1,35 +1,26 @@
-// @ts-check
 // tour-runtime.js - Browser runtime adapters for guided tour hooks.
 
 import { configureRuntimeCallbacks } from './runtime-callbacks.js';
-const tourRuntimeDeps = {
-  openChatPanel: /** @type {null | (() => unknown)} */ (null),
+const tourRuntimeDeps: { openChatPanel: (() => unknown) | null } = {
+  openChatPanel: null,
 };
 
-export function configureTourRuntimeDeps(deps = {}) {
+export function configureTourRuntimeDeps(deps: Partial<typeof tourRuntimeDeps> = {}) {
   return configureRuntimeCallbacks(tourRuntimeDeps, deps);
 }
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
+    ? window
     : null;
 }
 
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
+function getRuntimeFunction(name: 'getComputedStyle') {
   const runtime = getRuntimeWindow();
   return runtime && typeof runtime[name] === 'function' ? runtime[name].bind(runtime) : null;
 }
 
-/**
- * @param {unknown} value
- * @param {number} fallback
- */
-function normalizeViewportDimension(value, fallback) {
+function normalizeViewportDimension(value: unknown, fallback: number) {
   const dimension = Number(value);
   return Number.isFinite(dimension) ? dimension : fallback;
 }
@@ -45,11 +36,7 @@ export function getTourViewportSize() {
   };
 }
 
-/**
- * @param {Element | null} element
- * @returns {{ display?: string, visibility?: string, opacity?: string }}
- */
-export function getTourComputedStyle(element) {
+export function getTourComputedStyle(element: Element | null) {
   if (!element) return HIDDEN_STYLE;
   const readStyle = getRuntimeFunction('getComputedStyle');
   if (!readStyle) return DEFAULT_STYLE;
@@ -64,11 +51,7 @@ export function openTourChatPanel() {
   tourRuntimeDeps.openChatPanel?.();
 }
 
-/**
- * @param {() => void} callback
- * @param {number} delayMs
- */
-export function scheduleTourTask(callback, delayMs = 0) {
+export function scheduleTourTask(callback: () => void, delayMs = 0): number | ReturnType<typeof setTimeout> | null {
   const runtime = getRuntimeWindow();
   const schedule = runtime && typeof runtime.setTimeout === 'function'
     ? runtime.setTimeout.bind(runtime)

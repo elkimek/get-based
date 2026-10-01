@@ -135,7 +135,6 @@ const LEGACY_TESTS = [
   './test-dashboard-genetics-empty.js',
   './test-sync.js',
   './test-sync-modal-refresh.js',
-  './test-sync-pull-active-refresh-runtime.js',
   './test-onboarding-view-runtime.js',
   './test-wearables-connect-runtime.js',
   // Batch 17 — recommendations module.
@@ -179,7 +178,6 @@ const LEGACY_TESTS = [
   // wearables-bp-merge source-inspection. The wearables-bp live DOM probe
   // moved to Playwright.
   './test-tour.js',
-  './test-tour-runtime.js',
   './test-settings-runtime.js',
   './test-settings-delegated-actions.js',
   './test-views-router-runtime.js',
@@ -189,14 +187,12 @@ const LEGACY_TESTS = [
   './test-recommendations-runtime.js',
   './test-context-card-lifestyle-runtime.js',
   './test-import-drop-zone-runtime.js',
-  './test-mobile-dashboard-runtime.js',
   './test-sync-diagnose-runtime.js',
   './test-biology-scores-runtime.js',
   './test-wearables-detail-runtime.js',
   './test-wearables-auth-runtime.js',
   './test-wearables-runtime.js',
   './test-category-page-runtime.js',
-  './test-category-customization-runtime.js',
   './test-wearables-settings-runtime.js',
   './test-dashboard-widget-runtime.js',
   './test-marker-detail-runtime.js',

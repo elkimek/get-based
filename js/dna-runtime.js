@@ -1,6 +1,7 @@
 // @ts-check
 // dna-runtime.js - Browser runtime adapters for DNA import and shell refresh flows.
 
+import { configureRuntimeDependencies } from './runtime-callbacks.js';
 import { isImportRunning } from './pdf-import-progress.js';
 import { getLatitudeFromLocation } from './profile.js';
 import { isDebugMode, showConfirmDialog, showNotification } from './utils.js';
@@ -79,31 +80,7 @@ export async function loadGeneticsStylesheetForAction() {
 }
 
 export function configureDnaRuntimeDeps(deps = {}) {
-  const previous = { ...dnaRuntimeDeps };
-  if ('buildSidebar' in deps) {
-    dnaRuntimeDeps.buildSidebar = typeof deps.buildSidebar === 'function'
-      ? /** @type {() => void} */ (deps.buildSidebar)
-      : null;
-  }
-  if (typeof deps.getLatitudeFromLocation === 'function') dnaRuntimeDeps.getLatitudeFromLocation = deps.getLatitudeFromLocation;
-  if (typeof deps.isDebugMode === 'function') dnaRuntimeDeps.isDebugMode = deps.isDebugMode;
-  if (typeof deps.isImportRunning === 'function') dnaRuntimeDeps.isImportRunning = deps.isImportRunning;
-  if ('navigate' in deps) {
-    dnaRuntimeDeps.navigate = typeof deps.navigate === 'function'
-      ? /** @type {(route: string) => void} */ (deps.navigate)
-      : null;
-  }
-  if ('openChatPanel' in deps) {
-    dnaRuntimeDeps.openChatPanel = typeof deps.openChatPanel === 'function'
-      ? /** @type {(prompt?: string) => unknown} */ (deps.openChatPanel)
-      : null;
-  }
-  if ('showConfirmDialog' in deps) {
-    dnaRuntimeDeps.showConfirmDialog = typeof deps.showConfirmDialog === 'function'
-      ? /** @type {typeof showConfirmDialog} */ (deps.showConfirmDialog)
-      : null;
-  }
-  return previous;
+  return configureRuntimeDependencies(dnaRuntimeDeps, deps, ['buildSidebar', 'navigate', 'openChatPanel', 'showConfirmDialog']);
 }
 
 function getRuntimeWindow() {

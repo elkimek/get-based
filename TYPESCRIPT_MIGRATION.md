@@ -310,6 +310,14 @@ and suggestion contracts are native tests; profile migration integration retains
 its existing cases. All arithmetic, precision, unit labels, stable IDs, catalog
 checksums, pricing, usage-storage order and public suggestion text are preserved.
 
+Browser adapters for verdict events, category customization, lab context, session
+analysis, mobile viewports, guided tours and active sync refresh now use native
+TypeScript. Mixed dependency setters share one operation: nullable hooks clear
+invalid explicit overrides, required hooks keep defaults, and omitted hooks stay
+intact. Snapshot identity, inherited properties, getter reads and partial updates
+on exceptions retain their original behavior. Four legacy adapter scripts and the
+verdict suite are strict native tests with their original fixtures and assertions.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

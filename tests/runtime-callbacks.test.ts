@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { configureRuntimeCallbacks } from '../js/runtime-callbacks.js';
+import { configureRuntimeCallbacks, configureRuntimeDependencies } from '../js/runtime-callbacks.js';
 
 interface Callbacks {
   close: (() => void) | null;
@@ -87,4 +87,41 @@ it.each(['own', 'inherited'] as const)('handles nonenumerable %s slots and expli
   expect(callbacks).toEqual({ close: null, navigate });
   configureRuntimeCallbacks(callbacks, JSON.parse('{"navigate":false}'), scope);
   expect(callbacks).toEqual({ close: null, navigate: null });
+});
+
+
+it('keeps required defaults while nullable hooks clear invalid inherited overrides', () => {
+  const close = vi.fn(), required = vi.fn(), replacement = vi.fn();
+  const callbacks: { close: (() => void) | null; required: () => void } = { close, required };
+  const updates = Object.create({ close: false, required: null, unknown: replacement });
+  const previous = configureRuntimeDependencies(callbacks, updates, ['close']);
+  expect(callbacks).toEqual({ close: null, required });
+  expect(previous).toEqual({ close, required });
+  configureRuntimeDependencies(callbacks, previous, ['close']);
+  expect(callbacks).toEqual({ close, required });
+  configureRuntimeDependencies(callbacks, { required: replacement }, ['close']);
+  expect(callbacks).toEqual({ close, required: replacement });
+});
+
+it('preserves mixed hook validation reads and declaration order with proxy overrides', () => {
+  const close = vi.fn(), first = vi.fn(), second = vi.fn(), trace: string[] = [];
+  const callbacks = { close, required: first };
+  let reads = 0;
+  const updates = new Proxy({ close, get required() { return ++reads === 1 ? first : second; } }, {
+    has(target, key) { trace.push(`has:${String(key)}`); return Reflect.has(target, key); },
+    get(target, key, receiver) { trace.push(`get:${String(key)}`); return Reflect.get(target, key, receiver); },
+  });
+  configureRuntimeDependencies(callbacks, updates, ['close']);
+  expect(trace).toEqual(['has:close', 'get:close', 'get:close', 'get:required', 'get:required']);
+  expect(callbacks.required).toBe(second);
+});
+
+it('keeps preceding mixed hook updates when a later getter throws', () => {
+  const close = vi.fn(), required = vi.fn(), replacement = vi.fn();
+  const callbacks = { close, required };
+  const updates = Object.defineProperty({ close: replacement }, 'required', {
+    get: () => { throw new Error('required hook getter failure'); },
+  });
+  expect(() => configureRuntimeDependencies(callbacks, updates, ['close'])).toThrow('required hook getter failure');
+  expect(callbacks).toEqual({ close: replacement, required });
 });

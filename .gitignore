@@ -278,3 +278,12 @@ deploy/profile-share/data/
 /js/pdf-import-unit-conversions.js
 /js/marker-range-suggestions.js
 /scripts/build-marker-schema.mjs
+
+# Native browser runtime boundaries
+/js/ai-verdict-engine-runtime.js
+/js/category-customization-runtime.js
+/js/lab-context-runtime.js
+/js/light-sun-analysis-runtime.js
+/js/mobile-dashboard-runtime.js
+/js/sync-pull-active-refresh-runtime.js
+/js/tour-runtime.js

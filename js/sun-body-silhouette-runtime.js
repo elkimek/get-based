@@ -1,15 +1,13 @@
 // @ts-check
 // sun-body-silhouette-runtime.js - Browser runtime adapters for the sun body picker.
 
+import { configureRuntimeDependencies } from './runtime-callbacks.js';
 import { getActiveProfileId, getProfiles } from './profile.js';
 
 const sunBodySilhouetteRuntimeDeps = { getActiveProfileId, getProfiles };
 
 export function configureSunBodySilhouetteRuntimeDeps(deps = {}) {
-  const previous = { ...sunBodySilhouetteRuntimeDeps };
-  if (typeof deps.getActiveProfileId === 'function') sunBodySilhouetteRuntimeDeps.getActiveProfileId = deps.getActiveProfileId;
-  if (typeof deps.getProfiles === 'function') sunBodySilhouetteRuntimeDeps.getProfiles = deps.getProfiles;
-  return previous;
+  return configureRuntimeDependencies(sunBodySilhouetteRuntimeDeps, deps);
 }
 
 function getSilhouetteRuntime() {
