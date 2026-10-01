@@ -1,17 +1,21 @@
 // @ts-check
 // context-card-lifestyle-editors.js - cold-safe facade for lifestyle context card editors
 
+import { createRetryingModuleLoader } from './retrying-module-loader.js';
 import { state } from './state.js';
 import { scanDietForContaminants } from './food-contaminants.js';
 import { doesNutritionContextOverrideTypicalMeals } from './context-card-summaries.js';
 import { showNotification } from './utils.js';
 
 /** @typedef {typeof import('./context-card-lifestyle-editors-impl.js')} LifestyleContextEditorsModule */
-/** @type {Promise<LifestyleContextEditorsModule> | null} */
-let lifestyleContextEditorsPromise = null;
-/** @type {LifestyleContextEditorsModule | null} */
-let lifestyleContextEditorsModule = null;
-let useLifestyleContextEditorsRetryUrl = false;
+
+const lifestyleContextEditorsModuleLoader = createRetryingModuleLoader(
+  retry => retry ? loadLifestyleContextEditorsRetryModule() : import('./context-card-lifestyle-editors-impl.js'),
+  module => {
+    module.configureLifestyleContextEditors(lifestyleContextEditorDeps);
+    return module;
+  },
+);
 
 /** @type {{
  *   recordChange?: (field: string) => void,
@@ -20,7 +24,7 @@ let useLifestyleContextEditorsRetryUrl = false;
 const lifestyleContextEditorDeps = {};
 
 export function isLifestyleContextEditorsLoaded() {
-  return lifestyleContextEditorsModule !== null;
+  return lifestyleContextEditorsModuleLoader.module !== null;
 }
 
 /** @returns {Promise<LifestyleContextEditorsModule>} */
@@ -31,26 +35,7 @@ function loadLifestyleContextEditorsRetryModule() {
 
 /** @returns {Promise<LifestyleContextEditorsModule>} */
 export function loadLifestyleContextEditors() {
-  if (!lifestyleContextEditorsPromise) {
-    // Browsers cache failed module-map fetches by URL. Retry once with a
-    // second fixed literal after a failed first request.
-    const load = useLifestyleContextEditorsRetryUrl
-      ? loadLifestyleContextEditorsRetryModule()
-      : import('./context-card-lifestyle-editors-impl.js');
-    lifestyleContextEditorsPromise = load
-      .then(module => {
-        lifestyleContextEditorsModule = module;
-        module.configureLifestyleContextEditors(lifestyleContextEditorDeps);
-        return module;
-      })
-      .catch(err => {
-        lifestyleContextEditorsPromise = null;
-        lifestyleContextEditorsModule = null;
-        useLifestyleContextEditorsRetryUrl = true;
-        throw err;
-      });
-  }
-  return lifestyleContextEditorsPromise;
+  return lifestyleContextEditorsModuleLoader.load();
 }
 
 /**
@@ -70,7 +55,7 @@ export function configureLifestyleContextEditors({ recordChange, saveAndRefresh 
     lifestyleContextEditorDeps.saveAndRefresh = saveAndRefresh;
     update.saveAndRefresh = saveAndRefresh;
   }
-  lifestyleContextEditorsModule?.configureLifestyleContextEditors(update);
+  lifestyleContextEditorsModuleLoader.module?.configureLifestyleContextEditors(update);
 }
 
 function lifestyleActionAttrs(action, extra = '') {
@@ -97,9 +82,9 @@ function runLifestyleContextEditorAction(name, args, shouldLoad = true) {
     }
     return Reflect.apply(action, module, args);
   };
-  if (!lifestyleContextEditorsModule && !shouldLoad) return undefined;
+  if (!lifestyleContextEditorsModuleLoader.module && !shouldLoad) return undefined;
   try {
-    if (lifestyleContextEditorsModule) return run(lifestyleContextEditorsModule);
+    if (lifestyleContextEditorsModuleLoader.module) return run(lifestyleContextEditorsModuleLoader.module);
     return loadLifestyleContextEditors()
       .then(run)
       .catch(err => {
@@ -122,7 +107,7 @@ function closestColdDietContaminantsBadge(target) {
 
 /** @param {MouseEvent} event */
 function handleColdDietContaminantsClick(event) {
-  if (lifestyleContextEditorsModule || !closestColdDietContaminantsBadge(event.target)) return;
+  if (lifestyleContextEditorsModuleLoader.module || !closestColdDietContaminantsBadge(event.target)) return;
   event.preventDefault();
   event.stopPropagation();
   void runLifestyleContextEditorAction('showDietContaminantsModal', []);
@@ -131,7 +116,7 @@ function handleColdDietContaminantsClick(event) {
 /** @param {KeyboardEvent} event */
 function handleColdDietContaminantsKeydown(event) {
   if (
-    lifestyleContextEditorsModule
+    lifestyleContextEditorsModuleLoader.module
     || (event.key !== 'Enter' && event.key !== ' ')
     || !closestColdDietContaminantsBadge(event.target)
   ) return;

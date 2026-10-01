@@ -360,7 +360,8 @@ const markerDetailRuntimeSrc = read('js/marker-detail-runtime.js');
 assert('marker detail implementation loads only through the public lazy facade',
   markerDetailFacadeSrc.includes("import('./marker-detail-modal-impl.js')") &&
   markerDetailFacadeSrc.includes("import('./marker-detail-modal-impl.js?lazy-retry=1')") &&
-  markerDetailFacadeSrc.includes('let markerDetailModulePromise = null') &&
+  markerDetailFacadeSrc.includes('const markerDetailModuleLoader = createRetryingModuleLoader(')
+    && read('js/retrying-module-loader.js').includes('let promise = null;') &&
   !/from ['"]\.\/marker-detail-modal-impl\.js['"]/.test(markerDetailFacadeSrc));
 assert('index defers marker detail CSS behind its ordered lazy-load anchor',
   !indexSrc.includes('href="css/marker-detail-modal.css"') &&

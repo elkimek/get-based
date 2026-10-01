@@ -391,3 +391,9 @@ deploy/profile-share/data/
 /scripts/coverage-model-helpers.mjs
 /scripts/coverage-gate.mjs
 /tests/playwright/browser-script-runner.js
+
+/js/retrying-module-loader.js
+/js/changelog.js
+/js/changelog-impl.js
+/js/changelog-current.js
+/js/changelog-state.js

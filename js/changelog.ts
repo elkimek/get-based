@@ -1,16 +1,15 @@
-// @ts-check
+type ChangelogModule = typeof import('./changelog-impl.js');
+import { createRetryingModuleLoader } from './retrying-module-loader.js';
 // changelog.js — cold-safe What's New version gate and lazy modal facade
 
 import { closeModalOverlay } from './modal-lifecycle.js';
 import { showNotification } from './utils.js';
 import { getAppVersionRuntime } from './utils-runtime.js';
+import { getMajorMinor, getSeenVersion, markChangelogSeen, _semverGt } from './changelog-state.js';
 
-/** @typedef {typeof import('./changelog-impl.js')} ChangelogModule */
-/** @type {Promise<ChangelogModule> | null} */
-let changelogModulePromise = null;
-/** @type {ChangelogModule | null} */
-let changelogModule = null;
-let useChangelogRetryUrl = false;
+const changelogModuleLoader = createRetryingModuleLoader(
+  retry => retry ? loadChangelogRetryModule() : import('./changelog-impl.js'),
+);
 
 // Keep this compact gate metadata aligned with forceShow entries in the lazy
 // archive. Source tests enforce exact coverage in both directions.
@@ -34,40 +33,21 @@ const FORCE_SHOW_VERSIONS = [
 ];
 
 export function isChangelogModuleLoaded() {
-  return changelogModule !== null;
+  return changelogModuleLoader.module !== null;
 }
 
-/** @returns {Promise<ChangelogModule>} */
 function loadChangelogRetryModule() {
-  // @ts-expect-error TypeScript resolves only the query-free source path.
-  return import('./changelog-impl.js?lazy-retry=1');
+  return import('./changelog-impl.js?lazy-retry=1' as string) as Promise<ChangelogModule>;
 }
 
-/** @returns {Promise<ChangelogModule>} */
 export function loadChangelogModule() {
-  if (!changelogModulePromise) {
-    const load = useChangelogRetryUrl
-      ? loadChangelogRetryModule()
-      : import('./changelog-impl.js');
-    changelogModulePromise = load
-      .then(module => {
-        changelogModule = module;
-        return module;
-      })
-      .catch(err => {
-        changelogModulePromise = null;
-        changelogModule = null;
-        useChangelogRetryUrl = true;
-        throw err;
-      });
-  }
-  return changelogModulePromise;
+  return changelogModuleLoader.load();
 }
 
-export function openChangelog(showAll) {
-  const open = (/** @type {ChangelogModule} */ module) => module.openChangelog(showAll);
+export function openChangelog(showAll: unknown) {
+  const open = (module: ChangelogModule) => module.openChangelog(showAll);
   try {
-    if (changelogModule) return open(changelogModule);
+    if (changelogModuleLoader.module) return open(changelogModuleLoader.module);
     return loadChangelogModule()
       .then(open)
       .catch(err => {
@@ -83,18 +63,6 @@ export function openChangelog(showAll) {
 }
 
 /** Extract major.minor from a semver string (e.g. '1.0.1' → '1.0') */
-function getMajorMinor(ver) {
-  const parts = String(ver).split('.');
-  return parts.slice(0, 2).join('.');
-}
-
-function getSeenVersion() {
-  return localStorage.getItem('labcharts-changelog-seen') || '';
-}
-
-function markChangelogSeen() {
-  localStorage.setItem('labcharts-changelog-seen', getAppVersionRuntime());
-}
 
 export function closeChangelog() {
   closeModalOverlay('changelog-modal-overlay');
@@ -103,16 +71,6 @@ export function closeChangelog() {
 
 // Compare two semver strings — returns true when `a` is strictly newer
 // than `b`. Tolerant of missing parts (treats "1.7" as "1.7.0").
-function _semverGt(a, b) {
-  const pa = String(a || '').split('.').map(n => parseInt(n, 10) || 0);
-  const pb = String(b || '').split('.').map(n => parseInt(n, 10) || 0);
-  for (let i = 0; i < 3; i++) {
-    const ai = pa[i] || 0, bi = pb[i] || 0;
-    if (ai > bi) return true;
-    if (ai < bi) return false;
-  }
-  return false;
-}
 
 export function maybeShowChangelog() {
   if (document.getElementById('legal-consent-overlay')) return;

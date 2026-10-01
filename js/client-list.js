@@ -1,10 +1,9 @@
 // @ts-check
 // client-list.js — lightweight public entry point for the Client List modal
 
+import { createRetryingModuleLoader } from './retrying-module-loader.js';
 import { closeModalOverlay } from './modal-lifecycle.js';
 import { showClientListNotification } from './client-list-runtime.js';
-
-/** @typedef {typeof import('./client-list-impl.js')} ClientListModule */
 
 /** @typedef {{
  *   exportAllDataJSON: () => Promise<void> | void,
@@ -14,11 +13,15 @@ import { showClientListNotification } from './client-list-runtime.js';
  *   openProfileShareModal: (profileId?: string) => void,
  * }} ClientListRuntime */
 
-/** @type {Promise<ClientListModule> | null} */
-let clientListModulePromise = null;
-/** @type {ClientListModule | null} */
-let clientListModule = null;
-let useClientListRetryUrl = false;
+/** @typedef {typeof import('./client-list-impl.js')} ClientListModule */
+
+const clientListModuleLoader = createRetryingModuleLoader(
+  retry => retry ? loadClientListRetryModule() : import('./client-list-impl.js'),
+  module => {
+    module.configureClientListRuntime(clientListRuntime);
+    return module;
+  },
+);
 
 /** @type {ClientListRuntime} */
 const clientListRuntime = {
@@ -30,7 +33,7 @@ const clientListRuntime = {
 };
 
 export function isClientListModuleLoaded() {
-  return clientListModule !== null;
+  return clientListModuleLoader.module !== null;
 }
 
 /** @returns {Promise<ClientListModule>} */
@@ -42,26 +45,7 @@ function loadClientListRetryModule() {
 
 /** @returns {Promise<ClientListModule>} */
 export function loadClientListModule() {
-  if (!clientListModulePromise) {
-    // Browsers cache failed module-map fetches by URL. A fixed second literal
-    // gives the user one genuine retry without introducing a computed import.
-    const moduleLoad = useClientListRetryUrl
-      ? loadClientListRetryModule()
-      : import('./client-list-impl.js');
-    clientListModulePromise = moduleLoad
-      .then(module => {
-        clientListModule = module;
-        module.configureClientListRuntime(clientListRuntime);
-        return module;
-      })
-      .catch(err => {
-        clientListModulePromise = null;
-        clientListModule = null;
-        useClientListRetryUrl = true;
-        throw err;
-      });
-  }
-  return clientListModulePromise;
+  return clientListModuleLoader.load();
 }
 
 /**
@@ -73,7 +57,7 @@ export function loadClientListModule() {
 export function configureClientListRuntime(runtime = {}) {
   const previous = { ...clientListRuntime };
   Object.assign(clientListRuntime, runtime);
-  clientListModule?.configureClientListRuntime(runtime);
+  clientListModuleLoader.module?.configureClientListRuntime(runtime);
   return previous;
 }
 
@@ -95,13 +79,13 @@ function reportClientListActionError(name, err) {
  * @param {any[]} args
  */
 function runClientListAction(name, args) {
-  if (clientListModule) {
+  if (clientListModuleLoader.module) {
     try {
-      const action = clientListModule[name];
+      const action = clientListModuleLoader.module[name];
       if (typeof action !== 'function') {
         throw new Error(`Client List action ${String(name)} is unavailable`);
       }
-      return Reflect.apply(action, clientListModule, args);
+      return Reflect.apply(action, clientListModuleLoader.module, args);
     } catch (err) {
       return reportClientListActionError(name, err);
     }
@@ -124,7 +108,7 @@ export function openClientList(...args) {
 // Escape and outside-click handling must not fetch the Client List
 // implementation just to dismiss an overlay owned by another feature.
 export function closeClientList() {
-  if (clientListModule) return clientListModule.closeClientList();
+  if (clientListModuleLoader.module) return clientListModuleLoader.module.closeClientList();
   closeModalOverlay('client-list-overlay');
 }
 

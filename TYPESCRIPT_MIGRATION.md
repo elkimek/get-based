@@ -465,6 +465,15 @@ teardown waits for pending profiler setup. Real Chromium regressions cover page
 fingerprints, worker counts, route disposal, nested fixture failures, asynchronous
 errors and console restoration. Existing coverage floors and gate cases remain.
 
+Sixteen first-use caches across fourteen feature facades share a typed retry
+state machine. Each facade retains its literal import URLs, initialization hooks
+and action policy; the helper publishes the module before configuration, shares
+pending/resolved promises and resets only rejected loads. The full changelog
+facade, archive and current-release metadata are native TypeScript, with shared
+version/storage gates. Every archive item and sanitizer/event operation is
+preserved. Original and consolidated loaders matched in 128 scenarios covering
+request failures, getters, callback receivers, dependency reads and cache identity.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, remaining workers,

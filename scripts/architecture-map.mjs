@@ -39,6 +39,10 @@ export function parseModuleSpecifiers(source, fileName = 'module.js') {
   const nonLiteralDynamicImports = [];
 
   const addLiteral = (node, kind) => {
+    // These TypeScript/parenthesis wrappers disappear before runtime evaluation.
+    while (node && (ts.isAsExpression(node) || ts.isTypeAssertionExpression(node)
+      || ts.isSatisfiesExpression(node) || ts.isNonNullExpression(node)
+      || ts.isParenthesizedExpression(node))) node = node.expression;
     if (node && ts.isStringLiteralLike(node)) {
       dependencies.push({ specifier: node.text, kind });
       return true;

@@ -352,7 +352,7 @@ assert('analytics consent and backup nudge resume after legal gate acceptance',
   && /addEventListener\('legal-consent-accepted', \(\) => setTimeout\(showBackupNudge, 1500\), \{ once: true \}\)/.test(startupUiSrc)
   && /const showBackupNudge = \(\) => \{[\s\S]{0,180}maybeShowBackupNudge\(\);\s*\};/.test(startupUiSrc));
 assert('changelog and tour refuse to open over legal consent',
-  /export function maybeShowChangelog\(\) \{\s*if \(document\.getElementById\('legal-consent-overlay'\)\) return;/.test(changelogSrc)
+  /export function maybeShowChangelog\(\) \{\s*if \(document\.getElementById\('legal-consent-overlay'\)\)\s+return;/.test(changelogSrc)
   && /function runTour\(steps, storageKey, auto\) \{\s*if \(document\.getElementById\('legal-consent-overlay'\)\) return false;/.test(tourSrc));
 assert('legal gate z-index selector beats generic modal overlay',
   /\.modal-overlay\.legal-consent-overlay\s*\{[\s\S]{0,80}z-index:\s*4200;/.test(appShellCss)

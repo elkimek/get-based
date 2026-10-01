@@ -1,15 +1,15 @@
 // @ts-check
 // voice-loader.js — tiny first-use boundary for microphone and speech features.
 
+import { createRetryingModuleLoader } from './retrying-module-loader.js';
 import { state } from './state.js';
 
 /** @typedef {typeof import('./voice-controller.js')} VoiceModule */
 
-/** @type {Promise<VoiceModule> | null} */
-let voiceModulePromise = null;
-/** @type {VoiceModule | null} */
-let voiceModule = null;
-let useRetryUrl = false;
+const voiceModuleLoader = createRetryingModuleLoader(
+  retry => retry ? loadRetryModule() : import('./voice-controller.js'),
+);
+
 let voiceActivityEpoch = 0;
 
 /**
@@ -51,19 +51,7 @@ function loadRetryModule() {
 }
 
 export function loadVoiceModule() {
-  if (!voiceModulePromise) {
-    const load = useRetryUrl ? loadRetryModule() : import('./voice-controller.js');
-    voiceModulePromise = load.then(module => {
-      voiceModule = module;
-      return module;
-    }).catch(error => {
-      voiceModulePromise = null;
-      voiceModule = null;
-      useRetryUrl = true;
-      throw error;
-    });
-  }
-  return voiceModulePromise;
+  return voiceModuleLoader.load();
 }
 
 export function toggleVoiceRecording() {
@@ -95,15 +83,15 @@ export function toggleMessageSpeech(messageIndex) {
 
 export function stopVoiceActivity(options) {
   voiceActivityEpoch += 1;
-  return voiceModule?.stopVoiceActivity(options) || false;
+  return voiceModuleLoader.module?.stopVoiceActivity(options) || false;
 }
 
 export function isVoicePlaybackActive() {
-  return voiceModule?.isVoicePlaybackActive() || false;
+  return voiceModuleLoader.module?.isVoicePlaybackActive() || false;
 }
 
 export function restoreVoicePlaybackUi() {
-  return voiceModule?.restoreVoicePlaybackUi() || false;
+  return voiceModuleLoader.module?.restoreVoicePlaybackUi() || false;
 }
 
 export function maybeAutoReadAssistantMessage(messageIndex) {

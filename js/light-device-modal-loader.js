@@ -1,6 +1,7 @@
 // @ts-check
 // light-device-modal-loader.js — cold facade for Light device form modals.
 
+import { createRetryingModuleLoader } from './retrying-module-loader.js';
 import { showNotification } from './utils.js';
 
 /** @typedef {typeof import('./light-device-setup-modal.js')} LightDeviceSetupModule */
@@ -11,26 +12,26 @@ const setupDeps = {};
 /** @type {Record<string, any>} */
 const sessionDeps = {};
 
-/** @type {Promise<LightDeviceSetupModule> | null} */
-let setupModulePromise = null;
-/** @type {LightDeviceSetupModule | null} */
-let setupModule = null;
-let useSetupRetryUrl = false;
+const sessionModuleLoader = createRetryingModuleLoader(
+  retry => retry ? loadSessionRetryModule() : import('./light-device-session-modal.js'),
+);
 
-/** @type {Promise<LightDeviceSessionModule> | null} */
-let sessionModulePromise = null;
-/** @type {LightDeviceSessionModule | null} */
-let sessionModule = null;
-let useSessionRetryUrl = false;
+const setupModuleLoader = createRetryingModuleLoader(
+  retry => retry ? loadSetupRetryModule() : import('./light-device-setup-modal.js'),
+  module => {
+    module.configureLightDeviceSetup(setupDeps);
+    return module;
+  },
+);
 
 export function configureLightDeviceModalLoader(deps = {}) {
   if (deps.setup && typeof deps.setup === 'object') Object.assign(setupDeps, deps.setup);
   if (deps.session && typeof deps.session === 'object') Object.assign(sessionDeps, deps.session);
-  setupModule?.configureLightDeviceSetup(setupDeps);
+  setupModuleLoader.module?.configureLightDeviceSetup(setupDeps);
 }
 
 export function isLightDeviceSetupModuleLoaded() {
-  return setupModule !== null;
+  return setupModuleLoader.module !== null;
 }
 
 /** @returns {Promise<LightDeviceSetupModule>} */
@@ -41,29 +42,12 @@ function loadSetupRetryModule() {
 
 /** @returns {Promise<LightDeviceSetupModule>} */
 export function loadLightDeviceSetupModule() {
-  if (!setupModulePromise) {
-    const load = useSetupRetryUrl
-      ? loadSetupRetryModule()
-      : import('./light-device-setup-modal.js');
-    setupModulePromise = load
-      .then(module => {
-        setupModule = module;
-        module.configureLightDeviceSetup(setupDeps);
-        return module;
-      })
-      .catch(error => {
-        setupModulePromise = null;
-        setupModule = null;
-        useSetupRetryUrl = true;
-        throw error;
-      });
-  }
-  return setupModulePromise;
+  return setupModuleLoader.load();
 }
 
 export async function openAddDeviceDialog() {
   try {
-    const module = setupModule || await loadLightDeviceSetupModule();
+    const module = setupModuleLoader.module || await loadLightDeviceSetupModule();
     return await module.openAddDeviceDialog();
   } catch (error) {
     console.error('[light-devices] Could not open device setup:', error);
@@ -74,7 +58,7 @@ export async function openAddDeviceDialog() {
 
 export async function openCustomDeviceDialog() {
   try {
-    const module = setupModule || await loadLightDeviceSetupModule();
+    const module = setupModuleLoader.module || await loadLightDeviceSetupModule();
     return await module.openCustomDeviceDialog();
   } catch (error) {
     console.error('[light-devices] Could not open custom device setup:', error);
@@ -84,7 +68,7 @@ export async function openCustomDeviceDialog() {
 }
 
 export function isLightDeviceSessionModuleLoaded() {
-  return sessionModule !== null;
+  return sessionModuleLoader.module !== null;
 }
 
 /** @returns {Promise<LightDeviceSessionModule>} */
@@ -95,25 +79,12 @@ function loadSessionRetryModule() {
 
 /** @returns {Promise<LightDeviceSessionModule>} */
 export function loadLightDeviceSessionModule() {
-  if (!sessionModulePromise) {
-    const load = useSessionRetryUrl
-      ? loadSessionRetryModule()
-      : import('./light-device-session-modal.js');
-    sessionModulePromise = load
-      .then(module => (sessionModule = module))
-      .catch(error => {
-        sessionModulePromise = null;
-        sessionModule = null;
-        useSessionRetryUrl = true;
-        throw error;
-      });
-  }
-  return sessionModulePromise;
+  return sessionModuleLoader.load();
 }
 
 export async function openDeviceSessionDialog(deviceId) {
   try {
-    const module = sessionModule || await loadLightDeviceSessionModule();
+    const module = sessionModuleLoader.module || await loadLightDeviceSessionModule();
     return await module.openDeviceSessionDialog(deviceId, sessionDeps);
   } catch (error) {
     console.error('[light-devices] Could not open session dialog:', error);

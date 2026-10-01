@@ -1,6 +1,7 @@
 // @ts-check
 // export.js — JSON export/import, report facade, clear all data
 
+import { createRetryingModuleLoader } from './retrying-module-loader.js';
 import { getErrorMessage } from './caught-error.js';
 import { migrateCustomMarkerIdentities } from './custom-marker-identity.js';
 import { migrateMarkerPlacements } from './marker-placement.js';
@@ -44,18 +45,17 @@ import {
   propagateClearedProfilesToRelay,
 } from './clear-all-profile-reset.js';
 
-/** @typedef {typeof import('./export-import.js')} ExportImportModule */
-/** @type {Promise<ExportImportModule> | null} */
-let exportImportModulePromise = null;
-/** @type {ExportImportModule | null} */
-let exportImportModule = null;
-let useExportImportRetryUrl = false;
 /** @typedef {typeof import('./export-report-builder.js')} ReportBuilderModule */
-/** @type {Promise<ReportBuilderModule> | null} */
-let reportBuilderModulePromise = null;
-/** @type {ReportBuilderModule | null} */
-let reportBuilderModule = null;
-let useReportBuilderRetryUrl = false;
+
+/** @typedef {typeof import('./export-import.js')} ExportImportModule */
+
+const reportBuilderModuleLoader = createRetryingModuleLoader(
+  retry => retry ? loadReportBuilderRetryModule() : import('./export-report-builder.js'),
+);
+
+const exportImportModuleLoader = createRetryingModuleLoader(
+  retry => retry ? loadExportImportRetryModule() : import('./export-import.js'),
+);
 
 async function buildProfileNutritionArchive(profileId) {
   const { buildNutritionArchive } = await import('./nutrition-store.js');
@@ -63,7 +63,7 @@ async function buildProfileNutritionArchive(profileId) {
 }
 
 export function isExportImportModuleLoaded() {
-  return exportImportModule !== null;
+  return exportImportModuleLoader.module !== null;
 }
 
 /** @returns {Promise<ExportImportModule>} */
@@ -74,27 +74,13 @@ function loadExportImportRetryModule() {
 
 /** @returns {Promise<ExportImportModule>} */
 export function loadExportImportModule() {
-  if (!exportImportModulePromise) {
-    // Failed module-map fetches are cached; retry once with a second fixed URL.
-    const load = useExportImportRetryUrl
-      ? loadExportImportRetryModule()
-      : import('./export-import.js');
-    exportImportModulePromise = load
-      .then(module => (exportImportModule = module))
-      .catch(err => {
-        exportImportModulePromise = null;
-        exportImportModule = null;
-        useExportImportRetryUrl = true;
-        throw err;
-      });
-  }
-  return exportImportModulePromise;
+  return exportImportModuleLoader.load();
 }
 
 /** @param {File} file */
 export async function importDataJSON(file) {
   try {
-    const module = exportImportModule || await loadExportImportModule();
+    const module = exportImportModuleLoader.module || await loadExportImportModule();
     return await module.importDataJSON(file);
   } catch (err) {
     console.error('[export] Could not load the JSON import flow:', err);
@@ -104,7 +90,7 @@ export async function importDataJSON(file) {
 }
 
 export function isReportBuilderModuleLoaded() {
-  return reportBuilderModule !== null;
+  return reportBuilderModuleLoader.module !== null;
 }
 
 /** @returns {Promise<ReportBuilderModule>} */
@@ -115,20 +101,7 @@ function loadReportBuilderRetryModule() {
 
 /** @returns {Promise<ReportBuilderModule>} */
 export function loadReportBuilderModule() {
-  if (!reportBuilderModulePromise) {
-    const load = useReportBuilderRetryUrl
-      ? loadReportBuilderRetryModule()
-      : import('./export-report-builder.js');
-    reportBuilderModulePromise = load
-      .then(module => (reportBuilderModule = module))
-      .catch(err => {
-        reportBuilderModulePromise = null;
-        reportBuilderModule = null;
-        useReportBuilderRetryUrl = true;
-        throw err;
-      });
-  }
-  return reportBuilderModulePromise;
+  return reportBuilderModuleLoader.load();
 }
 
 /** @param {unknown} err */
@@ -184,7 +157,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
 
 export function openReportBuilder(presetId) {
   try {
-    if (reportBuilderModule) return reportBuilderModule.openReportBuilder(presetId);
+    if (reportBuilderModuleLoader.module) return reportBuilderModuleLoader.module.openReportBuilder(presetId);
     return loadReportBuilderModule()
       .then(module => module.openReportBuilder(presetId))
       .catch(reportReportBuilderLoadError);
@@ -194,9 +167,9 @@ export function openReportBuilder(presetId) {
 }
 
 export function closeReportBuilder() {
-  if (!reportBuilderModule) return undefined;
+  if (!reportBuilderModuleLoader.module) return undefined;
   try {
-    return reportBuilderModule.closeReportBuilder();
+    return reportBuilderModuleLoader.module.closeReportBuilder();
   } catch (err) {
     console.error('[export] Could not close the report builder:', err);
     return undefined;

@@ -1,6 +1,7 @@
 // @ts-check
 // context-card-dashboard-ai.js - cold-safe AI context and data protection facade
 
+import { createRetryingModuleLoader } from './retrying-module-loader.js';
 import { getFolderBackupState, pickFolderForBackup } from './backup.js';
 import { getEncryptionEnabled, showEnableEncryptionModal } from './crypto.js';
 import { getLensSummary, openKnowledgeBaseModal } from './lens.js';
@@ -16,17 +17,21 @@ import {
 import { openInterpretiveLensEditorRuntime } from './context-cards-runtime.js';
 
 /** @typedef {typeof import('./context-card-dashboard-ai-impl.js')} DashboardAIModule */
-/** @type {Promise<DashboardAIModule> | null} */
-let dashboardAIModulePromise = null;
-/** @type {DashboardAIModule | null} */
-let dashboardAIModule = null;
-let useDashboardAIRetryUrl = false;
+
+const dashboardAIModuleLoader = createRetryingModuleLoader(
+  retry => retry ? loadDashboardAIRetryModule() : import('./context-card-dashboard-ai-impl.js'),
+  module => {
+    module.configureDashboardAISyncSetup(dashboardAISyncSetupHandler);
+    module.configureDashboardAIDataProtectionDeps(dashboardAIDataProtectionDeps);
+    return module;
+  },
+);
 
 let dashboardAISyncSetupHandler = showSyncSetupModal;
 const dashboardAIDataProtectionDeps = { pickFolderForBackup, showEnableEncryptionModal };
 
 export function isDashboardAIModuleLoaded() {
-  return dashboardAIModule !== null;
+  return dashboardAIModuleLoader.module !== null;
 }
 
 /** @returns {Promise<DashboardAIModule>} */
@@ -37,37 +42,19 @@ function loadDashboardAIRetryModule() {
 
 /** @returns {Promise<DashboardAIModule>} */
 export function loadDashboardAIModule() {
-  if (!dashboardAIModulePromise) {
-    const load = useDashboardAIRetryUrl
-      ? loadDashboardAIRetryModule()
-      : import('./context-card-dashboard-ai-impl.js');
-    dashboardAIModulePromise = load
-      .then(module => {
-        dashboardAIModule = module;
-        module.configureDashboardAISyncSetup(dashboardAISyncSetupHandler);
-        module.configureDashboardAIDataProtectionDeps(dashboardAIDataProtectionDeps);
-        return module;
-      })
-      .catch(err => {
-        dashboardAIModulePromise = null;
-        dashboardAIModule = null;
-        useDashboardAIRetryUrl = true;
-        throw err;
-      });
-  }
-  return dashboardAIModulePromise;
+  return dashboardAIModuleLoader.load();
 }
 
 export function configureDashboardAISyncSetup(handler = showSyncSetupModal) {
   dashboardAISyncSetupHandler = typeof handler === 'function' ? handler : showSyncSetupModal;
-  dashboardAIModule?.configureDashboardAISyncSetup(dashboardAISyncSetupHandler);
+  dashboardAIModuleLoader.module?.configureDashboardAISyncSetup(dashboardAISyncSetupHandler);
 }
 
 export function configureDashboardAIDataProtectionDeps(deps = {}) {
   const previous = { ...dashboardAIDataProtectionDeps };
   if (typeof deps.pickFolderForBackup === 'function') dashboardAIDataProtectionDeps.pickFolderForBackup = deps.pickFolderForBackup;
   if (typeof deps.showEnableEncryptionModal === 'function') dashboardAIDataProtectionDeps.showEnableEncryptionModal = deps.showEnableEncryptionModal;
-  dashboardAIModule?.configureDashboardAIDataProtectionDeps(deps);
+  dashboardAIModuleLoader.module?.configureDashboardAIDataProtectionDeps(deps);
   return previous;
 }
 
@@ -81,7 +68,7 @@ function runDashboardAIAction(name) {
     return Reflect.apply(action, module, []);
   };
   try {
-    if (dashboardAIModule) return run(dashboardAIModule);
+    if (dashboardAIModuleLoader.module) return run(dashboardAIModuleLoader.module);
     return loadDashboardAIModule()
       .then(run)
       .catch(err => {

@@ -1,11 +1,12 @@
-// @ts-check
+import type { ChangelogEntry } from './changelog-current.js';
 import { escapeHTML } from './utils.js';
 import { getAppVersionRuntime } from './utils-runtime.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { CURRENT_RELEASE } from './changelog-current.js';
+import { getMajorMinor, getSeenVersion, markChangelogSeen, _semverGt } from './changelog-state.js';
 const CHANGELOG_ACTION_ATTR = 'data-changelog-action';
-const changelogDelegateRoots = new WeakSet();
-const CHANGELOG = [
+const changelogDelegateRoots = new WeakSet<HTMLElement>();
+const CHANGELOG: ChangelogEntry[] = [
   CURRENT_RELEASE,
 { version: '1.21.0', date: '2026-09-17', title: 'Biology Scores — a major upgrade', items: [ '<b>Explore 18 refined scores.</b> Improved marker selection and weighting keep affordable core panels central, with optional markers adding context.', '<b>Understand the overall picture.</b> See which scores contribute to Biological Coherence and why others are excluded, with clearer handling of older results, mixed dates, and your profile context.', '<b>Get explanations that fit.</b> Short AI summaries highlight what matters, with fuller explanations when you want more detail. Scores remain calculated from your markers.', '<b>Spend less time waiting.</b> Saved explanations survive reloads, carry through backups and sync, and are reused across supported date and range comparisons to reduce repeat AI requests.', '<b>Read and navigate more easily.</b> Cleaner cards, tables, and dashboard widgets bring a more consistent experience on desktop and mobile.', '<b>Know what to check next.</b> Find missing core markers and optional tests that could improve your coverage. Clearer score descriptions support wellness exploration and learning.', ] },
   { version: '1.20.0', date: '2026-09-15', title: 'Reports that are easier to share', items: [ '<b>Choose what to share.</b> Clearer templates let you select report sections, lab or optimal ranges, and optional details.', '<b>See useful summaries.</b> Nutrition, body, light and environment records are summarized, with updated Genome findings and clickable references.', '<b>Know when AI is used.</b> Optional AI overviews include clear disclosure, data-sharing approval and visible generation progress.', ] },
@@ -667,22 +668,13 @@ const CHANGELOG = [
   },
 ];
 /** Extract major.minor from a semver string (e.g. '1.0.1' → '1.0') */
-function getMajorMinor(ver) {
-  const parts = String(ver).split('.');
-  return parts.slice(0, 2).join('.');
-}
-function getSeenVersion() {
-  return localStorage.getItem('labcharts-changelog-seen') || '';
-}
-function markChangelogSeen() {
-  localStorage.setItem('labcharts-changelog-seen', getAppVersionRuntime());
-}
+
 // Changelog items are authored in source code (CHANGELOG above) — trusted.
 // We escape everything by default and then re-allow a small whitelist of
 // inline emphasis tags + safe-href anchors. Anything else (script, img,
 // arbitrary attributes, javascript: URLs, etc.) stays escaped — defense-
 // in-depth in case an entry ever incorporates user content.
-function renderChangelogItem(item) {
+function renderChangelogItem(item: string) {
   let out = escapeHTML(item);
   // Inline emphasis: <b>/<i>/<em>/<strong>/<code> render as styling.
   out = out.replace(/&lt;(\/?)(b|i|em|strong|code)&gt;/g, '<$1$2>');
@@ -706,7 +698,7 @@ function renderChangelogItem(item) {
   return out;
 }
 
-export function openChangelog(showAll) {
+export function openChangelog(showAll: unknown) {
   const overlay = document.getElementById('changelog-modal-overlay');
   const modal = document.getElementById('changelog-modal');
   if (!overlay || !modal) return;
@@ -737,11 +729,11 @@ export function openChangelog(showAll) {
   openModalOverlay(overlay);
 }
 
-function handleChangelogActionClick(event) {
-  const target = event.target;
+function handleChangelogActionClick(event: Event) {
+  const target = event.target as (EventTarget & { closest?: Element['closest'] }) | null;
   if (!target || typeof target.closest !== 'function') return;
   const actionEl = target.closest(`[${CHANGELOG_ACTION_ATTR}]`);
-  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  if (!actionEl || !(event.currentTarget as (EventTarget & { contains?: Node['contains'] }) | null)?.contains?.(actionEl)) return;
   if (actionEl.getAttribute(CHANGELOG_ACTION_ATTR) === 'close') {
     event.preventDefault();
     event.stopPropagation();
@@ -749,7 +741,7 @@ function handleChangelogActionClick(event) {
   }
 }
 
-function installChangelogDelegates(root) {
+function installChangelogDelegates(root: HTMLElement | null | undefined) {
   if (!root || changelogDelegateRoots.has(root)) return;
   changelogDelegateRoots.add(root);
   root.addEventListener('click', handleChangelogActionClick);
@@ -762,16 +754,6 @@ export function closeChangelog() {
 
 // Compare two semver strings — returns true when `a` is strictly newer
 // than `b`. Tolerant of missing parts (treats "1.7" as "1.7.0").
-function _semverGt(a, b) {
-  const pa = String(a || '').split('.').map(n => parseInt(n, 10) || 0);
-  const pb = String(b || '').split('.').map(n => parseInt(n, 10) || 0);
-  for (let i = 0; i < 3; i++) {
-    const ai = pa[i] || 0, bi = pb[i] || 0;
-    if (ai > bi) return true;
-    if (ai < bi) return false;
-  }
-  return false;
-}
 
 export function maybeShowChangelog() {
   if (document.getElementById('legal-consent-overlay')) return;

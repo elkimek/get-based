@@ -1,15 +1,16 @@
+
+import { createRetryingModuleLoader } from './retrying-module-loader.js';
+/** @typedef {typeof import('./wearables-connect.js')} WearablesConnectModule */
+
+const wearablesConnectModuleLoader = createRetryingModuleLoader(
+  retry => retry ? loadWearablesConnectRetryModule() : import('./wearables-connect.js'),
+);
+
 // @ts-check
 // wearables-connect-loader.js — shared on-demand loader for vendor OAuth/sync code
 
-/** @typedef {typeof import('./wearables-connect.js')} WearablesConnectModule */
-/** @type {Promise<WearablesConnectModule> | null} */
-let wearablesConnectModulePromise = null;
-/** @type {WearablesConnectModule | null} */
-let wearablesConnectModule = null;
-let useWearablesConnectRetryUrl = false;
-
 export function isWearablesConnectModuleLoaded() {
-  return wearablesConnectModule !== null;
+  return wearablesConnectModuleLoader.module !== null;
 }
 
 /** @returns {Promise<WearablesConnectModule>} */
@@ -20,18 +21,5 @@ function loadWearablesConnectRetryModule() {
 
 /** @returns {Promise<WearablesConnectModule>} */
 export function loadWearablesConnectModule() {
-  if (!wearablesConnectModulePromise) {
-    const load = useWearablesConnectRetryUrl
-      ? loadWearablesConnectRetryModule()
-      : import('./wearables-connect.js');
-    wearablesConnectModulePromise = load
-      .then(module => (wearablesConnectModule = module))
-      .catch(error => {
-        wearablesConnectModulePromise = null;
-        wearablesConnectModule = null;
-        useWearablesConnectRetryUrl = true;
-        throw error;
-      });
-  }
-  return wearablesConnectModulePromise;
+  return wearablesConnectModuleLoader.load();
 }

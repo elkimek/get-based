@@ -1,15 +1,16 @@
 // @ts-check
 // cycle-import-loader.js - cold-safe Cycle import runtime facade
 
+import { createRetryingModuleLoader } from './retrying-module-loader.js';
 import { upgradeMenstrualCycleProfile } from './cycle-summary.js';
 import { escapeAttr, escapeHTML, showNotification } from './utils.js';
 
 /** @typedef {typeof import('./cycle-import.js')} CycleImportModule */
-/** @type {Promise<CycleImportModule> | null} */
-let cycleImportModulePromise = null;
-/** @type {CycleImportModule | null} */
-let cycleImportModule = null;
-let useCycleImportRetryUrl = false;
+
+const cycleImportModuleLoader = createRetryingModuleLoader(
+  retry => retry ? loadCycleImportRetryModule() : import('./cycle-import.js'),
+);
+
 let cycleImportLoaderDelegatesInstalled = false;
 
 const CYCLE_IMPORT_ACTION = 'data-cycle-import-action';
@@ -84,7 +85,7 @@ export function renderCycleImportSummarySection(mc) {
 }
 
 export function isCycleImportModuleLoaded() {
-  return cycleImportModule !== null;
+  return cycleImportModuleLoader.module !== null;
 }
 
 function loadCycleImportRetryModule() {
@@ -94,20 +95,7 @@ function loadCycleImportRetryModule() {
 
 /** @returns {Promise<CycleImportModule>} */
 export function loadCycleImportModule() {
-  if (!cycleImportModulePromise) {
-    const load = useCycleImportRetryUrl
-      ? loadCycleImportRetryModule()
-      : import('./cycle-import.js');
-    cycleImportModulePromise = load
-      .then(module => (cycleImportModule = module))
-      .catch(error => {
-        cycleImportModulePromise = null;
-        cycleImportModule = null;
-        useCycleImportRetryUrl = true;
-        throw error;
-      });
-  }
-  return cycleImportModulePromise;
+  return cycleImportModuleLoader.load();
 }
 
 /**
@@ -123,7 +111,7 @@ function runCycleImportAction(name, args) {
     return Reflect.apply(action, module, args);
   };
   try {
-    if (cycleImportModule) return run(cycleImportModule);
+    if (cycleImportModuleLoader.module) return run(cycleImportModuleLoader.module);
     return loadCycleImportModule()
       .then(run)
       .catch(error => {
@@ -165,8 +153,8 @@ function handleDeferredCycleImportAction(event) {
   const action = target.dataset.cycleImportAction || '';
   const expectsChange = action === 'select-file' || action === 'conflict-mode';
   if ((expectsChange && event.type !== 'change') || (!expectsChange && event.type !== 'click')) return;
-  if (cycleImportModule) {
-    void cycleImportModule.handleCycleImportAction(event)
+  if (cycleImportModuleLoader.module) {
+    void cycleImportModuleLoader.module.handleCycleImportAction(event)
       .catch(error => {
         console.error('[cycle-import] Deferred action failed:', error);
         showNotification(`Cycle action failed: ${error.message}`, 'error');

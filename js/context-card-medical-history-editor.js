@@ -1,15 +1,19 @@
 // @ts-check
 // context-card-medical-history-editor.js - cold-safe Medical History editor facade
 
+import { createRetryingModuleLoader } from './retrying-module-loader.js';
 import { selectCtxOption } from './context-card-editor-ui.js';
 import { showConfirmDialog, showNotification } from './utils.js';
 
 /** @typedef {typeof import('./context-card-medical-history-editor-impl.js')} MedicalHistoryEditorModule */
-/** @type {Promise<MedicalHistoryEditorModule> | null} */
-let medicalHistoryEditorPromise = null;
-/** @type {MedicalHistoryEditorModule | null} */
-let medicalHistoryEditorModule = null;
-let useMedicalHistoryEditorRetryUrl = false;
+
+const medicalHistoryEditorModuleLoader = createRetryingModuleLoader(
+  retry => retry ? loadMedicalHistoryEditorRetryModule() : import('./context-card-medical-history-editor-impl.js'),
+  module => {
+    module.configureMedicalHistoryEditor(medicalHistoryEditorDeps);
+    return module;
+  },
+);
 
 /** @type {{
  *   close?: () => void,
@@ -19,7 +23,7 @@ let useMedicalHistoryEditorRetryUrl = false;
 const medicalHistoryEditorDeps = {};
 
 export function isMedicalHistoryEditorLoaded() {
-  return medicalHistoryEditorModule !== null;
+  return medicalHistoryEditorModuleLoader.module !== null;
 }
 
 /** @returns {Promise<MedicalHistoryEditorModule>} */
@@ -30,24 +34,7 @@ function loadMedicalHistoryEditorRetryModule() {
 
 /** @returns {Promise<MedicalHistoryEditorModule>} */
 export function loadMedicalHistoryEditor() {
-  if (!medicalHistoryEditorPromise) {
-    const load = useMedicalHistoryEditorRetryUrl
-      ? loadMedicalHistoryEditorRetryModule()
-      : import('./context-card-medical-history-editor-impl.js');
-    medicalHistoryEditorPromise = load
-      .then(module => {
-        medicalHistoryEditorModule = module;
-        module.configureMedicalHistoryEditor(medicalHistoryEditorDeps);
-        return module;
-      })
-      .catch(err => {
-        medicalHistoryEditorPromise = null;
-        medicalHistoryEditorModule = null;
-        useMedicalHistoryEditorRetryUrl = true;
-        throw err;
-      });
-  }
-  return medicalHistoryEditorPromise;
+  return medicalHistoryEditorModuleLoader.load();
 }
 
 /**
@@ -68,7 +55,7 @@ export function configureMedicalHistoryEditor({ close, recordChange, saveAndRefr
     medicalHistoryEditorDeps.saveAndRefresh = saveAndRefresh;
     update.saveAndRefresh = saveAndRefresh;
   }
-  medicalHistoryEditorModule?.configureMedicalHistoryEditor(update);
+  medicalHistoryEditorModuleLoader.module?.configureMedicalHistoryEditor(update);
 }
 
 /** @param {keyof MedicalHistoryEditorModule} name @param {any[]} args @param {boolean} [shouldLoad] */
@@ -80,9 +67,9 @@ function runMedicalHistoryEditorAction(name, args, shouldLoad = true) {
     }
     return Reflect.apply(action, module, args);
   };
-  if (!medicalHistoryEditorModule && !shouldLoad) return undefined;
+  if (!medicalHistoryEditorModuleLoader.module && !shouldLoad) return undefined;
   try {
-    if (medicalHistoryEditorModule) return run(medicalHistoryEditorModule);
+    if (medicalHistoryEditorModuleLoader.module) return run(medicalHistoryEditorModuleLoader.module);
     return loadMedicalHistoryEditor()
       .then(run)
       .catch(err => {

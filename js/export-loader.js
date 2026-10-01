@@ -1,14 +1,17 @@
 // @ts-check
 // export-loader.js - cold-safe lazy facade for export, import, demo, and report actions
 
+import { createRetryingModuleLoader } from './retrying-module-loader.js';
 import { showNotification } from './utils.js';
 
 /** @typedef {typeof import('./export.js')} ExportFacadeModule */
-/** @type {Promise<ExportFacadeModule> | null} */
-let exportFacadeModulePromise = null;
-/** @type {ExportFacadeModule | null} */
-let exportFacadeModule = null;
-let useExportFacadeRetryUrl = false;
+
+const exportFacadeModuleLoader = createRetryingModuleLoader(
+  retry => retry ? loadExportFacadeRetryModule() : import('./export.js'),
+  module => {
+    return applyExportFacadeLoaderDeps(module);
+  },
+);
 
 const exportFacadeLoaderDeps = {
   buildSidebar: /** @type {AnyFunction | null} */ (null),
@@ -26,14 +29,14 @@ export function configureExportFacadeLoaderDeps(deps = {}) {
     const value = deps?.[key];
     if (value === null || typeof value === 'function') exportFacadeLoaderDeps[key] = value;
   }
-  if (exportFacadeModulePromise) {
-    void exportFacadeModulePromise.then(applyExportFacadeLoaderDeps).catch(() => {});
+  if (exportFacadeModuleLoader.promise) {
+    void exportFacadeModuleLoader.promise.then(applyExportFacadeLoaderDeps).catch(() => {});
   }
   return previous;
 }
 
 export function isExportFacadeModuleLoaded() {
-  return exportFacadeModule !== null;
+  return exportFacadeModuleLoader.module !== null;
 }
 
 /** @returns {Promise<ExportFacadeModule>} */
@@ -44,23 +47,7 @@ function loadExportFacadeRetryModule() {
 
 /** @returns {Promise<ExportFacadeModule>} */
 export function loadExportFacadeModule() {
-  if (!exportFacadeModulePromise) {
-    const load = useExportFacadeRetryUrl
-      ? loadExportFacadeRetryModule()
-      : import('./export.js');
-    exportFacadeModulePromise = load
-      .then(module => {
-        exportFacadeModule = module;
-        return applyExportFacadeLoaderDeps(module);
-      })
-      .catch(error => {
-        exportFacadeModulePromise = null;
-        exportFacadeModule = null;
-        useExportFacadeRetryUrl = true;
-        throw error;
-      });
-  }
-  return exportFacadeModulePromise;
+  return exportFacadeModuleLoader.load();
 }
 
 /**
@@ -81,7 +68,7 @@ function runExportFacadeAction(name, args) {
     return false;
   };
   try {
-    if (exportFacadeModule) return run(exportFacadeModule);
+    if (exportFacadeModuleLoader.module) return run(exportFacadeModuleLoader.module);
     return loadExportFacadeModule().then(run).catch(reportFailure);
   } catch (error) {
     return reportFailure(error);
@@ -93,7 +80,7 @@ export function clearAllData() {
 }
 
 export function closeReportBuilder() {
-  if (!exportFacadeModule) return undefined;
+  if (!exportFacadeModuleLoader.module) return undefined;
   return runExportFacadeAction('closeReportBuilder', []);
 }
 

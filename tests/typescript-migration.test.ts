@@ -59,6 +59,19 @@ describe('TypeScript migration boundaries', () => {
     ]);
   });
 
+  it('follows erased literal URL assertions while still rejecting asserted computed imports', () => {
+    const graph = parseModuleSpecifiers(`
+      const retry = import(('./feature.js?lazy-retry=1' as string));
+      const typed = import(('./other.js' satisfies string)!);
+      const computed = import(runtimeUrl as string);
+    `, 'module.ts');
+    expect(graph.dependencies).toEqual([
+      { specifier: './feature.js?lazy-retry=1', kind: 'dynamic' },
+      { specifier: './other.js', kind: 'dynamic' },
+    ]);
+    expect(graph.nonLiteralDynamicImports).toEqual(['import(runtimeUrl as string)']);
+  });
+
   it('selects existing JS runtime tests for a change to their canonical TS module', () => {
     const sources = new Map([
       ['js/leaf.ts', 'export const value: number = 1;'],

@@ -1,6 +1,7 @@
 // @ts-check
 // marker-detail-modal.js — lightweight public entry point for marker detail UI
 
+import { createRetryingModuleLoader } from './retrying-module-loader.js';
 import { state } from './state.js';
 import { closeSuggestionsOnClickOutside } from './health-data-loader.js';
 import { installMarkerDetailActionDelegates } from './marker-detail-actions.js';
@@ -15,18 +16,21 @@ import { safeMarkerId, showNotification } from './utils.js';
 
 /** @typedef {typeof import('./marker-detail-modal-impl.js')} MarkerDetailModule */
 
-/** @type {Promise<MarkerDetailModule> | null} */
-let markerDetailModulePromise = null;
-/** @type {MarkerDetailModule | null} */
-let markerDetailModule = null;
-let useMarkerDetailRetryUrl = false;
+const markerDetailModuleLoader = createRetryingModuleLoader(
+  retry => retry ? loadMarkerDetailRetryModule() : import('./marker-detail-modal-impl.js'),
+  module => {
+    module.configureMarkerDetailModal(markerDetailDeps);
+    return module;
+  },
+);
+
 /** @type {Record<string, any>} */
 const markerDetailDeps = {};
 
 export { loadMarkerDetailStylesheet, rememberModalTrigger };
 
 export function isMarkerDetailModuleLoaded() {
-  return markerDetailModule !== null;
+  return markerDetailModuleLoader.module !== null;
 }
 
 /** @returns {Promise<MarkerDetailModule>} */
@@ -38,26 +42,7 @@ function loadMarkerDetailRetryModule() {
 
 /** @returns {Promise<MarkerDetailModule>} */
 export function loadMarkerDetailModule() {
-  if (!markerDetailModulePromise) {
-    // Browsers cache failed module-map fetches by URL. A fixed second literal
-    // gives the user one genuine retry without introducing a computed import.
-    const moduleLoad = useMarkerDetailRetryUrl
-      ? loadMarkerDetailRetryModule()
-      : import('./marker-detail-modal-impl.js');
-    markerDetailModulePromise = moduleLoad
-      .then(module => {
-        markerDetailModule = module;
-        module.configureMarkerDetailModal(markerDetailDeps);
-        return module;
-      })
-      .catch(err => {
-        markerDetailModulePromise = null;
-        markerDetailModule = null;
-        useMarkerDetailRetryUrl = true;
-        throw err;
-      });
-  }
-  return markerDetailModulePromise;
+  return markerDetailModuleLoader.load();
 }
 
 /**
@@ -69,7 +54,7 @@ export function loadMarkerDetailModule() {
  */
 export function configureMarkerDetailModal(deps = {}) {
   Object.assign(markerDetailDeps, deps);
-  markerDetailModule?.configureMarkerDetailModal(deps);
+  markerDetailModuleLoader.module?.configureMarkerDetailModal(deps);
 }
 
 /** @param {keyof MarkerDetailModule} name @param {unknown} err */
@@ -91,13 +76,13 @@ function reportMarkerDetailActionError(name, err) {
  * @param {any[]} args
  */
 function runMarkerDetailAction(name, args) {
-  if (markerDetailModule) {
+  if (markerDetailModuleLoader.module) {
     try {
-      const action = markerDetailModule[name];
+      const action = markerDetailModuleLoader.module[name];
       if (typeof action !== 'function') {
         throw new Error(`Marker detail action ${String(name)} is unavailable`);
       }
-      return Reflect.apply(action, markerDetailModule, args);
+      return Reflect.apply(action, markerDetailModuleLoader.module, args);
     } catch (err) {
       return reportMarkerDetailActionError(name, err);
     }

@@ -1,6 +1,7 @@
 // @ts-check
 // settings-sync-panel.js — cold-safe Settings sync-panel facade
 
+import { createRetryingModuleLoader } from './retrying-module-loader.js';
 import {
   applyPendingTombstone,
   listPendingTombstones,
@@ -11,11 +12,19 @@ import {
 import { showNotification } from './utils.js';
 
 /** @typedef {typeof import('./settings-sync-panel-impl.js')} SettingsSyncPanelModule */
-/** @type {Promise<SettingsSyncPanelModule> | null} */
-let settingsSyncPanelPromise = null;
-/** @type {SettingsSyncPanelModule | null} */
-let settingsSyncPanelModule = null;
-let useSettingsSyncPanelRetryUrl = false;
+
+const settingsSyncPanelModuleLoader = createRetryingModuleLoader(
+  retry => retry ? loadSettingsSyncPanelRetryModule() : import('./settings-sync-panel-impl.js'),
+  module => {
+    module.configureSettingsSyncPanelDeps(settingsSyncPanelDeps);
+    // renderSyncSection/renderMessengerSection return placeholders on a
+    // cold Settings open. Once the lazy module arrives, replace those
+    // placeholders in place so users get the real controls without
+    // closing and reopening Settings.
+    replaceSettingsSyncPanelPlaceholders(module);
+    return module;
+  },
+);
 
 const settingsSyncPanelDeps = {
   applyPendingTombstone,
@@ -38,7 +47,7 @@ function replaceSettingsSyncPanelPlaceholders(module) {
 }
 
 export function isSettingsSyncPanelLoaded() {
-  return settingsSyncPanelModule !== null;
+  return settingsSyncPanelModuleLoader.module !== null;
 }
 
 /** @returns {Promise<SettingsSyncPanelModule>} */
@@ -49,29 +58,7 @@ function loadSettingsSyncPanelRetryModule() {
 
 /** @returns {Promise<SettingsSyncPanelModule>} */
 export function loadSettingsSyncPanelModule() {
-  if (!settingsSyncPanelPromise) {
-    const load = useSettingsSyncPanelRetryUrl
-      ? loadSettingsSyncPanelRetryModule()
-      : import('./settings-sync-panel-impl.js');
-    settingsSyncPanelPromise = load
-      .then(module => {
-        settingsSyncPanelModule = module;
-        module.configureSettingsSyncPanelDeps(settingsSyncPanelDeps);
-        // renderSyncSection/renderMessengerSection return placeholders on a
-        // cold Settings open. Once the lazy module arrives, replace those
-        // placeholders in place so users get the real controls without
-        // closing and reopening Settings.
-        replaceSettingsSyncPanelPlaceholders(module);
-        return module;
-      })
-      .catch(err => {
-        settingsSyncPanelPromise = null;
-        settingsSyncPanelModule = null;
-        useSettingsSyncPanelRetryUrl = true;
-        throw err;
-      });
-  }
-  return settingsSyncPanelPromise;
+  return settingsSyncPanelModuleLoader.load();
 }
 
 /** @param {Partial<typeof settingsSyncPanelDeps>} deps */
@@ -85,7 +72,7 @@ export function configureSettingsSyncPanelDeps(deps = {}) {
       update[name] = value;
     }
   }
-  settingsSyncPanelModule?.configureSettingsSyncPanelDeps(update);
+  settingsSyncPanelModuleLoader.module?.configureSettingsSyncPanelDeps(update);
   return previous;
 }
 
@@ -102,9 +89,9 @@ function runSettingsSyncPanelAction(name, args, shouldLoad = true) {
     }
     return Reflect.apply(action, module, args);
   };
-  if (!settingsSyncPanelModule && !shouldLoad) return undefined;
+  if (!settingsSyncPanelModuleLoader.module && !shouldLoad) return undefined;
   try {
-    if (settingsSyncPanelModule) return run(settingsSyncPanelModule);
+    if (settingsSyncPanelModuleLoader.module) return run(settingsSyncPanelModuleLoader.module);
     return loadSettingsSyncPanelModule()
       .then(run)
       .catch(err => {
@@ -120,13 +107,13 @@ function runSettingsSyncPanelAction(name, args, shouldLoad = true) {
 }
 
 export function renderSyncSection() {
-  if (settingsSyncPanelModule) return settingsSyncPanelModule.renderSyncSection();
+  if (settingsSyncPanelModuleLoader.module) return settingsSyncPanelModuleLoader.module.renderSyncSection();
   void loadSettingsSyncPanelModule().catch(() => {});
   return '<div class="settings-loading-placeholder" data-settings-sync-placeholder="sync">Loading sync settings…</div>';
 }
 
 export function renderMessengerSection() {
-  if (settingsSyncPanelModule) return settingsSyncPanelModule.renderMessengerSection();
+  if (settingsSyncPanelModuleLoader.module) return settingsSyncPanelModuleLoader.module.renderMessengerSection();
   void loadSettingsSyncPanelModule().catch(() => {});
   return '<div class="settings-loading-placeholder" data-settings-sync-placeholder="messenger">Loading Agent Access…</div>';
 }

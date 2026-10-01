@@ -1,19 +1,19 @@
 // @ts-check
 // export-runtime.js - Browser runtime adapters for export/import flows.
 
+import { createRetryingModuleLoader } from './retrying-module-loader.js';
 import { configureRuntimeCallbacks } from './runtime-callbacks.js';
 import { encryptedGetItem } from './crypto.js';
 import { state } from './state.js';
 
 /** @typedef {typeof import('./cashu-wallet.js')} CashuWalletModule */
-/** @type {Promise<CashuWalletModule> | null} */
-let cashuWalletModulePromise = null;
-/** @type {CashuWalletModule | null} */
-let cashuWalletModule = null;
-let useCashuWalletRetryUrl = false;
+
+const cashuWalletModuleLoader = createRetryingModuleLoader(
+  retry => retry ? loadCashuWalletRetryModule() : import('./cashu-wallet.js'),
+);
 
 export function isCashuWalletModuleLoaded() {
-  return cashuWalletModule !== null;
+  return cashuWalletModuleLoader.module !== null;
 }
 
 /** @returns {Promise<CashuWalletModule>} */
@@ -24,20 +24,7 @@ function loadCashuWalletRetryModule() {
 
 /** @returns {Promise<CashuWalletModule>} */
 export function loadCashuWalletModule() {
-  if (!cashuWalletModulePromise) {
-    const load = useCashuWalletRetryUrl
-      ? loadCashuWalletRetryModule()
-      : import('./cashu-wallet.js');
-    cashuWalletModulePromise = load
-      .then(module => (cashuWalletModule = module))
-      .catch(err => {
-        cashuWalletModulePromise = null;
-        cashuWalletModule = null;
-        useCashuWalletRetryUrl = true;
-        throw err;
-      });
-  }
-  return cashuWalletModulePromise;
+  return cashuWalletModuleLoader.load();
 }
 
 /** @typedef {{
@@ -187,7 +174,7 @@ async function refreshChatThreadsRuntime() {
 }
 
 export async function destroyWalletRuntimeDB() {
-  const wallet = cashuWalletModule || await loadCashuWalletModule();
+  const wallet = cashuWalletModuleLoader.module || await loadCashuWalletModule();
   await wallet.destroyWalletDB();
 }
 
