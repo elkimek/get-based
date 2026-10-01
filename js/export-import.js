@@ -185,7 +185,7 @@ export function importDataJSON(file) {
           // second entry was silently dropped, losing every fatty-acid /
           // specialty marker on import. Merge markers + markerSources
           // instead so all data lands; later entries win on key conflicts.
-          const existing = findOrCreateLabEntry(state.importedData, entry.date, { now: importTs });
+          const existing = /** @type {import('../types/lab-data.js').LabEntry} */ (findOrCreateLabEntry(state.importedData, entry.date, { now: importTs }));
           const restored = mergeRestoredLabEntry(existing, entry, importTs);
           replaceImportedArrayItem(state.importedData, 'entries', state.importedData.entries.indexOf(existing), restored);
           count++;

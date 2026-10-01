@@ -303,3 +303,7 @@ deploy/profile-share/data/
 /js/profile-fatty-acid-migrations.js
 /js/profile-marker-alias-migrations.js
 /js/profile-marker-migrations.js
+
+# Native imported lab mutation and explicit restore operations
+/js/lab-entry-mutations.js
+/js/lab-entry-restore.js

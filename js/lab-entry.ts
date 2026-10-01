@@ -1,3 +1,5 @@
+import type { LabEntry } from '../types/lab-data.js';
+
 /** Accepted edit/merge view: foreign metadata stays opaque until existing checks consume it. */
 export interface LabEntryDraft {
   date?: unknown;
@@ -14,13 +16,14 @@ export interface LabEntryDraft {
 export interface LabMarkerSource {
   file?: unknown; at?: unknown; snapshotId?: unknown; derivedFrom?: readonly string[]; manuallyEdited?: unknown;
 }
-interface LabEditOptions { now?: number | undefined; stamp?: boolean }
+interface LabEditOptions { now?: number | undefined; stamp?: boolean | undefined }
 interface MarkerEditOptions extends LabEditOptions {
   source?: LabMarkerSource | null | undefined;
   clearSource?: boolean;
-  recordTombstone?: boolean;
+  recordTombstone?: boolean | undefined;
   overwrite?: boolean;
 }
+export type CreatedLabEntry = LabEntry & { updatedAt: number };
 type OptionalLabEntry = LabEntryDraft | null | undefined;
 export interface LabMarkerDeletion { changed: boolean; deletedKeys: string[]; removedEntry?: boolean }
 
@@ -165,8 +168,8 @@ export function stampLabEntryUpdated(entry: OptionalLabEntry, now = Date.now()) 
   return now;
 }
 
-export function createLabEntry(date: string, opts: { now?: number } = {}) {
-  const now = Number.isFinite(opts.now) ? opts.now : Date.now();
+export function createLabEntry(date: string, opts: { now?: number | undefined } = {}): CreatedLabEntry {
+  const now = Number.isFinite(opts.now) ? opts.now as number : Date.now();
   return { date, markers: {}, updatedAt: now };
 }
 

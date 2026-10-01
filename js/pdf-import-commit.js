@@ -299,7 +299,7 @@ export async function confirmImport() {
     }
   }
 
-  const entry = findOrCreateLabEntry(state.importedData, result.date, { now: importTs });
+  const entry = /** @type {import('../types/lab-data.js').LabEntry} */ (findOrCreateLabEntry(state.importedData, result.date, { now: importTs }));
   entry.importedWith = {
     provider: result.costInfo?.provider || null,
     modelId: result.costInfo?.modelId || null

@@ -1,16 +1,16 @@
-// @ts-check
+import type { LabEntryDraft } from './lab-entry.js';
 import { mergeLabEntry } from './data-merge-lab-entries.js';
 import { getLabEntryMarkerTombstoneAt, getLabEntryMarkerValueTimestamp, setLabEntryMarker } from './lab-entry.js';
 
 // An explicit restore replaces supplied values, while retaining other markers
 // on the same date and round-tripping entry-level context and deletion history.
-export function mergeRestoredLabEntry(existing, incoming, now = Date.now()) {
+export function mergeRestoredLabEntry(existing: LabEntryDraft, incoming: LabEntryDraft, now = Date.now()) {
   const restored = mergeLabEntry(existing, incoming);
   for (const [key, value] of Object.entries(incoming.markers || {})) {
     const deletedAt = getLabEntryMarkerTombstoneAt(incoming, key);
     if (deletedAt && deletedAt >= getLabEntryMarkerValueTimestamp(incoming, key)) continue;
     const source = Object.prototype.hasOwnProperty.call(incoming.markerSources || {}, key)
-      ? incoming.markerSources[key]
+      ? incoming.markerSources![key]
       : Object.is(existing.markers?.[key], value) ? existing.markerSources?.[key] : null;
     setLabEntryMarker(restored, key, value, { now, source: source ? { ...source } : null });
   }

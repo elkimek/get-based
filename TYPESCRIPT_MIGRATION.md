@@ -349,6 +349,13 @@ conventions and product-scoped fatty-acid provenance remain explicit. The origin
 60 BioStarks assertions are retained in a strict native suite; profile migration
 integration still checks the remaining profile graph.
 
+Imported-data lab mutations and explicit entry restoration now use native
+TypeScript. Fresh rows declare the canonical persisted lab contract; date-keyed
+lookup retains existing row types and identity. Same-date restores keep unrelated
+markers, provenance, context and tombstones. Validated import callers declare
+the non-null row they already require. The complete original mutation suite is
+a strict native integration test, with its fixtures and assertions unchanged.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,
