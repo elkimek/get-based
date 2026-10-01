@@ -411,3 +411,14 @@ deploy/profile-share/data/
 /js/chat-send-runtime.js
 
 /js/chat-runtime.js
+
+# Native theme management and browser adapters
+/js/theme.js
+/js/theme-runtime.js
+/js/theme-bootstrap.js
+/js/extra-theme-bootstrap.js
+
+# Native delegated Settings target resolution
+/js/settings-event-target.js
+
+/js/charts-runtime.js

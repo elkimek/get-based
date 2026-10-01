@@ -10,15 +10,15 @@ const script = fileURLToPath(import.meta.url);
 const root = path.resolve(path.dirname(script), '..');
 
 export function buildTypeScript(): void {
-  for (const config of ['tsconfig.migration.json', 'tsconfig.worker-migration.json']) {
+  for (const config of ['tsconfig.migration.json', 'tsconfig.worker-migration.json', 'tsconfig.bootstrap-migration.json']) {
     execFileSync(process.execPath, [
       path.join(root, 'node_modules/typescript/bin/tsc'),
       '-p', path.join(root, config),
     ], { cwd: root, stdio: 'inherit' });
   }
-  // TS7 always emits strict mode. Classic workers retain their original execution
+  // TS7 always emits strict mode. Classic scripts retain their original execution
   // mode; this affects emission only, and every source still passes strict checks.
-  for (const name of ['service-worker', 'service-worker-runtime', 'service-worker-assets', 'version']) {
+  for (const name of ['service-worker', 'service-worker-runtime', 'service-worker-assets', 'version', 'js/theme-bootstrap', 'js/extra-theme-bootstrap']) {
     const output = path.join(root, name + '.js');
     writeFileSync(output, readFileSync(output, 'utf8').replace(/^"use strict";\r?\n/, ''));
   }

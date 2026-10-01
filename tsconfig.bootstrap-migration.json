@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.migration.json",
+  "compilerOptions": {
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "moduleDetection": "legacy",
+    "types": []
+  },
+  "include": [
+    "js/theme-bootstrap.ts",
+    "js/extra-theme-bootstrap.ts"
+  ],
+  "exclude": []
+}

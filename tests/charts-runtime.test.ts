@@ -16,19 +16,21 @@ const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
 
 afterEach(() => {
   if (savedWindow) Object.defineProperty(globalThis, 'window', savedWindow);
-  else delete globalThis.window;
+  else delete (globalThis as { window?: unknown }).window;
 });
 
 describe('charts runtime adapter', () => {
   it('delegates Chart constructor and date-adapter readiness', () => {
     class ChartStub {
-      constructor(canvas, config) {
+      declare canvas: unknown;
+      declare config: unknown;
+      constructor(canvas: unknown, config: unknown) {
         this.canvas = canvas;
         this.config = config;
       }
     }
     const runtime = { Chart: ChartStub, innerWidth: 640 };
-    const canvas = { id: 'chart-demo' };
+    const canvas = { id: 'chart-demo' } as HTMLCanvasElement;
     const config = { type: 'line' };
     setRuntimeWindow(runtime);
 
@@ -42,14 +44,14 @@ describe('charts runtime adapter', () => {
   });
 
   it('uses safe fallbacks when a browser runtime is missing', () => {
-    delete globalThis.window;
+    delete (globalThis as { window?: unknown }).window;
 
     expect(getChartConstructorRuntime()).toBeNull();
     expect(hasChartRuntime()).toBe(false);
     expect(getChartViewportWidthRuntime()).toBe(1024);
     expect(markChartDateAdapterReadyRuntime()).toBe(false);
     expect(isChartDateAdapterReadyRuntime()).toBe(false);
-    expect(createChartRuntime({ id: 'chart-demo' }, { type: 'line' })).toBeNull();
+    expect(createChartRuntime({ id: 'chart-demo' } as HTMLCanvasElement, { type: 'line' })).toBeNull();
   });
 
   it('keeps charts.js browser globals behind the adapter', () => {
@@ -74,7 +76,7 @@ describe('charts runtime adapter', () => {
       expect(src).not.toContain('window.Chart');
     }
     const controller = readFileSync(new URL('../js/compare-correlations.js', import.meta.url), 'utf8');
-    for (const src of [chartConsumers[0], chartConsumers[2], controller]) expect(src).toContain('hasChartRuntime');
+    for (const src of [chartConsumers[0]!, chartConsumers[2]!, controller]) expect(src).toContain('hasChartRuntime');
     expect(controller).toContain('ensureChartJs');
     expect(controller).not.toContain('window.Chart');
   });

@@ -259,7 +259,8 @@ ${current ? `<details class="corr-history"><summary>Current doses</summary><div 
       const nearby = items.flatMap(s => s.marker?.rows.map(r => correlationDay(r.date)) || []).sort((a, b) => Math.abs(a - day) - Math.abs(b - day))[0];
       return nearby != null && Math.abs(chart.scales.x.getPixelForValue(nearby) - event.x) <= 8 ? nearby : Math.round(day);
     };
-    const chart = createChartRuntime(container.querySelector(`#corr-workspace-chart-${index}`), {
+    // These handlers run only on a successfully constructed chart.
+    const chart = /** @type {NonNullable<ReturnType<typeof createChartRuntime>>} */ (createChartRuntime(container.querySelector(`#corr-workspace-chart-${index}`), {
       type: 'line', data: { datasets },
       plugins: [{ id: 'correlation-calendar-cursor', afterLayout: c => {
         tracks.forEach(t => { t.style.setProperty('--corr-plot-left', `${c.chartArea.left}px`); t.style.setProperty('--corr-plot-right', `${c.width - c.chartArea.right}px`); });
@@ -278,7 +279,7 @@ ${current ? `<details class="corr-history"><summary>Current doses</summary><div 
           ...numericScales,
         },
       },
-    });
+    }));
     if (chart) { state.chartInstances[`correlation-therapy-${index}`] = chart; charts.push(chart); }
   });
   if (tab === 'scatter' && pair && scatterCompatible) {

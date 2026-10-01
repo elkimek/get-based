@@ -1,8 +1,16 @@
 import { createRetryingStylesheetLoader, findStylesheet } from './retrying-module-loader.js';
-// @ts-check
-// theme.js — Theme management, chart colors, time format
+// Theme management, chart colors, and time format.
 
 import { showNotification } from './utils.js';
+import { dispatchRuntimeCustomEvent } from './utils-runtime.js';
+import type { ThemeRuntimeDependents, ThemeRefreshOptions } from './theme-runtime.js';
+
+interface AccentPalette { color: string; light: string; fill: string; gradient: string; }
+type AccentChoice = { id: ''; label: string } | (AccentPalette & { id: 'blue' | 'green' | 'amber' | 'rose' | 'cyan'; label: string });
+interface ThemeRuntimeHooks {
+  dispatchThemeChange(detail: Record<string, unknown>): void;
+  refreshThemeDependentsFromRuntime(options?: ThemeRefreshOptions): void;
+}
 
 const VALID_THEMES = ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer'];
 const EXTRA_THEMES = new Set(['cyberterm', 'glass', 'synth-sunrise', 'neuromancer']);
@@ -11,7 +19,7 @@ const CRT_EFFECT_THEMES = new Set(['cyberterm', 'synth-sunrise', 'neuromancer'])
 const SUNSET_MODE_KEY = 'labcharts-sunset-mode';
 const CRT_EFFECTS_KEY = 'labcharts-crt-effects';
 const SUNSET_THEME_COLOR = '#120504';
-const THEME_BAR_COLORS = {
+const THEME_BAR_COLORS: Record<string, string> & { dark: string } = {
   dark: '#0a0a12',
   light: '#ffffff',
   cyberterm: '#0b0d0b',
@@ -20,7 +28,7 @@ const THEME_BAR_COLORS = {
   neuromancer: '#050608',
 };
 const ACCENT_STORAGE_KEY = 'labcharts-accent-override';
-const THEME_DEFAULT_ACCENTS = {
+const THEME_DEFAULT_ACCENTS: Record<string, AccentPalette> & { dark: AccentPalette } = {
   dark: { color: '#4f8cff', light: '#6ba0ff', fill: 'rgba(79, 140, 255, 0.10)', gradient: 'linear-gradient(135deg, #4f8cff 0%, #6366f1 100%)' },
   light: { color: '#3b7cf5', light: '#2b6ce5', fill: 'rgba(59,124,245,0.10)', gradient: 'linear-gradient(135deg, #3b7cf5 0%, #5b5bf6 100%)' },
   cyberterm: { color: '#4ade80', light: '#6df09a', fill: 'rgba(74,222,128,0.10)', gradient: 'linear-gradient(135deg, #4ade80 0%, #4ade80 100%)' },
@@ -63,14 +71,13 @@ export function isExtraThemesStylesheetLoaded() {
   return extraThemesStylesheetPromiseCache.loaded || !!existingExtraThemesStylesheet()?.sheet;
 }
 
-/** @returns {Promise<HTMLLinkElement>} */
 export function loadExtraThemesStylesheet() {
   return extraThemesStylesheetPromiseCache.load();
 }
 
-export const TWEAK_ACCENTS = [
+export const TWEAK_ACCENTS: AccentChoice[] = [
   { id: '', label: 'Theme default' },
-  { id: 'blue', label: 'Blue', color: '#4f8cff', light: '#6ba0ff', fill: 'rgba(79, 140, 255, 0.10)', gradient: 'linear-gradient(135deg, #4f8cff 0%, #6366f1 100%)' },
+  { id: 'blue', label: 'Blue', ...THEME_DEFAULT_ACCENTS.dark },
   { id: 'green', label: 'Green', color: '#34d399', light: '#6ee7b7', fill: 'rgba(52, 211, 153, 0.12)', gradient: 'linear-gradient(135deg, #34d399 0%, #14b8a6 100%)' },
   { id: 'amber', label: 'Amber', color: '#f59e0b', light: '#fbbf24', fill: 'rgba(245, 158, 11, 0.12)', gradient: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)' },
   { id: 'rose', label: 'Rose', color: '#f43f5e', light: '#fb7185', fill: 'rgba(244, 63, 94, 0.12)', gradient: 'linear-gradient(135deg, #f43f5e 0%, #d946ef 100%)' },
@@ -86,8 +93,7 @@ export const THEMES = [
   { id: 'neuromancer',   label: 'Neuromancer' },
 ];
 
-/** @param {Record<string, any> | null | undefined} accent */
-export function accentSwatchSpec(accent, theme = getTheme()) {
+export function accentSwatchSpec(accent: AccentChoice | null | undefined, theme = getTheme()) {
   return accent?.id ? accent : (THEME_DEFAULT_ACCENTS[theme] || THEME_DEFAULT_ACCENTS.dark);
 }
 
@@ -97,7 +103,7 @@ export function getAccentOverride() {
   return TWEAK_ACCENTS.some(accent => accent.id === value) ? value : '';
 }
 
-export function setAccentOverride(id) {
+export function setAccentOverride(id: string) {
   const next = TWEAK_ACCENTS.some(accent => accent.id === id) ? id : '';
   if (next) localStorage.setItem(ACCENT_STORAGE_KEY, next);
   else localStorage.removeItem(ACCENT_STORAGE_KEY);
@@ -109,13 +115,13 @@ export function applyAccentOverride(id = getAccentOverride()) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   const props = ['--accent', '--accent-light', '--accent-fill', '--accent-gradient', '--shadow-glow', '--ref-band', '--ref-border'];
-  const setProp = (prop, value) => {
+  const setProp = (prop: string, value: string) => {
     if (root.style?.setProperty) root.style.setProperty(prop, value);
-    else if (root.style) root.style[prop] = value;
+    else if (root.style) (root.style as CSSStyleDeclaration & Record<string, unknown>)[prop] = value;
   };
-  const removeProp = (prop) => {
+  const removeProp = (prop: string) => {
     if (root.style?.removeProperty) root.style.removeProperty(prop);
-    else if (root.style) delete root.style[prop];
+    else if (root.style) delete (root.style as CSSStyleDeclaration & Record<string, unknown>)[prop];
   };
   if (isSunsetMode()) {
     props.forEach(removeProp);
@@ -135,26 +141,16 @@ export function applyAccentOverride(id = getAccentOverride()) {
   setProp('--ref-border', accent.color);
 }
 
-/**
- * @typedef {{
- *   dispatchThemeChange: (detail: Record<string, any>) => void,
- *   refreshThemeDependentsFromRuntime: (options?: { settingsModalOpen?: boolean }) => void,
- * }} ThemeRuntimeHooks
- */
-
-function getFallbackThemeRuntimeGlobal() {
+function getFallbackThemeRuntimeGlobal(): (typeof globalThis & ThemeRuntimeDependents) | null {
   return typeof globalThis !== 'undefined'
-    ? /** @type {any} */ (globalThis)
+    ? (globalThis as typeof globalThis & ThemeRuntimeDependents)
     : null;
 }
 
-/** @type {ThemeRuntimeHooks} */
-const fallbackThemeRuntime = {
+const fallbackThemeRuntime: ThemeRuntimeHooks = {
   dispatchThemeChange(detail) {
     const runtime = getFallbackThemeRuntimeGlobal();
-    const CustomEventCtor = runtime?.CustomEvent;
-    if (!runtime || typeof CustomEventCtor !== 'function') return;
-    runtime.dispatchEvent(new CustomEventCtor('labcharts-themechange', { detail }));
+    dispatchRuntimeCustomEvent(runtime, 'labcharts-themechange', detail);
   },
   refreshThemeDependentsFromRuntime(options = {}) {
     const runtime = getFallbackThemeRuntimeGlobal();
@@ -168,8 +164,7 @@ const fallbackThemeRuntime = {
   },
 };
 
-/** @type {ThemeRuntimeHooks} */
-let themeRuntimeHooks = fallbackThemeRuntime;
+let themeRuntimeHooks: ThemeRuntimeHooks = fallbackThemeRuntime;
 
 // Static imports of newly-added modules can break already-installed service
 // worker clients during cache transitions. Use the split runtime when it is
@@ -189,39 +184,39 @@ if (typeof globalThis !== 'undefined') {
     .catch(() => {});
 }
 
-function dispatchThemeChange(detail) {
+function dispatchThemeChange(detail: Record<string, unknown>) {
   themeRuntimeHooks.dispatchThemeChange(detail);
 }
 
-function refreshThemeDependentsFromRuntime(options) {
+function refreshThemeDependentsFromRuntime(options: ThemeRefreshOptions) {
   themeRuntimeHooks.refreshThemeDependentsFromRuntime(options);
 }
 
 export function getTimeFormat() { return localStorage.getItem('labcharts-time-format') || '24h'; }
-export function setTimeFormat(fmt) { localStorage.setItem('labcharts-time-format', fmt); }
+export function setTimeFormat(fmt: string) { localStorage.setItem('labcharts-time-format', fmt); }
 
-export function formatTime(time24) {
+export function formatTime(time24: string) {
   if (!time24) return '';
   if (getTimeFormat() === '24h') return time24;
-  const [h, m] = time24.split(':').map(Number);
+  const [h, m] = time24.split(':').map(Number) as [number, ...number[]];
   const period = h >= 12 ? 'PM' : 'AM';
   const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
   return `${h12}:${String(m).padStart(2, '0')} ${period}`;
 }
 
-export function parseTimeInput(val) {
+export function parseTimeInput(val: string) {
   if (!val) return '';
   const v = val.trim().toUpperCase();
   // 24h format: "14:30" or "8:00"
   const m24 = v.match(/^(\d{1,2}):(\d{2})$/);
   if (m24) {
-    const h = parseInt(m24[1]), m = parseInt(m24[2]);
+    const h = parseInt(m24[1]!), m = parseInt(m24[2]!);
     if (h >= 0 && h <= 23 && m >= 0 && m <= 59) return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
   }
   // 12h format: "2:30 PM", "2:30PM", "2PM"
   const m12 = v.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/);
   if (m12) {
-    let h = parseInt(m12[1]);
+    let h = parseInt(m12[1]!);
     const m = parseInt(m12[2] || '0');
     const p = m12[3];
     if (p === 'AM' && h === 12) h = 0;
@@ -271,7 +266,7 @@ function applyCrtEffectsAttr(enabled = isCrtEffectsEnabled()) {
   else delete document.documentElement.dataset.crtEffects;
 }
 
-export function setSunsetMode(enabled) {
+export function setSunsetMode(enabled: unknown) {
   const on = !!enabled;
   if (on) localStorage.setItem(SUNSET_MODE_KEY, 'true');
   else localStorage.removeItem(SUNSET_MODE_KEY);
@@ -282,7 +277,7 @@ export function setSunsetMode(enabled) {
   dispatchThemeChange({ theme: getTheme(), sunsetMode: on });
 }
 
-export function setCrtEffectsEnabled(enabled) {
+export function setCrtEffectsEnabled(enabled: unknown) {
   const on = !!enabled;
   if (on) localStorage.setItem(CRT_EFFECTS_KEY, 'true');
   else localStorage.removeItem(CRT_EFFECTS_KEY);
@@ -290,7 +285,7 @@ export function setCrtEffectsEnabled(enabled) {
   dispatchThemeChange({ theme: getTheme(), crtEffects: on });
 }
 
-export function setTheme(theme) {
+export function setTheme(theme: string) {
   if (!VALID_THEMES.includes(theme)) theme = 'dark';
   const stylesheetReady = EXTRA_THEMES.has(theme) && !isExtraThemesStylesheetLoaded()
     ? loadExtraThemesStylesheet()
@@ -349,7 +344,7 @@ applyAccentOverride();
 
 export function getChartColors() {
   const s = getComputedStyle(document.documentElement);
-  const g = v => s.getPropertyValue(v).trim();
+  const g = (v: string) => s.getPropertyValue(v).trim();
   return {
     tooltipBg: g('--bg-card'), tooltipTitle: g('--text-primary'),
     tooltipBody: g('--text-secondary'), tooltipBorder: g('--border'),

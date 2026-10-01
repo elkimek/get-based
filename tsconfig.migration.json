@@ -39,6 +39,8 @@
   "exclude": [
     "**/*.d.ts",
     "scripts/vendor-packages",
-    "scripts/vendor-entries"
+    "scripts/vendor-entries",
+    "js/theme-bootstrap.ts",
+    "js/extra-theme-bootstrap.ts"
   ]
 }

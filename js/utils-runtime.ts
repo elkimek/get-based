@@ -43,6 +43,17 @@ export function registerUtilsRuntimeExports(exportsByName: Record<string, unknow
   return true;
 }
 
+// Preserve the target receiver and constructor-before-dispatch lookup order.
+export function dispatchRuntimeCustomEvent(
+  runtime: { CustomEvent?: typeof CustomEvent; dispatchEvent(event: Event): unknown } | null,
+  name: string,
+  detail: Record<string, unknown>,
+): void {
+  const CustomEventCtor = runtime?.CustomEvent;
+  if (!runtime || typeof CustomEventCtor !== 'function') return;
+  runtime.dispatchEvent(new CustomEventCtor(name, { detail }));
+}
+
 export function dispatchUtilsRuntimeEvent(name: string, detail?: Record<string, unknown>): boolean {
   const runtime = getUtilsRuntime();
   const CustomEventCtor = runtime?.CustomEvent;

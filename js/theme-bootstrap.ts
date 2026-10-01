@@ -1,7 +1,7 @@
 // Apply the persisted theme before stylesheets load to avoid a flash of the
 // default theme. This file intentionally remains a classic blocking script.
 (() => {
-  const themeColors = {
+  const themeColors: Record<string, string> & { dark: string } = {
     dark: '#0a0a12',
     light: '#ffffff',
     cyberterm: '#0b0d0b',

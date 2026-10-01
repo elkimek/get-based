@@ -1,26 +1,13 @@
-// @ts-check
 // settings-event-target.js - Shared target resolution for delegated Settings surfaces.
 
-/**
- * @param {Event} event
- * @param {string} selector
- * @param {Element} root
- * @returns {HTMLElement | null}
- */
-export function closestSettingsTarget(event, selector, root) {
+export function closestSettingsTarget(event: Event, selector: string, root: Element) {
   const target = event.target;
   if (!(target instanceof Element)) return null;
   const el = target.closest(selector);
   return el instanceof HTMLElement && root.contains(el) ? el : null;
 }
 
-/**
- * @param {Event} event
- * @param {string} selector
- * @param {Element} root
- * @returns {HTMLInputElement | null}
- */
-export function getSettingsProxyToggle(event, selector, root) {
+export function getSettingsProxyToggle(event: Event, selector: string, root: Element) {
   const target = event.target;
   if (!(target instanceof Element)) return null;
   if (target.matches(selector)) return null;
