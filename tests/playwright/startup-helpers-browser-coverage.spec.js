@@ -1,3 +1,4 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -6,11 +7,7 @@ test.setTimeout(30_000);
 const moduleUrl = createModuleUrl('startupHelpersCoverage');
 
 async function openStartupFixture(page, dependencyRoutes) {
-  await page.route('**/startup-helpers-browser-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
-  }));
+  await routeHtml(page, '**/startup-helpers-browser-coverage', '<!doctype html><html><body><main id="fixture"></main></body></html>', 200);
 
   for (const [glob, body] of Object.entries(dependencyRoutes)) {
     await page.route(glob, route => route.fulfill({

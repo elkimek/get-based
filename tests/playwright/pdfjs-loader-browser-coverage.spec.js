@@ -1,14 +1,11 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('pdfjsLoaderCoverage');
 
 async function openBlankPage(page, { workerSrc = '' } = {}) {
-  await page.route('**/pdfjs-loader-browser-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: '<!doctype html><html><head><title>PDF.js loader coverage</title></head><body></body></html>',
-  }));
+  await routeHtml(page, '**/pdfjs-loader-browser-coverage', '<!doctype html><html><head><title>PDF.js loader coverage</title></head><body></body></html>', 200);
   await page.route('**/vendor/pdf.min.mjs', route => route.fulfill({
     status: 200,
     contentType: 'text/javascript',

@@ -1,3 +1,4 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from '@playwright/test';
 
 // Three independent browser stores with synthetic replica snapshots. The real
@@ -5,9 +6,7 @@ import { expect, test } from '@playwright/test';
 async function createDevice(browser) {
   const context = await browser.newContext({ serviceWorkers: 'block' });
   const page = await context.newPage();
-  await page.route('**/__chat-sync-regression', route => route.fulfill({
-    contentType: 'text/html', body: '<!doctype html><title>Chat sync regression</title>',
-  }));
+  await routeHtml(page, '**/__chat-sync-regression', '<!doctype html><title>Chat sync regression</title>');
   await page.goto('/__chat-sync-regression');
   await page.evaluate(async () => {
     const [{ state }, chat, collectors, payload, pull, push, delta, refresh, reconcile] = await Promise.all([

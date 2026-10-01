@@ -32,7 +32,9 @@
     "api/**/*.ts",
     "server/**/*.ts",
     "bin/**/*.ts",
-    "tests/helpers/**/*.ts"
+    "tests/helpers/**/*.ts",
+    "tests/playwright/coverage-fixture.ts",
+    "tests/playwright/browser-script-runner.ts"
   ],
   "exclude": [
     "**/*.d.ts",

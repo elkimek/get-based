@@ -1,10 +1,8 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
 test('chat Markdown stays formatted and inert in the browser DOM', async ({ page }) => {
-  await page.route('**/chat-markdown-security', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
-  }));
+  await routeHtml(page, '**/chat-markdown-security', '<!doctype html><html><body><main id="fixture"></main></body></html>');
   await page.goto('/chat-markdown-security', { waitUntil: 'load' });
 
   const result = await page.evaluate(async () => {

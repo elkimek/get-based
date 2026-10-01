@@ -1,3 +1,4 @@
+import { routeJavaScript } from '../helpers/browser-static-routes.js';
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -25,24 +26,16 @@ test('Light & Sun module loader caches background initialization without loading
       `,
     });
   });
-  await page.route('**/js/sun-ai-analysis.js', route => route.fulfill({
-    status: 200,
-    contentType: 'application/javascript',
-    body: `
+  await routeJavaScript(page, '**/js/sun-ai-analysis.js', `
       export function maybeAnalyzeSessionAfterFinish(session) {
         globalThis.__deferredSunAnalysisIds = [...(globalThis.__deferredSunAnalysisIds || []), session.id];
       }
-    `,
-  }));
-  await page.route('**/js/light-device-ai-analysis.js', route => route.fulfill({
-    status: 200,
-    contentType: 'application/javascript',
-    body: `
+    `, 200);
+  await routeJavaScript(page, '**/js/light-device-ai-analysis.js', `
       export function maybeAnalyzeDeviceSessionAfterFinish(session) {
         globalThis.__deferredDeviceAnalysisIds = [...(globalThis.__deferredDeviceAnalysisIds || []), session.id];
       }
-    `,
-  }));
+    `, 200);
   await page.route('**/css/light-*.css*', route => {
     stylesheetRequests += 1;
     return route.fulfill({

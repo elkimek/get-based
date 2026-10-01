@@ -1,3 +1,4 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
 const lightToolsUrl = () => `/js/light-tools.js?cameraLoaderCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -23,10 +24,7 @@ const syntheticCameraModals = `
 `;
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/light-tool-camera-loader-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><div id="notification-container"></div></body></html>',
-  }));
+  await routeHtml(page, '**/light-tool-camera-loader-coverage', '<!doctype html><html><body><div id="notification-container"></div></body></html>');
   await page.goto('/light-tool-camera-loader-coverage');
 });
 

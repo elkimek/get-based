@@ -1,3 +1,4 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
 const loaderUrl = () => `/js/cycle-import-loader.js?cycleImportLoaderCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -25,14 +26,11 @@ const syntheticCycleImport = `
 `;
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/cycle-import-loader-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: `<!doctype html><html><body>
+  await routeHtml(page, '**/cycle-import-loader-coverage', `<!doctype html><html><body>
       <div id="notification-container"></div>
       <button id="cycle-import-button" data-cycle-import-action="pick-file">Import</button>
       <input id="cycle-import-file" data-cycle-import-action="select-file">
-    </body></html>`,
-  }));
+    </body></html>`);
   await page.goto('/cycle-import-loader-coverage');
 });
 

@@ -1,3 +1,4 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -474,10 +475,7 @@ test('Oura and WHOOP provider fetchers collect paginated rows and canonical metr
 });
 
 test('WHOOP consent and device-only storage protect rows and derived profile data', async ({ page }) => {
-  await page.route('**/whoop-storage-browser-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body></body></html>',
-  }));
+  await routeHtml(page, '**/whoop-storage-browser-coverage', '<!doctype html><html><body></body></html>');
   await page.route('**/api/proxy', route => route.fulfill({
     contentType: 'application/json',
     body: JSON.stringify({ overrides: { whoop: 'self-host-whoop-client' }, configured: { whoop: true } }),

@@ -6,6 +6,7 @@
     "noEmit": true
   },
   "include": [
-    "tests/**/*.test.ts"
+    "tests/**/*.test.ts",
+    "tests/playwright/**/*.spec.ts"
   ]
 }

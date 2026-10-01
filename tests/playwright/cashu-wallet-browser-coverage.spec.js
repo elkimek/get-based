@@ -1,12 +1,10 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { installWalletFixtures } from '../helpers/wallet-browser-fixtures.js';
 import { expect, test } from './coverage-fixture.js';
 test.beforeEach(async ({ page }) => installWalletFixtures(page));
 
 test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, and fee paths', async ({ page }) => {
-  await page.route('**/cashu-wallet-blank', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body></body></html>',
-  }));
+  await routeHtml(page, '**/cashu-wallet-blank', '<!doctype html><html><body></body></html>');
   await page.goto('/cashu-wallet-blank', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
@@ -327,10 +325,7 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
 });
 
 test('cashu wallet browser coverage exercises fee proof auto-melt storage', async ({ page }) => {
-  await page.route('**/cashu-wallet-fee-blank', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body></body></html>',
-  }));
+  await routeHtml(page, '**/cashu-wallet-fee-blank', '<!doctype html><html><body></body></html>');
   // Production fee collection is disabled; this routed copy reaches the private auto-melt path without changing app code.
   await page.route('**/js/cashu-wallet.js*', async route => {
     const response = await route.fetch();
@@ -495,10 +490,7 @@ test('cashu wallet browser coverage exercises fee proof auto-melt storage', asyn
 });
 
 test('routstr wallet panels and delegates cover browser-only actions', async ({ page }) => {
-  await page.route('**/cashu-wallet-panels-blank', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body></body></html>',
-  }));
+  await routeHtml(page, '**/cashu-wallet-panels-blank', '<!doctype html><html><body></body></html>');
   await page.goto('/cashu-wallet-panels-blank', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
@@ -917,10 +909,7 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
 });
 
 test('routstr wallet delegate coverage handles scoped action variants', async ({ page }) => {
-  await page.route('**/cashu-wallet-delegates-blank', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body></body></html>',
-  }));
+  await routeHtml(page, '**/cashu-wallet-delegates-blank', '<!doctype html><html><body></body></html>');
   await page.goto('/cashu-wallet-delegates-blank', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {

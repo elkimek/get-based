@@ -1,4 +1,10 @@
-function parsePercentage(value, label) {
+export interface CoverageMinimumReader { minimumFunctionPct?: unknown; }
+export interface CoverageGate { minimum: number; source: string; }
+export interface CoverageFeatureReader { name: string; fnTotal: number; fnCalled: number; }
+export interface FeatureFloorReader extends CoverageMinimumReader { referenceCalled?: number; referenceTotal?: number; }
+export interface FeatureBaselineReader { features?: Record<string, FeatureFloorReader | null | undefined> | null; }
+
+function parsePercentage(value: unknown, label: string) {
   const text = typeof value === 'number' || typeof value === 'string' ? String(value).trim() : '';
   const percentage = /^(?:\d+(?:\.\d*)?|\.\d+)$/.test(text) ? Number(text) : NaN;
   if (!Number.isFinite(percentage) || percentage <= 0 || percentage > 100) {
@@ -7,7 +13,7 @@ function parsePercentage(value, label) {
   return percentage;
 }
 
-export function resolveCoverageMinimum({ baseline, envValue = '' } = {}) {
+export function resolveCoverageMinimum({ baseline, envValue = '' }: { baseline?: CoverageMinimumReader | null; envValue?: unknown } = {}) {
   const baselineMinimum = parsePercentage(
     baseline?.minimumFunctionPct,
     'coverage baseline minimumFunctionPct',
@@ -34,7 +40,7 @@ export function resolveCoverageMinimum({ baseline, envValue = '' } = {}) {
   };
 }
 
-export function enforceFunctionCoverage(actualFunctionPct, gate) {
+export function enforceFunctionCoverage(actualFunctionPct: unknown, gate: CoverageGate | null | undefined) {
   const actual = Number(actualFunctionPct);
   if (!Number.isFinite(actual) || actual < 0 || actual > 100) {
     throw new Error('Measured function coverage must be a number from 0 to 100.');
@@ -57,7 +63,7 @@ export function enforceFunctionCoverage(actualFunctionPct, gate) {
 
 // Validate every feature independently so a global increase cannot mask a loss
 // in a smaller feature. Missing/new groups require an explicit baseline review.
-export function enforceFeatureCoverage(features, baseline) {
+export function enforceFeatureCoverage(features: readonly CoverageFeatureReader[] | null | undefined, baseline: FeatureBaselineReader | null | undefined) {
   const floors = baseline?.features;
   if (!floors || typeof floors !== 'object' || Array.isArray(floors) || !Object.keys(floors).length) {
     throw new Error('Feature coverage baseline is required.');
@@ -75,11 +81,11 @@ export function enforceFeatureCoverage(features, baseline) {
     if (!floor || typeof floor !== 'object') throw new Error(`Invalid coverage baseline for feature: ${name}`);
     const minimum = parsePercentage(floor.minimumFunctionPct, `Feature ${name} minimumFunctionPct`);
     const { referenceCalled, referenceTotal } = floor;
-    if (!Number.isSafeInteger(referenceTotal) || referenceTotal <= 0
-      || !Number.isSafeInteger(referenceCalled) || referenceCalled < 0 || referenceCalled > referenceTotal) {
+    if (!Number.isSafeInteger(referenceTotal) || referenceTotal! <= 0
+      || !Number.isSafeInteger(referenceCalled) || referenceCalled! < 0 || referenceCalled! > referenceTotal!) {
       throw new Error(`Invalid reference function counts for feature: ${name}`);
     }
-    if (minimum < Math.floor(100 * referenceCalled / referenceTotal)) {
+    if (minimum < Math.floor(100 * referenceCalled! / referenceTotal!)) {
       throw new Error(`Feature ${name} floor is below its rounded reference measurement.`);
     }
     return { name, ...enforceFunctionCoverage(100 * fnCalled / fnTotal, { minimum, source: `feature: ${name}` }) };

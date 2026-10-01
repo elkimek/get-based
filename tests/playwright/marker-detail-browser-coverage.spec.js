@@ -1,3 +1,4 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -1097,16 +1098,12 @@ test('marker detail delegated actions cover click key and data attribute contrac
 });
 
 test('marker detail modal covers default deps descriptions alt units and bio age CRP fallback', async ({ page }) => {
-  await page.route('**/marker-detail-modal-isolated-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: `<!doctype html><html><head><title>Marker detail isolated coverage</title>
+  await routeHtml(page, '**/marker-detail-modal-isolated-coverage', `<!doctype html><html><head><title>Marker detail isolated coverage</title>
         <meta data-marker-detail-stylesheet-anchor></head>
       <body>
         <div id="modal-overlay" class="modal-overlay"><div id="detail-modal" class="modal"></div></div>
         <div id="notification-container"></div>
-      </body></html>`,
-  }));
+      </body></html>`, 200);
   await page.goto('/marker-detail-modal-isolated-coverage', { waitUntil: 'load' });
   await page.waitForSelector('#modal-overlay', { state: 'attached' });
 

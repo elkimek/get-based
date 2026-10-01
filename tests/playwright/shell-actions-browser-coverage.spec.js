@@ -1,3 +1,4 @@
+import { routeJavaScript } from '../helpers/browser-static-routes.js';
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
@@ -237,25 +238,17 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
 });
 
 test('app refresh callback uses configured shell dependencies', async ({ page }) => {
-  await page.route('**/js/pdf-import-commit.js', route => route.fulfill({
-    status: 200,
-    contentType: 'application/javascript',
-    body: `
+  await routeJavaScript(page, '**/js/pdf-import-commit.js', `
       export function confirmImport() {
         window.__shellHookPdfImportConfirmed = true;
         return 'confirmed';
       }
-    `,
-  }));
-  await page.route('**/js/pdf-import-review.js', route => route.fulfill({
-    status: 200,
-    contentType: 'application/javascript',
-    body: `
+    `, 200);
+  await routeJavaScript(page, '**/js/pdf-import-review.js', `
       export function closeImportModal() {
         window.__shellHookImportModalClosed = true;
       }
-    `,
-  }));
+    `, 200);
   await openBlankPage(page);
 
   const results = await page.evaluate(async () => {

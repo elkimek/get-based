@@ -1,36 +1,26 @@
+import { routeHtml, routeJavaScript } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('profileShareEdgeCoverage');
 
 async function openIsolatedProfileSharePage(page) {
-  await page.route('**/profile-share-edge-browser-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: `<!doctype html>
+  await routeHtml(page, '**/profile-share-edge-browser-coverage', `<!doctype html>
       <html>
         <body>
           <button id="share-trigger" type="button">Share</button>
           <div id="notification-container"></div>
         </body>
-      </html>`,
-  }));
-  await page.route('**/js/profile.js*', route => route.fulfill({
-    status: 200,
-    contentType: 'application/javascript',
-    body: `
+      </html>`, 200);
+  await routeJavaScript(page, '**/js/profile.js*', `
       export function getProfiles() {
         return [
           { id: 'default', name: 'Edge Profile' },
           { id: 'other-profile', name: 'Other Profile' },
         ];
       }
-    `,
-  }));
-  await page.route('**/js/export.js*', route => route.fulfill({
-    status: 200,
-    contentType: 'application/javascript',
-    body: `
+    `, 200);
+  await routeJavaScript(page, '**/js/export.js*', `
       export async function buildClientExportObject(profileId) {
         if (window.__profileShareExportError) throw new Error(window.__profileShareExportError);
         return {
@@ -46,8 +36,7 @@ async function openIsolatedProfileSharePage(page) {
         window.__profileShareImports.push({ name: file.name, type: file.type, payload });
         return true;
       }
-    `,
-  }));
+    `, 200);
   await page.goto('/profile-share-edge-browser-coverage', { waitUntil: 'load' });
 }
 

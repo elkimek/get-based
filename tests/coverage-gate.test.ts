@@ -1,3 +1,4 @@
+import type { CoverageFeatureReader } from '../scripts/coverage-gate.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -118,7 +119,7 @@ describe('browser coverage model', () => {
 
 describe('per-feature coverage gates', () => {
   const baseline = { features: { Chat: { minimumFunctionPct: 80, referenceCalled: 8, referenceTotal: 10 }, Sync: { minimumFunctionPct: 90, referenceCalled: 9, referenceTotal: 10 } } };
-  const features = [{ name: 'Chat', fnCalled: 8, fnTotal: 10 }, { name: 'Sync', fnCalled: 9, fnTotal: 10 }];
+  const features: [CoverageFeatureReader, CoverageFeatureReader] = [{ name: 'Chat', fnCalled: 8, fnTotal: 10 }, { name: 'Sync', fnCalled: 9, fnTotal: 10 }];
   it('passes exactly at each floor using counts, not a supplied percentage', () => {
     expect(enforceFeatureCoverage(features.map(f => ({ ...f, fnPct: 0 })), baseline)).toHaveLength(2);
   });
@@ -142,7 +143,7 @@ describe('coverage baseline integrity', () => {
     expect(() => resolveCoverageMinimum({ baseline: { minimumFunctionPct: value } })).toThrow('minimumFunctionPct');
     expect(() => resolveCoverageMinimum({ baseline: BASELINE, envValue: typeof value === 'string' && value ? value : '90oops' })).toThrow('COVERAGE_MIN');
   });
-  const features = [{ name: 'Chat', fnTotal: 10, fnCalled: 10 }];
+  const features: [CoverageFeatureReader] = [{ name: 'Chat', fnTotal: 10, fnCalled: 10 }];
   it('rejects a floor lowered below its retained measurement', () => {
     expect(() => enforceFeatureCoverage(features, { features: { Chat: {
       minimumFunctionPct: 9, referenceCalled: 9, referenceTotal: 10,

@@ -1,6 +1,7 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import {expect,test} from './coverage-fixture.js';
 test.beforeEach(async({page})=>{
- await page.route('**/sync-vault-harness',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><title>Vault regression fixture</title>'}));
+ await routeHtml(page, '**/sync-vault-harness', '<!doctype html><title>Vault regression fixture</title>');
  await page.goto('/sync-vault-harness');
 });
 test('invalidating a real IndexedDB read never restores the obsolete owner',async({page})=>{

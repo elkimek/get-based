@@ -1,3 +1,4 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
 const facadeUrl = () => `/js/settings-sync-panel.js?loaderCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -45,10 +46,7 @@ const syntheticSettingsSyncPanel = `
 `;
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/settings-sync-panel-loader-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><div id="notification-container"></div></body></html>',
-  }));
+  await routeHtml(page, '**/settings-sync-panel-loader-coverage', '<!doctype html><html><body><div id="notification-container"></div></body></html>');
 });
 
 test('Settings sync panel stays cold, single-flights, and applies stored configuration', async ({ page }) => {

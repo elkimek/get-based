@@ -1,3 +1,4 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
 const runtimeUrl = () => `/js/export-runtime.js?cashuLoaderCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -10,10 +11,7 @@ const syntheticWallet = `
 `;
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/cashu-wallet-loader-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body></body></html>',
-  }));
+  await routeHtml(page, '**/cashu-wallet-loader-coverage', '<!doctype html><html><body></body></html>');
   await page.goto('/cashu-wallet-loader-coverage');
 });
 

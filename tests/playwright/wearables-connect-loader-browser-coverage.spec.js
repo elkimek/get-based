@@ -1,3 +1,4 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
 const loaderUrl = () => `/js/wearables-connect-loader.js?wearablesConnectLoaderCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -15,10 +16,7 @@ const syntheticConnect = `
 `;
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/wearables-connect-loader-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body></body></html>',
-  }));
+  await routeHtml(page, '**/wearables-connect-loader-coverage', '<!doctype html><html><body></body></html>');
   await page.goto('/wearables-connect-loader-coverage');
 });
 

@@ -1,3 +1,4 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -8,10 +9,7 @@ async function openBlankPage(page, path) {
     contentType: 'text/html',
     body: '<!doctype html><html><body></body></html>',
   }));
-  await page.route('**/wearables-connect-frame-*', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body></body></html>',
-  }));
+  await routeHtml(page, '**/wearables-connect-frame-*', '<!doctype html><html><body></body></html>');
   await page.goto(path, { waitUntil: 'load' });
 }
 

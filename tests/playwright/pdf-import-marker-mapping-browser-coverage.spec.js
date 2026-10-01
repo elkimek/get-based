@@ -1,14 +1,11 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('pdfImportMarkerMappingCoverage');
 
 async function openIsolatedMarkerMappingPage(page) {
-  await page.route('**/pdf-import-marker-mapping-browser-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: '<!doctype html><html><body></body></html>',
-  }));
+  await routeHtml(page, '**/pdf-import-marker-mapping-browser-coverage', '<!doctype html><html><body></body></html>', 200);
   await page.goto('/pdf-import-marker-mapping-browser-coverage', { waitUntil: 'load' });
 }
 

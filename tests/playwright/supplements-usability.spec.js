@@ -1,7 +1,8 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
 async function editor(page, records = null) {
-  await page.route('**/supplement-usability-fixture', route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>Supplement editor</title><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/css/context-profile.css"><link rel="stylesheet" href="/css/modal-shared.css"><link rel="stylesheet" href="/css/import.css"></head><body><main></main><div id="modal-overlay" class="modal-overlay"><div id="detail-modal" class="modal"></div></div></body></html>` }));
+  await routeHtml(page, '**/supplement-usability-fixture', `<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>Supplement editor</title><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/css/context-profile.css"><link rel="stylesheet" href="/css/modal-shared.css"><link rel="stylesheet" href="/css/import.css"></head><body><main></main><div id="modal-overlay" class="modal-overlay"><div id="detail-modal" class="modal"></div></div></body></html>`);
   await page.goto('/supplement-usability-fixture');
   return page.evaluate(async records => {
     const { state } = await import('/js/state.js');

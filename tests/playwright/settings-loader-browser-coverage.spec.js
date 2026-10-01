@@ -1,3 +1,4 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -192,10 +193,7 @@ test('Settings loader retries a failed stylesheet without re-evaluating its modu
 });
 
 test('Settings model selects use a persistent picker on desktop', async ({ page }) => {
-  await page.route('**/settings-model-select-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: `<!doctype html>
+  await routeHtml(page, '**/settings-model-select-coverage', `<!doctype html>
       <html data-theme="dark">
         <head><link rel="stylesheet" href="/css/settings.css"></head>
         <body>
@@ -206,8 +204,7 @@ test('Settings model selects use a persistent picker on desktop', async ({ page 
             </select>
           </div>
         </body>
-      </html>`,
-  }));
+      </html>`, 200);
   await page.goto('/settings-model-select-coverage', { waitUntil: 'load' });
 
   const modelSelect = page.locator('#model-select');

@@ -1,28 +1,21 @@
+import { routeHtml, routeJavaScript } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('lensHelperCoverage');
 
 async function openIsolatedLensHelperPage(page) {
-  await page.route('**/lens-helper-browser-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: `<!doctype html>
+  await routeHtml(page, '**/lens-helper-browser-coverage', `<!doctype html>
       <html>
         <body>
           <div id="notification-container"></div>
         </body>
-      </html>`,
-  }));
-  await page.route('**/js/lens-local.js*', route => route.fulfill({
-    status: 200,
-    contentType: 'application/javascript',
-    body: `
+      </html>`, 200);
+  await routeJavaScript(page, '**/js/lens-local.js*', `
       export async function openLocalLens() {
         throw new Error('local lens unavailable for coverage');
       }
-    `,
-  }));
+    `, 200);
   await page.goto('/lens-helper-browser-coverage', { waitUntil: 'load' });
 }
 

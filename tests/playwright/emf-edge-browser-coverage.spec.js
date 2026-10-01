@@ -1,24 +1,18 @@
+import { routeHtml, routeJavaScript } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('emfEdgeCoverage');
 
 async function openIsolatedEMFPage(page) {
-  await page.route('**/emf-edge-browser-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: `<!doctype html>
+  await routeHtml(page, '**/emf-edge-browser-coverage', `<!doctype html>
       <html>
         <body>
           <div id="modal-overlay"><div id="detail-modal"></div></div>
           <div id="notification-container"></div>
         </body>
-      </html>`,
-  }));
-  await page.route('**/js/api.js*', route => route.fulfill({
-    status: 200,
-    contentType: 'application/javascript',
-    body: `
+      </html>`, 200);
+  await routeJavaScript(page, '**/js/api.js*', `
       export function hasAIProvider() { return true; }
       export function getAIProvider() { return 'ollama'; }
       export function getActiveModelId() { return 'emf-edge-model'; }
@@ -60,32 +54,20 @@ async function openIsolatedEMFPage(page) {
           usage: { inputTokens: 16, outputTokens: 12 },
         };
       }
-    `,
-  }));
-  await page.route('**/js/data.js*', route => route.fulfill({
-    status: 200,
-    contentType: 'application/javascript',
-    body: `
+    `, 200);
+  await routeJavaScript(page, '**/js/data.js*', `
       export async function saveImportedData() {
         window.__emfDataSaves = (window.__emfDataSaves || 0) + 1;
         return true;
       }
-    `,
-  }));
-  await page.route('**/js/pdf-import.js*', route => route.fulfill({
-    status: 200,
-    contentType: 'application/javascript',
-    body: `
+    `, 200);
+  await routeJavaScript(page, '**/js/pdf-import.js*', `
       export async function extractPDFText(file) {
         window.__emfExtractedPdfName = file?.name || '';
         return 'Client bedroom report with WiFi router, RF microwave readings, and mitigation recommendations.';
       }
-    `,
-  }));
-  await page.route('**/js/pii.js*', route => route.fulfill({
-    status: 200,
-    contentType: 'application/javascript',
-    body: `
+    `, 200);
+  await routeJavaScript(page, '**/js/pii.js*', `
       export function obfuscatePDFText(text) {
         window.__emfObfuscations = (window.__emfObfuscations || 0) + 1;
         return { obfuscated: text.replace(/Client/g, 'Person') };
@@ -94,12 +76,8 @@ async function openIsolatedEMFPage(page) {
       export function sanitizeWithOllamaStreaming() {}
       export async function checkOllamaPII() { return { available: false }; }
       export async function reviewPIIBeforeSend() { return 'cancel'; }
-    `,
-  }));
-  await page.route('**/js/image-utils.js*', route => route.fulfill({
-    status: 200,
-    contentType: 'application/javascript',
-    body: `
+    `, 200);
+  await routeJavaScript(page, '**/js/image-utils.js*', `
       export function isValidImageType(type) {
         return /^image\\//.test(type || '');
       }
@@ -108,12 +86,8 @@ async function openIsolatedEMFPage(page) {
         window.__emfResizeCalls.push(file.name);
         return { base64: btoa(file.name || 'photo'), mediaType: file.type || 'image/png' };
       }
-    `,
-  }));
-  await page.route('**/js/recommendations.js*', route => route.fulfill({
-    status: 200,
-    contentType: 'application/javascript',
-    body: `
+    `, 200);
+  await routeJavaScript(page, '**/js/recommendations.js*', `
       export async function loadEMFCatalog() {
         window.__emfCatalogLoads = (window.__emfCatalogLoads || 0) + 1;
         return { products: [{ name: 'Shielding paint' }] };
@@ -128,8 +102,7 @@ async function openIsolatedEMFPage(page) {
       export function detectMitigationsInText(text) {
         return /shielding paint/i.test(text || '') ? ['shielding paint'] : [];
       }
-    `,
-  }));
+    `, 200);
   await page.goto('/emf-edge-browser-coverage', { waitUntil: 'load' });
 }
 

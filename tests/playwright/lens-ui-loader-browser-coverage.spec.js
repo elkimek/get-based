@@ -1,3 +1,4 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
 const facadeUrl = () => `/js/lens.js?uiLoaderCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -41,10 +42,7 @@ const syntheticLensUi = `
 `;
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/lens-ui-loader-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><div id="notification-container"></div></body></html>',
-  }));
+  await routeHtml(page, '**/lens-ui-loader-coverage', '<!doctype html><html><body><div id="notification-container"></div></body></html>');
   await page.goto('/lens-ui-loader-coverage');
 });
 

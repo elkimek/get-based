@@ -455,6 +455,16 @@ Durable regressions cover exact image limits, caller identity, enumeration order
 and redaction; 915 differential scenarios matched original outcomes and traces.
 The 36 targeted Chromium nutrition/persistence/request cases also passed.
 
+
+Browser coverage collection, its shared script runner, source fingerprints and
+coverage gates are now native TypeScript. Ninety-three literal route handlers
+across 47 browser suites share a typed helper while retaining exact fixture bytes,
+statuses, route order and existing assertions. The collector exposes a worker
+profiler readiness barrier because Playwright independently resumes new workers;
+teardown waits for pending profiler setup. Real Chromium regressions cover page
+fingerprints, worker counts, route disposal, nested fixture failures, asynchronous
+errors and console restoration. Existing coverage floors and gate cases remain.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, remaining workers,

@@ -1,7 +1,8 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test, startPageCoverage, stopPageCoverage } from './coverage-fixture.js';
 
 test('the vendored Cashu library receives NUT-17 updates and closes its subscription', async ({ page }) => {
-  await page.route('**/funding-monitor-fixture', route => route.fulfill({ contentType: 'text/html', body: '<div>Mint notification fixture</div>' }));
+  await routeHtml(page, '**/funding-monitor-fixture', '<div>Mint notification fixture</div>');
   const requests = [], messages = [];
   await page.route('https://mint.push.test/**', route => {
     requests.push(route.request().url());

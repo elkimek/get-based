@@ -1,16 +1,12 @@
+import { routeHtml, routeJavaScript } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('lensLocalParsersCoverage');
 
 async function openParserCoveragePage(page) {
-  await page.route('**/lens-local-parsers-browser-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><head><title>Lens parser coverage</title></head><body></body></html>',
-  }));
-  await page.route('**/js/pdfjs-loader.js', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+  await routeHtml(page, '**/lens-local-parsers-browser-coverage', '<!doctype html><html><head><title>Lens parser coverage</title></head><body></body></html>');
+  await routeJavaScript(page, '**/js/pdfjs-loader.js', `
       export async function getPdfDocument({ data }) {
         const bytes = new Uint8Array(data);
         if (bytes.length === 4 && bytes[0] === 9) throw new Error('stub pdf failure');
@@ -27,22 +23,16 @@ async function openParserCoveragePage(page) {
           }),
         };
       }
-    `,
-  }));
-  await page.route('**/vendor/mammoth.browser.min.js', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+    `);
+  await routeJavaScript(page, '**/vendor/mammoth.browser.min.js', `
       window.__mammothLoadCount = (window.__mammothLoadCount || 0) + 1;
       window.mammoth = {
         extractRawText: async ({ arrayBuffer }) => ({
           value: 'DOCX text bytes=' + arrayBuffer.byteLength,
         }),
       };
-    `,
-  }));
-  await page.route('**/vendor/jszip.min.js', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+    `);
+  await routeJavaScript(page, '**/vendor/jszip.min.js', `
       window.__jszipLoadCount = (window.__jszipLoadCount || 0) + 1;
       window.JSZip = {
         loadAsync: async () => ({
@@ -76,8 +66,7 @@ async function openParserCoveragePage(page) {
           },
         }),
       };
-    `,
-  }));
+    `);
   await page.goto('/lens-local-parsers-browser-coverage', { waitUntil: 'load' });
 }
 

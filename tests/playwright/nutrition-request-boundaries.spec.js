@@ -1,10 +1,9 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
 for (const boundary of ['cancel', 'close', 'profile', 'reload-profile']) {
   test(`meal photo preparation cannot restart after ${boundary}`, async ({ page }) => {
-    await page.route('**/nutrition-boundary-harness', route => route.fulfill({
-      contentType: 'text/html', body: '<div id="modal-overlay"></div><div id="detail-modal" class="nutrition-modal"></div>',
-    }));
+    await routeHtml(page, '**/nutrition-boundary-harness', '<div id="modal-overlay"></div><div id="detail-modal" class="nutrition-modal"></div>');
     let release;
     const gate = new Promise(resolve => { release = resolve; });
     let requested = false;

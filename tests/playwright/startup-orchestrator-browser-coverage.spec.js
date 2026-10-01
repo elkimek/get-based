@@ -1,98 +1,65 @@
+import { routeHtml, routeJavaScript } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('startupOrchestratorCoverage');
 
 async function openStartupOrchestratorPage(page) {
-  await page.route('**/startup-orchestrator-browser-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
-  }));
-  await page.route('**/js/startup-foundation.js*', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+  await routeHtml(page, '**/startup-orchestrator-browser-coverage', '<!doctype html><html><body><main id="fixture"></main></body></html>', 200);
+  await routeJavaScript(page, '**/js/startup-foundation.js*', `
       export async function initializeStartupFoundation() {
         window.__startupCalls.push('foundation');
         throw new Error('foundation unavailable');
       }
-    `,
-  }));
-  await page.route('**/js/startup-profile.js*', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+    `);
+  await routeJavaScript(page, '**/js/startup-profile.js*', `
       export async function initializeProfileData() {
         window.__startupCalls.push('profile');
       }
-    `,
-  }));
-  await page.route('**/js/startup-oauth-callbacks.js*', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+    `);
+  await routeJavaScript(page, '**/js/startup-oauth-callbacks.js*', `
       export async function handleStartupOAuthCallbacks() {
         window.__startupCalls.push('oauth');
       }
-    `,
-  }));
-  await page.route('**/js/startup-ui.js*', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+    `);
+  await routeJavaScript(page, '**/js/startup-ui.js*', `
       export function renderStartupUI() {
         window.__startupCalls.push('ui');
       }
-    `,
-  }));
-  await page.route('**/js/startup-maintenance.js*', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+    `);
+  await routeJavaScript(page, '**/js/startup-maintenance.js*', `
       export function runPostProfileStartupMaintenance() {
         window.__startupCalls.push('maintenance');
       }
-    `,
-  }));
-  await page.route('**/js/app-event-listeners.js*', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+    `);
+  await routeJavaScript(page, '**/js/app-event-listeners.js*', `
       export function installGlobalEventListeners() {
         window.__startupCalls.push('events');
       }
       export function registerAppRefreshCallback() {
         window.__startupCalls.push('refresh');
       }
-    `,
-  }));
-  await page.route('**/js/utils.js*', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+    `);
+  await routeJavaScript(page, '**/js/utils.js*', `
       export function showNotification(message, type, duration) {
         window.__startupNotifications.push({ message, type, duration });
       }
-    `,
-  }));
-  await page.route('**/js/sync.js*', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+    `);
+  await routeJavaScript(page, '**/js/sync.js*', `
       export function configureSyncLifecycleDeps({ enableSync, disableSync, pauseSync }) {
         window.__startupCalls.push(['sync-lifecycle-deps', typeof enableSync, typeof disableSync, typeof pauseSync]);
       }
-    `,
-  }));
-  await page.route('**/js/sync-configure.js*', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+    `);
+  await routeJavaScript(page, '**/js/sync-configure.js*', `
       export function configureSyncModules({ enableSync }) {
         window.__startupCalls.push(['sync-modules', typeof enableSync]);
       }
-    `,
-  }));
-  await page.route('**/js/sync-lifecycle.js*', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+    `);
+  await routeJavaScript(page, '**/js/sync-lifecycle.js*', `
       export async function enableSync() {}
       export async function disableSync() {}
       export async function pauseSync() {}
-    `,
-  }));
+    `);
   await page.goto('/startup-orchestrator-browser-coverage', { waitUntil: 'load' });
 }
 

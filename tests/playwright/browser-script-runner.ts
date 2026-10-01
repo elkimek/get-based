@@ -1,6 +1,16 @@
+import type { Page } from '@playwright/test';
+
+interface BrowserMessage { kind: string; text: string; }
+interface BrowserScriptOptions { viewport?: Parameters<Page['setViewportSize']>[0]; readyTimeout?: number; settleMs?: number; }
+interface FixtureWindow extends Window {
+  fetchWithRetry?: (url: RequestInfo | URL, retries?: number) => Promise<string>;
+  __TEST_RESULTS?: unknown;
+  __testResults?: unknown;
+}
+
 import { expect } from '@playwright/test';
 
-function buildFailureMessage(testPath, failures, pageErrors, recentMessages) {
+function buildFailureMessage(testPath: string, failures: readonly string[], pageErrors: readonly string[], recentMessages: readonly BrowserMessage[]) {
   const parts = [`${testPath} reported browser-fixture failures.`];
   if (failures.length) {
     parts.push('\nFailures:');
@@ -17,9 +27,9 @@ function buildFailureMessage(testPath, failures, pageErrors, recentMessages) {
   return parts.join('\n');
 }
 
-export async function runBrowserScript(page, testPath, options = {}) {
-  const pageErrors = [];
-  const onPageError = error => {
+export async function runBrowserScript(page: Page, testPath: string, options: BrowserScriptOptions = {}) {
+  const pageErrors: string[] = [];
+  const onPageError = (error: Error) => {
     pageErrors.push(error?.message || String(error));
   };
   page.on('pageerror', onPageError);
@@ -28,19 +38,19 @@ export async function runBrowserScript(page, testPath, options = {}) {
     if (options.viewport) await page.setViewportSize(options.viewport);
     await page.goto('/app', { waitUntil: 'load' });
     await page.waitForFunction(async () => {
-      const { state } = await import('/js/state.js');
+      const { state } = await (import('/js/state.js' as string) as Promise<typeof import('../../js/state.js')>);
       return state && document.getElementById('main-content');
     }, null, {
       timeout: options.readyTimeout ?? 15_000,
     });
 
     const result = await page.evaluate(async ({ testPath, settleMs }) => {
-      const failures = [];
-      const messages = [];
+      const failures: string[] = [];
+      const messages: BrowserMessage[] = [];
       const originalLog = console.log;
       const originalError = console.error;
 
-      function cleanConsoleTextInPage(args) {
+      function cleanConsoleTextInPage(args: readonly unknown[]) {
         return args
           .map(value => {
             if (typeof value === 'string') return value;
@@ -53,11 +63,11 @@ export async function runBrowserScript(page, testPath, options = {}) {
           .trim();
       }
 
-      function collectResultFailuresInPage(results, prefix = 'window.__TEST_RESULTS') {
+      function collectResultFailuresInPage(results: unknown, prefix = 'window.__TEST_RESULTS') {
         if (!results || typeof results !== 'object') return;
-        const failed = Number(results.fail ?? results.failed);
+        const failed = Number((results as Record<string, unknown>).fail ?? (results as Record<string, unknown>).failed);
         if (Number.isFinite(failed) && failed > 0) {
-          const passed = Number(results.pass ?? results.passed ?? 0);
+          const passed = Number((results as Record<string, unknown>).pass ?? (results as Record<string, unknown>).passed ?? 0);
           failures.push(`${prefix}: ${passed} passed, ${failed} failed`);
         }
         for (const [key, value] of Object.entries(results)) {
@@ -65,7 +75,7 @@ export async function runBrowserScript(page, testPath, options = {}) {
         }
       }
 
-      function record(kind, args) {
+      function record(kind: string, args: readonly unknown[]) {
         const clean = cleanConsoleTextInPage(args);
         if (!clean) return;
         messages.push({ kind, text: clean });
@@ -89,14 +99,14 @@ export async function runBrowserScript(page, testPath, options = {}) {
         originalError(...args);
       };
 
-      let returnValue = null;
+      let returnValue: unknown = null;
       try {
-        if (!window.fetchWithRetry) {
-          window.fetchWithRetry = async function(url, retries = 3) {
+        if (!(window as FixtureWindow).fetchWithRetry) {
+          (window as FixtureWindow).fetchWithRetry = async function(url, retries = 3) {
             for (let i = 0; i < retries; i++) {
               try {
                 return await fetch(url).then(response => {
-                  if (!response.ok) throw new Error(response.status);
+                  if (!response.ok) throw new (Error as new (message: unknown) => Error)(response.status);
                   return response.text();
                 });
               } catch (error) {
@@ -112,10 +122,10 @@ export async function runBrowserScript(page, testPath, options = {}) {
         returnValue = await Function(source)();
         await new Promise(resolve => setTimeout(resolve, settleMs));
         collectResultFailuresInPage(returnValue, 'returnValue');
-        collectResultFailuresInPage(window.__TEST_RESULTS);
-        collectResultFailuresInPage(window.__testResults, 'window.__testResults');
+        collectResultFailuresInPage((window as FixtureWindow).__TEST_RESULTS);
+        collectResultFailuresInPage((window as FixtureWindow).__testResults, 'window.__testResults');
       } catch (error) {
-        failures.push(`CRASH ${testPath}: ${error?.message || String(error)}`);
+        failures.push(`CRASH ${testPath}: ${(error as { message?: unknown } | null)?.message || String(error)}`);
       } finally {
         console.log = originalLog;
         console.error = originalError;

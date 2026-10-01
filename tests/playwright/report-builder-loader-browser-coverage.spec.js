@@ -1,3 +1,4 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
 const exportUrl = () => `/js/export.js?reportBuilderLoaderCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -12,10 +13,7 @@ const syntheticReportBuilder = `
 `;
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/report-builder-loader-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><div id="notification-container"></div></body></html>',
-  }));
+  await routeHtml(page, '**/report-builder-loader-coverage', '<!doctype html><html><body><div id="notification-container"></div></body></html>');
   await page.goto('/report-builder-loader-coverage');
 });
 

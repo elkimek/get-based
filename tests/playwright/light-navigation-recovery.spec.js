@@ -1,8 +1,9 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
 for (const boundary of ['new-render', 'navigate-away', 'old-rejection']) {
   test(`delayed Light devices cannot replace content after ${boundary}`, async ({page}) => {
-    await page.route('**/light-navigation-recovery', route => route.fulfill({contentType:'text/html',body:'<main id="main-content"></main>'}));
+    await routeHtml(page, '**/light-navigation-recovery', '<main id="main-content"></main>');
     await page.goto('/light-navigation-recovery');
     const result = await page.evaluate(async boundary => {
       const view = await import('/js/light-page-view.js');

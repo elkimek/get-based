@@ -1,3 +1,4 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
 const facadeUrl = () => `/js/context-card-medical-history-editor.js?loaderCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -32,10 +33,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('labcharts-default-tour', 'completed');
   });
-  await page.route('**/medical-history-editor-loader-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><main id="fixture"></main><div id="notification-container"></div></body></html>',
-  }));
+  await routeHtml(page, '**/medical-history-editor-loader-coverage', '<!doctype html><html><body><main id="fixture"></main><div id="notification-container"></div></body></html>');
 });
 
 test('medical-history loader stays cold, shares its first load, and applies stored configuration', async ({ page }) => {

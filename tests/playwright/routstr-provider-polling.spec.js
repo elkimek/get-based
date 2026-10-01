@@ -1,7 +1,8 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
 test('saved funding stays quiet on OpenRouter and stops on provider or backend changes', async ({page}) => {
-  await page.route('**/provider-polling-fixture', route => route.fulfill({contentType:'text/html',body:'<div id="routstr-wfund-poll"></div>'}));
+  await routeHtml(page, '**/provider-polling-fixture', '<div id="routstr-wfund-poll"></div>');
   const external = [];
   await page.route(/^https:\/\//, route => { external.push(route.request().url()); return route.abort(); });
   await page.clock.install();
@@ -70,7 +71,7 @@ test('saved funding stays quiet on OpenRouter and stops on provider or backend c
 });
 
 test('profile sync lazily starts saved funding when it first selects Routstr', async ({page}) => {
-  await page.route('**/provider-polling-fixture', route => route.fulfill({contentType:'text/html',body:'<div></div>'}));
+  await routeHtml(page, '**/provider-polling-fixture', '<div></div>');
   let walletLoads = 0;
   await page.route('**/js/provider-wallet-panels.js', route => {
     walletLoads++;

@@ -1,32 +1,22 @@
+import { routeHtml, routeJavaScript } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('profileShareLoadCoverage');
 
 async function openIsolatedShareLoadPage(page) {
-  await page.route('**/profile-share-load-browser-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: `<!doctype html>
+  await routeHtml(page, '**/profile-share-load-browser-coverage', `<!doctype html>
       <html>
         <body>
           <div id="notification-container"></div>
         </body>
-      </html>`,
-  }));
-  await page.route('**/js/profile.js*', route => route.fulfill({
-    status: 200,
-    contentType: 'application/javascript',
-    body: `
+      </html>`, 200);
+  await routeJavaScript(page, '**/js/profile.js*', `
       export function getProfiles() {
         return [{ id: 'default', name: 'Default Profile' }];
       }
-    `,
-  }));
-  await page.route('**/js/export.js*', route => route.fulfill({
-    status: 200,
-    contentType: 'application/javascript',
-    body: `
+    `, 200);
+  await routeJavaScript(page, '**/js/export.js*', `
       export async function buildClientExportObject() {
         return { version: 2, profile: { name: 'Stub Profile' }, entries: [] };
       }
@@ -40,8 +30,7 @@ async function openIsolatedShareLoadPage(page) {
         });
         return true;
       }
-    `,
-  }));
+    `, 200);
   await page.goto('/profile-share-load-browser-coverage', { waitUntil: 'load' });
 }
 
@@ -148,7 +137,7 @@ test('profile share load browser coverage fetches decrypts imports and clears de
 
 
 test('encrypted profile loading preserves a complete ongoing ingredient regimen through the real importer', async ({ page }) => {
-  await page.route('**/share-regimen-fixture', route => route.fulfill({ contentType: 'text/html', body: '<html><body><main id="main-content"></main><div id="notification-container"></div></body></html>' }));
+  await routeHtml(page, '**/share-regimen-fixture', '<html><body><main id="main-content"></main><div id="notification-container"></div></body></html>');
   await page.goto('/share-regimen-fixture');
   const source = {
     id: 'sm_shared_regimen', name: 'TMG Powder', dosage: 'scoop', type: 'supplement', note: '', schemaVersion: 2,
@@ -181,7 +170,7 @@ test('encrypted profile loading preserves a complete ongoing ingredient regimen 
 
 
 test('regimen import offers keep or replace without guessing from device clocks', async ({ page }) => {
-  await page.route('**/regimen-conflict-fixture', route => route.fulfill({ contentType: 'text/html', body: '<html><body><main id="main-content"></main><div id="notification-container"></div></body></html>' }));
+  await routeHtml(page, '**/regimen-conflict-fixture', '<html><body><main id="main-content"></main><div id="notification-container"></div></body></html>');
   await page.goto('/regimen-conflict-fixture');
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');

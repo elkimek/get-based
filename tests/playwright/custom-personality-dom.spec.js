@@ -1,3 +1,4 @@
+import { routeHtml, routeJavaScript } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -502,13 +503,8 @@ test('custom personality generator fills prompt and preserves selected custom te
     'generatorFailurePreservesExistingDraft',
   ];
 
-  await page.route('**/chat-personality-generator-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body></body></html>',
-  }));
-  await page.route('**/js/api.js*', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+  await routeHtml(page, '**/chat-personality-generator-coverage', '<!doctype html><html><body></body></html>');
+  await routeJavaScript(page, '**/js/api.js*', `
       export function hasAIProvider() { return true; }
       export function getAIProvider() { return 'stub'; }
       export function getActiveModelDisplay() { return 'Stub Model'; }
@@ -523,42 +519,27 @@ test('custom personality generator fills prompt and preserves selected custom te
         opts.onStream?.('draft persona');
         return { text: '\\u{1F9CA}\\n\\nYou are a deliberate cold exposure coach.' };
       }
-    `,
-  }));
-  await page.route('**/js/chat-threads.js*', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+    `);
+  await routeJavaScript(page, '**/js/chat-threads.js*', `
       export function saveChatThreadIndex() {}
       export function renderThreadList() {}
-    `,
-  }));
-  await page.route('**/js/chat-icons.js*', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+    `);
+  await routeJavaScript(page, '**/js/chat-icons.js*', `
       export const CHAT_ICON_EDIT = '<span>Edit</span>';
       export const CHAT_ICON_X = '<span>Delete</span>';
-    `,
-  }));
-  await page.route('**/js/chat-attestation.js*', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+    `);
+  await routeJavaScript(page, '**/js/chat-attestation.js*', `
       export function e2eeLockHTML() { return ''; }
-    `,
-  }));
-  await page.route('**/js/constants.js*', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+    `);
+  await routeJavaScript(page, '**/js/constants.js*', `
       export const CHAT_PERSONALITIES = [
         { id: 'default', name: 'AI Lab Analyst', icon: 'A', promptAddition: null },
       ];
       export const COUNTRY_LATITUDES = {};
       export const LATITUDE_BANDS = {};
       export const COUNTRY_CENTROIDS = {};
-    `,
-  }));
-  await page.route('**/js/utils.js*', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+    `);
+  await routeJavaScript(page, '**/js/utils.js*', `
       export function escapeHTML(value) {
         return String(value ?? '').replace(/[&<>"']/g, ch => ({
           '&': '&amp;',
@@ -593,8 +574,7 @@ test('custom personality generator fills prompt and preserves selected custom te
       export function bindDetailModalSyncRefresh() {}
       export function linearRegression() { return { slope: 0, intercept: 0, r2: 0 }; }
       export function isDebugMode() { return false; }
-    `,
-  }));
+    `);
 
   await page.goto('/chat-personality-generator-coverage', { waitUntil: 'load' });
 

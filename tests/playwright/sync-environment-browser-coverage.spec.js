@@ -1,3 +1,4 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 import fs from 'fs';
@@ -11,11 +12,7 @@ const openBlankPage = createBlankPage({
 });
 
 async function openOnionPage(page) {
-  await page.route('**/sync-environment-onion-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
-  }));
+  await routeHtml(page, '**/sync-environment-onion-coverage', '<!doctype html><html><body><main id="fixture"></main></body></html>', 200);
   await page.route('**/js/sync-environment.js*', route => route.fulfill({
     status: 200,
     contentType: 'application/javascript',

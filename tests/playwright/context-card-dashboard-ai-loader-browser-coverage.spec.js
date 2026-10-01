@@ -1,3 +1,4 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
 const facadeUrl = () => `/js/context-card-dashboard-ai.js?loaderCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -39,10 +40,7 @@ const syntheticDashboardAI = `
 `;
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/dashboard-ai-loader-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><main id="fixture"></main><div id="notification-container"></div></body></html>',
-  }));
+  await routeHtml(page, '**/dashboard-ai-loader-coverage', '<!doctype html><html><body><main id="fixture"></main><div id="notification-container"></div></body></html>');
 });
 
 test('dashboard AI modal loader stays cold, single-flights, and applies stored configuration', async ({ page }) => {

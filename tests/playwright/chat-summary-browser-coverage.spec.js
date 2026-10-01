@@ -1,16 +1,12 @@
+import { routeHtml, routeJavaScript } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('chatSummaryCoverage');
 
 async function openIsolatedSummaryPage(page) {
-  await page.route('**/chat-summary-browser-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><head><title>Chat summary coverage</title></head><body></body></html>',
-  }));
-  await page.route('**/js/api.js*', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+  await routeHtml(page, '**/chat-summary-browser-coverage', '<!doctype html><html><head><title>Chat summary coverage</title></head><body></body></html>');
+  await routeJavaScript(page, '**/js/api.js*', `
       export function hasAIProvider() { return true; }
       export function isAIPaused() { return false; }
       export function getAIProvider() { return 'ollama'; }
@@ -31,27 +27,18 @@ async function openIsolatedSummaryPage(page) {
         opts.onStream?.(text);
         return { text, usage: { inputTokens: 64, outputTokens: 18 } };
       }
-    `,
-  }));
-  await page.route('**/js/data.js*', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+    `);
+  await routeJavaScript(page, '**/js/data.js*', `
       export async function saveImportedData() {
         window.__summaryDataSaves = (window.__summaryDataSaves || 0) + 1;
         return true;
       }
-    `,
-  }));
-  await page.route('**/js/ai-feature-routing.js*', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `import { callClaudeAPI } from '/js/api.js';
+    `);
+  await routeJavaScript(page, '**/js/ai-feature-routing.js*', `import { callClaudeAPI } from '/js/api.js';
       export const hasAssistantFeatureProvider = () => true;
       export const getAssistantFeatureIdentity = () => ({ provider: 'ollama', modelId: 'summary-coverage-model', modelDisplay: 'Summary Coverage Model' });
-      export const callAssistantFeatureAI = options => callClaudeAPI(options);`,
-  }));
-  await page.route('**/js/chat-threads.js*', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
+      export const callAssistantFeatureAI = options => callClaudeAPI(options);`);
+  await routeJavaScript(page, '**/js/chat-threads.js*', `
       export function saveChatThreadIndex() {
         window.__summaryThreadIndexSaves = (window.__summaryThreadIndexSaves || 0) + 1;
         return true;
@@ -59,8 +46,7 @@ async function openIsolatedSummaryPage(page) {
       export function renderThreadList() {
         window.__summaryThreadListRenders = (window.__summaryThreadListRenders || 0) + 1;
       }
-    `,
-  }));
+    `);
   await page.goto('/chat-summary-browser-coverage', { waitUntil: 'load' });
 }
 

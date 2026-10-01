@@ -1,13 +1,11 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { createExpectAll } from '../helpers/browser-outcomes.js';
 import { expect, test } from './coverage-fixture.js';
 
 const expectAll = createExpectAll(expect, 'collect');
 
 test('sun spectrum browser coverage exercises reconstruction doses devices and safety conversions', async ({ page }) => {
-  await page.route('**/sun-spectrum-blank', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body></body></html>',
-  }));
+  await routeHtml(page, '**/sun-spectrum-blank', '<!doctype html><html><body></body></html>');
   await page.goto('/sun-spectrum-blank', { waitUntil: 'load' });
 
   const outcomes = await page.evaluate(async () => {

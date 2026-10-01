@@ -384,3 +384,10 @@ deploy/profile-share/data/
 /js/nutrition-photo-provenance.js
 /js/nutrition-editor-navigation.js
 /js/nutrition-fuel-mix.js
+
+# Typed browser harness and coverage tools
+/tests/helpers/browser-static-routes.js
+/tests/playwright/coverage-fixture.js
+/scripts/coverage-model-helpers.mjs
+/scripts/coverage-gate.mjs
+/tests/playwright/browser-script-runner.js

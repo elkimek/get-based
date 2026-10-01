@@ -1,3 +1,4 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
 const facadeUrl = () => `/js/changelog.js?loaderCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -19,10 +20,7 @@ const syntheticChangelog = `
 `;
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/changelog-loader-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><div id="notification-container"></div><div id="changelog-modal-overlay"></div></body></html>',
-  }));
+  await routeHtml(page, '**/changelog-loader-coverage', '<!doctype html><html><body><div id="notification-container"></div><div id="changelog-modal-overlay"></div></body></html>');
 });
 
 test('changelog archive stays cold for first visits and ordinary patch updates, then single-flights', async ({ page }) => {

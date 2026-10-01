@@ -1,14 +1,34 @@
+import type { Page, Response, TestInfo } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { expect, test as base } from '@playwright/test';
 import { sourceFingerprint } from '../../scripts/coverage-model-helpers.mjs';
 
+interface BrowserCoverageEntry {
+  url: string;
+  source?: unknown;
+  text?: unknown;
+  ranges?: unknown;
+  functions?: unknown;
+  rawScriptCoverage?: { functions?: unknown } | undefined;
+}
+interface WorkerCoverageReply { result?: BrowserCoverageEntry[] | undefined; }
+interface ParsedWorkerReply {
+  id?: unknown;
+  error?: { message?: unknown } | null;
+  result?: WorkerCoverageReply | null;
+}
+type CoverageTestInfo = Pick<TestInfo, 'title' | 'file' | 'workerIndex' | 'repeatEachIndex'> & {
+  titlePath?: string[] | (() => string[]);
+};
+type WorkerState = Awaited<ReturnType<typeof startWorkerCoverage>>;
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const coverageDir = process.env.PLAYWRIGHT_COVERAGE_DIR ||
   path.join(repoRoot, 'tests', '.playwright-coverage');
-const startedPages = new WeakSet();
-const coverageStates = new WeakMap();
+const startedPages = new WeakSet<Page>();
+const coverageStates = new WeakMap<Page, { workerState: WorkerState | null }>();
 const LEGAL_ACCEPTANCE_KEY = 'labcharts-legal-acceptance';
 const TEST_LEGAL_ACCEPTANCE = {
   accepted: true,
@@ -36,7 +56,7 @@ const TEST_AI_ROUTE_CONFIRMATION = {
   },
 };
 
-async function seedCurrentLegalAcceptance(page) {
+async function seedCurrentLegalAcceptance(page: Page) {
   await page.addInitScript(({ key, payload, aiKey, aiPayload, routeKey, routePayload }) => {
     try {
       localStorage.setItem(key, JSON.stringify(payload));
@@ -58,7 +78,7 @@ async function seedCurrentLegalAcceptance(page) {
   });
 }
 
-async function waitForAppReadiness(page) {
+async function waitForAppReadiness(page: Page) {
   const current = new URL(page.url());
   if (current.pathname === '/app') {
     await page.locator('html[data-app-ready]').waitFor({
@@ -68,9 +88,9 @@ async function waitForAppReadiness(page) {
   }
 }
 
-function installAppReadinessAwareNavigation(page) {
-  for (const method of ['goto', 'reload', 'goBack', 'goForward']) {
-    const original = page[method].bind(page);
+function installAppReadinessAwareNavigation(page: Page) {
+  for (const method of ['goto', 'reload', 'goBack', 'goForward'] as const) {
+    const original = (page[method] as (...args: unknown[]) => Promise<Response | null>).bind(page);
     page[method] = async (...args) => {
       const response = await original(...args);
       await waitForAppReadiness(page);
@@ -84,20 +104,20 @@ function isCoverageEnabled() {
     process.env.PLAYWRIGHT_SUITE_COVERAGE === 'true';
 }
 
-function safeName(value) {
+function safeName(value: unknown) {
   return String(value || 'test')
     .replace(/[^a-z0-9_.-]+/gi, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 140) || 'test';
 }
 
-function titlePathFor(testInfo) {
+function titlePathFor(testInfo: CoverageTestInfo) {
   if (typeof testInfo.titlePath === 'function') return testInfo.titlePath();
   if (Array.isArray(testInfo.titlePath)) return testInfo.titlePath;
   return [testInfo.title];
 }
 
-function coverageFile(testInfo, label) {
+function coverageFile(testInfo: CoverageTestInfo, label: string) {
   const title = safeName(titlePathFor(testInfo).join(' '));
   const suffix = [
     safeName(label),
@@ -110,7 +130,7 @@ function coverageFile(testInfo, label) {
   return path.join(coverageDir, `${title}-${suffix}.json`);
 }
 
-function shrinkEntry(entry) {
+function shrinkEntry(entry: BrowserCoverageEntry) {
   const source = entry.source || entry.text || '';
   return {
     url: entry.url,
@@ -123,17 +143,17 @@ function shrinkEntry(entry) {
   };
 }
 
-async function startWorkerCoverage(page) {
+async function startWorkerCoverage(page: Page) {
   const client = await page.context().newCDPSession(page);
-  const sessions = new Map();
-  const pending = new Map();
+  const sessions = new Map<string, { targetInfo: unknown; started: boolean; detached: boolean; ready: Promise<void> }>();
+  const pending = new Map<string, { resolve: (value: WorkerCoverageReply) => void; reject: (reason?: unknown) => void; timer: ReturnType<typeof setTimeout> }>();
   let nextId = 1;
 
-  const sendToTarget = async (sessionId, method, params = {}) => {
+  const sendToTarget = async (sessionId: string, method: string, params: Record<string, unknown> = {}) => {
     const id = nextId;
     nextId += 1;
     const key = `${sessionId}:${id}`;
-    const response = new Promise((resolve, reject) => {
+    const response = new Promise<WorkerCoverageReply>((resolve, reject) => {
       const timer = setTimeout(() => {
         pending.delete(key);
         reject(new Error(`CDP ${method} timed out for worker target`));
@@ -157,9 +177,9 @@ async function startWorkerCoverage(page) {
   };
 
   client.on('Target.receivedMessageFromTarget', ({ sessionId, message }) => {
-    let parsed;
+    let parsed: ParsedWorkerReply;
     try {
-      parsed = JSON.parse(message);
+      parsed = JSON.parse(message) as ParsedWorkerReply;
     } catch {
       return;
     }
@@ -169,28 +189,32 @@ async function startWorkerCoverage(page) {
     if (!waiter) return;
     pending.delete(key);
     clearTimeout(waiter.timer);
-    if (parsed.error) waiter.reject(new Error(parsed.error.message || JSON.stringify(parsed.error)));
+    if (parsed.error) waiter.reject(new Error((parsed.error.message || JSON.stringify(parsed.error)) as string));
     else waiter.resolve(parsed.result || {});
   });
 
   client.on('Target.attachedToTarget', async ({ sessionId, targetInfo }) => {
     const isWorker = targetInfo?.type === 'worker' || targetInfo?.type === 'shared_worker';
-    if (isWorker) sessions.set(sessionId, { targetInfo, started: false, detached: false });
-    try {
-      if (isWorker) {
-        await sendToTarget(sessionId, 'Profiler.enable');
-        await sendToTarget(sessionId, 'Profiler.startPreciseCoverage', {
-          callCount: true,
-          detailed: true,
-        });
-        const session = sessions.get(sessionId);
-        if (session) session.started = true;
+    const session = { targetInfo, started: false, detached: false, ready: Promise.resolve() };
+    if (isWorker) sessions.set(sessionId, session);
+    session.ready = (async () => {
+      try {
+        if (isWorker) {
+          await sendToTarget(sessionId, 'Profiler.enable');
+          await sendToTarget(sessionId, 'Profiler.startPreciseCoverage', {
+            callCount: true,
+            detailed: true,
+          });
+          const session = sessions.get(sessionId);
+          if (session) session.started = true;
+        }
+      } catch {
+        // Short-lived workers can detach before profiler setup completes.
+      } finally {
+        await sendToTarget(sessionId, 'Runtime.runIfWaitingForDebugger').catch(() => {});
       }
-    } catch {
-      // Short-lived workers can detach before profiler setup completes.
-    } finally {
-      await sendToTarget(sessionId, 'Runtime.runIfWaitingForDebugger').catch(() => {});
-    }
+    })();
+    await session.ready;
   });
 
   client.on('Target.detachedFromTarget', ({ sessionId }) => {
@@ -207,11 +231,12 @@ async function startWorkerCoverage(page) {
   return { client, sessions, sendToTarget };
 }
 
-async function stopWorkerCoverage(workerState) {
+async function stopWorkerCoverage(workerState: WorkerState | null | undefined) {
   if (!workerState) return [];
-  const entries = [];
+  const entries: BrowserCoverageEntry[] = [];
   try {
     for (const [sessionId, session] of workerState.sessions) {
+      await session.ready;
       if (!session.started || session.detached) continue;
       try {
         const coverage = await workerState.sendToTarget(sessionId, 'Profiler.takePreciseCoverage');
@@ -239,9 +264,9 @@ async function stopWorkerCoverage(workerState) {
   return entries;
 }
 
-export async function startPageCoverage(page) {
+export async function startPageCoverage(page: Page) {
   if (!isCoverageEnabled() || startedPages.has(page)) return;
-  let workerState = null;
+  let workerState: WorkerState | null = null;
   try {
     workerState = await startWorkerCoverage(page);
   } catch {
@@ -250,17 +275,22 @@ export async function startPageCoverage(page) {
   await page.coverage.startJSCoverage({
     resetOnNavigation: false,
     reportAnonymousScripts: false,
-    includeRawScriptCoverage: true,
   });
   startedPages.add(page);
   coverageStates.set(page, { workerState });
 }
 
-export async function stopPageCoverage(page, testInfo, label = 'page') {
+/** Playwright also resumes new workers; await profiler setup before measured work. */
+export async function waitForWorkerCoverage(page: Page) {
+  const state = coverageStates.get(page)?.workerState;
+  if (state) await Promise.all([...state.sessions.values()].map(session => session.ready));
+}
+
+export async function stopPageCoverage(page: Page, testInfo: CoverageTestInfo, label = 'page') {
   if (!isCoverageEnabled() || !startedPages.has(page)) return;
-  const state = coverageStates.get(page) || {};
-  let entries = [];
-  let coverageError = null;
+  const state: { workerState?: WorkerState | null } = coverageStates.get(page) || {};
+  let entries: BrowserCoverageEntry[] = [];
+  let coverageError: unknown = null;
   try {
     entries = await page.coverage.stopJSCoverage();
   } catch (error) {
@@ -282,7 +312,7 @@ export async function stopPageCoverage(page, testInfo, label = 'page') {
   if (coverageError) throw coverageError;
 }
 
-export const test = base.extend({
+export const test = base.extend<{ seedLegalAcceptance: boolean }>({
   seedLegalAcceptance: [true, { option: true }],
   page: async ({ page, seedLegalAcceptance }, use, testInfo) => {
     if (seedLegalAcceptance) await seedCurrentLegalAcceptance(page);

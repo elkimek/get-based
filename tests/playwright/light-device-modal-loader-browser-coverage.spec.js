@@ -1,3 +1,4 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
 const loaderUrl = () => (
@@ -5,10 +6,7 @@ const loaderUrl = () => (
 );
 
 async function openCoveragePage(page) {
-  await page.route('**/light-device-modal-loader-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><div id="notification-container"></div></body></html>',
-  }));
+  await routeHtml(page, '**/light-device-modal-loader-coverage', '<!doctype html><html><body><div id="notification-container"></div></body></html>');
   await page.goto('/light-device-modal-loader-coverage');
 }
 

@@ -1,10 +1,8 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
 test('Google Health stays optional/direct-first and uses the browser credential vault', async ({ page }) => {
-  await page.route('**/google-health-browser-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body></body></html>',
-  }));
+  await routeHtml(page, '**/google-health-browser-coverage', '<!doctype html><html><body></body></html>');
   await page.route('**/api/proxy', route => route.fulfill({
     contentType: 'application/json',
     body: JSON.stringify({ overrides: {}, configured: { google_health: false } }),
@@ -167,10 +165,7 @@ test('Google Health stays optional/direct-first and uses the browser credential 
 });
 
 test('Google Health OAuth callback keeps reusable tokens out of profile data', async ({ page }) => {
-  await page.route('**/google-health-callback-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body></body></html>',
-  }));
+  await routeHtml(page, '**/google-health-callback-coverage', '<!doctype html><html><body></body></html>');
   await page.goto('/google-health-callback-coverage', { waitUntil: 'load' });
 
   const result = await page.evaluate(async () => {

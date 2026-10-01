@@ -1,3 +1,4 @@
+import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
 const chatLoaderUrl = () =>
@@ -43,10 +44,7 @@ const syntheticChatModule = `
 `;
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/chat-loader-facade-coverage', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<!doctype html><html><body><div id="fixture"></div></body></html>',
-  }));
+  await routeHtml(page, '**/chat-loader-facade-coverage', '<!doctype html><html><body><div id="fixture"></div></body></html>');
   await page.goto('/chat-loader-facade-coverage');
 });
 

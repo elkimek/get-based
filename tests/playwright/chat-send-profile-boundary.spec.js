@@ -1,24 +1,16 @@
+import { routeJavaScript } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
 test.beforeEach(async ({ page }) => {
   // Exercise the real chat/controller/storage path; only the billable boundary
   // and consent interaction are replaced with controllable synthetic promises.
-  await page.route('**/js/chat-continuation.js', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `export * from '/js/chat-continuation.js?audit-original';
-      export function callChatAPIWithContinuation(options) { return globalThis.__auditReply(options); }`,
-  }));
-  await page.route('**/js/cloud-ai-consent.js', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `export * from '/js/cloud-ai-consent.js?audit-original';
-      export function requestAIProcessingApproval() { return globalThis.__auditApproval?.() ?? Promise.resolve(true); }`,
-  }));
-  await page.route('**/js/chat-history.js', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `export * from '/js/chat-history.js?audit-original';
+  await routeJavaScript(page, '**/js/chat-continuation.js', `export * from '/js/chat-continuation.js?audit-original';
+      export function callChatAPIWithContinuation(options) { return globalThis.__auditReply(options); }`);
+  await routeJavaScript(page, '**/js/cloud-ai-consent.js', `export * from '/js/cloud-ai-consent.js?audit-original';
+      export function requestAIProcessingApproval() { return globalThis.__auditApproval?.() ?? Promise.resolve(true); }`);
+  await routeJavaScript(page, '**/js/chat-history.js', `export * from '/js/chat-history.js?audit-original';
       import { saveChatHistory as save } from '/js/chat-history.js?audit-original';
-      export async function saveChatHistory() { await globalThis.__auditBeforeSave?.(); return save(); }`,
-  }));
+      export async function saveChatHistory() { await globalThis.__auditBeforeSave?.(); return save(); }`);
   await page.goto('/app');
   await page.evaluate(async () => {
     await (await import('/js/chat-loader.js')).loadChatModule();

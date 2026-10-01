@@ -1,13 +1,11 @@
+import { routeHtml, routeJavaScript } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('settingsSyncSetupCoverage');
 
 async function openIsolatedSyncSetupPage(page) {
-  await page.route('**/settings-sync-setup-browser-coverage', route => route.fulfill({
-    status: 200,
-    contentType: 'text/html',
-    body: `<!doctype html>
+  await routeHtml(page, '**/settings-sync-setup-browser-coverage', `<!doctype html>
       <html>
         <head>
           <link rel="stylesheet" href="/styles.css">
@@ -19,12 +17,8 @@ async function openIsolatedSyncSetupPage(page) {
           <div id="notification-container"></div>
           <section id="sync-section"></section>
         </body>
-      </html>`,
-  }));
-  await page.route('**/js/sync.js*', route => route.fulfill({
-    status: 200,
-    contentType: 'application/javascript',
-    body: `
+      </html>`, 200);
+  await routeJavaScript(page, '**/js/sync.js*', `
       const stub = window.__settingsSyncSetupStub;
       export function isSyncEnabled() { return !!stub.enabled; }
       export function isSyncConfigured() { return !!stub.enabled || !!stub.paused; }
@@ -131,8 +125,7 @@ async function openIsolatedSyncSetupPage(page) {
       export function pushContextToGateway() {
         stub.calls.push({ fn: 'pushContextToGateway' });
       }
-    `,
-  }));
+    `, 200);
   await page.goto('/settings-sync-setup-browser-coverage', { waitUntil: 'load' });
 }
 
