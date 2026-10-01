@@ -1,36 +1,24 @@
-// @ts-check
 // sync-dirty-state.js - Durable local-change markers for pull ordering.
 
 let dirtySequence = 0;
 
-/** @param {string} profileId */
-function dirtyKey(profileId) {
+function dirtyKey(profileId: string) {
   return `labcharts-${profileId}-sync-dirty`;
 }
 
-/** @param {string | null | undefined} profileId */
-export function getSyncDirtyToken(profileId) {
+export function getSyncDirtyToken(profileId: string | null | undefined) {
   if (!profileId) return null;
   try { return localStorage.getItem(dirtyKey(profileId)); } catch { return null; }
 }
 
-/** @param {string | null | undefined} profileId */
-export function markSyncProfileDirty(profileId) {
+export function markSyncProfileDirty(profileId: string | null | undefined) {
   if (!profileId) return null;
   const token = `${Date.now()}:${++dirtySequence}`;
   try { localStorage.setItem(dirtyKey(profileId), token); } catch { return null; }
   return token;
 }
 
-/**
- * Clear only the generation a push actually captured. A second save can land
- * while Evolu is committing the first one; that newer dirty token must remain
- * so the follow-up push is not lost.
- *
- * @param {string | null | undefined} profileId
- * @param {string | null | undefined} expectedToken
- */
-export function clearSyncProfileDirty(profileId, expectedToken) {
+export function clearSyncProfileDirty(profileId: string | null | undefined, expectedToken: string | null | undefined) {
   if (!profileId || !expectedToken) return false;
   try {
     const key = dirtyKey(profileId);
@@ -41,7 +29,7 @@ export function clearSyncProfileDirty(profileId, expectedToken) {
 }
 
 /** Clear a dirty marker when policy guarantees this profile must not sync. */
-export function discardSyncProfileDirty(profileId) {
+export function discardSyncProfileDirty(profileId: string | null | undefined) {
   if (!profileId) return false;
   try {
     localStorage.removeItem(dirtyKey(profileId));

@@ -514,6 +514,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/sync-diagnose-render.js',
   '/js/sync-actions.js',
   '/js/sync-save-hooks.js',
+  '/js/sync-save-hooks-core.js',
   '/js/sync-dirty-state.js',
   '/js/sync-origin-state.js',
   '/js/sync-storage-cleanup.js',
@@ -730,8 +731,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/vendor/ppq-private-tee.js',
   '/vendor/tinfoil-browser.js',
   '/vendor/ehbp-browser.js',
-  // Keep both runtimes offline-safe for the first identity handoff and rollback.
-  '/vendor/evolu/evolu-bundle.js', '/vendor/evolu/Db.worker.js',
+  '/vendor/evolu/evolu-bundle.js', '/vendor/evolu/Db.worker.js', // Both versions support offline identity handoff/rollback.
   '/vendor/evolu/sqlite3-bundler-friendly.mjs', '/vendor/evolu/sqlite3-opfs-async-proxy.js',
   '/vendor/evolu/sqlite3-worker1-bundler-friendly.mjs', '/vendor/evolu/sqlite3.wasm',
   '/vendor/evolu8/evolu-bundle.js', '/vendor/evolu8/Db.worker.js', '/vendor/evolu8/Shared.worker.js',

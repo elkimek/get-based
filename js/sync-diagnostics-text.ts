@@ -1,10 +1,10 @@
-// @ts-check
+import type { EvoluDiagnostics } from './sync-diagnostics-snapshot.js';
 // sync-diagnostics-text.js - plain-text Diagnose snapshot formatting.
 
 // Render the diagnostics object as plain text - meant for the Copy button
 // in showSyncDiagnose, so a user can paste the device's state into chat /
 // support without retyping. Mirrors the modal's structure exactly.
-export function _evoluDiagnosticsText(d) {
+export function _evoluDiagnosticsText(d: EvoluDiagnostics) {
   const rowParseFailureCount = Number.isSafeInteger(d.rowParseFailureCount) && d.rowParseFailureCount > 0
     ? d.rowParseFailureCount
     : 0;
@@ -63,7 +63,7 @@ export function _evoluDiagnosticsText(d) {
     if (pullArrays.length > 0) {
       lines.push(`  pull-side rows (latest merge ${t.pull.mergedAt ? new Date(t.pull.mergedAt).toISOString() : '-'}):`);
       for (const name of pullArrays.sort()) {
-        const v = t.pull.perArray[name];
+        const v = t.pull.perArray[name]!;
         lines.push(`    ${name.padEnd(20)} live=${v.live} tombstones=${v.tombstones}`);
       }
       lines.push('    (compare across devices - diverging counts = relay replication lag)');

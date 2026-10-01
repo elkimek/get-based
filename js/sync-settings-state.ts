@@ -1,4 +1,3 @@
-// @ts-check
 // sync-settings-state.js - persisted configured / active / paused sync state.
 
 export const SYNC_STORAGE_KEY = 'labcharts-sync-enabled';
@@ -32,8 +31,7 @@ export function isSyncPaused() {
   return _syncConfigured && _syncPaused;
 }
 
-/** @param {{ persist?: boolean }} [options] */
-export function setSyncEnabled(enabled, options = {}) {
+export function setSyncEnabled(enabled: unknown, options: { persist?: boolean | undefined } = {}) {
   const { persist = true } = options;
   if (persist) {
     localStorage.setItem(SYNC_STORAGE_KEY, enabled ? 'true' : 'false');
@@ -45,7 +43,7 @@ export function setSyncEnabled(enabled, options = {}) {
   return _syncConfigured;
 }
 
-export function setSyncPaused(paused) {
+export function setSyncPaused(paused: unknown) {
   if (!_syncStatePrimed) primeSyncState();
   if (!_syncConfigured) return false;
   _syncPaused = !!paused;

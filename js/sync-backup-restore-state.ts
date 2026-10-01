@@ -1,4 +1,3 @@
-// @ts-check
 // sync-backup-restore-state.js - durable handoff from backup restore to Sync.
 
 import { clearProfileDeltaSnapshots } from './sync-delta-snapshot.js';
@@ -7,13 +6,11 @@ import { clearProfileSyncDeleteState } from './profile-sync-policy.js';
 
 export const SYNC_BACKUP_RESTORE_PENDING_KEY = 'labcharts-sync-backup-restore-pending';
 
-/** @param {unknown} value */
-function isSafeProfileId(value) {
+function isSafeProfileId(value: unknown): value is string {
   return typeof value === 'string' && /^[a-zA-Z0-9_-]+$/.test(value);
 }
 
-/** @param {unknown[]} profileIds */
-export function markBackupRestorePending(profileIds) {
+export function markBackupRestorePending(profileIds: readonly unknown[]) {
   const safeIds = [...new Set((Array.isArray(profileIds) ? profileIds : []).filter(isSafeProfileId))];
   if (safeIds.length === 0) return [];
   try {
@@ -40,20 +37,11 @@ export function clearBackupRestorePending() {
   }
 }
 
-/**
- * A restored profile blob must win the first sync race after reload. Without
- * this reset, the per-row overlay can immediately reapply item tombstones
- * from the pre-restore state, making restored supplements briefly appear and
- * then disappear. Clearing planner snapshots also guarantees that an exact
- * restored copy is emitted again instead of being skipped by content hash.
- *
- * @param {any} backup
- */
-export function prepareRestoredProfilesForSync(backup) {
-  const profiles = Array.isArray(backup?.profiles) ? backup.profiles : [];
-  const prepared = new Set();
+export function prepareRestoredProfilesForSync(backup: unknown) {
+  const profiles = Array.isArray((backup as { profiles?: unknown } | null | undefined)?.profiles) ? (backup as { profiles: unknown[] }).profiles : [];
+  const prepared = new Set<string>();
   for (const profile of profiles) {
-    const profileId = profile?.profileId;
+    const profileId = (profile as { profileId?: unknown } | null | undefined)?.profileId;
     if (typeof profileId !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(profileId) || prepared.has(profileId)) continue;
     prepared.add(profileId);
     // Restoring a backup is an explicit decision to revive this identity.

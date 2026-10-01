@@ -44,30 +44,8 @@ export function configureSyncPayload(deps = {}) {
   return previous;
 }
 
-// Phase 2 cutover flag — when set, buildSyncPayload omits importedData
-// from the blob entirely. Per-row CRDT deltas carry every field instead.
-/** @param {string} profileId */
-function _cutoverFlagKey(profileId) {
-  return `labcharts-${profileId}-sync-cutover-v2`;
-}
-
-/** @param {string | null | undefined} profileId */
-export function isPhase2CutoverEnabled(profileId) {
-  if (!profileId) return false;
-  try { return localStorage.getItem(_cutoverFlagKey(profileId)) === '1'; } catch { return false; }
-}
-
-/** @param {string | null | undefined} profileId */
-export function enablePhase2CutoverFlag(profileId) {
-  if (!profileId) return false;
-  try { localStorage.setItem(_cutoverFlagKey(profileId), '1'); return true; } catch { return false; }
-}
-
-/** @param {string | null | undefined} profileId */
-export function disablePhase2CutoverFlag(profileId) {
-  if (!profileId) return false;
-  try { localStorage.removeItem(_cutoverFlagKey(profileId)); return true; } catch { return false; }
-}
+import { isPhase2CutoverEnabled } from './sync-delta-snapshot.js';
+export { isPhase2CutoverEnabled, enablePhase2CutoverFlag, disablePhase2CutoverFlag } from './sync-delta-snapshot.js';
 
 /** @param {string} profileId
  * @param {any} importedData

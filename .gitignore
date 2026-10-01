@@ -342,3 +342,21 @@ deploy/profile-share/data/
 /js/sync-delta.js
 /tests/helpers/sync-runtime-fixture.js
 /js/sync-push-deltas.js
+
+# Native sync state, admission, diagnostics and save scheduling
+/js/sync-dirty-state.js
+/js/sync-origin-state.js
+/js/sync-settings-state.js
+/js/sync-disable-cleanup.js
+/js/sync-profile-fields.js
+/js/profile-sync-policy.js
+/js/sync-backup-restore-state.js
+/js/sync-state.js
+/js/sync-storage-cleanup.js
+/js/sync-diagnostics-context.js
+/js/sync-diagnostics-snapshot.js
+/js/sync-diagnostics-text.js
+/js/sync-diagnostics.js
+/js/sync-cutover.js
+/js/sync-environment.js
+/js/sync-save-hooks-core.js

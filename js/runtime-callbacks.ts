@@ -11,9 +11,11 @@ export function configureRuntimeCallbacks<T extends { [K in keyof T]: ((...args:
   return previous;
 }
 
+export type RuntimeDependencyUpdates<T> = { [Key in keyof T]?: T[Key] | undefined };
+
 /** Patch injected hooks in declaration order; only nullable slots clear invalid overrides. */
 export function configureRuntimeDependencies<T extends { [K in keyof T]: ((...args: never[]) => unknown) | null }>(
-  current: T, updates: Partial<T> = {}, nullableKeys: ReadonlyArray<keyof T> = [],
+  current: T, updates: RuntimeDependencyUpdates<T> = {}, nullableKeys: ReadonlyArray<keyof T> = [],
 ): T {
   const previous = { ...current };
   for (const key of Object.keys(current) as Array<keyof T>) {

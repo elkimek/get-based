@@ -405,6 +405,18 @@ regressions cover provider-reference snapshots and retry after partial mutation
 failure. Three legacy source checks normalize compiler whitespace while keeping
 their original patterns and bounds.
 
+
+Sync state, dirty-generation tracking, origin attribution, settings, restore
+admission, profile field selection, environment probes and diagnostic snapshots
+now use strict native TypeScript. Named dependency ports retain stored-value
+coercion, callback receivers, getters, default providers and exception ordering.
+Save scheduling lives in an independently scoped native core; its transitional
+JavaScript facade preserves legacy service initialization and live bindings.
+Cutover flags share the existing snapshot storage module. Four original state
+and restore suites are native tests with their executable assertions unchanged;
+new regressions cover callback snapshots, failed configuration and independent
+timer cancellation. The core is included in the offline dependency graph.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

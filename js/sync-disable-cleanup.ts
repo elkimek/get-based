@@ -1,7 +1,6 @@
-// @ts-check
 // sync-disable-cleanup.js - local cleanup helpers for disabling sync.
 
-export function isSyncDisableCleanupKey(key) {
+export function isSyncDisableCleanupKey(key: string | null | undefined) {
   return !!key
     && (key.includes('-delta-')
       || key.includes('-sync-cutover-v2')
@@ -12,8 +11,7 @@ export function isSyncDisableCleanupKey(key) {
       || key === 'labcharts-relay-quota-warned');
 }
 
-/** @param {{ preserveDirtyProfileIds?: string[] }} [options] */
-export function clearSyncDisableStorage(options = {}) {
+export function clearSyncDisableStorage(options: { preserveDirtyProfileIds?: readonly unknown[] | undefined } = {}) {
   const preservedDirtyKeys = new Set(
     (Array.isArray(options.preserveDirtyProfileIds) ? options.preserveDirtyProfileIds : [])
       .filter(profileId => typeof profileId === 'string' && /^[a-zA-Z0-9_-]+$/.test(profileId))

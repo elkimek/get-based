@@ -1,9 +1,9 @@
-// @ts-check
+import './sync-payload.js';
 // sync-cutover.js - Phase 2 lean-sync cutover gate and flag helpers.
 
 import {
   disablePhase2CutoverFlag, enablePhase2CutoverFlag, isPhase2CutoverEnabled,
-} from './sync-payload.js';
+} from './sync-delta-snapshot.js';
 import { getDeltaCutoverReadiness } from './sync-delta.js';
 import { DELTA_ARRAYS, DELTA_MAPS, DELTA_SCALARS } from './sync-delta-registry.js';
 import { clearDeltaSnapshot } from './sync-delta-snapshot.js';
@@ -13,8 +13,11 @@ export { isPhase2CutoverEnabled };
 // Gated setter - refuses to enable cutover when readiness check finds
 // blockers. Returns { ok, reason, blockerCount } so the UI can render
 // a useful error. Disable is always allowed (escape hatch).
-/** @param {string | null | undefined} profileId */
-export function enablePhase2Cutover(profileId) {
+
+export function enablePhase2Cutover(profileId: string | null | undefined):
+  | { ok: true }
+  | { ok: false; reason: 'no-profile' | 'storage' }
+  | { ok: false; reason: 'not-ready'; blockerCount: number } {
   if (!profileId) return { ok: false, reason: 'no-profile' };
   const r = getDeltaCutoverReadiness(profileId);
   if (!r || !r.ready) {
@@ -24,8 +27,7 @@ export function enablePhase2Cutover(profileId) {
   return { ok: false, reason: 'storage' };
 }
 
-/** @param {string | null | undefined} profileId */
-export function disablePhase2Cutover(profileId) {
+export function disablePhase2Cutover(profileId: string | null | undefined) {
   return disablePhase2CutoverFlag(profileId);
 }
 
@@ -34,8 +36,8 @@ export function disablePhase2Cutover(profileId) {
 // old data: v4's omitted profile blob and the local "already pushed" delta
 // snapshots. The next forced push then emits a complete v3 snapshot plus all
 // current per-row surfaces.
-/** @param {string | null | undefined} profileId */
-export function prepareProfileForRelayRebuild(profileId) {
+
+export function prepareProfileForRelayRebuild(profileId: string | null | undefined) {
   if (!profileId) return false;
   disablePhase2CutoverFlag(profileId);
   const surfaces = new Set([...DELTA_ARRAYS, ...DELTA_MAPS, ...DELTA_SCALARS]);

@@ -1,4 +1,3 @@
-// @ts-check
 // sync-environment.js - relay URL and browser capability helpers.
 
 import { getUtilsRuntimeHostname } from './utils-runtime.js';
@@ -14,13 +13,13 @@ export function getSyncRelay() {
   return custom || DEFAULT_RELAY;
 }
 
-export function setSyncRelay(url) {
+export function setSyncRelay(url: string) {
   localStorage.setItem(SYNC_RELAY_KEY, url);
 }
 
 // Probe relay connectivity via a test WebSocket
 export function checkRelayConnection(timeout = 4000) {
-  return new Promise(resolve => {
+  return new Promise<boolean>(resolve => {
     const relay = getSyncRelay();
     try {
       const ws = new WebSocket(relay + '/ping');

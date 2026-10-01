@@ -28,7 +28,7 @@ console.log('=== Phase 2 Correctness Tests ===\n');
 // ─── 1. Per-profile sync debouncer ───
 console.log('1. Per-profile sync debouncer');
 const syncSrc = read('js/sync.js');
-const syncSaveHooksSrc = read('js/sync-save-hooks.js');
+const syncSaveHooksSrc = read('js/sync-save-hooks-core.js').replace(/\s+/g, ' ');
 const syncLifecycleSrc = read('js/sync-lifecycle.js');
 assert('sync-save-hooks.js declares per-profile timer Map',
   syncSaveHooksSrc.includes('const _debounceTimers = new Map()'),

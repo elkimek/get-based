@@ -1,4 +1,3 @@
-// @ts-check
 // sync-storage-cleanup.js - emergency localStorage compaction for sync.
 
 import { configureRuntimeDependencies } from './runtime-callbacks.js';
@@ -8,15 +7,14 @@ import { showNotification } from './utils.js';
 import { logSyncEvent } from './sync-state.js';
 import { trimImportedArray } from './data-merge.js';
 
-/** @type {{ saveImportedData: () => Promise<any> }} */
-const syncStorageCleanupDeps = {
+export interface SyncStorageCleanupDeps { saveImportedData: () => Promise<unknown> }
+const syncStorageCleanupDeps: SyncStorageCleanupDeps = {
   saveImportedData: async () => {
     throw new Error('Sync storage cleanup is not configured');
   },
 };
 
-/** @param {{ saveImportedData?: () => Promise<any> }} [deps] */
-export function configureSyncStorageCleanup(deps = {}) {
+export function configureSyncStorageCleanup(deps: Partial<SyncStorageCleanupDeps> = {}) {
   return configureRuntimeDependencies(syncStorageCleanupDeps, deps);
 }
 

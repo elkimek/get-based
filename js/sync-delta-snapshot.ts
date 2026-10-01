@@ -61,3 +61,28 @@ export function clearProfileDeltaSnapshots(profileId: unknown) {
   } catch {}
   return cleared;
 }
+
+// Phase 2 cutover flag — when set, buildSyncPayload omits importedData
+// from the blob entirely. Per-row CRDT deltas carry every field instead.
+
+function _cutoverFlagKey(profileId: string | null | undefined) {
+  return `labcharts-${profileId}-sync-cutover-v2`;
+}
+
+
+export function isPhase2CutoverEnabled(profileId: string | null | undefined) {
+  if (!profileId) return false;
+  try { return localStorage.getItem(_cutoverFlagKey(profileId)) === '1'; } catch { return false; }
+}
+
+
+export function enablePhase2CutoverFlag(profileId: string | null | undefined) {
+  if (!profileId) return false;
+  try { localStorage.setItem(_cutoverFlagKey(profileId), '1'); return true; } catch { return false; }
+}
+
+
+export function disablePhase2CutoverFlag(profileId: string | null | undefined) {
+  if (!profileId) return false;
+  try { localStorage.removeItem(_cutoverFlagKey(profileId)); return true; } catch { return false; }
+}
