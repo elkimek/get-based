@@ -1,3 +1,4 @@
+import { createRetryingStylesheetLoader, findStylesheet } from './retrying-module-loader.js';
 // @ts-check
 // theme.js — Theme management, chart colors, time format
 
@@ -27,76 +28,44 @@ const THEME_DEFAULT_ACCENTS = {
   'synth-sunrise': { color: '#ff2bd6', light: '#ff6ce0', fill: 'rgba(255,43,214,0.10)', gradient: 'linear-gradient(135deg, #ff7a18 0%, #ff2bd6 50%, #7c3aed 100%)' },
   neuromancer: { color: '#00e5ff', light: '#5cf2ff', fill: 'rgba(0,229,255,0.10)', gradient: 'linear-gradient(135deg, #00e5ff 0%, #ff2bd6 100%)' },
 };
-
-/** @type {Promise<HTMLLinkElement> | null} */
-let extraThemesStylesheetPromise = null;
-let extraThemesStylesheetLoaded = false;
-let useExtraThemesStylesheetRetryUrl = false;
+const extraThemesStylesheetPromiseCache = createRetryingStylesheetLoader({
+  existing: existingExtraThemesStylesheet,
+  createLink: (_retry, existing) => {
+    const link = existing || document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = extraThemesStylesheetUrl();
+    link.dataset.extraThemesStylesheet = '';
+    return link;
+  },
+  insertLink: link => {
+    if (!link.isConnected) {
+      const anchor = document.querySelector('[data-extra-themes-stylesheet-anchor]');
+      const parent = anchor?.parentNode || document.head;
+      parent.insertBefore(link, anchor || null);
+    }
+  },
+  requireDocument: "Extra themes stylesheet requires a document",
+  failedLoad: "Extra themes stylesheet could not be loaded",
+});
 
 function existingExtraThemesStylesheet() {
-  if (typeof document === 'undefined') return null;
-  return /** @type {HTMLLinkElement | null} */ (
-    document.querySelector('link[data-extra-themes-stylesheet]')
-    || Array.from(document.querySelectorAll('link[rel="stylesheet"][href]'))
-      .find(link => {
-        try {
-          return new URL(/** @type {HTMLLinkElement} */ (link).href).pathname === '/themes-extra.css';
-        } catch {
-          return false;
-        }
-      })
-    || null
-  );
+  return findStylesheet("link[data-extra-themes-stylesheet]", "/themes-extra.css");
 }
 
 function extraThemesStylesheetUrl() {
-  if (!useExtraThemesStylesheetRetryUrl) return EXTRA_THEMES_STYLESHEET_URL;
+  if (!extraThemesStylesheetPromiseCache.retry) return EXTRA_THEMES_STYLESHEET_URL;
   const retryUrl = new URL(EXTRA_THEMES_STYLESHEET_URL);
   retryUrl.searchParams.set('lazy-retry', '1');
   return retryUrl.href;
 }
 
 export function isExtraThemesStylesheetLoaded() {
-  return extraThemesStylesheetLoaded || !!existingExtraThemesStylesheet()?.sheet;
+  return extraThemesStylesheetPromiseCache.loaded || !!existingExtraThemesStylesheet()?.sheet;
 }
 
 /** @returns {Promise<HTMLLinkElement>} */
 export function loadExtraThemesStylesheet() {
-  const existing = existingExtraThemesStylesheet();
-  if (existing?.sheet) {
-    extraThemesStylesheetLoaded = true;
-    return Promise.resolve(existing);
-  }
-  if (!extraThemesStylesheetPromise) {
-    if (typeof document === 'undefined') {
-      return Promise.reject(new Error('Extra themes stylesheet requires a document'));
-    }
-    const link = existing || document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = extraThemesStylesheetUrl();
-    link.dataset.extraThemesStylesheet = '';
-    extraThemesStylesheetPromise = new Promise(function beginExtraThemesStylesheetLoad(resolve, reject) {
-      link.addEventListener('load', function markExtraThemesStylesheetLoaded() {
-        extraThemesStylesheetLoaded = true;
-        resolve(link);
-      }, { once: true });
-      link.addEventListener('error', function rejectExtraThemesStylesheetLoad() {
-        reject(new Error('Extra themes stylesheet could not be loaded'));
-      }, { once: true });
-      if (!link.isConnected) {
-        const anchor = document.querySelector('[data-extra-themes-stylesheet-anchor]');
-        const parent = anchor?.parentNode || document.head;
-        parent.insertBefore(link, anchor || null);
-      }
-    }).catch(function resetExtraThemesStylesheetLoad(err) {
-      link.remove();
-      extraThemesStylesheetPromise = null;
-      extraThemesStylesheetLoaded = false;
-      useExtraThemesStylesheetRetryUrl = true;
-      throw err;
-    });
-  }
-  return extraThemesStylesheetPromise;
+  return extraThemesStylesheetPromiseCache.load();
 }
 
 export const TWEAK_ACCENTS = [

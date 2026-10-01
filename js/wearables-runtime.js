@@ -1,3 +1,4 @@
+import { createRetryingStylesheetLoader, findStylesheet } from './retrying-module-loader.js';
 // @ts-check
 // wearables-runtime.js - Browser runtime adapters for wearable dashboard hooks.
 
@@ -16,11 +17,25 @@ let wearablesModulePromise = null;
 /** @type {WearablesModule | null} */
 let wearablesModule = null;
 let useWearablesModuleRetryUrl = false;
-
-/** @type {Promise<HTMLLinkElement> | null} */
-let wearablesStylesheetPromise = null;
-let wearablesStylesheetLoaded = false;
-let useWearablesStylesheetRetryUrl = false;
+const wearablesStylesheetPromiseCache = createRetryingStylesheetLoader({
+  existing: existingWearablesStylesheet,
+  createLink: (_retry, existing) => {
+    const link = existing || document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = wearablesStylesheetUrl();
+    link.dataset.wearablesStylesheet = '';
+    return link;
+  },
+  insertLink: link => {
+    if (!link.isConnected) {
+      const anchor = document.querySelector('[data-wearables-stylesheet-anchor]');
+      const parent = anchor?.parentNode || document.head;
+      parent.insertBefore(link, anchor || null);
+    }
+  },
+  requireDocument: "Wearables stylesheet requires a document",
+  failedLoad: "Wearables stylesheet could not be loaded",
+});
 
 /** @type {{
  *   closeModal: (() => void) | null,
@@ -139,69 +154,23 @@ configureWearablesModuleBridge({
 });
 
 function existingWearablesStylesheet() {
-  if (typeof document === 'undefined') return null;
-  return /** @type {HTMLLinkElement | null} */ (
-    document.querySelector('link[data-wearables-stylesheet]')
-    || Array.from(document.querySelectorAll('link[rel="stylesheet"][href]'))
-      .find(link => {
-        try {
-          return new URL(/** @type {HTMLLinkElement} */ (link).href).pathname === '/css/wearables.css';
-        } catch {
-          return false;
-        }
-      })
-    || null
-  );
+  return findStylesheet("link[data-wearables-stylesheet]", "/css/wearables.css");
 }
 
 function wearablesStylesheetUrl() {
-  if (!useWearablesStylesheetRetryUrl) return WEARABLES_STYLESHEET_URL;
+  if (!wearablesStylesheetPromiseCache.retry) return WEARABLES_STYLESHEET_URL;
   const retryUrl = new URL(WEARABLES_STYLESHEET_URL);
   retryUrl.searchParams.set('lazy-retry', '1');
   return retryUrl.href;
 }
 
 export function isWearablesStylesheetLoaded() {
-  return wearablesStylesheetLoaded || !!existingWearablesStylesheet()?.sheet;
+  return wearablesStylesheetPromiseCache.loaded || !!existingWearablesStylesheet()?.sheet;
 }
 
 /** @returns {Promise<HTMLLinkElement>} */
 export function loadWearablesStylesheet() {
-  const existing = existingWearablesStylesheet();
-  if (existing?.sheet) {
-    wearablesStylesheetLoaded = true;
-    return Promise.resolve(existing);
-  }
-  if (!wearablesStylesheetPromise) {
-    if (typeof document === 'undefined') {
-      return Promise.reject(new Error('Wearables stylesheet requires a document'));
-    }
-    const link = existing || document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = wearablesStylesheetUrl();
-    link.dataset.wearablesStylesheet = '';
-    wearablesStylesheetPromise = new Promise((resolve, reject) => {
-      link.addEventListener('load', () => {
-        wearablesStylesheetLoaded = true;
-        resolve(link);
-      }, { once: true });
-      link.addEventListener('error', () => {
-        reject(new Error('Wearables stylesheet could not be loaded'));
-      }, { once: true });
-      if (!link.isConnected) {
-        const anchor = document.querySelector('[data-wearables-stylesheet-anchor]');
-        const parent = anchor?.parentNode || document.head;
-        parent.insertBefore(link, anchor || null);
-      }
-    }).catch(err => {
-      link.remove();
-      wearablesStylesheetPromise = null;
-      wearablesStylesheetLoaded = false;
-      useWearablesStylesheetRetryUrl = true;
-      throw err;
-    });
-  }
-  return wearablesStylesheetPromise;
+  return wearablesStylesheetPromiseCache.load();
 }
 
 export async function loadWearablesStylesheetForAction() {

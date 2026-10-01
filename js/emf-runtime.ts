@@ -1,3 +1,4 @@
+import { createRetryingStylesheetLoader } from './retrying-module-loader.js';
 // emf-runtime.js - module-only lazy access to the EMF assessment feature.
 
 import { showNotification } from './utils.js';
@@ -21,45 +22,36 @@ const EMF_STYLESHEET_URL = new URL('../css/emf.css', import.meta.url).href;
 
 let emfModulePromise: Promise<EMFModule> | null = null;
 let emfModule: EMFModule | null = null;
-let emfStylesheetPromise: Promise<HTMLLinkElement> | null = null;
-let useEMFStylesheetRetryUrl = false;
+const emfStylesheetPromiseCache = createRetryingStylesheetLoader({
+  createLink: () => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = emfStylesheetUrl();
+    link.dataset.emfStylesheet = '';
+    return link;
+  },
+  insertLink: link => {
+    const anchor = document.querySelector('[data-emf-stylesheet-anchor]');
+    const parent = anchor?.parentNode || document.head;
+    parent.insertBefore(link, anchor || null);
+  },
+  requireDocument: "EMF stylesheet requires a document",
+  failedLoad: "EMF stylesheet could not be loaded",
+});
 
 function rejectUnconfiguredEMFModuleLoad(): never {
   throw new Error('EMF module loader is not configured.');
 }
 
 function emfStylesheetUrl() {
-  if (!useEMFStylesheetRetryUrl) return EMF_STYLESHEET_URL;
+  if (!emfStylesheetPromiseCache.retry) return EMF_STYLESHEET_URL;
   const retryUrl = new URL(EMF_STYLESHEET_URL);
   retryUrl.searchParams.set('lazy-retry', '1');
   return retryUrl.href;
 }
 
 export function loadEMFStylesheet(): Promise<HTMLLinkElement> {
-  if (!emfStylesheetPromise) {
-    if (typeof document === 'undefined') {
-      return Promise.reject(new Error('EMF stylesheet requires a document'));
-    }
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = emfStylesheetUrl();
-    link.dataset.emfStylesheet = '';
-    emfStylesheetPromise = new Promise<HTMLLinkElement>((resolve, reject) => {
-      link.addEventListener('load', () => resolve(link), { once: true });
-      link.addEventListener('error', () => {
-        reject(new Error('EMF stylesheet could not be loaded'));
-      }, { once: true });
-      const anchor = document.querySelector('[data-emf-stylesheet-anchor]');
-      const parent = anchor?.parentNode || document.head;
-      parent.insertBefore(link, anchor || null);
-    }).catch(err => {
-      link.remove();
-      emfStylesheetPromise = null;
-      useEMFStylesheetRetryUrl = true;
-      throw err;
-    });
-  }
-  return emfStylesheetPromise;
+  return emfStylesheetPromiseCache.load();
 }
 
 const emfRuntimeDeps: EMFRuntimeDeps = {

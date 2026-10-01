@@ -1,68 +1,46 @@
-// @ts-check
+import { createRetryingStylesheetLoader, findStylesheet } from './retrying-module-loader.js';
 // context-card-editor-ui.js - Shared context-card editor modal and field controls
 
 import { escapeAttr, escapeHTML, showNotification } from './utils.js';
 import { closeContextCardModalRuntime } from './context-cards-runtime.js';
 
 const CONTEXT_EDITOR_STYLESHEET_URL = new URL('../css/context-editor.css', import.meta.url).href;
-/** @type {Promise<HTMLLinkElement> | null} */
-let contextEditorStylesheetPromise = null;
-let useContextEditorStylesheetRetryUrl = false;
+const contextEditorStylesheetPromiseCache = createRetryingStylesheetLoader({
+  existing: existingContextEditorStylesheet,
+  createLink: (retry, existing) => {
+    const link = existing || document.createElement('link');
+    const url = new URL(CONTEXT_EDITOR_STYLESHEET_URL);
+    if (retry)
+      url.searchParams.set('lazy-retry', '1');
+    link.rel = 'stylesheet';
+    link.href = url.href;
+    link.dataset.contextEditorStylesheet = '';
+    return link;
+  },
+  insertLink: link => {
+    if (!link.isConnected) {
+      const anchor = document.querySelector('[data-context-editor-stylesheet-anchor]');
+      const parent = anchor?.parentNode || document.head;
+      parent.insertBefore(link, anchor || null);
+    }
+  },
+  requireDocument: "Context editor stylesheet requires a document",
+  failedLoad: "Context editor stylesheet could not be loaded",
+});
 
 function existingContextEditorStylesheet() {
-  if (typeof document === 'undefined') return null;
-  return /** @type {HTMLLinkElement | null} */ (
-    document.querySelector('link[data-context-editor-stylesheet]')
-    || Array.from(document.querySelectorAll('link[rel="stylesheet"][href]'))
-      .find(link => {
-        try {
-          return new URL(/** @type {HTMLLinkElement} */ (link).href).pathname === '/css/context-editor.css';
-        } catch {
-          return false;
-        }
-      })
-    || null
-  );
+  return findStylesheet("link[data-context-editor-stylesheet]", "/css/context-editor.css");
 }
 
 export function isContextEditorStylesheetLoaded() {
   return !!existingContextEditorStylesheet()?.sheet;
 }
 
-/** @returns {Promise<HTMLLinkElement>} */
 export function loadContextEditorStylesheet() {
-  const existing = existingContextEditorStylesheet();
-  if (existing?.sheet) return Promise.resolve(existing);
-  if (!contextEditorStylesheetPromise) {
-    if (typeof document === 'undefined') {
-      return Promise.reject(new Error('Context editor stylesheet requires a document'));
-    }
-    const link = existing || document.createElement('link');
-    const url = new URL(CONTEXT_EDITOR_STYLESHEET_URL);
-    if (useContextEditorStylesheetRetryUrl) url.searchParams.set('lazy-retry', '1');
-    link.rel = 'stylesheet';
-    link.href = url.href;
-    link.dataset.contextEditorStylesheet = '';
-    contextEditorStylesheetPromise = new Promise((resolve, reject) => {
-      link.addEventListener('load', () => resolve(link), { once: true });
-      link.addEventListener('error', () => reject(new Error('Context editor stylesheet could not be loaded')), { once: true });
-      if (!link.isConnected) {
-        const anchor = document.querySelector('[data-context-editor-stylesheet-anchor]');
-        const parent = anchor?.parentNode || document.head;
-        parent.insertBefore(link, anchor || null);
-      }
-    }).catch(err => {
-      link.remove();
-      contextEditorStylesheetPromise = null;
-      useContextEditorStylesheetRetryUrl = true;
-      throw err;
-    });
-  }
-  return contextEditorStylesheetPromise;
+  return contextEditorStylesheetPromiseCache.load();
 }
 
-/** @param {() => any} action */
-export function runWithContextEditorStylesheet(action) {
+export function runWithContextEditorStylesheet<Result>(action: () => Result) {
   if (isContextEditorStylesheetLoaded()) return action();
   return loadContextEditorStylesheet().then(() => action()).catch(err => {
     console.error('Failed to load context editor presentation', err);
@@ -71,28 +49,17 @@ export function runWithContextEditorStylesheet(action) {
   });
 }
 
-/**
- * @param {string} action
- * @param {string} [extra]
- * @returns {string}
- */
-export function contextEditorActionAttrs(action, extra = '') {
+export function contextEditorActionAttrs(action: string, extra = '') {
   return `data-ctx-editor-action="${action}"${extra ? ` ${extra}` : ''}`;
 }
 
-/**
- * @param {EventTarget | null} target
- * @param {string} selector
- * @returns {HTMLElement | null}
- */
-function closestContextEditorElement(target, selector) {
+function closestContextEditorElement(target: EventTarget | null, selector: string) {
   if (!(target instanceof Element)) return null;
   const el = target.closest(selector);
   return el instanceof HTMLElement ? el : null;
 }
 
-/** @param {MouseEvent} event */
-function handleContextEditorClick(event) {
+function handleContextEditorClick(event: MouseEvent) {
   const actionEl = closestContextEditorElement(event.target, '[data-ctx-editor-action]');
   if (!actionEl) return;
   const action = actionEl.dataset.ctxEditorAction || '';
@@ -123,10 +90,10 @@ function initContextEditorDelegates() {
 initContextEditorDelegates();
 
 export function renderContextEditorModal(
-  modal,
-  title,
-  subtitle,
-  bodyHtml,
+  modal: HTMLElement | null,
+  title: string,
+  subtitle: string,
+  bodyHtml: string,
   closeActionAttrs = contextEditorActionAttrs('close'),
 ) {
   if (!modal) return;
@@ -148,10 +115,9 @@ export function renderContextEditorModal(
   if (shouldResetScroll) modal.scrollTop = 0;
 }
 
-/** @typedef {string | { value: string, label: string }} ContextEditorOption */
+type ContextEditorOption = string | { value: string; label: string };
 
-/** @param {ContextEditorOption} option */
-function normalizeContextEditorOption(option) {
+function normalizeContextEditorOption(option: ContextEditorOption) {
   if (typeof option === 'string') return { value: option, label: option };
   return { value: String(option.value), label: String(option.label) };
 }
@@ -160,13 +126,8 @@ function normalizeContextEditorOption(option) {
  * Groups optional editor fields behind a readable, native disclosure control.
  * Callers can expose an in-progress section while keeping saved optional
  * answers summarized in the disclosure header.
- *
- * @param {string} title
- * @param {string} summary
- * @param {string} bodyHtml
- * @param {boolean} [open]
  */
-export function renderContextEditorSection(title, summary, bodyHtml, open = false) {
+export function renderContextEditorSection(title: string, summary: string, bodyHtml: string, open = false) {
   return `<details class="ctx-editor-section"${open ? ' open' : ''}>
     <summary><span class="ctx-editor-section-title">${escapeHTML(title)}</span><span class="ctx-editor-section-summary">${escapeHTML(summary)}</span></summary>
     <div class="ctx-editor-section-body">${bodyHtml}</div>
@@ -176,13 +137,8 @@ export function renderContextEditorSection(title, summary, bodyHtml, open = fals
 /**
  * String options remain supported for the current schema. Object options let
  * translated labels change independently from the canonical stored value.
- *
- * @param {string} label
- * @param {string} id
- * @param {ContextEditorOption[]} options
- * @param {string | null | undefined} current
  */
-export function renderSelectField(label, id, options, current) {
+export function renderSelectField(label: string, id: string, options: ContextEditorOption[], current: string | null | undefined) {
   const labelId = `${id}-label`;
   return `<div class="ctx-field-group"><label class="ctx-field-label" id="${escapeAttr(labelId)}">${escapeHTML(label)}</label>
     <div class="ctx-btn-group" id="${escapeAttr(id)}" role="group" aria-labelledby="${escapeAttr(labelId)}">
@@ -194,7 +150,7 @@ export function renderSelectField(label, id, options, current) {
     </div></div>`;
 }
 
-export function selectCtxOption(btn, groupId) {
+export function selectCtxOption(btn: HTMLElement, groupId: string) {
   const group = document.getElementById(groupId);
   if (!group) return;
   const wasActive = btn.classList.contains('active');
@@ -208,20 +164,14 @@ export function selectCtxOption(btn, groupId) {
   }
 }
 
-export function getSelectedOption(groupId) {
+export function getSelectedOption(groupId: string) {
   const group = document.getElementById(groupId);
   if (!group) return null;
-  const active = /** @type {HTMLElement | null} */ (group.querySelector('.ctx-btn-option.active'));
+  const active = group.querySelector<HTMLElement>('.ctx-btn-option.active');
   return active ? active.dataset.contextValue || active.textContent : null;
 }
 
-/**
- * @param {string} label
- * @param {string} id
- * @param {ContextEditorOption[]} options
- * @param {string[] | null | undefined} selected
- */
-export function renderTagsField(label, id, options, selected) {
+export function renderTagsField(label: string, id: string, options: ContextEditorOption[], selected: string[] | null | undefined) {
   const sel = selected || [];
   const labelId = `${id}-label`;
   return `<div class="ctx-field-group"><label class="ctx-field-label" id="${escapeAttr(labelId)}">${escapeHTML(label)}</label>
@@ -240,10 +190,10 @@ const CTX_EXCLUSIONS = [
   ['early dinner (before 6pm)', 'late dinner (after 8pm)'],
 ];
 
-export function toggleCtxTag(btn) {
-  const value = btn.dataset.contextValue || btn.textContent.trim();
+export function toggleCtxTag(btn: HTMLElement) {
+  const value = btn.dataset.contextValue || btn.textContent!.trim();
   const isNone = value.toLowerCase() === 'none';
-  const group = btn.parentElement;
+  const group = btn.parentElement!;
   if (isNone) {
     // Toggling "none" on deselects all other options in the group.
     if (!btn.classList.contains('active')) {
@@ -254,7 +204,7 @@ export function toggleCtxTag(btn) {
     }
   } else {
     group.querySelectorAll('.ctx-tag.active').forEach(b => {
-      const activeValue = /** @type {HTMLElement} */ (b).dataset.contextValue || b.textContent.trim();
+      const activeValue = (b as HTMLElement).dataset.contextValue || b.textContent!.trim();
       if (activeValue.toLowerCase() === 'none') {
         b.classList.remove('active');
         b.setAttribute('aria-pressed', 'false');
@@ -265,7 +215,7 @@ export function toggleCtxTag(btn) {
         const other = pair[0] === value ? pair[1] : pair[1] === value ? pair[0] : null;
         if (other) {
           group.querySelectorAll('.ctx-tag.active').forEach(b => {
-            const activeValue = /** @type {HTMLElement} */ (b).dataset.contextValue || b.textContent.trim();
+            const activeValue = (b as HTMLElement).dataset.contextValue || b.textContent!.trim();
             if (activeValue === other) {
               b.classList.remove('active');
               b.setAttribute('aria-pressed', 'false');
@@ -279,21 +229,21 @@ export function toggleCtxTag(btn) {
   btn.setAttribute('aria-pressed', String(btn.classList.contains('active')));
 }
 
-export function getSelectedTags(containerId) {
+export function getSelectedTags(containerId: string) {
   const el = document.getElementById(containerId);
   if (!el) return [];
   return Array.from(el.querySelectorAll('.ctx-tag.active')).map(b => {
-    const tag = /** @type {HTMLElement} */ (b);
+    const tag = (b as HTMLElement);
     return tag.dataset.contextValue || tag.textContent;
   });
 }
 
-export function renderNoteField(value) {
+export function renderNoteField(value: unknown) {
   return `<div class="ctx-field-group"><label class="ctx-field-label" for="ctx-note-input">Notes</label>
     <textarea class="ctx-note-input ctx-note-textarea" id="ctx-note-input" rows="2" placeholder="Anything else that may be relevant">${escapeHTML(value || '')}</textarea></div>`;
 }
 
-export function contextEditorActions(hasCurrent, saveActionAttrs, clearActionAttrs) {
+export function contextEditorActions(hasCurrent: unknown, saveActionAttrs: string, clearActionAttrs: string) {
   return `<div class="ctx-editor-actions">
     <button class="import-btn import-btn-primary" ${saveActionAttrs}>Save</button>
     <button class="import-btn import-btn-secondary" ${contextEditorActionAttrs('close')}>Cancel</button>

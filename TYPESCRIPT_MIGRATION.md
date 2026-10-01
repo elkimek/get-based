@@ -490,6 +490,24 @@ once, while Settings and Wearables retain their original two callable-key reads.
 All executable DNA classifier and bridge operations matched original ASTs;
 279 dispatch/bridge scenarios matched original values, errors and traces.
 
+Eleven independently scoped stylesheet loaders share a strict typed lifecycle,
+with six identical existing-link finders shared alongside it. Each feature keeps
+its link setup, URL selection, cascade insertion and error messages. The helper
+keeps synchronous creation failures uncached, shares pending/resolved promises,
+publishes the loaded flag inside the load event and removes rejected links before
+resetting retry state. Existing-link and no-document policies remain distinct.
+110 differential scenarios matched original outcomes and DOM traces.
+
+Context-editor controls and category, chat and chat-send runtime adapters are now
+fully native TypeScript. Chat callback ports declare their actual arguments and
+keep opaque results; shared provider-attestation lookup preserves the original
+late window reads without validating or rewriting evidence. Both original chat
+adapter suites are native with all fixtures, assertions and cleanup operations
+preserved. Executable AST comparison covers the four complete adapters and all
+remaining operations in the eleven stylesheet consumers. Native DOM assertions
+preserve original errors for malformed/detached controls rather than adding
+behavior-changing fallbacks.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, remaining workers,

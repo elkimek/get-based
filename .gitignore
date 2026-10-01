@@ -403,3 +403,11 @@ deploy/profile-share/data/
 /js/dna-runtime-bridge.js
 
 /js/dna-file-detection.js
+
+/js/category-page-runtime.js
+
+/js/context-card-editor-ui.js
+
+/js/chat-send-runtime.js
+
+/js/chat-runtime.js

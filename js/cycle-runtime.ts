@@ -1,3 +1,4 @@
+import { createRetryingStylesheetLoader, findStylesheet } from './retrying-module-loader.js';
 // cycle-runtime.js - Explicit application callbacks for Cycle views.
 
 import { configureRuntimeCallbacks } from './runtime-callbacks.js';
@@ -29,10 +30,25 @@ interface CycleAnalysisBridge {
 }
 
 const CYCLE_STYLESHEET_URL = new URL('../css/cycle.css', import.meta.url).href;
-
-let cycleStylesheetPromise: Promise<HTMLLinkElement> | null = null;
-let cycleStylesheetLoaded = false;
-let useCycleStylesheetRetryUrl = false;
+const cycleStylesheetPromiseCache = createRetryingStylesheetLoader({
+  existing: existingCycleStylesheet,
+  createLink: (_retry, existing) => {
+    const link = existing || document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = cycleStylesheetUrl();
+    link.dataset.cycleStylesheet = '';
+    return link;
+  },
+  insertLink: link => {
+    if (!link.isConnected) {
+      const anchor = document.querySelector('[data-cycle-stylesheet-anchor]');
+      const parent = anchor?.parentNode || document.head;
+      parent.insertBefore(link, anchor || null);
+    }
+  },
+  requireDocument: "Cycle stylesheet requires a document",
+  failedLoad: "Cycle stylesheet could not be loaded",
+});
 
 const cycleRuntimeDeps: CycleRuntimeDeps = {
   closeModal: null,
@@ -70,68 +86,22 @@ export function detectCycleIronAlertsRuntime(...args: unknown[]) {
 }
 
 function existingCycleStylesheet(): HTMLLinkElement | null {
-  if (typeof document === 'undefined') return null;
-  return (
-    document.querySelector('link[data-cycle-stylesheet]')
-    || Array.from(document.querySelectorAll('link[rel="stylesheet"][href]'))
-      .find(link => {
-        try {
-          return new URL((link as HTMLLinkElement).href).pathname === '/css/cycle.css';
-        } catch {
-          return false;
-        }
-      })
-    || null
-  ) as HTMLLinkElement | null;
+  return findStylesheet("link[data-cycle-stylesheet]", "/css/cycle.css");
 }
 
 function cycleStylesheetUrl() {
-  if (!useCycleStylesheetRetryUrl) return CYCLE_STYLESHEET_URL;
+  if (!cycleStylesheetPromiseCache.retry) return CYCLE_STYLESHEET_URL;
   const retryUrl = new URL(CYCLE_STYLESHEET_URL);
   retryUrl.searchParams.set('lazy-retry', '1');
   return retryUrl.href;
 }
 
 export function isCycleStylesheetLoaded() {
-  return cycleStylesheetLoaded || !!existingCycleStylesheet()?.sheet;
+  return cycleStylesheetPromiseCache.loaded || !!existingCycleStylesheet()?.sheet;
 }
 
 export function loadCycleStylesheet() {
-  const existing = existingCycleStylesheet();
-  if (existing?.sheet) {
-    cycleStylesheetLoaded = true;
-    return Promise.resolve(existing);
-  }
-  if (!cycleStylesheetPromise) {
-    if (typeof document === 'undefined') {
-      return Promise.reject(new Error('Cycle stylesheet requires a document'));
-    }
-    const link = existing || document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = cycleStylesheetUrl();
-    link.dataset.cycleStylesheet = '';
-    cycleStylesheetPromise = new Promise<HTMLLinkElement>(function beginCycleStylesheetLoad(resolve, reject) {
-      link.addEventListener('load', function markCycleStylesheetLoaded() {
-        cycleStylesheetLoaded = true;
-        resolve(link);
-      }, { once: true });
-      link.addEventListener('error', function rejectCycleStylesheetLoad() {
-        reject(new Error('Cycle stylesheet could not be loaded'));
-      }, { once: true });
-      if (!link.isConnected) {
-        const anchor = document.querySelector('[data-cycle-stylesheet-anchor]');
-        const parent = anchor?.parentNode || document.head;
-        parent.insertBefore(link, anchor || null);
-      }
-    }).catch(function resetCycleStylesheetLoad(err) {
-      link.remove();
-      cycleStylesheetPromise = null;
-      cycleStylesheetLoaded = false;
-      useCycleStylesheetRetryUrl = true;
-      throw err;
-    });
-  }
-  return cycleStylesheetPromise;
+  return cycleStylesheetPromiseCache.load();
 }
 
 export async function loadCycleStylesheetForAction() {

@@ -1,3 +1,4 @@
+import { createRetryingStylesheetLoader } from './retrying-module-loader.js';
 // @ts-check
 // dna-runtime.js - Browser runtime adapters for DNA import and shell refresh flows.
 
@@ -9,11 +10,22 @@ import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.
 import { updateChatNudgeRuntime } from './chat-runtime.js';
 
 const GENETICS_STYLESHEET_URL = new URL('../css/genetics.css', import.meta.url).href;
-
-/** @type {Promise<HTMLLinkElement> | null} */
-let geneticsStylesheetPromise = null;
-let geneticsStylesheetLoaded = false;
-let useGeneticsStylesheetRetryUrl = false;
+const geneticsStylesheetPromiseCache = createRetryingStylesheetLoader({
+  createLink: () => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = geneticsStylesheetUrl();
+    link.dataset.geneticsStylesheet = '';
+    return link;
+  },
+  insertLink: link => {
+    const anchor = document.querySelector('[data-genetics-stylesheet-anchor]');
+    const parent = anchor?.parentNode || document.head;
+    parent.insertBefore(link, anchor || null);
+  },
+  requireDocument: "Genetics stylesheet requires a document",
+  failedLoad: "Genetics stylesheet could not be loaded",
+});
 
 const dnaRuntimeDeps = {
   buildSidebar: /** @type {null | (() => void)} */ (null),
@@ -26,46 +38,19 @@ const dnaRuntimeDeps = {
 };
 
 function geneticsStylesheetUrl() {
-  if (!useGeneticsStylesheetRetryUrl) return GENETICS_STYLESHEET_URL;
+  if (!geneticsStylesheetPromiseCache.retry) return GENETICS_STYLESHEET_URL;
   const retryUrl = new URL(GENETICS_STYLESHEET_URL);
   retryUrl.searchParams.set('lazy-retry', '1');
   return retryUrl.href;
 }
 
 export function isGeneticsStylesheetLoaded() {
-  return geneticsStylesheetLoaded;
+  return geneticsStylesheetPromiseCache.loaded;
 }
 
 /** @returns {Promise<HTMLLinkElement>} */
 export function loadGeneticsStylesheet() {
-  if (!geneticsStylesheetPromise) {
-    if (typeof document === 'undefined') {
-      return Promise.reject(new Error('Genetics stylesheet requires a document'));
-    }
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = geneticsStylesheetUrl();
-    link.dataset.geneticsStylesheet = '';
-    geneticsStylesheetPromise = new Promise((resolve, reject) => {
-      link.addEventListener('load', () => {
-        geneticsStylesheetLoaded = true;
-        resolve(link);
-      }, { once: true });
-      link.addEventListener('error', () => {
-        reject(new Error('Genetics stylesheet could not be loaded'));
-      }, { once: true });
-      const anchor = document.querySelector('[data-genetics-stylesheet-anchor]');
-      const parent = anchor?.parentNode || document.head;
-      parent.insertBefore(link, anchor || null);
-    }).catch(err => {
-      link.remove();
-      geneticsStylesheetPromise = null;
-      geneticsStylesheetLoaded = false;
-      useGeneticsStylesheetRetryUrl = true;
-      throw err;
-    });
-  }
-  return geneticsStylesheetPromise;
+  return geneticsStylesheetPromiseCache.load();
 }
 
 /** @returns {Promise<HTMLLinkElement | false>} */

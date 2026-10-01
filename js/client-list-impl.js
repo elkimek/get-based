@@ -1,3 +1,4 @@
+import { createRetryingStylesheetLoader } from './retrying-module-loader.js';
 // @ts-check
 // client-list-impl.js — Client List modal implementation for managing profiles
 
@@ -53,11 +54,24 @@ let _sort = 'lastUpdated';
 let _statusFilter = 'active';
 let _tagFilter = '';
 let clientListDelegatesInstalled = false;
-/** @type {Promise<HTMLLinkElement> | null} */
-let _clientListStylesheetLoad = null;
+const clientListStylesheetLoadCache = createRetryingStylesheetLoader({
+  createLink: () => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = clientListStylesheetUrl();
+    link.dataset.clientListStylesheet = '';
+    return link;
+  },
+  insertLink: link => {
+    const anchor = document.querySelector('[data-client-list-stylesheet-anchor]');
+    const parent = anchor?.parentNode || document.head;
+    parent.insertBefore(link, anchor || null);
+  },
+  requireDocument: "Client List stylesheet requires a document",
+  failedLoad: "Client List stylesheet could not be loaded",
+});
 /** @type {Promise<boolean> | null} */
 let _clientListOpen = null;
-let _useClientListStylesheetRetryUrl = false;
 
 const CL_ICONS = Object.freeze({
   archive: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>',
@@ -113,7 +127,7 @@ function _renderAvatarEl(profile) {
 // OPEN / CLOSE
 // ═══════════════════════════════════════════════
 function clientListStylesheetUrl() {
-  if (!_useClientListStylesheetRetryUrl) return CLIENT_LIST_STYLESHEET_URL;
+  if (!clientListStylesheetLoadCache.retry) return CLIENT_LIST_STYLESHEET_URL;
   const retryUrl = new URL(CLIENT_LIST_STYLESHEET_URL);
   retryUrl.searchParams.set('lazy-retry', '1');
   return retryUrl.href;
@@ -121,30 +135,7 @@ function clientListStylesheetUrl() {
 
 /** @returns {Promise<HTMLLinkElement>} */
 function loadClientListStylesheet() {
-  if (!_clientListStylesheetLoad) {
-    if (typeof document === 'undefined') {
-      return Promise.reject(new Error('Client List stylesheet requires a document'));
-    }
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = clientListStylesheetUrl();
-    link.dataset.clientListStylesheet = '';
-    _clientListStylesheetLoad = new Promise((resolve, reject) => {
-      link.addEventListener('load', () => resolve(link), { once: true });
-      link.addEventListener('error', () => {
-        reject(new Error('Client List stylesheet could not be loaded'));
-      }, { once: true });
-      const anchor = document.querySelector('[data-client-list-stylesheet-anchor]');
-      const parent = anchor?.parentNode || document.head;
-      parent.insertBefore(link, anchor || null);
-    }).catch(err => {
-      link.remove();
-      _clientListStylesheetLoad = null;
-      _useClientListStylesheetRetryUrl = true;
-      throw err;
-    });
-  }
-  return _clientListStylesheetLoad;
+  return clientListStylesheetLoadCache.load();
 }
 
 /** @returns {Promise<boolean>} */

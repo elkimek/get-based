@@ -1,3 +1,4 @@
+import { createRetryingStylesheetLoader, findStylesheet } from './retrying-module-loader.js';
 export interface ModalFocusTrapOptions { autoFocus?: boolean | undefined; closeOnEscape?: boolean; onEscape?: () => void; }
 export interface ModalOverlayOptions {
   initialFocus?: string | HTMLElement; focusDelay?: number; showClass?: string;
@@ -18,74 +19,43 @@ type ModalWindow = Window & {
 const DATA_PROTECTION_STYLESHEET_URL = new URL('../css/data-protection.css', import.meta.url).href;
 const FOCUSABLE_SELECTOR = 'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])';
 const VISIBLE_MODAL_SELECTOR = '.modal-overlay.show,.confirm-overlay.show,[data-modal-focus-trap]';
-
-let dataProtectionStylesheetPromise: Promise<HTMLLinkElement> | null = null;
-let dataProtectionStylesheetLoaded = false;
-let useDataProtectionStylesheetRetryUrl = false;
+const dataProtectionStylesheetPromiseCache = createRetryingStylesheetLoader({
+  existing: existingDataProtectionStylesheet,
+  createLink: (_retry, existing) => {
+    const link = existing || document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = dataProtectionStylesheetUrl();
+    link.dataset.dataProtectionStylesheet = '';
+    return link;
+  },
+  insertLink: link => {
+    if (!link.isConnected) {
+      const anchor = document.querySelector('[data-data-protection-stylesheet-anchor]');
+      const parent = anchor?.parentNode || document.head;
+      parent.insertBefore(link, anchor || null);
+    }
+  },
+  requireDocument: "Data protection stylesheet requires a document",
+  failedLoad: "Data protection stylesheet could not be loaded",
+});
 
 function existingDataProtectionStylesheet(): HTMLLinkElement | null {
-  if (typeof document === 'undefined') return null;
-  return (
-    document.querySelector<HTMLLinkElement>('link[data-data-protection-stylesheet]')
-    || Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"][href]'))
-      .find(link => {
-        try {
-          return new URL((link as HTMLLinkElement).href).pathname === '/css/data-protection.css';
-        } catch {
-          return false;
-        }
-      })
-    || null
-  );
+  return findStylesheet("link[data-data-protection-stylesheet]", "/css/data-protection.css");
 }
 
 function dataProtectionStylesheetUrl() {
-  if (!useDataProtectionStylesheetRetryUrl) return DATA_PROTECTION_STYLESHEET_URL;
+  if (!dataProtectionStylesheetPromiseCache.retry) return DATA_PROTECTION_STYLESHEET_URL;
   const retryUrl = new URL(DATA_PROTECTION_STYLESHEET_URL);
   retryUrl.searchParams.set('lazy-retry', '1');
   return retryUrl.href;
 }
 
 export function isDataProtectionStylesheetLoaded() {
-  return dataProtectionStylesheetLoaded || !!existingDataProtectionStylesheet()?.sheet;
+  return dataProtectionStylesheetPromiseCache.loaded || !!existingDataProtectionStylesheet()?.sheet;
 }
 
 export function loadDataProtectionStylesheet(): Promise<HTMLLinkElement> {
-  const existing = existingDataProtectionStylesheet();
-  if (existing?.sheet) {
-    dataProtectionStylesheetLoaded = true;
-    return Promise.resolve(existing);
-  }
-  if (!dataProtectionStylesheetPromise) {
-    if (typeof document === 'undefined') {
-      return Promise.reject(new Error('Data protection stylesheet requires a document'));
-    }
-    const link = existing || document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = dataProtectionStylesheetUrl();
-    link.dataset.dataProtectionStylesheet = '';
-    dataProtectionStylesheetPromise = new Promise<HTMLLinkElement>((resolve, reject) => {
-      link.addEventListener('load', () => {
-        dataProtectionStylesheetLoaded = true;
-        resolve(link);
-      }, { once: true });
-      link.addEventListener('error', () => {
-        reject(new Error('Data protection stylesheet could not be loaded'));
-      }, { once: true });
-      if (!link.isConnected) {
-        const anchor = document.querySelector('[data-data-protection-stylesheet-anchor]');
-        const parent = anchor?.parentNode || document.head;
-        parent.insertBefore(link, anchor || null);
-      }
-    }).catch(err => {
-      link.remove();
-      dataProtectionStylesheetPromise = null;
-      dataProtectionStylesheetLoaded = false;
-      useDataProtectionStylesheetRetryUrl = true;
-      throw err;
-    });
-  }
-  return dataProtectionStylesheetPromise;
+  return dataProtectionStylesheetPromiseCache.load();
 }
 
 export async function loadDataProtectionStylesheetForAction() {

@@ -1,37 +1,17 @@
-// @ts-check
+import { getChatProviderAttestation } from './chat-runtime.js';
 // chat-send-runtime.js - Browser runtime adapters for chat send hooks.
 
 import { getRecommendationModuleFunction } from './recommendations-runtime.js';
 
-function getRuntimeWindow() {
-  return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
-    : null;
-}
-
-/**
- * @param {string} name
- * @returns {any}
- */
-function getRuntimeValue(name) {
-  const runtime = getRuntimeWindow();
-  return runtime ? runtime[name] : undefined;
-}
-
-/** @param {string} provider */
-export function getChatSendProviderAttestation(provider) {
-  const key = provider === 'ppq' ? '_ppqAttestation'
-    : provider === 'routstr' ? '_routstrAttestation'
-    : '_veniceAttestation';
-  return getRuntimeValue(key);
+export function getChatSendProviderAttestation(provider: string) {
+  return getChatProviderAttestation(provider);
 }
 
 export function isChatSendProductRecsEnabled() {
   return Boolean(getRecommendationModuleFunction('isProductRecsEnabled')?.());
 }
 
-/** @param {string} text */
-export function detectChatSendSupplementSlots(text) {
+export function detectChatSendSupplementSlots(text: string) {
   if (!isChatSendProductRecsEnabled()) return [];
   const detectSupplementSlots = getRecommendationModuleFunction('detectSupplementSlots');
   if (!detectSupplementSlots) return [];
@@ -39,8 +19,7 @@ export function detectChatSendSupplementSlots(text) {
   return Array.isArray(slots) ? slots : [];
 }
 
-/** @param {string} text */
-export function isChatSendEMFRelevant(text) {
+export function isChatSendEMFRelevant(text: string) {
   if (!isChatSendProductRecsEnabled()) return false;
   return Boolean(getRecommendationModuleFunction('detectEMFRelevance')?.(text));
 }

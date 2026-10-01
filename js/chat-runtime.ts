@@ -1,10 +1,28 @@
-// @ts-check
+interface ProviderAttestationValues {
+  _ppqAttestation?: unknown;
+  _routstrAttestation?: unknown;
+  _veniceAttestation?: unknown;
+}
+
+export interface ChatRuntimeCallbacks {
+  closeModal: (() => unknown) | null;
+  isChatStreaming: (() => unknown) | null;
+  onChatSaved: ((event: { customPersonality: boolean }) => unknown) | null;
+  openContextModal: (() => unknown) | null;
+  refreshWebSearchToggle: (() => unknown) | null;
+  renderChatMessages: (() => unknown) | null;
+  resumeAI: (() => unknown) | null;
+  sendChatMessage: ((options?: Record<string, unknown>) => unknown) | null;
+  updateChatHeaderModel: (() => unknown) | null;
+  updateChatNudge: (() => unknown) | null;
+  updateDiscussButton: (() => unknown) | null;
+}
+
 // chat-runtime.js - Browser runtime adapters for shared chat hooks.
 
 import { openContextModalRuntime } from './context-cards-runtime.js';
 
-/** @type {Record<'closeModal' | 'isChatStreaming' | 'onChatSaved' | 'openContextModal' | 'refreshWebSearchToggle' | 'renderChatMessages' | 'resumeAI' | 'sendChatMessage' | 'updateChatHeaderModel' | 'updateChatNudge' | 'updateDiscussButton', Function | null>} */
-const chatRuntimeCallbacks = {
+const chatRuntimeCallbacks: ChatRuntimeCallbacks = {
   closeModal: null,
   isChatStreaming: null,
   onChatSaved: null,
@@ -18,21 +36,19 @@ const chatRuntimeCallbacks = {
   updateDiscussButton: null,
 };
 
-/** @param {Partial<Record<keyof typeof chatRuntimeCallbacks, Function | null>>} [callbacks] */
-export function configureChatRuntimeCallbacks(callbacks = {}) {
+export function configureChatRuntimeCallbacks(callbacks: Partial<ChatRuntimeCallbacks> = {}) {
   const previous = { ...chatRuntimeCallbacks };
-  for (const name of Object.keys(chatRuntimeCallbacks)) {
+  for (const name of (Object.keys(chatRuntimeCallbacks) as Array<keyof ChatRuntimeCallbacks>)) {
     if (name in callbacks) {
-      const callback = callbacks[/** @type {keyof typeof chatRuntimeCallbacks} */ (name)];
-      chatRuntimeCallbacks[/** @type {keyof typeof chatRuntimeCallbacks} */ (name)] =
+      const callback = callbacks[name];
+      (chatRuntimeCallbacks[name] as ChatRuntimeCallbacks[keyof ChatRuntimeCallbacks]) =
         typeof callback === 'function' ? callback : null;
     }
   }
   return previous;
 }
 
-/** @param {keyof typeof chatRuntimeCallbacks} name */
-function callChatRuntimeCallback(name) {
+function callChatRuntimeCallback(name: Exclude<keyof ChatRuntimeCallbacks, 'onChatSaved'>) {
   const callback = chatRuntimeCallbacks[name];
   if (typeof callback !== 'function') return false;
   callback();
@@ -41,15 +57,13 @@ function callChatRuntimeCallback(name) {
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
+    ? (window as Window & ProviderAttestationValues)
     : null;
 }
 
 /**
- * @param {string} name
- * @returns {any}
  */
-function getRuntimeValue(name) {
+function getRuntimeValue(name: keyof ProviderAttestationValues) {
   const runtime = getRuntimeWindow();
   return runtime ? runtime[name] : undefined;
 }
@@ -112,8 +126,7 @@ export function getChatRegenerateCallbacks() {
   return { renderChatMessages, sendChatMessage };
 }
 
-/** @param {string} provider */
-export function getChatProviderAttestation(provider) {
+export function getChatProviderAttestation(provider: string) {
   const key = provider === 'ppq' ? '_ppqAttestation'
     : provider === 'routstr' ? '_routstrAttestation'
     : '_veniceAttestation';

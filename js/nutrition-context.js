@@ -1,3 +1,4 @@
+import { createRetryingStylesheetLoader, findStylesheet } from './retrying-module-loader.js';
 // @ts-check
 // nutrition-context.js — compact summary-only context for chat and source controls.
 
@@ -33,11 +34,26 @@ export async function hydrateNutritionSummary(...args) {
 }
 
 const STYLESHEET_URL = new URL('../css/nutrition.css', import.meta.url).href;
-let stylesheetPromise = null;
-let stylesheetLoaded = false;
+const stylesheetPromiseCache = createRetryingStylesheetLoader({
+  existing: existingStylesheet,
+  createLink: (retry, existing) => {
+    const link = existing || document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = retry ? `${STYLESHEET_URL}?lazy-retry=1` : STYLESHEET_URL;
+    link.dataset.nutritionStylesheet = '';
+    return link;
+  },
+  insertLink: link => {
+    if (!link.isConnected) {
+      const anchor = document.querySelector('[data-nutrition-stylesheet-anchor]');
+      (anchor?.parentNode || document.head).insertBefore(link, anchor || null);
+    }
+  },
+  requireDocument: "Nutrition stylesheet requires a document.",
+  failedLoad: "Nutrition presentation could not be loaded.",
+});
 let modulePromise = null;
 let moduleValue = null;
-let retryStylesheet = false;
 let syncHydrationPromise = Promise.resolve();
 
 // Pull refresh replaces state.importedData in place. Reconcile its synced meal
@@ -51,49 +67,15 @@ addUtilsRuntimeListener('labcharts-sync-applied', () => {
 });
 
 function existingStylesheet() {
-  if (typeof document === 'undefined') return null;
-  return /** @type {HTMLLinkElement | null} */ (
-    document.querySelector('link[data-nutrition-stylesheet]')
-    || Array.from(document.querySelectorAll('link[rel="stylesheet"][href]')).find(link => {
-      try { return new URL(/** @type {HTMLLinkElement} */ (link).href).pathname === '/css/nutrition.css'; }
-      catch { return false; }
-    })
-    || null
-  );
+  return findStylesheet("link[data-nutrition-stylesheet]", "/css/nutrition.css");
 }
 
 export function isNutritionStylesheetLoaded() {
-  return stylesheetLoaded || !!existingStylesheet()?.sheet;
+  return stylesheetPromiseCache.loaded || !!existingStylesheet()?.sheet;
 }
 
 export function loadNutritionStylesheet() {
-  const existing = existingStylesheet();
-  if (existing?.sheet) {
-    stylesheetLoaded = true;
-    return Promise.resolve(existing);
-  }
-  if (!stylesheetPromise) {
-    if (typeof document === 'undefined') return Promise.reject(new Error('Nutrition stylesheet requires a document.'));
-    const link = existing || document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = retryStylesheet ? `${STYLESHEET_URL}?lazy-retry=1` : STYLESHEET_URL;
-    link.dataset.nutritionStylesheet = '';
-    stylesheetPromise = new Promise((resolve, reject) => {
-      link.addEventListener('load', () => { stylesheetLoaded = true; resolve(link); }, { once: true });
-      link.addEventListener('error', () => reject(new Error('Nutrition presentation could not be loaded.')), { once: true });
-      if (!link.isConnected) {
-        const anchor = document.querySelector('[data-nutrition-stylesheet-anchor]');
-        (anchor?.parentNode || document.head).insertBefore(link, anchor || null);
-      }
-    }).catch(error => {
-      link.remove();
-      stylesheetPromise = null;
-      stylesheetLoaded = false;
-      retryStylesheet = true;
-      throw error;
-    });
-  }
-  return stylesheetPromise;
+  return stylesheetPromiseCache.load();
 }
 
 export function loadNutritionModule() {
