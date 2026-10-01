@@ -1,5 +1,12 @@
-// @ts-check
-// sync-pull-rebroadcast.js - safe pull-side rebroadcast scheduling.
+export interface RebroadcastOptions {
+  profileId?: string | undefined;
+  needsRebroadcast?: unknown;
+  pushProfile?: ((profileId: string, data: object) => unknown) | undefined;
+  debug?: ((...args: unknown[]) => unknown) | undefined;
+  readProfileData?: ((profileId: string) => Promise<unknown>) | undefined;
+}
+
+// sync-pull-rebroadcast.ts - safe pull-side rebroadcast scheduling.
 
 import { state } from './state.js';
 import {
@@ -26,26 +33,17 @@ export function isSyncRebroadcastSettling() {
   return _startupSettling;
 }
 
-/** @param {((...args: any[]) => any) | undefined} debug */
-function dbg(debug, ...args) {
+function dbg(debug: RebroadcastOptions['debug'], ...args: unknown[]) {
   try { debug?.(...args); } catch {}
 }
 
-/** @param {{
- *   profileId?: string,
- *   needsRebroadcast?: boolean,
- *   pushProfile?: (...args: any[]) => any,
- *   debug?: (...args: any[]) => any,
- *   readProfileData?: (profileId: string) => Promise<any>,
- * }} [options]
- */
 export function maybeScheduleRebroadcast({
   profileId,
   needsRebroadcast,
   pushProfile,
   debug,
   readProfileData,
-} = {}) {
+}: RebroadcastOptions = {}) {
   // Rebroadcast the union if local had rows the remote lacked. Defer
   // with setTimeout to avoid recursing inside the pull tick + give
   // chat/profile/aiSettings appliers a chance to settle first. Inactive

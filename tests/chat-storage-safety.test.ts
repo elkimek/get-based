@@ -128,7 +128,7 @@ describe('chat storage safety', () => {
       projectName: 'Metabolic follow-upMetabolic follow-upMetabolic follow-upMet',
       pinned: true,
     });
-    expect(chat.messages.t_safe[0]).toMatchObject({
+    expect(chat.messages.t_safe![0]).toMatchObject({
       content: 'Hello',
       personalityIcon: 'svg onload=alert(1)',
       agentId: 'opencode<script>opencode<script>opencode',
@@ -142,12 +142,12 @@ describe('chat storage safety', () => {
       discussionPersonaId: 'custom_safe',
       auto: true,
     });
-    expect(chat.messages.t_safe[0]).not.toHaveProperty('discussionError');
+    expect(chat.messages.t_safe![0]).not.toHaveProperty('discussionError');
     expect(chat.customPersonalities).toHaveLength(1);
-    expect(chat.customPersonalities[0].id).toBe('custom_safe');
-    expect(chat.customPersonalities[0].icon).toBe('img src=x onerror=alert(1)');
-    expect(chat.customPersonalities[0].updatedAt).toBe('2026-08-08T10:00:00.000Z');
-    expect(chat.customPersonalities[0].personaAgreement).toEqual({
+    expect(chat.customPersonalities[0]!.id).toBe('custom_safe');
+    expect(chat.customPersonalities[0]!.icon).toBe('img src=x onerror=alert(1)');
+    expect(chat.customPersonalities[0]!.updatedAt).toBe('2026-08-08T10:00:00.000Z');
+    expect(chat.customPersonalities[0]!.personaAgreement).toEqual({
       accepted: true,
       version: 1,
       acceptedAt: '2026-08-08T10:00:00.000Z',
@@ -187,7 +187,7 @@ describe('chat storage safety', () => {
       }],
     }]);
 
-    expect(message.agentDrafts).toEqual([{
+    expect(message!.agentDrafts).toEqual([{
       id: 'draft-1',
       profileId: 'profile-1',
       kind: 'meal',
@@ -209,5 +209,23 @@ describe('chat storage safety', () => {
       ],
     }]);
     expect(message).not.toHaveProperty('agentDrafts');
+  });
+
+  it('clears invalid imported thread metadata while retaining opaque message extensions', () => {
+    const [thread] = normalizeChatBackup({ threads: [{
+      id: 't_safe', projectName: 42, pinned: 'true',
+      discussionPersonas: [{ id: 'default', name: 'Only one' }],
+      discussionOriginalPersonality: '__proto__',
+      forkedFromThreadId: '<unsafe>', forkedFromMessageIndex: 4,
+      agentThreadId: 'orphan', agentModel: 'orphan',
+    }] }).threads;
+    for (const field of ['projectName', 'pinned', 'discussionPersonas',
+      'discussionOriginalPersonality', 'forkedFromThreadId', 'forkedFromMessageIndex',
+      'agentThreadId', 'agentModel']) expect(thread).not.toHaveProperty(field);
+
+    const context = { extension: 'opaque' };
+    const [message] = normalizeChatMessages([{ role: 42, content: 'Kept', context }]);
+    expect(message).toMatchObject({ role: 42, content: 'Kept' });
+    expect(message!.context).toBe(context);
   });
 });

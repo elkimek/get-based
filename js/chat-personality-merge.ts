@@ -1,36 +1,29 @@
-// @ts-check
-// chat-personality-merge.js — deterministic per-persona sync conflict handling.
+export type CustomPersonality = ReturnType<typeof normalizeCustomPersonalities>[number];
+
+// chat-personality-merge.ts — deterministic per-persona sync conflict handling.
 
 import {
   normalizeCustomPersonalities,
   normalizeCustomPersonalityTombstones,
 } from './chat-storage-safety.js';
 
-/** @param {any} personality */
-export function customPersonalityUpdatedAtMs(personality) {
+export function customPersonalityUpdatedAtMs(personality: CustomPersonality | null | undefined) {
   const parsed = Date.parse(personality?.updatedAt || personality?.createdAt || '');
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-/** @param {any} left @param {any} right */
-function pickNewerPersona(left, right) {
+function pickNewerPersona(left: CustomPersonality, right: CustomPersonality) {
   const leftTs = customPersonalityUpdatedAtMs(left);
   const rightTs = customPersonalityUpdatedAtMs(right);
   if (rightTs !== leftTs) return rightTs > leftTs ? right : left;
   return JSON.stringify(right).localeCompare(JSON.stringify(left)) > 0 ? right : left;
 }
 
-/**
- * @param {any[]} localPersonalities
- * @param {any[]} incomingPersonalities
- * @param {any} localTombstones
- * @param {any} incomingTombstones
- */
 export function mergeCustomPersonalityState(
-  localPersonalities,
-  incomingPersonalities,
-  localTombstones,
-  incomingTombstones,
+  localPersonalities: unknown,
+  incomingPersonalities: unknown,
+  localTombstones: unknown,
+  incomingTombstones: unknown,
 ) {
   const local = normalizeCustomPersonalities(localPersonalities);
   const incoming = normalizeCustomPersonalities(incomingPersonalities);
@@ -45,7 +38,7 @@ export function mergeCustomPersonalityState(
     byId.set(personality.id, previous ? pickNewerPersona(previous, personality) : personality);
   }
 
-  const personalities = [];
+  const personalities: CustomPersonality[] = [];
   for (const personality of byId.values()) {
     const deletedAt = Number(deleted[personality.id]) || 0;
     if (deletedAt > 0 && deletedAt >= customPersonalityUpdatedAtMs(personality)) continue;

@@ -1,3 +1,4 @@
+import type { StoredChatMessage } from '../js/chat-storage-safety.js';
 import type { HealthGoal, Biometrics, Diagnoses, DietContext, ExerciseContext, SleepContext, StressContext, LoveLifeContext, EnvironmentContext, LightCircadianContext } from './profile-context-data.js';
 import type { ChatMessage, ChatThread } from './chat-data.js';
 import type { NutritionMeal } from './nutrition-data.js';
@@ -101,7 +102,7 @@ export interface AppState {
   profiles: any[] | null;
   profileSex: string | null;
   profileDob: string | null;
-  chatHistory: ChatMessage[];
+  chatHistory: Array<ChatMessage | StoredChatMessage>;
   chatThreads: ChatThread[];
   currentThreadId: string | null;
   currentChatPersonality: string;

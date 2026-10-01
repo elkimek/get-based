@@ -1,47 +1,51 @@
-// @ts-check
-// sync-subscriptions.js - Evolu subscriptions and poll safety net.
+import { configureRuntimeDependencies, type RuntimeDependencyUpdates } from './runtime-callbacks.js';
+import type { SyncStatus } from './sync-state.js';
 
-/** @typedef {{ subscribeQuery: (query: any) => (callback: () => void) => any, getQueryRows: (query: any) => any[], subscribeError: (callback: (error: any) => void) => any }} SyncEvoluLike */
+interface SubscriptionRow { id?: unknown; profileId?: unknown; syncedAt?: unknown; updatedAt?: unknown; isDeleted?: unknown; }
+export interface SyncSubscriptionClient {
+  subscribeQuery: (query: unknown) => (callback: () => void) => () => void;
+  getQueryRows: (query: unknown) => readonly SubscriptionRow[] | null | undefined;
+  subscribeError: (callback: (error: { type?: string } | null | undefined) => void) => () => void;
+}
+interface SyncSubscriptionDependencies {
+  isSyncing: () => unknown;
+  isPulling: () => unknown;
+  isSyncEnabled: () => unknown;
+  isStartupSettling: () => unknown;
+  onSyncReceived: () => unknown;
+  checkRelayConnection: () => Promise<unknown>;
+  updateSyncStatus: (partial: Partial<SyncStatus>) => unknown;
+  debug: (...args: unknown[]) => unknown;
+}
+interface SubscriptionBindings {
+  evolu?: SyncSubscriptionClient | null;
+  profileQuery?: unknown;
+  tombstoneQuery?: unknown;
+  itemRowQuery?: unknown;
+}
 
-/** @type {() => boolean} */
-let _isSyncing = () => false;
-/** @type {() => boolean} */
-let _isPulling = () => false;
-let _isSyncEnabled = () => true;
-let _isStartupSettling = () => false;
-/** @type {() => any} */
-let _onSyncReceived = () => {};
-/** @type {() => Promise<boolean>} */
-let _checkRelayConnection = async () => false;
-/** @type {(partial: any) => void} */
-let _updateSyncStatus = () => {};
-/** @type {(...args: any[]) => void} */
-let _debug = () => {};
+// sync-subscriptions.ts - Evolu subscriptions and poll safety net.
 
-/** @type {number | null} */
-let _pollInterval = null;
-/** @type {number | null} */
-let _relayProbeInterval = null;
-/** @type {number | null} */
-let _pendingReceiveTimer = null;
+const subscriptionDependencies: SyncSubscriptionDependencies = {
+  isSyncing: () => false,
+  isPulling: () => false,
+  isSyncEnabled: () => true,
+  isStartupSettling: () => false,
+  onSyncReceived: () => {},
+  checkRelayConnection: async () => false,
+  updateSyncStatus: () => {},
+  debug: () => {},
+};
+
+let _pollInterval: ReturnType<typeof setInterval> | null = null;
+let _relayProbeInterval: ReturnType<typeof setInterval> | null = null;
+let _pendingReceiveTimer: ReturnType<typeof setTimeout> | null = null;
 let _lastPollProfileSignature = '';
 let _lastPollTombstoneSignature = '';
 let _subscriptionFireCount = 0;
-/** @type {Array<() => void>} */
-let _unsubscribeCallbacks = [];
+let _unsubscribeCallbacks: Array<() => void> = [];
 const RECEIVE_RETRY_MS = 500;
 
-/** @param {{
- *   isSyncing?: () => boolean,
- *   isPulling?: () => boolean,
- *   isSyncEnabled?: () => boolean,
- *   isStartupSettling?: () => boolean,
- *   onSyncReceived?: () => any,
- *   checkRelayConnection?: () => Promise<boolean>,
- *   updateSyncStatus?: (partial: any) => void,
- *   debug?: (...args: any[]) => void,
- * }} [deps]
- */
 export function configureSyncSubscriptions({
   isSyncing,
   isPulling,
@@ -51,15 +55,11 @@ export function configureSyncSubscriptions({
   checkRelayConnection,
   updateSyncStatus,
   debug,
-} = {}) {
-  if (typeof isSyncing === 'function') _isSyncing = isSyncing;
-  if (typeof isPulling === 'function') _isPulling = isPulling;
-  if (typeof isSyncEnabled === 'function') _isSyncEnabled = isSyncEnabled;
-  if (typeof isStartupSettling === 'function') _isStartupSettling = isStartupSettling;
-  if (typeof onSyncReceived === 'function') _onSyncReceived = onSyncReceived;
-  if (typeof checkRelayConnection === 'function') _checkRelayConnection = checkRelayConnection;
-  if (typeof updateSyncStatus === 'function') _updateSyncStatus = updateSyncStatus;
-  if (typeof debug === 'function') _debug = debug;
+}: RuntimeDependencyUpdates<SyncSubscriptionDependencies> = {}) {
+  configureRuntimeDependencies(subscriptionDependencies, {
+    isSyncing, isPulling, isSyncEnabled, isStartupSettling, onSyncReceived,
+    checkRelayConnection, updateSyncStatus, debug,
+  });
 }
 
 export function getSyncSubscriptionFireCount() {
@@ -94,43 +94,39 @@ function canReceiveSync() {
   // controlled pull after that burst becomes quiet; applying an intermediate
   // itemRow snapshot here could otherwise turn a temporary omission into a
   // durable tombstone during startup reconciliation.
-  return _isSyncEnabled() && !_isSyncing() && !_isPulling() && !_isStartupSettling();
+  return (0, subscriptionDependencies.isSyncEnabled)() && !(0, subscriptionDependencies.isSyncing)() && !(0, subscriptionDependencies.isPulling)() && !(0, subscriptionDependencies.isStartupSettling)();
 }
 
-/** @param {string} [reason] */
 function requestSyncReceive(reason = 'subscription') {
-  if (!_isSyncEnabled()) {
-    _debug(`${reason}: receive ignored while sync is paused or off`);
+  if (!(0, subscriptionDependencies.isSyncEnabled)()) {
+    (0, subscriptionDependencies.debug)(`${reason}: receive ignored while sync is paused or off`);
     return;
   }
   if (canReceiveSync()) {
-    _onSyncReceived();
+    (0, subscriptionDependencies.onSyncReceived)();
     return;
   }
   if (_pendingReceiveTimer) return;
-  _debug(`${reason}: receive deferred, syncing=${_isSyncing()}, pulling=${_isPulling()}, startupSettling=${_isStartupSettling()}`);
+  (0, subscriptionDependencies.debug)(`${reason}: receive deferred, syncing=${(0, subscriptionDependencies.isSyncing)()}, pulling=${(0, subscriptionDependencies.isPulling)()}, startupSettling=${(0, subscriptionDependencies.isStartupSettling)()}`);
   _pendingReceiveTimer = setTimeout(() => {
     _pendingReceiveTimer = null;
     requestSyncReceive('deferred receive');
   }, RECEIVE_RETRY_MS);
 }
 
-/** @param {any[] | null | undefined} rows */
-function rowsSignature(rows) {
+function rowsSignature(rows: readonly SubscriptionRow[] | null | undefined) {
   return (rows || [])
     .map(row => `${row?.id || ''}:${row?.profileId || ''}:${row?.syncedAt || ''}:${row?.updatedAt || ''}:${row?.isDeleted || 0}`)
     .sort()
     .join('|');
 }
 
-/** @param {string} reason */
-function noteQuerySubscriptionActivity(reason) {
+function noteQuerySubscriptionActivity(reason: string) {
   _subscriptionFireCount++;
-  _debug(`${reason} fired (#${_subscriptionFireCount}), syncing=${_isSyncing()}, pulling=${_isPulling()}`);
+  (0, subscriptionDependencies.debug)(`${reason} fired (#${_subscriptionFireCount}), syncing=${(0, subscriptionDependencies.isSyncing)()}, pulling=${(0, subscriptionDependencies.isPulling)()}`);
 }
 
-/** @param {{ evolu?: SyncEvoluLike | null, profileQuery?: any, tombstoneQuery?: any, itemRowQuery?: any }} [deps] */
-export function bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, itemRowQuery } = {}) {
+export function bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, itemRowQuery }: SubscriptionBindings = {}) {
   if (!evolu || !profileQuery || !tombstoneQuery || !itemRowQuery) return;
 
   clearSyncSubscriptionTimers();
@@ -170,7 +166,7 @@ export function bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, ite
     const profileSignature = rowsSignature(rows);
     const tombstoneSignature = rowsSignature(tombstones);
     if (profileSignature !== _lastPollProfileSignature || tombstoneSignature !== _lastPollTombstoneSignature) {
-      _debug(`poll: row signature changed, triggering onSyncReceived`);
+      (0, subscriptionDependencies.debug)(`poll: row signature changed, triggering onSyncReceived`);
       _lastPollProfileSignature = profileSignature;
       _lastPollTombstoneSignature = tombstoneSignature;
       requestSyncReceive('poll');
@@ -181,24 +177,23 @@ export function bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, ite
   _unsubscribeCallbacks.push(evolu.subscribeError((error) => {
     if (!error) return;
     const type = error?.type || 'unknown';
-    _debug('Evolu error:', type);
+    (0, subscriptionDependencies.debug)('Evolu error:', type);
     if (type.startsWith('WebSocket')) {
-      _updateSyncStatus({ relay: 'unreachable', lastError: { type, message: type, at: Date.now() } });
+      (0, subscriptionDependencies.updateSyncStatus)({ relay: 'unreachable', lastError: { type, message: type, at: Date.now() } });
     }
   }));
 }
 
 async function runRelayProbe() {
-  const ok = await _checkRelayConnection();
-  _updateSyncStatus({ relay: ok ? 'connected' : 'unreachable', relayCheckedAt: Date.now() });
+  const ok = await (0, subscriptionDependencies.checkRelayConnection)();
+  (0, subscriptionDependencies.updateSyncStatus)({ relay: ok ? 'connected' : 'unreachable', relayCheckedAt: Date.now() });
 }
 
-/** @param {any} error */
-function onRelayProbeError(error) {
-  const message = error?.message || String(error);
+function onRelayProbeError(error: unknown) {
+  const message = (error as { message?: string } | null | undefined)?.message || String(error);
   const at = Date.now();
-  _debug('relay probe error:', error);
-  _updateSyncStatus({
+  (0, subscriptionDependencies.debug)('relay probe error:', error);
+  (0, subscriptionDependencies.updateSyncStatus)({
     relay: 'unreachable',
     relayCheckedAt: at,
     lastError: { type: 'RelayProbeError', message, at },

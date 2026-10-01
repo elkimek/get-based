@@ -26,8 +26,8 @@ describe('custom personality sync merge', () => {
   it('keeps the newer edit for each persona independent of merge direction', () => {
     const oldItem = { id: 'custom_shared', name: 'Old', updatedAt: '2026-08-08T10:00:00Z' };
     const newItem = { id: 'custom_shared', name: 'New', updatedAt: '2026-08-08T10:02:00Z' };
-    expect(mergeCustomPersonalityState([oldItem], [newItem], {}, {}).personalities[0].name).toBe('New');
-    expect(mergeCustomPersonalityState([newItem], [oldItem], {}, {}).personalities[0].name).toBe('New');
+    expect(mergeCustomPersonalityState([oldItem], [newItem], {}, {}).personalities[0]!.name).toBe('New');
+    expect(mergeCustomPersonalityState([newItem], [oldItem], {}, {}).personalities[0]!.name).toBe('New');
   });
 
   it('uses tombstones to prevent stale resurrection and permits a newer recreation', () => {
@@ -39,7 +39,7 @@ describe('custom personality sync merge', () => {
 
     const recreated = { ...stale, name: 'Recreated', updatedAt: '2026-08-08T10:02:00Z' };
     const restored = mergeCustomPersonalityState([], [recreated], { custom_gone: deletedAt }, {});
-    expect(restored.personalities[0].name).toBe('Recreated');
+    expect(restored.personalities[0]!.name).toBe('Recreated');
     expect(restored.tombstones).not.toHaveProperty('custom_gone');
   });
 });

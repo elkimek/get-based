@@ -14,10 +14,10 @@ afterEach(() => {
 describe('paused sync subscriptions', () => {
   it('ignores inbound query notifications while paused and unsubscribes cleanly', () => {
     let enabled = false;
-    const callbacks = [];
-    const unsubscriptions = [];
+    const callbacks: Array<(error?: { type?: string } | null) => void> = [];
+    const unsubscriptions: ReturnType<typeof vi.fn>[] = [];
     const onSyncReceived = vi.fn();
-    const subscribe = callback => {
+    const subscribe = (callback: (error?: { type?: string } | null) => void) => {
       callbacks.push(callback);
       const unsubscribe = vi.fn();
       unsubscriptions.push(unsubscribe);
@@ -44,13 +44,13 @@ describe('paused sync subscriptions', () => {
       itemRowQuery: { name: 'item' },
     });
 
-    callbacks[0]();
-    callbacks[1]();
-    callbacks[2]();
+    callbacks[0]!();
+    callbacks[1]!();
+    callbacks[2]!();
     expect(onSyncReceived).not.toHaveBeenCalled();
 
     enabled = true;
-    callbacks[0]();
+    callbacks[0]!();
     expect(onSyncReceived).toHaveBeenCalledOnce();
 
     clearSyncSubscriptionTimers();
@@ -61,10 +61,10 @@ describe('paused sync subscriptions', () => {
   it('counts every query notification and defers pulls while the startup replica settles', () => {
     vi.useFakeTimers();
     let settling = true;
-    const callbacks = [];
+    const callbacks: Array<(error?: { type?: string } | null) => void> = [];
     const onSyncReceived = vi.fn();
     const evolu = {
-      subscribeQuery: () => callback => {
+      subscribeQuery: () => (callback: () => void) => {
         callbacks.push(callback);
         return () => {};
       },

@@ -1,29 +1,33 @@
-// @ts-check
-// sync-relay-health.js - relay quota, self-service, and push persistence checks
+import { configureRuntimeDependencies, type RuntimeDependencyUpdates } from './runtime-callbacks.js';
+
+export interface SyncAppOwner { id?: string | number; writeKey?: BufferSource; }
+export interface RelayQuotaEstimate { bytes: number; cap: number; pct: number; level: 'green' | 'amber' | 'red'; }
+export interface RelaySnapshot { storedBytes: number; messageCount: number; lastWriteToken: string | null; at: number; }
+export interface RelayHealthVerdict { verdict: 'unknown' | 'healthy' | 'wedged'; at: number; reason: string | null; }
+interface RelayHealthDependencies {
+  getAppOwner: () => SyncAppOwner | null;
+  getSyncRelay: () => string | null;
+  onQuotaThreshold: ((quota: RelayQuotaEstimate) => void) | null;
+}
+interface OwnerStorageReply { storedBytes?: unknown; quotaBytes?: unknown; messageCount?: unknown; lastWriteToken?: unknown; }
+interface CompactOwnerReply { afterStoredBytes?: unknown; error?: unknown; [key: string]: unknown; }
+
+// sync-relay-health.ts - relay quota, self-service, and push persistence checks
 
 import { getErrorMessage, getErrorName } from './caught-error.js';
 
-/** @typedef {{ id?: string | number, writeKey?: BufferSource }} SyncAppOwner */
-/** @typedef {{ bytes: number, cap: number, pct: number, level: string }} RelayQuotaEstimate */
-/** @typedef {{ storedBytes: number, messageCount: number, lastWriteToken: string | null, at: number }} RelaySnapshot */
-/** @typedef {{ verdict: string, at: number, reason: string | null }} RelayHealthVerdict */
+const relayHealthDependencies: RelayHealthDependencies = {
+  getAppOwner: () => null,
+  getSyncRelay: () => null,
+  onQuotaThreshold: null,
+};
 
-/** @type {() => SyncAppOwner | null} */
-let _getAppOwner = () => null;
-/** @type {() => string | null} */
-let _getSyncRelay = () => null;
-/** @type {((quota: RelayQuotaEstimate) => void) | null} */
-let _onQuotaThreshold = null;
-
-/** @param {{ getAppOwner?: () => SyncAppOwner | null, getSyncRelay?: () => string | null, onQuotaThreshold?: (quota: RelayQuotaEstimate) => void }} [deps] */
-export function configureRelayHealth({ getAppOwner, getSyncRelay, onQuotaThreshold } = {}) {
-  if (typeof getAppOwner === 'function') _getAppOwner = getAppOwner;
-  if (typeof getSyncRelay === 'function') _getSyncRelay = getSyncRelay;
-  if (typeof onQuotaThreshold === 'function') _onQuotaThreshold = onQuotaThreshold;
+export function configureRelayHealth({ getAppOwner, getSyncRelay, onQuotaThreshold }: RuntimeDependencyUpdates<RelayHealthDependencies> = {}) {
+  configureRuntimeDependencies(relayHealthDependencies, { getAppOwner, getSyncRelay, onQuotaThreshold });
 }
 
 function _appOwner() {
-  try { return _getAppOwner?.() || null; } catch { return null; }
+  try { return (0, relayHealthDependencies.getAppOwner)?.() || null; } catch { return null; }
 }
 
 // Compatibility fallback for relays that predate /self/owner-storage.
@@ -44,8 +48,7 @@ function _ownerQuotaKey() {
   return `labcharts-relay-cap-${owner}`;
 }
 
-/** @param {number | string | null | undefined} bytes */
-export function trackPushBytes(bytes) {
+export function trackPushBytes(bytes: unknown) {
   const safeBytes = _coerceRelayBytes(bytes);
   if (!_appOwner()?.id || safeBytes <= 0) return;
   try {
@@ -56,8 +59,7 @@ export function trackPushBytes(bytes) {
   _maybeWarnQuotaThreshold();
 }
 
-/** @returns {RelayQuotaEstimate | null} */
-export function getRelayQuotaEstimate() {
+export function getRelayQuotaEstimate(): RelayQuotaEstimate | null {
   if (!_appOwner()?.id) return null;
   let bytes = 0;
   let cap = RELAY_OWNER_QUOTA_BYTES;
@@ -67,7 +69,7 @@ export function getRelayQuotaEstimate() {
     if (cachedCap > 0) cap = cachedCap;
   } catch {}
   const pct = Math.min(100, Math.round((bytes / cap) * 100));
-  let level = 'green';
+  let level: RelayQuotaEstimate['level'] = 'green';
   if (pct >= 95) level = 'red';
   else if (pct >= 80) level = 'amber';
   return { bytes, cap, pct, level };
@@ -82,10 +84,7 @@ export function resetRelayQuotaEstimate() {
   } catch { return false; }
 }
 
-/** @param {number | string | null | undefined} bytes
- * @param {number | string | null | undefined} [quotaBytes]
- */
-function _setRelayQuotaBytes(bytes, quotaBytes) {
+function _setRelayQuotaBytes(bytes: unknown, quotaBytes?: unknown) {
   const safeBytes = _coerceRelayBytes(bytes);
   if (!_appOwner()?.id || safeBytes < 0) return;
   const safeQuota = _coerceRelayBytes(quotaBytes);
@@ -96,8 +95,7 @@ function _setRelayQuotaBytes(bytes, quotaBytes) {
   _maybeWarnQuotaThreshold();
 }
 
-/** @param {number | string | null | undefined} bytes */
-function _coerceRelayBytes(bytes) {
+function _coerceRelayBytes(bytes: unknown) {
   const value = Number(bytes);
   return Number.isFinite(value) && value >= 0 ? Math.round(value) : -1;
 }
@@ -114,7 +112,7 @@ function _getSelfBaseUrl() {
       return override.replace(/\/+$/, '');
     }
   } catch {}
-  const wss = _getSyncRelay();
+  const wss = (0, relayHealthDependencies.getSyncRelay)();
   if (typeof wss !== 'string' || !wss) return null;
   try {
     const u = new URL(wss);
@@ -131,8 +129,7 @@ function _getSelfBaseUrl() {
   } catch { return null; }
 }
 
-/** @param {string} context */
-async function _signSelfRequest(context) {
+async function _signSelfRequest(context: string) {
   const owner = _appOwner();
   if (!owner?.id || !owner?.writeKey) {
     throw new Error('owner_not_ready');
@@ -172,7 +169,7 @@ export async function fetchOwnerStorageFromRelay() {
       clearTimeout(timer);
     }
     if (!r.ok) return null;
-    const body = await r.json();
+    const body = await r.json() as OwnerStorageReply | null;
     if (!body || typeof body.storedBytes !== 'number') return null;
     _setRelayQuotaBytes(body.storedBytes, body.quotaBytes);
     return {
@@ -184,12 +181,11 @@ export async function fetchOwnerStorageFromRelay() {
   } catch { return null; }
 }
 
-let _ownerStorageRefreshTimer = null;
+let _ownerStorageRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Debounce authoritative probes across a burst of profile/itemRow commits.
 // Push accounting remains immediate; the probe replaces that estimate with
 // the relay's actual storedBytes and configured quota shortly afterward.
-/** @param {number} [delayMs] */
 export function scheduleOwnerStorageRefresh(delayMs = 1500) {
   if (!_appOwner()?.id) return;
   if (_ownerStorageRefreshTimer !== null) return;
@@ -199,10 +195,8 @@ export function scheduleOwnerStorageRefresh(delayMs = 1500) {
   }, Math.max(0, delayMs));
 }
 
-/** @type {RelaySnapshot | null} */
-let _lastRelaySnapshot = null;
-/** @type {RelayHealthVerdict} */
-let _lastVerifyVerdict = { verdict: 'unknown', at: 0, reason: null };
+let _lastRelaySnapshot: RelaySnapshot | null = null;
+let _lastVerifyVerdict: RelayHealthVerdict = { verdict: 'unknown', at: 0, reason: null };
 let _lastPushCommittedAt = 0;
 
 export function getRelayHealthVerdict() {
@@ -290,10 +284,10 @@ export async function compactOwnerSelfServe() {
   } finally { clearTimeout(timer); }
   if (!r.ok) {
     let detail = '';
-    try { const body = await r.json(); detail = body?.error ? ` (${body.error})` : ''; } catch {}
+    try { const body = await r.json() as CompactOwnerReply | null; detail = body?.error ? ` (${body.error})` : ''; } catch {}
     throw new Error(`Relay returned ${r.status}${detail}`);
   }
-  const body = await r.json();
+  const body = await r.json() as CompactOwnerReply | null;
   if (typeof body?.afterStoredBytes === 'number') {
     _setRelayQuotaBytes(body.afterStoredBytes);
   } else {
@@ -319,9 +313,9 @@ function _maybeWarnQuotaThreshold() {
     }
     const prev = localStorage.getItem(key) || '';
     const want = q.level;
-    const order = { '': 0, green: 0, amber: 1, red: 2 };
-    if (order[want] <= order[prev]) return;
+    const order: Record<string, number> = { '': 0, green: 0, amber: 1, red: 2 };
+    if (order[want]! <= order[prev]!) return;
     localStorage.setItem(key, want);
-    _onQuotaThreshold?.(q);
+    (0, relayHealthDependencies.onQuotaThreshold)?.(q);
   } catch {}
 }

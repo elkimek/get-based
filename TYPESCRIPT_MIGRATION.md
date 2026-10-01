@@ -417,6 +417,21 @@ and restore suites are native tests with their executable assertions unchanged;
 new regressions cover callback snapshots, failed configuration and independent
 timer cancellation. The core is included in the offline dependency graph.
 
+
+Subscription/poll scheduling, rebroadcast admission, hash-key cleanup, relay
+quota/signing/health and Diagnose action dependencies now use strict native
+TypeScript. Three dependency contexts share the existing update operation while
+retaining inherited getters, invalid overrides, callback order and unbound calls.
+Persisted chat validation and thread/persona conflict handling declare normalized
+fields separately from opaque extensions. App state accepts both authored and
+normalized messages; context display keeps its original reader behavior.
+Thirteen optional-metadata cleanup branches share one typed operation. Four
+original chat/subscription/quota suites are native with their original fixtures
+and assertions preserved; a new regression covers stale metadata deletion and
+opaque extension retention. A 1,210-scenario comparison matched the original
+normalizer's values, errors and property-read order. Deletion clocks, clear/edit
+conflicts, missing-body recovery, caps and storage ordering remain unchanged.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

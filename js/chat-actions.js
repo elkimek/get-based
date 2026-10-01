@@ -85,6 +85,9 @@ function containChatMessageEvent(event) {
   if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
 }
 
+/** Context is an unvalidated extension; this view describes the existing display reader.
+ * @typedef {Array<{ label: unknown, detail?: unknown }>} ChatContextDisplay
+ */
 const pendingDraftActions = new WeakSet();
 
 async function updateAgentDraft(actionEl, apply) {
@@ -331,12 +334,12 @@ export function buildActionBar(msgIndex) {
   html += buildForkActions(msgIndex);
   html += '</div>';
 
-  if (msg.context && msg.context.length > 0) {
+  if (msg.context && /** @type {ChatContextDisplay} */ (msg.context).length > 0) {
     html += `<button type="button" class="chat-context-toggle" aria-expanded="false" aria-controls="chat-ctx-details-${msgIndex}" ${chatMessageActionAttrs('toggle-context-details', { index: msgIndex })}>`;
-    html += `<span class="chat-toggle-arrow" id="chat-ctx-arrow-${msgIndex}">\u25B8</span> Context provided (${msg.context.length} area${msg.context.length !== 1 ? 's' : ''})`;
+    html += `<span class="chat-toggle-arrow" id="chat-ctx-arrow-${msgIndex}">\u25B8</span> Context provided (${/** @type {ChatContextDisplay} */ (msg.context).length} area${/** @type {ChatContextDisplay} */ (msg.context).length !== 1 ? 's' : ''})`;
     html += '</button>';
     html += `<div class="chat-context-details" id="chat-ctx-details-${msgIndex}" style="display:none">`;
-    for (const area of msg.context) {
+    for (const area of /** @type {ChatContextDisplay} */ (msg.context)) {
       html += `<span class="chat-context-item">\u2713 ${escapeHTML(area.label)}${area.detail ? ' (' + escapeHTML(area.detail) + ')' : ''}</span>`;
     }
     html += '</div>';
