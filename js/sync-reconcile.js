@@ -80,9 +80,9 @@ export async function reconcileLocalStorageWithEvolu() {
   let localChatDiffer = false;
   try {
     const parsed = await parseSyncPayload(existing.dataJson);
-    remoteImported = parsed?.importedData || null;
+    remoteImported = /** @type {Parameters<typeof localHasRowsRemoteLacks>[1]} */ (parsed?.importedData || null);
     localChatDiffer = await chatDataNeedsRebroadcast(state.currentProfile, parsed?.chatData);
-    const remoteAiSettings = parsed?.aiSettings || {};
+    const remoteAiSettings = /** @type {Record<string, unknown>} */ (parsed?.aiSettings || {});
     const localAiSettings = await collectAISettings();
     localAiSettingsDiffer = Object.entries(localAiSettings)
       .some(([key, val]) => remoteAiSettings?.[key] !== val);

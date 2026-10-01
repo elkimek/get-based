@@ -1,4 +1,5 @@
-// @ts-check
+import type { MapIdentityConfig } from './sync-delta-surface-config.js';
+import type { DeltaItemRow, DeltaImportedData } from './sync-delta-row-codec.js';
 // sync-delta-map-merge.js - Pull-side keyed-map row overlay helper.
 
 import { getAt, setAt } from './data-merge.js';
@@ -9,14 +10,16 @@ import {
 } from './sync-delta-registry.js';
 import { decodeRowPayload } from './sync-delta-row-codec.js';
 
-export async function mergeMapRowsIntoImported(imported, arrayName, arrRows) {
+export async function mergeMapRowsIntoImported(
+  imported: DeltaImportedData, arrayName: string, arrRows: readonly DeltaItemRow[],
+) {
   // Dotted-path support: same getAt/setAt walk as the array path.
   // Required for entries like `genetics.snps` so per-key CRDT lands
   // in the nested object instead of clobbering it as a top-level
   // sibling. Defaults to flat for the common case.
   const isNestedMap = arrayName.includes('.');
-  const readMap = () => isNestedMap ? getAt(imported, arrayName) : imported[arrayName];
-  const writeMap = (v) => isNestedMap ? setAt(imported, arrayName, v) : (imported[arrayName] = v);
+  const readMap = () => (isNestedMap ? getAt(imported, arrayName) : imported[arrayName]) as Record<string, unknown> | null | undefined;
+  const writeMap = (v: unknown) => isNestedMap ? setAt(imported, arrayName, v) : (imported[arrayName] = v);
   let curMap = readMap();
   if (!curMap || typeof curMap !== 'object' || Array.isArray(curMap)) {
     // Object.create(null) (no Object.prototype chain) so a relay-controlled
@@ -26,20 +29,19 @@ export async function mergeMapRowsIntoImported(imported, arrayName, arrRows) {
     writeMap(curMap);
   }
   // Same keyIdFn as push so synth-id maps verify correctly.
-  /** @type {Partial<import('./sync-delta-surface-config.js').MapIdentityConfig>} */
-  const mapCfg = DELTA_MAP_CONFIG[arrayName] || {};
-  const rawKeyIdFn = typeof mapCfg.keyIdFn === 'function'
+  const mapCfg: Partial<MapIdentityConfig> = DELTA_MAP_CONFIG[arrayName] || {};
+  const rawKeyIdFn: (k: unknown) => string | null = typeof mapCfg.keyIdFn === 'function'
     ? mapCfg.keyIdFn
-    : (k => (_isAllowlistSafeId(k) ? k : null));
-  const keyIdFn = (k) => { const id = rawKeyIdFn(k); return _isAllowlistSafeId(id) ? id : null; };
+    : (k => (_isAllowlistSafeId(k) ? k as string : null));
+  const keyIdFn = (k: unknown) => { const id = rawKeyIdFn(k); return _isAllowlistSafeId(id) ? id : null; };
   // Build a tombstone-key set first so deletes can find the original raw
   // key in the current map even when the row only carries the synth itemId.
-  const liveByRawKey = new Map(); // rawKey -> { v, syncedAt }
-  const tombItemIds = new Set();
+  const liveByRawKey = new Map<string, { v: unknown; syncedAt: string }>(); // rawKey -> { v, syncedAt }
+  const tombItemIds = new Set<string>();
   for (const row of arrRows) {
     if (row.isDeleted) { tombItemIds.add(row.itemId); continue; }
     try {
-      const parsed = await decodeRowPayload(row);
+      const parsed = await decodeRowPayload(row) as Record<string, unknown> | null;
       if (!parsed || typeof parsed !== 'object' || typeof parsed.k !== 'string') continue;
       // Defence-in-depth: re-derive itemId from the payload's claimed k and
       // verify it matches the row column. Catches a relay swapping payloads
@@ -59,10 +61,10 @@ export async function mergeMapRowsIntoImported(imported, arrayName, arrRows) {
   // in the tombstone set. Skips entries that just happened to be re-inserted
   // in this batch (liveByRawKey wins via overwrite).
   if (tombItemIds.size > 0) {
-    for (const k of Object.keys(curMap)) {
+    for (const k of Object.keys(curMap!)) {
       if (liveByRawKey.has(k)) continue;
       const synth = keyIdFn(k);
-      if (synth && tombItemIds.has(synth)) delete curMap[k];
+      if (synth && tombItemIds.has(synth)) delete curMap![k];
     }
   }
   // Apply live entries under their original key (preserves `:` for
@@ -70,7 +72,7 @@ export async function mergeMapRowsIntoImported(imported, arrayName, arrRows) {
   // raw `parsed.k` is what we write to curMap.
   for (const [rawKey, entry] of liveByRawKey) {
     if (_isProtoPollutionKey(rawKey)) continue;
-    curMap[rawKey] = entry.v;
+    curMap![rawKey] = entry.v;
   }
   recordPullDeltaSurface(arrayName, { live: liveByRawKey.size, tombstones: tombItemIds.size });
 }

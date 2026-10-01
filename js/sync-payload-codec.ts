@@ -1,8 +1,14 @@
-// @ts-check
 // sync-payload-codec.js - Pure gzip, base64, and parsing helpers for sync wire payloads.
 
-/** @param {string} str */
-export async function _gzipString(str) {
+export interface ParsedSyncPayload {
+  importedData: unknown;
+  profile: unknown;
+  aiSettings: unknown;
+  chatData: unknown;
+  displayPrefs: unknown;
+}
+
+export async function _gzipString(str: string) {
   const stream = new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'));
   const buf = await new Response(stream).arrayBuffer();
   return new Uint8Array(buf);
@@ -11,10 +17,7 @@ export async function _gzipString(str) {
 // v1.7.12 audit fix: decompression-bomb defence for per-row payloads.
 export const _PER_ROW_DECOMPRESSED_CAP_BYTES = 1024 * 1024;
 
-/** @param {BlobPart} bytes
- * @param {number} [maxBytes]
- */
-export async function _gunzipToStringCapped(bytes, maxBytes = _PER_ROW_DECOMPRESSED_CAP_BYTES) {
+export async function _gunzipToStringCapped(bytes: BlobPart, maxBytes = _PER_ROW_DECOMPRESSED_CAP_BYTES) {
   const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
   const reader = stream.getReader();
   const decoder = new TextDecoder();
@@ -35,8 +38,7 @@ export async function _gunzipToStringCapped(bytes, maxBytes = _PER_ROW_DECOMPRES
   return out;
 }
 
-/** @param {Uint8Array} bytes */
-export function _bytesToBase64(bytes) {
+export function _bytesToBase64(bytes: Uint8Array) {
   let s = '';
   const CHUNK = 0x8000;
   for (let i = 0; i < bytes.length; i += CHUNK) {
@@ -45,8 +47,7 @@ export function _bytesToBase64(bytes) {
   return btoa(s);
 }
 
-/** @param {string} b64 */
-export function _base64ToBytes(b64) {
+export function _base64ToBytes(b64: string) {
   const s = atob(b64);
   const out = new Uint8Array(s.length);
   for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
@@ -56,8 +57,7 @@ export function _base64ToBytes(b64) {
 // 5 MB cap. Normal payloads are well under 1 MB, so this is already generous.
 export const MAX_SYNC_PAYLOAD_BYTES = 5_000_000;
 
-/** @param {string} dataJson */
-export async function parseSyncPayload(dataJson) {
+export async function parseSyncPayload(dataJson: unknown): Promise<ParsedSyncPayload> {
   if (typeof dataJson !== 'string' || dataJson.length > MAX_SYNC_PAYLOAD_BYTES) {
     throw new Error('Invalid sync payload: bad type or too large');
   }
@@ -70,17 +70,16 @@ export async function parseSyncPayload(dataJson) {
     const bytes = _base64ToBytes(b64);
     inner = await _gunzipToStringCapped(bytes, MAX_SYNC_PAYLOAD_BYTES);
   }
-  const parsed = JSON.parse(inner);
+  const parsed = JSON.parse(inner) as Record<string, unknown> | null;
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error('Invalid sync payload');
   }
   // Defence-in-depth: strip wearableConnections from any incoming blob,
   // regardless of producer version.
-  /** @param {any} imp */
-  function safe(imp) {
+    function safe(imp: unknown) {
     if (!imp || typeof imp !== 'object') return imp;
     if ('wearableConnections' in imp) {
-      const { wearableConnections: _drop, ...rest } = imp;
+      const { wearableConnections: _drop, ...rest } = imp as Record<string, unknown>;
       return rest;
     }
     return imp;

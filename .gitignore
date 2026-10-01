@@ -317,3 +317,17 @@ deploy/profile-share/data/
 # Native recommendation bridge, genotype lookup and shared timers
 /js/recommendations-runtime.js
 /js/dna-genotype.js
+
+# Native sync wire codec, row overlays and query/observability graph
+/js/sync-payload-codec.js
+/js/sync-delta-row-codec.js
+/js/sync-delta-pull-snapshot.js
+/js/sync-delta-telemetry.js
+/js/sync-delta-observability-context.js
+/js/sync-delta-readiness.js
+/js/sync-delta-observability.js
+/js/sync-delta-array-merge.js
+/js/sync-delta-map-merge.js
+/js/sync-delta-scalar-merge.js
+/js/sync-delta-merge-shapes.js
+/js/sync-delta-planner-context.js

@@ -42,7 +42,7 @@ export async function recoverSyncPullRows(rawRows) {
     let effectiveProfileId = row.profileId || null;
     if (!effectiveProfileId) {
       try {
-        const parsed = await parseSyncPayload(row.dataJson || '{}');
+        const parsed = /** @type {{ profile?: { id?: unknown } | null }} */ (await parseSyncPayload(row.dataJson || '{}'));
         const candidate = parsed?.profile?.id;
         if (isSafeProfileId(candidate)) effectiveProfileId = candidate;
       } catch {

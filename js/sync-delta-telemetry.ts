@@ -1,24 +1,42 @@
-// @ts-check
 // sync-delta-telemetry.js - Phase 1 delta push/pull telemetry.
 
 import { getPullDeltaSnapshot } from './sync-delta-pull-snapshot.js';
 
+export interface DeltaOperation {
+  kind: string;
+  args?: { payload?: string | null; [key: string]: unknown };
+}
+export interface DeltaTelemetryPlan {
+  arrayName: string;
+  plan: { ops: readonly DeltaOperation[] };
+}
+export interface DeltaPushTelemetry {
+  at: number;
+  blobBytes: number;
+  totalDeltaBytes: number;
+  totalOps: number;
+  perArray: Record<string, { ins: number; upd: number; tom: number; bytes: number }>;
+}
+interface DeltaTelemetryJournal { pushes: DeltaPushTelemetry[] }
+
 const _DELTA_TELEMETRY_CAP = 50; // last-N pushes; ~6 KB at p99 entry size
 
-function _deltaTelemetryKey(profileId) {
+function _deltaTelemetryKey(profileId: unknown) {
   return `labcharts-${profileId}-delta-telemetry`;
 }
 
-function _readDeltaTelemetry(profileId) {
+function _readDeltaTelemetry(profileId: unknown): DeltaTelemetryJournal {
   try {
     const raw = localStorage.getItem(_deltaTelemetryKey(profileId));
     return raw ? (JSON.parse(raw) || { pushes: [] }) : { pushes: [] };
   } catch { return { pushes: [] }; }
 }
 
-export function _recordPushTelemetry(profileId, blobBytes, deltaPlans) {
+export function _recordPushTelemetry(
+  profileId: unknown, blobBytes: number, deltaPlans: readonly DeltaTelemetryPlan[],
+) {
   if (!profileId) return;
-  const perArray = {};
+  const perArray: DeltaPushTelemetry['perArray'] = {};
   let totalDeltaBytes = 0;
   let totalOps = 0;
   for (const { arrayName, plan } of deltaPlans) {
@@ -42,7 +60,7 @@ export function _recordPushTelemetry(profileId, blobBytes, deltaPlans) {
   } catch {}
 }
 
-export function getDeltaTelemetry(profileId) {
+export function getDeltaTelemetry(profileId: unknown) {
   if (!profileId) return null;
   const t = _readDeltaTelemetry(profileId);
   const pushes = Array.isArray(t.pushes) ? t.pushes : [];
@@ -60,7 +78,7 @@ export function getDeltaTelemetry(profileId) {
   };
 }
 
-export function resetDeltaTelemetry(profileId) {
+export function resetDeltaTelemetry(profileId: unknown) {
   if (!profileId) return false;
   try { localStorage.removeItem(_deltaTelemetryKey(profileId)); return true; } catch { return false; }
 }

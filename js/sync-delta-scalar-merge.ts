@@ -1,14 +1,16 @@
-// @ts-check
+import type { DeltaItemRow, DeltaImportedData } from './sync-delta-row-codec.js';
 // sync-delta-scalar-merge.js - Pull-side scalar row overlay helper.
 
 import { setAt } from './data-merge.js';
 import { recordPullDeltaSurface } from './sync-delta-observability.js';
 import { decodeRowPayload } from './sync-delta-row-codec.js';
 
-/** @param {{ hasBaseline?: boolean, baselineSyncedAt?: number }} [options] */
-export async function mergeScalarRowsIntoImported(imported, arrayName, arrRows, options = {}) {
+export async function mergeScalarRowsIntoImported(
+  imported: DeltaImportedData, arrayName: string, arrRows: readonly DeltaItemRow[],
+  options: { hasBaseline?: boolean | undefined; baselineSyncedAt?: number | undefined } = {},
+) {
   let live = 0, tombs = 0;
-  let chosen = null;
+  let chosen: { v?: unknown } | null = null;
   let chosenAt = '';
   let tombstoned = false;
   let tombstonedAt = '';
@@ -23,7 +25,7 @@ export async function mergeScalarRowsIntoImported(imported, arrayName, arrRows, 
       continue;
     }
     try {
-      const parsed = await decodeRowPayload(row);
+      const parsed = await decodeRowPayload(row) as { v?: unknown } | null;
       if (!parsed || typeof parsed !== 'object') continue;
       // Prefer the most-recently-synced live row when multiples exist.
       const ts = String(row.syncedAt || '');
@@ -75,7 +77,7 @@ export async function mergeScalarRowsIntoImported(imported, arrayName, arrRows, 
         && imported.genetics && typeof imported.genetics === 'object'
         && imported.genetics.snps && typeof imported.genetics.snps === 'object') {
       const localSnps = imported.genetics.snps;
-      imported.genetics = chosen.v;
+      imported.genetics = chosen.v as DeltaImportedData['genetics'];
       if (imported.genetics && typeof imported.genetics === 'object') {
         imported.genetics.snps = localSnps;
       }

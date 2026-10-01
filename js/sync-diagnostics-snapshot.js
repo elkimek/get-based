@@ -86,13 +86,13 @@ export async function getEvoluDiagnostics() {
         // the diagnose modal (raw JSON.parse on `GZ|v1|<base64>` throws).
         if (typeof row.dataJson === 'string' && row.dataJson.startsWith('GZ|v1|')) format = 'gz';
         const parsed = await parseSyncPayload(row.dataJson || '{}');
-        const imp = parsed?.importedData || parsed;
+        const imp = /** @type {Record<string, unknown>} */ (parsed?.importedData || parsed);
         sun = Array.isArray(imp?.sunSessions) ? imp.sunSessions.length : 0;
         dev = Array.isArray(imp?.lightDevices) ? imp.lightDevices.length : 0;
         // Fallback when the row's profileId column is empty (seen in the
         // wild on cross-device replication of older inserts) - read it
         // from the payload's nested profile object.
-        payloadProfileId = parsed?.profile?.id || null;
+        payloadProfileId = (/** @type {{ id?: unknown } | null | undefined} */ (parsed?.profile))?.id || null;
       } catch {
         // v1.7.15 audit fix: previously silent. The diagnose modal would
         // render the row as 0/0 - indistinguishable from a real empty row.

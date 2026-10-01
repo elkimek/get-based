@@ -1,4 +1,6 @@
-// @ts-check
+import type { LabEntryDraft } from './lab-entry.js';
+import type { ArrayIdentityConfig, SyncIdentityRecord } from './sync-delta-surface-config.js';
+import type { DeltaItemRow, DeltaImportedData } from './sync-delta-row-codec.js';
 // sync-delta-array-merge.js - Pull-side array row overlay helper.
 
 import {
@@ -16,26 +18,27 @@ import {
 } from './sync-delta-registry.js';
 import { decodeRowPayload } from './sync-delta-row-codec.js';
 
-function parseRowSyncedAt(row) {
-  const ts = Date.parse(row?.syncedAt || '');
+function parseRowSyncedAt(row: DeltaItemRow | null | undefined) {
+  const ts = Date.parse((row?.syncedAt || '') as string);
   return Number.isFinite(ts) ? ts : 0;
 }
 
-/** @param {{ baselineItems?: any[], baselineSyncedAt?: number }} [options] */
-export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows, options = {}) {
+export async function mergeArrayRowsIntoImported(
+  imported: DeltaImportedData, arrayName: string, arrRows: readonly DeltaItemRow[],
+  options: { baselineItems?: readonly unknown[] | undefined; baselineSyncedAt?: number | undefined } = {},
+) {
   // Read/write the target array: flat top-level for most surfaces, dotted-path
   // walk via getAt/setAt for nested ones (e.g. `lightEnvironment.rooms`).
   const isNested = arrayName.includes('.');
-  const readArr = () => isNested ? getAt(imported, arrayName) : imported[arrayName];
-  const writeArr = (v) => isNested ? setAt(imported, arrayName, v) : (imported[arrayName] = v);
+  const readArr = () => (isNested ? getAt(imported, arrayName) : imported[arrayName]) as Record<string, unknown>[];
+  const writeArr = (v: unknown) => isNested ? setAt(imported, arrayName, v) : (imported[arrayName] = v);
   let curArr = readArr();
   if (!Array.isArray(curArr)) { curArr = []; writeArr(curArr); }
   // Same itemId derivation push side used. For arrays without `.id`
   // (composite-keyed like changeHistory) this matches the synth-id path.
-  /** @type {Partial<import('./sync-delta-surface-config.js').ArrayIdentityConfig>} */
-  const cfg = DELTA_ARRAY_CONFIG[arrayName] || {};
-  const rawItemIdFn = typeof cfg.itemIdFn === 'function' ? cfg.itemIdFn : (it => (it && typeof it.id === 'string' ? it.id : null));
-  const itemIdFn = (it) => { const id = rawItemIdFn(it); return _isAllowlistSafeId(id) ? id : null; };
+  const cfg: Partial<ArrayIdentityConfig> = DELTA_ARRAY_CONFIG[arrayName] || {};
+  const rawItemIdFn: (it: SyncIdentityRecord) => string | null = typeof cfg.itemIdFn === 'function' ? cfg.itemIdFn : (it => (it && typeof it.id === 'string' ? it.id : null));
+  const itemIdFn = (it: unknown) => { const id = rawItemIdFn(it as SyncIdentityRecord); return _isAllowlistSafeId(id) ? id : null; };
   const baselineSyncedAt = Number.isFinite(options.baselineSyncedAt)
     ? Number(options.baselineSyncedAt)
     : 0;
@@ -47,14 +50,14 @@ export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows, o
   // Seed the tombstone set with the local blob's `_deleted[path]` list before
   // walking relay rows. Trust local user intent while Phase 1 dual-write can
   // still race peer pushes.
-  const localTombs = new Set();
-  const remoteTombs = new Map();
+  const localTombs = new Set<string>();
+  const remoteTombs = new Map<string, number>();
   try {
     const localDel = imported && imported._deleted;
     const localList = localDel && Array.isArray(localDel[arrayName]) ? localDel[arrayName] : null;
     if (localList) for (const id of localList) if (typeof id === 'string') localTombs.add(id);
   } catch {}
-  const liveById = new Map(); // itemId -> { item, ts, syncedAt }
+  const liveById = new Map<string, { item: Record<string, unknown>; ts: number; syncedAt: string }>(); // itemId -> { item, ts, syncedAt }
   for (const row of arrRows) {
     if (row.isDeleted) {
       const prev = remoteTombs.get(row.itemId) || 0;
@@ -62,7 +65,7 @@ export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows, o
       continue;
     }
     try {
-      const item = await decodeRowPayload(row);
+      const item = await decodeRowPayload(row) as Record<string, unknown> | null;
       // Verify the payload's derived itemId matches the row column.
       if (item && typeof item === 'object' && itemIdFn(item) === row.itemId) {
         // Cross-device races can produce multiple itemRow rows for the same
@@ -77,7 +80,7 @@ export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows, o
       }
     } catch {}
   }
-  const tombstoneWinsOverItem = (itemId, item) => {
+  const tombstoneWinsOverItem = (itemId: string | null, item: unknown) => {
     if (!itemId) return false;
     if (localTombs.has(itemId)) return true;
     const tombAt = remoteTombs.get(itemId);
@@ -85,7 +88,7 @@ export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows, o
     const canonicalBlobAt = baselineItemIds.has(itemId) ? baselineSyncedAt : 0;
     return tombAt >= Math.max(pickTimestamp(item), canonicalBlobAt);
   };
-  const tombstoneWinsOverLiveRow = (itemId, entry) => {
+  const tombstoneWinsOverLiveRow = (itemId: string | null, entry: { ts: number; syncedAt: string } | null | undefined) => {
     if (!itemId) return false;
     if (localTombs.has(itemId)) return true;
     const tombAt = remoteTombs.get(itemId);
@@ -98,7 +101,7 @@ export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows, o
   let nextArr = curArr.filter(it => !tombstoneWinsOverItem(itemIdFn(it), it));
   // Dedup `nextArr` by itemIdFn before the liveById overlay. Keep the first
   // occurrence; the live overlay below will replace it with relay-authority.
-  const seen = new Map();
+  const seen = new Map<string, number>();
   nextArr = nextArr.filter((it, i) => {
     const k = itemIdFn(it);
     if (k == null) return true; // unkeyed items kept (legacy/no-id case)
@@ -120,7 +123,7 @@ export async function mergeArrayRowsIntoImported(imported, arrayName, arrRows, o
     const idx = seen.get(itemId);
     if (idx !== undefined) {
       if (arrayName === 'entries') {
-        nextArr[idx] = mergeLabEntry(nextArr[idx], item);
+        nextArr[idx] = mergeLabEntry(nextArr[idx] as LabEntryDraft, item as LabEntryDraft);
         continue;
       }
       // The blob merge may already contain a fresh local edit that has not

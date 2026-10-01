@@ -123,7 +123,7 @@ function rowClock(row) {
 async function recoverRowProfileId(row) {
   if (typeof row?.profileId === 'string' && /^[a-zA-Z0-9_-]+$/.test(row.profileId)) return row.profileId;
   try {
-    const parsed = await parseSyncPayload(row?.dataJson || '{}');
+    const parsed = /** @type {{ profile?: { id?: unknown } | null }} */ (await parseSyncPayload(row?.dataJson || '{}'));
     const candidate = parsed?.profile?.id;
     return typeof candidate === 'string' && /^[a-zA-Z0-9_-]+$/.test(candidate) ? candidate : '';
   } catch { return ''; }

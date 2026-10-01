@@ -61,7 +61,7 @@ export async function _planKeyedMapDelta(profileId, mapName, mapObj) {
           if (typeof DecompressionStream === 'undefined') continue;
           json = await _gunzipToStringCapped(_base64ToBytes(json.slice(6)));
         }
-        const parsed = JSON.parse(json);
+        const parsed = JSON.parse(/** @type {string} */ (json));
         if (!parsed || typeof parsed !== 'object' || typeof parsed.k !== 'string') continue;
         if (keyIdFn(parsed.k) !== row.itemId) continue;
         if (_isProtoPollutionKey(parsed.k)) continue;

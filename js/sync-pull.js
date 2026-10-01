@@ -374,7 +374,7 @@ async function receiveSync() {
 
         if (await mergePulledProfile(profileId, profile)) {
           profilesChanged = true;
-          dbg('Merged profile:', profileId, profile.name);
+          dbg('Merged profile:', profileId, (/** @type {{ name?: unknown }} */ (profile)).name);
         }
 
         // Apply chat data and display preferences

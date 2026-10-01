@@ -379,6 +379,17 @@ Ignored emitted siblings are absent; retained authored JS/TS siblings both count
 Pure marker identity tests use a separate filename from their retained profile
 integration suite. A regression verifies that both authored suites are measured.
 
+Sync wire compression/parsing, row decoding, array/map/scalar overlays, pull
+snapshots, push telemetry and cutover readiness now use strict native TypeScript.
+Decoded fields remain opaque until existing reader/merge guards apply; nominal
+row, operation and telemetry contracts describe the actual stored shapes. Planner
+and observability dependency access share independently scoped provider slots
+with the original override, receiver, getter and exception behavior. The original
+streaming decompression-cap fixtures/assertions are a native suite; remaining
+sync integration cases are unchanged. Tombstones, freshness ties, provenance,
+prototype-pollution checks, nested-path handling, caps and wire versions retain
+their executable behavior.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,
