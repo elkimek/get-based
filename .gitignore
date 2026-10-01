@@ -459,3 +459,5 @@ deploy/profile-share/data/
 /js/supplement-quality.js
 
 /js/therapy-correlations.js
+
+/tests/helpers/nutrition-browser-fixtures.js

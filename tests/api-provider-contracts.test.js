@@ -1,4 +1,4 @@
-import { lmStudioModel } from './helpers/lmstudio-fixtures.js';
+import { largeLocalImportOptions, lmStudioInferenceFixture, lmStudioLoadFixture, lmStudioModel } from './helpers/lmstudio-fixtures.js';
 import { jsonResponse } from './helpers/http-responses.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -912,14 +912,7 @@ describe('AI provider request contracts', () => {
       return jsonResponse({}, { status: 404 });
     });
 
-    const result = await callClaudeAPI(baseChatOptions({
-      system: 'Extract the report as JSON.',
-      messages: [{ role: 'user', content: 'x'.repeat(25_000) }],
-      maxTokens: 4096,
-      jsonMode: true,
-      reasoningEffort: 'none',
-      preferNativeContext: true,
-    }));
+    const result = await callClaudeAPI(baseChatOptions(largeLocalImportOptions()));
 
     // Unload the small-context instance, reload at the planned context, then
     // generate over the streaming-capable compatible endpoint.
@@ -969,14 +962,7 @@ describe('AI provider request contracts', () => {
       return jsonResponse({}, { status: 404 });
     });
 
-    const result = await callClaudeAPI(baseChatOptions({
-      system: 'Extract the report as JSON.',
-      messages: [{ role: 'user', content: 'x'.repeat(25_000) }],
-      maxTokens: 4096,
-      jsonMode: true,
-      reasoningEffort: 'none',
-      preferNativeContext: true,
-    }));
+    const result = await callClaudeAPI(baseChatOptions(largeLocalImportOptions()));
 
     const chatCall = globalThis.fetch.mock.calls.find(([url, init]) => init?.method === 'POST' && String(url).endsWith('/api/v1/chat'));
     const body = JSON.parse(chatCall[1].body);
@@ -1023,14 +1009,7 @@ describe('AI provider request contracts', () => {
       return jsonResponse({}, { status: 404 });
     });
 
-    await expect(callClaudeAPI(baseChatOptions({
-      system: 'Extract the report as JSON.',
-      messages: [{ role: 'user', content: 'x'.repeat(25_000) }],
-      maxTokens: 4096,
-      jsonMode: true,
-      reasoningEffort: 'none',
-      preferNativeContext: true,
-    }))).rejects.toThrow(/could not verify its active context length/i);
+    await expect(callClaudeAPI(baseChatOptions(largeLocalImportOptions()))).rejects.toThrow(/could not verify its active context length/i);
     expect(loaded).toBe(true);
   });
 
@@ -1049,12 +1028,7 @@ describe('AI provider request contracts', () => {
       if (String(url).endsWith('/api/v1/models')) return jsonResponse(modelsBody(true));
       return jsonResponse({}, { status: 404 });
     });
-    await expect(loadLMStudioModelWithContext({
-      baseUrl: 'http://lmstudio.test',
-      model: 'big-model',
-      modelDetail: loadedDetail,
-      contextLength: 16384,
-    })).rejects.toThrow(/could not unload big-model/i);
+    await expect(loadLMStudioModelWithContext(lmStudioLoadFixture(loadedDetail))).rejects.toThrow(/could not unload big-model/i);
 
     // Unload fails but the instance is already gone (stale state) → proceed.
     globalThis.fetch = vi.fn(async (url, init = {}) => {
@@ -1063,12 +1037,7 @@ describe('AI provider request contracts', () => {
       if (String(url).endsWith('/api/v1/models')) return jsonResponse(modelsBody(false));
       return jsonResponse({}, { status: 404 });
     });
-    await expect(loadLMStudioModelWithContext({
-      baseUrl: 'http://lmstudio.test',
-      model: 'big-model',
-      modelDetail: loadedDetail,
-      contextLength: 16384,
-    })).resolves.toBe(true);
+    await expect(loadLMStudioModelWithContext(lmStudioLoadFixture(loadedDetail))).resolves.toBe(true);
 
     // Unload fails and discovery cannot verify residency → fail closed.
     globalThis.fetch = vi.fn(async (url, init = {}) => {
@@ -1077,12 +1046,7 @@ describe('AI provider request contracts', () => {
       if (String(url).endsWith('/api/v1/models')) return jsonResponse({ error: 'unavailable' }, { status: 503 });
       return jsonResponse({}, { status: 404 });
     });
-    await expect(loadLMStudioModelWithContext({
-      baseUrl: 'http://lmstudio.test',
-      model: 'big-model',
-      modelDetail: loadedDetail,
-      contextLength: 16384,
-    })).rejects.toThrow(/could not verify that big-model was unloaded/i);
+    await expect(loadLMStudioModelWithContext(lmStudioLoadFixture(loadedDetail))).rejects.toThrow(/could not verify that big-model was unloaded/i);
   });
 
   it('flags a native LM Studio response that stopped at the output or context cap as truncated', async () => {
@@ -1090,35 +1054,14 @@ describe('AI provider request contracts', () => {
       output: [{ type: 'message', content: '{"markers":[{"rawName":"Potas' }],
       stats: { input_tokens: 11057, total_output_tokens: 1854 },
     }));
-    const result = await inferWithLMStudioNativeProvider({
-      config: { url: 'http://lmstudio.test', apiKey: '' },
-      model: 'local-model',
-      opts: { messages: [{ role: 'user', content: 'extract' }], requestTimeoutMs: 1000 },
-      plan: { maxTokens: 4096 },
-      contextLength: 12912,
-      modelDetail: null,
-    });
+    const result = await inferWithLMStudioNativeProvider(lmStudioInferenceFixture(4096, 12912));
     expect(result.truncated).toBe(true);
     expect(result.finishReason).toBe('length');
 
-    const atOutputCap = await inferWithLMStudioNativeProvider({
-      config: { url: 'http://lmstudio.test', apiKey: '' },
-      model: 'local-model',
-      opts: { messages: [{ role: 'user', content: 'extract' }], requestTimeoutMs: 1000 },
-      plan: { maxTokens: 1854 },
-      contextLength: 65536,
-      modelDetail: null,
-    });
+    const atOutputCap = await inferWithLMStudioNativeProvider(lmStudioInferenceFixture(1854, 65536));
     expect(atOutputCap.truncated).toBe(true);
 
-    const finishedNaturally = await inferWithLMStudioNativeProvider({
-      config: { url: 'http://lmstudio.test', apiKey: '' },
-      model: 'local-model',
-      opts: { messages: [{ role: 'user', content: 'extract' }], requestTimeoutMs: 1000 },
-      plan: { maxTokens: 4096 },
-      contextLength: 65536,
-      modelDetail: null,
-    });
+    const finishedNaturally = await inferWithLMStudioNativeProvider(lmStudioInferenceFixture(4096, 65536));
     expect(finishedNaturally.truncated).toBe(false);
     expect(finishedNaturally.finishReason).toBe(null);
   });
@@ -1158,14 +1101,7 @@ describe('AI provider request contracts', () => {
       return jsonResponse({}, { status: 404 });
     });
 
-    const result = await callClaudeAPI(baseChatOptions({
-      system: 'Extract the report as JSON.',
-      messages: [{ role: 'user', content: 'x'.repeat(25_000) }],
-      maxTokens: 4096,
-      jsonMode: true,
-      reasoningEffort: 'none',
-      preferNativeContext: true,
-    }));
+    const result = await callClaudeAPI(baseChatOptions(largeLocalImportOptions()));
 
     // Nothing was loaded, so no unload call precedes the load.
     expect(lifecycle.map(([action]) => action)).toEqual(['load', 'chat']);
@@ -1194,14 +1130,7 @@ describe('AI provider request contracts', () => {
       return jsonResponse({}, { status: 404 });
     });
 
-    await expect(callClaudeAPI(baseChatOptions({
-      system: 'Extract the report as JSON.',
-      messages: [{ role: 'user', content: 'x'.repeat(25_000) }],
-      maxTokens: 4096,
-      jsonMode: true,
-      reasoningEffort: 'none',
-      preferNativeContext: true,
-    }))).rejects.toThrow(/context is too small.*supports up to 8,192/i);
+    await expect(callClaudeAPI(baseChatOptions(largeLocalImportOptions()))).rejects.toThrow(/context is too small.*supports up to 8,192/i);
     expect(globalThis.fetch.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
   });
 

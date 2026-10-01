@@ -9,3 +9,7 @@ export function jsonResponse(body: unknown, init: JsonResponseOptions = {}) {
     headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
   });
 }
+
+export function stoppedChatCompletion(content: string) {
+  return { choices: [{ message: { content }, finish_reason: 'stop' }] };
+}

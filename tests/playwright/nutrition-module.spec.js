@@ -1,3 +1,5 @@
+import { mealEditorViolations } from '../helpers/nutrition-browser-fixtures.js';
+import { stoppedChatCompletion } from '../helpers/http-responses.js';
 import { expect, test } from './coverage-fixture.js';
 import { createRequire } from 'node:module';
 
@@ -58,30 +60,25 @@ test('Venice meal analysis supports a correction-aware recalculation with visibl
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        choices: [{
-          message: {
-            content: JSON.stringify({
-              result: {
-                meal_name: isCorrection ? 'Breaded fried Edam plate' : 'Chicken rice bowl',
-                food_items: isCorrection ? [
-                  { food: 'Breaded fried Edam cheese', estimated_weight_g: 180, confidence_score: 91, nutrition: { calories: 600, protein: 30, carbs: 20, total_fat: 40, fiber: 1 } },
-                  { food: 'French fries', grams: 220, confidence: 0.84, nutrition: { calories: 400, protein: 7, carbs: 75, total_fat: 10, fiber: 8 } },
-                  { food: 'Tartar sauce', grams: 45, confidence: 0.72, nutrition: { calories: 210, protein: 5, carbs: 17, total_fat: 6, fiber: 1 } },
-                  { food: 'Beer', grams: 500, confidence: 0.95, nutrition: { calories: 0, protein: 0, carbs: 0, total_fat: 0, fiber: 0 } },
-                ] : [
-                  { food: 'Chicken breast', estimated_grams: '145 g', confidence_score: 82 },
-                  { food: 'Rice', grams: 190, confidence: 0.76 },
-                ],
-                nutrition_totals: isCorrection
-                  ? { calories: 1210, protein: 42, carbs: 112, total_fat: 56, sodium: 1640, alcohol: 20 }
-                  : { calories: 640, protein: 48, carbs: 71, total_fat: 18, sodium: 720 },
-                confidence_score: isCorrection ? 83 : 74,
-                uncertainties: [isCorrection ? 'Cheese and frying oil quantities are estimated.' : 'Sauce quantity is partly hidden.'],
-              },
-            }),
+        ...stoppedChatCompletion(JSON.stringify({
+          result: {
+            meal_name: isCorrection ? 'Breaded fried Edam plate' : 'Chicken rice bowl',
+            food_items: isCorrection ? [
+              { food: 'Breaded fried Edam cheese', estimated_weight_g: 180, confidence_score: 91, nutrition: { calories: 600, protein: 30, carbs: 20, total_fat: 40, fiber: 1 } },
+              { food: 'French fries', grams: 220, confidence: 0.84, nutrition: { calories: 400, protein: 7, carbs: 75, total_fat: 10, fiber: 8 } },
+              { food: 'Tartar sauce', grams: 45, confidence: 0.72, nutrition: { calories: 210, protein: 5, carbs: 17, total_fat: 6, fiber: 1 } },
+              { food: 'Beer', grams: 500, confidence: 0.95, nutrition: { calories: 0, protein: 0, carbs: 0, total_fat: 0, fiber: 0 } },
+            ] : [
+              { food: 'Chicken breast', estimated_grams: '145 g', confidence_score: 82 },
+              { food: 'Rice', grams: 190, confidence: 0.76 },
+            ],
+            nutrition_totals: isCorrection
+              ? { calories: 1210, protein: 42, carbs: 112, total_fat: 56, sodium: 1640, alcohol: 20 }
+              : { calories: 640, protein: 48, carbs: 71, total_fat: 18, sodium: 720 },
+            confidence_score: isCorrection ? 83 : 74,
+            uncertainties: [isCorrection ? 'Cheese and frying oil quantities are estimated.' : 'Sauce quantity is partly hidden.'],
           },
-          finish_reason: 'stop',
-        }],
+        })),
         usage: { prompt_tokens: 120, completion_tokens: 80 },
       }),
     });
@@ -321,31 +318,26 @@ test('fresh photo analysis keeps complete nutrient profiles model-owned', async 
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        choices: [{
-          message: {
-            content: JSON.stringify({
-              mealName: 'Grilled chicken and rice',
-              components: [
-                {
-                  name: 'Chicken breast, grilled without sauce, skin not eaten',
-                  quantityG: 150,
-                  confidence: 0.9,
-                  nutrients: { energyKcal: 264, proteinG: 44.4, carbohydrateG: 0, fatG: 8.18, fiberG: 0, sodiumMg: 111, potassiumMg: 384, vitaminDMcg: 1 },
-                },
-                {
-                  name: 'Rice, white, cooked, as ingredient',
-                  quantityG: 180,
-                  confidence: 0.86,
-                  nutrients: { energyKcal: 234, proteinG: 4.57, carbohydrateG: 52.2, fatG: 0.67, fiberG: 0, sodiumMg: 2, potassiumMg: 216, vitaminDMcg: 0 },
-                },
-              ],
-              nutrients: { energyKcal: 498, proteinG: 48.97, carbohydrateG: 52.2, fatG: 8.85, fiberG: 0, sodiumMg: 113, potassiumMg: 600, calciumMg: 30, ironMg: 2.9, magnesiumMg: 61.8, vitaminDMcg: 1, vitaminB12Mcg: 0.5 },
+        ...stoppedChatCompletion(JSON.stringify({
+          mealName: 'Grilled chicken and rice',
+          components: [
+            {
+              name: 'Chicken breast, grilled without sauce, skin not eaten',
+              quantityG: 150,
+              confidence: 0.9,
+              nutrients: { energyKcal: 264, proteinG: 44.4, carbohydrateG: 0, fatG: 8.18, fiberG: 0, sodiumMg: 111, potassiumMg: 384, vitaminDMcg: 1 },
+            },
+            {
+              name: 'Rice, white, cooked, as ingredient',
+              quantityG: 180,
               confidence: 0.86,
-              assumptions: [], warnings: [], label: null,
-            }),
-          },
-          finish_reason: 'stop',
-        }],
+              nutrients: { energyKcal: 234, proteinG: 4.57, carbohydrateG: 52.2, fatG: 0.67, fiberG: 0, sodiumMg: 2, potassiumMg: 216, vitaminDMcg: 0 },
+            },
+          ],
+          nutrients: { energyKcal: 498, proteinG: 48.97, carbohydrateG: 52.2, fatG: 8.85, fiberG: 0, sodiumMg: 113, potassiumMg: 600, calciumMg: 30, ironMg: 2.9, magnesiumMg: 61.8, vitaminDMcg: 1, vitaminB12Mcg: 0.5 },
+          confidence: 0.86,
+          assumptions: [], warnings: [], label: null,
+        })),
         usage: { prompt_tokens: 100, completion_tokens: 60 },
       }),
     });
@@ -446,39 +438,34 @@ test('Debug mode compares meal models against local reference data and can use t
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          choices: [{
-            message: {
-              content: JSON.stringify({
-                mealName: close ? 'Fried Edam cheese with fries and tartar sauce' : 'Fish and chips with beer',
-                components: close ? [
-                  { name: 'Breaded Edam cheese', quantityG: 180, confidence: 0.74 },
-                  { name: 'French fries', quantityG: 220, confidence: 0.8 },
-                  { name: 'Tartar sauce', quantityG: 45, confidence: 0.65 },
-                ] : [
-                  { name: 'Fried cod', quantityG: 260, confidence: 0.98 },
-                  { name: 'French fries', quantityG: 310, confidence: 0.98 },
-                  { name: 'Beer', quantityG: 500, confidence: 0.99 },
-                  { name: 'House-made lemon and caper tartar sauce', quantityG: 55, confidence: 0.91 },
-                  { name: 'Fresh parsley garnish with lemon zest', quantityG: 8, confidence: 0.84 },
-                  { name: 'Malted vinegar and sea salt seasoning', quantityG: 6, confidence: 0.88 },
-                ],
-                nutrients: close
-                  ? {
-                      energyKcal: 1100, proteinG: 40, carbohydrateG: 101, fatG: 60,
-                      sugarG: 6, saturatedFatG: 18, sodiumMg: 1350,
-                      potassiumMg: 900, calciumMg: 750, vitaminCMg: 12,
-                    }
-                  : {
-                      energyKcal: 1690, proteinG: 62, carbohydrateG: 178, fatG: 78,
-                      sugarG: 25, saturatedFatG: 12, sodiumMg: 2200,
-                      potassiumMg: 1400, calciumMg: 200, vitaminCMg: 4,
-                    },
-                confidence: close ? 0.71 : 0.98,
-                assumptions: [], warnings: [], label: null,
-              }),
-            },
-            finish_reason: 'stop',
-          }],
+          ...stoppedChatCompletion(JSON.stringify({
+            mealName: close ? 'Fried Edam cheese with fries and tartar sauce' : 'Fish and chips with beer',
+            components: close ? [
+              { name: 'Breaded Edam cheese', quantityG: 180, confidence: 0.74 },
+              { name: 'French fries', quantityG: 220, confidence: 0.8 },
+              { name: 'Tartar sauce', quantityG: 45, confidence: 0.65 },
+            ] : [
+              { name: 'Fried cod', quantityG: 260, confidence: 0.98 },
+              { name: 'French fries', quantityG: 310, confidence: 0.98 },
+              { name: 'Beer', quantityG: 500, confidence: 0.99 },
+              { name: 'House-made lemon and caper tartar sauce', quantityG: 55, confidence: 0.91 },
+              { name: 'Fresh parsley garnish with lemon zest', quantityG: 8, confidence: 0.84 },
+              { name: 'Malted vinegar and sea salt seasoning', quantityG: 6, confidence: 0.88 },
+            ],
+            nutrients: close
+              ? {
+                  energyKcal: 1100, proteinG: 40, carbohydrateG: 101, fatG: 60,
+                  sugarG: 6, saturatedFatG: 18, sodiumMg: 1350,
+                  potassiumMg: 900, calciumMg: 750, vitaminCMg: 12,
+                }
+              : {
+                  energyKcal: 1690, proteinG: 62, carbohydrateG: 178, fatG: 78,
+                  sugarG: 25, saturatedFatG: 12, sodiumMg: 2200,
+                  potassiumMg: 1400, calciumMg: 200, vitaminCMg: 4,
+                },
+            confidence: close ? 0.71 : 0.98,
+            assumptions: [], warnings: [], label: null,
+          })),
           usage: { prompt_tokens: 100, completion_tokens: 50 },
         }),
       });
@@ -817,20 +804,15 @@ test('a running benchmark can close, cancel one model, and never cross profiles'
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          choices: [{
-            message: {
-              content: JSON.stringify({
-                mealName: body.model.includes('openai') ? 'OpenAI background meal' : 'Anthropic background meal',
-                components: [{ name: 'Test meal', quantityG: 250, confidence: 0.75 }],
-                nutrients: { energyKcal: 500, proteinG: 30, carbohydrateG: 50, fatG: 20 },
-                confidence: 0.75,
-                assumptions: [],
-                warnings: [],
-                label: null,
-              }),
-            },
-            finish_reason: 'stop',
-          }],
+          ...stoppedChatCompletion(JSON.stringify({
+            mealName: body.model.includes('openai') ? 'OpenAI background meal' : 'Anthropic background meal',
+            components: [{ name: 'Test meal', quantityG: 250, confidence: 0.75 }],
+            nutrients: { energyKcal: 500, proteinG: 30, carbohydrateG: 50, fatG: 20 },
+            confidence: 0.75,
+            assumptions: [],
+            warnings: [],
+            label: null,
+          })),
           usage: { prompt_tokens: 40, completion_tokens: 20 },
         }),
       });
@@ -914,20 +896,15 @@ test('model comparison preselects and routes models from separate configured pro
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        choices: [{
-          message: {
-            content: JSON.stringify({
-              mealName: `${provider} meal`,
-              components: [{ name: 'Meal', quantityG: 320, confidence: 0.8 }],
-              nutrients: { energyKcal: 540, proteinG: 32, carbohydrateG: 58, fatG: 20 },
-              confidence: 0.8,
-              assumptions: [],
-              warnings: [],
-              label: null,
-            }),
-          },
-          finish_reason: 'stop',
-        }],
+        ...stoppedChatCompletion(JSON.stringify({
+          mealName: `${provider} meal`,
+          components: [{ name: 'Meal', quantityG: 320, confidence: 0.8 }],
+          nutrients: { energyKcal: 540, proteinG: 32, carbohydrateG: 58, fatG: 20 },
+          confidence: 0.8,
+          assumptions: [],
+          warnings: [],
+          label: null,
+        })),
         usage: { prompt_tokens: 80, completion_tokens: 40 },
       }),
     });
@@ -1142,40 +1119,13 @@ test('the meal editor, nutrition setup, and drink logger have no automated WCAG 
   await page.locator('#nutrition-fatG').fill('40');
   await expect(page.locator('#nutrition-fuel-preview')).toBeVisible();
   await page.addScriptTag({ path: axeScriptPath });
-  const editorViolations = await page.evaluate(async () => {
-    const result = await window.axe.run(document.querySelector('#detail-modal'), {
-      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] },
-    });
-    return result.violations.map(violation => ({
-      id: violation.id,
-      impact: violation.impact,
-      nodes: violation.nodes.map(node => ({ target: node.target, html: node.html, message: node.failureSummary })),
-    }));
-  });
+  const editorViolations = await mealEditorViolations(page);
   expect(editorViolations).toEqual([]);
   await page.evaluate(async () => (await import('/js/nutrition.js')).openNutritionTargets());
-  const targetViolations = await page.evaluate(async () => {
-    const result = await window.axe.run(document.querySelector('#detail-modal'), {
-      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] },
-    });
-    return result.violations.map(violation => ({
-      id: violation.id,
-      impact: violation.impact,
-      nodes: violation.nodes.map(node => ({ target: node.target, html: node.html, message: node.failureSummary })),
-    }));
-  });
+  const targetViolations = await mealEditorViolations(page);
   expect(targetViolations).toEqual([]);
   await page.evaluate(async () => (await import('/js/nutrition.js')).openFluidLog());
-  const drinkViolations = await page.evaluate(async () => {
-    const result = await window.axe.run(document.querySelector('#detail-modal'), {
-      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] },
-    });
-    return result.violations.map(violation => ({
-      id: violation.id,
-      impact: violation.impact,
-      nodes: violation.nodes.map(node => ({ target: node.target, html: node.html, message: node.failureSummary })),
-    }));
-  });
+  const drinkViolations = await mealEditorViolations(page);
   expect(drinkViolations).toEqual([]);
 });
 
@@ -1187,31 +1137,26 @@ test('nutrition label mode scales the scanned values to the amount eaten', async
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        choices: [{
-          message: {
-            content: JSON.stringify({
-              mealName: 'Greek yogurt',
-              components: [{ name: 'Greek yogurt', quantityG: 300, confidence: 0.98 }],
-              nutrients: {
-                energyKcal: 240, proteinG: 30, carbohydrateG: 18, fatG: 4,
-                fiberG: 0, sugarG: 12, addedSugarG: 8, saturatedFatG: 2,
-                transFatG: 0, sodiumMg: 140, potassiumMg: 420, calciumMg: 360,
-              },
-              confidence: 0.96,
-              assumptions: [],
-              warnings: [],
-              label: {
-                servingSizeText: '1 tub (150 g)',
-                servingSizeG: 150,
-                servingsPerContainer: 2,
-                labelBasis: 'per serving',
-                consumedAmount: 2,
-                consumedUnit: 'servings',
-              },
-            }),
+        ...stoppedChatCompletion(JSON.stringify({
+          mealName: 'Greek yogurt',
+          components: [{ name: 'Greek yogurt', quantityG: 300, confidence: 0.98 }],
+          nutrients: {
+            energyKcal: 240, proteinG: 30, carbohydrateG: 18, fatG: 4,
+            fiberG: 0, sugarG: 12, addedSugarG: 8, saturatedFatG: 2,
+            transFatG: 0, sodiumMg: 140, potassiumMg: 420, calciumMg: 360,
           },
-          finish_reason: 'stop',
-        }],
+          confidence: 0.96,
+          assumptions: [],
+          warnings: [],
+          label: {
+            servingSizeText: '1 tub (150 g)',
+            servingSizeG: 150,
+            servingsPerContainer: 2,
+            labelBasis: 'per serving',
+            consumedAmount: 2,
+            consumedUnit: 'servings',
+          },
+        })),
       }),
     });
   });
@@ -2232,21 +2177,16 @@ test('mobile photo analysis moves focus to the editable review', async ({ page }
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify({
-      choices: [{
-        message: {
-          content: JSON.stringify({
-            mealName: 'Mobile rice bowl',
-            components: [{
-              name: 'Rice and chicken', quantityG: 320, confidence: 0.75,
-              nutrients: { energyKcal: 560, proteinG: 35, carbohydrateG: 68, fatG: 14, fiberG: 5, fluidMl: null, plainWaterMl: null },
-            }],
-            nutrients: { energyKcal: 560, proteinG: 35, carbohydrateG: 68, fatG: 14, fiberG: 5, fluidMl: null, plainWaterMl: null },
-            confidence: 0.75,
-            assumptions: [], warnings: [], label: null,
-          }),
-        },
-        finish_reason: 'stop',
-      }],
+      ...stoppedChatCompletion(JSON.stringify({
+        mealName: 'Mobile rice bowl',
+        components: [{
+          name: 'Rice and chicken', quantityG: 320, confidence: 0.75,
+          nutrients: { energyKcal: 560, proteinG: 35, carbohydrateG: 68, fatG: 14, fiberG: 5, fluidMl: null, plainWaterMl: null },
+        }],
+        nutrients: { energyKcal: 560, proteinG: 35, carbohydrateG: 68, fatG: 14, fiberG: 5, fluidMl: null, plainWaterMl: null },
+        confidence: 0.75,
+        assumptions: [], warnings: [], label: null,
+      })),
       usage: { prompt_tokens: 100, completion_tokens: 50 },
     }),
   }));
