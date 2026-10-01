@@ -6,16 +6,43 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript-api';
 import { sourcePath, runtimePath, walkSourceFiles } from './source-files.js';
 
+type ImportKind = 'static' | 'dynamic';
+export interface ModuleEdge { target: string; kind: ImportKind }
+export interface ArchitectureModule {
+  file: string; group: string | null; imports: ModuleEdge[]; repositoryFiles: string[];
+}
+export interface SourceGroup { name: string; description: string; roots: string[]; mayImport: string[] }
+export interface ImportRestriction { target: string; allowedImporters: string[] }
+export interface BoundaryRules { groups: Array<Pick<SourceGroup, 'name' | 'mayImport'>> }
+export interface ValidationRules extends BoundaryRules {
+  entryPoints: string[]; restrictedImports?: ImportRestriction[]; forbiddenRepositoryImportRoots?: string[];
+}
+export interface ArchitectureRules extends ValidationRules { groups: SourceGroup[] }
+export interface ComputedImport { file: string; expression: string }
+export interface Architecture {
+  modules: Map<string, ArchitectureModule>; graph: Map<string, Set<string>>;
+  importedBy: Map<string, Set<string>>; cyclicComponents: string[][]; cyclicModules: string[];
+  unresolvedImports: Array<{ from: string; specifier: string; target: string }>;
+  computedDynamicImports: ComputedImport[]; externalSpecifiers: string[];
+}
+export interface CycleBaseline {
+  maxCyclicModules: number; maxLargestCyclicComponent: number;
+  allowedCyclicModules?: string[]; allowedComputedDynamicImports?: ComputedImport[];
+}
+type BoundaryArchitecture = { modules: ReadonlyMap<string, Pick<ArchitectureModule, 'file' | 'group' | 'imports'>> };
+type ValidationArchitecture = Pick<Architecture, 'modules' | 'unresolvedImports' | 'computedDynamicImports' | 'cyclicModules' | 'cyclicComponents'> & Partial<Pick<Architecture, 'importedBy'>>;
+interface ImportResolution { unresolved?: string; module?: string; repositoryFile?: string }
+
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const ROOT = path.resolve(path.dirname(SCRIPT_PATH), '..');
 const RULES_PATH = path.join(ROOT, 'scripts', 'architecture-rules.json');
 const BASELINE_PATH = path.join(ROOT, 'scripts', 'architecture-cycle-baseline.json');
 const MAP_PATH = path.join(ROOT, 'MODULE_MAP.md');
-function repoRelative(file) {
+function repoRelative(file: string) {
   return path.relative(ROOT, file).replaceAll(path.sep, '/');
 }
 
-function authoredPath(file) {
+function authoredPath(file: string) {
   return repoRelative(sourcePath(path.join(ROOT, file)));
 }
 
@@ -27,7 +54,7 @@ function authoredPath(file) {
  * @param {string} source
  * @param {string} fileName
  */
-export function parseModuleSpecifiers(source, fileName = 'module.js') {
+export function parseModuleSpecifiers(source: string, fileName = 'module.js') {
   const sourceFile = ts.createSourceFile(
     fileName,
     source,
@@ -35,10 +62,10 @@ export function parseModuleSpecifiers(source, fileName = 'module.js') {
     true,
     /\.[cm]?ts$/.test(fileName) ? ts.ScriptKind.TS : ts.ScriptKind.JS,
   );
-  const dependencies = [];
-  const nonLiteralDynamicImports = [];
+  const dependencies: Array<{ specifier: string; kind: ImportKind }> = [];
+  const nonLiteralDynamicImports: string[] = [];
 
-  const addLiteral = (node, kind) => {
+  const addLiteral = (node: ts.Node | undefined, kind: ImportKind) => {
     // These TypeScript/parenthesis wrappers disappear before runtime evaluation.
     while (node && (ts.isAsExpression(node) || ts.isTypeAssertionExpression(node)
       || ts.isSatisfiesExpression(node) || ts.isNonNullExpression(node)
@@ -50,7 +77,7 @@ export function parseModuleSpecifiers(source, fileName = 'module.js') {
     return false;
   };
 
-  const visit = node => {
+  const visit = (node: ts.Node) => {
     if (ts.isImportDeclaration(node) && !node.importClause?.isTypeOnly) {
       addLiteral(node.moduleSpecifier, 'static');
     } else if (ts.isExportDeclaration(node) && node.moduleSpecifier && !node.isTypeOnly) {
@@ -77,8 +104,8 @@ export function parseModuleSpecifiers(source, fileName = 'module.js') {
   return { dependencies, nonLiteralDynamicImports };
 }
 
-function resolveRelativeImport(fromFile, specifier, moduleFiles) {
-  const cleanSpecifier = specifier.split(/[?#]/, 1)[0];
+function resolveRelativeImport(fromFile: string, specifier: string, moduleFiles: ReadonlySet<string>): ImportResolution {
+  const cleanSpecifier = specifier.split(/[?#]/, 1)[0]!;
   const rawTarget = cleanSpecifier.startsWith('/')
     ? path.join(ROOT, cleanSpecifier.slice(1))
     : path.resolve(path.dirname(fromFile), cleanSpecifier);
@@ -93,24 +120,20 @@ function resolveRelativeImport(fromFile, specifier, moduleFiles) {
   return { repositoryFile: targetPath };
 }
 
-function groupForFile(file, rules) {
+function groupForFile(file: string, rules: ArchitectureRules) {
   return rules.groups.find(group => group.roots.some(root => runtimePath(file) === runtimePath(root) || file.startsWith(`${root}/`)))?.name || null;
 }
 
-/**
- * Tarjan strongly connected components, exported for focused tests.
- *
- * @param {Map<string, Set<string>>} graph
- */
-export function stronglyConnectedComponents(graph) {
+// Tarjan strongly connected components, exported for focused tests.
+export function stronglyConnectedComponents(graph: ReadonlyMap<string, ReadonlySet<string>>): string[][] {
   let nextIndex = 0;
-  const indices = new Map();
-  const lowLinks = new Map();
-  const stack = [];
-  const onStack = new Set();
-  const components = [];
+  const indices = new Map<string, number>();
+  const lowLinks = new Map<string, number>();
+  const stack: string[] = [];
+  const onStack = new Set<string>();
+  const components: string[][] = [];
 
-  const connect = node => {
+  const connect = (node: string): void => {
     indices.set(node, nextIndex);
     lowLinks.set(node, nextIndex);
     nextIndex++;
@@ -120,17 +143,17 @@ export function stronglyConnectedComponents(graph) {
     for (const neighbor of graph.get(node) || []) {
       if (!indices.has(neighbor)) {
         connect(neighbor);
-        lowLinks.set(node, Math.min(lowLinks.get(node), lowLinks.get(neighbor)));
+        lowLinks.set(node, Math.min(lowLinks.get(node)!, lowLinks.get(neighbor)!));
       } else if (onStack.has(neighbor)) {
-        lowLinks.set(node, Math.min(lowLinks.get(node), indices.get(neighbor)));
+        lowLinks.set(node, Math.min(lowLinks.get(node)!, indices.get(neighbor)!));
       }
     }
 
-    if (lowLinks.get(node) !== indices.get(node)) return;
-    const component = [];
-    let member;
+    if (lowLinks.get(node)! !== indices.get(node)) return;
+    const component: string[] = [];
+    let member: string;
     do {
-      member = stack.pop();
+      member = stack.pop()!;
       onStack.delete(member);
       component.push(member);
     } while (member !== node);
@@ -140,25 +163,25 @@ export function stronglyConnectedComponents(graph) {
   for (const node of [...graph.keys()].sort()) {
     if (!indices.has(node)) connect(node);
   }
-  return components.sort((a, b) => b.length - a.length || a[0].localeCompare(b[0]));
+  return components.sort((a, b) => b.length - a.length || a[0]!.localeCompare(b[0]!));
 }
 
-function collectArchitecture(rules) {
+function collectArchitecture(rules: ArchitectureRules): Architecture {
   const absoluteFiles = rules.groups
     .flatMap(group => group.roots.flatMap(root => walkSourceFiles(path.join(ROOT, root))))
     .sort();
   const moduleFiles = new Set(absoluteFiles.map(repoRelative));
-  const modules = new Map();
-  const unresolvedImports = [];
-  const computedDynamicImports = [];
-  const externalSpecifiers = new Set();
+  const modules = new Map<string, ArchitectureModule>();
+  const unresolvedImports: Architecture['unresolvedImports'] = [];
+  const computedDynamicImports: ComputedImport[] = [];
+  const externalSpecifiers = new Set<string>();
 
   for (const absoluteFile of absoluteFiles) {
     const file = repoRelative(absoluteFile);
     const source = fs.readFileSync(absoluteFile, 'utf8');
     const parsed = parseModuleSpecifiers(source, file);
-    const edgeKinds = new Map();
-    const repositoryFiles = new Set();
+    const edgeKinds = new Map<string, ImportKind>();
+    const repositoryFiles = new Set<string>();
 
     for (const dependency of parsed.dependencies) {
       if (!dependency.specifier.startsWith('.') && !dependency.specifier.startsWith('/')) {
@@ -192,10 +215,10 @@ function collectArchitecture(rules) {
   const components = stronglyConnectedComponents(graph);
   const cyclicComponents = components.filter(component => {
     if (component.length > 1) return true;
-    return graph.get(component[0])?.has(component[0]);
+    return graph.get(component[0]!)?.has(component[0]!);
   });
   const cyclicModules = [...new Set(cyclicComponents.flat())].sort();
-  const importedBy = new Map([...modules.keys()].map(file => [file, new Set()]));
+  const importedBy = new Map([...modules.keys()].map(file => [file, new Set<string>()]));
   for (const module of modules.values()) {
     for (const edge of module.imports) importedBy.get(edge.target)?.add(module.file);
   }
@@ -212,15 +235,11 @@ function collectArchitecture(rules) {
   };
 }
 
-/**
- * @param {ReturnType<typeof collectArchitecture>} architecture
- * @param {any} rules
- */
-export function findBoundaryViolations(architecture, rules) {
-  const groupRules = new Map(rules.groups.map(group => [group.name, new Set(group.mayImport)]));
+export function findBoundaryViolations(architecture: BoundaryArchitecture, rules: BoundaryRules) {
+  const groupRules = new Map<string | null, Set<string | null | undefined>>(rules.groups.map(group => [group.name, new Set<string | null | undefined>(group.mayImport)]));
   const violations = [];
   for (const module of architecture.modules.values()) {
-    const allowed = groupRules.get(module.group) || new Set();
+    const allowed = groupRules.get(module.group) || new Set<string | null | undefined>();
     for (const edge of module.imports) {
       const targetGroup = architecture.modules.get(edge.target)?.group;
       if (!allowed.has(targetGroup)) {
@@ -231,11 +250,12 @@ export function findBoundaryViolations(architecture, rules) {
   return violations;
 }
 
-export function findRestrictedImportViolations(architecture, rules) {
+export function findRestrictedImportViolations(architecture: Partial<Pick<Architecture, 'importedBy'>>, rules: Pick<ValidationRules, 'restrictedImports'>) {
   const violations = [];
+  // The reverse index is read only when facade restrictions are configured.
   for (const restriction of rules.restrictedImports || []) {
     const allowed = new Set((restriction.allowedImporters || []).map(authoredPath));
-    for (const importer of architecture.importedBy.get(authoredPath(restriction.target)) || []) {
+    for (const importer of architecture.importedBy!.get(authoredPath(restriction.target)) || []) {
       if (!allowed.has(importer)) {
         violations.push({ from: importer, to: restriction.target });
       }
@@ -246,24 +266,24 @@ export function findRestrictedImportViolations(architecture, rules) {
   ));
 }
 
-function moduleLink(file) {
+function moduleLink(file: string) {
   return `[\`${file}\`](${file})`;
 }
 
-function moduleFamily(file) {
-  return path.basename(file).replace(/\.(?:[cm]?[jt]s)$/, '').split('-')[0];
+function moduleFamily(file: string) {
+  return path.basename(file).replace(/\.(?:[cm]?[jt]s)$/, '').split('-')[0]!;
 }
 
-function renderModuleIndex(architecture, rules) {
-  const lines = [];
+function renderModuleIndex(architecture: Architecture, rules: ArchitectureRules) {
+  const lines: string[] = [];
   for (const group of rules.groups) {
     const groupModules = [...architecture.modules.values()].filter(module => module.group === group.name);
     lines.push(`## ${group.name} modules`, '', group.description, '');
-    const families = new Map();
+    const families = new Map<string, ArchitectureModule[]>();
     for (const module of groupModules) {
       const family = moduleFamily(module.file);
       if (!families.has(family)) families.set(family, []);
-      families.get(family).push(module);
+      families.get(family)!.push(module);
     }
     for (const [family, modules] of [...families].sort(([a], [b]) => a.localeCompare(b))) {
       lines.push(`<details><summary><code>${family}</code> family — ${modules.length} module${modules.length === 1 ? '' : 's'}</summary>`, '');
@@ -279,7 +299,7 @@ function renderModuleIndex(architecture, rules) {
   return lines;
 }
 
-function renderMap(architecture, rules) {
+function renderMap(architecture: Architecture, rules: ArchitectureRules) {
   const moduleCount = architecture.modules.size;
   const edgeCount = [...architecture.graph.values()].reduce((sum, edges) => sum + edges.size, 0);
   const dynamicEdgeCount = [...architecture.modules.values()]
@@ -340,7 +360,7 @@ function renderMap(architecture, rules) {
     '',
     '| High fan-in | Dependants | High fan-out | Imports |',
     '| --- | ---: | --- | ---: |',
-    ...fanIn.map((item, index) => `| ${moduleLink(item.file)} | ${item.count} | ${moduleLink(fanOut[index].file)} | ${fanOut[index].count} |`),
+    ...fanIn.map((item, index) => `| ${moduleLink(item.file)} | ${item.count} | ${moduleLink(fanOut[index]!.file)} | ${fanOut[index]!.count} |`),
     '',
     '## Existing cyclic components',
     '',
@@ -368,11 +388,11 @@ function renderMap(architecture, rules) {
   return `${lines.join('\n').trim()}\n`;
 }
 
-function readJson(file) {
-  return JSON.parse(fs.readFileSync(file, 'utf8'));
+function readJson<T>(file: string): T {
+  return JSON.parse(fs.readFileSync(file, 'utf8')) as T;
 }
 
-function writeCycleBaseline(architecture) {
+function writeCycleBaseline(architecture: Architecture) {
   const baseline = {
     schemaVersion: 1,
     maxCyclicModules: architecture.cyclicModules.length,
@@ -383,8 +403,8 @@ function writeCycleBaseline(architecture) {
   fs.writeFileSync(BASELINE_PATH, `${JSON.stringify(baseline, null, 2)}\n`);
 }
 
-export function validateArchitecture(architecture, rules, baseline) {
-  const failures = [];
+export function validateArchitecture(architecture: ValidationArchitecture, rules: ValidationRules, baseline: CycleBaseline) {
+  const failures: string[] = [];
   const boundaryViolations = findBoundaryViolations(architecture, rules);
   for (const violation of boundaryViolations) {
     failures.push(`${violation.from} (${violation.fromGroup}) may not import ${violation.to} (${violation.toGroup})`);
@@ -426,7 +446,7 @@ export function validateArchitecture(architecture, rules, baseline) {
   return failures;
 }
 
-function printFailures(failures) {
+function printFailures(failures: string[]) {
   for (const failure of failures) console.error(`  FAIL: ${failure}`);
 }
 
@@ -440,14 +460,14 @@ function main() {
     process.exit(2);
   }
 
-  const rules = readJson(RULES_PATH);
+  const rules = readJson<ArchitectureRules>(RULES_PATH);
   const architecture = collectArchitecture(rules);
   if (updateBaseline) writeCycleBaseline(architecture);
   if (!fs.existsSync(BASELINE_PATH)) {
     console.error('Missing architecture cycle baseline. Run once with --update-cycle-baseline and review the result.');
     process.exit(1);
   }
-  const baseline = readJson(BASELINE_PATH);
+  const baseline = readJson<CycleBaseline>(BASELINE_PATH);
   const failures = validateArchitecture(architecture, rules, baseline);
   const renderedMap = renderMap(architecture, rules);
 

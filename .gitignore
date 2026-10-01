@@ -441,3 +441,5 @@ deploy/profile-share/data/
 /scripts/build-marker-terminology.mjs
 
 /scripts/quality-guardrails.mjs
+
+/scripts/architecture-map.mjs

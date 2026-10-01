@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
 import ts from 'typescript-api';
+import type { ArchitectureRules, CycleBaseline } from '../scripts/architecture-map.mjs';
 import { runtimePath } from '../scripts/source-files.js';
 // test-quality-guardrails.js — pin dependency-free quality guardrails.
 
@@ -10,13 +11,7 @@ import { fileURLToPath } from 'node:url';
 interface CompilerConfigView {
   compilerOptions?: Record<string, unknown> & { lib?: string[] }; include?: string[]; extends?: string;
 }
-interface ArchitectureRulesView {
-  groups?: Array<{ name: string; mayImport?: string[] }>;
-  restrictedImports: unknown[]; entryPoints?: string[]; forbiddenRepositoryImportRoots?: string[];
-}
-interface CycleBaselineView {
-  maxCyclicModules: number; allowedCyclicModules: string[]; allowedComputedDynamicImports: unknown[];
-}
+type ArchitectureRulesView = ArchitectureRules & Required<Pick<ArchitectureRules, 'restrictedImports'>>;
 
 it('preserves the quality, architecture and compiler safety contracts', () => {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -47,7 +42,7 @@ it('preserves the quality, architecture and compiler safety contracts', () => {
   const baseline = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts', 'quality-baseline.json'), 'utf8')) as Record<string, number>;
   const architectureSrc = fs.readFileSync(path.join(ROOT, 'scripts', 'architecture-map.mjs'), 'utf8');
   const architectureRules = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts', 'architecture-rules.json'), 'utf8')) as ArchitectureRulesView;
-  const architectureBaseline = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts', 'architecture-cycle-baseline.json'), 'utf8')) as CycleBaselineView;
+  const architectureBaseline = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts', 'architecture-cycle-baseline.json'), 'utf8')) as CycleBaseline;
   const architectureDoc = fs.readFileSync(path.join(ROOT, 'ARCHITECTURE.md'), 'utf8');
   const moduleMap = fs.readFileSync(path.join(ROOT, 'MODULE_MAP.md'), 'utf8');
   const runTestsSrc = fs.readFileSync(path.join(ROOT, 'run-tests.sh'), 'utf8');

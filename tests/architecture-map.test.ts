@@ -47,7 +47,7 @@ describe('architecture map tooling', () => {
   });
 
   it('reports imports that cross configured source boundaries', () => {
-    const architecture = {
+    const architecture: Parameters<typeof findBoundaryViolations>[0] = {
       modules: new Map([
         ['js/feature.js', {
           file: 'js/feature.js',
@@ -61,7 +61,7 @@ describe('architecture map tooling', () => {
         }],
       ]),
     };
-    const rules = {
+    const rules: Parameters<typeof findBoundaryViolations>[1] = {
       groups: [
         { name: 'browser', mayImport: ['browser'] },
         { name: 'server-shared', mayImport: ['server-shared'] },
@@ -77,12 +77,12 @@ describe('architecture map tooling', () => {
   });
 
   it('prevents feature modules from bypassing configured public facades', () => {
-    const architecture = {
+    const architecture: Parameters<typeof findRestrictedImportViolations>[0] = {
       importedBy: new Map([
         ['js/private-impl.js', new Set(['js/public.js', 'js/bypass.js'])],
       ]),
     };
-    const rules = {
+    const rules: Parameters<typeof findRestrictedImportViolations>[1] = {
       restrictedImports: [{
         target: 'js/private-impl.js',
         allowedImporters: ['js/public.js'],
@@ -96,7 +96,7 @@ describe('architecture map tooling', () => {
   });
 
   it('rejects unreviewable imports and new cycle participation', () => {
-    const architecture = {
+    const architecture: Parameters<typeof validateArchitecture>[0] = {
       modules: new Map([
         ['js/new-feature.js', {
           file: 'js/new-feature.js',
@@ -110,12 +110,12 @@ describe('architecture map tooling', () => {
       cyclicModules: ['js/new-feature.js'],
       cyclicComponents: [['js/new-feature.js']],
     };
-    const rules = {
+    const rules: Parameters<typeof validateArchitecture>[1] = {
       groups: [{ name: 'browser', mayImport: ['browser'] }],
       entryPoints: ['js/new-feature.js'],
       forbiddenRepositoryImportRoots: ['tests', 'scripts'],
     };
-    const baseline = {
+    const baseline: Parameters<typeof validateArchitecture>[2] = {
       maxCyclicModules: 0,
       maxLargestCyclicComponent: 0,
       allowedCyclicModules: [],
