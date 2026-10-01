@@ -443,3 +443,7 @@ deploy/profile-share/data/
 /scripts/quality-guardrails.mjs
 
 /scripts/architecture-map.mjs
+
+/js/local-ai-provider-lmstudio.js
+
+/tests/helpers/lmstudio-fixtures.js

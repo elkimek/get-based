@@ -1,3 +1,4 @@
+import { lmStudioModel } from './helpers/lmstudio-fixtures.js';
 import { jsonResponse } from './helpers/http-responses.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -571,16 +572,8 @@ describe('AI provider request contracts', () => {
       const href = String(url);
       if (href === 'http://localhost:1234/api/v1/models') {
         return jsonResponse({ models: [
-          {
-            type: 'llm',
-            key: 'lm-model',
-            loaded_instances: [{ id: 'lm-instance', config: { context_length: 32768 } }],
-          },
-          {
-            type: 'llm',
-            key: 'other-app-model',
-            loaded_instances: [{ id: 'other-app-instance', config: { context_length: 8192 } }],
-          },
+          lmStudioModel('lm-model', [{ id: 'lm-instance', config: { context_length: 32768 } }]),
+          lmStudioModel('other-app-model', [{ id: 'other-app-instance', config: { context_length: 8192 } }]),
         ] });
       }
       if (href === 'http://localhost:1234/v1/models') {
@@ -805,11 +798,9 @@ describe('AI provider request contracts', () => {
     globalThis.fetch = vi.fn(async url => {
       requestedUrls.push(String(url));
       if (String(url).endsWith('/api/v1/models')) {
-        return jsonResponse({ models: [{
-          type: 'llm',
-          key: 'thinkingcap-qwen3.6-27b',
-          loaded_instances: [{ id: 'thinkingcap-qwen3.6-27b', config: { context_length: 8192 } }],
-        }] });
+        return jsonResponse({ models: [
+          lmStudioModel('thinkingcap-qwen3.6-27b', [{ id: 'thinkingcap-qwen3.6-27b', config: { context_length: 8192 } }]),
+        ] });
       }
       if (String(url).endsWith('/v1/models')) {
         return jsonResponse({ data: [{ id: 'thinkingcap-qwen3.6-27b' }] });
@@ -869,12 +860,7 @@ describe('AI provider request contracts', () => {
   it('includes native LM Studio downloads when the OpenAI model list contains only loaded models', async () => {
     globalThis.fetch = vi.fn(async url => {
       if (String(url).endsWith('/api/v1/models')) {
-        return jsonResponse({ models: [{
-          type: 'llm',
-          key: 'vendor/unloaded-model@q4_k_m',
-          loaded_instances: [],
-          max_context_length: 32768,
-        }] });
+        return jsonResponse({ models: [lmStudioModel('vendor/unloaded-model@q4_k_m', [], { max_context_length: 32768 })] });
       }
       if (String(url).endsWith('/v1/models')) return jsonResponse({ data: [] });
       throw new Error(`Unexpected discovery URL: ${url}`);
@@ -916,13 +902,9 @@ describe('AI provider request contracts', () => {
         throw new Error(`Unexpected POST URL: ${href}`);
       }
       if (href.endsWith('/api/v1/models')) {
-        return jsonResponse({ models: [{
-          type: 'llm',
-          key: 'thinkingcap-qwen3.6-27b@q4_k_m',
-          loaded_instances: [{ id: 'thinkingcap-qwen3.6-27b', config: { context_length: loadedCtx } }],
-          max_context_length: 262144,
-          capabilities: { reasoning: { allowed_options: ['off', 'on'], default: 'on' } },
-        }] });
+        return jsonResponse({ models: [lmStudioModel('thinkingcap-qwen3.6-27b@q4_k_m',
+          [{ id: 'thinkingcap-qwen3.6-27b', config: { context_length: loadedCtx } }],
+          { max_context_length: 262144, capabilities: { reasoning: { allowed_options: ['off', 'on'], default: 'on' } } })] });
       }
       if (href.endsWith('/v1/models')) {
         return jsonResponse({ data: [{ id: 'thinkingcap-qwen3.6-27b' }] });
@@ -977,13 +959,9 @@ describe('AI provider request contracts', () => {
         });
       }
       if (href.endsWith('/api/v1/models')) {
-        return jsonResponse({ models: [{
-          type: 'llm',
-          key: 'thinkingcap-qwen3.6-27b@q4_k_m',
-          loaded_instances: [{ id: 'thinkingcap-qwen3.6-27b', config: { context_length: 8192 } }],
-          max_context_length: 262144,
-          capabilities: { reasoning: { allowed_options: ['off', 'on'], default: 'on' } },
-        }] });
+        return jsonResponse({ models: [lmStudioModel('thinkingcap-qwen3.6-27b@q4_k_m',
+          [{ id: 'thinkingcap-qwen3.6-27b', config: { context_length: 8192 } }],
+          { max_context_length: 262144, capabilities: { reasoning: { allowed_options: ['off', 'on'], default: 'on' } } })] });
       }
       if (href.endsWith('/v1/models')) {
         return jsonResponse({ data: [{ id: 'thinkingcap-qwen3.6-27b' }] });
@@ -1037,12 +1015,9 @@ describe('AI provider request contracts', () => {
       if (href.endsWith('/api/v1/models')) {
         nativeDiscoveryCalls++;
         if (nativeDiscoveryCalls > 1) return jsonResponse({ error: 'unavailable' }, { status: 503 });
-        return jsonResponse({ models: [{
-          type: 'llm',
-          key: 'thinkingcap-qwen3.6-27b@q4_k_m',
-          loaded_instances: [{ id: 'thinkingcap-qwen3.6-27b', config: { context_length: 8192 } }],
-          max_context_length: 262144,
-        }] });
+        return jsonResponse({ models: [lmStudioModel('thinkingcap-qwen3.6-27b@q4_k_m',
+          [{ id: 'thinkingcap-qwen3.6-27b', config: { context_length: 8192 } }],
+          { max_context_length: 262144 })] });
       }
       if (href.endsWith('/v1/models')) return jsonResponse({ data: [{ id: 'thinkingcap-qwen3.6-27b' }] });
       return jsonResponse({}, { status: 404 });
@@ -1061,12 +1036,11 @@ describe('AI provider request contracts', () => {
 
   it('refuses to load a second copy when the prior LM Studio instance cannot be unloaded', async () => {
     const loadedDetail = { loaded: true, loadedInstanceId: 'big-model-1', nativeModelKey: 'big-model@q4' };
-    const modelsBody = (loaded) => ({ models: [{
-      type: 'llm',
-      key: 'big-model@q4',
-      loaded_instances: loaded ? [{ id: 'big-model-1', config: { context_length: 8192 } }] : [],
-      max_context_length: 131072,
-    }] });
+    const modelsBody = (loaded) => ({ models: [
+      lmStudioModel('big-model@q4',
+        loaded ? [{ id: 'big-model-1', config: { context_length: 8192 } }] : [],
+        { max_context_length: 131072 }),
+    ] });
 
     // Unload fails and the server still reports the instance loaded → refuse.
     globalThis.fetch = vi.fn(async (url, init = {}) => {
@@ -1174,13 +1148,9 @@ describe('AI provider request contracts', () => {
         throw new Error(`Unexpected POST URL: ${href}`);
       }
       if (href.endsWith('/api/v1/models')) {
-        return jsonResponse({ models: [{
-          type: 'llm',
-          key: 'new-model-q4',
-          loaded_instances: loadedCtx > 0 ? [{ id: 'new-model-q4', config: { context_length: loadedCtx } }] : [],
-          max_context_length: 131072,
-          capabilities: { reasoning: { allowed_options: ['on'], default: 'on' } },
-        }] });
+        return jsonResponse({ models: [lmStudioModel('new-model-q4',
+          loadedCtx > 0 ? [{ id: 'new-model-q4', config: { context_length: loadedCtx } }] : [],
+          { max_context_length: 131072, capabilities: { reasoning: { allowed_options: ['on'], default: 'on' } } })] });
       }
       if (href.endsWith('/v1/models')) {
         return jsonResponse({ data: [] });
@@ -1218,12 +1188,7 @@ describe('AI provider request contracts', () => {
     globalThis.fetch = vi.fn(async (url, init = {}) => {
       if (init.method === 'POST') throw new Error('Inference must not start with insufficient context.');
       if (String(url).endsWith('/api/v1/models')) {
-        return jsonResponse({ models: [{
-          type: 'llm',
-          key: 'small-unloaded-model',
-          loaded_instances: [],
-          max_context_length: 8192,
-        }] });
+        return jsonResponse({ models: [lmStudioModel('small-unloaded-model', [], { max_context_length: 8192 })] });
       }
       if (String(url).endsWith('/v1/models')) return jsonResponse({ data: [] });
       return jsonResponse({}, { status: 404 });

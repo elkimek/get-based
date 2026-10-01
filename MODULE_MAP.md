@@ -802,10 +802,10 @@ Native browser modules shipped with the static application.
 
 - [`js/local-ai-discovery.js`](js/local-ai-discovery.js) → [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/local-ai-provider-registry.js`](js/local-ai-provider-registry.js), [`js/local-ai-provider-shared.ts`](js/local-ai-provider-shared.ts)
 - [`js/local-ai-lifecycle.js`](js/local-ai-lifecycle.js) → [`js/api-provider-storage.js`](js/api-provider-storage.js), [`js/local-ai-discovery.js`](js/local-ai-discovery.js), [`js/local-ai-provider-registry.js`](js/local-ai-provider-registry.js), [`js/local-ai-provider-shared.ts`](js/local-ai-provider-shared.ts)
-- [`js/local-ai-provider-lmstudio.js`](js/local-ai-provider-lmstudio.js) → [`js/api-transport.ts`](js/api-transport.ts), [`js/local-ai-provider-shared.ts`](js/local-ai-provider-shared.ts)
+- [`js/local-ai-provider-lmstudio.ts`](js/local-ai-provider-lmstudio.ts) → [`js/api-transport.ts`](js/api-transport.ts), [`js/local-ai-provider-shared.ts`](js/local-ai-provider-shared.ts)
 - [`js/local-ai-provider-ollama.ts`](js/local-ai-provider-ollama.ts) → [`js/api-transport.ts`](js/api-transport.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/local-ai-provider-shared.ts`](js/local-ai-provider-shared.ts)
 - [`js/local-ai-provider-openai-compatible.js`](js/local-ai-provider-openai-compatible.js) → [`js/api-openai-compatible.js`](js/api-openai-compatible.js), [`js/api-transport.ts`](js/api-transport.ts), [`js/local-ai-provider-shared.ts`](js/local-ai-provider-shared.ts)
-- [`js/local-ai-provider-registry.js`](js/local-ai-provider-registry.js) → [`js/local-ai-provider-lmstudio.js`](js/local-ai-provider-lmstudio.js), [`js/local-ai-provider-ollama.ts`](js/local-ai-provider-ollama.ts), [`js/local-ai-provider-openai-compatible.js`](js/local-ai-provider-openai-compatible.js), [`js/local-ai-provider-shared.ts`](js/local-ai-provider-shared.ts)
+- [`js/local-ai-provider-registry.js`](js/local-ai-provider-registry.js) → [`js/local-ai-provider-lmstudio.ts`](js/local-ai-provider-lmstudio.ts), [`js/local-ai-provider-ollama.ts`](js/local-ai-provider-ollama.ts), [`js/local-ai-provider-openai-compatible.js`](js/local-ai-provider-openai-compatible.js), [`js/local-ai-provider-shared.ts`](js/local-ai-provider-shared.ts)
 - [`js/local-ai-provider-shared.ts`](js/local-ai-provider-shared.ts) → [`js/reasoning-capabilities.ts`](js/reasoning-capabilities.ts)
 
 </details>

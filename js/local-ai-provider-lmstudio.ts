@@ -1,4 +1,3 @@
-// @ts-check
 // LM Studio native discovery, context management, and inference adapter.
 
 import { createInitialResponseTimeout, FETCH_REQUEST_TIMEOUT_MS } from './api-transport.js';
@@ -14,6 +13,44 @@ import {
   redactApiSecretText,
   unavailableLocalAiResult,
 } from './local-ai-provider-shared.js';
+
+import type { LocalAiModel } from './local-ai-provider-shared.js';
+
+interface NativeInstance { id?: unknown; config?: { context_length?: unknown } | null }
+interface NativeModel {
+  key?: unknown; selected_variant?: unknown; loaded_instances?: unknown;
+  size_bytes?: unknown; type?: unknown; params_string?: unknown;
+  quantization?: { name?: unknown } | null; architecture?: unknown; publisher?: unknown; format?: unknown;
+  max_context_length?: unknown; capabilities?: { vision?: unknown; reasoning?: { allowed_options?: unknown; default?: unknown } | null } | null;
+}
+interface LMStudioModel extends LocalAiModel {
+  reasoning?: { allowedOptions?: unknown; default?: unknown } | null;
+}
+interface LMStudioMessage { role?: unknown; content?: unknown }
+interface LMStudioBlock {
+  type?: unknown; text?: unknown; image_url?: { url?: unknown } | null;
+  source?: { data?: unknown; media_type?: unknown } | null;
+}
+type NativeInput = { type: 'message'; content: unknown } | { type: 'image'; data_url: unknown };
+interface NativeResponse {
+  output?: unknown; stats?: Record<string, unknown> | null;
+}
+interface ErrorResponse { error?: unknown }
+interface DiscoveryOptions { baseUrl: string; apiKey?: unknown; timeoutMs?: number }
+interface ContextOptions {
+  opts: { preferNativeContext?: boolean }; modelDetail?: LMStudioModel | null;
+  requiredContext: number; roundContextLength(required: number, maximum: number): number;
+}
+interface InferenceOptions {
+  config: { url: string; apiKey?: unknown }; model: string;
+  opts: { messages: unknown; reasoningEffort?: string; jsonMode?: boolean; system?: unknown;
+    temperature?: number; signal?: AbortSignal; requestTimeoutMs?: number; onStream?: (text: string) => unknown };
+  plan: { maxTokens: number }; contextLength: number;
+  modelDetail?: Pick<LMStudioModel, 'reasoning'> | null;
+}
+interface LifecycleModel { nativeModelKey?: unknown; loadedInstanceId?: unknown; loaded?: boolean }
+interface LifecycleOptions extends DiscoveryOptions { model: string; modelDetail?: LifecycleModel | null }
+interface LoadOptions extends LifecycleOptions { contextLength: number }
 
 // A 20GB model load takes 20-60s; leave headroom for memory-pressure stalls.
 const LMSTUDIO_LOAD_TIMEOUT_MS = 300000;
@@ -44,22 +81,22 @@ export const lmStudioProviderAdapter = Object.freeze({
   loadWithContext: loadLMStudioModelWithContext,
 });
 
-function indexLMStudioModels(rawModels) {
-  const index = new Map();
+function indexLMStudioModels(rawModels: Array<NativeModel | null | undefined>) {
+  const index = new Map<unknown, NativeModel>();
   for (const model of rawModels) {
     if (!model || !model.key) continue;
     index.set(model.key, model);
     if (model.selected_variant) index.set(model.selected_variant, model);
-    for (const instance of Array.isArray(model.loaded_instances) ? model.loaded_instances : []) {
+    for (const instance of Array.isArray(model.loaded_instances) ? model.loaded_instances as Array<NativeInstance | null | undefined> : []) {
       if (instance?.id) index.set(instance.id, model);
     }
   }
   return index;
 }
 
-function enrichWithLMStudioModel(detail, model, baseUrl) {
+function enrichWithLMStudioModel(detail: LocalAiModel, model: NativeModel | null | undefined, baseUrl: string): LMStudioModel {
   if (!model) return detail;
-  const loadedInstances = Array.isArray(model.loaded_instances) ? model.loaded_instances : [];
+  const loadedInstances = Array.isArray(model.loaded_instances) ? model.loaded_instances as Array<NativeInstance | null | undefined> : [];
   const loadedInstance = loadedInstances.find(instance => instance?.id === detail.name) || loadedInstances[0];
   const exactSize = Number(model.size_bytes) || 0;
   const reasoning = model.capabilities?.reasoning;
@@ -88,9 +125,9 @@ function enrichWithLMStudioModel(detail, model, baseUrl) {
   };
 }
 
-function dedupeLMStudioAliases(modelDetails) {
-  const output = [];
-  const indexByKey = new Map();
+function dedupeLMStudioAliases(modelDetails: LMStudioModel[]) {
+  const output: LMStudioModel[] = [];
+  const indexByKey = new Map<unknown, number>();
   for (const detail of modelDetails) {
     const key = detail.nativeModelKey || detail.name;
     const existingIndex = indexByKey.get(key);
@@ -99,7 +136,7 @@ function dedupeLMStudioAliases(modelDetails) {
       output.push(detail);
       continue;
     }
-    const existing = output[existingIndex];
+    const existing = output[existingIndex]!;
     const existingIsLoadedId = existing.name === existing.loadedInstanceId;
     const candidateIsLoadedId = detail.name === detail.loadedInstanceId;
     if (candidateIsLoadedId && !existingIsLoadedId) output[existingIndex] = detail;
@@ -107,18 +144,18 @@ function dedupeLMStudioAliases(modelDetails) {
   return output;
 }
 
-function nativeLMStudioModelDetail(model, baseUrl) {
-  const loadedInstances = Array.isArray(model?.loaded_instances) ? model.loaded_instances : [];
+function nativeLMStudioModelDetail(model: NativeModel | null | undefined, baseUrl: string) {
+  const loadedInstances = Array.isArray(model?.loaded_instances) ? model.loaded_instances as Array<NativeInstance | null | undefined> : [];
   const id = loadedInstances[0]?.id || model?.selected_variant || model?.key || '';
   if (!id) return null;
   return enrichWithLMStudioModel(parseOpenAICompatibleModel({
     id,
-    type: model.type,
-    owned_by: model.publisher,
+    type: model!.type,
+    owned_by: model!.publisher,
   }, baseUrl), model, baseUrl);
 }
 
-function mergeLMStudioModelDetails(rawOpenAIModels, nativeModels, baseUrl) {
+function mergeLMStudioModelDetails(rawOpenAIModels: Array<Parameters<typeof parseOpenAICompatibleModel>[0]>, nativeModels: Array<NativeModel | null | undefined>, baseUrl: string) {
   const nativeIndex = indexLMStudioModels(nativeModels);
   const openAIDetails = rawOpenAIModels
     .map(model => parseOpenAICompatibleModel(model, baseUrl))
@@ -132,14 +169,14 @@ function mergeLMStudioModelDetails(rawOpenAIModels, nativeModels, baseUrl) {
     .filter(model => model?.type !== 'embedding' && !representedNativeKeys.has(model?.key))
     .map(model => nativeLMStudioModelDetail(model, baseUrl))
     .filter(detail => detail?.name && !isLikelyEmbeddingModel(detail.name));
-  return dedupeLMStudioAliases([...openAIDetails, ...nativeOnlyDetails]);
+  return dedupeLMStudioAliases([...openAIDetails, ...nativeOnlyDetails as LMStudioModel[]]);
 }
 
 export async function discoverLMStudioProvider({
   baseUrl,
   apiKey = '',
   timeoutMs = LOCAL_AI_DISCOVERY_TIMEOUT_MS,
-}) {
+}: DiscoveryOptions) {
   try {
     const response = await fetch(`${baseUrl}/api/v1/models`, {
       headers: createLocalAiHeaders(apiKey),
@@ -154,8 +191,8 @@ export async function discoverLMStudioProvider({
         nativeModels: [],
       };
     }
-    const data = await response.json();
-    const nativeModels = Array.isArray(data.models) ? data.models : [];
+    const data = await response.json() as { models?: unknown };
+    const nativeModels = Array.isArray(data.models) ? data.models as Array<NativeModel | null | undefined> : [];
     const modelDetails = mergeLMStudioModelDetails([], nativeModels, baseUrl);
     return {
       ...localAiResult('lmstudio', modelDetails, { runningStatusKnown: true }),
@@ -169,14 +206,14 @@ export async function discoverLMStudioProvider({
   }
 }
 
-export function mergeLMStudioDiscovery(nativeDiscovery, openAIDiscovery, baseUrl) {
-  const nativeModels = Array.isArray(nativeDiscovery?.nativeModels) ? nativeDiscovery.nativeModels : [];
-  const rawOpenAIModels = Array.isArray(openAIDiscovery?.rawModels) ? openAIDiscovery.rawModels : [];
+export function mergeLMStudioDiscovery(nativeDiscovery: { nativeModels?: unknown } | null | undefined, openAIDiscovery: { rawModels?: unknown } | null | undefined, baseUrl: string) {
+  const nativeModels = Array.isArray(nativeDiscovery?.nativeModels) ? nativeDiscovery.nativeModels as Array<NativeModel | null | undefined> : [];
+  const rawOpenAIModels = Array.isArray(openAIDiscovery?.rawModels) ? openAIDiscovery.rawModels as Array<Parameters<typeof parseOpenAICompatibleModel>[0]> : [];
   const modelDetails = mergeLMStudioModelDetails(rawOpenAIModels, nativeModels, baseUrl);
   return localAiResult('lmstudio', modelDetails, { runningStatusKnown: true });
 }
 
-export function prepareLMStudioNativeRequest({ opts, modelDetail, requiredContext, roundContextLength }) {
+export function prepareLMStudioNativeRequest({ opts, modelDetail, requiredContext, roundContextLength }: ContextOptions) {
   if (!opts.preferNativeContext || modelDetail?.source !== 'lmstudio') return null;
   const currentContext = Number(modelDetail.contextLength) || 0;
   const maxContext = Number(modelDetail.maxContextLength) || 0;
@@ -192,16 +229,16 @@ export function prepareLMStudioNativeRequest({ opts, modelDetail, requiredContex
   };
 }
 
-function nativeLMStudioInput(messages) {
-  const input = [];
-  for (const message of Array.isArray(messages) ? messages : []) {
+function nativeLMStudioInput(messages: unknown) {
+  const input: NativeInput[] = [];
+  for (const message of Array.isArray(messages) ? messages as Array<LMStudioMessage | null | undefined> : []) {
     if (message?.role !== 'user') return null;
     if (typeof message.content === 'string') {
       input.push({ type: 'message', content: message.content });
       continue;
     }
     if (!Array.isArray(message.content)) return null;
-    for (const block of message.content) {
+    for (const block of message.content as Array<LMStudioBlock | null | undefined>) {
       if (block?.type === 'text') input.push({ type: 'message', content: block.text || '' });
       else if (block?.type === 'image_url' && block.image_url?.url) input.push({ type: 'image', data_url: block.image_url.url });
       else if (block?.type === 'image' && block.source?.data) {
@@ -212,13 +249,13 @@ function nativeLMStudioInput(messages) {
   return input;
 }
 
-export async function inferWithLMStudioNativeProvider({ config, model, opts, plan, contextLength, modelDetail }) {
+export async function inferWithLMStudioNativeProvider({ config, model, opts, plan, contextLength, modelDetail }: InferenceOptions) {
   const input = nativeLMStudioInput(opts.messages);
   if (!input) throw new Error('LM Studio context override is unavailable for requests containing assistant history. Reload the model with a larger context in LM Studio.');
   const reasoningOptions = Array.isArray(modelDetail?.reasoning?.allowedOptions)
     ? modelDetail.reasoning.allowedOptions
     : [];
-  const requestedReasoning = ['none', 'off'].includes(opts.reasoningEffort) ? 'off' : opts.reasoningEffort;
+  const requestedReasoning = ['none', 'off'].includes(opts.reasoningEffort as string) ? 'off' : opts.reasoningEffort;
   const reasoning = opts.jsonMode && reasoningOptions.includes('off')
     ? 'off'
     : requestedReasoning && reasoningOptions.includes(requestedReasoning)
@@ -229,7 +266,7 @@ export async function inferWithLMStudioNativeProvider({ config, model, opts, pla
     headers: createLocalAiHeaders(config.apiKey, { json: true }),
     body: JSON.stringify({
       model,
-      input: input.length === 1 && input[0].type === 'message' ? input[0].content : input,
+      input: input.length === 1 && input[0]!.type === 'message' ? input[0]!.content : input,
       system_prompt: opts.system || undefined,
       temperature: opts.jsonMode || opts.temperature === 0 ? 0 : undefined,
       max_output_tokens: plan.maxTokens,
@@ -239,7 +276,7 @@ export async function inferWithLMStudioNativeProvider({ config, model, opts, pla
       store: false,
     }),
     signal: opts.signal,
-  };
+  } as RequestInit;
   const timeoutState = createInitialResponseTimeout(
     requestInit,
     Math.max(opts.requestTimeoutMs || FETCH_REQUEST_TIMEOUT_MS, LMSTUDIO_NATIVE_GENERATION_TIMEOUT_MS),
@@ -251,15 +288,15 @@ export async function inferWithLMStudioNativeProvider({ config, model, opts, pla
     timeoutState.clearRequestTimeout();
   }
   if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    const detail = body?.error?.message
+    const body = await response.json().catch(() => null) as ErrorResponse | null;
+    const detail = (body?.error as { message?: unknown } | null | undefined)?.message
       || (body?.error ? JSON.stringify(body.error) : response.statusText);
     throw new Error(`LM Studio native API error (${response.status}): ${redactApiSecretText(detail, [config.apiKey])}`);
   }
-  const data = await response.json();
-  const text = (Array.isArray(data.output) ? data.output : [])
+  const data = await response.json() as NativeResponse;
+  const text = (Array.isArray(data.output) ? data.output as Array<{ type?: unknown; content?: unknown } | null | undefined> : [])
     .filter(item => item?.type === 'message' && typeof item.content === 'string')
-    .map(item => item.content)
+    .map(item => item!.content)
     .join('\n')
     .trim();
   if (!text) throw new Error('LM Studio returned no final response content.');
@@ -305,14 +342,6 @@ export async function inferWithLMStudioNativeProvider({ config, model, opts, pla
  * Throws with `status` set on HTTP failure; callers treat 404 (older builds
  * without the load route) as "fall back to the native chat path".
  *
- * @param {{
- *   baseUrl: string,
- *   apiKey?: string,
- *   model: string,
- *   modelDetail?: { nativeModelKey?: string, loadedInstanceId?: string, loaded?: boolean } | null,
- *   contextLength: number,
- *   timeoutMs?: number,
- * }} context
  */
 export async function loadLMStudioModelWithContext({
   baseUrl,
@@ -321,7 +350,7 @@ export async function loadLMStudioModelWithContext({
   modelDetail = null,
   contextLength,
   timeoutMs = LMSTUDIO_LOAD_TIMEOUT_MS,
-}) {
+}: LoadOptions) {
   if (modelDetail?.loaded) {
     let unloaded = false;
     try {
@@ -353,26 +382,17 @@ export async function loadLMStudioModelWithContext({
     signal: AbortSignal.timeout(timeoutMs),
   });
   if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    const detail = body?.error?.message || response.statusText;
+    const body = await response.json().catch(() => null) as ErrorResponse | null;
+    const detail = (body?.error as { message?: unknown } | null | undefined)?.message || response.statusText;
     const error = new Error(`LM Studio could not load ${model} (${response.status}): ${redactApiSecretText(detail, [apiKey])}`);
-    /** @type {any} */ (error).status = response.status;
+    (error as Error & { status: number }).status = response.status;
     throw error;
   }
   await response.json().catch(() => null);
   return true;
 }
 
-/**
- * @param {{
- *   baseUrl: string,
- *   apiKey?: string,
- *   model: string,
- *   modelDetail?: { loadedInstanceId?: string } | null,
- *   timeoutMs?: number,
- * }} context
- */
-export async function unloadLMStudioModel({ baseUrl, apiKey = '', model, modelDetail = null, timeoutMs = 5000 }) {
+export async function unloadLMStudioModel({ baseUrl, apiKey = '', model, modelDetail = null, timeoutMs = 5000 }: LifecycleOptions) {
   const instanceId = modelDetail?.loadedInstanceId || model;
   if (!instanceId) return false;
   const response = await fetch(`${baseUrl}/api/v1/models/unload`, {
