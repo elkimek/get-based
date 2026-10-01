@@ -104,7 +104,6 @@ const LEGACY_TESTS = [
   './test-light-devices-runtime.js',
   './test-light-devices.js',
   './test-sun-context.js',
-  './test-sun-uvdata.js',
   './test-client-list-runtime.js',
   // Batch 11 — cycle + change-history + light-tools + biometrics.
   './test-light-tools.js',
@@ -112,7 +111,6 @@ const LEGACY_TESTS = [
   './test-change-history.js',
   './test-biometrics.js',
   // Batch 12 — sun/light AI-analysis + flow tests.
-  './test-sun-uvdata-flow.js',
   './test-light-tools-flow.js',
   './test-sun-ai-analysis.js',
   './test-light-device-ai-analysis.js',

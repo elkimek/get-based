@@ -9,7 +9,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 816 |
+| Modules | 817 |
 | Internal import edges | 3506 |
 | Dynamic internal edges | 119 |
 | Modules participating in cycles | 0 |
@@ -733,7 +733,7 @@ Native browser modules shipped with the static application.
 - [`js/light-conditions-interpretation.ts`](js/light-conditions-interpretation.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
 - [`js/light-conditions-now-hooks.js`](js/light-conditions-now-hooks.js) → [`js/light-conditions-now.js`](js/light-conditions-now.js), [`js/sun-uvdata.js`](js/sun-uvdata.js), [`js/sun.js`](js/sun.js), [`js/utils.ts`](js/utils.ts)
 - [`js/light-conditions-now.js`](js/light-conditions-now.js) → [`js/caught-error.ts`](js/caught-error.ts), [`js/light-conditions-interpretation.ts`](js/light-conditions-interpretation.ts), [`js/light-conditions-renderer.js`](js/light-conditions-renderer.js), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/light-conditions-renderer.js`](js/light-conditions-renderer.js) → [`js/light-conditions-interpretation.ts`](js/light-conditions-interpretation.ts), [`js/sun-uvdata-atmosphere.js`](js/sun-uvdata-atmosphere.js), [`js/utils.ts`](js/utils.ts)
+- [`js/light-conditions-renderer.js`](js/light-conditions-renderer.js) → [`js/light-conditions-interpretation.ts`](js/light-conditions-interpretation.ts), [`js/sun-uvdata-atmosphere.ts`](js/sun-uvdata-atmosphere.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-device-ai-analysis.js`](js/light-device-ai-analysis.js) → [`js/ai-action-delegates.js`](js/ai-action-delegates.js), [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/ai-verdict-engine.js`](js/ai-verdict-engine.js), [`js/light-devices-store.js`](js/light-devices-store.js), [`js/sun-defaults.js`](js/sun-defaults.js), [`js/sun.js`](js/sun.js), [`js/utils.ts`](js/utils.ts)
 - [`js/light-device-modal-loader.js`](js/light-device-modal-loader.js) → [`js/light-device-session-modal.js`](js/light-device-session-modal.js) *(dynamic)*, [`js/light-device-setup-modal.js`](js/light-device-setup-modal.js) *(dynamic)*, [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-device-session-engine.js`](js/light-device-session-engine.js) → [`js/sun-body-silhouette.js`](js/sun-body-silhouette.js), [`js/sun-spectrum.js`](js/sun-spectrum.js)
@@ -1146,7 +1146,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>sun</code> family — 34 modules</summary>
+<details><summary><code>sun</code> family — 35 modules</summary>
 
 - [`js/sun-active-session-format.ts`](js/sun-active-session-format.ts) → [`js/utils.ts`](js/utils.ts)
 - [`js/sun-active-session.js`](js/sun-active-session.js) → [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/sun-active-session-format.ts`](js/sun-active-session-format.ts), [`js/sun-body-silhouette.js`](js/sun-body-silhouette.js), [`js/sun-session-actions.js`](js/sun-session-actions.js), [`js/sun-session-model.ts`](js/sun-session-model.ts), [`js/sun-session-ui.js`](js/sun-session-ui.js), [`js/utils.ts`](js/utils.ts)
@@ -1178,9 +1178,10 @@ Native browser modules shipped with the static application.
 - [`js/sun-spectrum-actions.js`](js/sun-spectrum-actions.js) → no in-scope imports
 - [`js/sun-spectrum-device.js`](js/sun-spectrum-device.js) → no in-scope imports
 - [`js/sun-spectrum.js`](js/sun-spectrum.js) → [`js/sun-spectrum-actions.js`](js/sun-spectrum-actions.js), [`js/sun-spectrum-device.js`](js/sun-spectrum-device.js)
-- [`js/sun-uvdata-atmosphere.js`](js/sun-uvdata-atmosphere.js) → no in-scope imports
+- [`js/sun-uvdata-atmosphere.ts`](js/sun-uvdata-atmosphere.ts) → no in-scope imports
+- [`js/sun-uvdata-client-types.ts`](js/sun-uvdata-client-types.ts) → no in-scope imports
 - [`js/sun-uvdata-config.js`](js/sun-uvdata-config.js) → [`js/crypto.js`](js/crypto.js)
-- [`js/sun-uvdata.js`](js/sun-uvdata.js) → [`js/caught-error.ts`](js/caught-error.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/sun-runtime.ts`](js/sun-runtime.ts), [`js/sun-uvdata-atmosphere.js`](js/sun-uvdata-atmosphere.js), [`js/sun-uvdata-config.js`](js/sun-uvdata-config.js), [`js/url-safety.ts`](js/url-safety.ts)
+- [`js/sun-uvdata.js`](js/sun-uvdata.js) → [`js/caught-error.ts`](js/caught-error.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/sun-runtime.ts`](js/sun-runtime.ts), [`js/sun-uvdata-atmosphere.ts`](js/sun-uvdata-atmosphere.ts), [`js/sun-uvdata-config.js`](js/sun-uvdata-config.js), [`js/url-safety.ts`](js/url-safety.ts)
 - [`js/sun.js`](js/sun.js) → [`js/ai-verdict-engine-runtime.ts`](js/ai-verdict-engine-runtime.ts), [`js/data.js`](js/data.js), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/profile-context.js`](js/profile-context.js), [`js/state.ts`](js/state.ts), [`js/sun-active-session.js`](js/sun-active-session.js), [`js/sun-body-silhouette.js`](js/sun-body-silhouette.js), [`js/sun-channel-metrics.js`](js/sun-channel-metrics.js), [`js/sun-defaults-runtime.js`](js/sun-defaults-runtime.js), [`js/sun-defaults.js`](js/sun-defaults.js), [`js/sun-location.js`](js/sun-location.js), [`js/sun-runtime.ts`](js/sun-runtime.ts), [`js/sun-session-model.ts`](js/sun-session-model.ts), [`js/sun-session-ui.js`](js/sun-session-ui.js), [`js/sun-sessions-store.js`](js/sun-sessions-store.js), [`js/sun-spectrum.js`](js/sun-spectrum.js), [`js/sun-uvdata.js`](js/sun-uvdata.js), [`js/utils.ts`](js/utils.ts)
 
 </details>

@@ -1,11 +1,14 @@
-#!/usr/bin/env node
+import type { UVDataClient } from '../js/sun-uvdata-client-types.js';
+import { expect, it } from 'vitest';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
+import './_node-shim.js';
+
+it('retains the original UV provider privacy, time and interpretation checks', async () => {
 // test-sun-uvdata.js — Multi-source UV/ozone client: SSRF guard,
 // provider routing, solar-zenith math, privacy rounding, US-coords window.
 //
 // Run: node tests/test-sun-uvdata.js  (or via npm test)
 
-import './_node-shim.js';
 
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
@@ -13,7 +16,7 @@ const { assert, results: legacyAssertions } = createLegacyAssertions();
 console.log('=== Sun UV-Data Tests ===\n');
 
 await import('../js/state.js');
-const mod = await import('../js/sun-uvdata.js');
+const mod = await import('../js/sun-uvdata.js' as string) as UVDataClient;
 const { shapeOpenMeteoResponse } = await import('../js/sun-uvdata-atmosphere.js');
 const conditionsInterpretation = await import('../js/light-conditions-interpretation.js');
 const {
@@ -36,8 +39,8 @@ const {
     UV_SOURCE_CONFIDENCE.selfhost > UV_SOURCE_CONFIDENCE.open_meteo);
   for (const k of ['selfhost','cams','noaa_nws','open_meteo','zenith_offline']) {
     assert(`Confidence weight for ${k} in [0,1]`,
-      UV_SOURCE_CONFIDENCE[k] >= 0 && UV_SOURCE_CONFIDENCE[k] <= 1,
-      `${k}=${UV_SOURCE_CONFIDENCE[k]}`);
+      UV_SOURCE_CONFIDENCE[k as keyof typeof UV_SOURCE_CONFIDENCE] >= 0 && UV_SOURCE_CONFIDENCE[k as keyof typeof UV_SOURCE_CONFIDENCE] <= 1,
+      `${k}=${UV_SOURCE_CONFIDENCE[k as keyof typeof UV_SOURCE_CONFIDENCE]}`);
   }
 
   assert('manual UVI constructor is no longer exported', !('manualAtmosphere' in mod));
@@ -50,7 +53,7 @@ const {
   const origCfg = getMeteoConfig();
   const restoreCfg = () => saveMeteoConfig(origCfg);
 
-  async function expectSelfhostRejected(url, label) {
+  async function expectSelfhostRejected(url: string, label: string) {
     saveMeteoConfig({ ...origCfg, mode: 'selfhost', selfhostUrl: url, selfhostBearer: '' });
     // selfhost mode falls through to open-meteo on selfhost rejection. We
     // don't want to issue a real network call, so peek at providerOrder
@@ -60,7 +63,7 @@ const {
     // would 404 on real DNS so any actual fetch attempt would fail loudly.
     let crossedSSRF = false;
     const origFetch = window.fetch;
-    window.fetch = (u, opts) => {
+    window.fetch = (u, _opts) => {
       if (typeof u === 'string' && u.startsWith(url)) crossedSSRF = true;
       return Promise.reject(new Error('blocked by test'));
     };
@@ -92,7 +95,7 @@ const {
   // so a rebound LAN/metadata target fails TLS before the bearer ships.
   // Plain HTTP without a bearer remains allowed (legitimate local dev).
   console.log('%c 3b. Bearer-bearing HTTP must be rejected (DNS rebinding hardening) ', 'font-weight:bold;color:#f59e0b');
-  async function expectBearerRejection(url, bearer, label) {
+  async function expectBearerRejection(url: string, bearer: string, label: string) {
     saveMeteoConfig({ ...origCfg, mode: 'selfhost', selfhostUrl: url, selfhostBearer: bearer });
     let crossed = false;
     const origFetch = window.fetch;
@@ -144,7 +147,7 @@ const {
     [new Date('2024-01-01T00:00:00Z'),  60,  10],
     [new Date('2024-07-01T18:00:00Z'), -34, 151],
     [new Date('2024-04-15T05:00:00Z'),  35, -118],
-  ]) {
+  ] as Array<[Date, number, number]>) {
     const z = solarZenithAngle(sample[0], sample[1], sample[2]);
     assert(`Zenith bounded in [0°, 180°] for lat=${sample[1]} lon=${sample[2]}`,
       z >= 0 && z <= 180, `zenith=${z?.toFixed(2)}°`);
@@ -156,13 +159,12 @@ const {
   // privacyRounding is exercised through the cache: at 0.1° rounding,
   // adjacent call sites within the bucket must reuse the same cache row.
   saveMeteoConfig({ ...origCfg, mode: 'auto', privacyRounding: 0.1 });
-  const isoTime = new Date().toISOString();
 
   // Shape-test: roundCoords behaviour by writing a synthetic cache entry
   // and asserting that the rounded coords land on the 0.1° grid. Since
   // roundCoords is private, we exercise it by checking that two nearby
   // points produce the same rounded grid square.
-  function expectSameGrid(a, b, precision, label) {
+  function expectSameGrid(a: number, b: number, precision: number, label: string) {
     const f = 1 / precision;
     const ra = Math.round(a * f) / f;
     const rb = Math.round(b * f) / f;
@@ -184,11 +186,11 @@ const {
   console.log('%c 6. fetchAtmosphere argument validation ', 'font-weight:bold;color:#f59e0b');
 
   let threw = false;
-  try { await fetchAtmosphere({}); } catch (e) { threw = /lat, lon/.test(e.message); }
+  try { await fetchAtmosphere({}); } catch (e) { threw = /lat, lon/.test((e as Error).message); }
   assert('fetchAtmosphere throws on missing lat/lon', threw);
 
   threw = false;
-  try { await fetchAtmosphere({ lat: 50 }); } catch (e) { threw = /lat, lon/.test(e.message); }
+  try { await fetchAtmosphere({ lat: 50 }); } catch (e) { threw = /lat, lon/.test((e as Error).message); }
   assert('fetchAtmosphere throws when only lat provided', threw);
 
   // ─── 6.5 nearestHourIndex is timezone-agnostic ────────────────────────
@@ -227,7 +229,7 @@ const {
   // retro-session request must continue to use its nearest hourly sample.
   const nowMs = Date.now();
   const offsetSeconds = 7200;
-  const naiveAt = ms => new Date(ms + offsetSeconds * 1000).toISOString().slice(0, 16);
+  const naiveAt = (ms: number) => new Date(ms + offsetSeconds * 1000).toISOString().slice(0, 16);
   const currentFc = {
     utc_offset_seconds: offsetSeconds,
     current: {
@@ -273,8 +275,8 @@ const {
       && currentShape?.airQuality?.european_aqi_ozone === 32);
   assert('current shaper records model validAt separately from retrieval',
     Number.isFinite(currentShape?.validAt)
-      && Math.abs(currentShape.validAt - (nowMs - 5 * 60_000)) < 61_000
-      && currentShape.fetchedAt >= currentShape.validAt);
+      && Math.abs(currentShape!.validAt - (nowMs - 5 * 60_000)) < 61_000
+      && currentShape!.fetchedAt >= currentShape!.validAt);
   assert('retro shaper uses hourly values instead of current blocks',
     retroShape?.uvIndex === 2.2 && retroShape?.airQuality?.european_aqi === 55);
 
@@ -312,7 +314,7 @@ const {
   // matching confidence weight, otherwise the AI tier loses provenance.
   const requiredKeys = ['selfhost','cams','cams_satellite','open_meteo_cams','noaa_nws','open_meteo','zenith_offline'];
   for (const k of requiredKeys) {
-    assert(`UV_SOURCE_CONFIDENCE has key '${k}'`, typeof UV_SOURCE_CONFIDENCE[k] === 'number');
+    assert(`UV_SOURCE_CONFIDENCE has key '${k}'`, typeof UV_SOURCE_CONFIDENCE[k as keyof typeof UV_SOURCE_CONFIDENCE] === 'number');
   }
 
   // ─── 8. computeUVConfidence — real-time confidence under signals ─────
@@ -325,8 +327,8 @@ const {
   // conditions.
   console.log('%c 8. Computed confidence ', 'font-weight:bold;color:#f59e0b');
 
-  const { computeUVConfidence } = await import('../js/sun-uvdata.js');
-  const approx = (a, b, tol = 0.005) => Math.abs(a - b) < tol;
+  const { computeUVConfidence } = await import('../js/sun-uvdata.js' as string) as UVDataClient;
+  const approx = (a: number, b: number, tol = 0.005) => Math.abs(a - b) < tol;
 
   // Best case — fresh CAMS, clear sky, sun overhead, UVI in sweet spot.
   assert('CAMS · fresh · clear · noon · UVI 8 → 0.80 (no discounts)',
@@ -406,7 +408,7 @@ const {
     assert('mode=selfhost + empty URL → in-memory mode flips to auto',
       cfg1.mode === 'auto', `got mode=${cfg1.mode}`);
     assert('persisted record stays untouched (picker still shows selfhost)',
-      JSON.parse(localStorage.getItem(STORAGE_KEY)).mode === 'selfhost');
+      JSON.parse(localStorage.getItem(STORAGE_KEY)!).mode === 'selfhost');
 
     // Whitespace-only URL is also a trap — same fallback.
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -477,4 +479,5 @@ const {
   }
 
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
-process.exit(legacyAssertions.fail > 0 ? 1 : 0);
+expect(legacyAssertions.fail).toBe(0);
+});

@@ -1,12 +1,9 @@
 import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
 // light-conditions-interpretation.js — Pure UV, sun, atmosphere, and timing interpretation.
 
-type NumericReading = number | null | undefined;
+import type { NumericReading, AirQualityReadings } from './sun-uvdata-atmosphere.js';
+export type { AirQualityReadings } from './sun-uvdata-atmosphere.js';
 export interface SolarCoordinates { lat: number; lon: number; }
-export type AirQualityReadings = Partial<Record<
-  'pm25' | 'pm10' | 'no2' | 'surfaceOzoneUgM3' | 'european_aqi' |
-  'european_aqi_pm2_5' | 'european_aqi_pm10' | 'european_aqi_nitrogen_dioxide' |
-  'european_aqi_ozone' | 'european_aqi_sulphur_dioxide', NumericReading>>;
 export interface AtmosphereReadings {
   uvIndex?: NumericReading; cloudCover?: NumericReading; ozoneDU?: NumericReading;
   validAt?: string | number | Date | null | undefined;

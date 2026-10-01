@@ -428,3 +428,7 @@ deploy/profile-share/data/
 /js/export-loader.js
 
 /js/light-conditions-interpretation.js
+
+/js/sun-uvdata-atmosphere.js
+
+/js/sun-uvdata-client-types.js

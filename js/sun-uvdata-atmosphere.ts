@@ -1,5 +1,61 @@
-// @ts-check
 // sun-uvdata-atmosphere.js — Atmosphere normalization and solar/time math.
+
+
+export type NumericReading = number | null | undefined;
+export type ProviderTime = string | number | Date | null | undefined;
+type NumericField = 'uv_index' | 'uv_index_clear_sky' | 'cloud_cover' |
+  'cloud_cover_low' | 'cloud_cover_mid' | 'cloud_cover_high' | 'temperature_2m' |
+  'shortwave_radiation_instant' | 'direct_radiation_instant' | 'diffuse_radiation_instant' |
+  'uv_index_open_meteo' | 'uv_index_cams_total_sky' | 'uv_index_cams_clear_sky' |
+  'uv_index_satellite_adjusted' | 'ozone_du' | 'aod' | 'pm2_5' | 'pm10' |
+  'aerosol_optical_depth' | 'nitrogen_dioxide' | 'sulphur_dioxide' | 'ozone' |
+  'european_aqi' | 'european_aqi_pm2_5' | 'european_aqi_pm10' |
+  'european_aqi_nitrogen_dioxide' | 'european_aqi_ozone' | 'european_aqi_sulphur_dioxide';
+export type AirQualityReadings = Partial<Record<
+  'pm25' | 'pm10' | 'aod' | 'no2' | 'so2' | 'surfaceOzoneUgM3' | 'european_aqi' |
+  'european_aqi_pm2_5' | 'european_aqi_pm10' | 'european_aqi_nitrogen_dioxide' |
+  'european_aqi_ozone' | 'european_aqi_sulphur_dioxide', NumericReading>>;
+export type ProviderHourly = Partial<Record<NumericField, NumericReading[] | null | undefined>> & {
+  time?: ProviderTime[] | null | undefined;
+  uv_index_source?: (string | null | undefined)[] | null | undefined;
+};
+interface ProviderCurrent extends Partial<Record<NumericField, NumericReading>> {
+  time?: ProviderTime; uv_index_source?: string | null | undefined;
+}
+interface ProviderDaily {
+  time?: ProviderTime[] | null | undefined;
+  sunrise?: ProviderTime[] | null | undefined; sunset?: ProviderTime[] | null | undefined;
+  uv_index_max?: NumericReading[] | null | undefined;
+  uv_index_max_at?: ProviderTime[] | null | undefined;
+}
+interface CamsMetadata { ageSec?: NumericReading; [field: string]: unknown; }
+interface OpenMeteoMetadata { stale?: unknown; [field: string]: unknown; }
+export interface ProviderAtmosphereResponse {
+  utc_offset_seconds?: NumericReading;
+  hourly?: ProviderHourly | null | undefined; current?: ProviderCurrent | null | undefined;
+  daily?: ProviderDaily | null | undefined;
+  airQuality?: ProviderAtmosphereResponse | null | undefined;
+  _camsMeta?: CamsMetadata | null | undefined;
+  _openMeteoMeta?: OpenMeteoMetadata | null | undefined;
+  _fieldSources?: Record<string, string | undefined> | null | undefined;
+}
+export interface AtmosphereSnapshot {
+  uvIndex: NumericReading; uvClearSky: NumericReading; ozoneDU: NumericReading;
+  cloudCover: NumericReading; temperatureC: NumericReading;
+  airQuality: AirQualityReadings | null;
+  daily?: { sunrise: ProviderTime; sunset: ProviderTime; uvIndexMax: NumericReading; peakAt: ProviderTime };
+  hourly?: ProviderHourly & { utcOffsetSeconds: number } | null;
+  source: string; confidence: number; validAt: number; fetchedAt: number;
+  _camsMeta?: CamsMetadata; _openMeteoMeta?: OpenMeteoMetadata;
+  fieldSources?: Record<string, string | undefined>; _stale?: boolean; _offline?: boolean;
+}
+interface ConfidenceOptions {
+  // Cached callers may carry retired flags; only the named signals affect confidence.
+  [field: string]: unknown;
+  source?: string | undefined; snapshotAgeSec?: NumericReading;
+  cloudCover?: NumericReading; zenithDeg?: NumericReading; uvIndex?: NumericReading;
+  isStale?: boolean | undefined;
+}
 
 // Per-source BASELINE confidence — best-case under ideal conditions
 // (fresh snapshot, clear sky, sun high overhead, UVI well above the
@@ -19,7 +75,7 @@ export const UV_SOURCE_CONFIDENCE = {
   noaa_nws: 0.90,       // US official
   open_meteo: 0.65,     // GFS approximation
   zenith_offline: 0.40, // offline clear-sky-only estimate
-};
+} satisfies Record<string, number>;
 
 // Compute real-time UV-source confidence from the baseline source +
 // observable signals. Returns 0.05–0.99 (never 0 — we always have some
@@ -41,7 +97,7 @@ export const UV_SOURCE_CONFIDENCE = {
 // All penalties are independent — they reflect distinct uncertainty
 // sources. Each is calibrated against the existing vitaminDIURange()
 // per-zenith band so the two readouts stay in lockstep.
-export function computeUVConfidence(opts = {}) {
+export function computeUVConfidence(opts: ConfidenceOptions = {}) {
   const {
     source = 'open_meteo',
     snapshotAgeSec = null,
@@ -50,36 +106,36 @@ export function computeUVConfidence(opts = {}) {
     uvIndex = null,
     isStale = false,
   } = opts;
-  let c = UV_SOURCE_CONFIDENCE[source] ?? 0.6;
+  let c = (UV_SOURCE_CONFIDENCE as Partial<Record<string, number>>)[source] ?? 0.6;
   // Normalise cloud cover (some atm payloads use percent).
   let cc = cloudCover;
   if (cc != null && cc > 1) cc = cc / 100;
   // Snapshot age — only meaningful for sources that publish freshness.
   if (Number.isFinite(snapshotAgeSec)) {
-    if (snapshotAgeSec > 86400) c *= 0.50;
-    else if (snapshotAgeSec > 43200) c *= 0.85;
-    else if (snapshotAgeSec > 21600) c *= 0.92;
+    if (snapshotAgeSec! > 86400) c *= 0.50;
+    else if (snapshotAgeSec! > 43200) c *= 0.85;
+    else if (snapshotAgeSec! > 21600) c *= 0.92;
   }
   // Cloud cover — composition data quality is independent of cloud,
   // but the UVI we COMPUTE from atmosphere + clouds + sun-angle is
   // less certain when clouds dominate.
   if (Number.isFinite(cc)) {
-    if (cc > 0.8) c *= 0.75;
-    else if (cc > 0.5) c *= 0.92;
+    if (cc! > 0.8) c *= 0.75;
+    else if (cc! > 0.5) c *= 0.92;
   }
   // Solar elevation — at zenith>80° (elevation<10°) the air-mass scaling
   // amplifies any model error, exactly the same band where
   // vitaminDIURange widens to ±45%.
   if (Number.isFinite(zenithDeg)) {
-    if (zenithDeg > 80) c *= 0.55;
-    else if (zenithDeg > 70) c *= 0.75;
-    else if (zenithDeg > 60) c *= 0.92;
+    if (zenithDeg! > 80) c *= 0.55;
+    else if (zenithDeg! > 70) c *= 0.75;
+    else if (zenithDeg! > 60) c *= 0.92;
   }
   // UVI band — below the synthesis threshold the relative model error
   // is huge even at high sun.
   if (Number.isFinite(uvIndex)) {
-    if (uvIndex < 0.5) c *= 0.40;
-    else if (uvIndex < 2.0) c *= 0.70;
+    if (uvIndex! < 0.5) c *= 0.40;
+    else if (uvIndex! < 2.0) c *= 0.70;
   }
   if (isStale) c *= 0.50;
   // Floor + ceiling — never 0 or 1 because every modeled source has error.
@@ -94,7 +150,7 @@ export function computeUVConfidence(opts = {}) {
 // UVI divergence on phone-over-Tailscale. Parse the calendar fields with
 // Date.UTC() and shift by the response's `utc_offset_seconds` to get a
 // true UTC instant, regardless of device tz.
-export function parseProviderTimeMs(s, offsetSeconds = 0) {
+export function parseProviderTimeMs(s: unknown, offsetSeconds = 0) {
   if (typeof s === 'number') return Number.isFinite(s) ? s : NaN;
   if (s instanceof Date) return s.getTime();
   // Values with an explicit timezone already identify a UTC instant.
@@ -103,13 +159,13 @@ export function parseProviderTimeMs(s, offsetSeconds = 0) {
   }
   const m = typeof s === 'string' && s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
   if (!m) return NaN;
-  const asUtcMs = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], m[6] ? +m[6] : 0);
+  const asUtcMs = Date.UTC(+m[1]!, +m[2]! - 1, +m[3]!, +m[4]!, +m[5]!, m[6] ? +m[6] : 0);
   return asUtcMs - (offsetSeconds || 0) * 1000;
 }
 
-export function nearestHourIndex(timeArray, isoTime, offsetSeconds = 0) {
+export function nearestHourIndex(timeArray: unknown, isoTime: string | number | Date, offsetSeconds = 0) {
   if (!Array.isArray(timeArray)) return -1;
-  const target = new Date(isoTime).getTime();
+  const target = new Date(isoTime as string | number).getTime();
   let bestIdx = -1, bestDelta = Infinity;
   for (let i = 0; i < timeArray.length; i++) {
     const t = parseProviderTimeMs(timeArray[i], offsetSeconds);
@@ -122,23 +178,23 @@ export function nearestHourIndex(timeArray, isoTime, offsetSeconds = 0) {
 
 // ─── Response shapers ──────────────────────────────────────────────────
 
-export function shapeOpenMeteoResponse(fcJson, aqJson, isoTime, sourceLabel) {
+export function shapeOpenMeteoResponse(fcJson: ProviderAtmosphereResponse | null | undefined, aqJson: ProviderAtmosphereResponse | null | undefined, isoTime: string, sourceLabel: string): AtmosphereSnapshot | null {
   if (!fcJson?.hourly?.time || !fcJson.hourly.uv_index) return null;
   // Forecast endpoint is queried with `timezone=auto` so its time strings are
   // local-clock at the location, no offset suffix. AQ endpoint defaults to
   // GMT so its strings are UTC-clock. JS `new Date(naiveString)` interprets
   // either as the *device's* local tz, which gives the wrong hour-index when
   // the device tz != location tz (the 5.9 vs 1.8 cross-device bug).
-  const fcOffsetS = Number.isFinite(fcJson?.utc_offset_seconds) ? fcJson.utc_offset_seconds : 0;
-  const aqOffsetS = Number.isFinite(aqJson?.utc_offset_seconds) ? aqJson.utc_offset_seconds : 0;
+  const fcOffsetS = Number.isFinite(fcJson?.utc_offset_seconds) ? fcJson.utc_offset_seconds! : 0;
+  const aqOffsetS = Number.isFinite(aqJson?.utc_offset_seconds) ? aqJson!.utc_offset_seconds! : 0;
   const idx = nearestHourIndex(fcJson.hourly.time, isoTime, fcOffsetS);
   if (idx < 0) return null;
   const requestMs = Date.parse(isoTime || '');
   const currentRequest = Number.isFinite(requestMs) && Math.abs(Date.now() - requestMs) <= 30 * 60 * 1000;
   const useForecastCurrent = currentRequest && fcJson?.current?.time;
-  const fc = (k) => {
+  const fc = (k: NumericField): NumericReading => {
     if (useForecastCurrent && fcJson.current?.[k] != null) return fcJson.current[k];
-    return Array.isArray(fcJson.hourly[k]) ? fcJson.hourly[k][idx] : null;
+    return Array.isArray(fcJson.hourly![k]) ? fcJson.hourly![k][idx] : null;
   };
 
   // For current conditions, prefer the provider's current block. Historical
@@ -146,7 +202,7 @@ export function shapeOpenMeteoResponse(fcJson, aqJson, isoTime, sourceLabel) {
   let aqIdx = -1;
   if (aqJson?.hourly?.time) aqIdx = nearestHourIndex(aqJson.hourly.time, isoTime, aqOffsetS);
   const useAqCurrent = currentRequest && aqJson?.current?.time;
-  const aq = (k) => {
+  const aq = (k: NumericField): NumericReading => {
     if (useAqCurrent && aqJson.current?.[k] != null) return aqJson.current[k];
     if (aqIdx >= 0 && Array.isArray(aqJson?.hourly?.[k])) return aqJson.hourly[k][aqIdx];
     if (aqJson?.current?.[k] != null) return aqJson.current[k];
@@ -203,9 +259,9 @@ export function shapeOpenMeteoResponse(fcJson, aqJson, isoTime, sourceLabel) {
   // session pins to the day it actually happened — not "today" at fetch
   // time. The `daily` and `peakAt` resolutions below need the right day
   // or they pin to the wrong slice of past_days=2 + forecast_days=1.
-  let todayPrefix = null;
+  let todayPrefix: string | null = null;
   try {
-    const offsetMs = (Number.isFinite(fcJson?.utc_offset_seconds) ? fcJson.utc_offset_seconds : 0) * 1000;
+    const offsetMs = (Number.isFinite(fcJson?.utc_offset_seconds) ? fcJson.utc_offset_seconds! : 0) * 1000;
     const anchorMs = isoTime ? Date.parse(isoTime) : Date.now();
     const local = new Date((Number.isFinite(anchorMs) ? anchorMs : Date.now()) + offsetMs);
     const y = local.getUTCFullYear();
@@ -242,13 +298,13 @@ export function shapeOpenMeteoResponse(fcJson, aqJson, isoTime, sourceLabel) {
       // could be from any of those days).
       if (todayPrefix && typeof t === 'string' && !t.startsWith(todayPrefix)) continue;
       const v = fcJson.hourly.uv_index[i];
-      if (Number.isFinite(v) && v > bestV) { bestV = v; bestI = i; }
+      if (Number.isFinite(v) && v! > bestV) { bestV = v!; bestI = i; }
     }
     if (bestI >= 0) peakAt = fcJson.hourly.time[bestI];
   }
 
   const validAt = useForecastCurrent
-    ? parseProviderTimeMs(fcJson.current.time, fcOffsetS)
+    ? parseProviderTimeMs(fcJson.current!.time, fcOffsetS)
     : parseProviderTimeMs(fcJson.hourly.time[idx], fcOffsetS);
   return {
     uvIndex: fc('uv_index'),
@@ -289,13 +345,13 @@ export function shapeOpenMeteoResponse(fcJson, aqJson, isoTime, sourceLabel) {
       diffuse_radiation_instant: fcJson.hourly.diffuse_radiation_instant || [],
     } : null,
     source: sourceLabel,
-    confidence: UV_SOURCE_CONFIDENCE[sourceLabel] ?? 0.6,
+    confidence: (UV_SOURCE_CONFIDENCE as Partial<Record<string, number>>)[sourceLabel] ?? 0.6,
     validAt: Number.isFinite(validAt) ? validAt : (Number.isFinite(requestMs) ? requestMs : Date.now()),
     fetchedAt: Date.now(),
   };
 }
 
-export function shapeCamsResponse(json, isoTime, sourceLabel) {
+export function shapeCamsResponse(json: ProviderAtmosphereResponse | null | undefined, isoTime: string, sourceLabel: string) {
   // getbased-uvdata returns an Open-Meteo-shaped envelope (with optional
   // Open-Meteo merge) PLUS two extra hourly arrays (`ozone_du`, `aod`)
   // and a `_camsMeta` block. Run the standard Open-Meteo shaper first so
@@ -304,11 +360,11 @@ export function shapeCamsResponse(json, isoTime, sourceLabel) {
   // tropospheric-only field) and the snapshot freshness metadata.
   if (!json) return null;
   const aqEnvelope = json.airQuality || json;
-  const shaped = /** @type {any} */ (shapeOpenMeteoResponse(json, aqEnvelope, isoTime, sourceLabel));
+  const shaped = shapeOpenMeteoResponse(json, aqEnvelope, isoTime, sourceLabel);
   if (!shaped) return null;
   // Overlay CAMS DU. shapeOpenMeteoResponse picked an hourly index based
   // on isoTime; replicate that to slice the same array slot here.
-  const fcOffsetS = Number.isFinite(json?.utc_offset_seconds) ? json.utc_offset_seconds : 0;
+  const fcOffsetS = Number.isFinite(json?.utc_offset_seconds) ? json.utc_offset_seconds! : 0;
   const idx = Array.isArray(json?.hourly?.time)
     ? nearestHourIndex(json.hourly.time, isoTime, fcOffsetS) : -1;
   if (idx >= 0 && Array.isArray(json?.hourly?.ozone_du)) {
@@ -348,13 +404,13 @@ export function shapeCamsResponse(json, isoTime, sourceLabel) {
         : 'open_meteo';
     }
   }
-  shaped.confidence = UV_SOURCE_CONFIDENCE[resolvedSource] ?? UV_SOURCE_CONFIDENCE.cams;
+  shaped.confidence = (UV_SOURCE_CONFIDENCE as Partial<Record<string, number>>)[resolvedSource] ?? UV_SOURCE_CONFIDENCE.cams;
   shaped.source = resolvedSource;
   shaped._stale = json?._openMeteoMeta?.stale === true;
   return shaped;
 }
 
-export function shapeNoaaResponse(json) {
+export function shapeNoaaResponse(json: { uv_index?: NumericReading; UVI?: NumericReading; ozone?: NumericReading } | null | undefined): AtmosphereSnapshot | null {
   if (!json) return null;
   // NOAA endpoint shape varies — extract UV index, fall through if not parseable
   const uvi = json.uv_index ?? json.UVI ?? null;
@@ -376,8 +432,8 @@ export function shapeNoaaResponse(json) {
 // When all providers fail (offline / network outage), estimate UV index
 // from solar geometry alone. Crude — ignores ozone, aerosol, clouds.
 // Marked as low-confidence in AI context.
-export function zenithOfflineEstimate({ lat, lon, isoTime }) {
-  const date = new Date(isoTime);
+export function zenithOfflineEstimate({ lat, lon, isoTime }: { lat: number; lon: number; isoTime: string | number | Date }): AtmosphereSnapshot {
+  const date = new Date(isoTime as string | number);
   const zenith = solarZenithAngle(date, lat, lon);
   if (zenith == null || zenith >= 90) {
     // Sun below horizon
@@ -417,7 +473,7 @@ export function zenithOfflineEstimate({ lat, lon, isoTime }) {
 
 // Solar zenith angle in degrees. Standard NOAA solar position algorithm
 // (simplified — accurate to ~1° for civil purposes, plenty for our use).
-export function solarZenithAngle(date, lat, lon) {
+export function solarZenithAngle(date: Date, lat: number, lon: number) {
   const dayOfYear = Math.floor((date.getTime() - Date.UTC(date.getUTCFullYear(), 0, 0)) / 86400000);
   const fractionalYear = (2 * Math.PI / 365) * (dayOfYear - 1 + (date.getUTCHours() - 12) / 24);
   // Solar declination
@@ -457,12 +513,12 @@ export function solarZenithAngle(date, lat, lon) {
 // Falls back to the nearest hour when the target is outside the array
 // range. Returns null when the atm shape lacks `hourly` arrays (older
 // cached entries, NOAA, manual fallback).
-export function interpolateAtmosphere(atm, isoTime) {
+export function interpolateAtmosphere(atm: { hourly?: ProviderHourly & { utcOffsetSeconds?: number | undefined } | null } | null | undefined, isoTime: string | number | Date) {
   if (!atm || !atm.hourly || !Array.isArray(atm.hourly.time) || atm.hourly.time.length === 0) {
     return null;
   }
   const offsetS = atm.hourly.utcOffsetSeconds || 0;
-  const targetMs = new Date(isoTime).getTime();
+  const targetMs = new Date(isoTime as string | number).getTime();
   if (!Number.isFinite(targetMs)) return null;
 
   // Find the bracketing pair (i, i+1) with t[i] <= target <= t[i+1].
@@ -487,7 +543,7 @@ export function interpolateAtmosphere(atm, isoTime) {
   return interpolateAtmosphereAtIndexes(atm.hourly, lowIdx, lowIdx + 1, frac);
 }
 
-function atmosphereAtIndex(hourly, i) {
+function atmosphereAtIndex(hourly: ProviderHourly, i: number) {
   return {
     uvIndex: safeHourlyValue(hourly.uv_index, i),
     uvClearSky: safeHourlyValue(hourly.uv_index_clear_sky, i),
@@ -496,13 +552,13 @@ function atmosphereAtIndex(hourly, i) {
   };
 }
 
-function interpolateAtmosphereAtIndexes(hourly, i, j, frac) {
-  const lerp = (arr) => {
+function interpolateAtmosphereAtIndexes(hourly: ProviderHourly, i: number, j: number, frac: number) {
+  const lerp = (arr: unknown) => {
     const a = safeHourlyValue(arr, i);
     const b = safeHourlyValue(arr, j);
     if (!Number.isFinite(a)) return Number.isFinite(b) ? b : null;
     if (!Number.isFinite(b)) return a;
-    return a + (b - a) * frac;
+    return a! + (b! - a!) * frac;
   };
   return {
     uvIndex: lerp(hourly.uv_index),
@@ -512,8 +568,8 @@ function interpolateAtmosphereAtIndexes(hourly, i, j, frac) {
   };
 }
 
-function safeHourlyValue(arr, i) {
+function safeHourlyValue(arr: unknown, i: number): number | null {
   if (!Array.isArray(arr)) return null;
   const v = arr[i];
-  return Number.isFinite(v) ? v : null;
+  return Number.isFinite(v) ? v as number : null;
 }

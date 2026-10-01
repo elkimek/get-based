@@ -1,4 +1,8 @@
-#!/usr/bin/env node
+import type { UVDataClient } from '../js/sun-uvdata-client-types.js';
+import { expect, it } from 'vitest';
+import './_node-shim.js';
+
+it('retains the original UV provider, cache and interpolation flows', async () => {
 // test-sun-uvdata-flow.js — Behavioral coverage for js/sun-uvdata.js exports
 // that aren't already exercised by test-sun-uvdata.js. The existing test
 // focuses on SSRF + solarZenithAngle math; this one drives the cache, the
@@ -8,14 +12,13 @@
 //
 // Run: node tests/test-sun-uvdata-flow.js  (or via npm test)
 
-import './_node-shim.js';
 
 let pass = 0, fail = 0;
-const assert = (name, cond, detail) => {
+const assert = (name: string, cond: unknown, detail?: unknown) => {
   if (cond) { pass++; console.log(`  PASS: ${name}`); }
   else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
 };
-const withTimeout = (fn, ms = 1500) => Promise.race([
+const withTimeout = (fn: () => unknown, ms = 1500) => Promise.race([
   Promise.resolve().then(fn).catch(() => {}),
   new Promise(r => setTimeout(r, ms)),
 ]);
@@ -24,7 +27,7 @@ console.log('=== Sun UV-data Flow ===\n');
 
 await import('../js/state.js');
 const { HOSTED_PROXY_API_URL } = await import('../js/proxy-runtime.js');
-const mod = await import('../js/sun-uvdata.js');
+const mod = await import('../js/sun-uvdata.js' as string) as UVDataClient;
 const {
   initMeteoConfigCache, getMeteoConfig, saveMeteoConfig,
   fetchAtmosphere, purgeMeteoCache,
@@ -133,7 +136,7 @@ const {
     },
     current: { pm2_5: 6, pm10: 11, european_aqi: 18 },
   };
-  const responseJson = (json) => new Response(JSON.stringify(json), {
+  const responseJson = (json: unknown) => new Response(JSON.stringify(json), {
     status: 200,
     headers: { 'content-type': 'application/json' },
   });
@@ -183,7 +186,7 @@ const {
   // the provider chain, leaving Conditions Now with only UV-A on/off events
   // and an empty air-quality card. Supplement the missing context without
   // replacing CAMS UV, ozone column, aerosol, or raw particle readings.
-  const contextCalls = [];
+  const contextCalls: string[] = [];
   window.fetch = async (u) => {
     const url = String(u);
     contextCalls.push(url);
@@ -247,8 +250,8 @@ const {
   // ── 6. Local dev CAMS never falls through to getbased infrastructure ──
   purgeMeteoCache();
   const savedLocation = globalThis.location;
-  globalThis.location = { origin: 'http://localhost:8000' };
-  const localFallbackCalls = [];
+  globalThis.location = { origin: 'http://localhost:8000' } as Location;
+  const localFallbackCalls: string[] = [];
   window.fetch = async (u) => {
     const url = String(u);
     localFallbackCalls.push(url);
@@ -278,14 +281,14 @@ const {
   assert('Local CAMS failure falls back browser-direct to Open-Meteo',
     localCams?.source === 'open_meteo',
     JSON.stringify(localCams));
-  if (savedLocation === undefined) delete globalThis.location;
+  if (savedLocation === undefined) delete (globalThis as { location?: Location }).location;
   else globalThis.location = savedLocation;
 
   // ── 6b. Official hosts force the privacy grid in the browser ─────────
   purgeMeteoCache();
   const officialSavedLocation = globalThis.location;
-  globalThis.location = { hostname: 'app.getbased.health', origin: 'https://app.getbased.health' };
-  let hostedCamsBody = null;
+  globalThis.location = { hostname: 'app.getbased.health', origin: 'https://app.getbased.health' } as Location;
+  let hostedCamsBody: { latitude: number; longitude: number } | null = null;
   window.fetch = async (u, init = {}) => {
     if (String(u) !== HOSTED_PROXY_API_URL) throw new Error(`Unexpected hosted UV URL: ${u}`);
     hostedCamsBody = JSON.parse(String(init.body || '{}'));
@@ -303,14 +306,14 @@ const {
     noCache: true,
   });
   assert('Official browser forces 0.1-degree CAMS coordinates even if stored rounding is off',
-    hostedCamsBody?.latitude === 50.1 && hostedCamsBody?.longitude === 14.4,
+    (hostedCamsBody as { latitude: number; longitude: number } | null)?.latitude === 50.1 && (hostedCamsBody as { latitude: number; longitude: number } | null)?.longitude === 14.4,
     JSON.stringify(hostedCamsBody));
   assert('Official result metadata reports the rounded request boundary',
     hostedCams?._requestCoords?.privacyRounded === true
       && hostedCams?._requestCoords?.lat === 50.1
       && hostedCams?._requestCoords?.lon === 14.4,
     JSON.stringify(hostedCams?._requestCoords));
-  if (officialSavedLocation === undefined) delete globalThis.location;
+  if (officialSavedLocation === undefined) delete (globalThis as { location?: Location }).location;
   else globalThis.location = officialSavedLocation;
 
   // ── 7. Selfhost mode → exercises _looksLikeOpenMeteoResponse ──────────
@@ -366,4 +369,5 @@ const {
   saveMeteoConfig(origCfg);
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
-process.exit(fail > 0 ? 1 : 0);
+expect(fail).toBe(0);
+});
