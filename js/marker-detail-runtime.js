@@ -1,6 +1,7 @@
 // @ts-check
 // marker-detail-runtime.js - Browser runtime adapters for marker detail modal hooks.
 
+import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
 import { closeEMFInterpretation } from './emf-runtime.js';
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { getRecommendationModuleFunction } from './recommendations-runtime.js';
@@ -99,35 +100,7 @@ const markerDetailRuntimeDeps = {
 
 /** @param {Partial<MarkerDetailRuntimeDeps>} [deps] */
 export function configureMarkerDetailRuntime(deps = {}) {
-  const previous = { ...markerDetailRuntimeDeps };
-  if (Object.hasOwn(deps, 'askAIAboutMarker') && (deps.askAIAboutMarker === null || typeof deps.askAIAboutMarker === 'function')) {
-    markerDetailRuntimeDeps.askAIAboutMarker = deps.askAIAboutMarker;
-  }
-  if (Object.hasOwn(deps, 'buildSidebar') && (deps.buildSidebar === null || typeof deps.buildSidebar === 'function')) {
-    markerDetailRuntimeDeps.buildSidebar = deps.buildSidebar;
-  }
-  if (Object.hasOwn(deps, 'closeEMFInterpretation') && (deps.closeEMFInterpretation === null || typeof deps.closeEMFInterpretation === 'function')) {
-    markerDetailRuntimeDeps.closeEMFInterpretation = deps.closeEMFInterpretation;
-  }
-  if (Object.hasOwn(deps, 'isDashboardQuickMarkerPinned') && (deps.isDashboardQuickMarkerPinned === null || typeof deps.isDashboardQuickMarkerPinned === 'function')) {
-    markerDetailRuntimeDeps.isDashboardQuickMarkerPinned = deps.isDashboardQuickMarkerPinned;
-  }
-  if (Object.hasOwn(deps, 'navigate') && (deps.navigate === null || typeof deps.navigate === 'function')) {
-    markerDetailRuntimeDeps.navigate = deps.navigate;
-  }
-  if (Object.hasOwn(deps, 'renameMarker') && (deps.renameMarker === null || typeof deps.renameMarker === 'function')) {
-    markerDetailRuntimeDeps.renameMarker = deps.renameMarker;
-  }
-  if (Object.hasOwn(deps, 'revertMarkerName') && (deps.revertMarkerName === null || typeof deps.revertMarkerName === 'function')) {
-    markerDetailRuntimeDeps.revertMarkerName = deps.revertMarkerName;
-  }
-  if (Object.hasOwn(deps, 'showEmojiPicker') && (deps.showEmojiPicker === null || typeof deps.showEmojiPicker === 'function')) {
-    markerDetailRuntimeDeps.showEmojiPicker = deps.showEmojiPicker;
-  }
-  if (Object.hasOwn(deps, 'toggleDashboardQuickMarkerPin') && (deps.toggleDashboardQuickMarkerPin === null || typeof deps.toggleDashboardQuickMarkerPin === 'function')) {
-    markerDetailRuntimeDeps.toggleDashboardQuickMarkerPin = deps.toggleDashboardQuickMarkerPin;
-  }
-  return previous;
+  return configureValidRuntimeCallbacks(markerDetailRuntimeDeps, deps);
 }
 
 /**

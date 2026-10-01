@@ -318,6 +318,14 @@ intact. Snapshot identity, inherited properties, getter reads and partial update
 on exceptions retain their original behavior. Four legacy adapter scripts and the
 verdict suite are strict native tests with their original fixtures and assertions.
 
+Sun facade callbacks, geolocation, camera-tool modal delegation and dashboard
+context status now use native TypeScript. Validated nullable setters share their
+own-key, null-first update rule; profile refresh and recommendations reuse the
+mixed-hook operation. The original Sun fixtures retain stored-session identity,
+geolocation options, failures and browser-absent behavior in a strict native suite.
+Camera measurement writers declare tool/value/options without widening callers
+or changing delegated-close identity and event containment checks.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

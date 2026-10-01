@@ -1,6 +1,7 @@
 // @ts-check
 // profile-runtime.js - Browser runtime refresh hooks for profile lifecycle.
 
+import { configureRuntimeDependencies } from './runtime-callbacks.js';
 import { isChatModuleLoaded, loadChatModule } from './chat-loader.js';
 import { state } from './state.js';
 import {
@@ -38,11 +39,7 @@ const profileRefreshDeps = {
 
 /** @param {Partial<ProfileRefreshDependencies>} [deps] */
 export function configureProfileRefreshDeps(deps = {}) {
-  const previous = { ...profileRefreshDeps };
-  for (const key of Object.keys(profileRefreshDeps)) {
-    if (typeof deps[key] === 'function') profileRefreshDeps[key] = deps[key];
-  }
-  return previous;
+  return configureRuntimeDependencies(profileRefreshDeps, deps);
 }
 
 export function invalidateProfileContextCache() {

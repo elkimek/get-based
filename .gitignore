@@ -287,3 +287,8 @@ deploy/profile-share/data/
 /js/mobile-dashboard-runtime.js
 /js/sync-pull-active-refresh-runtime.js
 /js/tour-runtime.js
+
+# Native Sun and camera tool runtime boundaries
+/js/sun-runtime.js
+/js/light-tool-camera-modal-runtime.js
+/js/context-card-dashboard-ai-runtime.js

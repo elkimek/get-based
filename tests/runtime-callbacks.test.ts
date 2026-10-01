@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { configureRuntimeCallbacks, configureRuntimeDependencies } from '../js/runtime-callbacks.js';
+import { configureRuntimeCallbacks, configureRuntimeDependencies, configureValidRuntimeCallbacks } from '../js/runtime-callbacks.js';
 
 interface Callbacks {
   close: (() => void) | null;
@@ -124,4 +124,29 @@ it('keeps preceding mixed hook updates when a later getter throws', () => {
   });
   expect(() => configureRuntimeDependencies(callbacks, updates, ['close'])).toThrow('required hook getter failure');
   expect(callbacks).toEqual({ close: replacement, required });
+});
+
+
+it('accepts own nulls and functions while retaining invalid or inherited callback overrides', () => {
+  const close = vi.fn(), navigate = vi.fn(), replacement = vi.fn();
+  const callbacks: Callbacks = { close, navigate };
+  configureValidRuntimeCallbacks(callbacks, Object.create({ close: null }));
+  expect(callbacks.close).toBe(close);
+  configureValidRuntimeCallbacks(callbacks, JSON.parse('{"close":false,"navigate":null}'));
+  expect(callbacks).toEqual({ close, navigate: null });
+  const previous = configureValidRuntimeCallbacks(callbacks, { close: replacement });
+  expect(previous).toEqual({ close, navigate: null });
+  expect(callbacks).toEqual({ close: replacement, navigate: null });
+});
+
+it('retains null-first validation reads and partial updates when validated hook getters throw', () => {
+  const close = vi.fn(), replacement = vi.fn(), trace: string[] = [];
+  const callbacks: Callbacks = { close, navigate: null };
+  const updates = Object.defineProperties({}, {
+    close: { get: () => { trace.push('close'); return replacement; } },
+    navigate: { get: () => { trace.push('navigate'); throw new Error('validated hook getter failure'); } },
+  });
+  expect(() => configureValidRuntimeCallbacks(callbacks, updates)).toThrow('validated hook getter failure');
+  expect(trace).toEqual(['close', 'close', 'close', 'navigate']);
+  expect(callbacks).toEqual({ close: replacement, navigate: null });
 });

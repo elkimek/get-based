@@ -1,24 +1,18 @@
-// @ts-check
 // Shared delegated-close and dependency helpers for camera-backed Light tools.
 
-/**
- * @template {Element} T
- * @param {ParentNode} root
- * @param {string} selector
- * @returns {T | null}
- */
-export function queryOptionalLightToolElement(root, selector) {
-  return /** @type {T | null} */ (root.querySelector(selector));
+type SaveLightMeasurement = (tool: string, value: unknown, options?: Record<string, unknown>) => unknown;
+
+export function queryOptionalLightToolElement<T extends Element = Element>(root: ParentNode, selector: string): T | null {
+  return root.querySelector(selector) as T | null;
 }
 
-export function lightToolModalActionAttrs(action) {
+export function lightToolModalActionAttrs(action: string) {
   return `data-light-tool-modal-action="${action}"`;
 }
 
-/** @type {Map<string, AnyFunction>} */
-const activeCameraToolClosers = new Map();
+const activeCameraToolClosers = new Map<string, (() => unknown)>();
 
-function handleLightToolModalClick(event) {
+function handleLightToolModalClick(event: Event) {
   const target = event.target;
   if (!(target instanceof Element)) return;
   const actionEl = target.closest('[data-light-tool-modal-action]');
@@ -33,25 +27,24 @@ function handleLightToolModalClick(event) {
   close();
 }
 
-export function installLightToolModalDelegates(overlay) {
+export function installLightToolModalDelegates(overlay: Element) {
   overlay.addEventListener('click', handleLightToolModalClick);
 }
 
-export function registerCameraToolCloser(action, close) {
+export function registerCameraToolCloser(action: string, close: () => unknown) {
   activeCameraToolClosers.set(action, close);
 }
 
-export function clearCameraToolCloser(action, close) {
+export function clearCameraToolCloser(action: string, close: () => unknown) {
   if (activeCameraToolClosers.get(action) === close) activeCameraToolClosers.delete(action);
 }
 
-export function closeCameraTool(action) {
+export function closeCameraTool(action: string) {
   const close = activeCameraToolClosers.get(action);
   if (typeof close === 'function') close();
 }
 
-/** @param {{ saveMeasurement?: AnyFunction }} [deps] */
-export function getSaveMeasurement(deps = {}) {
+export function getSaveMeasurement(deps: { saveMeasurement?: SaveLightMeasurement } = {}): SaveLightMeasurement {
   const fn = deps.saveMeasurement;
   if (typeof fn !== 'function') throw new Error('saveMeasurement dependency is required');
   return fn;

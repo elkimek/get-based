@@ -1,6 +1,7 @@
 // @ts-check
 // recommendations-runtime.js - Browser runtime adapters for recommendation hooks.
 
+import { configureRuntimeDependencies } from './runtime-callbacks.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
 
 const recommendationsRuntimeDeps = {
@@ -50,31 +51,7 @@ export function setRecommendationsCatalogCache(catalog) {
 }
 
 export function configureRecommendationsRuntime(deps = {}) {
-  const previous = { ...recommendationsRuntimeDeps };
-  if ('closeModal' in deps) {
-    recommendationsRuntimeDeps.closeModal = typeof deps.closeModal === 'function'
-      ? /** @type {() => unknown} */ (deps.closeModal)
-      : null;
-  }
-  if (typeof deps.openEMFAssessmentEditor === 'function') {
-    recommendationsRuntimeDeps.openEMFAssessmentEditor = deps.openEMFAssessmentEditor;
-  }
-  if ('openChatPanel' in deps) {
-    recommendationsRuntimeDeps.openChatPanel = typeof deps.openChatPanel === 'function'
-      ? /** @type {(prompt?: string) => unknown} */ (deps.openChatPanel)
-      : null;
-  }
-  if ('openProfileLocationEditor' in deps) {
-    recommendationsRuntimeDeps.openProfileLocationEditor = typeof deps.openProfileLocationEditor === 'function'
-      ? /** @type {() => unknown} */ (deps.openProfileLocationEditor)
-      : null;
-  }
-  if ('openSettingsModal' in deps) {
-    recommendationsRuntimeDeps.openSettingsModal = typeof deps.openSettingsModal === 'function'
-      ? /** @type {(tab?: string) => unknown} */ (deps.openSettingsModal)
-      : null;
-  }
-  return previous;
+  return configureRuntimeDependencies(recommendationsRuntimeDeps, deps, ['closeModal', 'openChatPanel', 'openProfileLocationEditor', 'openSettingsModal']);
 }
 
 function getRuntimeWindow() {

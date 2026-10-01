@@ -25,3 +25,17 @@ export function configureRuntimeDependencies<T extends { [K in keyof T]: ((...ar
   }
   return previous;
 }
+
+
+/** Accept own function/null overrides, leaving invalid values and inherited slots untouched. */
+export function configureValidRuntimeCallbacks<T extends { [K in keyof T]: ((...args: never[]) => unknown) | null }>(
+  current: T, updates: Partial<T> = {},
+): T {
+  const previous = { ...current };
+  for (const key of Object.keys(current) as Array<keyof T>) {
+    if (Object.hasOwn(updates, key) && (updates[key] === null || typeof updates[key] === 'function')) {
+      current[key] = updates[key] as T[typeof key];
+    }
+  }
+  return previous;
+}
