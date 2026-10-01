@@ -31,6 +31,11 @@ export interface ParserAdapter {
 // 2. Detect products from filename/text content
 // 3. Post-process AI output (normalize keys, deduplicate, skip calculated)
 //
+// Adapter interface:
+//   id:         unique string identifier
+//   testTypes:  array of testType values this adapter handles
+//   markers:    object of "category.markerKey" to report definitions
+
 import { MARKER_SCHEMA } from './schema.js';
 import { isDebugMode } from './utils.js';
 
