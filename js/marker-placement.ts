@@ -1,4 +1,4 @@
-// @ts-check
+import type { CustomMarkerMap } from './custom-marker-identity.js';
 // marker-placement.js — Category-independent marker placement metadata.
 
 import {
@@ -14,15 +14,48 @@ import {
   MARKER_SCHEMA,
 } from './marker-schema.js';
 
+/** Placement is a view projection; persisted marker addresses stay immutable. */
+export interface MarkerPlacementProfile {
+  customMarkers?: CustomMarkerMap | null;
+  markerPlacements?: Record<string, unknown> | null;
+  [key: string]: unknown;
+}
+export interface ResolvedMarkerIdentity {
+  markerId: string; storageDotKey: string;
+  categoryKey: string; markerKey: string; custom: boolean;
+}
+export interface MarkerPlacementResolution extends ResolvedMarkerIdentity {
+  requestedCategoryKey: string | null;
+  effectiveCategoryKey: string;
+  reason: string;
+}
+export type MarkerPlacementResult =
+  | { ok: false; changed: false; reason: string }
+  | { ok: true; changed: boolean; markerId: string; storageDotKey: string; categoryKey: string };
+export interface PlacementViewMarker {
+  storageDotKey?: unknown;
+  markerId?: string; nativeCategoryKey?: string; displayCategoryKey?: string;
+  [key: string]: unknown;
+}
+export interface PlacementViewCategory {
+  markers?: Record<string, PlacementViewMarker> | null;
+  [key: string]: unknown;
+}
+type PlacementCategories = Record<string, PlacementViewCategory>;
+type OptionalProfile = MarkerPlacementProfile | null | undefined;
+type CategoryOf<Categories extends PlacementCategories> = Categories[keyof Categories];
+type MarkerOf<Categories extends PlacementCategories> = NonNullable<NonNullable<CategoryOf<Categories>>['markers']>[string];
+type ResolvedViewPath<Categories extends PlacementCategories> = {
+  categoryKey: string; category: CategoryOf<Categories>; marker: MarkerOf<Categories>;
+};
+
 const CATEGORY_KEY_RE = /^[A-Za-z][A-Za-z0-9]*$/;
 
-/** @param {unknown} value */
-function isRecord(value) {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
-/** @param {unknown} dotKey */
-function splitDotKey(dotKey) {
+function splitDotKey(dotKey: unknown) {
   if (typeof dotKey !== 'string') return null;
   const dot = dotKey.indexOf('.');
   if (dot < 1 || dot === dotKey.length - 1) return null;
@@ -37,10 +70,8 @@ function splitDotKey(dotKey) {
  * destinations, and extra object fields must survive import/sync ordering; the
  * runtime simply falls back to the marker's native category until they resolve.
  *
- * @param {Record<string, any>} data
- * @returns {Record<string, any>}
  */
-export function migrateMarkerPlacements(data) {
+export function migrateMarkerPlacements(data: MarkerPlacementProfile) {
   if (!isRecord(data.markerPlacements)) data.markerPlacements = {};
   for (const [markerId, placement] of Object.entries(data.markerPlacements)) {
     if (typeof placement === 'string') {
@@ -57,11 +88,7 @@ export function migrateMarkerPlacements(data) {
   return data.markerPlacements;
 }
 
-/**
- * @param {Record<string, any>} profileData
- * @param {unknown} value Stable marker ID or native storage dotkey.
- */
-export function resolveMarkerIdentity(profileData, value) {
+export function resolveMarkerIdentity(profileData: OptionalProfile, value: unknown): ResolvedMarkerIdentity | null {
   const customMarkers = isRecord(profileData?.customMarkers) ? profileData.customMarkers : {};
   const builtinMarkerId = getBuiltinMarkerId(value)
     || (getBuiltinMarkerDotKey(value) ? String(value) : null);
@@ -80,9 +107,8 @@ export function resolveMarkerIdentity(profileData, value) {
   return markerId ? { markerId, storageDotKey, ...parts, custom: true } : null;
 }
 
-/** @param {Record<string, any>} profileData */
-function buildCategoryModes(profileData) {
-  const modes = new Map();
+function buildCategoryModes(profileData: OptionalProfile) {
+  const modes = new Map<string, { calculated: boolean; singlePoint: boolean }>();
   for (const [categoryKey, category] of Object.entries(MARKER_SCHEMA)) {
     modes.set(categoryKey, {
       calculated: !!category.calculated,
@@ -100,10 +126,9 @@ function buildCategoryModes(profileData) {
   return modes;
 }
 
-/** @param {Record<string, any>} profileData */
-function listMarkerIdentities(profileData) {
-  const markers = [];
-  const occupiedNativeSlots = new Set();
+function listMarkerIdentities(profileData: OptionalProfile) {
+  const markers: ResolvedMarkerIdentity[] = [];
+  const occupiedNativeSlots = new Set<string>();
   for (const identity of BUILTIN_MARKER_IDENTITIES) {
     const parts = splitDotKey(identity.currentDotKey);
     if (!parts) continue;
@@ -129,15 +154,13 @@ function listMarkerIdentities(profileData) {
  * slots remain reserved even when their marker moves, making imported
  * conflicts deterministic and preventing one marker from hiding another.
  *
- * @param {Record<string, any>} profileData
- * @returns {Record<string, any>}
  */
-export function getMarkerPlacementPlan(profileData) {
+export function getMarkerPlacementPlan(profileData: OptionalProfile) {
   const modes = buildCategoryModes(profileData || {});
   const markers = listMarkerIdentities(profileData || {});
   const placements = isRecord(profileData?.markerPlacements) ? profileData.markerPlacements : {};
   const reserved = new Map(markers.map(marker => [marker.storageDotKey, marker.markerId]));
-  const plan = {};
+  const plan: Record<string, MarkerPlacementResolution> = {};
 
   for (const marker of markers) {
     const raw = placements[marker.markerId];
@@ -182,11 +205,8 @@ export function getMarkerPlacementPlan(profileData) {
  * Store a marker's primary display category without re-keying any marker data.
  * Moving back to the native category removes the redundant override.
  *
- * @param {Record<string, any>} profileData
- * @param {string} markerReference Stable marker ID or native storage dotkey.
- * @param {string} categoryKey
  */
-export function setMarkerPlacement(profileData, markerReference, categoryKey) {
+export function setMarkerPlacement(profileData: MarkerPlacementProfile, markerReference: unknown, categoryKey: string): MarkerPlacementResult {
   const marker = resolveMarkerIdentity(profileData, markerReference);
   if (!marker) return { ok: false, changed: false, reason: 'unknown-marker' };
   if (categoryKey === marker.categoryKey) return clearMarkerPlacement(profileData, marker.markerId);
@@ -195,7 +215,7 @@ export function setMarkerPlacement(profileData, markerReference, categoryKey) {
   const candidatePlacements = {
     ...current,
     [marker.markerId]: {
-      ...(isRecord(current[marker.markerId]) ? current[marker.markerId] : {}),
+      ...(isRecord(current[marker.markerId]) ? current[marker.markerId] as Record<string, unknown> : {}),
       categoryKey,
     },
   };
@@ -217,8 +237,7 @@ export function setMarkerPlacement(profileData, markerReference, categoryKey) {
   };
 }
 
-/** @param {Record<string, any>} profileData @param {string} markerReference */
-export function clearMarkerPlacement(profileData, markerReference) {
+export function clearMarkerPlacement(profileData: MarkerPlacementProfile, markerReference: unknown): MarkerPlacementResult {
   const marker = resolveMarkerIdentity(profileData, markerReference);
   if (!marker) return { ok: false, changed: false, reason: 'unknown-marker' };
   if (!isRecord(profileData.markerPlacements)) profileData.markerPlacements = {};
@@ -237,10 +256,8 @@ export function clearMarkerPlacement(profileData, markerReference) {
  * Add immutable identity metadata to the active view and project accepted
  * placements only after the native-category data pipeline has completed.
  *
- * @param {Record<string, any>} categories
- * @param {Record<string, any>} profileData
  */
-export function applyMarkerPlacements(categories, profileData) {
+export function applyMarkerPlacements<Categories extends PlacementCategories>(categories: Categories, profileData: OptionalProfile): Categories {
   const plan = getMarkerPlacementPlan(profileData || {});
   for (const placement of Object.values(plan)) {
     const marker = categories[placement.categoryKey]?.markers?.[placement.markerKey];
@@ -256,7 +273,7 @@ export function applyMarkerPlacements(categories, profileData) {
     const destination = categories[placement.effectiveCategoryKey];
     const marker = source?.markers?.[placement.markerKey];
     if (!marker || !destination?.markers || destination.markers[placement.markerKey]) continue;
-    delete source.markers[placement.markerKey];
+    delete source!.markers![placement.markerKey];
     destination.markers[placement.markerKey] = marker;
   }
   return categories;
@@ -266,11 +283,8 @@ export function applyMarkerPlacements(categories, profileData) {
  * Resolve the immutable storage key carried by an active marker. The view-ID
  * fallback preserves behavior for legacy/test marker objects.
  *
- * @param {Record<string, any> | null | undefined} marker
- * @param {unknown} viewId
- * @returns {string | null}
  */
-export function getMarkerStorageDotKey(marker, viewId) {
+export function getMarkerStorageDotKey(marker: PlacementViewMarker | null | undefined, viewId: unknown) {
   if (typeof marker?.storageDotKey === 'string' && splitDotKey(marker.storageDotKey)) {
     return marker.storageDotKey;
   }
@@ -284,10 +298,8 @@ export function getMarkerStorageDotKey(marker, viewId) {
 /**
  * Return the immutable storage path in the underscore form used by UI state.
  *
- * @param {Record<string, any> | null | undefined} marker
- * @param {unknown} viewId
  */
-export function getMarkerStorageViewId(marker, viewId) {
+export function getMarkerStorageViewId(marker: PlacementViewMarker | null | undefined, viewId: unknown) {
   const parts = splitDotKey(getMarkerStorageDotKey(marker, viewId));
   return parts ? `${parts.categoryKey}_${parts.markerKey}` : null;
 }
@@ -296,26 +308,22 @@ export function getMarkerStorageViewId(marker, viewId) {
  * Resolve a rendered path first, then its immutable native storage path. The
  * fallback lets saved dashboard references follow a marker after placement.
  *
- * @param {Record<string, any>} categories
- * @param {string} categoryKey
- * @param {string} markerKey
  */
-export function resolveActiveMarkerPath(categories, categoryKey, markerKey) {
+export function resolveActiveMarkerPath<Categories extends PlacementCategories>(categories: Categories | null | undefined, categoryKey: string, markerKey: string): ResolvedViewPath<Categories> | null {
   const directCategory = categories?.[categoryKey];
   const directMarker = directCategory?.markers?.[markerKey];
-  if (directCategory && directMarker) return { categoryKey, category: directCategory, marker: directMarker };
+  if (directCategory && directMarker) return { categoryKey, category: directCategory, marker: directMarker } as ResolvedViewPath<Categories>;
   const storageDotKey = `${categoryKey}.${markerKey}`;
   for (const [displayCategoryKey, category] of Object.entries(categories || {})) {
     const marker = category.markers?.[markerKey];
     if (marker?.storageDotKey === storageDotKey) {
-      return { categoryKey: displayCategoryKey, category, marker };
+      return { categoryKey: displayCategoryKey, category, marker } as ResolvedViewPath<Categories>;
     }
   }
   return null;
 }
 
-/** @param {Record<string, any>} categories @param {unknown} viewId */
-export function resolveMarkerStorageViewId(categories, viewId) {
+export function resolveMarkerStorageViewId<Categories extends PlacementCategories>(categories: Categories, viewId: unknown) {
   if (typeof viewId !== 'string') return null;
   const separator = viewId.indexOf('_');
   if (separator < 1 || separator === viewId.length - 1) return null;

@@ -356,6 +356,15 @@ markers, provenance, context and tombstones. Validated import callers declare
 the non-null row they already require. The complete original mutation suite is
 a strict native integration test, with its fixtures and assertions unchanged.
 
+Marker identity, category placement, unique-report provenance recovery and cold-safe
+context-card history now use strict native TypeScript. Placement views preserve
+caller category and marker types; mutation results expose their existing success
+discriminant. Context callbacks share the inherited-property update operation.
+The pure identity, placement and context callback suites are native tests; profile
+and UI integration cases retain their existing fixtures and assertions. Legacy
+IDs, collision resolution, slot reservation, metadata, normalized-value matching
+and history replacement/capping retain their executable behavior.
+
 ## Remaining work
 
 Migrate the remaining browser features, server/API and companion code, workers,

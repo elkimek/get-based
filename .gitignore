@@ -307,3 +307,9 @@ deploy/profile-share/data/
 # Native imported lab mutation and explicit restore operations
 /js/lab-entry-mutations.js
 /js/lab-entry-restore.js
+
+# Native marker identity, placement, provenance and context history
+/js/custom-marker-identity.js
+/js/marker-placement.js
+/js/profile-import-provenance.js
+/js/context-cards-runtime.js

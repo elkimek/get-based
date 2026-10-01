@@ -1,9 +1,9 @@
-// @ts-check
+import type { LabMergeData } from './data-merge-lab-entries.js';
+import type { ProfileMarkerData, ProfileImportSnapshot, ProfileImportMarker } from './profile-marker-alias-migrations.js';
 // Recover report links lost by older marker-detail edits without changing results.
 import { normalizeToSI } from './schema.js';
 
-/** @param {Record<string, any>} data */
-export function repairEditedImportProvenance(data) {
+export function repairEditedImportProvenance(data: ProfileMarkerData & Pick<LabMergeData, '_deleted'>) {
   if (!Array.isArray(data.entries) || !Array.isArray(data.importSnapshots)) return;
   const deletedSnapshots = new Set(data._deleted?.importSnapshots || []);
   for (const entry of data.entries) {
@@ -14,7 +14,7 @@ export function repairEditedImportProvenance(data) {
       // Require the old edit-source shape; do not guess for untracked legacy values.
       if (!Number.isFinite(original) || source?.snapshotId || source?.file !== null
           || !Number.isFinite(source?.at) || entry.deletedMarkers?.[key]) continue;
-      const candidates = [];
+      const candidates: { snapshot: ProfileImportSnapshot; marker: ProfileImportMarker }[] = [];
       for (const snapshot of data.importSnapshots) {
         if (!snapshot?.id || snapshot.date !== entry.date || deletedSnapshots.has(snapshot.id)
             || !Array.isArray(snapshot.markers)) continue;
@@ -27,12 +27,12 @@ export function repairEditedImportProvenance(data) {
       }
       // Multiple rows or reports for the same key cannot establish a unique origin.
       if (candidates.length !== 1) continue;
-      const { snapshot, marker } = candidates[0];
-      const normalized = normalizeToSI(key, marker.value, marker.unit, marker);
+      const { snapshot, marker } = candidates[0]!;
+      const normalized = normalizeToSI(key, marker.value as number | null | undefined, marker.unit, marker);
       const matches = [marker.value, normalized].some(v => Number.isFinite(v)
         && (Object.is(v, original) || Object.is(v, value)));
       if (!matches) continue;
-      entry.markerSources[key] = {
+      entry.markerSources![key] = {
         ...source, snapshotId: snapshot.id, file: snapshot.fileName || null, manuallyEdited: true,
       };
     }

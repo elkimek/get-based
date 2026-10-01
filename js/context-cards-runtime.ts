@@ -1,4 +1,4 @@
-// @ts-check
+import { configureRuntimeCallbacks } from './runtime-callbacks.js';
 // context-cards-runtime.js - Explicit callbacks for context-card integrations.
 
 import { state } from './state.js';
@@ -9,26 +9,36 @@ import {
   trimImportedArray,
 } from './data-merge.js';
 
+export interface ContextCardsCallbacks {
+  closeModal: (() => unknown) | null;
+  navigate: ((category: string) => unknown) | null;
+  onContextCardSaved: (() => unknown) | null;
+  openContextModal: (() => unknown) | null;
+  openInterpretiveLensEditor: (() => unknown) | null;
+  recordChange: ((field: string) => unknown) | null;
+  triggerDNAFilePicker: (() => unknown) | null;
+}
+interface ContextHistoryEntry { field?: unknown; date?: unknown; snapshot?: unknown; updatedAt?: unknown }
+
 /**
  * Record context history without requiring the context-card UI composition.
  * Cycle imports and Chat onboarding both persist through this cold-safe path.
  *
- * @param {string} field
  */
-export function recordContextCardChange(field) {
+export function recordContextCardChange(field: string) {
   const today = new Date().toISOString().slice(0, 10);
-  const current = state.importedData[field];
-  const snapshot = current != null ? JSON.parse(JSON.stringify(current)) : null;
+  const current: unknown = state.importedData[field];
+  const snapshot: unknown = current != null ? JSON.parse(JSON.stringify(current)) : null;
   const snapshotStr = JSON.stringify(snapshot);
-  const history = ensureImportedArray(state.importedData, 'changeHistory');
+  const history = ensureImportedArray(state.importedData, 'changeHistory') as ContextHistoryEntry[];
   let lastIdx = -1;
   for (let i = history.length - 1; i >= 0; i--) {
-    if (history[i].field === field) {
+    if (history[i]!.field === field) {
       lastIdx = i;
       break;
     }
   }
-  if (lastIdx >= 0 && JSON.stringify(history[lastIdx].snapshot) === snapshotStr) return;
+  if (lastIdx >= 0 && JSON.stringify(history[lastIdx]!.snapshot) === snapshotStr) return;
   const now = Date.now();
   const todayIdx = history.findIndex(entry => entry.field === field && entry.date === today);
   if (todayIdx >= 0) {
@@ -48,8 +58,7 @@ export function recordContextCardChange(field) {
   trimImportedArray(state.importedData, 'changeHistory', 200);
 }
 
-/** @type {Record<string, Function | null>} */
-const contextCardsRuntimeCallbacks = {
+const contextCardsRuntimeCallbacks: ContextCardsCallbacks = {
   closeModal: null,
   navigate: null,
   onContextCardSaved: null,
@@ -59,24 +68,15 @@ const contextCardsRuntimeCallbacks = {
   triggerDNAFilePicker: null,
 };
 
-/** @param {Record<string, any>} [callbacks] */
-export function configureContextCardsRuntimeCallbacks(callbacks = {}) {
-  const previous = { ...contextCardsRuntimeCallbacks };
-  for (const name of Object.keys(contextCardsRuntimeCallbacks)) {
-    if (name in callbacks) {
-      contextCardsRuntimeCallbacks[name] = typeof callbacks[name] === 'function'
-        ? callbacks[name]
-        : null;
-    }
-  }
-  return previous;
+export function configureContextCardsRuntimeCallbacks(callbacks: Partial<ContextCardsCallbacks> = {}) {
+  return configureRuntimeCallbacks(contextCardsRuntimeCallbacks, callbacks, 'inherited');
 }
 
-function callContextCardsRuntime(name, ...args) {
+function callContextCardsRuntime<Name extends keyof ContextCardsCallbacks>(name: Name, ...args: Parameters<NonNullable<ContextCardsCallbacks[Name]>>) {
   const callback = contextCardsRuntimeCallbacks[name];
   if (typeof callback !== 'function') return false;
   try {
-    callback(...args);
+    (callback as (...args: Parameters<NonNullable<ContextCardsCallbacks[Name]>>) => unknown)(...args);
     return true;
   } catch {
     return false;
@@ -91,8 +91,7 @@ export function closeContextCardModalRuntime() {
   return callContextCardsRuntime('closeModal');
 }
 
-/** @param {string} category */
-export function navigateContextCardViewRuntime(category) {
+export function navigateContextCardViewRuntime(category: string) {
   return callContextCardsRuntime('navigate', category);
 }
 
@@ -104,8 +103,7 @@ export function openInterpretiveLensEditorRuntime() {
   return callContextCardsRuntime('openInterpretiveLensEditor');
 }
 
-/** @param {string} field */
-export function recordContextCardChangeRuntime(field) {
+export function recordContextCardChangeRuntime(field: string) {
   return callContextCardsRuntime('recordChange', field);
 }
 

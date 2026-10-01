@@ -10,7 +10,7 @@ import {
   triggerContextCardDNAFilePickerRuntime,
 } from '../js/context-cards-runtime.js';
 
-let previousCallbacks;
+let previousCallbacks: ReturnType<typeof configureContextCardsRuntimeCallbacks>;
 
 beforeEach(() => {
   previousCallbacks = configureContextCardsRuntimeCallbacks({
