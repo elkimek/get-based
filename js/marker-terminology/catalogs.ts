@@ -1,4 +1,4 @@
-// @ts-check
+import type { TerminologyCatalog } from './definitions.js';
 // Authorities and primary references for supported laboratory terminologies.
 
 export const TERMINOLOGY_CATALOG_DEFINITIONS = {
@@ -22,4 +22,4 @@ export const TERMINOLOGY_CATALOG_DEFINITIONS = {
     authority: 'Regenstrief Institute and the UCUM Organization',
     homepageUrl: 'https://ucum.org/',
   },
-};
+} satisfies Record<string, TerminologyCatalog>;

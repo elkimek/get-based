@@ -1,3 +1,4 @@
+/// <reference lib="es2024.object" />
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -17,12 +18,12 @@ function authoredRegistry() {
   return Object.groupBy(MARKER_TERMINOLOGY_DEFINITIONS, mapping => mapping.markerId);
 }
 
-function terminologyCodes(markerId) {
+function terminologyCodes(markerId: unknown) {
   return getMarkerTerminologyMappings(markerId)
     .map(mapping => `${mapping.terminology}:${mapping.code}`);
 }
 
-function expectDeepFrozen(value) {
+function expectDeepFrozen(value: unknown) {
   expect(Object.isFrozen(value)).toBe(true);
   if (!value || typeof value !== 'object') return;
   for (const nested of Object.values(value)) expectDeepFrozen(nested);
@@ -105,8 +106,8 @@ describe('marker terminology registry', () => {
   });
 
   it('does not alter schema fields or stored marker locations', () => {
-    expect(MARKER_SCHEMA.biochemistry.markers.glucose).not.toHaveProperty('terminology');
-    expect(MARKER_SCHEMA.electrolytes.markers.sodium).not.toHaveProperty('terminology');
+    expect(MARKER_SCHEMA.biochemistry!.markers.glucose).not.toHaveProperty('terminology');
+    expect(MARKER_SCHEMA.electrolytes!.markers.sodium).not.toHaveProperty('terminology');
     expect(BUILTIN_MARKER_IDENTITIES.find(identity => identity.id === 'gb:marker:glucose'))
       .toMatchObject({ currentDotKey: 'biochemistry.glucose' });
     expect(BUILTIN_MARKER_IDENTITIES.find(identity => identity.id === 'gb:marker:sodium'))

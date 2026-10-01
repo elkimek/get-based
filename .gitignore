@@ -434,3 +434,8 @@ deploy/profile-share/data/
 /js/sun-uvdata-client-types.js
 
 /js/backup-serialization.js
+
+# Native terminology authoring, generator and runtime registry
+/js/marker-terminology/*.js
+/js/marker-terminology.js
+/scripts/build-marker-terminology.mjs

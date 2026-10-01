@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 817 |
-| Internal import edges | 3507 |
+| Modules | 818 |
+| Internal import edges | 3510 |
 | Dynamic internal edges | 119 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -268,7 +268,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>catalogs</code> family — 1 module</summary>
 
-- [`js/marker-terminology/catalogs.js`](js/marker-terminology/catalogs.js) → no in-scope imports
+- [`js/marker-terminology/catalogs.ts`](js/marker-terminology/catalogs.ts) → no in-scope imports
 
 </details>
 
@@ -512,6 +512,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>definitions</code> family — 1 module</summary>
+
+- [`js/marker-terminology/definitions.ts`](js/marker-terminology/definitions.ts) → no in-scope imports
+
+</details>
+
 <details><summary><code>demo</code> family — 3 modules</summary>
 
 - [`js/demo-biology-data.js`](js/demo-biology-data.js) → no in-scope imports
@@ -665,7 +671,7 @@ Native browser modules shipped with the static application.
 <details><summary><code>index</code> family — 2 modules</summary>
 
 - [`js/marker-schema/index.ts`](js/marker-schema/index.ts) → [`js/marker-schema/biochemistry.ts`](js/marker-schema/biochemistry.ts), [`js/marker-schema/body-composition.ts`](js/marker-schema/body-composition.ts), [`js/marker-schema/bone-density.ts`](js/marker-schema/bone-density.ts), [`js/marker-schema/bone-metabolism.ts`](js/marker-schema/bone-metabolism.ts), [`js/marker-schema/calculated-ratios.ts`](js/marker-schema/calculated-ratios.ts), [`js/marker-schema/cardiac.ts`](js/marker-schema/cardiac.ts), [`js/marker-schema/coagulation.ts`](js/marker-schema/coagulation.ts), [`js/marker-schema/diabetes.ts`](js/marker-schema/diabetes.ts), [`js/marker-schema/differential.ts`](js/marker-schema/differential.ts), [`js/marker-schema/electrolytes.ts`](js/marker-schema/electrolytes.ts), [`js/marker-schema/hematology.ts`](js/marker-schema/hematology.ts), [`js/marker-schema/hormones.ts`](js/marker-schema/hormones.ts), [`js/marker-schema/identities.ts`](js/marker-schema/identities.ts), [`js/marker-schema/iron.ts`](js/marker-schema/iron.ts), [`js/marker-schema/lipids.ts`](js/marker-schema/lipids.ts), [`js/marker-schema/proteins.ts`](js/marker-schema/proteins.ts), [`js/marker-schema/thyroid.ts`](js/marker-schema/thyroid.ts), [`js/marker-schema/tumor-markers.ts`](js/marker-schema/tumor-markers.ts), [`js/marker-schema/urinalysis.ts`](js/marker-schema/urinalysis.ts), [`js/marker-schema/vitamins.ts`](js/marker-schema/vitamins.ts)
-- [`js/marker-terminology/index.js`](js/marker-terminology/index.js) → [`js/marker-terminology/catalogs.js`](js/marker-terminology/catalogs.js), [`js/marker-terminology/loinc.js`](js/marker-terminology/loinc.js), [`js/marker-terminology/nclp.js`](js/marker-terminology/nclp.js), [`js/marker-terminology/npu.js`](js/marker-terminology/npu.js)
+- [`js/marker-terminology/index.ts`](js/marker-terminology/index.ts) → [`js/marker-terminology/catalogs.ts`](js/marker-terminology/catalogs.ts), [`js/marker-terminology/loinc.ts`](js/marker-terminology/loinc.ts), [`js/marker-terminology/nclp.ts`](js/marker-terminology/nclp.ts), [`js/marker-terminology/npu.ts`](js/marker-terminology/npu.ts)
 
 </details>
 
@@ -806,7 +812,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>loinc</code> family — 1 module</summary>
 
-- [`js/marker-terminology/loinc.js`](js/marker-terminology/loinc.js) → no in-scope imports
+- [`js/marker-terminology/loinc.ts`](js/marker-terminology/loinc.ts) → [`js/marker-terminology/definitions.ts`](js/marker-terminology/definitions.ts)
 
 </details>
 
@@ -840,7 +846,7 @@ Native browser modules shipped with the static application.
 - [`js/marker-placement.ts`](js/marker-placement.ts) → [`js/custom-marker-identity.ts`](js/custom-marker-identity.ts), [`js/marker-schema.ts`](js/marker-schema.ts)
 - [`js/marker-range-suggestions.ts`](js/marker-range-suggestions.ts) → [`js/schema.ts`](js/schema.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts)
 - [`js/marker-schema.ts`](js/marker-schema.ts) → no in-scope imports
-- [`js/marker-terminology.js`](js/marker-terminology.js) → no in-scope imports
+- [`js/marker-terminology.ts`](js/marker-terminology.ts) → no in-scope imports
 
 </details>
 
@@ -873,7 +879,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>nclp</code> family — 1 module</summary>
 
-- [`js/marker-terminology/nclp.js`](js/marker-terminology/nclp.js) → no in-scope imports
+- [`js/marker-terminology/nclp.ts`](js/marker-terminology/nclp.ts) → [`js/marker-terminology/definitions.ts`](js/marker-terminology/definitions.ts)
 
 </details>
 
@@ -892,7 +898,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>npu</code> family — 1 module</summary>
 
-- [`js/marker-terminology/npu.js`](js/marker-terminology/npu.js) → no in-scope imports
+- [`js/marker-terminology/npu.ts`](js/marker-terminology/npu.ts) → [`js/marker-terminology/definitions.ts`](js/marker-terminology/definitions.ts)
 
 </details>
 

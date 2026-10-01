@@ -1,4 +1,3 @@
-// @ts-check
 // Authoring composition for the generated marker terminology registry.
 
 import { TERMINOLOGY_CATALOG_DEFINITIONS } from './catalogs.js';
