@@ -34,7 +34,7 @@ const runtimeKeys = [
 const restoreRuntime = captureRuntimeGlobals(runtimeKeys);
 
 try {
-  const calls = [];
+  const calls: string[][] = [];
   const previousChatRuntime = configureChatRuntimeCallbacks({
     updateChatHeaderModel: () => calls.push(['chat-header']),
   });
@@ -43,13 +43,13 @@ try {
   });
   const previousLifestyleRuntime = configureContextCardLifestyleRuntimeDeps({
     closeModal: () => calls.push(['close']),
-    navigate: category => calls.push(['navigate', category]),
+    navigate: category => calls.push(['navigate', category as string]),
     openChatPanel: () => calls.push(['chat-panel']),
     useChatPrompt: prompt => calls.push(['prompt', prompt]),
   });
   setRuntimeValue('window', globalThis);
-  delete globalThis.__lifestyleContextDelegatesBound;
-  setRuntimeValue('setTimeout', (fn, delay) => {
+  delete (globalThis as typeof globalThis & { __lifestyleContextDelegatesBound?: boolean }).__lifestyleContextDelegatesBound;
+  setRuntimeValue('setTimeout', (fn: () => void, delay: unknown) => {
     calls.push(['timer', String(delay)]);
     fn();
     return 1;
@@ -75,7 +75,7 @@ try {
       calls.some(call => call.join('|') === 'navigate|light') &&
       calls.some(call => call.join('|') === 'sun-setup') &&
       calls.some(call => call.join('|') === 'chat-panel') &&
-      calls.some(call => call[0] === 'prompt' && call[1].includes('food contaminants')) &&
+      calls.some(call => call[0] === 'prompt' && call[1]!.includes('food contaminants')) &&
       calls.some(call => call.join('|') === 'context-modal'));
   assert('lifestyle runtime preserves delayed shell actions',
     calls.some(call => call.join('|') === 'timer|200') &&
@@ -90,7 +90,7 @@ try {
     openChatPanel: null,
     useChatPrompt: null,
   });
-  delete globalThis.window;
+  delete (globalThis as { window?: Window }).window;
   const shellCallCount = calls.filter(call => call[0] !== 'timer').length;
   closeLifestyleContextModalRuntime();
   navigateLifestyleContextRuntime('dashboard');

@@ -1,24 +1,29 @@
-// @ts-check
 // context-card-lifestyle-runtime.js - Browser runtime adapters for lifestyle context editors.
 
 import { configureRuntimeCallbacks } from './runtime-callbacks.js';
 import { openContextModalRuntime } from './context-cards-runtime.js';
 import { updateChatHeaderModelRuntime } from './chat-runtime.js';
 
-const lifestyleRuntimeDeps = {
-  closeModal: /** @type {null | (() => unknown)} */ (null),
-  navigate: /** @type {null | ((category?: string) => unknown)} */ (null),
-  openChatPanel: /** @type {null | (() => unknown)} */ (null),
-  useChatPrompt: /** @type {null | ((prompt: string) => unknown)} */ (null),
+interface LifestyleRuntimeDeps {
+  closeModal: (() => unknown) | null;
+  navigate: ((category?: string) => unknown) | null;
+  openChatPanel: (() => unknown) | null;
+  useChatPrompt: ((prompt: string) => unknown) | null;
+}
+const lifestyleRuntimeDeps: LifestyleRuntimeDeps = {
+  closeModal: null,
+  navigate: null,
+  openChatPanel: null,
+  useChatPrompt: null,
 };
 
-export function configureContextCardLifestyleRuntimeDeps(deps = {}) {
+export function configureContextCardLifestyleRuntimeDeps(deps: Partial<LifestyleRuntimeDeps> = {}) {
   return configureRuntimeCallbacks(lifestyleRuntimeDeps, deps, 'inherited');
 }
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
+    ? (window as Window & { __lifestyleContextDelegatesBound?: boolean })
     : null;
 }
 
@@ -35,13 +40,11 @@ export function closeLifestyleContextModalRuntime() {
   lifestyleRuntimeDeps.closeModal?.();
 }
 
-/** @param {string | undefined} category */
-export function navigateLifestyleContextRuntime(category) {
+export function navigateLifestyleContextRuntime(category: string | undefined) {
   lifestyleRuntimeDeps.navigate?.(category);
 }
 
-/** @param {string | undefined} category */
-export function closeLifestyleContextModalAndNavigateRuntime(category) {
+export function closeLifestyleContextModalAndNavigateRuntime(category: string | undefined) {
   closeLifestyleContextModalRuntime();
   navigateLifestyleContextRuntime(category);
 }
@@ -50,8 +53,7 @@ export function updateLifestyleChatHeaderModelRuntime() {
   updateChatHeaderModelRuntime();
 }
 
-/** @param {(() => void) | null} reopenSunSetup */
-export function openLightSetupFromLifestyleRuntime(reopenSunSetup) {
+export function openLightSetupFromLifestyleRuntime(reopenSunSetup?: (() => void) | null) {
   closeLifestyleContextModalRuntime();
   navigateLifestyleContextRuntime('light');
   if (typeof reopenSunSetup !== 'function') return;

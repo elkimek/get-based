@@ -82,6 +82,10 @@ import {
 } from './context-card-summaries.js';
 import {
   contextEditorActions,
+  getTextInput,
+  getInputValue,
+  summarizeSection,
+  lifestyleActionAttrs,
   getSelectedOption,
   getSelectedTags,
   isContextEditorStylesheetLoaded, runWithContextEditorStylesheet,
@@ -133,37 +137,6 @@ export function configureLifestyleContextEditors({ recordChange, saveAndRefresh 
   configureLifestyleSpecialEditors({ recordChange, saveAndRefresh });
 }
 
-/**
- * @param {string} id
- * @returns {HTMLInputElement | HTMLTextAreaElement | null}
- */
-function getTextInput(id) {
-  return /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (document.getElementById(id));
-}
-
-/**
- * @param {string} id
- * @returns {string}
- */
-function getInputValue(id) {
-  return getTextInput(id)?.value || '';
-}
-
-function summarizeSection(values, fallback, limit = 3) {
-  const answers = [];
-  for (const value of values) {
-    const items = Array.isArray(value) ? value : [value];
-    for (const item of items) {
-      const text = String(item || '').trim();
-      if (text && !answers.includes(text)) answers.push(text);
-    }
-  }
-  if (!answers.length) return fallback;
-  const visible = answers.slice(0, limit);
-  const remainder = answers.length - visible.length;
-  return `${visible.join(' · ')}${remainder > 0 ? ` · +${remainder} more` : ''}`;
-}
-
 /** @param {Array<string | {value: string, label: string}>} options @param {string | null | undefined} current */
 function withLegacySelection(options, current) {
   if (!current || options.some(option => (typeof option === 'string' ? option : option.value) === current)) return options;
@@ -202,8 +175,6 @@ async function confirmClearProfileContext(label, clearAction) {
   if (confirmed) clearAction();
   return confirmed;
 }
-
-function lifestyleActionAttrs(action, extra = '') { return `data-lifestyle-action="${action}"${extra ? ` ${extra}` : ''}`; }
 
 function closestLifestyleElement(target, selector) {
   const el = target instanceof Element ? target.closest(selector) : null;

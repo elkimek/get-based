@@ -1,4 +1,4 @@
-// @ts-check
+import type { Diagnoses, DietContext, ExerciseContext, SleepContext, LightCircadianContext, StressContext, LoveLifeContext, EnvironmentContext } from '../types/profile-context-data.js';
 // context-card-summaries.js - Context card metadata, summaries, and filled-state helpers
 
 import { state } from './state.js';
@@ -7,8 +7,7 @@ import { getEMFSeverity } from './schema.js';
 import { sortHealthGoalsByPriority } from './health-goals-utils.js';
 import { getNutritionContextDays, isNutritionContextEnabled } from './lab-context-settings.js';
 
-/** @param {any} [summary] @param {any} [profileData] */
-export function doesNutritionContextOverrideTypicalMeals(summary = state.nutritionSummary, profileData = state.importedData) {
+export function doesNutritionContextOverrideTypicalMeals(summary: typeof state.nutritionSummary = state.nutritionSummary, profileData: typeof state.importedData = state.importedData) {
   if (!summary?.totalMeals || !isNutritionContextEnabled()) return false;
   const selectedWindow = summary?.windows?.[`d${getNutritionContextDays(profileData)}`];
   return selectedWindow ? Number(selectedWindow.meals || 0) > 0 : Number(summary.totalMeals || 0) > 0;
@@ -26,17 +25,21 @@ export const CONTEXT_CARD_KEYS = [
   'environment',
 ];
 
-export function getEMFAssessments() {
+interface SummaryEMFAssessment {
+  date?: string;
+  rooms?: Array<{ sleeping?: boolean; measurements?: Record<string, {value?: number | null} | null> }>;
+}
+export function getEMFAssessments(): SummaryEMFAssessment[] {
   const assessments = state.importedData.emfAssessment?.assessments;
-  return Array.isArray(assessments) ? assessments : [];
+  return Array.isArray(assessments) ? assessments as SummaryEMFAssessment[] : [];
 }
 
 function getEMFSummary() {
   const assessments = getEMFAssessments();
   if (!assessments.length) return '';
   const sorted = [...assessments].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
-  const latest = sorted[0];
-  let worst = null, worstIdx = -1;
+  const latest = sorted[0]!;
+  let worst: ReturnType<typeof getEMFSeverity> = null, worstIdx = -1;
   const tierOrder = ['green', 'yellow', 'orange', 'red'];
   for (const room of latest.rooms || []) {
     const sleeping = room.sleeping !== false;
@@ -50,7 +53,7 @@ function getEMFSummary() {
       }
     }
   }
-  const fmtDate = d => {
+  const fmtDate = (d: string) => {
     const parsed = new Date(d + 'T00:00:00');
     if (Number.isNaN(parsed.getTime())) return String(d || 'saved');
     return parsed.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
@@ -81,9 +84,9 @@ export function renderEMFAssessmentLauncher({ inModal = false, surface = 'enviro
   </button>`;
 }
 
-export function getConditionsSummary(d) {
+export function getConditionsSummary(d: Diagnoses | null | undefined) {
   if (!d) return '';
-  const parts = [];
+  const parts: string[] = [];
   if (d.conditions && d.conditions.length) parts.push(d.conditions.map(c => {
     let s = c.name;
     if (c.severity && c.severity !== 'mild') s += ` (${c.severity})`;
@@ -105,9 +108,9 @@ export function getConditionsSummary(d) {
   return parts.join(' \u2014 ');
 }
 
-export function getDietSummary(d) {
+export function getDietSummary(d: DietContext | null | undefined) {
   if (!d) return '';
-  const parts = [];
+  const parts: string[] = [];
   if (d.type) parts.push(d.type);
   if (d.pattern) parts.push(d.pattern);
   if (d.proteinIntake) parts.push(`usual self-report protein: ${d.proteinIntake}`);
@@ -137,9 +140,9 @@ export function getDietSummary(d) {
   return parts.join(', ');
 }
 
-export function getExerciseSummary(d) {
+export function getExerciseSummary(d: ExerciseContext | null | undefined) {
   if (!d) return '';
-  const parts = [];
+  const parts: string[] = [];
   if (d.frequency) parts.push(d.frequency);
   if (d.types && d.types.length) parts.push(d.types.join(', '));
   if (d.intensity) parts.push(d.intensity);
@@ -151,9 +154,9 @@ export function getExerciseSummary(d) {
   return parts.join(', ');
 }
 
-export function getSleepSummary(d) {
+export function getSleepSummary(d: SleepContext | null | undefined) {
   if (!d) return '';
-  const parts = [];
+  const parts: string[] = [];
   if (d.duration) parts.push(d.duration);
   if (d.quality) parts.push(d.quality + ' quality');
   if (d.daytimeSleepiness) parts.push(`${d.daytimeSleepiness} daytime sleepiness`);
@@ -169,9 +172,9 @@ export function getSleepSummary(d) {
   return parts.join(', ');
 }
 
-export function getLightCircadianSummary(d) {
+export function getLightCircadianSummary(d: LightCircadianContext | null | undefined) {
   if (!d) return '';
-  const parts = [];
+  const parts: string[] = [];
   if (d.amLight) parts.push(d.amLight);
   if (d.daytime) parts.push(d.daytime);
   if (d.uvExposure) parts.push(d.uvExposure);
@@ -186,9 +189,9 @@ export function getLightCircadianSummary(d) {
   return parts.join(', ');
 }
 
-export function getStressSummary(d) {
+export function getStressSummary(d: StressContext | null | undefined) {
   if (!d) return '';
-  const parts = [];
+  const parts: string[] = [];
   if (d.level) parts.push(d.level + ' stress');
   if (d.duration) parts.push(d.duration);
   if (d.trend) parts.push(d.trend);
@@ -198,9 +201,9 @@ export function getStressSummary(d) {
   return parts.join(' \u2014 ');
 }
 
-export function getLoveLifeSummary(d) {
+export function getLoveLifeSummary(d: LoveLifeContext | null | undefined) {
   if (!d) return '';
-  const parts = [];
+  const parts: string[] = [];
   if (d.status) parts.push(d.status);
   if (d.relationship) parts.push(d.relationship);
   if (d.satisfaction) parts.push(d.satisfaction);
@@ -214,8 +217,8 @@ export function getLoveLifeSummary(d) {
   return parts.join(', ');
 }
 
-export function getEnvironmentSummary(d) {
-  const parts = [];
+export function getEnvironmentSummary(d: EnvironmentContext | null | undefined) {
+  const parts: string[] = [];
   if (d) {
     if (d.setting) parts.push(d.setting);
     if (d.climate) parts.push(d.climate);
@@ -246,7 +249,7 @@ export function getGoalsSummary() {
   return summary;
 }
 
-export function isContextFilled(key) {
+export function isContextFilled(key: string) {
   if (key === 'healthGoals') return (state.importedData.healthGoals || []).length > 0;
   if (key === 'environment') return state.importedData.environment != null || getEMFAssessments().length > 0;
   return state.importedData[key] != null;
@@ -254,7 +257,7 @@ export function isContextFilled(key) {
 
 const CONTEXT_ICON_ATTRS = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false"';
 
-function contextIcon(body) {
+function contextIcon(body: string) {
   return `<svg ${CONTEXT_ICON_ATTRS} aria-hidden="true">${body}</svg>`;
 }
 

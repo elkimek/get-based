@@ -570,3 +570,7 @@ deploy/profile-share/data/
 /js/biology-score-inputs.js
 /js/biology-score-panel-policy.js
 /js/biology-score-profile-modifiers.js
+
+/js/context-card-lifestyle-runtime.js
+/js/food-contaminants.js
+/js/context-card-summaries.js

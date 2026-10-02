@@ -36,6 +36,10 @@ import {
 } from './sun-defaults.js';
 import {
   contextEditorActions,
+  getTextInput,
+  getInputValue,
+  summarizeSection,
+  lifestyleActionAttrs,
   getSelectedOption,
   getSelectedTags,
   isContextEditorStylesheetLoaded,
@@ -78,37 +82,9 @@ export function configureLifestyleSpecialEditors({ recordChange, saveAndRefresh 
   if (typeof saveAndRefresh === 'function') saveContextAndRefresh = saveAndRefresh;
 }
 
-function lifestyleActionAttrs(action, extra = '') {
-  return `data-lifestyle-action="${action}"${extra ? ` ${extra}` : ''}`;
-}
-
-/** @returns {HTMLInputElement | HTMLTextAreaElement | null} */
-function getTextInput(id) {
-  return /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (document.getElementById(id));
-}
-
-function getInputValue(id) {
-  return getTextInput(id)?.value || '';
-}
-
 function getActiveNavCategory() {
   const activeNav = /** @type {HTMLElement | null} */ (document.querySelector('.nav-item.active'));
   return activeNav?.dataset.category || 'dashboard';
-}
-
-function summarizeSection(values, fallback, limit = 3) {
-  const answers = [];
-  for (const value of values) {
-    const items = Array.isArray(value) ? value : [value];
-    for (const item of items) {
-      const text = String(item || '').trim();
-      if (text && !answers.includes(text)) answers.push(text);
-    }
-  }
-  if (!answers.length) return fallback;
-  const visible = answers.slice(0, limit);
-  const remainder = answers.length - visible.length;
-  return `${visible.join(' · ')}${remainder > 0 ? ` · +${remainder} more` : ''}`;
 }
 
 // ── Light & Circadian ──

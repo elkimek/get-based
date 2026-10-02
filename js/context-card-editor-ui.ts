@@ -250,3 +250,30 @@ export function contextEditorActions(hasCurrent: unknown, saveActionAttrs: strin
     ${hasCurrent ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" ${clearActionAttrs}>Clear</button>` : ''}
   </div>`;
 }
+
+/** Shared field access and summaries for the lifestyle editor family. */
+export interface LifestyleEditorDependencies {
+  recordChange?: ((field: string) => void) | undefined;
+  saveAndRefresh?: ((msg: string, field?: string) => void) | undefined;
+}
+export function getTextInput(id: string) {
+  return document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement | null;
+}
+export function getInputValue(id: string) { return getTextInput(id)?.value || ''; }
+export function lifestyleActionAttrs(action: string, extra = '') {
+  return `data-lifestyle-action="${action}"${extra ? ` ${extra}` : ''}`;
+}
+export function summarizeSection(values: readonly unknown[], fallback: string, limit = 3) {
+  const answers: string[] = [];
+  for (const value of values) {
+    const items = Array.isArray(value) ? value : [value];
+    for (const item of items) {
+      const text = String(item || '').trim();
+      if (text && !answers.includes(text)) answers.push(text);
+    }
+  }
+  if (!answers.length) return fallback;
+  const visible = answers.slice(0, limit);
+  const remainder = answers.length - visible.length;
+  return `${visible.join(' · ')}${remainder > 0 ? ` · +${remainder} more` : ''}`;
+}

@@ -1,4 +1,5 @@
-// @ts-check
+import type { DietContext } from '../types/profile-context-data.js';
+export interface FoodContaminantWarning { type: 'pesticide' | 'clean' | 'plastic'; warning: string; source: string; url: string; match: string }
 
 // food-contaminants.js — Keyword-based food contaminant warnings from public databases
 // Sources: EWG Dirty Dozen/Clean Fifteen (2025 data), PlasticList (2024)
@@ -6,7 +7,7 @@
 
 // ── EWG Dirty Dozen (ranked by pesticide contamination) ──
 // Each entry: [displayName, ...matchVariants]
-const EWG_DIRTY_DOZEN = [
+const EWG_DIRTY_DOZEN: Array<[string, ...string[]]> = [
   ['Spinach', 'spinach'],
   ['Strawberries', 'strawberry', 'strawberries'],
   ['Kale', 'kale'],
@@ -24,7 +25,7 @@ const EWG_DIRTY_DOZEN = [
 ];
 
 // ── EWG 2025 Clean Fifteen (lowest pesticide residues) ──
-const EWG_CLEAN_FIFTEEN = [
+const EWG_CLEAN_FIFTEEN: Array<[string, ...string[]]> = [
   ['Pineapples', 'pineapple', 'pineapples'],
   ['Sweet corn', 'sweet corn', 'corn'],
   ['Avocados', 'avocado', 'avocados'],
@@ -99,9 +100,9 @@ const PLASTIC_WARNINGS = [
  * Scan diet text fields for food contaminant matches.
  * Returns array of { type, warning, source, url, match }
  */
-export function scanDietForContaminants(diet) {
+export function scanDietForContaminants(diet: DietContext | null | undefined): FoodContaminantWarning[] {
   if (!diet) return [];
-  const warnings = [];
+  const warnings: FoodContaminantWarning[] = [];
   const seen = new Set();
 
   // Collect food-relevant text fields only.
@@ -110,18 +111,18 @@ export function scanDietForContaminants(diet) {
   //          type (e.g., "omnivore" — not food names)
   const texts = [
     diet.breakfast, diet.lunch, diet.dinner, diet.snacks,
-  ].filter(Boolean).map(t => t.toLowerCase()).join(' | ');
+  ].filter(Boolean).map(t => t!.toLowerCase()).join(' | ');
 
   if (!texts.trim()) return [];
 
   // Word-boundary match helper — avoids "apple" matching "apple cider vinegar"
-  function wordMatch(text, keyword) {
+  function wordMatch(text: string, keyword: string) {
     return new RegExp('\\b' + keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i').test(text);
   }
 
   // 1. EWG Dirty Dozen scan
   for (let rank = 0; rank < EWG_DIRTY_DOZEN.length; rank++) {
-    const [displayName, ...variants] = EWG_DIRTY_DOZEN[rank];
+    const [displayName, ...variants] = EWG_DIRTY_DOZEN[rank]!;
     for (const v of variants) {
       if (wordMatch(texts, v) && !seen.has('ewg:' + displayName)) {
         seen.add('ewg:' + displayName);
