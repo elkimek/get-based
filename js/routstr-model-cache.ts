@@ -1,4 +1,3 @@
-// @ts-check
 // routstr-model-cache.js - Clear node-scoped Routstr catalog and selection state.
 
 const ROUTSTR_MODEL_CACHE_KEYS = [

@@ -524,3 +524,5 @@ deploy/profile-share/data/
 /js/routstr-balance-settlement.js
 /vendor/ppq-private-tee.js
 /js/api-ppq.js
+/js/routstr-node-payments.js
+/js/routstr-model-cache.js
