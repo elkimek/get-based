@@ -8,8 +8,8 @@ import {
 } from '../js/profile-context.js';
 import { state } from '../js/state.js';
 
-let previousImportedData;
-let previousLightDeps;
+let previousImportedData: typeof state.importedData;
+let previousLightDeps: ReturnType<typeof configureProfileContextLightDeps>;
 
 beforeEach(() => {
   previousImportedData = state.importedData;
@@ -24,7 +24,7 @@ beforeEach(() => {
     sunSessions: [{ endedAt: Date.now() }],
     deviceSessions: [],
     lightMeasurements: [],
-  };
+  } as Partial<typeof state.importedData> as typeof state.importedData;
 });
 
 afterEach(() => {
@@ -36,8 +36,8 @@ describe('profile context light dependencies', () => {
   it.each([
     ['sunSessions', false], ['deviceSessions', false],
     ['sunSessions', true], ['deviceSessions', true],
-  ])('keeps incomplete %s rollups unknown (active: %s)', (key, active) => {
-    const session = { startedAt: Date.now(), endedAt: active ? null : Date.now(), doses: null };
+  ] as const)('keeps incomplete %s rollups unknown (active: %s)', (key, active) => {
+    const session: {startedAt: number; endedAt: number | null; doses: Record<string, unknown> | null} = { startedAt: Date.now(), endedAt: active ? null : Date.now(), doses: null };
     state.importedData[key] = [session];
     configureProfileContextLightDeps({ rollingVitaminDIU: () => 0, rollingChannelTotals: () => ({ circadian: 0 }) });
     expect(getBiologyProfileContext().light).toMatchObject({
@@ -84,7 +84,7 @@ describe('profile context light dependencies', () => {
   });
 
   it('does not infer low vitamin-D synthesis from an empty tracker after lazy loading', () => {
-    state.importedData = { entries: [], lightCircadian: {} };
+    state.importedData = { entries: [], lightCircadian: {} } as Partial<typeof state.importedData> as typeof state.importedData;
     const cold = getBiologyProfileContext();
     configureProfileContextLightDeps({ rollingVitaminDIU: () => 0, rollingChannelTotals: () => ({ circadian: 0 }) });
     const warm = getBiologyProfileContext();

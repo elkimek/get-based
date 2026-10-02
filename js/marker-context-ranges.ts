@@ -1,13 +1,12 @@
-// @ts-check
+import type { ContextRanges } from './schema-environment.js';
+
 // Shared helpers for collection- and profile-specific marker ranges.
 
 /**
  * Parse common imported collection-time forms without treating incidental
  * letters in phrases such as "sample time unknown" as an AM/PM marker.
- * @param {unknown} value
- * @returns {number | null}
  */
-export function parseSampleHour(value) {
+export function parseSampleHour(value: unknown): number | null {
   if (value == null || value === '') return null;
   if (typeof value === 'number' && Number.isFinite(value)) return value >= 0 && value < 24 ? value : null;
   const text = String(value).trim().toLowerCase();
@@ -38,11 +37,8 @@ export function parseSampleHour(value) {
  * Representative adult serum total-cortisol interval for a known collection
  * time. Mayo CORT assay guidance: AM 7–25 µg/dL, PM 2–14 µg/dL. Outside
  * ordinary AM/PM collection windows, no generic single-point range is claimed.
- * @param {unknown} sampleTime
- * @param {unknown} unit
- * @returns {{ range: { min: number, max: number }, label: string } | null}
  */
-export function cortisolReferenceForSampleTime(sampleTime, unit = '') {
+export function cortisolReferenceForSampleTime(sampleTime: unknown, unit: unknown = '') {
   const hour = parseSampleHour(sampleTime);
   if (hour == null) return null;
   const isMorning = hour >= 6 && hour < 11;
@@ -63,29 +59,17 @@ export function cortisolReferenceForSampleTime(sampleTime, unit = '') {
   };
 }
 
-/**
- * @param {string | null | undefined} dob
- * @param {string} dateStr
- * @returns {number | null}
- */
-export function wholeAgeAtDate(dob, dateStr) {
+export function wholeAgeAtDate(dob: string | null | undefined, dateStr: string) {
   if (!dob) return null;
   const [birthYear, birthMonth, birthDay] = dob.split('-').map(Number);
   const [drawYear, drawMonth, drawDay] = dateStr.split('-').map(Number);
   if (![birthYear, birthMonth, birthDay, drawYear, drawMonth, drawDay].every(Number.isFinite)) return null;
-  let age = drawYear - birthYear;
-  if (drawMonth < birthMonth || (drawMonth === birthMonth && drawDay < birthDay)) age--;
+  let age = drawYear! - birthYear!;
+  if (drawMonth! < birthMonth! || (drawMonth === birthMonth && drawDay! < birthDay!)) age--;
   return age >= 0 ? age : null;
 }
 
-/**
- * @param {Record<string, any>} table
- * @param {string} dotKey
- * @param {number | null} age
- * @param {string | null | undefined} sex
- * @returns {{ min: number | null, max: number | null, label: string } | null}
- */
-export function resolveAgeSexRange(table, dotKey, age, sex) {
+export function resolveAgeSexRange(table: ContextRanges, dotKey: string, age: number | null, sex: string | null | undefined) {
   if (age == null) return null;
   const definition = table?.[dotKey];
   if (!definition) return null;

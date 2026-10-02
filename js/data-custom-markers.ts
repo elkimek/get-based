@@ -1,16 +1,16 @@
-// @ts-check
+import type { MarkerViewData, CustomMarkerViewDefinition } from './data-view-types.js';
+
 // Preserve custom marker definitions and assay metadata in the active view.
 
-/** @param {any} data @param {Record<string, any>} custom */
-export function mergeCustomMarkerDefinitions(data, custom = {}) {
+export function mergeCustomMarkerDefinitions(data: MarkerViewData, custom: Record<string, CustomMarkerViewDefinition> = {}) {
   // Merge custom markers into categories
   for (const [fullKey, def] of Object.entries(custom)) {
-    const [catKey, markerKey] = fullKey.split('.');
+    const [catKey, markerKey] = fullKey.split('.') as [string, string?];
     if (!markerKey) continue;
     if (!data.categories[catKey]) {
       // Create new category — infer icon from label/key
       const _label = (def.categoryLabel || catKey).toLowerCase();
-      const _inferIcon = (l) => {
+      const _inferIcon = (l: string) => {
         if (/urine|urinal/.test(l)) return '\uD83E\uDDEA';
         if (/environ|toxic|heavy.?metal|pollut/.test(l)) return '\uD83C\uDF0D';
         if (/amino/.test(l)) return '\uD83E\uDDEC';
@@ -42,8 +42,8 @@ export function mergeCustomMarkerDefinitions(data, custom = {}) {
       };
     }
     // Add marker if not already in schema
-    if (!data.categories[catKey].markers[markerKey]) {
-      data.categories[catKey].markers[markerKey] = {
+    if (!data.categories[catKey]!.markers[markerKey]) {
+      data.categories[catKey]!.markers[markerKey] = {
         name: def.name,
         unit: def.unit || '',
         refMin: def.refMin,
@@ -52,8 +52,8 @@ export function mergeCustomMarkerDefinitions(data, custom = {}) {
         referenceRangeSource: def.referenceRangeSource || ((def.refMin != null || def.refMax != null) ? 'custom' : '')
       };
     }
-    const marker = data.categories[catKey].markers[markerKey];
-    for (const field of ['specimen', 'method', 'referenceSampleTime', 'referenceRangeSource', 'optimalRangeSource']) {
+    const marker = data.categories[catKey]!.markers[markerKey]!;
+    for (const field of ['specimen', 'method', 'referenceSampleTime', 'referenceRangeSource', 'optimalRangeSource'] as const) {
       if (def[field] != null) marker[field] = def[field];
     }
   }

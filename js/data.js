@@ -426,6 +426,7 @@ export function getActiveData() {
   // Hormone scoring needs draw-level context because cycle day / sample time can
   // differ between lab entries for the same profile.
   const entryLookup = {};
+  /** @type {Record<string, import('../types/lab-data.js').LabCollectionContext>} */
   const entryContextByDate = {};
   const ENTRY_CONTEXT_KEYS = ['specimen', 'method', 'sampleTime', 'fasting', 'cycleDay', 'cyclePhase', 'cyclePhaseDetail', 'cyclePhaseSource', 'cycleStatus', 'menopauseStatus', 'contraception', 'hormoneTherapy', 'recentHardTraining', 'acuteIllness'];
   for (const entry of entries) {

@@ -1,7 +1,23 @@
-// @ts-check
 // context-source-registry.js — shared Context source metadata and profile-scoped toggles
 
 import { state } from './state.js';
+
+interface ContextSourceDefinition {
+  id: string;
+  slug: string;
+  label: string;
+  group: string;
+  defaultEnabled: boolean;
+  affects: readonly string[];
+  legacyKey?: string;
+}
+interface ContextSettingsProfile {
+  contextSourceSettings?: unknown;
+}
+interface ContextSourceOptions {
+  defaultValue?: unknown;
+  legacyKey?: string | null | undefined;
+}
 
 export const CONTEXT_SOURCE_IDS = Object.freeze({
   INSIGHT_CARDS: 'insight-cards',
@@ -18,7 +34,7 @@ export const CONTEXT_SOURCE_IDS = Object.freeze({
 export const CONTEXT_SOURCE_SETTINGS_FIELD = 'contextSourceSettings';
 export const LAB_GROUP_CONTEXT_SOURCE_PREFIX = 'lab-group-';
 
-export const CONTEXT_SOURCE_DEFINITIONS = Object.freeze({
+export const CONTEXT_SOURCE_DEFINITIONS: Readonly<Record<string, Readonly<ContextSourceDefinition>>> = Object.freeze({
   [CONTEXT_SOURCE_IDS.INSIGHT_CARDS]: Object.freeze({
     id: CONTEXT_SOURCE_IDS.INSIGHT_CARDS,
     slug: 'insight-cards',
@@ -136,33 +152,33 @@ function getActiveProfileId() {
   catch { return 'default'; }
 }
 
-function getDefinition(idOrSlug) {
+function getDefinition(idOrSlug: string) {
   return CONTEXT_SOURCE_DEFINITIONS[idOrSlug] || Object.values(CONTEXT_SOURCE_DEFINITIONS).find(def => def.slug === idOrSlug) || null;
 }
 
-export function getContextSourceDefinition(idOrSlug) {
+export function getContextSourceDefinition(idOrSlug: string) {
   return getDefinition(idOrSlug);
 }
 
-export function getContextSourceSlug(idOrSlug) {
+export function getContextSourceSlug(idOrSlug: string) {
   const def = getDefinition(idOrSlug);
   return def?.slug || String(idOrSlug || '');
 }
 
-export function getContextSourceStorageKey(idOrSlug) {
+export function getContextSourceStorageKey(idOrSlug: string) {
   return `labcharts-${getActiveProfileId()}-ai-ctx-${getContextSourceSlug(idOrSlug)}`;
 }
 
-function hasUnsafeContextSourceSlugChars(slug) {
+function hasUnsafeContextSourceSlugChars(slug: string) {
   return /[\u0000-\u001F\u007F]/.test(slug);
 }
 
-export function getLabGroupContextSourceSlug(groupName) {
+export function getLabGroupContextSourceSlug(groupName: unknown) {
   const group = String(groupName || '').replace(/[\u0000-\u001F\u007F]/g, ' ').trim();
   return group ? `${LAB_GROUP_CONTEXT_SOURCE_PREFIX}${group}` : '';
 }
 
-export function isLabGroupContextSourceSlug(slug) {
+export function isLabGroupContextSourceSlug(slug: unknown): slug is string {
   return typeof slug === 'string'
     && slug.startsWith(LAB_GROUP_CONTEXT_SOURCE_PREFIX)
     && slug.length > LAB_GROUP_CONTEXT_SOURCE_PREFIX.length
@@ -170,22 +186,17 @@ export function isLabGroupContextSourceSlug(slug) {
     && !hasUnsafeContextSourceSlugChars(slug);
 }
 
-/** @returns {string[]} */
 function allowedContextSourceSlugs() {
   return Object.values(CONTEXT_SOURCE_DEFINITIONS).map(def => def.slug);
 }
 
-function isAllowedContextSourceSlug(slug) {
+function isAllowedContextSourceSlug(slug: string) {
   return allowedContextSourceSlugs().includes(slug) || isLabGroupContextSourceSlug(slug);
 }
 
-/**
- * @param {unknown} settings
- * @returns {Record<string, boolean>}
- */
-export function normalizeContextSourceSettings(settings) {
-  /** @type {Record<string, boolean>} */
-  const out = {};
+export function normalizeContextSourceSettings(settings: unknown) {
+
+  const out: Record<string, boolean> = {};
   if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return out;
   for (const [slug, value] of Object.entries(settings)) {
     if (!isAllowedContextSourceSlug(slug)) continue;
@@ -194,19 +205,19 @@ export function normalizeContextSourceSettings(settings) {
   return out;
 }
 
-function getProfileContextSourceSettings(data = state.importedData) {
+function getProfileContextSourceSettings(data: ContextSettingsProfile | null | undefined = state.importedData) {
   const settings = data?.[CONTEXT_SOURCE_SETTINGS_FIELD];
-  return settings && typeof settings === 'object' && !Array.isArray(settings) ? settings : null;
+  return settings && typeof settings === 'object' && !Array.isArray(settings) ? settings as Record<string, unknown> : null;
 }
 
-export function ensureContextSourceSettings(data = state.importedData) {
+export function ensureContextSourceSettings(data: ContextSettingsProfile | null | undefined = state.importedData) {
   if (!data || typeof data !== 'object') return null;
   const normalized = normalizeContextSourceSettings(data[CONTEXT_SOURCE_SETTINGS_FIELD]);
   data[CONTEXT_SOURCE_SETTINGS_FIELD] = normalized;
   return normalized;
 }
 
-function getProfileContextSourceValue(idOrSlug) {
+function getProfileContextSourceValue(idOrSlug: string) {
   const settings = getProfileContextSourceSettings();
   if (!settings) return null;
   const slug = getContextSourceSlug(idOrSlug);
@@ -215,11 +226,7 @@ function getProfileContextSourceValue(idOrSlug) {
   return value === true || value === false ? value : null;
 }
 
-/**
- * @param {string} idOrSlug
- * @param {string | null} [legacyKey]
- */
-function getStoredContextSourceValue(idOrSlug, legacyKey = null) {
+function getStoredContextSourceValue(idOrSlug: string, legacyKey: string | null = null) {
   const storage = getStorage();
   if (!storage) return null;
   const local = storage.getItem(getContextSourceStorageKey(idOrSlug));
@@ -233,7 +240,7 @@ function getStoredContextSourceValue(idOrSlug, legacyKey = null) {
   return null;
 }
 
-function migrateStoredLabGroupSettings(settings) {
+function migrateStoredLabGroupSettings(settings: Record<string, boolean>) {
   const storage = getStorage();
   if (!storage) return false;
   const profilePrefix = `labcharts-${getActiveProfileId()}-ai-ctx-`;
@@ -241,10 +248,10 @@ function migrateStoredLabGroupSettings(settings) {
   const legacyPrefix = 'labcharts-ai-ctx-';
   const fixedLegacyKeys = new Set(
     Object.values(CONTEXT_SOURCE_DEFINITIONS)
-      .map(def => /** @type {{legacyKey?: string}} */ (def).legacyKey)
+      .map(def =>  (def).legacyKey)
       .filter(Boolean)
   );
-  const keys = [];
+  const keys: string[] = [];
   for (let i = 0; i < storage.length; i++) {
     const key = storage.key(i);
     if (key) keys.push(key);
@@ -271,13 +278,13 @@ function migrateStoredLabGroupSettings(settings) {
   return changed;
 }
 
-export function migrateStoredContextSourceSettingsToProfile(data = state.importedData) {
+export function migrateStoredContextSourceSettingsToProfile(data: ContextSettingsProfile | null | undefined = state.importedData) {
   const settings = ensureContextSourceSettings(data);
   if (!settings) return false;
   let changed = false;
   for (const def of Object.values(CONTEXT_SOURCE_DEFINITIONS)) {
     if (Object.prototype.hasOwnProperty.call(settings, def.slug)) continue;
-    const stored = getStoredContextSourceValue(def.id, /** @type {{legacyKey?: string}} */ (def).legacyKey || null);
+    const stored = getStoredContextSourceValue(def.id,  (def).legacyKey || null);
     if (stored === true || stored === false) {
       settings[def.slug] = stored;
       changed = true;
@@ -287,7 +294,7 @@ export function migrateStoredContextSourceSettingsToProfile(data = state.importe
   return changed;
 }
 
-export function isContextSourceEnabled(idOrSlug, options = {}) {
+export function isContextSourceEnabled(idOrSlug: string, options: ContextSourceOptions = {}) {
   const def = getDefinition(idOrSlug);
   const defaultValue = options.defaultValue ?? def?.defaultEnabled ?? true;
   const legacyKey = options.legacyKey ?? def?.legacyKey ?? null;
@@ -298,7 +305,7 @@ export function isContextSourceEnabled(idOrSlug, options = {}) {
   return defaultValue !== false;
 }
 
-export function setContextSourceEnabled(idOrSlug, on, options = {}) {
+export function setContextSourceEnabled(idOrSlug: string, on: unknown, options: ContextSourceOptions = {}) {
   const def = getDefinition(idOrSlug);
   const settings = ensureContextSourceSettings();
   if (settings) settings[getContextSourceSlug(idOrSlug)] = !!on;

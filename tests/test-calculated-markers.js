@@ -143,8 +143,8 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
   // ── PhenoAge: published mixed units are converted from canonical storage ──
   // Verify the formula structure by checking source code contains the Levine 2018 coefficients and conversions.
   const dataSrc = await fetch('js/data-calculated-markers.js').then(r => r.text());
-  assert('PhenoAge uses albumin coeff -0.0336', dataSrc.includes('0.0336  * albumin_si'));
-  assert('PhenoAge uses creatinine coeff 0.0095', dataSrc.includes('0.0095  * creatinine_si'));
+  assert('PhenoAge uses albumin coeff -0.0336', dataSrc.includes('0.0336 * albumin_si'));
+  assert('PhenoAge uses creatinine coeff 0.0095', dataSrc.includes('0.0095 * creatinine_si'));
   assert('PhenoAge converts hs-CRP mg/L to mg/dL', dataSrc.includes('const crp_mgdl = crp_si / 10'));
   assert('PhenoAge converts lymphocyte fraction to percent', dataSrc.includes('const lymphPct = lymphPct_si * 100'));
   assert('PhenoAge converts ALP µkat/L to U/L', dataSrc.includes('const alp_ul = alp_si * 60'));
@@ -241,7 +241,7 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
   // ALP, GGT, ALT use scaleFactor 60 (µkat/L → U/L)
   // lymphocytesPct uses scaleFactor 100 (fraction → %)
   // vitaminD uses scaleFactor 0.4006 (nmol/L → ng/mL)
-  assert('Bortz features include µkat/L→U/L conversion (×60)', dataSrc.includes('60],  // µkat/L→U/L'));
+  assert('Bortz features include µkat/L→U/L conversion (×60)', dataSrc.includes('60], // µkat/L→U/L'));
   assert('Bortz features include fraction→% conversion (×100)', dataSrc.includes('100], // fraction→%'));
   assert('Bortz features include nmol/L→ng/mL conversion (×0.4006)', dataSrc.includes('0.4006'));
 

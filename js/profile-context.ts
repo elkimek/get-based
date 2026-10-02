@@ -1,4 +1,3 @@
-// @ts-check
 // profile-context.js — lightweight profile modifiers for deterministic scoring.
 
 import { state } from './state.js';
@@ -6,22 +5,60 @@ import { CONTEXT_SOURCE_IDS, getContextSourceSlug, isContextSourceEnabled } from
 import { sortHealthGoalsByPriority } from './health-goals-utils.js';
 import { getCurrentSupplements } from './supplement-medication-domain.js';
 
-/** @typedef {{
- * rollingChannelTotals: null | ((days?: number) => any),
- * rollingVitaminDIU: null | ((days?: number) => number),
- * }} ProfileContextLightDeps */
+import type { AppState } from '../types/app-state.js';
+import type { DietContext, ExerciseContext, SleepContext, StressContext, LoveLifeContext, EnvironmentContext, LightCircadianContext } from '../types/profile-context-data.js';
+export interface ProfileContextLightDeps {
+  rollingChannelTotals: null | ((days?: number) => { circadian?: unknown } | null | undefined);
+  rollingVitaminDIU: null | ((days?: number) => number);
+}
+export interface ProfileContextOptions {
+  ignoreContextToggles?: boolean | undefined;
+  now?: Date | undefined;
+  contextSourceEnabled?: ((slug: string, defaultValue: boolean) => boolean) | undefined;
+  lightDeps?: ProfileContextLightDeps | undefined;
+}
+interface GeneticSnpContext {
+  effect?: unknown;
+  valence?: unknown;
+  gene?: unknown;
+  category?: unknown;
+  markers?: string[];
+}
+interface WearableMetricContext {
+  rolling?: Record<string, unknown>;
+  baselineP25?: unknown;
+  baselineP75?: unknown;
+  baseline?: unknown;
+}
+interface LightSessionContext {
+  startedAt?: number | string | null;
+  endedAt?: number | string | null;
+  doses?: unknown;
+}
+type ContextProfileData = Pick<AppState['importedData'],
+  'diagnoses' | 'exercise' | 'sleepRest' | 'stress' | 'diet' | 'loveLife' | 'environment' |
+  'lightCircadian' | 'supplements' | 'healthGoals' | 'contextSourceSettings' | 'contextNotes' | 'interpretiveLens'
+> & {
+  genetics?: {apoe?: string; snps?: Record<string, GeneticSnpContext>} | null;
+  biologyScoreContextSettings?: {includeBodyContext?: unknown; includeLightContext?: unknown};
+  wearableSummary?: {metrics?: Record<string, WearableMetricContext>} | null;
+  sunSessions?: LightSessionContext[] | null;
+  deviceSessions?: LightSessionContext[] | null;
+  lightMeasurements?: unknown[] | null;
+  sunDefaults?: {completedAt?: unknown} | null;
+  menstrualCycle?: {menopauseStatus?: string; cycleStatus?: string; contraceptive?: unknown} | null;
+};
+type IndexedLightDeps = Record<keyof ProfileContextLightDeps, ProfileContextLightDeps[keyof ProfileContextLightDeps]>;
 
-/** @type {ProfileContextLightDeps} */
-const profileContextLightDeps = {
+const profileContextLightDeps: ProfileContextLightDeps = {
   rollingChannelTotals: null,
   rollingVitaminDIU: null,
 };
 
-/** @param {Partial<ProfileContextLightDeps>} [deps] */
-export function configureProfileContextLightDeps(deps = {}) {
+export function configureProfileContextLightDeps(deps: Partial<ProfileContextLightDeps> = {}) {
   const previous = { ...profileContextLightDeps };
-  for (const key of /** @type {Array<keyof ProfileContextLightDeps>} */ (['rollingChannelTotals', 'rollingVitaminDIU'])) {
-    if (key in deps) profileContextLightDeps[key] = typeof deps[key] === 'function' ? deps[key] : null;
+  for (const key of (['rollingChannelTotals', 'rollingVitaminDIU'] as Array<keyof ProfileContextLightDeps>)) {
+    if (key in deps) (profileContextLightDeps as IndexedLightDeps)[key] = typeof deps[key] === 'function' ? deps[key] : null;
   }
   return previous;
 }
@@ -35,21 +72,20 @@ const HORMONAL_CONTRACEPTION_TERMS = ['ocp', 'pill', 'patch', 'ring', 'implant',
 const NON_HORMONAL_CONTRACEPTION_TERMS = ['copper', 'copper iud', 'non-hormonal', 'non hormonal'];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** @param {unknown} text @param {string[]} terms */
-function textMatchesAny(text, terms) { const value = String(text || '').toLowerCase(); return terms.some(term => value.includes(term)); }
+function textMatchesAny(text: unknown, terms: string[]) { const value = String(text || '').toLowerCase(); return terms.some(term => value.includes(term)); }
 
-function profileContextSetting(slug, importedValue = true, ignoreContextToggles = false, options = {}) {
+function profileContextSetting(slug: string, importedValue: unknown = true, ignoreContextToggles = false, options: ProfileContextOptions = {}) {
   if (ignoreContextToggles) return true;
   return options.contextSourceEnabled ? options.contextSourceEnabled(slug, importedValue !== false) : importedValue !== false;
 }
 
-function hasMeaningfulSnp(stored) {
+function hasMeaningfulSnp(stored: GeneticSnpContext | null | undefined) {
   const effect = String(stored?.effect || '').toLowerCase();
   const valence = String(stored?.valence || '').toLowerCase();
   return !!stored && ((effect !== 'none' && effect !== '') || valence === 'protective');
 }
 
-function isHormonalContraception(value) {
+function isHormonalContraception(value: unknown) {
   if (value === true) return true;
   const text = String(value || '').toLowerCase();
   if (!text) return false;
@@ -57,15 +93,15 @@ function isHormonalContraception(value) {
   return HORMONAL_CONTRACEPTION_TERMS.some(term => text.includes(term));
 }
 
-function collectGeneticModifiers(data, options = {}) {
+function collectGeneticModifiers(data: ContextProfileData, options: ProfileContextOptions = {}) {
   const includeSummary = profileContextSetting('genetics-summary', true, options.ignoreContextToggles, options);
   const includePriority = profileContextSetting('genetics-priority', true, options.ignoreContextToggles, options);
   const genetics = data?.genetics || null;
   const snps = includePriority ? (genetics?.snps || {}) : {};
-  const flags = [];
-  const genes = new Set();
-  const categories = new Set();
-  const markerLinks = new Set();
+  const flags: string[] = [];
+  const genes = new Set<string>();
+  const categories = new Set<string>();
+  const markerLinks = new Set<string>();
   if (!includeSummary && !includePriority) {
     return {
       includeSummary, includePriority, hasGenetics: false, snpCount: 0, genes, categories, markerLinks,
@@ -104,24 +140,24 @@ function collectGeneticModifiers(data, options = {}) {
   return { includeSummary, includePriority, hasGenetics, snpCount: Object.keys(snps).length, genes, categories, markerLinks, apoe, methylationRisk, b12Risk, vitaminDRisk, ironRisk, lipidRisk, fattyAcidRisk, bilirubinRisk, hormoneRisk, flags };
 }
 
-function latestMetricValue(metric, field = 'd7') {
+function latestMetricValue(metric: WearableMetricContext | undefined, field = 'd7') {
   const v = metric?.rolling?.[field];
   return Number.isFinite(v) ? Number(v) : null;
 }
 
-function collectBodyModifiers(data, options = {}) {
+function collectBodyModifiers(data: ContextProfileData, options: ProfileContextOptions = {}) {
   const settings = data?.biologyScoreContextSettings || {};
   const includeBody = profileContextSetting('wearables', settings.includeBodyContext, options.ignoreContextToggles, options);
   const summary = data?.wearableSummary || null;
   const metrics = summary?.metrics || {};
-  const flags = [];
+  const flags: string[] = [];
   if (!includeBody) return { includeBody, hasBodyData: false, flags };
   const hrv7 = latestMetricValue(metrics.hrv_rmssd);
-  const hrvP25 = Number.isFinite(metrics.hrv_rmssd?.baselineP25) ? Number(metrics.hrv_rmssd.baselineP25) : null;
+  const hrvP25 = Number.isFinite(metrics.hrv_rmssd?.baselineP25) ? Number(metrics.hrv_rmssd!.baselineP25) : null;
   const rhr7 = latestMetricValue(metrics.rhr);
-  const rhrP75 = Number.isFinite(metrics.rhr?.baselineP75) ? Number(metrics.rhr.baselineP75) : null;
+  const rhrP75 = Number.isFinite(metrics.rhr?.baselineP75) ? Number(metrics.rhr!.baselineP75) : null;
   const sleep7 = latestMetricValue(metrics.sleep_score);
-  const sleepBaseline = Number.isFinite(metrics.sleep_score?.baseline) ? Number(metrics.sleep_score.baseline) : null;
+  const sleepBaseline = Number.isFinite(metrics.sleep_score?.baseline) ? Number(metrics.sleep_score!.baseline) : null;
   const lowRecovery = (hrv7 != null && hrvP25 != null && hrv7 < hrvP25) || (rhr7 != null && rhrP75 != null && rhr7 > rhrP75);
   const sleepStrain = sleep7 != null && sleep7 < 70 && (sleepBaseline == null || sleep7 < sleepBaseline);
   if (lowRecovery) flags.push('Body context: wearable recovery is strained (low HRV and/or high resting HR versus personal baseline).');
@@ -129,10 +165,10 @@ function collectBodyModifiers(data, options = {}) {
   return { includeBody, hasBodyData: !!summary && Object.keys(metrics).length > 0, hrv7, rhr7, sleep7, lowRecovery, sleepStrain, flags };
 }
 
-function collectLightModifiers(data, options = {}) {
+function collectLightModifiers(data: ContextProfileData, options: ProfileContextOptions = {}) {
   const settings = data?.biologyScoreContextSettings || {};
   const includeLight = profileContextSetting('light-sun', settings.includeLightContext, options.ignoreContextToggles, options);
-  const flags = [];
+  const flags: string[] = [];
   if (!includeLight) return { includeLight, hasLightData: false, flags };
   const now = options.now?.getTime() ?? Date.now();
   const sunSessions = Array.isArray(data?.sunSessions) ? data.sunSessions : [];
@@ -143,8 +179,8 @@ function collectLightModifiers(data, options = {}) {
   const recentAny = [...sunSessions, ...deviceSessions].filter(s => Number(s?.endedAt || s?.startedAt || 0) >= now - 14 * DAY_MS);
   // Recalculation clears old doses before fetching replacements. Partial
   // rollups are unknown, not evidence of low exposure.
-  const complete = !recentAny.some(s => (s.endedAt || s.startedAt) >= now - 7 * DAY_MS && s.doses === null);
-  let vitD7 = null, circadian7 = null;
+  const complete = !recentAny.some(s => ((s.endedAt || s.startedAt) as number) >= now - 7 * DAY_MS && s.doses === null);
+  let vitD7: number | null = null, circadian7: number | null = null;
   try {
     if (complete && options.lightDeps?.rollingVitaminDIU) {
       const total = Number(options.lightDeps?.rollingVitaminDIU(7));
@@ -165,7 +201,7 @@ function collectLightModifiers(data, options = {}) {
   return { includeLight, hasLightData, recentSunDays: recentSun.length, vitD7, circadian7, lowLoggedSunlight, lowCircadianLight, lowVitaminDSynthesis, flags };
 }
 
-function profileAgeYears(profileDob, date) {
+function profileAgeYears(profileDob: string | null, date: Date) {
   if (!profileDob) return null;
   const dob = new Date(`${profileDob}T00:00:00`);
   if (!Number.isFinite(dob.getTime())) return null;
@@ -178,7 +214,7 @@ export function getProfileAgeYears(date = new Date()) {
 }
 
 // Browser adapter: only this boundary reads the mutable active profile.
-export function getBiologyProfileContext(options = {}) {
+export function getBiologyProfileContext(options: ProfileContextOptions = {}) {
   return buildBiologyProfileContext(state, {
     ...options,
     contextSourceEnabled: (slug, defaultValue) => isContextSourceEnabled(slug, { defaultValue }),
@@ -188,30 +224,28 @@ export function getBiologyProfileContext(options = {}) {
 
 /**
  * Compute from an explicitly supplied profile and dependency snapshot.
- * @param {Pick<import('../types/app-state.js').AppState, 'importedData' | 'profileSex' | 'profileDob'>} profile
- * @param {{ignoreContextToggles?: boolean, now?: Date, contextSourceEnabled?: (slug: string, defaultValue: boolean) => boolean, lightDeps?: ProfileContextLightDeps}} [options]
  */
-export function buildBiologyProfileContext(profile, options = {}) {
-  const data = profile.importedData;
+export function buildBiologyProfileContext(profile: Pick<AppState, 'importedData' | 'profileSex' | 'profileDob'>, options: ProfileContextOptions = {}) {
+  const data = profile.importedData as ContextProfileData;
   options = { ...options, contextSourceEnabled: options.contextSourceEnabled || ((slug, defaultValue) => {
     const setting = data.contextSourceSettings?.[getContextSourceSlug(slug)];
     return typeof setting === 'boolean' ? setting : defaultValue;
   }) };
   const includeInsightCards = profileContextSetting(CONTEXT_SOURCE_IDS.INSIGHT_CARDS, true, options.ignoreContextToggles, options);
   const includeSupplementsMeds = profileContextSetting(CONTEXT_SOURCE_IDS.SUPPLEMENTS_MEDS, true, options.ignoreContextToggles, options);
-  const diagnoses = /** @type {{conditions?: Array<{name?: string, note?: string, severity?: string, status?: string}>, familyHistory?: Array<{relative?: string, condition?: string, onsetAge?: number, note?: string}>, proceduresNote?: string, note?: string, flags?: Record<string, boolean>}} */ (includeInsightCards ? (data.diagnoses || {}) : {});
+  const diagnoses = (includeInsightCards ? (data.diagnoses || {}) : {}) as {conditions?: Array<{name?: string; note?: string; severity?: string; status?: string}>; proceduresNote?: string; note?: string; flags?: Record<string, boolean>};
   const conditions = Array.isArray(diagnoses.conditions) ? diagnoses.conditions : [];
-  const flags = /** @type {Record<string, boolean>} */ (diagnoses.flags || {});
+  const flags = (diagnoses.flags || {});
   const conditionText = conditions.map(c => `${c?.name || ''} ${c?.note || ''} ${c?.severity || ''} ${c?.status || ''}`).join(' ');
   const supplements = includeSupplementsMeds && Array.isArray(data.supplements) ? getCurrentSupplements(data.supplements).map(s => `${s?.name || ''} ${s?.note || s?.notes || ''} ${s?.type || ''}`).join(' ') : '';
-  const exercise = includeInsightCards ? (data.exercise || {}) : {};
-  const sleepRest = includeInsightCards ? (data.sleepRest || {}) : {};
-  const stress = includeInsightCards ? (data.stress || {}) : {};
-  const diet = includeInsightCards ? (data.diet || {}) : {};
-  const loveLife = includeInsightCards ? (data.loveLife || {}) : {};
-  const environment = includeInsightCards ? (data.environment || {}) : {};
+  const exercise: ExerciseContext = includeInsightCards ? (data.exercise || {}) : {};
+  const sleepRest: SleepContext = includeInsightCards ? (data.sleepRest || {}) : {};
+  const stress: StressContext = includeInsightCards ? (data.stress || {}) : {};
+  const diet: DietContext = includeInsightCards ? (data.diet || {}) : {};
+  const loveLife: LoveLifeContext = includeInsightCards ? (data.loveLife || {}) : {};
+  const environment: EnvironmentContext = includeInsightCards ? (data.environment || {}) : {};
   const light = collectLightModifiers(data, options);
-  const lightCircadian = light.includeLight ? (data.lightCircadian || {}) : {};
+  const lightCircadian: LightCircadianContext = light.includeLight ? (data.lightCircadian || {}) : {};
   const healthGoalsText = includeInsightCards && Array.isArray(data.healthGoals) ? sortHealthGoalsByPriority(data.healthGoals).map(g => typeof g === 'object' ? `${g?.text || g?.goal || g?.name || ''} ${g?.severity || g?.priority || ''} ${g?.note || ''}` : String(g || '')).join(' ') : '';
   const exerciseText = `${exercise.frequency || ''} ${exercise.intensity || ''} ${exercise.duration || ''} ${exercise.dailyMovement || ''} ${exercise.muscleContext || ''} ${exercise.activityLevel || ''} ${exercise.trainingLoad || ''} ${(exercise.types || []).join(' ')} ${(exercise.limitations || []).join(' ')} ${exercise.note || exercise.notes || ''}`;
   const sleepText = `${sleepRest.quality || ''} ${sleepRest.duration || ''} ${sleepRest.daytimeSleepiness || ''} ${sleepRest.apneaStatus || ''} ${sleepRest.papUse || ''} ${sleepRest.naps || ''} ${sleepRest.schedule || ''} ${sleepRest.roomTemp || ''} ${(sleepRest.issues || []).join(' ')} ${(sleepRest.environment || []).join(' ')} ${(sleepRest.practices || []).join(' ')} ${sleepRest.notes || sleepRest.note || ''}`;

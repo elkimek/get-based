@@ -543,3 +543,9 @@ deploy/profile-share/data/
 /js/agent-feature-inference.js
 /js/ai-feature-routing.js
 /js/chat-backend-selection.js
+/js/data-view-types.js
+/js/marker-context-ranges.js
+/js/data-custom-markers.js
+/js/context-source-registry.js
+/js/profile-context.js
+/js/data-calculated-markers.js
