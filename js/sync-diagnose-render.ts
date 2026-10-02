@@ -1,13 +1,14 @@
-// @ts-check
+import type { EvoluDiagnostics, EvoluDiagnosticRow } from './sync-diagnostics-snapshot.js';
+import type { RelayHealthVerdict, RelayQuotaEstimate } from './sync-relay-health.js';
 // sync-diagnose-render.js - Pure HTML render helpers for Sync Diagnose.
 
 import { escapeAttr, escapeHTML } from './utils.js';
 
-export function syncDiagnoseActionAttrs(action) {
+export function syncDiagnoseActionAttrs(action: string) {
   return `data-sync-diagnose-action="${escapeAttr(action)}"`;
 }
 
-function renderRowsHtml(rows) {
+function renderRowsHtml(rows: readonly EvoluDiagnosticRow[]) {
   if (!rows.length) {
     return '<tr><td colspan="7" style="padding:8px;color:var(--text-muted);text-align:center">No rows in local Evolu DB</td></tr>';
   }
@@ -24,7 +25,7 @@ function renderRowsHtml(rows) {
   }).join('');
 }
 
-function renderRelayHealthPanel(healthVerdict) {
+function renderRelayHealthPanel(healthVerdict: RelayHealthVerdict | null | undefined) {
   const v = healthVerdict?.verdict || 'unknown';
   const isHealthy = v === 'healthy';
   const needsAttention = v === 'wedged';
@@ -47,7 +48,7 @@ function renderRelayHealthPanel(healthVerdict) {
   </section>`;
 }
 
-function renderRelayStoragePanel(q) {
+function renderRelayStoragePanel(q: RelayQuotaEstimate | null | undefined) {
   if (!q) return '';
   const mb = (q.bytes / (1024 * 1024)).toFixed(2);
   const capMb = (q.cap / (1024 * 1024)).toFixed(0);
@@ -73,7 +74,7 @@ function renderRelayStoragePanel(q) {
   </section>`;
 }
 
-function getSyncStatusSummary(d, healthVerdict, quota) {
+function getSyncStatusSummary(d: EvoluDiagnostics, healthVerdict: RelayHealthVerdict | null | undefined, quota: RelayQuotaEstimate | null | undefined) {
   const verdict = healthVerdict?.verdict || 'unknown';
   if (!d.syncEnabled) {
     return { tone: 'neutral', eyebrow: 'Not active', title: 'Sync is off on this device', detail: 'Your data remains on this device. Turn sync on in Settings when you want to connect it to your other devices.' };
@@ -99,7 +100,7 @@ function getSyncStatusSummary(d, healthVerdict, quota) {
   return { tone: 'neutral', eyebrow: 'Ready', title: 'No problem detected', detail: 'Sync is configured. Make a small change and press Sync now if you want this device to perform a fresh relay verification.' };
 }
 
-function renderStatusSummary(d, healthVerdict, quota) {
+function renderStatusSummary(d: EvoluDiagnostics, healthVerdict: RelayHealthVerdict | null | undefined, quota: RelayQuotaEstimate | null | undefined) {
   const summary = getSyncStatusSummary(d, healthVerdict, quota);
   const relayLabel = healthVerdict?.verdict === 'healthy'
     ? 'Relay verified'
@@ -120,7 +121,7 @@ function renderStatusSummary(d, healthVerdict, quota) {
   </section>`;
 }
 
-function renderDeviceCheck(d) {
+function renderDeviceCheck(d: EvoluDiagnostics) {
   return `<section class="sync-diagnose-device-check">
     <div>
       <div class="sync-diagnose-card-label">Checking another device?</div>
@@ -131,7 +132,7 @@ function renderDeviceCheck(d) {
   </section>`;
 }
 
-function renderDeltaTelemetryPanel(t, isDebug) {
+function renderDeltaTelemetryPanel(t: EvoluDiagnostics['deltaTelemetry'], isDebug: boolean) {
   if (!isDebug || !t || t.summary.count === 0) return '';
   const s = t.summary;
   const pct = (s.ratio * 100).toFixed(1);
@@ -149,7 +150,7 @@ function renderDeltaTelemetryPanel(t, isDebug) {
     `<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">
       <div style="margin-bottom:4px"><b>Pull-side rows (latest merge ${t.pull.mergedAt ? new Date(t.pull.mergedAt).toISOString().slice(11, 19) + 'Z' : '—'}):</b></div>
       <div style="font-family:monospace;font-size:11px">${pullArrays.map(name => {
-        const v = t.pull.perArray[name];
+        const v = t.pull.perArray[name]!;
         return `${escapeHTML(name)} live=${v.live} tomb=${v.tombstones}`;
       }).join(' · ')}</div>
       <div style="margin-top:4px">Compare across devices — diverging counts mean relay replication isn't propagating per-row state evenly.</div>
@@ -172,7 +173,7 @@ function renderDeltaTelemetryPanel(t, isDebug) {
   </div>`;
 }
 
-function renderCutoverPanel(r, isDebug, cutoverEnabled) {
+function renderCutoverPanel(r: EvoluDiagnostics['cutoverReadiness'], isDebug: boolean, cutoverEnabled: boolean) {
   if (!isDebug || !r) return '';
   const blockers = Object.entries(r.surfaces).filter(([, v]) => v.status === 'missing-rows');
   const okCount = Object.values(r.surfaces).filter(v => v.status === 'ok').length;
@@ -218,6 +219,12 @@ export function renderSyncDiagnoseModal({
   quota,
   isDebug,
   cutoverEnabled,
+}: {
+  diagnostics: EvoluDiagnostics;
+  healthVerdict: RelayHealthVerdict | null | undefined;
+  quota: RelayQuotaEstimate | null | undefined;
+  isDebug: boolean;
+  cutoverEnabled: boolean;
 }) {
   const d = diagnostics;
   const rowsHtml = renderRowsHtml(d.rows);

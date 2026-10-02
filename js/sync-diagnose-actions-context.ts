@@ -1,7 +1,8 @@
 import { configureRuntimeDependencies, type RuntimeDependencyUpdates } from './runtime-callbacks.js';
 
 interface DiagnoseCutoverResult { ok: boolean; reason?: unknown; blockers?: string[]; }
-interface SyncDiagnoseDependencies {
+export interface SyncDiagnoseActionElement extends HTMLElement { disabled?: boolean }
+export interface SyncDiagnoseDependencies {
   enableSync: (options?: { skipPush?: boolean }) => Promise<unknown>;
   restoreFromMnemonic: (mnemonic: string, options?: { seedLocal?: boolean }) => Promise<unknown>;
   isSyncEnabled: () => unknown;

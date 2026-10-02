@@ -23,7 +23,7 @@ const runtimeKeys = ['window', 'showConfirmDialog'];
 const restoreRuntime = captureRuntimeGlobals(runtimeKeys);
 
 try {
-  const calls = [];
+  const calls: string[] = [];
   setRuntimeValue('window', globalThis);
   configureSyncDiagnoseRuntimeDeps({ showConfirmDialog: async message => {
     calls.push(message);
@@ -41,7 +41,7 @@ try {
   assert('sync diagnose runtime preserves missing-confirm fallback',
     defaultFallback === true && explicitFallback === false);
 
-  delete globalThis.window;
+  delete (globalThis as { window?: unknown }).window;
   const noWindowFallback = await confirmSyncDiagnoseActionRuntime('missing');
   assert('sync diagnose runtime no-ops safely when window is missing',
     noWindowFallback === true);

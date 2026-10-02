@@ -1,4 +1,4 @@
-// @ts-check
+import type { RuntimeDependencyUpdates } from './runtime-callbacks.js';
 // sync-ui.js - header sync badge, popover, and activity-log copy helpers.
 
 import { showNotification, isDebugMode, escapeAttr, escapeHTML } from './utils.js';
@@ -13,26 +13,27 @@ import {
 } from './sync-state.js';
 
 let _isSyncEnabled = () => false;
-let _syncNow = () => {};
-let _forceResendCurrentProfile = () => {};
-let _cleanStorage = () => {};
+let _syncNow: () => unknown = () => {};
+let _forceResendCurrentProfile: () => unknown = () => {};
+let _cleanStorage: () => unknown = () => {};
 let _checkRelayConnection = async () => false;
-let _showSyncDiagnose = () => {};
+let _showSyncDiagnose: () => unknown = () => {};
 let _statusBound = false;
+type SyncUIWindow = Window & { __getbasedSyncUIDelegatesInstalled?: boolean };
 const SYNC_UI_DELEGATE_KEY = '__getbasedSyncUIDelegatesInstalled';
 
-export function syncUiActionAttrs(action) {
+export function syncUiActionAttrs(action: string) {
   return `data-sync-ui-action="${escapeAttr(action)}"`;
 }
 
-function handleSyncUIClick(event) {
+function handleSyncUIClick(event: MouseEvent) {
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return;
-  const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-sync-ui-action]'));
+  const actionEl = (target.closest('[data-sync-ui-action]') as HTMLElement | null);
   if (!actionEl) return;
 
   event.preventDefault();
-  const appWindow = /** @type {any} */ (window);
+  const appWindow = (window as SyncUIWindow);
   const action = actionEl.dataset.syncUiAction || '';
   if (action === 'toggle-detail') {
     toggleSyncDetail();
@@ -64,20 +65,21 @@ function handleSyncUIClick(event) {
 
 export function initSyncUIDelegates() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
-  const appWindow = /** @type {any} */ (window);
+  const appWindow = (window as SyncUIWindow);
   if (appWindow[SYNC_UI_DELEGATE_KEY]) return;
   document.addEventListener('click', handleSyncUIClick);
   appWindow[SYNC_UI_DELEGATE_KEY] = true;
 }
 
-/** @param {{
- *   isSyncEnabled?: () => boolean,
- *   syncNow?: (...args: any[]) => any,
- *   forceResendCurrentProfile?: (...args: any[]) => any,
- *   cleanStorage?: (...args: any[]) => any,
- *   checkRelayConnection?: (...args: any[]) => any,
- *   showSyncDiagnose?: (...args: any[]) => any,
- * }} [deps] */
+interface SyncUIDependencies {
+  isSyncEnabled: typeof _isSyncEnabled;
+  syncNow: typeof _syncNow;
+  forceResendCurrentProfile: typeof _forceResendCurrentProfile;
+  cleanStorage: typeof _cleanStorage;
+  checkRelayConnection: typeof _checkRelayConnection;
+  showSyncDiagnose: typeof _showSyncDiagnose;
+}
+
 export function configureSyncUI({
   isSyncEnabled,
   syncNow,
@@ -85,7 +87,7 @@ export function configureSyncUI({
   cleanStorage,
   checkRelayConnection,
   showSyncDiagnose,
-} = {}) {
+}: RuntimeDependencyUpdates<SyncUIDependencies> = {}) {
   const previous = {
     isSyncEnabled: _isSyncEnabled,
     syncNow: _syncNow,
@@ -111,8 +113,7 @@ function getSyncDisplayState() {
   return getSyncDisplayStateFromStatus(currentSyncEnabled());
 }
 
-/** @param {number | null | undefined} ts */
-function _timeAgo(ts) {
+function _timeAgo(ts: number | null | undefined) {
   if (!ts) return 'never';
   const s = Math.floor((Date.now() - ts) / 1000);
   if (s < 5) return 'just now';
@@ -126,7 +127,7 @@ export function renderSyncIndicator() {
   if (!slot) return;
   if (!currentSyncEnabled()) { slot.innerHTML = ''; return; }
   const ds = getSyncDisplayState();
-  const titles = { synced: 'Synced', syncing: 'Syncing\u2026', offline: 'Offline \u2014 changes saved locally', error: 'Sync error', disabled: '' };
+  const titles: Partial<Record<ReturnType<typeof getSyncDisplayState>, string>> = { synced: 'Synced', syncing: 'Syncing\u2026', offline: 'Offline \u2014 changes saved locally', error: 'Sync error', disabled: '' };
   slot.innerHTML = `<button class="sync-indicator" id="sync-indicator-btn" ${syncUiActionAttrs('toggle-detail')} title="${titles[ds]}" aria-label="Sync status"><span class="sync-dot sync-dot-${ds}"></span></button>`;
 }
 
@@ -135,7 +136,7 @@ export function updateSyncIndicator() {
   if (!dot) { renderSyncIndicator(); return; }
   const ds = getSyncDisplayState();
   dot.className = `sync-dot sync-dot-${ds}`;
-  const titles = { synced: 'Synced', syncing: 'Syncing\u2026', offline: 'Offline \u2014 changes saved locally', error: 'Sync error' };
+  const titles: Partial<Record<ReturnType<typeof getSyncDisplayState>, string>> = { synced: 'Synced', syncing: 'Syncing\u2026', offline: 'Offline \u2014 changes saved locally', error: 'Sync error' };
   const button = dot.parentElement;
   if (button) button.title = titles[ds] || '';
 }
@@ -172,7 +173,7 @@ export function toggleSyncDetail() {
   // disagree on what's on the relay; meaningless to a regular user.
   const debugMode = isDebugMode();
   const events = debugMode ? getRecentSyncEvents().slice(-6).reverse() : [];
-  const eventColor = { push: 'var(--accent)', pull: 'var(--green)', skip: 'var(--text-muted)', rebroadcast: 'var(--orange)' };
+  const eventColor: Record<string, string> = { push: 'var(--accent)', pull: 'var(--green)', skip: 'var(--text-muted)', rebroadcast: 'var(--orange)' };
   const eventsHtml = events.length ? `
     <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted);max-height:160px;overflow-y:auto">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
@@ -219,7 +220,7 @@ export function toggleSyncDetail() {
   parent.style.position = 'relative';
   parent.appendChild(pop);
   // Close on outside click.
-  const close = (e) => { if (!pop.contains(e.target) && e.target !== btn && !btn.contains(e.target)) { pop.remove(); document.removeEventListener('click', close); } };
+  const close = (e: MouseEvent) => { if (!pop!.contains(e.target as Node | null) && e.target !== btn && !btn.contains(e.target as Node | null)) { pop!.remove(); document.removeEventListener('click', close); } };
   setTimeout(() => document.addEventListener('click', close), 0);
 }
 
@@ -241,8 +242,7 @@ export function bindSyncUIStatusUpdates() {
 // when phone-side debugging needs the events shared without retyping.
 // Format: ISO timestamp + kind + text per line. Falls back to a manual
 // selection prompt on browsers without clipboard API permission.
-/** @param {HTMLElement | null | undefined} btn */
-export async function copySyncEvents(btn) {
+export async function copySyncEvents(btn?: HTMLElement | null) {
   const events = getRecentSyncEvents();
   const lines = events.map(e => `${new Date(e.at).toISOString()}  ${e.kind.padEnd(12)}  ${e.text}`);
   const blob = `Sync activity (${events.length} events) — ${new Date().toISOString()}\n` +

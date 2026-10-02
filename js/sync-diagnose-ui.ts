@@ -1,4 +1,6 @@
-// @ts-check
+import type { RuntimeDependencyUpdates } from './runtime-callbacks.js';
+import type { SyncDiagnoseDependencies } from './sync-diagnose-actions-context.js';
+import type { RelayHealthVerdict } from './sync-relay-health.js';
 // sync-diagnose-ui.js - Sync Diagnose modal lifecycle and copy handling.
 
 import { getErrorMessage } from './caught-error.js';
@@ -24,13 +26,12 @@ export {
   refreshRelayStorage,
 } from './sync-diagnose-actions.js';
 
-/** @type {(profileId?: any) => boolean} */
-let _isPhase2CutoverEnabled = () => false;
+let _isPhase2CutoverEnabled: (profileId?: string | null) => boolean = () => false;
 
-function handleSyncDiagnoseActionClick(event) {
+function handleSyncDiagnoseActionClick(event: MouseEvent) {
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return;
-  const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-sync-diagnose-action]'));
+  const actionEl = (target.closest('[data-sync-diagnose-action]') as HTMLElement | null);
   if (!actionEl) return;
   event.preventDefault();
 
@@ -54,16 +55,8 @@ function handleSyncDiagnoseActionClick(event) {
   }
 }
 
-/** @param {{
- *   enableSync?: (...args: any[]) => any,
- *   restoreFromMnemonic?: (...args: any[]) => any,
- *   isSyncEnabled?: (...args: any[]) => any,
- *   pushProfile?: (...args: any[]) => any,
- *   enablePhase2Cutover?: (...args: any[]) => any,
- *   disablePhase2Cutover?: (...args: any[]) => any,
- *   isPhase2CutoverEnabled?: (profileId?: any) => boolean,
- * }} [deps]
- */
+type SyncDiagnoseUIDependencies = Omit<SyncDiagnoseDependencies, 'showSyncDiagnose'> & { isPhase2CutoverEnabled: typeof _isPhase2CutoverEnabled };
+
 export function configureSyncDiagnoseUI({
   enableSync,
   restoreFromMnemonic,
@@ -72,7 +65,7 @@ export function configureSyncDiagnoseUI({
   enablePhase2Cutover,
   disablePhase2Cutover,
   isPhase2CutoverEnabled,
-} = {}) {
+}: RuntimeDependencyUpdates<SyncDiagnoseUIDependencies> = {}) {
   if (typeof isPhase2CutoverEnabled === 'function') _isPhase2CutoverEnabled = isPhase2CutoverEnabled;
   configureSyncDiagnoseActions({
     enableSync,
@@ -93,8 +86,7 @@ export function configureSyncDiagnoseUI({
 // using the same relay URL.
 export async function showSyncDiagnose() {
   const diagnostics = await getEvoluDiagnostics();
-  /** @type {{ verdict: string, at: number, reason: string | null }} */
-  let healthVerdict = { verdict: 'unknown', at: 0, reason: null };
+  let healthVerdict: RelayHealthVerdict = { verdict: 'unknown', at: 0, reason: null };
   try { healthVerdict = await verifyPushLanded(); } catch {}
 
   const overlay = document.createElement('div');
@@ -127,8 +119,8 @@ export async function showSyncDiagnose() {
 // Copies the Sync diagnose snapshot to the clipboard. Walks up to find
 // the overlay so we read the same `data-copy-text` blob the modal was
 // rendered from (no stale-snapshot races when sync ticks during read).
-export async function copySyncDiagnose(btn) {
-  const overlay = btn?.closest?.('.modal-overlay');
+export async function copySyncDiagnose(btn?: HTMLElement | null) {
+  const overlay = btn?.closest?.<HTMLElement>('.modal-overlay');
   const text = overlay?.dataset?.copyText || '';
   if (!text) {
     try { showNotification('Nothing to copy', 'error'); } catch {}
@@ -148,9 +140,9 @@ export async function copySyncDiagnose(btn) {
       document.execCommand('copy');
       ta.remove();
     }
-    const original = btn.textContent;
-    btn.textContent = 'Copied';
-    setTimeout(() => { btn.textContent = original; }, 1500);
+    const original = btn!.textContent;
+    btn!.textContent = 'Copied';
+    setTimeout(() => { btn!.textContent = original; }, 1500);
   } catch (e) {
     try { showNotification(`Copy failed: ${getErrorMessage(e, e)}`, 'error'); } catch {}
   }

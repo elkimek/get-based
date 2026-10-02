@@ -1,4 +1,5 @@
-// @ts-check
+import type { DeltaSurfaceReadiness } from './sync-delta-readiness.js';
+import type { SyncDiagnoseActionElement } from './sync-diagnose-actions-context.js';
 // sync-diagnose-cutover-actions.js - Telemetry and lean-sync mode actions.
 
 import { getErrorMessage } from './caught-error.js';
@@ -18,7 +19,7 @@ import { confirmSyncDiagnoseActionRuntime } from './sync-diagnose-runtime.js';
 
 // "Reset window" - drops the rolling per-push telemetry log so the user
 // can start a fresh measurement span.
-export async function confirmResetDeltaTelemetry(btn) {
+export async function confirmResetDeltaTelemetry(btn?: SyncDiagnoseActionElement | null) {
   const t = state.currentProfile ? getDeltaTelemetry(state.currentProfile) : null;
   const n = t?.summary?.count || 0;
   const message = `Reset the push-efficiency log? Drops the ${n} recent push entries used to compute the percentage. Your data and relay state aren't touched.`;
@@ -37,7 +38,7 @@ export async function confirmResetDeltaTelemetry(btn) {
 
 // "Enable Phase 2" - flips the fat-blob off for this profile on this
 // device. Gated behind getDeltaCutoverReadiness READY.
-export async function confirmEnablePhase2(btn) {
+export async function confirmEnablePhase2(btn?: SyncDiagnoseActionElement | null) {
   if (!state.currentProfile) return;
   const r = getDeltaCutoverReadiness(state.currentProfile);
   if (!r?.ready) {
@@ -63,11 +64,11 @@ export async function confirmEnablePhase2(btn) {
 // "Backfill blockers" - wipes the per-array snapshot for every surface
 // flagged 'missing-rows' so the next push emits inserts for every local
 // item from scratch. Then forces a push.
-export async function confirmBackfillBlockers(btn) {
+export async function confirmBackfillBlockers(btn?: SyncDiagnoseActionElement | null) {
   if (!state.currentProfile) return;
   const profileId = state.currentProfile;
   const r = getDeltaCutoverReadiness(profileId);
-  const blockers = Object.entries(r?.surfaces || {}).filter(([, v]) => v.status === 'missing-rows').map(([n]) => n);
+  const blockers = Object.entries((r?.surfaces || {}) as Record<string, DeltaSurfaceReadiness>).filter(([, v]) => v.status === 'missing-rows').map(([n]) => n);
   if (blockers.length === 0) {
     try { showNotification('No blockers to backfill', 'success'); } catch {}
     return;
@@ -91,7 +92,7 @@ export async function confirmBackfillBlockers(btn) {
   }
 }
 
-export async function confirmDisablePhase2(btn) {
+export async function confirmDisablePhase2(btn?: SyncDiagnoseActionElement | null) {
   if (!state.currentProfile) return;
   const message = `Switch this device back to full-blob sync?\n\nPushes will include the full data blob again as a safety net. Use this if a peer device is missing data after going lean.\n\nNo data loss either way.`;
   const proceed = await confirmSyncDiagnoseActionRuntime(message);

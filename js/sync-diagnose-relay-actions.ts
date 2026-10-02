@@ -1,4 +1,4 @@
-// @ts-check
+import type { SyncDiagnoseActionElement } from './sync-diagnose-actions-context.js';
 // sync-diagnose-relay-actions.js - Relay storage operations for Sync Diagnose.
 
 import { getErrorMessage } from './caught-error.js';
@@ -14,7 +14,7 @@ import { getSyncEvolu } from './sync-runtime.js';
 
 async function waitForRelayRebuild() {
   const delays = [0, 500, 1500, 3000];
-  let latest = null;
+  let latest: Awaited<ReturnType<typeof fetchOwnerStorageFromRelay>> = null;
   for (const delay of delays) {
     if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
     latest = await fetchOwnerStorageFromRelay();
@@ -30,7 +30,7 @@ async function waitForRelayRebuild() {
 // row for this owner and zeroes storedBytes; this action immediately rebuilds
 // a complete snapshot and verifies it server-side. Replaces the old "I just
 // compacted" runbook flow that required SSH and a manual counter reset.
-export async function confirmCompactRelay(btn) {
+export async function confirmCompactRelay(btn?: SyncDiagnoseActionElement | null) {
   const rebuildOnly = btn?.dataset?.syncRebuildOnly === '1';
   const q = getRelayQuotaEstimate();
   const mb = q ? (q.bytes / 1024 / 1024).toFixed(1) : '?';
@@ -44,7 +44,7 @@ export async function confirmCompactRelay(btn) {
   if (btn) { btn.disabled = true; btn.textContent = rebuildOnly ? 'Rebuilding…' : 'Reducing…'; }
   let compacted = rebuildOnly;
   try {
-    let result = null;
+    let result: Awaited<ReturnType<typeof compactOwnerSelfServe>> = null;
     if (!rebuildOnly) {
       // Includes the Evolu 8 generation-persistence preflight. Nothing may
       // delete the relay log until that local history boundary is durable.
@@ -89,7 +89,7 @@ export async function confirmCompactRelay(btn) {
 // storedBytes for this owner. Mirrors into the local cache so the
 // indicator is accurate, not an estimate. Useful after the maintainer
 // or another device has compacted.
-export async function refreshRelayStorage(btn) {
+export async function refreshRelayStorage(btn?: SyncDiagnoseActionElement | null) {
   if (btn) { btn.disabled = true; btn.textContent = 'Refreshing…'; }
   try {
     const result = await fetchOwnerStorageFromRelay();

@@ -1,4 +1,3 @@
-// @ts-check
 // sync-diagnose-actions.js - Public facade for Sync Diagnose action handlers.
 
 import { configureSyncDiagnoseActionContext } from './sync-diagnose-actions-context.js';
@@ -17,6 +16,6 @@ export {
   confirmResetDeltaTelemetry,
 } from './sync-diagnose-cutover-actions.js';
 
-export function configureSyncDiagnoseActions(deps = {}) {
+export function configureSyncDiagnoseActions(deps: Parameters<typeof configureSyncDiagnoseActionContext>[0] = {}) {
   configureSyncDiagnoseActionContext(deps);
 }

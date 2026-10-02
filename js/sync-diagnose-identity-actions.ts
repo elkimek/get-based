@@ -1,4 +1,4 @@
-// @ts-check
+import type { SyncDiagnoseActionElement } from './sync-diagnose-actions-context.js';
 // sync-diagnose-identity-actions.js - Identity rotation UI for Sync Diagnose.
 
 import { getErrorMessage } from './caught-error.js';
@@ -18,7 +18,7 @@ import { confirmSyncDiagnoseActionRuntime } from './sync-diagnose-runtime.js';
 // the relay (no ghost state from any prior Evolu silent-reject), so
 // pushes start landing immediately. The other devices need to enter
 // the same mnemonic to converge.
-export async function confirmRotateIdentity(btn) {
+export async function confirmRotateIdentity(btn?: SyncDiagnoseActionElement | null) {
   // Stage 1: warning dialog. Make sure the user understands the
   // implications BEFORE we generate a fresh mnemonic.
   const warning =
@@ -36,7 +36,7 @@ export async function confirmRotateIdentity(btn) {
     showNotification('BIP-39 library not loaded — cannot rotate identity', 'error');
     return;
   }
-  let mnemonic;
+  let mnemonic: string | null;
   try {
     mnemonic = await bip39.generateMnemonic(256);
   } catch (e) {
@@ -104,11 +104,11 @@ export async function confirmRotateIdentity(btn) {
   document.body.appendChild(overlay);
   openModalOverlay(overlay);
 
-  const closeBtn = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('.modal-close'));
-  const cancelBtn = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#rotate-cancel-btn'));
-  const copyBtn = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#rotate-copy-btn'));
-  const check = /** @type {HTMLInputElement | null} */ (overlay.querySelector('#rotate-saved-check'));
-  const applyBtn = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#rotate-apply-btn'));
+  const closeBtn = (overlay.querySelector('.modal-close') as HTMLButtonElement | null);
+  const cancelBtn = (overlay.querySelector('#rotate-cancel-btn') as HTMLButtonElement | null);
+  const copyBtn = (overlay.querySelector('#rotate-copy-btn') as HTMLButtonElement | null);
+  const check = (overlay.querySelector('#rotate-saved-check') as HTMLInputElement | null);
+  const applyBtn = (overlay.querySelector('#rotate-apply-btn') as HTMLButtonElement | null);
   const cleanup = () => {
     mnemonic = null;
     if (Array.isArray(words)) {
@@ -142,14 +142,14 @@ export async function confirmRotateIdentity(btn) {
       } else {
         fallbackCopy();
       }
-      copyBtn.textContent = '✓ Copied';
+      copyBtn!.textContent = '✓ Copied';
       setTimeout(() => { if (copyBtn) copyBtn.textContent = 'Copy mnemonic'; }, 1500);
     } catch {
       showNotification('Copy failed — select the words manually', 'error');
     }
   });
   check?.addEventListener('change', () => {
-    if (applyBtn) applyBtn.disabled = !check.checked;
+    if (applyBtn) applyBtn.disabled = !check!.checked;
   });
   applyBtn?.addEventListener('click', async () => {
     applyBtn.disabled = true;
