@@ -1583,7 +1583,7 @@ await import('../js/settings.js');
       && /isRestoreJoinPending/.test(syncPullMergeSrc)
       && /withoutLocalTombstones\(localImportedForMerge\)/.test(syncPullMergeSrc)
       && /const \{\s*_deleted,\s*_deletedAt,\s*_deletedClearedAt,\s*\.\.\.rest\s*\}/.test(syncPullMergeSrc)
-      && /if \(restoreJoinApplied\) clearRestoreJoinPending\(\)/.test(syncPullSrc));
+      && /if \(restoreJoinApplied\)\s+clearRestoreJoinPending\(\)/.test(syncPullSrc));
   assert('restore-as-joiner blocks startup reconciliation push before first pull',
     /isRestoreJoinPending/.test(syncReconcileSrc)
       && /reconcileLocalStorageWithEvolu[\s\S]{0,500}isRestoreJoinPending\(\)[\s\S]{0,500}return/.test(syncReconcileSrc));

@@ -627,3 +627,7 @@ deploy/profile-share/data/
 /js/biology-score-ai.js
 
 /js/biology-score-context-ai.js
+
+/js/sync-pull.js
+
+/js/sync-pull-merge.js

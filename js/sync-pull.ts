@@ -1,4 +1,31 @@
-// @ts-check
+import type { StoredProfileRecord } from './profile-list-store.js';
+import type { SyncProfileRow } from './sync-payload.js';
+import type { ParsedSyncPayload } from './sync-payload-codec.js';
+import type { SyncChatData } from './sync-chat-merge.js';
+import type { PulledImportedData } from './sync-pull-merge.js';
+import type { RuntimeDependencyUpdates } from './runtime-callbacks.js';
+
+type PullClient = { getQueryRows(query: unknown): readonly SyncProfileRow[] | null | undefined };
+interface PulledAISettingsSelection {
+  latestAiSettings: Record<string, unknown> | null; latestAiRowTs: number;
+  latestRoutstrSettings: Record<string, unknown> | null; routstrSessions: string | null;
+  latestRoutstrClock: number; latestRoutstrRowTs: number;
+}
+interface SyncPullDeps {
+  getEvolu: () => PullClient | null;
+  getProfileQuery: () => unknown;
+  isSyncPushInFlight: () => boolean;
+  isSyncEnabled: () => boolean;
+  pushProfile: typeof import('./sync-push.js').pushProfile;
+  pushDirtyProfiles: typeof import('./sync-actions.js').pushDirtyProfiles;
+  pushProfilesById: typeof import('./sync-actions.js').pushProfilesById;
+  renderProfileButton: () => void;
+  getProfiles: () => StoredProfileRecord[];
+  deleteProfileFromRelay: (profileId: string) => Promise<unknown>;
+  reconcilePulledManualWearables: (profileId: string, imported: unknown) => Promise<unknown>;
+  debug: (...args: unknown[]) => unknown;
+}
+
 // sync-pull.js - inbound Evolu rows -> localStorage merge path.
 
 import { encodeMergedRoutstrSessions, ROUTSTR_SESSIONS_KEY } from './routstr-session.js';
@@ -30,34 +57,27 @@ import { readProfileImportedData } from './sync-save-hooks.js';
 // These use var + self-preserving defaults because sync.js can be re-entered
 // through app module cycles while sync-pull.js is still evaluating. An early
 // configureSyncPull call must not hit TDZ or get overwritten by defaults.
-var _getEvolu = _getEvolu || (() => null);
-var _getProfileQuery = _getProfileQuery || (() => null);
-var _isSyncPushInFlight = _isSyncPushInFlight || (() => false);
-var _isSyncEnabled = _isSyncEnabled || (() => true);
-/** @type {(...args: any[]) => Promise<any>} */
-var _pushProfile = _pushProfile || (async () => {});
-/** @type {(...args: any[]) => Promise<any>} */
-var _pushDirtyProfiles = _pushDirtyProfiles || (async () => ({ total: 0, succeeded: 0, failed: 0, skipped: 0 }));
-/** @type {(...args: any[]) => Promise<any>} */
-var _pushProfilesById = _pushProfilesById || (async () => ({ total: 0, succeeded: 0, failed: 0, skipped: 0 }));
-var _renderProfileButton = _renderProfileButton || (() => {});
-var _getProfiles = _getProfiles || (() => []);
-/** @type {(profileId: string) => Promise<any>} */
-var _deleteProfileFromRelay = _deleteProfileFromRelay || (async () => {});
-let syncApplyPromise;
+var _getEvolu: SyncPullDeps["getEvolu"] = _getEvolu! || (() => null);
+var _getProfileQuery: SyncPullDeps["getProfileQuery"] = _getProfileQuery! || (() => null);
+var _isSyncPushInFlight: SyncPullDeps["isSyncPushInFlight"] = _isSyncPushInFlight! || (() => false);
+var _isSyncEnabled: SyncPullDeps["isSyncEnabled"] = _isSyncEnabled! || (() => true);
+var _pushProfile: SyncPullDeps["pushProfile"] = _pushProfile! || (async () => {});
+var _pushDirtyProfiles: SyncPullDeps["pushDirtyProfiles"] = _pushDirtyProfiles! || (async () => ({ total: 0, succeeded: 0, failed: 0, skipped: 0 }));
+var _pushProfilesById: SyncPullDeps["pushProfilesById"] = _pushProfilesById! || (async () => ({ total: 0, succeeded: 0, failed: 0, skipped: 0 }));
+var _renderProfileButton: SyncPullDeps["renderProfileButton"] = _renderProfileButton! || (() => {});
+var _getProfiles: SyncPullDeps["getProfiles"] = _getProfiles! || (() => []);
+var _deleteProfileFromRelay: SyncPullDeps["deleteProfileFromRelay"] = _deleteProfileFromRelay! || (async () => {});
+let syncApplyPromise: Promise<typeof import('./sync-apply.js')> | undefined;
 
 function loadSyncApply() {
   syncApplyPromise ||= import('./sync-apply.js');
   return syncApplyPromise;
 }
-/** @type {(...args: any[]) => Promise<any>} */
-var _reconcilePulledManualWearables = _reconcilePulledManualWearables || (async () => false);
-/** @type {(...args: any[]) => any} */
-var _debug = _debug || (() => {});
+var _reconcilePulledManualWearables: SyncPullDeps["reconcilePulledManualWearables"] = _reconcilePulledManualWearables! || (async () => false);
+var _debug: SyncPullDeps["debug"] = _debug! || (() => {});
 let _pulling = false;
-/** @type {Promise<void> | null} */
-let _pullPromise = null;
-const _chatPullRetryTimers = new Map();
+let _pullPromise: Promise<void> | null = null;
+const _chatPullRetryTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const ROUTSTR_SESSION_UPDATED_AT_KEY = 'labcharts-routstr-session-updated-at';
 const ROUTSTR_SESSION_KEYS = [
   'labcharts-routstr-key',
@@ -66,7 +86,7 @@ const ROUTSTR_SESSION_KEYS = [
   ROUTSTR_SESSION_UPDATED_AT_KEY,
 ];
 
-export function createPulledAISettingsSelection() {
+export function createPulledAISettingsSelection(): PulledAISettingsSelection {
   return {
     latestAiSettings: null,
     latestAiRowTs: -1,
@@ -82,30 +102,30 @@ export function createPulledAISettingsSelection() {
  * the newest profile row, while the global Routstr session follows its own
  * explicit clock so an unrelated newer profile save cannot hide funded keys.
  */
-export function selectPulledAISettings(selection, settings, rowSyncedAt) {
+export function selectPulledAISettings(selection: PulledAISettingsSelection, settings: unknown, rowSyncedAt: unknown) {
   if (!settings || typeof settings !== 'object') return selection;
   const next = { ...selection };
   const rowTs = Number.isFinite(Number(rowSyncedAt)) ? Number(rowSyncedAt) : 0;
   if (rowTs > next.latestAiRowTs) {
-    next.latestAiSettings = settings;
+    next.latestAiSettings = settings as Record<string, unknown>;
     next.latestAiRowTs = rowTs;
   }
   if (!ROUTSTR_SESSION_KEYS.some(key => Object.prototype.hasOwnProperty.call(settings, key))) return next;
-  const rawClock = Number(settings[ROUTSTR_SESSION_UPDATED_AT_KEY] || 0);
+  const rawClock = Number((settings as Record<string, unknown>)[ROUTSTR_SESSION_UPDATED_AT_KEY] || 0);
   const clock = Number.isFinite(rawClock) && rawClock >= 0 ? rawClock : 0;
   if (Object.hasOwn(settings, ROUTSTR_SESSIONS_KEY) || Object.hasOwn(settings, 'labcharts-routstr-key')) {
-    next.routstrSessions = encodeMergedRoutstrSessions(next.routstrSessions, null, settings[ROUTSTR_SESSIONS_KEY] ?? settings['labcharts-routstr-key'], settings['labcharts-routstr-node'], 0, clock);
+    next.routstrSessions = encodeMergedRoutstrSessions(next.routstrSessions, null, (settings as Record<string, unknown>)[ROUTSTR_SESSIONS_KEY] ?? (settings as Record<string, unknown>)['labcharts-routstr-key'], (settings as Record<string, unknown>)['labcharts-routstr-node'], 0, clock);
   }
   if (clock > next.latestRoutstrClock
       || clock === next.latestRoutstrClock && rowTs > next.latestRoutstrRowTs) {
-    next.latestRoutstrSettings = settings;
+    next.latestRoutstrSettings = settings as Record<string, unknown>;
     next.latestRoutstrClock = clock;
     next.latestRoutstrRowTs = rowTs;
   }
   return next;
 }
 
-export function combinePulledAISettings(selection) {
+export function combinePulledAISettings(selection: PulledAISettingsSelection) {
   if (!selection.latestAiSettings && !selection.latestRoutstrSettings) return null;
   const combined = { ...(selection.latestAiSettings || {}) };
   if (!selection.latestRoutstrSettings) return combined;
@@ -122,21 +142,6 @@ export function combinePulledAISettings(selection) {
   return combined;
 }
 
-/** @param {{
- *   getEvolu?: () => any,
- *   getProfileQuery?: () => any,
- *   isSyncPushInFlight?: () => boolean,
- *   isSyncEnabled?: () => boolean,
- *   pushProfile?: (...args: any[]) => Promise<any>,
- *   pushDirtyProfiles?: (...args: any[]) => Promise<any>,
- *   pushProfilesById?: (...args: any[]) => Promise<any>,
- *   renderProfileButton?: () => void,
- *   getProfiles?: () => any[],
- *   deleteProfileFromRelay?: (profileId: string) => Promise<any>,
- *   reconcilePulledManualWearables?: (...args: any[]) => Promise<any>,
- *   debug?: (...args: any[]) => any,
- * }} [deps]
- */
 export function configureSyncPull({
   getEvolu,
   getProfileQuery,
@@ -150,7 +155,7 @@ export function configureSyncPull({
   deleteProfileFromRelay,
   reconcilePulledManualWearables,
   debug,
-} = {}) {
+}: RuntimeDependencyUpdates<SyncPullDeps> = {}) {
   if (typeof getEvolu === 'function') _getEvolu = getEvolu;
   if (typeof getProfileQuery === 'function') _getProfileQuery = getProfileQuery;
   if (typeof isSyncPushInFlight === 'function') _isSyncPushInFlight = isSyncPushInFlight;
@@ -177,7 +182,7 @@ function isPushInFlight() {
   try { return !!_isSyncPushInFlight?.(); } catch { return false; }
 }
 
-function dbg(...args) {
+function dbg(...args: unknown[]) {
   try { _debug?.(...args); } catch {}
 }
 
@@ -204,7 +209,7 @@ export function forcePull() {
   return onSyncReceived();
 }
 
-function scheduleChatPullRetry(profileId, delayMs) {
+function scheduleChatPullRetry(profileId: string, delayMs: number) {
   if (!profileId || delayMs <= 0) return;
   const prev = _chatPullRetryTimers.get(profileId);
   if (prev) clearTimeout(prev);
@@ -306,7 +311,7 @@ async function receiveSync() {
           }
           continue;
         }
-        const remoteUpdated = row.syncedAt ? new Date(row.syncedAt).getTime() : 0;
+        const remoteUpdated = row.syncedAt ? new Date(row.syncedAt as string).getTime() : 0;
         const localMeta = localStorage.getItem(`labcharts-${profileId}-sync-ts`);
         const localUpdated = localMeta ? parseInt(localMeta, 10) : 0;
         const localCommitEcho = isLocalSyncCommitEcho(profileId, remoteUpdated);
@@ -327,7 +332,7 @@ async function receiveSync() {
 
         // Remote is newer - parse payload (async because the gzip envelope
         // routes through DecompressionStream)
-        const parsedPayload = await parseSyncPayload(row.dataJson);
+        const parsedPayload = await parseSyncPayload(row.dataJson) as ParsedSyncPayload;
         const importedData = sanitizeNutritionProfileData(parsedPayload.importedData);
         const { profile, aiSettings, chatData, displayPrefs } = parsedPayload;
 
@@ -357,7 +362,7 @@ async function receiveSync() {
         const {
           localKey, merged, mergeMsg,
           needsRebroadcast, remoteBroughtNewRows, localDataChanged, restoreJoinApplied,
-        } = await mergePulledImportedData(profileId, importedData, {
+        } = await mergePulledImportedData(profileId, importedData as PulledImportedData | null, {
           debug: dbg,
           remoteUpdated,
         });
@@ -374,15 +379,15 @@ async function receiveSync() {
 
         if (await mergePulledProfile(profileId, profile)) {
           profilesChanged = true;
-          dbg('Merged profile:', profileId, (/** @type {{ name?: unknown }} */ (profile)).name);
+          dbg('Merged profile:', profileId, (profile as { name?: unknown }).name);
         }
 
         // Apply chat data and display preferences
-        const chatApplied = chatData ? await applyChatData(profileId, chatData) : false;
+        const chatApplied = chatData ? await applyChatData(profileId, chatData as SyncChatData) : false;
         if (chatData) {
           scheduleChatPullRetry(profileId, getChatDataLocalLockRemainingMs(profileId));
         }
-        if (displayPrefs) (await loadSyncApply()).applyDisplayPrefs(profileId, displayPrefs);
+        if (displayPrefs) (await loadSyncApply()).applyDisplayPrefs(profileId, displayPrefs as Record<string, string>);
 
         if (!refreshActiveProfileAfterPull({
           profileId,
