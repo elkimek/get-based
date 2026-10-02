@@ -34,7 +34,7 @@ const state = (await import('../js/state.js')).state;
 
   const profSrc = read('js/profile-data-migrations.js');
   assert('profile migration owner backfills markerValueNotes',
-    profSrc.includes('if (data.markerValueNotes === undefined) data.markerValueNotes = {}'));
+    /if \(data\.markerValueNotes === undefined\)\s+data\.markerValueNotes = \{\}/.test(profSrc));
 
   // ═══════════════════════════════════════
   // 2. Sync wiring — DELTA_MAPS + colon-key escape

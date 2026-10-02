@@ -151,7 +151,7 @@ const importCssSrc = read('css/import.css');
       && /clearTombstone\(current,\s*['"]importSnapshots['"],\s*snap\.id\)/.test(exportImportSrc)
       && /incomingAt >= existingAt/.test(exportImportSrc));
   assert('Existing profile migration backfills importSnapshots array',
-    /if \(data\.importSnapshots === undefined\) data\.importSnapshots = \[\]/.test(profileDataMigrationsSrc));
+    /if \(data\.importSnapshots === undefined\)\s+data\.importSnapshots = \[\]/.test(profileDataMigrationsSrc));
   assert('Import snapshots are tombstone-aware delta array records',
     /importSnapshots:\s*\{[\s\S]{0,180}itemIdFn/.test(read('js/sync-delta-surface-config.js'))
       && /recordTombstone\(state\.importedData,\s*['"]importSnapshots['"],\s*snapId\)/.test(confirmBlock)

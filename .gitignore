@@ -556,3 +556,6 @@ deploy/profile-share/data/
 /js/data-core-types.js
 
 /tests/helpers/data-module-source.js
+
+/js/profile-data-migrations.js
+/js/light-env-evening.js

@@ -1,4 +1,3 @@
-// @ts-check
 // profile-data-migrations.js — Deterministic imported profile-data upgrades.
 
 import { SPECIALTY_MARKER_DEFS } from './adapters.js';
@@ -17,16 +16,13 @@ import { repairEditedImportProvenance } from './profile-import-provenance.js';
 import { MARKER_SCHEMA } from './schema.js';
 import { migrateSupplementMedicationRecords } from './supplement-medication-domain.js';
 
-/** @typedef {import('../types/app-state.js').ProfileData} ProfileData */
+import type { ProfileData, NormalizedProfileData } from '../types/app-state.js';
+import type { LightCircadianContext, SleepContext } from '../types/profile-context-data.js';
 
-/**
- * @param {ProfileData} data
- * @returns {import('../types/app-state.js').NormalizedProfileData}
- */
-export function migrateProfileData(data) {
+export function migrateProfileData(data: ProfileData): NormalizedProfileData {
   // Migrate sleepCircadian → sleepRest (sleep fields go to sleepRest, circadian items to lightCircadian)
   if (data.sleepCircadian && !data.sleepRest) {
-    const sc = data.sleepCircadian;
+    const sc = data.sleepCircadian as string | SleepContext;
     if (typeof sc === 'string') {
       data.sleepRest = sc.trim() ? { duration: null, quality: null, schedule: null, issues: [], note: sc.trim() } : null;
     } else if (typeof sc === 'object') {
@@ -73,18 +69,7 @@ export function migrateProfileData(data) {
   // Migrate old lightCircadian practices/timing format.
   if (data.lightCircadian && data.lightCircadian.timing && !data.lightCircadian.amLight) {
     const old = data.lightCircadian;
-    /** @type {{
-     *   amLight: string | null,
-     *   daytime: string | null,
-     *   uvExposure: string | null,
-     *   evening: string[],
-     *   cold: string | null,
-     *   grounding: string | null,
-     *   latitude: number | null,
-     *   mealTiming: string[],
-     *   note: string
-     * }} */
-    const newLc = { amLight: null, daytime: null, uvExposure: null, evening: [], cold: null, grounding: null, latitude: null, mealTiming: old.mealTiming || [], note: old.note || '' };
+    const newLc: LightCircadianContext & { evening: string[] } = { amLight: null, daytime: null, uvExposure: null, evening: [], cold: null, grounding: null, latitude: null, mealTiming: old.mealTiming || [], note: old.note || '' };
     if (old.practices && old.practices.length) {
       for (const p of old.practices) {
         if (p === 'morning sunlight') newLc.amLight = 'morning outdoor (after sunrise)';
@@ -106,7 +91,7 @@ export function migrateProfileData(data) {
   }
   // Migrate hardcoded specialty markers to customMarkers
   if (data.entries?.length) {
-    const usedSpecialtyKeys = new Set();
+    const usedSpecialtyKeys = new Set<string>();
     for (const entry of data.entries) {
       for (const key of Object.keys(entry.markers || {})) {
         if (SPECIALTY_MARKER_DEFS[key]) usedSpecialtyKeys.add(key);
@@ -115,7 +100,7 @@ export function migrateProfileData(data) {
     if (!data.customMarkers) data.customMarkers = {};
     for (const key of usedSpecialtyKeys) {
       if (!data.customMarkers[key]) {
-        const def = SPECIALTY_MARKER_DEFS[key];
+        const def = SPECIALTY_MARKER_DEFS[key]!;
         data.customMarkers[key] = {
           name: def.name, unit: def.unit,
           refMin: def.refMin, refMax: def.refMax,
@@ -129,27 +114,27 @@ export function migrateProfileData(data) {
   if (data.customMarkers) {
     for (const [key, customMarker] of Object.entries(data.customMarkers)) {
       if (customMarker.group === undefined && SPECIALTY_MARKER_DEFS[key]) {
-        customMarker.group = SPECIALTY_MARKER_DEFS[key].group || null;
+        customMarker.group = SPECIALTY_MARKER_DEFS[key]!.group || null;
       }
     }
   }
   repairProfileMarkerData(data);
   // Fix corrupted FA-prefixed standard markers.
   if (data.customMarkers && data.entries?.length) {
-    const standardLookup = {};
+    const standardLookup: Record<string, string> = {};
     for (const [categoryKey, category] of Object.entries(MARKER_SCHEMA)) {
       for (const markerKey of Object.keys(category.markers)) {
         standardLookup[markerKey] = `${categoryKey}.${markerKey}`;
       }
     }
-    const toDelete = [];
+    const toDelete: string[] = [];
     for (const fullKey of Object.keys(data.customMarkers)) {
-      const [categoryKey, markerKey] = fullKey.split('.');
+      const [categoryKey, markerKey] = fullKey.split('.') as [string, string?];
       if (!markerKey || MARKER_SCHEMA[categoryKey]) continue;
       if (!(categoryKey.endsWith('FA') || categoryKey === 'fattyAcidsTest')) continue;
-      const custom = data.customMarkers[fullKey];
+      const custom = data.customMarkers[fullKey]!;
       const target = standardLookup[markerKey];
-      const standard = target ? MARKER_SCHEMA[target.split('.')[0]]?.markers?.[markerKey] : null;
+      const standard = target ? MARKER_SCHEMA[target.split('.')[0]!]?.markers?.[markerKey] : null;
       if (!standard || custom.unit !== standard.unit || /urine|creatinine/i.test(`${custom.name || ''} ${custom.categoryLabel || ''}`)) continue;
       if (SPECIALTY_MARKER_DEFS[fullKey]) continue;
       const standardKey = standardLookup[markerKey];
@@ -165,10 +150,10 @@ export function migrateProfileData(data) {
     for (const entry of data.entries) {
       if (!entry.markers) continue;
       const keys = Object.keys(entry.markers);
-      const hasStandard = keys.some(key => standardCategories.has(key.split('.')[0]));
+      const hasStandard = keys.some(key => standardCategories.has(key.split('.')[0]!));
       if (!hasStandard) continue;
       for (const key of keys) {
-        const categoryKey = key.split('.')[0];
+        const categoryKey = key.split('.')[0]!;
         if (!standardCategories.has(categoryKey)
             && !SPECIALTY_MARKER_DEFS[key]
             && (categoryKey.endsWith('FA') || categoryKey === 'fattyAcidsTest')) {
@@ -179,7 +164,7 @@ export function migrateProfileData(data) {
     }
     // Remove orphaned FA custom markers after entry repair.
     for (const fullKey of Object.keys(data.customMarkers)) {
-      const categoryKey = fullKey.split('.')[0];
+      const categoryKey = fullKey.split('.')[0]!;
       if (MARKER_SCHEMA[categoryKey] || SPECIALTY_MARKER_DEFS[fullKey]) continue;
       if (!(categoryKey.endsWith('FA') || categoryKey === 'fattyAcidsTest')) continue;
       const hasValues = data.entries.some(entry => entry.markers?.[fullKey] !== undefined);
@@ -244,7 +229,7 @@ export function migrateProfileData(data) {
   if (data.biologyScoreAI === undefined) data.biologyScoreAI = {};
   data.contextSourceSettings = normalizeContextSourceSettings(data.contextSourceSettings);
   data.nutritionContextDays = [7, 30, 90].includes(Number(data.nutritionContextDays))
-    ? /** @type {7|30|90} */ (Number(data.nutritionContextDays))
+    ? (Number(data.nutritionContextDays) as 7 | 30 | 90)
     : 30;
   if (!data.nutritionTargets || typeof data.nutritionTargets !== 'object'
       || Array.isArray(data.nutritionTargets)) data.nutritionTargets = null;
@@ -285,5 +270,5 @@ export function migrateProfileData(data) {
   migrateMarkerPlacements(data);
   repairEditedImportProvenance(data);
   // Legacy string context has been converted to records above.
-  return /** @type {import('../types/app-state.js').NormalizedProfileData} */ (data);
+  return data as NormalizedProfileData;
 }
