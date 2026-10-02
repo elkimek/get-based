@@ -3,13 +3,13 @@ import { sourceFunctionHasInitializer } from './helpers/native-source-contracts.
 import { dataModuleSource } from './helpers/data-module-source.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
-// test-audit.js — Pre-release audit fixes. Source-inspection across data.js,
+// test-audit.ts — Pre-release audit fixes. Source-inspection across data.js,
 // views.js, chat.js, markdown.js, utils.js, schema.js, api.js, export.js,
 // pdf-import.js, nav.js, main.js, cycle.js, context-cards.js, charts.js,
 // lab-context.js, chat-system-prompt.js, CSS bundle, index.html, vercel.json,
 // service-worker.js — plus the innerHTML sanitizer sweep.
 //
-// Run: node tests/test-audit.js  (or via npm test)
+// Run: node tests/test-audit.ts  (or via npm test)
 //
 // The section-3b *functional* block (proving safeMarkerId guards no-op on
 // adversarial input at runtime) needs a live DOM + populated state — it
@@ -24,7 +24,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
 const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/context-editor.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-channels.css', 'css/light-devices.css', 'css/light-conditions-now.css', 'css/light-setup.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-panel-open.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css', 'css/chat-redesign-open.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
@@ -522,9 +522,9 @@ assert('Umami waits for offline PWA relaunches to reconnect',
 console.log('3. XSS Prevention');
 
 const viewsSrc = read('js/views.js');
-const dashboardPageViewSrc = read('js/dashboard-page-view.js');
+read('js/dashboard-page-view.js');
 const lensPageShellSrc = read('js/lens-page-shell.js');
-const lensSrc = read('js/lens.js');
+read('js/lens.js');
 const lensActionsSrc = read('js/lens-actions.js');
 const lensKnowledgeBaseUiSrc = read('js/lens-knowledge-base-ui.js');
 const lensPagesSrc = read('js/lens-pages.js');
@@ -543,7 +543,7 @@ const dashboardLabRenderersSrc = read('js/dashboard-lab-widget-renderers.js');
 const dashboardViewCompositionSrc = read('js/dashboard-view-composition.js');
 const geneticsCssAuditSrc = read('css/genetics.css');
 const markerDetailCssAuditSrc = read('css/marker-detail-modal.css');
-const contextProfileCssAuditSrc = read('css/context-profile.css');
+read('css/context-profile.css');
 const contextEditorCssAuditSrc = read('css/context-editor.css');
 const dnaSrc = read('js/dna.js');
 const dnaUiSrc = read('js/dna-ui.js');
@@ -567,7 +567,7 @@ assert('Genome genetics refs keep shared unscoped CSS',
 assert('Marker detail bundle does not own shared genetics refs',
   !/\.marker-detail-modal\s+\.detail-genetics(?:-ref)?/.test(markerDetailCssAuditSrc));
 
-const chatSrc = read('js/chat.js');
+read('js/chat.js');
 const chatMarkerPromptsSrc = read('js/chat-marker-prompts.js');
 const chatSendSrc = read('js/chat-send.js');
 const chatActionsSrc = read('js/chat-actions.js');
@@ -707,7 +707,7 @@ const lightChannelsCss = read('css/light-channels.css');
 const lightDevicesCss = read('css/light-devices.css');
 const lightConditionsCss = read('css/light-conditions-now.css');
 const lightSetupCss = read('css/light-setup.css');
-const sunSrc = read('js/sun.js');
+read('js/sun.js');
 const sunActiveSessionSrc = read('js/sun-active-session.js');
 const sunActiveSessionFormatSrc = read('js/sun-active-session-format.js');
 const modalLifecycleSrc = read('js/modal-lifecycle.js');
@@ -946,7 +946,7 @@ assert('Unit conversion guards null refMax', staticRangeConversionGuard);
 const schemaSrc = read('js/schema.js');
 const apoMatch = schemaSrc.match(/lipids\.apoAI.*?optimalMax:\s*([\d.]+)/);
 if (apoMatch) {
-  const apoOptMax = parseFloat(apoMatch[1]);
+  const apoOptMax = parseFloat(apoMatch[1]!);
   assert('apoAI optimalMax <= refMax (1.70)', apoOptMax <= 1.70, `optimalMax = ${apoOptMax}`);
 }
 
@@ -990,7 +990,7 @@ console.log('9. OpenRouter Curated List');
 
 const curatedMatch = apiModelsSrc.match(/OPENROUTER_CURATED\s*=\s*\[([\s\S]*?)\]/);
 if (curatedMatch) {
-  const curated = curatedMatch[1];
+  const curated = curatedMatch[1]!;
   assert('Curated uses anthropic/claude- prefix (no dots in version)', !curated.includes('claude-sonnet-4.6') && !curated.includes('claude-opus-4.6'));
   assert('Curated has anthropic prefix', curated.includes('anthropic/'));
   assert('Curated has google prefix', curated.includes('google/'));
@@ -1026,7 +1026,7 @@ assert('Focus trap for modals', appEventsSrc.includes('e.key === "Tab"') && appE
 // ═══════════════════════════════════════
 console.log('11. Event Listener Leak Fix');
 
-const ctxSrc = read('js/context-cards.js');
+read('js/context-cards.js');
 const ctxMedicalHistorySrc = read('js/context-card-medical-history-editor.js');
 assert('Diagnoses editor binds suggestion closer once with delegates',
   /function initMedicalHistoryActionDelegates[\s\S]{0,500}document\.addEventListener\('click', closeSuggestionsOnClickOutside\)/.test(ctxMedicalHistorySrc) &&

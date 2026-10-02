@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 import { sourceFunctionHasStatement, sourceFunctionHasVariable } from './helpers/native-source-contracts.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
-// test-prelab.js — Verify pre-lab onboarding: context cards → test recommendations
+// test-prelab.ts — Verify pre-lab onboarding: context cards → test recommendations
 //
 // Static source inspection only — fs.readFileSync instead of fetch.
 //
-// Run: node tests/test-prelab.js  (or via npm test)
+// Run: node tests/test-prelab.ts  (or via npm test)
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/context-editor.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-channels.css', 'css/light-devices.css', 'css/light-conditions-now.css', 'css/light-setup.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-panel-open.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css', 'css/chat-redesign-open.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
@@ -322,7 +322,7 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
     'Onboarding cards should stay readable in glass/synth themes');
   assert('Chat onboarding has OpenRouter OAuth', chatOnboardingSrc.includes('startOpenRouterOAuth') && chatOnboardingSrc.includes('paste a key manually'),
     'Should have OAuth button and manual key option for API step');
-  const hasDelegatedProviderSetup = (provider) =>
+  const hasDelegatedProviderSetup = (provider: string) =>
     chatOnboardingSrc.includes(`chatOnboardingActionAttrs('open-provider-settings', { provider: '${provider}' })`) &&
     chatOnboardingSrc.includes(`'${provider}'`);
   assert('Chat onboarding has PPQ', hasDelegatedProviderSetup('ppq'),
@@ -378,7 +378,7 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
   assert('.chat-fab z-index below backdrop', (() => {
     const fabZ = cssSrc.match(/\.chat-fab\s*\{[^}]*z-index:\s*(\d+)/);
     const backdropZ = cssSrc.match(/\.chat-backdrop\s*\{[^}]*z-index:\s*(\d+)/);
-    return fabZ && backdropZ && parseInt(fabZ[1]) < parseInt(backdropZ[1]);
+    return fabZ && backdropZ && parseInt(fabZ[1]!) < parseInt(backdropZ[1]!);
   })(), 'FAB z-index should be less than chat-backdrop z-index');
   assert('.chat-fab.hidden hides FAB', cssSrc.includes('.chat-fab.hidden') && cssSrc.includes('display: none'),
     '.chat-fab.hidden should set display: none');
@@ -432,7 +432,7 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
     'Old onboarding step1 should be removed from the dashboard page view');
   assert('Hidden drop zone remains available for import progress', (() => {
     const heroStart = dashboardPageViewSrc.indexOf('welcome-hero');
-    const heroEnd = dashboardPageViewSrc.indexOf('</div>\\n      </div>`;', heroStart);
+    dashboardPageViewSrc.indexOf('</div>\\n      </div>`;', heroStart);
     const dropZoneInHero = dashboardPageViewSrc.indexOf('id="drop-zone"', heroStart);
     return heroStart !== -1 && dropZoneInHero !== -1 && dropZoneInHero > heroStart;
   })(), 'Hidden drop zone should remain inside welcome hero');

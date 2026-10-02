@@ -72,7 +72,7 @@ const LEGACY_TESTS = [
   './test-ai-verdict-engine-instance.js',
   './test-phase-ranges.js',
   // Batch 6 — more module imports + source inspection.
-  './test-prelab.js',
+  './test-prelab.ts',
   './test-venice-e2ee.js',
   './test-unit-import.js',
   // Batch 6b — behavioral coverage for the SECONDARY_UNIT_CONVERSIONS registry
@@ -145,7 +145,7 @@ const LEGACY_TESTS = [
   './test-openrouter.js',
   // Batch 22 — pre-release audit source-inspection + innerHTML sweep
   // (section-3b functional guard probes moved to tests/playwright/audit-dom.spec.js).
-  './test-audit.js',
+  './test-audit.ts',
   // Batch 23 — custom personality behavioral + source-inspection
   // (DOM sections 11/12/17/21 moved to tests/playwright/custom-personality-dom.spec.js).
   './test-custom-personality.js',
@@ -187,7 +187,7 @@ const LEGACY_TESTS = [
   './test-wearables-settings-runtime.js',
   './test-dashboard-widget-runtime.js',
   './test-marker-detail-runtime.js',
-  './test-shell-delegated-actions.js',
+  './test-shell-delegated-actions.ts',
   './test-nav-delegated-actions.js',
   './test-dashboard-widget-delegated-actions.js',
   './test-lens-page-shell-delegated-actions.js',
