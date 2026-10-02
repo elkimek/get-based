@@ -1,4 +1,3 @@
-// @ts-check
 // api-models.js - Provider model catalogs, pricing, and capability helpers.
 
 import { getErrorMessage } from './caught-error.js';
@@ -35,23 +34,33 @@ import {
   refreshAppExtensionAI,
 } from './app-extension-runtime.js';
 
+import type { StoredProviderModel } from './api-provider-storage.js';
+interface CatalogModel extends StoredProviderModel {
+  type?: unknown; architecture?: { input_modalities?: unknown; modality?: unknown };
+  input_modalities?: unknown; input?: unknown; modality?: unknown;
+  capabilities?: { vision?: unknown; supportsVision?: unknown };
+  pricing?: { prompt?: string; completion?: string };
+  model_spec?: StoredProviderModel['model_spec'] & { pricing?: { input?: { usd?: unknown }; output?: { usd?: unknown } } };
+}
+interface CatalogResponse { data?: CatalogModel[] }
+
 /**
  * Provider catalogs use several equivalent flags for a model that should not
  * be offered. Treat an omitted flag as unknown/available and only exclude an
  * explicit negative signal from the provider.
  * @param {unknown} value
  */
-export function modelMetadataIsAvailable(value) {
+export function modelMetadataIsAvailable(value: unknown) {
   if (!value || typeof value !== 'object') return false;
-  const model = /** @type {Record<string, unknown>} */ (value);
+  const model = value as Record<string, unknown>;
   if (model.available === false || model.enabled === false || model.disabled === true
     || model.unavailable === true || model.missing === true) return false;
   const status = String(model.status || '').trim().toLowerCase();
   return !['disabled', 'offline', 'removed', 'unavailable'].includes(status);
 }
 
-export function deduplicateModels(models, familyFn) {
-  const seen = {};
+export function deduplicateModels<Model extends StoredProviderModel>(models: Model[], familyFn: (id: string) => string) {
+  const seen: Record<string, boolean> = {};
   return models.filter(function(m) {
     const fam = familyFn(m.id);
     if (seen[fam]) return false;
@@ -65,7 +74,7 @@ export function deduplicateModels(models, familyFn) {
  * Model names are deliberately not used here: a provider may expose a text-only
  * route for a model family that is multimodal elsewhere.
  */
-export function modelMetadataSupportsVision(model) {
+export function modelMetadataSupportsVision(model: CatalogModel | null | undefined) {
   if (!model || typeof model !== 'object') return false;
   const architecture = model.architecture && typeof model.architecture === 'object'
     ? model.architecture
@@ -122,23 +131,23 @@ const ROUTSTR_PRIVATE_RECOMMENDED = ['tinfoil-gemma4-31b', 'tinfoil-kimi-k2-6', 
 const PPQ_RECOMMENDED = ROUTSTR_RECOMMENDED;
 const PPQ_PRIVATE_RECOMMENDED = ['private/kimi-k3', 'private/kimi-k2-6', 'private/glm-5-3-flash'];
 
-function normalizedModelId(modelId) {
+function normalizedModelId(modelId: unknown) {
   return String(modelId || '').toLowerCase().replace(/[_.]/g, '-');
 }
 
-function isClaudeSonnet5Model(modelId) {
+function isClaudeSonnet5Model(modelId: unknown) {
   return /(^|[/-])claude-sonnet-5($|[-:])/.test(normalizedModelId(modelId));
 }
 
-function isClaudeFable51Model(modelId) {
+function isClaudeFable51Model(modelId: unknown) {
   return /(^|[/-])claude-fable-5-1($|[-:])/.test(normalizedModelId(modelId));
 }
 
-function isGemini38FlashCyberModel(modelId) {
+function isGemini38FlashCyberModel(modelId: unknown) {
   return /(^|[/-])gemini-3-8-flash-cyber($|[-:])/.test(normalizedModelId(modelId));
 }
 
-function isCustomRecommendedModel(modelId) {
+function isCustomRecommendedModel(modelId: unknown) {
   if (isClaudeFable51Model(modelId)) return true;
   if (isClaudeSonnet5Model(modelId)) return true;
   return /(^|[/-])claude-(sonnet-4-6|opus-5-5|opus-4-7)($|[-:])/.test(normalizedModelId(modelId))
@@ -149,19 +158,19 @@ function isCustomRecommendedModel(modelId) {
     || /(^|[/-])grok-4($|[-:])/.test(normalizedModelId(modelId));
 }
 
-function modelStartsWithRecommended(modelId, prefix) {
+function modelStartsWithRecommended(modelId: unknown, prefix: unknown) {
   const id = normalizedModelId(modelId);
   const p = normalizedModelId(prefix);
   const slug = id.split('/').pop() || '';
   return id.startsWith(p) || slug.startsWith(p);
 }
 
-function isVeniceRecommendedGptModel(modelId) {
+function isVeniceRecommendedGptModel(modelId: unknown) {
   // Venice uses an openai- prefix and compact IDs for older GPT versions.
   return /^openai-gpt-(?:6-(?:astra|sol)|5(?:-?[2-57-9]))(?:-|$)/.test(normalizedModelId(modelId));
 }
 
-export function modelMatchesPreferredId(modelId, preferredId) {
+export function modelMatchesPreferredId(modelId: unknown, preferredId: unknown) {
   if (!modelId || !preferredId) return false;
   const id = String(modelId);
   if (id === preferredId) return true;
@@ -174,7 +183,7 @@ export function modelMatchesPreferredId(modelId, preferredId) {
     || normalizedId.startsWith(`${normalizedPreferred}@`);
 }
 
-export function findPreferredModel(models, preferredIds) {
+export function findPreferredModel<Model extends StoredProviderModel>(models: Model[], preferredIds: readonly unknown[]) {
   for (const id of preferredIds) {
     const found = models.find(function(m) { return modelMatchesPreferredId(m?.id, id); });
     if (found) return found;
@@ -182,7 +191,7 @@ export function findPreferredModel(models, preferredIds) {
   return null;
 }
 
-export function isRecommendedModel(provider, modelId) {
+export function isRecommendedModel(provider: string, modelId: string) {
   // Small and specialized GPT variants must not inherit a flagship prefix.
   const normalizedId = normalizedModelId(modelId);
   if (/(^|[/-])gpt-[56]/.test(normalizedId)
@@ -212,7 +221,7 @@ export function isRecommendedModel(provider, modelId) {
   return false;
 }
 
-function recommendedOptionId(modelId) {
+function recommendedOptionId(modelId: unknown) {
   return normalizedModelId(modelId)
     .replace(/:\d{4}-\d{2}-\d{2}$/, '')
     .replace(/:(?:batch|free)$/, '')
@@ -220,11 +229,11 @@ function recommendedOptionId(modelId) {
     .replace(/@\d{8}$/, '');
 }
 
-function recommendedOptionSlug(modelId) {
+function recommendedOptionSlug(modelId: unknown) {
   return (recommendedOptionId(modelId).split('/').pop() || '').replace(/^e2ee-/, '');
 }
 
-function recommendedFamilyKey(modelId) {
+function recommendedFamilyKey(modelId: unknown) {
   const slug = recommendedOptionSlug(modelId);
   if (slug.startsWith('claude-sonnet-')) return 'claude-sonnet';
   if (slug.startsWith('claude-opus-')) return 'claude-opus';
@@ -243,7 +252,7 @@ function recommendedFamilyKey(modelId) {
   // tier from dense 27B and must not disappear into the same family slot.
   const qwenEvaluationSize = slug.match(/^qwen-?3(?:-\d+)?-(27b|35b(?:-a3b)?)(?:-|$)/);
   if (qwenEvaluationSize) {
-    return `qwen-open-${qwenEvaluationSize[1].startsWith('35b') ? '35b' : qwenEvaluationSize[1]}`;
+    return `qwen-open-${qwenEvaluationSize[1]!.startsWith('35b') ? '35b' : qwenEvaluationSize[1]}`;
   }
   if (/^qwen\d.*vl/.test(slug)) return 'qwen-vl';
   if (/^gpt-oss/.test(slug)) return 'gpt-oss';
@@ -252,7 +261,7 @@ function recommendedFamilyKey(modelId) {
   return slug;
 }
 
-function recommendedModelVersionParts(modelId) {
+function recommendedModelVersionParts(modelId: unknown) {
   const slug = recommendedOptionSlug(modelId);
   const compactVeniceGpt = slug.match(/^openai-gpt-5([2-9])(?:-|$)/);
   if (compactVeniceGpt) return [5, Number(compactVeniceGpt[1])];
@@ -261,14 +270,14 @@ function recommendedModelVersionParts(modelId) {
   return (slug.match(/\d+/g) || []).map(Number);
 }
 
-function recommendedVariantPenalty(model) {
+function recommendedVariantPenalty(model: StoredProviderModel | string | null | undefined) {
   const identity = typeof model === 'object'
     ? `${model?.id || ''}-${model?.name || ''}`
     : String(model || '');
   return /(^|[-/:\s])(batch|beta|experimental|fast(?:-?api)?|lite|mini|preview)(-|[/:\s]|$)/.test(normalizedModelId(identity)) ? -1 : 0;
 }
 
-function compareRecommendedModelVersion(a, b) {
+function compareRecommendedModelVersion(a: StoredProviderModel, b: StoredProviderModel) {
   const aParts = recommendedModelVersionParts(a.id);
   const bParts = recommendedModelVersionParts(b.id);
   const len = Math.max(aParts.length, bParts.length);
@@ -281,10 +290,9 @@ function compareRecommendedModelVersion(a, b) {
 
 /**
  * Return the newest visible model in each capability family.
- * @param {Array<{ id: string, [key: string]: any }>} models
  */
-export function selectLatestModelFamilies(models) {
-  const bestByFamily = new Map();
+export function selectLatestModelFamilies<Model extends StoredProviderModel>(models: Model[]) {
+  const bestByFamily = new Map<string, Model>();
   for (const model of models) {
     // Kimi K3 FastAPI is a higher-cost route for the same curated family. It
     // should never take the visible family slot, even when a catalog
@@ -297,7 +305,7 @@ export function selectLatestModelFamilies(models) {
   return Array.from(bestByFamily.values());
 }
 
-export function selectLatestRecommendedModels(provider, models) {
+export function selectLatestRecommendedModels<Model extends StoredProviderModel>(provider: string, models: Model[]) {
   return selectLatestModelFamilies(models.filter(model => isRecommendedModel(provider, model.id)));
 }
 
@@ -322,11 +330,11 @@ export function getActiveModelDisplay(provider = getAIProvider()) {
 // Exclude specialized variants not suited for medical analysis.
 const OPENROUTER_EXCLUDE = ['codex', 'audio', 'image', 'oss', 'safeguard', 'coder'];
 
-export async function fetchOpenRouterModels(key) {
+export async function fetchOpenRouterModels(key?: string) {
   try {
     let extensionPolicy = getAppExtensionAIModelPolicy({ provider: 'openrouter' });
     if (extensionPolicy?.enforced && !Array.isArray(extensionPolicy.allowlist)) return [];
-    if (extensionPolicy?.enforced && /** @type {string[]} */ (extensionPolicy.allowlist).length === 0) {
+    if (extensionPolicy?.enforced && (extensionPolicy.allowlist as string[]).length === 0) {
       await refreshAppExtensionAI({ reason: 'model-policy', provider: 'openrouter' });
       extensionPolicy = getAppExtensionAIModelPolicy({ provider: 'openrouter' });
     }
@@ -339,7 +347,7 @@ export async function fetchOpenRouterModels(key) {
       headers: { 'Authorization': 'Bearer ' + (key || getOpenRouterKey()) }
     });
     if (!res.ok) return [];
-    const json = await res.json();
+    const json = await res.json() as CatalogResponse;
     const all = (json.data || []).filter(function(m) {
       if (!m.id || !modelMetadataIsAvailable(m)) return false;
       if (OPENROUTER_EXCLUDE.some(function(ex) { return m.id.includes(ex); })) return false;
@@ -357,7 +365,7 @@ export async function fetchOpenRouterModels(key) {
           if (aRec !== bRec) return aRec ? -1 : 1;
           return (a.name || a.id).localeCompare(b.name || b.id);
         });
-    const pricingCache = {};
+    const pricingCache: Record<string, { input: number; output: number }> = {};
     for (const m of models) {
       if (m.pricing && m.pricing.prompt && m.pricing.completion) {
         pricingCache[m.id] = {
@@ -382,7 +390,7 @@ export async function fetchOpenRouterModels(key) {
   } catch (e) { return []; }
 }
 
-export async function fetchOpenRouterModelPricing(modelId) {
+export async function fetchOpenRouterModelPricing(modelId: string) {
   if (!modelId) return null;
   const existing = getOpenRouterPricing(modelId);
   if (existing) return existing;
@@ -391,8 +399,8 @@ export async function fetchOpenRouterModelPricing(modelId) {
       headers: { 'Authorization': 'Bearer ' + getOpenRouterKey() }
     });
     if (!res.ok) return null;
-    const json = await res.json();
-    const norm = s => s.replace(/\./g, '-').replace(/-\d{8}$/, '');
+    const json = await res.json() as CatalogResponse;
+    const norm = (s: string) => s.replace(/\./g, '-').replace(/-\d{8}$/, '');
     const model = (json.data || []).find(m => m.id === modelId)
       || (json.data || []).find(m => norm(m.id) === norm(modelId));
     if (!model?.pricing) return null;
@@ -409,7 +417,7 @@ export async function fetchOpenRouterModelPricing(modelId) {
   return null;
 }
 
-export async function validateOpenRouterKey(key) {
+export async function validateOpenRouterKey(key: string) {
   try {
     const res = await fetch('https://openrouter.ai/api/v1/models', {
       headers: { 'Authorization': 'Bearer ' + key }
@@ -425,7 +433,7 @@ export async function validateOpenRouterKey(key) {
   }
 }
 
-export function renderModelPricingHint(provider, modelId) {
+export function renderModelPricingHint(provider: string, modelId: string) {
   if (provider === 'ollama') {
     const selected = modelId || getOllamaMainModel();
     return isCloudModel(selected)
@@ -439,13 +447,13 @@ export function renderModelPricingHint(provider, modelId) {
   return `<span style="font-size:11px;color:var(--text-muted)">${pre}$${p.input.toFixed(2)}/M in \u00b7 ${pre}$${p.output.toFixed(2)}/M out</span>`;
 }
 
-export async function fetchVeniceModels(key) {
+export async function fetchVeniceModels(key?: string) {
   try {
     const res = await fetch('https://api.venice.ai/api/v1/models', {
       headers: { 'Authorization': 'Bearer ' + (key || getVeniceKey()) }
     });
     if (!res.ok) return [];
-    const json = await res.json();
+    const json = await res.json() as CatalogResponse;
     const allText = (json.data || []).filter(function(m) {
       return m.id && m.type === 'text' && modelMetadataIsAvailable(m);
     }).sort(function(a, b) { return b.id.localeCompare(a.id); });
@@ -460,11 +468,11 @@ export async function fetchVeniceModels(key) {
       return id.replace(/-\d{8}$/, '');
     });
     models.sort(function(a, b) { return (a.name || a.id).localeCompare(b.name || b.id); });
-    const pricingCache = {};
+    const pricingCache: Record<string, { input: number; output: number }> = {};
     for (const m of allText) {
       const p = m.model_spec && m.model_spec.pricing;
       if (p && p.input && p.output) {
-        pricingCache[m.id] = { input: parseFloat(p.input.usd || 0), output: parseFloat(p.output.usd || 0) };
+        pricingCache[m.id] = { input: parseFloat((p.input.usd || 0) as string), output: parseFloat((p.output.usd || 0) as string) };
       }
     }
     localStorage.setItem('labcharts-venice-pricing', JSON.stringify(pricingCache));
@@ -478,7 +486,7 @@ export async function fetchVeniceModels(key) {
   } catch (e) { return []; }
 }
 
-export async function validateVeniceKey(key) {
+export async function validateVeniceKey(key: string) {
   try {
     const res = await fetch('https://api.venice.ai/api/v1/models', {
       headers: { 'Authorization': 'Bearer ' + key }
@@ -505,38 +513,38 @@ export function supportsWebSearch(provider = getAIProvider()) {
   return false;
 }
 
-export function supportsVision(provider = getAIProvider(), modelId = getActiveModelId(provider)) {
+export function supportsVision(provider = getAIProvider(), modelId: string = getActiveModelId(provider) as string) {
   if (provider === 'openrouter') {
     try {
       const visionIds = JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models') || '[]');
-      return visionIds.some(function(vid) { return modelId === vid || modelId.startsWith(vid.replace(/:\d{4}-\d{2}-\d{2}$/, '')); });
+      return visionIds.some(function(vid: string) { return modelId === vid || modelId.startsWith(vid.replace(/:\d{4}-\d{2}-\d{2}$/, '')); });
     } catch { return false; }
   }
   if (provider === 'venice') {
     if (isE2EEModel(modelId)) return false;
     try {
       const visionIds = JSON.parse(localStorage.getItem('labcharts-venice-vision-models') || '[]');
-      return visionIds.some(function(vid) { return modelId === vid || modelId.startsWith(vid.replace(/-\d{8}$/, '')); });
+      return visionIds.some(function(vid: string) { return modelId === vid || modelId.startsWith(vid.replace(/-\d{8}$/, '')); });
     } catch { return false; }
   }
   if (provider === 'routstr') {
     if (isRoutstrTinfoilModel(modelId)) return false;
     try {
       const visionIds = JSON.parse(localStorage.getItem('labcharts-routstr-vision-models') || '[]');
-      return visionIds.some(function(vid) { return modelId === vid || modelId.startsWith(vid.replace(/-\d{8}$/, '')); });
+      return visionIds.some(function(vid: string) { return modelId === vid || modelId.startsWith(vid.replace(/-\d{8}$/, '')); });
     } catch { return false; }
   }
   if (provider === 'ppq') {
     try {
       const visionIds = JSON.parse(localStorage.getItem(isPpqPrivateModel(modelId) ? 'labcharts-ppq-private-vision-models' : 'labcharts-ppq-vision-models') || '[]');
-      return visionIds.some(function(vid) { return modelId === vid || modelId.startsWith(vid.replace(/-\d{8}$/, '')); });
+      return visionIds.some(function(vid: string) { return modelId === vid || modelId.startsWith(vid.replace(/-\d{8}$/, '')); });
     } catch { return false; }
   }
   if (provider === 'custom') return true;
   return true;
 }
 
-export function needsMaxCompletionTokens(modelId) {
+export function needsMaxCompletionTokens(modelId: unknown) {
   if (!modelId) return false;
   const id = String(modelId).toLowerCase();
   const bare = id.includes('/') ? id.split('/').pop() || '' : id;

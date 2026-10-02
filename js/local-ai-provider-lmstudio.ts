@@ -42,14 +42,14 @@ interface ContextOptions {
   requiredContext: number; roundContextLength(required: number, maximum: number): number;
 }
 interface InferenceOptions {
-  config: { url: string; apiKey?: unknown }; model: string;
+  config: { url: string; apiKey?: unknown }; model: unknown;
   opts: { messages: unknown; reasoningEffort?: string; jsonMode?: boolean; system?: unknown;
-    temperature?: number; signal?: AbortSignal; requestTimeoutMs?: number; onStream?: (text: string) => unknown };
+    temperature?: number; signal?: AbortSignal | undefined; requestTimeoutMs?: number; onStream?: ((text: string) => unknown) | undefined };
   plan: { maxTokens: number }; contextLength: number;
   modelDetail?: Pick<LMStudioModel, 'reasoning'> | null;
 }
-interface LifecycleModel { nativeModelKey?: unknown; loadedInstanceId?: unknown; loaded?: boolean }
-interface LifecycleOptions extends DiscoveryOptions { model: string; modelDetail?: LifecycleModel | null }
+interface LifecycleModel { nativeModelKey?: unknown; loadedInstanceId?: unknown; loaded?: unknown }
+interface LifecycleOptions extends DiscoveryOptions { model: unknown; modelDetail?: LifecycleModel | null | undefined }
 interface LoadOptions extends LifecycleOptions { contextLength: number }
 
 // A 20GB model load takes 20-60s; leave headroom for memory-pressure stalls.

@@ -1,4 +1,3 @@
-// @ts-check
 // api-openrouter-oauth.js - OpenRouter OAuth PKCE session helpers.
 
 import {
@@ -16,7 +15,7 @@ const OPENROUTER_OAUTH_PREVIOUS_PROVIDER_KEY = 'or_previous_ai_provider';
 const OPENROUTER_OAUTH_LOCAL_SETTINGS_LOCK_UNTIL_KEY = 'or_oauth_local_settings_lock_until';
 const OPENROUTER_OAUTH_PROVIDERS = new Set(['openrouter', 'venice', 'routstr', 'ppq', 'custom', 'ollama']);
 
-function _isValidAIProvider(provider) {
+function _isValidAIProvider(provider: unknown): provider is string {
   return typeof provider === 'string' && OPENROUTER_OAUTH_PROVIDERS.has(provider);
 }
 
@@ -26,17 +25,17 @@ export async function generatePKCE() {
   return { codeVerifier, codeChallenge };
 }
 
-function _base64UrlFromBytes(bytes) {
+function _base64UrlFromBytes(bytes: Uint8Array) {
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-function _randomBase64Url(byteLength) {
+function _randomBase64Url(byteLength: number) {
   const bytes = new Uint8Array(byteLength);
   crypto.getRandomValues(bytes);
   return _base64UrlFromBytes(bytes);
 }
 
-async function _sha256Base64Url(value) {
+async function _sha256Base64Url(value: string) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
   return _base64UrlFromBytes(new Uint8Array(digest));
 }
@@ -86,7 +85,7 @@ export function markOpenRouterOAuthSettingsLocal() {
   sessionStorage.setItem(OPENROUTER_OAUTH_LOCAL_SETTINGS_LOCK_UNTIL_KEY, String(Date.now() + 5 * 60 * 1000));
 }
 
-export async function exchangeOpenRouterCode(code, returnedState) {
+export async function exchangeOpenRouterCode(code: unknown, returnedState: unknown) {
   const codeVerifier = sessionStorage.getItem('or_pkce_verifier');
   const expectedState = sessionStorage.getItem('or_oauth_state');
   if (!codeVerifier) throw new Error('Missing PKCE verifier. Please try connecting again.');
@@ -111,10 +110,10 @@ export async function exchangeOpenRouterCode(code, returnedState) {
     body: JSON.stringify({ code, code_verifier: codeVerifier, code_challenge_method: 'S256' })
   });
   if (!res.ok) {
-    const errBody = await res.json().catch(() => null);
-    throw new Error(errBody?.error?.message || errBody?.message || `OpenRouter auth failed (${res.status})`);
+    const errBody = await res.json().catch(() => null) as { error?: { message?: unknown }; message?: unknown } | null;
+    throw new Error((errBody?.error?.message || errBody?.message || `OpenRouter auth failed (${res.status})`) as string);
   }
-  const data = await res.json();
+  const data = await res.json() as { key: string };
   sessionStorage.removeItem('or_pkce_verifier');
   sessionStorage.removeItem('or_oauth_state');
   return data.key;

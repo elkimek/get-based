@@ -1,4 +1,3 @@
-// @ts-check
 // api-openai-compatible.js - shared OpenAI-compatible provider transport.
 
 import { getErrorMessage, getErrorName } from './caught-error.js';
@@ -17,7 +16,7 @@ import { redactApiSecretText } from './local-ai-provider-shared.js';
 
 export { redactApiSecretText };
 
-export function isTokenLimitFinish(reason) {
+export function isTokenLimitFinish(reason: unknown) {
   const r = String(reason || '').toLowerCase();
   return r === 'length'
     || r === 'max_tokens'
@@ -26,7 +25,7 @@ export function isTokenLimitFinish(reason) {
     || r.includes('max token');
 }
 
-export function shouldProxyCustomApiUrl(rawUrl) {
+export function shouldProxyCustomApiUrl(rawUrl: string) {
   try {
     const u = new URL(rawUrl);
     return !['localhost', '127.0.0.1'].includes(u.hostname) && !u.hostname.startsWith('192.168.');
@@ -45,16 +44,26 @@ export function useCustomApiProxy() {
 
 const proxyFetch = createProxyFetch(useCustomApiProxy);
 
-/**
- * @typedef {{
- *   useProxy?: boolean,
- *   extraBody?: Record<string, any>,
- *   fetchImpl?: typeof fetch | null,
- *   firstReadStallMs?: number,
- * }} OpenAICompatibleTransportOptions
- */
+export interface OpenAICompatibleOptions {
+  system?: unknown; messages: Array<{ role?: unknown; content?: unknown }>;
+  maxTokens?: number | undefined; onStream?: ((text: string) => unknown) | undefined;
+  signal?: AbortSignal | undefined; requestTimeoutMs?: number | undefined; requestRetries?: number | undefined;
+  jsonMode?: boolean | undefined; jsonSchema?: unknown; forceNonStream?: boolean | undefined;
+  temperature?: number | undefined; reasoningEffort?: string | undefined; strictTokenLimit?: boolean | undefined;
+}
+export interface OpenAICompatibleTransportOptions {
+  useProxy?: boolean; extraBody?: Record<string, unknown>; fetchImpl?: typeof fetch | null;
+  firstReadStallMs?: number;
+}
+interface RequestBody extends Record<string, unknown> { response_format?: ReturnType<typeof jsonResponseFormat> }
+interface CompletionChoice { delta?: { content?: string; reasoning_content?: string; reasoning?: string }; finish_reason?: unknown;
+  native_finish_reason?: unknown; message?: { content?: string; reasoning_content?: string; reasoning?: string } }
+interface CompletionResponse { choices?: CompletionChoice[]; error?: { type?: unknown; message?: unknown };
+  usage?: { prompt_tokens?: number; completion_tokens?: number; completion_tokens_details?: { reasoning_tokens?: unknown } };
+  stats?: Record<string, unknown> }
+interface PerformanceDiagnostics { tokensPerSecond: number; timeToFirstTokenMs: number; modelLoadMs: number; reasoningTokens: number }
 
-export async function fetchWithApiRetry(url, options, retries = 2, useProxy = true, requestTimeoutMs = FETCH_REQUEST_TIMEOUT_MS) {
+export async function fetchWithApiRetry(url: RequestInfo | URL, options: RequestInit, retries = 2, useProxy = true, requestTimeoutMs = FETCH_REQUEST_TIMEOUT_MS) {
   return fetchWithRetry(url, options, {
     retries,
     useProxy,
@@ -65,8 +74,8 @@ export async function fetchWithApiRetry(url, options, retries = 2, useProxy = tr
   });
 }
 
-async function fetchWithOptionalTimeout(fetchImpl, endpoint, requestInit, requestTimeoutMs) {
-  const timeoutMs = Number.isFinite(requestTimeoutMs) && requestTimeoutMs > 0 ? requestTimeoutMs : FETCH_REQUEST_TIMEOUT_MS;
+async function fetchWithOptionalTimeout(fetchImpl: typeof fetch, endpoint: string, requestInit: RequestInit, requestTimeoutMs: number | undefined) {
+  const timeoutMs = Number.isFinite(requestTimeoutMs) && requestTimeoutMs! > 0 ? requestTimeoutMs! : FETCH_REQUEST_TIMEOUT_MS;
   const requestState = createInitialResponseTimeout(requestInit, timeoutMs);
   try {
     return await fetchImpl(endpoint, requestState.fetchOptions);
@@ -83,7 +92,7 @@ async function fetchWithOptionalTimeout(fetchImpl, endpoint, requestInit, reques
   }
 }
 
-function jsonResponseFormat(schema) {
+function jsonResponseFormat(schema: unknown) {
   return {
     type: 'json_schema',
     json_schema: {
@@ -94,35 +103,34 @@ function jsonResponseFormat(schema) {
   };
 }
 
-function structuredOutputRejected(res, errorText) {
+function structuredOutputRejected(res: Response, errorText: string) {
   return (res.status === 400 || res.status === 422)
     && /response[_ ]format|json[_ ]schema|structured output|output_config(?:\.format)?\.schema|schema[^\n]{0,120}(?:not supported|unsupported|invalid)|for ['"]?anyof|any[_ ]?of[^\n]{0,160}(?:alongside|only field)|(?:alongside|only field)[^\n]{0,160}any[_ ]?of/i.test(errorText);
 }
 
-function reasoningControlRejected(res, errorText) {
+function reasoningControlRejected(res: Response, errorText: string) {
   return (res.status === 400 || res.status === 422)
     && /reasoning[_ .-]?(?:effort|control)|invalid.*reasoning|reasoning[^\n]{0,120}(?:mandatory|required|cannot be disabled|can't be disabled|must (?:be|remain) enabled)/i.test(errorText);
 }
 
-function temperatureControlRejected(res, errorText) {
+function temperatureControlRejected(res: Response, errorText: string) {
   return (res.status === 400 || res.status === 422)
     && /temperature[^\n]{0,120}(?:not supported|unsupported|not permitted|not allowed|invalid|fixed)|(?:not supported|unsupported|invalid)[^\n]{0,120}temperature/i.test(errorText);
 }
 
-export async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { system, messages, maxTokens, onStream, signal, requestTimeoutMs, requestRetries, jsonMode, jsonSchema, forceNonStream, temperature, reasoningEffort, strictTokenLimit }, extraHeaders = {}, { useProxy = true, extraBody = {}, fetchImpl = null, firstReadStallMs = 0 } = /** @type {OpenAICompatibleTransportOptions} */ ({})) {
-  const apiMessages = [];
+export async function callOpenAICompatibleAPI(endpoint: string, key: unknown, model: unknown, providerName: string, { system, messages, maxTokens, onStream, signal, requestTimeoutMs, requestRetries, jsonMode, jsonSchema, forceNonStream, temperature, reasoningEffort, strictTokenLimit }: OpenAICompatibleOptions, extraHeaders: Record<string, string> = {}, { useProxy = true, extraBody = {}, fetchImpl = null, firstReadStallMs = 0 } : OpenAICompatibleTransportOptions = {}) {
+  const apiMessages: Array<{ role: unknown; content: unknown }> = [];
   if (system) apiMessages.push({ role: 'system', content: system });
   for (const msg of messages) apiMessages.push({ role: msg.role, content: msg.content });
 
   // Thinking models burn reasoning tokens against max_tokens, so low caps need
   // extra room while still constraining total output.
-  const isThinkingModel = /deepseek-r1|kimi-k|qwq|qwen3(?:[.\-:]|$)|glm-[45]|claude-.*sonnet|claude-.*opus|(?:^|[/:_.-])cloud(?:$|[/:_.-])/i.test(model);
+  const isThinkingModel = /deepseek-r1|kimi-k|qwq|qwen3(?:[.\-:]|$)|glm-[45]|claude-.*sonnet|claude-.*opus|(?:^|[/:_.-])cloud(?:$|[/:_.-])/i.test(model as string);
   const effectiveMaxTokens = isThinkingModel && !strictTokenLimit && providerName !== 'Local AI'
     ? Math.max(maxTokens || 4096, 16384)
     : (maxTokens || 4096);
   const tokenLimitField = needsMaxCompletionTokens(model) ? 'max_completion_tokens' : 'max_tokens';
-  /** @type {Record<string, any>} */
-  const body = { model, messages: apiMessages, [tokenLimitField]: effectiveMaxTokens || 4096, ...extraBody };
+  const body: RequestBody = { model, messages: apiMessages, [tokenLimitField]: effectiveMaxTokens || 4096, ...extraBody };
   if (typeof reasoningEffort === 'string' && reasoningEffort) body.reasoning_effort = reasoningEffort;
   const requestedTemperature = Number(temperature);
   if (temperature !== undefined && Number.isFinite(requestedTemperature) && requestedTemperature >= 0 && requestedTemperature <= 2) {
@@ -137,7 +145,7 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
     body.stream_options = { include_usage: true };
   }
 
-  const fetchRequest = async (requestBody) => {
+  const fetchRequest = async (requestBody: RequestBody) => {
     const requestInit = {
       method: 'POST',
       headers: {
@@ -147,19 +155,19 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
       },
       body: JSON.stringify(requestBody),
       signal
-    };
+    } as RequestInit;
     return fetchImpl
       ? fetchWithOptionalTimeout(fetchImpl, endpoint, requestInit, requestTimeoutMs)
       : fetchWithApiRetry(
         endpoint,
         requestInit,
-        Number.isInteger(requestRetries) ? Math.max(0, requestRetries) : providerName === 'Local AI' ? 0 : 2,
+        Number.isInteger(requestRetries) ? Math.max(0, requestRetries!) : providerName === 'Local AI' ? 0 : 2,
         useProxy,
         requestTimeoutMs,
       );
   };
 
-  let res;
+  let res!: Response;
   let structuredOutputFallback = false;
   let reasoningControlFallback = false;
   let temperatureControlFallback = false;
@@ -193,8 +201,8 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
 
   if (!res.ok) {
     if (res.status === 401) {
-      let errType = '';
-      try { const b = await res.clone().json(); errType = b?.error?.type || ''; } catch {}
+      let errType: unknown = '';
+      try { const b = await res.clone().json() as CompletionResponse; errType = b?.error?.type || ''; } catch {}
       if (!errType || errType === 'AuthError' || errType === 'authentication_error') {
         throw new Error(`Invalid ${providerName} API key. Check your settings.`);
       }
@@ -206,37 +214,37 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
         : ' Add credits at openrouter.ai/settings/credits';
       const modalShown = providerName === 'OpenRouter'
         && showOpenRouterInsufficientBalanceDialogRuntime();
-      const balanceErr = /** @type {Error & { _modalShown?: boolean }} */ (new Error(`Insufficient ${providerName} balance.${hint}`));
+      const balanceErr = new Error(`Insufficient ${providerName} balance.${hint}`) as Error & { _modalShown?: boolean };
       if (modalShown) balanceErr._modalShown = true;
       throw balanceErr;
     }
     if (res.status === 429) throw new Error('Rate limited. Please wait a moment and try again.');
     let errMsg = `${providerName} API error (${res.status})`;
     try {
-      const errBody = await res.json();
+      const errBody = await res.json() as CompletionResponse;
       errMsg += `: ${redactApiSecretText(errBody.error?.message || JSON.stringify(errBody.error), [key])}`;
     } catch {}
     throw new Error(errMsg);
   }
 
   if (useStream) {
-    const reader = res.body.getReader();
+    const reader = res.body!.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
     let fullText = '';
     let hasContent = false;
     let reasoningBuf = '';
-    let finishReason = null;
+    let finishReason: unknown = null;
     let inputTokens = 0;
     let outputTokens = 0;
-    let performance = null;
+    let performance: PerformanceDiagnostics | null = null;
     let receivedFirstToken = false;
-    const handleSSELine = (line, boundary) => {
+    const handleSSELine = (line: string, boundary: boolean) => {
       if (!line.startsWith('data: ')) return;
       const data = line.slice(6);
       if (data === '[DONE]') return;
       try {
-        const event = JSON.parse(data);
+        const event = JSON.parse(data) as CompletionResponse;
         if (event.error) throw new Error(redactApiSecretText(event.error.message || JSON.stringify(event.error), [key]));
         const choice = event.choices?.[0];
         const delta = choice?.delta;
@@ -246,7 +254,7 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
           receivedFirstToken = true;
           if (!hasContent) hasContent = true;
           fullText += delta.content;
-          onStream(fullText);
+          onStream!(fullText);
         } else if (delta?.reasoning_content || delta?.reasoning) {
           receivedFirstToken = true;
           if (!hasContent) reasoningBuf += delta.reasoning_content || delta.reasoning;
@@ -290,7 +298,7 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
         throw new Error('Local AI returned reasoning but no final answer. Reasoning used the output budget; disable thinking for this task or increase the model context/output limit.');
       }
       fullText = reasoningBuf;
-      onStream(fullText);
+      onStream!(fullText);
     }
     if (!fullText.trim()) {
       throw new Error(`${providerName} stream ended without response content. No usage was reported by the app; check the provider account before retrying.`);
@@ -304,7 +312,7 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
     };
   }
 
-  const data = await res.json();
+  const data = await res.json() as CompletionResponse;
   const usage = data.usage || {};
   const choice = data.choices?.[0];
   const msg = choice?.message;

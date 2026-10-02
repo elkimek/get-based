@@ -512,7 +512,7 @@ export async function testOllamaConnection() {
       dot.classList.add('connected');
       let currentModel = getOllamaMainModel();
       const modelChanged = !models.includes(currentModel);
-      if (modelChanged) currentModel = models[0];
+      if (modelChanged) currentModel = /** @type {string} */ (models[0]);
       if (!await requestProviderActivation('ollama', { endpoint: url, modelId: currentModel })) {
         dot.classList.add('connected');
         text.textContent = 'Connection verified — AI not activated';
@@ -574,7 +574,7 @@ export async function testPIIOllamaConnection() {
       setOllamaPIIUrl(url);
       await saveOllamaPIIApiKey(apiKey);
       let currentPII = getOllamaPIIModel();
-      if (!models.includes(currentPII)) { currentPII = models[0]; setOllamaPIIModel(currentPII); }
+      if (!models.includes(currentPII)) { currentPII = /** @type {string} */ (models[0]); setOllamaPIIModel(currentPII); }
       text.textContent = `Connection verified \u2014 ${currentPII}. Turn on the privacy toggle to use it.`;
       if (piiDropdown && piiSelect) {
         piiDropdown.style.display = 'block';

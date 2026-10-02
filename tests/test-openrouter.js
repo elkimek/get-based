@@ -59,7 +59,7 @@ assert('API model pricing reads cloud classification from pure provider helpers'
 assert('callOpenRouterAPI exists', apiOpenRouterSrc.includes('function callOpenRouterAPI('));
 assert('extraHeaders in helper signature', apiOpenAICompatibleSrc.includes('extraHeaders = {}'));
 assert('extraHeaders spread in fetch headers', apiOpenAICompatibleSrc.includes('...extraHeaders'));
-assert('hasAIProvider handles openrouter', apiProviderStorageSrc.includes("provider === 'openrouter') return hasOpenRouterKey()"));
+assert('hasAIProvider handles openrouter', /provider === 'openrouter'\)\s+return hasOpenRouterKey\(\)/.test(apiProviderStorageSrc));
 assert('callClaudeAPI handles openrouter', apiSrc.includes("provider === 'openrouter') return callOpenRouterAPI("));
 assert('callOpenRouterAPI sends HTTP-Referer', apiOpenRouterSrc.includes("'HTTP-Referer'"));
 assert('callOpenRouterAPI sends X-Title', apiOpenRouterSrc.includes("'X-Title': 'getbased'"));

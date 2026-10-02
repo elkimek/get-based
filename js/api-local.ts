@@ -1,4 +1,3 @@
-// @ts-check
 // Local AI request planning and provider-adapter orchestration.
 
 import { getOllamaConfig, getOllamaMainModel } from './api-provider-storage.js';
@@ -6,32 +5,44 @@ import { prepareLocalAiRuntimeHandoff, rememberLocalAiRuntimeUse } from './local
 import { getLocalAiProviderAdapter } from './local-ai-provider-registry.js';
 import { discoverLocalAI, getCachedLocalAiModelDetail, markCachedLocalAiModelLoaded } from './local-ai-discovery.js';
 
-function contentTokenEstimate(content, charsPerToken) {
+import type { OllamaInferenceOptions } from './local-ai-provider-ollama.js';
+import type { LocalAiModel } from './local-ai-provider-shared.js';
+
+interface PromptEstimateOptions { system?: unknown; messages?: unknown; promptCharsPerToken?: unknown }
+export interface LocalAiRequestOptions extends OllamaInferenceOptions {
+  maxTokens?: number | undefined; minOutputTokens?: number | undefined;
+  promptCharsPerToken?: number | undefined; modelOverride?: unknown;
+}
+interface PromptMessage { content?: unknown }
+interface PromptBlock { text?: unknown; type?: unknown }
+interface LocalAiConfig { url: string; apiKey: unknown }
+
+function contentTokenEstimate(content: unknown, charsPerToken: number) {
   if (typeof content === 'string') return content.length / charsPerToken;
   if (!Array.isArray(content)) return 0;
   return content.reduce((total, block) => {
-    if (typeof block?.text === 'string') return total + block.text.length / charsPerToken;
-    if (block?.type === 'image' || block?.type === 'image_url') return total + 1600;
+    if (typeof (block as PromptBlock | null | undefined)?.text === 'string') return total + (block as { text: string }).text.length / charsPerToken;
+    if ((block as PromptBlock | null | undefined)?.type === 'image' || (block as PromptBlock | null | undefined)?.type === 'image_url') return total + 1600;
     return total;
   }, 0);
 }
 
-export function estimateLocalAiPromptTokens({ system, messages, promptCharsPerToken }) {
+export function estimateLocalAiPromptTokens({ system, messages, promptCharsPerToken }: PromptEstimateOptions) {
   // 3.5 chars/token fits prose; dense numeric tables (lab reports) tokenize
   // closer to 3, so callers with that input shape pass promptCharsPerToken.
   const charsPerToken = Number(promptCharsPerToken) > 0 ? Number(promptCharsPerToken) : 3.5;
   const contentTokens = String(system || '').length / charsPerToken
-    + (Array.isArray(messages) ? messages.reduce((total, message) => total + contentTokenEstimate(message?.content, charsPerToken), 0) : 0);
+    + (Array.isArray(messages) ? messages.reduce((total, message) => total + contentTokenEstimate((message as PromptMessage | null | undefined)?.content, charsPerToken), 0) : 0);
   const messageOverhead = (Array.isArray(messages) ? messages.length : 0) * 6 + (system ? 6 : 0);
   return Math.ceil(contentTokens) + messageOverhead;
 }
 
-export function planLocalAiRequest(opts, modelDetail) {
+export function planLocalAiRequest(opts: LocalAiRequestOptions, modelDetail: LocalAiModel | null | undefined) {
   const requestedMaxTokens = Math.max(1, Number(opts.maxTokens) || 4096);
   const estimatedPromptTokens = estimateLocalAiPromptTokens(opts);
   const contextLength = Number(modelDetail?.contextLength) || 0;
   let maxTokens = requestedMaxTokens;
-  let availableOutputTokens = null;
+  let availableOutputTokens: number | null = null;
   if (contextLength > 0) {
     const safetyTokens = Math.max(256, Math.ceil(contextLength * 0.04));
     availableOutputTokens = contextLength - estimatedPromptTokens - safetyTokens;
@@ -59,21 +70,21 @@ export function planLocalAiRequest(opts, modelDetail) {
   };
 }
 
-function publishLoadedModel(config, model, runtimePatch = {}) {
+function publishLoadedModel(config: LocalAiConfig, model: string, runtimePatch: Record<string, unknown> = {}) {
   const result = markCachedLocalAiModelLoaded(config.url, model, config.apiKey, runtimePatch);
   if (result && typeof globalThis.dispatchEvent === 'function' && typeof CustomEvent !== 'undefined') {
     globalThis.dispatchEvent(new CustomEvent('local-ai-discovery-updated', { detail: result }));
   }
 }
 
-function roundContextLength(required, maximum) {
+function roundContextLength(required: number, maximum: number) {
   const steps = [4096, 8192, 16384, 32768, 65536, 131072, 262144];
   const target = steps.find(step => step >= required) || required;
   return maximum > 0 ? Math.min(target, maximum) : target;
 }
 
 /** Legacy native Ollama export retained for existing callers and tests. */
-export async function callOllamaChat({ system, messages, maxTokens, onStream, signal }) {
+export async function callOllamaChat({ system, messages, maxTokens, onStream, signal }: LocalAiRequestOptions) {
   const config = getOllamaConfig();
   const model = getOllamaMainModel();
   const adapter = getLocalAiProviderAdapter('ollama');
@@ -93,7 +104,7 @@ export async function callOllamaChat({ system, messages, maxTokens, onStream, si
   }
 }
 
-export async function callOpenAICompatibleLocalAPI(opts) {
+export async function callOpenAICompatibleLocalAPI(opts: LocalAiRequestOptions) {
   const config = getOllamaConfig();
   const model = String(opts?.modelOverride || getOllamaMainModel());
   const url = config.url.replace(/\/+$/, '');
@@ -113,7 +124,7 @@ export async function callOpenAICompatibleLocalAPI(opts) {
     + Math.max(512, Math.ceil((estimatedPromptTokens + requestedOutput) * 0.04));
   const providerAdapter = getLocalAiProviderAdapter(modelDetail?.source || 'openai-compatible');
   const runtimeProviderId = modelDetail?.source
-    || (['lmstudio', 'ollama', 'unsloth'].includes(config.mode) ? config.mode : 'openai-compatible');
+    || (['lmstudio', 'ollama', 'unsloth'].includes(config.mode as string) ? config.mode : 'openai-compatible');
   const nativeRequest = providerAdapter.prepareNativeRequest?.({
     opts,
     modelDetail,
@@ -150,7 +161,7 @@ export async function callOpenAICompatibleLocalAPI(opts) {
       effectiveModelDetail = loadedDetail;
     } catch (error) {
       // Older servers have no load route; keep the native chat fallback path.
-      if (Number(/** @type {any} */ (error)?.status) !== 404) throw error;
+      if (Number((error as { status?: unknown } | null | undefined)?.status) !== 404) throw error;
     }
   }
 

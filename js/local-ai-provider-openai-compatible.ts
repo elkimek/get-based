@@ -1,4 +1,3 @@
-// @ts-check
 // Generic OpenAI-compatible Local AI adapter (Jan, llama.cpp, LocalAI, etc.).
 
 import { callOpenAICompatibleAPI } from './api-openai-compatible.js';
@@ -13,6 +12,14 @@ import {
   parseOpenAICompatibleModel,
   unavailableLocalAiResult,
 } from './local-ai-provider-shared.js';
+
+import type { LocalAiModel, parseOpenAICompatibleModel as parseModel } from './local-ai-provider-shared.js';
+import type { LocalAiRequestOptions } from './api-local.js';
+
+interface UnslothStatus { active_model?: unknown; model_identifier?: unknown; loaded?: unknown; context_length?: unknown; is_vision?: unknown }
+interface CompatibleModel { owned_by?: unknown }
+interface DiscoveryOptions { baseUrl: string; apiKey?: unknown; timeoutMs?: number }
+interface InferenceContext { modelDetail?: LocalAiModel | null; config: { url: string; apiKey?: unknown }; model: unknown; opts: LocalAiRequestOptions; plan: { maxTokens: number } }
 
 export const openAICompatibleProviderAdapter = Object.freeze({
   id: 'openai-compatible',
@@ -31,21 +38,21 @@ export const openAICompatibleProviderAdapter = Object.freeze({
   infer: inferWithOpenAICompatibleProvider,
 });
 
-async function unslothRuntimeStatus(baseUrl, apiKey, timeoutMs) {
+async function unslothRuntimeStatus(baseUrl: string, apiKey: unknown, timeoutMs: number) {
   try {
     const response = await fetch(`${baseUrl}/api/inference/status`, {
       headers: createLocalAiHeaders(apiKey),
       signal: AbortSignal.timeout(timeoutMs),
     });
-    return response.ok ? await response.json() : null;
+    return response.ok ? await response.json() as UnslothStatus : null;
   } catch {
     return null;
   }
 }
 
-function enrichUnslothRuntime(modelDetails, status) {
+function enrichUnslothRuntime(modelDetails: LocalAiModel[], status: UnslothStatus | null) {
   if (!Array.isArray(modelDetails)) return modelDetails;
-  const unslothModels = modelDetails.map(model => ({ ...model, source: 'unsloth' }));
+  const unslothModels: Array<LocalAiModel & { source: string }> = modelDetails.map(model => ({ ...model, source: 'unsloth' }));
   if (!status) return unslothModels;
   const activeIds = new Set([
     status.active_model,
@@ -54,8 +61,8 @@ function enrichUnslothRuntime(modelDetails, status) {
   ].map(value => String(value || '').trim().toLowerCase()).filter(Boolean));
   const loadedRows = unslothModels.filter(model => model.loaded === true);
   let active = unslothModels.find(model => activeIds.has(String(model.name || '').toLowerCase())) || null;
-  if (!active && loadedRows.length === 1) active = loadedRows[0];
-  if (!active && unslothModels.length === 1 && activeIds.size > 0) active = unslothModels[0];
+  if (!active && loadedRows.length === 1) active = loadedRows[0]!;
+  if (!active && unslothModels.length === 1 && activeIds.size > 0) active = unslothModels[0]!;
   return unslothModels.map(model => model === active ? {
     ...model,
     loaded: true,
@@ -69,7 +76,7 @@ export async function discoverOpenAICompatibleProvider({
   baseUrl,
   apiKey = '',
   timeoutMs = LOCAL_AI_DISCOVERY_TIMEOUT_MS,
-}) {
+}: DiscoveryOptions) {
   const headers = createLocalAiHeaders(apiKey);
   try {
     const response = await fetch(`${baseUrl}/v1/models`, {
@@ -86,9 +93,9 @@ export async function discoverOpenAICompatibleProvider({
       };
     }
     const data = await response.json();
-    const rawModels = Array.isArray(data.data) ? data.data : [];
+    const rawModels = (Array.isArray(data.data) ? data.data : []) as Array<Parameters<typeof parseModel>[0] & CompatibleModel>;
     const isUnsloth = rawModels.some(model => String(model?.owned_by || '').toLowerCase() === 'unsloth-studio');
-    let modelDetails = rawModels
+    let modelDetails: LocalAiModel[] = rawModels
       .map(model => parseOpenAICompatibleModel(model, baseUrl))
       .filter(model => model.name && model.type !== 'embedding' && !isLikelyEmbeddingModel(model.name));
     if (isUnsloth) {
@@ -107,9 +114,9 @@ export async function discoverOpenAICompatibleProvider({
   }
 }
 
-export async function inferWithOpenAICompatibleProvider({ config, model, opts, plan }) {
+export async function inferWithOpenAICompatibleProvider({ config, model, opts, plan }: InferenceContext) {
   const url = String(config.url || '').replace(/\/+$/, '');
-  const extraBody = {};
+  const extraBody: { reasoning_effort?: string; temperature?: number } = {};
   if (opts.jsonMode || opts.reasoningEffort === 'none') extraBody.reasoning_effort = 'none';
   if (opts.jsonMode || opts.temperature === 0) extraBody.temperature = 0;
   // "on" is a native boolean-model choice, not an OpenAI reasoning_effort

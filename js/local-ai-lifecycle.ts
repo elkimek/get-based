@@ -1,4 +1,3 @@
-// @ts-check
 // Provider-neutral lifecycle orchestration for loaded Local AI models.
 
 import { clearLocalAiDiscovery, discoverLocalAI } from './local-ai-discovery.js';
@@ -6,11 +5,15 @@ import { getOllamaConfig } from './api-provider-storage.js';
 import { getLocalAiProviderAdapter } from './local-ai-provider-registry.js';
 import { isCloudModel, normalizeLocalAiBaseUrl } from './local-ai-provider-shared.js';
 
-let runtimeUse = null;
-/** @type {Promise<any>} */
-let handoffQueue = Promise.resolve();
+import type { LocalAiModel } from './local-ai-provider-shared.js';
+interface DiscoveryView { provider?: unknown; modelDetails?: LocalAiModel[] }
+interface RuntimeUse { baseUrl: string; providerId: string; model: string }
+interface NextRuntime { baseUrl: unknown; model: unknown }
 
-function loadedModelDetails(discovery) {
+let runtimeUse: RuntimeUse | null = null;
+let handoffQueue: Promise<unknown> = Promise.resolve();
+
+function loadedModelDetails(discovery: DiscoveryView | null | undefined) {
   return (Array.isArray(discovery?.modelDetails) ? discovery.modelDetails : [])
     .filter(model => model?.loaded === true
       && model?.name
@@ -18,14 +21,14 @@ function loadedModelDetails(discovery) {
       && !isCloudModel(model.name));
 }
 
-function modelMatches(detail, modelName) {
+function modelMatches(detail: LocalAiModel | null | undefined, modelName: unknown) {
   if (!modelName) return true;
   return detail?.name === modelName
     || detail?.loadedInstanceId === modelName
     || detail?.nativeModelKey === modelName;
 }
 
-export function getLocalAiReleasePlan(discovery, { modelName = '' } = {}) {
+export function getLocalAiReleasePlan(discovery: DiscoveryView | null | undefined, { modelName = '' } = {}) {
   const providerId = String(discovery?.provider || 'openai-compatible');
   const adapter = getLocalAiProviderAdapter(providerId);
   const models = loadedModelDetails(discovery).filter(model => modelMatches(model, modelName));
@@ -49,7 +52,7 @@ function readLocalAiRuntimeUse() {
   }
 }
 
-export function rememberLocalAiRuntimeUse({ baseUrl, providerId, model }) {
+export function rememberLocalAiRuntimeUse({ baseUrl, providerId, model }: { baseUrl: unknown; providerId: unknown; model: unknown }) {
   const nextRuntimeUse = {
     baseUrl: normalizeLocalAiBaseUrl(baseUrl),
     providerId: String(providerId || 'openai-compatible'),
@@ -65,7 +68,7 @@ export function clearLocalAiRuntimeUse(baseUrl = '') {
   runtimeUse = null;
 }
 
-async function runLocalAiRuntimeHandoff({ baseUrl, model }) {
+async function runLocalAiRuntimeHandoff({ baseUrl, model }: NextRuntime) {
   const previous = readLocalAiRuntimeUse();
   const nextBaseUrl = normalizeLocalAiBaseUrl(baseUrl);
   if (!previous || (previous.baseUrl === nextBaseUrl && previous.model === model)) {
@@ -104,13 +107,13 @@ async function runLocalAiRuntimeHandoff({ baseUrl, model }) {
   return { released: true, providerLabel: plan.providerLabel, models: outcome.releasedModels };
 }
 
-export function prepareLocalAiRuntimeHandoff(nextRuntime) {
+export function prepareLocalAiRuntimeHandoff(nextRuntime: NextRuntime) {
   const handoff = handoffQueue.then(() => runLocalAiRuntimeHandoff(nextRuntime));
   handoffQueue = handoff.catch(() => {});
   return handoff;
 }
 
-export function localAiEndpointsShareMachine(firstUrl, secondUrl) {
+export function localAiEndpointsShareMachine(firstUrl: unknown, secondUrl: unknown) {
   try {
     const first = new URL(normalizeLocalAiBaseUrl(firstUrl));
     const second = new URL(normalizeLocalAiBaseUrl(secondUrl));
@@ -122,12 +125,12 @@ export function localAiEndpointsShareMachine(firstUrl, secondUrl) {
   }
 }
 
-export async function releaseLocalAiModels({ baseUrl, apiKey = '', discovery }) {
+export async function releaseLocalAiModels({ baseUrl, apiKey = '', discovery }: { baseUrl: unknown; apiKey?: unknown; discovery: DiscoveryView }) {
   const plan = getLocalAiReleasePlan(discovery);
   const adapter = getLocalAiProviderAdapter(plan.providerId);
   const unload = adapter.unload;
-  const releasedModels = [];
-  const failedModels = [];
+  const releasedModels: unknown[] = [];
+  const failedModels: unknown[] = [];
   if (typeof unload !== 'function' || plan.models.length === 0) {
     return {
       ...plan,

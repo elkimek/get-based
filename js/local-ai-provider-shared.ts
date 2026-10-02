@@ -5,7 +5,7 @@ import { extractModelReasoningMetadata } from './reasoning-capabilities.js';
 import type { ModelReasoningSource } from './reasoning-capabilities.js';
 
 export interface LocalAiDiscoveryError extends Record<string, unknown> { kind: string }
-export interface LocalAiModel extends Record<string, unknown> { name: unknown; vramAllocated?: unknown }
+export interface LocalAiModel extends Record<string, unknown> { name: unknown; vramAllocated?: unknown; loaded?: unknown; nativeModelKey?: unknown; loadedInstanceId?: unknown; reasoning?: { allowedOptions?: unknown; default?: unknown } | null }
 interface OpenAIModelView extends Omit<ModelReasoningSource, 'capabilities'> {
   id?: unknown; size?: unknown; vram_required?: unknown; input_modalities?: unknown; modalities?: unknown;
   capabilities?: ModelReasoningSource['capabilities'] & { vision?: unknown };

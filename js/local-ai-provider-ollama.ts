@@ -17,7 +17,7 @@ import {
 
 import type { LocalAiModel } from './local-ai-provider-shared.js';
 
-interface LocalAiDiscoveryOptions { baseUrl: string; apiKey?: string; timeoutMs?: number }
+interface LocalAiDiscoveryOptions { baseUrl: string; apiKey?: unknown; timeoutMs?: number }
 interface OllamaModelView {
   name?: unknown; model?: unknown; capabilities?: unknown; size?: unknown; context_length?: unknown; size_vram?: unknown;
   details?: { parameter_size?: unknown; quantization_level?: unknown; family?: unknown; format?: unknown; context_length?: unknown } | null;
@@ -32,6 +32,7 @@ interface LocalAiMessageBlock {
   type?: unknown; text?: unknown; source?: { data?: unknown } | null; image_url?: { url?: string } | null;
 }
 export interface OllamaInferenceOptions {
+  maxTokens?: number | undefined;
   preferNativeContext?: boolean;
   jsonMode?: boolean;
   jsonSchema?: unknown;
@@ -39,13 +40,13 @@ export interface OllamaInferenceOptions {
   reasoningEffort?: string;
   system?: unknown;
   messages: LocalAiMessage[];
-  onStream?: (text: string) => unknown;
-  signal?: AbortSignal;
+  onStream?: ((text: string) => unknown) | undefined;
+  signal?: AbortSignal | undefined;
   requestTimeoutMs?: number;
 }
 interface OllamaInferenceContext {
-  config: { url: string; apiKey?: string };
-  model: string;
+  config: { url: string; apiKey?: unknown };
+  model: unknown;
   opts: OllamaInferenceOptions;
   plan?: { maxTokens?: number } | null;
   contextLength?: number;
@@ -360,7 +361,7 @@ export async function inferWithOllamaNativeProvider({ config, model, opts, plan,
   return normalizedOllamaResult(fullText, finalEvent, requestDiagnostics);
 }
 
-export async function unloadOllamaModel({ baseUrl, apiKey = '', model, timeoutMs = 5000 }: LocalAiDiscoveryOptions & { model: string }) {
+export async function unloadOllamaModel({ baseUrl, apiKey = '', model, timeoutMs = 5000 }: LocalAiDiscoveryOptions & { model: unknown }) {
   if (!model) return false;
   const response = await fetch(`${baseUrl}/api/generate`, {
     method: 'POST',
