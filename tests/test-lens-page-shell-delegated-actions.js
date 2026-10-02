@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { sourceFunctionHasStatement } from './helpers/native-source-contracts.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static lens page shell delegated-action source guards.
 
@@ -27,7 +28,7 @@ assert('lens-page-shell no longer exports inlineHandlerCall',
     !lensPagesSrc.includes('inlineHandlerCall'));
 assert('lens-page-shell renders delegated action attributes',
   shellSrc.includes('export function lensPageActionAttrs') &&
-    shellSrc.includes('data-lens-page-action=') &&
+    sourceFunctionHasStatement(shellSrc, 'lensPageActionAttrs', "return actionAttributes('lens-page', action, attrs);") &&
     shellSrc.includes("lensPageActionAttrs('move-widget'") &&
     shellSrc.includes("lensPageActionAttrs(action, { id: dashboardId })"));
 assert('lens-page-shell installs an idempotent click delegate',

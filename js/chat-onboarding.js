@@ -4,6 +4,7 @@
 import { state } from './state.js';
 import { LATITUDE_BANDS } from './constants.js';
 import { escapeAttr, escapeHTML, showNotification } from './utils.js';
+import { actionAttributes } from './action-attributes.js';
 import { saveImportedData } from './data.js';
 import { appendImportedArrayItem, deleteImportedArrayItem } from './data-merge.js';
 import {
@@ -55,12 +56,7 @@ let chatOnboardingDelegatesInstalled = false;
 const CHAT_ONBOARDING_SETTING_PROVIDERS = new Set(['openrouter', 'ollama', 'routstr', 'ppq']);
 
 export function chatOnboardingActionAttrs(action, attrs = {}) {
-  return [
-    `data-chat-onboarding-action="${escapeAttr(action)}"`,
-    ...Object.entries(attrs)
-      .filter(([, value]) => value !== undefined && value !== null && value !== '')
-      .map(([name, value]) => `data-chat-${escapeAttr(name)}="${escapeAttr(String(value))}"`),
-  ].join(' ');
+  return actionAttributes("chat-onboarding", action, attrs, "chat");
 }
 
 function isChatOnboardingActionScope(actionEl) {

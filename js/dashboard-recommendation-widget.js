@@ -7,6 +7,7 @@ import { getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis
 import { computeBiologyScores } from './biology-scores.js';
 import { profileStorageKey } from './profile.js';
 import { escapeAttr, escapeHTML, formatValue, getStatus } from './utils.js';
+import { actionAttributes } from './action-attributes.js';
 import {
   getRecommendationModuleFunction,
   getRecommendationsCatalogCache,
@@ -47,12 +48,7 @@ function callDashboardRecommendationRuntime(name, ...args) {
 }
 
 export function dashboardRecommendationActionAttrs(action, attrs = {}) {
-  return [
-    `data-dashboard-rec-action="${escapeAttr(action)}"`,
-    ...Object.entries(attrs)
-      .filter(([, value]) => value !== undefined && value !== null && value !== '')
-      .map(([name, value]) => `data-dashboard-rec-${escapeAttr(name)}="${escapeAttr(String(value))}"`),
-  ].join(' ');
+  return actionAttributes("dashboard-rec", action, attrs);
 }
 
 function handleDashboardRecommendationClick(event) {

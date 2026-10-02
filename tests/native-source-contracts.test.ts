@@ -1,7 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { sourceFunctionHasCatchStatement, sourceFunctionHasInitializer, sourceFunctionHasStatement, sourceFunctionHasVariable } from './helpers/native-source-contracts.js';
+import { sourceCallsNamespacedActionAttributes, sourceFunctionHasCatchStatement, sourceFunctionHasInitializer, sourceFunctionHasStatement, sourceFunctionHasVariable } from './helpers/native-source-contracts.js';
 
 describe('native source contracts', () => {
+  it('tracks imported serializer namespaces and rejects dead strings or unrelated helpers', () => {
+    const source = "import { actionAttributes as attrs } from './action-attributes.js'; function build() { return attrs('wearable', action, data); }";
+    expect(sourceCallsNamespacedActionAttributes(source, 'wearable')).toBe(true);
+    expect(sourceCallsNamespacedActionAttributes(source, 'lens')).toBe(false);
+    for (const changed of [
+      source.replace('./action-attributes.js', './other.js'),
+      source.replace('actionAttributes as attrs', 'other as attrs'),
+      source.replace("return attrs('wearable', action, data);", "return 'attrs(\"wearable\", action, data)';"),
+      source.replace('attrs(', 'other('),
+    ]) expect(sourceCallsNamespacedActionAttributes(changed, 'wearable')).toBe(false);
+    expect(sourceCallsNamespacedActionAttributes(source.replace("'wearable', action", 'dynamicNamespace, action'), 'lens')).toBe(true);
+    expect(sourceCallsNamespacedActionAttributes(source.replace('action, data)', "action, data, 'lens')"), 'lens')).toBe(true);
+    expect(sourceCallsNamespacedActionAttributes('function broken(', 'wearable')).toBe(false);
+  });
   it('keeps sanitized manual notes in both writers and rejects changed guards or assignments', () => {
     const source = "async function logManualMetric() { const noteClean = _sanitizeNote(note); if (noteClean) patch.note = noteClean; } async function logManualBP() { const noteClean = _sanitizeNote(note); if (noteClean) row.note = noteClean; } function _sanitizeNote(note) { if (typeof note !== 'string') return ''; }";
     const check = (input: string) => sourceFunctionHasInitializer(input, 'logManualMetric', 'noteClean', '_sanitizeNote(note)')

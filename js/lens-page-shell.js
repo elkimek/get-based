@@ -4,6 +4,7 @@
 import { state } from './state.js';
 import { getWidgetHeaderDescription } from './dashboard-widget-copy.js';
 import { escapeHTML, escapeAttr } from './utils.js';
+import { actionAttributes } from './action-attributes.js';
 import { profileStorageKey } from './profile.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
@@ -45,12 +46,7 @@ export function configureLensPageShell(deps = {}) {
 }
 
 export function lensPageActionAttrs(action, attrs = {}) {
-  return [
-    `data-lens-page-action="${escapeAttr(action)}"`,
-    ...Object.entries(attrs)
-      .filter(([, value]) => value !== undefined && value !== null && value !== '')
-      .map(([name, value]) => `data-lens-page-${escapeAttr(name)}="${escapeAttr(String(value))}"`),
-  ].join(' ');
+  return actionAttributes("lens-page", action, attrs);
 }
 
 function handleLensPageShellClick(event) {

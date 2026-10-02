@@ -2,7 +2,8 @@
 // dashboard-page-view.js — dashboard route shell and empty-state orchestration
 
 import { state } from './state.js';
-import { escapeAttr, escapeHTML, formatDate } from './utils.js';
+import { escapeHTML, formatDate } from './utils.js';
+import { camelCaseActionAttributes } from './action-attributes.js';
 import { getActiveData, renderDateRangeFilter } from './data.js';
 import { getProfiles, profileStorageKey } from './profile.js';
 import { loadContextHealthDots } from './health-data-loader.js';
@@ -56,13 +57,7 @@ function getDashboardPageRuntimeValue(name) {
 }
 
 function dashboardWelcomeActionAttrs(action, attrs = {}) {
-  let html = `${DASHBOARD_WELCOME_ACTION_ATTR}="${escapeAttr(action)}"`;
-  for (const [key, value] of Object.entries(attrs)) {
-    if (value == null) continue;
-    const attr = key.replace(/[A-Z]/g, c => '-' + c.toLowerCase());
-    html += ` data-dashboard-welcome-${attr}="${escapeAttr(String(value))}"`;
-  }
-  return html;
+  return camelCaseActionAttributes(DASHBOARD_WELCOME_ACTION_ATTR, "dashboard-welcome", action, attrs);
 }
 
 function closestDashboardWelcomeAction(target) {

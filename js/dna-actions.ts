@@ -1,28 +1,39 @@
-// @ts-check
-// dna-actions.js - delegated actions for DNA and genetics UI
-
-import { escapeAttr } from './utils.js';
-
-let dnaDelegatesInstalled = false;
-let dnaActionHandlers = {};
-
-export function dnaActionAttrs(action, attrs = {}) {
-  return [
-    `data-dna-action="${escapeAttr(action)}"`,
-    ...Object.entries(attrs)
-      .filter(([, value]) => value !== undefined && value !== null && value !== '')
-      .map(([name, value]) => `data-dna-${escapeAttr(name)}="${escapeAttr(String(value))}"`),
-  ].join(' ');
+interface DnaActionHandlers {
+  triggerDNAFilePicker(): unknown;
+  openManualSnpModal(): unknown;
+  saveManualSnpFromModal(): unknown;
+  importSnpReport(): unknown;
+  toggleGeneticsCollapse(): unknown;
+  deleteMtDNAData(): unknown;
+  toggleGeneticsExpand(element: HTMLElement): unknown;
+  askAIAboutSnp(rsid: string): unknown;
+  reimportDNA(): unknown;
+  confirmDeleteDNA(): unknown;
+  closeDNAImportPreview(): unknown;
+  confirmDNAImport(): unknown;
+  closeMtDNAPreview(): unknown;
+  confirmMtDNAImport(): unknown;
 }
 
-function isDnaActionScope(actionEl) {
+// dna-actions.js - delegated actions for DNA and genetics UI
+
+import { actionAttributes } from './action-attributes.js';
+
+let dnaDelegatesInstalled = false;
+let dnaActionHandlers: Partial<DnaActionHandlers> = {};
+
+export function dnaActionAttrs(action: string, attrs: Record<string, unknown> = {}) {
+  return actionAttributes("dna", action, attrs);
+}
+
+function isDnaActionScope(actionEl: HTMLElement) {
   return !!actionEl.closest('.genetics-empty-stub, .genetics-section, #dna-modal-overlay');
 }
 
-function handleDnaActionClick(event) {
+function handleDnaActionClick(event: MouseEvent) {
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return;
-  const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-dna-action]'));
+  const actionEl = (target.closest('[data-dna-action]') as HTMLElement | null);
   if (!actionEl || !isDnaActionScope(actionEl)) return;
 
   const action = actionEl.dataset.dnaAction || '';
@@ -74,17 +85,17 @@ function handleDnaActionClick(event) {
   }
 }
 
-function handleDnaActionKeydown(event) {
+function handleDnaActionKeydown(event: KeyboardEvent) {
   if (event.key !== 'Enter' && event.key !== ' ') return;
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return;
-  const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-dna-action][role="button"]'));
+  const actionEl = (target.closest('[data-dna-action][role="button"]') as HTMLElement | null);
   if (!actionEl || !isDnaActionScope(actionEl)) return;
   event.preventDefault();
   actionEl.click();
 }
 
-export function initDnaActionDelegates(handlers = {}) {
+export function initDnaActionDelegates(handlers: Partial<DnaActionHandlers> = {}) {
   dnaActionHandlers = { ...dnaActionHandlers, ...handlers };
   if (dnaDelegatesInstalled || typeof document === 'undefined') return;
   dnaDelegatesInstalled = true;

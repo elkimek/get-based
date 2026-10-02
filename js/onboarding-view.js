@@ -5,7 +5,8 @@ import { state } from './state.js';
 import { getActiveData, updateHeaderDates } from './data.js';
 import { profileStorageKey, setProfileSex, setProfileDob } from './profile.js';
 import { hasChatResponseBackend } from './chat-backend-selection.js';
-import { escapeAttr, showNotification } from './utils.js';
+import { showNotification } from './utils.js';
+import { camelCaseActionAttributes } from './action-attributes.js';
 import {
   createOnboardingChatThreadRuntime,
   navigateOnboardingRuntime,
@@ -22,13 +23,7 @@ const ONBOARDING_ACTION_ATTR = 'data-onboarding-action';
 const ONBOARDING_ACTION_SELECTOR = `[${ONBOARDING_ACTION_ATTR}]`;
 
 function onboardingActionAttrs(action, attrs = {}) {
-  let html = `${ONBOARDING_ACTION_ATTR}="${escapeAttr(action)}"`;
-  for (const [key, value] of Object.entries(attrs)) {
-    if (value == null) continue;
-    const attr = key.replace(/[A-Z]/g, c => '-' + c.toLowerCase());
-    html += ` data-onboarding-${attr}="${escapeAttr(String(value))}"`;
-  }
-  return html;
+  return camelCaseActionAttributes(ONBOARDING_ACTION_ATTR, "onboarding", action, attrs);
 }
 
 function closestOnboardingAction(target) {

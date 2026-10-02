@@ -1,6 +1,6 @@
 // lens-actions.js - delegated actions for the Knowledge Base settings surface
 
-import { escapeAttr } from './utils.js';
+import { actionAttributes } from './action-attributes.js';
 import { openContextModalRuntime } from './context-cards-runtime.js';
 
 import type { createLensLibraryHandlers } from './lens-library.js';
@@ -15,12 +15,7 @@ let lensActionDelegatesInstalled = false;
 let lensActionHandlers: LensActionHandlers = {};
 
 export function lensActionAttrs(action: string, attrs: Record<string, unknown> = {}) {
-  return [
-    `data-lens-action="${escapeAttr(action)}"`,
-    ...Object.entries(attrs)
-      .filter(([, value]) => value !== undefined && value !== null && value !== '')
-      .map(([name, value]) => `data-lens-${escapeAttr(name)}="${escapeAttr(String(value))}"`),
-  ].join(' ');
+  return actionAttributes("lens", action, attrs);
 }
 
 function isLensActionScope(actionEl: HTMLElement) {

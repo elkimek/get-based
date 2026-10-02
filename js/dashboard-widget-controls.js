@@ -4,6 +4,7 @@
 import { DASHBOARD_WIDGET_SOURCE_ORDER, dashboardBiometricSelectionKey } from './dashboard-widgets.js';
 import { getWidgetHeaderDescription } from './dashboard-widget-copy.js';
 import { escapeAttr, escapeHTML, formatValue, getStatus, safeMarkerId, showNotification } from './utils.js';
+import { actionAttributes } from './action-attributes.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import {
   askDashboardAIAboutSnp,
@@ -28,12 +29,7 @@ const DASHBOARD_WIDGET_KEYBOARD_ACTIONS = new Set([
 ]);
 
 export function dashboardWidgetActionAttrs(action, attrs = {}) {
-  return [
-    `data-dashboard-widget-action="${escapeAttr(action)}"`,
-    ...Object.entries(attrs)
-      .filter(([, value]) => value !== undefined && value !== null && value !== '')
-      .map(([name, value]) => `data-dashboard-widget-${escapeAttr(name)}="${escapeAttr(String(value))}"`),
-  ].join(' ');
+  return actionAttributes("dashboard-widget", action, attrs);
 }
 
 export function dashboardWidgetInputAttrs(action) {

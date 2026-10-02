@@ -2,7 +2,8 @@
 // mobile-dashboard.js - Mobile dashboard shell and bottom navigation
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, getStatus, formatValue, getTrend, formatDate, safeMarkerId } from './utils.js';
+import { escapeHTML, getStatus, formatValue, getTrend, formatDate, safeMarkerId } from './utils.js';
+import { camelCaseActionAttributes } from './action-attributes.js';
 import { getActiveData, renderDateRangeFilter } from './data.js';
 import { getAllFlaggedMarkers, getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
 import { getProfiles } from './profile.js';
@@ -87,13 +88,7 @@ function markerHasData(m) {
 }
 
 function mobileDashboardActionAttrs(action, attrs = {}) {
-  let html = `${MOBILE_DASHBOARD_ACTION_ATTR}="${escapeAttr(action)}"`;
-  for (const [key, value] of Object.entries(attrs)) {
-    if (value == null) continue;
-    const attr = key.replace(/[A-Z]/g, c => '-' + c.toLowerCase());
-    html += ` data-mobile-dashboard-${attr}="${escapeAttr(String(value))}"`;
-  }
-  return html;
+  return camelCaseActionAttributes(MOBILE_DASHBOARD_ACTION_ATTR, "mobile-dashboard", action, attrs);
 }
 
 function closestMobileDashboardAction(target) {

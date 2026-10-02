@@ -4,6 +4,7 @@ import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
 
 import { state } from './state.js';
 import { escapeAttr, escapeHTML, getStatus, safeMarkerId } from './utils.js';
+import { camelCaseActionAttributes } from './action-attributes.js';
 import {
   getActiveData,
   filterDatesByRange,
@@ -42,13 +43,7 @@ const CATEGORY_PAGE_ACTION_ATTR = 'data-category-page-action';
 const CATEGORY_PAGE_ACTION_SELECTOR = `[${CATEGORY_PAGE_ACTION_ATTR}]`;
 
 function categoryPageActionAttrs(action, attrs = {}) {
-  let html = `${CATEGORY_PAGE_ACTION_ATTR}="${escapeAttr(action)}"`;
-  for (const [key, value] of Object.entries(attrs)) {
-    if (value == null) continue;
-    const attr = key.replace(/[A-Z]/g, c => '-' + c.toLowerCase());
-    html += ` data-category-page-${attr}="${escapeAttr(String(value))}"`;
-  }
-  return html;
+  return camelCaseActionAttributes(CATEGORY_PAGE_ACTION_ATTR, "category-page", action, attrs);
 }
 
 function closestCategoryPageAction(target) {

@@ -1,7 +1,8 @@
 // @ts-check
 
 import { getErrorMessage } from './caught-error.js';
-import { escapeHTML, escapeAttr, showNotification } from './utils.js';
+import { escapeHTML, showNotification } from './utils.js';
+import { actionAttributes } from './action-attributes.js';
 import { state } from './state.js';
 import {
   adapterById,
@@ -52,12 +53,7 @@ const WEARABLE_ALL_HISTORY_START_DATE = '1970-01-01';
 const WEARABLE_DETAIL_RANGE_KEY = 'wearable-detail-range';
 
 export function wearableActionAttrs(action, attrs = {}) {
-  return [
-    `data-wearable-action="${escapeAttr(action)}"`,
-    ...Object.entries(attrs)
-      .filter(([, value]) => value !== undefined && value !== null && value !== '')
-      .map(([name, value]) => `data-wearable-${escapeAttr(name)}="${escapeAttr(String(value))}"`),
-  ].join(' ');
+  return actionAttributes("wearable", action, attrs);
 }
 
 function getWearableDetailRange() {

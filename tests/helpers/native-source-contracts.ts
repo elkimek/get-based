@@ -82,3 +82,27 @@ export function sourceFunctionHasCatchStatement(source: string, name: string, pa
     && node.catchClause.variableDeclaration.name.text === parameter
     && node.catchClause.block.statements.some(item => matches(item, expected)));
 }
+
+/** Recognize imported serializers; unknown namespaces conservatively match every family. */
+export function sourceCallsNamespacedActionAttributes(source: string, namespace: string) {
+  const file = parse(source);
+  if (!file) return false;
+  const names = new Set(file.statements.flatMap(node => {
+    if (!ts.isImportDeclaration(node) || !ts.isStringLiteral(node.moduleSpecifier)
+      || node.moduleSpecifier.text !== './action-attributes.js' || node.importClause?.isTypeOnly) return [];
+    const bindings = node.importClause?.namedBindings;
+    return bindings && ts.isNamedImports(bindings) ? bindings.elements
+      .filter(binding => !binding.isTypeOnly && (binding.propertyName?.text || binding.name.text) === 'actionAttributes')
+      .map(binding => binding.name.text) : [];
+  }));
+  let found = false;
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && names.has(node.expression.text)) {
+      const namespaces = node.arguments.length > 3 ? [node.arguments[0], node.arguments[3]] : [node.arguments[0]];
+      if (namespaces.some(value => !value || !ts.isStringLiteral(value) || value.text === namespace)) found = true;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return found;
+}

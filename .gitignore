@@ -670,3 +670,5 @@ deploy/profile-share/data/
 /js/wearables-apple-health.js
 /js/wearables-settings-runtime.js
 /js/wearables-settings-panel.js
+/js/action-attributes.js
+/js/dna-actions.js

@@ -3,7 +3,8 @@
 
 import { state } from './state.js';
 import { profileStorageKey } from './profile.js';
-import { escapeAttr, isStartupNudgeBlocked } from './utils.js';
+import { isStartupNudgeBlocked } from './utils.js';
+import { camelCaseActionAttributes } from './action-attributes.js';
 import { getTourComputedStyle, getTourViewportSize, openTourChatPanel, scheduleTourTask } from './tour-runtime.js';
 
 const EMPTY_TOUR_STEPS = [
@@ -52,13 +53,7 @@ const TOUR_ACTION_ATTR = 'data-tour-action';
 const TOUR_ACTION_SELECTOR = `[${TOUR_ACTION_ATTR}]`;
 
 function tourActionAttrs(action, attrs = {}) {
-  let html = `${TOUR_ACTION_ATTR}="${escapeAttr(action)}"`;
-  for (const [key, value] of Object.entries(attrs)) {
-    if (value == null) continue;
-    const attr = key.replace(/[A-Z]/g, c => '-' + c.toLowerCase());
-    html += ` data-tour-${attr}="${escapeAttr(String(value))}"`;
-  }
-  return html;
+  return camelCaseActionAttributes(TOUR_ACTION_ATTR, "tour", action, attrs);
 }
 
 function closestTourAction(target) {

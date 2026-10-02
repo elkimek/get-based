@@ -1,7 +1,8 @@
 // crypto-ui.ts — Encryption dialogs, nudges, delegates, and settings UI owner.
 
 import { getErrorMessage } from './caught-error.js';
-import { escapeAttr, escapeHTML, showConfirmDialog, showNotification } from './utils.js';
+import { escapeHTML, showConfirmDialog, showNotification } from './utils.js';
+import { camelCaseActionAttributes } from './action-attributes.js';
 import {
   isDataProtectionStylesheetLoaded,
   loadDataProtectionStylesheetForAction,
@@ -65,13 +66,7 @@ const CRYPTO_ACTION_ATTR = 'data-crypto-action';
 const CRYPTO_ACTION_SELECTOR = `[${CRYPTO_ACTION_ATTR}]`;
 
 function cryptoActionAttrs(action: string, attrs: Record<string, unknown> = {}) {
-  let html = `${CRYPTO_ACTION_ATTR}="${escapeAttr(action)}"`;
-  for (const [key, value] of Object.entries(attrs)) {
-    if (value == null) continue;
-    const attr = key.replace(/[A-Z]/g, character => '-' + character.toLowerCase());
-    html += ` data-crypto-${attr}="${escapeAttr(String(value))}"`;
-  }
-  return html;
+  return camelCaseActionAttributes(CRYPTO_ACTION_ATTR, "crypto", action, attrs);
 }
 
 function closestCryptoAction(target: EventTarget | null) {

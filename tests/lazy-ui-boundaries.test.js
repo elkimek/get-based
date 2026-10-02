@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+import { sourceCallsNamespacedActionAttributes } from './helpers/native-source-contracts.js';
 import { parseModuleSpecifiers } from '../scripts/architecture-map.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -215,7 +216,12 @@ describe('lazy UI first-interaction ownership', () => {
     '$token is not emitted from an unreviewed cold module',
     ({ token, allowedFiles }) => {
       const actualFiles = walkJavaScript()
-        .filter(absolutePath => fs.readFileSync(absolutePath, 'utf8').includes(token))
+        .filter(absolutePath => {
+          const contents = fs.readFileSync(absolutePath, 'utf8');
+          const namespace = /^data-(.+)-(?:action)?$/.exec(token)?.[1];
+          return contents.includes(token) || (namespace && contents.includes('action-attributes.js')
+            && sourceCallsNamespacedActionAttributes(contents, namespace));
+        })
         .map(repoRelative)
         .sort();
       expect(actualFiles).toEqual([...allowedFiles].sort());

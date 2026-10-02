@@ -9,14 +9,10 @@ import {
 } from './recommendations-region.js';
 import { scheduleRecommendationsTask } from './recommendations-runtime.js';
 import { escapeAttr, escapeHTML } from './utils.js';
+import { actionAttributes } from './action-attributes.js';
 
 export function recActionAttrs(action, attrs = {}) {
-  return [
-    `data-rec-action="${escapeAttr(action)}"`,
-    ...Object.entries(attrs)
-      .filter(([, value]) => value !== undefined && value !== null && value !== '')
-      .map(([name, value]) => `data-rec-${escapeAttr(name)}="${escapeAttr(String(value))}"`),
-  ].join(' ');
+  return actionAttributes("rec", action, attrs);
 }
 
 export function isProductRecsEnabled() {

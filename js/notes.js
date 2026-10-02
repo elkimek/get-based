@@ -2,6 +2,7 @@
 // notes.js — Standalone note editor
 import { state } from './state.js';
 import { bindDetailModalSyncRefresh, escapeAttr, escapeHTML, showNotification, showConfirmDialog } from './utils.js';
+import { camelCaseActionAttributes } from './action-attributes.js';
 import { saveImportedDataForProfile } from './data.js';
 import {
   appendImportedArrayItem,
@@ -56,13 +57,7 @@ const NOTE_ACTION_ATTR = 'data-note-action';
 const NOTE_ACTION_SELECTOR = `[${NOTE_ACTION_ATTR}]`;
 
 function noteActionAttrs(action, attrs = {}) {
-  let html = `${NOTE_ACTION_ATTR}="${escapeAttr(action)}"`;
-  for (const [key, value] of Object.entries(attrs)) {
-    if (value == null) continue;
-    const attr = key.replace(/[A-Z]/g, c => '-' + c.toLowerCase());
-    html += ` data-note-${attr}="${escapeAttr(String(value))}"`;
-  }
-  return html;
+  return camelCaseActionAttributes(NOTE_ACTION_ATTR, "note", action, attrs);
 }
 
 function closestNoteAction(target) {

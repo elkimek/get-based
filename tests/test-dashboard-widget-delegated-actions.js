@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { sourceFunctionHasStatement } from './helpers/native-source-contracts.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static dashboard widget delegated-action source guards.
 
@@ -51,7 +52,7 @@ assert('dashboard widget renderers render no inline event attributes',
   !/\bon(?:click|input|change|keydown|keyup|submit)=/.test(allRendererSrc));
 assert('dashboard widget controls render delegated action attributes',
   controlsSrc.includes('function dashboardWidgetActionAttrs') &&
-    controlsSrc.includes('data-dashboard-widget-action=') &&
+    sourceFunctionHasStatement(controlsSrc, 'dashboardWidgetActionAttrs', "return actionAttributes('dashboard-widget', action, attrs);") &&
     controlsSrc.includes("dashboardWidgetActionAttrs('toggle-organize'") &&
     controlsSrc.includes("dashboardWidgetActionAttrs('open-picker'") &&
     controlsSrc.includes("dashboardWidgetActionAttrs('move-widget'") &&

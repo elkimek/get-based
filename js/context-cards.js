@@ -4,6 +4,7 @@ import { configureRuntimeFunctions } from './runtime-callbacks.js';
 
 import { state } from './state.js';
 import { escapeAttr, escapeHTML, showConfirmDialog, showNotification } from './utils.js';
+import { camelCaseActionAttributes } from './action-attributes.js';
 import { saveImportedData, getActiveData } from './data.js';
 import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { openModalOverlay } from './modal-lifecycle.js';
@@ -101,13 +102,7 @@ export function configureContextCardRuntimeDeps(deps = {}) {
 }
 
 function contextCardActionAttrs(action, attrs = {}) {
-  let html = `${CONTEXT_CARD_ACTION_ATTR}="${escapeAttr(action)}"`;
-  for (const [key, value] of Object.entries(attrs)) {
-    if (value == null) continue;
-    const attr = key.replace(/[A-Z]/g, c => '-' + c.toLowerCase());
-    html += ` data-context-card-${attr}="${escapeAttr(String(value))}"`;
-  }
-  return html;
+  return camelCaseActionAttributes(CONTEXT_CARD_ACTION_ATTR, "context-card", action, attrs);
 }
 
 function closestContextCardAction(target) {
