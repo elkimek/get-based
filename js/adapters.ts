@@ -9,7 +9,7 @@ export interface AdapterParsedMarker {
   mappedKey?: string | null;
   suggestedKey?: string | null;
   suggestedCategoryLabel?: string | null;
-  suggestedGroup?: string | null;
+  suggestedGroup?: string | null | undefined;
   unit?: string | null;
 }
 export interface AdapterProduct { prefix: string; label: string; group?: string; kind?: string }

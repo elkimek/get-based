@@ -1,4 +1,13 @@
-// @ts-check
+import type { ParserAdapter } from './adapters.js';
+import type { ParsedAIImport, ParsedAIImportMarker } from './pdf-import-ai-utils.js';
+import type { ReconcileImportMarkerOptions } from './pdf-import-marker-mapping.js';
+
+interface ImportMarkerNormalizationOptions {
+  markerRef?: ReconcileImportMarkerOptions['refLookup']; fileName?: string; sourceText?: string;
+  existingKeys?: ReconcileImportMarkerOptions['existingKeys']; mode?: string; emitDebugLogs?: boolean;
+}
+interface MarkerNormalizationContext { testType: string; detected: ReturnType<typeof detectProduct>; mode: string; emitDebugLogs: boolean }
+
 // pdf-import-marker-normalization.js - AI marker normalization shared by text/image import
 
 import { MARKER_SCHEMA } from './schema.js';
@@ -12,32 +21,21 @@ export { normalizeProductScopedAdapterMarkers };
 const _specialtyTypes = ['OAT', 'fattyAcids', 'Metabolomix+', 'DUTCH', 'HTMA', 'GI'];
 const standardCats = new Set(Object.keys(MARKER_SCHEMA));
 
-function _fattyAcidMarkerPart(key) {
+function _fattyAcidMarkerPart(key: string | null | undefined) {
   const prefix = 'fattyAcids.';
   if (!key?.startsWith(prefix)) return null;
   const markerPart = key.slice(prefix.length);
   return markerPart && !markerPart.includes('.') ? markerPart : null;
 }
 
-/**
- * @param {{ testType?: string, labName?: string | null, markers?: any[] }} parsed
- * @param {{
- *   markerRef?: Record<string, any> | null,
- *   fileName?: string,
- *   sourceText?: string,
- *   existingKeys?: Set<string> | string[] | null,
- *   mode?: string,
- *   emitDebugLogs?: boolean,
- * }} [options]
- */
-export function normalizeParsedImportMarkers(parsed, {
+export function normalizeParsedImportMarkers(parsed: ParsedAIImport, {
   markerRef,
   fileName = '',
   sourceText = '',
   existingKeys,
   mode = 'text',
   emitDebugLogs = false,
-} = {}) {
+}: ImportMarkerNormalizationOptions = {}) {
   if (Array.isArray(parsed.markers)) parsed.markers.forEach(_sanitizeAIMarker);
 
   const testType = parsed.testType || 'blood';
@@ -48,7 +46,7 @@ export function normalizeParsedImportMarkers(parsed, {
     || (!!detected && testType !== 'blood')
     || detectedProductScoped
     || !!adapterForTestType;
-  let adapter = null;
+  let adapter: ParserAdapter | null = null;
   if (needsAdapterNormalize && parsed.markers?.length) {
     adapter = detected?.adapter || adapterForTestType || getAdapterByTestType('fattyAcids');
     if (adapter?.productScoped) {
@@ -65,18 +63,18 @@ export function normalizeParsedImportMarkers(parsed, {
     .map(marker => normalizeParsedImportMarker(marker, { testType, detected, mode, emitDebugLogs }))
     .filter(marker => !isNaN(marker.value));
 
-  const reconcileOptions = /** @type {{ testType: string, refLookup?: Record<string, any> | null, existingKeys?: Set<string> | string[] | null, preferSuggestedKeys?: boolean }} */ ({
+  const reconcileOptions: ReconcileImportMarkerOptions = {
     testType,
     refLookup: markerRef,
     preferSuggestedKeys: !!adapter?.productScoped,
-  });
+  };
   if (existingKeys) reconcileOptions.existingKeys = existingKeys;
   reconcileImportMarkerMappings(markers, reconcileOptions);
 
   return { testType, markers };
 }
 
-function normalizeParsedImportMarker(m, { testType, detected, mode, emitDebugLogs }) {
+function normalizeParsedImportMarker(m: ParsedAIImportMarker, { testType, detected, mode, emitDebugLogs }: MarkerNormalizationContext) {
   let mappedKey = m.mappedKey || null;
   let matched = !!mappedKey;
 
@@ -121,19 +119,19 @@ function normalizeParsedImportMarker(m, { testType, detected, mode, emitDebugLog
   // Guard: never allow standard blood work mappings for known specialty tests.
   // Only fire for well-defined specialty types, not for mixed/comprehensive reports.
   if (matched && _specialtyTypes.includes(testType)) {
-    const catKey = mappedKey.split('.')[0];
+    const catKey = mappedKey!.split('.')[0]!;
     if (standardCats.has(catKey)) {
       if (emitDebugLogs && isDebugMode()) {
         console.log(`[Import Guard] Demoted ${mappedKey} - standard category in ${testType} test`);
       }
-      const markerPart = mappedKey.split('.')[1];
+      const markerPart = mappedKey!.split('.')[1]!;
       const specialtyMatch = Object.keys(SPECIALTY_MARKER_DEFS).find(k => {
-        if (k.split('.')[1] !== markerPart || standardCats.has(k.split('.')[0])) return false;
-        const sDef = SPECIALTY_MARKER_DEFS[k];
+        if (k.split('.')[1] !== markerPart || standardCats.has(k.split('.')[0]!)) return false;
+        const sDef = SPECIALTY_MARKER_DEFS[k]!;
         return sDef.group === testType || sDef.group?.toLowerCase() === testType.toLowerCase();
       });
       if (specialtyMatch) {
-        const sDef = SPECIALTY_MARKER_DEFS[specialtyMatch];
+        const sDef = SPECIALTY_MARKER_DEFS[specialtyMatch]!;
         m.suggestedKey = specialtyMatch;
         m.suggestedName = sDef.name;
         m.suggestedCategoryLabel = sDef.categoryLabel;
@@ -154,16 +152,16 @@ function normalizeParsedImportMarker(m, { testType, detected, mode, emitDebugLog
   // Guard: even for blood testType, remap to specialty key if adapter detected a product.
   // This catches AI misidentifying specialty tests as blood.
   if (matched && testType === 'blood' && detected) {
-    const catKey = mappedKey.split('.')[0];
+    const catKey = mappedKey!.split('.')[0]!;
     if (standardCats.has(catKey)) {
-      const markerPart = mappedKey.split('.')[1];
+      const markerPart = mappedKey!.split('.')[1]!;
       const adapterGroup = detected.adapter?.id === 'oat' ? 'OAT' : detected.adapter?.id === 'fattyAcids' ? 'Fatty Acids' : null;
       const specialtyMatch = adapterGroup && Object.keys(SPECIALTY_MARKER_DEFS).find(k => {
-        if (k.split('.')[1] !== markerPart || standardCats.has(k.split('.')[0])) return false;
-        return SPECIALTY_MARKER_DEFS[k].group === adapterGroup;
+        if (k.split('.')[1] !== markerPart || standardCats.has(k.split('.')[0]!)) return false;
+        return SPECIALTY_MARKER_DEFS[k]!.group === adapterGroup;
       });
       if (specialtyMatch) {
-        const sDef = SPECIALTY_MARKER_DEFS[specialtyMatch];
+        const sDef = SPECIALTY_MARKER_DEFS[specialtyMatch]!;
         if (emitDebugLogs && isDebugMode()) {
           console.log(`[Import Guard] Remapped ${mappedKey} -> ${specialtyMatch} (adapter detected)`);
         }
@@ -179,7 +177,7 @@ function normalizeParsedImportMarker(m, { testType, detected, mode, emitDebugLog
 
   // Guard: also rewrite suggestedKey if AI used a standard category for specialty test.
   if (!matched && m.suggestedKey && testType !== 'blood') {
-    const sugCat = m.suggestedKey.split('.')[0];
+    const sugCat = m.suggestedKey.split('.')[0]!;
     if (standardCats.has(sugCat)) {
       const markerPart = m.suggestedKey.split('.')[1] || m.rawName.replace(/[^a-zA-Z0-9]/g, '');
       const prefix = testType.toLowerCase().replace(/[^a-z]/g, '');
@@ -198,12 +196,12 @@ function normalizeParsedImportMarker(m, { testType, detected, mode, emitDebugLog
     : normalizeTextImportMarker(m, mappedKey, matched, testType);
 }
 
-function getDemotedSuggestedName(marker, catKey, markerPart, mode) {
+function getDemotedSuggestedName(marker: ParsedAIImportMarker, catKey: string, markerPart: string, mode: string) {
   if (mode === 'image') return marker.suggestedName || marker.rawName;
   return marker.suggestedName || MARKER_SCHEMA[catKey]?.markers?.[markerPart]?.name || marker.rawName;
 }
 
-function normalizeTextImportMarker(m, mappedKey, matched, testType) {
+function normalizeTextImportMarker(m: ParsedAIImportMarker, mappedKey: string | null, matched: boolean, testType: string) {
   return {
     rawName: m.rawName,
     value: typeof m.value === 'number' ? m.value : parseFloat(String(m.value).replace(',', '.')),
@@ -219,10 +217,10 @@ function normalizeTextImportMarker(m, mappedKey, matched, testType) {
   };
 }
 
-function normalizeImageImportMarker(m, mappedKey, matched) {
+function normalizeImageImportMarker(m: ParsedAIImportMarker, mappedKey: string | null, matched: boolean) {
   return {
     rawName: m.rawName || '',
-    value: typeof m.value === 'number' ? m.value : parseFloat(m.value),
+    value: typeof m.value === 'number' ? m.value : parseFloat(m.value as string),
     mappedKey,
     matched,
     unit: m.unit || '',

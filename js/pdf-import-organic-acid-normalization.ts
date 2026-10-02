@@ -1,11 +1,11 @@
-// @ts-check
+import type { AdapterParsedMarker, AdapterProduct, ParserAdapter } from './adapters.js';
 // Product-safe organic-acid normalization, loaded only with the PDF importer.
 
 import { SPECIALTY_MARKER_DEFS } from './adapters.js';
 import { findMosaicOatAnalyte, mosaicMoatSectionLabel, MOSAIC_OAT_SECTIONS } from './mosaic-oat-catalog.js';
 
 const SAFE_MARKER_PART_RE = /^[a-zA-Z][a-zA-Z0-9_]*$/;
-const OAT_SECTIONS = {
+const OAT_SECTIONS: Record<string, [string, string]> = {
   oatMicrobial: ['Microbial', 'Microbial Overgrowth'],
   oatMetabolic: ['Mitochondrial', 'Mitochondrial Health'],
   oatNeuro: ['Neurotransmitters', 'Neurotransmitter Metabolites'],
@@ -19,9 +19,13 @@ const OAT_SECTIONS = {
 };
 const OAT_SECTION_LABELS = Object.fromEntries(Object.values(OAT_SECTIONS));
 
-function markerPart(value) {
-  const words = String(value || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+function importLabelWords(value: unknown) {
+  return String(value || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-zA-Z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+}
+
+function markerPart(value: unknown) {
+  const words = importLabelWords(value);
   if (!words.length) return '';
   const key = words.map((word, index) => {
     const normalized = index === 0 && /^[0-9]/.test(word) ? `n${word}` : word;
@@ -30,7 +34,7 @@ function markerPart(value) {
   return SAFE_MARKER_PART_RE.test(key) ? key : '';
 }
 
-function markerSource(marker) {
+function markerSource(marker: AdapterParsedMarker) {
   const [category = '', keyPart = ''] = String(marker.mappedKey || marker.suggestedKey || '').split('.');
   return {
     category,
@@ -38,7 +42,7 @@ function markerSource(marker) {
   };
 }
 
-function catalogMarkerSource(marker, group) {
+function catalogMarkerSource(marker: AdapterParsedMarker, group: string) {
   const labels = [marker.rawName, marker.suggestedName].filter(Boolean)
     .map(label => markerPart(String(label).replace(/\s*\([^)]*\)\s*/g, ' '))).filter(Boolean);
   if (!labels.length) return null;
@@ -47,14 +51,14 @@ function catalogMarkerSource(marker, group) {
     const catalogLabel = markerPart(String(def.name || '').replace(/\s*\([^)]*\)\s*/g, ' '));
     if (!labels.includes(catalogLabel)) continue;
     const [category, keyPart] = key.split('.');
-    return { category, markerPart: keyPart };
+    return { category, markerPart: keyPart } as { category: string; markerPart: string };
   }
   return null;
 }
 
-function scopeMarker(marker, prefix, keyPart, label, group, suggestedName) {
+function scopeMarker(marker: AdapterParsedMarker, prefix: string, keyPart: string, label: string, group: string | undefined, suggestedName?: string) {
   if (!prefix || !keyPart) return;
-  const originalDef = SPECIALTY_MARKER_DEFS[marker.mappedKey || marker.suggestedKey];
+  const originalDef = SPECIALTY_MARKER_DEFS[(marker.mappedKey || marker.suggestedKey)!];
   marker.mappedKey = null;
   marker.suggestedKey = `${prefix}.${keyPart}`;
   marker.suggestedName ||= suggestedName || originalDef?.name || marker.rawName;
@@ -62,16 +66,15 @@ function scopeMarker(marker, prefix, keyPart, label, group, suggestedName) {
   marker.suggestedGroup = group;
 }
 
-function safeLabPrefix(value) {
-  const words = String(value || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+function safeLabPrefix(value: unknown) {
+  const words = importLabelWords(value);
   const prefix = words.map((word, index) => index
     ? word.charAt(0).toUpperCase() + word.slice(1)
     : word.charAt(0).toLowerCase() + word.slice(1)).join('').slice(0, 48);
   return /^[a-zA-Z][a-zA-Z0-9]*$/.test(prefix) ? prefix : '';
 }
 
-function oatProductFromLabName(labName) {
+function oatProductFromLabName(labName: unknown) {
   const clean = String(labName || '').trim();
   const lower = clean.toLowerCase();
   if (/mosaic|great plains/.test(lower)) {
@@ -87,7 +90,7 @@ function oatProductFromLabName(labName) {
   return { prefix: `${safeLabPrefix(prefixSource) || 'organicAcids'}Oat`, label, group: label, kind: 'oat' };
 }
 
-function normalizeOatProduct(markers, detectedProduct, labName) {
+function normalizeOatProduct(markers: AdapterParsedMarker[], detectedProduct: AdapterProduct | null | undefined, labName: unknown) {
   const product = detectedProduct || oatProductFromLabName(labName);
   for (const marker of markers) {
     let { category, markerPart } = markerSource(marker);
@@ -102,12 +105,12 @@ function normalizeOatProduct(markers, detectedProduct, labName) {
         continue;
       }
       if (analyte) {
-        const section = MOSAIC_OAT_SECTIONS[analyte.section];
+        const section = MOSAIC_OAT_SECTIONS[analyte.section]!;
         scopeMarker(marker, section.prefix, analyte.markerPart, `Mosaic OAT: ${section.label}`, 'Mosaic OAT', analyte.name);
         continue;
       }
       if (isCreatinine) {
-        const section = MOSAIC_OAT_SECTIONS.fluidIntake;
+        const section = MOSAIC_OAT_SECTIONS.fluidIntake!;
         scopeMarker(marker, section.prefix, 'urineCreatinine', `Mosaic OAT: ${section.label}`, 'Mosaic OAT', 'Creatinine (Urine)');
         continue;
       }
@@ -128,7 +131,7 @@ function normalizeOatProduct(markers, detectedProduct, labName) {
   }
 }
 
-const METABOLOMIX_LABELS = {
+const METABOLOMIX_LABELS: Record<string, string> = {
   metabolomixDysbiosis: 'Malabsorption & Dysbiosis',
   metabolomixVitamins: 'Vitamin Markers',
   metabolomixBranchedChain: 'Branched-Chain Catabolites',
@@ -143,7 +146,7 @@ const METABOLOMIX_LABELS = {
   metabolomixToxicElements: 'Toxic Elements',
   metabolomixNutrientElements: 'Nutrient Elements',
 };
-const METABOLOMIX_SOURCE_CATEGORIES = {
+const METABOLOMIX_SOURCE_CATEGORIES: Record<string, string> = {
   oatMicrobial: 'metabolomixDysbiosis',
   oatMetabolic: 'metabolomixMitochondrial',
   oatNeuro: 'metabolomixNeurotransmitters',
@@ -157,7 +160,7 @@ const METABOLOMIX_DETOX = new Set(['pyroglutamic', 'hydroxybutyric2', 'orotic', 
 const METABOLOMIX_BRANCH = new Set(['hydroxyisovaleric2', 'oxoisovaleric2', 'methyl2oxovaleric3', 'hydroxyisocaproic2', 'oxoisocaproic2', 'oxo4methiolbutyric2', 'isovalerylglycine', 'ketoadipic']);
 const METABOLOMIX_MITO = new Set(['hydroxybutyric3', 'acetoacetic', 'ethylmalonic', 'methylsuccinic', 'adipic', 'suberic', 'sebacic']);
 
-function metabolomixCategory(category, markerPart, marker) {
+function metabolomixCategory(category: string, markerPart: string, marker: AdapterParsedMarker) {
   if (METABOLOMIX_LABELS[category]) return category;
   const label = `${marker.rawName || ''} ${marker.suggestedName || ''} ${marker.suggestedCategoryLabel || ''}`;
   if (category === 'fattyAcids' || /omega|fatty|linole|palmit|stear|arachi|eicosa|docosa|oleic|\bepa\b|\bdha\b/i.test(label)) return 'metabolomixFA';
@@ -169,7 +172,7 @@ function metabolomixCategory(category, markerPart, marker) {
   return METABOLOMIX_SOURCE_CATEGORIES[category] || 'metabolomixOrganicAcids';
 }
 
-function normalizeMetabolomixProduct(markers) {
+function normalizeMetabolomixProduct(markers: AdapterParsedMarker[]) {
   for (const marker of markers) {
     let { category, markerPart } = markerSource(marker);
     if (!METABOLOMIX_LABELS[category] && !OAT_SECTIONS[category] && category !== 'fattyAcids') {
@@ -181,7 +184,7 @@ function normalizeMetabolomixProduct(markers) {
   }
 }
 
-export function normalizeProductScopedAdapterMarkers(adapter, markers, detectedProduct, labName, testType) {
+export function normalizeProductScopedAdapterMarkers(adapter: ParserAdapter | null | undefined, markers: AdapterParsedMarker[], detectedProduct?: AdapterProduct | null, labName?: unknown, testType?: unknown) {
   if (adapter?.id === 'metabolomix') normalizeMetabolomixProduct(markers);
   else if (adapter?.id === 'mosaicOat' || adapter?.id === 'oat') {
     let product = detectedProduct;

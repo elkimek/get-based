@@ -1,8 +1,13 @@
+import type { AdapterParsedMarker } from './adapters.js';
 import type { AssistantFeatureRequestOptions } from './ai-feature-routing.js';
 
+export interface ParsedAIImportMarker extends AdapterParsedMarker {
+  value?: unknown; refMin?: number | null; refMax?: number | null; group?: string | null;
+  [key: string]: unknown;
+}
 export interface ParsedAIImport {
   date?: string | null; testType?: string | null; labName?: string | null;
-  sampleTime?: unknown; fasting?: unknown; markers?: Array<Record<string, unknown>> | null;
+  sampleTime?: unknown; fasting?: unknown; markers?: ParsedAIImportMarker[] | null;
   [key: string]: unknown;
 }
 interface ImportUsage { inputTokens?: unknown; outputTokens?: unknown }

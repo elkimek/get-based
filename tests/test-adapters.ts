@@ -1,11 +1,13 @@
 #!/usr/bin/env node
+/// <reference lib="es2024.object" />
+import type { AdapterParsedMarker } from '../js/adapters.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
-// test-adapters.js — Adapter registry: structure, fatty acids, OAT, metabolomix, cross-adapter
+// test-adapters.ts — Adapter registry: structure, fatty acids, OAT, metabolomix, cross-adapter
 //
 // Static source inspection only — switched from HTTP fetch to fs.readFileSync
 // so it runs node-side without a dev server.
 //
-// Run: node tests/test-adapters.js  (or via npm test)
+// Run: node tests/test-adapters.ts  (or via npm test)
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -17,7 +19,7 @@ import {
 import { normalizeProductScopedAdapterMarkers } from '../js/pdf-import-organic-acid-normalization.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
@@ -203,22 +205,22 @@ const organicNormalizationSrc = read('js/pdf-import-organic-acid-normalization.j
     [...officialBoundaries].every(([number, markerPart]) => MOSAIC_OAT_ANALYTES[number - 1]?.markerPart === markerPart));
   const mosaicSectionCounts = Object.groupBy(MOSAIC_OAT_ANALYTES, analyte => analyte.section);
   assert('Mosaic OAT detailed section counts match the official report',
-    [
+    ([
       ['yeastFungal', 9], ['bacterial', 5], ['clostridia', 4], ['oxalate', 3], ['glycolytic', 2],
       ['mitochondrial', 9], ['neurotransmitters', 8], ['pyrimidine', 2], ['ketoneFatty', 7],
       ['nutritional', 8], ['detoxification', 4], ['aminoAcid', 14], ['mineral', 1],
-    ].every(([section, count]) => mosaicSectionCounts[section]?.length === count));
+    ] satisfies [string, number][]).every(([section, count]) => mosaicSectionCounts[section]?.length === count));
   assert('Mosaic OAT exposes 76 acids plus urine creatinine', Object.keys(MOSAIC_OAT_MARKERS).length === 77);
   assert('Mosaic MOAT exposes 20 acids plus urine creatinine', Object.keys(MOSAIC_MOAT_MARKERS).length === 21);
   assert('Mosaic ratio definitions remain unitless',
-    MOSAIC_OAT_MARKERS['mosaicOatNeurotransmitters.hvaVmaRatio'].unit === ''
-    && MOSAIC_OAT_MARKERS['mosaicOatNeurotransmitters.hvaDopacRatio'].unit === '');
+    MOSAIC_OAT_MARKERS['mosaicOatNeurotransmitters.hvaVmaRatio']!.unit === ''
+    && MOSAIC_OAT_MARKERS['mosaicOatNeurotransmitters.hvaDopacRatio']!.unit === '');
   assert('Mosaic MOAT preserves its official report subsections',
-    MOSAIC_MOAT_MARKERS['mosaicMoat.citramalic'].categoryLabel === 'Mosaic MOAT: Yeast and Fungal Markers'
-    && MOSAIC_MOAT_MARKERS['mosaicMoat.hippuric'].categoryLabel === 'Mosaic MOAT: Bacterial Markers'
-    && MOSAIC_MOAT_MARKERS['mosaicMoat.hphpa'].categoryLabel === 'Mosaic MOAT: Clostridia Bacterial Markers'
-    && MOSAIC_MOAT_MARKERS['mosaicMoat.hmg'].categoryLabel === 'Mosaic MOAT: Additional Indicators'
-    && MOSAIC_MOAT_MARKERS['mosaicMoat.urineCreatinine'].categoryLabel === 'Mosaic MOAT: Indicator of Fluid Intake');
+    MOSAIC_MOAT_MARKERS['mosaicMoat.citramalic']!.categoryLabel === 'Mosaic MOAT: Yeast and Fungal Markers'
+    && MOSAIC_MOAT_MARKERS['mosaicMoat.hippuric']!.categoryLabel === 'Mosaic MOAT: Bacterial Markers'
+    && MOSAIC_MOAT_MARKERS['mosaicMoat.hphpa']!.categoryLabel === 'Mosaic MOAT: Clostridia Bacterial Markers'
+    && MOSAIC_MOAT_MARKERS['mosaicMoat.hmg']!.categoryLabel === 'Mosaic MOAT: Additional Indicators'
+    && MOSAIC_MOAT_MARKERS['mosaicMoat.urineCreatinine']!.categoryLabel === 'Mosaic MOAT: Indicator of Fluid Intake');
   assert('Every official Mosaic display alias resolves to its stable marker',
     MOSAIC_OAT_ANALYTES.every(analyte => analyte.aliases.every(alias =>
       findMosaicOatAnalyte('', alias)?.markerPart === analyte.markerPart)));
@@ -228,7 +230,7 @@ const organicNormalizationSrc = read('js/pdf-import-organic-acid-normalization.j
     && findMosaicOatAnalyte('', '5-HIAA')?.markerPart === 'hiaa5');
 
   const mosaicAdapter = getAdapterByTestType('Mosaic OAT');
-  const firstClassMarkers = [
+  const firstClassMarkers: AdapterParsedMarker[] = [
     { rawName: 'Citramalic', mappedKey: 'oatMicrobial.citramalic' },
     { rawName: 'Pyruvic', mappedKey: 'oatMetabolic.pyruvic' },
     { rawName: 'Uracil', mappedKey: 'oatNeuro.uracil' },
@@ -246,11 +248,11 @@ const organicNormalizationSrc = read('js/pdf-import-organic-acid-normalization.j
       'mosaicOatMineral.phosphoric',
     ].join('|'));
 
-  const moatMarker = [{ rawName: '3-Hydroxy-3-methylglutaric', mappedKey: 'oatNutritional.hmg' }];
+  const moatMarker: AdapterParsedMarker[] = [{ rawName: '3-Hydroxy-3-methylglutaric', mappedKey: 'oatNutritional.hmg' }];
   normalizeProductScopedAdapterMarkers(mosaicAdapter, moatMarker,
     { prefix: 'mosaicMoat', label: 'Mosaic MOAT', group: 'Mosaic MOAT', kind: 'moat' }, 'Mosaic MOAT');
   assert('Mosaic MOAT recognizes its official follow-up analytes',
-    moatMarker[0].suggestedKey === 'mosaicMoat.hmg' && moatMarker[0].suggestedGroup === 'Mosaic MOAT');
+    moatMarker[0]!.suggestedKey === 'mosaicMoat.hmg' && moatMarker[0]!.suggestedGroup === 'Mosaic MOAT');
 
   // ═══════════════════════════════════════
   // 5. Cross-Adapter Tests

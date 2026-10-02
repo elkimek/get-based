@@ -58,7 +58,7 @@ const LEGACY_TESTS = [
   './test-correctness-phase2.ts',
   // Batch 3 — more pure-logic ports.
   './test-lens-multi-query.ts',
-  './test-adapters.js',
+  './test-adapters.ts',
   './test-trend-alerts.js',
   './test-supplement-impact.js',
   // Batch 4 — more pure-logic ports.
