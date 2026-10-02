@@ -1,9 +1,19 @@
-// @ts-check
+interface FundingMessage<Result> { type?: unknown; result: Result }
+interface FundingChannel<Result> {
+  onmessage: ((event: MessageEvent<FundingMessage<Result>>) => unknown) | null;
+  postMessage(message: { type: 'wake' } | { type: 'result'; result: Result }): void;
+  close(): void;
+}
+interface FundingEnvironment<Result> {
+  BroadcastChannel?: new(name: string) => FundingChannel<Result>;
+  navigator?: { locks?: { request(name: string, options: { signal: AbortSignal }, own: () => Promise<void>): Promise<unknown> } };
+}
+
 // One tab owns mint monitoring; other tabs receive committed results locally.
-export function createFundingCoordinator(onLeadership, onResult, onWake, env = globalThis) {
-  let controller = null;
-  let channel = null;
-  let release = null;
+export function createFundingCoordinator<Result>(onLeadership: (leader: boolean) => unknown, onResult: (result: Result) => unknown, onWake: () => unknown, env: FundingEnvironment<Result> = globalThis) {
+  let controller: AbortController | null = null;
+  let channel: FundingChannel<Result> | null = null;
+  let release: (() => void) | null = null;
   let leader = false;
   return {
     start() {
@@ -20,7 +30,7 @@ export function createFundingCoordinator(onLeadership, onResult, onWake, env = g
       const own = async () => {
         if (current.signal.aborted) return;
         leader = true;
-        const held = new Promise(resolve => { release = resolve; });
+        const held = new Promise<void>(resolve => { release = resolve; });
         onLeadership(true);
         try { await held; }
         finally { leader = false; release = null; onLeadership(false); }
@@ -30,7 +40,7 @@ export function createFundingCoordinator(onLeadership, onResult, onWake, env = g
       } else { void own(); }
     },
     wake() { if (leader) onWake(); else channel?.postMessage({ type: 'wake' }); },
-    publish(result) { if (leader) channel?.postMessage({ type: 'result', result }); },
+    publish(result: Result) { if (leader) channel?.postMessage({ type: 'result', result }); },
     stop() {
       controller?.abort();
       controller = null;

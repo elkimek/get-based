@@ -689,3 +689,5 @@ deploy/profile-share/data/
 /js/import-benchmarks.js
 /js/image-utils.js
 /js/lighting-hardware-caveats.js
+/js/charts.js
+/js/cashu-funding-coordinator.js
