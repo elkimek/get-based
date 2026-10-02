@@ -611,3 +611,13 @@ deploy/profile-share/data/
 /js/supplement-impact.js
 /js/supplement-context.js
 /js/biology-score-ai-protocol.js
+
+/js/lab-context.js
+
+/js/lab-context-cache.js
+
+/js/lab-context-output.js
+
+/js/lab-context-collection.js
+
+/js/lab-context-change-timeline.js

@@ -1,12 +1,16 @@
-// @ts-check
+import type { LabEntry } from "../types/lab-data.js";
+
+interface CollectionContext { [key: string]: unknown }
+type CollectionEntry = Pick<Partial<LabEntry>, "date" | "markers" | "context"> & { sampleTime?: unknown; fasting?: unknown };
+
 // lab-context-collection.js — structured draw metadata for AI context
 
 import { normalizeLabSampleTime } from './lab-entry.js';
 
-function formatRecordedCyclePhase(context) {
+function formatRecordedCyclePhase(context: CollectionContext) {
   const phase = String(context?.cyclePhase || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
   const detail = String(context?.cyclePhaseDetail || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
-  const labels = {
+  const labels: Record<string, string> = {
     menstrual: 'menstrual', follicular: 'follicular', ovulatory: 'ovulatory', luteal: 'luteal',
     early_follicular: 'early follicular', late_follicular: 'late follicular', periovulatory: 'periovulatory',
     early_luteal: 'early luteal', mid_luteal: 'mid-luteal', late_luteal: 'late luteal',
@@ -17,13 +21,13 @@ function formatRecordedCyclePhase(context) {
   return `${label} phase (${source})`;
 }
 
-export function buildLabCollectionContextSection(entries = []) {
-  const labDates = new Set();
-  const contextByDate = new Map();
+export function buildLabCollectionContextSection(entries: readonly (CollectionEntry | null | undefined)[] = []) {
+  const labDates = new Set<string>();
+  const contextByDate = new Map<string, CollectionContext>();
   for (const entry of entries) {
     if (!entry?.date) continue;
     if (Object.keys(entry.markers || {}).length > 0) labDates.add(entry.date);
-    const entryContext = entry.context && typeof entry.context === 'object' && !Array.isArray(entry.context)
+    const entryContext: CollectionContext = entry.context && typeof entry.context === 'object' && !Array.isArray(entry.context)
       ? { ...entry.context }
       : {};
     if (entry.sampleTime !== undefined && entryContext.sampleTime === undefined) entryContext.sampleTime = entry.sampleTime;
@@ -31,11 +35,11 @@ export function buildLabCollectionContextSection(entries = []) {
     contextByDate.set(entry.date, { ...(contextByDate.get(entry.date) || {}), ...entryContext });
   }
 
-  const rows = [];
+  const rows: string[] = [];
   for (const date of [...labDates].sort()) {
     const context = contextByDate.get(date) || {};
     const sampleTime = normalizeLabSampleTime(context.sampleTime);
-    const parts = [];
+    const parts: string[] = [];
     if (sampleTime) parts.push(`collection time ${sampleTime}`);
     if (context.fasting === true) parts.push('fasting');
     else if (context.fasting === false) parts.push('not fasting');

@@ -1,4 +1,3 @@
-// @ts-check
 // lab-context.js — Lab context assembly for AI (buildLabContext + helpers)
 
 import { state } from './state.js';
@@ -46,12 +45,12 @@ import { labContextDeps } from './lab-context-runtime.js';
 import { weightToKilograms } from './wearables-formatters.js';
 import { getUnitProfileLabel } from './unit-profiles.js';
 export { configureLabContext } from './lab-context-runtime.js';
-/**
- * @typedef {import('./lab-context-runtime.js').LabContextOptions} LabContextOptions
- */
-function markerNameForStorageDotKey(data, dotKey) {
+import type { LabContextOptions } from "./lab-context-runtime.js";
+
+type LabContextData = ReturnType<typeof getActiveData>;
+function markerNameForStorageDotKey(data: LabContextData, dotKey: string) {
   const [categoryKey, markerKey] = String(dotKey || '').split('.');
-  return resolveActiveMarkerPath(data.categories, categoryKey, markerKey)?.marker?.name || dotKey;
+  return resolveActiveMarkerPath(data.categories, categoryKey!, markerKey!)?.marker?.name || dotKey;
 }
 export {
   buildWearableContext, buildWearableSeriesSection, getAgentWearableSeriesDays,
@@ -72,15 +71,15 @@ export {
 export { injectLensChunks } from './lab-context-output.js';
 
 const MS_PER_DAY = 86_400_000;
-const localDateKey = now => {
+const localDateKey = (now: number) => {
   const date = new Date(now);
   return new Date(now - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 };
-const calendarDaysSince = (date, now) => Math.round(
+const calendarDaysSince = (date: string, now: number) => Math.round(
   (Date.parse(`${localDateKey(now)}T00:00:00Z`) - Date.parse(`${date}T00:00:00Z`)) / MS_PER_DAY,
 );
 
-export function formatLabDateAge(date, now = Date.now()) {
+export function formatLabDateAge(date: string, now = Date.now()) {
   const days = calendarDaysSince(date, now);
   if (!Number.isFinite(days)) return 'date not recorded';
   if (days < 0) return 'future-dated';
@@ -92,13 +91,13 @@ export function formatLabDateAge(date, now = Date.now()) {
   return `~${(days / 365.25).toFixed(1)} years ago`;
 }
 
-export function buildLabContext(/** @type {LabContextOptions} */ { skipGroupFilter, ignoreContextToggles, queryText, nutritionHistoryLabel } = {}) {
+export function buildLabContext({ skipGroupFilter, ignoreContextToggles, queryText, nutritionHistoryLabel }: LabContextOptions = {}) {
   const supplementContextMode = resolveSupplementContextMode(queryText, state.importedData.supplements || []);
   const fp = getLabContextFingerprint() + (skipGroupFilter ? ':all' : '') + (ignoreContextToggles ? ':ignore-context-toggles' : '') + `:supplements-${supplementContextMode}:${JSON.stringify(queryText || '')}:nutrition-history-${nutritionHistoryLabel || 'routine'}:day-${localDateKey(Date.now())}`;
   return getOrBuildLabContext(fp, () => _buildLabContextInner({ skipGroupFilter, ignoreContextToggles, nutritionHistoryLabel, supplementContextMode, queryText }));
 }
 
-function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilter, ignoreContextToggles, nutritionHistoryLabel, supplementContextMode = 'compact', queryText } = {}) {
+function _buildLabContextInner({ skipGroupFilter, ignoreContextToggles, nutritionHistoryLabel, supplementContextMode = 'compact', queryText }: LabContextOptions = {}) {
   const data = getActiveData();
   const includeLabMarkers = ignoreContextToggles || isLabMarkersContextEnabled();
   const hasImportedLabData = data.dates.length > 0 || Object.values(data.categories).some(c => c.singleDate);
@@ -106,9 +105,9 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   const includeInsightCards = ignoreContextToggles || isInsightContextCardsEnabled();
   const includeSupplementsMeds = ignoreContextToggles || isSupplementsMedsContextEnabled();
   const now = Date.now();
-  const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const daysSinceDate = d => calendarDaysSince(d, now);
-  const relativeAge = d => formatLabDateAge(d, now);
+  const fmtDate = (d: string | undefined) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const daysSinceDate = (d: string) => calendarDaysSince(d, now);
+  const relativeAge = (d: string) => formatLabDateAge(d, now);
   const sexLabel = state.profileSex === 'female' ? 'female' : state.profileSex === 'male' ? 'male' : 'not specified';
   const age = state.profileDob ? Math.floor((now - new Date(state.profileDob).getTime()) / (365.25 * MS_PER_DAY)) : null;
   const today = localDateKey(now);
@@ -119,7 +118,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     const datedIndex = data.dates.map(d => `${d} (${relativeAge(d)})`).join(', ');
     ctx = includeInsightCards ? `[section:profile]\nLab data for current profile (sex: ${sexLabel}${age !== null ? ', age: ' + age : ''}, unit system: ${unitLabel}, today: ${today}, dates with relative ages: ${datedIndex}):\n[/section:profile]\n\n` : `Lab data (unit system: ${unitLabel}, today: ${today}, dates with relative ages: ${datedIndex}):\n\n`;
   } else {
-    const missingDemo = [];
+    const missingDemo: string[] = [];
     if (includeInsightCards && sexLabel === 'not specified') missingDemo.push('sex');
     if (includeInsightCards && age === null) missingDemo.push('date of birth');
     const demoWarning = missingDemo.length > 0
@@ -138,7 +137,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
   // ── Staleness signal ──
   if (hasLabData && data.dates.length > 0) {
-    const lastDate = data.dates[data.dates.length - 1];
+    const lastDate = data.dates[data.dates.length - 1]!;
     const daysSince = daysSinceDate(lastDate);
     if (daysSince > 90) {
       const monthsAgo = Math.round(daysSince / 30.44);
@@ -150,8 +149,8 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   const healthGoals = state.importedData.healthGoals || [];
   if (includeInsightCards && healthGoals.length > 0) {
     ctx += `[section:healthGoals]\n## Health Goals (Things to Solve)\n`;
-    const byPriority = { major: [], mild: [], minor: [] };
-    for (const g of healthGoals) (byPriority[g.severity] || byPriority.minor).push(g.text);
+    const byPriority: Record<string, string[]> = { major: [], mild: [], minor: [] };
+    for (const g of healthGoals) (byPriority[g.severity!] || byPriority.minor!).push(g.text);
     for (const [sev, items] of Object.entries(byPriority)) {
       if (items.length > 0) {
         ctx += `### ${sev.charAt(0).toUpperCase() + sev.slice(1)} Priority\n`;
@@ -174,7 +173,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   // ── 3. Lab values by category ("what do the numbers say?") ──
   if (hasLabData) {
     // Build index of active lab categories
-    const _activeCatKeys = [];
+    const _activeCatKeys: string[] = [];
     for (const [_ck, _ct] of Object.entries(data.categories)) {
       if (!skipGroupFilter && !ignoreContextToggles && _ct.group && !isGroupInAIContext(_ct.group)) continue;
       if (Object.entries(_ct.markers).some(([_, m]) => m.values.some(v => v !== null))) _activeCatKeys.push(_ck);
@@ -196,12 +195,12 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
         let trajectory = '';
         try {
           if (!m.singlePoint && data.dates.length >= 2) {
-            const points = [];
+            const points: { v: number; d: string }[] = [];
             for (let ti = 0; ti < m.values.length; ti++) {
-              if (m.values[ti] !== null && data.dates[ti]) points.push({ v: /** @type {number} */ (m.values[ti]), d: data.dates[ti] });
+              if (m.values[ti] !== null && data.dates[ti]) points.push({ v: m.values[ti] as number, d: data.dates[ti]! });
             }
             if (points.length >= 2) {
-              const first = points[0], last = points[points.length - 1];
+              const first = points[0]!, last = points[points.length - 1]!;
               const availableRanges = getMarkerRangesForChat(m, latestIdx);
               const mr = availableRanges.find(item => item.kind !== 'optimal' && (item.min != null || item.max != null))
                 || availableRanges.find(item => item.min != null || item.max != null)
@@ -222,7 +221,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
                 const dir = diff > 0 ? '\u2191 rising' : '\u2193 declining';
                 trajectory = ` \u2014 ${dir} over ${durStr} (${points.length} readings)`;
               } else {
-                const prev = points[points.length - 2];
+                const prev = points[points.length - 2]!;
                 const prevDiff = last.v - prev.v;
                 const delta = prevDiff > 0 ? '\u2191' : prevDiff < 0 ? '\u2193' : '\u2192';
                 trajectory = ` ${delta} vs ${prev.v} on ${prev.d}`;
@@ -275,14 +274,14 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   const mvNotes = state.importedData.markerValueNotes || {};
   const mvKeys = Object.keys(mvNotes);
   if (includeLabMarkers && mvKeys.length > 0) {
-    const byMarker = new Map();
+    const byMarker = new Map<string, { date: string; note: string | undefined }[]>();
     for (const key of mvKeys) {
       const colonIdx = key.lastIndexOf(':');
       if (colonIdx === -1) continue;
       const dotKey = key.slice(0, colonIdx);
       const date = key.slice(colonIdx + 1);
       if (!byMarker.has(dotKey)) byMarker.set(dotKey, []);
-      byMarker.get(dotKey).push({ date, note: mvNotes[key] });
+      byMarker.get(dotKey)!.push({ date, note: mvNotes[key] });
     }
     ctx += `[section:markerValueNotes]\n## Per-Value Notes (context tied to specific readings)\n`;
     for (const [dotKey, entries] of byMarker) {
@@ -315,7 +314,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
       }
     }
     if (diag.proceduresNote) ctx += `Major procedures / organ changes: ${diag.proceduresNote}\n`;
-    const interpretationFlagLabels = {
+    const interpretationFlagLabels: Record<string, string> = {
       lowMuscleMass: 'Low muscle mass / creatinine may be unreliable',
       hormoneTherapy: 'Hormone therapy / TRT / hormonal contraception',
       postmenopause: 'Postmenopause / no active cycle',
@@ -333,7 +332,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   // ── 7. Supplements & Medications ──
   const allSupps = state.importedData.supplements || [];
   const relevantSupps = [...new Set([...getCurrentSupplements(allSupps), ...(data?.dates?.length
-    ? getSupplementsOverlappingRange(allSupps, data.dates[0], data.dates[data.dates.length - 1]) : [])])];
+    ? getSupplementsOverlappingRange(allSupps, data.dates[0]!, data.dates[data.dates.length - 1]!) : [])])];
   const supps = supplementContextMode === 'detail' ? allSupps : relevantSupps;
   if (includeSupplementsMeds && allSupps.length > 0) {
     ctx += `[section:supplements]\n## Supplements & Medications\n`;
@@ -341,7 +340,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
       mode: supplementContextMode,
       queryText,
       inventorySupplements: allSupps,
-      historyRange: data?.dates?.length ? { start: data.dates[0], end: data.dates[data.dates.length - 1] } : undefined,
+      historyRange: data?.dates?.length ? { start: data.dates[0]!, end: data.dates[data.dates.length - 1]! } : undefined,
     });
     const mitochondrialEvidence = buildMitochondrialEvidenceContext(supps);
     if (mitochondrialEvidence) ctx += `\n${mitochondrialEvidence}`;
@@ -363,7 +362,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     }
     if (bio?.weight?.length) {
       const sorted = [...bio.weight].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-      const latest = sorted[0];
+      const latest = sorted[0]!;
       const latestKg = weightToKilograms(latest.value, latest.unit || 'kg');
       const latestDate = latest.date || 'date not recorded';
       ctx += `Weight (latest recorded ${latestDate}): ${latest.value} ${latest.unit}`;
@@ -376,14 +375,14 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     }
     if (bio?.bp?.length) {
       const sorted = [...bio.bp].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-      const latest = sorted[0];
+      const latest = sorted[0]!;
       const latestDate = latest.date || 'date not recorded';
       ctx += `Blood Pressure (latest recorded ${latestDate}): ${latest.sys}/${latest.dia} mmHg`;
       ctx += '\n';
     }
     if (bio?.pulse?.length) {
       const sorted = [...bio.pulse].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-      const latest = sorted[0];
+      const latest = sorted[0]!;
       const latestDate = latest.date || 'date not recorded';
       ctx += `Resting Pulse (latest recorded ${latestDate}): ${latest.value} bpm`;
       ctx += '\n';
@@ -426,9 +425,9 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   if (includeInsightCards && mc && state.profileSex === 'female') {
     const regLabel = mc.regularity === 'very_irregular' ? 'very irregular' : mc.regularity || 'regular';
     ctx += `[section:menstrualCycle]\n## Menstrual Cycle\n`;
-    const statusCtx = { perimenopause: 'Status: Perimenopause (irregular/transitional).', postmenopause: 'Status: Postmenopause (no active cycle).', pregnant: 'Status: Currently pregnant.', breastfeeding: 'Status: Currently breastfeeding (postpartum).', absent: 'Status: No active menstrual cycle.' };
-    if (mc.cycleStatus && statusCtx[mc.cycleStatus]) {
-      ctx += statusCtx[mc.cycleStatus];
+    const statusCtx: Record<string, string> = { perimenopause: 'Status: Perimenopause (irregular/transitional).', postmenopause: 'Status: Postmenopause (no active cycle).', pregnant: 'Status: Currently pregnant.', breastfeeding: 'Status: Currently breastfeeding (postpartum).', absent: 'Status: No active menstrual cycle.' };
+    if (mc.cycleStatus && statusCtx[mc.cycleStatus as string]) {
+      ctx += statusCtx[mc.cycleStatus as string];
     } else {
       ctx += `Profile: ${mc.cycleLength || 28}-day cycle (${mc.periodLength || 5}-day period), ${regLabel}, ${mc.flow || 'moderate'} flow.`;
     }
@@ -449,7 +448,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     }
     const summary = mc.historySummary;
     if (summary.recent12?.avgCycle || summary.recent12?.range || summary.recent12?.heavyRate != null) {
-      const parts = [];
+      const parts: string[] = [];
       if (summary.recent12.avgCycle) parts.push(`avg ${summary.recent12.avgCycle}d`);
       if (summary.recent12.range) parts.push(`range ${summary.recent12.range[0]}-${summary.recent12.range[1]}d`);
       if (summary.recent12.variability) parts.push(`${summary.recent12.variability} variability`);
@@ -457,7 +456,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
       ctx += `Recent 12 cycles: ${parts.join(', ')}.\n`;
     }
     if (summary.last12Months?.avgCycle || summary.last12Months?.variability || summary.allTime?.periodCount) {
-      const parts = [];
+      const parts: string[] = [];
       if (summary.last12Months?.avgCycle) parts.push(`last 12 months avg ${summary.last12Months.avgCycle}d`);
       if (summary.last12Months?.variability) parts.push(`${summary.last12Months.variability} variability`);
       if (summary.allTime?.avgCycle) parts.push(`all-time avg ${summary.allTime.avgCycle}d across ${summary.allTime.periodCount || 0} periods`);
@@ -468,7 +467,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     }
     const periods = recentCyclePeriods(mc, 12);
     if (periods.length > 0) {
-      const fmtD = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const fmtD = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       ctx += `Recent periods: ${periods.map(p => {
         let desc = `${fmtD(p.startDate)}-${fmtD(p.endDate)} (${p.flow})`;
         if (p.symptoms?.length) desc += ` [${p.symptoms.join(', ')}]`;
@@ -520,7 +519,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     && (ignoreContextToggles || !!nutritionHistoryLabel || Number(nutritionWindow?.meals || 0) > 0);
   if (includeInsightCards && hasCardContent(diet)) {
     ctx += `[section:diet]\n## Diet & Digestion\n`;
-    const parts = [];
+    const parts: string[] = [];
     if (diet.type) parts.push(`Type: ${diet.type}`);
     if (diet.pattern) parts.push(`Pattern: ${diet.pattern}`);
     if (diet.proteinIntake) parts.push(`Usual self-reported protein intake: ${diet.proteinIntake}`);
@@ -537,7 +536,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
       if (diet.dinner) ctx += `Dinner${diet.dinnerTime ? ' (' + formatTime(diet.dinnerTime) + ')' : ''}: ${diet.dinner}\n`;
       if (diet.snacks) ctx += `Snacks${diet.snacksTime ? ' (' + formatTime(diet.snacksTime) + ')' : ''}: ${diet.snacks}\n`;
     }
-    const dParts = [];
+    const dParts: string[] = [];
     if (diet.bowelFrequency) dParts.push(`Bowel frequency: ${diet.bowelFrequency}`);
     if (diet.stoolConsistency) dParts.push(`Stool consistency: ${diet.stoolConsistency}`);
     if (diet.bloating) dParts.push(`Bloating: ${diet.bloating}`);
@@ -566,7 +565,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   const ex = state.importedData.exercise;
   if (includeInsightCards && hasCardContent(ex)) {
     ctx += `[section:exercise]\n## Exercise & Movement\n`;
-    const parts = [];
+    const parts: string[] = [];
     if (ex.frequency) parts.push(`Frequency: ${ex.frequency}`);
     if (ex.types && ex.types.length) parts.push(`Types: ${ex.types.join(', ')}`);
     if (ex.intensity) parts.push(`Intensity: ${ex.intensity}`);
@@ -583,7 +582,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   const sl = state.importedData.sleepRest;
   if (includeInsightCards && hasCardContent(sl)) {
     ctx += `[section:sleepRest]\n## Sleep & Rest\n`;
-    const parts = [];
+    const parts: string[] = [];
     if (sl.duration) parts.push(`Duration: ${sl.duration}`);
     if (sl.quality) parts.push(`Quality: ${sl.quality}`);
     if (sl.daytimeSleepiness) parts.push(`Daytime sleepiness: ${sl.daytimeSleepiness}`);
@@ -609,7 +608,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   const autoLat = getLatitudeFromLocation();
   if ((ignoreContextToggles || isLightSunContextEnabled()) && (lc || autoLat)) {
     ctx += `[section:lightCircadian]\n## Light & Circadian\n`;
-    const parts = [];
+    const parts: string[] = [];
     if (lc) {
       if (lc.amLight) parts.push(`Morning light: ${lc.amLight}`);
       if (lc.daytime) parts.push(`Daytime outdoor: ${lc.daytime}`);
@@ -634,7 +633,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   const st = state.importedData.stress;
   if (includeInsightCards && hasCardContent(st)) {
     ctx += `[section:stress]\n## Stress\n`;
-    const parts = [];
+    const parts: string[] = [];
     if (st.level) parts.push(`Level: ${st.level}`);
     if (st.duration) parts.push(`Duration: ${st.duration}`);
     if (st.trend) parts.push(`Trend: ${st.trend}`);
@@ -649,7 +648,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   const ll = state.importedData.loveLife;
   if (includeInsightCards && hasCardContent(ll)) {
     ctx += `[section:loveLife]\n## Love Life & Sexual Health\n`;
-    const parts = [];
+    const parts: string[] = [];
     if (ll.status) parts.push(`Status: ${ll.status}`);
     if (ll.relationship) parts.push(`Relationship quality: ${ll.relationship}`);
     if (ll.satisfaction) parts.push(`Satisfaction: ${ll.satisfaction}`);
@@ -668,7 +667,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   const env = state.importedData.environment;
   if (includeInsightCards && hasCardContent(env)) {
     ctx += `[section:environment]\n## Environment\n`;
-    const parts = [];
+    const parts: string[] = [];
     if (env.setting) parts.push(`Setting: ${env.setting}`);
     if (env.climate) parts.push(`Climate: ${env.climate}`);
     if (env.altitude) parts.push(`Altitude exposure: ${env.altitude}`);
@@ -692,15 +691,15 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   if (includeInsightCards && emf && emf.assessments && emf.assessments.length > 0) {
     ctx += `[section:emfAssessment]\n### EMF Assessment (Baubiologie SBM-2015)\n`;
     const sorted = [...emf.assessments].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    const latest = sorted[0];
+    const latest = sorted[0]!;
     ctx += `Assessment: ${fmtDate(latest.date)}${latest.label ? ' (' + latest.label + ')' : ''}${latest.consultant ? ' by ' + latest.consultant : ''}\n`;
     for (const room of latest.rooms) {
       const sleeping = room.sleeping !== false;
       ctx += `  ${room.name}${room.location ? ' (' + room.location + ')' : ''}${sleeping ? ' [sleeping area]' : ''}:\n`;
-      for (const [type, m] of Object.entries(room.measurements || {})) {
+      for (const [type, m] of Object.entries((room.measurements || {}) as Record<string, { value?: number | null; unit?: unknown } | null>)) {
         if (m && m.value != null) {
           const sev = getEMFSeverity(type, m.value, sleeping);
-          const def = SBM_2015_THRESHOLDS[type];
+          const def = SBM_2015_THRESHOLDS[type]!;
           ctx += `    ${def.name}: ${m.value} ${m.unit}${sev ? ' — ' + sev.label : ''}\n`;
         }
       }

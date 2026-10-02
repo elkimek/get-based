@@ -1,7 +1,9 @@
-// @ts-check
+interface LensChunk { text?: unknown; source?: unknown }
+interface LensResult { chunks?: LensChunk[] | null; sourceName?: unknown }
+
 // Exact context receipts, change narration, and Lens prompt injection.
 
-export function summarizeChange(prev, curr) {
+export function summarizeChange(prev: unknown, curr: unknown) {
   if (prev == null && curr == null) return null;
   if (prev == null) return 'added';
   if (curr == null) return 'cleared';
@@ -9,12 +11,12 @@ export function summarizeChange(prev, curr) {
     const previous = (prev || '').toString().slice(0, 60);
     const current = (curr || '').toString().slice(0, 60);
     if (previous === current) return null;
-    return `changed${previous ? ' (was: "' + previous + (prev.length > 60 ? '…' : '') + '")' : ''}`;
+    return `changed${previous ? ' (was: "' + previous + ((prev as { length: number }).length > 60 ? '…' : '') + '")' : ''}`;
   }
   if (Array.isArray(curr)) {
     const previousLength = Array.isArray(prev) ? prev.length : 0;
     if (curr.length > previousLength) {
-      const added = curr.slice(previousLength).map(goal => goal.text || JSON.stringify(goal)).join(', ');
+      const added = (curr as { text?: unknown }[]).slice(previousLength).map(goal => goal.text || JSON.stringify(goal)).join(', ');
       return `added: ${added}`;
     }
     if (curr.length < previousLength) {
@@ -23,12 +25,12 @@ export function summarizeChange(prev, curr) {
     }
     return 'updated';
   }
-  const changes = [];
+  const changes: string[] = [];
   const allKeys = new Set([...Object.keys(prev || {}), ...Object.keys(curr || {})]);
   for (const key of allKeys) {
     if (key === 'note') continue;
-    const previousValue = prev?.[key];
-    const currentValue = curr?.[key];
+    const previousValue = (prev as Record<string, unknown> | null | undefined)?.[key];
+    const currentValue = (curr as Record<string, unknown> | null | undefined)?.[key];
     if (JSON.stringify(previousValue) === JSON.stringify(currentValue)) continue;
     if (previousValue == null || (Array.isArray(previousValue) && previousValue.length === 0)) {
       const value = Array.isArray(currentValue) ? currentValue.join(', ') : currentValue;
@@ -49,7 +51,7 @@ export function summarizeChange(prev, curr) {
 const LENS_PROMPT_CHUNK_CHAR_LIMIT = 1800;
 const LENS_PROMPT_CHUNK_TOTAL_LIMIT = 8000;
 
-function trimLensTextForPrompt(text, remainingBudget) {
+function trimLensTextForPrompt(text: unknown, remainingBudget: number) {
   const raw = String(text || '').replace(/\s+/g, ' ').trim();
   if (!raw) return '';
   const limit = Math.max(0, Math.min(LENS_PROMPT_CHUNK_CHAR_LIMIT, remainingBudget));
@@ -60,13 +62,13 @@ function trimLensTextForPrompt(text, remainingBudget) {
   return raw.slice(0, limit - suffix.length).trimEnd() + suffix;
 }
 
-function trimLensSourceForPrompt(source) {
+function trimLensSourceForPrompt(source: unknown) {
   return String(source || '').replace(/\s+/g, ' ').trim().slice(0, 200);
 }
 
-export function injectLensChunks(context, lensResult) {
+export function injectLensChunks(context: string, lensResult: LensResult | null | undefined) {
   if (!lensResult || !Array.isArray(lensResult.chunks) || !lensResult.chunks.length) return context;
-  const snippet = formatLensChunks(lensResult);
+  const snippet = formatLensChunks(lensResult as LensResult & { chunks: LensChunk[] });
   const openTag = '[section:interpretiveLens]';
   const closeTag = '[/section:interpretiveLens]';
   const closeIndex = context.indexOf(closeTag);
@@ -77,7 +79,7 @@ export function injectLensChunks(context, lensResult) {
   return block + context;
 }
 
-function formatLensChunks(result) {
+function formatLensChunks(result: LensResult & { chunks: LensChunk[] }) {
   const sourceName = trimLensSourceForPrompt(result.sourceName) || 'Lens';
   const lines = [
     `### Retrieved from your knowledge source (${sourceName}):`,

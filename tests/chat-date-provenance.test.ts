@@ -1,9 +1,10 @@
+import type { ActiveMarker } from "../js/data-view-types.js";
 import { describe, expect, it } from 'vitest';
 
 import { formatLabDateAge } from '../js/lab-context.js';
 import { formatMarkerValuesForChat } from '../js/marker-analysis.js';
 
-function marker(overrides = {}) {
+function marker(overrides: Partial<ActiveMarker> = {}) {
   return {
     values: [12],
     unit: 'ng/mL',
