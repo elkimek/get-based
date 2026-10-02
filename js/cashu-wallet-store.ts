@@ -7,7 +7,7 @@ import { isValidExternalUrl } from './url-safety.js';
 import type * as Cashu from '@cashu/cashu-ts';
 import type {
   CashuStorageSdk, CashuWalletStoreCryptoDeps, CashuWalletStoreRuntime, DurableJournal, MintJournal,
-  PreparedSwap, ProofCommit, RecoveryResult, StorageChange, StorageMode, StorageWallet, StoredMeta, StoredProof,
+  PreparedSwap, ProofCommit, RecoveryResult, StorageChange, StorageMode, StorageWallet, StorageSignatureVerifier, StoredMeta, StoredProof,
   SwapContext, SwapJournal, SwapOperation, WalletMintBalance, WalletProof, WalletStorageRows,
 } from './cashu-wallet-storage-types.js';
 
@@ -500,7 +500,7 @@ export async function _recoverPendingSwapUnlocked(recordKey = PENDING_SWAP_KEY) 
     throw new Error('Mint returned incomplete recovery outputs; local proofs were left untouched');
   }
   const signatures = outputData.map(output => signaturesByOutput.get(output.blindedMessage.B_)!);
-  wallet.validateReturnedSignatures?.(signatures, outputData);
+  (wallet as StorageWallet & StorageSignatureVerifier).validateReturnedSignatures?.(signatures, outputData);
   const recoveredProofs: WalletProof[] = [];
   for (let index = 0; index < outputData.length; index++) {
     const signature = signatures[index]!;

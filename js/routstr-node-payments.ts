@@ -65,14 +65,14 @@ export async function depositExternalTokenToNode(nodeUrl: string, token: string)
   return submitRoutstrDeposit(record);
 }
 
-export async function requestNodeRefund(nodeUrl: string) {
+export async function requestNodeRefund(nodeUrl: unknown): Promise<NodeRefund & { token: string }> {
   nodeUrl = canonicalRoutstrUrl(nodeUrl);
-  const key = getRoutstrSessionKey(nodeUrl);
+  const key = getRoutstrSessionKey(nodeUrl as string);
   if (!key) throw new Error('No credential for this node');
   const pending = await _getMeta('pendingNodeRefund') as NodeRefund | null;
   if (pending && (pending.nodeUrl !== nodeUrl || pending.key !== key)) throw new Error('Recover the existing node refund first');
-  if (pending?.token) return pending;
-  const record = pending || { nodeUrl, key, createdAt: Date.now() };
+  if (pending?.token) return pending as NodeRefund & { token: string };
+  const record = pending || { nodeUrl: nodeUrl as string, key, createdAt: Date.now() };
   // Separate from outgoing Cashu/Lightning journals. A full/locked store fails
   // before money moves. Explicit retry uses the same node/account record.
   await _setMeta('pendingNodeRefund', record);

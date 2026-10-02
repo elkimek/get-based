@@ -1,4 +1,3 @@
-// @ts-check
 // api-routstr.js - Routstr provider adapter and wallet helpers.
 
 import { getErrorMessage } from './caught-error.js';
@@ -28,11 +27,15 @@ const ROUTSTR_PRIVATE_REQUEST_TIMEOUT_MS = 180000;
 const ROUTSTR_PRIVATE_MAX_OUTPUT_TOKENS = 4096;
 const ROUTSTR_SLOW_CONNECTION_THRESHOLD_MS = 45000;
 
-/** @typedef {Window & typeof globalThis & { _routstrAttestation?: any }} RoutstrApiWindow */
-const apiWindow = /** @type {RoutstrApiWindow} */ (typeof window !== 'undefined' ? window : {});
+import type { CatalogModel } from './api-models.js';
+import type { ProviderRequestOptions } from './api-openai-compatible.js';
+interface RoutstrCatalogModel extends CatalogModel {
+  architecture?: { modality?: string; input_modalities?: string[] };
+}
+type RoutstrApiWindow = Window & typeof globalThis & { _routstrAttestation?: unknown };
+const apiWindow = (typeof window !== 'undefined' ? window : {}) as RoutstrApiWindow;
 
-/** @param {unknown} error @param {number} elapsedMs @param {string} modelId */
-function privateRequestError(error, elapsedMs, modelId) {
+function privateRequestError(error: unknown, elapsedMs: number, modelId: string) {
   const message = error instanceof Error ? error.message : String(error || 'Unknown error');
   const slowConnectionEnded = elapsedMs >= ROUTSTR_SLOW_CONNECTION_THRESHOLD_MS
     && /Cannot reach Routstr API:\s*(Failed to fetch|NetworkError)/i.test(message);
@@ -49,7 +52,7 @@ export async function fetchRoutstrModels() {
     const nodeUrl = _requireNodeUrl();
     const res = await fetch(nodeUrl + '/v1/models');
     if (!res.ok) return [];
-    const json = await res.json();
+    const json = await res.json() as { data?: RoutstrCatalogModel[] };
     const enabled = (json.data || []).filter(function(m) { return m.id && modelMetadataIsAvailable(m); });
     const privateModels = enabled.filter(function(m) { return isRoutstrTinfoilModel(m.id); })
       .sort(function(a, b) { return (a.name || a.id).localeCompare(b.name || b.id); });
@@ -68,7 +71,7 @@ export async function fetchRoutstrModels() {
       if (aRec !== bRec) return aRec ? -1 : 1;
       return (a.name || a.id).localeCompare(b.name || b.id);
     });
-    const pricingCache = {};
+    const pricingCache: Record<string, { input: number; output: number }> = {};
     for (const m of [...models, ...privateModels]) {
       if (m.pricing && m.pricing.prompt && m.pricing.completion) {
         pricingCache[m.id] = {
@@ -99,7 +102,7 @@ export async function fetchRoutstrModels() {
   }
 }
 
-export async function validateRoutstrKey(key) {
+export async function validateRoutstrKey(key: string) {
   if (key.startsWith('cashu:')) key = key.slice(6);
   if (!key.startsWith('sk-') && !key.startsWith('cashu')) {
     return { valid: false, error: 'Key should start with sk-... (session key) or cashu... (eCash token)' };
@@ -117,7 +120,7 @@ function _requireNodeUrl() {
   return url.replace(/\/$/, '');
 }
 
-export async function callRoutstrAPI(opts) {
+export async function callRoutstrAPI(opts: ProviderRequestOptions) {
   const key = getRoutstrKey();
   if (!key) throw new Error('No Routstr key configured. Fund your wallet and connect to a node in Settings.');
   const nodeUrl = _requireNodeUrl();
@@ -149,7 +152,7 @@ export async function callRoutstrAPI(opts) {
           webSearch: false,
           requestRetries: 0,
           requestTimeoutMs: opts.requestTimeoutMs || ROUTSTR_PRIVATE_REQUEST_TIMEOUT_MS,
-        },
+        } as ProviderRequestOptions,
         { 'X-Routstr-Model': modelId },
         {
           useProxy: false,
@@ -174,7 +177,7 @@ export async function callRoutstrAPI(opts) {
   );
 }
 
-export async function createRoutstrAccount(cashuToken) {
+export async function createRoutstrAccount(cashuToken: string) {
   const { depositTokenToNode } = await import('./cashu-wallet.js');
   return depositTokenToNode(_requireNodeUrl(), cashuToken);
 }
@@ -188,7 +191,7 @@ export async function getRoutstrBalance() {
       cache: 'no-store'
     });
     if (!res.ok) return null;
-    const json = await res.json();
+    const json = await res.json() as { balance?: number | null; total_requests?: number; total_spent?: number };
     if (json.balance != null) {
       return {
         sats: Math.floor(json.balance / 1000),

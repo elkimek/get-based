@@ -526,3 +526,9 @@ deploy/profile-share/data/
 /js/api-ppq.js
 /js/routstr-node-payments.js
 /js/routstr-model-cache.js
+
+# Native Cashu protocol orchestration
+/js/cashu-wallet.js
+/js/cashu-wallet-transfers.js
+/js/cashu-wallet-runtime-types.js
+/js/api-routstr.js

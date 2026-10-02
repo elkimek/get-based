@@ -9,7 +9,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 821 |
+| Modules | 822 |
 | Internal import edges | 3515 |
 | Dynamic internal edges | 119 |
 | Modules participating in cycles | 0 |
@@ -150,11 +150,11 @@ Native browser modules shipped with the static application.
 - [`js/api-ppq.ts`](js/api-ppq.ts) → [`js/api-models.ts`](js/api-models.ts), [`js/api-openai-compatible.ts`](js/api-openai-compatible.ts), [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/caught-error.ts`](js/caught-error.ts)
 - [`js/api-provider-storage-runtime.ts`](js/api-provider-storage-runtime.ts) → [`js/chat-runtime.ts`](js/chat-runtime.ts)
 - [`js/api-provider-storage.ts`](js/api-provider-storage.ts) → [`js/api-provider-storage-runtime.ts`](js/api-provider-storage-runtime.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts), [`js/routstr-session.ts`](js/routstr-session.ts)
-- [`js/api-routstr.js`](js/api-routstr.js) → [`js/api-models.ts`](js/api-models.ts), [`js/api-openai-compatible.ts`](js/api-openai-compatible.ts), [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/cashu-wallet.js`](js/cashu-wallet.js) *(dynamic)*, [`js/caught-error.ts`](js/caught-error.ts), [`js/routstr-balance-settlement.ts`](js/routstr-balance-settlement.ts), [`js/tinfoil-secure-fetch.ts`](js/tinfoil-secure-fetch.ts) *(dynamic)*
+- [`js/api-routstr.ts`](js/api-routstr.ts) → [`js/api-models.ts`](js/api-models.ts), [`js/api-openai-compatible.ts`](js/api-openai-compatible.ts), [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/cashu-wallet.ts`](js/cashu-wallet.ts) *(dynamic)*, [`js/caught-error.ts`](js/caught-error.ts), [`js/routstr-balance-settlement.ts`](js/routstr-balance-settlement.ts), [`js/tinfoil-secure-fetch.ts`](js/tinfoil-secure-fetch.ts) *(dynamic)*
 - [`js/api-runtime.ts`](js/api-runtime.ts) → no in-scope imports
 - [`js/api-transport.ts`](js/api-transport.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/api-venice.ts`](js/api-venice.ts) → [`js/api-models.ts`](js/api-models.ts), [`js/api-openai-compatible.ts`](js/api-openai-compatible.ts), [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/api-transport.ts`](js/api-transport.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts)
-- [`js/api.js`](js/api.js) → [`js/api-custom.ts`](js/api-custom.ts) *(dynamic)*, [`js/api-local.ts`](js/api-local.ts) *(dynamic)*, [`js/api-models.ts`](js/api-models.ts), [`js/api-openrouter-oauth.ts`](js/api-openrouter-oauth.ts), [`js/api-openrouter.ts`](js/api-openrouter.ts) *(dynamic)*, [`js/api-ppq.ts`](js/api-ppq.ts) *(dynamic)*, [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/api-routstr.js`](js/api-routstr.js) *(dynamic)*, [`js/api-transport.ts`](js/api-transport.ts), [`js/api-venice.ts`](js/api-venice.ts) *(dynamic)*, [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js) *(dynamic)*
+- [`js/api.js`](js/api.js) → [`js/api-custom.ts`](js/api-custom.ts) *(dynamic)*, [`js/api-local.ts`](js/api-local.ts) *(dynamic)*, [`js/api-models.ts`](js/api-models.ts), [`js/api-openrouter-oauth.ts`](js/api-openrouter-oauth.ts), [`js/api-openrouter.ts`](js/api-openrouter.ts) *(dynamic)*, [`js/api-ppq.ts`](js/api-ppq.ts) *(dynamic)*, [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/api-routstr.ts`](js/api-routstr.ts) *(dynamic)*, [`js/api-transport.ts`](js/api-transport.ts), [`js/api-venice.ts`](js/api-venice.ts) *(dynamic)*, [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js) *(dynamic)*
 
 </details>
 
@@ -263,13 +263,14 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>cashu</code> family — 5 modules</summary>
+<details><summary><code>cashu</code> family — 6 modules</summary>
 
 - [`js/cashu-funding-coordinator.js`](js/cashu-funding-coordinator.js) → no in-scope imports
+- [`js/cashu-wallet-runtime-types.ts`](js/cashu-wallet-runtime-types.ts) → no in-scope imports
 - [`js/cashu-wallet-storage-types.ts`](js/cashu-wallet-storage-types.ts) → no in-scope imports
 - [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/cashu-wallet-transfers.js`](js/cashu-wallet-transfers.js) → [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/routstr-node-payments.ts`](js/routstr-node-payments.ts), [`js/routstr-session.ts`](js/routstr-session.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts)
-- [`js/cashu-wallet.js`](js/cashu-wallet.js) → [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts), [`js/cashu-wallet-transfers.js`](js/cashu-wallet-transfers.js), [`js/caught-error.ts`](js/caught-error.ts), [`js/crypto.ts`](js/crypto.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/cashu-wallet-transfers.ts`](js/cashu-wallet-transfers.ts) → [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/routstr-node-payments.ts`](js/routstr-node-payments.ts), [`js/routstr-session.ts`](js/routstr-session.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts)
+- [`js/cashu-wallet.ts`](js/cashu-wallet.ts) → [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts), [`js/cashu-wallet-transfers.ts`](js/cashu-wallet-transfers.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/crypto.ts`](js/crypto.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 
@@ -594,7 +595,7 @@ Native browser modules shipped with the static application.
 - [`js/export-report-sections.js`](js/export-report-sections.js) → [`js/export-report-aggregates.js`](js/export-report-aggregates.js), [`js/light-tools-ai-analysis.js`](js/light-tools-ai-analysis.js) *(dynamic)*, [`js/nutrition-nutrient-registry.ts`](js/nutrition-nutrient-registry.ts), [`js/nutrition-store.js`](js/nutrition-store.js) *(dynamic)*, [`js/sun-spectrum.js`](js/sun-spectrum.js), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts), [`js/wearables-store.ts`](js/wearables-store.ts) *(dynamic)*
 - [`js/export-report-summary-html.js`](js/export-report-summary-html.js) → [`js/export-report-data.js`](js/export-report-data.js), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/export-report.js`](js/export-report.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/api.js`](js/api.js), [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js), [`js/cycle.js`](js/cycle.js), [`js/data.js`](js/data.js), [`js/dna-evidence.js`](js/dna-evidence.js), [`js/export-report-data.js`](js/export-report-data.js), [`js/export-report-sections.js`](js/export-report-sections.js), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/profile.js`](js/profile.js), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils.ts`](js/utils.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts)
-- [`js/export-runtime.js`](js/export-runtime.js) → [`js/cashu-wallet.js`](js/cashu-wallet.js) *(dynamic)*, [`js/crypto.ts`](js/crypto.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts)
+- [`js/export-runtime.js`](js/export-runtime.js) → [`js/cashu-wallet.ts`](js/cashu-wallet.ts) *(dynamic)*, [`js/crypto.ts`](js/crypto.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts)
 - [`js/export.js`](js/export.js) → [`js/caught-error.ts`](js/caught-error.ts), [`js/clear-all-profile-reset.ts`](js/clear-all-profile-reset.ts), [`js/context-cards.js`](js/context-cards.js) *(dynamic)*, [`js/crypto.ts`](js/crypto.ts), [`js/custom-marker-identity.ts`](js/custom-marker-identity.ts), [`js/data.js`](js/data.js), [`js/demo-biology-data.js`](js/demo-biology-data.js), [`js/demo-nutrition.js`](js/demo-nutrition.js), [`js/export-import.js`](js/export-import.js) *(dynamic)*, [`js/export-report-builder.js`](js/export-report-builder.js) *(dynamic)*, [`js/export-report-html.js`](js/export-report-html.js), [`js/export-report.js`](js/export-report.js), [`js/export-runtime.js`](js/export-runtime.js), [`js/lab-entry-mutations.ts`](js/lab-entry-mutations.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/nostr-discovery.js`](js/nostr-discovery.js), [`js/nutrition-store.js`](js/nutrition-store.js) *(dynamic)*, [`js/profile-storage-cleanup.ts`](js/profile-storage-cleanup.ts), [`js/profile.js`](js/profile.js), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/sync.js`](js/sync.js) *(dynamic)*, [`js/utils.ts`](js/utils.ts)
 
 </details>
@@ -1032,7 +1033,7 @@ Native browser modules shipped with the static application.
 - [`js/provider-wallet-panel-buttons.js`](js/provider-wallet-panel-buttons.js) → [`js/utils.ts`](js/utils.ts)
 - [`js/provider-wallet-panel-renderers.js`](js/provider-wallet-panel-renderers.js) → [`js/utils.ts`](js/utils.ts)
 - [`js/provider-wallet-panels.js`](js/provider-wallet-panels.js) → [`js/agent-chat-settings.js`](js/agent-chat-settings.js), [`js/api.js`](js/api.js), [`js/caught-error.ts`](js/caught-error.ts), [`js/provider-wallet-delegates.js`](js/provider-wallet-delegates.js), [`js/provider-wallet-funding-recovery.js`](js/provider-wallet-funding-recovery.js), [`js/provider-wallet-panel-buttons.js`](js/provider-wallet-panel-buttons.js), [`js/provider-wallet-panel-renderers.js`](js/provider-wallet-panel-renderers.js), [`js/provider-wallet-runtime.js`](js/provider-wallet-runtime.js), [`js/routstr-balance-settlement.ts`](js/routstr-balance-settlement.ts), [`js/routstr-model-cache.ts`](js/routstr-model-cache.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/provider-wallet-runtime.js`](js/provider-wallet-runtime.js) → [`js/cashu-wallet.js`](js/cashu-wallet.js), [`js/nostr-discovery.js`](js/nostr-discovery.js)
+- [`js/provider-wallet-runtime.js`](js/provider-wallet-runtime.js) → [`js/cashu-wallet.ts`](js/cashu-wallet.ts), [`js/nostr-discovery.js`](js/nostr-discovery.js)
 
 </details>
 

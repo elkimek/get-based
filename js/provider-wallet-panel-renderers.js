@@ -3,6 +3,7 @@
 
 import { escapeHTML, escapeAttr } from './utils.js';
 
+/** @param {string} mint @param {{ balance?: number | null, active?: boolean, accepted?: boolean, action?: string }} [options] */
 export function walletMintRowHtml(mint, { balance = null, active = false, accepted = false, action = 'set-mint-input' } = {}) {
   return `<button type="button" class="routstr-mint-row" data-routstr-wallet-action="${escapeAttr(action)}" data-mint-url="${escapeAttr(mint)}"${action === 'set-mint-input' ? ` aria-pressed="${active}"` : ''}>
     <span class="routstr-mint-row-copy">

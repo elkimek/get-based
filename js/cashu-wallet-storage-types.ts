@@ -6,10 +6,11 @@ export type StoredProof = (WalletProof & { _payload?: null }) | { secret: string
 export interface StoredMeta { key: string; value?: unknown; _payload?: PassphraseEnvelope }
 export interface WalletStorageRows { proofs: StoredProof; 'fee-proofs': StoredProof; meta: StoredMeta }
 export type StorageMode = 'plain' | 'encrypted';
-export type CashuStorageSdk = Pick<typeof Cashu, 'OutputData' | 'Mint'>;
-export type StorageWallet = Pick<Cashu.Wallet, 'ops' | 'prepareMint' | 'completeMint' | 'checkMintQuoteBolt11' | 'groupProofsByState' | 'keyChain'> & {
+export type CashuStorageSdk = Pick<typeof Cashu, 'OutputData' | 'Mint' | 'sumProofs'>;
+export type StorageWallet = Pick<Cashu.Wallet, 'ops' | 'prepareMint' | 'completeMint' | 'checkMintQuoteBolt11' | 'groupProofsByState' | 'keyChain'>;
+export interface StorageSignatureVerifier {
   validateReturnedSignatures?: (signatures: Cashu.SerializedBlindedSignature[], outputs: Cashu.OutputDataLike[]) => void;
-};
+}
 export interface CashuWalletStoreRuntime {
   getMintUrl(): Promise<string>;
   getWallet(mint: string): Promise<StorageWallet>;
