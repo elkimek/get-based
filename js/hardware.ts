@@ -1,4 +1,22 @@
-// @ts-check
+export interface HardwareModel {
+  name: string;
+  size?: unknown;
+  executionLocation?: unknown;
+  vramAllocated?: unknown;
+  contextLength?: unknown;
+}
+export interface HardwareFit {
+  gpu: { vram: number | null; unified?: boolean };
+}
+interface GPUDescription {
+  name: string | null;
+  vram: number | null;
+  unified: boolean;
+  renderer: string | null;
+  source: string;
+}
+interface Fitness { tier: string; note: string }
+
 // hardware.js — GPU detection + model advisor for Local AI settings
 // Pure functions, no DOM manipulation, no app imports
 
@@ -98,7 +116,7 @@ export function getHardwareOverride() {
   } catch { return null; }
 }
 
-export function saveHardwareOverride(vram) {
+export function saveHardwareOverride(vram: unknown) {
   if (vram === null || vram === undefined) {
     localStorage.removeItem(LS_KEY);
   } else {
@@ -106,14 +124,14 @@ export function saveHardwareOverride(vram) {
   }
 }
 
-function detectGPU() {
+function detectGPU(): GPUDescription {
   try {
     const canvas = document.createElement('canvas');
     const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
     if (!gl) return { name: null, vram: null, unified: false, renderer: null, source: 'unavailable' };
     const ext = gl.getExtension('WEBGL_debug_renderer_info');
     if (!ext) return { name: null, vram: null, unified: false, renderer: null, source: 'blocked' };
-    const renderer = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '';
+    const renderer = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) as string || '';
     const upper = renderer.toUpperCase();
     for (const entry of GPU_DB) {
       if (upper.includes(entry.match.toUpperCase())) {
@@ -134,7 +152,7 @@ export async function detectHardware() {
     gpu.vram = override;
     gpu.source = 'manual';
   }
-  const nav = /** @type {Navigator & { deviceMemory?: number }} */ (navigator);
+  const nav = (navigator as Navigator & { deviceMemory?: number });
   return {
     gpu,
     ram: { gb: nav.deviceMemory || null, source: nav.deviceMemory ? 'deviceMemory' : 'unknown' },
@@ -142,7 +160,7 @@ export async function detectHardware() {
   };
 }
 
-export function assessModel(modelObj, hardware) {
+export function assessModel(modelObj: HardwareModel, hardware: HardwareFit) {
   // Cloud models run on Ollama's servers — no local VRAM needed
   if (modelObj.executionLocation === 'cloud' || /(?:^|[/:_.-])cloud(?:$|[/:_.-])/i.test(modelObj.name || '')) {
     return { tier: 'cloud', badge: '\u2601', vramNeeded: 0, label: 'Cloud' };
@@ -264,7 +282,7 @@ const MODEL_FITNESS = [
 // Sort by match length descending for specificity
 MODEL_FITNESS.sort((a, b) => b.match.length - a.match.length);
 
-export function assessFitness(modelName) {
+export function assessFitness(modelName: string | null | undefined): Fitness | null {
   if (!modelName) return null;
   // Normalize: strip org prefix (owner/model), LM Studio "-" → Ollama ":"
   const lower = modelName.toLowerCase().replace(/^[^/]*\//, '').replace(/^(.+?)[-:](\d+\.?\d*b)/, '$1:$2');
@@ -276,7 +294,7 @@ export function assessFitness(modelName) {
   }
   // Extract parameter count from name if present (e.g. "qwen3.5:0.8b", "Jan-v3-4b")
   const paramMatch = lower.match(/[\-:](\d+\.?\d*)b/);
-  const params = paramMatch ? parseFloat(paramMatch[1]) : 0;
+  const params = paramMatch ? parseFloat(paramMatch[1]!) : 0;
   // Fallback: if model has :latest or unknown size tag, try matching just the family
   // e.g. "qwen3.5:latest" → look for any qwen3.5 entry
   const family = lower.split(':')[0];
@@ -284,7 +302,7 @@ export function assessFitness(modelName) {
   if (familyEntries.length > 0 && !params) {
     const bestTier = Math.max(...familyEntries.map(e => TIER_RANK[e.tier] || 0));
     // Cap at "capable" since we don't know the actual size
-    const cappedRank = Math.min(bestTier, TIER_RANK.capable);
+    const cappedRank = Math.min(bestTier, TIER_RANK.capable!);
     const tierName = Object.entries(TIER_RANK).find(([, v]) => v === cappedRank)?.[0] || 'capable';
     return { tier: tierName, note: 'Depends on model size — pull a specific variant (e.g. :14b) for best results' };
   }
@@ -298,9 +316,9 @@ export function assessFitness(modelName) {
   return null; // unknown model family
 }
 
-const TIER_RANK = { recommended: 4, capable: 3, underpowered: 2, inadequate: 1 };
+const TIER_RANK: Record<string, number> = { recommended: 4, capable: 3, underpowered: 2, inadequate: 1 };
 
-export function getBestModel(modelDetails, hardware) {
+export function getBestModel(modelDetails: readonly HardwareModel[], hardware: HardwareFit | null | undefined) {
   const candidates = modelDetails.map(m => {
     const fitness = assessFitness(m.name);
     const vram = hardware ? assessModel(m, hardware) : null;
@@ -356,7 +374,7 @@ const MODEL_CATALOG = [
 ];
 
 // Returns a suggestion to pull a better model, or null if the user already has a recommended one
-export function getUpgradeSuggestion(modelDetails, hardware) {
+export function getUpgradeSuggestion(modelDetails: readonly HardwareModel[], hardware: HardwareFit | null | undefined) {
   const best = getBestModel(modelDetails, hardware);
   // Already has a recommended model that fits? No upgrade needed
   if (best && best.fitness && best.fitness.tier === 'recommended') return null;
@@ -365,23 +383,23 @@ export function getUpgradeSuggestion(modelDetails, hardware) {
   const isUnified = hardware?.gpu?.unified;
   const usable = isUnified ? vram * 0.75 : vram;
   // Find the best catalog model that fits and is better than what user has
-  const bestRank = best ? TIER_RANK[best.fitness?.tier] || 0 : 0;
+  const bestRank = best ? TIER_RANK[best.fitness?.tier!] || 0 : 0;
   const candidates = MODEL_CATALOG
     .filter(c => {
       const vramNeeded = c.sizeGb * 1.15;
       const fits = vramNeeded <= usable;
-      const betterTier = TIER_RANK[c.tier] > bestRank;
+      const betterTier = TIER_RANK[c.tier]! > bestRank;
       return fits && betterTier;
     })
     .sort((a, b) => {
       // Prefer higher tier, then higher quality within same tier
-      const tierDiff = TIER_RANK[b.tier] - TIER_RANK[a.tier];
+      const tierDiff = TIER_RANK[b.tier]! - TIER_RANK[a.tier]!;
       return tierDiff !== 0 ? tierDiff : b.quality - a.quality;
     });
   if (candidates.length === 0) return null;
-  const pick = candidates[0];
+  const pick = candidates[0]!;
   // Don't suggest a model the user already has installed
-  const pickFamily = pick.model.split(':')[0];
+  const pickFamily = pick.model.split(':')[0]!;
   const pickSize = pick.model.split(':')[1] || '';
   if (modelDetails.some(m => m.name.startsWith(pickFamily) && m.name.includes(pickSize))) return null;
   // Build a helpful note
@@ -390,7 +408,7 @@ export function getUpgradeSuggestion(modelDetails, hardware) {
   return { model: pick.model, note };
 }
 
-function vramNeededNote(pick, usableVram, tierLabel) {
+function vramNeededNote(pick: typeof MODEL_CATALOG[number], usableVram: number, tierLabel: string) {
   const vramNeeded = (pick.sizeGb * 1.15).toFixed(0);
   const headroom = Math.round(((usableVram - pick.sizeGb * 1.15) / usableVram) * 100);
   if (pick.tier === 'recommended' && headroom > 30) {
@@ -403,7 +421,7 @@ function vramNeededNote(pick, usableVram, tierLabel) {
 }
 
 // Kept for backward compat with tests
-export function getModelSuggestions(hardware) {
+export function getModelSuggestions(hardware: HardwareFit | null | undefined) {
   const vram = hardware?.gpu?.vram;
   if (!vram) return [];
   const suggestion = getUpgradeSuggestion([], hardware);

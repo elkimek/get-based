@@ -1,3 +1,19 @@
+import type { Mock } from 'vitest';
+
+type ProviderFetchInit = RequestInit & { headers?: Record<string, string>; body?: string };
+type FixtureFetch = (url: string, init: ProviderFetchInit) => Promise<Response>;
+type ProviderTestGlobals = typeof globalThis & {
+  showInsufficientBalanceDialog?: unknown;
+  _veniceE2EE?: unknown; _veniceE2EEKey?: unknown; _veniceE2EEDcapRequired?: unknown;
+  _veniceE2EEGpuRequired?: unknown; _veniceAttestation?: unknown; _routstrAttestation?: unknown;
+  _veniceLastStreamDiagnostics?: unknown;
+};
+interface ProviderContract {
+  name: string; key: string; options?: Record<string, unknown>;
+  setup(): void;
+  assertRequest(request: ReturnType<typeof providerRequestFromFetchCall>): void;
+}
+
 import { largeLocalImportOptions, lmStudioInferenceFixture, lmStudioLoadFixture, lmStudioModel } from './helpers/lmstudio-fixtures.js';
 import { jsonResponse } from './helpers/http-responses.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -123,7 +139,7 @@ function chatCompletionResponse(text = 'contract ok') {
   });
 }
 
-function streamResponse(chunks) {
+function streamResponse(chunks: readonly string[]) {
   const encoder = new TextEncoder();
   return new Response(new ReadableStream({
     start(controller) {
@@ -137,12 +153,12 @@ function streamResponse(chunks) {
 }
 
 function requestFromLastFetch() {
-  const [url, init] = globalThis.fetch.mock.calls.at(-1);
+  const [url, init] = (globalThis.fetch as Mock<FixtureFetch>).mock.calls.at(-1)!;
   return {
     url,
     init,
     headers: init.headers || {},
-    body: init.body ? JSON.parse(init.body) : null,
+    body: init.body ? JSON.parse(init.body!) : null,
   };
 }
 
@@ -178,7 +194,7 @@ function baseChatOptions(overrides = {}) {
   };
 }
 
-function configureVeniceE2EEFixture(key, model) {
+function configureVeniceE2EEFixture(key: string, model: string) {
   setAIProvider('venice');
   updateKeyCache('labcharts-venice-key', key);
   setVeniceE2EE(true);
@@ -227,13 +243,13 @@ beforeEach(() => {
     model: 'llama3.2',
     apiKey: 'local-api-key',
   }));
-  globalThis.showInsufficientBalanceDialog = undefined;
-  delete globalThis._veniceE2EE;
-  delete globalThis._veniceE2EEKey;
-  delete globalThis._veniceE2EEDcapRequired;
-  delete globalThis._veniceE2EEGpuRequired;
-  delete globalThis._veniceAttestation;
-  delete globalThis._routstrAttestation;
+  (globalThis as ProviderTestGlobals).showInsufficientBalanceDialog = undefined;
+  delete (globalThis as ProviderTestGlobals)._veniceE2EE;
+  delete (globalThis as ProviderTestGlobals)._veniceE2EEKey;
+  delete (globalThis as ProviderTestGlobals)._veniceE2EEDcapRequired;
+  delete (globalThis as ProviderTestGlobals)._veniceE2EEGpuRequired;
+  delete (globalThis as ProviderTestGlobals)._veniceAttestation;
+  delete (globalThis as ProviderTestGlobals)._routstrAttestation;
   veniceE2EEMocks.createSession.mockReset();
   veniceE2EEMocks.createSession.mockResolvedValue(veniceE2EEMocks.session);
   veniceE2EEMocks.clearSession.mockReset();
@@ -254,7 +270,7 @@ beforeEach(() => {
   createTinfoilSecureFetchMock.mockReset();
   createTinfoilSecureFetchMock.mockResolvedValue({
     verification: { securityVerified: true, codeFingerprint: 'verified-routstr-code' },
-    fetch: (...args) => globalThis.fetch(...args),
+    fetch: (...args: Parameters<typeof fetch>) => globalThis.fetch(...args),
   });
 });
 
@@ -262,14 +278,14 @@ afterEach(() => {
   configureAppExtension(null);
   globalThis.fetch = realFetch;
   if (realLocationDescriptor) Object.defineProperty(globalThis, 'location', realLocationDescriptor);
-  else delete globalThis.location;
+  else delete (globalThis as { location?: Location }).location;
   clearProviderKeyCaches();
   clearLocalAiDiscovery();
   clearLocalAiRuntimeUse();
   vi.restoreAllMocks();
 });
 
-const providerContracts = [
+const providerContracts: ProviderContract[] = [
   {
     name: 'OpenRouter',
     key: 'sk-or-contract',
@@ -528,7 +544,7 @@ describe('AI provider request contracts', () => {
       }),
     );
 
-    globalThis.fetch.mockClear();
+    (globalThis.fetch as Mock<FixtureFetch>).mockClear();
     const ollamaResult = await releaseLocalAiModels({
       baseUrl: 'http://ollama.test',
       discovery: {
@@ -567,7 +583,7 @@ describe('AI provider request contracts', () => {
       apiKey: '',
     }));
     setOllamaMainModel('ollama-model');
-    const lifecycleEvents = [];
+    const lifecycleEvents: Array<{ action: string; body: unknown }> = [];
     globalThis.fetch = vi.fn(async (url, init = {}) => {
       const href = String(url);
       if (href === 'http://localhost:1234/api/v1/models') {
@@ -580,7 +596,7 @@ describe('AI provider request contracts', () => {
         return jsonResponse({ data: [{ id: 'lm-model' }, { id: 'other-app-model' }] });
       }
       if (href === 'http://localhost:1234/api/v1/models/unload') {
-        lifecycleEvents.push({ action: 'release', body: JSON.parse(init.body) });
+        lifecycleEvents.push({ action: 'release', body: JSON.parse(init.body!) });
         return jsonResponse({ ok: true });
       }
       if (href === 'http://localhost:11434/api/v1/models') return jsonResponse({}, { status: 404 });
@@ -590,7 +606,7 @@ describe('AI provider request contracts', () => {
       }
       if (href === 'http://localhost:11434/api/ps') return jsonResponse({ models: [] });
       if (href === 'http://localhost:11434/api/chat') {
-        lifecycleEvents.push({ action: 'infer', body: JSON.parse(init.body) });
+        lifecycleEvents.push({ action: 'infer', body: JSON.parse(init.body!) });
         return jsonResponse({
           message: { role: 'assistant', content: '{"markers":[]}' },
           done: true,
@@ -609,7 +625,7 @@ describe('AI provider request contracts', () => {
     await callClaudeAPI(taskOptions);
 
     expect(lifecycleEvents.map(event => event.action)).toEqual(['release', 'infer', 'infer']);
-    expect(lifecycleEvents[0].body).toEqual({ instance_id: 'lm-instance' });
+    expect(lifecycleEvents[0]!.body).toEqual({ instance_id: 'lm-instance' });
     expect(sessionStorage.getItem('labcharts-local-ai-runtime-use')).toBeNull();
   });
 
@@ -624,7 +640,7 @@ describe('AI provider request contracts', () => {
       truncated: false,
     });
 
-    const postCalls = globalThis.fetch.mock.calls.filter(([, init]) => init?.method === 'POST');
+    const postCalls = (globalThis.fetch as Mock<FixtureFetch>).mock.calls.filter(([, init]) => init?.method === 'POST');
     expect(postCalls).toHaveLength(1);
     const request = providerRequestFromFetchCall();
     contract.assertRequest(request);
@@ -655,9 +671,9 @@ describe('AI provider request contracts', () => {
         diagnostics: { reasoningControlFallback: true },
       });
 
-      const bodies = globalThis.fetch.mock.calls
+      const bodies = (globalThis.fetch as Mock<FixtureFetch>).mock.calls
         .filter(([, init]) => init?.method === 'POST')
-        .map(([, init]) => JSON.parse(init.body));
+        .map(([, init]) => JSON.parse(init.body!));
       expect(bodies).toHaveLength(2);
       if (contract.name === 'Venice') {
         expect(bodies[0].reasoning).toEqual({ enabled: false });
@@ -694,10 +710,10 @@ describe('AI provider request contracts', () => {
       diagnostics: { structuredOutputFallback: true },
     });
 
-    const postCalls = globalThis.fetch.mock.calls.filter(([, init]) => init?.method === 'POST');
+    const postCalls = (globalThis.fetch as Mock<FixtureFetch>).mock.calls.filter(([, init]) => init?.method === 'POST');
     expect(postCalls).toHaveLength(2);
-    const firstBody = JSON.parse(postCalls[0][1].body);
-    const fallbackBody = JSON.parse(postCalls[1][1].body);
+    const firstBody = JSON.parse(postCalls[0]![1].body!);
+    const fallbackBody = JSON.parse(postCalls[1]![1].body!);
     expect(firstBody.response_format.type).toBe('json_schema');
     expect(fallbackBody).not.toHaveProperty('response_format');
   });
@@ -715,8 +731,8 @@ describe('AI provider request contracts', () => {
 
     await callClaudeAPI(baseChatOptions({ maxTokens: 512, reasoningEffort: 'none' }));
 
-    const postCall = globalThis.fetch.mock.calls.find(([, init]) => init?.method === 'POST');
-    const body = JSON.parse(postCall[1].body);
+    const postCall = (globalThis.fetch as Mock<FixtureFetch>).mock.calls.find(([, init]) => init?.method === 'POST');
+    const body = JSON.parse(postCall![1].body!);
     expect(body.max_tokens).toBe(512);
     expect(body.reasoning_effort).toBe('none');
   });
@@ -742,9 +758,9 @@ describe('AI provider request contracts', () => {
       diagnostics: { structuredOutputFallback: true, reasoningControlFallback: true },
     });
 
-    const bodies = globalThis.fetch.mock.calls
+    const bodies = (globalThis.fetch as Mock<FixtureFetch>).mock.calls
       .filter(([, init]) => init?.method === 'POST')
-      .map(([, init]) => JSON.parse(init.body));
+      .map(([, init]) => JSON.parse(init.body!));
     expect(bodies).toHaveLength(3);
     expect(bodies[0]).toHaveProperty('response_format');
     expect(bodies[1]).not.toHaveProperty('response_format');
@@ -794,7 +810,7 @@ describe('AI provider request contracts', () => {
   });
 
   it('does not send Ollama-only discovery probes to an identified LM Studio server', async () => {
-    const requestedUrls = [];
+    const requestedUrls: string[] = [];
     globalThis.fetch = vi.fn(async url => {
       requestedUrls.push(String(url));
       if (String(url).endsWith('/api/v1/models')) {
@@ -819,7 +835,7 @@ describe('AI provider request contracts', () => {
   });
 
   it('identifies Unsloth Studio and reads loaded vision capability from its authenticated status API', async () => {
-    const requestedUrls = [];
+    const requestedUrls: string[] = [];
     globalThis.fetch = vi.fn(async (url, options = {}) => {
       const href = String(url);
       requestedUrls.push(href);
@@ -881,22 +897,22 @@ describe('AI provider request contracts', () => {
     setAIProvider('ollama');
     setOllamaMainModel('thinkingcap-qwen3.6-27b');
     let loadedCtx = 8192;
-    const lifecycle = [];
+    const lifecycle: Array<[action: string, body: unknown]> = [];
     globalThis.fetch = vi.fn(async (url, init = {}) => {
       const href = String(url);
       if (init.method === 'POST') {
         if (href.endsWith('/api/v1/models/unload')) {
-          lifecycle.push(['unload', JSON.parse(init.body)]);
+          lifecycle.push(['unload', JSON.parse(init.body!)]);
           return jsonResponse({ ok: true });
         }
         if (href.endsWith('/api/v1/models/load')) {
-          const body = JSON.parse(init.body);
+          const body = JSON.parse(init.body!);
           lifecycle.push(['load', body]);
           loadedCtx = body.context_length;
           return jsonResponse({ ok: true });
         }
         if (href.endsWith('/v1/chat/completions')) {
-          lifecycle.push(['chat', JSON.parse(init.body)]);
+          lifecycle.push(['chat', JSON.parse(init.body!)]);
           return chatCompletionResponse('{"markers":[]}');
         }
         throw new Error(`Unexpected POST URL: ${href}`);
@@ -917,12 +933,12 @@ describe('AI provider request contracts', () => {
     // Unload the small-context instance, reload at the planned context, then
     // generate over the streaming-capable compatible endpoint.
     expect(lifecycle.map(([action]) => action)).toEqual(['unload', 'load', 'chat']);
-    expect(lifecycle[0][1]).toEqual({ instance_id: 'thinkingcap-qwen3.6-27b' });
-    expect(lifecycle[1][1]).toEqual({
+    expect(lifecycle[0]![1]).toEqual({ instance_id: 'thinkingcap-qwen3.6-27b' });
+    expect(lifecycle[1]![1]).toEqual({
       model: 'thinkingcap-qwen3.6-27b@q4_k_m',
       context_length: 16384,
     });
-    expect(lifecycle[2][1]).toMatchObject({ model: 'thinkingcap-qwen3.6-27b' });
+    expect(lifecycle[2]![1]).toMatchObject({ model: 'thinkingcap-qwen3.6-27b' });
     expect(result).toMatchObject({
       text: '{"markers":[]}',
       diagnostics: {
@@ -964,8 +980,8 @@ describe('AI provider request contracts', () => {
 
     const result = await callClaudeAPI(baseChatOptions(largeLocalImportOptions()));
 
-    const chatCall = globalThis.fetch.mock.calls.find(([url, init]) => init?.method === 'POST' && String(url).endsWith('/api/v1/chat'));
-    const body = JSON.parse(chatCall[1].body);
+    const chatCall = (globalThis.fetch as Mock<FixtureFetch>).mock.calls.find(([url, init]) => init?.method === 'POST' && String(url).endsWith('/api/v1/chat'));
+    const body = JSON.parse(chatCall![1].body!);
     expect(body).toMatchObject({
       model: 'thinkingcap-qwen3.6-27b',
       context_length: 16384,
@@ -1015,14 +1031,14 @@ describe('AI provider request contracts', () => {
 
   it('refuses to load a second copy when the prior LM Studio instance cannot be unloaded', async () => {
     const loadedDetail = { loaded: true, loadedInstanceId: 'big-model-1', nativeModelKey: 'big-model@q4' };
-    const modelsBody = (loaded) => ({ models: [
+    const modelsBody = (loaded: boolean) => ({ models: [
       lmStudioModel('big-model@q4',
         loaded ? [{ id: 'big-model-1', config: { context_length: 8192 } }] : [],
         { max_context_length: 131072 }),
     ] });
 
     // Unload fails and the server still reports the instance loaded → refuse.
-    globalThis.fetch = vi.fn(async (url, init = {}) => {
+    globalThis.fetch = vi.fn(async (url, _init = {}) => {
       if (String(url).endsWith('/api/v1/models/unload')) return jsonResponse({ error: 'busy' }, { status: 500 });
       if (String(url).endsWith('/api/v1/models/load')) throw new Error('Load must not run while the old instance is resident.');
       if (String(url).endsWith('/api/v1/models')) return jsonResponse(modelsBody(true));
@@ -1031,7 +1047,7 @@ describe('AI provider request contracts', () => {
     await expect(loadLMStudioModelWithContext(lmStudioLoadFixture(loadedDetail))).rejects.toThrow(/could not unload big-model/i);
 
     // Unload fails but the instance is already gone (stale state) → proceed.
-    globalThis.fetch = vi.fn(async (url, init = {}) => {
+    globalThis.fetch = vi.fn(async (url, _init = {}) => {
       if (String(url).endsWith('/api/v1/models/unload')) return jsonResponse({ error: 'not found' }, { status: 404 });
       if (String(url).endsWith('/api/v1/models/load')) return jsonResponse({ ok: true });
       if (String(url).endsWith('/api/v1/models')) return jsonResponse(modelsBody(false));
@@ -1040,7 +1056,7 @@ describe('AI provider request contracts', () => {
     await expect(loadLMStudioModelWithContext(lmStudioLoadFixture(loadedDetail))).resolves.toBe(true);
 
     // Unload fails and discovery cannot verify residency → fail closed.
-    globalThis.fetch = vi.fn(async (url, init = {}) => {
+    globalThis.fetch = vi.fn(async (url, _init = {}) => {
       if (String(url).endsWith('/api/v1/models/unload')) return jsonResponse({ error: 'busy' }, { status: 500 });
       if (String(url).endsWith('/api/v1/models/load')) throw new Error('Load must not run without an authoritative residency check.');
       if (String(url).endsWith('/api/v1/models')) return jsonResponse({ error: 'unavailable' }, { status: 503 });
@@ -1070,22 +1086,22 @@ describe('AI provider request contracts', () => {
     setAIProvider('ollama');
     setOllamaMainModel('new-model-q4');
     let loadedCtx = 0;
-    const lifecycle = [];
+    const lifecycle: Array<[action: string, body: unknown]> = [];
     globalThis.fetch = vi.fn(async (url, init = {}) => {
       const href = String(url);
       if (init.method === 'POST') {
         if (href.endsWith('/api/v1/models/unload')) {
-          lifecycle.push(['unload', JSON.parse(init.body)]);
+          lifecycle.push(['unload', JSON.parse(init.body!)]);
           return jsonResponse({ ok: true });
         }
         if (href.endsWith('/api/v1/models/load')) {
-          const body = JSON.parse(init.body);
+          const body = JSON.parse(init.body!);
           lifecycle.push(['load', body]);
           loadedCtx = body.context_length;
           return jsonResponse({ ok: true });
         }
         if (href.endsWith('/v1/chat/completions')) {
-          lifecycle.push(['chat', JSON.parse(init.body)]);
+          lifecycle.push(['chat', JSON.parse(init.body!)]);
           return chatCompletionResponse('{"markers":[]}');
         }
         throw new Error(`Unexpected POST URL: ${href}`);
@@ -1105,7 +1121,7 @@ describe('AI provider request contracts', () => {
 
     // Nothing was loaded, so no unload call precedes the load.
     expect(lifecycle.map(([action]) => action)).toEqual(['load', 'chat']);
-    expect(lifecycle[0][1]).toEqual({
+    expect(lifecycle[0]![1]).toEqual({
       model: 'new-model-q4',
       context_length: 16384,
     });
@@ -1131,7 +1147,7 @@ describe('AI provider request contracts', () => {
     });
 
     await expect(callClaudeAPI(baseChatOptions(largeLocalImportOptions()))).rejects.toThrow(/context is too small.*supports up to 8,192/i);
-    expect(globalThis.fetch.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+    expect((globalThis.fetch as Mock<FixtureFetch>).mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
   });
 
   it('redacts configured secrets from LM Studio and Ollama native errors', async () => {
@@ -1255,8 +1271,8 @@ describe('AI provider request contracts', () => {
       maxTokens: 4096,
     }));
 
-    const postCall = globalThis.fetch.mock.calls.find(([, init]) => init?.method === 'POST');
-    const body = JSON.parse(postCall[1].body);
+    const postCall = (globalThis.fetch as Mock<FixtureFetch>).mock.calls.find(([, init]) => init?.method === 'POST');
+    const body = JSON.parse(postCall![1].body!);
     expect(body).toMatchObject({
       model: 'qwen3.6:27b',
       stream: false,
@@ -1286,7 +1302,7 @@ describe('AI provider request contracts', () => {
         },
       },
     });
-    expect(globalThis.fetch.mock.calls.some(([url]) => String(url).endsWith('/v1/chat/completions'))).toBe(false);
+    expect((globalThis.fetch as Mock<FixtureFetch>).mock.calls.some(([url]) => String(url).endsWith('/v1/chat/completions'))).toBe(false);
   });
 
   it('passes a supported reasoning level to Ollama native chat', async () => {
@@ -1336,11 +1352,11 @@ describe('AI provider request contracts', () => {
   it('keeps native Ollama imports compatible when schema and thinking controls are unsupported', async () => {
     setAIProvider('ollama');
     setOllamaMainModel('legacy-ollama:8b');
-    const postBodies = [];
+    const postBodies: Array<Record<string, unknown>> = [];
     globalThis.fetch = vi.fn(async (url, init = {}) => {
       const href = String(url);
       if (init.method === 'POST') {
-        postBodies.push(JSON.parse(init.body));
+        postBodies.push(JSON.parse(init.body!));
         if (postBodies.length === 1) return jsonResponse({ error: 'format schema is unsupported' }, { status: 400 });
         if (postBodies.length === 2) return jsonResponse({ error: 'unknown field think' }, { status: 422 });
         return jsonResponse({
@@ -1371,11 +1387,11 @@ describe('AI provider request contracts', () => {
     }));
 
     expect(postBodies).toHaveLength(3);
-    expect(postBodies[0].format).toMatchObject({ type: 'object' });
-    expect(postBodies[0].think).toBe(false);
-    expect(postBodies[1].format).toBe('json');
-    expect(postBodies[1].think).toBe(false);
-    expect(postBodies[2].format).toBe('json');
+    expect(postBodies[0]!.format).toMatchObject({ type: 'object' });
+    expect(postBodies[0]!.think).toBe(false);
+    expect(postBodies[1]!.format).toBe('json');
+    expect(postBodies[1]!.think).toBe(false);
+    expect(postBodies[2]!.format).toBe('json');
     expect(postBodies[2]).not.toHaveProperty('think');
     expect(result).toMatchObject({
       text: '{"markers":[]}',
@@ -1468,8 +1484,8 @@ describe('AI provider request contracts', () => {
       });
       expect(globalThis.fetch).toHaveBeenCalledTimes(1);
 
-      const nrasFetch = veniceNvidiaMocks.createGpuVerifier.mock.calls[0][0].fetchImpl;
-      globalThis.fetch.mockClear();
+      const nrasFetch = veniceNvidiaMocks.createGpuVerifier.mock.calls[0]![0].fetchImpl;
+      (globalThis.fetch as Mock<FixtureFetch>).mockClear();
       await nrasFetch('https://nras.attestation.nvidia.com/v3/attest/gpu', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1561,8 +1577,8 @@ describe('AI provider request contracts', () => {
     }
 
     expect(caught).toBeInstanceOf(Error);
-    expect(caught.message).toContain('[redacted]');
-    expect(caught.message).not.toContain(secret);
+    expect((caught as Error).message).toContain('[redacted]');
+    expect((caught as Error).message).not.toContain(secret);
     const request = providerRequestFromFetchCall();
     expect(request.url).toBe('https://api.venice.ai/api/v1/chat/completions');
     expect(request.headers.Authorization).toBe(`Bearer ${secret}`);
@@ -1660,7 +1676,7 @@ describe('AI provider request contracts', () => {
       usage: { inputTokens: 120, outputTokens: 240 },
       finishReason: 'stop',
     });
-    expect(globalThis._veniceLastStreamDiagnostics).toMatchObject({
+    expect((globalThis as ProviderTestGlobals)._veniceLastStreamDiagnostics).toMatchObject({
       contentChunks: 1,
       reasoningChunks: 160,
       status: 'complete',
@@ -1690,7 +1706,7 @@ describe('AI provider request contracts', () => {
     });
     expect(request.body).toMatchObject({ model: 'glm-5-2', max_tokens: 32, reasoning_effort: 'high' });
     expect(request.body).not.toHaveProperty('plugins');
-    expect(globalThis._routstrAttestation).toMatchObject({ securityVerified: true });
+    expect((globalThis as ProviderTestGlobals)._routstrAttestation).toMatchObject({ securityVerified: true });
     expect(isRoutstrPrivateModeActive()).toBe(true);
     expect(supportsVision()).toBe(false);
   });
@@ -1702,7 +1718,7 @@ describe('AI provider request contracts', () => {
     setRoutstrModel('tinfoil-glm-5-2');
     const timeoutSpy = vi.spyOn(globalThis, 'setTimeout');
     const options = baseChatOptions({ maxTokens: 16384 });
-    delete options.requestTimeoutMs;
+    delete (options as Partial<typeof options>).requestTimeoutMs;
 
     await callClaudeAPI(options);
 
@@ -1720,8 +1736,8 @@ describe('AI provider request contracts', () => {
       verification: { securityVerified: true },
       fetch: vi.fn(async () => { throw new TypeError('connection dropped'); }),
     });
-    let settledDetail = null;
-    const listener = event => { settledDetail = event.detail; };
+    let settledDetail: unknown = null;
+    const listener = (event: Event) => { settledDetail = (event as CustomEvent<unknown>).detail; };
     globalThis.addEventListener('labcharts-routstr-request-settled', listener);
 
     await expect(callClaudeAPI(baseChatOptions())).rejects.toThrow('temporary reservation');
@@ -1763,10 +1779,10 @@ describe('AI provider request contracts', () => {
     await expect(fetchRoutstrModels()).resolves.toEqual([
       expect.objectContaining({ id: 'claude-sonnet-5' }),
     ]);
-    expect(JSON.parse(localStorage.getItem('labcharts-routstr-private-models'))).toEqual([
+    expect(JSON.parse(localStorage.getItem('labcharts-routstr-private-models')!)).toEqual([
       expect.objectContaining({ id: 'tinfoil-glm-5-2' }),
     ]);
-    expect(JSON.parse(localStorage.getItem('labcharts-routstr-pricing'))).toMatchObject({
+    expect(JSON.parse(localStorage.getItem('labcharts-routstr-pricing')!)).toMatchObject({
       'claude-sonnet-5': { input: 1, output: 2 },
       'tinfoil-glm-5-2': { input: 3, output: 4 },
     });
@@ -1793,8 +1809,8 @@ describe('AI provider request contracts', () => {
     }
 
     expect(caught).toBeInstanceOf(Error);
-    expect(caught.message).toContain('[redacted]');
-    expect(caught.message).not.toContain(secret);
+    expect((caught as Error).message).toContain('[redacted]');
+    expect((caught as Error).message).not.toContain(secret);
     const request = providerRequestFromFetchCall();
     expect(request.headers.Authorization).toBe(`Bearer ${secret}`);
   });

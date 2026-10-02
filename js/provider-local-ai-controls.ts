@@ -1,4 +1,34 @@
-// @ts-check
+import type { LocalAiModel, LocalAiDiscoveryError } from './local-ai-provider-shared.js';
+
+interface AdvisorModel extends LocalAiModel {
+  name: string;
+  size?: number;
+  contextLength?: number;
+  maxContextLength?: number;
+  vramAllocated?: number;
+  quantLevel?: string;
+  paramSize?: string;
+}
+type Discovery = Awaited<ReturnType<typeof discoverLocalAI>>;
+interface DiscoveryView {
+  available: boolean;
+  models: unknown[];
+  modelDetails?: LocalAiModel[];
+  provider?: string;
+  baseUrl?: string;
+  error?: LocalAiDiscoveryError | null;
+  openai?: { error?: LocalAiDiscoveryError | null };
+}
+interface LocalAiControlOptions {
+  returnToChatIfOnboarding?: () => void;
+  requestProviderActivation?: (
+    provider: string,
+    options?: { endpoint?: string; modelId?: string },
+  ) => Promise<boolean>;
+}
+type LocalAiConfig = ReturnType<typeof getOllamaConfig>;
+type LocalAiEndpointConfig = Pick<LocalAiConfig, 'url' | 'mode'>;
+
 // provider-local-ai-controls.js - Local AI connection checks, model advisor, and hardware overrides.
 
 import { getErrorMessage } from './caught-error.js';
@@ -39,17 +69,16 @@ import {
 } from './provider-local-ai-runtime.js';
 
 let returnToChatIfOnboarding = function() {};
-/** @type {(provider: string, options?: { endpoint?: string, modelId?: string }) => Promise<boolean>} */
-let requestProviderActivation = async function() { return true; };
+let requestProviderActivation: NonNullable<LocalAiControlOptions['requestProviderActivation']> = async function() { return true; };
 const LOCAL_AI_NOT_CONNECTED_TEXT = 'Not connected \u2014 check URL and ensure your server is running';
 const LOCAL_AI_ACTION_ATTR = 'data-local-ai-action';
 const LOCAL_AI_COMMAND_ATTR = 'data-local-ai-command';
-const localAiControlDelegateRoots = new WeakSet();
+const localAiControlDelegateRoots = new WeakSet<HTMLElement>();
 let mainDiscoveryGeneration = 0;
 let piiDiscoveryGeneration = 0;
 let discoveryEventInstalled = false;
 
-export function configureLocalAiControls(options = {}) {
+export function configureLocalAiControls(options: LocalAiControlOptions = {}) {
   if (typeof options.returnToChatIfOnboarding === 'function') {
     returnToChatIfOnboarding = options.returnToChatIfOnboarding;
   }
@@ -66,7 +95,7 @@ function clearMainDiscoveryUI() {
   clearCachedLocalAiModelDetails();
 }
 
-function discoveryErrorText(result) {
+function discoveryErrorText(result: DiscoveryView | null | undefined) {
   const error = result?.error || result?.openai?.error;
   if (error?.kind === 'http' && error.status === 401) return 'Authentication failed \u2014 check the API key';
   if (error?.kind === 'http' && error.status) return `Server returned HTTP ${error.status}`;
@@ -79,11 +108,11 @@ function discoveryErrorText(result) {
   return LOCAL_AI_NOT_CONNECTED_TEXT;
 }
 
-function applyMainDiscoveryResult(result, { reconcileModel = true } = {}) {
+function applyMainDiscoveryResult(result: DiscoveryView, { reconcileModel = true } = {}) {
   const dot = document.getElementById('local-ai-dot');
   const text = document.getElementById('local-ai-status-text');
   const modelSection = document.getElementById('local-ai-model-section');
-  const modelSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('local-ai-model-select'));
+  const modelSelect = (document.getElementById('local-ai-model-select') as HTMLSelectElement | null);
   if (!dot || !text) return;
   dot.className = 'local-ai-status-dot';
   if (!result.available || result.models.length === 0) {
@@ -95,10 +124,10 @@ function applyMainDiscoveryResult(result, { reconcileModel = true } = {}) {
   dot.classList.add('connected');
   let currentModel = getOllamaMainModel();
   if (!result.models.includes(currentModel) && reconcileModel) {
-    currentModel = result.models[0];
+    currentModel = result.models[0] as string;
     setOllamaMainModel(currentModel);
   }
-  const location = getLocalAiExecutionLocation(result.baseUrl, currentModel);
+  const location = getLocalAiExecutionLocation(result.baseUrl!, currentModel);
   const locationLabel = location === 'cloud' ? 'cloud' : location === 'local' ? 'this device' : location === 'lan' ? 'LAN server' : 'remote server';
   text.textContent = `Connected via ${getLocalAiProviderAdapter(result.provider).label} (${currentModel} \u00b7 ${locationLabel})`;
   if (modelSection && modelSelect) {
@@ -107,14 +136,14 @@ function applyMainDiscoveryResult(result, { reconcileModel = true } = {}) {
   }
   const isOllamaServer = result.provider === 'ollama';
   cacheLocalAiModelDetails(result.modelDetails || [], isOllamaServer);
-  renderModelAdvisor(result.modelDetails || [], modelSelect, isOllamaServer);
+  renderModelAdvisor((result.modelDetails || []) as AdvisorModel[], modelSelect, isOllamaServer);
 }
 
 function installDiscoveryRefreshEvent() {
   if (discoveryEventInstalled || typeof globalThis.addEventListener !== 'function') return;
   discoveryEventInstalled = true;
   globalThis.addEventListener('local-ai-discovery-updated', event => {
-    const result = /** @type {CustomEvent} */ (event).detail;
+    const result = (event as CustomEvent<DiscoveryView>).detail;
     if (!result || result.baseUrl !== getOllamaConfig().url.replace(/\/+$/, '')) return;
     if (document.getElementById('local-ai-dot')) applyMainDiscoveryResult(result);
   });
@@ -142,7 +171,7 @@ export function initSettingsOllamaCheck() {
   });
 }
 
-function isLocalUrl(url) {
+function isLocalUrl(url: string) {
   try {
     new URL(url);
     return isLocalAiLoopbackUrl(url);
@@ -150,12 +179,12 @@ function isLocalUrl(url) {
   catch { return true; }
 }
 
-function closestLocalAiAction(target) {
+function closestLocalAiAction(target: { closest?: (selector: string) => HTMLElement | null } | null | undefined) {
   if (!target || typeof target.closest !== 'function') return null;
   return target.closest(`[${LOCAL_AI_ACTION_ATTR}]`);
 }
 
-function toggleHardwareOverride(actionEl) {
+function toggleHardwareOverride(actionEl: HTMLElement) {
   const body = actionEl.nextElementSibling;
   if (!(body instanceof HTMLElement)) return;
   const shouldOpen = body.style.display === 'none';
@@ -163,7 +192,7 @@ function toggleHardwareOverride(actionEl) {
   actionEl.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
 }
 
-async function releasePlan(plan, config) {
+async function releasePlan(plan: ReturnType<typeof getLocalAiReleasePlan>, config: LocalAiConfig) {
   const outcome = await releaseLocalAiModels({
     baseUrl: config.url,
     apiKey: config.apiKey,
@@ -173,7 +202,7 @@ async function releasePlan(plan, config) {
   return outcome;
 }
 
-function handleLocalAiAction(actionEl) {
+function handleLocalAiAction(actionEl: HTMLElement) {
   const action = actionEl.getAttribute(LOCAL_AI_ACTION_ATTR) || '';
   if (action === 'copy-pull') {
     const command = actionEl.getAttribute(LOCAL_AI_COMMAND_ATTR) || '';
@@ -196,38 +225,33 @@ function handleLocalAiAction(actionEl) {
   return false;
 }
 
-function handleLocalAiActionClick(event) {
-  const actionEl = closestLocalAiAction(event.target);
-  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+function handleLocalAiActionClick(event: MouseEvent) {
+  const actionEl = closestLocalAiAction(event.target as HTMLElement | null);
+  if (!actionEl || !(event.currentTarget as HTMLElement | null)?.contains?.(actionEl)) return;
   if (!handleLocalAiAction(actionEl)) return;
   event.preventDefault();
   event.stopPropagation();
 }
 
-function handleLocalAiActionKeydown(event) {
+function handleLocalAiActionKeydown(event: KeyboardEvent) {
   if (event.key !== 'Enter' && event.key !== ' ') return;
-  const actionEl = closestLocalAiAction(event.target);
-  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
-  if (event.target?.closest?.('button, input, select, textarea')) return;
+  const actionEl = closestLocalAiAction(event.target as HTMLElement | null);
+  if (!actionEl || !(event.currentTarget as HTMLElement | null)?.contains?.(actionEl)) return;
+  if ((event.target as HTMLElement | null)?.closest?.('button, input, select, textarea')) return;
   if (actionEl.getAttribute('role') !== 'button') return;
   if (!handleLocalAiAction(actionEl)) return;
   event.preventDefault();
   event.stopPropagation();
 }
 
-function installLocalAiControlDelegates(root) {
+function installLocalAiControlDelegates(root: HTMLElement | null) {
   if (!root || localAiControlDelegateRoots.has(root)) return;
   localAiControlDelegateRoots.add(root);
   root.addEventListener('click', handleLocalAiActionClick);
   root.addEventListener('keydown', handleLocalAiActionKeydown);
 }
 
-/**
- * @param {any[]} modelDetails
- * @param {HTMLSelectElement | null} modelSelect
- * @param {boolean} [isOllama]
- */
-export async function renderModelAdvisor(modelDetails, modelSelect, isOllama = false) {
+export async function renderModelAdvisor(modelDetails: AdvisorModel[], modelSelect: HTMLSelectElement | null, isOllama = false) {
   const advisorEl = document.getElementById('local-ai-advisor');
   if (!advisorEl) return;
   installLocalAiControlDelegates(advisorEl);
@@ -274,24 +298,24 @@ export async function renderModelAdvisor(modelDetails, modelSelect, isOllama = f
   const releasePlan = getLocalAiReleasePlan({ provider: providerId, modelDetails });
   const providerName = releasePlan.providerLabel;
 
-  const fitnessLabel = { recommended: '\u2605 Recommended', capable: 'Capable', underpowered: 'Underpowered', inadequate: 'Inadequate' };
-  const fitnessCss = { recommended: 'fitness-great', capable: 'fitness-good', underpowered: 'fitness-fair', inadequate: 'fitness-poor' };
+  const fitnessLabel: Record<string, string> = { recommended: '\u2605 Recommended', capable: 'Capable', underpowered: 'Underpowered', inadequate: 'Inadequate' };
+  const fitnessCss: Record<string, string> = { recommended: 'fitness-great', capable: 'fitness-good', underpowered: 'fitness-fair', inadequate: 'fitness-poor' };
   const rows = modelDetails.map(m => {
-    const hasSize = m.size > 0;
+    const hasSize = m.size! > 0;
     const assess = (m.executionLocation === 'cloud' || isCloudModel(m.name))
       ? assessModel(m, hw)
       : !hasSize ? { tier: 'unknown', badge: '?', label: 'Size unknown' }
         : hw.gpu.vram ? assessModel(m, hw) : { ...assessModel(m, { gpu: { vram: null, unified: false } }), label: !isLocal ? 'Enter VRAM' : 'Set VRAM to check' };
     const fitness = assessFitness(m.name);
-    const sizeLabel = hasSize ? `${m.sizeSource === 'estimated' ? '~' : ''}${(m.size / 1e9).toFixed(1)} GB` : '';
+    const sizeLabel = hasSize ? `${m.sizeSource === 'estimated' ? '~' : ''}${(m.size! / 1e9).toFixed(1)} GB` : '';
     const runtimeDetails = [
       m.format,
       m.loaded === true ? 'loaded now' : '',
       m.loaded === false ? 'available \u2014 loads on first request' : '',
       m.loaded === null ? 'runtime load state unavailable' : '',
-      m.contextLength > 0 ? `${Number(m.contextLength).toLocaleString()} token context loaded` : '',
-      m.maxContextLength > m.contextLength ? `${Number(m.maxContextLength).toLocaleString()} max context` : '',
-      m.vramAllocated > 0 ? `${(m.vramAllocated / 1e9).toFixed(1)} GB VRAM allocated` : '',
+      m.contextLength! > 0 ? `${Number(m.contextLength).toLocaleString()} token context loaded` : '',
+      m.maxContextLength! > m.contextLength! ? `${Number(m.maxContextLength).toLocaleString()} max context` : '',
+      m.vramAllocated! > 0 ? `${(m.vramAllocated! / 1e9).toFixed(1)} GB VRAM allocated` : '',
     ].filter(Boolean);
     const isActive = m.name === currentModel;
     const isBest = best && m.name === best.name;
@@ -347,7 +371,7 @@ export async function renderModelAdvisor(modelDetails, modelSelect, isOllama = f
     </div>`;
 }
 
-function isHttpsToNonLocalhost(url) {
+function isHttpsToNonLocalhost(url: string) {
   if (location.protocol !== 'https:') return false;
   try {
     const parsed = new URL(url);
@@ -355,7 +379,7 @@ function isHttpsToNonLocalhost(url) {
   } catch { return false; }
 }
 
-function normalizeLocalAiBaseUrl(rawUrl) {
+function normalizeLocalAiBaseUrl(rawUrl: string) {
   const value = (rawUrl || '').trim();
   if (!value) {
     return { error: 'Enter a Local AI server URL (example: http://localhost:11434)' };
@@ -375,13 +399,13 @@ function normalizeLocalAiBaseUrl(rawUrl) {
   return { url: parsed.href.replace(/\/+$/, '') };
 }
 
-function isFetchTransportError(e) {
+function isFetchTransportError(e: unknown) {
   if (e instanceof TypeError) return true;
-  const m = e.message || '';
+  const m = (e as { message: string }).message || '';
   return m.includes('Failed to fetch') || m.includes('Load failed') || m.includes('NetworkError');
 }
 
-async function isLikelyCorsBlocked(url) {
+async function isLikelyCorsBlocked(url: string) {
   try {
     await fetch(`${url}/v1/models`, {
       method: 'HEAD',
@@ -395,7 +419,7 @@ async function isLikelyCorsBlocked(url) {
   }
 }
 
-async function handleLocalAiPreflightError(error, url, dot, text) {
+async function handleLocalAiPreflightError(error: unknown, url: string, dot: HTMLElement, text: HTMLElement) {
   if (!isFetchTransportError(error)) return false;
   if (!await isLikelyCorsBlocked(url)) return false;
   dot.classList.add('disconnected');
@@ -403,8 +427,7 @@ async function handleLocalAiPreflightError(error, url, dot, text) {
   return true;
 }
 
-/** @param {string} url @param {any} [savedConfig] */
-function localAiEndpointKind(url, savedConfig = getOllamaConfig()) {
+function localAiEndpointKind(url: string, savedConfig: LocalAiEndpointConfig = getOllamaConfig()) {
   try {
     const parsed = new URL(url);
     const savedMode = String(savedConfig?.mode || '').toLowerCase();
@@ -419,11 +442,7 @@ function localAiEndpointKind(url, savedConfig = getOllamaConfig()) {
   return 'openai-compatible';
 }
 
-/**
- * @param {string} url
- * @param {{userAgent?: string, origin?: string, savedConfig?: any}} [options]
- */
-export function getLocalAiCorsHelpText(url, options = {}) {
+export function getLocalAiCorsHelpText(url: string, options: { userAgent?: string; origin?: string; savedConfig?: LocalAiEndpointConfig } = {}) {
   const ua = options.userAgent ?? globalThis.navigator?.userAgent ?? '';
   const origin = options.origin ?? globalThis.location?.origin ?? 'this app';
   const provider = localAiEndpointKind(url, options.savedConfig);
@@ -446,7 +465,7 @@ export function getLocalAiCorsHelpText(url, options = {}) {
   return `Blocked by CORS \u2014 this Local AI endpoint answered but did not allow ${origin}. Enable browser/CORS access for this origin in that server.`;
 }
 
-async function releasePreviousLocalAiBeforeSwitch(config, previousDiscovery, nextDiscovery, dot, text) {
+async function releasePreviousLocalAiBeforeSwitch(config: LocalAiConfig, previousDiscovery: Discovery, nextDiscovery: Discovery, dot: HTMLElement, text: HTMLElement) {
   const plan = getLocalAiReleasePlan(previousDiscovery, { modelName: getOllamaMainModel() });
   if (!plan.supported || plan.models.length === 0) return true;
   const nextProvider = getLocalAiReleasePlan(nextDiscovery).providerLabel;
@@ -465,13 +484,13 @@ async function releasePreviousLocalAiBeforeSwitch(config, previousDiscovery, nex
 
 export async function testOllamaConnection() {
   const generation = ++mainDiscoveryGeneration;
-  const urlInput = /** @type {HTMLInputElement | null} */ (document.getElementById('local-ai-url-input'));
+  const urlInput = (document.getElementById('local-ai-url-input') as HTMLSelectElement | null);
   const dot = document.getElementById('local-ai-dot');
   const text = document.getElementById('local-ai-status-text');
   if (!urlInput || !dot || !text) return;
   const urlCheck = normalizeLocalAiBaseUrl(urlInput.value);
   const config = getOllamaConfig();
-  const apiKeyInput = /** @type {HTMLInputElement | null} */ (document.getElementById('local-ai-apikey-input'));
+  const apiKeyInput = (document.getElementById('local-ai-apikey-input') as HTMLSelectElement | null);
   const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
   text.textContent = 'Testing...';
   dot.className = 'local-ai-status-dot';
@@ -480,7 +499,7 @@ export async function testOllamaConnection() {
     text.textContent = urlCheck.error;
     return;
   }
-  const url = urlCheck.url;
+  const url = urlCheck.url!;
   if (isHttpsToNonLocalhost(url)) {
     dot.classList.add('disconnected');
     text.textContent = 'Browser mixed-content rules block an HTTP LAN server from an HTTPS page. Use HTTPS for the server, localhost, or an encrypted local tunnel.';
@@ -512,7 +531,7 @@ export async function testOllamaConnection() {
       dot.classList.add('connected');
       let currentModel = getOllamaMainModel();
       const modelChanged = !models.includes(currentModel);
-      if (modelChanged) currentModel = /** @type {string} */ (models[0]);
+      if (modelChanged) currentModel = models[0] as string;
       if (!await requestProviderActivation('ollama', { endpoint: url, modelId: currentModel })) {
         dot.classList.add('connected');
         text.textContent = 'Connection verified — AI not activated';
@@ -534,14 +553,14 @@ export async function testOllamaConnection() {
 
 export async function testPIIOllamaConnection() {
   const generation = ++piiDiscoveryGeneration;
-  const urlInput = /** @type {HTMLInputElement | null} */ (document.getElementById('pii-local-url-input'));
+  const urlInput = (document.getElementById('pii-local-url-input') as HTMLSelectElement | null);
   const dot = document.getElementById('pii-local-dot');
   const text = document.getElementById('pii-local-status-text');
   const piiDropdown = document.getElementById('pii-model-dropdown');
-  const piiSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('pii-model-select'));
+  const piiSelect = (document.getElementById('pii-model-select') as HTMLSelectElement | null);
   if (!urlInput || !dot || !text) return;
   const urlCheck = normalizeLocalAiBaseUrl(urlInput.value);
-  const apiKeyInput = /** @type {HTMLInputElement | null} */ (document.getElementById('pii-local-apikey-input'));
+  const apiKeyInput = (document.getElementById('pii-local-apikey-input') as HTMLSelectElement | null);
   const apiKey = apiKeyInput ? apiKeyInput.value.trim() : getOllamaPIIApiKey();
   text.textContent = 'Testing...';
   dot.className = 'local-ai-status-dot';
@@ -550,7 +569,7 @@ export async function testPIIOllamaConnection() {
     text.textContent = urlCheck.error;
     return;
   }
-  const url = urlCheck.url;
+  const url = urlCheck.url!;
   if (isHttpsToNonLocalhost(url)) {
     dot.classList.add('disconnected');
     text.textContent = 'Browser mixed-content rules block this HTTP LAN server. Use HTTPS, localhost, or an encrypted local tunnel.';
@@ -574,7 +593,7 @@ export async function testPIIOllamaConnection() {
       setOllamaPIIUrl(url);
       await saveOllamaPIIApiKey(apiKey);
       let currentPII = getOllamaPIIModel();
-      if (!models.includes(currentPII)) { currentPII = /** @type {string} */ (models[0]); setOllamaPIIModel(currentPII); }
+      if (!models.includes(currentPII)) { currentPII = models[0] as string; setOllamaPIIModel(currentPII); }
       text.textContent = `Connection verified \u2014 ${currentPII}. Turn on the privacy toggle to use it.`;
       if (piiDropdown && piiSelect) {
         piiDropdown.style.display = 'block';
@@ -598,22 +617,22 @@ export async function refreshModelAdvisor() {
   applyMainDiscoveryResult(result);
 }
 
-export function copyOllamaPullCmd(cmd) {
+export function copyOllamaPullCmd(cmd: string) {
   navigator.clipboard.writeText(cmd).then(() => showNotification('Copied: ' + cmd, 'info'));
 }
 
-export function applyHardwareOverride(vram) {
+export function applyHardwareOverride(vram: string) {
   const v = parseFloat(vram);
   if (isNaN(v) || v <= 0) { showNotification('Enter a valid VRAM amount in GB', 'error'); return; }
   saveHardwareOverride(v);
   const { modelDetails: details, isOllamaServer } = getCachedLocalAiModelDetails();
-  const modelSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('local-ai-model-select'));
-  if (details.length) renderModelAdvisor(details, modelSelect, isOllamaServer);
+  const modelSelect = (document.getElementById('local-ai-model-select') as HTMLSelectElement | null);
+  if (details.length) renderModelAdvisor(details as AdvisorModel[], modelSelect, isOllamaServer);
 }
 
 export function clearHardwareOverride() {
   saveHardwareOverride(null);
   const { modelDetails: details, isOllamaServer } = getCachedLocalAiModelDetails();
-  const modelSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('local-ai-model-select'));
-  if (details.length) renderModelAdvisor(details, modelSelect, isOllamaServer);
+  const modelSelect = (document.getElementById('local-ai-model-select') as HTMLSelectElement | null);
+  if (details.length) renderModelAdvisor(details as AdvisorModel[], modelSelect, isOllamaServer);
 }

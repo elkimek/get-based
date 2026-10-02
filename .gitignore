@@ -631,3 +631,8 @@ deploy/profile-share/data/
 /js/sync-pull.js
 
 /js/sync-pull-merge.js
+
+/js/hardware.js
+/js/provider-local-ai-controls.js
+/js/provider-local-ai-runtime.js
+/js/settings-agent-access-panel.js

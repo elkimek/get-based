@@ -1,27 +1,28 @@
-// @ts-check
+import type { LocalAiModel } from './local-ai-provider-shared.js';
+type LocalAiRuntimeWindow = Window & {
+  _lastOllamaModelDetails?: LocalAiModel[];
+  _lastIsOllamaServer?: unknown;
+  CustomEvent: typeof CustomEvent;
+};
+
 // provider-local-ai-runtime.js - Browser runtime adapters for Local AI settings hooks.
 
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
+    ? (window as LocalAiRuntimeWindow)
     : null;
 }
 
-/** @param {boolean} [isAvailable] */
-export function updatePrivacyStatusCardFromRuntime(isAvailable) {
+export function updatePrivacyStatusCardFromRuntime(isAvailable?: boolean) {
   const update = getSettingsModuleFunction('updatePrivacyStatusCard');
   if (!update) return;
   if (typeof isAvailable === 'boolean') update(isAvailable);
   else update();
 }
 
-/**
- * @param {any[]} modelDetails
- * @param {boolean} isOllamaServer
- */
-export function cacheLocalAiModelDetails(modelDetails, isOllamaServer) {
+export function cacheLocalAiModelDetails(modelDetails: LocalAiModel[], isOllamaServer: boolean) {
   const runtime = getRuntimeWindow();
   if (!runtime) return;
   runtime._lastOllamaModelDetails = modelDetails;

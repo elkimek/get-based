@@ -1,4 +1,3 @@
-// @ts-check
 // settings-agent-access-panel.js — Settings → Agent Access rendering/actions.
 
 import { showNotification, bindSyncAppliedRefresh } from './utils.js';
@@ -25,9 +24,9 @@ import {
 } from './sync.js';
 import { saveImportedData } from './data.js';
 
-let _tokenClipboardClearTimer = null;
-let _contextKeyClipboardClearTimer = null;
-let _setupCommandClipboardClearTimer = null;
+let _tokenClipboardClearTimer: ReturnType<typeof setTimeout> | null = null;
+let _contextKeyClipboardClearTimer: ReturnType<typeof setTimeout> | null = null;
+let _setupCommandClipboardClearTimer: ReturnType<typeof setTimeout> | null = null;
 
 const AGENT_ACCESS_CLIENTS = [
   { id: 'hermes', label: 'Hermes Agent', terminal: 'Hermes' },
@@ -48,21 +47,21 @@ function renderAgentAccessClientChoices() {
   `).join('');
 }
 
-function normalizeAgentAccessClient(client) {
+function normalizeAgentAccessClient(client: unknown) {
   const id = String(client || 'hermes').trim();
   return AGENT_ACCESS_CLIENTS.some(c => c.id === id) ? id : 'hermes';
 }
 
-function agentAccessClientMeta(client) {
+function agentAccessClientMeta(client: unknown) {
   const id = normalizeAgentAccessClient(client);
-  return AGENT_ACCESS_CLIENTS.find(c => c.id === id) || AGENT_ACCESS_CLIENTS[0];
+  return AGENT_ACCESS_CLIENTS.find(c => c.id === id) || AGENT_ACCESS_CLIENTS[0]!;
 }
 
 function snapshotImportedData() {
   try { return JSON.stringify(state.importedData || {}); } catch { return null; }
 }
 
-function restoreImportedDataSnapshot(snapshot) {
+function restoreImportedDataSnapshot(snapshot: string | null) {
   if (!snapshot) return;
   try { adoptProfileData(state.importedData, JSON.parse(snapshot)); } catch {}
 }
@@ -73,7 +72,7 @@ function syncRelayHttpUrl() {
   return String(relay).replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');
 }
 
-export function buildAgentAccessSetupCommand(client = 'hermes') {
+export function buildAgentAccessSetupCommand(client: unknown = 'hermes') {
   const token = getMessengerToken();
   const contextKey = getMessengerContextKey();
   if (!token || !contextKey) return null;
@@ -91,13 +90,13 @@ export function buildAgentAccessSetupCommand(client = 'hermes') {
   return `curl -fsSL https://getbased.health/install.sh | bash -s -- connect ${targetClient} --setup '${setup}'`;
 }
 
-async function writePrivateClipboard(text, onSuccess) {
+async function writePrivateClipboard(text: string, onSuccess?: () => void) {
   await navigator.clipboard.writeText(text);
   onSuccess?.();
 }
 
-function clearClipboardLater(timer, delay = 60000) {
-  clearTimeout(timer);
+function clearClipboardLater(timer: ReturnType<typeof setTimeout> | null, delay = 60000) {
+  clearTimeout(timer!);
   return setTimeout(() => { navigator.clipboard.writeText('').catch(() => {}); }, delay);
 }
 
@@ -206,7 +205,7 @@ export function renderMessengerSection() {
 }
 
 let _messengerToggling = false;
-export async function toggleMessenger(enabled) {
+export async function toggleMessenger(enabled: unknown) {
   if (_messengerToggling) return;
   _messengerToggling = true;
   const rollback = snapshotImportedData();
@@ -281,7 +280,7 @@ export function copyMessengerToken() {
   if (!token) return;
   navigator.clipboard.writeText(token).then(() => {
     showNotification('Token copied — clipboard will clear in 60s', 'success');
-    clearTimeout(_tokenClipboardClearTimer);
+    clearTimeout(_tokenClipboardClearTimer!);
     _tokenClipboardClearTimer = setTimeout(() => { navigator.clipboard.writeText('').catch(() => {}); }, 60000);
   }).catch(() => { showNotification('Could not access clipboard', 'error'); });
 }
