@@ -172,7 +172,7 @@ assert('Cashu storage receives crypto only when wallet storage is needed',
     && walletSrc.includes('configureCashuWalletStoreCryptoDeps(getCashuWalletStoreCryptoDeps())'));
 assert('Cashu encrypted writes fail closed while the encryption session is locked',
   walletStoreSrc.includes("code = 'session-locked'")
-    && walletStoreSrc.includes('if (!envelope) throw _sessionLockedError()'));
+    && /if\s*\(!envelope\)\s*throw\s+_sessionLockedError\(\)/.test(walletStoreSrc));
 
 // ═══════════════════════════════════════
 // 5. CASHU WALLET — DEPOSIT RECOVERY

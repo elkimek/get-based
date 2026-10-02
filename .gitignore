@@ -482,3 +482,6 @@ deploy/profile-share/data/
 /js/data-wipe.js
 /js/crypto-ui.js
 /js/lens-cache.js
+
+/js/cashu-wallet-store.js
+/js/cashu-wallet-storage-types.js

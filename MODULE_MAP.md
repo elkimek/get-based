@@ -9,7 +9,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 819 |
+| Modules | 820 |
 | Internal import edges | 3510 |
 | Dynamic internal edges | 119 |
 | Modules participating in cycles | 0 |
@@ -257,12 +257,13 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>cashu</code> family — 4 modules</summary>
+<details><summary><code>cashu</code> family — 5 modules</summary>
 
 - [`js/cashu-funding-coordinator.js`](js/cashu-funding-coordinator.js) → no in-scope imports
-- [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js) → [`js/caught-error.ts`](js/caught-error.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/cashu-wallet-transfers.js`](js/cashu-wallet-transfers.js) → [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js), [`js/caught-error.ts`](js/caught-error.ts), [`js/routstr-node-payments.js`](js/routstr-node-payments.js), [`js/routstr-session.js`](js/routstr-session.js), [`js/routstr-validation.js`](js/routstr-validation.js)
-- [`js/cashu-wallet.js`](js/cashu-wallet.js) → [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js), [`js/cashu-wallet-transfers.js`](js/cashu-wallet-transfers.js), [`js/caught-error.ts`](js/caught-error.ts), [`js/crypto.js`](js/crypto.js), [`js/routstr-validation.js`](js/routstr-validation.js), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/cashu-wallet-storage-types.ts`](js/cashu-wallet-storage-types.ts) → no in-scope imports
+- [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/cashu-wallet-transfers.js`](js/cashu-wallet-transfers.js) → [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/routstr-node-payments.js`](js/routstr-node-payments.js), [`js/routstr-session.js`](js/routstr-session.js), [`js/routstr-validation.js`](js/routstr-validation.js)
+- [`js/cashu-wallet.js`](js/cashu-wallet.js) → [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts), [`js/cashu-wallet-transfers.js`](js/cashu-wallet-transfers.js), [`js/caught-error.ts`](js/caught-error.ts), [`js/crypto.js`](js/crypto.js), [`js/routstr-validation.js`](js/routstr-validation.js), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 
@@ -460,7 +461,7 @@ Native browser modules shipped with the static application.
 
 - [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts) → no in-scope imports
 - [`js/crypto-ui.ts`](js/crypto-ui.ts) → [`js/backup.ts`](js/backup.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/data-wipe.ts`](js/data-wipe.ts) *(dynamic)*, [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/crypto.js`](js/crypto.js) → [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/backup.ts`](js/backup.ts), [`js/blob-storage.ts`](js/blob-storage.ts), [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js) *(dynamic)*, [`js/caught-error.ts`](js/caught-error.ts), [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts), [`js/crypto-ui.ts`](js/crypto-ui.ts), [`js/cycle-store.ts`](js/cycle-store.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/wearables-credential-vault.ts`](js/wearables-credential-vault.ts) *(dynamic)*, [`js/wearables-store.ts`](js/wearables-store.ts), [`js/wearables-whoop-storage.ts`](js/wearables-whoop-storage.ts) *(dynamic)*
+- [`js/crypto.js`](js/crypto.js) → [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/backup.ts`](js/backup.ts), [`js/blob-storage.ts`](js/blob-storage.ts), [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts) *(dynamic)*, [`js/caught-error.ts`](js/caught-error.ts), [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts), [`js/crypto-ui.ts`](js/crypto-ui.ts), [`js/cycle-store.ts`](js/cycle-store.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/wearables-credential-vault.ts`](js/wearables-credential-vault.ts) *(dynamic)*, [`js/wearables-store.ts`](js/wearables-store.ts), [`js/wearables-whoop-storage.ts`](js/wearables-whoop-storage.ts) *(dynamic)*
 
 </details>
 
@@ -1066,7 +1067,7 @@ Native browser modules shipped with the static application.
 
 - [`js/routstr-balance-settlement.js`](js/routstr-balance-settlement.js) → no in-scope imports
 - [`js/routstr-model-cache.js`](js/routstr-model-cache.js) → [`js/tinfoil-secure-fetch.js`](js/tinfoil-secure-fetch.js) *(dynamic)*
-- [`js/routstr-node-payments.js`](js/routstr-node-payments.js) → [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js), [`js/routstr-session.js`](js/routstr-session.js), [`js/routstr-validation.js`](js/routstr-validation.js)
+- [`js/routstr-node-payments.js`](js/routstr-node-payments.js) → [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts), [`js/routstr-session.js`](js/routstr-session.js), [`js/routstr-validation.js`](js/routstr-validation.js)
 - [`js/routstr-session.js`](js/routstr-session.js) → [`js/api-provider-storage-runtime.js`](js/api-provider-storage-runtime.js), [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts), [`js/crypto.js`](js/crypto.js), [`js/url-safety.ts`](js/url-safety.ts)
 - [`js/routstr-validation.js`](js/routstr-validation.js) → [`js/url-safety.ts`](js/url-safety.ts)
 

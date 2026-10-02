@@ -1,6 +1,11 @@
 // @ts-check
 // Cashu outbound transfers, recovery journals, Lightning melts, and fee handling.
 
+/** @typedef {import('./cashu-wallet-storage-types.js').PendingDeposit} PendingDeposit */
+/** @typedef {import('./cashu-wallet-storage-types.js').ApprovedWithdraw} ApprovedWithdraw */
+/** @typedef {import('./cashu-wallet-storage-types.js').FeeMeltJournal} FeeMeltJournal */
+/** @typedef {import('./cashu-wallet-storage-types.js').NodeRefund} NodeRefund */
+
 import { positiveSats, canonicalRoutstrUrl, validateLightningInvoice } from './routstr-validation.js';
 import { getRoutstrSessionKey } from './routstr-session.js';
 import { submitRoutstrDeposit, reconcileRoutstrDeposit, depositExternalTokenToNode, requestNodeRefund, completeNodeRefund } from './routstr-node-payments.js';
@@ -144,7 +149,7 @@ export async function depositToNode(nodeUrl, amountSats, existingKey) {
     await _ensureNoPendingSwap();
     const cashuts = await _cashuLib();
     const mintUrl = await getMintUrl();
-    if (await _getMeta('pendingDeposit')) throw new Error('Recover or clear the previous pending deposit first');
+    if (/** @type {PendingDeposit | string | null} */ (await _getMeta('pendingDeposit'))) throw new Error('Recover or clear the previous pending deposit first');
     const proofs = await _pruneSpentProofs(true, mintUrl);
     const total = _sumProofsAsNumber(cashuts, proofs);
     if (total < amountSats) throw new Error('Insufficient wallet balance: ' + total + ' sats, need ' + amountSats);
@@ -180,14 +185,14 @@ export async function depositToNode(nodeUrl, amountSats, existingKey) {
 export async function recoverPendingDeposit() {
   return _withWalletLock(async () => {
     let pending;
-    try { pending = await reconcileRoutstrDeposit(); } catch { pending = await _getMeta('pendingDeposit'); }
+    try { pending = await reconcileRoutstrDeposit(); } catch { pending = /** @type {PendingDeposit | string | null} */ (await _getMeta('pendingDeposit')); }
     if (typeof pending === 'string') return pending;
     return (pending?.localCommit ? pending?.token : pending?.recoveryToken) || pending?.token || null;
   });
 }
 export async function clearPendingDeposit() {
   return _withWalletLock(async () => {
-    if (await _getMeta('pendingDeposit')) throw new Error('Recover or reconcile the deposit before clearing it');
+    if (/** @type {PendingDeposit | string | null} */ (await _getMeta('pendingDeposit'))) throw new Error('Recover or reconcile the deposit before clearing it');
   });
 }
 
@@ -197,7 +202,7 @@ export async function recoverPendingWithdraw() {
 }
 
 async function _recoverPendingWithdrawUnlocked() {
-  const raw = await _getMeta('pendingWithdraw');
+  const raw = /** @type {string | null} */ (await _getMeta('pendingWithdraw'));
   if (!raw) return null;
   const pending = JSON.parse(raw);
   const wallet = await _getWallet(pending.mint || await getMintUrl());
@@ -228,9 +233,9 @@ async function _recoverPendingWithdrawUnlocked() {
 
 export async function clearPendingWithdraw() {
   return _withWalletLock(async () => {
-    if (!await _getMeta('pendingWithdraw')) return;
+    if (!/** @type {string | null} */ (await _getMeta('pendingWithdraw'))) return;
     await _recoverPendingWithdrawUnlocked();
-    if (await _getMeta('pendingWithdraw')) throw new Error('The outgoing token is still unspent or pending. Keep it until delivered or recovered.');
+    if (/** @type {string | null} */ (await _getMeta('pendingWithdraw'))) throw new Error('The outgoing token is still unspent or pending. Keep it until delivered or recovered.');
   });
 }
 
@@ -238,7 +243,7 @@ export async function clearPendingWithdraw() {
 export async function savePendingWithdrawToken(token, source = 'manual') {
   return _withWalletLock(async () => {
     if (!token) return false;
-    if (await _getMeta('pendingWithdraw')) return false;
+    if (/** @type {string | null} */ (await _getMeta('pendingWithdraw'))) return false;
     await _setMeta('pendingWithdraw', JSON.stringify({ quoteId: null, token, source,
       mint: _extractTokenMintUrl(await _cashuLib(), token), savedAt: Date.now() }));
     return true;
@@ -273,11 +278,11 @@ export async function executeWithdraw(quoteId) {
     await _ensureNoPendingSwap();
     const cashuts = await _cashuLib();
     const mintUrl = await getMintUrl();
-    if (await _getMeta('pendingWithdraw')) await _recoverPendingWithdrawUnlocked();
-    if (await _getMeta('pendingWithdraw')) throw new Error('Recover the previous pending withdrawal first');
+    if (/** @type {string | null} */ (await _getMeta('pendingWithdraw'))) await _recoverPendingWithdrawUnlocked();
+    if (/** @type {string | null} */ (await _getMeta('pendingWithdraw'))) throw new Error('Recover the previous pending withdrawal first');
     const wallet = await _getWallet(mintUrl);
     if (typeof wallet.prepareMelt !== 'function' || !cashuts.OutputData) throw new Error('Cashu runtime must support durable melting');
-    const approved = await _getMeta('withdrawQuote:' + quoteId);
+    const approved = /** @type {ApprovedWithdraw | null} */ (await _getMeta('withdrawQuote:' + quoteId));
     if (!approved || approved.mint !== mintUrl) throw new Error('Withdrawal quote is not approved for this mint');
     validateLightningInvoice(approved.invoice);
     const quote = await wallet.checkMeltQuoteBolt11(quoteId);
@@ -401,8 +406,8 @@ export async function sendAsToken(amountSats) {
     await _ensureNoPendingSwap();
     const cashuts = await _cashuLib();
     const mintUrl = await getMintUrl();
-    if (await _getMeta('pendingWithdraw')) await _recoverPendingWithdrawUnlocked();
-    if (await _getMeta('pendingWithdraw')) throw new Error('Deliver or recover the previous outgoing token first');
+    if (/** @type {string | null} */ (await _getMeta('pendingWithdraw'))) await _recoverPendingWithdrawUnlocked();
+    if (/** @type {string | null} */ (await _getMeta('pendingWithdraw'))) throw new Error('Deliver or recover the previous outgoing token first');
     const proofs = await _pruneSpentProofs(true, mintUrl);
     const total = _sumProofsAsNumber(cashuts, proofs);
     if (total < amountSats) throw new Error('Insufficient balance: ' + total + ' sats, need ' + amountSats);
@@ -468,7 +473,7 @@ async function _lnAddressToInvoice(address, amountSats) {
 
 /** Recover fee melts before any reuse of the fee pool. */
 async function _reconcileFeeMelt(mintUrl) {
-  const record = await _getMeta('pendingFeeMelt');
+  const record = /** @type {FeeMeltJournal | null} */ (await _getMeta('pendingFeeMelt'));
   if (!record) return;
   if (record.mint !== mintUrl) throw new Error('Recover fees at their original mint first');
   const wallet = await _getWallet(mintUrl);
@@ -553,4 +558,4 @@ export function refundNodeToToken(nodeUrl) {
 export function finishNodeRefund(token) {
   return _withWalletLock(() => completeNodeRefund(token));
 }
-export function getPendingNodeRefund() { return _getMeta('pendingNodeRefund'); }
+export function getPendingNodeRefund() { return /** @type {Promise<NodeRefund | null>} */ (_getMeta('pendingNodeRefund')); }

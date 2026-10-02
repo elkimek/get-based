@@ -4,6 +4,9 @@ import { _getMeta, _setMeta } from './cashu-wallet-store.js';
 import { canonicalRoutstrUrl, tokenAccountKey } from './routstr-validation.js';
 import { getRoutstrSessionKey, saveRoutstrSessionKey } from './routstr-session.js';
 
+/** @typedef {import('./cashu-wallet-storage-types.js').PendingDeposit} PendingDeposit */
+/** @typedef {import('./cashu-wallet-storage-types.js').NodeRefund} NodeRefund */
+
 export async function fetchNodePayment(url, options = {}) {
   return fetch(url, { ...options, cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(30000) });
 }
@@ -36,7 +39,7 @@ export async function submitRoutstrDeposit(record) {
   return commitDeposit(record, await response.json());
 }
 export async function reconcileRoutstrDeposit() {
-  const record = await _getMeta('pendingDeposit');
+  const record = /** @type {PendingDeposit | string | null} */ (await _getMeta('pendingDeposit'));
   if (!record || typeof record === 'string') return record;
   if (record.completed && record.apiKey) {
     await commitDeposit(record, { api_key: record.apiKey });
@@ -55,7 +58,7 @@ export async function reconcileRoutstrDeposit() {
 }
 export async function depositExternalTokenToNode(nodeUrl, token) {
   nodeUrl = canonicalRoutstrUrl(nodeUrl);
-  if (await _getMeta('pendingDeposit')) throw new Error('Reconcile the previous node deposit before importing another token');
+  if (/** @type {PendingDeposit | string | null} */ (await _getMeta('pendingDeposit'))) throw new Error('Reconcile the previous node deposit before importing another token');
   const existingKey = getRoutstrSessionKey(nodeUrl);
   const record = { nodeUrl, token, recoveryToken: token, localCommit: true, existingKey, createdAt: Date.now() };
   await _setMeta('pendingDeposit', record);
@@ -66,7 +69,7 @@ export async function requestNodeRefund(nodeUrl) {
   nodeUrl = canonicalRoutstrUrl(nodeUrl);
   const key = getRoutstrSessionKey(nodeUrl);
   if (!key) throw new Error('No credential for this node');
-  const pending = await _getMeta('pendingNodeRefund');
+  const pending = /** @type {NodeRefund | null} */ (await _getMeta('pendingNodeRefund'));
   if (pending && (pending.nodeUrl !== nodeUrl || pending.key !== key)) throw new Error('Recover the existing node refund first');
   if (pending?.token) return pending;
   const record = pending || { nodeUrl, key, createdAt: Date.now() };
@@ -88,7 +91,7 @@ export async function requestNodeRefund(nodeUrl) {
   return result;
 }
 export async function completeNodeRefund(token) {
-  const record = await _getMeta('pendingNodeRefund');
+  const record = /** @type {NodeRefund | null} */ (await _getMeta('pendingNodeRefund'));
   if (!record) return;
   if (record.token !== token) throw new Error('Refund recovery record changed');
   // Keep the node credential: partial/sub-sat balances and in-flight use may
