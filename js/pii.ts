@@ -1,5 +1,14 @@
-// @ts-check
 // pii.js — Stable facade for PII obfuscation, local sanitization, and review UI.
+
+import type { PIIReviewOptions } from './pii-review.js';
+
+interface PrivacyCompletion {
+  error?: { message?: string } | null;
+  choices?: Array<{
+    delta?: { content?: string; reasoning_content?: string; reasoning?: string };
+    message?: { content?: string | null };
+  }> | null;
+}
 
 import { getErrorMessage, getErrorName } from './caught-error.js';
 import { showNotification } from './utils.js';
@@ -28,7 +37,7 @@ export { buildPIIDiffHTML, showPIIDiffViewer };
 // ═══════════════════════════════════════════════
 // PII OBFUSCATION — Fake data generators & sanitization
 // ═══════════════════════════════════════════════
-export function detectSexFromPDF(text) {
+export function detectSexFromPDF(text: string) {
   // Check for sex/gender labels in Czech and English lab reports
   // Note: \b doesn't work with accented chars (í,ž), so use [\s:] boundary instead
   if (/(?:pohlav[ií]|sex|gender)[\s:]+(?:ž|žena|female|f)(?:\s|$)/im.test(text)) return 'female';
@@ -38,7 +47,7 @@ export function detectSexFromPDF(text) {
   if (bn) return 'female';
   return null;
 }
-export function fakeName(sex) { return sex === 'female' ? 'Jana Nováková' : 'Jan Novák'; }
+export function fakeName(sex: unknown) { return sex === 'female' ? 'Jana Nováková' : 'Jan Novák'; }
 export const FAKE_STREETS = [
   'Sokolská 17', 'Národní 8', 'Lidická 32', 'Husova 5', 'Květná 12',
   'Nádražní 44', 'Masarykova 19', 'Palackého 7', 'Riegrova 23', 'Zahradní 3'
@@ -51,18 +60,18 @@ export const FAKE_DOCTORS = [
 
 const UINT32_RANGE = 0x100000000;
 
-export function secureRandomInt(maxExclusive) {
+export function secureRandomInt(maxExclusive: number) {
   if (!Number.isSafeInteger(maxExclusive) || maxExclusive < 1 || maxExclusive > UINT32_RANGE) {
     throw new RangeError('secureRandomInt requires an integer between 1 and 2^32');
   }
   const unbiasedLimit = Math.floor(UINT32_RANGE / maxExclusive) * maxExclusive;
   const sample = new Uint32Array(1);
-  do crypto.getRandomValues(sample); while (sample[0] >= unbiasedLimit);
-  return sample[0] % maxExclusive;
+  do crypto.getRandomValues(sample); while (sample[0]! >= unbiasedLimit);
+  return sample[0]! % maxExclusive;
 }
 
-export function randomPick(arr) { return arr.length ? arr[secureRandomInt(arr.length)] : undefined; }
-export function randomDigits(n) { let s = ''; for (let i = 0; i < n; i++) s += secureRandomInt(10); return s; }
+export function randomPick<T>(arr: readonly T[]) { return arr.length ? arr[secureRandomInt(arr.length)] : undefined; }
+export function randomDigits(n: number) { let s = ''; for (let i = 0; i < n; i++) s += secureRandomInt(10); return s; }
 export function fakeBirthNumber() {
   const y = 50 + secureRandomInt(50);
   const m = 1 + secureRandomInt(12);
@@ -83,7 +92,7 @@ export function isOllamaPIIEnabled() {
   return localStorage.getItem('labcharts-ollama-pii-enabled') === 'true';
 }
 
-export function setOllamaPIIEnabled(enabled) {
+export function setOllamaPIIEnabled(enabled: unknown) {
   localStorage.setItem('labcharts-ollama-pii-enabled', enabled ? 'true' : 'false');
 }
 
@@ -141,12 +150,12 @@ TEXT TO PROCESS:
 const SENSITIVE_LABEL_RE = /\b(?:jm[eé]no|name|pacient|patient|p[rř][ií]jmen[ií]|surname|adresa|address|bydli[sš]t[eě]|residence|datum\s*narozen|date\s*of\s*birth|DOB|rodn[eé]\s*[cč][ií]slo|birth\s*number|patient\s*id|member\s*id|medical\s*record|MRN|email|phone|telephone|tel\.?|doctor|physician|ordering|provider|referring)\b/i;
 const LAB_UNIT_RE = /\b(?:mmol|[uµμ]mol|[uµμ]kat|g\/l|mg\/(?:l|dl)|ng\/(?:l|dl|ml)|pg|pmol|nmol|mU\/l|U\/l|IU\/l|mEq\/l|fL|cells\/uL|thou\/uL|mill\/uL)\b|%/i;
 
-function normalizePIIComparison(text) {
+function normalizePIIComparison(text: unknown) {
   return String(text || '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
-function extractSensitiveValues(text) {
-  const values = [];
+function extractSensitiveValues(text: unknown) {
+  const values: string[] = [];
   for (const line of String(text || '').split(/\r?\n/)) {
     if (!SENSITIVE_LABEL_RE.test(line)) continue;
     const value = line.split(/[:=]/).slice(1).join(':').trim();
@@ -161,14 +170,14 @@ function extractSensitiveValues(text) {
   return [...new Set(values.map(value => normalizePIIComparison(value)).filter(value => value.length >= 3))];
 }
 
-function labNumberPreservationRatio(input, output) {
-  const numbers = text => String(text || '').split(/\r?\n/)
+function labNumberPreservationRatio(input: unknown, output: unknown) {
+  const numbers = (text: unknown) => String(text || '').split(/\r?\n/)
     .filter(line => LAB_UNIT_RE.test(line) && !SENSITIVE_LABEL_RE.test(line))
     .flatMap(line => line.match(/[-+]?\d+(?:[.,]\d+)?/g) || [])
     .map(value => value.replace(',', '.'));
   const original = numbers(input);
   if (original.length === 0) return 1;
-  const remaining = new Map();
+  const remaining = new Map<string, number>();
   for (const value of numbers(output)) remaining.set(value, (remaining.get(value) || 0) + 1);
   let kept = 0;
   for (const value of original) {
@@ -178,8 +187,8 @@ function labNumberPreservationRatio(input, output) {
   return kept / original.length;
 }
 
-function extractProtectedReportDates(text) {
-  const dates = [];
+function extractProtectedReportDates(text: unknown) {
+  const dates: string[] = [];
   const datePattern = /\b\d{4}[-/.]\d{2}[-/.]\d{2}\b|\b\d{1,2}[./]\d{1,2}[./]\d{4}\b/g;
   const reportDateLabel = /\b(?:collection|collected|sample|specimen|report(?:ed)?|result(?:ed)?|drawn|odb[eě]r|datum\s*odb[eě]ru|vzork|nasb[ií]r)\b/i;
   for (const line of String(text || '').split(/\r?\n/)) {
@@ -189,7 +198,7 @@ function extractProtectedReportDates(text) {
   return [...new Set(dates)];
 }
 
-export function validatePIIResult(result, pdfText) {
+export function validatePIIResult(result: string | null | undefined, pdfText: string) {
   if (!result) return 'Local AI returned empty response';
   if (result.length < pdfText.length * 0.25) return `Local AI output too short (${result.length} vs ${pdfText.length} chars)`;
   if (normalizePIIComparison(result) === normalizePIIComparison(pdfText)) return 'Local AI returned the original text without removing personal information';
@@ -202,7 +211,7 @@ export function validatePIIResult(result, pdfText) {
   return null;
 }
 
-export function finalizePIIResult(result, pdfText) {
+export function finalizePIIResult(result: string, pdfText: string) {
   const validationError = validatePIIResult(result, pdfText);
   if (validationError) throw new Error(validationError);
   const deterministic = obfuscatePDFText(result).obfuscated;
@@ -214,20 +223,20 @@ export function finalizePIIResult(result, pdfText) {
   return deterministic;
 }
 
-function ensurePIIModelEligible(model) {
+function ensurePIIModelEligible(model: unknown) {
   if (!isPIIEligibleModel(model)) {
     throw new Error(`Privacy model "${model}" is not a self-hosted text model. Cloud-tagged and embedding models cannot be used for PII protection.`);
   }
 }
 
-function createThinkingContentFilter(onText, onThinking) {
+function createThinkingContentFilter(onText: (text: string) => void, onThinking: ((text: string) => void) | null | undefined) {
   let buffer = '';
   let inThinking = false;
   const openTag = '<think>';
   const closeTag = '</think>';
-  const emitThinking = text => { if (text && onThinking) onThinking(text); };
-  const emitText = text => { if (text) onText(text); };
-  const drain = final => {
+  const emitThinking = (text: string) => { if (text && onThinking) onThinking(text); };
+  const emitText = (text: string) => { if (text) onText(text); };
+  const drain = (final: boolean) => {
     while (buffer) {
       const tag = inThinking ? closeTag : openTag;
       const index = buffer.toLowerCase().indexOf(tag);
@@ -252,19 +261,19 @@ function createThinkingContentFilter(onText, onThinking) {
     }
   };
   return {
-    push(content) { buffer += content; drain(false); },
+    push(content: string) { buffer += content; drain(false); },
     flush() { drain(true); },
   };
 }
 
-export async function sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onThinking) {
+export async function sanitizeWithOllamaStreaming(pdfText: string, onChunk: (chunk: string) => void, signal: AbortSignal | null | undefined, onThinking: ((chunk: string) => void) | null | undefined) {
   const piiUrl = getOllamaPIIUrl();
   const piiModel = getOllamaPIIModel();
   ensurePIIModelEligible(piiModel);
   const apiKey = getOllamaPIIApiKey();
   const promptText = PII_PROMPT_PREFIX + pdfText;
   const baseUrl = piiUrl.replace(/\/+$/, '');
-  const headers = { 'Content-Type': 'application/json' };
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
 
   // Quick reachability probe with a 5s timeout BEFORE issuing the
@@ -277,7 +286,7 @@ export async function sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onTh
   // to fire. Mirrors the AbortSignal.any-with-polyfill pattern used
   // in api.js's _fetchWithRetry. Greptile PR #178 P2 comment.
   try {
-    let probeSignal;
+    let probeSignal: AbortSignal | null | undefined;
     const hasTimeout = typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function';
     const timeoutSig = hasTimeout ? AbortSignal.timeout(5000) : null;
     if (!timeoutSig) {
@@ -289,14 +298,14 @@ export async function sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onTh
       probeSignal = AbortSignal.any([signal, timeoutSig]);
     } else if (signal) {
       const ctl = new AbortController();
-      const fwd = (s) => s.addEventListener('abort', () => ctl.abort(s.reason), { once: true });
+      const fwd = (s: AbortSignal) => s.addEventListener('abort', () => ctl.abort(s.reason), { once: true });
       if (signal.aborted) ctl.abort(signal.reason); else fwd(signal);
       if (timeoutSig.aborted) ctl.abort(timeoutSig.reason); else fwd(timeoutSig);
       probeSignal = ctl.signal;
     } else {
       probeSignal = timeoutSig;
     }
-    const probe = await fetch(`${baseUrl}/v1/models`, { headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {}, signal: probeSignal });
+    const probe = await fetch(`${baseUrl}/v1/models`, { headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {}, signal: probeSignal as AbortSignal | null });
     if (!probe.ok) throw new Error(`HTTP ${probe.status}`);
   } catch (e) {
     throw new Error(`Local PII server unreachable at ${baseUrl} — falling back to regex obfuscation. (${getErrorMessage(e)})`);
@@ -312,8 +321,9 @@ export async function sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onTh
       temperature: 0,
       reasoning_effort: 'none',
     }),
+    // Fetch treats an explicit undefined signal as omitted; DOM exact optional types omit that case.
     signal
-  }, 30000);
+  } as RequestInit, 30000);
   let resp;
   try {
     resp = await fetch(`${baseUrl}/v1/chat/completions`, requestState.fetchOptions);
@@ -336,7 +346,7 @@ export async function sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onTh
   // model crashes / OOMs / loses GPU access; fail loud after 45s so
   // the user can fall back to regex instead of waiting forever.
   const STALL_MS = 45000;
-  const readWithStall = () => new Promise((resolve, reject) => {
+  const readWithStall = () => new Promise<ReadableStreamReadResult<Uint8Array>>((resolve, reject) => {
     const t = setTimeout(() => {
       try { reader.cancel(); } catch (e) {}
       reject(new Error(`Local PII stream stalled — no data for ${Math.round(STALL_MS / 1000)}s. Stop and use regex instead.`));
@@ -347,12 +357,12 @@ export async function sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onTh
     );
   });
 
-  const processLine = line => {
+  const processLine = (line: string) => {
     const trimmed = line.trim();
     if (!trimmed || !trimmed.startsWith('data:')) return false;
     const payload = trimmed.slice(5).trimStart();
     if (payload === '[DONE]') return true;
-    const json = JSON.parse(payload);
+    const json = JSON.parse(payload) as PrivacyCompletion;
     if (json.error) throw new Error(json.error.message || String(json.error));
     const delta = json.choices?.[0]?.delta;
     if (!delta) return false;
@@ -384,7 +394,7 @@ export async function sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onTh
   return finalizePIIResult(accumulated.trim(), pdfText);
 }
 
-export async function sanitizeWithOllama(pdfText) {
+export async function sanitizeWithOllama(pdfText: string) {
   const piiUrl = getOllamaPIIUrl();
   const piiModel = getOllamaPIIModel();
   ensurePIIModelEligible(piiModel);
@@ -392,7 +402,7 @@ export async function sanitizeWithOllama(pdfText) {
   const promptText = PII_PROMPT_PREFIX + pdfText;
   try {
     const baseUrl = piiUrl.replace(/\/+$/, '');
-    const headers = { 'Content-Type': 'application/json' };
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
     const resp = await fetch(`${baseUrl}/v1/chat/completions`, {
       method: 'POST',
@@ -407,7 +417,7 @@ export async function sanitizeWithOllama(pdfText) {
       signal: AbortSignal.timeout(90000)
     });
     if (!resp.ok) throw new Error(`Local server error: ${resp.status}`);
-    const data = await resp.json();
+    const data = await resp.json() as PrivacyCompletion;
     const result = (data.choices?.[0]?.message?.content || '').trim();
     return finalizePIIResult(result, pdfText);
   } catch (e) {
@@ -423,7 +433,7 @@ export async function sanitizeWithOllama(pdfText) {
 // ═══════════════════════════════════════════════
 // REGEX PII OBFUSCATION (fallback when no Ollama)
 // ═══════════════════════════════════════════════
-export function obfuscatePDFText(pdfText) {
+export function obfuscatePDFText(pdfText: string) {
   let text = pdfText;
   let replacements = 0;
   const original = pdfText;
@@ -433,16 +443,22 @@ export function obfuscatePDFText(pdfText) {
   const unitKeywords = /\b(mmol|µmol|µkat|umol|ukat|g\/l|mg\/l|ng\/l|µg|ug|mU\/l|pmol|nmol|ml\/s|fL|pg|×10|10\^|u\/l|iu\/l|%|sec|s\/1|mg\/dL|ng\/dL|mIU\/mL|mEq\/L|mcg|cells\/uL|thou\/uL|mill\/uL)\b/i;
   // Collection date line — protect entirely
   const collectionDateLine = /^.*\b(odb[eě]r|collect|datum|sample|vzork|nasb[ií]r|drawn)\b.*$/gim;
-  const protectedLines = new Set();
+  const protectedLines = new Set<number>();
   let m;
   while ((m = collectionDateLine.exec(pdfText)) !== null) {
     protectedLines.add(m.index);
   }
 
-  function isProtectedLine(matchIndex) {
+  function isProtectedLine(matchIndex: number) {
     // Check if this match falls on a collection date line
     const lineStart = text.lastIndexOf('\n', matchIndex) + 1;
     return protectedLines.has(lineStart) || protectedLines.has(matchIndex);
+  }
+
+  function replaceUnprotectedMatch(match: string, offset: number, generate: () => string) {
+    if (isProtectedLine(offset)) return match;
+    replacements++;
+    return generate();
   }
 
   // Phase 1 — Label-based: lines with PII-identifying labels
@@ -459,30 +475,24 @@ export function obfuscatePDFText(pdfText) {
   ];
 
   for (const { pattern, gen } of labelReplacements) {
-    text = text.replace(pattern, (match, label, _value, offset) => {
-      if (isProtectedLine(offset)) return match;
-      replacements++;
-      return label + gen();
+    text = text.replace(pattern, (match: string, label: string, _value: string, offset: number) => {
+      return replaceUnprotectedMatch(match, offset, () => label + gen());
     });
   }
 
   // Phase 2 — Pattern-based: anywhere in text
   // Czech/Slovak birth number (YYMMDD/XXXX)
-  text = text.replace(/\b(\d{2})(0[1-9]|1[0-2]|5[1-9]|6[0-2])(0[1-9]|[12]\d|3[01])\/(\d{3,4})\b/g, (match, _y, _m, _d, _s, offset) => {
-    if (isProtectedLine(offset)) return match;
-    replacements++;
-    return fakeBirthNumber();
+  text = text.replace(/\b(\d{2})(0[1-9]|1[0-2]|5[1-9]|6[0-2])(0[1-9]|[12]\d|3[01])\/(\d{3,4})\b/g, (match: string, _y: string, _m: string, _d: string, _s: string, offset: number) => {
+    return replaceUnprotectedMatch(match, offset, () => fakeBirthNumber());
   });
 
   // SSN (XXX-XX-XXXX)
-  text = text.replace(/\b\d{3}-\d{2}-\d{4}\b/g, (match, offset) => {
-    if (isProtectedLine(offset)) return match;
-    replacements++;
-    return `${randomDigits(3)}-${randomDigits(2)}-${randomDigits(4)}`;
+  text = text.replace(/\b\d{3}-\d{2}-\d{4}\b/g, (match: string, offset: number) => {
+    return replaceUnprotectedMatch(match, offset, () => `${randomDigits(3)}-${randomDigits(2)}-${randomDigits(4)}`);
   });
 
   // US phone: (XXX) XXX-XXXX (with optional label)
-  text = text.replace(/(?:(?:tel|phone|fax|ph)\.?[\s:]+)?\(\d{3}\)[\s.-]\d{3}[\s.-]\d{4}\b/gi, (match, offset) => {
+  text = text.replace(/(?:(?:tel|phone|fax|ph)\.?[\s:]+)?\(\d{3}\)[\s.-]\d{3}[\s.-]\d{4}\b/gi, (match: string, offset: number) => {
     if (isProtectedLine(offset)) return match;
     const lineStart = text.lastIndexOf('\n', offset) + 1;
     const lineEnd = text.indexOf('\n', offset);
@@ -493,15 +503,13 @@ export function obfuscatePDFText(pdfText) {
   });
 
   // Email
-  text = text.replace(/\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g, (match, offset) => {
-    if (isProtectedLine(offset)) return match;
-    replacements++;
-    return fakeEmail();
+  text = text.replace(/\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g, (match: string, offset: number) => {
+    return replaceUnprotectedMatch(match, offset, () => fakeEmail());
   });
 
   // Phone numbers (international and local)
   // Require +country code OR leading tel/phone/fax label to avoid matching reference ranges like "150-380"
-  text = text.replace(/(?:(?:\+\d{1,3}[\s-]?)\(?\d{2,3}\)?[\s.-]?\d{3}[\s.-]?\d{3,4}\b)|(?:(?:tel|phone|fax|mobil|telefon)\.?[\s:]+\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{3,4}\b)/gi, (match, offset) => {
+  text = text.replace(/(?:(?:\+\d{1,3}[\s-]?)\(?\d{2,3}\)?[\s.-]?\d{3}[\s.-]?\d{3,4}\b)|(?:(?:tel|phone|fax|mobil|telefon)\.?[\s:]+\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{3,4}\b)/gi, (match: string, offset: number) => {
     if (isProtectedLine(offset)) return match;
     const lineStart = text.lastIndexOf('\n', offset) + 1;
     const lineEnd = text.indexOf('\n', offset);
@@ -514,7 +522,7 @@ export function obfuscatePDFText(pdfText) {
   });
 
   // Long digit sequences (8+ digits) on non-result lines — likely patient/sample IDs
-  text = text.replace(/\b\d{8,}\b/g, (match, offset) => {
+  text = text.replace(/\b\d{8,}\b/g, (match: string, offset: number) => {
     if (isProtectedLine(offset)) return match;
     const lineStart = text.lastIndexOf('\n', offset) + 1;
     const lineEnd = text.indexOf('\n', offset);
@@ -531,8 +539,7 @@ export function obfuscatePDFText(pdfText) {
 
 // extractPatientName dropped — too unreliable across PDF layouts
 
-/** @typedef {(onChunk: (chunk: string) => void, signal: AbortSignal, onThinking: (chunk: string) => void) => Promise<any>} PIIStreamFunction */
-export function reviewPIIBeforeSend(originalText, { obfuscatedText = '', streamFn = /** @type {PIIStreamFunction | null} */ (null) } = {}) {
+export function reviewPIIBeforeSend(originalText: string, { obfuscatedText = '', streamFn = null }: PIIReviewOptions = {}) {
   return reviewPIIBeforeSendUI(originalText, { obfuscatedText, streamFn }, {
     obfuscatePDFText,
     unloadOllamaPIIModel,

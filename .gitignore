@@ -716,3 +716,7 @@ deploy/profile-share/data/
 /js/pdf-import-review.js
 
 /js/pdf-import-commit.js
+
+# Native PDF privacy modules
+/js/pii.js
+/js/pii-review.js

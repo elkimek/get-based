@@ -409,7 +409,7 @@ assert('PII diff and review overlays use shared overlay lifecycle helpers',
     piiReviewSrc.includes('trapModalFocus,') &&
     piiReviewSrc.includes('function openPIIOverlay(overlay, options = {})') &&
     piiReviewSrc.includes('requestAnimationFrame(() => {') &&
-    piiReviewSrc.includes('if (!overlay.isConnected) return;') &&
+    /if \(!overlay\.isConnected\)\s+return;/.test(piiReviewSrc) &&
     piiReviewSrc.includes('openModalOverlay(overlay, options)') &&
     piiReviewSrc.includes('trapModalFocus(overlay, { closeOnEscape: false })') &&
     piiReviewSrc.includes('function closePIIOverlay(overlay)') &&

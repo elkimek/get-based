@@ -1,5 +1,18 @@
-// @ts-check
 // pii-review.js — PII diff rendering and review-modal interaction.
+
+import type { ModalOverlayOptions } from './modal-lifecycle.js';
+
+export type PIIStreamFunction = (
+  onChunk: (chunk: string) => void,
+  signal: AbortSignal,
+  onThinking: (chunk: string) => void,
+) => Promise<unknown>;
+export interface PIIReviewOptions { obfuscatedText?: string; streamFn?: PIIStreamFunction | null; }
+type PIIReviewDeps = Pick<typeof import('./pii.js'), 'obfuscatePDFText' | 'unloadOllamaPIIModel'>;
+type DiffOperation =
+  | { type: 'equal'; original: string; replacement: string }
+  | { type: 'add'; replacement: string }
+  | { type: 'delete'; original: string };
 
 import { escapeHTML, showNotification } from './utils.js';
 import {
@@ -10,17 +23,9 @@ import {
   trapModalFocus,
 } from './modal-lifecycle.js';
 
-/**
- * @typedef {{
- *   obfuscatePDFText: (text: string) => { obfuscated: string, original: string, replacements: number },
- *   unloadOllamaPIIModel: () => void,
- * }} PIIReviewDeps
- */
 
-/** @typedef {(onChunk: (chunk: string) => void, signal: AbortSignal, onThinking: (chunk: string) => void) => Promise<any>} PIIStreamFunction */
-
-function wordDiff(originalLine, replacementLine) {
-  const tokenize = value => value.match(/\S+|\s+/g) || [];
+function wordDiff(originalLine: string, replacementLine: string) {
+  const tokenize = (value: string) => value.match(/\S+|\s+/g) || [];
   const originalTokens = tokenize(originalLine);
   const replacementTokens = tokenize(replacementLine);
   const originalLength = originalTokens.length;
@@ -41,17 +46,17 @@ function wordDiff(originalLine, replacementLine) {
   );
   for (let originalIndex = 1; originalIndex <= originalLength; originalIndex++) {
     for (let replacementIndex = 1; replacementIndex <= replacementLength; replacementIndex++) {
-      matches[originalIndex][replacementIndex] = originalTokens[originalIndex - 1]
+      matches[originalIndex]![replacementIndex] = originalTokens[originalIndex - 1]
         === replacementTokens[replacementIndex - 1]
-        ? matches[originalIndex - 1][replacementIndex - 1] + 1
+        ? matches[originalIndex - 1]![replacementIndex - 1]! + 1
         : Math.max(
-          matches[originalIndex - 1][replacementIndex],
-          matches[originalIndex][replacementIndex - 1],
+          matches[originalIndex - 1]![replacementIndex]!,
+          matches[originalIndex]![replacementIndex - 1]!,
         );
     }
   }
 
-  const operations = [];
+  const operations: DiffOperation[] = [];
   let originalIndex = originalLength;
   let replacementIndex = replacementLength;
   while (originalIndex > 0 || replacementIndex > 0) {
@@ -59,16 +64,16 @@ function wordDiff(originalLine, replacementLine) {
         && originalTokens[originalIndex - 1] === replacementTokens[replacementIndex - 1]) {
       operations.push({
         type: 'equal',
-        original: originalTokens[--originalIndex],
-        replacement: replacementTokens[--replacementIndex],
+        original: originalTokens[--originalIndex]!,
+        replacement: replacementTokens[--replacementIndex]!,
       });
     } else if (replacementIndex > 0
         && (originalIndex === 0
-          || matches[originalIndex][replacementIndex - 1]
-            >= matches[originalIndex - 1][replacementIndex])) {
-      operations.push({ type: 'add', replacement: replacementTokens[--replacementIndex] });
+          || matches[originalIndex]![replacementIndex - 1]!
+            >= matches[originalIndex - 1]![replacementIndex]!)) {
+      operations.push({ type: 'add', replacement: replacementTokens[--replacementIndex]! });
     } else {
-      operations.push({ type: 'delete', original: originalTokens[--originalIndex] });
+      operations.push({ type: 'delete', original: originalTokens[--originalIndex]! });
     }
   }
   operations.reverse();
@@ -88,8 +93,8 @@ function wordDiff(originalLine, replacementLine) {
   return { left: left || '&nbsp;', right: right || '&nbsp;' };
 }
 
-export function buildPIIDiffHTML(originalText, obfuscatedText) {
-  const trimBlankLines = value => value.replace(/^\n+/, '').replace(/\n+$/, '');
+export function buildPIIDiffHTML(originalText: string, obfuscatedText: string) {
+  const trimBlankLines = (value: string) => value.replace(/^\n+/, '').replace(/\n+$/, '');
   const originalLines = trimBlankLines(originalText).split('\n');
   const obfuscatedLines = trimBlankLines(obfuscatedText).split('\n');
   const maxLines = Math.max(originalLines.length, obfuscatedLines.length);
@@ -110,7 +115,7 @@ export function buildPIIDiffHTML(originalText, obfuscatedText) {
   return { leftHtml, rightHtml };
 }
 
-function openPIIOverlay(overlay, options = {}) {
+function openPIIOverlay(overlay: HTMLElement, options: ModalOverlayOptions = {}) {
   document.body.appendChild(overlay);
   requestAnimationFrame(() => {
     if (!overlay.isConnected) return;
@@ -121,11 +126,11 @@ function openPIIOverlay(overlay, options = {}) {
   });
 }
 
-function closePIIOverlay(overlay) {
+function closePIIOverlay(overlay: HTMLElement) {
   removeModalOverlay(overlay);
 }
 
-export function showPIIDiffViewer(originalText, obfuscatedText) {
+export function showPIIDiffViewer(originalText: string, obfuscatedText: string): void | Promise<void | false> {
   if (!isDataProtectionStylesheetLoaded()) {
     return loadDataProtectionStylesheetForAction().then(loaded => {
       if (loaded) return showPIIDiffViewer(originalText, obfuscatedText);
@@ -154,27 +159,27 @@ export function showPIIDiffViewer(originalText, obfuscatedText) {
   openPIIOverlay(overlay);
 }
 
-function nudgePIIOverlay(overlay) {
+function nudgePIIOverlay(overlay: HTMLElement) {
   const modal = overlay?.querySelector?.('.pii-diff-modal');
   if (!modal) return;
   modal.classList.add('modal-nudge');
   modal.addEventListener('animationend', () => modal.classList.remove('modal-nudge'), { once: true });
 }
 
-function wirePIIOverlayNudge(overlay) {
+function wirePIIOverlayNudge(overlay: HTMLElement) {
   overlay.addEventListener('click', event => {
     if (event.target === overlay) nudgePIIOverlay(overlay);
   });
 }
 
 export function reviewPIIBeforeSend(
-  originalText,
+  originalText: string,
   {
     obfuscatedText = '',
-    streamFn = /** @type {PIIStreamFunction | null} */ (null),
-  } = {},
-  /** @type {PIIReviewDeps} */ deps,
-) {
+    streamFn = null,
+  }: PIIReviewOptions = {},
+  deps: PIIReviewDeps,
+): Promise<string> {
   if (!isDataProtectionStylesheetLoaded()) {
     return loadDataProtectionStylesheetForAction().then(loaded => {
       if (loaded) {
@@ -184,7 +189,7 @@ export function reviewPIIBeforeSend(
       return 'cancel';
     });
   }
-  return new Promise(resolve => {
+  return new Promise<string>(resolve => {
     const isStreaming = typeof streamFn === 'function';
     const overlay = document.createElement('div');
     overlay.className = 'pii-warning-overlay';
@@ -228,18 +233,14 @@ export function reviewPIIBeforeSend(
     wirePIIOverlayNudge(overlay);
     openPIIOverlay(overlay);
 
-    const searchInput = /** @type {HTMLInputElement} */ (overlay.querySelector('#pii-search-input'));
-    const searchCount = /** @type {HTMLElement} */ (overlay.querySelector('#pii-search-count'));
-    const textarea = /** @type {HTMLTextAreaElement} */ (overlay.querySelector('#pii-edit-textarea'));
-    const sendButton = /** @type {HTMLButtonElement} */ (overlay.querySelector('#pii-review-send'));
-    const statusElement = /** @type {HTMLElement | null} */ (overlay.querySelector('#pii-stream-status'));
-    const stopButton = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#pii-stream-stop'));
-    const leftPanel = /** @type {HTMLElement | null} */ (
-      overlay.querySelector('.pii-review-viewer > .pii-diff-left')
-    );
-    const mobileOriginal = /** @type {HTMLElement | null} */ (
-      overlay.querySelector('.pii-mobile-original-body')
-    );
+    const searchInput = overlay.querySelector<HTMLInputElement>('#pii-search-input')!;
+    const searchCount = overlay.querySelector<HTMLElement>('#pii-search-count')!;
+    const textarea = overlay.querySelector<HTMLTextAreaElement>('#pii-edit-textarea')!;
+    const sendButton = overlay.querySelector<HTMLButtonElement>('#pii-review-send')!;
+    const statusElement = overlay.querySelector<HTMLElement>('#pii-stream-status');
+    const stopButton = overlay.querySelector<HTMLButtonElement>('#pii-stream-stop');
+    const leftPanel = overlay.querySelector<HTMLElement>('.pii-review-viewer > .pii-diff-left');
+    const mobileOriginal = overlay.querySelector<HTMLElement>('.pii-mobile-original-body');
     let dirty = false;
 
     searchInput.addEventListener('input', () => {
@@ -277,16 +278,14 @@ export function reviewPIIBeforeSend(
       }, 150);
     });
 
-    function switchToEditMode(event) {
-      const diffView = /** @type {HTMLElement | null} */ (
-        overlay.querySelector('.pii-diff-preview')
-      );
+    function switchToEditMode(event: Event) {
+      const diffView = overlay.querySelector<HTMLElement>('.pii-diff-preview');
       if (!diffView) return;
       let lineIndex = -1;
-      if (event && event.target && diffView.contains(/** @type {Node} */ (event.target))) {
-        let element = /** @type {Node | null} */ (event.target);
+      if (event && event.target && diffView.contains((event.target as Node))) {
+        let element = (event.target as Node | null);
         while (element && element.parentNode !== diffView) {
-          element = /** @type {Node | null} */ (element.parentNode);
+          element = (element.parentNode as Node | null);
         }
         if (element instanceof Element) {
           lineIndex = Array.from(diffView.children).indexOf(element);
@@ -300,7 +299,7 @@ export function reviewPIIBeforeSend(
         const textLines = textarea.value.split('\n');
         let offset = 0;
         for (let index = 0; index < lineIndex && index < textLines.length; index++) {
-          offset += textLines[index].length + 1;
+          offset += textLines[index]!.length + 1;
         }
         textarea.setSelectionRange(offset, offset);
       }
@@ -308,7 +307,7 @@ export function reviewPIIBeforeSend(
       if (textarea.parentElement) textarea.parentElement.scrollTop = scrollTop;
     }
 
-    function showDiffPreview(currentObfuscatedText) {
+    function showDiffPreview(currentObfuscatedText: string) {
       const { leftHtml: nextLeftHtml, rightHtml } = buildPIIDiffHTML(
         originalText,
         currentObfuscatedText,
@@ -318,9 +317,7 @@ export function reviewPIIBeforeSend(
       }
       if (mobileOriginal) mobileOriginal.innerHTML = nextLeftHtml;
       textarea.style.display = 'none';
-      let diffView = /** @type {HTMLElement | null} */ (
-        overlay.querySelector('.pii-diff-preview')
-      );
+      let diffView = overlay.querySelector<HTMLElement>('.pii-diff-preview');
       if (!diffView) {
         const textareaParent = textarea.parentElement;
         if (!textareaParent) return;
@@ -332,14 +329,10 @@ export function reviewPIIBeforeSend(
       diffView.style.display = '';
     }
 
-    /** @type {HTMLButtonElement} */ (
-      overlay.querySelector('#pii-edit-btn')
-    ).addEventListener('click', event => switchToEditMode(event));
+    overlay.querySelector<HTMLButtonElement>('#pii-edit-btn')!.addEventListener('click', event => switchToEditMode(event));
 
-    let abortController = /** @type {AbortController | null} */ (null);
-    /** @type {HTMLButtonElement} */ (
-      overlay.querySelector('#pii-review-regex')
-    ).addEventListener('click', () => {
+    let abortController: AbortController | null = null;
+    overlay.querySelector<HTMLButtonElement>('#pii-review-regex')!.addEventListener('click', () => {
       const result = deps.obfuscatePDFText(originalText);
       textarea.value = result.obfuscated;
       textarea.readOnly = false;
@@ -362,9 +355,7 @@ export function reviewPIIBeforeSend(
       closePIIOverlay(overlay);
       resolve(textarea.value);
     });
-    /** @type {HTMLButtonElement} */ (
-      overlay.querySelector('#pii-review-cancel')
-    ).addEventListener('click', () => {
+    overlay.querySelector<HTMLButtonElement>('#pii-review-cancel')!.addEventListener('click', () => {
       if (abortController) abortController.abort();
       deps.unloadOllamaPIIModel();
       closePIIOverlay(overlay);
@@ -372,27 +363,21 @@ export function reviewPIIBeforeSend(
     });
 
     if (isStreaming) {
-      const runStream = /** @type {PIIStreamFunction} */ (streamFn);
+      const runStream = (streamFn as PIIStreamFunction);
       if (!statusElement || !stopButton) {
         closePIIOverlay(overlay);
         resolve('cancel');
         return;
       }
-      const retryButton = /** @type {HTMLButtonElement | null} */ (
-        overlay.querySelector('#pii-stream-retry')
-      );
+      const retryButton = overlay.querySelector<HTMLButtonElement>('#pii-stream-retry');
       if (!retryButton) {
         closePIIOverlay(overlay);
         resolve('cancel');
         return;
       }
       const expectedLength = originalText.length;
-      const thinkingSection = /** @type {HTMLDetailsElement | null} */ (
-        overlay.querySelector('#pii-thinking-section')
-      );
-      const thinkingContent = /** @type {HTMLElement | null} */ (
-        overlay.querySelector('#pii-thinking-content')
-      );
+      const thinkingSection = overlay.querySelector<HTMLDetailsElement>('#pii-thinking-section');
+      const thinkingContent = overlay.querySelector<HTMLElement>('#pii-thinking-content');
 
       const startStream = () => {
         abortController = new AbortController();
@@ -402,9 +387,7 @@ export function reviewPIIBeforeSend(
         sendButton.disabled = true;
         stopButton.hidden = false;
         retryButton.hidden = true;
-        const previousDiff = /** @type {HTMLElement | null} */ (
-          overlay.querySelector('.pii-diff-preview')
-        );
+        const previousDiff = overlay.querySelector<HTMLElement>('.pii-diff-preview');
         if (previousDiff) previousDiff.style.display = 'none';
         statusElement.className = 'pii-stream-status pii-stream-waiting';
         statusElement.textContent = 'Waiting for model response\u2026';
@@ -445,7 +428,7 @@ export function reviewPIIBeforeSend(
           framePending = false;
         };
 
-        const onThinking = chunk => {
+        const onThinking = (chunk: string) => {
           pendingThinking += chunk;
           if (!framePending) {
             framePending = true;

@@ -67,7 +67,7 @@ const LEGACY_TESTS = [
   './test-vendor-personal-info.js',
   './test-normalize-units.js',
   // Batch 5 — module imports + source inspection.
-  './test-pii.js',
+  './test-pii.ts',
   './test-schema.js',
   './test-ai-verdict-engine-instance.ts',
   './test-phase-ranges.js',

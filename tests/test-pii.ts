@@ -11,7 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
@@ -84,7 +84,6 @@ try {
   assert('Patient name replaced', !lcOut.includes('Robert Johnson'), `name still present`);
   assert('DOB replaced', !lcOut.includes('05/15/1980'), `DOB still present`);
   // Age regex replaces the value — check it changed (may randomly match, so verify the line was touched)
-  const ageLineOrig = 'Age: 43';
   const ageLineOut = lcOut.split('\n').find(l => l.startsWith('Age:'));
   assert('Age line processed', ageLineOut != null && lcResult.replacements > 0, `age line: ${ageLineOut}`);
   assert('Specimen ID replaced', !lcOut.includes('0123456789'), `specimen ID still present`);
