@@ -660,3 +660,4 @@ deploy/profile-share/data/
 /js/agent-chat-backend.js
 /js/marker-detail-store.js
 /js/chat-message-action-attrs.js
+/js/nutrition-store.js

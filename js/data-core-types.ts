@@ -3,7 +3,7 @@ import type { ActiveData } from './data-view-types.js';
 export type ProfileConversion = ReturnType<typeof import('./unit-profiles.js').resolveMarkerUnitProfile>['conversion'];
 export interface DataContextDependencies { invalidateLabContextCache: (() => void) | null | undefined }
 export interface ProfileSaveOptions {
-  baseData?: ImportedDataRecord | undefined;
+  baseData?: Partial<ImportedDataRecord> | undefined;
   expectedData?: string | null | undefined;
   activeSave?: boolean;
   forceProfileScope?: boolean;
@@ -12,8 +12,8 @@ export interface ProfileSaveOptions {
   reason?: string;
 }
 export interface ProfileSaveSnapshot {
-  baseline: ImportedDataRecord | undefined;
-  base: ImportedDataRecord | null;
+  baseline: Partial<ImportedDataRecord> | undefined;
+  base: Partial<ImportedDataRecord> | null;
   intent: ImportedDataRecord;
   committed: boolean;
   profileId: string;

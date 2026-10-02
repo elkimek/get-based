@@ -54,6 +54,7 @@ const stylesheetPromiseCache = createRetryingStylesheetLoader({
 });
 let modulePromise = null;
 let moduleValue = null;
+/** @type {Promise<unknown>} */
 let syncHydrationPromise = Promise.resolve();
 
 // Pull refresh replaces state.importedData in place. Reconcile its synced meal

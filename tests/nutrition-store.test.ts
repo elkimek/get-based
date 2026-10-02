@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import type { BackupSnapshot } from '../js/backup.js';
+import type { DeviceLocalEnvelope } from '../js/wearable-storage-types.js';
 
 import {
   buildNutritionArchive,
@@ -23,7 +25,7 @@ import { buildNutritionSummaryContext, NUTRITION_SUMMARY_VERSION } from '../js/n
 import { profileStorageKey } from '../js/profile-storage-key.js';
 import { state } from '../js/state.js';
 
-const profileIds = new Set();
+const profileIds = new Set<string>();
 
 afterEach(async () => {
   await Promise.all([...profileIds].map(profileId => deleteNutritionDB(profileId)));
@@ -34,7 +36,7 @@ describe('thumbnail-only nutrition storage', () => {
   it('removes the retired barcode product cache during database upgrade', async () => {
     const profileId = `nutrition-legacy-food-cache-${Date.now()}`;
     profileIds.add(profileId);
-    const legacyDb = await new Promise((resolve, reject) => {
+    const legacyDb = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open(`getbased-nutrition-${profileId}`, 2);
       request.onupgradeneeded = () => {
         const db = request.result;
@@ -123,7 +125,7 @@ describe('thumbnail-only nutrition storage', () => {
     profileIds.add(profileId);
     await encryptedRemoveItem(storageKey);
     state.currentProfile = profileId;
-    state.importedData = initiatingData;
+    (state as { importedData: Partial<typeof state.importedData> }).importedData = initiatingData;
 
     try {
       const pendingSave = saveActiveProfileMeal({
@@ -132,13 +134,13 @@ describe('thumbnail-only nutrition storage', () => {
         eatenAt: '2026-08-25T12:00:00.000Z',
       });
       state.currentProfile = otherProfileId;
-      state.importedData = otherData;
+      (state as { importedData: Partial<typeof state.importedData> }).importedData = otherData;
 
       await expect(pendingSave).resolves.toMatchObject({ id: 'profile-scoped-meal' });
       await expect(getNutritionMeal(profileId, 'profile-scoped-meal')).resolves.toMatchObject({
         name: 'Profile-scoped lunch',
       });
-      const persisted = JSON.parse(await encryptedGetItem(storageKey));
+      const persisted = JSON.parse((await encryptedGetItem(storageKey))!);
       expect(persisted.nutritionMeals).toMatchObject([{
         id: 'profile-scoped-meal',
         name: 'Profile-scoped lunch',
@@ -181,13 +183,13 @@ describe('thumbnail-only nutrition storage', () => {
     const previousProfile = state.currentProfile;
     state.currentProfile = profileId;
     const saved = await putNutritionMeal(profileId, { name: 'Recoverable summary meal', eatenAt: '2026-08-23T12:30:00.000Z' });
-    const fallback = { version: NUTRITION_SUMMARY_VERSION, totalMeals: 1, windows: { d7: { meals: 1, dailyAverages: { energyKcal: 620 } } } };
+    const fallback: Record<string, unknown> = { version: NUTRITION_SUMMARY_VERSION, totalMeals: 1, windows: { d7: { meals: 1, dailyAverages: { energyKcal: 620 } } } };
     fallback.contextByDays = { d30: buildNutritionSummaryContext(fallback) };
     await setLocalNutritionSummary(profileId, fallback);
     const db = await openNutritionDB(profileId);
     const tx = db.transaction('meals', 'readwrite');
     const store = tx.objectStore('meals');
-    const row = await new Promise((resolve, reject) => {
+    const row = await new Promise<{ _devicePayload: Pick<DeviceLocalEnvelope, 'ciphertext'> }>((resolve, reject) => {
       const request = store.get(saved.id);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
@@ -215,7 +217,7 @@ describe('thumbnail-only nutrition storage', () => {
     const db = await openNutritionDB(profileId);
     const tx = db.transaction('meals', 'readwrite');
     const store = tx.objectStore('meals');
-    const row = await new Promise((resolve, reject) => {
+    const row = await new Promise<{ _devicePayload: Pick<DeviceLocalEnvelope, 'ciphertext'> }>((resolve, reject) => {
       const request = store.get(saved.id);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
@@ -297,7 +299,7 @@ describe('thumbnail-only nutrition storage', () => {
     profileIds.add(profileId);
     await encryptedRemoveItem(storageKey);
     state.currentProfile = profileId;
-    state.importedData = { entries: [], nutritionMeals: [] };
+    (state as { importedData: Partial<typeof state.importedData> }).importedData = { entries: [], nutritionMeals: [] };
 
     try {
       await hydrateNutritionSummary(profileId);
@@ -320,8 +322,8 @@ describe('thumbnail-only nutrition storage', () => {
         id: 'active-restored-meal',
         name: 'Restored active lunch',
       }]);
-      expect(state.nutritionSummary.totalMeals).toBe(1);
-      const persisted = JSON.parse(await encryptedGetItem(storageKey));
+      expect(state.nutritionSummary!.totalMeals).toBe(1);
+      const persisted = JSON.parse((await encryptedGetItem(storageKey))!);
       expect(persisted.nutritionMeals).toMatchObject([{ id: 'active-restored-meal' }]);
     } finally {
       await encryptedRemoveItem(storageKey);
@@ -335,15 +337,15 @@ describe('thumbnail-only nutrition storage', () => {
     const storageKey = profileStorageKey(profileId, 'imported');
     const previousProfile = state.currentProfile;
     const previousImportedData = state.importedData;
-    const previousTestFlag = globalThis.__WEARABLES_TEST;
+    const previousTestFlag = (globalThis as typeof globalThis & { __WEARABLES_TEST?: unknown }).__WEARABLES_TEST;
     const cryptoModule = await import('../js/crypto.js');
     profileIds.add(profileId);
-    globalThis.__WEARABLES_TEST = true;
+    (globalThis as typeof globalThis & { __WEARABLES_TEST?: unknown }).__WEARABLES_TEST = true;
     localStorage.setItem('labcharts-encryption-enabled', 'true');
 
     try {
       const salt = await cryptoModule._setTestSessionKey('nutrition-backup-passphrase');
-      const saltText = btoa(String.fromCharCode(...salt));
+      const saltText = btoa(String.fromCharCode(...salt!));
       localStorage.setItem('labcharts-encryption-salt', saltText);
       await cryptoModule.encryptedSetItem('labcharts-profiles', JSON.stringify([{ id: profileId, name: 'Nutrition backup' }]));
       await cryptoModule.encryptedSetItem(storageKey, JSON.stringify({
@@ -361,17 +363,17 @@ describe('thumbnail-only nutrition storage', () => {
         }],
       }));
 
-      const serialized = serializeBackupSnapshot(await buildFullBackupSnapshot());
+      const serialized = serializeBackupSnapshot((await buildFullBackupSnapshot())!)!;
       expect(serialized).not.toContain('PRIVATE BACKUP MEAL');
       expect(serialized).not.toContain('UFJJVkFURV9USFVNQg');
-      const restoredSnapshot = parseBackupSnapshot(serialized);
+      const restoredSnapshot = parseBackupSnapshot(serialized) as Pick<BackupSnapshot, 'profiles'>;
       expect(restoredSnapshot).toMatchObject({ encrypted: true, encryptionSalt: saltText });
       const rawImported = restoredSnapshot.profiles.find(profile => profile.profileId === profileId)?.keys?.imported;
       expect(rawImported).toMatch(/^v1:/);
 
       await encryptedRemoveItem(storageKey);
-      await setBlob(storageKey, rawImported);
-      const restoredData = JSON.parse(await encryptedGetItem(storageKey));
+      await setBlob(storageKey, rawImported!);
+      const restoredData = JSON.parse((await encryptedGetItem(storageKey))!);
       expect(restoredData).toMatchObject({
         contextSourceSettings: { nutrition: true },
         nutritionContextDays: 90,
@@ -397,8 +399,8 @@ describe('thumbnail-only nutrition storage', () => {
       localStorage.removeItem('labcharts-profiles');
       state.currentProfile = previousProfile;
       state.importedData = previousImportedData;
-      if (previousTestFlag === undefined) delete globalThis.__WEARABLES_TEST;
-      else globalThis.__WEARABLES_TEST = previousTestFlag;
+      if (previousTestFlag === undefined) delete (globalThis as typeof globalThis & { __WEARABLES_TEST?: unknown }).__WEARABLES_TEST;
+      else (globalThis as typeof globalThis & { __WEARABLES_TEST?: unknown }).__WEARABLES_TEST = previousTestFlag;
     }
   });
 });

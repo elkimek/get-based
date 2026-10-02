@@ -292,8 +292,8 @@ export async function restoreNutritionComparison() {
     : {};
   comparisonRunContext = snapshot.runContext && typeof snapshot.runContext === 'object' ? snapshot.runContext : null;
   comparisonReferenceRunIndex = Number.isInteger(snapshot.referenceRunIndex)
-    && snapshot.referenceRunIndex >= 0 && snapshot.referenceRunIndex < comparisonRuns.length
-    ? snapshot.referenceRunIndex
+    && /** @type {number} */ (snapshot.referenceRunIndex) >= 0 && /** @type {number} */ (snapshot.referenceRunIndex) < comparisonRuns.length
+    ? /** @type {number} */ (snapshot.referenceRunIndex)
     : null;
   comparisonSavedAt = String(snapshot.savedAt || '');
   comparisonIsRestored = true;

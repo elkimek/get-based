@@ -1,14 +1,17 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { ProfileData } from '../types/app-state.js';
+
+type PersistenceHandler = (profileId: string, importedData: Partial<ProfileData>) => Promise<boolean>;
 
 const persistenceGate = vi.hoisted(() => ({
-  handler: null,
-  release: null,
+  handler: null as PersistenceHandler | null,
+  release: null as (() => void) | null,
 }));
 
 vi.mock('../js/data.js', () => ({
-  saveImportedDataForProfile: vi.fn(async (profileId, importedData) => (
+  saveImportedDataForProfile: vi.fn(async (profileId: string, importedData: Partial<ProfileData>) => (
     persistenceGate.handler?.(profileId, importedData) ?? true
   )),
 }));
@@ -38,14 +41,14 @@ describe('nutrition save and hydration ordering', () => {
 
   it('queues hydration behind a save and aligns a reloaded active profile before reconciling', async () => {
     state.currentProfile = profileId;
-    state.importedData = { entries: [], nutritionMeals: [] };
+    (state as { importedData: Partial<typeof state.importedData> }).importedData = { entries: [], nutritionMeals: [] };
     await hydrateNutritionSummary(profileId);
 
-    let signalPersistStarted;
-    const persistStarted = new Promise(resolve => { signalPersistStarted = resolve; });
-    const persistedNutrition = [];
+    let signalPersistStarted!: () => void;
+    const persistStarted = new Promise<void>(resolve => { signalPersistStarted = resolve; });
+    const persistedNutrition: unknown[] = [];
     let persistCalls = 0;
-    persistenceGate.handler = async (ignoredProfileId, importedData) => {
+    persistenceGate.handler = async (_ignoredProfileId, importedData) => {
       persistCalls += 1;
       persistedNutrition.push(JSON.parse(JSON.stringify({
         nutritionMeals: importedData.nutritionMeals,
@@ -53,7 +56,7 @@ describe('nutrition save and hydration ordering', () => {
       })));
       if (persistCalls === 1) {
         signalPersistStarted();
-        await new Promise(resolve => { persistenceGate.release = resolve; });
+        await new Promise<void>(resolve => { persistenceGate.release = resolve; });
       }
       return true;
     };
@@ -65,9 +68,9 @@ describe('nutrition save and hydration ordering', () => {
     await persistStarted;
 
     state.currentProfile = 'other-profile';
-    state.importedData = { entries: [] };
+    (state as { importedData: Partial<typeof state.importedData> }).importedData = { entries: [] };
     state.currentProfile = profileId;
-    state.importedData = {
+    (state as { importedData: Partial<typeof state.importedData> }).importedData = {
       entries: [],
       nutritionMeals: [
         { id: 'meal-in-flight', name: 'Newer remote lunch', eatenAt: '2026-08-26T12:00:00.000Z', updatedAt: '2099-01-01T00:00:00.000Z' },
@@ -81,7 +84,7 @@ describe('nutrition save and hydration ordering', () => {
       hydrationSettled = true;
       return summary;
     });
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
     expect(hydrationSettled).toBe(false);
 
     persistenceGate.release?.();
@@ -107,16 +110,16 @@ describe('nutrition save and hydration ordering', () => {
 
   it('serializes overlapping edits so an older save cannot reassert stale meal data', async () => {
     state.currentProfile = profileId;
-    state.importedData = { entries: [], nutritionMeals: [] };
+    (state as { importedData: Partial<typeof state.importedData> }).importedData = { entries: [], nutritionMeals: [] };
     await hydrateNutritionSummary(profileId);
 
-    let signalOlderPersistStarted;
-    const olderPersistStarted = new Promise(resolve => { signalOlderPersistStarted = resolve; });
-    persistenceGate.handler = async (ignoredProfileId, importedData) => {
+    let signalOlderPersistStarted!: () => void;
+    const olderPersistStarted = new Promise<void>(resolve => { signalOlderPersistStarted = resolve; });
+    persistenceGate.handler = async (_ignoredProfileId, importedData) => {
       const savedName = importedData.nutritionMeals?.find(meal => meal.id === 'same-meal')?.name;
       if (savedName === 'Older edit') {
         signalOlderPersistStarted();
-        await new Promise(resolve => { persistenceGate.release = resolve; });
+        await new Promise<void>(resolve => { persistenceGate.release = resolve; });
       }
       return true;
     };
@@ -137,7 +140,7 @@ describe('nutrition save and hydration ordering', () => {
       newerSettled = true;
       return saved;
     });
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
     expect(newerSettled).toBe(false);
 
     persistenceGate.release?.();
@@ -150,16 +153,16 @@ describe('nutrition save and hydration ordering', () => {
 
   it('serializes delete after an in-flight save so the saved meal cannot be resurrected', async () => {
     state.currentProfile = profileId;
-    state.importedData = { entries: [], nutritionMeals: [] };
+    (state as { importedData: Partial<typeof state.importedData> }).importedData = { entries: [], nutritionMeals: [] };
     await hydrateNutritionSummary(profileId);
 
-    let signalPersistStarted;
-    const persistStarted = new Promise(resolve => { signalPersistStarted = resolve; });
-    persistenceGate.handler = async (ignoredProfileId, importedData) => {
+    let signalPersistStarted!: () => void;
+    const persistStarted = new Promise<void>(resolve => { signalPersistStarted = resolve; });
+    persistenceGate.handler = async (_ignoredProfileId, importedData) => {
       const savedName = importedData.nutritionMeals?.find(meal => meal.id === 'deleted-meal')?.name;
       if (savedName === 'Delayed edit') {
         signalPersistStarted();
-        await new Promise(resolve => { persistenceGate.release = resolve; });
+        await new Promise<void>(resolve => { persistenceGate.release = resolve; });
       }
       return true;
     };
@@ -175,7 +178,7 @@ describe('nutrition save and hydration ordering', () => {
     const pendingDelete = deleteActiveProfileMeal('deleted-meal').then(() => {
       deleteSettled = true;
     });
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
     expect(deleteSettled).toBe(false);
 
     persistenceGate.release?.();
@@ -188,24 +191,24 @@ describe('nutrition save and hydration ordering', () => {
 
   it('queues hydration behind a delete and carries its tombstone into a reloaded active profile', async () => {
     state.currentProfile = profileId;
-    state.importedData = { entries: [], nutritionMeals: [] };
+    (state as { importedData: Partial<typeof state.importedData> }).importedData = { entries: [], nutritionMeals: [] };
     await hydrateNutritionSummary(profileId);
     await saveActiveProfileMeal({
       id: 'delete-during-hydration',
       name: 'Dinner to delete',
       eatenAt: '2026-08-26T18:00:00.000Z',
     });
-    const staleMeal = state.importedData.nutritionMeals[0];
+    const staleMeal = state.importedData.nutritionMeals![0]!;
 
-    let signalDeletePersistStarted;
-    const deletePersistStarted = new Promise(resolve => { signalDeletePersistStarted = resolve; });
+    let signalDeletePersistStarted!: () => void;
+    const deletePersistStarted = new Promise<void>(resolve => { signalDeletePersistStarted = resolve; });
     let deletePersistCalls = 0;
-    persistenceGate.handler = async (ignoredProfileId, importedData) => {
+    persistenceGate.handler = async (_ignoredProfileId, importedData) => {
       if (importedData._deleted?.nutritionMeals?.includes('delete-during-hydration')) {
         deletePersistCalls += 1;
         if (deletePersistCalls === 1) {
           signalDeletePersistStarted();
-          await new Promise(resolve => { persistenceGate.release = resolve; });
+          await new Promise<void>(resolve => { persistenceGate.release = resolve; });
         }
       }
       return true;
@@ -214,9 +217,9 @@ describe('nutrition save and hydration ordering', () => {
     await deletePersistStarted;
 
     state.currentProfile = 'other-profile';
-    state.importedData = { entries: [] };
+    (state as { importedData: Partial<typeof state.importedData> }).importedData = { entries: [] };
     state.currentProfile = profileId;
-    state.importedData = {
+    (state as { importedData: Partial<typeof state.importedData> }).importedData = {
       entries: [],
       nutritionMeals: [
         staleMeal,
@@ -229,7 +232,7 @@ describe('nutrition save and hydration ordering', () => {
       hydrationSettled = true;
       return summary;
     });
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
     expect(hydrationSettled).toBe(false);
 
     persistenceGate.release?.();

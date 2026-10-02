@@ -1,4 +1,23 @@
-// @ts-check
+import type { ProfileData } from '../types/app-state.js';
+import type { StoredNutritionMeal } from './nutrition-sync-sanitize.js';
+import type { DeviceLocalEnvelope } from './wearable-storage-types.js';
+
+// Storage readers retain opaque extensions; these fields are not validation results.
+type MealReader = Record<string, unknown> & { id?: unknown; eatenAt?: unknown; updatedAt?: unknown; createdAt?: unknown };
+type NormalizedMeal = MealReader & { id: string; eatenAt: string; updatedAt: string };
+type MealEnvelope = Partial<DeviceLocalEnvelope> | null | undefined;
+type StoredMealRow = MealReader & { _devicePayload?: MealEnvelope };
+type NutritionSurface = Parameters<typeof mergeNutritionOperationSurface>[1];
+type NutritionProfile = Omit<NutritionSurface, 'nutritionMeals'> & Partial<Pick<ProfileData, 'nutritionMeals'>> & {
+  wearableSummary?: { metrics?: Record<string, { primarySource?: string } | null>; sources?: Record<string, unknown> } | null;
+  wearableConnections?: Record<string, { lastSyncAt?: unknown } | null> | null;
+  [key: string]: unknown;
+};
+type SummaryReader = Record<string, unknown> & { windows?: { d7?: unknown } | null; totalMeals?: unknown };
+type ListMealOptions = { since?: unknown; limit?: unknown };
+type ArchiveImageReader = Record<string, unknown>;
+type ArchiveReader = { version?: unknown; meals?: unknown };
+
 // nutrition-store.js — encrypted local cache for cross-device meal records.
 //
 // Reviewed meal data and 240px thumbnails are mirrored into importedData for
@@ -6,10 +25,6 @@
 // AI request is being prepared and are stripped again at this storage boundary.
 // A non-extractable AES key encrypts every local cached meal payload.
 
-/**
- * Reader expectations for existing storage consumers, not a validation result.
- * @typedef {Record<string, unknown> & {id?: string, eatenAt?: string, updatedAt?: string, createdAt?: string, name?: string, reviewed?: unknown, images?: unknown, image?: unknown}} MealReader
- */
 
 import { state } from './state.js';
 import { computeNutritionSummary, mergeNutritionOperationSurface, NUTRITION_SUMMARY_VERSION } from './nutrition-summary.js';
@@ -28,48 +43,44 @@ const DEVICE_KEY_META = 'meal-device-key:v1';
 const SUMMARY_META = 'nutrition-summary:v1';
 const COMPARISON_META = 'nutrition-comparison:v1';
 const PROFILE_SYNC_INITIALIZED_META = 'nutrition-profile-sync-initialized:v1';
-const TOMBSTONE_KEYS = ['_deleted', '_deletedAt', '_deletedClearedAt'];
+const TOMBSTONE_KEYS = ['_deleted', '_deletedAt', '_deletedClearedAt'] as const;
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
-const dbPromises = new Map();
-/** @type {Promise<any>} */
-let nutritionOperationTail = Promise.resolve();
+const dbPromises = new Map<string, Promise<IDBDatabase>>();
+let nutritionOperationTail: Promise<unknown> = Promise.resolve();
 
-/** @template T @param {() => Promise<T>} operation @returns {Promise<T>} */
-function queueNutritionOperation(operation) {
+function queueNutritionOperation<T>(operation: () => Promise<T>): Promise<T> {
   const result = nutritionOperationTail.then(operation);
   nutritionOperationTail = result.catch(() => {});
   return result;
 }
 
-function localDay(date) {
+function localDay(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
-function sleepCandidateSources(importedData = state.importedData) {
+function sleepCandidateSources(importedData: NutritionProfile = state.importedData) {
   const metrics = importedData?.wearableSummary?.metrics || {};
   const preferred = metrics.sleep_total_min?.primarySource || metrics.sleep_score?.primarySource || '';
   const connected = Object.keys(importedData?.wearableSummary?.sources || {});
   return [...new Set([preferred, ...connected, 'oura'].filter(Boolean))];
 }
 
-/** @returns {Promise<Array<{source: string, sleepStart: string, sleepEnd: string}>>} */
-async function loadLocalSleepIntervals(profileId, {
+async function loadLocalSleepIntervals(profileId: string, {
   days = 100,
   now = new Date(),
   importedData = state.importedData,
-} = {}) {
+}: { days?: unknown; now?: Date; importedData?: NutritionProfile } = {}) {
   const end = new Date(now);
   const start = new Date(now);
   start.setDate(start.getDate() - Math.max(7, Number(days) || 100));
   for (const source of sleepCandidateSources(importedData)) {
     const rows = await getDailyRange(profileId, source, localDay(start), localDay(end)).catch(() => []);
-    /** @type {Array<{source: string, sleepStart: string, sleepEnd: string}>} */
-    const intervals = rows.flatMap(row => row?.sleep_start_at && row?.sleep_end_at ? [{
+        const intervals = rows.flatMap(row => row?.sleep_start_at && row?.sleep_end_at ? [{
       source,
       sleepStart: row.sleep_start_at,
       sleepEnd: row.sleep_end_at,
@@ -86,15 +97,15 @@ export class NutritionStorageIntegrityError extends Error {
   }
 }
 
-function normalizeProfileId(profileId) {
+function normalizeProfileId(profileId: unknown) {
   return String(profileId || 'default').replace(/[^a-z0-9_-]/gi, '').slice(0, 128) || 'default';
 }
 
-function databaseName(profileId) {
+function databaseName(profileId: unknown) {
   return DB_PREFIX + normalizeProfileId(profileId);
 }
 
-function transactionDone(tx) {
+function transactionDone(tx: IDBTransaction): Promise<void> {
   return new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve(undefined);
     tx.onerror = () => reject(tx.error || new Error('Nutrition storage transaction failed.'));
@@ -102,11 +113,11 @@ function transactionDone(tx) {
   });
 }
 
-export function openNutritionDB(profileId) {
+export function openNutritionDB(profileId?: unknown) {
   const normalized = normalizeProfileId(profileId);
   const name = databaseName(normalized);
-  if (dbPromises.has(name)) return dbPromises.get(name);
-  const promise = new Promise((resolve, reject) => {
+  if (dbPromises.has(name)) return dbPromises.get(name)!;
+  const promise = new Promise<IDBDatabase>((resolve, reject) => {
     if (typeof indexedDB === 'undefined') {
       reject(new Error('Secure meal storage is unavailable in this browser.'));
       return;
@@ -142,22 +153,22 @@ export function openNutritionDB(profileId) {
   return promise;
 }
 
-export function resetNutritionDB(profileId) {
+export function resetNutritionDB(profileId: unknown) {
   const name = databaseName(profileId);
   const cached = dbPromises.get(name);
   dbPromises.delete(name);
   cached?.then(db => db?.close?.()).catch(() => {});
 }
 
-function isAesKey(value) {
+function isAesKey(value: unknown): value is CryptoKey {
   return !!(value
     && typeof value === 'object'
-    && value.type === 'secret'
-    && value.algorithm?.name === 'AES-GCM');
+    && (value as Partial<CryptoKey>).type === 'secret'
+    && (value as Partial<CryptoKey>).algorithm?.name === 'AES-GCM');
 }
 
-async function readMeta(profileId, key) {
-  const db = /** @type {IDBDatabase} */ (await openNutritionDB(profileId));
+async function readMeta(profileId: unknown, key: string): Promise<unknown> {
+  const db = (await openNutritionDB(profileId));
   return new Promise((resolve, reject) => {
     const request = db.transaction(STORE_META, 'readonly').objectStore(STORE_META).get(key);
     request.onsuccess = () => resolve(request.result?.value ?? null);
@@ -165,22 +176,22 @@ async function readMeta(profileId, key) {
   });
 }
 
-async function writeMeta(profileId, key, value) {
-  const db = /** @type {IDBDatabase} */ (await openNutritionDB(profileId));
+async function writeMeta(profileId: unknown, key: string, value: unknown) {
+  const db = (await openNutritionDB(profileId));
   const tx = db.transaction(STORE_META, 'readwrite');
   tx.objectStore(STORE_META).put({ k: key, value });
   await transactionDone(tx);
 }
 
-async function deleteMeta(profileId, key) {
-  const db = /** @type {IDBDatabase} */ (await openNutritionDB(profileId));
+async function deleteMeta(profileId: unknown, key: string) {
+  const db = (await openNutritionDB(profileId));
   const tx = db.transaction(STORE_META, 'readwrite');
   tx.objectStore(STORE_META).delete(key);
   await transactionDone(tx);
 }
 
-async function claimDeviceKey(profileId, candidate) {
-  const db = /** @type {IDBDatabase} */ (await openNutritionDB(profileId));
+async function claimDeviceKey(profileId: unknown, candidate: CryptoKey): Promise<CryptoKey> {
+  const db = (await openNutritionDB(profileId));
   const tx = db.transaction(STORE_META, 'readwrite');
   const store = tx.objectStore(STORE_META);
   const request = store.get(DEVICE_KEY_META);
@@ -198,7 +209,7 @@ async function claimDeviceKey(profileId, candidate) {
   });
 }
 
-async function getOrCreateDeviceKey(profileId) {
+async function getOrCreateDeviceKey(profileId: unknown) {
   const existing = await readMeta(profileId, DEVICE_KEY_META);
   if (isAesKey(existing)) return existing;
   if (!globalThis.crypto?.subtle) {
@@ -215,7 +226,7 @@ async function getOrCreateDeviceKey(profileId) {
   return claimDeviceKey(profileId, candidate);
 }
 
-async function encryptPayload(profileId, value) {
+async function encryptPayload(profileId: unknown, value: unknown) {
   const key = await getOrCreateDeviceKey(profileId);
   const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
   const plaintext = encoder.encode(JSON.stringify(value));
@@ -223,7 +234,7 @@ async function encryptPayload(profileId, value) {
   return { version: 1, iv, ciphertext };
 }
 
-async function decryptPayload(profileId, envelope) {
+async function decryptPayload(profileId: unknown, envelope: MealEnvelope): Promise<Record<string, unknown> | null> {
   if (envelope?.version !== 1 || !envelope.iv || !envelope.ciphertext) return null;
   const key = await readMeta(profileId, DEVICE_KEY_META);
   if (!isAesKey(key)) return null;
@@ -233,8 +244,8 @@ async function decryptPayload(profileId, envelope) {
       key,
       envelope.ciphertext,
     );
-    const parsed = JSON.parse(decoder.decode(plaintext));
-    return parsed && typeof parsed === 'object' ? parsed : null;
+    const parsed: unknown = JSON.parse(decoder.decode(plaintext));
+    return parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : null;
   } catch {
     return null;
   }
@@ -245,13 +256,12 @@ function createMealId() {
   return `meal-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-/** @returns {MealReader & {id: string, eatenAt: string, updatedAt: string}} */
-function normalizeMeal(meal, { preserveUpdatedAt = false } = {}) {
+function normalizeMeal(meal: unknown, { preserveUpdatedAt = false } = {}): NormalizedMeal {
   const now = new Date().toISOString();
-  const sanitized = /** @type {MealReader | null | undefined} */ (sanitizeNutritionMeal(meal));
-  const eatenAt = new Date(sanitized?.eatenAt || now);
+  const sanitized = (sanitizeNutritionMeal(meal) as MealReader | null | undefined);
+  const eatenAt = new Date((sanitized?.eatenAt || now) as string | number);
   if (!Number.isFinite(eatenAt.getTime())) throw new Error('A valid meal date is required.');
-  const suppliedUpdatedAt = new Date(sanitized?.updatedAt || '');
+  const suppliedUpdatedAt = new Date((sanitized?.updatedAt || '') as string | number);
   const updatedAt = preserveUpdatedAt && Number.isFinite(suppliedUpdatedAt.getTime())
     ? suppliedUpdatedAt.toISOString()
     : now;
@@ -265,27 +275,27 @@ function normalizeMeal(meal, { preserveUpdatedAt = false } = {}) {
   };
 }
 
-export async function putNutritionMeal(profileId, meal, options = {}) {
+export async function putNutritionMeal(profileId: unknown, meal: unknown, options = {}) {
   const normalized = normalizeMeal(meal, options);
   const { id, eatenAt, updatedAt, ...payload } = normalized;
   const encrypted = await encryptPayload(profileId, payload);
-  const db = /** @type {IDBDatabase} */ (await openNutritionDB(profileId));
+  const db = (await openNutritionDB(profileId));
   const tx = db.transaction(STORE_MEALS, 'readwrite');
   tx.objectStore(STORE_MEALS).put({ id, eatenAt, updatedAt, _devicePayload: encrypted });
   await transactionDone(tx);
   return normalized;
 }
 
-async function decryptStoredMeal(profileId, row) {
+async function decryptStoredMeal(profileId: unknown, row: StoredMealRow): Promise<MealReader> {
   if (!row?._devicePayload) throw new NutritionStorageIntegrityError('A stored meal is missing its encrypted payload.');
   const payload = await decryptPayload(profileId, row._devicePayload);
   if (!payload) throw new NutritionStorageIntegrityError();
   return { id: row.id, eatenAt: row.eatenAt, updatedAt: row.updatedAt, ...payload };
 }
 
-export async function getNutritionMeal(profileId, id) {
-  const db = /** @type {IDBDatabase} */ (await openNutritionDB(profileId));
-  const row = await new Promise((resolve, reject) => {
+export async function getNutritionMeal(profileId: unknown, id: unknown) {
+  const db = (await openNutritionDB(profileId));
+  const row = await new Promise<StoredMealRow | null>((resolve, reject) => {
     const request = db.transaction(STORE_MEALS, 'readonly').objectStore(STORE_MEALS).get(String(id || ''));
     request.onsuccess = () => resolve(request.result || null);
     request.onerror = () => reject(request.error);
@@ -293,13 +303,13 @@ export async function getNutritionMeal(profileId, id) {
   return row ? decryptStoredMeal(profileId, row) : null;
 }
 
-export async function listNutritionMeals(profileId, { since = null, limit = 500 } = {}) {
-  const db = /** @type {IDBDatabase} */ (await openNutritionDB(profileId));
-  const rows = await new Promise((resolve, reject) => {
+export async function listNutritionMeals(profileId: unknown, { since = null, limit = 500 }: ListMealOptions = {}) {
+  const db = (await openNutritionDB(profileId));
+  const rows = await new Promise<StoredMealRow[]>((resolve, reject) => {
     const index = db.transaction(STORE_MEALS, 'readonly').objectStore(STORE_MEALS).index('by_eaten_at');
     const range = since && typeof IDBKeyRange !== 'undefined' ? IDBKeyRange.lowerBound(String(since)) : null;
     const request = index.openCursor(range, 'prev');
-    const found = [];
+    const found: StoredMealRow[] = [];
     request.onsuccess = () => {
       const cursor = request.result;
       if (cursor && found.length < Math.max(1, Number(limit) || 500)) {
@@ -314,32 +324,32 @@ export async function listNutritionMeals(profileId, { since = null, limit = 500 
   return Promise.all(rows.map(row => decryptStoredMeal(profileId, row)));
 }
 
-export async function deleteNutritionMeal(profileId, id) {
-  const db = /** @type {IDBDatabase} */ (await openNutritionDB(profileId));
+export async function deleteNutritionMeal(profileId: unknown, id: unknown) {
+  const db = (await openNutritionDB(profileId));
   const tx = db.transaction(STORE_MEALS, 'readwrite');
   tx.objectStore(STORE_MEALS).delete(String(id || ''));
   await transactionDone(tx);
 }
 
-export async function clearNutritionMeals(profileId) {
-  const db = /** @type {IDBDatabase} */ (await openNutritionDB(profileId));
+export async function clearNutritionMeals(profileId: unknown) {
+  const db = (await openNutritionDB(profileId));
   const tx = db.transaction(STORE_MEALS, 'readwrite');
   tx.objectStore(STORE_MEALS).clear();
   await transactionDone(tx);
 }
 
-export async function setLocalNutritionSummary(profileId, summary) {
+export async function setLocalNutritionSummary(profileId: unknown, summary: unknown) {
   const encrypted = await encryptPayload(profileId, summary || null);
   await writeMeta(profileId, SUMMARY_META, encrypted);
 }
 
-export async function getLocalNutritionSummary(profileId) {
+export async function getLocalNutritionSummary(profileId: unknown): Promise<SummaryReader | null> {
   const encrypted = await readMeta(profileId, SUMMARY_META);
   if (!encrypted) return null;
-  return decryptPayload(profileId, encrypted);
+  return decryptPayload(profileId, encrypted as MealEnvelope);
 }
 
-export function setLocalNutritionComparison(profileId, comparison) {
+export function setLocalNutritionComparison<T>(profileId: unknown, comparison: T) {
   return queueNutritionOperation(async () => {
     if (comparison == null) {
       await deleteMeta(profileId, COMPARISON_META);
@@ -351,10 +361,10 @@ export function setLocalNutritionComparison(profileId, comparison) {
   });
 }
 
-export async function getLocalNutritionComparison(profileId) {
+export async function getLocalNutritionComparison(profileId: unknown) {
   const encrypted = await readMeta(profileId, COMPARISON_META);
   if (!encrypted) return null;
-  return decryptPayload(profileId, encrypted);
+  return decryptPayload(profileId, encrypted as MealEnvelope);
 }
 
 export async function requestPersistentNutritionStorage() {
@@ -366,7 +376,7 @@ export async function requestPersistentNutritionStorage() {
   }
 }
 
-export async function deleteNutritionDB(profileId) {
+export async function deleteNutritionDB(profileId: unknown): Promise<void> {
   const name = databaseName(profileId);
   const cached = dbPromises.get(name);
   if (cached) {
@@ -374,7 +384,7 @@ export async function deleteNutritionDB(profileId) {
   }
   resetNutritionDB(profileId);
   if (typeof indexedDB === 'undefined') return;
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     const request = indexedDB.deleteDatabase(name);
     request.onsuccess = () => resolve(undefined);
     request.onerror = () => reject(request.error || new Error('Meal data could not be deleted.'));
@@ -382,9 +392,9 @@ export async function deleteNutritionDB(profileId) {
   });
 }
 
-export async function buildNutritionArchive(profileId) {
-  const meals = /** @type {MealReader[]} */ ((await listNutritionMeals(profileId, { limit: 10000 }))
-    .map(sanitizeNutritionMeal));
+export async function buildNutritionArchive(profileId: unknown) {
+  const meals = ((await listNutritionMeals(profileId, { limit: 10000 }))
+    .map(sanitizeNutritionMeal) as MealReader[]);
   return {
     version: 1,
     exportedAt: new Date().toISOString(),
@@ -395,7 +405,7 @@ export async function buildNutritionArchive(profileId) {
 
 const ARCHIVE_IMAGE_PATTERN = /^data:image\/(jpeg|png|webp|gif);base64,([A-Za-z0-9+/]*={0,2})$/i;
 
-function validateArchiveImageDataUrl(value, maxBytes, label) {
+function validateArchiveImageDataUrl(value: unknown, maxBytes: number, label: string) {
   if (typeof value !== 'string') throw new Error(`A meal ${label} has an invalid image.`);
   const match = value.match(ARCHIVE_IMAGE_PATTERN);
   if (!match) throw new Error(`A meal ${label} must be an embedded JPG, PNG, WebP, or GIF image.`);
@@ -403,10 +413,10 @@ function validateArchiveImageDataUrl(value, maxBytes, label) {
   if (!encoded || encoded.length % 4 === 1) throw new Error(`A meal ${label} contains malformed image data.`);
   const decodedBytes = Math.max(0, Math.floor((encoded.length * 3) / 4) - (encoded.endsWith('==') ? 2 : encoded.endsWith('=') ? 1 : 0));
   if (decodedBytes > maxBytes) throw new Error(`A meal ${label} is too large to restore safely.`);
-  return match[1].toLowerCase() === 'jpg' ? 'image/jpeg' : `image/${match[1].toLowerCase()}`;
+  return match[1]!.toLowerCase() === 'jpg' ? 'image/jpeg' : `image/${match[1]!.toLowerCase()}`;
 }
 
-function validateArchiveImage(image) {
+function validateArchiveImage(image: ArchiveImageReader | null | undefined) {
   if (!image || typeof image !== 'object' || Array.isArray(image)) throw new Error('A meal archive contains an invalid photo.');
   // Accept an embedded full image from a legacy portable archive only so the
   // archive can be recovered. putNutritionMeal strips it before any write.
@@ -427,7 +437,7 @@ function validateArchiveImage(image) {
   }
 }
 
-export async function restoreNutritionArchive(profileId, archive) {
+export async function restoreNutritionArchive(profileId: string, archive: ArchiveReader | null | undefined) {
   if (!archive) return 0;
   if (archive?.version !== 1 || !Array.isArray(archive?.meals)) {
     throw new Error('The Meals & Nutrition archive has an unsupported format.');
@@ -453,7 +463,7 @@ export async function restoreNutritionArchive(profileId, archive) {
   // initialized empty nutritionMeals array is authoritative and immediately
   // deletes every archive row we just wrote to IDB.
   if (state.currentProfile === profileId) {
-    const importedData = state.importedData || (state.importedData = /** @type {any} */ ({}));
+    const importedData = (state.importedData || ((state as { importedData: NutritionProfile }).importedData = ({}))) as NutritionProfile;
     const baseData = structuredClone(importedData);
     const byId = new Map(canonicalNutritionMeals(importedData.nutritionMeals)
       .map(meal => [meal.id, meal]));
@@ -484,35 +494,29 @@ export async function restoreNutritionArchive(profileId, archive) {
   return restored;
 }
 
-function mealFreshness(meal) {
+function mealFreshness(meal: MealReader | null | undefined) {
   for (const value of [meal?.updatedAt, meal?.createdAt, meal?.eatenAt]) {
-    const clock = Date.parse(value || '');
+    const clock = Date.parse((value || '') as string);
     if (Number.isFinite(clock)) return clock;
   }
   return 0;
 }
 
-function canonicalNutritionMeals(meals) {
-  return /** @type {import('./nutrition-sync-sanitize.js').StoredNutritionMeal[]} */ (/** @type {MealReader[]} */ ((Array.isArray(meals) ? meals : [])
-    .map(sanitizeNutritionMeal))
+function canonicalNutritionMeals(meals: unknown): StoredNutritionMeal[] {
+  return ((Array.isArray(meals) ? meals : []).map(sanitizeNutritionMeal) as MealReader[])
     .filter(meal => meal && typeof meal.id === 'string' && meal.id
-      && Number.isFinite(Date.parse(meal.eatenAt || ''))))
+      && Number.isFinite(Date.parse((meal.eatenAt || '') as string)))
     .sort((a, b) => {
-      const dateOrder = Date.parse(/** @type {string} */ (b.eatenAt)) - Date.parse(/** @type {string} */ (a.eatenAt));
+      const dateOrder = Date.parse(b.eatenAt as string) - Date.parse(a.eatenAt as string);
       return dateOrder || String(a.id).localeCompare(String(b.id));
-    });
+    }) as StoredNutritionMeal[];
 }
 
-function mealSnapshot(value) {
+function mealSnapshot(value: unknown) {
   try { return JSON.stringify(value); } catch { return ''; }
 }
 
-/**
- * @param {string} profileId
- * @param {import('../types/app-state.js').ProfileData} importedData
- * @param {import('../types/app-state.js').ProfileData} baseData
- */
-async function persistNutritionProfileData(profileId, importedData, baseData) {
+async function persistNutritionProfileData(profileId: string, importedData: NutritionProfile, baseData: NutritionProfile) {
   const { saveImportedDataForProfile } = await import('./data.js');
   // Meal writes can outlive the initiating profile view. Persist the captured
   // profile snapshot explicitly so a mid-save switch cannot split the IDB
@@ -522,7 +526,7 @@ async function persistNutritionProfileData(profileId, importedData, baseData) {
   return saveImportedDataForProfile(profileId, importedData, { forceProfileScope: true, baseData });
 }
 
-async function persistAlignedNutritionProfileData(profileId, source, baseData) {
+async function persistAlignedNutritionProfileData(profileId: string, source: NutritionProfile, baseData: NutritionProfile) {
   let candidate = source;
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const active = state.currentProfile === profileId ? state.importedData : null;
@@ -540,14 +544,9 @@ async function persistAlignedNutritionProfileData(profileId, source, baseData) {
   return null;
 }
 
-/**
- * Reconcile the encrypted IDB cache with the thumbnail-only importedData
- * surface. The one-time initialization union protects meals created by an old
- * device-local-only build; after that, synced tombstones are authoritative.
- */
 export async function reconcileNutritionMealsFromProfileData(profileId = state.currentProfile) {
   if (!profileId || state.currentProfile !== profileId) return { meals: [], cacheChanged: false };
-  const importedData = state.importedData || (state.importedData = /** @type {any} */ ({}));
+  const importedData = (state.importedData || ((state as { importedData: NutritionProfile }).importedData = ({}))) as NutritionProfile;
   const localMeals = await listNutritionMeals(profileId, { limit: 10000 });
   const initialized = await readMeta(profileId, PROFILE_SYNC_INITIALIZED_META) === true;
   const syncedMeals = canonicalNutritionMeals(importedData.nutritionMeals);
@@ -577,7 +576,7 @@ export async function reconcileNutritionMealsFromProfileData(profileId = state.c
   }
 
   const localById = new Map(localMeals.map(meal => [meal.id, meal]));
-  const desiredIds = new Set(desiredMeals.map(meal => meal.id));
+  const desiredIds = new Set<unknown>(desiredMeals.map(meal => meal.id));
   let cacheChanged = false;
   for (const localMeal of localMeals) {
     if (!desiredIds.has(localMeal.id)) { cacheChanged = true; await deleteNutritionMeal(profileId, localMeal.id); }
@@ -596,7 +595,7 @@ export async function reconcileNutritionMealsFromProfileData(profileId = state.c
   return { meals: desiredMeals, cacheChanged };
 }
 
-async function recomputeActiveSummary(profileId, importedData = state.importedData) {
+async function recomputeActiveSummary(profileId: string, importedData: NutritionProfile = state.importedData) {
   const meals = await listNutritionMeals(profileId, { limit: 10000 });
   const sleepIntervals = await loadLocalSleepIntervals(profileId, { importedData }).catch(() => []);
   const wearableRevision = Object.values(importedData?.wearableConnections || {}).reduce(
@@ -612,11 +611,11 @@ async function recomputeActiveSummary(profileId, importedData = state.importedDa
   return { meals, summary };
 }
 
-function isUsableNutritionSummary(value) {
+function isUsableNutritionSummary(value: SummaryReader | null | undefined) {
   return !!(value && typeof value === 'object' && value.windows?.d7 && Number.isFinite(Number(value.totalMeals)));
 }
 
-function notifyNutritionSummaryChanged(profileId, summary) {
+function notifyNutritionSummaryChanged(profileId: string, summary: SummaryReader | null | undefined) {
   if (typeof globalThis.dispatchEvent !== 'function' || typeof globalThis.CustomEvent !== 'function') return;
   try {
     globalThis.dispatchEvent(new globalThis.CustomEvent('labcharts-nutrition-summary-changed', {
@@ -629,15 +628,15 @@ function nutritionStorageRetryDelay() {
   return new Promise(resolve => setTimeout(resolve, 40));
 }
 
-async function hydrateNutritionSummaryOperation(profileId) {
+async function hydrateNutritionSummaryOperation(profileId: string) {
   if (!profileId || state.currentProfile !== profileId) return null;
   state.nutritionSummary = null;
-  const wearableRevision = Object.values(state.importedData?.wearableConnections || {}).reduce(
+  const wearableRevision = Object.values((state.importedData as NutritionProfile)?.wearableConnections || {}).reduce(
     (latest, connection) => Math.max(latest, Number(connection?.lastSyncAt || 0)),
     0,
   );
-  let fallback = null;
-  let lastError = null;
+  let fallback: SummaryReader | null = null;
+  let lastError: unknown = null;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       const cached = await getLocalNutritionSummary(profileId);
@@ -673,36 +672,47 @@ export async function refreshNutritionSummaryFromWearables(profileId = state.cur
   return (await recomputeActiveSummary(profileId)).summary;
 }
 
-export async function listActiveProfileMeals(options = {}) {
+export async function listActiveProfileMeals(options: ListMealOptions = {}) {
   return listNutritionMeals(state.currentProfile, options);
 }
 
-export async function getActiveProfileMeal(id) {
+export async function getActiveProfileMeal(id: unknown) {
   return getNutritionMeal(state.currentProfile, id);
 }
 
-export function saveActiveProfileMeal(meal) {
+function captureNutritionRollback(importedData: NutritionProfile) {
+  const previousMeals = importedData.nutritionMeals;
+  const previousTombstoneSurfaces = new Map(TOMBSTONE_KEYS.map(key => [key, {
+    had: Object.hasOwn(importedData, key),
+    value: importedData[key],
+  }]));
+  return () => {
+    (importedData as Record<string, unknown>).nutritionMeals = previousMeals;
+    for (const [key, previous] of previousTombstoneSurfaces) {
+      if (previous.had) (importedData as Record<string, unknown>)[key] = previous.value;
+      else delete importedData[key];
+    }
+  };
+}
+
+export function saveActiveProfileMeal(meal: MealReader | null | undefined) {
   const profileId = state.currentProfile;
-  const importedData = state.importedData || (state.importedData = /** @type {any} */ ({}));
+  const importedData = (state.importedData || ((state as { importedData: NutritionProfile }).importedData = ({}))) as NutritionProfile;
   return queueNutritionOperation(() => saveProfileMeal(profileId, importedData, meal));
 }
 
-async function saveProfileMeal(profileId, importedData, meal) {
+async function saveProfileMeal(profileId: string, importedData: NutritionProfile, meal: MealReader | null | undefined) {
   const previousLocalMeal = meal?.id
     ? await getNutritionMeal(profileId, String(meal.id))
     : null;
   const saved = await putNutritionMeal(profileId, meal);
 
   const baseData = structuredClone(importedData);
-  const previousMeals = importedData.nutritionMeals;
-  const previousTombstoneSurfaces = new Map(TOMBSTONE_KEYS.map(key => [key, {
-    had: Object.hasOwn(importedData, key),
-    value: importedData[key],
-  }]));
+  const rollback = captureNutritionRollback(importedData);
   for (const key of TOMBSTONE_KEYS) {
     const surface = importedData[key];
     if (!surface || typeof surface !== 'object') continue;
-    importedData[key] = {
+    (importedData as Record<string, unknown>)[key] = {
       ...surface,
       nutritionMeals: Array.isArray(surface.nutritionMeals)
         ? [...surface.nutritionMeals]
@@ -713,19 +723,15 @@ async function saveProfileMeal(profileId, importedData, meal) {
   }
 
   const byId = new Map(canonicalNutritionMeals(importedData.nutritionMeals).map(item => [item.id, item]));
-  byId.set(saved.id, /** @type {import('./nutrition-sync-sanitize.js').StoredNutritionMeal} */ (sanitizeNutritionMeal(saved)));
+  byId.set(saved.id, (sanitizeNutritionMeal(saved) as StoredNutritionMeal));
   importedData.nutritionMeals = canonicalNutritionMeals([...byId.values()]);
   clearTombstone(importedData, 'nutritionMeals', saved.id);
-  let persistedData = null;
+  let persistedData: NutritionProfile | null = null;
   try {
     persistedData = await persistAlignedNutritionProfileData(profileId, importedData, baseData);
   } catch {}
   if (!persistedData) {
-    importedData.nutritionMeals = previousMeals;
-    for (const [key, previous] of previousTombstoneSurfaces) {
-      if (previous.had) importedData[key] = previous.value;
-      else delete importedData[key];
-    }
+    rollback();
     try {
       if (previousLocalMeal) await putNutritionMeal(profileId, previousLocalMeal, { preserveUpdatedAt: true });
       else await deleteNutritionMeal(profileId, saved.id);
@@ -745,25 +751,21 @@ async function saveProfileMeal(profileId, importedData, meal) {
   return committedMeal || saved;
 }
 
-export function deleteActiveProfileMeal(id) {
+export function deleteActiveProfileMeal(id: unknown) {
   const profileId = state.currentProfile;
-  const importedData = state.importedData || (state.importedData = /** @type {any} */ ({}));
+  const importedData = (state.importedData || ((state as { importedData: NutritionProfile }).importedData = ({}))) as NutritionProfile;
   return queueNutritionOperation(async () => {
     const baseData = structuredClone(importedData);
-    const previousMeals = importedData.nutritionMeals;
-    const previousTombstoneSurfaces = new Map(TOMBSTONE_KEYS.map(key => [key, {
-      had: Object.hasOwn(importedData, key),
-      value: importedData[key],
-    }]));
+    const rollback = captureNutritionRollback(importedData);
     const deleted = importedData._deleted && typeof importedData._deleted === 'object' ? importedData._deleted : {};
     importedData._deleted = {
       ...deleted,
       nutritionMeals: Array.isArray(deleted.nutritionMeals) ? [...deleted.nutritionMeals] : [],
     };
-    for (const key of ['_deletedAt', '_deletedClearedAt']) {
+    for (const key of ['_deletedAt', '_deletedClearedAt'] as const) {
       const surface = importedData[key];
       if (!surface || typeof surface !== 'object') continue;
-      importedData[key] = {
+      (importedData as Record<string, unknown>)[key] = {
         ...surface,
         nutritionMeals: surface.nutritionMeals && typeof surface.nutritionMeals === 'object'
           ? { ...surface.nutritionMeals }
@@ -775,11 +777,7 @@ export function deleteActiveProfileMeal(id) {
       .filter(meal => meal.id !== id);
     const persistedData = await persistAlignedNutritionProfileData(profileId, importedData, baseData);
     if (!persistedData) {
-      importedData.nutritionMeals = previousMeals;
-      for (const [key, previous] of previousTombstoneSurfaces) {
-        if (previous.had) importedData[key] = previous.value;
-        else delete importedData[key];
-      }
+      rollback();
       throw new Error('Meal could not be deleted because its cross-device deletion could not be saved.');
     }
     await writeMeta(profileId, PROFILE_SYNC_INITIALIZED_META, true);
