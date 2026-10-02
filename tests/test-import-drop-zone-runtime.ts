@@ -34,7 +34,7 @@ const previousDnaBridge = configureDnaModuleBridge({
 });
 
 try {
-  const calls = [];
+  const calls: unknown[][] = [];
   const jsonFile = new File(['{}'], 'profile.json', { type: 'application/json' });
   const dnaFile = new File(['dna'], 'genome.txt', { type: 'text/plain' });
   const picker = { click: () => calls.push(['picker']) };
@@ -45,11 +45,11 @@ try {
     showNotification: (message, type) => calls.push(['notify', type, message]),
   });
   configureDnaModuleBridge({
-    detectDNAFile: header => header.includes('MT') ? 'mtdna' : 'autosomal',
-    handleMtDNAFile: file => calls.push(['mtdna', file.name]),
-    handleDNAFile: file => calls.push(['dna', file.name]),
+    detectDNAFile: (header: string) => header.includes('MT') ? 'mtdna' : 'autosomal',
+    handleMtDNAFile: (file: File) => calls.push(['mtdna', file.name]),
+    handleDNAFile: (file: File) => calls.push(['dna', file.name]),
   });
-  setRuntimeValue('document', { getElementById: id => id === 'pdf-input' ? picker : null });
+  setRuntimeValue('document', { getElementById: (id: string) => id === 'pdf-input' ? picker : null });
 
   openDropZoneFilePicker();
   showDropZoneImportNotification('Import already in progress', 'info');
@@ -77,10 +77,10 @@ try {
     assert('required DNA import handler fails loudly when missing', false, 'no error thrown');
   } catch (error) {
     assert('required DNA import handler fails loudly when missing',
-      String(error?.message || error).includes('handleDNAFile'));
+      String((error as { message?: unknown } | null | undefined)?.message || error).includes('handleDNAFile'));
   }
 
-  delete globalThis.window;
+  delete (globalThis as Partial<typeof globalThis>).window;
   showDropZoneImportNotification('hidden', 'info');
   openDropZoneFilePicker();
   assert('browser hooks no-op while the DNA bridge remains available without window',
@@ -98,14 +98,14 @@ try {
 
 const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
 try {
-  delete globalThis.window;
-  await import('../js/import-drop-zone.js?no-window-probe');
+  delete (globalThis as Partial<typeof globalThis>).window;
+  await import('../js/import-drop-zone.js?no-window-probe' as string);
   assert('import drop-zone module imports without a browser window', true);
 } catch (error) {
-  assert('import drop-zone module imports without a browser window', false, error?.message || String(error));
+  assert('import drop-zone module imports without a browser window', false, (error as { message?: unknown } | null | undefined)?.message || String(error));
 } finally {
   if (savedWindow) Object.defineProperty(globalThis, 'window', savedWindow);
-  else delete globalThis.window;
+  else delete (globalThis as Partial<typeof globalThis>).window;
 }
 
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);

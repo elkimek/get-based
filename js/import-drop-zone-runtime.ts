@@ -1,6 +1,6 @@
-// @ts-check
 // import-drop-zone-runtime.js - Browser runtime adapters for drop-zone imports.
 
+import type { RuntimeDependencyUpdates } from './runtime-callbacks.js';
 import { configureRuntimeDependencies } from './runtime-callbacks.js';
 import { importDispatch, isImportRunning } from './pdf-import-progress.js';
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
@@ -10,30 +10,26 @@ import { importDataJSON } from './export-loader.js';
 const importDropZoneRuntimeDeps = {
   importDataJSON,
   isImportRunning,
-  showNotification: /** @type {null | typeof showNotification} */ (showNotification),
+  showNotification: showNotification as null | typeof showNotification,
 };
 
-export function configureImportDropZoneRuntimeDeps(deps = {}) {
+export function configureImportDropZoneRuntimeDeps(deps: RuntimeDependencyUpdates<typeof importDropZoneRuntimeDeps> = {}) {
   return configureRuntimeDependencies(importDropZoneRuntimeDeps, deps, ['showNotification']);
 }
 
-function getRuntimeWindow() {
+function getRuntimeWindow(): Window | null {
   return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
+    ? window
     : null;
 }
 
 function getRuntimeDocument() {
   return typeof document !== 'undefined'
-    ? /** @type {Document} */ (document)
+    ? document
     : null;
 }
 
-/**
- * @param {string} name
- * @returns {Function}
- */
-function requireDnaModuleFunction(name) {
+function requireDnaModuleFunction(name: string) {
   const fn = getDnaModuleFunction(name);
   if (!fn) throw new TypeError(`${name} is not available`);
   return fn;
@@ -49,21 +45,15 @@ export function openDropZoneFilePicker() {
   if (picker && typeof picker.click === 'function') picker.click();
 }
 
-/**
- * @param {string} message
- * @param {string} [type]
- */
-export function showDropZoneImportNotification(message, type = 'info') {
+export function showDropZoneImportNotification(message: string, type = 'info') {
   importDropZoneRuntimeDeps.showNotification?.(message, type);
 }
 
-/** @param {File} file */
-export function importDropZoneJSONFile(file) {
+export function importDropZoneJSONFile(file: File) {
   return importDropZoneRuntimeDeps.importDataJSON(file);
 }
 
-/** @param {string} header */
-export function detectDropZoneDNAFile(header) {
+export function detectDropZoneDNAFile(header: string) {
   const detectDNAFile = getDnaModuleFunction('detectDNAFile');
   return detectDNAFile ? detectDNAFile(header) : null;
 }
@@ -72,12 +62,10 @@ export function hasDropZoneMtDNAHandler() {
   return Boolean(getDnaModuleFunction('handleMtDNAFile'));
 }
 
-/** @param {File} file */
-export async function handleDropZoneMtDNAFile(file) {
+export async function handleDropZoneMtDNAFile(file: File) {
   return await requireDnaModuleFunction('handleMtDNAFile')(file);
 }
 
-/** @param {File} file */
-export async function handleDropZoneDNAFile(file) {
+export async function handleDropZoneDNAFile(file: File) {
   return await requireDnaModuleFunction('handleDNAFile')(file);
 }

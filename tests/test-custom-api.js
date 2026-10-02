@@ -266,7 +266,7 @@ assert('Custom API panel before Local AI panel', customPanelIdx >= 0 && localPan
 console.log('\n15. pdf-import.js model switch');
 const pdfPreflightSrc = read('js/pdf-import-preflight.js');
 assert('pdf-import preflight imports setCustomApiModel', pdfPreflightSrc.includes('setCustomApiModel'));
-assert('pdf-import preflight handles custom in tryAutoSwitchModel', pdfPreflightSrc.includes("provider === 'custom') setCustomApiModel("));
+assert('pdf-import preflight handles custom in tryAutoSwitchModel', /provider === 'custom'\)\s*setCustomApiModel\(/.test(pdfPreflightSrc));
 
 // ─── 16. Service worker bypass ───
 console.log('\n16. Service worker');

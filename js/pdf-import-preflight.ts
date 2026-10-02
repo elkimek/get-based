@@ -1,4 +1,3 @@
-// @ts-check
 // pdf-import-preflight.js — duplicate/model/specialty checks before PDF AI import
 
 import { getErrorMessage } from './caught-error.js';
@@ -7,6 +6,7 @@ import { getAIProvider, setAIProvider, setCustomApiModel, setOllamaMainModel, se
 import { detectProduct, getAdapterByTestType } from './adapters.js';
 import { escapeHTML, hashString, isDebugMode } from './utils.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+import type { ImportAIResult, ParsedAIImport } from './pdf-import-ai-utils.js';
 import { IMPORT_CLASSIFICATION_JSON_SCHEMA } from './pdf-import-ai-utils.js';
 import { callAssistantFeatureAI, getAssistantFeatureIdentity, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 
@@ -21,18 +21,18 @@ function ensurePreflightOverlay() {
   return overlay;
 }
 
-function nudgePreflightDialog(overlay) {
+function nudgePreflightDialog(overlay: HTMLElement) {
   const dialog = overlay.querySelector('.confirm-dialog');
   if (!dialog) return;
   dialog.classList.add('modal-nudge');
   dialog.addEventListener('animationend', () => dialog.classList.remove('modal-nudge'), { once: true });
 }
 
-function openPreflightOverlay(overlay, cancel) {
+function openPreflightOverlay(overlay: HTMLElement, cancel: () => void) {
   openModalOverlay(overlay, { initialFocus: '#confirm-cancel', focusDelay: 30 });
   const previousOnclick = overlay.onclick;
   overlay.dataset.escapeOwner = 'preflight';
-  const onKey = (e) => {
+  const onKey = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();
       cancel();
@@ -47,12 +47,7 @@ function openPreflightOverlay(overlay, cancel) {
   };
 }
 
-/**
- * @param {HTMLElement} overlay
- * @param {Record<string, () => void>} actions
- * @param {() => void} fallback
- */
-function bindPreflightActions(overlay, actions, fallback) {
+function bindPreflightActions(overlay: HTMLElement, actions: Record<string, () => void>, fallback: () => void) {
   for (const [id, handler] of Object.entries(actions)) {
     const button = overlay.querySelector(`#${id}`);
     if (!(button instanceof HTMLButtonElement)) {
@@ -63,8 +58,22 @@ function bindPreflightActions(overlay, actions, fallback) {
   }
 }
 
-function showPreflightConfirm(message, confirmLabel = 'Import Anyway') {
-  return new Promise(resolve => {
+function openPreflightResult<T>(overlay: HTMLElement, resolve: (result: T) => void, cancelResult: T) {
+  let settled = false;
+  let cleanup = () => {};
+  const close = (result: T) => {
+    if (settled) return;
+    settled = true;
+    closeModalOverlay(overlay);
+    cleanup();
+    resolve(result);
+  };
+  cleanup = openPreflightOverlay(overlay, () => close(cancelResult));
+  return close;
+}
+
+function showPreflightConfirm(message: string, confirmLabel = 'Import Anyway') {
+  return new Promise<boolean>(resolve => {
     const overlay = ensurePreflightOverlay();
     overlay.innerHTML = `<div class="confirm-dialog" role="alertdialog" aria-modal="true">
       <p class="confirm-message">${message}</p>
@@ -72,16 +81,7 @@ function showPreflightConfirm(message, confirmLabel = 'Import Anyway') {
         <button class="confirm-btn confirm-btn-cancel" id="confirm-cancel">Cancel</button>
         <button class="confirm-btn confirm-btn-danger" id="confirm-ok">${escapeHTML(confirmLabel)}</button>
       </div></div>`;
-    let settled = false;
-    let cleanup = () => {};
-    const close = (result) => {
-      if (settled) return;
-      settled = true;
-      closeModalOverlay(overlay);
-      cleanup();
-      resolve(result);
-    };
-    cleanup = openPreflightOverlay(overlay, () => close(false));
+    const close = openPreflightResult<boolean>(overlay, resolve, false);
     bindPreflightActions(overlay, {
       'confirm-ok': () => close(true),
       'confirm-cancel': () => close(false),
@@ -89,7 +89,7 @@ function showPreflightConfirm(message, confirmLabel = 'Import Anyway') {
   });
 }
 
-function checkDuplicateHash(pdfText) {
+function checkDuplicateHash(pdfText: string) {
   const hash = hashString(pdfText);
   for (const e of (state.importedData?.entries || [])) {
     if (e.importHash === hash) return e.date;
@@ -99,7 +99,7 @@ function checkDuplicateHash(pdfText) {
 
 // Normalize model IDs for comparison across providers.
 // "anthropic/claude-sonnet-4.6" / "claude-sonnet-4-6" / "claude-sonnet-4.6" -> "claude-sonnet-4-6"
-export function normalizeImportModelId(id) {
+export function normalizeImportModelId(id: string) {
   return id.replace(/^[^/]+\//, '').replace(/-\d{8}$/, '').replace(/\./g, '-');
 }
 
@@ -107,7 +107,7 @@ function checkModelMismatch() {
   const { modelId: currentModel } = getAssistantFeatureIdentity();
   const entries = (state.importedData?.entries || []).filter(e => e.importedWith?.modelId);
   if (entries.length === 0) return null;
-  const importedWith = entries[entries.length - 1].importedWith;
+  const importedWith = entries[entries.length - 1]!.importedWith;
   if (!importedWith?.modelId) return null;
   if (normalizeImportModelId(importedWith.modelId) === normalizeImportModelId(currentModel)) return null;
   return {
@@ -117,7 +117,7 @@ function checkModelMismatch() {
   };
 }
 
-function tryAutoSwitchModel(prevModel, prevProvider) {
+function tryAutoSwitchModel(prevModel: string, prevProvider: string | null | undefined) {
   if (prevProvider && prevProvider !== getAIProvider()) {
     setAIProvider(prevProvider);
   }
@@ -130,8 +130,8 @@ function tryAutoSwitchModel(prevModel, prevProvider) {
   else if (provider === 'ollama') setOllamaMainModel(prevModel);
 }
 
-function showModelMismatchDialog(mismatch) {
-  return new Promise(resolve => {
+function showModelMismatchDialog(mismatch: NonNullable<ReturnType<typeof checkModelMismatch>>) {
+  return new Promise<'cancel' | 'continue' | 'switched'>(resolve => {
     const overlay = ensurePreflightOverlay();
     overlay.innerHTML = `<div class="confirm-dialog" role="alertdialog" aria-modal="true">
       <p class="confirm-message">Previous imports used <strong>${escapeHTML(mismatch.prevModel)}</strong>. Using <strong>${escapeHTML(mismatch.currentModel)}</strong> may cause marker key mismatches and break trend lines.</p>
@@ -140,16 +140,7 @@ function showModelMismatchDialog(mismatch) {
         <button class="confirm-btn" id="confirm-continue" style="background:var(--yellow);color:#000">Continue Anyway</button>
         <button class="confirm-btn confirm-btn-danger" id="confirm-switch">Switch to ${escapeHTML(mismatch.prevModel.split('/').pop())}</button>
       </div></div>`;
-    let settled = false;
-    let cleanup = () => {};
-    const close = (result) => {
-      if (settled) return;
-      settled = true;
-      closeModalOverlay(overlay);
-      cleanup();
-      resolve(result);
-    };
-    cleanup = openPreflightOverlay(overlay, () => close('cancel'));
+    const close = openPreflightResult<'cancel' | 'continue' | 'switched'>(overlay, resolve, 'cancel');
     bindPreflightActions(overlay, {
       'confirm-switch': () => {
         tryAutoSwitchModel(mismatch.prevModel, mismatch.prevProvider);
@@ -162,7 +153,7 @@ function showModelMismatchDialog(mismatch) {
 }
 
 /** Cheap AI call to classify test type from first ~2000 chars of PDF text. */
-async function classifyTestType(pdfText) {
+async function classifyTestType(pdfText: string) {
   const snippet = pdfText.slice(0, 2000);
   try {
     const { text: response } = await callAssistantFeatureAI({
@@ -191,24 +182,24 @@ ${snippet}` }],
       jsonSchema: IMPORT_CLASSIFICATION_JSON_SCHEMA,
       reasoningEffort: 'none',
       temperature: 0,
-    });
+    }) as Pick<ImportAIResult, 'text'>;
     const text = (response || '').trim();
     const json = text.match(/\{[^}]*\}/);
     if (!json) return null;
     try {
-      const parsed = JSON.parse(json[0]);
+      const parsed = JSON.parse(json[0]) as Pick<ParsedAIImport, 'testType' | 'labName'>;
       return parsed.testType ? { testType: parsed.testType, labName: parsed.labName || null } : null;
     } catch { }
     const match = text.match(/\{[^}]*"testType"\s*:\s*"([^"]+)"[^}]*\}/);
-    return match ? { testType: match[1], labName: null } : null;
+    return match ? { testType: match[1]!, labName: null } : null;
   } catch (e) {
     if (isDebugMode()) console.log('[Preflight] Test type classification failed:', getErrorMessage(e));
     return null;
   }
 }
 
-function showUnsupportedLabDialog(testType) {
-  return new Promise(resolve => {
+function showUnsupportedLabDialog(testType: string) {
+  return new Promise<boolean>(resolve => {
     const overlay = ensurePreflightOverlay();
     const displayType = escapeHTML(testType);
     overlay.innerHTML = `<div class="confirm-dialog" role="alertdialog" aria-modal="true" style="max-width:480px">
@@ -223,16 +214,7 @@ function showUnsupportedLabDialog(testType) {
         <button class="confirm-btn confirm-btn-cancel" id="confirm-cancel">Cancel</button>
         <button class="confirm-btn" id="confirm-ok" style="background:var(--yellow);color:#000">Import Anyway</button>
       </div></div>`;
-    let settled = false;
-    let cleanup = () => {};
-    const close = (result) => {
-      if (settled) return;
-      settled = true;
-      closeModalOverlay(overlay);
-      cleanup();
-      resolve(result);
-    };
-    cleanup = openPreflightOverlay(overlay, () => close(false));
+    const close = openPreflightResult<boolean>(overlay, resolve, false);
     bindPreflightActions(overlay, {
       'confirm-ok': () => close(true),
       'confirm-cancel': () => close(false),
@@ -240,7 +222,7 @@ function showUnsupportedLabDialog(testType) {
   });
 }
 
-export async function runPreflightChecks(pdfText, fileName) {
+export async function runPreflightChecks(pdfText: string, fileName?: string | null) {
   const dupDate = checkDuplicateHash(pdfText);
   if (dupDate) {
     const dateLabel = new Date(dupDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });

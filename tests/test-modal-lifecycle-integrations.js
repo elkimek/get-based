@@ -216,13 +216,15 @@ assert('lens library create dialog uses shared lifecycle helpers',
 assert('PDF import preflight dialogs use shared lifecycle helpers',
   pdfImportPreflightSrc.includes("from './modal-lifecycle.js'") &&
     pdfImportPreflightSrc.includes("openModalOverlay(overlay, { initialFocus: '#confirm-cancel', focusDelay: 30 })") &&
-    (pdfImportPreflightSrc.match(/closeModalOverlay\(overlay\)/g) || []).length >= 3 &&
+    (pdfImportPreflightSrc.match(/const close = openPreflightResult\(overlay, resolve, false\)/g) || []).length === 2 &&
+    pdfImportPreflightSrc.includes("const close = openPreflightResult(overlay, resolve, 'cancel')") &&
+    /if \(settled\)\s*return;\s*settled = true;\s*closeModalOverlay\(overlay\);\s*cleanup\(\);\s*resolve\(result\);/.test(pdfImportPreflightSrc) &&
     pdfImportPreflightSrc.includes("overlay.dataset.escapeOwner = 'preflight'") &&
     pdfImportPreflightSrc.includes('overlay.onclick = previousOnclick') &&
     pdfImportPreflightSrc.includes('delete overlay.dataset.escapeOwner') &&
     appEventsSrc.includes('confirmOverlay.dataset.escapeOwner') &&
     pdfImportPreflightSrc.includes('document.addEventListener(\'keydown\', onKey)') &&
-    pdfImportPreflightSrc.includes("cleanup = openPreflightOverlay(overlay, () => close('cancel'))") &&
+    pdfImportPreflightSrc.includes("cleanup = openPreflightOverlay(overlay, () => close(cancelResult))") &&
     !pdfImportPreflightSrc.includes("overlay.classList.add('show')") &&
     !pdfImportPreflightSrc.includes("overlay.classList.remove('show')"));
 
