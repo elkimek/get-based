@@ -1,4 +1,45 @@
-// @ts-check
+// Reader projections retain persisted values; scoring keeps its original coercions.
+export interface LightItem {
+  id?: string | undefined;
+  updatedAt?: number | undefined;
+  todayOverride?: { date?: unknown; active?: unknown } | null | undefined;
+}
+export interface LightRoom extends LightItem {
+  name?: string | null | undefined;
+  primarySource?: string | null | undefined;
+  daylightLevel?: string | null | undefined;
+  cct?: unknown; flickerScore?: unknown; notes?: unknown;
+  hoursOccupiedPerDay?: number | string | null | undefined;
+  eveningHoursAfterSunset?: unknown;
+  eveningUseAfterSunset?: unknown;
+}
+export interface LightScreen extends LightItem {
+  device?: string | undefined;
+  roomId?: unknown;
+  hoursPerDay?: unknown;
+  eveningUseAfterSunset?: unknown;
+  blueBlockerEnabled?: unknown;
+  flickerScore?: unknown;
+}
+export interface LightMeasurement {
+  tool?: unknown;
+  value?: unknown;
+  capturedAt?: number | string | null | undefined;
+  extra?: { source?: unknown; method?: unknown; context?: unknown } | null | undefined;
+}
+export interface LightEnvironment {
+  rooms?: Array<LightRoom | null | undefined> | null | undefined;
+  screens?: Array<LightScreen | null | undefined> | null | undefined;
+}
+export interface LightDeficitAxes {
+  d2: number; d3: number; daylightKnown: number; eveningKnown: number; missingDaylightRooms: number;
+}
+interface LightScoringOptions {
+  isActiveToday?: ((item: LightRoom | LightScreen) => unknown) | undefined;
+  getMeasurementsForRoom?: ((roomId: string | undefined) => LightMeasurement[] | null | undefined) | undefined;
+  axes?: LightDeficitAxes | null | undefined;
+}
+
 // light-env-model.js — deterministic Light Environment scoring and picker model.
 //
 // Keep this module free of app state and persistence. light-env.js owns storage,
@@ -47,7 +88,7 @@ export const SOURCE_ARCHETYPES = [
   { key: 'mixed',        emoji: '❓', label: 'Mixed / unsure',   storeAs: 'mixed',       matches: ['mixed', 'unknown'] },
 ];
 
-export function activeSourceArchetype(primarySource) {
+export function activeSourceArchetype(primarySource?: string | null) {
   if (!primarySource) return null;
   for (const a of SOURCE_ARCHETYPES) {
     if (a.matches.includes(primarySource)) return a.key;
@@ -64,7 +105,7 @@ export const HOURS_BUCKETS = [
   { key: 'most',   label: '6+ hr',    min: 6,    max: 24,  midpoint: 8 },
 ];
 
-export function activeHoursBucket(hours) {
+export function activeHoursBucket(hours?: number | string | null) {
   if (hours == null || hours === '' || isNaN(+hours)) return null;
   const h = +hours;
   for (const b of HOURS_BUCKETS) {
@@ -82,7 +123,7 @@ export const EVENING_BUCKETS = [
   { key: 'gt3',  label: '3+ hr',    midpoint: 4 },
 ];
 
-export function activeEveningBucket(room) {
+export function activeEveningBucket(room?: LightRoom | null) {
   if (!hasRoomEveningAnswer(room)) return null;
   const h = getRoomEveningHoursAfterSunset(room);
   if (h <= 0) return 'none';
@@ -94,7 +135,7 @@ export function activeEveningBucket(room) {
 // Default occupancy hours seeded by room name on first add. User can
 // adjust immediately via the chip row — this just keeps them out of
 // the lonely-empty-number-field cold start.
-export function defaultHoursForName(name) {
+export function defaultHoursForName(name?: string | null) {
   const n = (name || '').toLowerCase();
   if (/bedroom|sleep/.test(n)) return 8;
   if (/office|study|work/.test(n)) return 8;
@@ -110,7 +151,7 @@ export function defaultHoursForName(name) {
 // gray-dot in that case so users don't read the default green dot
 // as "we verified you're good" when really it means "we know nothing
 // about this room yet."
-function _hasAnyRoomSignal(room, measurements, screens = []) {
+function _hasAnyRoomSignal(room: LightRoom | null | undefined, measurements: LightMeasurement[] | null | undefined, screens: LightScreen[] = []) {
   if (!room) return false;
   const hasSource = room.primarySource && room.primarySource !== 'unknown';
   const hasDaylight = room.daylightLevel && room.daylightLevel !== 'unknown';
@@ -120,13 +161,13 @@ function _hasAnyRoomSignal(room, measurements, screens = []) {
   return hasSource || hasDaylight || hasEvening || hasMeas || hasScreen;
 }
 
-function _latestMeasurement(measurements, tool) {
+function _latestMeasurement(measurements: LightMeasurement[] | null | undefined, tool: string) {
   return (measurements || [])
     .filter(m => m?.tool === tool)
-    .sort((a, b) => (b.capturedAt || 0) - (a.capturedAt || 0))[0] || null;
+    .sort((a, b) => ((b.capturedAt || 0) as number) - ((a.capturedAt || 0) as number))[0] || null;
 }
 
-export function isQuantitativeLuxMeasurement(measurement) {
+export function isQuantitativeLuxMeasurement(measurement: LightMeasurement | null | undefined): boolean {
   if (!measurement || measurement.tool !== 'lux' || !Number.isFinite(Number(measurement.value))) return false;
   const source = measurement.extra?.source;
   // A phone camera remains an approximate brightness proxy even after a
@@ -136,12 +177,12 @@ export function isQuantitativeLuxMeasurement(measurement) {
   return source === 'AmbientLightSensor' || source === 'manual-entry' || source === 'meter-entry';
 }
 
-export function isQuantitativeDarknessMeasurement(measurement) {
+export function isQuantitativeDarknessMeasurement(measurement: LightMeasurement | null | undefined): boolean {
   if (!measurement || measurement.tool !== 'darkness' || !Number.isFinite(Number(measurement.value))) return false;
   return measurement.extra?.method === 'meter-entry' || measurement.extra?.source === 'meter-entry';
 }
 
-function _isLikelyDaytimeMeasurement(measurement) {
+function _isLikelyDaytimeMeasurement(measurement: LightMeasurement | null | undefined) {
   if (!measurement) return false;
   if (measurement.extra?.context === 'daytime') return true;
   if (measurement.extra?.context === 'evening' || measurement.extra?.context === 'sleep') return false;
@@ -150,10 +191,10 @@ function _isLikelyDaytimeMeasurement(measurement) {
   return hour >= 7 && hour < 19;
 }
 
-export function computeRoomSeverityForRoom(room, measurements = [], options = {}) {
+export function computeRoomSeverityForRoom(room: LightRoom | null | undefined, measurements: LightMeasurement[] = [], options: { isActiveToday?: ((item: LightScreen) => unknown) | undefined; screens?: Array<LightScreen | null | undefined> | null | undefined } = {}) {
   if (!room) return { tier: 0, color: 'incomplete', label: 'Unknown', reason: 'No data yet' };
   const isActiveToday = options.isActiveToday || (() => true);
-  const screensHere = (options.screens || []).filter(s => s && isActiveToday(s));
+  const screensHere = (options.screens || []).filter((s): s is LightScreen => (s && isActiveToday(s)) as boolean);
 
   // Gray-dot incomplete state for empty rooms — distinct from "Good".
   if (!_hasAnyRoomSignal(room, measurements, screensHere)) {
@@ -161,7 +202,7 @@ export function computeRoomSeverityForRoom(room, measurements = [], options = {}
   }
 
   let tier = 0;
-  const reasons = [];
+  const reasons: string[] = [];
 
   // Source type alone is context, not a dose. Treat it as a concern only
   // when after-sunset use is also reported.
@@ -187,11 +228,11 @@ export function computeRoomSeverityForRoom(room, measurements = [], options = {}
   // entry. Camera estimates stay contextual. Never call it melanopic EDI.
   const luxReading = _latestMeasurement(measurements, 'lux');
   if (isQuantitativeLuxMeasurement(luxReading) && _isLikelyDaytimeMeasurement(luxReading)) {
-    const lux = Number(luxReading.value);
-    if (lux < 50 && (room.hoursOccupiedPerDay || 0) >= 2) {
+    const lux = Number(luxReading!.value);
+    if (lux < 50 && ((room.hoursOccupiedPerDay || 0) as number) >= 2) {
       tier = Math.max(tier, 2);
       reasons.push('very dim daytime spot check for a frequently used room');
-    } else if (lux < 200 && (room.hoursOccupiedPerDay || 0) >= 4) {
+    } else if (lux < 200 && ((room.hoursOccupiedPerDay || 0) as number) >= 4) {
       tier = Math.max(tier, 1);
       reasons.push('dim daytime spot check; spectrum-weighted light is unknown');
     }
@@ -202,7 +243,7 @@ export function computeRoomSeverityForRoom(room, measurements = [], options = {}
   // screen because the source spectrum is unknown.
   const dark = _latestMeasurement(measurements, 'darkness');
   if (isQuantitativeDarknessMeasurement(dark) && /bedroom|sleep/i.test(room.name || '')) {
-    const lux = Number(dark.value);
+    const lux = Number(dark!.value);
     if (lux > 5) { tier = Math.max(tier, 3); reasons.push('sleep-time light measured; spectrum-weighted level is unknown'); }
     else if (lux > 1) { tier = Math.max(tier, 2); reasons.push('sleep-time light measured; check the source and spectrum'); }
     else if (lux > 0.1) { tier = Math.max(tier, 1); reasons.push('small sleep-time light leak measured'); }
@@ -232,7 +273,7 @@ export function computeRoomSeverityForRoom(room, measurements = [], options = {}
   };
 }
 
-export function computeScreenStatus(screen) {
+export function computeScreenStatus(screen?: LightScreen | null) {
   if (!screen) return { tier: 0, color: 'incomplete', label: 'Unknown', reason: 'no data' };
   if (screen.eveningUseAfterSunset == null) {
     return { tier: 0, color: 'incomplete', label: 'Needs timing', reason: 'set time used after sunset' };
@@ -256,7 +297,7 @@ export function computeScreenStatus(screen) {
 // d2: possible daytime-light opportunity gap, based on stated daylight or
 //     a trustworthy daytime lux spot-check.
 // d3: after-sunset exposure screen, based on reported hours and broad source.
-export function computeDeficitAxesForEnvironment(env, options = {}) {
+export function computeDeficitAxesForEnvironment(env: LightEnvironment | null | undefined, options: LightScoringOptions = {}): LightDeficitAxes {
   if (!env) return { d2: 0, d3: 0, daylightKnown: 0, eveningKnown: 0, missingDaylightRooms: 0 };
   const isActiveToday = options.isActiveToday || (() => true);
   const getMeasurementsForRoom = options.getMeasurementsForRoom || (() => []);
@@ -269,9 +310,9 @@ export function computeDeficitAxesForEnvironment(env, options = {}) {
 
     const measurements = getMeasurementsForRoom(r.id) || [];
     const lux = _latestMeasurement(measurements, 'lux');
-    let daytimeFactor = null;
+    let daytimeFactor: number | null = null;
     if (isQuantitativeLuxMeasurement(lux) && _isLikelyDaytimeMeasurement(lux)) {
-      const value = Number(lux.value);
+      const value = Number(lux!.value);
       daytimeFactor = value < 50 ? 1 : value < 200 ? 0.7 : value < 500 ? 0.3 : 0;
     } else if (r.primarySource === 'natural-only' || r.daylightLevel === 'strong') {
       daytimeFactor = 0;
@@ -289,7 +330,7 @@ export function computeDeficitAxesForEnvironment(env, options = {}) {
     if (hasRoomEveningAnswer(r)) {
       eveningKnown++;
       const evening = Math.min(6, getRoomEveningHoursAfterSunset(r));
-      const sourceWeight = {
+      const sourceWeight = ({
         'natural-only': 0,
         candle: 0.1,
         incandescent: 0.25,
@@ -300,7 +341,7 @@ export function computeDeficitAxesForEnvironment(env, options = {}) {
         'led-cool': 1,
         fluorescent: 1,
         unknown: 0.6,
-      }[r.primarySource] ?? 0.6;
+      } as Record<string, number>)[r.primarySource as string] ?? 0.6;
       d3 += evening * sourceWeight;
     }
   }
@@ -330,7 +371,7 @@ export function computeDeficitAxesForEnvironment(env, options = {}) {
 //   move the needle most given the tier + d2/d3 ratio).
 // - Avoid "junk-light" jargon — say "evening blue exposure" instead,
 //   which most users already understand.
-export function computeIndoorBurdenForEnvironment(env, options = {}) {
+export function computeIndoorBurdenForEnvironment(env: LightEnvironment | null | undefined, options: LightScoringOptions = {}) {
   const isActiveToday = options.isActiveToday || (() => true);
   const axes = options.axes || computeDeficitAxesForEnvironment(env, {
     isActiveToday,
@@ -345,7 +386,7 @@ export function computeIndoorBurdenForEnvironment(env, options = {}) {
   const allSkipped = totalItems > 0 && activeItems === 0;
   const knownSignals = (axes.daylightKnown || 0) + (axes.eveningKnown || 0);
   const incomplete = !allSkipped && totalItems > 0 && knownSignals === 0;
-  const parts = [];
+  const parts: string[] = [];
   if (axes.daylightKnown > 0) parts.push(`Daytime signal: ${d2 > 5 ? 'low' : d2 > 2 ? 'mixed' : 'supported'}`);
   if (axes.eveningKnown > 0) parts.push(`Evening light: ${d3 > 5 ? 'high' : d3 > 2 ? 'moderate' : 'lower'}`);
   if (axes.missingDaylightRooms > 0) parts.push(`${axes.missingDaylightRooms} daylight answer${axes.missingDaylightRooms === 1 ? '' : 's'} missing`);

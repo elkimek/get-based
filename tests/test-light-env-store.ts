@@ -4,12 +4,8 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 
 import './_node-shim.js';
 
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => readFileSync(path.join(ROOT, rel), 'utf-8');
+import { readRepositorySource } from './helpers/repository-source.js';
+const read = (rel: string) => readRepositorySource(rel, 'utf-8');
 
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
@@ -34,23 +30,23 @@ const originalCurrentProfile = state.currentProfile;
 state.currentProfile = 'light-env-store-test';
 const originalImportedData = state.importedData;
 
-function reset(seed = {}) {
-  state.importedData = Object.assign({ entries: [] }, seed);
+function reset(seed: Record<string, unknown> = {}) {
+  state.importedData = Object.assign({ entries: [] }, seed) as unknown as typeof originalImportedData;
 }
 
 console.log('%c 1. Environment and room mutations ', 'font-weight:bold;color:#f59e0b');
 reset();
 const env = getEnvironment();
 assert('getEnvironment lazily initializes rooms and screens',
-  env && Array.isArray(env.rooms) && Array.isArray(env.screens));
+  env && Array.isArray(env!.rooms) && Array.isArray(env!.screens));
 
-state.importedData = null;
+state.importedData = null as unknown as typeof state.importedData;
 assert('getEnvironment returns null without importedData',
   getEnvironment() === null);
 
 reset({ sunDefaults: { homeLight: 'led-warm' } });
 const roomId = await addRoom('Bedroom');
-const room = getEnvironment().rooms[0];
+const room = getEnvironment()!.rooms![0]!;
 assert('addRoom persists defaults and returns id',
   typeof roomId === 'string'
     && roomId.startsWith('room_')
@@ -97,11 +93,11 @@ console.log('%c 2. Screen mutations ', 'font-weight:bold;color:#f59e0b');
 const portableScreenId = await addScreen('phone');
 const roomScreenId = await addScreen('laptop', roomId);
 assert('addScreen persists portable and room-bound screens',
-  getEnvironment().screens.length === 2
+  getEnvironment()!.screens!.length === 2
     && getScreensForRoom(null).some(s => s.id === portableScreenId)
     && getScreensForRoom(roomId).some(s => s.id === roomScreenId));
 
-const portable = getScreensForRoom(null)[0];
+const portable = getScreensForRoom(null)[0]!;
 await updateScreen(portable.id, { hoursPerDay: 4, eveningUseAfterSunset: 2, blueBlockerEnabled: true });
 assert('updateScreen patches fields and stamps freshness',
   portable.hoursPerDay === 4
@@ -121,27 +117,27 @@ assert('updateScreen rejects unknown devices and room links and bounds hours',
 
 assert('deleteScreen removes screen and records tombstone',
   await deleteScreen(portable.id) === true
-    && !getEnvironment().screens.some(s => s.id === portable.id)
-    && state.importedData._deleted['lightEnvironment.screens'].includes(portable.id));
+    && !getEnvironment()!.screens!.some(s => s.id === portable.id)
+    && state.importedData!._deleted['lightEnvironment.screens'].includes(portable.id));
 assert('deleteScreen missing path returns false',
   await deleteScreen('missing-screen') === false);
 
 console.log('%c 3. Room deletion preserves history ', 'font-weight:bold;color:#f59e0b');
-state.importedData.lightMeasurements = [
+state.importedData!.lightMeasurements = [
   { id: 'lm-room', roomId, tool: 'lux', value: 100, capturedAt: Date.now() },
   { id: 'lm-other', roomId: 'other-room', tool: 'lux', value: 200, capturedAt: Date.now() },
 ];
 assert('deleteRoom removes the live room, preserves linked measurements, and makes screens portable',
   await deleteRoom(roomId) === true
-    && !getEnvironment().rooms.some(r => r.id === roomId)
-    && state.importedData.lightMeasurements.some(m => m.id === 'lm-room')
-    && state.importedData.lightMeasurements.some(m => m.id === 'lm-other')
-    && getEnvironment().screens.find(s => s.id === roomScreenId)?.roomId === null);
+    && !getEnvironment()!.rooms!.some(r => r.id === roomId)
+    && state.importedData!.lightMeasurements.some(m => m.id === 'lm-room')
+    && state.importedData!.lightMeasurements.some(m => m.id === 'lm-other')
+    && getEnvironment()!.screens!.find(s => s.id === roomScreenId)?.roomId === null);
 assert('deleteRoom snapshots the room name and tombstones only the removed room',
-  state.importedData._deleted['lightEnvironment.rooms'].includes(roomId)
-    && state.importedData.lightMeasurements.find(m => m.id === 'lm-room')?.roomSnapshot?.id === roomId
-    && state.importedData.lightMeasurements.find(m => m.id === 'lm-room')?.roomSnapshot?.name === 'Bedroom workspace'
-    && !(state.importedData._deleted.lightMeasurements || []).includes('lm-room'));
+  state.importedData!._deleted['lightEnvironment.rooms'].includes(roomId)
+    && state.importedData!.lightMeasurements.find(m => m.id === 'lm-room')?.roomSnapshot?.id === roomId
+    && state.importedData!.lightMeasurements.find(m => m.id === 'lm-room')?.roomSnapshot?.name === 'Bedroom workspace'
+    && !(state.importedData!._deleted.lightMeasurements || []).includes('lm-room'));
 assert('deleteRoom missing path returns false',
   await deleteRoom('missing-room') === false);
 

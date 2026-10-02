@@ -55,7 +55,7 @@ const LEGACY_TESTS = [
   // Batch 2 — incremental ports.
   './test-data-merge.js',
   './test-security-phase1.js',
-  './test-correctness-phase2.js',
+  './test-correctness-phase2.ts',
   // Batch 3 — more pure-logic ports.
   './test-lens-multi-query.ts',
   './test-adapters.js',
@@ -100,7 +100,7 @@ const LEGACY_TESTS = [
   './test-sun-defaults-runtime.ts',
   './test-sun.js',
   './test-light-env.js',
-  './test-light-env-store.js',
+  './test-light-env-store.ts',
   './test-light-devices-runtime.js',
   './test-light-devices.js',
   './test-sun-context.js',

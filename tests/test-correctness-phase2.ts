@@ -10,16 +10,12 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 //
 // Run: node tests/test-correctness-phase2.js  (or via npm test)
 
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
+import { readRepositorySource } from './helpers/repository-source.js';
+const read = (rel: string) => readRepositorySource(rel, 'utf-8');
 
 let passed = 0, failed = 0;
-const fails = [];
-function assert(name, cond, detail) {
+const fails: string[] = [];
+function assert(name: string, cond: unknown, detail?: string) {
   if (cond) { passed++; console.log(`  PASS: ${name}`); }
   else { failed++; fails.push(name); console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
 }
@@ -28,7 +24,7 @@ console.log('=== Phase 2 Correctness Tests ===\n');
 
 // ─── 1. Per-profile sync debouncer ───
 console.log('1. Per-profile sync debouncer');
-const syncSrc = read('js/sync.js');
+read('js/sync.js');
 const syncSaveHooksSrc = read('js/sync-save-hooks-core.js').replace(/\s+/g, ' ');
 const syncLifecycleSrc = read('js/sync-lifecycle.js');
 assert('sync-save-hooks.js declares per-profile timer Map',
@@ -56,7 +52,7 @@ console.log('\n3. Lens LRU cache');
 const lensCacheSrc = read('js/lens-cache.js');
 const cacheGetMatch = lensCacheSrc.match(/function cacheGet\(k\) \{([\s\S]*?)\n\}/);
 assert('cacheGet re-inserts on hit',
-  cacheGetMatch && cacheGetMatch[1].includes('_cache.delete(k)') && cacheGetMatch[1].includes('_cache.set(k, row)'),
+  cacheGetMatch && cacheGetMatch[1]!.includes('_cache.delete(k)') && cacheGetMatch[1]!.includes('_cache.set(k, row)'),
   'Map iterates in insertion order — without re-insert, hot entries are evicted by FIFO');
 
 // ─── 4. Service worker precaches dynamic modules ───
@@ -353,7 +349,7 @@ assert('analytics consent and backup nudge resume after legal gate acceptance',
   && /const showBackupNudge = \(\) => \{[\s\S]{0,180}maybeShowBackupNudge\(\);\s*\};/.test(startupUiSrc));
 assert('changelog and tour refuse to open over legal consent',
   /export function maybeShowChangelog\(\) \{\s*if \(document\.getElementById\('legal-consent-overlay'\)\)\s+return;/.test(changelogSrc)
-  && /function runTour\(steps, storageKey, auto\) \{\s*if \(document\.getElementById\('legal-consent-overlay'\)\) return false;/.test(tourSrc));
+  && /function runTour\(steps, storageKey, auto\) \{\s*if \(document\.getElementById\('legal-consent-overlay'\)\)\s+return false;/.test(tourSrc));
 assert('legal gate z-index selector beats generic modal overlay',
   /\.modal-overlay\.legal-consent-overlay\s*\{[\s\S]{0,80}z-index:\s*4200;/.test(appShellCss)
   && /\.modal-overlay\.legal-consent-overlay\s*\{[\s\S]{0,180}-webkit-backdrop-filter:\s*blur\(8px\);[\s\S]{0,60}backdrop-filter:\s*blur\(8px\);/.test(appShellCss));

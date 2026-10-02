@@ -684,3 +684,5 @@ deploy/profile-share/data/
 /js/tour.js
 /js/marker-detail-actions.js
 /tests/helpers/repository-source.js
+/js/light-env-model.js
+/js/light-env-store.js
