@@ -1,4 +1,5 @@
-// @ts-check
+import type { WearableProfileMutation } from './wearable-persistence-types.js';
+
 // Durable profile-side completion for wearable disconnects.
 
 import { saveImportedDataForProfile } from './data.js';
@@ -7,11 +8,11 @@ import { deleteMeta, getMeta } from './wearables-store.js';
 
 const PENDING_DISCONNECT_PREFIX = 'pending-profile-disconnect:v1:';
 
-export function pendingWearableDisconnectMetaKey(adapterId) {
+export function pendingWearableDisconnectMetaKey(adapterId: string) {
   return `${PENDING_DISCONNECT_PREFIX}${adapterId}`;
 }
 
-export function applyWearableDisconnectToProfile(importedData, adapterId, { deleteData = true } = {}) {
+export function applyWearableDisconnectToProfile(importedData: WearableProfileMutation | null | undefined, adapterId: string, { deleteData = true } = {}) {
   if (!importedData || typeof importedData !== 'object') return false;
   if (!importedData.wearableConnections || typeof importedData.wearableConnections !== 'object') {
     importedData.wearableConnections = {};
@@ -30,17 +31,17 @@ export function applyWearableDisconnectToProfile(importedData, adapterId, { dele
   if (summary && typeof summary === 'object') {
     if (summary.sources?.[adapterId]) delete summary.sources[adapterId];
     for (const [metricId, metric] of Object.entries(summary.metrics || {})) {
-      if (metric?.primarySource === adapterId) delete summary.metrics[metricId];
+      if (metric?.primarySource === adapterId) delete summary.metrics![metricId];
     }
     if (Object.keys(importedData.wearableConnections).length === 0) delete importedData.wearableSummary;
   }
   for (const [metricId, source] of Object.entries(importedData.wearablePrimaryOverride || {})) {
-    if (source === adapterId) delete importedData.wearablePrimaryOverride[metricId];
+    if (source === adapterId) delete importedData.wearablePrimaryOverride![metricId];
   }
   return true;
 }
 
-export async function clearPendingWearableDisconnect(profileId, adapterId) {
+export async function clearPendingWearableDisconnect(profileId: string, adapterId: string) {
   try {
     await deleteMeta(profileId, pendingWearableDisconnectMetaKey(adapterId));
     return true;
@@ -50,10 +51,10 @@ export async function clearPendingWearableDisconnect(profileId, adapterId) {
   }
 }
 
-export async function recoverPendingWearableDisconnect(profileId, importedData) {
+export async function recoverPendingWearableDisconnect(profileId: string, importedData: WearableProfileMutation | null | undefined) {
   if (!profileId || !importedData || typeof importedData !== 'object') return false;
   const adapterId = 'google_health';
-  const pending = /** @type {{ adapterId?: unknown, deleteData?: unknown } | null} */ (await getMeta(profileId, pendingWearableDisconnectMetaKey(adapterId)).catch(() => null));
+  const pending = (await getMeta(profileId, pendingWearableDisconnectMetaKey(adapterId)).catch(() => null) as { adapterId?: unknown; deleteData?: unknown } | null);
   if (!pending || pending.adapterId !== adapterId) return false;
   applyWearableDisconnectToProfile(importedData, adapterId, {
     deleteData: pending.deleteData !== false,

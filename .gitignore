@@ -661,3 +661,8 @@ deploy/profile-share/data/
 /js/marker-detail-store.js
 /js/chat-message-action-attrs.js
 /js/nutrition-store.js
+/js/wearables-summary.js
+/js/wearables-disconnect-recovery.js
+/js/wearables-connect.js
+/js/wearables-manual.js
+/js/wearable-persistence-types.js

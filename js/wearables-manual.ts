@@ -1,4 +1,13 @@
-// @ts-check
+import type { ProfileData } from '../types/app-state.js';
+import type { Biometrics, BloodPressureValue } from '../types/profile-context-data.js';
+import type { StoredWearableRow } from './wearable-storage-types.js';
+import type { WearableProfileMutation } from './wearable-persistence-types.js';
+
+type ManualProfile = WearableProfileMutation & Partial<Pick<ProfileData, 'biometrics' | 'manualMetricTombstones'>>;
+interface ManualReadingContext { date?: string; tags?: unknown; note?: unknown }
+interface ManualMetricReading extends ManualReadingContext { value?: unknown; unit?: string }
+interface ManualBloodPressure extends ManualReadingContext { systolic?: unknown; diastolic?: unknown; pulse?: unknown }
+
 // wearables-manual.js — Manual entry as a first-class wearable source.
 //
 // Treats user-entered weight / BP / pulse as rows in the wearables IndexedDB
@@ -32,8 +41,7 @@ import { queueManualRowWrite } from './wearables-manual-lock.js';
 // the new patch on top, write back. Needed because IDB `put` replaces the whole
 // row; a user who logs BP in the morning and weight in the evening otherwise
 // loses the morning's BP when the weight upsert overwrites the row.
-/** @param {import('../types/app-state.js').ProfileData} imported */
-async function _mergeManualRow(profileId, date, patch, imported) {
+async function _mergeManualRow(profileId: string, date: string, patch: Record<string, unknown>, imported: ManualProfile) {
   return queueManualRowWrite(profileId, async () => {
     const existing = await getDaily(profileId, 'manual', date);
     const base = { ...(existing || {}) };
@@ -70,14 +78,13 @@ const MANUAL_HISTORY_START = '1970-01-01';
 const MANUAL_HISTORY_END = '9999-12-31';
 const ISO_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-export function manualMetricTombstoneKey(metric, date) {
-  if (!MANUAL_METRICS.includes(metric) || typeof date !== 'string'
+export function manualMetricTombstoneKey(metric: unknown, date: unknown) {
+  if (!MANUAL_METRICS.includes(metric as string) || typeof date !== 'string'
       || (date !== 'all' && !ISO_DAY_RE.test(date))) return null;
   return `${metric}.${date}`;
 }
 
-/** @param {import('../types/app-state.js').ProfileData} imported */
-function _manualMetricTombstones(imported) {
+function _manualMetricTombstones(imported: ManualProfile | null | undefined) {
   if (!imported || typeof imported !== 'object') return null;
   const current = imported[MANUAL_TOMBSTONE_FIELD];
   if (current && typeof current === 'object' && !Array.isArray(current)) return current;
@@ -85,8 +92,7 @@ function _manualMetricTombstones(imported) {
   return imported[MANUAL_TOMBSTONE_FIELD];
 }
 
-/** @param {import('../types/app-state.js').ProfileData} [imported] */
-export function isManualMetricTombstoned(metric, date, imported = state.importedData) {
+export function isManualMetricTombstoned(metric: unknown, date: unknown, imported: ManualProfile | null | undefined = state.importedData) {
   const key = manualMetricTombstoneKey(metric, date);
   if (!key) return false;
   const tombstones = imported?.[MANUAL_TOMBSTONE_FIELD];
@@ -102,8 +108,7 @@ export function isManualMetricTombstoned(metric, date, imported = state.imported
   return Number.isFinite(Number(allValue)) && Number(allValue) > 0;
 }
 
-/** @param {import('../types/app-state.js').ProfileData} imported */
-function _recordManualMetricTombstone(metric, date, deletedAt, imported) {
+function _recordManualMetricTombstone(metric: unknown, date: unknown, deletedAt: unknown, imported: ManualProfile) {
   const key = manualMetricTombstoneKey(metric, date);
   const tombstones = _manualMetricTombstones(imported);
   if (!key || !tombstones) return false;
@@ -113,8 +118,7 @@ function _recordManualMetricTombstone(metric, date, deletedAt, imported) {
   return true;
 }
 
-/** @param {import('../types/app-state.js').ProfileData} imported */
-function _clearManualMetricTombstone(metric, date, imported) {
+function _clearManualMetricTombstone(metric: unknown, date: unknown, imported: ManualProfile) {
   const key = manualMetricTombstoneKey(metric, date);
   const tombstones = imported?.[MANUAL_TOMBSTONE_FIELD];
   if (!key || !tombstones || typeof tombstones !== 'object') return false;
@@ -129,15 +133,14 @@ function _clearManualMetricTombstone(metric, date, imported) {
   return true;
 }
 
-function _legacyBiometricField(metric) {
+function _legacyBiometricField(metric: unknown) {
   if (metric === 'weight') return 'weight';
   if (metric === 'rhr') return 'pulse';
   if (metric === 'bp_systolic' || metric === 'bp_diastolic') return 'bp';
   return null;
 }
 
-/** @param {import('../types/app-state.js').ProfileData} imported */
-function _removeLegacyBiometric(metric, date, imported) {
+function _removeLegacyBiometric(metric: unknown, date: unknown, imported: ManualProfile) {
   const field = _legacyBiometricField(metric);
   const biometrics = imported?.biometrics;
   if (!field || !biometrics || !Array.isArray(biometrics[field])) return false;
@@ -145,7 +148,7 @@ function _removeLegacyBiometric(metric, date, imported) {
     if (!Array.isArray(biometrics.bp)) return false;
     const component = metric === 'bp_systolic' ? 'systolic' : 'diastolic';
     let changed = false;
-    const remaining = [];
+    const remaining: BloodPressureValue[] = [];
     for (const entry of biometrics.bp) {
       if (!entry || typeof entry !== 'object' || entry.date !== date
           || !Object.prototype.hasOwnProperty.call(entry, component)) {
@@ -171,8 +174,8 @@ function _removeLegacyBiometric(metric, date, imported) {
  * check: every device must honor a deletion received after it had already
  * migrated the old pulse locally.
  */
-export async function reconcileManualMetricTombstones(profileId, imported = state.importedData) {
-  if (!profileId || state.currentProfile !== profileId) return { skipped: 'inactive-profile' };
+export async function reconcileManualMetricTombstones(profileId: string, imported: ManualProfile | null | undefined = state.importedData) {
+  if (!profileId || state.currentProfile !== profileId) return { skipped: 'inactive-profile' as const };
   const tombstones = imported?.[MANUAL_TOMBSTONE_FIELD];
   if (!tombstones || typeof tombstones !== 'object' || Array.isArray(tombstones)
       || Object.keys(tombstones).length === 0) {
@@ -202,10 +205,10 @@ export async function reconcileManualMetricTombstones(profileId, imported = stat
   let prunedLegacy = 0;
   const biometrics = imported?.biometrics;
   if (biometrics && typeof biometrics === 'object') {
-    const legacyPairs = /** @type {const} */ ([
+    const legacyPairs = ([
       ['weight', 'weight'],
       ['pulse', 'rhr'],
-    ]);
+    ] as const);
     for (const [field, metric] of legacyPairs) {
       if (!Array.isArray(biometrics[field])) continue;
       const before = biometrics[field].length;
@@ -213,7 +216,7 @@ export async function reconcileManualMetricTombstones(profileId, imported = stat
       prunedLegacy += before - biometrics[field].length;
     }
     if (Array.isArray(biometrics.bp)) {
-      const remaining = [];
+      const remaining: BloodPressureValue[] = [];
       for (const entry of biometrics.bp) {
         if (!entry || typeof entry !== 'object') {
           remaining.push(entry);
@@ -244,7 +247,7 @@ export async function reconcileManualMetricTombstones(profileId, imported = stat
   return { prunedRows, prunedLegacy };
 }
 
-function captureManualMutation(profileId) {
+function captureManualMutation(profileId: string) {
   if (!profileId || profileId !== state.currentProfile || !state.importedData) {
     throw new Error('Switch back to the originating profile before changing manual measurements.');
   }
@@ -252,15 +255,13 @@ function captureManualMutation(profileId) {
   return { baseData, imported: structuredClone(baseData) };
 }
 
-/** @param {import('../types/app-state.js').ProfileData} imported */
-async function persistManualMutation(profileId, imported, baseData) {
+async function persistManualMutation(profileId: string, imported: ManualProfile, baseData: ManualProfile) {
   if (!await saveImportedDataForProfile(profileId, imported, { baseData })) {
     throw new Error('Could not save manual measurement metadata. Check your data before retrying.');
   }
 }
 
-/** @param {import('../types/app-state.js').ProfileData} imported */
-function updateManualConnection(imported, coverageDays = 0) {
+function updateManualConnection(imported: ManualProfile, coverageDays = 0) {
   if (!imported.wearableConnections) imported.wearableConnections = {};
   const prev = imported.wearableConnections.manual;
   const nowISO = new Date().toISOString();
@@ -268,7 +269,7 @@ function updateManualConnection(imported, coverageDays = 0) {
     source: 'manual',
     connectedAt: prev?.connectedAt || nowISO,
     lastSyncAt: Date.now(),
-    coverageDays: Math.max(coverageDays, prev?.coverageDays || 0),
+    coverageDays: Math.max(coverageDays, (prev?.coverageDays || 0) as number),
     needsReauth: false,
   };
 }
@@ -296,18 +297,18 @@ export async function ensureManualConnection({ coverageDays = 0 } = {}) {
  * Rows are upserted on the [source, date] compound key. Logging weight
  * twice on the same day overwrites — same behaviour as a wearable sync.
  */
-export async function logManualMetric(profileId, metric, { date, value, unit = 'kg', tags, note }) {
-  if (!MANUAL_METRICS.includes(metric)) {
+export async function logManualMetric(profileId: string, metric: string, { date, value, unit = 'kg', tags, note }: ManualMetricReading) {
+  if (!MANUAL_METRICS.includes(metric as string)) {
     throw new Error(`logManualMetric: unknown metric "${metric}"`);
   }
-  if (value == null || !isFinite(value)) {
+  if (value == null || !isFinite(value as number)) {
     throw new Error('logManualMetric: value must be a finite number');
   }
   const { imported, baseData } = captureManualMutation(profileId);
   const d = date || isoDay();
   _clearManualMetricTombstone(metric, d, imported);
-  const canonicalValue = metric === 'weight' ? weightToKilograms(value, unit) : value;
-  const patch = { [metric]: canonicalValue };
+  const canonicalValue = metric === 'weight' ? weightToKilograms(value as number, unit) : value;
+  const patch: Record<string, unknown> = { [metric]: canonicalValue };
   if (Array.isArray(tags) && tags.length) patch.tags = _sanitizeTags(tags);
   const noteClean = _sanitizeNote(note);
   if (noteClean) patch.note = noteClean;
@@ -320,19 +321,19 @@ export async function logManualMetric(profileId, metric, { date, value, unit = '
  * Log BP as a pair — matches how home cuffs report systolic + diastolic
  * (+ optional pulse) in a single reading. One row per date.
  */
-export async function logManualBP(profileId, { date, systolic, diastolic, pulse, tags, note }) {
+export async function logManualBP(profileId: string, { date, systolic, diastolic, pulse, tags, note }: ManualBloodPressure) {
   const { imported, baseData } = captureManualMutation(profileId);
   const d = date || isoDay();
-  const row = { source: 'manual', date: d };
-  if (systolic != null && isFinite(systolic)) {
+  const row: StoredWearableRow = { source: 'manual', date: d };
+  if (systolic != null && isFinite(systolic as number)) {
     _clearManualMetricTombstone('bp_systolic', d, imported);
     row.bp_systolic = systolic;
   }
-  if (diastolic != null && isFinite(diastolic)) {
+  if (diastolic != null && isFinite(diastolic as number)) {
     _clearManualMetricTombstone('bp_diastolic', d, imported);
     row.bp_diastolic = diastolic;
   }
-  if (pulse != null && isFinite(pulse)) {
+  if (pulse != null && isFinite(pulse as number)) {
     _clearManualMetricTombstone('rhr', d, imported);
     row.rhr = pulse;
   }
@@ -349,7 +350,7 @@ export async function logManualBP(profileId, { date, systolic, diastolic, pulse,
 
 // Trim + cap so a runaway paste doesn't bloat the row. 500 chars covers
 // "fasted 14h, just after wake, post-bath, third reading" type context.
-function _sanitizeNote(note) {
+function _sanitizeNote(note: unknown) {
   if (typeof note !== 'string') return '';
   const trimmed = note.trim();
   return trimmed.length > 500 ? trimmed.slice(0, 500) : trimmed;
@@ -358,9 +359,9 @@ function _sanitizeNote(note) {
 // Keep only recognized tags so a typo'd or stale chip can't poison the row.
 // Dedup-preserves order. Intentionally silent — tags are cosmetic, don't
 // throw just because the user clicked something odd.
-function _sanitizeTags(tags) {
+function _sanitizeTags(tags: readonly unknown[]) {
   const seen = new Set();
-  const out = [];
+  const out: string[] = [];
   for (const t of tags) {
     if (typeof t === 'string' && MANUAL_TAGS.includes(t) && !seen.has(t)) {
       seen.add(t);
@@ -381,27 +382,27 @@ function _sanitizeTags(tags) {
  * Legacy biometrics are retained for old backup compatibility, except rows
  * covered by a durable manualMetricTombstones deletion marker.
  */
-export async function migrateBiometricsToManual(profileId, biometrics) {
-  if (!profileId) return { skipped: 'no-profile' };
-  if (biometrics && profileId !== state.currentProfile) return { skipped: 'inactive-profile' };
+export async function migrateBiometricsToManual(profileId: string, biometrics: Biometrics | null | undefined) {
+  if (!profileId) return { skipped: 'no-profile' as const };
+  if (biometrics && profileId !== state.currentProfile) return { skipped: 'inactive-profile' as const };
   const live = state.importedData;
   await reconcileManualMetricTombstones(profileId);
-  if (biometrics && (profileId !== state.currentProfile || live !== state.importedData)) return { skipped: 'inactive-profile' };
+  if (biometrics && (profileId !== state.currentProfile || live !== state.importedData)) return { skipped: 'inactive-profile' as const };
   const baseData = structuredClone(live);
   const imported = structuredClone(baseData);
   // Retain reconciliation's legacy cleanup, then detach from mutable UI data.
   biometrics = structuredClone(biometrics);
   const alreadyRan = await getMeta(profileId, MIGRATION_FLAG);
-  if (alreadyRan) return { skipped: 'already-migrated' };
+  if (alreadyRan) return { skipped: 'already-migrated' as const };
   if (!biometrics) {
     await setMeta(profileId, MIGRATION_FLAG, { at: Date.now(), counts: {} });
-    return { skipped: 'no-biometrics' };
+    return { skipped: 'no-biometrics' as const };
   }
 
   // Group existing time-series entries by date so we write ONE row per
   // date rather than three (matches how wearable adapters emit).
-  const byDate = new Map();
-  const pushInto = (date, patch) => {
+  const byDate = new Map<string, StoredWearableRow>();
+  const pushInto = (date: string, patch: Record<string, unknown>) => {
     if (!date) return;
     const existing = byDate.get(date) || { source: 'manual', date };
     byDate.set(date, { ...existing, ...patch });
@@ -420,7 +421,7 @@ export async function migrateBiometricsToManual(profileId, biometrics) {
   }
   for (const e of bp) {
     if (!e?.date) continue;
-    const patch = {};
+    const patch: Record<string, unknown> = {};
     if (typeof e.systolic  === 'number' && isFinite(e.systolic))  patch.bp_systolic  = e.systolic;
     if (typeof e.diastolic === 'number' && isFinite(e.diastolic)) patch.bp_diastolic = e.diastolic;
     if (Object.keys(patch).length) pushInto(e.date, patch);
@@ -434,7 +435,7 @@ export async function migrateBiometricsToManual(profileId, biometrics) {
   const rows = [...byDate.values()];
   if (rows.length) {
     await queueManualRowWrite(profileId, async () => {
-      const merged = [];
+      const merged: StoredWearableRow[] = [];
       for (const row of rows) {
         // A previous attempt may have committed rows before metadata failed.
         // Migration fills missing fields; newer manual readings win on retry.
@@ -451,7 +452,7 @@ export async function migrateBiometricsToManual(profileId, biometrics) {
 
   const counts = { weight: weight.length, bp: bp.length, pulse: pulse.length, rows: rows.length };
   await setMeta(profileId, MIGRATION_FLAG, { at: Date.now(), counts });
-  return { migrated: true, counts };
+  return { migrated: true as const, counts };
 }
 
 /**
@@ -460,8 +461,8 @@ export async function migrateBiometricsToManual(profileId, biometrics) {
  * the summary doesn't count it as coverage. Used by the Edit Client modal
  * when a user deletes a biometric entry so the wearable strip stays in sync.
  */
-export async function deleteManualMetric(profileId, metric, date) {
-  if (!MANUAL_METRICS.includes(metric)) {
+export async function deleteManualMetric(profileId: string, metric: string, date: string) {
+  if (!MANUAL_METRICS.includes(metric as string)) {
     throw new Error(`deleteManualMetric: unknown metric "${metric}"`);
   }
   const { imported, baseData } = captureManualMutation(profileId);
@@ -492,8 +493,8 @@ export async function deleteManualMetric(profileId, metric, date) {
  * Remove every device-local manual reading and record per-field tombstones,
  * including legacy biometrics dates that may not exist in this device's IDB.
  */
-export async function deleteAllManualMetrics(profileId) {
-  if (!profileId || state.currentProfile !== profileId) return { skipped: 'inactive-profile' };
+export async function deleteAllManualMetrics(profileId: string) {
+  if (!profileId || state.currentProfile !== profileId) return { skipped: 'inactive-profile' as const };
   const { imported, baseData } = captureManualMutation(profileId);
   const deletedAt = Date.now();
   const rows = await getDailyRange(profileId, 'manual', MANUAL_HISTORY_START, MANUAL_HISTORY_END);
@@ -537,7 +538,7 @@ export async function deleteAllManualMetrics(profileId) {
  * L2 change-gate prevents redundant writes; call it eagerly after any manual
  * entry write.
  */
-export async function refreshManualSummary(profileId) {
+export async function refreshManualSummary(profileId: string) {
   const imported = state.importedData;
   if (profileId !== state.currentProfile) return;
   try {
@@ -553,7 +554,7 @@ export async function refreshManualSummary(profileId) {
  * the dashboard strip and Settings → Integrations panel list Manual
  * alongside Oura/Withings without needing an OAuth flow.
  */
-export async function hasManualData(profileId) {
+export async function hasManualData(profileId: string) {
   try {
     const n = await countSource(profileId, 'manual');
     return n > 0;

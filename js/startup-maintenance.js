@@ -104,7 +104,9 @@ function migrateLegacyBiometrics() {
     .catch(() => { /* non-fatal; Safari can refuse IDB in some contexts */ });
 }
 
+/** @returns {Record<string, import('./wearables-summary-model.js').WearableConnectionSummary>} */
 function listStoredConnectedSources() {
+  /** @type {Record<string, import('./wearables-summary-model.js').WearableConnectionSummary>} */
   const out = {};
   for (const [sourceId, connection] of Object.entries(
     state.importedData?.wearableConnections || {},

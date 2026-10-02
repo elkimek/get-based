@@ -1,5 +1,7 @@
+import type { WearableSummary, WearableAnomalyEvent, WearableConnectionSummary } from './wearables-summary-model.js';
+import type { StoredWearableRow } from './wearable-storage-types.js';
+
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
-// @ts-check
 // wearables-summary.js — L2 summary derivation + change gate
 //
 // Pure functions where possible so the gate logic is testable without IDB or DOM.
@@ -21,13 +23,11 @@ import { computeWearableSummary, shouldWriteL2 } from './wearables-summary-model
 export { computeWearableSummary, shouldWriteL2 } from './wearables-summary-model.js';
 import { isDebugMode } from './utils.js';
 
-/** @type {{ saveImportedData: () => any }} */
-const wearableSummaryDeps = {
+const wearableSummaryDeps: { saveImportedData: () => unknown } = {
   saveImportedData: () => {},
 };
 
-/** @param {{ saveImportedData?: () => any }} [deps] */
-export function configureWearableSummary(deps = {}) {
+export function configureWearableSummary(deps: Partial<typeof wearableSummaryDeps> = {}) {
   return configureRuntimeFunctions(wearableSummaryDeps, deps, ["saveImportedData"]);
 }
 
@@ -42,7 +42,7 @@ const MANUAL_SUMMARY_START_DATE = '1970-01-01';
 // Persist
 // ─────────────────────────────────────────────────────────
 
-function appendAnomalyToChangeHistory(events) {
+function appendAnomalyToChangeHistory(events: readonly WearableAnomalyEvent[] | null | undefined) {
   if (!events || events.length === 0) return;
   const imp = state.importedData;
   if (!imp) return;
@@ -61,7 +61,7 @@ function appendAnomalyToChangeHistory(events) {
   trimImportedArray(imp, 'changeHistory', CHANGE_HISTORY_CAP);
 }
 
-export function persistWearableSummary(newSummary, anomalyEvents) {
+export function persistWearableSummary(newSummary: WearableSummary, anomalyEvents: readonly WearableAnomalyEvent[] | null | undefined) {
   if (!state.importedData) return false;
   state.importedData.wearableSummary = newSummary;
   appendAnomalyToChangeHistory(anomalyEvents);
@@ -69,7 +69,7 @@ export function persistWearableSummary(newSummary, anomalyEvents) {
   return true;
 }
 
-async function refreshLocalMealTiming(profileId) {
+async function refreshLocalMealTiming(profileId: string) {
   if (state.currentProfile !== profileId || !state.nutritionSummary?.totalMeals) return;
   try {
     const nutrition = await import('./nutrition-store.js');
@@ -83,22 +83,22 @@ async function refreshLocalMealTiming(profileId) {
 // Orchestrator — reads L1, computes, persists if gate trips
 // ─────────────────────────────────────────────────────────
 
-export async function syncWearableSummary(profileId, connectedSources, { force = false } = {}) {
-  if (!profileId || !connectedSources) return { wrote: false, reason: 'noop-inputs' };
+export async function syncWearableSummary(profileId: string | null | undefined, connectedSources: Readonly<Record<string, WearableConnectionSummary>> | null | undefined, { force = false } = {}) {
+  if (!profileId || !connectedSources) return { wrote: false as const, reason: 'noop-inputs' };
   const sourceIds = Object.keys(connectedSources);
   if (sourceIds.length === 0) {
-    if (state.currentProfile !== profileId) return { wrote: false, reason: 'profile-changed' };
+    if (state.currentProfile !== profileId) return { wrote: false as const, reason: 'profile-changed' };
     const old = state.importedData?.wearableSummary || null;
     const hasStaleSummary = !!old && (
       Object.keys(old.metrics || {}).length > 0
       || Object.keys(old.sources || {}).length > 0
     );
-    if (!force && !hasStaleSummary) return { wrote: false, reason: 'no-sources' };
+    if (!force && !hasStaleSummary) return { wrote: false as const, reason: 'no-sources' };
     const emptySummary = computeWearableSummary({}, {}, {});
     persistWearableSummary(emptySummary, []);
     await refreshLocalMealTiming(profileId);
     return {
-      wrote: true,
+      wrote: true as const,
       reason: force ? 'force-no-sources' : 'no-sources-cleared',
       summary: emptySummary,
       anomalies: [],
@@ -112,8 +112,7 @@ export async function syncWearableSummary(profileId, connectedSources, { force =
   const start = new Date(); start.setDate(start.getDate() - SUMMARY_WINDOW_DAYS);
   const startDate = isoDay(start);
 
-  /** @type {Record<string, import('./wearable-storage-types.js').StoredWearableRow[]>} */
-  const rowsBySource = {};
+    const rowsBySource: Record<string, StoredWearableRow[]> = {};
   for (const sid of sourceIds) {
     const readStartDate = sid === 'manual' ? MANUAL_SUMMARY_START_DATE : startDate;
     try { rowsBySource[sid] = await getDailyRange(profileId, sid, readStartDate, endDate); }
@@ -126,7 +125,7 @@ export async function syncWearableSummary(profileId, connectedSources, { force =
   // summary into it would write A's metrics under B's localStorage key.
   if (state.currentProfile !== profileId) {
     if (isDebugMode?.()) console.log(`[wearable-summary] aborting — profile changed mid-read (${profileId} → ${state.currentProfile})`);
-    return { wrote: false, reason: 'profile-changed' };
+    return { wrote: false as const, reason: 'profile-changed' };
   }
 
   const primaryOverride = state.importedData?.wearablePrimaryOverride || {};
@@ -141,11 +140,11 @@ export async function syncWearableSummary(profileId, connectedSources, { force =
 
   if (!gate.write) {
     await refreshLocalMealTiming(profileId);
-    return { wrote: false, reason: 'gate-not-tripped', summary: newSummary };
+    return { wrote: false as const, reason: 'gate-not-tripped', summary: newSummary };
   }
 
   persistWearableSummary(newSummary, gate.anomalyEvents);
   await refreshLocalMealTiming(profileId);
   if (isDebugMode?.()) console.log(`[wearable-summary] L2 written: ${gate.reason}`);
-  return { wrote: true, reason: gate.reason, summary: newSummary, anomalies: gate.anomalyEvents };
+  return { wrote: true as const, reason: gate.reason, summary: newSummary, anomalies: gate.anomalyEvents };
 }

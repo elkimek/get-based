@@ -18,7 +18,7 @@ import {
  * migrateBiometricsToManual: (profileId: string, biometrics: Record<string, unknown> | null) => Promise<unknown>,
  * navigate: (view: string) => unknown,
  * renderProfileButton: () => void,
- * syncWearableSummary: (profileId: string, sources: object) => Promise<unknown>,
+ * syncWearableSummary: (profileId: string, sources: Readonly<Record<string, import('./wearables-summary-model.js').WearableConnectionSummary>>) => Promise<unknown>,
  * updateHeaderDates: () => void,
  * updateHeaderRangeToggle: () => void,
  * }} ProfileRefreshDependencies */

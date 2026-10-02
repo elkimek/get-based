@@ -11,7 +11,7 @@ describe('wearable summary persistence', () => {
     const previousImportedData = state.importedData;
     const saveImportedData = vi.fn();
     const previousDeps = configureWearableSummary({ saveImportedData });
-    state.importedData = { changeHistory: [] };
+    (state as { importedData: Pick<typeof state.importedData, 'changeHistory'> }).importedData = { changeHistory: [] };
 
     try {
       const summary = { summaryUpdatedAt: '2026-07-22T00:00:00.000Z', metrics: {}, sources: {} };

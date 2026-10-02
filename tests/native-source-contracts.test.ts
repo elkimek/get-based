@@ -2,6 +2,22 @@ import { describe, expect, it } from 'vitest';
 import { sourceFunctionHasCatchStatement, sourceFunctionHasInitializer, sourceFunctionHasStatement, sourceFunctionHasVariable } from './helpers/native-source-contracts.js';
 
 describe('native source contracts', () => {
+  it('keeps sanitized manual notes in both writers and rejects changed guards or assignments', () => {
+    const source = "async function logManualMetric() { const noteClean = _sanitizeNote(note); if (noteClean) patch.note = noteClean; } async function logManualBP() { const noteClean = _sanitizeNote(note); if (noteClean) row.note = noteClean; } function _sanitizeNote(note) { if (typeof note !== 'string') return ''; }";
+    const check = (input: string) => sourceFunctionHasInitializer(input, 'logManualMetric', 'noteClean', '_sanitizeNote(note)')
+      && sourceFunctionHasStatement(input, 'logManualMetric', 'if (noteClean) patch.note = noteClean;')
+      && sourceFunctionHasInitializer(input, 'logManualBP', 'noteClean', '_sanitizeNote(note)')
+      && sourceFunctionHasStatement(input, 'logManualBP', 'if (noteClean) row.note = noteClean;')
+      && sourceFunctionHasStatement(input, '_sanitizeNote', "if (typeof note !== 'string') return '';");
+    expect(check(source)).toBe(true);
+    expect(check(source.replaceAll(') ', ')\n    '))).toBe(true);
+    for (const [before, after] of [
+      ['_sanitizeNote(note)', '_sanitizeNote(other)'], ['if (noteClean)', 'if (!noteClean)'],
+      ['patch.note = noteClean', 'patch.note = note'], ['row.note = noteClean', 'row.note = note'],
+      ["typeof note !== 'string'", "typeof note === 'string'"], ["return ''", 'return note'],
+      ['const noteClean = _sanitizeNote(note);', 'if (enabled) { const noteClean = _sanitizeNote(note); }'],
+    ]) expect(check(source.replace(before!, after!))).toBe(false);
+  });
   it('keeps notes outside conditional blocks and requires the final context return', () => {
     const source = 'function build() { const notes = []; if (hasLabs) { useLabs(); } return ctx; }';
     expect(sourceFunctionHasVariable(source, 'build', 'notes')).toBe(true);

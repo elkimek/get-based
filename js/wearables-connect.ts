@@ -1,4 +1,23 @@
-// @ts-check
+import type { OAuthBeginOptions, OAuthCallbackResult, OAuthQuery, OAuthError } from './wearable-oauth-types.js';
+import type { WearableAdapter } from './wearable-adapters.js';
+import type { StoredWearableRow } from './wearable-storage-types.js';
+import type { WearableConnectionSummary } from './wearables-summary-model.js';
+import type { PolarPendingTransaction } from './wearables-polar.js';
+import type { WearableProfileMutation, WearableConnection } from './wearable-persistence-types.js';
+
+interface OAuthDispatch {
+  begin(args: OAuthBeginOptions): void;
+  isCallback(query: OAuthQuery): unknown;
+  complete(query: OAuthQuery): Promise<OAuthCallbackResult>;
+  withFreshToken: typeof ouraWithFreshToken;
+  fetchAccountInfo: (token: string, connection?: { userId?: unknown }) => Promise<{ ok: boolean; account?: unknown; error?: unknown }>;
+  fetchRange: typeof fetchOuraDailyRange | typeof fetchWhoopDailyRange | typeof fetchWithingsDailyRange | typeof fetchUltrahumanDailyRange | typeof fetchFitbitDailyRange | typeof fetchGoogleHealthDailyRange | typeof fetchPolarDailyRange;
+  postConnect?: typeof registerPolarUser;
+  commitAfterWrite?: typeof commitPolarTransactions;
+  displayName: string;
+}
+type FetchRows = StoredWearableRow[] & { _polarTransactions?: PolarPendingTransaction[] };
+
 // wearables-connect.js — Connect/disconnect/backfill orchestration
 //
 // Bridges the adapter registry (config), the vendor-specific fetcher + auth
@@ -46,7 +65,7 @@ const BACKFILL_DAYS = 90;
 // before surfacing it to the user. Vendors occasionally echo the access
 // token back in error bodies (Withings has done this historically); we
 // don't want it leaking into a toast.
-function _scrubError(msg) {
+function _scrubError(msg: unknown) {
   if (typeof msg !== 'string') return String(msg);
   return msg
     .replace(/[Bb]earer\s+[A-Za-z0-9._\-]+/g, 'Bearer [redacted]')
@@ -54,18 +73,16 @@ function _scrubError(msg) {
     .replace(/refresh[_\s-]?token['"\s:=]+[A-Za-z0-9._\-]{16,}/gi, 'refresh_token=[redacted]');
 }
 
-// ─────────────────────────────────────────────────────────
 // importedData.wearableConnections read/write
-// ─────────────────────────────────────────────────────────
-const credentialCache = new Map();
+const credentialCache = new Map<string, Parameters<typeof saveWearableCredentials>[2]>();
 
-function credentialCacheKey(profileId, adapterId) {
+function credentialCacheKey(profileId: string, adapterId: string) {
   return `${profileId}:${adapterId}`;
 }
 
 const usesCredentialVault = usesWearableCredentialVault;
 
-function connectionHasCredentials(adapterId, connection, profileId = getActiveProfileId()) {
+function connectionHasCredentials(adapterId: string, connection: WearableConnection | null | undefined, profileId = getActiveProfileId()): connection is WearableConnection {
   if (connection?.accessToken || connection?.refreshToken) return true;
   return usesCredentialVault(adapterId)
     ? Boolean(connection?.hasStoredCredentials && hasLocalWearableCredential(
@@ -77,7 +94,7 @@ function connectionHasCredentials(adapterId, connection, profileId = getActivePr
     : Boolean(connection?.accessToken);
 }
 
-function metadataOnlyConnection(adapterId, connection) {
+function metadataOnlyConnection(adapterId: string, connection: WearableConnection) {
   if (!usesCredentialVault(adapterId)) return connection;
   const { accessToken, refreshToken, ...metadata } = connection;
   return {
@@ -86,21 +103,21 @@ function metadataOnlyConnection(adapterId, connection) {
   };
 }
 
-function getConnections(importedData = state.importedData) {
+function getConnections(importedData: WearableProfileMutation | null | undefined = state.importedData) {
   if (!importedData) return {};
   if (!importedData.wearableConnections) importedData.wearableConnections = {};
   return importedData.wearableConnections;
 }
 
-export function getConnection(adapterId) {
+export function getConnection(adapterId: string) {
   return getConnections()[adapterId] || null;
 }
 
 export function listConnectedSources() { return listConnectedSourcesFor(state.importedData, getActiveProfileId()); }
 
-function listConnectedSourcesFor(importedData, profileId) {
+function listConnectedSourcesFor(importedData: WearableProfileMutation | null | undefined, profileId: string) {
   const map = getConnections(importedData);
-  const out = {};
+  const out: Record<string, WearableConnectionSummary> = {};
   for (const [sid, conn] of Object.entries(map)) {
     if (conn?.connectedAt && (!usesCredentialVault(sid) || connectionHasCredentials(sid, conn, profileId))) {
       out[sid] = {
@@ -112,13 +129,13 @@ function listConnectedSourcesFor(importedData, profileId) {
   return out;
 }
 
-function saveConnection(adapterId, conn) {
+function saveConnection(adapterId: string, conn: WearableConnection) {
   const map = getConnections();
   map[adapterId] = metadataOnlyConnection(adapterId, conn);
   saveImportedData();
 }
 
-async function saveConnectionWithCredentials(adapterId, connection, profileId = getActiveProfileId()) {
+async function saveConnectionWithCredentials(adapterId: string, connection: WearableConnection, profileId = getActiveProfileId()) {
   if (!usesCredentialVault(adapterId)) {
     saveConnection(adapterId, connection);
     return;
@@ -151,7 +168,7 @@ async function saveConnectionWithCredentials(adapterId, connection, profileId = 
   saveConnection(adapterId, connection);
 }
 
-async function hydratedConnection(adapterId) {
+async function hydratedConnection(adapterId: string) {
   const connection = getConnection(adapterId);
   if (!connection || !usesCredentialVault(adapterId)) return connection;
   const profileId = getActiveProfileId();
@@ -166,15 +183,14 @@ async function hydratedConnection(adapterId) {
   if (!credentials && connection?.hasStoredCredentials) {
     try { clearLocalWearableCredential(profileId, adapterId, connection.credentialGeneration); } catch {}
     const displayName = adapterById(adapterId)?.displayName || adapterId;
-    /** @type {Error & { code?: string }} */
-    const error = new Error(`${displayName} must be connected separately on this device.`);
+    const error: OAuthError = new Error(`${displayName} must be connected separately on this device.`);
     error.code = 'needs-device-connect';
     throw error;
   }
   return credentials ? { ...connection, ...credentials } : connection;
 }
 
-function latestHydratedConnection(adapterId, fallback, profileId = getActiveProfileId()) {
+function latestHydratedConnection(adapterId: string, fallback: WearableConnection, profileId = getActiveProfileId()) {
   if (profileId !== getActiveProfileId()) return fallback;
   const metadata = getConnection(adapterId);
   if (usesCredentialVault(adapterId) && (!metadata || !connectionHasCredentials(adapterId, metadata, profileId))) throw wearableCredentialDisconnectedError(adapterById(adapterId)?.displayName || adapterId);
@@ -183,19 +199,17 @@ function latestHydratedConnection(adapterId, fallback, profileId = getActiveProf
   return credentials ? { ...metadata, ...credentials } : fallback;
 }
 
-function removeConnection(adapterId) {
+function removeConnection(adapterId: string) {
   const map = getConnections();
   delete map[adapterId];
   saveImportedData();
 }
 
-// ─────────────────────────────────────────────────────────
 // OAuth kick-off
-// ─────────────────────────────────────────────────────────
 
 // Starts the OAuth flow. Navigates away from the current page — control
 // returns via the redirect handler in startup-oauth-callbacks.js.
-export function beginConnectOAuth(adapterId, profileId = getActiveProfileId()) {
+export function beginConnectOAuth(adapterId: string, profileId = getActiveProfileId()) {
   const adapter = adapterById(adapterId);
   if (!adapter) throw new Error(`Unknown adapter: ${adapterId}`);
   if (adapter.authType !== 'oauth2') throw new Error(`Adapter ${adapterId} is not OAuth2`);
@@ -208,7 +222,7 @@ export function beginConnectOAuth(adapterId, profileId = getActiveProfileId()) {
   const kick = OAUTH_DISPATCH[adapter.id]?.begin;
   if (!kick) throw new Error(`Unsupported OAuth adapter: ${adapter.id}`);
   kick({
-    clientId: getOAuthClientId(adapter),
+    clientId: getOAuthClientId(adapter) as string,
     registeredUris: oauth.redirectUris,
     scopes: oauth.scopes,
     profileId,
@@ -217,7 +231,7 @@ export function beginConnectOAuth(adapterId, profileId = getActiveProfileId()) {
 
 // Per-adapter OAuth wiring table. Keeps the orchestrator out of vendor-specific
 // branch logic — new adapters register here once and flow through generically.
-export const OAUTH_DISPATCH = {
+export const OAUTH_DISPATCH: Record<string, OAuthDispatch> = {
   oura: {
     begin: (args) => beginOuraOAuth({ ...args, scopes: args.scopes || DEFAULT_OURA_SCOPES }),
     isCallback: isOuraCallback,
@@ -277,8 +291,8 @@ export const OAUTH_DISPATCH = {
     isCallback: isPolarCallback,
     complete: completePolarCallback,
     withFreshToken: polarWithFreshToken,
-    fetchAccountInfo: (accessToken, connection) => fetchPolarPersonalInfo(accessToken, connection?.userId),
-    fetchRange: (accessToken, startDate, endDate, connection) => fetchPolarDailyRange(accessToken, startDate, endDate, connection),
+    fetchAccountInfo: (accessToken, connection) => fetchPolarPersonalInfo(accessToken, connection?.userId as string | number | null),
+    fetchRange: (accessToken: string, startDate: string, endDate: string, connection: Parameters<typeof fetchPolarDailyRange>[3]) => fetchPolarDailyRange(accessToken, startDate, endDate, connection),
     // Polar-only hooks — invoked by connect/backfill when present; other
     // adapters don't need them and the orchestrator treats missing as no-op.
     postConnect: registerPolarUser,
@@ -293,10 +307,10 @@ export const OAUTH_DISPATCH = {
 export async function handleOAuthCallbackOnLoad() {
   const urlParams = getWearableOAuthSearchParamsRuntime();
   // Find the first registered adapter whose callback-matcher recognises this URL.
-  const adapterId = Object.keys(OAUTH_DISPATCH).find(id => OAUTH_DISPATCH[id].isCallback(urlParams));
+  const adapterId = Object.keys(OAUTH_DISPATCH).find(id => OAUTH_DISPATCH[id]!.isCallback(urlParams));
   if (!adapterId) return false;
 
-  const disp = OAUTH_DISPATCH[adapterId];
+  const disp = OAUTH_DISPATCH[adapterId]!;
   if (isWearableRelayUnavailable(adapterId)) {
     clearWearableOAuthCallbackRuntime();
     showNotification?.(`${disp.displayName} connection was not completed. ${SELF_HOSTED_WEARABLE_MESSAGE}`, 'error', 7000);
@@ -344,7 +358,7 @@ export async function handleOAuthCallbackOnLoad() {
   // that scope by user (Polar). Don't hand the whole connection object
   // (with refreshToken) to a per-vendor function — defensive against a
   // future contributor logging the second arg for debugging.
-  const info = await disp.fetchAccountInfo(result.tokens.accessToken, { userId: conn0?.userId });
+  const info = await disp.fetchAccountInfo(result.tokens.accessToken as string, { userId: conn0?.userId });
   // Guard: if the user swapped profiles during the network call, undo the
   // initial saveConnection (which landed on profile A's blob) and abort.
   if (getActiveProfileId() !== activeProfile) {
@@ -369,7 +383,7 @@ export async function handleOAuthCallbackOnLoad() {
     }
     const memberId = `getbased-${activeProfile}-${result.tokens.userId}`;
     try {
-      const reg = await disp.postConnect(result.tokens.accessToken, memberId);
+      const reg = await disp.postConnect(result.tokens.accessToken as string, memberId);
       // Same profile-swap guard around the awaited postConnect.
       if (getActiveProfileId() !== activeProfile) {
         showNotification?.(`${disp.displayName} connect aborted — profile changed`, 'error', 5000);
@@ -408,14 +422,12 @@ export async function handleOAuthCallbackOnLoad() {
 //  unified OAUTH_DISPATCH table + handleOAuthCallbackOnLoad. Ultrahuman
 //  moved from legacy static-token to their OAuth2 partner API.)
 
-// ─────────────────────────────────────────────────────────
 // Per-adapter dispatch (fetch + auth refresh)
-// ─────────────────────────────────────────────────────────
 
 // Wraps a fetcher call with token refresh. On 401, does one retry with a
 // forced refresh — guards against the case where the access token expired
 // between our clock check and the actual API call.
-async function callWithRefresh(adapter, fetcher) {
+async function callWithRefresh<T>(adapter: WearableAdapter, fetcher: (token: string) => Promise<T>) {
   if (isWearableRelayUnavailable(adapter)) {
     throw Object.assign(new Error(SELF_HOSTED_WEARABLE_MESSAGE), { code: 'hosted-relay-disabled' });
   }
@@ -432,30 +444,29 @@ async function callWithRefresh(adapter, fetcher) {
 
   conn = await wft(conn, getOAuthClientId(adapter), async (updated) => {
     await saveConnectionWithCredentials(adapter.id, updated, profileId);
-  }, () => latestHydratedConnection(adapter.id, conn, profileId)).catch(async e => {
-    if (e?.code === 'needs-reauth' || e?.status === 400 || e?.status === 401) {
+  }, () => latestHydratedConnection(adapter.id, conn!, profileId)).catch(async (e: unknown) => {
+    if ((e as { code?: unknown } | null)?.code === 'needs-reauth' || (e as { status?: unknown } | null)?.status === 400 || (e as { status?: unknown } | null)?.status === 401) {
       if (getActiveProfileId() === profileId) {
         saveConnection(adapter.id, { ...conn, needsReauth: true });
       }
-      /** @type {Error & { code?: string }} */
-      const wrap = new Error('Reconnect required'); wrap.code = 'needs-reauth'; throw wrap;
+      const wrap: OAuthError = new Error('Reconnect required'); wrap.code = 'needs-reauth'; throw wrap;
     }
     throw e;
   });
 
   try {
-    return await fetcher(conn.accessToken);
+    return await fetcher(conn.accessToken as string);
   } catch (e) {
     if (getErrorStatus(e) !== 401) throw e;
     const forced = { ...conn, expiresAt: 0 };
     const refreshed = await wft(forced, getOAuthClientId(adapter), async (updated) => {
       await saveConnectionWithCredentials(adapter.id, updated, profileId);
     }, () => latestHydratedConnection(adapter.id, forced, profileId));
-    return fetcher(refreshed.accessToken);
+    return fetcher(refreshed.accessToken as string);
   }
 }
 
-async function fetchRange(adapter, startDate, endDate, opts = {}) {
+async function fetchRange(adapter: WearableAdapter, startDate: string, endDate: string, opts: { lastSyncUnix?: unknown } = {}) {
   if (adapter.id === 'oura') {
     return callWithRefresh(adapter, (token) => fetchOuraDailyRange(token, startDate, endDate));
   }
@@ -463,7 +474,7 @@ async function fetchRange(adapter, startDate, endDate, opts = {}) {
     return callWithRefresh(adapter, (token) => fetchWhoopDailyRange(token, startDate, endDate));
   }
   if (adapter.id === 'withings') {
-    return callWithRefresh(adapter, (token) => fetchWithingsDailyRange(token, startDate, endDate, opts.lastSyncUnix ?? null));
+    return callWithRefresh(adapter, (token) => fetchWithingsDailyRange(token, startDate, endDate, (opts.lastSyncUnix ?? null) as number | null));
   }
   if (adapter.id === 'ultrahuman') {
     return callWithRefresh(adapter, (token) => fetchUltrahumanDailyRange(token, startDate, endDate));
@@ -473,20 +484,18 @@ async function fetchRange(adapter, startDate, endDate, opts = {}) {
   }
   if (adapter.id === 'google_health') {
     const sourceFamily = getConnection('google_health')?.dataSourceFamily || 'all-sources';
-    return callWithRefresh(adapter, (token) => fetchGoogleHealthDailyRange(token, startDate, endDate, { dataSourceFamily: sourceFamily }));
+    return callWithRefresh(adapter, (token) => fetchGoogleHealthDailyRange(token, startDate, endDate, { dataSourceFamily: sourceFamily as string }));
   }
   if (adapter.id === 'polar') {
     // Polar needs the live connection (userId + transaction state).
-    return callWithRefresh(adapter, (token) => fetchPolarDailyRange(token, startDate, endDate, getConnection('polar')));
+    return callWithRefresh(adapter, (token) => fetchPolarDailyRange(token, startDate, endDate, getConnection('polar') as NonNullable<Parameters<typeof fetchPolarDailyRange>[3]>));
   }
   return [];
 }
 
-// ─────────────────────────────────────────────────────────
 // Backfill / incremental sync
-// ─────────────────────────────────────────────────────────
 
-export async function backfillWearable(adapterId, daysBack = BACKFILL_DAYS) {
+export async function backfillWearable(adapterId: string, daysBack = BACKFILL_DAYS) {
   const adapter = adapterById(adapterId);
   if (!adapter) throw new Error(`Unknown adapter: ${adapterId}`);
   const conn = getConnection(adapterId);
@@ -501,12 +510,12 @@ export async function backfillWearable(adapterId, daysBack = BACKFILL_DAYS) {
   return { rows: persisted ? rows.length : 0, startDate, endDate };
 }
 
-async function persistFetchedRows(adapterId, profileId, rows, conn, startDate, endDate) {
+async function persistFetchedRows(adapterId: string, profileId: string, rows: FetchRows, conn: WearableConnection | null, startDate: string, endDate: string) {
   const persist = async () => {
     const live = getConnection(adapterId);
     const isVaulted = usesCredentialVault(adapterId);
     if (isVaulted && (getActiveProfileId() !== profileId || !connectionHasCredentials(adapterId, live, profileId))) return false;
-    const expectedVersion = Number.isSafeInteger(conn?.credentialGeneration) ? conn.credentialGeneration : 0;
+    const expectedVersion = Number.isSafeInteger(conn?.credentialGeneration) ? conn!.credentialGeneration as number : 0;
     const versionKey = wearableCredentialGenerationKey(adapterId);
     if (rows.length > 0) {
       const written = await upsertDailyBatch(profileId, rows, isVaulted ? { versionKey, expectedVersion } : null);
@@ -533,7 +542,7 @@ async function persistFetchedRows(adapterId, profileId, rows, conn, startDate, e
 // — if the user swaps profiles mid-flight, we'd otherwise read the new
 // profile's connection (or null) and commit the OLD profile's transactions
 // against the wrong token.
-async function commitAfterWriteIfAny(adapterId, rows, connSnapshot) {
+async function commitAfterWriteIfAny(adapterId: string, rows: FetchRows, connSnapshot: WearableConnection | null) {
   const disp = OAUTH_DISPATCH[adapterId];
   const pending = rows?._polarTransactions;
   if (!disp?.commitAfterWrite || !pending?.length) return;
@@ -541,18 +550,18 @@ async function commitAfterWriteIfAny(adapterId, rows, connSnapshot) {
     // Prefer the snapshot when present; fall back to live read for callers
     // that haven't been migrated yet.
     const conn = connSnapshot?.accessToken ? connSnapshot : await hydratedConnection(adapterId);
-    if (conn?.accessToken) await disp.commitAfterWrite(conn.accessToken, pending);
+    if (conn?.accessToken) await disp.commitAfterWrite(conn.accessToken as string, pending);
   } catch (e) { if (isDebugMode?.()) console.warn(`[wearables] ${adapterId} commit failed:`, e); }
 }
 
 // Incremental sync — pull from the last successful sync day (or 7d back,
 // whichever is earlier, so a missed day gets backfilled).
-export async function incrementalSyncWearable(adapterId, { force = false } = {}) {
+export async function incrementalSyncWearable(adapterId: string, { force = false } = {}) {
   const conn = getConnection(adapterId);
-  if (!connectionHasCredentials(adapterId, conn)) return { skipped: true, reason: 'not-connected' };
+  if (!connectionHasCredentials(adapterId, conn)) return { skipped: true as const, reason: 'not-connected' };
   const profileId = getActiveProfileId();
 
-  const lastSync = /** @type {{ endDate?: string, at?: number } | null} */ (await getMeta(profileId, `last-sync:${adapterId}`));
+  const lastSync = (await getMeta(profileId, `last-sync:${adapterId}`) as { endDate?: string; at?: number } | null);
   const fallbackStart = daysAgoIso(7);
   // Always use AT LEAST a 7-day sync range. When `lastSync.endDate` is already
   // today (because the user synced earlier the same day), the previous
@@ -581,22 +590,20 @@ export async function incrementalSyncWearable(adapterId, { force = false } = {})
   // Pass `lastSyncUnix` so adapters that support incremental fetch (Withings)
   // can ask the API for "anything modified since" instead of a fixed window —
   // catches retroactive manual entries (BP backfilled a week later, etc.).
-  const rows = await fetchRange(adapter, startDate, endDate, { lastSyncUnix: lastSync?.at || conn.lastSyncAt || null });
+  const rows = await fetchRange(adapter!, startDate, endDate, { lastSyncUnix: lastSync?.at || conn.lastSyncAt || null });
   const persisted = await persistFetchedRows(adapterId, profileId, rows, conn, startDate, endDate);
   return { rows: persisted ? rows.length : 0, startDate, endDate };
 }
 
-// ─────────────────────────────────────────────────────────
 // Disconnect
-// ─────────────────────────────────────────────────────────
 
-export async function disconnectWearable(adapterId, options = {}) {
+export async function disconnectWearable(adapterId: string, options = {}) {
   return adapterId === 'google_health'
     ? withGoogleHealthLifecycleLock(() => withGoogleHealthRefreshLock(() => disconnectWearableLocked(adapterId, options)))
     : disconnectWearableLocked(adapterId, options);
 }
 
-async function disconnectWearableLocked(adapterId, { deleteData = true } = {}) {
+async function disconnectWearableLocked(adapterId: string, { deleteData = true } = {}) {
   const profileId = getActiveProfileId();
   // Keep post-await mutations bound to the initiating profile; loadProfile()
   // replaces the global and could otherwise redirect the purge.
@@ -630,7 +637,7 @@ async function disconnectWearableLocked(adapterId, { deleteData = true } = {}) {
     clearLocalWearableCredential(profileId, adapterId, generation);
   }
   applyWearableDisconnectToProfile(profileData, adapterId, { deleteData });
-  let remainingSources = null;
+  let remainingSources: Record<string, WearableConnectionSummary> | null = null;
   if (deleteData) {
     // Drop the `last-sync:{adapterId}` meta entry too — otherwise a future
     // reconnect's incrementalSyncWearable picks up the stale endDate as
@@ -656,15 +663,13 @@ async function disconnectWearableLocked(adapterId, { deleteData = true } = {}) {
   }
 }
 
-// ─────────────────────────────────────────────────────────
 // Top-level orchestrator: sync one source end-to-end
-// ─────────────────────────────────────────────────────────
 
-export async function syncNow(adapterId, { force = false } = {}) {
+export async function syncNow(adapterId: string, { force = false } = {}) {
   const profileId = getActiveProfileId();
   try {
     const res = await incrementalSyncWearable(adapterId, { force });
-    if (res.skipped) return res;
+    if ((res as { skipped?: true }).skipped) return res;
     // Manual user-driven syncs pass `force: true` so the L2 gate (which
     // skips writes when the d7 mean / trend / weekly delta haven't moved
     // ≥ 5%) can't make the strip card "stick" on a stale snapshot.
@@ -687,30 +692,28 @@ export async function syncNow(adapterId, { force = false } = {}) {
   }
 }
 
-export async function recoverIfL1Empty(adapterId) {
+export async function recoverIfL1Empty(adapterId: string) {
   const conn = getConnection(adapterId);
-  if (!connectionHasCredentials(adapterId, conn)) return { skipped: true };
+  if (!connectionHasCredentials(adapterId, conn)) return { skipped: true as const };
   // Skip if the connection is already flagged as needing reauth — backfill
   // would 401 → flip the same flag again and the user gets noisy errors
   // every scheduler tick. Wait for them to reconnect before retrying.
-  if (conn.needsReauth) return { skipped: true, reason: 'needs-reauth' };
+  if (conn.needsReauth) return { skipped: true as const, reason: 'needs-reauth' };
   const profileId = getActiveProfileId();
   const n = await countSource(profileId, adapterId).catch(() => 0);
-  if (n > 0) return { skipped: true, rows: n };
+  if (n > 0) return { skipped: true as const, rows: n };
   if (isDebugMode?.()) console.log(`[wearables] L1 empty for ${adapterId} — recovering via backfill`);
   return backfillWearable(adapterId);
 }
 
-// ─────────────────────────────────────────────────────────
 // Scheduler — only runs while the tab is open
-// ─────────────────────────────────────────────────────────
 
 const POLL_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const STALE_MS         = 12 * 60 * 60 * 1000;
 
-let _pollTimer = null;
+let _pollTimer: ReturnType<typeof setInterval> | null = null;
 let _schedulerInstalled = false;
-let _staleSyncInFlight = null;
+let _staleSyncInFlight: Promise<void> | null = null;
 
 async function maybeSyncStaleSources() {
   // Wait for the runtime-config fetch (or its 1.5s timeout) so a self-hoster's
@@ -727,7 +730,7 @@ async function maybeSyncStaleSources() {
     if (adapter?.hostConfiguredOnly && !isOAuthAdapterConfigured(adapter)) continue;
     if (conn.needsReauth) continue;
     const last = conn.lastSyncAt || 0;
-    if (now - last < STALE_MS) continue;
+    if (now - (last as number) < STALE_MS) continue;
     try {
       await recoverIfL1Empty(sid);
       await syncNow(sid);
@@ -753,17 +756,14 @@ export function initWearableScheduler() {
   addWearablesBeforeUnloadRuntime(() => { if (_pollTimer) clearInterval(_pollTimer); });
 }
 
-// ─────────────────────────────────────────────────────────
 // Runtime config (self-host OAuth client_id overrides)
-// ─────────────────────────────────────────────────────────
 // The scheduler briefly waits for overrides; Settings can await the bounded
 // fetch so slow responses enable rows and failed/hung attempts stay retryable.
 
 const RUNTIME_CONFIG_TIMEOUT_MS = 1500, RUNTIME_CONFIG_FETCH_TIMEOUT_MS = 10000;
-/** @type {Promise<void> | null} */ let _runtimeConfigFetchPromise = null;
-/** @type {Promise<void> | null} */ let _runtimeConfigPromise = null;
-/** @param {{ waitForFetch?: boolean }} [options] @returns {Promise<void>} */
-export function loadWearableRuntimeConfig(options = {}) {
+let _runtimeConfigFetchPromise: Promise<void> | null = null;
+let _runtimeConfigPromise: Promise<void> | null = null;
+export function loadWearableRuntimeConfig(options: { waitForFetch?: boolean } = {}) {
   if (isOfficialGetbasedHost()) return Promise.resolve();
   if (!_runtimeConfigFetchPromise) {
     let loaded = false;
@@ -788,10 +788,10 @@ export function loadWearableRuntimeConfig(options = {}) {
       if (!loaded) _runtimeConfigFetchPromise = _runtimeConfigPromise = null;
     });
     // The scheduler uses a soft timeout; Settings can await the full fetch.
-    const timeoutPromise = /** @type {Promise<void>} */ (new Promise(
+    const timeoutPromise = (new Promise<void>(
       resolve => setTimeout(resolve, RUNTIME_CONFIG_TIMEOUT_MS)));
     _runtimeConfigPromise = Promise.race([_runtimeConfigFetchPromise, timeoutPromise]);
   }
   return options.waitForFetch ? _runtimeConfigFetchPromise
-    : /** @type {Promise<void>} */ (_runtimeConfigPromise);
+    : (_runtimeConfigPromise!);
 }

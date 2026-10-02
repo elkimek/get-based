@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { sourceFunctionHasInitializer, sourceFunctionHasStatement } from './helpers/native-source-contracts.js';
 import { createSourceFetch } from './helpers/source-fetch.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-wearables-manual.js — manual entry as a first-class wearable source.
@@ -333,8 +334,10 @@ try {
   assert('logManualBP signature accepts note param',
     /export async function logManualBP\(profileId, \{ date, systolic, diastolic, pulse, tags, note \}\)/.test(manualLibSrc));
   assert('Both helpers write the note onto the row patch via _sanitizeNote',
-    /const noteClean = _sanitizeNote\(note\);[\s\S]{0,200}if \(noteClean\) patch\.note = noteClean/.test(manualLibSrc) &&
-    /const noteClean = _sanitizeNote\(note\);[\s\S]{0,200}if \(noteClean\) row\.note = noteClean/.test(manualLibSrc));
+    sourceFunctionHasInitializer(manualLibSrc, 'logManualMetric', 'noteClean', '_sanitizeNote(note)') &&
+    sourceFunctionHasStatement(manualLibSrc, 'logManualMetric', 'if (noteClean) patch.note = noteClean;') &&
+    sourceFunctionHasInitializer(manualLibSrc, 'logManualBP', 'noteClean', '_sanitizeNote(note)') &&
+    sourceFunctionHasStatement(manualLibSrc, 'logManualBP', 'if (noteClean) row.note = noteClean;'));
 
   assert('_sanitizeNote function defined',
     /function _sanitizeNote\(note\)/.test(manualLibSrc));
@@ -343,7 +346,7 @@ try {
   assert('_sanitizeNote caps at 500 chars',
     /trimmed\.length > 500 \? trimmed\.slice\(0, 500\)/.test(manualLibSrc));
   assert("_sanitizeNote returns '' for non-string",
-    /if \(typeof note !== 'string'\) return ''/.test(manualLibSrc));
+    sourceFunctionHasStatement(manualLibSrc, '_sanitizeNote', "if (typeof note !== 'string') return '';"));
 
   // Live behavior: write + read a manual metric with note, verify persistence.
   const probeProfile = 'test-note-' + Date.now();
