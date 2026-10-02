@@ -452,7 +452,14 @@ assert('library rename clears cached citation envelopes',
 // ─── 23. BUG 5 regression: status chip reflects error state ───
 console.log('\n23. Chip shows error state');
 assert('renderCustomLensSection chip branches on status.state === "error"', /status\.state === 'error'[\s\S]{0,300}Error/.test(lensKnowledgeBaseUiSrc));
-assert('_updateLensStatusChip also branches on error', lensKnowledgeBaseUiSrc.split('function _updateLensStatusChip')[1]?.includes("status.state === 'error'"));
+const updateLensStatusChipSrc = lensKnowledgeBaseUiSrc.split('function _updateLensStatusChip')[1]?.split('function ')[0] || '';
+const renderLensStatusSrc = lensKnowledgeBaseUiSrc.split('function renderLensStatus')[1]?.split('export function ')[0] || '';
+assert('_updateLensStatusChip also renders the shared error status',
+  updateLensStatusChipSrc.includes('const status = getLensStatus()') &&
+  updateLensStatusChipSrc.includes('renderLensStatus(cfg, connected, isBrowser, usableSource, status)') &&
+  updateLensStatusChipSrc.includes('chip.innerHTML = statusChip + lastInfo') &&
+  /status\.state === 'error'[\s\S]{0,300}Error/.test(renderLensStatusSrc) &&
+  renderLensStatusSrc.includes('escapeHTML(status.lastError)'));
 
 // ─── 24. User cancellation stays distinct from a retrieval failure ───
 console.log('\n24. Knowledge Base cancellation');

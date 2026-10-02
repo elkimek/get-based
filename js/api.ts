@@ -3,7 +3,7 @@
 import { getAIProvider } from './api-provider-storage.js';
 import type { ProviderRequestOptions } from './api-openai-compatible.js';
 import type { LocalAiRequestOptions } from './api-local.js';
-import type { createVeniceE2EE } from '../vendor/venice-e2ee.js';
+import { getVeniceE2EESessionRuntime } from './api-runtime.js';
 
 export interface AIProviderRequestOptions extends ProviderRequestOptions, LocalAiRequestOptions {consentKind?: string | undefined}
 
@@ -159,7 +159,7 @@ export async function callOpenAICompatibleLocalAPI(...args: Parameters<typeof im
 }
 
 export function clearVeniceE2EESession() {
-  const e2ee = typeof window !== 'undefined' ? (window as unknown as {_veniceE2EE?: ReturnType<typeof createVeniceE2EE>})._veniceE2EE : null;
+  const e2ee = getVeniceE2EESessionRuntime();
   if (typeof e2ee?.clearSession !== 'function') return false;
   e2ee.clearSession();
   return true;

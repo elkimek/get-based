@@ -39,11 +39,11 @@ console.log('1. PhenoAge SI Coefficients');
 
 const dataSrc = dataModuleSource(read('js/data.js'), read('js/data-core.js'));
 const calculatedMarkersSrc = read('js/data-calculated-markers.js');
-assert('PhenoAge uses SI albumin directly', calculatedMarkersSrc.includes('0.0336  * albumin_si'));
-assert('PhenoAge uses SI creatinine directly', calculatedMarkersSrc.includes('0.0095  * creatinine_si'));
-assert('PhenoAge uses SI glucose directly', calculatedMarkersSrc.includes('0.1953  * glucose_si'));
+assert('PhenoAge uses SI albumin directly', calculatedMarkersSrc.includes('0.0336 * albumin_si'));
+assert('PhenoAge uses SI creatinine directly', calculatedMarkersSrc.includes('0.0095 * creatinine_si'));
+assert('PhenoAge uses SI glucose directly', calculatedMarkersSrc.includes('0.1953 * glucose_si'));
 assert('PhenoAge converts lymphocyte fraction to the published percent input',
-  calculatedMarkersSrc.includes('const lymphPct = lymphPct_si * 100') && calculatedMarkersSrc.includes('0.0120  * lymphPct'));
+  calculatedMarkersSrc.includes('const lymphPct = lymphPct_si * 100') && calculatedMarkersSrc.includes('0.0120 * lymphPct'));
 assert('PhenoAge converts ALP from µkat/L to the published U/L input',
   calculatedMarkersSrc.includes('const alp_ul = alp_si * 60') && calculatedMarkersSrc.includes('0.00188 * alp_ul'));
 
@@ -935,7 +935,7 @@ assert('Glass theme includes Light page surfaces',
 // ═══════════════════════════════════════
 console.log('6. Data Integrity');
 
-assert('Ferritin lookup uses iron category', markerAnalysisSrc.includes("'iron','ferritin'") && !markerAnalysisSrc.includes("'hematology','ferritin'"));
+assert('Ferritin lookup uses iron category', /'iron'\s*,\s*'ferritin'/.test(markerAnalysisSrc) && !/'hematology'\s*,\s*'ferritin'/.test(markerAnalysisSrc));
 const staticRangeConversionGuard =
   dataSrc.includes("['refMin', 'refMax', 'optimalMin', 'optimalMax']")
   && dataSrc.includes('if (marker[key] != null)');
@@ -958,7 +958,7 @@ const apiModelsSrc = read('js/api-models.js');
 const apiProviderStorageSrc = read('js/api-provider-storage.js');
 assert('Venice models JSON.parse guarded', apiProviderStorageSrc.includes('function readStoredArray(key)'));
 assert('OpenRouter models JSON.parse guarded', apiProviderStorageSrc.includes("readStoredArray('labcharts-openrouter-models')"));
-assert('OpenRouter pricing JSON.parse guarded', apiProviderStorageSrc.includes("try { cached = JSON.parse(localStorage.getItem('labcharts-openrouter-pricing')"));
+assert('OpenRouter pricing JSON.parse guarded', /try\s*\{\s*cached = JSON\.parse\(localStorage\.getItem\('labcharts-openrouter-pricing'\)/.test(apiProviderStorageSrc));
 
 const reportSrc = `${read('js/export-report.js')}\n${read('js/export-report-html.js')}`;
 assert('PDF report null popup guard', reportSrc.includes('if (!win)'));

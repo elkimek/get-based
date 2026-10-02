@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 825 |
-| Internal import edges | 3516 |
+| Internal import edges | 3517 |
 | Dynamic internal edges | 119 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -154,7 +154,7 @@ Native browser modules shipped with the static application.
 - [`js/api-runtime.ts`](js/api-runtime.ts) → no in-scope imports
 - [`js/api-transport.ts`](js/api-transport.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/api-venice.ts`](js/api-venice.ts) → [`js/api-models.ts`](js/api-models.ts), [`js/api-openai-compatible.ts`](js/api-openai-compatible.ts), [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/api-transport.ts`](js/api-transport.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts)
-- [`js/api.ts`](js/api.ts) → [`js/api-custom.ts`](js/api-custom.ts) *(dynamic)*, [`js/api-local.ts`](js/api-local.ts) *(dynamic)*, [`js/api-models.ts`](js/api-models.ts), [`js/api-openrouter-oauth.ts`](js/api-openrouter-oauth.ts), [`js/api-openrouter.ts`](js/api-openrouter.ts) *(dynamic)*, [`js/api-ppq.ts`](js/api-ppq.ts) *(dynamic)*, [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/api-routstr.ts`](js/api-routstr.ts) *(dynamic)*, [`js/api-transport.ts`](js/api-transport.ts), [`js/api-venice.ts`](js/api-venice.ts) *(dynamic)*, [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts) *(dynamic)*
+- [`js/api.ts`](js/api.ts) → [`js/api-custom.ts`](js/api-custom.ts) *(dynamic)*, [`js/api-local.ts`](js/api-local.ts) *(dynamic)*, [`js/api-models.ts`](js/api-models.ts), [`js/api-openrouter-oauth.ts`](js/api-openrouter-oauth.ts), [`js/api-openrouter.ts`](js/api-openrouter.ts) *(dynamic)*, [`js/api-ppq.ts`](js/api-ppq.ts) *(dynamic)*, [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/api-routstr.ts`](js/api-routstr.ts) *(dynamic)*, [`js/api-runtime.ts`](js/api-runtime.ts), [`js/api-transport.ts`](js/api-transport.ts), [`js/api-venice.ts`](js/api-venice.ts) *(dynamic)*, [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts) *(dynamic)*
 
 </details>
 

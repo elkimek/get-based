@@ -423,14 +423,14 @@ console.log('\n8. SSE robustness');
 const apiOpenAICompatibleSrc = read('js/api-openai-compatible.js');
 const apiVeniceSrc = read('js/api-venice.js');
 assert('SSE handler flushes trailing buffer after done',
-  apiOpenAICompatibleSrc.match(/buffer\.startsWith\('data: '\)\) handleSSELine/),
+  apiOpenAICompatibleSrc.match(/buffer\.startsWith\('data: '\)\)\s+handleSSELine\(buffer, false\)/),
   'final data: event without newline was silently dropped on truncation');
 assert('SSE parse-error filter checks SyntaxError + boundary, not string prefix',
   apiOpenAICompatibleSrc.includes('parseErr instanceof SyntaxError') &&
   !apiOpenAICompatibleSrc.includes("!parseErr.message.startsWith('Unexpected')"),
   'old "Unexpected" prefix check confused chunk boundaries with malformed events');
 assert('Venice E2EE stream also flushes trailing buffer',
-  apiVeniceSrc.match(/buffer\.startsWith\('data: '\)\) await handleVeniceLine/));
+  apiVeniceSrc.match(/buffer\.startsWith\('data: '\)\)\s+await handleVeniceLine\(buffer, false\)/));
 
 // ─── 9. PhenoAge requires hs-CRP only ───
 console.log('\n9. PhenoAge CRP strictness');

@@ -2,6 +2,7 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { setRuntimeWindow } from './helpers/runtime-globals.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { clearVeniceE2EESession } from '../js/api.js';
 
 import {
   configureApiRuntimeCallbacks,
@@ -20,6 +21,32 @@ afterEach(() => {
 });
 
 describe('api runtime adapter', () => {
+  it('clears the current Venice session synchronously with its client receiver', () => {
+    const first = { clearSession: vi.fn(function (this: unknown) { expect(this).toBe(first); }) };
+    setRuntimeWindow({ _veniceE2EE: first });
+    expect(clearVeniceE2EESession()).toBe(true);
+    expect(first.clearSession).toHaveBeenCalledTimes(1);
+
+    const next = { clearSession: vi.fn() };
+    setRuntimeWindow({ _veniceE2EE: next });
+    expect(clearVeniceE2EESession()).toBe(true);
+    expect(next.clearSession).toHaveBeenCalledTimes(1);
+    expect(first.clearSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns false without a browser, a session, or a callable clear method', () => {
+    for (const runtime of [undefined, {}, { _veniceE2EE: null }, { _veniceE2EE: {} }, { _veniceE2EE: { clearSession: true } }]) {
+      if (runtime === undefined) delete (globalThis as { window?: unknown }).window;
+      else setRuntimeWindow(runtime);
+      expect(clearVeniceE2EESession()).toBe(false);
+    }
+  });
+
+  it('preserves Venice session clear errors', () => {
+    const error = new Error('session clear failed');
+    setRuntimeWindow({ _veniceE2EE: { clearSession: () => { throw error; } } });
+    expect(clearVeniceE2EESession).toThrow(error);
+  });
   it('delegates browser location reads and redirects', () => {
     const runtime = {
       location: {

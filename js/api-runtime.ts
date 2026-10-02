@@ -1,6 +1,11 @@
 // api-runtime.js - Browser runtime adapters for AI provider orchestration.
 
-interface ApiBrowserRuntime { location?: { origin?: string; pathname?: string; href: string } }
+import type { createVeniceE2EE } from '../vendor/venice-e2ee.js';
+
+interface ApiBrowserRuntime {
+  location?: { origin?: string; pathname?: string; href: string };
+  _veniceE2EE?: ReturnType<typeof createVeniceE2EE>;
+}
 interface ApiRuntimeCallbacks { showInsufficientBalanceDialog: () => unknown }
 
 function getApiRuntime() {
@@ -21,6 +26,12 @@ export function configureApiRuntimeCallbacks(callbacks: Partial<ApiRuntimeCallba
       : () => false;
   }
   return previous;
+}
+
+export function getVeniceE2EESessionRuntime() {
+  return typeof window !== 'undefined'
+    ? (window as unknown as ApiBrowserRuntime)._veniceE2EE
+    : null;
 }
 
 export function getApiLocationOriginRuntime() {
