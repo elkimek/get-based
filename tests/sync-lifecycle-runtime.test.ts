@@ -1,6 +1,19 @@
+import type { Mock } from 'vitest';
+
+interface LifecycleMockOverrides {
+  getSyncBlocker?: Mock<() => string | null>;
+  isSyncPaused?: Mock<() => boolean>;
+  getSyncAppOwnerError?: Mock<() => string | null>;
+  getSyncEvolu?: Mock<() => {
+    resetAppOwner: () => Promise<void>;
+    prepareHistoryResetForDisable?: () => unknown;
+    __evoluClientVersion?: number;
+  } | null>;
+}
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-function installLifecycleMocks(overrides = {}) {
+function installLifecycleMocks(overrides: LifecycleMockOverrides = {}) {
   const deps = {
     showNotification: vi.fn(),
     getSyncBlocker: vi.fn(() => null),

@@ -1,4 +1,3 @@
-// @ts-check
 // sync-configure.js - Dependency wiring for the sync subsystem.
 
 import { showNotification, isDebugMode } from './utils.js';
@@ -46,18 +45,17 @@ import {
   getSyncProfileQuery, getSyncTombstoneQuery, isSyncEvoluReady,
 } from './sync-runtime.js';
 
-/** @param {...any} args */
-function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
+function dbg(...args: unknown[]) { if (isDebugMode()) console.log('[sync]', ...args); }
 
-/** @param {{ enableSync?: (...args: any[]) => any }} [deps] */
-export function configureSyncModules({ enableSync } = {}) {
+export function configureSyncModules({ enableSync }: {
+  enableSync?: NonNullable<Parameters<typeof configureSyncDiagnoseUI>[0]>['enableSync'];
+} = {}) {
   configureSyncPayload({ getProfiles });
   configureSyncStorageCleanup({ saveImportedData });
 
   configureRelayHealth({
     getAppOwner: getSyncAppOwner,
     getSyncRelay,
-    /** @param {{ level?: string, pct?: number }} q */
     onQuotaThreshold(q) {
       if (q.level === 'red') {
         logSyncEvent('skip', `Relay storage ${q.pct}% — pushes will start failing soon; reduce storage`);
@@ -115,7 +113,7 @@ export function configureSyncModules({ enableSync } = {}) {
     pushProfile,
     debug: dbg,
     getProfiles,
-    saveProfiles: /** @type {NonNullable<Parameters<typeof configureSyncTombstones>[0]>['saveProfiles']} */ (saveProfiles),
+    saveProfiles: (saveProfiles as NonNullable<NonNullable<Parameters<typeof configureSyncTombstones>[0]>['saveProfiles']>),
     loadProfile,
   });
 
@@ -196,8 +194,7 @@ export function configureSyncModules({ enableSync } = {}) {
     isEvoluReady: isSyncEvoluReady,
     syncNow,
     debug: dbg,
-    /** @param {Parameters<typeof showNotification>} args */
-    notify: (...args) => {
+    notify: (...args: Parameters<typeof showNotification>) => {
       try { showNotification(...args); } catch {}
     },
   });

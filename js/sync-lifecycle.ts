@@ -1,4 +1,3 @@
-// @ts-check
 // sync-lifecycle.js - Sync enable / pause / disconnect lifecycle actions.
 
 import { showNotification } from './utils.js';
@@ -21,8 +20,7 @@ import {
 } from './sync-runtime.js';
 import { getPendingBackupRestoreProfileIds } from './sync-backup-restore-state.js';
 
-/** @param {{ skipPush?: boolean, persist?: boolean }} [options] */
-export async function enableSync({ skipPush = false, persist = true } = {}) {
+export async function enableSync({ skipPush = false, persist = true }: { skipPush?: boolean; persist?: boolean } = {}) {
   const resuming = isSyncPaused();
   // Reject early if the webview can't actually run Evolu - no point flipping
   // the persisted flag and starting init only to time out at 30s.

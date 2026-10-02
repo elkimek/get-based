@@ -636,3 +636,6 @@ deploy/profile-share/data/
 /js/provider-local-ai-controls.js
 /js/provider-local-ai-runtime.js
 /js/settings-agent-access-panel.js
+
+/js/sync-configure.js
+/js/sync-lifecycle.js
