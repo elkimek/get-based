@@ -1,6 +1,6 @@
 // test-a11y-axe.js — Runtime accessibility scan via axe-core 4.13.
 //
-// Complements test-a11y-phase3.js, which asserts that specific aria-*
+// Complements test-a11y-phase3.ts, which asserts that specific aria-*
 // attributes appear in the source. This file renders selected core pages,
 // settings tabs, and modals, then runs axe.run() against the live DOM, catching the
 // long tail no source-grep can see: contrast ratios, focus order,

@@ -703,3 +703,6 @@ deploy/profile-share/data/
 /js/mosaic-oat-catalog.js
 /js/pdf-import-organic-acid-normalization.js
 /js/pdf-import-marker-normalization.js
+/js/pdf-import-progress.js
+/js/pdf-import-spreadsheet.js
+/js/pdf-import-file-utils.js

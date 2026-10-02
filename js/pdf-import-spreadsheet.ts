@@ -1,26 +1,28 @@
-// @ts-check
 // pdf-import-spreadsheet.js - text/spreadsheet import helpers for lab import.
 
-const spreadsheetWindow = /** @type {Window & typeof globalThis & { JSZip?: any }} */ (window);
+interface SpreadsheetZipEntry { async(type: 'text'): Promise<string> }
+interface SpreadsheetZipArchive { file(path: string): SpreadsheetZipEntry | null; files?: Record<string, unknown> }
+interface SpreadsheetZipReader { loadAsync(data: ArrayBuffer): Promise<SpreadsheetZipArchive> }
+const spreadsheetWindow = window as unknown as { JSZip?: SpreadsheetZipReader };
 
-export function isCsvTextFile(file) {
+export function isCsvTextFile(file: Pick<File, 'name' | 'type'>) {
   return /\.csv$/i.test(file.name) || file.type === 'text/csv';
 }
 
-export function isXlsxFile(file) {
+export function isXlsxFile(file: Pick<File, 'name' | 'type'>) {
   return /\.xlsx$/i.test(file.name)
     || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 }
 
-export function isTextImportFile(file) {
+export function isTextImportFile(file: Pick<File, 'name' | 'type'>) {
   return isCsvTextFile(file) || isXlsxFile(file) || /\.txt$/i.test(file.name) || file.type?.startsWith('text/');
 }
 
-let _jszipLoad = null;
+let _jszipLoad: Promise<SpreadsheetZipReader> | null = null;
 function loadJSZip() {
   if (spreadsheetWindow.JSZip) return Promise.resolve(spreadsheetWindow.JSZip);
   if (_jszipLoad) return _jszipLoad;
-  _jszipLoad = new Promise((resolve, reject) => {
+  _jszipLoad = new Promise<SpreadsheetZipReader>((resolve, reject) => {
     const script = document.createElement('script');
     script.src = '/vendor/jszip.min.js';
     script.onload = () => spreadsheetWindow.JSZip ? resolve(spreadsheetWindow.JSZip) : reject(new Error('JSZip failed to load'));
@@ -33,34 +35,34 @@ function loadJSZip() {
   return _jszipLoad;
 }
 
-function getXmlElements(root, localName) {
+function getXmlElements(root: Document | Element, localName: string) {
   return Array.from(root.getElementsByTagName('*')).filter(el => el.localName === localName);
 }
 
-function parseXmlDocument(xml, label) {
+function parseXmlDocument(xml: string, label: string) {
   const doc = new DOMParser().parseFromString(xml, 'application/xml');
   if (getXmlElements(doc, 'parsererror').length > 0) throw new Error(`Could not parse ${label}`);
   return doc;
 }
 
-async function readZipText(zip, path) {
+async function readZipText(zip: SpreadsheetZipArchive, path: string) {
   const entry = zip.file(path);
   return entry ? await entry.async('text') : null;
 }
 
-function normalizeSpreadsheetCellText(value) {
+function normalizeSpreadsheetCellText(value: unknown) {
   return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
-function getRelationshipId(element) {
+function getRelationshipId(element: Element) {
   return element.getAttribute('r:id')
     || element.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
 }
 
-function resolveZipPath(baseDir, target) {
+function resolveZipPath(baseDir: string, target: unknown) {
   const raw = String(target || '').replace(/^\/+/, '');
   const parts = (String(target || '').startsWith('/') ? raw : `${baseDir}/${raw}`).split('/');
-  const stack = [];
+  const stack: string[] = [];
   for (const part of parts) {
     if (!part || part === '.') continue;
     if (part === '..') stack.pop();
@@ -76,8 +78,8 @@ const BUILT_IN_EXCEL_DATE_FORMAT_IDS = new Set([
   71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81,
 ]);
 
-function isDateFormatCode(formatCode) {
-  const firstSection = String(formatCode || '').split(';')[0];
+function isDateFormatCode(formatCode: unknown) {
+  const firstSection = String(formatCode || '').split(';')[0]!;
   const cleaned = firstSection
     .replace(/"[^"]*"/g, '')
     .replace(/\[[^\]]*\]/g, '')
@@ -93,10 +95,10 @@ function isDateFormatCode(formatCode) {
   return hasTime || (hasYear && (hasDay || hasMonth)) || (hasDay && hasMonth);
 }
 
-function getDateStyleIndexes(stylesXml) {
-  if (!stylesXml) return new Set();
+function getDateStyleIndexes(stylesXml: string | null) {
+  if (!stylesXml) return new Set<number>();
   const doc = parseXmlDocument(stylesXml, 'Excel styles');
-  const customFormats = new Map();
+  const customFormats = new Map<number, string>();
   for (const numFmt of getXmlElements(doc, 'numFmt')) {
     const id = Number(numFmt.getAttribute('numFmtId'));
     const code = numFmt.getAttribute('formatCode') || '';
@@ -105,7 +107,7 @@ function getDateStyleIndexes(stylesXml) {
 
   const cellXfs = getXmlElements(doc, 'cellXfs')[0];
   const xfs = cellXfs ? Array.from(cellXfs.children).filter(el => el.localName === 'xf') : [];
-  const dateStyleIndexes = new Set();
+  const dateStyleIndexes = new Set<number>();
   xfs.forEach((xf, index) => {
     const numFmtId = Number(xf.getAttribute('numFmtId'));
     if (BUILT_IN_EXCEL_DATE_FORMAT_IDS.has(numFmtId) || isDateFormatCode(customFormats.get(numFmtId))) {
@@ -115,7 +117,7 @@ function getDateStyleIndexes(stylesXml) {
   return dateStyleIndexes;
 }
 
-function excelSerialDateToISO(value, date1904 = false) {
+function excelSerialDateToISO(value: unknown, date1904 = false) {
   const serial = Number(value);
   if (!Number.isFinite(serial)) return String(value || '');
   const dayMs = 24 * 60 * 60 * 1000;
@@ -123,7 +125,7 @@ function excelSerialDateToISO(value, date1904 = false) {
   return new Date(epochMs + Math.round(serial * dayMs)).toISOString().slice(0, 10);
 }
 
-function getCellColumnIndex(cell, fallbackIndex) {
+function getCellColumnIndex(cell: Element, fallbackIndex: number) {
   const ref = cell.getAttribute('r') || '';
   const letters = ref.match(/^[A-Z]+/i)?.[0];
   if (!letters) return fallbackIndex;
@@ -132,11 +134,11 @@ function getCellColumnIndex(cell, fallbackIndex) {
   return index - 1;
 }
 
-function getFirstChildText(element, localName) {
+function getFirstChildText(element: Element, localName: string) {
   return getXmlElements(element, localName)[0]?.textContent || '';
 }
 
-function getXlsxCellValue(cell, sharedStrings, dateStyleIndexes, date1904) {
+function getXlsxCellValue(cell: Element, sharedStrings: string[], dateStyleIndexes: Set<number>, date1904: boolean) {
   const type = cell.getAttribute('t');
   const rawValue = getFirstChildText(cell, 'v');
   if (type === 's') return sharedStrings[Number(rawValue)] || '';
@@ -148,11 +150,11 @@ function getXlsxCellValue(cell, sharedStrings, dateStyleIndexes, date1904) {
   return normalizeSpreadsheetCellText(rawValue);
 }
 
-function extractWorksheetRows(worksheetXml, sharedStrings, dateStyleIndexes, date1904) {
+function extractWorksheetRows(worksheetXml: string, sharedStrings: string[], dateStyleIndexes: Set<number>, date1904: boolean) {
   const doc = parseXmlDocument(worksheetXml, 'Excel worksheet');
-  const rows = [];
+  const rows: string[][] = [];
   for (const row of getXmlElements(doc, 'row')) {
-    const values = [];
+    const values: string[] = [];
     let fallbackColumn = 0;
     const cells = Array.from(row.children).filter(el => el.localName === 'c');
     for (const cell of cells) {
@@ -166,9 +168,9 @@ function extractWorksheetRows(worksheetXml, sharedStrings, dateStyleIndexes, dat
   return rows;
 }
 
-async function getWorkbookSheets(zip, workbookDoc) {
+async function getWorkbookSheets(zip: SpreadsheetZipArchive, workbookDoc: Document) {
   const relsXml = await readZipText(zip, 'xl/_rels/workbook.xml.rels');
-  const relationshipTargets = new Map();
+  const relationshipTargets = new Map<string | null, string | null>();
   if (relsXml) {
     const relsDoc = parseXmlDocument(relsXml, 'Excel workbook relationships');
     for (const rel of getXmlElements(relsDoc, 'Relationship')) {
@@ -192,7 +194,7 @@ async function getWorkbookSheets(zip, workbookDoc) {
     .map((path, index) => ({ name: `Sheet ${index + 1}`, path }));
 }
 
-export async function extractXLSXText(file) {
+export async function extractXLSXText(file: Pick<File, 'name' | 'arrayBuffer'>) {
   const JSZip = await loadJSZip();
   const zip = await JSZip.loadAsync(await file.arrayBuffer());
   const workbookXml = await readZipText(zip, 'xl/workbook.xml');
@@ -208,7 +210,7 @@ export async function extractXLSXText(file) {
     : [];
   const dateStyleIndexes = getDateStyleIndexes(await readZipText(zip, 'xl/styles.xml'));
   const sheets = await getWorkbookSheets(zip, workbookDoc);
-  const blocks = [];
+  const blocks: string[] = [];
 
   for (const sheet of sheets) {
     const worksheetXml = await readZipText(zip, sheet.path);

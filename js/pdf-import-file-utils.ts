@@ -1,27 +1,21 @@
-// @ts-check
 // pdf-import-file-utils.js - PDF extraction, image rendering, and file classification helpers.
 
 import { getPdfDocument } from './pdfjs-loader.js';
 import { isXlsxFile } from './pdf-import-spreadsheet.js';
 
-/**
- * @typedef {{
- *   isDNAFile?: (file: File) => boolean,
- *   isDNAFileByContent?: (file: File) => Promise<boolean>,
- *   isCycleImportFile?: (file: File) => Promise<boolean>,
- * }} ImportFileClassifierDeps
- */
+export interface ImportedPDFImage { base64: string; mediaType: 'image/jpeg'; page: number }
 
-/**
- * @param {File} file
- * @returns {Promise<ArrayBuffer>}
- */
-async function readFileArrayBuffer(file) {
+export interface ImportFileClassifierDeps {
+  isDNAFile?: (file: File) => boolean; isDNAFileByContent?: (file: File) => Promise<boolean>;
+  isCycleImportFile?: (file: File) => Promise<boolean>;
+}
+
+async function readFileArrayBuffer(file: File): Promise<ArrayBuffer> {
   try {
     return await file.arrayBuffer();
   } catch (firstError) {
     if (typeof FileReader === 'undefined') throw firstError;
-    return new Promise((resolve, reject) => {
+    return new Promise<ArrayBuffer>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         if (reader.result instanceof ArrayBuffer) resolve(reader.result);
@@ -34,13 +28,10 @@ async function readFileArrayBuffer(file) {
   }
 }
 
-/**
- * @param {File} file
- */
-export async function extractPDFText(file) {
+export async function extractPDFText(file: File) {
   const arrayBuffer = await readFileArrayBuffer(file);
   const pdf = await getPdfDocument({ data: arrayBuffer });
-  let allItems = [];
+  let allItems: Array<{ text: string; x: number; y: number; page: number }> = [];
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const textContent = await page.getTextContent();
@@ -60,20 +51,20 @@ export async function extractPDFText(file) {
   });
   if (sorted.length === 0) return '';
   let text = '';
-  let currentPage = sorted[0].page;
+  let currentPage = sorted[0]!.page;
   text += `=== Page ${currentPage} ===\n`;
-  let currentRow = [sorted[0]];
+  let currentRow = [sorted[0]!];
   for (let i = 1; i < sorted.length; i++) {
-    if (sorted[i].page !== currentPage) {
+    if (sorted[i]!.page !== currentPage) {
       text += currentRow.sort((a, b) => a.x - b.x).map(r => r.text).join('  ') + '\n';
-      currentPage = sorted[i].page;
+      currentPage = sorted[i]!.page;
       text += `\n=== Page ${currentPage} ===\n`;
-      currentRow = [sorted[i]];
-    } else if (Math.abs(sorted[i].y - currentRow[0].y) < 3) {
-      currentRow.push(sorted[i]);
+      currentRow = [sorted[i]!];
+    } else if (Math.abs(sorted[i]!.y - currentRow[0]!.y) < 3) {
+      currentRow.push(sorted[i]!);
     } else {
       text += currentRow.sort((a, b) => a.x - b.x).map(r => r.text).join('  ') + '\n';
-      currentRow = [sorted[i]];
+      currentRow = [sorted[i]!];
     }
   }
   if (currentRow.length > 0) {
@@ -85,10 +76,7 @@ export async function extractPDFText(file) {
 // Some browsers / OS file managers (e.g. OCRFeeder on Linux) export PDFs
 // with no extension and no MIME hint. Sniff the %PDF magic bytes so
 // extension-less files don't fall through to the unsupported branch.
-/**
- * @param {File} file
- */
-export async function isPdfByMagic(file) {
+export async function isPdfByMagic(file: File) {
   try {
     const buf = await file.slice(0, 4).arrayBuffer();
     const b = new Uint8Array(buf);
@@ -100,15 +88,11 @@ export async function isPdfByMagic(file) {
 // { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, cycleFiles, unsupportedCount }.
 // The PDF bucket includes magic-byte hits, so extension-less PDFs are
 // routed to the import pipeline instead of silently rejected.
-/**
- * @param {File[] | FileList} files
- * @param {ImportFileClassifierDeps} [deps]
- */
-export async function classifyImportFiles(files, deps = {}) {
+export async function classifyImportFiles(files: File[] | FileList | null | undefined, deps: ImportFileClassifierDeps = {}) {
   const fileList = Array.from(files || []);
   const jsonCandidates = fileList.filter(f => f.name.endsWith('.json') || f.type === 'application/json');
-  const jsonFiles = [];
-  const cycleFiles = [];
+  const jsonFiles: File[] = [];
+  const cycleFiles: File[] = [];
   for (const file of jsonCandidates) {
     if (deps.isCycleImportFile && await deps.isCycleImportFile(file)) cycleFiles.push(file);
     else jsonFiles.push(file);
@@ -116,7 +100,7 @@ export async function classifyImportFiles(files, deps = {}) {
   const pdfFiles = fileList.filter(f => f.name.endsWith('.pdf') || f.type === 'application/pdf');
   const imageFiles = fileList.filter(f => /\.(jpe?g|png|webp)$/i.test(f.name) || f.type?.startsWith('image/'));
   const dnaFiles = fileList.filter(f => deps.isDNAFile && deps.isDNAFile(f));
-  const textFiles = [];
+  const textFiles: File[] = [];
   const unmatched = fileList.filter(f => !jsonCandidates.includes(f) && !pdfFiles.includes(f) && !imageFiles.includes(f) && !dnaFiles.includes(f));
   for (const f of unmatched) {
     if (/\.(txt|csv)$/i.test(f.name)) {
@@ -136,10 +120,7 @@ export async function classifyImportFiles(files, deps = {}) {
   return { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, cycleFiles, unsupportedCount };
 }
 
-/**
- * @param {string} text
- */
-export function assessTextQuality(text) {
+export function assessTextQuality(text: string | null | undefined) {
   if (!text || !text.trim()) return 'empty';
   const words = text.trim().split(/\s+/);
   if (words.length < 30) return 'poor';
@@ -150,15 +131,11 @@ export function assessTextQuality(text) {
   return 'good';
 }
 
-/**
- * @param {File} file
- * @param {number} [maxPages]
- */
-export async function extractPDFImages(file, maxPages = 8) {
+export async function extractPDFImages(file: File, maxPages = 8) {
   const arrayBuffer = await readFileArrayBuffer(file);
   const pdf = await getPdfDocument({ data: arrayBuffer });
   const pages = Math.min(pdf.numPages, maxPages);
-  const images = [];
+  const images: ImportedPDFImage[] = [];
   for (let i = 1; i <= pages; i++) {
     const page = await pdf.getPage(i);
     const viewport = page.getViewport({ scale: 2.0 }); // 2x for fine print
@@ -170,7 +147,7 @@ export async function extractPDFImages(file, maxPages = 8) {
     const scale = canvas.width / viewport.width;
     await page.render({ canvasContext: ctx, viewport: page.getViewport({ scale: 2.0 * scale }) }).promise;
     const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-    const base64 = dataUrl.split(',')[1];
+    const base64 = dataUrl.split(',')[1]!;
     images.push({ base64, mediaType: 'image/jpeg', page: i });
   }
   return images;

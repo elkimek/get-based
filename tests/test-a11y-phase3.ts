@@ -1,25 +1,25 @@
 #!/usr/bin/env node
-// test-a11y-phase3.js — accessibility regression tests for v1.5.2.
+// test-a11y-phase3.ts — accessibility regression tests for v1.5.2.
 // Covers: global keyboard delegation, role="button" tabindex on clickable
 // divs, modal-close aria-labels, brand-voice copy, settings tablist,
 // chart layers ARIA, tour dialog role, chat stream status, progress bar.
 //
 // Static source inspection only — fs.readFileSync instead of HTTP fetch.
 //
-// Run: node tests/test-a11y-phase3.js  (or via npm test)
+// Run: node tests/test-a11y-phase3.ts  (or via npm test)
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
 const CSS_FILES = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-channels.css', 'css/light-devices.css', 'css/light-conditions-now.css', 'css/light-setup.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-panel-open.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css', 'css/chat-redesign-open.css'];
 const readCssBundle = () => CSS_FILES.map(read).join('\n');
 
 let passed = 0, failed = 0;
-const fails = [];
-function assert(name, cond, detail) {
+const fails: string[] = [];
+function assert(name: string, cond: unknown, detail?: unknown) {
   if (cond) { passed++; console.log(`  PASS: ${name}`); }
   else { failed++; fails.push(name); console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
 }
@@ -33,7 +33,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
     appEventsSrc.includes("tag === 'BUTTON' || tag === 'A' || tag === 'INPUT'"));
 
   // ─── 2. Clickable divs gain role+tabindex ───
-  const viewsSrc = read('/js/views.js');
+  read('/js/views.js');
   const categoryPageViewSrc = read('/js/category-page-view.js');
   const lightChannelViewSrc = read('/js/light-channel-view.js');
   const categoryViewRenderersSrc = read('/js/category-view-renderers.js');
@@ -293,9 +293,9 @@ console.log('=== Phase 3 A11y Tests ===\n');
   assert('neuromancer VT323 stays scoped to display accents',
     !!neuromancerDisplayToken &&
     !!neuromancerDisplayRule &&
-    neuromancerDisplaySelectors.every(selector => neuromancerDisplayRule[0].includes(selector)) &&
-    neuromancerBaseFontSelectors.every(selector => !neuromancerDisplayRule[0].includes(selector)) &&
-    neuromancerDisplayRule[0].includes('font-size-adjust: 0.62') &&
+    neuromancerDisplaySelectors.every(selector => neuromancerDisplayRule[0]!.includes(selector)) &&
+    neuromancerBaseFontSelectors.every(selector => !neuromancerDisplayRule[0]!.includes(selector)) &&
+    neuromancerDisplayRule[0]!.includes('font-size-adjust: 0.62') &&
     !/\[data-theme="neuromancer"\]\s+body\s*\{[^}]*VT323/.test(themesSrc));
 
   // ─── 12. Weight input respects unit system ───

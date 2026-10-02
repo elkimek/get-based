@@ -89,7 +89,7 @@ const LEGACY_TESTS = [
   './test-pdf-import-review-runtime.ts',
   // Batch 8 — lens parsers + a11y phase 3 + marker value notes.
   './test-lens-parsers.js',
-  './test-a11y-phase3.js',
+  './test-a11y-phase3.ts',
   './test-marker-value-notes.js',
   // Batch 9 — data pipeline + calculated markers (uses state.js + data.js).
   './test-calculated-markers.js',

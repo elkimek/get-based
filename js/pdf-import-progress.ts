@@ -1,4 +1,3 @@
-// @ts-check
 // pdf-import-progress.js — PDF import progress UI and header status state
 
 import { IMPORT_STEPS } from './constants.js';
@@ -6,14 +5,14 @@ import { navigateImportReviewRuntime } from './pdf-import-review-runtime.js';
 import { escapeHTML } from './utils.js';
 
 const STEP_START_PCT = [5, 8, 12, 15, 95];
-/** @type {{ running: boolean, pct: number, failed: boolean, done: boolean, fileName: string, batch: { current: number, total: number } | null }} */
-const importStatus = { running: false, pct: 0, failed: false, done: false, fileName: '', batch: null };
+interface ImportStatus { running: boolean; pct: number; failed: boolean; done: boolean; fileName: string; batch: { current: number; total: number } | null }
+const importStatus: ImportStatus = { running: false, pct: 0, failed: false, done: false, fileName: '', batch: null };
 export const importDispatch = { busy: false };
-let statusDismissTimer = null;
+let statusDismissTimer: ReturnType<typeof setTimeout> | null = null;
 let progressBarVisible = false;
-let progressObserver = null;
+let progressObserver: IntersectionObserver | null = null;
 
-function setImportStatus(patch) {
+function setImportStatus(patch: Partial<ImportStatus>) {
   Object.assign(importStatus, patch);
   syncImportStatusFab();
 }
@@ -22,9 +21,9 @@ export function isImportRunning() {
   return importStatus.running;
 }
 
-export function updateImportProgressPct(pct, stageLabel) {
+export function updateImportProgressPct(pct: number, stageLabel?: string | null) {
   const bar = document.querySelector('.import-progress-bar');
-  const fill = /** @type {HTMLElement | null} */ (document.querySelector('.import-progress-bar-fill'));
+  const fill = document.querySelector('.import-progress-bar-fill') as HTMLElement | null;
   const label = document.querySelector('.import-progress-pct');
   const stage = document.querySelector('.import-progress-stage');
   if (bar) bar.setAttribute('aria-valuenow', String(pct));
@@ -34,7 +33,7 @@ export function updateImportProgressPct(pct, stageLabel) {
   if (importStatus.running) setImportStatus({ pct });
 }
 
-function buildProgressHTML(step, fileName) {
+function buildProgressHTML(step: number, fileName: string) {
   const pct = STEP_START_PCT[step] || 0;
   let html = `<div class="import-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Import progress"><div class="import-progress-bar-fill" style="width:${pct}%"></div></div>`;
   html += `<div class="import-progress-pct">${pct}%</div>`;
@@ -66,13 +65,13 @@ function ensureDropZone() {
   return dz;
 }
 
-export async function showImportProgress(step, fileName) {
+export async function showImportProgress(step: number, fileName: string) {
   if (statusDismissTimer) { clearTimeout(statusDismissTimer); statusDismissTimer = null; }
   setImportStatus({ running: true, done: false, failed: false, fileName, pct: STEP_START_PCT[step] || 0, batch: null });
   const dropZone = ensureDropZone();
   dropZone.innerHTML = buildProgressHTML(step, fileName);
   observeProgressBar();
-  await new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+  await new Promise<void>(r => requestAnimationFrame(() => setTimeout(r, 0)));
 }
 
 function observeProgressBar() {
@@ -81,7 +80,7 @@ function observeProgressBar() {
   if (!bar) { progressBarVisible = false; syncImportStatusFab(); return; }
   if (bar.closest('.drop-zone-hidden')) { progressBarVisible = false; syncImportStatusFab(); return; }
   progressObserver = new IntersectionObserver(([entry]) => {
-    progressBarVisible = entry.isIntersecting;
+    progressBarVisible = entry!.isIntersecting;
     syncImportStatusFab();
   }, { threshold: 0.1 });
   progressObserver.observe(bar);
@@ -132,15 +131,15 @@ export function handleImportStatusClick() {
 }
 
 function getImportButton() {
-  return /** @type {HTMLButtonElement | null} */ (document.querySelector('.header-import-btn'));
+  return document.querySelector('.header-import-btn') as HTMLButtonElement | null;
 }
 
-function ensureImportButtonDefaults(button) {
+function ensureImportButtonDefaults(button: HTMLButtonElement) {
   if (!button.dataset.importDefaultTitle) button.dataset.importDefaultTitle = button.getAttribute('title') || 'Import';
   if (!button.dataset.importDefaultLabel) button.dataset.importDefaultLabel = button.getAttribute('aria-label') || 'Import lab results';
 }
 
-function ensureImportButtonLabel(button) {
+function ensureImportButtonLabel(button: HTMLButtonElement) {
   let label = button.querySelector('.import-button-status-label');
   if (!label) {
     label = document.createElement('span');
@@ -194,12 +193,12 @@ export function syncImportStatusFab() {
   const previewOpen = document.getElementById('import-modal-overlay')?.classList.contains('show');
   const statusActive = running || done || failed;
 
-  const floatingDz = /** @type {HTMLElement | null} */ (document.querySelector('.drop-zone-hidden'));
+  const floatingDz = document.querySelector('.drop-zone-hidden') as HTMLElement | null;
   if (floatingDz && (statusActive || previewOpen)) floatingDz.style.display = 'none';
   else if (floatingDz && running && progressBarVisible) floatingDz.style.display = '';
 }
 
-export async function showBatchImportProgress(step, fileName, current, total) {
+export async function showBatchImportProgress(step: number, fileName: string, current: number, total: number) {
   if (statusDismissTimer) { clearTimeout(statusDismissTimer); statusDismissTimer = null; }
   setImportStatus({ running: true, done: false, failed: false, fileName, pct: STEP_START_PCT[step] || 0, batch: { current, total } });
   const dropZone = ensureDropZone();
@@ -207,5 +206,5 @@ export async function showBatchImportProgress(step, fileName, current, total) {
   html += buildProgressHTML(step, fileName);
   dropZone.innerHTML = html;
   observeProgressBar();
-  await new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+  await new Promise<void>(r => requestAnimationFrame(() => setTimeout(r, 0)));
 }
