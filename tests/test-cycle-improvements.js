@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { dataModuleSource } from './helpers/data-module-source.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 // test-cycle-improvements.js — Browser test for cycle improvements
 //
@@ -91,7 +92,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
   // ── Section 4: filterDatesByRange preserves phaseLabels ──
   console.log('Section 4: filterDatesByRange preserves phaseLabels');
   {
-    const src = read('js/data.js');
+    const src = dataModuleSource(read('js/data.js'), read('js/data-core.js'));
     assert('filterDatesByRange has phaseLabels spread', src.includes('phaseLabels') && src.includes('indices.map(i => data.phaseLabels[i])'));
   }
 
@@ -360,7 +361,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
   // ── Section 20: data.js phaseLabels computation ──
   console.log('Section 20: data.js phaseLabels computation');
   {
-    const src = read('js/data.js');
+    const src = dataModuleSource(read('js/data.js'), read('js/data-core.js'));
     assert('getActiveData computes data.phaseLabels', src.includes('data.phaseLabels = drawPhases.map'));
     assert('Uses _getCyclePhase for phaseLabels', src.includes('_getCyclePhase(d, mc)'));
   }

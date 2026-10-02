@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { dataModuleSource } from './helpers/data-module-source.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-audit.js — Pre-release audit fixes. Source-inspection across data.js,
@@ -36,7 +37,7 @@ console.log('=== Pre-Release Audit Tests ===\n');
 // ═══════════════════════════════════════
 console.log('1. PhenoAge SI Coefficients');
 
-const dataSrc = read('js/data.js');
+const dataSrc = dataModuleSource(read('js/data.js'), read('js/data-core.js'));
 const calculatedMarkersSrc = read('js/data-calculated-markers.js');
 assert('PhenoAge uses SI albumin directly', calculatedMarkersSrc.includes('0.0336  * albumin_si'));
 assert('PhenoAge uses SI creatinine directly', calculatedMarkersSrc.includes('0.0095  * creatinine_si'));

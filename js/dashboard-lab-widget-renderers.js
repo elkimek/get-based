@@ -31,7 +31,7 @@ export function createDashboardLabWidgetRenderers(deps) {
     const allFlags = getAllFlaggedMarkers(filteredData);
     const criticalFlags = allFlags.filter(f => {
       if (trendMarkerIds.has(f.id)) return false;
-      const refRange = f.refMax - f.refMin;
+      const refRange = /** @type {number} */ (f.refMax) - /** @type {number} */ (f.refMin);
       if (refRange <= 0 || f.refMin == null || f.refMax == null) return false;
       const distance = f.status === 'high' ? (f.rawValue - f.refMax) : (f.refMin - f.rawValue);
       return distance > refRange * 0.5;

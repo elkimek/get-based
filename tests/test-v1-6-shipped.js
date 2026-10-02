@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { dataModuleSource } from './helpers/data-module-source.js';
 // test-v1-6-shipped.js — regression coverage for v1.6.7..v1.6.16
 //
 // Run: node tests/test-v1-6-shipped.js  (or via npm test)
@@ -577,7 +578,7 @@ const _origProfileSex = state ? state.profileSex : null;
     const categoryGlyphsSrc = fetchSrc('js/category-glyphs.js');
     const compareCorrelationsSrc = fetchSrc('js/compare-correlations.js');
     const markerDetailSrc = fetchSrc('js/marker-detail-modal-impl.js');
-    const dataSrc = fetchSrc('js/data.js');
+    const dataSrc = dataModuleSource(fetchSrc('js/data.js'), fetchSrc('js/data-core.js'));
     const dataViewControlsSrc = fetchSrc('js/data-view-controls.js');
     const cssSrc = fetchCssSrc();
     assert('category-view-renderers.js: marker cards render latest-value summary before chart',

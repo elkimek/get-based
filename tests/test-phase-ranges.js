@@ -25,7 +25,7 @@ console.log('=== Phase-Aware Reference Ranges Test ===\n');
 const schemaSource = read('js/schema.js');
 const schemaEnvironmentSource = read('js/schema-environment.js');
 const schema = await import('../js/schema.js');
-const dataSource = read('js/data.js');
+const dataSource = read('js/data.js') + '\n' + read('js/data-core.js');
 const markerAnalysisSource = read('js/marker-analysis.js');
 const dataModule = await import('../js/data.js');
 const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css');

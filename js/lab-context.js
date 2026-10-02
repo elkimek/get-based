@@ -198,7 +198,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
           if (!m.singlePoint && data.dates.length >= 2) {
             const points = [];
             for (let ti = 0; ti < m.values.length; ti++) {
-              if (m.values[ti] !== null && data.dates[ti]) points.push({ v: m.values[ti], d: data.dates[ti] });
+              if (m.values[ti] !== null && data.dates[ti]) points.push({ v: /** @type {number} */ (m.values[ti]), d: data.dates[ti] });
             }
             if (points.length >= 2) {
               const first = points[0], last = points[points.length - 1];

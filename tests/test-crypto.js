@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { dataModuleSource } from './helpers/data-module-source.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createSourceFetch } from './helpers/source-fetch.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
@@ -469,7 +470,7 @@ try {
 // ═══════════════════════════════════════════════
 console.log('16. saveImportedData async');
 try {
-  const src = await fetchWithRetry('js/data.js');
+  const src = dataModuleSource(await fetchWithRetry('js/data.js'), await fetchWithRetry('js/data-core.js'));
   assert('saveImportedData is async', src.includes('async function saveImportedData'));
   assert('saveImportedData calls broadcastDataChanged', src.includes('broadcastDataChanged'));
   assert('saveImportedData calls encryptedSetItem', src.includes('encryptedSetItem'));
@@ -675,7 +676,7 @@ try {
 // ═══════════════════════════════════════════════
 console.log('23. data.js auto-backup trigger');
 try {
-  const src = await fetchWithRetry('js/data.js');
+  const src = dataModuleSource(await fetchWithRetry('js/data.js'), await fetchWithRetry('js/data-core.js'));
   assert('data.js imports scheduleAutoBackup', src.includes('scheduleAutoBackup'));
   assert('data.js calls scheduleAutoBackup in saveImportedData', src.includes('scheduleAutoBackup()'));
 } catch (e) {

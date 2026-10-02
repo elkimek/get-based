@@ -214,7 +214,7 @@ function renderDetailModal(id, opts = {}) {
   modal.dataset.syncRefreshItemId = id;
   const dates = marker.singlePoint ? [marker.singleDateLabel || "N/A"] : data.dateLabels;
   const r = getEffectiveRange(marker);
-  const modalPoints = marker.values.map((v, i) => ({ v, i })).filter(x => x.v !== null && x.v !== undefined);
+  const modalPoints = /** @type {{v: number, i: number}[]} */ (marker.values.map((v, i) => ({ v, i })).filter(x => x.v !== null && x.v !== undefined));
   const showAllHistory = !!opts.showAllHistory;
   const requestedHistoryLimit = Number.isFinite(opts.historyLimit)
     ? Math.max(MARKER_HISTORY_DEFAULT_CAP, Math.floor(opts.historyLimit))

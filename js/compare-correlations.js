@@ -243,8 +243,8 @@ export function updateCompare() {
   const data = getActiveData();
   const container = document.getElementById('compare-results');
   if (!container) return;
-  const idx1 = data.dates.indexOf(state.compareDate1);
-  const idx2 = data.dates.indexOf(state.compareDate2);
+  const idx1 = data.dates.indexOf(/** @type {string} */ (state.compareDate1));
+  const idx2 = data.dates.indexOf(/** @type {string} */ (state.compareDate2));
   if (idx1 === -1 || idx2 === -1) { container.innerHTML = ''; return; }
   container.innerHTML = renderCompareTable(data, idx1, idx2);
 }

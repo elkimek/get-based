@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { dataModuleSource } from './helpers/data-module-source.js';
 import { createSourceFetch } from './helpers/source-fetch.js';
 // test-data-pipeline.js — Core data pipeline verification: getActiveData, unit conversion, filtering, trends
 //
@@ -573,7 +574,7 @@ const dataModule = await import('../js/data.js');
   // ═══════════════════════════════════════════════
   console.log('%c 14. Data Source Inspection ', 'font-weight:bold;color:#f59e0b');
 
-  const dataJsSrc = (await (await fetch('js/data.js')).text());
+  const dataJsSrc = dataModuleSource(await (await fetch('js/data.js')).text(), await (await fetch('js/data-core.js')).text());
   const calculatedMarkersSrc = (await (await fetch('js/data-calculated-markers.js')).text());
   const markerAnalysisSrc = (await (await fetch('js/marker-analysis.js')).text());
   assert('data.js imports MARKER_SCHEMA', dataJsSrc.includes("import { state } from './state.js'"));

@@ -124,7 +124,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/profile-runtime.js',
   '/js/profile-share.js',
   '/js/unique-id.js',
-  '/js/data.js',
+  '/js/data.js', '/js/data-core.js',
   '/js/data-custom-markers.js',
   '/js/data-calculated-markers.js',
   '/js/data-view-controls.js',

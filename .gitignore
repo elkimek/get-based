@@ -549,3 +549,10 @@ deploy/profile-share/data/
 /js/context-source-registry.js
 /js/profile-context.js
 /js/data-calculated-markers.js
+
+/js/marker-analysis.js
+
+/js/data-core.js
+/js/data-core-types.js
+
+/tests/helpers/data-module-source.js

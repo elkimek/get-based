@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { dataModuleSource } from './helpers/data-module-source.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-sync.js — Verify sync module exports, payload format, settings UI
@@ -135,7 +136,7 @@ await import('../js/settings.js');
     await fetchWithRetry('js/settings-sync-panel-render.js'),
   ].join('\n');
   const settingsSyncRestoreUiSrc = await fetchWithRetry('js/settings-sync-restore-ui.js');
-  const dataSrc = await fetchWithRetry('js/data.js');
+  const dataSrc = dataModuleSource(await fetchWithRetry('js/data.js'), await fetchWithRetry('js/data-core.js'));
   const startupOrchestratorSrc = await fetchWithRetry('js/startup-orchestrator.js');
   const startupUiSrc = await fetchWithRetry('js/startup-ui.js');
   const appShellCssSrc = await fetchWithRetry('css/app-shell.css');
