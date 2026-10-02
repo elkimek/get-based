@@ -672,3 +672,5 @@ deploy/profile-share/data/
 /js/wearables-settings-panel.js
 /js/action-attributes.js
 /js/dna-actions.js
+/js/ai-verdict-engine.js
+/js/ai-action-delegates.js

@@ -1,4 +1,3 @@
-// @ts-check
 // ai-verdict-engine.js — shared analyze-state engine for the per-row /
 // per-day AI verdicts surfaced across the Light & Sun feature (sun
 // sessions, light-therapy device sessions, tool measurements, room
@@ -67,8 +66,8 @@ function _engineDisabled() {
 // Unexpected token 'h', \"this is not\"..." into the verdict UI, which is
 // horrendous UX. Patterns ordered most-specific first; falls through
 // to a clean generic.
-function _normalizeErrorMessage(e) {
-  const raw = String(e?.message || e || '').slice(0, 500);
+function _normalizeErrorMessage(e: unknown) {
+  const raw = String((e as { message?: unknown } | null | undefined)?.message || e || '').slice(0, 500);
   if (/timed out/i.test(raw)) return 'Analysis took too long — try again';
   if (/no json in response|json\.parse|json' on 'response|unexpected token/i.test(raw)) {
     return 'AI sent an unexpected response — try again';
@@ -90,9 +89,9 @@ function _normalizeErrorMessage(e) {
 }
 
 // djb2 hash exposed because every consumer needs it for fingerprinting.
-export function hashString(str) {
+export function hashString(str: string | null | undefined) {
   let h = 5381;
-  for (let i = 0; i < (str || '').length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+  for (let i = 0; i < (str || '').length; i++) h = ((h << 5) + h + str!.charCodeAt(i)) | 0;
   return (h >>> 0).toString(36);
 }
 
@@ -101,32 +100,53 @@ const VALID_DOTS = ['green', 'yellow', 'red', 'gray'];
 const DEFAULT_TIMEOUT_MS = 60000;
 const PURGE_DELAY_MS = 1500;
 
-/**
- * Persisted verdict fields shared by every AI-verdict consumer. Feature
- * engines may attach additional properties through parseExtraFields.
- *
- * @typedef {object} AIVerdictAnalysis
- * @property {'analyzing'|'ok'|'error'} [status]
- * @property {string} [dot]
- * @property {string} [tip]
- * @property {string} [detail]
- * @property {string} [fingerprint]
- * @property {number} [generatedAt]
- * @property {number} [errorAt]
- * @property {string} [errorMessage]
- * @property {number} [lastErrorAt]
- * @property {string} [lastErrorMessage]
- */
-
-/**
- * @typedef {object} AIVerdictEngine
- * @property {(target: any, opts?: {force?: boolean, userInitiated?: boolean}) => Promise<AIVerdictAnalysis|null>} analyze
- * @property {(id: string) => Promise<AIVerdictAnalysis|null>} refresh
- * @property {(target: any) => void} maybeAfterFinish
- * @property {(id: string) => boolean} isAnalyzing
- * @property {(target: any) => 'analyzing'|'ok'|'error'|'idle'} getStatus
- * @property {() => Promise<void>} purgeOrphaned
- */
+/** Persisted shared fields; feature engines may attach additional properties. */
+export interface AIVerdictAnalysis {
+  status?: 'analyzing' | 'ok' | 'error';
+  dot?: string;
+  tip?: string;
+  detail?: string;
+  fingerprint?: string;
+  generatedAt?: number;
+  errorAt?: number;
+  errorMessage?: string;
+  lastErrorAt?: number;
+  lastErrorMessage?: string;
+}
+export interface AnalyzeOptions { force?: boolean; userInitiated?: boolean }
+export type AIVerdictStatus = 'analyzing' | 'ok' | 'error' | 'idle';
+export interface AIVerdictEngine<T> {
+  analyze(target: T | null | undefined, opts?: AnalyzeOptions): Promise<AIVerdictAnalysis | null>;
+  refresh(id: string): Promise<AIVerdictAnalysis | null>;
+  maybeAfterFinish(target: T | null | undefined): void;
+  isAnalyzing(id: string): boolean;
+  getStatus(target: T | null | undefined): AIVerdictStatus;
+  purgeOrphaned(): Promise<void>;
+}
+export interface AIVerdictConfig<T> {
+  getTarget(id: string): T | null | undefined;
+  getId(target: T): string;
+  getAIAnalysis(target: T): AIVerdictAnalysis | null | undefined;
+  setAIAnalysis(target: T, value: AIVerdictAnalysis | null): void;
+  /** Hash the target fields that invalidate a cached verdict. */
+  getFingerprint(target: T): string;
+  buildContext(target: T): string;
+  systemPrompt: string;
+  /** Model output cap; defaults to 400. */
+  maxTokens?: number;
+  canAnalyze?: (target: T) => boolean;
+  shouldAutoFire?: (target: T) => boolean;
+  /** Find persisted analyzing states left by interrupted legacy runs. */
+  getAllTargets?: () => T[];
+  /** Merge feature-specific fields, such as onboarding actions, into the verdict. */
+  parseExtraFields?: (parsed: Record<string, unknown>, target: T) => Partial<AIVerdictAnalysis> & Record<string, unknown>;
+  /** Push after saving; defaults to true. Disable for local-only verdicts. */
+  syncOnSave?: boolean;
+  timeoutMs?: number;
+  autoFireRetryDelaysMs?: number[];
+  onStateChange?: (anchor: string | null) => void;
+  getScrollAnchor?: (target: T) => string | null;
+}
 
 // ─── Global AI concurrency limiter ───────────────────────────────────
 // Saving a session triggers three engines (Light Today, Channel mix,
@@ -141,7 +161,7 @@ const PURGE_DELAY_MS = 1500;
 // alongside 1 background auto-fire. Adjustable via `_aiConcurrencyCap`
 // for testing or per-environment tuning.
 let _activeAICalls = 0;
-const _aiCallWaiters = [];
+const _aiCallWaiters: Array<() => void> = [];
 function _aiCap() {
   const w = getAIVerdictConcurrencyCapRuntime(2);
   // Clamp to [1, 8] — Number.isFinite already excludes Infinity/NaN, but a
@@ -153,14 +173,14 @@ function _acquireAISlot() {
     _activeAICalls++;
     return Promise.resolve();
   }
-  return new Promise((resolve) => { _aiCallWaiters.push(resolve); });
+  return new Promise<void>((resolve) => { _aiCallWaiters.push(resolve); });
 }
 function _releaseAISlot() {
   _activeAICalls = Math.max(0, _activeAICalls - 1);
   while (_activeAICalls < _aiCap() && _aiCallWaiters.length > 0) {
     const next = _aiCallWaiters.shift();
     _activeAICalls++;
-    try { next(); } catch (_) {}
+    try { next!(); } catch (_) {}
   }
 }
 // Diagnostic snapshot for tests + manual debugging through the module API.
@@ -168,37 +188,8 @@ export function getAIVerdictSlotsDebug() {
   return { active: _activeAICalls, waiting: _aiCallWaiters.length, cap: _aiCap() };
 }
 
-/**
- * Create an AI verdict engine bound to a particular feature's data shape.
- *
- * @param {object} cfg
- * @param {(id: string) => any} cfg.getTarget - resolve target by id
- * @param {(t: any) => string} cfg.getId - extract id from a target
- * @param {(t: any) => AIVerdictAnalysis|null|undefined} cfg.getAIAnalysis - read aiAnalysis off the target
- * @param {(t: any, value: AIVerdictAnalysis|null) => void} cfg.setAIAnalysis - write aiAnalysis on the target
- * @param {(t: any) => string} cfg.getFingerprint - deterministic hash of the
- *   target fields that, when changed, should invalidate any cached verdict
- * @param {(t: any) => string} cfg.buildContext - markdown-style prompt context
- * @param {string} cfg.systemPrompt - full system prompt
- * @param {number} [cfg.maxTokens=400] - model output cap
- * @param {(t: any) => boolean} [cfg.canAnalyze] - gate (e.g. session has endedAt)
- * @param {(t: any) => boolean} [cfg.shouldAutoFire] - gate for maybeAfterFinish
- * @param {() => any[]} [cfg.getAllTargets] - used by the orphan purge to find
- *   any persisted `status: 'analyzing'` from pre-fix runs and clear them
- * @param {(parsed: Record<string, any>, target: any) => Record<string, any>} [cfg.parseExtraFields] -
- *   pull out feature-specific fields beyond {dot,tip,detail} (e.g. onboarding's
- *   actions[] array). Returned object is merged into the saved analysis.
- * @param {boolean} [cfg.syncOnSave=true] - fire pushCurrentProfile after save.
- *   Set false for purely local-only verdicts (none currently).
- * @param {number} [cfg.timeoutMs=60000]
- * @param {number[]} [cfg.autoFireRetryDelaysMs]
- * @param {(anchor: string|null) => void} [cfg.onStateChange]
- * @param {(target: any) => string|null} [cfg.getScrollAnchor]
- *
- * @returns {AIVerdictEngine} engine — { analyze, refresh, maybeAfterFinish,
- *   isAnalyzing, getStatus, purgeOrphaned }
- */
-export function createAIVerdict(cfg) {
+/** Create a verdict engine bound to a feature's data shape. */
+export function createAIVerdict<T>(cfg: AIVerdictConfig<T>): AIVerdictEngine<T> {
   if (!cfg || typeof cfg !== 'object') throw new Error('createAIVerdict: cfg required');
   const {
     getTarget,
@@ -235,7 +226,7 @@ export function createAIVerdict(cfg) {
   // call simply resets this Set; the next render falls through to idle
   // since the row's persisted aiAnalysis only carries `ok` or `error`
   // verdicts (never `analyzing`).
-  const inflight = new Set();
+  const inflight = new Set<string>();
   // Separate tracker for the auto-fire retry sequence. Holds the id
   // across the WHOLE sequence (initial call + backoffs + retries) so
   // the UI keeps showing "Analyzing..." between attempts instead of
@@ -243,9 +234,9 @@ export function createAIVerdict(cfg) {
   // failed attempt and the next retry. inflight tracks individual
   // analyze() calls and is briefly empty between attempts; this set
   // covers that gap.
-  const retrying = new Set();
+  const retrying = new Set<string>();
 
-  function _refresh(target) {
+  function _refresh(target?: T | null) {
     // Derive the scroll anchor for THIS verdict's target before the
     // rebuild — if the engine config knows what visual row the verdict
     // belongs to (e.g. a roomId for measurement verdicts), the rebuild
@@ -258,7 +249,7 @@ export function createAIVerdict(cfg) {
     // explicit config. Engines whose verdict belongs to a DIFFERENT
     // DOM element (e.g. measurement verdicts anchored to the room, not
     // the measurement chip) can override via `getScrollAnchor(target)`.
-    let anchor = null;
+    let anchor: string | null = null;
     if (target) {
       if (typeof getScrollAnchor === 'function') {
         try { anchor = getScrollAnchor(target) || null; } catch (_) {}
@@ -283,7 +274,7 @@ export function createAIVerdict(cfg) {
     dispatchAIVerdictUpdatedRuntime();
   }
 
-  function isAnalyzing(id) {
+  function isAnalyzing(id: string) {
     return inflight.has(id) || retrying.has(id);
   }
 
@@ -292,9 +283,8 @@ export function createAIVerdict(cfg) {
    * their renderInline / renderDetail branches without touching the
    * inflight set or aiAnalysis fields directly.
    *
-   * @returns {'analyzing'|'ok'|'error'|'idle'}
    */
-  function getStatus(target) {
+  function getStatus(target: T | null | undefined): AIVerdictStatus {
     if (!target) return 'idle';
     const id = getId(target);
     if (inflight.has(id) || retrying.has(id)) return 'analyzing';
@@ -307,12 +297,7 @@ export function createAIVerdict(cfg) {
     return 'idle';
   }
 
-  /**
-   * @param {any} target
-   * @param {{force?: boolean, userInitiated?: boolean}} [opts]
-   * @returns {Promise<AIVerdictAnalysis|null>}
-   */
-  async function analyze(target, opts = {}) {
+  async function analyze(target: T | null | undefined, opts: AnalyzeOptions = {}): Promise<AIVerdictAnalysis | null> {
     if (!target) return null;
     if (_engineDisabled()) return null;
     const id = getId(target);
@@ -347,14 +332,14 @@ export function createAIVerdict(cfg) {
     // even after the user has moved on. Audit P2 from the 2026-05-10
     // review.
     const aborter = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    let watchdogTimer = null;
+    let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
     // Single watchdog covering BOTH the slot wait AND the API call.
     // Earlier draft only raced the API call against the timeout — a
     // saturated concurrency queue could then keep this analyze() pending
     // for (cap × timeoutMs) before even reaching the API, blowing past
     // the documented "Analysis timed out after Xs" guarantee. Greptile
     // PR #175 review caught this.
-    const watchdog = new Promise((_, rej) => {
+    const watchdog = new Promise<never>((_, rej) => {
       watchdogTimer = setTimeout(() => {
         abandoned = true;
         try { aborter?.abort(); } catch (_) {}
@@ -382,28 +367,24 @@ export function createAIVerdict(cfg) {
         consentKind: opts.userInitiated ? 'text' : 'automatic-insight',
       });
       const result = await Promise.race([apiCall, watchdog]);
-      const text = (result && typeof result === 'object') ? (result.text || '') : (typeof result === 'string' ? result : '');
+      const text = (result && typeof result === 'object') ? ((result as { text?: string }).text || '') : (typeof result === 'string' ? result : '');
       const match = text.match(/\{[\s\S]*\}/);
       if (!match) throw new Error('No JSON in response');
-      const parsed = JSON.parse(match[0]);
-      const dot = VALID_DOTS.includes(parsed.dot) ? parsed.dot : 'gray';
+      const parsed = JSON.parse(match[0]) as Record<string, unknown>;
+      const dot = VALID_DOTS.includes(parsed.dot as string) ? parsed.dot as string : 'gray';
       const tip = String(parsed.tip || '').slice(0, 240);
       const detail = String(parsed.detail || '').slice(0, 800);
       let extra = {};
       if (typeof parseExtraFields === 'function') {
         try { extra = parseExtraFields(parsed, target) || {}; } catch (_) {}
       }
-      // Recompute fingerprint at write-time. Captures the case where the
-      // user edited the target while the API was in flight — the verdict
-      // was generated from the OLD context, but writing it with the NEW
-      // fingerprint would mark it stable when it actually no longer
-      // matches the data the model saw. Use the original fingerprint so
-      // a render after the edit correctly flags this verdict as stale.
-      /** @type {AIVerdictAnalysis} */
-      const value = Object.assign({
+      // Keep the context-time fingerprint when writing. If the user edited
+      // the target during the API call, the verdict describes the old data.
+      // Saving its original fingerprint lets the next render detect staleness.
+      const value: AIVerdictAnalysis = Object.assign({
         dot, tip, detail, fingerprint,
         generatedAt: Date.now(),
-        status: /** @type {'ok'} */ ('ok'),
+        status: 'ok' as const,
       }, extra);
       setAIAnalysis(target, value);
       await saveImportedData();
@@ -452,7 +433,7 @@ export function createAIVerdict(cfg) {
   }
 
   /** Run analyze with force=true. Public entry for refresh buttons. */
-  async function refresh(id) {
+  async function refresh(id: string) {
     const target = getTarget ? getTarget(id) : null;
     if (!target) return null;
     return analyze(target, { force: true, userInitiated: true });
@@ -468,7 +449,7 @@ export function createAIVerdict(cfg) {
   // unbounded budget on permanent errors.
   // Auth/quota errors are NOT retried — those are user-actionable and
   // re-asking would just burn tokens until the underlying issue is fixed.
-  function _isRetryableError(msg) {
+  function _isRetryableError(msg: unknown) {
     if (!msg) return true; // unknown errors are retryable; auth-style would be flagged below
     const m = String(msg);
     if (/Provider rejected|Provider quota|credit issue|check Settings/i.test(m)) return false;
@@ -476,7 +457,7 @@ export function createAIVerdict(cfg) {
   }
 
   /** Fire-and-forget after a target finishes (e.g. session stop, measurement save). */
-  function maybeAfterFinish(target) {
+  function maybeAfterFinish(target: T | null | undefined) {
     if (!target) return;
     if (!hasAssistantFeatureProvider()) return;
     if (!shouldAutoFire(target)) return;
@@ -494,7 +475,7 @@ export function createAIVerdict(cfg) {
           const a = fresh ? getAIAnalysis(fresh) : null;
           if (a?.status !== 'error') return; // success or moved on
           if (!_isRetryableError(a.errorMessage)) return;
-          await new Promise(r => setTimeout(r, delays[i]));
+          await new Promise<void>(r => setTimeout(r, delays[i]));
           const t = getTarget ? getTarget(id) : target;
           if (!t) return;
           try { await analyze(t, { force: true }); }
@@ -567,7 +548,7 @@ export function createAIVerdict(cfg) {
 // and the ok/error/idle layouts are identical enough to share. These
 // helpers are optional — consumers can call them or hand-roll their HTML.
 
-export function dotPrefix(dot) {
+export function dotPrefix(dot: unknown) {
   if (dot === 'green') return '✓';
   if (dot === 'yellow') return '⚠';
   if (dot === 'red') return '▲';
