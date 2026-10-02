@@ -118,3 +118,31 @@ export function ottScoreToLabel(score: unknown) {
 }
 
 export const lightBurdenToLabel = ottScoreToLabel;
+
+export interface SunSetupCoords {
+  lat: number;
+  lon: number;
+  source?: string | undefined;
+  altitudeM?: number | undefined;
+}
+
+export interface SunSetupDefaults {
+  fitzpatrick?: string | null;
+  photosensitiveMeds?: string | boolean | null;
+  homeLight?: string | null;
+  eyewear?: string | null;
+  ott?: Record<string, unknown> | null;
+  ottScore?: number | null;
+  skipped?: boolean;
+  setupPromptDismissedAt?: number;
+}
+
+export interface SunSetupValues {
+  skinIdx: number;
+  fitzpatrick: string;
+  photosensitiveMeds: string;
+  homeLight: string | null;
+  eyewear: string | null;
+  ott: Record<string, boolean>;
+  ottScore: number;
+}

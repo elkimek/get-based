@@ -574,3 +574,6 @@ deploy/profile-share/data/
 /js/context-card-lifestyle-runtime.js
 /js/food-contaminants.js
 /js/context-card-summaries.js
+/js/sun-defaults-runtime.js
+/js/sun-defaults-setup-renderer.js
+/js/sun-defaults-setup-ui.js

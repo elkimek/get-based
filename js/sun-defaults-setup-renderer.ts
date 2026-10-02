@@ -1,4 +1,4 @@
-// @ts-check
+import type { SunSetupDefaults } from './sun-defaults-model.js';
 // sun-defaults-setup-renderer.js — Light setup cards, editor, and location HTML.
 
 import { SKIN_TYPE } from './constants.js';
@@ -21,14 +21,19 @@ import {
 } from './sun-defaults-model.js';
 import { escapeAttr, escapeHTML } from './utils.js';
 
-/** @type {{ getSunDefaults: AnyFunction, isOnboardingComplete: AnyFunction, renderOnboardingAIBlock: AnyFunction }} */
-const rendererDeps = {
+export interface SunSetupRendererDeps {
+  getSunDefaults: () => SunSetupDefaults | null;
+  isOnboardingComplete: () => unknown;
+  renderOnboardingAIBlock: () => string | null | undefined;
+}
+
+const rendererDeps: SunSetupRendererDeps = {
   getSunDefaults: () => null,
   isOnboardingComplete: () => false,
   renderOnboardingAIBlock: () => '',
 };
 
-export function configureSunDefaultsSetupRenderer(deps = {}) {
+export function configureSunDefaultsSetupRenderer(deps: Partial<SunSetupRendererDeps> = {}) {
   Object.assign(rendererDeps, deps);
 }
 
@@ -44,13 +49,13 @@ function renderOnboardingAIBlock() {
   try { return rendererDeps.renderOnboardingAIBlock() || ''; } catch (_) { return ''; }
 }
 
-function getInitialFitzpatrick() {
-  const saved = state.importedData?.sunDefaults?.fitzpatrick;
+function getInitialFitzpatrick(): string | null {
+  const saved = (state.importedData?.sunDefaults as SunSetupDefaults | null | undefined)?.fitzpatrick;
   if (saved) return saved;
   return skinTypeToFitzpatrick(state.importedData?.lightCircadian?.skinType);
 }
 
-export function lightSetupActionAttrs(action, data = {}) {
+export function lightSetupActionAttrs(action: string, data: Record<string, unknown> = {}) {
   const attrs = [`data-light-setup-action="${escapeAttr(action)}"`];
   for (const [key, value] of Object.entries(data)) {
     if (value != null && value !== '') {
@@ -60,7 +65,7 @@ export function lightSetupActionAttrs(action, data = {}) {
   return attrs.join(' ');
 }
 
-function lightSetupInputAttrs(input) {
+function lightSetupInputAttrs(input: string) {
   return `data-light-setup-input="${escapeAttr(input)}"`;
 }
 
@@ -74,26 +79,26 @@ function renderSavedSummary() {
   const eyewearMeta = EYEWEAR_OPTIONS.find(option => option.key === defaults.eyewear);
 
   const skinEmoji = ['🧑🏻','🧑🏼','🧑🏽','🧑🏾','🧑🏿','🧑🏿'][skinIndex] || '🧑';
-  const homeIconMap = {
+  const homeIconMap: Record<string, string> = {
     'led-cool': '💡', 'led-warm': '💡', 'led-tunable': '💡',
     'fluorescent': '🌫️', 'incandescent': '🔥', 'halogen': '🔥',
     'candle': '🕯️', 'mixed': '✨', 'natural-only': '☀️', 'unknown': '❔',
   };
-  const homeAccentMap = {
+  const homeAccentMap: Record<string, string> = {
     'led-cool': 'cool', 'led-warm': 'warm', 'led-tunable': 'cool',
     'fluorescent': 'cool', 'incandescent': 'warm', 'halogen': 'warm',
     'candle': 'warm', 'natural-only': 'sun', 'mixed': 'neutral', 'unknown': 'neutral',
   };
-  const homeIcon = homeIconMap[defaults.homeLight] || '💡';
-  const homeAccent = homeAccentMap[defaults.homeLight] || 'neutral';
+  const homeIcon = homeIconMap[defaults.homeLight!] || '💡';
+  const homeAccent = homeAccentMap[defaults.homeLight!] || 'neutral';
   const homeShort = (homeMeta?.label || defaults.homeLight || 'Not set').replace(/\s*\(.*\)/, '');
-  const eyewearIconMap = {
+  const eyewearIconMap: Record<string, string> = {
     'none': '👁', 'sunglasses': '🕶', 'clear-glasses': '👓',
     'both': '🕶', 'contacts-uv': '👀',
   };
-  const eyewearIcon = eyewearIconMap[defaults.eyewear] || '👁';
+  const eyewearIcon = eyewearIconMap[defaults.eyewear!] || '👁';
   const eyewearShort = (eyewearMeta?.label || defaults.eyewear || 'Not set')
-    .split('—')[0].split(/[(,]/)[0].trim();
+    .split('—')[0]!.split(/[(,]/)[0]!.trim();
 
   let burdenChip;
   if (typeof defaults.ottScore === 'number') {
@@ -126,12 +131,12 @@ function renderSavedSummary() {
   }
 
   const psmTier = photosensitiveTierOf(defaults.photosensitiveMeds);
-  const psmCopy = {
+  const psmCopy = ({
     unknown:  { label: 'Medication and product sunlight warnings not reviewed' },
     mild:     { label: 'Possible photosensitivity warning recorded' },
     moderate: { label: 'Known photosensitivity warning recorded' },
     severe:   { label: 'Prior reaction or strict sun warning recorded' },
-  }[psmTier];
+  } as Partial<Record<string, { label: string }>>)[psmTier];
   const photoBanner = psmCopy
     ? `<div class="light-setup-photo-banner" title="Medication, dose, formulation, and reaction differ too much for a universal burn multiplier.">⚠ ${escapeHTML(psmCopy.label)} — burn time remains an unadjusted base estimate; follow the label or clinician.</div>`
     : '';
@@ -219,7 +224,7 @@ export function renderSetupActions() {
   </div>`;
 }
 
-function renderSetupChoiceGroup(id, options, selected, className = '') {
+function renderSetupChoiceGroup(id: string, options: readonly { key: string; label: string; sub?: string }[], selected: string | null | undefined, className = '') {
   return `<input type="hidden" id="${escapeAttr(id)}" value="${escapeAttr(selected || '')}">
     <div class="light-setup-choice-grid ${className}" role="group" aria-label="${escapeAttr(id.replace(/^setup-/, '').replaceAll('-', ' '))}">
       ${options.map(option => {
@@ -232,7 +237,7 @@ function renderSetupChoiceGroup(id, options, selected, className = '') {
     </div>`;
 }
 
-function renderOttScoreMeter(score) {
+function renderOttScoreMeter(score: unknown) {
   const selected = Math.max(0, Math.min(10, Number(score) || 0));
   const meta = ottScoreToLabel(selected);
   return `<div class="light-setup-ott-running light-setup-score-meter" id="ott-running-score" data-tier="${escapeAttr(String(meta.tier))}">
@@ -251,7 +256,7 @@ function renderOttScoreMeter(score) {
   </div>`;
 }
 
-function renderOttQuestion(question, index, checked) {
+function renderOttQuestion(question: typeof OTT_QUESTIONS[number], index: number, checked: boolean) {
   return `<label class="light-setup-ott-q light-setup-ott-card${checked ? ' is-flagged' : ''}">
     <input class="light-setup-ott-input" type="checkbox" data-ott="${escapeAttr(question.key)}"${checked ? ' checked' : ''} ${lightSetupInputAttrs('ott-score')}>
     <span class="light-setup-ott-card-mark" aria-hidden="true"><span>${index + 1}</span></span>
@@ -352,7 +357,7 @@ export function renderSetupEditor({ includeActions = true } = {}) {
   </div>`;
 }
 
-function formatSetupLatitude(latitude) {
+function formatSetupLatitude(latitude: unknown) {
   const numericLatitude = Number(latitude);
   if (!Number.isFinite(numericLatitude)) return '';
   const digits = Math.abs(numericLatitude) >= 10 ? 1 : 2;

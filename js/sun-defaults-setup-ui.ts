@@ -1,4 +1,5 @@
-// @ts-check
+import type { SunSetupDefaults, SunSetupValues } from './sun-defaults-model.js';
+import type { SunSetupRendererDeps } from './sun-defaults-setup-renderer.js';
 // sun-defaults-setup-ui.js — Light setup modal lifecycle and delegated behavior.
 
 import { SKIN_TYPE } from './constants.js';
@@ -27,8 +28,17 @@ import { escapeHTML, showNotification } from './utils.js';
 
 const LIGHT_SETUP_OVERLAY_ID = 'light-setup-focus-overlay';
 
-/** @type {{ getSunDefaults: AnyFunction, isOnboardingComplete: AnyFunction, saveSunDefaults: AnyFunction, persistSunSetupValues: AnyFunction, maybeAnalyzeOnboardingAfterSave: AnyFunction, renderOnboardingAIBlock: AnyFunction }} */
-const setupDeps = {
+export interface SunSetupDependencies extends SunSetupRendererDeps {
+  saveSunDefaults: (patch: Partial<SunSetupDefaults>) => unknown;
+  persistSunSetupValues: (values: SunSetupValues) => unknown;
+  maybeAnalyzeOnboardingAfterSave: () => unknown;
+}
+
+type CollectedSunSetup =
+  | { ok: false; reason: 'missing-root' | 'skin-type-required'; values?: never }
+  | { ok: true; values: SunSetupValues; reason?: never };
+
+const setupDeps: SunSetupDependencies = {
   getSunDefaults: () => null,
   isOnboardingComplete: () => false,
   saveSunDefaults: async () => false,
@@ -45,13 +55,13 @@ function syncRendererDeps() {
   });
 }
 
-export function configureSunDefaultsSetupUI(deps = {}) {
+export function configureSunDefaultsSetupUI(deps: Partial<SunSetupDependencies> = {}) {
   Object.assign(setupDeps, deps);
   syncRendererDeps();
 }
 
 // Public startup hook retained by the sun-defaults facade.
-export function configureSunDefaults(deps = {}) {
+export function configureSunDefaults(deps: Partial<SunSetupDependencies> = {}) {
   Object.assign(setupDeps, deps);
   syncRendererDeps();
 }
@@ -64,29 +74,25 @@ function isOnboardingComplete() {
   return !!setupDeps.isOnboardingComplete();
 }
 
-const lightSetupDelegateRoots = new WeakSet();
+const lightSetupDelegateRoots = new WeakSet<Document | Element>();
 
-function parseSetupIndex(value) {
+function parseSetupIndex(value: unknown) {
   const index = Number.parseInt(String(value ?? ''), 10);
   return Number.isFinite(index) ? index : null;
 }
 
-function selectSetupSkinIndex(rawIndex) {
+function selectSetupSkinIndex(rawIndex: unknown) {
   const index = parseSetupIndex(rawIndex);
   if (index == null) return;
-  const range = /** @type {HTMLInputElement | null} */ (
-    document.getElementById('setup-skin-range')
-  );
+  const range = (document.getElementById('setup-skin-range') as HTMLInputElement | null);
   if (range) range.value = String(index);
   updateSetupSkinSlider(index);
 }
 
-function handleLightSetupClick(event) {
-  const target = event.target;
+function handleLightSetupClick(event: Event) {
+  const target = event.target as Element | null;
   if (!target || typeof target.closest !== 'function') return;
-  const actionElement = /** @type {HTMLElement | null} */ (
-    target.closest('[data-light-setup-action]')
-  );
+  const actionElement = (target.closest('[data-light-setup-action]') as HTMLElement | null);
   if (!actionElement?.dataset) return;
 
   switch (actionElement.dataset.lightSetupAction || '') {
@@ -133,8 +139,8 @@ function handleLightSetupClick(event) {
   }
 }
 
-function handleLightSetupInput(event) {
-  const input = /** @type {HTMLInputElement} */ (event.target);
+function handleLightSetupInput(event: Event) {
+  const input = (event.target as HTMLInputElement);
   if (!input?.dataset?.lightSetupInput) return;
   switch (input.dataset.lightSetupInput) {
     case 'ott-score':
@@ -146,19 +152,17 @@ function handleLightSetupInput(event) {
   }
 }
 
-function handleLightSetupKeydown(event) {
-  const target = event.target;
+function handleLightSetupKeydown(event: Event) {
+  const target = event.target as Element | null;
   if (!target || typeof target.closest !== 'function') return;
-  const actionElement = /** @type {HTMLElement | null} */ (
-    target.closest('[data-light-setup-action="select-skin"]')
-  );
+  const actionElement = (target.closest('[data-light-setup-action="select-skin"]') as HTMLElement | null);
   if (!actionElement?.dataset) return;
   const index = parseSetupIndex(actionElement.dataset.lightSetupSkinIdx);
-  if (index != null) skinFaceKeydown(event, index);
+  if (index != null) skinFaceKeydown(event as KeyboardEvent, index);
 }
 
 export function installLightSetupDelegates(
-  root = typeof document !== 'undefined' ? document : null,
+  root: Document | Element | null = typeof document !== 'undefined' ? document : null,
 ) {
   if (!root || lightSetupDelegateRoots.has(root)) return;
   lightSetupDelegateRoots.add(root);
@@ -209,9 +213,7 @@ function openSunSetupOverlay() {
 
   setLightSetupStep('core', { focus: false });
   const focusBody = () => {
-    const body = /** @type {HTMLElement | null} */ (
-      overlay.querySelector('.light-setup-focus-body')
-    );
+    const body = (overlay.querySelector('.light-setup-focus-body') as HTMLElement | null);
     body?.focus({ preventScroll: true });
   };
   setTimeout(() => {
@@ -228,34 +230,30 @@ function closeSunSetupOverlay() {
   if (overlay) removeModalOverlay(overlay);
 }
 
-function setLightSetupStep(step, opts = {}) {
+function setLightSetupStep(step: string, opts: { focus?: boolean } = {}) {
   if (typeof document === 'undefined') return;
   const nextStep = step === 'score' ? 'score' : 'core';
-  const modal = /** @type {HTMLElement | null} */ (
-    document.querySelector('.light-setup-focus-modal')
-  );
+  const modal = (document.querySelector('.light-setup-focus-modal') as HTMLElement | null);
   if (!modal) return;
   modal.dataset.setupStep = nextStep;
   modal.querySelectorAll('[data-setup-tab]').forEach(tab => {
-    const setupTab = /** @type {HTMLElement} */ (tab);
+    const setupTab = (tab as HTMLElement);
     const active = setupTab.dataset.setupTab === nextStep;
     setupTab.classList.toggle('active', active);
     setupTab.setAttribute('aria-selected', active ? 'true' : 'false');
   });
   modal.querySelectorAll('[data-setup-pane]').forEach(pane => {
-    const setupPane = /** @type {HTMLElement} */ (pane);
+    const setupPane = (pane as HTMLElement);
     const active = setupPane.dataset.setupPane === nextStep;
     setupPane.toggleAttribute('hidden', !active);
   });
   const body = modal.querySelector('.light-setup-focus-body');
   if (body) body.scrollTop = 0;
   if (opts.focus !== false) {
-    const target = /** @type {HTMLElement | null} */ (
-      modal.querySelector(
+    const target = (modal.querySelector(
         `[data-setup-pane="${nextStep}"] .light-setup-title, `
         + `[data-setup-pane="${nextStep}"] h4`,
-      )
-    );
+      ) as HTMLElement | null);
     setTimeout(() => target?.focus({ preventScroll: true }), 0);
   }
 }
@@ -291,26 +289,24 @@ function clearLightSetupCurrentLocation() {
   return true;
 }
 
-function readSetupFieldValue(root, id) {
+function readSetupFieldValue(root: Element | null, id: string) {
   const element = root?.querySelector?.(`#${id}`);
   if (!element || !('value' in element)) return null;
   const value = String(element.value || '');
   return value || null;
 }
 
-function readSetupPhotosensitiveValue(root) {
+function readSetupPhotosensitiveValue(root: Element | null) {
   const element = root?.querySelector?.('#setup-photosensitive');
   if (!element) return 'unknown';
   const type = 'type' in element ? String(element.type || '') : '';
-  if (type === 'checkbox') return element.checked ? 'moderate' : 'none';
+  if (type === 'checkbox') return (element as HTMLInputElement).checked ? 'moderate' : 'none';
   return readSetupFieldValue(root, 'setup-photosensitive') || 'unknown';
 }
 
-export function collectSunSetupValues(root) {
+export function collectSunSetupValues(root: Element | null): CollectedSunSetup {
   if (!root) return { ok: false, reason: 'missing-root' };
-  const slider = /** @type {HTMLInputElement | null} */ (
-    root.querySelector('#setup-skin-range')
-  );
+  const slider = (root.querySelector('#setup-skin-range') as HTMLInputElement | null);
   const skinIndex = slider?.dataset?.set === '1'
     ? parseInt(slider.value || '', 10)
     : -1;
@@ -319,12 +315,10 @@ export function collectSunSetupValues(root) {
     : null;
   if (!fitzpatrick) return { ok: false, reason: 'skin-type-required' };
 
-  const ott = {};
+  const ott: Record<string, boolean> = {};
   let ottScore = 0;
   for (const question of OTT_QUESTIONS) {
-    const checkbox = /** @type {HTMLInputElement | null} */ (
-      root.querySelector(`input[data-ott="${question.key}"]`)
-    );
+    const checkbox = (root.querySelector(`input[data-ott="${question.key}"]`) as HTMLInputElement | null);
     if (checkbox) {
       ott[question.key] = !!checkbox.checked;
       if (checkbox.checked) ottScore++;
@@ -370,23 +364,17 @@ function updateOttRunningScore() {
   const checkboxes = root.querySelectorAll('input[data-ott]');
   let score = 0;
   checkboxes.forEach(checkbox => {
-    const input = /** @type {HTMLInputElement} */ (checkbox);
+    const input = (checkbox as HTMLInputElement);
     input.closest('.light-setup-ott-card')
       ?.classList.toggle('is-flagged', input.checked);
     if (input.checked) score++;
   });
   const value = root.querySelector('#ott-running-value');
   const alignedValue = root.querySelector('#ott-running-aligned');
-  const label = /** @type {HTMLElement | null} */ (
-    root.querySelector('#ott-running-label')
-  );
+  const label = (root.querySelector('#ott-running-label') as HTMLElement | null);
   const summary = root.querySelector('#ott-summary-score');
-  const meter = /** @type {HTMLElement | null} */ (
-    root.querySelector('#ott-running-score')
-  );
-  const fill = /** @type {HTMLElement | null} */ (
-    root.querySelector('#ott-score-fill')
-  );
+  const meter = (root.querySelector('#ott-running-score') as HTMLElement | null);
+  const fill = (root.querySelector('#ott-score-fill') as HTMLElement | null);
   const meta = ottScoreToLabel(score);
   if (value) value.textContent = `${score}/10`;
   if (alignedValue) alignedValue.textContent = `${score}/10`;
@@ -406,8 +394,8 @@ function updateOttRunningScore() {
   if (summary) summary.textContent = `${score}/10 selected`;
 }
 
-function updateSetupSkinSlider(value) {
-  const index = parseInt(value, 10);
+function updateSetupSkinSlider(value: string | number) {
+  const index = parseInt(value as string, 10);
   document.querySelectorAll('.light-setup-card .ctx-skin-face')
     .forEach((element, elementIndex) => {
       const active = elementIndex === index;
@@ -417,7 +405,7 @@ function updateSetupSkinSlider(value) {
   const label = document.getElementById('setup-skin-label');
   const valid = index >= 0 && index < SKIN_TYPE.length;
   const skinLabel = valid
-    ? SKIN_TYPE[index]
+    ? SKIN_TYPE[index]!
     : 'Tap a face or drag the slider';
   const descriptor = valid ? FITZPATRICK_DESCRIPTOR[index] : '';
   if (label) {
@@ -438,14 +426,14 @@ function updateSetupSkinSlider(value) {
   refreshSetupProgress();
 }
 
-function selectSetupChoice(button) {
+function selectSetupChoice(button: HTMLElement | null) {
   const group = button?.dataset?.choiceGroup;
   if (!group) return;
   const card = button.closest('.light-setup-card');
   const input = card?.querySelector(`#${group}`);
   if (!input) return;
-  input.value = button.dataset.value || '';
-  card.querySelectorAll(`[data-choice-group="${group}"]`).forEach(element => {
+  (input as HTMLInputElement).value = button.dataset.value || '';
+  card!.querySelectorAll(`[data-choice-group="${group}"]`).forEach(element => {
     const active = element === button;
     element.classList.toggle('active', active);
     element.setAttribute('aria-pressed', active ? 'true' : 'false');
@@ -456,15 +444,9 @@ function selectSetupChoice(button) {
 function refreshSetupProgress() {
   const card = document.querySelector('.light-setup-card');
   if (!card) return;
-  const skin = /** @type {HTMLInputElement | null} */ (
-    card.querySelector('#setup-skin-range')
-  );
-  const home = /** @type {HTMLSelectElement | null} */ (
-    card.querySelector('#setup-homelight')
-  );
-  const eyewear = /** @type {HTMLSelectElement | null} */ (
-    card.querySelector('#setup-eyewear')
-  );
+  const skin = (card.querySelector('#setup-skin-range') as HTMLInputElement | null);
+  const home = (card.querySelector('#setup-homelight') as HTMLSelectElement | null);
+  const eyewear = (card.querySelector('#setup-eyewear') as HTMLSelectElement | null);
   const filled = [
     skin?.dataset.set === '1',
     !!home?.value,
@@ -492,9 +474,9 @@ async function dismissSunSetup() {
   navigateSunDefaultsRoute('light');
 }
 
-function skinFaceKeydown(event, index) {
+function skinFaceKeydown(event: KeyboardEvent, index: number) {
   const max = FITZPATRICK_ROMAN.length - 1;
-  let next = null;
+  let next: number | null = null;
   switch (event.key) {
     case 'ArrowRight':
     case 'ArrowDown': next = (index + 1) % (max + 1); break;
@@ -505,9 +487,7 @@ function skinFaceKeydown(event, index) {
     case 'Enter':
     case ' ': {
       event.preventDefault();
-      const range = /** @type {HTMLInputElement | null} */ (
-        document.getElementById('setup-skin-range')
-      );
+      const range = (document.getElementById('setup-skin-range') as HTMLInputElement | null);
       if (range) range.value = String(index);
       updateSetupSkinSlider(index);
       return;
@@ -515,9 +495,7 @@ function skinFaceKeydown(event, index) {
   }
   if (next == null) return;
   event.preventDefault();
-  const target = /** @type {HTMLElement | null} */ (
-    document.querySelector(`.ctx-skin-face[data-idx="${next}"]`)
-  );
+  const target = (document.querySelector(`.ctx-skin-face[data-idx="${next}"]`) as HTMLElement | null);
   target?.focus();
 }
 

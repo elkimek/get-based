@@ -1,10 +1,19 @@
-// @ts-check
 // sun-defaults-runtime.js - Browser runtime adapters for Light setup defaults.
 
+import type { SunSetupCoords } from './sun-defaults-model.js';
 import { getProfileLocation } from './profile.js';
 
-/** @type {{ getProfileLocation: AnyFunction, getSunCoords: AnyFunction | null, navigate: AnyFunction | null, requestPreciseLocation: AnyFunction | null, clearCurrentLocation: AnyFunction | null, openProfileLocationEditor: AnyFunction | null, openClientList: AnyFunction | null }} */
-const sunDefaultsRuntimeDeps = {
+export interface SunDefaultsRuntimeDeps {
+  getProfileLocation: () => ReturnType<typeof getProfileLocation> | null;
+  getSunCoords: (() => SunSetupCoords | null) | null;
+  navigate: ((route: string) => unknown) | null;
+  requestPreciseLocation: (() => SunSetupCoords | null | PromiseLike<SunSetupCoords | null>) | null;
+  clearCurrentLocation: (() => unknown) | null;
+  openProfileLocationEditor: (() => unknown) | null;
+  openClientList: (() => unknown) | null;
+}
+
+const sunDefaultsRuntimeDeps: SunDefaultsRuntimeDeps = {
   getProfileLocation,
   getSunCoords: null,
   navigate: null,
@@ -14,12 +23,12 @@ const sunDefaultsRuntimeDeps = {
   openClientList: null,
 };
 
-export function configureSunDefaultsRuntimeDeps(deps = {}) {
+export function configureSunDefaultsRuntimeDeps(deps: Partial<SunDefaultsRuntimeDeps> = {}) {
   const previous = { ...sunDefaultsRuntimeDeps };
   if (typeof deps.getProfileLocation === 'function') sunDefaultsRuntimeDeps.getProfileLocation = deps.getProfileLocation;
-  for (const name of ['getSunCoords', 'navigate', 'requestPreciseLocation', 'clearCurrentLocation', 'openProfileLocationEditor', 'openClientList']) {
+  for (const name of ['getSunCoords', 'navigate', 'requestPreciseLocation', 'clearCurrentLocation', 'openProfileLocationEditor', 'openClientList'] as const) {
     if (name in deps) {
-      sunDefaultsRuntimeDeps[name] = typeof deps[name] === 'function' ? deps[name] : null;
+      (sunDefaultsRuntimeDeps as Record<typeof name, typeof deps[typeof name]>)[name] = typeof deps[name] === 'function' ? deps[name] : null;
     }
   }
   return previous;
@@ -77,7 +86,6 @@ export function clearSunSetupCurrentLocationRuntime() {
   }
 }
 
-/** @param {string} route */
-export function navigateSunDefaultsRoute(route) {
+export function navigateSunDefaultsRoute(route: string) {
   sunDefaultsRuntimeDeps.navigate?.(route);
 }

@@ -111,7 +111,7 @@ installLightSetupDelegates(delegateDom.window.document);
     swSrc.includes("'/js/sun-defaults-setup-renderer.js'"));
   assert('sun-defaults AI hooks route through startup wiring',
     typeof configureSunDefaults === 'function' &&
-    sunDefaultsUiSrc.includes('maybeAnalyzeOnboardingAfterSave: () => {}') &&
+    /maybeAnalyzeOnboardingAfterSave:\s*\(\)\s*=>\s*\{\s*\}/.test(sunDefaultsUiSrc) &&
     onboardingAiSrc.includes('registerAIActionHandler') &&
     !onboardingAiSrc.includes('Object.assign(window, {') &&
     !onboardingAiSrc.includes('window.refreshOnboardingAIAnalysis') &&

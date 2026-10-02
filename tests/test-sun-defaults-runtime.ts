@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { setRuntimeValue, captureRuntimeGlobals } from './helpers/runtime-globals.js';
+import { captureRuntimeGlobals } from './helpers/runtime-globals.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-sun-defaults-runtime.js - Light setup browser adapter behavior.
 
@@ -27,7 +27,7 @@ const restoreRuntime = captureRuntimeGlobals(runtimeKeys);
 const originalSunDefaultsRuntimeDeps = configureSunDefaultsRuntimeDeps();
 
 try {
-  const calls = [];
+  const calls: string[][] = [];
   configureSunDefaultsRuntimeDeps({
     getSunCoords: () => ({ lat: 50.08, lon: 14.42, source: 'profile-precise' }),
     getProfileLocation: () => ({ country: 'Czech Republic', zip: '' }),
@@ -82,7 +82,7 @@ try {
     requestSunSetupPreciseLocationRuntime() === null &&
     clearSunSetupCurrentLocationRuntime() === false);
 
-  delete globalThis.window;
+  delete (globalThis as { window?: Window }).window;
   const beforeNoWindowCalls = calls.length;
   navigateSunDefaultsRoute('light');
   assert('runtime adapter no-ops safely when window is missing',
@@ -100,14 +100,14 @@ try {
 
 const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
 try {
-  delete globalThis.window;
-  await import('../js/sun-defaults-runtime.js?no-window-probe');
+  delete (globalThis as { window?: Window }).window;
+  await import('../js/sun-defaults-runtime.js?no-window-probe' as string);
   assert('sun-defaults runtime imports without a browser window', true);
 } catch (error) {
-  assert('sun-defaults runtime imports without a browser window', false, error?.message || String(error));
+  assert('sun-defaults runtime imports without a browser window', false, (error as Error | null)?.message || String(error));
 } finally {
   if (savedWindow) Object.defineProperty(globalThis, 'window', savedWindow);
-  else delete globalThis.window;
+  else delete (globalThis as { window?: Window }).window;
 }
 
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
