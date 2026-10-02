@@ -1,12 +1,12 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-const storage = vi.hoisted(() => ({ get: vi.fn(), set: vi.fn(), notify: vi.fn() }));
+const storage = vi.hoisted(() => ({ get: vi.fn<(key: string) => Promise<string | null>>(), set: vi.fn<(key: string, value: string) => Promise<void>>(), notify: vi.fn() }));
 vi.mock('../js/crypto.js', () => ({ encryptedGetItem: storage.get, encryptedSetItem: storage.set }));
 vi.mock('../js/utils.js', () => ({ showNotification: storage.notify }));
 import { state, resetCorrelationSelection } from '../js/state.js';
 import { normalizeCorrelationWorkspace, saveCorrelationWorkspace, restoreCorrelationWorkspace } from '../js/correlation-workspace-store.js';
-let values;
+let values: Map<string, string>;
 beforeEach(() => {
-  values = new Map();
+  values = new Map<string, string>();
   storage.get.mockReset().mockImplementation(async key => values.get(key) ?? null);
   storage.set.mockReset().mockImplementation(async (key, value) => { values.set(key, value); });
   storage.notify.mockClear();
@@ -34,8 +34,8 @@ it('restores selection and view separately for each profile, including an intent
   expect(state.selectedCorrelationMarkers).toEqual([]);
 });
 it('serializes rapid saves and captures the initiating profile', async () => {
-  let release;
-  storage.set.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+  let release!: () => void;
+  storage.set.mockImplementationOnce(() => new Promise<void>(resolve => { release = resolve; }));
   state.selectedCorrelationMarkers = ['first'];
   const first = saveCorrelationWorkspace();
   await Promise.resolve();
@@ -44,12 +44,12 @@ it('serializes rapid saves and captures the initiating profile', async () => {
   state.currentProfile = 'bob';
   expect(storage.set).toHaveBeenCalledTimes(1);
   release(); await first; await latest;
-  expect(JSON.parse(storage.set.mock.calls[1][1]).markers).toEqual(['latest']);
+  expect(JSON.parse(storage.set.mock.calls[1]![1]).markers).toEqual(['latest']);
   expect(storage.set.mock.calls.every(([key]) => key === 'labcharts-alice-correlation-workspace')).toBe(true);
 });
 it('ignores a late restore after switching profiles', async () => {
-  let release;
-  storage.get.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+  let release!: (value: string) => void;
+  storage.get.mockImplementationOnce(() => new Promise<string>(resolve => { release = resolve; }));
   const pending = restoreCorrelationWorkspace('alice');
   await Promise.resolve();
   state.currentProfile = 'bob'; state.selectedCorrelationMarkers = ['bob-marker'];
@@ -71,5 +71,5 @@ it('reports failed saves and allows the next edit to retry', async () => {
   await saveCorrelationWorkspace();
   expect(storage.notify).toHaveBeenCalled();
   state.selectedCorrelationMarkers = ['retry']; await saveCorrelationWorkspace();
-  expect(JSON.parse(values.get('labcharts-alice-correlation-workspace')).markers).toEqual(['retry']);
+  expect(JSON.parse(values.get('labcharts-alice-correlation-workspace')!).markers).toEqual(['retry']);
 });

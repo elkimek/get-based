@@ -1,4 +1,3 @@
-// @ts-check
 // AI context-source preferences, cache fingerprinting, and invalidation.
 
 import { state } from './state.js';
@@ -14,22 +13,25 @@ import {
   setWearableContextEnabledState,
 } from './lab-context-wearables.js';
 
-/** @type {{ fingerprint: string | null, context: string | null }} */
-let labContextCache = { fingerprint: null, context: null };
+import type { ProfileData } from '../types/app-state.js';
+
+interface LabContextCache { fingerprint: string | null; context: string | null }
+interface BiologyScoreContextSettings { includeLightContext?: unknown }
+
+let labContextCache: LabContextCache = { fingerprint: null, context: null };
 
 export const NUTRITION_CONTEXT_DAY_OPTIONS = Object.freeze([7, 30, 90]);
 
-/** @param {unknown} days @returns {7|30|90} */
-export function normalizeNutritionContextDays(days) {
+export function normalizeNutritionContextDays(days: unknown): 7 | 30 | 90 {
   const value = Number(days);
   return value === 7 || value === 30 || value === 90 ? value : 30;
 }
 
-export function getNutritionContextDays(data = state.importedData) {
+export function getNutritionContextDays(data: Pick<ProfileData, 'nutritionContextDays'> | null | undefined = state.importedData) {
   return normalizeNutritionContextDays(data?.nutritionContextDays);
 }
 
-export function setNutritionContextDays(days) {
+export function setNutritionContextDays(days: unknown) {
   if (!state.importedData || typeof state.importedData !== 'object') return 30;
   const value = normalizeNutritionContextDays(days);
   state.importedData.nutritionContextDays = value;
@@ -42,8 +44,8 @@ function getActiveContextProfileId() {
   catch { return state.currentProfile || 'default'; }
 }
 
-function getStoredContextPreferencePart(profileId) {
-  const stored = [];
+function getStoredContextPreferencePart(profileId: string) {
+  const stored: string[] = [];
   try {
     const scopedPrefix = `labcharts-${profileId}-ai-ctx-`;
     const legacyPrefix = 'labcharts-ai-ctx-';
@@ -102,13 +104,13 @@ export function getLabContextFingerprint() {
   ].join('|'));
 }
 
-export function getCachedLabContext(fingerprint) {
+export function getCachedLabContext(fingerprint: string) {
   return labContextCache.fingerprint === fingerprint && labContextCache.context
     ? labContextCache.context
     : null;
 }
 
-export function setCachedLabContext(fingerprint, context) {
+export function setCachedLabContext(fingerprint: string, context: string) {
   labContextCache = { fingerprint, context };
 }
 
@@ -116,12 +118,12 @@ export function invalidateLabContextCache() {
   labContextCache = { fingerprint: null, context: null };
 }
 
-function groupContextLegacyKey(groupName) {
+function groupContextLegacyKey(groupName: unknown) {
   const group = String(groupName || '').replace(/[\u0000-\u001F\u007F]/g, ' ').trim();
   return group ? `labcharts-ai-ctx-${group}` : null;
 }
 
-export function isGroupInAIContext(groupName) {
+export function isGroupInAIContext(groupName: unknown) {
   const slug = getLabGroupContextSourceSlug(groupName);
   if (!slug) return true;
   return isContextSourceEnabled(slug, {
@@ -130,7 +132,7 @@ export function isGroupInAIContext(groupName) {
   });
 }
 
-export function setGroupInAIContext(groupName, val) {
+export function setGroupInAIContext(groupName: unknown, val: unknown) {
   const slug = getLabGroupContextSourceSlug(groupName);
   if (!slug) return;
   setContextSourceEnabled(slug, !!val, { legacyKey: groupContextLegacyKey(groupName) });
@@ -141,20 +143,20 @@ export function isGeneticsInventoryInAIContext() {
   return isContextSourceEnabled(CONTEXT_SOURCE_IDS.GENOME_INVENTORY);
 }
 
-export function setGeneticsInventoryInAIContext(on) {
+export function setGeneticsInventoryInAIContext(on: unknown) {
   setContextSourceEnabled(CONTEXT_SOURCE_IDS.GENOME_INVENTORY, on);
   invalidateLabContextCache();
 }
 
 function biologyScoreContextSettings() {
-  const imported = /** @type {any} */ (state.importedData || {});
+  const imported = (state.importedData || {}) as { biologyScoreContextSettings?: BiologyScoreContextSettings };
   if (!imported.biologyScoreContextSettings || typeof imported.biologyScoreContextSettings !== 'object') {
     imported.biologyScoreContextSettings = {};
   }
   return imported.biologyScoreContextSettings;
 }
 
-function setProfileContextEnabled(slug, on, legacyKey = null) {
+function setProfileContextEnabled(slug: string, on: unknown, legacyKey: string | null = null) {
   setContextSourceEnabled(slug, on, { legacyKey });
   invalidateLabContextCache();
 }
@@ -163,7 +165,7 @@ export function isInsightContextCardsEnabled() {
   return isContextSourceEnabled(CONTEXT_SOURCE_IDS.INSIGHT_CARDS);
 }
 
-export function setInsightContextCardsEnabled(on) {
+export function setInsightContextCardsEnabled(on: unknown) {
   setProfileContextEnabled(CONTEXT_SOURCE_IDS.INSIGHT_CARDS, on);
 }
 
@@ -171,7 +173,7 @@ export function isSupplementsMedsContextEnabled() {
   return isContextSourceEnabled(CONTEXT_SOURCE_IDS.SUPPLEMENTS_MEDS);
 }
 
-export function setSupplementsMedsContextEnabled(on) {
+export function setSupplementsMedsContextEnabled(on: unknown) {
   setProfileContextEnabled(CONTEXT_SOURCE_IDS.SUPPLEMENTS_MEDS, on);
 }
 
@@ -179,7 +181,7 @@ export function isLabMarkersContextEnabled() {
   return isContextSourceEnabled(CONTEXT_SOURCE_IDS.LAB_MARKERS);
 }
 
-export function setLabMarkersContextEnabled(on) {
+export function setLabMarkersContextEnabled(on: unknown) {
   setProfileContextEnabled(CONTEXT_SOURCE_IDS.LAB_MARKERS, on);
 }
 
@@ -187,7 +189,7 @@ export function isGeneticsSummaryInAIContext() {
   return isContextSourceEnabled(CONTEXT_SOURCE_IDS.GENOME_SUMMARY);
 }
 
-export function setGeneticsSummaryInAIContext(on) {
+export function setGeneticsSummaryInAIContext(on: unknown) {
   setProfileContextEnabled(CONTEXT_SOURCE_IDS.GENOME_SUMMARY, on);
 }
 
@@ -195,7 +197,7 @@ export function isGeneticsPriorityInAIContext() {
   return isContextSourceEnabled(CONTEXT_SOURCE_IDS.GENOME_PRIORITY);
 }
 
-export function setGeneticsPriorityInAIContext(on) {
+export function setGeneticsPriorityInAIContext(on: unknown) {
   setProfileContextEnabled(CONTEXT_SOURCE_IDS.GENOME_PRIORITY, on);
 }
 
@@ -205,13 +207,13 @@ export function isLightSunContextEnabled() {
   });
 }
 
-export function setLightSunContextEnabled(on) {
+export function setLightSunContextEnabled(on: unknown) {
   setContextSourceEnabled(CONTEXT_SOURCE_IDS.LIGHT_SUN, on);
   biologyScoreContextSettings().includeLightContext = !!on;
   invalidateLabContextCache();
 }
 
-export function setWearableContextEnabled(on) {
+export function setWearableContextEnabled(on: unknown) {
   setWearableContextEnabledState(on);
   invalidateLabContextCache();
 }
@@ -220,7 +222,7 @@ export function isNutritionContextEnabled() {
   return isContextSourceEnabled(CONTEXT_SOURCE_IDS.NUTRITION);
 }
 
-export function setNutritionContextEnabled(on) {
+export function setNutritionContextEnabled(on: unknown) {
   setContextSourceEnabled(CONTEXT_SOURCE_IDS.NUTRITION, !!on);
   invalidateLabContextCache();
 }

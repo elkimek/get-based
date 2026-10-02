@@ -47,8 +47,8 @@ describe('profile wearable refresh dependency', () => {
     const previousProfile = state.currentProfile;
     const previousImportedData = state.importedData;
     const previousActiveProfile = localStorage.getItem('labcharts-active-profile');
-    let finishRefresh;
-    const refreshProfileWearables = vi.fn(() => new Promise(resolve => {
+    let finishRefresh!: () => void;
+    const refreshProfileWearables = vi.fn(() => new Promise<void>(resolve => {
       finishRefresh = resolve;
     }));
     const previousDeps = configureProfileRuntimeDeps({

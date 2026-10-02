@@ -1,27 +1,33 @@
-// @ts-check
 import { state } from './state.js';
 import { encryptedGetItem, encryptedSetItem } from './crypto.js';
 import { profileStorageKey } from './profile-storage-key.js';
 import { showNotification } from './utils.js';
 
-const writes = new Map();
+interface CorrelationWorkspaceInput { markers?: unknown; therapies?: unknown; view?: unknown }
+interface CorrelationWorkspaceView extends Record<string, unknown> {
+  rangePreset?: string; grouping?: string; layout?: string; tab?: string;
+  start?: string; end?: string; inspectDate?: string; pairKey?: string;
+  analysisOpen?: boolean; hidden?: string[]; ingredients?: Record<string, string>;
+}
+
+const writes = new Map<string, Promise<void>>();
 let restoreVersion = 0;
-const strings = value => Array.isArray(value) ? [...new Set(value.filter(v => typeof v === 'string' && v.length > 0 && v.length <= 256))] : [];
+const strings = (value: unknown): string[] => Array.isArray(value) ? [...new Set(value.filter(v => typeof v === 'string' && v.length > 0 && v.length <= 256))] : [];
 
 /** Keep a small versioned preference record, never chart objects or lab values. */
-export function normalizeCorrelationWorkspace(input) {
-  const markers = strings(input?.markers).slice(0, 8);
-  const therapies = strings(input?.therapies).slice(0, 8 - markers.length);
-  const raw = input?.view || {};
-  const view = {};
+export function normalizeCorrelationWorkspace(input: unknown) {
+  const markers = strings((input as CorrelationWorkspaceInput | null | undefined)?.markers).slice(0, 8);
+  const therapies = strings((input as CorrelationWorkspaceInput | null | undefined)?.therapies).slice(0, 8 - markers.length);
+  const raw = ((input as CorrelationWorkspaceInput | null | undefined)?.view || {}) as Record<string, unknown>;
+  const view: CorrelationWorkspaceView = {};
   for (const [key, allowed] of Object.entries({ rangePreset: ['3m', '6m', '1y', 'all', 'custom'], grouping: ['combined', 'separate'], layout: ['overlay', 'lanes'], tab: ['timeline', 'scatter', 'data'] })) {
-    if (allowed.includes(raw[key])) view[key] = raw[key];
+    if (allowed.includes(raw[key] as string)) view[key] = raw[key];
   }
   for (const key of ['start', 'end', 'inspectDate']) if (typeof raw[key] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw[key])) view[key] = raw[key];
   if (typeof raw.pairKey === 'string' && raw.pairKey.length <= 1024) view.pairKey = raw.pairKey;
   if (typeof raw.analysisOpen === 'boolean') view.analysisOpen = raw.analysisOpen;
   view.hidden = strings(raw.hidden).filter(id => markers.includes(id) || therapies.includes(id));
-  view.ingredients = Object.fromEntries(therapies.flatMap(id => typeof raw.ingredients?.[id] === 'string' && raw.ingredients[id].length <= 256 ? [[id, raw.ingredients[id]]] : []));
+  view.ingredients = Object.fromEntries(therapies.flatMap(id => typeof (raw.ingredients as Record<string, unknown> | null | undefined)?.[id] === 'string' && (raw.ingredients as Record<string, string>)[id]!.length <= 256 ? [[id, (raw.ingredients as Record<string, string>)[id]!]] : []));
   return { version: 1, markers, therapies, view };
 }
 
@@ -38,7 +44,7 @@ export function saveCorrelationWorkspace() {
   return pending;
 }
 
-export async function restoreCorrelationWorkspace(profile) {
+export async function restoreCorrelationWorkspace(profile: string) {
   const version = ++restoreVersion;
   try {
     await writes.get(profile);

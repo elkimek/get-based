@@ -332,7 +332,7 @@ export async function saveChatLocation() {
   // send anything to a geocoder; postal refinement happens in Profile.
   const cacheKey = (country + '|').toLowerCase();
   const rawCached = getLocationCache()[cacheKey];
-  const cached = Number.isFinite(rawCached) ? Number(rawCached) : Number(rawCached?.lat ?? rawCached?.latitude);
+  const cached = Number.isFinite(rawCached) ? Number(rawCached) : Number((/** @type {import('./profile.js').LocationCacheEntry | undefined} */ (rawCached))?.lat ?? (/** @type {import('./profile.js').LocationCacheEntry | undefined} */ (rawCached))?.latitude);
   if (Number.isFinite(cached)) {
     const band = latitudeToBand(cached);
     el.style.color = 'var(--green)';

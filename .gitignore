@@ -559,3 +559,9 @@ deploy/profile-share/data/
 
 /js/profile-data-migrations.js
 /js/light-env-evening.js
+
+/js/profile.js
+/js/profile-list-store.js
+/js/lab-context-settings.js
+/js/lab-context-wearables.js
+/js/correlation-workspace-store.js

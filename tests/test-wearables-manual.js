@@ -454,7 +454,7 @@ try {
     /tags: \$\{r\.tags\.join\(', '\)\}/.test(labCtxSrc) &&
     /note: "\$\{r\.note\.trim\(\)\}"/.test(labCtxSrc));
   assert('Wearable series section degrades gracefully when only context rows exist',
-    /if \(lines\.length === 0 && !contextBlock\) return ''[\s\S]{0,200}if \(lines\.length === 0\)/.test(labCtxSrc));
+    /if \(lines\.length === 0 && !contextBlock\)\s+return ''[\s\S]{0,200}if \(lines\.length === 0\)/.test(labCtxSrc));
 
 } finally {
   // Tear down every test sub-profile's IDB (consistent with

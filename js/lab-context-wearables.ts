@@ -1,4 +1,3 @@
-// @ts-check
 // lab-context-wearables.js — Wearable AI-context summary and agent-series helpers.
 
 import { state } from './state.js';
@@ -11,7 +10,28 @@ import {
 import { getDailyRange } from './wearables-store.js';
 import { getActiveProfileId } from './profile.js';
 
-const PROFILE_SLEEP_DURATION_RANGES = {
+import type { SleepContext } from '../types/profile-context-data.js';
+import type { StoredWearableRow } from './wearable-storage-types.js';
+
+interface WearableContextMetric {
+  latest: number;
+  baseline?: number | null;
+  trend30d?: unknown;
+  primarySource: string;
+  weekly?: unknown[];
+  rolling?: { d7?: unknown };
+}
+interface WearableContextSummary {
+  sources: Record<string, { coverageDays?: number }>;
+  metrics: Record<string, WearableContextMetric>;
+}
+interface WearableContextData {
+  wearableSummary?: WearableContextSummary | null;
+  changeHistory?: Array<{ type?: string; ts?: string | number; message?: string; kind?: string; metricId?: string }>;
+}
+interface BiologyScoreContextSettings { includeBodyContext?: unknown }
+
+const PROFILE_SLEEP_DURATION_RANGES: Record<string, [number | null, number | null]> = {
   '<5h': [null, 5],
   '5-6h': [5, 6],
   '6-7h': [6, 7],
@@ -20,7 +40,7 @@ const PROFILE_SLEEP_DURATION_RANGES = {
   '9+h': [9, null],
 };
 
-function recentMetricValue(metric) {
+function recentMetricValue(metric: { rolling?: { d7?: unknown }; latest?: unknown } | undefined) {
   const value = metric?.rolling?.d7 ?? metric?.latest;
   if (value == null || value === '') return null;
   return Number.isFinite(Number(value)) ? Number(value) : null;
@@ -31,17 +51,14 @@ function recentMetricValue(metric) {
  * recent tracked data. Neither source wins: self-report describes the usual
  * experience while wearables describe a recent, device-dependent period.
  *
- * @param {any} sleepRest
- * @param {any} wearableSummary
- * @returns {null | { reasons: string[], summary: string, trackedDurationHours: number | null, trackedSleepScore: number | null }}
  */
-export function getSleepContextMismatch(sleepRest, wearableSummary) {
+export function getSleepContextMismatch(sleepRest: SleepContext | null | undefined, wearableSummary: WearableContextSummary | null | undefined) {
   if (!sleepRest || !wearableSummary?.metrics) return null;
   const trackedMinutes = recentMetricValue(wearableSummary.metrics.sleep_total_min);
   const trackedDurationHours = trackedMinutes == null ? null : trackedMinutes / 60;
   const trackedSleepScore = recentMetricValue(wearableSummary.metrics.sleep_score);
-  const reasons = [];
-  const selectedRange = PROFILE_SLEEP_DURATION_RANGES[sleepRest.duration];
+  const reasons: string[] = [];
+  const selectedRange = PROFILE_SLEEP_DURATION_RANGES[sleepRest.duration!];
   if (selectedRange && trackedDurationHours != null) {
     const [low, high] = selectedRange;
     const outsideLow = low != null && trackedDurationHours < low - 0.75;
@@ -68,7 +85,7 @@ export function getSleepContextMismatch(sleepRest, wearableSummary) {
 }
 
 function _biologyScoreContextSettings() {
-  const imported = /** @type {any} */ (state.importedData || {});
+  const imported = (state.importedData || {}) as { biologyScoreContextSettings?: BiologyScoreContextSettings };
   if (!imported.biologyScoreContextSettings || typeof imported.biologyScoreContextSettings !== 'object') {
     imported.biologyScoreContextSettings = {};
   }
@@ -85,7 +102,7 @@ export function isWearableContextEnabled() {
   });
 }
 
-export function setWearableContextEnabledState(on) {
+export function setWearableContextEnabledState(on: unknown) {
   setContextSourceEnabled(CONTEXT_SOURCE_IDS.WEARABLES, on);
   _biologyScoreContextSettings().includeBodyContext = !!on;
 }
@@ -93,25 +110,25 @@ export function setWearableContextEnabledState(on) {
 // Metric labels + units are derived from the canonical registry (single source
 // of truth in wearable-adapters.js). Adding a new canonical metric automatically
 // flows into the AI context — no duplicated tables to drift out of sync.
-function metricLabel(mid) {
-  const c = CANONICAL_METRICS[mid];
+function metricLabel(mid: string) {
+  const c = CANONICAL_METRICS[mid as keyof typeof CANONICAL_METRICS];
   if (!c) return mid;
   return c.sub ? `${c.label} (${c.sub})` : c.label;
 }
 
-function metricUnit(mid) {
-  return CANONICAL_METRICS[mid]?.unit || '';
+function metricUnit(mid: string) {
+  return CANONICAL_METRICS[mid as keyof typeof CANONICAL_METRICS]?.unit || '';
 }
 
 // Builds ~200-token summary of wearable state. Shape is deliberately terse so
 // it can be included in every prompt without blowing context budget.
-export function buildWearableContext(importedData) {
+export function buildWearableContext(importedData: WearableContextData | null | undefined) {
   const summary = importedData?.wearableSummary;
   if (!summary || !summary.sources || Object.keys(summary.sources).length === 0) return '';
   if (!summary.metrics || Object.keys(summary.metrics).length === 0) return '';
 
   const sourceNames = Object.keys(summary.sources);
-  const maxCov = Math.max(0, ...sourceNames.map(s => summary.sources[s].coverageDays || 0));
+  const maxCov = Math.max(0, ...sourceNames.map(s => summary.sources[s]!.coverageDays || 0));
   const lines = [`## Wearables (${sourceNames.join(' + ')}, ${maxCov}d coverage)`];
 
   // Cluster roll-ups (#143 + Withings full-coverage). Body composition
@@ -139,12 +156,12 @@ export function buildWearableContext(importedData) {
 
   // Body composition roll-up.
   if (bodyCompPresent.length) {
-    const shortLabels = {
+    const shortLabels: Record<string, string> = {
       body_fat_pct: 'fat', fat_mass_kg: 'fatkg', muscle_mass_kg: 'muscle', lean_mass_kg: 'lean',
       bone_mass_kg: 'bone', water_mass_kg: 'water', visceral_fat: 'visceral', nerve_health_score: 'nerve',
     };
     const parts = bodyCompPresent.map(k => {
-      const m = summary.metrics[k];
+      const m = summary.metrics[k]!;
       const unit = metricUnit(k);
       const v = unit === '%' ? `${m.latest}%`
               : unit === 'kg' ? `${m.latest}kg`
@@ -156,13 +173,13 @@ export function buildWearableContext(importedData) {
 
   // Sleep architecture roll-up — Withings nightly stages + breathing.
   if (sleepArchPresent.length) {
-    const shortLabels = {
+    const shortLabels: Record<string, string> = {
       sleep_total_min: 'total', sleep_deep_min: 'deep', sleep_light_min: 'light',
       sleep_rem_min: 'REM', sleep_awake_min: 'awake', sleep_hr_avg: 'HR',
       sleep_breathing_rate: 'br', sleep_snoring_min: 'snore', sleep_breath_disturb: 'apnea',
     };
     const parts = sleepArchPresent.map(k => {
-      const m = summary.metrics[k];
+      const m = summary.metrics[k]!;
       const unit = metricUnit(k);
       const v = unit === 'min' ? `${m.latest}m`
               : unit === 'bpm' ? `${m.latest}bpm`
@@ -176,7 +193,7 @@ export function buildWearableContext(importedData) {
   // Compact weekly series for every default-order metric that has data — lets
   // the AI see shape without per-day noise. Walks the registry order so new
   // canonical metrics get included automatically.
-  const weeklySeriesLines = [];
+  const weeklySeriesLines: string[] = [];
   for (const mid of DEFAULT_METRIC_ORDER) {
     const w = summary.metrics[mid]?.weekly;
     if (w && w.length >= 2) weeklySeriesLines.push(`  ${metricLabel(mid)}: ${w.slice(-6).join('→')}`);
@@ -225,9 +242,9 @@ const AGENT_SERIES_DEFAULT_DAYS = 30;
 const AGENT_SERIES_VALID = new Set(['off', '7', '30', '90']);
 
 function _agentAccessState() {
-  const imported = /** @type {any} */ (state.importedData || {});
+  const imported = (state.importedData || {}) as { agentAccess?: unknown };
   const aa = imported.agentAccess;
-  return aa && typeof aa === 'object' ? aa : null;
+  return aa && typeof aa === 'object' ? aa as { wearableSeriesDays?: unknown } : null;
 }
 
 // Valid positive synced windows. Keep this in sync with AGENT_SERIES_DAYS in
@@ -237,7 +254,7 @@ function _agentAccessState() {
 const AGENT_SERIES_SYNC_POSITIVE_DAYS = [7, 30, 90];
 
 function _syncedAgentSeriesDays() {
-  const imported = /** @type {any} */ (state.importedData || {});
+  const imported = (state.importedData || {}) as { agentAccessWearableSeriesDays?: unknown };
   const split = imported.agentAccessWearableSeriesDays;
   if (typeof split === 'number') return AGENT_SERIES_SYNC_POSITIVE_DAYS.includes(split) ? split : 0;
   const aa = _agentAccessState();
@@ -266,7 +283,7 @@ export function getAgentWearableSeriesDays() {
   return 0;
 }
 
-export function setAgentWearableSeriesDays(days) {
+export function setAgentWearableSeriesDays(days: unknown) {
   // Accept 0 / 7 / 30 / 90 numerically, plus 'off' string for clarity.
   const v = (days === 0 || days === 'off') ? 'off' : String(days);
   if (!AGENT_SERIES_VALID.has(v)) return;
@@ -277,15 +294,15 @@ export function setAgentWearableSeriesDays(days) {
 // new tri-state replaces it; keep these around so a stale page.html with
 // the old toggle markup doesn't crash.
 export function isAgentWearableSeriesEnabled() { return getAgentWearableSeriesDays() > 0; }
-export function setAgentWearableSeriesEnabled(on) { setAgentWearableSeriesDays(on ? AGENT_SERIES_DEFAULT_DAYS : 0); }
+export function setAgentWearableSeriesEnabled(on: unknown) { setAgentWearableSeriesDays(on ? AGENT_SERIES_DEFAULT_DAYS : 0); }
 
-export async function buildWearableSeriesSection(days, options = {}) {
+export async function buildWearableSeriesSection(days?: number | null, options: { ignoreContextToggles?: boolean | undefined } = {}) {
   if (!options.ignoreContextToggles && !isWearableContextEnabled()) return '';
   // If `days` not provided, read user preference. 0/off = no section.
   const N = (days != null) ? days : getAgentWearableSeriesDays();
   if (!N || N <= 0) return '';
   days = N;
-  const summary = state.importedData?.wearableSummary;
+  const summary = state.importedData?.wearableSummary as WearableContextSummary | null | undefined;
   if (!summary?.metrics || Object.keys(summary.metrics).length === 0) return '';
 
   const profileId = getActiveProfileId();
@@ -297,7 +314,7 @@ export async function buildWearableSeriesSection(days, options = {}) {
   const startStr = startD.toISOString().slice(0, 10);
 
   // Build the date axis once (chronological, oldest → newest).
-  const dates = [];
+  const dates: string[] = [];
   const cursor = new Date(startStr + 'T00:00:00Z');
   const endDate = new Date(today + 'T00:00:00Z');
   while (cursor <= endDate) {
@@ -307,11 +324,11 @@ export async function buildWearableSeriesSection(days, options = {}) {
 
   // Each metric reads from its primary source (per the L2 picker / override).
   // Group sources so we don't pull the same IDB cursor twice.
-  const sourcesNeeded = new Set();
+  const sourcesNeeded = new Set<string>();
   for (const m of Object.values(summary.metrics)) {
     if (m.primarySource) sourcesNeeded.add(m.primarySource);
   }
-  const rowsBySource = {};
+  const rowsBySource: Record<string, StoredWearableRow[]> = {};
   for (const sid of sourcesNeeded) {
     try { rowsBySource[sid] = await getDailyRange(profileId, sid, startStr, today); }
     catch { rowsBySource[sid] = []; }
@@ -320,7 +337,7 @@ export async function buildWearableSeriesSection(days, options = {}) {
   // Pivot: one line per metric, chronological values separated by → (no-data = —).
   // Values rounded to 1dp to keep tokens tight without losing meaningful precision
   // for HRV (often 30-50 ms range, ~30 % is noise) or RHR.
-  const lines = [];
+  const lines: string[] = [];
   for (const mid of DEFAULT_METRIC_ORDER) {
     const m = summary.metrics[mid];
     if (!m) continue;
@@ -359,7 +376,7 @@ export async function buildWearableSeriesSection(days, options = {}) {
   let contextBlock = '';
   if (contextRows.length > 0) {
     const contextLines = contextRows.map(r => {
-      const parts = [];
+      const parts: string[] = [];
       if (Array.isArray(r.tags) && r.tags.length) parts.push(`tags: ${r.tags.join(', ')}`);
       if (typeof r.note === 'string' && r.note.trim()) parts.push(`note: "${r.note.trim()}"`);
       return `${r.date} — ${parts.join('; ')}`;

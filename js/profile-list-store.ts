@@ -1,41 +1,44 @@
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
-// @ts-check
 // profile-list-store.js — Durable, serialized storage for profile metadata.
 
 import { encryptedGetItem, encryptedSetItem } from './crypto.js';
 import { state } from './state.js';
 import { showNotification } from './utils.js';
 
-/**
- * @typedef {{
- *   id: string,
- *   location?: { country: string, zip: string },
- *   tags?: string[],
- *   notes?: string,
- *   status?: string,
- *   createdAt?: number,
- *   lastUpdated?: number,
- *   pinned?: boolean,
- *   height?: number | string | null,
- *   heightUnit?: string,
- *   [key: string]: any,
- * }} StoredProfileRecord
- */
+export interface StoredProfileRecord {
+  id: string;
+  name?: string;
+  sex?: string | null;
+  dob?: string | null;
+  avatar?: string | null;
+  location?: { country: string; zip: string };
+  tags?: string[];
+  notes?: string;
+  status?: string;
+  createdAt?: number;
+  lastUpdated?: number;
+  pinned?: boolean;
+  height?: number | string | null;
+  heightUnit?: string;
+  [key: string]: unknown;
+}
+export interface ProfileListStoreDeps {
+  encryptedSetItem: typeof encryptedSetItem;
+  showNotification: typeof showNotification;
+}
 
-const profileListStoreDeps = {
+const profileListStoreDeps: ProfileListStoreDeps = {
   encryptedSetItem,
   showNotification,
 };
 
-/** @type {WeakMap<object, StoredProfileRecord[]>} */
-const profileSnapshotOrigins = new WeakMap();
+const profileSnapshotOrigins = new WeakMap<object, StoredProfileRecord[]>();
 
-export function configureProfileListStoreDeps(deps = {}) {
+export function configureProfileListStoreDeps(deps: Partial<ProfileListStoreDeps> = {}) {
   return configureRuntimeFunctions(profileListStoreDeps, deps, ["encryptedSetItem","showNotification"]);
 }
 
-/** @param {StoredProfileRecord} profile */
-function cloneProfileRecord(profile) {
+function cloneProfileRecord(profile: StoredProfileRecord): StoredProfileRecord {
   return {
     ...profile,
     location: profile.location ? { ...profile.location } : { country: '', zip: '' },
@@ -43,8 +46,7 @@ function cloneProfileRecord(profile) {
   };
 }
 
-/** @param {StoredProfileRecord[]} profiles */
-function cloneProfiles(profiles) {
+function cloneProfiles(profiles: StoredProfileRecord[]) {
   return profiles.map(cloneProfileRecord);
 }
 
@@ -53,17 +55,15 @@ function cloneProfiles(profiles) {
  * array and its records preserves provenance through common transforms such
  * as filter and spread.
  *
- * @param {StoredProfileRecord[]} snapshot
  */
-function rememberProfileSnapshot(snapshot) {
+function rememberProfileSnapshot(snapshot: StoredProfileRecord[]) {
   const base = cloneProfiles(snapshot);
   profileSnapshotOrigins.set(snapshot, base);
   for (const profile of snapshot) profileSnapshotOrigins.set(profile, base);
   return snapshot;
 }
 
-/** @param {StoredProfileRecord[]} profiles */
-function getProfileSnapshotOrigin(profiles) {
+function getProfileSnapshotOrigin(profiles: StoredProfileRecord[]) {
   let origin = profileSnapshotOrigins.get(profiles);
   for (const profile of profiles) {
     const profileOrigin = profileSnapshotOrigins.get(profile);
@@ -74,19 +74,15 @@ function getProfileSnapshotOrigin(profiles) {
   return origin ? cloneProfiles(origin) : null;
 }
 
-/** @param {unknown} left @param {unknown} right */
-function profileValuesEqual(left, right) {
+function profileValuesEqual(left: unknown, right: unknown) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
 /**
  * Apply only the fields changed by the caller to the latest durable record.
  *
- * @param {StoredProfileRecord} base
- * @param {StoredProfileRecord} desired
- * @param {StoredProfileRecord} current
  */
-function rebaseProfileRecord(base, desired, current) {
+function rebaseProfileRecord(base: StoredProfileRecord, desired: StoredProfileRecord, current: StoredProfileRecord) {
   const rebased = cloneProfileRecord(current);
   const keys = new Set([...Object.keys(base), ...Object.keys(desired)]);
   for (const key of keys) {
@@ -105,15 +101,12 @@ function rebaseProfileRecord(base, desired, current) {
  * the cache. Caller removals and additions win, while unrelated concurrent
  * profile and field changes remain intact.
  *
- * @param {StoredProfileRecord[]} base
- * @param {StoredProfileRecord[]} desired
- * @param {StoredProfileRecord[]} current
  */
-function rebaseProfiles(base, desired, current) {
+function rebaseProfiles(base: StoredProfileRecord[], desired: StoredProfileRecord[], current: StoredProfileRecord[]) {
   const baseById = new Map(base.map(profile => [profile.id, profile]));
   const currentById = new Map(current.map(profile => [profile.id, profile]));
   const desiredIds = new Set(desired.map(profile => profile.id));
-  const rebased = [];
+  const rebased: StoredProfileRecord[] = [];
 
   for (const desiredProfile of desired) {
     const baseProfile = baseById.get(desiredProfile.id);
@@ -141,9 +134,8 @@ function rebaseProfiles(base, desired, current) {
  * Return a snapshot so callers cannot make the cache claim a change was
  * saved merely by mutating an object reference.
  *
- * @returns {StoredProfileRecord[]}
  */
-export function getProfiles() {
+export function getProfiles(): StoredProfileRecord[] {
   if (Array.isArray(state.profiles)) {
     return rememberProfileSnapshot(cloneProfiles(state.profiles));
   }
@@ -159,8 +151,7 @@ export function getProfiles() {
 
 export async function initProfilesCache() {
   const raw = await encryptedGetItem('labcharts-profiles');
-  /** @type {StoredProfileRecord[]} */
-  let profiles = [];
+    let profiles: StoredProfileRecord[] = [];
   try {
     const parsed = raw ? JSON.parse(raw) : [];
     if (Array.isArray(parsed)) profiles = parsed;
@@ -169,8 +160,7 @@ export async function initProfilesCache() {
   await migrateProfiles(profiles);
 }
 
-/** @param {StoredProfileRecord[]} profiles */
-async function migrateProfiles(profiles) {
+async function migrateProfiles(profiles: StoredProfileRecord[]) {
   const migrated = cloneProfiles(profiles);
   let changed = false;
   const now = Date.now();
@@ -189,19 +179,13 @@ async function migrateProfiles(profiles) {
 
 let profileWriteTail = Promise.resolve();
 
-/**
- * @template T
- * @param {() => Promise<T>} operation
- * @returns {Promise<T>}
- */
-function enqueueProfileWrite(operation) {
+function enqueueProfileWrite<T>(operation: () => Promise<T>): Promise<T> {
   const result = profileWriteTail.catch(() => {}).then(operation);
   profileWriteTail = result.then(() => {}, () => {});
   return result;
 }
 
-/** @param {StoredProfileRecord[]} profiles */
-async function persistProfiles(profiles) {
+async function persistProfiles(profiles: StoredProfileRecord[]) {
   try {
     const value = JSON.stringify(profiles);
     await profileListStoreDeps.encryptedSetItem('labcharts-profiles', value);
@@ -215,8 +199,7 @@ async function persistProfiles(profiles) {
   }
 }
 
-/** @param {StoredProfileRecord[]} profiles */
-export async function saveProfiles(profiles) {
+export async function saveProfiles(profiles: StoredProfileRecord[]) {
   const base = getProfileSnapshotOrigin(profiles) || getProfiles();
   const desired = cloneProfiles(profiles);
   await enqueueProfileWrite(async () => {
@@ -225,12 +208,7 @@ export async function saveProfiles(profiles) {
   });
 }
 
-/**
- * @template T
- * @param {(profiles: StoredProfileRecord[]) => { changed: boolean, value: T }} mutate
- * @returns {Promise<T>}
- */
-export function mutateProfiles(mutate) {
+export function mutateProfiles<T>(mutate: (profiles: StoredProfileRecord[]) => { changed: boolean; value: T }): Promise<T> {
   return enqueueProfileWrite(async () => {
     const profiles = getProfiles();
     const result = mutate(profiles);

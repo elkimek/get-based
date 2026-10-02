@@ -1,4 +1,3 @@
-// @ts-check
 import { rememberProfileData } from './profile-data-writes.js';
 import { readProfileForLoad } from './profile-load-safety.js';
 import { state, resetCorrelationSelection } from './state.js';
@@ -25,8 +24,45 @@ import {
   queueEligibleProfileSync,
 } from './profile-sync-policy.js';
 export { migrateProfileData, profileStorageKey };
-/** @type {Record<string, (...args: any[]) => any>} */
-const profileDeps = {
+import type { Biometrics } from '../types/profile-context-data.js';
+import type { ProfileData, NormalizedProfileData } from '../types/app-state.js';
+import type { StoredProfileRecord, ProfileListStoreDeps } from './profile-list-store.js';
+
+interface ProfileDeps {
+  deleteProfileFromRelay: (profileId: string) => unknown;
+  fetchImpl: typeof fetch;
+  isDebugMode: typeof isDebugMode;
+  onProfileSaved: (profileId: string, importedData: unknown) => unknown;
+  pushContextToGateway: () => unknown;
+  showConfirmDialog: typeof showConfirmDialog;
+  showNotification: typeof showNotification;
+}
+interface ProfileRuntimeDeps {
+  dispatchProfileSwitched: null | ((profileId: string) => void);
+  invalidateProfileContextCache: null | (() => Promise<void> | void);
+  refreshProfileButton: null | (() => Promise<void> | void);
+  reloadProfileRuntimeShell: null | ((profileId: string) => Promise<void> | void);
+  refreshProfileWearables: null | ((profileId: string, biometrics: Biometrics | null | undefined) => Promise<void> | void);
+}
+interface ProfileLocation { country: string; zip: string }
+export interface ProfileRecord extends StoredProfileRecord {
+  name: string; sex: string | null; dob: string | null; location: ProfileLocation;
+  tags: string[]; notes: string; status: string; avatar: string | null;
+  height: number | string | null; heightUnit: string; createdAt: number; lastUpdated: number; pinned: boolean;
+}
+interface ProfileMetaUpdates {
+  name?: string; sex?: string | null; dob?: string | null; location?: ProfileLocation;
+  tags?: string[]; notes?: string; status?: string; avatar?: string | null;
+  height?: number | string | null; heightUnit?: string; pinned?: boolean;
+}
+interface CreateProfileOptions extends Omit<ProfileMetaUpdates, 'name' | 'pinned'> { skipInitialSync?: boolean }
+export interface LocationCacheEntry {
+  lat?: unknown; latitude?: unknown; lon?: unknown; longitude?: unknown;
+  accuracyKm?: unknown; timezone?: unknown; label?: unknown; resolvedAt?: unknown;
+  [key: string]: unknown;
+}
+
+const profileDeps: ProfileDeps = {
   deleteProfileFromRelay: async () => {},
   fetchImpl: (input, init) => fetch(input, init),
   isDebugMode,
@@ -35,7 +71,7 @@ const profileDeps = {
   showConfirmDialog,
   showNotification,
 };
-export function configureProfileDeps(deps = {}) {
+export function configureProfileDeps(deps: Partial<ProfileDeps & ProfileListStoreDeps> = {}) {
   const previous = { ...profileDeps };
   const previousStoreDeps = configureProfileListStoreDeps(deps);
   if (typeof deps.deleteProfileFromRelay === 'function') profileDeps.deleteProfileFromRelay = deps.deleteProfileFromRelay;
@@ -48,18 +84,7 @@ export function configureProfileDeps(deps = {}) {
   return { ...previous, ...previousStoreDeps };
 }
 
-/**
- * @typedef {{
- *   dispatchProfileSwitched: null | ((profileId: string) => void),
- *   invalidateProfileContextCache: null | (() => Promise<void> | void),
- *   refreshProfileButton: null | (() => Promise<void> | void),
- *   reloadProfileRuntimeShell: null | ((profileId: string) => Promise<void> | void),
- *   refreshProfileWearables: null | ((profileId: string, biometrics: any) => Promise<void> | void),
- * }} ProfileRuntimeDeps
- */
-
-/** @type {ProfileRuntimeDeps} */
-const profileRuntimeDeps = {
+const profileRuntimeDeps: ProfileRuntimeDeps = {
   dispatchProfileSwitched: null,
   invalidateProfileContextCache: null,
   refreshProfileButton: null,
@@ -67,8 +92,7 @@ const profileRuntimeDeps = {
   refreshProfileWearables: null,
 };
 
-/** @param {Partial<ProfileRuntimeDeps>} [deps] */
-export function configureProfileRuntimeDeps(deps = {}) {
+export function configureProfileRuntimeDeps(deps: Partial<ProfileRuntimeDeps> = {}) {
   const previous = { ...profileRuntimeDeps };
   if (Object.hasOwn(deps, 'dispatchProfileSwitched')) {
     profileRuntimeDeps.dispatchProfileSwitched = typeof deps.dispatchProfileSwitched === 'function'
@@ -98,7 +122,7 @@ export function configureProfileRuntimeDeps(deps = {}) {
   return previous;
 }
 
-function dispatchProfileSwitched(profileId) {
+function dispatchProfileSwitched(profileId: string) {
   profileRuntimeDeps.dispatchProfileSwitched?.(profileId);
 }
 
@@ -110,16 +134,14 @@ async function refreshProfileButton() {
   await profileRuntimeDeps.refreshProfileButton?.();
 }
 
-async function reloadProfileRuntimeShell(profileId) {
+async function reloadProfileRuntimeShell(profileId: string) {
   await profileRuntimeDeps.reloadProfileRuntimeShell?.(profileId);
 }
 
-/** @type {Map<string, Promise<void>>} */
-const pendingProfileWearableRefreshes = new Map();
+const pendingProfileWearableRefreshes = new Map<string, Promise<void>>();
 
-function refreshProfileWearables(profileId, biometrics) {
-  /** @type {Promise<void>} */
-  let pending;
+function refreshProfileWearables(profileId: string, biometrics: Biometrics | null | undefined) {
+    let pending: Promise<void>;
   try {
     pending = Promise.resolve(
       profileRuntimeDeps.refreshProfileWearables?.(profileId, biometrics),
@@ -135,97 +157,35 @@ function refreshProfileWearables(profileId, biometrics) {
   });
 }
 
-async function waitForProfileWearables(profileId) {
+async function waitForProfileWearables(profileId: string) {
   await pendingProfileWearableRefreshes.get(profileId);
 }
 
-/**
- * @typedef {{ country: string, zip: string }} ProfileLocation
- * @typedef {{
- *   id: string,
- *   name: string,
- *   sex: string | null,
- *   dob: string | null,
- *   location: ProfileLocation,
- *   tags: string[],
- *   notes: string,
- *   status: string,
- *   avatar: string | null,
- *   height: number | string | null,
- *   heightUnit: string,
- *   createdAt: number,
- *   lastUpdated: number,
- *   pinned: boolean,
- *   [key: string]: unknown
- * }} ProfileRecord
- * @typedef {{
- *   sex?: string | null,
- *   dob?: string | null,
- *   location?: ProfileLocation,
- *   tags?: string[],
- *   notes?: string,
- *   status?: string,
- *   avatar?: string | null,
- *   height?: number | string | null,
- *   heightUnit?: string,
- *   skipInitialSync?: boolean
- * }} CreateProfileOptions
- * @typedef {{
- *   name?: string,
- *   sex?: string | null,
- *   dob?: string | null,
- *   location?: ProfileLocation,
- *   tags?: string[],
- *   notes?: string,
- *   status?: string,
- *   avatar?: string | null,
- *   height?: number | string | null,
- *   heightUnit?: string,
- *   pinned?: boolean
- * }} ProfileMetaUpdates
- * @typedef {import('../types/app-state.js').ProfileData} ProfileData
- */
-
-/** @returns {ProfileRecord[]} */
-export function getProfiles() {
-  return /** @type {ProfileRecord[]} */ (getStoredProfiles());
+export function getProfiles(): ProfileRecord[] {
+  return getStoredProfiles() as ProfileRecord[];
 }
 
 export async function initProfilesCache() {
   await initStoredProfilesCache();
 }
 
-/** @param {ProfileRecord[]} profiles */
-export async function saveProfiles(profiles) {
+export async function saveProfiles(profiles: ProfileRecord[]) {
   await saveStoredProfiles(profiles);
 }
 
-/**
- * @returns {string}
- */
-export function getActiveProfileId() {
+export function getActiveProfileId(): string {
   return _normalizeProfileId(localStorage.getItem('labcharts-active-profile')) || 'default';
 }
 
-/**
- * @param {string} id
- */
-export function setActiveProfileId(id) {
+export function setActiveProfileId(id: string) {
   localStorage.setItem('labcharts-active-profile', _normalizeProfileId(id) || 'default');
 }
 
-/**
- * @param {unknown} id
- * @returns {string}
- */
-function _normalizeProfileId(id) {
+function _normalizeProfileId(id: unknown): string {
   return String(id || '').replace(/[^a-z0-9_-]/gi, '').slice(0, 128);
 }
 
-/**
- * @returns {import('../types/app-state.js').NormalizedProfileData}
- */
-export function createDefaultProfileData() {
+export function createDefaultProfileData(): NormalizedProfileData {
   return {
     entries: [],
     notes: [],
@@ -270,13 +230,11 @@ export function createDefaultProfileData() {
   };
 }
 
-/** @param {string} profileId @param {ProfileData | null} [importedData] */
-function queueProfileSync(profileId, importedData = null) {
+function queueProfileSync(profileId: string, importedData: ProfileData | null = null) {
   queueEligibleProfileSync(profileId, getProfiles(), importedData, profileDeps);
 }
 
-/** @param {string} profileId @returns {Promise<void>} */
-export async function loadProfile(profileId) {
+export async function loadProfile(profileId: string) {
   const savedImported = await readProfileForLoad(profileId, () => encryptedGetItem(profileStorageKey(profileId, 'imported')), profileDeps.showNotification);
   state.currentProfile = profileId;
   setActiveProfileId(profileId);
@@ -344,14 +302,9 @@ export async function loadProfile(profileId) {
   refreshProfileWearables(profileId, state.importedData?.biometrics);
 }
 
-/**
- * @param {string} name
- * @param {CreateProfileOptions} [opts]
- * @returns {Promise<string>}
- */
-export async function createProfile(name, opts = {}) {
+export async function createProfile(name: string, opts: CreateProfileOptions = {}) {
   const id = await mutateProfiles(profiles => {
-    let candidate;
+    let candidate: string;
     do candidate = createUniqueId('p_');
     while (profiles.some(profile => profile.id === candidate));
     const now = Date.now();
@@ -376,59 +329,45 @@ export async function createProfile(name, opts = {}) {
   return id;
 }
 
-/**
- * @param {string} profileId
- * @param {string} newName
- * @returns {Promise<boolean>}
- */
-export async function renameProfile(profileId, newName) {
-  const changed = await mutateProfiles(profiles => {
+/** Apply an edit inside the serialized store; stamp only an existing record. */
+function profileEdit(profileId: string, edit: (profile: StoredProfileRecord) => void) {
+  return (profiles: StoredProfileRecord[]) => {
     const profile = profiles.find(candidate => candidate.id === profileId);
     if (!profile) return { changed: false, value: false };
-    profile.name = newName;
+    edit(profile);
     profile.lastUpdated = Date.now();
     return { changed: true, value: true };
-  });
+  };
+}
+
+export async function renameProfile(profileId: string, newName: string) {
+  const changed = await mutateProfiles(profileEdit(profileId, profile => {
+    profile.name = newName;
+  }));
   if (changed) queueProfileSync(profileId);
   return changed;
 }
 
-/**
- * @param {string} profileId
- * @param {ProfileMetaUpdates} updates
- * @returns {Promise<boolean>}
- */
-export async function updateProfileMeta(profileId, updates) {
-  const changed = await mutateProfiles(profiles => {
-    const profile = profiles.find(candidate => candidate.id === profileId);
-    if (!profile) return { changed: false, value: false };
+export async function updateProfileMeta(profileId: string, updates: ProfileMetaUpdates) {
+  const changed = await mutateProfiles(profileEdit(profileId, profile => {
     for (const [key, val] of Object.entries(updates)) {
       if (key === 'id' || key === 'createdAt') continue;
       profile[key] = val;
     }
-    profile.lastUpdated = Date.now();
-    return { changed: true, value: true };
-  });
+  }));
   if (changed) queueProfileSync(profileId);
   return changed;
 }
 
-/**
- * @returns {string[]}
- */
 export function getAllTags() {
-  const tags = new Set();
+  const tags = new Set<string>();
   for (const p of getProfiles()) {
     if (Array.isArray(p.tags)) p.tags.forEach(t => tags.add(t));
   }
   return [...tags].sort();
 }
 
-/**
- * @param {string} profileId
- * @returns {Promise<boolean>}
- */
-export function touchProfileTimestamp(profileId) {
+export function touchProfileTimestamp(profileId: string) {
   return mutateProfiles(profiles => {
     const profile = profiles.find(candidate => candidate.id === profileId);
     if (!profile) return { changed: false, value: false };
@@ -437,12 +376,7 @@ export function touchProfileTimestamp(profileId) {
   });
 }
 
-/**
- * @param {string} profileId
- * @param {() => void} [onComplete]
- * @returns {Promise<void>}
- */
-export async function deleteProfile(profileId, onComplete) {
+export async function deleteProfile(profileId: string, onComplete?: () => void) {
   const profiles = getProfiles();
   if (profiles.length <= 1) { profileDeps.showNotification("Cannot delete the last profile", "error"); return; }
   if (await profileDeps.showConfirmDialog('Delete this profile and all its data? This cannot be undone.')) {
@@ -467,7 +401,7 @@ export async function deleteProfile(profileId, onComplete) {
     // tombstoned rows; CRDT LWW handles cross-device conflict resolution.
     await Promise.resolve(profileDeps.deleteProfileFromRelay(profileId)).catch(() => {});
     if (state.currentProfile === profileId) {
-      await loadProfile(updated[0].id);
+      await loadProfile(updated[0]!.id);
     } else {
       await refreshProfileButton();
     }
@@ -476,11 +410,7 @@ export async function deleteProfile(profileId, onComplete) {
   }
 }
 
-/**
- * @param {string} profileId
- * @returns {Promise<void>}
- */
-export async function switchProfile(profileId) {
+export async function switchProfile(profileId: string) {
   if (profileId === state.currentProfile) return;
   // loadProfile is async (encryptedGetItem awaits IDB / OPFS). Earlier
   // draft fired-and-forgot it, leaving switchProfile resolving before
@@ -506,175 +436,99 @@ export async function switchProfile(profileId) {
   Promise.resolve(profileDeps.pushContextToGateway()).catch(() => {});
 }
 
-/**
- * @param {string} profileId
- * @returns {string | null}
- */
-export function getProfileSex(profileId) {
+export function getProfileSex(profileId: string) {
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === profileId);
   return (p && p.sex) || null;
 }
 
-/**
- * @param {string} profileId
- * @param {string | null} sex
- * @returns {Promise<boolean>}
- */
-export async function setProfileSex(profileId, sex) {
-  const changed = await mutateProfiles(profiles => {
-    const profile = profiles.find(candidate => candidate.id === profileId);
-    if (!profile) return { changed: false, value: false };
+export async function setProfileSex(profileId: string, sex: string | null) {
+  const changed = await mutateProfiles(profileEdit(profileId, profile => {
     profile.sex = sex;
-    profile.lastUpdated = Date.now();
-    return { changed: true, value: true };
-  });
+  }));
   if (changed) queueProfileSync(profileId);
   return changed;
 }
 
-/**
- * @param {string} profileId
- * @returns {string | null}
- */
-export function getProfileDob(profileId) {
+export function getProfileDob(profileId: string) {
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === profileId);
   return (p && p.dob) || null;
 }
 
-/**
- * @param {string} profileId
- * @param {string | null | undefined} dob
- * @returns {Promise<boolean>}
- */
-export async function setProfileDob(profileId, dob) {
-  const changed = await mutateProfiles(profiles => {
-    const profile = profiles.find(candidate => candidate.id === profileId);
-    if (!profile) return { changed: false, value: false };
+export async function setProfileDob(profileId: string, dob: string | null | undefined) {
+  const changed = await mutateProfiles(profileEdit(profileId, profile => {
     profile.dob = dob || null;
-    profile.lastUpdated = Date.now();
-    return { changed: true, value: true };
-  });
+  }));
   if (changed) queueProfileSync(profileId);
   return changed;
 }
 
-/**
- * @param {string} [profileId]
- * @returns {ProfileLocation}
- */
-export function getProfileLocation(profileId) {
+export function getProfileLocation(profileId?: string): ProfileLocation {
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === (profileId || state.currentProfile));
   return (p && p.location) || { country: '', zip: '' };
 }
 
-/**
- * @param {string} profileId
- * @param {string} country
- * @param {string} zip
- * @returns {Promise<boolean>}
- */
-export async function setProfileLocation(profileId, country, zip) {
+export async function setProfileLocation(profileId: string, country: string, zip: string) {
   const resolvedProfileId = profileId || state.currentProfile;
-  const changed = await mutateProfiles(profiles => {
-    const profile = profiles.find(candidate => candidate.id === resolvedProfileId);
-    if (!profile) return { changed: false, value: false };
+  const changed = await mutateProfiles(profileEdit(resolvedProfileId, profile => {
     profile.location = { country: (country || '').trim(), zip: (zip || '').trim() };
-    profile.lastUpdated = Date.now();
-    return { changed: true, value: true };
-  });
+  }));
   if (changed) queueProfileSync(resolvedProfileId);
   return changed;
 }
 
-/**
- * @param {string} [profileId]
- * @returns {{ height: number | string | null, unit: string }}
- */
-export function getProfileHeight(profileId) {
+export function getProfileHeight(profileId?: string) {
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === (profileId || state.currentProfile));
   return { height: (p && p.height) || null, unit: (p && p.heightUnit) || 'cm' };
 }
 
-/**
- * @param {string} profileId
- * @param {number | string | null} height
- * @param {string} [unit]
- * @returns {Promise<boolean>}
- */
-export async function setProfileHeight(profileId, height, unit) {
+export async function setProfileHeight(profileId: string, height: number | string | null, unit?: string) {
   const resolvedProfileId = profileId || state.currentProfile;
-  const changed = await mutateProfiles(profiles => {
-    const profile = profiles.find(candidate => candidate.id === resolvedProfileId);
-    if (!profile) return { changed: false, value: false };
+  const changed = await mutateProfiles(profileEdit(resolvedProfileId, profile => {
     profile.height = height;
     profile.heightUnit = unit || 'cm';
-    profile.lastUpdated = Date.now();
-    return { changed: true, value: true };
-  });
+  }));
   if (changed) queueProfileSync(resolvedProfileId);
   return changed;
 }
 
 // Privacy-rounded home-area resolution; the legacy export name is retained.
-/**
- * @returns {Record<string, any>}
- */
-export function getLocationCache() { try { return JSON.parse(localStorage.getItem('labcharts-location-cache') || '{}'); } catch(e) { return {}; } }
-/**
- * @param {string} key
- * @param {any} value
- * @returns {void}
- */
-export function setLocationCache(key, value) { var c = getLocationCache(); c[key] = value; try { localStorage.setItem('labcharts-location-cache', JSON.stringify(c)); } catch(e) {} }
+export function getLocationCache(): Record<string, LocationCacheEntry | number> { try { return JSON.parse(localStorage.getItem('labcharts-location-cache') || '{}'); } catch(e) { return {}; } }
+export function setLocationCache(key: string, value: LocationCacheEntry | number) { var c = getLocationCache(); c[key] = value; try { localStorage.setItem('labcharts-location-cache', JSON.stringify(c)); } catch(e) {} }
 
-function cachedLatitude(value) {
+function cachedLatitude(value: unknown) {
   if (Number.isFinite(value)) return Number(value);
-  const latitude = Number(value?.lat ?? value?.latitude);
+  const latitude = Number((value as LocationCacheEntry | undefined)?.lat ?? (value as LocationCacheEntry | undefined)?.latitude);
   return Number.isFinite(latitude) ? latitude : null;
 }
 
-/**
- * @param {string} [optCountry]
- * @param {string} [optZip]
- * @returns {{ lat: number, lon: number, accuracyKm: number | null, timezone: string | null, label: string, resolvedAt: number | null, source: string } | null}
- */
-export function getResolvedProfileCoords(optCountry, optZip) {
+export function getResolvedProfileCoords(optCountry?: string, optZip?: string) {
   const loc = getProfileLocation();
   const country = (optCountry !== undefined ? optCountry : loc.country || '').trim();
   const zip = (optZip !== undefined ? optZip : loc.zip || '').trim();
   if (!country || !zip) return null;
-  const cached = getLocationCache()[`${country}|${zip}`.toLowerCase()];
+  const cached = getLocationCache()[`${country}|${zip}`.toLowerCase()] as LocationCacheEntry | undefined;
   const lat = cachedLatitude(cached);
   const lon = Number(cached?.lon ?? cached?.longitude);
   if (lat == null || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
   return {
     lat,
     lon,
-    accuracyKm: Number.isFinite(Number(cached?.accuracyKm)) ? Number(cached.accuracyKm) : null,
+    accuracyKm: Number.isFinite(Number(cached?.accuracyKm)) ? Number(cached!.accuracyKm) : null,
     timezone: typeof cached?.timezone === 'string' ? cached.timezone : null,
     label: typeof cached?.label === 'string' ? cached.label : '',
-    resolvedAt: Number.isFinite(Number(cached?.resolvedAt)) ? Number(cached.resolvedAt) : null,
+    resolvedAt: Number.isFinite(Number(cached?.resolvedAt)) ? Number(cached!.resolvedAt) : null,
     source: 'home-postal',
   };
 }
-/**
- * @param {number} lat
- * @returns {number}
- */
-export function latitudeToBand(lat) { var a = Math.abs(lat); if (a < 25) return 0; if (a < 40) return 1; if (a < 50) return 2; if (a < 60) return 3; return 4; }
+export function latitudeToBand(lat: number) { var a = Math.abs(lat); if (a < 25) return 0; if (a < 40) return 1; if (a < 50) return 2; if (a < 60) return 3; return 4; }
 
-/**
- * @param {string} country
- * @param {string} zip
- * @returns {Promise<void>}
- */
-export async function detectLatitudeWithAI(country, zip) {
+export async function detectLatitudeWithAI(country: string, zip: string) {
   var cacheKey = (country + '|' + zip).toLowerCase();
-  const cached = getLocationCache()[cacheKey];
+  const cached = getLocationCache()[cacheKey] as LocationCacheEntry | undefined;
   if (cached && typeof cached === 'object'
       && Number.isFinite(Number(cached.lat ?? cached.latitude))
       && Number.isFinite(Number(cached.lon ?? cached.longitude))) return;
@@ -708,7 +562,7 @@ export async function detectLatitudeWithAI(country, zip) {
       if (el) {
         var band = latitudeToBand(lat);
         el.style.color = 'var(--green)';
-        el.textContent = '\u2713 ' + Math.abs(Math.round(lat)) + '\u00b0' + (lat >= 0 ? 'N' : 'S') + ' \u2014 ' + LATITUDE_BANDS[band];
+        el.textContent = '\u2713 ' + Math.abs(Math.round(lat)) + '\u00b0' + (lat >= 0 ? 'N' : 'S') + ' \u2014 ' + LATITUDE_BANDS[band]!;
       }
     }
   } catch(e) {
@@ -716,12 +570,7 @@ export async function detectLatitudeWithAI(country, zip) {
   }
 }
 
-/**
- * @param {string} [optCountry]
- * @param {string} [optZip]
- * @returns {string | null}
- */
-export function getLatitudeFromLocation(optCountry, optZip) {
+export function getLatitudeFromLocation(optCountry?: string, optZip?: string): string | null {
   const loc = getProfileLocation();
   const country = optCountry !== undefined ? optCountry : loc.country;
   if (!country) return null;
@@ -730,68 +579,68 @@ export function getLatitudeFromLocation(optCountry, optZip) {
 
   var cacheKey = (c + '|' + zip).toLowerCase();
   var aiCached = cachedLatitude(getLocationCache()[cacheKey]);
-  if (aiCached !== null) return LATITUDE_BANDS[latitudeToBand(aiCached)];
+  if (aiCached !== null) return LATITUDE_BANDS[latitudeToBand(aiCached)]!;
 
   var zn = zip.replace(/\s/g, '');
   if (zn && (c === 'usa' || c === 'us' || c === 'united states' || c === 'america')) {
     var p3 = zn.substring(0, 3);
-    if (p3 >= '006' && p3 <= '009') return LATITUDE_BANDS[0]; // PR/VI → tropical
-    if (p3 >= '967' && p3 <= '968') return LATITUDE_BANDS[0]; // Hawaii → tropical
-    if (p3 >= '995') return LATITUDE_BANDS[4]; // Alaska → subarctic
+    if (p3 >= '006' && p3 <= '009') return LATITUDE_BANDS[0]!; // PR/VI → tropical
+    if (p3 >= '967' && p3 <= '968') return LATITUDE_BANDS[0]!; // Hawaii → tropical
+    if (p3 >= '995') return LATITUDE_BANDS[4]!; // Alaska → subarctic
     var d = zn.charAt(0);
-    var usb = { '0':2, '1':2, '2':2, '3':1, '4':2, '5':2, '6':2, '7':1, '8':2, '9':2 };
-    if (usb[d] !== undefined) return LATITUDE_BANDS[usb[d]];
+    var usb: Record<string, number> = { '0':2, '1':2, '2':2, '3':1, '4':2, '5':2, '6':2, '7':1, '8':2, '9':2 };
+    if (usb[d] !== undefined) return LATITUDE_BANDS[usb[d]!]!;
   }
 
   if (zn && (c === 'canada' || c === 'ca')) {
     var letter = zn.charAt(0).toUpperCase();
-    var cab = { 'A':3,'B':2,'C':2,'E':2, 'G':2,'H':2,'J':2,'K':2,'L':2,'M':2,'N':2, 'P':3,'R':3,'S':3,'T':3, 'V':2, 'X':4,'Y':4 };
-    if (cab[letter] !== undefined) return LATITUDE_BANDS[cab[letter]];
+    var cab: Record<string, number> = { 'A':3,'B':2,'C':2,'E':2, 'G':2,'H':2,'J':2,'K':2,'L':2,'M':2,'N':2, 'P':3,'R':3,'S':3,'T':3, 'V':2, 'X':4,'Y':4 };
+    if (cab[letter] !== undefined) return LATITUDE_BANDS[cab[letter]!]!;
   }
 
   var zd = zn.charAt(0);
   if (zn && (c === 'norway' || c === 'norge')) {
-    if (zd >= '0' && zd <= '5') return LATITUDE_BANDS[3];
-    return LATITUDE_BANDS[4];
+    if (zd >= '0' && zd <= '5') return LATITUDE_BANDS[3]!;
+    return LATITUDE_BANDS[4]!;
   }
   if (zn && (c === 'sweden' || c === 'sverige')) {
-    if (zd >= '1' && zd <= '6') return LATITUDE_BANDS[3];
-    if (zd >= '7') return LATITUDE_BANDS[4];
+    if (zd >= '1' && zd <= '6') return LATITUDE_BANDS[3]!;
+    if (zd >= '7') return LATITUDE_BANDS[4]!;
   }
   if (zn && (c === 'finland' || c === 'suomi')) {
     var f2 = parseInt(zn.substring(0, 2));
-    if (!isNaN(f2)) return LATITUDE_BANDS[f2 < 40 ? 3 : 4];
+    if (!isNaN(f2)) return LATITUDE_BANDS[f2 < 40 ? 3 : 4]!;
   }
   if (zn && (c === 'germany' || c === 'deutschland')) {
-    if (zd >= '7') return LATITUDE_BANDS[2];
-    return LATITUDE_BANDS[3];
+    if (zd >= '7') return LATITUDE_BANDS[2]!;
+    return LATITUDE_BANDS[3]!;
   }
   if (zn && (c === 'italy' || c === 'italia')) {
     var i2 = parseInt(zn.substring(0, 2));
-    if (!isNaN(i2)) return LATITUDE_BANDS[i2 >= 80 ? 1 : 2];
+    if (!isNaN(i2)) return LATITUDE_BANDS[i2 >= 80 ? 1 : 2]!;
   }
   if (zn && (c === 'spain' || c === 'españa' || c === 'espana')) {
     var s2 = parseInt(zn.substring(0, 2));
-    if (!isNaN(s2) && (s2 >= 15 && s2 <= 16 || s2 >= 20 && s2 <= 24 || s2 >= 26 && s2 <= 28 || s2 >= 31 && s2 <= 34 || s2 >= 39 && s2 <= 50)) return LATITUDE_BANDS[2];
-    return LATITUDE_BANDS[1];
+    if (!isNaN(s2) && (s2 >= 15 && s2 <= 16 || s2 >= 20 && s2 <= 24 || s2 >= 26 && s2 <= 28 || s2 >= 31 && s2 <= 34 || s2 >= 39 && s2 <= 50)) return LATITUDE_BANDS[2]!;
+    return LATITUDE_BANDS[1]!;
   }
   if (zn && (c === 'france')) {
     var fr2 = parseInt(zn.substring(0, 2));
-    if (!isNaN(fr2) && (fr2 >= 59 && fr2 <= 62 || fr2 === 80 || fr2 === 2)) return LATITUDE_BANDS[3];
-    return LATITUDE_BANDS[2];
+    if (!isNaN(fr2) && (fr2 >= 59 && fr2 <= 62 || fr2 === 80 || fr2 === 2)) return LATITUDE_BANDS[3]!;
+    return LATITUDE_BANDS[2]!;
   }
   if (zn && (c === 'russia' || c === 'россия' || c === 'rossiya')) {
     var r3 = parseInt(zn.substring(0, 3));
     if (!isNaN(r3)) {
-      if (r3 >= 350 && r3 <= 385) return LATITUDE_BANDS[2];
-      if (r3 >= 163 && r3 <= 164 || r3 >= 183 && r3 <= 184) return LATITUDE_BANDS[4];
+      if (r3 >= 350 && r3 <= 385) return LATITUDE_BANDS[2]!;
+      if (r3 >= 163 && r3 <= 164 || r3 >= 183 && r3 <= 184) return LATITUDE_BANDS[4]!;
     }
-    return LATITUDE_BANDS[3];
+    return LATITUDE_BANDS[3]!;
   }
   const band = COUNTRY_LATITUDES[c];
-  if (band !== undefined) return LATITUDE_BANDS[band];
+  if (band !== undefined) return LATITUDE_BANDS[band]!;
   for (const [key, val] of Object.entries(COUNTRY_LATITUDES)) {
-    if (c.includes(key) || key.includes(c)) return LATITUDE_BANDS[val];
+    if (c.includes(key) || key.includes(c)) return LATITUDE_BANDS[val]!;
   }
   return null;
 }
