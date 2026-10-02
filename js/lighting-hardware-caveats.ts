@@ -1,4 +1,3 @@
-// @ts-check
 
 // lighting-hardware-caveats.js — load-bearing prompt block shared by
 // every Light & Sun AI surface that recommends fixtures or dimming.

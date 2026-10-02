@@ -1,4 +1,11 @@
-// @ts-check
+export interface ResizedImage {
+  base64: string; mediaType: string; width: number; height: number;
+  origWidth: number; origHeight: number; quality_warnings: string[];
+}
+interface ResizeVariant { maxDim: number; quality: number; includeQualityWarnings?: boolean }
+interface ImageContentBlock { type: 'image_url'; image_url: { url: string } }
+interface TextContentBlock { type: 'text'; text: string }
+
 
 // image-utils.js — Shared image utilities for chat attachments and PDF image fallback
 // No app imports (no circular deps)
@@ -6,27 +13,13 @@
 // ═══════════════════════════════════════════════
 // RESIZE IMAGE
 // ═══════════════════════════════════════════════
-/**
- * @typedef {object} ResizedImage
- * @property {string} base64
- * @property {string} mediaType
- * @property {number} width
- * @property {number} height
- * @property {number} origWidth
- * @property {number} origHeight
- * @property {string[]} quality_warnings
- */
 
 /**
  * Resize an image file to fit within maxDim, return base64 JPEG.
- * @param {File} file
- * @param {number} maxDim - max long-side pixels (default 1024 for chat, 2048 for PDF)
- * @param {number} quality - JPEG quality 0-1
- * @returns {Promise<ResizedImage>}
  */
 export const MAX_INPUT_IMAGE_PIXELS = 32_000_000;
 
-function drawResizedImage(img, file, maxDim, quality, includeQualityWarnings = true) {
+function drawResizedImage(img: HTMLImageElement, file: File, maxDim: number, quality: number, includeQualityWarnings = true): ResizedImage {
   const origWidth = img.width, origHeight = img.height;
   let width = origWidth, height = origHeight;
   if (width > maxDim || height > maxDim) {
@@ -43,7 +36,7 @@ function drawResizedImage(img, file, maxDim, quality, includeQualityWarnings = t
   const isPng = file.type === 'image/png';
   const outputType = isPng ? 'image/png' : 'image/jpeg';
   const dataUrl = canvas.toDataURL(outputType, quality);
-  const base64 = dataUrl.split(',')[1];
+  const base64 = dataUrl.split(',')[1]!;
   const mediaType = isPng ? 'image/png' : 'image/jpeg';
   const quality_warnings = includeQualityWarnings ? analyzeImageQuality(ctx, width, height) : [];
   canvas.width = 0;
@@ -51,8 +44,8 @@ function drawResizedImage(img, file, maxDim, quality, includeQualityWarnings = t
   return { base64, mediaType, width, height, origWidth, origHeight, quality_warnings };
 }
 
-export function resizeImageVariants(file, variants) {
-  return new Promise((resolve, reject) => {
+export function resizeImageVariants(file: File, variants: ResizeVariant[]): Promise<ResizedImage[]> {
+  return new Promise<ResizedImage[]>((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
@@ -81,22 +74,20 @@ export function resizeImageVariants(file, variants) {
   });
 }
 
-export async function resizeImage(file, maxDim = 1024, quality = 0.85) {
+export async function resizeImage(file: File, maxDim = 1024, quality = 0.85) {
   const [result] = await resizeImageVariants(file, [{ maxDim, quality, includeQualityWarnings: true }]);
-  return result;
+  return result!;
 }
 
 // ═══════════════════════════════════════════════
 // IMAGE QUALITY ANALYSIS
 // ═══════════════════════════════════════════════
-/**
- * @param {CanvasRenderingContext2D} ctx
- * @param {number} width
- * @param {number} height
- * @returns {string[]}
- */
-function analyzeImageQuality(ctx, width, height) {
-  const warnings = [];
+function pixelLuminance(data: Uint8ClampedArray, index: number) {
+  return 0.299 * data[index]! + 0.587 * data[index + 1]! + 0.114 * data[index + 2]!;
+}
+
+function analyzeImageQuality(ctx: CanvasRenderingContext2D, width: number, height: number) {
+  const warnings: string[] = [];
   // Sample a grid of pixels (max ~100k pixels for performance)
   const step = Math.max(1, Math.floor(Math.sqrt(width * height / 100000)));
   const imgData = ctx.getImageData(0, 0, width, height).data;
@@ -107,7 +98,7 @@ function analyzeImageQuality(ctx, width, height) {
   for (let y = 0; y < height; y += step) {
     for (let x = 0; x < width; x += step) {
       const i = (y * width + x) * 4;
-      const gray = 0.299 * imgData[i] + 0.587 * imgData[i + 1] + 0.114 * imgData[i + 2];
+      const gray = pixelLuminance(imgData, i);
       brightnessSum += gray;
       brightnessCount++;
 
@@ -117,10 +108,10 @@ function analyzeImageQuality(ctx, width, height) {
         const bot = (((y + step) * width + x) * 4);
         const left = ((y * width + (x - step)) * 4);
         const right = ((y * width + (x + step)) * 4);
-        const grayTop = 0.299 * imgData[top] + 0.587 * imgData[top + 1] + 0.114 * imgData[top + 2];
-        const grayBot = 0.299 * imgData[bot] + 0.587 * imgData[bot + 1] + 0.114 * imgData[bot + 2];
-        const grayLeft = 0.299 * imgData[left] + 0.587 * imgData[left + 1] + 0.114 * imgData[left + 2];
-        const grayRight = 0.299 * imgData[right] + 0.587 * imgData[right + 1] + 0.114 * imgData[right + 2];
+        const grayTop = pixelLuminance(imgData, top);
+        const grayBot = pixelLuminance(imgData, bot);
+        const grayLeft = pixelLuminance(imgData, left);
+        const grayRight = pixelLuminance(imgData, right);
         const lap = Math.abs(grayTop + grayBot + grayLeft + grayRight - 4 * gray);
         laplacianSum += lap;
         laplacianCount++;
@@ -144,15 +135,15 @@ function analyzeImageQuality(ctx, width, height) {
 // ═══════════════════════════════════════════════
 // VALIDATION
 // ═══════════════════════════════════════════════
-export function isValidImageType(type) {
+export function isValidImageType(type: string) {
   return /^image\/(jpeg|png|gif|webp)$/.test(type);
 }
 
 /** Read an accepted image without changing its bytes or dimensions. */
-export async function imageFileToBase64(file) {
+export async function imageFileToBase64(file: File) {
   if (!(file instanceof File)) throw new Error('An image file is required.');
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const chunks = [];
+  const chunks: string[] = [];
   for (let offset = 0; offset < bytes.length; offset += 0x8000) {
     chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + 0x8000)));
   }
@@ -164,11 +155,8 @@ export async function imageFileToBase64(file) {
 // ═══════════════════════════════════════════════
 /**
  * Returns a single image content block in the format expected by the provider.
- * @param {string} base64 - raw base64 data (no prefix)
- * @param {string} mediaType - e.g. 'image/jpeg'
- * @param {string} _provider - retained for provider-compatible callers
  */
-export function formatImageBlock(base64, mediaType, _provider) {
+export function formatImageBlock(base64: string, mediaType: string, _provider: string): ImageContentBlock {
   // All providers use OpenAI-compatible format
   return { type: 'image_url', image_url: { url: `data:${mediaType};base64,${base64}` } };
 }
@@ -178,13 +166,9 @@ export function formatImageBlock(base64, mediaType, _provider) {
 // ═══════════════════════════════════════════════
 /**
  * Builds a content array with image blocks + text block.
- * @param {Array} imageBlocks - from formatImageBlock()
- * @param {string} text
- * @param {string} _provider - retained for provider-compatible callers
- * @returns {Array} content array for the messages API
  */
-export function buildVisionContent(imageBlocks, text, _provider) {
-  const content = [...imageBlocks];
+export function buildVisionContent(imageBlocks: ImageContentBlock[], text: string, _provider: string) {
+  const content: Array<ImageContentBlock | TextContentBlock> = [...imageBlocks];
   if (text) content.push({ type: 'text', text });
   return content;
 }

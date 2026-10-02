@@ -50,7 +50,7 @@ const LEGACY_TESTS = [
   './test-dev-server-helpers.js',
   // Batch 1 — pure-logic ports from browser fixtures.
   './test-sun-spectrum.js',
-  './test-lighting-hardware-caveats.js',
+  './test-lighting-hardware-caveats.ts',
   './test-markdown.ts',
   // Batch 2 — incremental ports.
   './test-data-merge.js',

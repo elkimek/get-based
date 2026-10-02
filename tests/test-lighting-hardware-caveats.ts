@@ -30,7 +30,7 @@ assert('LIGHTING_HARDWARE_CAVEATS is a non-empty array',
   Array.isArray(LIGHTING_HARDWARE_CAVEATS) && LIGHTING_HARDWARE_CAVEATS.length >= 5);
 assert('LIGHTING_HARDWARE_CAVEATS_TEXT is the joined string',
   typeof LIGHTING_HARDWARE_CAVEATS_TEXT === 'string' &&
-  LIGHTING_HARDWARE_CAVEATS_TEXT.includes(LIGHTING_HARDWARE_CAVEATS[0]));
+  LIGHTING_HARDWARE_CAVEATS_TEXT.includes(LIGHTING_HARDWARE_CAVEATS[0]!));
 
 // Canonical claims that MUST survive any future edit. These are the
 // load-bearing ones — if any disappears, the prompt loses a guarantee

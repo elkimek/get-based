@@ -686,3 +686,6 @@ deploy/profile-share/data/
 /tests/helpers/repository-source.js
 /js/light-env-model.js
 /js/light-env-store.js
+/js/import-benchmarks.js
+/js/image-utils.js
+/js/lighting-hardware-caveats.js
