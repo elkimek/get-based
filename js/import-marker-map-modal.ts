@@ -1,4 +1,5 @@
-// @ts-check
+import type { ImportReviewMarker, ImportMarkerReference } from './pdf-import-review-runtime.js';
+
 // import-marker-map-modal.js - category/search picker for mapping imported rows.
 
 import { MARKER_SCHEMA } from './schema.js';
@@ -7,13 +8,13 @@ import { getValidUnitsForMarker } from './pdf-import-marker-mapping.js';
 import { escapeHTML } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 
-let activeOverlay = null;
-let activeItems = [];
+let activeOverlay: HTMLElement | null = null;
+let activeItems: ReturnType<typeof buildItems> = [];
 let activeCategory = 'all';
 let activeCurrentKey = '';
-let activeOnSelect = null;
+let activeOnSelect: ((key: string) => unknown) | null | undefined = null;
 
-function normalizeText(value) {
+function normalizeText(value: unknown) {
   return String(value || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -22,28 +23,28 @@ function normalizeText(value) {
     .trim();
 }
 
-function titleizeKey(value) {
+function titleizeKey(value: unknown) {
   return String(value || 'Other')
     .replace(/([a-z])([A-Z])/g, '$1 $2')
     .replace(/[_-]+/g, ' ')
     .replace(/\b\w/g, ch => ch.toUpperCase());
 }
 
-function categoryLabelForKey(key) {
+function categoryLabelForKey(key: string) {
   const [catKey] = String(key || '').split('.');
-  return MARKER_SCHEMA[catKey]?.label
+  return MARKER_SCHEMA[catKey!]?.label
     || SPECIALTY_MARKER_DEFS[key]?.categoryLabel
     || titleizeKey(catKey);
 }
 
-function formatRange(def) {
+function formatRange(def: Pick<ImportMarkerReference, 'refMin' | 'refMax'> | null | undefined) {
   if (def?.refMin == null && def?.refMax == null) return '';
   const min = def.refMin == null ? '?' : String(def.refMin);
   const max = def.refMax == null ? '?' : String(def.refMax);
   return `${min}-${max}`;
 }
 
-function scoreMarkerItem(item, marker) {
+function scoreMarkerItem(item: ReturnType<typeof buildItems>[number], marker: ImportReviewMarker | null | undefined) {
   const raw = normalizeText(`${marker?.rawName || ''} ${marker?.suggestedName || ''}`);
   if (!raw) return 0;
   const name = normalizeText(item.name);
@@ -54,7 +55,7 @@ function scoreMarkerItem(item, marker) {
   return tokens.reduce((score, token) => score + (item.searchText.includes(token) ? 12 : 0), 0);
 }
 
-function buildItems(marker, refLookup) {
+function buildItems(marker: ImportReviewMarker | null | undefined, refLookup: Record<string, ImportMarkerReference> | null | undefined) {
   return Object.entries(refLookup || {}).map(([key, def]) => {
     const categoryLabel = categoryLabelForKey(key);
     const units = getValidUnitsForMarker(key);
@@ -74,10 +75,10 @@ function buildItems(marker, refLookup) {
   }).sort((a, b) => a.categoryLabel.localeCompare(b.categoryLabel) || a.name.localeCompare(b.name));
 }
 
-function renderCategories(overlay) {
+function renderCategories(overlay: HTMLElement) {
   const host = overlay.querySelector('.import-map-categories');
   if (!host) return;
-  const counts = new Map();
+  const counts = new Map<string, { label: string; count: number }>();
   let suggested = 0;
   for (const item of activeItems) {
     counts.set(item.categoryKey, { label: item.categoryLabel, count: (counts.get(item.categoryKey)?.count || 0) + 1 });
@@ -93,14 +94,14 @@ function renderCategories(overlay) {
   ].join('');
 }
 
-function renderCategoryButton(key, label, count) {
+function renderCategoryButton(key: string, label: string, count: number) {
   const active = activeCategory === key ? ' active' : '';
   return `<button type="button" class="import-map-category${active}" data-import-map-category="${escapeHTML(key)}">
     <span>${escapeHTML(label)}</span><span>${count}</span>
   </button>`;
 }
 
-function filteredItems(query) {
+function filteredItems(query: string) {
   const needle = normalizeText(query);
   let items = activeItems;
   if (needle) return items.filter(item => item.searchText.includes(needle));
@@ -109,9 +110,9 @@ function filteredItems(query) {
   return items;
 }
 
-function renderResults(overlay) {
+function renderResults(overlay: HTMLElement) {
   const host = overlay.querySelector('.import-map-results');
-  const input = /** @type {HTMLInputElement | null} */ (overlay.querySelector('.import-map-modal-search'));
+  const input = overlay.querySelector('.import-map-modal-search') as HTMLInputElement | null;
   if (!host) return;
   const items = filteredItems(input?.value || '');
   if (items.length === 0) {
@@ -144,12 +145,15 @@ function closeImportMarkerMapModal() {
   removeModalOverlay(overlay);
 }
 
-function selectKey(key) {
+function selectKey(key: string) {
   if (typeof activeOnSelect === 'function') activeOnSelect(key);
   closeImportMarkerMapModal();
 }
 
-export function openImportMarkerMapModal({ marker, currentKey = '', refLookup = {}, onSelect }) {
+export function openImportMarkerMapModal({ marker, currentKey = '', refLookup = {}, onSelect }: {
+  marker?: ImportReviewMarker | null; currentKey?: string; refLookup?: Record<string, ImportMarkerReference>;
+  onSelect?: ((key: string) => unknown) | null;
+}) {
   if (activeOverlay?.isConnected) closeImportMarkerMapModal();
   activeItems = buildItems(marker, refLookup);
   activeCurrentKey = currentKey || '';

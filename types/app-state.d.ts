@@ -10,10 +10,10 @@ export interface CustomMarkerDefinition {
   markerId?: string;
   name?: string;
   unit?: string;
-  refMin?: number | null;
-  refMax?: number | null;
+  refMin?: number | null | undefined;
+  refMax?: number | null | undefined;
   categoryLabel?: string;
-  icon?: string;
+  icon?: string | undefined;
   group?: string | null;
   [key: string]: any;
 }

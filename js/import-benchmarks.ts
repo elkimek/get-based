@@ -15,10 +15,10 @@ interface BenchmarkMeta extends DiagnosticFields { provider?: string | null; mod
 interface ImportReviewMarker { mappedKey?: unknown; suggestedKey?: unknown; _benchmarkValueEdited?: unknown; _benchmarkUnitEdited?: unknown }
 interface ImportBenchmarkResult extends DiagnosticFields {
   provider?: string | null; modelId?: unknown; importHash?: unknown; inputHash?: unknown;
-  costInfo?: { provider?: string | null; modelId?: unknown; inputTokens?: unknown; outputTokens?: unknown } | null;
+  costInfo?: { provider?: string | null; modelId?: unknown; inputTokens?: unknown; outputTokens?: unknown } | null | undefined;
   runtime?: RuntimeDetails | null;
-  timings?: DiagnosticFields | null; usage?: DiagnosticFields | null;
-  diagnostics?: (DiagnosticFields & { performance?: DiagnosticFields | null; localPlan?: DiagnosticFields | null }) | null;
+  timings?: DiagnosticFields | null | undefined; usage?: DiagnosticFields | null;
+  diagnostics?: (DiagnosticFields & { performance?: DiagnosticFields | null; localPlan?: DiagnosticFields | null }) | null | undefined;
   markers?: Array<ImportReviewMarker | null | undefined> | null;
   _benchmarkInitialMappings?: unknown[] | null; _benchmarkInitialDate?: unknown;
 }

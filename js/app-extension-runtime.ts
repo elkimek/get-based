@@ -28,7 +28,7 @@ export interface AppExtensionSettings extends ExtensionActionSurface {
 export interface AppExtensionAI {
   isProviderActive?: (provider: string) => boolean;
   isCredentialOwned?: (provider: string) => boolean;
-  shouldHideUsage?: (provider: string) => boolean;
+  shouldHideUsage?: (provider: string | null | undefined) => boolean;
   getModelPolicy?: ContextHook<ExtensionModelPolicy | null | undefined>;
   refresh?: (context?: ExtensionContext) => unknown;
   authorizeRequest?: Authorization;
@@ -195,7 +195,7 @@ export async function requestAppExtensionAIProcessingApproval(context: Extension
     && ai.isCredentialOwned?.(context.provider) === true;
 }
 
-export function shouldHideAppExtensionAIUsage(provider: string) {
+export function shouldHideAppExtensionAIUsage(provider: string | null | undefined) {
   return activeExtension()?.ai?.shouldHideUsage?.(provider) === true;
 }
 

@@ -19,7 +19,9 @@ import { migrateSupplementMedicationRecords } from './supplement-medication-doma
 import type { ProfileData, NormalizedProfileData } from '../types/app-state.js';
 import type { LightCircadianContext, SleepContext } from '../types/profile-context-data.js';
 
-export function migrateProfileData(data: ProfileData): NormalizedProfileData {
+export function migrateProfileData(data: ProfileData): NormalizedProfileData;
+export function migrateProfileData(data: Partial<ProfileData>): Partial<NormalizedProfileData>;
+export function migrateProfileData(data: Partial<ProfileData>): NormalizedProfileData {
   // Migrate sleepCircadian → sleepRest (sleep fields go to sleepRest, circadian items to lightCircadian)
   if (data.sleepCircadian && !data.sleepRest) {
     const sc = data.sleepCircadian as string | SleepContext;

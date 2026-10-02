@@ -1,4 +1,3 @@
-// @ts-check
 // pdf-import-persistence.js - durable imported-data save helpers for PDF import flows
 
 import { state } from './state.js';
@@ -13,7 +12,7 @@ export function snapshotImportedData() {
   try { return JSON.stringify(state.importedData || {}); } catch { return null; }
 }
 
-export function restoreImportedDataSnapshot(snapshot) {
+export function restoreImportedDataSnapshot(snapshot: string | null | undefined) {
   if (!snapshot) return;
   try { adoptProfileData(state.importedData, JSON.parse(snapshot)); } catch {}
 }
@@ -23,9 +22,9 @@ export function refreshImportedDataViews() {
   refreshImportedDataViewsRuntime(state.currentView || 'dashboard');
 }
 
-function isValidISOCalendarDate(date) {
+function isValidISOCalendarDate(date: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
-  const [year, month, day] = date.split('-').map(Number);
+  const [year, month, day] = date.split('-').map(Number) as [number, number, number];
   const parsed = new Date(Date.UTC(year, month - 1, day));
   return parsed.getUTCFullYear() === year
     && parsed.getUTCMonth() === month - 1
@@ -33,7 +32,7 @@ function isValidISOCalendarDate(date) {
 }
 
 
-export async function removeImportedEntry(date) {
+export async function removeImportedEntry(date: string | null | undefined) {
   if (!date) return false;
   const entries = state.importedData?.entries || [];
   const entry = entries.find(e => e.date === date);
@@ -57,7 +56,7 @@ export async function removeImportedEntry(date) {
   // Delete manual values only for markers that were actually removed
   const manualValues = state.importedData.manualValues || {};
   for (const k of Object.keys(manualValues)) {
-    if (k.endsWith(':' + date) && removedKeys.includes(k.split(':')[0])) {
+    if (k.endsWith(':' + date) && removedKeys.includes(k.split(':')[0]!)) {
       delete manualValues[k];
     }
   }
@@ -78,7 +77,7 @@ export async function removeImportedEntry(date) {
   return true;
 }
 
-export async function renameImportedEntryDate(oldDate) {
+export async function renameImportedEntryDate(oldDate: string) {
   const entries = state.importedData?.entries;
   const entry = entries?.find(e => e.date === oldDate);
   if (!entry) return false;
@@ -106,7 +105,7 @@ export async function renameImportedEntryDate(oldDate) {
     showNotification('That date doesn\'t exist on the calendar.', 'error');
     return false;
   }
-  if (entries.some(e => e.date === newDate)) {
+  if (entries!.some(e => e.date === newDate)) {
     showNotification(`Another entry already exists on ${newDate} \u2014 remove it first, then try again.`, 'error', 5000);
     return false;
   }

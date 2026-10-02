@@ -9,13 +9,13 @@ export interface ImportReviewMarker extends ImportedRatioMarker {
   [key: string]: unknown;
 }
 export interface PendingImport {
-  markers: ImportReviewMarker[]; date?: string | null; testType?: string | null; fileName?: string;
-  sampleTime?: unknown; fasting?: unknown; diagnostics?: ImportDiagnostics | null; imageMode?: boolean; importHash?: string; benchmarkId?: string;
+  markers: ImportReviewMarker[]; date?: string | null | undefined; testType?: string | null | undefined; fileName?: string | undefined;
+  sampleTime?: unknown; fasting?: unknown; diagnostics?: ImportDiagnostics | null | undefined; imageMode?: boolean; importHash?: string | undefined; benchmarkId?: string | null;
   privacyMethod?: string; privacyOriginal?: unknown; privacyObfuscated?: unknown; privacyReplacements?: number;
-  costInfo?: { cost?: number; provider?: string; modelId?: string; inputTokens?: number; outputTokens?: number };
-  timings?: { pii?: number; analysis?: number; piiMs?: number; analysisMs?: number; [key: string]: unknown };
-  _importProfileId?: string; _reReviewSnapshotId?: string; _excludedImportIndices?: number[];
-  _adoptReferenceRanges?: boolean; _benchmarkContextEdited?: boolean; _benchmarkDateEdited?: boolean;
+  costInfo?: { cost?: number; provider?: string | null; modelId?: string | null; inputTokens?: number; outputTokens?: number } | null | undefined;
+  timings?: { pii?: number; analysis?: number; piiMs?: number; analysisMs?: number; [key: string]: unknown } | null | undefined;
+  _importProfileId?: string; _reReviewSnapshotId?: string | undefined; _excludedImportIndices?: number[];
+  _adoptReferenceRanges?: boolean | undefined; _benchmarkContextEdited?: boolean; _benchmarkDateEdited?: boolean;
   [key: string]: unknown;
 }
 export interface ImportMarkerReference {

@@ -137,7 +137,7 @@ const importCssSrc = read('css/import.css');
   assert('Settings Data does not classify a date row as legacy only because importedWith is missing',
     !/if \(isFullyManual \|\| !entry\.importedWith\)/.test(settingsDataSrc));
   assert('Re-review tombstones an emptied old snapshot entry before deleting it',
-    /if \(isReReview\)[\s\S]{0,1500}recordTombstone\(state\.importedData,\s*['"]entries['"],\s*oldEntry\.date\)[\s\S]{0,160}deleteImportedArrayItems\(state\.importedData,\s*['"]entries['"],\s*e => e === oldEntry\)/.test(confirmBlock));
+    /if \(isReReview\)[\s\S]{0,1500}recordTombstone\(state\.importedData,\s*['"]entries['"],\s*oldEntry\.date\)[\s\S]{0,160}deleteImportedArrayItems\(state\.importedData,\s*['"]entries['"],\s*e => e === oldEntry\)/.test(confirmBlock.replace(/\s+/g, ' ')));
   assert('Re-review purges manual value overrides for removed old snapshot markers',
     /if \(isReReview\)[\s\S]{0,1200}const manualValues = state\.importedData\.manualValues \|\| \{\}/.test(confirmBlock)
       && /k\.endsWith\(':' \+ oldSnapshot\.date\)[\s\S]{0,120}removedKeys\.includes\(k\.split\(':'\)\[0\]\)[\s\S]{0,80}delete manualValues\[k\]/.test(confirmBlock));

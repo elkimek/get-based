@@ -709,3 +709,10 @@ deploy/profile-share/data/
 
 /js/pdf-import-preflight.js
 /js/import-drop-zone-runtime.js
+
+/js/import-commit-validation.js
+/js/pdf-import-persistence.js
+/js/import-marker-map-modal.js
+/js/pdf-import-review.js
+
+/js/pdf-import-commit.js

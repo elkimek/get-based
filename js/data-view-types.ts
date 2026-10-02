@@ -31,7 +31,7 @@ export interface MarkerViewData {
 }
 export interface CustomMarkerViewDefinition extends MarkerViewDefinition {
   categoryLabel?: string;
-  icon?: string;
+  icon?: string | undefined;
   singlePoint?: boolean;
   group?: string | null;
 }

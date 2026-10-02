@@ -11,12 +11,12 @@ const row = { matched: true, mappedKey: key, value: 5, unit: 'mmol/l' };
 it.each([null, undefined, NaN, Infinity, '5'])('blocks invalid numeric value %s without mutating the draft', value => {
   const draft = { date, markers: [{ ...row, value }] };
   expect(prepareImportCommit(draft, new Set()).error).toContain('numeric value');
-  expect(draft.markers[0].value).toBe(value);
+  expect(draft.markers[0]!.value).toBe(value);
 });
 it('accepts zero and allows explicit exclusion of an invalid row', () => {
   const result = prepareImportCommit({ date, markers: [{ ...row, value: 0 }, { ...row, value: null }] }, new Set([1]));
   expect(result.error).toBeNull();
-  expect(result.markers[0].value).toBe(0);
+  expect(result.markers[0]!.value).toBe(0);
 });
 it('detects collisions between canonical insulin and its aliases', () => {
   const markers = ['diabetes.insulin', 'hormones.insulin'].map(mappedKey => ({ ...row, mappedKey }));
@@ -35,20 +35,20 @@ it('converts custom values and ranges to the established unit, preserving raw re
 it('keeps specialty urine magnesium separate from an existing blood magnesium value', () => {
   const customKey = 'metabolomixNutrientElements.magnesium';
   const data = migrateProfileData({ entries: [{ date, markers: { [customKey]: 123, 'electrolytes.magnesium': 0.9 } }], customMarkers: { [customKey]: { name: 'Magnesium (Urine)', unit: 'mcg/g creatinine', categoryLabel: 'Metabolomix+: Nutrient Elements', group: 'Metabolomix+' } } });
-  expect(data.entries[0].markers).toEqual({ [customKey]: 123, 'electrolytes.magnesium': 0.9 });
-  expect(data.customMarkers[customKey].unit).toBe('mcg/g creatinine');
+  expect(data.entries![0]!.markers).toEqual({ [customKey]: 123, 'electrolytes.magnesium': 0.9 });
+  expect(data.customMarkers![customKey]!.unit).toBe('mcg/g creatinine');
 });
 it('preserves an identical value source in either merge direction but respects explicit manual sources and different values', () => {
   const imported = { date, updatedAt: 100, markers: { [key]: 5 }, markerSources: { [key]: { snapshotId: 'report', file: 'lab.pdf', at: 100 } } };
   const incomplete = { date, updatedAt: 200, markers: { [key]: 5 } };
   for (const merged of [mergeLabEntry(imported, incomplete), mergeLabEntry(incomplete, imported)]) {
-    expect(merged.markerSources[key]).toMatchObject({ snapshotId: 'report', at: 200 });
+    expect(merged.markerSources![key]).toMatchObject({ snapshotId: 'report', at: 200 });
   }
   const manual = { ...incomplete, markerSources: { [key]: { file: null, at: 200 } } };
-  expect(mergeLabEntry(imported, manual).markerSources[key]).toEqual(manual.markerSources[key]);
+  expect(mergeLabEntry(imported, manual).markerSources![key]).toEqual(manual.markerSources[key]);
   expect(mergeLabEntry(imported, { ...incomplete, markers: { [key]: 6 } }).markerSources).toBeUndefined();
-  expect(mergeLabEntry(imported, { ...incomplete, markerSources: { [key]: null } }).markerSources[key]).toBeNull();
-  expect(mergeLabEntry(imported, { date, deletedMarkers: { [key]: 300 } }).markers[key]).toBeUndefined();
+  expect(mergeLabEntry(imported, { ...incomplete, markerSources: { [key]: null } }).markerSources![key]).toBeNull();
+  expect(mergeLabEntry(imported, { date, deletedMarkers: { [key]: 300 } }).markers![key]).toBeUndefined();
 });
 it('restores supplied values without losing unrelated markers or collection metadata', () => {
   const current = { date, updatedAt: 100, markers: { [key]: 5, 'biochemistry.alt': 0.5 }, context: { fasting: true }, deletedMarkers: { 'biochemistry.ast': 100 } };
@@ -62,7 +62,7 @@ it('round trips report timestamps and canonicalizes restored insulin aliases', (
   const restored = mergeRestoredLabEntry({ date, markers: {} }, {
     date, markers: { 'hormones.insulin': 8 }, markerSources: { 'hormones.insulin': { at: 100, snapshotId: 'report', file: 'lab.pdf' } },
   }, 300);
-  expect(restored.markers['diabetes.insulin']).toBe(8);
-  expect(restored.markers['hormones.insulin']).toBeUndefined();
-  expect(restored.markerSources['diabetes.insulin']).toEqual({ at: 100, snapshotId: 'report', file: 'lab.pdf' });
+  expect(restored.markers!['diabetes.insulin']).toBe(8);
+  expect(restored.markers!['hormones.insulin']).toBeUndefined();
+  expect(restored.markerSources!['diabetes.insulin']).toEqual({ at: 100, snapshotId: 'report', file: 'lab.pdf' });
 });
