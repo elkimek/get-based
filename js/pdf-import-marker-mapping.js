@@ -701,8 +701,10 @@ export function reconcileImportMarkerMappings(markers, options = {}) {
 
 /**
  * @param {{profileSex?: string, includeCustomMarkers?: boolean}} [options]
+ * @returns {Record<string, import('./pdf-import-review-runtime.js').ImportMarkerReference>}
  */
 export function buildMarkerReference(options = {}) {
+  /** @type {Record<string, import('./pdf-import-review-runtime.js').ImportMarkerReference>} */
   const ref = {};
   const profileSex = options.profileSex === undefined ? state.profileSex : options.profileSex;
   const includeCustomMarkers = options.includeCustomMarkers !== false;

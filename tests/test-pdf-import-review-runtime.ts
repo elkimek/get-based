@@ -3,6 +3,7 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-pdf-import-review-runtime.js - Import review browser-runtime adapter coverage.
 
 import './_node-shim.js';
+import type { ImportReviewRuntimeFields } from '../js/pdf-import-review-runtime.js';
 
 import {
   clearPendingImportRuntime,
@@ -30,7 +31,7 @@ const RUNTIME_FIELDS = [
   '_batchImportContext',
   '__importReviewDelegatesBound',
   'showPIIDiffViewer',
-];
+] as const;
 
 const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
 const originalReviewRuntimeDeps = configurePdfImportReviewRuntimeDeps();
@@ -38,12 +39,12 @@ const originalFieldDescriptors = new Map(
   RUNTIME_FIELDS.map(field => [field, Object.getOwnPropertyDescriptor(globalThis, field)])
 );
 
-function restoreDescriptor(target, key, descriptor) {
+function restoreDescriptor(target: object, key: PropertyKey, descriptor: PropertyDescriptor | undefined) {
   if (descriptor) {
     Object.defineProperty(target, key, descriptor);
     return;
   }
-  delete target[key];
+  delete (target as Record<PropertyKey, unknown>)[key];
 }
 
 function resetRuntimeWindow() {
@@ -53,7 +54,7 @@ function resetRuntimeWindow() {
     writable: true,
     value: globalThis,
   });
-  for (const field of RUNTIME_FIELDS) delete globalThis[field];
+  for (const field of RUNTIME_FIELDS) delete (globalThis as Record<PropertyKey, unknown>)[field];
 }
 
 console.log('=== PDF Import Review Runtime Tests ===\n');
@@ -68,7 +69,7 @@ try {
   assert('pending import ref lookup stored in runtime', getPendingImportRefLookup() === refLookup);
   assert('unconfigured confirm callback is a safe no-op', confirmImportFromRuntime() === false);
 
-  const viewCalls = [];
+  const viewCalls: unknown[][] = [];
   configurePdfImportReviewRuntimeDeps({
     buildSidebar: () => viewCalls.push(['sidebar']),
     navigate: route => viewCalls.push(['navigate', route]),
@@ -83,8 +84,8 @@ try {
       ]));
 
   clearPendingImportRuntime();
-  assert('pending import clears to null', globalThis._pendingImport === null);
-  assert('pending import ref lookup clears to null', globalThis._pendingImportRefLookup === null);
+  assert('pending import clears to null', (globalThis as typeof globalThis & ImportReviewRuntimeFields)._pendingImport === null);
+  assert('pending import ref lookup clears to null', (globalThis as typeof globalThis & ImportReviewRuntimeFields)._pendingImportRefLookup === null);
   assert('cleared pending import reads as null', getPendingImportFromRuntime() === null);
   assert('cleared pending ref lookup reads as null', getPendingImportRefLookup() === null);
 
@@ -95,15 +96,15 @@ try {
   assert('batch import context predicate is true', hasBatchImportContext());
   const resolve = takeBatchImportResolve();
   assert('batch import resolver can be taken', typeof resolve === 'function');
-  assert('taking resolver clears batch context', globalThis._batchImportContext === null);
-  assert('taking resolver clears runtime resolver', globalThis._batchImportResolve === null);
+  assert('taking resolver clears batch context', (globalThis as typeof globalThis & ImportReviewRuntimeFields)._batchImportContext === null);
+  assert('taking resolver clears runtime resolver', (globalThis as typeof globalThis & ImportReviewRuntimeFields)._batchImportResolve === null);
   resolve?.('import');
   assert('taken resolver remains callable', resolvedAction === 'import');
   assert('missing batch resolver returns null', takeBatchImportResolve() === null);
 
   assert('delegate binding marker sets once', markImportReviewDelegatesBound() === true);
   assert('delegate binding marker rejects second bind', markImportReviewDelegatesBound() === false);
-  assert('delegate binding flag stored in runtime', globalThis.__importReviewDelegatesBound === true);
+  assert('delegate binding flag stored in runtime', (globalThis as typeof globalThis & ImportReviewRuntimeFields).__importReviewDelegatesBound === true);
 
   let confirmCalls = 0;
   configurePdfImportReviewRuntimeDeps({
@@ -114,9 +115,9 @@ try {
   configurePdfImportReviewRuntimeDeps({ confirmImport: null });
   assert('confirm callback can be cleared safely', confirmImportFromRuntime() === false);
 
-  let diffArgs = null;
-  let diffThis = null;
-  globalThis.showPIIDiffViewer = function(original, obfuscated) {
+  let diffArgs: [unknown, unknown] | null = null;
+  let diffThis: unknown = null;
+  (globalThis as typeof globalThis & ImportReviewRuntimeFields).showPIIDiffViewer = function(this: unknown, original: unknown, obfuscated: unknown) {
     diffArgs = [original, obfuscated];
     diffThis = this;
   };
@@ -124,7 +125,7 @@ try {
   assert('PII diff callback receives payload', diffArgs?.[0] === 'raw' && diffArgs?.[1] === 'safe');
   assert('PII diff callback preserves window receiver', diffThis === globalThis);
 
-  delete globalThis.window;
+  delete (globalThis as Partial<typeof globalThis>).window;
   assert('no-window view refresh returns false', refreshImportedDataViewsRuntime('labs') === false);
   assert('no-window pending import reads as null', getPendingImportFromRuntime() === null);
   assert('no-window ref lookup reads as null', getPendingImportRefLookup() === null);

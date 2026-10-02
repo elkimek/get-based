@@ -342,7 +342,7 @@ Return ONLY valid JSON in this exact format, no other text:
   // Strip any leading text before the JSON object
   const jsonStart = jsonStr.indexOf('{');
   if (jsonStart > 0) jsonStr = jsonStr.slice(jsonStart);
-  const parsed = tryParseJSON(jsonStr);
+  const parsed = /** @type {import('./pdf-import-ai-utils.js').ParsedAIImport} */ (tryParseJSON(jsonStr));
   const rawModelResult = options.captureRawModelOutput ? {
     date: parsed.date || null,
     ...normalizeImportedCollectionContext(parsed),
@@ -545,7 +545,7 @@ Return ONLY valid JSON in this exact format:
   if (codeBlockMatch) jsonStr = codeBlockMatch[1].trim();
   const jsonStart = jsonStr.indexOf('{');
   if (jsonStart > 0) jsonStr = jsonStr.slice(jsonStart);
-  const parsed = tryParseJSON(jsonStr);
+  const parsed = /** @type {import('./pdf-import-ai-utils.js').ParsedAIImport} */ (tryParseJSON(jsonStr));
 
   const { testType, markers } = normalizeParsedImportMarkers(parsed, {
     markerRef,

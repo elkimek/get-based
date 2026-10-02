@@ -1,4 +1,33 @@
-// @ts-check
+import type { AssistantFeatureRequestOptions } from './ai-feature-routing.js';
+
+export interface ParsedAIImport {
+  date?: string | null; testType?: string | null; labName?: string | null;
+  sampleTime?: unknown; fasting?: unknown; markers?: Array<Record<string, unknown>> | null;
+  [key: string]: unknown;
+}
+interface ImportUsage { inputTokens?: unknown; outputTokens?: unknown }
+interface ImportPerformanceMetrics { timeToFirstTokenMs?: unknown; tokensPerSecond?: unknown; [key: string]: unknown }
+export interface ImportDiagnostics {
+  performance?: ImportPerformanceMetrics | null; streamFallback?: boolean; structuredOutputFallback?: boolean;
+  [key: string]: unknown;
+}
+export interface ImportAIResult {
+  text?: string; usage?: ImportUsage | null; truncated?: boolean;
+  diagnostics?: ImportDiagnostics;
+  [key: string]: unknown;
+}
+interface ImportPerformanceSample {
+  usage?: ImportUsage | null;
+  diagnostics?: ImportDiagnostics | null;
+}
+interface ImportPerformance { at?: number; prefillTps?: number; genTps?: number; [key: string]: unknown }
+interface ImportAIProgressOptions {
+  perfKey: string; estimatedPromptTokens?: number; onProgress?: ((percent: number, label: string) => unknown) | null;
+}
+interface ImportAIProgress { start(): void; onStream(text: string): void; finish(): void }
+interface ImportAIInactiveProgress { start(): void; onStream: undefined; finish(): void }
+type ImportError = { message?: unknown; name?: unknown } | null | undefined;
+
 // pdf-import-ai-utils.js - AI request retry, JSON parsing, and accounting helpers.
 
 import { AI_IMPORT_REQUEST_TIMEOUT_MS } from './api.js';
@@ -10,8 +39,7 @@ import { isDebugMode } from './utils.js';
 export const IMPORT_COLLECTION_CONTEXT_PROMPT = `   - Also return sampleTime as HH:MM (24-hour time) only when the report explicitly labels a collection, draw, or specimen time. Never substitute received, accessioned, processed, analyzed, result, or report time. Return null if the collection time is absent or ambiguous.
    - Return fasting as true only when the report explicitly says fasting/fasted or uses an explicit fasting-specimen label such as fS-. Return false only when it explicitly says non-fasting. Do not infer fasting from the clock time, the tests ordered, or a glucose result; return null when unknown.`;
 
-/** @param {Record<string, unknown>} parsed */
-export function normalizeImportedCollectionContext(parsed) {
+export function normalizeImportedCollectionContext(parsed: Record<string, unknown>) {
   return {
     sampleTime: normalizeLabSampleTime(parsed.sampleTime),
     fasting: normalizeLabFastingStatus(parsed.fasting),
@@ -61,7 +89,7 @@ export const IMPORT_CLASSIFICATION_JSON_SCHEMA = {
   required: ['testType'],
 };
 
-export function compactMarkerReference(markerRef) {
+export function compactMarkerReference(markerRef: Record<string, { name?: unknown; unit?: unknown } | null | undefined> | null | undefined) {
   return Object.entries(markerRef || {}).map(([key, def]) => {
     const name = String(def?.name || '').replace(/[|\n\r]/g, ' ');
     const unit = String(def?.unit || '').replace(/[|\n\r]/g, ' ');
@@ -69,12 +97,6 @@ export function compactMarkerReference(markerRef) {
   }).join('\n');
 }
 
-/**
- * @typedef {{
- *   inputTokens?: number,
- *   outputTokens?: number
- * }} ImportUsage
- */
 
 // ── Phase-aware AI analysis progress ──
 // Before the first streamed token the model is prefilling ("reading") — a
@@ -91,19 +113,12 @@ export function importAIPerfKey() {
   return provider === 'ollama' ? `local:${getOllamaMainModel()}` : provider;
 }
 
-function readImportAIPerf() {
+function readImportAIPerf(): Record<string, ImportPerformance | undefined> {
   try { return JSON.parse(localStorage.getItem(IMPORT_AI_PERF_KEY) || '{}') || {}; }
   catch { return {}; }
 }
 
-/**
- * @param {string} perfKey
- * @param {{
- *   usage?: ImportUsage,
- *   diagnostics?: { performance?: { timeToFirstTokenMs?: number, tokensPerSecond?: number } }
- * }} [result]
- */
-export function saveImportAIPerf(perfKey, { usage, diagnostics } = {}) {
+export function saveImportAIPerf(perfKey: string, { usage, diagnostics }: ImportPerformanceSample = {}) {
   if (!perfKey) return;
   const perf = diagnostics?.performance;
   const inputTokens = Number(usage?.inputTokens) || 0;
@@ -125,22 +140,24 @@ export function saveImportAIPerf(perfKey, { usage, diagnostics } = {}) {
   try { localStorage.setItem(IMPORT_AI_PERF_KEY, JSON.stringify(all)); } catch {}
 }
 
-function remainingTimeLabel(ms) {
+function remainingTimeLabel(ms: number) {
   if (ms >= 90000) return `about ${Math.round(ms / 60000)} min left`;
   if (ms > 0) return `about ${Math.max(5, Math.round(ms / 5000) * 5)}s left`;
   return '';
 }
 
-export function createImportAIProgress({ perfKey, estimatedPromptTokens = 0, onProgress }) {
+export function createImportAIProgress(options: ImportAIProgressOptions & { onProgress: NonNullable<ImportAIProgressOptions['onProgress']> }): ImportAIProgress;
+export function createImportAIProgress(options: ImportAIProgressOptions): ImportAIProgress | ImportAIInactiveProgress;
+export function createImportAIProgress({ perfKey, estimatedPromptTokens = 0, onProgress }: ImportAIProgressOptions): ImportAIProgress | ImportAIInactiveProgress {
   if (!onProgress) return { onStream: undefined, start() {}, finish() {} };
   const perf = readImportAIPerf()[perfKey] || {};
-  const prefillEtaMs = perf.prefillTps > 0 && estimatedPromptTokens > 0
-    ? (estimatedPromptTokens / perf.prefillTps) * 1000
+  const prefillEtaMs = perf.prefillTps! > 0 && estimatedPromptTokens > 0
+    ? (estimatedPromptTokens / perf.prefillTps!) * 1000
     : 0;
-  let ticker = null;
+  let ticker: ReturnType<typeof setInterval> | null = null;
   let startedAt = 0;
   let lastPct = 0;
-  const report = (pct, label) => {
+  const report = (pct: number, label: string) => {
     pct = Math.round(Math.max(READING_PCT_START, Math.min(WRITING_PCT_END, pct)));
     if (pct < lastPct) pct = lastPct;
     lastPct = pct;
@@ -163,7 +180,7 @@ export function createImportAIProgress({ perfKey, estimatedPromptTokens = 0, onP
         report(READING_PCT_START + frac * span, `Model is reading the report${left > 3000 ? ' — ' + remainingTimeLabel(left) : ''}`);
       }, 1000);
     },
-    onStream(text) {
+    onStream(text: string) {
       stopTicker();
       // Output length is unknown up front; approach the ceiling asymptotically.
       const frac = 1 - Math.exp(-text.length / 9000);
@@ -173,23 +190,23 @@ export function createImportAIProgress({ perfKey, estimatedPromptTokens = 0, onP
   };
 }
 
-export function isAIStreamAbortError(err) {
-  const message = String(err?.message || err || '').toLowerCase();
-  const name = String(err?.name || '').toLowerCase();
+export function isAIStreamAbortError(err: unknown) {
+  const message = String((err as ImportError)?.message || err || '').toLowerCase();
+  const name = String((err as ImportError)?.name || '').toLowerCase();
   return message.includes('bodystreambuffer was aborted')
     || message.includes('aborted by user')
     || (message.includes('body') && message.includes('stream') && message.includes('abort'))
     || name === 'aborterror';
 }
 
-export async function callImportAIWithStreamFallback(request, label) {
+export async function callImportAIWithStreamFallback(request: AssistantFeatureRequestOptions, label: string) {
   try {
-    return await callAssistantFeatureAI(request);
+    return await callAssistantFeatureAI(request) as ImportAIResult;
   } catch (err) {
     if (!request.onStream || request.signal?.aborted || !isAIStreamAbortError(err)) throw err;
     if (isDebugMode()) console.warn(`[Import] ${label} stream aborted; retrying without streaming`, err);
     try {
-      const result = await callAssistantFeatureAI({ ...request, onStream: undefined, forceNonStream: true, requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS });
+      const result = await callAssistantFeatureAI({ ...request, onStream: undefined, forceNonStream: true, requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS }) as ImportAIResult;
       return {
         ...result,
         diagnostics: { ...result?.diagnostics, streamFallback: true },
@@ -203,22 +220,22 @@ export async function callImportAIWithStreamFallback(request, label) {
   }
 }
 
-export function formatImportError(err) {
+export function formatImportError(err: unknown) {
   if (isAIStreamAbortError(err)) {
     return 'AI analysis request was interrupted after privacy review. Try again, or switch provider/model if it repeats.';
   }
-  return err?.message || String(err);
+  return (err as ImportError)?.message || String(err);
 }
 
-export function getUsageTokens(usage) {
-  const u = /** @type {ImportUsage} */ (usage || {});
+export function getUsageTokens(usage: ImportUsage | null | undefined) {
+  const u = (usage || {});
   return {
     inputTokens: Number(u.inputTokens) || 0,
     outputTokens: Number(u.outputTokens) || 0,
   };
 }
 
-export function tryParseJSON(str) {
+export function tryParseJSON(str: string): unknown {
   try { return JSON.parse(str); } catch {}
   // Try trimming to last complete object (handles truncated output)
   const lastBrace = str.lastIndexOf('}');

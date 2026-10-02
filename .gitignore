@@ -694,3 +694,5 @@ deploy/profile-share/data/
 /js/light-tool-camera.js
 /js/dna-evidence.js
 /js/chat-scroll.js
+/js/pdf-import-ai-utils.js
+/js/pdf-import-review-runtime.js
