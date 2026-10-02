@@ -59,7 +59,7 @@ await import('../js/settings.js');
   const syncChatApplySrc = await fetchWithRetry('js/sync-chat-apply.js');
   const syncSettingsStateSrc = await fetchWithRetry('js/sync-settings-state.js');
   const syncRuntimeSrc = await fetchWithRetry('js/sync-runtime.js');
-  const syncInitSrc = await fetchWithRetry('js/sync-init.js');
+  const syncInitSrc = await fetchWithRetry('js/sync-init.ts');
   const syncEvoluClientSrc = await fetchWithRetry('js/sync-evolu8-candidate.js');
   const syncLifecycleSrc = await fetchWithRetry('js/sync-lifecycle.js');
   const syncDisableCleanupSrc = (await fetchWithRetry('js/sync-disable-cleanup.js')).replace(/\s+/g, ' ');

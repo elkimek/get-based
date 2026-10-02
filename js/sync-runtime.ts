@@ -3,7 +3,7 @@ import type { DeltaItemRow } from './sync-delta-row-codec.js';
 
 interface SyncAppOwner extends Record<string, unknown> { id?: string; mnemonic?: string }
 /** Common runtime operations exposed by both supported Evolu adapters. */
-interface SyncRuntimeClient {
+export interface SyncRuntimeClient {
   // Each registered query selects its own row projection; profile rows are the default.
   getQueryRows<Row extends SyncProfileRow | DeltaItemRow = SyncProfileRow>(query: unknown): readonly Row[] | null | undefined;
   insert(table: 'profileData' | 'itemRow', args: unknown): unknown;

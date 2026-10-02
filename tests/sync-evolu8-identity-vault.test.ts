@@ -6,16 +6,16 @@ import {
   createEvolu8IdentityVault as createVault,
 } from '../js/sync-evolu8-identity-vault.js';
 
-function createEvolu8IdentityVault(options) {
+function createEvolu8IdentityVault(options: Parameters<typeof createVault>[0]) {
   return createVault({lockManager:{request:(_name,operation)=>operation()},...options});
 }
 
 function createStorage() {
-  const values = new Map();
+  const values = new Map<string, string>();
   return {
-    getItem: vi.fn(key => values.get(key) ?? null),
-    setItem: vi.fn((key, value) => values.set(key, value)),
-    removeItem: vi.fn(key => values.delete(key)),
+    getItem: vi.fn((key: string) => values.get(key) ?? null),
+    setItem: vi.fn((key: string, value: string): unknown => values.set(key, value)),
+    removeItem: vi.fn((key: string): unknown => values.delete(key)),
     values,
   };
 }

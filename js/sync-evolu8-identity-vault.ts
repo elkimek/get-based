@@ -1,9 +1,26 @@
-// @ts-check
 // Durable browser identity handoff from Evolu 7 to Evolu 8.
 //
 // The recovery mnemonic stays in IndexedDB. localStorage contains only a
 // random, non-secret commit token so identity changes can invalidate the vault
 // synchronously before either Evolu generation mutates its durable owner.
+
+export interface EvoluIdentity { ownerId: string; mnemonic: string }
+export interface EvoluIdentityStorage {
+  getItem?: (key: string) => string | null;
+  setItem?: (key: string, value: string) => unknown;
+  removeItem?: (key: string) => unknown;
+}
+interface VaultLockManager {
+  request?(name: string, operation: () => Promise<void>): Promise<void>;
+}
+interface VaultOptions {
+  storage?: EvoluIdentityStorage | null;
+  indexedDb?: IDBFactory | null;
+  tokenFactory?: () => string;
+  lockManager?: VaultLockManager | null;
+}
+interface VaultRecord { version?: unknown; token?: unknown; ownerId?: unknown; mnemonic?: unknown }
+type VaultOperation<Result> = (store: IDBObjectStore) => IDBRequest<Result> | void;
 
 export const EVOLU8_IDENTITY_TOKEN_KEY = 'labcharts-sync-evolu8-identity-token';
 const DATABASE_NAME = 'getbased-evolu8-identity';
@@ -12,16 +29,15 @@ const RECORD_KEY = 'app-owner';
 const RECORD_VERSION = 1;
 const OPERATION_TIMEOUT_MS = 5_000;
 
-/** @param {IDBFactory} indexedDb */
-function openVaultDatabase(indexedDb) {
-  return new Promise((resolve, reject) => {
+function openVaultDatabase(indexedDb: IDBFactory) {
+  return new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDb.open(DATABASE_NAME, 1);
     let settled = false;
     const timeout = setTimeout(() => {
       settled = true;
       reject(new Error('Evolu 8 identity vault timed out'));
     }, OPERATION_TIMEOUT_MS);
-    const finish = (callback) => {
+    const finish = (callback: () => void) => {
       if (settled) return false;
       settled = true;
       clearTimeout(timeout);
@@ -41,17 +57,12 @@ function openVaultDatabase(indexedDb) {
   });
 }
 
-/**
- * @param {IDBDatabase} database
- * @param {IDBTransactionMode} mode
- * @param {(store: IDBObjectStore) => IDBRequest | void} operation
- */
-function runVaultTransaction(database, mode, operation) {
-  return new Promise((resolve, reject) => {
+function runVaultTransaction<Result>(database: IDBDatabase, mode: IDBTransactionMode, operation: VaultOperation<Result>) {
+  return new Promise<Result | undefined>((resolve, reject) => {
     const transaction = database.transaction(STORE_NAME, mode);
-    let result;
+    let result: Result | undefined;
     let settled = false;
-    const finish = (callback) => {
+    const finish = (callback: () => void) => {
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
@@ -80,9 +91,8 @@ function runVaultTransaction(database, mode, operation) {
   });
 }
 
-/** @param {IDBFactory} indexedDb @param {IDBTransactionMode} mode @param {(store: IDBObjectStore) => IDBRequest | void} operation */
-async function accessVault(indexedDb, mode, operation) {
-  const database = /** @type {IDBDatabase} */ (await openVaultDatabase(indexedDb));
+async function accessVault<Result>(indexedDb: IDBFactory, mode: IDBTransactionMode, operation: VaultOperation<Result>) {
+  const database = (await openVaultDatabase(indexedDb) as IDBDatabase);
   try {
     return await runVaultTransaction(database, mode, operation);
   } finally {
@@ -98,25 +108,16 @@ function createCommitToken() {
     || `${Date.now()}-${Math.random()}`;
 }
 
-/** @param {Storage | { getItem?: Function }} storage */
-function readCommitToken(storage) {
+function readCommitToken(storage: EvoluIdentityStorage | null | undefined) {
   try { return String(storage?.getItem?.(EVOLU8_IDENTITY_TOKEN_KEY) || ''); } catch { return ''; }
 }
 
-/**
- * @param {{
- *   storage?: Storage | { getItem?: Function, setItem?: Function, removeItem?: Function },
- *   indexedDb?: IDBFactory | null,
- *   tokenFactory?: () => string,
- *   lockManager?: { request?: Function } | null,
- * }} [options]
- */
 export function createEvolu8IdentityVault({
   storage = globalThis.localStorage,
   indexedDb = globalThis.indexedDB,
   tokenFactory = createCommitToken,
   lockManager = globalThis.navigator?.locks,
-} = {}) {
+}: VaultOptions = {}) {
   // Invalidate in-flight work even when the first write has no token yet.
   // Token rechecks also detect changes made by a different vault/context.
   let revision = 0;
@@ -125,11 +126,11 @@ export function createEvolu8IdentityVault({
     const token = readCommitToken(storage);
     if (!token || !indexedDb) return null;
     try {
-      const record = /** @type {any} */ (await accessVault(
+      const record = (await accessVault(
         indexedDb,
         'readonly',
         store => store.get(RECORD_KEY),
-      ));
+      ) as VaultRecord | null | undefined);
       if (revision !== startedRevision || readCommitToken(storage) !== token
           || record?.version !== RECORD_VERSION
           || record?.token !== token
@@ -143,14 +144,14 @@ export function createEvolu8IdentityVault({
     }
   };
 
-  const withWriteLock = (operation) => {
+  const withWriteLock = (operation: () => Promise<void>) => {
     if (typeof lockManager?.request !== 'function') {
       throw new Error('Evolu 8 identity vault coordination is unavailable');
     }
     return lockManager.request('getbased-evolu8-identity-write', operation);
   };
 
-  const write = async ({ ownerId, mnemonic }) => {
+  const write = async ({ ownerId, mnemonic }: { ownerId: unknown; mnemonic: unknown }) => {
     if (!indexedDb || typeof storage?.setItem !== 'function' || typeof storage?.getItem !== 'function') {
       throw new Error('Evolu 8 identity vault storage is unavailable');
     }

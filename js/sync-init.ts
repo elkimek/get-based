@@ -1,4 +1,4 @@
-// @ts-check
+import type { RuntimeDependencyUpdates } from './runtime-callbacks.js';
 // sync-init.js - Evolu initialization and startup reconciliation.
 
 import { isDebugMode, showNotification } from './utils.js';
@@ -24,22 +24,21 @@ import {
   setSyncReadyPromise,
 } from './sync-runtime.js';
 
-/** @type {() => Promise<any>} */
-let _reconcileLocalStorageWithEvolu = async () => {};
-/** @type {() => Promise<any> | undefined} */
-let _forcePull = () => Promise.resolve();
+let _reconcileLocalStorageWithEvolu: () => Promise<unknown> = async () => {};
+let _forcePull: () => Promise<unknown> | undefined = () => Promise.resolve();
 let _isSyncPulling = () => false;
 
-/** @param {{
- *   reconcileLocalStorageWithEvolu?: () => Promise<any>,
- *   forcePull?: () => Promise<any> | undefined,
- *   isSyncPulling?: () => boolean,
- * }} [deps] */
+interface SyncInitDependencies {
+  reconcileLocalStorageWithEvolu: typeof _reconcileLocalStorageWithEvolu;
+  forcePull: typeof _forcePull;
+  isSyncPulling: typeof _isSyncPulling;
+}
+
 export function configureSyncInit({
   reconcileLocalStorageWithEvolu,
   forcePull,
   isSyncPulling,
-} = {}) {
+}: RuntimeDependencyUpdates<SyncInitDependencies> = {}) {
   if (typeof reconcileLocalStorageWithEvolu === 'function') {
     _reconcileLocalStorageWithEvolu = reconcileLocalStorageWithEvolu;
   }
@@ -60,7 +59,7 @@ export async function waitForInitialReplicaQuiet({
   getFireCount = getSyncSubscriptionFireCount,
   isPulling = _isSyncPulling,
   now = Date.now,
-  wait = ms => new Promise(resolve => setTimeout(resolve, ms)),
+  wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms)),
 } = {}) {
   const startedAt = now();
   let quietSince = startedAt;
@@ -77,8 +76,7 @@ export async function waitForInitialReplicaQuiet({
   return false;
 }
 
-/** @param {...any} args */
-function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
+function dbg(...args: unknown[]) { if (isDebugMode()) console.log('[sync]', ...args); }
 
 export async function initSync() {
   primeSyncState();
@@ -176,7 +174,7 @@ export async function initSync() {
     // the relay, so this had to be opt-in. Toggle Settings > Privacy >
     // Debug mode to expose.
     if (isDebugMode?.()) {
-      (/** @type {any} */ (window))._syncDebug = {
+      ((window as Window & { _syncDebug?: { getRows: () => unknown; getOwner: typeof getSyncAppOwner; evolu: typeof evolu } }))._syncDebug = {
         getRows: () => evolu.getQueryRows(profileQuery),
         getOwner: () => getSyncAppOwner(),
         evolu,

@@ -10,7 +10,7 @@ interface SyncQuerySelection {
 interface SyncQueryDatabase {
   selectFrom(table: 'profileData' | 'itemRow'): SyncQuerySelection;
 }
-interface SyncQueryClient<Query> {
+export interface SyncQueryClient<Query> {
   createQuery(select: (db: SyncQueryDatabase) => SyncQuerySelection): Query;
 }
 
