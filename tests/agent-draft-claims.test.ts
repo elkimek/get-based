@@ -1,25 +1,25 @@
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ get: vi.fn(), set: vi.fn(), enabled: vi.fn(), unlocked: vi.fn() }));
+const mocks = vi.hoisted(() => ({ get: vi.fn<(key: string) => Promise<string | null>>(), set: vi.fn<(key: string, value: string) => Promise<void>>(), enabled: vi.fn<() => boolean>(), unlocked: vi.fn<() => boolean>() }));
 vi.mock('../js/crypto.js', () => ({ encryptedGetItem: mocks.get, encryptedSetItem: mocks.set, getEncryptionEnabled: mocks.enabled, isUnlocked: mocks.unlocked }));
 import { claimAgentDraft } from '../js/agent-draft-claims.js';
-let descriptor;
+let descriptor: PropertyDescriptor | undefined;
 beforeEach(() => {
   vi.resetAllMocks(); localStorage.clear();
   mocks.get.mockImplementation(async key => localStorage.getItem(key));
   mocks.set.mockImplementation(async (key, value) => localStorage.setItem(key, value));
   descriptor = Object.getOwnPropertyDescriptor(navigator, 'locks');
   let pending = Promise.resolve();
-  Object.defineProperty(navigator, 'locks', { configurable: true, value: { request: (_key, _options, callback) => {
+  Object.defineProperty(navigator, 'locks', { configurable: true, value: { request: (_key: string, _options: LockOptions, callback: () => Promise<void>) => {
     const next = pending.catch(() => {}).then(callback); pending = next; return next;
   } } });
 });
-afterEach(() => { if (descriptor) Object.defineProperty(navigator, 'locks', descriptor); else delete navigator.locks; });
+afterEach(() => { if (descriptor) Object.defineProperty(navigator, 'locks', descriptor); else delete (navigator as { locks?: LockManager }).locks; });
 it('allows one claim from concurrent requests and preserves it across later attempts', async () => {
   const results = await Promise.allSettled([claimAgentDraft('a', 'proposal'), claimAgentDraft('a', 'proposal')]);
   expect(results.map(result => result.status)).toEqual(['fulfilled', 'rejected']);
   await expect(claimAgentDraft('a', 'proposal')).rejects.toThrow('already attempted');
   await expect(claimAgentDraft('b', 'proposal')).resolves.toBeUndefined();
-  expect(JSON.parse(localStorage.getItem('labcharts-a-agent-draft-claims'))).toEqual({ version: 1, claims: { proposal: true } });
+  expect(JSON.parse(localStorage.getItem('labcharts-a-agent-draft-claims')!)).toEqual({ version: 1, claims: { proposal: true } });
 });
 it('propagates failed persistence without recording a successful claim', async () => {
   mocks.set.mockRejectedValueOnce(new Error('Quota'));

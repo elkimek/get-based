@@ -648,3 +648,5 @@ deploy/profile-share/data/
 /js/nostr-discovery.js
 
 /tests/helpers/native-source-contracts.js
+
+/js/agent-draft-claims.js
