@@ -1,4 +1,3 @@
-// @ts-check
 // lens-knowledge-base-ui.js - Knowledge Base settings/modal UI and local ingest.
 
 import { getErrorMessage } from './caught-error.js';
@@ -7,10 +6,43 @@ import { closeModalOverlay, openModalOverlay, wireBackdropClose } from './modal-
 import { initLensActionDelegates, lensActionAttrs } from './lens-actions.js';
 import { createLensLibraryHandlers } from './lens-library.js';
 
-/** @typedef {Window & typeof globalThis & { _lensIngestRunning?: boolean, _lensIngestStopRequested?: boolean }} LensWindow */
-const lensWindow = /** @type {LensWindow} */ (window);
+import type { LensLibraryDeps } from './lens-library.js';
+import type { StatsReply } from './lens-local-protocol.js';
+import type { LensInputFile } from './lens-local-ingest.js';
+export interface LensUiConfig { backend: string; name: string; url: string; enabled: boolean; topK: number; testProbe: string; multiQuery: boolean }
+interface LensStatus { state: string; lastChunkCount: number; lastError: string | null; sourceName: string }
+type LensConnectionResult = { ok: true; chunkCount: number } | { ok: false; error: string };
+interface LensUiDeps extends Pick<LensLibraryDeps, 'clearLensCache'> {
+  defaultTestProbe: string; getLensConfig(): LensUiConfig; saveLensConfig(partial: Partial<LensUiConfig>): unknown;
+  getLensKey(): string; saveLensKey(key: string): Promise<unknown>; removeLens(): Promise<unknown>;
+  getLensStatus(): LensStatus; updateLensStatus(partial: Partial<LensStatus>): unknown;
+  hasLens(): boolean; isValidLensUrl(url: string): boolean;
+  testLensConnection(): Promise<LensConnectionResult>;
+  recordLocalLensStats(stats: Omit<StatsReply, 'type'>): unknown;
+}
+type LensWindow = Window & typeof globalThis & { _lensIngestRunning?: boolean; _lensIngestStopRequested?: boolean };
+const lensWindow = window as LensWindow;
 
-export function createLensKnowledgeBaseUi(deps) {
+function renderLensStatus(cfg: LensUiConfig, connected: unknown, isBrowser: boolean, usableSource: boolean, status: LensStatus) {
+    const statusChip = !connected
+      ? '<span class="kb-status-text">Not connected</span>'
+      : status.state === 'error'
+        ? `<span class="kb-status-text kb-status-error">&#9888; Error${cfg.name ? ' · ' + escapeHTML(cfg.name) : ''}</span>`
+        : cfg.enabled
+          ? isBrowser && !usableSource
+            ? '<span class="kb-status-text">Enabled · add documents</span>'
+            : `<span class="kb-status-text kb-status-active">&#10003; Active${cfg.name ? ' · ' + escapeHTML(cfg.name) : ''}</span>`
+          : '<span class="kb-status-text">Ready, currently off</span>';
+    const lastInfo = status.state === 'error' && status.lastError
+      ? `<div class="kb-status-detail kb-status-error">Last error: ${escapeHTML(status.lastError)}</div>`
+      : connected && status.lastChunkCount
+        ? `<div class="kb-status-detail">Last search: ${status.lastChunkCount} excerpt${status.lastChunkCount !== 1 ? 's' : ''}${status.sourceName ? ' from ' + escapeHTML(status.sourceName) : ''}</div>`
+        : '';
+
+  return { statusChip, lastInfo };
+}
+
+export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
   const {
     defaultTestProbe,
     getLensConfig,
@@ -48,20 +80,7 @@ export function createLensKnowledgeBaseUi(deps) {
     const connected = isBrowser || (isExternal && cfg.url && keySet);
     const usableSource = hasLens();
     const status = getLensStatus();
-    const statusChip = !connected
-      ? '<span class="kb-status-text">Not connected</span>'
-      : status.state === 'error'
-        ? `<span class="kb-status-text kb-status-error">&#9888; Error${cfg.name ? ' · ' + escapeHTML(cfg.name) : ''}</span>`
-        : cfg.enabled
-          ? isBrowser && !usableSource
-            ? '<span class="kb-status-text">Enabled · add documents</span>'
-            : `<span class="kb-status-text kb-status-active">&#10003; Active${cfg.name ? ' · ' + escapeHTML(cfg.name) : ''}</span>`
-          : '<span class="kb-status-text">Ready, currently off</span>';
-    const lastInfo = status.state === 'error' && status.lastError
-      ? `<div class="kb-status-detail kb-status-error">Last error: ${escapeHTML(status.lastError)}</div>`
-      : connected && status.lastChunkCount
-        ? `<div class="kb-status-detail">Last search: ${status.lastChunkCount} excerpt${status.lastChunkCount !== 1 ? 's' : ''}${status.sourceName ? ' from ' + escapeHTML(status.sourceName) : ''}</div>`
-        : '';
+    const { statusChip, lastInfo } = renderLensStatus(cfg, connected, isBrowser, usableSource, status);
 
     const backendCopy = isBrowser
       ? 'Indexing and search run on this device after the first model download. Matching excerpts are shared with your selected AI provider when chat answers.'
@@ -244,7 +263,7 @@ export function createLensKnowledgeBaseUi(deps) {
   // "Connect a knowledge base" CTA opens this directly. Same DOM IDs as
   // the previous in-Settings render path, so handleSaveLensConfig and
   // _loadLocalLensStats keep working without changes.
-  function openKnowledgeBaseModal(options = {}) {
+  function openKnowledgeBaseModal(options: { source?: string } = {}) {
     const showContextBack = options.source !== 'sidebar';
     let overlay = document.getElementById('kb-modal-overlay');
     let modal = document.getElementById('kb-modal');
@@ -291,7 +310,7 @@ export function createLensKnowledgeBaseUi(deps) {
     document.removeEventListener('keydown', _kbModalKeydown);
   }
 
-  function _kbModalKeydown(e) {
+  function _kbModalKeydown(e: KeyboardEvent) {
     if (e.key !== 'Escape') return;
     // A library form, rename prompt, or destructive confirmation owns the
     // first Escape press. Closing the parent here as well would make a
@@ -310,27 +329,14 @@ export function createLensKnowledgeBaseUi(deps) {
     const connected = isBrowser || (cfg.backend === 'external-server' && cfg.url && keySet);
     const usableSource = hasLens();
     const status = getLensStatus();
-    const statusChip = !connected
-      ? '<span class="kb-status-text">Not connected</span>'
-      : status.state === 'error'
-        ? `<span class="kb-status-text kb-status-error">&#9888; Error${cfg.name ? ' · ' + escapeHTML(cfg.name) : ''}</span>`
-      : cfg.enabled
-          ? isBrowser && !usableSource
-            ? '<span class="kb-status-text">Enabled · add documents</span>'
-            : `<span class="kb-status-text kb-status-active">&#10003; Active${cfg.name ? ' · ' + escapeHTML(cfg.name) : ''}</span>`
-          : '<span class="kb-status-text">Ready, currently off</span>';
-    const lastInfo = status.state === 'error' && status.lastError
-      ? `<div class="kb-status-detail kb-status-error">Last error: ${escapeHTML(status.lastError)}</div>`
-      : connected && status.lastChunkCount
-        ? `<div class="kb-status-detail">Last search: ${status.lastChunkCount} excerpt${status.lastChunkCount !== 1 ? 's' : ''}${status.sourceName ? ' from ' + escapeHTML(status.sourceName) : ''}</div>`
-        : '';
+    const { statusChip, lastInfo } = renderLensStatus(cfg, connected, isBrowser, usableSource, status);
     chip.innerHTML = statusChip + lastInfo;
   }
 
   async function handleSaveLensConfig() {
-    const topKInput = /** @type {HTMLInputElement | null} */ (document.getElementById('lens-topk-input'));
-    const enabledToggle = /** @type {HTMLInputElement | null} */ (document.getElementById('lens-enabled-toggle'));
-    const multiQueryCheckbox = /** @type {HTMLInputElement | null} */ (document.getElementById('lens-multi-query-checkbox'));
+    const topKInput = (document.getElementById('lens-topk-input') as HTMLInputElement | null);
+    const enabledToggle = (document.getElementById('lens-enabled-toggle') as HTMLInputElement | null);
+    const multiQueryCheckbox = (document.getElementById('lens-multi-query-checkbox') as HTMLInputElement | null);
     const topK = Math.max(1, Math.min(10, parseInt(topKInput?.value || '', 10) || 5));
     const enabled = !!enabledToggle?.checked;
     const multiQuery = !!multiQueryCheckbox?.checked;
@@ -351,10 +357,10 @@ export function createLensKnowledgeBaseUi(deps) {
 
     // external-server: only backend where a user-entered display name is
     // meaningful (it's a remote endpoint, not a named library).
-    const nameInput = /** @type {HTMLInputElement | null} */ (document.getElementById('lens-name-input'));
-    const urlInput = /** @type {HTMLInputElement | null} */ (document.getElementById('lens-url-input'));
-    const keyInput = /** @type {HTMLInputElement | null} */ (document.getElementById('lens-key-input'));
-    const testProbeInput = /** @type {HTMLInputElement | null} */ (document.getElementById('lens-test-probe-input'));
+    const nameInput = (document.getElementById('lens-name-input') as HTMLInputElement | null);
+    const urlInput = (document.getElementById('lens-url-input') as HTMLInputElement | null);
+    const keyInput = (document.getElementById('lens-key-input') as HTMLInputElement | null);
+    const testProbeInput = (document.getElementById('lens-test-probe-input') as HTMLInputElement | null);
     const name = (nameInput?.value || '').trim();
     const url = (urlInput?.value || '').trim().replace(/\/+$/, '');
     const keyRaw = keyInput?.value || '';
@@ -378,14 +384,14 @@ export function createLensKnowledgeBaseUi(deps) {
         : `Connected — your endpoint works, but the test query didn't find any close matches. Try a query more specific to what you've indexed.`;
       showNotification(msg, 'success');
     } else {
-      showNotification(`Connection failed: ${result.error}`, 'error');
+      showNotification(`Connection failed: ${(result as Extract<LensConnectionResult, { ok: false }>).error}`, 'error');
     }
   }
 
   /// Backend radio handler — saves the choice immediately (so a reload
   /// keeps the selection). Re-renders the whole panel since the per-backend
   /// sections have structurally different layouts.
-  function handleLensBackendChange(backend) {
+  function handleLensBackendChange(backend: string) {
     saveLensConfig({ backend });
     _rerenderLensSection();
     if (backend === 'in-browser') _loadLocalLensStats();
@@ -429,8 +435,8 @@ export function createLensKnowledgeBaseUi(deps) {
                 ? 'Multilingual-E5'
                 : s.model;
         const backendLabel = s.backend === 'webgpu' ? 'WebGPU' : 'CPU';
-        const speed = Number.isFinite(s.ms_per_embed) && /** @type {number} */ (s.ms_per_embed) > 0
-          ? ` · about ${Math.max(1, Math.round(1000 / /** @type {number} */ (s.ms_per_embed)))} excerpts/s`
+        const speed = Number.isFinite(s.ms_per_embed) && (s.ms_per_embed as number) > 0
+          ? ` · about ${Math.max(1, Math.round(1000 / (s.ms_per_embed as number)))} excerpts/s`
           : '';
         stats.innerHTML = `<span class="kb-stats-dot" aria-hidden="true"></span>${s.total_chunks.toLocaleString()} excerpt${s.total_chunks !== 1 ? 's' : ''} from ${s.documents.length} document${s.documents.length !== 1 ? 's' : ''} · <span title="${escapeAttr(s.model)}">${escapeHTML(modelLabel)} on ${escapeHTML(backendLabel)}${speed}</span>`;
         if (s.backend !== 'webgpu' && /bge-base/i.test(s.model)) {
@@ -444,7 +450,7 @@ export function createLensKnowledgeBaseUi(deps) {
     }
   }
 
-  function _renderLocalDocList(docs) {
+  function _renderLocalDocList(docs: StatsReply['documents'] | null | undefined) {
     if (!docs || docs.length === 0) return '';
     const rows = docs.map((d) => `
       <div class="kb-document-row">
@@ -502,10 +508,10 @@ export function createLensKnowledgeBaseUi(deps) {
       <button id="lens-ingest-pill-cancel" class="kb-ingest-pill-stop">Stop indexing</button>
     `;
     document.body.appendChild(pill);
-    const dismiss = /** @type {HTMLButtonElement | null} */ (pill.querySelector('#lens-ingest-pill-dismiss'));
-    const cancel = /** @type {HTMLButtonElement | null} */ (pill.querySelector('#lens-ingest-pill-cancel'));
+    const dismiss = (pill.querySelector('#lens-ingest-pill-dismiss') as HTMLButtonElement | null);
+    const cancel = (pill.querySelector('#lens-ingest-pill-cancel') as HTMLButtonElement | null);
     dismiss?.addEventListener('click', () => {
-      pill.style.display = 'none';
+      pill!.style.display = 'none';
     });
     cancel?.addEventListener('click', async () => {
       lensWindow._lensIngestStopRequested = true;
@@ -524,7 +530,7 @@ export function createLensKnowledgeBaseUi(deps) {
     if (pill) pill.remove();
   }
 
-  async function _handleLocalLensIngest(fileList) {
+  async function _handleLocalLensIngest(fileList: FileList | null | undefined) {
     // Snapshot IMMEDIATELY — FileList from an <input type=file>.files is a
     // LIVE reference, and the picker's change handler clears input.value
     // right after calling us. Awaiting the dynamic import below would give
@@ -538,24 +544,20 @@ export function createLensKnowledgeBaseUi(deps) {
     }
 
     const pill = _ensureIngestPill();
-    pill.style.display = '';
-    const pillText = /** @type {HTMLElement | null} */ (pill.querySelector('#lens-ingest-pill-text'));
-    const pillBar = /** @type {HTMLProgressElement | null} */ (pill.querySelector('#lens-ingest-pill-bar'));
-    const pillStop = /** @type {HTMLButtonElement | null} */ (pill.querySelector('#lens-ingest-pill-cancel'));
+    pill!.style.display = '';
+    const pillText = (pill.querySelector('#lens-ingest-pill-text') as HTMLElement | null);
+    const pillBar = (pill.querySelector('#lens-ingest-pill-bar') as HTMLProgressElement | null);
+    const pillStop = (pill.querySelector('#lens-ingest-pill-cancel') as HTMLButtonElement | null);
     if (!pillText || !pillBar || !pillStop) return;
     const t0 = performance.now();
     let indexT0 = 0;
     let unsub = () => {};
     lensWindow._lensIngestStopRequested = false;
-    /**
-     * @param {string} message
-     * @param {{ value: number, max: number } | null} [progress]
-     */
-    const updateProgressUi = (message, progress = null) => {
+    const updateProgressUi = (message: string, progress: { value: number; max: number } | null = null) => {
       pillText.textContent = message;
-      const modalBar = /** @type {HTMLProgressElement | null} */ (document.getElementById('lens-local-progress'));
+      const modalBar = (document.getElementById('lens-local-progress') as HTMLProgressElement | null);
       const modalText = document.getElementById('lens-local-progress-text');
-      const modalWrap = /** @type {HTMLElement | null} */ (document.getElementById('lens-local-progress-wrap'));
+      const modalWrap = (document.getElementById('lens-local-progress-wrap') as HTMLElement | null);
       if (modalWrap) {
         modalWrap.hidden = false;
         modalWrap.style.display = '';
@@ -584,9 +586,9 @@ export function createLensKnowledgeBaseUi(deps) {
       const localModulePromise = import('./lens-local.js');
       const lensPromise = localModulePromise.then((mod) => mod.openLocalLens());
       const { extractFromFile } = await import('./lens-local-parsers.js');
-      const files = [];
+      const files: LensInputFile[] = [];
       for (let i = 0; i < incoming.length; i++) {
-        const f = incoming[i];
+        const f = incoming[i]!;
         updateProgressUi(`Reading ${i + 1}/${incoming.length} · ${f.name}`);
         try {
           const extracted = await extractFromFile(f);
@@ -679,7 +681,7 @@ export function createLensKnowledgeBaseUi(deps) {
     }
   }
 
-  async function handleLocalLensDeleteDoc(source) {
+  async function handleLocalLensDeleteDoc(source: string) {
     if (!source) return;
     if (await showConfirmDialog(`Remove "${source}" from your knowledge base?`)) {
       try {
@@ -722,7 +724,7 @@ export function createLensKnowledgeBaseUi(deps) {
   const handleLibraryRename = lensLibraryHandlers.handleLibraryRename;
   const handleLibraryDelete = lensLibraryHandlers.handleLibraryDelete;
 
-  function handleToggleLens(checked) {
+  function handleToggleLens(checked: boolean) {
     saveLensConfig({ enabled: checked });
     _updateLensStatusChip();
   }

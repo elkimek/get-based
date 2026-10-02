@@ -472,3 +472,9 @@ deploy/profile-share/data/
 
 /js/lens-local-worker.js
 /js/lens-local-protocol.js
+
+/js/lens-library.js
+/js/lens-actions.js
+/js/lens-knowledge-base-ui.js
+/js/pdfjs-loader.js
+/js/lens-local-parsers.js

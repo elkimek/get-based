@@ -60,13 +60,16 @@ it('preserves the quality, architecture and compiler safety contracts', () => {
   const workflowFiles = collectYamlFiles(path.join(ROOT, '.github'));
   const tsConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.json'), 'utf8')) as CompilerConfigView;
   const checkJsConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.checkjs.json'), 'utf8')) as CompilerConfigView;
-  const checkedBrowserFiles = new Set(ts.parseJsonConfigFileContent(checkJsConfig, ts.sys, ROOT).fileNames
-    .map(file => runtimePath(path.relative(ROOT, file).replaceAll(path.sep, '/'))));
   const serverCheckJsConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.server.json'), 'utf8')) as CompilerConfigView;
   const serviceWorkerCheckJsConfig = JSON.parse(
     fs.readFileSync(path.join(ROOT, 'tsconfig.service-worker.json'), 'utf8'),
   ) as CompilerConfigView;
   const workerMigrationConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.worker-migration.json'), 'utf8')) as CompilerConfigView;
+  const checkedWorkerProject = ts.parseJsonConfigFileContent(workerMigrationConfig, ts.sys, ROOT);
+  const checkedBrowserFiles = new Set([
+    ...ts.parseJsonConfigFileContent(checkJsConfig, ts.sys, ROOT).fileNames,
+    ...checkedWorkerProject.fileNames,
+  ].map(file => runtimePath(path.relative(ROOT, file).replaceAll(path.sep, '/'))));
   const strictNullRatchetSrc = fs.readFileSync(path.join(ROOT, 'scripts', 'strict-null-ratchet.mjs'), 'utf8');
   const strictNullBaseline = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts', 'strict-null-baseline.json'), 'utf8')) as { totalDiagnostics: number; files: Record<string, number> };
   const appEventListenersSrc = fs.readFileSync(path.join(ROOT, 'js', 'app-event-listeners.js'), 'utf8');
@@ -226,6 +229,14 @@ it('preserves the quality, architecture and compiler safety contracts', () => {
       workerMigrationConfig.include?.includes('service-worker-runtime.ts') &&
       workerMigrationConfig.include?.includes('service-worker-assets.ts') &&
       workerMigrationConfig.include?.includes('version.ts'));
+  assert('Lens worker is covered by strict native WebWorker checks',
+    checkedWorkerProject.errors.length === 0 &&
+      checkedWorkerProject.fileNames.some(file => path.relative(ROOT, file).replaceAll(path.sep, '/') === 'js/lens-local-worker.ts') &&
+      checkedWorkerProject.options.strict === true &&
+      checkedWorkerProject.options.noUncheckedIndexedAccess === true &&
+      checkedWorkerProject.options.exactOptionalPropertyTypes === true &&
+      checkedWorkerProject.options.lib?.includes('lib.webworker.d.ts') &&
+      !checkedWorkerProject.options.lib?.includes('lib.dom.d.ts'));
   assert('strict-null debt is ratcheted globally and per file',
     pkg.scripts?.['typecheck:strict-null'] === 'node scripts/strict-null-ratchet.mjs' &&
       strictNullRatchetSrc.includes('strictNullChecks: true') &&
@@ -343,7 +354,7 @@ it('preserves the quality, architecture and compiler safety contracts', () => {
     'js/wearables.js',
     'js/wearables-strip-actions.js',
   ];
-  assertCheckedModules('checkJs includes high-coupling browser modules', highValueCheckJsModules);
+  assertCheckedModules('compiler projects cover high-coupling browser modules', highValueCheckJsModules);
   const domainUiCheckJsModules = [
     'js/crypto.js',
     'js/crypto-ui.js',
@@ -382,7 +393,7 @@ it('preserves the quality, architecture and compiler safety contracts', () => {
     'js/sun-uvdata-atmosphere.js',
     'js/sun-uvdata.js',
   ];
-  assertCheckedModules('checkJs includes domain and UI modules', domainUiCheckJsModules);
+  assertCheckedModules('compiler projects cover domain and UI modules', domainUiCheckJsModules);
   const broadSurfaceCheckJsModules = [
     'js/app-light-sun-modules.js',
     'js/biology-score-engine.js',
@@ -409,7 +420,7 @@ it('preserves the quality, architecture and compiler safety contracts', () => {
     'js/wearables-connect.js',
     'js/wearables-detail-modal.js',
   ];
-  assertCheckedModules('checkJs includes broad UI surface modules', broadSurfaceCheckJsModules);
+  assertCheckedModules('compiler projects cover broad UI surface modules', broadSurfaceCheckJsModules);
   const healthDomainCheckJsModules = [
     'js/biology-score-ai-context.js',
     'js/biology-score-ai.js',
@@ -440,7 +451,7 @@ it('preserves the quality, architecture and compiler safety contracts', () => {
     'js/sun-session-ui.js',
     'js/sun-sessions-store.js',
   ];
-  assertCheckedModules('checkJs includes health domain modules', healthDomainCheckJsModules);
+  assertCheckedModules('compiler projects cover health domain modules', healthDomainCheckJsModules);
   const uiWorkflowCheckJsModules = [
     'js/changelog.js',
     'js/changelog-impl.js',
@@ -474,7 +485,7 @@ it('preserves the quality, architecture and compiler safety contracts', () => {
     'js/lens-pages.js',
     'js/lens-url.js',
   ];
-  assertCheckedModules('checkJs includes UI workflow modules', uiWorkflowCheckJsModules);
+  assertCheckedModules('compiler projects cover UI workflow modules', uiWorkflowCheckJsModules);
   const lightWorkflowCheckJsModules = [
     'js/light-ai-save-hooks.js',
     'js/light-audit-ai-analysis.js',
@@ -510,7 +521,7 @@ it('preserves the quality, architecture and compiler safety contracts', () => {
     'js/light-tools-ai-analysis.js',
     'js/light-tools-ui-hooks.js',
   ];
-  assertCheckedModules('checkJs includes light workflow modules', lightWorkflowCheckJsModules);
+  assertCheckedModules('compiler projects cover light workflow modules', lightWorkflowCheckJsModules);
   const wearablesWorkflowCheckJsModules = [
     'js/wearable-adapters.js',
     'js/wearables-apple-health.js',
@@ -536,7 +547,7 @@ it('preserves the quality, architecture and compiler safety contracts', () => {
     'js/wearables-withings-auth.js',
     'js/wearables-withings.js',
   ];
-  assertCheckedModules('checkJs includes wearables workflow modules', wearablesWorkflowCheckJsModules);
+  assertCheckedModules('compiler projects cover wearables workflow modules', wearablesWorkflowCheckJsModules);
   const chatWorkflowCheckJsModules = [
     'js/chat-actions.js',
     'js/chat-attestation.js',
@@ -571,7 +582,7 @@ it('preserves the quality, architecture and compiler safety contracts', () => {
     'js/chat-window-bindings.js',
     'js/chat.js',
   ];
-  assertCheckedModules('checkJs includes chat workflow modules', chatWorkflowCheckJsModules);
+  assertCheckedModules('compiler projects cover chat workflow modules', chatWorkflowCheckJsModules);
   const startupAppShellCheckJsModules = [
     'js/app-chat-hooks.js',
     'js/app-ai-interaction-modules.js',
@@ -602,7 +613,7 @@ it('preserves the quality, architecture and compiler safety contracts', () => {
     'js/views-router-runtime.js',
     'js/views-router.js',
   ];
-  assertCheckedModules('checkJs includes startup and app-shell modules', startupAppShellCheckJsModules);
+  assertCheckedModules('compiler projects cover startup and app-shell modules', startupAppShellCheckJsModules);
   const pdfReportCheckJsModules = [
     'js/export-report-builder.js',
     'js/export-report-html.js',
@@ -617,12 +628,12 @@ it('preserves the quality, architecture and compiler safety contracts', () => {
     'js/pdf-import-spreadsheet.js',
     'js/pdfjs-loader.js',
   ];
-  assertCheckedModules('checkJs includes PDF import and report modules', pdfReportCheckJsModules);
+  assertCheckedModules('compiler projects cover PDF import and report modules', pdfReportCheckJsModules);
   const appJsModules = fs.readdirSync(path.join(ROOT, 'js'))
     .filter(file => file.endsWith('.js'))
     .map(file => `js/${file}`)
     .sort();
-  assertCheckedModules('checkJs includes every app JS module', appJsModules);
+  assertCheckedModules('compiler projects cover every app JS module', appJsModules);
 
   console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
   expect(failed).toBe(0);

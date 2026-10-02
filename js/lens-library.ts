@@ -4,6 +4,16 @@ import { getErrorMessage } from './caught-error.js';
 import { showNotification, showConfirmDialog, showPromptDialog, escapeHTML, escapeAttr } from './utils.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 
+import type { openLocalLens } from './lens-local.js';
+import type { ReadyReply } from './lens-local-protocol.js';
+type LocalLens = Awaited<ReturnType<typeof openLocalLens>>;
+export interface LensLibraryDeps {
+  getLensConfig(): { backend: string; name: string }; getLocalLens(): Promise<LocalLens>;
+  clearLensCache(): unknown; saveLensConfig(partial: { name: string }): unknown;
+  updateLensStatusChip(): unknown; loadLocalLensStats(): Promise<unknown>;
+}
+type LibraryPick = { name: string; model: string | undefined };
+
 export function createLensLibraryHandlers({
   getLensConfig,
   getLocalLens,
@@ -11,10 +21,10 @@ export function createLensLibraryHandlers({
   saveLensConfig,
   updateLensStatusChip,
   loadLocalLensStats,
-}) {
+}: LensLibraryDeps) {
   // in-browser only. external-server has no library concept (it's a single
   // remote endpoint), so handlers no-op there.
-  async function _libList() {
+  async function _libList(): Promise<Awaited<ReturnType<LocalLens['listLibraries']>>> {
     const cfg = getLensConfig();
     if (cfg.backend === 'in-browser') {
       const lens = await getLocalLens();
@@ -23,7 +33,7 @@ export function createLensLibraryHandlers({
     return { libraries: [], activeId: '' };
   }
 
-  async function _libCreate(name, model) {
+  async function _libCreate(name: string, model?: string) {
     const cfg = getLensConfig();
     if (cfg.backend === 'in-browser') {
       const lens = await getLocalLens();
@@ -34,7 +44,7 @@ export function createLensLibraryHandlers({
     throw new Error('Libraries are not supported for this backend');
   }
 
-  async function _libActivate(id) {
+  async function _libActivate(id: unknown): Promise<Awaited<ReturnType<LocalLens['activateLibrary']>> | void> {
     const cfg = getLensConfig();
     if (cfg.backend === 'in-browser') {
       const lens = await getLocalLens();
@@ -42,7 +52,7 @@ export function createLensLibraryHandlers({
     }
   }
 
-  async function _libRename(id, name) {
+  async function _libRename(id: unknown, name: string): Promise<Awaited<ReturnType<LocalLens['renameLibrary']>> | void> {
     const cfg = getLensConfig();
     if (cfg.backend === 'in-browser') {
       const lens = await getLocalLens();
@@ -50,7 +60,7 @@ export function createLensLibraryHandlers({
     }
   }
 
-  async function _libDelete(id) {
+  async function _libDelete(id: unknown): Promise<Awaited<ReturnType<LocalLens['deleteLibrary']>> | void> {
     const cfg = getLensConfig();
     if (cfg.backend === 'in-browser') {
       const lens = await getLocalLens();
@@ -82,7 +92,7 @@ export function createLensLibraryHandlers({
     }
   }
 
-  async function handleLibraryActivate(libraryId) {
+  async function handleLibraryActivate(libraryId: unknown) {
     if (!libraryId) return;
     try {
       await _libActivate(libraryId);
@@ -103,8 +113,8 @@ export function createLensLibraryHandlers({
     // worker isn't ready yet (user opens the dialog the instant they
     // switch backends), fall back to a plain name-only prompt - we can
     // always create with DEFAULT_MODEL_KEY.
-    let embedder = null;
-    let models = null;
+    let embedder: ReadyReply['embedder'] = null;
+    let models: ReadyReply['models'] | null = null;
     _setNewLibraryBusy(true, 'Preparing…');
     try {
       const lens = await getLocalLens();
@@ -133,7 +143,7 @@ export function createLensLibraryHandlers({
     }
   }
 
-  function _setNewLibraryBusy(busy, label = '') {
+  function _setNewLibraryBusy(busy: boolean, label = '') {
     const buttons = document.querySelectorAll('[data-lens-action="new-library"]');
     for (const button of buttons) {
       if (!(button instanceof HTMLButtonElement)) continue;
@@ -159,10 +169,10 @@ export function createLensLibraryHandlers({
   /// well; otherwise a fast CPU silently gets "rewarded" with BGE-base and
   /// sees little wall-clock improvement. BGE-base is automatic only when a
   /// genuinely fast WebGPU path is active, and remains available manually.
-  function _showLibraryCreateDialog(embedder, models) {
+  function _showLibraryCreateDialog(embedder: ReadyReply['embedder'], models: ReadyReply['models']): Promise<LibraryPick | null> {
     const detectedTier = embedder?.tier || 1;
     const entries = Object.entries(models); // [[key, spec], ...]
-    const byTier = { 1: [], 2: [], 3: [] };
+    const byTier: Record<number, Array<{ key: string; spec: ReadyReply['models'][string] }>> = { 1: [], 2: [], 3: [] };
     for (const [key, spec] of entries) {
       const t = spec.tier || 1;
       if (t <= 3) byTier[t]?.push({ key, spec });
@@ -170,7 +180,7 @@ export function createLensLibraryHandlers({
     const recommendedTier = embedder?.backend === 'webgpu' && detectedTier >= 3
       ? 3
       : detectedTier >= 2 ? 2 : 1;
-    let recommendedKey = null;
+    let recommendedKey: string | null | undefined = null;
     for (let t = recommendedTier; t >= 1; t--) {
       const candidates = byTier[t] || [];
       const english = candidates.find((c) => c.spec.language === 'en');
@@ -187,14 +197,14 @@ export function createLensLibraryHandlers({
           ? `This browser is using ${embedder.backend === 'webgpu' ? 'WebGPU acceleration' : 'CPU indexing'}. Balanced keeps imports responsive while improving retrieval.`
           : 'This browser is using a slower local path, so Fast is selected to keep imports responsive.';
 
-    const profileLabel = (key, spec) => {
+    const profileLabel = (key: string, spec: ReadyReply['models'][string]) => {
       if (spec.language === 'multi') return 'Multilingual';
       if (spec.tier >= 3 || /base/i.test(key)) return 'Best recall';
       if (spec.tier === 2 || /small/i.test(key)) return 'Balanced';
       return 'Fast';
     };
 
-    return new Promise((resolve) => {
+    return new Promise<LibraryPick | null>((resolve) => {
       let overlay = document.getElementById('lens-library-create-overlay');
       if (!overlay) {
         overlay = document.createElement('div');
@@ -247,12 +257,12 @@ export function createLensLibraryHandlers({
       </div>`;
       openModalOverlay(overlay, { initialFocus: '#lens-create-name', focusDelay: 0 });
 
-      const nameInput = /** @type {HTMLInputElement} */ (document.getElementById('lens-create-name'));
-      const ok = /** @type {HTMLButtonElement} */ (document.getElementById('lens-create-ok'));
-      const cancel = /** @type {HTMLButtonElement} */ (document.getElementById('lens-create-cancel'));
-      const closeButton = /** @type {HTMLButtonElement} */ (document.getElementById('lens-create-close'));
+      const nameInput = (document.getElementById('lens-create-name') as HTMLInputElement);
+      const ok = (document.getElementById('lens-create-ok') as HTMLButtonElement);
+      const cancel = (document.getElementById('lens-create-cancel') as HTMLButtonElement);
+      const closeButton = (document.getElementById('lens-create-close') as HTMLButtonElement);
 
-      const close = (result) => {
+      const close = (result: LibraryPick | null) => {
         closeModalOverlay(overlay);
         document.removeEventListener('keydown', onKey);
         resolve(result);
@@ -260,10 +270,10 @@ export function createLensLibraryHandlers({
       const submit = () => {
         const name = nameInput.value.trim();
         if (!name) { nameInput.focus(); return; }
-        const chosen = /** @type {HTMLInputElement | null} */ (overlay.querySelector('input[name="lens-create-model"]:checked'));
+        const chosen = (overlay!.querySelector('input[name="lens-create-model"]:checked') as HTMLInputElement | null);
         close({ name, model: chosen?.value || recommendedKey });
       };
-      const onKey = (e) => {
+      const onKey = (e: KeyboardEvent) => {
         if (e.key === 'Escape') { e.preventDefault(); close(null); }
         else if (e.key === 'Enter' && e.target === nameInput) { e.preventDefault(); submit(); }
       };

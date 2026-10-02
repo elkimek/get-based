@@ -1,13 +1,20 @@
-// @ts-check
 // lens-actions.js - delegated actions for the Knowledge Base settings surface
 
 import { escapeAttr } from './utils.js';
 import { openContextModalRuntime } from './context-cards-runtime.js';
 
-let lensActionDelegatesInstalled = false;
-let lensActionHandlers = {};
+import type { createLensLibraryHandlers } from './lens-library.js';
+type LensActionHandlers = Partial<ReturnType<typeof createLensLibraryHandlers> & {
+  handleLensBackendChange(backend: string): unknown; handleToggleLens(checked: boolean): unknown;
+  openLocalFilePicker(): unknown; handleSaveLensConfig(): unknown; handleClearLensCache(): unknown;
+  handleRemoveLens(): unknown; closeKnowledgeBaseModal(): unknown;
+  handleLocalLensDeleteDoc(source: string): unknown; handleLocalLensClear(): unknown;
+}>;
 
-export function lensActionAttrs(action, attrs = {}) {
+let lensActionDelegatesInstalled = false;
+let lensActionHandlers: LensActionHandlers = {};
+
+export function lensActionAttrs(action: string, attrs: Record<string, unknown> = {}) {
   return [
     `data-lens-action="${escapeAttr(action)}"`,
     ...Object.entries(attrs)
@@ -16,14 +23,14 @@ export function lensActionAttrs(action, attrs = {}) {
   ].join(' ');
 }
 
-function isLensActionScope(actionEl) {
+function isLensActionScope(actionEl: HTMLElement) {
   return !!actionEl.closest('#custom-lens-section, #kb-modal');
 }
 
-function handleLensActionClick(event) {
+function handleLensActionClick(event: MouseEvent) {
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return;
-  const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-lens-action]'));
+  const actionEl = (target.closest('[data-lens-action]') as HTMLElement | null);
   if (!actionEl || !isLensActionScope(actionEl)) return;
 
   const action = actionEl.dataset.lensAction || '';
@@ -67,10 +74,10 @@ function handleLensActionClick(event) {
   }
 }
 
-function handleLensActionChange(event) {
+function handleLensActionChange(event: Event) {
   const target = event.target instanceof HTMLElement ? event.target : null;
   if (!target) return;
-  const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-lens-action]'));
+  const actionEl = (target.closest('[data-lens-action]') as HTMLElement | null);
   if (!actionEl || !isLensActionScope(actionEl)) return;
 
   const action = actionEl.dataset.lensAction || '';
@@ -81,7 +88,7 @@ function handleLensActionChange(event) {
   }
 }
 
-export function initLensActionDelegates(handlers = {}) {
+export function initLensActionDelegates(handlers: LensActionHandlers = {}) {
   lensActionHandlers = { ...lensActionHandlers, ...handlers };
   if (lensActionDelegatesInstalled || typeof document === 'undefined') return;
   lensActionDelegatesInstalled = true;
