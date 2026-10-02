@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-const table = note => ({ rs1: { genotypes: { AA: { note } } } });
+const table = (note: string) => ({ rs1: { genotypes: { AA: { note } } } });
 afterEach(() => { vi.unstubAllGlobals(); vi.resetModules(); });
 describe('shared Genome catalog', () => {
   it('shares a cold request and retries HTTP or invalid catalog failures', async () => {
@@ -18,13 +18,13 @@ describe('shared Genome catalog', () => {
     expect(fetch).toHaveBeenCalledTimes(3);
   });
   it('does not let an older request replace a force-refreshed catalog', async () => {
-    let resolveOld;
-    vi.stubGlobal('fetch', vi.fn().mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve; }))
+    let resolveOld: ((response: Response) => void) | undefined;
+    vi.stubGlobal('fetch', vi.fn().mockImplementationOnce(() => new Promise<Response>(resolve => { resolveOld = resolve; }))
       .mockResolvedValueOnce(new Response(JSON.stringify(table('new')))));
     const { loadSnpCatalog, getCachedSnpCatalog } = await import('../js/dna-evidence.js');
     const old = loadSnpCatalog();
     await loadSnpCatalog({ forceFresh: true });
-    resolveOld(new Response(JSON.stringify(table('old'))));
+    resolveOld!(new Response(JSON.stringify(table('old'))));
     await old;
     expect(getCachedSnpCatalog()).toEqual(table('new'));
   });

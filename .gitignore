@@ -691,3 +691,5 @@ deploy/profile-share/data/
 /js/lighting-hardware-caveats.js
 /js/charts.js
 /js/cashu-funding-coordinator.js
+/js/light-tool-camera.js
+/js/dna-evidence.js

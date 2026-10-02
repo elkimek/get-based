@@ -21,14 +21,7 @@ const modalSrc = [
 const cameraSrc = fs.readFileSync(path.join(root, 'js/light-tool-camera.js'), 'utf8');
 const src = `${facadeSrc}\n${runtimeSrc}\n${modalSrc}\n${cameraSrc}`;
 
-
-
-
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
-
-function countNeedle(needle) {
-  return src.split(needle).length - 1;
-}
 
 const closeActions = [
   'close-lux',

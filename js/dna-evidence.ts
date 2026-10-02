@@ -1,16 +1,29 @@
-// @ts-check
-// dna-evidence.js — privacy-safe study labels and public catalog feedback links.
+import type { GenotypeEntry } from './dna-genotype.js';
+
+interface EvidenceAnnotation { level?: string | null; claimTypes?: unknown; scope?: unknown; reviewedAt?: unknown }
+interface RelevanceAnnotation { level?: string | null; context?: unknown }
+export interface SnpAnnotation {
+  evidence?: EvidenceAnnotation | null; relevance?: RelevanceAnnotation | null;
+  gene?: unknown; variant?: unknown; genotype?: unknown; note?: unknown;
+  effect?: string | null; valence?: string | null;
+  references?: unknown; category?: unknown; strandNote?: unknown;
+  [field: string]: unknown;
+}
+export interface SnpCatalogEntry extends SnpAnnotation, GenotypeEntry<SnpAnnotation> {}
+export type SnpCatalog = Record<string, SnpCatalogEntry>;
+
+// dna-evidence.ts — privacy-safe study labels and public catalog feedback links.
 
 import { findGenotypeInfo } from './dna-genotype.js';
 
-let catalog = null;
-let catalogPromise = null;
+let catalog: SnpCatalog | null = null;
+let catalogPromise: Promise<SnpCatalog> | null = null;
 export function getCachedSnpCatalog() { return catalog; }
 export function loadSnpCatalog({ forceFresh = false } = {}) {
   if (forceFresh) { catalog = null; catalogPromise = null; }
   if (catalog) return Promise.resolve(catalog);
   if (!catalogPromise) {
-    const pending = fetch('data/snp-health.json', forceFresh ? { cache: 'no-store' } : undefined)
+    const pending: Promise<SnpCatalog> = fetch('data/snp-health.json', forceFresh ? { cache: 'no-store' } : undefined)
       .then(response => { if (!response.ok) throw new Error('Genome catalog unavailable'); return response.json(); })
       .then(data => {
         if (!data || !Object.keys(data).some(key => /^rs/.test(key) && data[key]?.genotypes)) throw new Error('Invalid Genome catalog');
@@ -44,90 +57,53 @@ export const SNP_CATEGORY_LABELS = {
   other: 'Other'
 };
 
-export function getSnpCategoryLabel(category) {
+export function getSnpCategoryLabel(category: unknown) {
   if (!category) return SNP_CATEGORY_LABELS.other;
-  return SNP_CATEGORY_LABELS[category] || String(category);
+  return SNP_CATEGORY_LABELS[category as keyof typeof SNP_CATEGORY_LABELS] || String(category);
 }
 
 const ISSUE_ENDPOINT = 'https://github.com/elkimek/get-based/issues/new';
 
+// Evidence strength and personal relevance use the same immutable display fields.
+function gradedLabel(label: string, shortLabel: string, rank: number, description: string) {
+  return Object.freeze({ label, shortLabel, rank, description });
+}
+
 export const SNP_EVIDENCE_LEVELS = Object.freeze({
-  strong: Object.freeze({
-    label: 'Strong / replicated',
-    shortLabel: 'Strong',
-    rank: 0,
-    description: 'Replicated human evidence, a large meta-analysis or GWAS, or a well-established functional variant supporting the narrowly stated claim.',
-  }),
-  supported: Object.freeze({
-    label: 'Supported',
-    shortLabel: 'Supported',
-    rank: 1,
-    description: 'Credible human or functional evidence supports the claim, with meaningful population, design, or effect-size limitations.',
-  }),
-  mixed: Object.freeze({
-    label: 'Mixed evidence',
-    shortLabel: 'Mixed',
-    rank: 2,
-    description: 'Relevant studies disagree, or a functional signal has not produced a consistent human phenotype.',
-  }),
-  preliminary: Object.freeze({
-    label: 'Preliminary',
-    shortLabel: 'Preliminary',
-    rank: 3,
-    description: 'The claim relies on a small, single, ancestry-specific, or otherwise limited human study and needs replication.',
-  }),
-  mechanistic: Object.freeze({
-    label: 'Mechanistic only',
-    shortLabel: 'Mechanistic',
-    rank: 4,
-    description: 'Laboratory or molecular evidence supports a mechanism, but not a reliable personal health outcome.',
-  }),
-  unreviewed: Object.freeze({
-    label: 'Not graded',
-    shortLabel: 'Not graded',
-    rank: 5,
-    description: 'This catalog claim has not yet been assigned a structured evidence grade.',
-  }),
+  strong: gradedLabel('Strong / replicated', 'Strong', 0,
+    'Replicated human evidence, a large meta-analysis or GWAS, or a well-established functional variant supporting the narrowly stated claim.'),
+  supported: gradedLabel('Supported', 'Supported', 1,
+    'Credible human or functional evidence supports the claim, with meaningful population, design, or effect-size limitations.'),
+  mixed: gradedLabel('Mixed evidence', 'Mixed', 2,
+    'Relevant studies disagree, or a functional signal has not produced a consistent human phenotype.'),
+  preliminary: gradedLabel('Preliminary', 'Preliminary', 3,
+    'The claim relies on a small, single, ancestry-specific, or otherwise limited human study and needs replication.'),
+  mechanistic: gradedLabel('Mechanistic only', 'Mechanistic', 4,
+    'Laboratory or molecular evidence supports a mechanism, but not a reliable personal health outcome.'),
+  unreviewed: gradedLabel('Not graded', 'Not graded', 5,
+    'This catalog claim has not yet been assigned a structured evidence grade.'),
 });
 
 export const SNP_RELEVANCE_LEVELS = Object.freeze({
-  health_context: Object.freeze({
-    label: 'Health / lab context',
-    shortLabel: 'Health context',
-    rank: 0,
-    description: 'Interpret alongside biomarkers, symptoms, family history, medications, or professional guidance; genotype alone is not a diagnosis.',
-  }),
-  contextual: Object.freeze({
-    label: 'Context-dependent',
-    shortLabel: 'Context-dependent',
-    rank: 1,
-    description: 'Diet, exposure, behavior, ancestry, or environment materially changes the practical meaning.',
-  }),
-  trait: Object.freeze({
-    label: 'Trait only',
-    shortLabel: 'Trait only',
-    rank: 2,
-    description: 'Educational phenotype or biochemical context; no health action follows from the genotype alone.',
-  }),
-  unreviewed: Object.freeze({
-    label: 'Relevance not graded',
-    shortLabel: 'Not graded',
-    rank: 3,
-    description: 'This catalog claim has not yet been assigned a personal-relevance category.',
-  }),
+  health_context: gradedLabel('Health / lab context', 'Health context', 0,
+    'Interpret alongside biomarkers, symptoms, family history, medications, or professional guidance; genotype alone is not a diagnosis.'),
+  contextual: gradedLabel('Context-dependent', 'Context-dependent', 1,
+    'Diet, exposure, behavior, ancestry, or environment materially changes the practical meaning.'),
+  trait: gradedLabel('Trait only', 'Trait only', 2,
+    'Educational phenotype or biochemical context; no health action follows from the genotype alone.'),
+  unreviewed: gradedLabel('Relevance not graded', 'Not graded', 3,
+    'This catalog claim has not yet been assigned a personal-relevance category.'),
 });
 
 /**
  * Resolve entry-level evidence metadata with an optional genotype override.
  * Legacy or fixture entries remain renderable but are explicitly ungraded.
- * @param {any} entry
- * @param {any} genotypeInfo
  */
-export function resolveSnpEvidenceProfile(entry = {}, genotypeInfo = {}) {
+export function resolveSnpEvidenceProfile(entry: SnpAnnotation | null = {}, genotypeInfo: SnpAnnotation | null = {}) {
   const evidence = { ...(entry?.evidence || {}), ...(genotypeInfo?.evidence || {}) };
   const relevance = { ...(entry?.relevance || {}), ...(genotypeInfo?.relevance || {}) };
-  const evidenceLevel = Object.hasOwn(SNP_EVIDENCE_LEVELS, evidence.level) ? evidence.level : 'unreviewed';
-  const relevanceLevel = Object.hasOwn(SNP_RELEVANCE_LEVELS, relevance.level) ? relevance.level : 'unreviewed';
+  const evidenceLevel = Object.hasOwn(SNP_EVIDENCE_LEVELS, evidence.level as string) ? evidence.level as keyof typeof SNP_EVIDENCE_LEVELS : 'unreviewed';
+  const relevanceLevel = Object.hasOwn(SNP_RELEVANCE_LEVELS, relevance.level as string) ? relevance.level as keyof typeof SNP_RELEVANCE_LEVELS : 'unreviewed';
   return {
     evidenceLevel,
     evidenceLabel: SNP_EVIDENCE_LEVELS[evidenceLevel].label,
@@ -146,8 +122,7 @@ export function resolveSnpEvidenceProfile(entry = {}, genotypeInfo = {}) {
   };
 }
 
-/** @param {string} effect @param {string} valence */
-export function snpFindingPresentation(effect, valence) {
+export function snpFindingPresentation(effect: string | null | undefined, valence: string | null | undefined) {
   if (valence === 'protective') return { label: 'protective association', shortLabel: 'protective', tone: 'protective', icon: '\uD83D\uDFE2', rank: 1 };
   if (valence === 'informational') return { label: 'informational trait', shortLabel: 'trait', tone: 'trait', icon: '\uD83D\uDD35', rank: 2 };
   if (valence === 'neutral') return { label: 'neutral finding', shortLabel: 'neutral', tone: 'neutral', icon: '\u26AA', rank: 3 };
@@ -156,8 +131,7 @@ export function snpFindingPresentation(effect, valence) {
   return { label: 'unclassified', shortLabel: 'unclassified', tone: 'unclassified', icon: '\u2753', rank: 5 };
 }
 
-/** @param {any} profile @param {any} presentation */
-export function snpFindingRank(profile, presentation) {
+export function snpFindingRank(profile: { relevanceRank?: unknown; evidenceRank?: unknown } | null | undefined, presentation: { rank?: unknown } | null | undefined) {
   return (Number(presentation?.rank ?? 5) * 100)
     + (Number(profile?.relevanceRank ?? 3) * 10)
     + Number(profile?.evidenceRank ?? 5);
@@ -168,11 +142,8 @@ export function snpFindingRank(profile, presentation) {
  * only after an explicit Ask AI action; it is not added to every AI request.
  * The catalog is a grounded baseline, while the model remains free to add
  * clearly distinguished knowledge and inference.
- * @param {string} rsid
- * @param {any} stored
- * @param {any} entry
  */
-export function buildSnpAIInterpretationPrompt(rsid, stored = {}, entry = {}) {
+export function buildSnpAIInterpretationPrompt(rsid: unknown, stored: SnpAnnotation | null = {}, entry: SnpCatalogEntry | null = {}) {
   const normalizedRsid = String(rsid || '').trim().toLowerCase();
   const genotype = String(stored?.genotype || '').trim().toUpperCase();
   if (!normalizedRsid || !genotype) return '';
@@ -195,8 +166,7 @@ export function buildSnpAIInterpretationPrompt(rsid, stored = {}, entry = {}) {
   return `Help me interpret my ${name} result in the context of the rest of my available profile. Imported genotype: ${genotype}. Curated app baseline: ${baseline}. You may use broader relevant knowledge beyond this catalog; distinguish established evidence from plausible inference, explain what additional personal data would materially change the interpretation, and do not treat this SNP alone as diagnostic.`;
 }
 
-/** @param {string} reference */
-export function dnaStudyReferenceLabel(reference) {
+export function dnaStudyReferenceLabel(reference: unknown) {
   const value = String(reference || '').trim();
   const pmid = value.match(/pubmed\.ncbi\.nlm\.nih\.gov\/(\d+)/i)?.[1];
   if (pmid) return `PubMed · PMID ${pmid}`;
@@ -207,7 +177,7 @@ export function dnaStudyReferenceLabel(reference) {
   return 'Published study';
 }
 
-function issueUrl(title, body, label) {
+function issueUrl(title: string, body: string, label: string) {
   const url = new URL(ISSUE_ENDPOINT);
   url.searchParams.set('title', title);
   url.searchParams.set('body', body);
@@ -218,10 +188,8 @@ function issueUrl(title, body, label) {
 /**
  * Build a correction link from public catalog annotations only. The user's
  * genotype, source file, profile, labs, and notes are intentionally excluded.
- * @param {string} rsid
- * @param {any} entry
  */
-export function snpEvidenceIssueUrl(rsid, entry = {}) {
+export function snpEvidenceIssueUrl(rsid: unknown, entry: SnpAnnotation | null = {}) {
   const normalizedRsid = String(rsid || 'unknown rsID').trim().toLowerCase();
   const references = Array.isArray(entry?.references) ? entry.references : [];
   const profile = resolveSnpEvidenceProfile(entry);

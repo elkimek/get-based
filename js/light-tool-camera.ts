@@ -1,10 +1,31 @@
-// @ts-check
-// light-tool-camera.js — Shared camera/runtime helpers for Light tools.
+interface AimingGuide { mode: string; body: string; webcam: string }
+interface CameraRange { min: number; max: number }
+interface CameraModes { exposureMode?: string; whiteBalanceMode?: string; focusMode?: string }
+interface CameraCapabilities extends MediaTrackCapabilities {
+  exposureMode?: string[]; whiteBalanceMode?: string[]; focusMode?: string[];
+  exposureCompensation?: CameraRange; exposureTime?: CameraRange; iso?: CameraRange; colorTemperature?: CameraRange;
+}
+type CameraConstraint = MediaTrackConstraintSet & {
+  exposureMode?: string; whiteBalanceMode?: string; focusMode?: string;
+  exposureCompensation?: number; exposureTime?: number; iso?: number; colorTemperature?: number;
+};
+interface MeasurementTrack {
+  getSettings?(): MediaTrackSettings & CameraModes;
+  getCapabilities?(): CameraCapabilities;
+  applyConstraints(constraints: { advanced: CameraConstraint[] }): Promise<void>;
+}
+interface MeasurementStream { getVideoTracks?(): MeasurementTrack[] }
+interface CameraLockOptions { shortExposure?: boolean; longExposure?: boolean }
+export interface CameraLockResult {
+  exposure: 'manual' | 'auto'; whiteBalance: 'manual' | 'auto'; focus: 'manual' | 'auto';
+  frameRate: number | null; iso: number | null; exposureTime: number | null;
+}
+
+// light-tool-camera.ts — Shared camera/runtime helpers for Light tools.
 
 import { escapeAttr, escapeHTML } from './utils.js';
 
-/** @param {HTMLCanvasElement} canvas */
-export function getRequired2DContext(canvas) {
+export function getRequired2DContext(canvas: HTMLCanvasElement) {
   const context = canvas.getContext('2d', { willReadFrequently: true });
   if (!context) throw new Error('Camera measurement requires a 2D canvas context');
   return context;
@@ -19,7 +40,7 @@ export function getRequired2DContext(canvas) {
 // "warm" regardless of actual ceiling source; rolling-shutter bands attenuate
 // when reflected; "bedroom" measurements done from a desk webcam are
 // actually office measurements with a bedroom label).
-const _AIMING_GUIDES = {
+const _AIMING_GUIDES: Record<string, AimingGuide> = {
   lux: {
     mode: 'AT the point you want to check',
     body: 'Hold the phone at <b>eye height</b> where you normally sit, work, or read. Keep the light sensor uncovered and point its side toward the light field you want to check (usually the screen/front side). If you choose the camera fallback, face the camera into the room rather than directly at a bulb.',
@@ -59,7 +80,7 @@ const _AIMING_GUIDES = {
 
 let aimingGuideDelegatesInstalled = false;
 
-function _handleAimingGuideClick(event) {
+function _handleAimingGuideClick(event: Event) {
   const target = event.target;
   if (!(target instanceof Element)) return;
   const actionEl = target.closest('[data-aiming-guide-action]');
@@ -81,7 +102,7 @@ function installAimingGuideDelegates() {
 // Returns a small expandable info card for the tool modal. Persists per-
 // tool dismissal in localStorage so users who've internalized the
 // guidance don't have to dismiss it on every open.
-export function aimingGuideHTML(toolKey) {
+export function aimingGuideHTML(toolKey: string) {
   const g = _AIMING_GUIDES[toolKey];
   if (!g) return '';
   const dismissed = (typeof localStorage !== 'undefined' && localStorage.getItem(`labcharts-aim-guide-${toolKey}`) === 'dismissed');
@@ -99,10 +120,10 @@ export function aimingGuideHTML(toolKey) {
   </div>`;
 }
 
-export function dismissAimingGuide(toolKey) {
+export function dismissAimingGuide(toolKey: string) {
   try { localStorage.setItem(`labcharts-aim-guide-${toolKey}`, 'dismissed'); } catch (_) {}
   // Hide the currently-rendered guide without re-rendering the whole modal.
-  let el = /** @type {HTMLElement | null} */ (null);
+  let el: HTMLElement | null = null;
   for (const candidate of document.querySelectorAll('.tool-aiming-guide')) {
     if (candidate instanceof HTMLElement && candidate.dataset.tool === String(toolKey)) {
       el = candidate;
@@ -133,11 +154,8 @@ if (typeof window !== 'undefined') installAimingGuideDelegates();
 //
 // Returns: { exposure: 'manual' | 'auto', whiteBalance: 'manual' | 'auto',
 //            focus: 'manual' | 'auto', frameRate: <fps actually delivered> }
-/** @typedef {{ exposure: 'manual' | 'auto', whiteBalance: 'manual' | 'auto', focus: 'manual' | 'auto', frameRate: number | null, iso: number | null, exposureTime: number | null }} CameraLockResult */
-/** @returns {Promise<CameraLockResult>} */
-export async function lockCameraForMeasurement(stream, opts = {}) {
-  /** @type {CameraLockResult} */
-  const result = { exposure: 'auto', whiteBalance: 'auto', focus: 'auto', frameRate: null, iso: null, exposureTime: null };
+export async function lockCameraForMeasurement(stream: MeasurementStream | null | undefined, opts: CameraLockOptions = {}): Promise<CameraLockResult> {
+  const result: CameraLockResult = { exposure: 'auto', whiteBalance: 'auto', focus: 'auto', frameRate: null, iso: null, exposureTime: null };
   if (!stream || !stream.getVideoTracks) return result;
   const track = stream.getVideoTracks()[0];
   if (!track) return result;
@@ -146,9 +164,9 @@ export async function lockCameraForMeasurement(stream, opts = {}) {
   // Some Chromium builds throw when getCapabilities is missing or the
   // track isn't fully started yet — treat as "auto fallback" rather than
   // hard-failing the whole tool.
-  let caps = {};
+  let caps: CameraCapabilities = {};
   try { caps = (track.getCapabilities && track.getCapabilities()) || {}; } catch (e) { caps = {}; }
-  const advanced = [];
+  const advanced: CameraConstraint[] = [];
   if (Array.isArray(caps.exposureMode) && caps.exposureMode.includes('manual')) {
     advanced.push({ exposureMode: 'manual' });
     if (Number.isFinite(caps.exposureCompensation?.min)) advanced.push({ exposureCompensation: 0 });
@@ -158,7 +176,7 @@ export async function lockCameraForMeasurement(stream, opts = {}) {
     // signal. 1/120s = 8.33ms is a reasonable middle ground if the camera
     // exposes `exposureTime` (units: 100 µs in the WICG spec).
     if (opts.shortExposure && Number.isFinite(caps.exposureTime?.min)) {
-      const target = Math.max(caps.exposureTime.min, Math.min(caps.exposureTime.max, 83)); // ~8.3ms
+      const target = Math.max(caps.exposureTime!.min, Math.min(caps.exposureTime!.max, 83)); // ~8.3ms
       advanced.push({ exposureTime: target });
       result.exposureTime = target;
     }
@@ -169,7 +187,7 @@ export async function lockCameraForMeasurement(stream, opts = {}) {
     // the measurement. Target ~1/30s shutter (333 in 100µs units) which
     // is the longest most phone cameras allow at 30 fps.
     if (opts.longExposure && Number.isFinite(caps.exposureTime?.min)) {
-      const target = Math.max(caps.exposureTime.min, Math.min(caps.exposureTime.max, 333));
+      const target = Math.max(caps.exposureTime!.min, Math.min(caps.exposureTime!.max, 333));
       advanced.push({ exposureTime: target });
       result.exposureTime = target;
     }
@@ -179,11 +197,11 @@ export async function lockCameraForMeasurement(stream, opts = {}) {
   // calibrated — only some Android Chromium builds expose this. Without
   // it, we can't translate raw luma to lux at all.
   if (opts.longExposure && Number.isFinite(caps.iso?.min)) {
-    const target = Math.max(caps.iso.min, Math.min(caps.iso.max, 400));
+    const target = Math.max(caps.iso!.min, Math.min(caps.iso!.max, 400));
     advanced.push({ iso: target });
     result.iso = target;
   } else if (opts.shortExposure && Number.isFinite(caps.iso?.min)) {
-    const target = Math.max(caps.iso.min, Math.min(caps.iso.max, 100));
+    const target = Math.max(caps.iso!.min, Math.min(caps.iso!.max, 100));
     advanced.push({ iso: target });
     result.iso = target;
   }
@@ -193,7 +211,7 @@ export async function lockCameraForMeasurement(stream, opts = {}) {
     // taken against neutral surfaces. CCT/spectrum tools want consistent
     // raw R/G/B regardless of source illumination.
     if (Number.isFinite(caps.colorTemperature?.min)) {
-      const target = Math.max(caps.colorTemperature.min, Math.min(caps.colorTemperature.max, 5500));
+      const target = Math.max(caps.colorTemperature!.min, Math.min(caps.colorTemperature!.max, 5500));
       advanced.push({ colorTemperature: target });
     }
     result.whiteBalance = 'manual';
@@ -224,14 +242,14 @@ export async function lockCameraForMeasurement(stream, opts = {}) {
 
 // Short status line for the tool UI — tells the user when the camera is
 // running in degraded auto-mode so a low-confidence reading is expected.
-export function cameraLockStatusLine(lock) {
+export function cameraLockStatusLine(lock: Partial<CameraLockResult> | null | undefined) {
   if (!lock) return '';
   const allManual = lock.exposure === 'manual' && lock.whiteBalance === 'manual';
   if (allManual) {
     const fps = lock.frameRate ? ` · ${Math.round(lock.frameRate)} fps` : '';
     return `<span style="color:var(--green);font-size:11px">✓ camera locked${fps}</span>`;
   }
-  const auto = [];
+  const auto: string[] = [];
   if (lock.exposure !== 'manual') auto.push('exposure');
   if (lock.whiteBalance !== 'manual') auto.push('white-balance');
   return `<span style="color:var(--orange);font-size:11px">⚠ camera ${auto.join(' + ')} on auto — reading may drift</span>`;
@@ -256,7 +274,7 @@ export function cameraLockStatusLine(lock) {
 //
 // Used by flicker, spectrum, CCT, and (peripherally) sleep-darkness tools.
 // W and H must match the canvas the data was read from.
-export function computeRowBanding(data, W, H) {
+export function computeRowBanding(data: ArrayLike<number>, W: number, H: number) {
   const rowMeans = new Float32Array(H);
   let frameSum = 0;
   let frameMax = 0;
@@ -265,7 +283,7 @@ export function computeRowBanding(data, W, H) {
     const base = y * W * 4;
     for (let x = 0; x < W; x++) {
       const i = base + x * 4;
-      const luma = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+      const luma = 0.2126 * data[i]! + 0.7152 * data[i + 1]! + 0.0722 * data[i + 2]!;
       rowSum += luma;
       if (luma > frameMax) frameMax = luma;
     }
@@ -276,14 +294,14 @@ export function computeRowBanding(data, W, H) {
   const frameMean = frameSum / H;
   let varSum = 0;
   for (let y = 0; y < H; y++) {
-    const d = rowMeans[y] - frameMean;
+    const d = rowMeans[y]! - frameMean;
     varSum += d * d;
   }
   const rowStddev = Math.sqrt(varSum / H);
   const bandingRatio = frameMean > 1 ? rowStddev / frameMean : 0;
   let crossings = 0;
   for (let y = 1; y < H; y++) {
-    if ((rowMeans[y] >= frameMean) !== (rowMeans[y - 1] >= frameMean)) crossings++;
+    if ((rowMeans[y]! >= frameMean) !== (rowMeans[y - 1]! >= frameMean)) crossings++;
   }
   const stripes = Math.floor(crossings / 2);
   return { frameMean, frameMax, bandingRatio, stripes, rowMeans };
@@ -298,7 +316,7 @@ export function loadLuxCalibration() {
   catch (e) { return 1.0; }
 }
 
-export function saveLuxCalibration(factor) {
+export function saveLuxCalibration(factor: number) {
   try {
     localStorage.setItem('labcharts-lux-calibration', String(factor));
     localStorage.setItem('labcharts-lux-calibration-confirmed', 'true');
