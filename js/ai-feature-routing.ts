@@ -1,9 +1,15 @@
-// @ts-check
 // Routes non-chat text features through the selected assistant, including CLI subscriptions.
 
 import { callClaudeAPI, getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider, isAIPaused, supportsVision } from './api.js';
 import { getAssistantExecutionRoute } from './ai-execution-routing.js';
 import { getAgentHostEffort } from './agent-chat-settings.js';
+
+import type { AIProviderRequestOptions } from './api.js';
+export interface AssistantFeatureRequestOptions extends AIProviderRequestOptions {
+  jsonSchema?: Record<string, unknown> | undefined;
+}
+interface FeatureMessage {role?: unknown; content?: unknown}
+interface FeatureContent {type?: unknown; text?: unknown; image_url?: {url?: unknown}}
 
 export function hasAssistantFeatureProvider() {
   if (isAIPaused()) return false;
@@ -11,8 +17,7 @@ export function hasAssistantFeatureProvider() {
   return route.adapter === 'codex' ? route.available : hasAIProvider();
 }
 
-/** @param {'text'|'image'} modality */
-export function assistantFeatureSupports(modality) {
+export function assistantFeatureSupports(modality: 'text' | 'image') {
   if (isAIPaused()) return false;
   const route = getAssistantExecutionRoute();
   if (route.adapter !== 'codex') return modality === 'text' ? hasAIProvider() : supportsVision();
@@ -36,14 +41,14 @@ export function getAssistantFeatureIdentity() {
   };
 }
 
-function textContent(content) {
+function textContent(content: unknown) {
   if (typeof content === 'string') return content;
   if (!Array.isArray(content)) throw new Error('This feature includes content the selected CLI adapter cannot process.');
-  const texts = content.filter(item => item?.type === 'text' && typeof item.text === 'string').map(item => item.text);
+  const texts = (content as FeatureContent[]).filter(item => item?.type === 'text' && typeof item.text === 'string').map(item => (item as {text: string}).text);
   return texts.join('\n\n');
 }
 
-function dataUrlBlob(value) {
+function dataUrlBlob(value: unknown) {
   // 20 MiB of image bytes expands to under 28 MiB as base64. Reject larger
   // values before decoding so a pasted data URL cannot create an unbounded
   // intermediate string in the browser.
@@ -52,33 +57,29 @@ function dataUrlBlob(value) {
   }
   const match = String(value || '').match(/^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/]+={0,2})$/i);
   if (!match) throw new Error('The selected CLI adapter only accepts embedded JPEG, PNG, WebP, or GIF images.');
-  const binary = atob(match[2]);
+  const binary = atob(match[2]!);
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-  return new Blob([bytes], { type: match[1].toLowerCase() });
+  return new Blob([bytes], { type: match[1]!.toLowerCase() });
 }
 
-function featureImages(messages) {
-  return (Array.isArray(messages) ? messages : []).flatMap(message => Array.isArray(message?.content)
-    ? message.content.flatMap(item => {
+function featureImages(messages: unknown) {
+  return (Array.isArray(messages) ? messages as FeatureMessage[] : []).flatMap(message => Array.isArray(message?.content)
+    ? (message.content as FeatureContent[]).flatMap(item => {
       const url = item?.type === 'image_url' ? item?.image_url?.url : '';
       return url ? [dataUrlBlob(url)] : [];
     })
     : []);
 }
 
-function featurePrompt(messages) {
-  return (Array.isArray(messages) ? messages : []).map(message => {
+function featurePrompt(messages: unknown) {
+  return (Array.isArray(messages) ? messages as FeatureMessage[] : []).map(message => {
     const role = message?.role === 'assistant' ? 'Previous assistant response' : 'User request';
     return `${role}:\n${textContent(message?.content)}`;
   }).join('\n\n').trim();
 }
 
-/**
- * @param {import('./api.js').AIProviderRequestOptions & {jsonSchema?: Record<string, unknown>}} options
- * @param {string} [provider]
- */
-export async function callAssistantFeatureAI(options, provider) {
+export async function callAssistantFeatureAI(options: AssistantFeatureRequestOptions, provider?: string) {
   if (isAIPaused()) throw new Error('AI features are paused.');
   const route = getAssistantExecutionRoute();
   if (route.adapter !== 'codex') return callClaudeAPI(options, provider);

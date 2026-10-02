@@ -1,24 +1,22 @@
-// @ts-check
 // Structured, capability-gated feature inference through a local CLI adapter.
 
 import { listAgentExecutionTargets, streamAgentTurn, uploadAgentImage } from './agent-chat-client.js';
 import { connectDetectedAgent, getAgentHostAgent, getAgentHostEffort, getAgentHostEndpoint, getAgentHostTarget, getAgentHostToken } from './agent-chat-settings.js';
 import { AGENT_HOST_CAPABILITIES, AGENT_HOST_MAX_PROMPT_CHARS } from '../shared/agent-host-protocol.js';
 
-/**
- * @param {{
- *   files?: Blob[],
- *   prompt: string,
- *   model: string,
- *   effort?: string,
- *   outputSchema?: Record<string, unknown>,
- *   signal?: AbortSignal,
- *   instructions?: string,
- *   consentKind?: string,
- *   onStream?: (text: string) => void,
- * }} options
- */
-export async function callCodexFeature(options) {
+export interface CodexFeatureOptions {
+  files?: Blob[] | undefined;
+  prompt: string;
+  model: string;
+  effort?: string | undefined;
+  outputSchema?: Record<string, unknown> | undefined;
+  signal?: AbortSignal | undefined;
+  instructions?: string | undefined;
+  consentKind?: string | undefined;
+  onStream?: ((text: string) => void) | undefined;
+}
+
+export async function callCodexFeature(options: CodexFeatureOptions) {
   if (!options.prompt?.trim()) throw new Error('The AI request is empty. Please retry.');
   if (options.prompt.trim().length > AGENT_HOST_MAX_PROMPT_CHARS) throw new Error('This AI request exceeds the Companion’s size limit. Split the assessment into smaller groups and retry.');
   const files = Array.isArray(options.files) ? options.files : [];
@@ -75,7 +73,7 @@ export async function callCodexFeature(options) {
   });
 }
 
-export async function callCodexVisionFeature(options) {
+export async function callCodexVisionFeature(options: CodexFeatureOptions) {
   const files = Array.isArray(options.files) ? options.files : [];
   if (!files.length) throw new Error('At least one image is required.');
   return callCodexFeature(options);

@@ -69,10 +69,10 @@ describe('agent tool catalog', () => {
 
   it('returns defensive catalog copies', () => {
     const first = getAgentToolCatalog();
-    first[0].name = 'changed';
-    first[0].inputSchema.properties = {};
-    expect(getAgentToolCatalog()[0].name).toBe('getbased_lab_context');
-    expect(getCodexDynamicTools()[0].inputSchema.properties).toEqual({});
+    first[0]!.name = 'changed';
+    first[0]!.inputSchema.properties = {};
+    expect(getAgentToolCatalog()[0]!.name).toBe('getbased_lab_context');
+    expect(getCodexDynamicTools()[0]!.inputSchema.properties).toEqual({});
   });
 });
 
@@ -108,9 +108,9 @@ describe('agent tool runtime', () => {
 
     expect(readContext).toHaveBeenCalledWith();
     expect(result.success).toBe(true);
-    expect(result.contentItems[0].text).toContain('Profile scope: active getbased profile');
-    expect(result.contentItems[0].text).not.toContain('active-profile');
-    expect(result.contentItems[0].text).toContain(CONTEXT);
+    expect(result.contentItems[0]!.text).toContain('Profile scope: active getbased profile');
+    expect(result.contentItems[0]!.text).not.toContain('active-profile');
+    expect(result.contentItems[0]!.text).toContain(CONTEXT);
   });
 
   it('lists sections and resolves exact or prefix section names', async () => {

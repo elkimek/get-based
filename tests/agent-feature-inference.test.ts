@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { AgentTurnOptions, AgentHostConnection, AgentExecutionTarget } from '../js/agent-chat-client.js';
+import type { AgentConnectionOptions } from '../js/agent-host-discovery.js';
+import type { AIProcessingApprovalOptions } from '../js/cloud-ai-consent.js';
 
 const mocks = vi.hoisted(() => ({
   agent: 'codex', effort: '', target: 'local',
-  connect: vi.fn(), stream: vi.fn(), approval: vi.fn(), targets: vi.fn(),
+  connect: vi.fn<(agent: string, options?: AgentConnectionOptions) => Promise<unknown>>(), stream: vi.fn<(options: AgentTurnOptions) => Promise<unknown>>(), approval: vi.fn<(provider: string, options?: AIProcessingApprovalOptions) => Promise<unknown>>(), targets: vi.fn<(options: AgentHostConnection) => Promise<Partial<AgentExecutionTarget>[]>>(),
 }));
 vi.mock('../js/agent-chat-settings.js', () => ({
   connectDetectedAgent: mocks.connect,
@@ -12,7 +15,7 @@ vi.mock('../js/agent-chat-settings.js', () => ({
   getAgentHostEndpoint: () => 'http://127.0.0.1:8324',
   getAgentHostToken: () => 'test-connection-token',
 }));
-vi.mock('../js/agent-chat-client.js', () => ({ streamAgentTurn: mocks.stream, uploadAgentImage: vi.fn(), listAgentExecutionTargets: mocks.targets }));
+vi.mock('../js/agent-chat-client.js', () => ({ streamAgentTurn: mocks.stream, uploadAgentImage: vi.fn<(options: AgentHostConnection & {file: Blob}) => Promise<string>>(), listAgentExecutionTargets: mocks.targets }));
 vi.mock('../js/cloud-ai-consent.js', () => ({ requireAIProcessingApproval: mocks.approval }));
 import { callCodexFeature } from '../js/agent-feature-inference.js';
 
@@ -27,7 +30,7 @@ describe('CLI feature request preferences', () => {
     mocks.targets.mockResolvedValue([{ id: 'gateway-home', supportsTextFeatureJobs: true }]);
     await callCodexFeature({ prompt: 'Synthetic score explanation', model: 'remote-model' });
     expect(mocks.stream).toHaveBeenCalledWith(expect.objectContaining({ agent: 'hermes', target: 'gateway-home', purpose: 'feature', tools: [], prompt: 'Synthetic score explanation' }));
-    expect(mocks.stream.mock.calls[0][0].threadId).toBeUndefined();
+    expect(mocks.stream.mock.calls[0]![0].threadId).toBeUndefined();
     expect(mocks.approval).toHaveBeenCalledWith('personal-agent-gateway', expect.objectContaining({ kind: 'text' }));
   });
   it('reports an outdated gateway capability before sending any profile text', async () => {

@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { AssistantFeatureRequestOptions } from '../js/ai-feature-routing.js';
+import type { AssistantExecutionRoute } from '../js/ai-execution-routing.js';
+import type { CodexFeatureOptions } from '../js/agent-feature-inference.js';
 
 const mocks = vi.hoisted(() => ({
-  callClaudeAPI: vi.fn(),
-  callCodexFeature: vi.fn(),
-  getAssistantExecutionRoute: vi.fn(),
+  callClaudeAPI: vi.fn<(options: AssistantFeatureRequestOptions, provider?: string) => Promise<{text: string}>>(),
+  callCodexFeature: vi.fn<(options: CodexFeatureOptions) => Promise<{text: string}>>(),
+  getAssistantExecutionRoute: vi.fn<() => Partial<AssistantExecutionRoute>>(),
 }));
 
 vi.mock('../js/api.js', () => ({

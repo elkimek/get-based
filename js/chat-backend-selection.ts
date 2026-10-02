@@ -1,10 +1,10 @@
-// @ts-check
 
 import { getActiveModelDisplay, hasAIProvider, isAIPaused } from './api.js';
 import {
   connectDetectedCodex, discoverLocalChatAgents, getAgentHostAgent, getAgentHostModel, getAgentHostTarget, getChatBackend, hasAgentChatConnection, setChatBackend,
 } from './agent-chat-settings.js';
 import { getAgentModelDisplay, getCachedAgentModelCatalog } from './agent-model-catalog.js';
+import type { DiscoveredAgent } from './agent-host-discovery.js';
 
 export { getChatBackend } from './agent-chat-settings.js';
 
@@ -23,21 +23,21 @@ export function getChatBackendDisplay() {
   const agent = getAgentHostAgent();
   const catalog = getCachedAgentModelCatalog(agent, getAgentHostTarget(agent));
   const configuredModel = getAgentHostModel();
-  const fallback = ({ codex: 'Codex', claude: 'Claude Agent', opencode: 'OpenCode', hermes: 'Hermes', grok: 'Grok', openclaw: 'OpenClaw' })[agent] || 'CLI agent';
+  const fallback = ({ codex: 'Codex', claude: 'Claude Agent', opencode: 'OpenCode', hermes: 'Hermes', grok: 'Grok', openclaw: 'OpenClaw' } as Readonly<Record<string, string>>)[agent] || 'CLI agent';
   if (configuredModel) return getAgentModelDisplay(configuredModel, catalog);
   const defaultModel = catalog.find(model => model.isDefault) || catalog[0] || null;
   return defaultModel?.displayName || fallback;
 }
 
 export function refreshChatBackendControl() {
-  const select = /** @type {HTMLSelectElement | null} */ (document.getElementById('chat-backend-select'));
+  const select = (document.getElementById('chat-backend-select') as HTMLSelectElement | null);
   if (select) select.value = getChatBackend();
   void refreshLocalAgentAvailability();
   if (isCodexChatBackend() && !hasAgentChatConnection()) void ensureSelectedCodexConnection();
 }
 
-let localAgentAvailabilityRequest = null;
-let selectedCodexConnectionRequest = null;
+let localAgentAvailabilityRequest: Promise<DiscoveredAgent[]> | null = null;
+let selectedCodexConnectionRequest: Promise<DiscoveredAgent> | null = null;
 
 async function ensureSelectedCodexConnection() {
   if (!selectedCodexConnectionRequest) {
@@ -48,10 +48,9 @@ async function ensureSelectedCodexConnection() {
   try { await selectedCodexConnectionRequest; } catch { /* unavailable state is rendered by the caller */ }
 }
 
-/** @param {boolean} [force] */
 export async function refreshLocalAgentAvailability(force = false) {
-  const select = /** @type {HTMLSelectElement | null} */ (document.getElementById('chat-backend-select'));
-  const option = /** @type {HTMLOptionElement | null} */ (select?.querySelector('option[value="codex"]') || null);
+  const select = (document.getElementById('chat-backend-select') as HTMLSelectElement | null);
+  const option = (select?.querySelector('option[value="codex"]') || null) as HTMLOptionElement | null;
   const dot = document.getElementById('chat-agent-status-dot');
   if (!select || !option || !dot) return;
   if (!localAgentAvailabilityRequest || force) {
@@ -67,8 +66,7 @@ export async function refreshLocalAgentAvailability(force = false) {
   dot.title = ready ? `${selected.name} is ready` : selected?.message || 'The selected CLI agent is unavailable';
 }
 
-/** @param {unknown} value */
-export function setChatBackendFromUI(value) {
+export function setChatBackendFromUI(value: unknown) {
   setChatBackend(value);
   refreshChatBackendControl();
 }

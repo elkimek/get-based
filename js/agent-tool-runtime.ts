@@ -1,4 +1,3 @@
-// @ts-check
 // agent-tool-runtime.js — Portable getbased agent-tool catalog and read-only execution boundary.
 
 import {
@@ -12,34 +11,59 @@ export {
   AGENT_TOOL_CONTRACT_VERSION, getAgentToolCatalog, getCodexDynamicTools,
 } from '../shared/agent-tool-contract.js';
 
-/**
- * @typedef {{
- *   baseName: string,
- *   name: string,
- *   metadata: string,
- *   content: string,
- * }} AgentContextSection
- */
+
+export interface AgentContextSection {baseName: string; name: string; metadata: string; content: string}
+export interface AgentContextSnapshot {context: string; profileId?: string; updatedAt?: string}
+export interface AgentContextReceipt {label: string; detail: string}
+export interface AgentToolReceipt {tool?: string | undefined; arguments?: unknown; success?: boolean | undefined}
+export interface AgentToolInvocation {tool?: unknown; arguments?: unknown; namespace?: unknown}
+export interface AgentDraft {
+  id: string;
+  kind: 'note' | 'meal' | 'biometric' | 'supplement';
+  summary: string;
+  payload: Readonly<Record<string, unknown>>;
+  status: 'pending';
+}
+export interface AgentToolReadOptions {
+  searchMarkers: {query: string; limit: number};
+  readMarkerHistory: {marker: string; from: string; to: string; limit: number};
+  readNutritionSummary: {range: string};
+  readWearableSeries: {days: number};
+  searchKnowledge: {query: string; limit: number};
+  navigate: {view: string; marker: string};
+}
+type ToolReader<Options> = (options: Options) => unknown | Promise<unknown>;
+export type AgentToolDependencies = {
+  [Key in keyof AgentToolReadOptions]?: ToolReader<AgentToolReadOptions[Key]>;
+} & {
+  readContext: () => string | AgentContextSnapshot | Promise<string | AgentContextSnapshot>;
+  onDraftCreated?: (draft: AgentDraft) => void | Promise<void>;
+  createId?: () => string;
+};
+interface ToolResult {success: boolean; contentItems: [{type: 'inputText'; text: string}]}
+
+function uniqueReceipts(receipts: AgentContextReceipt[], limit: number) {
+  return receipts.filter((receipt, index) => receipts.findIndex(item => (
+    item.label === receipt.label && item.detail === receipt.detail
+  )) === index).slice(0, limit);
+}
 
 /**
  * Parse the bounded `[section:name metadata]...[/section:name]` projection
  * produced by getbased. It intentionally does not parse arbitrary HTML or
  * inspect application storage.
- *
- * @param {string} context
- * @returns {AgentContextSection[]}
  */
-export function parseAgentContextSections(context) {
-  const sections = [];
+export function parseAgentContextSections(context: string) {
+  const sections: AgentContextSection[] = [];
   const pattern = /\[section:([A-Za-z0-9._-]+)([^\]\r\n]*)\]([\s\S]*?)\[\/section:\1\]/g;
   for (const match of String(context || '').matchAll(pattern)) {
-    const baseName = match[1];
-    const metadata = match[2].trim();
+    const baseName = match[1]!;
+    const metadata = match[2]!.trim();
     sections.push({
       baseName,
       name: metadata ? `${baseName} ${metadata}` : baseName,
       metadata,
-      content: match[3].trim(),
+      content: match[3]!.trim(),
     });
   }
   return sections;
@@ -49,16 +73,14 @@ export function parseAgentContextSections(context) {
  * Build the persisted disclosure from tools that successfully returned data to
  * the agent. Draft-only calls are excluded because they do not disclose stored
  * profile data.
- * @param {Array<{tool?: string, arguments?: unknown, success?: boolean}>} toolCalls
- * @param {Array<{label: string, detail: string}>} fullContext
  */
-export function summarizeAgentToolReceipts(toolCalls, fullContext = []) {
+export function summarizeAgentToolReceipts(toolCalls: AgentToolReceipt[], fullContext: AgentContextReceipt[] = []) {
   const successful = Array.isArray(toolCalls) ? toolCalls.filter(call => call?.success === true) : [];
   if (successful.some(call => call.tool === 'getbased_lab_context')) return fullContext;
-  const clean = value => String(value || '').replace(/[\u0000-\u001F\u007F]+/g, ' ').trim().slice(0, 160);
+  const clean = (value: unknown) => String(value || '').replace(/[\u0000-\u001F\u007F]+/g, ' ').trim().slice(0, 160);
   const receipts = successful.flatMap(call => {
     const args = call.arguments && typeof call.arguments === 'object' && !Array.isArray(call.arguments)
-      ? /** @type {Record<string, unknown>} */ (call.arguments) : {};
+      ?  (call.arguments as Record<string, unknown>) : {};
     if (call.tool === 'getbased_section') return [{ label: 'getbased agent tool', detail: `Section: ${clean(args.section) || 'section list'}` }];
     if (call.tool === 'getbased_search_markers') return [{ label: 'Blood marker results', detail: `Search: ${clean(args.query) || 'markers'}` }];
     if (call.tool === 'getbased_marker_history') return [{ label: 'Blood marker results', detail: `History: ${clean(args.marker) || 'marker'}` }];
@@ -68,49 +90,39 @@ export function summarizeAgentToolReceipts(toolCalls, fullContext = []) {
     if (call.tool === 'getbased_navigate' && args.marker) return [{ label: 'Blood marker results', detail: `Opened: ${clean(args.marker)}` }];
     return [];
   });
-  return receipts.filter((receipt, index) => receipts.findIndex(item => (
-    item.label === receipt.label && item.detail === receipt.detail
-  )) === index).slice(0, 20);
+  return uniqueReceipts(receipts, 20);
 }
 
 /**
  * Every chat provider receives the enabled baseline projection. Append any
  * narrower tool lookups that disclosed additional data without dropping that
  * baseline receipt.
- * @param {Array<{tool?: string, arguments?: unknown, success?: boolean}>} toolCalls
- * @param {Array<{label: string, detail: string}>} fullContext
  */
-export function mergeAgentContextReceipts(toolCalls, fullContext = []) {
+export function mergeAgentContextReceipts(toolCalls: AgentToolReceipt[], fullContext: AgentContextReceipt[] = []) {
   const toolReceipts = summarizeAgentToolReceipts(toolCalls, fullContext);
   const combined = [...fullContext, ...toolReceipts];
-  return combined.filter((receipt, index) => combined.findIndex(item => (
-    item.label === receipt.label && item.detail === receipt.detail
-  )) === index).slice(0, 30);
+  return uniqueReceipts(combined, 30);
 }
 
-/** @param {string} text */
-function success(text) {
+function success(text: string): ToolResult {
   return {
     success: true,
     contentItems: [{ type: 'inputText', text }],
   };
 }
 
-/** @param {unknown} value */
-function successJson(value) {
+function successJson(value: unknown) {
   return success(JSON.stringify(value, null, 2));
 }
 
-/** @param {string} message */
-function failure(message) {
+function failure(message: string): ToolResult {
   return {
     success: false,
     contentItems: [{ type: 'inputText', text: `Error: ${message}` }],
   };
 }
 
-/** @param {unknown} value */
-function parseToolArguments(value) {
+function parseToolArguments(value: unknown) {
   if (value === undefined || value === null || value === '') return {};
   let parsed = value;
   if (typeof value === 'string') {
@@ -123,24 +135,15 @@ function parseToolArguments(value) {
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error('Tool arguments must be an object.');
   }
-  return /** @type {Record<string, unknown>} */ (parsed);
+  return (parsed as Record<string, unknown>);
 }
 
-/**
- * @param {Record<string, unknown>} args
- * @param {string[]} allowed
- */
-function rejectUnknownArguments(args, allowed) {
+function rejectUnknownArguments(args: Record<string, unknown>, allowed: string[]) {
   const unknown = Object.keys(args).find(key => !allowed.includes(key));
   if (unknown) throw new Error(`Unknown argument: ${unknown}.`);
 }
 
-/**
- * @param {Record<string, unknown>} args
- * @param {string} key
- * @param {number} maxLength
- */
-function optionalString(args, key, maxLength) {
+function optionalString(args: Record<string, unknown>, key: string, maxLength: number) {
   const value = args[key];
   if (value === undefined || value === null || value === '') return '';
   if (typeof value !== 'string') throw new Error(`${key} must be a string.`);
@@ -149,22 +152,22 @@ function optionalString(args, key, maxLength) {
   return normalized;
 }
 
-function requiredString(args, key, maxLength) {
+function requiredString(args: Record<string, unknown>, key: string, maxLength: number) {
   const value = optionalString(args, key, maxLength);
   if (!value) throw new Error(`${key} is required.`);
   return value;
 }
 
-function optionalInteger(args, key, { min, max, fallback }) {
+function optionalInteger(args: Record<string, unknown>, key: string, { min, max, fallback }: {min: number; max: number; fallback: number}) {
   const value = args[key];
   if (value === undefined || value === null || value === '') return fallback;
-  if (!Number.isInteger(value) || value < min || value > max) {
+  if (!Number.isInteger(value) || (value as number) < min || (value as number) > max) {
     throw new Error(`${key} must be an integer from ${min} to ${max}.`);
   }
-  return value;
+  return value as number;
 }
 
-function optionalFiniteNumber(args, key, { min = -Infinity, max = Infinity } = {}) {
+function optionalFiniteNumber(args: Record<string, unknown>, key: string, { min = -Infinity, max = Infinity }: {min?: number; max?: number} = {}) {
   const value = args[key];
   if (value === undefined || value === null || value === '') return null;
   if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) {
@@ -173,7 +176,7 @@ function optionalFiniteNumber(args, key, { min = -Infinity, max = Infinity } = {
   return value;
 }
 
-function optionalDate(args, key) {
+function optionalDate(args: Record<string, unknown>, key: string) {
   const value = optionalString(args, key, 10);
   if (!value) return '';
   const parsed = new Date(`${value}T00:00:00.000Z`);
@@ -185,23 +188,18 @@ function optionalDate(args, key) {
   return value;
 }
 
-function enumValue(args, key, allowed, fallback = '') {
+function enumValue(args: Record<string, unknown>, key: string, allowed: string[], fallback = '') {
   const value = optionalString(args, key, 80) || fallback;
   if (!allowed.includes(value)) throw new Error(`${key} is not supported.`);
   return value;
 }
 
-/**
- * @typedef {{context: string, profileId?: string, updatedAt?: string}} AgentContextSnapshot
- */
-
-/** @param {unknown} value */
-function normalizeSnapshot(value) {
+function normalizeSnapshot(value: unknown): AgentContextSnapshot {
   if (typeof value === 'string') return { context: value };
-  if (!value || typeof value !== 'object' || typeof /** @type {any} */ (value).context !== 'string') {
+  if (!value || typeof value !== 'object' || typeof (value as {context?: unknown}).context !== 'string') {
     throw new Error('invalid_context_snapshot');
   }
-  const snapshot = /** @type {any} */ (value);
+  const snapshot = (value as {context: string; profileId?: unknown; updatedAt?: unknown});
   return {
     context: snapshot.context,
     profileId: typeof snapshot.profileId === 'string' ? snapshot.profileId : '',
@@ -209,17 +207,15 @@ function normalizeSnapshot(value) {
   };
 }
 
-/** @param {AgentContextSnapshot} snapshot */
-function formatFullContext(snapshot) {
-  const parts = [];
+function formatFullContext(snapshot: AgentContextSnapshot) {
+  const parts: string[] = [];
   if (snapshot.profileId) parts.push('Profile scope: active getbased profile');
   if (snapshot.updatedAt) parts.push(`Updated: ${snapshot.updatedAt}`);
   parts.push(snapshot.context || 'No context available');
   return parts.join('\n\n');
 }
 
-/** @param {AgentContextSection[]} sections */
-function formatSectionIndex(sections) {
+function formatSectionIndex(sections: AgentContextSection[]) {
   if (sections.length === 0) return 'No sections available';
   const lines = sections.map(({ name, content }) => {
     const lineCount = content.split('\n').filter(line => line.trim()).length;
@@ -228,11 +224,7 @@ function formatSectionIndex(sections) {
   return `Available sections:\n\n${lines.join('\n')}`;
 }
 
-/**
- * @param {AgentContextSection[]} sections
- * @param {string} query
- */
-function findSection(sections, query) {
+function findSection(sections: AgentContextSection[], query: string) {
   const normalized = query.toLowerCase();
   return sections.find(section => section.name.toLowerCase() === normalized)
     || sections.find(section => section.name.toLowerCase().startsWith(normalized))
@@ -243,32 +235,20 @@ function findSection(sections, query) {
  * Create a call executor shared by the future localhost/Codex adapter and the
  * existing MCP-facing semantics. `readContext` is injected so this lower-level
  * module never reaches into IndexedDB, global state, or the DOM.
- *
- * @param {{
- *   readContext: () => Promise<string|AgentContextSnapshot>|string|AgentContextSnapshot,
- *   searchMarkers?: (options: {query: string, limit: number}) => Promise<unknown>|unknown,
- *   readMarkerHistory?: (options: {marker: string, from: string, to: string, limit: number}) => Promise<unknown>|unknown,
- *   readNutritionSummary?: (options: {range: string}) => Promise<unknown>|unknown,
- *   readWearableSeries?: (options: {days: number}) => Promise<unknown>|unknown,
- *   searchKnowledge?: (options: {query: string, limit: number}) => Promise<unknown>|unknown,
- *   navigate?: (options: {view: string, marker: string}) => Promise<unknown>|unknown,
- *   onDraftCreated?: (draft: AgentDraft) => Promise<void>|void,
- *   createId?: () => string,
- * }} dependencies
  */
-export function createAgentToolRuntime(dependencies) {
+export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
   const { readContext } = dependencies;
   if (typeof readContext !== 'function') throw new TypeError('readContext is required');
-  /** @type {AgentDraft[]} */
-  const drafts = [];
 
-  const runDependency = async (name, options) => {
-    const handler = dependencies[name];
+  const drafts: AgentDraft[] = [];
+
+  const runDependency = async <Key extends keyof AgentToolReadOptions>(name: Key, options: AgentToolReadOptions[Key]) => {
+    const handler = dependencies[name] as ToolReader<AgentToolReadOptions[Key]> | undefined;
     if (typeof handler !== 'function') throw new Error('tool_unavailable');
     return handler(options);
   };
 
-  const createDraft = async (kind, payload, summary) => {
+  const createDraft = async (kind: AgentDraft['kind'], payload: Record<string, unknown>, summary: string) => {
     const generated = typeof dependencies.createId === 'function'
       ? dependencies.createId()
       : globalThis.crypto?.randomUUID?.() || `draft-${Date.now()}-${drafts.length + 1}`;
@@ -289,12 +269,10 @@ export function createAgentToolRuntime(dependencies) {
     getDrafts: () => drafts.map(draft => ({ ...draft, payload: { ...draft.payload } })),
 
     /**
-     * Execute the shape emitted by Codex app-server `item/tool/call`. Other
-     * adapters only need to provide the same `tool` and `arguments` fields.
-     *
-     * @param {{tool?: string, arguments?: unknown, namespace?: string|null}} call
-     */
-    async execute(call) {
+ * Execute the shape emitted by Codex app-server `item/tool/call`. Other
+ * adapters only need to provide the same `tool` and `arguments` fields.
+ */
+    async execute(call: AgentToolInvocation | null | undefined) {
       if (!call || typeof call !== 'object') return failure('Invalid tool call.');
       if (call.namespace && call.namespace !== 'getbased') {
         return failure(`Unknown tool namespace: ${call.namespace}.`);
@@ -395,7 +373,7 @@ export function createAgentToolRuntime(dependencies) {
           const eatenAt = optionalString(args, 'eatenAt', 40);
           if (eatenAt && !Number.isFinite(new Date(eatenAt).getTime())) throw new Error('eatenAt must be an ISO-8601 date-time.');
           const mealType = enumValue(args, 'mealType', ['breakfast', 'brunch', 'lunch', 'dinner', 'snack', 'drink', 'other'], 'other');
-          const payload = { name, eatenAt, mealType, note: optionalString(args, 'note', 500), nutrients: {} };
+          const payload = { name, eatenAt, mealType, note: optionalString(args, 'note', 500), nutrients: {} as Record<string, number> };
           for (const [key, max] of Object.entries({ energyKcal: 20000, proteinG: 2000, carbohydrateG: 3000, fatG: 2000, fiberG: 1000, fluidMl: 20000 })) {
             const value = optionalFiniteNumber(args, key, { min: 0, max });
             if (value !== null) payload.nutrients[key] = value;
@@ -436,13 +414,3 @@ export function createAgentToolRuntime(dependencies) {
     },
   });
 }
-
-/**
- * @typedef {{
- *   id: string,
- *   kind: 'note'|'meal'|'biometric'|'supplement',
- *   summary: string,
- *   payload: Record<string, any>,
- *   status: 'pending',
- * }} AgentDraft
- */

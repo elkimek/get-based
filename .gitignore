@@ -538,3 +538,8 @@ deploy/profile-share/data/
 /js/ai-provider-policy.js
 /js/cloud-ai-consent.js
 /js/api.js
+/js/agent-tool-runtime.js
+/js/ai-execution-routing.js
+/js/agent-feature-inference.js
+/js/ai-feature-routing.js
+/js/chat-backend-selection.js
