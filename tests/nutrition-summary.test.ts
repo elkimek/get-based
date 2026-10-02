@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { buildNutritionHistoryAnalysisPrompt, buildNutritionSummaryContext, computeNutritionHistory, computeNutritionSummary, NUTRITION_CONTEXT_CHAR_LIMIT, NUTRITION_SUMMARY_VERSION } from '../js/nutrition-summary.js';
 
-function meal(eatenAt, energyKcal, proteinG, reviewed = true) {
+function meal(eatenAt: string | number | Date, energyKcal: number, proteinG: number, reviewed = true) {
   return { eatenAt, reviewed, nutrients: { energyKcal, proteinG } };
 }
 
@@ -174,7 +174,7 @@ describe('nutrition rolling summaries', () => {
     ], { now: new Date('2026-08-23T12:00:00.000Z') });
 
     expect(summary.windows.d7.dailyAverages.magnesiumMg).toBe(200);
-    expect(summary.windows.d7.nutrientCoverage.magnesiumMg.completeDays).toBe(1);
+    expect(summary.windows.d7.nutrientCoverage.magnesiumMg!.completeDays).toBe(1);
   });
 
   it('sums explicit drink events without requiring every meal to contain a fluid field', () => {
@@ -233,8 +233,8 @@ describe('nutrition rolling summaries', () => {
 
   it('builds range-aware routine context without making History selection implicit', () => {
     const now = new Date('2026-08-23T12:00:00.000Z');
-    const meals = [];
-    const richMeal = (date, energyKcal, proteinG) => ({
+    const meals: ReturnType<typeof meal>[] = [];
+    const richMeal = (date: Date, energyKcal: number, proteinG: number) => ({
       ...meal(date, energyKcal, proteinG),
       nutrients: {
         energyKcal,

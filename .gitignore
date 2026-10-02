@@ -650,3 +650,6 @@ deploy/profile-share/data/
 /tests/helpers/native-source-contracts.js
 
 /js/agent-draft-claims.js
+
+/js/nutrition-summary.js
+/js/nutrition-summary-context.js

@@ -1,14 +1,34 @@
-// @ts-check
 // nutrition-summary-context.js — compact aggregate-only nutrition text for AI.
 
 import { NUTRIENT_DEFINITIONS } from './nutrition-nutrient-registry.js';
 
+
+interface ContextCoverage { loggedDays?: number; completeDays?: number }
+interface ContextTiming {
+  occasionCounts?: Record<string, unknown> | null; mealsWithTiming?: unknown;
+  averageFirstMealLocalTime?: unknown; averageLastMealLocalTime?: unknown;
+  averageEatingWindowMinutes?: unknown; averageFastingWindowMinutes?: unknown;
+}
+interface ContextPeriod {
+  meals?: unknown; foodMeals?: unknown; drinkEntries?: unknown; loggedDays?: unknown; days?: unknown; reviewRatio?: number;
+  dailyAverages?: Record<string, unknown> | null; nutrientCoverage?: Record<string, ContextCoverage | null | undefined> | null;
+  timing?: ContextTiming | null;
+  fuelOverlap?: { available?: unknown; carbEnergyPercent?: unknown; fatEnergyPercent?: unknown; ratioLabel?: unknown; completeMeals?: unknown; totalMeals?: unknown } | null;
+}
+interface ContextSummary {
+  totalMeals?: unknown; windows?: Record<string, ContextPeriod | null | undefined>;
+  trendBaseline?: ContextPeriod | null; trendBaselines?: Record<string, ContextPeriod | null | undefined>;
+}
+interface ContextHistory { period?: ContextPeriod | null; rangeDescription?: unknown; rangeLabel?: unknown }
+type NutrientFields = readonly (readonly [string, string])[];
+type Coverage = Record<string, ContextCoverage | null | undefined> | null | undefined;
+
 export const NUTRITION_CONTEXT_CHAR_LIMIT = 2600;
 
-const COMPACT_CONTEXT_NUTRIENTS = Object.freeze(/** @type {Array<[string, string]>} */ ([
+const COMPACT_CONTEXT_NUTRIENTS = Object.freeze(([
   ['energyKcal', 'kcal'], ['proteinG', 'protein g'], ['carbohydrateG', 'carbohydrate g'],
   ['fatG', 'fat g'], ['fiberG', 'fiber g'], ['fluidMl', 'logged beverage mL'], ['plainWaterMl', 'logged plain water mL'],
-]));
+] as Array<[string, string]>));
 const COMPACT_CONTEXT_KEYS = new Set(COMPACT_CONTEXT_NUTRIENTS.map(([key]) => key));
 // Keep this derived from the editor/analysis registry. A newly supported
 // nutrient then reaches aggregate AI context without another hand-maintained
@@ -16,20 +36,14 @@ const COMPACT_CONTEXT_KEYS = new Set(COMPACT_CONTEXT_NUTRIENTS.map(([key]) => ke
 // observed value is emitted once for the selected timeframe.
 const DETAILED_CONTEXT_NUTRIENTS = Object.freeze(NUTRIENT_DEFINITIONS
   .filter(field => !COMPACT_CONTEXT_KEYS.has(field.key))
-  .map(field => Object.freeze(/** @type {[string, string]} */ ([field.key, `${field.label.toLowerCase()} ${field.unit}`]))));
+  .map(field => Object.freeze(([field.key, `${field.label.toLowerCase()} ${field.unit}`] as [string, string]))));
 
-/**
- * @param {Record<string, any>} [averages]
- * @param {Record<string, any>} [coverage]
- * @param {readonly (readonly [string, string])[]} [nutrientFields]
- * @param {{compactCoverage?: boolean}} [options]
- */
-function contextAverageParts(averages = {}, coverage = {}, nutrientFields = COMPACT_CONTEXT_NUTRIENTS, { compactCoverage = false } = {}) {
+function contextAverageParts(averages: Record<string, unknown> | null | undefined = {}, coverage: Coverage = {}, nutrientFields: NutrientFields = COMPACT_CONTEXT_NUTRIENTS, { compactCoverage = false } = {}) {
   return nutrientFields.flatMap(([key, label]) => {
     const value = averages?.[key];
     if (value === null || value === undefined || value === '' || !Number.isFinite(Number(value))) return [];
     const observed = coverage?.[key];
-    const coverageLabel = observed?.loggedDays && observed.completeDays < observed.loggedDays
+    const coverageLabel = observed?.loggedDays && observed.completeDays! < observed.loggedDays
       ? compactCoverage
         ? ` [${observed.completeDays}/${observed.loggedDays} complete days]`
         : ` [full values for logged entries on ${observed.completeDays}/${observed.loggedDays} days]`
@@ -38,17 +52,11 @@ function contextAverageParts(averages = {}, coverage = {}, nutrientFields = COMP
   });
 }
 
-/**
- * @param {Record<string, any>} [averages]
- * @param {Record<string, any>} [coverage]
- * @param {readonly (readonly [string, string])[]} [nutrientFields]
- * @param {{compactCoverage?: boolean}} [options]
- */
-function contextAverage(averages = {}, coverage = {}, nutrientFields = COMPACT_CONTEXT_NUTRIENTS, options = {}) {
+function contextAverage(averages: Record<string, unknown> | null | undefined = {}, coverage: Coverage = {}, nutrientFields: NutrientFields = COMPACT_CONTEXT_NUTRIENTS, options = {}) {
   return contextAverageParts(averages, coverage, nutrientFields, options).join('; ');
 }
 
-function contextWindow(label, period, nutrientFields = COMPACT_CONTEXT_NUTRIENTS, { includeTiming = false } = {}) {
+function contextWindow(label: string, period: ContextPeriod | null | undefined, nutrientFields: NutrientFields = COMPACT_CONTEXT_NUTRIENTS, { includeTiming = false } = {}) {
   if (!period?.meals) return `${label}: no logged meals`;
   const foodMeals = Number.isFinite(Number(period.foodMeals)) ? Number(period.foodMeals) : Number(period.meals);
   const drinkEntries = Number(period.drinkEntries || 0);
@@ -70,7 +78,7 @@ function contextWindow(label, period, nutrientFields = COMPACT_CONTEXT_NUTRIENTS
   return `${label}: ${entries} across ${period.loggedDays}/${period.days} days${occasions ? `; occasions: ${occasions}` : ''}${timingParts.length ? `; timing: ${timingParts.join(', ')}` : ''}; ${Math.round((period.reviewRatio || 0) * 100)}% of entries reviewed; recorded daily averages (days may be partial): ${contextAverage(period.dailyAverages, period.nutrientCoverage, nutrientFields) || 'no nutrient totals'}`;
 }
 
-function contextTrend(summary, days = 30) {
+function contextTrend(summary: ContextSummary, days = 30) {
   const recent = summary?.windows?.d7?.dailyAverages || {};
   const recentCoverage = summary?.windows?.d7?.nutrientCoverage || {};
   const baselineDays = days - 7;
@@ -91,13 +99,13 @@ function contextTrend(summary, days = 30) {
   return parts.length ? `7-day average compared with the previous ${baselineDays}-day period: ${parts.join('; ')}` : '';
 }
 
-function contextFuelOverlap(period, label = '7-day') {
+function contextFuelOverlap(period: ContextPeriod | null | undefined, label = '7-day') {
   const fuel = period?.fuelOverlap;
   if (!fuel?.available) return '';
   return `${label} logged carb-fat composition: ${fuel.carbEnergyPercent}% carbohydrate and ${fuel.fatEnergyPercent}% fat energy (${fuel.ratioLabel}; ${fuel.completeMeals}/${fuel.totalMeals} logged meals had both macros). This descriptive split has no preferred center or universal target; interpret it with absolute energy, carbohydrate amount, fiber, and fat quality. It is not measured Randle-cycle activity, substrate oxidation, insulin sensitivity, or metabolic health.`;
 }
 
-function appendDetailedNutrients(lines, period, label) {
+function appendDetailedNutrients(lines: string[], period: ContextPeriod | null | undefined, label: string) {
   const values = contextAverageParts(
     period?.dailyAverages,
     period?.nutrientCoverage,
@@ -118,7 +126,7 @@ function appendDetailedNutrients(lines, period, label) {
   if (included) lines.push(detail);
 }
 
-export function buildNutritionSummaryContext(summary, { days = 30 } = {}) {
+export function buildNutritionSummaryContext(summary: ContextSummary | null | undefined, { days = 30 } = {}) {
   if (!summary?.totalMeals) return '';
   const selectedDays = [7, 30, 90].includes(Number(days)) ? Number(days) : 30;
   const selectedPeriod = summary.windows?.[`d${selectedDays}`];
@@ -143,15 +151,15 @@ export function buildNutritionSummaryContext(summary, { days = 30 } = {}) {
   return `${[...lines, '[/section:nutrition]'].join('\n')}\n\n`;
 }
 
-export function buildNutritionHistoryAnalysisPrompt(history) {
+export function buildNutritionHistoryAnalysisPrompt(history: ContextHistory | null | undefined) {
   const period = history?.period;
   if (!period?.meals) return '';
-  const label = history.rangeDescription || history.rangeLabel || 'selected timeframe';
+  const label = history!.rangeDescription || history!.rangeLabel || 'selected timeframe';
   const lines = [
     `Review my Meals & Nutrition history for the ${label}.`,
-    `Nutrition history range: ${history.rangeLabel || 'selected range'} (${label}).`,
+    `Nutrition history range: ${history!.rangeLabel || 'selected range'} (${label}).`,
     'This is a coverage-limited aggregate: unlogged days and missing nutrient values are unknown, not zero. Do not infer skipped meals, under-eating, or a deficiency unless the logging coverage supports it.',
-    contextWindow(`Selected ${history.rangeLabel || 'range'}`, period),
+    contextWindow(`Selected ${history!.rangeLabel || 'range'}`, period),
   ];
   const detailed = contextAverage(
     period.dailyAverages,
@@ -159,7 +167,7 @@ export function buildNutritionHistoryAnalysisPrompt(history) {
     DETAILED_CONTEXT_NUTRIENTS,
     { compactCoverage: true },
   );
-  if (detailed) lines.push(`Selected ${history.rangeLabel || 'range'} detailed recorded daily averages: ${detailed}`);
+  if (detailed) lines.push(`Selected ${history!.rangeLabel || 'range'} detailed recorded daily averages: ${detailed}`);
   const timing = period?.timing;
   if (timing?.mealsWithTiming) {
     const timingParts = [
