@@ -2,9 +2,9 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-let chatScroll;
-let container;
-let button;
+let chatScroll: typeof import('../js/chat-scroll.js');
+let container: HTMLElement;
+let button: HTMLButtonElement;
 
 beforeEach(async () => {
   vi.resetModules();
@@ -14,8 +14,8 @@ beforeEach(async () => {
       <span class="chat-jump-latest-label">Jump to latest</span>
     </button>
   `;
-  container = document.getElementById('chat-messages');
-  button = document.getElementById('chat-jump-latest');
+  container = document.getElementById('chat-messages')!;
+  button = document.getElementById('chat-jump-latest') as HTMLButtonElement;
   Object.defineProperties(container, {
     scrollHeight: { configurable: true, value: 1000 },
     clientHeight: { configurable: true, value: 200 },

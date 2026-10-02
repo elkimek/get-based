@@ -16,6 +16,13 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
     }
   }
 
+  // Keep the public-export lists and their verification order explicit.
+  function assertModuleOnlyExports(names) {
+    for (const name of names) {
+      assert(`window.${name} stays module-only`, !(name in window));
+    }
+  }
+
   const serviceWorkerCacheModules = [
     '/js/main.js',
     '/js/app-feature-modules.js',
@@ -861,60 +868,24 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
     }
     console.log(`Checked ${exports.length} ${moduleName} module exports`);
   }
-  for (const name of supplementLegacyGlobals) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of backupExports) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of cryptoExports) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of clientListLegacyGlobals) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of cycleLegacyGlobals) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of dnaFormerGlobals) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of syncFormerGlobals) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of emfLegacyGlobals) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of lightToolsLegacyGlobals) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of navModuleOnlyExports) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of navLegacyGlobals) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of mobileDashboardExports) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of notesExports) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of pdfImportExports) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of profileExports) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of settingsModuleOnlyExports) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of settingsGlobals) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of themeExports) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
+  assertModuleOnlyExports(supplementLegacyGlobals);
+  assertModuleOnlyExports(backupExports);
+  assertModuleOnlyExports(cryptoExports);
+  assertModuleOnlyExports(clientListLegacyGlobals);
+  assertModuleOnlyExports(cycleLegacyGlobals);
+  assertModuleOnlyExports(dnaFormerGlobals);
+  assertModuleOnlyExports(syncFormerGlobals);
+  assertModuleOnlyExports(emfLegacyGlobals);
+  assertModuleOnlyExports(lightToolsLegacyGlobals);
+  assertModuleOnlyExports(navModuleOnlyExports);
+  assertModuleOnlyExports(navLegacyGlobals);
+  assertModuleOnlyExports(mobileDashboardExports);
+  assertModuleOnlyExports(notesExports);
+  assertModuleOnlyExports(pdfImportExports);
+  assertModuleOnlyExports(profileExports);
+  assertModuleOnlyExports(settingsModuleOnlyExports);
+  assertModuleOnlyExports(settingsGlobals);
+  assertModuleOnlyExports(themeExports);
   assert('window.scheduleChartThemeRefresh stays module-internal', !('scheduleChartThemeRefresh' in window));
   assert('window._getActiveProfileId stays module-only', !('_getActiveProfileId' in window));
   assert('chat action handlers stay module-only', [
@@ -1028,51 +999,21 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
     'openDeviceSessionDialog',
     'quickLogDeviceSession',
   ].every(name => !(name in window)));
-  for (const name of settingsSyncPanelLegacyGlobals) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of labContextLegacyGlobals) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of sunContextLegacyGlobals) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of sunSpectrumExports) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of utilsExports) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of exportExports) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of cashuWalletLegacyGlobals) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of changelogExports) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of feedbackLegacyGlobals) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of nostrLegacyGlobals) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of providerPanelsExports) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of contextCardsExports) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of dataExports) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of viewsDashboardWidgetExports) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
-  for (const name of viewsFacadeModuleExports) {
-    assert(`window.${name} stays module-only`, !(name in window));
-  }
+  assertModuleOnlyExports(settingsSyncPanelLegacyGlobals);
+  assertModuleOnlyExports(labContextLegacyGlobals);
+  assertModuleOnlyExports(sunContextLegacyGlobals);
+  assertModuleOnlyExports(sunSpectrumExports);
+  assertModuleOnlyExports(utilsExports);
+  assertModuleOnlyExports(exportExports);
+  assertModuleOnlyExports(cashuWalletLegacyGlobals);
+  assertModuleOnlyExports(changelogExports);
+  assertModuleOnlyExports(feedbackLegacyGlobals);
+  assertModuleOnlyExports(nostrLegacyGlobals);
+  assertModuleOnlyExports(providerPanelsExports);
+  assertModuleOnlyExports(contextCardsExports);
+  assertModuleOnlyExports(dataExports);
+  assertModuleOnlyExports(viewsDashboardWidgetExports);
+  assertModuleOnlyExports(viewsFacadeModuleExports);
 
   const allModules = {
     'views.js': viewsLegacyExports,

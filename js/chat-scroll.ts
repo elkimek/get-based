@@ -1,22 +1,18 @@
-// @ts-check
-// chat-scroll.js — transcript follow state and the jump-to-latest control.
+// chat-scroll.ts — transcript follow state and the jump-to-latest control.
 
 const NEAR_LATEST_PX = 80;
 
-/** @type {WeakMap<HTMLElement, { followingLatest: boolean, hasNewContent: boolean, scrollingToLatest: boolean }>} */
-const scrollStates = new WeakMap();
-/** @type {WeakSet<HTMLElement>} */
-const installedContainers = new WeakSet();
+interface ChatScrollState { followingLatest: boolean; hasNewContent: boolean; scrollingToLatest: boolean }
+const scrollStates = new WeakMap<HTMLElement, ChatScrollState>();
+const installedContainers = new WeakSet<HTMLElement>();
 
-/** @param {ScrollBehavior} [behavior] @returns {ScrollBehavior} */
-export function preferredChatScrollBehavior(behavior = 'smooth') {
+export function preferredChatScrollBehavior(behavior: ScrollBehavior = 'smooth'): ScrollBehavior {
   return behavior === 'smooth' && globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     ? 'auto'
     : behavior;
 }
 
-/** @param {HTMLElement} container */
-function getScrollState(container) {
+function getScrollState(container: HTMLElement) {
   let scrollState = scrollStates.get(container);
   if (!scrollState) {
     scrollState = {
@@ -29,14 +25,12 @@ function getScrollState(container) {
   return scrollState;
 }
 
-/** @param {HTMLElement} container */
-function getLatestButton(container) {
+function getLatestButton(container: HTMLElement) {
   if (typeof document === 'undefined' || container.id !== 'chat-messages') return null;
-  return /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-jump-latest'));
+  return (document.getElementById('chat-jump-latest') as HTMLButtonElement | null);
 }
 
-/** @param {HTMLElement} container */
-function refreshLatestButton(container) {
+function refreshLatestButton(container: HTMLElement) {
   const button = getLatestButton(container);
   if (!button) return;
   const scrollState = getScrollState(container);
@@ -50,17 +44,15 @@ function refreshLatestButton(container) {
     : 'Jump to latest message');
 }
 
-/** @param {HTMLElement} container */
-export function isChatNearLatest(container) {
+export function isChatNearLatest(container: HTMLElement) {
   return container.scrollHeight - container.scrollTop - container.clientHeight < NEAR_LATEST_PX;
 }
 
 /**
  * Keep following new transcript content when the reader is already at the
  * bottom. Otherwise, surface the control without changing their position.
- * @param {HTMLElement} container
  */
-export function notifyChatContentAdded(container) {
+export function notifyChatContentAdded(container: HTMLElement) {
   const scrollState = getScrollState(container);
   if (scrollState.followingLatest || isChatNearLatest(container)) {
     scrollState.followingLatest = true;
@@ -76,10 +68,8 @@ export function notifyChatContentAdded(container) {
 
 /**
  * Resume transcript following and move to the newest content.
- * @param {HTMLElement} container
- * @param {{ behavior?: ScrollBehavior }} [options]
  */
-export function followChatLatest(container, { behavior = 'smooth' } = {}) {
+export function followChatLatest(container: HTMLElement, { behavior = 'smooth' }: { behavior?: ScrollBehavior } = {}) {
   behavior = preferredChatScrollBehavior(behavior);
   const scrollState = getScrollState(container);
   scrollState.followingLatest = true;
@@ -108,7 +98,7 @@ export function followChatLatest(container, { behavior = 'smooth' } = {}) {
 /** Install the scroll and button listeners for the primary transcript. */
 export function initChatScrollControls() {
   if (typeof document === 'undefined') return;
-  const container = /** @type {HTMLElement | null} */ (document.getElementById('chat-messages'));
+  const container = (document.getElementById('chat-messages') as HTMLElement | null);
   if (!container || installedContainers.has(container)) return;
   installedContainers.add(container);
   getScrollState(container);
