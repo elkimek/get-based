@@ -598,3 +598,9 @@ deploy/profile-share/data/
 /js/sync-evolu8-identity-vault.js
 /js/data.js
 /js/sync.js
+/js/sun-defaults.js
+/js/context-card-lifestyle-editors-impl.js
+/js/context-card-lifestyle-special-editors.js
+/js/context-card-lifestyle-editors.js
+/js/context-card-medical-history-editor-impl.js
+/js/context-card-medical-history-editor.js

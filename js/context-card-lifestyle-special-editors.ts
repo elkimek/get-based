@@ -1,4 +1,6 @@
-// @ts-check
+import type { LightCircadianContext } from '../types/profile-context-data.js';
+import type { ModalSyncRefreshContext } from './utils.js';
+import type { LifestyleEditorDependencies } from './context-card-editor-ui.js';
 // Light, goals, interpretive-lens, and diet-contaminant lifestyle editors.
 
 import { state } from './state.js';
@@ -55,7 +57,7 @@ import {
   updateLifestyleChatHeaderModelRuntime,
 } from './context-card-lifestyle-runtime.js';
 
-const GOAL_PRIORITY_LABELS = { major: 'High', mild: 'Medium', minor: 'Low' };
+const GOAL_PRIORITY_LABELS: Record<string, string> = { major: 'High', mild: 'Medium', minor: 'Low' };
 const HEALTH_GOAL_STARTERS = [
   'Improve energy',
   'Sleep better',
@@ -67,29 +69,29 @@ const HEALTH_GOAL_STARTERS = [
   'Improve training and recovery',
 ];
 
-/** @type {(field: string) => void} */
-let recordContextChange = () => {};
-/** @type {(msg: string, field?: string) => void} */
-let saveContextAndRefresh = (msg, field) => {
+
+let recordContextChange: (field: string) => void = () => {};
+
+let saveContextAndRefresh: (msg: string, field?: string) => void = (msg, field) => {
   if (field) recordContextChange(field);
   saveImportedData();
   showNotification(msg, 'success');
 };
 
-/** @param {{ recordChange?: (field: string) => void, saveAndRefresh?: (msg: string, field?: string) => void }} [deps] */
-export function configureLifestyleSpecialEditors({ recordChange, saveAndRefresh } = {}) {
+
+export function configureLifestyleSpecialEditors({ recordChange, saveAndRefresh }: LifestyleEditorDependencies = {}) {
   if (typeof recordChange === 'function') recordContextChange = recordChange;
   if (typeof saveAndRefresh === 'function') saveContextAndRefresh = saveAndRefresh;
 }
 
 function getActiveNavCategory() {
-  const activeNav = /** @type {HTMLElement | null} */ (document.querySelector('.nav-item.active'));
+  const activeNav = (document.querySelector('.nav-item.active') as HTMLElement | null);
   return activeNav?.dataset.category || 'dashboard';
 }
 
 // ── Light & Circadian ──
 
-export function openLightCircadianEditor() {
+export function openLightCircadianEditor(): void | Promise<unknown> {
   if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openLightCircadianEditor);
   const modal = document.getElementById('detail-modal');
   const overlay = document.getElementById('modal-overlay');
@@ -116,7 +118,7 @@ export function openLightCircadianEditor() {
   openModalOverlay(overlay);
 }
 
-function renderLightSetupMirror(current) {
+function renderLightSetupMirror(current: LightCircadianContext) {
   const defaults = state.importedData?.sunDefaults || null;
   const skin = current.skinType || (defaults?.fitzpatrick ? `${defaults.fitzpatrick}` : null);
   const homeMeta = HOME_LIGHT_OPTIONS.find(option => option.key === defaults?.homeLight);
@@ -168,7 +170,7 @@ export function clearLightCircadian() {
 
 // ── Health Goals ──
 
-function refreshOpenHealthGoalsModalOnSync({ modal }) {
+function refreshOpenHealthGoalsModalOnSync({ modal }: ModalSyncRefreshContext) {
   renderHealthGoalsModal(modal);
 }
 
@@ -176,14 +178,14 @@ if (typeof window !== 'undefined') {
   bindDetailModalSyncRefresh('healthGoals', refreshOpenHealthGoalsModalOnSync);
 }
 
-export function openHealthGoalsEditor() {
+export function openHealthGoalsEditor(): void | Promise<unknown> {
   if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openHealthGoalsEditor);
   const modal = document.getElementById('detail-modal');
   renderHealthGoalsModal(modal);
   openModalOverlay(document.getElementById('modal-overlay'));
 }
 
-export function renderHealthGoalsModal(modal) {
+export function renderHealthGoalsModal(modal: HTMLElement | null) {
   if (modal?.dataset) modal.dataset.syncRefreshKind = 'healthGoals';
   const goals = state.importedData.healthGoals || [];
   let html = '';
@@ -191,7 +193,7 @@ export function renderHealthGoalsModal(modal) {
     html += '<div class="goals-list">';
     for (const goal of sortHealthGoalsByPriority(goals)) {
       const originalIndex = goals.indexOf(goal);
-      html += `<div class="goals-list-item"><span class="goals-severity-badge severity-${goal.severity}">${escapeHTML(GOAL_PRIORITY_LABELS[goal.severity] || goal.severity || 'Medium')}</span><span class="goals-text">${escapeHTML(goal.text)}</span><button class="goals-delete-btn" ${lifestyleActionAttrs('delete-health-goal', `data-lifestyle-index="${originalIndex}"`)} aria-label="Remove goal" title="Remove goal">&times;</button></div>`;
+      html += `<div class="goals-list-item"><span class="goals-severity-badge severity-${goal.severity}">${escapeHTML(GOAL_PRIORITY_LABELS[goal.severity as string] || goal.severity || 'Medium')}</span><span class="goals-text">${escapeHTML(goal.text)}</span><button class="goals-delete-btn" ${lifestyleActionAttrs('delete-health-goal', `data-lifestyle-index="${originalIndex}"`)} aria-label="Remove goal" title="Remove goal">&times;</button></div>`;
     }
     html += '</div>';
   }
@@ -216,7 +218,7 @@ export function addHealthGoal() {
   renderHealthGoalsModal(document.getElementById('detail-modal'));
 }
 
-export function deleteHealthGoal(index) {
+export function deleteHealthGoal(index: number) {
   if (!state.importedData.healthGoals) return;
   deleteImportedArrayItem(state.importedData, 'healthGoals', index);
   recordContextChange('healthGoals');
@@ -239,7 +241,7 @@ export function clearHealthGoals() {
 
 // ── Interpretive Lens ──
 
-export function openInterpretiveLensEditor() {
+export function openInterpretiveLensEditor(): void | Promise<unknown> {
   if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openInterpretiveLensEditor);
   const modal = document.getElementById('detail-modal');
   const overlay = document.getElementById('modal-overlay');

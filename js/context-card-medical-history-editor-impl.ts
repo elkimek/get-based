@@ -1,4 +1,5 @@
-// @ts-check
+import type { Diagnoses, Diagnosis, FamilyHistory } from '../types/profile-context-data.js';
+import type { LifestyleEditorDependencies } from './context-card-editor-ui.js';
 // context-card-medical-history-editor-impl.js - lazy Medical History editor implementation
 
 import { state } from './state.js';
@@ -14,53 +15,46 @@ import {
   renderSelectField,
 } from './context-card-editor-ui.js';
 
-/** @type {(msg: string, field?: string) => void} */
-let saveContextAndRefresh = () => {};
+
+let saveContextAndRefresh: (msg: string, field?: string) => void = () => {};
 let closeMedicalHistoryEditor = () => {};
 let editingConditionIndex = -1;
 let editingFamilyHistoryIndex = -1;
-/** @type {any | null} */
-let diagnosesDraft = null;
-const INTERPRETATION_FLAGS = [
+
+type DiagnosesDraft = Diagnoses & Required<Pick<Diagnoses, 'conditions' | 'familyHistory' | 'flags' | 'note' | 'proceduresNote'>>;
+export interface MedicalHistoryEditorDependencies extends LifestyleEditorDependencies { close?: (() => void) | undefined }
+let diagnosesDraft: DiagnosesDraft | null = null;
+const INTERPRETATION_FLAGS: [string, string, string][] = [
   ['lowMuscleMass', 'Low muscle mass / creatinine unreliable', 'Treat creatinine, creatinine eGFR, BUN/Cr, and creatinine-based biological age as context, not scored truth.'],
   ['hormoneTherapy', 'Hormone therapy / TRT / hormonal contraception', 'Flag sex-hormone markers as treatment/context-sensitive.'],
   ['postmenopause', 'Postmenopause / no active cycle', 'Do not interpret female hormones as ordinary cycling physiology.'],
   ['intenseTrainingRecent', 'Recent intense training near blood draw', 'Flag CK, AST/ALT, hs-CRP, urea, and recovery scores as training-load sensitive.'],
   ['acuteIllnessNearDraw', 'Acute illness / infection / injury near blood draw', 'Flag immune, inflammation, ferritin/iron, and recovery scores as transiently affected.'],
 ];
-const CONDITION_IMPACT_LABELS = {
+const CONDITION_IMPACT_LABELS: Record<string, string> = {
   major: 'High',
   mild: 'Moderate',
   minor: 'Low',
 };
 const CONDITION_STATUS = ['active', 'controlled', 'in remission', 'resolved'];
 
-/**
- * @param {string} action
- * @param {string} [extra]
- * @returns {string}
- */
-function medicalHistoryActionAttrs(action, extra = '') {
+
+function medicalHistoryActionAttrs(action: string, extra: string = '') {
   return `data-medical-history-action="${action}"${extra ? ` ${extra}` : ''}`;
 }
 
-/**
- * @param {{ close?: () => void, recordChange?: (field: string) => void, saveAndRefresh?: (msg: string, field?: string) => void }} [deps]
- */
-export function configureMedicalHistoryEditor({ close, saveAndRefresh } = {}) {
+
+export function configureMedicalHistoryEditor({ close, saveAndRefresh }: MedicalHistoryEditorDependencies = {}) {
   if (typeof close === 'function') closeMedicalHistoryEditor = close;
   if (typeof saveAndRefresh === 'function') saveContextAndRefresh = saveAndRefresh;
 }
 
-/**
- * @param {string} id
- * @returns {HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null}
- */
-function getFormControl(id) {
-  return /** @type {HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null} */ (document.getElementById(id));
+
+function getFormControl(id: string) {
+  return (document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null);
 }
 
-export function openDiagnosesEditor() {
+export function openDiagnosesEditor(): void | Promise<unknown> {
   if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openDiagnosesEditor);
   editingConditionIndex = -1;
   editingFamilyHistoryIndex = -1;
@@ -88,26 +82,26 @@ const FAMILY_RELATIVES = [
   { key: 'paternal_relative',      label: 'Other paternal relative' },
 ];
 
-function _relativeLabel(key) {
+function _relativeLabel(key: string) {
   return FAMILY_RELATIVES.find(r => r.key === key)?.label || key;
 }
 
-function _selectedAttr(value, target) {
+function _selectedAttr(value: unknown, target: unknown) {
   return value === target ? ' selected' : '';
 }
 
-function _activeClass(value, target) {
+function _activeClass(value: unknown, target: unknown) {
   return value === target ? ' active' : '';
 }
 
-function cloneDiagnoses(source) {
-  const cloned = source ? JSON.parse(JSON.stringify(source)) : {};
+function cloneDiagnoses(source: unknown) {
+  const cloned: Diagnoses = source ? JSON.parse(JSON.stringify(source)) : {};
   if (!Array.isArray(cloned.conditions)) cloned.conditions = [];
   if (!Array.isArray(cloned.familyHistory)) cloned.familyHistory = [];
   if (!cloned.flags || typeof cloned.flags !== 'object') cloned.flags = {};
   if (typeof cloned.note !== 'string') cloned.note = '';
   if (typeof cloned.proceduresNote !== 'string') cloned.proceduresNote = '';
-  return cloned;
+  return cloned as DiagnosesDraft;
 }
 
 function _getDiagnoses() {
@@ -115,7 +109,7 @@ function _getDiagnoses() {
   return diagnosesDraft;
 }
 
-export function renderDiagnosesModal(modal, current) {
+export function renderDiagnosesModal(modal: HTMLElement | null, current: Diagnoses) {
   const conditions = Array.isArray(current.conditions) ? current.conditions : [];
   const familyHistory = Array.isArray(current.familyHistory) ? current.familyHistory : [];
   if (!conditions[editingConditionIndex]) editingConditionIndex = -1;
@@ -128,7 +122,7 @@ export function renderDiagnosesModal(modal, current) {
   if (conditions.length > 0) {
     html += `<div class="ctx-conditions-list" id="ctx-conditions-list">`;
     for (let i = 0; i < conditions.length; i++) {
-      const c = conditions[i];
+      const c = conditions[i]!;
       html += `<div class="ctx-condition-item${i === editingConditionIndex ? ' is-editing' : ''}">
         <span class="ctx-condition-name" title="${escapeHTML(c.name)}">${escapeHTML(c.name)}</span>
         ${c.severity ? `<span class="goals-severity-badge severity-${c.severity}">${escapeHTML(CONDITION_IMPACT_LABELS[c.severity] || c.severity)}</span>` : ''}
@@ -163,7 +157,7 @@ export function renderDiagnosesModal(modal, current) {
     </div>
   </div>`;
 
-  const RELATIVE_EMOJI = {
+  const RELATIVE_EMOJI: Record<string, string> = {
     mother: '👩', father: '👨', sibling: '👫', half_sibling: '👫', child: '🧒',
     maternal_grandmother: '👵', maternal_grandfather: '👴',
     maternal_relative: '👤', paternal_grandmother: '👵', paternal_grandfather: '👴',
@@ -279,7 +273,7 @@ export function filterConditionSuggestions() {
   container.innerHTML = matches.slice(0, 8).map(m => `<div class="ctx-suggestion-item" data-medical-history-suggestion="condition" data-medical-history-value="${escapeHTML(m)}">${escapeHTML(m)}</div>`).join('');
 }
 
-export function selectConditionSuggestion(name) {
+export function selectConditionSuggestion(name: string) {
   const input = getFormControl('condition-input');
   if (input) input.value = name;
   const container = document.getElementById('condition-suggestions');
@@ -294,9 +288,9 @@ export function syncDiagnosesNote() {
 }
 
 function syncDiagnosisFlags(diagnoses = _getDiagnoses()) {
-  const flags = {};
+  const flags: Record<string, boolean> = {};
   for (const [key] of INTERPRETATION_FLAGS) {
-    const el = /** @type {HTMLInputElement | null} */ (document.getElementById(`diagnosis-flag-${key}`));
+    const el = (document.getElementById(`diagnosis-flag-${key}`) as HTMLInputElement | null);
     if (el?.checked) flags[key] = true;
   }
   diagnoses.flags = flags;
@@ -313,8 +307,8 @@ export function addCondition() {
   syncDiagnosesNote();
   const diagnoses = _getDiagnoses();
   syncDiagnosisFlags(diagnoses);
-  /** @type {{ name: string, severity: string, status?: string, since?: string }} */
-  const cond = { name, severity };
+
+  const cond: Diagnosis = { name, severity };
   if (status) cond.status = status;
   if (since && since.value.trim()) cond.since = since.value.trim();
   if (editingConditionIndex >= 0 && editingConditionIndex < diagnoses.conditions.length) {
@@ -326,7 +320,7 @@ export function addCondition() {
   renderDiagnosesModal(document.getElementById("detail-modal"), diagnoses);
 }
 
-export function editCondition(idx) {
+export function editCondition(idx: number) {
   const diagnoses = _getDiagnoses();
   if (!diagnoses.conditions[idx]) return;
   syncDiagnosesNote();
@@ -343,7 +337,7 @@ export function cancelConditionEdit() {
   renderDiagnosesModal(document.getElementById("detail-modal"), _getDiagnoses());
 }
 
-export function deleteCondition(idx) {
+export function deleteCondition(idx: number) {
   const diagnoses = _getDiagnoses();
   if (!diagnoses.conditions[idx]) return;
   syncDiagnosesNote();
@@ -367,8 +361,8 @@ export function addFamilyHistoryEntry() {
   syncDiagnosesNote();
   const diagnoses = _getDiagnoses();
   syncDiagnosisFlags(diagnoses);
-  /** @type {{ relative: string, condition: string, onsetAge?: number, note?: string }} */
-  const entry = { relative, condition };
+
+  const entry: FamilyHistory = { relative, condition };
   if (onsetAge != null && Number.isFinite(onsetAge)) entry.onsetAge = onsetAge;
   if (note) entry.note = note;
   if (editingFamilyHistoryIndex >= 0 && editingFamilyHistoryIndex < diagnoses.familyHistory.length) {
@@ -380,7 +374,7 @@ export function addFamilyHistoryEntry() {
   renderDiagnosesModal(document.getElementById("detail-modal"), diagnoses);
 }
 
-export function editFamilyHistoryEntry(idx) {
+export function editFamilyHistoryEntry(idx: number) {
   const diagnoses = _getDiagnoses();
   if (!diagnoses.familyHistory[idx]) return;
   syncDiagnosesNote();
@@ -397,7 +391,7 @@ export function cancelFamilyHistoryEdit() {
   renderDiagnosesModal(document.getElementById("detail-modal"), _getDiagnoses());
 }
 
-export function deleteFamilyHistoryEntry(idx) {
+export function deleteFamilyHistoryEntry(idx: number) {
   const diagnoses = _getDiagnoses();
   if (!diagnoses.familyHistory[idx]) return;
   syncDiagnosesNote();
@@ -416,7 +410,7 @@ export function filterFamilyConditionSuggestions() {
   container.innerHTML = matches.slice(0, 8).map(m => `<div class="ctx-suggestion-item" data-medical-history-suggestion="family-condition" data-medical-history-value="${escapeHTML(m)}">${escapeHTML(m)}</div>`).join('');
 }
 
-export function selectFamilyConditionSuggestion(name) {
+export function selectFamilyConditionSuggestion(name: string) {
   const input = getFormControl('fh-condition');
   if (input) input.value = name;
   const container = document.getElementById('fh-condition-suggestions');

@@ -1,5 +1,8 @@
-// @ts-check
+import type { SunSetupDefaults, SunSetupValues } from './sun-defaults-model.js';
+import type { LightCircadianContext } from '../types/profile-context-data.js';
 // sun-defaults.js — Stable facade for Light setup state and persistence.
+
+type PersistedSunDefaults = SunSetupDefaults & { completedAt?: number };
 
 import { SKIN_TYPE } from './constants.js';
 import { saveImportedData } from './data.js';
@@ -9,10 +12,10 @@ import { configureSunDefaultsSetupUI } from './sun-defaults-setup-ui.js';
 export function getSunDefaults() {
   if (!state.importedData) return null;
   if (!state.importedData.sunDefaults) state.importedData.sunDefaults = {};
-  return state.importedData.sunDefaults;
+  return state.importedData.sunDefaults as PersistedSunDefaults;
 }
 
-export async function saveSunDefaults(patch) {
+export async function saveSunDefaults(patch: Partial<PersistedSunDefaults>) {
   const defaults = getSunDefaults();
   if (!defaults) return false;
   Object.assign(defaults, patch);
@@ -25,7 +28,7 @@ export function isOnboardingComplete() {
   return !!(defaults && defaults.fitzpatrick && defaults.completedAt);
 }
 
-function buildDefaultLightCircadianContext() {
+function buildDefaultLightCircadianContext(): LightCircadianContext {
   return {
     amLight: null,
     daytime: null,
@@ -41,7 +44,7 @@ function buildDefaultLightCircadianContext() {
   };
 }
 
-export async function persistSunSetupValues(values, now = Date.now()) {
+export async function persistSunSetupValues(values: SunSetupValues | null | undefined, now = Date.now()) {
   if (!values || !state.importedData) return null;
   const defaults = getSunDefaults();
   if (!defaults) return null;
@@ -59,7 +62,7 @@ export async function persistSunSetupValues(values, now = Date.now()) {
   if (!state.importedData.lightCircadian) {
     state.importedData.lightCircadian = buildDefaultLightCircadianContext();
   }
-  state.importedData.lightCircadian.skinType = SKIN_TYPE[values.skinIdx];
+  state.importedData.lightCircadian.skinType = SKIN_TYPE[values.skinIdx]!;
   await saveImportedData();
   return defaults;
 }

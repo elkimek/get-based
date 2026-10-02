@@ -1,4 +1,5 @@
-// @ts-check
+import type { SleepContext } from '../types/profile-context-data.js';
+import type { LifestyleEditorDependencies } from './context-card-editor-ui.js';
 // context-card-lifestyle-editors-impl.js - lazy lifestyle context card editor implementation
 
 import { state } from './state.js';
@@ -119,52 +120,50 @@ import {
   saveLightCircadian,
   showDietContaminantsModal,
 } from './context-card-lifestyle-special-editors.js';
-/** @type {(field: string) => void} */
-let recordContextChange = () => {};
-/** @type {(msg: string, field?: string) => void} */
-let saveContextAndRefresh = (msg, field) => {
+
+let recordContextChange: (field: string) => void = () => {};
+
+let saveContextAndRefresh: (msg: string, field?: string) => void = (msg, field) => {
   if (field) recordContextChange(field);
   saveImportedData();
   showNotification(msg, 'success');
 };
 
-/**
- * @param {{ recordChange?: (field: string) => void, saveAndRefresh?: (msg: string, field?: string) => void }} [deps]
- */
-export function configureLifestyleContextEditors({ recordChange, saveAndRefresh } = {}) {
+
+export function configureLifestyleContextEditors({ recordChange, saveAndRefresh }: LifestyleEditorDependencies = {}) {
   if (typeof recordChange === 'function') recordContextChange = recordChange;
   if (typeof saveAndRefresh === 'function') saveContextAndRefresh = saveAndRefresh;
   configureLifestyleSpecialEditors({ recordChange, saveAndRefresh });
 }
 
-/** @param {Array<string | {value: string, label: string}>} options @param {string | null | undefined} current */
-function withLegacySelection(options, current) {
+
+function withLegacySelection(options: Array<string | {value: string, label: string}>, current: string | null | undefined) {
   if (!current || options.some(option => (typeof option === 'string' ? option : option.value) === current)) return options;
   return [...options, { value: current, label: `Previous estimate: ${current}` }];
 }
 
 function hydrationIntakeOptions() {
-  const usLabels = /** @type {Record<string, string>} */ ({
+  const usLabels = ({
     '<1.5 L/day': '<51 fl oz/day',
     '1.5–2 L/day': '51–68 fl oz/day',
     '2–3 L/day': '68–101 fl oz/day',
     '>3 L/day': '>101 fl oz/day',
     'varies / not sure': 'varies / not sure',
-  });
+  } as Record<string, string>);
   return DIET_HYDRATION.map(value => ({
     value,
-    label: state.unitSystem === 'US' ? usLabels[value] : value,
+    label: state.unitSystem === 'US' ? usLabels[value]! : value,
   }));
 }
 
-/** @param {any} current */
-function renderSleepMismatch(current) {
+
+function renderSleepMismatch(current: SleepContext) {
   const mismatch = getSleepContextMismatch(current, state.importedData.wearableSummary);
   if (!mismatch) return '';
   return `<div class="ctx-data-mismatch" role="status"><strong>Profile and tracked sleep differ</strong><span>${escapeHTML(mismatch.reasons.join('. '))}.</span><small>Both are kept. Recent device data can differ from your usual experience or have incomplete coverage.</small></div>`;
 }
 
-async function confirmClearProfileContext(label, clearAction) {
+async function confirmClearProfileContext(label: string, clearAction: () => unknown) {
   const confirmed = await showConfirmDialog(
     `Clear all saved ${label.toLowerCase()} information? This cannot be undone.`,
     {
@@ -176,14 +175,14 @@ async function confirmClearProfileContext(label, clearAction) {
   return confirmed;
 }
 
-function closestLifestyleElement(target, selector) {
+function closestLifestyleElement(target: EventTarget | null, selector: string) {
   const el = target instanceof Element ? target.closest(selector) : null;
   if (!(el instanceof HTMLElement)) return null;
   if (el.closest('#detail-modal')) return el;
   return el.dataset.lifestyleAction === 'show-diet-contaminants' ? el : null;
 }
 
-function getLifestyleIndex(el) {
+function getLifestyleIndex(el: HTMLElement) {
   const idx = Number.parseInt(el.dataset.lifestyleIndex || '', 10);
   return Number.isInteger(idx) ? idx : -1;
 }
@@ -200,14 +199,14 @@ function returnToContextModal() {
   returnToLifestyleContextModalRuntime();
 }
 
-function useHealthGoalStarter(text) {
+function useHealthGoalStarter(text: string) {
   const input = getTextInput('goal-text-input');
   if (!input) return;
   input.value = text;
   input.focus();
 }
 
-/** @type {Record<string, () => void>} */ const lifestyleEditorActions = {
+ const lifestyleEditorActions: Record<string, () => void> = {
   'save-diet': saveDiet,
   'clear-diet': () => { void confirmClearProfileContext('Diet & Digestion', clearDiet); },
   'save-sleep-rest': saveSleepRest,
@@ -223,8 +222,8 @@ function useHealthGoalStarter(text) {
   'save-environment': saveEnvironment,
   'clear-environment': () => { void confirmClearProfileContext('Environment', clearEnvironment); },
 };
-/** @param {MouseEvent} event */
-function handleLifestyleContextClick(event) {
+
+function handleLifestyleContextClick(event: MouseEvent) {
   const actionEl = closestLifestyleElement(event.target, '[data-lifestyle-action]');
   if (!actionEl) return;
   switch (actionEl.dataset.lifestyleAction || '') {
@@ -245,8 +244,8 @@ function handleLifestyleContextClick(event) {
   }
 }
 
-/** @param {KeyboardEvent} event */
-function handleLifestyleContextKeydown(event) {
+
+function handleLifestyleContextKeydown(event: KeyboardEvent) {
   const badge = closestLifestyleElement(event.target, '[data-lifestyle-action="show-diet-contaminants"]');
   if (badge && (event.key === 'Enter' || event.key === ' ')) {
     event.preventDefault();
@@ -284,11 +283,11 @@ function getTimePlaceholder() {
 // DIET
 // ═══════════════════════════════════════════════
 
-export function openDietEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openDietEditor);
+export function openDietEditor(): void | Promise<unknown> { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openDietEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
-  /** @type {import('../types/profile-context-data.js').DietContext} */
-  const current = state.importedData.diet || { type: null, restrictions: [], pattern: null, proteinIntake: null, hydration: null, alcohol: null, caffeine: null, caffeineTiming: null, recentChanges: [], breakfast: '', lunch: '', dinner: '', snacks: '', note: '', bowelFrequency: null, stoolConsistency: null, bloating: null, gas: null, acidReflux: null, burping: null, nausea: null, appetite: null, abdominalPain: null, foodSensitivities: [] };
+
+  const current: import('../types/profile-context-data.js').DietContext = state.importedData.diet || { type: null, restrictions: [], pattern: null, proteinIntake: null, hydration: null, alcohol: null, caffeine: null, caffeineTiming: null, recentChanges: [], breakfast: '', lunch: '', dinner: '', snacks: '', note: '', bowelFrequency: null, stoolConsistency: null, bloating: null, gas: null, acidReflux: null, burping: null, nausea: null, appetite: null, abdominalPain: null, foodSensitivities: [] };
   const detailedNutritionOverridesMeals = doesNutritionContextOverrideTypicalMeals();
   const typicalMealDisabledAttrs = detailedNutritionOverridesMeals
     ? ' disabled aria-describedby="diet-meal-precedence"'
@@ -390,7 +389,7 @@ export function clearDiet() {
 // SLEEP & REST
 // ═══════════════════════════════════════════════
 
-export function openSleepRestEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openSleepRestEditor);
+export function openSleepRestEditor(): void | Promise<unknown> { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openSleepRestEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.sleepRest || { duration: null, quality: null, daytimeSleepiness: null, apneaStatus: null, papUse: null, naps: null, schedule: null, roomTemp: null, issues: [], environment: [], practices: [], note: '' };
@@ -455,7 +454,7 @@ export function clearSleepRest() {
 // EXERCISE
 // ═══════════════════════════════════════════════
 
-export function openExerciseEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openExerciseEditor);
+export function openExerciseEditor(): void | Promise<unknown> { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openExerciseEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.exercise || { frequency: null, types: [], intensity: null, duration: null, dailyMovement: null, muscleContext: null, limitations: [], note: '' };
@@ -505,7 +504,7 @@ export function clearExercise() {
 // STRESS
 // ═══════════════════════════════════════════════
 
-export function openStressEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openStressEditor);
+export function openStressEditor(): void | Promise<unknown> { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openStressEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.stress || { level: null, duration: null, trend: null, sources: [], management: [], note: '' };
@@ -550,7 +549,7 @@ export function clearStress() {
 // LOVE LIFE
 // ═══════════════════════════════════════════════
 
-export function openLoveLifeEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openLoveLifeEditor);
+export function openLoveLifeEditor(): void | Promise<unknown> { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openLoveLifeEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.loveLife || { status: null, satisfaction: null, relationship: null, libido: null, libidoChange: null, frequency: null, orgasm: null, reproductiveGoals: [], concerns: [], note: '' };
@@ -610,7 +609,7 @@ export function clearLoveLife() {
 // ENVIRONMENT
 // ═══════════════════════════════════════════════
 
-export function openEnvironmentEditor() { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openEnvironmentEditor);
+export function openEnvironmentEditor(): void | Promise<unknown> { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openEnvironmentEditor);
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.environment || { setting: null, climate: null, altitude: null, inhaledExposures: [], occupationalExposures: [], water: null, waterConcerns: [], emf: [], emfMitigation: [], homeLight: null, air: [], toxins: [], building: null, note: '' };
