@@ -1,5 +1,4 @@
-// @ts-check
-// crypto-ui.js — Encryption dialogs, nudges, delegates, and settings UI owner.
+// crypto-ui.ts — Encryption dialogs, nudges, delegates, and settings UI owner.
 
 import { getErrorMessage } from './caught-error.js';
 import { escapeAttr, escapeHTML, showConfirmDialog, showNotification } from './utils.js';
@@ -17,8 +16,16 @@ import {
   restoreAutoBackup,
 } from './backup.js';
 
-/** @type {Record<string, any>} */
-const cryptoUiDeps = {
+interface CryptoUiDeps {
+  changeEncryptionPassphrase: ((oldPassphrase: string, newPassphrase: string) => Promise<void>) | null;
+  clearEncryptionSession: (() => void) | null;
+  disableEncryptionStorage: (() => Promise<void>) | null;
+  getEncryptionEnabled(): boolean;
+  migrateEncryptionStorage: (() => Promise<void>) | null;
+  prepareEncryption: ((passphrase: string) => Promise<void>) | null;
+  unlockEncryption: ((passphrase: string) => Promise<void>) | null;
+}
+const cryptoUiDeps: CryptoUiDeps = {
   changeEncryptionPassphrase: null,
   clearEncryptionSession: null,
   disableEncryptionStorage: null,
@@ -28,11 +35,11 @@ const cryptoUiDeps = {
   unlockEncryption: null,
 };
 
-export function configureCryptoUi(deps = {}) {
+export function configureCryptoUi(deps: Partial<CryptoUiDeps> | Record<string, unknown> | null = {}) {
   const previous = { ...cryptoUiDeps };
   for (const [key, value] of Object.entries(deps || {})) {
     if (Object.hasOwn(cryptoUiDeps, key) && typeof value === 'function') {
-      cryptoUiDeps[key] = value;
+      (cryptoUiDeps as unknown as Record<string, CryptoUiDeps[keyof CryptoUiDeps]>)[key] = value as CryptoUiDeps[keyof CryptoUiDeps];
     }
   }
   return previous;
@@ -42,21 +49,22 @@ const needsDataProtectionStylesheet = () => typeof document !== 'undefined'
   && !!document.querySelector('[data-data-protection-stylesheet-anchor]')
   && !isDataProtectionStylesheetLoaded();
 
-function runWithDataProtectionStylesheet(action) {
+function runWithDataProtectionStylesheet(action: () => void | Promise<void | false>): void | Promise<void | false> {
   if (!needsDataProtectionStylesheet()) return action();
-  return loadDataProtectionStylesheetForAction().then(loaded => {
+  return loadDataProtectionStylesheetForAction().then<void | false>(loaded => {
     if (loaded) return action();
     showNotification('Data protection controls could not be loaded. Try again.', 'error');
     return false;
   });
 }
 
-const cryptoActionDelegateRoots = new WeakSet();
+const cryptoActionDelegateRoots = new WeakSet<CryptoDelegateRoot>();
 const CRYPTO_ACTION_DELEGATE_KEY = Symbol.for('getbased.cryptoActionDelegatesInstalled');
+type CryptoDelegateRoot = (Document | HTMLElement) & { [CRYPTO_ACTION_DELEGATE_KEY]?: boolean };
 const CRYPTO_ACTION_ATTR = 'data-crypto-action';
 const CRYPTO_ACTION_SELECTOR = `[${CRYPTO_ACTION_ATTR}]`;
 
-function cryptoActionAttrs(action, attrs = {}) {
+function cryptoActionAttrs(action: string, attrs: Record<string, unknown> = {}) {
   let html = `${CRYPTO_ACTION_ATTR}="${escapeAttr(action)}"`;
   for (const [key, value] of Object.entries(attrs)) {
     if (value == null) continue;
@@ -66,15 +74,15 @@ function cryptoActionAttrs(action, attrs = {}) {
   return html;
 }
 
-function closestCryptoAction(target) {
-  return /** @type {HTMLElement | null} */ (
-    target && typeof target.closest === 'function'
-      ? target.closest(CRYPTO_ACTION_SELECTOR)
+function closestCryptoAction(target: EventTarget | null) {
+  return ((
+    target && typeof (target as Element).closest === 'function'
+      ? (target as Element).closest(CRYPTO_ACTION_SELECTOR)
       : null
-  );
+  ) as HTMLElement | null);
 }
 
-function readSnapshotActionId(actionElement) {
+function readSnapshotActionId(actionElement: HTMLElement) {
   const raw = actionElement.dataset.cryptoSnapshotId;
   if (raw == null) return null;
   if (actionElement.dataset.cryptoSnapshotIdType === 'number') {
@@ -84,9 +92,9 @@ function readSnapshotActionId(actionElement) {
   return raw;
 }
 
-function handleCryptoActionClick(event) {
+function handleCryptoActionClick(event: Event) {
   const actionElement = closestCryptoAction(event.target);
-  if (!actionElement || !event.currentTarget?.contains?.(actionElement)) return;
+  if (!actionElement || !(event.currentTarget as Node | null)?.contains?.(actionElement)) return;
   const action = actionElement.getAttribute(CRYPTO_ACTION_ATTR);
   if (action === 'change-passphrase') changePassphrase();
   else if (action === 'disable-encryption') disableEncryption();
@@ -106,19 +114,19 @@ function handleCryptoActionClick(event) {
   event.stopPropagation();
 }
 
-function handleCryptoActionKeydown(event) {
+function handleCryptoActionKeydown(event: KeyboardEvent) {
   if (event.key !== 'Enter' && event.key !== ' ') return;
   const actionElement = closestCryptoAction(event.target);
   if (!actionElement || actionElement.getAttribute('role') !== 'button') return;
-  if (event.target?.closest?.('button, a, input, textarea, select')) return;
+  if ((event.target as Element | null)?.closest?.('button, a, input, textarea, select')) return;
   handleCryptoActionClick(event);
 }
 
-function handleCryptoActionChange(event) {
+function handleCryptoActionChange(event: Event) {
   const actionElement = closestCryptoAction(event.target);
-  if (!actionElement || !event.currentTarget?.contains?.(actionElement)) return;
+  if (!actionElement || !(event.currentTarget as Node | null)?.contains?.(actionElement)) return;
   if (actionElement.getAttribute(CRYPTO_ACTION_ATTR) !== 'import-backup') return;
-  const fileInput = /** @type {HTMLInputElement} */ (actionElement);
+  const fileInput = (actionElement as HTMLInputElement);
   const file = fileInput.files && fileInput.files[0];
   if (!file) return;
   importEncryptedBackup(file);
@@ -126,12 +134,12 @@ function handleCryptoActionChange(event) {
   event.stopPropagation();
 }
 
-export function installCryptoActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+export function installCryptoActionDelegates(root: CryptoDelegateRoot | null = typeof document !== 'undefined' ? document : null) {
   if (!root || cryptoActionDelegateRoots.has(root) || root[CRYPTO_ACTION_DELEGATE_KEY]) return;
   cryptoActionDelegateRoots.add(root);
   Object.defineProperty(root, CRYPTO_ACTION_DELEGATE_KEY, { value: true, configurable: true });
   root.addEventListener('click', handleCryptoActionClick);
-  root.addEventListener('keydown', handleCryptoActionKeydown);
+  root.addEventListener('keydown', handleCryptoActionKeydown as EventListener);
   root.addEventListener('change', handleCryptoActionChange);
 }
 
@@ -139,7 +147,7 @@ if (typeof document !== 'undefined') installCryptoActionDelegates();
 
 let failCount = 0;
 
-export function showPassphraseModal(onSuccess) {
+function ensurePassphraseOverlay(): HTMLElement {
   let overlay = document.getElementById('passphrase-overlay');
   if (!overlay) {
     overlay = document.createElement('div');
@@ -147,11 +155,21 @@ export function showPassphraseModal(onSuccess) {
     overlay.className = 'passphrase-overlay';
     document.body.appendChild(overlay);
   }
+  return overlay;
+}
+
+function hidePassphraseOverlay(overlay: HTMLElement) {
+  overlay.style.display = 'none';
+  overlay.innerHTML = '';
+}
+
+export function showPassphraseModal(onSuccess: (value?: undefined) => unknown) {
+  let overlay = ensurePassphraseOverlay();
   failCount = 0;
   renderPassphraseForm(overlay, onSuccess);
 }
 
-function renderPassphraseForm(overlay, onSuccess) {
+function renderPassphraseForm(overlay: HTMLElement, onSuccess: (value?: undefined) => unknown) {
   overlay.innerHTML = `
     <div class="passphrase-dialog" role="dialog" aria-modal="true" aria-label="Enter passphrase">
       <div class="passphrase-icon">&#128274;</div>
@@ -162,10 +180,10 @@ function renderPassphraseForm(overlay, onSuccess) {
       <button class="passphrase-btn passphrase-btn-primary" id="passphrase-unlock-btn">Unlock</button>
       <button class="passphrase-btn passphrase-btn-link" id="passphrase-forgot-btn">Forgot passphrase?</button>
     </div>`;
-  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('passphrase-unlock-input'));
-  const button = /** @type {HTMLButtonElement | null} */ (document.getElementById('passphrase-unlock-btn'));
+  const input = (document.getElementById('passphrase-unlock-input') as HTMLInputElement | null);
+  const button = (document.getElementById('passphrase-unlock-btn') as HTMLButtonElement | null);
   const errorElement = document.getElementById('passphrase-error');
-  const forgotButton = /** @type {HTMLButtonElement | null} */ (document.getElementById('passphrase-forgot-btn'));
+  const forgotButton = (document.getElementById('passphrase-forgot-btn') as HTMLButtonElement | null);
   if (!input || !button || !errorElement || !forgotButton) return;
   overlay.style.display = 'flex';
 
@@ -184,8 +202,7 @@ function renderPassphraseForm(overlay, onSuccess) {
 
     try {
       await cryptoUiDeps.unlockEncryption?.(passphrase);
-      overlay.style.display = 'none';
-      overlay.innerHTML = '';
+      hidePassphraseOverlay(overlay);
       onSuccess();
     } catch {
       failCount++;
@@ -204,7 +221,7 @@ function renderPassphraseForm(overlay, onSuccess) {
 
   forgotButton.addEventListener('click', () => {
     // Inline confirm inside the passphrase overlay (can't use showConfirmDialog — it's behind this z-index)
-    const dialog = /** @type {HTMLElement | null} */ (overlay.querySelector('.passphrase-dialog'));
+    const dialog = ((overlay.querySelector('.passphrase-dialog')) as HTMLElement | null);
     if (!dialog) return;
     dialog.innerHTML = `
       <div class="passphrase-icon">&#9888;&#65039;</div>
@@ -218,9 +235,9 @@ function renderPassphraseForm(overlay, onSuccess) {
       renderPassphraseForm(overlay, onSuccess);
     });
     document.getElementById('passphrase-forgot-confirm')?.addEventListener('click', async () => {
-      const confirmButton = /** @type {HTMLButtonElement | null} */ (
+      const confirmButton = ((
         document.getElementById('passphrase-forgot-confirm')
-      );
+      ) as HTMLButtonElement | null);
       if (confirmButton) {
         confirmButton.disabled = true;
         confirmButton.textContent = 'Erasing…';
@@ -242,8 +259,7 @@ function renderPassphraseForm(overlay, onSuccess) {
         return;
       }
       cryptoUiDeps.clearEncryptionSession?.();
-      overlay.style.display = 'none';
-      overlay.innerHTML = '';
+      hidePassphraseOverlay(overlay);
       location.reload();
     });
   });
@@ -251,7 +267,7 @@ function renderPassphraseForm(overlay, onSuccess) {
   setTimeout(() => input.focus(), 50);
 }
 
-function validatePassphrase(passphrase) {
+function validatePassphrase(passphrase: string) {
   if (passphrase.length < 8) return { valid: false, message: 'At least 8 characters' };
   if (!/[a-z]/.test(passphrase)) return { valid: false, message: 'At least 1 lowercase letter' };
   if (!/[A-Z]/.test(passphrase)) return { valid: false, message: 'At least 1 uppercase letter' };
@@ -259,7 +275,7 @@ function validatePassphrase(passphrase) {
   return { valid: true, message: '' };
 }
 
-function getPassphraseStrength(passphrase) {
+function getPassphraseStrength(passphrase: string) {
   let score = 0;
   if (passphrase.length >= 8) score++;
   if (/[a-z]/.test(passphrase)) score++;
@@ -268,17 +284,11 @@ function getPassphraseStrength(passphrase) {
   return score;
 }
 
-export function showEnableEncryptionModal() {
+export function showEnableEncryptionModal(): void | Promise<void | false> {
   if (needsDataProtectionStylesheet()) {
     return runWithDataProtectionStylesheet(() => showEnableEncryptionModal());
   }
-  let overlay = document.getElementById('passphrase-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'passphrase-overlay';
-    overlay.className = 'passphrase-overlay';
-    document.body.appendChild(overlay);
-  }
+  let overlay = ensurePassphraseOverlay();
   overlay.innerHTML = `
     <div class="passphrase-dialog" role="dialog" aria-modal="true" aria-label="Set encryption passphrase">
       <div class="passphrase-icon">&#128274;</div>
@@ -306,15 +316,15 @@ export function showEnableEncryptionModal() {
         <button class="passphrase-btn passphrase-btn-primary" id="passphrase-set-btn">Enable Encryption</button>
       </div>
     </div>`;
-  const passphraseInput = /** @type {HTMLInputElement | null} */ (document.getElementById('passphrase-set-input'));
-  const confirmInput = /** @type {HTMLInputElement | null} */ (document.getElementById('passphrase-confirm-input'));
-  const button = /** @type {HTMLButtonElement | null} */ (document.getElementById('passphrase-set-btn'));
-  const cancelButton = /** @type {HTMLButtonElement | null} */ (document.getElementById('passphrase-set-cancel'));
+  const passphraseInput = (document.getElementById('passphrase-set-input') as HTMLInputElement | null);
+  const confirmInput = (document.getElementById('passphrase-confirm-input') as HTMLInputElement | null);
+  const button = (document.getElementById('passphrase-set-btn') as HTMLButtonElement | null);
+  const cancelButton = (document.getElementById('passphrase-set-cancel') as HTMLButtonElement | null);
   const errorElement = document.getElementById('passphrase-set-error');
   if (!passphraseInput || !confirmInput || !button || !cancelButton || !errorElement) return;
   overlay.style.display = 'flex';
 
-  const strengthBars = /** @type {NodeListOf<HTMLElement>} */ (overlay.querySelectorAll('.passphrase-strength-bar'));
+  const strengthBars = ((overlay.querySelectorAll('.passphrase-strength-bar')) as NodeListOf<HTMLElement>);
   const ruleItems = overlay.querySelectorAll('.passphrase-rules li');
   const barColors = ['var(--red)', 'var(--orange)', 'var(--yellow)', 'var(--green)'];
   let migrationStarted = false;
@@ -323,7 +333,7 @@ export function showEnableEncryptionModal() {
     const passphrase = passphraseInput.value;
     const score = getPassphraseStrength(passphrase);
     strengthBars.forEach((bar, index) => {
-      bar.style.background = index < score ? barColors[score - 1] : 'var(--border)';
+      bar.style.background = index < score ? barColors[score - 1]! : 'var(--border)';
     });
     const checks = [
       passphrase.length >= 8,
@@ -331,13 +341,12 @@ export function showEnableEncryptionModal() {
       /[A-Z]/.test(passphrase),
       /[!@#$%^&*()\-_=+\[\]{};:'",.<>?/\\|`~]/.test(passphrase),
     ];
-    ruleItems.forEach((item, index) => item.classList.toggle('met', checks[index]));
+    ruleItems.forEach((item, index) => item.classList.toggle('met', checks[index]!));
   };
   passphraseInput.addEventListener('input', updateStrengthMeter);
 
   cancelButton.addEventListener('click', () => {
-    overlay.style.display = 'none';
-    overlay.innerHTML = '';
+    hidePassphraseOverlay(overlay);
   });
 
   button.addEventListener('click', async () => {
@@ -358,8 +367,7 @@ export function showEnableEncryptionModal() {
         migrationStarted = true;
       }
       await cryptoUiDeps.migrateEncryptionStorage?.();
-      overlay.style.display = 'none';
-      overlay.innerHTML = '';
+      hidePassphraseOverlay(overlay);
       showNotification('Encryption enabled \u2014 keep your passphrase safe', 'success');
       const section = document.getElementById('encryption-section');
       if (section) section.innerHTML = renderEncryptionSection();
@@ -384,13 +392,7 @@ export function maybeShowEncryptionNudge() {
     return void runWithDataProtectionStylesheet(() => maybeShowEncryptionNudge());
   }
   setTimeout(() => {
-    let overlay = document.getElementById('passphrase-overlay');
-    if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.id = 'passphrase-overlay';
-      overlay.className = 'passphrase-overlay';
-      document.body.appendChild(overlay);
-    }
+    let overlay = ensurePassphraseOverlay();
     overlay.innerHTML = `
       <div class="passphrase-dialog" role="dialog" aria-modal="true" aria-label="Enable encryption">
         <div class="passphrase-icon">&#128274;</div>
@@ -407,12 +409,10 @@ export function maybeShowEncryptionNudge() {
     if (!dismissButton || !enableButton) return;
     dismissButton.addEventListener('click', () => {
       localStorage.setItem('labcharts-encryption-nudge-dismissed', 'true');
-      overlay.style.display = 'none';
-      overlay.innerHTML = '';
+      hidePassphraseOverlay(overlay);
     });
     enableButton.addEventListener('click', () => {
-      overlay.style.display = 'none';
-      overlay.innerHTML = '';
+      hidePassphraseOverlay(overlay);
       showEnableEncryptionModal();
     });
   }, 800);
@@ -430,7 +430,7 @@ export function maybeShowBackupNudge() {
   } catch {
     return;
   }
-  const hasAnyData = profileList.some(profile => {
+  const hasAnyData = profileList.some((profile: { id?: unknown }) => {
     try {
       const data = JSON.parse(localStorage.getItem(`labcharts-${profile.id}-imported`) || '{}');
       return data.entries && data.entries.length > 0;
@@ -465,13 +465,7 @@ export function maybeShowBackupNudge() {
     const visibleOverlay = document.getElementById('passphrase-overlay');
     if (visibleOverlay && visibleOverlay.style.display === 'flex') return;
 
-    let nudgeOverlay = document.getElementById('passphrase-overlay');
-    if (!nudgeOverlay) {
-      nudgeOverlay = document.createElement('div');
-      nudgeOverlay.id = 'passphrase-overlay';
-      nudgeOverlay.className = 'passphrase-overlay';
-      document.body.appendChild(nudgeOverlay);
-    }
+    let nudgeOverlay = ensurePassphraseOverlay();
     nudgeOverlay.innerHTML = `
       <div class="passphrase-dialog" role="dialog" aria-modal="true" aria-label="Backup reminder">
         <div class="passphrase-icon">&#128190;</div>
@@ -488,12 +482,10 @@ export function maybeShowBackupNudge() {
     if (!snoozeButton || !downloadButton) return;
     snoozeButton.addEventListener('click', () => {
       localStorage.setItem('labcharts-backup-nudge-snoozed-until', String(Date.now() + THIRTY_DAYS));
-      nudgeOverlay.style.display = 'none';
-      nudgeOverlay.innerHTML = '';
+      hidePassphraseOverlay(nudgeOverlay);
     });
     downloadButton.addEventListener('click', () => {
-      nudgeOverlay.style.display = 'none';
-      nudgeOverlay.innerHTML = '';
+      hidePassphraseOverlay(nudgeOverlay);
       exportEncryptedBackup();
     });
   }, 500);
@@ -511,17 +503,11 @@ export async function disableEncryption() {
   }
 }
 
-export async function changePassphrase() {
+export async function changePassphrase(): Promise<void | false> {
   if (needsDataProtectionStylesheet()) {
     return runWithDataProtectionStylesheet(() => changePassphrase());
   }
-  let overlay = document.getElementById('passphrase-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'passphrase-overlay';
-    overlay.className = 'passphrase-overlay';
-    document.body.appendChild(overlay);
-  }
+  let overlay = ensurePassphraseOverlay();
   overlay.innerHTML = `
     <div class="passphrase-dialog" role="dialog" aria-modal="true" aria-label="Change passphrase">
       <div class="passphrase-icon">&#128274;</div>
@@ -535,18 +521,17 @@ export async function changePassphrase() {
         <button class="passphrase-btn passphrase-btn-primary" id="passphrase-change-btn">Change Passphrase</button>
       </div>
     </div>`;
-  const oldInput = /** @type {HTMLInputElement | null} */ (document.getElementById('passphrase-old-input'));
-  const newInput = /** @type {HTMLInputElement | null} */ (document.getElementById('passphrase-new1-input'));
-  const confirmationInput = /** @type {HTMLInputElement | null} */ (document.getElementById('passphrase-new2-input'));
-  const button = /** @type {HTMLButtonElement | null} */ (document.getElementById('passphrase-change-btn'));
-  const cancelButton = /** @type {HTMLButtonElement | null} */ (document.getElementById('passphrase-change-cancel'));
+  const oldInput = (document.getElementById('passphrase-old-input') as HTMLInputElement | null);
+  const newInput = (document.getElementById('passphrase-new1-input') as HTMLInputElement | null);
+  const confirmationInput = (document.getElementById('passphrase-new2-input') as HTMLInputElement | null);
+  const button = (document.getElementById('passphrase-change-btn') as HTMLButtonElement | null);
+  const cancelButton = (document.getElementById('passphrase-change-cancel') as HTMLButtonElement | null);
   const errorElement = document.getElementById('passphrase-change-error');
   if (!oldInput || !newInput || !confirmationInput || !button || !cancelButton || !errorElement) return;
   overlay.style.display = 'flex';
 
   cancelButton.addEventListener('click', () => {
-    overlay.style.display = 'none';
-    overlay.innerHTML = '';
+    hidePassphraseOverlay(overlay);
   });
 
   button.addEventListener('click', async () => {
@@ -564,8 +549,7 @@ export async function changePassphrase() {
 
     try {
       await cryptoUiDeps.changeEncryptionPassphrase?.(oldPassphrase, newPassphrase);
-      overlay.style.display = 'none';
-      overlay.innerHTML = '';
+      hidePassphraseOverlay(overlay);
       showNotification('Passphrase changed successfully', 'success');
     } catch {
       errorElement.textContent = 'Current passphrase is incorrect';

@@ -478,3 +478,7 @@ deploy/profile-share/data/
 /js/lens-knowledge-base-ui.js
 /js/pdfjs-loader.js
 /js/lens-local-parsers.js
+
+/js/data-wipe.js
+/js/crypto-ui.js
+/js/lens-cache.js

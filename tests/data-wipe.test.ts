@@ -8,8 +8,8 @@ const originalCaches = globalThis.caches;
 const originalLocalStorage = globalThis.localStorage;
 const originalSessionStorage = globalThis.sessionStorage;
 
-function openDatabase(name) {
-  return new Promise((resolve, reject) => {
+function openDatabase(name: string) {
+  return new Promise<void>((resolve, reject) => {
     const request = indexedDB.open(name, 1);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
@@ -24,8 +24,9 @@ async function databaseNames() {
   return databases.map(database => database.name).filter(Boolean).sort();
 }
 
-function asyncDeleteRequest(eventName) {
-  const request = {};
+type DeleteEvent = 'onsuccess' | 'onerror' | 'onblocked';
+function asyncDeleteRequest(eventName: DeleteEvent) {
+  const request: Partial<Record<DeleteEvent, () => void>> = {};
   queueMicrotask(() => request[eventName]?.());
   return request;
 }
@@ -35,7 +36,7 @@ describe('eraseAllLocalAppData', () => {
     localStorage.clear();
     sessionStorage.clear();
     globalThis.indexedDB = new IDBFactory();
-    delete globalThis.caches;
+    delete (globalThis as { caches?: CacheStorage }).caches;
   });
 
   afterEach(() => {
@@ -43,7 +44,7 @@ describe('eraseAllLocalAppData', () => {
     localStorage.clear();
     sessionStorage.clear();
     globalThis.indexedDB = originalIndexedDB;
-    if (originalCaches === undefined) delete globalThis.caches;
+    if (originalCaches === undefined) delete (globalThis as { caches?: CacheStorage }).caches;
     else globalThis.caches = originalCaches;
     if (globalThis.localStorage !== originalLocalStorage) {
       globalThis.localStorage = originalLocalStorage;
@@ -89,11 +90,11 @@ describe('eraseAllLocalAppData', () => {
     ];
     await Promise.all([...appDatabases, 'third-party-database'].map(openDatabase));
 
-    const deleteCache = vi.fn(async () => true);
-    globalThis.caches = {
+    const deleteCache = vi.fn<CacheStorage['delete']>(async () => true);
+    globalThis.caches = ({
       keys: vi.fn(async () => ['labcharts-app-v1', 'third-party-cache', 'labcharts-runtime-v2']),
       delete: deleteCache,
-    };
+    } as unknown as CacheStorage);
 
     await eraseAllLocalAppData();
 
@@ -118,9 +119,9 @@ describe('eraseAllLocalAppData', () => {
     localStorage.setItem('labcharts-profiles', 'v1:encrypted-profile-list');
     localStorage.setItem('labcharts-private', 'remove');
 
-    const deleteDatabase = vi.fn(() => asyncDeleteRequest('onsuccess'));
-    globalThis.indexedDB = { deleteDatabase };
-    globalThis.caches = { keys: vi.fn(async () => []), delete: vi.fn() };
+    const deleteDatabase = vi.fn<(name: string) => ReturnType<typeof asyncDeleteRequest>>(() => asyncDeleteRequest('onsuccess'));
+    globalThis.indexedDB = ({ deleteDatabase } as unknown as IDBFactory);
+    globalThis.caches = ({ keys: vi.fn(async () => []), delete: vi.fn() } as unknown as CacheStorage);
 
     await eraseAllLocalAppData();
 
@@ -143,33 +144,33 @@ describe('eraseAllLocalAppData', () => {
 
   it('attempts every surface but rejects blocked and failed deletions', async () => {
     const storageEntries = ['labcharts-first', 'labcharts-second', 'unrelated'];
-    const removedKeys = [];
-    globalThis.localStorage = {
+    const removedKeys: string[] = [];
+    globalThis.localStorage = ({
       getItem: vi.fn(() => { throw new Error('storage read blocked'); }),
       setItem: vi.fn(),
       clear: vi.fn(),
       get length() { return storageEntries.length; },
-      key: vi.fn(index => storageEntries[index] ?? null),
-      removeItem: vi.fn(key => {
+      key: vi.fn((index: number) => storageEntries[index] ?? null),
+      removeItem: vi.fn((key: string) => {
         removedKeys.push(key);
         if (key === 'labcharts-first') throw new Error('storage removal blocked');
       }),
-    };
+    } as unknown as Storage);
 
-    const deleteDatabase = vi.fn(name => {
+    const deleteDatabase = vi.fn((name: string) => {
       if (name === 'labcharts-blobs') throw new Error('database API blocked');
       if (name.includes('wearables')) return asyncDeleteRequest('onblocked');
       if (name.includes('cycle')) return asyncDeleteRequest('onerror');
       return asyncDeleteRequest('onsuccess');
     });
-    globalThis.indexedDB = {
+    globalThis.indexedDB = ({
       databases: vi.fn(async () => { throw new Error('database enumeration blocked'); }),
       deleteDatabase,
-    };
-    globalThis.caches = {
+    } as unknown as IDBFactory);
+    globalThis.caches = ({
       keys: vi.fn(async () => { throw new Error('cache access blocked'); }),
       delete: vi.fn(),
-    };
+    } as unknown as CacheStorage);
 
     await expect(eraseAllLocalAppData()).rejects.toThrow(/erasure was incomplete/);
 
@@ -185,16 +186,16 @@ describe('eraseAllLocalAppData', () => {
   });
 
   it('fails closed when an available browser storage API is malformed', async () => {
-    globalThis.localStorage = {
+    globalThis.localStorage = ({
       getItem: vi.fn(() => '{not-json'),
       setItem: vi.fn(),
       removeItem: vi.fn(),
       clear: vi.fn(),
       get length() { throw new Error('storage enumeration blocked'); },
       key: vi.fn(),
-    };
-    delete globalThis.indexedDB;
-    globalThis.caches = {};
+    } as unknown as Storage);
+    delete (globalThis as { indexedDB?: IDBFactory }).indexedDB;
+    globalThis.caches = ({} as unknown as CacheStorage);
 
     await expect(eraseAllLocalAppData()).rejects.toThrow(/erasure was incomplete/);
 

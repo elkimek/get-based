@@ -1,19 +1,18 @@
-// @ts-check
-// data-wipe.js — destructive local storage cleanup helpers
+// data-wipe.ts — destructive local storage cleanup helpers
 
 const APP_SESSION_KEY_RE = /^(?:labcharts|chat-onboard-|or_|welcome-details-open$|(?:oura|withings|ultrahuman|polar|whoop|fitbit|google_health)-oauth-pending$)/;
 
-function failure(label, error) {
+function failure(label: string, error: unknown) {
   const message = error instanceof Error ? error.message : String(error || 'unknown error');
   return new Error(`${label}: ${message}`, { cause: error });
 }
 
-async function deleteIndexedDBDatabase(name) {
+async function deleteIndexedDBDatabase(name: string) {
   if (!name || typeof indexedDB === 'undefined') return;
   if (typeof indexedDB.deleteDatabase !== 'function') {
     throw new Error('IndexedDB deletion is unavailable.');
   }
-  await new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     try {
       const request = indexedDB.deleteDatabase(name);
       request.onsuccess = () => resolve(undefined);
@@ -27,7 +26,7 @@ async function deleteIndexedDBDatabase(name) {
   });
 }
 
-function collectKnownProfileIds(errors) {
+function collectKnownProfileIds(errors: Error[]) {
   const ids = new Set(['default']);
   try {
     const active = localStorage.getItem('labcharts-active-profile');
@@ -51,8 +50,8 @@ function collectKnownProfileIds(errors) {
   return [...ids];
 }
 
-function collectStorageKeys(storage, ownsKey, label, errors) {
-  const keys = [];
+function collectStorageKeys(storage: Storage | null | undefined, ownsKey: (key: string) => boolean, label: string, errors: Error[]): string[] {
+  const keys: string[] = [];
   if (!storage) return keys;
   try {
     for (let index = 0; index < storage.length; index++) {
@@ -65,7 +64,7 @@ function collectStorageKeys(storage, ownsKey, label, errors) {
   return keys;
 }
 
-function removeStorageKeys(storage, keys, label, errors) {
+function removeStorageKeys(storage: Storage, keys: string[], label: string, errors: Error[]) {
   for (const key of keys) {
     try {
       storage.removeItem(key);
@@ -75,7 +74,7 @@ function removeStorageKeys(storage, keys, label, errors) {
   }
 }
 
-async function deleteIndexedDBDatabasesByPrefix(prefixes, fallbackNames, errors) {
+async function deleteIndexedDBDatabasesByPrefix(prefixes: string[], fallbackNames: string[], errors: Error[]) {
   if (typeof indexedDB === 'undefined') return;
   const names = new Set(fallbackNames);
   if (typeof indexedDB.databases === 'function') {
@@ -97,7 +96,7 @@ async function deleteIndexedDBDatabasesByPrefix(prefixes, fallbackNames, errors)
   });
 }
 
-async function deleteAppCaches(errors) {
+async function deleteAppCaches(errors: Error[]) {
   if (typeof caches === 'undefined' || typeof caches.keys !== 'function') return;
   let keys;
   try {
@@ -119,7 +118,7 @@ async function deleteAppCaches(errors) {
 }
 
 export async function eraseAllLocalAppData() {
-  const errors = [];
+  const errors: Error[] = [];
   const profileIds = collectKnownProfileIds(errors);
   const localKeys = collectStorageKeys(
     globalThis.localStorage,

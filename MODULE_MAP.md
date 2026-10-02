@@ -459,8 +459,8 @@ Native browser modules shipped with the static application.
 <details><summary><code>crypto</code> family — 3 modules</summary>
 
 - [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts) → no in-scope imports
-- [`js/crypto-ui.js`](js/crypto-ui.js) → [`js/backup.ts`](js/backup.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/data-wipe.js`](js/data-wipe.js) *(dynamic)*, [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/crypto.js`](js/crypto.js) → [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/backup.ts`](js/backup.ts), [`js/blob-storage.ts`](js/blob-storage.ts), [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js) *(dynamic)*, [`js/caught-error.ts`](js/caught-error.ts), [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts), [`js/crypto-ui.js`](js/crypto-ui.js), [`js/cycle-store.ts`](js/cycle-store.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/wearables-credential-vault.ts`](js/wearables-credential-vault.ts) *(dynamic)*, [`js/wearables-store.ts`](js/wearables-store.ts), [`js/wearables-whoop-storage.ts`](js/wearables-whoop-storage.ts) *(dynamic)*
+- [`js/crypto-ui.ts`](js/crypto-ui.ts) → [`js/backup.ts`](js/backup.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/data-wipe.ts`](js/data-wipe.ts) *(dynamic)*, [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/crypto.js`](js/crypto.js) → [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/backup.ts`](js/backup.ts), [`js/blob-storage.ts`](js/blob-storage.ts), [`js/cashu-wallet-store.js`](js/cashu-wallet-store.js) *(dynamic)*, [`js/caught-error.ts`](js/caught-error.ts), [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts), [`js/crypto-ui.ts`](js/crypto-ui.ts), [`js/cycle-store.ts`](js/cycle-store.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/wearables-credential-vault.ts`](js/wearables-credential-vault.ts) *(dynamic)*, [`js/wearables-store.ts`](js/wearables-store.ts), [`js/wearables-whoop-storage.ts`](js/wearables-whoop-storage.ts) *(dynamic)*
 
 </details>
 
@@ -507,7 +507,7 @@ Native browser modules shipped with the static application.
 - [`js/data-merge-lab-entries.ts`](js/data-merge-lab-entries.ts) → [`js/lab-entry.ts`](js/lab-entry.ts)
 - [`js/data-merge.ts`](js/data-merge.ts) → [`js/data-merge-lab-entries.ts`](js/data-merge-lab-entries.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/sync-delta-id.ts`](js/sync-delta-id.ts), [`js/sync-delta-surface-config.ts`](js/sync-delta-surface-config.ts)
 - [`js/data-view-controls.js`](js/data-view-controls.js) → [`js/profile.js`](js/profile.js), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/data-wipe.js`](js/data-wipe.js) → no in-scope imports
+- [`js/data-wipe.ts`](js/data-wipe.ts) → no in-scope imports
 - [`js/data.js`](js/data.js) → [`js/biology-score-persistence.js`](js/biology-score-persistence.js), [`js/crypto.js`](js/crypto.js), [`js/data-calculated-markers.js`](js/data-calculated-markers.js), [`js/data-custom-markers.js`](js/data-custom-markers.js), [`js/data-view-controls.js`](js/data-view-controls.js), [`js/lab-date-range.ts`](js/lab-date-range.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/marker-analysis.js`](js/marker-analysis.js), [`js/marker-context-ranges.js`](js/marker-context-ranges.js), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-load-safety.ts`](js/profile-load-safety.ts), [`js/profile.js`](js/profile.js), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/sync-save-hooks.js`](js/sync-save-hooks.js), [`js/sync.js`](js/sync.js), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
@@ -709,7 +709,7 @@ Native browser modules shipped with the static application.
 <details><summary><code>lens</code> family — 17 modules</summary>
 
 - [`js/lens-actions.ts`](js/lens-actions.ts) → [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/lens-cache.js`](js/lens-cache.js) → [`js/utils.ts`](js/utils.ts)
+- [`js/lens-cache.ts`](js/lens-cache.ts) → [`js/utils.ts`](js/utils.ts)
 - [`js/lens-knowledge-base-ui.ts`](js/lens-knowledge-base-ui.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/lens-actions.ts`](js/lens-actions.ts), [`js/lens-library.ts`](js/lens-library.ts), [`js/lens-local-parsers.ts`](js/lens-local-parsers.ts) *(dynamic)*, [`js/lens-local.ts`](js/lens-local.ts) *(dynamic)*, [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/lens-library.ts`](js/lens-library.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/lens-local-embedder-config.ts`](js/lens-local-embedder-config.ts) → no in-scope imports
@@ -724,7 +724,7 @@ Native browser modules shipped with the static application.
 - [`js/lens-page-shell.js`](js/lens-page-shell.js) → [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/dashboard-widget-copy.js`](js/dashboard-widget-copy.js), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/profile.js`](js/profile.js), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/lens-pages.js`](js/lens-pages.js) → [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js), [`js/biology-scores.js`](js/biology-scores.js), [`js/data.js`](js/data.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/profile-context.js`](js/profile-context.js), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/lens-url.ts`](js/lens-url.ts) → no in-scope imports
-- [`js/lens.js`](js/lens.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/caught-error.ts`](js/caught-error.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/crypto.js`](js/crypto.js), [`js/lens-cache.js`](js/lens-cache.js), [`js/lens-knowledge-base-ui.ts`](js/lens-knowledge-base-ui.ts) *(dynamic)*, [`js/lens-local.ts`](js/lens-local.ts) *(dynamic)*, [`js/lens-url.ts`](js/lens-url.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/lens.js`](js/lens.js) → [`js/ai-feature-routing.js`](js/ai-feature-routing.js), [`js/caught-error.ts`](js/caught-error.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/crypto.js`](js/crypto.js), [`js/lens-cache.ts`](js/lens-cache.ts), [`js/lens-knowledge-base-ui.ts`](js/lens-knowledge-base-ui.ts) *(dynamic)*, [`js/lens-local.ts`](js/lens-local.ts) *(dynamic)*, [`js/lens-url.ts`](js/lens-url.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 
