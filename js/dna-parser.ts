@@ -1,5 +1,6 @@
-// @ts-check
 // dna-parser.js - DNA file detection and parser helpers.
+
+import type { SnpCatalog, SnpCatalogEntry } from './dna-evidence.js';
 
 import { findGenotypeInfo, findGenotypeMatch, normalizeGenotype } from './dna-genotype.js';
 import { detectDNAFile } from './dna-file-detection.js';
@@ -81,7 +82,11 @@ self.onmessage = async function(e) {
 };
 `;
 
-let _workerBlobUrl = null;
+interface WorkerParseResult { matches: Record<string, string>; source: string; totalLines: number; format: string }
+interface ReportColumns { rsid: number; genotype: number; zygosity: number; riskAllele: number; result: number }
+interface ClinicalReportOptions { source?: string; fileName?: string; type?: string }
+
+let _workerBlobUrl: string | null = null;
 function createWorker() {
   if (!_workerBlobUrl) {
     const blob = new Blob([WORKER_CODE], { type: 'application/javascript' });
@@ -90,8 +95,8 @@ function createWorker() {
   return new Worker(_workerBlobUrl);
 }
 
-function parseCsvLine(line) {
-  const values = [];
+function parseCsvLine(line: string) {
+  const values: string[] = [];
   let current = '';
   let inQuotes = false;
   for (let i = 0; i < line.length; i++) {
@@ -114,7 +119,7 @@ function parseCsvLine(line) {
   return values.map(v => v.replace(/^\uFEFF/, '').trim());
 }
 
-function normalizeReportHeader(value) {
+function normalizeReportHeader(value: unknown) {
   return String(value || '')
     .replace(/^\uFEFF/, '')
     .trim()
@@ -123,28 +128,28 @@ function normalizeReportHeader(value) {
     .replace(/^_+|_+$/g, '');
 }
 
-function normalizeReportText(value) {
+function normalizeReportText(value: unknown) {
   return String(value || '').trim().toLowerCase().replace(/\u03B5/g, 'e');
 }
 
-function normalizeReportAllele(value) {
+function normalizeReportAllele(value: unknown) {
   const allele = String(value || '').trim().toUpperCase();
   return /^[ACGT]$/.test(allele) ? allele : '';
 }
 
-function getReportCell(cells, index) {
+function getReportCell(cells: readonly string[], index: number) {
   return index >= 0 ? (cells[index] || '').trim() : '';
 }
 
-function isHeterozygousGenotype(genotype) {
+function isHeterozygousGenotype(genotype: string) {
   return /^[ACGT]{2}$/.test(genotype) && genotype[0] !== genotype[1];
 }
 
-function isHomozygousGenotype(genotype) {
+function isHomozygousGenotype(genotype: string) {
   return /^[ACGT]{2}$/.test(genotype) && genotype[0] === genotype[1];
 }
 
-function pickAnnotatedCandidate(candidates, riskAllele, mode = 'any') {
+function pickAnnotatedCandidate(candidates: string[], riskAllele: string, mode = 'any') {
   if (riskAllele) {
     const riskMatches = candidates.filter(g => mode === 'excludeRisk' ? !g.includes(riskAllele) : g.includes(riskAllele));
     if (riskMatches.length === 1) return riskMatches[0];
@@ -152,11 +157,11 @@ function pickAnnotatedCandidate(candidates, riskAllele, mode = 'any') {
   return candidates.length === 1 ? candidates[0] : null;
 }
 
-function inferApoeReportGenotype(rsid, resultText) {
+function inferApoeReportGenotype(rsid: string, resultText: unknown) {
   const match = normalizeReportText(resultText).replace(/\s+/g, '').match(/e([234])\/e([234])/);
   if (!match) return null;
   const pair = [match[1], match[2]].sort().join('/');
-  const lookup = {
+  const lookup: Record<string, Record<string, string>> = {
     '2/2': { rs429358: 'TT', rs7412: 'TT' },
     '2/3': { rs429358: 'TT', rs7412: 'CT' },
     '2/4': { rs429358: 'CT', rs7412: 'CT' },
@@ -167,7 +172,7 @@ function inferApoeReportGenotype(rsid, resultText) {
   return lookup[pair]?.[rsid] || null;
 }
 
-function inferAnnotatedReportGenotype(rsid, entry, cells, columns) {
+function inferAnnotatedReportGenotype(rsid: string, entry: SnpCatalogEntry, cells: readonly string[], columns: ReportColumns) {
   const rawGenotype = getReportCell(cells, columns.genotype);
   const rawZygosity = getReportCell(cells, columns.zygosity);
   const rawRiskAllele = getReportCell(cells, columns.riskAllele);
@@ -187,7 +192,7 @@ function inferAnnotatedReportGenotype(rsid, entry, cells, columns) {
   const homo = keys.filter(isHomozygousGenotype);
 
   if (/ref\/ref|wildtype|homozygous reference|risk allele absent|protective allele absent|variant absent|non[-\s]?carrier|not (?:a )?carrier/.test(combined)) {
-    const reference = keys.filter(g => entry.genotypes[g]?.effect === 'none');
+    const reference = keys.filter(g => entry.genotypes![g]?.effect === 'none');
     const referenceHomo = reference.filter(isHomozygousGenotype);
     return pickAnnotatedCandidate(referenceHomo.length ? referenceHomo : reference, riskAllele, 'excludeRisk');
   }
@@ -197,19 +202,19 @@ function inferAnnotatedReportGenotype(rsid, entry, cells, columns) {
   }
 
   if (/homozygous variant|two risk copies|risk homozygous/.test(combined)) {
-    const nonReferenceHomo = homo.filter(g => entry.genotypes[g]?.effect !== 'none');
+    const nonReferenceHomo = homo.filter(g => entry.genotypes![g]?.effect !== 'none');
     return pickAnnotatedCandidate(nonReferenceHomo, riskAllele);
   }
 
   return null;
 }
 
-function parseAnnotatedSnpReport(text, snpTable) {
+function parseAnnotatedSnpReport(text: string, snpTable: SnpCatalog | null | undefined): WorkerParseResult {
   const lines = text.split(/\r?\n/);
   const headerIndex = lines.findIndex(line => line.trim() && !line.trim().startsWith('#'));
   if (headerIndex < 0) return { matches: {}, source: 'annotated-snp-report', totalLines: 0, format: 'annotated-snp-report' };
 
-  const headers = parseCsvLine(lines[headerIndex]).map(normalizeReportHeader);
+  const headers = parseCsvLine(lines[headerIndex]!).map(normalizeReportHeader);
   const columns = {
     rsid: headers.indexOf('rsid'),
     genotype: headers.indexOf('genotype'),
@@ -221,11 +226,11 @@ function parseAnnotatedSnpReport(text, snpTable) {
     throw new Error('Unrecognized annotated SNP report format');
   }
 
-  const matches = {};
+  const matches: Record<string, string> = {};
   let totalData = 0;
   for (let i = headerIndex + 1; i < lines.length; i++) {
-    if (!lines[i].trim()) continue;
-    const cells = parseCsvLine(lines[i]);
+    if (!lines[i]!.trim()) continue;
+    const cells = parseCsvLine(lines[i]!);
     const rsid = getReportCell(cells, columns.rsid).toLowerCase();
     if (!/^rs\d+$/.test(rsid)) continue;
     totalData++;
@@ -236,28 +241,33 @@ function parseAnnotatedSnpReport(text, snpTable) {
   return { matches, source: 'annotated-snp-report', totalLines: totalData, format: 'annotated-snp-report' };
 }
 
-function parseClinicalSnpGenotypeTail(tail) {
+function parseClinicalSnpGenotypeTail(tail: unknown) {
   const cleaned = String(tail || '').replace(/\s+/g, ' ');
   const repeatMatches = [...cleaned.matchAll(/(?:^|[^\d])(\d+\s*[\/|]\s*\d+)(?=\s*(?:[–-]|—|\b|$))/g)];
-  if (repeatMatches.length) return normalizeGenotype(repeatMatches[repeatMatches.length - 1][1]);
+  if (repeatMatches.length) return normalizeGenotype(repeatMatches[repeatMatches.length - 1]![1]);
   const matches = [...cleaned.matchAll(/(?:^|[^A-Z])([ACGT]{2})(?=\s*(?:[–-]|—|\b|$))/g)];
   if (!matches.length) return null;
-  return matches[matches.length - 1][1];
+  return matches[matches.length - 1]![1]!;
 }
 
-export function parseClinicalSnpReportTextWithTable(text, snpTable, options = {}) {
+export function parseClinicalSnpReportTextWithTable(text: unknown, snpTable: SnpCatalog | null | undefined, options: ClinicalReportOptions = {}) {
   const source = options.source || options.fileName || 'Clinical SNP report';
   const body = String(text || '').replace(/\u00A0/g, ' ');
-  const matches = {};
+  const matches: Record<string, {
+    genotype: string; normalizedGenotype: string; gene: SnpCatalogEntry['gene']; variant: SnpCatalogEntry['variant'];
+    category: SnpCatalogEntry['category']; markers: unknown; effect: SnpCatalogEntry['effect']; valence: SnpCatalogEntry['valence'];
+    evidence: SnpCatalogEntry['evidence']; relevance: SnpCatalogEntry['relevance']; note: SnpCatalogEntry['note'];
+    source: { type: string; label: string; fileName: string | null; rawText: string };
+  }> = {};
   let totalLines = 0;
   const rsMatches = [...body.matchAll(/\b(rs\d+)\b/gi)];
   for (let i = 0; i < rsMatches.length; i++) {
-    const rsid = rsMatches[i][1].toLowerCase();
+    const rsid = rsMatches[i]![1]!.toLowerCase();
     const entry = snpTable?.[rsid];
     if (!entry || matches[rsid]) continue;
     totalLines++;
-    const start = Math.max(0, rsMatches[i].index - 90);
-    const end = i + 1 < rsMatches.length ? Math.min(body.length, rsMatches[i + 1].index) : Math.min(body.length, rsMatches[i].index + 220);
+    const start = Math.max(0, rsMatches[i]!.index! - 90);
+    const end = i + 1 < rsMatches.length ? Math.min(body.length, rsMatches[i + 1]!.index!) : Math.min(body.length, rsMatches[i]!.index! + 220);
     const chunk = body.slice(start, end);
     const genotype = parseClinicalSnpGenotypeTail(chunk);
     if (!genotype) continue;
@@ -286,32 +296,32 @@ export function parseClinicalSnpReportTextWithTable(text, snpTable, options = {}
   };
 }
 
-function formatSourceName(format) {
-  const names = { ancestry: 'AncestryDNA', '23andme': '23andMe', livingdna: 'Living DNA', csv: 'MyHeritage/FTDNA', 'illumina-gsgt': 'Illumina GenomeStudio (DNAEra)', 'annotated-snp-report': 'Annotated SNP report' };
+function formatSourceName(format: string) {
+  const names: Record<string, string> = { ancestry: 'AncestryDNA', '23andme': '23andMe', livingdna: 'Living DNA', csv: 'MyHeritage/FTDNA', 'illumina-gsgt': 'Illumina GenomeStudio (DNAEra)', 'annotated-snp-report': 'Annotated SNP report' };
   return names[format] || format;
 }
 
-export async function parseDNAFileWithTable(file, snpTable) {
+export async function parseDNAFileWithTable(file: Pick<File, 'slice' | 'text'>, snpTable: SnpCatalog | null | undefined) {
   const snpIds = Object.keys(snpTable || {}).filter(k => k.startsWith('rs'));
 
   const headerChunk = await file.slice(0, 1000).text();
   const format = detectDNAFile(headerChunk);
   if (!format) throw new Error('Unrecognized DNA file format');
 
-  let result;
+  let result: WorkerParseResult;
   if (format === 'annotated-snp-report') {
     result = parseAnnotatedSnpReport(await file.text(), snpTable);
   } else {
     const worker = createWorker();
-    result = await new Promise((resolve, reject) => {
+    result = await new Promise<WorkerParseResult>((resolve, reject) => {
       const timeout = setTimeout(() => { worker.terminate(); reject(new Error('DNA parsing timed out')); }, 30000);
-      worker.onmessage = (e) => { clearTimeout(timeout); worker.terminate(); resolve(e.data); };
+      worker.onmessage = (e: MessageEvent<WorkerParseResult>) => { clearTimeout(timeout); worker.terminate(); resolve(e.data); };
       worker.onerror = (e) => { clearTimeout(timeout); worker.terminate(); reject(new Error(e.message)); };
       worker.postMessage({ file, snpIds, format });
     });
   }
 
-  const enriched = {};
+  const enriched: Record<string, Omit<ReturnType<typeof parseClinicalSnpReportTextWithTable>['matches'][string], 'normalizedGenotype' | 'source'>> = {};
   for (const [rsid, genotype] of Object.entries(result.matches)) {
     const entry = snpTable?.[rsid];
     if (!entry) continue;

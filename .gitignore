@@ -726,3 +726,7 @@ deploy/profile-share/data/
 /js/cycle-import-mutations.js
 /js/cycle-import-loader.js
 /js/cycle-import-rendering.js
+
+/js/dna-runtime.js
+/js/dna-mtdna.js
+/js/dna-parser.js

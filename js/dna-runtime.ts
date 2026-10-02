@@ -1,6 +1,28 @@
 import { createRetryingStylesheetLoader } from './retrying-module-loader.js';
-// @ts-check
 // dna-runtime.js - Browser runtime adapters for DNA import and shell refresh flows.
+
+import type { RuntimeDependencyUpdates } from './runtime-callbacks.js';
+import type { SnpCatalog } from './dna-evidence.js';
+import type { HaplogroupTable, PendingMtDnaImport } from './dna-mtdna.js';
+
+type ParsedDnaImport = Awaited<ReturnType<typeof import('./dna-parser.js').parseDNAFileWithTable>>;
+type ClinicalSnpCall = ReturnType<typeof import('./dna-parser.js').parseClinicalSnpReportTextWithTable>['matches'][string];
+export type PendingDnaImport = ParsedDnaImport & {
+  matches: Record<string, ParsedDnaImport['matches'][string] & Partial<Pick<ClinicalSnpCall, 'source' | 'normalizedGenotype'>>>;
+  mergeSnps?: boolean; rawMatchedCount?: number; preservedOverrideCount?: number;
+};
+interface DnaRuntimeDeps {
+  buildSidebar: (() => void) | null;
+  getLatitudeFromLocation: typeof getLatitudeFromLocation;
+  isDebugMode: typeof isDebugMode; isImportRunning: typeof isImportRunning;
+  navigate: ((route: string) => void) | null;
+  openChatPanel: ((prompt?: string) => unknown) | null;
+  showConfirmDialog: typeof showConfirmDialog | null;
+}
+interface DnaPublishedState {
+  _snpTableCache?: SnpCatalog; _haplogroupTableCache?: HaplogroupTable;
+  _pendingDNAImport?: PendingDnaImport | null; _pendingMtDNA?: PendingMtDnaImport | null;
+}
 
 import { configureRuntimeDependencies } from './runtime-callbacks.js';
 import { isImportRunning } from './pdf-import-progress.js';
@@ -27,14 +49,14 @@ const geneticsStylesheetPromiseCache = createRetryingStylesheetLoader({
   failedLoad: "Genetics stylesheet could not be loaded",
 });
 
-const dnaRuntimeDeps = {
-  buildSidebar: /** @type {null | (() => void)} */ (null),
+const dnaRuntimeDeps: DnaRuntimeDeps = {
+  buildSidebar: null,
   getLatitudeFromLocation,
   isDebugMode,
   isImportRunning,
-  navigate: /** @type {null | ((route: string) => void)} */ (null),
-  openChatPanel: /** @type {null | ((prompt?: string) => unknown)} */ (null),
-  showConfirmDialog: /** @type {null | typeof showConfirmDialog} */ (showConfirmDialog),
+  navigate: null,
+  openChatPanel: null,
+  showConfirmDialog: showConfirmDialog,
 };
 
 function geneticsStylesheetUrl() {
@@ -48,12 +70,10 @@ export function isGeneticsStylesheetLoaded() {
   return geneticsStylesheetPromiseCache.loaded;
 }
 
-/** @returns {Promise<HTMLLinkElement>} */
 export function loadGeneticsStylesheet() {
   return geneticsStylesheetPromiseCache.load();
 }
 
-/** @returns {Promise<HTMLLinkElement | false>} */
 export async function loadGeneticsStylesheetForAction() {
   try {
     return await loadGeneticsStylesheet();
@@ -64,17 +84,16 @@ export async function loadGeneticsStylesheetForAction() {
   }
 }
 
-export function configureDnaRuntimeDeps(deps = {}) {
+export function configureDnaRuntimeDeps(deps: RuntimeDependencyUpdates<DnaRuntimeDeps> = {}) {
   return configureRuntimeDependencies(dnaRuntimeDeps, deps, ['buildSidebar', 'navigate', 'openChatPanel', 'showConfirmDialog']);
 }
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
-    : /** @type {any} */ (globalThis);
+    ? (window as Window & DnaPublishedState)
+    : (globalThis as typeof globalThis & DnaPublishedState);
 }
 
-/** @returns {boolean} */
 function isDnaDebugMode() {
   try {
     return dnaRuntimeDeps.isDebugMode() === true;
@@ -83,33 +102,27 @@ function isDnaDebugMode() {
   }
 }
 
-/** @param {any} data */
-export function cacheDnaSnpTable(data) {
+export function cacheDnaSnpTable(data: SnpCatalog) {
   getRuntimeWindow()._snpTableCache = data;
 }
 
-/** @param {any} data */
-export function cacheDnaHaplogroupTable(data) {
+export function cacheDnaHaplogroupTable(data: HaplogroupTable) {
   getRuntimeWindow()._haplogroupTableCache = data;
 }
 
-/** @param {...any} args */
-export function logDnaDebugError(...args) {
+export function logDnaDebugError(...args: unknown[]) {
   if (isDnaDebugMode()) console.error(...args);
 }
 
-/** @param {...any} args */
-export function logDnaDebugWarn(...args) {
+export function logDnaDebugWarn(...args: unknown[]) {
   if (isDnaDebugMode()) console.warn(...args);
 }
 
-/** @param {string} route */
-export function navigateDnaRoute(route) {
+export function navigateDnaRoute(route: string) {
   dnaRuntimeDeps.navigate?.(route);
 }
 
-/** @param {string} prompt */
-export function openDnaChatPrompt(prompt) {
+export function openDnaChatPrompt(prompt: string) {
   const openChatPanel = dnaRuntimeDeps.openChatPanel;
   if (!openChatPanel || !String(prompt || '').trim()) return false;
   void Promise.resolve(openChatPanel(prompt)).catch(() => {});
@@ -124,13 +137,11 @@ export function refreshDnaSidebar() {
   } catch {}
 }
 
-/** @param {string} route */
-export function refreshDnaShell(route) {
+export function refreshDnaShell(route: string) {
   refreshDnaSidebar();
   navigateDnaRoute(route);
 }
 
-/** @returns {boolean} */
 export function isDnaLabImportRunning() {
   try {
     return dnaRuntimeDeps.isImportRunning() === true;
@@ -147,7 +158,6 @@ export function updateDnaChatNudge() {
   updateChatNudgeRuntime();
 }
 
-/** @returns {string | null} */
 export function getDnaProfileLatitudeBand() {
   try {
     return dnaRuntimeDeps.getLatitudeFromLocation() || null;
@@ -156,7 +166,6 @@ export function getDnaProfileLatitudeBand() {
   }
 }
 
-/** @returns {Promise<boolean>} */
 export async function confirmDnaDeleteDialog() {
   const confirmDialog = dnaRuntimeDeps.showConfirmDialog;
   if (!confirmDialog) return false;
@@ -167,12 +176,10 @@ export async function confirmDnaDeleteDialog() {
   }
 }
 
-/** @param {any} result */
-export function setPendingDnaImport(result) {
+export function setPendingDnaImport(result: PendingDnaImport) {
   getRuntimeWindow()._pendingDNAImport = result;
 }
 
-/** @returns {any} */
 export function getPendingDnaImport() {
   return getRuntimeWindow()._pendingDNAImport || null;
 }
@@ -181,12 +188,10 @@ export function clearPendingDnaImport() {
   getRuntimeWindow()._pendingDNAImport = null;
 }
 
-/** @param {any} result */
-export function setPendingMtDnaImport(result) {
+export function setPendingMtDnaImport(result: PendingMtDnaImport) {
   getRuntimeWindow()._pendingMtDNA = result;
 }
 
-/** @returns {any} */
 export function getPendingMtDnaImport() {
   return getRuntimeWindow()._pendingMtDNA || null;
 }

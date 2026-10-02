@@ -543,6 +543,7 @@ export async function handleSnpReportFile(file) {
     } else {
       text = await file.text();
     }
+    /** @type {ReturnType<typeof parseClinicalSnpReportText> & { mergeSnps?: boolean }} */
     const result = parseClinicalSnpReportText(text, { source: file.name, fileName: file.name, type: 'pdf-report' });
     result.mergeSnps = true;
     if (Object.keys(result.matches).length === 0) {

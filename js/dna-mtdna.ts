@@ -1,4 +1,19 @@
-// @ts-check
+export interface HaplogroupDefinition {
+  mutations: string[]; coupling: string; climate: string; origin?: string; etc?: string; parentHg?: string;
+}
+export interface HaplogroupTable {
+  haplogroups: Record<string, HaplogroupDefinition>;
+  couplingLevels: Record<string, { label: string; shortLabel: string; description: string; implications: string; latitudeBands: number[] }>;
+}
+export interface MtDnaMutation { position: number; allele: string; raw: string }
+export interface PendingMtDnaImport {
+  mutations: ReturnType<typeof parseMtDNAMutations>;
+  resolved: NonNullable<ReturnType<typeof resolveHaplogroup>>;
+  coupling: ReturnType<typeof classifyCoupling>;
+  hgData: HaplogroupDefinition | undefined;
+  source: string;
+}
+
 // dna-mtdna.js - mtDNA haplogroup parsing, preview, persistence, and manual entry.
 
 import { getErrorMessage } from './caught-error.js';
@@ -19,10 +34,10 @@ import {
   setPendingMtDnaImport,
 } from './dna-runtime.js';
 
-let _haplogroupTable = null;
-let _haplogroupTablePromise = null;
+let _haplogroupTable: HaplogroupTable | null = null;
+let _haplogroupTablePromise: Promise<HaplogroupTable> | null = null;
 
-export function loadHaplogroupTable() {
+export function loadHaplogroupTable(): Promise<HaplogroupTable> {
   if (_haplogroupTable) return Promise.resolve(_haplogroupTable);
   if (!_haplogroupTablePromise) {
     _haplogroupTablePromise = fetch('data/haplogroups.json')
@@ -37,28 +52,28 @@ export function ensureHaplogroupTable() {
   return state.importedData?.genetics?.mtdna ? loadHaplogroupTable() : Promise.resolve(null);
 }
 
-export function parseMtDNAMutations(text) {
-  const mutations = [];
+export function parseMtDNAMutations(text: string) {
+  const mutations: MtDnaMutation[] = [];
   for (const line of text.split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#')) continue;
     // Format 1: simple "263G" positive-marker notation (Living DNA export)
     const match = trimmed.match(/^(\d+)([ACGT])$/i);
-    if (match) { mutations.push({ position: parseInt(match[1]), allele: match[2].toUpperCase(), raw: match[1] + match[2].toUpperCase() }); continue; }
+    if (match) { mutations.push({ position: parseInt(match[1]!), allele: match[2]!.toUpperCase(), raw: match[1] + match[2]!.toUpperCase() }); continue; }
     // Format 2: 23andMe tab-separated "rsid\tMT\tposition\tallele"
     const cols = trimmed.split('\t');
     if (cols.length >= 4 && cols[1] === 'MT') {
-      const pos = parseInt(cols[2]);
-      const allele = cols[3].trim().toUpperCase();
+      const pos = parseInt(cols[2]!);
+      const allele = cols[3]!.trim().toUpperCase();
       if (pos > 0 && /^[ACGT]$/.test(allele)) mutations.push({ position: pos, allele, raw: pos + allele });
     }
   }
   return mutations;
 }
 
-export function resolveHaplogroup(mutations, hapTable) {
+export function resolveHaplogroup(mutations: readonly Pick<MtDnaMutation, 'raw'>[], hapTable: Pick<HaplogroupTable, 'haplogroups'>) {
   const mutationSet = new Set(mutations.map(m => m.raw));
-  let bestMatch = null;
+  let bestMatch: { haplogroup: string; confidence: number; matchedMutations: number; totalDiagnostic: number } | null = null;
   let bestScore = 0;
   let bestMatchedCount = 0;
 
@@ -91,7 +106,7 @@ export function resolveHaplogroup(mutations, hapTable) {
   return bestMatch;
 }
 
-function classifyCoupling(haplogroup, hapTable) {
+function classifyCoupling(haplogroup: string, hapTable: HaplogroupTable) {
   const hgData = hapTable.haplogroups[haplogroup];
   if (!hgData) return null;
   const couplingKey = hgData.coupling;
@@ -108,7 +123,7 @@ function classifyCoupling(haplogroup, hapTable) {
   };
 }
 
-export function detectMtDNAMismatch(genetics) {
+export function detectMtDNAMismatch(genetics: { mtdna?: { haplogroup?: string; coupling?: ReturnType<typeof classifyCoupling> } | null } | null | undefined) {
   if (!genetics?.mtdna?.coupling) return null;
   const coupling = genetics.mtdna.coupling;
 
@@ -140,7 +155,7 @@ export function detectMtDNAMismatch(genetics) {
 
 let _mtdnaImportRunning = false;
 
-export async function handleMtDNAFile(file) {
+export async function handleMtDNAFile(file: Pick<File, 'text' | 'name'>) {
   if (_mtdnaImportRunning) { showNotification('mtDNA import already in progress', 'info'); return false; }
   if (!await loadGeneticsStylesheetForAction()) return false;
   _mtdnaImportRunning = true;
@@ -173,7 +188,7 @@ export async function handleMtDNAFile(file) {
   }
 }
 
-function _showMtDNAPreview(resolved, coupling, mutations, fileName) {
+function _showMtDNAPreview(resolved: PendingMtDnaImport['resolved'], coupling: PendingMtDnaImport['coupling'], mutations: readonly MtDnaMutation[], fileName: string) {
   const mismatch = coupling ? detectMtDNAMismatch({ mtdna: { haplogroup: resolved.haplogroup, coupling } }) : null;
 
   let html = `<div class="dna-preview-header">
@@ -269,7 +284,7 @@ export async function deleteMtDNAData() {
 
 export { HAPLOGROUP_LIST };
 
-export async function setManualHaplogroup(haplogroup) {
+export async function setManualHaplogroup(haplogroup: unknown) {
   if (!haplogroup) return;
   const input = String(haplogroup).trim();
   const hg = HAPLOGROUP_LIST.find(candidate => candidate.toUpperCase() === input.toUpperCase());

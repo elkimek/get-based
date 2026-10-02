@@ -3,6 +3,13 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-dna-runtime.js — DNA runtime adapter behavior.
 
 import './_node-shim.js';
+import type { PendingDnaImport } from '../js/dna-runtime.js';
+import type { PendingMtDnaImport } from '../js/dna-mtdna.js';
+type RuntimeTestGlobals = typeof globalThis & {
+  _pendingDNAImport?: Partial<PendingDnaImport> | null;
+  _pendingMtDNA?: { resolved?: Partial<PendingMtDnaImport['resolved']> } | null;
+  _snpTableCache?: unknown; triggerDNAFilePicker?: () => unknown;
+} & Record<string, unknown>;
 import {
   cacheDnaSnpTable,
   clearPendingDnaImport,
@@ -47,7 +54,7 @@ const runtimeKeys = [
   'showConfirmDialog',
   'triggerDNAFilePicker',
 ];
-const originals = Object.fromEntries(runtimeKeys.map(key => [key, globalThis[key]]));
+const originals = Object.fromEntries(runtimeKeys.map(key => [key, (globalThis as RuntimeTestGlobals)[key]]));
 const originalError = console.error;
 const originalWarn = console.warn;
 const originalDnaRuntimeDeps = configureDnaRuntimeDeps();
@@ -59,9 +66,9 @@ const previousDnaBridge = configureDnaModuleBridge({
 });
 
 try {
-  for (const key of runtimeKeys) delete globalThis[key];
+  for (const key of runtimeKeys) delete (globalThis as RuntimeTestGlobals)[key];
 
-  const calls = [];
+  const calls: Array<[string, ...(string | undefined)[]]> = [];
   configureDnaRuntimeDeps({
     buildSidebar: () => calls.push(['sidebar']),
     navigate: route => calls.push(['navigate', route]),
@@ -74,7 +81,7 @@ try {
   calls.length = 0;
   navigateDnaRoute('genome');
   assert('navigateDnaRoute delegates route changes',
-    calls.length === 1 && calls[0][0] === 'navigate' && calls[0][1] === 'genome');
+    calls.length === 1 && calls[0]![0] === 'navigate' && calls[0]![1] === 'genome');
 
   assert('openDnaChatPrompt delegates an explicit editable AI handoff',
     openDnaChatPrompt('Interpret this SNP') === true &&
@@ -99,15 +106,15 @@ try {
   assert('isDnaLabImportRunning fails closed on runtime errors', isDnaLabImportRunning() === true);
 
   configureDnaModuleBridge({
-    handleDNAFile: file => calls.push(['handleDNAFile', file.name]),
+    handleDNAFile: (file: { name: string }) => calls.push(['handleDNAFile', file.name]),
     HAPLOGROUP_LIST: ['H', 'J'],
   });
   getDnaModuleFunction('handleDNAFile')?.({ name: 'dna.txt' });
   assert('DNA module bridge delegates file handling and values',
     calls.some(call => call[0] === 'handleDNAFile' && call[1] === 'dna.txt') &&
-      getDnaModuleValue('HAPLOGROUP_LIST')?.includes('J'));
+      (getDnaModuleValue('HAPLOGROUP_LIST') as string[] | null)?.includes('J'));
 
-  globalThis.triggerDNAFilePicker = () => calls.push(['legacyTriggerDNAFilePicker']);
+  (globalThis as RuntimeTestGlobals).triggerDNAFilePicker = () => calls.push(['legacyTriggerDNAFilePicker']);
   configureContextCardsRuntimeCallbacks({
     triggerDNAFilePicker: () => calls.push(['triggerDNAFilePicker']),
   });
@@ -135,7 +142,7 @@ try {
   } });
   assert('confirmDnaDeleteDialog delegates confirmation',
     await confirmDnaDeleteDialog() === true &&
-      calls.some(call => call[0] === 'confirm' && call[1].includes('Delete genetic data')));
+      calls.some(call => call[0] === 'confirm' && call[1]!.includes('Delete genetic data')));
   configureDnaRuntimeDeps({ showConfirmDialog: async () => {
     throw new Error('dialog failed');
   } });
@@ -145,23 +152,23 @@ try {
   const table = { rs1801133: { gene: 'MTHFR' } };
   cacheDnaSnpTable(table);
   assert('cacheDnaSnpTable publishes SNP table cache',
-    globalThis._snpTableCache === table);
+    (globalThis as RuntimeTestGlobals)._snpTableCache === table);
 
-  setPendingDnaImport({ source: 'AncestryDNA' });
+  setPendingDnaImport({ source: 'AncestryDNA' } as PendingDnaImport);
   assert('pending DNA import is published for browser flows',
     getPendingDnaImport()?.source === 'AncestryDNA' &&
-      globalThis._pendingDNAImport?.source === 'AncestryDNA');
+      (globalThis as RuntimeTestGlobals)._pendingDNAImport?.source === 'AncestryDNA');
   clearPendingDnaImport();
   assert('clearPendingDnaImport clears published pending import',
-    getPendingDnaImport() === null && globalThis._pendingDNAImport === null);
+    getPendingDnaImport() === null && (globalThis as RuntimeTestGlobals)._pendingDNAImport === null);
 
-  setPendingMtDnaImport({ resolved: { haplogroup: 'J' } });
+  setPendingMtDnaImport({ resolved: { haplogroup: 'J' } } as PendingMtDnaImport);
   assert('pending mtDNA import is published for browser flows',
     getPendingMtDnaImport()?.resolved?.haplogroup === 'J' &&
-      globalThis._pendingMtDNA?.resolved?.haplogroup === 'J');
+      (globalThis as RuntimeTestGlobals)._pendingMtDNA?.resolved?.haplogroup === 'J');
   clearPendingMtDnaImport();
   assert('clearPendingMtDnaImport clears published pending mtDNA import',
-    getPendingMtDnaImport() === null && globalThis._pendingMtDNA === null);
+    getPendingMtDnaImport() === null && (globalThis as RuntimeTestGlobals)._pendingMtDNA === null);
 
   let errorLogged = false;
   let warnLogged = false;
@@ -194,8 +201,8 @@ try {
   console.error = originalError;
   console.warn = originalWarn;
   for (const key of runtimeKeys) {
-    if (originals[key] === undefined) delete globalThis[key];
-    else globalThis[key] = originals[key];
+    if (originals[key] === undefined) delete (globalThis as RuntimeTestGlobals)[key];
+    else (globalThis as RuntimeTestGlobals)[key] = originals[key];
   }
 }
 
