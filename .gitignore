@@ -604,3 +604,5 @@ deploy/profile-share/data/
 /js/context-card-lifestyle-editors.js
 /js/context-card-medical-history-editor-impl.js
 /js/context-card-medical-history-editor.js
+/js/sync-reconcile.js
+/js/sync-pull-active-refresh.js

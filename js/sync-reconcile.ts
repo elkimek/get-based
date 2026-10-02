@@ -1,4 +1,8 @@
-// @ts-check
+import type { SyncRuntimeClient } from './sync-runtime.js';
+import type { StoredProfileRecord } from './profile-list-store.js';
+import type { RuntimeDependencyUpdates } from './runtime-callbacks.js';
+import type { configureSyncActions } from './sync-actions.js';
+
 // sync-reconcile.js - startup reconciliation for localStorage vs Evolu rows.
 
 import { state } from './state.js';
@@ -10,27 +14,22 @@ import { isRestoreJoinPending } from './sync-identity.js';
 import { getProfileSyncBlockReason } from './profile-sync-policy.js';
 import { chatDataNeedsRebroadcast } from './sync-chat-apply.js';
 
-/** @type {() => any} */
-let _getEvolu = () => null;
-/** @type {() => any} */
-let _getProfileQuery = () => null;
+let _getEvolu: () => Pick<SyncRuntimeClient, 'getQueryRows'> | null = () => null;
+let _getProfileQuery: () => unknown = () => null;
 let _isSyncEnabled = () => false;
-/** @type {(...args: any[]) => Promise<any>} */
-let _pushProfile = async () => {};
-/** @type {(...args: any[]) => any} */
-let _debug = () => {};
-/** @type {() => any[]} */
-let _getProfiles = () => [];
+let _pushProfile: NonNullable<NonNullable<Parameters<typeof configureSyncActions>[0]>['pushProfile']> = async () => {};
+let _debug: (...args: unknown[]) => unknown = () => {};
+let _getProfiles: () => StoredProfileRecord[] = () => [];
 
-/** @param {{
- *   getEvolu?: () => any,
- *   getProfileQuery?: () => any,
- *   isSyncEnabled?: () => boolean,
- *   pushProfile?: (...args: any[]) => Promise<any>,
- *   debug?: (...args: any[]) => any,
- *   getProfiles?: () => any[],
- * }} [deps]
- */
+interface SyncReconcileDependencies {
+  getEvolu: typeof _getEvolu;
+  getProfileQuery: typeof _getProfileQuery;
+  isSyncEnabled: typeof _isSyncEnabled;
+  pushProfile: typeof _pushProfile;
+  debug: typeof _debug;
+  getProfiles: typeof _getProfiles;
+}
+
 export function configureSyncReconcile({
   getEvolu,
   getProfileQuery,
@@ -38,7 +37,7 @@ export function configureSyncReconcile({
   pushProfile,
   debug,
   getProfiles,
-} = {}) {
+}: RuntimeDependencyUpdates<SyncReconcileDependencies> = {}) {
   if (typeof getEvolu === 'function') _getEvolu = getEvolu;
   if (typeof getProfileQuery === 'function') _getProfileQuery = getProfileQuery;
   if (typeof isSyncEnabled === 'function') _isSyncEnabled = isSyncEnabled;
@@ -80,9 +79,9 @@ export async function reconcileLocalStorageWithEvolu() {
   let localChatDiffer = false;
   try {
     const parsed = await parseSyncPayload(existing.dataJson);
-    remoteImported = /** @type {Parameters<typeof localHasRowsRemoteLacks>[1]} */ (parsed?.importedData || null);
+    remoteImported = (parsed?.importedData || null) as Parameters<typeof localHasRowsRemoteLacks>[1];
     localChatDiffer = await chatDataNeedsRebroadcast(state.currentProfile, parsed?.chatData);
-    const remoteAiSettings = /** @type {Record<string, unknown>} */ (parsed?.aiSettings || {});
+    const remoteAiSettings = (parsed?.aiSettings || {}) as Record<string, unknown>;
     const localAiSettings = await collectAISettings();
     localAiSettingsDiffer = Object.entries(localAiSettings)
       .some(([key, val]) => remoteAiSettings?.[key] !== val);

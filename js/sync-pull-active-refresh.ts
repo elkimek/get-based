@@ -1,4 +1,3 @@
-// @ts-check
 // sync-pull-active-refresh.js - active-profile UI refresh after inbound pulls.
 
 import { state } from './state.js';
@@ -13,15 +12,14 @@ import {
 } from './sync-pull-active-refresh-runtime.js';
 
 const UPDATE_TOAST_COOLDOWN_MS = 2500;
-let lastUpdateToastProfileId = null;
+let lastUpdateToastProfileId: string | null = null;
 let lastUpdateToastAt = 0;
 
-/** @param {((...args: any[]) => any) | undefined} debug */
-function dbg(debug, ...args) {
+function dbg(debug: ((...args: unknown[]) => unknown) | undefined, ...args: unknown[]) {
   try { debug?.(...args); } catch {}
 }
 
-function shouldShowUpdateToast(profileId) {
+function shouldShowUpdateToast(profileId: string) {
   const now = Date.now();
   if (profileId === lastUpdateToastProfileId && now - lastUpdateToastAt < UPDATE_TOAST_COOLDOWN_MS) {
     return false;
@@ -36,17 +34,17 @@ function hasOpenModalOverlay() {
   return !!document.querySelector('.modal-overlay.show, #modal-overlay.show');
 }
 
-/** @param {{
- *   profileId?: string,
- *   merged?: any,
- *   chatApplied?: boolean,
- *   dataAlreadyApplied?: boolean,
- *   remoteBroughtNewRows?: boolean,
- *   localDataChanged?: boolean,
- *   localCommitEcho?: boolean,
- *   debug?: (...args: any[]) => any,
- * }} [options]
- */
+interface ActiveProfilePullRefreshOptions {
+  profileId?: string | undefined;
+  merged?: typeof state.importedData | undefined;
+  chatApplied?: boolean | undefined;
+  dataAlreadyApplied?: boolean | undefined;
+  remoteBroughtNewRows?: boolean | undefined;
+  localDataChanged?: boolean | undefined;
+  localCommitEcho?: boolean | undefined;
+  debug?: ((...args: unknown[]) => unknown) | undefined;
+}
+
 export function refreshActiveProfileAfterPull({
   profileId,
   merged,
@@ -56,7 +54,7 @@ export function refreshActiveProfileAfterPull({
   localDataChanged,
   localCommitEcho,
   debug,
-} = {}) {
+}: ActiveProfilePullRefreshOptions = {}) {
   if (profileId !== state.currentProfile) return false;
 
   const shouldRefreshVisibleData = typeof localDataChanged === 'boolean'
@@ -64,7 +62,7 @@ export function refreshActiveProfileAfterPull({
     : !!remoteBroughtNewRows;
 
   if (!dataAlreadyApplied) {
-    state.importedData = merged;
+    state.importedData = merged as typeof state.importedData;
     migrateProfileData(state.importedData);
     rememberProfileData(state.importedData);
   }
@@ -83,7 +81,7 @@ export function refreshActiveProfileAfterPull({
   // is briefly absent during buildSidebar->navigate cycles and
   // would yank the user to 'dashboard' on a pull landing in
   // that gap (user-reported flicker/sync race).
-  const cat = state.currentView || document.querySelector('.nav-item.active')?.['dataset']?.category || 'dashboard';
+  const cat = state.currentView || document.querySelector<HTMLElement>('.nav-item.active')?.['dataset']?.category || 'dashboard';
 
   // Sidebar nav items are conditional on data presence (e.g. the
   // Genetics entry only renders when state.importedData.genetics
