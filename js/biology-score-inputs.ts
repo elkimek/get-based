@@ -1,4 +1,3 @@
-// @ts-check
 // Marker selection and unit normalization for Biology Scores.
 import { getEffectiveRangeForDate, getEffectiveRangeLabelForDate } from './marker-analysis.js';
 import { MARKER_SCHEMA, OPTIMAL_RANGES } from './schema.js';
@@ -7,40 +6,45 @@ import { state } from './state.js';
 import { getMarkerStorageDotKey, resolveActiveMarkerPath } from './marker-placement.js';
 import { formatValue } from './utils.js';
 import { getAgeDays } from './biology-score-dates.js';
+import type { ActiveMarker } from './data-view-types.js';
+import type { ScoringData, MarkerHit, ScoreRange, CanonicalScoringMarker, DerivedMarkerRecipe } from './biology-score-types.js';
 
-export function parsePath(path) {
+type MarkerPaths = string | string[];
+interface MarkerHitOptions { date?: string | undefined }
+
+export function parsePath(path: string | string[]): string[] {
   if (Array.isArray(path)) return path;
   const idx = String(path).indexOf('.');
   return idx > 0 ? [String(path).slice(0, idx), String(path).slice(idx + 1)] : ['', ''];
 }
 
-export function canonicalMarkerValue(dotKey, marker, value) {
+export function canonicalMarkerValue(dotKey: string, marker: { unit?: string | undefined }, value: number) {
   return Number.isFinite(value) ? convertUnitInputToCanonical(dotKey, value, marker.unit || '', 'EU') : value;
 }
 
-export function canonicalRange(hit, range) {
-  return { min: Number.isFinite(range?.min) ? canonicalMarkerValue(hit.dotKey, hit, range.min) : null,
-    max: Number.isFinite(range?.max) ? canonicalMarkerValue(hit.dotKey, hit, range.max) : null };
+export function canonicalRange(hit: { dotKey: string; unit?: string | undefined }, range: ScoreRange | null | undefined) {
+  return { min: Number.isFinite(range?.min) ? canonicalMarkerValue(hit.dotKey, hit, range!.min!) : null,
+    max: Number.isFinite(range?.max) ? canonicalMarkerValue(hit.dotKey, hit, range!.max!) : null };
 }
 
-function markerWithSchemaOptimalFallback(dotKey, marker) {
+function markerWithSchemaOptimalFallback<Marker extends Pick<Partial<ActiveMarker>, 'unit' | 'optimalMin' | 'optimalMax' | 'refMin' | 'refMax'>>(dotKey: string, marker: Marker): Marker {
   if (!marker || (state.rangeMode !== 'optimal' && state.rangeMode !== 'both')) return marker;
   if (marker.optimalMin != null || marker.optimalMax != null) return marker;
   const opt = OPTIMAL_RANGES[dotKey];
   if (!opt) return marker;
   const rawMin = state.profileSex === 'female' && opt.optimalMin_f !== undefined ? opt.optimalMin_f : opt.optimalMin;
   const rawMax = state.profileSex === 'female' && opt.optimalMax_f !== undefined ? opt.optimalMax_f : opt.optimalMax;
-  const convert = value => value == null ? value : convertCanonicalToInputUnit(dotKey, Number(value), marker.unit || '', 'EU');
+  const convert = (value: number | null | undefined) => value == null ? value : convertCanonicalToInputUnit(dotKey, Number(value), marker.unit || '', 'EU');
   return { ...marker, optimalMin: convert(rawMin), optimalMax: convert(rawMax) };
 }
 
-function getEffectiveRangeLabel(marker, dateIndex) {
+function getEffectiveRangeLabel(marker: ActiveMarker, dateIndex: number) {
   return `${getEffectiveRangeLabelForDate(marker, dateIndex).toLowerCase()} range`.replace('range range', 'range');
 }
 
-export function getMarkerHit(data, paths, options = {}) {
+export function getMarkerHit(data: ScoringData | null | undefined, paths: MarkerPaths, options: MarkerHitOptions = {}): MarkerHit | null {
   const candidates = Array.isArray(paths) ? paths : [paths];
-  const hits = [];
+  const hits: MarkerHit[] = [];
   for (const path of candidates) {
     const [catKey, markerKey] = parsePath(path);
     if (!catKey || !markerKey) continue;
@@ -49,14 +53,14 @@ export function getMarkerHit(data, paths, options = {}) {
     const { categoryKey: displayCategoryKey, category, marker } = resolved;
     for (let i = 0; i < (marker.values || []).length; i++) {
       const raw = marker.values[i];
-      if (raw == null || raw === '' || !Number.isFinite(Number(raw))) continue;
+      if (raw == null || (raw as unknown) === '' || !Number.isFinite(Number(raw))) continue;
       const date = marker.singleDate || category.singleDate || ((marker.singlePoint || category.singlePoint) ? '' : data?.dates?.[i] || '');
       if (options.date && date !== options.date) continue;
       const dotKey = getMarkerStorageDotKey(marker, `${catKey}_${markerKey}`);
       if (!dotKey) continue;
       const effectiveMarker = markerWithSchemaOptimalFallback(dotKey, marker);
       const value = Number(raw);
-      const canonical = marker.canonicalScoring;
+      const canonical = marker.canonicalScoring as CanonicalScoringMarker | undefined;
       const canonicalIndex = canonical?.dateIndices?.[date] ?? i;
       const canonicalMarker = canonical ? markerWithSchemaOptimalFallback(dotKey, canonical) : null;
       const entryContext = data?.entryContextByDate?.[date] || {};
@@ -77,13 +81,13 @@ export function getMarkerHit(data, paths, options = {}) {
   // Unknown dates remain visible but never outrank a dated measurement.
   hits.sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const derived = getDerivedMarkerHit(data, candidates, options);
-  return derived && !derived.derivedContextOnly && (!hits[0] || derived.date > hits[0].date) ? derived : hits[0] || derived;
+  return derived && !derived.derivedContextOnly && (!hits[0] || derived.date > hits[0]!.date) ? derived : hits[0] || derived;
 }
 
-function pairedHits(data, leftPaths, rightPaths, options) {
+function pairedHits(data: ScoringData | null | undefined, leftPaths: MarkerPaths, rightPaths: MarkerPaths, options: MarkerHitOptions): [MarkerHit, MarkerHit] | null {
   const left = getMarkerHit(data, leftPaths, options);
   const right = getMarkerHit(data, rightPaths, options);
-  const dates = [...new Set([left?.date, right?.date, ...(data?.dates || [])])].filter(Boolean).sort().reverse();
+  const dates = [...new Set([left?.date, right?.date, ...(data?.dates || [])])].filter(Boolean).sort().reverse() as string[];
   for (const date of dates) {
     if (options.date && options.date !== date) continue;
     const a = getMarkerHit(data, leftPaths, { date });
@@ -93,8 +97,8 @@ function pairedHits(data, leftPaths, rightPaths, options) {
   return null;
 }
 
-function getDerivedMarkerHit(data, candidates, options = {}) {
-  const definitions = {
+function getDerivedMarkerHit(data: ScoringData | null | undefined, candidates: string[], options: MarkerHitOptions = {}): MarkerHit | null {
+  const definitions: Record<string, DerivedMarkerRecipe> = {
     'lipids.nonHdl': { left: ['lipids.cholesterol', 'lipids.totalCholesterol'], right: 'lipids.hdl', subtract: true, max: 3.8 },
     'calculatedRatios.cholHdlRatio': { left: ['lipids.cholesterol', 'lipids.totalCholesterol'], right: 'lipids.hdl', max: 3.5 },
     'calculatedRatios.tgHdlRatio': { left: 'lipids.triglycerides', right: 'lipids.hdl', max: 1.75 },
@@ -102,7 +106,7 @@ function getDerivedMarkerHit(data, candidates, options = {}) {
     'diabetes.homaIR': { left: 'biochemistry.glucose', right: 'diabetes.insulin', max: 2.5, multiply: true },
   };
   for (const path of candidates) {
-    const [catKey, key] = parsePath(path);
+    const [catKey, key] = parsePath(path) as [string, string];
     const recipe = definitions[path];
     const fatty = ['aaEpaRatio', 'omega3Index'].includes(key);
     if (!recipe && !fatty) continue;
@@ -119,8 +123,8 @@ function getDerivedMarkerHit(data, candidates, options = {}) {
     if (value < 0) continue;
     const reported = resolveActiveMarkerPath(data?.categories, catKey, key)?.marker;
     const base = reported || MARKER_SCHEMA[catKey]?.markers?.[key] || { refMin: 0, refMax: recipe?.max };
-    let range = recipe ? getEffectiveRangeForDate(markerWithSchemaOptimalFallback(path, base), a.dateIndex) : reported ? getEffectiveRangeForDate(reported, a.dateIndex) : null;
-    let referenceRange = recipe ? getEffectiveRangeForDate(base, a.dateIndex, 'reference') : null;
+    let range = recipe ? getEffectiveRangeForDate(markerWithSchemaOptimalFallback(path, base) as ActiveMarker, a.dateIndex) : reported ? getEffectiveRangeForDate(reported, a.dateIndex) : null;
+    let referenceRange = recipe ? getEffectiveRangeForDate(base as ActiveMarker, a.dateIndex, 'reference') : null;
     if (recipe?.subtract && reported) {
       const hit = { ...reported, dotKey: path };
       range = canonicalRange(hit, range); referenceRange = canonicalRange(hit, referenceRange);

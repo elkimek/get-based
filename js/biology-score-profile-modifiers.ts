@@ -1,7 +1,8 @@
-// @ts-check
 // biology-score-profile-modifiers.js — profile-aware score input modifiers.
 
 import { cortisolReferenceForSampleTime, parseSampleHour } from './marker-context-ranges.js';
+import type { LabCollectionContext } from '../types/lab-data.js';
+import type { MarkerHit, ScoreInput, ScoreProfileContext, ProfileScoreModifier } from './biology-score-types.js';
 
 const LOW_MUSCLE_CONTEXT_PATHS = new Set(['biochemistry.creatinine', 'biochemistry.egfr', 'biochemistry.eGFR', 'biochemistry.egfrCombined', 'biochemistry.egfrCreatinineCystatinC', 'calculatedRatios.bunCreatRatio']);
 const VITAMIN_D_PATHS = new Set(['vitamins.vitaminD', 'vitamins.vitaminD3', 'vitamins.vitaminD2']);
@@ -19,28 +20,28 @@ const HORMONE_THERAPY_CONTEXT_PATHS = new Set([
 const HORMONAL_CONTRACEPTION_TERMS = ['ocp', 'pill', 'patch', 'ring', 'implant', 'mirena', 'hormonal iud', 'depo', 'injection', 'contraceptive pill', 'birth control pill'];
 const NON_HORMONAL_CONTRACEPTION_TERMS = ['copper', 'copper iud', 'non-hormonal', 'non hormonal'];
 
-function contextOnly(flag, weightScale = 1) {
+function contextOnly(flag: string, weightScale = 1): ProfileScoreModifier {
   return { score: false, contextOnly: true, flag, weightScale };
 }
 
-function normalizeText(value) { return String(value || '').trim().toLowerCase(); }
+function normalizeText(value: unknown) { return String(value || '').trim().toLowerCase(); }
 
-function getEntryContext(hit) { return hit?.entryContext || {}; }
+function getEntryContext(hit: Partial<MarkerHit> | null | undefined): LabCollectionContext { return hit?.entryContext || {}; }
 
-function getMenopauseState(profileContext, entryContext) {
+function getMenopauseState(profileContext: ScoreProfileContext | null | undefined, entryContext: LabCollectionContext) {
   return normalizeText(entryContext.menopauseStatus || entryContext.cycleStatus || profileContext?.menopauseStatus || profileContext?.cycleStatus);
 }
 
-function isPostmenopause(profileContext, entryContext) {
+function isPostmenopause(profileContext: ScoreProfileContext | null | undefined, entryContext: LabCollectionContext) {
   const state = getMenopauseState(profileContext, entryContext);
   return ['postmenopause', 'postmenopausal', 'menopause', 'menopausal', 'no cycle', 'absent-cycle', 'absent cycle'].includes(state);
 }
 
-function hasHormoneTherapy(profileContext, entryContext) {
+function hasHormoneTherapy(profileContext: ScoreProfileContext | null | undefined, entryContext: LabCollectionContext) {
   return !!profileContext?.hormoneTherapy || !!entryContext.hormoneTherapy || isHormonalContraception(entryContext.contraception);
 }
 
-function isHormonalContraception(value) {
+function isHormonalContraception(value: unknown) {
   if (value === true) return true;
   const text = String(value || '').toLowerCase();
   if (!text) return false;
@@ -48,7 +49,7 @@ function isHormonalContraception(value) {
   return HORMONAL_CONTRACEPTION_TERMS.some(term => text.includes(term));
 }
 
-function isCyclingFemale(profileContext, entryContext) {
+function isCyclingFemale(profileContext: ScoreProfileContext | null | undefined, entryContext: LabCollectionContext) {
   if (profileContext?.sex !== 'female') return false;
   if (isPostmenopause(profileContext, entryContext)) return false;
   if (hasHormoneTherapy(profileContext, entryContext)) return false;
@@ -57,14 +58,9 @@ function isCyclingFemale(profileContext, entryContext) {
   return ['regular', 'natural', 'cycling', 'perimenopause', 'premenopause', 'premenopausal'].includes(state);
 }
 
-/**
- * @param {{dotKey?: string, label?: string, value?: number, range?: any, rangeLabel?: string, phaseLabel?: string | null, phaseRange?: any, entryContext?: any, sampleTime?: any, unit?: string, specimen?: string, referenceRangeSource?: string, referenceRange?: any, optimalRangeSource?: string, referenceSampleTime?: string}} hit
- * @param {any} input
- * @param {{lowMuscleMass?: boolean, lowMuscleReason?: string, sex?: string | null, lowSunlightExposure?: boolean, lowSunlightReason?: string, hormoneTherapy?: boolean, cycleStatus?: string | null, menopauseStatus?: string | null, recentHardTraining?: boolean, acuteInflammationContext?: boolean, genetic?: any, body?: any, light?: any, contextFlags?: string[]}} profileContext
- */
-export function getInputProfileModifier(hit, input, profileContext) {
+export function getInputProfileModifier(hit: Partial<MarkerHit>, input: ScoreInput, profileContext: ScoreProfileContext): ProfileScoreModifier {
   const profileSex = profileContext?.sex;
-  const sexScale = profileSex ? input.sexWeightScale?.[profileSex] ?? 1 : 1;
+  const sexScale = profileSex ? input.sexWeightScale?.[profileSex as 'male' | 'female'] ?? 1 : 1;
   const dotKey = hit?.dotKey || '';
   const entryContext = getEntryContext(hit);
   if (input.profileContext === 'always-score') return { score: true, flag: '', weightScale: sexScale };
@@ -156,13 +152,9 @@ export function getInputProfileModifier(hit, input, profileContext) {
   return { score: true, flag: '', weightScale: sexScale };
 }
 
-/**
- * @param {string} scoreId
- * @param {any} profileContext
- */
-export function getScoreProfileFlags(scoreId, profileContext) {
-  const flags = [];
-  const add = (condition, text) => { if (condition && !flags.includes(text)) flags.push(text); };
+export function getScoreProfileFlags(scoreId: string, profileContext: ScoreProfileContext) {
+  const flags: string[] = [];
+  const add = (condition: unknown, text: string) => { if (condition && !flags.includes(text)) flags.push(text); };
   if (Array.isArray(profileContext?.contextFlags)) {
     for (const flag of profileContext.contextFlags) {
       const text = String(flag || '');
@@ -193,7 +185,7 @@ export function getScoreProfileFlags(scoreId, profileContext) {
       else flags.push('Female hormone context: add menstrual-cycle or menopause status so estradiol, progesterone, LH, and FSH are interpreted in the right biological phase.');
     }
     if (profileContext.hormoneTherapy) flags.push('Hormone-medication context detected; sex-hormone markers may reflect therapy, contraception, or stimulation rather than endogenous axis tone.');
-    if (Number.isFinite(profileContext.ageYears) && profileContext.ageYears >= 50) flags.push(`Age context: ${profileContext.ageYears}y profile; sex-hormone and pituitary feedback patterns need age/menopause/therapy context.`);
+    if (Number.isFinite(profileContext.ageYears) && profileContext.ageYears! >= 50) flags.push(`Age context: ${profileContext.ageYears}y profile; sex-hormone and pituitary feedback patterns need age/menopause/therapy context.`);
     return flags;
   }
   if (scoreId !== 'anabolicRecoverySignal') return flags;
@@ -203,6 +195,6 @@ export function getScoreProfileFlags(scoreId, profileContext) {
   if (profileContext.hormoneTherapy) flags.push('Hormone-medication context detected; androgen/estrogen markers may reflect therapy or contraception rather than endogenous recovery tone.');
   if (profileContext.recentHardTraining) flags.push('Recent/intense training context detected; CK, AST/ALT, hs-CRP, urea, and anabolic-recovery drag may reflect training load rather than baseline recovery.');
   if (profileContext.acuteInflammationContext) flags.push('Acute illness/injury context detected; inflammation and immune markers can transiently suppress recovery scoring. Retest baseline after recovery if this was near the blood draw.');
-  if (Number.isFinite(profileContext.ageYears) && profileContext.ageYears >= 50) flags.push(`Age context: ${profileContext.ageYears}y profile; DHEA-S, IGF-1, sex hormones, hemoglobin, and CK are interpreted as age-sensitive recovery context, not youth-range targets.`);
+  if (Number.isFinite(profileContext.ageYears) && profileContext.ageYears! >= 50) flags.push(`Age context: ${profileContext.ageYears}y profile; DHEA-S, IGF-1, sex hormones, hemoglobin, and CK are interpreted as age-sensitive recovery context, not youth-range targets.`);
   return flags;
 }

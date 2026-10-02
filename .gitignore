@@ -565,3 +565,8 @@ deploy/profile-share/data/
 /js/lab-context-settings.js
 /js/lab-context-wearables.js
 /js/correlation-workspace-store.js
+
+/js/biology-score-engine.js
+/js/biology-score-inputs.js
+/js/biology-score-panel-policy.js
+/js/biology-score-profile-modifiers.js
