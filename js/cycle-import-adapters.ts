@@ -79,7 +79,7 @@ function flowValue(value: unknown, fallbackForTrue: CycleFlow = 'moderate') {
   return normalizeCycleFlow(raw) || (raw.includes('bleed') || raw.includes('menstru') ? fallbackForTrue : null);
 }
 
-function resultImportId(source: string, fileName: string) {
+export function resultImportId(source: string, fileName: string) {
   const base = String(fileName || source || 'cycle-import')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')

@@ -2,7 +2,7 @@
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 const runtime = vi.hoisted(() => ({
   state: { currentProfile: 'origin', profileSex: 'female', importedData: { menstrualCycle: null } },
-  load: vi.fn(), commit: vi.fn(), confirm: vi.fn(), notify: vi.fn(), navigate: vi.fn(), editor: vi.fn(),
+  load: vi.fn<() => Promise<void>>(), commit: vi.fn(), confirm: vi.fn(), notify: vi.fn(), navigate: vi.fn(), editor: vi.fn(),
   deleteImport: vi.fn(), deleteSource: vi.fn(),
 }));
 vi.mock('../js/state.js', () => ({ state: runtime.state }));
@@ -20,7 +20,7 @@ vi.mock('../js/cycle-runtime.js', () => ({
 }));
 const { showCycleImportPreview, handleCycleImportAction, handleCycleImportFile } = await import('../js/cycle-import.js');
 const parsed = { source: 'drip', importId: 'preview', observations: [{ date: '2026-09-01' }], periods: [] };
-const action = name => handleCycleImportAction({ target: document.querySelector(`[data-cycle-import-action="${name}"]`) });
+const action = (name: string) => handleCycleImportAction({ target: document.querySelector(`[data-cycle-import-action="${name}"]`) });
 async function mount() {
   const result = showCycleImportPreview(parsed);
   await vi.waitFor(() => expect(document.querySelector('[data-cycle-import-action="confirm"]')).not.toBeNull());
@@ -49,12 +49,12 @@ it('does not commit after navigation while sex-change consent is pending', async
   await action('confirm'); expect(runtime.commit).not.toHaveBeenCalled();
 });
 it('ignores duplicate confirmation while its write is pending', async () => {
-  await mount(); let release;
-  runtime.commit.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+  await mount(); let release: ((value: { periods: number; observations: number }) => void) | undefined;
+  runtime.commit.mockImplementationOnce(() => new Promise<{ periods: number; observations: number }>(resolve => { release = resolve; }));
   const first = action('confirm'); await Promise.resolve();
   const second = action('confirm'); await Promise.resolve();
   expect(runtime.commit).toHaveBeenCalledTimes(1);
-  release({ periods: 1, observations: 1 }); await Promise.all([first, second]);
+  release!({ periods: 1, observations: 1 }); await Promise.all([first, second]);
 });
 it('does not navigate or reopen history after profile navigation during commit', async () => {
   await mount(); vi.useFakeTimers();
@@ -78,7 +78,7 @@ it('can retry after a failed commit without leaving confirmation disabled', asyn
   await mount(); vi.useFakeTimers();
   runtime.commit.mockRejectedValueOnce(new Error('storage failed'));
   await action('confirm');
-  expect(document.querySelector('[data-cycle-import-action="confirm"]').disabled).toBe(false);
+  expect(document.querySelector<HTMLButtonElement>('[data-cycle-import-action="confirm"]')!.disabled).toBe(false);
   expect(runtime.notify).toHaveBeenCalledWith('Cycle import failed: storage failed', 'error');
   await action('confirm'); expect(runtime.commit).toHaveBeenCalledTimes(2);
   vi.clearAllTimers();
@@ -103,11 +103,11 @@ it('resolves a replaced preview instead of stranding its caller', async () => {
   await Promise.resolve(); await action('close'); await expect(second).resolves.toBeNull();
 });
 it('does not replace a newer preview when an older stylesheet request finishes late', async () => {
-  let release;
-  runtime.load.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+  let release: ((value: void | PromiseLike<void>) => void) | undefined;
+  runtime.load.mockImplementationOnce(() => new Promise<void>(resolve => { release = resolve; }));
   const first = showCycleImportPreview(parsed);
   const second = showCycleImportPreview({ ...parsed, importId: 'second' });
-  await Promise.resolve(); release(); await expect(first).resolves.toBeNull();
+  await Promise.resolve(); release!(); await expect(first).resolves.toBeNull();
   vi.useFakeTimers(); await action('confirm');
   expect(runtime.commit).toHaveBeenCalledWith(expect.objectContaining({ importId: 'second' }), expect.any(Object));
   await expect(second).resolves.toMatchObject({ periods: 1 }); vi.clearAllTimers();
@@ -118,15 +118,15 @@ it('checks profile ownership again before delayed history reopening', async () =
   await vi.runAllTimersAsync(); expect(runtime.editor).not.toHaveBeenCalled();
 });
 it('keeps a newer preview open when an older commit finishes', async () => {
-  const first = await mount(); let release;
-  runtime.commit.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+  const first = await mount(); let release: ((value: { periods: number; observations: number }) => void) | undefined;
+  runtime.commit.mockImplementationOnce(() => new Promise<{ periods: number; observations: number }>(resolve => { release = resolve; }));
   const commit = action('confirm'); await Promise.resolve();
   const second = showCycleImportPreview({ ...parsed, importId: 'second' });
   await expect(first.result).resolves.toBeNull(); await Promise.resolve();
-  release({ periods: 1, observations: 1 }); await commit;
+  release!({ periods: 1, observations: 1 }); await commit;
   expect(runtime.navigate).not.toHaveBeenCalled();
   vi.useFakeTimers(); await action('confirm');
-  expect(runtime.commit.mock.calls[1][0].importId).toBe('second');
+  expect(runtime.commit.mock.calls[1]![0].importId).toBe('second');
   await expect(second).resolves.toMatchObject({ periods: 1 }); vi.clearAllTimers();
 });
 
@@ -136,7 +136,7 @@ it.each(['profile', 'data'])('rejects a file read completed after %s replacement
     else runtime.state.importedData = { menstrualCycle: null };
     return 'date,bleeding.value\n2026-09-01,1';
   } };
-  await expect(handleCycleImportFile(file)).resolves.toBe(false);
+  await expect(handleCycleImportFile(file as File)).resolves.toBe(false);
   expect(runtime.load).not.toHaveBeenCalled();
   expect(runtime.commit).not.toHaveBeenCalled();
 });

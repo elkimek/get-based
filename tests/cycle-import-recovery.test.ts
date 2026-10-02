@@ -1,8 +1,14 @@
 // @vitest-environment jsdom
 import { beforeEach, expect, it, vi } from 'vitest';
 
+interface CycleFixtureData {
+  menstrualCycle: { periods: Array<{ startDate?: string; endDate?: string; source?: string; importId?: string }> };
+  changeHistory: unknown[];
+  _deleted: Record<string, unknown>;
+}
+
 const runtime = vi.hoisted(() => ({
-  state: { currentProfile: 'origin', profileSex: 'female', importedData: {} },
+  state: { currentProfile: 'origin', profileSex: 'female' as string | null, importedData: {} as CycleFixtureData },
   save: vi.fn(), scopedSave: vi.fn(), clearDB: vi.fn(), setSex: vi.fn(),
   rows: vi.fn(), meta: vi.fn(), readableMeta: vi.fn(),
   upsert: vi.fn(), saveMeta: vi.fn(), clear: vi.fn(), clearSource: vi.fn(),
@@ -51,17 +57,17 @@ beforeEach(() => {
   runtime.readableMeta.mockResolvedValue(null);
 });
 it('does not apply an import to a profile loaded while reading its origin rows', async () => {
-  let target;
+  let target: ReturnType<typeof replacement> | undefined;
   runtime.rows.mockImplementationOnce(async () => { target = replacement(); return []; });
   await commitCycleImport(parsed).catch(() => {});
-  expect(target.menstrualCycle.periods).toEqual([{ startDate: '2025-01-01', importId: 'other' }]);
+  expect(target!.menstrualCycle.periods).toEqual([{ startDate: '2025-01-01', importId: 'other' }]);
   expect(runtime.save).not.toHaveBeenCalled();
 });
 it('does not roll back a failed origin save into the newly active profile', async () => {
-  let target;
+  let target: ReturnType<typeof replacement> | undefined;
   runtime.save.mockImplementationOnce(async () => { target = replacement(); return false; });
   await expect(commitCycleImport(parsed)).rejects.toThrow();
-  expect(target.menstrualCycle.periods).toEqual([{ startDate: '2025-01-01', importId: 'other' }]);
+  expect(target!.menstrualCycle.periods).toEqual([{ startDate: '2025-01-01', importId: 'other' }]);
 });
 it('fails closed before writes if the rollback snapshot cannot be read', async () => {
   runtime.rows.mockRejectedValueOnce(new Error('storage unavailable'));
@@ -71,14 +77,14 @@ it('fails closed before writes if the rollback snapshot cannot be read', async (
 });
 it('does not delete from replacement data while reading the origin import', async () => {
   runtime.state.importedData.menstrualCycle.periods = [{ ...parsed.periods[0] }];
-  let target;
+  let target: ReturnType<typeof replacement> | undefined;
   runtime.rows.mockImplementationOnce(async () => { target = replacement(); return []; });
   await deleteCycleImportFromProfile('new-import').catch(() => {});
-  expect(target.menstrualCycle.periods).toEqual([{ startDate: '2025-01-01', importId: 'other' }]);
+  expect(target!.menstrualCycle.periods).toEqual([{ startDate: '2025-01-01', importId: 'other' }]);
   expect(runtime.save).not.toHaveBeenCalled();
 });
 
-it.each(['rows', 'meta'])('does not mutate when %s snapshot reads fail', async key => {
+it.each(['rows', 'meta'] as const)('does not mutate when %s snapshot reads fail', async key => {
   runtime[key].mockRejectedValueOnce(new Error('cannot read'));
   await expect(commitCycleImport(parsed)).rejects.toThrow('cannot read');
   expect(runtime.upsert).not.toHaveBeenCalled();
@@ -99,24 +105,24 @@ it('retains both the import error and raw rollback failure', async () => {
 });
 it('restores sex metadata after navigation during its update without changing the destination sex', async () => {
   runtime.state.profileSex = null;
-  let target;
+  let target: ReturnType<typeof replacement> | undefined;
   runtime.setSex.mockImplementationOnce(async () => {
     target = replacement(); runtime.state.profileSex = 'male'; return true;
   });
   await expect(commitCycleImport(parsed)).rejects.toThrow('Profile changed');
   expect(runtime.setSex.mock.calls).toEqual([['origin', 'female'], ['origin', null]]);
   expect(runtime.state.profileSex).toBe('male');
-  expect(target.menstrualCycle.periods[0].importId).toBe('other');
+  expect(target!.menstrualCycle.periods[0]!.importId).toBe('other');
 });
 it('does not apply counts computed after navigation', async () => {
-  let target;
+  let target: ReturnType<typeof replacement> | undefined;
   runtime.rows.mockResolvedValueOnce([]).mockImplementationOnce(async () => { target = replacement(); return []; });
   await expect(commitCycleImport(parsed)).rejects.toThrow('Profile changed');
-  expect(target.menstrualCycle.periods[0].importId).toBe('other');
+  expect(target!.menstrualCycle.periods[0]!.importId).toBe('other');
   expect(runtime.save).not.toHaveBeenCalled();
 });
 
-const deletions = [
+const deletions: Array<[string, () => Promise<boolean>, 'clear' | 'clearSource' | 'clearDB']> = [
   ['import', () => deleteCycleImportFromProfile('new-import'), 'clear'],
   ['source', () => deleteCycleSourceFromProfile('drip'), 'clearSource'],
   ['profile', () => clearCycleProfileData(), 'clearDB'],
@@ -124,20 +130,20 @@ const deletions = [
 it.each(deletions)('%s deletion restores only origin memory on failed save after navigation', async (_name, remove, clearKey) => {
   runtime.state.importedData.menstrualCycle.periods = [{ ...parsed.periods[0] }];
   const origin = runtime.state.importedData;
-  let target;
+  let target: ReturnType<typeof replacement> | undefined;
   runtime.save.mockImplementationOnce(async () => { target = replacement(); return false; });
   await expect(remove()).rejects.toThrow('could not be saved');
-  expect(target.menstrualCycle.periods[0].importId).toBe('other');
-  expect(origin.menstrualCycle.periods[0].importId).toBe('new-import');
+  expect(target!.menstrualCycle.periods[0]!.importId).toBe('other');
+  expect(origin.menstrualCycle.periods[0]!.importId).toBe('new-import');
   expect(runtime[clearKey]).not.toHaveBeenCalled();
 });
 it.each(deletions)('%s deletion rolls back a committed save using origin scope after cleanup failure', async (_name, remove, clearKey) => {
   runtime.state.importedData.menstrualCycle.periods = [{ ...parsed.periods[0] }];
   const origin = runtime.state.importedData;
-  let target;
+  let target: ReturnType<typeof replacement> | undefined;
   runtime[clearKey].mockImplementationOnce(async () => { target = replacement(); throw new Error('cleanup failed'); });
   await expect(remove()).rejects.toThrow('cleanup failed');
-  expect(target.menstrualCycle.periods[0].importId).toBe('other');
+  expect(target!.menstrualCycle.periods[0]!.importId).toBe('other');
   expect(runtime.scopedSave).toHaveBeenCalledWith('origin', origin, expect.objectContaining({ forceProfileScope: true, baseData: expect.any(Object) }));
   expect(runtime.save).toHaveBeenCalledTimes(1);
 });
@@ -148,26 +154,26 @@ it.each(deletions)('%s deletion reports rollback persistence failure', async (_n
   await expect(remove()).rejects.toThrow('previous cycle state could not be restored');
 });
 it('serializes mutations and permits retry after a rejected operation', async () => {
-  let release;
-  runtime.saveMeta.mockImplementationOnce(() => new Promise((_, reject) => { release = reject; }));
+  let release: ((value?: unknown) => void) | undefined;
+  runtime.saveMeta.mockImplementationOnce(() => new Promise<void>((_, reject) => { release = reject; }));
   const first = commitCycleImport(parsed);
   const firstResult = expect(first).rejects.toThrow('first failed');
   await vi.waitFor(() => expect(release).toBeTypeOf('function'));
   const second = commitCycleImport({ ...parsed, importId: 'retry' });
   expect(runtime.saveMeta).toHaveBeenCalledTimes(1);
-  release(new Error('first failed'));
+  release!(new Error('first failed'));
   await firstResult;
   await expect(second).resolves.toMatchObject({ periods: 1 });
   expect(runtime.saveMeta).toHaveBeenCalledTimes(2);
 });
 it('rejects queued old-profile work before writing after navigation', async () => {
-  let release;
-  runtime.saveMeta.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+  let release: ((value: void | PromiseLike<void>) => void) | undefined;
+  runtime.saveMeta.mockImplementationOnce(() => new Promise<void>(resolve => { release = resolve; }));
   const firstResult = expect(commitCycleImport(parsed)).rejects.toThrow('Profile changed');
   await vi.waitFor(() => expect(release).toBeTypeOf('function'));
   const secondResult = expect(commitCycleImport({ ...parsed, importId: 'queued' })).rejects.toThrow('Profile changed');
   replacement();
-  release();
+  release!();
   await firstResult;
   await secondResult;
   expect(runtime.saveMeta).toHaveBeenCalledTimes(1);
@@ -179,7 +185,7 @@ it('rolls back if the post-write count read fails instead of committing incomple
   expect(runtime.save).not.toHaveBeenCalled();
   expect(runtime.clear).toHaveBeenCalledWith('origin', 'new-import');
 });
-it.each(['rows', 'meta', 'readableMeta'])('deletion fails closed on %s read failure', async key => {
+it.each(['rows', 'meta', 'readableMeta'] as const)('deletion fails closed on %s read failure', async key => {
   runtime.state.importedData.menstrualCycle.periods = [{ ...parsed.periods[0] }];
   runtime[key].mockRejectedValueOnce(new Error('read failed'));
   await expect(deleteCycleImportFromProfile('new-import')).rejects.toThrow('read failed');
@@ -194,12 +200,12 @@ it('source deletion preserves both storage and live data after snapshot read fai
   expect(runtime.save).not.toHaveBeenCalled();
 });
 it('rejects replacement data even when the profile ID did not change', async () => {
-  let target;
+  let target: ReturnType<typeof replacement> | undefined;
   runtime.rows.mockImplementationOnce(async () => {
     target = replacement(); runtime.state.currentProfile = 'origin'; return [];
   });
   await expect(commitCycleImport(parsed)).rejects.toThrow('Profile changed');
-  expect(target.menstrualCycle.periods[0].importId).toBe('other');
+  expect(target!.menstrualCycle.periods[0]!.importId).toBe('other');
   expect(runtime.saveMeta).not.toHaveBeenCalled();
 });
 it('restores previous metadata when a reused import fails', async () => {

@@ -1,5 +1,25 @@
-// @ts-check
 // Cycle import persistence and rollback, bound to the initiating profile.
+import type { CyclePeriod } from './cycle-summary.js';
+import type { CycleImportObservation } from './cycle-import-adapters.js';
+import type { StoredCycleObservation } from './cycle-store.js';
+
+export interface CycleImportData {
+  source: string;
+  importId: string;
+  observations?: Array<Pick<CycleImportObservation, 'date'> & Record<string, unknown>> | null;
+  periods?: readonly unknown[] | null;
+  sourceFile?: string | null;
+  detectedRange?: unknown;
+}
+export interface CycleImportOptions { conflictMode?: string; allowProfileSexChange?: boolean; }
+type CycleProfile = Record<string, unknown> & {
+  periods?: Array<Partial<Pick<CyclePeriod, 'startDate' | 'endDate' | 'source'>> & { importId?: unknown }> | null;
+  coverage?: Parameters<typeof buildCycleCoverage>[1];
+};
+type CycleStateSnapshot = ReturnType<typeof snapshotCycleState>;
+type CycleOwner = Pick<CycleStateSnapshot, 'data'>;
+interface RestoreOptions { restoreSex?: boolean; }
+
 import { state } from './state.js';
 import { saveImportedData, saveImportedDataForProfile } from './data.js';
 import { restoreImportedArray } from './data-merge.js';
@@ -21,26 +41,26 @@ import {
   upsertCycleObservationBatchRaw,
 } from './cycle-store.js';
 
-function cloneJSON(value) {
+function cloneJSON<T>(value: T): T {
   return value == null ? value : JSON.parse(JSON.stringify(value));
 }
 
 function snapshotCycleState() {
   return {
     data: state.importedData,
-    menstrualCycle: cloneJSON(state.importedData.menstrualCycle),
+    menstrualCycle: cloneJSON(state.importedData.menstrualCycle as CycleProfile | null),
     changeHistory: cloneJSON(state.importedData.changeHistory || []),
     deleted: cloneJSON(state.importedData._deleted || {}),
     profileSex: state.profileSex,
   };
 }
-function ownsCycleState(snapshot, profileId) {
+function ownsCycleState(snapshot: CycleOwner, profileId: string) {
   return getActiveProfileId() === profileId && state.importedData === snapshot.data;
 }
-function requireCycleOwner(snapshot, profileId) {
+function requireCycleOwner(snapshot: CycleOwner, profileId: string) {
   if (!ownsCycleState(snapshot, profileId)) throw new Error('Profile changed during cycle operation. Retry in the original profile.');
 }
-async function restoreCycleState(snapshot, profileId, { restoreSex = false } = {}) {
+async function restoreCycleState(snapshot: CycleStateSnapshot, profileId: string, { restoreSex = false }: RestoreOptions = {}) {
   snapshot.data.menstrualCycle = snapshot.menstrualCycle;
   restoreImportedArray(snapshot.data, 'changeHistory', snapshot.changeHistory);
   snapshot.data._deleted = snapshot.deleted;
@@ -58,15 +78,14 @@ async function persistCycleState() {
   if (!await saveImportedData()) throw new Error('Cycle data could not be saved. No changes were kept.');
 }
 
-async function restorePersistedCycleState(snapshot, profileId, options = {}) {
+async function restorePersistedCycleState(snapshot: CycleStateSnapshot, profileId: string, options: RestoreOptions = {}) {
   const baseData = cloneJSON(snapshot.data);
   await restoreCycleState(snapshot, profileId, options);
   if (!await saveImportedDataForProfile(profileId, snapshot.data, { baseData, forceProfileScope: true })) throw new Error('The previous cycle state could not be restored. Reload before making more changes.');
 }
 
-
 let pendingMutation = Promise.resolve();
-function queueMutation(operation) {
+function queueMutation<T>(operation: () => T | PromiseLike<T>) {
   const owner = { data: state.importedData };
   const profileId = getActiveProfileId();
   const result = pendingMutation.then(() => {
@@ -76,23 +95,23 @@ function queueMutation(operation) {
   pendingMutation = result.then(() => {}, () => {});
   return result;
 }
-export function commitCycleImport(parsed, options = {}) {
+export function commitCycleImport(parsed: CycleImportData | null | undefined, options: CycleImportOptions = {}) {
   return queueMutation(() => commitImport(parsed, options));
 }
-export function deleteCycleImportFromProfile(importId) {
+export function deleteCycleImportFromProfile(importId: string | null | undefined) {
   return queueMutation(() => deleteImport(importId));
 }
-export function deleteCycleSourceFromProfile(source) {
+export function deleteCycleSourceFromProfile(source: string | null | undefined) {
   return queueMutation(() => deleteSource(source));
 }
 export function clearCycleProfileData() {
   return queueMutation(() => clearProfile());
 }
 
-function overlaps(a, b) {
+function overlaps(a: Pick<CyclePeriod, 'startDate' | 'endDate'>, b: Pick<CyclePeriod, 'startDate' | 'endDate'>) {
   return a.startDate <= (b.endDate || b.startDate) && (a.endDate || a.startDate) >= b.startDate;
 }
-export function buildCycleImportPlan(parsed, mc = state.importedData.menstrualCycle, conflictMode = 'keep-existing') {
+export function buildCycleImportPlan(parsed: CycleImportData | null | undefined, mc: CycleProfile | null | undefined = state.importedData.menstrualCycle, conflictMode = 'keep-existing') {
   const imported = normalizeCyclePeriods(parsed?.periods || []);
   const existing = normalizeCyclePeriods(mc?.periods || []);
   const conflicts = imported.map(period => ({
@@ -113,14 +132,13 @@ export function buildCycleImportPlan(parsed, mc = state.importedData.menstrualCy
   };
 }
 
-/** @param {import('./cycle-store.js').StoredCycleObservation[] | null} [rawRowsOverride] */
-async function applyRawObservationCounts(mc, profileId, sourceHint = null, rawRowsOverride = null) {
+async function applyRawObservationCounts(mc: unknown, profileId: string, sourceHint: string | null = null, rawRowsOverride: StoredCycleObservation[] | null = null) {
   const upgraded = upgradeMenstrualCycleProfile(mc);
   if (!upgraded?.coverage) return upgraded;
   let rawRows;
   if (rawRowsOverride) rawRows = rawRowsOverride;
   else rawRows = await getAllCycleObservationsRaw(profileId);
-  const rawBySource = new Map();
+  const rawBySource = new Map<string, { count: number; firstDate: string; lastDate: string }>();
   for (const row of rawRows) {
     if (!row?.source || !row?.date) continue;
     const stats = rawBySource.get(row.source) || { count: 0, firstDate: row.date, lastDate: row.date };
@@ -155,11 +173,11 @@ async function applyRawObservationCounts(mc, profileId, sourceHint = null, rawRo
   return upgraded;
 }
 
-async function commitImport(parsed, { conflictMode = 'keep-existing', allowProfileSexChange = false } = {}) {
+async function commitImport(parsed: CycleImportData | null | undefined, { conflictMode = 'keep-existing', allowProfileSexChange = false }: CycleImportOptions = {}) {
   if (!parsed || !parsed.source || !parsed.importId) throw new Error('Invalid cycle import');
   const profileId = getActiveProfileId();
   if (state.profileSex && state.profileSex !== 'female' && !allowProfileSexChange) {
-    const error = /** @type {Error & { code?: string }} */ (new Error('Confirm changing this profile to female before importing cycle data.'));
+    const error = (new Error('Confirm changing this profile to female before importing cycle data.') as Error & { code?: string });
     error.code = 'profile-sex-confirmation-required';
     throw error;
   }
@@ -193,7 +211,7 @@ async function commitImport(parsed, { conflictMode = 'keep-existing', allowProfi
       renderCycleProfileButton();
     }
     const plan = buildCycleImportPlan(parsed, state.importedData.menstrualCycle, conflictMode);
-    const coverage = buildCycleCoverage(plan.mergedPeriods, state.importedData.menstrualCycle?.coverage || null);
+    const coverage = buildCycleCoverage(plan.mergedPeriods, (state.importedData.menstrualCycle as CycleProfile | null | undefined)?.coverage || null);
     const previousImportIds = coverage.sources[parsed.source]?.importIds || [];
     coverage.sources[parsed.source] = {
       ...(coverage.sources[parsed.source] || { periods: 0, observations: 0 }),
@@ -228,11 +246,11 @@ async function commitImport(parsed, { conflictMode = 'keep-existing', allowProfi
   }
 }
 
-async function deleteImport(importId) {
+async function deleteImport(importId: string | null | undefined) {
   if (!importId) return false;
   const profileId = getActiveProfileId();
   const snapshot = snapshotCycleState();
-  const mc = snapshot.data.menstrualCycle;
+  const mc = snapshot.data.menstrualCycle as CycleProfile | null | undefined;
   const rawRows = await getAllCycleObservationsRaw(profileId);
   const rawMeta = await getCycleImportMetaRaw(profileId, importId);
   const meta = await getCycleImportMeta(profileId, importId);
@@ -243,7 +261,7 @@ async function deleteImport(importId) {
   const source = removed[0]?.source || meta?.source || rawMeta?.source || null;
   const sources = { ...(mc.coverage?.sources || {}) };
   if (source && sources[source]) {
-    sources[source] = { ...sources[source], importIds: (sources[source].importIds || []).filter(id => id !== importId) };
+    sources[source] = { ...sources[source], importIds: (sources[source]!.importIds || []).filter(id => id !== importId) };
   }
   const next = {
     ...mc,
@@ -268,10 +286,10 @@ async function deleteImport(importId) {
   return true;
 }
 
-async function deleteSource(source) {
+async function deleteSource(source: string | null | undefined) {
   if (!source) return false;
   const profileId = getActiveProfileId();
-  const mc = state.importedData.menstrualCycle;
+  const mc = state.importedData.menstrualCycle as CycleProfile | null | undefined;
   if (!mc) { await clearCycleSource(profileId, source); return true; }
   const snapshot = snapshotCycleState();
   const rawRows = await getAllCycleObservationsRaw(profileId);

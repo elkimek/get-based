@@ -720,3 +720,9 @@ deploy/profile-share/data/
 # Native PDF privacy modules
 /js/pii.js
 /js/pii-review.js
+
+# Native cycle import workflows and shared rendering
+/js/cycle-import.js
+/js/cycle-import-mutations.js
+/js/cycle-import-loader.js
+/js/cycle-import-rendering.js

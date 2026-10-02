@@ -6,11 +6,10 @@ export interface AppleHealthZipEntry { async(type: 'blob'): Promise<Blob> }
 export interface AppleHealthZipReader {
   loadAsync(file: Blob, options: { onUpdate: (event: { percent: number }) => void }): Promise<{ files: Record<string, AppleHealthZipEntry> }>;
 }
-interface AppleHealthCycleData { observations?: readonly unknown[] }
-interface AppleHealthCyclePreviewResult extends Record<string, unknown> { periods?: unknown; observations?: unknown }
+type CycleImportLoader = typeof import('./cycle-import-loader.js');
 interface AppleHealthRuntimeDeps {
-  parseCycleBlob: ((blob: Blob, fileName: string, onProgress: AppleHealthProgressCallback | null) => Promise<AppleHealthCycleData | null>) | null;
-  showCyclePreview: ((parsed: AppleHealthCycleData) => Promise<AppleHealthCyclePreviewResult | null>) | null;
+  parseCycleBlob: CycleImportLoader['parseAppleHealthCycleBlob'] | null;
+  showCyclePreview: CycleImportLoader['showCycleImportPreview'] | null;
 }
 
 import { configureRuntimeCallbacks } from './runtime-callbacks.js';
@@ -38,7 +37,7 @@ export async function parseAppleHealthCycleRuntime(blob: Blob, fileName: string,
   return appleHealthRuntimeDeps.parseCycleBlob(blob, fileName, onProgress);
 }
 
-export async function showAppleHealthCyclePreviewRuntime(parsed: AppleHealthCycleData) {
+export async function showAppleHealthCyclePreviewRuntime(parsed: Parameters<CycleImportLoader['showCycleImportPreview']>[0]) {
   if (!appleHealthRuntimeDeps.showCyclePreview) return null;
   return appleHealthRuntimeDeps.showCyclePreview(parsed);
 }

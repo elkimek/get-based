@@ -1,5 +1,27 @@
-// @ts-check
+import { CYCLE_IMPORT_ACTION, cycleImportActionAttrs as importActionAttrs, cycleImportSourceLabel as sourceLabel, renderCycleImportPicker, renderCycleImportSummary } from './cycle-import-rendering.js';
 // cycle-import.js - menstrual-cycle import adapters, preview, commit, deletion.
+
+import type { CycleFlow, CyclePeriod } from './cycle-summary.js';
+import type { CycleImportObservation } from './cycle-import-adapters.js';
+import type { CycleImportData } from './cycle-import-mutations.js';
+import type { CycleFileContext, CycleZipEntry } from './cycle-import-file.js';
+
+type ParsedCycleImport = NonNullable<ReturnType<typeof parseDripCycleCsv>>;
+type CycleImportPreviewData = CycleImportData & Partial<Pick<ParsedCycleImport, 'sourceLabel' | 'warnings' | 'detectedRange'>>;
+type CycleCommitResult = Awaited<ReturnType<typeof commitCycleImport>>;
+interface PendingCycleImport {
+  parsed: CycleImportPreviewData;
+  conflictMode: string;
+  isCurrent: () => boolean;
+  committing: boolean;
+  resolve: (value: CycleCommitResult | null) => void;
+}
+interface CycleImportAdapter {
+  id: string;
+  sourceLabel: string;
+  detect: (context: CycleFileContext) => boolean;
+  parse: (context: CycleFileContext) => Promise<ParsedCycleImport | null>;
+}
 
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
@@ -7,15 +29,15 @@ import { buildCycleImportPlan, commitCycleImport, deleteCycleImportFromProfile, 
 export { buildCycleImportPlan, commitCycleImport, deleteCycleImportFromProfile, deleteCycleSourceFromProfile, clearCycleProfileData } from './cycle-import-mutations.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { endTour } from './tour.js';
-import { escapeAttr, escapeHTML, showConfirmDialog, showNotification } from './utils.js';
+import { escapeHTML, showConfirmDialog, showNotification } from './utils.js';
 import {
   loadCycleImportStylesheetRuntime, navigateCycleViewRuntime, openCycleEditorRuntime,
 } from './cycle-runtime.js';
 import {
   stitchCyclePeriodsFromObservations,
-  upgradeMenstrualCycleProfile,
 } from './cycle-summary.js';
 import {
+  resultImportId,
   looksLikeClueCycleJson,
   looksLikeNaturalCyclesCsv,
   parseClueCycleJson,
@@ -31,33 +53,7 @@ import {
   naturalCyclesArchiveEntries,
 } from './cycle-import-file.js';
 
-
-const CYCLE_IMPORT_ACTION = 'data-cycle-import-action';
-const CYCLE_IMPORT_ACCEPT = '.csv,.json,.cluedata,.xml,.zip,text/csv,application/json,application/xml,text/xml,application/zip';
-const SOURCE_LABELS = {
-  apple_health: 'Apple Health',
-  drip: 'Drip',
-  clue: 'Clue',
-  flo: 'Flo',
-  natural_cycles: 'Natural Cycles',
-  kindara: 'Kindara',
-  ovuview: 'OvuView',
-  femm: 'FEMM',
-  fertility_friend: 'Fertility Friend',
-  tempdrop: 'Tempdrop',
-  manual: 'Manual',
-};
-/**
- * @typedef {{
- *   parsed: Record<string, any>,
- *   conflictMode: string,
- *   isCurrent: () => boolean,
- *   committing: boolean,
- *   resolve: (value: any) => void,
- * }} PendingCycleImport
- */
-/** @type {PendingCycleImport | null} */
-let pendingCycleImport = null;
+let pendingCycleImport: PendingCycleImport | null = null;
 let previewGeneration = 0;
 function cycleViewOwner() {
   const profileId = state.currentProfile;
@@ -65,7 +61,7 @@ function cycleViewOwner() {
   return () => state.currentProfile === profileId && state.importedData === data;
 }
 
-function navigateCycleImportView(category) {
+function navigateCycleImportView(category: string) {
   return navigateCycleViewRuntime(category);
 }
 
@@ -73,100 +69,78 @@ async function openCycleEditorFromImport() {
   openCycleEditorRuntime();
 }
 
-function importActionAttrs(action, data = {}) {
-  const attrs = [`${CYCLE_IMPORT_ACTION}="${escapeAttr(action)}"`];
-  for (const [key, value] of Object.entries(data)) {
-    const attrKey = key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
-    if (value != null && value !== '') attrs.push(`data-cycle-import-${attrKey}="${escapeAttr(String(value))}"`);
-  }
-  return attrs.join(' ');
-}
-
-function sourceLabel(source) {
-  return SOURCE_LABELS[source] || source;
-}
 export function renderCycleImportPickerControls() {
-  return `<button type="button" class="cycle-icon-btn" ${importActionAttrs('pick-file')} title="Import cycle data" aria-label="Import cycle data"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m17 8-5-5-5 5"></path><path d="M12 3v12"></path></svg></button>
-    <input type="file" class="cycle-import-file-input" ${importActionAttrs('select-file')} accept="${CYCLE_IMPORT_ACCEPT}" hidden aria-label="Choose a cycle export">`;
+  return renderCycleImportPicker();
 }
 
-function stableImportId(source, fileName) {
-  const base = String(fileName || source || 'cycle-import')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 48) || source || 'cycle-import';
-  return `${source || 'cycle'}-${Date.now()}-${base}`;
-}
-
-function isoDateFromApple(value) {
+function isoDateFromApple(value: unknown) {
   const day = String(value || '').slice(0, 10);
   return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
 }
-function dateRangeForObservations(observations) {
+function dateRangeForObservations(observations: readonly Pick<CycleImportObservation, 'date'>[]) {
   const dates = observations.map(row => row.date).filter(Boolean).sort();
   return { firstDate: dates[0] || null, lastDate: dates[dates.length - 1] || null };
 }
 
-const APPLE_FLOW = {
+const APPLE_FLOW: Record<string, CycleFlow | null> = {
   HKCategoryValueMenstrualFlowUnspecified: 'moderate',
   HKCategoryValueMenstrualFlowLight: 'light',
   HKCategoryValueMenstrualFlowMedium: 'moderate',
   HKCategoryValueMenstrualFlowHeavy: 'heavy',
   HKCategoryValueMenstrualFlowNone: null,
 };
-const APPLE_OVULATION = {
+const APPLE_OVULATION: Record<string, string> = {
   HKCategoryValueOvulationTestResultPositive: 'positive',
   HKCategoryValueOvulationTestResultNegative: 'negative',
   HKCategoryValueOvulationTestResultIndeterminate: 'indeterminate',
   HKCategoryValueOvulationTestResultLuteinizingHormoneSurge: 'positive',
 };
-const APPLE_FLOW_PRIORITY = { spotting: 0, light: 1, moderate: 2, heavy: 3 };
+const APPLE_FLOW_PRIORITY: Record<string, number> = { spotting: 0, light: 1, moderate: 2, heavy: 3 };
 const RECORD_RE = /<Record\b([^>]*?)\/?>/g;
 const ATTR_RE = /(\w+)="([^"]*)"/g;
 
-function parseAppleAttrs(raw) {
-  const attrs = {};
+function parseAppleAttrs(raw: string) {
+  const attrs: Record<string, string> = {};
   ATTR_RE.lastIndex = 0;
   let match;
-  while ((match = ATTR_RE.exec(raw)) !== null) attrs[match[1]] = match[2];
+  while ((match = ATTR_RE.exec(raw)) !== null) attrs[match[1]!] = match[2]!;
   return attrs;
 }
-function addObservation(map, source, date, patch) {
+function addObservation(map: Map<string, CycleImportObservation>, source: string, date: string | null, patch: Partial<CycleImportObservation>) {
   if (!date) return;
   const key = `${source}|${date}`;
   const row = map.get(key) || { source, date };
   const next = { ...row, ...patch };
   if (patch.bleeding) {
     const previous = row.bleeding;
-    const previousPriority = previous && !previous.excluded ? APPLE_FLOW_PRIORITY[previous.flow] ?? -1 : -1;
-    const nextPriority = !patch.bleeding.excluded ? APPLE_FLOW_PRIORITY[patch.bleeding.flow] ?? -1 : -1;
+    const previousPriority = previous && !previous.excluded ? APPLE_FLOW_PRIORITY[previous.flow as string] ?? -1 : -1;
+    const nextPriority = !patch.bleeding.excluded ? APPLE_FLOW_PRIORITY[patch.bleeding.flow as string] ?? -1 : -1;
     next.bleeding = !previous || nextPriority >= previousPriority ? { ...previous, ...patch.bleeding } : previous;
   }
   map.set(key, next);
 }
-function processAppleCycleRecord(attrsRaw, byKey) {
+function processAppleCycleRecord(attrsRaw: string, byKey: Map<string, CycleImportObservation>) {
   if (!/HKCategoryTypeIdentifier(MenstrualFlow|IntermenstrualBleeding|OvulationTestResult|CervicalMucusQuality)/.test(attrsRaw)) return;
   const attrs = parseAppleAttrs(attrsRaw);
   const date = isoDateFromApple(attrs.startDate || attrs.creationDate);
   if (!date) return;
   if (attrs.type === 'HKCategoryTypeIdentifierMenstrualFlow') {
-    if (Object.prototype.hasOwnProperty.call(APPLE_FLOW, attrs.value)) {
-      const flow = APPLE_FLOW[attrs.value];
+    if (Object.prototype.hasOwnProperty.call(APPLE_FLOW, attrs.value!)) {
+      const flow = APPLE_FLOW[attrs.value!];
       if (flow) addObservation(byKey, 'apple_health', date, { bleeding: { flow, excluded: false, intermenstrual: false } });
     }
   } else if (attrs.type === 'HKCategoryTypeIdentifierIntermenstrualBleeding') {
     addObservation(byKey, 'apple_health', date, { bleeding: { flow: 'spotting', excluded: true, intermenstrual: true } });
   } else if (attrs.type === 'HKCategoryTypeIdentifierOvulationTestResult') {
-    addObservation(byKey, 'apple_health', date, { ovulationTest: APPLE_OVULATION[attrs.value] || String(attrs.value || '').replace('HKCategoryValueOvulationTestResult', '').toLowerCase() });
+    addObservation(byKey, 'apple_health', date, { ovulationTest: APPLE_OVULATION[attrs.value!] || String(attrs.value || '').replace('HKCategoryValueOvulationTestResult', '').toLowerCase() });
   } else if (attrs.type === 'HKCategoryTypeIdentifierCervicalMucusQuality') {
     addObservation(byKey, 'apple_health', date, { cervicalMucus: { quality: String(attrs.value || '').replace('HKCategoryValueCervicalMucusQuality', '').toLowerCase() } });
   }
 }
-function finalizeAppleHealthCycleImport(byKey, fileName) {
+function finalizeAppleHealthCycleImport(byKey: Map<string, CycleImportObservation>, fileName: string) {
   const observations = Array.from(byKey.values()).sort((a, b) => a.date.localeCompare(b.date));
   if (observations.length === 0) return null;
-  const importId = stableImportId('apple_health', fileName);
+  const importId = resultImportId('apple_health', fileName);
   const periods = stitchCyclePeriodsFromObservations(observations, {
     source: 'apple_health',
     importId,
@@ -184,20 +158,15 @@ function finalizeAppleHealthCycleImport(byKey, fileName) {
   };
 }
 
-export function parseAppleHealthCycleXml(xmlText, fileName = 'apple-health-export.xml') {
-  const byKey = new Map();
+export function parseAppleHealthCycleXml(xmlText: string, fileName = 'apple-health-export.xml') {
+  const byKey = new Map<string, CycleImportObservation>();
   RECORD_RE.lastIndex = 0;
   let match;
-  while ((match = RECORD_RE.exec(xmlText)) !== null) processAppleCycleRecord(match[1], byKey);
+  while ((match = RECORD_RE.exec(xmlText)) !== null) processAppleCycleRecord(match[1]!, byKey);
   return finalizeAppleHealthCycleImport(byKey, fileName);
 }
-/**
- * @param {Blob} blob
- * @param {string} [fileName]
- * @param {((progress: { stage: string, pct: number }) => void) | null} [onProgress]
- */
-export async function parseAppleHealthCycleBlob(blob, fileName = 'apple-health-export.xml', onProgress = null) {
-  const byKey = new Map();
+export async function parseAppleHealthCycleBlob(blob: Blob, fileName = 'apple-health-export.xml', onProgress: ((progress: { stage: string; pct: number }) => void) | null = null) {
+  const byKey = new Map<string, CycleImportObservation>();
   const reader = blob.stream()
     .pipeThrough(new TextDecoderStream('utf-8'))
     .getReader();
@@ -205,11 +174,11 @@ export async function parseAppleHealthCycleBlob(blob, fileName = 'apple-health-e
   let bytesRead = 0;
   const totalSize = blob.size || 0;
 
-  const flushLine = (line) => {
+  const flushLine = (line: string) => {
     if (line.indexOf('<Record') === -1) return;
     RECORD_RE.lastIndex = 0;
     let match;
-    while ((match = RECORD_RE.exec(line)) !== null) processAppleCycleRecord(match[1], byKey);
+    while ((match = RECORD_RE.exec(line)) !== null) processAppleCycleRecord(match[1]!, byKey);
   };
 
   while (true) {
@@ -228,11 +197,11 @@ export async function parseAppleHealthCycleBlob(blob, fileName = 'apple-health-e
   return finalizeAppleHealthCycleImport(byKey, fileName);
 }
 
-export function isAppleHealthCycleFile(file) {
+export function isAppleHealthCycleFile(file: Parameters<typeof cycleFileKind>[0]) {
   return cycleFileKind(file) === 'xml';
 }
 
-export const CYCLE_IMPORT_ADAPTERS = Object.freeze([
+export const CYCLE_IMPORT_ADAPTERS = Object.freeze<CycleImportAdapter[]>([
   {
     id: 'apple_health',
     sourceLabel: 'Apple Health',
@@ -261,11 +230,11 @@ export const CYCLE_IMPORT_ADAPTERS = Object.freeze([
     id: 'natural_cycles',
     sourceLabel: 'Natural Cycles',
     detect: context => context.kind === 'csv'
-      ? looksLikeNaturalCyclesCsv(context.text, context.file.name)
+      ? looksLikeNaturalCyclesCsv(context.text!, context.file.name)
       : context.kind === 'zip' && naturalCyclesArchiveEntries(context).length > 0,
     parse: async context => {
-      if (context.kind === 'csv') return parseNaturalCyclesCsv(context.text, context.file.name || 'tracking_data.csv');
-      const files = [];
+      if (context.kind === 'csv') return parseNaturalCyclesCsv(context.text!, context.file.name || 'tracking_data.csv');
+      const files: Array<{ name: string | undefined; text: string }> = [];
       for (const entry of naturalCyclesArchiveEntries(context)) {
         files.push({ name: entry.name, text: await entry.async('text') });
       }
@@ -276,24 +245,24 @@ export const CYCLE_IMPORT_ADAPTERS = Object.freeze([
     id: 'drip',
     sourceLabel: 'Drip',
     detect: context => context.kind === 'csv' || context.kind === 'text',
-    parse: async context => parseDripCycleCsv(context.text, context.file.name || 'drip.csv'),
+    parse: async context => parseDripCycleCsv(context.text!, context.file.name || 'drip.csv'),
   },
 ]);
 
-export async function isCycleImportFile(file) {
+export async function isCycleImportFile(file: File) {
   const kind = cycleFileKind(file);
   if (kind === 'xml' || kind === 'zip' || String(file?.name || '').toLowerCase().endsWith('.cluedata')) return true;
   if (kind !== 'json') return false;
   try { return looksLikeClueCycleJson(await file.text()); } catch { return false; }
 }
 
-export async function parseCycleImportFile(file) {
+export async function parseCycleImportFile(file: File | null | undefined) {
   if (!file) return null;
   const context = await buildCycleFileContext(file);
   return parseCycleImportContext(context);
 }
 
-async function parseCycleImportContext(context) {
+async function parseCycleImportContext(context: CycleFileContext) {
   for (const adapter of CYCLE_IMPORT_ADAPTERS) {
     if (!await adapter.detect(context)) continue;
     const parsed = await adapter.parse(context);
@@ -304,11 +273,11 @@ async function parseCycleImportContext(context) {
 
 export { parseClueCycleJson, parseDripCycleCsv, parseNaturalCyclesCsv, parseNaturalCyclesCsvBundle } from './cycle-import-adapters.js';
 
-function conflictSummary(plan) {
+function conflictSummary(plan: ReturnType<typeof buildCycleImportPlan>) {
   const count = plan.conflicts.length;
   return `${count} imported period${count !== 1 ? 's' : ''} overlap${count === 1 ? 's' : ''} existing entries.`;
 }
-function renderPeriodRows(periods, conflictStarts, conflictMode) {
+function renderPeriodRows(periods: readonly CyclePeriod[], conflictStarts: ReadonlySet<string>, conflictMode: string) {
   return periods.slice(0, 18).map(period => {
     const hasConflict = conflictStarts.has(period.startDate);
     const status = hasConflict
@@ -322,7 +291,7 @@ function renderPeriodRows(periods, conflictStarts, conflictMode) {
   }).join('');
 }
 
-function renderCycleImportPreview(parsed, conflictMode = 'keep-existing') {
+function renderCycleImportPreview(parsed: CycleImportPreviewData, conflictMode = 'keep-existing') {
   const plan = buildCycleImportPlan(parsed, state.importedData.menstrualCycle, conflictMode);
   const source = parsed.sourceLabel || sourceLabel(parsed.source);
   const observationCount = parsed.observations?.length || 0;
@@ -370,7 +339,7 @@ function renderCycleImportPreview(parsed, conflictMode = 'keep-existing') {
     </div>`;
 }
 
-export async function showCycleImportPreview(parsed) {
+export async function showCycleImportPreview(parsed: CycleImportPreviewData | null | undefined) {
   if (!parsed || (!parsed.observations?.length && !parsed.periods?.length)) {
     showNotification('No cycle data found in this file', 'info');
     return null;
@@ -387,7 +356,7 @@ export async function showCycleImportPreview(parsed) {
     return null;
   }
   if (!isCurrent() || generation !== previewGeneration) return null;
-  return new Promise(resolve => {
+  return new Promise<CycleCommitResult | null>(resolve => {
     endTour({ openEmptyChat: false });
     pendingCycleImport = { parsed, conflictMode: 'keep-existing', resolve, isCurrent, committing: false };
     const overlay = document.getElementById('import-modal-overlay');
@@ -405,8 +374,7 @@ export async function showCycleImportPreview(parsed) {
   });
 }
 
-/** @param {any} [value] */
-function closeCycleImportPreview(value = null) {
+function closeCycleImportPreview(value: CycleCommitResult | null = null) {
   previewGeneration++;
   const pending = pendingCycleImport;
   pendingCycleImport = null;
@@ -414,7 +382,7 @@ function closeCycleImportPreview(value = null) {
   pending?.resolve?.(value);
 }
 
-export async function handleCycleImportAction(event) {
+export async function handleCycleImportAction(event: Pick<Event, 'target'> & Partial<Pick<Event, 'type'>>) {
   const target = event.target instanceof Element ? event.target.closest(`[${CYCLE_IMPORT_ACTION}]`) : null;
   if (!(target instanceof HTMLElement)) return;
   const action = target.getAttribute(CYCLE_IMPORT_ACTION) || '';
@@ -487,9 +455,9 @@ export async function handleCycleImportAction(event) {
   }
 }
 
-export async function handleCycleImportFile(file) {
+export async function handleCycleImportFile(file: File) {
   const isCurrent = cycleViewOwner();
-  let parsed = null;
+  let parsed: ParsedCycleImport | null = null;
   let importLabel = 'Cycle';
   try {
     const context = await buildCycleFileContext(file);
@@ -497,7 +465,7 @@ export async function handleCycleImportFile(file) {
     const appleHealthEntry = context.kind === 'zip' ? appleHealthArchiveEntry(context) : null;
     if (context.kind === 'xml' || appleHealthEntry) {
       importLabel = 'Apple Health';
-      const xmlBlob = context.kind === 'xml' ? context.file : await /** @type {import('./cycle-import-file.js').CycleZipEntry} */ (appleHealthEntry).async('blob');
+      const xmlBlob = context.kind === 'xml' ? context.file : await (appleHealthEntry as CycleZipEntry).async('blob');
       const { importAppleHealthFile } = await import('./wearables-apple-health.js');
       if (!isCurrent()) return false;
       showNotification('Importing Apple Health data...', 'info', 1600);
@@ -523,7 +491,7 @@ export async function handleCycleImportFile(file) {
   return true;
 }
 
-export async function maybeHandleCycleTextImport(file, text) {
+export async function maybeHandleCycleTextImport(file: File, text: string) {
   const parsed = parseNaturalCyclesCsv(text, file.name || 'tracking_data.csv')
     || parseDripCycleCsv(text, file.name || 'cycle.csv');
   if (!parsed) return false;
@@ -531,32 +499,6 @@ export async function maybeHandleCycleTextImport(file, text) {
   return true;
 }
 
-export function renderCycleImportSummarySection(mc) {
-  const upgraded = upgradeMenstrualCycleProfile(mc);
-  const coverage = upgraded?.coverage;
-  if (!coverage || (!coverage.periodCount && !coverage.observationCount && !Object.keys(coverage.sources || {}).length)) return '';
-  const sourceRows = Object.entries(coverage.sources || {})
-    .filter(([, info]) => (info?.periods || 0) > 0 || (info?.observations || 0) > 0)
-    .map(([source, info]) => {
-      const periodImportIds = (upgraded.periods || []).filter(period => period.source === source && period.importId).map(period => period.importId);
-      const importIds = Array.from(new Set([...(info.importIds || []), ...periodImportIds]));
-      const batchButtons = importIds.map((id, idx) => `<button type="button" class="cycle-mini-action" ${importActionAttrs('delete-import', { importId: id })}>Remove batch ${idx + 1}</button>`).join('');
-      return `<div class="cycle-source-row">
-        <div class="cycle-source-main">
-          <strong>${escapeHTML(sourceLabel(source))}</strong>
-          <span>${info.periods || 0} periods / ${info.observations || 0} local observations${info.importedAt ? ` / ${escapeHTML(String(info.importedAt).slice(0, 10))}` : ''}</span>
-          ${batchButtons ? `<div class="cycle-import-batches">${batchButtons}</div>` : ''}
-        </div>
-        ${source !== 'manual' ? `<button type="button" class="cycle-icon-btn cycle-delete-btn" ${importActionAttrs('delete-source', { source })} title="Remove ${escapeAttr(sourceLabel(source))}" aria-label="Remove ${escapeAttr(sourceLabel(source))} cycle data">x</button>` : ''}
-      </div>`;
-    }).join('');
-  return `<section class="cycle-editor-section cycle-import-summary-section">
-    <div class="cycle-editor-section-title">Import Coverage</div>
-    <div class="cycle-import-coverage">
-      <span>${coverage.periodCount || 0} observed periods</span>
-      <span>${coverage.observationCount || 0} local daily observations</span>
-      ${coverage.firstDate || coverage.lastDate ? `<span>${escapeHTML(coverage.firstDate || '?')} - ${escapeHTML(coverage.lastDate || '?')}</span>` : ''}
-    </div>
-    ${sourceRows ? `<div class="cycle-source-list">${sourceRows}</div>` : ''}
-  </section>`;
+export function renderCycleImportSummarySection(mc: unknown) {
+  return renderCycleImportSummary(mc, source => () => sourceLabel(source));
 }

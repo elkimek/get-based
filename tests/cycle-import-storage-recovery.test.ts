@@ -1,8 +1,14 @@
 // @vitest-environment jsdom
 import { beforeEach, expect, it, vi } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
+interface CycleFixtureData {
+  menstrualCycle: { periods: Array<{ startDate?: string; endDate?: string; source?: string; importId?: string }> };
+  changeHistory: unknown[];
+  _deleted: Record<string, unknown>;
+}
+
 const runtime = vi.hoisted(() => ({
-  state: { currentProfile: '', profileSex: 'female', importedData: {} },
+  state: { currentProfile: '', profileSex: 'female' as string | null, importedData: {} as CycleFixtureData },
   save: vi.fn(),
 }));
 vi.mock('../js/state.js', () => ({ state: runtime.state }));

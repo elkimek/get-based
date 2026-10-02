@@ -99,10 +99,10 @@ export async function importAppleHealthFile(file: File | null | undefined, onPro
     const cycleParsed = await parseAppleHealthCycleRuntime(xmlBlob, file.name || 'apple-health-export.xml', () => {
       onProgress?.({ stage: 'parsing-cycle', pct: 96, rows: rows.length, startDate, endDate });
     });
-    if (cycleParsed?.observations?.length) {
+    if ((cycleParsed as Exclude<typeof cycleParsed, false>)?.observations?.length) {
       onProgress?.({ stage: 'reviewing-cycle', pct: 98, rows: rows.length, startDate, endDate });
       await options.beforeCycleReview?.();
-      cycleImport = await showAppleHealthCyclePreviewRuntime(cycleParsed);
+      cycleImport = await showAppleHealthCyclePreviewRuntime(cycleParsed as Exclude<typeof cycleParsed, false>);
     }
   } catch (err) {
     cycleError = getErrorMessage(err, String(err));
