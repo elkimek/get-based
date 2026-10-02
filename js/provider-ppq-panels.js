@@ -212,9 +212,9 @@ export async function handleSavePpqKey() {
 
 export async function handleRemovePpqKey() {
   const balance = await getPpqBalance();
-  const hasFunds = balance != null && parseFloat(balance) > 0;
+  const hasFunds = balance != null && parseFloat(/** @type {string} */ (balance)) > 0;
   const msg = hasFunds
-    ? `This account has $${parseFloat(balance).toFixed(2)} remaining. Removing this key will permanently lose access to those funds unless you\u2019ve saved the key elsewhere.\n\nRemove PPQ key?`
+    ? `This account has $${parseFloat(/** @type {string} */ (balance)).toFixed(2)} remaining. Removing this key will permanently lose access to those funds unless you\u2019ve saved the key elsewhere.\n\nRemove PPQ key?`
     : 'Remove PPQ key? Make sure you\u2019ve saved it if you want to reuse this account later.';
   if (await showConfirmDialog(msg)) {
     localStorage.removeItem('labcharts-ppq-key');

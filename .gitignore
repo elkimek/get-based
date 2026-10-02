@@ -532,3 +532,9 @@ deploy/profile-share/data/
 /js/cashu-wallet-transfers.js
 /js/cashu-wallet-runtime-types.js
 /js/api-routstr.js
+/js/agent-chat-client.js
+/js/agent-host-discovery.js
+/js/agent-chat-settings.js
+/js/ai-provider-policy.js
+/js/cloud-ai-consent.js
+/js/api.js

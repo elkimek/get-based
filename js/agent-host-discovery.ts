@@ -1,4 +1,3 @@
-// @ts-check
 // Lazy browser runtime for origin-gated standalone companion discovery.
 
 import { agentHostUpgradeRequiredError, checkAgentHost, listAgentExecutionTargets } from './agent-chat-client.js';
@@ -7,24 +6,38 @@ import {
   normalizeAgentHostCapabilities, normalizeAgentHostProtocolVersion,
 } from '../shared/agent-host-protocol.js';
 
+export type DiscoveredAgent = ReturnType<typeof normalizeDiscoveredAgent>;
+export interface AgentDiscoveryOptions {
+  signal?: AbortSignal | undefined;
+  ports?: number[] | undefined;
+  requiredTextFeatureTarget?: string | undefined;
+  requiredAgentId?: string | undefined;
+}
+export interface AgentConnectionOptions {
+  signal?: AbortSignal | undefined;
+  requiredCapabilities?: string[] | undefined;
+  requiredTextFeatureTarget?: string | undefined;
+}
+interface DiscoveryPayload extends Record<string, unknown> {
+  endpoint?: string;
+  agents?: Record<string, unknown>[];
+}
+
 const LOOPBACK_AGENT_PORTS = Object.freeze(Array.from({ length: 8 }, (_, index) => 8324 + index));
 const LOOPBACK_DISCOVERY_TIMEOUT_MS = 650;
 
-/** @param {{hostname?: string}} [locationLike] */
-function isOfficialAgentHostPage(locationLike = globalThis.location) {
+function isOfficialAgentHostPage(locationLike: {hostname?: string} = globalThis.location) {
   const hostname = String(locationLike?.hostname || '').toLowerCase().replace(/\.$/, '');
   return hostname === 'getbased.health' || hostname.endsWith('.getbased.health')
     || hostname === 'get-based.vercel.app'
     || hostname === 'get-based-managed-subscription-v2.vercel.app';
 }
 
-/** @param {string} agentId @param {{hostname?: string}} [locationLike] */
-export function isAgentAllowedForDeployment(agentId, locationLike = globalThis.location) {
+export function isAgentAllowedForDeployment(agentId: string, locationLike: {hostname?: string} = globalThis.location) {
   return !(agentId === 'claude' && isOfficialAgentHostPage(locationLike));
 }
 
-/** @param {any} agent */
-export function normalizeDiscoveredAgent(agent) {
+export function normalizeDiscoveredAgent(agent: Record<string, unknown> | null | undefined) {
   const id = String(agent?.id || '');
   const isClaudeAgent = id === 'claude';
   const message = String(agent?.message || '').slice(0, 240);
@@ -45,7 +58,7 @@ export function normalizeDiscoveredAgent(agent) {
     token: String(agent?.token || ''),
     message: isClaudeAgent ? message.replaceAll('Claude Code', 'Claude Agent') : message,
     companionVersion: String(agent?.companionVersion || '').slice(0, 40),
-    runtimeMode: ['installed', 'temporary'].includes(String(agent?.runtimeMode)) ? String(agent.runtimeMode) : '',
+    runtimeMode: ['installed', 'temporary'].includes(String(agent?.runtimeMode)) ? String(agent!.runtimeMode) : '',
     platform: String(agent?.platform || '').slice(0, 24),
     paused: agent?.paused === true || agent?.status === 'paused',
     controlAuthorized: agent?.controlAuthorized !== false,
@@ -54,8 +67,7 @@ export function normalizeDiscoveredAgent(agent) {
   };
 }
 
-/** @param {string} endpoint @param {AbortSignal|undefined} parentSignal @param {(value: string) => string} normalizeEndpoint */
-async function probeLoopbackAgentHost(endpoint, parentSignal, normalizeEndpoint) {
+async function probeLoopbackAgentHost(endpoint: string, parentSignal: AbortSignal | undefined, normalizeEndpoint: (value: string) => string) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), LOOPBACK_DISCOVERY_TIMEOUT_MS);
   const abort = () => controller.abort(parentSignal?.reason);
@@ -66,7 +78,7 @@ async function probeLoopbackAgentHost(endpoint, parentSignal, normalizeEndpoint)
       headers: { Accept: 'application/json' },
     });
     if (!response.ok) return [];
-    const payload = await response.json();
+    const payload = await response.json() as DiscoveryPayload;
     if (payload?.service !== 'getbased-agent-host') return [];
     const normalizedEndpoint = normalizeEndpoint(payload.endpoint || endpoint);
     const token = String(payload.token || '');
@@ -95,10 +107,7 @@ async function probeLoopbackAgentHost(endpoint, parentSignal, normalizeEndpoint)
   }
 }
 
-/**
- * @param {{savedEndpoint: string, normalizeEndpoint: (value: string) => string, signal?: AbortSignal, ports?: number[], requiredTextFeatureTarget?: string, requiredAgentId?: string}} options
- */
-export async function discoverLoopbackAgentHostsRuntime(options) {
+export async function discoverLoopbackAgentHostsRuntime(options: AgentDiscoveryOptions & {savedEndpoint: string; normalizeEndpoint: (value: string) => string}) {
   const ports = Array.isArray(options.ports) ? options.ports : LOOPBACK_AGENT_PORTS;
   const boundedEndpoints = ports.filter(port => Number.isInteger(port) && port >= 1 && port <= 65535)
     .map(port => `http://127.0.0.1:${port}`);
@@ -111,14 +120,14 @@ export async function discoverLoopbackAgentHostsRuntime(options) {
     ...(savedIsBounded ? [] : [options.savedEndpoint]),
     ...boundedEndpoints,
   ].filter(Boolean))];
-  let legacyCompanion = [];
+  let legacyCompanion: DiscoveredAgent[] = [];
   for (const endpoint of endpoints) {
     if (options.signal?.aborted) return [];
     const agents = await probeLoopbackAgentHost(endpoint, options.signal, options.normalizeEndpoint);
     const allowedAgents = agents.filter(agent => isAgentAllowedForDeployment(agent.id));
     if (!allowedAgents.length) continue;
     if (options.requiredTextFeatureTarget) {
-      const capable = [];
+      const capable: DiscoveredAgent[] = [];
       for (const agent of allowedAgents.filter(agent => !options.requiredAgentId || agent.id === options.requiredAgentId)) {
         try {
           await requireTextFeatureTarget(agent, options.requiredTextFeatureTarget, options.signal);
@@ -135,13 +144,13 @@ export async function discoverLoopbackAgentHostsRuntime(options) {
   return legacyCompanion;
 }
 
-export function mergeDiscoveredAgents(primary, companions) {
+export function mergeDiscoveredAgents(primary: DiscoveredAgent[], companions: DiscoveredAgent[]) {
   const merged = [...primary];
   for (const candidate of companions) {
     const index = merged.findIndex(agent => agent.id === candidate.id);
     if (index < 0) merged.push(candidate);
     else if (candidate.compatible && ['available', 'paused'].includes(candidate.status)) {
-      const direct = merged[index];
+      const direct = merged[index]!;
       // A same-origin dev inventory may already hold this exact host's
       // installation credential. Do not replace it with lesser discovery
       // authority, and never carry it to a different companion endpoint.
@@ -155,30 +164,19 @@ export function mergeDiscoveredAgents(primary, companions) {
 
 export const normalizeRequiredCapabilities = normalizeAgentHostCapabilities;
 
-async function requireTextFeatureTarget(candidate, target, signal) {
+async function requireTextFeatureTarget(candidate: DiscoveredAgent, target: string, signal: AbortSignal | undefined) {
   const targets = await listAgentExecutionTargets({ endpoint: candidate.endpoint, token: candidate.token, agent: candidate.id, signal: signal || AbortSignal.timeout(5000) });
   if (!targets.some(item => item.id === target && item.supportsTextFeatureJobs === true && item.status !== 'unavailable')) {
     throw new Error('No connected Companion supports text explanations on this gateway yet. Update the Companion in AI settings.');
   }
 }
 
-/**
- * @param {{
- *   candidate: ReturnType<typeof normalizeDiscoveredAgent>,
- *   requiredCapabilities: string[],
- *   requiredTextFeatureTarget?: string,
- *   signal?: AbortSignal,
- *   attempts: number,
- *   normalizeEndpoint: (value: string) => string,
- *   onConnected: (settings: {endpoint: string, token: string}) => Promise<unknown>,
- * }} options
- */
-export async function connectAgentHostCandidate(options) {
+export async function connectAgentHostCandidate(options: AgentConnectionOptions & {candidate: DiscoveredAgent; requiredCapabilities: string[]; attempts: number; normalizeEndpoint: (value: string) => string; onConnected: (settings: {endpoint: string; token: string}) => Promise<unknown>}) {
   const endpoint = options.normalizeEndpoint(options.candidate.endpoint);
   if (options.candidate.token.length < 16 || options.candidate.token.length > 256) {
     throw new Error('CLI agent connection is not ready yet.');
   }
-  let lastError = null;
+  let lastError: unknown = null;
   for (let attempt = 0; attempt < options.attempts; attempt += 1) {
     try {
       const status = await checkAgentHost({ endpoint, token: options.candidate.token, signal: options.signal });
@@ -194,7 +192,7 @@ export async function connectAgentHostCandidate(options) {
       });
     } catch (error) {
       lastError = error;
-      if (/** @type {any} */ (error)?.code === 'agent_host_upgrade_required') throw error;
+      if ((error as {code?: unknown} | null | undefined)?.code === 'agent_host_upgrade_required') throw error;
       if (attempt < options.attempts - 1) await new Promise(resolve => setTimeout(resolve, 200));
     }
   }

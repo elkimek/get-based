@@ -43,8 +43,8 @@ interface ContextOptions {
 }
 interface InferenceOptions {
   config: { url: string; apiKey?: unknown }; model: unknown;
-  opts: { messages: unknown; reasoningEffort?: string; jsonMode?: boolean; system?: unknown;
-    temperature?: number; signal?: AbortSignal | undefined; requestTimeoutMs?: number; onStream?: ((text: string) => unknown) | undefined };
+  opts: { messages: unknown; reasoningEffort?: string | undefined; jsonMode?: boolean | undefined; system?: unknown;
+    temperature?: number | undefined; signal?: AbortSignal | undefined; requestTimeoutMs?: number | undefined; onStream?: ((text: string) => unknown) | undefined };
   plan: { maxTokens: number }; contextLength: number;
   modelDetail?: Pick<LMStudioModel, 'reasoning'> | null;
 }

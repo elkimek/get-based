@@ -1,9 +1,38 @@
-// @ts-check
 // cloud-ai-consent.js — AI transparency plus route-aware processing approval.
 
 import { getAIProcessingDestination } from './ai-provider-policy.js';
 import { getSupplementaryDeploymentPolicy } from './deployment-policy.js';
 import { isAppExtensionAICredentialOwned, requestAppExtensionAIProcessingApproval } from './app-extension-runtime.js';
+
+import type { AIProcessingDestination, AIProcessingOptions } from './ai-provider-policy.js';
+export interface AIProcessingApprovalOptions extends AIProcessingOptions {kind?: string | undefined}
+type ConsentDetails = ReturnType<typeof cloudAIConsentDetails>;
+interface ApprovalRecord extends Record<string, unknown> {
+  version?: unknown;
+  acknowledged?: unknown;
+  approvals?: Record<string, {accepted?: unknown; recipient?: unknown; provider?: unknown}>;
+  confirmations?: Record<string, {confirmed?: unknown; endpointOrigin?: unknown; recipient?: unknown}>;
+}
+interface PromptTask {
+  key: string;
+  show: () => Promise<boolean>;
+  isSatisfied: () => boolean;
+  promise: Promise<boolean>;
+  resolve: (value: boolean) => void;
+  reject: (reason?: unknown) => void;
+}
+interface PromptOptions {
+  id: string;
+  kicker: string;
+  title: string;
+  description: string;
+  points: string[];
+  statement: string;
+  cancelLabel: string;
+  approveLabel: string;
+  links?: ((container: Element) => void) | null;
+  onApprove: () => void;
+}
 
 export const AI_TRANSPARENCY_VERSION = '2026-08-31';
 export const AI_TRANSPARENCY_KEY = 'labcharts-ai-transparency-acknowledgement';
@@ -12,20 +41,11 @@ export const AI_ROUTE_CONFIRMATION_KEY = 'labcharts-ai-route-confirmations';
 export const CLOUD_AI_CONSENT_VERSION = '2026-08-31';
 export const CLOUD_AI_CONSENT_KEY = 'labcharts-cloud-ai-consent';
 
-const sessionApprovals = new Set();
-const sessionRouteConfirmations = new Set();
+const sessionApprovals = new Set<string>();
+const sessionRouteConfirmations = new Set<string>();
 let sessionTransparencyAcknowledged = false;
-/** @type {Map<string, Promise<boolean>>} */
-const pendingPrompts = new Map();
-/** @type {Array<{
- *   key: string,
- *   show: () => Promise<boolean>,
- *   isSatisfied: () => boolean,
- *   promise: Promise<boolean>,
- *   resolve: (value: boolean) => void,
- *   reject: (reason?: any) => void,
- * }>} */
-const promptQueue = [];
+const pendingPrompts = new Map<string, Promise<boolean>>();
+const promptQueue: PromptTask[] = [];
 let promptRunning = false;
 
 export class AITransparencyDeclinedError extends Error {
@@ -49,16 +69,16 @@ export class CloudAIConsentDeclinedError extends Error {
   }
 }
 
-function readRecord(key) {
+function readRecord(key: string): ApprovalRecord | null {
   try {
-    const parsed = JSON.parse(localStorage.getItem(key) || 'null');
+    const parsed = JSON.parse(localStorage.getItem(key) || 'null') as ApprovalRecord | null;
     return parsed && typeof parsed === 'object' ? parsed : null;
   } catch {
     return null;
   }
 }
 
-function dispatchChange(name) {
+function dispatchChange(name: string) {
   globalThis.dispatchEvent?.(new Event(name));
 }
 
@@ -93,7 +113,7 @@ export function withdrawAITransparencyAcknowledgement() {
   dispatchChange('ai-transparency-changed');
 }
 
-export function cloudAIConsentDetails(provider, options = {}) {
+export function cloudAIConsentDetails(provider: string, options: AIProcessingOptions = {}) {
   const details = getAIProcessingDestination(provider, options);
   return {
     ...details,
@@ -105,7 +125,7 @@ export function getCloudAIConsentRecord() {
   return readRecord(CLOUD_AI_CONSENT_KEY);
 }
 
-export function hasCloudAIConsent(provider, options = {}) {
+export function hasCloudAIConsent(provider: string, options: AIProcessingOptions = {}) {
   const details = cloudAIConsentDetails(provider, options);
   if (!details.required) return true;
   if (sessionApprovals.has(details.scope)) return true;
@@ -114,7 +134,7 @@ export function hasCloudAIConsent(provider, options = {}) {
     && record?.approvals?.[details.scope]?.accepted === true;
 }
 
-function storeRemoteApproval(details) {
+function storeRemoteApproval(details: ConsentDetails) {
   sessionApprovals.add(details.scope);
   const previous = getCloudAIConsentRecord();
   const approvals = previous?.version === CLOUD_AI_CONSENT_VERSION
@@ -154,7 +174,7 @@ export function getAIRouteConfirmationRecord() {
   return readRecord(AI_ROUTE_CONFIRMATION_KEY);
 }
 
-export function hasAIRouteConfirmation(provider, options = {}) {
+export function hasAIRouteConfirmation(provider: string, options: AIProcessingOptions = {}) {
   const details = cloudAIConsentDetails(provider, options);
   if (details.boundary !== 'private-network') return true;
   if (sessionRouteConfirmations.has(details.scope)) return true;
@@ -163,7 +183,7 @@ export function hasAIRouteConfirmation(provider, options = {}) {
     && record?.confirmations?.[details.scope]?.confirmed === true;
 }
 
-function storeRouteConfirmation(details) {
+function storeRouteConfirmation(details: ConsentDetails) {
   sessionRouteConfirmations.add(details.scope);
   const previous = getAIRouteConfirmationRecord();
   const confirmations = previous?.version === AI_ROUTE_CONFIRMATION_VERSION
@@ -197,7 +217,7 @@ export function withdrawAIRouteConfirmations() {
   dispatchChange('ai-route-confirmation-changed');
 }
 
-function purposeCopy(kind) {
+function purposeCopy(kind: string) {
   if (kind === 'report') return 'generating an AI overview from the report facts and questions you selected';
   if (kind === 'activation') return 'activating this AI connection';
   if (kind === 'meal-photo') return 'analyzing the selected meal photos and any details you entered';
@@ -207,7 +227,7 @@ function purposeCopy(kind) {
   return 'generating AI responses and insights';
 }
 
-function addLink(container, label, url) {
+function addLink(container: Element, label: string, url: string) {
   if (!url) return;
   if (container.childNodes.length) container.append(' · ');
   const link = document.createElement('a');
@@ -218,7 +238,7 @@ function addLink(container, label, url) {
   container.appendChild(link);
 }
 
-function appendPolicyLinks(container, details) {
+function appendPolicyLinks(container: Element, details: ConsentDetails) {
   if (details.privacyUrl || details.termsUrl) {
     const recipient = document.createElement('span');
     recipient.append(`${details.label}: `);
@@ -242,7 +262,7 @@ function appendPolicyLinks(container, details) {
   container.appendChild(operator);
 }
 
-function recipientPracticesPoint(details) {
+function recipientPracticesPoint(details: AIProcessingDestination) {
   if (details.scope.startsWith('cli-agent:')) return 'The CLI controls its model-provider routing. Review its configured recipient and that recipient’s privacy, retention and security policies before approving. This app cannot verify those external settings; changes require a new review.';
   if (details.provider === 'routstr') {
     return 'Routstr is a decentralized protocol, not the recipient. The selected independent node receives the request and may pass it to an upstream model provider; the node may publish no privacy policy or terms.';
@@ -250,20 +270,6 @@ function recipientPracticesPoint(details) {
   return 'The recipient and any model provider it routes to may process requests under their own privacy, retention, and security practices. Changing the recipient requires a new approval.';
 }
 
-/**
- * @param {{
- *   id: string,
- *   kicker: string,
- *   title: string,
- *   description: string,
- *   points: string[],
- *   statement: string,
- *   cancelLabel: string,
- *   approveLabel: string,
- *   links?: ((container: Element) => void) | null,
- *   onApprove: () => void,
- * }} options
- */
 function showPrompt({
   id,
   kicker,
@@ -275,7 +281,7 @@ function showPrompt({
   approveLabel,
   links = null,
   onApprove,
-}) {
+}: PromptOptions) {
   if (typeof document === 'undefined' || typeof HTMLElement === 'undefined' || !document.body) return Promise.resolve(false);
   document.getElementById(id)?.remove();
   const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -320,10 +326,10 @@ function showPrompt({
   if (statementEl) statementEl.textContent = statement;
   if (linksEl && links) links(linksEl);
   if (linksEl && !linksEl.childNodes.length) linksEl.remove();
-  const checkbox = /** @type {HTMLInputElement | null} */ (overlay.querySelector('input[type="checkbox"]'));
+  const checkbox = (overlay.querySelector('input[type="checkbox"]') as HTMLInputElement | null);
   if (checkbox) checkbox.id = id === 'cloud-ai-consent-overlay' ? 'cloud-ai-consent-checkbox' : `${id}-checkbox`;
-  const cancel = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('[data-ai-processing-action="cancel"]'));
-  const approve = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('[data-ai-processing-action="approve"]'));
+  const cancel = (overlay.querySelector('[data-ai-processing-action="cancel"]') as HTMLButtonElement | null);
+  const approve = (overlay.querySelector('[data-ai-processing-action="approve"]') as HTMLButtonElement | null);
   if (id === 'cloud-ai-consent-overlay') {
     cancel?.setAttribute('data-cloud-ai-consent-action', 'cancel');
     approve?.setAttribute('data-cloud-ai-consent-action', 'approve');
@@ -333,8 +339,8 @@ function showPrompt({
 
   document.body.appendChild(overlay);
   document.body.classList.add('cloud-ai-consent-visible');
-  return new Promise(resolve => {
-    const finish = granted => {
+  return new Promise<boolean>(resolve => {
+    const finish = (granted: boolean) => {
       overlay.remove();
       document.body.classList.remove('cloud-ai-consent-visible');
       if (previousFocus?.isConnected) previousFocus.focus();
@@ -370,8 +376,7 @@ function drainPromptQueue() {
     return;
   }
   promptRunning = true;
-  /** @type {Promise<boolean>} */
-  let decision;
+  let decision: Promise<boolean>;
   try {
     decision = task.show();
   } catch (error) {
@@ -397,24 +402,13 @@ function drainPromptQueue() {
   );
 }
 
-/**
- * Serialize decision UI while sharing one result among callers that need the
- * same approval scope.
- *
- * @param {string} key
- * @param {() => Promise<boolean>} show
- * @param {() => boolean} isSatisfied
- */
-function runPrompt(key, show, isSatisfied) {
+function runPrompt(key: string, show: () => Promise<boolean>, isSatisfied: () => boolean) {
   if (isSatisfied()) return Promise.resolve(true);
   const pending = pendingPrompts.get(key);
   if (pending) return pending;
-  /** @type {(value: boolean) => void} */
-  let resolve = () => {};
-  /** @type {(reason?: any) => void} */
-  let reject = () => {};
-  /** @type {Promise<boolean>} */
-  const promise = new Promise((resolvePromise, rejectPromise) => {
+  let resolve: (value: boolean) => void = () => {};
+  let reject: (reason?: unknown) => void = () => {};
+  const promise = new Promise<boolean>((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
     reject = rejectPromise;
   });
@@ -446,7 +440,7 @@ export function requestAITransparencyAcknowledgement() {
   return runPrompt('transparency', showAITransparencyPrompt, hasAcknowledgedAITransparency);
 }
 
-function requestCombinedDestinationActivation(details, kind) {
+function requestCombinedDestinationActivation(details: ConsentDetails, kind: string) {
   const privateNetwork = details.boundary === 'private-network';
   const id = privateNetwork ? 'ai-route-confirmation-overlay' : 'cloud-ai-consent-overlay';
   const destination = details.origin || details.label;
@@ -481,7 +475,7 @@ function requestCombinedDestinationActivation(details, kind) {
   });
 }
 
-function requestRouteConfirmation(details, kind) {
+function requestRouteConfirmation(details: ConsentDetails, kind: string) {
   const activating = kind === 'activation';
   return showPrompt({
     id: 'ai-route-confirmation-overlay',
@@ -502,7 +496,7 @@ function requestRouteConfirmation(details, kind) {
   });
 }
 
-function requestRemoteSensitiveDataApproval(details, kind) {
+function requestRemoteSensitiveDataApproval(details: ConsentDetails, kind: string) {
   const activating = kind === 'activation';
   return showPrompt({
     id: 'cloud-ai-consent-overlay',
@@ -524,11 +518,7 @@ function requestRemoteSensitiveDataApproval(details, kind) {
   });
 }
 
-/**
- * @param {string} provider
- * @param {{ endpoint?: string, modelId?: string }} options
- */
-function processingApprovalSatisfied(provider, options) {
+function processingApprovalSatisfied(provider: string, options: AIProcessingOptions) {
   const details = cloudAIConsentDetails(provider, options);
   if (!hasAcknowledgedAITransparency()) return false;
   if (details.boundary === 'same-device') return true;
@@ -545,7 +535,7 @@ function processingApprovalSatisfied(provider, options) {
  * Provider-neutral first-use gate. The transparency record is separate from
  * route confirmation and remote sensitive-data approval records.
  */
-export function requestAIProcessingApproval(provider, { kind = 'text', endpoint = '', modelId = '' } = {}) {
+export function requestAIProcessingApproval(provider: string, { kind = 'text', endpoint = '', modelId = '' }: AIProcessingApprovalOptions = {}) {
   if (isAppExtensionAICredentialOwned(provider)) {
     return (async () => {
       if (!hasAcknowledgedAITransparency()) {
@@ -580,11 +570,11 @@ export function requestAIProcessingApproval(provider, { kind = 'text', endpoint 
   }, () => processingApprovalSatisfied(provider, options));
 }
 
-export function requestAIProviderActivation(provider, options = {}) {
+export function requestAIProviderActivation(provider: string, options: AIProcessingOptions = {}) {
   return requestAIProcessingApproval(provider, { ...options, kind: 'activation' });
 }
 
-export async function requireAIProcessingApproval(provider, options = {}) {
+export async function requireAIProcessingApproval(provider: string, options: AIProcessingApprovalOptions = {}) {
   if (isAppExtensionAICredentialOwned(provider)) {
     if (await requestAIProcessingApproval(provider, options)) return true;
     if (!hasAcknowledgedAITransparency()) throw new AITransparencyDeclinedError();
@@ -607,10 +597,10 @@ export async function requireAIProcessingApproval(provider, options = {}) {
 
 // Backward-compatible names retained for callers and extension integrations.
 // They now run the complete transparency + destination-specific gate.
-export function requestCloudAIConsent(provider, options) {
+export function requestCloudAIConsent(provider: string, options?: AIProcessingApprovalOptions) {
   return requestAIProcessingApproval(provider, options);
 }
 
-export function requireCloudAIConsent(provider, options) {
+export function requireCloudAIConsent(provider: string, options?: AIProcessingApprovalOptions) {
   return requireAIProcessingApproval(provider, options);
 }

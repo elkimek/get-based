@@ -1,4 +1,3 @@
-// @ts-check
 // ai-provider-policy.js — provider-neutral inference destinations and policies.
 
 import { getAgentHostAgent, getAgentHostModel } from './agent-chat-settings.js';
@@ -13,52 +12,77 @@ import {
   isCloudModel,
 } from './local-ai-provider-shared.js';
 
-const BUILTIN_PROVIDERS = Object.freeze({
-  'personal-agent-gateway': Object.freeze({
-    label: 'Personal agent gateway',
-    endpoint: '',
-    privacyUrl: '',
-    termsUrl: '',
-  }),
-  'codex-agent': Object.freeze({
-    label: 'OpenAI Codex',
-    endpoint: 'https://chatgpt.com',
-    privacyUrl: 'https://openai.com/policies/privacy-policy/',
-    termsUrl: 'https://openai.com/policies/terms-of-use/',
-  }),
-  openrouter: Object.freeze({
-    label: 'OpenRouter',
-    endpoint: 'https://openrouter.ai/api/v1',
-    privacyUrl: 'https://openrouter.ai/privacy',
-    termsUrl: 'https://openrouter.ai/terms',
-  }),
-  ppq: Object.freeze({
-    label: 'PPQ',
-    endpoint: 'https://api.ppq.ai/v1',
-    privacyUrl: 'https://ppq.ai/privacy',
-    termsUrl: 'https://ppq.ai/terms',
-  }),
-  venice: Object.freeze({
-    label: 'Venice',
-    endpoint: 'https://api.venice.ai/api/v1',
-    privacyUrl: 'https://venice.ai/legal/privacy-policy',
-    termsUrl: 'https://venice.ai/legal/tos',
-  }),
-  xai: Object.freeze({
-    label: 'xAI',
-    endpoint: 'https://api.x.ai/v1',
-    privacyUrl: 'https://x.ai/legal/data-processing-addendum',
-    termsUrl: 'https://x.ai/legal/terms-of-service-enterprise',
-  }),
-  elevenlabs: Object.freeze({
-    label: 'ElevenLabs',
-    endpoint: 'https://api.elevenlabs.io/v1',
-    privacyUrl: 'https://elevenlabs.io/dpa',
-    termsUrl: 'https://elevenlabs.io/elevenapi-terms',
-  }),
+interface ProviderPolicy {
+  label: string;
+  endpoint: string;
+  privacyUrl: string;
+  termsUrl: string;
+}
+export interface AIProcessingOptions {
+  endpoint?: string | undefined;
+  modelId?: unknown;
+}
+export interface AIProcessingDestination {
+  provider: string;
+  endpoint: string;
+  origin: string;
+  boundary: 'same-device' | 'private-network' | 'remote';
+  cloudModel: boolean;
+  scope: string;
+  label: string;
+  route: string;
+  privacyUrl: string;
+  termsUrl: string;
+}
+interface ProviderDeploymentConfig {
+  GETBASED_DEPLOYMENT_CONFIG?: {aiProviders?: Record<string, Partial<Record<'label' | 'name' | 'privacyUrl' | 'termsUrl', unknown>>>};
+}
+
+function providerPolicy(label: string, endpoint: string, privacyUrl: string, termsUrl: string) {
+  return Object.freeze({label, endpoint, privacyUrl, termsUrl});
+}
+
+const BUILTIN_PROVIDERS: Readonly<Record<string, Readonly<ProviderPolicy>>> = Object.freeze({
+  'personal-agent-gateway': providerPolicy('Personal agent gateway', '', '', ''),
+  'codex-agent': providerPolicy(
+    'OpenAI Codex',
+    'https://chatgpt.com',
+    'https://openai.com/policies/privacy-policy/',
+    'https://openai.com/policies/terms-of-use/',
+  ),
+  openrouter: providerPolicy(
+    'OpenRouter',
+    'https://openrouter.ai/api/v1',
+    'https://openrouter.ai/privacy',
+    'https://openrouter.ai/terms',
+  ),
+  ppq: providerPolicy(
+    'PPQ',
+    'https://api.ppq.ai/v1',
+    'https://ppq.ai/privacy',
+    'https://ppq.ai/terms',
+  ),
+  venice: providerPolicy(
+    'Venice',
+    'https://api.venice.ai/api/v1',
+    'https://venice.ai/legal/privacy-policy',
+    'https://venice.ai/legal/tos',
+  ),
+  xai: providerPolicy(
+    'xAI',
+    'https://api.x.ai/v1',
+    'https://x.ai/legal/data-processing-addendum',
+    'https://x.ai/legal/terms-of-service-enterprise',
+  ),
+  elevenlabs: providerPolicy(
+    'ElevenLabs',
+    'https://api.elevenlabs.io/v1',
+    'https://elevenlabs.io/dpa',
+    'https://elevenlabs.io/elevenapi-terms',
+  ),
 });
 
-function cleanUrl(value) {
+function cleanUrl(value: unknown) {
   try {
     const url = new URL(String(value || '').trim());
     return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : '';
@@ -67,12 +91,12 @@ function cleanUrl(value) {
   }
 }
 
-export function safeInferenceOrigin(value) {
+export function safeInferenceOrigin(value: unknown) {
   try { return new URL(String(value || '')).origin; } catch { return ''; }
 }
 
-function deploymentProviderMetadata(provider) {
-  const configured = /** @type {any} */ (globalThis).GETBASED_DEPLOYMENT_CONFIG?.aiProviders?.[provider] || {};
+function deploymentProviderMetadata(provider: string) {
+  const configured = (globalThis as unknown as ProviderDeploymentConfig).GETBASED_DEPLOYMENT_CONFIG?.aiProviders?.[provider] || {};
   return {
     label: String(configured.label || configured.name || '').trim(),
     privacyUrl: cleanUrl(configured.privacyUrl),
@@ -80,7 +104,7 @@ function deploymentProviderMetadata(provider) {
   };
 }
 
-function selectedEndpoint(provider, explicitEndpoint) {
+function selectedEndpoint(provider: string, explicitEndpoint: string) {
   if (explicitEndpoint) return cleanUrl(explicitEndpoint) || String(explicitEndpoint || '').trim();
   if (provider === 'custom') return getCustomApiUrl();
   if (provider === 'ollama') return getOllamaConfig().url;
@@ -88,7 +112,7 @@ function selectedEndpoint(provider, explicitEndpoint) {
   return BUILTIN_PROVIDERS[provider]?.endpoint || '';
 }
 
-function selectedPolicy(provider, cloudModel) {
+function selectedPolicy(provider: string, cloudModel: boolean) {
   // Routstr is a protocol and its independently selected nodes do not share a
   // central recipient identity or policy set. Static deployment metadata could
   // also misidentify a node after the user switches to a different Nostr
@@ -96,7 +120,7 @@ function selectedPolicy(provider, cloudModel) {
   if (provider === 'routstr') {
     return { label: '', privacyUrl: '', termsUrl: '' };
   }
-  const builtin = BUILTIN_PROVIDERS[provider] || (provider === 'ollama' && cloudModel ? {
+  const builtin: Partial<ProviderPolicy> = BUILTIN_PROVIDERS[provider] || (provider === 'ollama' && cloudModel ? {
     label: 'Ollama Cloud',
     privacyUrl: 'https://ollama.com/privacy',
     termsUrl: 'https://ollama.com/terms',
@@ -109,7 +133,7 @@ function selectedPolicy(provider, cloudModel) {
   };
 }
 
-function destinationLabel(provider, boundary, origin, policyLabel) {
+function destinationLabel(provider: string, boundary: AIProcessingDestination['boundary'], origin: string, policyLabel: string) {
   if (policyLabel) return policyLabel;
   if (provider === 'browser-local') return 'the on-device AI engine';
   if (provider === 'routstr') return origin ? `the Routstr node at ${origin}` : 'the selected Routstr node';
@@ -125,28 +149,20 @@ function destinationLabel(provider, boundary, origin, policyLabel) {
   return provider || 'the selected AI provider';
 }
 
-function scopeFor(provider, boundary, origin, cloudModel) {
+function scopeFor(provider: string, boundary: AIProcessingDestination['boundary'], origin: string, cloudModel: boolean) {
   if (boundary === 'same-device') return 'same-device';
   if (BUILTIN_PROVIDERS[provider]) return provider;
   if (provider === 'ollama' && cloudModel) return `ollama-cloud:${origin || 'unconfigured'}`;
   return `${provider || 'unknown'}:${origin || 'unconfigured'}`;
 }
 
-/**
- * Resolve the actual inference trust boundary. Frontend hostname is never
- * considered here; only the selected endpoint and explicit cloud-model state
- * affect the result.
- *
- * @param {string} provider
- * @param {{ endpoint?: string, modelId?: string }} [options]
- */
-export function getAIProcessingDestination(provider, { endpoint = '', modelId = '' } = {}) {
+export function getAIProcessingDestination(provider: string, { endpoint = '', modelId = '' }: AIProcessingOptions = {}): AIProcessingDestination {
   const agent = provider === 'codex-agent' ? getAgentHostAgent() : '';
   if (agent && agent !== 'codex') {
     const model = modelId || getAgentHostModel() || 'default';
     return {
       provider, endpoint: '', origin: '', boundary: 'remote', cloudModel: false,
-      scope: `cli-agent:${encodeURIComponent(agent)}:${encodeURIComponent(model)}`,
+      scope: `cli-agent:${encodeURIComponent(agent)}:${encodeURIComponent(model as string)}`,
       label: `CLI adapter ${agent} and its configured model provider`,
       route: `through the local getbased Companion to CLI adapter ${agent} (model: ${model}) and its configured model provider; processing may occur remotely`,
       privacyUrl: '', termsUrl: '',
@@ -156,7 +172,7 @@ export function getAIProcessingDestination(provider, { endpoint = '', modelId = 
   const cloudModel = provider === 'ollama' && isCloudModel(selectedModel);
   const resolvedEndpoint = selectedEndpoint(provider, endpoint);
   const origin = safeInferenceOrigin(resolvedEndpoint);
-  let boundary;
+  let boundary: AIProcessingDestination['boundary'];
   if (provider === 'personal-agent-gateway') boundary = 'remote';
   else if (provider === 'browser-local') boundary = 'same-device';
   else if (cloudModel) boundary = 'remote';

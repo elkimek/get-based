@@ -1,15 +1,14 @@
-// @ts-check
 // api.js - AI provider facade and call router.
 
 import { getAIProvider } from './api-provider-storage.js';
+import type { ProviderRequestOptions } from './api-openai-compatible.js';
+import type { LocalAiRequestOptions } from './api-local.js';
+import type { createVeniceE2EE } from '../vendor/venice-e2ee.js';
 
-/**
- * @param {() => Promise<any>} loadModule
- * @param {() => Promise<any>} loadRetryModule
- * @returns {() => Promise<any>}
- */
-function createProviderLoader(loadModule, loadRetryModule) {
-  let modulePromise = null;
+export interface AIProviderRequestOptions extends ProviderRequestOptions, LocalAiRequestOptions {consentKind?: string | undefined}
+
+function createProviderLoader<Module>(loadModule: () => Promise<Module>, loadRetryModule: () => Promise<Module>) {
+  let modulePromise: Promise<Module> | null = null;
   let useRetryUrl = false;
   return function loadProviderModule() {
     if (!modulePromise) {
@@ -26,33 +25,27 @@ function createProviderLoader(loadModule, loadRetryModule) {
 
 const loadLocalApi = createProviderLoader(
   () => import('./api-local.js'),
-  // @ts-expect-error TypeScript resolves only the query-free source path.
-  () => import('./api-local.js?lazy-retry=1'),
+  () => import(('./api-local.js?lazy-retry=1' as string)) as Promise<typeof import('./api-local.js')>,
 );
 const loadVeniceApi = createProviderLoader(
   () => import('./api-venice.js'),
-  // @ts-expect-error TypeScript resolves only the query-free source path.
-  () => import('./api-venice.js?lazy-retry=1'),
+  () => import(('./api-venice.js?lazy-retry=1' as string)) as Promise<typeof import('./api-venice.js')>,
 );
 const loadOpenRouterApi = createProviderLoader(
   () => import('./api-openrouter.js'),
-  // @ts-expect-error TypeScript resolves only the query-free source path.
-  () => import('./api-openrouter.js?lazy-retry=1'),
+  () => import(('./api-openrouter.js?lazy-retry=1' as string)) as Promise<typeof import('./api-openrouter.js')>,
 );
 const loadRoutstrApi = createProviderLoader(
   () => import('./api-routstr.js'),
-  // @ts-expect-error TypeScript resolves only the query-free source path.
-  () => import('./api-routstr.js?lazy-retry=1'),
+  () => import(('./api-routstr.js?lazy-retry=1' as string)) as Promise<typeof import('./api-routstr.js')>,
 );
 const loadPpqApi = createProviderLoader(
   () => import('./api-ppq.js'),
-  // @ts-expect-error TypeScript resolves only the query-free source path.
-  () => import('./api-ppq.js?lazy-retry=1'),
+  () => import(('./api-ppq.js?lazy-retry=1' as string)) as Promise<typeof import('./api-ppq.js')>,
 );
 const loadCustomApi = createProviderLoader(
   () => import('./api-custom.js'),
-  // @ts-expect-error TypeScript resolves only the query-free source path.
-  () => import('./api-custom.js?lazy-retry=1'),
+  () => import(('./api-custom.js?lazy-retry=1' as string)) as Promise<typeof import('./api-custom.js')>,
 );
 
 export {
@@ -157,42 +150,42 @@ export {
   exchangeOpenRouterCode,
 } from './api-openrouter-oauth.js';
 
-export async function callOllamaChat(...args) {
+export async function callOllamaChat(...args: Parameters<typeof import('./api-local.js').callOllamaChat>) {
   return (await loadLocalApi()).callOllamaChat(...args);
 }
 
-export async function callOpenAICompatibleLocalAPI(...args) {
+export async function callOpenAICompatibleLocalAPI(...args: Parameters<typeof import('./api-local.js').callOpenAICompatibleLocalAPI>) {
   return (await loadLocalApi()).callOpenAICompatibleLocalAPI(...args);
 }
 
 export function clearVeniceE2EESession() {
-  const e2ee = typeof window !== 'undefined' ? /** @type {any} */ (window)._veniceE2EE : null;
+  const e2ee = typeof window !== 'undefined' ? (window as unknown as {_veniceE2EE?: ReturnType<typeof createVeniceE2EE>})._veniceE2EE : null;
   if (typeof e2ee?.clearSession !== 'function') return false;
   e2ee.clearSession();
   return true;
 }
 
-export async function getVeniceBalance(...args) {
+export async function getVeniceBalance(...args: Parameters<typeof import('./api-venice.js').getVeniceBalance>) {
   return (await loadVeniceApi()).getVeniceBalance(...args);
 }
 
-export async function callVeniceAPI(...args) {
+export async function callVeniceAPI(...args: Parameters<typeof import('./api-venice.js').callVeniceAPI>) {
   return (await loadVeniceApi()).callVeniceAPI(...args);
 }
 
-export async function getOpenRouterBalance(...args) {
+export async function getOpenRouterBalance(...args: Parameters<typeof import('./api-openrouter.js').getOpenRouterBalance>) {
   return (await loadOpenRouterApi()).getOpenRouterBalance(...args);
 }
 
-export async function callOpenRouterAPI(...args) {
+export async function callOpenRouterAPI(...args: Parameters<typeof import('./api-openrouter.js').callOpenRouterAPI>) {
   return (await loadOpenRouterApi()).callOpenRouterAPI(...args);
 }
 
-export async function fetchRoutstrModels(...args) {
+export async function fetchRoutstrModels(...args: Parameters<typeof import('./api-routstr.js').fetchRoutstrModels>) {
   return (await loadRoutstrApi()).fetchRoutstrModels(...args);
 }
 
-export async function validateRoutstrKey(...args) {
+export async function validateRoutstrKey(...args: Parameters<typeof import('./api-routstr.js').validateRoutstrKey>) {
   return (await loadRoutstrApi()).validateRoutstrKey(...args);
 }
 
@@ -200,63 +193,63 @@ export function getRoutstrNodeUrl() {
   return localStorage.getItem('labcharts-routstr-node') || '';
 }
 
-export async function callRoutstrAPI(...args) {
+export async function callRoutstrAPI(...args: Parameters<typeof import('./api-routstr.js').callRoutstrAPI>) {
   return (await loadRoutstrApi()).callRoutstrAPI(...args);
 }
 
-export async function createRoutstrAccount(...args) {
+export async function createRoutstrAccount(...args: Parameters<typeof import('./api-routstr.js').createRoutstrAccount>) {
   return (await loadRoutstrApi()).createRoutstrAccount(...args);
 }
 
-export async function getRoutstrBalance(...args) {
+export async function getRoutstrBalance(...args: Parameters<typeof import('./api-routstr.js').getRoutstrBalance>) {
   return (await loadRoutstrApi()).getRoutstrBalance(...args);
 }
 
-export async function fetchPpqModels(...args) {
+export async function fetchPpqModels(...args: Parameters<typeof import('./api-ppq.js').fetchPpqModels>) {
   return (await loadPpqApi()).fetchPpqModels(...args);
 }
 
-export async function validatePpqKey(...args) {
+export async function validatePpqKey(...args: Parameters<typeof import('./api-ppq.js').validatePpqKey>) {
   return (await loadPpqApi()).validatePpqKey(...args);
 }
 
-export async function createPpqAccount(...args) {
+export async function createPpqAccount(...args: Parameters<typeof import('./api-ppq.js').createPpqAccount>) {
   return (await loadPpqApi()).createPpqAccount(...args);
 }
 
-export async function getPpqBalance(...args) {
+export async function getPpqBalance(...args: Parameters<typeof import('./api-ppq.js').getPpqBalance>) {
   return (await loadPpqApi()).getPpqBalance(...args);
 }
 
-export async function createPpqTopup(...args) {
+export async function createPpqTopup(...args: Parameters<typeof import('./api-ppq.js').createPpqTopup>) {
   return (await loadPpqApi()).createPpqTopup(...args);
 }
 
-export async function checkPpqTopupStatus(...args) {
+export async function checkPpqTopupStatus(...args: Parameters<typeof import('./api-ppq.js').checkPpqTopupStatus>) {
   return (await loadPpqApi()).checkPpqTopupStatus(...args);
 }
 
-export async function callPpqPrivateAPI(...args) {
+export async function callPpqPrivateAPI(...args: Parameters<typeof import('./api-ppq.js').callPpqPrivateAPI>) {
   return (await loadPpqApi()).callPpqPrivateAPI(...args);
 }
 
-export async function callPpqAPI(...args) {
+export async function callPpqAPI(...args: Parameters<typeof import('./api-ppq.js').callPpqAPI>) {
   return (await loadPpqApi()).callPpqAPI(...args);
 }
 
-export async function fetchCustomApiModels(...args) {
+export async function fetchCustomApiModels(...args: Parameters<typeof import('./api-custom.js').fetchCustomApiModels>) {
   return (await loadCustomApi()).fetchCustomApiModels(...args);
 }
 
-export async function validateCustomApiKey(...args) {
+export async function validateCustomApiKey(...args: Parameters<typeof import('./api-custom.js').validateCustomApiKey>) {
   return (await loadCustomApi()).validateCustomApiKey(...args);
 }
 
-export async function callCustomAPI(...args) {
+export async function callCustomAPI(...args: Parameters<typeof import('./api-custom.js').callCustomAPI>) {
   return (await loadCustomApi()).callCustomAPI(...args);
 }
 
-export async function callClaudeAPI(opts, provider = getAIProvider()) {
+export async function callClaudeAPI(opts: AIProviderRequestOptions, provider = getAIProvider()) {
   const { requireAIProcessingApproval } = await import('./cloud-ai-consent.js');
   await requireAIProcessingApproval(provider, {
     kind: opts?.consentKind || 'text',

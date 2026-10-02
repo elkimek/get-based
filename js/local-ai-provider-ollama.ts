@@ -34,15 +34,15 @@ interface LocalAiMessageBlock {
 export interface OllamaInferenceOptions {
   maxTokens?: number | undefined;
   preferNativeContext?: boolean;
-  jsonMode?: boolean;
+  jsonMode?: boolean | undefined;
   jsonSchema?: unknown;
-  temperature?: number;
-  reasoningEffort?: string;
+  temperature?: number | undefined;
+  reasoningEffort?: string | undefined;
   system?: unknown;
   messages: LocalAiMessage[];
   onStream?: ((text: string) => unknown) | undefined;
   signal?: AbortSignal | undefined;
-  requestTimeoutMs?: number;
+  requestTimeoutMs?: number | undefined;
 }
 interface OllamaInferenceContext {
   config: { url: string; apiKey?: unknown };

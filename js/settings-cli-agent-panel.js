@@ -452,7 +452,7 @@ export async function refreshDetectedAgentList(options = {}) {
   }
 }
 
-/** @param {string} requestedAction */
+/** @param {string} requestedAction @returns {Promise<Record<string, unknown> | void>} */
 export async function controlCLICompanion(requestedAction) {
   if (!['pause', 'resume', 'install', 'restart', 'restart-companion', 'update', 'uninstall'].includes(requestedAction)) return;
   const action = /** @type {'pause'|'resume'|'install'|'restart'|'restart-companion'|'update'|'uninstall'} */ (requestedAction);

@@ -1,8 +1,13 @@
-// @ts-check
 // Browser-side configuration for the optional loopback agent host.
 
 import { encryptedSetCredentialItem } from './crypto.js';
 import { getCachedKey } from './crypto-key-cache.js';
+import type { AgentDiscoveryOptions, AgentConnectionOptions, DiscoveredAgent } from './agent-host-discovery.js';
+
+export interface AgentChatSettings {
+  endpoint?: string | undefined; token?: string | undefined; model?: string | undefined;
+  effort?: string | undefined; agent?: string | undefined; target?: string | undefined;
+}
 
 export const AGENT_HOST_TOKEN_KEY = 'labcharts-agent-host-token';
 const BACKEND_KEY = 'labcharts-chat-backend';
@@ -18,31 +23,26 @@ function isOfficialAgentChatPage() {
     .test(globalThis.location?.hostname || '');
 }
 
-/** @param {unknown} value */
-function normalizeAgentId(value) {
+function normalizeAgentId(value: unknown) {
   return String(value || '').trim().slice(0, 40) || 'codex';
 }
 
-/** @param {unknown} value */
-function normalizeTargetId(value) {
+function normalizeTargetId(value: unknown) {
   const target = String(value || '').trim().slice(0, 80);
   return /^[a-z0-9-]{1,80}$/.test(target) ? target : 'local';
 }
 
-/** @param {string} baseKey @param {string} agentId */
-function scopedAgentSettingKey(baseKey, agentId) {
+function scopedAgentSettingKey(baseKey: string, agentId: string) {
   return `${baseKey}:${encodeURIComponent(normalizeAgentId(agentId))}`;
 }
 
-/** @param {string} baseKey @param {string} agentId @param {string} targetId */
-function scopedAgentTargetSettingKey(baseKey, agentId, targetId) {
+function scopedAgentTargetSettingKey(baseKey: string, agentId: string, targetId: string) {
   const scoped = scopedAgentSettingKey(baseKey, agentId);
   const target = normalizeTargetId(targetId);
   return target === 'local' ? scoped : `${scoped}:target:${encodeURIComponent(target)}`;
 }
 
-/** @param {string} agentId @param {string} targetId @param {string} modelId */
-function scopedAgentModelEffortKey(agentId, targetId, modelId) {
+function scopedAgentModelEffortKey(agentId: string, targetId: string, modelId: string) {
   return `${scopedAgentTargetSettingKey(EFFORT_KEY, agentId, targetId)}:model:${encodeURIComponent(String(modelId || '').trim() || 'default')}`;
 }
 
@@ -51,16 +51,14 @@ export function getChatBackend() {
   return localStorage.getItem(BACKEND_KEY) === 'codex' && !blocked ? 'codex' : 'direct';
 }
 
-/** @param {unknown} value */
-export function setChatBackend(value) {
+export function setChatBackend(value: unknown) {
   const backend = value === 'codex' ? 'codex' : 'direct';
   localStorage.setItem(BACKEND_KEY, backend);
   globalThis.dispatchEvent?.(new CustomEvent('getbased:chat-backend-changed', { detail: { backend } }));
   return backend;
 }
 
-/** @param {string} value */
-export function normalizeAgentHostEndpoint(value) {
+export function normalizeAgentHostEndpoint(value: string) {
   let url;
   try { url = new URL(String(value || '').trim()); } catch { throw new Error('Enter a valid Agent Host URL.'); }
   const loopback = url.hostname === '127.0.0.1' || url.hostname === 'localhost' || url.hostname === '[::1]';
@@ -99,15 +97,11 @@ export function getAgentHostAgent() {
   return normalizeAgentId(localStorage.getItem(AGENT_KEY));
 }
 
-/** @param {string} [agentId] */
 export function getAgentHostTarget(agentId = getAgentHostAgent()) {
   return normalizeTargetId(localStorage.getItem(scopedAgentSettingKey(TARGET_KEY, agentId)) || 'local');
 }
 
-/**
- * @param {{endpoint?: string, token?: string, model?: string, effort?: string, agent?: string, target?: string}} settings
- */
-export async function saveAgentChatSettings(settings) {
+export async function saveAgentChatSettings(settings: AgentChatSettings) {
   const previousAgent = getAgentHostAgent();
   const previousTarget = getAgentHostTarget(previousAgent);
   const previousModel = getAgentHostModel();
@@ -167,24 +161,22 @@ export function hasAgentChatConnection() {
 /**
  * Discover a separately running companion without asking for a URL or token.
  * The fixed, narrow port range is intentionally bounded to getbased hosts.
- * @param {{signal?: AbortSignal, ports?: number[], requiredTextFeatureTarget?: string, requiredAgentId?: string}} [options]
  */
-export async function discoverLoopbackAgentHosts(options = {}) {
+export async function discoverLoopbackAgentHosts(options: AgentDiscoveryOptions = {}) {
   const runtime = await import('./agent-host-discovery.js');
   return runtime.discoverLoopbackAgentHostsRuntime({
     ...options, savedEndpoint: getAgentHostEndpoint(), normalizeEndpoint: normalizeAgentHostEndpoint,
   });
 }
 
-/** @param {{signal?: AbortSignal, refresh?: boolean, requiredTextFeatureTarget?: string, requiredAgentId?: string}} [options] */
-export async function discoverLocalChatAgents(options = {}) {
+export async function discoverLocalChatAgents(options: AgentDiscoveryOptions & {refresh?: boolean | undefined} = {}) {
   const runtime = await import('./agent-host-discovery.js');
   const url = options.refresh ? '/api/local-agents?refresh=1' : '/api/local-agents';
-  let direct = [];
+  let direct: DiscoveredAgent[] = [];
   try {
-    const response = await fetch(url, { cache: 'no-store', signal: options.signal });
+    const response = await fetch(url, { cache: 'no-store', signal: options.signal } as RequestInit);
     if (response.ok) {
-      const payload = await response.json();
+      const payload = await response.json() as {agents?: Record<string, unknown>[]};
       direct = Array.isArray(payload?.agents)
         ? payload.agents.filter(agent => agent && typeof agent === 'object').map(runtime.normalizeDiscoveredAgent)
         : [];
@@ -198,12 +190,11 @@ export async function discoverLocalChatAgents(options = {}) {
   return runtime.mergeDiscoveredAgents(direct, companions);
 }
 
-/** @param {{signal?: AbortSignal, requiredCapabilities?: string[], requiredTextFeatureTarget?: string}} [options] */
-export async function connectDetectedAgent(agentId = getAgentHostAgent(), options = {}) {
+export async function connectDetectedAgent(agentId = getAgentHostAgent(), options: AgentConnectionOptions = {}) {
   const runtime = await import('./agent-host-discovery.js');
   const savedToken = getAgentHostToken();
   const requiredCapabilities = runtime.normalizeRequiredCapabilities(options.requiredCapabilities);
-  let agents = [];
+  let agents: DiscoveredAgent[] = [];
   try {
     agents = await discoverLocalChatAgents({ ...options, requiredAgentId: agentId });
   } catch { /* use a saved local host or direct companion scan below */ }
@@ -216,7 +207,7 @@ export async function connectDetectedAgent(agentId = getAgentHostAgent(), option
       endpoint: getAgentHostEndpoint(), token: savedToken,
     }));
   }
-  let lastError = null;
+  let lastError: unknown = null;
   for (const candidate of candidates) {
     try {
       return await runtime.connectAgentHostCandidate({
@@ -246,7 +237,9 @@ export async function connectDetectedAgent(agentId = getAgentHostAgent(), option
   throw lastError instanceof Error ? lastError : new Error(`${installed?.name || agentId} connection is unavailable.`);
 }
 
-/** Backwards-compatible name while the surrounding chat modules are renamed. */
-export function connectDetectedCodex(options = {}) {
+/**
+ * Backwards-compatible name while the surrounding chat modules are renamed.
+ */
+export function connectDetectedCodex(options: AgentConnectionOptions = {}) {
   return connectDetectedAgent(getAgentHostAgent(), options);
 }

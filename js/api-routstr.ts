@@ -102,7 +102,7 @@ export async function fetchRoutstrModels() {
   }
 }
 
-export async function validateRoutstrKey(key: string) {
+export async function validateRoutstrKey(key: string): Promise<{valid: boolean; error?: string; warning?: undefined}> {
   if (key.startsWith('cashu:')) key = key.slice(6);
   if (!key.startsWith('sk-') && !key.startsWith('cashu')) {
     return { valid: false, error: 'Key should start with sk-... (session key) or cashu... (eCash token)' };

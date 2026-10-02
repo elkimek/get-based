@@ -75,7 +75,7 @@ function featurePrompt(messages) {
 }
 
 /**
- * @param {Record<string, any>} options
+ * @param {import('./api.js').AIProviderRequestOptions & {jsonSchema?: Record<string, unknown>}} options
  * @param {string} [provider]
  */
 export async function callAssistantFeatureAI(options, provider) {

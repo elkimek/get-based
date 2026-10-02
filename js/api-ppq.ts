@@ -26,7 +26,7 @@ interface PpqCatalogModel extends CatalogModel {
   pricing?: CatalogModel['pricing'] & { input_per_1M_tokens?: string; output_per_1M_tokens?: string };
 }
 interface PpqAccount { success?: boolean; api_key: string; credit_id: string }
-interface PpqTopup { lightning_invoice?: string; payment_address?: string; invoice_id?: string; crypto_amount_due?: string }
+interface PpqTopup { expires_at?: number; lightning_invoice?: string; payment_address?: string; invoice_id?: string; crypto_amount_due?: string }
 interface PpqTopupStatus { completed?: boolean; status?: string }
 type PpqApiWindow = Window & typeof globalThis & { _ppqAttestation?: unknown };
 
