@@ -621,3 +621,9 @@ deploy/profile-share/data/
 /js/lab-context-collection.js
 
 /js/lab-context-change-timeline.js
+
+/js/biology-score-coverage-planner.js
+
+/js/biology-score-ai.js
+
+/js/biology-score-context-ai.js

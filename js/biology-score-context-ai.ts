@@ -1,4 +1,30 @@
-// @ts-check
+import type { ActiveData } from './data-view-types.js';
+import type { NormalizedProfileData } from '../types/app-state.js';
+
+type ReviewData = Partial<ActiveData> | null | undefined;
+interface ContextSuggestion { flag: string; value?: boolean; confidence: string; reason?: string; evidence?: string[]; affects?: string[] }
+export interface BiologyContextReview {
+  summary?: string; suggestions?: ContextSuggestion[]; profileId?: string; updatedAt?: number; range?: string;
+  fingerprint?: string; fingerprintsByRange?: Record<string, string>; contextSignature?: string;
+  contextSignaturesByRange?: Record<string, string>; unlockedRanges?: string[]; dismissed?: string[];
+  generation?: { provider: string; modelId: string; generatedAt: number; usage?: unknown };
+}
+interface ContextAIDeps {
+  callClaudeAPI: typeof callAssistantFeatureAI; hasAIProvider: typeof hasAssistantFeatureProvider;
+  isAIPaused: typeof isAIPaused; navigate: ((route?: string) => void) | null;
+}
+interface GeneticContext { source?: unknown; apoe?: unknown; mtdna?: unknown; mtDNA?: unknown; mtdnaHaplogroup?: unknown; mtDnaHaplogroup?: unknown; snps?: Record<string, { effect?: unknown; valence?: unknown; category?: string } | null> }
+type WearableSummary = NonNullable<Parameters<typeof getSleepContextMismatch>[1]> & { metrics: Record<string, NonNullable<Parameters<typeof getSleepContextMismatch>[1]>['metrics'][string] & { baselineP25?: unknown; baselineP75?: unknown }> };
+type ContextProfile = Pick<Partial<NormalizedProfileData>, 'diagnoses' | 'exercise' | 'sleepRest' | 'stress' | 'diet' | 'loveLife' | 'environment' | 'lightCircadian' | 'supplements' | 'healthGoals' | 'contextNotes' | 'interpretiveLens' | 'menstrualCycle'> & {
+  biologyScoreContextAI?: BiologyContextReview | null;
+  genetics?: GeneticContext | null; wearableSummary?: WearableSummary | null;
+  sunSessions?: { startedAt?: unknown; endedAt?: unknown }[] | null;
+  deviceSessions?: { startedAt?: unknown; endedAt?: unknown }[] | null;
+  lightMeasurements?: { capturedAt?: unknown }[] | null;
+};
+type ContextProfileState = NormalizedProfileData & { biologyScoreContextAI?: BiologyContextReview | null };
+type SafeContext = Record<string, boolean | number | string | string[]> | (SafeContext | string)[] | null;
+
 // biology-score-context-ai.js — AI-assisted context flag review for deterministic Biology Scores.
 
 import { biologyAIRequestOptions } from './biology-score-ai.js';
@@ -26,32 +52,25 @@ import { getCurrentSupplements, getSupplementsOverlappingRange } from './supplem
 import { resolveActiveMarkerPath } from './marker-placement.js';
 import { buildCompactSupplementContextRecords } from './supplement-context.js';
 
-/** @type {{
- *   callClaudeAPI: typeof callAssistantFeatureAI,
- *   hasAIProvider: typeof hasAssistantFeatureProvider,
- *   isAIPaused: typeof isAIPaused,
- *   navigate: null | ((route?: string) => void),
- * }} */
-const biologyScoreContextAIDeps = {
+const biologyScoreContextAIDeps: ContextAIDeps = {
   callClaudeAPI: callAssistantFeatureAI,
   hasAIProvider: hasAssistantFeatureProvider,
   isAIPaused,
   navigate: null,
 };
 
-/** @param {Partial<typeof biologyScoreContextAIDeps>} [deps] */
-export function configureBiologyScoreContextAIDeps(deps = {}) {
+export function configureBiologyScoreContextAIDeps(deps: Partial<ContextAIDeps> = {}) {
   const previous = { ...biologyScoreContextAIDeps };
   if (typeof deps.callClaudeAPI === 'function') biologyScoreContextAIDeps.callClaudeAPI = deps.callClaudeAPI;
   if (typeof deps.hasAIProvider === 'function') biologyScoreContextAIDeps.hasAIProvider = deps.hasAIProvider;
   if (typeof deps.isAIPaused === 'function') biologyScoreContextAIDeps.isAIPaused = deps.isAIPaused;
   if (Object.hasOwn(deps, 'navigate') && (deps.navigate === null || typeof deps.navigate === 'function')) {
-    biologyScoreContextAIDeps.navigate = deps.navigate;
+    biologyScoreContextAIDeps.navigate = deps.navigate!;
   }
   return previous;
 }
 
-const FLAG_LABELS = {
+const FLAG_LABELS: Record<string, string> = {
   lowMuscleMass: 'Low muscle / creatinine unreliable',
   hormoneTherapy: 'Hormone therapy / TRT / hormonal contraception',
   postmenopause: 'Postmenopause / no active cycle',
@@ -60,45 +79,45 @@ const FLAG_LABELS = {
 };
 const FLAG_KEYS = Object.keys(FLAG_LABELS);
 const applicableFlagKeys = () => FLAG_KEYS.filter(flag => flag !== 'postmenopause' || state.profileSex === 'female');
-const flagLabel = flag => flag === 'hormoneTherapy' && state.profileSex !== 'female' ? 'Hormone therapy / TRT' : FLAG_LABELS[flag];
+const flagLabel = (flag: string) => flag === 'hormoneTherapy' && state.profileSex !== 'female' ? 'Hormone therapy / TRT' : FLAG_LABELS[flag];
 export const CONTEXT_REVIEW_RANGES = ['all', '1y', '6m', '3m'];
 let installed = false;
 
-function safeContextText(value, max = 500) {
+function safeContextText(value: unknown, max = 500) {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
-function safeStructuredContext(value, allowedKeys, maxPerField = 120) {
+function safeStructuredContext(value: unknown, allowedKeys: readonly string[], maxPerField = 120): SafeContext {
   if (!value || typeof value !== 'object') return null;
   if (Array.isArray(value)) return value.slice(0, 12).map(item => typeof item === 'object'
     ? safeStructuredContext(item, allowedKeys, maxPerField)
     : safeContextText(item, maxPerField)).filter(Boolean);
-  const out = {};
+  const out: Record<string, unknown> = {};
   for (const key of allowedKeys) {
-    const v = value[key];
+    const v = (value as Record<string, unknown>)[key];
     if (v == null || v === '') continue;
     if (typeof v === 'boolean' || typeof v === 'number') out[key] = v;
     else if (typeof v === 'string') out[key] = safeContextText(v, maxPerField);
     else if (Array.isArray(v)) out[key] = v.slice(0, 8).map(item => safeContextText(item, maxPerField)).filter(Boolean);
   }
-  return Object.keys(out).length ? out : null;
+  return Object.keys(out).length ? out as Record<string, boolean | number | string | string[]> : null;
 }
 
-function safeCondition(item) {
+function safeCondition(item: { name?: unknown; severity?: unknown; status?: unknown; since?: unknown; note?: unknown } | string | number | boolean | null | undefined) {
   if (item && typeof item === 'object') {
     return safeContextText([item.name, item.severity, item.status, item.since && `since ${item.since}`, item.note].filter(Boolean).join(' — '), 180);
   }
   return safeContextText(item, 120);
 }
 
-function geneticsSummary(imported) {
+function geneticsSummary(imported: ContextProfile | null | undefined) {
   const includeSummary = isGeneticsSummaryInAIContext();
   const includePriority = isGeneticsPriorityInAIContext();
   if (!includeSummary && !includePriority) return null;
   const genetics = imported?.genetics || null;
   const snps = includePriority ? (genetics?.snps || {}) : {};
   if (!genetics && !Object.keys(snps).length) return null;
-  const out = {};
+  const out: Record<string, unknown> = {};
   if (includeSummary) {
     const source = safeContextText(genetics?.source, 80);
     const apoe = safeContextText(genetics?.apoe, 40);
@@ -107,7 +126,7 @@ function geneticsSummary(imported) {
     if (apoe) out.apoe = apoe;
     if (mtdna) out.mtdna = mtdna;
   }
-  const categories = {};
+  const categories: Record<string, number> = {};
   for (const stored of Object.values(snps)) {
     const effect = String(stored?.effect || '').toLowerCase();
     const valence = String(stored?.valence || '').toLowerCase();
@@ -122,7 +141,7 @@ function geneticsSummary(imported) {
   return Object.keys(out).length ? out : null;
 }
 
-function lightSummary(imported) {
+function lightSummary(imported: ContextProfile | null | undefined) {
   const includeLightContext = isLightSunContextEnabled();
   if (!includeLightContext) return { includeLightContext: false };
   return {
@@ -134,29 +153,29 @@ function lightSummary(imported) {
   };
 }
 
-function bodySummary(imported) {
+function bodySummary(imported: ContextProfile | null | undefined) {
   const includeBodyContext = isWearableContextEnabled();
   if (!includeBodyContext) return { includeBodyContext: false };
   const metrics = imported?.wearableSummary?.metrics || {};
-  const pick = key => metrics[key] ? { d7: metrics[key].rolling?.d7, baseline: metrics[key].baseline, p25: metrics[key].baselineP25, p75: metrics[key].baselineP75 } : null;
+  const pick = (key: string) => metrics[key] ? { d7: metrics[key]!.rolling?.d7, baseline: metrics[key]!.baseline, p25: metrics[key]!.baselineP25, p75: metrics[key]!.baselineP75 } : null;
   return { includeBodyContext, hrv: pick('hrv_rmssd'), rhr: pick('rhr'), sleep: pick('sleep_score'), readiness: pick('readiness_score') };
 }
 
-function supplementsSummary(imported, data) {
+function supplementsSummary(imported: ContextProfile | null | undefined, data: ReviewData) {
   if (!Array.isArray(imported?.supplements)) return [];
   const relevant = [...new Set([...getCurrentSupplements(imported.supplements), ...(data?.dates?.length
-    ? getSupplementsOverlappingRange(imported.supplements, data.dates[0], data.dates[data.dates.length - 1]) : [])])];
+    ? getSupplementsOverlappingRange(imported.supplements, data.dates[0]!, data.dates[data.dates.length - 1]!) : [])])];
   return buildCompactSupplementContextRecords(relevant, {
-    historyRange: data?.dates?.length ? { start: data.dates[0], end: data.dates[data.dates.length - 1] } : undefined,
+    historyRange: data?.dates?.length ? { start: data.dates[0]!, end: data.dates[data.dates.length - 1]! } : undefined,
   });
 }
 
-function supplementInventoryFingerprint(imported) {
+function supplementInventoryFingerprint(imported: ContextProfile | null | undefined) {
   try { return hashString(JSON.stringify(imported?.supplements || [])); }
   catch { return hashString(String(imported?.supplements || '')); }
 }
 
-function latest(data, cat, key) {
+function latest(data: ReviewData, cat: string, key: string) {
   const m = resolveActiveMarkerPath(data?.categories, cat, key)?.marker;
   if (!m?.values?.length) return '';
   const idx = m.values.map((v, i) => v == null ? null : i).filter(i => i != null).at(-1);
@@ -164,11 +183,11 @@ function latest(data, cat, key) {
   return `${m.name || key}: ${m.values[idx]}${m.unit ? ` ${m.unit}` : ''} (${data?.dates?.[idx] || m.singleDate || 'date unknown'})`;
 }
 
-const BIOLOGY_CONTEXT_LABS = [['biochemistry','creatinine'], ['biochemistry','egfr'], ['biochemistry','eGFR'], ['biochemistry','cystatinC'], ['proteins','hsCRP'], ['proteins','crp'], ['hematology','hemoglobin'], ['hematology','hct'], ['biochemistry','ck'], ['hormones','testosterone'], ['hormones','estradiol'], ['hormones','shbg']];
+const BIOLOGY_CONTEXT_LABS: [string, string][] = [['biochemistry','creatinine'], ['biochemistry','egfr'], ['biochemistry','eGFR'], ['biochemistry','cystatinC'], ['proteins','hsCRP'], ['proteins','crp'], ['hematology','hemoglobin'], ['hematology','hct'], ['biochemistry','ck'], ['hormones','testosterone'], ['hormones','estradiol'], ['hormones','shbg']];
 
-function recentContextLabs(data) {
+function recentContextLabs(data: ReviewData) {
   if (!isLabMarkersContextEnabled()) return [];
-  const labs = [];
+  const labs: string[] = [];
   BIOLOGY_CONTEXT_LABS.forEach(([c, k]) => {
     const v = latest(data, c, k);
     if (v) labs.push(v);
@@ -176,7 +195,7 @@ function recentContextLabs(data) {
   return labs;
 }
 
-function buildInsightContextPayload(imported, data) {
+function buildInsightContextPayload(imported: ContextProfile | null | undefined, data: ReviewData) {
   const includeInsightCards = isInsightContextCardsEnabled();
   const includeSupplementsMeds = isSupplementsMedsContextEnabled();
   const includeTrackedSleep = isWearableContextEnabled();
@@ -204,8 +223,8 @@ function buildInsightContextPayload(imported, data) {
   };
 }
 
-export function buildBiologyScoreContextFingerprint(data, range = state.dateRangeFilter || 'all') {
-  const imported = /** @type {any} */ (state.importedData || {});
+export function buildBiologyScoreContextFingerprint(data: ReviewData, range = state.dateRangeFilter || 'all') {
+  const imported = (state.importedData || {}) as ContextProfile;
   const insight = buildInsightContextPayload(imported, data);
   const labs = recentContextLabs(data);
   const basis = JSON.stringify({
@@ -224,7 +243,7 @@ export function buildBiologyScoreContextFingerprint(data, range = state.dateRang
   return `biology-context:${hashString(basis)}`;
 }
 
-function dataForReviewRange(rawData, range) {
+function dataForReviewRange(rawData: ReviewData, range: string) {
   if (range === 'all') return rawData || {};
   const previous = state.dateRangeFilter;
   state.dateRangeFilter = range;
@@ -235,28 +254,28 @@ function dataForReviewRange(rawData, range) {
   }
 }
 
-export function buildBiologyScoreContextFingerprintsByRange(rawData) {
+export function buildBiologyScoreContextFingerprintsByRange(rawData: ReviewData) {
   return Object.fromEntries(CONTEXT_REVIEW_RANGES.map(range => [
     range,
     buildBiologyScoreContextFingerprint(dataForReviewRange(rawData, range), range),
   ]));
 }
 
-export function buildBiologyScoreContextMaterialSignature(data, range = state.dateRangeFilter || 'all') {
+export function buildBiologyScoreContextMaterialSignature(data: ReviewData, range = state.dateRangeFilter || 'all') {
   // Both historical key formats describe the same evidence. Share the basis
   // while retaining their prefixes so existing saved reviews remain current.
   return buildBiologyScoreContextFingerprint(data, range).replace('biology-context:', 'biology-context-material:');
 }
 
-export function buildBiologyScoreContextMaterialSignaturesByRange(rawData) {
+export function buildBiologyScoreContextMaterialSignaturesByRange(rawData: ReviewData) {
   return Object.fromEntries(CONTEXT_REVIEW_RANGES.map(range => [
     range,
     buildBiologyScoreContextMaterialSignature(dataForReviewRange(rawData, range), range),
   ]));
 }
 
-export function hasCurrentBiologyScoreContextReview(data) {
-  const review = (/** @type {any} */ (state.importedData))?.biologyScoreContextAI;
+export function hasCurrentBiologyScoreContextReview(data: ReviewData) {
+  const review = ((state.importedData as ContextProfile))?.biologyScoreContextAI;
   if (!review?.updatedAt) return false;
   const range = state.dateRangeFilter || 'all';
   const expected = buildBiologyScoreContextFingerprint(data, range);
@@ -267,15 +286,15 @@ export function hasCurrentBiologyScoreContextReview(data) {
 }
 
 export function hasBiologyScoreContextReview(_data = null) {
-  const review = (/** @type {any} */ (state.importedData))?.biologyScoreContextAI;
+  const review = ((state.importedData as ContextProfile))?.biologyScoreContextAI;
   // A completed review is a one-time availability gate. Context freshness is
   // tracked separately so changing data or app-side fingerprint logic can ask
   // for a refresh without hiding scores the user has already unlocked.
   return !!review?.updatedAt;
 }
 
-function buildReviewContext(data) {
-  const imported = /** @type {any} */ (state.importedData || {});
+function buildReviewContext(data: ReviewData) {
+  const imported = (state.importedData || {}) as ContextProfile;
   const insight = buildInsightContextPayload(imported, data);
   const context = {
     profileSex: state.profileSex || 'not set',
@@ -290,29 +309,35 @@ function buildReviewContext(data) {
   return `[section:untrusted-profile-context]\n${JSON.stringify(context, null, 2)}\n[/section:untrusted-profile-context]`;
 }
 
-function parseReview(text, allowedFlags) {
+function parseReview(text: unknown, allowedFlags: readonly string[]) {
   const cleaned = String(text || '').replace(/<think>[\s\S]*?<\/think>/g, '').trim();
   const json = cleaned.match(/```json\s*([\s\S]*?)```/i)?.[1] || cleaned.match(/\{[\s\S]*\}/)?.[0] || cleaned;
-  const parsed = JSON.parse(json);
+  const parsed = JSON.parse(json) as { summary?: unknown; suggestions?: unknown } | null;
   if (!parsed || typeof parsed.summary !== 'string' || !parsed.summary.trim()) throw new Error('The AI returned an incomplete context review. Your saved review is unchanged.');
   const suggestions = Array.isArray(parsed.suggestions) ? parsed.suggestions : [];
-  return { summary: String(parsed.summary || '').slice(0, 1200), suggestions: suggestions.filter(s => s && allowedFlags.includes(s.flag) && s.value !== false).map(s => ({ flag: s.flag, value: true, confidence: ['high','medium','low'].includes(s.confidence) ? s.confidence : 'medium', reason: String(s.reason || '').slice(0, 700), evidence: Array.isArray(s.evidence) ? s.evidence.slice(0, 8).map(String) : [], affects: Array.isArray(s.affects) ? s.affects.slice(0, 10).map(String) : [] })) };
+  return {
+    summary: String(parsed.summary || '').slice(0, 1200),
+    suggestions: (suggestions as ({ flag?: unknown; value?: unknown; confidence?: unknown; reason?: unknown; evidence?: unknown; affects?: unknown } | null)[])
+      .filter(s => s && allowedFlags.includes(s.flag as string) && s.value !== false)
+      .map(s => ({ flag: s!.flag as string, value: true, confidence: ['high','medium','low'].includes(s!.confidence as string) ? s!.confidence as string : 'medium', reason: String(s!.reason || '').slice(0, 700), evidence: Array.isArray(s!.evidence) ? (s!.evidence as unknown[]).slice(0, 8).map(String) : [], affects: Array.isArray(s!.affects) ? (s!.affects as unknown[]).slice(0, 10).map(String) : [],
+      })),
+  };
 }
 
-function reviewMaterial(data) {
+function reviewMaterial(data: ReviewData) {
   const range = state.dateRangeFilter || 'all';
   return { fingerprint: buildBiologyScoreContextFingerprint(dataForReviewRange(data, range), range), fingerprintsByRange: buildBiologyScoreContextFingerprintsByRange(data), contextSignature: buildBiologyScoreContextMaterialSignature(dataForReviewRange(data, range), range), contextSignaturesByRange: buildBiologyScoreContextMaterialSignaturesByRange(data), unlockedRanges: [...CONTEXT_REVIEW_RANGES], range };
 }
 
-const pendingReviews = new Map();
-const reviewBases = new WeakMap();
-export function generateBiologyScoreContextReview(data) {
+const pendingReviews = new Map<string, { key: string; promise: Promise<BiologyContextReview>; review: BiologyContextReview | null }>();
+const reviewBases = new WeakMap<BiologyContextReview, NormalizedProfileData>();
+export function generateBiologyScoreContextReview(data: ReviewData) {
   const profileId = state.currentProfile;
   const key = buildBiologyScoreContextFingerprint(data);
   const pending = pendingReviews.get(profileId);
   if (pending?.key === key) return pending.promise;
   const promise = requestBiologyScoreContextReview(data).then(review => {
-    if (pendingReviews.get(profileId)?.promise === promise) pendingReviews.get(profileId).review = review;
+    if (pendingReviews.get(profileId)?.promise === promise) pendingReviews.get(profileId)!.review = review;
     return review;
   }).catch(error => {
     if (pendingReviews.get(profileId)?.promise === promise) pendingReviews.delete(profileId);
@@ -322,7 +347,7 @@ export function generateBiologyScoreContextReview(data) {
   return promise;
 }
 
-async function requestBiologyScoreContextReview(data) {
+async function requestBiologyScoreContextReview(data: ReviewData): Promise<BiologyContextReview> {
   if (!biologyScoreContextAIDeps.hasAIProvider()) throw new Error('Connect an AI provider first.');
   if (biologyScoreContextAIDeps.isAIPaused()) throw new Error('AI features are paused.');
   const profileId = state.currentProfile;
@@ -332,14 +357,14 @@ async function requestBiologyScoreContextReview(data) {
   const identity = getAssistantFeatureIdentity();
   const prompt = buildReviewContext(data);
   const { contextSystem } = await import('./biology-score-ai-protocol.js');
-  const result = await biologyScoreContextAIDeps.callClaudeAPI({ system: contextSystem(allowedFlags), messages: [{ role: 'user', content: prompt }], maxTokens: 1800, ...biologyAIRequestOptions() });
+  const result = await biologyScoreContextAIDeps.callClaudeAPI({ system: contextSystem(allowedFlags), messages: [{ role: 'user', content: prompt }], maxTokens: 1800, ...biologyAIRequestOptions() }) as { text: string; usage?: unknown };
   const review = { ...parseReview(result.text, allowedFlags), ...material, profileId, generation: { provider: identity.provider, modelId: identity.modelId, generatedAt: Date.now(), ...(result.usage ? { usage: result.usage } : {}) } };
   reviewBases.set(review, baseData);
   return review;
 }
 
 // Roll back only this mutation's fields; keep unrelated profile data intact.
-function persistContextChange(change, reason) {
+function persistContextChange(change: (data: ContextProfileState) => void, reason: string) {
   const profileId = state.currentProfile;
   return queueBiologyScoreWrite(() => {
     if (state.currentProfile !== profileId) throw new Error('Profile changed before saving context.');
@@ -347,8 +372,8 @@ function persistContextChange(change, reason) {
   });
 }
 
-async function persistPreparedContextChange(change, reason, profileId) {
-  const imported = state.importedData;
+async function persistPreparedContextChange(change: (data: ContextProfileState) => void, reason: string, profileId: string) {
+  const imported = state.importedData as ContextProfileState;
   if (!imported) throw new Error('Load a profile before saving context.');
   const baseData = structuredClone(imported);
   const prepared = structuredClone(baseData);
@@ -367,7 +392,7 @@ async function persistPreparedContextChange(change, reason, profileId) {
   }
 }
 
-export async function saveBiologyScoreContextReview(review) {
+export async function saveBiologyScoreContextReview(review: BiologyContextReview) {
   const profileId = review.profileId || state.currentProfile;
   await queueBiologyScoreWrite(async () => {
     if (profileId !== state.currentProfile && !getProfiles().some(p => p.id === profileId)) throw new Error('Profile changed or was removed. No review was saved.');
@@ -382,15 +407,15 @@ export async function saveBiologyScoreContextReview(review) {
   });
 }
 
-export async function applyBiologyScoreContextFlag(flag, value = true) {
+export async function applyBiologyScoreContextFlag(flag: string, value = true) {
   if (!applicableFlagKeys().includes(flag)) return;
   await persistContextChange(imported => {
     imported.diagnoses ||= { conditions: [], familyHistory: [], note: '', flags: {} };
     imported.diagnoses.flags ||= {};
     imported.diagnoses.flags[flag] = value;
-    const review = imported.biologyScoreContextAI;
+    const review = imported.biologyScoreContextAI!;
     if (Array.isArray(review?.suggestions)) {
-      review.suggestions = review.suggestions.filter(s => s.flag !== flag);
+      review.suggestions = review.suggestions!.filter(s => s.flag !== flag);
       review.updatedAt = Date.now();
       invalidateActiveDataCache();
       Object.assign(review, reviewMaterial(getActiveData()));
@@ -398,37 +423,37 @@ export async function applyBiologyScoreContextFlag(flag, value = true) {
   }, 'biology-score-context-flag');
 }
 
-export async function dismissBiologyScoreContextFlag(flag) {
+export async function dismissBiologyScoreContextFlag(flag: string) {
   if (!state.importedData?.biologyScoreContextAI?.suggestions || !FLAG_KEYS.includes(flag)) return;
   await persistContextChange(imported => {
-    const review = imported.biologyScoreContextAI;
-    review.suggestions = review.suggestions.filter(s => s.flag !== flag);
+    const review = imported.biologyScoreContextAI!;
+    review.suggestions = review.suggestions!.filter(s => s.flag !== flag);
     review.dismissed = [...new Set([...(review.dismissed || []), flag])];
     review.updatedAt = Date.now();
   }, 'biology-score-context-dismiss');
 }
 
-function renderSuggestion(s) {
-  const active = !!(/** @type {any} */ (state.importedData))?.diagnoses?.flags?.[s.flag];
+function renderSuggestion(s: ContextSuggestion) {
+  const active = !!((state.importedData as ContextProfile))?.diagnoses?.flags?.[s.flag];
   return `<div class="biology-context-suggestion biology-context-${escapeAttr(s.confidence)}">
     <div><strong>${escapeHTML(flagLabel(s.flag))}</strong><span>${escapeHTML(s.confidence)} confidence${active ? ' · active' : ''}</span></div>
-    <p>${escapeHTML(s.reason || 'AI suggested this context modifier.')}</p>
+    <p>${escapeHTML(s!.reason || 'AI suggested this context modifier.')}</p>
     ${s.evidence?.length ? `<ul>${s.evidence.map(e => `<li>${escapeHTML(e)}</li>`).join('')}</ul>` : ''}
     ${s.affects?.length ? `<small>Affects: ${escapeHTML(s.affects.join(', '))}</small>` : ''}
     ${active ? '' : `<div class="biology-context-actions"><button type="button" class="dashboard-action-btn dashboard-action-btn-secondary" data-biology-score-action="apply-context-ai" data-context-flag="${escapeAttr(s.flag)}">Apply flag</button><button type="button" class="dashboard-action-btn dashboard-action-btn-secondary" data-biology-score-action="dismiss-context-ai" data-context-flag="${escapeAttr(s.flag)}">Dismiss</button></div>`}
   </div>`;
 }
 
-export function renderBiologyScoreContextAI(data = null) {
-  const review = (/** @type {any} */ (state.importedData))?.biologyScoreContextAI;
-  const suggestions = Array.isArray(review?.suggestions) ? review.suggestions.filter(s => applicableFlagKeys().includes(s.flag)) : [];
+export function renderBiologyScoreContextAI(data: ReviewData = null) {
+  const review = ((state.importedData as ContextProfile))?.biologyScoreContextAI;
+  const suggestions = Array.isArray(review?.suggestions) ? review.suggestions!.filter(s => applicableFlagKeys().includes(s.flag)) : [];
   const current = data ? hasCurrentBiologyScoreContextReview(data) : !!review?.updatedAt;
   const hasReview = !!review?.updatedAt;
   const buttonLabel = hasReview ? 'Refresh AI review' : 'Review context with AI';
   const status = current ? 'Context is up to date.' : hasReview ? 'Context changed. Refresh recommended; your scores stay available.' : 'Optional AI review; scores already use your saved profile and collection context.';
   return `<section class="biology-context-ai-panel${current ? '' : ' biology-context-ai-required'}">
     <div class="biology-context-ai-head"><div><p>Add context not already captured in your profile or lab entries.</p></div><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="analyze-context-ai">${buttonLabel}</button></div>
-    <div class="biology-score-context-fields" role="group" aria-label="Manual score context">${applicableFlagKeys().map(flag => `<label><input type="checkbox" data-biology-context-flag="${escapeAttr(flag)}" ${(/** @type {any} */ (state.importedData))?.diagnoses?.flags?.[flag] ? 'checked' : ''}>${escapeHTML(flagLabel(flag))}</label>`).join('')}</div>
+    <div class="biology-score-context-fields" role="group" aria-label="Manual score context">${applicableFlagKeys().map(flag => `<label><input type="checkbox" data-biology-context-flag="${escapeAttr(flag)}" ${((state.importedData as ContextProfile))?.diagnoses?.flags?.[flag] ? 'checked' : ''}>${escapeHTML(flagLabel(flag))}</label>`).join('')}</div>
     <p class="biology-scores-note">Set applicable context above without AI. ${state.profileSex === 'female' ? 'Sample timing and cycle phase belong' : 'Sample timing belongs'} to each lab entry.</p>
     <p class="biology-scores-note">${escapeHTML(status)}</p>
     ${review?.summary ? `<p class="biology-context-ai-summary">${escapeHTML(review.summary)}</p>` : ''}
@@ -444,7 +469,7 @@ export function installBiologyScoreContextAIDelegates() {
     if (!(el instanceof HTMLInputElement) || !applicableFlagKeys().includes(el.dataset.biologyContextFlag || '')) return;
     el.disabled = true;
     try {
-      await applyBiologyScoreContextFlag(el.dataset.biologyContextFlag, el.checked);
+      await applyBiologyScoreContextFlag(el.dataset.biologyContextFlag!, el.checked);
       biologyScoreContextAIDeps.navigate?.('biology-scores');
     } catch (error) { showNotification(getErrorMessage(error, 'Could not save context'), 'error'); el.checked = !el.checked; }
     finally { el.disabled = false; }

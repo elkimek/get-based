@@ -1,13 +1,20 @@
+import type { ScorePart, ScoreProfileContext, ScoreResult } from './biology-score-types.js';
+
+export type PlannerMarker = Pick<Partial<ScorePart>, 'key' | 'dotKey' | 'path' | 'coreGroup' | 'coreGroupLabel' | 'displayValue' | 'core' | 'profileContextOnly' | 'contextLimited' | 'contextOnly' | 'contextReason' | 'contextNote' | 'plannerOptional'> & { label?: string | undefined; scoreTitle?: string; panelTier?: string | undefined; conditionalReason?: string };
+export interface CoverageScore extends Pick<ScoreResult, 'coverage' | 'contextLimited'> {
+  id: string; title: string; panelTier?: string; available: PlannerMarker[]; missing: PlannerMarker[]; profileContext?: ScoreProfileContext;
+}
+type PlannerCoherence = Pick<ScoreResult, 'coverage' | 'available' | 'missing'>;
+
 // biology-score-coverage-planner.js — shared Coverage Planner data model for UI and chat prompts.
 
 import { contextOnlyNeedsMoreData } from './biology-score-engine.js';
 
-/** @param {any} item */
-export function markerDisplayLabel(item) {
+export function markerDisplayLabel(item: PlannerMarker | null | undefined) {
   if (item?.coreGroupLabel && item?.displayValue == null) return item.coreGroupLabel.replace(/^B12 status \(active or total B12\)$/i, 'Active or total B12');
   if (item?.dotKey === 'proteins.hsCRP') return 'hs-CRP';
   if (item?.dotKey === 'proteins.crp') return 'CRP';
-  const byKey = {
+  const byKey: Record<string, string> = {
     reverseT3: 'Reverse T3',
     tpoAb: 'TPO antibodies',
     tgAb: 'Thyroglobulin antibodies',
@@ -72,7 +79,7 @@ export function markerDisplayLabel(item) {
     lactate: 'Lactate',
     pyruvate: 'Pyruvate',
   };
-  if (item?.key && byKey[item.key]) return byKey[item.key];
+  if (item?.key && byKey[item.key]) return byKey[item.key]!;
   return String(item?.label || '')
     .replace(/^B12 status \(active or total B12\)$/i, 'Active or total B12')
     .replace(/\s+pituitary signal$/i, '')
@@ -115,13 +122,11 @@ export function markerDisplayLabel(item) {
     .trim();
 }
 
-/** @param {any[]} markers */
-export function labelMarkers(markers) {
+export function labelMarkers(markers: readonly PlannerMarker[] | null | undefined) {
   return (markers || []).map(markerDisplayLabel);
 }
 
-/** @param {any} score */
-export function effectiveMissingMarkers(score) {
+export function effectiveMissingMarkers(score: CoverageScore) {
   const coveredCoreGroups = new Set((score.available || [])
     .filter(item => item.coreGroup && item.core !== false && !item.profileContextOnly)
     .map(item => item.coreGroup));
@@ -143,8 +148,7 @@ export function effectiveMissingMarkers(score) {
     });
 }
 
-/** @param {any} score */
-export function effectiveContextMarkers(score, { unresolvedOnly = false } = {}) {
+export function effectiveContextMarkers(score: CoverageScore, { unresolvedOnly = false } = {}) {
   const seen = new Set();
   return (score.available || [])
     .filter(item => item.profileContextOnly || item.contextLimited)
@@ -157,10 +161,9 @@ export function effectiveContextMarkers(score, { unresolvedOnly = false } = {}) 
     });
 }
 
-/** @param {any[]} scores */
-function uniqueMissingMarkers(scores, { coreOnly = false, limit = 12 } = {}) {
+function uniqueMissingMarkers(scores: readonly CoverageScore[], { coreOnly = false, limit = 12 } = {}) {
   const seen = new Set();
-  const markers = [];
+  const markers: PlannerMarker[] = [];
   for (const score of scores) {
     for (const item of effectiveMissingMarkers(score)) {
       if (item.plannerOptional === false || item.contextOnly) continue;
@@ -177,10 +180,9 @@ function uniqueMissingMarkers(scores, { coreOnly = false, limit = 12 } = {}) {
   return markers;
 }
 
-/** @param {any[]} markers */
-function uniqueByMarker(markers, limit = 8) {
+function uniqueByMarker<Marker extends PlannerMarker>(markers: readonly Marker[], limit = 8) {
   const seen = new Set();
-  const out = [];
+  const out: Marker[] = [];
   for (const item of markers) {
     const key = item.coreGroup || item.dotKey || item.path || item.key || item.label;
     if (!key || seen.has(key)) continue;
@@ -191,24 +193,23 @@ function uniqueByMarker(markers, limit = 8) {
   return out;
 }
 
-/** @param {any[]} markers */
-function bundle(markers, emptyText) {
+function bundle(markers: readonly PlannerMarker[], emptyText: string) {
   return { markers, labels: labelMarkers(markers), emptyText };
 }
 
-export function optionalMarkerReason(item) {
+export function optionalMarkerReason(item: PlannerMarker) {
   if (item.conditionalReason) return item.conditionalReason;
-  const reasons = { uacr: 'Adds kidney-damage information beyond filtration.', lpA: 'Adds an inherited lipoprotein dimension beyond ApoB.', nonHdl: 'Calculated from total cholesterol and HDL; no separate assay.', hba1c: 'Adds longer-term glucose context; consider red-cell and iron factors.', albumin: 'Helps interpret total calcium and protein context.', calciumIonized: 'Can clarify calcium status when total calcium is difficult to interpret.', pth: 'Helps explain a calcium–phosphate pattern.', mma: 'Can clarify an unresolved B12 result; kidney function matters.', ft3: 'Adds active thyroid-hormone context to TSH and FT4.' };
-  return reasons[item.key] || `Consider for a specific question about ${item.scoreTitle || 'this marker pattern'}.`;
+  const reasons: Record<string, string> = { uacr: 'Adds kidney-damage information beyond filtration.', lpA: 'Adds an inherited lipoprotein dimension beyond ApoB.', nonHdl: 'Calculated from total cholesterol and HDL; no separate assay.', hba1c: 'Adds longer-term glucose context; consider red-cell and iron factors.', albumin: 'Helps interpret total calcium and protein context.', calciumIonized: 'Can clarify calcium status when total calcium is difficult to interpret.', pth: 'Helps explain a calcium–phosphate pattern.', mma: 'Can clarify an unresolved B12 result; kidney function matters.', ft3: 'Adds active thyroid-hormone context to TSH and FT4.' };
+  return reasons[item.key!] || `Consider for a specific question about ${item.scoreTitle || 'this marker pattern'}.`;
 }
 
-function optionalPriority(item) {
+function optionalPriority(item: PlannerMarker) {
   const keys = ['uacr', 'lpA', 'nonHdl', 'hba1c', 'albumin', 'calciumIonized', 'pth', 'mma', 'ft3'];
-  const index = keys.indexOf(item.key);
+  const index = keys.indexOf(item.key!);
   return index < 0 ? keys.length : index;
 }
 
-export function buildBiologyScoreCoveragePlannerModel(detailScores, coherence) {
+export function buildBiologyScoreCoveragePlannerModel(detailScores: readonly CoverageScore[], coherence: PlannerCoherence | null | undefined) {
   const baselineScores = detailScores.filter(score => score.panelTier !== 'extended');
   const advancedScores = detailScores.filter(score => score.panelTier === 'extended');
   const baselineCoverage = Math.round(((coherence?.coverage || 0) * 100));
@@ -220,7 +221,7 @@ export function buildBiologyScoreCoveragePlannerModel(detailScores, coherence) {
   const coreShortlist = baselineCoreMissing;
   const conditionalAlternatives = baselineScores.flatMap(score => {
     const keys = score.id === 'boneMineralSignal' && score.available.some(i => i.key === 'calcium' && i.contextLimited)
-      ? ['calciumIonized'] : score.id === 'fluidFiltrationCoherence' && score.available.some(i => i.coreGroup === 'filtration' && (i.contextLimited || (i.profileContextOnly && /muscle|creatinine.*unreliable/i.test(i.contextReason)))) ? ['gfrCystatin'] : [];
+      ? ['calciumIonized'] : score.id === 'fluidFiltrationCoherence' && score.available.some(i => i.coreGroup === 'filtration' && (i.contextLimited || (i.profileContextOnly && /muscle|creatinine.*unreliable/i.test(i.contextReason!)))) ? ['gfrCystatin'] : [];
     return keys.flatMap(key => {
       if (score.available.some(i => i.key === key && !i.profileContextOnly && !i.contextLimited)) return [];
       const item = [...score.missing, ...score.available].find(i => i.key === key);
@@ -268,7 +269,7 @@ export function buildBiologyScoreCoveragePlannerModel(detailScores, coherence) {
   };
 }
 
-export function formatBiologyScoreCoveragePlannerPrompt(model) {
+export function formatBiologyScoreCoveragePlannerPrompt(model: ReturnType<typeof buildBiologyScoreCoveragePlannerModel>) {
   const baseline = model.bundles.baselineFirst.labels.length ? model.bundles.baselineFirst.labels.join(', ') : model.bundles.baselineFirst.emptyText;
   const optional = model.bundles.optionalUpgrades.labels.length ? model.bundles.optionalUpgrades.labels.join(', ') : model.bundles.optionalUpgrades.emptyText;
   const advanced = model.bundles.advancedDepth.labels.length ? model.bundles.advancedDepth.labels.join(', ') : model.bundles.advancedDepth.emptyText;

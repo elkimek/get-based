@@ -28,7 +28,7 @@ export function selectCurrentCoreAlternatives(available: ScorePart[]) {
   }
 }
 
-export function specimenLabel(hit: Partial<MarkerHit> | null | undefined) {
+export function specimenLabel(hit: Pick<Partial<MarkerHit>, "specimen" | "dotKey"> & { path?: string | undefined } | null | undefined) {
   const explicit = String(hit?.specimen || '').trim();
   if (explicit) return explicit;
   const path = String(hit?.dotKey || hit?.path || '');

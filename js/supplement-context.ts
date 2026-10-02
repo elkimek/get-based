@@ -332,7 +332,7 @@ export function buildSupplementAIContext(supplements: unknown, options: Suppleme
 }
 
 
-export function buildCompactSupplementContextRecords(supplements: unknown, options: { maxChars?: number, historyRange?: { start: string, end: string } } = {}) {
+export function buildCompactSupplementContextRecords(supplements: unknown, options: { maxChars?: number, historyRange?: { start: string, end: string } | undefined } = {}) {
   const source = prioritizeProducts(Array.isArray(supplements) ? supplements as ContextSupplement[] : []);
   const maxChars = Math.max(400, Number(options.maxChars) || SUPPLEMENT_CONTEXT_LIMITS.biology);
   const output: Record<string, unknown>[] = [];
