@@ -245,7 +245,7 @@ export async function readLatestCorpusSnapshot(dir: OpfsDirectory, expected: { d
  *
  */
 export async function writeCorpusSnapshot(dir: OpfsDirectory, state: CorpusState, options: { activeSlot?: string | null; revision?: number; writeBytes?: typeof writeBinaryTo } = {}) {
-  const slot = options.activeSlot === 'a' ? 'b' : 'a';
+  const slot: CorpusSlot = options.activeSlot === 'a' ? 'b' : 'a';
   const files = corpusSlotFiles(slot);
   const revision = Math.max(0, Number(options.revision) || 0) + 1;
   const writeBytes = options.writeBytes || writeBinaryTo;

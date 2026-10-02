@@ -14,7 +14,8 @@
     "service-worker.ts",
     "service-worker-runtime.ts",
     "service-worker-assets.ts",
-    "version.ts"
+    "version.ts",
+    "js/lens-local-worker.ts"
   ],
   "exclude": []
 }

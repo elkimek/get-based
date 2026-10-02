@@ -1,4 +1,3 @@
-// @ts-check
 // js/lens-local-worker.js — browser-side lens engine (no Python, no server).
 //
 // Runs in a module Web Worker. Owns all OPFS I/O and all calls into
@@ -45,15 +44,33 @@ import {
   writeBinaryTo,
   writeCorpusSnapshot,
 } from './lens-local-store.js';
+import type { CorpusChunk, CorpusManifest, CorpusSlot, CorpusState } from './lens-local-store.js';
+import type { LibraryDirectory } from './lens-local-library-registry.js';
+import type { LensInputFile } from './lens-local-ingest.js';
+import type { WorkerRequest, WorkerReply, ReadyReply } from './lens-local-protocol.js';
+
+type BenchmarkVerdict = Awaited<ReturnType<typeof _benchmarkEmbedder>>;
+type WorkerEmbedder = (input: unknown, options: { pooling: 'mean'; normalize: true }) => { data: ArrayLike<number> } | Promise<{ data: ArrayLike<number> }>;
+interface TransformersModule {
+  env: { backends: { onnx: { wasm: { proxy: boolean } } } };
+  pipeline(task: 'feature-extraction', model: string, options?: { device: string }): Promise<WorkerEmbedder>;
+}
+// This module runs only in a dedicated worker; the diagnostic field is a test hook.
+declare const self: Omit<DedicatedWorkerGlobalScope, 'postMessage'> & {
+  postMessage(message: WorkerReply | { type: 'test_ack' }): void;
+  _lensLocalBenchmark?: BenchmarkVerdict;
+};
+declare const navigator: WorkerNavigator & { storage: StorageManager & { persist?: () => Promise<boolean> } };
+
 /// Current model driving the embedder. These are mutable because the
 /// active library dictates which model gets loaded — switching library
 /// can trigger a model swap. See _applyModelSpec().
 let _modelKey = DEFAULT_MODEL_KEY;
-let MODEL_ID = MODELS[DEFAULT_MODEL_KEY].id;
-let DIM = MODELS[DEFAULT_MODEL_KEY].dim;
+let MODEL_ID = MODELS[DEFAULT_MODEL_KEY]!.id;
+let DIM = MODELS[DEFAULT_MODEL_KEY]!.dim;
 
-function _applyModelSpec(modelKey) {
-  const spec = MODELS[modelKey] || MODELS[DEFAULT_MODEL_KEY];
+function _applyModelSpec(modelKey: string) {
+  const spec = (MODELS[modelKey] || MODELS[DEFAULT_MODEL_KEY])!;
   _modelKey = MODELS[modelKey] ? modelKey : DEFAULT_MODEL_KEY;
   MODEL_ID = spec.id;
   DIM = spec.dim;
@@ -64,18 +81,17 @@ const MMR_LAMBDA = 0.5;            // 0 = max diversity, 1 = pure relevance
 const MMR_OVERSAMPLE_FACTOR = 3;   // multiplier on topK before MMR re-rank
 const MMR_OVERSAMPLE_FLOOR = 30;   // never oversample below this many chunks
 
-let _embedder = null;
+let _embedder: WorkerEmbedder | null = null;
 let _embedderBackend = 'wasm';  // 'webgpu' | 'wasm' — whichever transformers.js actually booted
-let _benchmarkVerdict = null;   // Latest benchmark result for the currently-loaded model; null until first load
-const _benchmarkCache = new Map(); // model/backend → verdict; avoids repeating warmups when switching libraries
-let _transformersModule = null; // Lazy-cached transformers.js module so library swaps don't re-import
+let _benchmarkVerdict: BenchmarkVerdict | null = null;   // Latest benchmark result for the currently-loaded model; null until first load
+const _benchmarkCache = new Map<string, BenchmarkVerdict>(); // model/backend → verdict; avoids repeating warmups when switching libraries
+let _transformersModule: TransformersModule | null = null; // Lazy-cached transformers.js module so library swaps don't re-import
 let _abortRequested = false;    // set by 'abort' message, checked between embeds in handleIngest
-let _rootDir = null;            // OPFS FileSystemDirectoryHandle at /lens-local/
-let _libraryRegistry = null;    // Active library metadata + revisioned registry persistence
-let _corpusSlot = null;         // crash-safe corpus generation slot ('a' | 'b' | legacy null)
+let _rootDir: LibraryDirectory | null = null;            // OPFS FileSystemDirectoryHandle at /lens-local/
+let _libraryRegistry: LensLocalLibraryRegistry | null = null;    // Active library metadata + revisioned registry persistence
+let _corpusSlot: CorpusSlot | null = null;         // crash-safe corpus generation slot ('a' | 'b' | legacy null)
 let _corpusRevision = 0;
-/** @type {(() => void) | null} */
-let _ingestCommitResolve = null;
+let _ingestCommitResolve: (() => void) | null = null;
 let _failNextCorpusPersistForTest = false;
 
 // MessageChannel-based macrotask yield. Between embed calls the worker
@@ -85,16 +101,15 @@ let _failNextCorpusPersistForTest = false;
 // MessageChannel port gives a real task boundary without setTimeout's 4ms
 // clamp, so the queue gets pumped between every chunk at near-zero cost.
 const _yieldChannel = new MessageChannel();
-/** @returns {Promise<void>} */
-function macroYield() {
+function macroYield(): Promise<void> {
   return new Promise((resolve) => {
     _yieldChannel.port1.onmessage = () => resolve();
     _yieldChannel.port2.postMessage(null);
   });
 }
-let _manifest = null;           // Active library's manifest (loaded on activate)
-let _vectors = null;            // Active library's packed Float32Array
-let _chunks = null;             // Active library's [{source, text}]
+let _manifest: CorpusManifest | null = null;           // Active library's manifest (loaded on activate)
+let _vectors: Float32Array | null = null;            // Active library's packed Float32Array
+let _chunks: CorpusChunk[] | null = null;             // Active library's [{source, text}]
 
 // ── Message dispatch ───────────────────────────────────────────────
 //
@@ -102,14 +117,14 @@ let _chunks = null;             // Active library's [{source, text}]
 // library. Library-management handlers (activate, create, rename, delete,
 // list) delegate registry metadata + OPFS subdirectories to their owner.
 
-self.addEventListener('message', async (e) => {
+self.addEventListener('message', async (e: MessageEvent<WorkerRequest>) => {
   // Same-origin guard. Browsers only deliver messages to a Worker from
   // its spawning origin, but the codepaths here (file ingest, library
   // delete) are destructive enough that an explicit check is cheap
   // defense-in-depth against future regressions / weird embed contexts.
   // Same-origin postMessage to a dedicated Worker yields e.origin === ''.
   if (e.origin && e.origin !== self.location.origin) return;
-  const msg = e.data || {};
+  const msg = (e.data || {}) as WorkerRequest;
   try {
     switch (msg.type) {
       case 'init':              return await handleInit();
@@ -119,10 +134,10 @@ self.addEventListener('message', async (e) => {
       case 'delete':            return await handleDelete(msg.source);
       case 'clear':             return await handleClear();
       case 'list_libraries':    return handleListLibraries();
-      case 'activate_library':  return await handleActivateLibrary(msg.libraryId);
+      case 'activate_library':  return await handleActivateLibrary(msg.libraryId!);
       case 'create_library':    return await handleCreateLibrary(msg.name, msg.model);
-      case 'rename_library':    return await handleRenameLibrary(msg.libraryId, msg.name);
-      case 'delete_library':    return await handleDeleteLibrary(msg.libraryId);
+      case 'rename_library':    return await handleRenameLibrary(msg.libraryId!, msg.name);
+      case 'delete_library':    return await handleDeleteLibrary(msg.libraryId!);
       case 'commit_ingest': {
         const resolve = _ingestCommitResolve;
         _ingestCommitResolve = null;
@@ -131,7 +146,7 @@ self.addEventListener('message', async (e) => {
       }
       case 'test_fail_next_registry_persist':
         if (isMockMode()) {
-          _libraryRegistry.failNextPersist();
+          _libraryRegistry!.failNextPersist();
           self.postMessage({ type: 'test_ack' });
           return;
         }
@@ -174,7 +189,7 @@ async function handleInit() {
     if (params.has('benchmark')) {
       try {
         _benchmarkVerdict = await _benchmarkEmbedder();
-        /** @type {any} */ (self)._lensLocalBenchmark = _benchmarkVerdict;
+        self._lensLocalBenchmark = _benchmarkVerdict;
       } catch (err) {
         console.warn('[lens-local] mock benchmark failed:', getErrorMessage(err, err));
         _benchmarkVerdict = null;
@@ -192,7 +207,7 @@ async function handleInit() {
   // step 2 (per-library models) the active library picks the model.
   await openOpfs();
 
-  const modelKey = _libraryModelKey(_libraryRegistry.activeId);
+  const modelKey = _libraryModelKey(_libraryRegistry!.activeId);
   await _loadEmbedder(modelKey);
 
   // Corpus load AFTER embedder so MODEL_ID + DIM reflect the active
@@ -218,7 +233,7 @@ async function _ensureTransformers() {
   // phase 2c in project_browser_local_lens.md. Until then, trust is
   // rooted in jsdelivr + our CSP's cdn.jsdelivr.net allowlist.
   const transformersUrl = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0';
-  const mod = await import(transformersUrl);
+  const mod = await import(transformersUrl) as TransformersModule;
   // ORT picks one of 4 WASM variants at runtime (plain / asyncify / jsep /
   // jspi) based on what the browser supports — SharedArrayBuffer gates
   // threaded, cross-origin isolation headers gate jsep, etc. Vendoring
@@ -239,7 +254,7 @@ async function _ensureTransformers() {
 /// WebGPU detection with diagnostic logging, slow-shader-compile
 /// fallback, and the tier-benchmark pass. Updates module-level
 /// MODEL_ID / DIM / _embedder / _embedderBackend / _benchmarkVerdict.
-async function _loadEmbedder(modelKey) {
+async function _loadEmbedder(modelKey: string) {
   _applyModelSpec(modelKey);
   console.log(`[lens-local] Loading embedder: ${_modelKey} (${MODEL_ID}, ${DIM}d)`);
   const { pipeline } = await _ensureTransformers();
@@ -324,7 +339,7 @@ async function _loadEmbedder(modelKey) {
       `[lens-local] Embedding benchmark: ${_modelKey} on ${_embedderBackend}, ` +
       `${_benchmarkVerdict.msPerEmbed.toFixed(0)} ms/embed median → tier ${_benchmarkVerdict.tier} (${_benchmarkVerdict.tierLabel})`
     );
-    /** @type {any} */ (self)._lensLocalBenchmark = _benchmarkVerdict; // devtools inspection
+    self._lensLocalBenchmark = _benchmarkVerdict; // devtools inspection
   } catch (err) {
     console.warn('[lens-local] benchmark failed:', getErrorMessage(err, err));
     _benchmarkVerdict = null;
@@ -343,14 +358,14 @@ async function _loadEmbedder(modelKey) {
 /// target for per-library model selection (step 1 spike — values are
 /// initial guesses to be calibrated against real user hardware).
 async function _benchmarkEmbedder() {
-  const timings = [];
+  const timings: number[] = [];
   for (const text of BENCHMARK_TEXTS.slice(0, 3)) {
     const t0 = performance.now();
-    await _embedder(text, { pooling: 'mean', normalize: true });
+    await _embedder!(text, { pooling: 'mean', normalize: true });
     timings.push(performance.now() - t0);
   }
   const sorted = timings.slice().sort((a, b) => a - b);
-  const msPerEmbed = sorted[Math.floor(sorted.length / 2)];
+  const msPerEmbed = sorted[Math.floor(sorted.length / 2)]!;
   let tier, tierLabel;
   // Tiers describe the measured current model. Recommendation policy lives
   // in lens-library.js and deliberately caps CPU/WASM auto-selection at the
@@ -378,9 +393,9 @@ async function _benchmarkEmbedder() {
 /// op. Keeps libraries + active context in one place — every state change
 /// (activate, ingest, delete, clear) re-emits this so the renderer always
 /// has the current picture without re-polling.
-function readyPayload() {
-  const libraries = _libraryRegistry.libraries;
-  const activeId = _libraryRegistry.activeId;
+function readyPayload(): ReadyReply {
+  const libraries = _libraryRegistry!.libraries;
+  const activeId = _libraryRegistry!.activeId!;
   return {
     type: 'ready',
     libraries: libraries.slice(),
@@ -417,14 +432,14 @@ function readyPayload() {
 
 /// Look up a library's configured model key with a back-compat fallback
 /// to DEFAULT_MODEL_KEY. Accepts an id or a library object.
-function _libraryModelKey(libOrId) {
-  return _libraryRegistry.modelKey(libOrId);
+function _libraryModelKey(libOrId: Parameters<LensLocalLibraryRegistry['modelKey']>[0]) {
+  return _libraryRegistry!.modelKey(libOrId);
 }
 
 async function openOpfs() {
   const root = await navigator.storage.getDirectory();
-  _rootDir = await root.getDirectoryHandle(OPFS_SUBDIR, { create: true });
-  _libraryRegistry = new LensLocalLibraryRegistry(/** @type {import('./lens-local-library-registry.js').LibraryDirectory} */ (/** @type {unknown} */ (_rootDir)), MODELS, DEFAULT_MODEL_KEY);
+  _rootDir = await root.getDirectoryHandle(OPFS_SUBDIR, { create: true }) as LibraryDirectory;
+  _libraryRegistry = new LensLocalLibraryRegistry(_rootDir, MODELS, DEFAULT_MODEL_KEY);
 
   // Request persistent storage so the browser doesn't evict our data under
   // disk pressure. Silent if already granted; origins on localhost usually
@@ -435,9 +450,9 @@ async function openOpfs() {
   // /lens-local/_libraries.json and is the source of truth for which
   // libraries exist + which is active. Each library's data lives in two
   // checksummed generations under /lens-local/<libraryId>/.
-  await _libraryRegistry.loadOrMigrate();
-  console.log('[lens-local] Libraries:', _libraryRegistry.libraries.map((l) => `${l.id}=${l.name}`).join(', '),
-              'active:', _libraryRegistry.activeId);
+  await _libraryRegistry!.loadOrMigrate();
+  console.log('[lens-local] Libraries:', _libraryRegistry!.libraries.map((l) => `${l.id}=${l.name}`).join(', '),
+              'active:', _libraryRegistry!.activeId);
 
 }
 
@@ -463,13 +478,13 @@ async function loadCorpusIntoMemory() {
 /// (shouldn't happen after init, but defensive against orphaned registry
 /// entries from a partial delete).
 async function activeLibraryDir() {
-  if (!_libraryRegistry.activeId) throw new Error('No active library');
-  return _rootDir.getDirectoryHandle(_libraryRegistry.activeId, { create: true });
+  if (!_libraryRegistry!.activeId) throw new Error('No active library');
+  return _rootDir!.getDirectoryHandle(_libraryRegistry!.activeId, { create: true });
 }
 
 // ── Ingest ────────────────────────────────────────────────────────
 
-async function handleIngest(files) {
+async function handleIngest(files: LensInputFile[]) {
   if (!_embedder) throw new Error('Worker not initialized');
   _abortRequested = false;
   const transaction = await buildLocalIngestTransaction({
@@ -477,7 +492,7 @@ async function handleIngest(files) {
     embedder: _embedder,
     backend: _embedderBackend,
     dim: DIM,
-    current: { vectors: _vectors, chunks: _chunks, manifest: _manifest },
+    current: { vectors: _vectors!, chunks: _chunks!, manifest: _manifest! },
     postProgress: (progress) => self.postMessage({ type: 'progress', ...progress }),
     yieldTask: macroYield,
     isAbortRequested: () => _abortRequested,
@@ -488,8 +503,7 @@ async function handleIngest(files) {
     // Stop and acknowledges commit_ingest only after progress subscribers
     // have processed the saving state. Any earlier Stop message is ordered
     // before that acknowledgement and is observed here.
-    /** @type {Promise<void>} */
-    const commitReady = new Promise((resolve) => { _ingestCommitResolve = () => resolve(); });
+    const commitReady = new Promise<void>((resolve) => { _ingestCommitResolve = () => resolve(); });
     self.postMessage({ type: 'progress', stage: 'saving', total: transaction.stats.chunks_planned });
     await commitReady;
     if (_abortRequested) {
@@ -517,14 +531,14 @@ async function handleIngest(files) {
 
 // ── Query ─────────────────────────────────────────────────────────
 
-async function handleQuery(text, topK) {
+async function handleQuery(text: unknown, topK: number) {
   if (!_embedder) throw new Error('Worker not initialized');
-  if (_manifest.numChunks === 0) {
+  if (_manifest!.numChunks === 0) {
     self.postMessage({ type: 'query_result', chunks: [] });
     return;
   }
 
-  const qout = await _embedder(text, { pooling: 'mean', normalize: true });
+  const qout = await _embedder!(text, { pooling: 'mean', normalize: true });
   const q = qout.data;
 
   // Oversample by 3× for MMR: naive top-K by cosine alone concentrates
@@ -535,16 +549,16 @@ async function handleQuery(text, topK) {
   // already-picked chunks — spreads results across topics at a small
   // relevance cost.
   const OVERSAMPLE = Math.max(topK * MMR_OVERSAMPLE_FACTOR, MMR_OVERSAMPLE_FLOOR);
-  const cap = Math.min(OVERSAMPLE, _manifest.numChunks);
-  const candHeap = []; // sorted ascending so head is min
-  for (let i = 0; i < _manifest.numChunks; i++) {
+  const cap = Math.min(OVERSAMPLE, _manifest!.numChunks);
+  const candHeap: Array<{ i: number; score: number }> = []; // sorted ascending so head is min
+  for (let i = 0; i < _manifest!.numChunks; i++) {
     const base = i * DIM;
     let s = 0;
-    for (let j = 0; j < DIM; j++) s += q[j] * _vectors[base + j];
+    for (let j = 0; j < DIM; j++) s += q[j]! * _vectors![base + j]!;
     if (candHeap.length < cap) {
       candHeap.push({ i, score: s });
       candHeap.sort((a, b) => a.score - b.score);
-    } else if (s > candHeap[0].score) {
+    } else if (s > candHeap[0]!.score) {
       candHeap[0] = { i, score: s };
       candHeap.sort((a, b) => a.score - b.score);
     }
@@ -553,10 +567,10 @@ async function handleQuery(text, topK) {
   // getVec returns a live subarray view into the packed store — no copy
   // per MMR iteration, hot path stays cheap.
   const chosen = mmrSelect(candidates, topK, MMR_LAMBDA,
-    (i) => _vectors.subarray(i * DIM, (i + 1) * DIM));
+    (i) => _vectors!.subarray(i * DIM, (i + 1) * DIM));
   const result = chosen.map((r) => ({
-    text: _chunks[r.i].text,
-    source: _chunks[r.i].source,
+    text: _chunks![r.i]!.text,
+    source: _chunks![r.i]!.source,
     score: r.score,
   }));
   self.postMessage({ type: 'query_result', chunks: result });
@@ -567,8 +581,8 @@ async function handleQuery(text, topK) {
 function handleStats() {
   self.postMessage({
     type: 'stats_result',
-    total_chunks: _manifest.numChunks,
-    documents: _manifest.docs.map((doc) => ({ source: doc.source, chunks: doc.chunks })),
+    total_chunks: _manifest!.numChunks,
+    documents: _manifest!.docs.map((doc) => ({ source: doc.source, chunks: doc.chunks })),
     dim: DIM,
     model: MODEL_ID,
     backend: _embedderBackend,
@@ -576,31 +590,31 @@ function handleStats() {
   });
 }
 
-async function handleDelete(source) {
-  if (!_manifest || _manifest.numChunks === 0) {
+async function handleDelete(source: unknown) {
+  if (!_manifest || _manifest!.numChunks === 0) {
     self.postMessage({ type: 'delete_done', deleted_chunks: 0 });
     return;
   }
   // Rebuild vectors + chunks, skipping rows that match the source. Simpler
   // than a delete-mask + compact — a big store takes ~ms/1k chunks.
-  const keep = new Uint8Array(_manifest.numChunks);
+  const keep = new Uint8Array(_manifest!.numChunks);
   let deleted = 0;
-  for (let i = 0; i < _chunks.length; i++) {
-    if (_chunks[i].source === source) deleted += 1;
+  for (let i = 0; i < _chunks!.length; i++) {
+    if (_chunks![i]!.source === source) deleted += 1;
     else keep[i] = 1;
   }
   if (deleted === 0) {
     self.postMessage({ type: 'delete_done', deleted_chunks: 0 });
     return;
   }
-  const newCount = _manifest.numChunks - deleted;
+  const newCount = _manifest!.numChunks - deleted;
   const newVec = new Float32Array(newCount * DIM);
-  const newChunks = new Array(newCount);
+  const newChunks = new Array<CorpusChunk>(newCount);
   let w = 0;
-  for (let i = 0; i < _manifest.numChunks; i++) {
+  for (let i = 0; i < _manifest!.numChunks; i++) {
     if (!keep[i]) continue;
-    newVec.set(_vectors.subarray(i * DIM, (i + 1) * DIM), w * DIM);
-    newChunks[w] = _chunks[i];
+    newVec.set(_vectors!.subarray(i * DIM, (i + 1) * DIM), w * DIM);
+    newChunks[w] = _chunks![i]!;
     w += 1;
   }
   const committed = await persistCorpusState({
@@ -609,7 +623,7 @@ async function handleDelete(source) {
     manifest: {
       ..._manifest,
       numChunks: newCount,
-      docs: _manifest.docs.filter((d) => d.source !== source),
+      docs: _manifest!.docs.filter((d) => d.source !== source),
     },
   });
   _vectors = committed.vectors;
@@ -635,8 +649,8 @@ async function handleClear() {
 function handleListLibraries() {
   self.postMessage({
     type: 'libraries_list',
-    libraries: _libraryRegistry.libraries.slice(),
-    activeId: _libraryRegistry.activeId,
+    libraries: _libraryRegistry!.libraries.slice(),
+    activeId: _libraryRegistry!.activeId!,
   });
 }
 
@@ -645,8 +659,8 @@ function handleListLibraries() {
 /// If the new library uses a different embedding model than the
 /// currently-loaded one, reload the embedder first — 1-2s on a
 /// browser-cached model, longer if it needs to be downloaded.
-async function handleActivateLibrary(libraryId) {
-  const changed = await _libraryRegistry.activate(libraryId);
+async function handleActivateLibrary(libraryId: string) {
+  const changed = await _libraryRegistry!.activate(libraryId);
   if (!changed) {
     self.postMessage(readyPayload());
     return;
@@ -662,7 +676,7 @@ async function ensureActiveLibraryEmbedderLoaded() {
   // Reload embedder if the active library uses a different model.
   // Skip for mock mode (tests pin _embedder to mockEmbedder and don't
   // want it replaced by a jsdelivr import).
-  const targetModelKey = _libraryModelKey(_libraryRegistry.activeId);
+  const targetModelKey = _libraryModelKey(_libraryRegistry!.activeId);
   if (targetModelKey !== _modelKey && !isMockMode()) {
     console.log(`[lens-local] Library model change: ${_modelKey} → ${targetModelKey}, reloading embedder`);
     await _loadEmbedder(targetModelKey);
@@ -676,25 +690,25 @@ async function ensureActiveLibraryEmbedderLoaded() {
 /// with whatever the library was created under, and switching model
 /// would require re-embedding every document. The UI (step 3) offers
 /// the choice at this gate.
-async function handleCreateLibrary(name, modelKey) {
-  const library = await _libraryRegistry.create(name, modelKey);
+async function handleCreateLibrary(name: unknown, modelKey?: string) {
+  const library = await _libraryRegistry!.create(name, modelKey);
   self.postMessage({
     type: 'library_created',
     id: library.id,
     name: library.name,
     model: library.model,
-    libraries: _libraryRegistry.libraries.slice(),
-    activeId: _libraryRegistry.activeId,
+    libraries: _libraryRegistry!.libraries.slice(),
+    activeId: _libraryRegistry!.activeId!,
   });
 }
 
-async function handleRenameLibrary(libraryId, name) {
-  const nextName = await _libraryRegistry.rename(libraryId, name);
+async function handleRenameLibrary(libraryId: string, name: unknown) {
+  const nextName = await _libraryRegistry!.rename(libraryId, name);
   self.postMessage({
     type: 'library_renamed',
     id: libraryId, name: nextName,
-    libraries: _libraryRegistry.libraries.slice(),
-    activeId: _libraryRegistry.activeId,
+    libraries: _libraryRegistry!.libraries.slice(),
+    activeId: _libraryRegistry!.activeId!,
   });
 }
 
@@ -702,17 +716,17 @@ async function handleRenameLibrary(libraryId, name) {
 /// library is deleted, switch to the first remaining library. If this
 /// would leave zero libraries, auto-create a default so the UI always
 /// has something to show.
-async function handleDeleteLibrary(libraryId) {
-  const { wasActive } = await _libraryRegistry.delete(libraryId);
-  if (wasActive || _libraryRegistry.libraries.length === 1) {
+async function handleDeleteLibrary(libraryId: string) {
+  const { wasActive } = await _libraryRegistry!.delete(libraryId);
+  if (wasActive || _libraryRegistry!.libraries.length === 1) {
     await ensureActiveLibraryEmbedderLoaded();
     await loadCorpusIntoMemory();
   }
   self.postMessage({
     type: 'library_deleted',
     id: libraryId,
-    libraries: _libraryRegistry.libraries.slice(),
-    activeId: _libraryRegistry.activeId,
+    libraries: _libraryRegistry!.libraries.slice(),
+    activeId: _libraryRegistry!.activeId!,
     numChunks: _manifest?.numChunks || 0,
     numDocs: _manifest?.docs?.length || 0,
   });
@@ -726,7 +740,7 @@ async function handleDeleteLibrary(libraryId) {
 // file's contents from Web Workers" and is what the Evolu SQLite WASM
 // worker uses under the hood.
 
-function emptyManifest() {
+function emptyManifest(): CorpusManifest {
   return {
     numChunks: 0,
     dim: DIM,
@@ -736,10 +750,9 @@ function emptyManifest() {
   };
 }
 
-async function persistCorpusState(state) {
+async function persistCorpusState(state: CorpusState) {
   const dir = await activeLibraryDir();
-  /** @type {typeof writeBinaryTo} */
-  let writeBytes = writeBinaryTo;
+  let writeBytes: typeof writeBinaryTo = writeBinaryTo;
   if (_failNextCorpusPersistForTest) {
     _failNextCorpusPersistForTest = false;
     let writeCount = 0;

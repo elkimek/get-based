@@ -9,7 +9,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 818 |
+| Modules | 819 |
 | Internal import edges | 3510 |
 | Dynamic internal edges | 119 |
 | Modules participating in cycles | 0 |
@@ -91,7 +91,7 @@ No cyclic components.
 
 These expressions cannot be resolved statically and require manual review when changed.
 
-- [`js/lens-local-worker.js`](js/lens-local-worker.js): `import(transformersUrl)`
+- [`js/lens-local-worker.ts`](js/lens-local-worker.ts): `import(transformersUrl)`
 - [`js/pdfjs-loader.js`](js/pdfjs-loader.js): `import(PDFJS_MODULE_URL)`
 - [`js/sync-evolu8-candidate.js`](js/sync-evolu8-candidate.js): `import(EVOLU_BUNDLE_URL)`
 - [`js/sync-evolu8-candidate.js`](js/sync-evolu8-candidate.js): `import(EVOLU8_BUNDLE_URL)`
@@ -706,7 +706,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>lens</code> family — 16 modules</summary>
+<details><summary><code>lens</code> family — 17 modules</summary>
 
 - [`js/lens-actions.js`](js/lens-actions.js) → [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/lens-cache.js`](js/lens-cache.js) → [`js/utils.ts`](js/utils.ts)
@@ -716,9 +716,10 @@ Native browser modules shipped with the static application.
 - [`js/lens-local-ingest.ts`](js/lens-local-ingest.ts) → [`js/lens-local-utils.ts`](js/lens-local-utils.ts)
 - [`js/lens-local-library-registry.ts`](js/lens-local-library-registry.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/lens-local-store.ts`](js/lens-local-store.ts), [`js/unique-id.ts`](js/unique-id.ts)
 - [`js/lens-local-parsers.js`](js/lens-local-parsers.js) → [`js/pdfjs-loader.js`](js/pdfjs-loader.js), [`js/utils-runtime.ts`](js/utils-runtime.ts)
+- [`js/lens-local-protocol.ts`](js/lens-local-protocol.ts) → no in-scope imports
 - [`js/lens-local-store.ts`](js/lens-local-store.ts) → no in-scope imports
 - [`js/lens-local-utils.ts`](js/lens-local-utils.ts) → no in-scope imports
-- [`js/lens-local-worker.js`](js/lens-local-worker.js) → [`js/caught-error.ts`](js/caught-error.ts), [`js/lens-local-embedder-config.ts`](js/lens-local-embedder-config.ts), [`js/lens-local-ingest.ts`](js/lens-local-ingest.ts), [`js/lens-local-library-registry.ts`](js/lens-local-library-registry.ts), [`js/lens-local-store.ts`](js/lens-local-store.ts), [`js/lens-local-utils.ts`](js/lens-local-utils.ts)
+- [`js/lens-local-worker.ts`](js/lens-local-worker.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/lens-local-embedder-config.ts`](js/lens-local-embedder-config.ts), [`js/lens-local-ingest.ts`](js/lens-local-ingest.ts), [`js/lens-local-library-registry.ts`](js/lens-local-library-registry.ts), [`js/lens-local-store.ts`](js/lens-local-store.ts), [`js/lens-local-utils.ts`](js/lens-local-utils.ts)
 - [`js/lens-local.ts`](js/lens-local.ts) → no in-scope imports
 - [`js/lens-page-shell.js`](js/lens-page-shell.js) → [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/dashboard-widget-copy.js`](js/dashboard-widget-copy.js), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/profile.js`](js/profile.js), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/lens-pages.js`](js/lens-pages.js) → [`js/biology-score-context-ai.js`](js/biology-score-context-ai.js), [`js/biology-scores.js`](js/biology-scores.js), [`js/data.js`](js/data.js), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/profile-context.js`](js/profile-context.js), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)

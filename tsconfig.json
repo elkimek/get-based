@@ -170,7 +170,6 @@
     "js/lens-local-parsers.js",
     "js/lens-local-store.js",
     "js/lens-local-utils.js",
-    "js/lens-local-worker.js",
     "js/light-audit-ai-analysis.js",
     "js/light-burden-ai-analysis.js",
     "js/light-channel-view.js",
@@ -460,5 +459,8 @@
     "types/**/*.d.ts",
     "js/**/*.ts",
     "shared/**/*.ts"
+  ],
+  "exclude": [
+    "js/lens-local-worker.ts"
   ]
 }

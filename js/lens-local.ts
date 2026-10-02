@@ -13,32 +13,9 @@
 // Single worker per tab, lazily initialised on first call. Messages queue
 // so a query issued during an ingest waits its turn rather than racing.
 
-import type { MODELS } from './lens-local-embedder-config.js';
-import type { LibraryRecord } from './lens-local-store.js';
-import type { IngestProgress, LensInputFile, buildLocalIngestTransaction } from './lens-local-ingest.js';
-
-type IngestStats = Awaited<ReturnType<typeof buildLocalIngestTransaction>>['stats'];
-interface ReadyReply {
-  type: 'ready'; numChunks: number; numDocs: number; libraries: LibraryRecord[]; activeId: string;
-  activeName: string; activeModel: string; models: typeof MODELS;
-  embedder?: { backend: string; modelKey: string; modelId: string; dim: number; msPerEmbed: number; tier: number; tierLabel: string } | null;
-}
-interface StatsReply {
-  type: 'stats_result'; total_chunks: number; documents: Array<{ source: string; chunks: number }>;
-  dim: number; model: string; backend: string; ms_per_embed: number | null;
-}
-export interface LensQueryChunk { text: string; source: string; score: number }
-interface ReplyPayloads {
-  init: ReadyReply; activate_library: ReadyReply;
-  ingest: { type: 'ingest_done'; stats: IngestStats };
-  query: { type: 'query_result'; chunks: LensQueryChunk[] }; stats: StatsReply;
-  delete: { type: 'delete_done'; deleted_chunks: number }; clear: { type: 'clear_done' };
-  list_libraries: { type: 'libraries_list'; libraries: LibraryRecord[]; activeId: string };
-  create_library: { type: 'library_created'; id: string; name: string; model: string; libraries: LibraryRecord[] };
-  rename_library: { type: 'library_renamed'; id: string; name: string; libraries: LibraryRecord[] };
-  delete_library: { type: 'library_deleted'; libraries: LibraryRecord[]; activeId: string; numChunks: number; numDocs: number };
-}
-type WorkerReply = ReplyPayloads[keyof ReplyPayloads] | ({ type: 'progress' } & IngestProgress) | { type: 'error'; message: string };
+import type { IngestProgress, LensInputFile } from './lens-local-ingest.js';
+import type { IngestStats, ReadyReply, StatsReply, ReplyPayloads, WorkerReply, LensQueryChunk } from './lens-local-protocol.js';
+export type { LensQueryChunk } from './lens-local-protocol.js';
 
 let _worker: Worker | null = null;
 interface LocalLens extends Omit<ReadyReply, 'type'> {
@@ -50,9 +27,9 @@ interface LocalLens extends Omit<ReadyReply, 'type'> {
   clear(): Promise<void>;
   listLibraries(): Promise<Omit<ReplyPayloads['list_libraries'], 'type'>>;
   activateLibrary(libraryId: unknown): Promise<Omit<ReadyReply, 'type' | 'activeModel' | 'models' | 'embedder'>>;
-  createLibrary(name: unknown, model?: string): Promise<Omit<ReplyPayloads['create_library'], 'type'>>;
-  renameLibrary(libraryId: unknown, name: unknown): Promise<Omit<ReplyPayloads['rename_library'], 'type'>>;
-  deleteLibrary(libraryId: unknown): Promise<Omit<ReplyPayloads['delete_library'], 'type'>>;
+  createLibrary(name: unknown, model?: string): Promise<Omit<ReplyPayloads['create_library'], 'type' | 'activeId'>>;
+  renameLibrary(libraryId: unknown, name: unknown): Promise<Omit<ReplyPayloads['rename_library'], 'type' | 'activeId'>>;
+  deleteLibrary(libraryId: unknown): Promise<Omit<ReplyPayloads['delete_library'], 'type' | 'id'>>;
 }
 let _ready: Promise<LocalLens> | null = null;
 let _inflight: { type: string; resolve(value: unknown): void; reject(reason?: unknown): void } | null = null;

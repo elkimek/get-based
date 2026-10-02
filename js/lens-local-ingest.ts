@@ -4,7 +4,7 @@ import { chunkText } from './lens-local-utils.js';
 
 import type { CorpusChunk, CorpusState } from './lens-local-store.js';
 export interface LensInputFile { name?: string; text?: string }
-export type LensEmbedder = (input: string | string[] | undefined, options: { pooling: 'mean'; normalize: true }) => Promise<{ data?: ArrayLike<number> | null } | null | undefined>;
+export type LensEmbedder = (input: string | string[] | undefined, options: { pooling: 'mean'; normalize: true }) => { data?: ArrayLike<number> | null } | null | undefined | Promise<{ data?: ArrayLike<number> | null } | null | undefined>;
 export type IngestProgress = { stage: 'start' | 'saving'; total: number } | { stage: 'embed'; total: number; index: number; source: string };
 export interface IngestOptions {
   files: LensInputFile[]; embedder: LensEmbedder; backend: string; dim: number; current: CorpusState;

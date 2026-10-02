@@ -469,3 +469,6 @@ deploy/profile-share/data/
 
 /js/lens-local-embedder-config.js
 /js/lens-local.js
+
+/js/lens-local-worker.js
+/js/lens-local-protocol.js
