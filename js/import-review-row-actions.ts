@@ -1,13 +1,13 @@
-// @ts-check
+import type { ImportReviewMarker } from './pdf-import-review-runtime.js';
 // import-review-row-actions.js - compact action controls for import review rows.
 
 import { escapeHTML } from './utils.js';
 
-function importReviewActionAttrs(action) {
+function importReviewActionAttrs(action: string) {
   return `data-import-review-action="${action}"`;
 }
 
-export function renderImportMapInput(marker, idx) {
+export function renderImportMapInput(marker: ImportReviewMarker, idx: number) {
   const value = marker.mappedKey || '';
   const summary = value
     ? `<div class="import-mapped-key">Mapped to <code>${escapeHTML(value)}</code></div>`
@@ -32,7 +32,7 @@ export function renderImportExcludeButton(markerName = '') {
   </button>`;
 }
 
-export function setImportExcludeButtonState(btn, excluded) {
+export function setImportExcludeButtonState(btn: HTMLElement, excluded: boolean) {
   const label = excluded ? 'Include in import' : 'Exclude from import';
   btn.classList.toggle('is-restore', excluded);
   btn.title = label;

@@ -75,7 +75,7 @@ function isRecognizedUnitForMarker(key: string, unit: unknown) {
   return false;
 }
 
-export function getValidUnitsForMarker(key: string) {
+export function getValidUnitsForMarker(key: string | null | undefined) {
   if (!key) return [];
   const [catKey, markerKey] = key.split('.');
   const schema = MARKER_SCHEMA[catKey!]?.markers?.[markerKey!];

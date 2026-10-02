@@ -1,10 +1,10 @@
-// @ts-check
+import type { ImportReviewMarker } from './pdf-import-review-runtime.js';
 // pdf-import-review-formatting.js — unit controls, ranges, and picker positioning
 
 import { escapeHTML } from './utils.js';
-import { GENERIC_IMPORT_UNITS, getValidUnitsForMarker } from './pdf-import-marker-mapping.js';
+import { GENERIC_IMPORT_UNITS, getValidUnitsForMarker } from './pdf-import-unit-conversions.js';
 
-export function getImportUnitOptions(marker) {
+export function getImportUnitOptions(marker: ImportReviewMarker) {
   const key = marker.mappedKey || marker.suggestedKey;
   const validUnits = getValidUnitsForMarker(key);
   return validUnits.length > 0
@@ -14,7 +14,7 @@ export function getImportUnitOptions(marker) {
 
 // Render responsive unit controls. Schema-backed markers get a constrained
 // picker; custom markers keep text editing plus the same picker as an assist.
-export function renderUnitSelect(marker, idx) {
+export function renderUnitSelect(marker: ImportReviewMarker, idx: number) {
   const unitOptions = getImportUnitOptions(marker);
   const currentUnit = marker.unit || '';
 
@@ -35,7 +35,7 @@ export function renderUnitSelect(marker, idx) {
 }
 
 
-export function positionImportUnitMenu(button, menu) {
+export function positionImportUnitMenu(button: HTMLElement, menu: HTMLElement) {
   const isMobile = matchMedia('(max-width: 768px)').matches;
   if (isMobile) {
     menu.classList.add('is-mobile');
@@ -61,11 +61,11 @@ export function positionImportUnitMenu(button, menu) {
 }
 
 
-export function formatImportNumber(value) {
-  return value == null || isNaN(value) ? '' : String(value);
+export function formatImportNumber(value: unknown) {
+  return value == null || isNaN(value as number) ? '' : String(value);
 }
 
-export function formatImportLabRange(marker) {
+export function formatImportLabRange(marker: ImportReviewMarker) {
   if (marker.refMin == null && marker.refMax == null) return '';
   return `${formatImportNumber(marker.refMin) || '?'}\u2013${formatImportNumber(marker.refMax) || '?'}`;
 }

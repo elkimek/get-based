@@ -696,3 +696,6 @@ deploy/profile-share/data/
 /js/chat-scroll.js
 /js/pdf-import-ai-utils.js
 /js/pdf-import-review-runtime.js
+/js/pdf-import-review-formatting.js
+/js/import-review-row-actions.js
+/js/import-review-draft.js
