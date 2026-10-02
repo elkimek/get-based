@@ -1,4 +1,3 @@
-// @ts-check
 // api-openrouter.js - OpenRouter provider adapter.
 
 import {
@@ -17,6 +16,8 @@ import {
   shouldHideAppExtensionAIUsage,
 } from './app-extension-runtime.js';
 
+import type { ProviderRequestOptions } from './api-openai-compatible.js';
+
 export async function getOpenRouterBalance() {
   if (shouldHideAppExtensionAIUsage('openrouter')) return null;
   const key = getOpenRouterKey();
@@ -26,7 +27,7 @@ export async function getOpenRouterBalance() {
       headers: { 'Authorization': 'Bearer ' + key }
     });
     if (!res.ok) return null;
-    const json = await res.json();
+    const json = await res.json() as { data?: { total_credits?: number | null; total_usage: number } };
     const d = json.data;
     if (d && d.total_credits != null) {
       return { total: d.total_credits, used: d.total_usage, remaining: d.total_credits - d.total_usage };
@@ -37,7 +38,7 @@ export async function getOpenRouterBalance() {
   }
 }
 
-function openRouterMandatoryReasoningEffort(modelId) {
+function openRouterMandatoryReasoningEffort(modelId: unknown) {
   const model = readStoredArray('labcharts-openrouter-models')
     .find(candidate => candidate?.id === modelId);
   if (model?.reasoning?.mandatory !== true) return null;
@@ -49,7 +50,7 @@ function openRouterMandatoryReasoningEffort(modelId) {
   return { effort };
 }
 
-export async function callOpenRouterAPI(opts) {
+export async function callOpenRouterAPI(opts: ProviderRequestOptions) {
   const key = getOpenRouterKey();
   const modelId = String(opts?.modelOverride || getOpenRouterModel());
   const mandatoryReasoning = opts?.reasoningEffort === 'none'

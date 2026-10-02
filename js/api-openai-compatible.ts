@@ -51,6 +51,10 @@ export interface OpenAICompatibleOptions {
   jsonMode?: boolean | undefined; jsonSchema?: unknown; forceNonStream?: boolean | undefined;
   temperature?: number | undefined; reasoningEffort?: string | undefined; strictTokenLimit?: boolean | undefined;
 }
+export interface ProviderRequestOptions extends OpenAICompatibleOptions {
+  modelOverride?: unknown;
+  webSearch?: boolean | undefined;
+}
 export interface OpenAICompatibleTransportOptions {
   useProxy?: boolean; extraBody?: Record<string, unknown>; fetchImpl?: typeof fetch | null;
   firstReadStallMs?: number;

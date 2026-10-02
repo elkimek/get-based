@@ -513,3 +513,8 @@ deploy/profile-share/data/
 /js/api-openai-compatible.js
 /js/api-models.js
 /js/api-openrouter-oauth.js
+
+# Cloud provider native TypeScript output
+/js/api-custom.js
+/js/api-openrouter.js
+/js/api-venice.js

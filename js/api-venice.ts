@@ -1,4 +1,3 @@
-// @ts-check
 // api-venice.js - Venice provider adapter, including E2EE mode.
 
 import { getErrorMessage, getErrorName } from './caught-error.js';
@@ -21,16 +20,27 @@ import {
   redactApiSecretText,
 } from './api-openai-compatible.js';
 
-/** @typedef {Window & typeof globalThis & {
- *   _veniceE2EE?: any,
- *   _veniceE2EEKey?: string,
- *   _veniceE2EEDcapRequired?: boolean,
- *   _veniceE2EEGpuRequired?: boolean,
- *   _veniceAttestation?: any,
- *   _veniceLastStreamDiagnostics?: any
- * }} VeniceApiWindow */
+import type { ProviderRequestOptions } from './api-openai-compatible.js';
+import type { createVeniceE2EE } from '../vendor/venice-e2ee.js';
 
-const apiWindow = /** @type {VeniceApiWindow} */ (typeof window !== 'undefined' ? window : {});
+type VeniceClient = ReturnType<typeof createVeniceE2EE>;
+interface VeniceApiWindow {
+  _veniceE2EE?: VeniceClient; _veniceE2EEKey?: string;
+  _veniceE2EEDcapRequired?: boolean; _veniceE2EEGpuRequired?: boolean;
+  _veniceAttestation?: unknown; _veniceLastStreamDiagnostics?: unknown;
+}
+interface EncryptedChoice {
+  finish_reason?: unknown; native_finish_reason?: unknown;
+  message?: { content?: string; reasoning_content?: string };
+  delta?: { content?: string; reasoning_content?: string };
+}
+interface EncryptedResponse { choices?: EncryptedChoice[]; error?: { message?: unknown };
+  usage?: { prompt_tokens?: number; completion_tokens?: number } }
+interface EncryptedRequest extends Record<string, unknown> { reasoning?: { enabled: boolean };
+  reasoning_effort?: string; stream_options?: { include_usage: boolean } }
+interface StreamDiagnostics { model: string; eventCount: number; contentChunks: number; reasoningChunks: number;
+  deltaFields: string[]; finishReason: unknown; usageSeen: boolean; doneSeen: boolean; status: string }
+const apiWindow = (typeof window !== 'undefined' ? window : {}) as VeniceApiWindow;
 
 const VENICE_ATTESTATION_RETRY_DELAYS_MS = [250, 750];
 const NVIDIA_NRAS_GPU_URL = 'https://nras.attestation.nvidia.com/v3/attest/gpu';
@@ -42,7 +52,7 @@ const NVIDIA_NRAS_GPU_URL = 'https://nras.attestation.nvidia.com/v3/attest/gpu';
  * @param {string | URL} url
  * @param {RequestInit} [options]
  */
-function fetchVeniceNrasAttestation(url, options = {}) {
+function fetchVeniceNrasAttestation(url: RequestInfo | URL, options: RequestInit = {}) {
   if (String(url) !== NVIDIA_NRAS_GPU_URL || String(options.method || '').toUpperCase() !== 'POST'
       || typeof options.body !== 'string') {
     return Promise.reject(new Error('Blocked unexpected NVIDIA NRAS proxy request'));
@@ -57,17 +67,17 @@ function fetchVeniceNrasAttestation(url, options = {}) {
       body: options.body,
     }),
     signal: options.signal,
-  });
+  } as RequestInit);
 }
 
-function veniceAttestationStatus(error) {
+function veniceAttestationStatus(error: unknown) {
   const match = getErrorMessage(error).match(
     /(?:TEE attestation failed|NRAS rejected the GPU evidence) \((502|503|504)\)/i
   );
   return match?.[1] || '';
 }
 
-function veniceRetryAbortError(signal) {
+function veniceRetryAbortError(signal: AbortSignal | undefined) {
   return signal?.reason instanceof Error
     ? signal.reason
     : new DOMException('Venice E2EE request cancelled.', 'AbortError');
@@ -78,7 +88,7 @@ function veniceRetryAbortError(signal) {
  * @param {AbortSignal | undefined} signal
  * @returns {Promise<void>}
  */
-function waitForVeniceAttestationRetry(delayMs, signal) {
+function waitForVeniceAttestationRetry(delayMs: number, signal: AbortSignal | undefined): Promise<void> {
   if (!signal) return new Promise(resolve => setTimeout(resolve, delayMs));
   if (signal.aborted) return Promise.reject(veniceRetryAbortError(signal));
   return new Promise((resolve, reject) => {
@@ -94,7 +104,7 @@ function waitForVeniceAttestationRetry(delayMs, signal) {
   });
 }
 
-async function createVeniceE2EESessionWithRetry(client, modelId, signal) {
+async function createVeniceE2EESessionWithRetry(client: VeniceClient, modelId: string, signal: AbortSignal | undefined) {
   for (let attempt = 0; attempt <= VENICE_ATTESTATION_RETRY_DELAYS_MS.length; attempt++) {
     try {
       return await client.createSession(modelId);
@@ -104,7 +114,7 @@ async function createVeniceE2EESessionWithRetry(client, modelId, signal) {
       if (attempt === VENICE_ATTESTATION_RETRY_DELAYS_MS.length) {
         throw new Error(`Venice E2EE attestation stayed unavailable (${status}) after ${attempt + 1} attempts. Retry shortly or choose another E2EE model.`);
       }
-      await waitForVeniceAttestationRetry(VENICE_ATTESTATION_RETRY_DELAYS_MS[attempt], signal);
+      await waitForVeniceAttestationRetry(VENICE_ATTESTATION_RETRY_DELAYS_MS[attempt]!, signal);
     }
   }
   throw new Error('Venice E2EE attestation retry ended unexpectedly.');
@@ -136,7 +146,7 @@ export async function getVeniceBalance() {
   }
 }
 
-export async function callVeniceAPI(opts) {
+export async function callVeniceAPI(opts: ProviderRequestOptions) {
   const key = getVeniceKey();
   if (!key) throw new Error('No Venice API key configured. Add your key in Settings.');
   const regularModels = readStoredArray('labcharts-venice-models');
@@ -206,14 +216,14 @@ export async function callVeniceAPI(opts) {
   apiWindow._veniceAttestation = session.attestation ?? apiWindow._veniceAttestation ?? null;
   document.querySelector('.chat-header-model')?.dispatchEvent(new CustomEvent('e2ee-attestation'));
 
-  const contentStr = (c) => typeof c === 'string'
+  const contentStr = (c: unknown) => typeof c === 'string'
     ? c
     : Array.isArray(c)
-      ? c.filter(b => b.type === 'text').map(b => b.text).join('')
+      ? c.filter((b: { type?: unknown; text?: unknown }) => b.type === 'text').map((b: { text?: unknown }) => b.text).join('')
       : String(c);
   const { system, messages, maxTokens, onStream, signal, forceNonStream, requestTimeoutMs } = opts;
-  const apiMessages = [];
-  if (system) apiMessages.push({ role: 'system', content: await encryptMessage(session.aesKey, session.publicKey, system) });
+  const apiMessages: Array<{ role: unknown; content: string }> = [];
+  if (system) apiMessages.push({ role: 'system', content: await encryptMessage(session.aesKey, session.publicKey, system as string) });
   for (const msg of messages) {
     apiMessages.push({ role: msg.role, content: await encryptMessage(session.aesKey, session.publicKey, contentStr(msg.content)) });
   }
@@ -227,7 +237,7 @@ export async function callVeniceAPI(opts) {
   const disableGlmThinking = isGlmE2EE && !isGlm52E2EE;
   const requestedReasoningEffort = String(opts.reasoningEffort || '').trim();
   const disableRequestedReasoning = requestedReasoningEffort === 'none';
-  const body = /** @type {any} */ ({
+  const body: EncryptedRequest = {
     model: modelId,
     messages: apiMessages,
     max_tokens: maxTokens || 4096,
@@ -237,7 +247,7 @@ export async function callVeniceAPI(opts) {
       ...(disableGlmThinking || disableRequestedReasoning
         ? { disable_thinking: true, strip_thinking_response: true } : {}),
     },
-  });
+  };
   if (disableRequestedReasoning) body.reasoning = { enabled: false };
   else if (requestedReasoningEffort) body.reasoning_effort = requestedReasoningEffort;
   if (useStream) body.stream_options = { include_usage: true };
@@ -254,7 +264,7 @@ export async function callVeniceAPI(opts) {
       },
       body: JSON.stringify(body),
       signal
-    }, 2, true, requestTimeoutMs);
+    } as RequestInit, 2, true, requestTimeoutMs);
   } catch (e) {
     throw new Error(`Cannot reach Venice API: ${redactApiSecretText(getErrorMessage(e), [key])}`);
   }
@@ -271,7 +281,7 @@ export async function callVeniceAPI(opts) {
   }
 
   if (!useStream) {
-    const data = await res.json();
+    const data = await res.json() as EncryptedResponse;
     const usage = data.usage || {};
     const choice = data.choices?.[0];
     const encryptedContent = choice?.message?.content || choice?.message?.reasoning_content || '';
@@ -295,20 +305,20 @@ export async function callVeniceAPI(opts) {
   let hasContent = false;
   let inputTokens = 0;
   let outputTokens = 0;
-  let finishReason = null;
-  const streamDiagnostics = {
+  let finishReason: unknown = null;
+  const streamDiagnostics: StreamDiagnostics = {
     model: modelId,
     eventCount: 0,
     contentChunks: 0,
     reasoningChunks: 0,
-    deltaFields: /** @type {string[]} */ ([]),
+    deltaFields: [],
     finishReason: null,
     usageSeen: false,
     doneSeen: false,
     status: 'reading',
   };
   apiWindow._veniceLastStreamDiagnostics = streamDiagnostics;
-  const handleVeniceLine = async (line, boundary) => {
+  const handleVeniceLine = async (line: string, boundary: boolean) => {
     if (!line.startsWith('data: ')) return;
     const data = line.slice(6);
     if (data === '[DONE]') {
@@ -316,7 +326,7 @@ export async function callVeniceAPI(opts) {
       return;
     }
     try {
-      const event = JSON.parse(data);
+      const event = JSON.parse(data) as EncryptedResponse;
       streamDiagnostics.eventCount += 1;
       if (event.error) throw new Error(redactApiSecretText(event.error.message || JSON.stringify(event.error), [key]));
       const choice = event.choices?.[0];
@@ -356,7 +366,7 @@ export async function callVeniceAPI(opts) {
     }
   };
   while (true) {
-    const { done, value } = await readWithStallTimeout(reader, 'Venice stream');
+    const { done, value } = await readWithStallTimeout<Uint8Array>(reader, 'Venice stream');
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split('\n');

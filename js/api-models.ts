@@ -35,7 +35,7 @@ import {
 } from './app-extension-runtime.js';
 
 import type { StoredProviderModel } from './api-provider-storage.js';
-interface CatalogModel extends StoredProviderModel {
+export interface CatalogModel extends StoredProviderModel {
   type?: unknown; architecture?: { input_modalities?: unknown; modality?: unknown };
   input_modalities?: unknown; input?: unknown; modality?: unknown;
   capabilities?: { vision?: unknown; supportsVision?: unknown };

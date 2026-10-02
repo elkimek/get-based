@@ -1,4 +1,3 @@
-// @ts-check
 // api-custom.js - custom OpenAI-compatible endpoint adapter.
 
 import { getErrorMessage } from './caught-error.js';
@@ -12,16 +11,19 @@ import {
 import { findPreferredModel, modelMetadataIsAvailable, modelMetadataSupportsVision } from './api-models.js';
 import { callOpenAICompatibleAPI } from './api-openai-compatible.js';
 
+import type { CatalogModel } from './api-models.js';
+import type { ProviderRequestOptions } from './api-openai-compatible.js';
+
 const CUSTOM_DEFAULT_CANDIDATES = ['openai/gpt-5.5', 'gpt-5.5', 'anthropic/claude-sonnet-5', 'claude-sonnet-5', 'anthropic/claude-sonnet-4.6', 'claude-sonnet-4.6'];
 
-function _customApiFetchModels(url, key) {
+function _customApiFetchModels(url: string, key: unknown) {
   return fetch(url, {
     headers: { 'Authorization': 'Bearer ' + key },
     credentials: 'omit',
   });
 }
 
-function customBrowserConnectionError(error) {
+function customBrowserConnectionError(error: unknown) {
   const detail = getErrorMessage(error);
   return new Error(
     'This Custom API could not be reached directly from your browser. '
@@ -32,7 +34,7 @@ function customBrowserConnectionError(error) {
   );
 }
 
-export async function fetchCustomApiModels(baseUrl, key) {
+export async function fetchCustomApiModels(baseUrl?: string, key?: string) {
   try {
     const url = (baseUrl || getCustomApiUrl()).replace(/\/+$/, '');
     const k = key || getCustomApiKey();
@@ -43,7 +45,7 @@ export async function fetchCustomApiModels(baseUrl, key) {
       if (parent !== url) res = await _customApiFetchModels(parent + '/models', k);
     }
     if (!res.ok) return [];
-    const json = await res.json();
+    const json = await res.json() as { data?: CatalogModel[] };
     const models = (json.data || []).filter(function(m) {
       return m.id && modelMetadataIsAvailable(m);
     }).map(function(m) {
@@ -64,7 +66,7 @@ export async function fetchCustomApiModels(baseUrl, key) {
     localStorage.setItem('labcharts-custom-models', JSON.stringify(models));
     if (!getCustomApiModel() && models.length) {
       const preferred = findPreferredModel(models, CUSTOM_DEFAULT_CANDIDATES);
-      setCustomApiModel((preferred || models[0]).id);
+      setCustomApiModel((preferred || models[0]!).id);
     }
     notifyAIModelCatalogChanged();
     return models;
@@ -73,7 +75,7 @@ export async function fetchCustomApiModels(baseUrl, key) {
   }
 }
 
-export async function validateCustomApiKey(baseUrl, key) {
+export async function validateCustomApiKey(baseUrl: string, key: string) {
   try {
     const url = baseUrl.replace(/\/+$/, '');
     const res = await _customApiFetchModels(url + '/models', key);
@@ -83,8 +85,7 @@ export async function validateCustomApiKey(baseUrl, key) {
     else if (!res.ok) return { valid: false, error: 'Server returned status ' + res.status };
     if (res.ok || noModels) {
       const probeBody = JSON.stringify({ model: 'x', messages: [{ role: 'user', content: 'hi' }], max_tokens: 1 });
-      /** @type {RequestInit} */
-      const probeOpts = {
+      const probeOpts: RequestInit = {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
         body: probeBody,
@@ -105,7 +106,7 @@ export async function validateCustomApiKey(baseUrl, key) {
   }
 }
 
-export async function callCustomAPI(opts) {
+export async function callCustomAPI(opts: ProviderRequestOptions) {
   const baseUrl = getCustomApiUrl().replace(/\/+$/, '');
   const key = getCustomApiKey();
   if (!baseUrl) throw new Error('No Custom API URL configured. Set it in Settings.');
