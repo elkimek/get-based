@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { sourceFunctionHasStatement } from './helpers/native-source-contracts.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static shell delegated-action source guards.
 
@@ -311,7 +312,7 @@ assert('App shell keeps demo imports lazy and delegates prepared data to the nor
 
 assert('App shell injects sync pull profile refresh without bridge lookups',
   !syncPullSrc.includes("from './views-runtime-bridge.js'")
-    && syncPullSrc.includes("if (typeof renderProfileButton === 'function') _renderProfileButton = renderProfileButton;")
+    && sourceFunctionHasStatement(syncPullSrc, 'configureSyncPull', "if (typeof renderProfileButton === 'function') _renderProfileButton = renderProfileButton;")
     && syncPullSrc.includes('_renderProfileButton();')
     && appShellHooksSrc.includes("import { configureSyncPull } from './sync-pull.js';")
     && appShellHooksSrc.includes('reconcilePulledManualWearables,')

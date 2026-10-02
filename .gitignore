@@ -646,3 +646,5 @@ deploy/profile-share/data/
 /js/provider-panel-renderers-runtime.js
 /js/provider-wallet-panel-buttons.js
 /js/nostr-discovery.js
+
+/tests/helpers/native-source-contracts.js

@@ -158,7 +158,7 @@ assert('handleSaveOpenRouterKey exists', ppSrc.includes('function handleSaveOpen
 assert('handleRemoveOpenRouterKey exists', ppSrc.includes('function handleRemoveOpenRouterKey()'));
 assert('renderOpenRouterModelDropdown exists', providerModelControlsSrc.includes('function renderOpenRouterModelDropdown('));
 assert('updateOpenRouterModelPricing exists', providerModelControlsSrc.includes('function updateOpenRouterModelPricing('));
-assert('openrouter-key-input element', providerRenderSrc.includes('openrouter-key-input'));
+assert('openrouter-key-input element', (await import('../js/provider-panel-renderers.js')).renderAIProviderPanel('openrouter').includes('<input type="password" class="api-key-input" id="openrouter-key-input"'));
 assert('openrouter-model-area element', providerUiSrc.includes('openrouter-model-area'));
 assert('openrouter-model-pricing element', providerUiSrc.includes('openrouter-model-pricing'));
 assert('OpenRouter link to openrouter.ai/keys', providerRenderSrc.includes('openrouter.ai/keys'));

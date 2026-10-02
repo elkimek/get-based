@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { sourceFunctionHasStatement, sourceFunctionHasVariable } from './helpers/native-source-contracts.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-prelab.js — Verify pre-lab onboarding: context cards → test recommendations
 //
@@ -58,7 +59,7 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
     'Staleness signal should check hasLabData first');
 
   // Sections 5-16 (notes, conditions, supplements, cycle, lifestyle cards) should NOT be gated by hasLabData
-  assert('User Notes section not gated by hasLabData', labCtxSrc.includes("// ── 5. User Notes ──\n  const notes"),
+  assert('User Notes section not gated by hasLabData', sourceFunctionHasVariable(labCtxSrc, '_buildLabContextInner', 'notes'),
     'User Notes should be at top level, not inside hasLabData block');
   assert('Medical History section not gated by hasLabData', labCtxSrc.includes("// ── 6. Medical History"),
     'Medical history should serialize without lab data');
@@ -273,7 +274,7 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
   })(), 'No early return between inner function start and section 1');
 
   assert('buildLabContext inner builder ends with return ctx',
-    /function _buildLabContextInner[\s\S]*\n  return ctx;\n}/.test(labCtxSrc),
+    sourceFunctionHasStatement(labCtxSrc, '_buildLabContextInner', 'return ctx;', 'last'),
     'Should always return the built context string before the cache wrapper stores it');
 
   // ═══════════════════════════════════════

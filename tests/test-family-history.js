@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { sourceFunctionHasStatement } from './helpers/native-source-contracts.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-family-history.js — Medical History card + family-history subsection.
 // Covers: COMMON_CONDITIONS coverage, the apostrophe-condition click fix
@@ -100,11 +101,11 @@ console.log('3. FAMILY_RELATIVES + addEntry guards');
 assert('FAMILY_RELATIVES declared with 8 first-degree+grandparent keys',
   /FAMILY_RELATIVES\s*=\s*\[[^\]]*'mother'[^\]]*'father'[^\]]*'sibling'[^\]]*'child'[^\]]*'maternal_grandmother'[^\]]*'maternal_grandfather'[^\]]*'paternal_grandmother'[^\]]*'paternal_grandfather'/s.test(ctxMedicalSrc));
 assert('addFamilyHistoryEntry validates relative against FAMILY_RELATIVES',
-  /addFamilyHistoryEntry[\s\S]{0,1000}if \(!FAMILY_RELATIVES\.some\(r => r\.key === relative\)\) return/.test(ctxMedicalSrc));
+  sourceFunctionHasStatement(ctxMedicalSrc, 'addFamilyHistoryEntry', 'if (!FAMILY_RELATIVES.some(r => r.key === relative)) return;'));
 assert('addFamilyHistoryEntry clamps onsetAge to 0–120',
   /Math\.max\(0,\s*Math\.min\(120,\s*parseInt\(ageRaw, 10\)\)\)/.test(ctxMedicalSrc));
 assert('addFamilyHistoryEntry early-returns when relative or condition empty',
-  /if \(!relative \|\| !condition\) return/.test(ctxMedicalSrc));
+  sourceFunctionHasStatement(ctxMedicalSrc, 'addFamilyHistoryEntry', 'if (!relative || !condition) return;'));
 
 // ═══════════════════════════════════════
 // 4. saveDiagnoses null-guard with familyHistory-only

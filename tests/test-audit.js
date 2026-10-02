@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { sourceFunctionHasInitializer } from './helpers/native-source-contracts.js';
 import { dataModuleSource } from './helpers/data-module-source.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
@@ -1151,7 +1152,7 @@ assert('buildLabContext has age computation',
 assert('buildLabContext uses a local calendar date key', labCtxSrc.includes('const today = localDateKey(now)'));
 assert('buildLabContext cache refreshes on each local calendar day', labCtxSrc.includes(":day-${localDateKey(Date.now())}"));
 assert('buildLabContext has unit system label', labCtxSrc.includes("unit system: ${unitLabel}"));
-assert('buildLabContext has fmtDate helper', labCtxSrc.includes("const fmtDate = d => new Date(d + 'T00:00:00')"));
+assert('buildLabContext has fmtDate helper', sourceFunctionHasInitializer(labCtxSrc, '_buildLabContextInner', 'fmtDate', "d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })"));
 
 assert('Health Goals section before Diet section', labCtxSrc.indexOf('## Health Goals') < labCtxSrc.indexOf('## Diet'));
 assert('Interpretive Lens before lab values', labCtxSrc.indexOf('Interpretive Lens') < labCtxSrc.indexOf('${cat.label}'));

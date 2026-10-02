@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { sourceFunctionHasStatement } from './helpers/native-source-contracts.js';
 import { dataModuleSource } from './helpers/data-module-source.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 // test-cycle-improvements.js — Browser test for cycle improvements
@@ -102,7 +103,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
     assert('setPhaseOverlay is a module API', typeof dataModule.setPhaseOverlay === 'function');
     assert('setPhaseOverlay stays off window', !('setPhaseOverlay' in window));
     const src = read('js/data-view-controls.js');
-    assert('setPhaseOverlay sets phaseOverlayMode', src.includes("state.phaseOverlayMode = mode === 'off' ? 'off' : 'on'"));
+    assert('setPhaseOverlay sets phaseOverlayMode', sourceFunctionHasStatement(src, 'setPhaseOverlay', "state.phaseOverlayMode = mode === 'off' ? 'off' : 'on';", 'direct', ['setOverlayMode']));
     assert('setPhaseOverlay persists to localStorage', src.includes("'phaseOverlay'") && src.includes('setPhaseOverlay'));
   }
 
