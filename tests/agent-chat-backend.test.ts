@@ -1,6 +1,8 @@
+import type { AgentTurnOptions, uploadAgentImage } from '../js/agent-chat-client.js';
+import type { connectDetectedAgent } from '../js/agent-chat-settings.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ stream: vi.fn(), connect: vi.fn(), upload: vi.fn() }));
+const mocks = vi.hoisted(() => ({ stream: vi.fn<(options: AgentTurnOptions) => Promise<unknown>>(), connect: vi.fn<(...args: Parameters<typeof connectDetectedAgent>) => Promise<unknown>>(), upload: vi.fn<(options: Parameters<typeof uploadAgentImage>[0]) => Promise<string>>() }));
 vi.mock('../js/agent-chat-client.js', () => ({ streamAgentTurn: mocks.stream, uploadAgentImage: mocks.upload }));
 vi.mock('../js/agent-chat-settings.js', () => ({
   connectDetectedAgent: mocks.connect,
@@ -24,9 +26,9 @@ describe('agent backend recovery boundaries', () => {
     mocks.stream.mockRejectedValueOnce(new Error(message));
     expect(await callCodexAgent(options)).toMatchObject({ text: 'Answer', drafts: [] });
     expect(mocks.stream).toHaveBeenCalledTimes(2);
-    expect(mocks.stream.mock.calls[0][0].threadId).toBe('expired');
-    expect(mocks.stream.mock.calls[1][0]).toMatchObject({ threadId: undefined, model: 'synthetic-model', prompt: options.prompt });
-    expect(mocks.stream.mock.calls[1][0].toolRuntime).toBe(mocks.stream.mock.calls[0][0].toolRuntime);
+    expect(mocks.stream.mock.calls[0]![0].threadId).toBe('expired');
+    expect(mocks.stream.mock.calls[1]![0]).toMatchObject({ threadId: undefined, model: 'synthetic-model', prompt: options.prompt });
+    expect(mocks.stream.mock.calls[1]![0].toolRuntime).toBe(mocks.stream.mock.calls[0]![0].toolRuntime);
   });
   it.each(['Unauthorized', 'Network error', 'Aborted'])('does not retry a potentially billable turn on %s', async message => {
     mocks.stream.mockRejectedValue(new Error(message));
@@ -44,7 +46,7 @@ describe('agent backend recovery boundaries', () => {
     mocks.stream.mockRejectedValueOnce(new Error('invalid thread session'));
     await callCodexAgent({ ...options, signal, images: [{ base64: 'AA==', mediaType: 'image/png' }] });
     expect(mocks.upload).toHaveBeenCalledTimes(1);
-    expect(mocks.upload.mock.calls[0][0]).toMatchObject({ signal, token: 'synthetic-token' });
+    expect(mocks.upload.mock.calls[0]![0]).toMatchObject({ signal, token: 'synthetic-token' });
     for (const [turn] of mocks.stream.mock.calls) expect(turn).toMatchObject({ imageUploadIds: ['upload-id'], signal });
   });
   it('propagates a failed retry instead of looping', async () => {

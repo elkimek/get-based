@@ -1,5 +1,3 @@
-// @ts-check
-
 import { createAgentToolRuntime, getCodexDynamicTools } from './agent-tool-runtime.js';
 import { streamAgentTurn, uploadAgentImage } from './agent-chat-client.js';
 import {
@@ -10,21 +8,13 @@ import { AGENT_HOST_CAPABILITIES } from '../shared/agent-host-protocol.js';
 import { createBrowserAgentToolDependencies } from './agent-tool-bindings.js';
 import { buildAgentChatInstructions } from './agent-chat-context.js';
 
-/**
- * @param {{
- *   prompt: string,
- *   instructions: string,
- *   labContext: string,
- *   target?: string,
- *   profileId?: string,
- *   threadId?: string,
- *   history?: Array<{role: 'user'|'assistant', content: string}>,
- *   images?: Array<{base64: string, mediaType: string}>,
- *   signal?: AbortSignal,
- *   onStream?: (text: string) => void,
- * }} options
- */
-export async function callCodexAgent(options) {
+import type { AgentTurnOptions } from './agent-chat-client.js';
+interface AgentChatOptions extends Pick<AgentTurnOptions, 'prompt' | 'target' | 'threadId' | 'history' | 'signal' | 'onStream'> {
+  instructions: string; labContext: string; profileId?: string;
+  images?: Array<{ base64: string; mediaType: string }>;
+}
+
+export async function callCodexAgent(options: AgentChatOptions) {
   const agent = getAgentHostAgent();
   const target = options.target || getAgentHostTarget(agent);
   const model = getAgentHostModel() || getAssistantExecutionRoute().model;
@@ -60,7 +50,7 @@ export async function callCodexAgent(options) {
     });
   }));
   const imageUploadIds = await uploadImages();
-  const run = threadId => streamAgentTurn({
+  const run = (threadId: string | undefined) => streamAgentTurn({
     endpoint,
     token,
     agent,
@@ -77,14 +67,15 @@ export async function callCodexAgent(options) {
     signal: options.signal,
     onStream: options.onStream,
   });
+  const withDrafts = (result: Awaited<ReturnType<typeof streamAgentTurn>>) => ({ ...result, drafts: runtime.getDrafts().map(draft => ({ ...draft, profileId: options.profileId || '' })) });
   try {
     const result = await run(options.threadId);
-    return { ...result, drafts: runtime.getDrafts().map(draft => ({ ...draft, profileId: options.profileId || '' })) };
+    return withDrafts(result);
   } catch (error) {
     if (!options.threadId || !(error instanceof Error)
       || (!error.message.includes('invalid thread session') && !error.message.includes('thread agent mismatch')
         && !error.message.includes('thread target mismatch'))) throw error;
     const result = await run(undefined);
-    return { ...result, drafts: runtime.getDrafts().map(draft => ({ ...draft, profileId: options.profileId || '' })) };
+    return withDrafts(result);
   }
 }

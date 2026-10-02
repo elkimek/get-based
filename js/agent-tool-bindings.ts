@@ -1,4 +1,3 @@
-// @ts-check
 // Browser-side bindings for the narrow, versioned agent tool contract.
 
 import { state } from './state.js';
@@ -13,22 +12,29 @@ import { computeNutritionHistory, computeNutritionSummary } from './nutrition-su
 import { buildWearableSeriesSection } from './lab-context-wearables.js';
 import { queryLens } from './lens.js';
 
-function unavailable(reason) {
-  return { available: false, reason };
+import type { ActiveCategory, ActiveData, ActiveMarker } from './data-view-types.js';
+interface VisibleMarker { key: string; name: string; category: string; marker: ActiveMarker; data: ActiveData }
+interface MarkerQuery { query: string; limit?: number }
+interface MarkerHistoryQuery { marker: string; from?: string; to?: string; limit?: number }
+type BrowserToolOptions = {
+  searchMarkers: MarkerQuery; readMarkerHistory: MarkerHistoryQuery; readNutritionSummary: { range: string };
+  readWearableSeries: { days: number }; searchKnowledge: MarkerQuery; navigate: { view: string; marker: string };
+};
+type BrowserToolDependencies = Partial<{ [Key in keyof BrowserToolOptions]: (options: BrowserToolOptions[Key]) => unknown }>;
+
+function unavailable(reason: string) {
+  return { available: false as const, reason };
 }
 
-function groupIsEnabled(category) {
+function groupIsEnabled(category: Pick<ActiveCategory, 'group' | 'label'> | null | undefined) {
   const group = String(category?.group || category?.label || '').trim();
   return !group || isGroupInAIContext(group);
 }
 
-/**
- * @returns {Array<{key: string, name: string, category: string, marker: any, data: any}>}
- */
 export function getAgentVisibleMarkers() {
   if (!isContextSourceEnabled(CONTEXT_SOURCE_IDS.LAB_MARKERS)) return [];
   const data = getActiveData();
-  const rows = [];
+  const rows: VisibleMarker[] = [];
   for (const [categoryKey, category] of Object.entries(data.categories || {})) {
     if (!groupIsEnabled(category)) continue;
     for (const [markerKey, marker] of Object.entries(category.markers || {})) {
@@ -45,11 +51,11 @@ export function getAgentVisibleMarkers() {
   return rows;
 }
 
-function markerDate(row, index) {
+function markerDate(row: VisibleMarker, index: number) {
   return row.marker.singlePoint ? row.marker.singleDate : row.data.dates[index];
 }
 
-function latestMarkerPoint(row) {
+function latestMarkerPoint(row: VisibleMarker) {
   for (let index = row.marker.values.length - 1; index >= 0; index -= 1) {
     const value = row.marker.values[index];
     if (value != null) return { value, date: markerDate(row, index) || null };
@@ -57,7 +63,7 @@ function latestMarkerPoint(row) {
   return { value: null, date: null };
 }
 
-function publicMarker(row) {
+function publicMarker(row: VisibleMarker) {
   const latest = latestMarkerPoint(row);
   return {
     key: row.key,
@@ -70,30 +76,28 @@ function publicMarker(row) {
   };
 }
 
-/** @param {string} query */
-export function resolveAgentMarker(query) {
+export function resolveAgentMarker(query: unknown) {
   const normalized = String(query || '').trim().toLocaleLowerCase();
   const rows = getAgentVisibleMarkers();
   const exact = rows.filter(row => row.key.toLocaleLowerCase() === normalized
     || row.name.toLocaleLowerCase() === normalized);
-  if (exact.length === 1) return { row: exact[0], matches: exact };
+  if (exact.length === 1) return { row: exact[0]!, matches: exact };
   const matches = exact.length > 1 ? exact : rows.filter(row => [row.key, row.name, row.category]
     .some(value => value.toLocaleLowerCase().includes(normalized)));
-  return { row: matches.length === 1 ? matches[0] : null, matches };
+  return { row: matches.length === 1 ? matches[0]! : null, matches };
 }
 
-/** @param {{query: string, limit: number}} options */
-export function searchAgentMarkers({ query, limit }) {
+export function searchAgentMarkers({ query, limit }: MarkerQuery) {
   if (!isContextSourceEnabled(CONTEXT_SOURCE_IDS.LAB_MARKERS)) {
     return unavailable('Lab marker context is disabled for the active profile.');
   }
   const normalized = query.toLocaleLowerCase();
   const matches = getAgentVisibleMarkers().filter(row => [row.key, row.name, row.category]
     .some(value => value.toLocaleLowerCase().includes(normalized)));
-  return { available: true, matches: matches.slice(0, limit).map(publicMarker), totalMatches: matches.length };
+  return { available: true as const, matches: matches.slice(0, limit).map(publicMarker), totalMatches: matches.length };
 }
 
-function publicRange(range) {
+function publicRange(range: ReturnType<typeof getMarkerRangesForChat>[number]) {
   return {
     kind: range.kind,
     label: range.label,
@@ -104,15 +108,14 @@ function publicRange(range) {
   };
 }
 
-/** @param {{marker: string, from: string, to: string, limit: number}} options */
-export function readAgentMarkerHistory({ marker, from, to, limit }) {
+export function readAgentMarkerHistory({ marker, from, to, limit }: MarkerHistoryQuery) {
   if (!isContextSourceEnabled(CONTEXT_SOURCE_IDS.LAB_MARKERS)) {
     return unavailable('Lab marker context is disabled for the active profile.');
   }
   const resolved = resolveAgentMarker(marker);
   if (!resolved.row) {
     return {
-      available: false,
+      available: false as const,
       reason: resolved.matches.length ? 'Marker name is ambiguous.' : 'Marker was not found.',
       matches: resolved.matches.slice(0, 10).map(publicMarker),
     };
@@ -129,15 +132,15 @@ export function readAgentMarkerHistory({ marker, from, to, limit }) {
     }];
   });
   return {
-    available: true,
+    available: true as const,
     marker: publicMarker(row),
-    values: values.slice(-limit),
-    returnedValues: Math.min(values.length, limit),
+    values: values.slice(-limit!),
+    returnedValues: Math.min(values.length, limit!),
     totalValuesInRange: values.length,
   };
 }
 
-function aggregateNutritionWindow(range) {
+function aggregateNutritionWindow(range: string) {
   const meals = Array.isArray(state.importedData?.nutritionMeals) ? state.importedData.nutritionMeals : [];
   if (range === '7d') {
     const window = computeNutritionSummary(meals).windows.d7;
@@ -156,30 +159,27 @@ function aggregateNutritionWindow(range) {
   };
 }
 
-/** @param {{range: string}} options */
-export function readAgentNutritionSummary({ range }) {
+export function readAgentNutritionSummary({ range }: BrowserToolOptions['readNutritionSummary']) {
   if (!isContextSourceEnabled(CONTEXT_SOURCE_IDS.NUTRITION)) {
     return unavailable('Meals and nutrition context is disabled for the active profile.');
   }
-  return { available: true, ...aggregateNutritionWindow(range) };
+  return { available: true as const, ...aggregateNutritionWindow(range) };
 }
 
-/** @param {{days: number}} options */
-export async function readAgentWearableSeries({ days }) {
+export async function readAgentWearableSeries({ days }: BrowserToolOptions['readWearableSeries']) {
   if (!isContextSourceEnabled(CONTEXT_SOURCE_IDS.WEARABLES)) {
     return unavailable('Wearable context is disabled for the active profile.');
   }
   const section = await buildWearableSeriesSection(days);
-  return section ? { available: true, days, series: section } : unavailable('No wearable series is available for this period.');
+  return section ? { available: true as const, days, series: section } : unavailable('No wearable series is available for this period.');
 }
 
-/** @param {{query: string, limit: number}} options */
-export async function searchAgentKnowledge({ query, limit }) {
+export async function searchAgentKnowledge({ query, limit }: MarkerQuery) {
   const result = await queryLens(query, { topK: limit });
   const chunks = Array.isArray(result?.chunks) ? result.chunks : [];
   if (!chunks.length) return unavailable('No enabled Knowledge Base returned a matching passage.');
   return {
-    available: true,
+    available: true as const,
     chunks: chunks.slice(0, limit).map(chunk => ({
       source: String(chunk?.source || 'Knowledge Base').slice(0, 240),
       text: String(chunk?.text || '').slice(0, 4000),
@@ -187,24 +187,23 @@ export async function searchAgentKnowledge({ query, limit }) {
   };
 }
 
-/** @param {{view: string, marker: string}} options */
-export async function navigateFromAgent({ view, marker }) {
+export async function navigateFromAgent({ view, marker }: BrowserToolOptions['navigate']) {
   if (marker) {
     const resolved = resolveAgentMarker(marker);
     if (!resolved.row) {
       return {
-        changed: false,
+        changed: false as const,
         reason: resolved.matches.length ? 'Marker name is ambiguous.' : 'Marker was not found.',
         matches: resolved.matches.slice(0, 10).map(publicMarker),
       };
     }
     if (!navigateDataViewRuntime('labs', getActiveData()) || !showDataMarkerDetailRuntime(resolved.row.key)) {
-      return { changed: false, reason: 'Marker details are not available yet.' };
+      return { changed: false as const, reason: 'Marker details are not available yet.' };
     }
-    return { changed: true, opened: 'marker', marker: publicMarker(resolved.row) };
+    return { changed: true as const, opened: 'marker', marker: publicMarker(resolved.row) };
   }
-  if (!navigateDataViewRuntime(view, getActiveData())) return { changed: false, reason: 'Navigation is not available yet.' };
-  return { changed: true, opened: view };
+  if (!navigateDataViewRuntime(view, getActiveData())) return { changed: false as const, reason: 'Navigation is not available yet.' };
+  return { changed: true as const, opened: view };
 }
 
 /**
@@ -212,17 +211,14 @@ export async function navigateFromAgent({ view, marker }) {
  * active-profile stores are intentionally global, so a profile switch during
  * a long response must fail closed instead of reading the newly selected
  * profile.
- * @param {Record<string, Function>} dependencies
- * @param {string} profileId
- * @param {() => string} [readActiveProfile]
  */
-export function bindAgentToolDependenciesToProfile(dependencies, profileId, readActiveProfile = () => state.currentProfile || '') {
+export function bindAgentToolDependenciesToProfile(dependencies: BrowserToolDependencies, profileId: string, readActiveProfile = () => state.currentProfile || '') {
   const changed = () => Boolean(profileId) && readActiveProfile() !== profileId;
   const reason = 'The active profile changed while the agent was responding. Retry the request in the intended profile.';
-  const bind = (handler, navigation = false) => async options => {
-    if (changed()) return navigation ? { changed: false, reason } : unavailable(reason);
-    const result = await handler(options);
-    if (changed()) return navigation ? { changed: false, reason } : unavailable(reason);
+  const bind = <Options>(handler: ((options: Options) => unknown) | undefined, navigation = false) => async (options: Options) => {
+    if (changed()) return navigation ? { changed: false as const, reason } : unavailable(reason);
+    const result = await handler!(options);
+    if (changed()) return navigation ? { changed: false as const, reason } : unavailable(reason);
     return result;
   };
   return {
@@ -235,7 +231,6 @@ export function bindAgentToolDependenciesToProfile(dependencies, profileId, read
   };
 }
 
-/** @param {string} [profileId] */
 export function createBrowserAgentToolDependencies(profileId = state.currentProfile || '') {
   return bindAgentToolDependenciesToProfile({
     searchMarkers: searchAgentMarkers,

@@ -4,7 +4,7 @@ import { bindAgentToolDependenciesToProfile } from '../js/agent-tool-bindings.js
 describe('agent tool profile binding', () => {
   it('discards a tool result if the profile changes during an asynchronous read', async () => {
     let profile = 'a';
-    let finish;
+    let finish!: (result: unknown) => void;
     const dependencies = bindAgentToolDependenciesToProfile({
       searchKnowledge: () => new Promise(resolve => { finish = resolve; }),
     }, 'a', () => profile);

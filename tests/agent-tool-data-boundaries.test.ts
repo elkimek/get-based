@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ data: vi.fn(), enabled: vi.fn(), group: vi.fn(), ranges: vi.fn(), wearable: vi.fn(), knowledge: vi.fn(), navigate: vi.fn(), detail: vi.fn() }));
 vi.mock('../js/data.js', () => ({ getActiveData: mocks.data, navigateDataViewRuntime: mocks.navigate, showDataMarkerDetailRuntime: mocks.detail }));
 vi.mock('../js/marker-analysis.js', () => ({ getMarkerRangesForChat: mocks.ranges }));
-vi.mock('../js/context-source-registry.js', async original => ({ ...await original(), isContextSourceEnabled: mocks.enabled }));
+vi.mock('../js/context-source-registry.js', async original => ({ ...await original<typeof import('../js/context-source-registry.js')>(), isContextSourceEnabled: mocks.enabled }));
 vi.mock('../js/lab-context-settings.js', () => ({ isGroupInAIContext: mocks.group }));
 vi.mock('../js/lab-context-wearables.js', () => ({ buildWearableSeriesSection: mocks.wearable }));
 vi.mock('../js/lens.js', () => ({ queryLens: mocks.knowledge }));
@@ -22,14 +22,14 @@ beforeEach(() => {
     custom: { label: 'Specialty', group: 'Private', markers: { glucose: { name: 'Glucose', unit: 'mg/l', values: [7], singlePoint: true, singleDate: '2026-02-15' } } },
   } });
   state.currentProfile = 'a';
-  state.importedData = { entries: [], nutritionMeals: [] };
+  (state as { importedData: Pick<typeof state.importedData, 'entries' | 'nutritionMeals'> }).importedData = { entries: [], nutritionMeals: [] };
 });
 afterEach(() => vi.useRealTimers());
 
 describe('agent marker disclosure', () => {
   it('omits empty markers and disabled groups instead of disclosing their existence', () => {
     mocks.group.mockImplementation(group => group !== 'Private');
-    const result = searchAgentMarkers({ query: '', limit: 10 });
+    const result = searchAgentMarkers({ query: '', limit: 10 }) as Extract<ReturnType<typeof searchAgentMarkers>, { available: true }>;
     expect(result.matches).toEqual([{ key: 'biochemistry.glucose', name: 'Glucose', category: 'Blood', unit: 'mmol/l', latestValue: 5.8, latestDate: '2026-03-01', recordedValues: 2 }]);
     expect(result.totalMatches).toBe(1);
   });
@@ -39,13 +39,13 @@ describe('agent marker disclosure', () => {
     expect(readAgentMarkerHistory({ marker: 'missing', limit: 10 })).toMatchObject({ available: false, reason: 'Marker was not found.' });
   });
   it('filters dates inclusively, omits missing readings and returns the newest limited values', () => {
-    const result = readAgentMarkerHistory({ marker: 'biochemistry.glucose', from: '2026-01-01', to: '2026-03-01', limit: 1 });
+    const result = readAgentMarkerHistory({ marker: 'biochemistry.glucose', from: '2026-01-01', to: '2026-03-01', limit: 1 }) as Extract<ReturnType<typeof readAgentMarkerHistory>, { available: true }>;
     expect(result).toMatchObject({ returnedValues: 1, totalValuesInRange: 2, values: [{ date: '2026-03-01', value: 5.8, unit: 'mmol/l' }] });
-    expect(result.values[0].ranges[0]).not.toHaveProperty('privateMetadata');
-    expect(readAgentMarkerHistory({ marker: 'biochemistry.glucose', from: '2026-02-01', to: '2026-02-28', limit: 10 }).values).toEqual([]);
+    expect(result.values[0]!.ranges[0]).not.toHaveProperty('privateMetadata');
+    expect((readAgentMarkerHistory({ marker: 'biochemistry.glucose', from: '2026-02-01', to: '2026-02-28', limit: 10 }) as Extract<ReturnType<typeof readAgentMarkerHistory>, { available: true }>).values).toEqual([]);
   });
   it('uses the actual collection date for a single-point marker', () => {
-    expect(readAgentMarkerHistory({ marker: 'custom.glucose', limit: 1 }).values[0]).toMatchObject({ date: '2026-02-15', value: 7 });
+    expect((readAgentMarkerHistory({ marker: 'custom.glucose', limit: 1 }) as Extract<ReturnType<typeof readAgentMarkerHistory>, { available: true }>).values[0]).toMatchObject({ date: '2026-02-15', value: 7 });
   });
   it('blocks marker search and history before reading data when context is disabled', () => {
     mocks.enabled.mockReturnValue(false);
@@ -60,7 +60,7 @@ describe('agent non-lab disclosure', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-21T12:00:00Z'));
     state.importedData.nutritionMeals = [{ id: 'private-id', name: 'Private meal name', note: 'Private diary', eatenAt: '2026-09-20T12:00:00Z', nutrients: { energyKcal: 500 } }];
-    const result = readAgentNutritionSummary({ range });
+    const result = readAgentNutritionSummary({ range }) as Extract<ReturnType<typeof readAgentNutritionSummary>, { available: true }>;
     expect(result.available).toBe(true);
     expect(JSON.stringify(result)).not.toMatch(/private-id|Private meal|Private diary/);
     expect(result.period).toBeTruthy();
@@ -78,7 +78,7 @@ describe('agent non-lab disclosure', () => {
   });
   it('limits knowledge excerpts and exposes only source labels and text', async () => {
     mocks.knowledge.mockResolvedValue({ chunks: [{ source: 'S'.repeat(300), text: 'T'.repeat(5000), embedding: [1, 2], privateKey: 'secret' }, { source: 'extra', text: 'omit' }] });
-    const result = await searchAgentKnowledge({ query: 'test', limit: 1 });
+    const result = await searchAgentKnowledge({ query: 'test', limit: 1 }) as Extract<Awaited<ReturnType<typeof searchAgentKnowledge>>, { available: true }>;
     expect(result.chunks).toEqual([{ source: 'S'.repeat(240), text: 'T'.repeat(4000) }]);
     expect(mocks.knowledge).toHaveBeenCalledWith('test', { topK: 1 });
     mocks.knowledge.mockResolvedValue({ chunks: [] });

@@ -655,3 +655,6 @@ deploy/profile-share/data/
 /js/nutrition-summary-context.js
 
 /js/lens.js
+
+/js/agent-tool-bindings.js
+/js/agent-chat-backend.js
