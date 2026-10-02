@@ -80,6 +80,7 @@ function refreshVisualSurfaces() {
 }
 
 let chartThemeRefreshFrame = 0;
+/** @type {ReturnType<typeof setTimeout> | 0} */
 let chartThemeRefreshTimer = 0;
 function scheduleChartThemeRefresh() {
   if (chartThemeRefreshFrame) cancelSettingsFrame(chartThemeRefreshFrame);
@@ -104,6 +105,7 @@ function scheduleChartThemeRefresh() {
 }
 
 let themeChangeFrame = 0;
+/** @type {ReturnType<typeof setTimeout> | 0} */
 let themeChangeTimer = 0;
 let pendingThemeId = '';
 function markThemeControls(themeId) {

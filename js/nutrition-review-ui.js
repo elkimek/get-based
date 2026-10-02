@@ -11,7 +11,7 @@ import {
 import { escapeAttr, escapeHTML } from './utils.js';
 
 let analysisProgressId = 0;
-/** @type {{id: number, phase: number, label: string, startedAt: number, timer: number | null, buttonLabel: string} | null} */
+/** @type {{id: number, phase: number, label: string, startedAt: number, timer: ReturnType<typeof setInterval> | null, buttonLabel: string} | null} */
 let analysisProgress = null;
 let componentPortionBaseline = [];
 /** @type {any} */

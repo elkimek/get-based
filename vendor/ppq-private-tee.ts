@@ -1,4 +1,3 @@
-// @ts-check
 // PPQ Private TEE transport wrapper. Lazy-loaded only when PPQ private/ models are used.
 
 import {
@@ -6,23 +5,21 @@ import {
   createTinfoilSecureFetch,
 } from '../js/tinfoil-secure-fetch.js';
 
-/** @typedef {{ fetch: typeof fetch, verification: any }} PpqPrivateFetch */
+type PpqPrivateFetch = Awaited<ReturnType<typeof createTinfoilSecureFetch>>;
 
-let cachedClient = null;
+let cachedClient: PpqPrivateFetch | null = null;
 let cachedApiBase = '';
-let cachedReady = null;
+let cachedReady: Promise<PpqPrivateFetch> | null = null;
 
-function normalizeApiBase(apiBase) {
+function normalizeApiBase(apiBase: string | undefined) {
   return (apiBase || 'https://api.ppq.ai').replace(/\/+$/, '');
 }
 
 /**
  * Build a verified EHBP fetch for PPQ Private Mode.
  * Tinfoil verifies the enclave first, then encrypts request bodies with HPKE/EHBP.
- * @param {{ apiBase?: string }} opts
- * @returns {Promise<PpqPrivateFetch>}
  */
-export async function createPpqPrivateFetch(opts = {}) {
+export async function createPpqPrivateFetch(opts: { apiBase?: string } = {}) {
   const apiBase = normalizeApiBase(opts.apiBase);
   if (!cachedClient || cachedApiBase !== apiBase) {
     cachedApiBase = apiBase;
@@ -32,7 +29,7 @@ export async function createPpqPrivateFetch(opts = {}) {
     });
   }
   try {
-    cachedClient = await cachedReady;
+    cachedClient = await cachedReady!;
   } catch (e) {
     clearPpqPrivateClient();
     throw e;

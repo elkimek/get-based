@@ -24,6 +24,7 @@ let comparisonReferenceRunIndex = null;
 let comparisonManualReference = {};
 let comparisonSavedAt = '';
 let comparisonIsRestored = false;
+/** @type {ReturnType<typeof setTimeout> | 0} */
 let comparisonPersistenceTimer = 0;
 let comparisonProfileId = '';
 let comparisonPersistenceDirty = false;

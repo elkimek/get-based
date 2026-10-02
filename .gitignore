@@ -518,3 +518,9 @@ deploy/profile-share/data/
 /js/api-custom.js
 /js/api-openrouter.js
 /js/api-venice.js
+
+# Verified encrypted transport native output
+/js/tinfoil-secure-fetch.js
+/js/routstr-balance-settlement.js
+/vendor/ppq-private-tee.js
+/js/api-ppq.js

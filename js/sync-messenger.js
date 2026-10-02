@@ -25,7 +25,7 @@ let _buildWearableSeriesSection = async () => '';
 let _getAgentWearableSeriesDays = () => 0;
 /** @type {() => any[]} */
 let _getProfiles = () => [];
-/** @type {number | null} */
+/** @type {ReturnType<typeof setTimeout> | null} */
 let _contextPushTimer = null;
 let _contextPushInFlight = false;
 let _blockedContextPushIdentity = '';

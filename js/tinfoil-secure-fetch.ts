@@ -1,4 +1,3 @@
-// @ts-check
 // tinfoil-secure-fetch.js - Verified EHBP transport with plaintext proxy-error preservation.
 
 import { SecureClient } from '../vendor/tinfoil-browser.js';
@@ -10,32 +9,30 @@ import {
   extractSessionRecoveryToken,
 } from '../vendor/ehbp-browser.js';
 
-/** @typedef {{
- *   baseUrl: string,
- *   attestationBundleURL?: string,
- *   enclaveURL?: string,
- *   configRepo?: string,
- * }} TinfoilSecureOptions */
+export interface TinfoilSecureOptions {
+  baseUrl: string;
+  attestationBundleURL?: string; enclaveURL?: string; configRepo?: string;
+}
 
-/** @typedef {{ client: any, verification: any }} TinfoilClientContext */
+interface TinfoilClientContext {
+  client: SecureClient;
+  verification: ReturnType<SecureClient['getVerificationDocument']>;
+}
+interface NormalizedFetchArgs { url: string; init?: RequestInit | undefined }
 
-/** @type {Map<string, Promise<TinfoilClientContext>>} */
-const clientCache = new Map();
+const clientCache = new Map<string, Promise<TinfoilClientContext>>();
 
-/** @param {string} value */
-function normalizeBaseUrl(value) {
+function normalizeBaseUrl(value: string) {
   return String(value || '').replace(/\/+$/, '');
 }
 
-/** @param {TinfoilSecureOptions} options */
-function resolveOptions(options) {
+function resolveOptions(options: TinfoilSecureOptions) {
   const baseUrl = normalizeBaseUrl(options.baseUrl);
   if (!baseUrl) throw new Error('Tinfoil proxy base URL is required');
   return { ...options, baseUrl };
 }
 
-/** @param {TinfoilSecureOptions} options */
-function optionsCacheKey(options) {
+function optionsCacheKey(options: TinfoilSecureOptions) {
   return JSON.stringify(resolveOptions(options));
 }
 
@@ -44,9 +41,8 @@ function optionsCacheKey(options) {
  * re-attesting after an enclave key rotation. SecureClient verifies the bundle
  * again itself; this preflight only prevents its subsequent fetch from reusing
  * the stale response that caused the key-config mismatch.
- * @param {TinfoilSecureOptions} options
  */
-async function refreshAttestationBundleCache(options) {
+async function refreshAttestationBundleCache(options: TinfoilSecureOptions) {
   if (!options.attestationBundleURL) return;
   const attestationURL = `${normalizeBaseUrl(options.attestationBundleURL)}/attestation`;
   const response = await fetch(attestationURL, { cache: 'reload' });
@@ -57,8 +53,7 @@ async function refreshAttestationBundleCache(options) {
   await response.arrayBuffer();
 }
 
-/** @param {TinfoilSecureOptions} options */
-async function prepareTinfoilClient(options) {
+async function prepareTinfoilClient(options: TinfoilSecureOptions) {
   const resolved = resolveOptions(options);
   const key = optionsCacheKey(resolved);
   let pending = clientCache.get(key);
@@ -70,7 +65,7 @@ async function prepareTinfoilClient(options) {
         enclaveURL: resolved.enclaveURL,
         configRepo: resolved.configRepo,
         transport: 'ehbp',
-      });
+      } as ConstructorParameters<typeof SecureClient>[0]);
       await client.ready();
       const verification = client.getVerificationDocument();
       if (!verification?.securityVerified || !verification?.hpkePublicKey) {
@@ -88,11 +83,7 @@ async function prepareTinfoilClient(options) {
   }
 }
 
-/**
- * @param {RequestInfo | URL} input
- * @param {RequestInit | undefined} init
- */
-function normalizeFetchArgs(input, init) {
+function normalizeFetchArgs(input: RequestInfo | URL, init: RequestInit | undefined): NormalizedFetchArgs {
   if (typeof input === 'string') return { url: input, init };
   if (input instanceof URL) return { url: input.toString(), init };
   const cloned = input.clone();
@@ -108,25 +99,19 @@ function normalizeFetchArgs(input, init) {
   };
 }
 
-/** @param {Response} response */
-async function isKeyConfigMismatchResponse(response) {
+async function isKeyConfigMismatchResponse(response: Response) {
   if (response.status !== 422) return false;
   const mediaType = response.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase();
   if (mediaType !== PROTOCOL.PROBLEM_JSON_MEDIA_TYPE) return false;
   try {
-    const problem = await response.clone().json();
+    const problem = await response.clone().json() as { type?: unknown } | null;
     return problem?.type === PROTOCOL.KEY_CONFIG_PROBLEM_TYPE;
   } catch {
     return false;
   }
 }
 
-/**
- * @param {TinfoilClientContext} context
- * @param {TinfoilSecureOptions} options
- * @param {{url: string, init?: RequestInit}} normalized
- */
-async function fetchEhbpOnce(context, options, normalized) {
+async function fetchEhbpOnce(context: TinfoilClientContext, options: TinfoilSecureOptions, normalized: NormalizedFetchArgs) {
   const resolved = resolveOptions(options);
   const baseURL = context.client.getBaseURL?.() || resolved.baseUrl;
   const enclaveURL = context.client.getEnclaveURL?.() || '';
@@ -143,17 +128,17 @@ async function fetchEhbpOnce(context, options, normalized) {
   if (enclaveURL && new URL(enclaveURL).origin !== baseOrigin) {
     headers.set('X-Tinfoil-Enclave-Url', enclaveURL);
   }
-  const requestInit = /** @type {RequestInit & {duplex?: string}} */ ({
+  const requestInit = {
     method: normalized.init?.method || 'GET',
     headers,
     body: normalized.init?.body,
     signal: normalized.init?.signal,
     duplex: 'half',
-  });
+  } as RequestInit & { duplex?: string };
   const request = new Request(targetUrl.toString(), requestInit);
   const serverIdentity = await Identity.fromPublicKeyHex(context.verification.hpkePublicKey);
   const encrypted = await serverIdentity.encryptRequestWithContext(request);
-  const response = await fetch(encrypted.request, { signal: normalized.init?.signal });
+  const response = await fetch(encrypted.request, { signal: normalized.init?.signal } as RequestInit);
 
   if (await isKeyConfigMismatchResponse(response)) {
     throw new KeyConfigMismatchError('EHBP key configuration mismatch');
@@ -170,14 +155,12 @@ async function fetchEhbpOnce(context, options, normalized) {
 /**
  * Attest a Tinfoil enclave and return an EHBP fetch bound to the verified proxy/enclave origins.
  * Plaintext proxy-side errors are returned unchanged because only the enclave can encrypt replies.
- * @param {TinfoilSecureOptions} options
  */
-export async function createTinfoilSecureFetch(options) {
+export async function createTinfoilSecureFetch(options: TinfoilSecureOptions) {
   const context = await prepareTinfoilClient(options);
   return {
     verification: context.verification,
-    /** @param {RequestInfo | URL} input @param {RequestInit} [init] */
-    fetch: async (input, init) => {
+    fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
       const normalized = normalizeFetchArgs(input, init);
       try {
         return await fetchEhbpOnce(context, options, normalized);

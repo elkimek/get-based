@@ -1,0 +1,1 @@
+export { SecureClient } from 'tinfoil';

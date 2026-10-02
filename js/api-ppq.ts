@@ -1,4 +1,3 @@
-// @ts-check
 // api-ppq.js - PPQ provider adapter and account helpers.
 
 import { getErrorMessage } from './caught-error.js';
@@ -20,11 +19,18 @@ import {
 } from './api-models.js';
 import { callOpenAICompatibleAPI } from './api-openai-compatible.js';
 
-/** @typedef {Window & typeof globalThis & {
- *   _ppqAttestation?: any
- * }} PpqApiWindow */
+import type { CatalogModel } from './api-models.js';
+import type { ProviderRequestOptions } from './api-openai-compatible.js';
+interface PpqCatalogModel extends CatalogModel {
+  architecture?: { modality?: string; input_modalities?: string[] };
+  pricing?: CatalogModel['pricing'] & { input_per_1M_tokens?: string; output_per_1M_tokens?: string };
+}
+interface PpqAccount { success?: boolean; api_key: string; credit_id: string }
+interface PpqTopup { lightning_invoice?: string; payment_address?: string; invoice_id?: string; crypto_amount_due?: string }
+interface PpqTopupStatus { completed?: boolean; status?: string }
+type PpqApiWindow = Window & typeof globalThis & { _ppqAttestation?: unknown };
 
-const apiWindow = /** @type {PpqApiWindow} */ (typeof window !== 'undefined' ? window : {});
+const apiWindow = (typeof window !== 'undefined' ? window : {}) as PpqApiWindow;
 
 const PPQ_CURATED = ['claude-', 'anthropic/claude-', 'gpt-6-astra', 'openai/gpt-6-astra', 'gpt-6-sol', 'openai/gpt-6-sol', 'openai/gpt-5', 'gpt-5', 'gpt-4', 'gpt-oss', 'gemini-3', 'gemini-2', 'google/gemini-3', 'google/gemini-2', 'glm-5', 'z-ai/glm-5', 'moonshotai/kimi-', 'grok-', 'x-ai/grok-4', 'llama-', 'qwen', 'deepseek-', 'mistral-', 'kimi', 'perplexity'];
 const PPQ_DEFAULT_CANDIDATES = ['gpt-6-astra', 'openai/gpt-6-astra', 'gpt-6-sol', 'openai/gpt-6-sol', 'gpt-5.5', 'openai/gpt-5.5', 'claude-sonnet-5', 'claude-sonnet-4.6'];
@@ -32,8 +38,7 @@ const PPQ_EXCLUDE = ['codex', 'audio', 'image', 'embed', 'tts', 'whisper', 'vide
 // The PPQ API is authoritative for private-model availability, names, and
 // pricing. This map only fills capability metadata that the current private
 // catalogue rows omit; it must never act as an availability allowlist.
-/** @type {Record<string, { input: string[], reasoning?: { supported_efforts: string[], default_effort: string } }>} */
-const PPQ_PRIVATE_MODEL_CAPABILITIES = {
+const PPQ_PRIVATE_MODEL_CAPABILITIES: Record<string, { input: string[]; reasoning?: { supported_efforts: string[]; default_effort: string } }> = {
   'private/kimi-k2-6': { input: ['text', 'image'] },
   'private/gpt-oss-120b': {
     input: ['text'],
@@ -49,7 +54,7 @@ const PPQ_PRIVATE_MODEL_CAPABILITIES = {
 export async function createPpqAccount() {
   const res = await fetch('https://api.ppq.ai/accounts/create', { method: 'POST' });
   if (!res.ok) throw new Error('Failed to create PPQ account: ' + res.status);
-  return res.json();
+  return res.json() as Promise<PpqAccount>;
 }
 
 export async function getPpqBalance() {
@@ -57,7 +62,7 @@ export async function getPpqBalance() {
   const creditId = getPpqCreditId();
   if (!key && !creditId) return null;
   try {
-    const headers = { 'Content-Type': 'application/json' };
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (key) headers['Authorization'] = 'Bearer ' + key;
     const body = creditId ? JSON.stringify({ credit_id: creditId }) : JSON.stringify({});
     const res = await fetch('https://api.ppq.ai/credits/balance', {
@@ -66,14 +71,14 @@ export async function getPpqBalance() {
       body
     });
     if (!res.ok) return null;
-    const json = await res.json();
+    const json = await res.json() as { balance?: number | string | null };
     return json.balance != null ? json.balance : null;
   } catch {
     return null;
   }
 }
 
-export async function createPpqTopup(amountUsd, paymentMethod) {
+export async function createPpqTopup(amountUsd: unknown, paymentMethod?: string | null) {
   const key = getPpqKey();
   if (!key) throw new Error('No PPQ API key');
   const method = paymentMethod || 'btc-lightning';
@@ -83,29 +88,28 @@ export async function createPpqTopup(amountUsd, paymentMethod) {
     body: JSON.stringify({ amount: amountUsd, currency: 'USD' })
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => null);
+    const err = await res.json().catch(() => null) as { message?: string; error?: string } | null;
     throw new Error(err?.message || err?.error || 'Topup failed: ' + res.status);
   }
-  return res.json();
+  return res.json() as Promise<PpqTopup>;
 }
 
-export async function checkPpqTopupStatus(invoiceId) {
+export async function checkPpqTopupStatus(invoiceId: string) {
   const key = getPpqKey();
   const res = await fetch('https://api.ppq.ai/topup/status/' + encodeURIComponent(invoiceId), {
     headers: key ? { 'Authorization': 'Bearer ' + key } : {}
   });
   if (!res.ok) return null;
-  return res.json();
+  return res.json() as Promise<PpqTopupStatus>;
 }
 
-export async function fetchPpqModels(key) {
+export async function fetchPpqModels(key?: unknown) {
   try {
-    /** @type {Record<string, string>} */
-    const headers = {};
+    const headers: Record<string, string> = {};
     if (key || getPpqKey()) headers['Authorization'] = 'Bearer ' + (key || getPpqKey());
     const res = await fetch('https://api.ppq.ai/v1/models?type=chat', { headers });
     if (!res.ok) return [];
-    const json = await res.json();
+    const json = await res.json() as { data?: PpqCatalogModel[] };
     const rawModels = (json.data || []).filter(modelMetadataIsAvailable);
     const privateFromApi = rawModels.filter(function(m) { return m?.id && m.id.startsWith('private/'); });
     const privateModels = privateFromApi
@@ -125,7 +129,7 @@ export async function fetchPpqModels(key) {
       if (aRec !== bRec) return aRec ? -1 : 1;
       return (a.name || a.id).localeCompare(b.name || b.id);
     });
-    const pricingCache = {};
+    const pricingCache: Record<string, { input: number; output: number }> = {};
     for (const m of [...models, ...privateModels]) {
       if (m.pricing) {
         const inp = parseFloat(m.pricing.input_per_1M_tokens || m.pricing.prompt || '0');
@@ -164,7 +168,7 @@ export async function fetchPpqModels(key) {
   }
 }
 
-export async function validatePpqKey(key) {
+export async function validatePpqKey(key: string) {
   try {
     const res = await fetch('https://api.ppq.ai/v1/models?type=chat', {
       headers: { 'Authorization': 'Bearer ' + key }
@@ -172,7 +176,7 @@ export async function validatePpqKey(key) {
     if (res.ok) return { valid: true };
     if (res.status === 401) return { valid: false, error: 'Invalid API key' };
     if (res.status === 429) return { valid: true };
-    const errBody = await res.json().catch(() => null);
+    const errBody = await res.json().catch(() => null) as { error?: { message?: string } } | null;
     const errMsg = errBody?.error?.message || `status ${res.status}`;
     return { valid: false, error: `API error: ${errMsg}` };
   } catch (e) {
@@ -180,7 +184,7 @@ export async function validatePpqKey(key) {
   }
 }
 
-export async function callPpqPrivateAPI(opts) {
+export async function callPpqPrivateAPI(opts: ProviderRequestOptions) {
   const key = getPpqKey();
   if (!key) throw new Error('No PPQ API key configured. Create an account or add your key in Settings.');
   if (!crypto?.subtle) throw new Error('PPQ Private TEE mode requires a secure context (HTTPS). Cannot encrypt on this page.');
@@ -200,13 +204,13 @@ export async function callPpqPrivateAPI(opts) {
     key,
     enclaveModelId,
     'PPQ Private',
-    { ...opts, webSearch: false },
+    { ...opts, webSearch: false } as ProviderRequestOptions,
     { 'X-Private-Model': modelId, 'x-query-source': 'getbased' },
     { useProxy: false, fetchImpl: secure.fetch }
   );
 }
 
-export async function callPpqAPI(opts) {
+export async function callPpqAPI(opts: ProviderRequestOptions) {
   const key = getPpqKey();
   if (!key) throw new Error('No PPQ API key configured. Create an account or add your key in Settings.');
   const modelId = String(opts?.modelOverride || getPpqModel());

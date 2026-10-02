@@ -147,14 +147,14 @@ Native browser modules shipped with the static application.
 - [`js/api-openai-compatible.ts`](js/api-openai-compatible.ts) → [`js/api-models.ts`](js/api-models.ts), [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/api-runtime.ts`](js/api-runtime.ts), [`js/api-transport.ts`](js/api-transport.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/local-ai-provider-shared.ts`](js/local-ai-provider-shared.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/api-openrouter-oauth.ts`](js/api-openrouter-oauth.ts) → [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/api-runtime.ts`](js/api-runtime.ts)
 - [`js/api-openrouter.ts`](js/api-openrouter.ts) → [`js/api-openai-compatible.ts`](js/api-openai-compatible.ts), [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/api-runtime.ts`](js/api-runtime.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts)
-- [`js/api-ppq.js`](js/api-ppq.js) → [`js/api-models.ts`](js/api-models.ts), [`js/api-openai-compatible.ts`](js/api-openai-compatible.ts), [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/caught-error.ts`](js/caught-error.ts)
+- [`js/api-ppq.ts`](js/api-ppq.ts) → [`js/api-models.ts`](js/api-models.ts), [`js/api-openai-compatible.ts`](js/api-openai-compatible.ts), [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/caught-error.ts`](js/caught-error.ts)
 - [`js/api-provider-storage-runtime.ts`](js/api-provider-storage-runtime.ts) → [`js/chat-runtime.ts`](js/chat-runtime.ts)
 - [`js/api-provider-storage.ts`](js/api-provider-storage.ts) → [`js/api-provider-storage-runtime.ts`](js/api-provider-storage-runtime.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts), [`js/routstr-session.ts`](js/routstr-session.ts)
-- [`js/api-routstr.js`](js/api-routstr.js) → [`js/api-models.ts`](js/api-models.ts), [`js/api-openai-compatible.ts`](js/api-openai-compatible.ts), [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/cashu-wallet.js`](js/cashu-wallet.js) *(dynamic)*, [`js/caught-error.ts`](js/caught-error.ts), [`js/routstr-balance-settlement.js`](js/routstr-balance-settlement.js), [`js/tinfoil-secure-fetch.js`](js/tinfoil-secure-fetch.js) *(dynamic)*
+- [`js/api-routstr.js`](js/api-routstr.js) → [`js/api-models.ts`](js/api-models.ts), [`js/api-openai-compatible.ts`](js/api-openai-compatible.ts), [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/cashu-wallet.js`](js/cashu-wallet.js) *(dynamic)*, [`js/caught-error.ts`](js/caught-error.ts), [`js/routstr-balance-settlement.ts`](js/routstr-balance-settlement.ts), [`js/tinfoil-secure-fetch.ts`](js/tinfoil-secure-fetch.ts) *(dynamic)*
 - [`js/api-runtime.ts`](js/api-runtime.ts) → no in-scope imports
 - [`js/api-transport.ts`](js/api-transport.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/api-venice.ts`](js/api-venice.ts) → [`js/api-models.ts`](js/api-models.ts), [`js/api-openai-compatible.ts`](js/api-openai-compatible.ts), [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/api-transport.ts`](js/api-transport.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts)
-- [`js/api.js`](js/api.js) → [`js/api-custom.ts`](js/api-custom.ts) *(dynamic)*, [`js/api-local.ts`](js/api-local.ts) *(dynamic)*, [`js/api-models.ts`](js/api-models.ts), [`js/api-openrouter-oauth.ts`](js/api-openrouter-oauth.ts), [`js/api-openrouter.ts`](js/api-openrouter.ts) *(dynamic)*, [`js/api-ppq.js`](js/api-ppq.js) *(dynamic)*, [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/api-routstr.js`](js/api-routstr.js) *(dynamic)*, [`js/api-transport.ts`](js/api-transport.ts), [`js/api-venice.ts`](js/api-venice.ts) *(dynamic)*, [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js) *(dynamic)*
+- [`js/api.js`](js/api.js) → [`js/api-custom.ts`](js/api-custom.ts) *(dynamic)*, [`js/api-local.ts`](js/api-local.ts) *(dynamic)*, [`js/api-models.ts`](js/api-models.ts), [`js/api-openrouter-oauth.ts`](js/api-openrouter-oauth.ts), [`js/api-openrouter.ts`](js/api-openrouter.ts) *(dynamic)*, [`js/api-ppq.ts`](js/api-ppq.ts) *(dynamic)*, [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/api-routstr.js`](js/api-routstr.js) *(dynamic)*, [`js/api-transport.ts`](js/api-transport.ts), [`js/api-venice.ts`](js/api-venice.ts) *(dynamic)*, [`js/cloud-ai-consent.js`](js/cloud-ai-consent.js) *(dynamic)*
 
 </details>
 
@@ -1031,7 +1031,7 @@ Native browser modules shipped with the static application.
 - [`js/provider-wallet-funding-recovery.js`](js/provider-wallet-funding-recovery.js) → [`js/cashu-funding-coordinator.js`](js/cashu-funding-coordinator.js), [`js/caught-error.ts`](js/caught-error.ts), [`js/provider-qr.js`](js/provider-qr.js), [`js/routstr-validation.ts`](js/routstr-validation.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/provider-wallet-panel-buttons.js`](js/provider-wallet-panel-buttons.js) → [`js/utils.ts`](js/utils.ts)
 - [`js/provider-wallet-panel-renderers.js`](js/provider-wallet-panel-renderers.js) → [`js/utils.ts`](js/utils.ts)
-- [`js/provider-wallet-panels.js`](js/provider-wallet-panels.js) → [`js/agent-chat-settings.js`](js/agent-chat-settings.js), [`js/api.js`](js/api.js), [`js/caught-error.ts`](js/caught-error.ts), [`js/provider-wallet-delegates.js`](js/provider-wallet-delegates.js), [`js/provider-wallet-funding-recovery.js`](js/provider-wallet-funding-recovery.js), [`js/provider-wallet-panel-buttons.js`](js/provider-wallet-panel-buttons.js), [`js/provider-wallet-panel-renderers.js`](js/provider-wallet-panel-renderers.js), [`js/provider-wallet-runtime.js`](js/provider-wallet-runtime.js), [`js/routstr-balance-settlement.js`](js/routstr-balance-settlement.js), [`js/routstr-model-cache.js`](js/routstr-model-cache.js), [`js/routstr-validation.ts`](js/routstr-validation.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/provider-wallet-panels.js`](js/provider-wallet-panels.js) → [`js/agent-chat-settings.js`](js/agent-chat-settings.js), [`js/api.js`](js/api.js), [`js/caught-error.ts`](js/caught-error.ts), [`js/provider-wallet-delegates.js`](js/provider-wallet-delegates.js), [`js/provider-wallet-funding-recovery.js`](js/provider-wallet-funding-recovery.js), [`js/provider-wallet-panel-buttons.js`](js/provider-wallet-panel-buttons.js), [`js/provider-wallet-panel-renderers.js`](js/provider-wallet-panel-renderers.js), [`js/provider-wallet-runtime.js`](js/provider-wallet-runtime.js), [`js/routstr-balance-settlement.ts`](js/routstr-balance-settlement.ts), [`js/routstr-model-cache.js`](js/routstr-model-cache.js), [`js/routstr-validation.ts`](js/routstr-validation.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/provider-wallet-runtime.js`](js/provider-wallet-runtime.js) → [`js/cashu-wallet.js`](js/cashu-wallet.js), [`js/nostr-discovery.js`](js/nostr-discovery.js)
 
 </details>
@@ -1071,8 +1071,8 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>routstr</code> family — 5 modules</summary>
 
-- [`js/routstr-balance-settlement.js`](js/routstr-balance-settlement.js) → no in-scope imports
-- [`js/routstr-model-cache.js`](js/routstr-model-cache.js) → [`js/tinfoil-secure-fetch.js`](js/tinfoil-secure-fetch.js) *(dynamic)*
+- [`js/routstr-balance-settlement.ts`](js/routstr-balance-settlement.ts) → no in-scope imports
+- [`js/routstr-model-cache.js`](js/routstr-model-cache.js) → [`js/tinfoil-secure-fetch.ts`](js/tinfoil-secure-fetch.ts) *(dynamic)*
 - [`js/routstr-node-payments.js`](js/routstr-node-payments.js) → [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts), [`js/routstr-session.ts`](js/routstr-session.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts)
 - [`js/routstr-session.ts`](js/routstr-session.ts) → [`js/api-provider-storage-runtime.ts`](js/api-provider-storage-runtime.ts), [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts), [`js/crypto.ts`](js/crypto.ts), [`js/url-safety.ts`](js/url-safety.ts)
 - [`js/routstr-validation.ts`](js/routstr-validation.ts) → [`js/url-safety.ts`](js/url-safety.ts)
@@ -1327,7 +1327,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>tinfoil</code> family — 1 module</summary>
 
-- [`js/tinfoil-secure-fetch.js`](js/tinfoil-secure-fetch.js) → no in-scope imports
+- [`js/tinfoil-secure-fetch.ts`](js/tinfoil-secure-fetch.ts) → no in-scope imports
 
 </details>
 

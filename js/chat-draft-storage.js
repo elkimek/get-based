@@ -8,7 +8,7 @@ const WRITE_DELAY_MS = 300;
 const draftCache = new Map();
 /** @type {Set<string>} */
 const knownDrafts = new Set();
-/** @type {Map<string, number>} */
+/** @type {Map<string, ReturnType<typeof globalThis.setTimeout>>} */
 const writeTimers = new Map();
 /** @type {Map<string, Promise<void>>} */
 const writeChains = new Map();
