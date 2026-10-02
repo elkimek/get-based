@@ -1,4 +1,3 @@
-// @ts-check
 // lens.js — Custom Knowledge Source
 // User-configured RAG endpoint that backs the Interpretive Lens with retrieved chunks.
 import { getErrorMessage, getErrorName } from './caught-error.js';
@@ -14,6 +13,16 @@ import { callAssistantFeatureAI, hasAssistantFeatureProvider } from './ai-featur
 import { isValidLensUrl as isValidLensUrlImpl } from './lens-url.js';
 import { clearLensCache as clearLensCacheImpl, getLensCacheEntry, setLensCacheEntry } from './lens-cache.js';
 import { updateChatHeaderModelRuntime } from './chat-runtime.js';
+
+import type { LensUiConfig } from './lens-knowledge-base-ui.js';
+import type { LensCacheValue } from './lens-cache.js';
+type LensKnowledgeBaseUi = ReturnType<typeof import('./lens-knowledge-base-ui.js').createLensKnowledgeBaseUi>;
+interface LensStatus { state: string; lastChunkCount: number; lastError: string | null; sourceName: string }
+interface LensQueryOptions { topK?: unknown; multiQuery?: unknown; signal?: AbortSignal | undefined }
+interface LensFusionChunk { text?: unknown; source?: unknown }
+interface LocalLensStats { documents?: unknown; total_chunks?: unknown }
+type LensConnectionResult = { ok: true; chunkCount: number; firstSource: string } | { ok: false; error: string };
+
 const CONFIG_KEY = 'labcharts-lens-config';
 const SECRET_KEY = 'labcharts-lens-key';
 // testProbe — per-user "canary" query used by Save + connect to verify the
@@ -34,7 +43,7 @@ const DEFAULT_TEST_PROBE = 'vitamin D deficiency supplementation';
 // Legacy names ('remote' → 'external-server', 'local-browser' → 'in-browser',
 // 'desktop-engine' → 'external-server' when url is the old 127.0.0.1:8322, else
 // 'in-browser') migrate on read in getLensConfig.
-const DEFAULT_CONFIG = {
+const DEFAULT_CONFIG: LensUiConfig = {
   name: '',
   url: '',
   enabled: false,
@@ -59,7 +68,7 @@ export function getLensConfig() {
   try {
     const raw = localStorage.getItem(CONFIG_KEY);
     if (!raw) return { ...DEFAULT_CONFIG };
-    const saved = JSON.parse(raw);
+    const saved = JSON.parse(raw) as Partial<LensUiConfig>;
     // Pre-v1.21.0 configs had no `backend` field — only the single external
     // RAG endpoint existed. Infer what they meant from whether a URL was
     // saved: a populated URL means they configured a Custom Knowledge
@@ -79,7 +88,7 @@ export function getLensConfig() {
 /// Python lens URL saved — they can keep pointing at it if they kept a
 /// compatible lens server running outside Electron. Otherwise fall back
 /// to the in-browser engine so chat still works.
-function migrateLensConfig(cfg) {
+function migrateLensConfig(cfg: LensUiConfig) {
   if (cfg.backend === 'remote') {
     cfg.backend = 'external-server';
   } else if (cfg.backend === 'local-browser') {
@@ -89,7 +98,7 @@ function migrateLensConfig(cfg) {
   }
   return cfg;
 }
-export function saveLensConfig(partial) {
+export function saveLensConfig(partial: Partial<LensUiConfig>) {
   const prev = getLensConfig();
   const next = { ...prev, ...partial };
   localStorage.setItem(CONFIG_KEY, JSON.stringify(next));
@@ -105,7 +114,7 @@ export function saveLensConfig(partial) {
   return next;
 }
 export function getLensKey() { return getCachedKey(SECRET_KEY) || ''; }
-export async function saveLensKey(key) {
+export async function saveLensKey(key: string) {
   await encryptedSetCredentialItem(SECRET_KEY, key);
   updateKeyCache(SECRET_KEY, key);
   clearLensCache();
@@ -141,16 +150,16 @@ export function hasLens() {
   return !!(cfg.url && getLensKey());
 }
 // ─── URL validation ───────────────────────────────────────────
-export function isValidLensUrl(url) { return isValidLensUrlImpl(url); }
+export function isValidLensUrl(url: string) { return isValidLensUrlImpl(url); }
 
 // ─── Query cache ──────────────────────────────────────────────
 export function clearLensCache() { clearLensCacheImpl(); }
 
 // ─── Status tracking ─────────────────────────────────────────
-let _status = { state: 'idle', lastChunkCount: 0, lastError: null, sourceName: '' };
-const _statusListeners = new Set();
+let _status: LensStatus = { state: 'idle', lastChunkCount: 0, lastError: null, sourceName: '' };
+const _statusListeners = new Set<(status: LensStatus) => unknown>();
 
-function updateLensStatus(partial) {
+function updateLensStatus(partial: Partial<LensStatus>) {
   _status = { ..._status, ...partial };
   for (const fn of _statusListeners) {
     try { fn(_status); } catch (e) { if (isDebugMode()) console.warn('[Lens] listener failed:', e); }
@@ -159,13 +168,13 @@ function updateLensStatus(partial) {
 
 export function getLensStatus() { return { ..._status }; }
 
-export function subscribeLensStatus(fn) {
+export function subscribeLensStatus(fn: (status: LensStatus) => unknown) {
   _statusListeners.add(fn);
   return () => _statusListeners.delete(fn);
 }
 
 // ─── Query ────────────────────────────────────────────────────
-export async function queryLens(queryHint, opts = {}) {
+export async function queryLens(queryHint: unknown, opts: LensQueryOptions = {}) {
   if (!hasLens()) return null;
   const cfg = getLensConfig();
   const topK = typeof opts.topK === 'number' ? opts.topK : cfg.topK;
@@ -208,7 +217,7 @@ export async function queryLens(queryHint, opts = {}) {
 const MULTI_QUERY_VARIANTS = 3;
 const MULTI_QUERY_MAX_TOKENS = 200;
 const RRF_K = 60; // standard reciprocal-rank-fusion constant
-const _rewriteCache = new Map(); // hash(query) → string[] of variants
+const _rewriteCache = new Map<string, string[]>(); // hash(query) → string[] of variants
 const REWRITE_CACHE_MAX = 100;
 
 const REWRITE_SYSTEM_PROMPT =
@@ -219,7 +228,7 @@ const REWRITE_SYSTEM_PROMPT =
   'terms a researcher would use. Output exactly 3 lines, each a complete search query, ' +
   'no numbering, no quotes, no explanation. Keep each query under 12 words.';
 
-export async function queryLensMulti(queryHint, opts = {}) {
+export async function queryLensMulti(queryHint: unknown, opts: LensQueryOptions = {}) {
   if (!hasLens()) return null;
   const cfg = getLensConfig();
   const hint = String(queryHint || '').trim();
@@ -233,7 +242,7 @@ export async function queryLensMulti(queryHint, opts = {}) {
     return queryLens(hint, opts);
   }
 
-  let variants = [];
+  let variants: string[] = [];
   try {
     variants = await _rewriteQuery(hint, opts.signal);
   } catch (e) {
@@ -273,16 +282,16 @@ export async function queryLensMulti(queryHint, opts = {}) {
 // paraphrases. Returns an array of strings (may be empty on parse
 // failure). Cached for the session by query hash so repeating the same
 // question doesn't re-bill the provider.
-async function _rewriteQuery(hint, signal) {
+async function _rewriteQuery(hint: string, signal: AbortSignal | undefined) {
   const key = hashString(hint);
-  if (_rewriteCache.has(key)) return _rewriteCache.get(key);
+  if (_rewriteCache.has(key)) return _rewriteCache.get(key)!;
 
   const { text } = await callAssistantFeatureAI({
     system: REWRITE_SYSTEM_PROMPT,
     messages: [{ role: 'user', content: hint }],
     maxTokens: MULTI_QUERY_MAX_TOKENS,
     signal,
-  });
+  }) as { text?: unknown };
   const variants = String(text || '')
     .split(/\r?\n/)
     .map(s => s.replace(/^[\s\-*\d.)]+/, '').trim()) // strip "1." / "- " etc. if model adds them
@@ -298,9 +307,9 @@ async function _rewriteQuery(hint, signal) {
   return variants;
 }
 
-function _dedupeQueries(queries) {
-  const seen = new Set();
-  const out = [];
+function _dedupeQueries(queries: readonly unknown[]) {
+  const seen = new Set<string>();
+  const out: string[] = [];
   for (const q of queries) {
     const norm = String(q || '').trim().toLowerCase();
     if (!norm || seen.has(norm)) continue;
@@ -314,11 +323,11 @@ function _dedupeQueries(queries) {
 // chunk. Stable, parameter-light, no calibration needed. Identical chunks
 // across lists accumulate score, which is exactly what we want — a chunk
 // that surfaces under multiple paraphrases is more likely to be relevant.
-function _fuseChunksRRF(chunkLists, topK) {
-  const scores = new Map(); // dedup-key → { score, chunk }
+function _fuseChunksRRF<Chunk extends LensFusionChunk>(chunkLists: readonly (readonly (Chunk | null | undefined)[] | null | undefined)[], topK: number) {
+  const scores = new Map<string, { score: number; chunk: Chunk }>(); // dedup-key → { score, chunk }
   for (const list of chunkLists) {
     if (!Array.isArray(list)) continue;
-    list.forEach((chunk, idx) => {
+    list.forEach((chunk: Chunk | null | undefined, idx: number) => {
       if (!chunk || typeof chunk.text !== 'string') return;
       const dedupKey = `${chunk.source || ''}|${chunk.text}`;
       const contribution = 1 / (RRF_K + idx + 1);
@@ -335,14 +344,14 @@ function _fuseChunksRRF(chunkLists, topK) {
 
 // Test surface — never used by production code.
 export function _resetRewriteCache() { _rewriteCache.clear(); }
-export function _fuseChunksRRFForTest(chunkLists, topK) { return _fuseChunksRRF(chunkLists, topK); }
-export function _dedupeQueriesForTest(queries) { return _dedupeQueries(queries); }
+export function _fuseChunksRRFForTest(chunkLists: unknown[], topK: number) { return _fuseChunksRRF(chunkLists as Array<LensFusionChunk[] | null | undefined>, topK); }
+export function _dedupeQueriesForTest(queries: readonly unknown[]) { return _dedupeQueries(queries); }
 
 /// Shared cache + status envelope for every backend. `fetchFn(abortCtl)`
 /// returns a Promise<chunks[]>; caller shapes its own errors via throw.
 /// Keeping cache + status plumbing here means adding a third backend is
 /// just a third fetchFn — no re-plumbing of observability per call.
-async function queryWithCache(backendKey, sourceName, hint, topK, fetchFn) {
+async function queryWithCache(backendKey: string, sourceName: string, hint: string, topK: number, fetchFn: () => Promise<unknown>) {
   const profileId = state.currentProfile || 'default';
   const cached = getLensCacheEntry(backendKey, topK, profileId, hint);
   if (cached) {
@@ -352,7 +361,7 @@ async function queryWithCache(backendKey, sourceName, hint, topK, fetchFn) {
   }
   try {
     const rawChunks = await fetchFn();
-    const chunks = Array.isArray(rawChunks) ? rawChunks : [];
+    const chunks = Array.isArray(rawChunks) ? rawChunks as LensCacheValue['chunks'] : [];
     const result = { chunks, sourceName };
     setLensCacheEntry(backendKey, topK, profileId, hint, result);
     updateLensStatus({ state: 'active', lastChunkCount: chunks.length, lastError: null, sourceName });
@@ -372,7 +381,7 @@ async function queryWithCache(backendKey, sourceName, hint, topK, fetchFn) {
 /// Remote-server backend — HTTP POST with bearer auth, strict transport
 /// settings (no credentials, no referrer, no redirects). Returns a flat
 /// array of chunks in the shared envelope shape.
-async function _fetchRemoteChunks(url, key, hint, topK, opts) {
+async function _fetchRemoteChunks(url: string, key: string, hint: string, topK: number, opts: LensQueryOptions) {
   const outerSignal = opts?.signal;
   const timeoutCtl = new AbortController();
   const timer = setTimeout(() => timeoutCtl.abort(), TIMEOUT_MS);
@@ -392,14 +401,14 @@ async function _fetchRemoteChunks(url, key, hint, topK, opts) {
     });
     if (!res.ok) {
       let msg = `HTTP ${res.status}`;
-      try { const err = await res.json(); if (err && err.error) msg = String(err.error); } catch {}
+      try { const err = await res.json() as { error?: unknown } | null; if (err && err.error) msg = String(err.error); } catch {}
       throw new Error(msg);
     }
     const text = await res.text();
     if (text.length > MAX_RESPONSE_BYTES) throw new Error(`Response exceeds ${MAX_RESPONSE_BYTES} bytes`);
-    const data = JSON.parse(text);
-    return Array.isArray(data && data.chunks) ? data.chunks.slice(0, MAX_CHUNKS)
-      .map((c) => ({ text: String(c && c.text || '').slice(0, 4000), source: c && c.source ? String(c.source).slice(0, 200) : '' }))
+    const data = JSON.parse(text) as { chunks?: unknown } | null;
+    return Array.isArray(data && data.chunks) ? (data!.chunks as LensFusionChunk[]).slice(0, MAX_CHUNKS)
+      .map((c: LensFusionChunk | null | undefined) => ({ text: String(c && c.text || '').slice(0, 4000), source: c && c.source ? String(c.source).slice(0, 200) : '' }))
       .filter((c) => c.text) : [];
   } catch (error) {
     if (getErrorName(error) === 'AbortError') {
@@ -412,7 +421,7 @@ async function _fetchRemoteChunks(url, key, hint, topK, opts) {
   }
 }
 
-function anySignal(...signals) {
+function anySignal(...signals: Array<AbortSignal | null | undefined>) {
   const ctl = new AbortController();
   for (const s of signals) {
     if (!s) continue;
@@ -423,10 +432,10 @@ function anySignal(...signals) {
 }
 
 // ─── Formatting ───────────────────────────────────────────────
-export function buildLensSnippet(result) {
+export function buildLensSnippet(result: { chunks?: unknown; sourceName?: unknown } | null | undefined) {
   if (!result || !Array.isArray(result.chunks) || !result.chunks.length) return '';
   const lines = [`### Retrieved from your knowledge source (${result.sourceName}):`];
-  result.chunks.forEach((c, i) => {
+  result.chunks.forEach((c: LensFusionChunk, i: number) => {
     const cite = c.source ? ` — ${c.source}` : '';
     lines.push(`${i + 1}. ${c.text}${cite}`);
   });
@@ -446,7 +455,7 @@ export function buildLensSnippet(result) {
 // relevant to their corpus. This separation keeps Custom Knowledge Source
 // generic across domains — users with legal / code / recipe RAGs don't see
 // "connection failed" just because the default health probe doesn't match.
-export async function testLensConnection() {
+export async function testLensConnection(): Promise<LensConnectionResult> {
   const cfg = getLensConfig();
   const key = getLensKey();
   if (!cfg.url || !key) return { ok: false, error: 'URL and API key required' };
@@ -470,9 +479,9 @@ subscribeLensStatus(() => updateChatHeaderModelRuntime());
 // The dashboard summary must stay synchronous and cold-safe. The UI reports
 // richer local-library stats after it loads; until then the localStorage count
 // used by hasLens() is enough to distinguish configured from empty.
-let lastLocalLensStats = null;
+let lastLocalLensStats: LocalLensStats | null = null;
 
-function recordLocalLensStats(stats) {
+function recordLocalLensStats(stats: LocalLensStats | null) {
   lastLocalLensStats = stats;
 }
 
@@ -487,8 +496,8 @@ export function getLensSummary() {
     multiQueryOn: configured && aiAvailable && cfg.multiQuery !== false,
     aiAvailable,
     displayName: '',
-    docCount: null,
-    chunkCount: null,
+    docCount: null as number | null,
+    chunkCount: null as number | null,
   };
   if (cfg.backend === 'in-browser') {
     summary.displayName = (cfg.name || '').trim() || 'My Library';
@@ -510,11 +519,8 @@ export function getLensSummary() {
   return summary;
 }
 
-/** @typedef {ReturnType<typeof import('./lens-knowledge-base-ui.js').createLensKnowledgeBaseUi>} LensKnowledgeBaseUi */
-/** @type {Promise<LensKnowledgeBaseUi> | null} */
-let lensKnowledgeBaseUiPromise = null;
-/** @type {LensKnowledgeBaseUi | null} */
-let lensKnowledgeBaseUi = null;
+let lensKnowledgeBaseUiPromise: Promise<LensKnowledgeBaseUi> | null = null;
+let lensKnowledgeBaseUi: LensKnowledgeBaseUi | null = null;
 let useLensKnowledgeBaseUiRetryUrl = false;
 
 const lensKnowledgeBaseUiDeps = {
@@ -539,10 +545,9 @@ export function isLensKnowledgeBaseUiLoaded() {
 
 function loadLensKnowledgeBaseUiRetryModule() {
   // @ts-expect-error TypeScript resolves only the query-free source path.
-  return import('./lens-knowledge-base-ui.js?lazy-retry=1');
+  return import('./lens-knowledge-base-ui.js?lazy-retry=1') as Promise<typeof import('./lens-knowledge-base-ui.js')>;
 }
 
-/** @returns {Promise<LensKnowledgeBaseUi>} */
 export function loadLensKnowledgeBaseUi() {
   if (lensKnowledgeBaseUiPromise) return lensKnowledgeBaseUiPromise;
   const load = useLensKnowledgeBaseUiRetryUrl
@@ -564,18 +569,13 @@ export function loadLensKnowledgeBaseUi() {
   return promise;
 }
 
-/**
- * @param {keyof LensKnowledgeBaseUi} name
- * @param {any[]} args
- * @param {boolean} [shouldLoad]
- */
-function runLensKnowledgeBaseUiAction(name, args, shouldLoad = true) {
-  const run = (/** @type {LensKnowledgeBaseUi} */ ui) => {
+function runLensKnowledgeBaseUiAction(name: keyof LensKnowledgeBaseUi, args: unknown[], shouldLoad = true) {
+  const run = (ui: LensKnowledgeBaseUi) => {
     const action = ui[name];
     if (typeof action !== 'function') {
       throw new Error(`Knowledge Base UI action ${String(name)} is unavailable`);
     }
-    return Reflect.apply(action, ui, args);
+    return Reflect.apply(action, ui, args) as unknown;
   };
   if (!lensKnowledgeBaseUi && !shouldLoad) return undefined;
   try {
@@ -619,11 +619,11 @@ export function handleSaveLensConfig() {
   return runLensKnowledgeBaseUiAction('handleSaveLensConfig', []);
 }
 
-export function handleLensBackendChange(backend) {
+export function handleLensBackendChange(backend: string) {
   return runLensKnowledgeBaseUiAction('handleLensBackendChange', [backend]);
 }
 
-export function handleLocalLensDeleteDoc(source) {
+export function handleLocalLensDeleteDoc(source: string) {
   return runLensKnowledgeBaseUiAction('handleLocalLensDeleteDoc', [source]);
 }
 
@@ -631,7 +631,7 @@ export function handleLocalLensClear() {
   return runLensKnowledgeBaseUiAction('handleLocalLensClear', []);
 }
 
-export function handleLibraryActivate(libraryId) {
+export function handleLibraryActivate(libraryId: string) {
   return runLensKnowledgeBaseUiAction('handleLibraryActivate', [libraryId]);
 }
 
@@ -647,7 +647,7 @@ export function handleLibraryDelete() {
   return runLensKnowledgeBaseUiAction('handleLibraryDelete', []);
 }
 
-export function handleToggleLens(checked) {
+export function handleToggleLens(checked: boolean) {
   return runLensKnowledgeBaseUiAction('handleToggleLens', [checked]);
 }
 

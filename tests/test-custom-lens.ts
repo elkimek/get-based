@@ -1,13 +1,14 @@
 #!/usr/bin/env node
+import { sourceFunctionHasCatchStatement, sourceFunctionHasStatement } from './helpers/native-source-contracts.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
-// test-custom-lens.js — Custom Knowledge Source (Lens Corpus). Source
+// test-custom-lens.ts — Custom Knowledge Source (Lens Corpus). Source
 // inspection of lens.js / lens-local-worker.js / lens-local.js / chat.js /
 // views.js / lab-context.js / sync.js / crypto.js / main.js / CSS bundle /
 // changelog.js / README.md, plus behavioral tests (URL validation, config
 // round-trip, hasLens truth table, buildLensSnippet, injectLensChunks,
 // status pub/sub, v1.20.x backend forward-compat migration).
 //
-// Run: node tests/test-custom-lens.js  (or via npm test)
+// Run: node tests/test-custom-lens.ts  (or via npm test)
 //
 // DOM-runtime assertions (sections 15, 16 — chat-header lens indicator,
 // Knowledge Base modal rendering) live in tests/playwright/custom-lens.spec.js.
@@ -19,7 +20,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
 
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
@@ -106,7 +107,7 @@ const libraryRegistrySrc = read('js/lens-local-library-registry.js');
 assert('DEFAULT_MODEL_KEY referenced in MODELS catalog',
   /DEFAULT_MODEL_KEY\s*=\s*['"]([a-z0-9-]+)['"]/.test(embedderConfigSrc)
     && (() => {
-      const key = embedderConfigSrc.match(/DEFAULT_MODEL_KEY\s*=\s*['"]([a-z0-9-]+)['"]/)[1];
+      const key = embedderConfigSrc.match(/DEFAULT_MODEL_KEY\s*=\s*['"]([a-z0-9-]+)['"]/)![1]!;
       return new RegExp(`['"]${key}['"]\\s*:\\s*\\{[\\s\\S]*?id:`).test(embedderConfigSrc);
     })(),
   'DEFAULT_MODEL_KEY must name an actual catalog entry');
@@ -160,7 +161,7 @@ for (const name of [
   'isValidLensUrl', 'renderCustomLensSection', 'handleSaveLensConfig',
   'handleRemoveLens', 'subscribeLensStatus',
   'getLensSummary', 'loadLensKnowledgeBaseUi', 'isLensKnowledgeBaseUiLoaded',
-]) {
+] as const) {
   assert(`lens.${name} is function`, typeof lens[name] === 'function');
 }
 assert('Lens helpers stay module-only', !lensSrc.includes('Object.assign(window'));
@@ -255,7 +256,7 @@ console.log('\n5b. Remote retrieval cancellation');
   controller.abort();
   let cancellationName = '';
   try { await lens.queryLens('cancelled search', { signal: controller.signal }); }
-  catch (error) { cancellationName = error?.name || ''; }
+  catch (error) { cancellationName = (error as { name?: string } | null | undefined)?.name || ''; }
   assert('an outer AbortError is returned to the chat generation owner', cancellationName === 'AbortError');
   globalThis.fetch = priorFetch;
   if (priorCfg) localStorage.setItem('labcharts-lens-config', priorCfg);
@@ -445,7 +446,7 @@ console.log('\n21b. v1.20.x forward-compat migration');
 // ─── 22. BUG 4 regression: meaningful retrieval changes clear cache ───
 console.log('\n22. Cache survives toggle-only save');
 assert('saveLensConfig clears cache for URL, topK, and backend changes',
-  /if \(urlChanged \|\| topKChanged \|\| backendChanged\) clearLensCache/.test(lensSrc));
+  sourceFunctionHasStatement(lensSrc, 'saveLensConfig', 'if (urlChanged || topKChanged || backendChanged) clearLensCache();'));
 assert('library rename clears cached citation envelopes',
   /await _libRename\(activeId, next\);[\s\S]{0,300}clearLensCache\(\)/.test(lensLibrarySrc));
 
@@ -464,9 +465,9 @@ assert('_updateLensStatusChip also renders the shared error status',
 // ─── 24. User cancellation stays distinct from a retrieval failure ───
 console.log('\n24. Knowledge Base cancellation');
 assert('query cache rethrows AbortError for the chat generation owner',
-  /function queryWithCache[\s\S]{0,1800}if \(getErrorName\(e\) === 'AbortError'\) throw e/.test(lensSrc));
+  sourceFunctionHasCatchStatement(lensSrc, 'queryWithCache', 'e', "if (getErrorName(e) === 'AbortError') throw e;"));
 assert('remote timeout conversion preserves an outer user abort',
-  /if \(outerSignal\?\.aborted\) throw error;[\s\S]{0,120}timeoutCtl\.signal\.aborted/.test(lensSrc));
+  sourceFunctionHasCatchStatement(lensSrc, '_fetchRemoteChunks', 'error', "if (getErrorName(error) === 'AbortError') { if (outerSignal?.aborted) throw error; if (timeoutCtl.signal.aborted) throw new Error('timeout'); }"));
 
 // ─── 24b. Worker feature-detects WebGPU with a WASM fallback ───
 console.log('\n24b. Worker WebGPU detection + WASM fallback');

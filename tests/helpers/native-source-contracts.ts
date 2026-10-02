@@ -72,3 +72,13 @@ export function sourceFunctionHasStatement(
   });
   return position === 'last' ? matches(statements.at(-1), expected) : statements.some(node => matches(node, expected));
 }
+
+/** Match a direct catch-body statement and its bound error in the named function. */
+export function sourceFunctionHasCatchStatement(source: string, name: string, parameter: string, statement: string) {
+  const scope = body(parse(source), name), expected = parse(statement)?.statements[0];
+  if (!scope || !expected) return false;
+  return scope.statements.some(node => ts.isTryStatement(node)
+    && node.catchClause?.variableDeclaration && ts.isIdentifier(node.catchClause.variableDeclaration.name)
+    && node.catchClause.variableDeclaration.name.text === parameter
+    && node.catchClause.block.statements.some(item => matches(item, expected)));
+}

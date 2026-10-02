@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
-// test-lens-multi-query.js — Multi-query rewrite + RRF chunk fusion.
+// test-lens-multi-query.ts — Multi-query rewrite + RRF chunk fusion.
 //
 // Covers the orchestration helpers that close the vocabulary-gap recall
 // problem ("Black Seed Oil" → "Nigella Sativa"):
@@ -12,7 +12,7 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // queryLensMulti's network/LLM round-trip is exercised end-to-end by the
 // chat panel; isolation here keeps the test deterministic.
 //
-// Run: node tests/test-lens-multi-query.js  (or via npm test)
+// Run: node tests/test-lens-multi-query.ts  (or via npm test)
 
 // lens.js transitively pulls in the state module. For standalone `node` runs,
 // install the browser shims inline.

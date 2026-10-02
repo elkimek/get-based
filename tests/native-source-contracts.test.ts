@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sourceFunctionHasInitializer, sourceFunctionHasStatement, sourceFunctionHasVariable } from './helpers/native-source-contracts.js';
+import { sourceFunctionHasCatchStatement, sourceFunctionHasInitializer, sourceFunctionHasStatement, sourceFunctionHasVariable } from './helpers/native-source-contracts.js';
 
 describe('native source contracts', () => {
   it('keeps notes outside conditional blocks and requires the final context return', () => {
@@ -57,5 +57,22 @@ describe('native source contracts', () => {
     expect(sourceFunctionHasStatement('function broken( { return ctx;', 'broken', 'return ctx;', 'last')).toBe(false);
     expect(sourceFunctionHasVariable('function other() { const notes = []; }', 'build', 'notes')).toBe(false);
     expect(sourceFunctionHasInitializer('function build() {}', 'build', 'fmtDate', 'd => d')).toBe(false);
+  });
+  it('keeps cancellation guards in the named catch with the correct error binding and timeout order', () => {
+    const guard = "if (getErrorName(error) === 'AbortError') { if (outerSignal?.aborted) throw error; if (timeoutCtl.signal.aborted) throw new Error('timeout'); }";
+    const source = `async function query() { try { await fetch(); } catch (error) { ${guard} throw error; } }`;
+    const check = (input: string) => sourceFunctionHasCatchStatement(input, 'query', 'error', guard);
+    expect(check(source)).toBe(true);
+    expect(check(source.replace('throw error;', '\n      throw error;'))).toBe(true);
+    for (const changed of [
+      source.replace('catch (error)', 'catch (other)'),
+      source.replace("=== 'AbortError'", "!== 'AbortError'"),
+      source.replace('throw error;', 'return null;'),
+      source.replace("throw new Error('timeout')", "throw new Error('cancelled')"),
+      source.replace("if (outerSignal?.aborted) throw error; if (timeoutCtl.signal.aborted) throw new Error('timeout');", "if (timeoutCtl.signal.aborted) throw new Error('timeout'); if (outerSignal?.aborted) throw error;"),
+      `async function other() { try {} catch (error) { ${guard} } } async function query() {}`,
+      `async function query() { ${guard} }`,
+      `async function query() { try {} catch (error) { function elsewhere() { ${guard} } } }`,
+    ]) expect(check(changed)).toBe(false);
   });
 });

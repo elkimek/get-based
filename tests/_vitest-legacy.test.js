@@ -57,7 +57,7 @@ const LEGACY_TESTS = [
   './test-security-phase1.js',
   './test-correctness-phase2.js',
   // Batch 3 — more pure-logic ports.
-  './test-lens-multi-query.js',
+  './test-lens-multi-query.ts',
   './test-adapters.js',
   './test-trend-alerts.js',
   './test-supplement-impact.js',
@@ -154,7 +154,7 @@ const LEGACY_TESTS = [
   './test-custom-api.js',
   // Batch 25 — custom lens (Knowledge Source) behavioral + source-inspection
   // (DOM sections 15/16 moved to Playwright).
-  './test-custom-lens.js',
+  './test-custom-lens.ts',
   // Batch 26 — EMF assessment (full port, no DOM split — pure-logic +
   // module imports: SBM-2015 thresholds, severity tiers, affiliate catalog).
   './test-emf.js',

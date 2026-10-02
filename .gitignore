@@ -653,3 +653,5 @@ deploy/profile-share/data/
 
 /js/nutrition-summary.js
 /js/nutrition-summary-context.js
+
+/js/lens.js
