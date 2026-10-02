@@ -9,7 +9,7 @@ it('reconnect pulls clean state, flushes dirty edits first, and respects pause d
   state.currentProfile = 'recovery-events';
   const win = new EventTarget();
   let enabled = true;
-  const order = [];
+  const order: string[] = [];
   configureSyncActions({
     forcePull: async () => { order.push('pull'); },
     pushProfile: async () => {

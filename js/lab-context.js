@@ -47,7 +47,7 @@ import { weightToKilograms } from './wearables-formatters.js';
 import { getUnitProfileLabel } from './unit-profiles.js';
 export { configureLabContext } from './lab-context-runtime.js';
 /**
- * @typedef {{ skipGroupFilter?: boolean, ignoreContextToggles?: boolean, queryText?: string, nutritionHistoryLabel?: string, supplementContextMode?: 'compact'|'detail' }} LabContextOptions
+ * @typedef {import('./lab-context-runtime.js').LabContextOptions} LabContextOptions
  */
 function markerNameForStorageDotKey(data, dotKey) {
   const [categoryKey, markerKey] = String(dotKey || '').split('.');

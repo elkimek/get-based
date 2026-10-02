@@ -20,7 +20,7 @@ describe('sync action profile dependencies', () => {
     const defaultData = { entries: [], seeded: true };
     const createDefaultProfileData = vi.fn(() => defaultData);
     state.currentProfile = 'seed-profile';
-    state.importedData = null;
+    (state as { importedData: unknown }).importedData = null;
     configureSyncActions({ pushProfile, getProfiles, createDefaultProfileData });
 
     try {
@@ -32,7 +32,7 @@ describe('sync action profile dependencies', () => {
       expect(result).toEqual({ total: 1, succeeded: 1, failed: 0, skipped: 0 });
     } finally {
       state.currentProfile = previousProfile;
-      state.importedData = previousImportedData;
+      (state as { importedData: unknown }).importedData = previousImportedData;
       configureSyncActions({
         pushProfile: async () => {},
         getProfiles: () => [],
@@ -78,7 +78,7 @@ describe('sync action profile dependencies', () => {
     const previousImportedData = state.importedData;
     const pushProfile = vi.fn().mockResolvedValue({ ok: true });
     state.currentProfile = 'normal-profile';
-    state.importedData = { entries: [], contextNotes: 'sync me' };
+    (state as { importedData: unknown }).importedData = { entries: [], contextNotes: 'sync me' };
     configureSyncActions({
       pushProfile,
       getProfiles: () => [
@@ -101,7 +101,7 @@ describe('sync action profile dependencies', () => {
     } finally {
       localStorage.removeItem('labcharts-demo-profile-sync-dirty');
       state.currentProfile = previousProfile;
-      state.importedData = previousImportedData;
+      (state as { importedData: unknown }).importedData = previousImportedData;
       configureSyncActions({ pushProfile: async () => {}, getProfiles: () => [] });
     }
   });
@@ -112,7 +112,7 @@ describe('sync action profile dependencies', () => {
     const profileId = 'saved-demo-profile';
     const pushProfile = vi.fn().mockResolvedValue({ ok: true });
     state.currentProfile = profileId;
-    state.importedData = { entries: [], contextNotes: 'local demo data' };
+    (state as { importedData: unknown }).importedData = { entries: [], contextNotes: 'local demo data' };
     localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);
     configureSyncActions({
       pushProfile,
@@ -128,7 +128,7 @@ describe('sync action profile dependencies', () => {
       expect(pushProfile).not.toHaveBeenCalled();
     } finally {
       state.currentProfile = previousProfile;
-      state.importedData = previousImportedData;
+      (state as { importedData: unknown }).importedData = previousImportedData;
       localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);
       configureSyncActions({
         pushProfile: async () => {},
@@ -173,7 +173,7 @@ describe('sync action profile dependencies', () => {
       return { ok: true };
     });
     state.currentProfile = restoredId;
-    state.importedData = { entries: [], supplements: [{ id: 'restored-supplement' }] };
+    (state as { importedData: unknown }).importedData = { entries: [], supplements: [{ id: 'restored-supplement' }] };
     markSyncProfileDirty(restoredId);
     configureSyncActions({
       pushProfile,
@@ -196,13 +196,13 @@ describe('sync action profile dependencies', () => {
     } finally {
       localStorage.removeItem(`labcharts-${restoredId}-sync-dirty`);
       state.currentProfile = previousProfile;
-      state.importedData = previousImportedData;
+      (state as { importedData: unknown }).importedData = previousImportedData;
       configureSyncActions({ pushProfile: async () => {}, getProfiles: () => [] });
     }
   });
 
   it('pulls before pushing on manual sync', async () => {
-    const order = [];
+    const order: string[] = [];
     configureSyncActions({
       forcePull: async () => { order.push('pull'); },
       pushProfile: async () => { order.push('push'); return { ok: true }; },
@@ -265,7 +265,7 @@ describe('sync action profile dependencies', () => {
   it('flushes dirty local state before pulling, then publishes the merge', async () => {
     const previousProfile = state.currentProfile;
     const profileId = 'dirty-manual-sync';
-    const order = [];
+    const order: string[] = [];
     state.currentProfile = profileId;
     markSyncProfileDirty(profileId);
     configureSyncActions({
@@ -325,16 +325,16 @@ describe('sync action profile dependencies', () => {
     const activeId = 'compact-dirty-active';
     const inactiveId = 'compact-dirty-inactive';
     const inactiveKey = profileStorageKey(inactiveId, 'imported');
-    const order = [];
+    const order: string[] = [];
     state.currentProfile = activeId;
-    state.importedData = { entries: [], contextNotes: 'fresh active edit' };
+    (state as { importedData: unknown }).importedData = { entries: [], contextNotes: 'fresh active edit' };
     await encryptedSetItem(inactiveKey, JSON.stringify({ entries: [], contextNotes: 'fresh inactive edit' }));
     markSyncProfileDirty(activeId);
     markSyncProfileDirty(inactiveId);
     configureSyncActions({
       forcePull: async () => { order.push('pull'); },
       pushProfile: async (profileId, importedData) => {
-        order.push(`push:${profileId}:${importedData.contextNotes}`);
+        order.push(`push:${profileId}:${(importedData as { contextNotes: string }).contextNotes}`);
         clearSyncProfileDirty(profileId, getSyncDirtyToken(profileId));
         return { ok: true };
       },
@@ -356,7 +356,7 @@ describe('sync action profile dependencies', () => {
       localStorage.removeItem(`labcharts-${activeId}-sync-dirty`);
       localStorage.removeItem(`labcharts-${inactiveId}-sync-dirty`);
       state.currentProfile = previousProfile;
-      state.importedData = previousImportedData;
+      (state as { importedData: unknown }).importedData = previousImportedData;
       configureSyncActions({
         forcePull: async () => {},
         pushProfile: async () => {},
@@ -409,11 +409,11 @@ describe('sync action profile dependencies', () => {
     const resetLocalSyncHistoryForRelayRebuild = vi.fn(async () => {
       // Evolu reset callbacks may replace live state before rebuild pushing.
       // The captured pre-reset snapshot must remain authoritative.
-      state.importedData = { entries: [], notes: [{ id: 'regressed-during-reset' }] };
+      (state as { importedData: unknown }).importedData = { entries: [], notes: [{ id: 'regressed-during-reset' }] };
       return true;
     });
     state.currentProfile = profileId;
-    state.importedData = { entries: [], notes: [] };
+    (state as { importedData: unknown }).importedData = { entries: [], notes: [] };
     localStorage.setItem(`labcharts-${profileId}-sync-cutover-v2`, '1');
     localStorage.setItem(`labcharts-${profileId}-delta-entries`, '{"old":"hash"}');
     configureSyncActions({
@@ -434,10 +434,10 @@ describe('sync action profile dependencies', () => {
       );
       expect(resetLocalSyncHistoryForRelayRebuild).toHaveBeenCalledOnce();
       expect(resetLocalSyncHistoryForRelayRebuild.mock.invocationCallOrder[0])
-        .toBeLessThan(pushProfile.mock.invocationCallOrder[0]);
+        .toBeLessThan(pushProfile.mock.invocationCallOrder[0]!);
     } finally {
       state.currentProfile = previousProfile;
-      state.importedData = previousImportedData;
+      (state as { importedData: unknown }).importedData = previousImportedData;
       localStorage.removeItem(`labcharts-${profileId}-sync-cutover-v2`);
       localStorage.removeItem(`labcharts-${profileId}-delta-entries`);
       configureSyncActions({

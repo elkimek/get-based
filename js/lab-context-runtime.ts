@@ -14,3 +14,11 @@ export const labContextDeps: LabContextDependencies = {
 export function configureLabContext(deps: Partial<LabContextDependencies> = {}) {
   return configureRuntimeCallbacks(labContextDeps, deps);
 }
+
+export interface LabContextOptions {
+  skipGroupFilter?: boolean;
+  ignoreContextToggles?: boolean;
+  queryText?: string;
+  nutritionHistoryLabel?: string;
+  supplementContextMode?: 'compact' | 'detail';
+}

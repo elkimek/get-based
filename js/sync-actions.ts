@@ -1,4 +1,5 @@
-// @ts-check
+import type { StoredProfileRecord } from './profile-list-store.js';
+import type { RuntimeDependencyUpdates } from './runtime-callbacks.js';
 // sync-actions.js - user-triggered sync actions.
 
 import { state } from './state.js';
@@ -16,29 +17,30 @@ import { getProfileSyncBlockReason } from './profile-sync-policy.js';
 export { cleanStorage } from './sync-storage-cleanup.js';
 export { onChatSaved, onDataSaved, onProfileSaved } from './sync-save-hooks.js';
 
-/** @type {(...args: any[]) => Promise<any>} */
-let _pushProfile = async () => {};
-/** @type {(...args: any[]) => any} */
-let _forcePull = () => {};
+export interface SyncPushOptions { force?: boolean; allowTombstoneResurrection?: boolean }
+export interface SyncPushResult { ok?: boolean; skipped?: boolean; reason?: string; error?: unknown }
+type PushProfile = (profileId: string | null | undefined, data: unknown, options?: SyncPushOptions) => Promise<SyncPushResult | null | undefined | void>;
+
+let _pushProfile: PushProfile = async () => {};
+let _forcePull: () => unknown = () => {};
 let _isSyncEnabled = () => false;
 let _isEvoluReady = () => false;
 let _isSyncing = () => false;
-let _resetLocalSyncHistoryForRelayRebuild = async () => {};
-/** @type {() => any[]} */
-let _getProfiles = () => [];
-let _createDefaultProfileData = () => ({ entries: [] });
+let _resetLocalSyncHistoryForRelayRebuild: () => Promise<unknown> = async () => {};
+let _getProfiles: () => StoredProfileRecord[] = () => [];
+let _createDefaultProfileData: () => unknown = () => ({ entries: [] });
 
-/** @param {{
- *   pushProfile?: (...args: any[]) => Promise<any>,
- *   forcePull?: (...args: any[]) => any,
- *   isSyncEnabled?: () => boolean,
- *   isEvoluReady?: () => boolean,
- *   isSyncing?: () => boolean,
- *   resetLocalSyncHistoryForRelayRebuild?: () => Promise<any>,
- *   getProfiles?: () => any[],
- *   createDefaultProfileData?: () => any,
- * }} [deps]
- */
+interface SyncActionDeps {
+  pushProfile: typeof _pushProfile;
+  forcePull: typeof _forcePull;
+  isSyncEnabled: typeof _isSyncEnabled;
+  isEvoluReady: typeof _isEvoluReady;
+  isSyncing: typeof _isSyncing;
+  resetLocalSyncHistoryForRelayRebuild: typeof _resetLocalSyncHistoryForRelayRebuild;
+  getProfiles: typeof _getProfiles;
+  createDefaultProfileData: typeof _createDefaultProfileData;
+}
+
 export function configureSyncActions({
   pushProfile,
   forcePull,
@@ -48,7 +50,7 @@ export function configureSyncActions({
   resetLocalSyncHistoryForRelayRebuild,
   getProfiles,
   createDefaultProfileData,
-} = {}) {
+}: RuntimeDependencyUpdates<SyncActionDeps> = {}) {
   if (typeof pushProfile === 'function') _pushProfile = pushProfile;
   if (typeof forcePull === 'function') _forcePull = forcePull;
   if (typeof isSyncEnabled === 'function') _isSyncEnabled = isSyncEnabled;
@@ -71,7 +73,7 @@ export function clearSyncActionTimers() {
 }
 
 export async function pushCurrentProfile() {
-  const result = await _pushProfile(state.currentProfile, state.importedData);
+  const result = (await _pushProfile(state.currentProfile, state.importedData)) as SyncPushResult | null | undefined;
   pushContextToGateway();
   return result;
 }
@@ -137,13 +139,11 @@ export async function syncNow() {
 }
 
 // Push all profiles on first enable.
-/** @param {any} [options] */
-export async function pushAllProfiles(options = {}) {
+export async function pushAllProfiles(options: SyncPushOptions = {}) {
   return pushSelectedProfiles(_getProfiles(), options);
 }
 
-/** @param {any[]} profiles @param {any} [options] */
-async function pushSelectedProfiles(profiles, options = {}) {
+async function pushSelectedProfiles(profiles: readonly StoredProfileRecord[], options: SyncPushOptions = {}) {
   const summary = { total: profiles.length, succeeded: 0, failed: 0, skipped: 0 };
   for (const p of profiles) {
     const blockReason = getProfileSyncBlockReason(p?.id, profiles);
@@ -166,7 +166,7 @@ async function pushSelectedProfiles(profiles, options = {}) {
         summary.skipped++;
         continue;
       }
-      const result = await _pushProfile(p.id, dataJson, options);
+      const result = (await _pushProfile(p.id, dataJson, options)) as SyncPushResult | null | undefined;
       if (result?.skipped) summary.skipped++;
       else if (result?.ok === true) summary.succeeded++;
       else summary.failed++;
@@ -183,16 +183,14 @@ async function pushSelectedProfiles(profiles, options = {}) {
  * skipped so restore preflight can fail closed instead of accepting relay
  * tombstones over a profile it could not read.
  *
- * @param {string[]} profileIds
- * @param {any} [options]
  */
-export async function pushProfilesById(profileIds, options = {}) {
+export async function pushProfilesById(profileIds: readonly unknown[], options: SyncPushOptions = {}) {
   const requested = [...new Set(
     (Array.isArray(profileIds) ? profileIds : [])
       .filter(profileId => typeof profileId === 'string' && /^[a-zA-Z0-9_-]+$/.test(profileId)),
   )];
   const byId = new Map(_getProfiles().map(profile => [profile?.id, profile]));
-  const available = [];
+  const available: StoredProfileRecord[] = [];
   let missing = 0;
   for (const profileId of requested) {
     const profile = byId.get(profileId);
@@ -205,8 +203,7 @@ export async function pushProfilesById(profileIds, options = {}) {
   return summary;
 }
 
-/** @param {any} [options] */
-export async function pushDirtyProfiles(options = {}) {
+export async function pushDirtyProfiles(options: SyncPushOptions = {}) {
   const profiles = _getProfiles();
   const dirtyProfiles = profiles.filter(profile => {
     if (!getSyncDirtyToken(profile?.id)) return false;
@@ -218,8 +215,7 @@ export async function pushDirtyProfiles(options = {}) {
   return pushSelectedProfiles(dirtyProfiles, options);
 }
 
-/** @param {any[]} profiles */
-async function flushDirtyProfilesForRelayCompaction(profiles) {
+async function flushDirtyProfilesForRelayCompaction(profiles: readonly StoredProfileRecord[]) {
   for (const profile of profiles) {
     const profileId = profile?.id;
     if (!profileId) continue;
@@ -241,7 +237,7 @@ async function flushDirtyProfilesForRelayCompaction(profiles) {
       if (!importedData) {
         throw new Error(`Could not read local data for profile ${profileId.slice(0, 8)}; compaction stopped safely`);
       }
-      const result = await _pushProfile(profileId, importedData);
+      const result = (await _pushProfile(profileId, importedData)) as SyncPushResult | null | undefined;
       if (!result?.ok) {
         throw new Error(`Could not commit pending changes for profile ${profileId.slice(0, 8)}`);
       }
@@ -265,7 +261,7 @@ export async function prepareRelayCompaction() {
   await _forcePull();
 }
 
-function cloneRelayRebuildData(importedData) {
+function cloneRelayRebuildData(importedData: unknown): unknown {
   if (typeof structuredClone === 'function') return structuredClone(importedData);
   return JSON.parse(JSON.stringify(importedData));
 }
@@ -277,7 +273,7 @@ export async function rebuildOwnerRelayState() {
   // synchronously fire empty/new-database subscriptions; reading
   // state.importedData afterward lets those callbacks replace the canonical
   // compaction source while the rebuild is in progress.
-  const snapshots = [];
+  const snapshots: Array<{ profile: StoredProfileRecord; importedData: unknown }> = [];
   for (const profile of profiles) {
     const importedData = profile.id === state.currentProfile
       ? (state.importedData || _createDefaultProfileData())
@@ -293,7 +289,7 @@ export async function rebuildOwnerRelayState() {
   const summary = { total: snapshots.length, succeeded: 0, failed: 0, skipped: 0 };
   for (const { profile, importedData } of snapshots) {
     try {
-      const result = await _pushProfile(profile.id, importedData, { force: true });
+      const result = (await _pushProfile(profile.id, importedData, { force: true })) as SyncPushResult | null | undefined;
       if (result?.skipped) summary.skipped++;
       else if (result?.ok === true) summary.succeeded++;
       else summary.failed++;

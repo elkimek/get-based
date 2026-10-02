@@ -50,7 +50,7 @@ function getDefaultSyncRecoveryRuntime() {
   };
 }
 
-export function bindSyncRecoveryEvents({ win, doc, nav }: { win?: Window | null; doc?: Document | null; nav?: Navigator | null } = {}) {
+export function bindSyncRecoveryEvents({ win, doc, nav }: { win?: Pick<Window, 'addEventListener'> | null; doc?: Pick<Document, 'addEventListener' | 'visibilityState'> | null; nav?: Pick<Navigator, 'onLine'> | null } = {}) {
   if (_eventsBound) return;
   _eventsBound = true;
   const defaults = getDefaultSyncRecoveryRuntime();

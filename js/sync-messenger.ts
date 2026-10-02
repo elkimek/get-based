@@ -1,4 +1,6 @@
-// @ts-check
+import type { LabContextOptions } from './lab-context-runtime.js';
+import type { StoredProfileRecord } from './profile-list-store.js';
+import type { buildWearableSeriesSection as buildWearableSeries } from './lab-context-wearables.js';
 // sync-messenger.js - Agent Access token and context gateway helpers.
 
 import { state } from './state.js';
@@ -6,27 +8,37 @@ import { bindSyncAppliedRefresh } from './utils.js';
 import { addUtilsRuntimeListener } from './utils-runtime.js';
 import { isDemoProfileId } from './profile-sync-policy.js';
 
+export interface AgentAccessRecord extends Record<string, unknown> {
+  version?: number;
+  enabled?: boolean;
+  token?: string | null;
+  contextKey?: string | null;
+  wearableSeriesDays?: number;
+  updatedAt?: number;
+  revokedAt?: number | null;
+  migratedFromLocalStorageAt?: number;
+  credentialCreatedAt?: number;
+}
+interface AgentAccessProfile {
+  entries: unknown[];
+  agentAccess?: unknown;
+  agentAccessWearableSeriesDays?: unknown;
+}
+interface MessengerOwner { id?: unknown; writeKey?: unknown }
+
 const MESSENGER_TOKEN_KEY = 'labcharts-messenger-token';
 const MESSENGER_ENABLED_KEY = 'labcharts-messenger-enabled';
 const MESSENGER_CONTEXT_KEY_KEY = 'labcharts-agent-context-key';
 const AGENT_ACCESS_SYNC_VERSION = 1;
 
-/** @type {() => string} */
-let _getSyncRelay = () => 'wss://sync.getbased.health';
-/** @type {() => any} */
-let _getAppOwner = () => null;
-/** @type {(...args: any[]) => void} */
-let _debug = () => {};
-/** @type {(options?: any) => string} */
-let _buildLabContext = () => '';
-/** @type {(days: number, options?: any) => Promise<string>} */
-let _buildWearableSeriesSection = async () => '';
-/** @type {() => number} */
-let _getAgentWearableSeriesDays = () => 0;
-/** @type {() => any[]} */
-let _getProfiles = () => [];
-/** @type {ReturnType<typeof setTimeout> | null} */
-let _contextPushTimer = null;
+let _getSyncRelay: () => string = () => 'wss://sync.getbased.health';
+let _getAppOwner: () => MessengerOwner | null = () => null;
+let _debug: (...args: unknown[]) => void = () => {};
+let _buildLabContext: (options?: LabContextOptions) => string = () => '';
+let _buildWearableSeriesSection: typeof buildWearableSeries = async () => '';
+let _getAgentWearableSeriesDays: () => number = () => 0;
+let _getProfiles: () => StoredProfileRecord[] = () => [];
+let _contextPushTimer: ReturnType<typeof setTimeout> | null = null;
 let _contextPushInFlight = false;
 let _blockedContextPushIdentity = '';
 let _agentAccessMigrationDirty = false;
@@ -38,16 +50,16 @@ function cancelPendingContextPush() {
   }
 }
 
-/** @param {{
- *   getSyncRelay?: () => string,
- *   getAppOwner?: () => any,
- *   debug?: (...args: any[]) => void,
- *   buildLabContext?: (options?: any) => string,
- *   buildWearableSeriesSection?: (days: number, options?: any) => Promise<string>,
- *   getAgentWearableSeriesDays?: () => number,
- *   getProfiles?: () => any[],
- * }} [deps]
- */
+interface SyncMessengerDeps {
+  getSyncRelay: typeof _getSyncRelay;
+  getAppOwner: typeof _getAppOwner;
+  debug: typeof _debug;
+  buildLabContext: typeof _buildLabContext;
+  buildWearableSeriesSection: typeof _buildWearableSeriesSection;
+  getAgentWearableSeriesDays: typeof _getAgentWearableSeriesDays;
+  getProfiles: typeof _getProfiles;
+}
+
 export function configureSyncMessenger({
   getSyncRelay,
   getAppOwner,
@@ -56,7 +68,7 @@ export function configureSyncMessenger({
   buildWearableSeriesSection,
   getAgentWearableSeriesDays,
   getProfiles,
-} = {}) {
+}: Partial<SyncMessengerDeps> = {}) {
   if (typeof getSyncRelay === 'function') _getSyncRelay = getSyncRelay;
   if (typeof getAppOwner === 'function') _getAppOwner = getAppOwner;
   if (typeof debug === 'function') _debug = debug;
@@ -74,15 +86,15 @@ function currentAppOwner() {
   try { return _getAppOwner?.() || null; } catch { return null; }
 }
 
-function dbg(...args) {
+function dbg(...args: unknown[]) {
   try { _debug(...args); } catch {}
 }
 
-function buildLabContext(options) {
+function buildLabContext(options?: LabContextOptions) {
   return options === undefined ? _buildLabContext() : _buildLabContext(options);
 }
 
-function buildWearableSeriesSection(days, options) {
+function buildWearableSeriesSection(days: number, options?: Parameters<typeof buildWearableSeries>[1]) {
   return options === undefined
     ? _buildWearableSeriesSection(days)
     : _buildWearableSeriesSection(days, options);
@@ -95,13 +107,13 @@ function getAgentWearableSeriesDays() {
 function nowTs() { return Date.now(); }
 
 function currentAgentAccess() {
-  if (!state.importedData) (/** @type {any} */ (state)).importedData = { entries: [] };
-  const imported = /** @type {any} */ (state.importedData);
+  if (!state.importedData) ((state as { importedData: AgentAccessProfile | null })).importedData = { entries: [] };
+  const imported = (state.importedData as AgentAccessProfile);
   const aa = imported.agentAccess;
-  return (aa && typeof aa === 'object') ? aa : null;
+  return (aa && typeof aa === 'object') ? aa as AgentAccessRecord : null;
 }
 
-function writeAgentAccess(patch) {
+function writeAgentAccess(patch: Partial<AgentAccessRecord>) {
   const prev = currentAgentAccess() || {};
   const next = {
     version: AGENT_ACCESS_SYNC_VERSION,
@@ -109,8 +121,8 @@ function writeAgentAccess(patch) {
     ...patch,
     updatedAt: nowTs(),
   };
-  if (!state.importedData) (/** @type {any} */ (state)).importedData = { entries: [] };
-  (/** @type {any} */ (state.importedData)).agentAccess = next;
+  if (!state.importedData) ((state as { importedData: AgentAccessProfile | null })).importedData = { entries: [] };
+  ((state.importedData as AgentAccessProfile)).agentAccess = next;
   return next;
 }
 
@@ -128,14 +140,14 @@ function legacyLocalContextKey() {
 
 const AGENT_SERIES_DAYS = [0, 7, 30, 90];
 
-function normalizeAgentSeriesDays(days) {
+function normalizeAgentSeriesDays(days: unknown) {
   const n = Number(days) || 0;
   return AGENT_SERIES_DAYS.includes(n) ? n : 0;
 }
 
-function currentAgentWearableSeriesDays(aa = currentAgentAccess()) {
-  if (!state.importedData) (/** @type {any} */ (state)).importedData = { entries: [] };
-  const imported = /** @type {any} */ (state.importedData);
+function currentAgentWearableSeriesDays(aa: AgentAccessRecord | null = currentAgentAccess()) {
+  if (!state.importedData) ((state as { importedData: AgentAccessProfile | null })).importedData = { entries: [] };
+  const imported = (state.importedData as AgentAccessProfile);
   if (typeof imported.agentAccessWearableSeriesDays === 'number') {
     return normalizeAgentSeriesDays(imported.agentAccessWearableSeriesDays);
   }
@@ -148,7 +160,7 @@ function currentAgentWearableSeriesDays(aa = currentAgentAccess()) {
   return 0;
 }
 
-let _lastAgentAccessMigrationSignature = null;
+let _lastAgentAccessMigrationSignature: string | null = null;
 
 export function _resetAgentAccessMigrationStateForTesting() {
   _lastAgentAccessMigrationSignature = null;
@@ -173,7 +185,7 @@ export function clearLegacyAgentAccessSecrets() {
   } catch {}
 }
 
-function agentAccessMigrationSignature(existing, enabled, token, legacyContextKey) {
+function agentAccessMigrationSignature(existing: AgentAccessRecord | null, enabled: boolean, token: string | null, legacyContextKey: string | null) {
   const pid = state.currentProfile || (typeof localStorage !== 'undefined' && localStorage.getItem('labcharts-active-profile')) || 'default';
   // Deliberately exclude importedData.agentAccessWearableSeriesDays: that split
   // preference scalar is mirrored by setAgentAccessWearableSeriesDays() and
@@ -219,8 +231,8 @@ export function migrateLocalAgentAccessToProfile() {
       _lastAgentAccessMigrationSignature = signature;
       return existing;
     }
-    const tokenChanged = !!(existing.token && token && token !== existing.token);
-    const contextKeyChanged = !!(existing.contextKey && legacyContextKey && legacyContextKey !== existing.contextKey);
+    const tokenChanged = !!(existing!.token && token && token !== existing!.token);
+    const contextKeyChanged = !!(existing!.contextKey && legacyContextKey && legacyContextKey !== existing!.contextKey);
     if (tokenChanged || contextKeyChanged) {
       mirrorAgentAccessToLegacyLocalStorage(existing);
       _lastAgentAccessMigrationSignature = signature;
@@ -247,8 +259,8 @@ export function migrateLocalAgentAccessToProfile() {
     _lastAgentAccessMigrationSignature = signature;
     return null;
   }
-  if (!state.importedData) (/** @type {any} */ (state)).importedData = { entries: [] };
-  (/** @type {any} */ (state.importedData)).agentAccessWearableSeriesDays = seriesDays;
+  if (!state.importedData) ((state as { importedData: AgentAccessProfile | null })).importedData = { entries: [] };
+  ((state.importedData as AgentAccessProfile)).agentAccessWearableSeriesDays = seriesDays;
   const migrated = writeAgentAccess({
     enabled: !!(enabled && token && contextKey),
     token: token || null,
@@ -260,7 +272,7 @@ export function migrateLocalAgentAccessToProfile() {
   return migrated;
 }
 
-function mirrorAgentAccessToLegacyLocalStorage(aa = currentAgentAccess()) {
+function mirrorAgentAccessToLegacyLocalStorage(aa: AgentAccessRecord | null = currentAgentAccess()) {
   if (!aa || typeof localStorage === 'undefined') return;
   try {
     if (aa.enabled) localStorage.setItem(MESSENGER_ENABLED_KEY, 'true');
@@ -291,13 +303,13 @@ export function getAgentAccessState() {
   return { ...aa, wearableSeriesDays: currentAgentWearableSeriesDays(aa) };
 }
 
-export function setAgentAccessWearableSeriesDays(days) {
+export function setAgentAccessWearableSeriesDays(days: unknown) {
   const raw = Number(days) || 0;
   if (!AGENT_SERIES_DAYS.includes(raw)) return null;
   const n = normalizeAgentSeriesDays(raw);
   const aa = currentAgentAccess() || (migrateLocalAgentAccessToProfile(), currentAgentAccess());
-  if (!state.importedData) (/** @type {any} */ (state)).importedData = { entries: [] };
-  (/** @type {any} */ (state.importedData)).agentAccessWearableSeriesDays = n;
+  if (!state.importedData) ((state as { importedData: AgentAccessProfile | null })).importedData = { entries: [] };
+  ((state.importedData as AgentAccessProfile)).agentAccessWearableSeriesDays = n;
   mirrorAgentAccessToLegacyLocalStorage(aa || { enabled: false, token: null, contextKey: null, wearableSeriesDays: n });
   return n;
 }
@@ -308,7 +320,7 @@ export function refreshAgentAccessFromSyncedProfile({ migrateLegacy = true, clea
   if (!aa) {
     const fallbackSeriesDays = clearWhenMissing ? 0 : currentAgentWearableSeriesDays(null);
     if (clearWhenMissing && state.importedData) {
-      (/** @type {any} */ (state.importedData)).agentAccessWearableSeriesDays = fallbackSeriesDays;
+      ((state.importedData as AgentAccessProfile)).agentAccessWearableSeriesDays = fallbackSeriesDays;
     }
     const fallback = {
       version: AGENT_ACCESS_SYNC_VERSION,
@@ -333,49 +345,51 @@ addUtilsRuntimeListener('labcharts-profile-switched', () => {
 const AGENT_CONTEXT_CRYPTO_VERSION = 2;
 const AGENT_CONTEXT_AAD_PREFIX = 'getbased-agent-context-v2';
 
-function bytesToBase64(bytes) {
+function bytesToBase64(bytes: Iterable<number>) {
   let binary = '';
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary);
 }
 
-function bytesToBase64Url(bytes) {
+function bytesToBase64Url(bytes: Iterable<number>) {
   return bytesToBase64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
-function bytesToHex(bytes) {
+function bytesToHex(bytes: Iterable<number>) {
   return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function ownerIdString(owner) {
+function ownerIdString(owner: MessengerOwner | null) {
   if (!owner?.id) return null;
   return String(owner.id);
 }
 
-function ownerWriteKeyBytes(owner) {
+function ownerWriteKeyBytes(owner: MessengerOwner | null) {
   if (!owner?.writeKey) return null;
-  return owner.writeKey instanceof Uint8Array ? owner.writeKey : new Uint8Array(owner.writeKey);
+  return owner.writeKey instanceof Uint8Array ? owner.writeKey : new Uint8Array(owner.writeKey as ArrayBuffer);
 }
 
-async function sha256Hex(value) {
+async function sha256Hex(value: unknown) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(value || '')));
   return bytesToHex(new Uint8Array(digest));
 }
 
-async function signAgentContextRequest({ owner, token, profileId, relayContext, timestamp }) {
+async function signAgentContextRequest({ owner, token, profileId, relayContext, timestamp }: {
+  owner: MessengerOwner | null; token: string; profileId: string; relayContext: string; timestamp: number;
+}) {
   if (!crypto?.subtle) throw new Error('Agent Access owner signing requires WebCrypto');
   const ownerId = ownerIdString(owner);
   const writeKey = ownerWriteKeyBytes(owner);
   if (!ownerId || !writeKey) throw new Error('Agent Access requires Sync identity — enable or restore Cross-device Sync first');
   const tokenHash = await sha256Hex(token);
   const contextHash = await sha256Hex(relayContext);
-  const key = await crypto.subtle.importKey('raw', writeKey, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const key = await crypto.subtle.importKey('raw', writeKey as Uint8Array<ArrayBuffer>, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const message = `agent-context:${ownerId}:${timestamp}:${tokenHash}:${profileId || 'default'}:${contextHash}`;
   const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message));
   return { ownerId, tokenHash, contextHash, signature: bytesToHex(new Uint8Array(signature)) };
 }
 
-function base64UrlToBytes(value) {
+function base64UrlToBytes(value: unknown) {
   const raw = String(value || '').trim();
   const b64 = raw.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(raw.length / 4) * 4, '=');
   const binary = atob(b64);
@@ -389,7 +403,7 @@ function generateAgentContextKeyValue() {
   return `gbctx_v1_${bytesToBase64Url(bytes)}`;
 }
 
-function decodeAgentContextKey(keyValue) {
+function decodeAgentContextKey(keyValue: unknown) {
   const trimmed = String(keyValue || '').trim();
   const encoded = trimmed.startsWith('gbctx_v1_') ? trimmed.slice('gbctx_v1_'.length) : trimmed;
   const bytes = base64UrlToBytes(encoded);
@@ -397,17 +411,17 @@ function decodeAgentContextKey(keyValue) {
   return bytes;
 }
 
-async function agentContextKeyId(rawKeyBytes) {
+async function agentContextKeyId(rawKeyBytes: Uint8Array<ArrayBuffer>) {
   const digest = await crypto.subtle.digest('SHA-256', rawKeyBytes);
   return bytesToBase64Url(new Uint8Array(digest).slice(0, 12));
 }
 
-async function importAgentContextCryptoKey(rawKeyBytes) {
+async function importAgentContextCryptoKey(rawKeyBytes: Uint8Array<ArrayBuffer>) {
   if (!crypto?.subtle) throw new Error('Agent Access encryption requires WebCrypto');
   return crypto.subtle.importKey('raw', rawKeyBytes, { name: 'AES-GCM' }, false, ['encrypt']);
 }
 
-export async function encryptAgentContextForRelay(context, contextKey, profileId) {
+export async function encryptAgentContextForRelay(context: unknown, contextKey: unknown, profileId: string | null | undefined) {
   const rawKey = decodeAgentContextKey(contextKey);
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const key = await importAgentContextCryptoKey(rawKey);
@@ -464,7 +478,7 @@ export function generateMessengerContextKey() {
   return key;
 }
 
-export function revokeMessengerTokenRemote(token) {
+export function revokeMessengerTokenRemote(token: string | null | undefined) {
   if (!token) return;
   const owner = currentAppOwner();
   const relay = currentSyncRelay().replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');

@@ -583,3 +583,6 @@ deploy/profile-share/data/
 /js/sync-identity.js
 /js/sync-recovery.js
 /js/sync-schema.js
+/js/sync-messenger.js
+/js/sync-save-hooks.js
+/js/sync-actions.js

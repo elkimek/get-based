@@ -1,4 +1,3 @@
-// @ts-check
 // sync-save-hooks.js - Connect typed save scheduling to crypto, chat and messenger services.
 // Preserve dependency initialization order while the imported services migrate.
 import './caught-error.js';
