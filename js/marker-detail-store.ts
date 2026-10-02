@@ -1,4 +1,22 @@
-// @ts-check
+import type { LabEntryDraft } from './lab-entry.js';
+
+type RangeOverride = Record<string, unknown>;
+interface MarkerMaps {
+  manualValues: Record<string, unknown>;
+  markerValueNotes: Record<string, string | null>;
+  refOverrides: Record<string, RangeOverride | null | undefined>;
+  markerNotes: Record<string, string>;
+}
+// This mutation boundary also accepts a partial profile before normalization.
+type MarkerMutationData = Partial<MarkerMaps> & { entries?: LabEntryDraft[] | null };
+interface MarkerValueEdit {
+  dotKey?: string; date?: string; storedValue?: unknown; now?: number;
+}
+interface MarkerValueSave extends MarkerValueEdit {
+  noteText?: unknown;
+  collectionContext?: { sampleTime?: unknown; fasting?: unknown };
+}
+
 // marker-detail-store.js - synced marker-detail mutation boundary.
 
 import { state } from './state.js';
@@ -14,10 +32,10 @@ import {
 } from './lab-entry.js';
 
 function captureMarkerEdit() {
-  return { profileId: state.currentProfile, data: JSON.parse(JSON.stringify({ ...state.importedData, toJSON: undefined })) };
+  return { profileId: state.currentProfile, data: JSON.parse(JSON.stringify({ ...state.importedData, toJSON: undefined })) as unknown };
 }
 
-async function persistMarkerEdit(rollback) {
+async function persistMarkerEdit(rollback: ReturnType<typeof captureMarkerEdit>) {
   const edited = state.importedData;
   if (await saveImportedData()) return true;
   if (state.currentProfile === rollback.profileId && state.importedData === edited) {
@@ -29,34 +47,29 @@ async function persistMarkerEdit(rollback) {
 
 const VALUE_NOTE_MAX_CHARS = 500;
 
-/** @returns {any} */
 function ensureImportedData() {
-  if (!state.importedData || typeof state.importedData !== 'object') state.importedData = /** @type {any} */ ({});
-  return state.importedData;
+  if (!state.importedData || typeof state.importedData !== 'object') (state as { importedData: MarkerMutationData }).importedData = ({});
+  return state.importedData as MarkerMutationData;
 }
 
-/**
- * @param {string} name
- * @returns {Record<string, any>}
- */
-function ensureMap(name) {
+function ensureMap<Name extends keyof MarkerMaps>(name: Name): MarkerMaps[Name] {
   const data = ensureImportedData();
-  if (!data[name] || typeof data[name] !== 'object' || Array.isArray(data[name])) data[name] = {};
-  return data[name];
+  if (!data[name] || typeof data[name] !== 'object' || Array.isArray(data[name])) data[name] = {} as MarkerMaps[Name];
+  return data[name] as MarkerMaps[Name];
 }
 
-function mapKey(dotKey, date) {
+function mapKey(dotKey: string | undefined, date: string | undefined) {
   return dotKey && date ? `${dotKey}:${date}` : null;
 }
 
-function entryMarkerValue(entry, dotKey) {
+function entryMarkerValue(entry: LabEntryDraft | null | undefined, dotKey: string | undefined) {
   const markers = entry?.markers && typeof entry.markers === 'object' ? entry.markers : null;
   if (!markers || !dotKey) return undefined;
   if (Object.prototype.hasOwnProperty.call(markers, dotKey)) return markers[dotKey];
   return undefined;
 }
 
-function entryHasImportedSource(entry, dotKey) {
+function entryHasImportedSource(entry: LabEntryDraft | null | undefined, dotKey: string) {
   if (!entry) return false;
   const markerSource = entry.markerSources?.[dotKey];
   if (markerSource) return !!(markerSource.snapshotId || markerSource.file);
@@ -64,14 +77,14 @@ function entryHasImportedSource(entry, dotKey) {
   return Array.isArray(entry.sourceFiles) && entry.sourceFiles.some(Boolean);
 }
 
-function editedMarkerSource(entry, dotKey, now) {
+function editedMarkerSource(entry: LabEntryDraft, dotKey: string, now: number) {
   const source = entry.markerSources?.[dotKey];
   return source?.snapshotId || source?.file
     ? { ...source, at: now, manuallyEdited: true }
     : { file: null, at: now };
 }
 
-function rememberManualOriginal(dotKey, date, entry) {
+function rememberManualOriginal(dotKey: string, date: string | undefined, entry: LabEntryDraft) {
   const key = mapKey(dotKey, date);
   if (!entry || !key) return;
   const manualValues = ensureMap('manualValues');
@@ -84,15 +97,15 @@ function rememberManualOriginal(dotKey, date, entry) {
   }
 }
 
-function clearSyncedMapValue(map, key) {
+function clearSyncedMapValue(map: Record<string, unknown> | null | undefined, key: string | null) {
   if (!map || typeof map !== 'object' || !key) return false;
   if (!Object.prototype.hasOwnProperty.call(map, key)) return false;
   map[key] = null;
   return true;
 }
 
-export function getManualOriginalForMarker(dotKey, date) {
-  const map = state.importedData?.manualValues;
+export function getManualOriginalForMarker(dotKey: string, date: string) {
+  const map = state.importedData?.manualValues as MarkerMaps['manualValues'] | null | undefined;
   const key = mapKey(dotKey, date);
   if (!map || typeof map !== 'object' || !key) return undefined;
   if (Object.prototype.hasOwnProperty.call(map, key) && map[key] != null && map[key] !== true) {
@@ -102,19 +115,19 @@ export function getManualOriginalForMarker(dotKey, date) {
   return undefined;
 }
 
-export function hasMarkerValueForDate(dotKey, date) {
+export function hasMarkerValueForDate(dotKey: string, date: string) {
   if (!dotKey || !date) return false;
   const entry = state.importedData?.entries?.find(e => e.date === date);
   return entryMarkerValue(entry, dotKey) !== undefined;
 }
 
-export function getMarkerValueNote(dotKey, date) {
+export function getMarkerValueNote(dotKey: string, date: string) {
   const key = mapKey(dotKey, date);
   if (!key) return '';
   return state.importedData?.markerValueNotes?.[key] || '';
 }
 
-function writeMarkerValueNote(dotKey, date, noteText) {
+function writeMarkerValueNote(dotKey: string, date: string, noteText: unknown) {
   const key = mapKey(dotKey, date);
   if (!key) return false;
   const notes = ensureMap('markerValueNotes');
@@ -129,10 +142,7 @@ function writeMarkerValueNote(dotKey, date, noteText) {
   return changed;
 }
 
-/**
- * @param {{ dotKey?: string, date?: string, storedValue?: any, noteText?: string, collectionContext?: { sampleTime?: unknown, fasting?: unknown }, now?: number }} [opts]
- */
-export async function saveManualMarkerValue({ dotKey, date, storedValue, noteText = '', collectionContext, now = Date.now() } = {}) {
+export async function saveManualMarkerValue({ dotKey, date, storedValue, noteText = '', collectionContext, now = Date.now() }: MarkerValueSave = {}) {
   const rollback = captureMarkerEdit();
   if (!dotKey || !date) return null;
   const data = ensureImportedData();
@@ -149,10 +159,7 @@ export async function saveManualMarkerValue({ dotKey, date, storedValue, noteTex
   return entry;
 }
 
-/**
- * @param {{ dotKey?: string, date?: string, storedValue?: any, now?: number }} [opts]
- */
-export async function editManualMarkerValue({ dotKey, date, storedValue, now = Date.now() } = {}) {
+export async function editManualMarkerValue({ dotKey, date, storedValue, now = Date.now() }: MarkerValueEdit = {}) {
   const rollback = captureMarkerEdit();
   const entry = state.importedData?.entries?.find(e => e.date === date);
   if (!entry || !dotKey) return null;
@@ -165,7 +172,7 @@ export async function editManualMarkerValue({ dotKey, date, storedValue, now = D
   return entry;
 }
 
-export async function deleteManualMarkerValue(dotKey, date, { now = Date.now() } = {}) {
+export async function deleteManualMarkerValue(dotKey: string, date: string, { now = Date.now() } = {}) {
   const rollback = captureMarkerEdit();
   const entry = state.importedData?.entries?.find(e => e.date === date);
   if (!entry || entryMarkerValue(entry, dotKey) === undefined) return null;
@@ -177,7 +184,7 @@ export async function deleteManualMarkerValue(dotKey, date, { now = Date.now() }
   return result;
 }
 
-export async function revertManualMarkerValue(dotKey, date, { now = Date.now() } = {}) {
+export async function revertManualMarkerValue(dotKey: string, date: string, { now = Date.now() } = {}) {
   const rollback = captureMarkerEdit();
   const original = getManualOriginalForMarker(dotKey, date);
   if (original == null || original === true) return null;
@@ -195,14 +202,14 @@ export async function revertManualMarkerValue(dotKey, date, { now = Date.now() }
   return entry;
 }
 
-export async function saveMarkerValueNote(dotKey, date, noteText) {
+export async function saveMarkerValueNote(dotKey: string, date: string, noteText: unknown) {
   const rollback = captureMarkerEdit();
   const changed = writeMarkerValueNote(dotKey, date, noteText);
   if (changed && !await persistMarkerEdit(rollback)) return false;
   return changed;
 }
 
-export async function deleteMarkerValueNote(dotKey, date) {
+export async function deleteMarkerValueNote(dotKey: string, date: string) {
   const rollback = captureMarkerEdit();
   const notes = ensureMap('markerValueNotes');
   const changedPrimary = clearSyncedMapValue(notes, mapKey(dotKey, date));
@@ -210,96 +217,80 @@ export async function deleteMarkerValueNote(dotKey, date) {
   return changedPrimary;
 }
 
-/**
- * @param {string} dotKey
- * @param {string} type
- * @param {{ min?: number | null, max?: number | null }} [range]
- */
-export async function saveRefRangeOverride(dotKey, type, { min, max } = {}) {
+function applyRangeOverride(ovr: RangeOverride, kind: 'optimal' | 'ref', min: number | null | undefined, max: number | null | undefined) {
+  const lab = kind === 'optimal' ? 'labOptimal' : 'labRef';
+  if (ovr[`${kind}Source`] !== 'manual' && (`${kind}Min` in ovr) && !(`${lab}Min` in ovr)) {
+    ovr[`${lab}Min`] = ovr[`${kind}Min`];
+    ovr[`${lab}Max`] = ovr[`${kind}Max`];
+  }
+  ovr[`${kind}Min`] = min;
+  ovr[`${kind}Max`] = max;
+  ovr[`${kind}Source`] = 'manual';
+}
+
+function restoreRangeOverride(ovr: RangeOverride, kind: 'optimal' | 'ref') {
+  const lab = kind === 'optimal' ? 'labOptimal' : 'labRef';
+  let message = 'Range reverted to default';
+  if (`${lab}Min` in ovr) {
+    ovr[`${kind}Min`] = ovr[`${lab}Min`];
+    ovr[`${kind}Max`] = ovr[`${lab}Max`];
+    ovr[`${kind}Source`] = 'import';
+    delete ovr[`${lab}Min`];
+    delete ovr[`${lab}Max`];
+    message = 'Range reverted to lab range';
+  } else {
+    delete ovr[`${kind}Min`];
+    delete ovr[`${kind}Max`];
+    delete ovr[`${kind}Source`];
+  }
+  return message;
+}
+
+export async function saveRefRangeOverride(dotKey: string, type: string, { min, max }: { min?: number | null; max?: number | null } = {}) {
   const rollback = captureMarkerEdit();
   const isOptimal = type === 'optimal';
   const isReference = type === 'ref' || type === 'reference';
   if (!dotKey || (!isOptimal && !isReference)) return null;
   const refOverrides = ensureMap('refOverrides');
   if (!refOverrides[dotKey] || typeof refOverrides[dotKey] !== 'object') refOverrides[dotKey] = {};
-  const ovr = refOverrides[dotKey];
-  if (isOptimal) {
-    if (ovr.optimalSource !== 'manual' && ('optimalMin' in ovr) && !('labOptimalMin' in ovr)) {
-      ovr.labOptimalMin = ovr.optimalMin;
-      ovr.labOptimalMax = ovr.optimalMax;
-    }
-    ovr.optimalMin = min;
-    ovr.optimalMax = max;
-    ovr.optimalSource = 'manual';
-  } else {
-    if (ovr.refSource !== 'manual' && ('refMin' in ovr) && !('labRefMin' in ovr)) {
-      ovr.labRefMin = ovr.refMin;
-      ovr.labRefMax = ovr.refMax;
-    }
-    ovr.refMin = min;
-    ovr.refMax = max;
-    ovr.refSource = 'manual';
-  }
+  const ovr = refOverrides[dotKey]!;
+  if (isOptimal) applyRangeOverride(ovr, 'optimal', min, max);
+  else applyRangeOverride(ovr, 'ref', min, max);
   if (!await persistMarkerEdit(rollback)) return null;
   return ovr;
 }
 
-export async function revertRefRangeOverride(dotKey, type) {
+export async function revertRefRangeOverride(dotKey: string, type: string) {
   const rollback = captureMarkerEdit();
-  const ovr = state.importedData?.refOverrides?.[dotKey];
+  const ovr = state.importedData?.refOverrides?.[dotKey] as RangeOverride | null | undefined;
   const isOptimal = type === 'optimal';
   const isReference = type === 'ref' || type === 'reference';
   if (!ovr || (!isOptimal && !isReference)) return null;
   let message = 'Range reverted to default';
-  if (isOptimal) {
-    if ('labOptimalMin' in ovr) {
-      ovr.optimalMin = ovr.labOptimalMin;
-      ovr.optimalMax = ovr.labOptimalMax;
-      ovr.optimalSource = 'import';
-      delete ovr.labOptimalMin;
-      delete ovr.labOptimalMax;
-      message = 'Range reverted to lab range';
-    } else {
-      delete ovr.optimalMin;
-      delete ovr.optimalMax;
-      delete ovr.optimalSource;
-    }
-  } else {
-    if ('labRefMin' in ovr) {
-      ovr.refMin = ovr.labRefMin;
-      ovr.refMax = ovr.labRefMax;
-      ovr.refSource = 'import';
-      delete ovr.labRefMin;
-      delete ovr.labRefMax;
-      message = 'Range reverted to lab range';
-    } else {
-      delete ovr.refMin;
-      delete ovr.refMax;
-      delete ovr.refSource;
-    }
-  }
+  if (isOptimal) message = restoreRangeOverride(ovr, 'optimal');
+  else message = restoreRangeOverride(ovr, 'ref');
   if (Object.keys(ovr).length === 0) delete state.importedData.refOverrides[dotKey];
   if (!await persistMarkerEdit(rollback)) return null;
   return { message };
 }
 
-export async function saveMarkerNoteText(dotKey, text) {
+export async function saveMarkerNoteText(dotKey: string, text: unknown) {
   const rollback = captureMarkerEdit();
-  if (!dotKey) return { action: 'noop' };
+  if (!dotKey) return { action: 'noop' as const };
   const markerNotes = ensureMap('markerNotes');
   const clean = String(text || '').trim();
   if (!clean) {
-    if (!Object.prototype.hasOwnProperty.call(markerNotes, dotKey)) return { action: 'noop' };
+    if (!Object.prototype.hasOwnProperty.call(markerNotes, dotKey)) return { action: 'noop' as const };
     delete markerNotes[dotKey];
     if (!await persistMarkerEdit(rollback)) return null;
-    return { action: 'deleted' };
+    return { action: 'deleted' as const };
   }
   markerNotes[dotKey] = clean;
   if (!await persistMarkerEdit(rollback)) return null;
-  return { action: 'saved' };
+  return { action: 'saved' as const };
 }
 
-export async function deleteMarkerNoteText(dotKey) {
+export async function deleteMarkerNoteText(dotKey: string) {
   const rollback = captureMarkerEdit();
   const markerNotes = state.importedData?.markerNotes;
   if (!markerNotes || !Object.prototype.hasOwnProperty.call(markerNotes, dotKey)) return false;

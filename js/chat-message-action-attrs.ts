@@ -7,11 +7,11 @@ export const CHAT_MESSAGE_ACTION_ATTR = 'data-chat-message-action';
 export const CHAT_MESSAGE_INDEX_ATTR = 'data-chat-message-index';
 export const CHAT_MESSAGE_ACTION_SELECTOR = `[${CHAT_MESSAGE_ACTION_ATTR}]`;
 
-function chatMessageAttrName(name) {
+function chatMessageAttrName(name: unknown) {
   return String(name).replace(/[A-Z]/g, char => `-${char.toLowerCase()}`);
 }
 
-export function chatMessageActionAttrs(action, attrs = {}) {
+export function chatMessageActionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
   let html = `${CHAT_MESSAGE_ACTION_ATTR}="${escapeAttr(action)}"`;
   for (const [name, value] of Object.entries(attrs)) {
     if (value === undefined || value === null || value === false) continue;

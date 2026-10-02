@@ -9,7 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => readFileSync(path.join(ROOT, rel), 'utf-8');
+const read = (rel: string) => readFileSync(path.join(ROOT, rel), 'utf-8');
 
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
@@ -33,7 +33,7 @@ const {
 } = await import('../js/marker-detail-store.js');
 
 state.currentProfile = 'marker-detail-store-test';
-state.importedData = { entries: [] };
+(state as { importedData: Pick<typeof state.importedData, 'entries'> }).importedData = { entries: [] };
 
 console.log('%c 1. Defensive guards ', 'font-weight:bold;color:#f59e0b');
 const missingKeySave = await saveManualMarkerValue({
@@ -51,7 +51,7 @@ const missingDateSave = await saveManualMarkerValue({
 assert('saveManualMarkerValue rejects missing date before creating an entry',
   missingDateSave === null && state.importedData.entries.length === 0);
 
-state.importedData = {
+(state as { importedData: Partial<Pick<typeof state.importedData, 'entries' | 'manualValues' | 'markerValueNotes' | 'markerNotes' | 'refOverrides'>> }).importedData = {
   entries: [{
     date: '2026-05-01',
     updatedAt: 100,
@@ -79,12 +79,12 @@ await saveManualMarkerValue({
   noteText: 'fasted',
   now: 1_000,
 });
-const entry = state.importedData.entries[0];
+const entry = state.importedData.entries[0]!;
 assert('saveManualMarkerValue writes the canonical insulin value',
   entry.markers['diabetes.insulin'] === 9
-    && entry.markerSources['diabetes.insulin'].file === 'lab.pdf');
+    && entry.markerSources!['diabetes.insulin']!.file === 'lab.pdf');
 assert('saveManualMarkerValue records the insulin manual original once',
-  state.importedData.manualValues['diabetes.insulin:2026-05-01'] === 8
+  state.importedData.manualValues!['diabetes.insulin:2026-05-01'] === 8
     && getManualOriginalForMarker('diabetes.insulin', '2026-05-01') === 8);
 assert('saveManualMarkerValue writes one canonical value note',
   state.importedData.markerValueNotes['diabetes.insulin:2026-05-01'] === 'fasted');
@@ -101,28 +101,28 @@ await editManualMarkerValue({
 assert('editManualMarkerValue records original imported value and stamps row',
   entry.markers['biochemistry.glucose'] === 5.2
     && entry.updatedAt === 1_100
-    && state.importedData.manualValues['biochemistry.glucose:2026-05-01'] === 4.7);
+    && state.importedData.manualValues!['biochemistry.glucose:2026-05-01'] === 4.7);
 
 await revertManualMarkerValue('biochemistry.glucose', '2026-05-01', { now: 1_200 });
 assert('revertManualMarkerValue restores original and clears manual map via null tombstone',
   entry.markers['biochemistry.glucose'] === 4.7
     && entry.updatedAt === 1_200
-    && state.importedData.manualValues['biochemistry.glucose:2026-05-01'] === null
-    && entry.markerSources['biochemistry.glucose'].file === 'lab.pdf' && entry.markerSources['biochemistry.glucose'].at === 1_200);
+    && state.importedData.manualValues!['biochemistry.glucose:2026-05-01'] === null
+    && entry.markerSources!['biochemistry.glucose']!.file === 'lab.pdf' && entry.markerSources!['biochemistry.glucose']!.at === 1_200);
 
 await deleteManualMarkerValue('diabetes.insulin', '2026-05-01', { now: 1_300 });
 assert('deleteManualMarkerValue removes canonical insulin and records its tombstone',
   !Object.prototype.hasOwnProperty.call(entry.markers, 'hormones.insulin')
     && !Object.prototype.hasOwnProperty.call(entry.markers, 'diabetes.insulin_d')
     && !Object.prototype.hasOwnProperty.call(entry.markers, 'diabetes.insulin')
-    && entry.deletedMarkers['diabetes.insulin'] === 1_300);
+    && entry.deletedMarkers!['diabetes.insulin'] === 1_300);
 assert('deleteManualMarkerValue clears the canonical manual original',
-  state.importedData.manualValues['diabetes.insulin:2026-05-01'] === null);
+  state.importedData.manualValues!['diabetes.insulin:2026-05-01'] === null);
 
 console.log('%c 3. Notes and ranges ', 'font-weight:bold;color:#f59e0b');
 await saveMarkerValueNote('diabetes.insulin', '2026-05-01', 'x'.repeat(520));
 assert('saveMarkerValueNote caps canonical insulin notes',
-  state.importedData.markerValueNotes['diabetes.insulin:2026-05-01'].length === 500);
+  state.importedData.markerValueNotes['diabetes.insulin:2026-05-01']!.length === 500);
 await deleteMarkerValueNote('diabetes.insulin', '2026-05-01');
 assert('deleteMarkerValueNote nulls the canonical insulin note key',
   state.importedData.markerValueNotes['diabetes.insulin:2026-05-01'] === null);
@@ -140,7 +140,7 @@ assert('saveRefRangeOverride stashes lab range before manual override',
     && state.importedData.refOverrides['biochemistry.alt'].refSource === 'manual');
 const revertRange = await revertRefRangeOverride('biochemistry.alt', 'ref');
 assert('revertRefRangeOverride restores stashed lab range',
-  revertRange.message === 'Range reverted to lab range'
+  revertRange!.message === 'Range reverted to lab range'
     && state.importedData.refOverrides['biochemistry.alt'].refMin === 7
     && state.importedData.refOverrides['biochemistry.alt'].refSource === 'import'
     && !Object.prototype.hasOwnProperty.call(state.importedData.refOverrides['biochemistry.alt'], 'labRefMin'));
