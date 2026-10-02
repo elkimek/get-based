@@ -608,3 +608,6 @@ deploy/profile-share/data/
 /js/sync-pull-active-refresh.js
 /js/sync-push.js
 /tests/helpers/sync-push-source-contracts.js
+/js/supplement-impact.js
+/js/supplement-context.js
+/js/biology-score-ai-protocol.js

@@ -124,7 +124,7 @@ export function createSupplementRecordId() {
  * Preserve the original array and period objects. Consumers decide whether to
  * ignore invalid/draft dates; migrations never delete or rewrite them.
  */
-export function getSupplementPeriods(supplement: SupplementRecord | null | undefined): StoredSupplementPeriod[];
+export function getSupplementPeriods(supplement: Pick<Partial<SupplementRecord>, 'startDate' | 'endDate' | 'periods'> | null | undefined): StoredSupplementPeriod[];
 export function getSupplementPeriods(supplement: SupplementInput): SupplementPeriodView[];
 export function getSupplementPeriods(supplement: SupplementInput): SupplementPeriodView[] {
   if (Array.isArray(supplement?.periods) && supplement.periods.length > 0) {

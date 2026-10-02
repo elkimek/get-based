@@ -1,4 +1,15 @@
-// @ts-check
+import type { SupplementRecord, SupplementIngredient, SupplementQualityTest, SupplementDose } from '../types/supplement-data.js';
+type InactiveIngredient = string | { name?: unknown; ingredient?: unknown } | null | undefined;
+interface ContextSupplement extends Pick<Partial<SupplementRecord>,
+  'startDate' | 'endDate' | 'periods' | 'schedule' | 'lifecycle' | 'ingredients' | 'qualityTests'
+  | 'qualityEvidenceScope' | 'timesPerDay' | 'sourceUrl' | 'servingSize' | 'currentDose' | 'importProvenance' | 'labelWarnings'> {
+  inactiveIngredients?: InactiveIngredient[];
+  [key: string]: unknown;
+}
+type HistoryRange = { start: string; end: string };
+type DosePeriod = Pick<NonNullable<SupplementRecord['periods']>[number], 'dose' | 'ingredientDoses'>;
+interface SupplementContextOptions { mode?: 'compact' | 'detail'; maxChars?: number; inventorySupplements?: ContextSupplement[]; queryText?: string | undefined; historyRange?: HistoryRange | undefined }
+
 // supplement-context.js — Token-bounded supplement/medication context for AI features.
 
 import { effectiveTimesPerDay, ingredientDailyTotal } from './supplement-impact.js';
@@ -22,39 +33,39 @@ const PRESCRIBER_QUERY_RE = /(?:prescrib|prescription|clinician|doctor|předepis
 const SOURCE_QUERY_RE = /(?:\blinks?\b|\burls?\b|provenance|import|manufacturer|\bbrand\b|bought|purchase|\bbuy\b|zdroj|odkaz|výrobce|koupil)/iu;
 const MATERIAL_HINT_RE = /(?:capsul|softgel|shell|gelatin|cellulos|hypromellos|hpmc|pullulan|coating|allergen|soy|soya|milk|lactose|gluten|wheat|peanut|sesame|kapsl|obal|želatin|celul[oó]z)/iu;
 
-/** @param {unknown} value @param {number} [max] */
-function clean(value, max = 220) {
+
+function clean(value: unknown, max: number = 220) {
   return String(value ?? '').replace(/[\u0000-\u001F\u007F]+/gu, ' ').replace(/\s+/gu, ' ').trim().slice(0, max);
 }
 
-/** @param {unknown} value */
-function normalized(value) {
+
+function normalized(value: unknown) {
   return clean(value, 1000).normalize('NFKC').toLocaleLowerCase();
 }
 
-/** @param {any} value */
-function inactiveName(value) {
+
+function inactiveName(value: InactiveIngredient) {
   return clean(typeof value === 'string' ? value : value?.name || value?.ingredient, 140);
 }
 
-/** @param {any} supplement */
-function contextQualityTests(supplement) {
+
+function contextQualityTests(supplement: ContextSupplement) {
   return (Array.isArray(supplement?.qualityTests) ? supplement.qualityTests : [])
     .filter(test => isSupplementQualityIncludedInAI(test, supplement));
 }
 
-/** @param {any} supplement */
-function qualityScopeLabel(supplement) {
-  return {
+
+function qualityScopeLabel(supplement: ContextSupplement) {
+  return ({
     'matching-lot': 'user confirmed the report matches their bottle lot',
     'different-lot': 'report is from a different lot',
     'general-specification': 'general specification; not a bottle-specific result',
     unknown: 'relationship to the user’s bottle lot not verified',
-  }[supplementQualityEvidenceScope(supplement)];
+  } as Record<string, string>)[supplementQualityEvidenceScope(supplement)];
 }
 
-/** @param {any} supplement */
-function searchableTerms(supplement) {
+
+function searchableTerms(supplement: ContextSupplement) {
   return [
     supplement?.name,
     supplement?.brand,
@@ -65,15 +76,8 @@ function searchableTerms(supplement) {
   ].map(normalized).filter(term => [...term].length >= 3);
 }
 
-/**
- * Detail selection is script-agnostic for stored facts: a question containing
- * any saved product, ingredient, excipient, or analyte name unlocks detail.
- * The keyword list is only a convenience for generic questions.
- * @param {unknown} queryText
- * @param {any[]} supplements
- * @returns {'compact'|'detail'}
- */
-export function resolveSupplementContextMode(queryText, supplements) {
+
+export function resolveSupplementContextMode(queryText: unknown, supplements: ContextSupplement[]) {
   const query = normalized(queryText);
   if (!query) return 'compact';
   if (DETAIL_QUERY_RE.test(query) || PRESCRIBER_QUERY_RE.test(query)
@@ -85,7 +89,7 @@ export function resolveSupplementContextMode(queryText, supplements) {
 }
 
 /** Match the object of a source question, not unrelated words elsewhere in it. */
-function requestsSupplementSources(queryText, supplements = []) {
+function requestsSupplementSources(queryText: unknown, supplements: ContextSupplement[] = []) {
   const query = normalized(queryText);
   if (SOURCE_QUERY_RE.test(query)) return true;
   const subject = query.match(/\bsources?\s+(?:(?:of|for)\s+)?(?:(?:my|the|this|these|our|saved|original)\s+)*(.*)/u)?.[1] || '';
@@ -93,8 +97,8 @@ function requestsSupplementSources(queryText, supplements = []) {
     || supplements.some(supplement => searchableTerms(supplement).some(term => subject.startsWith(term)));
 }
 
-/** @param {any} ingredient @param {any} supplement */
-function ingredientLabel(ingredient, supplement) {
+
+function ingredientLabel(ingredient: SupplementIngredient, supplement: ContextSupplement) {
   const name = clean(ingredient?.name, 120) || 'Unnamed active ingredient';
   const amount = clean(ingredient?.amount, 50) || clean(`${ingredient?.amountValue ?? ''} ${ingredient?.amountUnit || ''}`, 50);
   if (getSupplementPeriods(supplement).some(period => period.dose || period.ingredientDoses?.length) || getSupplementStatus(supplement) !== 'active'
@@ -108,11 +112,11 @@ function ingredientLabel(ingredient, supplement) {
   return `${name}${ingredient?.amount ? ` ${clean(ingredient.amount, 50)}` : ''}`;
 }
 
-/** @param {string[]} values @param {number} limit */
-function compactOtherIngredients(values, limit) {
+
+function compactOtherIngredients(values: string[], limit: number) {
   if (values.length <= limit) return values;
-  const selected = [];
-  const add = value => {
+  const selected: string[] = [];
+  const add = (value: string) => {
     if (value && !selected.includes(value) && selected.length < limit) selected.push(value);
   };
   values.filter(value => MATERIAL_HINT_RE.test(value)).forEach(add);
@@ -122,9 +126,9 @@ function compactOtherIngredients(values, limit) {
   return selected;
 }
 
-/** @param {any} supplement */
-function scheduleLabel(supplement) {
-  const schedule = supplement?.schedule || {};
+
+function scheduleLabel(supplement: ContextSupplement) {
+  const schedule: NonNullable<SupplementRecord['schedule']> = supplement?.schedule || {};
   const mode = clean(schedule.mode, 40);
   const times = Number(schedule.timesPerDay ?? supplement?.timesPerDay);
   if (mode === 'prn') return `as needed (PRN; exposure not assumed)${schedule.maxPerDay != null ? `; maximum ${clean(schedule.maxPerDay, 20)}/day` : ''}${schedule.details ? `; ${clean(schedule.details, 100)}` : ''}`;
@@ -134,17 +138,17 @@ function scheduleLabel(supplement) {
 }
 
 /** Dated doses take precedence over current product strength and undated directions. */
-function periodDose(period) {
-  const text = dose => `${supplementDoseText(dose)}${dose?.basis === 'dose' && !dose?.text ? '/dose' : ''}`;
-  if (period?.dose) return `${period.dose.ingredient ? `${clean(period.dose.ingredient, 80)}: ` : ''}${clean(text(period.dose), 180)}`;
+function periodDose(period: DosePeriod) {
+  const text = (dose: string | SupplementDose) => `${supplementDoseText(dose)}${(dose as SupplementDose)?.basis === 'dose' && !(dose as SupplementDose)?.text ? '/dose' : ''}`;
+  if (period?.dose) return `${(period.dose as SupplementDose).ingredient ? `${clean((period.dose as SupplementDose).ingredient, 80)}: ` : ''}${clean(text(period.dose), 180)}`;
   if (period?.ingredientDoses?.length) return period.ingredientDoses.slice(0, 12)
     .map(dose => `${clean(dose.ingredient, 80)}: ${clean(text(dose), 100)}`).join(', ')
     + (period.ingredientDoses.length > 12 ? ` (+${period.ingredientDoses.length - 12} more stored)` : '');
   return 'dose not recorded';
 }
 
-/** @param {any} supplement @param {number} limit @param {{ detail?: boolean, historyRange?: { start: string, end: string } | null }} [options] */
-function datedDoseContext(supplement, limit, { detail = false, historyRange = null } = {}) {
+
+function datedDoseContext(supplement: ContextSupplement, limit: number, { detail = false, historyRange = null }: { detail?: boolean; historyRange?: HistoryRange | null | undefined } = {}) {
   const today = localDateKey();
   const status = getSupplementStatus(supplement);
   const periods = getSupplementPeriods(supplement).filter(period => clean(period?.start, 12));
@@ -164,8 +168,8 @@ function datedDoseContext(supplement, limit, { detail = false, historyRange = nu
   return { status, asOf: today, currentDose, doseHistory: history, omittedPeriods: Math.max(0, periods.length - shown.length) };
 }
 
-function productMetadata(supplement, { detail = false, queryText = '' } = {}) {
-  const provenance = supplement?.importProvenance || {};
+function productMetadata(supplement: ContextSupplement, { detail = false, queryText = '' }: { detail?: boolean; queryText?: string | undefined } = {}) {
+  const provenance: NonNullable<SupplementRecord['importProvenance']> = supplement?.importProvenance || {};
   const urls = [supplement?.sourceUrl, provenance.url, ...(Array.isArray(provenance.evidence) ? provenance.evidence.map(item => item?.url) : [])];
   const sourceLinks = [...new Set(urls.flatMap(value => {
     try { const url = new URL(String(value)); return ['http:', 'https:'].includes(url.protocol) && url.href.length <= 1000 ? [url.toString()] : []; }
@@ -190,35 +194,35 @@ function productMetadata(supplement, { detail = false, queryText = '' } = {}) {
 }
 
 /** Put a specifically requested product before limits are applied. */
-function prioritizeProducts(supplements, queryText = '') {
+function prioritizeProducts(supplements: ContextSupplement[], queryText = '') {
   const query = normalized(queryText);
   return [...supplements].sort((a, b) => {
-    const rank = item => query && searchableTerms(item).some(term => query.includes(term)) ? 0 : getSupplementStatus(item) === 'active' ? 1 : 2;
+    const rank = (item: ContextSupplement) => query && searchableTerms(item).some(term => query.includes(term)) ? 0 : getSupplementStatus(item) === 'active' ? 1 : 2;
     return rank(a) - rank(b);
   });
 }
 
-function contaminantContextProducts(supplements) {
+function contaminantContextProducts(supplements: ContextSupplement[]) {
   return supplements.map(supplement => {
     const today = localDateKey();
     const current = getSupplementPeriods(supplement).find(period => period.start <= today && (!period.end || period.end >= today));
-    const schedule = current?.schedule || supplement.schedule || {};
+    const schedule: NonNullable<SupplementRecord['schedule']> = current?.schedule || supplement.schedule || {};
     const daily = getSupplementStatus(supplement) === 'active' && ['daily', 'multiple'].includes(schedule.mode || 'daily')
-      && (!current?.dose || (/** @type {import('../types/supplement-data.js').SupplementDose} */ (/** @type {unknown} */ (current.dose))).source === 'ingredient');
+      && (!current?.dose || (current.dose as SupplementDose).source === 'ingredient');
     return { ...supplement, qualityTests: contextQualityTests(supplement),
       timesPerDay: daily ? schedule.timesPerDay ?? supplement.timesPerDay : null,
       schedule: { ...schedule, timesPerDay: daily ? schedule.timesPerDay ?? supplement.timesPerDay : null } };
   });
 }
 
-/** @param {any[]} tests */
-function nonContaminantSummary(tests) {
-  const grouped = new Map();
+
+function nonContaminantSummary(tests: SupplementQualityTest[]) {
+  const grouped = new Map<string, { count: number; statuses: Map<string, number> }>();
   for (const test of tests) {
     const category = clean(test?.category, 40) || 'other';
     if (category === 'contaminant') continue;
     if (!grouped.has(category)) grouped.set(category, { count: 0, statuses: new Map() });
-    const group = grouped.get(category);
+    const group = grouped.get(category)!;
     group.count += 1;
     const status = clean(test?.status, 40) || 'unknown';
     group.statuses.set(status, (group.statuses.get(status) || 0) + 1);
@@ -229,12 +233,12 @@ function nonContaminantSummary(tests) {
   });
 }
 
-/** @param {ReturnType<typeof aggregateSupplementContaminants>[number]} group @param {'compact'|'detail'} mode */
-function contaminantLine(group, mode) {
+
+function contaminantLine(group: ReturnType<typeof aggregateSupplementContaminants>[number], mode: 'compact'|'detail') {
   const limit = mode === 'detail' ? 12 : 3;
   const shown = group.entries.slice(0, limit).map(entry => `${clean(entry.product, 90)}: ${formatSupplementQualityResult(entry.test)}`);
   if (group.entries.length > limit) shown.push(`+${group.entries.length - limit} more stored`);
-  const daily = [];
+  const daily: string[] = [];
   if (group.exactMcgPerDay > 0) daily.push(`${formatContaminantMass(group.exactMcgPerDay)} measured`);
   if (group.upperMcgPerDay > 0) daily.push(`up to ${formatContaminantMass(group.upperMcgPerDay)} from upper-bound results`);
   const conversion = daily.length
@@ -243,8 +247,8 @@ function contaminantLine(group, mode) {
   return `- ${clean(group.analyte, 100)} — ${shown.join('; ')}${conversion}`;
 }
 
-/** @param {string} text @param {number} maxChars */
-function fitContext(text, maxChars) {
+
+function fitContext(text: string, maxChars: number) {
   if (text.length <= maxChars) return text;
   const suffix = '\n[Supplement context truncated; full records remain stored and available in the Supplements & Medications screen.]\n';
   const target = Math.max(0, maxChars - suffix.length);
@@ -252,16 +256,11 @@ function fitContext(text, maxChars) {
   return `${text.slice(0, boundary > target * 0.7 ? boundary : target).trimEnd()}${suffix}`.slice(0, maxChars);
 }
 
-/**
- * Render a context section body. All underlying records remain untouched; only
- * this prompt projection is bounded.
- * @param {any[]} supplements
- * @param {{ mode?: 'compact'|'detail', maxChars?: number, inventorySupplements?: any[], queryText?: string, historyRange?: { start: string, end: string } }} [options]
- */
-export function buildSupplementAIContext(supplements, options = {}) {
+
+export function buildSupplementAIContext(supplements: unknown, options: SupplementContextOptions = {}) {
   const mode = options.mode === 'detail' ? 'detail' : 'compact';
   const maxChars = Math.max(500, Number(options.maxChars) || SUPPLEMENT_CONTEXT_LIMITS[mode]);
-  const source = prioritizeProducts(Array.isArray(supplements) ? supplements : [], options.queryText);
+  const source = prioritizeProducts(Array.isArray(supplements) ? supplements as ContextSupplement[] : [], options.queryText);
   const productLimit = mode === 'detail' ? 24 : 12;
   const activeLimit = mode === 'detail' ? 20 : 8;
   const detail = mode === 'detail';
@@ -332,16 +331,11 @@ export function buildSupplementAIContext(supplements, options = {}) {
   return fitContext(`${lines.join('\n')}\n`, maxChars);
 }
 
-/**
- * JSON-safe compact records for specialized AI tasks such as Biology Scores.
- * Descriptive metadata and quality inventories are reserved for relevant chat questions.
- * @param {any[]} supplements
- * @param {{ maxChars?: number, historyRange?: { start: string, end: string } }} [options]
- */
-export function buildCompactSupplementContextRecords(supplements, options = {}) {
-  const source = prioritizeProducts(Array.isArray(supplements) ? supplements : []);
+
+export function buildCompactSupplementContextRecords(supplements: unknown, options: { maxChars?: number, historyRange?: { start: string, end: string } } = {}) {
+  const source = prioritizeProducts(Array.isArray(supplements) ? supplements as ContextSupplement[] : []);
   const maxChars = Math.max(400, Number(options.maxChars) || SUPPLEMENT_CONTEXT_LIMITS.biology);
-  const output = [];
+  const output: Record<string, unknown>[] = [];
   let included = 0;
   for (const supplement of source.slice(0, 40)) {
     const record = {

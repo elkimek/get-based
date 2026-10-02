@@ -5,8 +5,11 @@ import {
   buildSupplementAIContext,
   resolveSupplementContextMode,
 } from '../js/supplement-context.js';
+import type { SupplementRecord } from '../types/supplement-data.js';
+type ProductFixture = SupplementRecord & Required<Pick<SupplementRecord, 'schedule' | 'qualityTests'>>;
+type HistoryFixture = SupplementRecord & Required<Pick<SupplementRecord, 'schedule' | 'periods'>>;
 
-function product(overrides = {}) {
+function product(overrides: Partial<SupplementRecord> = {}): ProductFixture {
   return {
     name: 'Multilingual Daily',
     type: 'supplement',
@@ -75,7 +78,7 @@ describe('token-bounded supplement AI context', () => {
 
   it('honors an explicit per-result AI exclusion without deleting other quality evidence', () => {
     const supplement = product();
-    supplement.qualityTests[0].includeInAIContext = false;
+    supplement.qualityTests[0]!.includeInAIContext = false;
     const context = buildSupplementAIContext([supplement], { mode: 'detail' });
 
     expect(context).not.toContain('cadmium —');
@@ -115,13 +118,13 @@ describe('token-bounded supplement AI context', () => {
 describe('dated doses in AI context', () => {
   beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-09-29T12:00:00Z')); });
   afterEach(() => vi.useRealTimers());
-  const changed = () => ({ name: 'TMG', ingredients: [{ name: 'TMG', amount: '500 mg' }], timesPerDay: 1,
+  const changed = (): HistoryFixture => ({ name: 'TMG', ingredients: [{ name: 'TMG', amount: '500 mg' }], timesPerDay: 1,
     schedule: { mode: 'daily', timesPerDay: 1 }, dosage: '500 mg with food', currentDose: '1500 mg/day', periods: [
       { start: '2026-08-01', end: '2026-09-28', dose: '500 mg/day', schedule: { mode: 'daily', timesPerDay: 1 } },
       { start: '2026-09-29', end: '2026-10-31', dose: { value: 1000, unit: 'mg', basis: 'day', ingredient: 'TMG' } },
       { start: '2026-11-01', end: null, dose: '1500 mg/day' },
     ] });
-  it.each(['compact', 'detail'])('includes the increased current dose, earlier dose and planned dose distinctly in %s mode', mode => {
+  it.each(['compact', 'detail'] as const)('includes the increased current dose, earlier dose and planned dose distinctly in %s mode', mode => {
     const context = buildSupplementAIContext([changed()], { mode, historyRange: { start: '2026-08-15', end: '2026-08-15' } });
     expect(context).toContain('current recorded dose as of 2026-09-29: TMG: 1000 mg/day (2026-09-29→2026-10-31)');
     expect(context).toContain('2026-08-01→2026-09-28 [past]: 500 mg/day; schedule: daily, 1×/day');
@@ -132,13 +135,13 @@ describe('dated doses in AI context', () => {
   });
   it('keeps current dose and dated periods in specialized compact JSON context too', () => {
     const [record] = buildCompactSupplementContextRecords([changed()], { historyRange: { start: '2026-08-15', end: '2026-08-15' } });
-    expect(record.currentDose).toContain('1000 mg/day');
-    expect(record.doseHistory).toContain('2026-11-01→ongoing [planned]: 1500 mg/day');
-    expect(record.doseHistory).toContain('2026-08-01→2026-09-28 [past]: 500 mg/day; schedule: daily, 1×/day');
+    expect(record!.currentDose).toContain('1000 mg/day');
+    expect(record!.doseHistory).toContain('2026-11-01→ongoing [planned]: 1500 mg/day');
+    expect(record!.doseHistory).toContain('2026-08-01→2026-09-28 [past]: 500 mg/day; schedule: daily, 1×/day');
   });
   it('keeps unknown historical doses unknown and includes multi-ingredient snapshots', () => {
     const record = changed();
-    delete record.periods[0].dose;
+    delete record.periods[0]!.dose;
     record.periods[1] = { start: '2026-09-29', end: null, ingredientDoses: [
       { ingredient: 'TMG', value: 1000, unit: 'mg', basis: 'day' }, { ingredient: 'B12', value: 100, unit: 'mcg', basis: 'day' },
     ] };
@@ -149,7 +152,7 @@ describe('dated doses in AI context', () => {
   });
   it('does not call an ended or paused dose current', () => {
     const record = changed();
-    record.periods = [record.periods[0]];
+    record.periods = [record.periods[0]!];
     record.lifecycle = { state: 'paused' };
     expect(buildSupplementAIContext([record])).toContain('current recorded dose as of 2026-09-29: none (paused)');
   });
@@ -165,7 +168,7 @@ describe('dated doses in AI context', () => {
   });
 });
 
-const medication = () => ({
+const medication = (): HistoryFixture => ({
   name: 'Example medicine', type: 'medication', genericName: 'Generic Example', brand: 'Example brand',
   dosageForm: 'tablet', route: 'oral', reason: 'Example indication', prescriber: 'Example clinician',
   servingSize: { value: 2, unit: 'tablet' }, labelDirections: 'Label instructions', labelWarnings: ['Example warning'],
@@ -232,8 +235,8 @@ describe('complete therapy facts and conservative exposure', () => {
   it('preserves weekdays, intervals and free text together, with stop reasons', () => {
     const record = medication();
     record.schedule = { mode: 'selected-days', daysOfWeek: [1, 3], intervalDays: 2, details: 'With food' };
-    record.periods[0].end = '2026-02-01';
-    record.periods[0].endReason = 'Course completed';
+    record.periods[0]!.end = '2026-02-01';
+    record.periods[0]!.endReason = 'Course completed';
     record.lifecycle = { state: 'ended', reason: 'No longer needed' };
     for (const context of [buildSupplementAIContext([record]), JSON.stringify(buildCompactSupplementContextRecords([record]))]) {
       for (const fact of ['weekdays Mon, Wed', 'every 2 days', 'With food']) expect(context).toContain(fact);
@@ -244,8 +247,8 @@ describe('complete therapy facts and conservative exposure', () => {
 
   it('includes stop reasons in detailed context', () => {
     const record = medication();
-    record.periods[0].end = '2026-02-01';
-    record.periods[0].endReason = 'Course completed';
+    record.periods[0]!.end = '2026-02-01';
+    record.periods[0]!.endReason = 'Course completed';
     record.lifecycle = { state: 'ended', reason: 'No longer needed' };
     const detail = buildSupplementAIContext([record], { mode: 'detail' });
     expect(detail).toContain('ended: Course completed');
@@ -269,13 +272,13 @@ describe('complete therapy facts and conservative exposure', () => {
 
   it('prioritizes a named record beyond the inventory limit and excludes private quality results from both projections', () => {
     const records = Array.from({ length: 30 }, (_, i) => ({ ...medication(), name: `Product ${i}` }));
-    records[29].name = 'Zebra medicine';
-    records[29].qualityTests = [{ category: 'contaminant', analyte: 'PrivateAnalyte', resultText: 'PrivateResult', includeInAIContext: false }];
+    records[29]!.name = 'Zebra medicine';
+    records[29]!.qualityTests = [{ category: 'contaminant', analyte: 'PrivateAnalyte', resultText: 'PrivateResult', includeInAIContext: false }];
     const detail = buildSupplementAIContext(records, { mode: 'detail', queryText: 'Tell me about Zebra medicine' });
     expect(detail.indexOf('Zebra medicine')).toBeLessThan(detail.indexOf('Product 0'));
     expect(detail).toContain('truncated');
     expect(detail).not.toContain('PrivateAnalyte');
-    expect(JSON.stringify(buildCompactSupplementContextRecords([records[29]]))).not.toContain('PrivateResult');
+    expect(JSON.stringify(buildCompactSupplementContextRecords([records[29]!]))).not.toContain('PrivateResult');
   });
 
   it('retains a brief record and an omission marker when the first full record exceeds the JSON budget', () => {

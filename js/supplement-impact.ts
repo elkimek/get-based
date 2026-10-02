@@ -1,4 +1,9 @@
-// @ts-check
+import type { SupplementRecord } from '../types/supplement-data.js';
+
+type ImpactData = NonNullable<ReturnType<typeof getActiveData>>;
+interface ImpactCacheEntry { fp: string; dot: unknown; summary: unknown }
+interface PendingImpactAnalysis { supplement: SupplementRecord; editIdx: number }
+
 // supplement-impact.js - supplement dose math and lab impact analysis
 
 import { getErrorMessage } from './caught-error.js';
@@ -20,39 +25,39 @@ export { getSupplementPeriods };
 
 // Extract numeric value + unit from amount strings like "890mg", "500 IU", "25 mcg", "5,4 mg".
 // Handles both dot and comma decimal separators. Returns null for pure text ("once daily").
-export function parseAmount(str) {
+export function parseAmount(str: unknown) {
   const parsed = parseSupplementQuantity(str);
   return parsed ? { value: parsed.value, unit: parsed.unit } : null;
 }
 
 export { effectiveTimesPerDay, ingredientDailyTotal } from './supplement-medication-domain.js';
 
-export function formatSupplementTotal(total) {
+export function formatSupplementTotal(total: ReturnType<typeof ingredientDailyTotal>) {
   if (!total) return '';
   const v = total.value % 1 === 0 ? total.value.toString() : total.value.toFixed(2).replace(/\.?0+$/, '');
   return `${v}${total.unit ? ' ' + total.unit : ''}/day`;
 }
 
-export function computeSupplementImpact(supplement, markerKey, markerName, unit, values, dates, refMin, refMax) {
+export function computeSupplementImpact(supplement: SupplementRecord, markerKey: string, markerName: string | undefined, unit: string | undefined, values: readonly (number | null)[] | null | undefined, dates: readonly string[] | null | undefined, refMin: number | null | undefined, refMax: number | null | undefined) {
   if (!values || !dates || values.length !== dates.length) return null;
   const pds = getSupplementPeriods(supplement);
   const sortedPds = [...pds].sort((a, b) => a.start.localeCompare(b.start));
-  const firstStart = sortedPds[0].start;
-  const isInPeriod = (date) => sortedPds.some(p => date >= p.start && (!p.end || date <= p.end));
-  const beforeValues = [], afterValues = [];
+  const firstStart = sortedPds[0]!.start;
+  const isInPeriod = (date: string) => sortedPds.some(p => date >= p.start && (!p.end || date <= p.end));
+  const beforeValues: number[] = [], afterValues: number[] = [];
   for (let i = 0; i < dates.length; i++) {
     if (values[i] === null) continue;
-    if (dates[i] < firstStart) {
-      beforeValues.push(values[i]);
-    } else if (isInPeriod(dates[i])) {
-      afterValues.push(values[i]);
+    if (dates[i]! < firstStart) {
+      beforeValues.push(values[i]!);
+    } else if (isInPeriod(dates[i]!)) {
+      afterValues.push(values[i]!);
     }
   }
   if (beforeValues.length === 0 && afterValues.length === 0) return null;
-  const mean = arr => arr.reduce((s, v) => s + v, 0) / arr.length;
+  const mean = (arr: number[]) => arr.reduce((s, v) => s + v, 0) / arr.length;
   const beforeMean = beforeValues.length > 0 ? mean(beforeValues) : null;
   const afterMean = afterValues.length > 0 ? mean(afterValues) : null;
-  let pctChange = null, direction = 'stable';
+  let pctChange: number | null = null, direction = 'stable';
   if (beforeMean !== null && afterMean !== null && beforeMean !== 0) {
     pctChange = ((afterMean - beforeMean) / Math.abs(beforeMean)) * 100;
     direction = Math.abs(pctChange) < 1 ? 'stable' : pctChange > 0 ? 'up' : 'down';
@@ -68,9 +73,11 @@ export function computeSupplementImpact(supplement, markerKey, markerName, unit,
   };
 }
 
-export function computeAllImpacts(supplement, data) {
+type SignificantImpact = NonNullable<ReturnType<typeof computeSupplementImpact>> & { pctChange: number };
+
+export function computeAllImpacts(supplement: SupplementRecord, data: ImpactData | null | undefined) {
   if (!data || !data.categories || !data.dates) return [];
-  const results = [];
+  const results: SignificantImpact[] = [];
   for (const [catKey, cat] of Object.entries(data.categories)) {
     for (const [mKey, marker] of Object.entries(cat.markers)) {
       const dotKey = getMarkerStorageDotKey(marker, `${catKey}_${mKey}`);
@@ -87,7 +94,7 @@ export function computeAllImpacts(supplement, data) {
   return results;
 }
 
-function getOverlappingSupplements(supplement, supps) {
+function getOverlappingSupplements(supplement: SupplementRecord, supps: SupplementRecord[]) {
   const sPds = getSupplementPeriods(supplement);
   return supps.filter(s => {
     if (s === supplement) return false;
@@ -102,7 +109,7 @@ function getOverlappingSupplements(supplement, supps) {
 
 // Per-supplement fingerprint: changes when that supp's edit-visible fields or lab dates change.
 // Editing dosage/ingredients/periods for one supp invalidates only that supp's cache entry.
-function getSuppFingerprint(supp, data) {
+function getSuppFingerprint(supp: SupplementRecord, data: ImpactData) {
   const labPart = (data.dates || []).join(',');
   const pds = getSupplementPeriods(supp);
   const ings = (supp.ingredients || []).map(i => `${i.name}:${i.amount || ''}:${i.amountValue ?? ''}:${i.amountUnit || ''}:${i.timesPerDay || ''}`).join(',');
@@ -111,7 +118,7 @@ function getSuppFingerprint(supp, data) {
   return hashString(labPart + '||' + suppPart);
 }
 
-function getImpactCache() {
+function getImpactCache(): Record<string, ImpactCacheEntry> {
   try {
     const key = profileStorageKey(state.currentProfile, 'suppImpact');
     const raw = localStorage.getItem(key);
@@ -124,7 +131,7 @@ function getImpactCache() {
   } catch { return {}; }
 }
 
-function setImpactCache(cache) {
+function setImpactCache(cache: Record<string, ImpactCacheEntry>) {
   try {
     const key = profileStorageKey(state.currentProfile, 'suppImpact');
     localStorage.setItem(key, JSON.stringify(cache));
@@ -132,11 +139,11 @@ function setImpactCache(cache) {
 }
 
 // Debounced queue: coalesces multiple render calls into a single AI request for only the stale/missing supps.
-let _pendingAnalyses = new Map(); // suppName -> { supplement, editIdx }
-let _analyzeTimer = null;
-let _batchPromise = null;
+let _pendingAnalyses = new Map<string, PendingImpactAnalysis>(); // suppName -> { supplement, editIdx }
+let _analyzeTimer: ReturnType<typeof setTimeout> | null = null;
+let _batchPromise: Promise<void> | null = null;
 
-export function renderSupplementImpact(supplement, editIdx) {
+export function renderSupplementImpact(supplement: SupplementRecord, editIdx: number) {
   const hasAI = hasAssistantFeatureProvider();
   const data = getActiveData();
   if (!data || !data.dates || data.dates.length < 2) {
@@ -144,8 +151,8 @@ export function renderSupplementImpact(supplement, editIdx) {
   }
   const impacts = computeAllImpacts(supplement, data);
   if (impacts.length === 0) {
-    const hasAfter = data.dates.some(d => d >= supplement.startDate);
-    const hasBefore = data.dates.some(d => d < supplement.startDate);
+    const hasAfter = data.dates.some(d => d >= (supplement.startDate as string));
+    const hasBefore = data.dates.some(d => d < (supplement.startDate as string));
     const hint = !hasBefore ? 'No lab results from before this supplement was started'
       : !hasAfter ? 'No lab results since starting this supplement'
       : 'No significant marker changes detected yet';
@@ -176,13 +183,13 @@ export function renderSupplementImpact(supplement, editIdx) {
   return html;
 }
 
-function scheduleAnalyze(supplement, editIdx, data) {
+function scheduleAnalyze(supplement: SupplementRecord, editIdx: number, data: ImpactData) {
   _pendingAnalyses.set(getSupplementRecordId(supplement) || supplement.name, { supplement, editIdx });
   if (_analyzeTimer) return;
   _analyzeTimer = setTimeout(() => { _analyzeTimer = null; flushAnalyses(data); }, 50);
 }
 
-async function flushAnalyses(data) {
+async function flushAnalyses(data: ImpactData) {
   const pending = [..._pendingAnalyses.values()];
   _pendingAnalyses.clear();
   if (pending.length === 0) return;
@@ -190,9 +197,9 @@ async function flushAnalyses(data) {
   await loadImpactsForSupps(pending, data);
 }
 
-async function loadImpactsForSupps(pending, data) {
+async function loadImpactsForSupps(pending: PendingImpactAnalysis[], data: ImpactData) {
   const allSupps = state.importedData.supplements || [];
-  const suppEntries = [];
+  const suppEntries: Array<PendingImpactAnalysis & { impacts: SignificantImpact[] }> = [];
   for (const { supplement: s, editIdx } of pending) {
     const impacts = computeAllImpacts(s, data);
     if (impacts.length === 0) continue;
@@ -200,14 +207,14 @@ async function loadImpactsForSupps(pending, data) {
   }
   if (suppEntries.length === 0) return;
 
-  const fmtVal = v => v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2);
+  const fmtVal = (v: number) => v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2);
   let ctx = `Analyze ${suppEntries.length} supplement${suppEntries.length === 1 ? '' : 's'}:\n`;
   for (const { supplement: s, impacts } of suppEntries) {
     const top = impacts.slice(0, 5);
     const overlapping = getOverlappingSupplements(s, allSupps);
     const pds = getSupplementPeriods(s);
     const pdStr = pds.length === 1
-      ? `since ${pds[0].start}${pds[0].end ? ' until ' + pds[0].end : ''}`
+      ? `since ${pds[0]!.start}${pds[0]!.end ? ' until ' + pds[0]!.end : ''}`
       : `CYCLING: ${pds.map(p => p.start + ' to ' + (p.end || 'ongoing')).join('; ')}`;
     const regimen = s.schedule?.mode === 'prn'
       ? `PRN${s.schedule?.maxPerDay ? ` (max ${s.schedule.maxPerDay}/day)` : ''}`
@@ -223,7 +230,7 @@ async function loadImpactsForSupps(pending, data) {
     if (overlapping.length > 0) ctx += ` (also taking: ${overlapping.map(o => o.name).join(', ')})`;
     ctx += `\n`;
     for (const imp of top) {
-      ctx += `  ${imp.markerName}: ${fmtVal(imp.beforeMean)}→${fmtVal(imp.afterMean)} ${imp.unit} (${imp.pctChange > 0 ? '+' : ''}${imp.pctChange.toFixed(0)}%)`;
+      ctx += `  ${imp.markerName}: ${fmtVal(imp.beforeMean!)}→${fmtVal(imp.afterMean!)} ${imp.unit} (${imp.pctChange > 0 ? '+' : ''}${imp.pctChange.toFixed(0)}%)`;
       if (imp.refMin != null || imp.refMax != null) ctx += ` ref ${imp.refMin ?? ''}–${imp.refMax ?? ''}`;
       ctx += `\n`;
     }
@@ -235,7 +242,7 @@ green=beneficial, yellow=mixed, red=concerning, gray=insufficient data. Mention 
 
   _batchPromise = (async () => {
     try {
-      const result = await callAssistantFeatureAI({ system, messages: [{ role: 'user', content: ctx }], maxTokens: 300 * suppEntries.length + 1000 });
+      const result = await callAssistantFeatureAI({ system, messages: [{ role: 'user', content: ctx }], maxTokens: 300 * suppEntries.length + 1000 }) as { text: string };
       const cleaned = result.text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
       const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
       if (!jsonMatch) return;
@@ -266,7 +273,7 @@ green=beneficial, yellow=mixed, red=concerning, gray=insufficient data. Mention 
   _batchPromise = null;
 }
 
-export function refreshSupplementImpact(editIdx) {
+export function refreshSupplementImpact(editIdx: number) {
   const supps = state.importedData.supplements || [];
   const s = supps[editIdx];
   if (!s) return;
@@ -285,13 +292,13 @@ export function refreshSupplementImpact(editIdx) {
   scheduleAnalyze(s, editIdx, data);
 }
 
-function applyImpactToDOM(editIdx, cached) {
+function applyImpactToDOM(editIdx: number, cached: ImpactCacheEntry | null | undefined) {
   if (!cached) return;
   const dotEl = document.getElementById(`supp-impact-dot-${editIdx}`);
   if (dotEl) dotEl.className = `ctx-health-dot ctx-health-dot-${cached.dot}`;
   const sumEl = document.getElementById(`supp-impact-summary-${editIdx}`);
   if (sumEl) {
-    sumEl.textContent = cached.summary;
+    sumEl.textContent = cached.summary as string;
     sumEl.className = `supp-impact-summary supp-impact-summary-visible supp-impact-summary-${cached.dot}`;
   }
 }
