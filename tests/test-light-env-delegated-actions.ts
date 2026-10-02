@@ -1,29 +1,21 @@
 #!/usr/bin/env node
+import { readRepositorySource } from './helpers/repository-source.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static Light Environment delegated-action source guards.
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, '..');
-const envSrc = fs.readFileSync(path.join(root, 'js/light-env.js'), 'utf8');
-const screenSrc = fs.readFileSync(path.join(root, 'js/light-env-screen-ui.js'), 'utf8');
-const actionSrc = fs.readFileSync(path.join(root, 'js/light-env-actions.js'), 'utf8');
-const auditSrc = fs.readFileSync(path.join(root, 'js/light-env-audits.js'), 'utf8');
-const appEventSrc = fs.readFileSync(path.join(root, 'js/app-event-listeners.js'), 'utf8');
-const appUiShellSrc = fs.readFileSync(path.join(root, 'js/app-ui-shell-modules.js'), 'utf8');
-const appLightSunSrc = fs.readFileSync(path.join(root, 'js/app-light-sun-modules.js'), 'utf8');
-const envShellHooksSrc = fs.readFileSync(path.join(root, 'js/light-env-shell-hooks.js'), 'utf8');
-const lightSunLoaderSrc = fs.readFileSync(path.join(root, 'js/light-sun-loader.js'), 'utf8');
-const navSrc = fs.readFileSync(path.join(root, 'js/nav.js'), 'utf8');
-const swSrc = readServiceWorkerSource(relative => fs.readFileSync(path.join(root, relative), 'utf8'));
+const envSrc = readRepositorySource('js/light-env.js', 'utf8');
+const screenSrc = readRepositorySource('js/light-env-screen-ui.js', 'utf8');
+const actionSrc = readRepositorySource('js/light-env-actions.js', 'utf8');
+const auditSrc = readRepositorySource('js/light-env-audits.js', 'utf8');
+const appEventSrc = readRepositorySource('js/app-event-listeners.js', 'utf8');
+const appUiShellSrc = readRepositorySource('js/app-ui-shell-modules.js', 'utf8');
+const appLightSunSrc = readRepositorySource('js/app-light-sun-modules.js', 'utf8');
+const envShellHooksSrc = readRepositorySource('js/light-env-shell-hooks.js', 'utf8');
+const lightSunLoaderSrc = readRepositorySource('js/light-sun-loader.js', 'utf8');
+const navSrc = readRepositorySource('js/nav.js', 'utf8');
+const swSrc = readServiceWorkerSource(relative => readRepositorySource(relative, 'utf8'));
 const envUiSrc = `${envSrc}\n${screenSrc}`;
-
-
-
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 

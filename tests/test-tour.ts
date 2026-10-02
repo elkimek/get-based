@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { readRepositorySource } from './helpers/repository-source.js';
+import { sourceFunctionHasStatement, sourceFunctionHasEventListenerStatement } from './helpers/native-source-contracts.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-tour.js — Guided tour (spotlight walkthrough). Source-inspection of
@@ -15,13 +17,7 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 
 import './_node-shim.js';
 
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-
+const read = (rel: string) => readRepositorySource(rel.replace(/^\//, ''), 'utf-8');
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
 
@@ -56,13 +52,13 @@ assert('tour-runtime.js owns viewport style and chat adapters',
     tourRuntimeSrc.includes('export function getTourComputedStyle') &&
     tourRuntimeSrc.includes('export function openTourChatPanel') &&
     tourRuntimeSrc.includes('export function scheduleTourTask'));
-assert('startTour respects auto flag', tourSrc.includes('if (auto && isTourCompleted(') && tourSrc.includes(') return'));
-assert('startup auto tours wait behind open modals', tourSrc.includes('function isStartupTourKey(') && tourSrc.includes('if (auto && isStartupTourKey(storageKey) && isStartupNudgeBlocked()) return false;'));
+assert('startTour respects auto flag', sourceFunctionHasStatement(tourSrc, 'runTour', 'if (auto && isTourCompleted(storageKey)) return false;'));
+assert('startup auto tours wait behind open modals', tourSrc.includes('function isStartupTourKey(') && sourceFunctionHasStatement(tourSrc, 'runTour', 'if (auto && isStartupTourKey(storageKey) && isStartupNudgeBlocked()) return false;'));
 assert('startTour returns whether tour opened', tourSrc.includes('return runTour(TOUR_STEPS') && tourSrc.includes('return true'));
 assert('startEmptyTour returns whether empty tour opened', tourSrc.includes('return runTour(EMPTY_TOUR_STEPS') && tourSrc.includes("profileKey('emptyTour')"));
 assert('startGuidedTour routes by visible empty state', tourSrc.includes('export function startGuidedTour') && tourSrc.includes("getTourTargetElement('.welcome-primary-panel')"));
 assert('endTour stores completed in localStorage', tourSrc.includes("'completed'"));
-assert('Overlay click dismisses tour', tourSrc.includes('if (e.target === overlay) endTour()'));
+assert('Overlay click dismisses tour', sourceFunctionHasEventListenerStatement(tourSrc, 'runTour', 'overlay', 'click', 'e', 'if (e.target === overlay) endTour();'));
 
 // ═══════════════════════════════════════
 // 2. EMPTY_TOUR_STEPS content
@@ -116,8 +112,8 @@ assert('Exactly 9 steps in TOUR_STEPS', stepMatches && stepMatches.length === 9,
 // ═══════════════════════════════════════
 console.log('13. Target Not Found — Skip Behavior');
 
-assert('Skips to next step when target missing', tourSrc.includes('if (!isLast) goToStep(index + 1)'));
-assert('Ends tour if last step target missing', tourSrc.includes('else endTour()'));
+assert('Skips to next step when target missing', sourceFunctionHasStatement(tourSrc, 'goToStep', 'if (!el) { if (!isLast) goToStep(index + 1); else endTour(); return; }'));
+assert('Ends tour if last step target missing', sourceFunctionHasStatement(tourSrc, 'goToStep', 'if (!el) { if (!isLast) goToStep(index + 1); else endTour(); return; }'));
 assert('Uses scrollIntoView on target', tourSrc.includes('scrollIntoView'));
 assert('Filters hidden/offscreen targets', tourSrc.includes('getTourTargetElement(s.target)') && tourSrc.includes('rect.right > 0'));
 

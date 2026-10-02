@@ -1,7 +1,20 @@
-// @ts-check
 // nav.js — Sidebar, compact profile button
 
 import { state } from './state.js';
+import type { ActiveData, ActiveCategory } from './data-view-types.js';
+
+export interface NavActionDependencies {
+  openLightEnvironmentAssessment: () => unknown;
+  openClientList: () => unknown;
+  openKnowledgeBase: typeof openKnowledgeBaseModal;
+}
+interface NavItem { withData: number; flagged: number; html: string }
+interface NavGroup { items: NavItem[]; totalFlagged: number }
+interface ConditionalNavItem {
+  key: string; icon: string; label: string; route?: string;
+  action?: string; badge?: string | number | null;
+}
+
 import { getLabCategoryEntriesInSidebarOrder } from './category-order.js';
 import { escapeHTML, escapeAttr, hashString } from './utils.js';
 import { getActiveData, filterDatesByRange } from './data.js';
@@ -17,9 +30,9 @@ import {
 } from './nav-runtime.js';
 import { openKnowledgeBaseModal } from './lens.js';
 
-function _iconSvg(name) {
+function _iconSvg(name: string) {
   const attrs = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
-  const icons = {
+  const icons: Record<string, string> = {
     search: `<svg ${attrs}><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>`,
     dashboard: `<svg ${attrs}><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>`,
     labs: `<svg ${attrs}><path d="M12 2.7s5 6.3 5 11.3a5 5 0 0 1-10 0c0-5 5-11.3 5-11.3z"></path></svg>`,
@@ -41,23 +54,23 @@ function _iconSvg(name) {
 }
 
 let navDelegatesInstalled = false;
-const navActionDeps = {
+const navActionDeps: NavActionDependencies = {
   openLightEnvironmentAssessment: () => {},
   openClientList: () => {},
   openKnowledgeBase: (options) => openKnowledgeBaseModal(options),
 };
 
-export function configureNavActions(deps = {}) {
+export function configureNavActions(deps: Partial<NavActionDependencies> | null = {}) {
   const previous = { ...navActionDeps };
   for (const [name, value] of Object.entries(deps || {})) {
     if (Object.prototype.hasOwnProperty.call(navActionDeps, name) && typeof value === 'function') {
-      navActionDeps[name] = value;
+      (navActionDeps as unknown as Record<string, unknown>)[name] = value;
     }
   }
   return previous;
 }
 
-function _navActionAttrs(action, attrs = {}) {
+function _navActionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
   const extraAttrs = Object.entries(attrs)
     .filter(([, value]) => value !== undefined && value !== null)
     .map(([name, value]) => ` data-nav-${name}="${escapeAttr(String(value))}"`)
@@ -65,27 +78,27 @@ function _navActionAttrs(action, attrs = {}) {
   return `data-nav-action="${escapeAttr(action)}"${extraAttrs}`;
 }
 
-function _navNavigateAttrs(route) {
+function _navNavigateAttrs(route: string) {
   return _navActionAttrs('navigate', { route });
 }
 
-function _navActionScope(el) {
+function _navActionScope(el: Element) {
   return !!el.closest('#sidebar-nav, #profile-selector');
 }
 
-function _findGroupHeader(groupName) {
-  return Array.from(/** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.sidebar-group-header')))
+function _findGroupHeader(groupName: string | undefined) {
+  return Array.from((document.querySelectorAll('.sidebar-group-header')) as NodeListOf<HTMLElement>)
     .find(el => el.dataset.groupName === groupName) || null;
 }
 
-function _findGroupItems(groupName) {
-  return Array.from(/** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.sidebar-group-items')))
+function _findGroupItems(groupName: string | undefined) {
+  return Array.from((document.querySelectorAll('.sidebar-group-items')) as NodeListOf<HTMLElement>)
     .find(el => el.dataset.groupItems === groupName) || null;
 }
 
-function handleNavActionClick(event) {
+function handleNavActionClick(event: Event) {
   const target = event.target instanceof Element ? event.target : null;
-  const actionEl = /** @type {HTMLElement | null} */ (target?.closest('[data-nav-action]') || null);
+  const actionEl = (target?.closest('[data-nav-action]') || null) as HTMLElement | null;
   if (!actionEl || !_navActionScope(actionEl)) return;
 
   const action = actionEl.dataset.navAction;
@@ -118,7 +131,7 @@ function handleNavActionClick(event) {
   if (handled) event.preventDefault();
 }
 
-function handleNavInput(event) {
+function handleNavInput(event: Event) {
   const target = event.target instanceof HTMLElement ? event.target : null;
   if (!target || !_navActionScope(target)) return;
   if (target.dataset.navInputAction === 'filter-sidebar') {
@@ -134,7 +147,7 @@ export function installNavActionDelegates() {
 }
 
 // Render a compact sidebar entry for modules whose visibility depends on data.
-function _renderConditionalNavItem({ key, icon, label, route = 'dashboard', action = 'navigate', badge }) {
+function _renderConditionalNavItem({ key, icon, label, route = 'dashboard', action = 'navigate', badge }: ConditionalNavItem) {
   const badgeHtml = badge ? `<span class="nav-item-count nav-count">${escapeHTML(String(badge))}</span>` : '<span class="nav-item-dot"></span>';
   const actionAttrs = action === 'navigate' ? _navNavigateAttrs(route) : _navActionAttrs(action);
   return `<div class="nav-item" data-category="${escapeAttr(key)}" tabindex="0" role="button" ${actionAttrs}>
@@ -147,10 +160,10 @@ export function openRecommendationsFromSidebar() {
   navigateFromNavRuntime('recommendations');
 }
 
-export function syncSidebarActive(route = state.currentView || 'dashboard') {
+export function syncSidebarActive(route: string | null | undefined = state.currentView || 'dashboard') {
   const activeRoute = String(route || 'dashboard');
   document.querySelectorAll('#sidebar-nav .nav-item').forEach(el => {
-    const item = /** @type {HTMLElement} */ (el);
+    const item = (el as HTMLElement);
     const isActive = item.dataset.category === activeRoute;
     item.classList.toggle('active', isActive);
     item.classList.toggle('is-active', isActive);
@@ -159,7 +172,7 @@ export function syncSidebarActive(route = state.currentView || 'dashboard') {
   });
 }
 
-function _buildNavItem(key, cat) {
+function _buildNavItem(key: string, cat: ActiveCategory): NavItem | null {
   const markers = Object.values(cat.markers).filter(m => !m.hidden);
   const withData = markers.filter(m => m.values && m.values.some(v => v !== null)).length;
   if (withData === 0) return null;
@@ -179,15 +192,15 @@ function _buildNavItem(key, cat) {
       ${flagHtml}</div>` };
 }
 
-export function buildSidebar(data) {
+export function buildSidebar(data?: unknown) {
   installNavActionDelegates();
   if (!data) data = getActiveData();
-  data = filterDatesByRange(data);
+  data = filterDatesByRange(data as ActiveData);
   const nav = document.getElementById("sidebar-nav");
   if (!nav) return;
   const counts = (() => {
     let markerCount = 0;
-    for (const cat of Object.values(data.categories || {})) {
+    for (const cat of Object.values((data as ActiveData).categories || {})) {
       for (const marker of Object.values(cat.markers || {})) {
         if (!marker.hidden && marker.values?.some(v => v !== null)) markerCount++;
       }
@@ -218,7 +231,7 @@ export function buildSidebar(data) {
 
   const genetics = state.importedData?.genetics;
   const hasGeneticsData = genetics && ((genetics.snps && Object.keys(genetics.snps).length > 0) || genetics.mtdna);
-  const gParts = [];
+  const gParts: Array<string | number> = [];
   if (hasGeneticsData) {
     if (genetics.snps && Object.keys(genetics.snps).length > 0) gParts.push(Object.keys(genetics.snps).length);
     if (genetics.mtdna) gParts.push(genetics.mtdna.haplogroup);
@@ -291,15 +304,15 @@ export function buildSidebar(data) {
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('plus')}</span><span class="nav-item-label">Custom markers</span><span class="nav-item-dot"></span></div>`;
 
   // Separate categories into blood work (no group) and specialty groups
-  const bloodWork = [];
-  const specialtyGroups = {};
-  for (const [key, cat] of getLabCategoryEntriesInSidebarOrder(data.categories)) {
+  const bloodWork: NavItem[] = [];
+  const specialtyGroups: Record<string, NavGroup> = {};
+  for (const [key, cat] of getLabCategoryEntriesInSidebarOrder((data as ActiveData).categories)) {
     const item = _buildNavItem(key, cat);
     if (!item) continue;
     if (cat.group) {
       if (!specialtyGroups[cat.group]) specialtyGroups[cat.group] = { items: [], totalFlagged: 0 };
-      specialtyGroups[cat.group].items.push(item);
-      specialtyGroups[cat.group].totalFlagged += item.flagged;
+      specialtyGroups[cat.group]!.items.push(item);
+      specialtyGroups[cat.group]!.totalFlagged += item.flagged;
     } else {
       bloodWork.push(item);
     }
@@ -335,11 +348,11 @@ export function buildSidebar(data) {
   syncSidebarActive(state.currentView || 'dashboard');
 }
 
-function _getGroupCollapsed(groupName) {
+function _getGroupCollapsed(groupName: string | undefined) {
   try { return localStorage.getItem(`labcharts-navgroup-${groupName}`) === 'collapsed'; } catch(e) { return false; }
 }
 
-export function toggleNavGroup(groupName) {
+export function toggleNavGroup(groupName: string | undefined) {
   const header = _findGroupHeader(groupName);
   const items = _findGroupItems(groupName);
   if (!header || !items) return;
@@ -354,12 +367,12 @@ export function toggleNavGroup(groupName) {
 }
 
 export function filterSidebar() {
-  const searchInput = /** @type {HTMLInputElement | null} */ (document.getElementById('sidebar-search'));
+  const searchInput = (document.getElementById('sidebar-search') as HTMLInputElement | null);
   const query = (searchInput?.value || '').toLowerCase().trim();
-  const items = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('#sidebar-nav .nav-item'));
-  const titles = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('#sidebar-nav .sidebar-title'));
-  const groupHeaders = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('#sidebar-nav .sidebar-group-header'));
-  const groupItemContainers = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('#sidebar-nav .sidebar-group-items'));
+  const items = (document.querySelectorAll('#sidebar-nav .nav-item') as NodeListOf<HTMLElement>);
+  const titles = (document.querySelectorAll('#sidebar-nav .sidebar-title') as NodeListOf<HTMLElement>);
+  const groupHeaders = (document.querySelectorAll('#sidebar-nav .sidebar-group-header') as NodeListOf<HTMLElement>);
+  const groupItemContainers = (document.querySelectorAll('#sidebar-nav .sidebar-group-items') as NodeListOf<HTMLElement>);
   if (!query) {
     items.forEach(el => el.style.display = '');
     titles.forEach(el => el.style.display = '');
@@ -381,7 +394,7 @@ export function filterSidebar() {
   items.forEach(el => {
     const cat = el.dataset.category;
     if (cat === 'dashboard' || cat === 'labs' || cat === 'biology-scores' || cat === 'correlations' || cat === 'compare' || cat === 'recommendations' || cat === 'reports' || cat === 'context' || cat === 'knowledge-base' || cat === 'custom-markers' || cat === 'light' || cat === 'body' || cat === 'wearables' || cat === 'emf' || cat === 'light-env-assessment' || cat === 'genome' || cat === 'genetics' || cat === 'insight') { el.style.display = ''; return; }
-    const label = el.textContent.toLowerCase();
+    const label = el.textContent!.toLowerCase();
     const markers = (el.dataset.markers || '').toLowerCase();
     el.style.display = (label.includes(query) || markers.includes(query)) ? '' : 'none';
   });
@@ -408,9 +421,9 @@ export function filterSidebar() {
 // Avatar color palette — 10 distinct hues that work on dark & light
 const AVATAR_COLORS = ['#4f8cff','#f472b6','#34d399','#fbbf24','#a78bfa','#f87171','#38bdf8','#fb923c','#22d3ee','#a3e635'];
 
-export function getAvatarColor(id) {
+export function getAvatarColor(id: string | null | undefined) {
   const h = parseInt(hashString(id || ''), 36);
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length]!;
 }
 
 export function renderProfileButton() {
@@ -422,7 +435,7 @@ export function renderProfileButton() {
   if (!active) return;
   const dot = active.avatar
     ? `<img class="profile-compact-dot profile-compact-img" src="${escapeAttr(active.avatar)}" alt="">`
-    : `<span class="profile-compact-dot" style="background:${getAvatarColor(active.id)}">${escapeHTML((active.name || '?')[0].toUpperCase())}</span>`;
+    : `<span class="profile-compact-dot" style="background:${getAvatarColor(active.id)}">${escapeHTML((active.name || '?')[0]!.toUpperCase())}</span>`;
   container.innerHTML = `<button class="profile-compact-btn" ${_navActionAttrs('open-client-list')} title="Manage clients">
     ${dot}
     <span class="profile-compact-name">${escapeHTML(active.name)}</span>

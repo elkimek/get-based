@@ -1,28 +1,20 @@
 #!/usr/bin/env node
+import { readRepositorySource } from './helpers/repository-source.js';
 import { sourceFunctionHasStatement } from './helpers/native-source-contracts.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static dashboard widget delegated-action source guards.
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, '..');
-const controlsSrc = fs.readFileSync(path.join(root, 'js/dashboard-widget-controls.js'), 'utf8');
-const runtimeSrc = fs.readFileSync(path.join(root, 'js/dashboard-widget-runtime.js'), 'utf8');
-const compositionSrc = fs.readFileSync(path.join(root, 'js/dashboard-view-composition.js'), 'utf8');
-const renderersSrc = fs.readFileSync(path.join(root, 'js/dashboard-widget-renderers.js'), 'utf8');
-const labRenderersSrc = fs.readFileSync(path.join(root, 'js/dashboard-lab-widget-renderers.js'), 'utf8');
+const controlsSrc = readRepositorySource('js/dashboard-widget-controls.js', 'utf8');
+const runtimeSrc = readRepositorySource('js/dashboard-widget-runtime.js', 'utf8');
+const compositionSrc = readRepositorySource('js/dashboard-view-composition.js', 'utf8');
+const renderersSrc = readRepositorySource('js/dashboard-widget-renderers.js', 'utf8');
+const labRenderersSrc = readRepositorySource('js/dashboard-lab-widget-renderers.js', 'utf8');
 const allRendererSrc = `${renderersSrc}\n${labRenderersSrc}`;
-const dashboardWidgetsCss = fs.readFileSync(path.join(root, 'css/dashboard-widgets.css'), 'utf8');
+const dashboardWidgetsCss = readRepositorySource('css/dashboard-widgets.css', 'utf8');
 const biometricOverviewSrc = renderersSrc.slice(
   renderersSrc.indexOf('function renderDashboardBiometricSyncStatus'),
   renderersSrc.indexOf('function getDashboardGenomeImpact'),
 );
-
-
-
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 

@@ -680,3 +680,7 @@ deploy/profile-share/data/
 /tests/_node-shim.js
 /tests/_vitest-setup.js
 /tests/helpers/node-browser-fixtures.js
+/js/nav.js
+/js/tour.js
+/js/marker-detail-actions.js
+/tests/helpers/repository-source.js

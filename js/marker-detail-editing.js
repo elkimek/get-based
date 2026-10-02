@@ -288,7 +288,7 @@ export async function deleteValueNote(id, date) {
 /**
  * @param {string} id
  * @param {string} type
- * @param {MouseEvent} evt
+ * @param {Event} evt
  */
 export function editRefRange(id, type, evt) {
   const marker = state.markerRegistry[id];

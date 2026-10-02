@@ -1,3 +1,4 @@
+import { sourceFunctionHasEventListenerStatement } from './helpers/native-source-contracts.js';
 import { describe, expect, it } from 'vitest';
 import { sourceCallsNamespacedActionAttributes, sourceFunctionHasCatchStatement, sourceFunctionHasInitializer, sourceFunctionHasStatement, sourceFunctionHasVariable } from './helpers/native-source-contracts.js';
 
@@ -105,4 +106,18 @@ describe('native source contracts', () => {
       `async function query() { try {} catch (error) { function elsewhere() { ${guard} } } }`,
     ]) expect(check(changed)).toBe(false);
   });
+});
+
+it('owns the event receiver, event type, bound parameter, and synchronous callback guard', () => {
+  const source = "function runTour() { if (missing) { overlay.addEventListener('click', e => { if (e.target === overlay) endTour(); }); } }";
+  const check = (input: string) => sourceFunctionHasEventListenerStatement(input, 'runTour', 'overlay', 'click', 'e', 'if (e.target === overlay) endTour();');
+  expect(check(source)).toBe(true);
+  expect(check(source.replace('if (e.target', 'if ((e.target').replace('overlay) endTour', 'overlay)) endTour'))).toBe(true);
+  for (const [before, after] of [
+    ['overlay.addEventListener', 'tooltip.addEventListener'], ["'click'", "'input'"],
+    ['e =>', 'other =>'], ['e =>', 'async e =>'], ['e.target === overlay', 'e.target !== overlay'],
+    ['endTour()', 'openTour()'], ['function runTour()', 'function other()'],
+  ]) expect(check(source.replace(before!, after!))).toBe(false);
+  expect(check("function runTour() { function unrelated() { overlay.addEventListener('click', e => { if (e.target === overlay) endTour(); }); } }")).toBe(false);
+  expect(check('function broken(')).toBe(false);
 });

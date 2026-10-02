@@ -1,19 +1,11 @@
 #!/usr/bin/env node
+import { readRepositorySource } from './helpers/repository-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static sidebar nav delegated-action source guards.
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, '..');
-const appShellHooksSrc = fs.readFileSync(path.join(root, 'js/app-shell-hooks.js'), 'utf8');
-const navSrc = fs.readFileSync(path.join(root, 'js/nav.js'), 'utf8');
-const navRuntimeSrc = fs.readFileSync(path.join(root, 'js/nav-runtime.js'), 'utf8');
-
-
-
+const appShellHooksSrc = readRepositorySource('js/app-shell-hooks.js', 'utf8');
+const navSrc = readRepositorySource('js/nav.js', 'utf8');
+const navRuntimeSrc = readRepositorySource('js/nav-runtime.js', 'utf8');
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 

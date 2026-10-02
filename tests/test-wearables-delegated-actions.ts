@@ -1,24 +1,16 @@
 #!/usr/bin/env node
+import { readRepositorySource } from './helpers/repository-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static wearables delegated-action source guards.
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, '..');
-const stripSrc = fs.readFileSync(path.join(root, 'js/wearables.js'), 'utf8');
-const stripActionsSrc = fs.readFileSync(path.join(root, 'js/wearables-strip-actions.js'), 'utf8');
-const detailModalSrc = fs.readFileSync(path.join(root, 'js/wearables-detail-modal.js'), 'utf8');
-const manualDetailSrc = fs.readFileSync(path.join(root, 'js/wearables-manual-detail.js'), 'utf8');
+const stripSrc = readRepositorySource('js/wearables.js', 'utf8');
+const stripActionsSrc = readRepositorySource('js/wearables-strip-actions.js', 'utf8');
+const detailModalSrc = readRepositorySource('js/wearables-detail-modal.js', 'utf8');
+const manualDetailSrc = readRepositorySource('js/wearables-manual-detail.js', 'utf8');
 const detailSrc = `${detailModalSrc}\n${manualDetailSrc}`;
-const settingsPanelSrc = fs.readFileSync(path.join(root, 'js/wearables-settings-panel.js'), 'utf8');
+const settingsPanelSrc = readRepositorySource('js/wearables-settings-panel.js', 'utf8');
 const stripImportsSharedActionHelper = /import\s*{[^}]*\bwearableActionAttrs\b[^}]*}\s*from\s+'\.\/wearables-detail-modal\.js';/s.test(stripSrc);
 const stripActionsImportSharedActionHelper = /import\s*{[^}]*\bwearableActionAttrs\b[^}]*}\s*from\s+'\.\/wearables-detail-modal\.js';/s.test(stripActionsSrc);
-
-
-
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 

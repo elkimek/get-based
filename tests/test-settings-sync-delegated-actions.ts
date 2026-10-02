@@ -1,21 +1,13 @@
 #!/usr/bin/env node
+import { readRepositorySource } from './helpers/repository-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Settings sync delegated-action source guards.
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, '..');
-const src = fs.readFileSync(path.join(root, 'js/settings-sync-panel-impl.js'), 'utf8');
-const renderSrc = fs.readFileSync(path.join(root, 'js/settings-sync-panel-render.js'), 'utf8');
-const restoreUiSrc = fs.readFileSync(path.join(root, 'js/settings-sync-restore-ui.js'), 'utf8');
+const src = readRepositorySource('js/settings-sync-panel-impl.js', 'utf8');
+const renderSrc = readRepositorySource('js/settings-sync-panel-render.js', 'utf8');
+const restoreUiSrc = readRepositorySource('js/settings-sync-restore-ui.js', 'utf8');
 const syncUiSrc = `${src}\n${renderSrc}\n${restoreUiSrc}`;
-const agentSrc = fs.readFileSync(path.join(root, 'js/settings-agent-access-panel.js'), 'utf8');
-
-
-
+const agentSrc = readRepositorySource('js/settings-agent-access-panel.js', 'utf8');
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
@@ -99,13 +91,13 @@ assert('Agent Access toggle uses Settings-owned visible slider styles',
   /data-sync-action="toggle-messenger"[\s\S]{0,180}class="chat-toggle-slider sync-settings-toggle-slider"/.test(agentSrc)
     && /class="chat-websearch-toggle-label sync-settings-toggle"/.test(agentSrc));
 assert('Agent Access enable checks saveImportedData result before pushing context or success',
-  /const saved = await saveImportedData\(\{ reason: 'agent-access-enable' \}\);[\s\S]*if \(saved === false\) throw new Error\('saveImportedData returned false while enabling Agent Access'\);[\s\S]*pushContextToGateway\(\);[\s\S]*showNotification\('Agent Access enabled', 'success'\)/.test(agentSrc));
+  /const saved = await saveImportedData\(\{ reason: 'agent-access-enable' \}\);[\s\S]*if \(saved === false\)\s+throw new Error\('saveImportedData returned false while enabling Agent Access'\);[\s\S]*pushContextToGateway\(\);[\s\S]*showNotification\('Agent Access enabled', 'success'\)/.test(agentSrc));
 assert('Agent Access disable checks saveImportedData result before success',
-  /const saved = await saveImportedData\(\{ reason: 'agent-access-disable' \}\);[\s\S]*if \(saved === false\) throw new Error\('saveImportedData returned false while disabling Agent Access'\);[\s\S]*showNotification\('Agent Access disabled', 'success'\)/.test(agentSrc));
+  /const saved = await saveImportedData\(\{ reason: 'agent-access-disable' \}\);[\s\S]*if \(saved === false\)\s+throw new Error\('saveImportedData returned false while disabling Agent Access'\);[\s\S]*showNotification\('Agent Access disabled', 'success'\)/.test(agentSrc));
 assert('Agent Access token regeneration checks saveImportedData result before pushing context or success',
-  /const saved = await saveImportedData\(\{ reason: 'agent-access-regenerate-token' \}\);[\s\S]*if \(saved === false\) throw new Error\('saveImportedData returned false while regenerating Agent Access token'\);[\s\S]*pushContextToGateway\(\);[\s\S]*showNotification\('Token regenerated/.test(agentSrc));
+  /const saved = await saveImportedData\(\{ reason: 'agent-access-regenerate-token' \}\);[\s\S]*if \(saved === false\)\s+throw new Error\('saveImportedData returned false while regenerating Agent Access token'\);[\s\S]*pushContextToGateway\(\);[\s\S]*showNotification\('Token regenerated/.test(agentSrc));
 assert('Agent Access context-key regeneration checks saveImportedData result before pushing context or success',
-  /const saved = await saveImportedData\(\{ reason: 'agent-access-regenerate-context-key' \}\);[\s\S]*if \(saved === false\) throw new Error\('saveImportedData returned false while regenerating Agent Access context key'\);[\s\S]*pushContextToGateway\(\);[\s\S]*showNotification\('Context key regenerated/.test(agentSrc));
+  /const saved = await saveImportedData\(\{ reason: 'agent-access-regenerate-context-key' \}\);[\s\S]*if \(saved === false\)\s+throw new Error\('saveImportedData returned false while regenerating Agent Access context key'\);[\s\S]*pushContextToGateway\(\);[\s\S]*showNotification\('Context key regenerated/.test(agentSrc));
 assert('Agent Access renders one-click private bootstrap command instead of making users assemble env vars',
   /data-sync-action="copy-agent-access-setup-command"/.test(agentSrc)
     && /agent-access-client-grid/.test(agentSrc)

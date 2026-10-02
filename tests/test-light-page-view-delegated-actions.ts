@@ -1,27 +1,19 @@
 #!/usr/bin/env node
+import { readRepositorySource } from './helpers/repository-source.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Light page view delegated-action source guards.
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, '..');
-const src = fs.readFileSync(path.join(root, 'js/light-page-view.js'), 'utf8');
-const hooksSrc = fs.readFileSync(path.join(root, 'js/light-page-view-hooks.js'), 'utf8');
-const todayAiSrc = fs.readFileSync(path.join(root, 'js/light-today-ai.js'), 'utf8');
-const dashboardRenderersSrc = fs.readFileSync(path.join(root, 'js/dashboard-widget-renderers.js'), 'utf8');
-const dashboardCompositionSrc = fs.readFileSync(path.join(root, 'js/dashboard-view-composition.js'), 'utf8');
-const globalsSrc = fs.readFileSync(path.join(root, 'types/globals.d.ts'), 'utf8');
-const uiHooksSrc = fs.readFileSync(path.join(root, 'js/light-page-view-ui-hooks.js'), 'utf8');
-const lightSunModulesSrc = fs.readFileSync(path.join(root, 'js/app-light-sun-modules.js'), 'utf8');
-const uiShellModulesSrc = fs.readFileSync(path.join(root, 'js/app-ui-shell-modules.js'), 'utf8');
-const swSrc = readServiceWorkerSource(relative => fs.readFileSync(path.join(root, relative), 'utf8'));
-
-
-
+const src = readRepositorySource('js/light-page-view.js', 'utf8');
+const hooksSrc = readRepositorySource('js/light-page-view-hooks.js', 'utf8');
+const todayAiSrc = readRepositorySource('js/light-today-ai.js', 'utf8');
+const dashboardRenderersSrc = readRepositorySource('js/dashboard-widget-renderers.js', 'utf8');
+const dashboardCompositionSrc = readRepositorySource('js/dashboard-view-composition.js', 'utf8');
+const globalsSrc = readRepositorySource('types/globals.d.ts', 'utf8');
+const uiHooksSrc = readRepositorySource('js/light-page-view-ui-hooks.js', 'utf8');
+const lightSunModulesSrc = readRepositorySource('js/app-light-sun-modules.js', 'utf8');
+const uiShellModulesSrc = readRepositorySource('js/app-ui-shell-modules.js', 'utf8');
+const swSrc = readServiceWorkerSource(relative => readRepositorySource(relative, 'utf8'));
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 

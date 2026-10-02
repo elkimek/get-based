@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readRepositorySource } from './helpers/repository-source.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-cycle-tour.js — Cycle tour feature tests
@@ -7,15 +8,9 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 
 import './_node-shim.js';
 
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+const read = (rel: string) => readRepositorySource(rel.replace(/^\//, ''), 'utf-8');
 const CSS_FILES = ['styles.css', 'css/cycle.css'];
 const readCycleCss = () => CSS_FILES.map(read).join('\n');
-
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
 
@@ -40,7 +35,7 @@ const tour = await import('../js/tour.js');
 
   // --- 3. CYCLE_TOUR_STEPS structure ---
   console.log('%c[3] Cycle tour steps', 'font-weight:bold');
-  const cycleStepBlock = (tourSrc.match(/const CYCLE_TOUR_STEPS\s*=\s*\[([\s\S]*?)\];/)||[])[1];
+  const cycleStepBlock = (tourSrc.match(/const CYCLE_TOUR_STEPS\s*=\s*\[([\s\S]*?)\];/)||[])[1]!;
   const cycleSteps = cycleStepBlock ? cycleStepBlock.split('{ target:').length - 1 : 0;
   assert('Cycle tour has 8 steps', cycleSteps === 8, `found ${cycleSteps}`);
 
@@ -85,7 +80,7 @@ const tour = await import('../js/tour.js');
   assert('tour.startCycleTour exists', typeof tour.startCycleTour === 'function');
   assert('tour.endTour exists', typeof tour.endTour === 'function');
   assert('tour.goToTourStep exists', typeof tour.goToTourStep === 'function');
-  assert('tour API is not published on window', typeof window.startTour !== 'function' && typeof window._tourGoToStep !== 'function');
+  assert('tour API is not published on window', typeof (window as Window & { startTour?: unknown }).startTour !== 'function' && typeof (window as Window & { _tourGoToStep?: unknown })._tourGoToStep !== 'function');
 
   // --- 9. runTour filters missing targets ---
   console.log('%c[9] Step filtering', 'font-weight:bold');

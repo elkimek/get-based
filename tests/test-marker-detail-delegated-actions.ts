@@ -1,28 +1,20 @@
 #!/usr/bin/env node
+import { readRepositorySource } from './helpers/repository-source.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static marker-detail delegated-action source guards.
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, '..');
-const modalFacadeSrc = fs.readFileSync(path.join(root, 'js/marker-detail-modal.js'), 'utf8');
-const modalImplSrc = fs.readFileSync(path.join(root, 'js/marker-detail-modal-impl.js'), 'utf8');
-const manualEntrySrc = fs.readFileSync(path.join(root, 'js/marker-detail-manual-entry.js'), 'utf8');
-const customMarkersSrc = fs.readFileSync(path.join(root, 'js/marker-detail-custom-markers.js'), 'utf8');
-const placementSrc = fs.readFileSync(path.join(root, 'js/marker-detail-placement.js'), 'utf8');
+const modalFacadeSrc = readRepositorySource('js/marker-detail-modal.js', 'utf8');
+const modalImplSrc = readRepositorySource('js/marker-detail-modal-impl.js', 'utf8');
+const manualEntrySrc = readRepositorySource('js/marker-detail-manual-entry.js', 'utf8');
+const customMarkersSrc = readRepositorySource('js/marker-detail-custom-markers.js', 'utf8');
+const placementSrc = readRepositorySource('js/marker-detail-placement.js', 'utf8');
 const modalSrc = `${modalImplSrc}\n${manualEntrySrc}\n${customMarkersSrc}\n${placementSrc}`;
-const editingSrc = fs.readFileSync(path.join(root, 'js/marker-detail-editing.js'), 'utf8');
-const actionSrc = fs.readFileSync(path.join(root, 'js/marker-detail-actions.js'), 'utf8');
-const runtimeSrc = fs.readFileSync(path.join(root, 'js/marker-detail-runtime.js'), 'utf8');
-const dashboardSrc = fs.readFileSync(path.join(root, 'js/dashboard-view-composition.js'), 'utf8');
-const swSrc = readServiceWorkerSource(relative => fs.readFileSync(path.join(root, relative), 'utf8'));
-
-
-
+const editingSrc = readRepositorySource('js/marker-detail-editing.js', 'utf8');
+const actionSrc = readRepositorySource('js/marker-detail-actions.js', 'utf8');
+const runtimeSrc = readRepositorySource('js/marker-detail-runtime.js', 'utf8');
+const dashboardSrc = readRepositorySource('js/dashboard-view-composition.js', 'utf8');
+const swSrc = readServiceWorkerSource(relative => readRepositorySource(relative, 'utf8'));
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 

@@ -1,15 +1,50 @@
-// @ts-check
 // marker-detail-actions.js - delegated action contract for marker detail modals.
 
 import { escapeAttr } from './utils.js';
 
-const markerDetailActionDelegates = new WeakMap();
+type MarkerIdAction = (id: string) => unknown;
+type MarkerDatedAction = (id: string, date: string) => unknown;
+export interface MarkerDetailOptions { showAllHistory?: boolean; scrollToHistory?: boolean; historyLimit?: number }
+export interface MarkerDetailActions {
+  closeModal?: () => unknown;
+  saveRefRange?: (id: string, type: string) => unknown;
+  toggleDashboardQuickMarkerPin?: MarkerIdAction;
+  editRefRange?: (id: string, type: string, event: Event) => unknown;
+  revertRefRange?: (id: string, type: string) => unknown;
+  renameMarker?: MarkerIdAction;
+  revertMarkerName?: MarkerIdAction;
+  openMarkerPlacementModal?: MarkerIdAction;
+  saveMarkerPlacement?: MarkerIdAction;
+  restoreMarkerPlacement?: MarkerIdAction;
+  editMarkerValue?: (id: string, date: string, value: number, event: Event) => unknown;
+  deleteMarkerValue?: MarkerDatedAction;
+  revertMarkerValue?: MarkerDatedAction;
+  editValueNote?: MarkerDatedAction;
+  deleteValueNote?: MarkerDatedAction;
+  showDetailModal?: (id: string, options: MarkerDetailOptions) => unknown;
+  openManualEntryForm?: (id: string, date?: string | undefined) => unknown;
+  askAIAboutMarker?: MarkerIdAction;
+  toggleMarkerNoteEditor?: (dotKey: string) => unknown;
+  saveMarkerNote?: (dotKey: string, id: string) => unknown;
+  deleteMarkerNote?: (dotKey: string, id: string) => unknown;
+  deleteCustomMarker?: MarkerIdAction;
+  saveManualEntry?: MarkerIdAction;
+  saveAndAddAnotherManualEntry?: MarkerIdAction;
+  pickNewCatIcon?: (element: HTMLElement) => unknown;
+  saveCustomMarker?: () => unknown;
+}
+interface MarkerDetailEvent extends Event {
+  readonly target: (EventTarget & { closest?: (selector: string) => HTMLElement | null }) | null;
+  readonly currentTarget: (EventTarget & { contains?: (node: Node) => boolean }) | null;
+  readonly key?: string;
+}
+const markerDetailActionDelegates = new WeakMap<EventTarget, MarkerDetailActions>();
 
-function dataAttrName(name) {
+function dataAttrName(name: unknown) {
   return String(name).replace(/[A-Z]/g, char => `-${char.toLowerCase()}`);
 }
 
-export function markerDetailActionAttrs(action, attrs = {}) {
+export function markerDetailActionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
   return [
     `data-marker-detail-action="${escapeAttr(action)}"`,
     ...Object.entries(attrs)
@@ -18,7 +53,7 @@ export function markerDetailActionAttrs(action, attrs = {}) {
   ].join(' ');
 }
 
-function closestMarkerDetailAction(event) {
+function closestMarkerDetailAction(event: MarkerDetailEvent) {
   const target = event.target;
   if (!target || typeof target.closest !== 'function') return null;
   const actionEl = target.closest('[data-marker-detail-action]');
@@ -26,13 +61,13 @@ function closestMarkerDetailAction(event) {
   return typeof event.currentTarget?.contains === 'function' && event.currentTarget.contains(actionEl) ? actionEl : null;
 }
 
-function numberAttr(actionEl, name) {
+function numberAttr(actionEl: HTMLElement, name: string) {
   const value = Number(actionEl.dataset[name]);
   return Number.isFinite(value) ? value : null;
 }
 
-function showDetailOptions(actionEl) {
-  const opts = {};
+function showDetailOptions(actionEl: HTMLElement) {
+  const opts: MarkerDetailOptions = {};
   if (actionEl.dataset.markerDetailShowAllHistory === 'true') opts.showAllHistory = true;
   if (actionEl.dataset.markerDetailScrollToHistory === 'true') opts.scrollToHistory = true;
   const historyLimit = numberAttr(actionEl, 'markerDetailHistoryLimit');
@@ -40,7 +75,7 @@ function showDetailOptions(actionEl) {
   return opts;
 }
 
-function handleMarkerDetailAction(actionEl, event, actions) {
+function handleMarkerDetailAction(actionEl: HTMLElement, event: MarkerDetailEvent, actions: MarkerDetailActions) {
   const action = actionEl.dataset.markerDetailAction || '';
   const id = actionEl.dataset.markerDetailId || '';
   const date = actionEl.dataset.markerDetailDate || '';
@@ -117,7 +152,7 @@ function handleMarkerDetailAction(actionEl, event, actions) {
   }
 }
 
-function handleMarkerDetailClick(event, actions) {
+function handleMarkerDetailClick(event: MarkerDetailEvent, actions: MarkerDetailActions) {
   const actionEl = closestMarkerDetailAction(event);
   if (!actionEl) return;
   event.preventDefault();
@@ -125,7 +160,7 @@ function handleMarkerDetailClick(event, actions) {
   handleMarkerDetailAction(actionEl, event, actions);
 }
 
-function handleMarkerDetailKeydown(event, actions) {
+function handleMarkerDetailKeydown(event: MarkerDetailEvent, actions: MarkerDetailActions) {
   if (event.key !== 'Enter' && event.key !== ' ') return;
   const actionEl = closestMarkerDetailAction(event);
   if (!actionEl) return;
@@ -136,14 +171,14 @@ function handleMarkerDetailKeydown(event, actions) {
   handleMarkerDetailAction(actionEl, event, actions);
 }
 
-function handleMarkerDetailChange(event, actions) {
+function handleMarkerDetailChange(event: MarkerDetailEvent, actions: MarkerDetailActions) {
   const actionEl = closestMarkerDetailAction(event);
   if (!actionEl || actionEl.dataset.markerDetailAction !== 'toggle-custom-marker-category') return;
   event.stopPropagation();
   handleMarkerDetailAction(actionEl, event, actions);
 }
 
-export function installMarkerDetailActionDelegates(actions = {}, root = (typeof document !== 'undefined' ? document : null)) {
+export function installMarkerDetailActionDelegates(actions: MarkerDetailActions = {}, root: EventTarget | null = (typeof document !== 'undefined' ? document : null)) {
   if (!root) return;
   const installedActions = markerDetailActionDelegates.get(root);
   if (installedActions) {

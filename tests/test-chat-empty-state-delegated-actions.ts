@@ -1,17 +1,9 @@
 #!/usr/bin/env node
+import { readRepositorySource } from './helpers/repository-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Chat empty-state delegated-action source guards.
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, '..');
-const src = fs.readFileSync(path.join(root, 'js/chat-empty-state.js'), 'utf8');
-
-
-
+const src = readRepositorySource('js/chat-empty-state.js', 'utf8');
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 

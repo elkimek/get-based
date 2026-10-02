@@ -1,20 +1,12 @@
 #!/usr/bin/env node
+import { readRepositorySource } from './helpers/repository-source.js';
 import { sourceFunctionHasStatement } from './helpers/native-source-contracts.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static lens page shell delegated-action source guards.
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, '..');
-const shellSrc = fs.readFileSync(path.join(root, 'js/lens-page-shell.js'), 'utf8');
-const lensPagesSrc = fs.readFileSync(path.join(root, 'js/lens-pages.js'), 'utf8');
-const viewsSrc = fs.readFileSync(path.join(root, 'js/views.js'), 'utf8');
-
-
-
+const shellSrc = readRepositorySource('js/lens-page-shell.js', 'utf8');
+const lensPagesSrc = readRepositorySource('js/lens-pages.js', 'utf8');
+const viewsSrc = readRepositorySource('js/views.js', 'utf8');
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 

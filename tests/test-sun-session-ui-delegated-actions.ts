@@ -1,27 +1,19 @@
 #!/usr/bin/env node
+import { readRepositorySource } from './helpers/repository-source.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static sun-session UI delegated-action source guards.
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, '..');
-const uiSrc = fs.readFileSync(path.join(root, 'js/sun-session-ui.js'), 'utf8');
-const actionSrc = fs.readFileSync(path.join(root, 'js/sun-session-actions.js'), 'utf8');
-const sunSrc = fs.readFileSync(path.join(root, 'js/sun.js'), 'utf8');
-const sunAiSrc = fs.readFileSync(path.join(root, 'js/sun-ai-analysis.js'), 'utf8');
-const aiHookSrc = fs.readFileSync(path.join(root, 'js/sun-session-ai-render-hooks.js'), 'utf8');
-const uiHookSrc = fs.readFileSync(path.join(root, 'js/sun-session-ui-hooks.js'), 'utf8');
-const lightSunAiHooksSrc = fs.readFileSync(path.join(root, 'js/light-sun-ai-hooks.js'), 'utf8');
-const appLightSunSrc = fs.readFileSync(path.join(root, 'js/app-light-sun-modules.js'), 'utf8');
-const appUiShellSrc = fs.readFileSync(path.join(root, 'js/app-ui-shell-modules.js'), 'utf8');
-const swSrc = readServiceWorkerSource(relative => fs.readFileSync(path.join(root, relative), 'utf8'));
-
-
-
+const uiSrc = readRepositorySource('js/sun-session-ui.js', 'utf8');
+const actionSrc = readRepositorySource('js/sun-session-actions.js', 'utf8');
+const sunSrc = readRepositorySource('js/sun.js', 'utf8');
+const sunAiSrc = readRepositorySource('js/sun-ai-analysis.js', 'utf8');
+const aiHookSrc = readRepositorySource('js/sun-session-ai-render-hooks.js', 'utf8');
+const uiHookSrc = readRepositorySource('js/sun-session-ui-hooks.js', 'utf8');
+const lightSunAiHooksSrc = readRepositorySource('js/light-sun-ai-hooks.js', 'utf8');
+const appLightSunSrc = readRepositorySource('js/app-light-sun-modules.js', 'utf8');
+const appUiShellSrc = readRepositorySource('js/app-ui-shell-modules.js', 'utf8');
+const swSrc = readServiceWorkerSource(relative => readRepositorySource(relative, 'utf8'));
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 

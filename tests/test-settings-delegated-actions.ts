@@ -1,36 +1,28 @@
 #!/usr/bin/env node
+import { readRepositorySource } from './helpers/repository-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Settings delegated-action source guards.
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, '..');
-const appShellHooksSrc = fs.readFileSync(path.join(root, 'js/app-shell-hooks.js'), 'utf8');
-const appAIInteractionSrc = fs.readFileSync(path.join(root, 'js/app-ai-interaction-modules.js'), 'utf8');
-const chatOnboardingHostSrc = fs.readFileSync(path.join(root, 'js/chat-onboarding-host-bindings.js'), 'utf8');
-const lightPageUIHooksSrc = fs.readFileSync(path.join(root, 'js/light-page-view-ui-hooks.js'), 'utf8');
-const loaderSrc = fs.readFileSync(path.join(root, 'js/settings-loader.js'), 'utf8');
-const src = fs.readFileSync(path.join(root, 'js/settings.js'), 'utf8');
-const displaySrc = fs.readFileSync(path.join(root, 'js/settings-display-panel.js'), 'utf8');
-const eventTargetSrc = fs.readFileSync(path.join(root, 'js/settings-event-target.js'), 'utf8');
-const privacySrc = fs.readFileSync(path.join(root, 'js/settings-privacy.js'), 'utf8');
-const settingsDataSrc = fs.readFileSync(path.join(root, 'js/settings-data.js'), 'utf8');
-const voiceSrc = fs.readFileSync(path.join(root, 'js/settings-voice-panel.js'), 'utf8');
-const voiceViewSrc = fs.readFileSync(path.join(root, 'js/settings-voice-view.js'), 'utf8');
-const tweaksSrc = fs.readFileSync(path.join(root, 'js/settings-tweaks.js'), 'utf8');
-const appShellCss = fs.readFileSync(path.join(root, 'css/app-shell.css'), 'utf8');
-const settingsCss = fs.readFileSync(path.join(root, 'css/settings.css'), 'utf8');
+const appShellHooksSrc = readRepositorySource('js/app-shell-hooks.js', 'utf8');
+const appAIInteractionSrc = readRepositorySource('js/app-ai-interaction-modules.js', 'utf8');
+const chatOnboardingHostSrc = readRepositorySource('js/chat-onboarding-host-bindings.js', 'utf8');
+const lightPageUIHooksSrc = readRepositorySource('js/light-page-view-ui-hooks.js', 'utf8');
+const loaderSrc = readRepositorySource('js/settings-loader.js', 'utf8');
+const src = readRepositorySource('js/settings.js', 'utf8');
+const displaySrc = readRepositorySource('js/settings-display-panel.js', 'utf8');
+const eventTargetSrc = readRepositorySource('js/settings-event-target.js', 'utf8');
+const privacySrc = readRepositorySource('js/settings-privacy.js', 'utf8');
+const settingsDataSrc = readRepositorySource('js/settings-data.js', 'utf8');
+const voiceSrc = readRepositorySource('js/settings-voice-panel.js', 'utf8');
+const voiceViewSrc = readRepositorySource('js/settings-voice-view.js', 'utf8');
+const tweaksSrc = readRepositorySource('js/settings-tweaks.js', 'utf8');
+const appShellCss = readRepositorySource('css/app-shell.css', 'utf8');
+const settingsCss = readRepositorySource('css/settings.css', 'utf8');
 const settingsSurfaceSrc = `${src}\n${displaySrc}\n${eventTargetSrc}\n${privacySrc}\n${settingsDataSrc}\n${voiceSrc}\n${tweaksSrc}`;
-
-
-
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
-function matchBlock(label, pattern, source = src) {
+function matchBlock(label: string, pattern: RegExp, source = src) {
   const m = source.match(pattern);
   assert(`${label} block found`, !!m);
   return m ? m[0] : '';
@@ -59,7 +51,7 @@ assert('Settings shell control styling remains in the eager shell bundle',
     && !settingsCss.includes('.settings-btn:hover'));
 assert('Light page owns only the Sun data-source Settings leaf',
   !lightPageUIHooksSrc.includes("from './settings-privacy.js'")
-    && fs.readFileSync(path.join(root, 'js/light-page-view-hooks.js'), 'utf8')
+    && readRepositorySource('js/light-page-view-hooks.js', 'utf8')
       .includes("from './settings-privacy.js'"));
 
 const displayBlock = matchBlock(

@@ -1,23 +1,15 @@
 #!/usr/bin/env node
+import { readRepositorySource } from './helpers/repository-source.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Light channel view delegated-action and dependency wiring guards.
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, '..');
-const src = fs.readFileSync(path.join(root, 'js/light-channel-view.js'), 'utf8');
-const hooksSrc = fs.readFileSync(path.join(root, 'js/light-channel-view-hooks.js'), 'utf8');
-const uiHooksSrc = fs.readFileSync(path.join(root, 'js/light-channel-view-ui-hooks.js'), 'utf8');
-const lightSunModulesSrc = fs.readFileSync(path.join(root, 'js/app-light-sun-modules.js'), 'utf8');
-const uiShellModulesSrc = fs.readFileSync(path.join(root, 'js/app-ui-shell-modules.js'), 'utf8');
-const swSrc = readServiceWorkerSource(relative => fs.readFileSync(path.join(root, relative), 'utf8'));
-
-
-
+const src = readRepositorySource('js/light-channel-view.js', 'utf8');
+const hooksSrc = readRepositorySource('js/light-channel-view-hooks.js', 'utf8');
+const uiHooksSrc = readRepositorySource('js/light-channel-view-ui-hooks.js', 'utf8');
+const lightSunModulesSrc = readRepositorySource('js/app-light-sun-modules.js', 'utf8');
+const uiShellModulesSrc = readRepositorySource('js/app-ui-shell-modules.js', 'utf8');
+const swSrc = readServiceWorkerSource(relative => readRepositorySource(relative, 'utf8'));
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 

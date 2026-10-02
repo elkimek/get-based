@@ -1,22 +1,14 @@
 #!/usr/bin/env node
+import { readRepositorySource } from './helpers/repository-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static client-list delegated-action source guards.
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, '..');
-const clientListImplSrc = fs.readFileSync(path.join(root, 'js/client-list-impl.js'), 'utf8');
-const clientListFormSrc = fs.readFileSync(path.join(root, 'js/client-list-form.js'), 'utf8');
+const clientListImplSrc = readRepositorySource('js/client-list-impl.js', 'utf8');
+const clientListFormSrc = readRepositorySource('js/client-list-form.js', 'utf8');
 const clientListSrc = `${clientListImplSrc}\n${clientListFormSrc}`;
-const profileSrc = fs.readFileSync(path.join(root, 'js/profile.js'), 'utf8');
+const profileSrc = readRepositorySource('js/profile.js', 'utf8');
 const clientListUsesScrollLockedOverlay = /openModalOverlay\s*\(\s*overlay\s*,\s*\{\s*initialFocus:\s*['"]#cl-search['"]\s*,\s*scrollLock:\s*true\s*,?\s*\}\s*\)/s.test(clientListSrc);
 const clientListClosesOverlay = /closeModalOverlay\s*\(\s*['"]client-list-overlay['"]\s*\)/.test(clientListSrc);
-
-
-
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 

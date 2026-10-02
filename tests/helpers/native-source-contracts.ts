@@ -106,3 +106,30 @@ export function sourceCallsNamespacedActionAttributes(source: string, namespace:
   visit(file);
   return found;
 }
+
+/** Match a synchronous listener's bound callback statement inside its owning function. */
+export function sourceFunctionHasEventListenerStatement(
+  source: string, name: string, receiver: string, event: string, parameter: string, statement: string,
+) {
+  const scope = body(parse(source), name), expected = parse(statement)?.statements[0];
+  if (!scope || !expected) return false;
+  let found = false;
+  const visit = (node: ts.Node) => {
+    if (ts.isFunctionLike(node)) return;
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
+      && ts.isIdentifier(node.expression.expression) && node.expression.expression.text === receiver
+      && node.expression.name.text === 'addEventListener') {
+      const [type, callback] = node.arguments;
+      if (type && ts.isStringLiteral(type) && type.text === event && callback
+        && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback)) && ts.isBlock(callback.body)
+        && !callback.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.AsyncKeyword)
+        && callback.parameters.length === 1 && callback.parameters[0]
+        && ts.isIdentifier(callback.parameters[0].name) && callback.parameters[0].name.text === parameter
+        && !callback.parameters[0].initializer && !callback.parameters[0].dotDotDotToken
+        && callback.body.statements.some(item => matches(item, expected))) found = true;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(scope);
+  return found;
+}

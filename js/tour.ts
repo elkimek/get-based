@@ -1,13 +1,18 @@
-// @ts-check
 // tour.js — Generic spotlight tour engine + app tours + cycle tour
 
 import { state } from './state.js';
+
+type TourPosition = 'center' | 'bottom' | 'top' | 'right' | 'left';
+interface TourStep { target: string | null; title: string; text: string; position: TourPosition }
+interface ActiveTour { steps: TourStep[]; storageKey: string; currentStep: number }
+type TourActionTarget = EventTarget & { closest?: (selector: string) => HTMLElement | null };
+
 import { profileStorageKey } from './profile.js';
 import { isStartupNudgeBlocked } from './utils.js';
 import { camelCaseActionAttributes } from './action-attributes.js';
 import { getTourComputedStyle, getTourViewportSize, openTourChatPanel, scheduleTourTask } from './tour-runtime.js';
 
-const EMPTY_TOUR_STEPS = [
+const EMPTY_TOUR_STEPS: TourStep[] = [
   { target: null, title: 'Welcome to getbased', text: 'This quick tour is for a fresh profile. After the tour, guided chat will help you decide what to add first.', position: 'center' },
   { target: '.welcome-primary-panel', title: 'Start Guided Chat', text: 'Chat is the main path for new profiles. It asks for context only when useful and routes you to import or setup when needed.', position: 'bottom' },
   { target: '.demo-cards', title: 'Try a Populated Profile', text: 'Demo profiles show the full dashboard without adding your own data.', position: 'top' },
@@ -15,7 +20,7 @@ const EMPTY_TOUR_STEPS = [
   { target: '.settings-btn', title: 'Settings & Connections', text: 'Configure privacy, AI providers, wearables, sync, and data controls here.', position: 'bottom' },
 ];
 
-const TOUR_STEPS = [
+const TOUR_STEPS: TourStep[] = [
   { target: null, title: 'Welcome to getbased', text: 'Health intelligence that\'s actually yours \u2014 five lenses on your biology, one private dashboard. Let\'s take a quick look around.', position: 'center' },
   { target: '.header-import-btn, #drop-zone', title: 'Import Health Data', text: 'Import lab PDFs, report photos, DNA raw data, or getbased JSON. You can also drop files directly onto the page.', position: 'bottom' },
   { target: '.profile-compact-btn', title: 'Profiles & Demo Data', text: 'Switch profiles, manage clients, or load demo data from here. Each profile keeps its own data, settings, and tour progress.', position: 'bottom' },
@@ -27,7 +32,7 @@ const TOUR_STEPS = [
   { target: '#chat-fab, #chat-panel.open', title: 'Ask AI', text: 'Use chat for guided interpretation, import setup, and follow-up questions. It uses the current profile context when an AI provider is connected.', position: 'left' },
 ];
 
-const CYCLE_TOUR_STEPS = [
+const CYCLE_TOUR_STEPS: TourStep[] = [
   { target: null, title: 'Cycle-Aware Lab Interpretation', text: 'getbased tracks your menstrual cycle so AI can interpret hormones, iron, and inflammation in the right context. Here\u2019s what\u2019s available.', position: 'center' },
   { target: '.cycle-summary-card', title: 'Your Cycle at a Glance', text: 'Cycle length, regularity, flow, and contraceptive info \u2014 auto-calculated from your period log when possible.', position: 'bottom' },
   { target: '.cycle-draw-date', title: 'Optimal Blood Draw Timing', text: 'Get recommendations for when to schedule blood work \u2014 early follicular phase (days 3\u20135) gives the most stable baseline.', position: 'bottom' },
@@ -47,24 +52,24 @@ const CYCLE_SURFACE_TARGETS = [
 ];
 
 // Active tour state
-let activeTour = null;
+let activeTour: ActiveTour | null = null;
 
 const TOUR_ACTION_ATTR = 'data-tour-action';
 const TOUR_ACTION_SELECTOR = `[${TOUR_ACTION_ATTR}]`;
 
-function tourActionAttrs(action, attrs = {}) {
+function tourActionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
   return camelCaseActionAttributes(TOUR_ACTION_ATTR, "tour", action, attrs);
 }
 
-function closestTourAction(target) {
-  return /** @type {HTMLElement | null} */ (
+function closestTourAction(target: TourActionTarget | null) {
+  return (
     target && typeof target.closest === 'function'
       ? target.closest(TOUR_ACTION_SELECTOR)
       : null
   );
 }
 
-function handleTourActionClick(event) {
+function handleTourActionClick(event: Event) {
   const actionEl = closestTourAction(event.target);
   if (!actionEl) return;
   const action = actionEl.getAttribute(TOUR_ACTION_ATTR);
@@ -80,11 +85,11 @@ function handleTourActionClick(event) {
   event.preventDefault();
 }
 
-function profileKey(suffix) {
+function profileKey(suffix: string) {
   return profileStorageKey(state.currentProfile, suffix);
 }
 
-function isTourCompleted(storageKey) {
+function isTourCompleted(storageKey: string) {
   const stored = localStorage.getItem(storageKey);
   if (stored === 'completed') return true;
   // Older encrypted installs could leave UI-only tour flags as ciphertext.
@@ -100,14 +105,14 @@ function isTourCompleted(storageKey) {
 
 function _isActiveProfileDemo() {
   try {
-    const profiles = JSON.parse(localStorage.getItem('labcharts-profiles') || '[]');
+    const profiles = JSON.parse(localStorage.getItem('labcharts-profiles') || '[]') as Array<{ id?: unknown; tags?: unknown }>;
     const activeId = localStorage.getItem('labcharts-active-profile');
     const active = profiles.find(p => p.id === activeId);
     return Array.isArray(active?.tags) && active.tags.includes('demo');
   } catch (_) { return false; }
 }
 
-function isTourTargetVisible(el) {
+function isTourTargetVisible(el: Element | null) {
   if (!el) return false;
   const rect = el.getBoundingClientRect();
   const style = getTourComputedStyle(el);
@@ -121,7 +126,7 @@ function isTourTargetVisible(el) {
     style.opacity !== '0';
 }
 
-function getTourTargetElement(target) {
+function getTourTargetElement(target: string | null) {
   if (!target) return null;
   try {
     return Array.from(document.querySelectorAll(target)).find(isTourTargetVisible) || null;
@@ -130,11 +135,11 @@ function getTourTargetElement(target) {
   }
 }
 
-function isStartupTourKey(storageKey) {
+function isStartupTourKey(storageKey: string) {
   return storageKey === profileKey('emptyTour') || storageKey === profileKey('tour');
 }
 
-function runTour(steps, storageKey, auto) {
+function runTour(steps: TourStep[], storageKey: string, auto: boolean | undefined) {
   if (document.getElementById('legal-consent-overlay')) return false;
   if (auto && document.querySelector('.modal-overlay.show')) return false;
   if (auto && isStartupTourKey(storageKey) && isStartupNudgeBlocked()) return false;
@@ -184,12 +189,12 @@ function runTour(steps, storageKey, auto) {
   return true;
 }
 
-function goToStep(index) {
+function goToStep(index: number) {
   if (!activeTour) return;
   const steps = activeTour.steps;
   if (!Number.isInteger(index) || index < 0 || index >= steps.length) return;
   activeTour.currentStep = index;
-  const step = steps[index];
+  const step = steps[index]!;
   const spotlight = document.getElementById('tour-spotlight');
   const tooltip = document.getElementById('tour-tooltip');
   if (!spotlight || !tooltip) return;
@@ -255,7 +260,7 @@ function goToStep(index) {
   requestAnimationFrame(positionTargetStep);
 }
 
-function positionTooltip(rect, position) {
+function positionTooltip(rect: DOMRect, position: TourPosition) {
   const tooltip = document.getElementById('tour-tooltip');
   if (!tooltip) return;
   const gap = 12;
@@ -302,30 +307,30 @@ function positionTooltip(rect, position) {
   tooltip.style.top = top + 'px';
 }
 
-export function startEmptyTour(auto) {
+export function startEmptyTour(auto?: boolean) {
   return runTour(EMPTY_TOUR_STEPS, profileKey('emptyTour'), auto);
 }
 
-export function startTour(auto) {
+export function startTour(auto?: boolean) {
   return runTour(TOUR_STEPS, profileKey('tour'), auto);
 }
 
-export function startGuidedTour(auto) {
+export function startGuidedTour(auto?: boolean) {
   return getTourTargetElement('.welcome-primary-panel')
     ? startEmptyTour(auto)
     : startTour(auto);
 }
 
-export function startCycleTour(auto) {
+export function startCycleTour(auto?: boolean) {
   if (!CYCLE_SURFACE_TARGETS.some(target => getTourTargetElement(target))) return false;
   return runTour(CYCLE_TOUR_STEPS, profileKey('cycleTour'), auto);
 }
 
-export function goToTourStep(index) {
+export function goToTourStep(index: number) {
   goToStep(index);
 }
 
-export function endTour({ openEmptyChat = true } = {}) {
+export function endTour({ openEmptyChat = true }: { openEmptyChat?: boolean } = {}) {
   const shouldOpenEmptyChat = openEmptyChat && activeTour?.storageKey === profileKey('emptyTour') &&
     !state.importedData?.entries?.length &&
     state.chatHistory.length === 0;

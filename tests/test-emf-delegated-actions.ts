@@ -1,24 +1,16 @@
 #!/usr/bin/env node
+import { readRepositorySource } from './helpers/repository-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static EMF delegated-action source guards.
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, '..');
-const emfSrc = fs.readFileSync(path.join(root, 'js/emf.js'), 'utf8');
-const emfEditorSrc = fs.readFileSync(path.join(root, 'js/emf-editor.js'), 'utf8');
-const emfRuntimeSrc = fs.readFileSync(path.join(root, 'js/emf-runtime.js'), 'utf8');
-const emfInterpretationSrc = fs.readFileSync(path.join(root, 'js/emf-interpretation.js'), 'utf8');
-
-
-
+const emfSrc = readRepositorySource('js/emf.js', 'utf8');
+const emfEditorSrc = readRepositorySource('js/emf-editor.js', 'utf8');
+const emfRuntimeSrc = readRepositorySource('js/emf-runtime.js', 'utf8');
+const emfInterpretationSrc = readRepositorySource('js/emf-interpretation.js', 'utf8');
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
-function section(source, start, end) {
+function section(source: string, start: string, end: string) {
   const startIdx = source.indexOf(start);
   const endIdx = source.indexOf(end, startIdx);
   return startIdx >= 0 && endIdx > startIdx ? source.slice(startIdx, endIdx) : '';
@@ -27,7 +19,7 @@ function section(source, start, end) {
 const editorSrc = section(emfEditorSrc, 'export const emfEditorState', 'export function showEMFImportPreview(parsed)');
 const importPreviewSrc = section(emfEditorSrc, 'export function showEMFImportPreview(parsed)', 'function renderComparisonView(sorted)');
 const compareSrc = section(emfEditorSrc, 'function renderComparisonView(sorted)', 'return html;\n}');
-function interpretationSection(start, end) {
+function interpretationSection(start: string, end: string) {
   const startIdx = emfInterpretationSrc.indexOf(start);
   const endIdx = emfInterpretationSrc.indexOf(end, startIdx);
   return startIdx >= 0 && endIdx > startIdx ? emfInterpretationSrc.slice(startIdx, endIdx) : '';

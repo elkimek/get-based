@@ -1,24 +1,16 @@
 #!/usr/bin/env node
+import { readRepositorySource } from './helpers/repository-source.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static provider panel delegated-action source guards.
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, '..');
-const renderSrc = fs.readFileSync(path.join(root, 'js/provider-panel-renderers.js'), 'utf8');
-const renderRuntimeSrc = fs.readFileSync(path.join(root, 'js/provider-panel-renderers-runtime.js'), 'utf8');
-const modelControlsSrc = fs.readFileSync(path.join(root, 'js/provider-model-controls.js'), 'utf8');
-const delegatesSrc = fs.readFileSync(path.join(root, 'js/provider-panel-delegates.js'), 'utf8');
-const panelsSrc = fs.readFileSync(path.join(root, 'js/provider-panels.js'), 'utf8');
-const ppqSrc = fs.readFileSync(path.join(root, 'js/provider-ppq-panels.js'), 'utf8');
-const swSrc = readServiceWorkerSource(relative => fs.readFileSync(path.join(root, relative), 'utf8'));
-
-
-
+const renderSrc = readRepositorySource('js/provider-panel-renderers.js', 'utf8');
+const renderRuntimeSrc = readRepositorySource('js/provider-panel-renderers-runtime.js', 'utf8');
+const modelControlsSrc = readRepositorySource('js/provider-model-controls.js', 'utf8');
+const delegatesSrc = readRepositorySource('js/provider-panel-delegates.js', 'utf8');
+const panelsSrc = readRepositorySource('js/provider-panels.js', 'utf8');
+const ppqSrc = readRepositorySource('js/provider-ppq-panels.js', 'utf8');
+const swSrc = readServiceWorkerSource(relative => readRepositorySource(relative, 'utf8'));
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
