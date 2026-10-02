@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { OAuthError } from '../js/wearable-oauth-types.js';
+import type { WearableProfileMutation } from '../js/wearable-persistence-types.js';
 
 const realFetch = globalThis.fetch;
 
@@ -21,7 +23,7 @@ function credentialVaultModule(overrides = {}) {
       'oura', 'whoop', 'withings', 'ultrahuman', 'fitbit', 'google_health', 'polar',
     ].includes(adapterId)),
     wearableCredentialDisconnectedError: vi.fn((displayName = 'Wearable') => {
-      const error = new Error(`${displayName} is disconnected.`);
+      const error: OAuthError = new Error(`${displayName} is disconnected.`);
       error.code = 'disconnected';
       return error;
     }),
@@ -106,7 +108,7 @@ describe('wearable disconnect deletion failures', () => {
     const { backfillWearable, disconnectWearable, getConnection } = await import('../js/wearables-connect.js');
 
     let releaseBlocker = () => {};
-    const blockerGate = new Promise(resolve => { releaseBlocker = resolve; });
+    const blockerGate = new Promise<void>(resolve => { releaseBlocker = resolve; });
     let blockerStarted = false;
     const blocker = withGoogleHealthRefreshLock(async () => {
       blockerStarted = true;
@@ -192,7 +194,7 @@ describe('wearable disconnect deletion failures', () => {
     const { backfillWearable, disconnectWearable, getConnection } = await import('../js/wearables-connect.js');
 
     let releaseBlocker = () => {};
-    const blockerGate = new Promise(resolve => { releaseBlocker = resolve; });
+    const blockerGate = new Promise<void>(resolve => { releaseBlocker = resolve; });
     let blockerStarted = false;
     const blocker = withGoogleHealthLifecycleLock(async () => {
       blockerStarted = true;
@@ -219,7 +221,7 @@ describe('wearable disconnect deletion failures', () => {
     const profileB = 'google-health-profile-b';
     let activeProfileId = profileA;
     let releaseDelete = () => {};
-    const deleteGate = new Promise(resolve => { releaseDelete = resolve; });
+    const deleteGate = new Promise<void>(resolve => { releaseDelete = resolve; });
     const deleteWearableCredentials = vi.fn(async () => {
       await deleteGate;
       return 1;
@@ -251,7 +253,7 @@ describe('wearable disconnect deletion failures', () => {
       wearableSummary: { sources: { oura: { coverageDays: 1 } }, metrics: {} },
       changeHistory: [{ field: 'exercise', date: '2026-08-01' }],
     };
-    const state = { currentProfile: profileA, importedData: importedA };
+    const state: { currentProfile: string; importedData: WearableProfileMutation } = { currentProfile: profileA, importedData: importedA };
 
     vi.doMock('../js/state.js', () => ({ state }));
     vi.doMock('../js/profile.js', () => ({ getActiveProfileId: () => activeProfileId }));
@@ -285,7 +287,7 @@ describe('wearable disconnect deletion failures', () => {
 
     expect(importedA.wearableConnections.google_health).toBeUndefined();
     expect(importedA.changeHistory).toEqual([]);
-    expect(importedA._deleted.changeHistory).toHaveLength(1);
+    expect((importedA as WearableProfileMutation)._deleted!.changeHistory).toHaveLength(1);
     expect(importedA.wearableSummary).toBeUndefined();
     expect(importedB).toEqual({
       wearableConnections: {
@@ -379,7 +381,7 @@ describe('wearable disconnect deletion failures', () => {
 
     expect(state.importedData.wearableConnections.google_health).toBeUndefined();
     expect(state.importedData.changeHistory).toEqual([]);
-    expect(state.importedData._deleted.changeHistory).toHaveLength(1);
+    expect((state.importedData as WearableProfileMutation)._deleted!.changeHistory).toHaveLength(1);
     expect(state.importedData.wearableSummary).toBeUndefined();
     expect(saveImportedDataForProfile).toHaveBeenLastCalledWith(profileId, state.importedData);
     expect(deleteMeta).toHaveBeenCalledWith(profileId, pendingKey);

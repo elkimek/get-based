@@ -1,4 +1,14 @@
-// @ts-check
+interface BrandAsset {
+  mode: 'fallback' | 'branded' | 'official';
+  mono: string;
+  iconLight?: string;
+  iconDark?: string;
+  signInLight?: string;
+  signInDark?: string;
+  brandColor?: string;
+  selfBackground?: boolean;
+}
+
 
 // brand-assets.js — Wearable vendor brand asset registry.
 //
@@ -43,7 +53,7 @@ const BASE = '/brands';
 //                          like the landing site / branded pill render).
 //   mono                — last-resort silhouette via CSS mask, used only
 //                          when no themed icon is registered.
-export const BRAND_ASSETS = {
+export const BRAND_ASSETS: Record<string, BrandAsset> = {
   oura: {
     // Fixed-fill variants — <img> tags don't propagate currentColor from
     // CSS, so the source `wordmark.svg` (currentColor) renders invisible
@@ -115,7 +125,7 @@ export const BRAND_ASSETS = {
   },
 };
 
-export function brandAsset(adapterId) {
+export function brandAsset(adapterId: string) {
   return BRAND_ASSETS[adapterId] || null;
 }
 
@@ -126,7 +136,7 @@ export function brandAsset(adapterId) {
 //   2. Otherwise fall back to mono mask (form-factor placeholder glyph) so
 //      the silhouette inherits parent text colour. Used for vendors where
 //      we don't have a small-format brand logo yet.
-export function brandMarkMono(adapterId, { size = 18 } = {}) {
+export function brandMarkMono(adapterId: string, { size = 18 } = {}) {
   const a = brandAsset(adapterId);
   if (!a) return '';
   // Theme-aware logo asset — preferred when registered.
@@ -143,18 +153,18 @@ export function brandMarkMono(adapterId, { size = 18 } = {}) {
 
 // Whether this vendor has an official sign-in graphic for the given theme.
 // Used to pick between an official-asset render and our generic pill.
-export function brandHasSignIn(adapterId, theme = 'dark') {
+export function brandHasSignIn(adapterId: string, theme = 'dark') {
   const a = brandAsset(adapterId);
   if (!a || a.mode !== 'official') return false;
   return theme === 'dark' ? !!a.signInLight : !!a.signInDark;
 }
 
-export function brandSignInUrl(adapterId, theme = 'dark') {
+export function brandSignInUrl(adapterId: string, theme = 'dark') {
   const a = brandAsset(adapterId);
   if (!a) return null;
   return theme === 'dark' ? a.signInLight : a.signInDark;
 }
 
-export function brandColor(adapterId) {
+export function brandColor(adapterId: string) {
   return brandAsset(adapterId)?.brandColor || null;
 }

@@ -1,4 +1,11 @@
-// @ts-check
+import type { WearableAdapter } from './wearable-adapters.js';
+import type { WearableConnection } from './wearable-persistence-types.js';
+import type { WearableConnectionSummary } from './wearables-summary-model.js';
+
+type AdapterGroup = ReturnType<typeof groupWearableAdapters<WearableAdapter>>[number];
+interface RowState { isPendingClient: boolean; isFileImport: boolean; isHostUnavailable: boolean | undefined }
+type ClosestEventTarget = EventTarget & Partial<Pick<Element, 'closest'>>;
+
 // wearables-settings-panel.js — Settings → Wearables integrations panel.
 // Keeps provider rows, connection actions, Apple Health import controls, and
 // manual-source management out of the dashboard strip renderer.
@@ -46,17 +53,17 @@ Disconnecting deletes this device's Google Health credentials, imported rows, an
 
 const HOSTED_WEARABLE_RELAY_ADAPTERS = new Set(['oura', 'withings', 'polar', 'fitbit']);
 
-export function requiresHostedWearableRelayConsent(adapterId, locationLike = globalThis.location) {
+export function requiresHostedWearableRelayConsent(adapterId: string, locationLike: Parameters<typeof isOfficialGetbasedHost>[0] = globalThis.location) {
   return isOfficialGetbasedHost(locationLike) && HOSTED_WEARABLE_RELAY_ADAPTERS.has(adapterId);
 }
 
-export function hostedWearableRelayDisclosure(providerName) {
+export function hostedWearableRelayDisclosure(providerName: string) {
   return `getbased s.r.o. uses its secure relay to connect ${providerName} and import the health readings you request. The relay can read those values while forwarding them, but does not intentionally store request or response contents.
 
 You can withdraw at any time by disconnecting ${providerName}, which stops future imports and removes this device's connection and imported ${providerName} data. Encrypted sync and cloud AI are separate choices.`;
 }
 
-function wearableSettingsActionAttrs(action, data = {}, opts = {}) {
+function wearableSettingsActionAttrs(action: string, data: Record<string, unknown> = {}, opts: { stopPropagation?: boolean } = {}) {
   const attrs = [`data-wearable-settings-action="${escapeAttr(action)}"`];
   for (const [key, value] of Object.entries(data)) {
     if (value != null && value !== '') attrs.push(`data-wearable-settings-${key}="${escapeAttr(String(value))}"`);
@@ -65,7 +72,7 @@ function wearableSettingsActionAttrs(action, data = {}, opts = {}) {
   return attrs.join(' ');
 }
 
-function wearableSettingsInputAttrs(input) {
+function wearableSettingsInputAttrs(input: string) {
   return `data-wearable-settings-input="${escapeAttr(input)}"`;
 }
 
@@ -73,10 +80,10 @@ function clickAppleHealthFileInput() {
   document.getElementById('apple-health-file-input')?.click();
 }
 
-function handleWearableSettingsClick(event) {
-  const target = event.target;
+function handleWearableSettingsClick(event: Event) {
+  const target = event.target as ClosestEventTarget | null;
   if (!target || typeof target.closest !== 'function') return;
-  const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-wearable-settings-action]'));
+  const actionEl = (target.closest('[data-wearable-settings-action]') as HTMLElement | null);
   if (!actionEl?.dataset) return;
 
   const action = actionEl.dataset.wearableSettingsAction || '';
@@ -96,7 +103,7 @@ function handleWearableSettingsClick(event) {
       break;
     case 'sync-now':
       event.preventDefault();
-      handleWearableSyncNow(adapterId, /** @type {HTMLButtonElement} */ (actionEl));
+      handleWearableSyncNow(adapterId, (actionEl as HTMLButtonElement));
       break;
     case 'backfill':
       event.preventDefault();
@@ -117,9 +124,9 @@ function handleWearableSettingsClick(event) {
   }
 }
 
-function handleWearableSettingsChange(event) {
-  const target = event.target;
-  const inputEl = /** @type {HTMLInputElement | null} */ (target);
+function handleWearableSettingsChange(event: Event) {
+  const target = event.target as ClosestEventTarget | null;
+  const inputEl = (target as HTMLInputElement | null);
   if (!inputEl?.dataset?.wearableSettingsInput) return;
 
   switch (inputEl.dataset.wearableSettingsInput) {
@@ -132,34 +139,34 @@ function handleWearableSettingsChange(event) {
   }
 }
 
-function appleHealthDropzoneFromEvent(event) {
-  const target = event.target;
+function appleHealthDropzoneFromEvent(event: Event) {
+  const target = event.target as ClosestEventTarget | null;
   if (!target || typeof target.closest !== 'function') return null;
-  return /** @type {HTMLElement | null} */ (target.closest('[data-wearable-settings-dropzone="apple-health"]'));
+  return (target.closest('[data-wearable-settings-dropzone="apple-health"]') as HTMLElement | null);
 }
 
-function handleWearableSettingsDragOver(event) {
+function handleWearableSettingsDragOver(event: Event) {
   const dropzone = appleHealthDropzoneFromEvent(event);
   if (!dropzone) return;
   event.preventDefault();
   dropzone.classList.add('drag-over');
 }
 
-function handleWearableSettingsDragLeave(event) {
+function handleWearableSettingsDragLeave(event: Event) {
   const dropzone = appleHealthDropzoneFromEvent(event);
   if (!dropzone) return;
   dropzone.classList.remove('drag-over');
 }
 
-function handleWearableSettingsDrop(event) {
+function handleWearableSettingsDrop(event: Event) {
   const dropzone = appleHealthDropzoneFromEvent(event);
   if (!dropzone) return;
   event.preventDefault();
   dropzone.classList.remove('drag-over');
-  handleAppleHealthDrop(/** @type {DragEvent} */ (event));
+  handleAppleHealthDrop((event as DragEvent));
 }
 
-export function installWearableSettingsDelegates(root = typeof document !== 'undefined' ? document : null) {
+export function installWearableSettingsDelegates(root: Document | HTMLElement | null = typeof document !== 'undefined' ? document : null) {
   if (!root || wearableSettingsDelegatesInstalled) return;
   wearableSettingsDelegatesInstalled = true;
   // Capture is required for action buttons nested inside <summary>; stopping
@@ -171,9 +178,9 @@ export function installWearableSettingsDelegates(root = typeof document !== 'und
   root.addEventListener('drop', handleWearableSettingsDrop);
 }
 
-function formatAgo(ts) {
+function formatAgo(ts: unknown) {
   if (!ts) return 'Not synced yet';
-  const mins = Math.max(0, Math.round((Date.now() - ts) / 60000));
+  const mins = Math.max(0, Math.round((Date.now() - (ts as number)) / 60000));
   if (mins < 1) return 'Just now';
   if (mins === 1) return '1 minute ago';
   if (mins < 60) return `${mins} minutes ago`;
@@ -195,7 +202,7 @@ export function isWearableStripHidden() {
   return localStorage.getItem(_wearableStripHiddenKey()) === '1';
 }
 
-export function setWearableStripHidden(hidden) {
+export function setWearableStripHidden(hidden: boolean) {
   const key = _wearableStripHiddenKey();
   if (hidden) localStorage.setItem(key, '1');
   else localStorage.removeItem(key);
@@ -207,7 +214,7 @@ export function setWearableStripHidden(hidden) {
 // placeholder marks (form-factor only, no trademarks); Phase 2b drops
 // official kits in per vendor and the render code picks them up
 // automatically via brandHasSignIn / brandSignInUrl.
-function vendorIcon(adapterId, opts = {}) {
+function vendorIcon(adapterId: string, opts: { size?: number } = {}) {
   const mark = brandMarkMono(adapterId, opts);
   if (!mark) return '';
   return `<span class="wearable-vendor-icon" aria-hidden="true">${mark}</span>`;
@@ -239,7 +246,7 @@ export function renderWearablesSettingsSection() {
   <div class="wearables-adapter-groups">${groupMarkup}</div>`;
 }
 
-function connectedAdapterNeedsAttention(adapter) {
+function connectedAdapterNeedsAttention(adapter: WearableAdapter) {
   const connection = getConnection(adapter.id);
   return adapter.legacyMigrationOnly
     || connection?.needsReauth
@@ -247,7 +254,7 @@ function connectedAdapterNeedsAttention(adapter) {
     || (adapter.hostConfiguredOnly && !isOAuthAdapterConfigured(adapter));
 }
 
-function renderAdapterGroup(group, connected) {
+function renderAdapterGroup(group: AdapterGroup, connected: Readonly<Record<string, WearableConnectionSummary>>) {
   const headingId = `wearables-group-${group.id}`;
   const rows = group.items.map(adapter => renderAdapterRow(adapter, !!connected[adapter.id])).join('');
   return `<section class="wearables-adapter-group" data-wearable-group="${escapeAttr(group.id)}" aria-labelledby="${headingId}">
@@ -263,7 +270,7 @@ function renderAdapterGroup(group, connected) {
 //   [icon] [name] [status]                   [right-aligned action]
 // Connected adapters expand a details drawer below the row (identity, last
 // sync, manage actions). Apple Health expands its export instructions.
-function renderAdapterRow(adapter, isConnected) {
+function renderAdapterRow(adapter: WearableAdapter, isConnected: boolean) {
   const conn = isConnected ? getConnection(adapter.id) : null;
   const isOAuth = adapter.authType === 'oauth2';
   const isRelayUnavailable = isWearableRelayUnavailable(adapter);
@@ -350,7 +357,7 @@ function renderAdapterRow(adapter, isConnected) {
 // row doesn't read "Oura Oura connected · 5h ago". Polar is excluded —
 // currently using the monochrome fallback glyph, not the wordmark, until the
 // AccessLink written-consent ticket lands. See brands/polar/LICENSE.md.
-function brandIconIsWordmark(adapterId) {
+function brandIconIsWordmark(adapterId: string) {
   return new Set(['oura', 'ultrahuman', 'withings']).has(adapterId);
 }
 
@@ -358,7 +365,7 @@ function brandIconIsWordmark(adapterId) {
 // identity sits on the LEFT side of the row (via vendorIcon's monochrome
 // mark using each vendor's actual logo silhouette). The right side is
 // uniform action language: Connect / Reconnect / Import / docs link / chevron.
-function renderRowAction(adapter, conn, { isPendingClient, isFileImport, isHostUnavailable }) {
+function renderRowAction(adapter: WearableAdapter, conn: WearableConnection | null, { isPendingClient, isFileImport, isHostUnavailable }: RowState) {
   if (conn && adapter.legacyMigrationOnly) {
     return `<span class="wearable-row-chevron" aria-hidden="true">▾</span>`;
   }
@@ -383,7 +390,7 @@ function renderRowAction(adapter, conn, { isPendingClient, isFileImport, isHostU
   return '';
 }
 
-function renderRowDetail(adapter, conn, { isPendingClient, isFileImport, isHostUnavailable }) {
+function renderRowDetail(adapter: WearableAdapter, conn: WearableConnection | null, { isPendingClient, isFileImport, isHostUnavailable }: RowState) {
   const privacyNotice = adapter.privacyNotice
     ? `<p class="wearable-adapter-hint wearable-adapter-privacy">${escapeHTML(adapter.privacyNotice)}</p>`
     : '';
@@ -391,7 +398,7 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport, isHostU
     ? `<p class="wearable-adapter-hint wearable-adapter-privacy">${escapeHTML(adapter.deprecationNotice || 'This connection must be migrated.')}</p>`
     : '';
   if (conn && adapter.legacyMigrationOnly) {
-    const acct = conn.account || {};
+    const acct = (conn.account || {}) as Record<string, unknown>;
     const identity = escapeHTML(acct.email || acct.identity || 'Legacy Fitbit account');
     const replacementId = adapter.replacementAdapterId || 'google_health';
     const replacement = adapterById(replacementId);
@@ -410,7 +417,7 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport, isHostU
   // A connection created before the host disabled its integration remains
   // removable/revocable, but it must not offer sync, backfill, or reconnect.
   if (conn && isHostUnavailable) {
-    const acct = conn.account || {};
+    const acct = (conn.account || {}) as Record<string, unknown>;
     const identity = escapeHTML(acct.identity || acct.email || `${adapter.displayName} account`);
     const manageAccess = adapter.manageAccessUrl
       ? `<a class="wearable-action" href="${escapeAttr(adapter.manageAccessUrl)}" target="_blank" rel="noopener">Revoke access everywhere&nbsp;↗</a>`
@@ -425,7 +432,7 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport, isHostU
   }
   // Connected OAuth — identity + manage actions
   if (conn && !conn.needsReauth && adapter.authType === 'oauth2') {
-    const acct = conn.account || {};
+    const acct = (conn.account || {}) as Record<string, unknown>;
     const updated = conn.lastSyncAt
       ? `Last updated ${formatAgo(conn.lastSyncAt).toLowerCase()}`
       : 'Waiting for the first update';
@@ -592,7 +599,7 @@ async function _updateManualCounts() {
       if (typeof r.bp_systolic === 'number' || typeof r.bp_diastolic === 'number') bpN++;
       if (typeof r.rhr === 'number') rhrN++;
     }
-    const parts = [];
+    const parts: string[] = [];
     if (weightN) parts.push(`${weightN} weight`);
     if (bpN) parts.push(`${bpN} blood pressure`);
     if (rhrN) parts.push(`${rhrN} pulse`);
@@ -635,7 +642,7 @@ document.addEventListener('settings:wearables-rendered', () => {
   void _refreshAfterWearableRuntimeConfig();
 });
 
-async function handleWearableConnect(adapterId) {
+async function handleWearableConnect(adapterId: string) {
   try {
     const initiatingProfileId = getActiveProfileId();
     await loadWearableRuntimeConfig({ waitForFetch: true });
@@ -679,18 +686,18 @@ async function handleWearableConnect(adapterId) {
   }
 }
 
-function handleAppleHealthDrop(e) {
+function handleAppleHealthDrop(e: DragEvent) {
   const file = e.dataTransfer?.files?.[0];
   if (file) importAppleHealthFlow(file);
 }
 
-function handleAppleHealthFilePick(input) {
+function handleAppleHealthFilePick(input: HTMLInputElement) {
   const file = input.files?.[0];
   if (file) importAppleHealthFlow(file);
   input.value = ''; // so picking the same file twice re-triggers
 }
 
-async function importAppleHealthFlow(file) {
+async function importAppleHealthFlow(file: File) {
   const { importAppleHealthFile } = await import('./wearables-apple-health.js');
   const bar = document.querySelector('.apple-health-progress-fill');
   const wrap = document.getElementById('apple-health-progress');
@@ -716,14 +723,14 @@ async function importAppleHealthFlow(file) {
   }
 }
 
-async function handleWearableSyncNow(adapterId, triggerEl) {
+async function handleWearableSyncNow(adapterId: string, triggerEl?: HTMLButtonElement | null) {
   const btn = triggerEl;
   btn?.classList.add('is-syncing');
   if (btn) btn.disabled = true;
   const name = adapterById(adapterId)?.displayName || adapterId;
   try {
     showNotification?.(`Checking ${name} for new readings…`, 'info', 1500);
-    const res = await syncNow(adapterId, { force: true });
+    const res = (await syncNow(adapterId, { force: true })) as { rows?: unknown };
     showNotification?.(`${name} is up to date. ${res.rows ?? 0} days checked.`, 'success', 2500);
     refreshSettingsWearables();
     navigateWearablesDashboard();
@@ -734,7 +741,7 @@ async function handleWearableSyncNow(adapterId, triggerEl) {
   }
 }
 
-async function handleWearableBackfill(adapterId) {
+async function handleWearableBackfill(adapterId: string) {
   const name = adapterById(adapterId)?.displayName || adapterId;
   try {
     showNotification?.(`Importing the last 90 days from ${name}…`, 'info', 2000);
@@ -748,7 +755,7 @@ async function handleWearableBackfill(adapterId) {
   }
 }
 
-async function handleWearableDisconnect(adapterId) {
+async function handleWearableDisconnect(adapterId: string) {
   const name = adapterById(adapterId)?.displayName || adapterId;
   if (await showConfirmDialog(`Disconnect ${name}? This stops future imports and removes this device's connection and imported ${name} data.`)) {
     const profileId = getActiveProfileId();

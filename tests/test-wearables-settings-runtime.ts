@@ -22,7 +22,7 @@ const runtimeKeys = ['window'];
 const restoreRuntime = captureRuntimeGlobals(runtimeKeys);
 
 try {
-  const calls = [];
+  const calls: string[][] = [];
   const previousSettingsBridge = configureSettingsModuleBridge({
     closeSettingsModal: () => calls.push(['close-settings']),
   });
@@ -44,7 +44,7 @@ try {
   assert('confirmWearableSettingsAction delegates to runtime confirm dialog',
     confirmed && calls.some(call => call[0] === 'confirm' && call[1] === 'confirm me'));
 
-  delete globalThis.window;
+  delete (globalThis as { window?: unknown }).window;
   configureSettingsModuleBridge({ closeSettingsModal: null });
   configureWearableSettingsRuntimeDeps({ navigate: null, showConfirmDialog: null });
   navigateWearablesDashboard();

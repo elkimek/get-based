@@ -1,4 +1,11 @@
-// @ts-check
+import type { AppleHealthProgressCallback } from './wearables-apple-health-parser.js';
+import type { AppleHealthZipReader } from './wearables-apple-health-runtime.js';
+
+interface AppleHealthImportOptions {
+  xmlBlob?: Blob | null;
+  beforeCycleReview?: () => unknown;
+}
+
 // wearables-apple-health.js — Apple Health XML import pipeline
 //
 // Apple's export format: a .zip containing `apple_health_export/export.xml`
@@ -38,7 +45,7 @@ import {
 // the file through TextDecoderStream so multi-GB exports don't hit V8's
 // ~512 MB max-string-length limit on file.text(). For zips: JSZip decompresses
 // to a Blob (bytes only, no JS string allocation) and we stream-decode that.
-export async function importAppleHealthFile(file, onProgress, options = {}) {
+export async function importAppleHealthFile(file: File | null | undefined, onProgress?: AppleHealthProgressCallback | null, options: AppleHealthImportOptions = {}) {
   if (!file) throw new Error('No file provided');
   onProgress?.({ stage: 'reading', pct: 0 });
 
@@ -69,12 +76,12 @@ export async function importAppleHealthFile(file, onProgress, options = {}) {
   onProgress?.({ stage: 'summarising', pct: 95 });
   // Fake a connection record so listConnectedSources picks up apple_health —
   // file-import adapters have no token / expiry, just a connectedAt stamp.
-  if (!state.importedData.wearableConnections) state.importedData.wearableConnections = {};
-  state.importedData.wearableConnections.apple_health = {
+  if (!state.importedData!.wearableConnections) state.importedData!.wearableConnections = {};
+  state.importedData!.wearableConnections.apple_health = {
     source: 'file-import',
     fileName: file.name,
     importedAt: new Date().toISOString(),
-    connectedAt: state.importedData.wearableConnections.apple_health?.connectedAt || new Date().toISOString(),
+    connectedAt: state.importedData!.wearableConnections.apple_health?.connectedAt || new Date().toISOString(),
     lastSyncAt: Date.now(),
     coverageDays: rows.length,
     needsReauth: false,
@@ -85,8 +92,8 @@ export async function importAppleHealthFile(file, onProgress, options = {}) {
   const { listConnectedSources } = await import('./wearables-connect.js');
   await syncWearableSummary(profileId, listConnectedSources());
 
-  let cycleImport = null;
-  let cycleError = null;
+  let cycleImport: Awaited<ReturnType<typeof showAppleHealthCyclePreviewRuntime>> = null;
+  let cycleError: string | null = null;
   try {
     onProgress?.({ stage: 'checking-cycle', pct: 96, rows: rows.length, startDate, endDate });
     const cycleParsed = await parseAppleHealthCycleRuntime(xmlBlob, file.name || 'apple-health-export.xml', () => {
@@ -110,12 +117,12 @@ export async function importAppleHealthFile(file, onProgress, options = {}) {
 // ZIP extraction
 // ─────────────────────────────────────────────────────────
 
-let _jszipLoad = null;
+let _jszipLoad: Promise<AppleHealthZipReader> | null = null;
 function loadJSZip() {
   const cachedJSZip = getAppleHealthJSZip();
   if (cachedJSZip) return Promise.resolve(cachedJSZip);
   if (_jszipLoad) return _jszipLoad;
-  _jszipLoad = new Promise((resolve, reject) => {
+  _jszipLoad = new Promise<AppleHealthZipReader>((resolve, reject) => {
     const s = document.createElement('script');
     s.src = '/vendor/jszip.min.js';
     s.onload = () => {
@@ -128,7 +135,7 @@ function loadJSZip() {
   return _jszipLoad;
 }
 
-async function extractExportXmlBlob(zipFile, onProgress) {
+async function extractExportXmlBlob(zipFile: Blob, onProgress?: AppleHealthProgressCallback | null) {
   const JSZip = await loadJSZip();
   const zip = await JSZip.loadAsync(zipFile, {
     // Progress for large exports — Apple zips can be 500 MB+ compressed.
@@ -136,7 +143,7 @@ async function extractExportXmlBlob(zipFile, onProgress) {
   });
   // Apple's path is canonical; we accept a few known variants just in case.
   const candidates = ['apple_health_export/export.xml', 'export.xml', 'apple_health_export/Export.xml'];
-  let entry = null;
+  let entry: Awaited<ReturnType<AppleHealthZipReader['loadAsync']>>['files'][string] | null = null;
   for (const p of candidates) {
     if (zip.files[p]) { entry = zip.files[p]; break; }
   }

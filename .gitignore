@@ -666,3 +666,7 @@ deploy/profile-share/data/
 /js/wearables-connect.js
 /js/wearables-manual.js
 /js/wearable-persistence-types.js
+/js/brand-assets.js
+/js/wearables-apple-health.js
+/js/wearables-settings-runtime.js
+/js/wearables-settings-panel.js
