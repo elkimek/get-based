@@ -51,7 +51,7 @@ const LEGACY_TESTS = [
   // Batch 1 — pure-logic ports from browser fixtures.
   './test-sun-spectrum.js',
   './test-lighting-hardware-caveats.js',
-  './test-markdown.js',
+  './test-markdown.ts',
   // Batch 2 — incremental ports.
   './test-data-merge.js',
   './test-security-phase1.js',
@@ -69,7 +69,7 @@ const LEGACY_TESTS = [
   // Batch 5 — module imports + source inspection.
   './test-pii.js',
   './test-schema.js',
-  './test-ai-verdict-engine-instance.js',
+  './test-ai-verdict-engine-instance.ts',
   './test-phase-ranges.js',
   // Batch 6 — more module imports + source inspection.
   './test-prelab.ts',

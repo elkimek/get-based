@@ -508,8 +508,8 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
     if (!scopeIsCurrent()) return;
     controller.signal.throwIfAborted();
     if (useCodexAgent && aiResult.model) {
-      _msgModelId = aiResult.model;
-      _msgModelDisplay = getAgentModelDisplay(aiResult.model, getCachedAgentModelCatalog(getAgentHostAgent(), _msgAgentTarget));
+      _msgModelId = (/** @type {Awaited<ReturnType<typeof callCodexAgent>>} */ (aiResult)).model;
+      _msgModelDisplay = getAgentModelDisplay((/** @type {Awaited<ReturnType<typeof callCodexAgent>>} */ (aiResult)).model, getCachedAgentModelCatalog(getAgentHostAgent(), _msgAgentTarget));
     }
     const fullText = aiResult.text;
     const usage = /** @type {{ inputTokens?: number, outputTokens?: number } | undefined} */ (aiResult.usage);
@@ -538,7 +538,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
     } else if (useCodexAgent) {
       const footnote = document.createElement('div');
       footnote.className = 'chat-cost-footnote';
-      const webTag = aiResult.webSearches?.length ? ' · 🌐 web' : '';
+      const webTag = (/** @type {Awaited<ReturnType<typeof callCodexAgent>>} */ (aiResult)).webSearches?.length ? ' · 🌐 web' : '';
       footnote.textContent = `${_msgModelDisplay} · CLI subscription${webTag}`;
       aiMsgEl.appendChild(footnote);
     }
@@ -565,7 +565,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
       assistantMsg.truncated = true;
       assistantMsg.finishReason = aiResult.finishReason || 'length';
     }
-    if (webSearchEnabled || (useCodexAgent && aiResult.webSearches?.length)) assistantMsg.webSearch = true;
+    if (webSearchEnabled || (useCodexAgent && (/** @type {Awaited<ReturnType<typeof callCodexAgent>>} */ (aiResult)).webSearches?.length)) assistantMsg.webSearch = true;
     if (_msgE2EE) { assistantMsg.e2ee = true; assistantMsg.attestation = getChatSendProviderAttestation(_msgProvider) || _msgAttestation || null; }
     attachLensSources(assistantMsg, _lensResultForMsg);
     if (usage && (usage.inputTokens || usage.outputTokens)) {

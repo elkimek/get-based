@@ -1,4 +1,3 @@
-// @ts-check
 // chat-nudge.js — Chat FAB nudge badge state
 
 import { state } from './state.js';
@@ -14,7 +13,7 @@ import { hasChatResponseBackend } from './chat-backend-selection.js';
  *   'context' — data imported, nudge to fill context cards
  *   null      — clear the nudge
  */
-export function setChatNudge(stage) {
+export function setChatNudge(stage: string | null | undefined) {
   const fab = document.getElementById('chat-fab');
   if (!fab) return;
   let badge = fab.querySelector('.chat-fab-badge');
@@ -44,7 +43,7 @@ export function dismissCurrentChatNudge() {
 /** Check state and show appropriate nudge if user hasn't dismissed it. */
 export function updateChatNudge() {
   const dismissed = localStorage.getItem(`labcharts-chat-nudge-dismissed-${state.currentProfile}`);
-  const hasData = state.importedData?.entries?.length > 0;
+  const hasData = state.importedData?.entries?.length! > 0;
   const currentP = getProfiles().find(p => p.id === state.currentProfile);
   const hasProfile = currentP?.name && currentP.name !== 'Default' && state.profileSex;
 
@@ -62,7 +61,7 @@ export function updateChatNudge() {
     const contextCardsDone = localStorage.getItem(`labcharts-onboard-context-cards-done-${state.currentProfile}`) === '1';
     const filledCards = ['diagnoses', 'diet', 'exercise', 'sleepRest', 'lightCircadian', 'stress', 'loveLife', 'environment', 'healthGoals']
       .filter(k => {
-        const v = state.importedData?.[k];
+        const v = (state.importedData as Record<string, unknown> | null | undefined)?.[k];
         return v && typeof v === 'object' && Object.values(v).some(f => f != null && f !== '' && !(Array.isArray(f) && f.length === 0));
       }).length;
     if (!contextCardsSkipped && !contextCardsDone && filledCards < 3 && dismissed !== 'context') setChatNudge('context');

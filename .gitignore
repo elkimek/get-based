@@ -674,3 +674,9 @@ deploy/profile-share/data/
 /js/dna-actions.js
 /js/ai-verdict-engine.js
 /js/ai-action-delegates.js
+/js/markdown.js
+/js/chat-continuation.js
+/js/chat-nudge.js
+/tests/_node-shim.js
+/tests/_vitest-setup.js
+/tests/helpers/node-browser-fixtures.js

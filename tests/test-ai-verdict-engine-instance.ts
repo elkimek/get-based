@@ -12,7 +12,7 @@
 import './_node-shim.js';
 
 let pass = 0, fail = 0;
-const assert = (n, c, d) => {
+const assert = (n: string, c: unknown, d?: unknown) => {
   if (c) { pass++; console.log(`  PASS: ${n}`); }
   else { fail++; console.log(`  FAIL: ${n}${d ? ' — ' + d : ''}`); }
 };
@@ -22,7 +22,7 @@ console.log('=== AI Verdict Engine Instance ===\n');
 const { createAIVerdict, dotPrefix, hashString } = await import('../js/ai-verdict-engine.js');
 
 const target = { id: 'tgt-1', payload: 'probe' };
-const engine = createAIVerdict({
+const engine = createAIVerdict<typeof target>({
   getId: (t) => t?.id,
   getFingerprint: (t) => hashString(JSON.stringify(t)),
   getTarget: (id) => id === target.id ? target : null,
@@ -34,9 +34,9 @@ const engine = createAIVerdict({
 });
 
 assert('engine.isAnalyzing returns false for fresh target',
-  engine.isAnalyzing(target) === false);
+  engine.isAnalyzing(target as unknown as string) === false);
 
-engine.refresh(target);
+engine.refresh(target as unknown as string);
 assert('engine.refresh ran without throwing', true);
 
 try { engine.maybeAfterFinish(target); } catch (_) {}

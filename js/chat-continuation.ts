@@ -1,7 +1,26 @@
-// @ts-check
 // chat-continuation.js - response limit detection and automatic continuation
 
 import { callClaudeAPI } from './api.js';
+import type { AIProviderRequestOptions } from './api.js';
+
+export interface ChatUsage { inputTokens?: number; outputTokens?: number }
+export interface ChatResponse {
+  text?: string;
+  usage?: ChatUsage;
+  truncated?: unknown;
+  finishReason?: unknown;
+  [field: string]: unknown;
+}
+export interface ChatContinuationResponse extends ChatResponse {
+  text: string;
+  usage: ChatUsage;
+  continued: number;
+  truncated: boolean;
+}
+export interface ChatContinuationOptions extends AIProviderRequestOptions {
+  provider?: string | undefined;
+}
+
 
 export const CHAT_RESPONSE_MAX_TOKENS = 16384;
 
@@ -12,7 +31,7 @@ export function responseLimitNote() {
   return '<div class="chat-stopped-note">[output limit reached - ask "continue" to finish]</div>';
 }
 
-export function isAIResponseTruncated(result) {
+export function isAIResponseTruncated(result: ChatResponse | null | undefined) {
   if (result?.truncated) return true;
   const reason = String(result?.finishReason || '').toLowerCase();
   return reason === 'length'
@@ -22,7 +41,7 @@ export function isAIResponseTruncated(result) {
     || reason.includes('max token');
 }
 
-export function isLikelyIncompleteResponse(text) {
+export function isLikelyIncompleteResponse(text: unknown) {
   const t = String(text || '').trim();
   if (t.length < 500 || t.endsWith('```')) return false;
   if (/[.!?)]$/.test(t)) return false;
@@ -35,19 +54,19 @@ export function isLikelyIncompleteResponse(text) {
   return false;
 }
 
-export function shouldAutoContinueResponse(result, text) {
+export function shouldAutoContinueResponse(result: ChatResponse | null | undefined, text: unknown) {
   return isAIResponseTruncated(result) || isLikelyIncompleteResponse(text);
 }
 
-function mergeAIUsage(total = {}, next = {}) {
+function mergeAIUsage(total: ChatUsage = {}, next: ChatUsage = {}) {
   return {
     inputTokens: (total.inputTokens || 0) + (next.inputTokens || 0),
     outputTokens: (total.outputTokens || 0) + (next.outputTokens || 0),
   };
 }
 
-export async function callChatAPIWithContinuation({ system, messages, maxTokens, signal, onStream, webSearch, provider, reasoningEffort }) {
-  let result = await callClaudeAPI({ system, messages, maxTokens, signal, onStream, webSearch, reasoningEffort }, provider);
+export async function callChatAPIWithContinuation({ system, messages, maxTokens, signal, onStream, webSearch, provider, reasoningEffort }: ChatContinuationOptions): Promise<ChatContinuationResponse> {
+  let result = await callClaudeAPI({ system, messages, maxTokens, signal, onStream, webSearch, reasoningEffort }, provider) as ChatResponse;
   let fullText = result.text || '';
   let usage = result.usage || {};
   let continued = 0;
@@ -70,7 +89,7 @@ export async function callChatAPIWithContinuation({ system, messages, maxTokens,
       },
       webSearch,
       reasoningEffort,
-    }, provider);
+    }, provider) as ChatResponse;
     fullText += result.text || '';
     usage = mergeAIUsage(usage, result.usage || {});
   }

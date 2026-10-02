@@ -13,8 +13,8 @@ import './_node-shim.js';
 const { applyInlineMarkdown, renderMarkdown } = await import('../js/markdown.js');
 
 let passed = 0, failed = 0;
-const fails = [];
-function assert(name, cond, detail) {
+const fails: string[] = [];
+function assert(name: string, cond: unknown, detail?: unknown) {
   if (cond) { passed++; console.log(`  PASS: ${name}`); }
   else { failed++; fails.push(name); console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
 }

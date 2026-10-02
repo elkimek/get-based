@@ -1,11 +1,10 @@
-// @ts-check
 // markdown.js — Markdown rendering for chat messages, focus card, EMF reports
 
 import { escapeHTML } from './utils.js';
 
 const MAX_BLOCKQUOTE_DEPTH = 8;
 
-function normalizeComparisonEntities(text) {
+function normalizeComparisonEntities(text: string) {
   return text
     .replace(/&(?:lt|#0*60|#x0*3c);/gi, '<')
     .replace(/&(?:gt|#0*62|#x0*3e);/gi, '>')
@@ -13,17 +12,16 @@ function normalizeComparisonEntities(text) {
     .replace(/&(?:ge|#0*8805|#x0*2265);/gi, '≥');
 }
 
-function safeMarkdownHref(url) {
+function safeMarkdownHref(url: string) {
   const candidate = url.trim();
   if (candidate !== url || /[\s\u007f]/.test(candidate)) return '#';
   if (!/^(?:https?:\/\/|mailto:)/i.test(candidate)) return '#';
   return candidate.replace(/"/g, '&quot;');
 }
 
-export function applyInlineMarkdown(text) {
-  /** @type {string[]} */
-  const protectedHtml = [];
-  const protect = html => {
+export function applyInlineMarkdown(text: unknown) {
+  const protectedHtml: string[] = [];
+  const protect = (html: string) => {
     const token = `\u0000gbmd:${protectedHtml.length}\u0000`;
     protectedHtml.push(html);
     return token;
@@ -51,8 +49,7 @@ export function applyInlineMarkdown(text) {
 
   // Resolve placeholders recursively so a protected link label can contain a
   // protected inline-code span without repeatedly rescanning the whole output.
-  /** @param {string} value @returns {string} */
-  function restoreProtected(value) {
+  function restoreProtected(value: string): string {
     return value.replace(/\u0000gbmd:(\d+)\u0000/g, (_, index) => {
       const protectedValue = protectedHtml[Number(index)];
       return protectedValue === undefined ? '' : restoreProtected(protectedValue);
@@ -61,25 +58,25 @@ export function applyInlineMarkdown(text) {
   return restoreProtected(html);
 }
 
-export function renderMarkdown(text) {
+export function renderMarkdown(text: unknown) {
   return renderMarkdownBlocks(String(text ?? ''), 0);
 }
 
-function renderMarkdownBlocks(text, blockquoteDepth) {
+function renderMarkdownBlocks(text: string, blockquoteDepth: number): string {
   const lines = text.split('\n');
-  const blocks = [];
+  const blocks: string[] = [];
   let i = 0;
 
   while (i < lines.length) {
-    const line = lines[i];
+    const line = lines[i]!;
 
     // Fenced code block
     if (line.trimStart().startsWith('```')) {
       const lang = line.trimStart().slice(3).trim();
-      const codeLines = [];
+      const codeLines: string[] = [];
       i++;
-      while (i < lines.length && !lines[i].trimStart().startsWith('```')) {
-        codeLines.push(lines[i]);
+      while (i < lines.length && !lines[i]!.trimStart().startsWith('```')) {
+        codeLines.push(lines[i]!);
         i++;
       }
       i++; // skip closing ```
@@ -104,17 +101,17 @@ function renderMarkdownBlocks(text, blockquoteDepth) {
     // Headings
     const headingMatch = line.match(/^(#{1,3})\s+(.+)/);
     if (headingMatch) {
-      const level = headingMatch[1].length;
-      blocks.push(`<div class="chat-h${level}">${applyInlineMarkdown(headingMatch[2])}</div>`);
+      const level = headingMatch[1]!.length;
+      blocks.push(`<div class="chat-h${level}">${applyInlineMarkdown(headingMatch[2]!)}</div>`);
       i++;
       continue;
     }
 
     // Blockquote (> lines)
     if (/^\s*>\s?/.test(line)) {
-      const quoteLines = [];
-      while (i < lines.length && /^\s*>\s?/.test(lines[i])) {
-        quoteLines.push(lines[i].replace(/^\s*>\s?/, ''));
+      const quoteLines: string[] = [];
+      while (i < lines.length && /^\s*>\s?/.test(lines[i]!)) {
+        quoteLines.push(lines[i]!.replace(/^\s*>\s?/, ''));
         i++;
       }
       let quoteText = quoteLines.join('\n');
@@ -126,12 +123,12 @@ function renderMarkdownBlocks(text, blockquoteDepth) {
     }
 
     // Table (pipe-delimited: | header | ... then |---| separator then | data | rows)
-    if (/^\s*\|.+\|/.test(line) && i + 1 < lines.length && /^\s*\|[\s:]*-+/.test(lines[i + 1])) {
+    if (/^\s*\|.+\|/.test(line) && i + 1 < lines.length && /^\s*\|[\s:]*-+/.test(lines[i + 1]!)) {
       const headerCells = line.split('|').slice(1, -1).map(c => applyInlineMarkdown(c.trim()));
       i += 2; // skip header + separator
-      const rows = [];
-      while (i < lines.length && /^\s*\|.+\|/.test(lines[i])) {
-        rows.push(lines[i].split('|').slice(1, -1).map(c => applyInlineMarkdown(c.trim())));
+      const rows: string[][] = [];
+      while (i < lines.length && /^\s*\|.+\|/.test(lines[i]!)) {
+        rows.push(lines[i]!.split('|').slice(1, -1).map(c => applyInlineMarkdown(c.trim())));
         i++;
       }
       let tableHtml = '<div class="chat-table-wrap"><table class="chat-table"><thead><tr>' + headerCells.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
@@ -143,9 +140,9 @@ function renderMarkdownBlocks(text, blockquoteDepth) {
 
     // Unordered list
     if (/^\s*[-*+]\s+/.test(line)) {
-      const items = [];
-      while (i < lines.length && /^\s*[-*+]\s+/.test(lines[i])) {
-        items.push(applyInlineMarkdown(lines[i].replace(/^\s*[-*+]\s+/, '')));
+      const items: string[] = [];
+      while (i < lines.length && /^\s*[-*+]\s+/.test(lines[i]!)) {
+        items.push(applyInlineMarkdown(lines[i]!.replace(/^\s*[-*+]\s+/, '')));
         i++;
       }
       blocks.push(`<ul class="chat-list">${items.map(it => `<li>${it}</li>`).join('')}</ul>`);
@@ -154,9 +151,9 @@ function renderMarkdownBlocks(text, blockquoteDepth) {
 
     // Ordered list
     if (/^\s*\d+[.)]\s+/.test(line)) {
-      const items = [];
-      while (i < lines.length && /^\s*\d+[.)]\s+/.test(lines[i])) {
-        items.push(applyInlineMarkdown(lines[i].replace(/^\s*\d+[.)]\s+/, '')));
+      const items: string[] = [];
+      while (i < lines.length && /^\s*\d+[.)]\s+/.test(lines[i]!)) {
+        items.push(applyInlineMarkdown(lines[i]!.replace(/^\s*\d+[.)]\s+/, '')));
         i++;
       }
       blocks.push(`<ol class="chat-list">${items.map(it => `<li>${it}</li>`).join('')}</ol>`);
@@ -170,16 +167,16 @@ function renderMarkdownBlocks(text, blockquoteDepth) {
     }
 
     // Paragraph — collect consecutive non-empty, non-special lines
-    const paraLines = [];
-    while (i < lines.length && lines[i].trim() !== '' &&
-      !lines[i].trimStart().startsWith('```') &&
-      !/^(#{1,3})\s+/.test(lines[i]) &&
-      !/^\s*>\s?/.test(lines[i]) &&
-      !/^\s*[-*+]\s+/.test(lines[i]) &&
-      !/^\s*\d+[.)]\s+/.test(lines[i]) &&
-      !/^(\s*[-*_]\s*){3,}$/.test(lines[i]) &&
-      !(/^\s*\|.+\|/.test(lines[i]) && i + 1 < lines.length && /^\s*\|[\s:]*-+/.test(lines[i + 1]))) {
-      paraLines.push(lines[i]);
+    const paraLines: string[] = [];
+    while (i < lines.length && lines[i]!.trim() !== '' &&
+      !lines[i]!.trimStart().startsWith('```') &&
+      !/^(#{1,3})\s+/.test(lines[i]!) &&
+      !/^\s*>\s?/.test(lines[i]!) &&
+      !/^\s*[-*+]\s+/.test(lines[i]!) &&
+      !/^\s*\d+[.)]\s+/.test(lines[i]!) &&
+      !/^(\s*[-*_]\s*){3,}$/.test(lines[i]!) &&
+      !(/^\s*\|.+\|/.test(lines[i]!) && i + 1 < lines.length && /^\s*\|[\s:]*-+/.test(lines[i + 1]!))) {
+      paraLines.push(lines[i]!);
       i++;
     }
     if (paraLines.length > 0) {

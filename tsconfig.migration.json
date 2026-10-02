@@ -34,7 +34,9 @@
     "bin/**/*.ts",
     "tests/helpers/**/*.ts",
     "tests/playwright/coverage-fixture.ts",
-    "tests/playwright/browser-script-runner.ts"
+    "tests/playwright/browser-script-runner.ts",
+    "tests/_node-shim.ts",
+    "tests/_vitest-setup.ts"
   ],
   "exclude": [
     "**/*.d.ts",
