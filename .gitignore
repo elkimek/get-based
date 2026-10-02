@@ -485,3 +485,7 @@ deploy/profile-share/data/
 
 /js/cashu-wallet-store.js
 /js/cashu-wallet-storage-types.js
+
+/js/base64.js
+/js/crypto.js
+/js/sync-payload-collectors.js

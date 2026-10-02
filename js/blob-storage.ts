@@ -72,7 +72,7 @@ export async function setBlob(key: string, value: unknown): Promise<void> {
   }));
 }
 
-export async function deleteBlob(key: string, options: { throwOnError?: boolean } = {}): Promise<void> {
+export async function deleteBlob(key: string, options: { throwOnError?: boolean | undefined } = {}): Promise<void> {
   if (!_idbAvailable) return;
   try {
     const db = await _openDB();

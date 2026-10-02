@@ -1,3 +1,5 @@
+import { _base64ToBytes } from './base64.js';
+export { _base64ToBytes };
 // sync-payload-codec.js - Pure gzip, base64, and parsing helpers for sync wire payloads.
 
 export interface ParsedSyncPayload {
@@ -45,13 +47,6 @@ export function _bytesToBase64(bytes: Uint8Array) {
     s += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
   }
   return btoa(s);
-}
-
-export function _base64ToBytes(b64: string) {
-  const s = atob(b64);
-  const out = new Uint8Array(s.length);
-  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
-  return out;
 }
 
 // 5 MB cap. Normal payloads are well under 1 MB, so this is already generous.

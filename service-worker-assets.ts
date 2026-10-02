@@ -407,6 +407,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/recommendations.js',
   '/js/recommendations-region.js',
   '/js/crypto.js',
+  '/js/base64.js',
   '/js/crypto-ui.js',
   '/js/data-wipe.js',
   '/js/backup-cycle.js',

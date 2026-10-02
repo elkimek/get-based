@@ -1,13 +1,8 @@
+import { bytesToBase64 } from './base64.js';
 import { _base64ToBytes as base64ToBytes } from './sync-payload-codec.js';
 // JSON encoding for structured-clone-only values contained in backups.
 
 const TYPED_ARRAY_MARKER = '__getbasedUint8Array';
-
-function bytesToBase64(bytes: Uint8Array) {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!);
-  return btoa(binary);
-}
 
 function legacyObjectToBytes(value: unknown) {
   if (!value || typeof value !== 'object' || value instanceof Uint8Array) return value;

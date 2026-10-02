@@ -1,3 +1,5 @@
+// The legacy envelope predicate returns its original falsy input before checking fields.
+export type EncryptedEnvelopeCheck = boolean | number | 0n | '' | null | undefined;
 // Persisted wearable rows keep opaque provider fields at the storage boundary.
 export interface DeviceLocalEnvelope {
   version: number;
@@ -15,7 +17,7 @@ export interface StoredWearableRow extends Record<string, unknown> {
 export interface WearablesStoreCryptoDeps {
   getEncryptionEnabled: () => boolean;
   encryptObject: (value: unknown) => Promise<PassphraseEnvelope | null>;
-  isEncryptedObject: (value: unknown) => boolean;
+  isEncryptedObject: (value: unknown) => EncryptedEnvelopeCheck;
   decryptObject: (value: unknown) => Promise<Record<string, unknown> | null>;
 }
 export interface WearableVersionGuard { versionKey: string; expectedVersion: number }

@@ -1,3 +1,4 @@
+import { _base64ToBytes as vaultBytesFromBase64 } from './base64.js';
 // wearables-credential-vault.js — always-encrypted, device-local app secrets
 //
 // Every wearable connection is treated as sensitive. The normal wearable
@@ -39,13 +40,6 @@ function vaultBytesToBase64(bytes: Uint8Array) {
   let binary = '';
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary);
-}
-
-function vaultBytesFromBase64(value: string) {
-  const binary = atob(value);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
-  return bytes;
 }
 
 // General app credentials share the proven non-extractable wearable vault

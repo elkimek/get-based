@@ -1,5 +1,4 @@
-// @ts-check
-// sync-payload-collectors.js - local settings/chat/display collection for sync payloads.
+// sync-payload-collectors.ts - local settings/chat/display collection for sync payloads.
 
 import { encryptedGetItem } from './crypto.js';
 import { VOICE_SYNC_KEYS } from './voice-settings-schema.js';
@@ -43,21 +42,19 @@ export const AI_SETTINGS_KEYS = [
 
 export const DISPLAY_PREF_SUFFIXES = ['units', 'rangeMode', 'suppOverlay', 'noteOverlay', 'phaseOverlay'];
 
-/** @param {string} profileId */
-export function chatDeletedThreadsKey(profileId) {
+export function chatDeletedThreadsKey(profileId: string) {
   return `labcharts-${profileId}-chat-deleted-threads`;
 }
 
 const CHAT_DELETED_PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
-/** @param {string} profileId */
-function readChatDeletedThreads(profileId) {
+function readChatDeletedThreads(profileId: string): Record<string, number> {
   try {
     const raw = localStorage.getItem(chatDeletedThreadsKey(profileId));
     if (!raw) return {};
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-    const out = Object.create(null);
+    const out: Record<string, number> = Object.create(null);
     for (const [threadId, deletedAt] of Object.entries(parsed)) {
       if (typeof threadId !== 'string' || !threadId) continue;
       if (CHAT_DELETED_PROTO_KEYS.has(threadId)) continue;
@@ -70,14 +67,13 @@ function readChatDeletedThreads(profileId) {
   }
 }
 
-/** @param {string | null | undefined} raw */
-function parseCustomPersonalities(raw) {
+function parseCustomPersonalities(raw: string | null | undefined): unknown {
   if (!raw) return undefined;
   try { return JSON.parse(raw); } catch { return undefined; }
 }
 
 export async function collectAISettings() {
-  const settings = {};
+  const settings: Record<string, string | null> = {};
   const keys = new Set([
     ...AI_SETTINGS_KEYS,
     ...getAppExtensionSyncStorageKeys(),
@@ -107,8 +103,7 @@ export async function collectAISettings() {
 }
 
 // Per-profile chat keys to sync
-/** @param {string} profileId */
-export async function collectChatData(profileId) {
+export async function collectChatData(profileId: string) {
   const threadsKey = `labcharts-${profileId}-chat-threads`;
   const deletedThreads = readChatDeletedThreads(profileId);
   const customKey = `labcharts-${profileId}-chatPersonalityCustom`;
@@ -142,17 +137,17 @@ export async function collectChatData(profileId) {
         : null;
     }
     if (threads.length === 0 && Object.keys(deletedThreads).length === 0 && !hasCustomPersonalityState) return null;
-    const messages = {};
-    for (const t of threads) {
+    const messages: Record<string, unknown> = {};
+    for (const t of threads as Array<{ id?: unknown; messageCount?: unknown }>) {
       const msgKey = `labcharts-${profileId}-chat-t_${t.id}`;
       const msgRaw = await encryptedGetItem(msgKey) || localStorage.getItem(msgKey);
       if (!msgRaw) {
-        if ((Number(t.messageCount) || 0) === 0) messages[t.id] = [];
+        if ((Number(t.messageCount) || 0) === 0) messages[t.id as string] = [];
         continue;
       }
       // Per-thread try/catch - a single corrupted thread payload must NOT
       // nuke the entire chat-data collection.
-      try { messages[t.id] = JSON.parse(msgRaw); } catch {}
+      try { messages[t.id as string] = JSON.parse(msgRaw); } catch {}
     }
     return {
       threads,
@@ -169,9 +164,8 @@ export async function collectChatData(profileId) {
   }
 }
 
-/** @param {string} profileId */
-export function collectDisplayPrefs(profileId) {
-  const prefs = {};
+export function collectDisplayPrefs(profileId: string) {
+  const prefs: Record<string, string> = {};
   for (const suffix of DISPLAY_PREF_SUFFIXES) {
     const val = localStorage.getItem(`labcharts-${profileId}-${suffix}`);
     if (val != null) prefs[suffix] = val;

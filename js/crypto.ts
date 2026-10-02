@@ -1,6 +1,20 @@
+import { bytesToBase64 as toBase64, _base64ToBytes as fromBase64 } from './base64.js';
 import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
-// @ts-check
-// crypto.js — Encryption at rest, backup/restore, cross-tab sync
+// crypto.ts — Encryption at rest, backup/restore, cross-tab sync
+
+import type { ProfileData } from '../types/app-state.js';
+import type { EncryptedEnvelopeCheck, PassphraseEnvelope } from './wearable-storage-types.js';
+import type { StorageMode } from './cashu-wallet-storage-types.js';
+
+interface CryptoProfileDeps {
+  buildSidebar: null | (() => void);
+  invalidateData: null | (() => void);
+  migrateProfileData: null | ((data: ProfileData) => unknown);
+  navigate: null | ((view: string) => void);
+}
+export interface ObjectEncryptionEnvelope extends PassphraseEnvelope {
+  _enc: 'v1'; iv: Uint8Array<ArrayBuffer>; ct: Uint8Array<ArrayBuffer>;
+}
 
 import { getErrorMessage } from './caught-error.js';
 import { isAppExtensionSyncEncryptedStorageKey } from './app-extension-runtime.js';
@@ -57,29 +71,17 @@ export {
   toggleBackupSnapshots,
 };
 
-const appWindow = /** @type {Window & typeof globalThis & {
-  __WEARABLES_TEST?: boolean,
-}} */ (typeof window !== 'undefined' ? window : {});
+const appWindow = (typeof window !== 'undefined' ? window : {}) as Window & typeof globalThis & { __WEARABLES_TEST?: boolean };
 
 const needsDataProtectionStylesheet = () => typeof document !== 'undefined' && !!document.querySelector('[data-data-protection-stylesheet-anchor]') && !isDataProtectionStylesheetLoaded();
-/**
- * @typedef {{
- *   buildSidebar: null | (() => void),
- *   invalidateData: null | (() => void),
- *   migrateProfileData: null | ((data: any) => void),
- *   navigate: null | ((view: string) => void),
- * }} CryptoProfileDeps
- */
-
-/** @type {CryptoProfileDeps} */
-const cryptoProfileDeps = {
+const cryptoProfileDeps: CryptoProfileDeps = {
   buildSidebar: null,
   invalidateData: null,
-  migrateProfileData: /** @type {null | ((data: any) => void)} */ (null),
+  migrateProfileData: null,
   navigate: null,
 };
 
-function navigateCryptoView(view) {
+function navigateCryptoView(view: string) {
   cryptoProfileDeps.navigate?.(view);
 }
 
@@ -87,8 +89,7 @@ function buildCryptoSidebar() {
   cryptoProfileDeps.buildSidebar?.();
 }
 
-/** @param {Partial<CryptoProfileDeps>} [deps] */
-export function configureCryptoProfileDeps(deps = {}) {
+export function configureCryptoProfileDeps(deps: Partial<CryptoProfileDeps> = {}) {
   return configureValidRuntimeCallbacks(cryptoProfileDeps, deps, ["buildSidebar","invalidateData","migrateProfileData","navigate"]);
 }
 
@@ -126,7 +127,7 @@ const SENSITIVE_PATTERNS = [
   /^labcharts-meteo-config$/,
 ];
 
-export function isSensitiveKey(key) {
+export function isSensitiveKey(key: string) {
   return SENSITIVE_PATTERNS.some(p => p.test(key))
     || isAppExtensionSyncEncryptedStorageKey(key);
 }
@@ -138,27 +139,26 @@ const whoopStorageDeps = {
   getMeta,
   setMeta,
 };
-const transformWhoopStorage = (key, value, mode, encrypted = false) => import('./wearables-whoop-storage.js')
+const transformWhoopStorage = (key: string, value: string, mode: string, encrypted = false) => import('./wearables-whoop-storage.js')
   .then(module => module.transformWhoopStorageValue(key, value, mode, encrypted, whoopStorageDeps));
 
 // ═══════════════════════════════════════════════
 // KEY LIFECYCLE
 // ═══════════════════════════════════════════════
-let _sessionKey = null;
+let _sessionKey: CryptoKey | null = null;
 
-/** @type {Promise<typeof import('./wearables-credential-vault.js')> | null} */
-let deviceCredentialCryptoLoad = null;
+let deviceCredentialCryptoLoad: Promise<typeof import('./wearables-credential-vault.js')> | null = null;
 function loadDeviceCredentialCrypto() {
   if (!deviceCredentialCryptoLoad) deviceCredentialCryptoLoad = import('./wearables-credential-vault.js');
   return deviceCredentialCryptoLoad;
 }
-function isDeviceCredentialValue(value) {
+function isDeviceCredentialValue(value: unknown): value is string {
   return typeof value === 'string' && value.startsWith('d1:');
 }
-async function encryptDeviceCredential(storageKey, plaintext) {
+async function encryptDeviceCredential(storageKey: string, plaintext: string) {
   return (await loadDeviceCredentialCrypto()).encryptDeviceCredential(storageKey, plaintext);
 }
-async function decryptDeviceCredential(storageKey, envelope) {
+async function decryptDeviceCredential(storageKey: string, envelope: string) {
   return (await loadDeviceCredentialCrypto()).decryptDeviceCredential(storageKey, envelope);
 }
 
@@ -184,7 +184,7 @@ const API_KEY_LS_KEYS = [
   'labcharts-meteo-config',
 ];
 
-export function isCredentialKey(key) {
+export function isCredentialKey(key: string) {
   return API_KEY_LS_KEYS.includes(key) || isAppExtensionSyncEncryptedStorageKey(key);
 }
 
@@ -224,7 +224,7 @@ export function isUnlocked() {
   return _sessionKey !== null;
 }
 
-async function deriveKey(passphrase, salt) {
+async function deriveKey(passphrase: string, salt: Uint8Array<ArrayBuffer>) {
   const enc = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     'raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey']
@@ -238,7 +238,7 @@ async function deriveKey(passphrase, salt) {
   );
 }
 
-async function encrypt(key, plaintext) {
+async function encrypt(key: CryptoKey, plaintext: string) {
   const enc = new TextEncoder();
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ciphertext = await crypto.subtle.encrypt(
@@ -249,7 +249,7 @@ async function encrypt(key, plaintext) {
   return { iv, ciphertext: new Uint8Array(ciphertext) };
 }
 
-async function decrypt(key, iv, ciphertext) {
+async function decrypt(key: CryptoKey, iv: Uint8Array<ArrayBuffer>, ciphertext: Uint8Array<ArrayBuffer>) {
   const dec = new TextDecoder();
   const plaintext = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv },
@@ -259,30 +259,17 @@ async function decrypt(key, iv, ciphertext) {
   return dec.decode(plaintext);
 }
 
-function toBase64(arr) {
-  let binary = '';
-  for (let i = 0; i < arr.length; i++) binary += String.fromCharCode(arr[i]);
-  return btoa(binary);
-}
-
-function fromBase64(str) {
-  const bin = atob(str);
-  const arr = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-  return arr;
-}
-
-export function isEncryptedValue(val) {
+export function isEncryptedValue(val: unknown): val is string {
   return typeof val === 'string' && val.startsWith('v1:');
 }
 
-function parseEncryptedValue(val) {
+function parseEncryptedValue(val: string) {
   const parts = val.split(':');
   if (parts.length < 3 || parts[0] !== 'v1') return null;
-  return { iv: fromBase64(parts[1]), ciphertext: fromBase64(parts.slice(2).join(':')) };
+  return { iv: fromBase64(parts[1]!), ciphertext: fromBase64(parts.slice(2).join(':')) };
 }
 
-function formatEncryptedValue(iv, ciphertext) {
+function formatEncryptedValue(iv: Uint8Array, ciphertext: Uint8Array) {
   return `v1:${toBase64(iv)}:${toBase64(ciphertext)}`;
 }
 
@@ -298,7 +285,7 @@ function formatEncryptedValue(iv, ciphertext) {
 // writing the plain object. Reads detect the envelope marker and decrypt
 // transparently; legacy plaintext rows pass through.
 
-async function encryptObjectWithKey(plainObj, key) {
+async function encryptObjectWithKey(plainObj: unknown, key: CryptoKey): Promise<ObjectEncryptionEnvelope> {
   const json = JSON.stringify(plainObj);
   const enc = new TextEncoder();
   const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -310,25 +297,25 @@ async function encryptObjectWithKey(plainObj, key) {
   return { _enc: 'v1', iv, ct: new Uint8Array(ct) };
 }
 
-export async function encryptObject(plainObj) {
+export async function encryptObject(plainObj: unknown) {
   if (!getEncryptionEnabled() || !_sessionKey) return null;
   return encryptObjectWithKey(plainObj, _sessionKey);
 }
 
-export async function decryptObject(envelope) {
-  if (!envelope || envelope._enc !== 'v1' || !_sessionKey) return null;
+export async function decryptObject<Value = Record<string, unknown>>(envelope: unknown): Promise<Value | null> {
+  if (!envelope || (envelope as Partial<ObjectEncryptionEnvelope>)._enc !== 'v1' || !_sessionKey) return null;
   const dec = new TextDecoder();
   const plaintext = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: envelope.iv },
+    { name: 'AES-GCM', iv: (envelope as ObjectEncryptionEnvelope).iv },
     _sessionKey,
-    envelope.ct,
+    (envelope as ObjectEncryptionEnvelope).ct,
   );
-  return JSON.parse(dec.decode(plaintext));
+  return JSON.parse(dec.decode(plaintext)) as Value;
 }
 
-export function isEncryptedObject(o) {
-  return o && typeof o === 'object' && o._enc === 'v1' &&
-         o.iv instanceof Uint8Array && o.ct instanceof Uint8Array;
+export function isEncryptedObject(o: unknown): EncryptedEnvelopeCheck {
+  return (o && typeof o === 'object' && (o as Partial<ObjectEncryptionEnvelope>)._enc === 'v1' &&
+         (o as Partial<ObjectEncryptionEnvelope>).iv instanceof Uint8Array && (o as Partial<ObjectEncryptionEnvelope>).ct instanceof Uint8Array) as EncryptedEnvelopeCheck;
 }
 const indexedDBCryptoDeps = {
   getEncryptionEnabled, encryptObject, isEncryptedObject, decryptObject,
@@ -346,7 +333,7 @@ configureWearablesStoreCrypto(indexedDBCryptoDeps);
 // modal. Gated on the runtime __WEARABLES_TEST flag so a missed call site can't
 // reach into production. The matching `_setEncryptionEnabledForTest`
 // pair lives below.
-export async function _setTestSessionKey(passphrase) {
+export async function _setTestSessionKey(passphrase: string | null) {
   if (!appWindow.__WEARABLES_TEST) {
     throw new Error('_setTestSessionKey is test-only — enable the runtime __WEARABLES_TEST flag first');
   }
@@ -356,7 +343,7 @@ export async function _setTestSessionKey(passphrase) {
   return salt;
 }
 
-export async function _migrateAllStorageForTest(mode) {
+export async function _migrateAllStorageForTest(mode: string) {
   if (!appWindow.__WEARABLES_TEST) throw new Error('_migrateAllStorageForTest is test-only.');
   if (mode === 'encrypted') {
     await migrateSensitiveKeys();
@@ -373,7 +360,7 @@ export async function _migrateAllStorageForTest(mode) {
 // ═══════════════════════════════════════════════
 // STORAGE WRAPPERS
 // ═══════════════════════════════════════════════
-export async function encryptedSetCredentialItem(key, value) {
+export async function encryptedSetCredentialItem(key: string, value: string) {
   if (!isCredentialKey(key)) throw new Error(`Credential key is not allowlisted: ${key}`);
   let stored;
   if (getEncryptionEnabled()) {
@@ -387,7 +374,7 @@ export async function encryptedSetCredentialItem(key, value) {
   updateKeyCache(key, value);
 }
 
-export async function encryptedSetItem(key, value) {
+export async function encryptedSetItem(key: string, value: string) {
   if (isCredentialKey(key)) return encryptedSetCredentialItem(key, value);
   const valueForStorage = key.endsWith('-imported')
     ? (await transformWhoopStorage(key, value, 'protect')).value
@@ -418,7 +405,7 @@ export async function encryptedSetItem(key, value) {
   }
 }
 
-export async function encryptedGetItem(key) {
+export async function encryptedGetItem(key: string) {
   let raw;
   if (shouldUseBlob(key)) {
     raw = await getBlob(key);
@@ -442,8 +429,7 @@ export async function encryptedGetItem(key) {
     raw = localStorage.getItem(key);
   }
   if (raw == null) return null;
-  /** @type {string | null} */
-  let plaintext = raw;
+  let plaintext: string | null = raw;
   if (isDeviceCredentialValue(raw)) {
     plaintext = await decryptDeviceCredential(key, raw);
     if (plaintext !== null && isCredentialKey(key)) updateKeyCache(key, plaintext);
@@ -472,11 +458,7 @@ export async function encryptedGetItem(key) {
 // keys are removed from BOTH backends. Use this for any cleanup path
 // that wipes profile data, otherwise IDB residue accumulates after
 // profile deletion / reset.
-/**
- * @param {string} key
- * @param {{ throwOnBlobError?: boolean }} [options]
- */
-export async function encryptedRemoveItem(key, options = {}) {
+export async function encryptedRemoveItem(key: string, options: { throwOnBlobError?: boolean | undefined } = {}) {
   if (shouldUseBlob(key)) {
     try {
       await deleteBlob(key, { throwOnError: options.throwOnBlobError });
@@ -499,7 +481,7 @@ export async function initEncryption() {
     return;
   }
   if (needsDataProtectionStylesheet()) await loadDataProtectionStylesheetForAction();
-  await new Promise((resolve) => {
+  await new Promise<void>((resolve) => {
     showPassphraseModal(resolve);
   });
   await migrateSensitiveKeys();
@@ -507,11 +489,10 @@ export async function initEncryption() {
   await decryptKeyCache();
 }
 
-
 async function migrationProfileIds() {
-  const ids = new Set();
+  const ids = new Set<string>();
   for (const profile of Array.isArray(state.profiles) ? state.profiles : []) {
-    if (profile?.id) ids.add(profile.id);
+    if (profile?.id) ids.add(profile.id as string);
   }
   if (state.currentProfile) ids.add(state.currentProfile);
   const active = localStorage.getItem('labcharts-active-profile');
@@ -523,9 +504,9 @@ async function migrationProfileIds() {
     profilesRaw = await decrypt(_sessionKey, parsed.iv, parsed.ciphertext);
   }
   if (profilesRaw) {
-    const profiles = JSON.parse(profilesRaw);
-    for (const profile of Array.isArray(profiles) ? profiles : []) {
-      if (profile?.id) ids.add(profile.id);
+    const profiles: unknown = JSON.parse(profilesRaw);
+    for (const profile of (Array.isArray(profiles) ? profiles : []) as Array<{ id?: unknown } | null>) {
+      if (profile?.id) ids.add(profile.id as string);
     }
   }
   return [...ids];
@@ -594,7 +575,7 @@ async function decryptAllSensitiveKeys() {
 }
 
 async function migrateDeviceProtectedKeys() {
-  const volatileCredentials = new Map();
+  const volatileCredentials = new Map<string, string>();
   const storageKeys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index));
   for (const key of storageKeys) {
     if (!key || !isCredentialKey(key)) continue;
@@ -615,32 +596,32 @@ async function migrateDeviceProtectedKeys() {
   return volatileCredentials;
 }
 
-async function transformPayloadRows(rows, keyFields, mode) {
-  const changed = [];
+async function transformPayloadRows<Row extends Record<string, unknown>>(rows: Row[], keyFields: Array<keyof Row & string>, mode: StorageMode) {
+  const changed: Row[] = [];
   for (const row of Array.isArray(rows) ? rows : []) {
     if (!row?._payload) {
       if (mode === 'plain') continue;
-      const keys = {};
+      const keys: Record<string, unknown> = {};
       const payload = { ...row };
       for (const key of keyFields) {
         keys[key] = payload[key];
         delete payload[key];
       }
-      changed.push({ ...keys, _payload: await encryptObjectWithKey(payload, _sessionKey) });
+      changed.push({ ...keys, _payload: await encryptObjectWithKey(payload, _sessionKey!) } as unknown as Row);
       continue;
     }
     if (!isEncryptedObject(row._payload)) throw new Error('Encrypted IndexedDB row has an invalid envelope.');
     if (mode === 'encrypted') continue;
     const payload = await decryptObject(row._payload);
     if (!payload) throw new Error('Encrypted IndexedDB row could not be decrypted.');
-    const keys = {};
+    const keys: Record<string, unknown> = {};
     for (const key of keyFields) keys[key] = row[key];
-    changed.push({ ...keys, ...payload });
+    changed.push({ ...keys, ...payload } as Row);
   }
   return changed;
 }
 
-async function migrateLocalIDB(mode) {
+async function migrateLocalIDB(mode: StorageMode) {
   if (!_sessionKey) throw new Error('Encryption key is locked.');
   const cashuStore = await import('./cashu-wallet-store.js');
   cashuStore.configureCashuWalletStoreCryptoDeps(getCashuWalletStoreCryptoDeps());
@@ -657,7 +638,7 @@ async function migrateLocalIDB(mode) {
   return migrated;
 }
 
-async function unlockEncryption(passphrase) {
+async function unlockEncryption(passphrase: string) {
   const saltHex = localStorage.getItem('labcharts-encryption-salt');
   if (!saltHex) throw new Error('No encryption salt found');
   const salt = fromBase64(saltHex);
@@ -671,7 +652,7 @@ async function unlockEncryption(passphrase) {
   _sessionKey = key;
 }
 
-async function prepareEncryption(passphrase) {
+async function prepareEncryption(passphrase: string) {
   const salt = crypto.getRandomValues(new Uint8Array(16));
   localStorage.setItem('labcharts-encryption-salt', toBase64(salt));
   _sessionKey = await deriveKey(passphrase, salt);
@@ -695,7 +676,7 @@ async function disableEncryptionStorage() {
   await decryptKeyCache();
 }
 
-async function changeEncryptionPassphrase(oldPassphrase, newPassphrase) {
+async function changeEncryptionPassphrase(oldPassphrase: string, newPassphrase: string) {
   const oldSalt = fromBase64(localStorage.getItem('labcharts-encryption-salt'));
   const oldKey = await deriveKey(oldPassphrase, oldSalt);
 
@@ -719,7 +700,6 @@ async function changeEncryptionPassphrase(oldPassphrase, newPassphrase) {
   await migrateLocalIDB('encrypted');
   await decryptKeyCache();
 }
-
 
 // ═══════════════════════════════════════════════
 // Backup/restore, auto-backup, folder backup extracted to js/backup.js
@@ -745,20 +725,20 @@ configureCryptoUi({
 // ═══════════════════════════════════════════════
 // CROSS-TAB SYNC (BroadcastChannel)
 // ═══════════════════════════════════════════════
-let _bc = null;
+let _bc: BroadcastChannel | null = null;
 
 export function initBroadcastChannel() {
   if (typeof BroadcastChannel === 'undefined') return;
   _bc = new BroadcastChannel('labcharts-sync');
   _bc.onmessage = async (event) => {
-    const { type, profileId } = event.data || {};
+    const { type, profileId } = (event.data || {}) as { type?: unknown; profileId?: string };
     if (type === 'data-changed' && profileId === state.currentProfile) {
       // Serialize reads with saves so an older broadcast cannot roll back a
       // newer commit. Retain unsaved edits and their conflict baseline.
       await queueProfileDataWrite(profileId, async () => {
         const raw = await encryptedGetItem(profileStorageKey(profileId, 'imported'));
         if (!raw || profileId !== state.currentProfile) return;
-        const persisted = JSON.parse(raw);
+        const persisted = JSON.parse(raw) as ProfileData;
         ensureImportedArray(persisted, 'notes');
         ensureImportedArray(persisted, 'supplements');
         cryptoProfileDeps.migrateProfileData?.(persisted);
@@ -776,7 +756,7 @@ export function initBroadcastChannel() {
   };
 }
 
-export function broadcastDataChanged(profileId) {
+export function broadcastDataChanged(profileId: string) {
   if (_bc) {
     _bc.postMessage({ type: 'data-changed', profileId });
   }

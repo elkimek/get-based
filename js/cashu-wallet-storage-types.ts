@@ -1,5 +1,5 @@
 import type * as Cashu from '@cashu/cashu-ts';
-import type { PassphraseEnvelope } from './wearable-storage-types.js';
+import type { EncryptedEnvelopeCheck, PassphraseEnvelope } from './wearable-storage-types.js';
 
 export type WalletProof = Cashu.ProofLike & { _mint?: string };
 export type StoredProof = (WalletProof & { _payload?: null }) | { secret: string; _payload: PassphraseEnvelope };
@@ -20,7 +20,7 @@ export interface CashuWalletStoreRuntime {
 export interface CashuWalletStoreCryptoDeps {
   encryptObject(value: unknown): Promise<PassphraseEnvelope | null>;
   decryptObject(value: unknown): Promise<unknown>;
-  isEncryptedObject(value: unknown): boolean;
+  isEncryptedObject(value: unknown): EncryptedEnvelopeCheck;
   getEncryptionEnabled(): boolean;
   encryptedGetItem(key: string): Promise<string | null>;
   encryptedSetItem(key: string, value: string): Promise<unknown>;
