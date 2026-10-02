@@ -1,4 +1,14 @@
-// @ts-check
+import type { ImportReviewMarker, ImportMarkerReference } from './pdf-import-review-runtime.js';
+
+type ImportReferenceLookup = Record<string, ImportMarkerReference>;
+type ExistingImportKeys = Iterable<string> & { has?: (key: string) => boolean };
+export interface ReconcileImportMarkerOptions {
+  testType?: string | null | undefined; refLookup?: ImportReferenceLookup | null | undefined;
+  existingKeys?: ExistingImportKeys | null | undefined; existingNameLookup?: Map<string, string> | null | undefined;
+  preferSuggestedKeys?: boolean | undefined;
+}
+interface MarkerReferenceOptions { profileSex?: string | null | undefined; includeCustomMarkers?: boolean | undefined }
+
 // pdf-import-marker-mapping.js — marker key safety, reference lookup, and unit normalization for imports
 
 import { state } from './state.js';
@@ -34,40 +44,40 @@ export {
 // handles `null` mappedKey/suggestedKey by deriving a safe key from rawName.
 const _SAFE_MARKER_KEY = /^[a-zA-Z][a-zA-Z0-9]*\.[a-zA-Z][a-zA-Z0-9_]*$/;
 
-function _isImportableCalculatedMarkerKey(key) {
+function _isImportableCalculatedMarkerKey(key: string) {
   if (!IMPORTABLE_CALCULATED_MARKER_KEYS.has(key)) return false;
   const [catKey, markerKey] = String(key || '').split('.');
-  return !!MARKER_SCHEMA[catKey]?.calculated && !!MARKER_SCHEMA[catKey]?.markers?.[markerKey];
+  return !!MARKER_SCHEMA[catKey!]?.calculated && !!MARKER_SCHEMA[catKey!]?.markers?.[markerKey!];
 }
 
-function _hasImportReferenceKey(key, refLookup, existingKeys = /** @type {Set<string> | null} */ (null)) {
+function _hasImportReferenceKey(key: string, refLookup: ImportReferenceLookup, existingKeys: ExistingImportKeys | null = null) {
   return !!refLookup[key] || !!existingKeys?.has?.(key) || _isImportableCalculatedMarkerKey(key);
 }
 
-export function _sanitizeAIMarker(m) {
+export function _sanitizeAIMarker(m: Record<string, unknown>) {
   if (typeof m.mappedKey === 'string' && !_SAFE_MARKER_KEY.test(m.mappedKey)) m.mappedKey = null;
   if (typeof m.suggestedKey === 'string' && !_SAFE_MARKER_KEY.test(m.suggestedKey)) m.suggestedKey = null;
   return m;
 }
 
-function _stripImportAccents(value) {
+function _stripImportAccents(value: unknown) {
   return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
 const IMPORT_SPECIMEN_PREFIX_RE = /^\s*(used|xxx|fs|fw|s|p|b|u|f)(?=$|[\s._:-])/i;
 
-function _stripImportSpecimenPrefix(value) {
+function _stripImportSpecimenPrefix(value: unknown) {
   return String(value || '').replace(/^\s*(?:used|xxx|fs|fw|s|p|b|u|f)(?=$|[\s._:-])[\s._:-]*/i, '');
 }
 
-function _stripImportLabelUnits(value) {
+function _stripImportLabelUnits(value: unknown) {
   return _stripImportAccents(value)
     .replace(/[\u00b5\u03bc]/g, 'u')
     .replace(/\s*[\(\[]\s*[^)\]]*(?:u?kat|mmol|umol|nmol|pmol|mol|mg|ug|ng|pg|g\s*\/\s*l|m\s*u|iu\s*\/\s*l|u\s*\/\s*l|10\s*\^?\s*\d+|arb\.?\s*j\.?|fl|%)[^)\]]*[\)\]]\s*/gi, ' ')
     .replace(/\s+(?:u?kat|mmol|umol|nmol|pmol|mol|mg|ug|ng|pg|g|m\s*u|iu|u|10\s*\^?\s*\d+|arb\.?\s*j\.?|fl|%)\s*(?:\/\s*[a-z0-9^]+)?\s*$/i, ' ');
 }
 
-function _normalizeImportLabel(value) {
+function _normalizeImportLabel(value: unknown) {
   return _stripImportLabelUnits(_stripImportSpecimenPrefix(value))
     .toLowerCase()
     .replace(/\bvypocet\b/g, '')
@@ -76,11 +86,11 @@ function _normalizeImportLabel(value) {
     .replace(/\s+/g, ' ');
 }
 
-function _compactImportLabel(value) {
+function _compactImportLabel(value: unknown) {
   return _normalizeImportLabel(value).replace(/[^a-z0-9#]/g, '');
 }
 
-function _compactImportLabelVariants(value) {
+function _compactImportLabelVariants(value: unknown) {
   const variants = [
     _compactImportLabel(value),
     _compactImportLabel(String(value || '').replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')),
@@ -106,19 +116,19 @@ const DIFFERENTIAL_IMPORT_STEMS = new Map([
   ['basophil', 'basophils'],
 ]);
 
-function _stripDifferentialPercentSuffix(compactBase) {
+function _stripDifferentialPercentSuffix(compactBase: unknown) {
   return String(compactBase || '').replace(/(?:pct|percent|percentage)$/i, '');
 }
 
-function _differentialStemFromCompactBase(compactBase) {
+function _differentialStemFromCompactBase(compactBase: unknown) {
   return DIFFERENTIAL_IMPORT_STEMS.get(_stripDifferentialPercentSuffix(compactBase)) || null;
 }
 
-function _hasImportAbsoluteHint(rawName, unit) {
+function _hasImportAbsoluteHint(rawName: unknown, unit: unknown) {
   return /#|\babs\b|absolute/i.test(String(rawName || '')) || String(unit || '').includes('10^9');
 }
 
-function _hasImportPercentHint(rawName, unit, compactBase) {
+function _hasImportPercentHint(rawName: unknown, unit: unknown, compactBase: unknown) {
   const unitNorm = String(unit || '');
   return /%|\bpct\b|percent|percentage/i.test(String(rawName || '')) ||
     unitNorm === '%' ||
@@ -128,7 +138,7 @@ function _hasImportPercentHint(rawName, unit, compactBase) {
     /(?:pct|percent|percentage)$/i.test(String(compactBase || ''));
 }
 
-function _suggestDifferentialPercentImportKey(marker) {
+function _suggestDifferentialPercentImportKey(marker: ImportReviewMarker) {
   const rawName = marker?.rawName || marker?.suggestedName || '';
   const unit = normalizeUnitStr(marker?.unit || '');
   const compactBase = _compactImportLabel(rawName).replace(/#/g, '');
@@ -144,7 +154,7 @@ function _suggestDifferentialPercentImportKey(marker) {
 // carries a percent hint and the resolved marker has a `<marker>Pct` sibling,
 // prefer that sibling. This covers count markers such as immature granulocytes
 // and reticulocytes that are reported both as a share and as a count.
-function _preferImportPercentSiblingKey(key, marker, refLookup, existingKeys) {
+function _preferImportPercentSiblingKey(key: string | null, marker: ImportReviewMarker, refLookup: ImportReferenceLookup, existingKeys: ExistingImportKeys) {
   if (typeof key !== 'string' || !key || /pct$/i.test(key)) return key;
   const rawName = marker?.rawName || marker?.suggestedName || '';
   const unit = normalizeUnitStr(marker?.unit || '');
@@ -165,7 +175,7 @@ function _preferImportPercentSiblingKey(key, marker, refLookup, existingKeys) {
 // sibling just because its label also spells out "percent" (the alias table
 // strips the parenthetical, so name resolution can select the percent key).
 // When the base count marker exists, prefer it.
-function _preferImportAbsoluteHintKey(key, marker, refLookup, existingKeys) {
+function _preferImportAbsoluteHintKey(key: string | null, marker: ImportReviewMarker, refLookup: ImportReferenceLookup, existingKeys: ExistingImportKeys) {
   if (typeof key !== 'string' || !key || !key.endsWith('Pct')) return key;
   const rawName = marker?.rawName || marker?.suggestedName || '';
   const unit = normalizeUnitStr(marker?.unit || '');
@@ -174,23 +184,23 @@ function _preferImportAbsoluteHintKey(key, marker, refLookup, existingKeys) {
   return _hasImportReferenceKey(baseKey, refLookup, existingKeys) ? baseKey : key;
 }
 
-export function _cleanImportedMarkerDisplayName(value) {
+export function _cleanImportedMarkerDisplayName(value: unknown) {
   const cleaned = _stripImportLabelUnits(_stripImportSpecimenPrefix(value))
     .trim()
     .replace(/\s+/g, ' ');
   return cleaned || String(value || '').trim();
 }
 
-function _getImportSpecimen(rawName) {
+function _getImportSpecimen(rawName: unknown) {
   const match = String(rawName || '').match(IMPORT_SPECIMEN_PREFIX_RE);
-  return match ? match[1].toLowerCase() : '';
+  return match ? match[1]!.toLowerCase() : '';
 }
 
-function _isUrineImportSpecimen(specimen) {
+function _isUrineImportSpecimen(specimen: string) {
   return specimen === 'u' || specimen === 'used';
 }
 
-function _camelImportKeyPart(value, fallback = 'marker') {
+function _camelImportKeyPart(value: unknown, fallback = 'marker') {
   const words = _normalizeImportLabel(value).split(/\s+/).filter(Boolean);
   if (words.length === 0) return fallback;
   const key = words.map((word, idx) => idx === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)).join('');
@@ -222,15 +232,15 @@ const URINE_CUSTOM_IMPORT_KEYS = new Map([
   ['pcr', 'urinalysis.proteinCreatinineRatio'],
 ]);
 
-function _isSpecimenIncompatibleImportKey(marker, key, standardCats) {
+function _isSpecimenIncompatibleImportKey(marker: ImportReviewMarker, key: unknown, standardCats: Set<string>) {
   if (typeof key !== 'string' || !_SAFE_MARKER_KEY.test(key)) return false;
   const specimen = _getImportSpecimen(marker?.rawName || marker?.suggestedName || '');
   if (!_isUrineImportSpecimen(specimen)) return false;
-  const catKey = key.split('.')[0];
-  return standardCats.has(catKey) && catKey !== 'urinalysis';
+  const catKey = key.split('.')[0]!;
+  return standardCats.has(catKey!) && catKey !== 'urinalysis';
 }
 
-function _urineSuggestedImportKey(marker) {
+function _urineSuggestedImportKey(marker: ImportReviewMarker) {
   const label = marker?.rawName || marker?.suggestedName || '';
   const compact = _compactImportLabel(label).replace(/#/g, '');
   const known = URINE_CUSTOM_IMPORT_KEYS.get(compact);
@@ -238,7 +248,7 @@ function _urineSuggestedImportKey(marker) {
   return `urinalysis.${_camelImportKeyPart(label, 'urineMarker')}`;
 }
 
-function _demoteSpecimenIncompatibleImportKey(marker, rejectedKey, standardCats) {
+function _demoteSpecimenIncompatibleImportKey(marker: ImportReviewMarker, rejectedKey: string | null | undefined, standardCats: Set<string>) {
   const suggestedBad = _isSpecimenIncompatibleImportKey(marker, marker.suggestedKey, standardCats);
   if (!marker.suggestedKey || suggestedBad || marker.suggestedKey === rejectedKey) {
     marker.suggestedKey = _urineSuggestedImportKey(marker);
@@ -478,7 +488,7 @@ const BLOOD_IMPORT_ALIASES = new Map([
 ]);
 
 function _standardMarkerShortNames() {
-  const names = new Set();
+  const names = new Set<string>();
   for (const cat of Object.values(MARKER_SCHEMA)) {
     if (cat.calculated) continue;
     for (const markerKey of Object.keys(cat.markers || {})) names.add(markerKey);
@@ -487,24 +497,24 @@ function _standardMarkerShortNames() {
 }
 
 export function getExistingImportMarkerKeys() {
-  const keys = new Set();
+  const keys = new Set<string>();
   for (const key of Object.keys(state.importedData?.customMarkers || {})) keys.add(key);
   return keys;
 }
 
-function _knownImportKey(key, testType, refLookup, existingKeys, standardCats) {
+function _knownImportKey(key: unknown, testType: string, refLookup: ImportReferenceLookup, existingKeys: ExistingImportKeys, standardCats: Set<string>) {
   if (typeof key !== 'string' || !_SAFE_MARKER_KEY.test(key)) return null;
-  const catKey = key.split('.')[0];
-  const standard = standardCats.has(catKey);
+  const catKey = key.split('.')[0]!;
+  const standard = standardCats.has(catKey!);
   if (testType !== 'blood' && testType !== 'biostarks' && standard) return null;
   return _hasImportReferenceKey(key, refLookup, existingKeys) ? key : null;
 }
 
-function _buildExistingCustomMarkerNameLookup(existingKeys) {
-  const lookup = new Map();
+function _buildExistingCustomMarkerNameLookup(existingKeys: ExistingImportKeys) {
+  const lookup = new Map<string, string>();
   const standardCats = new Set(Object.keys(MARKER_SCHEMA));
   const standardMarkerNames = _standardMarkerShortNames();
-  const add = (label, key) => {
+  const add = (label: unknown, key: string) => {
     const compact = _compactImportLabel(label);
     if (compact && !lookup.has(compact)) lookup.set(compact, key);
   };
@@ -512,19 +522,19 @@ function _buildExistingCustomMarkerNameLookup(existingKeys) {
   for (const [key, def] of Object.entries(custom)) {
     if (!_SAFE_MARKER_KEY.test(key)) continue;
     const [catKey, markerKey] = key.split('.');
-    if (!standardCats.has(catKey) && standardMarkerNames.has(markerKey)) continue;
+    if (!standardCats.has(catKey!) && standardMarkerNames.has(markerKey!)) continue;
     add(def?.name, key);
     add(markerKey, key);
   }
   for (const key of existingKeys || []) {
     if (!_SAFE_MARKER_KEY.test(key)) continue;
     const [catKey, markerKey] = key.split('.');
-    if (!standardCats.has(catKey) && markerKey && !standardMarkerNames.has(markerKey)) add(markerKey, key);
+    if (!standardCats.has(catKey!) && markerKey && !standardMarkerNames.has(markerKey!)) add(markerKey, key);
   }
   return lookup;
 }
 
-function _resolveExistingCustomImportKey(marker, nameLookup, testType, refLookup, existingKeys, standardCats) {
+function _resolveExistingCustomImportKey(marker: ImportReviewMarker, nameLookup: Map<string, string>, testType: string, refLookup: ImportReferenceLookup, existingKeys: ExistingImportKeys, standardCats: Set<string>) {
   const labels = [marker.rawName, marker.suggestedName];
   if (marker.suggestedKey) labels.push(marker.suggestedKey.split('.').pop());
   if (marker.mappedKey) labels.push(marker.mappedKey.split('.').pop());
@@ -538,13 +548,15 @@ function _resolveExistingCustomImportKey(marker, nameLookup, testType, refLookup
   return null;
 }
 
+function _addImportLabelVariants(lookup: Map<string, string>, label: unknown, key: string) {
+  for (const variant of _compactImportLabelVariants(label)) {
+    if (variant && !lookup.has(variant)) lookup.set(variant, key);
+  }
+}
+
 function _buildSpecialtyImportNameLookup() {
-  const lookup = new Map();
-  const add = (label, key) => {
-    for (const variant of _compactImportLabelVariants(label)) {
-      if (variant && !lookup.has(variant)) lookup.set(variant, key);
-    }
-  };
+  const lookup = new Map<string, string>();
+  const add = (label: unknown, key: string) => _addImportLabelVariants(lookup, label, key);
   for (const [fullKey, marker] of Object.entries(SPECIALTY_MARKER_DEFS || {})) {
     add(fullKey.split('.').pop(), fullKey);
     add(marker.name, fullKey);
@@ -556,7 +568,7 @@ function _buildSpecialtyImportNameLookup() {
   return lookup;
 }
 
-function _resolveSpecialtyImportKey(marker, refLookup) {
+function _resolveSpecialtyImportKey(marker: ImportReviewMarker, refLookup: ImportReferenceLookup) {
   const lookup = _buildSpecialtyImportNameLookup();
   const labels = [marker.rawName, marker.suggestedName];
   if (marker.mappedKey) labels.push(marker.mappedKey.split('.').pop());
@@ -572,11 +584,7 @@ function _resolveSpecialtyImportKey(marker, refLookup) {
 
 function _buildStandardBloodNameLookup() {
   const lookup = new Map(BLOOD_IMPORT_ALIASES);
-  const add = (label, key) => {
-    for (const variant of _compactImportLabelVariants(label)) {
-      if (variant && !lookup.has(variant)) lookup.set(variant, key);
-    }
-  };
+  const add = (label: unknown, key: string) => _addImportLabelVariants(lookup, label, key);
   for (const [catKey, cat] of Object.entries(MARKER_SCHEMA)) {
     for (const [markerKey, marker] of Object.entries(cat.markers || {})) {
       const fullKey = `${catKey}.${markerKey}`;
@@ -589,9 +597,9 @@ function _buildStandardBloodNameLookup() {
 }
 
 function _resolveStandardBloodImportKey(
-  marker,
-  refLookup,
-  differentialPercentSuggestedKey = /** @type {string | null | undefined} */ (undefined),
+  marker: ImportReviewMarker,
+  refLookup: ImportReferenceLookup,
+  differentialPercentSuggestedKey: string | null | undefined = undefined,
 ) {
   const rawName = marker.rawName || marker.suggestedName || '';
   const specimen = _getImportSpecimen(rawName);
@@ -629,7 +637,7 @@ function _resolveStandardBloodImportKey(
   const labels = [marker.rawName, marker.suggestedName];
   if (marker.mappedKey) labels.push(marker.mappedKey.split('.').pop());
   if (marker.suggestedKey) labels.push(marker.suggestedKey.split('.').pop());
-  let key = null;
+  let key: string | null | undefined = null;
   for (const label of labels) {
     for (const variant of _compactImportLabelVariants(label)) {
       key = lookup.get(variant);
@@ -642,7 +650,7 @@ function _resolveStandardBloodImportKey(
   return _hasImportReferenceKey(key, refLookup) ? key : null;
 }
 
-export function reconcileImportMarkerMappings(markers, options = {}) {
+export function reconcileImportMarkerMappings<T extends Array<ImportReviewMarker | null | undefined> | null | undefined>(markers: T, options: ReconcileImportMarkerOptions = {}): T {
   if (!Array.isArray(markers)) return markers;
   const testType = options.testType || 'blood';
   const refLookup = options.refLookup || buildMarkerReference();
@@ -664,7 +672,7 @@ export function reconcileImportMarkerMappings(markers, options = {}) {
     const preferredSuggestedKey = options.preferSuggestedKeys
       && typeof marker.suggestedKey === 'string'
       && _SAFE_MARKER_KEY.test(marker.suggestedKey)
-      && !standardCats.has(marker.suggestedKey.split('.')[0]);
+      && !standardCats.has(marker.suggestedKey.split('.')[0]!);
     let resolvedKey = preferredSuggestedKey
       ? (exactSuggestedKey || exactMappedKey)
       : (aliasKey || existingCustomKey);
@@ -699,13 +707,8 @@ export function reconcileImportMarkerMappings(markers, options = {}) {
   return markers;
 }
 
-/**
- * @param {{profileSex?: string, includeCustomMarkers?: boolean}} [options]
- * @returns {Record<string, import('./pdf-import-review-runtime.js').ImportMarkerReference>}
- */
-export function buildMarkerReference(options = {}) {
-  /** @type {Record<string, import('./pdf-import-review-runtime.js').ImportMarkerReference>} */
-  const ref = {};
+export function buildMarkerReference(options: MarkerReferenceOptions = {}): ImportReferenceLookup {
+  const ref: ImportReferenceLookup = {};
   const profileSex = options.profileSex === undefined ? state.profileSex : options.profileSex;
   const includeCustomMarkers = options.includeCustomMarkers !== false;
   const isFemale = profileSex === 'female';
@@ -733,7 +736,7 @@ export function buildMarkerReference(options = {}) {
   }
   // Include custom markers from previous imports (override specialty defaults)
   // Build set of standard marker short names to filter out corrupted FA-prefixed duplicates
-  const _stdMarkerNames = new Set();
+  const _stdMarkerNames = new Set<string>();
   for (const cat of Object.values(MARKER_SCHEMA)) {
     if (cat.calculated) continue;
     for (const mk of Object.keys(cat.markers)) _stdMarkerNames.add(mk);
@@ -745,7 +748,7 @@ export function buildMarkerReference(options = {}) {
     if (!ref[fullKey]) {
       // Skip corrupted entries: custom category but marker name matches a standard marker
       const [catKey, markerKey] = fullKey.split('.');
-      if (markerKey && !MARKER_SCHEMA[catKey] && _stdMarkerNames.has(markerKey)) continue;
+      if (markerKey && !MARKER_SCHEMA[catKey!] && _stdMarkerNames.has(markerKey)) continue;
       ref[fullKey] = { name: def.name, unit: def.unit, refMin: def.refMin, refMax: def.refMax };
     }
   }

@@ -699,3 +699,5 @@ deploy/profile-share/data/
 /js/pdf-import-review-formatting.js
 /js/import-review-row-actions.js
 /js/import-review-draft.js
+/js/pdf-import-marker-mapping.js
+/js/mosaic-oat-catalog.js

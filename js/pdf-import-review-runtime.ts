@@ -19,7 +19,7 @@ export interface PendingImport {
   [key: string]: unknown;
 }
 export interface ImportMarkerReference {
-  name?: string; unit?: string; refMin?: number | null; refMax?: number | null;
+  name?: string | undefined; unit?: string | undefined; refMin?: number | null | undefined; refMax?: number | null | undefined;
   [key: string]: unknown;
 }
 export interface ImportReviewRuntimeFields {
