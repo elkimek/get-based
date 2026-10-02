@@ -1,5 +1,4 @@
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
-// @ts-check
 // sync.js — Evolu sync layer public entry point (opt-in, E2E encrypted)
 // Stores importedData + profile metadata per profile as a JSON blob.
 // Last-write-wins at the profile level — fine for single-user cross-device sync.
@@ -57,39 +56,31 @@ import {
 } from './sync-cutover.js';
 import { initSync } from './sync-init.js';
 
-/** @type {{
- *   enableSync: (...args: any[]) => Promise<any>,
- *   disableSync: (...args: any[]) => Promise<any>,
- *   pauseSync: (...args: any[]) => Promise<any>,
- * }} */
-const syncLifecycleDeps = {
+interface SyncLifecycleDependencies {
+  enableSync: (options?: { skipPush?: boolean; persist?: boolean }) => Promise<unknown>;
+  disableSync: (...args: unknown[]) => Promise<unknown>;
+  pauseSync: (...args: unknown[]) => Promise<unknown>;
+}
+
+const syncLifecycleDeps: SyncLifecycleDependencies = {
   enableSync: async () => { throw new Error('Sync lifecycle is not configured'); },
   disableSync: async () => { throw new Error('Sync lifecycle is not configured'); },
   pauseSync: async () => { throw new Error('Sync lifecycle is not configured'); },
 };
 
-/** @param {{
- *   enableSync?: (...args: any[]) => Promise<any>,
- *   disableSync?: (...args: any[]) => Promise<any>,
- *   pauseSync?: (...args: any[]) => Promise<any>,
- * }} [deps]
- */
-export function configureSyncLifecycleDeps(deps = {}) {
+export function configureSyncLifecycleDeps(deps: Partial<SyncLifecycleDependencies> = {}) {
   return configureRuntimeFunctions(syncLifecycleDeps, deps, ["enableSync","disableSync","pauseSync"]);
 }
 
-/** @param {...any} args */
-export function enableSync(...args) {
+export function enableSync(...args: Parameters<SyncLifecycleDependencies['enableSync']>) {
   return syncLifecycleDeps.enableSync(...args);
 }
 
-/** @param {...any} args */
-export function disableSync(...args) {
+export function disableSync(...args: Parameters<SyncLifecycleDependencies['disableSync']>) {
   return syncLifecycleDeps.disableSync(...args);
 }
 
-/** @param {...any} args */
-export function pauseSync(...args) {
+export function pauseSync(...args: Parameters<SyncLifecycleDependencies['pauseSync']>) {
   return syncLifecycleDeps.pauseSync(...args);
 }
 

@@ -596,3 +596,5 @@ deploy/profile-share/data/
 /js/sync-init.js
 /js/sync-evolu8-candidate.js
 /js/sync-evolu8-identity-vault.js
+/js/data.js
+/js/sync.js

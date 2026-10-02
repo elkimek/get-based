@@ -1,4 +1,3 @@
-// @ts-check
 // data.js — Data pipeline, unit conversion, date range, trend detection
 
 import { queueProfileDataWrite, profileDataBaseline, rememberProfileData, mergeProfileMutation, adoptProfileData, rebaseLiveProfileData, ProfileWriteConflict } from './profile-data-writes.js';

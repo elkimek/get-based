@@ -7,7 +7,7 @@ import {
   pauseSync,
 } from '../js/sync.js';
 
-let previousLifecycleDeps;
+let previousLifecycleDeps: ReturnType<typeof configureSyncLifecycleDeps> | undefined;
 
 afterEach(() => {
   if (previousLifecycleDeps) configureSyncLifecycleDeps(previousLifecycleDeps);
@@ -16,9 +16,9 @@ afterEach(() => {
 
 describe('sync public facade lifecycle composition', () => {
   it('delegates lifecycle calls and returns the previous configuration', async () => {
-    const enableLifecycle = vi.fn(async options => ({ enabled: options }));
+    const enableLifecycle = vi.fn(async (options: unknown) => ({ enabled: options }));
     const pauseLifecycle = vi.fn(async () => ({ paused: true }));
-    const disableLifecycle = vi.fn(async reason => ({ disabled: reason }));
+    const disableLifecycle = vi.fn(async (reason: unknown) => ({ disabled: reason }));
 
     previousLifecycleDeps = configureSyncLifecycleDeps({
       enableSync: enableLifecycle,
