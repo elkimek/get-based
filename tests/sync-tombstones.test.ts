@@ -13,6 +13,18 @@ import {
 import { configureProfileStorageCleanupDeps } from '../js/profile-storage-cleanup.js';
 import { getSyncDirtyToken, markSyncProfileDirty } from '../js/sync-dirty-state.js';
 import { state } from '../js/state.js';
+import type { SyncProfileRecord, SyncProfileRow } from '../js/sync-payload.js';
+
+function stubProfileStorageCleanup() {
+  return configureProfileStorageCleanupDeps({
+    encryptedRemoveItem: async () => {},
+    getBlobKeys: async () => [],
+    getDatabaseNames: async () => [],
+    deleteWearablesDB: async () => {},
+    deleteCycleDB: async () => {},
+    deleteNutritionDB: async () => {},
+  });
+}
 
 describe('sync tombstone profile dependencies', () => {
   afterEach(() => {
@@ -46,7 +58,7 @@ describe('sync tombstone profile dependencies', () => {
   });
 
   it('soft-deletes every duplicate live row for one profile id', async () => {
-    const updates = [];
+    const updates: Array<{ table: 'profileData'; args: { id: unknown; isDeleted: 1 } }> = [];
     const previous = configureSyncTombstones({
       getEvolu: () => ({
         getQueryRows: () => [
@@ -101,7 +113,7 @@ describe('sync tombstone profile dependencies', () => {
   it('treats a newer live row as Keep and retires obsolete local delete state', async () => {
     localStorage.setItem('labcharts-tombstone-pending-stale-profile', JSON.stringify({ at: 1 }));
     localStorage.setItem('labcharts-profile-delete-intent-stale-profile', JSON.stringify({ at: 1 }));
-    const saveProfiles = vi.fn();
+    const saveProfiles = vi.fn<(profiles: SyncProfileRecord[]) => Promise<void>>();
     const previous = configureSyncTombstones({
       getEvolu: () => ({
         getQueryRows: query => query === 'tombstones'
@@ -127,15 +139,8 @@ describe('sync tombstone profile dependencies', () => {
   it('quarantines a single tombstone instead of erasing unsynced local edits', async () => {
     const profileId = 'dirty-local';
     const notify = vi.fn();
-    const saveProfiles = vi.fn();
-    const cleanupPrevious = configureProfileStorageCleanupDeps({
-      encryptedRemoveItem: async () => {},
-      getBlobKeys: async () => [],
-      getDatabaseNames: async () => [],
-      deleteWearablesDB: async () => {},
-      deleteCycleDB: async () => {},
-      deleteNutritionDB: async () => {},
-    });
+    const saveProfiles = vi.fn<(profiles: SyncProfileRecord[]) => Promise<void>>();
+    const cleanupPrevious = stubProfileStorageCleanup();
     const previous = configureSyncTombstones({
       getEvolu: () => ({
         getQueryRows: query => query === 'tombstones'
@@ -179,16 +184,9 @@ describe('sync tombstone profile dependencies', () => {
     const oldCurrent = state.currentProfile;
     state.currentProfile = 'lastonly';
     localStorage.setItem('labcharts-tombstone-pending-lastonly', JSON.stringify({ at: 1 }));
-    const saveProfiles = vi.fn().mockResolvedValue(undefined);
+    const saveProfiles = vi.fn<(profiles: SyncProfileRecord[]) => Promise<void>>().mockResolvedValue(undefined);
     const loadProfile = vi.fn().mockResolvedValue(undefined);
-    const cleanupPrevious = configureProfileStorageCleanupDeps({
-      encryptedRemoveItem: async () => {},
-      getBlobKeys: async () => [],
-      getDatabaseNames: async () => [],
-      deleteWearablesDB: async () => {},
-      deleteCycleDB: async () => {},
-      deleteNutritionDB: async () => {},
-    });
+    const cleanupPrevious = stubProfileStorageCleanup();
     const previous = configureSyncTombstones({
       getProfiles: () => [{ id: 'lastonly', name: 'Deleted', tags: [] }],
       saveProfiles,
@@ -197,7 +195,7 @@ describe('sync tombstone profile dependencies', () => {
 
     try {
       await expect(applyPendingTombstone('lastonly')).resolves.toEqual({ ok: true });
-      const replacement = saveProfiles.mock.calls[0][0][0];
+      const replacement = saveProfiles.mock.calls[0]![0][0]!;
       expect(replacement.id).not.toBe('lastonly');
       expect(replacement.tags).toEqual([]);
       expect(replacement._syncFallback).toEqual(['lastonly', replacement.createdAt]);
@@ -213,17 +211,10 @@ describe('sync tombstone profile dependencies', () => {
   it('adopts a fresh relay profile when clear-all tombstones the last old id', async () => {
     const oldCurrent = state.currentProfile;
     state.currentProfile = 'replaced-old';
-    const saveProfiles = vi.fn().mockResolvedValue(undefined);
+    const saveProfiles = vi.fn<(profiles: SyncProfileRecord[]) => Promise<void>>().mockResolvedValue(undefined);
     const loadProfile = vi.fn().mockResolvedValue(undefined);
-    const cleanupPrevious = configureProfileStorageCleanupDeps({
-      encryptedRemoveItem: async () => {},
-      getBlobKeys: async () => [],
-      getDatabaseNames: async () => [],
-      deleteWearablesDB: async () => {},
-      deleteCycleDB: async () => {},
-      deleteNutritionDB: async () => {},
-    });
-    const rows = {
+    const cleanupPrevious = stubProfileStorageCleanup();
+    const rows: Record<string, SyncProfileRow[]> = {
       tombstones: [{
         id: 'old-tombstone',
         profileId: 'replaced-old',
@@ -241,7 +232,7 @@ describe('sync tombstone profile dependencies', () => {
       }],
     };
     const previous = configureSyncTombstones({
-      getEvolu: () => ({ getQueryRows: query => rows[query] || [] }),
+      getEvolu: () => ({ getQueryRows: query => rows[query as string] || [] }),
       getProfileQuery: () => 'profiles',
       getTombstoneQuery: () => 'tombstones',
       getProfiles: () => [{ id: 'replaced-old', name: 'Primary', tags: [] }],
@@ -270,13 +261,13 @@ describe('sync tombstone profile dependencies', () => {
     const currentData = { entries: [{ id: 'new-unsaved-edit' }] };
     const pushProfile = vi.fn().mockResolvedValue({ ok: true });
     state.currentProfile = profileId;
-    state.importedData = currentData;
+    state.importedData = currentData as unknown as typeof state.importedData;
     localStorage.setItem(
       `labcharts-tombstone-pending-${profileId}`,
       JSON.stringify({ at: 123, source: 'remote' })
     );
     const previous = configureSyncTombstones({
-      getEvolu: () => ({}),
+      getEvolu: () => ({}) as NonNullable<ReturnType<NonNullable<NonNullable<Parameters<typeof configureSyncTombstones>[0]>['getEvolu']>>>,
       isSyncEnabled: () => true,
       getProfiles: () => [{ id: profileId, name: 'Active' }],
       pushProfile,

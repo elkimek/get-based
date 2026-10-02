@@ -6,8 +6,8 @@ interface SyncAppOwner extends Record<string, unknown> { id?: string; mnemonic?:
 export interface SyncRuntimeClient {
   // Each registered query selects its own row projection; profile rows are the default.
   getQueryRows<Row extends SyncProfileRow | DeltaItemRow = SyncProfileRow>(query: unknown): readonly Row[] | null | undefined;
-  insert(table: 'profileData' | 'itemRow', args: unknown): unknown;
-  update(table: 'profileData' | 'itemRow', args: unknown): unknown;
+  insert(table: 'profileData' | 'itemRow', args: unknown, options?: { onComplete?: () => void }): unknown;
+  update(table: 'profileData' | 'itemRow', args: unknown, options?: { onComplete?: () => void }): unknown;
   loadQuery(query: unknown): Promise<unknown>;
   resetAppOwner(options: { reload: boolean }): unknown;
   restoreAppOwner(mnemonic: string, options?: { reload?: boolean }): unknown;

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { dataModuleSource } from './helpers/data-module-source.js';
+import { syncPushSourceContracts } from './helpers/sync-push-source-contracts.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-sync.js — Verify sync module exports, payload format, settings UI
@@ -107,6 +108,7 @@ await import('../js/settings.js');
   const syncSaveHooksSrc = (await fetchWithRetry('js/sync-save-hooks-core.js')).replace(/\s+/g, ' ');
   const syncStorageCleanupSrc = await fetchWithRetry('js/sync-storage-cleanup.js');
   const syncPushSrc = await fetchWithRetry('js/sync-push.js');
+  const syncPushContracts = syncPushSourceContracts(syncPushSrc);
   const syncOriginStateSrc = await fetchWithRetry('js/sync-origin-state.js');
   const syncPushDeltasSrc = await fetchWithRetry('js/sync-push-deltas.js');
   const syncRecoverySrc = await fetchWithRetry('js/sync-recovery.js');
@@ -1163,7 +1165,7 @@ await import('../js/settings.js');
     /export\s+\{[\s\S]{0,250}resetRelayQuotaEstimate/.test(syncSrc)
       && /export function resetRelayQuotaEstimate/.test(syncRelayHealthSrc));
   assert('Push success path increments tracker via trackPushBytes',
-    /Push committed[\s\S]{0,1500}trackPushBytes\(\s*\(dataJson \|\| ''\)\.length/.test(syncPushSrc));
+    syncPushContracts.commitTracksBytes);
   assert('Quota threshold warning fires on transition (amber → red)',
     /_maybeWarnQuotaThreshold[\s\S]{0,900}order\[want\] <= order\[prev\]/.test(syncRelayHealthSrc));
   assert('Quota indicator visible on popover (green/amber/red dot)',
@@ -1276,7 +1278,7 @@ await import('../js/settings.js');
 
   // Push integration in pushProfile
   assert('pushProfile plans deltas before evolu.update on profileData',
-    /const \{ deltaPlans,\s*deltaOpCount \}\s*=\s*await planProfileDeltas\(profileId,\s*outboundData\)[\s\S]{0,5000}evolu\.update\("profileData"/.test(syncPushSrc)
+    syncPushContracts.plansBeforeProfileUpdate
       && /planProfileDeltas[\s\S]{0,1200}for \(const arrayName of DELTA_ARRAYS\)[\s\S]{0,800}_planArrayDelta/.test(syncPushDeltasSrc));
   // Anchor on "Push committed" — unique to the onComplete arrow function,
   // unlike "onComplete" which also appears in evolu.update call sites.

@@ -17,7 +17,7 @@ export interface DeltaSurfaceReadiness {
 // surface that has local data also has at least one corresponding itemRow
 // in this device's Evolu DB.
 export function getDeltaCutoverReadiness(profileId: unknown, importedData?: Record<string, unknown> | null) {
-  if (!profileId) return { ready: false, error: 'no-profile', surfaces: {} };
+  if (!profileId) return { ready: false, error: 'no-profile', surfaces: {} as Record<string, DeltaSurfaceReadiness> };
   if (!importedData) importedData = state.importedData || {};
   const surfaces: Record<string, DeltaSurfaceReadiness> = {};
   let blockers = 0;

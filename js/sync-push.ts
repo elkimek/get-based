@@ -1,4 +1,11 @@
-// @ts-check
+import type { ProfileData } from '../types/app-state.js';
+import type { StoredProfileRecord } from './profile-list-store.js';
+import type { SyncProfileRow } from './sync-payload.js';
+import type { SyncRuntimeClient } from './sync-runtime.js';
+import type { SyncPushOptions, SyncPushResult } from './sync-actions.js';
+import type { SyncChatData } from './sync-chat-merge.js';
+import type { RuntimeDependencyUpdates } from './runtime-callbacks.js';
+
 // sync-push.js - Evolu profile push path and in-flight watchdog state.
 
 import { getErrorMessage } from './caught-error.js';
@@ -19,19 +26,17 @@ import { noteLocalSyncCommit } from './sync-origin-state.js';
 import { getProfileSyncBlockReason } from './profile-sync-policy.js';
 import { sanitizeNutritionProfileData } from './nutrition-sync-sanitize.js';
 
-/** @type {() => any} */
-let _getEvolu = () => null;
-/** @type {() => any} */
-let _getProfileQuery = () => null;
+type SyncPushClient = Pick<SyncRuntimeClient, 'insert' | 'update'> & {
+  getQueryRows(query: unknown): readonly SyncProfileRow[] | null | undefined;
+};
+
+let _getEvolu: () => SyncPushClient | null = () => null;
+let _getProfileQuery: () => unknown = () => null;
 let _isSyncEnabled = () => false;
-/** @type {(profileId?: any) => boolean} */
-let _isPhase2CutoverEnabled = () => false;
-/** @type {(...args: any[]) => any} */
-let _disablePhase2Cutover = () => {};
-/** @type {(...args: any[]) => any} */
-let _debug = () => {};
-/** @type {() => any[]} */
-let _getProfiles = () => [];
+let _isPhase2CutoverEnabled: (profileId?: string | null) => boolean = () => false;
+let _disablePhase2Cutover: (profileId: string) => unknown = () => {};
+let _debug: (...args: unknown[]) => unknown = () => {};
+let _getProfiles: () => StoredProfileRecord[] = () => [];
 
 // Tracks when _syncing was last set so a hung push (Evolu onComplete never
 // fires) can be detected and the flag cleared on the next push attempt
@@ -39,16 +44,16 @@ let _getProfiles = () => [];
 let _syncing = false;
 let _syncingSince = 0;
 
-/** @param {{
- *   getEvolu?: () => any,
- *   getProfileQuery?: () => any,
- *   isSyncEnabled?: () => boolean,
- *   isPhase2CutoverEnabled?: (profileId?: any) => boolean,
- *   disablePhase2Cutover?: (...args: any[]) => any,
- *   debug?: (...args: any[]) => any,
- *   getProfiles?: () => any[],
- * }} [deps]
- */
+interface SyncPushDependencies {
+  getEvolu: typeof _getEvolu;
+  getProfileQuery: typeof _getProfileQuery;
+  isSyncEnabled: typeof _isSyncEnabled;
+  isPhase2CutoverEnabled: typeof _isPhase2CutoverEnabled;
+  disablePhase2Cutover: typeof _disablePhase2Cutover;
+  debug: typeof _debug;
+  getProfiles: typeof _getProfiles;
+}
+
 export function configureSyncPush({
   getEvolu,
   getProfileQuery,
@@ -57,7 +62,7 @@ export function configureSyncPush({
   disablePhase2Cutover,
   debug,
   getProfiles,
-} = {}) {
+}: RuntimeDependencyUpdates<SyncPushDependencies> = {}) {
   if (typeof getEvolu === 'function') _getEvolu = getEvolu;
   if (typeof getProfileQuery === 'function') _getProfileQuery = getProfileQuery;
   if (typeof isSyncEnabled === 'function') _isSyncEnabled = isSyncEnabled;
@@ -71,9 +76,9 @@ export function isSyncPushInFlight() {
   return _syncing;
 }
 
-function normalizedImportedDataForPush(importedData) {
+function normalizedImportedDataForPush(importedData: ProfileData) {
   if (!importedData || typeof importedData !== 'object') return importedData;
-  let normalized;
+  let normalized: ProfileData;
   try {
     normalized = typeof structuredClone === 'function'
       ? structuredClone(importedData)
@@ -85,7 +90,7 @@ function normalizedImportedDataForPush(importedData) {
   return sanitizeNutritionProfileData(normalized);
 }
 
-export async function pushProfile(profileId, importedData, opts = {}) {
+export async function pushProfile(profileId: unknown, importedData: unknown, opts: SyncPushOptions = {}): Promise<SyncPushResult | void> {
   if (!profileId || typeof profileId !== 'string') return;
   // Never turn a failed profile-storage read into an authoritative empty
   // relay update. Callers that intentionally create an empty profile pass an
@@ -117,7 +122,7 @@ export async function pushProfile(profileId, importedData, opts = {}) {
   _syncing = true;
   _syncingSince = Date.now();
   const dirtyToken = getSyncDirtyToken(profileId);
-  const outboundData = normalizedImportedDataForPush(importedData);
+  const outboundData = normalizedImportedDataForPush(importedData as ProfileData);
   // Post-enable schema-drift detection. enablePhase2Cutover gates ON
   // readiness AT FLIP TIME, but if a future commit adds a new write site
   // OUTSIDE DELTA_ARRAYS/MAPS/SCALARS (the exact failure mode of the
@@ -154,12 +159,12 @@ export async function pushProfile(profileId, importedData, opts = {}) {
     // Dirty/startup pushes can precede the first application-level pull.
     // Preserve chat from every available replica row before replacing the
     // profile blob, including duplicates left by a restore/create race.
-    let remoteChatData = null;
+    let remoteChatData: SyncChatData | null = null;
     for (const row of rows || []) {
       if (row?.profileId !== profileId) continue;
       try {
         const parsed = await parseSyncPayload(row.dataJson);
-        if (parsed.chatData) remoteChatData = (await import('./sync-chat-merge.js')).mergeChatData(remoteChatData, parsed.chatData);
+        if (parsed.chatData) remoteChatData = (await import('./sync-chat-merge.js')).mergeChatData(remoteChatData, parsed.chatData as SyncChatData);
       } catch {
         logSyncEvent('skip', 'Invalid chat replica skipped');
       }
@@ -194,10 +199,10 @@ export async function pushProfile(profileId, importedData, opts = {}) {
     logSyncEvent('queue', queueMsg);
     updateSyncStatus({ push: 'pending', pushStartedAt: queuedAt });
 
-    return await new Promise((resolve) => {
+    return await new Promise<SyncPushResult>((resolve) => {
       let completed = false;
-      let watchdogId = null;
-      const finish = (result) => {
+      let watchdogId: ReturnType<typeof setTimeout> | null = null;
+      const finish = (result: SyncPushResult) => {
         _syncing = false;
         if (watchdogId !== null) { clearTimeout(watchdogId); watchdogId = null; }
         resolve(result);

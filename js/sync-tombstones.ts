@@ -9,7 +9,7 @@ interface SyncTombstoneDeps {
   getProfileQuery: () => unknown;
   getTombstoneQuery: () => unknown;
   isSyncEnabled: () => boolean;
-  pushProfile: null | ((profileId: string, data: unknown, options?: { allowTombstoneResurrection?: boolean }) => Promise<{ ok?: unknown; reason?: unknown } | null | undefined>);
+  pushProfile: null | ((profileId: string, data: unknown, options?: { allowTombstoneResurrection?: boolean }) => Promise<{ ok?: unknown; reason?: unknown } | null | undefined | void>);
   debug: (...args: unknown[]) => void;
   getProfiles: () => SyncProfileRecord[];
   saveProfiles: (profiles: SyncProfileRecord[]) => Promise<void>;
@@ -314,7 +314,7 @@ export async function rejectPendingTombstone(profileId: string) {
     try { data = JSON.parse(raw); } catch { return { ok: false, reason: 'bad-local-json' }; }
   }
   if (!_pushProfile) return { ok: false, reason: 'sync-off' };
-  const result = await _pushProfile(profileId, data, { allowTombstoneResurrection: true });
+  const result = await _pushProfile(profileId, data, { allowTombstoneResurrection: true }) as { ok?: unknown; reason?: unknown } | null | undefined;
   if (!result?.ok) return { ok: false, reason: result?.reason || 'push-failed' };
   localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
   clearLocalProfileDeleteIntent(profileId);
