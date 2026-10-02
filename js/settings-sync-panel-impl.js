@@ -527,7 +527,7 @@ async function syncSetupDoRestore() {
     // identity becomes durable only after Evolu accepts the supplied seed.
     const enabled = await enableSync({ skipPush: true, persist: false });
     if (enabled !== true) {
-      throw new Error(getMnemonicResolutionError() || 'Sync could not initialize in this browser');
+      throw new Error(/** @type {string} */ (getMnemonicResolutionError() || 'Sync could not initialize in this browser'));
     }
     setSyncSetupRestoreBusy(true, 'Sync is ready. Checking the 24-word identity…');
     const result = await restoreFromMnemonic(mnemonic);

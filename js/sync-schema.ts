@@ -1,11 +1,26 @@
-// @ts-check
+interface SyncSchemaTypes<Definition> {
+  id: (name: string) => Definition;
+  nullOr: (definition: Definition) => Definition;
+  NonEmptyString: Definition;
+}
+interface SyncQuerySelection {
+  selectAll(): SyncQuerySelection;
+  where(column: 'isDeleted', operator: 'is not' | '=', value: number): SyncQuerySelection;
+}
+interface SyncQueryDatabase {
+  selectFrom(table: 'profileData' | 'itemRow'): SyncQuerySelection;
+}
+interface SyncQueryClient<Query> {
+  createQuery(select: (db: SyncQueryDatabase) => SyncQuerySelection): Query;
+}
+
 // sync-schema.js - Evolu schema and query setup for sync.
 
-export function createSyncSchema({
+export function createSyncSchema<Definition>({
   id,
   nullOr,
   NonEmptyString,
-}) {
+}: SyncSchemaTypes<Definition>) {
   const ProfileDataId = id("ProfileData");
   const ItemRowId = id("ItemRow");
 
@@ -30,7 +45,7 @@ export function createSyncSchema({
   };
 }
 
-export function createSyncQueries(evolu) {
+export function createSyncQueries<Query>(evolu: SyncQueryClient<Query>) {
   // Query all live profile data rows.
   const profileQuery = evolu.createQuery((db) =>
     db.selectFrom("profileData")

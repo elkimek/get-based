@@ -1,33 +1,28 @@
-// @ts-check
 // sync-recovery.js - resume and network recovery hooks for sync.
 
 let _isSyncEnabled = () => false;
 let _isEvoluReady = () => false;
-/** @type {(...args: any[]) => Promise<any>} */
-let _syncNow = async () => {};
-/** @type {(...args: any[]) => any} */
-let _debug = () => {};
-/** @type {(...args: any[]) => any} */
-let _notify = () => {};
+let _syncNow: () => Promise<unknown> = async () => {};
+let _debug: (...args: unknown[]) => unknown = () => {};
+let _notify: (message: string, type: string, duration: number) => unknown = () => {};
 let _eventsBound = false;
 let _lastVisibleSyncAt = 0;
 let _lastNetState = true;
 
-/** @param {{
- *   isSyncEnabled?: () => boolean,
- *   isEvoluReady?: () => boolean,
- *   syncNow?: (...args: any[]) => Promise<any>,
- *   debug?: (...args: any[]) => any,
- *   notify?: (...args: any[]) => any,
- * }} [deps]
- */
+interface SyncRecoveryDeps {
+  isSyncEnabled: typeof _isSyncEnabled;
+  isEvoluReady: typeof _isEvoluReady;
+  syncNow: typeof _syncNow;
+  debug: typeof _debug;
+  notify: typeof _notify;
+}
 export function configureSyncRecovery({
   isSyncEnabled,
   isEvoluReady,
   syncNow,
   debug,
   notify,
-} = {}) {
+}: Partial<SyncRecoveryDeps> = {}) {
   if (typeof isSyncEnabled === 'function') _isSyncEnabled = isSyncEnabled;
   if (typeof isEvoluReady === 'function') _isEvoluReady = isEvoluReady;
   if (typeof syncNow === 'function') _syncNow = syncNow;
@@ -35,7 +30,7 @@ export function configureSyncRecovery({
   if (typeof notify === 'function') _notify = notify;
 }
 
-function _kickSync(reason) {
+function _kickSync(reason: string) {
   if (!_isSyncEnabled() || !_isEvoluReady()) return;
   const now = Date.now();
   if (now - _lastVisibleSyncAt < 30_000) return;
@@ -55,8 +50,7 @@ function getDefaultSyncRecoveryRuntime() {
   };
 }
 
-/** @param {{ win?: Window | null, doc?: Document | null, nav?: Navigator | null }} [runtime] */
-export function bindSyncRecoveryEvents({ win, doc, nav } = {}) {
+export function bindSyncRecoveryEvents({ win, doc, nav }: { win?: Window | null; doc?: Document | null; nav?: Navigator | null } = {}) {
   if (_eventsBound) return;
   _eventsBound = true;
   const defaults = getDefaultSyncRecoveryRuntime();

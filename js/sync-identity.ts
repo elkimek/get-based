@@ -1,4 +1,5 @@
-// @ts-check
+import type { Bip39Runtime } from './cashu-wallet-runtime-types.js';
+import type { QRCodeFactory } from './provider-qr.js';
 // sync-identity.js - BIP-39/QR loading and mnemonic restore helpers.
 
 import { loadScriptOnce, showNotification } from './utils.js';
@@ -9,24 +10,22 @@ import { getPendingBackupRestoreProfileIds } from './sync-backup-restore-state.j
 import { scheduleSyncRuntimeReload } from './sync-runtime.js';
 import { setSyncEnabled } from './sync-settings-state.js';
 
-/** @typedef {{ id?: unknown, mnemonic?: string }} SyncAppOwner */
-/** @typedef {{ restoreAppOwner: (mnemonic: string, options?: { reload?: boolean }) => unknown }} SyncEvolu */
+interface SyncAppOwner { id?: unknown; mnemonic?: string }
+interface SyncEvolu { restoreAppOwner: (mnemonic: string, options?: { reload?: boolean }) => unknown }
 
-let _bip39Load = null;
-let _qrCodeLoad = null;
-/** @type {() => SyncAppOwner | null} */
-let _getAppOwner = () => null;
-/** @type {() => any} */
-let _getAppOwnerError = () => null;
-/** @type {() => SyncEvolu | null} */
-let _getEvolu = () => null;
-/** @type {(...args: any[]) => Promise<any>} */
-let _seedLocalProfiles = async () => {};
+declare const qrcode: QRCodeFactory | undefined;
+
+let _bip39Load: Promise<Bip39Runtime> | null = null;
+let _qrCodeLoad: Promise<QRCodeFactory> | null = null;
+let _getAppOwner: () => SyncAppOwner | null = () => null;
+let _getAppOwnerError: () => unknown = () => null;
+let _getEvolu: () => SyncEvolu | null = () => null;
+let _seedLocalProfiles: () => Promise<unknown> = async () => {};
 
 export const RESTORE_JOIN_PENDING_KEY = 'labcharts-sync-restore-join-pending';
 export const RESTORE_NOTICE_KEY = 'labcharts-sync-restore-notice';
 
-function setRestoreNotice(kind) {
+function setRestoreNotice(kind: string) {
   try { sessionStorage.setItem(RESTORE_NOTICE_KEY, kind); } catch {}
 }
 
@@ -45,23 +44,22 @@ export function consumeSyncRestoreNotice() {
   return null;
 }
 
-function normalizeMnemonic(mnemonic) {
+function normalizeMnemonic(mnemonic: unknown) {
   return String(mnemonic || '').normalize('NFKD').trim().toLowerCase().split(/\s+/).join(' ');
 }
 
-/** @param {{
- *   getAppOwner?: () => SyncAppOwner | null,
- *   getAppOwnerError?: () => any,
- *   getEvolu?: () => SyncEvolu | null,
- *   seedLocalProfiles?: (...args: any[]) => Promise<any>,
- * }} [deps]
- */
+interface SyncIdentityDeps {
+  getAppOwner: typeof _getAppOwner;
+  getAppOwnerError: typeof _getAppOwnerError;
+  getEvolu: typeof _getEvolu;
+  seedLocalProfiles: typeof _seedLocalProfiles;
+}
 export function configureSyncIdentity({
   getAppOwner,
   getAppOwnerError,
   getEvolu,
   seedLocalProfiles,
-} = {}) {
+}: Partial<SyncIdentityDeps> = {}) {
   if (typeof getAppOwner === 'function') _getAppOwner = getAppOwner;
   if (typeof getAppOwnerError === 'function') _getAppOwnerError = getAppOwnerError;
   if (typeof getEvolu === 'function') _getEvolu = getEvolu;
@@ -77,7 +75,7 @@ function currentEvolu() {
 }
 
 export async function ensureBip39() {
-  const w = /** @type {any} */ (window);
+  const w = (window as Window & { bip39?: Bip39Runtime });
   if (w.bip39) return w.bip39;
   if (!_bip39Load) {
     _bip39Load = loadScriptOnce('/vendor/bip39-minimal.js').then(() => {
@@ -144,7 +142,7 @@ export function getMnemonicResolutionError() {
   try { return _getAppOwnerError?.() || null; } catch { return null; }
 }
 
-function setRestoreJoinPending(enabled) {
+function setRestoreJoinPending(enabled: boolean) {
   try {
     if (enabled) localStorage.setItem(RESTORE_JOIN_PENDING_KEY, String(Date.now()));
     else localStorage.removeItem(RESTORE_JOIN_PENDING_KEY);
@@ -176,10 +174,7 @@ export async function resetLocalSyncHistoryForRelayRebuild() {
   return true;
 }
 
-/** @param {string} mnemonic
- * @param {{ seedLocal?: boolean }} [options]
- */
-export async function restoreFromMnemonic(mnemonic, options = {}) {
+export async function restoreFromMnemonic(mnemonic: string, options: { seedLocal?: boolean } = {}) {
   const evolu = currentEvolu();
   if (!evolu) {
     showNotification('Sync is still starting. Wait a moment and try again.', 'error');

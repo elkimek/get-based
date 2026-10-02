@@ -1,5 +1,6 @@
+import type { ProfileData as ImportedDataRecord } from '../types/app-state.js';
+import type { ActiveData } from './data-view-types.js';
 import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
-// @ts-check
 // Browser controls for data views, chart layers, and display preferences.
 
 import { state } from './state.js';
@@ -8,39 +9,32 @@ import { profileStorageKey } from './profile.js';
 import { scheduleUtilsAfterNextPaint } from './utils-runtime.js';
 import { normalizeUnitProfile } from './unit-profiles.js';
 
-/**
- * @typedef {import('../types/app-state.js').ProfileData} ImportedDataRecord
- * @typedef {{
- *   buildSidebar: null | ((data?: ImportedDataRecord) => void),
- *   navigate: null | ((route?: string, data?: unknown) => void),
- *   showDetailModal: null | ((id: string) => void),
- * }} DataRuntimeDeps
- * @typedef {{
- *   getActiveData: null | (() => any),
- *   invalidateActiveDataCache: null | (() => void),
- * }} DataViewCoreDeps
- */
+export interface DataRuntimeDeps {
+  buildSidebar: ((data?: ImportedDataRecord | ActiveData) => unknown) | null;
+  navigate: ((route?: string, data?: unknown) => unknown) | null;
+  showDetailModal: ((id: string) => unknown) | null;
+}
+export interface DataViewCoreDeps {
+  getActiveData: (() => ActiveData) | null;
+  invalidateActiveDataCache: (() => void) | null;
+}
 
-/** @type {DataRuntimeDeps} */
-const dataRuntimeDeps = {
+const dataRuntimeDeps: DataRuntimeDeps = {
   buildSidebar: null,
   navigate: null,
   showDetailModal: null,
 };
 
-/** @type {DataViewCoreDeps} */
-const dataViewCoreDeps = {
+const dataViewCoreDeps: DataViewCoreDeps = {
   getActiveData: null,
   invalidateActiveDataCache: null,
 };
 
-/** @param {Partial<DataRuntimeDeps>} [deps] */
-export function configureDataRuntimeDeps(deps = {}) {
+export function configureDataRuntimeDeps(deps: Partial<DataRuntimeDeps> = {}) {
   return configureValidRuntimeCallbacks(dataRuntimeDeps, deps, ["buildSidebar","navigate","showDetailModal"]);
 }
 
-/** @param {Partial<DataViewCoreDeps>} [deps] */
-export function configureDataViewCoreDependencies(deps = {}) {
+export function configureDataViewCoreDependencies(deps: Partial<DataViewCoreDeps> = {}) {
   return configureValidRuntimeCallbacks(dataViewCoreDeps, deps, ["getActiveData","invalidateActiveDataCache"]);
 }
 
@@ -55,23 +49,23 @@ function invalidateActiveDataCache() {
   dataViewCoreDeps.invalidateActiveDataCache?.();
 }
 
-function navigateDataView(route, data) {
+function navigateDataView(route: string, data?: unknown) {
   dataRuntimeDeps.navigate?.(route, data);
 }
 
-export function navigateDataViewRuntime(route, data) {
+export function navigateDataViewRuntime(route: string, data?: unknown) {
   if (!dataRuntimeDeps.navigate) return false;
   dataRuntimeDeps.navigate(route, data);
   return true;
 }
 
-export function showDataMarkerDetailRuntime(markerId) {
+export function showDataMarkerDetailRuntime(markerId: string) {
   if (!dataRuntimeDeps.showDetailModal) return false;
   dataRuntimeDeps.showDetailModal(markerId);
   return true;
 }
 
-function buildDataSidebar(data) {
+function buildDataSidebar(data?: ActiveData) {
   dataRuntimeDeps.buildSidebar?.(data);
 }
 
@@ -80,13 +74,13 @@ const DATA_CHANGE_ATTR = 'data-lab-data-change';
 const DATA_RANGE_ATTR = 'data-lab-data-range';
 const DATA_ACTION_SELECTOR = `[${DATA_ACTION_ATTR}]`;
 const DATA_CHANGE_SELECTOR = `[${DATA_CHANGE_ATTR}]`;
-const dataActionDelegateRoots = new WeakSet();
+const dataActionDelegateRoots = new WeakSet<Document | Element>();
 
-function dataAttrName(name) {
+function dataAttrName(name: unknown) {
   return String(name).replace(/[A-Z]/g, char => `-${char.toLowerCase()}`);
 }
 
-function dataControlAttrs(kind, action, attrs = {}) {
+function dataControlAttrs(kind: string, action: string, attrs: Record<string, unknown> = {}) {
   let html = `data-lab-data-${kind}="${escapeAttr(action)}"`;
   for (const [name, value] of Object.entries(attrs)) {
     if (value === undefined || value === null || value === false) continue;
@@ -95,30 +89,28 @@ function dataControlAttrs(kind, action, attrs = {}) {
   return html;
 }
 
-export function dataActionAttrs(action, attrs = {}) {
+export function dataActionAttrs(action: string, attrs: Record<string, unknown> = {}) {
   return dataControlAttrs('action', action, attrs);
 }
 
-export function dataChangeAttrs(action, attrs = {}) {
+export function dataChangeAttrs(action: string, attrs: Record<string, unknown> = {}) {
   return dataControlAttrs('change', action, attrs);
 }
 
-function closestDataElement(target, selector) {
-  return /** @type {HTMLElement | null} */ (
-    target && typeof target.closest === 'function' ? target.closest(selector) : null
-  );
+function closestDataElement(target: EventTarget | null, selector: string) {
+  return ((target as Element | null) && typeof (target as Element).closest === 'function' ? (target as Element).closest(selector) : null as HTMLElement | null);
 }
 
-function rootContains(root, el) {
-  return !!(root && typeof root.contains === 'function' && root.contains(el));
+function rootContains(root: EventTarget | null, el: Element) {
+  return !!(root && typeof (root as Node).contains === 'function' && (root as Node).contains(el));
 }
 
-function containChartLayersClick(event) {
+function containChartLayersClick(event: Event) {
   event.stopPropagation();
   if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
 }
 
-function handleDataClick(event) {
+function handleDataClick(event: Event) {
   const actionEl = closestDataElement(event.target, DATA_ACTION_SELECTOR);
   if (!actionEl || !rootContains(event.currentTarget, actionEl)) return;
   const action = actionEl.getAttribute(DATA_ACTION_ATTR);
@@ -144,11 +136,11 @@ function handleDataClick(event) {
   }
 }
 
-function handleDataChange(event) {
+function handleDataChange(event: Event) {
   const actionEl = closestDataElement(event.target, DATA_CHANGE_SELECTOR);
   if (!actionEl || !rootContains(event.currentTarget, actionEl)) return;
   const action = actionEl.getAttribute(DATA_CHANGE_ATTR);
-  const checked = /** @type {{ checked?: boolean }} */ (event.target || {}).checked === true;
+  const checked = ((event.target || {}) as { checked?: boolean }).checked === true;
   const mode = checked ? 'on' : 'off';
   if (action === 'set-note-overlay') {
     setNoteOverlay(mode);
@@ -159,7 +151,7 @@ function handleDataChange(event) {
   }
 }
 
-export function installDataActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+export function installDataActionDelegates(root: Document | Element | null = typeof document !== 'undefined' ? document : null) {
   if (!root || dataActionDelegateRoots.has(root)) return;
   dataActionDelegateRoots.add(root);
   root.addEventListener('click', handleDataClick);
@@ -185,7 +177,7 @@ export function renderDateRangeFilter({ showScope = false } = {}) {
   </div>`;
 }
 
-export function setDateRange(range) {
+export function setDateRange(range: string) {
   state.dateRangeFilter = range;
   buildDataSidebar();
   navigateDataView(state.currentView || 'dashboard');
@@ -218,33 +210,31 @@ export function renderChartLayersDropdown() {
 }
 
 function _getActiveNavCategory() {
-  const activeNav = /** @type {HTMLElement | null} */ (document.querySelector('.nav-item.active'));
+  const activeNav = (document.querySelector('.nav-item.active') as HTMLElement | null);
   return activeNav?.dataset.category || 'dashboard';
 }
 
-export function toggleChartLayersDropdown(e) {
+export function toggleChartLayersDropdown(e: Event) {
   // Direct callers still rely on this; delegated clicks add
   // stopImmediatePropagation() at document level after this returns.
   e.stopPropagation();
   const dd = document.getElementById('chart-layers-dropdown');
   if (!dd) return;
-  const trigger = /** @type {HTMLButtonElement | null} */ (
-    dd.parentElement?.querySelector('.chart-layers-trigger') || null
-  );
+  const trigger = ((dd.parentElement?.querySelector('.chart-layers-trigger') || null) as HTMLButtonElement | null);
   const isOpen = dd.classList.contains('open');
   dd.classList.toggle('open', !isOpen);
   if (trigger) trigger.setAttribute('aria-expanded', String(!isOpen));
   if (!isOpen) {
-    const close = (ev) => {
+    const close = (ev: Event | null) => {
       // Allow keyboard close (Escape) without requiring an event target
-      if (!ev || !ev.target || !ev.target.closest || !ev.target.closest('.chart-layers-wrapper')) {
+      if (!ev || !ev.target || !(ev.target as Element).closest || !(ev.target as Element).closest('.chart-layers-wrapper')) {
         dd.classList.remove('open');
         if (trigger) trigger.setAttribute('aria-expanded', 'false');
         document.removeEventListener('click', close);
         document.removeEventListener('keydown', closeOnEsc);
       }
     };
-    const closeOnEsc = (ev) => {
+    const closeOnEsc = (ev: KeyboardEvent) => {
       if (ev.key === 'Escape') {
         dd.classList.remove('open');
         if (trigger) trigger.setAttribute('aria-expanded', 'false');
@@ -260,33 +250,26 @@ export function toggleChartLayersDropdown(e) {
   }
 }
 
-export function setSuppOverlay(mode) {
-  state.suppOverlayMode = mode === 'off' ? 'off' : 'on';
-  localStorage.setItem(profileStorageKey(state.currentProfile, 'suppOverlay'), state.suppOverlayMode);
+function setOverlayMode(
+  field: 'suppOverlayMode' | 'noteOverlayMode' | 'phaseOverlayMode',
+  key: 'suppOverlay' | 'noteOverlay' | 'phaseOverlay', mode: unknown,
+) {
+  state[field] = mode === 'off' ? 'off' : 'on';
+  localStorage.setItem(profileStorageKey(state.currentProfile, key), state[field]);
   const activeCat = _getActiveNavCategory();
   navigateDataView(activeCat);
 }
 
-export function setNoteOverlay(mode) {
-  state.noteOverlayMode = mode === 'off' ? 'off' : 'on';
-  localStorage.setItem(profileStorageKey(state.currentProfile, 'noteOverlay'), state.noteOverlayMode);
-  const activeCat = _getActiveNavCategory();
-  navigateDataView(activeCat);
-}
-
-export function setPhaseOverlay(mode) {
-  state.phaseOverlayMode = mode === 'off' ? 'off' : 'on';
-  localStorage.setItem(profileStorageKey(state.currentProfile, 'phaseOverlay'), state.phaseOverlayMode);
-  const activeCat = _getActiveNavCategory();
-  navigateDataView(activeCat);
-}
+export function setSuppOverlay(mode: unknown) { setOverlayMode('suppOverlayMode', 'suppOverlay', mode); }
+export function setNoteOverlay(mode: unknown) { setOverlayMode('noteOverlayMode', 'noteOverlay', mode); }
+export function setPhaseOverlay(mode: unknown) { setOverlayMode('phaseOverlayMode', 'phaseOverlay', mode); }
 
 export function destroyAllCharts() {
   for (const c of Object.values(state.chartInstances)) c.destroy();
   state.chartInstances = {};
 }
 
-export function switchUnitSystem(system) {
+export function switchUnitSystem(system: unknown) {
   const unitProfile = normalizeUnitProfile(system);
   invalidateActiveDataCache();
   state.unitSystem = unitProfile;
@@ -299,7 +282,7 @@ export function switchUnitSystem(system) {
   if (openId) dataRuntimeDeps.showDetailModal?.(openId);
 }
 
-export function toggleAltUnits(force) {
+export function toggleAltUnits(force?: unknown) {
   const next = (force === true || force === false) ? force : !state.showAltUnits;
   if (next === state.showAltUnits) return;
   state.showAltUnits = next;
@@ -310,7 +293,7 @@ export function toggleAltUnits(force) {
 
 let _rangeModeRefreshToken = 0;
 
-function _captureCategoryCardOrderForRangeRefresh(route) {
+function _captureCategoryCardOrderForRangeRefresh(route: string | null | undefined) {
   if (typeof document === 'undefined' || !route) return null;
   const grid = document.querySelector('#view-content .charts-grid');
   if (!grid) return null;
@@ -323,11 +306,11 @@ function _captureCategoryCardOrderForRangeRefresh(route) {
   return markerKeys.length ? { categoryKey: route, markerKeys } : null;
 }
 
-function _afterNextPaint(fn) {
+function _afterNextPaint(fn: () => void) {
   scheduleUtilsAfterNextPaint(fn);
 }
 
-export function switchRangeMode(mode) {
+export function switchRangeMode(mode: unknown) {
   const nextMode = mode === 'reference' ? 'reference' : mode === 'both' ? 'both' : 'optimal';
   if (state.rangeMode === nextMode) return;
   state.rangeMode = nextMode;
@@ -349,13 +332,13 @@ export function switchRangeMode(mode) {
   });
 }
 
-export function updateHeaderDates(data) {
+export function updateHeaderDates(data?: ActiveData | null) {
   if (!data) data = getActiveData();
   const el = document.getElementById("header-dates");
   if (el) {
     if (data.dateLabels.length > 0) {
       const labels = data.dateLabels;
-      const dateText = labels.length === 1 ? labels[0] : `${labels[0]} – ${labels[labels.length - 1]}`;
+      const dateText = labels.length === 1 ? labels[0]! : `${labels[0]} – ${labels[labels.length - 1]}`;
       el.innerHTML = `<span class="label">Dates:</span> ${dateText}`;
       el.style.display = '';
     } else {
@@ -368,9 +351,7 @@ export function updateHeaderRangeToggle() {
   const el = document.getElementById('header-range-toggle');
   if (!el) return;
   const modes = ['optimal', 'reference', 'both'];
-  const buttons = /** @type {HTMLButtonElement[]} */ (
-    Array.from(el.querySelectorAll('.range-toggle-btn'))
-  );
+  const buttons = (Array.from(el.querySelectorAll('.range-toggle-btn')) as HTMLButtonElement[]);
   const canPatch = buttons.length === modes.length && modes.every(m => buttons.some(btn => btn.dataset.range === m));
   if (!canPatch) {
     el.innerHTML = modes.map(m =>

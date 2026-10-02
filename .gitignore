@@ -577,3 +577,9 @@ deploy/profile-share/data/
 /js/sun-defaults-runtime.js
 /js/sun-defaults-setup-renderer.js
 /js/sun-defaults-setup-ui.js
+/js/data-view-controls.js
+/js/biology-score-persistence.js
+/js/provider-qr.js
+/js/sync-identity.js
+/js/sync-recovery.js
+/js/sync-schema.js
