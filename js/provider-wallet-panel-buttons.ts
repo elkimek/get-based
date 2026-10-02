@@ -1,12 +1,11 @@
-// @ts-check
 // provider-wallet-panel-buttons.js - Routstr wallet/node action button renderers
 
 import { escapeAttr } from './utils.js';
 
-export function buildRoutstrNodeActions(nodeUrl, hasKey, active) {
+export function buildRoutstrNodeActions(nodeUrl: unknown, hasKey: unknown, active: unknown) {
   const _pill = 'font-size:11px;padding:3px 10px;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)';
   const _activePill = 'font-size:11px;padding:3px 10px';
-  const btns = [];
+  const btns: Array<{ id: string; label: string; nodeUrl?: unknown }> = [];
   if (nodeUrl) btns.push({ id: 'deposit', label: 'Deposit', nodeUrl });
   if (hasKey && nodeUrl) btns.push({ id: 'withdraw', label: 'Withdraw' });
   btns.push({ id: 'browse', label: 'Browse' });
@@ -17,7 +16,7 @@ export function buildRoutstrNodeActions(nodeUrl, hasKey, active) {
   }).join('');
 }
 
-export function routstrWalletActionButtons(active) {
+export function routstrWalletActionButtons(active: unknown) {
   const _pill = 'font-size:11px;padding:3px 10px;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)';
   const _active = 'font-size:11px;padding:3px 10px';
   const mainBtns = [

@@ -1,4 +1,5 @@
-// @ts-check
+import type { RuntimeDependencyUpdates } from './runtime-callbacks.js';
+
 // provider-model-controls-runtime.js - Browser runtime adapters for provider model controls.
 
 import { configureRuntimeDependencies } from './runtime-callbacks.js';
@@ -8,12 +9,17 @@ import {
   updateChatHeaderModelRuntime,
 } from './chat-runtime.js';
 
-const providerModelControlsRuntimeDeps = {
+interface ProviderModelControlsDependencies {
+  callClaudeAPI: (options: Parameters<typeof callClaudeAPI>[0]) => Promise<unknown>;
+  clearE2EESession: () => unknown;
+}
+
+const providerModelControlsRuntimeDeps: ProviderModelControlsDependencies = {
   callClaudeAPI,
   clearE2EESession: clearVeniceE2EESession,
 };
 
-export function configureProviderModelControlsRuntimeDeps(deps = {}) {
+export function configureProviderModelControlsRuntimeDeps(deps: RuntimeDependencyUpdates<ProviderModelControlsDependencies> = {}) {
   return configureRuntimeDependencies(providerModelControlsRuntimeDeps, deps);
 }
 

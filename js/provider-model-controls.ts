@@ -1,4 +1,5 @@
-// @ts-check
+import type { StoredProviderModel } from './api-provider-storage.js';
+
 // provider-model-controls.js - provider model dropdowns, pricing, and custom model selection.
 
 import { getErrorMessage } from './caught-error.js';
@@ -28,12 +29,12 @@ import {
   refreshProviderModelUiRuntime,
 } from './provider-model-controls-runtime.js';
 
-export function updateVeniceModelPricing(modelId) {
+export function updateVeniceModelPricing(modelId?: string) {
   const el = document.getElementById('venice-model-pricing');
   if (el) el.innerHTML = renderModelPricingHint('venice', modelId || getVeniceModel());
 }
 
-export function renderVeniceModelDropdown(models) {
+export function renderVeniceModelDropdown(models: StoredProviderModel[]) {
   const area = document.getElementById('venice-model-area');
   if (!area || !models.length) return;
   const currentModel = getVeniceModel();
@@ -43,7 +44,7 @@ export function renderVeniceModelDropdown(models) {
     '<div id="venice-model-pricing" style="margin-top:4px">' + renderModelPricingHint('venice', currentModel) + '</div>';
 }
 
-export function onVeniceModelDropdownChange(value) {
+export function onVeniceModelDropdownChange(value: string) {
   const previous = getVeniceModel();
   setVeniceModel(value);
   localStorage.setItem(getVeniceE2EE() ? 'labcharts-venice-model-e2ee' : 'labcharts-venice-model-regular', value);
@@ -51,18 +52,18 @@ export function onVeniceModelDropdownChange(value) {
   updateVeniceModelPricing(value);
 }
 
-export function toggleVeniceE2EE(on) {
+export function toggleVeniceE2EE(on: boolean) {
   setVeniceE2EE(on);
   if (!on) clearProviderE2EESessionRuntime();
   // Swap model dropdown to E2EE or regular model list.
   const listKey = on ? 'labcharts-venice-e2ee-models' : 'labcharts-venice-models';
-  let models = []; try { models = JSON.parse(localStorage.getItem(listKey) || '[]'); } catch {}
+  let models: StoredProviderModel[] = []; try { models = JSON.parse(localStorage.getItem(listKey) || '[]'); } catch {}
   if (models.length) {
     const prevKey = on ? 'labcharts-venice-model-regular' : 'labcharts-venice-model-e2ee';
     const restoreKey = on ? 'labcharts-venice-model-e2ee' : 'labcharts-venice-model-regular';
     localStorage.setItem(prevKey, getVeniceModel());
     const restored = localStorage.getItem(restoreKey);
-    const newModel = restored && models.some(m => m.id === restored) ? restored : models[0].id;
+    const newModel = restored && models.some(m => m.id === restored) ? restored : models[0]!.id;
     setVeniceModel(newModel);
     renderVeniceModelDropdown(models);
   }
@@ -71,12 +72,12 @@ export function toggleVeniceE2EE(on) {
   refreshProviderModelUiRuntime();
 }
 
-export function updateOpenRouterModelPricing(modelId) {
+export function updateOpenRouterModelPricing(modelId?: string) {
   const el = document.getElementById('openrouter-model-pricing');
   if (el) el.innerHTML = renderModelPricingHint('openrouter', modelId || getOpenRouterModel());
 }
 
-export function renderOpenRouterModelDropdown(models) {
+export function renderOpenRouterModelDropdown(models: StoredProviderModel[]) {
   const area = document.getElementById('openrouter-model-area');
   if (!area || !models.length) return;
   const currentModel = getOpenRouterModel();
@@ -89,21 +90,21 @@ export function renderOpenRouterModelDropdown(models) {
     '<div id="openrouter-model-pricing" style="margin-top:4px">' + renderModelPricingHint('openrouter', currentModel) + '</div>';
 }
 
-export async function applyCustomOpenRouterModel(modelId) {
+export async function applyCustomOpenRouterModel(modelId: string) {
   const id = modelId.trim();
   if (!id) return;
   setOpenRouterModel(id);
   const pricingEl = document.getElementById('openrouter-model-pricing');
   if (pricingEl) pricingEl.innerHTML = '<span style="font-size:11px;color:var(--text-muted)">Checking pricing\u2026</span>';
-  const select = /** @type {HTMLSelectElement | null} */ (document.getElementById('openrouter-model-select'));
-  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('openrouter-custom-model'));
+  const select = (document.getElementById('openrouter-model-select') as HTMLSelectElement | null);
+  const input = (document.getElementById('openrouter-custom-model') as HTMLInputElement | null);
   const inDropdown = select && [...select.options].some(o => o.value === id);
   if (select) {
     if (inDropdown) {
       select.value = id;
       if (input) { input.value = ''; input.style.borderColor = ''; }
     } else {
-      let customOpt = /** @type {HTMLOptionElement | null} */ (select.querySelector('option[value="__custom"]'));
+      let customOpt = (select.querySelector('option[value="__custom"]') as HTMLOptionElement | null);
       if (!customOpt) {
         customOpt = document.createElement('option');
         customOpt.value = '__custom';
@@ -131,10 +132,10 @@ export async function applyCustomOpenRouterModel(modelId) {
   }
 }
 
-export function onOpenRouterDropdownChange(value) {
+export function onOpenRouterDropdownChange(value: string) {
   setOpenRouterModel(value);
   updateOpenRouterModelPricing(value);
-  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('openrouter-custom-model'));
+  const input = (document.getElementById('openrouter-custom-model') as HTMLInputElement | null);
   if (input) { input.value = ''; input.style.borderColor = ''; }
   const health = document.getElementById('openrouter-model-health');
   if (health) { health.textContent = ''; health.title = ''; }
@@ -143,18 +144,18 @@ export function onOpenRouterDropdownChange(value) {
   if (customOpt) customOpt.remove();
 }
 
-export function updateRoutstrModelPricing(modelId) {
+export function updateRoutstrModelPricing(modelId?: string) {
   const el = document.getElementById('routstr-model-pricing');
   if (el) el.innerHTML = renderModelPricingHint('routstr', modelId || getRoutstrModel());
 }
 
-export function renderRoutstrModelDropdown(models) {
+export function renderRoutstrModelDropdown(models: StoredProviderModel[]) {
   const area = document.getElementById('routstr-model-area');
   if (!area || !models.length) return;
   let currentModel = getRoutstrModel();
   const modelIds = models.map(m => m.id);
   if (currentModel && !modelIds.includes(currentModel)) {
-    currentModel = modelIds[0];
+    currentModel = modelIds[0]!;
     setRoutstrModel(currentModel);
   }
   const opts = buildModelOptions('routstr', models, currentModel, function(m) { return m.name || m.id; });
@@ -166,25 +167,25 @@ export function renderRoutstrModelDropdown(models) {
 export function refreshRoutstrPrivateControls() {
   const controls = document.getElementById('routstr-private-controls');
   if (!controls) return;
-  let privateModels = [];
+  let privateModels: unknown[] = [];
   try { privateModels = JSON.parse(localStorage.getItem('labcharts-routstr-private-models') || '[]'); } catch {}
   controls.style.display = privateModels.length || isRoutstrPrivateModeActive() ? '' : 'none';
-  const toggle = /** @type {HTMLInputElement | null} */ (document.getElementById('routstr-private-toggle'));
+  const toggle = (document.getElementById('routstr-private-toggle') as HTMLInputElement | null);
   if (toggle) toggle.checked = isRoutstrPrivateModeActive();
   const indicator = document.getElementById('routstr-private-indicator');
   if (indicator) indicator.style.display = isRoutstrPrivateModeActive() ? '' : 'none';
 }
 
-export function onRoutstrModelDropdownChange(value) {
+export function onRoutstrModelDropdownChange(value: string) {
   setRoutstrModel(value);
   localStorage.setItem(value.startsWith('tinfoil-') ? 'labcharts-routstr-model-private' : 'labcharts-routstr-model-regular', value);
   updateRoutstrModelPricing(value);
   refreshRoutstrPrivateControls();
 }
 
-export function toggleRoutstrPrivateMode(on) {
+export function toggleRoutstrPrivateMode(on: boolean) {
   const listKey = on ? 'labcharts-routstr-private-models' : 'labcharts-routstr-models';
-  let models = [];
+  let models: StoredProviderModel[] = [];
   try { models = JSON.parse(localStorage.getItem(listKey) || '[]'); } catch {}
   if (!models.length) { refreshRoutstrPrivateControls(); return; }
   const previousKey = on ? 'labcharts-routstr-model-regular' : 'labcharts-routstr-model-private';
@@ -193,7 +194,7 @@ export function toggleRoutstrPrivateMode(on) {
   const restored = localStorage.getItem(restoreKey);
   const privatePreferredIds = ['tinfoil-gemma4-31b', 'tinfoil-kimi-k2-6', 'tinfoil-deepseek-v4-pro', 'tinfoil-glm-5-2'];
   const preferred = on ? privatePreferredIds.map(id => models.find(model => model.id === id)).find(Boolean) : null;
-  const next = restored && models.some(model => model.id === restored) ? restored : (preferred?.id || models[0].id);
+  const next = restored && models.some(model => model.id === restored) ? restored : (preferred?.id || models[0]!.id);
   setRoutstrModel(next);
   localStorage.setItem(restoreKey, next);
   renderRoutstrModelDropdown(models);
@@ -201,7 +202,7 @@ export function toggleRoutstrPrivateMode(on) {
   refreshProviderModelUiRuntime();
 }
 
-export function renderPpqModelDropdown(models) {
+export function renderPpqModelDropdown(models: StoredProviderModel[]) {
   const area = document.getElementById('ppq-model-area');
   if (!area || !models.length) return;
   const currentModel = getPpqModel();
@@ -211,16 +212,16 @@ export function renderPpqModelDropdown(models) {
     '<div id="ppq-model-pricing" style="margin-top:4px">' + renderModelPricingHint('ppq', currentModel) + '</div>';
 }
 
-export function togglePpqPrivateMode(on) {
+export function togglePpqPrivateMode(on: boolean) {
   setPpqPrivateMode(on);
   const listKey = on ? 'labcharts-ppq-private-models' : 'labcharts-ppq-models';
-  let models = []; try { models = JSON.parse(localStorage.getItem(listKey) || '[]'); } catch {}
+  let models: StoredProviderModel[] = []; try { models = JSON.parse(localStorage.getItem(listKey) || '[]'); } catch {}
   if (models.length) {
     const prevKey = on ? 'labcharts-ppq-model-regular' : 'labcharts-ppq-model-private';
     const restoreKey = on ? 'labcharts-ppq-model-private' : 'labcharts-ppq-model-regular';
     localStorage.setItem(prevKey, getPpqModel());
     const restored = localStorage.getItem(restoreKey);
-    const newModel = restored && models.some(m => m.id === restored) ? restored : models[0].id;
+    const newModel = restored && models.some(m => m.id === restored) ? restored : models[0]!.id;
     setPpqModel(newModel);
     renderPpqModelDropdown(models);
   }
@@ -229,12 +230,12 @@ export function togglePpqPrivateMode(on) {
   refreshProviderModelUiRuntime();
 }
 
-export function updatePpqModelPricing(modelId) {
+export function updatePpqModelPricing(modelId: string) {
   const el = document.getElementById('ppq-model-pricing');
   if (el) el.innerHTML = renderModelPricingHint('ppq', modelId);
 }
 
-export function renderCustomApiModelDropdown(models) {
+export function renderCustomApiModelDropdown(models: StoredProviderModel[]) {
   const area = document.getElementById('custom-model-area');
   if (!area) return;
   const currentModel = getCustomApiModel();
@@ -246,18 +247,18 @@ export function renderCustomApiModelDropdown(models) {
     <div id="custom-model-pricing" style="margin-top:4px">${renderModelPricingHint('custom', currentModel)}</div>`;
 }
 
-export function updateCustomModelPricing(modelId) {
+export function updateCustomModelPricing(modelId?: string) {
   const el = document.getElementById('custom-model-pricing');
   if (el) el.innerHTML = renderModelPricingHint('custom', modelId || getCustomApiModel());
 }
 
 export function applyCustomApiManualModel() {
-  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('custom-manual-model'));
+  const input = (document.getElementById('custom-manual-model') as HTMLInputElement | null);
   if (!input) return;
   const model = input.value.trim();
   if (!model) { showNotification('Enter a model ID', 'error'); return; }
   setCustomApiModel(model);
-  const select = /** @type {HTMLSelectElement | null} */ (document.getElementById('custom-model-select'));
+  const select = (document.getElementById('custom-model-select') as HTMLSelectElement | null);
   if (select) select.value = model;
   updateCustomModelPricing(model);
   showNotification('Model set to ' + model, 'success');

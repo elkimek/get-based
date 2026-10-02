@@ -639,3 +639,10 @@ deploy/profile-share/data/
 
 /js/sync-configure.js
 /js/sync-lifecycle.js
+
+/js/provider-model-controls.js
+/js/provider-model-controls-runtime.js
+/js/provider-panel-renderers.js
+/js/provider-panel-renderers-runtime.js
+/js/provider-wallet-panel-buttons.js
+/js/nostr-discovery.js

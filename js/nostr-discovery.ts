@@ -1,4 +1,26 @@
-// @ts-check
+export interface RoutstrNode {
+  id: string;
+  pubkey: string;
+  name: unknown;
+  about: unknown;
+  urls: string[];
+  onion: string | null;
+  mints: Array<string | undefined>;
+  version: string | null;
+  createdAt: number;
+  online: boolean | null;
+  models: Array<{ id: unknown; name: unknown }>;
+  modelCount: number;
+}
+interface NodeAnnouncement {
+  kind: number;
+  pubkey: string;
+  content: string;
+  tags: string[][];
+  created_at: number;
+}
+interface NodeCatalog { data?: Array<{ id?: unknown; name?: unknown; enabled?: unknown }> }
+
 // nostr-discovery.js — Discover Routstr AI nodes via Nostr relays (NIP-91 / Kind 38421)
 // Queries multiple relays in parallel, parses provider announcements, health-checks endpoints.
 
@@ -29,7 +51,7 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 // ═══════════════════════════════════════════════
 // CACHE
 // ═══════════════════════════════════════════════
-let _cachedNodes = null;
+let _cachedNodes: RoutstrNode[] | null = null;
 let _cacheTime = 0;
 
 // ═══════════════════════════════════════════════
@@ -37,10 +59,10 @@ let _cacheTime = 0;
 // ═══════════════════════════════════════════════
 
 /** Query a single relay for Kind 38421 events */
-function _queryRelay(relayUrl) {
-  return new Promise((resolve) => {
-    const events = [];
-    let ws;
+function _queryRelay(relayUrl: string) {
+  return new Promise<unknown[]>((resolve) => {
+    const events: unknown[] = [];
+    let ws: WebSocket | undefined;
     const timer = setTimeout(() => {
       try { ws?.close(); } catch {}
       resolve(events);
@@ -51,7 +73,7 @@ function _queryRelay(relayUrl) {
       const subId = 'routstr-' + Math.random().toString(36).slice(2, 8);
 
       ws.onopen = () => {
-        ws.send(JSON.stringify(['REQ', subId, { kinds: [ROUTSTR_EVENT_KIND], limit: 50 }]));
+        ws!.send(JSON.stringify(['REQ', subId, { kinds: [ROUTSTR_EVENT_KIND], limit: 50 }]));
       };
 
       ws.onmessage = (msg) => {
@@ -63,7 +85,7 @@ function _queryRelay(relayUrl) {
           } else if (data[0] === 'EOSE' && data[1] === subId) {
             // End of stored events — close connection
             clearTimeout(timer);
-            ws.close();
+            ws!.close();
             resolve(events);
           }
         } catch {}
@@ -86,15 +108,15 @@ function _queryRelay(relayUrl) {
 }
 
 /** Parse a Nostr event into a node descriptor */
-function _parseNodeEvent(event) {
+function _parseNodeEvent(event: NodeAnnouncement): RoutstrNode {
   const tags = event.tags || [];
-  const urls = tags.filter(t => t[0] === 'u').map(t => t[1]);
+  const urls = tags.filter(t => t[0] === 'u').map(t => t[1]!);
   const mints = tags.filter(t => t[0] === 'mint').map(t => t[1]);
   const dTag = tags.find(t => t[0] === 'd')?.[1] || event.pubkey;
   const version = tags.find(t => t[0] === 'version')?.[1] || null;
 
-  let name = dTag;
-  let about = '';
+  let name: unknown = dTag;
+  let about: unknown = '';
   try {
     const content = JSON.parse(event.content || '{}');
     if (content.name) name = content.name;
@@ -123,13 +145,13 @@ function _parseNodeEvent(event) {
 }
 
 /** Keep the newest signed event per operator and addressable event identifier. */
-function _deduplicateNodes(events) {
-  const byId = Object.create(null);
+function _deduplicateNodes(events: unknown[]) {
+  const byId: Record<string, RoutstrNode> = Object.create(null);
   for (const event of events) {
-    if (!verifyRoutstrAnnouncement(event)) continue;
-    const node = _parseNodeEvent(event);
-    node.id = `${event.kind}:${event.pubkey}:${node.id}`;
-    if (!byId[node.id] || node.createdAt > byId[node.id].createdAt) {
+    if (!verifyRoutstrAnnouncement(event as Parameters<typeof verifyRoutstrAnnouncement>[0])) continue;
+    const node = _parseNodeEvent(event as NodeAnnouncement);
+    node.id = `${(event as NodeAnnouncement).kind}:${(event as NodeAnnouncement).pubkey}:${node.id}`;
+    if (!byId[node.id] || node.createdAt > byId[node.id]!.createdAt) {
       byId[node.id] = node;
     }
   }
@@ -141,7 +163,7 @@ function _deduplicateNodes(events) {
 // ═══════════════════════════════════════════════
 
 /** Check if a node is online and get its models */
-async function _healthCheck(node) {
+async function _healthCheck(node: RoutstrNode) {
   const url = node.urls[0];
   if (!url) { node.online = false; return node; }
   // Skip URLs that can't be reached from a browser (reduces console noise)
@@ -154,7 +176,7 @@ async function _healthCheck(node) {
     const res = await fetch(url.replace(/\/+$/, '') + '/v1/models', { signal: controller.signal });
     clearTimeout(timer);
     if (!res.ok) { node.online = false; return node; }
-    const json = await res.json();
+    const json = await res.json() as NodeCatalog;
     const models = (json.data || []).filter(m => m.id && m.enabled !== false);
     node.online = true;
     node.models = models.map(m => ({ id: m.id, name: m.name || m.id }));
@@ -172,7 +194,7 @@ async function _healthCheck(node) {
 /** Discover Routstr nodes from Nostr relays.
  *  Returns array of node descriptors with health status.
  *  Caches results for 5 minutes. */
-export async function discoverNodes(forceRefresh) {
+export async function discoverNodes(forceRefresh?: boolean) {
   if (!forceRefresh && _cachedNodes && (Date.now() - _cacheTime < CACHE_TTL)) {
     return _cachedNodes;
   }
@@ -211,7 +233,7 @@ export function getSelectedNodeUrl() {
 }
 
 /** Set the selected node URL */
-export function setSelectedNodeUrl(url) {
+export function setSelectedNodeUrl(url: string) {
   // Routstr node URLs originate from untrusted Nostr Kind 38421 events
   // (or wallet-backup imports), so a malicious relay can advertise a node
   // pointing at internal services. Block private/loopback/link-local IP

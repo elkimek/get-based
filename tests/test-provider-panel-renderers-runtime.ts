@@ -17,9 +17,9 @@ const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
 console.log('=== Provider Panel Renderers Runtime Tests ===');
 
-let previousRuntime;
+let previousRuntime: ReturnType<typeof configureProviderPanelRendererRuntime> | undefined;
 try {
-  const calls = [];
+  const calls: Array<[string, string?]> = [];
   previousRuntime = configureProviderPanelRendererRuntime({
     getSelectedNodeUrl() {
       calls.push(['get']);
@@ -65,14 +65,14 @@ try {
 
 const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
 try {
-  delete globalThis.window;
-  await import('../js/provider-panel-renderers-runtime.js?no-window-probe');
+  delete (globalThis as { window?: unknown }).window;
+  await import('../js/provider-panel-renderers-runtime.js?no-window-probe' as string);
   assert('provider panel renderers runtime imports without a browser window', true);
 } catch (error) {
-  assert('provider panel renderers runtime imports without a browser window', false, error?.message || String(error));
+  assert('provider panel renderers runtime imports without a browser window', false, (error as { message?: unknown } | null)?.message || String(error));
 } finally {
   if (savedWindow) Object.defineProperty(globalThis, 'window', savedWindow);
-  else delete globalThis.window;
+  else delete (globalThis as { window?: unknown }).window;
 }
 
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);

@@ -1,4 +1,5 @@
-// @ts-check
+import type { StoredProviderModel } from './api-provider-storage.js';
+
 // provider-panel-renderers.js — AI provider settings panel markup
 
 import { escapeHTML, escapeAttr } from './utils.js';
@@ -16,34 +17,52 @@ import {
   getOllamaConfig, getOllamaMainModel
 } from './api.js';
 import { getLocalAiExecutionLocation } from './local-ai-discovery.js';
-import { buildRoutstrNodeActions, routstrWalletActionButtons } from './provider-wallet-panels.js';
+// Preserve wallet startup hooks while consuming its button renderers directly.
+import './provider-wallet-panels.js';
+import { buildRoutstrNodeActions, routstrWalletActionButtons } from './provider-wallet-panel-buttons.js';
 import {
   discoverRoutstrNodesFromRuntime,
   getSelectedRoutstrNodeFromRuntime,
   setSelectedRoutstrNodeFromRuntime,
 } from './provider-panel-renderers-runtime.js';
 
-function readStoredArray(key) {
+function readStoredArray(key: string): StoredProviderModel[] {
   try { return JSON.parse(localStorage.getItem(key) || '[]'); }
   catch { return []; }
 }
 
-export function buildModelOptions(provider, models, currentModel, labelFn) {
+export function buildModelOptions<Model extends StoredProviderModel>(provider: string, models: Model[], currentModel: string, labelFn: (model: Model) => unknown) {
   const rec = selectLatestRecommendedModels(provider, models);
   const recIds = new Set(rec.map(function(m) { return m.id; }));
   const rest = models.filter(function(m) { return !recIds.has(m.id); });
+  const modelOption = function(m: Model) {
+    return '<option value="' + m.id + '"' + (currentModel === m.id ? ' selected' : '') + '>' + escapeHTML(labelFn(m)) + '</option>';
+  };
   let html = '';
   if (rec.length) {
     html += '<optgroup label="Recommended">';
-    html += rec.map(function(m) { return '<option value="' + m.id + '"' + (currentModel === m.id ? ' selected' : '') + '>' + escapeHTML(labelFn(m)) + '</option>'; }).join('');
+    html += rec.map(modelOption).join('');
     html += '</optgroup>';
   }
   if (rest.length) {
     html += (rec.length ? '<optgroup label="Other models">' : '');
-    html += rest.map(function(m) { return '<option value="' + m.id + '"' + (currentModel === m.id ? ' selected' : '') + '>' + escapeHTML(labelFn(m)) + '</option>'; }).join('');
+    html += rest.map(modelOption).join('');
     if (rec.length) html += '</optgroup>';
   }
   return html;
+}
+
+function renderProviderKeyControls(
+  provider: 'openrouter' | 'venice' | 'ppq', currentKey: unknown, placeholder: string,
+) {
+  return `<div class="api-key-status" id="${provider}-key-status">
+      ${currentKey ? '<span style="color:var(--green)">&#10003; Connected</span>' : '<span style="color:var(--text-muted)">No key set</span>'}
+    </div>
+    <input type="password" class="api-key-input" id="${provider}-key-input" placeholder="${placeholder}" value="${escapeAttr(currentKey)}" autocomplete="new-password">
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="import-btn import-btn-primary" id="save-${provider}-key-btn" data-provider-panel-action="save-${provider}-key">Save & Validate</button>
+      ${currentKey ? `<button class="import-btn import-btn-secondary" data-provider-panel-action="remove-${provider}-key">Remove Key</button>` : ''}
+    </div>`;
 }
 
 function renderOpenRouterProviderPanel() {
@@ -67,14 +86,7 @@ function renderOpenRouterProviderPanel() {
     <input type="text" name="ai-provider" value="openrouter" autocomplete="username" hidden>
     <div class="ai-provider-desc">API marketplace routing to 200+ models (Claude, GPT, Llama, Gemini, and more). Pay-per-use with a single key.</div>
     ${currentKey ? '' : '<button class="or-oauth-btn" data-provider-panel-action="start-openrouter-oauth">Connect with OpenRouter</button><div class="or-oauth-divider"><span>or enter key manually</span></div>'}
-    <div class="api-key-status" id="openrouter-key-status">
-      ${currentKey ? '<span style="color:var(--green)">&#10003; Connected</span>' : '<span style="color:var(--text-muted)">No key set</span>'}
-    </div>
-    <input type="password" class="api-key-input" id="openrouter-key-input" placeholder="sk-or-..." value="${escapeAttr(currentKey)}" autocomplete="new-password">
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="import-btn import-btn-primary" id="save-openrouter-key-btn" data-provider-panel-action="save-openrouter-key">Save & Validate</button>
-      ${currentKey ? '<button class="import-btn import-btn-secondary" data-provider-panel-action="remove-openrouter-key">Remove Key</button>' : ''}
-    </div>
+    ${renderProviderKeyControls('openrouter', currentKey, 'sk-or-...')}
     ${currentKey ? `<div style="margin-top:8px;font-size:12px;color:var(--text-muted)"><span id="or-balance">Balance: loading...</span> <a href="#" data-provider-panel-action="refresh-openrouter-balance" style="color:var(--accent);font-size:11px;text-decoration:none">\u21bb</a></div>` : ''}
     ${orModelHtml}
     <div class="api-key-notice">Your key is stored locally and sent directly to OpenRouter. <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--accent)">Get an API key</a> &middot; <a href="https://openrouter.ai/settings/credits" target="_blank" rel="noopener" style="color:var(--accent)">Add credits</a></div>
@@ -133,7 +145,7 @@ function renderRoutstrProviderPanel() {
     discovery.then(nodes => {
       const online = nodes.filter(n => n.online);
       if (online.length) {
-        const best = online[0];
+        const best = online[0]!;
         const bestUrl = (best.urls && best.urls[0]) || '';
         if (!bestUrl) return;
         setSelectedRoutstrNodeFromRuntime(bestUrl);
@@ -213,14 +225,7 @@ function renderVeniceProviderPanel() {
   return `<form class="ai-provider-panel">
     <input type="text" name="ai-provider" value="venice" autocomplete="username" hidden>
     <div class="ai-provider-desc">Hosted Venice models with an optional encrypted-message mode. Requires an API key.</div>
-    <div class="api-key-status" id="venice-key-status">
-      ${currentKey ? '<span style="color:var(--green)">&#10003; Connected</span>' : '<span style="color:var(--text-muted)">No key set</span>'}
-    </div>
-    <input type="password" class="api-key-input" id="venice-key-input" placeholder="venice-..." value="${escapeAttr(currentKey)}" autocomplete="new-password">
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="import-btn import-btn-primary" id="save-venice-key-btn" data-provider-panel-action="save-venice-key">Save & Validate</button>
-      ${currentKey ? '<button class="import-btn import-btn-secondary" data-provider-panel-action="remove-venice-key">Remove Key</button>' : ''}
-    </div>
+    ${renderProviderKeyControls('venice', currentKey, 'venice-...')}
     ${currentKey ? '<div style="margin-top:8px;font-size:12px;color:var(--text-muted)"><span id="venice-balance">Balance: loading...</span> <a href="#" data-provider-panel-action="refresh-venice-balance" style="color:var(--accent);font-size:11px;text-decoration:none">\u21bb</a></div>' : ''}
     ${veniceModelHtml}
     <div class="api-key-notice">Your key is stored locally and sent directly to Venice AI. Requests are handled under Venice's privacy and retention policies; getbased does not independently verify provider-side logging. <a href="https://venice.ai/chat?ref=lZ4P1b" target="_blank" rel="noopener" style="color:var(--accent)">Get an API key</a></div>
@@ -254,14 +259,7 @@ function renderPpqProviderPanel() {
     <input type="text" name="ai-provider" value="ppq" autocomplete="username" hidden>
     <div class="ai-provider-desc">Pay-per-query AI aggregator. 300+ models, no subscription, no KYC. Top up with crypto or <a href="https://www.bitrefill.com/gift-cards/ppq-us/" target="_blank" rel="noopener" style="color:var(--accent)">gift cards</a>.</div>
     ${currentKey ? '' : '<button class="import-btn import-btn-primary" style="width:100%;margin-bottom:8px" data-provider-panel-action="create-ppq-account">Create Account (instant, no signup)</button><div class="or-oauth-divider"><span>or enter existing key</span></div>'}
-    <div class="api-key-status" id="ppq-key-status">
-      ${currentKey ? '<span style="color:var(--green)">&#10003; Connected</span>' : '<span style="color:var(--text-muted)">No key set</span>'}
-    </div>
-    <input type="password" class="api-key-input" id="ppq-key-input" placeholder="sk-..." value="${escapeAttr(currentKey)}" autocomplete="new-password">
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="import-btn import-btn-primary" id="save-ppq-key-btn" data-provider-panel-action="save-ppq-key">Save & Validate</button>
-      ${currentKey ? '<button class="import-btn import-btn-secondary" data-provider-panel-action="remove-ppq-key">Remove Key</button>' : ''}
-    </div>
+    ${renderProviderKeyControls('ppq', currentKey, 'sk-...')}
     ${balanceHtml}
     ${ppqModelHtml}
     ${cachedPrivatePpqModels.length ? `<div style="margin-top:12px;display:flex;align-items:center;gap:8px">
@@ -365,7 +363,7 @@ function renderLocalAIProviderPanel() {
   </form>`;
 }
 
-export function renderAIProviderPanel(provider) {
+export function renderAIProviderPanel(provider: string) {
   if (provider === 'openrouter') return renderOpenRouterProviderPanel();
   if (provider === 'routstr') return renderRoutstrProviderPanel();
   if (provider === 'venice') return renderVeniceProviderPanel();
