@@ -489,3 +489,15 @@ deploy/profile-share/data/
 /js/base64.js
 /js/crypto.js
 /js/sync-payload-collectors.js
+
+/js/sync-payload.js
+/js/sync-apply.js
+/js/sync-chat-apply.js
+/js/sync-tombstones.js
+/js/clear-all-profile-reset.js
+/js/api-provider-storage-runtime.js
+/js/routstr-session.js
+/js/routstr-validation.js
+/js/chat-personality-storage.js
+/js/profile-storage-cleanup.js
+/js/sync-runtime.js

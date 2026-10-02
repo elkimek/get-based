@@ -1,32 +1,49 @@
-// @ts-check
-// sync-runtime.js - Mutable Evolu runtime handles shared by sync modules.
+import type { SyncProfileRow } from './sync-payload.js';
+import type { DeltaItemRow } from './sync-delta-row-codec.js';
+
+interface SyncAppOwner extends Record<string, unknown> { id?: string; mnemonic?: string }
+/** Common runtime operations exposed by both supported Evolu adapters. */
+interface SyncRuntimeClient {
+  // Each registered query selects its own row projection; profile rows are the default.
+  getQueryRows<Row extends SyncProfileRow | DeltaItemRow = SyncProfileRow>(query: unknown): readonly Row[] | null | undefined;
+  insert(table: 'profileData' | 'itemRow', args: unknown): unknown;
+  update(table: 'profileData' | 'itemRow', args: unknown): unknown;
+  loadQuery(query: unknown): Promise<unknown>;
+  resetAppOwner(options: { reload: boolean }): unknown;
+  restoreAppOwner(mnemonic: string, options?: { reload?: boolean }): unknown;
+  subscribeQuery(query: unknown): (callback: () => void) => () => void;
+  subscribeError(callback: (error: { type?: string } | null | undefined) => void): () => void;
+  prepareHistoryReset?(): unknown;
+  prepareHistoryResetForDisable?(): unknown;
+}
+
+// sync-runtime.ts - Mutable Evolu runtime handles shared by sync modules.
 
 import {
   refreshChatWebSearchToggleRuntime,
   updateChatHeaderModelRuntime,
 } from './chat-runtime.js';
 
-let _evolu = null;
-let _profileQuery = null;
-let _tombstoneQuery = null;
-let _itemRowQuery = null;
-let _appOwner = null;
-let _appOwnerError = null;
-let _readyPromise = null;
-let _queryLoadedPromise = null;
+let _evolu: SyncRuntimeClient | null = null;
+let _profileQuery: unknown = null;
+let _tombstoneQuery: unknown = null;
+let _itemRowQuery: unknown = null;
+let _appOwner: SyncAppOwner | null = null;
+let _appOwnerError: unknown = null;
+let _readyPromise: Promise<unknown> | null = null;
+let _queryLoadedPromise: Promise<unknown> | null = null;
 
-/** @type {{ refreshRoutstrBalance: Function }} */
-const syncRuntimeCallbacks = {
+const syncRuntimeCallbacks: { refreshRoutstrBalance: () => unknown } = {
   refreshRoutstrBalance: () => {
     if (typeof document === 'undefined') return false;
-    import('./provider-wallet-panels.js')
+    (import('./provider-wallet-panels.js' as string) as Promise<{ refreshRoutstrBalance(): unknown }>)
       .then(providerPanels => providerPanels.refreshRoutstrBalance())
       .catch(() => {});
     return true;
   },
 };
 
-export function configureSyncRuntimeCallbacks(callbacks = {}) {
+export function configureSyncRuntimeCallbacks(callbacks: { refreshRoutstrBalance?: (() => unknown) | null } = {}) {
   const previous = { ...syncRuntimeCallbacks };
   if ('refreshRoutstrBalance' in callbacks) {
     syncRuntimeCallbacks.refreshRoutstrBalance = typeof callbacks.refreshRoutstrBalance === 'function'
@@ -38,7 +55,7 @@ export function configureSyncRuntimeCallbacks(callbacks = {}) {
 
 function getSyncRuntimeWindow() {
   return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
+    ? (window as Window & typeof globalThis)
     : null;
 }
 
@@ -52,26 +69,25 @@ export function getSyncReadyPromise() { return _readyPromise; }
 export function getSyncQueryLoadedPromise() { return _queryLoadedPromise; }
 export function isSyncEvoluReady() { return !!_evolu; }
 
-export function setSyncEvolu(evolu) {
-  _evolu = evolu;
+export function setSyncEvolu(evolu: unknown) {
+  _evolu = evolu as SyncRuntimeClient | null;
 }
 
-/** @param {{ profileQuery?: any, tombstoneQuery?: any, itemRowQuery?: any }} [queries] */
-export function setSyncQueries({ profileQuery, tombstoneQuery, itemRowQuery } = {}) {
+export function setSyncQueries({ profileQuery, tombstoneQuery, itemRowQuery }: { profileQuery?: unknown; tombstoneQuery?: unknown; itemRowQuery?: unknown } = {}) {
   _profileQuery = profileQuery ?? null;
   _tombstoneQuery = tombstoneQuery ?? null;
   _itemRowQuery = itemRowQuery ?? null;
 }
 
-export function setSyncAppOwner(owner) {
+export function setSyncAppOwner(owner: unknown) {
   const prevId = _appOwner?.id || null;
-  const next = owner ?? null;
+  const next = (owner ?? null) as SyncAppOwner | null;
   _appOwner = next;
   const nextId = next?.id || null;
   if (prevId !== nextId) dispatchSyncOwnerChangedRuntime(nextId);
 }
 
-export function setSyncAppOwnerError(error) {
+export function setSyncAppOwnerError(error: unknown) {
   _appOwnerError = error ?? null;
 }
 
@@ -88,8 +104,7 @@ export function refreshSyncedRoutstrBalanceRuntime() {
   }
 }
 
-/** @param {string | null} ownerId */
-export function dispatchSyncOwnerChangedRuntime(ownerId) {
+export function dispatchSyncOwnerChangedRuntime(ownerId: string | null) {
   const runtime = getSyncRuntimeWindow();
   if (!runtime || typeof runtime.dispatchEvent !== 'function' || typeof runtime.CustomEvent !== 'function') return false;
   try {
@@ -100,7 +115,6 @@ export function dispatchSyncOwnerChangedRuntime(ownerId) {
   }
 }
 
-/** @param {string} [fallback] */
 export function getSyncReloadUrlRuntime(fallback = '/') {
   const runtime = getSyncRuntimeWindow();
   const pathname = runtime?.location?.pathname;
@@ -112,7 +126,6 @@ export function getSyncReloadUrlRuntime(fallback = '/') {
   return `${pathname}${typeof search === 'string' ? search : ''}`;
 }
 
-/** @param {number} delayMs */
 export function scheduleSyncRuntimeReload(delayMs = 0) {
   const runtime = getSyncRuntimeWindow();
   const reload = runtime?.location?.reload;
@@ -123,11 +136,11 @@ export function scheduleSyncRuntimeReload(delayMs = 0) {
   return true;
 }
 
-export function setSyncReadyPromise(promise) {
+export function setSyncReadyPromise(promise: Promise<unknown> | null | undefined) {
   _readyPromise = promise ?? null;
 }
 
-export function setSyncQueryLoadedPromise(promise) {
+export function setSyncQueryLoadedPromise(promise: Promise<unknown> | null | undefined) {
   _queryLoadedPromise = promise ?? null;
 }
 

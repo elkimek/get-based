@@ -1,5 +1,14 @@
-// @ts-check
-// profile-storage-cleanup.js — complete profile-scoped browser storage cleanup.
+import { configureRuntimeFunctions } from './runtime-callbacks.js';
+interface ProfileCleanupDeps {
+  encryptedRemoveItem: typeof encryptedRemoveItem;
+  getBlobKeys: () => Promise<readonly string[]>;
+  getDatabaseNames: () => Promise<readonly string[]>;
+  deleteWearablesDB: (profileId: string) => Promise<void>;
+  deleteCycleDB: (profileId: string) => Promise<void>;
+  deleteNutritionDB: (profileId: string) => Promise<void>;
+}
+
+// profile-storage-cleanup.ts — complete profile-scoped browser storage cleanup.
 
 import { encryptedRemoveItem } from './crypto.js';
 import { getBlobKeys } from './blob-storage.js';
@@ -20,7 +29,7 @@ const ALTERNATE_LOCAL_PREFIXES = [
   'labcharts-tombstone-pending-',
 ];
 
-const cleanupDeps = {
+const cleanupDeps: ProfileCleanupDeps = {
   encryptedRemoveItem,
   getBlobKeys,
   getDatabaseNames: async () => {
@@ -28,17 +37,17 @@ const cleanupDeps = {
     const databases = await indexedDB.databases();
     return databases.map(database => database.name).filter(name => typeof name === 'string');
   },
-  deleteWearablesDB: async (profileId) => {
+  deleteWearablesDB: async (profileId: string) => {
     if (typeof indexedDB === 'undefined') return;
     await deleteWearablesDB(profileId);
   },
-  deleteCycleDB: async (profileId) => {
+  deleteCycleDB: async (profileId: string) => {
     if (typeof indexedDB === 'undefined') return;
     await deleteCycleDB(profileId);
   },
-  deleteNutritionDB: async (profileId) => {
+  deleteNutritionDB: async (profileId: string) => {
     if (typeof indexedDB === 'undefined') return;
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       const request = indexedDB.deleteDatabase(`getbased-nutrition-${profileId}`);
       request.onsuccess = () => resolve(undefined);
       request.onerror = () => reject(request.error || new Error('Meal data could not be deleted.'));
@@ -47,16 +56,12 @@ const cleanupDeps = {
   },
 };
 
-export function configureProfileStorageCleanupDeps(deps = {}) {
-  const previous = { ...cleanupDeps };
-  for (const key of Object.keys(cleanupDeps)) {
-    if (typeof deps[key] === 'function') cleanupDeps[key] = deps[key];
-  }
-  return previous;
+export function configureProfileStorageCleanupDeps(deps: Partial<ProfileCleanupDeps> = {}) {
+  return configureRuntimeFunctions(cleanupDeps, deps);
 }
 
-function storageKeys(storage) {
-  const keys = [];
+function storageKeys(storage: Storage | null | undefined) {
+  const keys: string[] = [];
   if (!storage) return keys;
   for (let i = 0; i < storage.length; i++) {
     const key = storage.key(i);
@@ -65,22 +70,22 @@ function storageKeys(storage) {
   return keys;
 }
 
-function addProfileId(ids, value) {
+function addProfileId(ids: Set<string>, value: unknown) {
   if (typeof value === 'string' && PROFILE_ID_RE.test(value)) ids.add(value);
 }
 
-function addProfileIdFromBlobKey(ids, key) {
+function addProfileIdFromBlobKey(ids: Set<string>, key: unknown) {
   const match = typeof key === 'string' ? key.match(PROFILE_BLOB_KEY_RE) : null;
   if (match) addProfileId(ids, match[1]);
 }
 
-function addProfileIdFromDatabaseName(ids, name) {
+function addProfileIdFromDatabaseName(ids: Set<string>, name: unknown) {
   const match = typeof name === 'string' ? name.match(PROFILE_DATABASE_RE) : null;
   if (match) addProfileId(ids, match[1]);
 }
 
-export async function listStoredProfileIds(seedIds = []) {
-  const ids = new Set();
+export async function listStoredProfileIds(seedIds: readonly unknown[] = []) {
+  const ids = new Set<string>();
   for (const id of seedIds) addProfileId(ids, id);
   for (const key of storageKeys(globalThis.localStorage)) addProfileIdFromBlobKey(ids, key);
   for (const key of await cleanupDeps.getBlobKeys()) addProfileIdFromBlobKey(ids, key);
@@ -88,7 +93,7 @@ export async function listStoredProfileIds(seedIds = []) {
   return [...ids];
 }
 
-function clearProfileLocalKeys(profileId) {
+function clearProfileLocalKeys(profileId: string) {
   const storage = globalThis.localStorage;
   const standardPrefix = `labcharts-${profileId}-`;
   const alternateKeys = new Set(ALTERNATE_LOCAL_PREFIXES.map(prefix => `${prefix}${profileId}`));
@@ -99,7 +104,7 @@ function clearProfileLocalKeys(profileId) {
   }
 }
 
-function clearProfileSessionKeys(profileId) {
+function clearProfileSessionKeys(profileId: string) {
   const storage = globalThis.sessionStorage;
   for (const key of storageKeys(storage)) {
     if (key.startsWith('chat-onboard-') && key.endsWith(`-${profileId}`)) {
@@ -108,7 +113,7 @@ function clearProfileSessionKeys(profileId) {
   }
 }
 
-export async function clearProfileStorage(profileId) {
+export async function clearProfileStorage(profileId: string) {
   if (!PROFILE_ID_RE.test(profileId || '')) throw new Error('Invalid profile id for storage cleanup.');
 
   // Delete dedicated databases first. If another tab blocks either delete,

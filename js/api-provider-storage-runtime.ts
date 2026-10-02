@@ -1,5 +1,4 @@
-// @ts-check
-// api-provider-storage-runtime.js - Browser runtime adapters for persisted provider settings.
+// api-provider-storage-runtime.ts - Browser runtime adapters for persisted provider settings.
 
 import {
   refreshChatWebSearchToggleRuntime,
@@ -10,12 +9,11 @@ async function rejectUnconfiguredProviderWrite() {
   throw new Error('Encrypted provider storage is not configured.');
 }
 
-/** @type {{ encryptedSetItem: (key: string, value: string) => Promise<void> }} */
-const apiProviderStorageRuntimeDeps = {
+const apiProviderStorageRuntimeDeps: { encryptedSetItem: (key: string, value: string) => Promise<void> } = {
   encryptedSetItem: rejectUnconfiguredProviderWrite,
 };
 
-export function configureApiProviderStorageRuntimeDeps(deps = {}) {
+export function configureApiProviderStorageRuntimeDeps(deps: { encryptedSetItem?: ((key: string, value: string) => Promise<void>) | null } = {}) {
   const previous = { ...apiProviderStorageRuntimeDeps };
   if (Object.hasOwn(deps, 'encryptedSetItem')) {
     apiProviderStorageRuntimeDeps.encryptedSetItem = typeof deps.encryptedSetItem === 'function'
@@ -25,13 +23,13 @@ export function configureApiProviderStorageRuntimeDeps(deps = {}) {
   return previous;
 }
 
-export function encryptedSetProviderItemRuntime(key, value) {
+export function encryptedSetProviderItemRuntime(key: string, value: string) {
   return apiProviderStorageRuntimeDeps.encryptedSetItem(key, value);
 }
 
 function getApiProviderStorageRuntime() {
   return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
+    ? (window as Window & typeof globalThis)
     : null;
 }
 

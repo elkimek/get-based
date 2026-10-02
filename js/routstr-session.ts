@@ -1,4 +1,5 @@
-// @ts-check
+interface RoutstrSession { key: string; updatedAt: number }
+
 // A single encrypted credential value binds each bearer key to its node.
 import { getCachedKey, updateKeyCache } from './crypto-key-cache.js';
 import { encryptedGetItem } from './crypto.js';
@@ -7,15 +8,15 @@ import { canonicalRoutstrUrl } from './url-safety.js';
 export const ROUTSTR_SESSIONS_KEY = 'labcharts-routstr-sessions';
 const KEY = ROUTSTR_SESSIONS_KEY;
 const LEGACY_KEY = 'labcharts-routstr-key';
-let writes = Promise.resolve();
+let writes: Promise<unknown> = Promise.resolve();
 
-export function parseRoutstrSessions(raw, legacyNode, legacyClock = 0) {
-  const sessions = {};
+export function parseRoutstrSessions(raw: unknown, legacyNode: unknown, legacyClock = 0) {
+  const sessions: Record<string, RoutstrSession> = {};
   if (!raw) return sessions;
   try {
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(raw as string);
     if (parsed?.version !== 1 || !parsed.sessions || typeof parsed.sessions !== 'object') return sessions;
-    for (const [url, record] of Object.entries(parsed.sessions)) {
+    for (const [url, record] of Object.entries(parsed.sessions as Record<string, RoutstrSession>)) {
       if (canonicalRoutstrUrl(url) !== url || typeof record?.key !== 'string' || !Number.isSafeInteger(record.updatedAt) || record.updatedAt < 0) continue;
       if (record.key && !/^(sk-|cashu)/.test(record.key)) continue;
       sessions[url] = { key: record.key, updatedAt: record.updatedAt };
@@ -33,24 +34,24 @@ export function getRoutstrSessionKey(nodeUrl = localStorage.getItem('labcharts-r
     return sessions[canonicalRoutstrUrl(nodeUrl)]?.key || '';
   } catch { return ''; }
 }
-export function encodeMergedRoutstrSessions(localRaw, localNode, remoteRaw, remoteNode, localClock, remoteClock) {
+export function encodeMergedRoutstrSessions(localRaw: unknown, localNode: unknown, remoteRaw: unknown, remoteNode: unknown, localClock: number, remoteClock: number) {
   const merged = parseRoutstrSessions(localRaw, localNode, localClock);
   const incoming = parseRoutstrSessions(remoteRaw, remoteNode, remoteClock);
   if (!remoteRaw && remoteNode) {
     try { incoming[canonicalRoutstrUrl(remoteNode)] = { key: '', updatedAt: Number(remoteClock) || 0 }; } catch {}
   }
   for (const [node, record] of Object.entries(incoming)) {
-    if (!merged[node] || record.updatedAt >= merged[node].updatedAt) merged[node] = record;
+    if (!merged[node] || record.updatedAt >= merged[node]!.updatedAt) merged[node] = record;
   }
   return JSON.stringify({ version: 1, sessions: merged });
 }
-export function withRoutstrSessionLock(run) {
+export function withRoutstrSessionLock<Value>(run: () => Value | PromiseLike<Value>) {
   const result = writes.then(() => navigator.locks?.request ? navigator.locks.request('getbased-routstr-session', run) : run());
   writes = result.catch(() => {});
   return result;
 }
 
-export function saveRoutstrSessionKey(key, nodeUrl = localStorage.getItem('labcharts-routstr-node'), expectedKey = undefined) {
+export function saveRoutstrSessionKey(key: string, nodeUrl = localStorage.getItem('labcharts-routstr-node'), expectedKey: string | undefined = undefined) {
   const node = canonicalRoutstrUrl(nodeUrl);
   if (key && !/^(sk-|cashu)/.test(key)) throw new Error('Invalid Routstr credential');
   const run = async () => {

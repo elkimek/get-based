@@ -557,7 +557,7 @@ export async function saveCustomPersonality() {
     return;
   }
   const editorOverlay = document.getElementById(PERSONALITY_EDITOR_OVERLAY_ID);
-  const personaAgreement = buildPersonaAgreementRecord(editorOverlay);
+  const personaAgreement = /** @type {import('./chat-storage-safety.js').StoredCustomPersonality['personaAgreement'] | null} */ (buildPersonaAgreementRecord(editorOverlay));
   const customs = getCustomPersonalities();
   const now = new Date().toISOString();
   let id;

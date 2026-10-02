@@ -1074,8 +1074,13 @@ await import('../js/settings.js');
       && syncPayloadCodecSrc.includes('export async function _gzipString')
       && syncPayloadCodecSrc.includes('export async function _gunzipToStringCapped')
       && syncPayloadCodecSrc.includes('export function _bytesToBase64')
-      && syncPayloadCodecSrc.includes('export function _base64ToBytes')
-      && !/^\s*(?:import|export\s+\{[^}]*\}\s+from)\s/m.test(syncPayloadCodecSrc));
+      && (syncPayloadCodecSrc.includes('export function _base64ToBytes')
+        || (syncPayloadCodecSrc.includes("import { _base64ToBytes } from './base64.js';")
+          && syncPayloadCodecSrc.includes('export { _base64ToBytes };')))
+      && !/^\s*(?:import|export\s+\{[^}]*\}\s+from)\s/m.test(
+        syncPayloadCodecSrc.replace(/^import \{ _base64ToBytes \} from '\.\/base64\.js';$/m, '')
+      )
+      && !/^\s*(?:import|export\s+\{[^}]*\}\s+from)\s/m.test(read('js/base64.js')));
   assert('delta codecs and planners import the pure payload codec directly',
     [
       syncDeltaRowCodecSrc,

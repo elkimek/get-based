@@ -115,7 +115,7 @@ export function configureSyncModules({ enableSync } = {}) {
     pushProfile,
     debug: dbg,
     getProfiles,
-    saveProfiles,
+    saveProfiles: /** @type {NonNullable<Parameters<typeof configureSyncTombstones>[0]>['saveProfiles']} */ (saveProfiles),
     loadProfile,
   });
 

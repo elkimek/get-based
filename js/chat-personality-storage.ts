@@ -1,5 +1,6 @@
-// @ts-check
-// chat-personality-storage.js - encrypted persistence and in-memory access for custom personas.
+import type { StoredCustomPersonality } from './chat-storage-safety.js';
+
+// chat-personality-storage.ts - encrypted persistence and in-memory access for custom personas.
 
 import {
   normalizeCustomPersonalities,
@@ -13,21 +14,17 @@ import {
 } from './crypto.js';
 import { state } from './state.js';
 
-/** @type {Map<string, { personalities: any[], rawStored: string | null, pending: boolean }>} */
-const customPersonalityCache = new Map();
+const customPersonalityCache = new Map<string, { personalities: StoredCustomPersonality[]; rawStored: string | null; pending: boolean }>();
 
-/** @param {string} profileId */
-export function customPersonalityStorageKey(profileId) {
+export function customPersonalityStorageKey(profileId: string) {
   return `labcharts-${profileId}-chatPersonalityCustom`;
 }
 
-/** @param {string} profileId */
-export function customPersonalityTombstoneStorageKey(profileId) {
+export function customPersonalityTombstoneStorageKey(profileId: string) {
   return `labcharts-${profileId}-chatPersonalityDeleted`;
 }
 
-/** @param {string} [profileId] */
-export async function loadCustomPersonalityTombstones(profileId = state.currentProfile) {
+export async function loadCustomPersonalityTombstones(profileId = state.currentProfile): Promise<Record<string, number>> {
   if (!profileId) return {};
   try {
     const raw = await encryptedGetItem(customPersonalityTombstoneStorageKey(profileId));
@@ -37,8 +34,7 @@ export async function loadCustomPersonalityTombstones(profileId = state.currentP
   }
 }
 
-/** @param {any} tombstones @param {string} [profileId] */
-export async function saveCustomPersonalityTombstones(tombstones, profileId = state.currentProfile) {
+export async function saveCustomPersonalityTombstones(tombstones: unknown, profileId = state.currentProfile) {
   if (!profileId) throw new Error('A profile is required to save custom personality deletions.');
   const key = customPersonalityTombstoneStorageKey(profileId);
   const normalized = normalizeCustomPersonalityTombstones(tombstones);
@@ -47,15 +43,13 @@ export async function saveCustomPersonalityTombstones(tombstones, profileId = st
   return normalized;
 }
 
-/** @param {string} id @param {string} [profileId] @param {number} [deletedAt] */
-export async function recordCustomPersonalityDeletion(id, profileId = state.currentProfile, deletedAt = Date.now()) {
+export async function recordCustomPersonalityDeletion(id: string, profileId = state.currentProfile, deletedAt = Date.now()) {
   const tombstones = await loadCustomPersonalityTombstones(profileId);
   tombstones[id] = Math.max(Number(tombstones[id]) || 0, deletedAt);
   return saveCustomPersonalityTombstones(tombstones, profileId);
 }
 
-/** @param {any[]} personalities */
-function clonePersonalities(personalities) {
+function clonePersonalities(personalities: readonly StoredCustomPersonality[]) {
   return personalities.map(personality => ({
     ...personality,
     ...(personality.personaAgreement
@@ -64,8 +58,7 @@ function clonePersonalities(personalities) {
   }));
 }
 
-/** @param {string | null | undefined} raw */
-function parseCustomPersonalities(raw) {
+function parseCustomPersonalities(raw: string | null | undefined) {
   if (!raw || isEncryptedValue(raw)) return [];
   try {
     const parsed = JSON.parse(raw);
@@ -86,11 +79,6 @@ function parseCustomPersonalities(raw) {
   }]);
 }
 
-/**
- * Synchronous reads use the decrypted in-memory cache. Plaintext legacy
- * records can still be parsed directly before data protection is enabled.
- * @param {string} [profileId]
- */
 export function getCachedCustomPersonalities(profileId = state.currentProfile) {
   if (!profileId) return [];
   const key = customPersonalityStorageKey(profileId);
@@ -111,7 +99,6 @@ export function getCachedCustomPersonalities(profileId = state.currentProfile) {
   return clonePersonalities(personalities);
 }
 
-/** @param {string} [profileId] */
 export async function loadCustomPersonalitiesFromStorage(profileId = state.currentProfile) {
   if (!profileId) return [];
   const key = customPersonalityStorageKey(profileId);
@@ -125,11 +112,7 @@ export async function loadCustomPersonalitiesFromStorage(profileId = state.curre
   return clonePersonalities(personalities);
 }
 
-/**
- * @param {any[]} personalities
- * @param {string} [profileId]
- */
-export async function saveCustomPersonalitiesToStorage(personalities, profileId = state.currentProfile) {
+export async function saveCustomPersonalitiesToStorage(personalities: unknown, profileId = state.currentProfile) {
   if (!profileId) throw new Error('A profile is required to save custom personalities.');
   const key = customPersonalityStorageKey(profileId);
   const normalized = normalizeCustomPersonalities(personalities);

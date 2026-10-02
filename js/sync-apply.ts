@@ -1,5 +1,6 @@
-// @ts-check
-// sync-apply.js - apply inbound synced AI settings and display prefs.
+interface ApplyAISettingsOptions { preferRemote?: boolean | undefined }
+
+// sync-apply.ts - apply inbound synced AI settings and display prefs.
 
 import { encodeMergedRoutstrSessions, withRoutstrSessionLock, ROUTSTR_SESSIONS_KEY } from './routstr-session.js';
 import { canonicalRoutstrUrl } from './routstr-validation.js';
@@ -26,28 +27,25 @@ const AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY = 'labcharts-ai-settings-local-lock-until
 const ROUTSTR_SESSION_UPDATED_AT_KEY = 'labcharts-routstr-session-updated-at';
 const ROUTSTR_SESSION_KEYS = new Set(['labcharts-routstr-key', ROUTSTR_SESSIONS_KEY, 'labcharts-routstr-node']);
 
+function hasLocalSettingsLock(storageKey: string) {
+  try {
+    const until = Number(sessionStorage.getItem(storageKey) || '0');
+    return Number.isFinite(until) && Date.now() < until;
+  } catch {
+    return false;
+  }
+}
+
 function hasLocalAISettingsLock() {
-  try {
-    const until = Number(sessionStorage.getItem(AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY) || '0');
-    return Number.isFinite(until) && Date.now() < until;
-  } catch {
-    return false;
-  }
+  return hasLocalSettingsLock(AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY);
 }
 
-/** @param {string} key */
-function shouldKeepLocalOpenRouterOAuthSetting(key) {
+function shouldKeepLocalOpenRouterOAuthSetting(key: string) {
   if (!OPENROUTER_OAUTH_LOCAL_SETTING_KEYS.has(key)) return false;
-  try {
-    const until = Number(sessionStorage.getItem(OPENROUTER_OAUTH_LOCAL_SETTINGS_LOCK_UNTIL_KEY) || '0');
-    return Number.isFinite(until) && Date.now() < until;
-  } catch {
-    return false;
-  }
+  return hasLocalSettingsLock(OPENROUTER_OAUTH_LOCAL_SETTINGS_LOCK_UNTIL_KEY);
 }
 
-/** @param {string} key @param {boolean} recognizedSetting */
-function shouldKeepLocalAISetting(key, recognizedSetting, preferRemote = false) {
+function shouldKeepLocalAISetting(key: string, recognizedSetting: boolean, preferRemote = false) {
   if (preferRemote) return false;
   return shouldKeepLocalOpenRouterOAuthSetting(key)
     || (recognizedSetting && hasLocalAISettingsLock());
@@ -66,16 +64,13 @@ const ENCRYPTED_AI_KEYS = [
   ...VOICE_ENCRYPTED_SYNC_KEYS,
 ];
 
-/** @param {Record<string, any> | null | undefined} settings
- * @param {{ preferRemote?: boolean }} [options]
- */
-export function applyAISettings(settings, options = {}) {
+export function applyAISettings(settings: Record<string, unknown> | null | undefined, options: ApplyAISettingsOptions = {}) {
   return withRoutstrSessionLock(() => applyAISettingsUnlocked(settings, options));
 }
-async function applyAISettingsUnlocked(settings, options) {
+async function applyAISettingsUnlocked(settings: Record<string, unknown> | null | undefined, options: ApplyAISettingsOptions) {
   if (!settings) return;
   let changed = false;
-  const changedKeys = [];
+  const changedKeys: string[] = [];
   let routstrSessionChanged = false;
   const extensionKeys = new Set(getAppExtensionSyncStorageKeys());
   const extensionPrefixes = getAppExtensionSyncStoragePrefixes();
@@ -155,14 +150,14 @@ async function applyAISettingsUnlocked(settings, options) {
         localStorage.setItem(key, '');
       }
     } else if (encryptedSetting) {
-      await encryptedSetItem(key, val);
+      await encryptedSetItem(key, val as string);
       // Provider accessors are synchronous and read the decrypted in-memory
       // cache. A key pulled after startup must update that cache immediately;
       // otherwise they receive the on-disk `v1:` ciphertext wrapper until the
       // next full reload and Routstr appears unsynced on the receiving device.
-      updateKeyCache(key, val);
+      updateKeyCache(key, val as string);
     } else {
-      localStorage.setItem(key, val);
+      localStorage.setItem(key, val as string);
     }
     changed = true;
     changedKeys.push(key);
@@ -178,14 +173,11 @@ async function applyAISettingsUnlocked(settings, options) {
   if (routstrSessionChanged) refreshSyncedRoutstrBalanceRuntime();
 }
 
-/** @param {string} profileId
- * @param {Record<string, string> | null | undefined} prefs
- */
-export function applyDisplayPrefs(profileId, prefs) {
+export function applyDisplayPrefs(profileId: string, prefs: Record<string, string> | null | undefined) {
   if (!prefs) return;
   for (const suffix of DISPLAY_PREF_SUFFIXES) {
     if (suffix in prefs) {
-      localStorage.setItem(`labcharts-${profileId}-${suffix}`, prefs[suffix]);
+      localStorage.setItem(`labcharts-${profileId}-${suffix}`, prefs[suffix]!);
     }
   }
 }

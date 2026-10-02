@@ -1,6 +1,23 @@
+import type { SyncChatData } from './sync-chat-merge.js';
+
+/** Profile identity is stable; legacy and edition metadata stays opaque on the wire. */
+export interface SyncProfileRecord extends Record<string, unknown> {
+  id: string;
+  name?: unknown;
+  createdAt?: unknown;
+  lastUpdated?: unknown;
+  _syncFallback?: readonly unknown[] | undefined;
+}
+export interface SyncProfileRow {
+  id?: unknown;
+  profileId?: unknown;
+  syncedAt?: unknown;
+  dataJson?: unknown;
+}
+interface SyncPayloadDeps { getProfiles: () => SyncProfileRecord[] }
+
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
-// @ts-check
-// sync-payload.js - outbound/inbound wire payload helpers for Evolu sync
+// sync-payload.ts - outbound/inbound wire payload helpers for Evolu sync
 
 import {
   collectAISettings, collectChatData, collectDisplayPrefs,
@@ -22,43 +39,36 @@ export {
   stripWearableCredentials, stripGeneticsSnpsFromBlob, stripNutritionMealsFromBlob, stripLocalOnlyProfileData,
 } from './sync-payload-codec.js';
 
-/** @param {any[]} rows @param {string} profileId */
-export function latestProfileRow(rows, profileId) {
+export function latestProfileRow<Row extends SyncProfileRow | null | undefined>(rows: readonly Row[] | null | undefined, profileId: string) {
   return (rows || []).filter(row => row?.profileId === profileId)
-    .sort((a, b) => (Date.parse(b?.syncedAt || '') || 0) - (Date.parse(a?.syncedAt || '') || 0))[0];
+    .sort((a, b) => (Date.parse((b?.syncedAt || '') as string) || 0) - (Date.parse((a?.syncedAt || '') as string) || 0))[0];
 }
 
-/** @type {{ getProfiles: () => any[] }} */
-const syncPayloadDeps = {
+const syncPayloadDeps: SyncPayloadDeps = {
   getProfiles: () => {
     try {
       const profiles = JSON.parse(localStorage.getItem('labcharts-profiles') || '[]');
-      return Array.isArray(profiles) ? profiles : [];
+      return Array.isArray(profiles) ? profiles as SyncProfileRecord[] : [];
     } catch {
       return [];
     }
   },
 };
 
-/** @param {{ getProfiles?: () => any[] }} [deps] */
-export function configureSyncPayload(deps = {}) {
+export function configureSyncPayload(deps: Partial<SyncPayloadDeps> = {}) {
   return configureRuntimeFunctions(syncPayloadDeps, deps, ["getProfiles"]);
 }
 
 import { isPhase2CutoverEnabled } from './sync-delta-snapshot.js';
 export { isPhase2CutoverEnabled, enablePhase2CutoverFlag, disablePhase2CutoverFlag } from './sync-delta-snapshot.js';
 
-/** @param {string} profileId
- * @param {any} importedData
- * @param {any} [remoteChatData]
- */
-export async function buildSyncPayload(profileId, importedData, remoteChatData) {
+export async function buildSyncPayload(profileId: string, importedData: unknown, remoteChatData?: unknown) {
   const profiles = syncPayloadDeps.getProfiles();
   const profile = selectSyncedProfile(profiles.find(p => p.id === profileId));
   const aiSettings = await collectAISettings();
   const localChatData = await collectChatData(profileId);
   const chatData = remoteChatData
-    ? (await import('./sync-chat-merge.js')).mergeChatData(remoteChatData, localChatData) : localChatData;
+    ? (await import('./sync-chat-merge.js')).mergeChatData(remoteChatData as SyncChatData, localChatData) : localChatData;
   const displayPrefs = collectDisplayPrefs(profileId);
   // Strip wearable OAuth credentials before sync. Per-row LWW would let a stale
   // device resurrect a disconnected vendor or overwrite a freshly-rotated

@@ -1,5 +1,23 @@
-// @ts-check
-// sync-tombstones.js - remote profile delete propagation and quarantine.
+import type { SyncProfileRecord, SyncProfileRow } from './sync-payload.js';
+
+interface ProfileRelayClient {
+  getQueryRows(query: unknown): readonly SyncProfileRow[] | null | undefined;
+  update?(table: 'profileData', row: { id: unknown; profileId: string; isDeleted: 1; syncedAt: string }): unknown;
+}
+interface SyncTombstoneDeps {
+  getEvolu: () => ProfileRelayClient | null | undefined;
+  getProfileQuery: () => unknown;
+  getTombstoneQuery: () => unknown;
+  isSyncEnabled: () => boolean;
+  pushProfile: null | ((profileId: string, data: unknown, options?: { allowTombstoneResurrection?: boolean }) => Promise<{ ok?: unknown; reason?: unknown } | null | undefined>);
+  debug: (...args: unknown[]) => void;
+  getProfiles: () => SyncProfileRecord[];
+  saveProfiles: (profiles: SyncProfileRecord[]) => Promise<void>;
+  loadProfile: (profileId: string) => unknown;
+  notify: (message: string, type: string, duration: number) => unknown;
+}
+
+// sync-tombstones.ts - remote profile delete propagation and quarantine.
 
 import { state } from './state.js';
 import { showNotification } from './utils.js';
@@ -13,46 +31,23 @@ import {
   isDemoProfileId, markLocalProfileDeleteIntent,
 } from './profile-sync-policy.js';
 
-/** @type {() => any} */
-let _getEvolu = () => null;
-/** @type {() => any} */
-let _getProfileQuery = () => null;
-/** @type {() => any} */
-let _getTombstoneQuery = () => null;
-/** @type {() => boolean} */
-let _isSyncEnabled = () => false;
-/** @type {((profileId: string, data: any, options?: any) => Promise<any>) | null} */
-let _pushProfile = null;
-/** @type {(...args: any[]) => void} */
-let _debug = () => {};
-/** @type {() => any[]} */
-let _getProfiles = () => [];
-/** @type {(profiles: any[]) => Promise<void>} */
-let _saveProfiles = async () => {};
-/** @type {(profileId: string) => any} */
-let _loadProfile = () => {};
-/** @type {(...args: any[]) => any} */
-let _notify = showNotification;
-let profileResetModulePromise;
+let _getEvolu: SyncTombstoneDeps['getEvolu'] = () => null;
+let _getProfileQuery: SyncTombstoneDeps['getProfileQuery'] = () => null;
+let _getTombstoneQuery: SyncTombstoneDeps['getTombstoneQuery'] = () => null;
+let _isSyncEnabled: SyncTombstoneDeps['isSyncEnabled'] = () => false;
+let _pushProfile: SyncTombstoneDeps['pushProfile'] = null;
+let _debug: SyncTombstoneDeps['debug'] = () => {};
+let _getProfiles: SyncTombstoneDeps['getProfiles'] = () => [];
+let _saveProfiles: SyncTombstoneDeps['saveProfiles'] = async () => {};
+let _loadProfile: SyncTombstoneDeps['loadProfile'] = () => {};
+let _notify: SyncTombstoneDeps['notify'] = showNotification;
+let profileResetModulePromise: Promise<typeof import('./clear-all-profile-reset.js')> | undefined;
 
 function loadProfileResetModule() {
   profileResetModulePromise ||= import('./clear-all-profile-reset.js');
   return profileResetModulePromise;
 }
 
-/** @param {{
- *   getEvolu?: () => any,
- *   getProfileQuery?: () => any,
- *   getTombstoneQuery?: () => any,
- *   isSyncEnabled?: () => boolean,
- *   pushProfile?: (profileId: string, data: any, options?: any) => Promise<any>,
- *   debug?: (...args: any[]) => void,
- *   getProfiles?: () => any[],
- *   saveProfiles?: (profiles: any[]) => Promise<void>,
- *   loadProfile?: (profileId: string) => any,
- *   notify?: (...args: any[]) => any,
- * }} [deps]
- */
 export function configureSyncTombstones({
   getEvolu,
   getProfileQuery,
@@ -64,7 +59,7 @@ export function configureSyncTombstones({
   saveProfiles,
   loadProfile,
   notify,
-} = {}) {
+}: Partial<SyncTombstoneDeps> = {}) {
   const previous = {
     getEvolu: _getEvolu,
     getProfileQuery: _getProfileQuery,
@@ -90,47 +85,49 @@ export function configureSyncTombstones({
   return previous;
 }
 
+function readDependency<Value>(getValue: () => Value) {
+  try { return getValue?.() || null; } catch { return null; }
+}
+
 function currentEvolu() {
-  try { return _getEvolu?.() || null; } catch { return null; }
+  return readDependency(_getEvolu);
 }
 
 function currentProfileQuery() {
-  try { return _getProfileQuery?.() || null; } catch { return null; }
+  return readDependency(_getProfileQuery);
 }
 
 function currentTombstoneQuery() {
-  try { return _getTombstoneQuery?.() || null; } catch { return null; }
+  return readDependency(_getTombstoneQuery);
 }
 
-function dbg(...args) {
+function dbg(...args: unknown[]) {
   try { _debug(...args); } catch {}
 }
 
-/** @param {string} profileId */
-const TOMBSTONE_QUARANTINE_KEY = (profileId) => `labcharts-tombstone-pending-${profileId}`;
+const TOMBSTONE_QUARANTINE_KEY = (profileId: string) => `labcharts-tombstone-pending-${profileId}`;
 const TOMBSTONE_BATCH_THRESHOLD = 2; // two or more tombstones at once require confirm
 
-/** @param {string} profileId */
-async function wipeProfileLocal(profileId) {
+async function wipeProfileLocal(profileId: string) {
   await clearProfileStorage(profileId);
 }
 
-function rowClock(row) {
-  const clock = Date.parse(row?.syncedAt || '');
+function rowClock(row: SyncProfileRow | null | undefined) {
+  const clock = Date.parse((row?.syncedAt || '') as string);
   return Number.isFinite(clock) ? clock : 0;
 }
 
-async function recoverRowProfileId(row) {
+async function recoverRowProfileId(row: SyncProfileRow | null | undefined) {
   if (typeof row?.profileId === 'string' && /^[a-zA-Z0-9_-]+$/.test(row.profileId)) return row.profileId;
   try {
-    const parsed = /** @type {{ profile?: { id?: unknown } | null }} */ (await parseSyncPayload(row?.dataJson || '{}'));
+    const parsed = (await parseSyncPayload(row?.dataJson || '{}')) as { profile?: { id?: unknown } | null };
     const candidate = parsed?.profile?.id;
     return typeof candidate === 'string' && /^[a-zA-Z0-9_-]+$/.test(candidate) ? candidate : '';
   } catch { return ''; }
 }
 
-async function latestRowsByProfileId(rows) {
-  const latest = new Map();
+async function latestRowsByProfileId(rows: readonly SyncProfileRow[] | null | undefined) {
+  const latest = new Map<string, SyncProfileRow>();
   for (const row of rows || []) {
     const profileId = await recoverRowProfileId(row);
     if (!profileId) continue;
@@ -143,15 +140,14 @@ async function latestRowsByProfileId(rows) {
 // Soft-delete a profile's row on the relay so other devices stop seeing it.
 // Local wipe alone is insufficient: otherwise any peer that pulls the old
 // Evolu row can resurrect the deleted profile.
-/** @param {string | null | undefined} profileId */
-export async function deleteProfileFromRelay(profileId) {
+export async function deleteProfileFromRelay(profileId: string | null | undefined) {
   const evolu = currentEvolu();
   const profileQuery = currentProfileQuery();
   if (!evolu || !profileQuery || !_isSyncEnabled()) return { skipped: true, reason: 'sync-off' };
   if (!profileId || typeof profileId !== 'string') return { skipped: true, reason: 'bad-id' };
   try {
     const rows = evolu.getQueryRows(profileQuery) || [];
-    const matching = [];
+    const matching: SyncProfileRow[] = [];
     for (const row of rows) {
       if (await recoverRowProfileId(row) === profileId) matching.push(row);
     }
@@ -160,7 +156,7 @@ export async function deleteProfileFromRelay(profileId) {
     // tombstone still know which local profile to wipe.
     const syncedAt = new Date().toISOString();
     for (const row of matching) {
-      evolu.update('profileData', { id: row.id, profileId, isDeleted: 1, syncedAt });
+      evolu.update!('profileData', { id: row.id, profileId, isDeleted: 1, syncedAt });
     }
     localStorage.removeItem(`labcharts-${profileId}-sync-ts`);
     dbg('Soft-deleted on relay:', profileId);
@@ -187,7 +183,7 @@ export async function applyRemoteTombstones() {
     latestRowsByProfileId(tombs),
     latestRowsByProfileId(evolu.getQueryRows(profileQuery) || []),
   ]);
-  const tombIds = new Set();
+  const tombIds = new Set<string>();
   for (const [profileId, tombstone] of latestTombstones) {
     const live = latestLiveRows.get(profileId);
     // A newer live row explicitly revives the profile. Retire both delete
@@ -232,7 +228,7 @@ export async function applyRemoteTombstones() {
     return;
   }
 
-  const wipedIds = [];
+  const wipedIds: string[] = [];
   for (const tombId of localToWipe) {
     markLocalProfileDeleteIntent(tombId, 'remote');
     try { await wipeProfileLocal(tombId); }
@@ -257,13 +253,13 @@ export async function applyRemoteTombstones() {
   dbg(`Applied ${wipedIds.length} remote tombstone(s):`, wipedIds.join(', '));
 
   if (wipedIds.includes(state.currentProfile)) {
-    _notify(`Profile was deleted on another device - switching to "${survivors[0].name || 'next'}"`, 'info', 3500);
-    await _loadProfile(survivors[0].id);
+    _notify(`Profile was deleted on another device - switching to "${survivors[0]!.name || 'next'}"`, 'info', 3500);
+    await _loadProfile(survivors[0]!.id);
   }
 }
 
 export function listPendingTombstones() {
-  const out = [];
+  const out: Array<Record<string, unknown>> = [];
   const profiles = _getProfiles();
   for (const p of profiles) {
     if (isDemoProfileId(p.id, profiles)) continue;
@@ -275,8 +271,7 @@ export function listPendingTombstones() {
   return out;
 }
 
-/** @param {string} profileId */
-export async function applyPendingTombstone(profileId) {
+export async function applyPendingTombstone(profileId: string) {
   const profiles = _getProfiles();
   if (!profiles.some(profile => profile?.id === profileId)) {
     localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
@@ -294,12 +289,11 @@ export async function applyPendingTombstone(profileId) {
   }
   await _saveProfiles(survivors);
   localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
-  if (state.currentProfile === profileId) await _loadProfile(survivors[0].id);
+  if (state.currentProfile === profileId) await _loadProfile(survivors[0]!.id);
   return { ok: true };
 }
 
-/** @param {string} profileId */
-export async function rejectPendingTombstone(profileId) {
+export async function rejectPendingTombstone(profileId: string) {
   const profiles = _getProfiles();
   if (isDemoProfileId(profileId, profiles)) {
     localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
@@ -308,7 +302,7 @@ export async function rejectPendingTombstone(profileId) {
   }
   if (!currentEvolu() || !_isSyncEnabled()) return { ok: false, reason: 'sync-off' };
   // Active edits can be newer than the persisted blob.
-  let data = state.importedData;
+  let data: unknown = state.importedData;
   if (profileId !== state.currentProfile) {
     const localKey = profileStorageKey(profileId, 'imported');
     // Imported profile blobs are IDB-backed even when encryption is disabled.
