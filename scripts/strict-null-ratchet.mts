@@ -5,35 +5,41 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript-api';
 
+// These unchecked views retain the original raw JSON/property/comparison behavior.
+type BaselineReader = { totalDiagnostics: unknown; files: Record<string, unknown> };
+type CurrentReader = { total: unknown; files: Iterable<readonly [string, unknown]> };
+type ProgramOptionsReader = Omit<ts.CreateProgramOptions, 'projectReferences'> & { projectReferences: ts.CreateProgramOptions['projectReferences'] };
+type StrictNullDiagnostics = { configErrors: readonly ts.Diagnostic[]; files: Map<string, number>; total: number; unscoped: ts.Diagnostic[] };
+
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const ROOT = path.resolve(path.dirname(SCRIPT_PATH), '..');
 const BASELINE_PATH = path.join(ROOT, 'scripts', 'strict-null-baseline.json');
 const CONFIG_PATH = path.join(ROOT, 'tsconfig.json');
 
-function validateBaseline(baseline) {
-  if (!Number.isInteger(baseline.totalDiagnostics) || baseline.totalDiagnostics < 0) {
+function validateBaseline(baseline: unknown) {
+  if (!Number.isInteger((baseline as BaselineReader).totalDiagnostics) || ((baseline as BaselineReader).totalDiagnostics as number) < 0) {
     return 'totalDiagnostics must be a non-negative integer';
   }
-  if (!baseline.files || typeof baseline.files !== 'object' || Array.isArray(baseline.files)) {
+  if (!(baseline as BaselineReader).files || typeof (baseline as BaselineReader).files !== 'object' || Array.isArray((baseline as BaselineReader).files)) {
     return 'files must be an object keyed by repository-relative path';
   }
-  const fileTotal = Object.values(baseline.files)
-    .reduce((sum, count) => sum + (Number.isInteger(count) ? count : Number.NaN), 0);
-  if (!Number.isFinite(fileTotal) || fileTotal !== baseline.totalDiagnostics) {
-    return `per-file total ${fileTotal} does not match totalDiagnostics ${baseline.totalDiagnostics}`;
+  const fileTotal = Object.values((baseline as BaselineReader).files)
+    .reduce<number>((sum, count) => sum + (Number.isInteger(count) ? count as number : Number.NaN), 0);
+  if (!Number.isFinite(fileTotal) || fileTotal !== (baseline as BaselineReader).totalDiagnostics) {
+    return `per-file total ${fileTotal} does not match totalDiagnostics ${(baseline as BaselineReader).totalDiagnostics}`;
   }
   return '';
 }
 
-function findRegressions(current, baseline) {
-  const regressions = [];
-  if (current.total > baseline.totalDiagnostics) {
-    regressions.push(`total diagnostics ${current.total} exceed baseline ${baseline.totalDiagnostics}`);
+function findRegressions(current: unknown, baseline: unknown) {
+  const regressions: string[] = [];
+  if (((current as CurrentReader).total as number) > ((baseline as BaselineReader).totalDiagnostics as number)) {
+    regressions.push(`total diagnostics ${(current as CurrentReader).total} exceed baseline ${(baseline as BaselineReader).totalDiagnostics}`);
   }
-  for (const [file, count] of current.files) {
-    const limit = baseline.files[file];
+  for (const [file, count] of (current as CurrentReader).files) {
+    const limit = (baseline as BaselineReader).files[file];
     if (limit === undefined) regressions.push(`${file}: ${count} new diagnostic${count === 1 ? '' : 's'}`);
-    else if (count > limit) regressions.push(`${file}: ${count} diagnostics exceed baseline ${limit}`);
+    else if ((count as number) > (limit as number)) regressions.push(`${file}: ${count} diagnostics exceed baseline ${limit}`);
   }
   return regressions;
 }
@@ -51,15 +57,15 @@ function collectStrictNullDiagnostics() {
   );
   if (config.errors.length > 0) return { configErrors: config.errors };
 
-  const program = ts.createProgram({
+  const program = (ts.createProgram as (options: ProgramOptionsReader) => ts.Program)({
     rootNames: config.fileNames,
     options: config.options,
     projectReferences: config.projectReferences,
   });
   const errors = ts.getPreEmitDiagnostics(program)
     .filter(diagnostic => diagnostic.category === ts.DiagnosticCategory.Error);
-  const files = new Map();
-  const unscoped = [];
+  const files = new Map<string, number>();
+  const unscoped: ts.Diagnostic[] = [];
   for (const diagnostic of errors) {
     if (!diagnostic.file) {
       unscoped.push(diagnostic);
@@ -71,13 +77,13 @@ function collectStrictNullDiagnostics() {
   return {
     configErrors: [],
     files,
-    total: [...files.values()].reduce((sum, count) => sum + count, 0),
+    total: [...files.values()].reduce<number>((sum, count) => sum + count, 0),
     unscoped,
   };
 }
 
 function main() {
-  let baseline;
+  let baseline: unknown;
   try {
     baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
   } catch (error) {
@@ -101,9 +107,9 @@ function main() {
     }));
     process.exit(1);
   }
-  if (diagnostics.unscoped.length > 0) {
+  if ((diagnostics as StrictNullDiagnostics).unscoped.length > 0) {
     console.error('Strict-null TypeScript run produced unscoped errors:');
-    console.error(ts.formatDiagnostics(diagnostics.unscoped, {
+    console.error(ts.formatDiagnostics((diagnostics as StrictNullDiagnostics).unscoped, {
       getCanonicalFileName: fileName => fileName,
       getCurrentDirectory: () => ROOT,
       getNewLine: () => '\n',
@@ -118,11 +124,11 @@ function main() {
     process.exit(1);
   }
 
-  const fileCount = diagnostics.files.size;
-  const improvement = baseline.totalDiagnostics - diagnostics.total;
+  const fileCount = (diagnostics as StrictNullDiagnostics).files.size;
+  const improvement = ((baseline as BaselineReader).totalDiagnostics as number) - (diagnostics as StrictNullDiagnostics).total;
   console.log(
-    `Strict-null ratchet passed: ${diagnostics.total} diagnostics across ${fileCount} files `
-      + `<= ${baseline.totalDiagnostics} baseline${improvement ? ` (-${improvement})` : ''}.`,
+    `Strict-null ratchet passed: ${(diagnostics as StrictNullDiagnostics).total} diagnostics across ${fileCount} files `
+      + `<= ${(baseline as BaselineReader).totalDiagnostics} baseline${improvement ? ` (-${improvement})` : ''}.`,
   );
 }
 

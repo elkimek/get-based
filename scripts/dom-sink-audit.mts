@@ -7,6 +7,11 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript-api';
 import { sourcePath, runtimePath, walkSourceFiles } from './source-files.js';
 
+export interface DomSink { kind: string; line: number; source: string }
+export interface DomSinkFilePolicy { count: number; digest: string; kinds: Record<string, number> }
+// Policy JSON is not normalized; this view describes only its original reads.
+type PolicyReader = { scannedFiles?: unknown; sinkCount?: unknown; files?: Record<string, {count?: unknown; digest?: unknown}> };
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_ROOT = path.join(ROOT, 'js');
 const POLICY_PATH = path.join(ROOT, 'scripts', 'dom-sink-policy.json');
@@ -17,7 +22,7 @@ const CALL_SINKS = new Set([
   'setHTMLUnsafe',
 ]);
 
-function propertyName(node) {
+function propertyName(node: ts.Node) {
   if (ts.isPropertyAccessExpression(node)) return node.name.text;
   if (
     ts.isElementAccessExpression(node)
@@ -29,11 +34,11 @@ function propertyName(node) {
   return '';
 }
 
-function normalizedNodeText(node, sourceFile) {
+function normalizedNodeText(node: ts.Node, sourceFile: ts.SourceFile) {
   return node.getText(sourceFile).replace(/\s+/g, ' ').trim();
 }
 
-export function scanDomSinks(source, fileName = 'source.js') {
+export function scanDomSinks(source: string, fileName = 'source.js') {
   const sourceFile = ts.createSourceFile(
     fileName,
     source,
@@ -41,9 +46,9 @@ export function scanDomSinks(source, fileName = 'source.js') {
     true,
     /\.[cm]?ts$/.test(fileName) ? ts.ScriptKind.TS : ts.ScriptKind.JS,
   );
-  const sinks = [];
+  const sinks: DomSink[] = [];
 
-  function record(kind, node) {
+  function record(kind: string, node: ts.Node) {
     const location = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
     sinks.push({
       kind,
@@ -52,7 +57,7 @@ export function scanDomSinks(source, fileName = 'source.js') {
     });
   }
 
-  function visit(node) {
+  function visit(node: ts.Node) {
     if (
       ts.isBinaryExpression(node)
       && [ts.SyntaxKind.EqualsToken, ts.SyntaxKind.PlusEqualsToken].includes(
@@ -68,7 +73,7 @@ export function scanDomSinks(source, fileName = 'source.js') {
       if (CALL_SINKS.has(name)) record(name, node);
       if (
         (name === 'write' || name === 'writeln')
-        && /(?:^|\.)document$/.test(node.expression.expression?.getText(sourceFile) || '')
+        && /(?:^|\.)document$/.test((node.expression as ts.PropertyAccessExpression | ts.ElementAccessExpression).expression?.getText(sourceFile) || '')
       ) {
         record(`document.${name}`, node);
       }
@@ -84,7 +89,7 @@ function listJavaScriptFiles(directory = SOURCE_ROOT) {
   return walkSourceFiles(directory).filter(file => !/^bundle-.*\.js$/.test(path.basename(file)));
 }
 
-function sinkDigest(sinks) {
+function sinkDigest(sinks: readonly DomSink[]) {
   const reviewedSurface = sinks
     .map(({ kind, source }) => ({ kind, source }))
     .sort((a, b) => `${a.kind}:${a.source}`.localeCompare(`${b.kind}:${b.source}`));
@@ -93,7 +98,7 @@ function sinkDigest(sinks) {
 
 export function createDomSinkPolicy() {
   const files = listJavaScriptFiles();
-  const sinkFiles = {};
+  const sinkFiles: Record<string, DomSinkFilePolicy> = {};
   let sinkCount = 0;
   for (const absolute of files) {
     const relative = runtimePath(path.relative(ROOT, absolute).split(path.sep).join('/'));
@@ -120,22 +125,22 @@ export function createDomSinkPolicy() {
   };
 }
 
-export function auditDomSinks(policy = JSON.parse(fs.readFileSync(POLICY_PATH, 'utf8'))) {
+export function auditDomSinks(policy: unknown = JSON.parse(fs.readFileSync(POLICY_PATH, 'utf8'))) {
   const current = createDomSinkPolicy();
-  const failures = [];
-  if (current.scannedFiles !== policy.scannedFiles) {
-    failures.push(`scanned file count changed: ${policy.scannedFiles} -> ${current.scannedFiles}`);
+  const failures: string[] = [];
+  if (current.scannedFiles !== (policy as PolicyReader).scannedFiles) {
+    failures.push(`scanned file count changed: ${(policy as PolicyReader).scannedFiles} -> ${current.scannedFiles}`);
   }
-  if (current.sinkCount !== policy.sinkCount) {
-    failures.push(`HTML sink count changed: ${policy.sinkCount} -> ${current.sinkCount}`);
+  if (current.sinkCount !== (policy as PolicyReader).sinkCount) {
+    failures.push(`HTML sink count changed: ${(policy as PolicyReader).sinkCount} -> ${current.sinkCount}`);
   }
 
   const allFiles = new Set([
-    ...Object.keys(policy.files || {}),
+    ...Object.keys((policy as PolicyReader).files || {}),
     ...Object.keys(current.files || {}),
   ]);
   for (const file of [...allFiles].sort()) {
-    const expected = policy.files?.[file];
+    const expected = (policy as PolicyReader).files?.[file];
     const actual = current.files?.[file];
     if (!expected) {
       failures.push(`new sink-bearing file: ${file}`);

@@ -1272,3 +1272,6 @@ deploy/profile-share/data/
 /scripts/local-full-suite-guard.mjs
 /scripts/app-shell-budget.mjs
 /scripts/cold-load-budget.mjs
+
+/scripts/dom-sink-audit.mjs
+/scripts/strict-null-ratchet.mjs
