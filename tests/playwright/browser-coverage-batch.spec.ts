@@ -1,3 +1,6 @@
+type FixtureFirstArgument<Callable> = Callable extends (first: infer _First, ...rest: infer Rest) => infer Result ? (first: unknown, ...rest: Rest) => Result : never;
+type FixtureThirdArgument<Callable> = Callable extends (first: infer First, second: infer Second, third: infer _Third, ...rest: infer Rest) => infer Result ? (first: First, second: Second, third: unknown, ...rest: Rest) => Result : never;
+type FixtureQueryRows = {calls: unknown[][]};
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -8,13 +11,13 @@ test('feedback modal browser contract builds and submits GitHub issue URLs', asy
   await page.waitForSelector('#feedback-modal-overlay', { state: 'attached' });
 
   const results = await page.evaluate(async ({ feedbackUrl }) => {
-    const feedback = await import(feedbackUrl);
-    const outcomes = {};
+    const feedback = (await import(feedbackUrl) as unknown) as Pick<typeof import('../../js/feedback.js'), "openFeedbackModal" | "closeFeedbackModal">;
+    const outcomes: Record<string, unknown> = {};
     const originalOpen = window.open;
     let openedUrl = '';
 
     try {
-      window.open = (url) => {
+      window.open = (url: unknown) => {
         openedUrl = String(url || '');
         return null;
       };
@@ -22,33 +25,33 @@ test('feedback modal browser contract builds and submits GitHub issue URLs', asy
       feedback.openFeedbackModal();
       const overlay = document.getElementById('feedback-modal-overlay');
       const modal = document.getElementById('feedback-modal');
-      const form = document.querySelector('.feedback-form');
-      const typeSelect = document.getElementById('feedback-type');
-      const titleInput = document.getElementById('feedback-title');
-      const descInput = document.getElementById('feedback-desc');
+      const form = document.querySelector<HTMLFormElement>('.feedback-form');
+      const typeSelect = (document.getElementById('feedback-type') as HTMLSelectElement | null);
+      const titleInput = (document.getElementById('feedback-title') as HTMLInputElement | null);
+      const descInput = (document.getElementById('feedback-desc') as HTMLTextAreaElement | null);
 
       outcomes.opensOverlay = overlay?.classList.contains('show') === true;
       outcomes.usesDelegatedFeedbackActions =
-        modal?.querySelector('[data-feedback-action="close"]')
+        modal?.querySelector<HTMLElement>('[data-feedback-action="close"]')
         && form?.getAttribute('data-feedback-action') === 'submit'
         && typeSelect?.getAttribute('data-feedback-action') === 'placeholder'
         && !modal.innerHTML.includes('onclick=')
         && !modal.innerHTML.includes('onsubmit=')
         && !modal.innerHTML.includes('onchange=');
-      outcomes.rendersTypeChoices = typeSelect?.querySelectorAll('option').length === 4;
+      outcomes.rendersTypeChoices = typeSelect?.querySelectorAll<HTMLOptionElement>('option').length === 4;
       outcomes.defaultPlaceholder = titleInput?.getAttribute('placeholder') === 'Brief description of the bug';
 
-      typeSelect.value = 'feature';
-      typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-      outcomes.placeholderFollowsType = titleInput.getAttribute('placeholder') === 'What feature would you like?';
+      (typeSelect)!.value = 'feature';
+      (typeSelect)!.dispatchEvent(new Event('change', { bubbles: true }));
+      outcomes.placeholderFollowsType = (titleInput)!.getAttribute('placeholder') === 'What feature would you like?';
 
-      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      (form)!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
       outcomes.emptyTitleKeepsModalOpen = overlay?.classList.contains('show') === true
         && document.activeElement === titleInput;
 
-      titleInput.value = 'Batch coverage affordance';
-      descInput.value = 'Please group browser coverage improvements.';
-      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      (titleInput)!.value = 'Batch coverage affordance';
+      (descInput)!.value = 'Please group browser coverage improvements.';
+      (form)!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
       const issueUrl = new URL(openedUrl);
       outcomes.issueUrlTargetsGitHub = issueUrl.origin === 'https://github.com'
         && issueUrl.pathname === '/elkimek/get-based/issues/new';
@@ -56,11 +59,11 @@ test('feedback modal browser contract builds and submits GitHub issue URLs', asy
       outcomes.issueLabelMatchesType = issueUrl.searchParams.get('labels') === 'enhancement';
       outcomes.issueBodyIncludesSystemInfo = (issueUrl.searchParams.get('body') || '').includes('## System Info');
       outcomes.submitKeepsRecoverableDraft = overlay?.classList.contains('show') === true
-        && document.getElementById('feedback-draft')?.value === issueUrl.searchParams.get('body')
-        && document.querySelector('#feedback-result a')?.getAttribute('rel') === 'noopener noreferrer';
+        && (document.getElementById('feedback-draft') as HTMLTextAreaElement | null)?.value === issueUrl.searchParams.get('body')
+        && document.querySelector<HTMLElement>('#feedback-result a')?.getAttribute('rel') === 'noopener noreferrer';
 
       feedback.openFeedbackModal();
-      document.querySelector('[data-feedback-action="close"]')?.click();
+      document.querySelector<HTMLElement>('[data-feedback-action="close"]')?.click();
       outcomes.closeHidesOverlay = overlay?.classList.contains('show') === false;
     } finally {
       window.open = originalOpen;
@@ -81,33 +84,33 @@ test('notes editor browser contract adds edits and deletes notes', async ({ page
 
   const results = await page.evaluate(async ({ notesRuntimeUrl, notesUrl }) => {
     const [notes, notesRuntime] = await Promise.all([
-      import(notesUrl),
-      import(notesRuntimeUrl),
+      (import(notesUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/notes.js'), "openNoteEditor">>,
+      (import(notesRuntimeUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/notes-runtime.js'), "configureNotesRuntimeDeps">>,
     ]);
     const { state } = await import('/js/state.js');
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const originalNotes = Array.isArray(state.importedData?.notes)
-      ? JSON.parse(JSON.stringify(state.importedData.notes))
+      ? JSON.parse(JSON.stringify(state.importedData.notes)) as unknown
       : undefined;
-    const navCalls = [];
+    const navCalls: unknown[] = [];
     let closeCalls = 0;
-    const waitFor = async (predicate) => {
+    const waitFor = async (predicate: () => unknown | Promise<unknown>) => {
       for (let i = 0; i < 40; i++) {
         if (predicate()) return true;
-        await new Promise(resolve => setTimeout(resolve, 25));
+        await new Promise((resolve) => setTimeout(resolve, 25));
       }
       return false;
     };
 
     try {
-      state.importedData ||= {};
+      (state as unknown as {importedData:unknown}).importedData ||= {};
       state.importedData.notes = [];
       const savedNotesRuntimeDeps = notesRuntime.configureNotesRuntimeDeps({
         closeModal: () => {
           closeCalls++;
           document.getElementById('modal-overlay')?.classList.remove('show');
         },
-        navigate: category => { navCalls.push(category); },
+        navigate: (category: unknown) => { navCalls.push(category); },
         rememberModalTrigger: () => {},
       });
 
@@ -115,74 +118,74 @@ test('notes editor browser contract adds edits and deletes notes', async ({ page
         notes.openNoteEditor('2026-06-07');
         const addModal = document.getElementById('detail-modal');
         outcomes.addEditorOpens = document.getElementById('modal-overlay')?.classList.contains('show') === true
-          && document.getElementById('note-date-input')?.value === '2026-06-07'
-          && document.getElementById('note-textarea')?.value === '';
+          && (document.getElementById('note-date-input') as HTMLInputElement | null)?.value === '2026-06-07'
+          && (document.getElementById('note-textarea') as HTMLTextAreaElement | null)?.value === '';
         outcomes.usesDelegatedNoteActions =
-          addModal?.querySelector('[data-note-action="close"]')
-          && addModal?.querySelector('[data-note-action="save"]')
+          addModal?.querySelector<HTMLElement>('[data-note-action="close"]')
+          && addModal?.querySelector<HTMLElement>('[data-note-action="save"]')
           && !addModal.innerHTML.includes('onclick=');
 
-        document.getElementById('note-textarea').value = 'Started coverage batching';
-        document.querySelector('[data-note-action="save"]')?.click();
+        ((document.getElementById('note-textarea') as HTMLTextAreaElement | null))!.value = 'Started coverage batching';
+        document.querySelector<HTMLElement>('[data-note-action="save"]')?.click();
         await waitFor(() => state.importedData.notes.length === 1 && navCalls.includes('dashboard'));
         outcomes.saveAddsNote = state.importedData.notes.length === 1
-          && state.importedData.notes[0].date === '2026-06-07'
-          && state.importedData.notes[0].text === 'Started coverage batching'
+          && (state.importedData.notes[0])!.date === '2026-06-07'
+          && (state.importedData.notes[0])!.text === 'Started coverage batching'
           && navCalls.includes('dashboard');
 
         notes.openNoteEditor(null, 0);
-        outcomes.editEditorLoadsExisting = document.getElementById('note-textarea')?.value === 'Started coverage batching'
+        outcomes.editEditorLoadsExisting = (document.getElementById('note-textarea') as HTMLTextAreaElement | null)?.value === 'Started coverage batching'
           && document.getElementById('detail-modal')?.dataset.syncRefreshMode === 'edit'
           && document.getElementById('detail-modal')?.dataset.syncRefreshKind === 'note';
 
-        document.getElementById('note-textarea').value = 'Edited coverage batch note';
-        document.querySelector('[data-note-action="save"]')?.click();
+        ((document.getElementById('note-textarea') as HTMLTextAreaElement | null))!.value = 'Edited coverage batch note';
+        document.querySelector<HTMLElement>('[data-note-action="save"]')?.click();
         await waitFor(() => state.importedData.notes[0]?.text === 'Edited coverage batch note');
         outcomes.saveEditsInPlace = state.importedData.notes.length === 1
-          && state.importedData.notes[0].text === 'Edited coverage batch note';
+          && (state.importedData.notes[0])!.text === 'Edited coverage batch note';
 
         notes.openNoteEditor('2026-06-08');
         window.dispatchEvent(new Event('labcharts-sync-applied'));
         outcomes.syncRefreshAddModeReopensByDate =
-          await waitFor(() => document.getElementById('note-date-input')?.value === '2026-06-08')
+          await waitFor(() => (document.getElementById('note-date-input') as HTMLInputElement | null)?.value === '2026-06-08')
           && document.getElementById('detail-modal')?.dataset.syncRefreshMode === 'add';
 
         notes.openNoteEditor(null, 0);
-        state.importedData.notes[0].text = 'Synced coverage batch note';
+        (state.importedData.notes[0])!.text = 'Synced coverage batch note';
         await (await import('/js/data.js')).saveImportedData();
         window.dispatchEvent(new Event('labcharts-sync-applied'));
-        document.querySelector('[data-note-action="save"]')?.click();
+        document.querySelector<HTMLElement>('[data-note-action="save"]')?.click();
         outcomes.syncRefreshPreservesDraftAndRejectsStaleSave =
-          document.getElementById('note-textarea')?.value === 'Edited coverage batch note'
-          && state.importedData.notes[0].text === 'Synced coverage batch note';
+          (document.getElementById('note-textarea') as HTMLTextAreaElement | null)?.value === 'Edited coverage batch note'
+          && (state.importedData.notes[0])!.text === 'Synced coverage batch note';
 
         notes.openNoteEditor(null, 0);
         state.importedData.notes.unshift({ date: '2026-06-06', text: 'Inserted remote note' });
         await (await import('/js/data.js')).saveImportedData();
         window.dispatchEvent(new Event('labcharts-sync-applied'));
-        document.getElementById('note-textarea').value = 'Edited shifted note';
-        document.querySelector('[data-note-action="save"]')?.click();
+        ((document.getElementById('note-textarea') as HTMLTextAreaElement | null))!.value = 'Edited shifted note';
+        document.querySelector<HTMLElement>('[data-note-action="save"]')?.click();
         await waitFor(() => state.importedData.notes[1]?.text === 'Edited shifted note');
         outcomes.syncRefreshSavesShiftedRecord =
-          state.importedData.notes[1].text === 'Edited shifted note'
-          && state.importedData.notes[0].text === 'Inserted remote note';
+          (state.importedData.notes[1])!.text === 'Edited shifted note'
+          && (state.importedData.notes[0])!.text === 'Inserted remote note';
 
         const closeCallsBeforeMissingNote = closeCalls;
         notes.openNoteEditor(null, 1);
         state.importedData.notes = state.importedData.notes.filter(note => note.date !== '2026-06-07');
         window.dispatchEvent(new Event('labcharts-sync-applied'));
-        document.querySelector('[data-note-action="save"]')?.click();
+        document.querySelector<HTMLElement>('[data-note-action="save"]')?.click();
         outcomes.syncRefreshPreservesMissingDraftWithoutRecreatingNote =
           closeCalls === closeCallsBeforeMissingNote
           && document.getElementById('modal-overlay')?.classList.contains('show') === true
-          && document.getElementById('note-textarea')?.value === 'Edited shifted note'
+          && (document.getElementById('note-textarea') as HTMLTextAreaElement | null)?.value === 'Edited shifted note'
           && state.importedData.notes.length === 1
-          && state.importedData.notes[0].text === 'Inserted remote note';
+          && (state.importedData.notes[0])!.text === 'Inserted remote note';
 
         state.importedData.notes = [{ date: '2026-06-09', text: 'Delete coverage note' }];
         await (await import('/js/data.js')).saveImportedData();
         notes.openNoteEditor(null, 0);
-        document.querySelector('[data-note-action="delete"]')?.click();
+        document.querySelector<HTMLElement>('[data-note-action="delete"]')?.click();
         await Promise.resolve();
         document.getElementById('confirm-ok')?.click();
         await waitFor(() => state.importedData.notes.length === 0);
@@ -191,8 +194,8 @@ test('notes editor browser contract adds edits and deletes notes', async ({ page
         notesRuntime.configureNotesRuntimeDeps(savedNotesRuntimeDeps);
       }
     } finally {
-      if (originalNotes === undefined) delete state.importedData.notes;
-      else state.importedData.notes = originalNotes;
+      if (originalNotes === undefined) delete (state.importedData as unknown as {notes?:unknown}).notes;
+      else (state.importedData as unknown as {notes:unknown}).notes = originalNotes;
       document.getElementById('confirm-dialog-overlay')?.classList.remove('show');
       document.getElementById('modal-overlay')?.classList.remove('show');
     }
@@ -214,11 +217,11 @@ test('chat send controls cover button state typewriter runtime bridges and abort
 
   const results = await page.evaluate(async ({ chatSendUrl, chatSendRuntimeUrl }) => {
     const [chatSend, chatSendRuntime, recommendationRuntime] = await Promise.all([
-      import(chatSendUrl),
-      import(chatSendRuntimeUrl),
+      (import(chatSendUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/chat-send.js'), "updateSendButtonState" | "setSendButtonMode" | "createTypewriter" | "setChatAbortController" | "getChatAbortController" | "isChatStreaming" | "sendChatMessage" | "handleChatKeydown">>,
+      (import(chatSendRuntimeUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/chat-send-runtime.js'), "getChatSendRecommendationRuntime" | "getChatSendProviderAttestation" | "isChatSendProductRecsEnabled" | "detectChatSendSupplementSlots" | "isChatSendEMFRelevant">>,
       import('/js/recommendations-runtime.js'),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const originalProvider = localStorage.getItem('labcharts-ai-provider');
     const originalPaused = localStorage.getItem('labcharts-ai-paused');
     const attestationKeys = ['_ppqAttestation', '_routstrAttestation', '_veniceAttestation'];
@@ -226,13 +229,13 @@ test('chat send controls cover button state typewriter runtime bridges and abort
       key,
       {
         owned: Object.prototype.hasOwnProperty.call(window, key),
-        value: window[key],
+        value: (window as unknown as Record<string,unknown>)[key],
       },
     ]));
     const restoreRecommendationBridge = recommendationRuntime.configureRecommendationModuleBridge({
       isProductRecsEnabled: () => true,
-      detectSupplementSlots: text => text.includes('magnesium') ? ['magnesium'] : [],
-      detectEMFRelevance: text => text.includes('router'),
+      detectSupplementSlots: (text: unknown) => (text as {includes(value:unknown):unknown}).includes('magnesium') ? ['magnesium'] : [],
+      detectEMFRelevance: (text: unknown) => (text as {includes(value:unknown):unknown}).includes('router'),
       renderRecommendationSection: async () => '<div>async rec</div>',
       renderRecommendationSectionSync: () => '<div>sync rec</div>',
       loadCatalog: async () => ({ products: [] }),
@@ -241,9 +244,9 @@ test('chat send controls cover button state typewriter runtime bridges and abort
     try {
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.setItem('labcharts-ai-paused', 'false');
-      window._ppqAttestation = 'ppq-attestation';
-      window._routstrAttestation = 'routstr-attestation';
-      window._veniceAttestation = 'venice-attestation';
+      (window as unknown as {_ppqAttestation?:unknown})._ppqAttestation = 'ppq-attestation';
+      (window as unknown as {_routstrAttestation?:unknown})._routstrAttestation = 'routstr-attestation';
+      (window as unknown as {_veniceAttestation?:unknown})._veniceAttestation = 'venice-attestation';
 
       const recommendationBridge = chatSendRuntime.getChatSendRecommendationRuntime();
       outcomes.chatSendRuntimeReadsAttestationsAndRecommendationBridge =
@@ -257,23 +260,23 @@ test('chat send controls cover button state typewriter runtime bridges and abort
         && typeof recommendationBridge?.renderRecommendationSectionSync === 'function'
         && typeof recommendationBridge?.loadCatalog === 'function';
 
-      const input = document.getElementById('chat-input');
-      const sendBtn = document.getElementById('chat-send-btn');
-      input.value = '';
-      sendBtn.disabled = false;
+      const input = (document.getElementById('chat-input') as HTMLTextAreaElement | null);
+      const sendBtn = (document.getElementById('chat-send-btn') as HTMLButtonElement | null);
+      (input)!.value = '';
+      (sendBtn)!.disabled = false;
       chatSend.updateSendButtonState();
-      outcomes.emptyInputDisablesSend = sendBtn.disabled === true;
+      outcomes.emptyInputDisablesSend = (sendBtn!.disabled as boolean) === true;
 
-      input.value = 'hello';
+      (input)!.value = 'hello';
       chatSend.updateSendButtonState();
-      outcomes.textInputEnablesSend = sendBtn.disabled === false;
+      outcomes.textInputEnablesSend = (sendBtn!.disabled as boolean) === false;
 
       chatSend.setSendButtonMode(sendBtn, 'streaming');
-      outcomes.streamingModeShowsStop = sendBtn.classList.contains('streaming')
-        && !!sendBtn.querySelector('rect');
+      outcomes.streamingModeShowsStop = (sendBtn)!.classList.contains('streaming')
+        && !!(sendBtn)!.querySelector<HTMLElement>('rect');
       chatSend.setSendButtonMode(sendBtn, 'idle');
-      outcomes.idleModeShowsSend = !sendBtn.classList.contains('streaming')
-        && !!sendBtn.querySelector('path');
+      outcomes.idleModeShowsSend = !(sendBtn)!.classList.contains('streaming')
+        && !!(sendBtn)!.querySelector<HTMLElement>('path');
 
       const container = document.createElement('div');
       container.style.height = '32px';
@@ -286,7 +289,7 @@ test('chat send controls cover button state typewriter runtime bridges and abort
       const typewriter = chatSend.createTypewriter(aiEl, typingEl, container);
       typewriter.update('streamed answer');
       for (let attempts = 0; attempts < 40 && aiEl.textContent !== 'streamed answer'; attempts++) {
-        await new Promise(resolve => setTimeout(resolve, 25));
+        await new Promise((resolve) => setTimeout(resolve, 25));
       }
       typewriter.stop();
       outcomes.typewriterWritesText = aiEl.textContent === 'streamed answer'
@@ -296,7 +299,7 @@ test('chat send controls cover button state typewriter runtime bridges and abort
       const firstController = new AbortController();
       chatSend.setChatAbortController(firstController);
       chatSend.updateSendButtonState();
-      outcomes.streamingStateEnablesEmptySend = sendBtn.disabled === false
+      outcomes.streamingStateEnablesEmptySend = (sendBtn!.disabled as boolean) === false
         && chatSend.getChatAbortController() === firstController
         && chatSend.isChatStreaming() === true;
 
@@ -307,7 +310,7 @@ test('chat send controls cover button state typewriter runtime bridges and abort
       const secondController = new AbortController();
       let prevented = false;
       chatSend.setChatAbortController(secondController);
-      chatSend.handleChatKeydown({
+      (chatSend.handleChatKeydown as FixtureFirstArgument<typeof chatSend.handleChatKeydown>)({
         key: 'Enter',
         shiftKey: false,
         preventDefault() { prevented = true; },
@@ -317,7 +320,7 @@ test('chat send controls cover button state typewriter runtime bridges and abort
         && chatSend.isChatStreaming() === false;
 
       prevented = false;
-      chatSend.handleChatKeydown({
+      (chatSend.handleChatKeydown as FixtureFirstArgument<typeof chatSend.handleChatKeydown>)({
         key: 'Enter',
         shiftKey: true,
         preventDefault() { prevented = true; },
@@ -340,8 +343,8 @@ test('chat send controls cover button state typewriter runtime bridges and abort
       });
       for (const key of attestationKeys) {
         const original = originalAttestations[key];
-        if (original.owned) window[key] = original.value;
-        else delete window[key];
+        if ((original)!.owned) (window as unknown as Record<string,unknown>)[key] = (original)!.value;
+        else delete (window as unknown as Record<string,unknown>)[key];
       }
     }
 
@@ -360,10 +363,10 @@ test('discussion round and sync diagnose render helpers cover active and empty s
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ roundViewUrl, syncRenderUrl }) => {
-    const roundView = await import(roundViewUrl);
+    const roundView = (await import(roundViewUrl) as unknown) as Pick<typeof import('../../js/chat-discussion-round-view.js'), "createDiscussionPersonaLabel" | "createDiscussionTypingIndicator" | "createDiscussionAiMessage" | "appendRoundPersonaLabel" | "renderFinalDiscussionMessage" | "appendDiscussionUsageFootnote" | "renderDiscussionRoundError">;
     const { state } = await import('/js/state.js');
-    const syncRender = await import(syncRenderUrl);
-    const outcomes = {};
+    const syncRender = (await import(syncRenderUrl) as unknown) as Pick<typeof import('../../js/sync-diagnose-render.js'), "renderSyncDiagnoseModal">;
+    const outcomes: Record<string, unknown> = {};
     const originalThreadId = state.currentThreadId;
 
     try {
@@ -391,7 +394,7 @@ test('discussion round and sync diagnose render helpers cover active and empty s
         responseTruncated: true,
       });
       outcomes.finalMessageRendersMarkdownAndLimit = rendered === true
-        && !!ai.querySelector('strong')
+        && !!ai.querySelector<HTMLElement>('strong')
         && ai.textContent.includes('output limit reached');
 
       const footnoted = roundView.appendDiscussionUsageFootnote({
@@ -405,7 +408,7 @@ test('discussion round and sync diagnose render helpers cover active and empty s
         e2ee: false,
       });
       outcomes.usageFootnoteRenders = footnoted === true
-        && ai.querySelector('.chat-cost-footnote')?.textContent.includes('25 tokens');
+        && ai.querySelector<HTMLElement>('.chat-cost-footnote')?.textContent.includes('25 tokens');
 
       const errored = roundView.renderDiscussionRoundError({
         threadId: 'round-active',
@@ -426,7 +429,7 @@ test('discussion round and sync diagnose render helpers cover active and empty s
       }) === false;
       container.remove();
 
-      const fullHtml = syncRender.renderSyncDiagnoseModal({
+      const fullHtml = (syncRender.renderSyncDiagnoseModal as FixtureFirstArgument<typeof syncRender.renderSyncDiagnoseModal>)({
         diagnostics: {
           syncEnabled: true,
           relay: 'https://relay.example.test',
@@ -499,7 +502,7 @@ test('discussion round and sync diagnose render helpers cover active and empty s
         && fullHtml.includes('title="Push the pending items below first."')
         && !fullHtml.includes('data-sync-diagnose-action="enable-phase2"');
 
-      const emptyRowsHtml = syncRender.renderSyncDiagnoseModal({
+      const emptyRowsHtml = (syncRender.renderSyncDiagnoseModal as FixtureFirstArgument<typeof syncRender.renderSyncDiagnoseModal>)({
         diagnostics: {
           syncEnabled: false,
           relay: '',
@@ -538,21 +541,21 @@ test('import preflight and marker normalization cover browser decision paths', a
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ preflightUrl, normalizationUrl, utilsUrl }) => {
-    const preflight = await import(preflightUrl);
-    const normalization = await import(normalizationUrl);
+    const preflight = (await import(preflightUrl) as unknown) as Pick<typeof import('../../js/pdf-import-preflight.js'), "normalizeImportModelId" | "runPreflightChecks">;
+    const normalization = (await import(normalizationUrl) as unknown) as Pick<typeof import('../../js/pdf-import-marker-normalization.js'), "normalizeParsedImportMarkers">;
     const { state } = await import('/js/state.js');
-    const { hashString } = await import(utilsUrl);
-    const outcomes = {};
+    const { hashString } = (await import(utilsUrl) as unknown) as Pick<typeof import('../../js/utils.js'), "hashString">;
+    const outcomes: Record<string, unknown> = {};
     const originalEntries = Array.isArray(state.importedData?.entries)
-      ? JSON.parse(JSON.stringify(state.importedData.entries))
+      ? JSON.parse(JSON.stringify(state.importedData.entries)) as unknown
       : undefined;
     const originalPaused = localStorage.getItem('labcharts-ai-paused');
 
     try {
       outcomes.normalizesProviderModelIds = preflight.normalizeImportModelId('anthropic/claude-sonnet-4.6-20260101') === 'claude-sonnet-4-6';
 
-      state.importedData ||= {};
-      state.importedData.entries = [{ date: '2026-06-01', importHash: hashString('duplicate pdf text') }];
+      (state as unknown as {importedData:unknown}).importedData ||= {};
+      (state.importedData as unknown as {entries:unknown}).entries = [{ date: '2026-06-01', importHash: hashString('duplicate pdf text') }];
       localStorage.setItem('labcharts-ai-paused', 'true');
 
       const cancelPromise = preflight.runPreflightChecks('duplicate pdf text', 'blood.pdf');
@@ -571,30 +574,30 @@ test('import preflight and marker normalization cover browser decision paths', a
       });
       outcomes.bloodMarkerNormalizes = blood.testType === 'blood'
         && blood.markers.length === 1
-        && blood.markers[0].value === 5.2
-        && blood.markers[0].matched === true
-        && blood.markers[0].mappedKey === 'biochemistry.glucose';
+        && (blood.markers[0])!.value === 5.2
+        && (blood.markers[0])!.matched === true
+        && (blood.markers[0])!.mappedKey === 'biochemistry.glucose';
 
       const oat = normalization.normalizeParsedImportMarkers({
         testType: 'OAT',
         markers: [{ rawName: 'Glucose', value: '1.2', mappedKey: 'biochemistry.glucose' }],
       });
       outcomes.specialtyStandardMappingIsDemoted = oat.markers.length === 1
-        && oat.markers[0].mappedKey === null
-        && oat.markers[0].matched === false
-        && oat.markers[0].suggestedKey === 'organicAcids.glucose'
-        && oat.markers[0].group === 'Organic Acids';
+        && (oat.markers[0])!.mappedKey === null
+        && (oat.markers[0])!.matched === false
+        && (oat.markers[0])!.suggestedKey === 'organicAcids.glucose'
+        && (oat.markers[0]! as {group?:unknown}).group === 'Organic Acids';
 
       const image = normalization.normalizeParsedImportMarkers({
         testType: 'blood',
         markers: [{ rawName: 'Ferritin', value: '44.5', mappedKey: 'iron.ferritin', unit: 'ng/ml' }],
       }, { mode: 'image' });
-      outcomes.imageMarkerShapeNormalizes = image.markers[0].value === 44.5
-        && image.markers[0].unit === 'ng/ml'
+      outcomes.imageMarkerShapeNormalizes = (image.markers[0])!.value === 44.5
+        && (image.markers[0])!.unit === 'ng/ml'
         && Object.prototype.hasOwnProperty.call(image.markers[0], 'suggestedGroup');
     } finally {
-      if (originalEntries === undefined) delete state.importedData.entries;
-      else state.importedData.entries = originalEntries;
+      if (originalEntries === undefined) delete (state.importedData as unknown as {entries?:unknown}).entries;
+      else (state.importedData as unknown as {entries:unknown}).entries = originalEntries;
       if (originalPaused == null) localStorage.removeItem('labcharts-ai-paused');
       else localStorage.setItem('labcharts-ai-paused', originalPaused);
       document.getElementById('confirm-dialog-overlay')?.classList.remove('show');
@@ -616,43 +619,43 @@ test('sync diagnostics schema and snapshot helpers cover browser contracts', asy
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ schemaUrl, textUrl, snapshotUrl }) => {
-    const schema = await import(schemaUrl);
-    const diagnosticsText = await import(textUrl);
-    const snapshot = await import(snapshotUrl);
+    const schema = (await import(schemaUrl) as unknown) as Pick<typeof import('../../js/sync-schema.js'), "createSyncSchema" | "createSyncQueries">;
+    const diagnosticsText = (await import(textUrl) as unknown) as Pick<typeof import('../../js/sync-diagnostics-text.js'), "_evoluDiagnosticsText">;
+    const snapshot = (await import(snapshotUrl) as unknown) as Pick<typeof import('../../js/sync-diagnostics-snapshot.js'), "_syncDiag" | "getEvoluDiagnostics">;
     const diagnosticsContext = await import('/js/sync-diagnostics-context.js');
     const { state } = await import('/js/state.js');
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const originalProfile = state.currentProfile;
-    const originalImported = JSON.parse(JSON.stringify(state.importedData || {}));
+    const originalImported = JSON.parse(JSON.stringify(state.importedData || {})) as unknown;
     const originalSyncTs = localStorage.getItem('coverage-sync-ts');
 
     try {
       const syncSchema = schema.createSyncSchema({
-        id: (name) => `id:${name}`,
-        nullOr: (value) => ({ kind: 'nullable', value }),
+        id: (name: string) => `id:${name}`,
+        nullOr: (value: unknown) => ({ kind: 'nullable', value }),
         NonEmptyString: 'non-empty',
       });
       outcomes.schemaDefinesProfileAndItemRows = syncSchema.profileData.id === 'id:ProfileData'
-        && syncSchema.profileData.syncedAt.kind === 'nullable'
+        && (syncSchema.profileData.syncedAt as {kind?:unknown}).kind === 'nullable'
         && syncSchema.itemRow.id === 'id:ItemRow'
         && syncSchema.itemRow.arrayName === 'non-empty';
 
-      const queryCalls = [];
+      const queryCalls: unknown[][][] = [];
       const fakeEvoluForQueries = {
-        createQuery(builder) {
-          const calls = [];
+        createQuery(builder: Parameters<import('../../js/sync-schema.js').SyncQueryClient<FixtureQueryRows>['createQuery']>[0]) {
+          const calls: unknown[][] = [];
           const chain = {
             selectAll() {
               calls.push(['selectAll']);
               return this;
             },
-            where(...args) {
+            where(...args: unknown[]) {
               calls.push(['where', ...args]);
               return this;
             },
           };
           const db = {
-            selectFrom(table) {
+            selectFrom(table: unknown) {
               calls.push(['selectFrom', table]);
               return chain;
             },
@@ -715,7 +718,7 @@ test('sync diagnostics schema and snapshot helpers cover browser contracts', asy
           },
         },
       };
-      const renderedText = diagnosticsText._evoluDiagnosticsText(textPayload);
+      const renderedText = (diagnosticsText._evoluDiagnosticsText as FixtureFirstArgument<typeof diagnosticsText._evoluDiagnosticsText>)(textPayload);
       outcomes.diagnosticsTextIncludesRowsAndDelta = renderedText.includes('Sync enabled: yes')
         && renderedText.includes('profile-1')
         && renderedText.includes('Unreadable row payloads: 1')
@@ -724,7 +727,7 @@ test('sync diagnostics schema and snapshot helpers cover browser contracts', asy
         && renderedText.includes('Phase 1 dual-write health')
         && renderedText.includes('notes(1/0/0)')
         && renderedText.includes('entries');
-      outcomes.diagnosticsTextHandlesEmptyRows = diagnosticsText._evoluDiagnosticsText({
+      outcomes.diagnosticsTextHandlesEmptyRows = (diagnosticsText._evoluDiagnosticsText as FixtureFirstArgument<typeof diagnosticsText._evoluDiagnosticsText>)({
         ...textPayload,
         rows: [],
         rowParseFailureCount: 0,
@@ -770,7 +773,7 @@ test('sync diagnostics schema and snapshot helpers cover browser contracts', asy
         dataJson: JSON.stringify({ _v: 3, importedData: { sunSessions: [{ id: 'sun-del' }], lightDevices: [] } }),
       }];
       const fakeEvolu = {
-        getQueryRows(query) {
+        getQueryRows(query: unknown) {
           if (query === profileQuery) return liveRows;
           if (query === tombstoneQuery) return tombstoneRows;
           return [];
@@ -788,7 +791,7 @@ test('sync diagnostics schema and snapshot helpers cover browser contracts', asy
       });
       localStorage.setItem('coverage-sync-ts', '1760000000000');
       state.currentProfile = 'diag-profile';
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         sunSessions: [{ id: 'active-sun' }],
         lightDevices: [{ id: 'active-dev-1' }, { id: 'active-dev-2' }],
         notes: [{ text: 'snapshot note' }],
@@ -798,8 +801,8 @@ test('sync diagnostics schema and snapshot helpers cover browser contracts', asy
       const evoluDiagnostics = await snapshot.getEvoluDiagnostics();
       outcomes.syncDiagCollectsContextAndTimestamps = syncInfo.enabled === true
         && syncInfo.evoluReady === true
-        && syncInfo.evoluRows.length === 3
-        && syncInfo.localTimestamps.some(item => item.key === 'coverage-sync-ts');
+        && (syncInfo.evoluRows)!.length === 3
+        && (syncInfo.localTimestamps)!.some(item => item.key === 'coverage-sync-ts');
       outcomes.snapshotParsesRowsFallbacksAndDeletes = evoluDiagnostics.syncEnabled === true
         && String(evoluDiagnostics.ownerId).startsWith('ownerabcdef')
         && evoluDiagnostics.mnemonicConfigured === true
@@ -816,7 +819,7 @@ test('sync diagnostics schema and snapshot helpers cover browser contracts', asy
         && evoluDiagnostics.cutoverReadiness !== null;
     } finally {
       state.currentProfile = originalProfile;
-      state.importedData = originalImported;
+      (state as unknown as {importedData:unknown}).importedData = originalImported;
       if (originalSyncTs == null) localStorage.removeItem('coverage-sync-ts');
       else localStorage.setItem('coverage-sync-ts', originalSyncTs);
       diagnosticsContext.configureSyncDiagnosticsContext({
@@ -847,15 +850,15 @@ test('sync scalar merge storage cleanup and QR loader cover browser contracts', 
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ scalarUrl, cleanupUrl, providerQrUrl }) => {
-    const scalar = await import(scalarUrl);
-    const cleanup = await import(cleanupUrl);
-    const providerQr = await import(providerQrUrl);
+    const scalar = (await import(scalarUrl) as unknown) as Pick<typeof import('../../js/sync-delta-scalar-merge.js'), "mergeScalarRowsIntoImported">;
+    const cleanup = (await import(cleanupUrl) as unknown) as Pick<typeof import('../../js/sync-storage-cleanup.js'), "cleanStorage">;
+    const providerQr = (await import(providerQrUrl) as unknown) as Pick<typeof import('../../js/provider-qr.js'), "ensureQRCode">;
     const syncState = await import('/js/sync-state.js');
     const { profileStorageKey } = await import('/js/profile.js');
     const blobStorage = await import('/js/blob-storage.js');
     const { state } = await import('/js/state.js');
-    const outcomes = {};
-    const originalImported = JSON.parse(JSON.stringify(state.importedData || {}));
+    const outcomes: Record<string, unknown> = {};
+    const originalImported = JSON.parse(JSON.stringify(state.importedData || {})) as unknown;
     const importedStorageKey = profileStorageKey(state.currentProfile || 'default', 'imported');
     const originalImportedLocalValue = localStorage.getItem(importedStorageKey);
     const originalImportedBlobValue = await blobStorage.getBlob(importedStorageKey);
@@ -868,7 +871,7 @@ test('sync scalar merge storage cleanup and QR loader cover browser contracts', 
     ];
     const originalCacheValues = Object.fromEntries(cacheKeys.map(key => [key, localStorage.getItem(key)]));
     const hadQRCode = Object.prototype.hasOwnProperty.call(window, 'qrcode');
-    const originalQRCode = window.qrcode;
+    const originalQRCode = (window as {qrcode?: unknown}).qrcode;
 
     try {
       const imported = {
@@ -876,7 +879,7 @@ test('sync scalar merge storage cleanup and QR loader cover browser contracts', 
         lightEnvironment: { mode: 'bright' },
         mood: 'old',
       };
-      await scalar.mergeScalarRowsIntoImported(imported, 'genetics', [
+      await (scalar.mergeScalarRowsIntoImported as FixtureThirdArgument<typeof scalar.mergeScalarRowsIntoImported>)(imported, 'genetics', [
         { itemId: 'other', payload: JSON.stringify({ v: { ignored: true } }), syncedAt: '2026-02-01T00:00:00.000Z' },
         { itemId: 'genetics', payload: 'not json', syncedAt: '2026-02-02T00:00:00.000Z' },
         { itemId: 'genetics', payload: JSON.stringify({ v: { ancestry: 'older' } }), syncedAt: '2026-01-01T00:00:00.000Z' },
@@ -885,26 +888,26 @@ test('sync scalar merge storage cleanup and QR loader cover browser contracts', 
       outcomes.scalarMergePreservesGeneticsMap = imported.genetics.ancestry === 'remote'
         && imported.genetics.snps.rs1 === 'AA';
 
-      await scalar.mergeScalarRowsIntoImported(imported, 'lightEnvironment.mode', [
+      await (scalar.mergeScalarRowsIntoImported as FixtureThirdArgument<typeof scalar.mergeScalarRowsIntoImported>)(imported, 'lightEnvironment.mode', [
         { itemId: 'lightEnvironment.mode', payload: JSON.stringify({ v: 'dim' }), syncedAt: '2026-01-01T00:00:00.000Z' },
         { itemId: 'lightEnvironment.mode', isDeleted: true, syncedAt: '2026-03-01T00:00:00.000Z' },
       ]);
       outcomes.scalarTombstoneClearsNestedLeaf = imported.lightEnvironment.mode === null;
 
-      await scalar.mergeScalarRowsIntoImported(imported, 'mood', [
+      await (scalar.mergeScalarRowsIntoImported as FixtureThirdArgument<typeof scalar.mergeScalarRowsIntoImported>)(imported, 'mood', [
         { itemId: 'mood', isDeleted: true, syncedAt: '2026-05-01T00:00:00.000Z' },
       ]);
       outcomes.scalarTombstoneClearsTopLevel = imported.mood === null;
 
-      await scalar.mergeScalarRowsIntoImported(imported, 'genetics', [
+      await (scalar.mergeScalarRowsIntoImported as FixtureThirdArgument<typeof scalar.mergeScalarRowsIntoImported>)(imported, 'genetics', [
         { itemId: 'genetics', isDeleted: true, syncedAt: '2026-06-01T00:00:00.000Z' },
       ]);
       outcomes.geneticsTombstonePreservesSnps = Object.keys(imported.genetics).length === 1
         && imported.genetics.snps.rs1 === 'AA';
 
       for (const key of cacheKeys) localStorage.setItem(key, `${key}-cache`);
-      state.importedData = {
-        ...originalImported,
+      (state as unknown as {importedData:unknown}).importedData = {
+        ...(originalImported as object),
         changeHistory: Array.from({ length: 205 }, (_, index) => ({
           field: `field-${index}`,
           date: `2026-06-${String((index % 28) + 1).padStart(2, '0')}`,
@@ -919,17 +922,17 @@ test('sync scalar merge storage cleanup and QR loader cover browser contracts', 
         .some(event => event.kind === 'cleanup' && event.text.includes('Caches cleared: 5'));
 
       const fakeQRCodeFn = function fakeQRCode() {};
-      window.qrcode = fakeQRCodeFn;
+      (window as {qrcode?: unknown}).qrcode = fakeQRCodeFn;
       const existingQRCode = await providerQr.ensureQRCode();
-      outcomes.qrReturnsExistingGlobal = existingQRCode === fakeQRCodeFn;
+      outcomes.qrReturnsExistingGlobal = (existingQRCode as unknown) === fakeQRCodeFn;
 
-      window.qrcode = undefined;
+      (window as {qrcode?: unknown}).qrcode = undefined;
       const loadedQRCode = await providerQr.ensureQRCode();
       const loadedAgain = await providerQr.ensureQRCode();
       outcomes.qrLoadsVendorAndMemoizes = typeof loadedQRCode === 'function'
         && loadedAgain === loadedQRCode;
     } finally {
-      state.importedData = originalImported;
+      (state as unknown as {importedData:unknown}).importedData = originalImported;
       if (originalImportedBlobValue == null) await blobStorage.deleteBlob(importedStorageKey);
       else await blobStorage.setBlob(importedStorageKey, originalImportedBlobValue);
       if (originalImportedLocalValue == null) localStorage.removeItem(importedStorageKey);
@@ -938,8 +941,8 @@ test('sync scalar merge storage cleanup and QR loader cover browser contracts', 
         if (value == null) localStorage.removeItem(key);
         else localStorage.setItem(key, value);
       }
-      if (hadQRCode) window.qrcode = originalQRCode;
-      else delete window.qrcode;
+      if (hadQRCode) (window as {qrcode?: unknown}).qrcode = originalQRCode;
+      else delete (window as {qrcode?: unknown}).qrcode;
     }
 
     return outcomes;
@@ -959,10 +962,10 @@ test('discussion round runner covers empty and missing container paths', async (
   await page.waitForSelector('#chat-send-btn');
 
   const results = await page.evaluate(async ({ runnerUrl }) => {
-    const runner = await import(runnerUrl);
+    const runner = (await import(runnerUrl) as unknown) as Pick<typeof import('../../js/chat-discussion-round-runner.js'), "runDiscussionRound">;
     const callbacks = await import('/js/chat-discussion-callbacks.js');
     const { state } = await import('/js/state.js');
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const originalThreadId = state.currentThreadId;
     const originalHistory = Array.isArray(state.chatHistory)
       ? state.chatHistory.slice()
@@ -970,14 +973,14 @@ test('discussion round runner covers empty and missing container paths', async (
     const container = document.getElementById('chat-messages');
     const parent = container?.parentNode || null;
     const nextSibling = container?.nextSibling || null;
-    let abortController = null;
-    const modes = [];
+    let abortController: AbortController | null = null;
+    const modes: unknown[] = [];
 
     try {
       callbacks.configureChatDiscussion({
         getChatAbortController: () => abortController,
-        setChatAbortController: (controller) => { abortController = controller; },
-        setSendButtonMode: (_btn, mode) => { modes.push(mode); },
+        setChatAbortController: (controller: AbortController | null) => { abortController = controller; },
+        setSendButtonMode: (_btn: unknown, mode: unknown) => { modes.push(mode); },
         renderChatMessages: () => {},
         createTypewriter: () => ({ update() {}, stop() {} }),
       });
@@ -1025,26 +1028,26 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ identityUrl, cutoverUrl, relayUrl }) => {
-    const identityActions = await import(identityUrl);
-    const cutoverActions = await import(cutoverUrl);
-    const relayActions = await import(relayUrl);
+    const identityActions = (await import(identityUrl) as unknown) as Pick<typeof import('../../js/sync-diagnose-identity-actions.js'), "confirmRotateIdentity">;
+    const cutoverActions = (await import(cutoverUrl) as unknown) as Pick<typeof import('../../js/sync-diagnose-cutover-actions.js'), "confirmResetDeltaTelemetry" | "confirmEnablePhase2" | "confirmBackfillBlockers" | "confirmDisablePhase2">;
+    const relayActions = (await import(relayUrl) as unknown) as Pick<typeof import('../../js/sync-diagnose-relay-actions.js'), "confirmCompactRelay" | "refreshRelayStorage">;
     const syncActions = await import('/js/sync-actions.js');
     const actionContext = await import('/js/sync-diagnose-actions-context.js');
     const confirmRuntime = await import('/js/sync-diagnose-runtime.js');
     const relayHealth = await import('/js/sync-relay-health.js');
     const { state } = await import('/js/state.js');
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     let confirmAnswer = false;
     const originalConfirmDeps = confirmRuntime.configureSyncDiagnoseRuntimeDeps({
       showConfirmDialog: async () => confirmAnswer,
     });
     const originalFetch = window.fetch;
     const hadBip39 = Object.prototype.hasOwnProperty.call(window, 'bip39');
-    const originalBip39 = window.bip39;
+    const originalBip39 = (window as {bip39?: unknown}).bip39;
     const hadQRCode = Object.prototype.hasOwnProperty.call(window, 'qrcode');
-    const originalQRCode = window.qrcode;
+    const originalQRCode = (window as {qrcode?: unknown}).qrcode;
     const originalProfile = state.currentProfile;
-    const originalImported = JSON.parse(JSON.stringify(state.importedData || {}));
+    const originalImported = JSON.parse(JSON.stringify(state.importedData || {})) as unknown;
     const originalSelfUrl = localStorage.getItem('labcharts-self-url');
     const relayQuotaKey = 'labcharts-relay-bytes-owner-1';
     const originalRelayQuota = localStorage.getItem(relayQuotaKey);
@@ -1062,15 +1065,15 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
     try {
       confirmAnswer = false;
       await identityActions.confirmRotateIdentity();
-      outcomes.rotateCancelStopsBeforeModal = !document.querySelector('[aria-label="Rotate sync identity"]');
+      outcomes.rotateCancelStopsBeforeModal = !document.querySelector<HTMLElement>('[aria-label="Rotate sync identity"]');
 
       const mnemonic = Array.from({ length: 24 }, (_, index) => `word${index + 1}`).join(' ');
       let enableSyncCalls = 0;
-      let restoredMnemonic = '';
-      let restoreOptions = null;
+      let restoredMnemonic: unknown = '';
+      let restoreOptions: unknown = null;
       actionContext.configureSyncDiagnoseActionContext({
         enableSync: async () => { enableSyncCalls++; return true; },
-        restoreFromMnemonic: async (value, options) => {
+        restoreFromMnemonic: async (value: unknown, options: unknown) => {
           restoredMnemonic = value;
           restoreOptions = options;
           return true;
@@ -1082,54 +1085,54 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
         showSyncDiagnose: async () => {},
       });
       confirmAnswer = true;
-      window.bip39 = { generateMnemonic: async () => mnemonic };
-      window.qrcode = function fakeQRCode() {
+      (window as {bip39?: unknown}).bip39 = { generateMnemonic: async () => mnemonic };
+      (window as {qrcode?: unknown}).qrcode = function fakeQRCode() {
         return {
-          addData(value) { this.value = value; },
-          make() { this.made = true; },
+          addData(this: {value?:unknown}, value: unknown) { this.value = value; },
+          make(this: {made?:boolean}) { this.made = true; },
           createSvgTag() { return '<svg data-testid="rotate-qr"></svg>'; },
         };
       };
 
       await identityActions.confirmRotateIdentity();
-      const rotateOverlay = Array.from(document.querySelectorAll('.modal-overlay'))
+      const rotateOverlay = Array.from(document.querySelectorAll<HTMLElement>('.modal-overlay'))
         .find(overlay => overlay.textContent?.includes('Rotate sync identity'));
-      const rotateApply = rotateOverlay?.querySelector('#rotate-apply-btn');
-      const rotateCheck = rotateOverlay?.querySelector('#rotate-saved-check');
+      const rotateApply = rotateOverlay?.querySelector<HTMLButtonElement>('#rotate-apply-btn');
+      const rotateCheck = rotateOverlay?.querySelector<HTMLInputElement>('#rotate-saved-check');
       outcomes.rotateModalRendersAndGatesApply = !!rotateOverlay
-        && rotateOverlay.querySelectorAll('#rotate-words span').length >= 24
+        && rotateOverlay.querySelectorAll<HTMLElement>('#rotate-words span').length >= 24
         && rotateApply?.disabled === true
-        && !!rotateOverlay.querySelector('[data-testid="rotate-qr"]');
+        && !!rotateOverlay.querySelector<HTMLElement>('[data-testid="rotate-qr"]');
 
       rotateCheck?.click();
       outcomes.rotateCheckboxEnablesApply = rotateApply?.disabled === false;
       rotateApply?.click();
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
       outcomes.rotateApplyUsesInjectedContext = enableSyncCalls === 1
         && restoredMnemonic === mnemonic
-        && restoreOptions?.seedLocal === true;
+        && (restoreOptions as {seedLocal?:unknown;force?:unknown} | null)?.seedLocal === true;
       rotateOverlay?.remove();
 
       state.currentProfile = 'diag-actions-profile';
-      state.importedData = {};
-      let enabledPhaseProfile = '';
-      let disabledPhaseProfile = '';
-      let pushedProfile = '';
-      let pushedOptions = null;
+      (state as unknown as {importedData:unknown}).importedData = {};
+      let enabledPhaseProfile: unknown = '';
+      let disabledPhaseProfile: unknown = '';
+      let pushedProfile: unknown = '';
+      let pushedOptions: unknown = null;
       let showDiagnoseCalls = 0;
       actionContext.configureSyncDiagnoseActionContext({
         enableSync: async () => true,
         restoreFromMnemonic: async () => true,
         isSyncEnabled: () => true,
-        pushProfile: async (profileId, _importedData, options) => {
+        pushProfile: async (profileId: unknown, _importedData: unknown, options: unknown) => {
           pushedProfile = profileId;
           pushedOptions = options;
         },
-        enablePhase2Cutover: (profileId) => {
+        enablePhase2Cutover: (profileId: unknown) => {
           enabledPhaseProfile = profileId;
           return { ok: true };
         },
-        disablePhase2Cutover: (profileId) => {
+        disablePhase2Cutover: (profileId: unknown) => {
           disabledPhaseProfile = profileId;
           return true;
         },
@@ -1146,18 +1149,18 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
       outcomes.enablePhase2UsesContextAndCloses = enabledPhaseProfile === 'diag-actions-profile'
         && !document.body.contains(enableModal.overlay);
 
-      state.importedData = { notes: [{ text: 'needs backfill' }] };
+      (state as unknown as {importedData:unknown}).importedData = { notes: [{ text: 'needs backfill' }] };
       await cutoverActions.confirmBackfillBlockers();
       outcomes.backfillBlockersForcesPush = pushedProfile === 'diag-actions-profile'
-        && pushedOptions?.force === true;
+        && (pushedOptions as {seedLocal?:unknown;force?:unknown} | null)?.force === true;
 
       const disableModal = makeModalButton('Disable Phase 2');
       await cutoverActions.confirmDisablePhase2(disableModal.btn);
       outcomes.disablePhase2UsesContextAndCloses = disabledPhaseProfile === 'diag-actions-profile'
         && !document.body.contains(disableModal.overlay);
 
-      const fetchCalls = [];
-      const rebuildPushes = [];
+      const fetchCalls: {url:string;method:unknown;body:unknown}[] = [];
+      const rebuildPushes: {profileId:unknown;options:unknown}[] = [];
       let compactionPulls = 0;
       syncActions.configureSyncActions({
         forcePull: async () => { compactionPulls++; },
@@ -1165,7 +1168,7 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
         isEvoluReady: () => true,
         resetLocalSyncHistoryForRelayRebuild: async () => true,
         getProfiles: () => [{ id: 'diag-actions-profile' }],
-        pushProfile: async (profileId, _data, options) => {
+        pushProfile: async (profileId: unknown, _data: unknown, options: unknown) => {
           rebuildPushes.push({ profileId, options });
           return { ok: true };
         },
@@ -1175,7 +1178,7 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
         getSyncRelay: () => 'wss://relay.example.test',
       });
       localStorage.setItem('labcharts-self-url', 'https://relay.example.test');
-      window.fetch = async (url, options = {}) => {
+      (window as unknown as {fetch:unknown}).fetch = async (url: unknown, options: {method?:unknown;body?:unknown} = {}) => {
         fetchCalls.push({ url: String(url), method: options.method || 'GET', body: options.body || '' });
         if (String(url).includes('/self/compact-owner')) {
           return {
@@ -1205,7 +1208,7 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
       outcomes.compactRelayPostsAndCloses = fetchCalls.some(call => call.method === 'POST'
         && call.url.endsWith('/self/compact-owner'))
         && compactionPulls === 1
-        && rebuildPushes.some(call => call.profileId === 'diag-actions-profile' && call.options?.force === true)
+        && rebuildPushes.some(call => call.profileId === 'diag-actions-profile' && (call.options as {force?:unknown} | null)?.force === true)
         && !document.body.contains(compactModal.overlay);
 
       const refreshModal = makeModalButton('Refresh');
@@ -1216,12 +1219,12 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
     } finally {
       confirmRuntime.configureSyncDiagnoseRuntimeDeps(originalConfirmDeps);
       window.fetch = originalFetch;
-      if (hadBip39) window.bip39 = originalBip39;
-      else delete window.bip39;
-      if (hadQRCode) window.qrcode = originalQRCode;
-      else delete window.qrcode;
+      if (hadBip39) (window as {bip39?: unknown}).bip39 = originalBip39;
+      else delete (window as {bip39?: unknown}).bip39;
+      if (hadQRCode) (window as {qrcode?: unknown}).qrcode = originalQRCode;
+      else delete (window as {qrcode?: unknown}).qrcode;
       state.currentProfile = originalProfile;
-      state.importedData = originalImported;
+      (state as unknown as {importedData:unknown}).importedData = originalImported;
       syncActions.configureSyncActions({
         forcePull: async () => {},
         isSyncEnabled: () => false,
@@ -1234,7 +1237,7 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
       else localStorage.setItem('labcharts-self-url', originalSelfUrl);
       if (originalRelayQuota == null) localStorage.removeItem(relayQuotaKey);
       else localStorage.setItem(relayQuotaKey, originalRelayQuota);
-      document.querySelectorAll('.modal-overlay').forEach(overlay => {
+      document.querySelectorAll<HTMLElement>('.modal-overlay').forEach(overlay => {
         if (overlay.textContent?.includes('Rotate sync identity')
           || overlay.textContent?.includes('Reduce storage')
           || overlay.textContent?.includes('Enable Phase 2')
