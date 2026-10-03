@@ -1,4 +1,3 @@
-// @ts-check
 // nutrition-ai-settings.js — an optional model route dedicated to meal photos.
 
 import {
@@ -21,11 +20,35 @@ import { cacheLocalAiModelDetails, getCachedLocalAiModelDetails } from './provid
 import { getModelPricing } from './schema.js';
 import { escapeAttr, escapeHTML } from './utils.js';
 
+import type { StoredProviderModel } from './api-provider-storage.js';
+
+type NutritionDiscovery = Awaited<ReturnType<typeof discoverLocalAI>>;
+interface NutritionRouteInput { provider?: unknown; model?: unknown }
+export interface NutritionAIRoute { provider: string; model: string }
+interface RawCatalogRow { id?: unknown; name?: unknown }
+interface MealSelectionFlags {
+  usesChatModel: boolean;
+  usesAssistant: boolean;
+  usesAutomatic: boolean;
+  fallback: boolean;
+}
+interface DirectMealRoute {
+  adapter: 'direct';
+  provider: string;
+  model: string;
+  modelDisplay: string;
+  providerDisplay: string;
+  local: boolean;
+  available: boolean;
+}
+export type MealAISelection = (ReturnType<typeof getCodexExecutionRoute> | DirectMealRoute) & MealSelectionFlags;
+type ComparisonModel = Pick<ReturnType<typeof listNutritionVisionModels>[number], 'provider' | 'current' | 'providerCurrent' | 'value'>;
+
 export const NUTRITION_AI_ROUTE_KEY = 'labcharts-nutrition-ai-route';
 
 const PROVIDERS = Object.freeze(['openrouter', 'venice', 'ppq', 'routstr', 'custom', 'ollama']);
 const ROUTE_PROVIDERS = Object.freeze([...PROVIDERS, 'codex']);
-const PROVIDER_LABELS = Object.freeze({
+const PROVIDER_LABELS: Readonly<Record<string, string>> = Object.freeze({
   openrouter: 'OpenRouter',
   venice: 'Venice',
   ppq: 'PPQ',
@@ -34,7 +57,7 @@ const PROVIDER_LABELS = Object.freeze({
   ollama: 'Local AI',
   codex: 'CLI agent',
 });
-const MODEL_CACHE_KEYS = Object.freeze({
+const MODEL_CACHE_KEYS: Readonly<Record<string, readonly string[]>> = Object.freeze({
   openrouter: ['labcharts-openrouter-models'],
   venice: ['labcharts-venice-models'],
   ppq: ['labcharts-ppq-models', 'labcharts-ppq-private-models'],
@@ -42,7 +65,7 @@ const MODEL_CACHE_KEYS = Object.freeze({
   custom: ['labcharts-custom-models'],
   ollama: [],
 });
-const VISION_CACHE_KEYS = Object.freeze({
+const VISION_CACHE_KEYS: Readonly<Record<string, readonly string[]>> = Object.freeze({
   openrouter: ['labcharts-openrouter-vision-models'],
   venice: ['labcharts-venice-vision-models'],
   ppq: ['labcharts-ppq-vision-models', 'labcharts-ppq-private-vision-models'],
@@ -50,7 +73,7 @@ const VISION_CACHE_KEYS = Object.freeze({
   custom: ['labcharts-custom-vision-models'],
   ollama: [],
 });
-let nutritionLocalCatalogPromise = null;
+let nutritionLocalCatalogPromise: Promise<NutritionDiscovery | null> | null = null;
 let nutritionLocalCatalogLoading = false;
 
 function notifyNutritionLocalCatalogChanged() {
@@ -99,7 +122,7 @@ export function hydrateNutritionLocalAICatalog({ includeConfigured = false } = {
   return nutritionLocalCatalogPromise;
 }
 
-function nutritionModelSlug(modelId) {
+function nutritionModelSlug(modelId: unknown) {
   return (String(modelId || '').toLocaleLowerCase().replace(/[_.]/g, '-').split('/').pop() || '')
     .replace(/:\d{4}-\d{2}-\d{2}$/, '')
     .replace(/-\d{8}$/, '');
@@ -110,7 +133,7 @@ function nutritionModelSlug(modelId) {
  * candidates, not product recommendations: a route still has to exist in the
  * connected provider catalog and carry explicit image-input metadata.
  */
-function isNutritionBenchmarkCandidate(modelId) {
+function isNutritionBenchmarkCandidate(modelId: unknown) {
   return /^qwen-?3(?:-\d+)?-(?:27b|35b(?:-a3b)?)(?:-|$)/.test(nutritionModelSlug(modelId));
 }
 
@@ -119,7 +142,7 @@ function isNutritionBenchmarkCandidate(modelId) {
  * Newer family members remain useful candidates, but do not inherit a claim
  * that their predecessor's food-photo result proved their accuracy.
  */
-export function getNutritionModelGuidance(modelId) {
+export function getNutritionModelGuidance(modelId: unknown) {
   const slug = nutritionModelSlug(modelId);
   if (/^claude-sonnet-4-6(?:-|$)/.test(slug)) {
     return { rank: 1, level: 'published', label: 'Best studied balance' };
@@ -139,27 +162,27 @@ export function getNutritionModelGuidance(modelId) {
   return { rank: 20, level: 'candidate', label: 'Vision candidate' };
 }
 
-function readStoredArray(key) {
+function readStoredArray<Row = unknown>(key: string): Row[] {
   try {
     const parsed = JSON.parse(localStorage.getItem(key) || '[]');
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed as Row[] : [];
   } catch {
     return [];
   }
 }
 
-function cleanRoute(value) {
-  const provider = String(value?.provider || '');
-  const model = String(value?.model || '').trim();
+function cleanRoute(value: unknown): NutritionAIRoute | null {
+  const provider = String((value as NutritionRouteInput | null | undefined)?.provider || '');
+  const model = String((value as NutritionRouteInput | null | undefined)?.model || '').trim();
   if (!ROUTE_PROVIDERS.includes(provider) || !model || model.length > 300) return null;
   return { provider, model };
 }
 
-function cachedVisionModelIds(provider) {
+function cachedVisionModelIds(provider: string) {
   return new Set((VISION_CACHE_KEYS[provider] || []).flatMap(readStoredArray).map(String));
 }
 
-function modelIdMatchesCapability(modelId, capabilityId) {
+function modelIdMatchesCapability(modelId: string, capabilityId: unknown) {
   if (modelId === capabilityId) return true;
   const undated = String(capabilityId || '')
     .replace(/:\d{4}-\d{2}-\d{2}$/, '')
@@ -168,7 +191,7 @@ function modelIdMatchesCapability(modelId, capabilityId) {
 }
 
 /** Meal routing requires positive capability evidence from this provider. */
-export function isConfirmedMealVisionModel(provider, modelId) {
+export function isConfirmedMealVisionModel(provider: string, modelId: unknown) {
   const id = String(modelId || '').trim();
   if (!id) return false;
   if (provider === 'codex') return getCodexExecutionRoute(id, 'image').available;
@@ -190,7 +213,7 @@ export function getNutritionAIRoute() {
   }
 }
 
-export function setNutritionAIRoute(route) {
+export function setNutritionAIRoute(route: unknown) {
   const cleaned = cleanRoute(route);
   if (cleaned) localStorage.setItem(NUTRITION_AI_ROUTE_KEY, JSON.stringify(cleaned));
   else localStorage.removeItem(NUTRITION_AI_ROUTE_KEY);
@@ -198,13 +221,13 @@ export function setNutritionAIRoute(route) {
   return cleaned;
 }
 
-function modelCatalog(provider) {
+function modelCatalog(provider: string) {
   const rows = provider === 'ollama'
     ? getCachedLocalAiModelDetails().modelDetails
       .filter(row => row?.vision === true)
       .map(row => ({ id: row?.name, name: row?.name }))
-    : (MODEL_CACHE_KEYS[provider] || []).flatMap(readStoredArray);
-  const byId = new Map();
+    : (MODEL_CACHE_KEYS[provider] || []).flatMap(readStoredArray<RawCatalogRow | null | undefined>);
+  const byId = new Map<string, StoredProviderModel & { name: string }>();
   for (const row of rows) {
     const id = String(row?.id || '').trim();
     if (id && isConfirmedMealVisionModel(provider, id) && !byId.has(id)) byId.set(id, { id, name: String(row?.name || id) });
@@ -225,11 +248,11 @@ function modelCatalog(provider) {
     .sort((a, b) => a.priceScore - b.priceScore || a.guidance.rank - b.guidance.rank || a.name.localeCompare(b.name));
 }
 
-function formattedTokenRate(value) {
+function formattedTokenRate(value: number) {
   return String(Number(Number(value).toFixed(2)));
 }
 
-export function nutritionModelPricing(provider, modelId) {
+export function nutritionModelPricing(provider: string, modelId: string) {
   if (provider === 'codex') return { priceLabel: 'Uses CLI subscription', priceScore: 0 };
   if (provider === 'ollama') return { priceLabel: 'Local · no token charge', priceScore: 0 };
   if (provider === 'custom') return { priceLabel: 'Endpoint pricing', priceScore: Number.POSITIVE_INFINITY };
@@ -247,16 +270,16 @@ export function nutritionModelPricing(provider, modelId) {
   }
 }
 
-function modelDisplay(provider, model) {
+function modelDisplay(provider: string, model: string) {
   if (provider === 'codex') return getCodexExecutionRoute(model, 'image').modelDisplay;
   for (const key of MODEL_CACHE_KEYS[provider] || []) {
-    const found = readStoredArray(key).find(row => row?.id === model);
+    const found = readStoredArray<RawCatalogRow | null | undefined>(key).find(row => row?.id === model);
     if (found) return String(found.name || found.id);
   }
   return model;
 }
 
-export function getMealAISelection() {
+export function getMealAISelection(): MealAISelection {
   const provider = getAIProvider();
   const stored = getNutritionAIRoute();
   const assistant = getAssistantExecutionRoute();
@@ -298,7 +321,7 @@ export function getMealAISelection() {
   };
 }
 
-export function getMealAISelectionForRoute(route) {
+export function getMealAISelectionForRoute(route: unknown): MealAISelection {
   const saved = cleanRoute(route);
   if (!saved) {
     return {
@@ -366,11 +389,11 @@ export function listNutritionVisionModels() {
  * Start comparisons with the meal route and a model from another configured
  * provider. Within that second provider, prefer its saved active model.
  */
-export function getDefaultNutritionComparisonModelValues(models = listNutritionVisionModels()) {
+export function getDefaultNutritionComparisonModelValues(models: ComparisonModel[] = listNutritionVisionModels()) {
   if (!Array.isArray(models) || models.length < 2) return [];
   const primary = models.find(model => model.current)
     || models.find(model => model.providerCurrent)
-    || models[0];
+    || models[0]!;
   const otherProviderModels = models.filter(model => model.provider !== primary.provider);
   const secondary = otherProviderModels.find(model => model.providerCurrent)
     || otherProviderModels[0]
@@ -378,11 +401,11 @@ export function getDefaultNutritionComparisonModelValues(models = listNutritionV
   return secondary ? [primary.value, secondary.value] : [primary.value];
 }
 
-function routeValue(provider, model) {
+function routeValue(provider: string, model: string) {
   return JSON.stringify({ provider, model });
 }
 
-export function setNutritionAIRouteFromValue(value) {
+export function setNutritionAIRouteFromValue(value: string | null | undefined) {
   if (!value) return setNutritionAIRoute(null);
   try {
     return setNutritionAIRoute(JSON.parse(value));

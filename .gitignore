@@ -793,3 +793,5 @@ deploy/profile-share/data/
 /js/settings-cli-agent-panel.js
 
 /js/recommendations-products.js
+
+/js/nutrition-ai-settings.js

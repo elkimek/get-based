@@ -1,3 +1,8 @@
+type NutritionTestWindow = Window & {
+  _lastOllamaModelDetails?: ReturnType<typeof import('../js/provider-local-ai-runtime.js').getCachedLocalAiModelDetails>['modelDetails'];
+  _lastIsOllamaServer?: ReturnType<typeof import('../js/provider-local-ai-runtime.js').getCachedLocalAiModelDetails>['isOllamaServer'];
+};
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { setAIProvider, setOllamaMainModel, setOpenRouterModel, setVeniceModel } from '../js/api.js';
@@ -25,15 +30,15 @@ beforeEach(() => {
   updateKeyCache('labcharts-venice-key', '');
   updateKeyCache('labcharts-ollama', '');
   updateKeyCache(AGENT_HOST_TOKEN_KEY, '');
-  window._lastOllamaModelDetails = [];
-  window._lastIsOllamaServer = false;
+  (window as NutritionTestWindow)._lastOllamaModelDetails = [];
+  (window as NutritionTestWindow)._lastIsOllamaServer = false;
   setAIProvider('ollama');
   setOllamaMainModel('qwen-vl-chat');
-  window._lastOllamaModelDetails = [
+  (window as NutritionTestWindow)._lastOllamaModelDetails = [
     { name: 'qwen-vl-chat', vision: true },
     { name: 'llava-meal', vision: true },
   ];
-  window._lastIsOllamaServer = true;
+  (window as NutritionTestWindow)._lastIsOllamaServer = true;
 });
 
 afterEach(() => {
@@ -108,12 +113,12 @@ describe('meal-photo model routing', () => {
 
   it('lists every current model family with a confirmed vision capability', () => {
     setOllamaMainModel('qwen3-vl:8b');
-    window._lastOllamaModelDetails = [
+    (window as NutritionTestWindow)._lastOllamaModelDetails = [
       { name: 'qwen3-vl:8b', vision: true },
       { name: 'qwen3-vl:4b', vision: null },
       { name: 'llava:13b', vision: true },
     ];
-    window._lastIsOllamaServer = true;
+    (window as NutritionTestWindow)._lastIsOllamaServer = true;
     const models = listNutritionVisionModels();
 
     expect(models).toEqual([
@@ -148,11 +153,11 @@ describe('meal-photo model routing', () => {
   });
 
   it('restores Local AI vision capability after an application refresh without opening Settings', async () => {
-    window._lastOllamaModelDetails = [];
+    (window as NutritionTestWindow)._lastOllamaModelDetails = [];
     updateKeyCache('labcharts-ollama', JSON.stringify({
       url: 'http://nutrition-local.test', model: 'qwen-vl-chat', mode: 'unsloth', apiKey: '',
     }));
-    vi.stubGlobal('fetch', vi.fn(async input => {
+    vi.stubGlobal('fetch', vi.fn(async (input: Parameters<typeof fetch>[0]) => {
       const url = String(input);
       if (url.endsWith('/api/v1/models')) return new Response('', { status: 404 });
       if (url.endsWith('/v1/models')) {
@@ -179,14 +184,14 @@ describe('meal-photo model routing', () => {
   });
 
   it('restores a saved Local AI catalog for comparison while a cloud provider is main', async () => {
-    window._lastOllamaModelDetails = [];
+    (window as NutritionTestWindow)._lastOllamaModelDetails = [];
     updateKeyCache('labcharts-ollama', JSON.stringify({
       url: 'http://comparison-local.test', model: 'local-comparison-vision', mode: 'unsloth', apiKey: '',
     }));
     setOllamaMainModel('local-comparison-vision');
     setAIProvider('openrouter');
     let discoveredModel = 'stale-text-model';
-    vi.stubGlobal('fetch', vi.fn(async input => {
+    vi.stubGlobal('fetch', vi.fn(async (input: Parameters<typeof fetch>[0]) => {
       const url = String(input);
       if (url.endsWith('/api/v1/models')) return new Response('', { status: 404 });
       if (url.endsWith('/v1/models')) {
@@ -217,7 +222,7 @@ describe('meal-photo model routing', () => {
   });
 
   it('does not inherit a local or custom text model without positive vision metadata', () => {
-    window._lastOllamaModelDetails = [{ name: 'qwen-vl-chat', vision: null }];
+    (window as NutritionTestWindow)._lastOllamaModelDetails = [{ name: 'qwen-vl-chat', vision: null }];
     expect(isConfirmedMealVisionModel('ollama', 'qwen-vl-chat')).toBe(false);
     expect(getMealAISelection()).toMatchObject({ model: 'qwen-vl-chat', available: false });
 
