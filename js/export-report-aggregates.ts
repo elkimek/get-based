@@ -1,27 +1,72 @@
-// @ts-check
 // Period summaries retain denominators and source boundaries; raw rows remain separate.
 import { nutrientRollup } from './nutrition-summary.js';
 import { NUTRIENT_DEFINITIONS } from './nutrition-nutrient-registry.js';
 import { CANONICAL_METRICS, adapterById } from './wearable-adapters.js';
 import { formatWearableMetricValue, wearableDisplayUnit } from './wearables-formatters.js';
 import { formatValue } from './utils.js';
+import type { computeNutritionHistory } from './nutrition-summary.js';
+import type { CanonicalWearableMetricId } from './wearable-adapters.js';
+import type { DeviceSessionRecord, LightDeviceRecord } from './light-devices-store.js';
+import type { SunSessionRecord } from './sun-sessions-store.js';
+import type { LightMeasurement, LightRoom, LightScreen } from './light-env-model.js';
 
-export function reportDay(value) {
+export type ReportNutritionMeal = Pick<ReturnType<typeof computeNutritionHistory>['meals'][number],
+  'localDate' | 'eatenAt' | 'reviewed' | 'source' | 'nutrients'>;
+export interface ReportWearableRecord {
+  id: string;
+  source?: string | null | undefined;
+  kind: string;
+  date: string;
+  value: number;
+}
+export type ReportLightSession = Partial<Pick<DeviceSessionRecord,
+  'deviceId' | 'mode' | 'endedAt' | 'durationMin' | 'distanceCm' | 'bodyArea' | 'bodyAreas' | 'eyesProtected' | 'doses'>>
+  & Partial<Pick<SunSessionRecord, 'startedAt' | 'bodyExposure' | 'eyeExposure'>>
+  & { safety?: Partial<NonNullable<DeviceSessionRecord['safety']>> | null };
+export interface ReportLightRecord {
+  kind: string;
+  session: ReportLightSession;
+  device?: LightDeviceRecord | null | undefined;
+}
+export interface ReportEnvironmentMeasurement extends Omit<LightMeasurement, 'extra'> {
+  id?: string;
+  roomId?: unknown;
+  unit?: unknown;
+  label?: unknown;
+  extra?: NonNullable<LightMeasurement['extra']> & { calibrationFactor?: unknown; calibrationConfirmed?: unknown } | null | undefined;
+}
+export interface ReportEnvironmentObservation {
+  roomId?: unknown;
+  label?: unknown;
+  createdAt?: unknown;
+  date?: unknown;
+}
+export interface ReportEnvironmentSources {
+  lightEnvironment?: { rooms?: LightRoom[] | null | undefined; screens?: LightScreen[] | null | undefined } | null | undefined;
+  lightMeasurements?: ReportEnvironmentMeasurement[] | null | undefined;
+  lightAudits?: ReportEnvironmentObservation[] | null | undefined;
+  emfAssessment?: ReportEnvironmentObservation & { assessments?: ReportEnvironmentObservation[] | null } | null | undefined;
+  measurementFacts?: Record<string, string> | null | undefined;
+}
+type DateInput = string | number | Date;
+
+
+export function reportDay(value: unknown) {
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
     const date = new Date(`${value}T12:00:00Z`);
     return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value ? value : '';
   }
   if (value == null || value === '') return '';
-  const date = new Date(value);
+  const date = new Date(value as DateInput);
   if (!Number.isFinite(date.getTime())) return '';
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
-const finite = value => typeof value === 'number' && Number.isFinite(value);
-const mean = values => values.reduce((total, value) => total + value, 0) / values.length;
-const span = days => days.length ? `${days[0]} to ${days[days.length - 1]}` : 'No dated records';
-const dayKeys = rows => [...new Set(rows.map(row => reportDay(row.date)).filter(Boolean))].sort();
+const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
+const mean = (values: number[]) => values.reduce((total, value) => total + value, 0) / values.length;
+const span = (days: string[]) => days.length ? `${days[0]} to ${days[days.length - 1]}` : 'No dated records';
+const dayKeys = (rows: Array<{ date: unknown }>) => [...new Set(rows.map(row => reportDay(row.date)).filter(Boolean))].sort();
 
-export function summarizeNutrition(meals) {
+export function summarizeNutrition(meals: ReportNutritionMeal[]) {
   const dated = meals.filter(meal => reportDay(meal.localDate || meal.eatenAt));
   const rollup = nutrientRollup(dated);
   const days = [...new Set(dated.map(meal => reportDay(meal.localDate || meal.eatenAt)))].sort();
@@ -40,25 +85,25 @@ export function summarizeNutrition(meals) {
     note: `${meals.length} food/drink entries across ${days.length} dated days (${span(days)}); ${meals.length - dated.length} undated entries excluded from averages. ${reviewed} entries explicitly marked reviewed. Sources: ${sources || 'none'}. Eligible means the nutrient is present in all relevant logged food entries, not that a whole day was logged. Drink volumes use explicit volume entries. Missing values and days are unknown, not zero. Plain water is part of beverage volume; neither measures hydration status. Sparse logs do not establish usual intake.` };
 }
 
-export function summarizeWearables(records, scope) {
-  const groups = new Map();
+export function summarizeWearables(records: ReportWearableRecord[], scope: { unitSystem: string }) {
+  const groups = new Map<string, ReportWearableRecord[]>();
   // Prefer local daily history over its duplicated synced latest reading.
   for (const record of records) {
     if (record.kind === 'Synced latest reading' && records.some(other => other.kind !== record.kind && other.id === record.id && other.source === record.source && other.date === record.date)) continue;
     const key = JSON.stringify([record.id, record.source]);
     if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(record);
+    groups.get(key)!.push(record);
   }
-  const rows = [];
+  const rows: unknown[][] = [];
   for (const records of groups.values()) {
-    const { id, source } = records[0];
-    const metric = CANONICAL_METRICS[id];
+    const { id, source } = records[0]!;
+    const metric = CANONICAL_METRICS[id as CanonicalWearableMetricId];
     const dated = records.filter(row => reportDay(row.date)).sort((a, b) => a.date.localeCompare(b.date));
     const days = dayKeys(dated);
-    const byDay = new Map();
-    for (const row of dated) { if (!byDay.has(row.date)) byDay.set(row.date, []); byDay.get(row.date).push(row.value); }
+    const byDay = new Map<string, number[]>();
+    for (const row of dated) { if (!byDay.has(row.date)) byDay.set(row.date, []); byDay.get(row.date)!.push(row.value); }
     const values = [...byDay.values()].map(mean);
-    const fmt = value => formatWearableMetricValue(id, value, metric.unit, scope.unitSystem);
+    const fmt = (value: number) => formatWearableMetricValue(id, value, metric.unit, scope.unitSystem);
     const latest = dated[dated.length - 1];
     const first = dated[0];
     rows.push([`${metric.label} ${metric.sub || ''}`.trim(), adapterById(source)?.label || source || 'Not specified',
@@ -71,28 +116,28 @@ export function summarizeWearables(records, scope) {
     note: 'Sources are kept separate. Daily means weight each observed day equally; min–max describes daily means. Synced latest readings are replaced by same-source/day history when available. A single latest reading is not a period history. Unlogged days are unknown.' };
 }
 
-export function summarizeLight(sessions, channelExposure) {
-  const groups = new Map();
+export function summarizeLight(sessions: ReportLightRecord[], channelExposure: (key: string, value: number, session: ReportLightSession) => string) {
+  const groups = new Map<string, ReportLightRecord[]>();
   for (const item of sessions) {
     const key = JSON.stringify([item.kind, item.session.deviceId || item.device?.name || '', item.session.mode || '']);
     if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(item);
+    groups.get(key)!.push(item);
   }
-  const rows = [];
+  const rows: unknown[][] = [];
   for (const items of groups.values()) {
-    const { kind, device, session } = items[0];
-    const completed = items.filter(item => item.session.endedAt && finite(item.session.durationMin) && item.session.durationMin > 0 && reportDay(item.session.startedAt));
-    const durations = completed.map(item => item.session.durationMin);
+    const { kind, device, session } = items[0]!;
+    const completed = items.filter(item => item.session.endedAt && finite(item.session.durationMin) && item.session.durationMin! > 0 && reportDay(item.session.startedAt));
+    const durations = completed.map(item => item.session.durationMin!);
     const days = [...new Set(completed.map(item => reportDay(item.session.startedAt)))].sort();
     const total = durations.reduce((sum, value) => sum + value, 0);
     const bases = new Set(completed.map(({ session: s, device: d }) => JSON.stringify([s.distanceCm, s.bodyArea, s.bodyAreas, s.bodyExposure, s.eyeExposure, s.eyesProtected, d || null])));
-    const exposures = [];
+    const exposures: string[] = [];
     if (completed.length && bases.size === 1) {
       for (const key of ['pbm_red', 'pbm_nir', 'nir_solar', 'circadian']) {
-        const usable = completed.filter(item => finite(item.session.doses?.[key]) && item.session.doses[key] >= 0);
+        const usable = completed.filter(item => finite(item.session.doses?.[key]) && item.session.doses![key]! >= 0);
         if (!usable.length) continue;
-        const value = mean(usable.map(item => item.session.doses[key]));
-        const durationMin = mean(usable.map(item => item.session.durationMin));
+        const value = mean(usable.map(item => item.session.doses![key]!));
+        const durationMin = mean(usable.map(item => item.session.durationMin!));
         exposures.push(`${channelExposure(key, value, { ...session, durationMin })} (${key === 'circadian' ? 'duration-weighted' : 'mean/session'}; ${usable.length}/${completed.length} sessions)`);
       }
     }
@@ -100,7 +145,7 @@ export function summarizeLight(sessions, channelExposure) {
     const uvStatuses = [...new Set(items.map(({ session: s }) => s.safety?.uvDoseStatus).filter(Boolean))];
     const sed = items.map(({ session: s }) => s.safety?.erythemalSED).filter(finite);
     const timing = { morning: 0, daytime: 0, evening: 0 };
-    for (const { session: s } of completed) { const hour = new Date(s.startedAt).getHours(); timing[hour < 10 ? 'morning' : hour < 18 ? 'daytime' : 'evening']++; }
+    for (const { session: s } of completed) { const hour = new Date(s.startedAt as DateInput).getHours(); timing[hour < 10 ? 'morning' : hour < 18 ? 'daytime' : 'evening']++; }
     rows.push([`${kind === 'Device' ? device?.name || 'Unnamed device' : 'Sun'}${session.mode ? ` · ${session.mode}` : ''}`,
       `${completed.length} completed / ${days.length} logged days; ${items.length - completed.length} in progress, undated or missing duration; ${span(days)}`,
       durations.length ? `${formatValue(mean(durations))} min/session; ${formatValue(total / days.length)} min/logged day; ${formatValue(Math.min(...durations))}–${formatValue(Math.max(...durations))} min/session` : 'Not available',
@@ -111,8 +156,8 @@ export function summarizeLight(sessions, channelExposure) {
     note: 'Only completed, dated sessions with positive duration enter averages. Unlogged days are unknown. Timing uses this device’s timezone. Exposure is modeled, not a measured health effect. Incompatible settings are not pooled; vitamin-D equivalents are not intake. Detailed safety context is retained in the appendix when selected.' };
 }
 
-export function summarizeEnvironment(sources, within, facts, describe) {
-  const rows = [];
+export function summarizeEnvironment(sources: ReportEnvironmentSources, within: (date: unknown) => unknown, facts: (record: unknown, keys: string[]) => string, describe: (record: unknown) => string) {
+  const rows: unknown[][] = [];
   const rooms = sources.lightEnvironment?.rooms || [];
   const roomFields = ['primarySource', 'daylightLevel', 'cct', 'flickerScore', 'hoursOccupiedPerDay', 'eveningHoursAfterSunset', 'notes'];
   for (const room of rooms) {
@@ -123,25 +168,25 @@ export function summarizeEnvironment(sources, within, facts, describe) {
     const text = facts(screen, ['hoursPerDay', 'eveningUseAfterSunset', 'blueBlockerEnabled', 'flickerScore']);
     if (text) rows.push([screen.device || 'Screen', text, 'Current settings']);
   }
-  const toolNames = { lux: 'Light level', darkness: 'Sleep-light check', flicker: 'Camera banding screen', cct: 'Color temperature', spectrum: 'Camera color pattern', 'glass-transmission': 'Glass transmission', audit: 'Light walkthrough' };
-  const unlinked = new Map();
+  const toolNames: Record<string, string> = { lux: 'Light level', darkness: 'Sleep-light check', flicker: 'Camera banding screen', cct: 'Color temperature', spectrum: 'Camera color pattern', 'glass-transmission': 'Glass transmission', audit: 'Light walkthrough' };
+  const unlinked = new Map<unknown, string>();
   let portableCount = 0;
-  const groups = new Map();
-  const add = (key, label, date, text, comparable = true) => {
+  const groups = new Map<string, { label: unknown; records: Array<{ date: string; timestamp: number; text: string }>; comparable: boolean }>();
+  const add = (key: string, label: unknown, date: unknown, text: string, comparable = true) => {
     if (!within(date) || !text) return;
     if (!groups.has(key)) groups.set(key, { label, records: [], comparable });
-    groups.get(key).records.push({ date: reportDay(date), timestamp: new Date(date).getTime(), text });
+    groups.get(key)!.records.push({ date: reportDay(date), timestamp: new Date(date as DateInput).getTime(), text });
   };
   for (const item of sources.lightMeasurements || []) {
     if (!within(item.capturedAt)) continue;
     let room = item.roomId ? rooms.find(room => room.id === item.roomId)?.name : null;
     if (!room && item.roomId) {
       if (!unlinked.has(item.roomId)) unlinked.set(item.roomId, `Unlinked location ${unlinked.size + 1}`);
-      room = unlinked.get(item.roomId);
+      room = unlinked.get(item.roomId)!;
     } else if (!item.roomId) portableCount++;
     const method = JSON.stringify([item.roomId, item.tool, item.unit, item.extra?.source, item.extra?.method, item.extra?.calibrationFactor, item.extra?.calibrationConfirmed, item.label]);
-    const label = [room, item.label, toolNames[item.tool] || 'Environmental measurement'].filter(Boolean).join(' · ');
-    add(method, label, item.capturedAt, sources.measurementFacts?.[item.id] || facts(item, ['value', 'confidence', 'notes', 'extra']), !!item.roomId);
+    const label = [room, item.label, toolNames[item.tool as string] || 'Environmental measurement'].filter(Boolean).join(' · ');
+    add(method, label, item.capturedAt, sources.measurementFacts?.[item.id as string] || facts(item, ['value', 'confidence', 'notes', 'extra']), !!item.roomId);
   }
   for (const item of sources.lightAudits || []) add(`audit:${item.roomId || item.label || 'all'}`, item.label || 'Light audit', item.createdAt || item.date, describe(item), !!item.roomId);
   for (const item of sources.emfAssessment?.assessments || (sources.emfAssessment ? [sources.emfAssessment] : [])) add(`emf:${item.label || 'assessment'}`, item.label || 'EMF assessment', item.date, facts(item, ['consultant', 'rooms', 'note']), false);
@@ -151,7 +196,7 @@ export function summarizeEnvironment(sources, within, facts, describe) {
     const undated = records.length - dated.length;
     const coverage = `${records.length} recorded observation${records.length === 1 ? '' : 's'}${undated ? `; ${undated} undated` : ''}`;
     const earlier = comparable && first && last && first.date !== last.date ? `\nEarlier (${first.date}): ${first.text}` : '';
-    rows.push([label, last ? `${last.date}\n${last.text}` : records.at(-1).text,
+    rows.push([label, last ? `${last.date}\n${last.text}` : records.at(-1)!.text,
       coverage + earlier + (undated && last ? '; undated details in appendix' : '')]);
   }
   return { columns: ['Assessment', 'Latest / current', 'Recorded coverage / earlier observation'], rows,

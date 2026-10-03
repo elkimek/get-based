@@ -36,16 +36,16 @@ describe('chat thinking status and sender avatars', () => {
     expect(indicator.querySelector('.chat-thinking-text')?.textContent).toBe(CHAT_THINKING_PHRASES[0]);
     expect(indicator.querySelectorAll('.chat-thinking-dots i')).toHaveLength(3);
 
-    vi.advanceTimersByTime(CHAT_THINKING_DURATIONS_MS[0]);
+    vi.advanceTimersByTime(CHAT_THINKING_DURATIONS_MS[0]!);
     expect(indicator.querySelector('.chat-thinking-text')?.textContent).toBe(CHAT_THINKING_PHRASES[1]);
 
     const fullCycle = CHAT_THINKING_DURATIONS_MS.reduce((sum, duration) => sum + duration, 0);
     expect(fullCycle).toBeGreaterThan(30_000);
-    vi.advanceTimersByTime(fullCycle - CHAT_THINKING_DURATIONS_MS[0]);
+    vi.advanceTimersByTime(fullCycle - CHAT_THINKING_DURATIONS_MS[0]!);
     expect(indicator.querySelector('.chat-thinking-text')?.textContent).toBe(CHAT_THINKING_PHRASES[0]);
 
     stopChatThinkingStatus(indicator);
-    vi.advanceTimersByTime(CHAT_THINKING_DURATIONS_MS[0]);
+    vi.advanceTimersByTime(CHAT_THINKING_DURATIONS_MS[0]!);
     expect(indicator.querySelector('.chat-thinking-text')?.textContent).toBe(CHAT_THINKING_PHRASES[0]);
   });
 

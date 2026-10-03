@@ -1,6 +1,7 @@
 import type { AIExplanationScore, generateBiologyScoreAIAnswer } from './biology-score-ai.js';
 import type { BiologyAIAnswer } from './biology-score-persistence.js';
 import type { ScorePart, ScoreProfileContext } from './biology-score-types.js';
+import type { computeBiologicalCoherence } from './biology-score-coherence.js';
 import type { AppState } from '../types/app-state.js';
 
 /** The score evidence consumed by section rendering and durable AI writes. */
@@ -13,12 +14,16 @@ export interface BiologySectionScore extends Omit<Partial<AIExplanationScore>,
   aiViews?: Pick<NonNullable<AIExplanationScore['aiViews']>[number], 'material'>[];
   profileContext?: ScoreProfileContext;
   panelRoute?: string;
-  presentationDates?: string[];
+  presentationDates?: ReturnType<typeof computeBiologicalCoherence>['presentationDates'];
   aiRangeMode?: string;
   scoreConfidence?: string;
   attention?: unknown;
   anchorWarning?: string;
 }
+/** Legacy answers remain visible even when imported text has a raw scalar value. */
+export interface BiologySectionAnswer extends Record<string, unknown>, Partial<Pick<BiologyAIAnswer,
+  'materialFingerprint' | 'fingerprint' | 'updatedAt' | 'coveredMaterials' | 'variants'>> { text?: unknown }
+
 interface MaterialRow extends Omit<Partial<ScorePart>, 'dotKey'>, Record<string, unknown> { dotKey?: string | undefined }
 interface MaterialSnapshot extends Record<string, unknown> {
   materialFormat?: number | undefined;
@@ -127,7 +132,7 @@ function materialMatches(saved: unknown, current: unknown) {
   } catch { return false; }
 }
 
-function answerMatches(record: BiologyAIAnswer | null | undefined, material: unknown) {
+function answerMatches(record: Pick<BiologyAIAnswer, 'materialFingerprint' | 'coveredMaterials'> | null | undefined, material: unknown) {
   return materialMatches(record?.materialFingerprint, material)
     || (Array.isArray(record?.coveredMaterials) && record.coveredMaterials.some(key => materialMatches(key, material)));
 }
@@ -166,8 +171,8 @@ export function getScoreAIMaterialKey(score: BiologySectionScore) {
 
 // Legacy global cache entries cannot safely be assigned to a profile. Do not
 // erase them while rendering another profile; only explicit data cleanup may.
-export function readScoreAIAnswer(score: BiologySectionScore): BiologyAIAnswer | null {
-  const profileAnswer = state.importedData?.biologyScoreAI?.[score.id] as BiologyAIAnswer | undefined;
+export function readScoreAIAnswer(score: BiologySectionScore): BiologySectionAnswer | null {
+  const profileAnswer = state.importedData?.biologyScoreAI?.[score.id] as BiologySectionAnswer | undefined;
   const material = getScoreAIMaterialKey(score);
   const matching = biologyAIRecords(profileAnswer).find(record => answerMatches(record, material));
   // Keep the last answer visible, explicitly stale, if this evidence is new.
@@ -290,7 +295,7 @@ export function renderScoreAIAnswer(score: BiologySectionScore) {
   </section>`;
 }
 
-function recordProvenance(record: BiologyAIAnswer | null) {
+function recordProvenance(record: BiologySectionAnswer | null) {
   if (!record?.updatedAt || record.source === 'demo') return '';
   const source = (record.generation as Partial<Awaited<ReturnType<typeof generateBiologyScoreAIAnswer>>['generation']> | null | undefined)?.modelId;
   return `<p class="biology-scores-note">Saved ${escapeHTML(new Date(record.updatedAt as string | number).toLocaleString())}${source ? ` · ${escapeHTML(source)}` : ''}. Saved with your profile for sync and backups. ${getEncryptionEnabled() ? 'Local encryption is enabled.' : 'Local encryption is off; enable it in Settings → Data protection.'}</p>`;

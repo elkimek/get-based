@@ -1,5 +1,4 @@
-// @ts-check
-// lens-page-shell.js — shared lens page chrome, ordering, and widget helpers
+// lens-page-shell.ts — shared lens page chrome, ordering, and widget helpers
 
 import { state } from './state.js';
 import { getWidgetHeaderDescription } from './dashboard-widget-copy.js';
@@ -11,9 +10,37 @@ import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 
+export interface LensPageShellDeps {
+  addDashboardWidgetFromLens: (id: string) => unknown;
+  getAvailableDashboardFixedWidgetIds: () => string[];
+  getDashboardWidgetPrefs: () => { hidden?: readonly string[] | null } | null;
+  navigate: (route: string) => unknown;
+  openChatPanel: () => unknown;
+  openEMFAssessmentEditor: typeof openEMFAssessmentEditor;
+  openDashboardBiometricPicker: () => unknown;
+  removeDashboardWidgetFromLens: (id: string) => unknown;
+}
+
+export interface LensWidgetOptions {
+  dashboardId?: string | null;
+  pageRoute?: string;
+  pageIndex?: number;
+  pageCount?: number;
+  compactScore?: boolean;
+}
+
+export interface LensPageWidget {
+  id: string;
+  title: unknown;
+  description?: string;
+  body: string;
+  size?: string;
+  opts?: LensWidgetOptions;
+}
+
 const LENS_PAGE_ORDER_VERSION = 1;
 
-let _shellDeps = {
+let _shellDeps: LensPageShellDeps = {
   addDashboardWidgetFromLens: (_id) => {},
   getAvailableDashboardFixedWidgetIds: () => [],
   getDashboardWidgetPrefs: () => ({ hidden: [] }),
@@ -26,33 +53,33 @@ let _shellDeps = {
 let lensPageShellDelegatesInstalled = false;
 
 function lensPageRuntime() {
-  return /** @type {Record<string, any>} */ (globalThis);
+  return globalThis as unknown as Record<string, unknown>;
 }
 
-function callLensPageRuntime(name, ...args) {
+function callLensPageRuntime(name: string, ...args: unknown[]) {
   const fn = name === 'navigate'
     ? _shellDeps.navigate
     : getSettingsModuleFunction(name)
       || getDnaModuleFunction(name)
       || lensPageRuntime()[name];
-  if (typeof fn === 'function') fn(...args);
+  if (typeof fn === 'function') (fn as (...args: unknown[]) => unknown)(...args);
 }
 
-export function configureLensPageShell(deps = {}) {
+export function configureLensPageShell(deps: Partial<LensPageShellDeps> = {}) {
   const previous = { ..._shellDeps };
   _shellDeps = { ..._shellDeps, ...deps };
   installLensPageShellDelegates();
   return previous;
 }
 
-export function lensPageActionAttrs(action, attrs = {}) {
+export function lensPageActionAttrs(action: string, attrs: Parameters<typeof actionAttributes>[2] = {}) {
   return actionAttributes("lens-page", action, attrs);
 }
 
-function handleLensPageShellClick(event) {
+function handleLensPageShellClick(event: MouseEvent) {
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return;
-  const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-lens-page-action]'));
+  const actionEl = target.closest<HTMLElement>('[data-lens-page-action]');
   if (!actionEl) return;
   if (!actionEl.closest('.lens-page-header, .lens-page-widgets, #recommendations-page, .biology-coherence-hero')) return;
   // .biology-coherence-hero is included because the Biology Scores lens renders the coherence
@@ -100,7 +127,7 @@ function installLensPageShellDelegates() {
   document.addEventListener('click', handleLensPageShellClick);
 }
 
-export function renderLensHeader(title, subtitle, actions = '', options = {}) {
+export function renderLensHeader(title: unknown, subtitle: unknown, actions = '', options: { className?: unknown } = {}) {
   const extraClass = options?.className ? ` ${escapeAttr(String(options.className))}` : '';
   return `<div class="category-header lens-page-header${extraClass}">
     <h2>${escapeHTML(title)}</h2>
@@ -109,16 +136,16 @@ export function renderLensHeader(title, subtitle, actions = '', options = {}) {
   </div>`;
 }
 
-function lensPageOrderStorageKey(route) {
+function lensPageOrderStorageKey(route: string) {
   return profileStorageKey(state.currentProfile || 'default', `lensPageOrder-${route}-v${LENS_PAGE_ORDER_VERSION}`);
 }
 
-function getLensPageWidgetOrder(route, defaultIds) {
+function getLensPageWidgetOrder(route: string, defaultIds: string[]): string[] {
   try {
-    const raw = JSON.parse(localStorage.getItem(lensPageOrderStorageKey(route)) || '[]');
+    const raw = JSON.parse(localStorage.getItem(lensPageOrderStorageKey(route)) || '[]') as unknown;
     if (!Array.isArray(raw)) return defaultIds;
     const known = new Set(defaultIds);
-    const ordered = raw.filter(id => known.has(id));
+    const ordered = raw.filter(id => known.has(id)) as string[];
     for (const id of defaultIds) if (!ordered.includes(id)) ordered.push(id);
     return ordered;
   } catch {
@@ -126,22 +153,22 @@ function getLensPageWidgetOrder(route, defaultIds) {
   }
 }
 
-function orderLensPageWidgets(route, widgets) {
+function orderLensPageWidgets(route: string, widgets: LensPageWidget[]): LensPageWidget[] {
   const ids = widgets.map(w => w.id);
   const order = getLensPageWidgetOrder(route, ids);
   const byId = new Map(widgets.map(w => [w.id, w]));
-  return order.map(id => byId.get(id)).filter(Boolean);
+  return order.map(id => byId.get(id)).filter(Boolean) as LensPageWidget[];
 }
 
-function renderLensPageMoveControls(route, id, index, count) {
+function renderLensPageMoveControls(route: string, id: string, index: number, count: number) {
   if (!route || count < 2) return '';
   return `<button type="button" class="dashboard-widget-tool" ${index <= 0 ? 'disabled' : ''} ${lensPageActionAttrs('move-widget', { route, id, direction: -1 })} aria-label="Move page section up">↑</button>
     <button type="button" class="dashboard-widget-tool" ${index >= count - 1 ? 'disabled' : ''} ${lensPageActionAttrs('move-widget', { route, id, direction: 1 })} aria-label="Move page section down">↓</button>`;
 }
 
-export function renderLensPageWidgets(route, widgets, options = {}) {
+export function renderLensPageWidgets(route: string, widgets: Array<LensPageWidget | null | undefined | false>, options: { group?: string } = {}) {
   const orderKey = options.group ? `${route}-${options.group}` : route;
-  const ordered = orderLensPageWidgets(orderKey, widgets.filter(Boolean));
+  const ordered = orderLensPageWidgets(orderKey, widgets.filter(Boolean) as LensPageWidget[]);
   return `<div class="dashboard-widgets lens-page-widgets" data-lens-route="${escapeAttr(route)}" data-lens-order-key="${escapeAttr(orderKey)}">
     ${ordered.map((widget, index) => renderLensWidget(
       widget.id,
@@ -154,25 +181,25 @@ export function renderLensPageWidgets(route, widgets, options = {}) {
   </div>`;
 }
 
-export function moveLensPageWidget(route, id, direction) {
+export function moveLensPageWidget(route: unknown, id: unknown, direction: unknown) {
   route = String(route || state.currentView || '');
   id = String(id || '');
   const dir = Number(direction);
   if (!route || !id || !Number.isFinite(dir) || dir === 0) return;
-  const container = Array.from(/** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.lens-page-widgets[data-lens-route]')))
+  const container = Array.from(document.querySelectorAll<HTMLElement>('.lens-page-widgets[data-lens-route]'))
     .find(el => el.dataset.lensRoute === route && Array.from(el.querySelectorAll('[data-widget-id]')).some(widget => widget.getAttribute('data-widget-id') === id));
   const ids = container
-    ? Array.from(/** @type {NodeListOf<HTMLElement>} */ (container.querySelectorAll(':scope > [data-widget-id]'))).map(el => el.dataset.widgetId).filter(Boolean)
-    : getLensPageWidgetOrder(route, []);
-  const index = ids.indexOf(id);
+    ? Array.from(container.querySelectorAll<HTMLElement>(':scope > [data-widget-id]')).map(el => el.dataset.widgetId).filter(Boolean) as string[]
+    : getLensPageWidgetOrder(route as string, []);
+  const index = ids.indexOf(id as string);
   const target = index + (dir < 0 ? -1 : 1);
   if (index < 0 || target < 0 || target >= ids.length) return;
-  [ids[index], ids[target]] = [ids[target], ids[index]];
-  localStorage.setItem(lensPageOrderStorageKey(container?.dataset.lensOrderKey || route), JSON.stringify(ids));
+  [ids[index], ids[target]] = [ids[target]!, ids[index]!];
+  localStorage.setItem(lensPageOrderStorageKey(container?.dataset.lensOrderKey || route as string), JSON.stringify(ids));
   if (state.currentView === route) callLensPageRuntime('navigate', route);
 }
 
-export function renderLensDashboardToggle(dashboardId) {
+export function renderLensDashboardToggle(dashboardId: string | null | undefined) {
   const availableIds = _shellDeps.getAvailableDashboardFixedWidgetIds();
   // Biology Score widgets are generated dynamically from score definitions. In
   // isolated Node/source-inspection tests the dashboard registry is not always
@@ -188,7 +215,7 @@ export function renderLensDashboardToggle(dashboardId) {
   return `<button type="button" class="dashboard-widget-tool lens-widget-dashboard-toggle" ${lensPageActionAttrs(action, { id: dashboardId })}>${label}</button>`;
 }
 
-export function renderLensWidget(id, title, description, body, size = 'full', opts = {}) {
+export function renderLensWidget(id: string, title: unknown, description: string | undefined, body: string, size = 'full', opts: LensWidgetOptions = {}) {
   const headerDescription = getWidgetHeaderDescription(id, description);
   const dashboardId = Object.prototype.hasOwnProperty.call(opts, 'dashboardId') ? opts.dashboardId : id;
   const dashboardToggle = renderLensDashboardToggle(dashboardId);

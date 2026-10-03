@@ -1,4 +1,3 @@
-// @ts-check
 // Keep catalog explanations in the picker; omit only known redundant captions
 // on the dashboard and lens cards. Unfamiliar scores keep their explanations.
 const REDUNDANT_CARD_DESCRIPTIONS = new Set([
@@ -7,7 +6,6 @@ const REDUNDANT_CARD_DESCRIPTIONS = new Set([
   'genome-import', 'recommendations-bookmarks', 'recommendations-dismissed',
 ]);
 
-/** @param {string} id @param {string} [description] */
-export function getWidgetHeaderDescription(id, description = '') {
+export function getWidgetHeaderDescription(id: string, description = '') {
   return REDUNDANT_CARD_DESCRIPTIONS.has(id) || id.startsWith('biology-score-') ? '' : description;
 }

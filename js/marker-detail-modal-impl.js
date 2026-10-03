@@ -748,7 +748,7 @@ function renderDetailModal(id, opts = {}) {
       fetchCustomMarkerDescription(descriptionKey, marker.name, marker.unit).then(text => {
         const el = document.getElementById('marker-desc');
         if (text && el) {
-          el.textContent = text;
+          el.textContent = /** @type {string} */ (text);
           el.classList.remove('loading');
           el.classList.add('loaded');
         } else if (el) {

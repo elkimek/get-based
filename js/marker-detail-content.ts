@@ -1,14 +1,24 @@
-// @ts-check
 // marker-detail-content.js — Biological-age and custom-description content helpers
 
 import { getActiveModelId, getAIProvider } from './api.js';
 import { callAssistantFeatureAI, getAssistantFeatureIdentity, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { resolveActiveMarkerPath } from './marker-placement.js';
 import { trackUsage } from './schema.js';
+import type { ActiveData, ActiveMarker } from './data-view-types.js';
+import type { callCodexFeature } from './agent-feature-inference.js';
+
+type MarkerDescriptionResponse = Partial<Pick<Awaited<ReturnType<typeof callCodexFeature>>, 'text' | 'usage'>>;
+
+export type BioAgeInput = [category: string, key: string, label: string];
+export interface BioAgeInputStatus {
+  label: string;
+  present: boolean;
+  kind: string;
+}
 
 // Keep these inputs aligned with the PhenoAge and Bortz Age calculations in
 // data.js so the detail modal can explain which panel inputs are still missing.
-export const BIO_AGE_PHENO_INPUTS = [
+export const BIO_AGE_PHENO_INPUTS: BioAgeInput[] = [
   ['proteins', 'albumin', 'Albumin'],
   ['biochemistry', 'creatinine', 'Creatinine'],
   ['biochemistry', 'glucose', 'Glucose'],
@@ -20,7 +30,7 @@ export const BIO_AGE_PHENO_INPUTS = [
   ['hematology', 'wbc', 'WBC'],
 ];
 
-export const BIO_AGE_BORTZ_INPUTS = [
+export const BIO_AGE_BORTZ_INPUTS: BioAgeInput[] = [
   ['proteins', 'albumin', 'Albumin'],
   ['biochemistry', 'alp', 'ALP'],
   ['biochemistry', 'urea', 'Urea'],
@@ -44,7 +54,11 @@ export const BIO_AGE_BORTZ_INPUTS = [
   ['lipids', 'apoAI', 'ApoA-I'],
 ];
 
-export function bioAgeReferenceIndex(data, marker, latestPoint) {
+export function bioAgeReferenceIndex(
+  data: Partial<Pick<ActiveData, 'dates'>>,
+  marker: Partial<Pick<ActiveMarker, 'values'>> | null | undefined,
+  latestPoint: { i: number } | null | undefined,
+) {
   if (latestPoint && Number.isInteger(latestPoint.i)) return latestPoint.i;
   const values = marker?.values || [];
   for (let i = values.length - 1; i >= 0; i--) {
@@ -53,22 +67,12 @@ export function bioAgeReferenceIndex(data, marker, latestPoint) {
   return data.dates?.length ? data.dates.length - 1 : -1;
 }
 
-/**
- * @typedef {{
- *   label: string,
- *   present: boolean,
- *   kind: string,
- * }} BioAgeInputStatus
- */
-
-/**
- * @param {any} data
- * @param {number} idx
- * @param {string[][]} inputs
- * @param {BioAgeInputStatus | null} [profileRequirement]
- * @returns {BioAgeInputStatus[]}
- */
-export function bioAgeInputStatusAtIndex(data, idx, inputs, profileRequirement = null) {
+export function bioAgeInputStatusAtIndex(
+  data: Pick<ActiveData, 'categories'>,
+  idx: number,
+  inputs: BioAgeInput[],
+  profileRequirement: BioAgeInputStatus | null = null,
+): BioAgeInputStatus[] {
   const status = inputs.map(([category, key, label]) => ({
     label,
     present: idx >= 0 && resolveActiveMarkerPath(data.categories, category, key)?.marker?.values?.[idx] != null,
@@ -78,9 +82,9 @@ export function bioAgeInputStatusAtIndex(data, idx, inputs, profileRequirement =
   return status;
 }
 
-export async function fetchCustomMarkerDescription(markerId, markerName, unit) {
+export async function fetchCustomMarkerDescription(markerId: string, markerName?: unknown, unit?: unknown) {
   const cacheKey = 'labcharts-marker-desc';
-  const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+  const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}') as Record<string, unknown>;
   if (cache[markerId]) return cache[markerId];
   if (!hasAssistantFeatureProvider()) return null;
   try {
@@ -88,7 +92,7 @@ export async function fetchCustomMarkerDescription(markerId, markerName, unit) {
       system: 'You are a concise medical reference. Reply with exactly one sentence (max 30 words) explaining what this blood biomarker measures and why it matters clinically. No preamble.',
       messages: [{ role: 'user', content: `${markerName} (${unit})` }],
       maxTokens: 100,
-    });
+    }) as MarkerDescriptionResponse | null | undefined;
     if (result?.usage && !getAssistantFeatureIdentity().subscription) {
       trackUsage(
         getAIProvider(),

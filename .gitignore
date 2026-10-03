@@ -801,3 +801,12 @@ deploy/profile-share/data/
 
 /js/demo-biology-insights.js
 /js/biology-score-sections.js
+
+/js/dashboard-widget-copy.js
+/js/lens-page-shell.js
+/js/biology-score-render.js
+/js/marker-detail-content.js
+/js/chat-message-avatars.js
+/js/chat-thinking-status.js
+
+/js/export-report-aggregates.js

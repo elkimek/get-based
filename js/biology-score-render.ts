@@ -1,5 +1,33 @@
-// @ts-check
-// biology-score-render.js — HTML rendering for Biology Score cards, details, and dashboard/lens widgets.
+import type { BiologySectionScore } from './biology-score-sections.js';
+import type { ScoreDefinition, ScorePart, ScoringData } from './biology-score-types.js';
+import type { PlannerMarker } from './biology-score-coverage-planner.js';
+import type { finalizeCustomScore } from './biology-score-engine.js';
+import type { computeBiologicalCoherence } from './biology-score-coherence.js';
+import type { addScoreInterpretation } from './biology-score-methodology.js';
+
+type ComputedScore = ReturnType<typeof finalizeCustomScore>;
+type CoherenceScore = ReturnType<typeof computeBiologicalCoherence>;
+type InterpretedScore = ReturnType<typeof addScoreInterpretation>;
+type RenderMarker = ScorePart & Partial<Pick<CoherenceScore['available'][number], 'primaryScoreId'>>;
+/** Native evidence and metadata consumed by the score cards and lens. */
+export interface BiologyRenderScore extends Omit<BiologySectionScore,
+  'available' | 'missing' | 'historicalSnapshot' | 'presentationDates' | 'title'>,
+  Pick<ScoreDefinition, 'title' | 'kicker' | 'summary'>,
+  Partial<Pick<ComputedScore, 'coreCovered' | 'coreTotal' | 'optionalAvailable' | 'coverageLabel' | 'scoreConfidenceWarning' | 'refinedScore' | 'recencyMessage'>>,
+  Partial<Pick<InterpretedScore, 'descriptiveRatio' | 'sourceUrl'>> {
+  coverage: number;
+  available: RenderMarker[];
+  missing: Array<Pick<ScorePart, 'key' | 'label'> & Partial<ScorePart>>;
+  historicalSnapshot?: BiologyRenderScore;
+  presentationDates?: CoherenceScore['presentationDates'];
+  membership?: CoherenceScore['membership'];
+  overviewMembership?: Pick<NonNullable<CoherenceScore['membership']>[number], 'included' | 'optional' | 'label'>;
+}
+type ScoreContext = { data?: ScoringData | null } | null | undefined;
+type ComputeScores = (data: ScoringData) => BiologyRenderScore[];
+type ScoreValue = BiologyRenderScore['score'];
+
+// biology-score-render.ts — HTML rendering for Biology Score cards, details, and dashboard/lens widgets.
 
 import { specimenLabel } from './biology-score-panel-policy.js';
 import { escapeAttr, escapeHTML } from './utils.js';
@@ -14,13 +42,13 @@ import {
   markerDisplayLabel,
 } from './biology-score-coverage-planner.js';
 
-function getMarkerTitle(item) {
+function getMarkerTitle(item: Partial<ScorePart>) {
   return item.displayValue != null
     ? `${item.label}: ${item.displayValue}${item.unit ? ` ${item.unit}` : ''}`
     : item.label;
 }
 
-function renderMarkerToken(item, muted = false) {
+function renderMarkerToken(item: Partial<ScorePart>, muted = false) {
   const title = getMarkerTitle(item);
   const label = markerDisplayLabel(item);
   if (item.id && !muted) {
@@ -29,7 +57,7 @@ function renderMarkerToken(item, muted = false) {
   return `<span class="biology-score-token${muted ? ' biology-score-token-muted' : ''}" title="${escapeAttr(title)}">${escapeHTML(label)}</span>`;
 }
 
-function renderMarkerTableLink(item) {
+function renderMarkerTableLink(item: Partial<ScorePart>) {
   const title = getMarkerTitle(item);
   const label = markerDisplayLabel(item);
   if (item.id) {
@@ -38,23 +66,23 @@ function renderMarkerTableLink(item) {
   return `<span class="biology-score-marker-link-static" title="${escapeAttr(title)}">${escapeHTML(label)}</span>`;
 }
 
-function renderScoreStatusItem(kind, label, value, tone = '') {
+function renderScoreStatusItem(kind: string, label: string, value: unknown, tone = '') {
   return `<span class="biology-score-status biology-score-status-${escapeAttr(kind)}${tone ? ` biology-score-status-${escapeAttr(tone)}` : ''}"><span>${escapeHTML(label)}</span><strong>${escapeHTML(value)}</strong></span>`;
 }
 
-function getEvidenceBadge(evidence) {
+function getEvidenceBadge(evidence: BiologyRenderScore['evidence']) {
   if (evidence === 'production') return 'Established marker biology · heuristic score';
   if (evidence === 'contextual') return 'Contextual proxy · heuristic score';
   if (evidence === 'experimental') return 'Exploratory pattern · heuristic score';
   return 'Unrated';
 }
 
-function isDirectionalOnly(score) {
+function isDirectionalOnly(score: BiologyRenderScore) {
   const coverage = Number(score?.coverage || 0);
   return score?.evidence === 'experimental' && coverage < 0.25;
 }
 
-function getConfidenceFallback(score) {
+function getConfidenceFallback(score: BiologyRenderScore) {
   if (score.scoreConfidenceLabel) return { label: score.scoreConfidenceLabel, tone: score.scoreConfidence || 'unknown' };
   if ((score.recencyStatus || 'fresh') !== 'fresh') return { label: 'Retest needed', tone: score.recencyStatus || 'stale' };
   const coverage = Number(score.coverage || 0);
@@ -63,11 +91,11 @@ function getConfidenceFallback(score) {
   return { label: 'Low confidence', tone: 'low' };
 }
 
-function renderScoreStatusMeta(score, { weighted = false } = {}) {
+function renderScoreStatusMeta(score: BiologyRenderScore, { weighted = false } = {}) {
   const recencyInvalid = score.recencyStatus && score.recencyStatus !== 'fresh';
   const directional = isDirectionalOnly(score);
-  const parts = [];
-  parts.push(renderScoreStatusItem('tone', 'Pattern', directional ? 'Directional only' : recencyInvalid ? 'Retest first' : (score.tone ? TONE_LABELS[score.tone] : 'Need inputs'), directional ? 'directional' : recencyInvalid ? (score.recencyStatus || 'stale') : (score.tone || 'unknown')));
+  const parts: string[] = [];
+  parts.push(renderScoreStatusItem('tone', 'Pattern', directional ? 'Directional only' : recencyInvalid ? 'Retest first' : (score.tone ? TONE_LABELS[score.tone as keyof typeof TONE_LABELS] : 'Need inputs'), directional ? 'directional' : recencyInvalid ? (score.recencyStatus || 'stale') : (score.tone || 'unknown')));
   const coveragePct = Math.round((score.coverage || 0) * 100);
   const coverageLabel = score.coverageLabel || 'low';
   let coverageValue = `${coveragePct}%${weighted ? ' weighted' : ''}`;
@@ -82,15 +110,15 @@ function renderScoreStatusMeta(score, { weighted = false } = {}) {
   return `<div class="biology-score-meta">${parts.join('')}</div>`;
 }
 
-function renderScoreRail(score, tone) {
-  const left = Number.isFinite(score) ? clamp(score, 0, 100) : 0;
+function renderScoreRail(score: ScoreValue, tone: BiologyRenderScore['tone']) {
+  const left = Number.isFinite(score) ? clamp(score!, 0, 100) : 0;
   return `<div class="biology-score-rail" aria-hidden="true">
     <div class="biology-score-rail-fill"></div>
     ${Number.isFinite(score) ? `<span class="biology-score-pin biology-score-pin-${escapeAttr(tone || 'unknown')}" style="left: calc(${left}% - 5px)"></span>` : ''}
   </div>`;
 }
 
-function renderScoreInputs(score) {
+function renderScoreInputs(score: BiologyRenderScore) {
   const available = score.available.slice(0, 4).map((item) => renderMarkerToken(item)).join('');
   const missing = score.missing.slice(0, 4).map((item) => renderMarkerToken(item, true)).join('');
   if (!available && !missing) return '';
@@ -100,64 +128,63 @@ function renderScoreInputs(score) {
   </div>`;
 }
 
-function rangeText(item) {
-  const bound = value => Number.isFinite(value) ? String(Number(Number(value).toPrecision(5))) : '—';
+function rangeText(item: Partial<ScorePart>) {
+  const bound = (value: number | null | undefined) => Number.isFinite(value) ? String(Number(Number(value).toPrecision(5))) : '—';
   if (item.range?.min == null && item.range?.max == null) return 'Not available';
   return `${item.range?.min == null ? `≤${bound(item.range?.max)}` : item.range?.max == null ? `≥${bound(item.range?.min)}` : `${bound(item.range.min)}–${bound(item.range.max)}`} ${item.unit || ''}`.trim();
 }
 
-export function getScorePresentation(score) {
+export function getScorePresentation(score: BiologyRenderScore) {
   score = score.historicalSnapshot || score;
   const historical = !Number.isFinite(score.score) && Number.isFinite(score.rawScore)
-    && ['stale', 'mixed-dates'].includes(score.recencyStatus);
+    && ['stale', 'mixed-dates'].includes(score.recencyStatus as string);
   const value = Number.isFinite(score.score) ? score.score : historical ? score.rawScore : null;
   const dates = [...new Set((score.presentationDates || (score.available || []).filter(i => i.core && !i.profileContextOnly).map(i => i.date)).filter(Boolean))].sort();
-  const date = text => { const d = new Date(`${text}T00:00:00Z`); return Number.isFinite(d.getTime()) ? d.toLocaleDateString('en', { month: 'short', year: 'numeric', timeZone: 'UTC' }) : ''; };
+  const date = (text: string | undefined) => { const d = new Date(`${text}T00:00:00Z`); return Number.isFinite(d.getTime()) ? d.toLocaleDateString('en', { month: 'short', year: 'numeric', timeZone: 'UTC' }) : ''; };
   const period = dates.length ? dates[0] === dates.at(-1) ? date(dates[0]) : `${date(dates[0])} – ${date(dates.at(-1))}` : '';
-  const tone = historical ? score.attention && value >= 70 ? 'strained' : resolveScoreTone(value) : score.tone;
+  const tone = historical ? score.attention && value! >= 70 ? 'strained' : resolveScoreTone(value) : score.tone;
   const status = historical ? score.recencyStatus === 'mixed-dates' ? 'Mixed-date estimate' : 'Historical score'
-    : value == null ? 'Needs markers or context' : score.coverage < 1 ? 'Partial panel' : TONE_LABELS[tone] || 'Range fit';
+    : value == null ? 'Needs markers or context' : score.coverage < 1 ? 'Partial panel' : TONE_LABELS[tone as keyof typeof TONE_LABELS] || 'Range fit';
   return { value, historical, period, tone, status };
 }
 
 // Priority is a reading order, independent of AI state and clinical urgency.
-export function groupBiologyScores(scores) {
-  /** @type {{ baseline: any[], advanced: any[], waiting: any[] }} */
-  const groups = { baseline: [], advanced: [], waiting: [] };
-  const priority = score => {
+export function groupBiologyScores<Score extends BiologyRenderScore>(scores: readonly Score[]) {
+  const groups: { baseline: Score[]; advanced: Score[]; waiting: Score[] } = { baseline: [], advanced: [], waiting: [] };
+  const priority = (score: BiologyRenderScore) => {
     const p = getScorePresentation(score);
-    return p.historical ? 2 : score.attention || p.value < 70 ? 0 : 1;
+    return p.historical ? 2 : score.attention || p.value! < 70 ? 0 : 1;
   };
   for (const score of scores.filter(s => s.id !== 'biologicalCoherence')) {
     const group = getScorePresentation(score).value == null ? 'waiting' : score.panelTier === 'extended' ? 'advanced' : 'baseline';
     groups[group].push(score);
   }
-  for (const group of [groups.baseline, groups.advanced]) group.sort((a, b) => priority(a) - priority(b) || getScorePresentation(a).value - getScorePresentation(b).value || a.title.localeCompare(b.title));
+  for (const group of [groups.baseline, groups.advanced]) group.sort((a, b) => priority(a) - priority(b) || getScorePresentation(a).value! - getScorePresentation(b).value! || a.title.localeCompare(b.title));
   groups.waiting.sort((a, b) => Number(a.panelTier === 'extended') - Number(b.panelTier === 'extended') || (b.coverage || 0) - (a.coverage || 0) || a.title.localeCompare(b.title));
   return groups;
 }
 
-function scoreColor(value, tone = resolveScoreTone(value)) {
+function scoreColor(value: ScoreValue, tone: BiologyRenderScore['tone'] = resolveScoreTone(value)) {
   return !Number.isFinite(value) ? 'var(--text-muted)' : tone === 'excellent' || tone === 'good' ? 'var(--green, #34d399)' : tone === 'strained' ? 'var(--yellow, #fbbf24)' : 'var(--red, #f87171)';
 }
 
-function renderScoreMetric(score) {
+function renderScoreMetric(score: BiologyRenderScore) {
   const { value, tone, historical } = getScorePresentation(score);
   const color = scoreColor(value, tone);
   return `<span class="biology-score-dial${value === 0 ? ' biology-score-dial-zero' : ''}${historical ? ' biology-score-dial-historical' : ''}" style="--score-value:${value ?? 0};--score-color:${color}"><span class="biology-score-dial-number">${value ?? '—'}<small>${value == null ? 'No score yet' : '/100'}</small></span></span>`;
 }
 
-function renderReadingFacts(facts) {
+function renderReadingFacts(facts: readonly (readonly [unknown, unknown])[]) {
   return `<dl class="biology-reading-facts">${facts.map(([label, value]) => `<div><dt>${escapeHTML(label)}</dt><dd>${escapeHTML(value)}</dd></div>`).join('')}</dl>`;
 }
 
-function renderInterpretationNotes(flags = []) {
+function renderInterpretationNotes(flags: readonly string[] = []) {
   return flags.length ? `<details class="biology-reading-notes"><summary>Interpretation notes <span class="biology-section-count">${flags.length}</span></summary><ul>${flags.map(flag => `<li>${escapeHTML(flag)}</li>`).join('')}</ul></details>` : '';
 }
 
-function renderMethodology(score) {
+function renderMethodology(score: BiologyRenderScore) {
   const coreWeight = score.available.filter(i => i.core && !i.profileContextOnly).reduce((n, i) => n + (i.effectiveWeight ?? i.weight ?? 0), 0);
-  const familyLabel = value => String(value || '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, c => c.toUpperCase());
+  const familyLabel = (value: unknown) => String(value || '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, c => c.toUpperCase());
   return `<details class="biology-score-methodology biology-reading-panel"><summary>How this score works</summary><div class="biology-reading-body">
     <p class="biology-reading-lead">${escapeHTML(score.question || score.summary)}</p><p>${escapeHTML(score.methodology || score.summary)}</p>
     ${renderReadingFacts([
@@ -172,7 +199,7 @@ function renderMethodology(score) {
     </details></div></details>`;
 }
 
-function scoreSentence(score) {
+function scoreSentence(score: BiologyRenderScore) {
   const presentation = getScorePresentation(score);
   if (presentation.historical) return presentation.period;
   if (!Number.isFinite(score.score)) return score.panelLabel ? `Complete the ${score.panelLabel.toLowerCase()} to score this route.` : 'Review the core markers and collection context in Details.';
@@ -180,18 +207,18 @@ function scoreSentence(score) {
   if (alerted) return `${alerted.label} is ${alerted.referenceDirection} its reference range${alerted.profileContextOnly ? ' (context result)' : ''}.`;
   if (score.scoreConfidenceWarning) return score.coverage < 1 ? 'The core panel is incomplete; check the missing inputs in Details.' : 'Collection or profile context limits interpretation; check Details.';
   const weakest = coreScoreDrivers(score)[0]?.item;
-  if (weakest?.partial < 35) return `${weakest.label} is far from the selected range.`;
+  if (weakest?.partial! < 35) return `${weakest!.label} is far from the selected range.`;
   return weakest && weakest.partial < 100 ? `${weakest.label} contributes most to the lower fit.` : 'Core markers align with your selected ranges.';
 }
 
-export function renderScoreDetail(score, options = {}) {
+export function renderScoreDetail(score: BiologyRenderScore, options: { showDashboardToggle?: boolean } = {}) {
   const coreWeight = score.available.filter(i => i.core && !i.profileContextOnly).reduce((n, i) => n + (i.effectiveWeight || i.weight || 0), 0);
-  const row = item => {
+  const row = (item: RenderMarker) => {
     const weight = item.effectiveWeight || item.weight || 0;
-    const impact = item.core && !item.profileContextOnly && coreWeight ? (100 - item.partial) * weight / coreWeight : null;
-    return `<tr><th scope="row">${renderMarkerTableLink(item)}${specimenLabel(item) || item.method ? `<small>${escapeHTML([specimenLabel(item), item.method].filter(Boolean).join(' · '))}</small>` : ''}</th><td class="value-cell">${escapeHTML(item.displayValue)} <span class="unit-col">${escapeHTML(item.unit || '')}</span></td><td class="ref-col">${escapeHTML(rangeText(item))}<small>${escapeHTML(item.rangeLabel || '')}</small></td><td>${escapeHTML(item.date || 'Unknown')}</td><td><span class="biology-fit-badge" style="--score-color:${scoreColor(item.profileContextOnly ? null : item.partial)}">${item.profileContextOnly ? 'Context only' : `${Math.round(item.partial)}/100`}</span><small>${escapeHTML(item.contextReason || (impact == null ? item.evidenceRole || 'Additional context' : `−${impact.toFixed(1)} core points`))}</small></td></tr>`;
+    const impact = item.core && !item.profileContextOnly && coreWeight ? (100 - item.partial!) * weight / coreWeight : null;
+    return `<tr><th scope="row">${renderMarkerTableLink(item)}${specimenLabel(item) || item.method ? `<small>${escapeHTML([specimenLabel(item), item.method].filter(Boolean).join(' · '))}</small>` : ''}</th><td class="value-cell">${escapeHTML(item.displayValue)} <span class="unit-col">${escapeHTML(item.unit || '')}</span></td><td class="ref-col">${escapeHTML(rangeText(item))}<small>${escapeHTML(item.rangeLabel || '')}</small></td><td>${escapeHTML(item.date || 'Unknown')}</td><td><span class="biology-fit-badge" style="--score-color:${scoreColor(item.profileContextOnly ? null : item.partial)}">${item.profileContextOnly ? 'Context only' : `${Math.round(item.partial!)}/100`}</span><small>${escapeHTML(item.contextReason || (impact == null ? item.evidenceRole || 'Additional context' : `−${impact.toFixed(1)} core points`))}</small></td></tr>`;
   };
-  const table = core => {
+  const table = (core: boolean) => {
     const items = score.available.filter(i => !!i.core === core);
     const missing = effectiveMissingMarkers(score).filter(i => !!i.core === core);
     return `<section class="biology-score-marker-section"><header><h4>${core ? 'Core markers' : 'Additional markers'} <span class="biology-section-count">${items.length}</span></h4><p>${core ? 'These markers determine the headline score.' : 'Optional results add context and help interpret the core panel.'}</p></header>
@@ -215,7 +242,7 @@ export function renderScoreDetail(score, options = {}) {
   </article>`;
 }
 
-function renderScoreCard(score) {
+function renderScoreCard(score: BiologyRenderScore) {
   const tone = score.tone || 'unknown';
   const scoreValue = String(getScorePresentation(score).value ?? '—');
   return `<article class="biology-score-card biology-score-card-${escapeAttr(tone)}" role="button" tabindex="0" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(score.id)}" aria-label="Open ${escapeAttr(score.title)} in Biology Scores lens">
@@ -233,18 +260,18 @@ function renderScoreCard(score) {
   </article>`;
 }
 
-function renderOverviewMembership(score) {
+function renderOverviewMembership(score: BiologyRenderScore) {
   if (!score.membership?.length) return '';
   const included = score.membership.filter(item => item.included).length;
   return `<details id="biology-score-membership" class="biology-overview-membership biology-reading-panel"><summary>Overview contributors <span class="biology-membership-count">${included}/${score.membership.length} included</span></summary><div class="biology-reading-body"><p>13 baseline scores form 12 domains. Iron Handling and Blood Flow Context share the blood domain.</p><div class="biology-membership-list">${score.membership.map(item => `<button type="button" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(item.id)}"><span>${escapeHTML(item.title)}${item.domain === 'blood' ? '<small>Shared blood domain</small>' : ''}</span><span class="biology-membership-badge" data-overview-membership="${item.included ? 'included' : 'excluded'}">${escapeHTML(item.label)}</span></button>`).join('')}</div></div></details>`;
 }
 
-function renderMembershipBadge(score) {
+function renderMembershipBadge(score: BiologyRenderScore) {
   const membership = score.overviewMembership;
   return membership ? `<span class="biology-membership-badge" data-overview-membership="${membership.optional ? 'optional' : membership.included ? 'included' : 'excluded'}">${escapeHTML(membership.label)}</span>` : '';
 }
 
-function renderBiologicalCoherenceHero(score) {
+function renderBiologicalCoherenceHero(score: BiologyRenderScore | null | undefined) {
   if (!score) return '';
   const sourceScore = score;
   score = score.historicalSnapshot || score;
@@ -254,7 +281,7 @@ function renderBiologicalCoherenceHero(score) {
   return `<section class="biology-coherence-hero biology-coherence-visual" id="biology-score-biologicalCoherence">
     <div class="biology-coherence-overview">${renderScoreMetric(score)}<div><h2>Biological Coherence</h2><p>${escapeHTML(explanation)}</p><small>${domains.length}/${domains.length + score.missing.length} domains · ${Math.round(score.coverage * 100)}% core coverage</small></div></div>
     <div class="biology-coherence-ai">${renderScoreAISummary(sourceScore)}<p class="biology-scores-note">AI runs when requested. Update missing insights reuses saved answers; provider charges may apply. Scores are calculated locally.</p></div>
-    ${domains.length ? `<div class="biology-coherence-domains">${domains.map(item => `<button type="button" class="biology-coherence-domain-row" style="--score-color:${scoreColor(item.partial)}" title="${item.partial}/100 · Open ${escapeAttr(item.label)}" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(item.primaryScoreId || '')}"><span class="biology-domain-label">${escapeHTML(item.label)}</span><span class="biology-domain-meter" aria-hidden="true"><span style="width:${clamp(item.partial, 0, 100)}%"></span></span><strong>${item.partial}</strong></button>`).join('')}</div>` : ''}
+    ${domains.length ? `<div class="biology-coherence-domains">${domains.map(item => `<button type="button" class="biology-coherence-domain-row" style="--score-color:${scoreColor(item.partial)}" title="${item.partial}/100 · Open ${escapeAttr(item.label)}" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(item.primaryScoreId || '')}"><span class="biology-domain-label">${escapeHTML(item.label)}</span><span class="biology-domain-meter" aria-hidden="true"><span style="width:${clamp(item.partial!, 0, 100)}%"></span></span><strong>${item.partial}</strong></button>`).join('')}</div>` : ''}
     ${renderOverviewMembership(sourceScore)}
     <details class="biology-coherence-interpretation"><summary>Explanation</summary>${renderScoreAIAnswer(sourceScore)}</details>
     <details class="biology-coherence-breakdown"><summary>How the overview works</summary>
@@ -274,13 +301,13 @@ function renderBiologicalCoherenceHero(score) {
  * issues in Node/Vitest.
  */
 
-export function renderBiologicalCoherenceLensHero(ctx, computeBiologyScores) {
-  const coherence = computeBiologyScores(ctx?.data || {}).find((score) => score.id === 'biologicalCoherence');
+export function renderBiologicalCoherenceLensHero(ctx: ScoreContext, computeBiologyScores: ComputeScores) {
+  const coherence = computeBiologyScores((ctx?.data || {}) as ScoringData).find((score) => score.id === 'biologicalCoherence');
   return renderBiologicalCoherenceHero(coherence);
 }
 
-function renderDashboardScoreRail(score, tone) {
-  const pct = Number.isFinite(score) ? clamp(score, 0, 100) : 0;
+function renderDashboardScoreRail(score: ScoreValue, tone: BiologyRenderScore['tone']) {
+  const pct = Number.isFinite(score) ? clamp(score!, 0, 100) : 0;
   const colorVar = tone === 'excellent' || tone === 'good' ? 'var(--green, #22c55e)' : tone === 'strained' ? 'var(--yellow, #f59e0b)' : tone === 'poor' || tone === 'concerning' || tone === 'severe' ? 'var(--red, #ef4444)' : 'var(--text-muted)';
   return `<div class="db-hero-bio-bar db-hero-bio-bar-track" aria-hidden="true">
       <div class="db-hero-bio-bar-fill" style="width:${pct.toFixed(0)}%; background:${colorVar};"></div>
@@ -288,7 +315,7 @@ function renderDashboardScoreRail(score, tone) {
     </div>`;
 }
 
-function renderDashboardScoreHeadline(score, meta, detailLine) {
+function renderDashboardScoreHeadline(score: BiologyRenderScore, meta: string, detailLine: string) {
   const presentation = getScorePresentation(score);
   return `<button type="button" class="db-hero-bio db-hero-biology-score" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(score.id)}" aria-label="Open ${escapeAttr(score.title)} in Biology Scores lens">
     <span class="db-hero-bio-left"><span class="db-hero-bio-num">${presentation.value ?? '—'}<small>/100</small></span><span class="db-hero-bio-label"><span class="top">${escapeHTML(presentation.status)}</span><span class="actual">${escapeHTML(meta)}</span><span class="delta">${escapeHTML(detailLine)}</span></span></span>
@@ -296,8 +323,8 @@ function renderDashboardScoreHeadline(score, meta, detailLine) {
   </button>`;
 }
 
-export function renderDashboardBiologyScoreWidget(ctx, scoreId, computeBiologyScores) {
-  const score = computeBiologyScores(ctx?.data || {}).find(item => item.id === scoreId);
+export function renderDashboardBiologyScoreWidget(ctx: ScoreContext, scoreId: string, computeBiologyScores: ComputeScores) {
+  const score = computeBiologyScores((ctx?.data || {}) as ScoringData).find(item => item.id === scoreId);
   if (!score) return '';
   const presentation = getScorePresentation(score);
   const meta = `${score.coreCovered ?? 0}/${score.coreTotal ?? 0} core${score.overviewMembership ? ` · ${score.overviewMembership.label}` : ''}`;
@@ -305,8 +332,8 @@ export function renderDashboardBiologyScoreWidget(ctx, scoreId, computeBiologySc
   return renderDashboardScoreHeadline(score, meta, detail);
 }
 
-export function renderDashboardBiologicalCoherenceWidget(ctx, computeBiologyScores) {
-  const currentScore = computeBiologyScores(ctx?.data || {}).find(item => item.id === 'biologicalCoherence');
+export function renderDashboardBiologicalCoherenceWidget(ctx: ScoreContext, computeBiologyScores: ComputeScores) {
+  const currentScore = computeBiologyScores((ctx?.data || {}) as ScoringData).find(item => item.id === 'biologicalCoherence');
   const score = currentScore?.historicalSnapshot || currentScore;
   if (!score) return '';
   const domains = (score.available || []).filter(item => Number.isFinite(item.partial)).sort((a, b) => Number(b.partial || 0) - Number(a.partial || 0));
@@ -337,12 +364,12 @@ export function renderDashboardBiologicalCoherenceWidget(ctx, computeBiologyScor
 /** Legacy summary widget — still exported for backward compatibility. The dashboard
  * now uses renderDashboardBiologyScoreWidget for individual score cards and
  * renderDashboardBiologicalCoherenceWidget for the coherence hero. */
-export function renderBiologyScoresWidget(ctx, computeBiologyScores) {
-  const scores = computeBiologyScores(ctx?.data || {});
+export function renderBiologyScoresWidget(ctx: ScoreContext, computeBiologyScores: ComputeScores) {
+  const scores = computeBiologyScores((ctx?.data || {}) as ScoringData);
   const usefulScores = scores.filter((score) => score.score != null || score.coverage > 0);
   const displayScores = usefulScores.length ? usefulScores : scores.slice(0, 4);
-  const best = usefulScores.filter((score) => Number.isFinite(score.score)).sort((a, b) => b.score - a.score)[0];
-  const weakest = usefulScores.filter((score) => Number.isFinite(score.score)).sort((a, b) => a.score - b.score)[0];
+  const best = usefulScores.filter((score) => Number.isFinite(score.score)).sort((a, b) => b.score! - a.score!)[0];
+  const weakest = usefulScores.filter((score) => Number.isFinite(score.score)).sort((a, b) => a.score! - b.score!)[0];
   const lead = best
     ? `Best current signal: ${best.title} (${best.score}/100). ${weakest && weakest.id !== best.id ? `Most strained: ${weakest.title} (${weakest.score}/100).` : ''}`
     : 'Add labs to turn marker ranges into biology-level pattern scores.';
@@ -361,14 +388,9 @@ export function renderBiologyScoresWidget(ctx, computeBiologyScores) {
 }
 
 
-/**
- * @param {any[]} live
- * @param {any[]} waiting
- * @param {{ available?: any[] } | null} [coherence]
- */
-export function renderBiologyScoresActionSummary(live, waiting, coherence = null) {
+export function renderBiologyScoresActionSummary(live: readonly BiologyRenderScore[], waiting: readonly BiologyRenderScore[], coherence: BiologyRenderScore | null | undefined = null) {
   if (!live.length && !waiting.length) return '';
-  const weakest = live.slice().sort((a, b) => a.score - b.score)[0];
+  const weakest = live.slice().sort((a, b) => a.score! - b.score!)[0];
   const weakestCoherenceDomain = (coherence?.available || [])
     .filter(item => item.primaryScoreId && Number.isFinite(Number(item.partial)))
     .slice()
@@ -378,7 +400,7 @@ export function renderBiologyScoresActionSummary(live, waiting, coherence = null
     : weakest
       ? { id: weakest.id, title: weakest.title }
       : null;
-  const lowConfidence = live.filter(score => score.scoreConfidence && score.scoreConfidence !== 'high').sort((a, b) => a.score - b.score);
+  const lowConfidence = live.filter(score => score.scoreConfidence && score.scoreConfidence !== 'high').sort((a, b) => a.score! - b.score!);
   const stale = waiting.find(score => score.recencyStatus && score.recencyStatus !== 'fresh');
   const nextMissing = lowConfidence
     .flatMap(score => effectiveMissingMarkers(score).filter(item => item.core).map(item => ({ ...item, scoreTitle: score.title })))
@@ -400,7 +422,7 @@ export function renderBiologyScoresActionSummary(live, waiting, coherence = null
 }
 
 
-function renderCoverageMarkerList(markers, emptyText) {
+function renderCoverageMarkerList(markers: readonly PlannerMarker[], emptyText: string) {
   if (!markers.length) return `<span class="biology-score-token biology-score-token-muted">${escapeHTML(emptyText)}</span>`;
   return markers.map(item => {
     const label = markerDisplayLabel(item);
@@ -409,14 +431,14 @@ function renderCoverageMarkerList(markers, emptyText) {
   }).join('');
 }
 
-function renderCoverageBundle(title, markers, emptyText) {
+function renderCoverageBundle(title: string, markers: readonly PlannerMarker[], emptyText: string) {
   return `<div class="biology-coverage-bundle-card">
     <strong>${escapeHTML(title)}</strong>
     <div class="biology-coverage-marker-list">${renderCoverageMarkerList(markers, emptyText)}</div>
   </div>`;
 }
 
-export function renderBiologyScoreCoveragePlanner(detailScores, coherence) {
+export function renderBiologyScoreCoveragePlanner(detailScores: readonly BiologyRenderScore[], coherence: BiologyRenderScore | null | undefined) {
   const planner = buildBiologyScoreCoveragePlannerModel(detailScores, coherence);
   const { baselineCoverage, coreShortlist, optionalUpgrades, advancedDepth, baselineIntro } = planner;
   return `<details open id="biology-score-coverage" class="biology-score-coverage-planner biology-planning-card"><summary>Plan additional labs</summary>
@@ -435,14 +457,14 @@ export function renderBiologyScoreCoveragePlanner(detailScores, coherence) {
   </details>`;
 }
 
-export function renderBiologyScoresLens(ctx, computeBiologyScores) {
-  const scores = computeBiologyScores(ctx?.data || {});
+export function renderBiologyScoresLens(ctx: ScoreContext, computeBiologyScores: ComputeScores) {
+  const scores = computeBiologyScores((ctx?.data || {}) as ScoringData);
   const coherence = scores.find((score) => score.id === 'biologicalCoherence');
   const detailScores = scores.filter((score) => score.id !== 'biologicalCoherence');
-  const live = detailScores.filter((score) => Number.isFinite(score.score)).sort((a, b) => b.score - a.score);
+  const live = detailScores.filter((score) => Number.isFinite(score.score)).sort((a, b) => b.score! - a.score!);
   const waiting = detailScores.filter((score) => !Number.isFinite(score.score));
   const strongest = live[0];
-  const weakest = live.slice().sort((a, b) => a.score - b.score)[0];
+  const weakest = live.slice().sort((a, b) => a.score! - b.score!)[0];
   const lead = strongest
     ? `Strongest current signal: ${strongest.title} (${strongest.score}/100). ${weakest && weakest.id !== strongest.id ? `Most strained: ${weakest.title} (${weakest.score}/100).` : ''}`
     : 'No overview score is live yet. Import labs or add missing markers to turn raw results into simple biology-level signals.';
