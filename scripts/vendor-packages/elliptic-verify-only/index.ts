@@ -1,6 +1,6 @@
 import { p256 } from '@noble/curves/nist.js';
 
-function asBytes(value, label) {
+function asBytes(value: unknown, label: string) {
   if (value instanceof Uint8Array) return value;
   if (Array.isArray(value)) return Uint8Array.from(value);
   throw new TypeError(`${label} must be bytes`);
@@ -11,18 +11,18 @@ function asBytes(value, label) {
  * This adapter intentionally exposes verification but no signing operation.
  */
 export class ec {
-  constructor(curveName) {
+  constructor(curveName: unknown) {
     if (curveName !== 'p256') {
       throw new Error(`Unsupported DCAP curve: ${String(curveName)}`);
     }
   }
 
-  keyFromPublic(publicKey) {
+  keyFromPublic(publicKey: unknown) {
     const publicKeyBytes = asBytes(publicKey, 'P-256 public key');
     p256.Point.fromBytes(publicKeyBytes);
 
     return Object.freeze({
-      verify(digest, signature) {
+      verify(digest: unknown, signature: unknown) {
         try {
           return p256.verify(
             asBytes(signature, 'P-256 DER signature'),

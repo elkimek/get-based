@@ -6,7 +6,7 @@ import { PHALA_PCCS_URL, getCollateralAndVerify } from '@phala/dcap-qvl';
  * quote is verified locally before venice-e2ee accepts the session.
  */
 export function createDcapVerifier(pccsUrl = PHALA_PCCS_URL) {
-  return async function verifyDcapQuote(quoteBytes) {
+  return async function verifyDcapQuote(quoteBytes: Parameters<typeof getCollateralAndVerify>[0]) {
     const result = await getCollateralAndVerify(quoteBytes, pccsUrl);
     return {
       status: String(result.status),

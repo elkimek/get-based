@@ -1309,3 +1309,16 @@ deploy/profile-share/data/
 /scripts/upgrade-demos.mjs
 /scripts/fetch-catalog.mjs
 /scripts/generate-import-reference-pdf.mjs
+
+/scripts/vendor-entries/cashu.js
+/scripts/vendor-entries/ehbp.js
+/scripts/vendor-entries/evolu8-db-worker.js
+/scripts/vendor-entries/evolu8-shared-worker.js
+/scripts/vendor-entries/evolu8.js
+/scripts/vendor-entries/routstr-crypto.js
+/scripts/vendor-entries/tinfoil.js
+/scripts/vendor-entries/venice-dcap.js
+/scripts/vendor-entries/venice-e2ee.js
+/scripts/vendor-entries/venice-nvidia.js
+/scripts/vendor-entries/zlib-browser-shim.js
+/scripts/vendor-packages/elliptic-verify-only/index.js
