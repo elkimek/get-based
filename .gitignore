@@ -1490,3 +1490,4 @@ deploy/profile-share/data/
 /tests/test-wearables.js
 /tests/verify-modules.js
 /tests/validate-storage-shim-throwing-getters.mjs
+/scripts/native-typescript-ast.js
