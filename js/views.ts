@@ -1,4 +1,3 @@
-// @ts-check
 // views.js — route facade and compatibility exports
 
 import { getActiveData, destroyAllCharts } from './data.js';
@@ -46,14 +45,38 @@ import {
   openMobileDashboardSearch,
   mobileDashboardJump,
 } from './mobile-dashboard.js';
-/** @typedef {typeof import('./compare-correlations.js')} CompareModule */
-/** @type {CompareModule | null} */
-let compareModule = null;
-/** @type {Promise<CompareModule> | null} */
-let comparePromise = null;
-/** @type {NonNullable<Parameters<CompareModule['configureCompareCorrelationViews']>[0]>} */
-const compareDeps = {};
-export function configureCompareCorrelationViews(deps) {
+// Native namespaces own default arguments; injected results remain opaque.
+type CompareModule = typeof import('./compare-correlations.js');
+type NativeDashboardFactory = typeof import('./dashboard-view-composition.js').createDashboardViewComposition;
+type DashboardView = ReturnType<NativeDashboardFactory>;
+type DashboardMethods = {
+  [Key in keyof DashboardView]: DashboardView[Key] extends (...args: infer Args) => unknown
+    ? (...args: Args) => unknown
+    : unknown;
+};
+type DashboardPreferenceOperations = {
+  order: { filter(predicate: (id: unknown) => boolean): unknown[] };
+  hidden: { includes(id: unknown): boolean };
+};
+type DashboardOperations = Omit<DashboardMethods, 'getDashboardWidgetPrefs'> & {
+  getDashboardWidgetPrefs: () => DashboardPreferenceOperations;
+};
+type ComparisonOperations = Omit<CompareModule, 'showCompare' | 'showCorrelations'> & {
+  showCompare(data: unknown): ReturnType<CompareModule['showCompare']>;
+  showCorrelations(data: unknown): ReturnType<CompareModule['showCorrelations']>;
+};
+type DashboardDataOperations = import('../types/health-data-loader.js').DashboardHealthDataReader;
+type RecommendationConstructorOperations = (deps:
+  Omit<Parameters<typeof createRecommendationActions>[0],
+    'buildDashboardWidgetContext' | 'getCachedRecommendationsCatalog' | 'getGlobalRecommendationCandidates'>
+  & Pick<DashboardOperations,
+    'buildDashboardWidgetContext' | 'getCachedRecommendationsCatalog' | 'getGlobalRecommendationCandidates'>
+) => ReturnType<typeof createRecommendationActions>;
+
+let compareModule: CompareModule | null = null;
+let comparePromise: Promise<CompareModule> | null = null;
+const compareDeps: Record<string, unknown> = {};
+export function configureCompareCorrelationViews(deps: unknown) {
   Object.assign(compareDeps, deps);
   compareModule?.configureCompareCorrelationViews(deps);
 }
@@ -64,38 +87,26 @@ function loadCompareModule() {
     return module;
   }).catch(error => { comparePromise = null; throw error; });
 }
-function showCompare(data) {
+function showCompare(data?: unknown) {
   return showPreparedRoute('compare', 'Compare', () => !!compareModule, loadCompareModule,
-    () => compareModule?.showCompare(data));
+    () => (compareModule as ComparisonOperations | null)?.showCompare(data));
 }
-function showCorrelations(data) {
+function showCorrelations(data?: unknown) {
   return showPreparedRoute('correlations', 'Correlations', () => !!compareModule, loadCompareModule,
-    () => compareModule?.showCorrelations(data));
+    () => (compareModule as ComparisonOperations | null)?.showCorrelations(data));
 }
-/** @param {Parameters<CompareModule['setCompareDate1']>} args */
-const setCompareDate1 = (...args) => compareModule?.setCompareDate1(...args);
-/** @param {Parameters<CompareModule['setCompareDate2']>} args */
-const setCompareDate2 = (...args) => compareModule?.setCompareDate2(...args);
-/** @param {Parameters<CompareModule['updateCompare']>} args */
-const updateCompare = (...args) => compareModule?.updateCompare(...args);
-/** @param {Parameters<CompareModule['swapCompareDates']>} args */
-const swapCompareDates = (...args) => compareModule?.swapCompareDates(...args);
-/** @param {Parameters<CompareModule['renderCompareTable']>} args */
-const renderCompareTable = (...args) => compareModule?.renderCompareTable(...args);
-/** @param {Parameters<CompareModule['populateCorrelationOptions']>} args */
-const populateCorrelationOptions = (...args) => compareModule?.populateCorrelationOptions(...args);
-/** @param {Parameters<CompareModule['showCorrelationDropdown']>} args */
-const showCorrelationDropdown = (...args) => compareModule?.showCorrelationDropdown(...args);
-/** @param {Parameters<CompareModule['filterCorrelationOptions']>} args */
-const filterCorrelationOptions = (...args) => compareModule?.filterCorrelationOptions(...args);
-/** @param {Parameters<CompareModule['toggleCorrelationMarker']>} args */
-const toggleCorrelationMarker = (...args) => compareModule?.toggleCorrelationMarker(...args);
-/** @param {Parameters<CompareModule['applyCorrelationPreset']>} args */
-const applyCorrelationPreset = (...args) => compareModule?.applyCorrelationPreset(...args);
-/** @param {Parameters<CompareModule['renderCorrelationChips']>} args */
-const renderCorrelationChips = (...args) => compareModule?.renderCorrelationChips(...args);
-/** @param {Parameters<CompareModule['renderCorrelationChart']>} args */
-const renderCorrelationChart = (...args) => compareModule?.renderCorrelationChart(...args);
+const setCompareDate1 = (...args: Parameters<CompareModule['setCompareDate1']>) => compareModule?.setCompareDate1(...args);
+const setCompareDate2 = (...args: Parameters<CompareModule['setCompareDate2']>) => compareModule?.setCompareDate2(...args);
+const updateCompare = (...args: Parameters<CompareModule['updateCompare']>) => compareModule?.updateCompare(...args);
+const swapCompareDates = (...args: Parameters<CompareModule['swapCompareDates']>) => compareModule?.swapCompareDates(...args);
+const renderCompareTable = (...args: Parameters<CompareModule['renderCompareTable']>) => compareModule?.renderCompareTable(...args);
+const populateCorrelationOptions = (...args: Parameters<CompareModule['populateCorrelationOptions']>) => compareModule?.populateCorrelationOptions(...args);
+const showCorrelationDropdown = (...args: Parameters<CompareModule['showCorrelationDropdown']>) => compareModule?.showCorrelationDropdown(...args);
+const filterCorrelationOptions = (...args: Parameters<CompareModule['filterCorrelationOptions']>) => compareModule?.filterCorrelationOptions(...args);
+const toggleCorrelationMarker = (...args: Parameters<CompareModule['toggleCorrelationMarker']>) => compareModule?.toggleCorrelationMarker(...args);
+const applyCorrelationPreset = (...args: Parameters<CompareModule['applyCorrelationPreset']>) => compareModule?.applyCorrelationPreset(...args);
+const renderCorrelationChips = (...args: Parameters<CompareModule['renderCorrelationChips']>) => compareModule?.renderCorrelationChips(...args);
+const renderCorrelationChart = (...args: Parameters<CompareModule['renderCorrelationChart']>) => compareModule?.renderCorrelationChart(...args);
 import {
   fetchCustomMarkerDescription,
   showDetailModal,
@@ -120,8 +131,6 @@ import {
   closeModal,
   rememberModalTrigger,
 } from './marker-detail-modal.js';
-
-/** @typedef {ReturnType<typeof import('./dashboard-view-composition.js').createDashboardViewComposition>} DashboardView */
 
 export {
   refreshMobileDashboardActiveTab,
@@ -207,25 +216,22 @@ export function getInitialView() {
   return getRouterInitialView();
 }
 
-export function showLabs(preData) { return getLensPageHandlers().showLabs(preData); }
-export function showBiologyScoresLens(preData) {
+export function showLabs(preData?: unknown) { return getLensPageHandlers().showLabs(preData); }
+export function showBiologyScoresLens(preData?: unknown) {
   return showCategoryPresentationRoute('biology-scores', 'Biology Scores', () => getLensPageHandlers().showBiologyScores(preData));
 }
 export function showGenomeLens() { return getLensPageHandlers().showGenomeLens(); }
 export function showBodyLens() { return getLensPageHandlers().showBodyLens(); }
-export function showInsightLens(preData) { return getLensPageHandlers().showInsightLens(preData); }
-export function showRecommendations(preData) { return getLensPageHandlers().showRecommendations(preData); }
+export function showInsightLens(preData?: unknown) { return getLensPageHandlers().showInsightLens(preData); }
+export function showRecommendations(preData?: unknown) { return getLensPageHandlers().showRecommendations(preData); }
 
-/** @type {DashboardView | undefined} */
-let dashboardView;
-/** @type {ReturnType<typeof createLensPageHandlers> | undefined} */
-let lensPageHandlers;
-/** @type {ReturnType<typeof createRecommendationActions> | undefined} */
-let recommendationActions;
+let dashboardView: unknown;
+let lensPageHandlers: ReturnType<typeof createLensPageHandlers> | undefined;
+let recommendationActions: ReturnType<typeof createRecommendationActions> | undefined;
 
 function getDashboardView() {
   if (!dashboardView) throw new Error('Dashboard view is not initialized; call configureDashboardViewFactory first');
-  return dashboardView;
+  return dashboardView as DashboardOperations;
 }
 
 function getLensPageHandlers() {
@@ -238,7 +244,7 @@ function getRecommendationActions() {
   return recommendationActions;
 }
 
-export function showDashboard(data) { return getDashboardView().showDashboard(data); }
+export function showDashboard(data?: unknown) { return getDashboardView().showDashboard(data); }
 
 export async function _openAllSessionsModal() {
   const module = await loadLightSunUI();
@@ -249,11 +255,11 @@ function _expandLightToolsSection() {
   return loadLightSunUI().then(module => module._expandLightToolsSection());
 }
 
-function _toggleChannelDetail(channel) {
+function _toggleChannelDetail(channel: unknown) {
   return loadLightSunUI().then(module => module._toggleChannelDetail(channel));
 }
 
-function _openChannelOnLightPage(channel) {
+function _openChannelOnLightPage(channel: unknown) {
   return loadLightSunUI().then(module => module._openChannelOnLightPage(channel));
 }
 
@@ -265,7 +271,7 @@ function renderLightChannelsLive() {
   return getLoadedLightSunModule()?.renderLightChannelsLive?.();
 }
 
-function renderConditionsNow(options) {
+function renderConditionsNow(options?: Parameters<NonNullable<ReturnType<typeof getLoadedLightSunModule>>['renderConditionsNow']>[0]) {
   return getLoadedLightSunModule()?.renderConditionsNow?.(options) || '';
 }
 
@@ -277,7 +283,7 @@ function _inspectConditionsNow() {
   return loadLightSunUI().then(module => module._inspectConditionsNow());
 }
 
-function renderDeferredRouteStatus(content, message, { busy = false, error = false } = {}) {
+function renderDeferredRouteStatus(content: Element, message: string, { busy = false, error = false }: {busy?: unknown;error?: unknown} = {}) {
   const status = document.createElement('section');
   status.className = 'dashboard-widget-empty';
   status.textContent = message;
@@ -289,7 +295,7 @@ function renderDeferredRouteStatus(content, message, { busy = false, error = fal
   content.replaceChildren(status);
 }
 
-function showLightRoute(data) {
+function showLightRoute(data: unknown) {
   if (isLightSunUILoaded()) return getLoadedLightSunModule()?.showLight(data);
 
   const content = typeof document !== 'undefined' ? document.getElementById('main-content') : null;
@@ -314,19 +320,11 @@ function showLightRoute(data) {
     });
 }
 
-function showLight(data) {
+function showLight(data: unknown) {
   return showLightRoute(data);
 }
 
-/**
- * @param {string} route
- * @param {string} label
- * @param {() => boolean} isReady
- * @param {() => Promise<unknown>} prepare
- * @param {(...args: any[]) => any} render
- * @param {any[]} [args]
- */
-function showPreparedRoute(route, label, isReady, prepare, render, args = []) {
+function showPreparedRoute<Args extends unknown[], Result>(route: string, label: string, isReady: () => unknown, prepare: () => Promise<unknown>, render: (...args: Args) => Result, args: Args = [] as unknown as Args) {
   if (isReady()) return render(...args);
   const content = typeof document !== 'undefined' ? document.getElementById('main-content') : null;
   if (content) renderDeferredRouteStatus(content, `Loading ${label}…`, { busy: true });
@@ -364,13 +362,7 @@ function showGenomeRoute() {
   );
 }
 
-/**
- * @param {string} route
- * @param {string} label
- * @param {() => any} render
- * @param {{ charts?: boolean }} [options]
- */
-function showCategoryPresentationRoute(route, label, render, options = {}) {
+function showCategoryPresentationRoute<Result>(route: string, label: string, render: () => Result, options: {charts?: unknown} = {}) {
   const needsCharts = options.charts === true;
   return showPreparedRoute(
     route,
@@ -384,17 +376,17 @@ function showCategoryPresentationRoute(route, label, render, options = {}) {
   );
 }
 
-function dashboardRouteDataHasContent(data) {
+function dashboardRouteDataHasContent(data: unknown) {
   const wearableMetrics = state.importedData?.wearableSummary?.metrics || {};
   return Boolean(
-    data?.dates?.length
-    || Object.values(wearableMetrics).some(metric => metric?.latest != null)
+    (data as DashboardDataOperations | null | undefined)?.dates?.length
+    || Object.values(wearableMetrics).some(metric => (metric as { latest?: unknown } | null | undefined)?.latest != null)
     || Number(state.nutritionSummary?.totalMeals || 0) > 0
-    || Object.values(data?.categories || {}).some(category => category?.singlePoint && category?.singleDate),
+    || Object.values((data as DashboardDataOperations | null | undefined)?.categories || {}).some(category => category?.singlePoint && category?.singleDate),
   );
 }
 
-function showDashboardRoute(data) {
+function showDashboardRoute(data: unknown) {
   const routeData = data || getActiveData();
   if (!dashboardRouteDataHasContent(routeData)) return showDashboard(routeData);
   const prefs = getDashboardView().getDashboardWidgetPrefs();
@@ -430,7 +422,7 @@ function showBodyRoute() {
   );
 }
 
-function showInsightRoute(data) {
+function showInsightRoute(data: unknown) {
   return showPreparedRoute(
     'insight',
     'Insight',
@@ -441,7 +433,7 @@ function showInsightRoute(data) {
   );
 }
 
-function showRecommendationsRoute(data) {
+function showRecommendationsRoute(data: unknown) {
   return showPreparedRoute(
     'recommendations',
     'Tips',
@@ -480,7 +472,7 @@ const _navigate = createNavigate({
   destroyAllCharts,
 });
 
-export function navigate(category, data) {
+export function navigate(category: Parameters<ReturnType<typeof createNavigate>>[0], data?: Parameters<ReturnType<typeof createNavigate>>[1]) {
   return _navigate(category, data);
 }
 
@@ -491,14 +483,13 @@ configureCategoryCustomization({ navigate, buildSidebar });
 // DASHBOARD WIDGETS
 // ═══════════════════════════════════════════════
 
-/** @param {typeof import('./dashboard-view-composition.js').createDashboardViewComposition} createDashboardView */
-export function configureDashboardViewFactory(createDashboardView) {
+export function configureDashboardViewFactory(createDashboardView: unknown) {
   if (typeof createDashboardView !== 'function') {
     throw new TypeError('configureDashboardViewFactory requires a dashboard view factory');
   }
   if (dashboardView) return dashboardView;
 
-  dashboardView = createDashboardView({
+  dashboardView = (createDashboardView as (deps: Parameters<NativeDashboardFactory>[0]) => unknown)({
     navigate,
     showRecommendations,
     showEmojiPicker,
@@ -510,69 +501,65 @@ export function configureDashboardViewFactory(createDashboardView) {
 
   lensPageHandlers = createLensPageHandlers({
     setupDropZone,
-    buildDashboardWidgetContext: dashboardView.buildDashboardWidgetContext,
-    renderLabsPriorityBanner: dashboardView.renderLabsPriorityBanner,
-    renderDashboardQuickMarkersWidget: dashboardView.renderDashboardQuickMarkersWidget,
-    renderDashboardKeyTrendsWidget: dashboardView.renderDashboardKeyTrendsWidget,
-    renderDashboardGenomeWidget: dashboardView.renderDashboardGenomeWidget,
-    renderDashboardWearableTilesWidget: dashboardView.renderDashboardWearableTilesWidget,
-    renderDashboardInsightsListWidget: dashboardView.renderDashboardInsightsListWidget,
-    renderDashboardRecommendationsWidget: dashboardView.renderDashboardRecommendationsWidget,
+    buildDashboardWidgetContext: (dashboardView as DashboardOperations).buildDashboardWidgetContext,
+    renderLabsPriorityBanner: (dashboardView as DashboardOperations).renderLabsPriorityBanner,
+    renderDashboardQuickMarkersWidget: (dashboardView as DashboardOperations).renderDashboardQuickMarkersWidget,
+    renderDashboardKeyTrendsWidget: (dashboardView as DashboardOperations).renderDashboardKeyTrendsWidget,
+    renderDashboardGenomeWidget: (dashboardView as DashboardOperations).renderDashboardGenomeWidget,
+    renderDashboardWearableTilesWidget: (dashboardView as DashboardOperations).renderDashboardWearableTilesWidget,
+    renderDashboardInsightsListWidget: (dashboardView as DashboardOperations).renderDashboardInsightsListWidget,
+    renderDashboardRecommendationsWidget: (dashboardView as DashboardOperations).renderDashboardRecommendationsWidget,
     renderFocusCard,
     loadFocusCard,
-    getDashboardWidgetPrefs: dashboardView.getDashboardWidgetPrefs,
-    getCachedRecommendationsCatalog: dashboardView.getCachedRecommendationsCatalog,
-    refreshRecommendationsWhenCatalogReady: dashboardView.refreshRecommendationsWhenCatalogReady,
-    getGlobalRecommendationCandidates: dashboardView.getGlobalRecommendationCandidates,
-    renderRecommendationCard: dashboardView.renderRecommendationCard,
-    renderRecommendationsEmpty: dashboardView.renderRecommendationsEmpty,
+    getDashboardWidgetPrefs: (dashboardView as DashboardOperations).getDashboardWidgetPrefs,
+    getCachedRecommendationsCatalog: (dashboardView as DashboardOperations).getCachedRecommendationsCatalog,
+    refreshRecommendationsWhenCatalogReady: (dashboardView as DashboardOperations).refreshRecommendationsWhenCatalogReady,
+    getGlobalRecommendationCandidates: (dashboardView as DashboardOperations).getGlobalRecommendationCandidates,
+    renderRecommendationCard: (dashboardView as DashboardOperations).renderRecommendationCard,
+    renderRecommendationsEmpty: (dashboardView as DashboardOperations).renderRecommendationsEmpty,
     lensPageActionAttrs,
     renderLensHeader,
     renderLensPageWidgets,
     renderLensWidget,
   });
 
-  recommendationActions = createRecommendationActions({
+  recommendationActions = (createRecommendationActions as RecommendationConstructorOperations)({
     getActiveData,
-    buildDashboardWidgetContext: dashboardView.buildDashboardWidgetContext,
-    getCachedRecommendationsCatalog: dashboardView.getCachedRecommendationsCatalog,
-    getGlobalRecommendationCandidates: dashboardView.getGlobalRecommendationCandidates,
+    buildDashboardWidgetContext: (dashboardView as DashboardOperations).buildDashboardWidgetContext,
+    getCachedRecommendationsCatalog: (dashboardView as DashboardOperations).getCachedRecommendationsCatalog,
+    getGlobalRecommendationCandidates: (dashboardView as DashboardOperations).getGlobalRecommendationCandidates,
     setRecommendationState: (...args) => getDashboardView().setRecommendationState(...args),
   });
 
   return dashboardView;
 }
 
-export const toggleDashboardOrganizeMode = (...args) => getDashboardView().toggleDashboardOrganizeMode(...args);
-export const moveDashboardWidget = (...args) => getDashboardView().moveDashboardWidget(...args);
-export const hideDashboardWidget = (...args) => getDashboardView().hideDashboardWidget(...args);
-export const showDashboardWidget = (...args) => getDashboardView().showDashboardWidget(...args);
-export const addDashboardWidgetFromLens = (...args) => getDashboardView().addDashboardWidgetFromLens(...args);
-export const removeDashboardWidgetFromLens = (...args) => getDashboardView().removeDashboardWidgetFromLens(...args);
-export const addDashboardMarkerWidget = (...args) => getDashboardView().addDashboardMarkerWidget(...args);
-export const addDashboardBiometricMetric = (...args) => getDashboardView().addDashboardBiometricMetric(...args);
-export const addDashboardBiometricWidget = (...args) => getDashboardView().addDashboardBiometricWidget(...args);
-export const removeDashboardBiometricMetric = (...args) => getDashboardView().removeDashboardBiometricMetric(...args);
-export const filterDashboardMarkerWidgetPicker = (...args) => getDashboardView().filterDashboardMarkerWidgetPicker(...args);
-export const filterDashboardBiometricWidgetPicker = (...args) => getDashboardView().filterDashboardBiometricWidgetPicker(...args);
+export const toggleDashboardOrganizeMode = (...args: Parameters<DashboardOperations['toggleDashboardOrganizeMode']>) => getDashboardView().toggleDashboardOrganizeMode(...args);
+export const moveDashboardWidget = (...args: Parameters<DashboardOperations['moveDashboardWidget']>) => getDashboardView().moveDashboardWidget(...args);
+export const hideDashboardWidget = (...args: Parameters<DashboardOperations['hideDashboardWidget']>) => getDashboardView().hideDashboardWidget(...args);
+export const showDashboardWidget = (...args: Parameters<DashboardOperations['showDashboardWidget']>) => getDashboardView().showDashboardWidget(...args);
+export const addDashboardWidgetFromLens = (...args: Parameters<DashboardOperations['addDashboardWidgetFromLens']>) => getDashboardView().addDashboardWidgetFromLens(...args);
+export const removeDashboardWidgetFromLens = (...args: Parameters<DashboardOperations['removeDashboardWidgetFromLens']>) => getDashboardView().removeDashboardWidgetFromLens(...args);
+export const addDashboardMarkerWidget = (...args: Parameters<DashboardOperations['addDashboardMarkerWidget']>) => getDashboardView().addDashboardMarkerWidget(...args);
+export const addDashboardBiometricMetric = (...args: Parameters<DashboardOperations['addDashboardBiometricMetric']>) => getDashboardView().addDashboardBiometricMetric(...args);
+export const addDashboardBiometricWidget = (...args: Parameters<DashboardOperations['addDashboardBiometricWidget']>) => getDashboardView().addDashboardBiometricWidget(...args);
+export const removeDashboardBiometricMetric = (...args: Parameters<DashboardOperations['removeDashboardBiometricMetric']>) => getDashboardView().removeDashboardBiometricMetric(...args);
+export const filterDashboardMarkerWidgetPicker = (...args: Parameters<DashboardOperations['filterDashboardMarkerWidgetPicker']>) => getDashboardView().filterDashboardMarkerWidgetPicker(...args);
+export const filterDashboardBiometricWidgetPicker = (...args: Parameters<DashboardOperations['filterDashboardBiometricWidgetPicker']>) => getDashboardView().filterDashboardBiometricWidgetPicker(...args);
 export const resetDashboardWidgets = () => getDashboardView().resetDashboardWidgets();
 export const clearDashboardWidgets = () => getDashboardView().clearDashboardWidgets();
 export const openDashboardWidgetPicker = () => getDashboardView().openDashboardWidgetPicker();
 export const openDashboardBiometricPicker = () => getDashboardView().openDashboardBiometricPicker();
 export const closeDashboardWidgetPicker = () => getDashboardView().closeDashboardWidgetPicker();
-export const startDashboardWidgetDrag = (...args) => getDashboardView().startDashboardWidgetDrag(...args);
-export const allowDashboardWidgetDrop = (...args) => getDashboardView().allowDashboardWidgetDrop(...args);
-export const dropDashboardWidget = (...args) => getDashboardView().dropDashboardWidget(...args);
-export const toggleDashboardQuickMarkerPin = (...args) => getDashboardView().toggleDashboardQuickMarkerPin(...args);
+export const startDashboardWidgetDrag = (...args: Parameters<DashboardOperations['startDashboardWidgetDrag']>) => getDashboardView().startDashboardWidgetDrag(...args);
+export const allowDashboardWidgetDrop = (...args: Parameters<DashboardOperations['allowDashboardWidgetDrop']>) => getDashboardView().allowDashboardWidgetDrop(...args);
+export const dropDashboardWidget = (...args: Parameters<DashboardOperations['dropDashboardWidget']>) => getDashboardView().dropDashboardWidget(...args);
+export const toggleDashboardQuickMarkerPin = (...args: Parameters<DashboardOperations['toggleDashboardQuickMarkerPin']>) => getDashboardView().toggleDashboardQuickMarkerPin(...args);
 
-/** @param {Parameters<ReturnType<typeof createRecommendationActions>['openRecommendationDetail']>} args */
-export function openRecommendationDetail(...args) { return getRecommendationActions().openRecommendationDetail(...args); }
-/** @param {Parameters<ReturnType<typeof createRecommendationActions>['discussRecommendation']>} args */
-export function discussRecommendation(...args) { return getRecommendationActions().discussRecommendation(...args); }
-/** @param {Parameters<ReturnType<typeof createRecommendationActions>['saveRecommendation']>} args */
-export function saveRecommendation(...args) { return getRecommendationActions().saveRecommendation(...args); }
-/** @param {Parameters<ReturnType<typeof createRecommendationActions>['dismissRecommendation']>} args */
-export function dismissRecommendation(...args) { return getRecommendationActions().dismissRecommendation(...args); }
+export function openRecommendationDetail(...args: Parameters<ReturnType<typeof createRecommendationActions>['openRecommendationDetail']>) { return getRecommendationActions().openRecommendationDetail(...args); }
+export function discussRecommendation(...args: Parameters<ReturnType<typeof createRecommendationActions>['discussRecommendation']>) { return getRecommendationActions().discussRecommendation(...args); }
+export function saveRecommendation(...args: Parameters<ReturnType<typeof createRecommendationActions>['saveRecommendation']>) { return getRecommendationActions().saveRecommendation(...args); }
+export function dismissRecommendation(...args: Parameters<ReturnType<typeof createRecommendationActions>['dismissRecommendation']>) { return getRecommendationActions().dismissRecommendation(...args); }
 
 configureCompareCorrelationViews({
   renderTableColgroup,

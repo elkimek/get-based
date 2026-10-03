@@ -1,4 +1,3 @@
-// @ts-check
 // dashboard-widget-renderers.js - dashboard widget body renderers
 
 import { state } from './state.js';
@@ -19,20 +18,22 @@ import { escapeAttr, escapeHTML, safeMarkerId } from './utils.js';
 import { renderBiologyScoresWidget, renderDashboardBiologyScoreWidget, renderDashboardBiologicalCoherenceWidget } from './biology-scores.js';
 import { wearableDisplayUnit } from './wearables-formatters.js';
 
+import type {WidgetRendererDependencies, BiometricTile, GenomeStored, GenomeProfile, GenomeEvidence, GenomeFinding, GenomeGroup, GenomeGenetics, GenomeHaplogroupTable, MtdnaReader, MtdnaStudyReader, WearableConnectionReader} from '../types/dashboard-widget-renderers.js';
+
 const DASHBOARD_BIOMETRIC_STALE_MS = 12 * 60 * 60 * 1000;
 
-function dashboardNavigateAttrs(route) {
+function dashboardNavigateAttrs(route: unknown) {
   return dashboardWidgetActionAttrs('navigate', { route });
 }
 
-function dashboardMarkerDetailAttrs(id) {
+function dashboardMarkerDetailAttrs(id: unknown) {
   return dashboardWidgetActionAttrs('open-marker-detail', { id });
 }
 
-export function createDashboardWidgetRenderers(deps) {
-  let _dashboardGenomeDataLoadPromise = null;
-  let _dashboardGenomeEvidence = null;
-  let _lightSunModulesLoadPromise = null;
+export function createDashboardWidgetRenderers(deps: unknown) {
+  let _dashboardGenomeDataLoadPromise: Promise<void> | null = null;
+  let _dashboardGenomeEvidence: GenomeEvidence | null = null;
+  let _lightSunModulesLoadPromise: unknown = null;
 
   const {
     markerHasData,
@@ -51,7 +52,7 @@ export function createDashboardWidgetRenderers(deps) {
     rerenderDashboardFromWidgetChange,
     renderLightTodayHero = () => '',
     showRecommendations,
-  } = deps;
+  } = deps as WidgetRendererDependencies;
 
   function renderLightSunLoadingState() {
     if (!_lightSunModulesLoadPromise) {
@@ -148,7 +149,7 @@ export function createDashboardWidgetRenderers(deps) {
     </div>`;
   }
 
-  function renderDashboardInsightsListWidget(ctx) {
+  function renderDashboardInsightsListWidget(ctx: unknown) {
     const markers = getMobileDashboardMarkers(ctx);
     const insights = getMobileDashboardInsights(ctx, markers);
     if (!insights.length) return '';
@@ -162,12 +163,12 @@ export function createDashboardWidgetRenderers(deps) {
     }).join('')}</div>`;
   }
 
-  function isDashboardManualBiometricMetric(metricId) {
-    return DASHBOARD_MANUAL_BIOMETRIC_METRICS.includes(metricId);
+  function isDashboardManualBiometricMetric(metricId: unknown) {
+    return (DASHBOARD_MANUAL_BIOMETRIC_METRICS as readonly unknown[]).includes(metricId);
   }
 
   function getDashboardBiometricMetricOrder() {
-    const summary = state.importedData?.wearableSummary;
+    const summary = state.importedData?.wearableSummary as import("../types/mobile-dashboard.js").MobileWearableReader | null | undefined;
     const sourceIds = Object.keys(summary?.sources || {});
     const registryOrder = metricsForSources(sourceIds);
     const ordered = [
@@ -177,27 +178,27 @@ export function createDashboardWidgetRenderers(deps) {
       ...Object.keys(summary?.metrics || {}),
       ...DASHBOARD_MANUAL_BIOMETRIC_METRICS,
     ];
-    const seen = new Set();
+    const seen = new Set<unknown>();
     return ordered.filter(metricId => {
       if (!safeMarkerId(metricId) || seen.has(metricId)) return false;
       seen.add(metricId);
-      return !!canonicalMetric(metricId);
+      return !!(canonicalMetric as (id:unknown)=>ReturnType<typeof canonicalMetric>)(metricId);
     });
   }
 
   function getDashboardDefaultBiometricSelection() {
     const defaults = getMobileWearableTiles().map(tile => tile.id);
     if (defaults.length) return defaults;
-    return DASHBOARD_MANUAL_BIOMETRIC_METRICS.filter(metricId => !!canonicalMetric(metricId));
+    return DASHBOARD_MANUAL_BIOMETRIC_METRICS.filter(metricId => !!(canonicalMetric as (id:unknown)=>ReturnType<typeof canonicalMetric>)(metricId));
   }
 
-  function normalizeDashboardBiometricSelection(ids) {
-    const out = [];
-    const seen = new Set();
-    for (const metricId of Array.isArray(ids) ? ids : []) {
-      if (!safeMarkerId(metricId) || seen.has(metricId) || !canonicalMetric(metricId)) continue;
+  function normalizeDashboardBiometricSelection(ids: unknown) {
+    const out: string[] = [];
+    const seen = new Set<unknown>();
+    for (const metricId of Array.isArray(ids) ? ids as unknown[] : []) {
+      if (!safeMarkerId(metricId) || seen.has(metricId) || !(canonicalMetric as (id:unknown)=>ReturnType<typeof canonicalMetric>)(metricId)) continue;
       if (metricId === 'bp_diastolic' && seen.has('bp_systolic')) continue;
-      out.push(metricId);
+      out.push(metricId as string);
       seen.add(metricId);
     }
     return out;
@@ -206,16 +207,16 @@ export function createDashboardWidgetRenderers(deps) {
   function getDashboardBiometricSelection() {
     try {
       const raw = localStorage.getItem(dashboardBiometricSelectionKey());
-      if (raw != null) return normalizeDashboardBiometricSelection(JSON.parse(raw));
+      if (raw != null) return normalizeDashboardBiometricSelection(JSON.parse(raw) as unknown);
     } catch {}
     return normalizeDashboardBiometricSelection(getDashboardDefaultBiometricSelection());
   }
 
-  function saveDashboardBiometricSelection(ids) {
+  function saveDashboardBiometricSelection(ids: unknown) {
     localStorage.setItem(dashboardBiometricSelectionKey(), JSON.stringify(normalizeDashboardBiometricSelection(ids)));
   }
 
-  function formatDashboardRelativeTime(ts) {
+  function formatDashboardRelativeTime(ts: unknown) {
     const n = Number(ts);
     if (!Number.isFinite(n) || n <= 0) return 'never';
     const diff = Math.max(0, Date.now() - n);
@@ -229,7 +230,7 @@ export function createDashboardWidgetRenderers(deps) {
   }
 
   function getDashboardBiometricSyncState() {
-    const connections = state.importedData?.wearableConnections || {};
+    const connections = (state.importedData?.wearableConnections || {}) as Record<string,WearableConnectionReader>;
     const sources = Object.values(connections).filter(conn => conn?.connectedAt && conn?.accessToken && !conn.needsReauth);
     if (!sources.length) return { showSync: false, lastSyncAt: 0 };
     const now = Date.now();
@@ -246,10 +247,10 @@ export function createDashboardWidgetRenderers(deps) {
       ${syncState.showSync ? `<button type="button" class="dashboard-action-btn db-biometric-sync-btn" ${dashboardWidgetActionAttrs('sync-biometric-now')}>Sync stale data</button>` : ''}`;
   }
 
-  function getDashboardBiometricTile(metricId, { allowEmptyManual = false } = {}) {
-    const summary = state.importedData?.wearableSummary;
-    const metric = summary?.metrics?.[metricId];
-    const canon = canonicalMetric(metricId);
+  function getDashboardBiometricTile(metricId: unknown, { allowEmptyManual = false }: {allowEmptyManual?:unknown} = {}): BiometricTile | null {
+    const summary = state.importedData?.wearableSummary as import("../types/mobile-dashboard.js").MobileWearableReader | null | undefined;
+    const metric = summary?.metrics?.[metricId as string];
+    const canon = (canonicalMetric as (id:unknown)=>ReturnType<typeof canonicalMetric>)(metricId);
     if (!canon) return null;
     if (!summary || !metric || metric.latest == null) {
       if (!allowEmptyManual || !isDashboardManualBiometricMetric(metricId)) return null;
@@ -259,7 +260,7 @@ export function createDashboardWidgetRenderers(deps) {
         value: '\u2014',
         unit: metricId === 'bp_systolic'
           ? 'mmHg'
-          : (wearableDisplayUnit(metricId, canon.unit || '', state.unitSystem) || canon.sub || ''),
+          : ((wearableDisplayUnit as (id:unknown,unit:unknown,system:unknown)=>unknown)(metricId, canon.unit || '', state.unitSystem) || canon.sub || ''),
         change: '+ Log',
         empty: true,
       };
@@ -270,13 +271,13 @@ export function createDashboardWidgetRenderers(deps) {
       value: formatMobileWearableValue(metricId, metric, summary),
       unit: metricId === 'bp_systolic'
         ? 'mmHg'
-        : (wearableDisplayUnit(metricId, canon.unit || '', state.unitSystem) || canon.sub || ''),
+        : ((wearableDisplayUnit as (id:unknown,unit:unknown,system:unknown)=>unknown)(metricId, canon.unit || '', state.unitSystem) || canon.sub || ''),
       change: formatMobileWearableDelta(metricId, metric, canon) || 'latest',
       empty: false,
     };
   }
 
-  function renderDashboardBiometricTile(tile) {
+  function renderDashboardBiometricTile(tile: BiometricTile & {label:string;value:string;unit:string}) {
     const remove = `<button type="button" class="db-biometric-remove" ${dashboardWidgetActionAttrs('remove-biometric-metric', { id: tile.id })} aria-label="Remove ${escapeAttr(tile.label)} from Biometrics Overview" title="Remove metric">&times;</button>`;
     if (tile.empty) {
       return `<div class="db-biometric-tile-wrap">
@@ -302,7 +303,7 @@ export function createDashboardWidgetRenderers(deps) {
     const selected = getDashboardBiometricSelection();
     const tiles = selected
       .map(metricId => getDashboardBiometricTile(metricId, { allowEmptyManual: true }))
-      .filter(Boolean);
+      .filter(Boolean) as Array<BiometricTile & {label:string;value:string;unit:string}>;
     const syncStatus = renderDashboardBiometricSyncStatus();
     const toolbar = `<div class="db-biometric-overview-bar">
       <span>${escapeHTML(String(tiles.length))} metric${tiles.length === 1 ? '' : 's'} selected</span>
@@ -327,13 +328,13 @@ export function createDashboardWidgetRenderers(deps) {
       snpFindingPresentation: getDnaModuleFunction('snpFindingPresentation'),
       snpFindingRank: getDnaModuleFunction('snpFindingRank'),
     };
-    return Object.values(helpers).every(helper => typeof helper === 'function') ? helpers : null;
+    return Object.values(helpers).every(helper => typeof helper === 'function') ? helpers as unknown as GenomeEvidence : null;
   }
 
-  function getDashboardGenomeImpact(stored, entry) {
+  function getDashboardGenomeImpact(stored: GenomeStored, entry: GenomeStored | null | undefined) {
     const evidence = _dashboardGenomeEvidence;
     if (!evidence) return { label: 'pending', tone: 'pending', rank: 999, note: stored?.note || '', evidenceProfile: null };
-    const info = entry ? findGenotypeInfo(entry, stored?.genotype) : null;
+    const info = entry ? (findGenotypeInfo as (entry:unknown,genotype:unknown)=>GenomeStored|null)(entry, stored?.genotype) : null;
     const effect = info?.effect || stored?.effect || '';
     const valence = info?.valence || stored?.valence || 'risk';
     const note = info?.note || stored?.note || '';
@@ -349,20 +350,20 @@ export function createDashboardWidgetRenderers(deps) {
     };
   }
 
-  const DASHBOARD_VISIBLE_SNP_TONES = new Set(['risk', 'protective', 'trait']);
+  const DASHBOARD_VISIBLE_SNP_TONES = new Set<unknown>(['risk', 'protective', 'trait']);
 
-  function dashboardSnpAssessmentText(profile) {
+  function dashboardSnpAssessmentText(profile: GenomeProfile) {
     const evidence = profile.evidenceShortLabel === 'Not graded'
       ? 'Evidence not graded'
       : `${profile.evidenceShortLabel} evidence`;
     return `${evidence} · ${profile.relevanceShortLabel}`;
   }
 
-  function renderDashboardSnpEvidence(f) {
+  function renderDashboardSnpEvidence(f: GenomeFinding) {
     const evidence = _dashboardGenomeEvidence;
     if (!evidence) return '';
     const references = Array.isArray(f.references)
-      ? f.references.filter(reference => /^https?:\/\//i.test(String(reference || '')))
+      ? (f.references as unknown[]).filter(reference => /^https?:\/\//i.test(String(reference || '')))
       : [];
     const issueUrl = evidence.snpEvidenceIssueUrl(f.rsid, f.catalogEntry || {});
     const profile = f.evidenceProfile || evidence.resolveSnpEvidenceProfile(f.catalogEntry || {}, f);
@@ -386,7 +387,7 @@ export function createDashboardWidgetRenderers(deps) {
     </details>`;
   }
 
-  function renderDashboardGenomeRow(f, { showCategoryLabel = true } = {}) {
+  function renderDashboardGenomeRow(f: GenomeFinding, { showCategoryLabel = true }: {showCategoryLabel?:unknown} = {}) {
     const subline = [
       f.variant || f.rsid,
       showCategoryLabel ? f.categoryLabel : '',
@@ -403,7 +404,7 @@ export function createDashboardWidgetRenderers(deps) {
     </div>`;
   }
 
-  function renderDashboardMtdnaEvidenceStudy(study) {
+  function renderDashboardMtdnaEvidenceStudy(study: MtdnaStudyReader | null | undefined) {
     const pmid = String(study?.pmid || '').replace(/\D/g, '');
     const direction = String(study?.direction || 'context').toLowerCase();
     return `<article class="db-mtdna-study db-mtdna-study-${escapeAttr(direction)}">
@@ -420,9 +421,9 @@ export function createDashboardWidgetRenderers(deps) {
     </article>`;
   }
 
-  function renderDashboardMtdnaPanel(mtdna, haplogroupTable, genetics) {
+  function renderDashboardMtdnaPanel(mtdna: MtdnaReader, haplogroupTable: GenomeHaplogroupTable | null | undefined, genetics: GenomeGenetics) {
     const evidence = _dashboardGenomeEvidence;
-    const mismatch = detectMtDNAMismatch(genetics);
+    const mismatch = (detectMtDNAMismatch as (genetics:unknown)=>ReturnType<typeof detectMtDNAMismatch>)(genetics);
     const studies = Array.isArray(haplogroupTable?._meta?.references) ? haplogroupTable._meta.references : [];
     const facts = [
       mtdna.origin ? `<span><small>Origin</small><strong>${escapeHTML(mtdna.origin)}</strong></span>` : '',
@@ -464,8 +465,8 @@ export function createDashboardWidgetRenderers(deps) {
     </div>`;
   }
 
-  function groupDashboardGenomeFindings(findings) {
-    const groups = new Map();
+  function groupDashboardGenomeFindings(findings: GenomeFinding[]) {
+    const groups = new Map<unknown,GenomeGroup>();
     for (const f of findings) {
       const category = f.category || 'other';
       if (!groups.has(category)) {
@@ -478,9 +479,9 @@ export function createDashboardWidgetRenderers(deps) {
           impactLabel: 'pending',
         });
       }
-      const group = groups.get(category);
+      const group = groups.get(category)!;
       group.findings.push(f);
-      if ((f.impactRank ?? 99) < group.rank) {
+      if (((f.impactRank ?? 99) as number) < (group.rank as number)) {
         group.rank = f.impactRank ?? 99;
         group.tone = f.impactTone || 'pending';
         group.impactLabel = f.impactLabel || 'pending';
@@ -489,12 +490,12 @@ export function createDashboardWidgetRenderers(deps) {
     return Array.from(groups.values())
       .map(group => ({
         ...group,
-        findings: group.findings.slice().sort((a, b) => (a.impactRank - b.impactRank) || String(a.gene || a.rsid).localeCompare(String(b.gene || b.rsid)) || String(a.variant || '').localeCompare(String(b.variant || ''))),
+        findings: group.findings.slice().sort((a, b) => ((a.impactRank as number) - (b.impactRank as number)) || String(a.gene || a.rsid).localeCompare(String(b.gene || b.rsid)) || String(a.variant || '').localeCompare(String(b.variant || ''))),
       }))
-      .sort((a, b) => (a.rank - b.rank) || String(a.categoryLabel).localeCompare(String(b.categoryLabel)));
+      .sort((a, b) => ((a.rank as number) - (b.rank as number)) || String(a.categoryLabel).localeCompare(String(b.categoryLabel)));
   }
 
-  function renderDashboardGenomeGroup(group, { secondary = false } = {}) {
+  function renderDashboardGenomeGroup(group: GenomeGroup, { secondary = false }: {secondary?:unknown} = {}) {
     const count = group.findings.length;
     return `<div class="db-genome-category db-genome-category-${escapeAttr(group.tone || 'pending')}${secondary ? ' db-genome-category-secondary' : ''}">
       <div class="db-genome-category-head">
@@ -506,7 +507,7 @@ export function createDashboardWidgetRenderers(deps) {
     </div>`;
   }
 
-  function refreshDashboardGenomeWidgetWhenDataReady({ needsSnps = false, needsMtdna = false, needsEvidence = false } = {}) {
+  function refreshDashboardGenomeWidgetWhenDataReady({ needsSnps = false, needsMtdna = false, needsEvidence = false }: {needsSnps?:unknown;needsMtdna?:unknown;needsEvidence?:unknown} = {}) {
     if (_dashboardGenomeDataLoadPromise) return;
     _dashboardGenomeDataLoadPromise = Promise.all([
       needsSnps ? ensureSNPTable() : Promise.resolve(null),
@@ -523,11 +524,11 @@ export function createDashboardWidgetRenderers(deps) {
   }
 
   function renderDashboardGenomeWidget() {
-    const genetics = state.importedData?.genetics;
+    const genetics = state.importedData?.genetics as GenomeGenetics | null | undefined;
     const snps = genetics?.snps || {};
     const apoe = genetics?.apoe;
-    const snpTable = getDashboardSnpTableCache();
-    const haplogroupTable = getDashboardHaplogroupTableCache();
+    const snpTable = getDashboardSnpTableCache() as Record<string,GenomeStored> | null;
+    const haplogroupTable = getDashboardHaplogroupTableCache() as GenomeHaplogroupTable | null;
     const snpCount = Object.keys(snps).length;
     _dashboardGenomeEvidence ||= getDashboardGenomeEvidence();
     const needsSnps = !!snpCount && !snpTable;
@@ -544,8 +545,8 @@ export function createDashboardWidgetRenderers(deps) {
         </div>
       </div>`;
     }
-    const apoeProfile = _dashboardGenomeEvidence.resolveSnpEvidenceProfile((/** @type {{ rs429358?: unknown } | null} */ (snpTable))?.rs429358 || (/** @type {{ rs7412?: unknown } | null} */ (snpTable))?.rs7412 || {});
-    const findings = Object.entries(snps)
+    const apoeProfile = _dashboardGenomeEvidence!.resolveSnpEvidenceProfile((snpTable)?.rs429358 || (snpTable)?.rs7412 || {});
+    const findings: GenomeFinding[] = Object.entries(snps)
       .map(([rsid, stored]) => {
         const entry = snpTable?.[rsid];
         const impact = getDashboardGenomeImpact(stored, entry);
@@ -565,7 +566,7 @@ export function createDashboardWidgetRenderers(deps) {
         };
       })
       .filter(f => f.gene || f.variant || f.genotype)
-      .sort((a, b) => (a.impactRank - b.impactRank) || String(a.gene || a.rsid).localeCompare(String(b.gene || b.rsid)) || String(a.variant || '').localeCompare(String(b.variant || '')));
+      .sort((a, b) => ((a.impactRank as number) - (b.impactRank as number)) || String(a.gene || a.rsid).localeCompare(String(b.gene || b.rsid)) || String(a.variant || '').localeCompare(String(b.variant || '')));
     if (!findings.length && !apoe && !genetics?.mtdna) {
       return `<div class="db-genome-list">
         <div class="db-genome-empty">

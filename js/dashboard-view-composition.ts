@@ -1,4 +1,3 @@
-// @ts-check
 // dashboard-view-composition.js - dashboard route/widget composition wiring
 
 import { state } from './state.js';
@@ -40,8 +39,8 @@ import {
   getMobileWearablePriority,
 } from './mobile-dashboard.js';
 
-function markerHasData(m) {
-  return m.values?.some(v => v !== null) ?? false;
+function markerHasData(m: unknown) {
+  return (m as {values?:{some(callback:(value:unknown)=>boolean):unknown}|null}).values?.some(v => v !== null) ?? false;
 }
 
 export function createDashboardViewComposition({
@@ -52,8 +51,8 @@ export function createDashboardViewComposition({
   loadFocusCard,
   renderOnboardingBanner,
   renderAIConnectionReminder,
-}) {
-  let dashboardWidgetControls;
+}: {navigate:unknown;showRecommendations:unknown;showEmojiPicker:unknown;renderFocusCard:unknown;loadFocusCard:unknown;renderOnboardingBanner:unknown;renderAIConnectionReminder:unknown}) {
+  let dashboardWidgetControls: ReturnType<typeof createDashboardWidgetControls> | undefined;
 
   function rerenderDashboardFromWidgetChange() {
     if (state.currentView === 'dashboard') navigateViewportRuntime('dashboard');
@@ -123,18 +122,14 @@ export function createDashboardViewComposition({
   });
   configureMarkerDetailModal({ navigate, isDashboardQuickMarkerPinned, toggleDashboardQuickMarkerPin, showEmojiPicker });
 
-  /**
-   * @param {string} widgetId
-   * @param {{data: any, filteredData: any} | null} [ctx]
-   */
-  function getDashboardMarkerWidgetDefinition(widgetId, ctx = null) {
+  function getDashboardMarkerWidgetDefinition(widgetId: unknown, ctx: {data?:unknown;filteredData?:unknown}|null = null) {
     const markerId = dashboardMarkerIdFromWidgetId(widgetId);
     if (!markerId) return null;
     const hit = ctx
       ? (getDashboardMarkerById(ctx.data, markerId) || getDashboardMarkerById(ctx.filteredData, markerId))
       : getDashboardMarkerById(getActiveData(), markerId);
-    const title = hit?.marker?.name || markerId.replace(/_/g, ' ');
-    const category = hit?.category?.label || 'Single marker';
+    const title = (hit?.marker as {name?:unknown}|null|undefined)?.name || markerId.replace(/_/g, ' ');
+    const category = (hit?.category as {label?:unknown}|null|undefined)?.label || 'Single marker';
     return {
       id: widgetId,
       title,
@@ -142,7 +137,7 @@ export function createDashboardViewComposition({
       description: `${category} marker widget`,
       size: 'quarter',
       customMarkerWidget: true,
-      render: (renderCtx) => renderDashboardSingleMarkerWidget(renderCtx, markerId),
+      render: (renderCtx: import("../types/dashboard-lab-widget-renderers.js").LabContext) => renderDashboardSingleMarkerWidget(renderCtx, markerId),
     };
   }
 
@@ -226,20 +221,20 @@ export function createDashboardViewComposition({
     renderDashboardStickyControls,
     renderDashboardControlButtons,
     renderDashboardWidget,
-    isDashboardOrganizeMode: () => dashboardWidgetControls.isOrganizeMode(),
+    isDashboardOrganizeMode: () => dashboardWidgetControls!.isOrganizeMode(),
     loadFocusCard,
     loadContextCardTips,
     ensureActiveDeviceTicker: ensureLoadedActiveDeviceTicker,
     resumeActiveTickerIfNeeded: resumeLoadedActiveSunTickerIfNeeded,
   });
 
-  configureLensPageShell({
-    addDashboardWidgetFromLens: (...args) => dashboardWidgetControls.addDashboardWidgetFromLens(...args),
+  (configureLensPageShell as (deps:unknown)=>ReturnType<typeof configureLensPageShell>)({
+    addDashboardWidgetFromLens: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["addDashboardWidgetFromLens"]>) => dashboardWidgetControls!.addDashboardWidgetFromLens(...args),
     getAvailableDashboardFixedWidgetIds,
     getDashboardWidgetPrefs,
     openChatPanel,
     openDashboardBiometricPicker: () => dashboardWidgetControls.openDashboardBiometricPicker(),
-    removeDashboardWidgetFromLens: (...args) => dashboardWidgetControls.removeDashboardWidgetFromLens(...args),
+    removeDashboardWidgetFromLens: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["removeDashboardWidgetFromLens"]>) => dashboardWidgetControls!.removeDashboardWidgetFromLens(...args),
   });
 
   configureMobileDashboardView({
@@ -247,7 +242,7 @@ export function createDashboardViewComposition({
     getDashboardWidgetPrefs,
     getVisibleDashboardWidgetEntries,
     renderDashboardControlButtons,
-    isDashboardOrganizeMode: () => dashboardWidgetControls.isOrganizeMode(),
+    isDashboardOrganizeMode: () => dashboardWidgetControls!.isOrganizeMode(),
     renderDashboardWidget,
     setupDropZone,
     loadCommitHash,
@@ -259,7 +254,7 @@ export function createDashboardViewComposition({
   });
 
   return {
-    showDashboard: (...args) => dashboardPageView.showDashboard(...args),
+    showDashboard: (...args: Parameters<typeof dashboardPageView.showDashboard>) => dashboardPageView.showDashboard(...args),
     buildDashboardWidgetContext,
     getCachedRecommendationsCatalog,
     refreshRecommendationsWhenCatalogReady,
@@ -274,32 +269,32 @@ export function createDashboardViewComposition({
     renderDashboardRecommendationsWidget,
     renderLabsPriorityBanner,
     getDashboardWidgetPrefs,
-    setRecommendationState: (...args) => dashboardWidgetRenderers.setRecommendationState(...args),
-    toggleDashboardOrganizeMode: (...args) => dashboardWidgetControls.toggleDashboardOrganizeMode(...args),
-    moveDashboardWidget: (...args) => dashboardWidgetControls.moveDashboardWidget(...args),
-    hideDashboardWidget: (...args) => dashboardWidgetControls.hideDashboardWidget(...args),
-    showDashboardWidget: (...args) => dashboardWidgetControls.showDashboardWidget(...args),
-    addDashboardWidgetFromLens: (...args) => dashboardWidgetControls.addDashboardWidgetFromLens(...args),
-    removeDashboardWidgetFromLens: (...args) => dashboardWidgetControls.removeDashboardWidgetFromLens(...args),
-    addDashboardMarkerWidget: (...args) => dashboardWidgetControls.addDashboardMarkerWidget(...args),
-    addDashboardBiometricMetric: (...args) => dashboardWidgetControls.addDashboardBiometricMetric(...args),
-    addDashboardBiometricWidget: (...args) => dashboardWidgetControls.addDashboardBiometricWidget(...args),
-    removeDashboardBiometricMetric: (...args) => dashboardWidgetControls.removeDashboardBiometricMetric(...args),
-    filterDashboardMarkerWidgetPicker: (...args) => dashboardWidgetControls.filterDashboardMarkerWidgetPicker(...args),
-    filterDashboardBiometricWidgetPicker: (...args) => dashboardWidgetControls.filterDashboardBiometricWidgetPicker(...args),
-    /** @param {[]} args */
-    resetDashboardWidgets: (...args) => dashboardWidgetControls.resetDashboardWidgets(...args),
-    /** @param {[]} args */
-    clearDashboardWidgets: (...args) => dashboardWidgetControls.clearDashboardWidgets(...args),
-    /** @param {[]} args */
-    openDashboardWidgetPicker: (...args) => dashboardWidgetControls.openDashboardWidgetPicker(...args),
-    /** @param {[]} args */
-    openDashboardBiometricPicker: (...args) => dashboardWidgetControls.openDashboardBiometricPicker(...args),
-    /** @param {[]} args */
-    closeDashboardWidgetPicker: (...args) => dashboardWidgetControls.closeDashboardWidgetPicker(...args),
-    startDashboardWidgetDrag: (...args) => dashboardWidgetControls.startDashboardWidgetDrag(...args),
-    allowDashboardWidgetDrop: (...args) => dashboardWidgetControls.allowDashboardWidgetDrop(...args),
-    dropDashboardWidget: (...args) => dashboardWidgetControls.dropDashboardWidget(...args),
+    setRecommendationState: (...args: Parameters<typeof dashboardWidgetRenderers.setRecommendationState>) => dashboardWidgetRenderers.setRecommendationState(...args),
+    toggleDashboardOrganizeMode: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["toggleDashboardOrganizeMode"]>) => dashboardWidgetControls!.toggleDashboardOrganizeMode(...args),
+    moveDashboardWidget: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["moveDashboardWidget"]>) => dashboardWidgetControls!.moveDashboardWidget(...args),
+    hideDashboardWidget: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["hideDashboardWidget"]>) => dashboardWidgetControls!.hideDashboardWidget(...args),
+    showDashboardWidget: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["showDashboardWidget"]>) => dashboardWidgetControls!.showDashboardWidget(...args),
+    addDashboardWidgetFromLens: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["addDashboardWidgetFromLens"]>) => dashboardWidgetControls!.addDashboardWidgetFromLens(...args),
+    removeDashboardWidgetFromLens: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["removeDashboardWidgetFromLens"]>) => dashboardWidgetControls!.removeDashboardWidgetFromLens(...args),
+    addDashboardMarkerWidget: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["addDashboardMarkerWidget"]>) => dashboardWidgetControls!.addDashboardMarkerWidget(...args),
+    addDashboardBiometricMetric: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["addDashboardBiometricMetric"]>) => dashboardWidgetControls!.addDashboardBiometricMetric(...args),
+    addDashboardBiometricWidget: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["addDashboardBiometricWidget"]>) => dashboardWidgetControls!.addDashboardBiometricWidget(...args),
+    removeDashboardBiometricMetric: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["removeDashboardBiometricMetric"]>) => dashboardWidgetControls!.removeDashboardBiometricMetric(...args),
+    filterDashboardMarkerWidgetPicker: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["filterDashboardMarkerWidgetPicker"]>) => dashboardWidgetControls!.filterDashboardMarkerWidgetPicker(...args),
+    filterDashboardBiometricWidgetPicker: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["filterDashboardBiometricWidgetPicker"]>) => dashboardWidgetControls!.filterDashboardBiometricWidgetPicker(...args),
+
+    resetDashboardWidgets: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["resetDashboardWidgets"]>) => dashboardWidgetControls!.resetDashboardWidgets(...args),
+
+    clearDashboardWidgets: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["clearDashboardWidgets"]>) => dashboardWidgetControls!.clearDashboardWidgets(...args),
+
+    openDashboardWidgetPicker: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["openDashboardWidgetPicker"]>) => dashboardWidgetControls!.openDashboardWidgetPicker(...args),
+
+    openDashboardBiometricPicker: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["openDashboardBiometricPicker"]>) => dashboardWidgetControls!.openDashboardBiometricPicker(...args),
+
+    closeDashboardWidgetPicker: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["closeDashboardWidgetPicker"]>) => dashboardWidgetControls!.closeDashboardWidgetPicker(...args),
+    startDashboardWidgetDrag: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["startDashboardWidgetDrag"]>) => dashboardWidgetControls!.startDashboardWidgetDrag(...args),
+    allowDashboardWidgetDrop: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["allowDashboardWidgetDrop"]>) => dashboardWidgetControls!.allowDashboardWidgetDrop(...args),
+    dropDashboardWidget: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["dropDashboardWidget"]>) => dashboardWidgetControls!.dropDashboardWidget(...args),
     toggleDashboardQuickMarkerPin,
   };
 }

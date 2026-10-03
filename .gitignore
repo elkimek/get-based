@@ -1275,3 +1275,27 @@ deploy/profile-share/data/
 
 /scripts/dom-sink-audit.mjs
 /scripts/strict-null-ratchet.mjs
+
+/js/app-shell-hooks.js
+/js/biology-score-ai-context.js
+/js/biology-scores.js
+/js/dashboard-lab-widget-renderers.js
+/js/dashboard-recommendation-widget.js
+/js/dashboard-view-composition.js
+/js/dashboard-widget-controls.js
+/js/dashboard-widget-renderers.js
+/js/dashboard-widgets.js
+/js/lens-pages.js
+/js/light-channel-view-ui-hooks.js
+/js/light-env-shell-hooks.js
+/js/light-page-view-ui-hooks.js
+/js/light-tools-ui-hooks.js
+/js/main.js
+/js/sun-session-ui-hooks.js
+/js/views.js
+/types/biology-scores.js
+/types/dashboard-widgets.js
+/types/dashboard-widget-controls.js
+/types/dashboard-lab-widget-renderers.js
+/types/dashboard-recommendation-widget.js
+/types/dashboard-widget-renderers.js

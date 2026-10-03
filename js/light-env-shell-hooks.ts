@@ -1,4 +1,3 @@
-// @ts-check
 // light-env-shell-hooks.js - wire Light Environment shell actions without window lookups.
 
 import { configureAppEventListeners } from './app-event-listeners.js';

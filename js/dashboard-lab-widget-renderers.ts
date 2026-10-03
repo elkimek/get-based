@@ -1,4 +1,3 @@
-// @ts-check
 // dashboard-lab-widget-renderers.js - dashboard Labs/marker widget renderers
 
 import { state } from './state.js';
@@ -11,54 +10,56 @@ import { detectTrendAlerts, getAllFlaggedMarkers, getEffectiveRange, getEffectiv
 import { getBiologyProfileContext } from './profile-context.js';
 import { getMarkerStorageViewId, resolveActiveMarkerPath, resolveMarkerStorageViewId } from './marker-placement.js';
 
-function dashboardNavigateAttrs(route) {
+import type {LabData, LabContext, LabHit, LabOperationHit, LabRenderHit, LabPriority, LabQuickPriority, LabScoredHit, LabQuickHit, LabCorrelationPair, LabPersistedReader, LabAlert, LabKeyMarker, LabFlag} from '../types/dashboard-lab-widget-renderers.js';
+
+function dashboardNavigateAttrs(route: unknown) {
   return dashboardWidgetActionAttrs('navigate', { route });
 }
-function dashboardMarkerDetailAttrs(id) {
+function dashboardMarkerDetailAttrs(id: unknown) {
   return dashboardWidgetActionAttrs('open-marker-detail', { id });
 }
-export function createDashboardLabWidgetRenderers(deps) {
+export function createDashboardLabWidgetRenderers(deps: unknown) {
   const {
     markerHasData,
     rerenderDashboardFromWidgetChange,
-  } = deps;
+  } = deps as {markerHasData(marker:unknown):unknown;rerenderDashboardFromWidgetChange():unknown};
 
-  function buildDashboardWidgetContext(data) {
-    const filteredData = filterDatesByRange(data);
-    const keyMarkers = getKeyTrendMarkers(filteredData);
-    const trendAlerts = detectTrendAlerts(filteredData);
+  function buildDashboardWidgetContext(data: unknown) {
+    const filteredData = (filterDatesByRange as (data:unknown)=>unknown)(data);
+    const keyMarkers = (getKeyTrendMarkers as (data:unknown)=>LabKeyMarker[])(filteredData);
+    const trendAlerts = (detectTrendAlerts as (data:unknown)=>LabAlert[])(filteredData);
     const trendMarkerIds = new Set(trendAlerts.map(a => a.id));
-    const allFlags = getAllFlaggedMarkers(filteredData);
+    const allFlags = (getAllFlaggedMarkers as (data:unknown)=>LabFlag[])(filteredData);
     const criticalFlags = allFlags.filter(f => {
       if (trendMarkerIds.has(f.id)) return false;
-      const refRange = /** @type {number} */ (f.refMax) - /** @type {number} */ (f.refMin);
+      const refRange = (f.refMax as number) - (f.refMin as number);
       if (refRange <= 0 || f.refMin == null || f.refMax == null) return false;
-      const distance = f.status === 'high' ? (f.rawValue - f.refMax) : (f.refMin - f.rawValue);
+      const distance = f.status === 'high' ? ((f.rawValue as number) - (f.refMax as number)) : ((f.refMin as number) - (f.rawValue as number));
       return distance > refRange * 0.5;
     });
     return { data, filteredData, keyMarkers, trendAlerts, criticalFlags };
   }
 
-  function getDashboardMarkerByPath(data, catKey, markerKey) {
-    const resolved = resolveActiveMarkerPath(data.categories, catKey, markerKey);
+  function getDashboardMarkerByPath(data: unknown, catKey: string, markerKey: string) {
+    const resolved = resolveActiveMarkerPath((data as LabData).categories, catKey, markerKey);
     if (!resolved || !markerHasData(resolved.marker)) return null;
     const { categoryKey, category, marker } = resolved;
     const id = `${categoryKey}_${markerKey}`;
     if (!safeMarkerId(id)) return null;
-    const latestIdx = getLatestValueIndex(marker.values || []);
+    const latestIdx = (getLatestValueIndex as (values:unknown)=>number)(marker.values || []);
     if (latestIdx < 0) return null;
-    const range = getEffectiveRangeForDate(marker, latestIdx);
+    const range = (getEffectiveRangeForDate as (marker:unknown,index:number)=>{min:unknown;max:unknown})(marker, latestIdx);
     const value = marker.values[latestIdx];
-    const status = getStatus(value, range.min, range.max);
-    const trend = getTrend(marker.values || [], range.min, range.max);
-    state.markerRegistry[id] = marker;
+    const status = (getStatus as (value:unknown,min:unknown,max:unknown)=>ReturnType<typeof getStatus>)(value, range.min, range.max);
+    const trend = (getTrend as (values:unknown,min:unknown,max:unknown)=>ReturnType<typeof getTrend>)(marker.values || [], range.min, range.max);
+    (state.markerRegistry as Record<string,unknown>)[id] = marker;
     return { id, storageId: getMarkerStorageViewId(marker, id) || id, category, marker, latestIdx, range, value, status, trend };
   }
-  function getDashboardMarkerById(data, id) {
+  function getDashboardMarkerById(data: unknown, id: unknown): LabHit | null {
     if (!safeMarkerId(id)) return null;
-    const idx = id.indexOf('_');
+    const idx = (id as string).indexOf('_');
     if (idx <= 0) return null;
-    return getDashboardMarkerByPath(data, id.slice(0, idx), id.slice(idx + 1));
+    return getDashboardMarkerByPath(data, (id as string).slice(0, idx), (id as string).slice(idx + 1));
   }
   function getDashboardAge() {
     if (!state.profileDob) return null;
@@ -67,8 +68,8 @@ export function createDashboardLabWidgetRenderers(deps) {
     return Math.floor((Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
   }
 
-  function getDashboardBioAgeMarker(ctx) {
-    const paths = [
+  function getDashboardBioAgeMarker(ctx: LabContext) {
+    const paths: Array<[string,string]> = [
       ['calculatedRatios', 'biologicalAge'],
       ['specialty', 'glycanAge'],
       ['calculatedRatios', 'phenoAge'],
@@ -84,8 +85,8 @@ export function createDashboardLabWidgetRenderers(deps) {
     return null;
   }
 
-  function renderDashboardBioAgeWidget(ctx) {
-    const hit = getDashboardBioAgeMarker(ctx);
+  function renderDashboardBioAgeWidget(ctx: LabContext) {
+    const hit = getDashboardBioAgeMarker(ctx) as LabRenderHit | null;
     const age = getDashboardAge();
     const value = Number(hit?.value);
     const profileContext = getBiologyProfileContext();
@@ -95,10 +96,10 @@ export function createDashboardLabWidgetRenderers(deps) {
     const deltaText = delta == null
       ? (profileContext.lowMuscleMass ? 'Creatinine-based biological age disabled by low-muscle context' : 'Biological-age comparison unavailable')
       : `${delta >= 0 ? '+' : ''}${delta.toFixed(1)} yr vs chronological`;
-    const pheno = getDashboardMarkerByPath(ctx.data, 'calculatedRatios', 'phenoAge')
-      || getDashboardMarkerByPath(ctx.data, 'ratios', 'phenoAge');
-    const bortz = getDashboardMarkerByPath(ctx.data, 'calculatedRatios', 'bortzAge')
-      || getDashboardMarkerByPath(ctx.data, 'ratios', 'bortzAge');
+    const pheno = (getDashboardMarkerByPath(ctx.data, 'calculatedRatios', 'phenoAge')
+      || getDashboardMarkerByPath(ctx.data, 'ratios', 'phenoAge')) as LabRenderHit | null;
+    const bortz = (getDashboardMarkerByPath(ctx.data, 'calculatedRatios', 'bortzAge')
+      || getDashboardMarkerByPath(ctx.data, 'ratios', 'bortzAge')) as LabRenderHit | null;
     const pct = Number.isFinite(value) ? Math.max(4, Math.min(100, (value / 70) * 100)) : 35;
     const tag = hit ? 'button' : 'div';
     const open = hit ? ` type="button" ${dashboardMarkerDetailAttrs(hit.id)} aria-label="${escapeAttr((hit.marker?.name || 'Biological Age') + ': ' + display)}"` : '';
@@ -120,7 +121,7 @@ export function createDashboardLabWidgetRenderers(deps) {
     </${tag}>`;
   }
 
-  function renderDashboardMiniSparkline(values, status, width = 120, height = 30) {
+  function renderDashboardMiniSparkline(values: unknown[] | null | undefined, status: unknown, width = 120, height = 30) {
     const points = (values || []).filter(v => v !== null && Number.isFinite(Number(v))).slice(-10).map(Number);
     if (points.length < 2) return `<span class="db-spark db-spark-empty" aria-hidden="true"></span>`;
     const min = Math.min(...points);
@@ -191,13 +192,13 @@ export function createDashboardLabWidgetRenderers(deps) {
     return profileStorageKey(state.currentProfile || 'default', 'dashboardQuickMarkerPinsV1');
   }
 
-  function normalizeDashboardQuickMarkerPins(ids) {
+  function normalizeDashboardQuickMarkerPins(ids: unknown) {
     const seen = new Set();
-    const normalized = [];
+    const normalized: string[] = [];
     for (const id of Array.isArray(ids) ? ids : []) {
       if (!safeMarkerId(id) || seen.has(id)) continue;
       seen.add(id);
-      normalized.push(id);
+      normalized.push(id as string);
       if (normalized.length >= DASHBOARD_QUICK_MARKERS_MAX) break;
     }
     return normalized;
@@ -211,35 +212,35 @@ export function createDashboardLabWidgetRenderers(deps) {
     }
   }
 
-  function saveDashboardQuickMarkerPins(ids) {
+  function saveDashboardQuickMarkerPins(ids: unknown) {
     localStorage.setItem(dashboardQuickMarkerPinsKey(), JSON.stringify(normalizeDashboardQuickMarkerPins(ids)));
   }
 
-  function isDashboardQuickMarkerPinned(id) {
-    return getDashboardQuickMarkerPins().includes(resolveMarkerStorageViewId(getActiveData().categories, id) || id);
+  function isDashboardQuickMarkerPinned(id: unknown) {
+    return (getDashboardQuickMarkerPins() as readonly unknown[]).includes(resolveMarkerStorageViewId(getActiveData().categories, id) || id);
   }
 
-  function toggleDashboardQuickMarkerPin(id) {
+  function toggleDashboardQuickMarkerPin(id: unknown) {
     if (!safeMarkerId(id)) return;
     id = resolveMarkerStorageViewId(getActiveData().categories, id) || id;
     const pins = getDashboardQuickMarkerPins();
-    const existing = pins.indexOf(id);
+    const existing = pins.indexOf(id as string);
     let pinned = false;
     if (existing >= 0) {
       pins.splice(existing, 1);
     } else {
-      pins.unshift(id);
+      pins.unshift(id as string);
       pinned = true;
     }
     saveDashboardQuickMarkerPins(pins);
     showNotification(pinned ? 'Pinned to Quick Markers' : 'Removed from Quick Markers', pinned ? 'success' : 'info');
     if (state.currentView === 'dashboard') rerenderDashboardFromWidgetChange();
-    if (state._activeDetailMarkerId === id) openDashboardMarkerDetail(id);
+    if (state._activeDetailMarkerId === id) openDashboardMarkerDetail(id as string);
   }
 
   function getDashboardQuickMarkerCoreRanks() {
     const sex = state.profileSex === 'female' ? 'female' : state.profileSex === 'male' ? 'male' : 'default';
-    const ranks = new Map();
+    const ranks = new Map<string,number>();
     (DASHBOARD_QUICK_MARKER_CORE_PATHS[sex] || DASHBOARD_QUICK_MARKER_CORE_PATHS.default).forEach(([cat, key], index) => {
       const id = `${cat}_${key}`;
       if (!ranks.has(id)) ranks.set(id, index);
@@ -248,11 +249,11 @@ export function createDashboardLabWidgetRenderers(deps) {
   }
 
   function getDashboardQuickMarkerGoalMatches() {
-    const matches = new Map();
-    for (const goal of state.importedData?.healthGoals || []) {
+    const matches = new Map<string,{score:number;reason:string}>();
+    for (const goal of (state.importedData as LabPersistedReader)?.healthGoals || []) {
       const text = String(goal?.text || '').trim();
       if (!text) continue;
-      const goalScore = DASHBOARD_QUICK_MARKER_GOAL_SCORE[goal.severity] || DASHBOARD_QUICK_MARKER_GOAL_SCORE.minor;
+      const goalScore = (DASHBOARD_QUICK_MARKER_GOAL_SCORE as Record<string,number>)[goal.severity as string] || DASHBOARD_QUICK_MARKER_GOAL_SCORE.minor;
       for (const rule of DASHBOARD_QUICK_MARKER_GOAL_RULES) {
         if (!rule.pattern.test(text)) continue;
         for (const id of rule.ids) {
@@ -269,8 +270,8 @@ export function createDashboardLabWidgetRenderers(deps) {
     return matches;
   }
 
-  function buildDashboardQuickMarkerPriorityContext(ctx) {
-    const priority = buildDashboardSpotlightPriorityContext(ctx);
+  function buildDashboardQuickMarkerPriorityContext(ctx: LabContext) {
+    const priority = buildDashboardSpotlightPriorityContext(ctx) as LabQuickPriority;
     priority.coreRanks = getDashboardQuickMarkerCoreRanks();
     priority.goalMatches = getDashboardQuickMarkerGoalMatches();
     priority.pins = getDashboardQuickMarkerPins();
@@ -278,7 +279,7 @@ export function createDashboardLabWidgetRenderers(deps) {
     return priority;
   }
 
-  function scoreDashboardQuickMarkerHit(hit, priority) {
+  function scoreDashboardQuickMarkerHit(hit: LabOperationHit, priority: LabQuickPriority) {
     const base = scoreDashboardSpotlightHit(hit, priority);
     let score = base.priorityScore;
     let reason = base.priorityReason;
@@ -313,7 +314,7 @@ export function createDashboardLabWidgetRenderers(deps) {
     };
   }
 
-  function getDashboardPriorityLabel(hit, { pinned = false } = {}) {
+  function getDashboardPriorityLabel(hit: {priorityScore?:unknown}, { pinned = false }: {pinned?:unknown} = {}) {
     if (pinned) return 'Pinned';
     const score = Number(hit?.priorityScore) || 0;
     if (score >= 120) return 'Needs attention';
@@ -322,13 +323,13 @@ export function createDashboardLabWidgetRenderers(deps) {
     return 'Core marker';
   }
 
-  function getDashboardQuickMarkerCandidates(ctx, priority) {
-    const candidates = new Map();
-    const addHit = hit => {
-      if (!hit || hit.marker?.hidden || candidates.has(hit.id)) return;
-      candidates.set(hit.id, hit);
+  function getDashboardQuickMarkerCandidates(ctx: LabContext, priority: LabQuickPriority) {
+    const candidates = new Map<string,LabOperationHit>();
+    const addHit = (hit:LabHit|null) => {
+      if (!hit || (hit as LabOperationHit).marker?.hidden || candidates.has(hit.id)) return;
+      candidates.set(hit.id, hit as LabOperationHit);
     };
-    const addId = id => addHit(getDashboardMarkerById(ctx.data, id) || getDashboardMarkerById(ctx.filteredData, id));
+    const addId = (id:unknown) => addHit(getDashboardMarkerById(ctx.data, id) || getDashboardMarkerById(ctx.filteredData, id));
 
     for (const hit of getDashboardSpotlightCandidates(ctx)) addHit(hit);
     for (const id of priority.pins) addId(id);
@@ -337,7 +338,7 @@ export function createDashboardLabWidgetRenderers(deps) {
     return [...candidates.values()];
   }
 
-  function getDashboardQuickMarkers(ctx) {
+  function getDashboardQuickMarkers(ctx: LabContext) {
     const priority = buildDashboardQuickMarkerPriorityContext(ctx);
     const spotlightId = getDashboardSpotlight(ctx)?.id || '';
     const scored = getDashboardQuickMarkerCandidates(ctx, priority)
@@ -351,7 +352,7 @@ export function createDashboardLabWidgetRenderers(deps) {
         || priority.goalMatches.has(hit.id));
 
     const byId = new Map(scored.map(hit => [hit.storageId || hit.id, hit]));
-    const pinned = priority.pins.map(id => byId.get(id)).filter(Boolean);
+    const pinned = priority.pins.map(id => byId.get(id)).filter(Boolean) as LabQuickHit[];
     const pinnedIds = new Set(pinned.map(hit => hit.id));
     const dynamic = scored
       .filter(hit => !pinnedIds.has(hit.id))
@@ -362,7 +363,7 @@ export function createDashboardLabWidgetRenderers(deps) {
     return [...pinned, ...dynamic].slice(0, DASHBOARD_QUICK_MARKERS_MAX);
   }
 
-  function renderDashboardQuickMarkerTile(hit) {
+  function renderDashboardQuickMarkerTile(hit: LabQuickHit & LabRenderHit) {
     const scoreLabel = getDashboardPriorityLabel(hit, { pinned: hit.quickMarkerPinned });
     const reason = `${scoreLabel} · ${hit.priorityReason || 'latest tracked marker'}`;
     return `<button type="button" class="db-stat-widget db-quick-marker-tile db-status-${escapeAttr(hit.status)}" ${dashboardMarkerDetailAttrs(hit.id)} aria-label="${escapeAttr(hit.marker.name + ': ' + formatValue(hit.value) + ' ' + (hit.marker.unit || ''))}">
@@ -377,16 +378,16 @@ export function createDashboardLabWidgetRenderers(deps) {
     </button>`;
   }
 
-  function renderDashboardQuickMarkersWidget(ctx) {
-    const hits = getDashboardQuickMarkers(ctx);
+  function renderDashboardQuickMarkersWidget(ctx: LabContext) {
+    const hits = getDashboardQuickMarkers(ctx) as Array<LabQuickHit & LabRenderHit>;
     if (!hits.length) return '';
     return `<div class="db-quick-marker-grid">${hits.map(renderDashboardQuickMarkerTile).join('')}</div>`;
   }
 
-  function renderDashboardSingleMarkerWidget(ctx, markerId) {
-    const hit = getDashboardMarkerById(ctx.data, markerId) || getDashboardMarkerById(ctx.filteredData, markerId);
+  function renderDashboardSingleMarkerWidget(ctx: LabContext, markerId: unknown) {
+    const hit = (getDashboardMarkerById(ctx.data, markerId) || getDashboardMarkerById(ctx.filteredData, markerId)) as LabRenderHit | null;
     if (!hit) return '';
-    const range = getEffectiveRange(hit.marker);
+    const range = (getEffectiveRange as (marker:unknown)=>{min:number|null;max:number|null})(hit.marker);
     const rangeText = range.min != null || range.max != null
       ? `Range ${range.min != null ? formatValue(range.min) : '—'}–${range.max != null ? formatValue(range.max) : '—'} ${hit.marker.unit || ''}`
       : 'Custom marker widget';
@@ -411,7 +412,7 @@ export function createDashboardLabWidgetRenderers(deps) {
     approaching_low: 32,
   };
 
-  function dashboardSpotlightConcernLabel(concern) {
+  function dashboardSpotlightConcernLabel(concern: unknown) {
     const labels = {
       sudden_high: 'sudden high trend',
       sudden_low: 'sudden low trend',
@@ -420,13 +421,13 @@ export function createDashboardLabWidgetRenderers(deps) {
       approaching_high: 'approaching upper range',
       approaching_low: 'approaching lower range',
     };
-    return labels[concern] || String(concern || '').replace(/_/g, ' ');
+    return (labels as Record<string,string>)[concern as string] || String(concern || '').replace(/_/g, ' ');
   }
 
-  function getDashboardSpotlightRangeSignal(hit) {
+  function getDashboardSpotlightRangeSignal(hit: LabOperationHit) {
     const value = Number(hit?.value);
-    const min = hit?.range?.min;
-    const max = hit?.range?.max;
+    const min = hit?.range?.min as number | null | undefined;
+    const max = hit?.range?.max as number | null | undefined;
     if (!Number.isFinite(value)) return { outside: 0, edge: 0, reason: '' };
 
     if (min != null && value < min) {
@@ -454,12 +455,12 @@ export function createDashboardLabWidgetRenderers(deps) {
     return { outside: 0, edge: 0, reason: '' };
   }
 
-  function buildDashboardSpotlightPriorityContext(ctx) {
-    const alerts = new Map();
+  function buildDashboardSpotlightPriorityContext(ctx: LabContext) {
+    const alerts = new Map<string,LabAlert>();
     for (const alert of ctx.trendAlerts || []) {
       if (alert?.id && !alerts.has(alert.id)) alerts.set(alert.id, alert);
     }
-    const keyRanks = new Map();
+    const keyRanks = new Map<string,number>();
     (ctx.keyMarkers || []).forEach((km, index) => {
       const id = `${km.cat}_${km.key}`;
       if (!keyRanks.has(id)) keyRanks.set(id, index);
@@ -468,12 +469,12 @@ export function createDashboardLabWidgetRenderers(deps) {
     return { alerts, keyRanks, criticalFlags };
   }
 
-  function scoreDashboardSpotlightHit(hit, priority) {
+  function scoreDashboardSpotlightHit(hit: LabOperationHit, priority: LabPriority) {
     let score = 0;
-    const reasons = [];
+    const reasons: string[] = [];
     const alert = priority.alerts.get(hit.id);
     if (alert) {
-      score += DASHBOARD_SPOTLIGHT_ALERT_SCORE[alert.concern] || 24;
+      score += (DASHBOARD_SPOTLIGHT_ALERT_SCORE as Record<string,number>)[alert.concern] || 24;
       reasons.push(dashboardSpotlightConcernLabel(alert.concern));
     }
 
@@ -512,10 +513,10 @@ export function createDashboardLabWidgetRenderers(deps) {
     };
   }
 
-  function getDashboardSpotlightCandidates(ctx) {
-    const candidates = [];
+  function getDashboardSpotlightCandidates(ctx: LabContext) {
+    const candidates: LabOperationHit[] = [];
     const seen = new Set();
-    const add = (data, catKey, markerKey) => {
+    const add = (data:unknown, catKey:string, markerKey:string) => {
       const id = `${catKey}_${markerKey}`;
       if (seen.has(id)) return;
       const hit = getDashboardMarkerByPath(data, catKey, markerKey);
@@ -524,7 +525,7 @@ export function createDashboardLabWidgetRenderers(deps) {
       candidates.push(hit);
     };
 
-    for (const [catKey, category] of Object.entries(ctx.filteredData?.categories || {})) {
+    for (const [catKey, category] of Object.entries((ctx.filteredData as LabData | null | undefined)?.categories || {})) {
       for (const markerKey of Object.keys(category.markers || {})) add(ctx.filteredData, catKey, markerKey);
     }
     for (const alert of ctx.trendAlerts || []) {
@@ -535,7 +536,7 @@ export function createDashboardLabWidgetRenderers(deps) {
     return candidates;
   }
 
-  function getDashboardSpotlight(ctx) {
+  function getDashboardSpotlight(ctx: LabContext) {
     const priority = buildDashboardSpotlightPriorityContext(ctx);
     const scored = getDashboardSpotlightCandidates(ctx)
       .map(hit => scoreDashboardSpotlightHit(hit, priority))
@@ -546,10 +547,10 @@ export function createDashboardLabWidgetRenderers(deps) {
     return scored[0] || null;
   }
 
-  function renderDashboardSpotlightWidget(ctx) {
-    const hit = getDashboardSpotlight(ctx);
+  function renderDashboardSpotlightWidget(ctx: LabContext) {
+    const hit = getDashboardSpotlight(ctx) as (LabScoredHit & LabRenderHit) | null;
     if (!hit) return '';
-    const range = getEffectiveRange(hit.marker);
+    const range = (getEffectiveRange as (marker:unknown)=>{min:number|null;max:number|null})(hit.marker);
     const rangeText = range.min != null || range.max != null
       ? `Range ${range.min != null ? formatValue(range.min) : '—'}–${range.max != null ? formatValue(range.max) : '—'} ${hit.marker.unit || ''}`
       : 'No active range';
@@ -567,8 +568,8 @@ export function createDashboardLabWidgetRenderers(deps) {
     </button>`;
   }
 
-  function renderLabsPriorityBanner(ctx) {
-    const hit = getDashboardSpotlight(ctx);
+  function renderLabsPriorityBanner(ctx: LabContext) {
+    const hit = getDashboardSpotlight(ctx) as (LabScoredHit & LabRenderHit) | null;
     if (!hit) return '';
     const priorityText = `${getDashboardPriorityLabel(hit)} · ${hit.priorityReason || 'latest tracked marker'}`;
     return `<button type="button" class="labs-priority-banner db-status-${escapeAttr(hit.status)}" ${dashboardMarkerDetailAttrs(hit.id)} aria-label="${escapeAttr(hit.marker.name + ': ' + formatValue(hit.value) + ' ' + (hit.marker.unit || ''))}">
@@ -583,13 +584,13 @@ export function createDashboardLabWidgetRenderers(deps) {
     </button>`;
   }
 
-  function dashboardPearson(aValues, bValues) {
-    const xs = [];
-    const ys = [];
+  function dashboardPearson(aValues: unknown[] | null | undefined, bValues: unknown[] | null | undefined) {
+    const xs: number[] = [];
+    const ys: number[] = [];
     const n = Math.min(aValues?.length || 0, bValues?.length || 0);
     for (let i = 0; i < n; i++) {
-      const x = Number(aValues[i]);
-      const y = Number(bValues[i]);
+      const x = Number(aValues![i]);
+      const y = Number(bValues![i]);
       if (Number.isFinite(x) && Number.isFinite(y)) {
         xs.push(x);
         ys.push(y);
@@ -602,8 +603,8 @@ export function createDashboardLabWidgetRenderers(deps) {
     let denX = 0;
     let denY = 0;
     for (let i = 0; i < xs.length; i++) {
-      const dx = xs[i] - meanX;
-      const dy = ys[i] - meanY;
+      const dx = xs[i]! - meanX;
+      const dy = ys[i]! - meanY;
       num += dx * dy;
       denX += dx * dx;
       denY += dy * dy;
@@ -612,26 +613,26 @@ export function createDashboardLabWidgetRenderers(deps) {
     return den ? num / den : null;
   }
 
-  function getDashboardCorrelationPairs(ctx) {
+  function getDashboardCorrelationPairs(ctx: LabContext) {
     const target = getDashboardMarkerByPath(ctx.data, 'lipids', 'apoB')
       || getDashboardMarkerByPath(ctx.data, 'lipids', 'ldl')
       || getDashboardMarkerByPath(ctx.data, 'diabetes', 'hba1c')
       || getDashboardSpotlight(ctx);
     if (!target?.marker?.values) return null;
-    const pairs = [];
-    for (const [catKey, category] of Object.entries(ctx.data.categories || {})) {
+    const pairs: LabCorrelationPair[] = [];
+    for (const [catKey, category] of Object.entries((ctx.data as LabData).categories || {})) {
       for (const [markerKey, marker] of Object.entries(category.markers || {})) {
         const id = `${catKey}_${markerKey}`;
         if (id === target.id || !safeMarkerId(id) || !markerHasData(marker)) continue;
         const r = dashboardPearson(target.marker.values || [], marker.values || []);
         if (r == null || !Number.isFinite(r)) continue;
-        const latestIdx = getLatestValueIndex(marker.values || []);
-        state.markerRegistry[id] = marker;
+        const latestIdx = (getLatestValueIndex as (values:unknown)=>number)(marker.values || []);
+        (state.markerRegistry as Record<string,unknown>)[id] = marker;
         pairs.push({
           id,
           name: marker.name || markerKey,
           category: category.label || catKey,
-          value: latestIdx >= 0 ? formatValue(marker.values[latestIdx]) : '—',
+          value: latestIdx >= 0 ? (formatValue as (value:unknown)=>unknown)(marker.values[latestIdx]) : '—',
           unit: marker.unit || '',
           r,
         });
@@ -641,7 +642,7 @@ export function createDashboardLabWidgetRenderers(deps) {
     return { target, pairs: pairs.slice(0, 12) };
   }
 
-  function renderDashboardCorrelationWidget(ctx) {
+  function renderDashboardCorrelationWidget(ctx: LabContext) {
     const result = getDashboardCorrelationPairs(ctx);
     if (!result?.pairs?.length) {
       return `<button type="button" class="db-correlation-empty" ${dashboardNavigateAttrs('correlations')}>
@@ -667,7 +668,7 @@ export function createDashboardLabWidgetRenderers(deps) {
     </div>`;
   }
 
-  function getDashboardKeyTrendReason(ctx, id, hit) {
+  function getDashboardKeyTrendReason(ctx: LabContext, id: string, hit: LabOperationHit) {
     const alert = (ctx.trendAlerts || []).find(a => a.id === id);
     if (alert) return dashboardSpotlightConcernLabel(alert.concern);
     if (hit.status === 'high') return 'above range';
@@ -678,9 +679,9 @@ export function createDashboardLabWidgetRenderers(deps) {
     return 'watchlist marker';
   }
 
-  function renderDashboardKeyTrendRow(ctx, km) {
-    const hit = getDashboardMarkerByPath(ctx.filteredData, km.cat, km.key)
-      || getDashboardMarkerByPath(ctx.data, km.cat, km.key);
+  function renderDashboardKeyTrendRow(ctx: LabContext, km: LabKeyMarker) {
+    const hit = (getDashboardMarkerByPath(ctx.filteredData, km.cat, km.key)
+      || getDashboardMarkerByPath(ctx.data, km.cat, km.key)) as LabRenderHit | null;
     if (!hit) return '';
     const reason = getDashboardKeyTrendReason(ctx, hit.id, hit);
     return `<button type="button" class="db-key-trend-row db-status-${escapeAttr(hit.status)}" ${dashboardMarkerDetailAttrs(hit.id)} aria-label="${escapeAttr(hit.marker.name + ': ' + formatValue(hit.value) + ' ' + (hit.marker.unit || ''))}">
@@ -695,7 +696,7 @@ export function createDashboardLabWidgetRenderers(deps) {
     </button>`;
   }
 
-  function renderDashboardKeyTrendsWidget(ctx) {
+  function renderDashboardKeyTrendsWidget(ctx: LabContext) {
     const rows = (ctx.keyMarkers || []).map(km => renderDashboardKeyTrendRow(ctx, km)).filter(Boolean);
     let html = '';
     if (rows.length > 0) {
@@ -706,8 +707,8 @@ export function createDashboardLabWidgetRenderers(deps) {
     return html;
   }
 
-  function renderDashboardAlertsWidget(ctx) {
-    const { trendAlerts, criticalFlags } = ctx;
+  function renderDashboardAlertsWidget(ctx: LabContext) {
+    const { trendAlerts, criticalFlags } = ctx as LabContext & {trendAlerts:LabAlert[];criticalFlags:Array<LabFlag & {effectiveMin:number|null;effectiveMax:number|null}>};
     const totalAttention = trendAlerts.length + criticalFlags.length;
     if (totalAttention === 0) return '';
     let html = `<div class="alerts-section dashboard-alerts-widget"><div class="alerts-title">Needs Attention (${totalAttention})</div>`;
@@ -745,11 +746,11 @@ export function createDashboardLabWidgetRenderers(deps) {
   }
 
   function renderDashboardNotesWidget() {
-    const hasNotes = state.importedData.notes && state.importedData.notes.length > 0;
+    const hasNotes = (state.importedData as LabPersistedReader).notes && (state.importedData as LabPersistedReader).notes!.length > 0;
     let html = `<div class="notes-section dashboard-notes-widget">`;
     html += `<button type="button" class="add-note-btn" ${dashboardWidgetActionAttrs('open-note-editor')}>+ Add Note</button>`;
     if (hasNotes) {
-      const notes = state.importedData.notes
+      const notes = (state.importedData as LabPersistedReader).notes!
         .map((note, i) => ({ note, idx: i }))
         .sort((a, b) => a.note.date.localeCompare(b.note.date));
       for (const { note, idx } of notes) {

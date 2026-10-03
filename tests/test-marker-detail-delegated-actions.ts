@@ -13,7 +13,7 @@ const modalSrc = `${modalImplSrc}\n${manualEntrySrc}\n${customMarkersSrc}\n${pla
 const editingSrc = readRepositorySource('js/marker-detail-editing.js', 'utf8');
 const actionSrc = readRepositorySource('js/marker-detail-actions.js', 'utf8');
 const runtimeSrc = readRepositorySource('js/marker-detail-runtime.js', 'utf8');
-const dashboardSrc = readRepositorySource('js/dashboard-view-composition.js', 'utf8');
+const dashboardSrc = readRepositorySource('js/dashboard-view-composition.js', 'utf8').replace(/\n[ \t]+(?=(?:isDashboardQuickMarkerPinned|navigate|showEmojiPicker|toggleDashboardQuickMarkerPin),)/g, '\n    ');
 const swSrc = readServiceWorkerSource(relative => readRepositorySource(relative, 'utf8'));
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");

@@ -1,10 +1,15 @@
 // biology-score-ai-context.js — compact Biology Scores context for AI chat.
 
+import type { ScoreOptions } from './biology-score-types.js';
+
+type BiologyContextScore = ReturnType<typeof computeBiologyScores>[number];
+export interface BiologyAIContextOptions extends ScoreOptions { limit?: unknown; includeScoreSections?: unknown }
+
 import { computeBiologyScores } from './biology-scores.js';
 import { TONE_LABELS, coreScoreDrivers } from './biology-score-engine.js';
 import { buildBiologyScoreCoveragePlannerModel, labelMarkers, markerDisplayLabel, effectiveMissingMarkers } from './biology-score-coverage-planner.js';
 
-function summarizeContextFlag(flag) {
+function summarizeContextFlag(flag: unknown) {
   const text = String(flag || '');
   if (/Light context/i.test(text)) return 'Light context considered.';
   if (/Genetic context/i.test(text)) return 'Genetic context considered.';
@@ -12,13 +17,13 @@ function summarizeContextFlag(flag) {
   return text.length > 90 ? `${text.slice(0, 87)}…` : text;
 }
 
-function shortList(labels, max = 5) {
+function shortList(labels: readonly unknown[] | null | undefined, max = 5) {
   const list = (labels || []).filter(Boolean);
   if (!list.length) return '';
   return `${list.slice(0, max).join(', ')}${list.length > max ? ', …' : ''}`;
 }
 
-function scoreSectionName(label) {
+function scoreSectionName(label: unknown) {
   const words = String(label || '')
     .normalize('NFKD')
     .replace(/[^\w\s-]/g, ' ')
@@ -34,16 +39,16 @@ function scoreSectionName(label) {
   }).join('');
 }
 
-function scoreSectionAliases(score) {
+function scoreSectionAliases(score: BiologyContextScore) {
   const aliases = [scoreSectionName(score.title), score.id];
   if (score.id === 'oneCarbonCoherence') aliases.push('oneCarbon');
   if (score.id === 'redoxStress') aliases.push('inflammation');
   return aliases.filter(Boolean);
 }
 
-function formatBiologyScoreLine(score) {
+function formatBiologyScoreLine(score: BiologyContextScore) {
   const scoreText = Number.isFinite(score.score) ? `${score.score}/100` : 'not current';
-  const toneText = score.tone ? TONE_LABELS[score.tone] : 'not scored';
+  const toneText = score.tone ? (TONE_LABELS as Readonly<Record<string, string | undefined>>)[score.tone] : 'not scored';
   const coverageText = `${Math.round((score.coverage || 0) * 100)}% coverage`;
   const recencyText = score.recencyStatus && score.recencyStatus !== 'fresh' ? `; ${score.recencyBadge}` : '';
   const impacts = coreScoreDrivers(score)
@@ -65,10 +70,10 @@ function formatBiologyScoreLine(score) {
   return line;
 }
 
-function formatBiologicalCoherenceLine(score) {
+function formatBiologicalCoherenceLine(score: BiologyContextScore | null | undefined) {
   if (!score) return '';
   const scoreText = Number.isFinite(score.score) ? `${score.score}/100` : 'not currently scored';
-  const toneText = score.tone ? TONE_LABELS[score.tone] : 'not scored';
+  const toneText = score.tone ? (TONE_LABELS as Readonly<Record<string, string | undefined>>)[score.tone] : 'not scored';
   const coverageText = `${Math.round((score.coverage || 0) * 100)}% domain coverage`;
   const domainSummary = (score.flags || []).find(flag => /minimum domains live/i.test(flag));
   const weakest = (score.available || [])
@@ -76,7 +81,7 @@ function formatBiologicalCoherenceLine(score) {
     .slice()
     .sort((a, b) => Number(a.partial) - Number(b.partial))
     .slice(0, 2)
-    .map(item => `${item.label} ${Math.round(item.partial)}/100`);
+    .map(item => `${item.label} ${Math.round(item.partial!)}/100`);
   const missing = shortList((score.missing || []).map(item => item.label), 3);
   let line = `- Biological Coherence: ${scoreText}, ${toneText}, ${coverageText}; ${score.scoreConfidenceLabel}; ${score.attention || score.scoreConfidenceWarning || ''}`;
   if (domainSummary) line += `; ${domainSummary}`;
@@ -85,12 +90,12 @@ function formatBiologicalCoherenceLine(score) {
   return line;
 }
 
-function appendAgentScoreSections(lines, scores, usedSections) {
+function appendAgentScoreSections(lines: string[], scores: BiologyContextScore[], usedSections: Set<string>) {
   const ordered = scores
     .filter(score => score.id !== 'biologicalCoherence' && (score.score != null || score.coverage > 0))
     .slice()
     .sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
-  const primaryNames = [];
+  const primaryNames: string[] = [];
   for (const score of ordered) {
     const aliases = scoreSectionAliases(score);
     if (aliases[0]) primaryNames.push(aliases[0]);
@@ -112,7 +117,7 @@ function appendAgentScoreSections(lines, scores, usedSections) {
   return primaryNames;
 }
 
-export function buildBiologyScoresAIContext(data, options = {}) {
+export function buildBiologyScoresAIContext(data: Parameters<typeof computeBiologyScores>[0], options: BiologyAIContextOptions = {}) {
   const scores = computeBiologyScores(data || {}, options);
   const coherence = scores.find(score => score.id === 'biologicalCoherence');
   const live = scores.filter(score => score.id !== 'biologicalCoherence' && (score.score != null || score.coverage > 0));
@@ -125,7 +130,7 @@ export function buildBiologyScoresAIContext(data, options = {}) {
   ];
   if (coherenceLine) lines.push(coherenceLine);
   const limit = Number.isFinite(options.limit) ? Math.max(1, Number(options.limit)) : 5;
-  const ordered = live.slice().sort((a, b) => (Number.isFinite(a.score) ? a.score : -1) - (Number.isFinite(b.score) ? b.score : -1));
+  const ordered = live.slice().sort((a, b) => (Number.isFinite(a.score) ? a.score! : -1) - (Number.isFinite(b.score) ? b.score! : -1));
   for (const score of ordered.slice(0, limit)) {
     lines.push(formatBiologyScoreLine(score));
   }

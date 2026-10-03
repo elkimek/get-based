@@ -1,4 +1,3 @@
-// @ts-check
 // lens-pages.js — dedicated lens page renderers extracted from views.js
 
 import { state } from './state.js';
@@ -18,20 +17,58 @@ import { getBiologyProfileContext } from './profile-context.js';
 import { renderBiologyScoreContextAI } from './biology-score-context-ai.js';
 import { getRecommendationsSnpTable, isRecommendationsProductRecsEnabled } from './recommendations-runtime.js';
 
-function markerHasData(marker) {
+// Configured values are opaque. These private views describe only the unchecked
+// calls and property operations used below; they do not validate callback output.
+type Shell = typeof import('./lens-page-shell.js');
+type LensWidgetInput = Omit<import('./lens-page-shell.js').LensPageWidget, 'opts'> & { opts?: import('./lens-page-shell.js').LensWidgetOptions & {source?: unknown} };
+type CandidateOperations = { source?: unknown; saved?: unknown; dismissed?: unknown };
+type LensDependencyOperations = {
+  setupDropZone: () => unknown;
+  buildDashboardWidgetContext: (data: unknown) => unknown;
+  renderLabsPriorityBanner: (ctx: unknown) => unknown;
+  renderDashboardQuickMarkersWidget: (ctx: unknown) => unknown;
+  renderDashboardKeyTrendsWidget: (ctx: unknown) => unknown;
+  renderDashboardGenomeWidget: () => unknown;
+  renderDashboardWearableTilesWidget: () => unknown;
+  renderDashboardInsightsListWidget: (ctx: unknown) => unknown;
+  renderDashboardRecommendationsWidget: (ctx: unknown) => unknown;
+  renderFocusCard: () => unknown;
+  loadFocusCard: () => unknown;
+  getDashboardWidgetPrefs: () => {hidden: {includes(id: string): unknown}};
+  getCachedRecommendationsCatalog: () => unknown;
+  refreshRecommendationsWhenCatalogReady: () => unknown;
+  getGlobalRecommendationCandidates: (ctx: unknown, catalog: unknown, options?: {includeDismissed: boolean}) => CandidateOperations[];
+  renderRecommendationCard: (candidate: CandidateOperations) => unknown;
+  renderRecommendationsEmpty: () => unknown;
+  lensPageActionAttrs: (...args: Parameters<Shell['lensPageActionAttrs']>) => unknown;
+  renderLensHeader: (...args: Parameters<Shell['renderLensHeader']>) => unknown;
+  renderLensPageWidgets: (route: string, widgets: Array<LensWidgetInput | null | undefined | false>, options?: {group: string}) => unknown;
+  renderLensWidget: (id: string, title: unknown, description: string | undefined, body: unknown, size?: string, opts?: import('./lens-page-shell.js').LensWidgetOptions & {source?: unknown}) => unknown;
+};
+type LabMarkerOperations = { values?: {some(predicate: (value: unknown) => boolean): boolean} | null };
+type LabDataOperations = { dates?: {length?: unknown}; categories?: Record<string, {singleDate?: unknown; markers?: Record<string, LabMarkerOperations>}> };
+type MtdnaOperations = { haplogroup?: unknown; origin?: unknown; source?: unknown; importDate?: unknown; details?: unknown; coupling?: {shortLabel?: unknown;label?: unknown;description?: unknown;implications?: unknown} };
+type GeneticsOperations = { snps?: unknown; mtdna: MtdnaOperations; source?: unknown; importDate?: unknown; apoe?: unknown; coverage?: {found?: unknown;total?: unknown} };
+type WearableSourceOperations = {lastSyncAt?: unknown;coverageDays?: unknown};
+type WearableSummaryOperations = {sources?: Record<string,WearableSourceOperations>};
+type RawFilter = (data: unknown, options: Parameters<typeof filterDatesByRange>[1]) => unknown;
+type RawCompute = (data: unknown) => ReturnType<typeof computeBiologyScores>;
+type LensGroups = Record<keyof ReturnType<typeof import('./biology-score-render.js').groupBiologyScores>, NonNullable<ReturnType<typeof getBiologyScoreLensGroups>[string]>>;
+
+function markerHasData(marker: LabMarkerOperations) {
   return marker.values?.some(v => v !== null) ?? false;
 }
 
-function hasAnyLabData(data) {
+function hasAnyLabData(data: unknown) {
   if (!data) return false;
-  if (data.dates?.length) return true;
-  return Object.values(data.categories || {}).some(cat =>
+  if ((data as LabDataOperations).dates?.length) return true;
+  return Object.values((data as LabDataOperations).categories || {}).some(cat =>
     cat.singleDate || Object.values(cat.markers || {}).some(markerHasData)
   );
 }
 
-function renderGenomeImportDetailsWidget(lensPageActionAttrs) {
-  const genetics = state.importedData?.genetics;
+function renderGenomeImportDetailsWidget(lensPageActionAttrs: LensDependencyOperations['lensPageActionAttrs']) {
+  const genetics = state.importedData?.genetics as GeneticsOperations | null | undefined;
   const snps = genetics?.snps || {};
   const snpCount = Object.keys(snps).length;
   const hasMtdna = !!genetics?.mtdna;
@@ -91,9 +128,9 @@ function renderGenomeImportDetailsWidget(lensPageActionAttrs) {
   </div>`;
 }
 
-function renderBodySourcesWidget(lensPageActionAttrs) {
-  const connections = state.importedData?.wearableConnections || {};
-  const summary = state.importedData?.wearableSummary || null;
+function renderBodySourcesWidget(lensPageActionAttrs: LensDependencyOperations['lensPageActionAttrs']) {
+  const connections = (state.importedData?.wearableConnections || {}) as Record<string, WearableSourceOperations>;
+  const summary = (state.importedData?.wearableSummary || null) as WearableSummaryOperations | null;
   const ids = Object.keys(connections);
   if (!ids.length && !summary?.sources) {
     return `<button type="button" class="db-correlation-empty" ${lensPageActionAttrs('open-wearables-settings')}>
@@ -104,7 +141,7 @@ function renderBodySourcesWidget(lensPageActionAttrs) {
   const sourceIds = Array.from(new Set([...ids, ...Object.keys(summary?.sources || {})]));
   const cards = sourceIds.map(id => {
     const source = connections[id] || summary?.sources?.[id] || {};
-    const lastSync = source.lastSyncAt ? new Date(source.lastSyncAt).toLocaleDateString() : 'not synced';
+    const lastSync = source.lastSyncAt ? new Date(source.lastSyncAt as string).toLocaleDateString() : 'not synced';
     const coverage = source.coverageDays ? `${source.coverageDays}d coverage` : 'coverage pending';
     return `<button type="button" class="dashboard-widget-picker-card" ${lensPageActionAttrs('open-wearables-settings')}>
       <span class="dashboard-widget-picker-title">${escapeHTML(id === 'manual' ? 'Manual logs' : id)}</span>
@@ -115,7 +152,7 @@ function renderBodySourcesWidget(lensPageActionAttrs) {
   return `<div class="dashboard-widget-picker-grid">${cards}</div>`;
 }
 
-export function createLensPageHandlers(deps) {
+export function createLensPageHandlers(deps: unknown) {
   const {
     setupDropZone,
     buildDashboardWidgetContext,
@@ -138,15 +175,15 @@ export function createLensPageHandlers(deps) {
     renderLensHeader,
     renderLensPageWidgets,
     renderLensWidget,
-  } = deps;
+  } = deps as LensDependencyOperations;
 
-  function showLabs(preData) {
+  function showLabs(preData: unknown) {
     const rawData = preData || getActiveData();
     const main = document.getElementById("main-content");
     if (!main) return;
     document.body.classList.remove('mobile-dashboard-active');
     const actions = renderDateRangeFilter();
-    let html = renderLensHeader('Labs', '', actions);
+    let html = renderLensHeader('Labs', '', actions) as string;
 
     if (!hasAnyLabData(rawData)) {
       html += `<div class="drop-zone" id="drop-zone">
@@ -175,22 +212,23 @@ export function createLensPageHandlers(deps) {
     return labels ? `<div class="biology-score-context-banner biology-score-context-page"><strong>From your profile &amp; lab entries</strong>${labels}</div>` : '';
   }
 
-  function showBiologyScores(preData) {
+  function showBiologyScores(preData: unknown) {
     const rawData = preData || getActiveData();
     const main = document.getElementById("main-content");
     if (!main) return;
     document.body.classList.remove('mobile-dashboard-active');
     const ctx = buildDashboardWidgetContext(rawData);
-    const scoreData = filterDatesByRange(rawData, { fallbackToAll: false });
+    // The captured value is projected only for the original context renderer's reads.
+    const scoreData = (filterDatesByRange as RawFilter)(rawData, { fallbackToAll: false }) as Parameters<typeof renderBiologyScoreContextAI>[0];
     const contextReady = true;
     const actions = `<div class="biology-score-header-actions">${contextReady ? '<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="interpret-lens">Discuss scores in chat</button>' : ''}
       ${renderDateRangeFilter()}</div>`;
-    let html = renderLensHeader('Biology Scores', 'Body-system patterns from your labs, with marker-level explanations.', actions, { className: 'biology-scores-lens-header' });
+    let html = renderLensHeader('Biology Scores', 'Body-system patterns from your labs, with marker-level explanations.', actions, { className: 'biology-scores-lens-header' }) as string;
     html += `<p class="biology-scores-note">Higher scores mean closer agreement with your selected ranges, including Risk and Load scores. AI interpretations are optional; scores are for learning, not diagnosis.</p>`;
     html += `<details class="biology-context-review-details"><summary>Profile &amp; collection context</summary>${renderBiologyScoreContextBanner()}${renderBiologyScoreContextAI(scoreData)}</details>`;
-    const biologyScores = computeBiologyScores(scoreData);
+    const biologyScores = (computeBiologyScores as RawCompute)(scoreData);
     const biologyDetailScores = biologyScores.filter((score) => score.id !== 'biologicalCoherence');
-    const liveBiologyScores = biologyDetailScores.filter((score) => Number.isFinite(score.score)).sort((a, b) => b.score - a.score);
+    const liveBiologyScores = biologyDetailScores.filter((score) => Number.isFinite(score.score)).sort((a, b) => /** @type {number} */ (b.score!) - /** @type {number} */ (a.score!));
     const waitingBiologyScores = biologyDetailScores.filter((score) => !Number.isFinite(score.score));
     const biologicalCoherence = biologyScores.find((score) => score.id === 'biologicalCoherence');
     html += renderBiologicalCoherenceLensHero(ctx);
@@ -198,8 +236,8 @@ export function createLensPageHandlers(deps) {
     html += renderBiologyScoresActionSummary(liveBiologyScores, waitingBiologyScores, biologicalCoherence);
     html += renderBiologyScoreCoveragePlanner(biologyDetailScores, biologicalCoherence);
     html += '</div>';
-    const groups = getBiologyScoreLensGroups(ctx);
-    const grid = key => renderLensPageWidgets('biology-scores', groups[key], { group: key });
+    const groups = getBiologyScoreLensGroups(ctx) as LensGroups;
+    const grid = (key: keyof typeof groups) => renderLensPageWidgets('biology-scores', groups[key], { group: key });
     html += `<section class="biology-score-group" data-biology-group="baseline"><h3>Baseline scores <span class="biology-section-count">${groups.baseline.length}</span></h3><p>Flagged patterns and lower scores first; older estimates follow.</p>${groups.baseline.length ? grid('baseline') : '<p>No baseline scores available yet. Open Needs inputs below to see what is missing.</p>'}</section>`;
     html += `<section class="biology-score-group" data-biology-group="advanced"><h3>Optional scores <span class="biology-section-count">${groups.advanced.length}</span></h3><p>Additional perspectives, outside Biological Coherence.</p>${groups.advanced.length ? grid('advanced') : '<p>No optional scores available yet. Their marker requirements are under Needs inputs.</p>'}</section>`;
     if (groups.waiting.length) html += `<details class="biology-score-unavailable-group biology-score-group" data-biology-group="waiting"><summary>Needs inputs <span class="biology-section-count">${groups.waiting.length}</span></summary><p>Open Details to see the missing markers or context needed to score.</p>${grid('waiting')}</details>`;
@@ -219,7 +257,7 @@ export function createLensPageHandlers(deps) {
     const genomeActions = `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lensPageActionAttrs('import-dna')}>Import raw DNA</button>
       <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('import-snp-report')}>Import report</button>
       <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('add-manual-snp')}>Add SNP manually</button>${affiliate}`;
-    let html = renderLensHeader('Genome', 'DNA findings and traits linked to your labs.', genomeActions, { className: 'genome-lens-header' });
+    let html = renderLensHeader('Genome', 'DNA findings and traits linked to your labs.', genomeActions, { className: 'genome-lens-header' }) as string;
     html += renderLensPageWidgets('genome', [
       { id: 'genome', title: 'Genetic Findings & Traits', description: 'Curated SNP context, evidence, and lab-linked modifiers', body: renderDashboardGenomeWidget(), size: 'full', opts: { source: 'Genome' } },
       importDetails ? { id: 'genome-import', title: 'Import Details', description: 'Source, counts, mtDNA, and file management', body: importDetails, size: 'full', opts: { source: 'Genome', dashboardId: '' } } : null,
@@ -233,7 +271,7 @@ export function createLensPageHandlers(deps) {
     document.body.classList.remove('mobile-dashboard-active');
     let html = renderLensHeader('Body', '',
       `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lensPageActionAttrs('open-wearables-settings')}>Connect source</button>
-       <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('open-biometric-picker')}>Choose metrics</button>`);
+       <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('open-biometric-picker')}>Choose metrics</button>`) as string;
     html += renderLensPageWidgets('body', [
       { id: 'wearables', title: 'Biometrics Overview', description: 'User-selected body signal tiles', body: renderDashboardWearableTilesWidget(), size: 'full', opts: { source: 'Body' } },
       { id: 'body-sources', title: 'Connected Sources', description: 'Wearable and manual sources feeding body context', body: renderBodySourcesWidget(lensPageActionAttrs), size: 'full', opts: { source: 'Body', dashboardId: '' } },
@@ -245,7 +283,7 @@ export function createLensPageHandlers(deps) {
     main.innerHTML = html;
   }
 
-  function showInsightLens(preData) {
+  function showInsightLens(preData: unknown) {
     const rawData = preData || getActiveData();
     const main = document.getElementById("main-content");
     if (!main) return;
@@ -254,7 +292,7 @@ export function createLensPageHandlers(deps) {
     let html = renderLensHeader('Insight', '',
       `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lensPageActionAttrs('open-ai-chat')}>Open AI chat</button>
        <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('open-emf-assessment')}>EMF assessment</button>
-       <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('open-recommendations')}>Tips</button>`);
+       <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('open-recommendations')}>Tips</button>`) as string;
     html += renderLensPageWidgets('insight', [
       { id: 'focus', title: 'Current Focus', description: 'One synthesized read on the latest data', body: renderFocusCard(), size: 'full', opts: { source: 'Insight' } },
       { id: 'recommendations', title: 'Tips to Explore', description: 'General-information ideas connected to your data', body: renderDashboardRecommendationsWidget(ctx), size: 'half', opts: { source: 'Insight' } },
@@ -266,7 +304,7 @@ export function createLensPageHandlers(deps) {
     loadContextHealthDots();
   }
 
-  function renderRecommendationsPageGroups(ctx, catalog) {
+  function renderRecommendationsPageGroups(ctx: unknown, catalog: unknown) {
     const active = getGlobalRecommendationCandidates(ctx, catalog);
     const allWithDismissed = getGlobalRecommendationCandidates(ctx, catalog, { includeDismissed: true });
     const saved = allWithDismissed.filter(c => c.saved);
@@ -275,12 +313,12 @@ export function createLensPageHandlers(deps) {
       return renderRecommendationsEmpty();
     }
     const top = active.slice(0, 4);
-    const bySource = new Map();
+    const bySource = new Map<unknown, CandidateOperations[]>();
     for (const candidate of active) {
       if (!bySource.has(candidate.source)) bySource.set(candidate.source, []);
-      bySource.get(candidate.source).push(candidate);
+      bySource.get(candidate.source)!.push(candidate);
     }
-    const widgets = [];
+    const widgets: LensWidgetInput[] = [];
     if (top.length) {
       widgets.push({ id: 'recommendations-top', title: 'Tips to Explore', description: 'Ideas selected from the context currently available', body: `<div class="rec-next-list">${top.map(c => renderRecommendationCard(c)).join('')}</div>`, size: 'full', opts: { source: 'Insight', dashboardId: 'recommendations' } });
     }
@@ -298,7 +336,7 @@ export function createLensPageHandlers(deps) {
     return renderLensPageWidgets('recommendations', widgets);
   }
 
-  function showRecommendations(preData) {
+  function showRecommendations(preData: unknown) {
     const rawData = preData || getActiveData();
     const ctx = buildDashboardWidgetContext(rawData);
     const main = document.getElementById("main-content");

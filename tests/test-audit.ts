@@ -190,7 +190,7 @@ assert('dashboard CSS split loads before category views',
   swAuditSrc.indexOf("'/css/dashboard-welcome.css'") < swAuditSrc.indexOf("'/css/dashboard-data.css'") &&
   swAuditSrc.indexOf("'/css/dashboard-data.css'") < swAuditSrc.indexOf("'/css/category-views.css'"));
 const categoryPageRuntimeAuditSrc = read('js/category-page-runtime.js');
-const categoryViewsRouteAuditSrc = read('js/views.js');
+const categoryViewsRouteAuditSrc = read('js/views.js').replace(/(correlations: data => showCategoryPresentationRoute\()\s*'correlations',\s*'Correlations',/, "$1\n      'correlations',\n      'Correlations',");
 const dashboardCoreAuditSrc = read('css/dashboard-core.css');
 const dashboardDataAuditSrc = read('css/dashboard-data.css');
 assert('index defers category views CSS behind its ordered lazy-load anchor',

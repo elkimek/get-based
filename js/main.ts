@@ -1,4 +1,3 @@
-// @ts-check
 // main.js — Thin entry point
 
 import './app-extension-bootstrap.js';

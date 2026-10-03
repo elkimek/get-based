@@ -1,4 +1,3 @@
-// @ts-check
 // dashboard-recommendation-widget.js - recommendation candidate and widget rendering
 
 import { state } from './state.js';
@@ -17,10 +16,11 @@ import {
 import { getLoadedRollingChannelTotals } from './light-sun-loader.js';
 import { getMarkerStorageDotKey } from './marker-placement.js';
 
+import type {RecCatalogReader, RecContextReader, RecCandidateInput, RecCandidate, RecRenderCandidate, RecSessionReader, RecHintReader} from '../types/dashboard-recommendation-widget.js';
+
 let dashboardRecommendationDelegatesInstalled = false;
 
-/** @type {Record<string, ((...args: any[]) => any) | null>} */
-const dashboardRecommendationRuntimeDeps = {
+const dashboardRecommendationRuntimeDeps: Record<string,unknown> = {
   detectWearableTrendSlots: null,
   dismissRecommendation: null,
   discussRecommendation: null,
@@ -31,30 +31,30 @@ const dashboardRecommendationRuntimeDeps = {
   showDetailModal: null,
 };
 
-export function configureDashboardRecommendationRuntimeDeps(deps = {}) {
+export function configureDashboardRecommendationRuntimeDeps(deps: unknown = {}) {
   const previous = { ...dashboardRecommendationRuntimeDeps };
   for (const name of Object.keys(dashboardRecommendationRuntimeDeps)) {
-    if (Object.hasOwn(deps, name)) {
-      dashboardRecommendationRuntimeDeps[name] = typeof deps[name] === 'function'
-        ? deps[name]
+    if (Object.hasOwn(deps as object, name)) {
+      dashboardRecommendationRuntimeDeps[name] = typeof (deps as Record<string,unknown>)[name] === 'function'
+        ? (deps as Record<string,unknown>)[name]
         : null;
     }
   }
   return previous;
 }
 
-function callDashboardRecommendationRuntime(name, ...args) {
-  return dashboardRecommendationRuntimeDeps[name]?.(...args);
+function callDashboardRecommendationRuntime(name: string, ...args: unknown[]) {
+  return (dashboardRecommendationRuntimeDeps[name] as ((...args:unknown[])=>unknown)|null|undefined)?.(...args);
 }
 
-export function dashboardRecommendationActionAttrs(action, attrs = {}) {
-  return actionAttributes("dashboard-rec", action, attrs);
+export function dashboardRecommendationActionAttrs(action: unknown, attrs: Record<string,unknown> = {}) {
+  return (actionAttributes as (scope:string,action:unknown,attrs:Record<string,unknown>)=>string)("dashboard-rec", action, attrs);
 }
 
-function handleDashboardRecommendationClick(event) {
+function handleDashboardRecommendationClick(event: Event) {
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return;
-  const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-dashboard-rec-action]'));
+  const actionEl = (target.closest<HTMLElement>('[data-dashboard-rec-action]'));
   if (!actionEl || !actionEl.closest('.rec-next-widget, .rec-next-card, .db-correlation-empty')) return;
   const action = actionEl.dataset.dashboardRecAction || '';
   event.preventDefault();
@@ -92,69 +92,69 @@ export function createDashboardRecommendationWidget({
   markerHasData,
   buildDashboardWidgetContext,
   showRecommendations,
-}) {
-  let _recommendationsLoadPromise = null;
+}: {markerHasData:unknown;buildDashboardWidgetContext:unknown;showRecommendations?:unknown}) {
+  let _recommendationsLoadPromise: unknown = null;
 
-  function recommendationStateStorageKey(kind) {
+  function recommendationStateStorageKey(kind: unknown) {
     return profileStorageKey(state.currentProfile || 'default', `recommendations-${kind}-v1`);
   }
 
-  function getRecommendationStateSet(kind) {
+  function getRecommendationStateSet(kind: unknown) {
     try {
-      const raw = JSON.parse(localStorage.getItem(recommendationStateStorageKey(kind)) || '[]');
-      return new Set(Array.isArray(raw) ? raw.filter(v => typeof v === 'string') : []);
+      const raw = JSON.parse(localStorage.getItem(recommendationStateStorageKey(kind)) || '[]') as unknown;
+      return new Set(Array.isArray(raw) ? (raw as unknown[]).filter(v => typeof v === 'string') : []);
     } catch {
-      return new Set();
+      return new Set<string>();
     }
   }
 
-  function saveRecommendationStateSet(kind, set) {
+  function saveRecommendationStateSet(kind: unknown, set: Iterable<unknown>) {
     localStorage.setItem(recommendationStateStorageKey(kind), JSON.stringify([...set]));
   }
 
-  function setRecommendationState(kind, id, on) {
+  function setRecommendationState(kind: unknown, id: unknown, on: unknown) {
     if (!id) return;
-    const set = getRecommendationStateSet(kind);
+    const set = getRecommendationStateSet(kind) as Set<unknown>;
     if (on) set.add(id);
     else set.delete(id);
     saveRecommendationStateSet(kind, set);
     refreshRecommendationSurfaces();
   }
 
-  function getCachedRecommendationsCatalog() {
+  function getCachedRecommendationsCatalog(): unknown {
     const catalog = getRecommendationsCatalogCache();
-    return catalog?.slots ? catalog : null;
+    return (catalog as RecCatalogReader | null)?.slots ? catalog : null;
   }
 
   function refreshRecommendationsWhenCatalogReady() {
     const loadCatalog = getRecommendationModuleFunction('loadCatalog');
     if (_recommendationsLoadPromise || typeof loadCatalog !== 'function') return;
-    _recommendationsLoadPromise = loadCatalog()
+    _recommendationsLoadPromise = (loadCatalog as ()=>{then(callback:(catalog:unknown)=>unknown):{finally(callback:()=>unknown):unknown}})()
       .then(catalog => {
-        setRecommendationsCatalogCache(catalog);
+        (setRecommendationsCatalogCache as (catalog:unknown)=>unknown)(catalog);
         refreshRecommendationSurfaces();
       })
       .finally(() => { _recommendationsLoadPromise = null; });
   }
 
   function refreshRecommendationSurfaces() {
-    const ctx = buildDashboardWidgetContext(getActiveData());
+    const ctx = (buildDashboardWidgetContext as (data:unknown)=>unknown)(getActiveData());
     const dashboardBody = document.querySelector?.('.dashboard-widget[data-widget-id="recommendations"] .dashboard-widget-body');
     if (dashboardBody) dashboardBody.innerHTML = renderDashboardRecommendationsWidget(ctx);
     const page = document.getElementById('recommendations-page');
-    if (page && state.currentView === 'recommendations') showRecommendations?.(getActiveData());
+    if (page && state.currentView === 'recommendations') (showRecommendations as ((data:unknown)=>unknown)|null|undefined)?.(getActiveData());
   }
 
-  function getRecommendationSlotLabel(catalog, slotKey) {
-    return catalog?.slots?.[slotKey]?.label || slotKey.split('.').pop().replace(/([A-Z])/g, ' $1');
+  function getRecommendationSlotLabel(catalog: RecCatalogReader, slotKey: unknown) {
+    return catalog?.slots?.[slotKey as string]?.label || (slotKey as string).split('.').pop()!.replace(/([A-Z])/g, ' $1');
   }
 
-  function getRecommendationPrimaryAction(catalog, slotKey) {
-    const slot = catalog?.slots?.[slotKey];
+  function getRecommendationPrimaryAction(catalog: RecCatalogReader, slotKey: unknown) {
+    const slot = catalog?.slots?.[slotKey as string];
     return slot?.freeActions?.[0] || slot?.foodForms?.[0] || slot?.productForms?.[0] || slot?.forms?.[0] || '';
   }
 
-  function getRecommendationStatusReason(name, status, alert) {
+  function getRecommendationStatusReason(name: unknown, status: unknown, alert: {code?:unknown}|undefined) {
     const readable = String(status || '').replace(/_/g, ' ');
     if (alert?.code) {
       const code = String(alert.code).replace(/_/g, ' ');
@@ -163,42 +163,42 @@ export function createDashboardRecommendationWidget({
     return `${name} is ${readable} versus the active reference range.`;
   }
 
-  function getGlobalRecommendationCandidates(ctx, catalog, { includeDismissed = false } = {}) {
-    if (!getRecommendationModuleFunction('isProductRecsEnabled')?.() || !catalog?.slots) return [];
+  function getGlobalRecommendationCandidates(ctx: unknown, catalog: unknown, { includeDismissed = false }: {includeDismissed?:unknown} = {}) {
+    if (!getRecommendationModuleFunction('isProductRecsEnabled')?.() || !(catalog as RecCatalogReader | null)?.slots) return [];
     const dismissed = getRecommendationStateSet('dismissed');
     const saved = getRecommendationStateSet('saved');
-    const trendById = new Map((ctx.trendAlerts || []).map(alert => [alert.id, alert]));
-    const criticalIds = new Set((ctx.criticalFlags || []).map(f => f.id));
-    const out = [];
-    const add = candidate => {
-      if (!candidate?.slotKey || !catalog.slots[candidate.slotKey]) return;
+    const trendById = new Map(((ctx as RecContextReader).trendAlerts || []).map(alert => [alert.id, alert]));
+    const criticalIds = new Set(((ctx as RecContextReader).criticalFlags || []).map(f => f.id));
+    const out: RecCandidate[] = [];
+    const add = (candidate:RecCandidateInput) => {
+      if (!candidate?.slotKey || !(catalog as RecCatalogReader).slots![candidate.slotKey as string]) return;
       const id = candidate.id || `${candidate.source}:${candidate.slotKey}:${candidate.markerId || ''}`;
       if (!includeDismissed && dismissed.has(id)) return;
       out.push({
         ...candidate,
         id,
-        label: candidate.label || getRecommendationSlotLabel(catalog, candidate.slotKey),
-        primaryAction: candidate.primaryAction || getRecommendationPrimaryAction(catalog, candidate.slotKey),
+        label: candidate.label || getRecommendationSlotLabel(catalog as RecCatalogReader, candidate.slotKey),
+        primaryAction: candidate.primaryAction || getRecommendationPrimaryAction(catalog as RecCatalogReader, candidate.slotKey),
         saved: saved.has(id),
         dismissed: dismissed.has(id),
       });
     };
 
-    for (const [catKey, category] of Object.entries(ctx.data.categories || {})) {
+    for (const [catKey, category] of Object.entries(((ctx as RecContextReader).data as import("../types/dashboard-lab-widget-renderers.js").LabData).categories || {})) {
       for (const [markerKey, marker] of Object.entries(category.markers || {})) {
-        if (!marker || marker.hidden || !markerHasData(marker)) continue;
+        if (!marker || marker.hidden || !(markerHasData as (marker:unknown)=>unknown)(marker)) continue;
         const markerId = `${catKey}_${markerKey}`;
         const slotKey = getMarkerStorageDotKey(marker, markerId);
         if (!slotKey) continue;
-        if (!catalog.slots[slotKey]) continue;
-        const latestIdx = getLatestValueIndex(marker.values || []);
+        if (!(catalog as RecCatalogReader).slots![slotKey]) continue;
+        const latestIdx = (getLatestValueIndex as (values:unknown)=>number)(marker.values || []);
         if (latestIdx < 0) continue;
-        const range = getEffectiveRangeForDate(marker, latestIdx);
+        const range = (getEffectiveRangeForDate as (marker:unknown,index:number)=>{min:unknown;max:unknown})(marker, latestIdx);
         const value = marker.values[latestIdx];
-        const status = getStatus(value, range.min, range.max);
+        const status = (getStatus as (value:unknown,min:unknown,max:unknown)=>ReturnType<typeof getStatus>)(value, range.min, range.max);
         const alert = trendById.get(markerId);
         if (status === 'normal' && !alert && !criticalIds.has(markerId)) continue;
-        state.markerRegistry[markerId] = marker;
+        (state.markerRegistry as Record<string,unknown>)[markerId] = marker;
         add({
           id: `labs:${slotKey}:${markerId}`,
           source: 'Labs',
@@ -206,17 +206,17 @@ export function createDashboardRecommendationWidget({
           markerId,
           markerStatus: status,
           score: (criticalIds.has(markerId) ? 110 : status === 'high' || status === 'low' ? 80 : 45) + (alert ? 25 : 0),
-          label: getRecommendationSlotLabel(catalog, slotKey),
+          label: getRecommendationSlotLabel(catalog as RecCatalogReader, slotKey),
           reason: getRecommendationStatusReason(marker.name || markerKey, status, alert),
-          meta: `${category.label || catKey} · ${formatValue(value)}${marker.unit ? ` ${marker.unit}` : ''}`,
+          meta: `${category.label || catKey} · ${(formatValue as (value:unknown)=>unknown)(value)}${marker.unit ? ` ${marker.unit}` : ''}`,
         });
       }
     }
 
-    const biologyScores = computeBiologyScores(ctx.filteredData || ctx.data || {}).filter(score => score.id !== 'biologicalCoherence');
+    const biologyScores = (computeBiologyScores as (data:unknown)=>ReturnType<typeof computeBiologyScores>)((ctx as RecContextReader).filteredData || (ctx as RecContextReader).data || {}).filter(score => score.id !== 'biologicalCoherence');
     const seenBiologySlots = new Set();
     for (const score of biologyScores) {
-      const coreGap = (score.missing || []).find(item => item.core && item.path && catalog.slots[item.path]);
+      const coreGap = (((score.missing || []) as Array<import("../types/biology-scores.js").BiologyScore["missing"][number] & {path?: string | undefined}>)).find(item => item.core && item.path && (catalog as RecCatalogReader).slots![item.path]);
       if (!coreGap || seenBiologySlots.has(coreGap.path)) continue;
       seenBiologySlots.add(coreGap.path);
       add({
@@ -228,8 +228,8 @@ export function createDashboardRecommendationWidget({
         meta: `${Math.round((score.coverage || 0) * 100)}% ${score.title} coverage`,
       });
     }
-    const weakestBiology = biologyScores.filter(score => Number.isFinite(score.score)).sort((a, b) => a.score - b.score)[0];
-    const weakestDrag = weakestBiology?.available?.filter(item => !item.profileContextOnly && Number.isFinite(item.partial) && item.path && catalog.slots[item.path]).sort((a, b) => (a.partial || 100) - (b.partial || 100))[0];
+    const weakestBiology = biologyScores.filter(score => Number.isFinite(score.score)).sort((a, b) => (a.score as number) - (b.score as number))[0];
+    const weakestDrag = weakestBiology?.available?.filter(item => !item.profileContextOnly && Number.isFinite(item.partial) && item.path && (catalog as RecCatalogReader).slots![item.path]).sort((a, b) => (a.partial || 100) - (b.partial || 100))[0];
     if (weakestBiology && weakestDrag?.path && !seenBiologySlots.has(weakestDrag.path)) {
       add({
         id: `biology:${weakestBiology.id}:${weakestDrag.path}:drag`,
@@ -237,18 +237,18 @@ export function createDashboardRecommendationWidget({
         slotKey: weakestDrag.path,
         score: 74,
         reason: `Shown because ${weakestDrag.label} is among the lower-scoring available inputs in ${weakestBiology.title}.`,
-        meta: `${weakestBiology.score}/100 · ${Math.round(weakestDrag.partial)}/100 marker fit`,
+        meta: `${weakestBiology.score}/100 · ${Math.round((weakestDrag.partial as number))}/100 marker fit`,
       });
     }
 
     const sessions = (Array.isArray(state.importedData?.sunSessions)
-      ? state.importedData.sunSessions
-      : []).filter(s => s?.startedAt || s?.endedAt);
+      ? state.importedData.sunSessions as unknown[]
+      : [] as unknown[]).filter(s => (s as RecSessionReader)?.startedAt || (s as RecSessionReader)?.endedAt);
     const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    const hasRecentLightSession = sessions.some(s => Number(s.endedAt || s.startedAt || 0) >= sevenDaysAgo);
+    const hasRecentLightSession = sessions.some(s => Number((s as RecSessionReader).endedAt || (s as RecSessionReader).startedAt || 0) >= sevenDaysAgo);
     const totals7d = getLoadedRollingChannelTotals(7);
-    const hasLoadedCircadianGap = totals7d && Number(totals7d.circadian || 0) <= 0;
-    if (catalog.slots['light.morningLight'] && (!hasRecentLightSession || hasLoadedCircadianGap)) {
+    const hasLoadedCircadianGap = totals7d && Number((totals7d as {circadian?:unknown}).circadian || 0) <= 0;
+    if ((catalog as RecCatalogReader).slots!['light.morningLight'] && (!hasRecentLightSession || hasLoadedCircadianGap)) {
       add({
         id: 'light:light.morningLight:recent',
         source: 'Light',
@@ -262,8 +262,8 @@ export function createDashboardRecommendationWidget({
     }
 
     const wearableTrendSlots = callDashboardRecommendationRuntime('detectWearableTrendSlots', state.importedData?.wearableSummary);
-    if (wearableTrendSlots && typeof wearableTrendSlots[Symbol.iterator] === 'function') {
-      for (const hit of wearableTrendSlots) {
+    if (wearableTrendSlots && typeof (wearableTrendSlots as {[Symbol.iterator]?:unknown})[Symbol.iterator] === 'function') {
+      for (const hit of wearableTrendSlots as Iterable<{slotKey:unknown;reason?:unknown}>) {
         add({
           id: `body:${hit.slotKey}:wearable`,
           source: 'Body',
@@ -277,24 +277,24 @@ export function createDashboardRecommendationWidget({
 
     const buildDNAHints = getRecommendationModuleFunction('buildDNAHints');
     if (buildDNAHints && getRecommendationsSnpTable()) {
-      for (const slotKey of Object.keys(catalog.slots)) {
-        const hints = buildDNAHints(slotKey);
+      for (const slotKey of Object.keys((catalog as RecCatalogReader).slots as object)) {
+        const hints = (buildDNAHints as (slotKey:string)=>RecHintReader[]|null|undefined)(slotKey);
         if (!hints?.length) continue;
         add({
           id: `genome:${slotKey}:dna`,
           source: 'Genome',
           slotKey,
           score: 72,
-          reason: hints[0].text,
+          reason: hints[0]!.text,
           meta: hints.slice(0, 3).map(h => h.gene).filter(Boolean).join(', ') || 'Imported DNA',
         });
       }
     }
 
-    return out.sort((a, b) => (b.saved - a.saved) || (b.score - a.score) || String(a.label).localeCompare(String(b.label)));
+    return out.sort((a, b) => ((b.saved as unknown as number) - (a.saved as unknown as number)) || (b.score - a.score) || String(a.label).localeCompare(String(b.label)));
   }
 
-  function renderRecommendationCard(candidate, { compact = false } = {}) {
+  function renderRecommendationCard(candidate: RecRenderCandidate, { compact = false }: {compact?:unknown} = {}) {
     const savedClass = candidate.saved ? ' is-saved' : '';
     const primaryAction = candidate.primaryAction ? `<div class="rec-next-primary"><span class="rec-next-primary-label">Example to explore</span>${escapeHTML(candidate.primaryAction)}</div>` : '';
     const markerBtn = candidate.markerId
@@ -320,21 +320,21 @@ export function createDashboardRecommendationWidget({
     </article>`;
   }
 
-  function renderRecommendationsEmpty(message = 'No data-linked tips yet.') {
+  function renderRecommendationsEmpty(message: unknown = 'No data-linked tips yet.') {
     return `<button type="button" class="db-correlation-empty" ${dashboardRecommendationActionAttrs('navigate', { route: 'labs' })}>
       <strong>${escapeHTML(message)}</strong>
       <span>Import labs, connect body data, log light exposure, or add DNA to surface optional general-information tips.</span>
     </button>`;
   }
 
-  function renderDashboardRecommendationsWidget(ctx) {
+  function renderDashboardRecommendationsWidget(ctx: unknown) {
     if (!getRecommendationModuleFunction('isProductRecsEnabled')?.()) {
       return `<button type="button" class="db-correlation-empty" ${dashboardRecommendationActionAttrs('open-privacy-settings')}>
         <strong>Tips are off</strong>
         <span>Enable Tips in settings to show optional general-information ideas linked to your data.</span>
       </button>`;
     }
-    const catalog = getCachedRecommendationsCatalog();
+    const catalog = getCachedRecommendationsCatalog() as RecCatalogReader | null;
     if (!catalog) {
       refreshRecommendationsWhenCatalogReady();
       return `<div class="dashboard-widget-empty">Loading tips...</div>`;

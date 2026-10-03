@@ -1,4 +1,3 @@
-// @ts-check
 // biology-scores.js — Biology Scores orchestrator and public API.
 
 import { filterDatesByRange, getActiveData, invalidateActiveDataCache } from './data.js';
@@ -41,6 +40,9 @@ import {
   useBiologyScoresChatPrompt,
 } from './biology-scores-runtime.js';
 
+import type {BiologyData, BiologyDefinition, BiologyComputedDomain, BiologyInterpretedDomain, BiologyOverview, BiologyScore, BiologyAssessment, BiologyContext} from '../types/biology-scores.js';
+import type {ScoreOptions} from './biology-score-types.js';
+
 let biologyScoreDelegatesInstalled = false;
 function installBiologyScoreDelegates() {
   if (biologyScoreDelegatesInstalled || typeof document === 'undefined') return;
@@ -58,7 +60,7 @@ function installBiologyScoreDelegates() {
       return;
     }
     if (!actionEl) return;
-    const el = /** @type {HTMLElement} */ (actionEl);
+    const el = (actionEl as HTMLElement);
     const action = el.dataset.biologyScoreAction;
     if (action === 'open-lens') {
       navigateBiologyScoresRoute('biology-scores');
@@ -132,7 +134,7 @@ function installBiologyScoreDelegates() {
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     const target = event.target instanceof Element ? event.target : null;
-    const el = /** @type {HTMLElement | null} */ (target?.closest('[data-biology-score-action="jump-to-domain"]'));
+    const el = (target?.closest('[data-biology-score-action="jump-to-domain"]') as HTMLElement | null);
     if (!el) return;
     event.preventDefault();
     el.click();
@@ -143,7 +145,7 @@ function installBiologyScoreDelegates() {
 }
 installBiologyScoreDelegates();
 
-function setScoreExpanded(target, open) {
+function setScoreExpanded(target: Element, open: boolean) {
   if (open) {
     const group = target.closest('.biology-score-unavailable-group');
     if (group instanceof HTMLDetailsElement) group.open = true;
@@ -156,13 +158,13 @@ function setScoreExpanded(target, open) {
   target.querySelector('[data-biology-score-action=toggle-score]')?.setAttribute('aria-expanded', String(open));
 }
 
-function jumpToScore(scoreId) {
+function jumpToScore(scoreId: string) {
   const target = document.querySelector(`#biology-score-${CSS.escape(scoreId)}`);
   if (target?.matches('.biology-score-compact')) setScoreExpanded(target, true);
   target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function jumpToScoreWhenReady(scoreId, maxAttempts = 30) {
+function jumpToScoreWhenReady(scoreId: string, maxAttempts = 30) {
   let attempts = 0;
   function tryScroll() {
     const target = document.querySelector(`#biology-score-${CSS.escape(scoreId)}`);
@@ -178,7 +180,7 @@ function jumpToScoreWhenReady(scoreId, maxAttempts = 30) {
   requestAnimationFrame(tryScroll);
 }
 
-function replaceScoreMarkup(element, html) {
+function replaceScoreMarkup(element: Element | null, html: string) {
   if (!element) return;
   const template = document.createElement('template');
   template.innerHTML = html.trim();
@@ -190,7 +192,7 @@ function replaceScoreMarkup(element, html) {
   if (control instanceof HTMLElement) control.focus({ preventScroll: true });
 }
 
-function refreshScoreAIView(current) {
+function refreshScoreAIView(current: BiologyScore) {
   const scoreId = CSS.escape(current.id);
   const panel = document.querySelector(`[data-biology-score-ai-panel="${scoreId}"]`);
   replaceScoreMarkup(panel, renderScoreAIAnswer(current));
@@ -210,7 +212,7 @@ async function retrySavedBiologyInsights() {
   return ids;
 }
 
-async function runEmbeddedScoreAI(el) {
+async function runEmbeddedScoreAI(el: HTMLElement) {
   const scoreId = el.dataset.biologyScoreId;
   if (!scoreId) return;
   const originProfile = state.currentProfile;
@@ -252,13 +254,13 @@ async function runEmbeddedScoreAI(el) {
   }
 }
 
-const automaticAttempts = new Map();
-const sharedExplanationLoads = new Map();
+const automaticAttempts = new Map<string, boolean>();
+const sharedExplanationLoads = new Map<string, Promise<void>>();
 
-export function loadBiologyScoreInsights({ force = false } = {}) {
+export function loadBiologyScoreInsights({ force = false }: {force?: unknown} = {}) {
   const profileId = state.currentProfile;
   if (sharedExplanationLoads.has(profileId)) {
-    if (!force) return sharedExplanationLoads.get(profileId);
+    if (!force) return sharedExplanationLoads.get(profileId)!;
     // Explicit refresh is scoped to the current assessment; pending keys deduplicate it.
     return prepareBiologyScoresContext().then(async () => {
       if (state.currentProfile === profileId) await loadPreparedBiologyScoreInsights(profileId, true);
@@ -285,26 +287,26 @@ export function loadBiologyScoreInsights({ force = false } = {}) {
 
 // Existing scoring helpers read range settings from state. Capture each view
 // synchronously and restore both settings before any render, write or await.
-export function computeBiologyScoreView(data, view, options = {}) {
+export function computeBiologyScoreView(data: BiologyData, view: unknown, options: ScoreOptions = {}) {
   const previous = { rangeMode: state.rangeMode, dateRangeFilter: state.dateRangeFilter };
   try {
     Object.assign(state, view);
-    return computeBiologyScores(filterDatesByRange(data, { fallbackToAll: false }), options);
+    return computeBiologyScores((filterDatesByRange as (data: BiologyData, options: Parameters<typeof filterDatesByRange>[1]) => BiologyData)(data, { fallbackToAll: false }), options);
   } finally { Object.assign(state, previous); }
 }
 
 // One comparison-aware answer covers all standard views. Repeated evidence
 // is described once; this does not make eight independent AI assessments.
-export function computeBiologyScoreAssessments(data) {
+export function computeBiologyScoreAssessments(data: BiologyData): BiologyAssessment[] {
   // Profile context describes the whole assessment across lab date filters.
   // Capture live rollups once so all views use the same context snapshot.
   const options = { profileContext: getBiologyProfileContext() };
   const current = computeBiologyScoreView(data, { rangeMode: state.rangeMode, dateRangeFilter: state.dateRangeFilter }, options);
-  const groups = new Map(current.map(score => [score.id, { ...score, aiViews: [] }]));
+  const groups = new Map(current.map(score => [score.id, { ...score, aiViews: [] as BiologyAssessment['aiViews'] }]));
   for (const dateRangeFilter of ['all', '1y', '6m', '3m']) {
     for (const rangeMode of ['optimal', 'reference']) {
       for (const score of computeBiologyScoreView(data, { rangeMode, dateRangeFilter }, options)) {
-        const group = groups.get(score.id);
+        const group = groups.get(score.id)!;
         const material = getScoreAIMaterialKey(score);
         const label = `${rangeMode} / ${dateRangeFilter}`;
         const existing = group.aiViews.find(view => view.material === material);
@@ -316,11 +318,11 @@ export function computeBiologyScoreAssessments(data) {
   return [...groups.values()];
 }
 
-function assessmentRequestKeys(score, profileId) {
+function assessmentRequestKeys(score: BiologyAssessment, profileId: string) {
   return score.aiViews.map(view => getScoreAIRequestKey(view.score, profileId));
 }
 
-function loadPreparedBiologyScoreInsights(profileId, force) {
+function loadPreparedBiologyScoreInsights(profileId: string, force: unknown) {
   invalidateActiveDataCache();
   const data = getBiologyScoresActiveData();
   const scores = computeBiologyScoreAssessments(data);
@@ -345,23 +347,23 @@ function loadPreparedBiologyScoreInsights(profileId, force) {
       pendingScoreExplanations.add(key);
       automaticAttempts.set(key, true);
     }
-    if (automaticAttempts.size > 512) automaticAttempts.delete(automaticAttempts.keys().next().value);
+    if (automaticAttempts.size > 512) automaticAttempts.delete(automaticAttempts.keys().next().value!);
   }
   reconcileBiologyScoreAIPanels();
   alignBiologyScoreCards();
   const run = async () => {
-    let failed = [];
+    let failed: string[] = [];
     let errorText = '';
-    let errors = {};
+    let errors: Record<string, string> = {};
     try {
       const { failedIds, errors: requestErrors } = await generateBiologyScoreAIAnswers(requested, {
         automatic: !force,
         shouldContinue: () => state.currentProfile === profileId,
         onBatch: async (group, result) => {
-          const records = group.filter(score => result.answers[score.id]).map(score => ({ score, answer: result.answers[score.id], materialFingerprint: /** @type {string} */ (materials.get(score.id)) }));
+          const records = (group as BiologyAssessment[]).filter(score => result.answers[score.id]).map(score => ({ score, answer: result.answers[score.id]!, materialFingerprint: (materials.get(score.id) as string) }));
           if (records.length) await writeScoreAIAnswers(records, profileId, originData);
           for (const score of group) {
-            const keys = assessmentRequestKeys(score, profileId);
+            const keys = assessmentRequestKeys(score as BiologyAssessment, profileId);
             keys.forEach(key => pendingScoreExplanations.delete(key));
             setScoreExplanationError(keys, result.answers[score.id] ? '' : result.errors[score.id] || 'The response was incomplete. Refresh to retry this score.');
           }
@@ -395,14 +397,14 @@ function loadPreparedBiologyScoreInsights(profileId, force) {
 // Each row follows its longest natural summary; mobile cards size individually.
 function alignBiologyScoreCards() {
   if (typeof document === 'undefined') return;
-  const cards = [...document.querySelectorAll('.biology-score-compact > .biology-score-summary')];
-  cards.forEach(card => /** @type {HTMLElement} */ (card).style.removeProperty('--biology-summary-height'));
-  const rows = new Map();
+  const cards = [...document.querySelectorAll<HTMLElement>('.biology-score-compact > .biology-score-summary')];
+  cards.forEach(card => (card as HTMLElement).style.removeProperty('--biology-summary-height'));
+  const rows = new Map<number, HTMLElement[]>();
   for (const card of cards) {
     if (!card.getClientRects().length) continue;
     const top = Math.round(card.getBoundingClientRect().top);
     if (!rows.has(top)) rows.set(top, []);
-    rows.get(top).push(card);
+    rows.get(top)!.push(card);
   }
   for (const row of rows.values()) {
     const height = Math.max(...row.map(card => card.getBoundingClientRect().height));
@@ -411,16 +413,16 @@ function alignBiologyScoreCards() {
 }
 
 // These assays share schema suffixes; keep their ordered fallback paths together.
-function fattyAcidPaths(marker, biostarksMarker = '') {
+function fattyAcidPaths(marker: string, biostarksMarker = '') {
   const paths = ['fattyAcids', 'spadiaFA', 'omegaquantFA', 'zinzinoFA', 'metabolomixFA', 'fattyAcidsTest'].map(group => `${group}.${marker}`);
   if (biostarksMarker) paths.push(`biostarksFA.${biostarksMarker}`);
   return paths;
 }
 
-export const SCORE_DEFINITIONS = [
+export const SCORE_DEFINITIONS: BiologyDefinition[] = [
   {
     id: 'biologicalCoherence', title: 'Biological Coherence', kicker: 'System-level signal', evidence: 'contextual', panelTier: 'minimum', coherenceDomain: 'overview',
-    summary: 'A single read across your marker patterns. Strong domains show where your system is coherent; strained ones point to where retesting or deeper context helps.', compute: (data, def, options = {}) => computeBiologicalCoherence(data, def, SCORE_DEFINITIONS, (input, defs) => computeBiologyScoresInternal(input, defs, options)),
+    summary: 'A single read across your marker patterns. Strong domains show where your system is coherent; strained ones point to where retesting or deeper context helps.', compute: (data: BiologyData, def: BiologyDefinition, options: ScoreOptions = {}) => (computeBiologicalCoherence as (data: BiologyData, def: BiologyDefinition, definitions: BiologyDefinition[], compute: (data: BiologyData, definitions: BiologyDefinition[]) => BiologyComputedDomain[]) => BiologyOverview)(data, def, SCORE_DEFINITIONS, (input, defs) => computeBiologyScoresInternal(input, defs, options)),
   },
   {
     id: 'metabolicFlexibility', title: 'Metabolic Flexibility', kicker: 'Glucose-insulin strain', evidence: 'production', panelTier: 'minimum', coherenceDomain: 'metabolic', coherenceWeight: 1.2,
@@ -502,26 +504,26 @@ export const SCORE_DEFINITIONS = [
   ...TIER2_BIOLOGY_SCORE_DEFINITIONS.map(def => ({ ...def, compute: computeWeightedComposite })),
 ];
 
-function computeBiologyScoresInternal(data, definitions, options = {}) {
+function computeBiologyScoresInternal(data: BiologyData, definitions: BiologyDefinition[], options: ScoreOptions = {}): BiologyInterpretedDomain[] {
   const profileContext = options.profileContext || getBiologyProfileContext(options);
   const computeOptions = { ...options, profileContext };
   return definitions.map((def) => {
-    const result = addScoreInterpretation(def.compute(data, def, computeOptions));
+    const result = addScoreInterpretation((def.compute as (data: BiologyData, definition: BiologyDefinition, options: ScoreOptions) => BiologyComputedDomain)(data, def, computeOptions));
     const rows = [...result.available, ...result.missing];
-    const labels = core => [...new Set(rows.filter(i => !!i.core === core).map(i => i.coreGroupLabel || i.label))];
+    const labels = (core: boolean) => [...new Set(rows.filter(i => !!i.core === core).map(i => i.coreGroupLabel || i.label))];
     return { ...getBiologyScoreCopy(def.id), ...result, basicInputs: labels(true), extendedInputs: labels(false) };
   });
 }
 
-export function computeBiologyScores(data, options = {}) {
+export function computeBiologyScores(data: BiologyData, options: ScoreOptions = {}): BiologyScore[] {
   const components = computeBiologyScoresInternal(data, SCORE_DEFINITIONS.filter(d => d.id !== 'biologicalCoherence'), options);
-  const overview = computeBiologicalCoherence(data, SCORE_DEFINITIONS[0], SCORE_DEFINITIONS, (_data, defs) => components.filter(s => defs.some(d => d.id === s.id)));
+  const overview = (computeBiologicalCoherence as (data: BiologyData, definition: BiologyDefinition, definitions: BiologyDefinition[], compute: (data: BiologyData, definitions: BiologyDefinition[]) => BiologyComputedDomain[]) => BiologyOverview)(data, SCORE_DEFINITIONS[0]!, SCORE_DEFINITIONS, (_data, defs) => components.filter(s => defs.some(d => d.id === s.id)));
   // Keep a separate historical overview when no current domain can be computed.
   // Current score/coverage remain unchanged for AI and other data consumers.
   if (!Number.isFinite(overview.rawScore) && overview.available.length === 0) {
     const historical = components.filter(s => Number.isFinite(s.rawScore) && ['stale', 'mixed-dates'].includes(s.recencyStatus));
     if (historical.length) {
-      const snapshot = computeBiologicalCoherence(data, SCORE_DEFINITIONS[0], SCORE_DEFINITIONS,
+      const snapshot = (computeBiologicalCoherence as (data: BiologyData, definition: BiologyDefinition, definitions: BiologyDefinition[], compute: (data: BiologyData, definitions: BiologyDefinition[]) => BiologyComputedDomain[]) => BiologyOverview)(data, SCORE_DEFINITIONS[0]!, SCORE_DEFINITIONS,
         (_data, defs) => components.filter(s => defs.some(d => d.id === s.id)).map(s => historical.includes(s) ? { ...s, score: s.rawScore } : s));
       const markers = historical.filter(s => s.panelTier !== 'extended').flatMap(s => s.available.filter(i => i.core && !i.profileContextOnly));
       const recency = assessScoreRecency(markers);
@@ -538,8 +540,8 @@ export function computeBiologyScores(data, options = {}) {
     const reason = score.recencyStatus === 'stale' ? 'Older results' : score.recencyStatus === 'mixed-dates' ? 'Mixed dates' : score.recencyStatus === 'unknown-date' ? 'Check dates' : 'Needs inputs or context';
     score.overviewMembership = { included, optional, label: optional ? 'Optional · Outside overview' : included ? historicalOverview ? 'In historical overview' : Number.isFinite(displayed.rawScore) ? 'In overview' : 'Ready for overview' : `Excluded · ${reason}` };
   }
-  overview.membership = components.filter(s => s.panelTier !== 'extended').map(s => ({ id: s.id, title: s.title, domain: s.coherenceDomain, ...s.overviewMembership }));
-  if (overview.historicalSnapshot) overview.historicalSnapshot.membership = overview.membership;
+  overview.membership = components.filter(s => s.panelTier !== 'extended').map(s => ({ id: s.id, title: s.title, domain: s.coherenceDomain, ...s.overviewMembership! }));
+  if (overview.historicalSnapshot) overview.historicalSnapshot.membership = overview.membership!;
   return [overview, ...components].map(score => ({ ...score, aiRangeMode: state.rangeMode }));
 }
 
@@ -579,13 +581,13 @@ export function getBiologyScoreWidgetDefinitions() {
   }));
 }
 
-function contextScoreData(ctx) {
+function contextScoreData(ctx: unknown) {
   if (!ctx) return {};
-  return filterDatesByRange(ctx.data || {}, { fallbackToAll: false });
+  return filterDatesByRange((ctx as BiologyContext).data || {}, { fallbackToAll: false });
 }
 
-function contextForScores(ctx) {
-  return ctx ? { ...ctx, data: contextScoreData(ctx) } : ctx;
+function contextForScores(ctx: unknown) {
+  return ctx ? { ...(ctx as Record<string, unknown>), data: contextScoreData(ctx) } : ctx;
 }
 
 function reconcileBiologyScoreAIPanels() {
@@ -631,36 +633,36 @@ if (typeof globalThis !== 'undefined' && typeof globalThis.addEventListener === 
   globalThis.addEventListener('resize', alignBiologyScoreCards);
 }
 
-export function getBiologyScoreLensWidgets(ctx) {
-  const scoreCtx = contextForScores(ctx);
+export function getBiologyScoreLensWidgets(ctx: unknown) {
+  const scoreCtx = contextForScores(ctx) as BiologyContext | null | undefined;
   const scores = computeBiologyScores(scoreCtx?.data || {}).filter(score => score.id !== 'biologicalCoherence');
   return scores.map(score => ({ id: `biology-score-detail-${score.id}`, title: score.title, description: '', body: renderScoreDetail(score), size: 'full', opts: { source: 'Biology Scores', dashboardId: `biology-score-${score.id}`, compactScore: true } }));
 }
 
-export function getBiologyScoreLensGroups(ctx) {
+export function getBiologyScoreLensGroups(ctx: unknown) {
   const groups = groupBiologyScores(computeBiologyScores(contextScoreData(ctx)));
   const widgets = new Map(getBiologyScoreLensWidgets(ctx).map(widget => [widget.id, widget]));
   return Object.fromEntries(Object.entries(groups).map(([key, scores]) => [key, scores.map(score => widgets.get(`biology-score-detail-${score.id}`))]));
 }
 
-export function renderBiologicalCoherenceLensHero(ctx) {
-  return renderBiologicalCoherenceLensHeroImpl(contextForScores(ctx), computeBiologyScores);
+export function renderBiologicalCoherenceLensHero(ctx: unknown) {
+  return (renderBiologicalCoherenceLensHeroImpl as (ctx: unknown, compute: typeof computeBiologyScores) => ReturnType<typeof renderBiologicalCoherenceLensHeroImpl>)(contextForScores(ctx), computeBiologyScores);
 }
 
-export function renderDashboardBiologicalCoherenceWidget(ctx) {
-  return renderDashboardBiologicalCoherenceWidgetImpl(contextForScores(ctx), computeBiologyScores);
+export function renderDashboardBiologicalCoherenceWidget(ctx: unknown) {
+  return (renderDashboardBiologicalCoherenceWidgetImpl as (ctx: unknown, compute: typeof computeBiologyScores) => ReturnType<typeof renderDashboardBiologicalCoherenceWidgetImpl>)(contextForScores(ctx), computeBiologyScores);
 }
 
-export function renderDashboardBiologyScoreWidget(ctx, scoreId) {
-  return renderDashboardBiologyScoreWidgetImpl(contextForScores(ctx), scoreId, computeBiologyScores);
+export function renderDashboardBiologyScoreWidget(ctx: unknown, scoreId: string) {
+  return (renderDashboardBiologyScoreWidgetImpl as (ctx: unknown, scoreId: string, compute: typeof computeBiologyScores) => ReturnType<typeof renderDashboardBiologyScoreWidgetImpl>)(contextForScores(ctx), scoreId, computeBiologyScores);
 }
 
-export function renderBiologyScoresWidget(ctx) {
-  return renderBiologyScoresWidgetImpl(contextForScores(ctx), computeBiologyScores);
+export function renderBiologyScoresWidget(ctx: unknown) {
+  return (renderBiologyScoresWidgetImpl as (ctx: unknown, compute: typeof computeBiologyScores) => ReturnType<typeof renderBiologyScoresWidgetImpl>)(contextForScores(ctx), computeBiologyScores);
 }
 
-export function renderBiologyScoresLens(ctx) {
-  const html = renderBiologyScoresLensImpl(contextForScores(ctx), computeBiologyScores);
+export function renderBiologyScoresLens(ctx: unknown) {
+  const html = (renderBiologyScoresLensImpl as (ctx: unknown, compute: typeof computeBiologyScores) => ReturnType<typeof renderBiologyScoresLensImpl>)(contextForScores(ctx), computeBiologyScores);
   scheduleBiologyScoreAIReconcile();
   return html;
 }

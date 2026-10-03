@@ -1,4 +1,3 @@
-// @ts-check
 // app-shell-hooks.js - wire app shell actions without window lookups.
 
 import { configureAppEventListeners } from './app-event-listeners.js';
@@ -197,7 +196,7 @@ configureApiRuntimeCallbacks({ showInsufficientBalanceDialog });
 configureApiProviderStorageRuntimeDeps({ encryptedSetItem: encryptedSetCredentialItem });
 configureStartupOAuthCallbackDeps({ showInsufficientBalanceDialog });
 configureStartupProfileDeps({
-  hydrateNutritionSummary: profileId => import('./nutrition-context.js').then(module => module.hydrateNutritionSummary(profileId)),
+  hydrateNutritionSummary: (profileId: Parameters<typeof import('./nutrition-context.js').hydrateNutritionSummary>[0]) => import('./nutrition-context.js').then(module => module.hydrateNutritionSummary(profileId)),
 });
 if (typeof document !== 'undefined') {
   document.addEventListener('nutrition:open-ai-settings', () => openSettingsModal('ai'));
@@ -227,7 +226,7 @@ configureChatLoader({
   switchAIProvider: switchAIProviderBridge,
 });
 configureDashboardViewFactory(createDashboardViewComposition);
-configureLabContext({ buildBiologyScoresAIContext });
+(configureLabContext as (deps: { buildBiologyScoresAIContext: typeof buildBiologyScoresAIContext }) => ReturnType<typeof configureLabContext>)({ buildBiologyScoresAIContext });
 configureProfileDeps({ deleteProfileFromRelay, onProfileSaved, pushContextToGateway });
 configureProfileRuntimeDeps({
   dispatchProfileSwitched,
@@ -237,13 +236,13 @@ configureProfileRuntimeDeps({
   reloadProfileRuntimeShell,
 });
 configureProfileStorageCleanupDeps({
-  deleteNutritionDB: profileId => import('./nutrition-store.js').then(module => module.deleteNutritionDB(profileId)),
+  deleteNutritionDB: (profileId: Parameters<typeof import('./nutrition-store.js').deleteNutritionDB>[0]) => import('./nutrition-store.js').then(module => module.deleteNutritionDB(profileId)),
 });
 configureProfileRefreshDeps({
   buildSidebar,
   destroyAllCharts,
   getInitialView,
-  hydrateNutritionSummary: profileId => import('./nutrition-context.js').then(module => module.hydrateNutritionSummary(profileId)),
+  hydrateNutritionSummary: (profileId: Parameters<typeof import('./nutrition-context.js').hydrateNutritionSummary>[0]) => import('./nutrition-context.js').then(module => module.hydrateNutritionSummary(profileId)),
   invalidateLabContextCache,
   migrateBiometricsToManual,
   navigate,
@@ -262,12 +261,12 @@ configureClientListRuntime({
 });
 
 configureSettingsLoader({
-  configureModule(settingsModule) {
+  configureModule(settingsModule: typeof import('./settings.js')) {
     settingsModule.configureSettingsRuntime({
       clearDashboardWidgets,
       clearAllData,
       exportAllDataJSON,
-      exportClientJSON: profileId => profileId ? exportClientJSON(profileId) : undefined,
+      exportClientJSON: (profileId: Parameters<typeof exportClientJSON>[0]) => profileId ? exportClientJSON(profileId) : undefined,
       getActiveProfileId,
       navigate,
       openFeedbackModal,
@@ -388,11 +387,9 @@ configureWearablesConnectRuntimeDeps({ navigate });
 configureWearableDetailRuntimeDeps({ closeModal, navigate, rememberModalTrigger });
 configureWearablesRuntime({
   closeModal,
-  loadModule: useRetryUrl => {
+  loadModule: (useRetryUrl: unknown) => {
     if (useRetryUrl) {
-      // @ts-expect-error The browser accepts a fixed query-string module URL;
-      // TypeScript resolves declarations only for the query-free source path.
-      return import('./wearables.js?lazy-retry=1');
+      return import('./wearables.js?lazy-retry=1' as './wearables.js');
     }
     return import('./wearables.js');
   },
