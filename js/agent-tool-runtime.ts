@@ -14,7 +14,7 @@ export {
 
 export interface AgentContextSection {baseName: string; name: string; metadata: string; content: string}
 export interface AgentContextSnapshot {context: string; profileId?: string; updatedAt?: string}
-export interface AgentContextReceipt {label: string; detail: string}
+export interface AgentContextReceipt {label: unknown; detail: string}
 export interface AgentToolReceipt {tool?: string | undefined; arguments?: unknown; success?: boolean | undefined}
 export interface AgentToolInvocation {tool?: unknown; arguments?: unknown; namespace?: unknown}
 export interface AgentDraft {

@@ -1,4 +1,3 @@
-// @ts-check
 // nutrition-modal-controller.js — guarded modal dismissal and Settings handoff.
 
 import { exitComparisonPresentation, isNutritionComparisonRunning, hasNutritionComparisonRuns } from './nutrition-comparison-ui.js';
@@ -7,13 +6,23 @@ import { isAnalysisProgressRunning } from './nutrition-review-ui.js';
 import { closeModalOverlay } from './modal-lifecycle.js';
 import { showConfirmDialog, showNotification } from './utils.js';
 
-let modalDeps = {
+import type { ConfirmDialogOptions } from './utils.js';
+
+export interface NutritionModalControllerDependencies {
+  resetEditorState: () => unknown;
+  hasUnsavedState: () => unknown;
+  onBackgroundClose: () => unknown;
+}
+export type NutritionEditorNavigationOptions = Pick<ConfirmDialogOptions, 'confirmLabel' | 'ariaLabel'> & { message?: Parameters<typeof showConfirmDialog>[0] };
+export type NutritionEditorKeyEvent = Pick<KeyboardEvent, 'key' | 'preventDefault' | 'stopImmediatePropagation'>;
+
+let modalDeps: NutritionModalControllerDependencies = {
   resetEditorState: () => {},
   hasUnsavedState: () => false,
   onBackgroundClose: () => {},
 };
 
-export function configureNutritionModalController(deps = {}) {
+export function configureNutritionModalController(deps: Partial<NutritionModalControllerDependencies> = {}) {
   modalDeps = { ...modalDeps, ...deps };
 }
 
@@ -66,11 +75,11 @@ function editorHasUnsavedWork() {
  * @param {(()=>unknown|Promise<unknown>)|null} navigate
  * @param {{message?: string, confirmLabel?: string, ariaLabel?: string}} [options]
  */
-export async function requestNutritionEditorNavigation(navigate, {
+export async function requestNutritionEditorNavigation(navigate: (() => unknown) | null | undefined, {
   message = 'Discard this unsaved meal draft? The selected photos and any completed AI analysis will be removed from this review.',
   confirmLabel = 'Discard draft',
   ariaLabel = 'Discard meal draft',
-} = {}) {
+}: NutritionEditorNavigationOptions = {}) {
   if (isAnalysisProgressRunning() || isNutritionComparisonRunning()) {
     nudgeNutritionEditor();
     showNotification('Meal analysis is still running. Keep this window open so the result is not lost.', 'info');
@@ -98,12 +107,12 @@ export async function requestCloseNutritionEditor() {
   await requestNutritionEditorNavigation(finishClosingNutritionEditor);
 }
 
-function modalOverlayIsTopmost(overlay) {
+function modalOverlayIsTopmost(overlay: Element) {
   const open = Array.from(document.querySelectorAll('.modal-overlay.show, .confirm-overlay.show'));
   return !open.length || open[open.length - 1] === overlay;
 }
 
-export function handleNutritionEditorKeydown(event) {
+export function handleNutritionEditorKeydown(event: NutritionEditorKeyEvent) {
   if (event.key !== 'Escape') return;
   if (exitComparisonPresentation()) {
     event.preventDefault();

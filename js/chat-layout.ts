@@ -1,7 +1,8 @@
-// @ts-check
 // Resizable desktop Chat layout. Sizes are UI preferences only and never
 // contain profile data, so they are intentionally stored outside encrypted
 // profile records.
+
+interface ChatLayoutDragPosition { startX: number; x: number; startPanel: number; startRail: number }
 
 const PANEL_WIDTH_KEY = 'labcharts-chat-panel-width';
 const PANEL_WITH_RAIL_WIDTH_KEY = 'labcharts-chat-panel-with-rail-width';
@@ -16,11 +17,11 @@ const RAIL_MAX = 360;
 const RAIL_DEFAULT = 220;
 let layoutInitialized = false;
 
-function clamp(value, min, max) {
+function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function storedNumber(key, fallback) {
+function storedNumber(key: string, fallback: number) {
   const raw = localStorage.getItem(key);
   if (raw === null || raw.trim() === '') return fallback;
   const value = Number(raw);
@@ -31,7 +32,7 @@ function desktopAvailableWidth() {
   return Math.max(PANEL_MIN, Math.min(PANEL_MAX, globalThis.innerWidth - 48));
 }
 
-function currentPanelStorage(railOpen) {
+function currentPanelStorage(railOpen: boolean) {
   return railOpen
     ? { key: PANEL_WITH_RAIL_WIDTH_KEY, fallback: PANEL_WITH_RAIL_DEFAULT }
     : { key: PANEL_WIDTH_KEY, fallback: PANEL_DEFAULT };
@@ -64,7 +65,7 @@ export function syncChatLayout() {
   railHandle?.setAttribute('aria-valuemax', String(Math.round(Math.min(RAIL_MAX, panelWidth - 360))));
 }
 
-function persistPanelWidth(value) {
+function persistPanelWidth(value: number) {
   const railOpen = document.getElementById('chat-thread-rail')?.classList.contains('open') === true;
   const railWidth = storedNumber(RAIL_WIDTH_KEY, RAIL_DEFAULT);
   const min = railOpen ? railWidth + 360 : PANEL_MIN;
@@ -73,7 +74,7 @@ function persistPanelWidth(value) {
   syncChatLayout();
 }
 
-function persistRailWidth(value) {
+function persistRailWidth(value: number) {
   const panel = document.getElementById('chat-panel');
   const panelWidth = panel?.getBoundingClientRect().width || PANEL_WITH_RAIL_DEFAULT;
   const width = Math.round(clamp(value, RAIL_MIN, Math.min(RAIL_MAX, panelWidth - 360)));
@@ -81,7 +82,7 @@ function persistRailWidth(value) {
   syncChatLayout();
 }
 
-function bindDrag(handle, onMove) {
+function bindDrag(handle: HTMLElement | null, onMove: (position: ChatLayoutDragPosition) => void) {
   if (!handle || handle.dataset.chatResizeBound === 'true') return;
   handle.dataset.chatResizeBound = 'true';
   handle.addEventListener('pointerdown', event => {
@@ -94,7 +95,7 @@ function bindDrag(handle, onMove) {
     const startRail = rail?.getBoundingClientRect().width || RAIL_DEFAULT;
     document.body.classList.add('chat-layout-resizing');
     handle.setPointerCapture?.(event.pointerId);
-    const move = moveEvent => onMove({ startX, x: moveEvent.clientX, startPanel, startRail });
+    const move = (moveEvent: PointerEvent) => onMove({ startX, x: moveEvent.clientX, startPanel, startRail });
     const finish = () => {
       document.body.classList.remove('chat-layout-resizing');
       handle.removeEventListener('pointermove', move);
@@ -107,7 +108,7 @@ function bindDrag(handle, onMove) {
   });
 }
 
-function bindKeyboard(handle, getValue, setValue, fallback, direction = 1) {
+function bindKeyboard(handle: HTMLElement | null, getValue: () => number, setValue: (value: number) => void, fallback: number, direction = 1) {
   if (!handle) return;
   handle.addEventListener('keydown', event => {
     if (!['ArrowLeft', 'ArrowRight', 'Home'].includes(event.key)) return;
@@ -122,8 +123,8 @@ export function initChatLayout() {
   syncChatLayout();
   if (layoutInitialized) return;
   layoutInitialized = true;
-  const panelHandle = /** @type {HTMLElement | null} */ (document.getElementById('chat-panel-resize-handle'));
-  const railHandle = /** @type {HTMLElement | null} */ (document.getElementById('chat-rail-resize-handle'));
+  const panelHandle = document.getElementById('chat-panel-resize-handle');
+  const railHandle = document.getElementById('chat-rail-resize-handle');
   bindDrag(panelHandle, ({ startX, x, startPanel }) => persistPanelWidth(startPanel + startX - x));
   bindDrag(railHandle, ({ startX, x, startRail }) => persistRailWidth(startRail + x - startX));
   bindKeyboard(

@@ -1,4 +1,3 @@
-// @ts-check
 // nutrition-comparison-ui.js — debug model comparison workflow and result UI.
 
 import { analyzeMealPhoto, mealImagesFromPreparedPhotos, prepareMealPhotos } from './nutrition-analysis.js';
@@ -13,27 +12,30 @@ import { comparisonTotalWeight, exitComparisonPresentation, renderNutritionCompa
 import { state } from './state.js';
 export { exitComparisonPresentation, toggleComparisonPresentation } from './nutrition-comparison-results.js';
 
+import type { PreparedMealPhoto } from './nutrition-analysis.js';
+import type { ComparisonImages, ComparisonModel, ComparisonRun, ComparisonRunContext, ComparisonManualReference, NutritionComparisonUIDependencies, StoredComparisonSnapshotReader, StoredComparisonRunReader, ComparisonReferenceAnalysisReader, ComparisonResultsReaderOptions } from '../types/nutrition-comparison-ui.js';
+export type { ComparisonRun, ComparisonEstimateResult, NutritionComparisonUIDependencies } from '../types/nutrition-comparison-ui.js';
+
 let comparisonRunning = false;
-let comparisonRuns = [];
-const comparisonRunControllers = new Map();
+let comparisonRuns: ComparisonRun[] = [];
+const comparisonRunControllers = new Map<ComparisonRun, AbortController>();
 let comparisonExecutionId = 0;
-let comparisonSharedImages = [];
-let comparisonPreparedPhotos = [];
-let comparisonRunContext = null;
-let comparisonReferenceRunIndex = null;
-let comparisonManualReference = {};
+let comparisonSharedImages: ComparisonImages = [];
+let comparisonPreparedPhotos: PreparedMealPhoto[] = [];
+let comparisonRunContext: ComparisonRunContext | null = null;
+let comparisonReferenceRunIndex: number | null = null;
+let comparisonManualReference: ComparisonManualReference = {};
 let comparisonSavedAt = '';
 let comparisonIsRestored = false;
 /** @type {ReturnType<typeof setTimeout> | 0} */
-let comparisonPersistenceTimer = 0;
+let comparisonPersistenceTimer: ReturnType<typeof setTimeout> | 0 = 0;
 let comparisonProfileId = '';
 let comparisonPersistenceDirty = false;
 let comparisonPersistenceRevision = 0;
 let comparisonModelQuery = '';
 let comparisonReplacementPending = false;
-let comparisonSelectedModelValues = [];
-/** @type {any} */
-let comparisonDeps = {
+let comparisonSelectedModelValues: string[] = [];
+let comparisonDeps: NutritionComparisonUIDependencies = {
   analysisFiles: async () => [],
   hasPhotos: () => false,
   startRequest: () => new AbortController(),
@@ -48,7 +50,7 @@ let comparisonDeps = {
   setStatus: () => {},
 };
 
-export function configureNutritionComparisonUI(deps = {}) {
+export function configureNutritionComparisonUI(deps: Partial<NutritionComparisonUIDependencies> = {}) {
   comparisonDeps = { ...comparisonDeps, ...deps };
 }
 
@@ -104,21 +106,21 @@ export function refreshComparisonModelPicker() {
   const search = current.querySelector('[data-nutrition-comparison-search]');
   comparisonModelQuery = search instanceof HTMLInputElement ? search.value : comparisonModelQuery;
   const checkedValues = new Set(Array.from(current.querySelectorAll('[data-nutrition-comparison-model]:checked'))
-    .map(input => /** @type {HTMLInputElement} */ (input).value));
+    .map(input => (input as HTMLInputElement).value));
   const retainedValues = comparisonSelectedModelValues.length
     ? new Set(comparisonSelectedModelValues)
     : checkedValues;
   current.outerHTML = renderComparisonModelPicker(comparisonModelQuery);
   if ((!wasCheckingLocal || comparisonSelectedModelValues.length) && retainedValues.size) {
     document.querySelectorAll('[data-nutrition-comparison-model]').forEach(input => {
-      /** @type {HTMLInputElement} */ (input).checked = retainedValues.has(/** @type {HTMLInputElement} */ (input).value);
+      (input as HTMLInputElement).checked = retainedValues.has((input as HTMLInputElement).value);
     });
   }
   filterNutritionComparisonModels(comparisonModelQuery);
   updateComparisonControls();
 }
 
-function normalizedModelSearch(value) {
+function normalizedModelSearch(value: unknown) {
   return String(value || '')
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -126,7 +128,7 @@ function normalizedModelSearch(value) {
     .trim();
 }
 
-export function filterNutritionComparisonModels(value) {
+export function filterNutritionComparisonModels(value: unknown) {
   comparisonModelQuery = String(value || '').slice(0, 160);
   const picker = document.querySelector('.nutrition-comparison-model-picker');
   if (!picker) return;
@@ -136,7 +138,7 @@ export function filterNutritionComparisonModels(value) {
   cards.forEach(card => {
     const searchable = normalizedModelSearch(card.getAttribute('data-nutrition-model-search'));
     const matches = tokens.every(token => searchable.includes(token));
-    /** @type {HTMLElement} */ (card).hidden = !matches;
+    (card as HTMLElement).hidden = !matches;
     if (matches) shown += 1;
   });
   const status = picker.querySelector('[data-nutrition-comparison-search-status]');
@@ -160,13 +162,13 @@ function selectedComparisonModels() {
   const catalog = new Map(listNutritionVisionModels().map(model => [model.value, model]));
   return Array.from(document.querySelectorAll('[data-nutrition-comparison-model]:checked'))
     .flatMap(input => {
-      const model = catalog.get(/** @type {HTMLInputElement} */ (input).value);
+      const model = catalog.get((input as HTMLInputElement).value);
       return model ? [model] : [];
     })
     .slice(0, 4);
 }
 
-function comparisonRouteKey(provider, model) {
+function comparisonRouteKey(provider: unknown, model: unknown) {
   return JSON.stringify({ provider: String(provider || ''), model: String(model || '') });
 }
 
@@ -175,7 +177,7 @@ function existingComparisonRouteKeys() {
 }
 
 function readManualComparisonReference() {
-  const reference = {};
+  const reference: ComparisonManualReference = {};
   const inputs = document.querySelectorAll('[data-nutrition-reference]');
   inputs.forEach(input => {
     const key = input.getAttribute('data-nutrition-reference') || '';
@@ -227,7 +229,7 @@ function updateComparisonHistoryBanner() {
   banner.innerHTML = `<span><strong>${comparisonIsRestored ? 'Last comparison restored' : 'Comparison saved'}</strong> · ${escapeHTML(savedLabel)} · encrypted locally · outside AI context.</span><button type="button" class="nutrition-text-btn" ${actionAttrs('clear-comparison-history')}>Clear</button>`;
 }
 
-async function persistComparisonSnapshot(snapshot, profileId = comparisonProfileId || state.currentProfile, revision = comparisonPersistenceRevision) {
+async function persistComparisonSnapshot(snapshot: ReturnType<typeof comparisonSnapshot>, profileId = comparisonProfileId || state.currentProfile, revision = comparisonPersistenceRevision) {
   if (!snapshot?.runs?.length) return;
   try {
     await setLocalNutritionComparison(profileId, snapshot);
@@ -251,7 +253,7 @@ function scheduleComparisonPersistence() {
   }, 180);
 }
 
-function populateManualComparisonReference(reference) {
+function populateManualComparisonReference(reference: ComparisonManualReference | null | undefined) {
   document.querySelectorAll('[data-nutrition-reference]').forEach(input => {
     const key = input.getAttribute('data-nutrition-reference') || '';
     if (!key || !(input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement)) return;
@@ -267,12 +269,12 @@ export async function restoreNutritionComparison() {
   const profileId = state.currentProfile;
   const data = state.importedData;
   const executionId = comparisonExecutionId;
-  let snapshot;
-  try { snapshot = await getLocalNutritionComparison(profileId); }
+  let snapshot: StoredComparisonSnapshotReader | null;
+  try { snapshot = await getLocalNutritionComparison(profileId) as StoredComparisonSnapshotReader | null; }
   catch { return false; }
   if (profileId !== state.currentProfile || data !== state.importedData || executionId !== comparisonExecutionId) return false;
   if (snapshot?.version !== 1 || !Array.isArray(snapshot.runs) || !snapshot.runs.length) return false;
-  comparisonRuns = snapshot.runs.slice(0, 4).flatMap(run => {
+  comparisonRuns = (snapshot.runs as (StoredComparisonRunReader | null | undefined)[]).slice(0, 4).flatMap(run => {
     const provider = String(run?.route?.provider || '');
     const model = String(run?.route?.model || '');
     if (!provider || !model || (run?.result && !run.result?.analysis)) return [];
@@ -288,12 +290,12 @@ export async function restoreNutritionComparison() {
   });
   if (!comparisonRuns.length) return false;
   comparisonManualReference = snapshot.manualReference && typeof snapshot.manualReference === 'object'
-    ? snapshot.manualReference
+    ? snapshot.manualReference as ComparisonManualReference
     : {};
-  comparisonRunContext = snapshot.runContext && typeof snapshot.runContext === 'object' ? snapshot.runContext : null;
+  comparisonRunContext = snapshot.runContext && typeof snapshot.runContext === 'object' ? snapshot.runContext as ComparisonRunContext : null;
   comparisonReferenceRunIndex = Number.isInteger(snapshot.referenceRunIndex)
-    && /** @type {number} */ (snapshot.referenceRunIndex) >= 0 && /** @type {number} */ (snapshot.referenceRunIndex) < comparisonRuns.length
-    ? /** @type {number} */ (snapshot.referenceRunIndex)
+    && (snapshot.referenceRunIndex as number) >= 0 && (snapshot.referenceRunIndex as number) < comparisonRuns.length
+    ? (snapshot.referenceRunIndex as number)
     : null;
   comparisonSavedAt = String(snapshot.savedAt || '');
   comparisonIsRestored = true;
@@ -324,25 +326,25 @@ export async function clearSavedNutritionComparison() {
   showNotification('Saved meal comparison cleared.', 'info');
 }
 
-function comparisonReferenceFromAnalysis(analysis) {
-  const reference = {
-    mealName: analysis?.mealName || '',
-    ingredients: (analysis?.components || []).map(item => item?.name).filter(Boolean),
-    totalWeightG: comparisonTotalWeight(analysis),
+function comparisonReferenceFromAnalysis(analysis: unknown) {
+  const reference: ComparisonManualReference = {
+    mealName: (analysis as ComparisonReferenceAnalysisReader | null | undefined)?.mealName || '',
+    ingredients: ((analysis as ComparisonReferenceAnalysisReader | null | undefined)?.components || []).map(item => item?.name).filter(Boolean),
+    totalWeightG: (comparisonTotalWeight as (analysis: unknown) => ReturnType<typeof comparisonTotalWeight>)(analysis),
   };
-  for (const field of NUTRIENT_DEFINITIONS) reference[field.key] = analysis?.nutrients?.[field.key];
+  for (const field of NUTRIENT_DEFINITIONS) reference[field.key] = (analysis as ComparisonReferenceAnalysisReader | null | undefined)?.nutrients?.[field.key];
   return reference;
 }
 
 function selectedComparisonReferenceRun() {
   if (!Number.isInteger(comparisonReferenceRunIndex)) return null;
-  const run = comparisonRuns[comparisonReferenceRunIndex];
+  const run = comparisonRuns[comparisonReferenceRunIndex!];
   return run?.result?.analysis ? run : null;
 }
 
 function currentComparisonReference() {
   const selected = selectedComparisonReferenceRun();
-  return selected ? comparisonReferenceFromAnalysis(selected.result.analysis) : manualComparisonReference();
+  return selected ? comparisonReferenceFromAnalysis(selected.result!.analysis) : manualComparisonReference();
 }
 
 function comparisonIsForeign(profileId = comparisonProfileId) {
@@ -352,7 +354,7 @@ function comparisonIsForeign(profileId = comparisonProfileId) {
   return true;
 }
 function renderComparisonResults() {
-  renderNutritionComparisonResults({
+  (renderNutritionComparisonResults as (options: ComparisonResultsReaderOptions) => ReturnType<typeof renderNutritionComparisonResults>)({
     runs: comparisonRuns,
     reference: currentComparisonReference(),
     referenceRun: selectedComparisonReferenceRun(),
@@ -361,7 +363,7 @@ function renderComparisonResults() {
   });
 }
 
-export function setComparisonReference(index) {
+export function setComparisonReference(index: number) {
   const run = comparisonRuns[index];
   if (!run?.result?.analysis) return;
   comparisonReferenceRunIndex = index;
@@ -376,7 +378,7 @@ export function clearComparisonReference() {
 }
 
 export function updateComparisonControls() {
-  const button = /** @type {HTMLButtonElement | null} */ (document.getElementById('nutrition-run-comparison'));
+  const button = (document.getElementById('nutrition-run-comparison') as HTMLButtonElement | null);
   if (!button) return;
   const selectedModels = selectedComparisonModels();
   const selectedCount = selectedModels.length;
@@ -386,17 +388,17 @@ export function updateComparisonControls() {
   const appendRequested = reusableRun && pendingModels.length > 0;
   const availableSlots = Math.max(0, 4 - comparisonRuns.length);
   const hasPhotos = comparisonDeps.hasPhotos() || comparisonPreparedPhotos.length > 0;
-  const benchmarkPhotoInput = /** @type {HTMLInputElement | null} */ (document.getElementById('nutrition-benchmark-photo-input'));
-  const clearBenchmarkPhotos = /** @type {HTMLButtonElement | null} */ (document.querySelector('[data-nutrition-action="clear-benchmark-photos"]'));
+  const benchmarkPhotoInput = (document.getElementById('nutrition-benchmark-photo-input') as HTMLInputElement | null);
+  const clearBenchmarkPhotos = (document.querySelector('[data-nutrition-action="clear-benchmark-photos"]') as HTMLButtonElement | null);
   if (benchmarkPhotoInput) benchmarkPhotoInput.disabled = comparisonRunning;
   if (clearBenchmarkPhotos) clearBenchmarkPhotos.disabled = comparisonRunning;
   const limit = document.getElementById('nutrition-comparison-model-limit');
   document.querySelectorAll('[data-nutrition-comparison-model]').forEach(input => {
     if (input instanceof HTMLInputElement) input.disabled = comparisonRunning;
     const row = input.closest('.nutrition-comparison-model');
-    const benchmarked = existing.has(/** @type {HTMLInputElement} */ (input).value);
+    const benchmarked = existing.has((input as HTMLInputElement).value);
     row?.classList.toggle('is-benchmarked', benchmarked);
-    row?.classList.toggle('is-selected', /** @type {HTMLInputElement} */ (input).checked);
+    row?.classList.toggle('is-selected', (input as HTMLInputElement).checked);
     const note = row?.querySelector('[data-nutrition-benchmarked]');
     if (note instanceof HTMLElement) note.hidden = !benchmarked;
   });
@@ -421,7 +423,7 @@ export function updateComparisonControls() {
   }
 }
 
-function setComparisonProgress(completed, total, label, state = 'running') {
+function setComparisonProgress(completed: number, total: number, label: unknown, state = 'running') {
   const area = document.getElementById('nutrition-comparison-progress');
   if (!area) return;
   const complete = state === 'success' || state === 'partial';
@@ -460,12 +462,12 @@ export function rememberNutritionComparisonWorkspace() {
   const search = picker.querySelector('[data-nutrition-comparison-search]');
   if (search instanceof HTMLInputElement) comparisonModelQuery = search.value;
   comparisonSelectedModelValues = Array.from(picker.querySelectorAll('[data-nutrition-comparison-model]:checked'))
-    .map(input => /** @type {HTMLInputElement} */ (input).value)
+    .map(input => (input as HTMLInputElement).value)
     .slice(0, 4);
   comparisonManualReference = readManualComparisonReference();
 }
 
-function createComparisonRun(model) {
+function createComparisonRun(model: ComparisonModel): ComparisonRun {
   return {
     route: { provider: model.provider, model: model.model },
     providerLabel: model.providerDisplay,
@@ -474,21 +476,21 @@ function createComparisonRun(model) {
   };
 }
 
-function startComparisonRunRequest(run) {
+function startComparisonRunRequest(run: ComparisonRun) {
   const controller = comparisonDeps.startRequest();
   comparisonRunControllers.set(run, controller);
   return controller;
 }
 
-function finishComparisonRunRequest(run, controller) {
+function finishComparisonRunRequest(run: ComparisonRun, controller: AbortController) {
   if (comparisonRunControllers.get(run) !== controller) return;
   comparisonRunControllers.delete(run);
   comparisonDeps.finishRequest(controller);
 }
 
-export function cancelComparisonRun(index) {
+export function cancelComparisonRun(index: number) {
   const run = comparisonRuns[index];
-  const controller = comparisonRunControllers.get(run);
+  const controller = comparisonRunControllers.get(run!);
   if (!run || run.status !== 'running' || !controller || controller.signal.aborted) return false;
   run.status = 'cancelled';
   run.error = 'Canceled by user. Other selected models continue running.';
@@ -498,8 +500,8 @@ export function cancelComparisonRun(index) {
   return true;
 }
 
-async function executeComparisonRun(run, files, preparedPhotos, executionId, onSettled) {
-  const controller = comparisonRunControllers.get(run);
+async function executeComparisonRun(run: ComparisonRun, files: File[], preparedPhotos: PreparedMealPhoto[], executionId: number, onSettled: () => void) {
+  const controller = comparisonRunControllers.get(run!);
   if (!controller) return;
   const startedAt = performance.now();
   try {
@@ -540,13 +542,13 @@ async function executeComparisonRun(run, files, preparedPhotos, executionId, onS
   }
 }
 
-async function executeComparisonRuns(runs, files, preparedPhotos, executionId) {
+async function executeComparisonRuns(runs: ComparisonRun[], files: File[], preparedPhotos: PreparedMealPhoto[], executionId: number) {
   let completed = 0;
   const onSettled = () => {
     completed += 1;
     if (completed < runs.length) setComparisonProgress(completed, runs.length, `${completed} of ${runs.length} models finished…`);
   };
-  const execute = run => executeComparisonRun(run, files, preparedPhotos, executionId, onSettled);
+  const execute = (run: ComparisonRun) => executeComparisonRun(run, files, preparedPhotos, executionId, onSettled);
   await Promise.all(runs.map(execute));
 }
 
@@ -627,7 +629,7 @@ export async function runModelComparison() {
     }
   } finally {
     for (const run of batchRuns) {
-      const controller = comparisonRunControllers.get(run);
+      const controller = comparisonRunControllers.get(run!);
       if (!controller) continue;
       if (!controller.signal.aborted) controller.abort(new DOMException('Comparison stopped.', 'AbortError'));
       finishComparisonRunRequest(run, controller);
@@ -641,7 +643,7 @@ export async function runModelComparison() {
   }
 }
 
-export async function retryComparisonRun(index) {
+export async function retryComparisonRun(index: number) {
   if (!isDebugMode() || comparisonRunning) return;
   const run = comparisonRuns[index];
   if (comparisonIsRestored || !run || !['error', 'cancelled'].includes(run.status) || run.result || !comparisonPreparedPhotos.length || !comparisonRunContext) {
@@ -667,7 +669,7 @@ export async function retryComparisonRun(index) {
       run.status === 'complete' ? 'success' : 'partial');
     }
   } finally {
-    const controller = comparisonRunControllers.get(run);
+    const controller = comparisonRunControllers.get(run!);
     if (controller) finishComparisonRunRequest(run, controller);
     if (executionId === comparisonExecutionId) {
       comparisonRunning = false;
@@ -677,7 +679,7 @@ export async function retryComparisonRun(index) {
   }
 }
 
-export function removeComparisonRun(index, { quiet = false } = {}) {
+export function removeComparisonRun(index: number, { quiet = false } = {}) {
   if (comparisonRunning) {
     showNotification('Wait for the active comparison requests to finish before removing a result.', 'info');
     return false;
@@ -686,10 +688,10 @@ export function removeComparisonRun(index, { quiet = false } = {}) {
   if (!removed) return false;
   comparisonRuns.splice(index, 1);
   if (comparisonReferenceRunIndex === index) comparisonReferenceRunIndex = null;
-  else if (Number.isInteger(comparisonReferenceRunIndex) && comparisonReferenceRunIndex > index) comparisonReferenceRunIndex -= 1;
+  else if (Number.isInteger(comparisonReferenceRunIndex) && comparisonReferenceRunIndex! > index) comparisonReferenceRunIndex! -= 1;
   const routeKey = comparisonRouteKey(removed.route?.provider, removed.route?.model);
   document.querySelectorAll('[data-nutrition-comparison-model]').forEach(input => {
-    if (/** @type {HTMLInputElement} */ (input).value === routeKey) /** @type {HTMLInputElement} */ (input).checked = false;
+    if ((input as HTMLInputElement).value === routeKey) (input as HTMLInputElement).checked = false;
   });
   comparisonIsRestored = false;
   renderComparisonResults();
@@ -709,13 +711,13 @@ export function removeComparisonRun(index, { quiet = false } = {}) {
   return true;
 }
 
-export function replaceComparisonRun(index) {
+export function replaceComparisonRun(index: number) {
   if (!removeComparisonRun(index, { quiet: true })) return false;
   comparisonReplacementPending = true;
   updateComparisonControls();
   const picker = document.querySelector('.nutrition-comparison-model-picker');
   picker?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  const search = /** @type {HTMLInputElement | null} */ (picker?.querySelector('[data-nutrition-comparison-search]'));
+  const search = (picker?.querySelector('[data-nutrition-comparison-search]') as HTMLInputElement | null);
   search?.focus({ preventScroll: true });
   const progress = document.getElementById('nutrition-comparison-progress');
   if (progress) {
@@ -727,7 +729,7 @@ export function replaceComparisonRun(index) {
   return true;
 }
 
-export async function useComparisonEstimate(index) {
+export async function useComparisonEstimate(index: number) {
   const profileId = comparisonProfileId;
   if (comparisonIsForeign(profileId)) return;
   const run = comparisonRuns[index];

@@ -22,8 +22,8 @@ const ACTION_ATTR = 'data-nutrition-action';
 let delegatesInstalled = false;
 let previewUrls = [];
 let pendingAnalysis = null;
-let lastAnalyzedMealName = '';
-/** @type {'meal-photo'|'nutrition-label'} */ let lastAnalyzedKind = 'meal-photo';
+/** @type {unknown} */ let lastAnalyzedMealName = '';
+/** @type {unknown} */ let lastAnalyzedKind = 'meal-photo';
 let lastAnalyzedConsumption = '';
 let lastAnalyzedContext = '';
 /** @type {'meal-photo'|'nutrition-label'} */ let analysisKind = 'meal-photo';
@@ -283,7 +283,7 @@ configureNutritionReviewUI({
     lastAnalyzedKind = analyzed.kind;
     lastAnalyzedConsumption = analyzed.consumption;
     lastAnalyzedContext = analyzed.context;
-    analyzedComponentIdentityBaseline = (result?.analysis?.components || []).map(item => normalizeMealName(item?.name));
+    analyzedComponentIdentityBaseline = ((/** @type {{analysis?: {components?: Array<{name?: unknown} | null | undefined> | null} | null} | null | undefined} */ (result))?.analysis?.components || []).map(item => normalizeMealName(item?.name));
     componentIdentityDirty = false;
   },
 });

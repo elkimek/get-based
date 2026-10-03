@@ -1,4 +1,3 @@
-// @ts-check
 // feedback.js — Bug report / feedback modal (opens GitHub issue)
 
 import { showNotification } from './utils.js';
@@ -16,10 +15,14 @@ const FEEDBACK_TYPES = [
   { value: 'other', label: 'Other', prefix: '', ghLabel: '', placeholder: 'What\'s on your mind?' },
 ];
 
-const appWindow = /** @type {Window & typeof globalThis & { __feedbackActionDelegatesBound?: boolean }} */ (typeof window !== 'undefined' ? window : {});
+const appWindow = (typeof window !== 'undefined' ? window : {}) as Window & typeof globalThis & { __feedbackActionDelegatesBound?: boolean };
 const bugPrompt = 'What happened? What did you expect? Include steps to reproduce it.';
-const feedbackInput = id => /** @type {HTMLInputElement | null} */ (document.getElementById(`feedback-${id}`));
-const feedbackType = () => FEEDBACK_TYPES.find(t => t.value === feedbackInput('type')?.value) || FEEDBACK_TYPES[3];
+type FeedbackElements = {
+  type: HTMLSelectElement; title: HTMLInputElement; desc: HTMLTextAreaElement;
+  draft: HTMLTextAreaElement; status: HTMLSpanElement; result: HTMLDivElement;
+};
+const feedbackInput = <K extends keyof FeedbackElements>(id: K) => document.getElementById(`feedback-${id}`) as FeedbackElements[K] | null;
+const feedbackType = () => FEEDBACK_TYPES.find(t => t.value === feedbackInput('type')?.value) || FEEDBACK_TYPES[3]!;
 
 async function copyFeedbackDraft() {
   const draft = feedbackInput('draft');
@@ -35,8 +38,8 @@ async function copyFeedbackDraft() {
   }
 }
 
-function handleFeedbackEvent(event) {
-  const target = /** @type {HTMLElement | null} */ (event.target);
+function handleFeedbackEvent(event: Event) {
+  const target = event.target as HTMLElement | null;
   const action = target?.closest?.('[data-feedback-action]')?.getAttribute('data-feedback-action');
   if (event.type === 'click' && action === 'close') closeFeedbackModal();
   else if (event.type === 'click' && action === 'copy') void copyFeedbackDraft();
@@ -50,7 +53,7 @@ function handleFeedbackEvent(event) {
   event.preventDefault();
 }
 
-export function installFeedbackActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+export function installFeedbackActionDelegates(root: EventTarget | null = typeof document !== 'undefined' ? document : null) {
   if (!root || appWindow.__feedbackActionDelegatesBound) return;
   appWindow.__feedbackActionDelegatesBound = true;
   for (const event of ['click', 'submit', 'change', 'input']) root.addEventListener(event, handleFeedbackEvent);
@@ -69,7 +72,7 @@ export function openFeedbackModal() {
   // Keep a draft when dismissed or when a new tab is blocked. It lives only in
   // this page until a profile switch, never in profile storage, backups, or sync.
   if (!modal.querySelector('.feedback-form')) {
-    const template = /** @type {HTMLTemplateElement | null} */ (document.getElementById('feedback-form-template'));
+    const template = document.getElementById('feedback-form-template') as HTMLTemplateElement | null;
     if (!template) return;
     modal.className = 'modal gb-form-modal feedback-redesign-modal';
     modal.replaceChildren(template.content.cloneNode(true));
@@ -99,8 +102,7 @@ export function submitFeedback() {
   const screenSize = `${appWindow.innerWidth}x${appWindow.innerHeight}`;
   const theme = getTheme();
   const providerKey = getAIProvider() || 'none';
-  /** @type {Record<string, string>} */
-  const providerLabels = { openrouter: 'OpenRouter', routstr: 'Routstr', ppq: 'PPQ', venice: 'Venice', ollama: 'Local AI', custom: 'Custom API' };
+  const providerLabels: Record<string, string> = { openrouter: 'OpenRouter', routstr: 'Routstr', ppq: 'PPQ', venice: 'Venice', ollama: 'Local AI', custom: 'Custom API' };
   const provider = providerLabels[providerKey] || providerKey;
 
   // Build issue body

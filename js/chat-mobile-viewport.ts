@@ -1,4 +1,3 @@
-// @ts-check
 // Keep the mobile chat chrome inside the visual viewport when the software
 // keyboard resizes or pans it independently of the layout viewport.
 
@@ -7,26 +6,23 @@ const VIEWPORT_TOP_PROPERTY = '--chat-visual-viewport-top';
 const VIEWPORT_BOTTOM_PROPERTY = '--chat-visual-viewport-bottom';
 const PASSIVE_LISTENER_OPTIONS = { passive: true };
 
-/** @type {HTMLElement | null} */
-let activePanel = null;
-/** @type {Window | null} */
-let activeRuntime = null;
-/** @type {VisualViewport | null} */
-let activeVisualViewport = null;
+let activePanel: HTMLElement | null = null;
+let activeRuntime: Window | null = null;
+let activeVisualViewport: VisualViewport | null = null;
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined' ? window : null;
 }
 
-function finitePositiveNumber(value) {
+function finitePositiveNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
 }
 
-function finiteNumber(value) {
+function finiteNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-function isMobileChatViewport(runtime) {
+function isMobileChatViewport(runtime: Window) {
   if (typeof runtime.matchMedia === 'function') {
     return runtime.matchMedia(MOBILE_CHAT_QUERY).matches;
   }
@@ -34,7 +30,7 @@ function isMobileChatViewport(runtime) {
   return width != null && width <= 768;
 }
 
-function clearMobileChatViewportInsets(panel) {
+function clearMobileChatViewportInsets(panel: HTMLElement) {
   panel.style.removeProperty(VIEWPORT_TOP_PROPERTY);
   panel.style.removeProperty(VIEWPORT_BOTTOM_PROPERTY);
 }
@@ -44,10 +40,8 @@ function clearMobileChatViewportInsets(panel) {
  * visual viewport. Android keyboards generally change only the bottom inset;
  * iOS may also pan the visual viewport, producing a non-zero top inset.
  *
- * @param {Window | null} [runtime]
- * @returns {{ top: number, bottom: number } | null}
  */
-export function getMobileChatViewportInsets(runtime = getRuntimeWindow()) {
+export function getMobileChatViewportInsets(runtime: Window | null = getRuntimeWindow()) {
   const visualViewport = runtime?.visualViewport;
   if (!runtime || !visualViewport) return null;
 
@@ -63,10 +57,7 @@ export function getMobileChatViewportInsets(runtime = getRuntimeWindow()) {
   return { top, bottom };
 }
 
-/**
- * @param {HTMLElement | null} [panel]
- */
-export function syncMobileChatViewport(panel = activePanel) {
+export function syncMobileChatViewport(panel: HTMLElement | null = activePanel) {
   const runtime = getRuntimeWindow();
   if (!panel) return false;
   const insets = runtime && isMobileChatViewport(runtime)
@@ -87,10 +78,7 @@ function handleMobileChatViewportChange() {
   syncMobileChatViewport();
 }
 
-/**
- * @param {HTMLElement | null} panel
- */
-export function startMobileChatViewportSync(panel) {
+export function startMobileChatViewportSync(panel: HTMLElement | null) {
   stopMobileChatViewportSync();
   if (!panel) return false;
 

@@ -1,8 +1,7 @@
-// @ts-check
 // Adaptive rows preserve saved order and share width by natural content size.
 let disconnectPacking = () => {};
 
-function preferredSpan(card) {
+function preferredSpan(card: HTMLElement) {
   if (card.classList.contains('dashboard-widget-half')) return 6;
   if (card.classList.contains('dashboard-widget-third')) return 4;
   if (card.classList.contains('dashboard-widget-quarter')) return 3;
@@ -10,7 +9,7 @@ function preferredSpan(card) {
   return 12;
 }
 
-function naturalHeight(card) {
+function naturalHeight(card: HTMLElement) {
   const style = getComputedStyle(card);
   return [...card.children].filter(child => child instanceof HTMLElement).reduce((height, child) => {
     const css = getComputedStyle(child);
@@ -18,8 +17,7 @@ function naturalHeight(card) {
   }, (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0));
 }
 
-/** @param {HTMLElement} main */
-export function setupDashboardWidgetPacking(main) {
+export function setupDashboardWidgetPacking(main: HTMLElement) {
   disconnectPacking();
   const grid = main.querySelector('.dashboard-widgets');
   if (!(grid instanceof HTMLElement) || typeof ResizeObserver === 'undefined') return;
@@ -45,8 +43,8 @@ export function setupDashboardWidgetPacking(main) {
     if (!contentChanged && lastWidth === grid.clientWidth) return;
     lastWidth = grid.clientWidth;
     contentChanged = false;
-    const rows = [];
-    let row = [];
+    const rows: HTMLElement[][] = [];
+    let row: HTMLElement[] = [];
     let used = 0;
     for (const card of cards) {
       const span = preferredSpan(card);
@@ -72,14 +70,14 @@ export function setupDashboardWidgetPacking(main) {
       let best = 6;
       let bestCost = Infinity;
       for (let span = min; span <= 12 - min; span++) {
-        items[0].style.setProperty('--widget-columns', String(span));
-        items[1].style.setProperty('--widget-columns', String(12 - span));
+        items[0]!.style.setProperty('--widget-columns', String(span));
+        items[1]!.style.setProperty('--widget-columns', String(12 - span));
         const heights = items.map(naturalHeight);
-        const cost = Math.max(...heights) + Math.abs(heights[0] - heights[1]) * 0.5 + Math.abs(span - 6);
+        const cost = Math.max(...heights) + Math.abs(heights[0]! - heights[1]!) * 0.5 + Math.abs(span - 6);
         if (cost < bestCost) { bestCost = cost; best = span; }
       }
-      items[0].style.setProperty('--widget-columns', String(best));
-      items[1].style.setProperty('--widget-columns', String(12 - best));
+      items[0]!.style.setProperty('--widget-columns', String(best));
+      items[1]!.style.setProperty('--widget-columns', String(12 - best));
     }
     grid.classList.remove('is-measuring');
   };

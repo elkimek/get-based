@@ -1,7 +1,7 @@
 /** Persisted conversation data; extension values require narrowing. */
 interface ChatMessageMetadata {
   usage?: { inputTokens: number; outputTokens: number };
-  context?: Array<{ label: string; detail?: string }>;
+  context?: Array<{ label: unknown; detail?: string }>;
   personality?: string;
   lensSources?: Array<{ source: string; text: string; score?: number }>;
   agentDrafts?: Array<{ id: string; profileId: string; kind: string; status: string; summary?: string; payload: Record<string, unknown>; appliedAt?: string }>;

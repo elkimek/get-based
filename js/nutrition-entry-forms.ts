@@ -1,4 +1,3 @@
-// @ts-check
 // nutrition-entry-forms.js — targets and first-class drink entry controller.
 
 import { saveImportedData } from './data.js';
@@ -11,14 +10,20 @@ import { normalizeNutritionTargets, resolveNutritionTargets } from './nutrition-
 import { state } from './state.js';
 import { showNotification } from './utils.js';
 
-let entryDeps = { refreshWidget: () => {}, closeEditor: () => {}, resetEditorState: () => {} };
+interface NutritionEntryCallbacks {
+  refreshWidget: () => unknown;
+  closeEditor: () => unknown;
+  resetEditorState: () => unknown;
+}
+
+let entryDeps: NutritionEntryCallbacks = { refreshWidget: () => {}, closeEditor: () => {}, resetEditorState: () => {} };
 let mealDetailReturnTo = 'meals';
 
-export function configureNutritionEntryForms(deps = {}) {
+export function configureNutritionEntryForms(deps: Partial<NutritionEntryCallbacks> = {}) {
   entryDeps = { ...entryDeps, ...deps };
 }
 
-export async function openMealDetail(id, { returnTo = mealDetailReturnTo } = {}) {
+export async function openMealDetail(id: Parameters<typeof getActiveProfileMeal>[0], { returnTo = mealDetailReturnTo }: { returnTo?: unknown } = {}) {
   await ensureNutritionStylesheet();
   const modal = document.getElementById('detail-modal');
   const overlay = document.getElementById('modal-overlay');
@@ -42,17 +47,17 @@ export async function openMealDetail(id, { returnTo = mealDetailReturnTo } = {})
   }
 }
 
-function selectedResponseLevel(name) {
-  const value = Number(/** @type {HTMLInputElement | null} */ (document.querySelector(`input[name="${name}"]:checked`))?.value);
+function selectedResponseLevel(name: string) {
+  const value = Number((document.querySelector(`input[name="${name}"]:checked`) as HTMLInputElement | null)?.value);
   return Number.isInteger(value) && value >= 1 && value <= 3 ? value : null;
 }
 
-export async function saveMealResponse(id) {
+export async function saveMealResponse(id: Parameters<typeof getActiveProfileMeal>[0]) {
   const satiety2h = selectedResponseLevel('nutrition-response-satiety');
   const energy2h = selectedResponseLevel('nutrition-response-energy');
   if (satiety2h === null && energy2h === null) {
     showNotification('Choose hunger, energy, or both before saving the check-in.', 'info');
-    /** @type {HTMLElement | null} */ (document.querySelector('input[name="nutrition-response-satiety"]'))?.focus();
+    (document.querySelector('input[name="nutrition-response-satiety"]') as HTMLElement | null)?.focus();
     return;
   }
   try {
@@ -74,7 +79,7 @@ export async function saveMealResponse(id) {
   }
 }
 
-export async function clearMealResponse(id) {
+export async function clearMealResponse(id: Parameters<typeof getActiveProfileMeal>[0]) {
   try {
     const meal = await getActiveProfileMeal(id);
     if (!meal) throw new Error('That meal is no longer available.');
@@ -89,16 +94,16 @@ export async function clearMealResponse(id) {
 }
 
 function selectedFluidKind() {
-  return /** @type {HTMLInputElement | null} */ (document.querySelector('input[name="nutrition-fluid-kind"]:checked'))?.value || 'other';
+  return (document.querySelector('input[name="nutrition-fluid-kind"]:checked') as HTMLInputElement | null)?.value || 'other';
 }
 
 export function updateFluidLogControls() {
-  const amountInput = /** @type {HTMLInputElement | null} */ (document.getElementById('nutrition-fluid-amount'));
+  const amountInput = (document.getElementById('nutrition-fluid-amount') as HTMLInputElement | null);
   if (!amountInput) return;
   const amount = Number(amountInput.value);
   const validAmount = Number.isFinite(amount) && amount > 0 && amount <= 10000;
   const kind = selectedFluidKind();
-  const labels = { water: 'water', 'tea-coffee': 'tea or coffee', other: 'beverage' };
+  const labels: Readonly<Record<string, unknown>> = { water: 'water', 'tea-coffee': 'tea or coffee', other: 'beverage' };
   const amountLabel = validAmount ? `${amount.toLocaleString(undefined, { maximumFractionDigits: 1 })} mL` : 'Drink amount';
   const preview = document.getElementById('nutrition-fluid-preview');
   const previewTitle = preview?.querySelector('strong');
@@ -112,24 +117,24 @@ export function updateFluidLogControls() {
     button.classList.toggle('is-selected', selected);
     button.setAttribute('aria-pressed', String(selected));
   });
-  const saveButton = /** @type {HTMLButtonElement | null} */ (document.querySelector('[data-nutrition-action="save-fluid"]'));
+  const saveButton = (document.querySelector('[data-nutrition-action="save-fluid"]') as HTMLButtonElement | null);
   if (saveButton) saveButton.textContent = validAmount ? `Log ${amountLabel}` : 'Log drink';
 }
 
-function targetInputValue(id, fallback) {
-  const value = Number(/** @type {HTMLInputElement | null} */ (document.getElementById(id))?.value);
+function targetInputValue(id: string, fallback: number) {
+  const value = Number((document.getElementById(id) as HTMLInputElement | null)?.value);
   return Number.isFinite(value) ? value : fallback;
 }
 
 function nutritionTargetsFromForm() {
-  const current = normalizeNutritionTargets(state.importedData?.nutritionTargets || {});
+  const current = normalizeNutritionTargets((state.importedData as { nutritionTargets?: unknown } | null | undefined)?.nutritionTargets || {});
   const widgetNutrients = Array.from(document.querySelectorAll('[data-nutrition-widget-metric]:checked'))
     .map(input => input instanceof HTMLInputElement ? input.value : '')
     .filter(Boolean);
   return normalizeNutritionTargets({
     configured: true,
     energyKcal: targetInputValue('nutrition-target-energy', current.energyKcal),
-    proteinBasis: /** @type {HTMLSelectElement | null} */ (document.getElementById('nutrition-target-protein-basis'))?.value,
+    proteinBasis: (document.getElementById('nutrition-target-protein-basis') as HTMLSelectElement | null)?.value,
     proteinGPerKg: targetInputValue('nutrition-target-protein-factor', current.proteinGPerKg),
     proteinFixedG: targetInputValue('nutrition-target-protein-fixed', current.proteinFixedG),
     carbohydrateG: targetInputValue('nutrition-target-carbohydrate', current.carbohydrateG),
@@ -143,14 +148,14 @@ function nutritionTargetsFromForm() {
 }
 
 export function updateNutritionWidgetMetricControls() {
-  const inputs = /** @type {HTMLInputElement[]} */ (Array.from(document.querySelectorAll('[data-nutrition-widget-metric]'))
+  const inputs = (Array.from(document.querySelectorAll('[data-nutrition-widget-metric]'))
     .filter(input => input instanceof HTMLInputElement));
   const selected = inputs.filter(input => input.checked);
   const count = document.getElementById('nutrition-widget-metric-count');
   if (count) count.textContent = `${selected.length} selected`;
 }
 
-function setNutritionTargetStatus(message, isError = false) {
+function setNutritionTargetStatus(message: string, isError = false) {
   const status = document.getElementById('nutrition-target-status');
   if (!status) return;
   status.textContent = message;
@@ -158,8 +163,8 @@ function setNutritionTargetStatus(message, isError = false) {
 }
 
 function validateNutritionTargetsForm() {
-  const basis = /** @type {HTMLSelectElement | null} */ (document.getElementById('nutrition-target-protein-basis'))?.value || 'general';
-  const fields = [
+  const basis = (document.getElementById('nutrition-target-protein-basis') as HTMLSelectElement | null)?.value || 'general';
+  const fields: Array<[string, string]> = [
     ['nutrition-target-energy', 'Energy'],
     ['nutrition-target-carbohydrate', 'Carbohydrate'],
     ['nutrition-target-fat', 'Fat'],
@@ -172,7 +177,7 @@ function validateNutritionTargetsForm() {
   document.querySelectorAll('#nutrition-target-settings input[aria-invalid="true"]')
     .forEach(input => input.removeAttribute('aria-invalid'));
   for (const [id, label] of fields) {
-    const input = /** @type {HTMLInputElement | null} */ (document.getElementById(id));
+    const input = (document.getElementById(id) as HTMLInputElement | null);
     if (!input || input.disabled) continue;
     if (!input.value.trim() || !input.checkValidity()) {
       input.setAttribute('aria-invalid', 'true');
@@ -189,9 +194,9 @@ function validateNutritionTargetsForm() {
 }
 
 export function updateNutritionTargetControls() {
-  const basis = /** @type {HTMLSelectElement | null} */ (document.getElementById('nutrition-target-protein-basis'))?.value || 'general';
-  const factors = { general: 0.83, active: 1.6, high: 2 };
-  const factor = /** @type {HTMLInputElement | null} */ (document.getElementById('nutrition-target-protein-factor'));
+  const basis = (document.getElementById('nutrition-target-protein-basis') as HTMLSelectElement | null)?.value || 'general';
+  const factors: Readonly<Record<string, number>> = { general: 0.83, active: 1.6, high: 2 };
+  const factor = (document.getElementById('nutrition-target-protein-factor') as HTMLInputElement | null);
   const fixed = basis === 'fixed';
   const factorWrap = document.getElementById('nutrition-target-protein-factor-wrap');
   const fixedWrap = document.getElementById('nutrition-target-protein-fixed-wrap');
@@ -214,7 +219,7 @@ export function updateNutritionTargetControls() {
 export async function saveNutritionTargets({ closeOnSave = true } = {}) {
   if (!validateNutritionTargetsForm()) return false;
   const hadPrevious = Object.hasOwn(state.importedData, 'nutritionTargets');
-  const previous = state.importedData.nutritionTargets;
+  const previous: unknown = state.importedData.nutritionTargets;
   state.importedData.nutritionTargets = nutritionTargetsFromForm();
   let saved = false;
   try {
@@ -223,7 +228,7 @@ export async function saveNutritionTargets({ closeOnSave = true } = {}) {
     saved = false;
   }
   if (!saved) {
-    if (hadPrevious) state.importedData.nutritionTargets = previous;
+    if (hadPrevious) (state.importedData as { nutritionTargets?: unknown }).nutritionTargets = previous;
     else delete state.importedData.nutritionTargets;
     const message = 'Nutrition setup could not be saved; your previous settings are unchanged.';
     setNutritionTargetStatus(message, true);
@@ -237,7 +242,7 @@ export async function saveNutritionTargets({ closeOnSave = true } = {}) {
 }
 
 export async function saveFluidLog() {
-  const amountInput = /** @type {HTMLInputElement | null} */ (document.getElementById('nutrition-fluid-amount'));
+  const amountInput = (document.getElementById('nutrition-fluid-amount') as HTMLInputElement | null);
   const amount = Number(amountInput?.value);
   if (!Number.isFinite(amount) || amount <= 0 || amount > 10000) {
     showNotification('Enter a drink amount between 1 and 10,000 mL.', 'error');
@@ -245,15 +250,15 @@ export async function saveFluidLog() {
     return;
   }
   const kind = selectedFluidKind();
-  const localDate = /** @type {HTMLInputElement | null} */ (document.getElementById('nutrition-fluid-at'))?.value || '';
+  const localDate = (document.getElementById('nutrition-fluid-at') as HTMLInputElement | null)?.value || '';
   const eatenAt = new Date(localDate);
   if (!Number.isFinite(eatenAt.getTime())) {
     showNotification('Choose a valid drink date and time.', 'error');
     document.getElementById('nutrition-fluid-at')?.focus();
     return;
   }
-  const customLabel = /** @type {HTMLInputElement | null} */ (document.getElementById('nutrition-fluid-label'))?.value.trim() || '';
-  const defaultLabels = { water: 'Water', 'tea-coffee': 'Tea or coffee', other: 'Beverage' };
+  const customLabel = (document.getElementById('nutrition-fluid-label') as HTMLInputElement | null)?.value.trim() || '';
+  const defaultLabels: Readonly<Record<string, unknown>> = { water: 'Water', 'tea-coffee': 'Tea or coffee', other: 'Beverage' };
   const name = customLabel || defaultLabels[kind] || 'Beverage';
   const value = Math.round(amount * 10) / 10;
   const [, timePart = '00:00'] = localDate.split('T');
@@ -263,7 +268,7 @@ export async function saveFluidLog() {
   try {
     await saveActiveProfileMeal({
       name, mealType: 'drink', eatenAt: eatenAt.toISOString(), localDate: localDate.slice(0, 10),
-      localTimeMinutes: Number.isFinite(localHour) && Number.isFinite(localMinute) ? localHour * 60 + localMinute : null,
+      localTimeMinutes: Number.isFinite(localHour) && Number.isFinite(localMinute) ? localHour! * 60 + localMinute! : null,
       timezoneOffsetMinutes: eatenAt.getTimezoneOffset(), timeZone, note: '', analysisContext: '',
       nutrients: { fluidMl: value, ...(kind === 'water' ? { plainWaterMl: value } : {}) },
       components: [{ name, quantityG: null, confidence: 1, nutrients: {} }],

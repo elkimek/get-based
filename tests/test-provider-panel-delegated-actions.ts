@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readRepositorySource } from './helpers/repository-source.js';
+import { readRepositorySource, readAuthoredRepositorySource } from './helpers/repository-source.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static provider panel delegated-action source guards.
@@ -7,7 +7,7 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 const renderSrc = readRepositorySource('js/provider-panel-renderers.js', 'utf8');
 const renderRuntimeSrc = readRepositorySource('js/provider-panel-renderers-runtime.js', 'utf8');
 const modelControlsSrc = readRepositorySource('js/provider-model-controls.js', 'utf8');
-const delegatesSrc = readRepositorySource('js/provider-panel-delegates.js', 'utf8');
+const delegatesSrc = readAuthoredRepositorySource('js/provider-panel-delegates.js', 'utf8');
 const panelsSrc = readRepositorySource('js/provider-panels.js', 'utf8');
 const ppqSrc = readRepositorySource('js/provider-ppq-panels.js', 'utf8');
 const swSrc = readServiceWorkerSource(relative => readRepositorySource(relative, 'utf8'));

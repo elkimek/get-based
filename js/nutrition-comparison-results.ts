@@ -1,4 +1,3 @@
-// @ts-check
 // Rendering for meal benchmark results, kept separate from execution state.
 
 import { nutritionUsageSummary } from './nutrition-analysis.js';
@@ -7,12 +6,34 @@ import { NUTRIENT_DEFINITIONS } from './nutrition-nutrient-registry.js';
 import { actionAttrs, formatNumber, hasFiniteNumber } from './nutrition-render.js';
 import { escapeAttr, escapeHTML } from './utils.js';
 
-export function comparisonTotalWeight(analysis) {
+import type { MealPhotoAnalysis, analyzeMealPhoto } from './nutrition-analysis.js';
+import type { NutritionAIRoute } from './nutrition-ai-settings.js';
+import type { MealComponent } from '../types/nutrition-data.js';
+import type { MealReferenceInput, MealComparisonMetric, RankedMealComparisonRun } from './nutrition-comparison.js';
+
+// The controller rebuilds route labels, status, errors and elapsed time. Restored
+// result metadata is a structural view reader with opaque nutrient/name values.
+export type ComparisonComponentView = { [Field in keyof Pick<MealComponent, 'name' | 'quantityG'>]?: unknown };
+export type ComparisonAnalysisView = { [Field in keyof Pick<MealPhotoAnalysis, 'mealName'>]?: unknown } & {
+  components?: ComparisonComponentView[] | null;
+  nutrients?: Record<string, unknown> | null; warnings?: Iterable<unknown> | null; assumptions?: Iterable<unknown> | null;
+}
+export type ComparisonResultView = { [Field in keyof Pick<Awaited<ReturnType<typeof analyzeMealPhoto>>, 'analysis'>]: ComparisonAnalysisView } & { source?: Parameters<typeof nutritionUsageSummary>[0] };
+export type ComparisonRunView = {
+  providerLabel: string; modelLabel: string; status: string; durationMs: number;
+  result?: ComparisonResultView | null; error?: string; route?: NutritionAIRoute;
+}
+export type ComparisonReferenceView = MealReferenceInput | Partial<Pick<MealReferenceInput, 'mealName' | 'ingredients' | 'totalWeightG' | 'energyKcal' | 'proteinG' | 'carbohydrateG' | 'fatG'>>;
+export interface NutritionComparisonResultsOptions {
+  runs?: readonly ComparisonRunView[]; reference?: ComparisonReferenceView; referenceRun?: ComparisonRunView | null;
+  referenceRunIndex?: unknown; isRestored?: unknown;
+}
+export function comparisonTotalWeight(analysis: {components?: readonly (ComparisonComponentView | null | undefined)[] | null} | null | undefined) {
   const quantities = (analysis?.components || []).map(item => Number(item?.quantityG)).filter(Number.isFinite);
   return quantities.length ? quantities.reduce((sum, value) => sum + value, 0) : null;
 }
 
-function relativeDifference(value, reference) {
+function relativeDifference(value: unknown, reference: unknown) {
   if (!hasFiniteNumber(value) || !hasFiniteNumber(reference)) return null;
   const numericValue = Number(value);
   const numericReference = Number(reference);
@@ -24,12 +45,12 @@ const PRIMARY_COMPARISON_NUTRIENTS = new Set(['energyKcal', 'proteinG', 'carbohy
 const DETAILED_COMPARISON_FIELDS = NUTRIENT_DEFINITIONS.filter(field => !PRIMARY_COMPARISON_NUTRIENTS.has(field.key));
 const NUTRIENT_DEFINITION_BY_KEY = new Map(NUTRIENT_DEFINITIONS.map(field => [field.key, field]));
 
-function nutrientFractionDigits(step) {
+function nutrientFractionDigits(step: unknown) {
   const match = String(step || '').match(/\.(\d+)/);
-  return match ? Math.min(2, match[1].length) : 0;
+  return match ? Math.min(2, match[1]!.length) : 0;
 }
 
-function comparisonDifference(value, reference, isReference = false) {
+function comparisonDifference(value: unknown, reference: unknown, isReference = false) {
   if (isReference && hasFiniteNumber(value)) return { label: 'Reference', tone: ' is-reference' };
   const difference = relativeDifference(value, reference);
   if (difference === null) return { label: '—', tone: '' };
@@ -40,35 +61,35 @@ function comparisonDifference(value, reference, isReference = false) {
   };
 }
 
-function nutrientValue(value, field) {
+function nutrientValue(value: unknown, field: typeof NUTRIENT_DEFINITIONS[number]) {
   return hasFiniteNumber(value)
     ? `${formatNumber(value, nutrientFractionDigits(field.step))} ${escapeHTML(field.unit)}`
     : '—';
 }
 
-function renderDetailedNutrientComparison(analysis, reference, isReference, referenceRun) {
+function renderDetailedNutrientComparison(analysis: ComparisonAnalysisView | null | undefined, reference: ComparisonReferenceView | null | undefined, isReference: boolean, referenceRun: ComparisonRunView | null) {
   const rows = DETAILED_COMPARISON_FIELDS.flatMap(field => {
     const predicted = analysis?.nutrients?.[field.key];
-    const expected = reference?.[field.key];
+    const expected = (reference as MealReferenceInput | null | undefined)?.[field.key];
     if (!hasFiniteNumber(predicted) && !hasFiniteNumber(expected)) return [];
     const difference = comparisonDifference(predicted, expected, isReference);
     return [`<tr><th scope="row">${escapeHTML(field.label)}</th><td>${nutrientValue(predicted, field)}</td><td>${nutrientValue(expected, field)}</td><td class="nutrition-comparison-difference${difference.tone}">${escapeHTML(difference.label)}</td></tr>`];
   });
   if (!rows.length) return '';
   const returnedCount = DETAILED_COMPARISON_FIELDS.filter(field => hasFiniteNumber(analysis?.nutrients?.[field.key])).length;
-  const comparedCount = DETAILED_COMPARISON_FIELDS.filter(field => hasFiniteNumber(reference?.[field.key])).length;
+  const comparedCount = DETAILED_COMPARISON_FIELDS.filter(field => hasFiniteNumber((reference as MealReferenceInput | null | undefined)?.[field.key])).length;
   const countLabel = `${returnedCount} returned${comparedCount ? ` · ${comparedCount} compared` : ''}`;
   return `<details class="nutrition-comparison-detailed"><summary>Detailed nutrition <span>${escapeHTML(countLabel)}</span></summary><div class="nutrition-comparison-error-table-wrap" role="region" aria-label="Detailed nutrient comparison table" tabindex="0"><table><thead><tr><th scope="col">Nutrient</th><th scope="col">Estimate</th><th scope="col">${referenceRun ? 'Baseline' : 'Known value'}</th><th scope="col">Difference</th></tr></thead><tbody>${rows.join('')}</tbody></table></div></details>`;
 }
 
-function renderComparisonMetric(label, value, unit, digits = 0, reference = null, isReference = false) {
+function renderComparisonMetric(label: string, value: unknown, unit: string, digits = 0, reference: unknown = null, isReference = false) {
   const difference = comparisonDifference(value, reference, isReference);
   const relative = difference.label === '—' ? ''
     : `<small class="${difference.tone.trim()}">${escapeHTML(difference.label)}</small>`;
   return `<div><span>${escapeHTML(label)}</span><strong>${hasFiniteNumber(value) ? `${formatNumber(value, digits)} ${escapeHTML(unit)}` : '—'}</strong>${relative}</div>`;
 }
 
-function renderReferenceDifference(metric) {
+function renderReferenceDifference(metric: MealComparisonMetric) {
   const difference = metric.predicted == null ? null : relativeDifference(metric.predicted, metric.expected);
   const differenceLabel = difference == null
     ? 'Missing estimate'
@@ -87,23 +108,22 @@ function renderReferenceDifference(metric) {
   return `<tr><th scope="row">${escapeHTML(metric.label)}</th><td>${metric.predicted == null ? 'Missing' : `${formatNumber(metric.predicted, digits)} ${escapeHTML(metric.unit)}`}</td><td>${formatNumber(metric.expected, digits)} ${escapeHTML(metric.unit)}</td><td class="nutrition-comparison-difference${differenceTone}">${escapeHTML(differenceLabel)}</td></tr>`;
 }
 
-function renderRemoveComparisonButton(run) {
+function renderRemoveComparisonButton(run: Pick<RankedMealComparisonRun<ComparisonRunView>, 'modelLabel' | 'originalIndex'>) {
   return `<button type="button" class="nutrition-text-btn nutrition-comparison-remove-btn" aria-label="Remove ${escapeAttr(run.modelLabel)} result" ${actionAttrs('remove-comparison-run', { index: run.originalIndex })}>Remove</button>`;
 }
 
-/** @param {any} [options] */
-export function renderNutritionComparisonResults(options = {}) {
+export function renderNutritionComparisonResults(options: NutritionComparisonResultsOptions = {}) {
   const { runs = [], reference = {}, referenceRun = null, referenceRunIndex = null, isRestored = false } = options;
   const area = document.getElementById('nutrition-comparison-results');
   if (!area) return;
-  const presentationButton = /** @type {HTMLButtonElement | null} */ (document.querySelector('[data-nutrition-action="toggle-comparison-presentation"]'));
+  const presentationButton = document.querySelector('[data-nutrition-action="toggle-comparison-presentation"]') as HTMLButtonElement | null;
   if (!runs.length) {
     area.innerHTML = '';
     area.removeAttribute('data-result-count');
     if (presentationButton) presentationButton.hidden = true;
     return;
   }
-  const ranked = rankMealComparisonRuns(runs, reference, { excludedIndex: referenceRunIndex });
+  const ranked = rankMealComparisonRuns(runs, reference as MealReferenceInput, { excludedIndex: referenceRunIndex });
   area.dataset.resultCount = String(ranked.length);
   if (presentationButton) presentationButton.hidden = false;
   const hasManualReference = !referenceRun && ranked.some(run => run.evaluation?.hasReference);
@@ -169,14 +189,14 @@ export function renderNutritionComparisonResults(options = {}) {
   }).join('');
 }
 
-function setComparisonPresentation(active) {
+function setComparisonPresentation(active: unknown) {
   const workspace = document.getElementById('nutrition-model-comparison');
   const modal = document.getElementById('detail-modal');
   const enabled = Boolean(active && workspace && !workspace.hidden);
   workspace?.classList.toggle('is-presentation', enabled);
   modal?.classList.toggle('nutrition-comparison-presentation', enabled);
   document.body?.classList.toggle('nutrition-comparison-presenting', enabled);
-  const button = /** @type {HTMLButtonElement | null} */ (document.querySelector('[data-nutrition-action="toggle-comparison-presentation"]'));
+  const button = document.querySelector('[data-nutrition-action="toggle-comparison-presentation"]') as HTMLButtonElement | null;
   if (button) {
     button.setAttribute('aria-pressed', String(enabled));
     button.setAttribute('aria-label', enabled ? 'Exit full-screen comparison' : 'Open full-screen comparison');

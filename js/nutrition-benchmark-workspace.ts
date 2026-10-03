@@ -1,4 +1,3 @@
-// @ts-check
 // Independent photo workspace and navigation for the meal model benchmark.
 
 import { mealAnalysisFiles } from './nutrition-analysis.js';
@@ -8,8 +7,22 @@ import { openModalOverlay } from './modal-lifecycle.js';
 import { ensureNutritionStylesheet, renderNutritionBenchmarkModal } from './nutrition-render.js';
 import { escapeAttr, showNotification } from './utils.js';
 
-/** @type {any} */
-let benchmarkDeps = {
+import type { NutritionRequestLifecycleDependencies } from './nutrition-request-lifecycle.js';
+
+type BenchmarkCallbackResult = NonNullable<unknown> | null | undefined | void;
+type StoredBenchmarkImageReader = { thumbnailUrl?: unknown; dataUrl?: unknown } | null | undefined;
+export interface NutritionBenchmarkWorkspaceDependencies {
+  selectedPhotos: NutritionRequestLifecycleDependencies['selectedPhotos'];
+  getExistingImages: () => Iterable<unknown>;
+  getConsumption: NutritionRequestLifecycleDependencies['getConsumption'];
+  getUserContext: NutritionRequestLifecycleDependencies['getUserContext'];
+  getAnalysisKind: NutritionRequestLifecycleDependencies['getAnalysisKind'];
+  isAnalysisRunning: NutritionRequestLifecycleDependencies['isAnalysisRunning'];
+  openEditor: () => BenchmarkCallbackResult;
+  updateCorrectionState: () => unknown;
+}
+
+let benchmarkDeps: NutritionBenchmarkWorkspaceDependencies = {
   selectedPhotos: () => [],
   getExistingImages: () => [],
   getConsumption: () => ({ amount: 1, unit: 'servings' }),
@@ -19,11 +32,10 @@ let benchmarkDeps = {
   openEditor: () => false,
   updateCorrectionState: () => {},
 };
-/** @type {{files: File[], existingImages: any[], consumption: {amount: number, unit: string}, userContext: string, analysisKind: 'meal-photo'|'nutrition-label', fromEditor: boolean}|null} */
-let benchmarkSource = null;
-let benchmarkPreviewUrls = [];
+let benchmarkSource: ReturnType<typeof captureBenchmarkSource> | null = null;
+let benchmarkPreviewUrls: string[] = [];
 
-export function configureNutritionBenchmarkWorkspace(deps = {}) {
+export function configureNutritionBenchmarkWorkspace(deps: Partial<NutritionBenchmarkWorkspaceDependencies> = {}) {
   benchmarkDeps = { ...benchmarkDeps, ...deps };
 }
 
@@ -57,11 +69,11 @@ function captureBenchmarkSource() {
 function renderBenchmarkPhotoPreview() {
   const preview = document.getElementById('nutrition-benchmark-photo-preview');
   const status = document.getElementById('nutrition-benchmark-photo-status');
-  const clearButton = /** @type {HTMLButtonElement | null} */ (document.querySelector('[data-nutrition-action="clear-benchmark-photos"]'));
+  const clearButton = (document.querySelector('[data-nutrition-action="clear-benchmark-photos"]') as HTMLButtonElement | null);
   if (!preview || !benchmarkSource) return;
   clearNutritionBenchmarkPreviewUrls();
   benchmarkPreviewUrls = benchmarkSource.files.map(file => URL.createObjectURL(file));
-  const storedUrls = benchmarkSource.existingImages
+  const storedUrls = (benchmarkSource.existingImages as readonly StoredBenchmarkImageReader[])
     .map(image => String(image?.thumbnailUrl || image?.dataUrl || ''))
     .filter(Boolean);
   const urls = [...benchmarkPreviewUrls, ...storedUrls].slice(0, 4);
@@ -79,7 +91,7 @@ function renderBenchmarkPhotoPreview() {
   updateComparisonControls();
 }
 
-export function handleNutritionBenchmarkPhotoSelection(input) {
+export function handleNutritionBenchmarkPhotoSelection(input: HTMLInputElement) {
   const files = Array.from(input.files || []);
   if (files.length > 4) {
     input.value = '';
@@ -127,7 +139,7 @@ export async function openNutritionBenchmark() {
   return true;
 }
 
-export function restoreNutritionMealEntry() {
+export function restoreNutritionMealEntry(): BenchmarkCallbackResult {
   const modal = document.getElementById('detail-modal');
   const overlay = document.getElementById('modal-overlay');
   rememberNutritionComparisonWorkspace();
@@ -140,13 +152,13 @@ export function restoreNutritionMealEntry() {
 }
 
 export function nutritionBenchmarkAnalysisFiles() {
-  return benchmarkSource ? mealAnalysisFiles(benchmarkSource.files, benchmarkSource.existingImages) : [];
+  return benchmarkSource ? (mealAnalysisFiles as (files: Parameters<typeof mealAnalysisFiles>[0], images: unknown[]) => ReturnType<typeof mealAnalysisFiles>)(benchmarkSource.files, benchmarkSource.existingImages) : [];
 }
 
 export function nutritionBenchmarkHasPhotos() {
   return benchmarkSource
     ? benchmarkSource.files.length > 0 || benchmarkSource.existingImages.length > 0
-    : benchmarkDeps.selectedPhotos().length > 0 || benchmarkDeps.getExistingImages().length > 0;
+    : benchmarkDeps.selectedPhotos().length > 0 || ((benchmarkDeps.getExistingImages() as { length?: unknown }).length as number) > 0;
 }
 
 export function nutritionBenchmarkContext() {

@@ -1,4 +1,3 @@
-// @ts-check
 // nutrition-review-ui.js — editor review state, validation, and progress UI.
 
 import { getMealAnalysisAvailability, nutritionUsageSummary } from './nutrition-analysis.js';
@@ -10,12 +9,55 @@ import {
 } from './nutrition-render.js';
 import { escapeAttr, escapeHTML } from './utils.js';
 
+// Private property readers describe the original operations on opaque stored
+// results; they are not validation or canonical producer guarantees.
+interface ReviewComponentReader extends Record<string, unknown> {
+  name?: unknown; quantityG?: unknown; confidence?: unknown; portionReviewed?: unknown;
+  nutrientsPer100g?: unknown;
+  foodData?: { fdcId?: unknown; description?: unknown; dataset?: unknown } | null;
+}
+interface ReviewSourceReader {
+  kind?: unknown; analysisKind?: unknown; modelDisplay?: unknown; model?: unknown; provider?: unknown; usage?: unknown;
+  correction?: unknown;
+  aiNutritionEstimate?: { nutrientKeys?: unknown[] | null } | null;
+  foodComposition?: { completeNutrientKeys?: unknown[] | null; matchedComponents?: unknown; totalComponents?: unknown } | null;
+  review?: { editedNutrients?: unknown[] | null } | null;
+}
+interface ReviewResultReader {
+  analysis: {
+    components?: Array<ReviewComponentReader | null | undefined> | null;
+    mealName?: unknown; nutrients?: Record<string, unknown> | null;
+    warnings: unknown[]; assumptions?: unknown[] | null;
+    label?: { servingSizeText?: unknown; servingsPerContainer?: unknown; consumedAmount?: unknown; consumedUnit?: unknown; labelBasis?: unknown } | null;
+  };
+  source?: ReviewSourceReader | null;
+  images?: Array<{ qualityWarnings?: unknown[] | null } | null | undefined> | null;
+  image?: { qualityWarnings?: unknown[] | null } | null;
+}
+export interface NutritionReviewUIDependencies {
+  getPendingAnalysis: () => unknown;
+  getComponentIdentityDirty: () => boolean;
+  getLastAnalyzedMealName: () => unknown;
+  getLastAnalyzedKind: () => unknown;
+  getLastAnalyzedConsumption: () => unknown;
+  getLastAnalyzedContext: () => unknown;
+  getAnalysisKind: () => unknown;
+  setAnalysisKind: (kind: 'nutrition-label' | 'meal-photo') => unknown;
+  getEditingMealId: () => unknown;
+  getReusedMealId: () => unknown;
+  getExistingImages: () => readonly unknown[];
+  selectedPhotoCount: () => number;
+  applyResultState: (result: unknown, analyzed: { mealName: unknown; kind: unknown; consumption: string; context: string }) => unknown;
+}
+interface AnalysisProgress {
+  id: number; phase: number; label: string; startedAt: number;
+  timer: ReturnType<typeof setInterval> | null; buttonLabel: string;
+}
+
 let analysisProgressId = 0;
-/** @type {{id: number, phase: number, label: string, startedAt: number, timer: ReturnType<typeof setInterval> | null, buttonLabel: string} | null} */
-let analysisProgress = null;
-let componentPortionBaseline = [];
-/** @type {any} */
-let reviewDeps = {
+let analysisProgress: AnalysisProgress | null = null;
+let componentPortionBaseline: Array<number | null> = [];
+let reviewDeps: NutritionReviewUIDependencies = {
   getPendingAnalysis: () => null,
   getComponentIdentityDirty: () => false,
   getLastAnalyzedMealName: () => '',
@@ -31,7 +73,7 @@ let reviewDeps = {
   applyResultState: () => {},
 };
 
-export function configureNutritionReviewUI(deps = {}) {
+export function configureNutritionReviewUI(deps: Partial<NutritionReviewUIDependencies> = {}) {
   reviewDeps = { ...reviewDeps, ...deps };
 }
 
@@ -45,14 +87,14 @@ export function isAnalysisProgressRunning() {
   return !!analysisProgress?.timer;
 }
 
-export function setStatus(text, tone = '') {
+export function setStatus(text: unknown, tone: unknown = '') {
   const status = document.getElementById('nutrition-analysis-status');
   if (!status) return;
   status.className = `nutrition-analysis-status${tone ? ` is-${tone}` : ''}`;
-  status.textContent = text;
+  (status as { textContent: unknown }).textContent = text;
 }
 
-export function renderFuelOverlapPreview(nutrients = {}) {
+export function renderFuelOverlapPreview(nutrients: Parameters<typeof calculateFuelOverlap>[0] = {}) {
   const area = document.getElementById('nutrition-fuel-preview');
   if (!area) return;
   const mix = calculateFuelOverlap(nutrients);
@@ -60,19 +102,19 @@ export function renderFuelOverlapPreview(nutrients = {}) {
   area.innerHTML = mix ? renderFuelOverlapCard(mix, { scope: 'meal', compact: true }) : '';
 }
 
-function analysisElapsed(startedAt) {
+function analysisElapsed(startedAt: number) {
   const seconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
   return seconds < 60 ? `${seconds}s elapsed` : `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s elapsed`;
 }
 
-function renderAnalysisProgress(id, state = 'running') {
+function renderAnalysisProgress(id: number, state = 'running') {
   if (!analysisProgress || analysisProgress.id !== id) return;
   const area = document.getElementById('nutrition-analysis-progress');
   if (!area) return;
   const { phase, label, startedAt } = analysisProgress;
   const elapsedSeconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
   const percentages = [8, 24, 58, 86, 96];
-  const base = percentages[Math.max(0, Math.min(4, phase))];
+  const base = percentages[Math.max(0, Math.min(4, phase))]!;
   const percent = state === 'success' ? 100 : (phase === 2 ? Math.min(82, base + Math.floor(elapsedSeconds / 3) * 2) : base);
   const slowHint = state === 'running' && elapsedSeconds >= 15 ? ' · The provider is still working.' : '';
   area.hidden = false;
@@ -83,7 +125,7 @@ function renderAnalysisProgress(id, state = 'running') {
   area.innerHTML = `<div class="nutrition-analysis-progress-head"><strong>${escapeHTML(label)}</strong><span>${state === 'running' ? `Step ${Math.max(1, phase)} of 4 · ${analysisElapsed(startedAt)}${slowHint}` : state === 'success' ? 'Complete' : 'Stopped'}</span>${cancel}</div><div class="nutrition-analysis-progress-track" role="progressbar" aria-label="Meal photo analysis progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><span style="width:${percent}%"></span></div>`;
 }
 
-export function startAnalysisProgress(button, loadingLabel = 'Analyzing…') {
+export function startAnalysisProgress(button: HTMLElement | null | undefined, loadingLabel = 'Analyzing…') {
   if (analysisProgress?.timer) clearInterval(analysisProgress.timer);
   const id = ++analysisProgressId;
   analysisProgress = { id, phase: 1, label: 'Preparing photo…', startedAt: Date.now(), timer: null, buttonLabel: button?.textContent || '' };
@@ -95,14 +137,14 @@ export function startAnalysisProgress(button, loadingLabel = 'Analyzing…') {
   return id;
 }
 
-export function updateAnalysisProgress(id, phase, label) {
+export function updateAnalysisProgress(id: unknown, phase: number, label: string) {
   if (!analysisProgress || analysisProgress.id !== id) return;
   analysisProgress.phase = phase;
   analysisProgress.label = label;
   renderAnalysisProgress(id);
 }
 
-export function finishAnalysisProgress(id, success, button) {
+export function finishAnalysisProgress(id: unknown, success: boolean, button: HTMLElement | null | undefined) {
   if (!analysisProgress || analysisProgress.id !== id) return;
   const buttonLabel = analysisProgress.buttonLabel;
   if (analysisProgress.timer) clearInterval(analysisProgress.timer);
@@ -121,46 +163,46 @@ export function finishAnalysisProgress(id, success, button) {
   }, success ? 1800 : 6000);
 }
 
-export function normalizeMealName(value) {
+export function normalizeMealName(value: unknown) {
   return String(value || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
 }
 
-export function normalizeKnownDetails(value) {
+export function normalizeKnownDetails(value: unknown) {
   return String(value || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
 }
 
 export function currentMealName() {
-  return /** @type {HTMLInputElement | null} */ (document.getElementById('nutrition-meal-name'))?.value.trim() || '';
+  return (document.getElementById('nutrition-meal-name') as HTMLInputElement | null)?.value.trim() || '';
 }
 
 export function currentKnownDetails() {
-  return /** @type {HTMLTextAreaElement | null} */ (document.getElementById('nutrition-known-details'))?.value.trim() || '';
+  return (document.getElementById('nutrition-known-details') as HTMLTextAreaElement | null)?.value.trim() || '';
 }
 
 export function componentCorrectionContext() {
   if (!reviewDeps.getComponentIdentityDirty() && !componentPortionNeedsReanalysis()) return '';
-  const reviewed = (reviewDeps.getPendingAnalysis()?.analysis?.components || [])
+  const reviewed = ((reviewDeps.getPendingAnalysis() as ReviewResultReader | null | undefined)?.analysis?.components || [])
     .filter(item => String(item?.name || '').trim())
-    .map(item => `${String(item.name).trim()}${hasFiniteNumber(item.quantityG) ? ` (${formatNumber(item.quantityG, 0)} g)` : ''}`);
+    .map(item => `${String(item!.name).trim()}${hasFiniteNumber(item!.quantityG) ? ` (${formatNumber(item!.quantityG, 0)} g)` : ''}`);
   return reviewed.length ? `User-reviewed ingredients and portions: ${reviewed.join('; ')}.` : '';
 }
 
 export function currentSourceKind() {
-  return String(reviewDeps.getPendingAnalysis()?.source?.kind || '');
+  return String((reviewDeps.getPendingAnalysis() as ReviewResultReader | null | undefined)?.source?.kind || '');
 }
 
 export function componentPortionNeedsReanalysis() {
   if (!['ai-photo-estimate', 'ai-label-scan'].includes(currentSourceKind())) return false;
-  return (reviewDeps.getPendingAnalysis()?.analysis?.components || []).some((component, index) => {
+  return ((reviewDeps.getPendingAnalysis() as ReviewResultReader | null | undefined)?.analysis?.components || []).some((component, index) => {
     if (Object.keys(component?.nutrientsPer100g || {}).length) return false;
-    const current = hasFiniteNumber(component?.quantityG) ? Number(component.quantityG) : null;
+    const current = hasFiniteNumber(component?.quantityG) ? Number(component!.quantityG) : null;
     return current !== (componentPortionBaseline[index] ?? null);
   });
 }
 
 export function focusMobileNutritionReview() {
   if (!globalThis.matchMedia?.('(max-width: 760px)').matches) return;
-  const heading = /** @type {HTMLElement | null} */ (document.querySelector('.nutrition-review-heading'));
+  const heading = (document.querySelector('.nutrition-review-heading') as HTMLElement | null);
   if (!heading) return;
   heading.tabIndex = -1;
   const reduceMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -180,10 +222,9 @@ export function mealNameCorrectionIsDirty() {
 }
 
 export function labelConsumption() {
-  const amountValue = /** @type {HTMLInputElement | null} */ (document.getElementById('nutrition-consumed-amount'))?.value || '1';
+  const amountValue = (document.getElementById('nutrition-consumed-amount') as HTMLInputElement | null)?.value || '1';
   const amount = Number(amountValue);
-  const unit = /** @type {HTMLSelectElement | null} */ (document.getElementById('nutrition-consumed-unit'))?.value || 'servings';
-  /** @type {'servings'|'g'|'ml'|'packages'} */
+  const unit = (document.getElementById('nutrition-consumed-unit') as HTMLSelectElement | null)?.value || 'servings';
   const normalizedUnit = unit === 'g' || unit === 'ml' || unit === 'packages' ? unit : 'servings';
   return {
     amount: Number.isFinite(amount) && amount > 0 ? amount : 1,
@@ -191,14 +232,14 @@ export function labelConsumption() {
   };
 }
 
-export function consumptionKey(kind = reviewDeps.getAnalysisKind()) {
+export function consumptionKey(kind: unknown = reviewDeps.getAnalysisKind()) {
   if (kind !== 'nutrition-label') return '';
   const consumption = labelConsumption();
   return `${consumption.amount}:${consumption.unit}`;
 }
 
 export function analysisInputsDirty() {
-  if (!reviewDeps.getPendingAnalysis()) return false;
+  if (!(reviewDeps.getPendingAnalysis() as ReviewResultReader | null | undefined)) return false;
   return mealNameCorrectionIsDirty()
     || (isPhotoEstimate() && reviewDeps.getComponentIdentityDirty())
     || componentPortionNeedsReanalysis()
@@ -210,28 +251,28 @@ export function analysisInputsDirty() {
 export function updateCorrectionState() {
   const review = document.getElementById('nutrition-correction-review');
   const copy = document.getElementById('nutrition-correction-copy');
-  const recalculate = /** @type {HTMLButtonElement | null} */ (document.getElementById('nutrition-recalculate-btn'));
-  const analyze = /** @type {HTMLButtonElement | null} */ (document.getElementById('nutrition-analyze-btn'));
-  const save = /** @type {HTMLButtonElement | null} */ (document.getElementById('nutrition-save-btn'));
+  const recalculate = (document.getElementById('nutrition-recalculate-btn') as HTMLButtonElement | null);
+  const analyze = (document.getElementById('nutrition-analyze-btn') as HTMLButtonElement | null);
+  const save = (document.getElementById('nutrition-save-btn') as HTMLButtonElement | null);
   const saveRequirement = document.getElementById('nutrition-save-requirement');
-  const photo = /** @type {HTMLInputElement | null} */ (document.getElementById('nutrition-photo-input'));
+  const photo = (document.getElementById('nutrition-photo-input') as HTMLInputElement | null);
   const running = !!analysisProgress?.timer || isNutritionComparisonRunning();
   const dirty = analysisInputsDirty();
   const portionDirty = componentPortionNeedsReanalysis();
   const nameDirty = mealNameCorrectionIsDirty();
-  const kindDirty = !!reviewDeps.getPendingAnalysis() && reviewDeps.getLastAnalyzedKind() !== reviewDeps.getAnalysisKind();
-  const consumptionDirty = !!reviewDeps.getPendingAnalysis() && reviewDeps.getLastAnalyzedConsumption() !== consumptionKey();
+  const kindDirty = !!(reviewDeps.getPendingAnalysis() as ReviewResultReader | null | undefined) && reviewDeps.getLastAnalyzedKind() !== reviewDeps.getAnalysisKind();
+  const consumptionDirty = !!(reviewDeps.getPendingAnalysis() as ReviewResultReader | null | undefined) && reviewDeps.getLastAnalyzedConsumption() !== consumptionKey();
   const contextDirty = isPhotoEstimate() && reviewDeps.getLastAnalyzedContext() !== normalizeKnownDetails(currentKnownDetails());
   const name = currentMealName();
-  const mealType = /** @type {HTMLSelectElement | null} */ (document.getElementById('nutrition-meal-type'))?.value || '';
+  const mealType = (document.getElementById('nutrition-meal-type') as HTMLSelectElement | null)?.value || '';
   const validMealType = MEAL_TYPES.some(([value]) => value === mealType);
   const hasPhotos = reviewDeps.selectedPhotoCount() > 0 || reviewDeps.getExistingImages().length > 0;
   if (review) {
-    review.hidden = !reviewDeps.getPendingAnalysis();
+    review.hidden = !(reviewDeps.getPendingAnalysis() as ReviewResultReader | null | undefined);
     review.classList.toggle('is-dirty', dirty);
   }
-  if (copy && reviewDeps.getPendingAnalysis()) {
-    const reasons = [];
+  if (copy && (reviewDeps.getPendingAnalysis() as ReviewResultReader | null | undefined)) {
+    const reasons: string[] = [];
     if (kindDirty) reasons.push('Photo interpretation changed.');
     if (consumptionDirty) reasons.push('Amount eaten changed.');
     if (reviewDeps.getComponentIdentityDirty()) reasons.push('Ingredient list changed.');
@@ -269,10 +310,10 @@ export function updateCorrectionState() {
 }
 
 export function clearAnalyzedFields() {
-  const name = /** @type {HTMLInputElement | null} */ (document.getElementById('nutrition-meal-name'));
+  const name = (document.getElementById('nutrition-meal-name') as HTMLInputElement | null);
   if (name) name.value = '';
   for (const [key] of ALL_REVIEW_FIELDS) {
-    const input = /** @type {HTMLInputElement | null} */ (document.getElementById(`nutrition-${key}`));
+    const input = (document.getElementById(`nutrition-${key}`) as HTMLInputElement | null);
     if (input) input.value = '';
   }
   const components = document.getElementById('nutrition-components');
@@ -289,7 +330,7 @@ export function clearAnalyzedFields() {
   renderFuelOverlapPreview({});
 }
 
-export function setAnalysisKind(kind) {
+export function setAnalysisKind(kind: unknown) {
   const analysisKind = kind === 'nutrition-label' ? 'nutrition-label' : 'meal-photo';
   reviewDeps.setAnalysisKind(analysisKind);
   document.getElementById('detail-modal')?.classList.remove('nutrition-manual-mode');
@@ -306,24 +347,24 @@ export function setAnalysisKind(kind) {
   if (analyze && !analyze.classList.contains('is-loading')) analyze.textContent = analysisKind === 'nutrition-label' ? 'Scan label' : 'Analyze photo';
   const modelPurpose = document.getElementById('nutrition-model-purpose');
   if (modelPurpose) modelPurpose.textContent = analysisKind === 'nutrition-label' ? 'Label model' : 'Photo model';
-  const modelSelect = /** @type {HTMLSelectElement | null} */ (document.querySelector('[data-nutrition-model-route]'));
+  const modelSelect = (document.querySelector('[data-nutrition-model-route]') as HTMLSelectElement | null);
   if (modelSelect) modelSelect.setAttribute('aria-label', analysisKind === 'nutrition-label' ? 'Nutrition label analysis model' : 'Meal photo analysis model');
   const privacyLine = document.getElementById('nutrition-privacy-line');
   if (privacyLine) privacyLine.textContent = analysisKind === 'nutrition-label'
     ? 'Sent only when you choose Scan label. Full-size originals are not saved; resized copies stay with the meal. First cloud use asks for approval.'
     : 'Sent only when you choose Analyze photo. Full-size originals are not saved; resized copies stay with the meal. First cloud use asks for approval.';
-  const mealName = /** @type {HTMLInputElement | null} */ (document.getElementById('nutrition-meal-name'));
+  const mealName = (document.getElementById('nutrition-meal-name') as HTMLInputElement | null);
   if (mealName && !mealName.value) mealName.placeholder = analysisKind === 'nutrition-label' ? 'e.g. Greek yogurt' : 'e.g. Lentil bowl';
   if (reviewDeps.selectedPhotoCount()) setStatus(analysisKind === 'nutrition-label' ? 'Ready to scan label. Nothing has been sent.' : 'Ready to analyze. Nothing has been sent.');
   updateCorrectionState();
 }
 
-function setInputValue(id, value) {
-  const input = /** @type {HTMLInputElement | null} */ (document.getElementById(id));
+function setInputValue(id: string, value: unknown) {
+  const input = (document.getElementById(id) as HTMLInputElement | null);
   if (input && hasFiniteNumber(value)) input.value = String(value);
 }
 
-function componentReviewRead(item) {
+function componentReviewRead(item: ReviewComponentReader | null | undefined) {
   const identity = item?.confidence == null ? 'Review identity' : 'Identity estimate';
   const portion = hasFiniteNumber(item?.quantityG)
     ? item?.portionReviewed ? 'Portion adjusted' : 'Check portion'
@@ -331,22 +372,22 @@ function componentReviewRead(item) {
   return { identity, portion };
 }
 
-function historicalFoodComposition(item) {
+function historicalFoodComposition(item: ReviewComponentReader | null | undefined) {
   if (!item?.foodData?.fdcId) return '';
   return `<div class="nutrition-component-food-data is-readonly"><span>Historical source</span><strong>${escapeHTML(item.foodData?.description || 'Saved food-composition record')}</strong><small>${escapeHTML(item.foodData?.dataset || 'Legacy database match')} · retained from the saved meal</small></div>`;
 }
 
-export function renderEditableComponents(components) {
+export function renderEditableComponents(components: unknown) {
   const area = document.getElementById('nutrition-components');
   if (!area) return;
-  const rows = (Array.isArray(components) ? components : []);
+  const rows = (Array.isArray(components) ? components as Array<ReviewComponentReader> : []);
   area.innerHTML = `<div class="nutrition-components-head"><div><strong>Ingredients and portions</strong><span>Changing grams updates linked nutrients.</span></div><button type="button" class="nutrition-text-btn" ${actionAttrs('add-component')}>+ Add ingredient</button></div>${rows.length ? `<div class="nutrition-component-editor"><div class="nutrition-component-columns" aria-hidden="true"><span>Ingredient</span><span>Amount</span><span>Check</span><span></span></div>${rows.map((item, index) => {
     const review = componentReviewRead(item);
     return `<div class="nutrition-component-row" data-component-index="${index}"><label class="nutrition-component-ingredient"><span class="sr-only">Ingredient ${index + 1}</span><input data-nutrition-component-name="${index}" value="${escapeAttr(item.name || '')}" maxlength="120" placeholder="Ingredient"></label><label class="nutrition-component-quantity"><span class="sr-only">Amount for ingredient ${index + 1}</span><span class="nutrition-component-amount"><input data-nutrition-component-grams="${index}" type="number" inputmode="decimal" min="0" step="1" value="${item.quantityG == null ? '' : escapeAttr(String(item.quantityG))}" aria-label="Amount in grams"><small>g</small></span></label><span class="nutrition-component-confidence"><strong>${escapeHTML(review.identity)}</strong><small>${escapeHTML(review.portion)}</small></span><button type="button" class="nutrition-icon-btn" aria-label="Remove ${escapeAttr(item.name || 'ingredient')}" ${actionAttrs('remove-component', { index })}>×</button>${historicalFoodComposition(item)}</div>`;
   }).join('')}</div>` : '<div class="nutrition-empty nutrition-empty-inline">No ingredients yet. Add one or enter nutrient totals.</div>'}`;
 }
 
-function setNutrientSource(input, key, label = '', title = '') {
+function setNutrientSource(input: HTMLInputElement, key: string, label = '', title = '') {
   const marker = document.getElementById(`nutrition-${key}-source`);
   if (marker) {
     marker.textContent = label ? ` · ${label}` : '';
@@ -356,19 +397,19 @@ function setNutrientSource(input, key, label = '', title = '') {
   else input.removeAttribute('title');
 }
 
-function renderNutrientSources(result) {
-  const aiEstimated = new Set(Array.isArray(result?.source?.aiNutritionEstimate?.nutrientKeys)
-    ? result.source.aiNutritionEstimate.nutrientKeys : []);
-  const legacyDatabase = new Set(Array.isArray(result?.source?.foodComposition?.completeNutrientKeys)
-    ? result.source.foodComposition.completeNutrientKeys : []);
-  const userReviewed = new Set(Array.isArray(result?.source?.review?.editedNutrients)
-    ? result.source.review.editedNutrients : []);
+function renderNutrientSources(result: unknown) {
+  const aiEstimated = new Set(Array.isArray((result as ReviewResultReader | null | undefined)?.source?.aiNutritionEstimate?.nutrientKeys)
+    ? (result as ReviewResultReader).source!.aiNutritionEstimate!.nutrientKeys : []);
+  const legacyDatabase = new Set(Array.isArray((result as ReviewResultReader | null | undefined)?.source?.foodComposition?.completeNutrientKeys)
+    ? (result as ReviewResultReader).source!.foodComposition!.completeNutrientKeys : []);
+  const userReviewed = new Set(Array.isArray((result as ReviewResultReader | null | undefined)?.source?.review?.editedNutrients)
+    ? (result as ReviewResultReader).source!.review!.editedNutrients : []);
   for (const [key] of ALL_REVIEW_FIELDS) {
-    const input = /** @type {HTMLInputElement | null} */ (document.getElementById(`nutrition-${key}`));
+    const input = (document.getElementById(`nutrition-${key}`) as HTMLInputElement | null);
     if (!input) continue;
     delete input.dataset.nutritionPartial;
     input.classList.remove('is-partial-food-value');
-    const hasWholeMealValue = hasFiniteNumber(result?.analysis?.nutrients?.[key]);
+    const hasWholeMealValue = hasFiniteNumber((result as ReviewResultReader | null | undefined)?.analysis?.nutrients?.[key]);
     setNutrientSource(input, key,
       hasWholeMealValue && userReviewed.has(key) ? 'user reviewed'
         : hasWholeMealValue && aiEstimated.has(key) ? 'AI estimate'
@@ -382,18 +423,18 @@ function renderNutrientSources(result) {
   }
 }
 
-export function renderNutrientEstimateSummary(result) {
+export function renderNutrientEstimateSummary(result: unknown) {
   const area = document.getElementById('nutrition-nutrient-estimate-summary');
   if (!area) return;
   renderNutrientSources(result);
-  const sourceKind = result?.source?.kind;
+  const sourceKind = (result as ReviewResultReader | null | undefined)?.source?.kind;
   if (sourceKind === 'ai-photo-estimate') {
-    const estimated = Array.isArray(result?.source?.aiNutritionEstimate?.nutrientKeys)
-      ? result.source.aiNutritionEstimate.nutrientKeys.length : 0;
-    const model = result?.source?.modelDisplay || result?.source?.model || 'the selected model';
+    const estimated = Array.isArray((result as ReviewResultReader | null | undefined)?.source?.aiNutritionEstimate?.nutrientKeys)
+      ? (result as ReviewResultReader).source!.aiNutritionEstimate!.nutrientKeys!.length : 0;
+    const model = (result as ReviewResultReader | null | undefined)?.source?.modelDisplay || (result as ReviewResultReader | null | undefined)?.source?.model || 'the selected model';
     area.textContent = estimated
       ? `${estimated} nutrient values estimated by ${model}. Review or clear uncertain values; unknown values stay blank.`
-      : Number(result?.source?.foodComposition?.matchedComponents || 0) > 0
+      : Number((result as ReviewResultReader | null | undefined)?.source?.foodComposition?.matchedComponents || 0) > 0
         ? 'This older saved meal retains historical database-derived values. New photo analyses use AI estimates only.'
         : 'The selected model did not return detailed nutrient estimates; unknown values stay blank.';
     return;
@@ -409,31 +450,31 @@ export function renderNutrientEstimateSummary(result) {
   area.textContent = 'Unknown values stay blank. Enter only values you know or can verify.';
 }
 
-export function renderReviewEvidence(result) {
+export function renderReviewEvidence(result: unknown) {
   const area = document.getElementById('nutrition-review-evidence');
   if (!area) return;
-  const sourceKind = result?.source?.kind;
+  const sourceKind = (result as ReviewResultReader | null | undefined)?.source?.kind;
   const source = sourceKind === 'barcode-database' ? 'Database values'
     : sourceKind === 'ai-label-scan' ? 'Printed label'
     : sourceKind === 'ai-photo-estimate' ? 'Photo estimate'
     : sourceKind === 'reused-meal' ? 'Reviewed meal copy' : 'Manual values';
-  const components = result?.analysis?.components || [];
-  const knownWeights = components.filter(item => hasFiniteNumber(item.quantityG)).length;
-  const linked = components.filter(item => Object.keys(item.nutrientsPer100g || {}).length).length;
+  const components = (result as ReviewResultReader | null | undefined)?.analysis?.components || [];
+  const knownWeights = components.filter(item => hasFiniteNumber(item!.quantityG)).length;
+  const linked = components.filter(item => Object.keys(item!.nutrientsPer100g || {}).length).length;
   const parts = [`${source}`, `${knownWeights}/${components.length || 0} portions quantified`];
   if (linked) parts.push(`${linked}/${components.length} linked to component nutrients`);
-  const composition = result?.source?.foodComposition;
+  const composition = (result as ReviewResultReader | null | undefined)?.source?.foodComposition;
   if (sourceKind === 'ai-photo-estimate' && composition?.matchedComponents) {
     parts.push(`historical database provenance retained for ${composition.matchedComponents}/${composition.totalComponents || components.length} ingredients`);
   }
   if (sourceKind === 'ai-photo-estimate') {
-    const aiNutrientCount = Array.isArray(result?.source?.aiNutritionEstimate?.nutrientKeys)
-      ? result.source.aiNutritionEstimate.nutrientKeys.length : 0;
+    const aiNutrientCount = Array.isArray((result as ReviewResultReader | null | undefined)?.source?.aiNutritionEstimate?.nutrientKeys)
+      ? (result as ReviewResultReader).source!.aiNutritionEstimate!.nutrientKeys!.length : 0;
     if (aiNutrientCount) parts.push(`${aiNutrientCount} model-estimated nutrients`);
     parts.push('Uncalibrated identity self-check; verify foods');
   }
-  const usage = nutritionUsageSummary(result?.source);
-  const model = result?.source?.modelDisplay || result?.source?.model || 'Selected model';
+  const usage = nutritionUsageSummary((result as ReviewResultReader | null | undefined)?.source);
+  const model = (result as ReviewResultReader | null | undefined)?.source?.modelDisplay || (result as ReviewResultReader | null | undefined)?.source?.model || 'Selected model';
   const usageLine = sourceKind === 'ai-photo-estimate' || sourceKind === 'ai-label-scan'
     ? usage
       ? `${model} · ${usage.costLabel} · ${usage.totalTokens.toLocaleString()} tokens (${usage.inputTokens.toLocaleString()} in · ${usage.outputTokens.toLocaleString()} out)`
@@ -443,12 +484,12 @@ export function renderReviewEvidence(result) {
   area.innerHTML = `<strong>${escapeHTML(sourceKind === 'ai-photo-estimate' ? 'Photo estimate' : 'Nutrition source')}</strong><span>${escapeHTML(parts.join(' · '))}</span>${usageLine ? `<span class="nutrition-analysis-usage">${escapeHTML(usageLine)}</span>` : ''}`;
 }
 
-function renderReviewChecks(result) {
+function renderReviewChecks(result: unknown) {
   const area = document.getElementById('nutrition-review-checks');
   if (!area) return;
-  const imageWarnings = (result?.images || (result?.image ? [result.image] : [])).flatMap(image => image?.qualityWarnings || []);
-  const assumptions = [...new Set(result?.analysis?.assumptions || [])];
-  const warnings = [...new Set([...(result?.analysis?.warnings || []), ...imageWarnings])];
+  const imageWarnings = ((result as ReviewResultReader | null | undefined)?.images || ((result as ReviewResultReader | null | undefined)?.image ? [(result as ReviewResultReader).image] : [])).flatMap(image => image?.qualityWarnings || []);
+  const assumptions = [...new Set((result as ReviewResultReader | null | undefined)?.analysis?.assumptions || [])];
+  const warnings = [...new Set([...((result as ReviewResultReader | null | undefined)?.analysis?.warnings || []), ...imageWarnings])];
   if (!assumptions.length && !warnings.length) {
     area.hidden = true;
     area.innerHTML = '';
@@ -458,31 +499,31 @@ function renderReviewChecks(result) {
   area.innerHTML = `<div class="nutrition-review-checks-head"><strong>Assumptions and uncertainties</strong></div>${assumptions.length ? `<div><small>Model assumed</small><ul>${assumptions.map(item => `<li>${escapeHTML(item)}</li>`).join('')}</ul></div>` : ''}${warnings.length ? `<div><small>Still uncertain</small><ul>${warnings.map(item => `<li>${escapeHTML(item)}</li>`).join('')}</ul></div>` : ''}`;
 }
 
-export function applyAnalysis(result, { quiet = false } = {}) {
-  result.analysis.components = (result.analysis.components || []).map(normalizeNutritionComponent);
-  componentPortionBaseline = result.analysis.components.map(item => hasFiniteNumber(item?.quantityG) ? Number(item.quantityG) : null);
-  const analyzedKind = result.source?.analysisKind || (result.source?.kind === 'ai-label-scan' ? 'nutrition-label' : 'meal-photo');
+export function applyAnalysis(result: unknown, { quiet = false } = {}) {
+  (result as ReviewResultReader).analysis.components = ((result as ReviewResultReader).analysis.components || []).map(normalizeNutritionComponent);
+  componentPortionBaseline = (result as ReviewResultReader).analysis.components!.map(item => hasFiniteNumber(item?.quantityG) ? Number(item!.quantityG) : null);
+  const analyzedKind = (result as ReviewResultReader).source?.analysisKind || ((result as ReviewResultReader).source?.kind === 'ai-label-scan' ? 'nutrition-label' : 'meal-photo');
   reviewDeps.applyResultState(result, {
-    mealName: result.analysis.mealName,
+    mealName: (result as ReviewResultReader).analysis.mealName,
     kind: analyzedKind,
     consumption: consumptionKey(analyzedKind),
     context: normalizeKnownDetails(currentKnownDetails()),
   });
-  const name = /** @type {HTMLInputElement | null} */ (document.getElementById('nutrition-meal-name'));
-  if (name) name.value = result.analysis.mealName;
+  const name = (document.getElementById('nutrition-meal-name') as HTMLInputElement | null);
+  if (name) (name as { value: unknown }).value = (result as ReviewResultReader).analysis.mealName;
   for (const [key] of ALL_REVIEW_FIELDS) {
-    const input = /** @type {HTMLInputElement | null} */ (document.getElementById(`nutrition-${key}`));
+    const input = (document.getElementById(`nutrition-${key}`) as HTMLInputElement | null);
     if (input) input.value = '';
-    setInputValue(`nutrition-${key}`, result.analysis.nutrients?.[key]);
+    setInputValue(`nutrition-${key}`, (result as ReviewResultReader).analysis.nutrients?.[key]);
   }
-  renderFuelOverlapPreview(result.analysis.nutrients);
-  renderEditableComponents(result.analysis.components);
+  renderFuelOverlapPreview((result as ReviewResultReader).analysis.nutrients);
+  renderEditableComponents((result as ReviewResultReader).analysis.components);
   renderReviewEvidence(result);
   renderNutrientEstimateSummary(result);
   renderReviewChecks(result);
   const labelDetails = document.getElementById('nutrition-label-details');
   if (labelDetails) {
-    const label = result.analysis.label;
+    const label = (result as ReviewResultReader).analysis.label;
     const details = label ? [
       label.servingSizeText && `Serving size ${label.servingSizeText}`,
       hasFiniteNumber(label.servingsPerContainer) && `${formatNumber(label.servingsPerContainer)} servings per container`,
@@ -492,10 +533,10 @@ export function applyAnalysis(result, { quiet = false } = {}) {
     labelDetails.hidden = !details.length;
     labelDetails.textContent = details.join(' · ');
   }
-  const imageWarnings = (result.images || (result.image ? [result.image] : [])).flatMap(image => image?.qualityWarnings || []);
-  const warningCount = result.analysis.warnings.length + imageWarnings.length;
-  const corrected = !!result.source?.correction;
-  const scannedLabel = result.source?.kind === 'ai-label-scan';
+  const imageWarnings = ((result as ReviewResultReader).images || ((result as ReviewResultReader).image ? [(result as ReviewResultReader).image] : [])).flatMap(image => image?.qualityWarnings || []);
+  const warningCount = (result as ReviewResultReader).analysis.warnings.length + imageWarnings.length;
+  const corrected = !!(result as ReviewResultReader).source?.correction;
+  const scannedLabel = (result as ReviewResultReader).source?.kind === 'ai-label-scan';
   if (!quiet) setStatus(warningCount
     ? `${corrected ? 'Recalculated estimate' : scannedLabel ? 'Label scan ready' : 'Estimate ready'} · ${warningCount} uncertainty note${warningCount === 1 ? '' : 's'} included in the saved record.`
     : `${corrected ? 'Recalculated from your correction' : scannedLabel ? 'Label scan ready' : 'Estimate ready'}. Review the values, then save.`, 'success');

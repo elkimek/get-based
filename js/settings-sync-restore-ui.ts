@@ -1,17 +1,13 @@
-// @ts-check
 // settings-sync-restore-ui.js — mnemonic restore progress and validation UI.
 
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 
-/** @param {HTMLTextAreaElement | null} [input]
- * @param {boolean} [busy]
- */
 export function updateSyncSetupRestoreState(
-  input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('sync-setup-restore-input')),
+  input: HTMLTextAreaElement | null = (document.getElementById('sync-setup-restore-input') as HTMLTextAreaElement | null),
   busy = false,
 ) {
   const msg = document.getElementById('sync-setup-restore-msg');
-  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('sync-setup-restore-go'));
+  const btn = (document.getElementById('sync-setup-restore-go') as HTMLButtonElement | null);
   if (!input || busy) return;
   const raw = (input.value || '').trim();
   const words = raw ? raw.split(/\s+/) : [];
@@ -24,12 +20,12 @@ export function updateSyncSetupRestoreState(
   if (btn) btn.disabled = words.length !== 24;
 }
 
-export function setSyncSetupRestoreBusy(busy, message = '') {
+export function setSyncSetupRestoreBusy(busy: boolean, message = '') {
   const restoreEl = document.getElementById('sync-setup-restore');
-  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('sync-setup-restore-input'));
+  const input = (document.getElementById('sync-setup-restore-input') as HTMLTextAreaElement | null);
   const msg = document.getElementById('sync-setup-restore-msg');
-  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('sync-setup-restore-go'));
-  const back = /** @type {HTMLButtonElement | null} */ (document.getElementById('sync-setup-restore-back'));
+  const btn = (document.getElementById('sync-setup-restore-go') as HTMLButtonElement | null);
+  const back = (document.getElementById('sync-setup-restore-back') as HTMLButtonElement | null);
   const cancelButtons = document.querySelectorAll('#sync-setup-overlay [data-sync-setup-action="setup-cancel"]');
   if (restoreEl) restoreEl.setAttribute('aria-busy', busy ? 'true' : 'false');
   if (input) input.disabled = busy;
@@ -47,7 +43,7 @@ export function setSyncSetupRestoreBusy(busy, message = '') {
 
 export function setSyncSetupRestoreReloading() {
   setSyncSetupRestoreBusy(true, 'Identity accepted. Reloading this device…');
-  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('sync-setup-restore-go'));
+  const btn = (document.getElementById('sync-setup-restore-go') as HTMLButtonElement | null);
   if (btn) btn.textContent = 'Reloading…';
 }
 
@@ -74,12 +70,11 @@ export function openRestoreMnemonicDialog() {
   updateRestoreMnemonicDialogState(input instanceof HTMLTextAreaElement ? input : null);
 }
 
-/** @param {HTMLTextAreaElement | null} [input] */
 export function updateRestoreMnemonicDialogState(
-  input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('sync-restore-dialog-input')),
+  input: HTMLTextAreaElement | null = (document.getElementById('sync-restore-dialog-input') as HTMLTextAreaElement | null),
 ) {
   const msg = document.getElementById('sync-restore-dialog-msg');
-  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('sync-restore-dialog-go'));
+  const btn = (document.getElementById('sync-restore-dialog-go') as HTMLButtonElement | null);
   if (!input) return;
   const raw = (input.value || '').trim();
   if (!raw) {

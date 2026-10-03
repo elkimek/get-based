@@ -1,13 +1,15 @@
-// @ts-check
 // chat-context-summary.js - exact-context disclosure for completed AI responses
 
-const CONTEXT_AREA_LABELS = {
+// Labels read from the original object can include inherited prototype values.
+export interface ContextSummaryArea { label: unknown; detail: string }
+
+const CONTEXT_AREA_LABELS: Readonly<Record<string, unknown>> = {
   profile: 'Profile', genetics: 'Genome', wearables: 'Wearables',
   nutrition: 'Meals & Nutrition', nutritionHistory: 'Meals & Nutrition',
   emfAssessment: 'EMF Assessment', contextNotes: 'Context Notes', sun: 'Light & Sun',
 };
 
-function sectionDetail(name, content) {
+function sectionDetail(name: string, content: string) {
   if (name === 'wearables') return content.match(/^## Wearables \(([^)]+)\)/m)?.[1] || '';
   if (name === 'nutrition') {
     const selected = [...content.matchAll(/Last (\d+) days: (\d+) meals.*? across (\d+\/\d+) days/gi)].at(-1);
@@ -18,7 +20,7 @@ function sectionDetail(name, content) {
     return label ? `${label} one-off history · aggregate only` : 'one-off history · aggregate only';
   }
   if (name !== 'sun') return '';
-  const parts = [];
+  const parts: string[] = [];
   const outdoor = Number(content.match(/Outdoor sessions:\s*(\d+)/i)?.[1] || 0);
   const deviceSessions = Number(content.match(/device sessions:\s*(\d+)/i)?.[1] || 0);
   const devices = Number(content.match(/devices in library:\s*(\d+)/i)?.[1] || 0);
@@ -33,13 +35,13 @@ function sectionDetail(name, content) {
 }
 
 /** Build the disclosure from the exact final context sent with this response. */
-export function getContextSummary(context = '') {
-  const areas = [];
-  const seen = new Map();
-  const labSections = [];
+export function getContextSummary(context: unknown = '') {
+  const areas: ContextSummaryArea[] = [];
+  const seen = new Map<unknown, ContextSummaryArea>();
+  const labSections: string[] = [];
   const sections = /^\[section:([A-Za-z][\w-]*)([^\]]*)\]\r?\n([\s\S]*?)^\[\/section:\1\][ \t]*$/gm;
   for (const match of String(context || '').matchAll(sections)) {
-    const name = match[1], attrs = match[2], content = match[3];
+    const name = match[1]!, attrs = match[2]!, content = match[3]!;
     if (attrs.includes('updated:')) {
       labSections.push(content);
       continue;
